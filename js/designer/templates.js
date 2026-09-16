@@ -727,9 +727,10 @@ function dStudioHomeRender(){
   if(!home) return;
   const selectedFolder=dFolders.find(f=>f.id===dActiveTmplFolderId)||dFolders[0]||{};
   const selected=selectedFolder.id||'';
-  const recent=dStudioRecentRead().map(dStudioResolveRecent).filter(Boolean).slice(0,4);
+  // "Continue editando" saiu daqui (2026-09-16): dStudioHomeMaterialEntries() já ordena
+  // por último aberto, então a faixa de recentes repetia, sem busca e sem filtro, os
+  // primeiros cards de "Todos os materiais". Uma lista só — a de cima é a mais recente.
   const all=dStudioHomeMaterialEntries();
-  const recentCards=recent.map((entry,index)=>dStudioHomeMaterialCard(entry,'recent-'+index)).join('');
   const allCards=all.map((entry,index)=>dStudioHomeMaterialCard(entry,'all-'+index,{all:true})).join('');
 
   // O botão visual "Salvar em" saiu daqui (2026-07-31): escolher a campanha duas
@@ -776,12 +777,9 @@ function dStudioHomeRender(){
 
   const recover=dStudioRecoveredWork?'<button type="button" class="dsh-recover" onclick="dStudioRecoverLocal()"><span class="dsh-recover-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></span><span><strong>Continuar trabalho não salvo</strong></span><svg class="dsh-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>':'';
   const empty='<div class="dsh-empty"><span class="dsh-empty-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H10l2 2h5.5A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z"/><path d="M9 12h6M12 9v6"/></svg></span><strong>Seus materiais aparecerão aqui</strong><span>Crie um material ou importe um arquivo para começar.</span></div>';
-  const recentSection=recent.length
-    ?'<section class="dsh-recents dsh-continue" aria-labelledby="dsh-recents-title"><div class="dsh-section-heading"><div class="dsh-title-line"><h2 id="dsh-recents-title">Continue editando</h2><small class="dsh-count">'+recent.length+(recent.length===1?' material':' materiais')+'</small></div></div><div class="dsh-recent-grid">'+recentCards+'</div></section>'
-    :'';
   home.innerHTML='<div class="dsh-shell">'+
     '<div class="dsh-intro"><header class="dsh-hero"><h1 id="dsh-title" tabindex="-1">Crie seu próximo material.</h1></header></div>'+
-    recover+recentSection+
+    recover+
     '<section class="dsh-start" aria-labelledby="dsh-start-title"><div class="dsh-section-heading dsh-start-heading"><h2 id="dsh-start-title">Criar ou importar</h2>'+saveFolderBtn+'</div>'+
     '<div class="dsh-actions">'+
       '<button type="button" class="dsh-start-card dsh-start-create" onclick="dStudioHomeNew()"><span class="dsh-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span class="dsh-action-copy"><strong>Criar material</strong><span>Comece com uma tela limpa.</span></span><svg class="dsh-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>'+
@@ -795,8 +793,7 @@ function dStudioHomeRender(){
       '<div class="dsh-filter-empty" id="dsh-filter-empty" hidden><strong>Nenhum material encontrado</strong><span>Tente outro nome, campanha ou status.</span></div>'+
     '</section>'+
   '</div>';
-  const thumbTasks=recent.map((entry,index)=>({tmpl:entry.tmpl,hostId:'dsh-thumb-recent-'+index}))
-    .concat(all.map((entry,index)=>({tmpl:entry.tmpl,hostId:'dsh-thumb-all-'+index})));
+  const thumbTasks=all.map((entry,index)=>({tmpl:entry.tmpl,hostId:'dsh-thumb-all-'+index}));
   dStudioObserveHomeThumbs(thumbTasks);
   dStudioHomeApplyFilters();
 }
@@ -939,8 +936,14 @@ function dStudioSelectStatusFilter(val){
 }
 
 
-function dStudioRenderThumb(tmpl,hostId){
-  if(!tmpl||!Array.isArray(tmpl.layers)||!tmpl.layers.length||tmpl._needsLayersFetch||!dStudioHasMeaningfulLayers(tmpl.layers)) return;
+// O card da home mostrava a letra da campanha em vez da arte: o catálogo leve chega SEM
+// layers (`_needsLayersFetch`) e esta função desistia calada. Agora ela baixa as layers do
+// material que entrou na tela (mesma query do editor, via dEnsureTemplateLayers) e só então
+// desenha. Quem já tem layers em memória desenha no mesmo tick, sem rede.
+async function dStudioRenderThumb(tmpl,hostId){
+  if(!tmpl) return;
+  if(tmpl._needsLayersFetch) await dEnsureTemplateLayers(tmpl);
+  if(!Array.isArray(tmpl.layers)||!tmpl.layers.length||tmpl._needsLayersFetch||!dStudioHasMeaningfulLayers(tmpl.layers)) return;
   const host=document.getElementById(hostId);if(!host)return;
   const size=DFMT_SIZES[tmpl.fmt]||{w:tmpl.w||1080,h:tmpl.h||1920};
   const canvas=document.createElement('span');canvas.className='dsh-thumb-canvas';
@@ -3101,23 +3104,39 @@ function dRenderPageDeck(){
 // em cima de texto centralizado). Busca os layers em segundo plano — mesma query do lazy-load
 // do editor, sem o overlay de carregamento, porque isto é decoração do baralho, não uma ação
 // do usuário — e redesenha só o card que ainda está visível quando a resposta chega.
-const _dDeckFetching=new Set();
-async function dDeckPrefetchLayers(tmpl){
-  if(!tmpl||!tmpl.remoteId||!tmpl._needsLayersFetch||_dDeckFetching.has(tmpl.id))return;
+// A busca em si é o motor único do lado do Estúdio (o franqueado tem o gêmeo
+// `fEnsureMaterialLayers`): baralho de páginas e thumbs da home passam por aqui.
+// Chamadas concorrentes do mesmo material compartilham a MESMA promise — a home
+// pinta dezenas de cards e não pode baixar o mesmo JSON duas vezes.
+// Não persiste: `dPersistFolders` escreve o localStorage inteiro E empurra tudo para o
+// backend; decoração de card não dispara sync. Quem quer cache chama o persist depois.
+const _dLayersFetch={}; // remoteId → Promise em andamento
+async function dEnsureTemplateLayers(tmpl){
+  if(!tmpl||!tmpl.remoteId||!tmpl._needsLayersFetch) return false;
   const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
-  if(!sb)return; // offline ou sem backend: o card fica no nome, sem toast — ninguém pediu essa busca
-  _dDeckFetching.add(tmpl.id);
-  try{
-    const {data,error}=await sb.schema('luma').from('templates').select('layers').eq('id',tmpl.remoteId).single();
-    if(!error && data && Array.isArray(data.layers)){
-      tmpl.layers=data.layers; tmpl._needsLayersFetch=false;
-      if(typeof dPersistFolders==='function') dPersistFolders(); // próxima visita ao baralho já chega pronta
-      const deck=document.getElementById('d-page-deck');
-      const aindaVisivel=deck && Array.from(deck.children).some(c=>c.dataset.id===tmpl.id);
-      if(aindaVisivel) dRenderPageDeck(); // o usuário pode ter navegado enquanto a busca corria
-    }
-  }catch(e){ /* falha de rede: fica no nome — não é ação do usuário, não interrompe nada */ }
-  finally{ _dDeckFetching.delete(tmpl.id); }
+  if(!sb) return false; // offline ou sem backend: o card fica no fallback, sem toast — ninguém pediu essa busca
+  if(!_dLayersFetch[tmpl.remoteId]){
+    _dLayersFetch[tmpl.remoteId]=(async()=>{
+      try{
+        const {data,error}=await sb.schema('luma').from('templates').select('layers').eq('id',tmpl.remoteId).single();
+        // Só desliga a flag com layers REAIS: linha com layers null/[] (publish parcial)
+        // viraria um "carregado vazio" que nunca mais tenta de novo.
+        if(!error && data && Array.isArray(data.layers) && data.layers.length){
+          tmpl.layers=data.layers; tmpl._needsLayersFetch=false; return true;
+        }
+      }catch(e){ /* falha de rede: fica no fallback — não é ação do usuário, não interrompe nada */ }
+      finally{ delete _dLayersFetch[tmpl.remoteId]; }
+      return false;
+    })();
+  }
+  return _dLayersFetch[tmpl.remoteId];
+}
+async function dDeckPrefetchLayers(tmpl){
+  if(!(await dEnsureTemplateLayers(tmpl))) return;
+  if(typeof dPersistFolders==='function') dPersistFolders(); // próxima visita ao baralho já chega pronta
+  const deck=document.getElementById('d-page-deck');
+  const aindaVisivel=deck && Array.from(deck.children).some(c=>c.dataset.id===tmpl.id);
+  if(aindaVisivel) dRenderPageDeck(); // o usuário pode ter navegado enquanto a busca corria
 }
 function dPositionPageDeck(){
   const deck=document.getElementById('d-page-deck');
