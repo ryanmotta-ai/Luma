@@ -389,6 +389,11 @@ async function gOnLoginSuccess() {
   const _restoreCamp = () => {
     if(!_bootCamp || document.body.classList.contains('mode-designer') || document.body.classList.contains('mode-academia')
        || document.body.classList.contains('mode-calendario')) return;
+    // Entrar rápido (clicar numa campanha/material antes do sync de pastas voltar) fazia o
+    // restore atropelar a navegação viva: fSelectCamp chama fOpenMaterialCatalog, que zera
+    // fState.material e joga a prévia no estado vazio com o chat ainda na tela. fState.camp
+    // nasce null a cada load (01-state.js), então estar preenchido = o usuário já navegou.
+    if(fState.camp || fState.material){ _bootCamp=null; return; }
     if(typeof fResolveCamp==='function' && typeof fSelectCamp==='function' && fResolveCamp(_bootCamp)){
       fSelectCamp(_bootCamp); _bootCamp=null; // uma vez só
     }
