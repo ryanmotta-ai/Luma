@@ -272,6 +272,45 @@
     assert(erros.length===0,'produto não resolvido:\n  '+erros.join('\n  '));
   });
 
+  test('regressão · a legenda lê a RESPOSTA da pergunta do produto, não o nome da variável',()=>{
+    /* O palpite por lista de apelidos sempre vai ter buraco: `titulo`, `produto_principal`,
+       `nome_do_item`. O campo estava PREENCHIDO pelo franqueado e a legenda não usava.
+       O chat já decidiu qual variável é o produto quando escreveu "Qual produto você quer
+       anunciar?" — `p.papel` grava a decisão e a legenda lê ELA. Fonte exata, não palpite. */
+    window.dVars=[];
+    const nomes=['produto','titulo','produto_principal','nomeProduto','PRODUTO','prato','sabor','nome_do_item'];
+    const erros=[];
+    nomes.forEach(n=>{
+      const perguntas=fBuildPerguntas([n,'precoDe','precoPor'],{});
+      const pProd=perguntas.find(p=>p.papel==='produto');
+      if(!pProd||pProd.id!==n){erros.push(n+': a pergunta não foi marcada como produto');return;}
+      const dados={precoDe:'De: R$ 98,90',precoPor:'Por: R$ 39,54'};
+      dados[n]='Bandeja da Torcida';
+      const lido=fCampoDaPergunta(perguntas,dados,'produto');
+      if(lido!=='Bandeja da Torcida')erros.push(n+': leu "'+lido+'"');
+      if(fCampoDaPergunta(perguntas,dados,'de')!=='De: R$ 98,90')erros.push(n+': perdeu o preço original');
+    });
+    assert(erros.length===0,'o produto preenchido não chegou na legenda:\n  '+erros.join('\n  '));
+  });
+
+  test('regressão · campo de preço não é confundido com o produto',()=>{
+    window.dVars=[];
+    // `precoProduto` e `nomeLoja` começam parecido com os padrões — não podem virar produto.
+    ['precoProduto','nomeLoja','logo_loja'].forEach(n=>{
+      const p=fBuildPerguntas([n],{})[0];
+      assert(!p||p.papel!=='produto',n+' foi classificado como produto');
+    });
+  });
+
+  test('regressão · campo pulado não vira produto pela pergunta',()=>{
+    window.dVars=[];
+    const perguntas=fBuildPerguntas(['titulo'],{});
+    assert(fCampoDaPergunta(perguntas,{titulo:'X',__skipped__titulo:true},'produto')==='',
+      'campo marcado como pulado foi usado assim mesmo');
+    assert(fCampoDaPergunta(perguntas,{titulo:'Pular'},'produto')==='','o sentinela "Pular" virou produto');
+    assert(fCampoDaPergunta(perguntas,{titulo:'   '},'produto')==='','espaço em branco virou produto');
+  });
+
   test('regressão · acha o par de preço seja qual for o nome da variável',()=>{
     const casos=[
       [{precoDe:'De: R$ 98,90',precoPor:'Por: R$ 39,54'},'De: R$ 98,90','Por: R$ 39,54'],

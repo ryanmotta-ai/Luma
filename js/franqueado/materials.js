@@ -636,7 +636,11 @@ const _fNormId = (v) => String(v||'').toLowerCase().normalize('NFD').replace(/[�
    `fBuildPerguntas` usa para escrever a pergunta, agora com nome, porque quem lê os dados
    depois (a legenda) precisa da MESMA classificação. Constante única: se um apelido novo
    entrar aqui, a pergunta e a legenda aprendem juntas. */
-const _F_RE_PRODUTO   = /^(produto|item|prato|nomeproduto|nomeitem|nomedoproduto|lanche|combo|sabor)$/;
+/* Casa por PREFIXO, não por igualdade: o template batiza como quer e `produto_principal`,
+   `produto1`, `tituloProduto` e `nomeDoItem` são todos o produto. Preso ao começo da string
+   de propósito — `precoProduto` não pode virar produto. (`_fNormId` já tirou `_`, espaço e
+   acento, então `nome_do_produto` chega aqui como `nomedoproduto`.) */
+const _F_RE_PRODUTO   = /^(nome)?(do)?(produto|item|prato|lanche|combo|sabor|titulo)/;
 const _F_RE_DESCONTO  = /^(desconto|off|vantagem)$/;
 const _F_RE_VALIDADE  = /(validade|data|vencimento|periodo)/;
 
@@ -671,6 +675,27 @@ function fDadosSemanticos(dados){
     desconto: cand.desconto[0] || '',
     validade: cand.validade[0] || '',
   };
+}
+
+/* ── O VALOR DO CAMPO, PELA PERGUNTA QUE FOI FEITA ──
+   Fonte EXATA (o `fDadosSemanticos` abaixo é o palpite, para quem não tem as perguntas em
+   mão — o Sheets, por exemplo). O chat já decidiu qual variável é o produto quando escreveu
+   "Qual produto você quer anunciar?" e gravou isso em `p.papel`; a legenda lê essa decisão
+   em vez de refazer o palpite pelo nome. Sem isto, um template com a variável chamada
+   `titulo` ou `produto_principal` tinha o campo PREENCHIDO pelo franqueado e a legenda
+   simplesmente não o usava. */
+function fCampoDaPergunta(perguntas, dados, papel){
+  const lista = Array.isArray(perguntas) ? perguntas : [];
+  for(const p of lista){
+    if(!p || p.papel !== papel) continue;
+    if(dados && dados['__skipped__' + p.id]) continue;   // campo que o franqueado pulou
+    const v = dados ? dados[p.id] : null;
+    if(typeof v !== 'string') continue;
+    const txt = v.trim();
+    if(!txt || txt === 'Pular' || /^data:/.test(txt)) continue;
+    return txt;
+  }
+  return '';
 }
 
 /* Papel do campo de preço, pelo nome da variável: 'de' | 'por' | 'unico' | null.
@@ -723,28 +748,38 @@ function fBuildPerguntas(vars, opts){
     else sugestoes = (typeof fGetSuggestionsForVar==='function') ? fGetSuggestionsForVar(v, camp) : [];
 
     const s = _fNormId(v);
-    let texto, precoPar = null;
+    /* `papel` é o SIGNIFICADO da pergunta, gravado junto dela. Quem gerar a legenda depois
+       não precisa (e não deve) adivinhar de novo pelo nome da variável: a pergunta que diz
+       "Qual produto você quer anunciar?" É o produto, ponto. Antes a legenda refazia esse
+       palpite com uma lista de apelidos própria e errava todo template batizado fora da
+       lista — o campo estava preenchido e a legenda não usava. Ver `fCampoDaPergunta`. */
+    let texto, precoPar = null, papel = null;
     if(_F_RE_PRODUTO.test(s)){
+      papel = 'produto';
       texto = `Qual produto você quer anunciar?`;
     } else if(s === 'detalhes' || s === 'subtitulo' || s === 'descricao'){
+      papel = 'detalhes';
       texto = `Quer acrescentar uma <strong>descrição</strong> do produto?`;
     } else if(_F_RE_PRECO_DE.test(s)){
-      precoPar = 'de';
+      precoPar = 'de'; papel = 'de';
       texto = `Qual era o <strong>preço original</strong>?`;
     } else if(_F_RE_PRECO_POR.test(s)){
-      precoPar = 'por';
+      precoPar = 'por'; papel = 'por';
       // Sem um "de" no template não há promoção a contar — é só O preço da oferta.
       texto = temDe ? `E qual será o <strong>preço promocional</strong>?`
                     : `Qual é o <strong>preço</strong> que vai aparecer na oferta?`;
     } else if(s === 'preco' || s === 'valor'){
       precoPar = temPor ? null : 'unico';
+      papel = temPor ? null : 'por';        // preço único é o preço da oferta
       texto = (temDe && !temPor) ? `E qual será o <strong>preço promocional</strong>?`
                                  : `Qual é o <strong>preço</strong> que vai aparecer na oferta?`;
     } else if(s === 'desconto'){
+      papel = 'desconto';
       texto = `Qual é o <strong>desconto</strong> da promoção?`;
     } else if(s === 'cupom' || s === 'codigo' || s === 'voucher'){
       texto = `Qual é o <strong>código do cupom</strong>?`;
     } else if(/(validade|data|vencimento|periodo)/.test(s)){
+      papel = 'validade';
       texto = `Até quando vale essa oferta?`;
     } else if(/(condicao|regra)/.test(s)){
       texto = `Tem alguma <strong>condição ou regra</strong> pra avisar?`;
@@ -757,6 +792,7 @@ function fBuildPerguntas(vars, opts){
     }
     const p = { id: v, texto, sugestoes, maxLen: (perm && perm.maxLen) || 32, label };
     if(precoPar) p.precoPar = precoPar;
+    if(papel) p.papel = papel;
     perguntas.push(p);
   });
   return perguntas;

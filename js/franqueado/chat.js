@@ -1827,13 +1827,23 @@ function fGenCaptionSuggestions(dados, camp, formato) {
      que monta as perguntas. As chaves soltas depois dele são as perguntas fixas de campanha
      (00-config.js), que não são variáveis de template. */
   const sem = (typeof fDadosSemanticos === 'function') ? fDadosSemanticos(dados) : {};
-  const prod = sem.produto || dados.produto || dados.item || dados.categoria || dados.brinde || dados.oferta || '';
+  /* A ORDEM AQUI É A DA CERTEZA, da maior para a menor:
+     1. `fCampoDaPergunta` — o que o franqueado respondeu À PERGUNTA do produto. O chat já
+        decidiu qual variável é essa quando montou a pergunta (`p.papel`), então aqui não se
+        adivinha nada: template com a variável chamada `titulo` ou `produto_principal` tinha
+        o campo preenchido e a legenda ignorava, porque procurava por lista de apelidos.
+     2. `fDadosSemanticos` — o palpite pelo nome, para quando não há perguntas em mão.
+     3. as chaves fixas das campanhas do 00-config.js, que não são variáveis de template. */
+  const perg = (camp && camp.perguntas) || [];
+  const doCampo = (papel) => (typeof fCampoDaPergunta === 'function')
+    ? fCampoDaPergunta(perg, dados, papel) : '';
+  const prod = doCampo('produto') || sem.produto || dados.produto || dados.item || dados.categoria || dados.brinde || dados.oferta || '';
   // Mapeamento assertivo dos slots: preço é preço; DESCONTO vai pro slot de desconto (ativa o
   // pool comPercentual — antes virava {por} e saía "por 20% off"). Sem preço → pool semPreco.
-  const por = sem.por || dados.precoPor || '';
-  const de = sem.de || dados.precoDe || '';
-  const val = sem.validade || dados.validade || '';
-  const desc = sem.desconto || dados.desconto || dados.detalhes || '';
+  const por = doCampo('por') || sem.por || dados.precoPor || '';
+  const de = doCampo('de') || sem.de || dados.precoDe || '';
+  const val = doCampo('validade') || sem.validade || dados.validade || '';
+  const desc = doCampo('desconto') || sem.desconto || dados.desconto || dados.detalhes || '';
 
   // Unificação com o avançado motor de copy gastronômica do Luma Sheets (fBuildCopy)
   if (typeof fBuildCopy === 'function') {
@@ -2038,13 +2048,17 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
      'Oferta especial'`, então o modelo recebia a MESMA string como `Produto:` e como
      `Campanha:` e devolvia "Hoje tem Copa Do Mundo 2026". Vazio agora, e a linha `Produto:`
      simplesmente não entra no prompt — é a convenção que os outros campos já seguem. */
-  // Mesmo resolvedor do motor local: a variável do template raramente se chama "produto".
+  // Mesma cadeia de certeza do motor local (ver `fGenCaptionSuggestions`): a resposta DA
+  // pergunta vence o palpite pelo nome, que vence as chaves fixas de campanha.
   const sem = (typeof fDadosSemanticos === 'function') ? fDadosSemanticos(dados) : {};
-  const prod = sem.produto || dados.produto || dados.item || dados.categoria || dados.brinde || dados.oferta || '';
-  const de = sem.de || dados.precoDe || '';
-  const por = sem.por || dados.precoPor || dados.preco || '';
-  const val = sem.validade || dados.validade || '';
-  const desc = sem.desconto || dados.desconto || dados.detalhes || '';
+  const perg = (camp && camp.perguntas) || [];
+  const doCampo = (papel) => (typeof fCampoDaPergunta === 'function')
+    ? fCampoDaPergunta(perg, dados, papel) : '';
+  const prod = doCampo('produto') || sem.produto || dados.produto || dados.item || dados.categoria || dados.brinde || dados.oferta || '';
+  const de = doCampo('de') || sem.de || dados.precoDe || '';
+  const por = doCampo('por') || sem.por || dados.precoPor || dados.preco || '';
+  const val = doCampo('validade') || sem.validade || dados.validade || '';
+  const desc = doCampo('desconto') || sem.desconto || dados.desconto || dados.detalhes || '';
   const campName = (camp && camp.name) ? camp.name : 'Delivery Much';
   const cidade = dados.cidade || (typeof fState !== 'undefined' && fState.dados && fState.dados.cidade) || ''
     || (typeof fCidadeAtual === 'function' ? fCidadeAtual() : '');
