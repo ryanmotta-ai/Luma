@@ -3489,7 +3489,11 @@
     shape('sB',600,180,300,120,{layoutRole:'protected'})
   ];
   const D_N={titulo:'Combo artesanal da casa com borda recheada'};
-  const D_E={titulo:'Combo artesanal da casa com borda recheada e bebida gelada'};
+  /* ⚠ ESTE TEXTO É O CENÁRIO. Com uma copy menor o grupo adaptativo resolve tudo no NORMAL
+     (a Fase 5.95 empurrou a fronteira), e o teste de emergência perderia o sentido sem avisar.
+     Aqui o piso normal (metade do corpo desenhado) não basta nem para o grupo inteiro. */
+  const D_E={titulo:'Combo artesanal da casa com borda recheada e bebida gelada mais sobremesa '
+    +'especial da casa para dois'};
   const D_2={a:'Combo artesanal da casa com borda recheada',
              b:'Pizza grande com borda recheada e refrigerante'};
   const CV_P={w:560,h:520}, CV_2={w:960,h:420};
@@ -3727,6 +3731,263 @@
       +e.r.diagnostics.generated+' cands, emerg '+e.r.diagnostics.emergencia.generated+')');
     assert(!n.r.diagnostics.emergencia,'o caso normal pagou o custo da emergência');
     assert(e.ms<1500,'o fallback de emergência levou '+e.ms.toFixed(1)+'ms');
+  });
+
+  /* ══ ADAPTIVE SCALE GROUPS + SAFETY GATE (Fase 5.95) ═════════════════════════════════════
+     Componente e grupo de escala são conceitos DIFERENTES, e confundi-los era o último buraco:
+       Component      = quem pertence junto SEMANTICAMENTE (bloco de preço, CTA, oferta).
+       Adaptive group = quem precisa descer junto para resolver ESTE conflito, agora.
+     O solver já tinha o segundo sem nome, dentro do degrau `relaxou`. */
+
+  /* Arte no padrão "de/por": o produto grande, e um preço IRMÃO cujo corpo desenhado fica logo
+     abaixo dele. É o irmão que vira piso de hierarquia externo e trava o produto — e o que o
+     grupo adaptativo resolve ao trazê-lo para dentro do conjunto. */
+  const arteIrma=()=>[
+    text('produto',60,60,600,140,'{{produto}}',{fontSize:96,name:'Produto'}),
+    text('de',60,230,120,50,'DE',{fontSize:38,name:'Preço de'}),
+    text('por',200,215,300,90,'{{por}}',{fontSize:84,name:'Preço por'}),
+    shape('selo',60,340,600,160,{shapeKind:'circle',layoutRole:'protected'})
+  ];
+  const D_IRMA={produto:'Combo artesanal da casa com borda recheada e bebida',por:'R$ 109,90'};
+  const CV_IRMA={w:720,h:560};
+  const asgDe=(C,st,g,probs,previo)=>gBuildAdaptiveScaleGroup(C,{layers:st,solveState:{}},g,probs,previo);
+
+  test('grupo: o adaptive group NÃO é o componente semântico',()=>{
+    const layers=arteIrma(), C=ctxB(layers,D_IRMA,CV_IRMA);
+    const st=gSettleLayoutState({layers:layers,solveState:{}},C);
+    const probs=gDetectLayoutProblems({layers:st.layers,solveState:{}},C);
+    assert(probs.length,'o cenário perdeu o sentido: arte sem conflito');
+    const g=gGroupLayoutProblems(probs)[0];
+    const asg=asgDe(C,st.layers,g,probs);
+    const comp=gComponentOfNode(C.components,g.culpritId||g.problems[0].targetId);
+    assert(asg.membros.length>=2,'o grupo adaptativo não fechou ninguém: '+asg.membros.join(','));
+    if(comp) assert(asg.membros.slice().sort().join('+')!==comp.membros.slice().sort().join('+')
+      ||asg.membros.length>comp.membros.length,
+      'o grupo adaptativo virou cópia do componente — não há o que ele resolva');
+    /* ⛔ O COMPONENTE CONTINUA EXISTINDO. O grupo serve à ação operacional; o componente segue
+       respondendo pela semântica, pela hierarquia e pelo scoring que vem depois. */
+    assert(C.components.length>0,'os componentes semânticos sumiram');
+    assert(asg.id.indexOf('asg:')===0,'o grupo adaptativo não tem identidade própria');
+  });
+
+  test('grupo: o fecho transitivo é determinístico',()=>{
+    const layers=arteIrma(), C=ctxB(layers,D_IRMA,CV_IRMA);
+    const st=gSettleLayoutState({layers:layers,solveState:{}},C);
+    const probs=gDetectLayoutProblems({layers:st.layers,solveState:{}},C);
+    const g=gGroupLayoutProblems(probs)[0];
+    const a=asgDe(C,st.layers,g,probs), b=asgDe(C,st.layers,g,probs);
+    assert(a.signature===b.signature,'dois fechos iguais deram assinaturas diferentes');
+    assert(a.membros.join('+')===b.membros.join('+'),'a ordem do fecho não é estável');
+    // E a ordem da lista de camadas não decide o fecho.
+    const C2=ctxB(arteIrma().slice().reverse(),D_IRMA,CV_IRMA);
+    const st2=gSettleLayoutState({layers:arteIrma().slice().reverse(),solveState:{}},C2);
+    const probs2=gDetectLayoutProblems({layers:st2.layers,solveState:{}},C2);
+    const g2=gGroupLayoutProblems(probs2)[0];
+    assert(asgDe(C2,st2.layers,g2,probs2).membros.join('+')===a.membros.join('+'),
+      'inverter a lista de camadas mudou o fecho');
+  });
+
+  test('grupo: proximidade pura NÃO expande o fecho',()=>{
+    /* ⛔ `aligned`, `near`, `inside` e afins são DESCRITIVOS: dois blocos na mesma margem não
+       descem juntos por isso. Só colisão medida e dependência autorizada expandem. */
+    assert(G_SCALE_GROUP_RELACOES.indexOf('collision')>=0,'colisão deveria expandir');
+    G_GRAPH_DEPENDENCIA.forEach(t=>assert(G_SCALE_GROUP_RELACOES.indexOf(t)>=0,
+      'a relação de dependência '+t+' deveria expandir'));
+    ['aligned','near','inside','same-column','overlap','reading-order'].forEach(t=>
+      assert(G_SCALE_GROUP_RELACOES.indexOf(t)<0,'proximidade entrou no fecho: '+t));
+    // Na prática: um bloco alinhado e distante não entra no grupo.
+    const layers=arteIrma().concat([
+      text('longe',60,60,200,50,'ALINHADO',{fontSize:30,name:'Texto solto'})
+    ]);
+    layers[layers.length-1].x=60; layers[layers.length-1].y=505;
+    const C=ctxB(layers,D_IRMA,CV_IRMA);
+    const st=gSettleLayoutState({layers:layers,solveState:{}},C);
+    const probs=gDetectLayoutProblems({layers:st.layers,solveState:{}},C);
+    if(!probs.length){ assert(true,'sem conflito não há fecho a medir'); return; }
+    const asg=asgDe(C,st.layers,gGroupLayoutProblems(probs)[0],probs);
+    const brigou=probs.some(p=>p.targetId==='longe'||p.withId==='longe');
+    if(!brigou) assert(asg.membros.indexOf('longe')<0,
+      'uma camada que só está alinhada entrou no grupo de escala');
+  });
+
+  test('grupo: o piso externo EXCLUI quem desce junto',()=>{
+    /* O ponto central do caso que faltava. `por` desenhado a 84 é piso do `produto` enquanto
+       estiver de fora; dentro do grupo ele sai da conta e o produto pode continuar descendo. */
+    const clones=arteIrma().map(l=>Object.assign({},l));
+    gStampPisosHierarquia(clones,CV_IRMA);
+    const prod=clones.find(l=>l.id==='produto');
+    const semPor=gLayoutPisoHierarquiaExterno(clones,prod,['produto'],false);
+    const comPor=gLayoutPisoHierarquiaExterno(clones,prod,['produto','de','por'],false);
+    assert(semPor===84,'o irmão deveria fixar o piso externo em 84, deu '+semPor);
+    assert(comPor<semPor,'trazer o irmão para o grupo não baixou o piso externo: '+comPor);
+    // E o piso do MODO reflete isso — só em emergência, que é onde o piso externo manda.
+    assert(gLayoutPisoDoModo(clones,prod,'emergency',['produto'])
+         > gLayoutPisoDoModo(clones,prod,'emergency',['produto','de','por']),
+      'o piso de emergência ignorou o grupo');
+    assert(gLayoutPisoDoModo(clones,prod,'normal',['produto'])
+        === gLayoutPisoDoModo(clones,prod,'normal',['produto','de','por']),
+      'o piso NORMAL passou a depender do grupo — emergência vazou para o fluxo normal');
+  });
+
+  test('grupo: com o fecho certo a busca alcança o piso que o solver alcança',()=>{
+    const layers=arteIrma(), C=ctxB(layers,D_IRMA,CV_IRMA);
+    const st=gSettleLayoutState({layers:layers,solveState:{}},C);
+    const probs=gDetectLayoutProblems({layers:st.layers,solveState:{}},C);
+    assert(probs.length,'o cenário perdeu o sentido');
+    const g=gGroupLayoutProblems(probs)[0];
+    const asg=asgDe(C,st.layers,g,probs);
+    const cap=gLayoutCanScaleGroup(C,asg,st.layers,'emergency');
+    assert(cap.permitido,'o grupo não pôde descer: '+cap.motivo);
+    const pisoProduto=(cap.pisos||[]).find(x=>x.id==='produto');
+    if(pisoProduto) assert(pisoProduto.piso<84,
+      'o piso do produto continuou preso ao irmão: '+pisoProduto.piso);
+    // E a ação existe, com o escopo explícito.
+    const acoes=gGenerateLayoutActions(C,Object.assign({},g.problems[0],
+      {rootId:g.culpritId||null,impactLevel:3,_adaptiveGroup:asg}),st.layers,'emergency');
+    const grupoAcao=acoes.find(a=>a.id==='scale-component'&&a.params.escopo==='collision-group');
+    assert(grupoAcao,'não gerou a escala no escopo do grupo: '
+      +acoes.map(a=>a.id+'/'+(a.params.escopo||'-')).join(','));
+    assert(grupoAcao.adaptiveGroupId===asg.id,'a ação não carrega a identidade do grupo');
+    assert(grupoAcao.params.grupoPiso&&grupoAcao.params.grupoPiso.length>=grupoAcao.params.membros.length,
+      'o grupo do PISO tem que conter quem desce — são dois conjuntos, e o do piso é o fecho');
+  });
+
+  test('portão: detector em zero e produto reprovando NÃO é solved',()=>{
+    /* Duas implementações da mesma pergunta divergem — foi assim que um estouro de largura
+       passou pelo detector na 5.9. O veredito do produto é a autoridade final. */
+    const layers=arteIrma(), C=ctxB(layers,D_IRMA,CV_IRMA);
+    const r=gSearchLayoutCandidates({ctx:C,base:layers});
+    const todos=[].concat(r.solved,r.partial,r.invalid,r.unsafe||[]);
+    assert(todos.length,'a busca não produziu candidato nenhum');
+    r.solved.forEach(c=>{
+      const seg=gLayoutCandidateSafety(c,C);
+      assert(seg.seguro,'um `solved` é reprovado pelo produto: '+seq(c)+' → '+seg.reprovadas.join(','));
+      assert(!seg.reprovadas.length,'um `solved` tem camada reprovada');
+    });
+    (r.unsafe||[]).forEach(c=>{
+      assert(c.status==='unsafe','a categoria de inseguro está errada');
+      assert(c.diagnostics.problemasDepois===0,
+        'um `unsafe` tinha dano objetivo — isso é `partial`, não `unsafe`');
+      assert((c.diagnostics.reprovadas||[]).length,'um `unsafe` não diz quem o produto reprova');
+      assert(r.solved.indexOf(c)<0,'um candidato inseguro entrou na lista de soluções');
+    });
+  });
+
+  test('portão: o veredito é o do produto, não um segundo checker',()=>{
+    const layers=arteIrma(), C=ctxB(layers,D_IRMA,CV_IRMA);
+    const seg=gLayoutCandidateSafety({layers:layers,solveState:{},signature:'seg1'},C);
+    assert(typeof seg.seguro==='boolean'&&Array.isArray(seg.reprovadas),'o contrato mudou');
+    /* A régua é `gLayoutCamadaReprovada` — a MESMA que o checklist e a publicação usam. */
+    assert(String(gLayoutCandidateSafety).indexOf('gLayoutCamadaReprovada')>=0,
+      'o portão parou de consultar o veredito do produto');
+    assert(typeof gLayoutCamadaReprovada==='function','o veredito do produto sumiu');
+  });
+
+  test('cache: pisos diferentes medem diferente, e a chave sabe disso',()=>{
+    /* O bug da 5.9: mesma geometria, mesmo texto, mesmo corpo — e `gFitTextLayer` reduz
+       internamente até `_pisoFonte`/`_pisoLegivel`, então o resultado É outro. */
+    const C=ctxB(arteIrma(),D_IRMA,CV_IRMA);
+    /* A configuração EXATA em que a 5.9 divergiu: corredor largo com teto de linhas, texto que
+       cabe em duas linhas e um teto de fonte já aplicado. Aí o encaixe reduz por LARGURA até o
+       piso — e o piso decide se `estourou` ou não. */
+    const base={id:'x',name:'Produto',type:'text',x:0,y:0,w:900,h:200,
+      content:'Pizza Grande de Calabresa Especial',_tetoFonte:80,_layoutW:900,_layoutMaxLines:3,
+      /* Caixa-alta é o que faz a linha quebrada ainda passar do corredor — sem ela o encaixe
+         acomoda a largura sozinho e o piso nunca chega a decidir nada. É a configuração real
+         do `de-por-lateral`, que é onde o defeito apareceu. */
+      font:'Arial',fontSize:96,lineHeight:1.05,textTransform:'uppercase',
+      textBox:'box',textAlign:'left',vAlign:'top',visible:true,opacity:100};
+    const baixo=Object.assign({},base,{_pisoFonte:48,_pisoLegivel:24});
+    const alto=Object.assign({},base,{_pisoFonte:84,_pisoLegivel:24});
+    const fb=_gAcaoFit(C,baixo,base.content), fa=_gAcaoFit(C,alto,base.content);
+    assert(fb&&fa,'não mediu');
+    assert(fb.fontSize!==fa.fontSize,'pisos diferentes deram o MESMO corpo: '+fb.fontSize);
+    assert(fb.estourou===false&&fa.estourou===true,
+      'o piso deixou de decidir o estouro — a chave do cache está cega para ele: '
+      +fb.estourou+'/'+fa.estourou);
+    /* E o cache não pode confundir os dois: pedir de novo, na ordem inversa, tem que devolver
+       cada um o seu. É o teste do bug, não da implementação. */
+    assert(_gAcaoFit(C,alto,base.content).estourou===true
+        && _gAcaoFit(C,baixo,base.content).estourou===false,
+      'o cache devolveu a medida de um piso para o outro');
+    /* ⚠ `encolher:false` não pode voltar para a medida do detector: ele pula a ÚNICA linha que
+       levanta `estourou` por largura, e foi assim que a busca aprovou arte que o produto
+       reprova. Aqui isso se prova pelo comportamento — com ele, `fa.estourou` seria false. */
+    assert(fa.estourou===true,'o detector parou de enxergar o estouro por largura');
+  });
+
+  test('isolado: overflow sem culpado gera só auto-adaptação',()=>{
+    const layers=[
+      text('solto',60,60,300,60,'{{v}}',{fontSize:44,name:'Texto'}),
+      text('outro',60,300,300,60,'FIXO',{fontSize:24,name:'Descrição'})
+    ];
+    const C=ctxB(layers,{v:'Um valor bem maior do que a caixa desenhada comporta'},{w:420,h:420});
+    const p={tipo:'text-overflow',targetId:'solto',detalhe:{largura:300,linhas:3,excesso:40}};
+    const acoes=gGenerateLayoutActions(C,p,layers,'normal');
+    assert(acoes.length,'não gerou nada para um estouro isolado');
+    acoes.forEach(a=>{
+      assert(a.motivo==='isolated-self','sem culpado o motivo deveria ser isolated-self: '+a.id);
+      assert(a.targetId==='solto'||a.componentId==null,
+        'uma ação isolada mirou terceiro: '+a.id+'@'+(a.targetId||a.componentId));
+      assert(G_ACAO_AUTO_ADAPTACAO.indexOf(a.id)>=0,
+        'ação fora da política de auto-adaptação: '+a.id);
+    });
+    // ⛔ Escala de grupo INFERIDO sem evidência não entra.
+    assert(!acoes.some(a=>a.id==='scale-component'),
+      'escalou um grupo sem evidência de origem');
+  });
+
+  test('isolado: overflow sem culpado não mexe em terceiro',()=>{
+    const layers=[
+      text('solto',60,60,300,60,'{{v}}',{fontSize:44,name:'Texto'}),
+      text('outro',60,300,300,60,'FIXO',{fontSize:24,name:'Descrição'})
+    ];
+    const C=ctxB(layers,{v:'Um valor bem maior do que a caixa desenhada comporta'},{w:420,h:420});
+    const p={tipo:'text-overflow',targetId:'solto',detalhe:{largura:300}};
+    gGenerateLayoutActions(C,p,layers,'normal').forEach(a=>{
+      const r=gApplyLayoutAction({layers:layers,solveState:{}},a,C);
+      r.changedIds.forEach(id=>assert(id==='solto',
+        'a ação isolada '+a.id+' mexeu em '+id));
+    });
+  });
+
+  test('isolado: com culpado provado a geração continua causal',()=>{
+    const layers=arteIrma(), C=ctxB(layers,D_IRMA,CV_IRMA);
+    const st=gSettleLayoutState({layers:layers,solveState:{}},C);
+    const probs=gDetectLayoutProblems({layers:st.layers,solveState:{}},C);
+    const comCulpado=probs.find(p=>p.detalhe&&p.detalhe.culpado);
+    if(!comCulpado){ assert(true,'esta arte não tem causa provada'); return; }
+    const acoes=gGenerateLayoutActions(C,Object.assign({},comCulpado,
+      {rootId:comCulpado.detalhe.culpado,impactLevel:3}),st.layers,'normal');
+    assert(acoes.length,'a geração causal não produziu nada');
+    acoes.forEach(a=>assert(a.motivo==='causal','o motivo deveria ser causal: '+a.id));
+    assert(acoes.some(a=>a.targetId===comCulpado.detalhe.culpado||a.componentId||a.adaptiveGroupId),
+      'nenhuma ação mirou a origem');
+  });
+
+  test('grupo: construir o fecho e recalcular o piso cabem no orçamento',()=>{
+    const L=arteGrande(344), cv={w:1080,h:4600};
+    const C=gBuildOperationalContext(L,cv,{dados:{}});
+    const st=gSettleLayoutState({layers:L,solveState:{}},C);
+    const probs=gDetectLayoutProblems({layers:st.layers,solveState:{}},C);
+    const grupos=gGroupLayoutProblems(probs).slice(0,8);
+    let t=performance.now();
+    const asgs=grupos.map(g=>gBuildAdaptiveScaleGroup(C,{layers:st.layers,solveState:{}},g,probs));
+    const msGrupo=performance.now()-t;
+    t=performance.now();
+    asgs.forEach(a=>gLayoutCanScaleGroup(C,a,st.layers,'emergency'));
+    const msPiso=performance.now()-t;
+    t=performance.now();
+    gLayoutCandidateSafety({layers:L,solveState:{},signature:'perf1'},C,probs);
+    const msSeg=performance.now()-t;
+    avisos.push('344 camadas: 8 fechos '+msGrupo.toFixed(1)+'ms (até '
+      +Math.max.apply(null,asgs.map(a=>a.membros.length))+' membros) · 8 pisos de grupo '
+      +msPiso.toFixed(1)+'ms · 1 portão de segurança '+msSeg.toFixed(1)+'ms');
+    assert(msGrupo<200,'construir 8 fechos levou '+msGrupo.toFixed(1)+'ms');
+    assert(msPiso<200,'recalcular 8 pisos levou '+msPiso.toFixed(1)+'ms');
+    assert(msSeg<400,'o portão de segurança levou '+msSeg.toFixed(1)+'ms');
+    assert(G_SEARCH_LIMITES.beamWidth===8&&G_SEARCH_LIMITES.maxDepth===8,
+      'os limites da busca mudaram');
   });
 
   let passed=0;

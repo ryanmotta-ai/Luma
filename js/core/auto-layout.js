@@ -3221,12 +3221,12 @@ const G_SEARCH_MODOS = ['normal', 'emergency'];
  * @param {Array} camadas o estado ATUAL (os corpos já reduzidos contam como piso externo)
  * @param {Set|Array} [grupo] quem desce junto — não conta como piso
  */
-function gLayoutPisoDoModo(camadas, l, modo, grupo){
+function gLayoutPisoDoModo(camadas, l, modo, grupo, indice){
   if(!l || typeof gLayoutPisoFonte !== 'function') return 8;
   if(modo !== 'emergency') return gLayoutPisoFonte(l, false);
   const legivel = gLayoutPisoFonte(l, true);
   const hier = (typeof gLayoutPisoHierarquiaExterno === 'function')
-    ? gLayoutPisoHierarquiaExterno(camadas || [], l, grupo || [l.id], false) : 0;
+    ? gLayoutPisoHierarquiaExterno(camadas || [], l, grupo || [l.id], false, indice) : 0;
   return Math.max(legivel, hier);
 }
 
@@ -3263,6 +3263,108 @@ function gLayoutCanEmergencyShrink(ctx, targetId, camadas){
   return _gCapOk('folga-de-emergencia', det);
 }
 
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   ADAPTIVE SCALE GROUP — quem precisa adaptar JUNTO para este conflito
+   ══════════════════════════════════════════════════════════════════════════════════════════
+   ⛔ NÃO É COMPONENTE, e confundir os dois foi o último buraco de cobertura.
+
+     Component        = "quem pertence junto SEMANTICAMENTE" (bloco de preço, CTA, oferta).
+                        Estável, autoral, serve a hierarquia, a `preserve-together` e ao
+                        scoring que vem depois. Não muda porque a copy mudou.
+     Adaptive group   = "quem precisa descer junto para resolver ESTE conflito, AGORA".
+                        Nasce do estado, morre com ele, e só existe para a ação operacional.
+
+   O solver já tinha o segundo, sem nome, dentro do degrau `relaxou`: ele semeia o conjunto com
+   os culpados das colisões e expande até o ponto fixo por TRÊS relações — colisão atual, âncora
+   (autoral ou inferida) e placa. É esse fecho que se reproduz aqui, pelas arestas do Graph que
+   significam a mesma coisa (`G_GRAPH_DEPENDENCIA` = authorial-anchor, plate-of,
+   dynamic-dependency) mais as colisões medidas no estado assentado.
+
+   ⛔ PROXIMIDADE NÃO EXPANDE NADA. `aligned`, `near`, `inside`, `same-column` e companhia são
+   relações DESCRITIVAS: dois blocos na mesma margem não descem juntos por isso. Deixá-las
+   entrar transformaria "o bloco que está brigando" em "metade da arte", que é exatamente o que
+   o comentário do solver diz que ele não quer fazer. */
+const G_SCALE_GROUP_RELACOES = G_GRAPH_DEPENDENCIA.concat(['collision']);
+
+/**
+ * O GRUPO OPERACIONAL para um conflito, derivado do estado atual.
+ *
+ * @param {object} ctx      de `gBuildOperationalContext`
+ * @param {object} estado   {layers, solveState} JÁ ASSENTADO — colisão se mede no que o motor julga
+ * @param {object} grupoProblema um grupo de `gGroupLayoutProblems`
+ * @param {Array}  [problemas] a lista completa do estado (evita redetectar)
+ * @returns {{id, membros, semente, expandiuPor, signature, escalaveis}}
+ */
+function gBuildAdaptiveScaleGroup(ctx, estado, grupoProblema, problemas, previo){
+  const st = _gEstado(estado);
+  const idx = new Map(st.layers.map(l => [l.id, l]));
+  const todos = problemas || gDetectLayoutProblems(st, ctx);
+  /* SEMENTE = os culpados provados do conflito, MAIS o que já entrou no grupo antes neste mesmo
+     ramo. A memória não é conveniência: o solver mantém o conjunto enquanto o degrau
+     proporcional roda, e no `de-por-lateral` é exatamente ela que decide o caso. O "por" entra
+     porque colidiu com o "produto"; a colisão é resolvida pela primeira escala; e se o grupo
+     esquecer o "por" na volta seguinte ele volta a contar como PISO EXTERNO e trava o "produto"
+     no mesmo 84 de onde se partiu. Fato provado uma vez neste ramo continua valendo nele.
+     ⚠ Só entra quem ainda existe no estado, e a memória é do RAMO — não vaza entre candidatos
+     irmãos, que é o que manteria a busca determinística e cada caminho isolado. */
+  const semente = [...new Set((grupoProblema && grupoProblema.problems || []).map(p =>
+    (p.detalhe && p.detalhe.culpado) || p.targetId).concat(previo || []))]
+    .filter(id => idx.has(id)).sort();
+  const membros = new Set(semente);
+  const expandiuPor = { collision:[], 'authorial-anchor':[], 'plate-of':[], 'dynamic-dependency':[] };
+  // Os pares de colisão do estado ATUAL — o mesmo `_ultimasColisoes` que o solver percorre.
+  const pares = todos.filter(p => p.tipo === 'collision' && p.withId)
+    .map(p => [p.targetId, p.withId]);
+  /* FILA DE TRABALHO, não varredura. O fecho é o mesmo; o que muda é só visitar cada membro
+     UMA vez em vez de reprocessar o conjunto inteiro a cada rodada — numa arte grande o grupo
+     chega a uma centena de camadas, e refazê-lo a cada volta era o custo dominante da busca. */
+  const fila = [...membros];
+  let guarda = 0;
+  while(fila.length && guarda++ < 4096){
+    const id = fila.shift();
+    /* As arestas de DEPENDÊNCIA, nos dois sentidos — âncora autoral, placa e corrente
+       autorizada. São as mesmas três relações do laço do solver, e só elas. */
+    G_GRAPH_DEPENDENCIA.forEach(tipo => {
+      gGraphOutgoing(ctx.graph, id, tipo).concat(gGraphIncoming(ctx.graph, id, tipo))
+        .filter(e => gGraphIsStructural(e))
+        .forEach(e => {
+          [e.de, e.para].forEach(outro => {
+            if(idx.has(outro) && !membros.has(outro)){
+              membros.add(outro); expandiuPor[tipo].push(outro); fila.push(outro);
+            }
+          });
+        });
+    });
+    // E as colisões medidas AGORA: quem está brigando com um membro entra no grupo.
+    pares.forEach(([a, b]) => {
+      if(a !== id && b !== id) return;
+      [a, b].forEach(outro => {
+        if(idx.has(outro) && !membros.has(outro)){
+          membros.add(outro); expandiuPor.collision.push(outro); fila.push(outro);
+        }
+      });
+    });
+  }
+  const lista = [...membros].sort();
+  /* QUEM DE FATO DESCE. A mesma regra do solver: texto visível, e o preço dinâmico que NÃO
+     cedeu nada fica de fora (a escala comum é motivo alheio — `_gLayoutPrecoImune`). */
+  const escalaveis = lista.filter(id => {
+    const l = idx.get(id), n = ctx._no.get(id);
+    if(!l || l.type !== 'text' || !n || !n.visivel) return false;
+    if(n.protegida || n.fundo) return false;
+    const cedeu = l._tetoFonte != null || l._entrelinha != null || l._layoutW != null;
+    const imune = (typeof gLayoutEhPrecoDinamico === 'function') && gLayoutEhPrecoDinamico(l);
+    return cedeu || !imune;
+  });
+  const signature = _gGramHash('asg1#' + lista.join('+') + '#' + escalaveis.join('+'));
+  Object.keys(expandiuPor).forEach(k => { expandiuPor[k] = [...new Set(expandiuPor[k])].sort(); });
+  /* `provado` = este grupo carrega membros que entraram por conflito REAL antes, neste ramo. É
+     o que autoriza a escala quando o problema que sobrou não tem culpado (ver a guarda do §11
+     em `gGenerateLayoutActions`). */
+  return { id:'asg:' + signature, membros:lista, semente, expandiuPor, escalaveis, signature,
+           provado:(previo || []).length > 0 };
+}
+
 /**
  * A CAPACIDADE DE EMERGÊNCIA DO COMPONENTE — o degrau proporcional, medido.
  *
@@ -3282,27 +3384,69 @@ function gLayoutCanEmergencyScale(ctx, componentId, camadas, modo){
   const cap = gComponentCapability(ctx, componentId, 'canScaleComponent');
   if(!cap.permitido) return cap;                         // as guardas do componente valem iguais
   const c = gComponentById(ctx.components, componentId);
+  const r = _gDegrausDeEscala(ctx, c.membros, camadas, modo);
+  return r.permitido ? _gCapOk('componente-pode-descer', r.detalhe)
+                     : _gCapNao('componente-no-piso', r.detalhe);
+}
+
+/**
+ * A MESMA conta para o ADAPTIVE SCALE GROUP. Guardas próprias: o grupo é operacional, não
+ * autoral, então `singleton` não faz sentido aqui (um conflito entre dois blocos pode render um
+ * grupo de dois e é legítimo) — mas protegida, fundo e elasticidade que proíbe escala continuam
+ * bloqueando membro a membro, exatamente como no componente.
+ */
+function gLayoutCanScaleGroup(ctx, grupo, camadas, modo){
+  if(!ctx) return _gCapNao('sem-contexto');
+  const membros = (grupo && grupo.escalaveis) || [];
+  if(!membros.length) return _gCapNao('grupo-sem-quem-desca', { membros:0 });
+  const proibem = membros.filter(id => {
+    const n = ctx._no.get(id);
+    if(n && (n.protegida || n.fundo)) return true;
+    const e = ctx.elasticity.get(id);
+    return !e || gElasticityLevel(e.scale) === 0;
+  });
+  if(proibem.length) return _gCapNao('membro-proibe-escala', { membros:proibem });
+  /* ⚠ DOIS CONJUNTOS, E ESSA É A DIFERENÇA QUE FALTAVA. Quem DESCE é `escalaveis`; quem sai da
+     conta do piso de hierarquia externo é o fecho INTEIRO (`membros`). O solver faz exatamente
+     isso: `textosComponente` (quem desce) é filtrado do `ids` (o fecho), mas `_pisoHierExterno`
+     recebe o `ids`. No `de-por-lateral` o "por" está no fecho e não desce — e é justamente ele
+     que, contado como piso, travava o "produto" em 84. */
+  const r = _gDegrausDeEscala(ctx, membros, camadas, modo, grupo.membros);
+  return r.permitido ? _gCapOk('grupo-pode-descer', Object.assign({ grupo:grupo.id }, r.detalhe))
+                     : _gCapNao('grupo-no-piso', Object.assign({ grupo:grupo.id }, r.detalhe));
+}
+
+/* Quantas voltas de 0,92 ainda cabem para ESTE conjunto — o mesmo laço do motor, que só para
+   quando ninguém mais desce. O piso de cada membro é medido com o conjunto INTEIRO como grupo:
+   quem desce junto sai da conta do piso de hierarquia externo, e é exatamente daí que o degrau
+   proporcional tira a folga que o encolhimento isolado não tem. */
+function _gDegrausDeEscala(ctx, membros, camadas, modo, grupoPiso){
   const vivos = camadas || [...ctx._camada.values()];
   const idx = new Map(vivos.map(l => [l.id, l]));
-  const grupo = new Set(c.membros);
+  const grupo = new Set(grupoPiso || membros);
+  /* O índice do piso externo é do GRUPO, não do membro: todos compartilham o mesmo conjunto de
+     fora. Construir um por membro era varrer a arte inteira k vezes — medido em 3,4ms por
+     consulta numa peça de 344 camadas, com a busca consultando centenas de vezes. */
+  const indice = (typeof gLayoutIndicePisoExterno === 'function' && modo === 'emergency')
+    ? gLayoutIndicePisoExterno(vivos, grupo, false) : null;
   let degraus = 0;
   const pisos = [];
-  c.membros.forEach(id => {
+  membros.forEach(id => {
     const autorada = ctx._camada.get(id);
     const vivo = idx.get(id);
     if(!autorada || autorada.type !== 'text') return;
     const medida = Object.assign({}, autorada, { _tetoFonte: vivo && vivo._tetoFonte });
     const atual = Math.round(gLayoutCorpoAtual(medida));
-    const piso = Math.round(gLayoutPisoDoModo(vivos, medida, modo === 'emergency' ? 'emergency' : 'normal', grupo));
+    const piso = Math.round(gLayoutPisoDoModo(vivos, medida,
+      modo === 'emergency' ? 'emergency' : 'normal', grupo, indice));
     pisos.push({ id, atual, piso });
     if(piso < atual) degraus = Math.max(degraus, Math.ceil(Math.log(piso / atual) / Math.log(0.92)));
   });
-  if(!degraus) return _gCapNao('componente-no-piso', { pisos });
   /* O teto de 0,35 é o mesmo da escada (`escalaGlobal = max(0.35, escalaAtual*0.92)`): abaixo
      disso o motor não desce, e prometer degraus que ele não tem seria inventar escada. */
   const tetoGlobal = Math.ceil(Math.log(0.35) / Math.log(0.92));
-  return _gCapOk('componente-pode-descer', { degraus: Math.min(degraus, tetoGlobal),
-                                             membros:c.membros.length, pisos });
+  return { permitido: degraus > 0,
+           detalhe: { degraus: Math.min(degraus, tetoGlobal), membros:membros.length, pisos } };
 }
 
 /**
@@ -3441,9 +3585,31 @@ const G_LAYOUT_PROBLEMAS = {
    VÍTIMA (o bloco empurrado), mas quem precisa encolher é o CULPADO (o texto que cresceu).
    Mirar sempre a vítima faria a busca tentar encolher o preço porque o título ficou longo —
    exatamente o estrago que a regra de 19/08 existe para impedir. */
+/* ── SEM CULPADO PROVADO, SÓ AUTO-ADAPTAÇÃO ───────────────────────────────────────────────
+   Um `text-overflow` que o detector não conseguiu atribuir a ninguém não autoriza mexer em
+   terceiros: empurrar o vizinho, redimensionar a placa de outro ou escalar um grupo inferido
+   seria inventar a origem que a evidência não deu. A política é explícita — sem culpado, as
+   ações só podem operar no PRÓPRIO alvo, e só estas quatro.
+   ⛔ Isto NÃO escolhe culpado artificial. Continua não havendo causa: há um alvo que pode
+   tentar se resolver sozinho, e o diagnóstico diz isso (`reason:'isolated-self'`). */
+const G_ACAO_AUTO_ADAPTACAO = ['wrap-text', 'compress-line-height', 'restore-tracking', 'shrink-text',
+  /* Estas três também operam no PRÓPRIO alvo e por isso continuam permitidas: apertar o respiro
+     é opção de solve, a placa que redimensiona é a do problema, e o vão que fecha é o do alvo.
+     O que a política barra é agir sobre TERCEIRO — e sem culpado provado o único passo que
+     chega a um terceiro é a escala de grupo. */
+  'compress-gap', 'resize-container', 'collapse-empty-gap', 'push-dependent'];
+
 const G_PROBLEMA_ACOES = {
+  /* ⚠ `scale-component` ENTRA AQUI, e é o último degrau. O solver põe a camada que ESTOUROU
+     dentro de `culpados` (via `idsEstouro` em `_cedeu`), e é esse conjunto que semeia o degrau
+     proporcional — então para ele um estouro isolado também pode virar escala de grupo. Sem
+     esta linha a busca tratava "não coube" como problema sem saída assim que a camada batia no
+     piso de hierarquia externo, enquanto o motor seguia descendo o bloco inteiro.
+     A guarda do §11 continua valendo: sem culpado provado E sem grupo provado no ramo, a escala
+     não é gerada (ver `gGenerateLayoutActions`). */
   'text-overflow':      [{a:'wrap-text',alvo:'alvo'},{a:'restore-tracking',alvo:'alvo'},
-                         {a:'compress-line-height',alvo:'alvo'},{a:'shrink-text',alvo:'alvo'}],
+                         {a:'compress-line-height',alvo:'alvo'},{a:'shrink-text',alvo:'alvo'},
+                         {a:'scale-component',alvo:'alvo'}],
   'collision':          [{a:'compress-gap',alvo:'alvo'},{a:'push-dependent',alvo:'alvo'},
                          {a:'resize-container',alvo:'alvo'},
                          {a:'wrap-text',alvo:'culpado'},{a:'compress-line-height',alvo:'culpado'},
@@ -3468,7 +3634,8 @@ function gLayoutActionSignature(acao){
 
 function _gAcao(id, alvo, extra){
   const a = Object.assign({ id:id, targetId:alvo, rootId:null, componentId:null,
-                            impactLevel:null, params:{}, reason:'' }, extra || {});
+                            adaptiveGroupId:null, impactLevel:null, params:{},
+                            motivo:'causal', reason:'' }, extra || {});
   a.signature = gLayoutActionSignature(a);
   return a;
 }
@@ -3549,7 +3716,16 @@ function gGenerateLayoutActions(ctx, problem, camadas, modo){
   const n = ctx._no.get(alvo);
   const l = _camada(alvo);
   if(!n || !l) return [];
+  /* ── CAUSAL × AUTO-ADAPTAÇÃO ─────────────────────────────────────────────────────────────
+     Com culpado provado a geração é causal: as ações podem mirar a ORIGEM, e a zona de impacto
+     nasce dela. Sem culpado provado não existe terceiro legítimo — todo passo `culpado` cai no
+     próprio alvo (`culpadoId` já faz esse fallback), e o que sobra de verdadeiramente alheio é
+     `scale-component`: escalar um grupo inferido sem evidência de origem. Esse fica de fora.
+     ⛔ Isto NÃO inventa culpado. Continua não havendo causa; há um alvo que pode tentar se
+     resolver sozinho, e o descritor diz isso em `motivo`. */
+  const culpadoProvado = !!(problem.detalhe && problem.detalhe.culpado);
   const raiz = problem.rootId || null;
+  const motivo = culpadoProvado ? 'causal' : 'isolated-self';
   const ordem = G_PROBLEMA_ACOES[problem.tipo] || [];
   const culpadoId = (problem.detalhe && problem.detalhe.culpado) || alvo;
   const out = [];
@@ -3558,24 +3734,60 @@ function gGenerateLayoutActions(ctx, problem, camadas, modo){
     const acaoId = passo.a;
     const meta = G_LAYOUT_ACOES[acaoId];
     if(!meta) return;
+    /* ⛔ A GUARDA DO GRUPO SEM EVIDÊNCIA. Sem culpado provado, escalar um conjunto seria
+       inventar a origem que a medida não deu — a menos que o conjunto já tenha sido PROVADO
+       neste mesmo ramo, por colisões reais que a busca mediu e tratou. Aí a evidência existe:
+       ela só não está no problema que SOBROU. É a mesma distinção do solver, que carrega o
+       `ids` do degrau proporcional enquanto ele roda. */
+    if(!culpadoProvado && meta.alvo === 'component'
+       && !(problem._adaptiveGroup && problem._adaptiveGroup.provado)) return;
     // Vítima ou culpado — ver `G_PROBLEMA_ACOES`.
     const alvoId = passo.alvo === 'culpado' ? culpadoId : alvo;
     const nAlvo = ctx._no.get(alvoId), lAlvo = _camada(alvoId);
     if(!nAlvo || !lAlvo) return;
 
     if(meta.alvo === 'component'){
+      /* ── DOIS ESCOPOS PARA A MESMA DECISÃO ──────────────────────────────────────────────
+         `scale-component` continua significando "descer um conjunto na mesma escala". O que
+         muda é QUAL conjunto:
+         · `component`       → o bloco semântico. Raio menor, e a primeira tentativa.
+         · `collision-group` → o Adaptive Scale Group: quem está de fato brigando, que é o
+           conjunto que o solver usa no degrau `relaxou`. Raio maior, vem depois.
+         O escopo viaja no descritor em vez de trocar a semântica em silêncio, e o componente
+         continua existindo no candidato ao lado do grupo — um serve à semântica, o outro à
+         operação. */
       const c = gComponentOfNode(ctx.components, alvoId);
-      if(!c) return;
-      const portao = gLayoutCanAttempt({ ctx, action:acaoId, targetId:c.id, rootId:null });
-      if(!portao.permitido) return;
-      /* ⚠ O MODO VIAJA NO DESCRITOR. A escala proporcional é o degrau de emergência da escada,
-         mas isso não autoriza a busca a usar o piso de emergência no fluxo NORMAL — seria
-         emergência por padrão, exatamente o que esta fase separa. O piso sai do modo. */
-      const esc = gLayoutCanEmergencyScale(ctx, c.id, _estadoVivo, emergencia ? 'emergency' : 'normal');
-      if(!esc.permitido) return;                 // já está no piso do modo: a ação não existe
-      out.push(_gAcao(acaoId, null, { componentId:c.id, rootId:raiz, ordem:i,
-        params:{ fator:0.92, modo:emergencia ? 'emergency' : 'normal', degraus:esc.degraus },
-        reason:meta.degrau }));
+      const escopos = [];
+      if(c){
+        const portao = gLayoutCanAttempt({ ctx, action:acaoId, targetId:c.id, rootId:null });
+        if(portao.permitido){
+          const esc = gLayoutCanEmergencyScale(ctx, c.id, _estadoVivo, emergencia ? 'emergency' : 'normal');
+          if(esc.permitido) escopos.push({ escopo:'component', componentId:c.id, grupoId:null,
+                                           membros:null, degraus:esc.degraus });
+        }
+      }
+      const asg = problem._adaptiveGroup || null;
+      if(asg && asg.escalaveis.length >= 2){
+        const cap = gLayoutCanScaleGroup(ctx, asg, _estadoVivo, emergencia ? 'emergency' : 'normal');
+        /* Só vale a pena quando o grupo é REALMENTE outro conjunto: se ele coincide com o
+           componente, gerar os dois seria duplicar a mesma ação com outro nome. */
+        /* "É o mesmo conjunto?" pergunta pelos DOIS: quem desce e quem sai do piso. Um grupo
+           com os mesmos descendentes mas fecho maior é outra ação — é exatamente o caso que
+           destrava o `de-por-lateral`. */
+        const mesmo = c && c.membros.slice().sort().join('+') === asg.escalaveis.slice().sort().join('+')
+                        && c.membros.slice().sort().join('+') === asg.membros.slice().sort().join('+');
+        if(cap.permitido && !mesmo)
+          escopos.push({ escopo:'collision-group', componentId:c ? c.id : null, grupoId:asg.id,
+                         membros:asg.escalaveis.slice(), grupoPiso:asg.membros.slice(),
+                         degraus:cap.degraus });
+      }
+      escopos.forEach((e, k) => {
+        out.push(_gAcao(acaoId, null, { componentId:e.componentId, adaptiveGroupId:e.grupoId,
+          rootId:raiz, ordem:i + k * 0.5,
+          params:{ fator:0.92, modo:emergencia ? 'emergency' : 'normal', degraus:e.degraus,
+                   escopo:e.escopo, membros:e.membros, grupoPiso:e.grupoPiso || null },
+          motivo:motivo, reason:meta.degrau }));
+      });
       return;
     }
 
@@ -3680,7 +3892,7 @@ function gGenerateLayoutActions(ctx, problem, camadas, modo){
     }
     if(!ok) return;
     out.push(_gAcao(acaoId, alvoId, { rootId:raiz, impactLevel:portao.nivelImpacto, ordem:i,
-      params:params, reason:meta.degrau }));
+      params:params, motivo:motivo, reason:meta.degrau }));
   });
 
   /* ORDEM EXPLÍCITA: a da escada real primeiro, assinatura como desempate. A ordem de um `Set`
@@ -3809,8 +4021,16 @@ function gApplyLayoutAction(base, action, ctx){
       break;
     }
     case 'scale-component': {
+      /* O CONJUNTO vem do escopo do descritor. `collision-group` carrega os membros medidos no
+         estado em que a ação foi gerada — o grupo é derivado do estado, então congelá-lo no
+         descritor é o que mantém a ação PURA e a assinatura honesta. */
+      const escopo = (p.escopo === 'collision-group') ? 'collision-group' : 'component';
       const c = ctx && gComponentById(ctx.components, action.componentId);
-      if(!c){ r.diagnostics.erro = 'componente-inexistente'; break; }
+      const membrosEsc = (escopo === 'collision-group') ? (p.membros || []) : (c ? c.membros : null);
+      if(!membrosEsc || !membrosEsc.length){
+        r.diagnostics.erro = (escopo === 'collision-group') ? 'grupo-vazio' : 'componente-inexistente';
+        break;
+      }
       /* ESCALA PROPORCIONAL — todo o componente desce na mesma escala, e a hierarquia DENTRO
          dele fica protegida por isso. O piso vem do MODO:
          · normal    → `gLayoutPisoFonte(l,false)`, metade do corpo desenhado;
@@ -3820,9 +4040,14 @@ function gApplyLayoutAction(base, action, ctx){
          ⚠ Antes desta fase esta ação usava o piso de emergência SEMPRE. Era emergência por
          padrão dentro do fluxo normal, e apagava justamente a separação que a Fase 5.9 mede. */
       const modoEsc = p.modo === 'emergency' ? 'emergency' : 'normal';
-      const grupo = new Set(c.membros);
+      /* ⚠ O GRUPO É O MESMO DOS DOIS LADOS: quem desce junto sai da conta do piso de hierarquia
+         externo. É essa exclusão que dá ao degrau proporcional a folga que o encolhimento
+         isolado não tem, e é exatamente o que o solver faz em `_pisoHierExterno(l)` com o `ids`
+         do fecho. Passar um grupo aqui e outro no piso seria prometer uma descida que o motor
+         não autoriza. */
+      const grupo = new Set(p.grupoPiso || membrosEsc);
       const alvos = [];
-      c.membros.forEach(id => {
+      membrosEsc.forEach(id => {
         const m = idx.get(id);
         if(!m || m.type !== 'text') return;
         const atual = Math.round(gLayoutCorpoAtual(m));
@@ -3831,7 +4056,9 @@ function gApplyLayoutAction(base, action, ctx){
         if(novo < atual){ m._tetoFonte = novo; marca(id); alvos.push({ id, de:atual, para:novo, piso }); }
       });
       r.typographyChanged = alvos.length > 0;
-      r.diagnostics = { fator:p.fator, modo:modoEsc, membros:alvos, componente:c.id, tipo:c.tipo };
+      r.diagnostics = { fator:p.fator, modo:modoEsc, escopo:escopo, membros:alvos,
+                        componente:c ? c.id : null, tipo:c ? c.tipo : null,
+                        grupo:action.adaptiveGroupId || null };
       break;
     }
     case 'collapse-empty-gap': {
@@ -4195,7 +4422,7 @@ function _gDetRects(camadas, ctx){
 function _gCandidato(base, opts){
   const c = Object.assign({ id:'', rootId:null, problem:null, actions:[], actionSignatures:[],
     depth:0, layers:base, solveState:{}, changedIds:[], status:'partial', diagnostics:{},
-    searchMode:'normal', causeKey:null,
+    searchMode:'normal', causeKey:null, scaleGroupIds:[],
     causasAtivas:[], causasResolvidas:[], causasReduzidas:[], causasReabertas:[], causasTocadas:[],
     signature:'' }, opts || {});
   c.signature = gLayoutCandidateSignature(c);
@@ -4376,7 +4603,7 @@ function gSearchLayoutCandidates(p){
   const o = p || {};
   const ctx = o.ctx;
   const lim = Object.assign({}, G_SEARCH_LIMITES, o.limites || {});
-  if(!ctx) return { original:null, solved:[], partial:[], invalid:[],
+  if(!ctx) return { original:null, solved:[], partial:[], invalid:[], unsafe:[],
                     diagnostics:{ generated:0, expanded:0, deduplicated:0, pruned:0,
                                   maxDepthReached:0, acoes:{}, problemasIniciais:0 } };
 
@@ -4404,6 +4631,7 @@ function gSearchLayoutCandidates(p){
     solved: emerg.solved,
     partial: normal.partial.concat(emerg.partial),
     invalid: normal.invalid.concat(emerg.invalid),
+    unsafe: (normal.unsafe || []).concat(emerg.unsafe || []),
     diagnostics: Object.assign({}, normal.diagnostics, {
       modo: emerg.solved.length ? 'emergency' : 'normal',
       firstSolvedDepth: emerg.diagnostics.firstSolvedDepth,
@@ -4413,6 +4641,8 @@ function gSearchLayoutCandidates(p){
       deduplicated: normal.diagnostics.deduplicated + emerg.diagnostics.deduplicated,
       pruned: normal.diagnostics.pruned + emerg.diagnostics.pruned,
       maxDepthReached: Math.max(normal.diagnostics.maxDepthReached, emerg.diagnostics.maxDepthReached),
+      unsafeRejeitados: (normal.diagnostics.unsafeRejeitados || 0) + (emerg.diagnostics.unsafeRejeitados || 0),
+      gruposAdaptativos: (normal.diagnostics.gruposAdaptativos || 0) + (emerg.diagnostics.gruposAdaptativos || 0),
       emergencia: emerg.diagnostics
     })
   };
@@ -4466,13 +4696,27 @@ function _gBuscarNoModo(o, ctx, lim, modo){
 
   /* ── ORIGINAL-FIRST ── sem dano objetivo no estado ASSENTADO não há o que buscar. */
   if(!problemasBase.length){
-    raiz.status = 'solved';
-    diag.firstSolvedDepth = 0; diag.firstSolvedMode = modo;
-    return { original:raiz, solved:[raiz], partial:[], invalid:[], diagnostics:diag };
+    /* ORIGINAL-FIRST também passa pelo portão: a arte publicada com o conteúdo real assentado
+       tem que ser aprovada pelo produto, não só pelo detector. */
+    const segRaiz = gLayoutCandidateSafety(raiz, ctx, problemasBase);
+    if(segRaiz.seguro){
+      raiz.status = 'solved';
+      diag.firstSolvedDepth = 0; diag.firstSolvedMode = modo;
+      return { original:raiz, solved:[raiz], partial:[], invalid:[], unsafe:[], diagnostics:diag };
+    }
+    raiz.status = 'unsafe';
+    raiz.diagnostics.reprovadas = segRaiz.reprovadas;
+    diag.unsafeRejeitados = 1;
+    diag.problemasIniciais = segRaiz.reprovadas.length;
+  }
+  if(!problemasBase.length && raiz.status === 'unsafe'){
+    /* O detector não vê dano e o produto reprova: não há o que a busca ataque (ela age sobre
+       problemas). Devolve o diagnóstico em vez de fingir solução. */
+    return { original:raiz, solved:[], partial:[], invalid:[], unsafe:[raiz], diagnostics:diag };
   }
 
   const vistos = new Set([raiz.signature]);
-  const solved = [], partial = [], invalid = [];
+  const solved = [], partial = [], invalid = [], unsafe = [];
   raiz._medido = st0; raiz.diagnostics.lista = problemasBase; raiz.diagnostics.grupos = gruposBase;
   raiz._resolvidas = [];
   let fronteira = [raiz];
@@ -4513,12 +4757,23 @@ function _gBuscarNoModo(o, ctx, lim, modo){
         const culpado = grupo.culpritId;
         diag.expanded++; doDepth.expandidos++;
 
+        /* ── O ADAPTIVE SCALE GROUP DESTE CONFLITO ── derivado do estado assentado, agora. Ele
+           viaja no problema porque é a geração que decide se `scale-component` vale a pena no
+           escopo do componente, no do grupo, ou nos dois. */
+        const asg = gBuildAdaptiveScaleGroup(ctx, medidoPai, grupo, problemas, pai.scaleGroupIds);
+        if(asg.membros.length > (asg.semente.length))
+          diag.gruposAdaptativos = (diag.gruposAdaptativos || 0) + 1;
+
         /* ── ESCALADA DE IMPACTO ── começa LOCAL e só abre o raio quando o nível atual NÃO
            PRODUZ MOVIMENTO NENHUM. O nível 4 (a arte inteira) fica FORA: é outra fase. */
         let acoes = [];
         for(let nivel = 0; nivel <= 3 && !acoes.length; nivel++){
           acoes = gGenerateLayoutActions(ctx, Object.assign({}, alvo,
-            { rootId: culpado || pai.rootId || alvo.targetId, impactLevel:nivel }),
+            /* ⛔ SEM CULPADO, SEM RAIZ. Herdar a raiz do pai fazia a zona de impacto de OUTRO
+               conflito barrar as ações locais de um problema isolado — era assim que
+               `text-overflow` sem culpado não gerava nada. Sem origem provada a pergunta é só
+               sobre o alvo, e é o que a política de auto-adaptação diz. */
+            { rootId: culpado || null, impactLevel:nivel, _adaptiveGroup:asg }),
             medidoPai.layers, modo);
           /* ⛔ `scale-component` é o maior raio que existe aqui: escalar o bloco inteiro. Ela não
              compete com um wrap barato no primeiro passo. */
@@ -4537,7 +4792,15 @@ function _gBuscarNoModo(o, ctx, lim, modo){
 
         acoes.forEach(acao => {
           if(diag.generated >= lim.maxCandidatos) return;
-          const jaUsou = pai.actions.filter(x => x.id === acao.id).length;
+          /* ⚠ O TETO É POR DECISÃO, NÃO POR NOME. `scale-component/component` e
+             `scale-component/collision-group` são dois movimentos diferentes — conjuntos
+             diferentes, pisos diferentes, contagens de degrau diferentes. Compartilhar o
+             orçamento fazia a escala do componente (que continuava mexendo num membro com folga
+             enquanto o culpado já estava no piso) gastar as voltas de que a escala do grupo
+             precisava depois. Não é aumentar a busca: é parar de somar duas coisas. */
+          const _chaveTeto = (a) => a.id + ((a.params && a.params.escopo) ? '/' + a.params.escopo : '');
+          const chaveAcao = _chaveTeto(acao);
+          const jaUsou = pai.actions.filter(x => _chaveTeto(x) === chaveAcao).length;
           /* TETO DE REPETIÇÃO — quantos degraus o motor tem para esta ação. Em emergência o
              `shrink-text` não tem quatro: tem os que couberem daqui até o piso de emergência,
              e a capacidade já contou (`degraus`). Não é aumentar a busca por força bruta — é
@@ -4571,7 +4834,7 @@ function _gBuscarNoModo(o, ctx, lim, modo){
 
             const filho = _gCandidato(r.layers, { depth:depth + 1, solveState:r.solveState,
               rootId: pai.rootId || alvo.targetId, problem: alvo, causeId: grupo.causeId,
-              causeKey: grupo.key, searchMode: modo,
+              causeKey: grupo.key, searchMode: modo, scaleGroupIds: asg.membros.slice(),
               actions: acoesAcum, actionSignatures: sigsAcum, changedIds: mudouAcum });
 
             if(vistos.has(filho.signature)){ diag.deduplicated++; doDepth.dedup++; break; }
@@ -4618,9 +4881,27 @@ function _gBuscarNoModo(o, ctx, lim, modo){
             });
             if(violou){ filho.status = 'invalid'; invalid.push(filho); diag.pruned++; doDepth.podados++; break; }
 
+            /* ── PORTÃO DE SEGURANÇA — AUTORIDADE FINAL ───────────────────────────────────
+               `solved` exige DUAS aprovações: o detector não achar dano objetivo E o veredito do
+               produto (`gLayoutCamadaReprovada`, via `gLayoutCandidateSafety`) aprovar a
+               composição. São duas implementações da mesma pergunta, e duas implementações
+               divergem — foi assim que um `estouro` de largura passou pelo detector na Fase 5.9.
+               ⛔ Detector em zero e produto reprovando NÃO vira `partial` em silêncio: vira
+               `unsafe`, com o motivo à vista. Candidato inseguro nunca sai daqui como solução. */
             if(!restantes.length){
-              filho.status = 'solved'; solved.push(filho); doDepth.solved++;
-              if(diag.firstSolvedDepth == null){ diag.firstSolvedDepth = filho.depth; diag.firstSolvedMode = modo; }
+              const seg = gLayoutCandidateSafety(filho, ctx, restantes);
+              if(seg.seguro){
+                filho.status = 'solved'; solved.push(filho); doDepth.solved++;
+                if(diag.firstSolvedDepth == null){ diag.firstSolvedDepth = filho.depth; diag.firstSolvedMode = modo; }
+                break;
+              }
+              filho.status = 'unsafe';
+              filho.diagnostics.reprovadas = seg.reprovadas;
+              unsafe.push(filho); doDepth.inseguros = (doDepth.inseguros || 0) + 1;
+              diag.unsafeRejeitados = (diag.unsafeRejeitados || 0) + 1;
+              /* Reprovado pelo produto ainda é um estado melhor que o pai — segue na fronteira
+                 para que a busca possa continuar a partir dele. Só não conta como solução. */
+              proxima.push(filho);
               break;
             }
             filho.status = 'partial';
@@ -4645,8 +4926,9 @@ function _gBuscarNoModo(o, ctx, lim, modo){
                  Se a causa sumiu, a corrida acabou: quem continua é a expansão normal. */
               const gMesma = mapaFilho.get(grupo.key);
               if(!gMesma){ passo = null; break; }
+              const asgK = gBuildAdaptiveScaleGroup(ctx, medido, gMesma, restantes, asg.membros);
               const cand = gGenerateLayoutActions(ctx, Object.assign({}, gMesma.problems[0],
-                { rootId: gMesma.culpritId || pai.rootId || alvo.targetId, impactLevel:3 }),
+                { rootId: gMesma.culpritId || null, impactLevel:3, _adaptiveGroup:asgK }),
                 medido.layers, modo);
               passo = cand.find(x => x.id === acao.id && x.targetId === acao.targetId) || null;
             }
@@ -4665,11 +4947,11 @@ function _gBuscarNoModo(o, ctx, lim, modo){
   diag.bloqueios = _bloqueios;
   const _ord = (a, b) => a.depth - b.depth || a.actions.length - b.actions.length
     || (a.signature < b.signature ? -1 : 1);
-  solved.sort(_ord); partial.sort(_ord); invalid.sort(_ord);
-  [].concat([raiz], solved, partial, invalid).forEach(c => {
+  solved.sort(_ord); partial.sort(_ord); invalid.sort(_ord); unsafe.sort(_ord);
+  [].concat([raiz], solved, partial, invalid, unsafe).forEach(c => {
     delete c.diagnostics.lista; delete c.diagnostics.grupos; delete c._medido; delete c._resolvidas;
   });
-  return { original:raiz, solved, partial, invalid, diagnostics:diag };
+  return { original:raiz, solved, partial, invalid, unsafe, diagnostics:diag };
 }
 
 /* ── BEAM COM DIVERSIDADE CAUSAL ──────────────────────────────────────────────────────────
@@ -4728,10 +5010,12 @@ function _gBeamPorCausa(candidatos, largura){
  * motor reprovaria. O contrário — a busca achar saída onde a escada desistiu — é cobertura a
  * mais, e é reportado como tal.
  */
-function gLayoutCandidateSafety(cand, ctx){
+function gLayoutCandidateSafety(cand, ctx, problemasJaMedidos){
   const r = gSettleCandidateState(cand, ctx);
   const estado = { layers:r.layers, solveState:cand.solveState };
-  const problemas = gDetectLayoutProblems(estado, ctx);
+  /* A busca já detectou sobre ESTE estado assentado antes de chamar aqui — redetectar era pagar
+     a varredura de colisão duas vezes por candidato resolvido. A lista entra quando existe. */
+  const problemas = problemasJaMedidos || gDetectLayoutProblems(estado, ctx);
   /* O `_fit` das camadas assentadas é o do MOTOR (`_soAssentar` remede com `gFitTextLayer`),
      não uma medida desta camada — é o que torna a conferência independente do detector. */
   const reprovadas = (typeof gLayoutCamadaReprovada === 'function')
@@ -4798,6 +5082,12 @@ function gShadowLayoutSearch(layers, dados, canvas, opts){
     /* A conferência de segurança de TODA solução, com o veredito do motor. */
     out.solucoesInseguras = r.solved.filter(c => !gLayoutCandidateSafety(c, ctx).seguro)
       .map(c => c.actions.map(a => a.id).join('→'));
+    /* Quantos candidatos o portão de segurança BARROU — detector em zero e produto reprovando.
+       É o número que diz se a régua dupla está fazendo diferença ou só ocupando espaço. */
+    out.unsafeRejeitados = r.diagnostics.unsafeRejeitados || (r.unsafe || []).length || 0;
+    /* E quantas soluções dependem do grupo adaptativo: sem ele, seriam `so-solver`. */
+    out.dependeDoGrupo = r.solved.some(c => c.actions.some(a =>
+      a.id === 'scale-component' && a.params && a.params.escopo === 'collision-group'));
     out.causasTocadas = r.solved.length ? (r.solved[0].causasTocadas || []).length
                       : (r.partial.length ? (r.partial[r.partial.length - 1].causasTocadas || []).length : 0);
     out.causasReabertas = [].concat(r.solved, r.partial)

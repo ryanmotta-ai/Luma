@@ -2019,19 +2019,39 @@ function gLayoutCorpoAtual(l){
 
    @param {Set|Array} idsGrupo quem desce junto (não entra como piso)
    @param {boolean} precoNaoEhPiso escada travada: o preço imune deixa de contar como piso */
-function gLayoutPisoHierarquiaExterno(camadas, alvo, idsGrupo, precoNaoEhPiso){
-  if(!alvo) return 0;
+/* O ÍNDICE do piso externo, para quando a pergunta se repete com o MESMO grupo. Perguntar
+   layer a layer é uma varredura da arte inteira por membro — numa peça de 344 camadas com um
+   grupo de 100, são 34 mil comparações por consulta, e a busca consulta por candidato.
+   Aqui a arte é varrida UMA vez: os de fora entram ordenados por corpo DESENHADO, com o máximo
+   acumulado do corpo ATUAL. O piso de cada alvo vira uma busca binária.
+   ⚠ Mesma resposta, mesma régua: `>=` vira `<` estrito na busca, que é exatamente a condição
+   "era MENOR no desenho" — e por isso o próprio alvo nunca entra no seu piso. */
+function gLayoutIndicePisoExterno(camadas, idsGrupo, precoNaoEhPiso){
   const grupo = (idsGrupo instanceof Set) ? idsGrupo : new Set(idsGrupo || []);
-  let piso = 0;
+  const fora = [];
   (camadas || []).forEach(o => {
-    if(!o || o === alvo || o.type !== 'text') return;
+    if(!o || o.type !== 'text') return;
     if(typeof _gLayoutVisivel === 'function' && !_gLayoutVisivel(o)) return;
     if(grupo.has(o.id)) return;
-    if((o.fontSize || 24) >= (alvo.fontSize || 24)) return;
     if(precoNaoEhPiso && typeof _gLayoutPrecoImune === 'function' && _gLayoutPrecoImune(o)) return;
-    piso = Math.max(piso, gLayoutCorpoAtual(o));
+    fora.push({ fs:(o.fontSize || 24), corpo:gLayoutCorpoAtual(o) });
   });
-  return piso;
+  fora.sort((a, b) => a.fs - b.fs);
+  const fsOrd = [], maxAcum = [];
+  let m = 0;
+  fora.forEach(e => { m = Math.max(m, e.corpo); fsOrd.push(e.fs); maxAcum.push(m); });
+  return { fsOrd, maxAcum };
+}
+
+/** @param {object} [indice] de `gLayoutIndicePisoExterno`, quando o mesmo grupo é consultado
+ *        várias vezes. Sem ele, o índice é construído na hora — mesma resposta, outro custo. */
+function gLayoutPisoHierarquiaExterno(camadas, alvo, idsGrupo, precoNaoEhPiso, indice){
+  if(!alvo) return 0;
+  const idx = indice || gLayoutIndicePisoExterno(camadas, idsGrupo, precoNaoEhPiso);
+  const s = (alvo.fontSize || 24);
+  let lo = 0, hi = idx.fsOrd.length;
+  while(lo < hi){ const mid = (lo + hi) >> 1; if(idx.fsOrd[mid] < s) lo = mid + 1; else hi = mid; }
+  return lo > 0 ? idx.maxAcum[lo - 1] : 0;
 }
 
 function gLayoutPisoFonte(l, emergencia){
@@ -3322,7 +3342,8 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
            O piso aqui é o maior corpo ATUAL entre os que eram menores e não estão descendo. */
         // A régua única (`gLayoutPisoHierarquiaExterno`, no alto deste arquivo): a busca de
         // candidatos consulta a MESMA conta antes de autorizar um encolhimento de emergência.
-        const _pisoHierExterno=(l)=>gLayoutPisoHierarquiaExterno(cloned,l,ids,_precoNaoEhPiso);
+        const _idxPiso=gLayoutIndicePisoExterno(cloned,ids,_precoNaoEhPiso);
+        const _pisoHierExterno=(l)=>gLayoutPisoHierarquiaExterno(cloned,l,ids,_precoNaoEhPiso,_idxPiso);
         const grupo=[];
         textosComponente.forEach(l=>{
           const alvo=Math.max(_pisoEmergenciaDe(l),_pisoHierExterno(l),Math.floor((l.fontSize||24)*escalaGlobal));

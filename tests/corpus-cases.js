@@ -60,7 +60,7 @@
   /* COBERTURA Search × Solver (Fase 5.9). A pergunta: quando o motor acha saída segura, a busca
      acha uma equivalente em capacidade? E quantas vezes ela precisou do piso de emergência? */
   const _cobertura={ total:0, solverSolved:0, searchSolved:0, normal:0, emergencia:0,
-                     soSolver:[], soBusca:[] };
+                     unsafeRejeitados:0, comGrupo:[], soSolver:[], soBusca:[] };
   const solve=(fx,dados,opts)=>gApplyRelativeAnchors(clonar(fx.layers),dados,{},
     Object.assign({fitText:true,canvas:fx.canvas,scope:'franqueado'},opts||{}));
   const geo=(out)=>out.filter(l=>l&&l.type==='text').map(l=>{
@@ -218,6 +218,8 @@
             else _cobertura.normal++; }
           if(sh.cobertura==='so-solver') _cobertura.soSolver.push(chave);
           if(sh.cobertura==='so-busca') _cobertura.soBusca.push(chave);
+          _cobertura.unsafeRejeitados += (sh.unsafeRejeitados||0);
+          if(sh.dependeDoGrupo) _cobertura.comGrupo.push(chave);
           /* ⛔ ESTA É ASSERÇÃO, e é a única direção que não pode falhar em silêncio: a busca
              APROVAR o que o solver reprova. Cobertura a menos é lacuna a fechar e sai como
              nota; cobertura a mais é arte insegura passando, e isso é vermelho. */
@@ -345,6 +347,9 @@
     +_cobertura.solverSolved+'/'+_cobertura.total+' · busca resolve '+_cobertura.searchSolved
     +' ('+_cobertura.normal+' no normal, '+_cobertura.emergencia+' só em emergência)'
     +' · so-solver '+(_cobertura.soSolver.length?_cobertura.soSolver.join(','):'nenhum')
-    +' · so-busca '+(_cobertura.soBusca.length?_cobertura.soBusca.join(','):'nenhum'));
+    +' · so-busca '+(_cobertura.soBusca.length?_cobertura.soBusca.join(','):'nenhum')
+    +' · inseguros barrados '+_cobertura.unsafeRejeitados
+    +' · dependem do grupo adaptativo '+_cobertura.comGrupo.length
+    +(_cobertura.comGrupo.length?' ('+_cobertura.comGrupo.join(',')+')':''));
   window.__lumaTest={passed:passed,total:cases.length,failures:falhas,perf:perf,notas:avisos};
 })();
