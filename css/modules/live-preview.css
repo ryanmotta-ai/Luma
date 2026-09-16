@@ -134,7 +134,7 @@
    / Clique na arte) e o chip de status do topo. Volta sozinho quando .lp-stage perde .empty
    (arte carregada). :has() alcança os irmãos fora do .lp-stage. */
 #f-live-preview:has(.lp-stage.empty) .lp-toolbar,
-#f-live-preview:has(.lp-stage.empty) .lp-stage-meta,
+#f-live-preview:has(.lp-stage.empty) .lp-stage-meta{display:none}
 /* Miniatura fantasma de uma arte (story 9:16) — foto + título + preço */
 .lp-empty-art{
   width:118px;aspect-ratio:9/16;border-radius:14px;position:relative;overflow:hidden;
