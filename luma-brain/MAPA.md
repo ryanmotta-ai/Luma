@@ -254,22 +254,22 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 79 arquivos JS (65.276 linhas, 2.512 funções) · 31 arquivos CSS (29.625 linhas) · `index.html` com 3.884 linhas e 80 `<script>`.
+**Tamanho real de hoje:** 79 arquivos JS (67.523 linhas, 2.572 funções) · 31 arquivos CSS (29.154 linhas) · `index.html` com 3.884 linhas e 80 `<script>`.
 
 ## JS — o que cada arquivo é
 
 ### js (raiz)
 
-**`js/00-config.js`** · 3509 linhas
+**`js/00-config.js`** · 3688 linhas
 Constantes globais imutaveis: HIST_KEY, CAMPS_ATIVAS, CAMPS_OUTRAS, FMTS. Deve ser carregado PRIMEIRO (todos os modulos dependem destas constantes).
-· API: gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss, gGradientCanvas … (+49; 94 funções no total)
+· API: gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss, gGradientCanvas … (+57; 102 funções no total)
 · Estado global: _G_MEDIDA_CACHE, gLayoutVivoOff, _gCanvasWrap
 
 **`js/01-state.js`** · 11 linhas
 Estado global do franqueado: fState. Deve ser carregado apos 00-config.js.
 · Estado global: fState
 
-**`js/main.js`** · 477 linhas
+**`js/main.js`** · 487 linhas
 Bootstrap: setMode (troca entre franqueado/designer) e chamadas de inicializacao. Deve ser carregado por ULTIMO (apos todos os modulos).
 · API: dUpdateTabPill, gModeAllowed, gFirstAllowedMode, gGoHome, setMode, gRestoreMode, gApplyModeAccess, gParseDeepLink, gSaveDeepLink, gClearDeepLink, gApplyDeepLink, gOnLoginSuccess
 
@@ -301,9 +301,9 @@ AUTH via Supabase (Fase 5.1). Login/logout/recuperação usam supabase.auth (win
 · API: gRoleLevel, gLoadProfile, gLogin, gLogout, gCurrentUser, gCurrentRole, gIsAdmin, gIsSuperAdmin, gCanManageUsers, gForgotPassword, gResetPassword, gGetAllUsers, gSetUserRole, gSetUserAtivo … (+11; 26 funções no total)
 · Estado global: gAuthState
 
-**`js/core/auto-layout.js`** · 957 linhas
+**`js/core/auto-layout.js`** · 2899 linhas
 AUTO-LAYOUT — a camada de JULGAMENTO O solver de composição mora em `00-config.js` (`gApplyRelativeAnchors`):
-· API: gLayoutFontProbe, gStampLayoutBaseline, gLayoutLimpaCarimbos, gLayoutTextoAutorado, gEnsureLayoutBaseline, gLayoutFontDrift, gLayoutFontStatus, gLayoutRefInk, gLayoutRoleOf, gLayoutSemanticRole, gCompileLayoutRoles, gLayoutRoleMaxLines, gLayoutCampoEhPreco, gLayoutEhPrecoDinamico … (+18; 38 funções no total)
+· API: gLayoutFontProbe, gStampLayoutBaseline, gLayoutLimpaCarimbos, gLayoutTextoAutorado, gEnsureLayoutBaseline, gLayoutFontDrift, gLayoutFontStatus, gLayoutRefInk, gLayoutRoleOf, gLayoutSemanticRole, gCompileLayoutRoles, gLayoutRoleMaxLines, gLayoutCampoEhPreco, gLayoutEhPrecoDinamico … (+56; 89 funções no total)
 · Estado global: _gLayoutTempos
 
 **`js/core/console.js`** · 887 linhas
@@ -543,9 +543,9 @@ Ferramentas avançadas de seleção inspiradas no Photoshop: 1. Object Selection
 · Estado global: dSelectionTolerance, dSelectionContiguous, dObjSelectState, dMagicWandTolerance, _dMarchingAntsCSSInjected
 · Depende de: designer/canvas.js, designer/layers.js
 
-**`js/designer/templates.js`** · 3389 linhas
+**`js/designer/templates.js`** · 3505 linhas
 Estado e CRUD de templates/pastas: dFolders, dInit, dRenderFolders, dLoadTemplateById, dBuildLayers, dLoadTemplate, dOpenNewFolder, dConfirmTemplate.
-· API: dSyncLyrCnt, dBuildMockLayersForCamp, dDefaultFolders, dBuildShowcaseLayers, dPreloadFolders, dDefaultPublishMeta, dExtractTemplateVars, dBuildLayers, dBuildBlankLayers, dBuildBlankLayersWH, dGetActiveAB, dSyncLayersToAB, dSetActiveAB, dNewArtboard … (+136; 159 funções no total)
+· API: dSyncLyrCnt, dBuildMockLayersForCamp, dDefaultFolders, dBuildShowcaseLayers, dPreloadFolders, dDefaultPublishMeta, dExtractTemplateVars, dBuildLayers, dBuildBlankLayers, dBuildBlankLayersWH, dGetActiveAB, dSyncLayersToAB, dSetActiveAB, dNewArtboard … (+137; 160 funções no total)
 · Estado global: dFmt, dZoomLevel, dLayers, dSelId, dTool, dDrag, dDragSX, dDragSY, dLyrSX, dLyrSY (+38)
 · Depende de: 00-config.js
 
@@ -694,7 +694,7 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/modules/chat.css` | 3696 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
-| `css/modules/designer.css` | 5778 |
+| `css/modules/designer.css` | 5307 |
 | `css/modules/feedback.css` | 199 |
 | `css/modules/franqueado.css` | 1593 |
 | `css/modules/franqueado_effects.css` | 406 |

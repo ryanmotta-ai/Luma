@@ -1866,6 +1866,216 @@ function gHandleLayoutUnsafeError(err){
   return true;
 }
 
+/* ══ RÉGUA ESPACIAL — a ÚNICA leitura de "quem está perto de quem" ══
+   Estas quatro primitivas são a parte PURA da leitura que `_gInferirCorrentes` faz (logo abaixo)
+   e que a Layout Grammar (`core/auto-layout.js` §10) refaz para descrever a mesma arte. Enquanto
+   a gramática era só observacional, ter os limiares escritos duas vezes não movia pixel; no dia
+   em que ela alimentar o solve, seriam DUAS VERDADES sobre a mesma pergunta — o defeito de
+   origem da maioria dos bugs deste motor.
+
+   Moram aqui, e não em `core/auto-layout.js`, porque `00-config.js` carrega primeiro: o solver
+   chama direto, sem guarda de `typeof`, e não há contexto em que a corrente inferida mude de
+   comportamento por causa de ordem de script.
+
+   ⚠ SÓ O QUE ERA DUPLICADO DE VERDADE. O `gap` da corrente (que sai de `baseVisual` e desconta
+   o `colapso`), a poda por raiz dinâmica e o filtro de quem pode se mexer continuam no solver:
+   são decisão dele, não medida. Primitiva aqui mede; quem decide é quem chama. */
+const G_LAYOUT_REL = {
+  tol:        2,    // px de folga para "encosta" / "está acima" — absorve arredondamento do PSD
+  coluna:   0.3,    // cruzamento horizontal mínimo para dois blocos serem a MESMA coluna
+  linha:    0.6,    // cruzamento vertical mínimo para serem a MESMA linha (mais exigente: a arte
+                    // é mais estreita que alta, e empurrar para o lado erra mais fácil)
+  alcanceV:   2,    // o vão vertical até o vizinho, em linhas de texto (mais que isso é seção)
+  alcanceH:   1     // o vão lateral, em linhas de texto
+};
+
+// Fração de sobreposição entre dois intervalos, medida sobre o MENOR dos dois. Um eixo por vez.
+function gLayoutOverlapRatio(a1, a2, b1, b2){
+  const cruz = Math.min(a2, b2) - Math.max(a1, b1);
+  const menor = Math.max(1, Math.min(a2 - a1, b2 - b1));
+  return cruz / menor;
+}
+
+/* A unidade de distância desta arte é a LINHA DE TEXTO dela, não um número de pixels: 24px é
+   respiro num cartaz de fonte 18 e é colado num título de 90. Piso 16 para que shape sem
+   `fontSize` (placa, foto) ainda tenha uma escala de referência. */
+function gLayoutLinhaTipografica(a, b){
+  return Math.max((a && a.fontSize) || 0, (b && b.fontSize) || 0, 16) * 1.2;
+}
+
+// Retângulo de leitura de uma camada — a geometria crua, sem os carimbos do solve.
+function gLayoutRelRect(l){
+  return { x:(l&&l.x)||0, y:(l&&l.y)||0, w:(l&&l.w)||0, h:(l&&l.h)||0 };
+}
+
+/**
+ * `rb` está logo ABAIXO de `ra`, perto o bastante para ser o mesmo bloco?
+ * @returns {{fundo:number, respiro:number}|null} `fundo` é o pé de `ra` (o critério de
+ *          desempate: vence o vizinho IMEDIATO acima). `null` quando não são vizinhos.
+ */
+function gLayoutRelacaoVertical(ra, rb, a, b){
+  const fundo = ra.y + ra.h, topo = rb.y;
+  if(fundo > topo + G_LAYOUT_REL.tol) return null;                       // tem que estar ACIMA
+  if(gLayoutOverlapRatio(ra.x, ra.x + ra.w, rb.x, rb.x + rb.w) < G_LAYOUT_REL.coluna) return null;
+  const respiro = topo - fundo;
+  if(respiro < -G_LAYOUT_REL.tol
+     || respiro > gLayoutLinhaTipografica(a, b) * G_LAYOUT_REL.alcanceV) return null;
+  return { fundo, respiro };
+}
+
+/**
+ * `rb` está logo À DIREITA de `ra`, na mesma linha? (o caso real é "De R$ 149,90 por" ao lado
+ * do preço). Mais exigente que a vertical de propósito — ver `G_LAYOUT_REL.linha`.
+ * @returns {{direita:number, respiro:number}|null}
+ */
+function gLayoutRelacaoLateral(ra, rb, a, b){
+  const direita = ra.x + ra.w, esquerda = rb.x;
+  if(direita > esquerda + G_LAYOUT_REL.tol) return null;                 // tem que estar À ESQUERDA
+  if(gLayoutOverlapRatio(ra.y, ra.y + ra.h, rb.y, rb.y + rb.h) < G_LAYOUT_REL.linha) return null;
+  const respiro = esquerda - direita;
+  if(respiro < -G_LAYOUT_REL.tol
+     || respiro > gLayoutLinhaTipografica(a, b) * G_LAYOUT_REL.alcanceH) return null;
+  return { direita, respiro };
+}
+
+/* ══ AUTORIZAÇÃO DE DEPENDÊNCIA — "isto pode transmitir impacto de um campo?" ══
+   GEOMETRIA E DEPENDÊNCIA SÃO DUAS PERGUNTAS. "B está logo abaixo de A" é geometria, e a régua
+   dela está acima (`gLayoutRelacaoVertical`). "o crescimento de A pode empurrar B" é outra
+   coisa: depende de A poder crescer (carregar campo), de B poder ser empurrado (não estar
+   travado, protegido, no fundo, nem ser o bloco do preço) e de a cadeia entre os dois nascer
+   num campo. Confundir as duas foi o que fez, antes da poda existir, um PSD sem campo nenhum
+   ter geometria alterada e exportação bloqueada: selo → textura → faixa viravam "corrente"
+   sem ninguém poder mudar nada ali.
+
+   A poda vivia dentro de `_gInferirCorrentes` e só o solver a conhecia. O Composition Graph
+   (§11 de `core/auto-layout.js`) enxergava a mesma vizinhança e não tinha como distinguir
+   "está perto" de "faz parte da cadeia de adaptação de um campo" — e replicar o algoritmo lá
+   seria a segunda verdade que a unificação das réguas espaciais acabou de eliminar.
+
+   Aqui mora a parte PURA: um FATO por camada, e duas perguntas sobre esses fatos. Quem monta
+   os fatos é cada consumidor (o solver a partir dos clones, a gramática a partir das camadas
+   autoradas); a REGRA é uma só. */
+
+/* O fato de uma camada, do ponto de vista de dependência. Só o que a regra precisa — nada de
+   geometria, que é assunto da régua espacial. */
+function gLayoutFatoDependencia(l){
+  if(!l) return null;
+  return {
+    id: l.id,
+    grupo: l.type === 'group',
+    visivel: _gLayoutVisivel(l),
+    // A régua ESTREITA do solver, de propósito: declaração explícita (travar a camada) ou o
+    // contrato antigo `layoutRole`. O papel COMPILADO ('protegida' por nome de logo/selo) é
+    // mais largo e NÃO entra — usá-lo aqui bloquearia correntes que o solver hoje permite.
+    travada: !!(l.locked || l.lockPosition
+             || l.layoutRole === 'background' || l.layoutRole === 'protected'),
+    precoFixo: _gLayoutBlocoPrecoFixo(l),
+    paiId: l.parentId || null,
+    placaAlvo: (l._placa && l._placa.alvo) || null,
+    temCampo: _gLayoutTemCampo(l),
+    // Preenchidos pelo consumidor: só o runtime sabe o que ficou vazio depois de interpolar.
+    vazio: false, colapsoDeCampo: false, anchor: null
+  };
+}
+
+/**
+ * Esta camada PODE ser empurrada por uma corrente? É a régua de `_gCorrenteMovivel`, agora
+ * legível por quem não tem os clones do solve na mão.
+ * @param {object} f        fato da camada
+ * @param {Function} fatoDe (id) => fato|null — resolve ancestral e alvo de placa POR ID (nunca
+ *                          por referência viva: undo/simulação trocam os objetos por clones)
+ */
+function gLayoutPodeAcompanhar(f, fatoDe){
+  if(!f || f.grupo || !f.visivel) return false;
+  if(f.travada) return false;
+  /* ⛔ O BLOCO DO PREÇO NÃO SAI DO LUGAR (regra 03/09). Ele desloca os outros, não é deslocado
+     — é o que "predominância" quer dizer. Sair da corrente como FILHO não o tira do jogo: ele
+     continua candidato a PAI. */
+  if(f.precoFixo) return false;
+  // A placa do preço segue o preço: se ela cede e ele não, o par se separa e o texto sai da base.
+  if(f.placaAlvo && typeof fatoDe === 'function'){
+    const alvo = fatoDe(f.placaAlvo);
+    if(alvo && alvo.precoFixo) return false;
+  }
+  /* ⚠ TER PAI NÃO IMOBILIZA — quem imobiliza é o GRUPO travado. Desde a importação de PSD com
+     grupos, quase toda camada tem pai, e barrar todas desligava a corrente do template inteiro
+     em silêncio. */
+  let paiId = f.paiId, guarda = 0;
+  while(paiId && typeof fatoDe === 'function' && guarda++ < 16){
+    const g = fatoDe(paiId);
+    if(!g) break;
+    if(g.travada) return false;
+    paiId = g.paiId;
+  }
+  return true;
+}
+
+/**
+ * A FONTE ÚNICA da autorização. Recebe os fatos (cada um com `anchor` e `elegivel` já
+ * resolvidos pelo consumidor) e devolve, por camada, se a dependência é autorizada e de onde
+ * ela nasce.
+ *
+ * A ordem é a mesma de sempre, e não muda:
+ *   1. campo dinâmico é RAIZ;
+ *   2. filho autorizado herda a dependência;
+ *   3. o próximo filho herda de novo (propaga pela árvore);
+ *   4. vizinhança sozinha NÃO autoriza nada;
+ *   5. campo opcional vazio autoriza SÓ o colapso do vão que ele mesmo deixou;
+ *   6. declaração manual (`relativeAnchor`) tem autoridade máxima.
+ *
+ * Antes isto era um laço de ponto-fixo sobre um `Set` (`ligados`). Virou subida memoizada
+ * porque a resposta precisa vir com o CAMINHO — sem ele o Graph sabe que a cadeia existe mas
+ * não sabe dizer qual campo encurtar, que é justamente a pergunta do diagnóstico.
+ *
+ * @param {Array} fatos  [{id, anchor:{layerId,autorada}|null, elegivel:bool, temCampo, vazio,
+ *                        colapsoDeCampo, ...}]
+ * @returns {Map<string,{autorizado,raizId,motivo,confianca,caminho,autorada}>}
+ */
+function gLayoutDependencyAuthorization(fatos){
+  const lista = (fatos || []).filter(f => f && f.id != null);
+  const porId = new Map(lista.map(f => [f.id, f]));
+  const NEGADO = { autorizado:false, raizId:null, motivo:null, confianca:null,
+                   caminho:[], autorada:false };
+  // RAIZ: quem pode originar impacto. Campo dinâmico que ocupa tinta, ou a exceção do campo
+  // opcional em branco — que não ocupa nada, mas autoriza fechar exatamente o vão dele.
+  const raiz = (f) => {
+    if(f.colapsoDeCampo) return 'campo-opcional-vazio';
+    if(f.temCampo && !f.vazio && f.elegivel !== false) return 'campo-dinamico';
+    return null;
+  };
+  const memo = new Map();
+  const resolve = (id, visitando) => {
+    if(memo.has(id)) return memo.get(id);
+    const f = porId.get(id);
+    if(!f) return NEGADO;
+    const m = raiz(f);
+    if(m){
+      const r = { autorizado:true, raizId:id, motivo:m, confianca:'certa', caminho:[], autorada:false };
+      memo.set(id, r); return r;
+    }
+    const a = f.anchor;
+    if(!a || !a.layerId || !porId.has(a.layerId)) return NEGADO;   // sem elo: não se inventa raiz
+    // Ciclo (A→B→A, que o designer consegue marcar à mão): para aqui em vez de laçar. O
+    // resultado NÃO entra no memo — o "negado" do corte contaminaria a cadeia inteira acima.
+    if(visitando.has(id)) return NEGADO;
+    visitando.add(id);
+    const acima = resolve(a.layerId, visitando);
+    visitando.delete(id);
+    if(!acima.autorizado) return NEGADO;
+    /* CONFIANÇA DA CADEIA: `certa` só quando TODO elo é declaração do designer. Um elo
+       inferido, por mais que a autorização o valide, é regra do motor e não declaração — então
+       a cadeia inteira vale `forte`. É o elo mais fraco que manda. */
+    const autorada = !!a.autorada && (acima.caminho.length === 0 || acima.autorada);
+    const r = { autorizado:true, raizId:acima.raizId, motivo:acima.motivo,
+                confianca: autorada ? 'certa' : 'forte',
+                caminho: [a.layerId].concat(acima.caminho), autorada:autorada };
+    memo.set(id, r); return r;
+  };
+  const saida = new Map();
+  lista.forEach(f => saida.set(f.id, resolve(f.id, new Set())));
+  return saida;
+}
+
 /* ══ CORRENTES INFERIDAS — ler o respiro da arte em vez de pedir ao designer ══
    `relativeAnchor` existe há tempos, mas é marcado camada a camada, à mão — e por isso a
    cascata quase nunca entrava em ação numa arte real. Aqui as correntes saem do próprio
@@ -1890,41 +2100,19 @@ function gHandleLayoutUnsafeError(err){
    como reserva para quando existir; hoje quem protege é `locked`/`lockPosition`.
    Âncora explícita do designer SEMPRE vence a inferida. */
 function _gCorrenteMovivel(l, cloned){
-  if(!l || l.type==='group' || !_gLayoutVisivel(l)) return false;
-  if(l.locked || l.lockPosition) return false;
-  if(l.layoutRole==='background' || l.layoutRole==='protected') return false;
-  /* ⛔ O CAMPO DE PRECO NAO E EMPURRADO (regra 03/09, complemento da regra de 19/08).
-     Desde 19/08 o preco nao ENCOLHE por motivo alheio (`_gLayoutPrecoImune`, usado na
-     escada). Faltava a outra metade: ele ainda DESCIA. Com o titulo quebrando em duas
-     linhas, a corrente inferida arrastava o preco pra baixo — nao encolhia, mas saia do
-     lugar que o designer deu pra ele.
-     Sair da corrente como FILHO nao o tira do jogo: `nos` (a lista de candidatos a PAI)
-     nao passa por aqui, entao o preco continua podendo EMPURRAR os outros. E exatamente
-     o que "predominancia" quer dizer — ele desloca, nao e deslocado.
-     Consequencia aceita: com uma saida menos na escada, os outros textos encolhem mais
-     cedo. Foi a decisao do produto, medida no corpus antes de entrar. */
-  if(_gLayoutBlocoPrecoFixo(l)) return false;
-  /* A placa do preco (a base solida atras dele) segue a mesma regra: se ela cede e ele
-     nao, o par se separa e o texto sai da base. `_placa` ja foi carimbado — a inferencia
-     de placas roda antes desta. */
-  if(l._placa && Array.isArray(cloned)){
-    const alvo = cloned.find(x => x && x.id === l._placa.alvo);
-    if(alvo && _gLayoutBlocoPrecoFixo(alvo)) return false;
-  }
-  /* ⚠ TER PAI NÃO IMOBILIZA. A regra antiga barrava toda camada com `parentId` — o que fazia
-     sentido quando grupo só nascia à mão no Estúdio. Desde a importação de PSD com grupos
-     (`psd-parse.js`), quase toda camada de arte de agência tem pai, e a regra desligava a
-     corrente inferida do template inteiro EM SILÊNCIO: o franqueado digitava um nome longo e
-     nada descia. Quem imobiliza é o GRUPO travado/protegido — resolvido por ID a cada consulta,
-     porque undo/simulação trocam os objetos por clones e uma referência guardada morreria. */
-  let paiId=l.parentId, guarda=0;
-  while(paiId && Array.isArray(cloned) && guarda++ < 16){
-    const g=cloned.find(x=>x && x.id===paiId);
-    if(!g) break;
-    if(g.locked || g.lockPosition || g.layoutRole==='background' || g.layoutRole==='protected') return false;
-    paiId=g.parentId;
-  }
-  return true;
+  /* A regra inteira mora em `gLayoutPodeAcompanhar` (fonte única, no alto deste arquivo) — o
+     que sobrou aqui é o ADAPTADOR que traduz clones em fatos. O motivo de existir uma fonte
+     única: o Composition Graph precisa da MESMA resposta sem ter os clones do solve na mão, e
+     reescrever estas seis condições lá seria a segunda verdade de sempre.
+     Resolve ancestral e alvo de placa POR ID a cada consulta, como antes: undo/simulação
+     trocam os objetos por clones, e uma referência guardada apontaria para objeto morto. */
+  if(!l) return false;
+  const fatoDe = (id) => {
+    if(!Array.isArray(cloned)) return null;
+    const x = cloned.find(y => y && y.id === id);
+    return x ? gLayoutFatoDependencia(x) : null;
+  };
+  return gLayoutPodeAcompanhar(gLayoutFatoDependencia(l), fatoDe);
 }
 function _gLayoutEhFundoExplicito(l, cv){
   if(!l) return true;
@@ -1982,8 +2170,7 @@ function _gInferirCorrentes(cloned, opts, resolved, base){
       const t=v.y||0, f=t+(v.h||0);
       if(t < fundoA-2 || f > topoB+2) return;                 // tem que estar ENTRE os dois
       const x1=v.x||0, x2=x1+(v.w||0);
-      const cruz=Math.min(x2,x2B)-Math.max(x1,x1B);
-      if(cruz/Math.max(1,Math.min(x2-x1, x2B-x1B)) < 0.3) return;   // mesma coluna
+      if(gLayoutOverlapRatio(x1,x2,x1B,x2B) < G_LAYOUT_REL.coluna) return;   // mesma coluna
       soma += (v.h||0);
       if(_gLayoutTemCampo(v))temCampo=true;
     });
@@ -1992,23 +2179,16 @@ function _gInferirCorrentes(cloned, opts, resolved, base){
   nós.forEach(B=>{
     if(B.relativeAnchor || !_gCorrenteMovivel(B, cloned)) return;   // manual vence; imóvel não entra
     const topoB=B.y||0, x1B=B.x||0, x2B=x1B+(B.w||0);
+    const rB=gLayoutRelRect(B);
     let pai=null, fundoPai=-Infinity;
     nós.forEach(A=>{
       if(A===B) return;
-      const fundoA=(A.y||0)+(A.h||0);   // a CAIXA desenhada, não a medida
-      if(fundoA > topoB + 2) return;                        // tem que estar ACIMA (sem sobrepor)
-      // Mesma coluna: as faixas horizontais precisam se cruzar de verdade, senão uma coluna
-      // da esquerda viraria pai de outra da direita que só encosta.
-      const x1A=A.x||0, x2A=x1A+(A.w||0);
-      const cruz=Math.min(x2A,x2B)-Math.max(x1A,x1B);
-      const menor=Math.max(1, Math.min(x2A-x1A, x2B-x1B));
-      if(cruz/menor < 0.3) return;
-      // Perto o bastante para ser o MESMO bloco. Medida na escala tipográfica da própria arte:
-      // mais de duas linhas de distância é quebra de seção, não respiro entre irmãos.
-      const respiro=topoB-fundoA;
-      const linha=Math.max(A.fontSize||0, B.fontSize||0, 16)*1.2;
-      if(respiro < -2 || respiro > linha*2) return;
-      if(fundoA > fundoPai){ fundoPai=fundoA; pai=A; }       // o vizinho imediato acima
+      /* "Está logo acima, na mesma coluna, perto o bastante?" é a RÉGUA ESPACIAL única
+         (`gLayoutRelacaoVertical`, no alto deste arquivo) — a mesma que a Layout Grammar lê.
+         Ela mede sobre a CAIXA desenhada, não sobre a tinta medida. */
+      const rel=gLayoutRelacaoVertical(gLayoutRelRect(A), rB, A, B);
+      if(!rel) return;
+      if(rel.fundo > fundoPai){ fundoPai=rel.fundo; pai=A; }  // o vizinho imediato acima
     });
     if(pai){
       // auto:true marca a corrente inferida — é ela que só empurra e nunca puxa.
@@ -2030,19 +2210,11 @@ function _gInferirCorrentes(cloned, opts, resolved, base){
        · sobreposição vertical forte (≥60%), não o roçar de 30% que basta na coluna;
        · o vão até o vizinho não passa de uma linha de texto. */
     let paiL=null, direitaPai=-Infinity;
-    const y1B=B.y||0, y2B=y1B+(B.h||0);
     nós.forEach(A=>{
-      if(A===B || A.type!=='text') return;
-      const direitaA=(A.x||0)+(A.w||0);
-      if(direitaA > x1B + 2) return;                          // tem que estar À ESQUERDA
-      const y1A=A.y||0, y2A=y1A+(A.h||0);
-      const cruz=Math.min(y2A,y2B)-Math.max(y1A,y1B);
-      const menor=Math.max(1, Math.min(y2A-y1A, y2B-y1B));
-      if(cruz/menor < 0.6) return;                            // mesma LINHA, não só encostando
-      const respiro=x1B-direitaA;
-      const linha=Math.max(A.fontSize||0, B.fontSize||0, 16)*1.2;
-      if(respiro < -2 || respiro > linha) return;
-      if(direitaA > direitaPai){ direitaPai=direitaA; paiL=A; }
+      if(A===B || A.type!=='text') return;   // só texto cresce com o que o franqueado digita
+      const rel=gLayoutRelacaoLateral(gLayoutRelRect(A), rB, A, B);
+      if(!rel) return;
+      if(rel.direita > direitaPai){ direitaPai=rel.direita; paiL=A; }
     });
     if(!paiL) return;
     B._anchorAuto={ type:'left-to-right', layerId:paiL.id, gap: Math.round(x1B-_direitaRef(paiL)), auto:true };
@@ -2056,18 +2228,25 @@ function _gInferirCorrentes(cloned, opts, resolved, base){
   /* Campo opcional vazio não pertence a `nós` (não ocupa tinta), mas autoriza a corrente que
      fecha exatamente o seu vão. Sem essa segunda raiz, a poda acima corrigia PSDs estáticos e
      acidentalmente desligava o comportamento de remover o espaço de um campo em branco. */
-  const ligados=new Set(nós.filter(l=>_gLayoutTemCampo(l)
-    ||(l._anchorAuto&&l._anchorAuto._raizCampoVazio)).map(l=>l.id));
-  let cresceu=true, guarda=0;
-  while(cresceu&&guarda++<Math.max(1,nós.length)){
-    cresceu=false;
-    nós.forEach(l=>{
-      if(ligados.has(l.id))return;
-      const a=l.relativeAnchor||l._anchorAuto;
-      if(a&&a.layerId&&ligados.has(a.layerId)){ligados.add(l.id);cresceu=true;}
-    });
-  }
-  nós.forEach(l=>{if(l._anchorAuto&&!ligados.has(l.id))delete l._anchorAuto;});
+  /* A AUTORIZAÇÃO sai da fonte única (`gLayoutDependencyAuthorization`, no alto deste
+     arquivo), não de um laço local. Os fatos vêm de `nós` — que já passou por visibilidade,
+     fundo e vazio — e o `anchor` é o elo que acabou de ser inferido, com a âncora MANUAL
+     vencendo a automática, como em toda a cascata.
+     `elegivel:true` porque `_gCorrenteMovivel` já aplicou as proteções na criação do
+     candidato; a gramática, que não gateia antes, passa o resultado de `gLayoutPodeAcompanhar`. */
+  const fatos=nós.map(l=>{
+    const f=gLayoutFatoDependencia(l);
+    const a=l.relativeAnchor||l._anchorAuto;
+    f.elegivel=true;
+    f.colapsoDeCampo=!!(l._anchorAuto&&l._anchorAuto._raizCampoVazio);
+    f.anchor=(a&&a.layerId)?{layerId:a.layerId,autorada:!!l.relativeAnchor}:null;
+    return f;
+  });
+  const autorizacao=gLayoutDependencyAuthorization(fatos);
+  nós.forEach(l=>{
+    const r=autorizacao.get(l.id);
+    if(l._anchorAuto&&!(r&&r.autorizado))delete l._anchorAuto;
+  });
 }
 
 /* ══ PLACAS — a forma atrás do texto cresce junto ══

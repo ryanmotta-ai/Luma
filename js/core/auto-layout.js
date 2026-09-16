@@ -21,6 +21,8 @@
      7. ALTERNATIVAS        — 3 políticas concorrentes + a padrão; ganha a de maior nota.
      8. DIAGNÓSTICO         — qual campo travou e o maior conteúdo seguro, em PT-BR sem jargão.
      9. TELEMETRIA          — original/adapted/unsafe, culpado, estratégia, tempo e template.
+    10. LAYOUT GRAMMAR     — a leitura ESTRUTURAL da arte autorada (papéis, relações, grupos,
+                              hierarquia, assinatura). OBSERVACIONAL: descreve, não decide.
 
    ⚠ TUDO AQUI É ADITIVO. Nenhuma função deste arquivo pode mudar a geometria de uma arte que
    já cabia: quando o solver resolve no primeiro degrau, as alternativas nem são geradas e a
@@ -953,4 +955,1944 @@ function gLayoutFonteStatusArte(layers, ctxAux){
   if(!comBase) return 'desconhecida';
   if(!subst) return 'ok';
   return subst === comBase ? 'substituida' : 'parcial';
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   10. LAYOUT GRAMMAR — a leitura da arte autorada, em estrutura
+   ════════════════════════════════════════════════════════════════════
+   O solver sabe ACOMODAR: mede, infere corrente, abre corredor e sobe a escada. O que ele não
+   tem é uma leitura da COMPOSIÇÃO como um todo — cada inferência dele nasce e morre dentro de
+   um solve, carimbada no clone (`_anchorAuto`, `_placa`, `_layoutBase`), e some junto com ele.
+   Sem essa leitura, "o que o designer quis dizer" nunca é um objeto que dê para inspecionar,
+   comparar entre dois estados ou testar.
+
+   A gramática é esse objeto. Ela responde à filosofia do produto — *o designer cria a intenção;
+   o Luma entende a gramática dessa intenção* — descrevendo o que a arte já diz: quem é o quê,
+   quem segue quem, quem está dentro de quem, quem se alinha com quem, o que pode ceder e o que
+   é intocável. COMPILADA da própria composição: nenhum formulário novo para o designer.
+
+   ⚠ ESTA VERSÃO É OBSERVACIONAL, e isso não é provisório por preguiça — é o contrato desta
+   fase. `gCompileLayoutGrammar` NÃO é chamada por `gApplyRelativeAnchors`, não escreve nada nas
+   camadas e não muda um pixel de nenhuma arte. Ela só LÊ. Enquanto a leitura não estiver
+   provada contra o corpus real, ligá-la no solve seria trocar um motor calibrado por uma
+   hipótese.
+
+   As quatro regras que a mantêm honesta:
+   · SÓ LÊ O AUTORADO. Nunca os carimbos transitórios do solve (`_placa`, `_anchorAuto`,
+     `_fit`, `_tetoFonte`). Ler o resultado do solver faria a gramática descrever a
+     acomodação, não a intenção — e as duas coisas divergem exatamente quando importa.
+   · NÃO DUPLICA MOTOR. A régua de vizinhança é UMA SÓ e mora em `00-config.js`
+     (`gLayoutRelacaoVertical` / `gLayoutRelacaoLateral` / `gLayoutOverlapRatio` /
+     `gLayoutLinhaTipografica`) — as mesmas primitivas que `_gInferirCorrentes` chama. Papel,
+     visibilidade, fundo, contenção, campo e zona segura também saem das funções que já existem.
+     Aqui só se COMPÕE o que já está escrito.
+   · PROXIMIDADE É EVIDÊNCIA, NÃO VERDADE. Todo agrupamento inferido carrega `confianca` e
+     `evidencia`. O que o designer DECLAROU (grupo, âncora manual) é `certa`; o que a
+     composição demonstra com mais de um sinal é `forte`; estar perto, sozinho, é `fraca` — e
+     coisa `fraca` NÃO vira componente.
+   · NÃO MUTA NADA. Recebe camadas, devolve estrutura nova. IDs e escalares derivados — copiar
+     a camada inteira para dentro da gramática criaria a segunda cópia viva do estado, que é
+     o bug clássico desta base.
+
+   DUAS ASSINATURAS, DUAS PERGUNTAS:
+   · `structuralSignature` — "a estrutura semântica/relacional continua a mesma?". Sem
+     geometria e sem conteúdo: papéis, relações, grupos. É ela que separa "o franqueado digitou
+     outra coisa" de "a composição mudou".
+   · `visual.visualSignature` — "quanto esta solução se afastou da LINGUAGEM VISUAL autorada?".
+     Proporções tipográficas, colunas, respiros e bounds, todos normalizados. Derivada e NÃO
+     usada pelo solver; existe para a fase em que houver com o que comparar. */
+
+const G_LAYOUT_GRAMMAR_V = 2;
+/* A folga é lida de `G_LAYOUT_REL` (00-config.js) DENTRO das funções, nunca copiada para uma
+   const daqui: um alias no topo do arquivo seria avaliado na CARGA, e se algum dia uma página
+   carregasse este arquivo antes do `00-config.js` o `ReferenceError` levaria junto as outras 45
+   funções deste arquivo — em silêncio. Lendo em tempo de chamada, só a gramática quebra. */
+/* GRADE DO ÍNDICE ESPACIAL. 24 divisões do maior lado da arte: numa peça 1080×1350 dá células
+   de ~56px, que é a ordem de grandeza de uma linha de texto — o vizinho de um bloco cai na
+   célula dele ou na de ao lado. Menos divisões e a célula vira a arte inteira (o índice não
+   filtra nada); mais e uma camada comum passa a ocupar dezenas de células (o índice custa mais
+   que a varredura que ele evita). */
+const G_GRAMMAR_GRADE = 24;
+/* Camada que cobre mais que isto de células é GRANDE: sangria, painel, moldura. Indexá-la
+   célula a célula encheria a grade inteira e o índice deixaria de filtrar. Ela vai para uma
+   lista à parte e é candidata de todo mundo — o custo dela é O(n × |grandes|), e `grandes` é
+   pequeno por construção, porque só cabem ~12 camadas desse tamanho numa arte antes de ela
+   virar outra coisa. Fundo de tela cheia nem chega aqui: `_gCorrenteEhFundo` já o tirou. */
+const G_GRAMMAR_CELULAS_MAX = 48;
+
+function _gGramVisivel(l){
+  return (typeof _gLayoutVisivel === 'function') ? _gLayoutVisivel(l) : !!(l && l.visible !== false);
+}
+function _gGramFundo(l, cv){
+  if(typeof _gCorrenteEhFundo === 'function') return _gCorrenteEhFundo(l, cv && cv.w ? cv : null);
+  return (typeof _gLayoutEhFundoExplicito === 'function') ? _gLayoutEhFundoExplicito(l, cv) : false;
+}
+function _gGramRect(l){
+  return { x: Math.round(l.x||0), y: Math.round(l.y||0), w: Math.round(l.w||0), h: Math.round(l.h||0) };
+}
+/* Hash determinístico (FNV-1a 32 bits) de uma forma canônica. Serve para responder "isto
+   continua sendo a mesma coisa?" — e é usado duas vezes, sobre duas formas canônicas
+   diferentes (a estrutural e a visual). */
+function _gGramHash(s){
+  let h = 0x811c9dc5;
+  const t = String(s);
+  for(let i = 0; i < t.length; i++){ h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return ('0000000' + h.toString(16)).slice(-8);
+}
+// Normaliza uma medida pelo lado de referência e trunca em 3 casas: a assinatura visual precisa
+// ser estável contra ruído de subpixel e sensível a deslocamento que um designer enxergaria.
+function _gGramNorm(v, base){
+  return Math.round((v / Math.max(1, base)) * 1000) / 1000;
+}
+
+/* ── ÍNDICE ESPACIAL ──────────────────────────────────────────────────────────────────────
+   A versão 1 desta gramática cortava a análise nas 60 primeiras camadas. Era um teto CEGO:
+   medido numa arte sintética, 70, 172 e 344 camadas produziam exatamente as mesmas 864
+   relações, e a camada 342 saía com zero. Para observação inicial passava; como base do
+   designer automático, seria uma leitura que mente em silêncio justamente nas artes grandes
+   (PSD de agência tem 300 camadas com facilidade).
+
+   A troca é uma GRADE UNIFORME: cada camada entra nas células que o retângulo dela cobre, e a
+   busca por vizinho consulta só as células da FAIXA onde o vizinho poderia estar. Uniforme, e
+   não quadtree/R-tree, porque a arte é um retângulo pequeno com elementos de tamanho parecido —
+   o caso em que grade ganha de árvore e cabe em 40 linhas sem dependência nenhuma.
+
+   Determinismo: a consulta devolve os índices ORDENADOS. Sem isso a ordem de visita dependeria
+   da ordem de inserção no `Set`, e um empate de desempate (dois pais com o mesmo pé) escolheria
+   diferente entre execuções — que é exatamente o tipo de não-determinismo que este projeto não
+   aceita, porque prévia e exportação chamam o mesmo motor. */
+function _gGramIndice(itens){
+  if(!itens.length) return null;
+  let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+  itens.forEach(o => { x1 = Math.min(x1, o.r.x); y1 = Math.min(y1, o.r.y);
+                       x2 = Math.max(x2, o.r.x + o.r.w); y2 = Math.max(y2, o.r.y + o.r.h); });
+  const celula = Math.max(16, Math.round(Math.max(1, Math.max(x2 - x1, y2 - y1)) / G_GRAMMAR_GRADE));
+  const col = (x) => Math.floor((x - x1) / celula);
+  const lin = (y) => Math.floor((y - y1) / celula);
+  const celulas = new Map();
+  const grandes = [];
+  itens.forEach((o, i) => {
+    const c1 = col(o.r.x), c2 = col(o.r.x + Math.max(0, o.r.w));
+    const l1 = lin(o.r.y), l2 = lin(o.r.y + Math.max(0, o.r.h));
+    if((c2 - c1 + 1) * (l2 - l1 + 1) > G_GRAMMAR_CELULAS_MAX){ grandes.push(i); return; }
+    for(let c = c1; c <= c2; c++) for(let l = l1; l <= l2; l++){
+      const k = c + ',' + l;
+      if(!celulas.has(k)) celulas.set(k, []);
+      celulas.get(k).push(i);
+    }
+  });
+  return {
+    celula: celula, grandes: grandes,
+    /* Candidatos que PODEM tocar este retângulo. É um filtro, não uma resposta: quem chama
+       ainda aplica a régua espacial de verdade. Falso positivo aqui só custa uma comparação;
+       falso NEGATIVO seria a leitura mentindo — por isso a faixa consultada é sempre a maior
+       que a régua consegue alcançar, nunca a justa. */
+    consulta: function(rect){
+      const vistos = new Set(grandes);
+      const c1 = col(rect.x), c2 = col(rect.x + Math.max(0, rect.w));
+      const l1 = lin(rect.y), l2 = lin(rect.y + Math.max(0, rect.h));
+      for(let c = c1; c <= c2; c++) for(let l = l1; l <= l2; l++){
+        const lista = celulas.get(c + ',' + l);
+        if(lista) for(let k = 0; k < lista.length; k++) vistos.add(lista[k]);
+      }
+      return [...vistos].sort((a, b) => a - b);
+    }
+  };
+}
+
+/**
+ * Compila a GRAMÁTICA da composição autorada. Puro e determinístico: as mesmas camadas
+ * devolvem sempre a mesma estrutura, e nenhuma camada é modificada.
+ *
+ * @param {Array} layers  camadas do template (autoradas — não o resultado de um solve)
+ * @param {{w:number,h:number}} [canvas]
+ * @returns {{version:number, canvas:object, nodes:Array, relations:Array, groups:Array,
+ *            hierarchy:Array, visual:object, structuralSignature:string}}
+ */
+function gCompileLayoutGrammar(layers, canvas){
+  const lista = (layers || []).filter(l => l && l.id != null);
+  const cv = { w: (canvas && canvas.w) || 0, h: (canvas && canvas.h) || 0 };
+
+  /* HIERARQUIA TIPOGRÁFICA — a declaração de importância do designer, e a mesma receita de
+     `gCompileLayoutRoles`: os corpos distintos das camadas de texto visíveis, do maior para o
+     menor. O índice nessa lista é o DEGRAU (0 = o maior da arte). */
+  const corpos = [...new Set(lista.filter(l => l.type === 'text' && _gGramVisivel(l))
+                                  .map(l => Math.round(l.fontSize || 24)))].sort((a,b) => b - a);
+  const hierarchy = corpos.map((fs, i) => ({
+    degrau: i, fontSize: fs,
+    ids: lista.filter(l => l.type === 'text' && _gGramVisivel(l) && Math.round(l.fontSize||24) === fs)
+              .map(l => l.id)
+  }));
+  const ctxPapel = { canvas: cv.w ? cv : null, degraus: corpos };
+
+  // ── NÓS ──
+  const nodes = lista.map(l => {
+    /* Papel já compilado vence: importação e vínculo carimbam na origem, e `layoutRoleManual`
+       é a palavra do designer. Só quem não tem passa pelo compilador — que é PURO, então
+       consultar aqui não escreve nada em lugar nenhum. */
+    const papel = l.layoutRoleManual || l.layoutSemantic
+                || ((typeof gLayoutSemanticRole === 'function') ? gLayoutSemanticRole(l, ctxPapel) : 'apoio');
+    const campos = (typeof gLayoutCamposDe === 'function') ? gLayoutCamposDe(l) : [];
+    const fundo = l.type !== 'group' && _gGramFundo(l, cv);
+    const protegida = !!(l.locked || l.lockPosition || l.layoutRole === 'protected' || papel === 'protegida');
+    /* A caixa do ASSUNTO — rosto, produto, logo dentro da foto. A contagem sozinha diz que a
+       proteção existe; o retângulo diz ONDE, e é dele que sai o `bounds.seguro` de um
+       componente. Sai de `gLayoutSafeZones`, o motor único — não de uma segunda leitura. */
+    const zonasRects = (typeof gLayoutSafeZones === 'function') ? gLayoutSafeZones(l) : [];
+    const zonas = zonasRects.length;
+    let safeRect = null;
+    if(zonas){
+      let a=Infinity,b=Infinity,c=-Infinity,d=-Infinity;
+      zonasRects.forEach(z => { a=Math.min(a,z.x); b=Math.min(b,z.y);
+                                c=Math.max(c,z.x+z.w); d=Math.max(d,z.y+z.h); });
+      if(isFinite(a)) safeRect = { x:Math.round(a), y:Math.round(b),
+                                   w:Math.round(c-a), h:Math.round(d-b) };
+    }
+    const degrau = (l.type === 'text' && _gGramVisivel(l)) ? corpos.indexOf(Math.round(l.fontSize || 24)) : null;
+    return {
+      id: l.id, tipo: l.type || 'text', papel: papel,
+      visivel: _gGramVisivel(l), paiId: l.parentId || null,
+      campos: campos,
+      /* FLEXIBILIDADE PROVÁVEL — o que este nó pode ceder quando o conteúdo real chegar.
+         'rigida'   = não cede nem posição nem tamanho (protegida, travada, fundo);
+         'dinamica' = carrega campo, então É a fonte da variação;
+         'fixa'     = não varia sozinha, mas acompanha (empurrada, escalada). */
+      flex: (protegida || fundo) ? 'rigida' : (campos.length ? 'dinamica' : 'fixa'),
+      protegida: protegida,
+      // Decorativa é o que não carrega informação nem campo: ornamento, textura, selo de fundo.
+      decorativa: !campos.length && (papel === 'decoracao' || fundo),
+      fundo: !!fundo,
+      degrau: degrau != null && degrau >= 0 ? degrau : null,
+      fontSize: l.type === 'text' ? Math.round(l.fontSize || 24) : null,
+      /* Três fatos TIPOGRÁFICOS, porque três degraus da escada dependem deles e não existe
+         outro lugar onde eles caibam: a entrelinha (piso 1.05), o tracking devolvido (só fonte
+         display) e o tracking autorado. `display` usa a MESMA régua do `gFitTextLayer` e do
+         render — inclusive o fallback por NOME quando `dTextFontParts` não carregou, que é o
+         caso das páginas de teste. Uma régua paralela aqui desligaria o degrau em silêncio
+         justamente onde a medida considera a fonte display. */
+      lineHeight: l.type === 'text'
+        ? ((typeof gLineHeightDe === 'function') ? gLineHeightDe(l) : (l.lineHeight || 1.2)) : null,
+      letterSpacing: l.type === 'text' && l.letterSpacing != null ? l.letterSpacing : null,
+      display: l.type === 'text' ? (function(){
+        const fp = (typeof dTextFontParts === 'function') ? dTextFontParts(l.font)
+                 : { weight: /black|realce/i.test(l.font || '') ? 900 : 700 };
+        return (l.fontWeightOverride || fp.weight) >= 900;
+      })() : false,
+      align: l.type === 'text' ? (l.textAlign || 'left') : null,
+      zonasSeguras: zonas, safeRect: safeRect,
+      rect: _gGramRect(l)
+    };
+  });
+  const porId = new Map(nodes.map(n => [n.id, n]));
+  const _n = (id) => porId.get(id) || null;
+
+  /* Quem participa das relações espaciais: visível, não-grupo, não-fundo. A mesma poda que a
+     cascata faz antes de inferir corrente — um fundo de tela cheia "termina" no rodapé e
+     adotaria a arte inteira. Sem teto: é o índice espacial que segura o custo, não um corte. */
+  const palco = [];
+  lista.forEach((l, z) => {
+    if(l.type === 'group' || !_gGramVisivel(l) || _gGramFundo(l, cv)) return;
+    palco.push({ l: l, r: _gGramRect(l), z: z });
+  });
+  const idx = _gGramIndice(palco);
+  const relations = [];
+
+  // ── DEPENDÊNCIA AUTORADA ── a âncora que o designer marcou à mão é declaração explícita, e
+  // vence qualquer leitura geométrica (é a mesma precedência do solver). `certa` por definição.
+  const comAncora = new Set();
+  lista.forEach(l => {
+    const a = l.relativeAnchor;
+    if(!a || !a.layerId || !_n(a.layerId)) return;
+    comAncora.add(l.id);
+    relations.push({ tipo:'ancora-autoral', de:l.id, para:a.layerId,
+                     eixo:a.type || 'top-to-bottom', autorada:true, confianca:'certa' });
+  });
+
+  /* ── VIZINHANÇA PROVÁVEL ── "este bloco segue aquele". `de` é quem segue, `para` é quem
+     manda — a mesma direção filho→pai da cascata, medida pela MESMA primitiva
+     (`gLayoutRelacaoVertical` / `gLayoutRelacaoLateral`, em `00-config.js`).
+     `confianca:'fraca'`: estar perto é evidência de que um segue o outro, não prova. */
+  const maiorCorpo = corpos.length ? corpos[0] : 16;
+  // Alcance máximo que a régua pode ter para ESTA camada: o vizinho pode ser o maior corpo da
+  // arte, então a faixa consultada usa esse limite superior. Consultar a faixa justa produziria
+  // falso negativo — o índice pode devolver demais, nunca de menos.
+  const alcance = (o, eixo) => gLayoutLinhaTipografica({ fontSize: maiorCorpo }, o.l)
+                             * (eixo === 'v' ? G_LAYOUT_REL.alcanceV : G_LAYOUT_REL.alcanceH)
+                             + G_LAYOUT_REL.tol;
+  const temPaiV = new Set();
+  palco.forEach((B, iB) => {
+    if(comAncora.has(B.l.id)) return;                 // dependência declarada já existe
+    const alc = alcance(B, 'v');
+    const faixa = { x:B.r.x, y:B.r.y - alc, w:Math.max(1, B.r.w), h:alc + G_LAYOUT_REL.tol };
+    let pai = null, fundoPai = -Infinity;
+    idx.consulta(faixa).forEach(iA => {
+      if(iA === iB) return;
+      const A = palco[iA];
+      const rel = gLayoutRelacaoVertical(A.r, B.r, A.l, B.l);
+      if(rel && rel.fundo > fundoPai){ fundoPai = rel.fundo; pai = A; }   // o vizinho imediato
+    });
+    if(!pai) return;
+    temPaiV.add(B.l.id);
+    relations.push({ tipo:'abaixo-de', de:B.l.id, para:pai.l.id,
+                     gap: Math.round(B.r.y - fundoPai), confianca:'fraca' });
+  });
+  palco.forEach((B, iB) => {
+    if(comAncora.has(B.l.id) || temPaiV.has(B.l.id)) return;   // um pai automático só
+    const alc = alcance(B, 'h');
+    const faixa = { x:B.r.x - alc, y:B.r.y, w:alc + G_LAYOUT_REL.tol, h:Math.max(1, B.r.h) };
+    let pai = null, direitaPai = -Infinity;
+    idx.consulta(faixa).forEach(iA => {
+      if(iA === iB) return;
+      const A = palco[iA];
+      if(A.l.type !== 'text') return;                 // só texto cresce com o que se digita
+      const rel = gLayoutRelacaoLateral(A.r, B.r, A.l, B.l);
+      if(rel && rel.direita > direitaPai){ direitaPai = rel.direita; pai = A; }
+    });
+    if(!pai) return;
+    relations.push({ tipo:'direita-de', de:B.l.id, para:pai.l.id,
+                     gap: Math.round(B.r.x - direitaPai), confianca:'fraca' });
+  });
+
+  /* ── CONTENÇÃO E SOBREPOSIÇÃO ── as duas são INTENCIONAIS por definição: estão na arte que o
+     designer publicou. É o que impede a fase seguinte de ler "texto sobre a placa" como
+     colisão a resolver — o solver já trata assim (`_gRectContem` libera o par), e aqui a
+     intenção vira registro explícito em vez de efeito colateral de um `return`. */
+  const placas = new Map();   // shape → [ids de texto contidos], para reconhecer o componente
+  const _contem = (a, b) => (typeof _gRectContem === 'function') ? _gRectContem(a, b, G_LAYOUT_REL.tol) : false;
+  const _podeConter = (o) => o.l.type === 'shape' || o.l.type === 'image' || o.l.type === 'frame';
+  palco.forEach((A, iA) => {
+    idx.consulta(A.r).forEach(iB => {
+      if(iB <= iA) return;                            // cada par uma vez só
+      const B = palco[iB];
+      // Contenção nas duas direções: o continente pode estar antes ou depois na lista, e quem
+      // manda é o z-order (o fundo tem que estar ATRÁS), não a ordem em que o par foi visitado.
+      let dentro = null, fora = null;
+      if(_podeConter(A) && B.l.type === 'text' && A.z < B.z && _contem(A.r, B.r)){ fora = A; dentro = B; }
+      else if(_podeConter(B) && A.l.type === 'text' && B.z < A.z && _contem(B.r, A.r)){ fora = B; dentro = A; }
+      if(fora){
+        relations.push({ tipo:'dentro-de', de:dentro.l.id, para:fora.l.id,
+                         intencional:true, confianca:'forte' });
+        if(!placas.has(fora.l.id)) placas.set(fora.l.id, []);
+        placas.get(fora.l.id).push(dentro.l.id);
+        return;
+      }
+      const inter = (typeof _gRectIntersecao === 'function') ? _gRectIntersecao(A.r, B.r) : 0;
+      if(inter > 0) relations.push({ tipo:'sobrepoe', de:A.l.id, para:B.l.id,
+                                     intencional:true, area:Math.round(inter), confianca:'forte' });
+    });
+  });
+
+  /* ── ALINHAMENTO: COLUNAS, NÃO PARES ────────────────────────────────────────────────────
+     A v1 emitia uma relação por PAR alinhado. Numa arte com 40 blocos na mesma margem isso são
+     780 fatos dizendo a mesma coisa — e é O(n²) por natureza, não por implementação.
+     Alinhamento é uma COLUNA: um fato com vários membros. Sai por ordenação + varredura, é
+     linear na saída e descreve melhor o que o designer fez.
+     ⚠ O agrupamento é por ENCADEAMENTO simples (arestas a 1px de distância entram na mesma
+     coluna mesmo que as pontas estejam a 4px). É a diferença assumida em relação ao par a par
+     da v1: uma coluna é uma corrente, e separar "quase a mesma margem" em duas colunas seria
+     descrever uma intenção que ninguém teve. */
+  const EIXOS = [['alinha-esquerda','esquerda'], ['alinha-direita','direita'],
+                 ['alinha-centro','centro'], ['alinha-topo','topo'], ['alinha-meio','meio']];
+  const aresta = (o, campo) => campo === 'esquerda' ? o.r.x
+                             : campo === 'direita'  ? o.r.x + o.r.w
+                             : campo === 'centro'   ? o.r.x + o.r.w / 2
+                             : campo === 'meio'     ? o.r.y + o.r.h / 2
+                             : o.r.y;
+  EIXOS.forEach(([tipo, campo]) => {
+    const ord = palco.map((o, i) => ({ v: aresta(o, campo), id: o.l.id, i }))
+                     .sort((a, b) => a.v - b.v || a.i - b.i);
+    let atual = [];
+    const fecha = () => {
+      if(atual.length >= 2) relations.push({ tipo: tipo, membros: atual.map(o => o.id),
+        valor: Math.round(atual[0].v), confianca:'forte' });
+      atual = [];
+    };
+    ord.forEach(o => {
+      if(atual.length && Math.abs(o.v - atual[atual.length - 1].v) > G_LAYOUT_REL.tol) fecha();
+      atual.push(o);
+    });
+    fecha();
+  });
+
+  /* ── DEPENDÊNCIA DINÂMICA AUTORIZADA ────────────────────────────────────────────────────
+     Até aqui a gramática só sabia dizer que B está perto de A. Isso é GEOMETRIA, e continua
+     valendo o que vale: `abaixo-de` segue `fraca`, e nada nesta seção a promove.
+
+     O que entra agora é a outra pergunta, respondida pela MESMA regra que o solver usa
+     (`gLayoutDependencyAuthorization`, em `00-config.js`): "o crescimento de um campo pode
+     chegar até aqui por esta cadeia?". A resposta vira uma relação PRÓPRIA, separada — assim a
+     leitura visual continua honesta (a vizinhança é fraca) e a dependência operacional fica
+     explícita, sem a gramática ter que mentir sobre a confiança da geometria.
+
+     ⚠ O que a gramática NÃO pode avaliar, e é correto que não avalie: o `vazio` e o
+     `colapsoDeCampo`. Os dois dependem de INTERPOLAR o conteúdo do franqueado, e a gramática lê
+     a arte AUTORADA, onde nenhum campo está em branco ainda. A exceção do campo opcional vazio
+     é de runtime e continua vivendo só no solver — declarada aqui como `false`, não esquecida. */
+  const placaAlvoDe = new Map();
+  placas.forEach((textos, contId) => {
+    const c = lista.find(l => l.id === contId);
+    if(c && c.type === 'shape' && textos.length === 1) placaAlvoDe.set(contId, textos[0]);
+  });
+  const paiInferido = new Map();
+  relations.forEach(r => {
+    if(r.tipo !== 'abaixo-de' && r.tipo !== 'direita-de') return;
+    if(!paiInferido.has(r.de)) paiInferido.set(r.de, r.para);
+  });
+  const fatos = lista.map(l => {
+    const f = gLayoutFatoDependencia(l);
+    if(!f) return null;
+    // A gramática não gateia o candidato antes de criá-lo (o solver gateia, em
+    // `_gCorrenteMovivel`), então a proteção é aplicada AQUI — pela mesma primitiva.
+    if(placaAlvoDe.has(l.id)) f.placaAlvo = placaAlvoDe.get(l.id);
+    return f;
+  }).filter(Boolean);
+  const fatoPorId = new Map(fatos.map(f => [f.id, f]));
+  const _fatoDe = (id) => fatoPorId.get(id) || null;
+  fatos.forEach(f => {
+    f.elegivel = gLayoutPodeAcompanhar(f, _fatoDe);
+    const l = lista.find(x => x.id === f.id);
+    const manual = l && l.relativeAnchor && l.relativeAnchor.layerId;
+    /* Espelha o solver ao pé da letra: a âncora MANUAL vale mesmo em camada que não pode ser
+       empurrada (ela não ganha corrente, mas continua propagando autorização para os filhos);
+       a inferida só vale para quem passa nas proteções. */
+    f.anchor = manual ? { layerId:l.relativeAnchor.layerId, autorada:true }
+             : (f.elegivel && paiInferido.has(f.id)
+                ? { layerId:paiInferido.get(f.id), autorada:false } : null);
+  });
+  /* PUBLICA a resposta da fonte única no nó. "Esta camada pode ser empurrada?" tem UMA
+     resposta (`gLayoutPodeAcompanhar`), e ela já foi calculada aqui — inclusive a subida pela
+     cadeia de ancestrais, que é o que faz um filho de GRUPO TRAVADO ser imóvel mesmo sem estar
+     travado ele próprio. Sem publicar, quem lê a gramática teria que refazer essa subida e
+     erraria exatamente nesse caso. */
+  fatos.forEach(f => { const n = porId.get(f.id); if(n) n.podeAcompanhar = f.elegivel; });
+  (gram_nodes_sem_fato => gram_nodes_sem_fato.forEach(n => {
+    if(n.podeAcompanhar == null) n.podeAcompanhar = false;   // grupo/oculto: não entra em corrente
+  }))(nodes);
+  const autorizacao = gLayoutDependencyAuthorization(fatos);
+  fatos.forEach(f => {
+    const r = autorizacao.get(f.id);
+    if(!r || !r.autorizado || !f.anchor) return;      // raiz não depende de ninguém
+    relations.push({ tipo:'dependencia-dinamica', de:f.id, para:f.anchor.layerId,
+                     raiz:r.raizId, motivo:r.motivo, confianca:r.confianca,
+                     autorada:f.anchor.autorada, autorizada:true });
+  });
+
+  /* ── GRUPOS: CONFIANÇA E EVIDÊNCIA ──────────────────────────────────────────────────────
+     A v1 criava um `bloco` sempre que duas coisas estavam perto — e tratava isso com a mesma
+     autoridade de um grupo que o designer criou à mão. Proximidade é EVIDÊNCIA: numa arte densa,
+     tudo está perto de alguma coisa, e promover isso a estrutura é como o automatismo começa a
+     inventar intenção que ninguém teve.
+
+     Quatro níveis DISCRETOS, não porcentagem: não existe base quantitativa aqui para dizer
+     "0,73 de confiança", e um float inventado convida a aritmética que ninguém validou.
+       · `certa`    — o designer DECLAROU (grupo/pasta, âncora manual). Não é inferência.
+       · `forte`    — a composição demonstra com mais de um sinal independente (contenção +
+                      z-order + texto único).
+       · `provavel` — proximidade MAIS um sinal semântico (papel de preço num par lateral).
+       · `fraca`    — só proximidade.
+     ⛔ `componente` só é preenchido em `certa`/`forte`. O que é `provavel`/`fraca` guarda o
+     padrão reconhecido em `padrao` e fica como observação — nesta fase NADA é operacional, e
+     quando algo for, vai ser esta linha que decide o que pode entrar. */
+  const groups = [];
+  const marcaDinamico = (ids) => ids.some(id => { const n = _n(id); return !!(n && n.campos.length); });
+  const grupo = (o) => Object.assign({ componente:null, padrao:null }, o);
+
+  // 1) Grupo AUTORAL: a pasta que o designer (ou o PSD) criou. Intenção declarada, não inferida.
+  lista.filter(l => l.type === 'group').forEach(g => {
+    const membros = lista.filter(l => l.parentId === g.id).map(l => l.id);
+    if(!membros.length) return;
+    groups.push(grupo({ id:'g:'+g.id, motivo:'grupo-autoral', componente:'grupo',
+      membros:membros, dinamico:marcaDinamico(membros),
+      confianca:'certa', evidencia:['grupo-autoral'] }));
+  });
+
+  /* 2) PLACA: a forma sólida com UM texto em cima. É o componente mais reconhecível de uma arte
+     de promo e o que mais estraga quando a copy cresce (a cor sai debaixo da letra). Três sinais
+     independentes — contenção, z-order e um texto só — então `forte`. Um texto só pela mesma
+     razão da cascata: com dois, crescer por causa de um seria arbitrário. */
+  placas.forEach((textos, shapeId) => {
+    const n = _n(shapeId);
+    if(!n || n.tipo !== 'shape' || textos.length !== 1) return;
+    const membros = [shapeId, textos[0]];
+    const evid = ['contencao','z-order','texto-unico'];
+    if(marcaDinamico(membros)) evid.push('campo-dinamico');
+    groups.push(grupo({ id:'p:'+shapeId, motivo:'placa', componente:'placa',
+      membros:membros, dinamico:marcaDinamico(membros), confianca:'forte', evidencia:evid }));
+  });
+
+  /* 3) AGLOMERADO por PROXIMIDADE: a pilha que se LÊ como uma coisa só (título → subtítulo →
+     CTA). Componentes conexos das relações de vizinhança. É a observação mais útil da gramática
+     e a menos confiável — por isso sai `fraca` e sem `componente`. */
+  const vizinhos = new Map();
+  const arestasViz = relations.filter(r => r.tipo === 'abaixo-de' || r.tipo === 'direita-de'
+                                        || r.tipo === 'ancora-autoral');
+  arestasViz.forEach(r => {
+    if(!vizinhos.has(r.de)) vizinhos.set(r.de, []);
+    if(!vizinhos.has(r.para)) vizinhos.set(r.para, []);
+    vizinhos.get(r.de).push(r.para); vizinhos.get(r.para).push(r.de);
+  });
+  const visto = new Set();
+  [...vizinhos.keys()].sort().forEach(raiz => {
+    if(visto.has(raiz)) return;
+    const fila = [raiz], membros = [];
+    visto.add(raiz);
+    while(fila.length){
+      const id = fila.shift(); membros.push(id);
+      (vizinhos.get(id) || []).forEach(v => { if(!visto.has(v)){ visto.add(v); fila.push(v); } });
+    }
+    if(membros.length < 2) return;
+    membros.sort();
+    const dentro = (r) => membros.indexOf(r.de) >= 0 && membros.indexOf(r.para) >= 0;
+    const evid = ['proximidade'];
+    let confianca = 'fraca', padrao = 'bloco', componente = null;
+    /* AUTORIDADE DO DECLARADO. Se o que segura este aglomerado é uma âncora que o designer
+       marcou à mão, ele deixa de ser heurística: vira estrutura declarada, como o grupo. */
+    if(arestasViz.some(r => r.tipo === 'ancora-autoral' && dentro(r))){
+      confianca = 'certa'; componente = 'grupo'; padrao = null; evid.push('ancora-autoral');
+    }else if(membros.length === 2 && arestasViz.some(r => r.tipo === 'direita-de' && dentro(r))
+             && membros.some(id => { const n = _n(id); return n && n.papel === 'preco'; })){
+      /* PAR DE PREÇO ("De R$ 149,90 / por R$ 109,90"): proximidade lateral MAIS o papel de
+         preço. Dois sinais, mas um deles é heurístico — `provavel`, e ainda não é componente.
+         É o candidato mais forte a virar operacional na fase seguinte, porque carrega a regra
+         de domínio mais dura do motor (`_gLayoutBlocoPrecoFixo`). */
+      confianca = 'provavel'; padrao = 'par-de-preco'; evid.push('papel-preco');
+    }
+    groups.push(grupo({ id:'b:'+membros[0], motivo:'proximidade', componente:componente,
+      padrao:padrao, membros:membros, dinamico:marcaDinamico(membros),
+      confianca:confianca, evidencia:evid }));
+  });
+
+  /* ── ASSINATURA ESTRUTURAL ── a estrutura, sem geometria e sem conteúdo. Duas artes com a
+     mesma assinatura têm a mesma gramática, ainda que o texto (e portanto o tamanho da tinta)
+     seja outro. É a pergunta "a composição mudou?" isolada da pergunta "o conteúdo mudou?".
+     `confianca` fica de FORA de propósito: recalibrar um nível é mudar a leitura, não a
+     composição, e não pode parecer que a arte mudou. */
+  const canon = [
+    'v' + G_LAYOUT_GRAMMAR_V,
+    nodes.map(n => [n.id, n.tipo, n.papel, n.flex, n.degrau, n.protegida?1:0, n.decorativa?1:0].join(':'))
+         .sort().join('|'),
+    relations.map(r => [r.tipo, r.de || '', r.para || '', (r.membros||[]).slice().sort().join('+')].join(':'))
+         .sort().join('|'),
+    groups.map(g => [g.motivo, g.componente||'', g.padrao||'', g.membros.slice().sort().join('+')].join(':'))
+         .sort().join('|')
+  ].join('#');
+
+  /* ── REPRESENTAÇÃO VISUAL ── a LINGUAGEM do desenho, normalizada: as proporções entre os
+     degraus tipográficos, onde estão as colunas, que respiros existem e que área cada
+     aglomerado ocupa. Tudo relativo ao lado curto da arte, para que a mesma peça em Feed e em
+     Story tenha a mesma linguagem.
+     ⛔ NÃO entra conteúdo — nem texto, nem nome de campo. E ela NÃO é lida pelo solver: existe
+     para a fase em que houver duas composições para comparar, e a pergunta for "quanto esta
+     solução se afastou do que o designer desenhou?". Hoje ela só descreve. */
+  const curto = Math.max(1, cv.w && cv.h ? Math.min(cv.w, cv.h)
+    : (palco.length ? Math.max(...palco.map(o => Math.max(o.r.w, o.r.h))) : 1));
+  const base = corpos.length ? corpos[0] : 1;
+  const visual = {
+    // Proporções tipográficas: o degrau mais alto é 1, os outros são frações dele.
+    degraus: corpos.map(fs => _gGramNorm(fs, base)),
+    // As colunas do desenho, com quantos blocos cada uma segura.
+    colunas: relations.filter(r => r.membros && r.tipo.indexOf('alinha') === 0)
+      .map(r => ({ eixo:r.tipo.slice(7), valor:_gGramNorm(r.valor, curto), n:r.membros.length }))
+      .sort((a,b) => a.eixo < b.eixo ? -1 : a.eixo > b.eixo ? 1 : a.valor - b.valor),
+    // Os respiros que existem entre vizinhos, normalizados e ordenados (a ordem da lista não
+    // pode carregar informação — duas artes iguais em respiro têm a mesma linguagem).
+    gaps: relations.filter(r => r.gap != null).map(r => _gGramNorm(r.gap, curto)).sort((a,b) => a - b),
+    // A área que cada aglomerado ocupa: é o "peso" visual de cada bloco na página.
+    clusters: groups.map(g => {
+      let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
+      g.membros.forEach(id => { const n = _n(id); if(!n) return;
+        a = Math.min(a, n.rect.x); b = Math.min(b, n.rect.y);
+        c = Math.max(c, n.rect.x + n.rect.w); d = Math.max(d, n.rect.y + n.rect.h); });
+      if(!isFinite(a)) return null;
+      return { x:_gGramNorm(a, curto), y:_gGramNorm(b, curto),
+               w:_gGramNorm(c - a, curto), h:_gGramNorm(d - b, curto) };
+    }).filter(Boolean).sort((p,q) => p.x - q.x || p.y - q.y || p.w - q.w || p.h - q.h)
+  };
+  visual.visualSignature = _gGramHash(JSON.stringify([visual.degraus, visual.colunas,
+                                                      visual.gaps, visual.clusters]));
+
+  return { version: G_LAYOUT_GRAMMAR_V, canvas: cv, nodes, relations, groups, hierarchy,
+           visual: visual, structuralSignature: _gGramHash(canon) };
+}
+
+/* Consultas de conveniência — existem para que quem ler a gramática não precise refazer o
+   mesmo `filter` em cinco lugares (o começo de toda duplicação nesta base). */
+function gGrammarNode(gram, id){
+  return (gram && gram.nodes || []).find(n => n && n.id === id) || null;
+}
+// `id` casa tanto com relação de par (`de`/`para`) quanto com relação de coluna (`membros`).
+function gGrammarRelations(gram, tipo, id){
+  return (gram && gram.relations || []).filter(r => r && (!tipo || r.tipo === tipo)
+    && (!id || r.de === id || r.para === id || (r.membros && r.membros.indexOf(id) >= 0)));
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   11. COMPOSITION GRAPH — a gramática virando rede navegável
+   ════════════════════════════════════════════════════════════════════
+   A §10 responde "o que esta arte diz". Ela devolve listas: nós, relações, grupos. Isso basta
+   para descrever, mas não para PERGUNTAR — "quem depende deste título?", "qual campo é a origem
+   desta cadeia?", "estes dois estão no mesmo bloco?" viram varredura manual na lista, e cada
+   consumidor escreveria a sua. Duas varreduras da mesma lista com regras ligeiramente
+   diferentes é como nascem as duas verdades desta base.
+
+   O Graph é a rede: os mesmos fatos, indexados por nó e por tipo, com UMA API de leitura.
+
+   ⚠ NÃO É UMA SEGUNDA ANÁLISE. `gCompileCompositionGraph` recebe a GRAMÁTICA, não as camadas.
+   Ele não remede nada, não consulta o índice espacial e não reabre um `layer` sequer — tudo o
+   que ele sabe veio da §10, que já pagou por essa leitura. Por isso o custo dele é proporcional
+   ao número de RELAÇÕES, não ao de camadas ao quadrado.
+
+   A única geometria que ele calcula está no fluxo de leitura, e está justificada lá embaixo: é
+   uma varredura 1D sobre os `rect` que a própria gramática publica, sem limiar novo.
+
+   ⚠ CONTINUA OBSERVACIONAL. `gApplyRelativeAnchors` não conhece este arquivo. Nada aqui muda
+   pixel, escolhe candidato, pontua ou persiste. O Graph organiza o entendimento; usá-lo para
+   adaptar é a fase seguinte, e ela começa decidindo o que desta rede é forte o bastante.
+
+   ── A ORDEM DE AUTORIDADE, EM UM LUGAR SÓ ──
+   O erro que este bloco existe para evitar: cada consumidor comparar `edge.confianca === 'forte'`
+   na mão, com a sua própria ideia do que isso autoriza. A força mora em `gGraphRelationStrength`
+   e o corte em `gGraphIsStructural`. Quem consome pergunta; não interpreta string. */
+
+const G_GRAPH_V = 1;
+/* Os quatro níveis da §10, agora ordenáveis. `certa` é declaração do designer; `forte` é
+   composição demonstrada por mais de um sinal; `provavel` é inferência com um sinal semântico;
+   `fraca` é proximidade e nada mais. */
+const G_GRAPH_FORCA = { certa:3, forte:2, provavel:1, fraca:0 };
+// O corte do que pode MONTAR ESTRUTURA. Abaixo daqui a relação é consultável como evidência,
+// mas não forma cluster, não é atravessada por busca de raiz e não responde `hasStrongRelation`.
+const G_GRAPH_MIN_ESTRUTURAL = G_GRAPH_FORCA.forte;
+
+function gGraphRelationStrength(edge){
+  const f = G_GRAPH_FORCA[(edge && edge.confianca) || ''];
+  return f != null ? f : 0;
+}
+function gGraphIsStructural(edge){
+  return gGraphRelationStrength(edge) >= G_GRAPH_MIN_ESTRUTURAL;
+}
+
+/* ARESTAS DE DEPENDÊNCIA — o subconjunto que significa "este nó ACOMPANHA aquele". É por elas
+   que se sobe até a raiz dinâmica e se listam ancestrais; alinhamento e sobreposição descrevem
+   a arte mas não dizem quem segue quem, então ficam de fora da subida.
+   `plate-of` entra porque a placa é quem acompanha o texto, não o contrário (é exatamente o que
+   `_seguirPlacas` faz no solver). */
+/* ⚠ SÓ DEPENDÊNCIA DE VERDADE. Até a Fase 2 esta lista carregava `below`, `right-of` e
+   `inside` — geometria travestida de dependência. `below` e `right-of` são VIZINHANÇA: quem
+   autoriza a propagação é `dynamic-dependency`, que a §10 só emite quando a regra única do
+   solver diz sim. `inside` saiu porque contenção não faz o texto acompanhar a foto: o solver
+   nunca encadeou isso, e mantê-lo aqui inventava cadeia que o motor não tem.
+   O que sobra são os três elos que o solver de fato propaga: a âncora que o designer marcou, a
+   placa que segue o texto (`_seguirPlacas`) e a corrente autorizada. */
+const G_GRAPH_DEPENDENCIA = ['authorial-anchor','plate-of','dynamic-dependency'];
+
+/* Tradução §10 → aresta, com a INVERSA quando ela tem nome próprio. A inversa existe para que
+   navegar "quem está acima de mim" não exija varrer a lista inteira ao contrário. */
+const G_GRAPH_MAPA_RELACAO = {
+  'ancora-autoral':  { tipo:'authorial-anchor', inversa:null },
+  /* A aresta que separa as duas perguntas. A MESMA vizinhança aparece duas vezes no grafo:
+     `below` com a confiança da geometria (fraca, honesta) e `dynamic-dependency` com a
+     confiança da AUTORIZAÇÃO (forte, ou certa quando a cadeia é toda declarada). Nenhuma
+     relação foi promovida — são fatos diferentes sobre o mesmo par. */
+  'dependencia-dinamica': { tipo:'dynamic-dependency', inversa:null },
+  'abaixo-de':       { tipo:'below',            inversa:'above' },
+  'direita-de':      { tipo:'right-of',         inversa:'left-of' },
+  'dentro-de':       { tipo:'inside',           inversa:'contains' },
+  'sobrepoe':        { tipo:'overlaps-intentionally', inversa:'overlaps-intentionally' },
+  'alinha-esquerda': { tipo:'aligned-left',     inversa:'aligned-left',     cadeia:true },
+  'alinha-direita':  { tipo:'aligned-right',    inversa:'aligned-right',    cadeia:true },
+  'alinha-centro':   { tipo:'aligned-center-x', inversa:'aligned-center-x', cadeia:true },
+  'alinha-meio':     { tipo:'aligned-center-y', inversa:'aligned-center-y', cadeia:true },
+  'alinha-topo':     { tipo:'aligned-top',      inversa:'aligned-top',      cadeia:true }
+};
+
+/* ID DETERMINÍSTICO de cluster: sai do TIPO + dos membros ORDENADOS, nunca da ordem em que um
+   `Map` entregou as chaves. Mesma arte → mesmo ID, em qualquer execução e em qualquer máquina.
+   Sem isto, um diff estrutural acusaria "cluster trocado" só porque a iteração mudou. */
+function _gGraphClusterId(tipo, membros){
+  return 'c:' + _gGramHash(tipo + '|' + membros.slice().sort().join('+'));
+}
+
+/**
+ * Compila o COMPOSITION GRAPH a partir de uma Layout Grammar já compilada.
+ * Puro: não muta a gramática nem as camadas dela.
+ *
+ * @param {object} grammar saída de `gCompileLayoutGrammar`
+ * @returns {object} graph com `nodes`, `edges`, `clusters`, `sugestoes`, `readingFlow`
+ */
+function gCompileCompositionGraph(grammar){
+  const gram = grammar || { nodes:[], relations:[], groups:[], hierarchy:[] };
+  const gNodes = gram.nodes || [], gRel = gram.relations || [], gGroups = gram.groups || [];
+
+  /* ── NÓS ── projeção enxuta do nó da gramática. Só o que responde perguntas de estrutura;
+     nada de geometria, nome ou conteúdo. O `rect` continua a um `gGrammarNode` de distância —
+     duplicá-lo aqui criaria a segunda cópia viva da mesma informação. */
+  const porGrupo = new Map();
+  gGroups.forEach(g => { if(g.motivo === 'grupo-autoral')
+    g.membros.forEach(id => { if(!porGrupo.has(id)) porGrupo.set(id, g.id); }); });
+  const nodes = gNodes.map(n => ({
+    id: n.id, papel: n.papel, tipo: n.tipo, campos: n.campos.slice(),
+    flex: n.flex, protegida: n.protegida, decorativa: n.decorativa, fundo: n.fundo,
+    grupoAutoral: porGrupo.get(n.id) || null,
+    // A confiança de um NÓ é a do que se sabe sobre ele: papel declarado pelo designer é certo,
+    // papel compilado é forte (cruza quatro sinais), e é só isso que se afirma aqui.
+    confianca: n.papel === 'protegida' || porGrupo.has(n.id) ? 'certa' : 'forte'
+  }));
+  const idxNode = new Map(nodes.map(n => [n.id, n]));
+
+  // ── ARESTAS ──
+  const edges = [];
+  const push = (tipo, de, para, r, extra) => {
+    if(!idxNode.has(de) || !idxNode.has(para) || de === para) return;
+    edges.push(Object.assign({ tipo:tipo, de:de, para:para,
+      confianca: r.confianca || 'fraca', autorada: !!r.autorada,
+      evidencia: r.evidencia ? r.evidencia.slice() : null }, extra || {}));
+  };
+  gRel.forEach(r => {
+    const m = G_GRAPH_MAPA_RELACAO[r.tipo];
+    if(!m) return;
+    if(m.cadeia){
+      /* COLUNA VIRA CORRENTE, não clique. A §10 guarda alinhamento como uma coluna de N
+         membros; ligar todos com todos aqui seria o O(n²) que a Fase 1.5 tirou. A coluna vira
+         uma cadeia entre membros CONSECUTIVOS — a coluna inteira continua sendo a componente
+         conexa daquele tipo de aresta, e `gGraphAlignedWith` a percorre. */
+      const ms = r.membros || [];
+      for(let i = 0; i + 1 < ms.length; i++){
+        push(m.tipo, ms[i], ms[i+1], r, { eixo:r.valor });
+        push(m.inversa, ms[i+1], ms[i], r, { eixo:r.valor });
+      }
+      return;
+    }
+    const extra = {};
+    if(r.gap != null) extra.gap = r.gap;
+    if(r.area != null) extra.area = r.area;
+    if(r.intencional) extra.intencional = true;
+    if(r.raiz != null){ extra.raiz = r.raiz; extra.motivo = r.motivo; extra.autorizada = true; }
+    push(m.tipo, r.de, r.para, r, extra);
+    if(m.inversa) push(m.inversa, r.para, r.de, r, extra);
+  });
+
+  /* `plate-of` — a placa ACOMPANHA o texto. Sai do grupo `placa` da §10 (que já exigiu
+     contenção + z-order + texto único), então herda a evidência dele em vez de reinventá-la.
+     O membro [0] é a forma e o [1] é o texto, por construção da §10. */
+  gGroups.filter(g => g.motivo === 'placa').forEach(g => {
+    push('plate-of', g.membros[0], g.membros[1],
+      { confianca:g.confianca, evidencia:g.evidencia });
+  });
+
+  /* `follows` — a aresta NORMALIZADA de "acompanha", para quem quer navegar a cadeia sem saber
+     se ela nasceu de âncora manual, de placa ou de vizinhança. Não é um fato novo: é uma VISTA
+     das arestas de dependência, e carrega a confiança da aresta que a originou. */
+  edges.slice().forEach(e => {
+    if(G_GRAPH_DEPENDENCIA.indexOf(e.tipo) < 0) return;
+    edges.push({ tipo:'follows', de:e.de, para:e.para, confianca:e.confianca,
+                 autorada:e.autorada, evidencia:e.evidencia, origem:e.tipo });
+  });
+
+  /* ── CLUSTERS ── só `certa` e `forte` FUNDEM nós. O resto vira sugestão consultável.
+     A §10 já separou por evidência; aqui a separação vira estrutura: quem é cluster participa
+     de `same-cluster`, de `gGraphCluster` e do diff estrutural — quem é sugestão, não. */
+  const clusters = [], sugestoes = [];
+  const TIPO_CLUSTER = { 'grupo-autoral':'grupo-autoral', 'placa':'placa', 'proximidade':'visual' };
+  gGroups.forEach(g => {
+    const membros = g.membros.slice().sort();
+    const item = { id:_gGraphClusterId(g.motivo, membros), tipo:TIPO_CLUSTER[g.motivo] || g.motivo,
+                   motivo:g.motivo, padrao:g.padrao || null, membros:membros,
+                   dinamico:g.dinamico, confianca:g.confianca,
+                   evidencia:(g.evidencia || []).slice() };
+    if(gGraphRelationStrength(g) >= G_GRAPH_MIN_ESTRUTURAL) clusters.push(item);
+    else sugestoes.push(item);
+  });
+  /* CLUSTER DE CONTENÇÃO — texto dentro de foto/moldura que não é placa. A §10 registra a
+     relação (`dentro-de`, forte) mas não forma grupo, porque grupo dela é só placa. É o
+     "cluster visual forte": nasce de um fato já provado, sem medir nada de novo. */
+  const jaEmCluster = new Set();
+  clusters.forEach(c => c.membros.forEach(id => jaEmCluster.add(id)));
+  const porContinente = new Map();
+  edges.filter(e => e.tipo === 'contains' && gGraphIsStructural(e)).forEach(e => {
+    if(jaEmCluster.has(e.de) || jaEmCluster.has(e.para)) return;
+    if(!porContinente.has(e.de)) porContinente.set(e.de, []);
+    porContinente.get(e.de).push(e.para);
+  });
+  [...porContinente.keys()].sort().forEach(cont => {
+    const membros = [cont].concat(porContinente.get(cont)).sort();
+    clusters.push({ id:_gGraphClusterId('contencao', membros), tipo:'contencao',
+      motivo:'contencao', padrao:null, membros:membros,
+      dinamico: membros.some(id => { const n = idxNode.get(id); return !!(n && n.campos.length); }),
+      confianca:'forte', evidencia:['contencao','z-order'] });
+  });
+  clusters.sort((a,b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  sugestoes.sort((a,b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+  // `same-cluster` como cadeia entre membros ordenados — mesma razão da coluna: O(k), não O(k²).
+  const clusterDe = new Map();
+  clusters.forEach(c => {
+    c.membros.forEach(id => { if(!clusterDe.has(id)) clusterDe.set(id, c.id); });
+    for(let i = 0; i + 1 < c.membros.length; i++){
+      push('same-cluster', c.membros[i], c.membros[i+1], c, { cluster:c.id });
+      push('same-cluster', c.membros[i+1], c.membros[i], c, { cluster:c.id });
+    }
+  });
+
+  // ── ÍNDICES ── é isto que faz a rede ser navegável em vez de varrida.
+  const saida = new Map(), entrada = new Map();
+  edges.forEach(e => {
+    if(!saida.has(e.de)) saida.set(e.de, []);
+    if(!entrada.has(e.para)) entrada.set(e.para, []);
+    saida.get(e.de).push(e); entrada.get(e.para).push(e);
+  });
+
+  const graph = { version:G_GRAPH_V, grammar:gram, nodes:nodes, edges:edges,
+                  clusters:clusters, sugestoes:sugestoes,
+                  _saida:saida, _entrada:entrada, _node:idxNode, _cluster:clusterDe };
+
+  /* ── RAIZ DINÂMICA ── o conceito que o solver já usa implicitamente (`_raizDinamica`, em
+     `00-config.js`): quem colide ou é empurrado muitas vezes é VÍTIMA; quem responde é o campo
+     que cresceu lá em cima. Aqui ele vira pergunta respondível.
+     ⛔ SÓ ATRAVESSA ARESTA ESTRUTURAL. Subir por proximidade (`fraca`) inventaria uma origem
+     que a composição não demonstra — e apontar o campo errado num diagnóstico é pior que não
+     apontar nenhum. A consequência assumida está no relatório: hoje uma cadeia puramente de
+     vizinhança não resolve raiz, e resolver isso é unificar a AUTORIZAÇÃO da corrente (a poda
+     por campo que `_gInferirCorrentes` faz), não afrouxar este corte. */
+  graph.raizes = new Map();
+  const _memoRaiz = new Map();
+  nodes.forEach(n => {
+    const r = _gGraphRaiz(graph, n.id, _memoRaiz);
+    if(r) graph.raizes.set(n.id, { id:r.id, confianca:_gGraphNomeForca(r.forca),
+                                   caminho:r.caminho.slice() });
+  });
+  graph.raizes.forEach((r, id) => {
+    edges.push({ tipo:'dynamic-root', de:id, para:r.id, confianca:r.confianca,
+                 autorada:false, evidencia:null, caminho:r.caminho.slice() });
+    if(!saida.has(id)) saida.set(id, []);
+    if(!entrada.has(r.id)) entrada.set(r.id, []);
+    const e = edges[edges.length - 1];
+    saida.get(id).push(e); entrada.get(r.id).push(e);
+  });
+
+  graph.readingFlow = _gGraphReadingFlow(graph);
+  return graph;
+}
+
+/* Sobe pelas arestas de dependência ESTRUTURAIS até achar um nó com campo. Guarda de ciclo por
+   `Set` de visitados — o designer pode marcar A→B e B→A à mão, e a rede não pode travar por
+   isso. A confiança devolvida é a do ELO MAIS FRACO do caminho: uma cadeia vale o que vale o
+   seu pior degrau. */
+function _gGraphRaiz(graph, id, memo){
+  if(memo.has(id)) return memo.get(id);
+  const vistos = new Set([id]);
+  const passos = [];                       // as arestas percorridas, em ordem
+  let atual = id, guarda = 0, base = null; // `base` = resposta já conhecida a partir de `atual`
+  while(guarda++ < 64){
+    const arestas = (graph._saida.get(atual) || [])
+      .filter(e => G_GRAPH_DEPENDENCIA.indexOf(e.tipo) >= 0 && gGraphIsStructural(e)
+                   && !vistos.has(e.para));
+    if(!arestas.length) break;
+    /* Autoridade primeiro: âncora do designer vence placa, que vence corrente autorizada.
+       Empate resolve por ID, para a resposta não depender da ordem em que as arestas entraram.
+       Só ordena quando há mais de um candidato — o caso raro. */
+    if(arestas.length > 1) arestas.sort((a,b) => gGraphRelationStrength(b) - gGraphRelationStrength(a)
+                  || (a.para < b.para ? -1 : a.para > b.para ? 1 : 0));
+    const e = arestas[0];
+    passos.push({ de:atual, para:e.para, forca:gGraphRelationStrength(e) });
+    vistos.add(e.para); atual = e.para;
+    const n = graph._node.get(atual);
+    if(n && n.campos.length){ base = { id:atual, forca:G_GRAPH_FORCA.certa, caminho:[] }; break; }
+    if(memo.has(atual)){ base = memo.get(atual); break; }   // aproveita o que já se sabe
+  }
+  /* BACKFILL — a resposta de CADA nó do caminho, do fim para o começo. Sem isto a subida é
+     O(n × profundidade): numa arte de 300 camadas em colunas de 50, o Graph triplicou de custo
+     quando a dependência autorizada entrou, porque cada nó refazia a cadeia inteira do zero.
+     A confiança de cada trecho é o ELO MAIS FRACO dele — daí o `Math.min` acumulando de trás
+     para frente. */
+  let acc = base;
+  for(let k = passos.length - 1; k >= 0; k--){
+    const p = passos[k];
+    if(!acc){ memo.set(p.de, null); continue; }
+    acc = { id:acc.id, forca:Math.min(acc.forca, p.forca), caminho:[p.para].concat(acc.caminho) };
+    /* ⚠ CICLO: se a subida voltou ao próprio nó (o designer consegue marcar A→B e B→A à mão),
+       a resposta não é "ele depende de si mesmo" — é que não há raiz. Sem esta guarda o memo
+       propagaria a auto-referência para a cadeia inteira. */
+    if(acc.id === p.de || acc.caminho.indexOf(p.de) >= 0){ acc = null; memo.set(p.de, null); continue; }
+    memo.set(p.de, acc);
+  }
+  if(!memo.has(id)) memo.set(id, null);
+  return memo.get(id);
+}
+// O nome do nível a partir da força — o inverso de `G_GRAPH_FORCA`, num lugar só.
+function _gGraphNomeForca(f){
+  return Object.keys(G_GRAPH_FORCA).find(k => G_GRAPH_FORCA[k] === f) || 'fraca';
+}
+
+/* ── FLUXO DE LEITURA ──────────────────────────────────────────────────────────────────────
+   A ordem em que a peça se lê. Conservador de propósito: sai de `rect` + ordem vertical, e de
+   mais nada. Sem estética, sem modelo, sem "o olho vai primeiro no maior".
+
+   GEOMETRIA ADICIONAL, JUSTIFICADA (é a única do Graph): a gramática registra alinhamento de
+   ARESTA (quem compartilha a mesma margem), que não é a mesma pergunta de OCUPAÇÃO de coluna
+   (quem divide a mesma faixa horizontal). Duas colunas independentes de uma peça não
+   compartilham margem — elas compartilham um vão entre si.
+   A varredura abaixo é 1D, O(n log n), sobre os `rect` que a própria gramática publica, e NÃO
+   introduz limiar novo: um ramo termina onde existe um vão horizontal de verdade. Arte de
+   coluna única cai num ramo só; arte de duas colunas cai em dois — e nunca numa ordem
+   inventada que junte as duas. */
+function _gGraphReadingFlow(graph){
+  const gram = graph.grammar;
+  const alvo = (gram.nodes || []).filter(n => n && n.visivel && !n.fundo && !n.decorativa
+    && n.tipo === 'text' && graph._node.has(n.id));
+  if(alvo.length < 2) return alvo.length ? [[alvo[0].id]] : [];
+  const ord = alvo.map(n => ({ id:n.id, x1:n.rect.x, x2:n.rect.x + n.rect.w,
+                               y:n.rect.y, x:n.rect.x }))
+                  .sort((a,b) => a.x1 - b.x1 || (a.id < b.id ? -1 : 1));
+  const ramos = [];
+  let atual = [], limite = -Infinity;
+  ord.forEach(o => {
+    if(atual.length && o.x1 > limite){ ramos.push(atual); atual = []; limite = -Infinity; }
+    atual.push(o); limite = Math.max(limite, o.x2);
+  });
+  if(atual.length) ramos.push(atual);
+  // Dentro do ramo, a leitura é de cima para baixo. Desempate por x e depois por ID: a mesma
+  // arte tem que produzir a mesma sequência, sempre.
+  return ramos.map(r => r.slice()
+    .sort((a,b) => a.y - b.y || a.x - b.x || (a.id < b.id ? -1 : 1))
+    .map(o => o.id));
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   API DE LEITURA — uma só, pura, sem classe (o idioma da casa é função global)
+   ════════════════════════════════════════════════════════════════════ */
+
+function gGraphNode(graph, id){
+  return (graph && graph._node.get(id)) || null;
+}
+function gGraphOutgoing(graph, id, tipo){
+  return ((graph && graph._saida.get(id)) || []).filter(e => !tipo || e.tipo === tipo);
+}
+function gGraphIncoming(graph, id, tipo){
+  return ((graph && graph._entrada.get(id)) || []).filter(e => !tipo || e.tipo === tipo);
+}
+// Vizinhos = quem toca este nó em qualquer direção, sem repetir. Ordenado, para ser determinístico.
+function gGraphNeighbors(graph, id, tipo){
+  const s = new Set();
+  gGraphOutgoing(graph, id, tipo).forEach(e => s.add(e.para));
+  gGraphIncoming(graph, id, tipo).forEach(e => s.add(e.de));
+  s.delete(id);
+  return [...s].sort();
+}
+
+/* Ancestrais = de quem este nó depende, subindo só por aresta ESTRUTURAL. Descendentes = o
+   inverso (quem depende deste). Os dois são guardados contra ciclo pelo mesmo `Set`. */
+function _gGraphSubir(graph, id, direcao){
+  const vistos = new Set([id]), fila = [id], out = [];
+  let guarda = 0;
+  while(fila.length && guarda++ < 4096){
+    const atual = fila.shift();
+    const arestas = (direcao === 'cima' ? gGraphOutgoing(graph, atual) : gGraphIncoming(graph, atual))
+      .filter(e => G_GRAPH_DEPENDENCIA.indexOf(e.tipo) >= 0 && gGraphIsStructural(e));
+    arestas.forEach(e => {
+      const outro = direcao === 'cima' ? e.para : e.de;
+      if(vistos.has(outro)) return;                 // ciclo: para aqui, não estoura
+      vistos.add(outro); out.push(outro); fila.push(outro);
+    });
+  }
+  return out.sort();
+}
+function gGraphAncestors(graph, id){ return _gGraphSubir(graph, id, 'cima'); }
+function gGraphDescendants(graph, id){ return _gGraphSubir(graph, id, 'baixo'); }
+
+function gGraphCluster(graph, id){
+  const cid = graph && graph._cluster.get(id);
+  return cid ? (graph.clusters.find(c => c.id === cid) || null) : null;
+}
+/**
+ * O campo dinâmico que é a ORIGEM da cadeia deste nó.
+ * @returns {{id:string, confianca:string, caminho:string[]}|null} `null` quando não há cadeia
+ *          estrutural até um campo — e `null` aqui é resposta, não falha.
+ */
+function gGraphDynamicRoot(graph, id){
+  return (graph && graph.raizes.get(id)) || null;
+}
+function gGraphAuthorialRelations(graph, id){
+  return gGraphOutgoing(graph, id).concat(gGraphIncoming(graph, id)).filter(e => e.autorada);
+}
+/* ── AS TRÊS PERGUNTAS, COM TRÊS NOMES ────────────────────────────────────────────────────
+   `gGraphHasStrongRelation` foi REMOVIDA (não virou alias: nada em produção a chamava, e um
+   alias depreciado só adia o erro). O nome dizia "forte" e o consumidor lia "depende de" — mas
+   alinhamento e sobreposição são `forte` de verdade, e dois blocos na mesma margem têm relação
+   forte sem um depender do outro. Isso derrubou um teste da própria Fase 2; num consumidor de
+   verdade teria virado uma camada empurrada por outra que só dividia a margem. */
+
+// "Existe relação estrutural entre os dois?" — inclui o DESCRITIVO (alinhamento, contenção,
+// sobreposição). É a pergunta de quem está descrevendo a composição.
+function gGraphHasStructuralRelation(graph, a, b, tipo){
+  return gGraphOutgoing(graph, a, tipo).some(e => e.para === b && gGraphIsStructural(e))
+      || gGraphIncoming(graph, a, tipo).some(e => e.de === b && gGraphIsStructural(e));
+}
+// "O crescimento de um empurra o outro?" — só arestas de DEPENDÊNCIA. É a pergunta de quem vai
+// adaptar a arte, e é a única que autoriza mexer em geometria.
+function gGraphHasDependency(graph, a, b){
+  return G_GRAPH_DEPENDENCIA.some(t => gGraphHasStructuralRelation(graph, a, b, t));
+}
+// "O designer DECLAROU alguma relação entre os dois?" — autoridade máxima, sem heurística.
+function gGraphHasAuthorialRelation(graph, a, b){
+  return gGraphOutgoing(graph, a).concat(gGraphIncoming(graph, a))
+    .some(e => e.autorada && (e.para === b || e.de === b));
+}
+
+// A coluna inteira a que este nó pertence: a componente conexa daquele tipo de alinhamento.
+function gGraphAlignedWith(graph, id, tipo){
+  const vistos = new Set([id]), fila = [id];
+  let guarda = 0;
+  while(fila.length && guarda++ < 4096){
+    gGraphNeighbors(graph, fila.shift(), tipo).forEach(o => {
+      if(vistos.has(o)) return;
+      vistos.add(o); fila.push(o);
+    });
+  }
+  vistos.delete(id);
+  return [...vistos].sort();
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   DIFF ESTRUTURAL — separar "a composição mudou" de "o desenho se deslocou"
+   ════════════════════════════════════════════════════════════════════
+   Com duas assinaturas existe a pergunta que a Fase 1 não sabia responder: DUAS composições
+   diferem em quê? Um CTA que desceu 25px e um CTA que saiu do bloco da oferta são estragos de
+   ordens diferentes, e até aqui os dois eram só "mudou".
+
+   ⚠ OBSERVACIONAL. Não escolhe candidato, não pontua e não entra em `gLayoutEscolherAlternativa`.
+   Ele existe para que o scoring da fase seguinte compare estrutura com estrutura em vez de
+   comparar pixels e chamar isso de intenção. */
+function gCompareLayoutStructure(base, candidate){
+  // Aceita Grammar ou Graph nos dois lados: o Graph é derivado, então a comparação é a mesma.
+  const A = (base && base.grammar) || base || {}, B = (candidate && candidate.grammar) || candidate || {};
+  const chave = (r) => [r.tipo, r.de || '', r.para || '',
+                        (r.membros || []).slice().sort().join('+')].join(':');
+  const mapa = (g) => new Map(((g && g.relations) || []).map(r => [chave(r), r]));
+  const mA = mapa(A), mB = mapa(B);
+  const relationsAdded = [], relationsRemoved = [];
+  mB.forEach((r, k) => { if(!mA.has(k)) relationsAdded.push({ tipo:r.tipo, de:r.de || null,
+    para:r.para || null, membros:r.membros || null, confianca:r.confianca }); });
+  mA.forEach((r, k) => { if(!mB.has(k)) relationsRemoved.push({ tipo:r.tipo, de:r.de || null,
+    para:r.para || null, membros:r.membros || null, confianca:r.confianca }); });
+  const _ord = (x, y) => (x.tipo + (x.de||'') + (x.para||'')) < (y.tipo + (y.de||'') + (y.para||'')) ? -1 : 1;
+  relationsAdded.sort(_ord); relationsRemoved.sort(_ord);
+
+  /* Cluster é comparado por MEMBROS, não por ID: o ID já é derivado dos membros, então duas
+     composições com o mesmo bloco têm o mesmo ID por construção. O que interessa é quem entrou,
+     quem saiu e qual bloco deixou de existir. */
+  const cl = (g) => new Map(((g && g.groups) || []).map(x => [x.motivo + ':' + x.membros.slice().sort().join('+'),
+                                                              { motivo:x.motivo, membros:x.membros.slice().sort() }]));
+  const cA = cl(A), cB = cl(B);
+  const clustersChanged = [];
+  cB.forEach((v, k) => { if(!cA.has(k)) clustersChanged.push({ motivo:v.motivo, membros:v.membros, mudanca:'adicionado' }); });
+  cA.forEach((v, k) => { if(!cB.has(k)) clustersChanged.push({ motivo:v.motivo, membros:v.membros, mudanca:'removido' }); });
+  clustersChanged.sort((x, y) => (x.motivo + x.membros.join('+') + x.mudanca)
+                               < (y.motivo + y.membros.join('+') + y.mudanca) ? -1 : 1);
+
+  const hier = (g) => ((g && g.hierarchy) || []).map(h => h.fontSize + '=' + h.ids.slice().sort().join('+')).join('|');
+  return {
+    sameStructure: A.structuralSignature === B.structuralSignature,
+    relationsAdded: relationsAdded,
+    relationsRemoved: relationsRemoved,
+    clustersChanged: clustersChanged,
+    hierarchyChanged: hier(A) !== hier(B),
+    visualChanged: ((A.visual && A.visual.visualSignature) || null)
+                !== ((B.visual && B.visual.visualSignature) || null)
+  };
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   12. LAYOUT COMPONENTS — o motor parando de pensar em camada solta
+   ════════════════════════════════════════════════════════════════════
+   Designer nenhum pensa em `TextLayer_12` e `Rectangle_4`. Ele pensa em "o bloco de preço", "o
+   CTA", "a oferta". Até aqui o motor só tinha camadas: o solver empurra `cta`, encolhe
+   `titulo`, cresce `placa` — cada uma por si. É por isso que a escada consegue quebrar um
+   conjunto que o olho lê como uma coisa só, e não tem como perceber.
+
+   Esta seção reconhece essas unidades. Ela recebe o Composition Graph (§11) e NÃO relê camada,
+   não refaz contenção, não reabre o índice espacial e não repete heurística geométrica — tudo
+   o que ela sabe já foi provado pelas fases anteriores. Consulta a Grammar só para o que o
+   Graph deliberadamente não duplica: geometria (`rect`, `safeRect`) e degrau tipográfico.
+
+   ⛔ COMPONENT NÃO É GRUPO DO DOCUMENTO. Nada aqui toca `parentId`, z-order, grupo do Estúdio
+   ou template. É estrutura DERIVADA, recompilada a cada leitura e jogada fora junto.
+
+   ── A FILOSOFIA, QUE É UMA SÓ ──
+   ERRAR POR NÃO AGRUPAR É MELHOR QUE AGRUPAR ERRADO. Um bloco que o motor não reconheceu
+   continua se comportando como hoje — camada a camada, que é o comportamento que o corpus
+   conhece. Um bloco reconhecido ERRADO, no dia em que isto virar operacional, move junto coisas
+   que não pertencem uma à outra: o logo descendo com o preço, o CTA escalando com a foto.
+   O primeiro defeito é invisível; o segundo é a arte quebrada.
+
+   Por isso PROXIMIDADE SOZINHA NUNCA CRIA COMPONENTE. Os juntores válidos são os fatos que as
+   fases anteriores provaram: grupo autoral (`certa`), `plate-of` (`forte`) e
+   `dynamic-dependency` (a autorização da Fase 2.5). `below`/`right-of` crus não juntam nada, e
+   `inside` menos ainda — a Fase 2.5 provou que contenção não implica dependência, e a mesma
+   disciplina vale aqui.
+
+   ⚠ OBSERVACIONAL. O solver não move, não escala e não pontua componente. Queremos validar se
+   o Luma ENTENDE os blocos antes de deixá-lo mexer neles. */
+
+const G_COMP_V = 1;
+/* PRECEDÊNCIA DE NÍVEL 0 — o específico vence o genérico, e quem reivindica primeiro leva o
+   membro. É o que garante a regra "um membro não pertence a dois componentes fortes do mesmo
+   nível": não há arbitragem depois, há ordem antes. */
+const G_COMP_PRECEDENCIA = ['price-block','cta-block','image-subject-block','text-with-plate',
+                           'legal-block','generic-cluster'];
+// Papéis que NUNCA entram num bloco comercial, por mais forte que seja o juntor. Logo e selo
+// dentro do bloco de preço é o erro mais caro desta fase — ele escala a marca junto com a copy.
+const G_COMP_FORA_DO_COMERCIAL = { protegida:1, legal:1 };
+
+function _gCompId(tipo, membros){
+  return 'k:' + _gGramHash(tipo + '|' + membros.slice().sort().join('+'));
+}
+
+/**
+ * Compila os LAYOUT COMPONENTS a partir da gramática e do grafo já compilados.
+ * Puro: não muta nenhum dos dois, nem as camadas.
+ *
+ * @param {object} grammar saída de `gCompileLayoutGrammar`
+ * @param {object} graph   saída de `gCompileCompositionGraph` (derivado se faltar)
+ * @returns {Array} componentes, ordenados por ID (determinístico)
+ *//**
+ * Compila os LAYOUT COMPONENTS a partir da gramática e do grafo já compilados.
+ * Puro: não muta nenhum dos dois, nem as camadas.
+ *
+ * O compilador tem DUAS ETAPAS SEPARADAS, e a separação é o ponto:
+ *   1. DETECTAR — cada regra propõe candidatos, sem reivindicar nada e sem olhar o que os
+ *      outros propuseram. Um detector não sabe que os outros existem.
+ *   2. RESOLVER — os candidatos são ordenados por `G_COMP_PRECEDENCIA` e só então reivindicam
+ *      membros. Quem chega primeiro na ORDEM DECLARADA leva; quem perde, perde o membro.
+ * Antes as duas etapas eram a mesma coisa: cada detector reivindicava na hora, e a precedência
+ * real era a ordem física das seções neste arquivo. Mover um bloco de código para cima mudava o
+ * resultado sem que `G_COMP_PRECEDENCIA` mudasse — a constante documentava uma regra que não
+ * era executada. Agora ela É a regra.
+ *
+ * @param {object} grammar saída de `gCompileLayoutGrammar`
+ * @param {object} graph   saída de `gCompileCompositionGraph` (derivado se faltar)
+ * @returns {Array} componentes, ordenados por ID (determinístico)
+ */
+function gCompileLayoutComponents(grammar, graph){
+  const gram = grammar || (graph && graph.grammar) || { nodes:[], relations:[], groups:[] };
+  const G = graph || gCompileCompositionGraph(gram);
+  /* Índice local dos nós. `gGrammarNode` é um `.find()` linear — correto para uso avulso,
+     caro aqui: o crescimento consulta papel e proteção milhares de vezes, e era isso que fazia
+     o compilador escalar pior que linear numa arte de 300 camadas. */
+  const _idxG = new Map((gram.nodes || []).map(n => [n.id, n]));
+  const nG = (id) => _idxG.get(id) || null;
+  const nK = (id) => gGraphNode(G, id);
+  const papel = (id) => { const n = nG(id); return n ? n.papel : null; };
+  const protegido = (id) => { const n = nG(id); return !!(n && (n.protegida || n.fundo)); };
+
+  /* JUNTORES — os únicos fatos que autorizam duas camadas a virarem uma unidade. Note o que
+     NÃO está aqui: `below`, `right-of`, `inside`, `aligned-*`, `overlaps`. Estar perto, estar
+     dentro e estar alinhado descrevem a arte; nenhum deles prova que as duas coisas são a
+     mesma coisa. */
+  const _juntores = (id) => {
+    const out = new Set();
+    ['plate-of','dynamic-dependency'].forEach(t => {
+      gGraphOutgoing(G, id, t).forEach(e => out.add(e.para));
+      gGraphIncoming(G, id, t).forEach(e => out.add(e.de));
+    });
+    const n = nK(id);
+    // Grupo AUTORAL é declaração do designer — o juntor mais forte que existe.
+    if(n && n.grupoAutoral) G.nodes.forEach(o => { if(o.grupoAutoral === n.grupoAutoral) out.add(o.id); });
+    out.delete(id);
+    return [...out].sort();
+  };
+  const _porQue = (id, outro) => {
+    const e = ['plate-of','dynamic-dependency'].filter(t =>
+      gGraphOutgoing(G, id, t).some(x => x.para === outro)
+      || gGraphIncoming(G, id, t).some(x => x.de === outro));
+    const a = nK(id), b = nK(outro);
+    if(a && b && a.grupoAutoral && a.grupoAutoral === b.grupoAutoral) e.push('grupo-autoral');
+    return e;
+  };
+
+  /* A RAIZ DINÂMICA de um nó, na leitura dos componentes: o Graph responde "quem me empurra",
+     então um campo que não tem ninguém acima devolve `null` — e ele É a própria origem. */
+  const _raizDinamica = (id) => {
+    const r = gGraphDynamicRoot(G, id);
+    if(r) return r.id;
+    const n = nG(id);
+    return (n && n.campos.length) ? id : null;
+  };
+  const posLeitura = new Map();
+  (G.readingFlow || []).forEach((ramo, i) => ramo.forEach((id, k) => posLeitura.set(id, { ramo:i, pos:k })));
+  const _vizinhoDeLeitura = (id) => {
+    const p = posLeitura.get(id);
+    if(!p) return [];
+    const ramo = (G.readingFlow || [])[p.ramo] || [];
+    return [ramo[p.pos - 1], ramo[p.pos + 1]].filter(Boolean);
+  };
+  const _clusterDe = (id) => { const c = gGraphCluster(G, id); return c ? c.id : null; };
+
+  /* Expansão em largura a partir de uma semente, admitindo só quem passa no filtro do TIPO.
+     O filtro é por papel, não por proximidade — é ele que impede o logo de entrar no preço. */
+  const _cresce = (semente, admite, extra) => {
+    const dentro = new Set([semente]), fila = [semente], evid = new Set();
+    let guarda = 0;
+    while(fila.length && guarda++ < 512){
+      const atual = fila.shift();
+      _juntores(atual).forEach(o => {
+        if(dentro.has(o) || !admite(nG(o), nK(o))) return;
+        _porQue(atual, o).forEach(x => evid.add(x));
+        dentro.add(o); fila.push(o);
+      });
+      // Juntor adicional específico do tipo (ver o irmão de leitura, no price-block).
+      if(extra) extra(atual).forEach(o => {
+        if(dentro.has(o) || !admite(nG(o), nK(o))) return;
+        evid.add('same-dynamic-root'); evid.add('reading-adjacent');
+        dentro.add(o); fila.push(o);
+      });
+    }
+    return { membros:[...dentro].sort(), evidencia:[...evid].sort() };
+  };
+  // Existe pelo menos UM juntor verdadeiro dentro deste conjunto?
+  const _temJuntorInterno = (ids) =>
+    ids.some(a => _juntores(a).some(b => ids.indexOf(b) >= 0));
+
+  /* ─────────────────────────── ETAPA 1: DETECTAR ─────────────────────────────────────────
+     Nenhum detector reivindica nada aqui. Eles só PROPÕEM. */
+  const candidatos = [];
+  const _propoe = (c) => { if(c && c.membros.length) candidatos.push(c); };
+  const sementes = (filtro) => gram.nodes.filter(filtro).map(n => n.id).sort();
+
+  // ── PRICE-BLOCK — o componente mais importante da primeira versão ───────────────────────
+  /* O preço é o argumento da peça, e o motor já tem regra de domínio dura para ele
+     (`_gLayoutBlocoPrecoFixo`: não é empurrado nem encolhido por motivo alheio).
+     ⛔ Recusa logo, selo de marca e legal — mesmo quando o juntor é um grupo autoral, porque
+     agrupar no PSD não torna a marca parte da oferta. */
+  const _admitePreco = (n) => {
+    if(!n || G_COMP_FORA_DO_COMERCIAL[n.papel] || n.protegida || n.fundo) return false;
+    if(n.papel === 'preco') return true;
+    return n.tipo === 'shape' && n.papel === 'decoracao';       // a placa/selo atrás do preço
+  };
+  /* O IRMÃO DE PREÇO. "De R$ 49,90 por" e "R$ 29,90" são um bloco só para qualquer olho — mas
+     no grafo eles são IRMÃOS, não pai e filho: os dois penduram na mesma cadeia (o nome do
+     produto acima). Sem esta regra o padrão mais comum dos PSDs da marca saía como dois
+     componentes soltos.
+     NÃO é proximidade. Exige QUATRO sinais estruturais, e nenhum deles é distância:
+       · os dois com papel de preço;
+       · a MESMA raiz dinâmica;
+       · consecutivos no fluxo de leitura (o que também garante mesmo ramo e nada de outra
+         função entre eles — consecutivo não tem meio);
+       · CLUSTER COMPATÍVEL: dois preços em PLACAS DIFERENTES são ofertas diferentes, e é essa
+         a guarda contra duas ofertas que compartilham a mesma raiz por acidente (duas placas
+         de promoção penduradas no mesmo título). O sinal já existe — é o cluster do Graph —
+         então não há heurística geométrica nova aqui. */
+  const _irmaoDePreco = (id) => {
+    const raiz = _raizDinamica(id);
+    if(!raiz) return [];
+    const meuCluster = _clusterDe(id);
+    return _vizinhoDeLeitura(id).filter(o => {
+      if(papel(o) !== 'preco' || protegido(o)) return false;
+      if(_raizDinamica(o) !== raiz) return false;
+      const dele = _clusterDe(o);
+      // Clusters diferentes (duas placas) = duas ofertas. Um sem cluster não conflita.
+      return !(meuCluster && dele && meuCluster !== dele);
+    });
+  };
+  sementes(n => n.papel === 'preco' && n.visivel && !n.protegida).forEach(seed => {
+    const r = _cresce(seed, _admitePreco, _irmaoDePreco);
+    _propoe({ tipo:'price-block', nivel:0, semente:seed, membros:r.membros,
+      evidencia:['semantic-price'].concat(r.evidencia), minimo:1 });
+  });
+
+  // ── CTA-BLOCK ── texto de CTA + a pill/forma atrás dele, quando houver.
+  /* Shape NÃO é obrigatório: um CTA textual isolado já é uma unidade semântica clara. */
+  sementes(n => n.papel === 'cta' && n.visivel && !n.protegida).forEach(seed => {
+    const r = _cresce(seed, (n) => n && !G_COMP_FORA_DO_COMERCIAL[n.papel] && !n.protegida
+      && !n.fundo && (n.papel === 'cta' || (n.tipo === 'shape' && n.papel === 'decoracao')));
+    _propoe({ tipo:'cta-block', nivel:0, semente:seed, membros:r.membros,
+      evidencia:['semantic-cta'].concat(r.evidencia), minimo:1 });
+  });
+
+  // ── IMAGE-SUBJECT-BLOCK ── a foto e o que está REALMENTE acoplado a ela.
+  /* ⛔ Contenção NÃO conta. Texto por cima da foto é contenção intencional (a §10 registra), e
+     a Fase 2.5 provou que contenção não implica dependência. */
+  sementes(n => (n.tipo === 'image' || n.tipo === 'frame') && n.visivel && !n.fundo).forEach(seed => {
+    const r = _cresce(seed, (n) => n && !n.fundo && !G_COMP_FORA_DO_COMERCIAL[n.papel]);
+    if(r.membros.length < 2) return;              // imagem sem nada acoplado não é bloco
+    _propoe({ tipo:'image-subject-block', nivel:0, semente:seed, membros:r.membros,
+      evidencia:['image-subject'].concat(r.evidencia) });
+  });
+
+  /* ── TEXT-WITH-PLATE ── o par estrutural, quando nenhum tipo específico o cobre. Ele PROPÕE
+     sempre; quem decide que `price-block` vence é a precedência, não a ordem deste bloco. */
+  G.edges.filter(e => e.tipo === 'plate-of').forEach(e => {
+    if(protegido(e.de) || protegido(e.para)) return;
+    _propoe({ tipo:'text-with-plate', nivel:0, semente:e.para, membros:[e.de, e.para].sort(),
+      evidencia:['plate-of'].concat(e.evidencia || []) });
+  });
+
+  /* ── LEGAL-BLOCK ── regulamento em várias linhas/camadas.
+     Aqui a proximidade ENTRA, mas nunca sozinha: só liga camadas que já são, as duas, papel
+     `legal`. Dois sinais, e mesmo assim sai como `provavel`.
+     ⛔ Rodapé inteiro NÃO é legal-block: logo, assinatura, selo e CTA moram lá e não entram. */
+  const _ehLegal = (id) => papel(id) === 'legal' && !protegido(id);
+  sementes(n => n.papel === 'legal' && n.visivel && !n.protegida).forEach(seed => {
+    const dentro = new Set([seed]), fila = [seed];
+    let guarda = 0;
+    while(fila.length && guarda++ < 256){
+      const atual = fila.shift();
+      gGraphNeighbors(G, atual).forEach(o => {
+        if(dentro.has(o) || !_ehLegal(o)) return;
+        const vizinho = gGraphOutgoing(G, atual, 'below').some(x => x.para === o)
+                     || gGraphIncoming(G, atual, 'below').some(x => x.de === o)
+                     || _juntores(atual).indexOf(o) >= 0;
+        if(!vizinho) return;
+        dentro.add(o); fila.push(o);
+      });
+    }
+    _propoe({ tipo:'legal-block', nivel:0, semente:seed, membros:[...dentro].sort(),
+      evidencia:['semantic-legal','proximidade'], forcarConfianca:'provavel' });
+  });
+
+  /* ── GENERIC-CLUSTER ── o que o grafo provou ser um bloco mas nenhum tipo reconheceu.
+     ⛔ ENDURECIDO: só nasce quando existe pelo menos UM JUNTOR VERDADEIRO entre os membros.
+     O cluster de CONTENÇÃO do Graph (texto sobre foto) é forte e verdadeiro como descrição
+     VISUAL — e não prova identidade de componente. Enquanto `generic-cluster` não fazia nada,
+     deixá-lo nascer dali era inofensivo; no dia em que ele alimentar elasticidade, seria a foto
+     e o texto escalando juntos por cima de uma relação que a Fase 2.5 já provou não ser
+     dependência. O cluster continua existindo no Graph; só não vira componente. */
+  (G.clusters || []).forEach(c => {
+    if(!_temJuntorInterno(c.membros)) return;
+    _propoe({ tipo:'generic-cluster', nivel:0, semente:c.membros.slice().sort()[0],
+      membros:c.membros.slice().sort(), evidencia:(c.evidencia || []).slice(),
+      forcarConfianca:c.confianca });
+  });
+
+  /* ─────────────────────────── ETAPA 2: RESOLVER ─────────────────────────────────────────
+     A ordem é a DECLARADA em `G_COMP_PRECEDENCIA`; o desempate dentro do mesmo tipo é por
+     semente, para não depender da ordem em que os candidatos foram propostos. */
+  const _peso = (t) => { const i = G_COMP_PRECEDENCIA.indexOf(t); return i < 0 ? 999 : i; };
+  candidatos.sort((a, b) => _peso(a.tipo) - _peso(b.tipo)
+                         || (a.semente < b.semente ? -1 : a.semente > b.semente ? 1 : 0));
+
+  const reivindicado = new Map();          // nodeId → componente de nível 0
+  const componentes = [];
+  const _registra = (c) => {
+    /* Por padrão um componente precisa de DOIS membros — senão "componente" vira sinônimo de
+       "camada" e a abstração não paga o próprio custo. `price-block` e `cta-block` abrem
+       exceção porque têm valor semântico claro sozinhos: é o que o franqueado nomeia na arte. */
+    if(c.membros.length < (c.minimo || 2)) return null;
+    c.id = _gCompId(c.tipo, c.membros);
+    if(componentes.some(x => x.id === c.id)) return null;      // duplicata exata: um fato só
+    delete c.minimo; delete c.semente;
+    componentes.push(c);
+    if(c.nivel === 0) c.membros.forEach(m => reivindicado.set(m, c));
+    return c;
+  };
+  candidatos.forEach(c => {
+    // Membro já levado por um candidato de precedência MAIOR sai deste; a semente tem que
+    // sobreviver, senão o que restou não é mais o componente que foi proposto.
+    const membros = c.membros.filter(m => !reivindicado.has(m));
+    if(membros.indexOf(c.semente) < 0) return;
+    _registra(Object.assign({}, c, { membros:membros }));
+  });
+  const livre = (id) => !reivindicado.has(id);
+
+  /* ── OFFER-BLOCK (nível 1) ── a oferta como unidade: o que o franqueado muda e o que
+     acompanha essa mudança.
+     Roda DEPOIS da resolução de nível 0 por dependência semântica, não por ordem de código: ele
+     precisa dos componentes já resolvidos para aninhá-los como filhos.
+     Conservador: exige MESMA CADEIA DINÂMICA (a autorização da Fase 2.5), mesmo RAMO DE LEITURA
+     e papéis compatíveis. E há o teste do MEIO: se entre dois membros, na ordem de leitura,
+     existe algo de outra função (rodapé legal, logo, CTA), não é um bloco. */
+  const PAPEL_OFERTA = { titulo:1, produto:1, apoio:1, preco:1, decoracao:1 };
+  const ramoDe = new Map();
+  posLeitura.forEach((p, id) => ramoDe.set(id, p.ramo));
+  const cadeias = new Map();
+  gram.nodes.forEach(n => {
+    const r = gGraphDynamicRoot(G, n.id);
+    if(!r) return;
+    if(!cadeias.has(r.id)) cadeias.set(r.id, new Set([r.id]));
+    cadeias.get(r.id).add(n.id);
+  });
+  [...cadeias.keys()].sort().forEach(raiz => {
+    const membros = [...cadeias.get(raiz)].sort();
+    if(membros.length < 2) return;
+    if(membros.some(id => { const n = nG(id); return !n || !PAPEL_OFERTA[n.papel] || n.protegida || n.fundo; })) return;
+    // Uma oferta tem um assunto: só preço encadeado é price-block, não offer-block.
+    if(!membros.some(id => papel(id) === 'titulo' || papel(id) === 'produto')) return;
+    const ramos = new Set(membros.map(id => ramoDe.has(id) ? ramoDe.get(id) : -1));
+    if(ramos.size > 1) return;                       // colunas diferentes não são um bloco
+    const ramo = (G.readingFlow || [])[[...ramos][0]] || [];
+    const idx = membros.map(id => ramo.indexOf(id)).filter(i => i >= 0);
+    if(idx.length >= 2){
+      const lo = Math.min(...idx), hi = Math.max(...idx);
+      for(let k = lo + 1; k < hi; k++){
+        const meio = ramo[k];
+        if(membros.indexOf(meio) >= 0) continue;
+        const p = papel(meio);
+        if(p === 'legal' || p === 'cta' || protegido(meio)) return;   // outra função no meio
+      }
+    }
+    // Absorve os componentes de nível 0 que caem dentro da cadeia — eles viram FILHOS.
+    const filhos = componentes.filter(c => c.nivel === 0 && c.membros.some(m => membros.indexOf(m) >= 0));
+    const todos = [...new Set(membros.concat(...filhos.map(c => c.membros)))].sort();
+    if(todos.some(id => protegido(id) || papel(id) === 'legal')) return;
+    _registra({ tipo:'offer-block', nivel:1, semente:raiz, membros:todos,
+      membrosDiretos: membros.filter(m => !filhos.some(c => c.membros.indexOf(m) >= 0)).sort(),
+      filhos: filhos.map(c => c.id).sort(),
+      evidencia:['same-dynamic-root','same-reading-branch','compatible-roles'] });
+  });
+
+  /* ── RAÍZES, CONFIANÇA, CARDINALIDADE, BOUNDS E ASSINATURA ── um passe final, para todo
+     componente ter o mesmo contrato. A confiança NÃO é um sistema novo: são os mesmos quatro
+     níveis de `G_GRAPH_FORCA`, e o que decide é a EVIDÊNCIA. */
+  componentes.forEach(c => {
+    const sinais = c.evidencia.filter(e => e !== 'proximidade');
+    c.confianca = c.forcarConfianca ? c.forcarConfianca
+                : c.evidencia.indexOf('grupo-autoral') >= 0 ? 'certa'
+                : sinais.length >= 2 ? 'forte'
+                : c.evidencia.indexOf('proximidade') >= 0 ? 'provavel' : 'forte';
+    delete c.forcarConfianca;
+    if(c.membrosDiretos == null){ c.membrosDiretos = c.membros.slice(); c.filhos = []; }
+
+    /* SINGLETON — a distinção que a fase seguinte precisa e que o tipo sozinho não dá.
+       "É um CTA" e "é um bloco composto que deve escalar e mover junto" são duas afirmações
+       diferentes, e um `cta-block` de um membro só faz a primeira. Sem esta marca, a
+       elasticidade leria `cta-block` e trataria uma camada solta como grupo. */
+    c.singleton = c.membros.length === 1;
+
+    /* ROOT: o membro que dá NOME ao componente — o maior degrau tipográfico entre os que
+       carregam a semântica do tipo. Desempate por ID, para não depender da ordem da lista. */
+    const _degrau = (id) => { const n = nG(id);
+      return n && n.tipo === 'text' ? (n.fontSize || 0) : -1; };
+    c.rootId = c.membros.slice().sort((a,b) => _degrau(b) - _degrau(a) || (a < b ? -1 : 1))[0] || null;
+
+    /* DYNAMIC ROOT: sai do Composition Graph, não de leitura própria.
+       ⚠ Raízes independentes NÃO viram uma raiz falsa: com mais de uma, `dynamicRootId` fica
+       `null` e a lista fica em `dynamicRoots`. */
+    const raizes = new Set();
+    c.membros.forEach(id => { const r = _raizDinamica(id); if(r) raizes.add(r); });
+    c.dynamicRoots = [...raizes].sort();
+    c.dynamicRootId = c.dynamicRoots.length === 1 ? c.dynamicRoots[0] : null;
+    c.dinamico = c.dynamicRoots.length > 0;
+    c.bounds = gComponentBounds(c, gram);
+  });
+  /* ASSINATURA DO COMPONENTE — "esta unidade semântica continua sendo a mesma?".
+     Depende de tipo, membros, hierarquia, raízes e cardinalidade. NÃO depende de conteúdo,
+     coordenada, bounds nem da ordem em que os candidatos foram gerados: mover o CTA 20px não
+     muda nada aqui, separar o price-block em dois muda tudo. Calculada num segundo passe
+     porque a hierarquia só existe depois que os filhos têm ID. */
+  const _porId = new Map(componentes.map(c => [c.id, c]));
+  componentes.forEach(c => {
+    const filhos = c.filhos.map(f => { const x = _porId.get(f); return x ? x.tipo + ':' + x.membros.join('+') : f; }).sort();
+    c.componentSignature = _gGramHash([
+      'v' + G_COMP_V, c.tipo, c.singleton ? 'single' : 'group',
+      c.membros.slice().sort().join('+'),
+      'root=' + (c.rootId || ''), 'dyn=' + c.dynamicRoots.join('+'),
+      'filhos=' + filhos.join('|')
+    ].join('#'));
+  });
+  componentes.sort((a,b) => a.nivel - b.nivel || (a.id < b.id ? -1 : 1));
+  return componentes;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   API DE LEITURA DOS COMPONENTES — funções puras, como o resto do arquivo
+   ════════════════════════════════════════════════════════════════════ */
+
+function gComponentById(components, id){
+  return (components || []).find(c => c && c.id === id) || null;
+}
+// O componente de nível 0 de um nó; sem ele, o de nível 1 que o contém.
+function gComponentOfNode(components, nodeId){
+  const lista = (components || []).filter(c => c.membros.indexOf(nodeId) >= 0);
+  return lista.sort((a,b) => a.nivel - b.nivel)[0] || null;
+}
+function gComponentsByType(components, tipo){
+  return (components || []).filter(c => c && c.tipo === tipo);
+}
+function gComponentMembers(component){
+  return component ? component.membros.slice() : [];
+}
+function gComponentDynamicRoot(component){
+  return component ? (component.dynamicRootId || null) : null;
+}
+function gComponentContains(component, nodeId){
+  return !!(component && component.membros.indexOf(nodeId) >= 0);
+}
+
+/**
+ * Os três retângulos de um componente. Puro, e derivado da geometria que a §10 já publicou —
+ * `gInkRect` continua sendo o motor único de tinta, e não é reimplementado aqui.
+ *   · `autorado` — a união das CAIXAS que o designer desenhou;
+ *   · `visual`   — a mesma união sem os membros decorativos (a sangria de um selo não define
+ *                  a caixa visual do bloco);
+ *   · `seguro`   — usa a caixa do ASSUNTO onde ela existe (`safeRect`, do import de PSD), e a
+ *                  caixa desenhada onde não existe.
+ * ⚠ Tudo descreve o AUTORADO. Nenhum deles lê resultado de solve — nesta fase não há
+ *   componente adaptado para medir.
+ */
+function gComponentBounds(component, grammar){
+  const ids = (component && component.membros) || [];
+  const uniao = (sel) => {
+    let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
+    ids.forEach(id => {
+      const n = gGrammarNode(grammar, id);
+      const r = n && sel(n);
+      if(!r) return;
+      a = Math.min(a, r.x); b = Math.min(b, r.y);
+      c = Math.max(c, r.x + r.w); d = Math.max(d, r.y + r.h);
+    });
+    return isFinite(a) ? { x:a, y:b, w:c - a, h:d - b } : null;
+  };
+  const autorado = uniao(n => n.rect);
+  return {
+    autorado: autorado,
+    visual: uniao(n => n.decorativa ? null : n.rect) || autorado,
+    seguro: uniao(n => n.safeRect || n.rect) || autorado
+  };
+}
+
+/**
+ * DIFF DE COMPONENTES — "as unidades semânticas desta arte continuam as mesmas?".
+ * Observacional: não escolhe solução, não pontua. Prepara a fase em que o motor precisar saber
+ * se uma adaptação DESTRUIU a composição em vez de só deslocá-la.
+ *
+ * O pareamento é por TIPO + RAIZ ("o bloco de preço enraizado em X"), e não por assinatura: são
+ * justamente os componentes que existem dos dois lados e MUDARAM que interessam — parear por
+ * assinatura os faria aparecer como um removido mais um adicionado, escondendo a mudança.
+ *
+ * @returns {{sameComponents, added, removed, changed, hierarchyChanged}}
+ */
+function gCompareLayoutComponents(base, candidate){
+  const A = base || [], B = candidate || [];
+  const chave = (c) => c.tipo + '@' + (c.rootId || '');
+  const resumo = (c) => ({ id:c.id, tipo:c.tipo, rootId:c.rootId, membros:c.membros.slice(),
+                           singleton:c.singleton, componentSignature:c.componentSignature });
+  const mA = new Map(A.map(c => [chave(c), c])), mB = new Map(B.map(c => [chave(c), c]));
+  const added = [], removed = [], changed = [];
+  mB.forEach((c, k) => { if(!mA.has(k)) added.push(resumo(c)); });
+  mA.forEach((c, k) => {
+    if(!mB.has(k)){ removed.push(resumo(c)); return; }
+    const o = mB.get(k);
+    if(c.componentSignature !== o.componentSignature)
+      changed.push({ tipo:c.tipo, rootId:c.rootId,
+        de:resumo(c).membros, para:resumo(o).membros,
+        deSignature:c.componentSignature, paraSignature:o.componentSignature });
+  });
+  const _ord = (x, y) => (x.tipo + (x.rootId || '')) < (y.tipo + (y.rootId || '')) ? -1 : 1;
+  added.sort(_ord); removed.sort(_ord); changed.sort(_ord);
+  // A hierarquia é o mapa "quem aninha quem", por tipo — não por ID, que carrega os membros.
+  const hier = (l) => l.map(c => c.tipo + '<' + c.filhos.map(f => {
+    const x = l.find(y => y.id === f); return x ? x.tipo : f; }).sort().join(',')).sort().join('|');
+  return {
+    sameComponents: added.length === 0 && removed.length === 0 && changed.length === 0,
+    added, removed, changed,
+    hierarchyChanged: hier(A) !== hier(B)
+  };
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   13. ELASTICITY MODEL — quanta liberdade cada coisa tem
+   ════════════════════════════════════════════════════════════════════
+   A escada do solver sabe QUE degraus existem (quebrar → empurrar → apertar respiro →
+   entrelinha → tracking → encolher → escalar). O que ela não tem é uma resposta, antes de
+   agir, para "quem pode ceder O QUÊ, e até onde?". Hoje isso está espalhado em condições
+   dentro do laço: `_gLayoutPrecoImune` aqui, `_pisoLegivel` ali, `gLayoutRoleMaxLines` acolá.
+   Funciona, e é justamente por funcionar que precisa ser LIDO antes de ser mexido.
+
+   Esta seção não inventa política. Ela COMPILA, num objeto, as permissões que o motor já
+   aplica — e onde a regra existente e a intuição divergem, a REGRA EXISTENTE VENCE e a
+   divergência fica documentada. Substituir comportamento validado por default inventado é o
+   modo mais rápido de quebrar um corpus de 25 goldens.
+
+   ⚠ DESCRITIVA. `gApplyRelativeAnchors` não conhece esta seção. Elasticidade descreve a
+   LIBERDADE permitida; não descreve a ação tomada, não escolhe candidato e não move um pixel.
+
+   ── NÍVEIS DISCRETOS, NÃO FLOAT ──
+   `moveY: 0.72` seria um número que ninguém calibrou fingindo precisão que não existe. Quatro
+   níveis, e a comparação mora em `gElasticityLevel` — consumidor não compara string na mão. */
+
+const G_LAYOUT_ELASTICITY = { none:0, low:1, medium:2, high:3 };
+const G_ELASTICITY_NOME = ['none','low','medium','high'];
+
+function gElasticityLevel(v){
+  const n = G_LAYOUT_ELASTICITY[v];
+  return n != null ? n : 0;
+}
+// O mais restritivo dos dois — a operação da HERANÇA de permissão (ver §8 do modelo).
+function gElasticityMin(a, b){
+  return G_ELASTICITY_NOME[Math.min(gElasticityLevel(a), gElasticityLevel(b))];
+}
+function gElasticityMax(a, b){
+  return G_ELASTICITY_NOME[Math.max(gElasticityLevel(a), gElasticityLevel(b))];
+}
+const _gElNivel = (n) => G_ELASTICITY_NOME[Math.max(0, Math.min(3, n))];
+
+/* AS DIMENSÕES — dez, e cada uma corresponde a um degrau que o solver REALMENTE tem:
+     moveX/moveY        → a corrente (`_gInferirCorrentes` + `_posicionar`)
+     wrap               → `gSmartWrapText` limitado por `gLayoutRoleMaxLines`
+     fontShrink         → o degrau de encolher, com piso em `_pisoFonte`/`_pisoLegivel`
+     lineHeight         → o degrau da entrelinha calculada, piso 1.05
+     tracking           → o degrau 3.7 (devolver o tracking que o motor somou)
+     scale              → a escala proporcional do componente (`relaxou`)
+     resizeContainer    → a placa que acompanha o texto (`_seguirPlacas`)
+     redistributeSpace  → `_respiroFator` 1 → 0.5
+     rigidity           → o CUSTO de descaracterizar, não uma permissão (ver abaixo)
+
+   ⛔ `decorativeMove` e `decorativeScale` foram descartadas por REDUNDÂNCIA. Elas seriam
+   `moveX/moveY` e `scale` de uma camada decorativa — e "é decorativa" já é um fato do nó
+   (`decorativa`), não uma dimensão de liberdade. Ter as duas criaria dois lugares dizendo a
+   mesma coisa sobre a mesma camada, que é a origem histórica dos bugs deste motor. Quem quiser
+   "quanto a decoração pode mover" lê `moveX` dos nós com `decorativa:true`.
+   ⛔ `hideDecorative` não entra: é emergência, e emergência é outra fase. */
+const G_ELASTICITY_DIMENSOES = ['moveX','moveY','wrap','fontShrink','lineHeight','tracking',
+                                'scale','resizeContainer','redistributeSpace'];
+
+/* RIGIDEZ NÃO É O INVERSO DAS PERMISSÕES. Um preço pode ter `rigidity: high` e `moveY`
+   permitido: "preserve a identidade e a hierarquia dele, mas reposicionar é aceitável".
+   Rigidez é o CUSTO de descaracterizar — e o Luma já tem esse número calibrado contra o
+   corpus: `G_SCORE_PESO_PAPEL`, os pesos que a nota usa para cobrar mais caro por estragar um
+   título do que um rodapé. Derivar daí, em vez de inventar uma segunda tabela, é o que impede
+   elasticidade e pontuação de discordarem sobre o que importa nesta arte. */
+function _gElRigidez(n){
+  if(!n) return 'medium';
+  if(n.protegida || n.fundo) return 'high';
+  const peso = (typeof G_SCORE_PESO_PAPEL !== 'undefined' && G_SCORE_PESO_PAPEL[n.papel] != null)
+             ? G_SCORE_PESO_PAPEL[n.papel] : 1;
+  return peso >= 1.4 ? 'high' : peso >= 1 ? 'medium' : 'low';
+}
+
+/**
+ * Elasticidade de TODAS as camadas, em lote. Em lote e não uma a uma porque a resposta de cada
+ * uma depende do conjunto (o grafo, os componentes) — compilar uma por vez refaria a mesma
+ * leitura N vezes.
+ *
+ * @returns {Map<string,object>} nodeId → {moveX, moveY, wrap, …, rigidity, motivos}
+ */
+function gCompileLayerElasticity(grammar, graph){
+  const gram = grammar || { nodes:[] };
+  const G = graph || gCompileCompositionGraph(gram);
+  /* As formas que são PLACA de alguém, indexadas UMA vez. Antes isto era
+     `G.edges.some(e => e.tipo === 'plate-of' && e.de === n.id)` dentro do laço de nós: uma
+     varredura das 4.800 arestas para CADA uma das 344 camadas — 1,7 milhão de comparações, e
+     foi o que fez a elasticidade escalar 42× onde a arte cresceu 5,9×. */
+  const _placas = new Set();
+  (G.edges || []).forEach(e => { if(e.tipo === 'plate-of') _placas.add(e.de); });
+  const out = new Map();
+  (gram.nodes || []).forEach(n => {
+    const m = [];                                  // por que cada trava existe
+    const rigidez = _gElRigidez(n);
+
+    /* ── MOVER ── a régua é a do solver, não uma nova: quem não pode ser empurrado não tem
+       `moveY`. `gLayoutPodeAcompanhar` (a fonte única da Fase 2.5) já respondeu isso, e o
+       `travada` do nó carrega o resultado. Âncora MANUAL devolve o movimento: o designer
+       declarou que aquilo acompanha, e declaração vence heurística. */
+    const manual = gGraphOutgoing(G, n.id, 'authorial-anchor').length > 0;
+    let moveY = 'high', moveX = 'low';
+    /* Do ESPECÍFICO para o genérico: todas as travas abaixo acabam em `podeAcompanhar:false`,
+       mas o MOTIVO precisa ser o real — "ancestral travado" num preço mandaria quem lê procurar
+       um grupo que não existe. */
+    if(n.protegida || n.fundo){ moveY = 'none'; moveX = 'none'; m.push('protegida'); }
+    else if(n.papel === 'preco' && n.campos.length && !manual){
+      /* ⚠ AQUI A REGRA EXISTENTE VENCE A INTUIÇÃO. O bloco de preço dinâmico NÃO é empurrado
+         pela corrente desde 03/09 (`_gLayoutBlocoPrecoFixo`): ele desloca os outros e não é
+         deslocado. Seria natural marcá-lo `moveY: medium` — mas isso descreveria um motor que
+         não existe, e a fase operacional consumiria a descrição, não o código. Com âncora
+         manual ele volta a mover, porque aí é o designer mandando. */
+      moveY = 'none'; moveX = 'none'; m.push('bloco-de-preco-nao-sai-do-lugar');
+    }
+    else if(n.podeAcompanhar === false && !manual){
+      /* A régua é a FONTE ÚNICA (`gLayoutPodeAcompanhar`, publicada pela §10 em
+         `podeAcompanhar`) — não `protegida`. A diferença aparece no caso que mais engana: uma
+         camada solta DENTRO DE UM GRUPO TRAVADO não é protegida ela própria, mas o solver se
+         recusa a encadeá-la. Olhar só o `protegida` do nó daria `moveY: high` para algo que o
+         motor nunca move. */
+      moveY = 'none'; moveX = 'none'; m.push('ancestral-travado');
+    }
+    else if(n.decorativa){ moveY = 'high'; moveX = 'high'; m.push('decorativa'); }
+
+    /* ── QUEBRAR LINHA ── o teto por papel já existe (`gLayoutRoleMaxLines`): cta/preço param
+       em 2 linhas, título/produto em 3, apoio em 4, legal corre até 8. O nível sai do teto, e
+       não de uma opinião nova sobre quanto cada um "deveria" quebrar. */
+    let wrap = 'none';
+    if(n.tipo === 'text' && !n.protegida){
+      const teto = (typeof gLayoutRoleMaxLines === 'function') ? gLayoutRoleMaxLines(n.papel) : 4;
+      wrap = teto <= 1 ? 'none' : teto <= 2 ? 'low' : teto <= 4 ? 'medium' : 'high';
+    }
+
+    /* ── ENCOLHER A FONTE ── a escada encolhe o MENOR degrau primeiro e só chega no título
+       quando o resto já cedeu; o preço só cede por causa dele mesmo (`_gLayoutPrecoImune`); e
+       o piso de legibilidade (`_pisoLegivel`) não deixa nada virar 8px numa arte de 1080. */
+    let fontShrink = 'none';
+    if(n.tipo === 'text' && !n.protegida && !n.fundo){
+      fontShrink = n.papel === 'preco' ? 'low'
+                 : n.papel === 'titulo' ? 'medium'
+                 : n.papel === 'legal' ? 'medium'      // o piso de legibilidade segura o resto
+                 : n.papel === 'apoio' ? 'high' : 'medium';
+      if(n.papel === 'preco') m.push('preco-so-cede-por-si');
+      if(n.papel === 'legal') m.push('piso-de-legibilidade');
+    }
+
+    /* ── ENTRELINHA ── só há degrau quando existe folga acima do piso 1.05, e o ganho é
+       proporcional ao que o desenho tinha. Bloco arejado cede muito; 1.2 cede pouco. */
+    let lineHeight = 'none';
+    if(n.tipo === 'text' && !n.protegida){
+      const lh = n.lineHeight || 1.2;
+      const folga = (lh - 1.05) / Math.max(0.01, lh);
+      lineHeight = folga <= 0.02 ? 'none' : folga < 0.15 ? 'low' : folga < 0.3 ? 'medium' : 'high';
+    }
+
+    /* ── TRACKING ── o degrau 3.7 devolve o tracking que o RENDER somou, e ele só soma em fonte
+       display (peso ≥900). Fonte de texto não tem o que devolver — `none`, não `low`. */
+    let tracking = 'none';
+    if(n.tipo === 'text' && !n.protegida){
+      tracking = n.display ? 'medium' : (n.letterSpacing > 0 ? 'low' : 'none');
+    }
+
+    // ── ESCALA ── a emergência proporcional do componente. Preço imune não desce com ela.
+    let scale = 'none';
+    if(!n.protegida && !n.fundo){
+      scale = n.decorativa ? 'high' : (n.papel === 'preco' && n.campos.length) ? 'low' : 'medium';
+    }
+
+    /* ── CRESCER COMO CONTÊINER ── é a placa seguindo o texto (`_seguirPlacas`), e só existe
+       para a forma que a §12 reconheceu como placa de um texto com campo. */
+    const resizeContainer = (_placas.has(n.id) && !n.protegida) ? 'high' : 'none';
+
+    // ── REDISTRIBUIR RESPIRO ── o degrau `_respiroFator` 1 → 0.5. É UM degrau fixo, metade —
+    // então quem participa participa igual; `medium` para todos, `none` para quem está fora.
+    const redistributeSpace = (n.protegida || n.fundo) ? 'none' : 'medium';
+
+    out.set(n.id, { moveX, moveY, wrap, fontShrink, lineHeight, tracking, scale,
+                    resizeContainer, redistributeSpace, rigidity:rigidez, motivos:m.sort() });
+  });
+  return out;
+}
+
+/* PERFIS POR TIPO DE COMPONENTE — o que a SEMÂNTICA do bloco permite, acima do que cada membro
+   permite sozinho. Não é média dos membros: a média diria que um price-block com placa
+   decorativa pode escalar bastante, porque a placa pode. `null` = herda dos membros. */
+const G_COMP_ELASTICIDADE = {
+  'price-block':         { moveX:'low',  scale:'low',    resizeContainer:'medium',
+                           preserveTogether:'high', preserveHierarchy:'high' },
+  'cta-block':           { scale:'medium', preserveTogether:'high', preserveHierarchy:'medium' },
+  'text-with-plate':     { resizeContainer:'high', preserveTogether:'high', preserveHierarchy:'low' },
+  'image-subject-block': { preserveTogether:'high', preserveHierarchy:'low' },
+  'legal-block':         { preserveTogether:'medium', preserveHierarchy:'low' },
+  'offer-block':         { moveY:'high', wrap:'high', scale:'medium',
+                           preserveTogether:'medium', preserveHierarchy:'high' },
+  // ⛔ Genérico não ganha NADA por tipo: ele existe para não perder o fato, não para agir.
+  'generic-cluster':     {}
+};
+
+/**
+ * Elasticidade de um COMPONENTE. A do bloco, não a soma das partes.
+ *
+ * ── HERANÇA, E A EXCEÇÃO QUE IMPORTA ──
+ * Para PERMISSÃO a regra é monotônica: `efetiva = min(perfil do tipo, min dos membros)`. Um
+ * componente NUNCA torna um membro mais livre numa dimensão que o membro proíbe — é isso que
+ * impede um `offer-block` de autorizar o movimento de um logo que caiu dentro dele.
+ * Para RIGIDEZ a regra é o contrário, e de propósito: `max` dos membros. Rigidez é CUSTO, não
+ * permissão — um bloco que contém o preço é caro de descaracterizar mesmo que o resto dele
+ * seja apoio barato. Tratar as duas com a mesma operação é o erro clássico aqui.
+ *
+ * ⚠ SINGLETON NÃO GANHA COMPORTAMENTO DE GRUPO. Um `cta-block` de um membro só é uma
+ * afirmação semântica ("isto é o CTA"), não um bloco composto. Ele herda a elasticidade da
+ * própria camada e sai com `preserveTogether: none` — não há o que preservar junto. Sem isso a
+ * fase operacional escalaria uma camada solta como se fosse um grupo.
+ */
+function gCompileComponentElasticity(component, grammar, graph, layerElasticity){
+  const el = layerElasticity || gCompileLayerElasticity(grammar, graph);
+  const membros = (component && component.membros) || [];
+  const dos = membros.map(id => el.get(id)).filter(Boolean);
+  if(!dos.length) return null;
+
+  const minMembros = {};
+  G_ELASTICITY_DIMENSOES.forEach(d => {
+    /* ⚠ SEGUNDA EXCEÇÃO À MONOTONICIDADE: `resizeContainer` agrega por MAX, não por min.
+       Ele não é uma permissão que todo membro precise conceder — é uma CAPACIDADE que só o
+       membro-contêiner tem. Com `min`, um price-block de placa + texto saía com
+       `resizeContainer: none`, porque o TEXTO não é contêiner: a única coisa que sabia crescer
+       no bloco era justamente a que o `min` apagava. Ninguém fica mais livre por isso — a placa
+       já tinha `high` sozinha, e o perfil do tipo ainda restringe logo abaixo. */
+    minMembros[d] = d === 'resizeContainer'
+      ? dos.reduce((acc, e) => gElasticityMax(acc, e[d]), 'none')
+      : dos.reduce((acc, e) => gElasticityMin(acc, e[d]), 'high');
+  });
+  const rigidez = dos.reduce((acc, e) => gElasticityMax(acc, e.rigidity), 'none');
+
+  if(component.singleton){
+    /* Unitário: a elasticidade É a da camada, sem nenhum verniz de bloco. O tipo continua
+       dizendo o que ele significa; a cardinalidade diz o que pode ser feito com ele. */
+    return Object.assign({}, minMembros, { rigidity:rigidez, preserveTogether:'none',
+      preserveHierarchy:(G_COMP_ELASTICIDADE[component.tipo] || {}).preserveHierarchy || 'low',
+      singleton:true, tipo:component.tipo });
+  }
+  const perfil = G_COMP_ELASTICIDADE[component.tipo] || {};
+  const efetiva = {};
+  G_ELASTICITY_DIMENSOES.forEach(d => {
+    // `min` sempre: o perfil do tipo só RESTRINGE, nunca liberta o que o membro proíbe.
+    efetiva[d] = perfil[d] != null ? gElasticityMin(perfil[d], minMembros[d]) : minMembros[d];
+  });
+  return Object.assign(efetiva, { rigidity:rigidez,
+    preserveTogether: perfil.preserveTogether || 'low',
+    preserveHierarchy: perfil.preserveHierarchy || 'low',
+    singleton:false, tipo:component.tipo });
+}
+
+// Elasticidade de todos os componentes de uma vez, indexada por ID.
+function gCompileComponentsElasticity(components, grammar, graph, layerElasticity){
+  const el = layerElasticity || gCompileLayerElasticity(grammar, graph);
+  const out = new Map();
+  (components || []).forEach(c => {
+    const e = gCompileComponentElasticity(c, grammar, graph, el);
+    if(e) out.set(c.id, e);
+  });
+  return out;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   14. IMPACT ZONES — até onde uma mudança pode chegar
+   ════════════════════════════════════════════════════════════════════
+   Quando o franqueado digita um nome de produto maior, o que o motor tem permissão para
+   reconsiderar? Hoje a resposta é implícita e larga: a escada mexe em quem colidir, onde quer
+   que esteja. Isso resolve, e é também por isso que uma colisão local já moeu a arte inteira
+   pela escala do componente (o degrau `relaxou` existe justamente para conter esse estrago).
+
+   A zona de impacto responde antes: dado um campo, QUAIS elementos podem entrar na conversa, em
+   que ordem de proximidade semântica.
+
+   ⛔ NÃO É BFS CEGA. Seguir "todos os vizinhos a N arestas" incluiria alinhamento, contenção e
+   sobreposição — e as três descrevem a arte sem transmitir impacto nenhum. A Fase 2.5 provou
+   que contenção não implica dependência; a zona obedece à mesma disciplina.
+
+   ⚠ DESCRITIVA. O solver não consulta esta seção. */
+
+/* ARESTAS QUE TRANSMITEM IMPACTO. As mesmas que a Fase 2.5 autorizou como dependência — nada
+   de `aligned-*`, `inside`, `contains`, `overlaps-intentionally`, `below`, `right-of`. */
+const G_IMPACT_ARESTAS = ['dynamic-dependency','authorial-anchor','plate-of'];
+
+/**
+ * A zona de impacto de UM campo dinâmico.
+ *
+ * ── DIREÇÃO ── impacto tem sentido, e os dois sentidos não são equivalentes. O título que
+ * cresce empurra o CTA; o CTA que cresce NÃO autoriza recompor o título. Por isso a expansão é
+ * DOWNSTREAM (quem depende de mim), seguindo as arestas ao contrário — `dynamic-dependency` vai
+ * do dependente para a origem, então os dependentes são as arestas de ENTRADA.
+ * `upstream` é calculado e devolvido à parte, como informação, NUNCA somado aos níveis.
+ *
+ * @returns {{rootId, levels:{0..4}, upstream, componentes, arestas, impactSignature}}
+ */
+function gCompileImpactZones(graph, components, rootId, _idsOrdenados){
+  const G = graph || {};
+  const comps = components || [];
+  /* `_idsOrdenados` é o mesmo array para todas as zonas da arte, passado por
+     `gCompileAllImpactZones`. Sem ele, cada zona reordenava as 344 camadas de novo só para
+     montar o nível 4 — 75 ordenações idênticas numa arte grande. Chamada avulsa continua
+     funcionando: ordena a sua. */
+  const todos = _idsOrdenados || (G.nodes || []).map(n => n.id).sort();
+  const usados = new Set([rootId]);
+  const arestasUsadas = new Set();
+  const compsEnvolvidos = new Set();
+
+  // ── NÍVEL 0 ── só a camada do campo que mudou.
+  const L0 = [rootId];
+
+  // ── NÍVEL 1 ── o Layout Component dela. É a unidade que o designer reconheceria.
+  const c0 = comps.filter(c => c.nivel === 0 && c.membros.indexOf(rootId) >= 0)
+                  .sort((a,b) => a.id < b.id ? -1 : 1)[0] || null;
+  const L1 = [];
+  if(c0){
+    compsEnvolvidos.add(c0.id);
+    c0.membros.forEach(m => { if(!usados.has(m)){ usados.add(m); L1.push(m); } });
+  }
+
+  /* ── NÍVEL 2 ── os DEPENDENTES diretos e transitivos, só pelas arestas que transmitem
+     impacto. Guarda de ciclo por `Set`: o designer consegue marcar A→B e B→A à mão. */
+  const L2 = [];
+  const fila = [rootId].concat(L1);
+  const vistos = new Set(fila);
+  let guarda = 0;
+  while(fila.length && guarda++ < 4096){
+    const atual = fila.shift();
+    G_IMPACT_ARESTAS.forEach(t => {
+      gGraphIncoming(G, atual, t).forEach(e => {       // ENTRADA = quem depende de mim
+        if(!gGraphIsStructural(e) || vistos.has(e.de)) return;
+        arestasUsadas.add(t);
+        vistos.add(e.de); fila.push(e.de);
+        if(!usados.has(e.de)){ usados.add(e.de); L2.push(e.de); }
+      });
+    });
+  }
+
+  /* ── NÍVEL 3 ── a SEÇÃO semântica: o componente-pai (offer-block), os componentes de nível 0
+     que já entraram por seus membros, e o grupo autoral. Ramo de leitura entra só quando um
+     componente daquele ramo já está envolvido — sozinho ele é geografia, não semântica. */
+  const L3 = [];
+  const _entra = (id) => { if(!usados.has(id)){ usados.add(id); L3.push(id); } };
+  comps.forEach(c => {
+    if(!c.membros.some(m => usados.has(m))) return;
+    compsEnvolvidos.add(c.id);
+    if(c.nivel === 1 || c.membros.some(m => L2.indexOf(m) >= 0)) c.membros.forEach(_entra);
+  });
+
+  /* ── NÍVEL 4 ── o resto da composição. Fallback de EMERGÊNCIA, e é só isso: existe para que
+     a resposta seja completa, não para ser usado. Sem duplicar quem já entrou. */
+  const L4 = todos.filter(id => !usados.has(id));   // `todos` já vem ordenado
+
+  /* ── UPSTREAM ── de quem ESTA camada depende. Devolvido à parte e nunca somado aos níveis:
+     mudar o CTA não autoriza recompor o título que o empurra. */
+  const upstream = [];
+  const vistoUp = new Set([rootId]);
+  const filaUp = [rootId];
+  let g2 = 0;
+  while(filaUp.length && g2++ < 4096){
+    const atual = filaUp.shift();
+    G_IMPACT_ARESTAS.forEach(t => {
+      gGraphOutgoing(G, atual, t).forEach(e => {
+        if(!gGraphIsStructural(e) || vistoUp.has(e.para)) return;
+        vistoUp.add(e.para); filaUp.push(e.para); upstream.push(e.para);
+      });
+    });
+  }
+
+  const zona = { rootId:rootId,
+    levels: { 0:L0, 1:L1.sort(), 2:L2.sort(), 3:L3.sort(), 4:L4 },
+    upstream: upstream.sort(),
+    componentes: [...compsEnvolvidos].sort(),
+    arestas: [...arestasUsadas].sort() };
+  /* ASSINATURA — estrutura pura: raiz, membros por nível, tipos de aresta usados e componentes
+     envolvidos. Sem geometria e sem conteúdo, então mover uma camada sem mudar dependência
+     nenhuma devolve a MESMA assinatura. O nível 4 entra como CONTAGEM: ele é "todo o resto", e
+     listá-lo faria qualquer camada nova longe dali parecer mudança de zona. */
+  zona.impactSignature = _gGramHash([
+    'r=' + rootId,
+    'l0=' + L0.join('+'), 'l1=' + zona.levels[1].join('+'),
+    'l2=' + zona.levels[2].join('+'), 'l3=' + zona.levels[3].join('+'),
+    'l4n=' + L4.length,
+    'e=' + zona.arestas.join('+'), 'c=' + zona.componentes.join('+')
+  ].join('#'));
+  return zona;
+}
+
+/**
+ * Uma zona por CAMPO DINÂMICO da arte — não uma por camada. As zonas de duas raízes
+ * INDEPENDENTES ficam independentes: nada as funde aqui, e só a composição (um offer-block que
+ * contenha as duas) pode ligá-las num nível superior.
+ * @returns {Map<string,object>} rootId → zona
+ */
+function gCompileAllImpactZones(graph, components){
+  const G = graph || {};
+  const raizes = new Set();
+  (G.nodes || []).forEach(n => { if(n.campos && n.campos.length) raizes.add(n.id); });
+  (components || []).forEach(c => (c.dynamicRoots || []).forEach(r => raizes.add(r)));
+  const out = new Map();
+  const ids = (G.nodes || []).map(n => n.id).sort();
+  [...raizes].sort().forEach(r => out.set(r, gCompileImpactZones(G, components, r, ids)));
+  return out;
+}
+
+// Diagnóstico legível — para teste e console da casa, nunca para UI de usuário.
+function gDescribeImpactZone(zona){
+  if(!zona) return '';
+  const linha = (n) => 'L' + n + ': ' + (zona.levels[n].length
+    ? (n === 4 ? zona.levels[n].length + ' restantes' : zona.levels[n].join(', ')) : '—');
+  return [zona.rootId, linha(0), linha(1), linha(2), linha(3), linha(4)].join('\n');
 }
