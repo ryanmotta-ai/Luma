@@ -4627,22 +4627,44 @@ body.mode-designer.d-studio-essential.dpi-empty-canvas:not(.d-studio-home-open) 
    título. Nada de texto em `content:` — o que se lê está no DOM.
    ========================================================================== */
 
-.dsh-shell{display:flex;flex-direction:column;width:100%;max-width:1560px;margin:0 auto;padding:clamp(28px,4vh,48px) clamp(20px,3vw,48px) 64px}
+/* O teto era 1560px: em monitor de 2000px sobravam ~250px de vão de cada lado, e a
+   tela parecia uma coluna no meio do nada. 2200 com respiro de 2.4vw enche a largura
+   sem virar texto de ponta a ponta — quem manda no limite agora é a grade, que ganha
+   coluna em vez de esticar card. */
+.dsh-shell{display:flex;flex-direction:column;width:100%;max-width:2200px;margin:0 auto;padding:clamp(28px,3.4vh,44px) clamp(20px,2.4vw,56px) 72px}
+/* Superfícies que o navegador desenha por padrão e que também são desta tela. */
+.d-studio-home{scrollbar-width:thin;scrollbar-color:var(--d-border2) transparent}
+.d-studio-home::-webkit-scrollbar{width:11px}
+.d-studio-home::-webkit-scrollbar-thumb{border:3px solid transparent;border-radius:var(--r-pill);background:var(--d-border2);background-clip:content-box}
+.d-studio-home::-webkit-scrollbar-thumb:hover{background:var(--d-surf3);background-clip:content-box}
+.d-studio-home ::selection{background:color-mix(in srgb,var(--dm-orange) 28%,transparent);color:var(--d-text)}
 /* Utilitário de leitor de tela com o prefixo da tela (index.html §convenção sr-only). */
 .dsh-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
 /* ── HERO ────────────────────────────────────────────────────────────────── */
-.dsh-hero{max-width:680px;animation:dshRise var(--dur-slow) var(--ease-out) both}
+/* `backwards`, não `both`: a entrada não pode FIXAR o estado final, senão a animação
+   vence a cascata e o herói não consegue mais recuar quando um material é aberto. De
+   quebra, se a animação nunca rodar (aba em segundo plano), o conteúdo nasce visível. */
+.dsh-hero{max-width:680px;animation:dshRise 420ms var(--ease-out) backwards}
 .dsh-eyebrow{display:flex;align-items:center;gap:10px;margin-bottom:14px;font-size:10px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;color:var(--d-text3)}
 .dsh-eyebrow i{width:22px;height:2px;border-radius:var(--r-pill);background:var(--dm-orange)}
 .dsh-hero h1{margin:0;font-size:clamp(30px,2.6vw,40px);line-height:1.04;font-weight:900;letter-spacing:-.04em;color:var(--d-text);outline:none;text-wrap:balance}
 .dsh-hero p{max-width:520px;margin:12px 0 0;font-size:14px;line-height:1.55;color:var(--d-text2)}
 
 /* ── CRIAR (protagonista) + IMPORTAR (secundárias) ───────────────────────── */
-.dsh-start{margin-top:clamp(24px,3.2vh,34px);animation:dshRise var(--dur-slow) var(--ease-out) 70ms both}
+.dsh-start{margin-top:clamp(24px,3.2vh,34px)}
 .dsh-start-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(320px,.9fr);gap:14px;align-items:stretch}
-.dsh-create{display:flex;align-items:center;gap:18px;min-height:132px;padding:22px 24px;border:1px solid color-mix(in srgb,var(--dm-orange) 38%,var(--d-border2));border-radius:var(--r);background:color-mix(in srgb,var(--dm-orange) 7%,var(--d-dark));color:var(--d-text);font-family:'Roboto',sans-serif;text-align:left;cursor:pointer;box-shadow:inset 3px 0 var(--dm-orange);transition:transform var(--dur-fast) var(--ease-spring),border-color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard)}
-.dsh-create:hover{transform:translateY(-2px);border-color:var(--dm-orange);background:color-mix(in srgb,var(--dm-orange) 11%,var(--d-dark));box-shadow:inset 3px 0 var(--dm-orange),0 12px 30px color-mix(in srgb,var(--dm-orange) 15%,transparent)}
+/* O filete laranja de 3px saiu do card (2026-09-16): a primazia já estava dita três
+   vezes — fundo tingido, borda laranja e o ladrilho do ícone chapado — e a quarta era
+   a barra colada na lateral, que envelhece rápido. Ela continua onde significa estado
+   (`layer-row.active`, `psd-row`), não onde significa "este é o botão importante".
+
+   O MOMENTO AUTORAL da tela é logo abaixo, na pilha de formatos: as três folhas se
+   abrem em leque quando a home chega. É a ideia do próprio produto — um material nasce
+   escolhendo formato — e é a ÚNICA entrada coreografada: as seções de baixo já nascem
+   no lugar, para que filtrar, buscar e voltar do editor não re-encenem a página. */
+.dsh-create{position:relative;display:flex;align-items:center;gap:18px;min-height:132px;padding:22px 24px;border:1px solid color-mix(in srgb,var(--dm-orange) 38%,var(--d-border2));border-radius:var(--r);background:color-mix(in srgb,var(--dm-orange) 7%,var(--d-dark));color:var(--d-text);font-family:'Roboto',sans-serif;text-align:left;cursor:pointer;transition:transform var(--dur-fast) var(--ease-spring),border-color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard)}
+.dsh-create:hover{transform:translateY(-2px);border-color:var(--dm-orange);background:color-mix(in srgb,var(--dm-orange) 11%,var(--d-dark));box-shadow:0 12px 30px color-mix(in srgb,var(--dm-orange) 15%,transparent)}
 .dsh-create:active{transform:translateY(0) scale(.995)}
 .dsh-create-icon{display:grid;place-items:center;width:54px;height:54px;flex:0 0 54px;border-radius:14px;background:var(--dm-orange);color:var(--on-orange)}
 .dsh-create-icon svg{width:24px;height:24px}
@@ -4651,9 +4673,9 @@ body.mode-designer.d-studio-essential.dpi-empty-canvas:not(.d-studio-home-open) 
 .dsh-create-copy span{font-size:13px;line-height:1.45;color:var(--d-text2)}
 .dsh-format-stack{position:relative;width:104px;height:64px;flex:0 0 104px}
 .dsh-format-stack i{position:absolute;bottom:0;border:1px solid color-mix(in srgb,var(--d-text) 16%,transparent);border-radius:3px;background:var(--white);box-shadow:0 5px 14px color-mix(in srgb,var(--d-bg) 22%,transparent);transition:transform var(--dur-fast) var(--ease-spring)}
-.dsh-format-stack i:nth-child(1){left:4px;width:32px;height:56px;transform:rotate(-5deg)}
-.dsh-format-stack i:nth-child(2){left:34px;width:40px;height:50px;transform:translateY(-4px)}
-.dsh-format-stack i:nth-child(3){right:0;width:54px;height:32px;transform:rotate(4deg)}
+.dsh-format-stack i:nth-child(1){left:4px;width:32px;height:56px;transform:rotate(-5deg);animation:dshFan1 560ms var(--ease-out) 180ms backwards}
+.dsh-format-stack i:nth-child(2){left:34px;width:40px;height:50px;transform:translateY(-4px);animation:dshFan2 560ms var(--ease-out) 250ms backwards}
+.dsh-format-stack i:nth-child(3){right:0;width:54px;height:32px;transform:rotate(4deg);animation:dshFan3 560ms var(--ease-out) 320ms backwards}
 .dsh-create:hover .dsh-format-stack i:nth-child(1){transform:translateX(-3px) rotate(-8deg)}
 .dsh-create:hover .dsh-format-stack i:nth-child(2){transform:translateY(-8px)}
 .dsh-create:hover .dsh-format-stack i:nth-child(3){transform:translateX(3px) rotate(7deg)}
@@ -4679,7 +4701,7 @@ body.mode-designer.d-studio-essential.dpi-empty-canvas:not(.d-studio-home-open) 
 /* ── RETOMAR ─────────────────────────────────────────────────────────────── */
 /* Não é alerta: é o material com prévia real e um caminho de volta. Fica ABAIXO
    de criar de propósito — retomar é frequente, criar é a razão da tela. */
-.dsh-resume{margin-top:clamp(20px,2.6vh,28px);animation:dshRise var(--dur-slow) var(--ease-out) 110ms both}
+.dsh-resume{margin-top:clamp(20px,2.6vh,28px)}
 .dsh-resume .dsh-section-heading{margin-bottom:10px}
 .dsh-resume-card{display:flex;align-items:center;gap:16px;width:min(760px,100%);padding:12px 16px 12px 12px;border:1px solid var(--d-border2);border-radius:var(--r);background:var(--d-dark)}
 .dsh-resume-thumb{width:86px;height:62px;flex:0 0 86px;border:1px solid var(--d-border);border-radius:var(--r-sm)}
@@ -4702,25 +4724,36 @@ body.mode-designer.d-studio-essential.dpi-empty-canvas:not(.d-studio-home-open) 
 /* ── RECENTES (recorte) vs BIBLIOTECA (inventário) ───────────────────────── */
 /* A diferença entre as duas é deliberada: card grande em grade de 4 contra grade
    densa atrás de um filete. Igualar as duas foi o defeito da versão anterior. */
-.dsh-continue{margin-top:clamp(28px,4vh,40px);animation:dshRise var(--dur-slow) var(--ease-out) 150ms both}
-.dsh-library{margin-top:clamp(30px,4.6vh,48px);padding-top:clamp(22px,3vh,30px);border-top:1px solid var(--d-border);animation:dshRise var(--dur-slow) var(--ease-out) 190ms both}
-.dsh-recent-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
-.dsh-all-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(236px,1fr));gap:12px}
+.dsh-continue{margin-top:clamp(28px,4vh,40px)}
+.dsh-library{margin-top:clamp(30px,4.6vh,48px);padding-top:clamp(22px,3vh,30px);border-top:1px solid var(--d-border)}
+.dsh-recent-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+.dsh-all-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:14px}
 
 /* ── O CARD ──────────────────────────────────────────────────────────────── */
-.dsh-material-card{position:relative;display:flex;min-width:0;overflow:hidden;border:1px solid var(--d-border);border-radius:var(--r);background:var(--d-dark);transition:transform var(--dur-fast) var(--ease-spring),border-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard)}
-.dsh-material-card:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--dm-orange) 40%,var(--d-border2));box-shadow:0 10px 26px color-mix(in srgb,var(--d-bg) 22%,transparent)}
-.dsh-material-card:active{transform:translateY(0) scale(.995)}
+.dsh-material-card{position:relative;display:flex;min-width:0;overflow:hidden;border:1px solid var(--d-border);border-radius:12px;background:var(--d-dark);box-shadow:0 1px 2px color-mix(in srgb,var(--d-bg) 10%,transparent);transition:transform var(--dur-fast) var(--ease-spring),border-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard),opacity var(--dur-base) var(--ease-standard)}
+.dsh-material-card:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--dm-orange) 34%,var(--d-border2));box-shadow:0 2px 4px color-mix(in srgb,var(--d-bg) 10%,transparent),0 14px 34px color-mix(in srgb,var(--d-bg) 20%,transparent)}
+.dsh-material-card:active{transform:translateY(-1px) scale(.995)}
 .dsh-material-card[hidden]{display:none!important}
-.dsh-material-card.is-opening{pointer-events:none;opacity:.72;transform:translateY(-1px) scale(.99)}
+/* Abrir um material é uma ENTREGA, não um clique que apaga: o card escolhido sobe e
+   ganha sombra enquanto a tela inteira recua — a arte sai daqui e entra no editor. */
+.dsh-material-card.is-opening{pointer-events:none;transform:translateY(-3px) scale(1.014);border-color:var(--dm-orange);box-shadow:0 20px 48px color-mix(in srgb,var(--d-bg) 30%,transparent)}
+.d-studio-home:has(.is-opening) .dsh-material-card:not(.is-opening),
+.d-studio-home:has(.is-opening) .dsh-hero,
+.d-studio-home:has(.is-opening) .dsh-start,
+.d-studio-home:has(.is-opening) .dsh-resume,
+.d-studio-home:has(.is-opening) .dsh-section-heading,
+.d-studio-home:has(.is-opening) .dsh-library-tools{opacity:.42;transition:opacity var(--dur-base) var(--ease-standard)}
 .dsh-card-open{display:flex;flex-direction:column;width:100%;min-width:0;padding:0;border:0;background:transparent;color:inherit;font-family:'Roboto',sans-serif;text-align:left;cursor:pointer}
 .dsh-card-open:focus-visible{outline:2px solid var(--dm-orange);outline-offset:-3px;border-radius:var(--r)}
-.dsh-thumb{position:relative;display:block;width:100%;aspect-ratio:4/3;overflow:hidden;border-bottom:1px solid var(--d-border);background:var(--d-surf)}
+.dsh-thumb{position:relative;display:block;width:100%;aspect-ratio:4/3;overflow:hidden;border-bottom:1px solid var(--d-border);background:var(--d-surf);box-shadow:inset 0 1px 0 color-mix(in srgb,var(--white) 6%,transparent)}
 .dsh-recent-card .dsh-thumb{aspect-ratio:16/10}
-.dsh-thumb-canvas{position:absolute!important;left:50%;top:50%;display:block;overflow:hidden;transform-origin:center;pointer-events:none}
+/* A arte é uma PEÇA pousada na placa: fio de contorno e sombra própria. As duas
+   medidas dividem pela escala que o JS aplicou (--dsh-s) — sem isso, um story de 1080
+   reduzido a 11% ficaria com uma sombra de 0,2px, ou seja, nenhuma. */
+.dsh-thumb-canvas{position:absolute!important;left:50%;top:50%;display:block;overflow:hidden;transform-origin:center;pointer-events:none;--dsh-s:1;box-shadow:0 0 0 calc(1px / var(--dsh-s)) color-mix(in srgb,var(--d-text) 12%,transparent),0 calc(2px / var(--dsh-s)) calc(14px / var(--dsh-s)) color-mix(in srgb,var(--d-bg) 26%,transparent);animation:dshArtIn 260ms var(--ease-out) backwards}
 /* Placeholder proposital: a folha na proporção do material, não a inicial da campanha. */
 .dsh-thumb-ghost{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:color-mix(in srgb,var(--dm-orange) 7%,var(--d-surf))}
-.dsh-thumb-ghost em{font:800 9.5px/1 'Roboto',sans-serif;font-style:normal;letter-spacing:.1em;text-transform:uppercase;color:var(--d-text3)}
+.dsh-thumb-ghost em{font:800 9.5px/1 'Roboto',sans-serif;font-style:normal;letter-spacing:.1em;text-transform:uppercase;font-variant-numeric:tabular-nums;color:var(--d-text3)}
 .dsh-blank-sheet{position:relative;display:block;border:1px solid color-mix(in srgb,var(--d-text) 20%,transparent);border-radius:4px;background:var(--white);box-shadow:0 6px 18px color-mix(in srgb,var(--d-bg) 24%,transparent)}
 .dsh-blank-sheet.portrait{height:50%;aspect-ratio:9/16}
 .dsh-blank-sheet.square{height:46%;aspect-ratio:1}
@@ -4730,15 +4763,15 @@ body.mode-designer.d-studio-essential.dpi-empty-canvas:not(.d-studio-home-open) 
 .dsh-blank-sheet::after{top:50%;left:7px;right:7px;height:1px}
 /* Enquanto as camadas do material descem do backend, o quadro pulsa em vez de mentir. */
 .dsh-thumb.is-loading::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--d-text) 7%,transparent),transparent);animation:dshShimmer 1.1s linear infinite}
-.dsh-card-hint{position:absolute;left:10px;bottom:10px;z-index:2;padding:4px 10px;border-radius:var(--r-pill);background:color-mix(in srgb,var(--d-bg) 76%,transparent);color:var(--d-text);font:800 10px/1 'Roboto',sans-serif;letter-spacing:.06em;text-transform:uppercase;opacity:0;transform:translateY(4px);transition:opacity var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-spring)}
+.dsh-card-hint{position:absolute;left:10px;bottom:10px;z-index:2;padding:4px 10px;border-radius:var(--r-pill);background:color-mix(in srgb,var(--d-bg) 90%,transparent);color:var(--d-text);font:800 10px/1 'Roboto',sans-serif;letter-spacing:.06em;text-transform:uppercase;opacity:0;transform:translateY(4px);transition:opacity var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-spring)}
 .dsh-material-card:hover .dsh-card-hint,.dsh-card-open:focus-visible .dsh-card-hint{opacity:1;transform:none}
 .dsh-card-body{display:flex;flex-direction:column;gap:9px;min-width:0;flex:1;padding:12px 13px}
 .dsh-card-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
-.dsh-card-copy strong{font-size:13px;line-height:1.3;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dsh-card-copy>span{font-size:11.5px;line-height:1.35;color:var(--d-text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dsh-recent-card .dsh-card-copy strong{font-size:14.5px}
+.dsh-card-copy strong{font-size:13.5px;line-height:1.3;font-weight:800;letter-spacing:-.012em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dsh-card-copy>span{font-size:11.5px;line-height:1.35;color:var(--d-text2);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dsh-recent-card .dsh-card-copy strong{font-size:14.5px;letter-spacing:-.018em}
 .dsh-card-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;margin-top:auto}
-.dsh-card-meta time{font-size:10.5px;font-weight:700;color:var(--d-text3);white-space:nowrap}
+.dsh-card-meta time{font-size:10.5px;font-weight:700;color:var(--d-text3);font-variant-numeric:tabular-nums;white-space:nowrap}
 .dsh-status{display:inline-flex;align-items:center;gap:6px;min-height:22px;padding:0 8px;border:1px solid var(--d-border);border-radius:var(--r-pill);background:var(--d-surf);font-size:10px;font-weight:800;color:var(--d-text2);white-space:nowrap}
 .dsh-status i{width:6px;height:6px;border-radius:var(--r-pill);background:var(--d-text3)}
 .dsh-status.published{color:var(--green-text);background:color-mix(in srgb,var(--green-text) 8%,var(--d-surf))}
@@ -4756,9 +4789,18 @@ body.mode-designer.d-studio-essential.dpi-empty-canvas:not(.d-studio-home-open) 
 .dsh-card-menu:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 
 /* ── BUSCA E FILTROS ─────────────────────────────────────────────────────── */
-.dsh-library-heading{flex-wrap:wrap;gap:14px}
-.dsh-library-tools{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
-.dsh-search{position:relative;display:flex;align-items:center;flex:0 1 340px}
+/* Os três controles cabiam numa linha e mesmo assim o status caía para a segunda:
+   como .dsh-library-tools quebrava linha por dentro, o flex entregava a ela a largura
+   de MIN-content (560px para 693px de conteúdo) e sobravam 478px vazios ao lado — e o
+   título, centrado num bloco de duas linhas, desalinhava dos botões. Agora a fileira
+   não quebra, os dois seletores não encolhem e só a busca cede largura. A fileira
+   precisa de `flex:1 1 auto` (e não `0 1 auto`): o tamanho intrínseco de um <input>
+   é a largura padrão do navegador, não o flex-basis, então a fileira se media em
+   560px e a busca encolhia para 202px com 800px de sobra ao lado. */
+.dsh-library-heading{flex-wrap:nowrap;align-items:center;gap:24px}
+.dsh-library-tools{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:1 1 auto;flex-wrap:nowrap;min-width:0}
+.dsh-library-tools .dsh-custom-select-btn{flex:0 0 auto}
+.dsh-search{position:relative;display:flex;align-items:center;flex:1 1 320px;min-width:172px;max-width:420px}
 .dsh-search svg{position:absolute;left:12px;width:16px;height:16px;color:var(--d-text3);pointer-events:none}
 .dsh-search input{width:100%;height:40px;padding:0 14px 0 38px;border:1px solid var(--d-border2);border-radius:var(--r-sm);background:var(--d-dark);color:var(--d-text);font:500 13px 'Roboto',sans-serif;outline:none;transition:border-color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard),box-shadow var(--dur-micro) var(--ease-standard)}
 .dsh-search input::placeholder{color:var(--d-text3)}
@@ -4778,6 +4820,13 @@ body.mode-designer.d-studio-essential.dpi-empty-canvas:not(.d-studio-home-open) 
 @keyframes dshOpen{from{opacity:0}to{opacity:1}}
 @keyframes dshRise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @keyframes dshShimmer{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+@keyframes dshFan1{from{opacity:0;transform:translateX(20px) rotate(3deg)}to{opacity:1;transform:rotate(-5deg)}}
+@keyframes dshFan2{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(-4px)}}
+@keyframes dshFan3{from{opacity:0;transform:translateX(-22px) rotate(-3deg)}to{opacity:1;transform:rotate(4deg)}}
+@keyframes dshArtIn{from{opacity:0}to{opacity:1}}
+/* A lista se REFAZ quando o filtro muda; sem isso o card some sem dizer que sumiu. */
+@keyframes dshSettle{from{opacity:.45}to{opacity:1}}
+.dsh-all-grid.is-settling{animation:dshSettle 190ms var(--ease-out)}
 
 /* ── RESPONSIVO ──────────────────────────────────────────────────────────── */
 /* ⚠ Abaixo de 1024px o Estúdio inteiro não abre: #d-desktop-gate cobre a tela
@@ -4789,6 +4838,9 @@ body.mode-designer.d-studio-essential.dpi-empty-canvas:not(.d-studio-home-open) 
   .dsh-recent-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 @media(max-width:1180px){
+  .dsh-library-heading{flex-wrap:wrap;align-items:flex-start;gap:14px}
+  .dsh-library-tools{flex-wrap:wrap;justify-content:flex-start}
+  .dsh-search{flex:1 1 260px}
   .dsh-start-grid{grid-template-columns:1fr}
   .dsh-imports{flex-direction:row;flex-wrap:wrap;align-items:center}
   .dsh-imports-label{width:100%}
@@ -4813,11 +4865,14 @@ body.mode-designer.d-studio-essential.dpi-empty-canvas:not(.d-studio-home-open) 
   .dsh-resume-card{flex-wrap:wrap}
   .dsh-resume-cta{width:100%;justify-content:center}
 }
+/* Movimento reduzido não é ausência de resposta: o que some é o DESLOCAMENTO; o que
+   fica é o que informa — foco, opacidade, a arte aparecendo, o card que você abriu. */
 @media(prefers-reduced-motion:reduce){
-  .dsh-format-stack i{transition:none}
-  body.d-studio-home-open .d-studio-home,.dsh-hero,.dsh-start,.dsh-resume,.dsh-continue,.dsh-library{animation:none}
-  .dsh-create,.dsh-import,.dsh-material-card,.dsh-card-menu,.dsh-card-hint,.dsh-arrow,.dsh-create-go,.dsh-resume-cta{transition:none}
-  .dsh-thumb.is-loading::after{animation:none}
+  body.d-studio-home-open .d-studio-home,.dsh-hero,.dsh-format-stack i,.dsh-thumb.is-loading::after{animation:none}
+  .dsh-format-stack i,.dsh-arrow,.dsh-create-go{transition:none}
+  .dsh-create:hover,.dsh-import:hover,.dsh-material-card:hover,.dsh-resume-cta:hover{transform:none}
+  .dsh-material-card.is-opening{transform:none}
+  .dsh-material-card,.dsh-card-hint,.dsh-card-menu{transition:opacity var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard)}
 }
 
 /* ── CUSTOM POPOVERS E SELETORES ESTÉTICOS DO ESTÚDIO ── */

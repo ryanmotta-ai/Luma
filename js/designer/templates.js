@@ -669,6 +669,16 @@ function dStudioHomeApplyFilters(){
   if(count) count.textContent=visible+(visible===1?' material':' materiais');
   const empty=document.getElementById('dsh-filter-empty');
   if(empty) empty.hidden=!cards.length||visible>0;
+  // A lista se REFAZ à vista quando o resultado muda de tamanho — card que some sem
+  // dizer nada some duas vezes. Só no número diferente: a cada tecla digitada seria
+  // pisca-pisca, e o filtro que não mexeu em nada não tem o que anunciar.
+  const grid=document.getElementById('dsh-all-grid');
+  if(grid && grid.dataset.visible!==String(visible)){
+    grid.dataset.visible=String(visible);
+    grid.classList.remove('is-settling');
+    void grid.offsetWidth; // reinicia a animação mesmo em filtros consecutivos
+    grid.classList.add('is-settling');
+  }
 }
 
 function dStudioHomeMaterialEntries(){
@@ -1053,6 +1063,9 @@ async function dStudioRenderThumb(tmpl,hostId){
   requestAnimationFrame(()=>{
     const scale=Math.min(host.clientWidth/size.w,host.clientHeight/size.h);
     canvas.style.transform='translate(-50%,-50%) scale('+scale+')';
+    // O CSS precisa da escala para dividir por ela: contorno e sombra da peça são
+    // desenhados no tamanho ORIGINAL da arte e encolhem junto no transform.
+    canvas.style.setProperty('--dsh-s',scale);
   });
 }
 
