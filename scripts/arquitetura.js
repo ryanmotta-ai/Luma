@@ -51,9 +51,19 @@ function listarJs(dir, saida = []) {
   return saida;
 }
 
+function listarCss(dir, saida = []) {
+  for (const nome of fs.readdirSync(dir)) {
+    const p = path.join(dir, nome);
+    if (fs.statSync(p).isDirectory()) listarCss(p, saida);
+    else if (nome.endsWith('.css')) saida.push(path.relative(RAIZ, p).replace(/\\/g, '/'));
+  }
+  return saida;
+}
+
 const arquivos = listarJs(path.join(RAIZ, 'js')).sort();
 const fonte = new Map(arquivos.map(f => [f, fs.readFileSync(path.join(RAIZ, f), 'utf8')]));
 const indexHtml = fs.readFileSync(path.join(RAIZ, 'index.html'), 'utf8');
+const arquivosCss = listarCss(path.join(RAIZ, 'css')).sort();
 
 /* Comentário e string não são código. Esta base comenta MUITO — e comenta explicando o que
    NÃO fazer ("antes isto era um prompt()", "⛔ não use confirm aqui"), que é justamente o
@@ -177,6 +187,56 @@ const REGRAS = [
         .map(s => s.slice(s.indexOf('?v=') + 3)))];
       if (vs.length <= 1) return [];
       return [{ arquivo: 'index.html', linha: 1, texto: 'números de deploy convivendo: ' + vs.join(', ') }];
+    } },
+
+  { id: 'lista-de-seletores-interrompida', tipo: 'portao',
+    titulo: 'Lista de seletores CSS sem o bloco que ela prometia',
+    porque: 'Uma lista de seletores que termina em vírgula e recebe um comentário de NOVA regra '
+          + 'logo abaixo não é erro de sintaxe — o navegador engole calado e funde tudo numa '
+          + 'lista só. Os seletores de cima passam a herdar o corpo da regra de baixo, e com '
+          + 'especificidade de ID eles ainda VENCEM o bloco legítimo daquele elemento. Foi o que '
+          + 'aconteceu em live-preview.css: a barra de zoom e o rótulo do palco, que deviam ficar '
+          + '`display:none` no estado vazio, viraram cópias do cartão laranja de .lp-empty-art.',
+    // Comentário que agrupa seções DENTRO de uma lista é legítimo e comum aqui. O que separa
+    // os dois casos é o alvo: uma lista de verdade continua mirando os mesmos elementos
+    // (help-widget.css agrupa seis jeitos de esconder o mesmo #luma-widget-fab-wrap), enquanto
+    // o acidente emenda um componente que não tem nada a ver. Por isso a regra só acusa quando
+    // o seletor depois do comentário NÃO compartilha nenhuma classe/id com o de cima.
+    rodar: () => {
+      const out = [];
+      const alvos = (sel) => new Set(sel.match(/[.#][\w-]+/g) || []);
+      for (const f of arquivosCss) {
+        const ls = fs.readFileSync(path.join(RAIZ, f), 'utf8').split('\n');
+        let prof = 0, emComentario = false;
+        for (let i = 0; i < ls.length; i++) {
+          // Despe os comentários da linha: só o que sobra conta chave e vírgula final.
+          const l = ls[i];
+          let limpa = '', j = 0;
+          while (j < l.length) {
+            if (emComentario) { const fim = l.indexOf('*/', j); if (fim < 0) { j = l.length; } else { emComentario = false; j = fim + 2; } continue; }
+            const ini = l.indexOf('/*', j);
+            if (ini < 0) { limpa += l.slice(j); break; }
+            limpa += l.slice(j, ini); emComentario = true; j = ini + 2;
+          }
+          const profAntes = prof;
+          for (const ch of limpa) { if (ch === '{') prof++; else if (ch === '}') prof = Math.max(0, prof - 1); }
+          // Vírgula dentro de bloco é `box-shadow: a, b,` — legítima. Só interessa fora dele.
+          if (!(profAntes === 0 && prof === 0 && /,\s*$/.test(limpa) && limpa.trim())) continue;
+          let k = i + 1;
+          while (k < ls.length && !ls[k].trim()) k++;
+          if (k >= ls.length || !ls[k].trim().startsWith('/*')) continue;
+          // Pula o comentário (pode ser de várias linhas) e acha o seletor do outro lado.
+          let m = k;
+          while (m < ls.length && !ls[m].includes('*/')) m++;
+          let seg = (ls[m] || '').slice(((ls[m] || '').indexOf('*/')) + 2).trim();
+          if (!seg) { m++; while (m < ls.length && !ls[m].trim()) m++; seg = (ls[m] || '').trim(); }
+          const acima = alvos(limpa), abaixo = alvos(seg.split('{')[0]);
+          if ([...abaixo].some(x => acima.has(x))) continue; // mesma família → agrupamento de verdade
+          out.push({ arquivo: f, linha: i + 1,
+            texto: 'lista emendada em `' + seg.split('{')[0].trim().slice(0, 40) + '` — faltou o `{…}`' });
+        }
+      }
+      return out;
     } },
 
   /* ══ CATRACA ══ já existe dívida; o número não pode SUBIR ════════════════════════════ */
