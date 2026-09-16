@@ -2601,7 +2601,11 @@ function dHighlightVarLayers(name){
 ══════════════════════════════════════════════════════════════ */
 let _dFieldsQuery='';
 let _dFieldsCatCollapsed={}; // {catId:true} = categoria recolhida
-let _dFieldsStatusFilter='all'; // 'all' | 'used' | 'free'
+// Começa em 'used' — o painel se chama "Campos da arte" e é isso que ele deve listar.
+// Ver o catálogo inteiro é UM clique na chipbar ('Todos'), que fica logo acima da lista;
+// era essa a divulgação progressiva do §71, que antes escondia a lista INTEIRA e deixava
+// 570px de painel vazio embaixo de três blocos de resumo.
+let _dFieldsStatusFilter='used'; // 'all' | 'used' | 'free'
 let _dFieldsOpen=null;          // name do campo com detalhe expandido (acordeão)
 let _dFieldsDup={};             // name → rótulo do outro campo (possível duplicata)
 
@@ -2668,8 +2672,6 @@ const _D_FIELD_ARROW='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
    da camada) e o inventário continua sendo o `dFieldsRender` que já existia.
    ⛔ A análise semântica NÃO roda a cada render (§64): fica em cache pela assinatura dos
    vínculos, que é o que de fato a invalida.                                                 */
-let _dFieldsExpandido=false;    // false = resumo (nível 1) · true = inventário (nível 2)
-let _dFieldsMostraNaArte=false; // overlay "Mostrar campos na arte" — só no Estúdio, nunca no export
 let _dFieldsSugCache=null;      // {chave, lista} — o parecer semântico das camadas sem vínculo
 
 // Assinatura do que muda o parecer: quais camadas existem, o que cada uma já mostra, e o
@@ -2694,17 +2696,12 @@ function dFieldsSugestoes(){
   _dFieldsSugCache={chave, lista};
   return lista;
 }
-function dFieldsToggleTodos(){ _dFieldsExpandido=!_dFieldsExpandido; dFieldsRender(); }
-/* §41 — MOSTRAR CAMPOS NA ARTE. É a visão do contrato de editabilidade: cada camada ligada
-   ganha o rótulo do campo por cima. Overlay de AUTORIA: vive numa pseudo-elemento de CSS, o
-   que garante que não existe para o gerador de PNG nem para o export SVG (motores separados,
-   que leem `dLayers`, não o DOM do Estúdio). */
-function dFieldsToggleNaArte(){
-  _dFieldsMostraNaArte=!_dFieldsMostraNaArte;
-  document.body.classList.toggle('d-show-fields', _dFieldsMostraNaArte);
-  if(typeof dRenderCanvas==='function') dRenderCanvas();
-  dFieldsRender();
-}
+/* §41 — MOSTRAR CAMPOS NA ARTE tinha DOIS motores e dois botões com o mesmo rótulo no
+   mesmo painel: este (`d-show-fields` + `::before` de CSS) e o mapa de campos do canvas
+   (`dToggleFieldMap`, canvas.js). Ficou o do canvas, que é o mais completo — mostra TODOS
+   os campos de uma camada, com o rótulo real de `dVars`. O selo da camada SELECIONADA
+   (§40) não dependia de nenhum dos dois e continua igual (canvas.js, `l.id===dSelId`).
+*/
 // Uma pergunta por vez, no topo, antes do inventário (§34). As opções SÃO os botões (§19).
 function _dFieldsPerguntaHTML(){
   const sug=dFieldsSugestoes();
@@ -2737,37 +2734,18 @@ function dFieldsManterFixo(layerId){
   dFieldsRender();
   gToast('“'+(l.name||'Camada')+'” fica fixa na arte');
 }
-// O resumo (§33): o que está pronto, o que falta, e os dois caminhos para ir mais fundo.
-function _dFieldsResumoHTML(){
-  const emUso=(dVars||[]).filter(v=>dVarUsage(v.name).length>0);
-  const dup=Object.keys(_dFieldsDup||{}).length;
-  const pergunta=_dFieldsPerguntaHTML();
-  const linha=(ok,txt)=>'<p class="fsum-line'+(ok?'':' warn')+'">'+(ok?_D_FSUM_OK:_D_FSUM_WARN)+'<span>'+txt+'</span></p>';
-  let h='<div class="fsum">'+pergunta;
-  h+=linha(true, '<b>'+emUso.length+(emUso.length===1?' campo configurado':' campos configurados')+'</b>');
-  h+=dup?linha(false, '<b>'+dup+(dup===1?' campo parecido':' campos parecidos')+'</b> com outro do catálogo')
-        :linha(true, 'Nenhum conflito');
-  h+='<div class="fsum-acts">'
-    +'<button type="button" class="fsum-btn'+(_dFieldsMostraNaArte?' on':'')+'" onclick="dFieldsToggleNaArte()">'
-      +_D_FSUM_EYE+(_dFieldsMostraNaArte?'Ocultar campos na arte':'Mostrar campos na arte')+'</button>'
-    +'<button type="button" class="fsum-link" onclick="dFieldsToggleTodos()" aria-expanded="'+(_dFieldsExpandido?'true':'false')+'">'
-      +(_dFieldsExpandido?'Recolher':'Ver todos os campos')+'</button>'
-    +'</div></div>';
-  return h;
-}
-const _D_FSUM_OK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
-const _D_FSUM_WARN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>';
-const _D_FSUM_EYE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
-/* Pinta o resumo e esconde/mostra o inventário. O inventário continua sendo o mesmo
-   `dFieldsRender` — este passe só decide se ele está na tela. */
+/* O resumo é SÓ a pergunta (§33). As duas linhas de status — "N campos configurados" e
+   "N campos parecidos" — e os botões viviam aqui TAMBÉM: o mesmo painel trazia esse bloco
+   e o cabeçalho de saúde (`#dpi-data-health`, props-panel.js) dizendo os mesmos números,
+   com dois botões "Mostrar campos na arte" que acendiam overlays DIFERENTES e dois links
+   "Ver todos os campos" com cortinas independentes sobre a mesma lista. Ficou um: o
+   cabeçalho de saúde. Aqui mora só o que ele não sabe fazer — perguntar. */
+function _dFieldsResumoHTML(){ return _dFieldsPerguntaHTML(); }
+/* Pinta a pergunta. A lista NÃO é mais escondida por esta função: quem decide o que
+   aparece no painel é `dPropSyncDataDisclosure`, cortina única. */
 function _dFieldsResumoRender(){
   const host=document.getElementById('d-fields-summary');
   if(host) host.innerHTML=_dFieldsResumoHTML();
-  const nivel2=['d-fields-toolbar','d-fields-chipbar','d-fields-hint','d-fields-list','d-fields-inventory'];
-  // Sem campo nenhum no catálogo o inventário É a tela (o estado de boas-vindas explica o
-  // conceito e oferece criar o primeiro) — esconder ali deixaria o painel vazio.
-  const esconde=!_dFieldsExpandido && (dVars||[]).length>0;
-  nivel2.forEach(id=>{ const el=document.getElementById(id); if(el) el.hidden=esconde; });
 }
 
 function dFieldCardHTML(v,i){
@@ -2882,7 +2860,7 @@ function dFieldsRender(){
   if(!items.length){
     let msg;
     if(q) msg=`Nenhum campo encontrado.<br><button class="field-create-q" onclick="dFieldCreateFromQuery()">Criar “${_dEsc(_dFieldsQuery)}”</button>`;
-    else if(_dFieldsStatusFilter==='used') msg='Nenhum campo em uso neste template ainda.';
+    else if(_dFieldsStatusFilter==='used') msg='Nenhum campo em uso nesta arte ainda.<br><button class="field-create-q" onclick="dFieldSetStatusFilter(\'all\')">Ver todos os campos</button>';
     else msg='Nenhum campo disponível — todos estão em uso.';
     el.innerHTML=`<div class="field-noresult">${msg}</div>`;
     _dFieldsResumoRender(); _dFieldsAfterRender(); return;
@@ -2908,6 +2886,14 @@ function dFieldsRender(){
       </div>
     </div>`;
   });
+  // O pé da lista é a porta para o catálogo: filtrando "na arte" sobrava um vão embaixo
+  // do último campo, e a pergunta seguinte do designer ("e os outros?") não tinha resposta
+  // à vista. Não é um segundo controle — chama o mesmo filtro da chipbar logo acima.
+  if(_dFieldsStatusFilter==='used' && counts.free>0){
+    html+='<button type="button" class="field-more" onclick="dFieldSetStatusFilter(\'all\')">'
+      +counts.free+(counts.free===1?' outro campo no catálogo':' outros campos no catálogo')
+      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>';
+  }
   el.innerHTML=html;
   _dFieldsResumoRender();
   _dFieldsAfterRender();

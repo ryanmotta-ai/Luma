@@ -1607,22 +1607,37 @@ function dPropSyncDataDisclosure() {
   const empty = fields.length === 0;
   health.hidden = empty;
   health.classList.toggle('has-problem', problems > 0);
+  // Este bloco conta DUPLICATA (dPropDataProblemCount = campos de nome parecido); a pergunta
+  // logo acima conta CAMADA SEM CAMPO. Os dois diziam "N itens precisam da sua ajuda" com
+  // números diferentes na mesma tela — cada um agora nomeia o seu próprio problema.
   if (title) title.textContent = problems
-    ? problems + (problems === 1 ? ' item precisa da sua ajuda' : ' itens precisam da sua ajuda')
+    ? problems + (problems === 1 ? ' campo parecido no catálogo' : ' campos parecidos no catálogo')
     : used + (used === 1 ? ' campo configurado' : ' campos configurados');
-  if (detail) detail.textContent = problems ? 'Revise os campos parecidos antes de publicar.' : 'Nenhum conflito encontrado.';
-  if (inventoryToggle) inventoryToggle.textContent = dPropDataShowInventory ? 'Ocultar lista' : (problems ? 'Revisar' : 'Ver todos os campos');
+  if (detail) detail.textContent = problems ? 'Nomes quase iguais confundem quem preenche: use um só.' : 'Nenhum conflito encontrado.';
+  // O ícone era um CHECK fixo: com problema, o painel mostrava um "tudo certo" amarelo ao
+  // lado de "6 itens precisam da sua ajuda". Ícone e frase agora dizem a mesma coisa.
+  const healthIcon = health.querySelector('.dpi-data-health-icon');
+  if (healthIcon) healthIcon.innerHTML = problems
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg>';
+  if (inventoryToggle) inventoryToggle.textContent = dPropDataShowInventory ? 'Ocultar ajustes' : (problems ? 'Revisar' : 'Mais ajustes');
   if (mapToggle) {
     const active = typeof dFieldMapVisible !== 'undefined' && dFieldMapVisible;
     mapToggle.textContent = active ? 'Ocultar campos' : 'Mostrar campos na arte';
     mapToggle.setAttribute('aria-pressed', String(active));
   }
   const show = empty || dPropDataShowInventory || !!document.getElementById('d-fields-search') && !!document.getElementById('d-fields-search').value;
-  // `#dpi-data-order` entra na mesma cortina: a ordem de preenchimento é AJUSTE OPCIONAL
-  // (o automático já é bom), então ela vive atrás de "Ver todos os campos" como o inventário.
-  ['.dados-toolbar','#d-fields-chipbar','#dpi-data-shortcuts','#d-fields-live','#d-fields-list','#dpi-data-order'].forEach(function(selector) {
+  // A CORTINA cobre só o que é AJUSTE OPCIONAL — a ordem de preenchimento (o automático já
+  // é bom) e os atalhos de arrasto. Busca, chipbar e lista ficam SEMPRE na tela: escondê-las
+  // deixava 570px de painel vazio embaixo do cabeçalho, e é a lista que responde à pergunta
+  // "o que o franqueado pode mudar aqui". A chipbar já filtra entre a arte e o catálogo.
+  ['#dpi-data-shortcuts','#dpi-data-order'].forEach(function(selector) {
     const el = panel.querySelector(selector);
     if (el) el.hidden = !show;
+  });
+  ['.dados-toolbar','#d-fields-chipbar','#d-fields-live','#d-fields-list'].forEach(function(selector) {
+    const el = panel.querySelector(selector);
+    if (el) el.hidden = false;
   });
   if (problems && dPropDataShowInventory && typeof dPropSetDataProblemsFilter === 'function' && !dPropDataProblemsOnly) {
     dPropDataProblemsOnly = true;
