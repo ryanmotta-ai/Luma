@@ -314,14 +314,20 @@ await test('A copy do produto é de anúncio, não de formulário', async()=>{
 await test('As perguntas seguem a lógica da oferta, não a ordem das variáveis', async()=>{
   window.dVars=[];
   // De propósito fora de ordem: é o gSortTemplateVars que tem de arrumar.
-  const vars=['validade','precoPor','logo_loja','produto','precoDe','desconto'];
+  const vars=['validade','precoPor','logo_loja','produto','precoDe','desconto','foto_produto','detalhes'];
   gSortTemplateVars(vars);
   const pos=n=>vars.indexOf(n);
+  /* Os dois UPLOADS abrem o fluxo: é o trabalho pesado e é o que define a cara da peça.
+     Antes de 16/09/2026 o logo era o penúltimo campo (o fluxo terminava num upload, depois
+     de toda a digitação) e a DESCRIÇÃO vinha em segundo, antes até da foto — escrevia-se um
+     texto de apoio sem ter dito com imagem o que estava sendo anunciado. */
+  assert(pos('foto_produto')<pos('logo_loja'),'o logo da loja foi pedido antes da foto do produto');
+  assert(pos('logo_loja')<pos('produto'),'os uploads não abrem mais o fluxo');
   assert(pos('produto')<pos('precoDe'),'o preço foi perguntado antes do produto');
   assert(pos('precoDe')<pos('precoPor'),'o preço promocional veio antes do preço original');
   assert(pos('precoPor')<pos('desconto'),'o desconto veio antes do preço');
-  assert(pos('desconto')<pos('validade'),'a validade veio antes do desconto');
-  assert(pos('validade')<pos('logo_loja'),'a identidade da loja veio antes da oferta');
+  assert(pos('desconto')<pos('detalhes'),'a descrição voltou a vir antes da oferta');
+  assert(pos('detalhes')<pos('validade'),'a validade veio antes da descrição');
 });
 
 /* A ordem semântica é boa, mas ela NÃO pode ser inescapável: o designer que reordena na aba

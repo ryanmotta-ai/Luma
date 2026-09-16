@@ -650,7 +650,11 @@ function gFieldGuessCategory(name, type){
 // A ordem dos testes importa: mídia e cupom vêm antes de preço para não serem capturados
 // pela regra ampla de valor ("logo_loja" é imagem; "cupom_desconto" é código, não R$).
 function gFieldGuessType(name){
-  const s=String(name||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  // camelCase → snake_case antes de baixar a caixa: os padrões abaixo delimitam por `_`, e
+  // sem esta quebra `logoLoja` não era reconhecido como imagem (nem `fotoProduto`, nem
+  // `dataValidade`). Mesma normalização do `gFieldSortWeight`, pelo mesmo motivo.
+  const s=String(name||'').normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/([a-z0-9])([A-Z])/g,'$1_$2').toLowerCase();
   if(!s) return 'text';
   if(/(^|_)(foto|imagem|img|logo|banner|capa|thumb|arte)($|_)/.test(s)) return 'image';
   if(/(^|_)cupom($|_)/.test(s)) return 'text'; // "MUCH10" é código, não valor monetário
@@ -1108,18 +1112,35 @@ function gCampoEhLogo(nome){
 // 4. O COMO/QUANDO: Validade da oferta -> Regras/Condições
 // 5. QUEM: Identificação da Loja/Parceiro (assinatura no rodapé)
 function gFieldSortWeight(name, type){
-  const s = String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[\s-]+/g, '_');
+  /* camelCase vira snake_case ANTES de baixar a caixa: os padr\u00f5es abaixo s\u00e3o escritos com
+     underscore (`nome_produto`, `logo_loja`) e o template batiza como quer. Sem esta quebra,
+     `nomeProduto` virava `nomeproduto`, n\u00e3o casava com nada e ca\u00eda no bloco "outros" \u2014 a
+     pergunta mais importante do fluxo ia para o FIM da fila. Mesma armadilha valia para
+     `logoLoja` e qualquer nome composto sem separador. */
+  const s = String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .toLowerCase().replace(/[\s-]+/g, '_');
   const t = type || gFieldGuessType(name);
   const isImg = t === 'image' || /(^|_)(foto|imagem|img|banner|capa|thumb|pic)($|_)/.test(s);
   const isStore = /(^|_)(logo|loja|marca|estabelecimento|restaurante|parceir|whatsapp|telefone|contato)($|_)/.test(s);
 
-  // Bloco 1: Identificação principal do produto / item
-  if(/^(produto|item|prato|combo|titulo|lanche|pizza|nome_produto|nome_item|nome)$/.test(s)) return 10;
-  if(/(sabor|opcao|tipo_)/.test(s)) return 12;
-  if(/(detalhes|descricao|subtitulo|sub_titulo|ingredientes|acompanhamento|texto_apoio|complemento)/.test(s)) return 15;
+  /* ── A ORDEM É A DE MONTAR O ANÚNCIO, NÃO A DE LER A ARTE ──
+     Até 16/09/2026 a sequência começava no nome do produto e, logo depois, na DESCRIÇÃO —
+     o franqueado escrevia um texto de apoio antes de ter dito o que estava anunciando com
+     imagem, e a foto vinha só em terceiro. Pior: o logo da loja era o penúltimo campo, então
+     o fluxo terminava num upload, depois de toda a digitação.
+     Agora os dois UPLOADS abrem o fluxo (é o trabalho pesado, e é o que define a cara da
+     peça), depois vem o que se anuncia, depois quanto custa, e a descrição fecha o bloco de
+     conteúdo — ela é enriquecimento, não identificação. Decisão do Ryan em 16/09/2026.
+     ⚠ Isto é só o padrão: `ordemManual` do designer (aba Campos) continua vencendo tudo. */
 
-  // Bloco 2: Foto do produto (exceto logos de loja/marca)
-  if(isImg && !isStore) return 20;
+  // Bloco 1: os uploads primeiro — foto do produto, depois o logo da loja
+  if(isImg && !isStore) return 10;
+  if(isImg && isStore)  return 12;   // logo_loja, logo
+
+  // Bloco 2: o que está sendo anunciado
+  if(/^(produto|item|prato|combo|titulo|lanche|pizza|nome_produto|nome_item|nome)$/.test(s)) return 20;
+  if(/(sabor|opcao|tipo_)/.test(s)) return 22;
 
   // Bloco 3: Preço original / Âncora ("De")
   if(/(preco_?de|valor_?de|preco_?original|valor_?original|preco_?antigo|preco_?cheio|\bde\b)/.test(s)) return 30;
@@ -1133,18 +1154,20 @@ function gFieldSortWeight(name, type){
   if(/(beneficio|vantagem|cashback|brinde|oferta)/.test(s)) return 54;
   if(/(pedido_?min|valor_?min)/.test(s)) return 56;
 
-  // Bloco 6: Validade, prazos e condições
+  // Bloco 6: descrição/apoio — fecha o conteúdo, depois de já existir oferta
+  if(/(detalhes|descricao|subtitulo|sub_titulo|ingredientes|acompanhamento|texto_apoio|complemento)/.test(s)) return 58;
+
+  // Bloco 7: Validade, prazos e condições
   if(/(validade|data|vencimento|periodo|prazo|dias|horario)/.test(s)) return 60;
   if(/(condicao|regra|bairros|cobertura|observacao|obs|aviso|legal)/.test(s)) return 65;
 
-  // Bloco 7: Assinatura da loja / parceiro / contato
+  // Bloco 8: o resto da assinatura da loja (o logo já saiu no bloco 1)
   if(isStore){
     if(/^(nome_loja|nome_restaurante|loja|restaurante)$/.test(s)) return 70;
-    if(isImg) return 72; // logo_loja, logo
     return 75; // whatsapp, telefone, contato
   }
 
-  // Bloco 8: Demais campos (outros)
+  // Bloco 9: Demais campos (outros)
   return 80;
 }
 
