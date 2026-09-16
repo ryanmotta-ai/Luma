@@ -1173,11 +1173,9 @@ function gCompileLayoutGrammar(layers, canvas){
       lineHeight: l.type === 'text'
         ? ((typeof gLineHeightDe === 'function') ? gLineHeightDe(l) : (l.lineHeight || 1.2)) : null,
       letterSpacing: l.type === 'text' && l.letterSpacing != null ? l.letterSpacing : null,
-      display: l.type === 'text' ? (function(){
-        const fp = (typeof dTextFontParts === 'function') ? dTextFontParts(l.font)
-                 : { weight: /black|realce/i.test(l.font || '') ? 900 : 700 };
-        return (l.fontWeightOverride || fp.weight) >= 900;
-      })() : false,
+      // A régua única (`gLayoutEhDisplay`, em 00-config.js) — esta linha reimplementava o
+      // mesmo teste do solver, que é exatamente a duplicação que as fases anteriores mataram.
+      display: l.type === 'text' && typeof gLayoutEhDisplay === 'function' ? gLayoutEhDisplay(l) : false,
       align: l.type === 'text' ? (l.textAlign || 'left') : null,
       zonasSeguras: zonas, safeRect: safeRect,
       rect: _gGramRect(l)
@@ -1413,6 +1411,14 @@ function gCompileLayoutGrammar(layers, canvas){
   placas.forEach((textos, shapeId) => {
     const n = _n(shapeId);
     if(!n || n.tipo !== 'shape' || textos.length !== 1) return;
+    /* A MESMA régua estrutural do solver (`gLayoutFormaEhPlaca`, em 00-config.js): forma
+       retangular ou pill horizontal, e no máximo 6× a área do texto. Sem ela a gramática
+       reconhecia como placa um painel de seção inteira — e a §12 montava um componente
+       prometendo uma relação que a cascata se recusa a executar. */
+    const formaL = lista.find(l => l.id === shapeId);
+    const alvoN = _n(textos[0]);
+    if(typeof gLayoutFormaEhPlaca === 'function'
+       && !gLayoutFormaEhPlaca(formaL, n.rect, alvoN && alvoN.rect)) return;
     const membros = [shapeId, textos[0]];
     const evid = ['contencao','z-order','texto-unico'];
     if(marcaDinamico(membros)) evid.push('campo-dinamico');
@@ -2768,6 +2774,7 @@ function gCompileComponentsElasticity(components, grammar, graph, layerElasticit
 /* ARESTAS QUE TRANSMITEM IMPACTO. As mesmas que a Fase 2.5 autorizou como dependência — nada
    de `aligned-*`, `inside`, `contains`, `overlaps-intentionally`, `below`, `right-of`. */
 const G_IMPACT_ARESTAS = ['dynamic-dependency','authorial-anchor','plate-of'];
+const _G_IMPACT_SET = new Set(G_IMPACT_ARESTAS);
 
 /**
  * A zona de impacto de UM campo dinâmico.
@@ -2810,16 +2817,21 @@ function gCompileImpactZones(graph, components, rootId, _idsOrdenados){
   const fila = [rootId].concat(L1);
   const vistos = new Set(fila);
   let guarda = 0;
+  /* UMA passada sobre as arestas de entrada, testando o tipo por pertencimento. Antes eram
+     TRÊS `gGraphIncoming(G, atual, tipo)` por nó, e cada um filtra a lista inteira alocando um
+     array novo. Medido nesta arte: 14,1 arestas de entrada por nó, travessia média de 30 nós,
+     75 zonas — ~180 mil alocações só para descartar a maior parte delas. Foi o custo real das
+     zonas, e não o nível 4 que eu suspeitava. */
   while(fila.length && guarda++ < 4096){
     const atual = fila.shift();
-    G_IMPACT_ARESTAS.forEach(t => {
-      gGraphIncoming(G, atual, t).forEach(e => {       // ENTRADA = quem depende de mim
-        if(!gGraphIsStructural(e) || vistos.has(e.de)) return;
-        arestasUsadas.add(t);
-        vistos.add(e.de); fila.push(e.de);
-        if(!usados.has(e.de)){ usados.add(e.de); L2.push(e.de); }
-      });
-    });
+    const entradas = G._entrada ? (G._entrada.get(atual) || []) : gGraphIncoming(G, atual);
+    for(let k = 0; k < entradas.length; k++){
+      const e = entradas[k];                            // ENTRADA = quem depende de mim
+      if(!_G_IMPACT_SET.has(e.tipo) || !gGraphIsStructural(e) || vistos.has(e.de)) continue;
+      arestasUsadas.add(e.tipo);
+      vistos.add(e.de); fila.push(e.de);
+      if(!usados.has(e.de)){ usados.add(e.de); L2.push(e.de); }
+    }
   }
 
   /* ── NÍVEL 3 ── a SEÇÃO semântica: o componente-pai (offer-block), os componentes de nível 0
@@ -2833,9 +2845,14 @@ function gCompileImpactZones(graph, components, rootId, _idsOrdenados){
     if(c.nivel === 1 || c.membros.some(m => L2.indexOf(m) >= 0)) c.membros.forEach(_entra);
   });
 
-  /* ── NÍVEL 4 ── o resto da composição. Fallback de EMERGÊNCIA, e é só isso: existe para que
-     a resposta seja completa, não para ser usado. Sem duplicar quem já entrou. */
-  const L4 = todos.filter(id => !usados.has(id));   // `todos` já vem ordenado
+  /* ── NÍVEL 4 ── o resto da composição. Fallback de EMERGÊNCIA — e por isso ele é LAZY.
+     Materializá-lo custava "todo o resto" vezes "uma zona por campo": numa arte de 344 camadas
+     com 75 campos, 26 mil ids copiados para produzir uma lista que a busca de candidatos quase
+     nunca vai abrir (a adaptação normal vive em L0–L2). Medido: 9,5ms só nisso.
+     A zona guarda o CONJUNTO do que já entrou e a CONTAGEM do que sobrou; quem precisar de
+     verdade chama `gImpactLevelMembers(zona, 4, graph)` e paga ali. O determinismo não muda:
+     a lista sai da mesma ordenação de sempre. */
+  const restantes = todos.length - usados.size;
 
   /* ── UPSTREAM ── de quem ESTA camada depende. Devolvido à parte e nunca somado aos níveis:
      mudar o CTA não autoriza recompor o título que o empurra. */
@@ -2845,16 +2862,18 @@ function gCompileImpactZones(graph, components, rootId, _idsOrdenados){
   let g2 = 0;
   while(filaUp.length && g2++ < 4096){
     const atual = filaUp.shift();
-    G_IMPACT_ARESTAS.forEach(t => {
-      gGraphOutgoing(G, atual, t).forEach(e => {
-        if(!gGraphIsStructural(e) || vistoUp.has(e.para)) return;
-        vistoUp.add(e.para); filaUp.push(e.para); upstream.push(e.para);
-      });
-    });
+    const saidas = G._saida ? (G._saida.get(atual) || []) : gGraphOutgoing(G, atual);
+    for(let k = 0; k < saidas.length; k++){
+      const e = saidas[k];
+      if(!_G_IMPACT_SET.has(e.tipo) || !gGraphIsStructural(e) || vistoUp.has(e.para)) continue;
+      vistoUp.add(e.para); filaUp.push(e.para); upstream.push(e.para);
+    }
   }
 
   const zona = { rootId:rootId,
-    levels: { 0:L0, 1:L1.sort(), 2:L2.sort(), 3:L3.sort(), 4:L4 },
+    levels: { 0:L0, 1:L1.sort(), 2:L2.sort(), 3:L3.sort() },
+    // O que os níveis 0–3 já cobrem, e quantos sobraram para o nível 4.
+    dentro: usados, restantes: restantes,
     upstream: upstream.sort(),
     componentes: [...compsEnvolvidos].sort(),
     arestas: [...arestasUsadas].sort() };
@@ -2866,7 +2885,7 @@ function gCompileImpactZones(graph, components, rootId, _idsOrdenados){
     'r=' + rootId,
     'l0=' + L0.join('+'), 'l1=' + zona.levels[1].join('+'),
     'l2=' + zona.levels[2].join('+'), 'l3=' + zona.levels[3].join('+'),
-    'l4n=' + L4.length,
+    'l4n=' + restantes,
     'e=' + zona.arestas.join('+'), 'c=' + zona.componentes.join('+')
   ].join('#'));
   return zona;
@@ -2889,10 +2908,1556 @@ function gCompileAllImpactZones(graph, components){
   return out;
 }
 
+/**
+ * Os membros de UM nível. Os níveis 0–3 já estão prontos; o 4 é DERIVADO na hora, porque é
+ * emergência e quase ninguém vai pedir. Precisa do grafo para saber o que é "todo o resto".
+ * @returns {string[]} ordenado — a mesma ordem que a versão materializada produzia
+ */
+function gImpactLevelMembers(zona, nivel, graph){
+  if(!zona) return [];
+  if(nivel !== 4) return (zona.levels[nivel] || []).slice();
+  if(!graph) return [];                     // sem contexto não se inventa o resto da arte
+  return (graph.nodes || []).map(n => n.id).filter(id => !zona.dentro.has(id)).sort();
+}
+
 // Diagnóstico legível — para teste e console da casa, nunca para UI de usuário.
 function gDescribeImpactZone(zona){
   if(!zona) return '';
-  const linha = (n) => 'L' + n + ': ' + (zona.levels[n].length
-    ? (n === 4 ? zona.levels[n].length + ' restantes' : zona.levels[n].join(', ')) : '—');
-  return [zona.rootId, linha(0), linha(1), linha(2), linha(3), linha(4)].join('\n');
+  const linha = (n) => 'L' + n + ': ' + (zona.levels[n].length ? zona.levels[n].join(', ') : '—');
+  return [zona.rootId, linha(0), linha(1), linha(2), linha(3),
+          'L4: ' + zona.restantes + ' restantes'].join('\n');
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   15. OPERATIONAL CAPABILITY — o contrato de paridade com o solver
+   ════════════════════════════════════════════════════════════════════
+   A §13 descreve LIBERDADE: "esta camada pode, em princípio, encolher". Isso não é a mesma
+   coisa que "o motor consegue encolher esta camada agora". Uma fonte de 13px num piso de
+   legibilidade de 13px tem `fontShrink: medium` e ZERO espaço real.
+
+   Se a próxima fase gerar ações só porque `elasticity.moveY === 'high'`, ela vai propor coisas
+   que a escada não executa — e descobrir isso só depois de rodar o solver, por tentativa. Esta
+   seção é o portão que evita isso:
+
+       elasticidade permite  E  o motor real consegue  →  pode tentar
+
+   ⛔ NÃO É UM SEGUNDO MOTOR. Não há aqui nenhuma reimplementação de piso, preço, corrente,
+   placa, tracking, entrelinha, quebra ou limite de arte. Tudo sai das primitivas que o próprio
+   solver chama: `gLayoutPisoFonte`, `gLayoutTrackingEfetivo`, `gLayoutPodeAcompanhar`,
+   `gLayoutColapsoEntre`, `gLineHeightDe`, `gLayoutRoleMaxLines`. São CONSULTAS.
+
+   ⚠ NADA AQUI EXECUTA. Não move, não encolhe, não escala, não gera candidato, não busca.
+   Responde `{permitido, motivo, origem}` e para. */
+
+/* VOCABULÁRIO FECHADO DE AÇÕES — só IDs e metadados. A implementação é da fase seguinte; o
+   nome existe agora para que ela já nasça com vocabulário consistente. Cada ação aponta para a
+   dimensão de elasticidade que a permite e para a capacidade que confirma que o motor executa. */
+const G_LAYOUT_ACOES = {
+  'wrap-text':            { dimensao:'wrap',              capacidade:'canWrap',               alvo:'layer',
+                            degrau:'quebrar linha dentro do corredor disponível' },
+  'compress-gap':         { dimensao:'redistributeSpace', capacidade:'canCompressSpacing',    alvo:'layer',
+                            degrau:'apertar o respiro mínimo antes de mexer na tipografia' },
+  'compress-line-height': { dimensao:'lineHeight',        capacidade:'canCompressLineHeight', alvo:'layer',
+                            degrau:'fechar a entrelinha até o piso de 1.05' },
+  'restore-tracking':     { dimensao:'tracking',          capacidade:'canRestoreTracking',    alvo:'layer',
+                            degrau:'devolver o tracking que o render somou (fonte display)' },
+  'push-dependent':       { dimensao:'moveY',             capacidade:'canMoveY',              alvo:'layer',
+                            degrau:'empurrar o bloco de baixo pela corrente' },
+  'resize-container':     { dimensao:'resizeContainer',   capacidade:'canResizeContainer',    alvo:'layer',
+                            degrau:'a placa acompanha a tinta do texto' },
+  'shrink-text':          { dimensao:'fontShrink',        capacidade:'canShrinkFont',         alvo:'layer',
+                            degrau:'reduzir o corpo do menor degrau que ainda tem folga' },
+  'scale-component':      { dimensao:'scale',             capacidade:'canScaleComponent',     alvo:'component',
+                            degrau:'escala proporcional do componente (último recurso)' },
+  /* `collapse-empty-gap` NÃO tem dimensão de elasticidade, e isso é a decisão: subir para fechar
+     o vão de um campo em branco é semanticamente diferente de "pode mover em Y". Enfiá-la em
+     `moveY` transformaria um crédito de valor exato numa liberdade geral de movimento. */
+  'collapse-empty-gap':   { dimensao:null,                capacidade:'canCollapseGap',        alvo:'layer',
+                            degrau:'fechar exatamente o vão que o campo vazio deixou' }
+};
+
+const _gCapOk  = (motivo, detalhe) => Object.assign({ permitido:true,  motivo:motivo, origem:'regra-do-solver' }, detalhe || {});
+const _gCapNao = (motivo, detalhe) => Object.assign({ permitido:false, motivo:motivo, origem:'regra-do-solver' }, detalhe || {});
+
+/**
+ * O CONTEXTO operacional: tudo o que as consultas precisam, compilado uma vez.
+ * Construir por consulta seria recompilar a arte inteira a cada pergunta — e a busca de
+ * candidatos vai perguntar milhares de vezes.
+ *
+ * ⚠ NÃO MUTA as camadas recebidas. `gStampPisosHierarquia` escreve `_pisoFonte`/`_pisoLegivel`,
+ * então ele roda sobre CLONES — os mesmos pisos que a escada usa, sem tocar no template.
+ */
+function gBuildOperationalContext(layers, canvas, opts){
+  const o = opts || {};
+  const cv = canvas || { w:0, h:0 };
+  const clones = (layers || []).map(l => Object.assign({}, l));
+  if(typeof gStampPisosHierarquia === 'function') gStampPisosHierarquia(clones, cv.w ? cv : null);
+  const grammar = o.grammar || gCompileLayoutGrammar(layers, cv);
+  const graph = o.graph || gCompileCompositionGraph(grammar);
+  const components = o.components || gCompileLayoutComponents(grammar, graph);
+  const elasticity = o.elasticity || gCompileLayerElasticity(grammar, graph);
+  return {
+    canvas: cv, grammar, graph, components, elasticity,
+    componentElasticity: o.componentElasticity
+      || gCompileComponentsElasticity(components, grammar, graph, elasticity),
+    // Índices: a busca de candidatos consulta muito, e `.find()` linear aqui seria o gargalo.
+    _camada: new Map(clones.map(l => [l.id, l])),
+    _no: new Map((grammar.nodes || []).map(n => [n.id, n])),
+    _placa: new Set((graph.edges || []).filter(e => e.tipo === 'plate-of').map(e => e.de)),
+    /* A TINTA AUTORADA dos textos que são alvo de placa — medida com `gFitTextLayer`, o motor
+       único de encaixe. Só esses: medir a arte inteira custaria o que o solver custa, e mais
+       ninguém aqui precisa. */
+    /* UM contexto 2D para a sessão inteira de consultas e ações. Medir é caro; criar canvas
+       por chamada seria pior. Quem não tem Canvas (Node puro) recebe `null` e as funções que
+       dependem de medida dizem que não sabem, em vez de chutar. */
+    _ctx2d: (function(){
+      try{ return (typeof document !== 'undefined') ? document.createElement('canvas').getContext('2d') : null; }
+      catch(e){ return null; }
+    })(),
+    /* A TINTA AUTORADA de cada texto — o que o designer via na tela, medido com `gFitTextLayer`
+       (o motor único de encaixe). É a referência de TODO dano objetivo: "cresceu" é a tinta de
+       agora contra esta, e "colidiu" é o par de agora contra o par daqui.
+       É o mesmo trabalho que `_gLayoutBaseVisual` faz dentro do solve; pagá-lo uma vez por
+       contexto é o que permite ao detector responder sem rodar o solver inteiro. */
+    _tinta: (function(){
+      const m = new Map();
+      if(typeof gFitTextLayer !== 'function' || typeof document === 'undefined') return m;
+      let cx = null;
+      try{ cx = document.createElement('canvas').getContext('2d'); }catch(e){ return m; }
+      clones.forEach(l => {
+        if(!l || l.type !== 'text' || l.vertical) return;
+        const ref = l.layoutRefText || ((typeof gLayoutTextoAutorado === 'function') ? gLayoutTextoAutorado(l) : '');
+        /* SEM REFERÊNCIA, A CAIXA DESENHADA É A REFERÊNCIA — exatamente o que
+           `_gLayoutBaseVisual` faz no solve. Template antigo e campo sem exemplo no catálogo não
+           têm texto autorado para medir, e devolver "não sei" aqui cegava o detector inteiro:
+           sem base, "cresceu" e "colidiu" não têm contra o que ser medidos, e uma arte que
+           estoura era reportada como saudável. */
+        if(!ref){ m.set(l.id, { x:l.x||0, y:l.y||0, w:l.w||0, h:l.h||0, linhas:1, daCaixa:true }); return; }
+        try{
+          const f = gFitTextLayer(gLayoutLimpaCarimbos(l), String(ref), cx, { encolher:false });
+          const caixa = (l.textBox === 'box');
+          const w = caixa ? (l.w || 0) : (f.larguraMax || l.w || 0);
+          m.set(l.id, { x:(l.x||0) + (caixa ? 0 : _gInkDx(l, w)), y:(l.y||0) + _gInkDy(l, f.altura),
+                        w:w, h:f.altura || l.h || 0, linhas:(f.lines && f.lines.length) || 1 });
+        }catch(e){ m.set(l.id, { x:l.x||0, y:l.y||0, w:l.w||0, h:l.h||0, linhas:1, daCaixa:true }); }
+      });
+      return m;
+    })(),
+    _compDe: new Map(),
+    // Valores do franqueado, quando houver: só o colapso de campo vazio depende deles.
+    dados: o.dados || null
+  };
+}
+
+/**
+ * Uma CAPACIDADE do motor real sobre um alvo. Não executa nada.
+ * @returns {{permitido:boolean, motivo:string, origem:string, ...detalhe}}
+ */
+function gLayoutCapability(ctx, targetId, capacidade){
+  if(!ctx) return _gCapNao('sem-contexto');
+  const l = ctx._camada.get(targetId);       // o clone COM os pisos carimbados
+  const n = ctx._no.get(targetId);
+  if(!l || !n) return _gCapNao('alvo-inexistente');
+  const texto = n.tipo === 'text';
+
+  switch(capacidade){
+
+    case 'canWrap': {
+      if(!texto) return _gCapNao('nao-e-texto');
+      if(l.vertical) return _gCapNao('texto-vertical');
+      /* A MESMA exclusão de `_gInferirCorredores`: rich text e preço partido em runs têm
+         métrica por trecho e não viram caixa de quebra — separar símbolo/inteiro/centavos
+         destruiria o agrupamento semântico. */
+      if((l.runs && l.runs.length) || /:\s*(?:inteiro|centavos)/.test(l.content || ''))
+        return _gCapNao('metrica-por-run');
+      const teto = (typeof gLayoutRoleMaxLines === 'function') ? gLayoutRoleMaxLines(n.papel) : 4;
+      if(teto <= 1) return _gCapNao('teto-de-uma-linha', { maxLinhas:teto });
+      return _gCapOk('quebra-disponivel', { maxLinhas:teto });
+    }
+
+    case 'canShrinkFont': {
+      if(!texto) return _gCapNao('nao-e-texto');
+      if(n.protegida || n.fundo) return _gCapNao('protegida');
+      /* AQUI ESTÁ O PONTO DA FASE. A elasticidade classificou o PAPEL como flexível; a
+         capacidade pergunta se existe espaço REAL entre o corpo atual e o piso — e o piso
+         depende do lado curto do canvas (`_pisoLegivel`), que a elasticidade não tinha. */
+      const atual = Math.round(l.fontSize || 24);
+      const piso = (typeof gLayoutPisoFonte === 'function') ? gLayoutPisoFonte(l, false) : 8;
+      const det = { atual, piso, folga: atual - piso };
+      if(piso >= atual) return _gCapNao('no-piso', det);
+      /* O preço dinâmico cede — mas só por causa dele mesmo (`_gLayoutPrecoImune`, regra de
+         19/08). Não é bloqueio, é condição, e quem gerar a ação precisa saber disso. */
+      if(n.papel === 'preco' && n.campos.length)
+        return _gCapOk('folga-disponivel', Object.assign({ soPorSiMesmo:true }, det));
+      return _gCapOk('folga-disponivel', det);
+    }
+
+    case 'canCompressLineHeight': {
+      if(!texto) return _gCapNao('nao-e-texto');
+      if(n.protegida) return _gCapNao('protegida');
+      const lh = (typeof gLineHeightDe === 'function') ? gLineHeightDe(l) : (l.lineHeight || 1.2);
+      const piso = 1.05;
+      if(lh <= piso + 0.01) return _gCapNao('no-piso-da-entrelinha', { atual:lh, piso });
+      /* ⚠ O degrau também exige MAIS DE UMA LINHA, e isso depende do conteúdo que o franqueado
+         digitou — a capacidade estrutural não sabe. Fica declarado em vez de prometido. */
+      return _gCapOk('folga-de-entrelinha', { atual:lh, piso, exigeMultiplasLinhas:true });
+    }
+
+    case 'canRestoreTracking': {
+      if(!texto) return _gCapNao('nao-e-texto');
+      if(l.vertical) return _gCapNao('texto-vertical');
+      const t = (typeof gLayoutTrackingEfetivo === 'function') ? gLayoutTrackingEfetivo(l) : 0;
+      if(!(t > 0.01)) return _gCapNao('sem-tracking-a-devolver', { efetivo:t, display:!!n.display });
+      return _gCapOk('tracking-a-devolver', { efetivo:t, display:!!n.display, umaVezPorCamada:true });
+    }
+
+    case 'canMoveX':
+    case 'canMoveY': {
+      const manual = gGraphOutgoing(ctx.graph, targetId, 'authorial-anchor').length > 0;
+      // Declaração do designer vence a heurística — é a precedência de toda a cascata.
+      if(manual) return _gCapOk('ancora-autoral', { autorada:true });
+      if(n.protegida || n.fundo) return _gCapNao('protegida');
+      if(n.papel === 'preco' && n.campos.length)
+        return _gCapNao('bloco-de-preco-nao-sai-do-lugar');
+      if(n.podeAcompanhar === false) return _gCapNao('nao-pode-acompanhar-corrente');
+      return _gCapOk('pode-ser-empurrada');
+    }
+
+    case 'canResizeContainer': {
+      if(!ctx._placa.has(targetId)) return _gCapNao('nao-e-placa-de-ninguem');
+      if(n.protegida) return _gCapNao('protegida');
+      /* IDENTIDADE e REAÇÃO são perguntas diferentes. Ser placa é estrutural (a §10 já provou);
+         CRESCER só faz sentido se o texto de dentro puder mudar de tamanho — `_gInferirPlacas`
+         exige `_gLayoutTemCampo(t)` pelo mesmo motivo: placa de texto fixo não reage. */
+      const alvo = (ctx.graph.edges || []).find(e => e.tipo === 'plate-of' && e.de === targetId);
+      const texto = alvo && ctx._no.get(alvo.para);
+      if(!texto || !texto.campos.length)
+        return _gCapNao('texto-sem-campo-nao-faz-a-placa-crescer');
+      /* ⚠ O TETO DE ÁREA SE MEDE CONTRA A TINTA, NÃO CONTRA A CAIXA — e é aqui que a paridade
+         se ganha ou se perde. A gramática é geometria pura e só tem a caixa AUTORADA; o solver
+         compara com a TINTA medida (`_gLayoutBaseVisual`). Numa caixa de parágrafo larga com
+         pouco texto os dois discordam, e a capacidade prometeria uma placa que a cascata se
+         recusa a fazer crescer.
+         Então aqui se mede — com `gFitTextLayer`, o MESMO encaixe do solver e do render, nunca
+         uma medida paralela. Sem ele carregado (contexto sem Canvas), cai na caixa autorada e
+         DIZ que a resposta é aproximada, em vez de fingir precisão. */
+      const ink = ctx._tinta.get(alvo.para);
+      const ok = gLayoutFormaEhPlaca(ctx._camada.get(targetId), n.rect, ink || texto.rect);
+      if(!ok) return _gCapNao('painel-nao-e-placa', { medidoNaTinta:!!ink });
+      return _gCapOk('placa-acompanha-o-texto',
+        { texto:alvo.para, medidoNaTinta:!!ink, aproximado:!ink });
+    }
+
+    case 'canCompressSpacing': {
+      if(n.protegida || n.fundo) return _gCapNao('protegida');
+      /* ⚠ DISCRETO, NÃO CONTÍNUO. O motor tem UM degrau: `_respiroFator` 1 → 0.5. Prometer
+         três níveis de compressão descreveria uma escada que não existe. A elasticidade pode
+         seguir usando nível para CUSTO; a capacidade informa o degrau real. */
+      return _gCapOk('um-degrau-disponivel', { degraus:1, fator:0.5 });
+    }
+
+    case 'canCollapseGap': {
+      /* O crédito de subida da corrente. Estrutural: existe, entre esta camada e o pai dela na
+         corrente, um texto com campo que sumiu? A conta é a MESMA do solver
+         (`gLayoutColapsoEntre`), não uma paralela. */
+      if(!ctx.dados) return _gCapNao('sem-dados-do-franqueado');
+      const vazio = (v) => {
+        const campos = (typeof gLayoutCamposDe === 'function') ? gLayoutCamposDe(v) : [];
+        return campos.length > 0 && campos.every(c => String(ctx.dados[c] == null ? '' : ctx.dados[c]).trim() === '');
+      };
+      /* SOBE ATÉ QUEM AINDA TEM TINTA. O solver tira as camadas vazias de `nós` antes de inferir
+         a corrente, então o pai REAL do alvo, quando o campo opcional some, é o primeiro
+         ancestral que ainda ocupa espaço. Medir a partir do pai da arte AUTORADA daria vão zero
+         — o vão é justamente a camada que sumiu, e ela é o pai na arte cheia. */
+      let atual = targetId, pai = null, guarda = 0;
+      while(guarda++ < 16){
+        const e = gGraphOutgoing(ctx.graph, atual, 'dynamic-dependency')[0]
+               || gGraphOutgoing(ctx.graph, atual, 'authorial-anchor')[0];
+        if(!e) break;
+        const cand = ctx._no.get(e.para), camadaCand = ctx._camada.get(e.para);
+        if(!cand) break;
+        if(!(camadaCand && vazio(camadaCand))){ pai = cand; break; }
+        atual = e.para;                                  // este sumiu: o vão é dele
+      }
+      if(!pai) return _gCapNao('sem-corrente');
+      const camadas = [...ctx._camada.values()];
+      const r = gLayoutColapsoEntre(camadas, pai.rect.y + pai.rect.h, n.rect.y,
+                                    n.rect.x, n.rect.x + n.rect.w, vazio);
+      if(!(r.soma > 0) || !r.temCampo) return _gCapNao('sem-vao-a-fechar', { credito:r.soma });
+      return _gCapOk('vao-de-campo-vazio', { credito:r.soma });
+    }
+
+    default: return _gCapNao('capacidade-desconhecida');
+  }
+}
+
+/**
+ * A CAPACIDADE DE COMPONENTE. Separada porque o alvo é outro e as guardas são outras.
+ * ⛔ `singleton` NÃO recebe escala de componente: um membro só não é bloco composto, e escalar
+ * "o grupo" seria escalar uma camada solta por baixo de um nome que promete grupo.
+ * ⛔ Um membro que proíbe escala BLOQUEIA o componente inteiro. Nem o perfil do tipo nem
+ * nenhuma agregação por `max` pode tornar um membro individual mais livre.
+ */
+function gComponentCapability(ctx, componentId, capacidade){
+  if(!ctx) return _gCapNao('sem-contexto');
+  const c = gComponentById(ctx.components, componentId);
+  if(!c) return _gCapNao('componente-inexistente');
+  if(capacidade !== 'canScaleComponent') return _gCapNao('capacidade-desconhecida');
+  if(c.singleton) return _gCapNao('singleton-nao-escala-como-grupo', { tipo:c.tipo });
+  const protegidos = c.membros.filter(id => { const n = ctx._no.get(id); return !!(n && (n.protegida || n.fundo)); });
+  if(protegidos.length) return _gCapNao('membro-protegido', { membros:protegidos });
+  const proibem = c.membros.filter(id => {
+    const e = ctx.elasticity.get(id);
+    return !e || gElasticityLevel(e.scale) === 0;
+  });
+  if(proibem.length) return _gCapNao('membro-proibe-escala', { membros:proibem });
+  const ce = ctx.componentElasticity.get(componentId);
+  if(!ce || gElasticityLevel(ce.scale) === 0) return _gCapNao('componente-proibe-escala');
+  return _gCapOk('componente-pode-escalar', { nivel:ce.scale, membros:c.membros.length });
+}
+
+/**
+ * A PERMISSÃO EFETIVA — a conjunção, num lugar só.
+ *
+ *     efetiva = elasticidade permite  E  o motor consegue
+ *
+ * Existe para que a fase seguinte nunca escreva esse `&&` à mão. Espalhar a conjunção pelo
+ * código seria garantir que, em algum ponto, alguém checasse só metade dela.
+ * @returns {{permitido, motivo, bloqueadoPor, elasticidade, capacidade}}
+ */
+function gLayoutOperationalPermission(ctx, targetId, acaoId){
+  const meta = G_LAYOUT_ACOES[acaoId];
+  if(!meta) return { permitido:false, motivo:'acao-desconhecida', bloqueadoPor:'vocabulario' };
+  if(meta.alvo === 'component'){
+    const cap = gComponentCapability(ctx, targetId, meta.capacidade);
+    return { permitido:cap.permitido, motivo:cap.motivo,
+             bloqueadoPor: cap.permitido ? null : 'solver-capability',
+             elasticidade:(ctx.componentElasticity.get(targetId) || {})[meta.dimensao] || null,
+             capacidade:cap };
+  }
+  const el = ctx._no.has(targetId) ? ctx.elasticity.get(targetId) : null;
+  if(!el) return { permitido:false, motivo:'alvo-inexistente', bloqueadoPor:'alvo' };
+  const nivel = meta.dimensao ? el[meta.dimensao] : null;
+  // Elasticidade primeiro: se o papel não permite, nem se pergunta ao motor.
+  if(meta.dimensao && gElasticityLevel(nivel) === 0)
+    return { permitido:false, motivo:'elasticidade-none', bloqueadoPor:'elasticity',
+             elasticidade:nivel, capacidade:null };
+  const cap = gLayoutCapability(ctx, targetId, meta.capacidade);
+  return { permitido: cap.permitido, motivo: cap.permitido ? 'permitido' : cap.motivo,
+           bloqueadoPor: cap.permitido ? null : 'solver-capability',
+           elasticidade:nivel, capacidade:cap };
+}
+
+/**
+ * O PORTÃO da Fase 5: ação + alvo + elasticidade + capacidade + zona de impacto.
+ * Continua sem executar nada — responde se a tentativa seria legítima, e por que não quando não.
+ *
+ * @param {object} p {ctx, action, targetId, rootId, impactLevel}
+ * @returns {{permitido, motivo, bloqueadoPor, acao, alvo, nivelImpacto, elasticidade, capacidade}}
+ */
+function gLayoutCanAttempt(p){
+  const o = p || {};
+  const meta = G_LAYOUT_ACOES[o.action];
+  const base = { acao:o.action, alvo:o.targetId, nivelImpacto:o.impactLevel != null ? o.impactLevel : null };
+  if(!meta) return Object.assign({ permitido:false, motivo:'acao-desconhecida', bloqueadoPor:'vocabulario' }, base);
+  if(!o.ctx) return Object.assign({ permitido:false, motivo:'sem-contexto', bloqueadoPor:'contexto' }, base);
+
+  /* ESCOPO DE IMPACTO — mexer numa camada fora da zona da raiz que mudou é recompor arte que
+     ninguém pediu. Sem `rootId` não há escopo a verificar: a pergunta é só sobre o alvo. */
+  if(o.rootId){
+    const zona = gCompileImpactZones(o.ctx.graph, o.ctx.components, o.rootId);
+    const teto = o.impactLevel != null ? o.impactLevel : 3;
+    let dentro = false, nivelEncontrado = null;
+    for(let k = 0; k <= Math.min(3, teto); k++){
+      if((zona.levels[k] || []).indexOf(o.targetId) >= 0){ dentro = true; nivelEncontrado = k; break; }
+    }
+    // O nível 4 é emergência e é DERIVADO: só é consultado quando alguém pede explicitamente.
+    if(!dentro && teto >= 4 && !zona.dentro.has(o.targetId)){ dentro = true; nivelEncontrado = 4; }
+    if(!dentro) return Object.assign({ permitido:false, motivo:'fora-da-zona-de-impacto',
+      bloqueadoPor:'impact-scope', raiz:o.rootId }, base);
+    base.nivelImpacto = nivelEncontrado;
+  }
+  const perm = gLayoutOperationalPermission(o.ctx, o.targetId, o.action);
+  return Object.assign({}, base, perm, { raiz:o.rootId || null });
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   16. DESIGNER MOVES — a primeira vez que a arquitetura nova transforma layout
+   ════════════════════════════════════════════════════════════════════
+   Até aqui tudo era leitura. Esta seção produz GEOMETRIA: cada ação é uma decisão pequena de
+   design — quebrar uma linha, apertar um respiro, devolver o tracking, empurrar o bloco de
+   baixo — aplicada sobre um clone e devolvida como resultado.
+
+   ⚠ NÃO EXISTE CANDIDATE SEARCH. Nada aqui combina ações, pontua, escolhe vencedor ou entra em
+   `gLayoutEscolherAlternativa`. `gApplyRelativeAnchors` continua sem conhecer este arquivo, e a
+   arte que o franqueado baixa hoje é byte a byte a de antes. O objetivo desta fase é provar que
+   cada MOVIMENTO, isolado, faz o que promete — antes de deixar alguém encadeá-los.
+
+   ── AS TRÊS REGRAS ──
+   · GERAR E APLICAR SÃO SEPARADOS. "Que movimentos posso tentar?" e "que resultado este
+     movimento produz?" são perguntas diferentes, e misturá-las é como um gerador passa a
+     depender do efeito colateral do outro.
+   · TODA AÇÃO PASSA PELO PORTÃO. Nada é gerado sem `gLayoutCanAttempt`. Gerar candidato
+     inválido para descartar depois é pagar o clone e a medida por nada — e é como uma ação
+     proibida acaba escapando no dia em que alguém esquece de filtrar.
+   · CLONES INDEPENDENTES. A ação B nunca é aplicada sobre o resultado de A. Combinação é a fase
+     seguinte; aqui um ramo não contamina o outro, nem a base, nem o template.
+
+   ── O QUE CADA AÇÃO É, NO MOTOR DE HOJE ──
+   Cada uma corresponde a UM degrau que a escada de `gApplyRelativeAnchors` já executa. Nenhuma
+   inventa comportamento novo; elas dão nome, limite e reversibilidade ao que já acontece. */
+
+const G_ACAO_V = 1;
+
+/* VOCABULÁRIO FECHADO DE PROBLEMAS. Danos OBJETIVOS, verificáveis na geometria — nada de
+   "layout feio" ou "sem equilíbrio", que ninguém consegue testar nem reproduzir. */
+const G_LAYOUT_PROBLEMAS = {
+  'text-overflow':      'a tinta passou da caixa que o designer desenhou',
+  'collision':          'duas coisas que não se tocavam no desenho passaram a se tocar',
+  'outside-canvas':     'alguma coisa saiu da prancheta (ou piorou a sangria que já tinha)',
+  'spacing-pressure':   'o respiro mínimo entre blocos deixou de caber',
+  'container-mismatch': 'a placa não abraça mais a tinta do texto',
+  'optional-empty':     'um campo opcional ficou em branco e deixou um vão'
+};
+
+/* PROBLEMA → AÇÕES CANDIDATAS. A geração é LOCAL: olha o alvo do problema, não a arte inteira.
+   A ordem aqui é a ordem em que as ações saem, e ela é a da escada real — do movimento mais
+   barato (quebrar, apertar respiro) ao mais caro (mexer na tipografia, escalar o componente). */
+/* `alvo` diz QUEM sofre a ação, e a distinção é essencial numa colisão: quem precisa descer é a
+   VÍTIMA (o bloco empurrado), mas quem precisa encolher é o CULPADO (o texto que cresceu).
+   Mirar sempre a vítima faria a busca tentar encolher o preço porque o título ficou longo —
+   exatamente o estrago que a regra de 19/08 existe para impedir. */
+const G_PROBLEMA_ACOES = {
+  'text-overflow':      [{a:'wrap-text',alvo:'alvo'},{a:'restore-tracking',alvo:'alvo'},
+                         {a:'compress-line-height',alvo:'alvo'},{a:'shrink-text',alvo:'alvo'}],
+  'collision':          [{a:'compress-gap',alvo:'alvo'},{a:'push-dependent',alvo:'alvo'},
+                         {a:'resize-container',alvo:'alvo'},
+                         {a:'wrap-text',alvo:'culpado'},{a:'compress-line-height',alvo:'culpado'},
+                         {a:'shrink-text',alvo:'culpado'},{a:'scale-component',alvo:'culpado'}],
+  'outside-canvas':     [{a:'wrap-text',alvo:'alvo'},{a:'compress-line-height',alvo:'alvo'},
+                         {a:'shrink-text',alvo:'alvo'}],
+  'spacing-pressure':   [{a:'compress-gap',alvo:'alvo'},{a:'compress-line-height',alvo:'culpado'}],
+  'container-mismatch': [{a:'resize-container',alvo:'alvo'}],
+  'optional-empty':     [{a:'collapse-empty-gap',alvo:'alvo'}]
+};
+
+/* ASSINATURA DA AÇÃO — a mesma decisão lógica dá a mesma assinatura, sempre. Serve para a fase
+   seguinte reconhecer que dois ramos chegaram ao mesmo movimento sem comparar objeto a objeto.
+   Os `params` entram ORDENADOS: a ordem das chaves de um objeto não pode virar informação. */
+function gLayoutActionSignature(acao){
+  if(!acao) return '';
+  const p = acao.params || {};
+  const chaves = Object.keys(p).sort().map(k => k + '=' + JSON.stringify(p[k])).join(',');
+  return _gGramHash(['v' + G_ACAO_V, acao.id, acao.targetId || '', acao.componentId || '',
+                     acao.rootId || '', chaves].join('#'));
+}
+
+function _gAcao(id, alvo, extra){
+  const a = Object.assign({ id:id, targetId:alvo, rootId:null, componentId:null,
+                            impactLevel:null, params:{}, reason:'' }, extra || {});
+  a.signature = gLayoutActionSignature(a);
+  return a;
+}
+
+/* Mede a tinta de um texto com o MOTOR ÚNICO de encaixe — nunca uma medida paralela.
+   ⚠ MEDE O ESTADO ATUAL, COM OS CARIMBOS. `gLayoutLimpaCarimbos` serve para medir a REFERÊNCIA
+   autorada (é o que o `_tinta` faz) — usá-lo aqui apagava `_tetoFonte`, `_entrelinha` e
+   `_layoutW`, que são justamente o que as ações escrevem: toda ação parecia não ter efeito, o
+   detector via o mesmo dano de antes e a busca podava todos os ramos na primeira volta. */
+function _gAcaoFit(ctx, l, texto){
+  if(!ctx || !ctx._ctx2d || typeof gFitTextLayer !== 'function') return null;
+  /* RE-MEDE SÓ QUEM MUDOU — a mesma disciplina do `_remedir` do solver, que existe porque
+     remedir a arte inteira a cada volta custava 116ms por tecla. Aqui a busca chama o detector
+     uma vez por candidato: sem cache, 344 textos × dezenas de candidatos, e a busca passava de
+     360ms numa arte grande. A chave é o que REALMENTE muda a medida — geometria de posição
+     não entra, porque mover não remede. */
+  const chave = l.id + '|' + [l.w, l.h, l.fontSize, l._tetoFonte, l._entrelinha, l.letterSpacing,
+    l._layoutW, l._layoutMaxLines, l.textBox, texto].join('\u0001');
+  const cache = ctx._medida || (ctx._medida = new Map());
+  if(cache.has(chave)) return cache.get(chave);
+  let f = null;
+  try{ f = gFitTextLayer(l, String(texto == null ? '' : texto), ctx._ctx2d, { encolher:false }); }
+  catch(e){ f = null; }
+  if(cache.size > 4000) cache.clear();      // teto: a busca é curta, o cache não pode crescer sozinho
+  cache.set(chave, f);
+  return f;
+}
+// O texto real do alvo: o valor do franqueado quando houver, senão o autorado.
+function _gAcaoTexto(ctx, l){
+  const bruto = l.content || '';
+  if(ctx && ctx.dados && typeof gInterpolate === 'function' && /\{\{/.test(bruto))
+    return gInterpolate(bruto, ctx.dados, {});
+  return bruto;
+}
+
+/**
+ * GERAÇÃO — que movimentos podem ser tentados para ESTE problema.
+ * Local por definição: olha o alvo e a zona dele, não a composição inteira.
+ *
+ * ⚠ ORIGINAL-FIRST: sem problema, devolve `[]`. Nenhum clone, nenhuma medida, nenhuma busca —
+ * o caminho feliz continua custando zero, que é o contrato deste motor desde sempre.
+ *
+ * @param {object} ctx     de `gBuildOperationalContext`
+ * @param {object} problem {tipo, targetId, rootId?, detalhe?}
+ * @returns {Array} descritores, ORDENADOS (pela escada real, depois por assinatura)
+ */
+function gGenerateLayoutActions(ctx, problem, camadas){
+  if(!ctx || !problem || !G_LAYOUT_PROBLEMAS[problem.tipo]) return [];
+  /* ── DE ONDE SAEM OS PARÂMETROS ───────────────────────────────────────────────────────────
+     O PORTÃO (elasticidade, capacidade, zona) continua lendo a arte AUTORADA pelo contexto: a
+     liberdade que o designer deixou não muda porque a busca já encolheu o título uma vez.
+     Os PARÂMETROS, não: o degrau de 8% tem que sair do corpo ATUAL, e a entrelinha alvo da
+     altura ATUAL. Enquanto os dois vinham de `ctx._camada`, repetir `shrink-text` devolvia o
+     mesmo `de → para` da primeira vez, a aplicação não mudava nada e a corrida morria no
+     primeiro degrau. `camadas` é o estado que o candidato realmente tem agora. */
+  const _atual = camadas ? new Map((camadas.layers || camadas).map(x => [x.id, x])) : null;
+  const _camada = (id) => (_atual && _atual.get(id)) || ctx._camada.get(id);
+  const alvo = problem.targetId;
+  const n = ctx._no.get(alvo);
+  const l = _camada(alvo);
+  if(!n || !l) return [];
+  const raiz = problem.rootId || null;
+  const ordem = G_PROBLEMA_ACOES[problem.tipo] || [];
+  const culpadoId = (problem.detalhe && problem.detalhe.culpado) || alvo;
+  const out = [];
+
+  ordem.forEach((passo, i) => {
+    const acaoId = passo.a;
+    const meta = G_LAYOUT_ACOES[acaoId];
+    if(!meta) return;
+    // Vítima ou culpado — ver `G_PROBLEMA_ACOES`.
+    const alvoId = passo.alvo === 'culpado' ? culpadoId : alvo;
+    const nAlvo = ctx._no.get(alvoId), lAlvo = _camada(alvoId);
+    if(!nAlvo || !lAlvo) return;
+
+    if(meta.alvo === 'component'){
+      const c = gComponentOfNode(ctx.components, alvoId);
+      if(!c) return;
+      const portao = gLayoutCanAttempt({ ctx, action:acaoId, targetId:c.id, rootId:null });
+      if(!portao.permitido) return;
+      out.push(_gAcao(acaoId, null, { componentId:c.id, rootId:raiz, ordem:i,
+        params:{ fator:0.92 }, reason:meta.degrau }));
+      return;
+    }
+
+    /* ⛔ O PORTÃO. Se a capacidade operacional bloqueia, a ação NÃO EXISTE — não é gerada para
+       ser descartada depois. Ele já cobre elasticidade, capacidade do motor e escopo de zona. */
+    const portao = gLayoutCanAttempt({ ctx, action:acaoId, targetId:alvoId, rootId:raiz,
+                                       impactLevel:problem.impactLevel });
+    if(!portao.permitido) return;
+
+    const params = {};
+    let ok = true;
+    switch(acaoId){
+      case 'wrap-text': {
+        /* A largura disponível: a do corredor que o problema apurou, senão a caixa desenhada.
+           Quem quebra é `gSmartWrapText` — esta ação só diz ONDE cabe. */
+        const larg = (problem.detalhe && problem.detalhe.largura) || lAlvo.w || 0;
+        if(!(larg > 0)) { ok = false; break; }
+        params.largura = Math.round(larg);
+        params.maxLinhas = portao.capacidade.maxLinhas;
+        break;
+      }
+      case 'compress-gap':
+        // UM degrau, o que o motor tem: `_respiroFator` 1 → 0.5.
+        params.fator = portao.capacidade.fator;
+        break;
+      case 'compress-line-height': {
+        /* A MESMA conta do solver (`_entrelinhaAlvo`): a entrelinha que faria a tinta caber na
+           caixa, com piso 1.05. Só existe com MAIS DE UMA LINHA real — e por isso se mede. */
+        const f = _gAcaoFit(ctx, lAlvo, _gAcaoTexto(ctx, lAlvo));
+        const linhas = (f && f.lines && f.lines.length) || 1;
+        if(linhas < 2){ ok = false; break; }
+        const fs = gLayoutCorpoAtual(lAlvo);
+        const atual = (typeof gLineHeightDe === 'function') ? gLineHeightDe(lAlvo) : (l.lineHeight || 1.2);
+        const alvoLh = Math.max(1.05, Math.min(atual, Math.round(((lAlvo.h || 0) / Math.max(1, fs * linhas)) * 1000) / 1000));
+        if(!(alvoLh < atual - 0.001)){ ok = false; break; }
+        params.de = atual; params.para = alvoLh; params.linhas = linhas;
+        break;
+      }
+      case 'restore-tracking': {
+        /* ⛔ SÓ O TRACKING QUE O MOTOR ADICIONOU. O solver também aperta o tracking AUTORADO até
+           zero; esta ação não faz isso, de propósito — devolver o que o render somou é reverter
+           uma decisão do motor, apertar o do designer é mexer no desenho dele. Divergência
+           assumida e mais conservadora que a escada. */
+        if(lAlvo.letterSpacing != null){ ok = false; break; }
+        const corpo = gLayoutCorpoAtual(lAlvo);
+        const efetivo = gLayoutTrackingEfetivo(lAlvo, corpo);
+        const novo = Math.max(0, efetivo - corpo * 0.02);
+        if(!(efetivo > 0.01)){ ok = false; break; }
+        params.de = efetivo; params.para = novo; params.origem = 'motor';
+        break;
+      }
+      case 'shrink-text': {
+        /* UM degrau (8%), como a escada — nunca direto ao piso. Modo NORMAL, sem emergência.
+           ⚠ O corpo é o que VALE AGORA (`gLayoutCorpoAtual`), não o autorado: sem isso a corrida
+           monotônica regenerava o mesmo `64 → 58` a cada volta e morria no primeiro degrau. */
+        const atual = Math.round(gLayoutCorpoAtual(lAlvo));
+        const piso = gLayoutPisoFonte(lAlvo, false);
+        const novo = Math.max(piso, Math.floor(atual * 0.92));
+        if(!(novo < atual)){ ok = false; break; }
+        params.de = atual; params.para = novo; params.piso = piso;
+        break;
+      }
+      case 'push-dependent': {
+        const delta = Math.round((problem.detalhe && problem.detalhe.delta) || 0);
+        if(!(delta > 0)){ ok = false; break; }      // a corrente inferida SÓ empurra
+        params.delta = delta;
+        break;
+      }
+      case 'resize-container': {
+        const e = (ctx.graph.edges || []).find(x => x.tipo === 'plate-of' && x.de === alvoId);
+        if(!e){ ok = false; break; }
+        params.texto = e.para;
+        break;
+      }
+      case 'collapse-empty-gap': {
+        const cred = portao.capacidade.credito;
+        if(!(cred > 0)){ ok = false; break; }
+        params.credito = Math.round(cred);
+        break;
+      }
+      default: ok = false;
+    }
+    if(!ok) return;
+    out.push(_gAcao(acaoId, alvoId, { rootId:raiz, impactLevel:portao.nivelImpacto, ordem:i,
+      params:params, reason:meta.degrau }));
+  });
+
+  /* ORDEM EXPLÍCITA: a da escada real primeiro, assinatura como desempate. A ordem de um `Set`
+     ou de `Object.keys` nunca pode virar a ordem em que o motor tenta as coisas. */
+  out.sort((a, b) => a.ordem - b.ordem || (a.signature < b.signature ? -1 : 1));
+  out.forEach(a => { delete a.ordem; });
+  return out;
+}
+
+/**
+ * APLICAÇÃO — o resultado que ESTE movimento produz, sozinho.
+ *
+ * ⚠ PURA E ISOLADA. Clona as camadas, aplica, devolve. A base não é tocada, e o resultado de uma
+ * ação nunca é entrada de outra nesta fase.
+ *
+ * @returns {{layers, action, changedIds, geometryChanged, typographyChanged, opts, diagnostics}}
+ */
+function gApplyLayoutAction(base, action, ctx){
+  /* O ESTADO de um candidato é `{layers, solveState}` — e não só as camadas. Oito das nove
+     ações escrevem na camada; `compress-gap` escreve numa OPÇÃO DE SOLVE (`respiroFator`), que
+     não tem onde morar numa layer. Enquanto o estado era só a lista de camadas, esse efeito
+     desaparecia no passo seguinte: a ação "funcionava" no descritor e o detector media como se
+     o respiro ainda fosse 1.
+     Aceita array (a forma da Fase 5) ou estado completo — devolve sempre o estado completo. */
+  const st = _gEstado(base);
+  const camadas = st.layers.map(l => Object.assign({}, l));
+  const idx = new Map(camadas.map(l => [l.id, l]));
+  const r = { layers:camadas, solveState:Object.assign({}, st.solveState), action:action,
+              changedIds:[], geometryChanged:false, typographyChanged:false,
+              opts:null, diagnostics:{} };
+  if(!action || !G_LAYOUT_ACOES[action.id]){ r.diagnostics.erro = 'acao-desconhecida'; return r; }
+  const l = action.targetId ? idx.get(action.targetId) : null;
+  const p = action.params || {};
+  const marca = (id) => { if(r.changedIds.indexOf(id) < 0) r.changedIds.push(id); };
+
+  switch(action.id){
+    case 'wrap-text': {
+      if(!l) break;
+      /* O corredor transitório — exatamente o que `_gInferirCorredores` carimba. Quem quebra
+         continua sendo `gSmartWrapText`, com unidades semânticas, teto de linhas e regras
+         editoriais: esta ação não implementa quebra nenhuma, só abre a largura. */
+      const antes = _gAcaoFit(ctx, l, _gAcaoTexto(ctx, l));
+      l._layoutW = p.largura;
+      l._layoutMaxLines = p.maxLinhas;
+      const depois = _gAcaoFit(ctx, l, _gAcaoTexto(ctx, l));
+      r.diagnostics = { linhasAntes:(antes && antes.lines && antes.lines.length) || null,
+                        linhasDepois:(depois && depois.lines && depois.lines.length) || null,
+                        largura:p.largura, maxLinhas:p.maxLinhas,
+                        linhas:(depois && depois.lines) || null };
+      r.geometryChanged = true; marca(l.id);
+      break;
+    }
+    case 'compress-gap': {
+      /* O respiro é parâmetro do SOLVE, não propriedade de camada — o motor o aplica em
+         `_gLayoutRespiro` via `_respiroFator`. A ação grava no SOLVE STATE do candidato, que é
+         o que o detector do próximo passo vai consumir. Fingir que isso é geometria de layer
+         seria inventar um segundo caminho para um degrau que já tem o seu. */
+      r.solveState.respiroFator = p.fator;
+      r.opts = { _respiroFator: p.fator };
+      r.diagnostics = { fator:p.fator, degraus:1 };
+      break;
+    }
+    case 'compress-line-height': {
+      if(!l) break;
+      l._entrelinha = p.para;                 // o mesmo carimbo que a escada usa
+      r.typographyChanged = true; marca(l.id);
+      r.diagnostics = { de:p.de, para:p.para, piso:1.05, linhas:p.linhas };
+      break;
+    }
+    case 'restore-tracking': {
+      if(!l) break;
+      // Escrito no `letterSpacing` do clone — a propriedade que a MEDIDA e o RENDER já leem.
+      l.letterSpacing = p.para;
+      l._trackApertado = true;                // uma vez por camada: o ganho não se repete
+      r.typographyChanged = true; marca(l.id);
+      r.diagnostics = { de:p.de, para:p.para, origem:p.origem };
+      break;
+    }
+    case 'shrink-text': {
+      if(!l) break;
+      l._tetoFonte = p.para;
+      r.typographyChanged = true; marca(l.id);
+      r.diagnostics = { de:p.de, para:p.para, piso:p.piso, degrau:'8%' };
+      break;
+    }
+    case 'push-dependent': {
+      if(!l) break;
+      l.y = (l.y || 0) + p.delta;             // só empurra, nunca puxa
+      r.geometryChanged = true; marca(l.id);
+      r.diagnostics = { delta:p.delta, de:(l.y - p.delta), para:l.y };
+      break;
+    }
+    case 'resize-container': {
+      if(!l) break;
+      /* A MESMA conta de `_seguirPlacas`, via `gLayoutPlacaSegue`. O descritor da placa sai da
+         TINTA AUTORADA (o que o `ctx._tinta` já mediu) contra a caixa desenhada — exatamente o
+         que `_gInferirPlacas` grava em `_placa`. Reimplementar o reequilíbrio aqui produziria
+         uma placa parecida e diferente, que é o pior resultado possível. */
+      const t = idx.get(p.texto);
+      const ref = ctx && ctx._tinta && ctx._tinta.get(p.texto);
+      const fit = t && _gAcaoFit(ctx, t, _gAcaoTexto(ctx, t));
+      if(!t || !fit || !ref){ r.diagnostics.erro = 'sem-medida'; break; }
+      const caixa = (t.textBox === 'box');
+      const w = caixa ? (t.w || 0) : (fit.larguraMax || t.w || 0);
+      const h = fit.altura || t.h || 0;
+      const tinta = { x:(t.x || 0) + (caixa ? 0 : _gInkDx(t, w)), y:(t.y || 0) + _gInkDy(t, h), w:w, h:h };
+      /* O MESMO descritor do detector e do solver: `_placa` quando o estado veio assentado,
+         a derivação contra a placa autorada quando não veio (aplicação isolada da Fase 5, onde
+         as duas contas coincidem). Rederivar da placa já reequilibrada era o que fazia a ação
+         não ser idempotente — o alvo andava junto com ela. */
+      const desc = l._placa || { refW:ref.w || 0, refH:ref.h || 0,
+                     padE: ref.x - (l.x || 0), padT: ref.y - (l.y || 0),
+                     padD: ((l.x || 0) + (l.w || 0)) - (ref.x + (ref.w || 0)),
+                     padB: ((l.y || 0) + (l.h || 0)) - (ref.y + (ref.h || 0)) };
+      const g = gLayoutPlacaSegue(desc, tinta, t.fontSize);
+      const antes = { x:l.x, y:l.y, w:l.w, h:l.h };
+      const mexeu = Math.abs(g.x - l.x) > 0.5 || Math.abs(g.y - l.y) > 0.5
+                 || Math.abs(g.w - l.w) > 0.5 || Math.abs(g.h - l.h) > 0.5;
+      if(mexeu){
+        l.x = g.x; l.y = g.y; l.w = g.w; l.h = g.h;
+        r.geometryChanged = true; marca(l.id);
+      }
+      r.diagnostics = { antes, depois:{ x:l.x, y:l.y, w:l.w, h:l.h },
+                        padding:{ e:g.padE, t:g.padT, d:g.padD, b:g.padB },
+                        reequilibrou:g.reequilibrou, texto:p.texto, mexeu:mexeu };
+      break;
+    }
+    case 'scale-component': {
+      const c = ctx && gComponentById(ctx.components, action.componentId);
+      if(!c){ r.diagnostics.erro = 'componente-inexistente'; break; }
+      /* ESCALA PROPORCIONAL, com o piso de EMERGÊNCIA — é o degrau que o solver usa quando todo
+         o componente desce junto (`_pisoEmergenciaDe`): a hierarquia já está protegida pela
+         escala comum, então o piso correto é legibilidade, não 50% de cada camada. */
+      const alvos = [];
+      c.membros.forEach(id => {
+        const m = idx.get(id);
+        if(!m || m.type !== 'text') return;
+        const atual = Math.round(gLayoutCorpoAtual(m));
+        const novo = Math.max(gLayoutPisoFonte(m, true), Math.floor(atual * p.fator));
+        if(novo < atual){ m._tetoFonte = novo; marca(id); alvos.push({ id, de:atual, para:novo }); }
+      });
+      r.typographyChanged = alvos.length > 0;
+      r.diagnostics = { fator:p.fator, membros:alvos, componente:c.id, tipo:c.tipo };
+      break;
+    }
+    case 'collapse-empty-gap': {
+      if(!l) break;
+      l.y = (l.y || 0) - p.credito;            // sobe EXATAMENTE o vão que deixou de existir
+      r.geometryChanged = true; marca(l.id);
+      r.diagnostics = { credito:p.credito, de:(l.y + p.credito), para:l.y };
+      break;
+    }
+    default: r.diagnostics.erro = 'acao-sem-implementacao';
+  }
+  /* ── O MOVIMENTO REESCREVE A BASE AUTORADA ────────────────────────────────────────────────
+     O assentamento canônico (§17) sempre parte de `_geoAutor`. Se um Designer Move mexe em
+     x/y/w/h e não atualiza esse carimbo, o assentamento seguinte desfaz o movimento — e a busca
+     ficaria gerando ações que não sobrevivem ao próprio passo seguinte.
+     A distinção é a mesma de sempre: a corrente empurrar é CONSEQUÊNCIA (não vira base); o
+     designer descer o bloco é DECISÃO (vira base). */
+  const _baseIdx = new Map(st.layers.map(l => [l.id, l]));
+  r.changedIds.forEach(id => {
+    const novo = idx.get(id), velho = _baseIdx.get(id);
+    if(!novo || !velho) return;
+    if((novo.x||0) === (velho.x||0) && (novo.y||0) === (velho.y||0)
+       && (novo.w||0) === (velho.w||0) && (novo.h||0) === (velho.h||0)) return;
+    novo._geoAutor = { x:novo.x || 0, y:novo.y || 0, w:novo.w || 0, h:novo.h || 0 };
+  });
+  r.changedIds.sort();
+  return r;
+}
+
+/**
+ * DIFF DE MUTAÇÃO — o que este movimento mexeu, em vocabulário de design.
+ * Reusa os diffs que já existem (§11 estrutural/visual, §12 componentes) em vez de reinventar
+ * comparação. ⚠ Isto NÃO pontua: diz O QUE mudou, nunca se ficou melhor.
+ */
+function gDescribeLayoutMutation(base, candidate, canvas){
+  const cv = canvas || { w:1080, h:1080 };
+  const gA = gCompileLayoutGrammar(base || [], cv), gB = gCompileLayoutGrammar(candidate || [], cv);
+  const estrut = gCompareLayoutStructure(gA, gB);
+  const cA = gCompileLayoutComponents(gA, gCompileCompositionGraph(gA));
+  const cB = gCompileLayoutComponents(gB, gCompileCompositionGraph(gB));
+  const comps = gCompareLayoutComponents(cA, cB);
+  const idxB = new Map((candidate || []).map(l => [l.id, l]));
+  const moved = [], resized = [], tipografia = [];
+  (base || []).forEach(a => {
+    const b = idxB.get(a.id);
+    if(!b) return;
+    if((a.x || 0) !== (b.x || 0) || (a.y || 0) !== (b.y || 0)) moved.push(a.id);
+    if((a.w || 0) !== (b.w || 0) || (a.h || 0) !== (b.h || 0)) resized.push(a.id);
+    const fa = a._tetoFonte != null ? a._tetoFonte : a.fontSize;
+    const fb = b._tetoFonte != null ? b._tetoFonte : b.fontSize;
+    if(fa !== fb || (a._entrelinha || null) !== (b._entrelinha || null)
+       || (a.letterSpacing == null ? null : a.letterSpacing) !== (b.letterSpacing == null ? null : b.letterSpacing))
+      tipografia.push(a.id);
+  });
+  return {
+    moved: moved.sort(), resized: resized.sort(), typographyChanged: tipografia.sort(),
+    componentChanged: !comps.sameComponents,
+    relationsChanged: estrut.relationsAdded.length > 0 || estrut.relationsRemoved.length > 0,
+    sameStructure: estrut.sameStructure, visualChanged: estrut.visualChanged,
+    estrutural: estrut, componentes: comps
+  };
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   17. CANDIDATE SEARCH — sequências curtas de movimentos seguros
+   ════════════════════════════════════════════════════════════════════
+   A §16 provou que cada movimento, isolado, faz o que promete. Falta a parte que um designer faz
+   sem pensar: quebrar a linha, ver que agora o CTA encostou no preço, e descer o CTA. Duas
+   decisões encadeadas.
+
+   ⛔ ISTO NÃO ESCOLHE VENCEDOR. A busca devolve TODAS as sequências que resolveram, e a pergunta
+   "qual delas preserva melhor a intenção do designer?" é da Fase 6. Aqui não existe estética,
+   nota, preferência ou gosto — só DANO OBJETIVO: saiu da arte, colidiu, não coube.
+
+   ⛔ E NÃO MUDA PRODUÇÃO. `gApplyRelativeAnchors` continua sem conhecer este arquivo. A arte que
+   o franqueado baixa hoje é byte a byte a de antes; o corpus e o fuzz provam isso a cada rodada.
+
+   ── O QUE MUDA EM RELAÇÃO À FASE 5 ──
+   Agora um candidato de profundidade 2 parte de um de profundidade 1. Mas cada RAMO continua
+   isolado: aplicar B sobre o resultado de A é o encadeamento; aplicar B sobre o resultado de C
+   por descuido é contaminação, e é ela que este código evita clonando a cada expansão.
+
+   ── POR QUE BUSCA E NÃO REGRA ──
+   A escada do solver é UM caminho fixo. Ele é bom e é por isso que continua no comando. Mas em
+   arte real existe mais de uma saída honesta — encolher o título OU quebrá-lo e descer o CTA — e
+   uma escada não tem como manter as duas na mesa até alguém poder compará-las. */
+
+/* LIMITES — centralizados e testáveis. Não são números mágicos espalhados, e não sobem em
+   silêncio: a expectativa é da ordem de 8–16 soluções úteis, não centenas. */
+/* ⚠ `maxDepth: 8` É OBSERVACIONAL, não uma escolha calibrada. A Fase 5.5 mediu 0 candidatos
+   `solved` no corpus com teto 3, enquanto a escada do solver dá até 32 voltas. Subir para 8
+   serve para MEDIR quantos movimentos um caso real precisa; o valor final sai do corpus, não
+   daqui. `maxCandidatos` é o freio que impede a busca mais funda de virar explosão. */
+const G_SEARCH_LIMITES = { beamWidth:8, maxDepth:8, maxCandidatos:240 };
+
+/* AÇÕES MONOTÔNICAS — repetir a ação leva sempre na mesma direção, um degrau por vez
+   (`shrink-text` tira 8% a cada volta, e o solver faz exatamente isso num laço).
+   Expandir uma por profundidade gastaria quatro níveis de busca com o MESMO movimento, e a
+   inteligência da busca ficaria presa em repetir em vez de combinar. Aqui as repetições viram
+   IRMÃS do mesmo pai — `shrink×1`, `shrink×2`, `shrink×3` nascem juntas, todas a um passo de
+   distância. Cada uma continua sendo N Designer Moves auditáveis, com todos os degraus no
+   histórico e nenhum piso pulado; o que encurta é a PROFUNDIDADE, não o rastro.
+   ⚠ As intermediárias continuam existindo como candidatos próprios — sem isso, `wrap → shrink×1`
+   deixaria de ser alcançável e a otimização mataria a diversidade de caminhos. */
+const G_ACAO_MONOTONICA = { 'shrink-text':1, 'compress-line-height':1, 'push-dependent':1 };
+
+/* PRIORIDADE DOS PROBLEMAS — derivada da própria escada: ela trata primeiro o que INVALIDA a
+   arte (sair da prancheta), depois o que a quebra (colisão), depois o que aperta (não coube), e
+   por último o que é acabamento. Ordem explícita para que a ordem de um array nunca decida. */
+const G_LAYOUT_PROBLEM_PRIORITY = ['outside-canvas','collision','text-overflow',
+                                   'container-mismatch','spacing-pressure','optional-empty'];
+
+/* REPETIÇÃO POR AÇÃO — quantas vezes cada movimento pode aparecer na MESMA sequência.
+   Não é opinião: é quantos degraus o motor tem. `shrink-text` reduz 8% por vez e pode repetir
+   até o piso; `compress-gap` tem UM degrau (1 → 0.5) e repetir seria fingir um segundo;
+   `restore-tracking` o próprio solver marca `_trackApertado` para não repetir. */
+const G_ACAO_REPETICAO = {
+  'wrap-text':1, 'compress-gap':1, 'restore-tracking':1, 'compress-line-height':2,
+  'shrink-text':4, 'push-dependent':3, 'resize-container':2, 'scale-component':2,
+  'collapse-empty-gap':1
+};
+
+/* ── DETECTOR DE PROBLEMAS ────────────────────────────────────────────────────────────────
+   Detector DETECTA; generator PROPÕE. Esta função nunca sugere ação — ela descreve o dano com
+   dados suficientes para que a geração decida sozinha (alvo, com quem, quanto).
+
+   A dívida que a Fase 5 deixou era o `delta` do empurrão chegar pronto de fora. Agora ele sai
+   da mesma conta que a corrente usa: o quanto a TINTA do pai passou da tinta AUTORADA dele é
+   exatamente o quanto o filho desce (`newY = paiInk + gap`, e `gap` é autorado). */
+function gDetectLayoutProblems(state, ctx){
+  if(!ctx) return [];
+  const _st = _gEstado(state);
+  const camadas = _st.layers;
+  /* O RESPIRO EXIGIDO AGORA. Depois de `compress-gap` o candidato opera em 0.5, e medir como se
+     ainda fosse 1 faria a ação parecer inútil — a busca então descartaria o único movimento que
+     resolvia o caso. É o estado do candidato que manda, não o default. */
+  const fatorAtual = _st.solveState.respiroFator != null ? _st.solveState.respiroFator : 1;
+  const fatorApertado = fatorAtual > 0.5 ? 0.5 : fatorAtual;
+  const idx = new Map(camadas.map(l => [l.id, l]));
+  const cv = ctx.canvas || { w:0, h:0 };
+  const out = [];
+  const _fit = (l) => _gAcaoFit(ctx, l, _gAcaoTexto(ctx, l));
+  const _tintaAtual = (l) => {
+    if(l.type !== 'text') return { x:l.x||0, y:l.y||0, w:l.w||0, h:l.h||0 };
+    const f = _fit(l);
+    if(!f) return { x:l.x||0, y:l.y||0, w:l.w||0, h:l.h||0 };
+    /* ⛔ CAMPO VAZIO NÃO OCUPA TINTA — a mesma regra do solver (`resolved[].vazio`, que é
+       `_fit.altura === 0`). Ele é excluído dos nós e dos obstáculos justamente porque a caixa
+       desenhada é do texto que NÃO veio. Sem esta linha o fallback de caixa desenhada (que
+       existe para camada sem medida nenhuma) transformava o selo em branco num obstáculo
+       fantasma de 56px: no `semSelo` do corpus o detector acusava colisão com o produto que
+       tinha acabado de subir pelo colapso — dano que o solver não vê e que nenhuma ação
+       resolvia, porque o culpado era um texto inexistente. */
+    if(f.altura === 0) return null;
+    const caixa = (l.textBox === 'box' && !l.vertical);
+    const w = caixa ? (l.w||0) : (f.larguraMax || l.w || 0);
+    const h = f.altura || l.h || 0;
+    return { x:(l.x||0) + (caixa ? 0 : _gInkDx(l, w)), y:(l.y||0) + _gInkDy(l, h), w:w, h:h, fit:f };
+  };
+  const base = (id) => ctx._tinta.get(id) || null;
+  const atual = new Map();
+  camadas.forEach(l => { if(l && l.id) atual.set(l.id, _tintaAtual(l)); });
+
+  camadas.forEach(l => {
+    if(!l || !l.id) return;
+    const n = ctx._no.get(l.id);
+    if(!n || !n.visivel) return;
+    const a = atual.get(l.id), b = base(l.id);
+
+    /* ── TEXT-OVERFLOW ── a bandeira do encaixe, com o MESMO filtro do solver
+       (`_estourosRestritos`): só conta para camada COM CAMPO e que tenha uma largura imposta —
+       caixa de parágrafo, corredor ou texto vertical. Point text sem corredor não "estoura":
+       ele abraça os glifos e cresce, e isso vira colisão ou saída da arte, não overflow.
+       Sem esse filtro o detector acusava dano em cenário NOMINAL que o solver resolve em ZERO
+       voltas — ou seja, discordava do motor sobre o que é arte saudável. */
+    if(l.type === 'text' && a && a.fit && a.fit.estourou && n.campos.length
+       && (l.textBox === 'box' || l._layoutW != null || l.vertical)){
+      out.push({ tipo:'text-overflow', targetId:l.id,
+        detalhe:{ linhas:(a.fit.lines && a.fit.lines.length) || 1, largura:l._layoutW || l.w || 0,
+                  excesso: b ? Math.round(Math.max(0, a.h - b.h)) : 0 } });
+    }
+
+    // ── OUTSIDE-CANVAS ── piorou a sangria que o desenho já tinha (nunca a sangria autorada).
+    if(cv.w && cv.h && a && b && gLayoutPiorouBorda(b, a, cv))
+      out.push({ tipo:'outside-canvas', targetId:l.id,
+        detalhe:{ excedeAbaixo: Math.round(Math.max(0, (a.y + a.h) - cv.h)),
+                  excedeDireita: Math.round(Math.max(0, (a.x + a.w) - cv.w)) } });
+
+    // ── OPTIONAL-EMPTY ── campo em branco deixou um vão que só existe com conteúdo.
+    if(l.type === 'text' && ctx.dados && n.campos.length){
+      const vazio = n.campos.every(c => String(ctx.dados[c] == null ? '' : ctx.dados[c]).trim() === '');
+      if(vazio){
+        const abaixo = camadas.filter(o => o && o.id !== l.id && (o.y || 0) > (l.y || 0)
+          && gLayoutOverlapRatio(o.x||0, (o.x||0)+(o.w||0), l.x||0, (l.x||0)+(l.w||0)) >= G_LAYOUT_REL.coluna)
+          .sort((p, q) => (p.y||0) - (q.y||0))[0];
+        /* ⚠ O CRÉDITO É O QUE AINDA SOBROU, não a altura toda da faixa. O assentamento canônico
+           já fecha o vão (`anchor.colapso`, a mesma conta do solver), então medir a altura
+           autorada inteira fazia o detector pedir de novo uma subida que já tinha acontecido —
+           `collapse-empty-gap` rodava, nada mudava, e o problema renascia igual. */
+        const autor = abaixo && ctx._camada.get(abaixo.id);
+        const jaSubiu = autor ? Math.max(0, (autor.y || 0) - (abaixo.y || 0)) : 0;
+        const credito = Math.round(Math.max(0, (l.h || 0) - jaSubiu));
+        if(abaixo && credito > 0) out.push({ tipo:'optional-empty', targetId:abaixo.id,
+          detalhe:{ campoVazio:l.id, credito:credito } });
+      }
+    }
+
+    // ── CONTAINER-MISMATCH ── a placa deixou de abraçar a tinta.
+    const ePlaca = (ctx.graph.edges || []).find(e => e.tipo === 'plate-of' && e.de === l.id);
+    if(ePlaca){
+      const t = idx.get(ePlaca.para), ref = base(ePlaca.para), ta = atual.get(ePlaca.para);
+      /* ⛔ O DESCRITOR DA PLACA É DO SOLVER, e é UM SÓ. `_gInferirPlacas` grava `_placa` uma vez,
+         contra a caixa autorada, e o motor reusa em toda volta. Enquanto o detector rederivava
+         os paddings da placa COMO ELA ESTÁ, o `container-mismatch` não convergia: `_seguirPlacas`
+         já tinha reequilibrado os lados, rederivar dali pedia um segundo reequilíbrio, e o
+         mismatch renascia a cada passo. O assentamento canônico devolve as camadas com `_placa`
+         carimbado — então aqui se LÊ o descritor em vez de reinventá-lo.
+         O fallback (estado não assentado) existe para a aplicação isolada da Fase 5, onde a
+         placa ainda é a autorada e as duas contas coincidem. */
+      if(t && ref && ta){
+        const desc = l._placa || { refW:ref.w||0, refH:ref.h||0,
+          padE:ref.x-(l.x||0), padT:ref.y-(l.y||0),
+          padD:((l.x||0)+(l.w||0))-(ref.x+(ref.w||0)), padB:((l.y||0)+(l.h||0))-(ref.y+(ref.h||0)) };
+        const g = gLayoutPlacaSegue(desc, ta, t.fontSize);
+        if(g && (Math.abs(g.x-(l.x||0))>1 || Math.abs(g.y-(l.y||0))>1
+              || Math.abs(g.w-(l.w||0))>1 || Math.abs(g.h-(l.h||0))>1))
+          out.push({ tipo:'container-mismatch', targetId:l.id, detalhe:{ texto:ePlaca.para } });
+      }
+    }
+  });
+
+  /* ── COLISÃO e PRESSÃO DE RESPIRO ── o MESMO teste do solver (`gLayoutColisaoEntre`), nos dois
+     patamares que ele tem: com o respiro APERTADO já colide → `collision`; só com o respiro
+     IDEAL → `spacing-pressure`, que é o degrau anterior. Não são dois conceitos: é a mesma
+     régua em dois níveis, que é exatamente como a escada a usa. */
+  /* A lista de OBSTÁCULOS sai da composição AUTORADA e não muda de um candidato para outro —
+     `_gLayoutObstaculo` faz uma varredura por camada, então recalculá-la a cada detecção era
+     O(n²) por chamada. Calculada uma vez por contexto. */
+  if(!ctx._obstaculos){
+    const rects = _gDetRects(camadas, ctx);
+    ctx._obstaculos = camadas.filter(o => o && typeof _gLayoutObstaculo === 'function'
+      && _gLayoutObstaculo(o, camadas, cv, rects)).map(o => o.id);
+  }
+  const obst = ctx._obstaculos.map(id => idx.get(id)).filter(Boolean);
+  camadas.forEach(t => {
+    if(!t || t.type !== 'text') return;
+    const n = ctx._no.get(t.id);
+    if(!n || !n.visivel) return;
+    const ta = atual.get(t.id), tb = base(t.id);
+    if(!ta || !tb || !ta.w || !ta.h) return;
+    // Quem não cresceu nem foi movido é VÍTIMA, não causa — a mesma guarda do solver.
+    const delta = Math.max(0, ta.w-tb.w) + Math.max(0, ta.h-tb.h)
+                + Math.abs(ta.x-tb.x) + Math.abs(ta.y-tb.y);
+    if(delta <= 1) return;
+    /* CORTE POR DISTÂNCIA — o respiro máximo que a régua pode exigir para ESTE texto. Dois
+       retângulos separados por mais que isso não têm como colidir, e comparar todos contra
+       todos é O(mudou × obstáculos): numa arte de 344 camadas com todos os campos alterados
+       são ~100 mil pares. O corte não esconde candidato nenhum — ele só não pergunta o que a
+       própria régua já responderia "não". */
+    const padMax = _gLayoutRespiro(t, 0, cv, fatorAtual) + G_LAYOUT_REL.tol;
+    obst.forEach(o => {
+      if(o === t || !o.id) return;
+      const oa = atual.get(o.id), ob = base(o.id) || { x:o.x||0, y:o.y||0, w:o.w||0, h:o.h||0 };
+      if(!oa) return;
+      if(ta.x - (oa.x + oa.w) > padMax || oa.x - (ta.x + ta.w) > padMax
+         || ta.y - (oa.y + oa.h) > padMax || oa.y - (ta.y + ta.h) > padMax) return;
+      /* DOIS PATAMARES, a partir do estado ATUAL: se colide até com o respiro mais apertado
+         que ainda resta, é `collision` (apertar não salva). Se só colide no patamar atual, é
+         `spacing-pressure` — e aí `compress-gap` resolve de verdade. Com o respiro já em 0.5 os
+         dois patamares coincidem e não existe mais pressão a aliviar, que é o correto. */
+      const apertado = gLayoutColisaoEntre(ta, tb, oa, ob, t, cv, fatorApertado);
+      const ideal = gLayoutColisaoEntre(ta, tb, oa, ob, t, cv, fatorAtual);
+      if(apertado.colide){
+        /* QUEM É O CULPADO: quem CRESCEU, não quem está mais abaixo. Escolher por posição
+           apontava a placa como culpada de uma colisão causada pelo título — e a busca então
+           tentava encolher a vítima. Cada candidato é medido contra a PRÓPRIA tinta autorada;
+           misturar as duas referências produzia delta inventado. */
+        const _cresceu = (l, ag, bs) => (!l || !ag || !bs) ? 0
+          : Math.max(0, (ag.y + ag.h) - (bs.y + bs.h)) + Math.max(0, (ag.w || 0) - (bs.w || 0));
+        const obAtual = atual.get(o.id), obBase = base(o.id) || { x:o.x||0, y:o.y||0, w:o.w||0, h:o.h||0 };
+        const cT = _cresceu(t, ta, tb), cO = _cresceu(o, obAtual, obBase);
+        const culpado = cO > cT ? o : t;
+        const cb = culpado === t ? tb : obBase, ca = culpado === t ? ta : obAtual;
+        const vitima = culpado === t ? o : t;
+        const vb = culpado === t ? obBase : tb, va = culpado === t ? obAtual : ta;
+        /* O DELTA é o EMPURRÃO QUE FALTA, não o excesso total do culpado — e a diferença não é
+           sutil. A corrente do solver posiciona em ABSOLUTO (`paiTinta + gap autorado`) e
+           reposiciona do zero a cada volta, justamente para não acumular empurrão sobre
+           empurrão. Reportar o excesso total fazia cada nova detecção pedir os mesmos 83px de
+           novo: o assentamento empurrava 249px onde o solver empurra 83, e a busca partia de um
+           estado que o motor jamais produz.
+           `gap` é o vão AUTORADO entre as duas tintas; o alvo é o pé da tinta do culpado AGORA
+           mais esse vão; o delta é a distância que falta. Converge em uma volta. */
+        const gapAutorado = vb.y - (cb.y + cb.h);
+        const alvoY = (ca.y + ca.h) + gapAutorado;
+        out.push({ tipo:'collision', targetId:o.id, withId:t.id,
+          detalhe:{ delta: Math.round(Math.max(0, alvoY - va.y)),
+                    culpado:culpado.id, vitima:vitima.id, motivo:apertado.motivo } });
+      }else if(ideal.colide){
+        out.push({ tipo:'spacing-pressure', targetId:t.id, withId:o.id,
+          detalhe:{ gapBase:Math.round(ideal.gapBase) } });
+      }
+    });
+  });
+
+  /* Ordem EXPLÍCITA: prioridade declarada, depois alvo, depois tipo. A ordem em que as camadas
+     aparecem na lista nunca pode decidir qual problema a busca ataca primeiro. */
+  out.sort((a, b) => G_LAYOUT_PROBLEM_PRIORITY.indexOf(a.tipo) - G_LAYOUT_PROBLEM_PRIORITY.indexOf(b.tipo)
+    || (a.targetId < b.targetId ? -1 : a.targetId > b.targetId ? 1 : 0)
+    || (a.withId || '') < (b.withId || '') ? -1 : 1);
+  // Um problema por par/alvo: o mesmo dano visto dos dois lados é um dano só.
+  const vistos = new Set();
+  return out.filter(p => {
+    const k = p.tipo + '|' + [p.targetId, p.withId || ''].sort().join('|');
+    if(vistos.has(k)) return false;
+    vistos.add(k); return true;
+  });
+}
+/* A MAGNITUDE do dano — a soma dos excessos que os próprios problemas já reportam. Serve a UMA
+   pergunta: este ramo progrediu? Contar problemas não basta — um degrau de 8% num título que
+   estoura 448px não elimina a colisão, mas encurta o excesso, e sem isso a busca pararia na
+   primeira tentativa e jamais encadearia dois encolhimentos.
+   ⛔ NÃO É NOTA. É pixel de dano somado, sem peso, sem papel, sem gosto. Quem julga é a Fase 6. */
+function _gDanoTotal(problemas){
+  return (problemas || []).reduce((s, p) => {
+    const d = p.detalhe || {};
+    return s + (d.delta || 0) + (d.excesso || 0) + (d.excedeAbaixo || 0) + (d.excedeDireita || 0);
+  }, 0);
+}
+
+// Retângulos autorados por ID — o que `_gLayoutObstaculo` espera receber como referência.
+function _gDetRects(camadas, ctx){
+  const m = {};
+  (camadas || []).forEach(l => { if(l && l.id) m[l.id] = ctx._tinta.get(l.id)
+    || { x:l.x||0, y:l.y||0, w:l.w||0, h:l.h||0 }; });
+  return m;
+}
+
+/* ── CANDIDATO ────────────────────────────────────────────────────────────────────────────
+   Serializável, sem função, sem referência a objeto vivo. */
+function _gCandidato(base, opts){
+  const c = Object.assign({ id:'', rootId:null, problem:null, actions:[], actionSignatures:[],
+    depth:0, layers:base, solveState:{}, changedIds:[], status:'partial', diagnostics:{},
+    signature:'' }, opts || {});
+  c.signature = gLayoutCandidateSignature(c);
+  c.id = 'cand:' + c.signature;
+  return c;
+}
+
+/**
+ * ASSINATURA DO CANDIDATO — o ESTADO, não o caminho.
+ * Dois caminhos diferentes que chegaram à mesma composição efetiva têm que ser reconhecidos como
+ * o mesmo candidato; deduplicar pela lista de ações deixaria os dois vivos e a Fase 6 escolheria
+ * entre duas cópias da mesma coisa. Entra a geometria e a tipografia TRANSITÓRIA (o teto de
+ * fonte, a entrelinha, o tracking, o corredor) — que é o que o render vai ler.
+ */
+/* Normaliza para `{layers, solveState}`. Aceita array puro (compatível com a Fase 5). */
+function _gEstado(x){
+  if(Array.isArray(x)) return { layers:x, solveState:{} };
+  return { layers:(x && x.layers) || [], solveState:Object.assign({}, (x && x.solveState) || {}) };
+}
+// As chaves de solve que fazem parte da IDENTIDADE de um estado — ordenadas, nunca a ordem do objeto.
+const G_SOLVE_STATE_CHAVES = ['respiroFator'];
+
+function gLayoutCandidateSignature(candidate){
+  const ls = (candidate && candidate.layers) || [];
+  const canon = ls.map(l => [l.id, Math.round(l.x||0), Math.round(l.y||0),
+      Math.round(l.w||0), Math.round(l.h||0),
+      l._tetoFonte != null ? Math.round(l._tetoFonte) : '',
+      l._entrelinha != null ? l._entrelinha : '',
+      l.letterSpacing != null ? l.letterSpacing : '',
+      l._layoutW != null ? Math.round(l._layoutW) : '',
+      l._layoutMaxLines != null ? l._layoutMaxLines : ''].join(':'))
+    .sort().join('|');
+  /* ⚠ O SOLVE STATE ENTRA NA ASSINATURA. Dois candidatos com a geometria idêntica mas respiro
+     1 e 0.5 NÃO são o mesmo estado: o segundo tem uma folga que o primeiro não tem, e tratá-los
+     como iguais deduplicaria justamente o efeito de `compress-gap`. */
+  const ss = (candidate && candidate.solveState) || {};
+  const canonSolve = G_SOLVE_STATE_CHAVES.map(k => k + '=' + (ss[k] != null ? ss[k] : '')).join(',');
+  return _gGramHash('c2#' + canon + '#' + canonSolve);
+}
+
+/* ── CANONICAL SETTLE — o estado normal da arte com o conteúdo real ───────────────────────
+   ⛔ ASSENTAR NÃO É DESIGNER MOVE. A corrente empurrar o bloco de baixo porque o de cima
+   cresceu não é uma decisão de design — é o conteúdo real ocupando o lugar dele. A placa
+   acompanhar a tinta do texto também não é uma alternativa: é a placa fazendo o que a placa faz.
+   Tratar isso como movimento fazia a busca gastar profundidade "resolvendo" o que já estaria
+   resolvido antes de começar, e encher o histórico de decisões que ninguém decidiu.
+
+   A Fase 5.75 tentou reproduzir `_posicionar()` com os próprios Designer Moves. Aproximação não
+   serve: o `container-mismatch` não convergia porque o descritor da placa andava junto com ela,
+   e o empurrão acumulava porque o delta era relativo. Agora não há aproximação — o solver ganhou
+   uma saída (`_soAssentar`) que devolve exatamente o estado que ele julga antes de subir a
+   escada. Paridade por CONSTRUÇÃO: é o mesmo código.
+
+   ⚠ IDEMPOTÊNCIA vem do desenho, não de sorte: o candidato guarda a geometria AUTORADA com os
+   carimbos de tipografia por cima, e o assentamento SEMPRE parte dali. Nada acumula, então
+   `settle(settle(x)) === settle(x)` por construção — e há teste. */
+function gSettleLayoutState(state, ctx){
+  const st = _gEstado(state);
+  if(typeof gApplyRelativeAnchors !== 'function')
+    return { layers:st.layers, solveState:st.solveState, assentado:false, diagnostics:null };
+  /* ── A BASE DO ASSENTAMENTO É SEMPRE A GEOMETRIA AUTORADA ──────────────────────────────
+     `_posicionar()` lê a posição publicada de cada camada (`yPub`) como PISO da corrente, e
+     `_gInferirPlacas` deriva os quatro paddings da placa contra a caixa desenhada. Assentar em
+     cima de um estado já assentado move as duas referências: o piso desce mais um colapso e o
+     padding vem do equilíbrio da volta anterior — que é exatamente o não-convergir da Fase 5.75.
+     Por isso cada camada carrega `_geoAutor`, a geometria com que o designer publicou, e o
+     assentamento SEMPRE restaura dali antes de chamar o motor.
+     ⚠ É daqui que vem a idempotência: `settle(settle(x)) === settle(x)` por construção, não por
+     coincidência numérica. Designer Move que mexe em geometria reescreve `_geoAutor` (§16) —
+     porque aí a base mudou de verdade, por decisão, não por consequência. */
+  const base = st.layers.map(l => {
+    const a = l._geoAutor;
+    if(a) return Object.assign({}, l, { x:a.x, y:a.y, w:a.w, h:a.h });
+    return Object.assign({}, l, { _geoAutor:{ x:l.x || 0, y:l.y || 0, w:l.w || 0, h:l.h || 0 } });
+  });
+  let out = null;
+  try{
+    out = gApplyRelativeAnchors(base, (ctx && ctx.dados) || {}, {},
+      { fitText:true, canvas:(ctx && ctx.canvas) || null, scope:'franqueado', _soAssentar:true });
+  }catch(e){ out = null; }
+  if(!out || !out.length)
+    return { layers:base, solveState:st.solveState, assentado:false, diagnostics:null };
+  /* O que o assentamento FEZ, para diagnóstico — fora do histórico de ações, porque não é
+     decisão adaptativa. Responde "o que o motor precisou fazer para representar este conteúdo",
+     que é outra pergunta. */
+  const idxB = new Map(base.map(l => [l.id, l]));
+  const moveu = [], cresceu = [];
+  out.forEach(l => {
+    const b = idxB.get(l.id);
+    if(!b) return;
+    if(Math.round(l.y||0) !== Math.round(b.y||0) || Math.round(l.x||0) !== Math.round(b.x||0)) moveu.push(l.id);
+    if(Math.round(l.w||0) !== Math.round(b.w||0) || Math.round(l.h||0) !== Math.round(b.h||0)) cresceu.push(l.id);
+  });
+  return { layers:out, solveState:st.solveState, assentado:true,
+           diagnostics:{ moveu:moveu.sort(), cresceu:cresceu.sort(),
+                         ms:(out._layoutMeta && out._layoutMeta.ms) || 0 } };
+}
+
+/* O estado assentado de um candidato, com cache pela assinatura dele. A busca assenta muitas
+   vezes; assentar é rodar o solver, e rodar o solver duas vezes para o mesmo estado é desperdício
+   puro. ⚠ A API existe para que ninguém detecte problema em estado CRU por descuido. */
+function gSettleCandidateState(cand, ctx){
+  const chave = (cand && cand.signature) || gLayoutCandidateSignature(cand);
+  const cache = ctx._settle || (ctx._settle = new Map());
+  if(cache.has(chave)) return cache.get(chave);
+  const r = gSettleLayoutState({ layers:cand.layers, solveState:cand.solveState }, ctx);
+  r.settledSignature = gLayoutCandidateSignature({ layers:r.layers, solveState:r.solveState });
+  if(cache.size > 500) cache.clear();
+  cache.set(chave, r);
+  return r;
+}
+
+/* ── PROBLEMAS CAUSAIS — sintoma não é causa ──────────────────────────────────────────────
+   Um título que cresce colide com o preço, com o CTA e com a placa: o detector reporta TRÊS
+   danos, e a Fase 5.75 mostrou a busca tentando corrigir as três vítimas uma a uma. O solver
+   não faz isso — ele encolhe o culpado, e os três somem juntos.
+
+   ⛔ CAUSA SÓ COM PROVA. O agrupamento usa exclusivamente o `culpado` que o detector já apurou
+   por evidência objetiva (tinta autorada × tinta atual, quem cresceu). Papel semântico,
+   proximidade e estética NÃO entram. Sintoma sem culpado identificado fica sozinho, no seu
+   próprio grupo — é melhor tratar um dano isolado do que inventar uma origem comum. */
+function gGroupLayoutProblems(problemas){
+  const grupos = new Map();
+  (problemas || []).forEach(p => {
+    const culpado = (p.detalhe && p.detalhe.culpado) || null;
+    // Sem culpado provado, o problema é a própria causa — e não se junta a ninguém.
+    const chave = culpado ? 'c:' + culpado : 'i:' + p.tipo + ':' + p.targetId;
+    if(!grupos.has(chave)) grupos.set(chave, { culpritId:culpado, problems:[], totalDamage:0 });
+    const g = grupos.get(chave);
+    g.problems.push(p);
+    g.totalDamage += _gDanoTotal([p]);
+  });
+  const out = [...grupos.values()].map(g => {
+    g.problems.sort((a, b) => G_LAYOUT_PROBLEM_PRIORITY.indexOf(a.tipo) - G_LAYOUT_PROBLEM_PRIORITY.indexOf(b.tipo)
+      || (a.targetId < b.targetId ? -1 : 1));
+    /* A assinatura ignora a ORDEM dos sintomas: o mesmo conjunto de danos com a mesma origem é
+       o mesmo grupo, tenha ele sido detectado em que ordem for. */
+    g.signature = _gGramHash('g1#' + (g.culpritId || '') + '#' +
+      g.problems.map(p => p.tipo + ':' + p.targetId + ':' + (p.withId || '')).sort().join('|'));
+    g.causeId = 'cause:' + g.signature;
+    g.type = g.culpritId ? 'growth-pressure' : 'isolated';
+    return g;
+  });
+  /* Ordem: mais sintomas primeiro (atacar a causa que explica mais dano rende mais), depois
+     prioridade do pior sintoma, depois dano, depois assinatura. Tudo fato objetivo. */
+  out.sort((a, b) => b.problems.length - a.problems.length
+    || G_LAYOUT_PROBLEM_PRIORITY.indexOf(a.problems[0].tipo) - G_LAYOUT_PROBLEM_PRIORITY.indexOf(b.problems[0].tipo)
+    || b.totalDamage - a.totalDamage
+    || (a.signature < b.signature ? -1 : 1));
+  return out;
+}
+
+/* A MESMA causa, no estado seguinte. Identidade de causa é o CULPADO provado — a assinatura do
+   grupo inclui os sintomas, e sintoma muda a cada movimento (é o ponto de mexer). Grupo isolado
+   (sem culpado) só é "o mesmo" pela assinatura dele, que é o que ele tem. */
+function _gMesmaCausa(grupos, causa){
+  if(!causa) return null;
+  if(causa.culpritId) return (grupos || []).find(g => g.culpritId === causa.culpritId) || null;
+  return (grupos || []).find(g => g.signature === causa.signature) || null;
+}
+
+/**
+ * A BUSCA. Determinística, local e limitada.
+ *
+ * @param {object} p {ctx, base, problem?, limites?}
+ * @returns {{original, solved, partial, invalid, diagnostics}}
+ */
+function gSearchLayoutCandidates(p){
+  const o = p || {};
+  const ctx = o.ctx;
+  const base = o.base || [];
+  const lim = Object.assign({}, G_SEARCH_LIMITES, o.limites || {});
+  const diag = { generated:0, expanded:0, deduplicated:0, pruned:0, maxDepthReached:0,
+                 acoes:{}, problemasIniciais:0 };
+  if(!ctx) return { original:null, solved:[], partial:[], invalid:[], diagnostics:diag };
+
+  /* ── O CICLO ──────────────────────────────────────────────────────────────────────────────
+     candidato (geometria AUTORADA + carimbos) → ASSENTA → detecta → agrupa por causa → escolhe
+     a causa → Designer Moves → aplica → novo candidato → ASSENTA de novo.
+     Assentar entra em TODA volta porque toda ação pode mudar o que a corrente precisa reacomodar:
+     encolher o título muda a tinta, a placa segue a tinta, e quem está encadeado abaixo muda de
+     lugar. Medir sem assentar é medir um estado que o motor nunca julga. */
+  const _assentar = (cand) => {
+    if(o.assentar === false)
+      return { layers:cand.layers, solveState:cand.solveState, assentado:false, diagnostics:null,
+               settledSignature:cand.signature };
+    return gSettleCandidateState(cand, ctx);
+  };
+  /* O estado que se MEDE é o assentado; o estado que se GUARDA é o autorado. Separar os dois é o
+     que mantém o assentamento idempotente e o candidato leve (as camadas assentadas saem do
+     cache quando alguém precisar, não viajam duplicadas em cada nó da busca). */
+  const _preparar = (cand) => {
+    const a = _assentar(cand);
+    cand.settleDiagnostics = a.diagnostics;
+    cand.settledSignature = a.settledSignature || null;
+    return { layers:a.layers, solveState:cand.solveState };
+  };
+
+  const bruto = _gEstado(base);
+  const raiz = _gCandidato(bruto.layers, { depth:0, rootId:o.rootId || null,
+    solveState:bruto.solveState, actions:[], actionSignatures:[] });
+  const st0 = _preparar(raiz);
+  /* ⚠ SEM RELÓGIO AQUI. O diagnóstico da busca é comparado por igualdade nos testes de
+     determinismo; `ms` é tempo de parede e não descreve o assentamento. Ele fica no candidato. */
+  diag.assentamento = raiz.settleDiagnostics
+    ? { moveu:raiz.settleDiagnostics.moveu, cresceu:raiz.settleDiagnostics.cresceu } : null;
+  const problemasBase = o.problem ? [o.problem] : gDetectLayoutProblems(st0, ctx);
+  const gruposBase = gGroupLayoutProblems(problemasBase);
+  raiz.diagnostics = { problemas:problemasBase.length, tipos:problemasBase.map(x => x.tipo),
+                       causas:gruposBase.map(g => ({ causeId:g.causeId, culpritId:g.culpritId,
+                         type:g.type, sintomas:g.problems.length })) };
+  diag.problemasIniciais = problemasBase.length;
+  diag.causasIniciais = raiz.diagnostics.causas.length;
+  diag.porDepth = [];
+
+  /* ── ORIGINAL-FIRST ── sem dano objetivo no estado ASSENTADO não há o que buscar. É o mesmo
+     contrato que o solver honra desde sempre — e agora na mesma régua, porque o estado medido
+     aqui é o estado que ele mede antes de subir a escada. */
+  if(!problemasBase.length){
+    raiz.status = 'solved';
+    diag.firstSolvedDepth = 0;
+    return { original:raiz, solved:[raiz], partial:[], invalid:[], diagnostics:diag };
+  }
+
+  const vistos = new Set([raiz.signature]);
+  const solved = [], partial = [], invalid = [];
+  raiz._medido = st0; raiz.diagnostics.lista = problemasBase; raiz.diagnostics.grupos = gruposBase;
+  let fronteira = [raiz];
+  diag.firstSolvedDepth = null;
+  const _bloqueios = {};
+
+  for(let depth = 0; depth < lim.maxDepth && fronteira.length; depth++){
+    const proxima = [];
+    const doDepth = { depth:depth + 1, expandidos:0, gerados:0, dedup:0, podados:0, solved:0, ms:0 };
+    const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
+    fronteira.forEach(pai => {
+      if(diag.generated >= lim.maxCandidatos) return;
+      const medidoPai = pai._medido || _preparar(pai);
+      const estadoPai = { layers:pai.layers, solveState:pai.solveState };
+      const problemas = pai.diagnostics.lista || gDetectLayoutProblems(medidoPai, ctx);
+      if(!problemas.length) return;                       // já resolvido: não expande
+      const danoPai = _gDanoTotal(problemas);
+      /* ── A CAUSA, NÃO O SINTOMA ── o agrupamento causal já ordenou: a origem que explica mais
+         dano vem primeiro. O alvo da expansão é o pior sintoma DESSA causa. */
+      const grupos = pai.diagnostics.grupos || gGroupLayoutProblems(problemas);
+      const grupo = grupos[0];
+      const alvo = grupo.problems[0];
+      const culpado = grupo.culpritId;
+      diag.expanded++; doDepth.expandidos++;
+
+      /* ── ESCALADA DE IMPACTO ── começa LOCAL e só abre o raio quando o nível atual NÃO
+         PRODUZ MOVIMENTO NENHUM. Enquanto houver ação local possível, a busca fica em casa —
+         a escalada responde a esgotamento real, não ao número da profundidade.
+         O nível 4 (a arte inteira) fica FORA: é emergência, e emergência é outra fase. */
+      let acoes = [];
+      for(let nivel = 0; nivel <= 3 && !acoes.length; nivel++){
+        acoes = gGenerateLayoutActions(ctx, Object.assign({}, alvo,
+          { rootId: culpado || pai.rootId || alvo.targetId, impactLevel:nivel }), medidoPai.layers);
+        /* ⛔ `scale-component` é o maior raio que existe aqui: escalar o bloco inteiro. Ela não
+           compete com um wrap barato no primeiro passo. */
+        if(depth === 0) acoes = acoes.filter(a => a.id !== 'scale-component');
+      }
+      /* CULPADO PRIMEIRO. Quando a causa está provada, mexer nela apaga os sintomas todos de uma
+         vez — é o que o solver faz. Atacar vítima por vítima gastava profundidade corrigindo
+         consequência. Dentro de cada lado, a ordem da escada continua mandando. */
+      if(culpado && acoes.length > 1){
+        const doCulpado = acoes.filter(a => a.targetId === culpado);
+        if(doCulpado.length) acoes = doCulpado.concat(acoes.filter(a => a.targetId !== culpado));
+      }
+      /* DIAGNÓSTICO DE BLOQUEIO — causa sem nenhuma ação gerada é a lacuna do modelo, não um
+         caso insolúvel. Sem este registro, "0 candidatos" não dizia ONDE faltava vocabulário. */
+      if(!acoes.length){
+        const k = alvo.tipo + (culpado ? '|causa' : '|isolado');
+        _bloqueios[k] = (_bloqueios[k] || 0) + 1;
+      }
+
+      acoes.forEach(acao => {
+        if(diag.generated >= lim.maxCandidatos) return;
+        const jaUsou = pai.actions.filter(x => x.id === acao.id).length;
+        const teto = G_ACAO_REPETICAO[acao.id] || 1;
+        if(jaUsou >= teto){ diag.pruned++; doDepth.podados++; return; }
+
+        /* CORRIDA MONOTÔNICA — a ação e suas repetições nascem irmãs. Cada volta ASSENTA o estado
+           novo e re-gera a ação contra ele (o piso e o portão continuam mandando: nada é pulado). */
+        const repeticoes = G_ACAO_MONOTONICA[acao.id] ? (teto - jaUsou) : 1;
+        let estado = estadoPai, medido = medidoPai, acoesAcum = pai.actions, sigsAcum = pai.actionSignatures;
+        let mudouAcum = pai.changedIds, passo = acao, probsDoPasso = problemas;
+        for(let k = 0; k < repeticoes; k++){
+          if(!passo || diag.generated >= lim.maxCandidatos) break;
+          const r = gApplyLayoutAction(estado, passo, ctx);
+          diag.generated++; doDepth.gerados++;
+          diag.acoes[passo.id] = (diag.acoes[passo.id] || 0) + 1;
+          // PODA — ação que não mudou nada não é candidato, é ruído.
+          if(!r.changedIds.length && r.solveState.respiroFator === estado.solveState.respiroFator){
+            diag.pruned++; doDepth.podados++; break;
+          }
+          estado = { layers:r.layers, solveState:r.solveState };
+          acoesAcum = acoesAcum.concat([passo]);
+          sigsAcum = sigsAcum.concat([passo.signature]);
+          mudouAcum = [...new Set(mudouAcum.concat(r.changedIds))].sort();
+
+          const filho = _gCandidato(r.layers, { depth:depth + 1, solveState:r.solveState,
+            rootId: pai.rootId || alvo.targetId, problem: alvo, causeId: grupo.causeId,
+            actions: acoesAcum, actionSignatures: sigsAcum, changedIds: mudouAcum });
+
+          // PODA — estado já visitado. Dois caminhos, uma composição: um candidato só.
+          if(vistos.has(filho.signature)){ diag.deduplicated++; doDepth.dedup++; break; }
+          vistos.add(filho.signature);
+
+          // ASSENTA DE NOVO, e só então mede. A ação mudou o que a corrente tem que reacomodar.
+          medido = _preparar(filho);
+          const restantes = gDetectLayoutProblems(medido, ctx);
+          const gruposFilho = gGroupLayoutProblems(restantes);
+          const danoFilho = _gDanoTotal(restantes);
+          filho.diagnostics = { problemasAntes:probsDoPasso.length, problemasDepois:restantes.length,
+            resolvidos:probsDoPasso.length - restantes.length, lista:restantes, grupos:gruposFilho,
+            danoAntes:danoPai, danoDepois:danoFilho, corrida:k + 1,
+            causas:gruposFilho.length, tipos:restantes.map(x => x.tipo) };
+          filho._medido = medido;
+
+          // PODA — violação objetiva: alguém protegido se mexeu.
+          const violou = filho.changedIds.some(id => {
+            const nn = ctx._no.get(id);
+            return !!(nn && (nn.protegida || nn.fundo));
+          });
+          if(violou){ filho.status = 'invalid'; invalid.push(filho); diag.pruned++; doDepth.podados++; break; }
+
+          /* SOLVED = ZERO DANO OBJETIVO no estado ASSENTADO. Sem limiar, sem "pequeno o
+             bastante": a mesma régua do detector, que é a mesma do solver. */
+          if(!restantes.length){
+            filho.status = 'solved'; solved.push(filho); doDepth.solved++;
+            if(diag.firstSolvedDepth == null) diag.firstSolvedDepth = filho.depth;
+            break;                                     // resolvido: a corrida para aqui
+          }
+          filho.status = 'partial';
+          partial.push(filho);
+          /* ── PROGRESS GUARD CAUSAL ────────────────────────────────────────────────────────
+             O movimento foi feito contra UMA causa; é contra ela que se mede se progrediu.
+             Encolher o título de 64 para 58 corta o dano dele pela metade e, no mesmo passo,
+             traz o apoio de volta para cima — onde ele encosta na placa. O placar global piora
+             (2 danos viram 4) e o guard global matava o ramo, deixando a busca sem como
+             encadear nada. Só que a causa atacada ENCOLHEU: a causa nova é o problema da volta
+             seguinte, não a prova de que o passo foi ruim.
+             Quem impede o vaivém não é este guard: é a assinatura de estado (nenhum estado é
+             visitado duas vezes), o beam (que continua ordenando pelo placar GLOBAL, então um
+             ramo que só piora no total não sobrevive à concorrência) e o teto de candidatos. */
+          const causaDepois = _gMesmaCausa(gruposFilho, grupo);
+          const progrediuCausa = !causaDepois
+            || causaDepois.problems.length < grupo.problems.length
+            || causaDepois.totalDamage < grupo.totalDamage;
+          if(progrediuCausa || restantes.length < probsDoPasso.length || danoFilho < danoPai) proxima.push(filho);
+          else { diag.pruned++; doDepth.podados++; }
+
+          /* Próxima volta da corrida: a MESMA ação, re-gerada contra o estado novo JÁ ASSENTADO.
+             Re-gerar (em vez de repetir o descritor) é o que garante que o piso, o portão e a
+             capacidade sejam consultados a cada degrau. */
+          if(k + 1 < repeticoes){
+            const gFilho = gruposFilho[0];
+            const novoAlvo = (gFilho && gFilho.problems[0]) || restantes[0] || alvo;
+            probsDoPasso = restantes;
+            const cand = gGenerateLayoutActions(ctx, Object.assign({}, novoAlvo,
+              { rootId:(gFilho && gFilho.culpritId) || pai.rootId || alvo.targetId, impactLevel:3 }),
+              medido.layers);
+            passo = cand.find(x => x.id === acao.id && x.targetId === acao.targetId) || null;
+          }
+        }
+      });
+    });
+    doDepth.ms = Math.round((((typeof performance !== 'undefined' && performance.now) ? performance.now() : 0) - t0) * 100) / 100;
+    diag.porDepth.push(doDepth);
+    diag.maxDepthReached = Math.max(diag.maxDepthReached, depth + 1);
+    /* ── APROFUNDAMENTO PROGRESSIVO ── achou solução completa nesta profundidade? Para. Buscar
+       mais fundo só produziria sequências mais longas para um problema que já tem resposta. */
+    if(solved.length) break;
+    /* ── BEAM ── o corte é por FATO OBJETIVO: menos CAUSAS (o que restou de origem distinta),
+       menos problemas, menos dano em pixels, menor profundidade, assinatura. Nada de beleza,
+       hierarquia ou preferência tipográfica — isso é da Fase 6. */
+    proxima.sort((a, b) => a.diagnostics.causas - b.diagnostics.causas
+      || a.diagnostics.problemasDepois - b.diagnostics.problemasDepois
+      || a.diagnostics.danoDepois - b.diagnostics.danoDepois
+      || a.depth - b.depth || (a.signature < b.signature ? -1 : 1));
+    fronteira = proxima.slice(0, lim.beamWidth);
+  }
+
+  diag.bloqueios = _bloqueios;
+  const _ord = (a, b) => a.depth - b.depth || a.actions.length - b.actions.length
+    || (a.signature < b.signature ? -1 : 1);
+  solved.sort(_ord); partial.sort(_ord); invalid.sort(_ord);
+  // Listas de trabalho: não vão no resultado (não são serializáveis úteis).
+  [].concat([raiz], solved, partial, invalid).forEach(c => {
+    delete c.diagnostics.lista; delete c.diagnostics.grupos; delete c._medido;
+  });
+  return { original:raiz, solved, partial, invalid, diagnostics:diag };
+}
+
+/* ── SHADOW MODE ──────────────────────────────────────────────────────────────────────────
+   Roda a busca AO LADO do solver, sem nenhuma autoridade sobre o resultado. A arte entregue
+   continua sendo a do `gApplyRelativeAnchors`; isto só observa o que a arquitetura nova teria
+   encontrado. É como se dá autoridade a um motor novo: olhando antes, não confiando antes.
+   ⚠ Não persiste nada e não envia nada para lugar nenhum. */
+function gShadowLayoutSearch(layers, dados, canvas, opts){
+  const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
+  const out = { problemas:0, tipos:[], gerados:0, solved:0, partial:0, invalid:0,
+                profundidade:0, firstSolvedDepth:null, acoes:{}, porDepth:[],
+                solverSolved:null, cobertura:null, ms:0, erro:null };
+  try{
+    /* O SOLVER, primeiro e sem interferência: ele resolveu? A régua é a dele
+       (`gLayoutCamadaReprovada`) — não uma segunda opinião sobre o que é arte aprovada. */
+    if(typeof gApplyRelativeAnchors === 'function'){
+      try{
+        const solved = gApplyRelativeAnchors(layers, dados || {}, {},
+          { fitText:true, canvas:canvas, scope:'franqueado' });
+        out.solverSolved = !(solved || []).some(l => typeof gLayoutCamadaReprovada === 'function'
+          ? gLayoutCamadaReprovada(l) : !!(l && (l._layoutInvalido || l._foraDaArte)));
+        out.solverVoltas = (solved && solved._layoutMeta && solved._layoutMeta.tentativas) || 0;
+      }catch(e){ out.solverSolved = null; }
+    }
+    const ctx = gBuildOperationalContext(layers, canvas, Object.assign({ dados:dados || {} }, opts || {}));
+    /* ⚠ QUEM CONTA OS PROBLEMAS É A BUSCA, no estado ASSENTADO. Contar aqui, nas camadas cruas,
+       reportava dano que deixa de existir assim que a corrente e as placas se acomodam — e o
+       relatório dizia "1 problema · solved@d0", que é contraditório na mesma linha. */
+    const r = gSearchLayoutCandidates({ ctx, base:layers });
+    const rd = (r.original && r.original.diagnostics) || {};
+    out.problemas = rd.problemas || 0;
+    out.tipos = [...new Set(rd.tipos || [])].sort();
+    out.causas = (rd.causas || []).map(c => (c.culpritId || '?') + '×' + c.sintomas);
+    out.gerados = r.diagnostics.generated;
+    out.solved = r.solved.length; out.partial = r.partial.length; out.invalid = r.invalid.length;
+    out.profundidade = r.diagnostics.maxDepthReached;
+    out.firstSolvedDepth = r.diagnostics.firstSolvedDepth;
+    out.acoes = r.diagnostics.acoes;
+    out.porDepth = r.diagnostics.porDepth;
+    out.dedup = r.diagnostics.deduplicated; out.podados = r.diagnostics.pruned;
+    /* ── ONDE A BUSCA FICOU SEM VOCABULÁRIO ── causa expandida que não gerou ação nenhuma. É a
+       diferença entre "não achou solução" e "não tinha o que tentar", e sem isso `0 candidatos`
+       não dizia nada sobre o que falta construir. */
+    out.bloqueios = r.diagnostics.bloqueios || {};
+    out.acoesNaSolucao = r.solved.length ? r.solved[0].actions.map(a => a.id) : null;
+    // O que sobrou no melhor ramo parcial: o retrato do que a busca não conseguiu apagar.
+    const melhor = r.partial[r.partial.length - 1] || null;
+    out.restante = melhor ? { tipos:[...new Set(melhor.diagnostics.tipos || [])].sort(),
+                              causas:melhor.diagnostics.causas || 0,
+                              acoes:melhor.actions.map(a => a.id) } : null;
+    /* COBERTURA — a pergunta desta fase: a busca acha solução onde o solver acha?
+       `ambos` é o caso bom; `soSolver` é a lacuna a fechar; `soBusca` é o caso que precisa ser
+       ESTUDADO, não comemorado: a busca pode estar aprovando o que o solver reprova. */
+    if(out.solverSolved != null)
+      out.cobertura = out.solverSolved && out.solved > 0 ? 'ambos'
+                    : out.solverSolved ? 'so-solver'
+                    : out.solved > 0 ? 'so-busca' : 'nenhum';
+  }catch(e){ out.erro = String(e && e.message || e); }
+  out.ms = Math.round(((typeof performance !== 'undefined' && performance.now) ? performance.now() : 0) - t0);
+  return out;
 }

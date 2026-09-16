@@ -180,6 +180,45 @@
         }
         // Status fora do golden ainda é informação: registra para o resumo.
         if(!g||g.fp!==fpMaquina) avisos.push(chave+' → '+res.status+' em '+Math.round(ms)+'ms');
+
+        /* ── PARIDADE DO ASSENTAMENTO (Fase 5.8) ────────────────────────────────────────────
+           ⛔ ESTA É ASSERÇÃO, não nota. O assentamento canônico não é uma segunda opinião: é o
+           MESMO motor, por uma saída dedicada (`_soAssentar`) que devolve o estado logo depois
+           de `_posicionar()`. Quando o solver resolve a arte sem subir a escada (`tentativas`
+           zero), o que ele entrega É esse estado — então a geometria tem que bater camada por
+           camada. Se um dia divergir, a busca passou a medir uma arte que o motor não produz,
+           e todo o resto desta frente perde o chão. */
+        if(typeof gSettleLayoutState==='function'&&out._layoutMeta&&out._layoutMeta.tentativas===0){
+          const C=gBuildOperationalContext(clonar(fx.layers),fx.canvas,{dados:dados});
+          const st=gSettleLayoutState({layers:clonar(fx.layers),solveState:{}},C);
+          const chapa=(ls)=>ls.map(l=>[l.id,Math.round(l.x||0),Math.round(l.y||0),
+            Math.round(l.w||0),Math.round(l.h||0)]).sort().join('|');
+          assert(chapa(st.layers)===chapa(out),
+            'o estado assentado divergiu do solver em '+chave+':\nbusca:  '+chapa(st.layers)
+            +'\nsolver: '+chapa(out));
+        }
+
+        /* ── SHADOW MODE (Fase 5.5) ─────────────────────────────────────────────────────────
+           A arquitetura nova roda AO LADO do solver, sobre a MESMA arte e os MESMOS dados, e
+           não tem autoridade nenhuma: o que foi renderizado e comparado com o golden acima já
+           aconteceu, e nada aqui o altera. Isto só OBSERVA o que a busca de candidatos teria
+           encontrado — é assim que se dá autoridade a um motor novo: olhando antes de confiar.
+           ⚠ Sai como NOTA, nunca como asserção. Um `catch` no `gShadowLayoutSearch` garante que
+           um defeito na arquitetura nova jamais reprove o portão do solver atual. */
+        if(typeof gShadowLayoutSearch==='function'){
+          const sh=gShadowLayoutSearch(clonar(fx.layers),dados,fx.canvas);
+          avisos.push('shadow '+chave+' → '+(sh.erro?('ERRO '+sh.erro)
+            :('solver='+(sh.solverSolved?'solved':'unsafe')+'('+(sh.solverVoltas||0)+'v)'
+              +' busca='+(sh.solved?'solved@d'+sh.firstSolvedDepth:'nenhum')
+              +' cob='+sh.cobertura
+              +' · '+sh.problemas+' probs'+(sh.tipos.length?' ['+sh.tipos.join(',')+']':'')
+              +' · '+sh.gerados+' cands ('+sh.solved+'s/'+sh.partial+'p)'
+              +' · dmax'+sh.profundidade+' · '+sh.ms+'ms'
+              +(sh.causas&&sh.causas.length?' · causas '+sh.causas.join('+'):'')
+              +(sh.bloqueios&&Object.keys(sh.bloqueios).length?' · SEM AÇÃO '+JSON.stringify(sh.bloqueios):'')
+              +(sh.acoesNaSolucao?' · ['+sh.acoesNaSolucao.join('→')+']'
+                :(sh.restante?' · restou ['+sh.restante.tipos.join(',')+'] em '+sh.restante.causas+' causa(s) após ['+sh.restante.acoes.join('→')+']':'')))));
+        }
       });
     });
   });

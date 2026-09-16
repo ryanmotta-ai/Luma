@@ -1938,6 +1938,189 @@ function gLayoutRelacaoLateral(ra, rb, a, b){
   return { direita, respiro };
 }
 
+/* ══ TRACKING EFETIVO — a régua única de "quanto respiro entre letras existe aqui" ══
+   Fonte display (peso ≥900) não sai do PSD com tracking: é o RENDER que adiciona 2% do corpo,
+   para a caixa-alta não ficar apertada. O degrau 3.7 da escada devolve exatamente o que o motor
+   somou — e para isso precisa saber se a fonte é display e quanto de tracking está efetivo.
+
+   Vivia como closure dentro de `gApplyRelativeAnchors`, invisível para qualquer outro leitor.
+   A Layout Grammar acabou reimplementando o mesmo teste de display na Fase 4 (com o mesmo
+   fallback por nome, por sorte) — que é a segunda verdade nascendo de novo. Agora é uma só.
+
+   ⚠ O FALLBACK POR NOME é parte do contrato, não um remendo: `dTextFontParts` mora no Estúdio
+   e não está carregado nas páginas de teste nem no runtime do franqueado. Sem ele, o degrau se
+   desligaria em silêncio justamente onde a MEDIDA considera a fonte display. */
+function gLayoutEhDisplay(l){
+  const fp = (typeof dTextFontParts === 'function') ? dTextFontParts(l && l.font)
+           : { weight: /black|realce/i.test((l && l.font) || '') ? 900 : 700 };
+  return ((l && l.fontWeightOverride) || fp.weight) >= 900;
+}
+/** @param {number} [corpo] o corpo ATUAL (com o teto da escada aplicado, se houver). */
+function gLayoutTrackingEfetivo(l, corpo){
+  if(!l) return 0;
+  if(l.letterSpacing != null) return l.letterSpacing;
+  const c = (corpo != null) ? corpo : (l.fontSize || 24);
+  return gLayoutEhDisplay(l) ? Math.max(0.5, c * 0.02) : 0;
+}
+
+/* ══ PISO DA FONTE — até onde a escada pode encolher, e nem um ponto além ══
+   Dois pisos empilhados, e os dois já existiam: `_pisoFonte` (hierarquia — não inverter a ordem
+   dos degraus que o designer criou) e `_pisoLegivel` (2,2% do lado curto para destaque, 1,35%
+   para apoio — o piso que impede 8px numa arte de 1080). Somados ao teto de "metade do corpo
+   desenhado", são o fundo do poço do degrau de encolhimento.
+
+   Vivia como três closures dentro de `gApplyRelativeAnchors`. A camada de capacidade precisa da
+   MESMA conta para responder "ainda há folga entre o corpo atual e o piso?" — e responder isso
+   com uma segunda fórmula seria prometer ao motor um espaço que a escada não tem.
+   ⚠ Exige `gStampPisosHierarquia` já carimbado (é ele que escreve `_pisoFonte`/`_pisoLegivel`). */
+/* O CORPO QUE VALE AGORA. `fontSize` é o que o designer escolheu; `_tetoFonte` é o teto que a
+   escada (ou um Designer Move) já impôs. Todo mundo que pergunta "de que tamanho está este texto
+   neste instante" tem que perguntar aqui — a medida (`gFitTextLayer`), o render e a escada já
+   liam assim, cada um com a sua cópia da conta. A camada de ações não lia: gerava o degrau de 8%
+   a partir do `fontSize` autorado, então repetir o encolhimento devolvia sempre o mesmo
+   `de → para`, a aplicação não mudava nada e a corrida morria no primeiro degrau. */
+function gLayoutCorpoAtual(l){
+  return (l && l._tetoFonte != null) ? l._tetoFonte : ((l && l.fontSize) || 24);
+}
+
+function gLayoutPisoFonte(l, emergencia){
+  const legivel = (l && l._pisoLegivel) || 0;
+  // Emergência (escala proporcional do componente): a hierarquia já está protegida pela escala
+  // comum, então o piso correto é só legibilidade — não 50% de cada camada.
+  if(emergencia) return Math.max(8, legivel);
+  const abs = Math.max(8, legivel, Math.round(((l && l.fontSize) || 24) * 0.5));
+  return (l && l._pisoFonte != null) ? Math.max(l._pisoFonte, abs) : abs;
+}
+
+/* ══ COLAPSO DE VÃO — a única subida autorizada numa corrente ══
+   Campo opcional que o franqueado deixou em branco não ocupa tinta, mas o VÃO dele continua na
+   arte. A altura desenhada das faixas que sumiram entre dois blocos é o quanto o de baixo pode
+   subir — e nada além disso. É a única exceção ao "a corrente só empurra", porque aqui não se
+   recompõe nada: fecha-se um espaço que só existia quando o conteúdo existia.
+   ⛔ Isto NÃO é "campo vazio libera movimento". É um crédito de subida com valor exato. */
+function gLayoutColapsoEntre(camadas, fundoA, topoB, x1B, x2B, ehVazio){
+  let soma = 0, temCampo = false;
+  (camadas || []).forEach(v => {
+    if(!v || v.type !== 'text') return;
+    const some = (v.visible === false) || (typeof ehVazio === 'function' && ehVazio(v));
+    if(!some) return;
+    const t = v.y || 0, f = t + (v.h || 0);
+    if(t < fundoA - G_LAYOUT_REL.tol || f > topoB + G_LAYOUT_REL.tol) return;   // tem que estar ENTRE
+    const x1 = v.x || 0, x2 = x1 + (v.w || 0);
+    if(gLayoutOverlapRatio(x1, x2, x1B, x2B) < G_LAYOUT_REL.coluna) return;     // mesma coluna
+    soma += (v.h || 0);
+    if(_gLayoutTemCampo(v)) temCampo = true;
+  });
+  return { soma, temCampo };
+}
+
+/* ══ A FORMA É UMA PLACA? — a régua estrutural única ══
+   O padrão "card": retângulo colorido com o preço ou o título em cima. O que separa uma PLACA
+   de um painel de seção inteira não é o olho — são três condições que `_gInferirPlacas` já
+   aplicava e mais ninguém enxergava:
+     · retângulo, ou PILL claramente horizontal (círculo perto do preço é decoração, e deformá-lo
+       com a copy seria estrago, não acomodação);
+     · envolve a tinta do texto pelos QUATRO lados;
+     · no máximo 6× a área do texto — acima disso é painel, não placa.
+
+   A Layout Grammar reconhecia placa sem nenhuma das três, então ela via placas que o solver se
+   recusava a fazer crescer. Um componente `text-with-plate` prometendo uma relação que o motor
+   não honra é exatamente o que a camada de paridade existe para impedir.
+
+   ⚠ "Tem campo?" NÃO entra aqui de propósito: isso é REAÇÃO, não identidade. Uma placa com
+   texto fixo continua sendo uma placa (e a §12 a reconhece); ela só não tem por que crescer, e
+   quem responde isso é `canResizeContainer`. */
+function gLayoutFormaEhPlaca(p, pRect, tRect){
+  if(!p || !pRect || !tRect) return false;
+  const kind = p.shapeKind || 'rect';
+  const pill = kind === 'ellipse' && (pRect.w || 0) >= (pRect.h || 0) * 1.5;
+  if(kind !== 'rect' && !pill) return false;
+  if(!(tRect.x >= pRect.x - 1 && tRect.y >= pRect.y - 1
+       && tRect.x + (tRect.w || 0) <= pRect.x + (pRect.w || 0) + 1
+       && tRect.y + (tRect.h || 0) <= pRect.y + (pRect.h || 0) + 1)) return false;
+  const areaT = Math.max(1, (tRect.w || 0) * (tRect.h || 0));
+  return (pRect.w || 0) * (pRect.h || 0) <= areaT * 6;       // acima disso é painel
+}
+
+/* ══ A PLACA SEGUE O TEXTO — a conta única do "card" ══
+   Duas situações, e a diferença entre elas é o que faz a arte parecer desenhada ou remendada:
+   · a copy tem o TAMANHO DE REFERÊNCIA → preserva os quatro paddings autorados e devolve a
+     placa idêntica à desenhada (ORIGINAL FIRST);
+   · a copy mudou de tamanho → REEQUILIBRA: os lados passam a usar o maior dos dois paddings (e
+     no mínimo 0,45em na horizontal), e o eixo vertical idem. A placa abraça a palavra pelo
+     centro em vez de herdar uma folga que só fazia sentido para o texto antigo.
+   Vivia dentro de `_seguirPlacas`; a camada de ações precisa da MESMA conta, senão a placa que
+   uma ação produz não é a placa que o solve produz. */
+function gLayoutPlacaSegue(placa, tinta, fontSize){
+  if(!placa || !tinta) return null;
+  const mudouTamanho = Math.abs((tinta.w || 0) - placa.refW) > 1
+                    || Math.abs((tinta.h || 0) - placa.refH) > 1;
+  const padX = mudouTamanho ? Math.max(placa.padE, placa.padD, (fontSize || 24) * 0.45) : null;
+  const padY = mudouTamanho ? Math.max(placa.padT, placa.padB) : null;
+  const padE = mudouTamanho ? padX : placa.padE, padD = mudouTamanho ? padX : placa.padD;
+  const padT = mudouTamanho ? padY : placa.padT, padB = mudouTamanho ? padY : placa.padB;
+  return { x: tinta.x - padE, y: tinta.y - padT,
+           w: (tinta.w || 0) + padE + padD, h: (tinta.h || 0) + padT + padB,
+           padE, padT, padD, padB, reequilibrou: mudouTamanho };
+}
+
+/* ══ DANO OBJETIVO — as duas perguntas que dizem se a arte quebrou ══
+   A escada decide agir quando alguma coisa saiu da prancheta ou quando duas coisas que não se
+   tocavam passaram a se tocar. Os dois testes viviam como closures dentro de
+   `gApplyRelativeAnchors` (`_piorouBorda` e o miolo de `_colisoesInternas`), então só ele
+   sabia o que é "dano". Um detector externo teria que reescrevê-los — e responder diferente do
+   motor sobre o que está quebrado é pior que não responder. */
+
+/* Saiu da arte, ou PIOROU a sangria que já existia? Textura e placa que já nasciam fora da
+   prancheta são decisão do designer; só vira falha quando a adaptação piora a saída. */
+function gLayoutPiorouBorda(base, atual, cv){
+  if(!base || !atual || !cv) return false;
+  const L = cv.w || 0, A = cv.h || 0;
+  if(L){
+    if(Math.max(0, -atual.x) > Math.max(0, -base.x) + G_LAYOUT_REL.tol) return true;
+    if(Math.max(0, atual.x + atual.w - L) > Math.max(0, base.x + base.w - L) + G_LAYOUT_REL.tol) return true;
+  }
+  if(A){
+    if(Math.max(0, -atual.y) > Math.max(0, -base.y) + G_LAYOUT_REL.tol) return true;
+    if(Math.max(0, atual.y + atual.h - A) > Math.max(0, base.y + base.h - A) + G_LAYOUT_REL.tol) return true;
+  }
+  return false;
+}
+
+/**
+ * Este texto colide com este obstáculo — considerando o que JÁ acontecia no desenho?
+ * Sobreposição que existia é intenção (texto sobre placa, selo, foto) e continua valendo; o que
+ * vira dano é CRESCER além da área que o designer publicou, ou invadir o respiro mínimo.
+ * @param {number} [fator] 1 = respiro ideal; 0.5 = o apertado, o degrau antes de mexer na letra
+ * @returns {{colide:boolean, motivo:string, gapBase:number, interBase:number}}
+ */
+function gLayoutColisaoEntre(tinta, tintaBase, obstAtual, obstBase, t, cv, fator){
+  const vazio = { colide:false, motivo:null, gapBase:0, interBase:0 };
+  if(!tinta || !tintaBase || !obstAtual || !obstBase) return vazio;
+  const interBase = _gRectIntersecao(tintaBase, obstBase);
+  // Contenção é relação intencional e não tem colisão a declarar.
+  if(_gRectContem(obstBase, tintaBase, G_LAYOUT_REL.tol)) return vazio;
+  if(interBase > 0){
+    /* Sobreposição parcial do original é franquia LIMITADA, não imunidade eterna: crescer além
+       da área publicada vira colisão. */
+    const tol = Math.max(2, Math.min(tintaBase.w * tintaBase.h, obstBase.w * obstBase.h) * 0.005);
+    const agora = _gRectIntersecao(tinta, obstAtual);
+    return { colide: agora > interBase + tol, motivo:'invadiu-alem-do-publicado',
+             gapBase:0, interBase:interBase };
+  }
+  const gaps = [];
+  if(tintaBase.x + tintaBase.w <= obstBase.x) gaps.push(obstBase.x - (tintaBase.x + tintaBase.w));
+  if(obstBase.x + obstBase.w <= tintaBase.x) gaps.push(tintaBase.x - (obstBase.x + obstBase.w));
+  if(tintaBase.y + tintaBase.h <= obstBase.y) gaps.push(obstBase.y - (tintaBase.y + tintaBase.h));
+  if(obstBase.y + obstBase.h <= tintaBase.y) gaps.push(tintaBase.y - (obstBase.y + obstBase.h));
+  const gapBase = gaps.length ? Math.min.apply(null, gaps) : 0;
+  const pad = _gLayoutRespiro(t, gapBase, cv, fator);
+  const protegido = { x:obstAtual.x - pad, y:obstAtual.y - pad,
+                      w:obstAtual.w + pad * 2, h:obstAtual.h + pad * 2 };
+  return { colide: _gRectIntersecao(tinta, protegido) > 1, motivo:'invadiu-o-respiro',
+           gapBase:gapBase, interBase:0 };
+}
+
 /* ══ AUTORIZAÇÃO DE DEPENDÊNCIA — "isto pode transmitir impacto de um campo?" ══
    GEOMETRIA E DEPENDÊNCIA SÃO DUAS PERGUNTAS. "B está logo abaixo de A" é geometria, e a régua
    dela está acima (`gLayoutRelacaoVertical`). "o crescimento de A pode empurrar B" é outra
@@ -2161,21 +2344,10 @@ function _gInferirCorrentes(cloned, opts, resolved, base){
   // que uma regra ocultou). A altura DESENHADA dela é o quanto o de baixo pode subir — e é a
   // única exceção ao "só empurra", porque aqui não se recompõe nada: fecha-se um vão que só
   // existe quando o conteúdo existe.
-  const _colapsoEntre=(fundoA, topoB, x1B, x2B)=>{
-    let soma=0,temCampo=false;
-    cloned.forEach(v=>{
-      if(!v || v.type==='group' || v.type!=='text') return;
-      const some = (v.visible===false) || _vazio(v);
-      if(!some) return;
-      const t=v.y||0, f=t+(v.h||0);
-      if(t < fundoA-2 || f > topoB+2) return;                 // tem que estar ENTRE os dois
-      const x1=v.x||0, x2=x1+(v.w||0);
-      if(gLayoutOverlapRatio(x1,x2,x1B,x2B) < G_LAYOUT_REL.coluna) return;   // mesma coluna
-      soma += (v.h||0);
-      if(_gLayoutTemCampo(v))temCampo=true;
-    });
-    return {soma,temCampo};
-  };
+  // A régua única (`gLayoutColapsoEntre`, no alto deste arquivo) — a camada de capacidade
+  // precisa da MESMA conta para responder se o colapso está autorizado.
+  const _colapsoEntre=(fundoA, topoB, x1B, x2B)=>
+    gLayoutColapsoEntre(cloned, fundoA, topoB, x1B, x2B, _vazio);
   nós.forEach(B=>{
     if(B.relativeAnchor || !_gCorrenteMovivel(B, cloned)) return;   // manual vence; imóvel não entra
     const topoB=B.y||0, x1B=B.x||0, x2B=x1B+(B.w||0);
@@ -2268,12 +2440,6 @@ function _gInferirPlacas(cloned, opts, baseVisual) {
   const textos = cloned.filter(l => l && l.type === 'text' && _gLayoutVisivel(l));
   cloned.forEach((p, iP) => {
     if (!p || p.type !== 'shape' || !_gLayoutVisivel(p)) return;
-    const kind=p.shapeKind||'rect';
-    /* Pills vindas do PSD chegam como `ellipse`, não como retângulo com radius. Só aceitamos
-       a elipse claramente horizontal: um círculo perto de preço/CTA continua sendo decoração e
-       nunca é deformado pela copy. */
-    const pill=kind==='ellipse'&&(p.w||0)>=(p.h||0)*1.5;
-    if (kind !== 'rect' && !pill) return;
     if (!_gCorrenteMovivel(p, cloned)) return;
     if (p.layoutRole === 'protected' || _gCorrenteEhFundo(p, cv)) return;
     const px1 = p.x || 0, py1 = p.y || 0, px2 = px1 + (p.w || 0), py2 = py1 + (p.h || 0);
@@ -2286,16 +2452,16 @@ function _gInferirPlacas(cloned, opts, baseVisual) {
          pixels além das letras. Exigir aquela caixa inteira desligava a relação mesmo quando a
          tinta estava nitidamente dentro da placa — exatamente o que separava o pill de "Dale". */
       const r=(baseVisual&&baseVisual[t.id])||{x:t.x||0,y:t.y||0,w:t.w||0,h:t.h||0};
-      return r.x >= px1 - 1 && r.y >= py1 - 1
-          && r.x + (r.w || 0) <= px2 + 1 && r.y + (r.h || 0) <= py2 + 1;
+      // A régua estrutural única (`gLayoutFormaEhPlaca`, no alto deste arquivo): forma, os
+      // quatro lados e o teto de área. Medida contra a TINTA de referência, não contra o bbox
+      // nominal do PSD — point text importado sobra dezenas de pixels além das letras.
+      return gLayoutFormaEhPlaca(p, {x:px1,y:py1,w:(p.w||0),h:(p.h||0)}, r);
     });
     if (dentro.length !== 1) return;
     const t = dentro[0];
     // Placa de texto fixo não precisa reagir: só a placa que contém um campo pode crescer.
     if(!_gLayoutTemCampo(t)) return;
     const ref=(baseVisual&&baseVisual[t.id])||{x:t.x||0,y:t.y||0,w:t.w||0,h:t.h||0};
-    const areaT = Math.max(1, (ref.w || 0) * (ref.h || 0));
-    if ((p.w || 0) * (p.h || 0) > areaT * 6) return;             // painel, não placa
     /* Quatro paddings, medidos contra a TINTA de referência. Quando a copy muda, a forma pode
        crescer OU encolher sem perder o encaixe que o designer compôs. Com o texto autorado, a
        conta devolve exatamente x/y/w/h publicados (ORIGINAL FIRST). */
@@ -2764,15 +2930,10 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
       const t = cloned.find(x => x.id === p._placa.alvo);
       const rt = t && resolved[t.id];
       if (!t || !rt) return;
-      const tintaX=(rt.x||0)+(rt.dx||0), tintaY=(rt.y||0)+(rt.dy||0);
-      const mudouTamanho=Math.abs((rt.w||0)-p._placa.refW)>1||Math.abs((rt.h||0)-p._placa.refH)>1;
-      const padX=mudouTamanho?Math.max(p._placa.padE,p._placa.padD,(t.fontSize||24)*.45):null;
-      const padY=mudouTamanho?Math.max(p._placa.padT,p._placa.padB):null;
-      const padE=mudouTamanho?padX:p._placa.padE, padD=mudouTamanho?padX:p._placa.padD;
-      const padT=mudouTamanho?padY:p._placa.padT, padB=mudouTamanho?padY:p._placa.padB;
-      const novaX=tintaX-padE, novaY=tintaY-padT;
-      const novaW=(rt.w||0)+padE+padD;
-      const novaH=(rt.h||0)+padT+padB;
+      // A régua única (`gLayoutPlacaSegue`, no alto deste arquivo).
+      const g=gLayoutPlacaSegue(p._placa,
+        {x:(rt.x||0)+(rt.dx||0), y:(rt.y||0)+(rt.dy||0), w:rt.w||0, h:rt.h||0}, t.fontSize);
+      const novaX=g.x, novaY=g.y, novaW=g.w, novaH=g.h;
       if (p.y !== novaY || p.h !== novaH || p.x !== novaX || p.w !== novaW) {
         p.y = novaY; p.h = novaH; p.x = novaX; p.w = novaW;
         resolved[p.id].y = novaY; resolved[p.id].h = novaH;
@@ -2798,19 +2959,13 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
                          && (resolved[l.id].w||0)>(baseVisual[l.id].w||0)+1;
   /* Compara a sangria ATUAL à sangria PUBLICADA. Uma textura ou placa que já começava fora do
      canvas é intenção do designer; só vira falha quando a adaptação piora essa saída. */
+  // A régua única (`gLayoutPiorouBorda`, no alto deste arquivo) — o detector de problemas da
+  // busca de candidatos precisa da MESMA resposta sobre o que é "saiu da arte".
   const _piorouBorda=(l,r)=>{
     if(!l||!r)return false;
     const b=baseVisual[l.id]||{x:xPub[l.id]||0,y:yPub[l.id]||0,w:l.w||0,h:l.h||0};
     const a={x:r.x+(r.dx||0),y:r.y+(r.dy||0),w:r.w||0,h:r.h||0};
-    if(_largura){
-      if(Math.max(0,-a.x)>Math.max(0,-b.x)+2)return true;
-      if(Math.max(0,a.x+a.w-_largura)>Math.max(0,b.x+b.w-_largura)+2)return true;
-    }
-    if(_limite){
-      if(Math.max(0,-a.y)>Math.max(0,-b.y)+2)return true;
-      if(Math.max(0,a.y+a.h-_limite)>Math.max(0,b.y+b.h-_limite)+2)return true;
-    }
-    return false;
+    return gLayoutPiorouBorda(b,a,{w:_largura,h:_limite});
   };
   // Quem escapou da prancheta depois de posicionar — pelo PÉ (empurrado), pelo TOPO (texto
   // centralizado que cresceu para os dois lados) ou pelos LADOS (point text, que não quebra
@@ -2879,8 +3034,6 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
         if(o===t)return;
         const bo=_gLayoutRectSeguro(o,baseVisual[o.id]),ro=resolved[o.id];
         if(!bo||!ro)return;
-        const interBase=_gRectIntersecao(bt,bo);
-        if(_gRectContem(bo,bt,2))return;
         const atualO=_gLayoutRectSeguro(o,{x:ro.x+(o.type==='text'?(ro.dx||0):0),
           y:ro.y+(o.type==='text'?(ro.dy||0):0),w:ro.w,h:ro.h});
         if(_gLayoutTemCampo(o)){
@@ -2888,25 +3041,11 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
             +Math.abs(atualO.x-bo.x)+Math.abs(atualO.y-bo.y);
           if(deltaO>deltaT+1)return;
         }
-        /* Sobreposição parcial do original é uma franquia LIMITADA, não imunidade eterna.
-           Crescer além da área que o designer publicou vira colisão. */
-        if(interBase>0){
-          const tolerancia=Math.max(2,Math.min(bt.w*bt.h,bo.w*bo.h)*0.005);
-          if(_gRectIntersecao(tinta,atualO)>interBase+tolerancia)
-            out.push({culpado:_raizDinamica(t)||t,obstaculo:o,vitima:t});
-          return;
-        }
-        const gaps=[];
-        if(bt.x+bt.w<=bo.x)gaps.push(bo.x-(bt.x+bt.w));
-        if(bo.x+bo.w<=bt.x)gaps.push(bt.x-(bo.x+bo.w));
-        if(bt.y+bt.h<=bo.y)gaps.push(bo.y-(bt.y+bt.h));
-        if(bo.y+bo.h<=bt.y)gaps.push(bt.y-(bo.y+bo.h));
-        const gapBase=gaps.length?Math.min(...gaps):0;
-        /* Campo que cresceu respeita um respiro mínimo mesmo se o original tinha um vão quase
-           nulo. Isso não redesenha o estado normal: esta checagem só roda quando `deltaT>1`. */
-        const pad=_gLayoutRespiro(t,gapBase,_cv,_respiroFator);
-        const protegido={x:atualO.x-pad,y:atualO.y-pad,w:atualO.w+pad*2,h:atualO.h+pad*2};
-        if(_gRectIntersecao(tinta,protegido)>1)out.push({culpado:_raizDinamica(t)||t,obstaculo:o,vitima:t});
+        /* A régua única de dano (`gLayoutColisaoEntre`, no alto deste arquivo): sobreposição
+           que já existia é intenção; crescer além da área publicada, ou invadir o respiro
+           mínimo, é colisão. `_respiroFator` é o degrau em que a escada está. */
+        const c=gLayoutColisaoEntre(tinta,bt,atualO,bo,t,_cv,_respiroFator);
+        if(c.colide)out.push({culpado:_raizDinamica(t)||t,obstaculo:o,vitima:t});
       });
     });
     return out;
@@ -2954,6 +3093,21 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
   };
   if (_fit && (_limite || _largura)) {
     _posicionar();
+    /* ── ESTADO CANÔNICO ASSENTADO ────────────────────────────────────────────────────────
+       `_posicionar()` não é adaptação: é a arte com o conteúdo real no lugar. A placa segue a
+       tinta do texto e a corrente empurra cada filho pelo excesso do pai — isso acontece ANTES
+       de o motor julgar qualquer dano, e continua acontecendo mesmo quando a escada nunca roda
+       (o corpus tem cenário que sai `solved` com ZERO voltas).
+       `_soAssentar` devolve exatamente esse estado. Existe para que a busca de candidatos
+       (`core/auto-layout.js` §17) meça o MESMO estado que este motor julga, em vez de uma
+       aproximação — paridade por construção, não por reimplementação.
+       ⚠ Só entra quando alguém pede. Sem o flag, nada muda: o caminho de produção não conhece
+       esta linha, e o corpus/fuzz provam isso a cada rodada. */
+    if (opts && opts._soAssentar) {
+      const _msA = _t0 ? ((typeof performance!=='undefined'&&performance.now)?performance.now():0) - _t0 : 0;
+      cloned._layoutMeta = { politica:_politica, tentativas:0, ms:Math.round(_msA*100)/100, assentado:true };
+      return cloned;
+    }
     let tentativas = 0;
     // Quando todo mundo chega ao piso da hierarquia e AINDA não cabe, a peça inteira passa a
     // reduzir na mesma escala. Assim recupera espaço sem transformar título em texto de apoio.
@@ -3006,7 +3160,7 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
          0.05 custava três voltas de re-medida em toda a arte (144ms a mais numa peça pesada)
          e chegava no mesmo lugar. Piso 1.05: abaixo disso as linhas começam a se tocar. */
       const _entrelinhaAlvo = (l) => {
-        const fs = (l._tetoFonte != null) ? l._tetoFonte : (l.fontSize || 24);
+        const fs = gLayoutCorpoAtual(l);
         const n = l._fit.lines.length;
         const alvo = (l.h || 0) / Math.max(1, fs * n);
         return Math.max(_pisoEntrelinha, Math.min(gLineHeightDe(l), Math.round(alvo * 1000) / 1000));
@@ -3041,19 +3195,14 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
          Escrito direto no `letterSpacing` do CLONE, de propósito: é a propriedade que a MEDIDA
          (`gFitTextLayer`) e o RENDER (`fRenderTemplateLayers`) já leem — carimbo novo seria uma
          segunda régua, que é a origem histórica dos bugs deste motor. */
-      const _corpoAtual = (l) => (l._tetoFonte != null) ? l._tetoFonte : (l.fontSize || 24);
+      const _corpoAtual = gLayoutCorpoAtual;                      // a régua única, no alto
       /* MESMA régua de "é display?" do `gFitTextLayer` e do render, incluindo o fallback por
          NOME quando `dTextFontParts` não está carregado (páginas de teste e qualquer contexto sem
          o Estúdio). Uma régua paralela aqui desligaria o degrau em silêncio justamente onde a
          medida e o desenho consideram a fonte display — o defeito clássico das duas réguas. */
-      const _ehDisplay = (l) => {
-        const fp = (typeof dTextFontParts === 'function') ? dTextFontParts(l.font)
-                 : { weight: /black|realce/i.test(l.font || '') ? 900 : 700 };
-        return (l.fontWeightOverride || fp.weight) >= 900;
-      };
-      // A MESMA conta do fit/render para o tracking efetivo — não uma paralela.
-      const _trackEfetivo = (l) => (l.letterSpacing != null) ? l.letterSpacing
-        : (_ehDisplay(l) ? Math.max(0.5, _corpoAtual(l) * 0.02) : 0);
+      // A MESMA conta do fit/render para o tracking efetivo — agora a régua única do arquivo
+      // (`gLayoutTrackingEfetivo`), para que a camada de capacidade consulte o mesmo número.
+      const _trackEfetivo = (l) => gLayoutTrackingEfetivo(l, _corpoAtual(l));
       /* A política `tracking-autoral` pula este degrau de propósito: devolver tracking muda a
          QUEBRA, e em arte onde a linha reflowa pior isso custa mais corpo do que economiza. Quem
          decide entre as duas é a NOTA (`gLayoutEscolherAlternativa`), não este arquivo. */
@@ -3076,13 +3225,10 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
          encolhe é o MENOR degrau que ainda tem folga, sozinho, até acabar a folga dele. O
          título só é tocado quando o resto da arte já cedeu tudo. */
       // Degrau normal: uma camada isolada nunca perde mais de metade do corpo desenhado.
-      const _pisoAbsDe=(l)=>Math.max(8,l._pisoLegivel||0,Math.round((l.fontSize||24)*0.5));
-      // Emergência proporcional: quando TODO o componente reduz junto, a hierarquia já está
-      // protegida pela escala comum; aí o piso correto é legibilidade, não 50% de cada layer.
-      const _pisoEmergenciaDe=(l)=>Math.max(8,l._pisoLegivel||0);
-      const _pisoDe = (l) => (l._pisoFonte != null)
-        ?Math.max(l._pisoFonte,_pisoAbsDe(l)):_pisoAbsDe(l);
-      const _atual = (l) => (l._tetoFonte != null) ? l._tetoFonte : (l.fontSize || 24);
+      // Os dois pisos moram em `gLayoutPisoFonte` (no alto deste arquivo), régua única.
+      const _pisoEmergenciaDe=(l)=>gLayoutPisoFonte(l,true);
+      const _pisoDe = (l) => gLayoutPisoFonte(l,false);
+      const _atual = gLayoutCorpoAtual;                           // a régua única, no alto
 
       /* Se a hierarquia inteira ficou sem folga e a composição ainda viola uma área segura,
          o último recurso é diminuir TUDO pela mesma escala — nunca continuar reduzindo só o

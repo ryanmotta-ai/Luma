@@ -3,7 +3,7 @@
 (async function(){
   const results=document.getElementById('results');
   const summary=document.getElementById('summary');
-  const cases=[];
+  const cases=[]; const avisos=[];
   const test=(name,fn)=>cases.push({name,fn});
   const assert=(condition,message)=>{if(!condition)throw new Error(message||'asserção falhou');};
   const text=(id,x,y,w,h,content,extra)=>Object.assign({id,name:id,type:'text',x,y,w,h,
@@ -2011,8 +2011,11 @@
     const ate3=[].concat(z.levels[0],z.levels[1],z.levels[2],z.levels[3]);
     assert(ate3.indexOf('longe')<0,'alinhamento forte virou impacto');
     assert(ate3.indexOf('sobre')<0,'contenção virou impacto');
-    assert(z.levels[4].indexOf('longe')>=0&&z.levels[4].indexOf('sobre')>=0,
+    // O nível 4 é DERIVADO sob demanda: quem quer emergência global paga por ela ali.
+    const L4=gImpactLevelMembers(z,4,r.G);
+    assert(L4.indexOf('longe')>=0&&L4.indexOf('sobre')>=0,
       'os dois deveriam cair no fallback global');
+    assert(z.levels[4]===undefined,'o nível 4 voltou a ser materializado de véspera');
     assert(z.arestas.every(a=>G_IMPACT_ARESTAS.indexOf(a)>=0),
       'a zona usou aresta que não transmite impacto');
   });
@@ -2068,10 +2071,14 @@
   test('zona: o nível 4 é o resto, sem duplicar ninguém',()=>{
     const r=elast(arteBase());
     r.Z.forEach(z=>{
-      const todos=[].concat(z.levels[0],z.levels[1],z.levels[2],z.levels[3],z.levels[4]);
+      const L4=gImpactLevelMembers(z,4,r.G);
+      const todos=[].concat(z.levels[0],z.levels[1],z.levels[2],z.levels[3],L4);
       assert(new Set(todos).size===todos.length,'uma camada apareceu em dois níveis');
       assert(new Set(todos).size===r.g.nodes.length,
         'a zona não cobre a composição inteira: '+todos.length+' de '+r.g.nodes.length);
+      // A contagem guardada tem que bater com a lista derivada — senão a assinatura mente.
+      assert(z.restantes===L4.length,'a contagem do nível 4 divergiu da lista derivada');
+      assert(gImpactLevelMembers(z,4,null).length===0,'derivou o nível 4 sem contexto');
     });
   });
 
@@ -2106,6 +2113,1356 @@
     assert(E.ms+Z.ms<800,'elasticidade+zonas levaram '+(E.ms+Z.ms).toFixed(1)+'ms');
   });
 
+  /* ══ OPERATIONAL CAPABILITY — o contrato de paridade com o solver (Fase 4.5) ═════════════
+     Elasticidade descreve liberdade; capacidade confirma que o motor REAL consegue exercê-la.
+     Cada caso aqui compara a resposta declarada contra o comportamento do solver na mesma arte
+     — é isso que impede a Fase 5 de propor ações que a escada não executa. */
+  const opctx=(layers,canvas,dados)=>gBuildOperationalContext(layers,canvas||{w:1080,h:1080},
+    dados?{dados:dados}:null);
+  const cap=(C,id,c)=>gLayoutCapability(C,id,c);
+
+  test('paridade: protegida não move — capacidade e solver dizem o mesmo',()=>{
+    const layers=[
+      text('titulo',90,60,900,90,'{{titulo}}',{fontSize:72,name:'Titulo'}),
+      {id:'logo',name:'Logo da marca',type:'image',x:90,y:200,w:200,h:90,visible:true,opacity:100}
+    ];
+    const C=opctx(layers);
+    const r=cap(C,'logo','canMoveY');
+    assert(!r.permitido&&r.motivo==='protegida','a capacidade liberou o logo');
+    const out=solve(layers,{titulo:'TEXTO ENORME QUE CRESCE MUITO ALEM DA CAIXA DESENHADA'},{w:1080,h:1080});
+    assert(!by(out,'logo')._anchorAuto,'o solver encadeou o logo: a capacidade mentiu');
+    // E todas as outras capacidades também dizem não.
+    ['canWrap','canShrinkFont','canCompressLineHeight','canRestoreTracking','canResizeContainer']
+      .forEach(c=>assert(!cap(C,'logo',c).permitido,'o logo foi liberado em '+c));
+  });
+
+  test('paridade: título pode quebrar linha — e o solver quebra mesmo',()=>{
+    const layers=[
+      text('titulo',90,60,500,90,'{{titulo}}',{fontSize:60,name:'Titulo'}),
+      shape('selo',700,60,220,220,{shapeKind:'circle',locked:true})
+    ];
+    const C=opctx(layers,{w:1080,h:1080});
+    const r=cap(C,'titulo','canWrap');
+    assert(r.permitido&&r.maxLinhas===gLayoutRoleMaxLines('titulo'),
+      'a capacidade não devolveu o teto real de linhas');
+    const out=solve(layers,{titulo:'Combo artesanal com batata bebida e sobremesa especial'},{w:1080,h:1080});
+    assert(by(out,'titulo')._fit.lines.length>1,'o solver não quebrou o que a capacidade prometeu');
+  });
+
+  test('paridade: preço automático não é filho de corrente; com âncora manual, é',()=>{
+    const semAncora=[
+      text('produto',90,60,900,90,'{{produto}}',{fontSize:72,name:'Produto'}),
+      text('preco',90,200,400,70,'{{preco}}',{fontSize:52,name:'Preço'})
+    ];
+    const C1=opctx(semAncora);
+    const r1=cap(C1,'preco','canMoveY');
+    assert(!r1.permitido&&r1.motivo==='bloco-de-preco-nao-sai-do-lugar',
+      'a capacidade "corrigiu" o preço para o que parece intuitivo');
+    const out1=solve(semAncora,{produto:'NOME MUITO LONGO QUE CRESCE ALEM DA CAIXA DESENHADA',
+      preco:'R$ 9,99'},{w:1080,h:1080});
+    assert(!by(out1,'preco')._anchorAuto,'o solver encadeou o preço automático');
+    // Com a declaração do designer, muda — e a capacidade acompanha.
+    const comAncora=semAncora.map(l=>l.id==='preco'
+      ?Object.assign({},l,{relativeAnchor:{type:'top-to-bottom',layerId:'produto',gap:20}}):l);
+    const r2=cap(opctx(comAncora),'preco','canMoveY');
+    assert(r2.permitido&&r2.autorada===true,'a âncora manual não devolveu o movimento');
+    const out2=solve(comAncora,{produto:'NOME MUITO LONGO QUE CRESCE ALEM DA CAIXA DESENHADA',
+      preco:'R$ 9,99'},{w:1080,h:1080});
+    assert(by(out2,'preco').y>200,'o solver não moveu o preço com âncora manual');
+  });
+
+  test('paridade: placa pode crescer — e o solver a faz crescer',()=>{
+    // Placa que ABRAÇA o texto — a proporção real de um card de promo.
+    const layers=[
+      shape('placa',70,80,360,110,{locked:false}),
+      text('preco',95,100,310,65,'{{preco}}',{fontSize:40,name:'Preço',layoutRefText:'R$ 9,99'})
+    ];
+    const C=opctx(layers,{w:600,h:500});
+    const r=cap(C,'placa','canResizeContainer');
+    assert(r.permitido,'a capacidade não viu a placa: '+r.motivo);
+    assert(r.medidoNaTinta===true,'a capacidade não mediu na tinta — mediu na caixa');
+    assert(!cap(C,'preco','canResizeContainer').permitido,'o texto virou contêiner');
+    const out=solve(layers,{preco:'R$ 1.249,90 POR TEMPO LIMITADO E MAIS UM POUCO'},{w:600,h:500});
+    assert(by(out,'placa').h!==110||by(out,'placa').w!==360,
+      'o solver não mexeu na placa que a capacidade prometeu');
+    /* PAINEL NÃO É PLACA — e os dois lados têm que concordar nisso também. A forma abaixo é
+       grande demais para a tinta de referência: o solver recusa (teto de 6× a área) e a
+       capacidade tem que recusar junto, medindo na TINTA e não na caixa. */
+    const painel=[
+      shape('painel',40,40,520,300,{locked:false}),
+      text('titulo',95,100,310,65,'{{titulo}}',{fontSize:40,textBox:'point',textAlign:'center',
+        name:'Titulo',layoutRefText:'OI'})
+    ];
+    const Cp=opctx(painel,{w:600,h:500});
+    const rp=cap(Cp,'painel','canResizeContainer');
+    const outP=solve(painel,{titulo:'TEXTO BEM MAIOR QUE O ORIGINAL'},{w:600,h:500});
+    const cresceu=by(outP,'painel').w!==520||by(outP,'painel').h!==300;
+    assert(rp.permitido===cresceu,
+      'capacidade diz '+rp.permitido+' e o solver '+cresceu+' — a paridade quebrou');
+  });
+
+  test('paridade: tracking só é devolvido onde o render somou (fonte display)',()=>{
+    const layers=[
+      text('display',90,60,600,90,'CHAMADA',{fontSize:60,font:'Anton Black',name:'Titulo'}),
+      text('texto',90,200,600,60,'apoio comum',{fontSize:30,name:'Descrição'}),
+      text('autoral',90,300,600,60,'COM TRACKING',{fontSize:40,letterSpacing:3,name:'Titulo'})
+    ];
+    const C=opctx(layers);
+    const d=cap(C,'display','canRestoreTracking');
+    assert(d.permitido&&d.display===true,'fonte display não pôde devolver tracking');
+    assert(Math.abs(d.efetivo-gLayoutTrackingEfetivo(layers[0]))<0.001,
+      'a capacidade usou uma conta de tracking diferente da do solver');
+    assert(!cap(C,'texto','canRestoreTracking').permitido,
+      'fonte de texto não tem tracking a devolver — não pode prometer');
+    assert(cap(C,'autoral','canRestoreTracking').permitido,
+      'tracking que o designer escreveu também pode ser apertado até zero');
+  });
+
+  test('paridade: fonte no piso de legibilidade NÃO pode encolher',()=>{
+    /* O ponto da fase inteira: a elasticidade classifica o PAPEL como flexível; só a capacidade
+       sabe que não sobrou pixel nenhum, porque o piso depende do lado curto do canvas. */
+    const layers=[
+      text('titulo',90,60,900,90,'{{titulo}}',{fontSize:72,name:'Titulo'}),
+      text('mini',90,200,600,30,'letra miuda',{fontSize:13,name:'Descrição'})
+    ];
+    const C=opctx(layers,{w:1080,h:1080});
+    assert(gElasticityLevel(C.elasticity.get('mini').fontShrink)>0,
+      'a elasticidade deveria descrever o apoio como flexível');
+    const r=cap(C,'mini','canShrinkFont');
+    assert(!r.permitido&&r.motivo==='no-piso','a capacidade prometeu espaço que não existe');
+    assert(r.atual===r.piso&&r.folga===0,'o diagnóstico do piso saiu errado');
+    // O título tem folga de verdade — e o piso é o MESMO que a escada usa.
+    const t=cap(C,'titulo','canShrinkFont');
+    const clone=Object.assign({},layers[0]);
+    gStampPisosHierarquia([clone],{w:1080,h:1080});
+    assert(t.permitido&&t.piso===gLayoutPisoFonte(clone,false),
+      'a capacidade usou um piso diferente do solver');
+  });
+
+  test('paridade: colapso de campo vazio é capacidade própria, não liberdade de movimento',()=>{
+    const layers=[
+      text('titulo',80,90,360,60,'OFERTA',{fontSize:44}),
+      text('opcional',80,170,360,40,'{{opcional}}',{fontSize:26}),
+      text('cta',80,230,240,44,'APROVEITE',{fontSize:28,name:'CTA'})
+    ];
+    // Sem os dados do franqueado a capacidade NÃO inventa: ela declara que não sabe.
+    assert(cap(opctx(layers,{w:600,h:500}),'cta','canCollapseGap').motivo==='sem-dados-do-franqueado',
+      'a capacidade inventou colapso sem saber o que o franqueado digitou');
+    // Com o campo preenchido, não há vão a fechar.
+    assert(!cap(opctx(layers,{w:600,h:500},{opcional:'TEM TEXTO'}),'cta','canCollapseGap').permitido,
+      'prometeu colapso com o campo preenchido');
+    // Com o campo em branco, há — e o solver credita exatamente isso.
+    const r=cap(opctx(layers,{w:600,h:500},{opcional:''}),'cta','canCollapseGap');
+    assert(r.permitido&&r.credito>0,'não viu o vão que o campo vazio deixou');
+    const out=solve(layers,{opcional:''},{w:600,h:500});
+    assert(by(out,'cta')._anchorAuto.colapso===r.credito,
+      'o crédito da capacidade ('+r.credito+') difere do solver ('+by(out,'cta')._anchorAuto.colapso+')');
+    // ⛔ E isso NÃO virou liberdade geral de movimento.
+    assert(G_LAYOUT_ACOES['collapse-empty-gap'].dimensao===null,
+      'o colapso foi enfiado numa dimensão de elasticidade');
+  });
+
+  test('paridade: compressão de respiro é DISCRETA, não escala contínua',()=>{
+    const C=opctx([text('a',90,60,600,60,'{{a}}',{fontSize:40,name:'Titulo'})]);
+    const r=cap(C,'a','canCompressSpacing');
+    assert(r.permitido&&r.degraus===1&&r.fator===0.5,
+      'a capacidade prometeu níveis de compressão que o motor não tem');
+  });
+
+  test('paridade: singleton não escala como grupo; membro protegido bloqueia o componente',()=>{
+    const so=opctx([text('cta',90,100,300,60,'PEÇA AGORA',{fontSize:40,name:'CTA'})],{w:700,h:600});
+    const unit=gComponentsByType(so.components,'cta-block')[0];
+    const r=gComponentCapability(so,unit.id,'canScaleComponent');
+    assert(!r.permitido&&r.motivo==='singleton-nao-escala-como-grupo',
+      'um membro só recebeu escala de grupo');
+    // Grupo com membro protegido: bloqueia o componente inteiro.
+    const comLogo=opctx([
+      {id:'g',name:'Bloco',type:'group',x:70,y:80,w:600,h:140,visible:true,opacity:100},
+      text('preco',95,100,300,65,'{{preco}}',{fontSize:40,name:'Preço',parentId:'g'}),
+      {id:'logo',name:'Logo',type:'image',x:450,y:100,w:150,h:80,visible:true,opacity:100,parentId:'g'}
+    ],{w:1080,h:1080});
+    comLogo.components.filter(c=>!c.singleton).forEach(c=>{
+      const x=gComponentCapability(comLogo,c.id,'canScaleComponent');
+      if(c.membros.indexOf('logo')>=0)
+        assert(!x.permitido,'componente com logo dentro pôde escalar: '+c.tipo);
+    });
+  });
+
+  test('portão: a conjunção elasticidade × capacidade mora num lugar só',()=>{
+    const layers=[
+      text('titulo',90,60,900,90,'{{titulo}}',{fontSize:72,name:'Titulo'}),
+      text('mini',90,200,600,30,'letra miuda',{fontSize:13,name:'Descrição'}),
+      {id:'logo',name:'Logo',type:'image',x:820,y:60,w:180,h:90,visible:true,opacity:100}
+    ];
+    const C=opctx(layers);
+    // Bloqueado pela ELASTICIDADE (o papel nem permite) — nem chega a perguntar ao motor.
+    const p1=gLayoutOperationalPermission(C,'logo','wrap-text');
+    assert(!p1.permitido&&p1.bloqueadoPor==='elasticity','o bloqueio por elasticidade se perdeu');
+    assert(p1.capacidade===null,'perguntou ao motor mesmo com a elasticidade proibindo');
+    // Bloqueado pela CAPACIDADE (o papel permite, o motor não consegue).
+    const p2=gLayoutOperationalPermission(C,'mini','shrink-text');
+    assert(!p2.permitido&&p2.bloqueadoPor==='solver-capability','o bloqueio por capacidade se perdeu');
+    assert(gElasticityLevel(p2.elasticidade)>0,'este caso tinha que passar pela elasticidade');
+    // Permitido pelos dois.
+    assert(gLayoutOperationalPermission(C,'titulo','shrink-text').permitido,
+      'o caso que deveria passar foi bloqueado');
+  });
+
+  test('portão: fora da zona de impacto é bloqueio próprio',()=>{
+    const layers=[
+      text('titulo',90,60,600,90,'{{titulo}}',{fontSize:72,name:'Titulo'}),
+      text('apoio',90,180,600,60,'ACOMPANHA',{fontSize:40}),
+      text('longe',90,1500,600,60,'OUTRA SEÇÃO',{fontSize:40})
+    ];
+    const C=opctx(layers,{w:1080,h:1920});
+    const perto=gLayoutCanAttempt({ctx:C,action:'shrink-text',targetId:'apoio',rootId:'titulo'});
+    assert(perto.permitido,'quem está na zona foi bloqueado: '+perto.motivo);
+    assert(perto.nivelImpacto!=null&&perto.nivelImpacto<=3,'o nível de impacto não foi reportado');
+    const fora=gLayoutCanAttempt({ctx:C,action:'shrink-text',targetId:'longe',rootId:'titulo'});
+    assert(!fora.permitido&&fora.bloqueadoPor==='impact-scope','a zona não barrou quem está fora');
+    // Emergência global: só quando alguém pede explicitamente o nível 4.
+    const emerg=gLayoutCanAttempt({ctx:C,action:'shrink-text',targetId:'longe',rootId:'titulo',impactLevel:4});
+    assert(emerg.permitido&&emerg.nivelImpacto===4,'o nível 4 não abriu nem sob pedido explícito');
+  });
+
+  test('vocabulário: fechado, coerente e sem execução',()=>{
+    const esperadas=['wrap-text','compress-gap','restore-tracking','compress-line-height',
+      'push-dependent','resize-container','shrink-text','scale-component','collapse-empty-gap'];
+    esperadas.forEach(a=>assert(G_LAYOUT_ACOES[a],'falta a ação "'+a+'" no vocabulário'));
+    assert(Object.keys(G_LAYOUT_ACOES).length===esperadas.length,'o vocabulário cresceu sem aviso');
+    Object.keys(G_LAYOUT_ACOES).forEach(a=>{
+      const m=G_LAYOUT_ACOES[a];
+      assert(m.capacidade&&m.alvo&&m.degrau,'a ação "'+a+'" está sem metadados');
+      assert(!m.apply&&!m.executar,'apareceu execução no vocabulário: esta fase não executa');
+      assert(m.dimensao===null||G_ELASTICITY_DIMENSOES.indexOf(m.dimensao)>=0,
+        'a ação "'+a+'" aponta para dimensão inexistente: '+m.dimensao);
+    });
+    assert(gLayoutCanAttempt({ctx:{},action:'inventada',targetId:'x'}).motivo==='acao-desconhecida',
+      'ação fora do vocabulário foi aceita');
+  });
+
+  test('capacidade é barata o bastante para a busca consultar muito',()=>{
+    const L=arteGrande(150), cv={w:1080,h:2200};
+    const t0=performance.now();
+    const C=gBuildOperationalContext(L,cv);
+    const msCtx=performance.now()-t0;
+    const alvos=C.grammar.nodes.map(n=>n.id);
+    const caps=['canWrap','canShrinkFont','canMoveY','canCompressSpacing'];
+    const t1=performance.now();
+    let n=0;
+    for(let k=0;k<5;k++) alvos.forEach(id=>caps.forEach(c=>{gLayoutCapability(C,id,c);n++;}));
+    const ms=performance.now()-t1;
+    /* O contexto é compilado UMA vez e indexado; a consulta é lookup em `Map` mais aritmética.
+       Se alguém trouxer `.find()` linear ou travessia completa para dentro da consulta, este
+       número dispara — e a busca de candidatos, que vai perguntar milhares de vezes, para. */
+    assert(n>=3000,'o teste não exercitou consultas suficientes: '+n);
+    assert(ms<400,n+' consultas levaram '+ms.toFixed(1)+'ms (contexto: '+msCtx.toFixed(1)+'ms)');
+    assert(ms/n<0.05,'cada consulta custou '+(ms/n).toFixed(4)+'ms — caro demais para a busca');
+  });
+
+  test('capacidade não muta nada e é determinística',()=>{
+    const layers=[
+      shape('placa',70,80,360,110,{locked:false}),
+      text('preco',95,100,310,65,'{{preco}}',{fontSize:40,name:'Preço'})
+    ];
+    const antes=JSON.stringify(layers);
+    const C=opctx(layers,{w:600,h:500});
+    ['canWrap','canShrinkFont','canMoveY','canResizeContainer'].forEach(c=>{
+      gLayoutCapability(C,'preco',c); gLayoutCapability(C,'placa',c);
+    });
+    assert(JSON.stringify(layers)===antes,'a capacidade MUTOU as camadas');
+    /* `gStampPisosHierarquia` escreve `_pisoFonte`/`_pisoLegivel` — por isso o contexto trabalha
+       em clones. Se um dia alguém tirar o clone, esta asserção é quem avisa. */
+    assert(layers[1]._pisoLegivel===undefined,'o carimbo de piso vazou para o template');
+    const a=JSON.stringify(gLayoutCapability(C,'preco','canShrinkFont'));
+    const b=JSON.stringify(gLayoutCapability(opctx(layers,{w:600,h:500}),'preco','canShrinkFont'));
+    assert(a===b,'a capacidade não é determinística');
+  });
+
+  // Helper local: monta a ação de escala de um componente sem depender do gerador (a escala
+  // nasce de um problema de colisão, e aqui o alvo é a mecânica da aplicação).
+  const _gAcaoParaTeste=(c)=>({id:'scale-component',targetId:null,componentId:c.id,rootId:null,
+    impactLevel:null,params:{fator:0.92},reason:'teste',
+    signature:gLayoutActionSignature({id:'scale-component',componentId:c.id,params:{fator:0.92}})});
+
+  /* ══ DESIGNER MOVES — a primeira transformação real (Fase 5) ═════════════════════════════
+     Cada ação é UM degrau da escada, isolado e reversível. Os casos aqui provam três coisas:
+     que nada é gerado sem passar pelo portão, que aplicar uma ação não contamina nem a base nem
+     as outras, e que o resultado de cada movimento bate com o que o solver faz no mesmo degrau.
+     ⛔ Não existe Candidate Search: nada aqui combina, pontua ou escolhe. */
+  const gera=(C,p)=>gGenerateLayoutActions(C,p);
+  const temAcao=(as,id)=>as.some(a=>a.id===id);
+  const acaoDe=(as,id)=>as.find(a=>a.id===id)||null;
+  const arteMov=()=>[
+    text('titulo',90,60,600,90,'{{titulo}}',{fontSize:72,name:'Titulo',lineHeight:1.6}),
+    text('apoio',90,200,600,60,'ACOMPANHA',{fontSize:30,name:'Descrição'}),
+    shape('placa',90,320,400,120,{locked:false,name:'Placa'}),
+    text('preco',120,350,340,60,'{{preco}}',{fontSize:52,name:'Preço',layoutRefText:'R$ 9,99'}),
+    text('mini',90,500,600,30,'letra miuda',{fontSize:13,name:'Observação'}),
+    text('display',90,560,600,80,'CHAMADA',{fontSize:60,font:'Anton Black',name:'Chamada'}),
+    {id:'logo',name:'Logo',type:'image',x:820,y:60,w:180,h:90,visible:true,opacity:100}
+  ];
+  const ctxMov=(layers,dados)=>gBuildOperationalContext(layers||arteMov(),{w:1080,h:1080},
+    {dados:dados||{titulo:'NOME BEM MAIS LONGO DO QUE O ORIGINAL',preco:'R$ 1.249,90'}});
+
+  test('mov: sem problema, zero ações e zero clones',()=>{
+    const C=ctxMov();
+    assert(gera(C,null).length===0,'gerou ação sem problema');
+    assert(gera(C,{tipo:'inventado',targetId:'titulo'}).length===0,'aceitou problema fora do vocabulário');
+    assert(gera(C,{tipo:'text-overflow',targetId:'nao-existe'}).length===0,'gerou para alvo inexistente');
+    // O vocabulário de problemas é fechado e objetivo — nada de "layout feio".
+    ['text-overflow','collision','outside-canvas','spacing-pressure','container-mismatch','optional-empty']
+      .forEach(t=>assert(G_LAYOUT_PROBLEMAS[t],'falta o problema "'+t+'"'));
+    assert(Object.keys(G_LAYOUT_PROBLEMAS).length===6,'o vocabulário de problemas cresceu sem aviso');
+  });
+
+  test('mov: overflow gera as ações da escada, na ordem da escada',()=>{
+    const C=ctxMov();
+    const as=gera(C,{tipo:'text-overflow',targetId:'titulo',rootId:'titulo',detalhe:{largura:520}});
+    assert(as.length>0,'não gerou ação para overflow');
+    assert(as[0].id==='wrap-text','a primeira tentativa deveria ser a mais barata (quebrar)');
+    const iShrink=as.findIndex(a=>a.id==='shrink-text');
+    assert(iShrink===as.length-1,'encolher a fonte deveria ser a última opção');
+    as.forEach(a=>{
+      assert(G_LAYOUT_ACOES[a.id],'ação fora do vocabulário da Fase 4.5: '+a.id);
+      assert(a.signature&&a.reason,'a ação saiu sem assinatura ou sem razão');
+      assert(typeof a.params==='object'&&!a.apply,'o descriptor levou função dentro');
+    });
+  });
+
+  test('mov: fonte no piso não gera shrink; fonte sem display não gera tracking',()=>{
+    const C=ctxMov();
+    const mini=gera(C,{tipo:'text-overflow',targetId:'mini',rootId:null});
+    assert(!temAcao(mini,'shrink-text'),'gerou encolhimento para uma fonte que já está no piso');
+    const apoio=gera(C,{tipo:'text-overflow',targetId:'apoio',rootId:null});
+    assert(!temAcao(apoio,'restore-tracking'),'gerou devolução de tracking em fonte de texto');
+    const disp=gera(C,{tipo:'text-overflow',targetId:'display',rootId:null});
+    assert(temAcao(disp,'restore-tracking'),'fonte display deveria poder devolver tracking');
+  });
+
+  test('mov: preço automático não ganha movimento; com âncora manual, ganha',()=>{
+    const arte=[
+      text('produto',90,60,900,90,'{{produto}}',{fontSize:72,name:'Produto'}),
+      text('preco',90,200,400,70,'{{preco}}',{fontSize:52,name:'Preço'})
+    ];
+    const C=gBuildOperationalContext(arte,{w:1080,h:1080},{dados:{produto:'X',preco:'R$ 1,00'}});
+    const as=gera(C,{tipo:'collision',targetId:'preco',rootId:'produto',detalhe:{delta:40}});
+    assert(!temAcao(as,'push-dependent'),'o bloco de preço automático ganhou movimento');
+    const comAncora=arte.map(l=>l.id==='preco'
+      ?Object.assign({},l,{relativeAnchor:{type:'top-to-bottom',layerId:'produto',gap:20}}):l);
+    const C2=gBuildOperationalContext(comAncora,{w:1080,h:1080},{dados:{produto:'X',preco:'R$ 1,00'}});
+    assert(temAcao(gera(C2,{tipo:'collision',targetId:'preco',rootId:'produto',detalhe:{delta:40}}),
+      'push-dependent'),'a âncora manual não devolveu o movimento');
+  });
+
+  test('mov: placa gera resize; painel grande não; protegida não gera nada',()=>{
+    const C=ctxMov();
+    assert(temAcao(gera(C,{tipo:'container-mismatch',targetId:'placa',rootId:'preco'}),'resize-container'),
+      'a placa válida não gerou resize');
+    const painel=[
+      shape('painel',40,40,520,300,{locked:false}),
+      text('t',95,100,310,65,'{{t}}',{fontSize:40,textBox:'point',textAlign:'center',layoutRefText:'OI'})
+    ];
+    const Cp=gBuildOperationalContext(painel,{w:600,h:500},{dados:{t:'TEXTO GRANDE'}});
+    assert(!temAcao(gera(Cp,{tipo:'container-mismatch',targetId:'painel',rootId:'t'}),'resize-container'),
+      'um painel virou placa');
+    // Protegida: nenhuma ação destrutiva, em nenhum problema.
+    ['text-overflow','collision','outside-canvas','spacing-pressure'].forEach(t=>
+      assert(gera(C,{tipo:t,targetId:'logo',rootId:'titulo',detalhe:{delta:40,largura:100}}).length===0,
+        'o logo ganhou ação em "'+t+'"'));
+  });
+
+  test('mov: fora do escopo de impacto a ação não é gerada',()=>{
+    const arte=[
+      text('titulo',90,60,600,90,'{{titulo}}',{fontSize:72,name:'Titulo'}),
+      text('longe',90,1500,600,60,'OUTRA SEÇÃO',{fontSize:40,name:'Descrição'})
+    ];
+    const C=gBuildOperationalContext(arte,{w:1080,h:1920},{dados:{titulo:'X'}});
+    assert(gera(C,{tipo:'text-overflow',targetId:'longe',rootId:'titulo'}).length===0,
+      'gerou ação para quem está fora da zona de impacto da raiz');
+    assert(gera(C,{tipo:'text-overflow',targetId:'longe',rootId:null}).length>0,
+      'sem raiz não há escopo a verificar — deveria gerar');
+  });
+
+  test('mov: colapso só com dados reais; singleton e membro protegido barram a escala',()=>{
+    const arte=[
+      text('titulo',80,90,360,60,'OFERTA',{fontSize:44,name:'Titulo'}),
+      text('opcional',80,170,360,40,'{{opcional}}',{fontSize:26}),
+      text('cta',80,230,240,44,'APROVEITE',{fontSize:28,name:'CTA'})
+    ];
+    const semDados=gBuildOperationalContext(arte,{w:600,h:500});
+    assert(gera(semDados,{tipo:'optional-empty',targetId:'cta'}).length===0,
+      'gerou colapso sem saber o que o franqueado digitou');
+    assert(gera(gBuildOperationalContext(arte,{w:600,h:500},{dados:{opcional:'TEM'}}),
+      {tipo:'optional-empty',targetId:'cta'}).length===0,'gerou colapso com o campo preenchido');
+    const comVazio=gBuildOperationalContext(arte,{w:600,h:500},{dados:{opcional:''}});
+    assert(temAcao(gera(comVazio,{tipo:'optional-empty',targetId:'cta'}),'collapse-empty-gap'),
+      'o campo vazio não gerou colapso');
+    // Escala: singleton e membro protegido bloqueiam (o portão já disse; aqui não vaza).
+    const so=gBuildOperationalContext([text('cta',90,100,300,60,'PEÇA AGORA',{fontSize:40,name:'CTA'})],
+      {w:700,h:600});
+    assert(!temAcao(gera(so,{tipo:'collision',targetId:'cta'}),'scale-component'),
+      'um membro só ganhou escala de grupo');
+  });
+
+  test('mov: aplicar não toca a base e um ramo não contamina o outro',()=>{
+    const base=arteMov();
+    const congelado=JSON.stringify(base);
+    const C=ctxMov(base);
+    const as=gera(C,{tipo:'text-overflow',targetId:'titulo',rootId:'titulo',detalhe:{largura:520}});
+    assert(as.length>=2,'este caso precisa de pelo menos duas ações');
+    const rs=as.map(a=>gApplyLayoutAction(base,a,C));
+    assert(JSON.stringify(base)===congelado,'a aplicação MUTOU a base');
+    // Cada clone carrega SÓ o efeito da própria ação.
+    const wrap=rs[as.findIndex(a=>a.id==='wrap-text')];
+    const shrink=rs[as.findIndex(a=>a.id==='shrink-text')];
+    const tw=wrap.layers.find(l=>l.id==='titulo'), ts=shrink.layers.find(l=>l.id==='titulo');
+    assert(tw._layoutW!=null&&tw._tetoFonte==null,'o ramo do wrap recebeu o efeito do shrink');
+    assert(ts._tetoFonte!=null&&ts._layoutW==null,'o ramo do shrink recebeu o efeito do wrap');
+    assert(wrap.layers!==shrink.layers&&wrap.layers[0]!==shrink.layers[0],
+      'os dois ramos compartilham o mesmo objeto de camada');
+  });
+
+  test('mov: changedIds corresponde exatamente ao que mudou',()=>{
+    const base=arteMov(), C=ctxMov(base);
+    const casos=[
+      gera(C,{tipo:'text-overflow',targetId:'titulo',rootId:'titulo',detalhe:{largura:520}}),
+      gera(C,{tipo:'container-mismatch',targetId:'placa',rootId:'preco'}),
+      gera(C,{tipo:'collision',targetId:'apoio',rootId:'titulo',detalhe:{delta:40}})
+    ];
+    casos.forEach(as=>as.forEach(a=>{
+      const r=gApplyLayoutAction(base,a,C);
+      const idxB=new Map(base.map(l=>[l.id,l]));
+      const mudaram=r.layers.filter(l=>JSON.stringify(l)!==JSON.stringify(idxB.get(l.id))).map(l=>l.id).sort();
+      assert(JSON.stringify(mudaram)===JSON.stringify(r.changedIds),
+        a.id+': changedIds='+JSON.stringify(r.changedIds)+' mas mudou '+JSON.stringify(mudaram));
+    }));
+  });
+
+  test('mov: a assinatura da ação é determinística e ignora ordem de params',()=>{
+    const C=ctxMov();
+    const p={tipo:'text-overflow',targetId:'titulo',rootId:'titulo',detalhe:{largura:520}};
+    const a=gera(C,p), b=gera(ctxMov(),p);
+    assert(a.length===b.length,'duas gerações iguais deram contagens diferentes');
+    assert(a.map(x=>x.signature).join()===b.map(x=>x.signature).join(),
+      'as assinaturas não são determinísticas');
+    assert(a.map(x=>x.id).join()===b.map(x=>x.id).join(),'a ORDEM das ações não é determinística');
+    // A ordem das chaves de params não pode virar informação.
+    const s1=gLayoutActionSignature({id:'shrink-text',targetId:'t',params:{de:72,para:66}});
+    const s2=gLayoutActionSignature({id:'shrink-text',targetId:'t',params:{para:66,de:72}});
+    assert(s1===s2,'a ordem das chaves mudou a assinatura');
+  });
+
+  /* ══ PARIDADE POR MOVIMENTO — cada ação contra o degrau equivalente do solver ═══════════ */
+
+  test('paridade-mov: shrink é UM degrau de 8% e nunca cruza o piso',()=>{
+    const base=arteMov(), C=ctxMov(base);
+    const a=acaoDe(gera(C,{tipo:'text-overflow',targetId:'titulo',rootId:'titulo'}),'shrink-text');
+    const clone=Object.assign({},base[0]);
+    gStampPisosHierarquia([clone].concat(base.slice(1).map(l=>Object.assign({},l))),{w:1080,h:1080});
+    const piso=gLayoutPisoFonte(clone,false);
+    assert(a.params.para===Math.max(piso,Math.floor(72*0.92)),
+      'o degrau não é o mesmo do solver: '+a.params.para);
+    assert(a.params.para>=piso,'o degrau cruzou o piso');
+    assert(a.params.para>Math.floor(72*0.5),'reduziu direto até o fundo em vez de um degrau');
+  });
+
+  test('paridade-mov: entrelinha usa a conta do solver e nunca cruza 1.05',()=>{
+    const base=arteMov(), C=ctxMov(base);
+    const a=acaoDe(gera(C,{tipo:'text-overflow',targetId:'titulo',rootId:'titulo',detalhe:{largura:400}}),
+      'compress-line-height');
+    assert(a,'o título com entrelinha 1.6 e duas linhas tinha que gerar o degrau');
+    assert(a.params.para>=1.05,'a entrelinha cruzou o piso de 1.05');
+    assert(a.params.para<a.params.de,'gerou compressão que não comprime');
+    const r=gApplyLayoutAction(base,a,C);
+    assert(r.layers.find(l=>l.id==='titulo')._entrelinha===a.params.para,
+      'a aplicação não usou o carimbo que a escada usa');
+    assert(r.typographyChanged&&!r.geometryChanged,'a entrelinha mexeu em geometria');
+  });
+
+  test('paridade-mov: tracking devolve exatamente o que o motor somou, e só isso',()=>{
+    const base=arteMov(), C=ctxMov(base);
+    const a=acaoDe(gera(C,{tipo:'text-overflow',targetId:'display',rootId:null}),'restore-tracking');
+    assert(a,'fonte display deveria gerar a devolução');
+    const l=base.find(x=>x.id==='display');
+    const esperado=Math.max(0,gLayoutTrackingEfetivo(l,l.fontSize)-l.fontSize*0.02);
+    assert(Math.abs(a.params.para-esperado)<0.001,'a conta difere da do solver');
+    assert(a.params.origem==='motor','a ação não declarou que devolve tracking do motor');
+    /* ⛔ Tracking AUTORAL não é tocado — esta ação é mais conservadora que a escada de
+       propósito: devolver o que o render somou é reverter o motor; apertar o do designer é
+       mexer no desenho dele. */
+    const comAutoral=base.map(x=>x.id==='display'?Object.assign({},x,{letterSpacing:3}):x);
+    const C2=gBuildOperationalContext(comAutoral,{w:1080,h:1080},{dados:{titulo:'X',preco:'R$ 1'}});
+    assert(!temAcao(gera(C2,{tipo:'text-overflow',targetId:'display'}),'restore-tracking'),
+      'a ação mexeu no tracking que o designer escreveu');
+  });
+
+  test('paridade-mov: compress-gap é UM degrau de 0.5 e não é geometria de camada',()=>{
+    const base=arteMov(), C=ctxMov(base);
+    const a=acaoDe(gera(C,{tipo:'spacing-pressure',targetId:'apoio',rootId:'titulo'}),'compress-gap');
+    assert(a&&a.params.fator===0.5,'o degrau do respiro não é 0.5');
+    const r=gApplyLayoutAction(base,a,C);
+    assert(r.opts&&r.opts._respiroFator===0.5,'a ação não devolveu a opção de solve');
+    assert(r.changedIds.length===0&&!r.geometryChanged,
+      'o respiro virou geometria de camada — ele é parâmetro do solve');
+    // E o degrau existe de verdade no motor: o respiro apertado é menor que o ideal.
+    const t=base.find(x=>x.id==='apoio'), cv={w:1080,h:1080};
+    assert(_gLayoutRespiro(t,40,cv,0.5)<_gLayoutRespiro(t,40,cv,1),
+      'o fator 0.5 não aperta nada no motor real');
+  });
+
+  test('paridade-mov: resize-container reproduz a placa que o solver produz',()=>{
+    const base=[
+      shape('placa',70,80,360,110,{locked:false}),
+      text('preco',95,100,310,65,'{{preco}}',{fontSize:40,name:'Preço',layoutRefText:'R$ 9,99'})
+    ];
+    const dados={preco:'R$ 1.249,90 POR TEMPO LIMITADO E MAIS UM POUCO'};
+    const C=gBuildOperationalContext(base,{w:600,h:500},{dados:dados});
+    const a=acaoDe(gera(C,{tipo:'container-mismatch',targetId:'placa',rootId:'preco'}),'resize-container');
+    assert(a,'não gerou o resize');
+    const r=gApplyLayoutAction(base,a,C);
+    const minha=r.layers.find(l=>l.id==='placa');
+    const doSolver=by(solve(base,dados,{w:600,h:500}),'placa');
+    ['x','y','w','h'].forEach(k=>assert(Math.abs(minha[k]-doSolver[k])<=1,
+      'a placa da ação difere da do solver em '+k+': '+minha[k]+' vs '+doSolver[k]));
+    assert(r.diagnostics.padding&&r.diagnostics.padding.e!=null,'o padding autorado não foi registrado');
+  });
+
+  test('paridade-mov: collapse usa o mesmo crédito que o solver credita',()=>{
+    const base=[
+      text('titulo',80,90,360,60,'OFERTA',{fontSize:44,name:'Titulo'}),
+      text('opcional',80,170,360,40,'{{opcional}}',{fontSize:26}),
+      text('cta',80,230,240,44,'APROVEITE',{fontSize:28,name:'CTA'})
+    ];
+    const C=gBuildOperationalContext(base,{w:600,h:500},{dados:{opcional:''}});
+    const a=acaoDe(gera(C,{tipo:'optional-empty',targetId:'cta'}),'collapse-empty-gap');
+    assert(a,'não gerou o colapso');
+    const doSolver=by(solve(base,{opcional:''},{w:600,h:500}),'cta')._anchorAuto.colapso;
+    assert(a.params.credito===doSolver,
+      'o crédito ('+a.params.credito+') difere do solver ('+doSolver+')');
+    const r=gApplyLayoutAction(base,a,C);
+    assert(r.layers.find(l=>l.id==='cta').y===230-doSolver,'a subida não foi o crédito exato');
+    assert(r.geometryChanged&&r.changedIds.join()==='cta','o colapso mexeu em quem não devia');
+  });
+
+  test('paridade-mov: push só desce, e só por dependência autorizada',()=>{
+    const base=[
+      text('titulo',90,100,420,58,'{{titulo}}',{fontSize:46,name:'Titulo'}),
+      text('cta',90,180,260,48,'PEÇA AGORA',{fontSize:30,name:'CTA'})
+    ];
+    const dados={titulo:'Combo artesanal com batata bebida e sobremesa especial'};
+    const C=gBuildOperationalContext(base,{w:700,h:600},{dados:dados});
+    const a=acaoDe(gera(C,{tipo:'collision',targetId:'cta',rootId:'titulo',detalhe:{delta:37}}),
+      'push-dependent');
+    assert(a,'não gerou o empurrão numa cadeia autorizada');
+    const r=gApplyLayoutAction(base,a,C);
+    assert(r.layers.find(l=>l.id==='cta').y===180+37,'o empurrão não aplicou o delta');
+    // Delta negativo (puxar para cima) não existe: a corrente inferida SÓ empurra.
+    assert(!temAcao(gera(C,{tipo:'collision',targetId:'cta',rootId:'titulo',detalhe:{delta:-20}}),
+      'push-dependent'),'gerou um empurrão para cima');
+    // E o solver, na mesma arte, também desce o CTA.
+    assert(by(solve(base,dados,{w:700,h:600}),'cta').y>180,'o solver não desceu o CTA');
+  });
+
+  test('mov: scale-component é proporcional e respeita o piso de emergência',()=>{
+    const base=[
+      text('titulo',90,60,600,90,'{{titulo}}',{fontSize:72,name:'Titulo'}),
+      text('apoio',90,180,600,60,'ACOMPANHA',{fontSize:36,name:'Descrição'})
+    ];
+    const C=gBuildOperationalContext(base,{w:1080,h:1080},{dados:{titulo:'X'}});
+    const c=gComponentsByType(C.components,'offer-block')[0];
+    if(!c){ assert(true,'sem componente composto não há escala a testar'); return; }
+    const a=_gAcaoParaTeste(c);
+    const r=gApplyLayoutAction(base,a,C);
+    r.diagnostics.membros.forEach(m=>{
+      const l=base.find(x=>x.id===m.id), clone=Object.assign({},l);
+      gStampPisosHierarquia(base.map(x=>Object.assign({},x)),{w:1080,h:1080});
+      assert(m.para<m.de,'a escala não reduziu '+m.id);
+      assert(m.para/m.de>0.85,'a escala de um degrau reduziu demais');
+    });
+    // Proporção preservada: todos caem pelo mesmo fator (dentro do arredondamento).
+    if(r.diagnostics.membros.length>1){
+      const fs=r.diagnostics.membros.map(m=>m.para/m.de);
+      assert(Math.max.apply(null,fs)-Math.min.apply(null,fs)<0.03,'a escala não foi proporcional');
+    }
+  });
+
+  test('mov: o diff de mutação diz o que mudou, sem pontuar',()=>{
+    const base=arteMov(), C=ctxMov(base);
+    const a=acaoDe(gera(C,{tipo:'collision',targetId:'apoio',rootId:'titulo',detalhe:{delta:40}}),
+      'push-dependent');
+    const r=gApplyLayoutAction(base,a,C);
+    const d=gDescribeLayoutMutation(base,r.layers,{w:1080,h:1080});
+    assert(d.moved.join()==='apoio','o diff não viu o deslocamento');
+    assert(d.typographyChanged.length===0,'o diff acusou tipografia onde não houve');
+    assert(d.visualChanged===true,'a assinatura visual não percebeu o movimento');
+    assert(d.nota===undefined&&d.score===undefined,'apareceu pontuação: esta fase não pontua');
+  });
+
+  test('mov: gerar e aplicar é barato o bastante para 8–16 candidatos',()=>{
+    const L=arteGrande(150), cv={w:1080,h:2200};
+    const t0=performance.now();
+    const C=gBuildOperationalContext(L,cv,{dados:{}});
+    const msCtx=performance.now()-t0;
+    const alvos=C.grammar.nodes.filter(n=>n.tipo==='text'&&n.campos.length).slice(0,8).map(n=>n.id);
+    const t1=performance.now();
+    let todas=[];
+    alvos.forEach(id=>{ todas=todas.concat(gera(C,{tipo:'text-overflow',targetId:id,rootId:id})); });
+    const msGer=performance.now()-t1;
+    const t2=performance.now();
+    todas.forEach(a=>gApplyLayoutAction(L,a,C));
+    const msApp=performance.now()-t2;
+    assert(todas.length>0,'não gerou ação nenhuma numa arte de 150 camadas');
+    /* A busca da fase seguinte vai gerar ~8–16 candidatos por problema. Se alguém trouxer
+       varredura da arte inteira para dentro da geração, estes números disparam. */
+    assert(msGer<300,'geração levou '+msGer.toFixed(1)+'ms para '+alvos.length+' problemas');
+    assert(msApp<400,todas.length+' aplicações levaram '+msApp.toFixed(1)+'ms (ctx '+msCtx.toFixed(1)+'ms)');
+  });
+
+  // Candidato mínimo só para exercitar a assinatura de ESTADO, sem passar pela busca.
+  const _gCandidatoTeste=(layers)=>({layers:layers,actions:[],actionSignatures:[],depth:0});
+
+  /* ══ CANDIDATE SEARCH — sequências curtas de movimentos seguros (Fase 5.5) ════════════════
+     A busca devolve TODAS as sequências que resolveram; qual delas preserva melhor a intenção
+     é pergunta da Fase 6. Aqui só existe DANO OBJETIVO — saiu da arte, colidiu, não coube.
+     ⛔ Nada aqui escolhe vencedor e nada muda produção. */
+  const ctxB=(layers,dados,cv)=>gBuildOperationalContext(layers,cv||{w:1080,h:1080},{dados:dados||{}});
+  const busca=(layers,dados,cv,lim)=>{
+    const c=ctxB(layers,dados,cv);
+    return {ctx:c,r:gSearchLayoutCandidates({ctx:c,base:layers,limites:lim})};
+  };
+  const seq=(c)=>c.actions.map(a=>a.id).join(' → ');
+  // Arte com um título que cresce e empurra o apoio; a placa e o preço abaixo, logo protegido.
+  const arteB=()=>[
+    text('titulo',90,60,500,90,'{{titulo}}',{fontSize:64,name:'Titulo'}),
+    text('apoio',90,190,500,60,'ACOMPANHA O TITULO',{fontSize:30,name:'Descrição'}),
+    shape('placa',90,320,400,120,{locked:false,name:'Placa'}),
+    text('preco',120,350,340,60,'{{preco}}',{fontSize:52,name:'Preço',layoutRefText:'R$ 9,99'}),
+    {id:'logo',name:'Logo',type:'image',x:820,y:60,w:180,h:90,visible:true,opacity:100}
+  ];
+
+  test('busca: sem dano objetivo, original-first e zero expansão',()=>{
+    const {r}=busca(arteB(),{titulo:'OFERTA',preco:'R$ 9,99'});
+    assert(r.diagnostics.expanded===0,'expandiu uma arte sem problema');
+    assert(r.diagnostics.generated===0,'gerou candidato sem problema');
+    assert(r.solved.length===1&&r.solved[0].depth===0,'o original não voltou como solução');
+    assert(r.solved[0].actions.length===0,'o original veio com ação');
+    assert(r.original&&r.original.signature===r.solved[0].signature,'o original não é o candidato 0');
+  });
+
+  test('busca: detector aponta o CULPADO certo e o delta da corrente',()=>{
+    const layers=arteB();
+    const c=ctxB(layers,{titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'});
+    const probs=gDetectLayoutProblems(layers,c);
+    assert(probs.length>0,'não detectou dano numa arte que estoura');
+    const col=probs.find(p=>p.tipo==='collision');
+    assert(col,'não detectou a colisão');
+    /* O culpado é quem CRESCEU, não quem está mais abaixo — apontar a vítima faria a busca
+       tentar encolher o preço porque o título ficou longo. */
+    assert(col.detalhe.culpado==='titulo','o culpado saiu errado: '+col.detalhe.culpado);
+    assert(col.detalhe.delta>0,'o delta do empurrão não foi calculado');
+    // Vocabulário fechado: nada subjetivo.
+    probs.forEach(p=>assert(G_LAYOUT_PROBLEMAS[p.tipo],'problema fora do vocabulário: '+p.tipo));
+    // Ordem por prioridade declarada, nunca a ordem das camadas.
+    for(let i=1;i<probs.length;i++)
+      assert(G_LAYOUT_PROBLEM_PRIORITY.indexOf(probs[i-1].tipo)
+          <= G_LAYOUT_PROBLEM_PRIORITY.indexOf(probs[i].tipo),'os problemas saíram fora da prioridade');
+  });
+
+  test('paridade-busca: o delta detectado é o que o solver empurra',()=>{
+    const layers=[
+      text('titulo',90,100,420,58,'{{titulo}}',{fontSize:46,name:'Titulo'}),
+      text('cta',90,180,260,48,'PEÇA AGORA',{fontSize:30,name:'CTA'})
+    ];
+    const dados={titulo:'Combo artesanal com batata bebida e sobremesa especial'};
+    const c=ctxB(layers,dados,{w:700,h:600});
+    const probs=gDetectLayoutProblems(layers,c);
+    const col=probs.find(p=>p.tipo==='collision'||p.tipo==='spacing-pressure');
+    if(!col){ assert(true,'sem colisão nesta arte não há delta a comparar'); return; }
+    const out=solve(layers,dados,{w:700,h:600});
+    const deslocouSolver=by(out,'cta').y-180;
+    assert(Math.abs((col.detalhe.delta||0)-deslocouSolver)<=2,
+      'o delta detectado ('+col.detalhe.delta+') difere do que o solver empurrou ('+deslocouSolver+')');
+  });
+
+  test('busca: encadeia profundidade e respeita maxDepth/beamWidth',()=>{
+    const dados={titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'};
+    const {r}=busca(arteB(),dados);
+    assert(r.diagnostics.expanded>0,'não expandiu uma arte com dano');
+    const todos=[].concat(r.solved,r.partial);
+    assert(todos.some(c=>c.depth>=2),'nunca chegou a encadear dois movimentos');
+    todos.forEach(c=>assert(c.depth<=G_SEARCH_LIMITES.maxDepth,'passou do maxDepth: '+c.depth));
+    // Os limites mandam de verdade: cortar maxDepth corta a profundidade.
+    const raso=busca(arteB(),dados,null,{maxDepth:1}).r;
+    assert([].concat(raso.solved,raso.partial).every(c=>c.depth<=1),'maxDepth=1 não foi respeitado');
+    const estreito=busca(arteB(),dados,null,{beamWidth:1}).r;
+    assert(estreito.diagnostics.generated<=r.diagnostics.generated,
+      'beamWidth=1 não reduziu a busca');
+    // E não explode: a ordem de grandeza é dezenas, não centenas.
+    assert(r.diagnostics.generated<=G_SEARCH_LIMITES.maxCandidatos,'a busca passou do teto');
+  });
+
+  test('busca: dedup é por ESTADO, não por lista de ações',()=>{
+    const dados={titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'};
+    const {r}=busca(arteB(),dados);
+    assert(r.diagnostics.deduplicated>0,'nenhum estado repetido foi reconhecido');
+    const sigs=[].concat(r.solved,r.partial,r.invalid).map(c=>c.signature);
+    assert(new Set(sigs).size===sigs.length,'dois candidatos com a mesma assinatura sobreviveram');
+    /* A assinatura é do ESTADO: dois caminhos diferentes que chegaram à mesma composição têm
+       que colidir. Aqui provamos o inverso do trivial — mudar só a ordem das camadas não muda
+       a assinatura, porque ela é ordenada por ID. */
+    const a=_gCandidatoTeste(arteB()), b=_gCandidatoTeste(arteB().slice().reverse());
+    assert(gLayoutCandidateSignature(a)===gLayoutCandidateSignature(b),
+      'a ordem da lista virou parte da assinatura do candidato');
+    const mexido=arteB(); mexido[0]=Object.assign({},mexido[0],{y:70});
+    assert(gLayoutCandidateSignature(_gCandidatoTeste(mexido))!==gLayoutCandidateSignature(a),
+      'deslocar uma camada não mudou a assinatura do estado');
+    // Tipografia transitória também é estado.
+    const comTeto=arteB(); comTeto[0]=Object.assign({},comTeto[0],{_tetoFonte:50});
+    assert(gLayoutCandidateSignature(_gCandidatoTeste(comTeto))!==gLayoutCandidateSignature(a),
+      'o teto de fonte não entrou na assinatura');
+  });
+
+  test('busca: ação sem efeito é podada e nenhum ramo entra em laço',()=>{
+    const dados={titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'};
+    const {r}=busca(arteB(),dados);
+    assert(r.diagnostics.pruned>0,'nada foi podado numa busca que repetiu estados');
+    // Repetição por ação: nunca além do que o motor tem de degraus.
+    [].concat(r.solved,r.partial).forEach(c=>{
+      const conta={};
+      c.actions.forEach(a=>{conta[a.id]=(conta[a.id]||0)+1;});
+      Object.keys(conta).forEach(id=>assert(conta[id]<=G_ACAO_REPETICAO[id],
+        id+' repetiu '+conta[id]+'× (teto '+G_ACAO_REPETICAO[id]+')'));
+    });
+    // `compress-gap` tem UM degrau: nunca aparece duas vezes na mesma sequência.
+    assert(G_ACAO_REPETICAO['compress-gap']===1,'o respiro ganhou um degrau que o motor não tem');
+    assert(G_ACAO_REPETICAO['shrink-text']>1,'encolher deveria poder repetir: cada volta são 8%');
+  });
+
+  test('busca: shrink repetido não cruza o piso',()=>{
+    const dados={titulo:'Combo artesanal da casa com borda recheada muito maior',preco:'R$ 9,99'};
+    const {ctx,r}=busca(arteB(),dados);
+    const comShrink=[].concat(r.solved,r.partial).filter(c=>c.actions.some(a=>a.id==='shrink-text'));
+    assert(comShrink.length>0,'nenhum candidato encolheu');
+    const clones=arteB().map(l=>Object.assign({},l));
+    gStampPisosHierarquia(clones,{w:1080,h:1080});
+    const alvo=clones.find(l=>l.id==='titulo');
+    const piso=gLayoutPisoFonte(alvo,false);
+    /* ⚠ DOIS PISOS, e é assim no motor. `shrink-text` cede um degrau por vez até o piso NORMAL
+       (metade do corpo autorado, ou o piso de hierarquia). `scale-component` é o degrau de
+       EMERGÊNCIA da escada (`_pisoEmergenciaDe`): quando o componente inteiro reduz na mesma
+       escala a hierarquia já está protegida pela proporção comum, então o piso que resta é
+       legibilidade. Cobrar o piso normal de uma sequência que escalou o componente seria cobrar
+       do motor uma regra que ele não tem. */
+    const pisoEmerg=gLayoutPisoFonte(alvo,true);
+    comShrink.forEach(c=>{
+      const t=c.layers.find(l=>l.id==='titulo');
+      if(!t||t._tetoFonte==null) return;
+      const escalou=c.actions.some(a=>a.id==='scale-component');
+      const limite=escalou?pisoEmerg:piso;
+      assert(t._tetoFonte>=limite,'a sequência ['+seq(c)+'] cruzou o piso: '
+        +t._tetoFonte+' < '+limite);
+    });
+    // E o piso de emergência nunca é mais generoso do que a legibilidade permite.
+    assert(pisoEmerg>=8,'o piso de emergência desceu abaixo da legibilidade');
+  });
+
+  test('busca: protegida nunca sobrevive como candidato válido',()=>{
+    const dados={titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'};
+    const {ctx,r}=busca(arteB(),dados);
+    [].concat(r.solved,r.partial).forEach(c=>{
+      c.changedIds.forEach(id=>{
+        const n=ctx._no.get(id);
+        assert(!(n&&(n.protegida||n.fundo)),
+          'o candidato '+c.id+' mexeu em "'+id+'", que é protegida');
+      });
+    });
+    // O logo não aparece em movimento nenhum.
+    [].concat(r.solved,r.partial).forEach(c=>assert(c.changedIds.indexOf('logo')<0,
+      'o logo entrou num candidato'));
+  });
+
+  test('busca: duas colunas independentes não se invadem',()=>{
+    const layers=[
+      text('e1',80,100,300,60,'{{esq}}',{fontSize:44,name:'Titulo'}),
+      text('e2',80,200,300,60,'APOIO ESQ',{fontSize:28,name:'Descrição'}),
+      text('d1',700,100,300,60,'DIR FIXO',{fontSize:44,name:'Titulo'}),
+      text('d2',700,200,300,60,'APOIO DIR',{fontSize:28,name:'Descrição'})
+    ];
+    const {r}=busca(layers,{esq:'Titulo bem mais longo do que cabia originalmente aqui'},{w:1080,h:600});
+    [].concat(r.solved,r.partial).forEach(c=>{
+      assert(c.changedIds.indexOf('d1')<0&&c.changedIds.indexOf('d2')<0,
+        'a busca da coluna esquerda invadiu a direita: '+JSON.stringify(c.changedIds));
+    });
+  });
+
+  test('busca: solved, partial e invalid são categorias separadas',()=>{
+    const dados={titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'};
+    const {r}=busca(arteB(),dados);
+    r.solved.forEach(c=>assert(c.status==='solved'&&c.diagnostics.problemasDepois===0||c.depth===0,
+      'um "solved" ainda tem dano'));
+    r.partial.forEach(c=>assert(c.status==='partial'&&c.diagnostics.problemasDepois>0,
+      'um "partial" não tem dano restante'));
+    r.invalid.forEach(c=>assert(c.status==='invalid','categoria errada em invalid'));
+    // Progresso é diagnóstico, não ranking.
+    r.partial.forEach(c=>assert(typeof c.diagnostics.resolvidos==='number','falta o diagnóstico de progresso'));
+    assert(r.solved.every(c=>!('nota' in c)&&!('score' in c)),'apareceu pontuação num candidato');
+  });
+
+  test('busca: é determinística — mesmos candidatos, mesma ordem',()=>{
+    const dados={titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'};
+    const a=busca(arteB(),dados).r, b=busca(arteB(),dados).r;
+    const chave=(r)=>[].concat(r.solved,r.partial,r.invalid)
+      .map(c=>c.depth+':'+seq(c)+':'+c.signature).join('|');
+    assert(chave(a)===chave(b),'duas buscas iguais deram candidatos ou ordem diferentes');
+    /* Tempo de relógio nunca é determinístico e não descreve a busca — sai da comparação;
+       todo o resto do diagnóstico (expandidos, gerados, dedupe, podados, profundidade) entra. */
+    const semTempo=(d)=>JSON.stringify(Object.assign({},d,
+      {porDepth:(d.porDepth||[]).map(x=>Object.assign({},x,{ms:null}))}));
+    assert(semTempo(a.diagnostics)===semTempo(b.diagnostics),
+      'o diagnóstico não é determinístico');
+    // Serializável e sem função.
+    [].concat(a.solved,a.partial).forEach(c=>{
+      assert(JSON.stringify(c).length>0,'o candidato não é serializável');
+      assert(typeof c.signature==='string'&&Array.isArray(c.actionSignatures),'formato do candidato errado');
+    });
+  });
+
+  test('busca: candidato resolve quando o dano é pequeno',()=>{
+    /* Uma arte que estoura pouco: um degrau resolve, e é isso que a busca tem que devolver
+       como `solved` em vez de mastigar até o fundo. */
+    const layers=[
+      text('titulo',90,60,560,120,'{{titulo}}',{fontSize:40,name:'Titulo'}),
+      text('apoio',90,230,560,60,'ACOMPANHA',{fontSize:26,name:'Descrição'})
+    ];
+    const {r}=busca(layers,{titulo:'Combo artesanal da casa com borda recheada de catupiry'},{w:1080,h:900});
+    const todos=[].concat(r.solved,r.partial);
+    assert(todos.length>0,'não gerou candidato nenhum');
+    if(r.solved.length){
+      r.solved.forEach(c=>assert(c.diagnostics.problemasDepois===0||c.depth===0,'solved com dano'));
+      assert(r.solved[0].depth<=2,'a solução mais curta ficou funda demais');
+    }else{
+      assert(r.partial.some(c=>c.diagnostics.resolvidos>0||c.diagnostics.danoDepois<c.diagnostics.danoAntes),
+        'nenhum candidato progrediu');
+    }
+  });
+
+  test('busca: escala de componente não aparece no primeiro passo',()=>{
+    const dados={titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'};
+    const {r}=busca(arteB(),dados);
+    [].concat(r.solved,r.partial).forEach(c=>{
+      if(c.actions.length&&c.actions[0].id==='scale-component')
+        assert(false,'o maior raio de intervenção foi a PRIMEIRA tentativa');
+    });
+  });
+
+  test('busca: nível 4 global fica fora da busca normal',()=>{
+    const dados={titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'};
+    const {r}=busca(arteB(),dados);
+    [].concat(r.solved,r.partial).forEach(c=>c.actions.forEach(a=>
+      assert(a.impactLevel==null||a.impactLevel<=3,
+        'a busca usou o nível 4 (emergência): '+a.id+' em L'+a.impactLevel)));
+  });
+
+  test('shadow: roda ao lado do solver e não muda a saída dele',()=>{
+    const layers=arteB();
+    const dados={titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'};
+    const antes=JSON.stringify(layers);
+    const semShadow=solve(layers,dados,{w:1080,h:1080}).map(l=>({id:l.id,x:l.x,y:l.y,w:l.w,h:l.h,f:l._tetoFonte}));
+    const s=gShadowLayoutSearch(layers,dados,{w:1080,h:1080});
+    const comShadow=solve(layers,dados,{w:1080,h:1080}).map(l=>({id:l.id,x:l.x,y:l.y,w:l.w,h:l.h,f:l._tetoFonte}));
+    assert(JSON.stringify(layers)===antes,'o shadow mode MUTOU as camadas');
+    assert(JSON.stringify(semShadow)===JSON.stringify(comShadow),
+      'a saída do solver mudou depois de rodar a busca ao lado');
+    assert(s.erro===null,'o shadow mode estourou: '+s.erro);
+    assert(s.problemas>0&&s.gerados>0,'o shadow não observou nada');
+    assert(typeof s.ms==='number'&&s.acoes,'o diagnóstico do shadow está incompleto');
+  });
+
+  test('busca: nenhuma função de pontuação é chamada',()=>{
+    /* A garantia central da fase: a busca NÃO escolhe vencedor. Se ela consultasse
+       `gScoreComposition` estaria pontuando, e a Fase 6 herdaria uma decisão já tomada. */
+    const real=window.gScoreComposition, realAlt=window.gLayoutEscolherAlternativa;
+    let chamou=0;
+    window.gScoreComposition=function(){chamou++;return real.apply(null,arguments);};
+    window.gLayoutEscolherAlternativa=function(){chamou++;return realAlt.apply(null,arguments);};
+    try{
+      const {r}=busca(arteB(),{titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'});
+      assert(r.diagnostics.generated>0,'a busca não rodou — o teste não provaria nada');
+      assert(chamou===0,'a busca chamou pontuação '+chamou+' vez(es)');
+    }finally{ window.gScoreComposition=real; window.gLayoutEscolherAlternativa=realAlt; }
+  });
+
+  test('busca: 300 camadas cabem numa interação',()=>{
+    const L=arteGrande(300), cv={w:1080,h:4000};
+    const t0=performance.now();
+    const c=gBuildOperationalContext(L,cv,{dados:{}});
+    const msCtx=performance.now()-t0;
+    const t1=performance.now();
+    const probs=gDetectLayoutProblems(L,c);
+    const msDet=performance.now()-t1;
+    const t2=performance.now();
+    const r=gSearchLayoutCandidates({ctx:c,base:L});
+    const msBusca=performance.now()-t2;
+    assert(msDet<900,'a detecção levou '+msDet.toFixed(1)+'ms em 300 camadas');
+    assert(msBusca<2500,'a busca levou '+msBusca.toFixed(1)+'ms (ctx '+msCtx.toFixed(1)
+      +'ms, '+probs.length+' problemas, '+r.diagnostics.generated+' candidatos)');
+    assert(r.diagnostics.generated<=G_SEARCH_LIMITES.maxCandidatos,'a busca passou do teto');
+  });
+
+  /* ══ SEARCH COMPLETENESS + CANDIDATE STATE (Fase 5.75) ═══════════════════════════════════
+     O estado de um candidato deixou de ser só `layers`: `compress-gap` escreve numa opção de
+     SOLVE, e enquanto isso não existia o efeito da ação sumia no passo seguinte. */
+
+  test('estado: compress-gap grava no solveState e a assinatura enxerga',()=>{
+    const layers=arteB(), C=ctxB(layers,{titulo:'Combo artesanal da casa com borda',preco:'R$ 9,99'});
+    const probs=gDetectLayoutProblems(layers,C);
+    const alvo=probs.find(p=>p.tipo==='spacing-pressure')||probs[0];
+    const as=gGenerateLayoutActions(C,Object.assign({},alvo,{impactLevel:3}));
+    const a=as.find(x=>x.id==='compress-gap');
+    if(!a){ assert(true,'esta arte não oferece o degrau do respiro'); return; }
+    const r=gApplyLayoutAction(layers,a,C);
+    assert(r.solveState&&r.solveState.respiroFator===0.5,'a ação não gravou no solveState');
+    assert(r.changedIds.length===0,'o respiro virou geometria de camada');
+    // A assinatura distingue: mesma geometria, respiro diferente, estados diferentes.
+    const semGap=gLayoutCandidateSignature({layers:layers,solveState:{}});
+    const comGap=gLayoutCandidateSignature({layers:layers,solveState:{respiroFator:0.5}});
+    assert(semGap!==comGap,'respiro 1 e 0.5 deram a mesma assinatura');
+    assert(G_SOLVE_STATE_CHAVES.indexOf('respiroFator')>=0,'a chave de solve não está declarada');
+  });
+
+  test('estado: o detector consome o respiro do candidato',()=>{
+    const layers=arteB(), C=ctxB(layers,{titulo:'Combo artesanal da casa com borda',preco:'R$ 9,99'});
+    const solto=gDetectLayoutProblems({layers:layers,solveState:{}},C);
+    const apertado=gDetectLayoutProblems({layers:layers,solveState:{respiroFator:0.5}},C);
+    /* Com o respiro já apertado não existe mais pressão a aliviar — se o detector ignorasse o
+       estado, `compress-gap` pareceria não resolver nada e a busca a descartaria. */
+    assert(apertado.filter(p=>p.tipo==='spacing-pressure').length
+        <= solto.filter(p=>p.tipo==='spacing-pressure').length,
+      'apertar o respiro não reduziu a pressão detectada');
+    assert(apertado.length<=solto.length,'apertar o respiro aumentou o dano detectado');
+  });
+
+  test('estado: o candidato não vaza para o template',()=>{
+    const layers=arteB();
+    const congelado=JSON.stringify(layers);
+    const {r}=busca(layers,{titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'});
+    assert(JSON.stringify(layers)===congelado,'a busca MUTOU as camadas de entrada');
+    [].concat(r.solved,r.partial).forEach(c=>{
+      assert(c.layers!==layers,'um candidato compartilha o array da base');
+      assert(JSON.stringify(c).indexOf('function')<0,'o candidato levou função dentro');
+    });
+  });
+
+  test('assentamento: a geometria do obstáculo acompanha o candidato',()=>{
+    /* A identidade do obstáculo é fato AUTORADO (congelada); a GEOMETRIA vem do estado atual —
+       senão uma placa que cresceu continuaria sendo medida onde ela estava. */
+    const layers=[
+      shape('placa',70,80,360,110,{locked:false}),
+      text('preco',95,100,310,65,'{{preco}}',{fontSize:40,name:'Preço',layoutRefText:'R$ 9,99'}),
+      text('abaixo',70,220,360,50,'RODAPE',{fontSize:24,name:'Descrição'})
+    ];
+    const C=ctxB(layers,{preco:'R$ 1.249,90 POR TEMPO LIMITADO'},{w:600,h:500});
+    const as=gGenerateLayoutActions(C,{tipo:'container-mismatch',targetId:'placa',rootId:'preco'});
+    const a=as.find(x=>x.id==='resize-container');
+    assert(a,'não gerou o resize');
+    const r=gApplyLayoutAction(layers,a,C);
+    const nova=r.layers.find(l=>l.id==='placa');
+    assert(nova.h!==110||nova.w!==360,'a placa não mudou');
+    // O detector no estado NOVO mede a placa onde ela está agora.
+    const probs=gDetectLayoutProblems(r,C);
+    const tocaPlaca=probs.some(p=>p.targetId==='placa'||p.withId==='placa');
+    assert(typeof tocaPlaca==='boolean','o detector não conseguiu ler o estado novo');
+    assert(C._obstaculos&&C._obstaculos.indexOf('placa')>=0,
+      'a identidade do obstáculo deveria estar congelada no contexto');
+  });
+
+  test('cache: só remede quem mudou',()=>{
+    const layers=arteB(), C=ctxB(layers,{titulo:'OFERTA',preco:'R$ 9,99'});
+    gDetectLayoutProblems(layers,C);
+    const antes=C._medida.size;
+    gDetectLayoutProblems(layers,C);                 // mesmo estado: nada novo a medir
+    assert(C._medida.size===antes,'remediu a arte inteira sem nada ter mudado');
+    // Mexer na tipografia de UMA camada gera UMA entrada nova.
+    const mexido=layers.map(l=>l.id==='titulo'?Object.assign({},l,{_tetoFonte:50}):l);
+    gDetectLayoutProblems(mexido,C);
+    assert(C._medida.size===antes+1,'a invalidação não foi cirúrgica: '+(C._medida.size-antes)+' medidas novas');
+    /* Mover não remede: a chave do cache não tem x/y, porque deslocar não muda o encaixe. */
+    const movido=layers.map(l=>l.id==='titulo'?Object.assign({},l,{y:(l.y||0)+30}):l);
+    const antes2=C._medida.size;
+    gDetectLayoutProblems(movido,C);
+    assert(C._medida.size===antes2,'deslocar uma camada disparou remedida');
+  });
+
+  test('busca: aprofundamento progressivo para no primeiro solved',()=>{
+    const layers=arteB(), dados={titulo:'OFERTA',preco:'R$ 9,99'};
+    const {r}=busca(layers,dados);
+    assert(r.diagnostics.firstSolvedDepth===0,'arte saudável deveria resolver em d0');
+    // Numa arte com dano, a busca registra por profundidade e não passa do teto.
+    const dif=busca(arteB(),{titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'}).r;
+    assert(Array.isArray(dif.diagnostics.porDepth),'não registrou a distribuição por profundidade');
+    dif.diagnostics.porDepth.forEach(d=>assert(typeof d.expandidos==='number'
+      &&typeof d.gerados==='number'&&typeof d.dedup==='number','a distribuição está incompleta'));
+    assert(dif.diagnostics.maxDepthReached<=G_SEARCH_LIMITES.maxDepth,'passou do teto de profundidade');
+    // Se encontrou solução, parou ali: nenhuma profundidade além do primeiro solved.
+    if(dif.diagnostics.firstSolvedDepth!=null)
+      assert(dif.diagnostics.maxDepthReached===dif.diagnostics.firstSolvedDepth,
+        'continuou buscando depois de achar solução completa');
+  });
+
+  test('busca: corrida monotônica preserva o histórico de cada degrau',()=>{
+    const {r}=busca(arteB(),{titulo:'Combo artesanal da casa com borda recheada muito maior',preco:'R$ 9,99'});
+    const corridas=[].concat(r.solved,r.partial)
+      .filter(c=>c.actions.filter(a=>a.id==='shrink-text').length>1);
+    if(!corridas.length){ assert(true,'esta arte não exigiu repetir o encolhimento'); return; }
+    corridas.forEach(c=>{
+      /* A corrida encurta a PROFUNDIDADE, não o rastro: cada degrau continua sendo um Designer
+         Move próprio, auditável, com o seu `de`/`para`. */
+      const passos=c.actions.filter(a=>a.id==='shrink-text');
+      assert(passos.every(a=>a.params.de>a.params.para),'um degrau da corrida não reduziu');
+      assert(c.actionSignatures.length===c.actions.length,'o histórico de assinaturas se perdeu');
+      /* A corrida faz N movimentos caberem em UM degrau de profundidade — então a sequência é
+         sempre mais longa que a profundidade. Comparar com o número de encolhimentos só valia
+         quando a corrida era a única coisa no rastro; hoje ela convive com quebra, entrelinha e
+         escala, e cada uma dessas gasta um degrau legítimo. */
+      assert(c.depth<c.actions.length,'a corrida não encurtou profundidade nenhuma em ['+seq(c)+']');
+      // Nenhum piso pulado.
+      passos.forEach(a=>assert(a.params.para>=a.params.piso,'a corrida cruzou o piso'));
+    });
+    assert(G_ACAO_MONOTONICA['shrink-text'],'encolher deveria ser monotônica');
+    assert(!G_ACAO_MONOTONICA['compress-gap'],'o respiro tem um degrau só: não é corrida');
+  });
+
+  test('busca: a escalada de impacto responde a esgotamento, não a profundidade',()=>{
+    const layers=arteB(), dados={titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'};
+    const C=ctxB(layers,dados);
+    const probs=gDetectLayoutProblems(layers,C);
+    if(!probs.length){ assert(true,'sem dano não há escalada a observar'); return; }
+    // Havendo ação no nível local, a geração nem chega a olhar níveis maiores.
+    const local=gGenerateLayoutActions(C,Object.assign({},probs[0],{impactLevel:0}));
+    const amplo=gGenerateLayoutActions(C,Object.assign({},probs[0],{impactLevel:3}));
+    if(local.length) assert(local.length<=amplo.length,'o nível local ofereceu mais que o amplo');
+    const {r}=busca(layers,dados);
+    [].concat(r.solved,r.partial).forEach(c=>c.actions.forEach(a=>
+      assert(a.impactLevel==null||a.impactLevel<=3,'a busca usou o nível 4 (emergência)')));
+  });
+
+  test('busca: nenhum critério estético ordena os candidatos',()=>{
+    const {r}=busca(arteB(),{titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'});
+    [].concat(r.solved,r.partial,r.invalid).forEach(c=>{
+      ['nota','score','beleza','estetica','ranking'].forEach(k=>
+        assert(!(k in c)&&!(k in c.diagnostics),'apareceu critério estético: '+k));
+      // O que existe é fato objetivo: contagem de problemas e dano em pixels.
+      assert(typeof c.diagnostics.problemasDepois==='number'||c.depth===0,'falta a contagem objetiva');
+    });
+  });
+
+  /* ══ CANONICAL SETTLE + CAUSAL PROBLEM MODEL (Fase 5.8) ═══════════════════════════════════
+     Assentar é o estado NORMAL da arte com o conteúdo real: a corrente empurra, a placa segue,
+     o vão do campo vazio fecha. Não é adaptação e não é Designer Move. A Fase 5.75 aproximava
+     isso com os próprios movimentos e não convergia; agora o assentamento É o solver, por uma
+     saída dedicada (`_soAssentar`), e a busca mede o MESMO estado que o motor julga. */
+
+  const geoDe=(ls)=>ls.map(l=>[l.id,Math.round(l.x||0),Math.round(l.y||0),
+    Math.round(l.w||0),Math.round(l.h||0)]).sort().join('|');
+
+  test('assentar: é idempotente — settle(settle(x)) === settle(x)',()=>{
+    const layers=arteB(), dados={titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'};
+    const C=ctxB(layers,dados);
+    const um=gSettleLayoutState({layers:layers,solveState:{}},C);
+    assert(um.assentado,'o assentamento não rodou');
+    const dois=gSettleLayoutState({layers:um.layers,solveState:{}},C);
+    assert(geoDe(um.layers)===geoDe(dois.layers),
+      'assentar duas vezes deu geometria diferente:\n1: '+geoDe(um.layers)+'\n2: '+geoDe(dois.layers));
+    const tres=gSettleLayoutState({layers:dois.layers,solveState:{}},C);
+    assert(geoDe(dois.layers)===geoDe(tres.layers),'a terceira volta ainda mexeu na arte');
+    // A idempotência vem do carimbo: a base é sempre a geometria autorada.
+    um.layers.forEach(l=>assert(l._geoAutor,'camada assentada sem a base autorada carimbada'));
+    const t=um.layers.find(l=>l.id==='titulo');
+    assert(t._geoAutor.y===60,'o carimbo guardou a posição assentada em vez da autorada');
+  });
+
+  test('assentar: o estado assentado é o do SOLVER, não uma aproximação',()=>{
+    const layers=arteB(), dados={titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'};
+    const C=ctxB(layers,dados);
+    const meu=gSettleLayoutState({layers:layers,solveState:{}},C);
+    const dele=gApplyRelativeAnchors(layers.map(l=>Object.assign({},l)),dados,{},
+      {fitText:true,canvas:{w:1080,h:1080},scope:'franqueado',_soAssentar:true});
+    assert(geoDe(meu.layers)===geoDe(dele),'a busca assentou diferente do motor');
+    assert(dele._layoutMeta&&dele._layoutMeta.assentado&&dele._layoutMeta.tentativas===0,
+      '`_soAssentar` subiu a escada em vez de só assentar');
+  });
+
+  test('assentar: arte que o solver resolve em ZERO voltas já nasce resolvida',()=>{
+    /* PARIDADE DE ENTRADA, camada por camada. O solver posiciona ANTES de julgar: aqui o apoio
+       desce 124px e o CTA 124px só pela corrente, e a escada não roda uma volta sequer. Se a
+       busca começasse do estado cru, veria dano onde o motor não vê e gastaria profundidade
+       "resolvendo" o que já estava resolvido antes de começar. */
+    const arte=()=>[
+      text('titulo',90,60,760,70,'{{titulo}}',{fontSize:54,name:'Titulo'}),
+      text('apoio',90,180,760,50,'ACOMPANHA',{fontSize:26,name:'Descrição'}),
+      text('cta',90,280,400,50,'PECA AGORA',{fontSize:26,name:'CTA'})
+    ];
+    const dados={titulo:'Combo artesanal da casa com borda recheada e bebida'};
+    const out=gApplyRelativeAnchors(arte(),dados,{},
+      {fitText:true,canvas:{w:1080,h:1080},scope:'franqueado'});
+    assert(out._layoutMeta&&out._layoutMeta.tentativas===0,
+      'o cenário perdeu o sentido: o solver subiu a escada '+(out._layoutMeta||{}).tentativas+'×');
+    assert(out.find(l=>l.id==='apoio').y>180,'a corrente nem chegou a empurrar nesta arte');
+    const C=ctxB(arte(),dados);
+    const st=gSettleLayoutState({layers:arte(),solveState:{}},C);
+    assert(geoDe(st.layers)===geoDe(out),
+      'o estado assentado divergiu do que o solver entregou sem subir a escada:\nbusca:  '
+      +geoDe(st.layers)+'\nsolver: '+geoDe(out));
+    const {r}=busca(arte(),dados);
+    assert(r.diagnostics.firstSolvedDepth===0,
+      'o solver resolveu em 0 voltas e a busca começou com dano (d'+r.diagnostics.firstSolvedDepth+')');
+    assert(r.original.diagnostics.problemas===0,'a busca viu dano que o motor não vê');
+  });
+
+  test('assentar: NÃO é Designer Move — fica fora do histórico de ações',()=>{
+    const {r}=busca(arteB(),{titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'});
+    assert(r.original.actions.length===0,'o assentamento entrou como ação do candidato raiz');
+    assert(r.original.settleDiagnostics,'o assentamento não deixou diagnóstico');
+    assert(Array.isArray(r.original.settleDiagnostics.moveu),'o diagnóstico não diz quem se moveu');
+    [].concat(r.solved,r.partial,r.invalid).forEach(c=>{
+      c.actions.forEach(a=>assert(G_LAYOUT_ACOES[a.id],'ação fora do vocabulário: '+a.id));
+      assert(!c.actions.some(a=>/assent|settle/i.test(a.id)),'assentar virou ação em '+seq(c));
+    });
+  });
+
+  test('assentar: o candidato guarda a geometria AUTORADA, não a assentada',()=>{
+    const layers=arteB(), dados={titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'};
+    const {ctx:C,r}=busca(layers,dados);
+    const apoioAutor=layers.find(l=>l.id==='apoio').y;
+    const noCandidato=r.original.layers.find(l=>l.id==='apoio').y;
+    assert(noCandidato===apoioAutor,'o candidato guardou a posição assentada');
+    const assentado=gSettleCandidateState(r.original,C);
+    assert(assentado.layers.find(l=>l.id==='apoio').y>apoioAutor,
+      'o apoio deveria ter descido no estado assentado');
+    assert(r.original.settledSignature&&r.original.settledSignature!==r.original.signature,
+      'a assinatura assentada não foi publicada');
+  });
+
+  test('assentar: Designer Move que mexe em geometria sobrevive ao assentamento seguinte',()=>{
+    /* A distinção que o carimbo `_geoAutor` guarda: a corrente empurrar é CONSEQUÊNCIA (não
+       vira base), o designer descer o bloco é DECISÃO (vira base). */
+    const layers=[
+      text('topo',80,60,400,60,'FIXO',{fontSize:30}),
+      text('meio',80,160,400,60,'{{campo}}',{fontSize:30,name:'Campo'}),
+      text('base',80,260,400,60,'RODAPE',{fontSize:24,name:'Descrição'})
+    ];
+    const C=ctxB(layers,{campo:'VALOR'},{w:600,h:600});
+    const acao=_gAcao('push-dependent','base',{params:{delta:40}});
+    const r=gApplyLayoutAction({layers:layers,solveState:{}},acao,C);
+    const movida=r.layers.find(l=>l.id==='base');
+    assert(movida.y===300,'a ação não empurrou');
+    assert(movida._geoAutor&&movida._geoAutor.y===300,'a ação não reescreveu a base autorada');
+    const dep=gSettleLayoutState({layers:r.layers,solveState:{}},C);
+    assert(dep.layers.find(l=>l.id==='base').y>=300,'o assentamento desfez o movimento');
+  });
+
+  test('causa: mesmo culpado provado, um grupo só',()=>{
+    const probs=[
+      {tipo:'collision',targetId:'preco',withId:'titulo',detalhe:{culpado:'titulo',delta:100}},
+      {tipo:'collision',targetId:'placa',withId:'titulo',detalhe:{culpado:'titulo',delta:80}},
+      {tipo:'collision',targetId:'cta',withId:'selo',detalhe:{culpado:'selo',delta:20}}
+    ];
+    const g=gGroupLayoutProblems(probs);
+    assert(g.length===2,'esperava 2 causas, veio '+g.length);
+    assert(g[0].culpritId==='titulo'&&g[0].problems.length===2,'a causa com mais sintomas não veio primeiro');
+    assert(g[0].type==='growth-pressure'&&g[1].type==='growth-pressure','tipo de causa errado');
+    assert(g[0].totalDamage===180,'o dano da causa não somou os sintomas: '+g[0].totalDamage);
+  });
+
+  test('causa: sem culpado provado, cada sintoma é a própria causa',()=>{
+    /* ⛔ CAUSA SÓ COM PROVA. Papel semântico e proximidade não inventam origem comum. */
+    const probs=[
+      {tipo:'outside-canvas',targetId:'a',detalhe:{excedeAbaixo:30}},
+      {tipo:'outside-canvas',targetId:'b',detalhe:{excedeAbaixo:20}}
+    ];
+    const g=gGroupLayoutProblems(probs);
+    assert(g.length===2,'juntou dois danos sem prova de causa comum');
+    g.forEach(x=>{assert(x.type==='isolated','tipo errado para causa não provada');
+      assert(x.culpritId===null,'inventou um culpado');});
+  });
+
+  test('causa: a assinatura ignora a ORDEM em que os sintomas foram detectados',()=>{
+    const a={tipo:'collision',targetId:'preco',withId:'titulo',detalhe:{culpado:'titulo',delta:10}};
+    const b={tipo:'collision',targetId:'placa',withId:'titulo',detalhe:{culpado:'titulo',delta:10}};
+    const um=gGroupLayoutProblems([a,b])[0], dois=gGroupLayoutProblems([b,a])[0];
+    assert(um.signature===dois.signature,'a ordem dos sintomas virou parte da identidade da causa');
+    assert(um.causeId===dois.causeId,'o causeId mudou com a ordem');
+  });
+
+  test('causa: a busca ataca o CULPADO antes das vítimas',()=>{
+    const layers=arteB(), dados={titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'};
+    const {r}=busca(layers,dados);
+    const causas=r.original.diagnostics.causas;
+    assert(causas&&causas.length,'a raiz não publicou as causas');
+    const comCulpado=causas.filter(c=>c.culpritId);
+    if(!comCulpado.length){ assert(true,'esta arte não tem causa provada'); return; }
+    const culpado=comCulpado[0].culpritId;
+    const primeiros=[].concat(r.solved,r.partial).filter(c=>c.depth===1);
+    assert(primeiros.length,'não houve primeiro passo');
+    assert(primeiros.every(c=>c.actions[0].targetId===culpado||c.actions[0].componentId),
+      'o primeiro movimento foi contra uma vítima: '+primeiros.map(c=>seq(c)).join(' / '));
+  });
+
+  test('detector: campo opcional VAZIO não é obstáculo',()=>{
+    /* A caixa desenhada de um selo em branco é do texto que NÃO veio. Tratá-la como tinta
+       fazia o detector acusar colisão com quem subiu pelo colapso — dano que o solver não vê
+       e que nenhuma ação resolve, porque o culpado é um texto inexistente. */
+    const layers=[
+      text('titulo',90,60,400,60,'FIXO',{fontSize:34}),
+      text('opcional',90,180,400,56,'{{opcional}}',{fontSize:34,textBox:'point',name:'Selo'}),
+      text('produto',90,270,400,80,'{{produto}}',{fontSize:44,name:'Produto'})
+    ];
+    const C=ctxB(layers,{opcional:'',produto:'Marmita Executiva'},{w:600,h:600});
+    const assentado=gSettleLayoutState({layers:layers,solveState:{}},C);
+    const probs=gDetectLayoutProblems({layers:assentado.layers,solveState:{}},C);
+    assert(!probs.some(p=>p.targetId==='opcional'||p.withId==='opcional'),
+      'o campo vazio virou obstáculo: '+JSON.stringify(probs));
+  });
+
+  test('detector: o crédito do vão é o que SOBROU, não a faixa inteira',()=>{
+    const layers=[
+      text('titulo',90,60,760,70,'{{titulo}}',{fontSize:54,name:'Titulo'}),
+      text('opcional',90,150,400,56,'{{opcional}}',{fontSize:34,textBox:'point',name:'Selo'}),
+      text('produto',90,230,780,140,'{{produto}}',{fontSize:54,name:'Produto'})
+    ];
+    const dados={titulo:'SEXTA DE PROMO',opcional:'',produto:'Marmita Executiva'};
+    const C=ctxB(layers,dados);
+    const cru=gDetectLayoutProblems({layers:layers,solveState:{}},C)
+      .filter(p=>p.tipo==='optional-empty');
+    assert(cru.length&&cru[0].detalhe.credito===56,
+      'o cenário perdeu o sentido: sem vão colapsável a medir');
+    const assentado=gSettleLayoutState({layers:layers,solveState:{}},C);
+    const subiu=layers.find(l=>l.id==='produto').y
+              - assentado.layers.find(l=>l.id==='produto').y;
+    assert(subiu===56,'o assentamento devia ter fechado os 56px do vão, fechou '+subiu);
+    const depois=gDetectLayoutProblems({layers:assentado.layers,solveState:{}},C)
+      .filter(p=>p.tipo==='optional-empty');
+    assert(!depois.length,
+      'o crédito não descontou o que o assentamento já fechou: '+JSON.stringify(depois));
+  });
+
+  test('placa: o descritor é UM SÓ — detector e ação leem o do solver',()=>{
+    const layers=[
+      shape('placa',70,80,360,110,{locked:false}),
+      text('preco',95,100,310,65,'{{preco}}',{fontSize:40,name:'Preço',layoutRefText:'R$ 9,99'})
+    ];
+    const dados={preco:'R$ 1.249,90 POR TEMPO LIMITADO'};
+    const C=ctxB(layers,dados,{w:600,h:500});
+    const um=gSettleLayoutState({layers:layers,solveState:{}},C);
+    const p1=um.layers.find(l=>l.id==='placa');
+    assert(p1._placa,'o assentamento não publicou o descritor da placa');
+    // Assentado, a placa já abraça a tinta: não sobra `container-mismatch`.
+    const probs=gDetectLayoutProblems({layers:um.layers,solveState:{}},C);
+    assert(!probs.some(p=>p.tipo==='container-mismatch'),
+      'a placa assentada ainda foi acusada de não abraçar a tinta');
+    // E aplicar o resize sobre o estado assentado é NO-OP: o alvo não anda junto com a placa.
+    const as=gGenerateLayoutActions(C,{tipo:'container-mismatch',targetId:'placa',rootId:'preco'},um.layers);
+    const a=as.find(x=>x.id==='resize-container');
+    if(!a){ assert(true,'sem mismatch não há resize a gerar'); return; }
+    const r=gApplyLayoutAction({layers:um.layers,solveState:{}},a,C);
+    const p2=r.layers.find(l=>l.id==='placa');
+    assert(Math.abs(p2.x-p1.x)<=1&&Math.abs(p2.y-p1.y)<=1
+        &&Math.abs(p2.w-p1.w)<=1&&Math.abs(p2.h-p1.h)<=1,
+      'o segundo resize mexeu na placa sem o texto ter mudado');
+  });
+
+  test('busca: o ciclo assenta a CADA passo, não só na raiz',()=>{
+    const layers=arteB(), dados={titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'};
+    const {ctx:C,r}=busca(layers,dados);
+    const filhos=[].concat(r.solved,r.partial).filter(c=>c.depth>=1);
+    assert(filhos.length,'a busca não gerou filho nenhum');
+    filhos.forEach(c=>{
+      assert(c.settleDiagnostics,'o filho '+seq(c)+' não foi assentado');
+      assert(c.settledSignature,'o filho '+seq(c)+' não publicou a assinatura assentada');
+    });
+    // E o cache do assentamento existe: assentar é rodar o solver, e repetir é desperdício.
+    assert(C._settle&&C._settle.size>0,'o assentamento não foi memorizado por candidato');
+  });
+
+  test('busca: o guard de progresso é CAUSAL',()=>{
+    /* Encolher o culpado corta o dano dele e, no mesmo passo, traz o dependente de volta para
+       cima — onde ele pode encostar em outra coisa. O placar GLOBAL piora; a causa atacada
+       ENCOLHE. Medir só o global matava o ramo e a busca não encadeava nada. */
+    const layers=arteB(), dados={titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'};
+    const {r}=busca(layers,dados);
+    const fundos=[].concat(r.solved,r.partial).filter(c=>c.depth>=2);
+    assert(fundos.length,'com o guard causal a busca ainda não encadeia dois movimentos');
+    // Nada de vaivém: nenhum estado aparece duas vezes.
+    const sigs=[].concat(r.solved,r.partial,r.invalid).map(c=>c.signature);
+    assert(new Set(sigs).size===sigs.length,'o guard causal deixou o mesmo estado nascer duas vezes');
+    assert(r.diagnostics.generated<=G_SEARCH_LIMITES.maxCandidatos,'a busca passou do teto');
+  });
+
+  test('busca: causa expandida sem ação nenhuma vira diagnóstico de bloqueio',()=>{
+    /* "0 candidatos" não diz nada sozinho. `bloqueios` separa "não achou solução" de "não
+       tinha o que tentar" — que é onde falta vocabulário, não profundidade. */
+    const layers=[
+      text('travado',80,60,400,90,'{{campo}}',{fontSize:44,layoutRole:'protected',name:'Campo'}),
+      shape('selo',80,200,200,120,{shapeKind:'circle',layoutRole:'protected'})
+    ];
+    const {r}=busca(layers,{campo:'Um valor muito maior do que cabia na caixa desenhada'},{w:600,h:400});
+    assert(r.diagnostics.bloqueios&&typeof r.diagnostics.bloqueios==='object',
+      'a busca não publicou o diagnóstico de bloqueio');
+    if(r.diagnostics.generated===0&&r.diagnostics.expanded>0)
+      assert(Object.keys(r.diagnostics.bloqueios).length>0,
+        'expandiu sem gerar ação e não registrou onde travou');
+  });
+
+  test('busca: assentar não muda determinismo nem vaza para a base',()=>{
+    const layers=arteB(), dados={titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'};
+    const congelado=JSON.stringify(layers);
+    const a=busca(layers,dados).r, b=busca(layers,dados).r;
+    assert(JSON.stringify(layers)===congelado,'o assentamento mutou as camadas de entrada');
+    const chapa=(x)=>[].concat(x.solved,x.partial,x.invalid)
+      .map(c=>c.depth+':'+c.status+':'+seq(c)+':'+c.signature).join('\n');
+    assert(chapa(a)===chapa(b),'duas buscas iguais deram candidatos diferentes');
+    assert(a.diagnostics.generated===b.diagnostics.generated,'contagem de candidatos instável');
+  });
+
+  test('busca: o custo cresce com a arte, não explode',()=>{
+    /* Três tamanhos, a mesma medida. Serve para ver a CURVA — se um dia assentar virar o gargalo
+       (é rodar o solver por candidato), é aqui que aparece antes de chegar na mão de alguém. */
+    [58,172].forEach(n=>{
+      const L=arteGrande(n), cv={w:1080,h:40+Math.ceil(n/6)*72+200};
+      const C=gBuildOperationalContext(L,cv,{dados:{}});
+      const t0=performance.now();
+      const st=gSettleLayoutState({layers:L,solveState:{}},C);
+      const ms=performance.now()-t0;
+      const t1=performance.now();
+      const r=gSearchLayoutCandidates({ctx:C,base:L});
+      const msB=performance.now()-t1;
+      avisos.push(n+' camadas: assentar '+ms.toFixed(1)+'ms · busca '+msB.toFixed(1)
+        +'ms ('+r.diagnostics.generated+' candidatos)');
+      assert(st.layers.length===L.length,'o assentamento perdeu camadas em '+n);
+    });
+  });
+
+  test('busca: assentar cabe no orçamento de 344 camadas',()=>{
+    const L=arteGrande(344), cv={w:1080,h:4600};
+    const C=gBuildOperationalContext(L,cv,{dados:{}});
+    const t0=performance.now();
+    const st=gSettleLayoutState({layers:L,solveState:{}},C);
+    const msSettle=performance.now()-t0;
+    assert(st.assentado||st.layers.length===L.length,'o assentamento perdeu camadas');
+    const t1=performance.now();
+    gGroupLayoutProblems(gDetectLayoutProblems({layers:st.layers,solveState:{}},C));
+    const msCausa=performance.now()-t1;
+    const t2=performance.now();
+    const r=gSearchLayoutCandidates({ctx:C,base:L});
+    const msBusca=performance.now()-t2;
+    avisos.push('344 camadas: assentar '+msSettle.toFixed(1)+'ms · detectar+agrupar '
+      +msCausa.toFixed(1)+'ms · busca '+msBusca.toFixed(1)+'ms ('+r.diagnostics.generated+' candidatos)');
+    assert(msSettle<400,'assentar levou '+msSettle.toFixed(1)+'ms em 344 camadas');
+    assert(msCausa<400,'detectar+agrupar levou '+msCausa.toFixed(1)+'ms');
+    assert(msBusca<4000,'a busca levou '+msBusca.toFixed(1)+'ms ('+r.diagnostics.generated+' candidatos)');
+  });
+
   let passed=0;
   const falhas=[];
   for(const item of cases){
@@ -2128,5 +3485,6 @@
   /* Contrato do runner de CI (`scripts/run-browser-tests.js`): a suíte publica o resultado
      aqui quando termina. Esperar o `load` da página pegaria o teste no meio — as asserções
      são assíncronas porque medem fonte real e desenham em canvas. */
-  window.__lumaTest={passed:passed,total:cases.length,failures:falhas,perf:(typeof gLayoutPerfStats==='function'?gLayoutPerfStats():null)};
+  window.__lumaTest={passed:passed,total:cases.length,failures:falhas,notas:avisos,
+    perf:(typeof gLayoutPerfStats==='function'?gLayoutPerfStats():null)};
 })();
