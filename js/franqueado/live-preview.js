@@ -1149,6 +1149,111 @@ function _fLpSyncAutoLayoutButton(){
   nota.textContent='';
 }
 
+/* ══ MODO DEMONSTRAÇÃO + AUTO-LAYOUT À VISTA ════════════════════════════════════════════
+   O solver não mudou uma linha. O que muda é o QUANTO dele se vê: fora do modo demo a
+   prévia salta do estado antigo para o novo, como sempre; dentro dele, a mesma troca é
+   percorrida em 260ms e dá para assistir o texto encolher, a placa acompanhar e o vizinho
+   ser empurrado. É a diferença entre "apareceu outra arte" e "o Luma reorganizou a arte".
+
+   POR QUE ATRÁS DE UM INTERRUPTOR, e não ligado para todo mundo: quem está preenchendo o
+   formulário quer a resposta agora — 260ms por tecla viraria peso. O franqueado real segue
+   com o caminho de sempre, byte a byte. Ligar: `?demo=1` na URL (fica gravado no navegador)
+   ou `fDemoModo(true)` no console da equipe. Desligar: `?demo=0` ou `fDemoModo(false)`.
+
+   NADA DE CURSOR, NADA DE ETIQUETA: uma mãozinha desenhada passeando pela arte ENCENA
+   inteligência em vez de mostrar a que existe, e um rótulo dizendo "ajustando layout" narra
+   o que já está visível acontecendo. O que se vê aqui é só o resultado do solver se
+   acomodando. A transição é o argumento; qualquer adorno em volta dela seria perfumaria. */
+const F_DEMO_KEY='luma_demo_v1';
+let _fDemoFlag=null;
+function fDemoAtivo(){
+  if(_fDemoFlag===null){
+    let v=null;
+    try{ const p=new URLSearchParams(location.search); if(p.has('demo')) v=(p.get('demo')!=='0'); }catch(e){}
+    if(v===null){ try{ v=localStorage.getItem(F_DEMO_KEY)==='1'; }catch(e){ v=false; } }
+    else { try{ localStorage.setItem(F_DEMO_KEY, v?'1':'0'); }catch(e){} }
+    _fDemoFlag=!!v;
+    try{ if(document.body) document.body.classList.toggle('luma-demo',_fDemoFlag); }catch(e){}
+  }
+  return _fDemoFlag;
+}
+// Interruptor para a equipe (console) — devolve o estado novo para confirmar em voz alta.
+function fDemoModo(on){
+  _fDemoFlag=!!on;
+  try{ localStorage.setItem(F_DEMO_KEY, _fDemoFlag?'1':'0'); }catch(e){}
+  try{ if(document.body) document.body.classList.toggle('luma-demo',_fDemoFlag); }catch(e){}
+  if(typeof gToast==='function') gToast(_fDemoFlag?'Modo demonstração ligado':'Modo demonstração desligado');
+  return _fDemoFlag;
+}
+
+let _lpCineToken=0;      // cada animação carimba a sua vez; a seguinte cancela a anterior
+const F_LP_CINE_MS=260;  // curto de propósito: é uma transição, não uma abertura de filme
+
+// Geometria RESOLVIDA da prévia anterior, por camada. É o "de onde" da animação.
+function _fLpCineSnapshot(layers){
+  const m={};
+  (layers||[]).forEach(l=>{ if(l&&l.id!=null) m[l.id]={x:+l.x||0,y:+l.y||0,w:+l.w||0,h:+l.h||0,fs:+l.fontSize||0}; });
+  return m;
+}
+/* Quantas camadas MEXERAM de verdade. Sem este filtro a arte tremeria a cada tecla: trocar
+   uma letra reposiciona por frações de pixel, e animar isso é ruído, não informação. */
+function _fLpCineMoveu(antes, depois, W, H){
+  if(!antes) return 0;
+  const tolPos=Math.max(4,Math.max(W,H)*0.006), tolFs=0.02;
+  let n=0;
+  (depois||[]).forEach(l=>{
+    const a=l&&antes[l.id]; if(!a) return;
+    if(Math.abs((+l.x||0)-a.x)>tolPos||Math.abs((+l.y||0)-a.y)>tolPos){ n++; return; }
+    if(Math.abs((+l.w||0)-a.w)>tolPos||Math.abs((+l.h||0)-a.h)>tolPos){ n++; return; }
+    if(a.fs&&l.fontSize&&Math.abs((+l.fontSize)-a.fs)/a.fs>tolFs) n++;
+  });
+  return n;
+}
+/* A ANIMAÇÃO. Desenha os MESMOS layers resolvidos que o motor acabou de devolver, com a
+   geometria interpolada entre o estado anterior e o novo. Roda com `scope:'designer'`, que
+   é o escopo que desenha a geometria COMO RECEBIDA — nada de rodar o solver a cada quadro:
+   a decisão já foi tomada uma vez, aqui só se mostra o caminho até ela. */
+async function _fLpCinema(canvas, antes, finais, W, H, dados){
+  if(!canvas||!Array.isArray(finais)||!finais.length) return;
+  try{ if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; }catch(e){}
+  const token=++_lpCineToken;
+  const ctx=canvas.getContext('2d');
+  const base=finais.map(l=>Object.assign({},l));
+  const t0=(typeof performance!=='undefined'?performance.now():Date.now());
+  for(;;){
+    // Digitou de novo? A resposta ao usuário vem antes da animação — sempre.
+    if(token!==_lpCineToken||_lpRendering) break;
+    const agora=(typeof performance!=='undefined'?performance.now():Date.now());
+    if(agora-t0 > F_LP_CINE_MS*4) break;   // nada de animação eterna, aconteça o que acontecer
+    const t=Math.min(1,(agora-t0)/F_LP_CINE_MS);
+    const e=1-Math.pow(1-t,3);   // ease-out cúbico: sai rápido, assenta devagar
+    const mix=base.map(l=>{
+      const a=l&&antes[l.id]; if(!a) return l;
+      const o=Object.assign({},l);
+      o.x=a.x+((+l.x||0)-a.x)*e; o.y=a.y+((+l.y||0)-a.y)*e;
+      o.w=a.w+((+l.w||0)-a.w)*e; o.h=a.h+((+l.h||0)-a.h)*e;
+      if(a.fs&&l.fontSize) o.fontSize=a.fs+((+l.fontSize)-a.fs)*e;
+      return o;
+    });
+    try{
+      ctx.clearRect(0,0,W,H);
+      await fRenderTemplateLayers(ctx,mix,W,H,dados,fState.camp,null,{scope:'designer',purpose:'preview'});
+    }catch(err){ break; }
+    if(t>=1) break;
+    // Corrida com um timeout: em aba oculta (ou minimizada) o requestAnimationFrame NÃO
+    // dispara, e o laço ficava preso para sempre — com a etiqueta acesa na tela e a vez
+    // (`_lpCineToken`) travada. Com o relógio de parede a animação termina de qualquer jeito;
+    // no pior caso ela salta em dois ou três passos em vez de correr quadro a quadro.
+    await new Promise(r=>{ let f=false; const ok=()=>{ if(!f){ f=true; r(); } };
+      try{ requestAnimationFrame(ok); }catch(e){}
+      setTimeout(ok,120);
+    });
+  }
+  // Último quadro pelo caminho normal: o véu dos campos vazios, o destaque do campo ativo e
+  // o lápis são pintados DEPOIS das camadas — sem este fecho eles ficariam de fora.
+  if(token===_lpCineToken && !_lpRendering) fUpdateLivePreview();
+}
+
 async function fUpdateLivePreview(opts){
   opts = opts || {}; // animateField é ignorado: o canvas já reflete o estado atual
   const canvas = document.getElementById('lp-canvas');
@@ -1178,6 +1283,8 @@ async function fUpdateLivePreview(opts){
   // Render em andamento → agenda só mais um (coalesce de digitação rápida)
   if(_lpRendering){ _lpPendingRender = true; return; }
   _lpRendering = true;
+  // Onde as camadas estão AGORA — o "de onde" da animação do modo demonstração.
+  const _cineAntes = fDemoAtivo() ? _fLpCineSnapshot(_lpEffectiveLayers) : null;
 
   const stage = document.querySelector('.lp-stage');
   if(stage) stage.classList.add('loading');
@@ -1256,6 +1363,13 @@ async function fUpdateLivePreview(opts){
 
     fLpUpdateMeta(true);
     try{ _fLpPaintPip(); }catch(e){} // miniatura viva no celular acompanha cada resposta
+
+    // Modo demonstração: refaz o caminho do solver à vista. Não é `await` de propósito —
+    // a prévia já está pronta e a próxima tecla não pode esperar a animação terminar.
+    if(_cineAntes && _fLpCineMoveu(_cineAntes,_lpEffectiveLayers,W,H) > 0 && !_lpPendingRender){
+      const _dadosCine=dadosPreview;
+      setTimeout(()=>{ _fLpCinema(canvas,_cineAntes,_lpEffectiveLayers,W,H,_dadosCine); },0);
+    }
   } catch(e){
     console.warn('[lp] erro ao renderizar preview:', e);
     _lpLastErr = 'erro no render: ' + ((e && e.message) || e);

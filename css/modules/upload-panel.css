@@ -53,6 +53,36 @@
 
 /* Grid de miniaturas */
 .f-up-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:9px}
+
+/* ── FOTOS DE EXEMPLO ──
+   Três cartões maiores que as miniaturas de "recentes": aqui a foto é o argumento, e ela
+   precisa parecer boa o bastante para alguém querer usá-la. O selo "demo" e a nota abaixo
+   existem para ninguém confundir com a foto real da operação. */
+.f-up-demo .f-up-sec-head{gap:6px}
+.f-up-demo-tag{margin-left:auto;padding:2px 7px;border-radius:var(--r-pill);background:var(--dm-orange-bg);
+  color:var(--dm-orange-text,#BF3F00);font-size:9.5px;font-weight:800;letter-spacing:.08em;font-style:normal}
+.f-up-grid-demo{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.f-up-demo-item{display:flex;flex-direction:column;gap:7px;padding:0;border:0;background:none;cursor:pointer;
+  font-family:'Roboto',sans-serif;text-align:left}
+.f-up-demo-shot{position:relative;display:block;overflow:hidden;aspect-ratio:1;border:1px solid var(--gray-mid);
+  border-radius:var(--r);background:var(--gray-light);
+  transition:border-color var(--dur-micro) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-spring)}
+.f-up-demo-shot img{width:100%;height:100%;object-fit:cover;display:block;
+  transition:transform var(--dur-base) var(--ease-out)}
+.f-up-demo-name{font-size:12px;font-weight:700;color:var(--text-2);padding-left:1px}
+.f-up-demo-item:hover .f-up-demo-shot{transform:translateY(-2px);border-color:var(--dm-orange);
+  box-shadow:0 8px 20px rgba(248,84,0,.16)}
+.f-up-demo-item:hover .f-up-demo-shot img{transform:scale(1.04)}
+.f-up-demo-item:active .f-up-demo-shot{transform:translateY(0) scale(.99)}
+.f-up-demo-item:focus-visible{outline:none}
+.f-up-demo-item:focus-visible .f-up-demo-shot{outline:2px solid var(--dm-orange);outline-offset:2px}
+.f-up-demo-item:hover .f-up-demo-name{color:var(--text)}
+.f-up-demo-note{margin:9px 0 0;font-size:11.5px;line-height:1.45;color:var(--text-3)}
+@media(prefers-reduced-motion:reduce){
+  .f-up-demo-shot,.f-up-demo-shot img{transition:none}
+  .f-up-demo-item:hover .f-up-demo-shot{transform:none}
+  .f-up-demo-item:hover .f-up-demo-shot img{transform:none}
+}
 .f-up-thumb{
   position:relative;aspect-ratio:1;padding:0;overflow:hidden;cursor:pointer;
   border:1px solid var(--gray-light);border-radius:10px;background:var(--gray-light);
