@@ -242,8 +242,20 @@
                 +(Object.keys(sh.emergencia.bloqueios).length?' bloq '+JSON.stringify(sh.emergencia.bloqueios):''):'')
               +(sh.causasReabertas?' · '+sh.causasReabertas+' reabriram causa':'')
               +(sh.bloqueios&&Object.keys(sh.bloqueios).length?' · SEM AÇÃO '+JSON.stringify(sh.bloqueios):'')
+              +(sh.escolha&&sh.escolha.acoes?' · ESCOLHA ['+sh.escolha.acoes.join('→')+'] '
+                +sh.escolha.modo+' d'+sh.escolha.depth+' por '+sh.escolha.wonBy
+                +' ('+sh.escolha.avaliados+' avaliados'
+                +(sh.escolha.descartados?', '+sh.escolha.descartados+' descartados':'')+')'
+                +(sh.msEscolha!=null?' '+sh.msEscolha+'ms':''):'')
               +(sh.acoesNaSolucao?' · ['+sh.acoesNaSolucao.join('→')+']'
                 :(sh.restante?' · restou ['+sh.restante.tipos.join(',')+'] em '+sh.restante.causas+' causa(s) após ['+sh.restante.acoes.join('→')+']':'')))));
+          if(sh.escolha&&sh.escolha.top&&sh.escolha.top.length>1){
+            avisos.push('  top '+chave+':');
+            sh.escolha.top.forEach((t,i)=>avisos.push('    #'+(i+1)+' ['+t.acoes+'] '+t.modo
+              +' d'+t.depth+' vetor='+JSON.stringify(t.vector)+' semantica='+t.semantica
+              +' camadasAlteradas='+t.custo+' grupo='+t.grupo));
+            avisos.push('    → #1 venceu #2 em '+sh.escolha.criterio+': '+sh.escolha.razoes.join(' · '));
+          }
         }
       });
     });

@@ -3990,6 +3990,356 @@
       'os limites da busca mudaram');
   });
 
+  /* ══ SCORING HIERÁRQUICO + SELEÇÃO (Fase 6) ══════════════════════════════════════════════
+     A busca devolve TODAS as sequências que resolveram. Aqui se escolhe — e a escolha é
+     LEXICOGRÁFICA, nunca um número só. Camada de baixo não compra violação de camada de cima. */
+
+  // Um perfil sintético: é assim que se testa comparador — com vetores, não com sorte de fixture.
+  const perfil=(v,extra)=>Object.assign({
+    vector:v, vectorCamadas:['safety','semantics','semantics','authored-intent',
+                             'authored-intent','mode','aesthetics','alteration'],
+    depth:1, signature:'sig'+v.join('_'),
+    alteration:{ camadasAlteradas:1, acoes:1 }, semantics:{ violacoes:[] },
+    mode:{ emergency:v[5]===1 }, authoredIntent:{ estruturaIgual:true }
+  },extra||{});
+  const venceu=(a,b)=>gCompareLayoutCandidates(a,b)<0;
+
+  test('scoring: estética nunca compra violação de segurança',()=>{
+    /* Candidato B é impecável em tudo o que vem depois — e inseguro. A não perde nunca. */
+    const A=perfil([0, 3,0.9, 5,5, 1, 99,99]);
+    const B=perfil([1, 0,0,   0,0, 0,  0, 0]);
+    assert(venceu(A,B),'um candidato inseguro venceu um seguro por ser mais bonito');
+    assert(!venceu(B,A),'a comparação não é antissimétrica');
+    // E o vetor tem a segurança na primeira posição, por construção.
+    assert(G_SCORE_CAMADAS[0]==='safety','a ordem das camadas mudou: safety saiu da frente');
+  });
+
+  test('scoring: estética nunca compra violação semântica',()=>{
+    const A=perfil([0, 0,0, 9,9, 1, 90,90]);   // semântica limpa, feio, caro, emergência
+    const B=perfil([0, 1,0, 0,0, 0,  0, 0]);   // uma violação semântica, perfeito no resto
+    assert(venceu(A,B),'uma violação semântica foi compensada por estética');
+    assert(G_SCORE_CAMADAS.indexOf('semantics')<G_SCORE_CAMADAS.indexOf('aesthetics'),
+      'semântica deixou de vir antes de estética');
+  });
+
+  test('scoring: hierarquia quebrada perde para hierarquia preservada',()=>{
+    /* Quebrar é violação (posição 1). Comprimir mantendo a ordem é diagnóstico (posição 2) —
+       e é a distinção que impede a nota de preferir arte que não coube a arte que encolheu. */
+    const quebrou=perfil([0, 1,0.0, 0,0, 0, 0,0]);
+    const comprimiu=perfil([0, 0,0.5, 0,0, 0, 0,0]);
+    assert(venceu(comprimiu,quebrou),'comprimir preservando a ordem perdeu para quebrar a ordem');
+  });
+
+  test('scoring: relação estrutural preservada vence menor deslocamento',()=>{
+    /* §8: estrutura vale mais que coordenada. A move muito e mantém a composição; B move
+       pouco e rompe uma relação autoral. A vence. */
+    const A=perfil([0, 0,0, 0,0, 0, 10, 80]);  // caro em alteração
+    const B=perfil([0, 0,0, 1,0, 0, 10,  5]);  // barato, mas perdeu uma relação autoral
+    assert(venceu(A,B),'o deslocamento menor venceu a preservação estrutural');
+    assert(G_SCORE_CAMADAS.indexOf('authored-intent')<G_SCORE_CAMADAS.indexOf('alteration'),
+      'intenção autoral deixou de vir antes de alteração');
+  });
+
+  test('scoring: normal vence emergency com o resto equivalente',()=>{
+    const normal=perfil([0, 0,0.2, 1,1, 0, 40,40]);
+    const emerg =perfil([0, 0,0.2, 1,1, 1, 40,40]);
+    assert(venceu(normal,emerg),'emergência empatou com normal sendo tudo o mais igual');
+  });
+
+  test('scoring: emergency VENCE normal quando o normal custa mais semântica',()=>{
+    /* §9: emergência é sacrifício, não invalidação. Se o caminho normal quebra a leitura e o
+       de emergência não, o de emergência vence — a camada superior manda. */
+    const normal=perfil([0, 2,0.1, 0,0, 0, 5, 5]);
+    const emerg =perfil([0, 0,0.4, 1,1, 1, 60,60]);
+    assert(venceu(emerg,normal),'emergência foi invalidada mesmo preservando mais semântica');
+  });
+
+  test('scoring: menos movimentos só decide EMPATE real',()=>{
+    const poucos=perfil([0,0,0, 0,0, 0, 50, 10]);   // 1 ação, composição pior
+    const muitos=perfil([0,0,0, 0,0, 0, 10, 90]);   // caro, composição melhor
+    assert(venceu(muitos,poucos),'o custo de alteração passou na frente da composição');
+    // Com tudo igual até a estética, aí sim a alteração decide.
+    const a=perfil([0,0,0, 0,0, 0, 10, 10]), b=perfil([0,0,0, 0,0, 0, 10, 40]);
+    assert(venceu(a,b),'com tudo igual, a menor alteração não decidiu');
+  });
+
+  test('scoring: o desempate é determinístico e não depende da ordem do array',()=>{
+    const a=perfil([0,0,0,0,0,0,0,0],{ signature:'aaa', depth:2,
+      alteration:{ camadasAlteradas:2, acoes:3 } });
+    const b=perfil([0,0,0,0,0,0,0,0],{ signature:'bbb', depth:1,
+      alteration:{ camadasAlteradas:2, acoes:3 } });
+    assert(gCompareLayoutCandidates(a,b)>0,'profundidade não desempatou');
+    const c=perfil([0,0,0,0,0,0,0,0],{ signature:'aaa', depth:1,
+      alteration:{ camadasAlteradas:2, acoes:3 } });
+    const d=perfil([0,0,0,0,0,0,0,0],{ signature:'bbb', depth:1,
+      alteration:{ camadasAlteradas:2, acoes:3 } });
+    assert(gCompareLayoutCandidates(c,d)<0&&gCompareLayoutCandidates(d,c)>0,
+      'a assinatura não desempatou de forma estável');
+    // Ordenar embaralhado dá a mesma ordem.
+    const lista=[b,d,a,c];
+    const ord1=lista.slice().sort(gCompareLayoutCandidates).map(x=>x.signature+':'+x.depth);
+    const ord2=lista.slice().reverse().sort(gCompareLayoutCandidates).map(x=>x.signature+':'+x.depth);
+    assert(ord1.join()===ord2.join(),'a ordem de entrada mudou o ranking: '+ord1+' vs '+ord2);
+  });
+
+  test('scoring: `partial` e `unsafe` não competem com `solved`',()=>{
+    const layers=arteIrma(), C=ctxB(layers,D_IRMA,CV_IRMA);
+    const r=gSearchLayoutCandidates({ctx:C,base:layers});
+    assert(r.solved.length,'o cenário perdeu o sentido: sem solução');
+    const esc=gSelectLayoutCandidate(r,C);
+    assert(esc.winner,'não escolheu vencedor havendo solução');
+    assert(esc.winner.status==='solved','o vencedor não é um candidato resolvido');
+    esc.ranked.forEach(x=>{
+      assert(x.candidate.status==='solved','um não-resolvido entrou no ranking');
+      assert(!x.profile||x.profile.safety.seguro,'um inseguro entrou no ranking');
+    });
+    // Sem solução, não existe "o menos quebrado".
+    const vazio=gSelectLayoutCandidate({solved:[],partial:r.partial,unsafe:r.unsafe||[]},C);
+    assert(vazio.winner===null&&!vazio.ranked.length,'escolheu vencedor sem candidato resolvido');
+    assert(vazio.explanation.wonBy===null,'inventou motivo de vitória sem vencedor');
+  });
+
+  test('scoring: ORIGINAL FIRST vence sem rodar scoring nenhum',()=>{
+    const layers=arteN(), C=ctxB(layers,{titulo:'OFERTA'},CV_P);
+    const r=gSearchLayoutCandidates({ctx:C,base:layers});
+    assert(r.original.diagnostics.problemas===0,'o cenário perdeu o sentido: arte com dano');
+    const esc=gSelectLayoutCandidate(r,C);
+    assert(esc.winner===r.original,'a composição publicada não venceu');
+    assert(esc.explanation.wonBy==='original-first','venceu por outro critério');
+    assert(esc.diagnostics.originalFirst===true,'não registrou o atalho');
+    assert(esc.diagnostics.avaliados===0,'calculou perfil para reeleger a arte intocada');
+    assert(esc.ranked[0].profile===null,'gastou perfil no caminho feliz');
+  });
+
+  test('scoring: o perfil é serializável e determinístico',()=>{
+    const layers=arteIrma(), C=ctxB(layers,D_IRMA,CV_IRMA);
+    const r=gSearchLayoutCandidates({ctx:C,base:layers});
+    const base=gSettleCandidateState(r.original,C).layers;
+    const p1=gLayoutScoreProfile(r.solved[0],C,{base:base});
+    const p2=gLayoutScoreProfile(r.solved[0],C,{base:base});
+    assert(JSON.stringify(p1)===JSON.stringify(p2),'dois perfis do mesmo candidato diferem');
+    assert(JSON.stringify(p1).indexOf('function')<0,'o perfil levou função dentro');
+    G_SCORE_CAMADAS.forEach(c=>{
+      const k=c==='authored-intent'?'authoredIntent':c;
+      assert(p1[k],'falta a camada '+c+' no perfil');
+    });
+    assert(Array.isArray(p1.vector)&&p1.vector.length===p1.vectorCamadas.length,
+      'o vetor e os rótulos das camadas divergem');
+    p1.vector.forEach(v=>assert(typeof v==='number'&&isFinite(v),'posição não numérica no vetor'));
+    // Observabilidade do grupo adaptativo (§23): registrada, NÃO penalizada.
+    assert(typeof p1.observabilidade.adaptiveGroupSize==='number'
+        && typeof p1.observabilidade.adaptiveGroupRatio==='number','falta a observabilidade do grupo');
+    /* §23: o tamanho do fecho é OBSERVABILIDADE, não critério. O vetor tem exatamente uma
+       posição por rótulo declarado, e nenhuma delas vem da observabilidade. */
+    assert(p1.vector.length===8,'o vetor mudou de tamanho: '+p1.vector.length);
+    p1.vectorCamadas.forEach(c=>assert(G_SCORE_CAMADAS.indexOf(c)>=0,
+      'o vetor cita uma camada que não existe: '+c));
+    assert(p1.vectorCamadas.indexOf('observabilidade')<0,'a observabilidade virou camada');
+    assert(String(gCompareLayoutCandidates).indexOf('adaptiveGroup')<0
+        && String(gLayoutScoreProfile).indexOf('vector.push')<0,
+      'o comparador passou a consultar o tamanho do grupo adaptativo');
+  });
+
+  test('scoring: mesma entrada, mesmo vencedor',()=>{
+    const a=gSelectLayoutCandidate(gSearchLayoutCandidates(
+      {ctx:ctxB(arteIrma(),D_IRMA,CV_IRMA),base:arteIrma()}),ctxB(arteIrma(),D_IRMA,CV_IRMA));
+    const b=gSelectLayoutCandidate(gSearchLayoutCandidates(
+      {ctx:ctxB(arteIrma(),D_IRMA,CV_IRMA),base:arteIrma()}),ctxB(arteIrma(),D_IRMA,CV_IRMA));
+    assert((a.winner&&a.winner.signature)===(b.winner&&b.winner.signature),
+      'duas execuções iguais escolheram vencedores diferentes');
+    assert(a.explanation.wonBy===b.explanation.wonBy,'o motivo da vitória é instável');
+    assert(a.ranked.map(x=>x.candidate.signature).join()===b.ranked.map(x=>x.candidate.signature).join(),
+      'o ranking é instável');
+  });
+
+  test('scoring: a nota que já existia é REUSADA, não duplicada',()=>{
+    /* ⛔ Dois modelos de estética paralelos é o erro que a §11 proíbe. Cada item da nota
+       pertence a exatamente UMA camada, e a soma das camadas devolve a penalidade inteira. */
+    const layers=arteIrma(), C=ctxB(layers,D_IRMA,CV_IRMA);
+    const r=gSearchLayoutCandidates({ctx:C,base:layers});
+    const base=gSettleCandidateState(r.original,C).layers;
+    const p=gLayoutScoreProfile(r.solved[0],C,{base:base});
+    const itens=p.aesthetics.itens;
+    Object.keys(itens).forEach(k=>assert(G_SCORE_ITENS_CAMADA[k],
+      'o item "'+k+'" da nota não foi auditado para nenhuma camada'));
+    const camadas=[...new Set(Object.values(G_SCORE_ITENS_CAMADA))];
+    camadas.forEach(c=>assert(G_SCORE_CAMADAS.indexOf(c)>=0,'camada inventada na auditoria: '+c));
+    const soma=camadas.reduce((s,c)=>s+_gScoreDaCamada(itens,c),0);
+    const total=Object.keys(itens).reduce((s,k)=>s+(itens[k]||0),0);
+    assert(Math.abs(soma-total)<0.05,'a repartição perdeu ou duplicou penalidade: '+soma+' vs '+total);
+    assert(p.aesthetics.score===_gScoreDaCamada(itens,'aesthetics'),'a estética não veio da nota');
+    assert(p.alteration.score===_gScoreDaCamada(itens,'alteration'),'a alteração não veio da nota');
+  });
+
+  test('scoring: nenhuma regra estética entra na camada de segurança',()=>{
+    /* Safety é portão. As margens existem para diagnóstico FUTURO (§4) e não podem aparecer
+       no vetor — usar folga de segurança para desempatar é estética pela porta dos fundos. */
+    Object.keys(G_SCORE_ITENS_CAMADA).forEach(k=>{
+      if(G_SCORE_ITENS_CAMADA[k]!=='safety') return;
+      assert(k==='invalido','item estético classificado como segurança: '+k);
+    });
+    const layers=arteIrma(), C=ctxB(layers,D_IRMA,CV_IRMA);
+    const r=gSearchLayoutCandidates({ctx:C,base:layers});
+    const base=gSettleCandidateState(r.original,C).layers;
+    const p=gLayoutScoreProfile(r.solved[0],C,{base:base});
+    assert(p.vector[0]===0||p.vector[0]===1,'a posição de segurança deixou de ser binária');
+    [p.safety.margemBorda,p.safety.margemLegibilidade].forEach(m=>{
+      if(m==null) return;
+      assert(p.vector.indexOf(m)<0||m===0,'uma margem de segurança entrou no vetor de decisão');
+    });
+    assert(String(gCompareLayoutCandidates).indexOf('margem')<0,
+      'o comparador passou a consultar margem de segurança');
+  });
+
+  test('scoring: a decisão se explica — qual camada decidiu e por quê',()=>{
+    const layers=arteIrma(), C=ctxB(layers,D_IRMA,CV_IRMA);
+    const esc=gSelectLayoutCandidate(gSearchLayoutCandidates({ctx:C,base:layers}),C);
+    assert(esc.winner,'sem vencedor não há o que explicar');
+    assert(esc.explanation.wonBy,'não disse qual camada decidiu');
+    assert(G_SCORE_CAMADAS.indexOf(esc.explanation.wonBy)>=0
+        || ['original-first','unico','empate'].indexOf(esc.explanation.wonBy)>=0,
+      'camada de decisão fora do vocabulário: '+esc.explanation.wonBy);
+    assert(Array.isArray(esc.explanation.reasons)&&esc.explanation.reasons.length,
+      'a explicação veio vazia');
+    if(esc.ranked.length>1){
+      assert(esc.explanation.posicao>=0,'não disse em que posição do vetor a decisão caiu');
+      const a=esc.ranked[0].profile.vector, b=esc.ranked[1].profile.vector;
+      for(let i=0;i<esc.explanation.posicao;i++)
+        assert(Math.abs((a[i]||0)-(b[i]||0))<1e-9,
+          'a posição declarada não é a PRIMEIRA que diferiu (posição '+i+')');
+    }
+  });
+
+  /* ══ STRESS DO PORTÃO DE SEGURANÇA (§22) ═════════════════════════════════════════════════
+     A Fase 5.95 observou que o portão não tinha disparado em caso real. Aqui ele é exercitado
+     de propósito: composições que o DETECTOR aprova e o PRODUTO reprova não podem ranquear. */
+
+  const forcaCandidato=(C,layers,mut)=>{
+    const ls=layers.map(l=>Object.assign({},l));
+    mut(ls);
+    const c=_gCandidatoTesteScore(ls);
+    return c;
+  };
+  const _gCandidatoTesteScore=(ls)=>({ id:'forc', layers:ls, solveState:{}, depth:1,
+    searchMode:'normal', status:'solved', actions:[], actionSignatures:[], changedIds:[],
+    diagnostics:{ problemasDepois:0 }, causasTocadas:[], scaleGroupIds:[],
+    signature:gLayoutCandidateSignature({layers:ls,solveState:{}}) });
+
+  test('portão: piso de fonte — abaixo da legibilidade o produto reprova',()=>{
+    const layers=[
+      text('titulo',60,60,420,90,'{{v}}',{fontSize:56,name:'Titulo',textTransform:'uppercase',
+        _layoutW:420,textBox:'box'}),
+      text('rodape',60,300,420,40,'CONSULTE',{fontSize:20,name:'Descrição'})
+    ];
+    const dados={v:'Combo artesanal da casa com borda recheada e bebida gelada da promoção'};
+    const C=ctxB(layers,dados,CV_P);
+    /* Um candidato que NÃO encolheu: o texto continua estourando a caixa. O detector do
+       corredor pode não acusar, mas `gLayoutCamadaReprovada` acusa. */
+    const c=forcaCandidato(C,layers,ls=>{});
+    const seg=gLayoutCandidateSafety(c,C);
+    const esc=gSelectLayoutCandidate({solved:[c]},C);
+    if(seg.seguro){ assert(esc.winner===c,'aprovado pelo produto e não ranqueado'); }
+    else{
+      assert(esc.winner===null,'um candidato reprovado pelo produto foi eleito vencedor');
+      assert(esc.diagnostics.descartados===1,'o descarte não foi registrado');
+    }
+    assert(typeof seg.seguro==='boolean','o portão não respondeu');
+  });
+
+  test('portão: fora da prancheta nunca entra no ranking',()=>{
+    const layers=[
+      text('titulo',60,60,420,90,'{{v}}',{fontSize:44,name:'Titulo'}),
+      text('rodape',60,300,420,40,'CONSULTE',{fontSize:20,name:'Descrição'})
+    ];
+    const C=ctxB(layers,{v:'OFERTA'},CV_P);
+    // Empurra o rodapé para fora da prancheta, muito além da sangria autorada.
+    const c=forcaCandidato(C,layers,ls=>{
+      const l=ls.find(x=>x.id==='rodape');
+      l.y=CV_P.h+200; l._geoAutor={x:l.x,y:l.y,w:l.w,h:l.h};
+    });
+    const seg=gLayoutCandidateSafety(c,C);
+    assert(!seg.seguro,'uma camada fora da prancheta passou pelo portão: '+JSON.stringify(seg));
+    const esc=gSelectLayoutCandidate({solved:[c]},C);
+    assert(esc.winner===null,'a composição fora da prancheta foi eleita');
+    assert(esc.diagnostics.descartados===1,'o descarte não foi registrado');
+  });
+
+  test('portão: sobreposição relevante e zona segura de imagem barram a eleição',()=>{
+    const layers=[
+      text('titulo',60,60,300,70,'{{v}}',{fontSize:40,name:'Titulo'}),
+      shape('foto',60,200,380,200,{layoutRole:'protected',name:'Foto'}),
+      text('apoio',60,150,300,40,'APOIO',{fontSize:22,name:'Descrição'})
+    ];
+    const C=ctxB(layers,{v:'OFERTA DA SEMANA'},{w:500,h:440});
+    // Joga o apoio por cima da foto protegida — invasão que não existia no desenho.
+    const c=forcaCandidato(C,layers,ls=>{
+      const l=ls.find(x=>x.id==='apoio');
+      l.y=260; l._geoAutor={x:l.x,y:l.y,w:l.w,h:l.h};
+    });
+    const seg=gLayoutCandidateSafety(c,C);
+    const esc=gSelectLayoutCandidate({solved:[c]},C);
+    if(!seg.seguro){
+      assert(esc.winner===null,'uma invasão de zona protegida foi eleita');
+    }else{
+      // Se o detector considerar a sobreposição intencional, o produto tem que concordar.
+      assert(!seg.reprovadas.length,'detector e produto discordaram sem que o portão barrasse');
+    }
+  });
+
+  test('portão: camada protegida alterada nunca vira vencedora',()=>{
+    const layers=[
+      text('titulo',60,60,300,70,'{{v}}',{fontSize:40,name:'Titulo'}),
+      text('selo',60,200,300,60,'SELO',{fontSize:30,layoutRole:'protected',name:'Selo'})
+    ];
+    const C=ctxB(layers,{v:'Oferta muito maior do que a caixa desenhada comporta'},{w:420,h:360});
+    const r=gSearchLayoutCandidates({ctx:C,base:layers});
+    const esc=gSelectLayoutCandidate(r,C);
+    [].concat(esc.ranked.map(x=>x.candidate)).forEach(c=>
+      assert((c.changedIds||[]).indexOf('selo')<0,'o vencedor mexeu na camada protegida'));
+    if(esc.winner) assert((esc.winner.changedIds||[]).indexOf('selo')<0,
+      'a camada protegida foi alterada pelo vencedor');
+  });
+
+  test('scoring: o custo de alteração é explicável item a item',()=>{
+    const layers=arteIrma(), C=ctxB(layers,D_IRMA,CV_IRMA);
+    const r=gSearchLayoutCandidates({ctx:C,base:layers});
+    const base=gSettleCandidateState(r.original,C).layers;
+    const p=gLayoutScoreProfile(r.solved[0],C,{base:base});
+    ['camadasAlteradas','camadasMovidas','distanciaMovida','reducaoFonte','reducaoEntrelinha',
+     'mudancasDeTracking','placasRedimensionadas','componentesEscalados','acoes','profundidade',
+     'acoesDeEmergencia'].forEach(k=>
+      assert(typeof p.alteration[k]==='number','falta o item "'+k+'" no custo de alteração'));
+    assert(p.alteration.acoes===p.actions.length,'a contagem de ações diverge do histórico');
+    assert(p.alteration.profundidade===r.solved[0].depth,'a profundidade diverge do candidato');
+  });
+
+  test('scoring: o custo em 344 camadas não dobra a busca',()=>{
+    const L=arteGrande(344), cv={w:1080,h:4600};
+    const C=gBuildOperationalContext(L,cv,{dados:{}});
+    const t0=performance.now();
+    const r=gSearchLayoutCandidates({ctx:C,base:L});
+    const msBusca=performance.now()-t0;
+    const t1=performance.now();
+    const esc=gSelectLayoutCandidate(r,C);
+    const msEscolha=performance.now()-t1;
+    /* ⚠ Nesta arte sintética a busca não fecha nenhum candidato, então a escolha sai de graça e
+       o número não diria nada. O custo REAL do scoring é o do PERFIL — compilar Gramática,
+       Graph e Componentes do estado e comparar com o original. Mede-se nos parciais, que é
+       exatamente o mesmo trabalho. */
+    const base=gSettleCandidateState(r.original,C).layers;
+    const amostra=r.partial.slice(0,5);
+    const t2=performance.now();
+    amostra.forEach(c=>gLayoutScoreProfile(c,C,{base:base}));
+    const msPerfis=performance.now()-t2;
+    avisos.push('344 camadas: busca '+msBusca.toFixed(1)+'ms · escolha '+msEscolha.toFixed(1)
+      +'ms ('+esc.diagnostics.avaliados+' perfis) · '+amostra.length+' perfis medidos '
+      +msPerfis.toFixed(1)+'ms ('+(amostra.length?(msPerfis/amostra.length).toFixed(1):'—')
+      +'ms cada)');
+    assert(msEscolha<msBusca,'a escolha custou mais que a busca inteira');
+    assert(msPerfis<msBusca,'o scoring dobrou o custo da busca em 344 camadas: '
+      +msPerfis.toFixed(1)+'ms contra '+msBusca.toFixed(1)+'ms');
+  });
+
   let passed=0;
   const falhas=[];
   for(const item of cases){
