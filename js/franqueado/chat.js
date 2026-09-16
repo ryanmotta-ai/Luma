@@ -1813,7 +1813,14 @@ function fGenCaptionSuggestions(dados, camp, formato) {
   // Desativado: devolve lista vazia em vez de bloquear — quem chama trata o
   // vazio e a arte continua sendo gerada. A legenda é acessório, não o fluxo.
   if (typeof gFeatureCan === 'function' && !gFeatureCan('franqueado.legendas','execute')) return [];
-  const prod = dados.produto || dados.categoria || dados.brinde || dados.oferta || camp.name;
+  /* ⛔ NOME DE CAMPANHA NÃO É NOME DE PRODUTO. Aqui terminava com `|| camp.name`, e quando o
+     franqueado pulava o campo do produto a legenda saía "Hoje tem Copa Do Mundo 2026.
+     Confere o preço no app." — anunciando a pasta em vez do que está na arte. `item` entrou
+     junto porque o caminho da IA (fFetchAICaptionSuggestions) e o do Sheets
+     (fBulkShowCopyModal, /produto|titulo|nome/) já olhavam mais chaves que este.
+     Sem produto, o motor escreve sem nome nenhum — a campanha segue valendo como CONTEXTO
+     (vai em `camp.name` no último argumento), que é o uso certo dela: definir o segmento. */
+  const prod = dados.produto || dados.item || dados.categoria || dados.brinde || dados.oferta || '';
   // Mapeamento assertivo dos slots: preço é preço; DESCONTO vai pro slot de desconto (ativa o
   // pool comPercentual — antes virava {por} e saía "por 20% off"). Sem preço → pool semPreco.
   const por = dados.precoPor || '';
@@ -2020,7 +2027,11 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
   const fallback = fGenCaptionSuggestions(dados, camp, formato);
   fallback._ia = false;   // marca a ORIGEM: a UI rotula IA x motor local (ver painel de legenda)
 
-  const prod = dados.produto || dados.item || dados.categoria || dados.oferta || (camp && camp.name) || 'Oferta especial';
+  /* Mesma regra do motor local: campanha não é produto. Terminava em `camp.name ||
+     'Oferta especial'`, então o modelo recebia a MESMA string como `Produto:` e como
+     `Campanha:` e devolvia "Hoje tem Copa Do Mundo 2026". Vazio agora, e a linha `Produto:`
+     simplesmente não entra no prompt — é a convenção que os outros campos já seguem. */
+  const prod = dados.produto || dados.item || dados.categoria || dados.brinde || dados.oferta || '';
   const de = dados.precoDe ? `R$ ${dados.precoDe}` : '';
   const por = dados.precoPor ? `R$ ${dados.precoPor}` : (dados.preco ? `R$ ${dados.preco}` : '');
   const val = dados.validade || '';
@@ -2078,7 +2089,7 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
   // Só entra no prompt o que EXISTE — campo vazio virava "por undefined" / "validade: Tempo limitado"
   // inventado, e o modelo repetia a invenção na legenda.
   const fatos = [
-    `Produto: ${prod}`,
+    prod ? `Produto: ${prod}` : '',
     de ? `Preço antigo: ${de}` : '',
     por ? `Preço promocional: ${por}` : '',
     desc ? `Vantagem: ${desc}` : '',

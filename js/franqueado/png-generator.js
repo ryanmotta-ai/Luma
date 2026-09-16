@@ -4062,10 +4062,33 @@ function fBulkAutoCategorize(prodName) {
   return '';
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   MOTOR DE COPY COMBINATÓRIO v2 — Tom de Voz Delivery Much
-   Simples, amigável, direto. Zero emojis. Linguagem do cotidiano.
-   ══════════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   MOTOR DE COPY COMBINATÓRIO v3 — Tom de Voz Delivery Much
+   ------------------------------------------------------------------------------------------
+   Gera 3 legendas LOCALMENTE (zero rede, zero IA, zero configuração): o franqueado abre,
+   olha, escolhe e copia. Combina gancho + corpo + CTA sorteados de bancos curados.
+
+   As 3 leis, nesta ordem de prioridade:
+
+   1. NÃO INVENTAR. Preço, desconto e validade só aparecem quando o franqueado os informou.
+      Três mentiras reais que saíam daqui e foram fechadas: "Válido neste fim de semana" com
+      o campo de validade VAZIO; "de R$ 39,90 por R$ 39,90" anunciando desconto inexistente;
+      e "por R$ 0,00" quando o preço vinha zerado. Arte que promete o que a loja não cumpre
+      é pior que arte sem legenda.
+   2. NÃO REPETIR. As 3 opções nunca dividem gancho, corpo ou CTA — e um rastro curto em
+      localStorage impede que a arte de amanhã repita a frase de hoje.
+   3. NÃO SOAR ARTIFICIAL. Português brasileiro falado, frase curta, zero emoji. Nenhum
+      artigo ou adjetivo de gênero encosta no nome do produto: "no Pizza", "O Marmita" e
+      "Pizza fresquinho" eram erro garantido, porque o motor não sabe (nem precisa saber) o
+      gênero do que a loja vende. Os moldes são neutros por construção.
+   ══════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ── FONTE DE ALEATORIEDADE ──
+   Ponto único de sorteio. Existe para a suíte (`tests/copy-engine-cases.js`) conseguir fixar
+   a semente e comparar saídas, sem que o produto ganhe uma única configuração na tela — o
+   franqueado não escolhe nada, e é assim que tem que ser. */
+let _fCopyRandom = Math.random;
+function _fCopySetRandom(fn) { _fCopyRandom = (typeof fn === 'function') ? fn : Math.random; }
 
 const _COPY_BLOCKS = {
   // ─── GANCHOS: espelham a realidade do cliente antes de vender ───
@@ -4082,7 +4105,10 @@ const _COPY_BLOCKS = {
       'Sem fila, sem louça pra lavar, sem estresse.',
       'Você pede, a gente cuida do resto.',
       'O jantar de hoje já tem endereço: o seu.',
-      'Menos decisão, mais sabor.',
+      'Deu fome e você nem precisa levantar do sofá.',
+      'Dia corrido pede comida que chega pronta.',
+      'A gente entrega, você só abre a porta.',
+      'Hoje o jantar resolve fácil.',
     ],
     pizzas: [
       'Noite de pizza é noite de pizza. Sem discussão.',
@@ -4091,6 +4117,7 @@ const _COPY_BLOCKS = {
       'Pizza não precisa de motivo. Mas se precisasse, hoje tem.',
       'Massa fresca, borda no ponto, recheio caprichado.',
       'A rodada de pizza que junta todo mundo na mesa.',
+      'Sexta pede pizza. Terça também, pra falar a verdade.',
     ],
     lanches: [
       'Aquele burger que resolve qualquer dia ruim.',
@@ -4099,6 +4126,7 @@ const _COPY_BLOCKS = {
       'O hambúrguer do jeito que tem que ser.',
       'Vontade de lanche não avisa — mas a gente entrega.',
       'Suculento, no ponto, do primeiro ao último bocado.',
+      'Tem fome que só um burger resolve.',
     ],
     japonesa: [
       'Japa hoje? A gente entrega fresco na sua porta.',
@@ -4176,21 +4204,62 @@ const _COPY_BLOCKS = {
       'Fim de semana pede churrasco. A gente entrega.',
       'Suculenta, na brasa, sem você acender a churrasqueira.',
     ],
+    salgados: [
+      'Aquele salgado quentinho que resolve a fome da tarde.',
+      'Massa crocante por fora, recheio caprichado por dentro.',
+      'Pastel, coxinha, esfiha — escolhe o teu que a gente entrega.',
+      'Salgado bom é o que chega quentinho na sua porta.',
+      'Pra beliscar no meio da tarde sem pensar duas vezes.',
+      'Feito na hora e entregue ainda quente.',
+    ],
+    combos: [
+      'Um pedido só e a mesa inteira resolvida.',
+      'Combo é isso: menos escolha, mais comida.',
+      'Pra dividir sem ninguém ficar com vontade.',
+      'Tudo junto num pedido só. Simples assim.',
+      'A refeição completa sem precisar montar nada.',
+      'Junta a galera que o combo dá conta.',
+    ],
+    /* ─── PERGUNTAS: abertura exclusiva da aba "Engajar" ───
+       É o que separa Engajar de uma Promo com CTA trocado: a legenda abre no PRODUTO e
+       convida a responder, em vez de abrir no preço. Estes moldes aceitam {prod} — por isso
+       o gancho passa pelo interpolador (os outros bancos não têm placeholder, e para eles a
+       interpolação é no-op). Sem pergunta genérica de engajamento vazio: toda uma delas
+       leva o produto junto ou fala do momento de decidir o pedido. */
+    perguntas: [
+      'Bateu vontade de {prod}?',
+      'Que tal {prod} hoje?',
+      'Alguém aí pensando em {prod}?',
+      'Hoje é dia de {prod}?',
+      'Pode ser {prod} hoje?',
+      'Quem aí não ia querer {prod} agora?',
+      'E se o jantar de hoje fosse {prod}?',
+      'Vontade de {prod} bateu aí também?',
+      'Já sabe o que vai pedir hoje?',
+      'Tá na dúvida do que pedir?',
+      'Faz tempo que você não pede {prod}, né?',
+      'Quanto tempo desde o último {prod}?',
+    ],
   },
 
-  // ─── CORPO: apresenta produto + preço, concreto e direto ───
+  /* ─── CORPO: apresenta produto + preço, concreto e direto ───
+     ⛔ NENHUM molde encosta artigo ou adjetivo de gênero no {prod}: o motor não sabe se a
+     loja vende "a pizza" ou "o combo". Toda frase aqui funciona com os dois. */
   bodies: {
     comDesconto: [
       '{prod} saindo de {de} por {por}.',
       '{prod} — de {de} por {por}. Válido {val}.',
-      'Hoje o {prod} tá de {de} por {por}.',
+      'Hoje {prod} tá de {de} por {por}.',
       '{prod} por {por} (era {de}). Válido {val}.',
       'De {de} por {por} — {prod}.',
       '{prod}: antes {de}, agora {por}.',
-      '{prod} saindo de {de} por {por}. Você economiza {economiaReais}!',
+      '{prod} saindo de {de} por {por}. Você economiza {economiaReais}.',
       '{prod} de {de} por {por} — {economiaPct} de desconto no seu pedido.',
       'Baixou o preço: {prod} de {de} por {por}.',
-      'O {prod} tá {por} hoje (de {de}). Aproveita.',
+      '{prod} tá {por} hoje (de {de}). Aproveita.',
+      '{prod} de {de} por {por}. Economia de {economiaReais}.',
+      'Agora {prod} sai por {por}, em vez de {de}.',
+      '{prod}: de {de} caiu pra {por}.',
     ],
     semDesconto: [
       '{prod} por {por}.',
@@ -4198,30 +4267,77 @@ const _COPY_BLOCKS = {
       'Hoje tem {prod} a {por}.',
       '{prod} saindo a {por}. Válido {val}.',
       '{prod} a {por}. Sem complicação.',
-      '{por} no {prod}. Direto ao ponto.',
-      '{prod} por {por}, quentinho na sua porta.',
+      '{prod} sai por {por}. Direto ao ponto.',
+      '{prod} por {por}, e chega quente na sua porta.',
       'É {prod}? É {por}. Pedido feito.',
-      'Peça o {prod} por {por} e mate a vontade.',
+      'Peça {prod} por {por} e mate a vontade.',
+      'Tem {prod} saindo por {por}.',
+      '{prod}: {por}, e o jantar tá resolvido.',
     ],
     comPercentual: [
       '{prod} com {desconto} de desconto: sai a {por}.',
-      '{desconto} OFF no {prod}. Preço final: {por}.',
+      '{prod} com {desconto} OFF. Preço final: {por}.',
       '{prod} por {por} — {desconto} a menos que o normal.',
-      'Desconto de {desconto} no {prod}. Fica {por}.',
-      '{desconto} de desconto no {prod}, só hoje: {por}.',
+      '{prod} com {desconto} de desconto. Fica {por}.',
+      '{prod} com {desconto} de desconto, só hoje: {por}.',
       'Aproveita: {prod} com {desconto} OFF, agora {por}.',
       // Sem preço final informado — o desconto ainda aparece (antes caía no pool sem preço e sumia)
-      '{desconto} OFF no {prod}. Aproveita enquanto dura.',
+      '{prod} com {desconto} OFF. Aproveita enquanto dura.',
       '{prod} com {desconto} de desconto. Corre que acaba.',
+      '{prod} tá com {desconto} de desconto hoje.',
     ],
     // Sem preço definido: apresenta o produto sem prometer valor (o preço fica no app).
     semPreco: [
-      '{prod} fresquinho, esperando por você.',
+      'Tem {prod} saindo agora.',
       'Hoje tem {prod}. Confere o preço no app.',
       '{prod} do jeito que você gosta. Válido {val}.',
       'Bateu a vontade de {prod}? A gente entrega.',
-      '{prod} pronto pra sair. É só chamar.',
-      'O {prod} de hoje tá te esperando no app.',
+      'É só chamar que {prod} sai na hora.',
+      '{prod} tá te esperando no cardápio.',
+      'Hoje tem {prod} no cardápio.',
+      '{prod} é o pedido certo pra hoje.',
+    ],
+  },
+
+  /* ─── CORPOS CURTOS: continuação de um gancho que JÁ disse o nome do produto ───
+     Exclusivos da aba "Engajar", cujos ganchos-pergunta trazem o {prod}. Sem eles a legenda
+     saía com o nome duas vezes em duas linhas ("Bateu vontade de Pizza Calabresa? / Pizza
+     Calabresa com 20% OFF") — o eco que mais aparecia na medição. Aqui o corpo continua a
+     frase em vez de recomeçá-la, que é como a pessoa falaria. Os quatro bancos espelham os
+     de cima porque a escolha depende dos mesmos fatos (tem preço? tem desconto?). */
+  bodiesCurtos: {
+    comDesconto: [
+      'Tá saindo de {de} por {por}.',
+      'Sai por {por} — era {de}.',
+      'De {de} por {por} até acabar.',
+      'Agora sai por {por}, em vez de {de}.',
+      'Caiu de {de} pra {por}.',
+      'Hoje sai por {por}. Era {de}.',
+      'De {de} por {por}. Economia de {economiaReais}.',
+    ],
+    semDesconto: [
+      'Sai por {por}.',
+      'Tá {por} hoje.',
+      'Hoje sai a {por}.',
+      'Sai por {por}, quentinho.',
+      'Tá saindo a {por}.',
+      'São {por} e o pedido tá feito.',
+    ],
+    comPercentual: [
+      'Tá com {desconto} de desconto: sai a {por}.',
+      'Sai por {por}, com {desconto} OFF.',
+      'Com {desconto} OFF, fica {por}.',
+      'Tá com {desconto} de desconto.',
+      '{desconto} OFF enquanto dura.',
+      'Hoje tá com {desconto} OFF.',
+    ],
+    semPreco: [
+      'Tá saindo agora.',
+      'Confere o preço no app.',
+      'Tá no cardápio esperando.',
+      'É só chamar que a gente entrega.',
+      'Hoje tem, e tá saindo quente.',
+      'Tá esperando teu pedido.',
     ],
   },
 
@@ -4237,6 +4353,7 @@ const _COPY_BLOCKS = {
       'Tá no app, é só pedir.',
       'Pediu, chegou. É no app.',
       'Deixa com a gente: peça pelo delivery.',
+      'É só pedir que a gente leva.',
     ],
     engajamento: [
       'Marca aqui quem sempre pede isso com você.',
@@ -4247,6 +4364,7 @@ const _COPY_BLOCKS = {
       'Manda pro grupo da galera.',
       'Compartilha com quem ia amar.',
       'Conta aqui: com o que você pede isso?',
+      'Marca a pessoa que ia dividir isso com você.',
     ],
     // CTA de MENSAGEM (WhatsApp/status): pede resposta ali mesmo, não clique em bio.
     whatsapp: [
@@ -4255,6 +4373,7 @@ const _COPY_BLOCKS = {
       'Manda um "quero" que a gente cuida do resto.',
       'É só responder aqui pra pedir.',
       'Peça pelo app ou responde essa mensagem.',
+      'Responde aqui que a gente já separa.',
     ],
   },
 
@@ -4274,6 +4393,8 @@ const _COPY_BLOCKS = {
     mexicana: ['#comidamexicana', '#tacos', '#nachos', '#mexican', '#guacamole'],
     massas: ['#massa', '#macarrao', '#pasta', '#comidaitaliana', '#massafresca'],
     churrasco: ['#churrasco', '#carne', '#barbecue', '#espetinho', '#brasa'],
+    salgados: ['#salgados', '#pastel', '#coxinha', '#salgadinho', '#lanchedatarde'],
+    combos: ['#combo', '#promocao', '#paradividir', '#comboperfeito'],
   },
 };
 
@@ -4286,28 +4407,59 @@ function _fCopySegment(prod) {
   if (/salada|fit\b|saud[aá]vel|natural|light|vegano|vegetariano|\bbowl\b|low.?carb|proteico|integral/.test(low)) return 'saudavel';
   if (/caf[eé]|padaria|p[aã]o\b|croissant|brunch|tapioca|misto quente|torrada|cuscuz/.test(low)) return 'cafe';
   if (/taco|burrito|nachos|guacamole|quesadilla|mexican|chili|nacho/.test(low)) return 'mexicana';
-  if (/massa|macarr[aã]o|espaguete|nhoque|talharim|fettuccine|penne|ravioli|carbonara/.test(low)) return 'massas';
+  if (/massa|macarr[aã]o|espaguete|nhoque|talharim|fettuccine|penne|ravioli|carbonara|lasanha/.test(low)) return 'massas';
   if (/churrasco|espetinho|espeto|picanha|costela|parrilla|barbecue|churras|maminha|fraldinha/.test(low)) return 'churrasco';
+  // Salgados vêm ANTES do fBulkAutoCategorize de propósito: "pastel frito" bateria no
+  // /frito/ de "Porções / Entradas" e sairia com o tom de petisco de bar, não de pastelaria.
+  if (/pastel|past[eé]is|coxinha|esfiha|esfirra|empada|kibe|quibe|croquete|enroladinho|salgad/.test(low)) return 'salgados';
   const cat = fBulkAutoCategorize(String(prod || ''));
   const map = {
     'Bebidas': 'bebidas', 'Pizzas': 'pizzas', 'Lanches': 'lanches',
     'Comida Japonesa': 'japonesa', 'Sobremesas': 'sobremesas',
     'Refeições': 'refeicoes', 'Porções / Entradas': 'porcoes',
   };
-  return map[cat] || 'universal';
+  if (map[cat]) return map[cat];
+  /* SEGUNDA CHANCE — sinônimos e grafias que o categorizador do Sheets não conhece. Roda só
+     DEPOIS dele, de propósito: assim nunca rouba uma classificação que já estava certa
+     (o clássico é "calabresa", que é pizza aqui e porção ali). */
+  if (/smash|cheeseburger|artesanal/.test(low)) return 'lanches';
+  if (/combinado|uramaki|guioza|harumaki|ceviche|\bpoke\b|missoshiro/.test(low)) return 'japonesa';
+  if (/milk.?shake|torta|cheesecake|cookie|brigadeiro|a[çc]a[ií]/.test(low)) return 'sobremesas';
+  if (/feijoada|picadinho|galinhada|\bpf\b|prato do dia|caseir|quentinha/.test(low)) return 'refeicoes';
+  if (/torresmo|isca|mandioca|tirinha|aperitivo|petisco/.test(low)) return 'porcoes';
+  if (/energ[ée]tico|cerveja|chopp|heineken|brahma|skol|long neck|\bch[áa]\b/.test(low)) return 'bebidas';
+  /* Último recurso antes do genérico: "Combo Família", "Kit Casal" e afins caíam em
+     'universal'. Fica por ÚLTIMO de propósito — "Combo 20 peças" dentro de uma campanha
+     de sushi tem que sair como japonesa (regra do ctxName), não como combo. */
+  if (/\bcombo|\bkit\b|\bfam[ií]lia\b|\bcasal\b|pra dois|para dois/.test(low)) return 'combos';
+  return 'universal';
+}
+
+/* Fisher-Yates de verdade.
+   ⚠ O embaralhamento antigo era `arr.slice().sort(() => Math.random() - 0.5)` — comparador
+   inconsistente, que NÃO produz permutação uniforme: o V8 encerra a ordenação cedo e os
+   primeiros itens do banco ficavam no topo com frequência muito maior que os do fim. Na
+   prática, as hashtags e os CTAs do começo de cada lista apareciam quase sempre e os do
+   final quase nunca — variedade que existia no banco mas não chegava no franqueado. */
+function _fShuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(_fCopyRandom() * (i + 1));
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
 }
 
 /* Sorteia N itens unicos de um array */
 function _fPickRandom(arr, n) {
   if (!arr || arr.length === 0) return [];
-  const shuffled = arr.slice().sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, Math.min(n, shuffled.length));
+  return _fShuffle(arr).slice(0, Math.min(n, arr.length));
 }
 
 /* Sorteia 1 item de um array */
 function _fPick1(arr) {
   if (!arr || arr.length === 0) return '';
-  return arr[Math.floor(Math.random() * arr.length)];
+  return arr[Math.floor(_fCopyRandom() * arr.length)];
 }
 
 /* Interpola placeholders {prod}, {por}, {de}, {val}, {desconto}, {economiaReais}, {economiaPct} */
@@ -4322,115 +4474,231 @@ function _fInterpolate(template, data) {
     .replace(/\{economiaPct\}/g, data.economiaPct || '');
 }
 
+/* ── FAXINA FINAL ──
+   Rede de segurança de formatação: por mais que os moldes estejam certos, o dado do
+   franqueado chega torto (espaço sobrando, ponto que ele já digitou no fim do produto).
+   Nada sai daqui com espaço duplo, espaço antes de vírgula ou parêntese vazio. */
+function _fCopyTidy(s) {
+  return String(s == null ? '' : s)
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\(\s*\)/g, '')
+    .replace(/ +([.,!?;:])/g, '$1')
+    .replace(/([.,!?;:])\1+/g, '$1')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/* ── FICHA DE FATOS ──
+   Traduz o que o franqueado digitou para o que o motor tem PERMISSÃO de afirmar. É aqui que
+   mora a 1ª lei: cada campo vira um booleano honesto, e os moldes só recebem o que passou.
+   Antes esta decisão estava espalhada dentro do montador e cada ramo interpretava os dados
+   do seu jeito — foi de onde saíram o desconto falso e o preço zerado. */
+function _fCopyFacts(prodBruto, deBruto, porBruto, valBruto, descBruto) {
+  /* ⛔ CHAVE NENHUMA ENTRA NO MOTOR. O campo pode chegar com `{{produto}}` não substituído
+     (é a sintaxe de campo do próprio Luma) ou com chave digitada à mão. Como o interpolador
+     roda as substituições em sequência, esse texto voltava a ser interpretado: um produto
+     chamado "{por} {de}" saía da legenda como "* *", e uma validade assim virava
+     "Válido {por} {de}." na cara do cliente. Achado no fuzz (9.375 combinações). */
+  const limpa = (s) => {
+    // Só texto e número são campo. Objeto/array viravam "[object Object]" DENTRO da legenda.
+    if (typeof s === 'number') return Number.isFinite(s) ? String(s) : '';
+    if (typeof s !== 'string') return '';
+    return s.replace(/[{}]/g, '').replace(/\s+/g, ' ').trim();
+  };
+  const prod = limpa(prodBruto), de = limpa(deBruto), por = limpa(porBruto);
+  const val = limpa(valBruto), desc = limpa(descBruto);
+
+  const numDe = fParsePriceNumber(de);
+  const numPor = fParsePriceNumber(por);
+  // "R$ 0,00" não é preço — anunciava o produto de graça.
+  const temPor = /\d/.test(String(por || '')) && numPor > 0;
+  const temDe = /\d/.test(String(de || '')) && numDe > 0;
+  // Só é desconto quando o "de" é MAIOR que o "por". Igual (ou menor) não é oferta nenhuma.
+  const temEconomia = temDe && temPor && numDe > numPor;
+
+  // Percentual: "20% off" vira "20%"; "0%" não é desconto e é descartado.
+  const mPct = /(\d{1,3})\s*%/.exec(String(desc || ''));
+  const pctNum = mPct ? parseInt(mPct[1], 10) : 0;
+  const temPct = pctNum > 0 && pctNum < 100;
+  // Desconto sem o "off" que o franqueado já digitou — os moldes trazem "OFF"/"de desconto"
+  // no texto (senão saía "20% off OFF").
+  const descTxt = temPct ? String(desc || '').trim().replace(/\s*off\.?\s*$/i, '') : '';
+
+  const diff = temEconomia ? (numDe - numPor) : 0;
+  return {
+    prod: prod,
+    de: temDe ? de : '',
+    por: temPor ? por : '',
+    val: _fFormatValidity(val),
+    desconto: descTxt,
+    temPor, temDe, temEconomia, temPct,
+    economiaReais: temEconomia ? fFormatPriceNumber(diff) : '',
+    economiaPct: temEconomia ? (Math.round((diff / numDe) * 100) + '%') : '',
+  };
+}
+
+/* Assinatura lexical de uma copy — usada só para medir se duas opções ficaram parecidas
+   demais. Ignora hashtags (que inflam a semelhança) e palavras curtas. */
+function _fCopyWords(texto) {
+  const corpo = String(texto || '').split('\n').filter(l => !/^#/.test(l.trim())).join(' ');
+  const limpo = corpo.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ');
+  return new Set(limpo.split(/\s+/).filter(w => w.length > 3));
+}
+function _fCopySimilar(a, b) {
+  const A = _fCopyWords(a), B = _fCopyWords(b);
+  if (!A.size || !B.size) return 0;
+  let inter = 0;
+  A.forEach(w => { if (B.has(w)) inter++; });
+  return inter / (new Set([...A, ...B]).size);
+}
+
+/* ── MEMÓRIA ANTI-REPETIÇÃO (entre gerações) ──
+   O dedup do `used` só vale DENTRO de uma chamada: as 3 opções saíam distintas, mas a arte
+   seguinte repetia o gancho da anterior. O franqueado gera várias artes no mesmo dia (e o
+   Sheets gera dezenas de uma vez) — repetição é a primeira coisa que ele nota. Guardamos as
+   últimas frases que ESTE navegador usou e as tiramos do sorteio. Os tetos são menores que
+   os bancos de propósito; se ainda assim esgotar, o `avail.length ? avail : pool` de sempre
+   libera tudo de volta e o motor nunca trava. */
+const F_COPY_RECENT_KEY = 'dm_copy_recent_v1';
+const _F_COPY_RECENT_CAP = { hooks: 10, bodies: 6, ctas: 5 };
+function _fCopyRecent() {
+  try {
+    const r = JSON.parse(localStorage.getItem(F_COPY_RECENT_KEY) || '{}');
+    return { hooks: r.hooks || [], bodies: r.bodies || [], ctas: r.ctas || [] };
+  } catch (e) { return { hooks: [], bodies: [], ctas: [] }; }
+}
+function _fCopyRemember(used, prev) {
+  // Quota cheia não pode derrubar a geração da legenda (mesma regra do prefs.js).
+  try {
+    const merge = (k) => {
+      const novos = [...used[k]].filter(v => v && prev[k].indexOf(v) < 0);
+      return [...new Set(novos.concat(prev[k]))].slice(0, _F_COPY_RECENT_CAP[k]);
+    };
+    localStorage.setItem(F_COPY_RECENT_KEY, JSON.stringify({
+      hooks: merge('hooks'), bodies: merge('bodies'), ctas: merge('ctas')
+    }));
+  } catch (e) { /* sem localStorage (ou cheio): o motor segue, só perde a memória */ }
+}
+
 /* Monta UMA copy completa. mode: 'promo' | 'engajar' | 'whatsapp' */
-function _fAssembleCopy(prod, de, por, val, desc, mode, segment, used, forceShort = false) {
+function _fAssembleCopy(f, mode, segment, used, forceShort) {
   const B = _COPY_BLOCKS;
   const isWpp = mode === 'whatsapp';
 
-  // Escolher body baseado nos dados disponíveis + economia calculada
-  let bodyPool;
-  const numDe = fParsePriceNumber(de);
-  const numPor = fParsePriceNumber(por);
-  const hasPrice = /\d/.test(String(por || ''));   // vazio/sem dígito → sem preço real
-  const hasSavings = hasPrice && numDe > 0 && numPor > 0 && numDe > numPor;
-
-  if (desc && /\d+\s*%/.test(desc)) {
-    bodyPool = B.bodies.comPercentual;
-    // Sem preço final, os templates que citam {por} gerariam "Preço final: ." — só os que não citam.
-    if (!hasPrice) bodyPool = bodyPool.filter(tpl => !tpl.includes('{por}'));
-    if (!bodyPool.length) bodyPool = B.bodies.semPreco;
-  } else if (!hasPrice) {
-    bodyPool = B.bodies.semPreco;                  // sem preço → não promete valor (fica no app)
-  } else if (de && de !== '—' && de.trim() && numDe > 0) {
-    bodyPool = B.bodies.comDesconto;
-    if (!hasSavings) {
-      bodyPool = bodyPool.filter(tpl => !tpl.includes('{economiaReais}') && !tpl.includes('{economiaPct}'));
+  /* ESCOLHA DO CORPO — só pela ficha de fatos (1ª lei). A ordem importa: percentual real
+     ganha do "de/por", e sem preço nenhum molde que cite valor entra na disputa.
+     `banco` decide entre o corpo que abre dizendo o produto e o corpo curto que só continua
+     a frase (quando o gancho já disse o nome). */
+  const escolherPool = (banco) => {
+    let pool;
+    if (f.temPct) {
+      pool = banco.comPercentual;
+      // Sem preço final, os moldes que citam {por} gerariam "Preço final: ." — fora.
+      if (!f.temPor) pool = pool.filter(tpl => !tpl.includes('{por}'));
+    } else if (!f.temPor) {
+      pool = banco.semPreco;                       // sem preço → não promete valor (fica no app)
+    } else if (f.temEconomia) {
+      pool = banco.comDesconto;
+    } else {
+      pool = banco.semDesconto;
     }
-  } else {
-    bodyPool = B.bodies.semDesconto;
-  }
-  // Dedup de CORPO entre as 3 opções (cai no pool cheio se esgotar)
-  const _availBodies = bodyPool.filter(t => !used.bodies.has(t));
-  bodyPool = _availBodies.length ? _availBodies : bodyPool;
-  
-  // Validade entra no MEIO da frase ("Válido {val}.") → tira um "válido" que o franqueado já
-  // digitou (senão saía "Válido válido só hoje") e baixa a 1ª letra quando é palavra
-  // ("Esta semana" → "esta semana"; datas/números ficam como estão).
-  let formattedVal = _fFormatValidity(val);
-  formattedVal = String(formattedVal || '').replace(/^v[áa]lid[oa]\s+/i, '');
-  if (formattedVal && /^[A-ZÀ-Ü]/.test(formattedVal)) formattedVal = formattedVal.charAt(0).toLowerCase() + formattedVal.slice(1);
-  const diff = numDe - numPor;
-  const economiaReais = hasSavings ? fFormatPriceNumber(diff) : '';
-  const pct = hasSavings ? Math.round((diff / numDe) * 100) : 0;
-  const economiaPct = hasSavings ? (pct + '%') : '';
-
-  // Desconto sem o "off" digitado — os templates já trazem "OFF"/"de desconto"
-  // (senão saía "20% off OFF"). Mesma família do "Válido válido".
-  const descClean = String(desc || '').trim().replace(/\s*off\.?\s*$/i, '');
+    /* Validade vazia derruba todo molde que cite {val}: "Válido ." era o que saía. O {val}
+       cruza os quatro bancos, então este filtro é separado da escolha do pool. */
+    if (!f.val) {
+      const semVal = pool.filter(tpl => !tpl.includes('{val}'));
+      if (semVal.length) pool = semVal;
+    }
+    if (!pool.length) pool = banco.semPreco;
+    // Dedup de CORPO entre as 3 opções e com as artes recentes (cai no pool cheio se esgotar)
+    const avail = pool.filter(t => !used.bodies.has(t));
+    return avail.length ? avail : pool;
+  };
 
   // WhatsApp: *negrito* REAL do app nos valores que vendem (produto, preços, desconto).
   const _b = isWpp ? (s => s ? '*' + s + '*' : s) : (s => s);
   const data = {
-    prod: _b(prod),
-    de: _b(de),
-    por: _b(por),
-    val: formattedVal,
-    desconto: _b(descClean),
-    economiaReais: _b(economiaReais),
-    economiaPct: _b(economiaPct)
+    prod: _b(f.prod),
+    de: _b(f.de),
+    por: _b(f.por),
+    val: f.val,
+    desconto: _b(f.desconto),
+    economiaReais: _b(f.economiaReais),
+    economiaPct: _b(f.economiaPct)
   };
-  
-  // Escolher pool de hooks: mistura segmento-específico + universal
+
+  /* ESCOLHA DO GANCHO. Promo e WhatsApp abrem espelhando a realidade do cliente; "Engajar"
+     abre no PRODUTO, com pergunta — é o que faz as três não serem a mesma legenda com o
+     final trocado. As perguntas entram com peso, não sozinhas, pra aba não virar um
+     interrogatório quando o franqueado gera várias artes seguidas. */
   const segHooks = B.hooks[segment] || [];
-  const allHooks = segHooks.concat(B.hooks.universal);
+  let allHooks = segHooks.concat(B.hooks.universal);
+  /* Sem nome de produto (o franqueado pulou o campo) as perguntas saem de cena: elas existem
+     justamente para NOMEAR o produto, e sem ele virariam "Bateu vontade de?". */
+  if (mode === 'engajar' && f.prod) {
+    allHooks = B.hooks.perguntas.concat(B.hooks.perguntas, segHooks);
+  }
+  /* Nome do produto que já apareceu no gancho vira eco no corpo ("Pizza não precisa de
+     motivo." + "Pizza — R$ 129,00"). Tira os ganchos que repetem a 1ª palavra do produto —
+     a não ser que sobrasse nada. Os moldes com {prod} escapam de propósito: eles nomeiam o
+     produto porque QUEREM, e puxam o corpo curto que continua a frase sem repetir o nome. */
+  const primeira = (f.prod.split(/\s+/)[0] || '').toLowerCase();
+  if (primeira.length > 3) {
+    const semEco = allHooks.filter(h => h.indexOf('{prod}') >= 0 || h.toLowerCase().indexOf(primeira) < 0);
+    if (semEco.length) allHooks = semEco;
+  }
   const availHooks = allHooks.filter(h => !used.hooks.has(h));
   const hooksToUse = availHooks.length > 0 ? availHooks : allHooks;
 
-  let hook = '';
+  let hookTpl = '';
   let body = '';
   let bodyTpl = '';
 
   if (forceShort) {
-    // Busca a combinação (hook + body) <= 120 caracteres
+    /* Promo é a aba de vender: busca o par (gancho + corpo) que cabe em 120 caracteres, pra
+       legenda aparecer inteira antes do "ver mais" do Instagram. Aqui o gancho nunca traz
+       {prod} (perguntas são só da "Engajar"), então só a falta de produto muda o banco. */
+    const poolBodies = escolherPool(f.prod ? B.bodies : B.bodiesCurtos);
     const validPairs = [];
     const allPairs = [];
-
-    for (let h of hooksToUse) {
-      for (let bTpl of bodyPool) {
+    for (const h of hooksToUse) {
+      const hText = _fInterpolate(h, data);
+      for (const bTpl of poolBodies) {
         const bText = _fInterpolate(bTpl, data);
-        const totalLen = h.length + 2 + bText.length;
-        const pair = { hook: h, tpl: bTpl, body: bText, len: totalLen };
+        const pair = { hook: h, tpl: bTpl, body: bText, len: hText.length + 2 + bText.length };
         allPairs.push(pair);
-        if (totalLen <= 120) {
-          validPairs.push(pair);
-        }
+        if (pair.len <= 120) validPairs.push(pair);
       }
     }
-
-    let chosenPair;
-    if (validPairs.length > 0) {
-      chosenPair = _fPick1(validPairs);
-    } else {
-      // Fallback para a mais curta possível
-      allPairs.sort((x, y) => x.len - y.len);
-      chosenPair = allPairs[0];
-    }
-
-    hook = chosenPair.hook;
-    body = chosenPair.body;
-    bodyTpl = chosenPair.tpl;
+    const chosen = validPairs.length ? _fPick1(validPairs) : allPairs.sort((x, y) => x.len - y.len)[0];
+    hookTpl = chosen.hook; body = chosen.body; bodyTpl = chosen.tpl;
   } else {
-    hook = _fPick1(hooksToUse);
-    bodyTpl = _fPick1(bodyPool);
+    /* O gancho vem PRIMEIRO porque ele decide o banco do corpo: se já disse o nome do
+       produto (as perguntas da "Engajar" dizem), o corpo continua a frase em vez de
+       recomeçar com o nome de novo. */
+    hookTpl = _fPick1(hooksToUse);
+    /* O corpo curto (que não recomeça dizendo o nome) serve a DOIS casos: o gancho já
+       nomeou o produto, ou não existe produto para nomear. */
+    const semNome = !f.prod || hookTpl.indexOf('{prod}') >= 0;
+    bodyTpl = _fPick1(escolherPool(semNome ? B.bodiesCurtos : B.bodies));
     body = _fInterpolate(bodyTpl, data);
   }
 
-  used.hooks.add(hook);
+  // Os ganchos de "Engajar" carregam {prod}; os demais bancos não têm placeholder (no-op).
+  const hook = _fInterpolate(hookTpl, data);
+  used.hooks.add(hookTpl);
   used.bodies.add(bodyTpl);
-  
-  // CTA sem repetir entre as opções
+
+  /* CTA sem repetir entre as opções nem com as artes recentes. A regra de compatibilidade:
+     corpo que já mandou pro app não recebe CTA que manda pro app de novo ("…tá te esperando
+     no cardápio." + "Tá no app, é só pedir.") — duas linhas dizendo a mesma coisa. */
   const _pickCta = (type) => {
-    const pool = B.ctas[type] || [];
+    let pool = B.ctas[type] || [];
+    if (/\bno app\b|no cardápio|no cardapio/i.test(body)) {
+      const semApp = pool.filter(c => !/\bapp\b/i.test(c));
+      if (semApp.length) pool = semApp;
+    }
     const avail = pool.filter(c => !used.ctas.has(c));
     const c = _fPick1(avail.length ? avail : pool);
     used.ctas.add(c);
@@ -4438,7 +4706,7 @@ function _fAssembleCopy(prod, de, por, val, desc, mode, segment, used, forceShor
   };
 
   // Validade como linha separada (evita duplicar se já estiver no corpo)
-  const valLine = (formattedVal && !body.includes(formattedVal)) ? ('Válido ' + formattedVal + '.') : '';
+  const valLine = (f.val && body.indexOf(f.val) < 0) ? ('Válido ' + f.val + '.') : '';
 
   // WHATSAPP: mensagem, não legenda — sem hashtags (ruído no app), CTA de resposta direta.
   // Diagramação de mensagem: gancho / corpo (+validade) / CTA, blocos separados por linha vazia.
@@ -4446,12 +4714,12 @@ function _fAssembleCopy(prod, de, por, val, desc, mode, segment, used, forceShor
     const wLines = [hook, '', body];
     if (valLine) wLines.push(valLine);
     wLines.push('', _pickCta('whatsapp'));
-    return wLines.join('\n');
+    return _fCopyTidy(wLines.join('\n'));
   }
 
   // FEED: CTA coerente com a aba — "Promo" vende (pedido), "Engajar" conversa (marca/salva/comenta).
   const cta = _pickCta(mode === 'engajar' ? 'engajamento' : 'delivery');
-  
+
   // Hashtags: 2 universais + 2-3 do segmento + hashtags locais (cidade).
   /* A cidade vem do `fCidadeAtual()` (chat.js) e não mais de um input próprio do Sheets.
      Ele é o getter canônico e JÁ lia o `luma_bulk_city` que aquele input gravava — mais a
@@ -4459,53 +4727,52 @@ function _fAssembleCopy(prod, de, por, val, desc, mode, segment, used, forceShor
      numa arte. Ou seja: o painel "Legenda e cidade" saiu (03/09) e a hashtag local NÃO
      se perdeu; ela passou a ter uma fonte só, como manda a lei do motor único. */
   const city = (typeof fCidadeAtual === 'function') ? fCidadeAtual() : '';
-  
+
   const segTags = B.hashtags[segment] || [];
-  const uniTags = _fPickRandom(B.hashtags.universal, 2);
-  const specTags = _fPickRandom(segTags, 3);
-  let allTagsList = uniTags.concat(specTags);
-  
+  let allTagsList = _fPickRandom(B.hashtags.universal, 2).concat(_fPickRandom(segTags, 3));
+
   if (city) {
     const cleanCity = _fSanitizeHashtagPart(city);
     if (cleanCity) {
-      const localTags = [
-        `#deliverymuch${cleanCity}`,
-        `#${cleanCity}`,
-        `#delivery${cleanCity}`
-      ];
-      allTagsList = allTagsList.concat(localTags);
+      allTagsList = allTagsList.concat(['#deliverymuch' + cleanCity, '#' + cleanCity, '#delivery' + cleanCity]);
     }
   }
-  
-  const uniqueTags = [...new Set(allTagsList)];
-  const tags = uniqueTags.join(' ');
-  
-  // Montar
+
+  const tags = [...new Set(allTagsList)].join(' ');
+
   const lines = [hook, '', body];
   if (valLine) lines.push(valLine);
   lines.push('', cta);
   if (tags) lines.push('', tags);
-  
-  return lines.join('\n');
+
+  return _fCopyTidy(lines.join('\n'));
 }
 
 /* Gera 3 opções de copy (substitui fGetSegmentedCaptions) */
 function fBuildCopy(prod, de, por, val, desc, format, ctxName) {
   // Segmento considera também o nome da campanha (ctx): "Combo 20 peças" sozinho é universal,
   // mas dentro de "Bora De Sushi Na Promo" é japonesa — tom certo com mais frequência.
-  const segment = _fCopySegment(String(prod||'') + ' ' + String(ctxName||''));
-  // Dedup COMPARTILHADO entre as 3 opções: gancho, corpo e CTA não repetem → 3 legendas distintas.
-  const used = { hooks: new Set(), bodies: new Set(), ctas: new Set() };
+  const segment = _fCopySegment(String(prod || '') + ' ' + String(ctxName || ''));
+  const f = _fCopyFacts(prod, de, por, val, desc);
+  // Dedup COMPARTILHADO entre as 3 opções + memória das artes recentes (ver acima).
+  const recent = _fCopyRecent();
+  const used = {
+    hooks: new Set(recent.hooks), bodies: new Set(recent.bodies), ctas: new Set(recent.ctas)
+  };
   // Cada aba tem PROPÓSITO e formato próprios (antes as 3 eram iguais e o CTA era sorteado —
   // a aba "Engajar" podia sair com CTA de delivery):
   //   promo    → legenda de feed vendedora, par gancho+corpo curto, CTA de pedido, hashtags
-  //   engajar  → legenda de feed com CTA de engajamento garantido (marca/comenta/salva), hashtags
+  //   engajar  → abre no produto (pergunta), CTA de engajamento garantido, hashtags
   //   whatsapp → MENSAGEM: *negrito* real do WhatsApp, sem hashtags, CTA de resposta direta
-  return {
-    op1: _fAssembleCopy(prod, de, por, val, desc, 'promo', segment, used, true),
-    op2: _fAssembleCopy(prod, de, por, val, desc, 'engajar', segment, used, false),
-    op3: _fAssembleCopy(prod, de, por, val, desc, 'whatsapp', segment, used, false),
-  };
+  const op1 = _fAssembleCopy(f, 'promo', segment, used, true);
+  let op2 = _fAssembleCopy(f, 'engajar', segment, used, false);
+  /* Se "Engajar" saiu praticamente igual à "Promo", uma segunda tentativa resolve — os
+     blocos já usados estão no `used`, então a recomposição pega outras peças. Uma tentativa
+     só: mais que isso é gastar CPU pra ganhar decimal de diferença. */
+  if (_fCopySimilar(op1, op2) > 0.6) op2 = _fAssembleCopy(f, 'engajar', segment, used, false);
+  const op3 = _fAssembleCopy(f, 'whatsapp', segment, used, false);
+  _fCopyRemember(used, recent);
+  return { op1: op1, op2: op2, op3: op3 };
 }
 
 /* Retrocompatibilidade: mantém assinatura antiga caso algo externo chame */
@@ -4600,17 +4867,21 @@ function _fGetDayOfWeekName(dayIndex) {
 }
 
 function _fFormatValidity(val) {
-  const day = new Date().getDay();
+  /* ⛔ CAMPO VAZIO = SEM VALIDADE. Aqui havia um chute pelo dia da semana: sem nada digitado,
+     a legenda saía "Válido neste fim de semana" (sex/sáb/dom) ou "Válido por tempo limitado".
+     Ou seja, a arte prometia um prazo que ninguém definiu — e o franqueado publicava sem
+     perceber. Promessa que a loja não combinou é a mentira mais cara que este motor podia
+     contar; quem não digitou validade não tem validade na copy. */
   let computedVal = val ? String(val).trim() : '';
-  
-  if (!computedVal) {
-    if (day === 5 || day === 6 || day === 0) {
-      return 'neste fim de semana';
-    } else {
-      return 'por tempo limitado';
-    }
+  if (!computedVal) return '';
+
+  // "Válido só hoje" digitado pelo franqueado entra no meio da frase ("Válido {val}.") — tirar
+  // o "válido" dele evita o "Válido válido só hoje", e a minúscula recompõe a frase.
+  computedVal = computedVal.replace(/^v[áa]lid[oa]\s+/i, '');
+  if (/^[A-ZÀ-Ü]/.test(computedVal) && !/^\d/.test(computedVal)) {
+    computedVal = computedVal.charAt(0).toLowerCase() + computedVal.slice(1);
   }
-  
+
   const dateRegex = /\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/;
   const match = computedVal.match(dateRegex);
   if (match) {
