@@ -1820,13 +1820,20 @@ function fGenCaptionSuggestions(dados, camp, formato) {
      (fBulkShowCopyModal, /produto|titulo|nome/) já olhavam mais chaves que este.
      Sem produto, o motor escreve sem nome nenhum — a campanha segue valendo como CONTEXTO
      (vai em `camp.name` no último argumento), que é o uso certo dela: definir o segmento. */
-  const prod = dados.produto || dados.item || dados.categoria || dados.brinde || dados.oferta || '';
+  /* `dados` é chaveado pelo NOME CRU da variável do material, e cada template batiza do seu
+     jeito (`nomeProduto`, `prato`, `PRODUTO`, `preco_de`). Procurar a chave literal só
+     funcionava nos templates que por acaso usavam o nome canônico — nos outros a legenda não
+     achava produto nenhum. `fDadosSemanticos` (materials.js) resolve pelo MESMO classificador
+     que monta as perguntas. As chaves soltas depois dele são as perguntas fixas de campanha
+     (00-config.js), que não são variáveis de template. */
+  const sem = (typeof fDadosSemanticos === 'function') ? fDadosSemanticos(dados) : {};
+  const prod = sem.produto || dados.produto || dados.item || dados.categoria || dados.brinde || dados.oferta || '';
   // Mapeamento assertivo dos slots: preço é preço; DESCONTO vai pro slot de desconto (ativa o
   // pool comPercentual — antes virava {por} e saía "por 20% off"). Sem preço → pool semPreco.
-  const por = dados.precoPor || '';
-  const de = dados.precoDe || '';
-  const val = dados.validade || '';
-  const desc = dados.desconto || dados.detalhes || '';
+  const por = sem.por || dados.precoPor || '';
+  const de = sem.de || dados.precoDe || '';
+  const val = sem.validade || dados.validade || '';
+  const desc = sem.desconto || dados.desconto || dados.detalhes || '';
 
   // Unificação com o avançado motor de copy gastronômica do Luma Sheets (fBuildCopy)
   if (typeof fBuildCopy === 'function') {
@@ -2031,11 +2038,13 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
      'Oferta especial'`, então o modelo recebia a MESMA string como `Produto:` e como
      `Campanha:` e devolvia "Hoje tem Copa Do Mundo 2026". Vazio agora, e a linha `Produto:`
      simplesmente não entra no prompt — é a convenção que os outros campos já seguem. */
-  const prod = dados.produto || dados.item || dados.categoria || dados.brinde || dados.oferta || '';
-  const de = dados.precoDe ? `R$ ${dados.precoDe}` : '';
-  const por = dados.precoPor ? `R$ ${dados.precoPor}` : (dados.preco ? `R$ ${dados.preco}` : '');
-  const val = dados.validade || '';
-  const desc = dados.desconto || dados.detalhes || '';
+  // Mesmo resolvedor do motor local: a variável do template raramente se chama "produto".
+  const sem = (typeof fDadosSemanticos === 'function') ? fDadosSemanticos(dados) : {};
+  const prod = sem.produto || dados.produto || dados.item || dados.categoria || dados.brinde || dados.oferta || '';
+  const de = sem.de || dados.precoDe || '';
+  const por = sem.por || dados.precoPor || dados.preco || '';
+  const val = sem.validade || dados.validade || '';
+  const desc = sem.desconto || dados.desconto || dados.detalhes || '';
   const campName = (camp && camp.name) ? camp.name : 'Delivery Much';
   const cidade = dados.cidade || (typeof fState !== 'undefined' && fState.dados && fState.dados.cidade) || ''
     || (typeof fCidadeAtual === 'function' ? fCidadeAtual() : '');

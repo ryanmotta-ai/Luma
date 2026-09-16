@@ -4507,8 +4507,13 @@ function _fCopyFacts(prodBruto, deBruto, porBruto, valBruto, descBruto) {
     if (typeof s !== 'string') return '';
     return s.replace(/[{}]/g, '').replace(/\s+/g, ' ').trim();
   };
-  const prod = limpa(prodBruto), de = limpa(deBruto), por = limpa(porBruto);
+  const prod = limpa(prodBruto);
   const val = limpa(valBruto), desc = limpa(descBruto);
+  /* O rótulo "De:"/"Por:" é da ARTE, não da frase. A máscara (chat-input.js) grava o preço
+     já rotulado porque é assim que o material da rede é desenhado; aqui ele sai, senão a
+     legenda diria "de De: R$ 98,90 por Por: R$ 39,54". O número em si não muda. */
+  const semRotulo = (s) => limpa(s).replace(/^(de|por)\s*:?\s*/i, '');
+  const de = semRotulo(deBruto), por = semRotulo(porBruto);
 
   const numDe = fParsePriceNumber(de);
   const numPor = fParsePriceNumber(por);

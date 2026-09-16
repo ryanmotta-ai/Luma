@@ -17,9 +17,15 @@
   <div class="summary" id="summary">Executando no motor real do navegador…</div>
   <ol id="results"></ol>
   <script src="../js/00-config.js"></script>
+  <script src="../js/01-state.js"></script>
   <script src="../js/core/layout.js"></script>
   <script src="../js/core/auto-layout.js"></script>
   <script src="../js/franqueado/png-generator.js"></script>
+  <!-- O caminho do DADO até a legenda faz parte do contrato: `fDadosSemanticos`/`fPrecoPapel`
+       (materials.js) decidem QUAL campo do template é o produto e o preço, e `fApplyMask`
+       (chat-input.js) grava o valor já rotulado "De:"/"Por:" que a legenda tem que limpar. -->
+  <script src="../js/franqueado/materials.js"></script>
+  <script src="../js/franqueado/chat-input.js"></script>
   <script src="copy-engine-cases.js"></script>
 </body>
 </html>

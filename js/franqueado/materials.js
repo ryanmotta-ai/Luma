@@ -632,6 +632,58 @@ async function fEnsureMaterialLayers(t){
 const _F_RE_PRECO_DE  = /(precode|valorde|precooriginal|valororiginal|precoantigo|precocheio)/;
 const _F_RE_PRECO_POR = /(precopor|valorpor|precopromo|valorpromo|precofinal|novopreco|precopromocional|valorpromocional)/;
 const _fNormId = (v) => String(v||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[\s_-]+/g,'');
+/* O que conta como "o produto", "o desconto" e "a validade" — as mesmas regras que o
+   `fBuildPerguntas` usa para escrever a pergunta, agora com nome, porque quem lê os dados
+   depois (a legenda) precisa da MESMA classificação. Constante única: se um apelido novo
+   entrar aqui, a pergunta e a legenda aprendem juntas. */
+const _F_RE_PRODUTO   = /^(produto|item|prato|nomeproduto|nomeitem|nomedoproduto|lanche|combo|sabor)$/;
+const _F_RE_DESCONTO  = /^(desconto|off|vantagem)$/;
+const _F_RE_VALIDADE  = /(validade|data|vencimento|periodo)/;
+
+/* ── DE QUE CAMPO A LEGENDA ESTÁ FALANDO ──
+   `fState.dados` é chaveado pelo NOME CRU da variável do material (o `fBuildPerguntas` faz
+   `id: v`), e cada template batiza do seu jeito: `produto`, `nomeProduto`, `prato`, `PRODUTO`,
+   `preco_de`. Quem quer "o produto" não pode procurar a chave literal `produto` — era por isso
+   que a legenda de um template com variável `nomeProduto` não achava nada e terminava
+   anunciando o nome da campanha. Aqui a resolução é uma só, pelas constantes acima. */
+function fDadosSemanticos(dados){
+  const cand = { produto:[], de:[], por:[], preco:[], desconto:[], validade:[] };
+  Object.keys(dados || {}).forEach(k => {
+    if(/^__/.test(k)) return;                    // marcas internas (__skipped__…, __fit__…)
+    const v = dados[k];
+    if(typeof v !== 'string') return;
+    const txt = v.trim();
+    if(!txt || txt === 'Pular') return;          // o sentinela de campo pulado não é conteúdo
+    if(/^data:/.test(txt)) return;               // imagem em base64 não é texto de legenda
+    const s = _fNormId(k);
+    if(_F_RE_PRODUTO.test(s))        cand.produto.push(txt);
+    else if(_F_RE_PRECO_DE.test(s))  cand.de.push(txt);
+    else if(_F_RE_PRECO_POR.test(s)) cand.por.push(txt);
+    else if(s === 'preco' || s === 'valor') cand.preco.push(txt);
+    else if(_F_RE_DESCONTO.test(s))  cand.desconto.push(txt);
+    else if(_F_RE_VALIDADE.test(s))  cand.validade.push(txt);
+  });
+  return {
+    produto:  cand.produto[0]  || '',
+    de:       cand.de[0]       || '',
+    // `preco` genérico só entra se o template não tiver um "por" explícito.
+    por:      cand.por[0]      || cand.preco[0] || '',
+    desconto: cand.desconto[0] || '',
+    validade: cand.validade[0] || '',
+  };
+}
+
+/* Papel do campo de preço, pelo nome da variável: 'de' | 'por' | 'unico' | null.
+   Mesmo vocabulário do `precoPar` que o `fBuildPerguntas` já escreve. Serve a dois donos:
+   a máscara (chat-input.js) decide por aqui se o campo é preço — e se leva rótulo
+   "De:"/"Por:", que 'unico' NÃO leva — e a legenda usa para tirar esse rótulo da frase. */
+function fPrecoPapel(id){
+  const s = _fNormId(id);
+  if(_F_RE_PRECO_DE.test(s))  return 'de';
+  if(_F_RE_PRECO_POR.test(s)) return 'por';
+  if(s === 'preco' || s === 'valor') return 'unico';
+  return null;
+}
 
 function fBuildPerguntas(vars, opts){
   opts = opts || {};
@@ -672,7 +724,7 @@ function fBuildPerguntas(vars, opts){
 
     const s = _fNormId(v);
     let texto, precoPar = null;
-    if(s === 'produto' || s === 'item' || s === 'prato' || s === 'nomeproduto' || s === 'nomeitem'){
+    if(_F_RE_PRODUTO.test(s)){
       texto = `Qual produto você quer anunciar?`;
     } else if(s === 'detalhes' || s === 'subtitulo' || s === 'descricao'){
       texto = `Quer acrescentar uma <strong>descrição</strong> do produto?`;

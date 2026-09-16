@@ -252,6 +252,77 @@
     assert(achados.length===0,achados.length+' problemas sem produto:\n    '+achados.join('\n    '));
   });
 
+  /* ─────────────── O CAMINHO DO DADO ATÉ A LEGENDA ─────────────── */
+
+  test('regressão · acha o produto seja qual for o nome da variável do template',()=>{
+    /* `fState.dados` é chaveado pelo NOME CRU da variável do material (`fBuildPerguntas` faz
+       `id: v`). Procurar a chave literal `produto` só funcionava nos templates que por acaso
+       usavam o nome canônico — nos outros a legenda não achava nada e terminava anunciando o
+       nome da campanha (bug com print, 16/09/2026). */
+    const casos=[
+      [{produto:'X-Tudo'},'X-Tudo'],
+      [{nomeProduto:'Bandeja da Torcida'},'Bandeja da Torcida'],
+      [{PRATO:'Combo Copa'},'Combo Copa'],
+      [{nome_do_produto:'Pizza Grande'},'Pizza Grande'],
+      [{item:'Açaí 500ml'},'Açaí 500ml'],
+      [{sabor:'Calabresa'},'Calabresa'],
+    ];
+    const erros=casos.filter(([d,esp])=>fDadosSemanticos(d).produto!==esp)
+      .map(([d,esp])=>JSON.stringify(d)+' → "'+fDadosSemanticos(d).produto+'" (esperado "'+esp+'")');
+    assert(erros.length===0,'produto não resolvido:\n  '+erros.join('\n  '));
+  });
+
+  test('regressão · acha o par de preço seja qual for o nome da variável',()=>{
+    const casos=[
+      [{precoDe:'De: R$ 98,90',precoPor:'Por: R$ 39,54'},'De: R$ 98,90','Por: R$ 39,54'],
+      [{valorOriginal:'De: R$ 50,00',valorPromocional:'Por: R$ 35,00'},'De: R$ 50,00','Por: R$ 35,00'],
+      [{PRECO_DE:'De: R$ 10,00',PRECO_POR:'Por: R$ 8,00'},'De: R$ 10,00','Por: R$ 8,00'],
+      [{preco:'R$ 22,00'},'','R$ 22,00'],   // preço único cai no "por"
+    ];
+    const erros=[];
+    casos.forEach(([d,de,por])=>{
+      const s=fDadosSemanticos(d);
+      if(s.de!==de||s.por!==por)erros.push(JSON.stringify(d)+' → de:"'+s.de+'" por:"'+s.por+'"');
+    });
+    assert(erros.length===0,'par de preço não resolvido:\n  '+erros.join('\n  '));
+  });
+
+  test('regressão · campo pulado e imagem não viram texto de legenda',()=>{
+    const s=fDadosSemanticos({produto:'Pular',foto:'data:image/png;base64,AAAA',__skipped__produto:true,precoPor:'   '});
+    assert(s.produto==='','o sentinela "Pular" entrou como nome de produto');
+    assert(s.por==='','espaço em branco virou preço');
+    assert(JSON.stringify(s).indexOf('data:')<0,'base64 de imagem vazou para a legenda');
+  });
+
+  test('regressão · a máscara rotula o preço por PAPEL, e não repete o rótulo',()=>{
+    /* "De:"/"Por:" é o padrão do material da rede. Antes só saía se o franqueado digitasse
+       "de ... por ..." na mão. E `valorOriginal` nem chegava na máscara de preço: caía em
+       texto e "98.90" saía da caixa como "98900" na arte. */
+    const casos=[
+      ['precoDe','98,90','De: R$ 98,90'],
+      ['precoPor','39,54','Por: R$ 39,54'],
+      ['valorOriginal','98.90','De: R$ 98,90'],
+      ['preco_promocional','39,54','Por: R$ 39,54'],
+      ['precoDe','De: 98,90','De: R$ 98,90'],      // idempotente: roda no blur e no submit
+      ['precoDe','R$ 98,90','De: R$ 98,90'],
+      ['preco','25','R$ 25,00'],                    // preço ÚNICO não é "de" nem "por"
+    ];
+    const erros=casos.filter(([id,ent,esp])=>fApplyMask(id,ent)!==esp)
+      .map(([id,ent,esp])=>id+'("'+ent+'") → "'+fApplyMask(id,ent)+'" (esperado "'+esp+'")');
+    assert(erros.length===0,'máscara de preço:\n  '+erros.join('\n  '));
+  });
+
+  test('regressão · o rótulo "De:"/"Por:" não vaza para dentro da frase',()=>{
+    solta();
+    for(let i=0;i<120;i++){
+      tudo(gerar(BRIEF({prod:'Bandeja da Torcida',de:'De: R$ 98,90',por:'Por: R$ 39,54'}))).forEach(t=>{
+        assert(!/\bde\s+De:/i.test(t)&&!/\bpor\s+Por:/i.test(t),'rótulo duplicado na frase: '+t);
+        assert(t.indexOf('De:')<0&&t.indexOf('Por:')<0,'o rótulo da ARTE vazou para a legenda: '+t);
+        assert(t.indexOf('R$ 98,90')>=0||t.indexOf('R$ 39,54')>=0,'o preço se perdeu ao tirar o rótulo: '+t);
+      });
+    }
+  });
+
   test('economia em reais e em % bate com os preços informados',()=>{
     solta();
     for(let i=0;i<200;i++){

@@ -14,8 +14,9 @@ const F_FIELD_TYPES = {
   brinde:    {type:'text',     maxLen:40,  label:'brinde'},
   oferta:    {type:'text',     maxLen:40,  label:'oferta'},
   codigo:    {type:'code',     maxLen:16,  label:'código do cupom'},
-  precoDe:   {type:'price',    maxLen:14,  label:'preço original'},
-  precoPor:  {type:'price',    maxLen:14,  label:'preço promocional'},
+  // maxLen 18 (era 14): o valor passou a sair rotulado ("De: R$ 1.234,56" tem 15).
+  precoDe:   {type:'price',    maxLen:18,  label:'preço original'},
+  precoPor:  {type:'price',    maxLen:18,  label:'preço promocional'},
   pedidoMin: {type:'price',    maxLen:18,  label:'pedido mínimo'},
   desconto:  {type:'discount', maxLen:24,  label:'desconto'},
   validade:  {type:'text',     maxLen:40,  label:'validade'},
@@ -85,7 +86,18 @@ function fGetFieldType(id){
   // 3.2: o TIPO da variável (dVars[id].type) dirige o comportamento. F_FIELD_TYPES
   // vira só fallback por nome (legado), eliminando a dependência de nomes mágicos.
   const vDef = (typeof dVars !== 'undefined' && dVars) ? dVars.find(x=>x.name===id) : null;
-  const fallback = F_FIELD_TYPES[id] || {type:'text', maxLen:60, label:id};
+  /* ⚠ O mapa acima só conhece os nomes CANÔNICOS. Um template que batizou a variável de
+     `valorOriginal` ou `preco_promocional` caía em `type:'text'` e NÃO passava pela máscara
+     de preço: "98.90" saía da caixa como "98900" na arte. O fallback agora pergunta ao mesmo
+     classificador que monta a pergunta e decide o rótulo (materials.js), então o campo é
+     preço por PAPEL, não por acaso de nome. */
+  let fallback = F_FIELD_TYPES[id];
+  if(!fallback){
+    const papel = (typeof fPrecoPapel === 'function') ? fPrecoPapel(id) : null;
+    if(papel) fallback = {type:'price', maxLen:18,
+      label: papel==='de' ? 'preço original' : (papel==='por' ? 'preço promocional' : 'preço')};
+    else fallback = {type:'text', maxLen:60, label:id};
+  }
 
   // tipo de comportamento: dVars.type manda; senão cai no mapa por nome
   let type = fallback.type;
@@ -236,8 +248,24 @@ function fApplyMask(id, raw){
       }
     }
 
-    // Caso não tenha nenhum prefixo, formata como preço padrão único
-    return formatSinglePrice(v) || v.slice(0, cfg.maxLen);
+    /* ── "De:" e "Por:" SÃO O PADRÃO DA ARTE ──
+       Digitar só "98,90" devolvia "R$ 98,90" pelado, e a arte saía sem o rótulo que todo o
+       material da rede já usa — o par de preço só ganhava prefixo se o franqueado digitasse
+       "de ... por ..." na mão, o que quase ninguém faz. O papel vem do NOME da variável
+       (`fPrecoPapel`, materials.js), a mesma classificação que escreve a pergunta, então
+       campo de preço único (`preco`, `valor`) segue sem rótulo — ele não é "de" nem "por".
+       Idempotente de propósito: o ramo acima já tratou quem digitou o prefixo, e a checagem
+       evita "De: De: R$ 98,90" quando a máscara roda de novo no blur e no submit. */
+    const precoFmt = formatSinglePrice(v);
+    if(precoFmt){
+      const papel = (typeof fPrecoPapel === 'function') ? fPrecoPapel(id) : null;
+      // 'unico' é preço, mas não é "de" nem "por" — vai sem rótulo.
+      if((papel === 'de' || papel === 'por') && !/^(de|por)\b/i.test(v)){
+        return (papel === 'de' ? 'De: ' : 'Por: ') + precoFmt;
+      }
+      return precoFmt;
+    }
+    return v.slice(0, cfg.maxLen);
   }
   if(cfg.type === 'discount'){
     // Aceita "20% off", "20%", "20", "R$ 5,00 off"
