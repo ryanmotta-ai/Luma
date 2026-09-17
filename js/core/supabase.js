@@ -11,6 +11,16 @@
  *
  * Use sempre via gSupabase() / gHasBackend() em vez de tocar window.sb direto.
  */
+/* FOTO DO HASH — tirada ANTES do createClient, de propósito.
+   O link de e-mail (recuperação/convite) chega com a sessão no `#`, e o supabase-js
+   (detectSessionInUrl) a materializa e APAGA o hash num tick assíncrono que roda antes
+   de `auth.js`. Esta é a única janela em que o hash ainda existe. Aqui só se guarda a
+   string crua; quem a interpreta é `gAuthLinkPendente()` no auth.js — o conhecimento de
+   autenticação continua morando lá. */
+var G_AUTH_LINK_HASH = (function () {
+  try { return String((window.location && window.location.hash) || ''); } catch (e) { return ''; }
+})();
+
 (function () {
   function looksUnset(v) {
     return !v || typeof v !== 'string' || v.indexOf('COLE_') === 0;

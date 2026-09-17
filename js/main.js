@@ -464,10 +464,24 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (typeof spStep === 'function') spStep('Carregando seu catálogo…');
 
   const _dlInit = gParseDeepLink();
+  // Chegou pelo link de e-mail (recuperação/convite)? Então o destino é DEFINIR A SENHA,
+  // não a home: sem este desvio a pessoa entrava e continuava sem senha utilizável —
+  // o beco de quem foi convidado pelo link mágico. Ver gAuthLinkPendente() em auth.js.
+  const _link = (typeof gAuthLinkPendente === 'function') ? gAuthLinkPendente() : null;
   if (!gCurrentUser()) {
     // Não tem sessão ativa, bloqueia a UI e preserva o deep link para pós-login
     if (_dlInit) gSaveDeepLink(_dlInit);
     document.getElementById('g-login-screen').style.display = 'flex';
+    // Link vencido/inválido não materializa sessão nenhuma: sem este aviso, clicar nele
+    // não produzia NADA visível — a pessoa só via a tela de login de novo.
+    if (typeof gNovaSenhaResolvida === 'function') gNovaSenhaResolvida();
+    if (_link && typeof gLoginAviso === 'function') {
+      gLoginAviso(_link.erro || 'Esse link não vale mais. Peça um novo em "Esqueci minha senha".');
+    }
+  } else if (_link && _link.tipo) {
+    if (_dlInit) gSaveDeepLink(_dlInit);
+    document.getElementById('g-login-screen').style.display = 'flex';
+    gShowNovaSenhaView(_link.tipo);
   } else {
     // Usuário logado, init normal
     await gOnLoginSuccess();

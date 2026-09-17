@@ -135,6 +135,49 @@ async function gResetPassword(newPassword) {
   }
 }
 
+/* ══ LINK DE E-MAIL (recuperação/convite) — o passo que faltava ═══════════════════════
+   O link do e-mail traz a sessão no hash e o supabase-js a materializa sozinho. Até aqui
+   o Luma abria a home direto: a pessoa entrava UMA vez e continuava SEM SENHA — no
+   aparelho seguinte, "E-mail ou senha incorretos" de novo. Era o beco de quem foi
+   convidado antes de 08/09/2026, quando o `invite-user` usava `inviteUserByEmail` e a
+   conta nascia sem senha nenhuma. Agora o link desemboca no passo "defina sua senha".
+
+   O hash vem de `G_AUTH_LINK_HASH` (supabase.js) porque o SDK o apaga antes deste
+   arquivo rodar. O flag em sessionStorage segura o passo através de um F5: sem ele,
+   recarregar a página pulava a definição da senha e devolvia a pessoa ao mesmo beco.
+
+   Devolve `null` (boot normal), `{tipo}` (pedir a senha) ou `{erro}` (link vencido). */
+const G_NOVA_SENHA_FLAG = '__luma_nova_senha';
+function gAuthLinkPendente() {
+  let pendente = false;
+  try { pendente = sessionStorage.getItem(G_NOVA_SENHA_FLAG) === '1'; } catch (e) {}
+  const retomada = pendente ? { tipo: 'recovery', erro: null } : null;
+  const hash = (typeof G_AUTH_LINK_HASH === 'string') ? G_AUTH_LINK_HASH.replace(/^#\/?/, '') : '';
+  if (!hash || hash.indexOf('=') < 0) return retomada;
+
+  let p;
+  try { p = new URLSearchParams(hash); } catch (e) { return retomada; }
+
+  // Link vencido ou já usado: o Supabase devolve o motivo no próprio hash, sem sessão
+  // nenhuma. Sem este ramo, clicar num link velho não fazia NADA visível na tela.
+  const erro = p.get('error_description') || p.get('error');
+  if (erro) {
+    return { tipo: null, erro: /expired|otp_expired/i.test(erro)
+      ? 'Esse link expirou. Peça um novo em "Esqueci minha senha".'
+      : 'Não consegui validar esse link. Peça um novo em "Esqueci minha senha".' };
+  }
+
+  const tipo = p.get('type');
+  if (tipo !== 'recovery' && tipo !== 'invite') return retomada;
+  try { sessionStorage.setItem(G_NOVA_SENHA_FLAG, '1'); } catch (e) {}
+  return { tipo: tipo, erro: null };
+}
+
+// A senha existe: some com o passo. Chamado só depois do updateUser dar ok.
+function gNovaSenhaResolvida() {
+  try { sessionStorage.removeItem(G_NOVA_SENHA_FLAG); } catch (e) {}
+}
+
 /* ── GESTÃO DE USUÁRIOS — Supabase (Fase 1: listar + role + ativo via RLS) ──
    Listar/mudar-role/ativar rodam via supabase-js + RLS (só gestão escreve role).
    Criar/excluir usuário em auth.users precisa de Edge Function (service_role) — Fase 2. */
@@ -200,6 +243,21 @@ async function gRemoveManagedUser(idOrEmail){
 }
 
 // UI HANDLERS DO MODAL (Atrelados ao index.html)
+
+/* A senha já foi aceita: um erro daqui pra frente é de MONTAGEM do app, não de login.
+   Sem a guarda, qualquer exceção na abertura da tela deixava o botão desabilitado com
+   "Autenticando…" para sempre — a pessoa autenticada presa na porta.
+   UMA porta só: o login e a definição de senha entram no app pelo mesmo caminho. */
+async function _gEntrarNoApp() {
+  try { if(typeof gOnLoginSuccess === 'function') await gOnLoginSuccess(); }
+  catch(e){
+    console.warn('[Luma] falha ao montar o app depois do login:', e);
+    const _l = document.getElementById('g-login-screen');
+    if(_l) _l.style.display = 'none';
+    if(typeof gToast === 'function') gToast('Entrei, mas parte da tela não carregou. Recarregue a página.', 'error');
+  }
+}
+
 async function gDoLogin(e) {
   if(e) e.preventDefault();
   const btn = document.getElementById('gl-btn-login');
@@ -218,16 +276,7 @@ async function gDoLogin(e) {
 
   const res = await gLogin(email, pass);
   if(res.ok) {
-    /* A senha já foi aceita: um erro daqui pra frente é de MONTAGEM do app, não de login.
-       Sem a guarda, qualquer exceção na abertura da tela deixava o botão desabilitado com
-       "Autenticando…" para sempre — a pessoa autenticada presa na porta. */
-    try { if(typeof gOnLoginSuccess === 'function') await gOnLoginSuccess(); }
-    catch(e){
-      console.warn('[Luma] falha ao montar o app depois do login:', e);
-      const _l = document.getElementById('g-login-screen');
-      if(_l) _l.style.display = 'none';
-      if(typeof gToast === 'function') gToast('Entrei, mas parte da tela não carregou. Recarregue a página.', 'error');
-    }
+    await _gEntrarNoApp();
   } else {
     errEl.textContent = res.error;
     errEl.style.display = 'block';
@@ -299,6 +348,67 @@ async function gDoForgot(e) {
       btn.textContent = 'Enviar link de recuperação';
     }
   }
+}
+
+/* ══ PASSO 3 — DEFINIR A SENHA (chegada do link de e-mail) ════════════════════════════
+   Mão única de propósito: quem chega aqui está autenticado por um link e NÃO tem senha
+   utilizável. Oferecer "voltar ao login" seria devolver a pessoa à porta que não abre. */
+function gShowNovaSenhaView(tipo) {
+  document.getElementById('gl-step-login').style.display = 'none';
+  document.getElementById('gl-step-forgot').style.display = 'none';
+  document.getElementById('gl-step-senha').style.display = 'flex';
+  const sub = document.getElementById('gs-sub');
+  if (sub) sub.textContent = (tipo === 'invite')
+    ? 'Seu acesso está criado. Defina a senha que você vai usar daqui pra frente.'
+    : 'Escolha uma nova senha. Ela passa a valer em qualquer aparelho.';
+  const inp = document.getElementById('gs-pass');
+  if (inp) { try { inp.focus(); } catch(e){} }
+}
+
+// Recado na tela de login (link vencido, sessão que não materializou).
+function gLoginAviso(msg) {
+  const errEl = document.getElementById('gl-error');
+  if (!errEl) return;
+  errEl.textContent = msg;
+  errEl.style.display = 'block';
+}
+
+async function gDoNovaSenha(e) {
+  if(e) e.preventDefault();
+  const nova = document.getElementById('gs-pass').value;
+  const conf = document.getElementById('gs-pass2').value;
+  const errEl = document.getElementById('gs-error');
+  const btn = document.getElementById('gs-btn');
+  const falha = (msg) => { errEl.textContent = msg; errEl.style.display = 'block'; };
+  errEl.style.display = 'none';
+
+  // Mesmo piso do Perfil › Segurança (user-profile.js): uma régua só para a senha.
+  if (nova.length < 8) return falha('A senha deve ter no mínimo 8 caracteres.');
+  if (nova !== conf) return falha('As senhas não coincidem.');
+
+  btn.disabled = true;
+  btn.querySelector('.gl-btn-text').style.display = 'none';
+  btn.querySelector('.gl-spinner').style.display = 'block';
+
+  // gResetPassword é o motor único de troca de senha (o mesmo do Perfil › Segurança).
+  const res = await gResetPassword(nova);
+
+  if (res && res.ok) {
+    gNovaSenhaResolvida();
+    if (typeof gToast === 'function') gToast('Senha definida. Agora ela vale em qualquer aparelho.');
+    await _gEntrarNoApp();
+    return;
+  }
+
+  btn.disabled = false;
+  btn.querySelector('.gl-btn-text').style.display = 'block';
+  btn.querySelector('.gl-spinner').style.display = 'none';
+  // Sessão de recuperação vencida enquanto a pessoa digitava: o erro do Supabase é cru
+  // e em inglês. Diz o que fazer, em vez de mostrar "Auth session missing!".
+  const msg = String((res && res.error) || '');
+  falha(/session|jwt|expired|token/i.test(msg)
+    ? 'A sessão do link expirou. Peça um novo em "Esqueci minha senha".'
+    : (msg || 'Não consegui salvar a senha. Tente de novo.'));
 }
 
 /* ══ O OLHO DA SENHA — um estado só, derivado do input ═════════════════════════════════════

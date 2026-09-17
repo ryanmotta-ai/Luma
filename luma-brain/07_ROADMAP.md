@@ -44,6 +44,10 @@ modo, mais uma aba, mais uma flag.
 
 ### Fechado nesta rodada (setembro/2026)
 
+- [x] **Login antigo destravado (17/09)** — quem foi convidado antes de 08/09/2026 (quando o `invite-user` usava `inviteUserByEmail`) tinha conta **sem senha nenhuma**: entrava pelo link mágico e, quando a sessão morria, batia em "E-mail ou senha incorretos" para sempre. "Esqueci minha senha" não resolvia porque o link do e-mail caía direto na home — o `gResetPassword` só era alcançável por Perfil › Segurança, que exige já estar logado. Agora o link desemboca no passo **"Defina sua senha"** (`gl-step-senha`), e link vencido passa a **avisar** em vez de não fazer nada.
+  - O hash é fotografado em `supabase.js` **antes do `createClient`** — o SDK o apaga ao materializar a sessão, num tick anterior ao `auth.js`. É a única janela em que ele existe.
+  - Flag em `sessionStorage` segura o passo através de um F5; sem ele, recarregar pulava a definição da senha e devolvia a pessoa ao mesmo beco.
+  - Zero CSS novo (herda `login.css`) e nenhuma senha definida no front: quem grava é o `gResetPassword`, o mesmo motor do Perfil › Segurança.
 - [x] **Sheets no celular** — a folha de edição inteira: arte fixa que encolhe com o teclado, campos em ordem de cabeça, foto com miniatura, fila de ofertas ("próxima pendente"), duplicar/apagar, criar oferta, miniaturas sob demanda.
   - ⛔ **Desligado em 09/09 por decisão do Ryan** ("sem o luma sheets no mobile por enquanto"). O código todo continua onde está — a guarda é um `return` no funil `fBulkOpen`. A volta é apagar o bloco, não reescrever a tela.
 - [x] **Foto em todas as ofertas** — a raiz era `fValidate` tratando dataURL como texto e marcando toda linha com foto como "muito longa" (linha com erro é pulada na geração).
