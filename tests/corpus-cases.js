@@ -70,6 +70,10 @@
   /* §15 · QUEM DECIDIU, no corpus real. A mesma contagem que o corpus de scoring faz sobre
      pares controlados — aqui sobre os candidatos que a busca de fato gerou. */
   const _tiers={};
+  /* §13 da Fase 6.6 · ANTES × DEPOIS da zona morta perceptual, nas decisões REAIS. A Fase 6.5
+     achou duas escolhas tiradas por margens de 0,012 e 0,020 contra um ruído de 0,045; aqui se
+     vê, caso a caso, para que camada elas desceram. Em SOMBRA: nada disto muda a arte. */
+  const _zona={ linhas:[], mudou:0, desceu:0, total:0 };
   const solve=(fx,dados,opts)=>gApplyRelativeAnchors(clonar(fx.layers),dados,{},
     Object.assign({fitText:true,canvas:fx.canvas,scope:'franqueado'},opts||{}));
   const geo=(out)=>out.filter(l=>l&&l.type==='text').map(l=>{
@@ -258,6 +262,41 @@
                 +(sh.msEscolha!=null?' '+sh.msEscolha+'ms':''):'')
               +(sh.acoesNaSolucao?' · ['+sh.acoesNaSolucao.join('→')+']'
                 :(sh.restante?' · restou ['+sh.restante.tipos.join(',')+'] em '+sh.restante.causas+' causa(s) após ['+sh.restante.acoes.join('→')+']':'')))));
+          /* ── ANTES × DEPOIS DA ZONA MORTA (Fase 6.6 §13) ─────────────────────────────── */
+          if(typeof gSelectLayoutCandidate==='function'&&typeof gBuildOperationalContext==='function'
+             &&sh.escolha&&!sh.escolha.originalFirst){
+            if(!sh.escolha.acoes) _zona.linhas.push(chave+' | SEM VENCEDOR: '
+              +sh.escolha.descartados+' descartados ('+sh.escolha.porSeguranca+' segurança, '
+              +sh.escolha.porContrato+' contrato) '+JSON.stringify(sh.escolha.contratoViolado||[]));
+            try{
+              if(!sh.escolha.acoes) throw new Error('sem vencedor');
+              const ctxZ=gBuildOperationalContext(clonar(fx.layers),fx.canvas,{dados:dados});
+              const rZ=gSearchLayoutCandidates({ctx:ctxZ,base:clonar(fx.layers)});
+              const nomes=['safety','semantics-hard','hierarchy-compression',
+                'authored-intent-relacao','authored-intent-composicao','mode','aesthetics','alteration'];
+              const ler=(esc)=>({ acoes:esc.winner?(esc.winner.actions||[]).map(a=>a.id).join('→'):null,
+                tier:esc.explanation.margem?(esc.explanation.margem.desempate?'desempate'
+                  :nomes[esc.explanation.margem.posicao]):null,
+                margem:esc.explanation.margem?esc.explanation.margem.delta:null,
+                zona:esc.explanation.margem?esc.explanation.margem.deadZone:0,
+                bruto:esc.explanation.margem?esc.explanation.margem.rawDelta:null });
+              const antes=ler(gSelectLayoutCandidate(rZ,ctxZ,{semDeadZone:true}));
+              const escD=gSelectLayoutCandidate(rZ,ctxZ);
+              const depois=ler(escD);
+              /* A zona morta que interessa é a da COMPRESSÃO daquela arte — a do tier decisor
+                 é 0 sempre que a decisão desceu para uma camada sem zona. */
+              const zc=(escD.ranked[0]&&escD.ranked[0].profile&&escD.ranked[0].profile.deadZone)
+                ? escD.ranked[0].profile.deadZone['hierarchy-compression'] : 0;
+              _zona.total++;
+              const mudouV=antes.acoes!==depois.acoes, desceuT=antes.tier!==depois.tier;
+              if(mudouV) _zona.mudou++;
+              if(desceuT) _zona.desceu++;
+              _zona.linhas.push(chave+' | antes: '+antes.tier+' Δ'+antes.margem
+                +' | depois: '+depois.tier+' Δ'+depois.margem
+                +' | zona de compressão da arte: '+(Math.round(zc*1000)/1000)
+                +(mudouV?' ⚠ VENCEDOR MUDOU':'')+(desceuT&&!mudouV?' · desceu de tier':''));
+            }catch(e){ _zona.linhas.push(chave+' | ERRO '+(e&&e.message||e)); }
+          }
           if(sh.escolha){
             const k=sh.escolha.originalFirst?'original-first'
               :(sh.escolha.margem&&sh.escolha.margem.desempate)?'desempate-deterministico'
@@ -403,6 +442,12 @@
     +' · inseguros barrados '+_cobertura.unsafeRejeitados
     +' · dependem do grupo adaptativo '+_cobertura.comGrupo.length
     +(_cobertura.comGrupo.length?' ('+_cobertura.comGrupo.join(',')+')':''));
+  if(_zona.total){
+    avisos.push('ZONA MORTA PERCEPTUAL (Fase 6.6 §13) — antes × depois nas '+_zona.total
+      +' decisões contestadas do corpus real: '+_zona.mudou+' mudaram de vencedor · '
+      +_zona.desceu+' mudaram de tier decisor');
+    _zona.linhas.forEach(l=>avisos.push('   '+l));
+  }
   if(Object.keys(_tiers).length){
     const t=Object.keys(_tiers).reduce((a,k)=>a+_tiers[k],0);
     avisos.push('DISTRIBUIÇÃO DOS TIERS DECISORES no corpus real ('+t+' escolhas): '

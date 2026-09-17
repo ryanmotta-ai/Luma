@@ -4204,9 +4204,15 @@
     if(esc.ranked.length>1){
       assert(esc.explanation.posicao>=0,'não disse em que posição do vetor a decisão caiu');
       const a=esc.ranked[0].profile.vector, b=esc.ranked[1].profile.vector;
-      for(let i=0;i<esc.explanation.posicao;i++)
-        assert(Math.abs((a[i]||0)-(b[i]||0))<1e-9,
-          'a posição declarada não é a PRIMEIRA que diferiu (posição '+i+')');
+      /* ⚠ A PRIMEIRA QUE DIFERIU **ALÉM DA RESOLUÇÃO DA MÉTRICA** (zona morta, Fase 6.6).
+         Antes bastava diferir; hoje uma diferença contínua menor que o ruído medido daquela
+         arte é empate perceptual, e a decisão desce de camada de propósito. */
+      const zonas=esc.ranked[0].profile.deadZone||{};
+      for(let i=0;i<esc.explanation.posicao;i++){
+        const z=(G_SCORE_VETOR_ZONA[i]&&zonas[G_SCORE_VETOR_ZONA[i]])||0;
+        assert(Math.abs((a[i]||0)-(b[i]||0))<=Math.max(1e-9,z),
+          'a posição declarada não é a PRIMEIRA que diferiu além da zona morta (posição '+i+')');
+      }
     }
   });
 

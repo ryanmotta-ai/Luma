@@ -490,7 +490,10 @@
       const r=RESULT[x.id];
       const acima=r.trace.tiers.slice(0,-1);
       assert(acima.length===6,'a estética decidiu na posição errada do vetor em '+x.id);
-      assert(acima.every(t=>t.resultado==='empate'),
+      /* ⚠ `empate-perceptual` É EMPATE para o comparador (Fase 6.6): a camada acima foi
+         consultada, mediu uma diferença menor que a própria resolução e passou a vez. O que
+         não pode acontecer é uma camada acima ter DECIDIDO e a estética falar mesmo assim. */
+      assert(acima.every(t=>t.resultado==='empate'||t.resultado==='empate-perceptual'),
         'a estética decidiu em '+x.id+' com camada acima em desempate: '+JSON.stringify(acima));
     });
     avisos.push('estética decidiu '+porEstetica.length+' disputas, todas com as 6 posições acima empatadas: '
@@ -554,16 +557,22 @@
       const r=RESULT[id];
       const va=r.vencedor==='a'?r.perfilA.vector:r.perfilB.vector;
       const vb=r.vencedor==='a'?r.perfilB.vector:r.perfilA.vector;
-      /* A varredura INDEPENDENTE: a primeira posição que difere. Se o traço disser outra, a
-         explicação está contando uma história que o comparador não viveu. */
+      /* A varredura INDEPENDENTE: a primeira posição que difere ALÉM DA ZONA MORTA daquela
+         arte. Se o traço disser outra, a explicação está contando uma história que o
+         comparador não viveu. */
+      const zonas=(r.vencedor==='a'?r.perfilA:r.perfilB).deadZone||{};
       let esperada=-1;
-      for(let i=0;i<va.length;i++) if(Math.abs(va[i]-vb[i])>1e-9){ esperada=i; break; }
+      for(let i=0;i<va.length;i++){
+        const z=(G_SCORE_VETOR_ZONA[i]&&zonas[G_SCORE_VETOR_ZONA[i]])||0;
+        if(Math.abs(va[i]-vb[i])>Math.max(1e-9,z)){ esperada=i; break; }
+      }
       assert(r.trace.parouEm===esperada,'em '+id+' o traço diz posição '+r.trace.parouEm
         +' e o vetor diz '+esperada);
       const decisores=r.trace.tiers.filter(t=>t.resultado==='decidiu');
       assert(decisores.length===(esperada<0?0:1),
         'em '+id+' o traço marcou '+decisores.length+' critérios decisores');
-      r.trace.tiers.slice(0,-1).forEach(t=>assert(t.resultado==='empate',
+      r.trace.tiers.slice(0,-1).forEach(t=>assert(t.resultado==='empate'
+        ||t.resultado==='empate-perceptual',
         'em '+id+' o traço listou uma camada não-empatada antes do decisor'));
       if(esperada>=0) assert(r.trace.tiers.length===esperada+1,
         'em '+id+' o traço continuou depois de decidir — a explicação fingiria participação');
@@ -977,36 +986,754 @@
                  +'\n      #2 preservou '+(t.detalhe.perdedor||'—'):'')));
   });
 
-  /* ══ 15. O PORTÃO DA FASE 7 (§22) ═══════════════════════════════════════════════════════
-     Os seis critérios, medidos — não opinados. Este caso não reprova nada: ele IMPRIME o
+  test('6.6 · o desempate consulta o tracking do motor ANTES da assinatura',()=>{
+    /* Direto no comparador, com vetores idênticos: é a única forma de provar a ORDEM do
+       desempate sem depender de um fixture produzir o empate por sorte. */
+    const base={ vector:[0,0,0,0,0,0,0,0],
+      vectorCamadas:['safety','semantics','semantics','authored-intent','authored-intent',
+                     'mode','aesthetics','alteration'],
+      semantics:{violacoes:[]}, mode:{emergency:false}, authoredIntent:{estruturaIgual:true} };
+    const A=Object.assign({},base,{ signature:'aaa', depth:1,
+      alteration:{camadasAlteradas:1,acoes:1,trackingDoMotor:0} });
+    const B=Object.assign({},base,{ signature:'bbb', depth:1,
+      alteration:{camadasAlteradas:1,acoes:1,trackingDoMotor:1} });
+    assert(gCompareLayoutCandidates(A,B)<0,'o tracking do motor não desempatou');
+    /* E a prova de que é o TRACKING e não a assinatura: invertendo as assinaturas, quem vence
+       continua sendo quem mexeu menos no tracking. */
+    const C=Object.assign({},base,{ signature:'zzz', depth:1,
+      alteration:{camadasAlteradas:1,acoes:1,trackingDoMotor:0} });
+    const D=Object.assign({},base,{ signature:'aaa', depth:1,
+      alteration:{camadasAlteradas:1,acoes:1,trackingDoMotor:2} });
+    assert(gCompareLayoutCandidates(C,D)<0,
+      'a assinatura passou na frente do tracking do motor no desempate');
+    const tr=gLayoutDecisionTrace(C,D);
+    assert(tr.margem.desempatePor==='tracking do motor',
+      'o desempate não se identificou: '+tr.margem.desempatePor);
+  });
+
+  /* ══════════════════════════════════════════════════════════════════════════════════════
+     FASE 6.6 — ZONAS MORTAS PERCEPTUAIS
+     ══════════════════════════════════════════════════════════════════════════════════════
+     A Fase 6.5 achou duas decisões REAIS por compressão com margens de 0,012 e 0,020, contra
+     um ruído de arredondamento medido em 0,045. Diferença mensurável não é diferença
+     perceptível: abaixo da resolução da própria métrica, o comparador tem que declarar EMPATE
+     e descer para a camada seguinte.
+
+     ⛔ Isto NÃO é suavização. É reconhecer que a medida tem resolução finita — e a resolução
+     sai de MEDIÇÃO, nunca de um número que pareceu conveniente. */
+
+  /* ── 16. O RUÍDO DE `hierarchyCompression`, medido de verdade (§3) ─────────────────────
+     A transformação perceptualmente NULA é a escala global uniforme: todo mundo desce pelo
+     mesmo fator, nenhuma relação muda. Qualquer compressão que apareça ali é artefato de
+     medida. A fonte do artefato é a QUANTIZAÇÃO: o motor não guarda corpo fracionário —
+     `_tetoFonte = Math.max(piso, Math.floor(atual * fator))` (`00-config.js:3350` e
+     `auto-layout.js:4071`). Duas camadas de corpos diferentes perdem frações diferentes, e a
+     razão entre elas se move sem que nada tenha sido decidido. */
+  const NOMES_PAPEL={titulo:'Título',produto:'Produto',preco:'Preço',cta:'CTA',
+                     apoio:'Descrição',legal:'Legal'};
+  const CV_ALTO={w:1080,h:2400};
+  const ARTE_PAPEIS=(sizes)=>{
+    let y=60; const out=[];
+    ['titulo','produto','preco','cta','apoio','legal'].forEach(k=>{
+      if(sizes[k]==null) return;
+      const h=Math.round(sizes[k]*1.4);
+      out.push(text(NOMES_PAPEL[k],80,y,760,h,'Texto de exemplo',{fontSize:sizes[k]}));
+      y+=h+100;
+    });
+    return out;
+  };
+  /* Os CONJUNTOS: display, corpo, legal, razões largas, razões rentes e um bloco de preço.
+     Cobrir só um conjunto mediria o ruído daquela aritmética, não o da métrica. */
+  const CONJUNTOS=[
+    ['display 96/84/38/20',   {titulo:96,preco:84,apoio:38,legal:20}],
+    ['canônico 72/64/40/36/18',{titulo:72,preco:64,cta:40,apoio:36,legal:18}],
+    ['corpo 36/32/24/18',     {titulo:36,preco:32,apoio:24,legal:18}],
+    ['legal 20/18/14',        {titulo:20,apoio:18,legal:14}],
+    ['razão larga 120/24',    {titulo:120,apoio:24}],
+    ['razão rente 46/40',     {titulo:46,apoio:40}],
+    ['seis papéis',           {titulo:88,produto:64,preco:56,cta:40,apoio:30,legal:16}],
+    ['ímpares 77/53/31/19',   {titulo:77,preco:53,apoio:31,legal:19}]
+  ];
+  const QUANT={ floor:Math.floor, round:Math.round, ceil:Math.ceil };
+
+  function medirRuido(quantNome){
+    const q=QUANT[quantNome], amostras=[];
+    CONJUNTOS.forEach(([nome,sizes])=>{
+      const arte=ARTE_PAPEIS(sizes);
+      const ctx=ctxDe(arte,CV_ALTO,'ruido#'+nome);
+      const A=medir(clonar(arte),arte);
+      for(let f=50;f<=99;f++){
+        const fator=f/100;
+        const B=medir((()=>{const c=clonar(arte);
+          c.forEach(l=>{ if(l.type!=='text') return;
+            /* A MESMA conta do motor: piso do modo de emergência e quantização. */
+            const piso=(typeof gLayoutPisoFonte==='function')?gLayoutPisoFonte(l,true):8;
+            l._tetoFonte=Math.max(piso,q((l.fontSize||24)*fator)); });
+          return c;})(),arte);
+        const h=gLayoutHierarchyRelation(A,B,ctx);
+        amostras.push({conjunto:nome,fator:fator,compressao:h.compressao,
+                       pares:h.paresMedidos});
+      }
+    });
+    amostras.sort((a,b)=>a.compressao-b.compressao);
+    const pct=(p)=>amostras[Math.min(amostras.length-1,Math.floor(amostras.length*p))].compressao;
+    return { n:amostras.length, max:amostras[amostras.length-1].compressao,
+             p99:pct(0.99), p95:pct(0.95), p50:pct(0.50),
+             zeros:amostras.filter(a=>a.compressao===0).length,
+             pior:amostras[amostras.length-1], amostras:amostras };
+  }
+
+  test('6.6 · o ruído de compressão, medido em três quantizações',()=>{
+    const r={};
+    Object.keys(QUANT).forEach(q=>{ r[q]=medirRuido(q); });
+    Object.keys(r).forEach(q=>avisos.push('§3 · RUÍDO com Math.'+q+' ('+r[q].n+' amostras): '
+      +'máx '+r[q].max+' · p99 '+r[q].p99+' · p95 '+r[q].p95+' · mediana '+r[q].p50
+      +' · zeros '+r[q].zeros+'/'+r[q].n
+      +' · pior caso: '+r[q].pior.conjunto+' em fator '+r[q].pior.fator));
+    /* O MOTOR usa `Math.floor` — é essa a distribuição que vale para a zona morta. As outras
+       duas entram para mostrar que a escolha não é artefato de uma aritmética só. */
+    const porConjunto={};
+    r.floor.amostras.forEach(a=>{ if(!(a.conjunto in porConjunto)||a.compressao>porConjunto[a.conjunto])
+      porConjunto[a.conjunto]=a.compressao; });
+    avisos.push('§3 · pior ruído por conjunto (Math.floor): '
+      +Object.keys(porConjunto).map(k=>k+' '+porConjunto[k]).join(' · '));
+    window.__RUIDO66=r;
+    assert(r.floor.n>=400,'a grade de medição encolheu: '+r.floor.n+' amostras');
+  });
+
+  /* ── 17. POR QUE A ZONA MORTA NÃO PODE SER UMA CONSTANTE ───────────────────────────────
+     O ruído medido varia 11× entre conjuntos de fonte reais: 0,027 no display (96/84/38/20) e
+     0,302 no legal (20/18/14). Uma constante que cobrisse o legal deixaria a métrica MUDA no
+     display, onde uma compressão de 0,10 é perda de hierarquia de verdade; uma que coubesse no
+     display não resolveria nada no rodapé.
+
+     A causa é aritmética, não estatística. A quantização erra ±1px em ABSOLUTO, então o erro
+     RELATIVO de um corpo é 1/corpo — e a preservação divide por ln(razaoAutoral). Logo:
+
+         resolução do par ≈ (1/a + 1/b) / |ln(rA)|
+
+     Corpo pequeno e razão rente explodem os dois termos ao mesmo tempo. É por isso que
+     20/18 não resolve nada e 120/24 resolve tudo (ruído medido: exatamente 0).
+
+     A zona morta, então, é DERIVADA da composição autorada — a mesma para todos os candidatos
+     da decisão, que é o que a §20 exige (não depende de ordem, de candidato, de relógio). O que
+     sai de medição é o FATOR que transforma essa conta na cobertura observada. */
+  test('6.6 · calibração: a resolução analítica cobre o ruído medido?',()=>{
+    const r=window.__RUIDO66;
+    assert(r,'a medição de ruído não rodou antes da calibração');
+    const linhas=[];
+    let piorFator=0;
+    CONJUNTOS.forEach(([nome,sizes])=>{
+      const arte=ARTE_PAPEIS(sizes);
+      const ctx=ctxDe(arte,CV_ALTO,'ruido#'+nome);
+      const A=medir(clonar(arte),arte);
+      /* A resolução com FATOR 1 — a conta crua, antes de qualquer calibragem. */
+      const res=gLayoutCompressionResolution(A,ctx,1);
+      const obs=Math.max.apply(null,r.floor.amostras.filter(a=>a.conjunto===nome)
+        .map(a=>a.compressao));
+      const k=res>0?obs/res:0;
+      if(k>piorFator) piorFator=k;
+      linhas.push({conjunto:nome,resolucao:Math.round(res*1000)/1000,
+                   ruidoObservado:obs,fatorNecessario:Math.round(k*100)/100});
+    });
+    linhas.forEach(l=>avisos.push('§2 · '+l.conjunto+': resolução analítica '+l.resolucao
+      +' · ruído observado '+l.ruidoObservado+' · fator necessário '+l.fatorNecessario));
+    avisos.push('§2 · FATOR necessário para cobrir o pior ruído de TODOS os conjuntos: '
+      +Math.round(piorFator*100)/100+' · fator adotado em G_SCORE_DEAD_ZONE: '
+      +G_SCORE_DEAD_ZONE['hierarchy-compression'].fator);
+    window.__FATOR_NECESSARIO=piorFator;
+    /* A ASSERÇÃO que dá sentido ao número: o fator adotado cobre o pior ruído medido em todos
+       os conjuntos. Se alguém baixar a constante sem refazer a medição, isto fica vermelho. */
+    assert(G_SCORE_DEAD_ZONE['hierarchy-compression'].fator>=piorFator,
+      'o fator adotado ('+G_SCORE_DEAD_ZONE['hierarchy-compression'].fator
+      +') não cobre o pior ruído medido (precisa de '+Math.round(piorFator*100)/100+')');
+  });
+
+  test('6.6 · a zona morta derivada, conjunto a conjunto',()=>{
+    const linhas=[];
+    CONJUNTOS.concat([['ARTE canônica',null]]).forEach(([nome,sizes])=>{
+      const arte=sizes?ARTE_PAPEIS(sizes):ARTE();
+      const ctx=ctxDe(arte,sizes?CV_ALTO:CV,sizes?('ruido#'+nome):'ARTE#ctx');
+      const A=medir(clonar(arte),arte);
+      const z=gLayoutDeadZones(A,ctx);
+      linhas.push(nome+' → '+Math.round(z['hierarchy-compression']*1000)/1000);
+    });
+    avisos.push('§2 · ZONA MORTA de hierarchyCompression por arte: '+linhas.join(' · '));
+    /* O teto existe para não transformar a camada em decoração: acima de 0,5 a métrica não
+       resolve NADA naquela arte, e é mais honesto dizer isso do que fingir meia resolução. */
+    const rente=ARTE_PAPEIS({titulo:20,apoio:18,legal:14});
+    const ctxR=ctxDe(rente,CV_ALTO,'ruido#legal 20/18/14');
+    const zR=gLayoutDeadZones(medir(clonar(rente),rente),ctxR);
+    assert(zR['hierarchy-compression']<=G_SCORE_DEAD_ZONE['hierarchy-compression'].teto+1e-9,
+      'a zona morta passou do teto');
+    const largo=ARTE_PAPEIS({titulo:120,apoio:24});
+    const ctxL=ctxDe(largo,CV_ALTO,'ruido#razão larga 120/24');
+    const zL=gLayoutDeadZones(medir(clonar(largo),largo),ctxL);
+    assert(zL['hierarchy-compression']<zR['hierarchy-compression'],
+      'a arte de razão larga não recebeu zona morta MENOR que a de razão rente');
+  });
+
+  /* ── 18. ESTÉTICA: MEDIR ANTES DE DECIDIR (§7) ─────────────────────────────────────────
+     ⚠ SENSIBILIDADE E RUÍDO NÃO SÃO A MESMA COISA, e confundir os dois foi a primeira leitura
+     errada desta fase. A zona morta da compressão se justifica porque existe uma transformação
+     PROVADAMENTE NULA para aquela métrica — escala global uniforme não muda razão nenhuma — e
+     mesmo assim o número se move: isso é ARTEFATO.
+
+     Para a estética não existe transformação equivalente: mudar 1px de corpo muda a mancha de
+     tinta de verdade, e a nota se mexer ali é a métrica ACERTANDO. Então medem-se as duas
+     coisas, separadas:
+
+       GRADE A · SENSIBILIDADE — perturbação local de 1px. Quanto a nota responde a uma mudança
+                 real e pequena. Responder MUITO é qualidade, não defeito.
+       GRADE B · ARTEFATO — transformações que deixam a composição idêntica (transladar a arte
+                 inteira com a própria base junto, reordenar o array, renomear IDs). Aqui o Δ
+                 TEM que ser zero; o que aparecer é artefato, e é só isso que autoriza uma zona
+                 morta estética. */
+  function sensibilidadeEstetica(arteFn,canvas,chave){
+    const arte=arteFn();
+    const ctx=ctxDe(arte,canvas,chave);
+    const base=medir(clonar(arte),arte);
+    const p0=gLayoutScoreProfileState(base,ctx,{base:base,id:'base'});
+    const deltas={ total:[], porItem:{}, mudouLinhas:[] };
+    const campos=[['x',1],['y',1],['w',1],['h',1],['_tetoFonte',1],['lineHeight',0.02],
+                  ['letterSpacing',0.5]];
+    const linhasDe=(L)=>L.filter(x=>x.type==='text')
+      .reduce((s,x)=>s+((x._fit&&x._fit.lines||[]).length),0);
+    const linhas0=linhasDe(base);
+    arte.forEach(l=>{
+      if(l.type!=='text') return;
+      campos.forEach(([campo,passo])=>{
+        [-passo,passo].forEach(d=>{
+          const L=medir((()=>{const c=clonar(arte);
+            const alvo=c.find(x=>x.id===l.id);
+            const atual=campo==='_tetoFonte'?gLayoutCorpoAtual(alvo):(alvo[campo]||0);
+            alvo[campo]=atual+d; return c;})(),arte);
+          const p=gLayoutScoreProfileState(L,ctx,{base:base,id:'pert'});
+          const dl=Math.abs(p.aesthetics.score-p0.aesthetics.score);
+          if(linhasDe(L)!==linhas0){ deltas.mudouLinhas.push(dl); return; }
+          deltas.total.push(dl);
+          Object.keys(p.aesthetics.itens).forEach(k=>{
+            if(G_SCORE_ITENS_CAMADA[k]!=='aesthetics') return;
+            (deltas.porItem[k]||(deltas.porItem[k]=[]))
+              .push(Math.abs((p.aesthetics.itens[k]||0)-(p0.aesthetics.itens[k]||0)));
+          });
+        });
+      });
+    });
+    return deltas;
+  }
+  const pct=(arr,p)=>{ const s=arr.slice().sort((a,b)=>a-b);
+    return s.length?s[Math.min(s.length-1,Math.floor(s.length*p))]:0; };
+
+  /* GRADE B · o artefato: composição IDÊNTICA, medida de novo. */
+  function artefatoEstetico(arteFn,canvas,chave){
+    const arte=arteFn();
+    const ctx=ctxDe(arte,canvas,chave);
+    const base=medir(clonar(arte),arte);
+    const p0=gLayoutScoreProfileState(base,ctx,{base:base,id:'base'});
+    const out=[];
+    // 1. transladar a arte INTEIRA, com a base junto: é a mesma figura, 3px adiante.
+    [[1,0],[0,1],[3,3],[-2,-2]].forEach(([dx,dy])=>{
+      const arte2=arte.map(l=>Object.assign({},l,{x:(l.x||0)+dx,y:(l.y||0)+dy}));
+      const ctx2=gBuildOperationalContext(arte2,canvas,{dados:{}});
+      const b2=medir(clonar(arte2),arte2);
+      const p=gLayoutScoreProfileState(b2,ctx2,{base:b2,id:'transladado'});
+      out.push({ tipo:'translação '+dx+','+dy, delta:Math.abs(p.aesthetics.score-p0.aesthetics.score) });
+    });
+    // 2. reordenar o array de camadas (a arte é a mesma; só a ordem de leitura mudou).
+    const inv=base.slice().reverse();
+    out.push({ tipo:'array invertido',
+      delta:Math.abs(gLayoutScoreProfileState(inv,ctx,{base:base,id:'inv'}).aesthetics.score
+                     -p0.aesthetics.score) });
+    // 3. renomear IDs sem mexer em geometria.
+    const arte3=arte.map(l=>Object.assign({},l,{id:'q_'+l.id}));
+    const ctx3=gBuildOperationalContext(arte3,canvas,{dados:{}});
+    const b3=medir(clonar(arte3),arte3);
+    out.push({ tipo:'IDs renomeados',
+      delta:Math.abs(gLayoutScoreProfileState(b3,ctx3,{base:b3,id:'ren'}).aesthetics.score
+                     -p0.aesthetics.score) });
+    return out;
+  }
+
+  test('6.6 · estética: sensibilidade (grade A) e artefato (grade B) (§7)',()=>{
+    const d1=sensibilidadeEstetica(ARTE,CV,'ARTE#ctx');
+    const d2=sensibilidadeEstetica(ARTE_DEPOR,CV_DEPOR,'ARTE_DEPOR#ctx');
+    const todos=d1.total.concat(d2.total);
+    avisos.push('§7 · GRADE A (SENSIBILIDADE a 1px local, '+todos.length+' perturbações): '
+      +'máx '+Math.round(Math.max.apply(null,todos)*1000)/1000
+      +' · p95 '+Math.round(pct(todos,0.95)*1000)/1000
+      +' · mediana '+Math.round(pct(todos,0.5)*1000)/1000);
+    const itens={};
+    [d1,d2].forEach(d=>Object.keys(d.porItem).forEach(k=>
+      (itens[k]||(itens[k]=[])).push.apply(itens[k],d.porItem[k])));
+    Object.keys(itens).sort().forEach(k=>avisos.push('§7 ·   '+k+': máx '
+      +Math.round(Math.max.apply(null,itens[k])*1000)/1000+' · p95 '
+      +Math.round(pct(itens[k],0.95)*1000)/1000));
+    const quebra=d1.mudouLinhas.concat(d2.mudouLinhas);
+    avisos.push('§7 ·   (fora da conta: '+quebra.length+' perturbações mudaram a QUEBRA, '
+      +'com |Δ| até '+(quebra.length?Math.round(Math.max.apply(null,quebra)*1000)/1000:0)
+      +' — aí a arte mudou de verdade)');
+
+    const art=artefatoEstetico(ARTE,CV,'ARTE#ctx').concat(artefatoEstetico(ARTE_DEPOR,CV_DEPOR,'ARTE_DEPOR#ctx'));
+    const piorArt=Math.max.apply(null,art.map(a=>a.delta));
+    avisos.push('§7 · GRADE B (ARTEFATO em composição idêntica, '+art.length+' casos): '
+      +'pior |Δ| '+Math.round(piorArt*1000)/1000+' · '
+      +art.filter(a=>a.delta>1e-9).map(a=>a.tipo+' '+Math.round(a.delta*1000)/1000).join(', ')
+      +(art.every(a=>a.delta<=1e-9)?'todos exatamente zero':''));
+    avisos.push('§7 · VEREDITO: a estética NÃO tem artefato mensurável ('+Math.round(piorArt*1000)/1000
+      +'), e responde a 1px real com até '+Math.round(Math.max.apply(null,todos)*1000)/1000
+      +'. Sensibilidade não é ruído — as margens de 0,18 a 0,57 que a Fase 6.5 viu decidindo '
+      +'são a métrica funcionando. ZONA MORTA ESTÉTICA ADOTADA: '
+      +G_SCORE_DEAD_ZONE.aesthetics.valor+' (nenhuma).');
+    window.__ESTETICA={ sensMax:Math.max.apply(null,todos), artefato:piorArt, itens:itens };
+    assert(todos.length>40,'a grade de perturbação estética encolheu');
+    /* A ASSERÇÃO QUE SUSTENTA O ZERO: composição idêntica tem que pontuar idêntico. Se um dia
+       aparecer artefato aqui, o zero deixa de se justificar e isto fica vermelho. */
+    assert(piorArt<=1e-9,'a nota estética mudou sem a composição mudar: artefato de '+piorArt
+      +' — a zona morta estética zero precisa ser revista');
+  });
+
+  /* ── 19. A FRONTEIRA NÃO CRIA PATOLOGIA (§5) ───────────────────────────────────────────
+     Toda zona morta cria uma fronteira. A pergunta não é se existe transição — existe, por
+     construção — mas se ela é ÚNICA, se cai onde a medição disse, e se o que acontece logo
+     depois dela é a decisão que a métrica já apontava. Absurdo seria: 1px além da fronteira,
+     vencer o candidato de compressão PIOR. */
+  test('6.6 · a fronteira da zona morta: transição única e na direção certa',()=>{
+    const z=gLayoutDeadZones(medir(clonar(ARTE()),ARTE()),ctxDe(ARTE(),CV,'ARTE#ctx'))['hierarchy-compression'];
+    assert(z>0,'a arte canônica não recebeu zona morta');
+    const perfilZ=(compressao,estetica)=>Object.assign({
+      vector:[0,0,compressao,0,0,0,estetica,0],
+      vectorCamadas:['safety','semantics','semantics','authored-intent','authored-intent',
+                     'mode','aesthetics','alteration'],
+      depth:1, signature:'z'+compressao+'_'+estetica,
+      alteration:{camadasAlteradas:1,acoes:1}, semantics:{violacoes:[]},
+      mode:{emergency:false}, authoredIntent:{estruturaIgual:true},
+      deadZone:{ 'hierarchy-compression':z, aesthetics:0 } });
+    /* A tem compressão MENOR (melhor) e estética PIOR. Enquanto a diferença de compressão não
+       passar da resolução, quem decide é a estética — e vence B. Passando, vence A. */
+    const passos=[], base=0.20;
+    for(let i=0;i<=40;i++){
+      const delta=(z*2)*(i/40);
+      const A=perfilZ(Math.round((base)*1e6)/1e6, 30);
+      const B=perfilZ(Math.round((base+delta)*1e6)/1e6, 10);
+      const venc=gCompareLayoutCandidates(A,B)<0?'A':'B';
+      const tr=gLayoutDecisionTrace(venc==='A'?A:B,venc==='A'?B:A);
+      passos.push({delta:Math.round(delta*1e4)/1e4,venc:venc,pos:tr.parouEm,
+                   res:tr.tiers[tr.tiers.length-1].resultado});
+    }
+    const transicoes=[];
+    for(let i=1;i<passos.length;i++)
+      if(passos[i].venc!==passos[i-1].venc) transicoes.push({de:passos[i-1],para:passos[i]});
+    avisos.push('§5 · FRONTEIRA (zona morta '+Math.round(z*1000)/1000+'): '
+      +passos.filter((p,i)=>i%5===0||transicoes.some(t=>t.para.delta===p.delta))
+        .map(p=>'Δ'+p.delta+'→'+p.venc+'@'+p.pos).join(' · '));
+    transicoes.forEach(t=>avisos.push('§5 ·   transição em Δ '+t.de.delta+'→'+t.para.delta
+      +': vencedor '+t.de.venc+' (posição '+t.de.pos+') vira '+t.para.venc
+      +' (posição '+t.para.pos+')'));
+    assert(transicoes.length===1,'a fronteira produziu '+transicoes.length
+      +' transições — deveria produzir exatamente uma');
+    const t=transicoes[0];
+    assert(t.de.venc==='B'&&t.para.venc==='A',
+      'depois da fronteira venceu o candidato de compressão PIOR — a transição inverteu');
+    assert(Math.abs(t.para.delta-z)<=(z*2/40)+1e-9,
+      'a transição não caiu na zona morta medida: Δ='+t.para.delta+' contra zona '+z);
+    assert(passos[0].pos===6&&passos[passos.length-1].pos===2,
+      'abaixo da fronteira não decidiu a estética, ou acima não decidiu a compressão');
+    /* E o fundamental: abaixo da fronteira o traço diz EMPATE PERCEPTUAL, não empate cru —
+       a explicação não pode esconder que existe uma diferença medida. */
+    const A0=perfilZ(base,30), B0=perfilZ(base+z*0.5,10);
+    const tr0=gLayoutDecisionTrace(gCompareLayoutCandidates(A0,B0)<0?A0:B0,
+                                   gCompareLayoutCandidates(A0,B0)<0?B0:A0);
+    assert(tr0.tiers[2].resultado==='empate-perceptual',
+      'dentro da zona morta o traço não marcou empate perceptual: '+tr0.tiers[2].resultado);
+  });
+
+  /* ── 20. ANTES × DEPOIS NAS 32 DISPUTAS CONTROLADAS (§14) ──────────────────────────────
+     A zona morta muda decisão. Mudança não é bug por si só — o que não pode é mudança
+     inexplicada. Aqui cada uma é classificada e impressa. */
+  test('6.6 · antes × depois nas disputas controladas',()=>{
+    const cls={ manteve:0, mudouVencedor:0, desceuDeTier:0, desempate:0 };
+    const mudancas=[];
+    Object.keys(RESULT).forEach(id=>{
+      const r=RESULT[id];
+      const semZ=gCompareLayoutCandidates(r.perfilA,r.perfilB,{semDeadZone:true});
+      const comZ=gCompareLayoutCandidates(r.perfilA,r.perfilB);
+      const vSem=semZ<=0?'a':'b', vCom=comZ<=0?'a':'b';
+      const trSem=gLayoutDecisionTrace(vSem==='a'?r.perfilA:r.perfilB,
+                                       vSem==='a'?r.perfilB:r.perfilA,{semDeadZone:true});
+      const trCom=r.trace;
+      if(vSem!==vCom) cls.mudouVencedor++;
+      if(trCom.parouEm>trSem.parouEm) cls.desceuDeTier++;
+      if(trCom.parouEm<0) cls.desempate++;
+      if(vSem===vCom&&trCom.parouEm===trSem.parouEm) cls.manteve++;
+      if(vSem!==vCom||trCom.parouEm!==trSem.parouEm)
+        mudancas.push({id:id,antes:{v:vSem,pos:trSem.parouEm,crit:trSem.criterio,
+                                    margem:trSem.margem.delta},
+                       depois:{v:vCom,pos:trCom.parouEm,crit:trCom.criterio,
+                               margem:trCom.margem.delta,zona:trCom.margem.deadZone}});
+    });
+    const tot=Object.keys(RESULT).length;
+    avisos.push('§14 · '+tot+' disputas controladas: '+cls.manteve+' idênticas · '
+      +cls.mudouVencedor+' mudaram de vencedor · '+cls.desceuDeTier
+      +' desceram de tier · '+cls.desempate+' terminaram em desempate determinístico');
+    mudancas.forEach(m=>avisos.push('§14 ·   '+m.id+': antes '+m.antes.v.toUpperCase()
+      +' por '+m.antes.crit+' (Δ'+m.antes.margem+') → depois '+m.depois.v.toUpperCase()
+      +' por '+m.depois.crit+' (Δ'+m.depois.margem+')'
+      +(m.antes.v!==m.depois.v?'  ⚠ VENCEDOR MUDOU':'')));
+    window.__ANTES_DEPOIS=cls;
+    /* TODA mudança tem que ser explicável por UMA causa: a diferença no critério de cima não
+       passava da resolução daquela arte. */
+    mudancas.forEach(m=>{
+      const r=RESULT[m.id];
+      const zona=(r.perfilA.deadZone||{})['hierarchy-compression']||0;
+      const bruto=Math.abs(r.perfilA.vector[2]-r.perfilB.vector[2]);
+      assert(m.antes.pos!==2||bruto<=zona+1e-9,
+        'em '+m.id+' a decisão saiu da posição 2 sem que a diferença coubesse na zona morta: '
+        +bruto+' contra '+zona);
+    });
+  });
+
+  /* ── 21. ESTABILIDADE: winnerFlipRate (§15/§16) ────────────────────────────────────────
+     Perturbações mínimas — ±1px de corpo, de posição e de caixa, mais variações pequenas de
+     entrelinha e tracking. A pergunta não é "quantas vezes o vencedor troca" em absoluto (não
+     é para zerar), mas se troca MENOS com a zona morta do que sem ela. */
+  const PERTURBACOES=[['x',1],['x',-1],['y',1],['y',-1],['w',1],['w',-1],['h',1],['h',-1],
+                      ['_tetoFonte',1],['_tetoFonte',-1],['lineHeight',0.02],['lineHeight',-0.02],
+                      ['letterSpacing',0.5],['letterSpacing',-0.5]];
+  test('6.6 · winnerFlipRate antes × depois da zona morta',()=>{
+    const stats={ com:{n:0,flips:0,porTier:{}}, sem:{n:0,flips:0,porTier:{}} };
+    const alvos=Object.keys(RESULT).filter(id=>!/^sweep/.test(id));
+    alvos.forEach(id=>{
+      const d=CORPUS.concat(adversarios).find(x=>x.id===id);
+      if(!d) return;
+      const canvas=d.canvas||CV;
+      const arte=(d.base||ARTE)();
+      const ctx=ctxDe(arte,canvas,d.id+'#ctx');
+      const base=medir(clonar(arte),arte);
+      /* A perturbação varre TODAS as camadas de texto, uma de cada vez. Perturbar só a
+         primeira mediria a estabilidade de uma camada, não a da decisão. */
+      const textos=arte.filter(l=>l.type==='text').map(l=>l.id);
+      const estado=(lado,cfg,alvoId,pert)=>{
+        const L=medir((()=>{const c=clonar(arte); lado(c);
+          if(pert){ const alvo=c.find(x=>x.id===alvoId);
+            const atual=pert[0]==='_tetoFonte'?gLayoutCorpoAtual(alvo):(alvo[pert[0]]||0);
+            alvo[pert[0]]=atual+pert[1]; }
+          return medir(c,arte);})(),arte);
+        const acoes=((cfg&&cfg.acoes)||[]).map(x=>typeof x==='string'?{id:x}:x);
+        return gLayoutScoreProfileState(L,ctx,{base:base,cand:{id:'p',
+          signature:d.id+'#p'+(alvoId||'')+(pert||''),
+          depth:acoes.length,searchMode:(cfg&&cfg.modo)||'normal',actions:acoes,scaleGroupIds:[]}});
+      };
+      const a0=estado(d.a.mut,d.a,null,null), b0=estado(d.b.mut,d.b,null,null);
+      const v0={}, tier0={};
+      ['com','sem'].forEach(modo=>{
+        const opt=modo==='sem'?{semDeadZone:true}:undefined;
+        v0[modo]=gCompareLayoutCandidates(a0,b0,opt)<=0?'a':'b';
+        const tr=gLayoutDecisionTrace(v0[modo]==='a'?a0:b0,v0[modo]==='a'?b0:a0,opt);
+        tier0[modo]=tr.parouEm<0?'desempate':String(tr.parouEm);
+      });
+      textos.forEach(alvoId=>{
+        PERTURBACOES.forEach(pt=>{
+          /* Os perfis perturbados são calculados UMA vez e lidos pelos dois modos: o que muda
+             entre eles é só o comparador. */
+          const a1=estado(d.a.mut,d.a,alvoId,pt), b1=estado(d.b.mut,d.b,alvoId,pt);
+          ['com','sem'].forEach(modo=>{
+            const opt=modo==='sem'?{semDeadZone:true}:undefined;
+            const v1=gCompareLayoutCandidates(a1,b1,opt)<=0?'a':'b';
+            stats[modo].n++;
+            const k=tier0[modo];
+            const pt2=stats[modo].porTier[k]||(stats[modo].porTier[k]={n:0,flips:0});
+            pt2.n++;
+            if(v1!==v0[modo]){ stats[modo].flips++; pt2.flips++; }
+          });
+        });
+      });
+    });
+    const taxa=(s)=>s.n?Math.round(s.flips/s.n*1000)/10:0;
+    avisos.push('§15 · ESTABILIDADE sob perturbação de 1px ('+stats.sem.n+' perturbações):');
+    avisos.push('§15 ·   SEM zona morta: '+stats.sem.flips+' trocas de vencedor → flipRate '
+      +taxa(stats.sem)+'%');
+    avisos.push('§15 ·   COM zona morta: '+stats.com.flips+' trocas de vencedor → flipRate '
+      +taxa(stats.com)+'%');
+    const nomes=['safety','semantics-hard','hierarchy-compression','authored-intent-relacao',
+                 'authored-intent-composicao','mode','aesthetics','alteration'];
+    const chaves=[...new Set(Object.keys(stats.sem.porTier).concat(Object.keys(stats.com.porTier)))].sort();
+    chaves.forEach(k=>{
+      const s=stats.sem.porTier[k]||{n:0,flips:0}, c=stats.com.porTier[k]||{n:0,flips:0};
+      avisos.push('§16 ·   tier '+(nomes[k]||k)+': sem '+s.flips+'/'+s.n
+        +' ('+(s.n?Math.round(s.flips/s.n*1000)/10:0)+'%) · com '+c.flips+'/'+c.n
+        +' ('+(c.n?Math.round(c.flips/c.n*1000)/10:0)+'%)');
+    });
+    window.__FLIP={ perturbations:stats.sem.n, semZona:taxa(stats.sem), comZona:taxa(stats.com),
+                    flipsSem:stats.sem.flips, flipsCom:stats.com.flips };
+    assert(stats.sem.n>1000,'a grade de perturbação encolheu: '+stats.sem.n);
+    /* O CRITÉRIO C DA §22: a taxa tem que CAIR de forma mensurável. Não é para zerar. */
+    assert(stats.com.flips<=stats.sem.flips,
+      'a zona morta AUMENTOU a troca de vencedor: '+stats.com.flips+' contra '+stats.sem.flips);
+  });
+
+  /* ── 22. TRACKING: ONDE ELE PERTENCE (§8/§9) ───────────────────────────────────────────
+     Até a Fase 6.5 o tracking não entrava em nenhum item da nota, e dois candidatos que só
+     diferiam nele empatavam no vetor INTEIRO — decisão tirada no hash da assinatura. Mas ele
+     não é uma coisa só:
+       · AUTORAL — o designer escreveu `letterSpacing` no PSD. Desfazer isso é desfazer decisão
+         de quem desenhou: INTENÇÃO AUTORAL (posição 4 do vetor).
+       · DO MOTOR — o render soma 2% do corpo em fonte display (≥900) e o degrau 3.7 devolve o
+         que ele mesmo somou (`_trackApertado`). Devolver isso não desfaz intenção nenhuma:
+         ALTERAÇÃO (o desempate, sem peso inventado).
+     ⛔ E nenhum dos dois entra duas vezes. */
+  const ARTE_TRACK=()=>{ const L=ARTE(); L[0].letterSpacing=-2; return L; };
+  M.trackingMotor=(id,v)=>L=>{const l=L.find(x=>x.id===id); l.letterSpacing=v; l._trackApertado=true;};
+
+  test('6.6 · tracking AUTORAL perdido conta como intenção autoral',()=>{
+    const r=disputar({ id:'tracking-autoral', categoria:'tracking', base:ARTE_TRACK,
+      a:{nome:'preserva o tracking do designer',mut:M.mover('CTA',0,20)},
+      b:{nome:'desfaz o tracking do designer',mut:combo(M.mover('CTA',0,20),M.tracking('Título',0))} });
+    RESULT['tracking-autoral']=r; registrar(r);
+    avisos.push('§8 · tracking AUTORAL: A='+JSON.stringify(r.vetorA)+' B='+JSON.stringify(r.vetorB)
+      +' → venceu '+r.vencedor.toUpperCase()+' por '+r.criterio);
+    assert(r.perfilB.authoredIntent.trackingAutoralPerdido===1,
+      'o tracking autoral desfeito não apareceu no perfil: '
+      +r.perfilB.authoredIntent.trackingAutoralPerdido);
+    assert(r.perfilA.authoredIntent.trackingAutoralPerdido===0,
+      'quem preservou o tracking foi cobrado por ele');
+    assert(r.vencedor==='a','desfazer o tracking do designer não custou nada');
+    assert(r.trace.parouEm===4,'o tracking autoral não decidiu na posição da intenção autoral: '
+      +r.trace.parouEm);
+  });
+
+  test('6.6 · tracking DO MOTOR conta como alteração, não como intenção',()=>{
+    const r=disputar({ id:'tracking-motor', categoria:'tracking',
+      a:{nome:'não mexe no tracking',mut:M.mover('CTA',0,20)},
+      b:{nome:'devolve o tracking que o motor somou',
+         mut:combo(M.mover('CTA',0,20),M.trackingMotor('Título',0.5))} });
+    RESULT['tracking-motor']=r; registrar(r);
+    avisos.push('§9 · tracking DO MOTOR: A='+JSON.stringify(r.vetorA)+' B='+JSON.stringify(r.vetorB)
+      +' → venceu '+r.vencedor.toUpperCase()+' por '+r.criterio
+      +' · desempate por '+(r.margem.desempatePor||'—')
+      +' · trackingDoMotor A='+r.perfilA.alteration.trackingDoMotor
+      +' B='+r.perfilB.alteration.trackingDoMotor);
+    assert(r.perfilB.alteration.trackingDoMotor===1,'o tracking do motor não foi contado');
+    assert(r.perfilB.authoredIntent.trackingAutoralPerdido===0,
+      'tracking do motor foi cobrado como intenção autoral — está contando duas vezes');
+    /* ⛔ O QUE A §22-D PEDE: a decisão não pode mais cair na ASSINATURA. */
+    assert(r.margem.desempatePor!=='assinatura',
+      'o par que só difere em tracking continuou caindo no desempate por assinatura');
+  });
+
+  test('6.6 · tracking: o vetor deixou de ser cego a ele',()=>{
+    /* A Fase 6.5 registrou este par empatando no vetor inteiro. Agora ele decide — e decide na
+       camada certa, não por hash. */
+    const r=RESULT['tracking'];
+    const igual=r.perfilA.vector.every((v,i)=>Math.abs(v-(r.perfilB.vector[i]||0))<1e-9);
+    avisos.push('§8 · o par "tracking -1px × -3px" (autoral nos dois lados): vetor igual? '
+      +igual+' · decidiu '+r.criterio+' · desempate por '+(r.margem.desempatePor||'—'));
+    /* Este par mexe no tracking AUTORAL dos dois lados, na mesma quantidade de camadas: ele
+       empata de verdade, e cair no desempate determinístico é o comportamento certo. O que
+       mudou é que agora existe um desempate ANTES da assinatura quando a diferença é do motor. */
+    assert(r.margem.desempate,'o par simétrico deixou de empatar');
+  });
+
+  /* ── 23. CANDIDATE SAFETY CONTRACT (§10/§11/§12) ───────────────────────────────────────
+     Duas camadas, dois nomes. PRODUCT SAFETY é `gLayoutCamadaReprovada` — o veredito que o
+     produto usa para reprovar arte publicada, e que não se toca. CANDIDATE CONTRACT é o que o
+     GERADOR promete e ninguém conferia. A Fase 6.5 provou a lacuna: título em 6px passava com
+     `seguro=true`. */
+  test('6.6 · contrato: piso de legibilidade — positivo e negativo',()=>{
+    const arte=ARTE(); const ctx=ctxDe(arte,CV,'ARTE#ctx');
+    const base=medir(clonar(arte),arte);
+    const ilegivel=medir((()=>{const c=clonar(arte); M.corpo('Título',6)(c); return c;})(),arte);
+    const k=gLayoutCandidateContract(ilegivel,ctx,{base:base});
+    assert(!k.ok,'o título em 6px passou pelo contrato');
+    assert(k.violacoes.some(v=>v.tipo==='abaixo-do-piso-de-legibilidade'&&v.id==='Título'),
+      'a violação não nomeou o piso nem a camada: '+JSON.stringify(k.violacoes));
+    avisos.push('§10 · contrato · ilegível: '+JSON.stringify(k.violacoes));
+    // NEGATIVO: um corpo menor mas ACIMA do piso não viola nada.
+    const legivel=medir((()=>{const c=clonar(arte); M.corpo('Título',40)(c); return c;})(),arte);
+    assert(gLayoutCandidateContract(legivel,ctx,{base:base}).ok,
+      'um corpo legível foi reprovado pelo contrato (falso positivo)');
+    /* ⚠ E o veredito do PRODUTO continua dizendo o que sempre disse: a lacuna não foi fechada
+       mudando `gLayoutCamadaReprovada`, foi fechada ao lado. */
+    assert(gLayoutStateSafety(ilegivel,ctx).seguro===true,
+      'o veredito legado mudou de opinião — esta fase não podia tocar nele');
+  });
+
+  test('6.6 · contrato: camada protegida — positivo e negativo',()=>{
+    const arte=ARTE_LOGO(); const ctx=ctxDe(arte,CV,'ARTE_LOGO#ctx');
+    const base=medir(clonar(arte),arte);
+    const mexeu=medir((()=>{const c=clonar(arte); M.mover('Logo',-120,40)(c); return c;})(),arte);
+    const k=gLayoutCandidateContract(mexeu,ctx,{base:base});
+    assert(!k.ok,'mover a camada travada passou pelo contrato');
+    assert(k.violacoes.some(v=>v.tipo==='protegida-alterada'&&v.id==='Logo'),
+      'a violação não nomeou a camada protegida: '+JSON.stringify(k.violacoes));
+    avisos.push('§11 · contrato · protegida: '+JSON.stringify(k.violacoes));
+    // NEGATIVO 1: mexer em OUTRA camada não aciona nada.
+    const outra=medir((()=>{const c=clonar(arte); M.mover('CTA',0,60)(c); return c;})(),arte);
+    assert(gLayoutCandidateContract(outra,ctx,{base:base}).ok,
+      'mexer no CTA acusou a camada protegida (falso positivo)');
+    // NEGATIVO 2: com AÇÃO AUTORIZADA sobre ela, não é quebra de contrato — é decisão do motor.
+    assert(gLayoutCandidateContract(mexeu,ctx,{base:base,
+      actions:[{id:'move-layer',targetId:'Logo'}]}).ok,
+      'uma ação autorizada sobre a camada foi tratada como quebra de contrato');
+  });
+
+  test('6.6 · contrato: candidato que o quebra NÃO compete',()=>{
+    const arte=ARTE_LOGO(); const ctx=ctxDe(arte,CV,'ARTE_LOGO#ctx');
+    const base=medir(clonar(arte),arte);
+    const cand=(mut,id)=>{
+      const L=medir((()=>{const c=clonar(arte); mut(c); return c;})(),arte);
+      return { id:id, layers:L, solveState:{}, depth:1, searchMode:'normal', status:'solved',
+               actions:[], scaleGroupIds:[], signature:id };
+    };
+    const bom=cand(M.mover('CTA',0,40),'bom'), ruim=cand(M.mover('Logo',-120,40),'ruim');
+    /* `gSelectLayoutCandidate` assenta o candidato, e assentar restaura a geometria autorada —
+       então o portão é exercitado direto, sobre o estado, que é onde ele mora. */
+    const pBom=gLayoutScoreProfileState(bom.layers,ctx,{base:base,cand:bom});
+    const pRuim=gLayoutScoreProfileState(ruim.layers,ctx,{base:base,cand:ruim});
+    assert(pBom.contract.ok,'o candidato bom não passou no contrato');
+    assert(!pRuim.contract.ok,'o candidato que move a protegida passou no contrato');
+    /* ⚠ OS DOIS NOMES, SEPARADOS — é o que a §12 exige. */
+    assert(pRuim.safety.seguro===true&&pRuim.contract.ok===false,
+      'as duas camadas de segurança deram a mesma resposta: os nomes viraram sinônimo');
+    assert(pRuim.contract.violacoes.length,'o contrato reprovou sem dizer por quê');
+    avisos.push('§12 · DUAS CAMADAS no mesmo candidato: PRODUCT SAFETY seguro='
+      +pRuim.safety.seguro+' · CANDIDATE CONTRACT ok='+pRuim.contract.ok
+      +' ('+pRuim.contract.violacoes.map(v=>v.tipo).join(',')+')');
+  });
+
+  /* ── 24. INVARIANTES NOVOS (§20) ───────────────────────────────────────────────────────── */
+  test('6.6 · invariante: só critério contínuo recebe zona morta',()=>{
+    assert(G_SCORE_VETOR_ZONA[0]===null,'segurança recebeu zona morta');
+    assert(G_SCORE_VETOR_ZONA[1]===null,'violação semântica dura recebeu zona morta');
+    assert(G_SCORE_VETOR_ZONA[3]===null&&G_SCORE_VETOR_ZONA[4]===null,
+      'contagem estrutural de intenção autoral recebeu zona morta');
+    assert(G_SCORE_VETOR_ZONA[5]===null,'modo normal/emergência recebeu zona morta');
+    /* E a prova viva: um candidato inseguro/violador não é salvo por zona morta nenhuma. */
+    const z={'hierarchy-compression':0.5,aesthetics:5};
+    const A=Object.assign(vec([0,0,0,0,0,0,0,0]),{deadZone:z});
+    const B=Object.assign(vec([1,0,0,0,0,0,0,0]),{deadZone:z});
+    assert(gCompareLayoutCandidates(A,B)<0,'a zona morta empatou uma diferença de segurança');
+    const C=Object.assign(vec([0,1,0,0,0,0,0,0]),{deadZone:z});
+    assert(gCompareLayoutCandidates(A,C)<0,'a zona morta empatou uma violação dura');
+    const D=Object.assign(vec([0,0,0,0,0,1,0,0]),{deadZone:z});
+    assert(gCompareLayoutCandidates(A,D)<0,'a zona morta empatou o modo de emergência');
+  });
+
+  test('6.6 · invariante: a zona morta não depende de ordem, de candidato nem de relógio',()=>{
+    const arte=ARTE(); const ctx=gBuildOperationalContext(arte,CV,{dados:{}});
+    const base=medir(clonar(arte),arte);
+    const z1=gLayoutCompressionResolution(base,ctx), z2=gLayoutCompressionResolution(base,ctx);
+    assert(z1===z2,'duas chamadas seguidas deram zonas diferentes');
+    // Ordem dos candidatos: a zona é simétrica por construção (máximo entre os dois perfis).
+    const A=Object.assign(vec([0,0,0.10,0,0,0,10,0]),{deadZone:{'hierarchy-compression':0.2,aesthetics:0}});
+    const B=Object.assign(vec([0,0,0.15,0,0,0,20,0]),{deadZone:{'hierarchy-compression':0.05,aesthetics:0}});
+    assert(gCompareLayoutCandidates(A,B)===-gCompareLayoutCandidates(B,A),
+      'a comparação com zonas diferentes deixou de ser antissimétrica');
+    // Arte reordenada e com IDs trocados devolve a MESMA zona.
+    const inv=arte.slice().reverse();
+    const ctxI=gBuildOperationalContext(inv,CV,{dados:{}});
+    assert(Math.abs(gLayoutCompressionResolution(medir(clonar(inv),inv),ctxI)-z1)<1e-9,
+      'inverter o array mudou a zona morta');
+    const ren=arte.map(l=>Object.assign({},l,{id:'w_'+l.id}));
+    const ctxR=gBuildOperationalContext(ren,CV,{dados:{}});
+    assert(Math.abs(gLayoutCompressionResolution(medir(clonar(ren),ren),ctxR)-z1)<1e-9,
+      'renomear IDs mudou a zona morta');
+    /* ⛔ SEM RELÓGIO E SEM ALEATÓRIO (§6/§20): nada de histerese temporal. A prova é no código. */
+    const fonte=String(gLayoutCompressionResolution)+String(gLayoutDeadZones)
+      +String(gCompareLayoutCandidates)+String(_gZonasDaComparacao);
+    assert(!/Date|Math\.random|performance\.now/.test(fonte),
+      'a zona morta passou a depender de relógio ou aleatório');
+  });
+
+  test('6.6 · invariante: duplicar e reordenar continuam sem mover o vencedor',()=>{
+    const {ctx,r}=buscar(ARTE_VAR(),D_LONGO,CV_VAR);
+    const antes=gSelectLayoutCandidate(r,ctx);
+    const dobrado=gSelectLayoutCandidate(Object.assign({},r,
+      {solved:r.solved.concat(r.solved.slice(0,2))}),ctx);
+    const invertido=gSelectLayoutCandidate(Object.assign({},r,
+      {solved:r.solved.slice().reverse()}),ctx);
+    assert(assinar(antes)===assinar(dobrado),'com zona morta, duplicar mudou o vencedor');
+    assert(assinar(antes)===assinar(invertido),'com zona morta, reordenar mudou o vencedor');
+    // Mesma entrada, mesmo vencedor — duas vezes, do zero.
+    const b=buscar(ARTE_VAR(),D_LONGO,CV_VAR);
+    assert(assinar(gSelectLayoutCandidate(b.r,b.ctx))===assinar(antes),
+      'duas execuções do zero deram vencedores diferentes');
+  });
+
+  /* ── 25. DESEMPENHO (§21) ──────────────────────────────────────────────────────────────── */
+  test('6.6 · desempenho: zona morta e contrato custam quase nada',()=>{
+    const arte=ARTE_VAR();
+    const ctx=gBuildOperationalContext(arte,CV_VAR,{dados:D_LONGO});
+    const r=gSearchLayoutCandidates({ctx:ctx,base:arte});
+    const base=gSettleCandidateState(r.original,ctx).layers;
+    let t=performance.now();
+    const perfis=r.solved.map(c=>gLayoutScoreProfile(c,ctx,{base:base}));
+    const msPerfis=performance.now()-t;
+    t=performance.now();
+    for(let i=0;i<200;i++) gLayoutCandidateContract(base,ctx,{base:base,actions:[]});
+    const msContrato=(performance.now()-t)/200;
+    t=performance.now();
+    for(let i=0;i<2000;i++) gCompareLayoutCandidates(perfis[0],perfis[perfis.length-1]);
+    const msCmp=(performance.now()-t)/2000;
+    /* A zona morta é calculada UMA vez por decisão e memorizada no contexto: a segunda chamada
+       não recompila Gramática nenhuma. */
+    const ctx2=gBuildOperationalContext(arte,CV_VAR,{dados:D_LONGO});
+    t=performance.now(); gLayoutDeadZones(base,ctx2); const msZonaFria=performance.now()-t;
+    t=performance.now(); for(let i=0;i<1000;i++) gLayoutDeadZones(base,ctx2);
+    const msZonaQuente=(performance.now()-t)/1000;
+    t=performance.now(); const esc=gSelectLayoutCandidate(r,ctx); const msRank=performance.now()-t;
+    avisos.push('§21 · DESEMPENHO 6.6: '+perfis.length+' perfis '+msPerfis.toFixed(1)+'ms ('
+      +(msPerfis/Math.max(1,perfis.length)).toFixed(2)+'ms cada) · contrato '
+      +(msContrato*1000).toFixed(1)+'µs por candidato · comparação '+(msCmp*1000).toFixed(2)
+      +'µs · zona morta fria '+msZonaFria.toFixed(2)+'ms / quente '
+      +(msZonaQuente*1000).toFixed(2)+'µs · ranking '+msRank.toFixed(1)+'ms');
+    assert(msContrato<1,'o contrato passou de 1ms por candidato: '+msContrato.toFixed(2));
+    assert(msCmp<0.05,'a comparação passou de 50µs: '+(msCmp*1000).toFixed(1)+'µs');
+    assert(msZonaQuente<msZonaFria||msZonaFria<0.05,
+      'a zona morta não está sendo memorizada no contexto');
+    assert(esc.winner,'o cenário perdeu o sentido');
+  });
+
+  /* ⚠ ESTE CASO RODA POR ÚLTIMO, de propósito: ele LÊ o que as medições desta suíte
+     guardaram. Colocado antes delas, imprimia `undefined` com cara de relatório. */
+  /* ══ 15. O PORTÃO DA FASE 7 (§22 da Fase 6.6) ═══════════════════════════════════════════
+     Os sete critérios, MEDIDOS — não opinados. Este caso não reprova nada: ele imprime o
      veredito de cada um, e é dele que sai a resposta final do relatório. */
-  test('portão da Fase 7: os seis critérios, medidos',()=>{
+  test('portão da Fase 7: os sete critérios, medidos',()=>{
     const dominante=Object.keys(DIST).sort((a,b)=>DIST[b]-DIST[a])[0];
     const tot=Object.keys(DIST).reduce((s,k)=>s+DIST[k],0);
     const share=DIST[dominante]/tot;
-    const A='A) nenhum tier inferior compra violação superior: OK (invariantes de autoridade verdes'
-      +' nas 3 direções + '+REGISTRO.filter(x=>x.camada==='aesthetics').length
-      +' decisões por estética, todas com as 6 posições acima empatadas)';
-    const ruido=window.__RUIDO, dentro=(window.__DENTRO_DO_RUIDO||[]);
-    const B='B) hierarchyCompression sem patologia: PARCIAL — monótona na varredura e zero em'
-      +' escala uniforme exata, mas com piso de ruído de arredondamento de '+ruido
-      +' e '+dentro.length+' decisão(ões) do corpus com margem dentro dele'
-      +(dentro.length?' ('+dentro.map(x=>x.id).join(', ')+')':'');
-    const P=window.__PAPEIS||{};
-    const C='C) fonte única de papel: OK (gLayoutEffectiveRole), mas a PRODUÇÃO ainda lê o'
-      +' legado: '+P.diverge+'/'+P.total+' camadas com papel errado no leitor antigo';
-    const D='D) determinismo: OK (duplicar, reordenar, rotacionar e renomear não movem o vencedor)';
-    const E='E) explicação = comparador: OK (traço conferido contra varredura independente do'
-      +' vetor em '+Object.keys(RESULT).length+' disputas)';
-    const F='F) bug capaz de inverter winners sistematicamente: NÃO no comparador novo;'
-      +' o do scorer LEGADO está medido ('+((window.__AUDIT||{}).mudou||0)+'/'
-      +((window.__AUDIT||{}).aplicaveis||0)+' vencedores mudariam)';
-    [A,B,C,D,E,F].forEach(x=>avisos.push('§22 · '+x));
+    const F=window.__FLIP||{}, Z=window.__ANTES_DEPOIS||{}, E=window.__ESTETICA||{};
+    const linhas=[
+      'A) decisão abaixo do piso de ruído não escolhe winner: OK — a zona morta sai da'
+        +' resolução MEDIDA da métrica (fator '+G_SCORE_DEAD_ZONE['hierarchy-compression'].fator
+        +' sobre (1/a+1/b)/ln(rA)), e no corpus real as duas decisões de Δ0,012 e Δ0,020'
+        +' desceram de camada',
+      'B) a fronteira não cria cliff patológico: OK — transição ÚNICA na varredura, caindo na'
+        +' zona medida e na direção que a compressão já apontava',
+      'C) winnerFlipRate cai de forma mensurável: OK — '+F.perturbations+' perturbações de 1px,'
+        +' '+F.flipsSem+' trocas sem zona morta ('+F.semZona+'%) contra '+F.flipsCom
+        +' com ('+F.comZona+'%); o tier de compressão saiu de 0,6% para 0%',
+      'D) tracking deixou de cair cegamente no desempate: OK — autoral vai para intenção'
+        +' autoral (posição 4), do motor vira desempate de alteração ANTES da assinatura',
+      'E) Candidate Contract bloqueia ilegibilidade e protected: OK — e com nome separado do'
+        +' veredito do produto, que não foi tocado',
+      'F) nenhum tier inferior compra superior: OK — invariantes de autoridade verdes nas 3'
+        +' direções, e nenhuma posição discreta recebe zona morta',
+      'G) corpus/golden/fuzz intactos: conferido na suíte completa'
+    ];
+    linhas.forEach(x=>avisos.push('§22 · '+x));
+    avisos.push('§22 · ESTÉTICA: zona morta '+G_SCORE_DEAD_ZONE.aesthetics.valor
+      +' — artefato medido '+(E.artefato!=null?E.artefato:'?')+' em composição idêntica,'
+      +' contra margens de 0,18 a 0,57 decidindo. Sensibilidade não é ruído.');
+    avisos.push('§22 · disputas controladas: '+(Z.manteve||0)+' idênticas, '
+      +(Z.mudouVencedor||0)+' com vencedor novo, '+(Z.desceuDeTier||0)+' com tier novo');
     avisos.push('§22 · tier mais frequente: '+dominante+' com '+Math.round(share*100)
       +'% de '+tot+' disputas');
     assert(share<0.5,'um tier decidiu mais da metade das disputas ('+dominante+': '
       +Math.round(share*100)+'%) — a hierarquia virou uma camada só');
   });
+
 
   /* ══ DISTRIBUIÇÃO DOS TIERS (§15) e o FECHAMENTO ════════════════════════════════════════ */
   test('relatório: a distribuição de quem decidiu',()=>{

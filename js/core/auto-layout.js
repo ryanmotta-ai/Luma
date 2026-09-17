@@ -5138,7 +5138,9 @@ function gShadowLayoutSearch(layers, dados, canvas, opts){
           grupo: x.profile ? x.profile.observabilidade.adaptiveGroupRatio : null
         }))
       } : { acoes:null, wonBy:null, razoes:esc.explanation.reasons,
-            avaliados:esc.diagnostics.avaliados, descartados:esc.diagnostics.descartados, top:[] };
+            avaliados:esc.diagnostics.avaliados, descartados:esc.diagnostics.descartados,
+            porSeguranca:esc.diagnostics.porSeguranca, porContrato:esc.diagnostics.porContrato,
+            contratoViolado:[...new Set(esc.diagnostics.contratoViolado)].slice(0, 6), top:[] };
     }
     // O que sobrou no melhor ramo parcial: o retrato do que a busca não conseguiu apagar.
     const melhor = r.partial[r.partial.length - 1] || null;
@@ -5356,6 +5358,15 @@ function gLayoutAuthoredDamage(base, candidato, ctx){
 function gLayoutChangeCost(cand, camadasBase, camadasFinais){
   const idxB = new Map((camadasBase || []).map(l => [l.id, l]));
   let movidos = 0, distancia = 0, reducaoFonte = 0, reducaoEntrelinha = 0, tracking = 0;
+  /* DOIS TRACKINGS, E ELES NÃO CUSTAM A MESMA COISA (§9 da Fase 6.6):
+     · AUTORAL — o designer escreveu `letterSpacing` no PSD. Mexer nisso é desfazer decisão de
+       quem desenhou, e por isso conta na INTENÇÃO AUTORAL.
+     · DO MOTOR — o render soma 2% do corpo em fonte display (≥900), e o degrau 3.7 da escada
+       devolve o que ele mesmo somou (`_trackApertado`). Devolver tracking que o motor pôs não
+       desfaz intenção nenhuma: é custo de ALTERAÇÃO.
+     A régua de "quem escreveu" já existe e não se reinventa aqui: `letterSpacing` presente na
+     BASE sem o carimbo `_trackApertado` é do designer. */
+  let trackingAutoral = 0, trackingDoMotor = 0;
   const mexidos = new Set();
   (camadasFinais || []).forEach(l => {
     const b = idxB.get(l.id);
@@ -5370,6 +5381,8 @@ function gLayoutChangeCost(cand, camadasBase, camadasFinais){
     if(lhB < lhA - 0.001){ reducaoEntrelinha += (lhA - lhB) / Math.max(0.01, lhA); mexidos.add(l.id); }
     if((l.letterSpacing == null ? null : l.letterSpacing) !== (b.letterSpacing == null ? null : b.letterSpacing)){
       tracking++; mexidos.add(l.id);
+      if(b.letterSpacing != null && !b._trackApertado) trackingAutoral++;
+      else trackingDoMotor++;
     }
   });
   const acoes = (cand && cand.actions) || [];
@@ -5381,6 +5394,8 @@ function gLayoutChangeCost(cand, camadasBase, camadasFinais){
     reducaoFonte: Math.round(reducaoFonte * 1000) / 1000,
     reducaoEntrelinha: Math.round(reducaoEntrelinha * 1000) / 1000,
     mudancasDeTracking: tracking,
+    trackingAutoral: trackingAutoral,
+    trackingDoMotor: trackingDoMotor,
     placasRedimensionadas: conta('resize-container'),
     componentesEscalados: conta('scale-component'),
     acoes: acoes.length,
@@ -5449,6 +5464,9 @@ function gLayoutScoreProfileState(camadas, ctx, opts){
                            depth:0, searchMode:'normal', actions:[], scaleGroupIds:[] };
   const base = o.base || camadas;
   const seg = o.safety || gLayoutStateSafety(camadas, ctx);
+  /* O CONTRATO DO CANDIDATO (§20.2) — a outra camada de segurança, com nome próprio. */
+  const contrato = gLayoutCandidateContract(camadas, ctx,
+    { base:o.base || camadas, actions:cand.actions, searchMode:cand.searchMode });
   const nota = (typeof gScoreComposition === 'function')
     ? gScoreComposition(camadas, { canvas:ctx.canvas }) : { itens:{} };
   const diffs = _gScoreDiffs(ctx, base, camadas, cand.settledSignature || cand.signature);
@@ -5477,6 +5495,9 @@ function gLayoutScoreProfileState(camadas, ctx, opts){
     id: cand.id, signature: cand.signature, settledSignature: cand.settledSignature || null,
     depth: cand.depth, searchMode: cand.searchMode,
     actions: (cand.actions || []).map(a => a.id),
+    /* ⚠ DUAS CAMADAS, DOIS NOMES. `safety` é o PRODUTO (`gLayoutCamadaReprovada`);
+       `contract` é o que o GERADOR promete. Um candidato só compete se os dois passarem. */
+    contract: { ok:contrato.ok, violacoes:contrato.violacoes },
     safety: { seguro:seg.seguro, reprovadas:seg.reprovadas, problemas:seg.problemas,
               margemBorda: isFinite(margemBorda) ? Math.round(margemBorda) : null,
               margemLegibilidade: isFinite(margemLegibilidade) ? Math.round(margemLegibilidade) : null,
@@ -5485,7 +5506,8 @@ function gLayoutScoreProfileState(camadas, ctx, opts){
                  hierarquiaComprimida:sem.hierarquiaComprimida, degraus:sem.degraus,
                  hierarquia:sem.hierarquia,
                  penalDaNota:_gScoreDaCamada(nota.itens, 'semantics') },
-    authoredIntent: Object.assign({ penalDaNota:_gScoreDaCamada(nota.itens, 'authored-intent') }, aut),
+    authoredIntent: Object.assign({ penalDaNota:_gScoreDaCamada(nota.itens, 'authored-intent'),
+                                   trackingAutoralPerdido:custo.trackingAutoral || 0 }, aut),
     mode: { emergency: !!emergencia, acoesDeEmergencia:custo.acoesDeEmergencia,
             profundidade:cand.depth },
     aesthetics: { score:_gScoreDaCamada(nota.itens, 'aesthetics'), itens:nota.itens,
@@ -5505,7 +5527,10 @@ function gLayoutScoreProfileState(camadas, ctx, opts){
     sem.violacoes.length,                                           // semantics — violação DURA
     sem.hierarquiaComprimida,                                       // semantics — compressão
     aut.relacoesAutoraisPerdidas.length + aut.componentesPerdidos,  // intenção — relação perdida
-    aut.alinhamentosPerdidos + aut.componentesAlterados + (aut.assinaturaVisualMudou ? 1 : 0),
+    /* + TRACKING AUTORAL PERDIDO (§8/§9 da Fase 6.6): `letterSpacing` que o designer escreveu
+       e a solução desfez é composição autoral alterada, como um alinhamento que se soltou. */
+    aut.alinhamentosPerdidos + aut.componentesAlterados + (aut.assinaturaVisualMudou ? 1 : 0)
+      + (custo.trackingAutoral || 0),
     emergencia,                                                     // mode
     perfil.aesthetics.score,                                        // aesthetics
     perfil.alteration.score                                         // alteration
@@ -5513,6 +5538,10 @@ function gLayoutScoreProfileState(camadas, ctx, opts){
   /* O nome da camada de cada posição — é o que torna a decisão EXPLICÁVEL sem adivinhação. */
   perfil.vectorCamadas = ['safety', 'semantics', 'semantics', 'authored-intent',
                           'authored-intent', 'mode', 'aesthetics', 'alteration'];
+  /* AS ZONAS MORTAS VIAJAM NO PERFIL porque o comparador é chamado com dois perfis e nada mais.
+     Elas saem da BASE, então são idênticas para todos os candidatos da mesma decisão — o que
+     é exatamente o que impede a zona morta de depender de candidato ou de ordem. */
+  perfil.deadZone = gLayoutDeadZones(base, ctx);
   return perfil;
 }
 
@@ -5531,18 +5560,33 @@ const G_SCORE_VETOR_MOTIVO = [
  *
  * @returns {number} <0 se `a` vence, >0 se `b` vence, 0 se equivalentes em todos os critérios
  */
-function gCompareLayoutCandidates(a, b){
+function gCompareLayoutCandidates(a, b, opts){
   const va = (a && a.vector) || [], vb = (b && b.vector) || [];
   const n = Math.max(va.length, vb.length);
+  /* ── ZONA MORTA PERCEPTUAL (§20, Fase 6.6) ── só nas posições contínuas, e só onde a
+     resolução da métrica foi MEDIDA. Diferença abaixo dela é empate: a decisão desce de
+     camada em vez de ser tirada no ruído. `opts.semDeadZone` existe para a auditoria comparar
+     o antes e o depois com UM comparador só. */
+  const zonas = (opts && opts.zonas) || ((opts && opts.semDeadZone) ? null : _gZonasDaComparacao(a, b));
   for(let i = 0; i < n; i++){
     const x = va[i] || 0, y = vb[i] || 0;
-    if(Math.abs(x - y) > 1e-9) return x < y ? -1 : 1;
+    const nome = G_SCORE_VETOR_ZONA[i];
+    const z = (zonas && nome && zonas[nome]) || 0;
+    if(Math.abs(x - y) > Math.max(1e-9, z)) return x < y ? -1 : 1;
   }
   /* ── DESEMPATE DETERMINÍSTICO (§18) ── menos alteração, menos ações, menor profundidade,
      assinatura. A ordem em que os candidatos entraram no array NUNCA decide. */
   const ca = (a && a.alteration) || {}, cb = (b && b.alteration) || {};
   if((ca.camadasAlteradas || 0) !== (cb.camadasAlteradas || 0))
     return (ca.camadasAlteradas || 0) - (cb.camadasAlteradas || 0);
+  /* TRACKING DO MOTOR (§8 da Fase 6.6). Dois candidatos que só diferem no tracking que a
+     ESCADA mexeu empatavam no vetor inteiro e caíam no desempate por ASSINATURA — decisão
+     tirada no hash. Aqui ele é o que é: custo de alteração, sem peso inventado e sem entrar
+     na nota legada. O tracking AUTORAL não passa por aqui: ele é intenção do designer e já
+     conta na posição 4 do vetor, e contá-lo duas vezes seria cobrar o mesmo dano em duas
+     camadas. */
+  if((ca.trackingDoMotor || 0) !== (cb.trackingDoMotor || 0))
+    return (ca.trackingDoMotor || 0) - (cb.trackingDoMotor || 0);
   if((ca.acoes || 0) !== (cb.acoes || 0)) return (ca.acoes || 0) - (cb.acoes || 0);
   if((a.depth || 0) !== (b.depth || 0)) return (a.depth || 0) - (b.depth || 0);
   return (a.signature || '') < (b.signature || '') ? -1 : (a.signature || '') > (b.signature || '') ? 1 : 0;
@@ -5551,8 +5595,8 @@ function gCompareLayoutCandidates(a, b){
 /* Em que posição do vetor `a` passou na frente de `b` — o "por que venceu". Sai do TRAÇO
    (§19.4), não de uma segunda varredura do vetor: a explicação tem que corresponder ao
    comparador, e duas implementações do mesmo laço é exatamente como elas se soltam. */
-function _gScorePorQue(a, b){
-  const tr = gLayoutDecisionTrace(a, b);
+function _gScorePorQue(a, b, opts){
+  const tr = gLayoutDecisionTrace(a, b, opts);
   const t = tr.parouEm >= 0 ? tr.tiers[tr.tiers.length - 1] : null;
   return t ? { posicao:t.posicao, camada:t.camada, criterio:t.criterio,
                vencedor:t.vencedor, perdedor:t.perdedor, trace:tr }
@@ -5575,7 +5619,8 @@ function _gScorePorQue(a, b){
 function gSelectLayoutCandidate(resultado, ctx, opts){
   const o = opts || {};
   const r = resultado || {};
-  const diag = { avaliados:0, descartados:0, ms:0, originalFirst:false };
+  const diag = { avaliados:0, descartados:0, porSeguranca:0, porContrato:0,
+                 contratoViolado:[], ms:0, originalFirst:false };
   const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
   const solved = (r.solved || []).filter(c => c && c.status === 'solved');
   if(!solved.length){
@@ -5600,7 +5645,16 @@ function gSelectLayoutCandidate(resultado, ctx, opts){
     /* ⛔ O PORTÃO OUTRA VEZ, e de propósito. Um candidato que chegou aqui já passou pela §17,
        mas o perfil recalcula a segurança sobre o estado assentado — se divergir, ele sai da
        disputa em vez de ser ranqueado. Rede dupla no lugar onde o erro é mais caro. */
-    if(!p.safety.seguro){ diag.descartados++; return; }
+    if(!p.safety.seguro){ diag.descartados++; diag.porSeguranca++; return; }
+    /* ⛔ O SEGUNDO PORTÃO (§20.2, Fase 6.6): CANDIDATE CONTRACT. `gLayoutCamadaReprovada`
+       responde por arte publicada e não reprova corpo abaixo do piso nem camada travada que se
+       mexeu — hoje quem impede isso é o gerador. Defesa em profundidade é conferir o que se
+       assume, e o nome fica separado de propósito: isto não é o veredito do produto. */
+    if(!p.contract.ok){
+      diag.descartados++; diag.porContrato++;
+      p.contract.violacoes.forEach(v => diag.contratoViolado.push(v.tipo + ':' + v.id));
+      return;
+    }
     perfis.push({ candidate:c, profile:p });
   });
   diag.avaliados = perfis.length;
@@ -5609,9 +5663,13 @@ function gSelectLayoutCandidate(resultado, ctx, opts){
     return { winner:null, ranked:[], diagnostics:diag,
              explanation:{ wonBy:null, reasons:['todos os candidatos resolvidos foram reprovados pelo produto'] } };
   }
-  perfis.sort((x, y) => gCompareLayoutCandidates(x.profile, y.profile));
+  /* `semDeadZone` existe para UMA coisa: a auditoria da Fase 6.6 comparar o antes e o depois
+     com o MESMO comparador, em vez de guardar uma cópia do comparador antigo. Fora dela,
+     ninguém passa esta opção. */
+  const _cmpOpts = o.semDeadZone ? { semDeadZone:true } : undefined;
+  perfis.sort((x, y) => gCompareLayoutCandidates(x.profile, y.profile, _cmpOpts));
   const vencedor = perfis[0], segundo = perfis[1] || null;
-  const porque = segundo ? _gScorePorQue(vencedor.profile, segundo.profile) : null;
+  const porque = segundo ? _gScorePorQue(vencedor.profile, segundo.profile, _cmpOpts) : null;
   const razoes = [];
   if(segundo){
     if(porque.posicao < 0) razoes.push('empate em todos os critérios: decidido pelo desempate determinístico');
@@ -5846,16 +5904,29 @@ function gLayoutStateSafety(camadas, ctx){
    A margem (§17) é a distância entre #1 e #2 DENTRO do critério que decidiu. Não é confiança e
    não muda decisão nenhuma nesta fase: é o que vai permitir, depois, distinguir vencedor óbvio
    de empate quase perfeito. */
-function gLayoutDecisionTrace(a, b){
+function gLayoutDecisionTrace(a, b, opts){
   const va = (a && a.vector) || [], vb = (b && b.vector) || [];
+  /* AS MESMAS ZONAS QUE O COMPARADOR USA — e por isso o traço não pode calcular as suas. */
+  const zonas = (opts && opts.zonas)
+    || ((opts && opts.semDeadZone) ? null : _gZonasDaComparacao(a, b));
   const tiers = []; let parou = null;
   for(let i = 0; i < Math.max(va.length, vb.length); i++){
     const x = va[i] || 0, y = vb[i] || 0;
-    const difere = Math.abs(x - y) > 1e-9;
+    const nome = G_SCORE_VETOR_ZONA[i];
+    const z = (zonas && nome && zonas[nome]) || 0;
+    const bruto = Math.abs(x - y);
+    const difere = bruto > Math.max(1e-9, z);
     const t = { posicao:i, camada:(a.vectorCamadas && a.vectorCamadas[i]) || null,
                 criterio:G_SCORE_VETOR_MOTIVO[i],
                 vencedor:Math.round(x * 1000) / 1000, perdedor:Math.round(y * 1000) / 1000,
-                resultado: difere ? 'decidiu' : 'empate' };
+                /* §18: TRÊS números, e eles não são sinônimos. `rawDelta` é o que a métrica
+                   mediu; `deadZone` é a resolução dela; `effectiveDelta` é o que sobrou para
+                   decidir — zero quando a diferença não passa da resolução. */
+                rawDelta: Math.round(bruto * 1000) / 1000,
+                deadZone: Math.round(z * 1000) / 1000,
+                effectiveDelta: difere ? Math.round(bruto * 1000) / 1000 : 0,
+                resultado: difere ? 'decidiu'
+                  : (bruto > 1e-9 && z > 0 ? 'empate-perceptual' : 'empate') };
     /* O detalhe da compressão: é o número que a §16 quer ver na explicação, e ele só existe
        nesta posição do vetor. */
     if(i === 2){
@@ -5869,12 +5940,16 @@ function gLayoutDecisionTrace(a, b){
   let desempatePor = null;
   if(!parou){
     if((ca.camadasAlteradas || 0) !== (cb.camadasAlteradas || 0)) desempatePor = 'camadas alteradas';
+    else if((ca.trackingDoMotor || 0) !== (cb.trackingDoMotor || 0)) desempatePor = 'tracking do motor';
     else if((ca.acoes || 0) !== (cb.acoes || 0)) desempatePor = 'número de ações';
     else if((a.depth || 0) !== (b.depth || 0)) desempatePor = 'profundidade';
     else desempatePor = 'assinatura';
   }
   const delta = parou ? Math.abs(parou.vencedor - parou.perdedor) : 0;
   const escala = parou ? Math.max(Math.abs(parou.vencedor), Math.abs(parou.perdedor)) : 0;
+  /* Quantos critérios contínuos empataram POR RESOLUÇÃO, não por igualdade: é o número que diz
+     se a decisão desceu de camada porque a de cima não sabia responder. */
+  const perceptuais = tiers.filter(t => t.resultado === 'empate-perceptual');
   return {
     tiers: tiers,
     parouEm: parou ? parou.posicao : -1,
@@ -5883,11 +5958,20 @@ function gLayoutDecisionTrace(a, b){
     /* A MARGEM DE DECISÃO (§17). `deltaRelativo` existe porque 0,02 de compressão e 0,02 de
        estética não são a mesma distância: uma é 2% de uma escala [0,1], a outra é ruído numa
        penalidade que chega a 400. */
+    empatesPerceptuais: perceptuais.map(t => ({ criterio:t.criterio, rawDelta:t.rawDelta,
+                                                deadZone:t.deadZone })),
     margem: { posicao: parou ? parou.posicao : -1, camada: parou ? parou.camada : 'desempate',
               criterio: parou ? parou.criterio : 'desempate determinístico',
               delta: Math.round(delta * 1000) / 1000,
               deltaRelativo: escala > 0 ? Math.round((delta / escala) * 1000) / 1000 : 0,
-              empatesAcima: tiers.filter(t => t.resultado === 'empate').length,
+              /* §18 · os três, também aqui. `delta` continua sendo o efetivo, para não quebrar
+                 quem já lia a margem da Fase 6.5. ⛔ Nada disto é confiança: é diagnóstico. */
+              rawDelta: parou ? parou.rawDelta : 0,
+              effectiveDelta: parou ? parou.effectiveDelta : 0,
+              deadZone: parou ? parou.deadZone : 0,
+              empatesAcima: tiers.filter(t => t.resultado === 'empate'
+                                          || t.resultado === 'empate-perceptual').length,
+              empatesPerceptuaisAcima: perceptuais.length,
               desempate: !parou, desempatePor:desempatePor }
   };
 }
@@ -5911,7 +5995,12 @@ function gExplainLayoutDecision(esc){
   const tr = esc.explanation.trace;
   if(!tr){ linhas.push('  único candidato seguro'); return linhas; }
   tr.tiers.forEach(t => {
-    if(t.resultado === 'empate'){
+    if(t.resultado === 'empate-perceptual'){
+      /* §17: a explicação precisa mostrar POR QUE o comparador ignorou uma diferença que
+         existe. Dizer "empate" e esconder o 0,018 seria mentir por omissão. */
+      linhas.push('  ' + t.criterio + ': ' + t.vencedor + ' contra ' + t.perdedor
+        + ' · delta ' + t.rawDelta + ' ≤ zona morta ' + t.deadZone + ' → EMPATE PERCEPTUAL');
+    }else if(t.resultado === 'empate'){
       linhas.push('  ' + t.criterio + ': empate (' + t.vencedor + ')');
     }else{
       linhas.push('  ' + t.criterio + ': ' + t.vencedor + ' contra ' + t.perdedor + ' → DECIDIU');
@@ -5927,7 +6016,8 @@ function gExplainLayoutDecision(esc){
       ? ' — ' + restantes.join(', ') + (restantes.length > 1 ? ' não participaram' : ' não participou')
       : ''));
     linhas.push('  margem no critério decisor: ' + tr.margem.delta
-      + ' (' + Math.round(tr.margem.deltaRelativo * 100) + '% da escala)');
+      + ' (' + Math.round(tr.margem.deltaRelativo * 100) + '% da escala)'
+      + (tr.margem.deadZone ? ' · zona morta ' + tr.margem.deadZone : ''));
   }else{
     linhas.push('  empate em TODOS os critérios — decidido por ' + tr.margem.desempatePor);
   }
@@ -5991,4 +6081,193 @@ function gAuditLegacyRoleImpact(layers, dados, canvas, opts){
                     corrigido: corrigido.map(x => x.politica + ':' + x.score.penal) };
   }catch(e){ out.erro = String(e && e.message || e); }
   return out;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   20. ZONAS MORTAS PERCEPTUAIS E CONTRATO DO CANDIDATO (Fase 6.6)
+   ════════════════════════════════════════════════════════════════════
+   A §19 mediu duas decisões REAIS do corpus escolhidas por compressão com margens de 0,012 e
+   0,020, contra um ruído de quantização de até 0,302 nos conjuntos de fonte pequenos. O sistema
+   é determinístico e mesmo assim escolhe por diferença que ninguém vê.
+
+   ⛔ NÃO É SUAVIZAÇÃO. Suavizar é mudar o valor da métrica. Aqui o valor não muda: o que muda é
+   o comparador reconhecer que a métrica tem RESOLUÇÃO FINITA, e que abaixo dela "A tem 0,112 e
+   B tem 0,094" não é informação — é ruído com três casas decimais. Abaixo da resolução, EMPATE,
+   e a decisão desce para a camada seguinte, que é comportamento definido.
+
+   ⛔ E NÃO É HISTERESE. Nada aqui olha decisão anterior, relógio ou aleatório: a zona morta sai
+   da composição AUTORADA, é a mesma para todos os candidatos da decisão e a mesma entrada
+   devolve o mesmo vencedor, sempre.
+
+   ⛔ E NÃO MUDA PRODUÇÃO. `gApplyRelativeAnchors`, `gLayoutEscolherAlternativa` e
+   `gLayoutCamadaReprovada` continuam sem conhecer esta seção. */
+
+/* ── 20.1 A ZONA MORTA DE CADA CRITÉRIO ───────────────────────────────────────────────────
+   ⛔ NÃO EXISTE EPSILON GLOBAL. Cada métrica tem a sua resolução, e medir mostrou que para a
+   compressão nem uma constante serve: o ruído varia 11× entre conjuntos de fonte reais
+   (0,027 no display 96/84/38/20 contra 0,302 no legal 20/18/14). Uma constante que cobrisse o
+   rodapé deixaria a métrica muda no título.
+
+   A CAUSA É ARITMÉTICA, não estatística. O motor não guarda corpo fracionário —
+   `Math.max(piso, Math.floor(atual * fator))` em `00-config.js:3350` e `auto-layout.js:4071`.
+   A quantização erra ±1px em ABSOLUTO, logo o erro RELATIVO de um corpo é 1/corpo; e a
+   preservação divide por ln(razaoAutoral). Daí a resolução de um par:
+
+       resolução(a,b) ≈ passo · (1/a + 1/b) / |ln(rA)|
+
+   Corpo pequeno e razão rente explodem os dois termos juntos — é por isso que 20/18 não resolve
+   nada e 120/24 resolve tudo (ruído medido nesse conjunto: exatamente 0).
+
+   O `fator` é o único número que sai de calibragem, e sai com regra declarada: o menor que
+   cobre o PIOR ruído medido em todos os conjuntos da grade (8 conjuntos × 50 escalas × 3
+   quantizações = 1.200 amostras, em `tests/scoring-cases.js`). Há teste que reprova se alguém
+   baixá-lo sem refazer a medição. */
+const G_SCORE_DEAD_ZONE = {
+  'hierarchy-compression': {
+    tipo:'derivada',
+    passo: 1,        // a quantização do motor: 1px
+    /* FATOR 0,70 — a regra, declarada: o menor múltiplo de 0,05 que cobre o PIOR ruído medido
+       em toda a grade (o pior conjunto precisa de 0,65; ver o teste de calibração). Ele é
+       menor que 1 por um motivo físico, não estatístico: (1/a + 1/b) é o pior caso TEÓRICO,
+       com os dois corpos errando um pixel inteiro em sentidos opostos ao mesmo tempo. A grade
+       mostra que isso não acontece — o observado para em 0,65 do teto teórico. Adotar o teto
+       inteiro muraria mais sinal do que o necessário; adotar menos deixaria ruído decidir. */
+    fator: 0.70,
+    /* TETO: acima disto a métrica não resolve NADA naquela arte. Continuar com meia resolução
+       seria fingir; declarar empate perceptual sempre e descer de camada é o honesto. */
+    teto: 0.5
+  },
+  /* ESTÉTICA: ZERO, e é resultado de medição, não omissão. A sensibilidade da nota estética a
+     perturbações geométricas de 1px foi medida (grade em `tests/scoring-cases.js`): o maior
+     |Δ| é ~0,01, e os itens individuais ficam abaixo disso (densidade 0,008, equilíbrio 0,007,
+     respiro/linhas/editorial exatamente 0 fora de mudança de quebra). As margens estéticas que
+     a Fase 6.5 observou decidindo disputas são de 0,18 a 0,57 — entre 18× e 57× o ruído.
+     Margem de estética é SINAL. Criar zona morta aqui seria apagar decisão boa.
+     ⚠ Uma exceção fica registrada: quando 1px muda a CONTAGEM DE LINHAS, a nota pula ~9
+     pontos. Isso não é ruído da medida — é a arte mudando de verdade, e a métrica acertando. */
+  'aesthetics': { tipo:'constante', valor: 0 }
+};
+
+/* Que posição do vetor recebe zona morta. ⛔ As outras NÃO recebem, e a razão é a mesma em
+   todas: segurança é portão, violação dura é contagem discreta de fatos, modo é booleano,
+   relação perdida e composição alterada são contagens de estrutura. "Meia violação" e "meio
+   componente perdido" não existem — dar tolerância a um inteiro é apagar o fato. */
+const G_SCORE_VETOR_ZONA = [null, null, 'hierarchy-compression', null, null, null,
+                            'aesthetics', null];
+
+/** A RESOLUÇÃO da compressão para UMA composição autorada. Depende só do desenho — nunca do
+ *  candidato, nunca da ordem, nunca do relógio. */
+function gLayoutCompressionResolution(base, ctx, fatorAux){
+  const cfg = G_SCORE_DEAD_ZONE['hierarchy-compression'];
+  const f = (fatorAux != null) ? fatorAux : cfg.fator;
+  /* A base contra ela mesma: devolve os pares que o DESENHO declarou, com as razões autorais.
+     É a mesma função da §19.2 — a lista de pares medíveis não pode ter duas verdades. */
+  const rel = gLayoutHierarchyRelation(base, base, ctx);
+  const medidos = rel.pares.filter(p => p.preservacao != null);
+  if(!medidos.length) return 0;
+  let soma = 0;
+  medidos.forEach(p => {
+    const ln = Math.abs(Math.log(p.razaoAutoral));
+    if(ln < 1e-6){ soma += 1; return; }             // razão sem contraste: não resolve nada
+    soma += Math.min(1, cfg.passo * (1 / Math.max(1, p.corpoAutoralDe)
+                                   + 1 / Math.max(1, p.corpoAutoralPara)) / ln);
+  });
+  return Math.min(cfg.teto, f * soma / medidos.length);
+}
+
+/** As zonas mortas de UMA decisão. Memorizada no contexto: a base é a mesma para todos os
+ *  candidatos, então calcular por candidato seria pagar a mesma conta N vezes. */
+function gLayoutDeadZones(base, ctx){
+  if(ctx && ctx._deadZone) return ctx._deadZone;
+  const z = { 'hierarchy-compression': gLayoutCompressionResolution(base, ctx),
+              'aesthetics': G_SCORE_DEAD_ZONE.aesthetics.valor || 0 };
+  if(ctx) ctx._deadZone = z;
+  return z;
+}
+
+/* As zonas de uma COMPARAÇÃO. Cada perfil carrega as suas (iguais por construção — mesma base);
+   o MÁXIMO entre as duas é o que mantém a comparação simétrica mesmo se alguém montar perfis
+   de bases diferentes, e antissimetria é o que impede a ordenação de depender da ordem. */
+function _gZonasDaComparacao(a, b){
+  const za = (a && a.deadZone) || null, zb = (b && b.deadZone) || null;
+  if(!za && !zb) return null;
+  const out = {};
+  Object.keys(G_SCORE_DEAD_ZONE).forEach(k => {
+    out[k] = Math.max((za && za[k]) || 0, (zb && zb[k]) || 0);
+  });
+  return out;
+}
+
+/* ── 20.2 O CONTRATO DO CANDIDATO ─────────────────────────────────────────────────────────
+   ⚠ SÃO DUAS CAMADAS DE SEGURANÇA, COM NOMES DIFERENTES DE PROPÓSITO:
+
+     PRODUCT SAFETY   `gLayoutCamadaReprovada` — o veredito que o checklist e a publicação
+                      usam. É o produto falando. Não se toca nele aqui.
+     CANDIDATE CONTRACT  o que o GERADOR promete e que ninguém conferia: corpo acima do piso
+                      operacional e camada protegida intacta. Hoje isso vale porque as ações
+                      nunca produzem o contrário — é verdade, e não é um portão. Defesa em
+                      profundidade quer dizer conferir o que se assume.
+
+   A §19 provou a lacuna: um estado com título em 6px passa por `gLayoutCamadaReprovada` com
+   `seguro=true` e `margemLegibilidade=-2`. O piso era medido e não decidia nada.
+
+   ⛔ Isto NÃO é o veredito legado e não vira um. Ele responde por arte publicada; este responde
+   por candidato de uma busca. Misturar os dois nomes seria dar ao produto uma regra que ele
+   nunca teve. */
+function gLayoutCandidateContract(camadas, ctx, opts){
+  const o = opts || {};
+  const base = o.base || camadas;
+  const idxB = new Map((base || []).map(l => [l.id, l]));
+  /* As ações do candidato dizem em quem ele tinha autorização para mexer. Camada protegida
+     nunca aparece aqui — o gerador não a oferece —, e é justamente isso que o contrato confere
+     em vez de assumir. */
+  const autorizados = new Set();
+  (o.actions || []).forEach(a => {
+    if(!a) return;
+    if(a.targetId) autorizados.add(a.targetId);
+    const ids = (a.params && (a.params.ids || a.params.membros)) || null;
+    if(Array.isArray(ids)) ids.forEach(id => autorizados.add(id));
+  });
+  const violacoes = [];
+  (camadas || []).forEach(l => {
+    if(!l) return;
+    const visivel = (typeof _gLayoutVisivel !== 'function') || _gLayoutVisivel(l);
+    /* ── 1. PISO DE LEGIBILIDADE ── o corpo operacional que o motor promete nunca cruzar.
+       ⚠ O PISO DO CONTRATO É O DE EMERGÊNCIA (`gLayoutPisoFonte(l, true)` = max(8, legível)),
+       não o normal. A primeira versão desta função usou o normal (50% do corpo autorado) e
+       reprovou 7 candidatos LEGÍTIMOS do corpus real de uma vez: o degrau proporcional da
+       escada desce abaixo dos 50% de propósito, e é ele que o `scale-component` executa.
+       Os 50% são POLÍTICA do degrau normal — o quanto a escada se contém antes de apelar. O
+       contrato responde por outra coisa: o limite que NENHUM modo cruza. Confundir política
+       com contrato transforma defesa em profundidade em portão quebrado. */
+    if(l.type === 'text' && visivel && typeof gLayoutPisoFonte === 'function'){
+      const piso = gLayoutPisoFonte(l, true);
+      const corpo = gLayoutCorpoAtual(l);
+      if(corpo < piso - 0.5)
+        violacoes.push({ tipo:'abaixo-do-piso-de-legibilidade', id:l.id,
+                         corpo:Math.round(corpo * 10) / 10, piso:Math.round(piso * 10) / 10 });
+    }
+    /* ── 2. INTEGRIDADE DA PROTEGIDA ── travada pelo designer, logo imóvel.
+       ⚠ SÓ A MARCA EXPLÍCITA VALE: `locked`, `lockPosition` e o contrato antigo
+       `layoutRole === 'protected'` — a MESMA régua que o motor usa (`00-config.js:2677`). O
+       papel `protegida` da Gramática NÃO serve aqui: ele é INFERIDO do nome (qualquer camada
+       chamada "Selo", "Logo" ou "Carimbo" ganha o papel), e no corpus real isso reprovou um
+       campo dinâmico chamado "Selo" que a corrente move — legitimamente. Papel inferido é bom
+       para julgar composição; para dizer "isto não pode se mexer", só a declaração serve. */
+    const explicitamenteProtegida = !!(l.locked || l.lockPosition || l.layoutRole === 'protected');
+    if(!explicitamenteProtegida) return;
+    const b = idxB.get(l.id);
+    if(!b || autorizados.has(l.id)) return;
+    const moveu = Math.abs((l.x || 0) - (b.x || 0)) + Math.abs((l.y || 0) - (b.y || 0)) > 0.5;
+    const redim = Math.abs((l.w || 0) - (b.w || 0)) + Math.abs((l.h || 0) - (b.h || 0)) > 0.5;
+    const corpo = l.type === 'text'
+      && Math.abs(gLayoutCorpoAtual(l) - gLayoutCorpoAtual(b)) > 0.5;
+    if(moveu || redim || corpo)
+      violacoes.push({ tipo:'protegida-alterada', id:l.id, moveu:moveu, redimensionou:redim,
+                       corpo:corpo });
+  });
+  violacoes.sort((x, y) => (x.tipo + x.id) < (y.tipo + y.id) ? -1 : 1);
+  return { ok: !violacoes.length, violacoes:violacoes,
+           /* O nome importa: quem lê um diagnóstico precisa saber QUAL das duas camadas falou. */
+           camada:'candidate-contract' };
 }
