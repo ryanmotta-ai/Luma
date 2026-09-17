@@ -6271,3 +6271,366 @@ function gLayoutCandidateContract(camadas, ctx, opts){
            /* O nome importa: quem lê um diagnóstico precisa saber QUAL das duas camadas falou. */
            camada:'candidate-contract' };
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   21. SHADOW VALIDATION (Fase 7) — observar em massa, sem dar autoridade
+   ════════════════════════════════════════════════════════════════════
+   As fases 5 a 6.6 construíram e calibraram. Esta não inventa arquitetura: ela OLHA. Para cada
+   execução elegível, o pipeline novo roda inteiro ao lado do solver — e o que o franqueado
+   baixa continua saindo do solver, byte a byte.
+
+   ⛔ NENHUM WINNER GANHA AUTORIDADE AQUI. `gApplyRelativeAnchors` e `gLayoutEscolherAlternativa`
+   seguem sem conhecer esta seção.
+
+   ⛔ E SHADOW NUNCA PODE BLOQUEAR. Toda a seção roda dentro de `try`, o solver legado é
+   executado PRIMEIRO e de forma independente, e qualquer exceção vira diagnóstico — nunca
+   interrompe a criação da arte. Há teste de injeção de falha para cada etapa. */
+
+/* Classes de tamanho, para orçamento de desempenho por porte de arte (§14). Os cortes saem do
+   que o corpus real tem: peça de campanha fica na casa de 5–15 camadas, PSD importado passa de
+   100 com facilidade. */
+function gShadowTemplateSize(n){ return n <= 20 ? 'small' : n <= 120 ? 'medium' : 'large'; }
+
+/* ── 21.1 EQUIVALÊNCIA — cinco níveis, não "igual/diferente" (§4) ─────────────────────────
+   Duas composições podem ser geometricamente diferentes e ainda dizer a mesma coisa. Comparar
+   pixel a pixel responderia "diferente" para uma solução que preserva a intenção melhor que a
+   do solver — e é justamente esse caso que esta fase precisa enxergar.
+
+   A ordem de avaliação é do mais grave para o mais benigno, e para na primeira que casar. */
+const G_SHADOW_EQUIV = ['safety-different', 'semantically-different', 'visually-different',
+                        'structurally-equivalent', 'exact'];
+
+function gShadowEquivalence(legado, novo, ctx, canvas){
+  if(!legado || !novo) return { nivel:'safety-different', motivo:'uma das composições não existe' };
+  const cv = canvas || (ctx && ctx.canvas) || { w:1080, h:1080 };
+  const reprovada = (ls) => (typeof gLayoutCamadaReprovada === 'function')
+    ? ls.some(l => l && gLayoutCamadaReprovada(l)) : false;
+  // ── 1. SEGURANÇA ── um entrega arte aprovada e o outro não: nada mais importa.
+  if(reprovada(legado) !== reprovada(novo))
+    return { nivel:'safety-different',
+             motivo: reprovada(legado) ? 'o legado reprova e o novo aprova'
+                                       : 'o novo reprova e o legado aprova' };
+  // ── 2. SEMÂNTICA ── a função dos elementos sobreviveu igual nos dois?
+  const gL = gCompileLayoutGrammar(legado, cv), gN = gCompileLayoutGrammar(novo, cv);
+  const cL = gCompileLayoutComponents(gL, gCompileCompositionGraph(gL));
+  const cN = gCompileLayoutComponents(gN, gCompileCompositionGraph(gN));
+  const estrut = gCompareLayoutStructure(gL, gN);
+  const comps = gCompareLayoutComponents(cL, cN);
+  const dano = gLayoutSemanticDamage(legado, novo, { _diffEstrutura:estrut, _diffComponentes:comps,
+    _compsCandidato:cN, components:cL, _no:new Map((gL.nodes || []).map(n => [n.id, n])),
+    _placa:ctx && ctx._placa });
+  if(dano.violacoes.length)
+    return { nivel:'semantically-different', motivo:dano.violacoes.map(v => v.tipo).join(','),
+             violacoes:dano.violacoes };
+  // ── 3. GEOMETRIA IDÊNTICA ── o caso mais comum e o mais fácil de provar.
+  const geo = (ls) => ls.filter(l => l && l.type === 'text').map(l => {
+    const r = (typeof gInkRect === 'function') ? gInkRect(l, l._fit) : l;
+    return l.id + ':' + Math.round(r.x) + ',' + Math.round(r.y) + ',' + Math.round(r.w) + ','
+         + Math.round(r.h) + '@' + Math.round(gLayoutCorpoAtual(l));
+  }).sort().join('|');
+  if(geo(legado) === geo(novo)) return { nivel:'exact', motivo:'mesma geometria e mesma tipografia' };
+  // ── 4. ESTRUTURA ── mudou a geometria, mas as relações da Gramática continuam as mesmas.
+  if(estrut.sameStructure && !comps.added.length && !comps.removed.length
+     && !comps.changed.length)
+    return { nivel:'structurally-equivalent',
+             motivo:'a geometria mudou e nenhuma relação nem componente mudou' };
+  return { nivel:'visually-different',
+           motivo:(estrut.relationsRemoved.length + ' relação(ões) a menos, '
+                 + estrut.relationsAdded.length + ' a mais, '
+                 + (comps.changed.length + comps.added.length + comps.removed.length)
+                 + ' componente(s) mexido(s)'),
+           relacoesPerdidas:estrut.relationsRemoved.map(r => r.tipo) };
+}
+
+/* ── 21.2 CONFIANÇA — não é a nota, e não é beleza (§5/§6) ────────────────────────────────
+   ⛔ O VETOR DE SCORING NÃO SERVE COMO CONFIANÇA. Ele responde "qual é a melhor composição
+   entre estas"; confiança responde outra pergunta: "quão segura é esta decisão para receber
+   autoridade?". Uma composição lindíssima escolhida por um fio, em modo de emergência, com
+   metade da arte descendo junto, é uma decisão FRÁGIL — e o vetor não sabe disso.
+
+   Os sinais são FATOS do processo, todos já medidos pelas fases anteriores. Nenhum deles é
+   estético, e nenhum é aprendido. */
+/* ⚠ O GRUPO ADAPTATIVO NÃO SE MEDE SÓ POR FRAÇÃO, e a corrida em massa é quem provou isso: em
+   arte real de 5 a 8 camadas, TODOS os 81 vencedores adaptados tinham grupo de 3 a 6 camadas
+   cobrindo de 43% a 83% da peça (p50 = 0,67). Um sinal que dispara em 100% de uma classe não
+   informa nada — ele estava medindo o tamanho da arte, não a qualidade da solução.
+   O dano real é quantas camadas foram efetivamente arrastadas, então o limiar principal é
+   ABSOLUTO e a fração entra como qualificador. Oito camadas é mais do que a maior arte do
+   corpus real inteira; trinta é o porte em que a Fase 5.95 viu 132 de 344 descendo juntas. */
+const G_SHADOW_CONF = {
+  grupoGrandeAbs: 8,   // grupo grande em termos absolutos: mais que uma arte pequena inteira
+  grupoMedioAbs:  5,   // com fração alta junto, já é boa parte da composição
+  grupoFracao:  0.50,
+  quaseEmpate: 3,      // candidatos empatados com o vencedor até o critério que decidiu
+  margemBaixa: 0.15    // fração da escala do critério decisor
+};
+
+function gShadowConfidence(rec){
+  const motivos = [], sinais = {};
+  // ── BLOQUEADO ── não há decisão a confiar.
+  if(rec.erro) return { tier:'BLOQUEADO', motivos:['exceção no pipeline: ' + rec.erro], sinais };
+  if(!rec.winner || !rec.winner.acoes)
+    return { tier:'BLOQUEADO', motivos:['nenhum candidato venceu'], sinais };
+  if(rec.winner.seguro === false)
+    return { tier:'BLOQUEADO', motivos:['o portão de segurança reprovou'], sinais };
+  if(rec.winner.contrato === false)
+    return { tier:'BLOQUEADO', motivos:['o Candidate Contract reprovou'], sinais };
+
+  let baixa = false, media = false;
+  // ── EMERGÊNCIA ── o piso tipográfico normal não bastou: é sacrifício, e sacrifício é risco.
+  sinais.emergencia = rec.winner.modo === 'emergency';
+  if(sinais.emergencia){ baixa = true; motivos.push('venceu em modo de emergência'); }
+  // ── GRUPO ADAPTATIVO ── quantidade da arte que precisou descer junto.
+  sinais.grupoRatio = rec.winner.grupoRatio || 0;
+  sinais.grupoSize = rec.winner.grupoSize || 0;
+  const _grupo = sinais.grupoSize + ' camadas / ' + Math.round(sinais.grupoRatio * 100) + '% da arte';
+  if(sinais.grupoSize >= G_SHADOW_CONF.grupoGrandeAbs){
+    baixa = true; motivos.push('grupo adaptativo de ' + _grupo);
+  }else if(sinais.grupoSize >= G_SHADOW_CONF.grupoMedioAbs
+           && sinais.grupoRatio >= G_SHADOW_CONF.grupoFracao){
+    media = true; motivos.push('grupo adaptativo de ' + _grupo);
+  }
+  // ── DIVERGÊNCIA DO LEGADO ── quanto mais longe do que o solver entrega, mais atenção.
+  sinais.equivalencia = rec.equivalencia;
+  if(rec.equivalencia === 'semantically-different'){
+    baixa = true; motivos.push('a solução nova tem violação semântica que o solver não tem');
+  }else if(rec.equivalencia === 'safety-different'){
+    /* ⚠ `safety-different` é AMBÍGUO e os dois lados são opostos: ou o novo resolve o que o
+       solver reprova (so-search, o caso que prova valor), ou o novo entrega o que o solver
+       aprova como quebrado — e este último nem chega aqui, porque o portão e o contrato o
+       barram antes. Então, com o legado reprovando, divergir é o trabalho dando certo. */
+    if(rec.legacy && rec.legacy.safe === false)
+      motivos.push('so-search: o solver reprova esta arte e a busca resolveu');
+    else { baixa = true; motivos.push('divergência de segurança contra o solver'); }
+  }else if(rec.equivalencia === 'visually-different'){
+    media = true; motivos.push('resultado visualmente diferente do solver');
+  }
+  /* ⛔ `structurally-equivalent` NÃO É RISCO. A §6 lista "estrutura preservada" entre os sinais
+     de ALTA, e é exatamente isso que esse nível significa: a geometria mudou e nenhuma relação
+     da Gramática nem componente mudou. Tratá-lo como divergência fazia ALTA virar sinônimo de
+     "a arte já cabia" — 192 de 192, com toda solução adaptada rebaixada por definição. */
+  // ── QUASE-EMPATE ── várias soluções indistinguíveis até o critério que decidiu.
+  sinais.quaseEmpatados = rec.winner.quaseEmpatados || 0;
+  if(sinais.quaseEmpatados >= G_SHADOW_CONF.quaseEmpate){
+    media = true; motivos.push(sinais.quaseEmpatados + ' candidatos empatados até o critério decisor');
+  }
+  // ── MARGEM ── decisão apertada DENTRO do critério que decidiu (já fora da zona morta).
+  sinais.margemRelativa = (rec.winner.margem && rec.winner.margem.deltaRelativo) || 0;
+  if(rec.winner.margem && !rec.winner.margem.desempate
+     && sinais.margemRelativa > 0 && sinais.margemRelativa < G_SHADOW_CONF.margemBaixa){
+    media = true; motivos.push('margem de ' + Math.round(sinais.margemRelativa * 100) + '% no critério decisor');
+  }
+  // ── EMPATE PERCEPTUAL ATRAVESSADO ── a decisão desceu de camada por falta de resolução.
+  sinais.empatesPerceptuais = (rec.winner.margem && rec.winner.margem.empatesPerceptuaisAcima) || 0;
+  if(sinais.empatesPerceptuais > 0){
+    media = true; motivos.push(sinais.empatesPerceptuais + ' critério(s) empatado(s) por resolução');
+  }
+  /* ── VIOLAÇÃO SEMÂNTICA NO PRÓPRIO VENCEDOR ── ele é o MENOS ruim entre os candidatos, e
+     ainda assim carrega uma inversão de papel. Pode até ser idêntico ao que o solver entrega
+     hoje (e aí `equivalencia` é 'exact' e nenhum outro sinal dispara), mas "o resultado tem
+     problema semântico conhecido" é fragilidade do RESULTADO — e a §6 pede ALTA sem sinal de
+     fragilidade nenhum. A corrida em massa encontrou 2 casos assim escondidos em ALTA. */
+  sinais.violacoesNoVencedor = rec.winner.semantica || 0;
+  if(sinais.violacoesNoVencedor > 0){
+    media = true;
+    motivos.push(sinais.violacoesNoVencedor + ' violação(ões) semântica(s) no próprio vencedor');
+  }
+  // ── CAUSAS ── conflito com muitas origens é composição sob pressão.
+  sinais.causas = rec.search ? (rec.search.causas || 0) : 0;
+  if(sinais.causas >= 3){ media = true; motivos.push(sinais.causas + ' causas simultâneas'); }
+  // ── DESEMPATE POR ASSINATURA ── a decisão caiu no hash: não há critério que a explique.
+  if(rec.winner.margem && rec.winner.margem.desempatePor === 'assinatura'){
+    media = true; motivos.push('decidido no desempate por assinatura');
+  }
+  const tier = baixa ? 'BAIXA' : media ? 'MEDIA' : 'ALTA';
+  if(tier === 'ALTA') motivos.push('modo normal, sem sinal de fragilidade');
+  return { tier:tier, motivos:motivos, sinais:sinais };
+}
+
+/* ── 21.3 POLÍTICA DE FALLBACK — documentada, NÃO ativada (§12) ───────────────────────────
+   ⛔ Nenhuma falha do Automatic Designer pode quebrar a criação de arte. A regra abaixo é o
+   contrato que a Fase 8 vai executar; aqui ela só CLASSIFICA o que aconteceria.
+
+     · sem vencedor            → solver legado
+     · contrato reprovado      → solver legado
+     · segurança reprovada     → solver legado
+     · confiança BAIXA/BLOQUEADA → solver legado
+     · exceção ou timeout      → solver legado
+     · confiança ALTA/MÉDIA com vencedor seguro → entregaria o novo
+
+   O legado SEMPRE termina: ele roda primeiro, fora do `try` do pipeline novo. */
+function gShadowWouldDeliver(rec){
+  if(rec.erro) return { decisao:'wouldFallbackLegacy', motivo:'exceção no pipeline novo' };
+  if(!rec.winner || !rec.winner.acoes)
+    return { decisao:'wouldFallbackLegacy', motivo:'nenhum vencedor' };
+  if(rec.winner.seguro === false || rec.winner.contrato === false)
+    return { decisao:'wouldBlock', motivo:'portão de segurança ou Candidate Contract reprovou' };
+  if(rec.confianca && (rec.confianca.tier === 'BAIXA' || rec.confianca.tier === 'BLOQUEADO'))
+    return { decisao:'wouldFallbackLegacy', motivo:'confiança ' + rec.confianca.tier };
+  return { decisao:'wouldDeliverSafe', motivo:'confiança ' + (rec.confianca && rec.confianca.tier) };
+}
+
+/* ── 21.4 BALDE DE REGRESSÃO (§17) ────────────────────────────────────────────────────────
+   O que precisa aparecer em destaque no relatório, mesmo quando o resultado é "seguro". Cada
+   item é um FATO comparado contra o solver, nunca um juízo de gosto. */
+function gShadowRegressions(rec, legado, novo, ctx){
+  const out = [];
+  if(!legado || !novo) return out;
+  const hierL = gLayoutHierarchyRelation(legado, legado, ctx);
+  const hierN = gLayoutHierarchyRelation(legado, novo, ctx);
+  const zona = (ctx && ctx._deadZone && ctx._deadZone['hierarchy-compression']) || 0;
+  if(hierN.compressao > hierL.compressao + Math.max(zona, 1e-9))
+    out.push({ tipo:'hierarchy-worse', de:hierL.compressao, para:hierN.compressao, zona:zona });
+  if(hierN.pares.some(p => p.classe === 'inversao'))
+    out.push({ tipo:'semantic-role-worse',
+               pares:hierN.pares.filter(p => p.classe === 'inversao').map(p => p.de + '>' + p.para) });
+  if(rec.winner && rec.winner.grupoSize >= G_SHADOW_CONF.grupoGrandeAbs)
+    out.push({ tipo:'excessive-scale-group', camadas:rec.winner.grupoSize,
+               ratio:rec.winner.grupoRatio });
+  if(rec.winner && rec.winner.modo === 'emergency' && rec.legacy && rec.legacy.safe)
+    out.push({ tipo:'emergency-unnecessary', nota:'o solver resolveu sem emergência' });
+  /* DESLOCAMENTO EXCESSIVO: a solução nova mexeu MUITO mais na posição que a do solver. A régua
+     é o lado curto da prancheta — 10% dele é um bloco viajando. */
+  const cv = (ctx && ctx.canvas) || { w:1080, h:1080 };
+  const curto = Math.max(1, Math.min(cv.w || 1080, cv.h || 1080));
+  const idxL = new Map(legado.map(l => [l.id, l]));
+  let desloc = 0;
+  novo.forEach(l => { const b = idxL.get(l.id); if(!b) return;
+    desloc = Math.max(desloc, Math.abs((l.x || 0) - (b.x || 0)) + Math.abs((l.y || 0) - (b.y || 0))); });
+  if(desloc > curto * 0.10)
+    out.push({ tipo:'excessive-displacement', px:Math.round(desloc),
+               fracaoDoLadoCurto:Math.round(desloc / curto * 100) / 100 });
+  return out;
+}
+
+/* ── 21.5 O REGISTRO DE UMA EXECUÇÃO (§2) ─────────────────────────────────────────────────
+   Determinístico, serializável e sem dado sensível: o conteúdo do franqueado entra como HASH,
+   nunca como texto. Uma execução, um registro.
+   ⛔ O SOLVER RODA PRIMEIRO E FORA DO `try` DO PIPELINE NOVO. É essa ordem que garante a §23:
+   o legado sempre termina, aconteça o que acontecer depois. */
+function gShadowValidationRecord(fx, dados, opts){
+  const o = opts || {};
+  const agora = () => (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
+  const t0 = agora();
+  const clonar = (ls) => ls.map(l => JSON.parse(JSON.stringify(l)));
+  const rec = {
+    templateId: fx.nome || fx.id || '?',
+    inputSignature: (typeof _gGramHash === 'function') ? _gGramHash(JSON.stringify(dados || {})) : '',
+    camadas: (fx.layers || []).length,
+    tamanho: gShadowTemplateSize((fx.layers || []).length),
+    /* LOCAL FIT (§8): a frente paralela não existe neste repositório. Os campos ficam
+       declarados e nulos — o que se mede hoje é o proxy honesto, `original-first`: a arte que
+       resolve o conteúdo real sem nenhuma adaptação. */
+    localFit: { disponivel:false, resolvedByLocalFit:null, escalatedToAutomaticDesigner:null,
+                localFitOverflowReason:null },
+    legacy:null, search:null, scoring:null, winner:null, equivalencia:null, equivalenciaMotivo:null,
+    classe:null, confianca:null, entrega:null, regressoes:[], erro:null, ms:0
+  };
+
+  // ── 1. O SOLVER LEGADO, sozinho e primeiro ──────────────────────────────────────────────
+  let saidaLegado = null;
+  const tL = agora();
+  try{
+    saidaLegado = gApplyRelativeAnchors(clonar(fx.layers), dados || {}, {},
+      { fitText:true, canvas:fx.canvas, scope:'franqueado' });
+  }catch(e){ saidaLegado = null; }
+  const msLegado = agora() - tL;
+  const legadoSeguro = saidaLegado
+    ? !saidaLegado.some(l => typeof gLayoutCamadaReprovada === 'function'
+        ? gLayoutCamadaReprovada(l) : !!(l && (l._layoutInvalido || l._foraDaArte)))
+    : null;
+  rec.legacy = { safe:legadoSeguro, ms:Math.round(msLegado * 100) / 100,
+                 voltas:(saidaLegado && saidaLegado._layoutMeta && saidaLegado._layoutMeta.tentativas) || 0,
+                 efetivo:(saidaLegado && saidaLegado._layoutMeta && saidaLegado._layoutMeta.efetivo) || null };
+
+  // ── 2. O PIPELINE NOVO, inteiro dentro de um `try` ──────────────────────────────────────
+  try{
+    const tB = agora();
+    const ctx = gBuildOperationalContext(clonar(fx.layers), fx.canvas, { dados:dados || {} });
+    const r = gSearchLayoutCandidates({ ctx:ctx, base:clonar(fx.layers) });
+    const msBusca = agora() - tB;
+    const rd = (r.original && r.original.diagnostics) || {};
+    rec.search = { gerados:r.diagnostics.generated, solved:r.solved.length,
+                   partial:r.partial.length, invalid:r.invalid.length,
+                   profundidade:r.diagnostics.maxDepthReached,
+                   primeiraSolucao:r.diagnostics.firstSolvedDepth,
+                   modo:r.diagnostics.firstSolvedMode || null,
+                   emergenciaRodou:!!r.diagnostics.emergencia,
+                   problemas:rd.problemas || 0, causas:(rd.causas || []).length,
+                   tipos:[...new Set(rd.tipos || [])].sort(),
+                   ms:Math.round(msBusca * 100) / 100 };
+    /* ORIGINAL-FIRST: a arte já cabe. É o proxy do Local Fit enquanto ele não existe. */
+    rec.originalFirst = (rd.problemas || 0) === 0;
+
+    const tS = agora();
+    const esc = gSelectLayoutCandidate(r, ctx, { legacySolverOutcome:
+      legadoSeguro == null ? null : (legadoSeguro ? 'solved' : 'unsafe') });
+    const msScore = agora() - tS;
+    rec.scoring = { avaliados:esc.diagnostics.avaliados, descartados:esc.diagnostics.descartados,
+                    porSeguranca:esc.diagnostics.porSeguranca || 0,
+                    porContrato:esc.diagnostics.porContrato || 0,
+                    contratoViolado:[...new Set(esc.diagnostics.contratoViolado || [])].slice(0, 4),
+                    originalFirst:esc.diagnostics.originalFirst,
+                    ms:Math.round(msScore * 100) / 100 };
+
+    if(esc.winner){
+      const pv = (esc.ranked[0] && esc.ranked[0].profile) || null;
+      /* QUASE-EMPATADOS: quantos candidatos são indistinguíveis do vencedor ATÉ o critério que
+         decidiu. É o sinal de "a decisão podia ter caído para qualquer um destes". */
+      const pos = (esc.explanation.margem && esc.explanation.margem.posicao);
+      let quase = 0;
+      if(pv && pos != null && pos >= 0)
+        quase = esc.ranked.slice(1).filter(x => x.profile
+          && x.profile.vector.slice(0, pos).every((v, i) => Math.abs(v - pv.vector[i]) < 1e-9)).length;
+      const assentado = gSettleCandidateState(esc.winner, ctx);
+      rec._novo = assentado.layers;
+      rec.winner = {
+        acoes:(esc.winner.actions || []).map(a => a.id),
+        modo:esc.winner.searchMode, depth:esc.winner.depth,
+        wonBy:esc.explanation.wonBy, criterio:esc.explanation.criterio,
+        margem:esc.explanation.margem || null,
+        seguro:pv ? pv.safety.seguro : null, contrato:pv ? pv.contract.ok : null,
+        grupoSize:pv ? pv.observabilidade.adaptiveGroupSize : 0,
+        grupoRatio:pv ? pv.observabilidade.adaptiveGroupRatio : 0,
+        semantica:pv ? pv.semantics.violacoes.length : null,
+        compressao:pv ? pv.semantics.hierarquiaComprimida : null,
+        camadasAlteradas:pv ? pv.alteration.camadasAlteradas : null,
+        quaseEmpatados:quase,
+        explicacao:gExplainLayoutDecision(esc)
+      };
+      // ── 3. EQUIVALÊNCIA contra o que o solver entregou ────────────────────────────────
+      if(saidaLegado){
+        const eq = gShadowEquivalence(saidaLegado, assentado.layers, ctx, fx.canvas);
+        rec.equivalencia = eq.nivel; rec.equivalenciaMotivo = eq.motivo;
+        rec.regressoes = gShadowRegressions(rec, saidaLegado, assentado.layers, ctx);
+      }
+    }
+  }catch(e){ rec.erro = String(e && e.message || e); }
+
+  /* ── 4. CLASSIFICAÇÃO, CONFIANÇA E O QUE SERIA ENTREGUE ─────────────────────────────────
+     ⛔ TAMBÉM DENTRO DE `try`, e isto foi um defeito real que a injeção de falha da §22 pegou:
+     este bloco vivia fora do `catch` acima, então uma exceção na confiança ESCAPAVA do shadow
+     — exatamente o que a regra absoluta proíbe. Shadow que lança para fora é shadow que
+     derruba a criação de arte. Falhando aqui, o registro vira fallback e segue. */
+  try{
+    const novoSeguro = !!(rec.winner && rec.winner.acoes && rec.winner.seguro !== false
+                          && rec.winner.contrato !== false);
+    rec.classe = (rec.scoring && rec.scoring.porContrato > 0 && !novoSeguro) ? 'F'
+      : (legadoSeguro === true && novoSeguro && rec.equivalencia === 'exact') ? 'A'
+      : (legadoSeguro === true && novoSeguro) ? 'B'
+      : (legadoSeguro === false && novoSeguro) ? 'C'
+      : (legadoSeguro === true && !novoSeguro) ? 'D'
+      : (legadoSeguro === false && !novoSeguro) ? 'E' : 'F';
+    rec.confianca = gShadowConfidence(rec);
+    const ent = gShadowWouldDeliver(rec);
+    rec.entrega = ent.decisao; rec.entregaMotivo = ent.motivo;
+  }catch(e){
+    rec.erro = rec.erro || String(e && e.message || e);
+    rec.classe = rec.classe || 'F';
+    rec.confianca = { tier:'BLOQUEADO', motivos:['exceção ao classificar: ' + rec.erro], sinais:{} };
+    rec.entrega = 'wouldFallbackLegacy';
+    rec.entregaMotivo = 'exceção ao classificar';
+  }
+  rec.ms = Math.round((agora() - t0) * 100) / 100;
+  return rec;
+}
