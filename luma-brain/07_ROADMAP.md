@@ -48,6 +48,7 @@ modo, mais uma aba, mais uma flag.
   - O hash é fotografado em `supabase.js` **antes do `createClient`** — o SDK o apaga ao materializar a sessão, num tick anterior ao `auth.js`. É a única janela em que ele existe.
   - Flag em `sessionStorage` segura o passo através de um F5; sem ele, recarregar pulava a definição da senha e devolvia a pessoa ao mesmo beco.
   - Zero CSS novo (herda `login.css`) e nenhuma senha definida no front: quem grava é o `gResetPassword`, o mesmo motor do Perfil › Segurança.
+  - **A gestão ganhou a saída na aba Equipe**: botão de chave em cada membro ATIVO dispara o link de redefinição (`gForgotPassword`, o mesmo do "Esqueci minha senha"). Sem service_role no front não existe "trocar a senha de alguém" — o que existe é mandar o link. Inativo não recebe: ele não entra de jeito nenhum enquanto `ativo=false`. A coluna de ações foi de 42px para 82px (44→92 no celular) para caber os dois botões.
 - [x] **Sheets no celular** — a folha de edição inteira: arte fixa que encolhe com o teclado, campos em ordem de cabeça, foto com miniatura, fila de ofertas ("próxima pendente"), duplicar/apagar, criar oferta, miniaturas sob demanda.
   - ⛔ **Desligado em 09/09 por decisão do Ryan** ("sem o luma sheets no mobile por enquanto"). O código todo continua onde está — a guarda é um `return` no funil `fBulkOpen`. A volta é apagar o bloco, não reescrever a tela.
 - [x] **Foto em todas as ofertas** — a raiz era `fValidate` tratando dataURL como texto e marcando toda linha com foto como "muito longa" (linha com erro é pulada na geração).

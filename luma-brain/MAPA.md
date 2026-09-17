@@ -254,7 +254,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 80 arquivos JS (71.717 linhas, 2.664 funções) · 31 arquivos CSS (29.238 linhas) · `index.html` com 3.916 linhas e 80 `<script>`.
+**Tamanho real de hoje:** 80 arquivos JS (71.749 linhas, 2.665 funções) · 31 arquivos CSS (29.239 linhas) · `index.html` com 3.916 linhas e 80 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -380,9 +380,9 @@ gToast(msg) — exibe notificacao flutuante de 2.8s.
 · Estado global: gImgPersistWarned
 · Depende de: nada (usa apenas o DOM).
 
-**`js/core/user-profile.js`** · 1022 linhas
+**`js/core/user-profile.js`** · 1054 linhas
 Controladores do Modal e Configurações de Perfil do Usuário. Suporta edição de perfil, troca de avatar via Base64 persistente, validação de senha e monitoramento de tempo de sessão.
-· API: gProfileOpenFeedback, gOpenUserProfileModal, gCloseUserProfileModal, gProfileOpenCli, gProfileSwitchTab, gProfileUpdateModalAvatars, gProfileTriggerUpload, gProfileHandleUpload, gProfileSaveData, gProfileApplyTheme, gProfileApplyStudioMode, gProfileCheckPasswordStrength, gProfileChangePassword, gProfileRenderStats … (+16; 33 funções no total)
+· API: gProfileOpenFeedback, gOpenUserProfileModal, gCloseUserProfileModal, gProfileOpenCli, gProfileSwitchTab, gProfileUpdateModalAvatars, gProfileTriggerUpload, gProfileHandleUpload, gProfileSaveData, gProfileApplyTheme, gProfileApplyStudioMode, gProfileCheckPasswordStrength, gProfileChangePassword, gProfileRenderStats … (+17; 34 funções no total)
 · Estado global: _gFeedbackAdminLoading
 
 ### js/franqueado
@@ -692,7 +692,7 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/components/splash.css` | 156 |
 | `css/components/topbar.css` | 455 |
 | `css/components/tutorial.css` | 740 |
-| `css/components/user-profile.css` | 1130 |
+| `css/components/user-profile.css` | 1131 |
 | `css/modules/academia.css` | 1330 |
 | `css/modules/all-tools.css` | 113 |
 | `css/modules/calendario.css` | 1544 |

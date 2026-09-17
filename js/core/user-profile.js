@@ -612,6 +612,7 @@ const _ICO_TRASH=`<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24
 // Mesmo glifo de "restaurar/refazer" usado no franqueado (chat.js fRefazer) — reaproveita a
 // linguagem visual já existente em vez de inventar um ícone novo para o mesmo conceito.
 const _ICO_RESTORE=`<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
+const _ICO_KEY=`<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 8.5-8.5"/><path d="m17 6 3 3"/><path d="m14 9 3 3"/></svg>`;
 const _ICO_CHEVRON=`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
 const _ICO_CHECK=`<svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 const _ICO_USERS=`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>`;
@@ -715,6 +716,11 @@ async function gProfileRenderEquipe(){
     const youTag=isMe?`<span class="prof-user-you">Você</span>`:'';
     // Reativar (ativo:false→true) completa o ciclo: antes, desativar era beco sem volta
     // pela UI (só existia gSetUserAtivo(id,true) no backend, sem caminho na tela).
+    /* Link de senha: só para quem está ATIVO — o inativo não entra de jeito nenhum
+       (gLoadProfile derruba a sessão de conta desativada), então mandar link seria mentira. */
+    const senhaBtn = (!isMe && canEdit && !isInactive)
+      ? `<button type="button" class="prof-user-action prof-user-key" data-email="${gEsc(u.email)}" onclick="gProfileEnviarLinkSenha(this.dataset.email||'${gEsc(u.email)}')" aria-label="Enviar link de senha para ${gEsc(displayName)}" title="Enviar link de redefinição de senha">${_ICO_KEY}</button>`
+      : '';
     const actionBtn = (!isMe && canEdit)
       ? (isInactive
           ? `<button type="button" class="prof-user-action prof-user-restore" data-email="${gEsc(u.email)}" onclick="gProfileReactivateUser(this.dataset.email||'${gEsc(u.email)}')" aria-label="Reativar acesso de ${gEsc(displayName)}" title="Reativar acesso">${_ICO_RESTORE}</button>`
@@ -731,7 +737,7 @@ async function gProfileRenderEquipe(){
       </div>
       <div class="prof-user-access">${pill}${picker}</div>
       <div class="prof-user-status-cell">${status}</div>
-      <div class="prof-user-actions">${actionBtn}</div>
+      <div class="prof-user-actions">${senhaBtn}${actionBtn}</div>
     </li>`;
   }).join('');
 
@@ -1010,6 +1016,32 @@ async function gProfileReactivateUser(email){
   if(!res.ok){gToast('Não foi possível reativar o usuário: '+res.error,'error');return;}
   gToast('Usuário reativado');
   gProfileRenderEquipe();
+}
+
+/* "Redefinir senha" sem service_role no front NÃO é trocar a senha de alguém — é DISPARAR
+   o link de redefinição para o e-mail da pessoa, que define a senha no passo que o link abre
+   (gDoNovaSenha, auth.js). Existe porque a gestão não tinha saída nenhuma para quem travava
+   no login: dependia de explicar "clica em Esqueci minha senha" por telefone.
+
+   Motor único: o MESMO gForgotPassword do "Esqueci minha senha" — não há segundo caminho de
+   recuperação, e nenhuma senha é definida no front.
+
+   ⚠ Isto é UX, não segurança: resetPasswordForEmail é público por natureza (qualquer um pede
+   link para qualquer e-mail, e o Supabase só entrega na caixa do dono). A fronteira continua
+   sendo a RLS. */
+async function gProfileEnviarLinkSenha(email){
+  const ok = await gConfirm('Enviar um link de redefinição de senha para '+email+'? A pessoa recebe o e-mail e define a nova senha ao abrir o link.', {okLabel:'Enviar link'});
+  if(!ok) return;
+  const res = await gForgotPassword(email);
+  if(!res || !res.ok){
+    // O SMTP padrão do Supabase tem teto de e-mails por hora, e a mensagem crua vem em inglês.
+    const msg = String((res && res.error) || '');
+    gToast(/rate|limit|too many|seconds/i.test(msg)
+      ? 'O Supabase segurou por excesso de e-mails. Espere alguns minutos e tente de novo.'
+      : ('Não consegui enviar o link: ' + (msg || 'erro desconhecido')), 'error');
+    return;
+  }
+  gToast('Link enviado para '+email);
 }
 
 // Fecha role picker ao clicar fora do painel
