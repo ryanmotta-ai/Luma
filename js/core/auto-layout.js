@@ -1149,7 +1149,16 @@ function gCompileLayoutGrammar(layers, canvas){
                 || ((typeof gLayoutSemanticRole === 'function') ? gLayoutSemanticRole(l, ctxPapel) : 'apoio');
     const campos = (typeof gLayoutCamposDe === 'function') ? gLayoutCamposDe(l) : [];
     const fundo = l.type !== 'group' && _gGramFundo(l, cv);
-    const protegida = !!(l.locked || l.lockPosition || l.layoutRole === 'protected' || papel === 'protegida');
+    /* ⚠ PROTEÇÃO INFERIDA NÃO IMOBILIZA CAMPO DINÂMICO (Fase 7.5). `papel === 'protegida'` sai
+       do NOME — qualquer camada chamada "Selo", "Logo" ou "Carimbo" ganha o papel. Isso serve
+       para JULGAR composição; para dizer "isto não pode se mexer", não serve. A regra já existe
+       e é do próprio motor: `gCompileLayoutRoles` se recusa a carimbar 'protected' em camada com
+       campo, porque imobilizar um campo desliga o Auto-layout exatamente onde ele precisa agir.
+       A Gramática não seguia essa regra, e o preço foi medido: um campo dinâmico chamado "Selo"
+       ficava intocável para a busca, que então moía `produto` e `titulo` até o piso sem nunca
+       encolher quem de fato cresceu — 4 das 5 lacunas de cobertura que sobraram da Fase 7. */
+    const protegidaExplicita = !!(l.locked || l.lockPosition || l.layoutRole === 'protected');
+    const protegida = protegidaExplicita || (papel === 'protegida' && !campos.length);
     /* A caixa do ASSUNTO — rosto, produto, logo dentro da foto. A contagem sozinha diz que a
        proteção existe; o retângulo diz ONDE, e é dele que sai o `bounds.seguro` de um
        componente. Sai de `gLayoutSafeZones`, o motor único — não de uma segunda leitura. */
@@ -3236,12 +3245,17 @@ const G_SEARCH_MODOS = ['normal', 'emergency'];
  * @param {Array} camadas o estado ATUAL (os corpos já reduzidos contam como piso externo)
  * @param {Set|Array} [grupo] quem desce junto — não conta como piso
  */
-function gLayoutPisoDoModo(camadas, l, modo, grupo, indice){
+function gLayoutPisoDoModo(camadas, l, modo, grupo, indice, precoLivre){
   if(!l || typeof gLayoutPisoFonte !== 'function') return 8;
   if(modo !== 'emergency') return gLayoutPisoFonte(l, false);
   const legivel = gLayoutPisoFonte(l, true);
+  /* `precoLivre` é o ÚLTIMO RECURSO do solver, espelhado (Fase 7.5). O preço imune não cede
+     tamanho por causa dos outros (regra de 19/08), e por isso ele vira piso de hierarquia para
+     todo mundo — o que às vezes tranca a arte inteira. Quando ninguém mais consegue descer, o
+     solver para de contá-lo como piso e dá mais uma volta (`00-config.js:3355`). Sem esta
+     escapatória a busca desistia onde a escada seguia. */
   const hier = (typeof gLayoutPisoHierarquiaExterno === 'function')
-    ? gLayoutPisoHierarquiaExterno(camadas || [], l, grupo || [l.id], false, indice) : 0;
+    ? gLayoutPisoHierarquiaExterno(camadas || [], l, grupo || [l.id], !!precoLivre, indice) : 0;
   return Math.max(legivel, hier);
 }
 
@@ -3255,7 +3269,7 @@ function gLayoutPisoDoModo(camadas, l, modo, grupo, indice){
  * @param {Array} [camadas] o estado atual; sem ele, cai no clone autorado do contexto
  * @returns {{permitido, motivo, origem, atual?, piso?, folga?, degraus?}}
  */
-function gLayoutCanEmergencyShrink(ctx, targetId, camadas){
+function gLayoutCanEmergencyShrink(ctx, targetId, camadas, precoLivre){
   if(!ctx) return _gCapNao('sem-contexto');
   const n = ctx._no.get(targetId);
   const autorada = ctx._camada.get(targetId);
@@ -3268,7 +3282,8 @@ function gLayoutCanEmergencyShrink(ctx, targetId, camadas){
   const vivo = (camadas || []).find(x => x && x.id === targetId) || autorada;
   const medida = Object.assign({}, autorada, { _tetoFonte: vivo._tetoFonte });
   const atual = Math.round(gLayoutCorpoAtual(medida));
-  const piso = Math.round(gLayoutPisoDoModo(camadas || [...ctx._camada.values()], medida, 'emergency'));
+  const piso = Math.round(gLayoutPisoDoModo(camadas || [...ctx._camada.values()], medida,
+    'emergency', null, null, precoLivre));
   const det = { atual, piso, folga: atual - piso,
                 pisoNormal: Math.round(gLayoutPisoFonte(autorada, false)) };
   if(piso >= atual) return _gCapNao('no-piso-de-emergencia', det);
@@ -3394,12 +3409,12 @@ function gBuildAdaptiveScaleGroup(ctx, estado, grupoProblema, problemas, previo)
  *
  * @returns {{permitido, motivo, origem, degraus?, membros?, pisos?}}
  */
-function gLayoutCanEmergencyScale(ctx, componentId, camadas, modo){
+function gLayoutCanEmergencyScale(ctx, componentId, camadas, modo, precoLivre){
   if(!ctx) return _gCapNao('sem-contexto');
   const cap = gComponentCapability(ctx, componentId, 'canScaleComponent');
   if(!cap.permitido) return cap;                         // as guardas do componente valem iguais
   const c = gComponentById(ctx.components, componentId);
-  const r = _gDegrausDeEscala(ctx, c.membros, camadas, modo);
+  const r = _gDegrausDeEscala(ctx, c.membros, camadas, modo, null, precoLivre);
   return r.permitido ? _gCapOk('componente-pode-descer', r.detalhe)
                      : _gCapNao('componente-no-piso', r.detalhe);
 }
@@ -3410,7 +3425,7 @@ function gLayoutCanEmergencyScale(ctx, componentId, camadas, modo){
  * grupo de dois e é legítimo) — mas protegida, fundo e elasticidade que proíbe escala continuam
  * bloqueando membro a membro, exatamente como no componente.
  */
-function gLayoutCanScaleGroup(ctx, grupo, camadas, modo){
+function gLayoutCanScaleGroup(ctx, grupo, camadas, modo, precoLivre){
   if(!ctx) return _gCapNao('sem-contexto');
   const membros = (grupo && grupo.escalaveis) || [];
   if(!membros.length) return _gCapNao('grupo-sem-quem-desca', { membros:0 });
@@ -3426,7 +3441,7 @@ function gLayoutCanScaleGroup(ctx, grupo, camadas, modo){
      isso: `textosComponente` (quem desce) é filtrado do `ids` (o fecho), mas `_pisoHierExterno`
      recebe o `ids`. No `de-por-lateral` o "por" está no fecho e não desce — e é justamente ele
      que, contado como piso, travava o "produto" em 84. */
-  const r = _gDegrausDeEscala(ctx, membros, camadas, modo, grupo.membros);
+  const r = _gDegrausDeEscala(ctx, membros, camadas, modo, grupo.membros, precoLivre);
   return r.permitido ? _gCapOk('grupo-pode-descer', Object.assign({ grupo:grupo.id }, r.detalhe))
                      : _gCapNao('grupo-no-piso', Object.assign({ grupo:grupo.id }, r.detalhe));
 }
@@ -3435,7 +3450,7 @@ function gLayoutCanScaleGroup(ctx, grupo, camadas, modo){
    quando ninguém mais desce. O piso de cada membro é medido com o conjunto INTEIRO como grupo:
    quem desce junto sai da conta do piso de hierarquia externo, e é exatamente daí que o degrau
    proporcional tira a folga que o encolhimento isolado não tem. */
-function _gDegrausDeEscala(ctx, membros, camadas, modo, grupoPiso){
+function _gDegrausDeEscala(ctx, membros, camadas, modo, grupoPiso, precoLivre){
   const vivos = camadas || [...ctx._camada.values()];
   const idx = new Map(vivos.map(l => [l.id, l]));
   const grupo = new Set(grupoPiso || membros);
@@ -3443,7 +3458,7 @@ function _gDegrausDeEscala(ctx, membros, camadas, modo, grupoPiso){
      fora. Construir um por membro era varrer a arte inteira k vezes — medido em 3,4ms por
      consulta numa peça de 344 camadas, com a busca consultando centenas de vezes. */
   const indice = (typeof gLayoutIndicePisoExterno === 'function' && modo === 'emergency')
-    ? gLayoutIndicePisoExterno(vivos, grupo, false) : null;
+    ? gLayoutIndicePisoExterno(vivos, grupo, !!precoLivre) : null;
   let degraus = 0;
   const pisos = [];
   membros.forEach(id => {
@@ -3453,7 +3468,7 @@ function _gDegrausDeEscala(ctx, membros, camadas, modo, grupoPiso){
     const medida = Object.assign({}, autorada, { _tetoFonte: vivo && vivo._tetoFonte });
     const atual = Math.round(gLayoutCorpoAtual(medida));
     const piso = Math.round(gLayoutPisoDoModo(vivos, medida,
-      modo === 'emergency' ? 'emergency' : 'normal', grupo, indice));
+      modo === 'emergency' ? 'emergency' : 'normal', grupo, indice, precoLivre));
     pisos.push({ id, atual, piso });
     if(piso < atual) degraus = Math.max(degraus, Math.ceil(Math.log(piso / atual) / Math.log(0.92)));
   });
@@ -3713,9 +3728,13 @@ function _gAcaoTexto(ctx, l){
  * @param {object} problem {tipo, targetId, rootId?, detalhe?}
  * @returns {Array} descritores, ORDENADOS (pela escada real, depois por assinatura)
  */
-function gGenerateLayoutActions(ctx, problem, camadas, modo){
+function gGenerateLayoutActions(ctx, problem, camadas, modo, opts){
   if(!ctx || !problem || !G_LAYOUT_PROBLEMAS[problem.tipo]) return [];
   const emergencia = (modo === 'emergency');
+  /* ÚLTIMO RECURSO (Fase 7.5): o preço imune deixa de contar como piso de hierarquia. Só chega
+     aqui na terceira escalada da busca, depois de a emergência inteira esgotar — igual ao
+     solver, que só levanta essa trava quando ninguém mais consegue descer. */
+  const precoLivre = !!(opts && opts.precoLivre) && emergencia;
   /* ── DE ONDE SAEM OS PARÂMETROS ───────────────────────────────────────────────────────────
      O PORTÃO (elasticidade, capacidade, zona) continua lendo a arte AUTORADA pelo contexto: a
      liberdade que o designer deixou não muda porque a busca já encolheu o título uma vez.
@@ -3776,14 +3795,16 @@ function gGenerateLayoutActions(ctx, problem, camadas, modo){
       if(c){
         const portao = gLayoutCanAttempt({ ctx, action:acaoId, targetId:c.id, rootId:null });
         if(portao.permitido){
-          const esc = gLayoutCanEmergencyScale(ctx, c.id, _estadoVivo, emergencia ? 'emergency' : 'normal');
+          const esc = gLayoutCanEmergencyScale(ctx, c.id, _estadoVivo,
+            emergencia ? 'emergency' : 'normal', precoLivre);
           if(esc.permitido) escopos.push({ escopo:'component', componentId:c.id, grupoId:null,
                                            membros:null, degraus:esc.degraus });
         }
       }
       const asg = problem._adaptiveGroup || null;
       if(asg && asg.escalaveis.length >= 2){
-        const cap = gLayoutCanScaleGroup(ctx, asg, _estadoVivo, emergencia ? 'emergency' : 'normal');
+        const cap = gLayoutCanScaleGroup(ctx, asg, _estadoVivo,
+          emergencia ? 'emergency' : 'normal', precoLivre);
         /* Só vale a pena quando o grupo é REALMENTE outro conjunto: se ele coincide com o
            componente, gerar os dois seria duplicar a mesma ação com outro nome. */
         /* "É o mesmo conjunto?" pergunta pelos DOIS: quem desce e quem sai do piso. Um grupo
@@ -3800,6 +3821,7 @@ function gGenerateLayoutActions(ctx, problem, camadas, modo){
         out.push(_gAcao(acaoId, null, { componentId:e.componentId, adaptiveGroupId:e.grupoId,
           rootId:raiz, ordem:i + k * 0.5,
           params:{ fator:0.92, modo:emergencia ? 'emergency' : 'normal', degraus:e.degraus,
+                   precoLivre:precoLivre || undefined,
                    escopo:e.escopo, membros:e.membros, grupoPiso:e.grupoPiso || null },
           motivo:motivo, reason:meta.degrau }));
       });
@@ -3821,10 +3843,10 @@ function gGenerateLayoutActions(ctx, problem, camadas, modo){
                   && portao.bloqueadoPor === 'solver-capability'
                   && portao.capacidade && portao.capacidade.motivo === 'no-piso';
       if(!sopiso) return;
-      emerg = gLayoutCanEmergencyShrink(ctx, alvoId, _estadoVivo);
+      emerg = gLayoutCanEmergencyShrink(ctx, alvoId, _estadoVivo, precoLivre);
       if(!emerg.permitido) return;
     }else if(emergencia && acaoId === 'shrink-text'){
-      emerg = gLayoutCanEmergencyShrink(ctx, alvoId, _estadoVivo);
+      emerg = gLayoutCanEmergencyShrink(ctx, alvoId, _estadoVivo, precoLivre);
       if(!emerg.permitido) return;
     }
 
@@ -3882,6 +3904,7 @@ function gGenerateLayoutActions(ctx, problem, camadas, modo){
         if(!(novo < atual)){ ok = false; break; }
         params.de = atual; params.para = novo; params.piso = piso;
         params.modo = emergencia ? 'emergency' : 'normal';
+        if(precoLivre) params.precoLivre = true;
         if(emerg) params.degraus = emerg.degraus;
         break;
       }
@@ -4066,7 +4089,7 @@ function gApplyLayoutAction(base, action, ctx){
         const m = idx.get(id);
         if(!m || m.type !== 'text') return;
         const atual = Math.round(gLayoutCorpoAtual(m));
-        const piso = gLayoutPisoDoModo(camadas, m, modoEsc, grupo);
+        const piso = gLayoutPisoDoModo(camadas, m, modoEsc, grupo, null, p.precoLivre);
         const novo = Math.max(piso, Math.floor(atual * p.fator));
         if(novo < atual){ m._tetoFonte = novo; marca(id); alvos.push({ id, de:atual, para:novo, piso }); }
       });
@@ -4188,6 +4211,22 @@ const G_ACAO_MONOTONICA = { 'shrink-text':1, 'compress-line-height':1, 'push-dep
    por último o que é acabamento. Ordem explícita para que a ordem de um array nunca decida. */
 const G_LAYOUT_PROBLEM_PRIORITY = ['outside-canvas','collision','text-overflow',
                                    'container-mismatch','spacing-pressure','optional-empty'];
+
+/* ── DANO × OPORTUNIDADE (Fase 7.5) ───────────────────────────────────────────────────────
+   `optional-empty` não é arte quebrada: é o contrário — um campo opcional ficou vazio e SOBROU
+   espaço. O detector o reporta para que a busca POSSA recolher o vão (`collapse-empty-gap`),
+   e a própria lista de prioridade acima já o classifica como acabamento.
+
+   ⛔ MAS ELE ESTAVA BLOQUEANDO `solved`, e isso é um defeito de definição: a busca exigia ZERO
+   problemas para declarar uma composição resolvida, então uma arte que o PRODUTO aprova ficava
+   eternamente "não resolvida" por causa de espaço livre — e sem ação disponível para recolhê-lo,
+   o caso virava no-winner garantido. Medido no corpus: `de-por-lateral | cupom vazio`, em que o
+   solver entrega em ZERO voltas e a busca gerava ZERO candidatos.
+
+   A régua de "resolvido" passa a ser DANO. Recolher o vão continua sendo ação legítima e
+   continua melhorando o candidato — só deixou de ser condição para existir solução. */
+function _gEhDano(p){ return !!p && p.tipo !== 'optional-empty'; }
+function _gSoDano(problemas){ return (problemas || []).filter(_gEhDano); }
 
 /* REPETIÇÃO POR AÇÃO — quantas vezes cada movimento pode aparecer na MESMA sequência.
    Não é opinião: é quantos degraus o motor tem. `shrink-text` reduz 8% por vez e pode repetir
@@ -4622,13 +4661,32 @@ function gSearchLayoutCandidates(p){
                     diagnostics:{ generated:0, expanded:0, deduplicated:0, pruned:0,
                                   maxDepthReached:0, acoes:{}, problemasIniciais:0 } };
 
+  /* ── O PISO CHEGA CARIMBADO NA RAIZ (Fase 7.5) ────────────────────────────────────────────
+     ⛔ ISTO ERA UM BURACO, e ele custava caro. `gLayoutPisoFonte` lê DOIS carimbos da camada:
+     `_pisoFonte` (hierarquia — não passar por baixo de quem é menor) e `_pisoLegivel` (o corpo
+     mínimo em que o texto ainda se lê). Quem os escreve é `gStampPisosHierarquia`, e tanto o
+     solver quanto `gBuildOperationalContext` o chamam sobre os PRÓPRIOS clones. A busca não:
+     ela nascia de `o.base` cru, sem carimbo nenhum.
+
+     Sem carimbo, o piso de emergência desabava de `max(8, legível)` para `max(8, 0)` = 8px. A
+     busca então explorava, gastava beam e "resolvia" num espaço ILEGAL — e o assentamento, que
+     roda o motor de verdade, devolvia as camadas já carimbadas, com o Candidate Contract
+     reprovando tudo no fim. Medido na Fase 7: em 17 execuções o solver achava saída LEGÍVEL e a
+     busca não achava nenhuma, porque todas as dela desciam o CTA a 18px com piso real de 24.
+
+     A régua é a mesma do motor — não existe segunda conta de piso em lugar nenhum. */
+  const baseCarimbada = (o.base || []).map(l => Object.assign({}, l));
+  if(typeof gStampPisosHierarquia === 'function')
+    gStampPisosHierarquia(baseCarimbada, (ctx.canvas && ctx.canvas.w) ? ctx.canvas : null);
+  const oc = Object.assign({}, o, { base:baseCarimbada });
+
   /* ── ESCALADA DE MODO ─────────────────────────────────────────────────────────────────────
      NORMAL inteiro primeiro. Emergência só começa quando o normal ESGOTOU e o dano objetivo
      continua — menor sacrifício primeiro, que é a mesma filosofia da escada do solver (ele só
      entra no degrau proporcional quando ninguém mais tem folga normal).
      ⛔ Os dois modos NÃO se misturam desde a profundidade 1: um candidato de emergência não
      compete com um normal, porque não custa a mesma coisa. */
-  const normal = _gBuscarNoModo(o, ctx, lim, 'normal');
+  const normal = _gBuscarNoModo(oc, ctx, lim, 'normal');
   if(normal.solved.length || o.modo === 'normal'){
     normal.diagnostics.modo = 'normal';
     normal.diagnostics.emergencia = null;
@@ -4640,7 +4698,35 @@ function gSearchLayoutCandidates(p){
     normal.diagnostics.emergencia = null;
     return normal;
   }
-  const emerg = _gBuscarNoModo(o, ctx, lim, 'emergency');
+  let emerg = _gBuscarNoModo(oc, ctx, lim, 'emergency');
+  /* ── TERCEIRA ESCALADA: O PREÇO DEIXA DE SER PISO (Fase 7.5) ──────────────────────────────
+     O preço imune não cede tamanho por causa dos outros, e por isso vira piso de hierarquia
+     para a arte inteira. Em peça onde ele é o MAIOR corpo que ficou parado, isso tranca todo
+     mundo: medido no corpus, a busca parava com `produto` em 56 (o corpo do preço) enquanto o
+     solver levava o mesmo `produto` a 33 e entregava arte aprovada.
+
+     A escada do solver tem essa saída há tempos (`00-config.js:3355`): quando NINGUÉM mais
+     consegue descer, ela para de contar o preço imune como piso e dá mais uma volta. A busca
+     não tinha — e era exatamente essa a "lacuna de cobertura" que a Fase 7 mediu em 19
+     execuções. Aqui ela vira o terceiro degrau da escalada, na mesma ordem do motor: normal
+     inteiro → emergência inteira → emergência sem o preço como piso.
+
+     ⛔ O MENOR SACRIFÍCIO CONTINUA PRIMEIRO. Isto só roda quando os dois anteriores esgotaram,
+     e só quando existe preço imune para liberar — sem ele a terceira volta seria idêntica à
+     segunda, e pagar uma busca inteira para repetir o resultado é desperdício puro. */
+  if(!emerg.solved.length && typeof _gLayoutPrecoImune === 'function'
+     && baseCarimbada.some(l => l && l.type === 'text'
+        && (typeof _gLayoutVisivel !== 'function' || _gLayoutVisivel(l)) && _gLayoutPrecoImune(l))){
+    const livre = _gBuscarNoModo(oc, ctx, lim, 'emergency', { precoLivre:true });
+    livre.diagnostics.precoLivre = true;
+    if(livre.solved.length){
+      livre.diagnostics.escalada = 'emergency-preco-livre';
+      emerg = { solved:livre.solved, partial:emerg.partial.concat(livre.partial),
+                invalid:emerg.invalid.concat(livre.invalid),
+                unsafe:(emerg.unsafe || []).concat(livre.unsafe || []),
+                original:emerg.original, diagnostics:livre.diagnostics };
+    }
+  }
   const out = {
     original: normal.original,
     solved: emerg.solved,
@@ -4666,9 +4752,10 @@ function gSearchLayoutCandidates(p){
 
 /* A BUSCA DE UM MODO. Tudo o que era `gSearchLayoutCandidates` mora aqui; a função pública
    virou o orquestrador dos dois modos. */
-function _gBuscarNoModo(o, ctx, lim, modo){
+function _gBuscarNoModo(o, ctx, lim, modo, gopts){
   const base = o.base || [];
   const emergencia = (modo === 'emergency');
+  gopts = gopts || null;
   const diag = { generated:0, expanded:0, deduplicated:0, pruned:0, maxDepthReached:0,
                  acoes:{}, problemasIniciais:0, modo:modo, firstSolvedMode:null };
 
@@ -4710,7 +4797,7 @@ function _gBuscarNoModo(o, ctx, lim, modo){
   diag.porDepth = [];
 
   /* ── ORIGINAL-FIRST ── sem dano objetivo no estado ASSENTADO não há o que buscar. */
-  if(!problemasBase.length){
+  if(!_gSoDano(problemasBase).length){
     /* ORIGINAL-FIRST também passa pelo portão: a arte publicada com o conteúdo real assentado
        tem que ser aprovada pelo produto, não só pelo detector. */
     const segRaiz = gLayoutCandidateSafety(raiz, ctx, problemasBase);
@@ -4789,7 +4876,7 @@ function _gBuscarNoModo(o, ctx, lim, modo){
                `text-overflow` sem culpado não gerava nada. Sem origem provada a pergunta é só
                sobre o alvo, e é o que a política de auto-adaptação diz. */
             { rootId: culpado || null, impactLevel:nivel, _adaptiveGroup:asg }),
-            medidoPai.layers, modo);
+            medidoPai.layers, modo, gopts);
           /* ⛔ `scale-component` é o maior raio que existe aqui: escalar o bloco inteiro. Ela não
              compete com um wrap barato no primeiro passo. */
           if(depth === 0) acoes = acoes.filter(a => a.id !== 'scale-component');
@@ -4903,7 +4990,7 @@ function _gBuscarNoModo(o, ctx, lim, modo){
                divergem — foi assim que um `estouro` de largura passou pelo detector na Fase 5.9.
                ⛔ Detector em zero e produto reprovando NÃO vira `partial` em silêncio: vira
                `unsafe`, com o motivo à vista. Candidato inseguro nunca sai daqui como solução. */
-            if(!restantes.length){
+            if(!_gSoDano(restantes).length){
               const seg = gLayoutCandidateSafety(filho, ctx, restantes);
               if(seg.seguro){
                 filho.status = 'solved'; solved.push(filho); doDepth.solved++;
@@ -4944,7 +5031,7 @@ function _gBuscarNoModo(o, ctx, lim, modo){
               const asgK = gBuildAdaptiveScaleGroup(ctx, medido, gMesma, restantes, asg.membros);
               const cand = gGenerateLayoutActions(ctx, Object.assign({}, gMesma.problems[0],
                 { rootId: gMesma.culpritId || null, impactLevel:3, _adaptiveGroup:asgK }),
-                medido.layers, modo);
+                medido.layers, modo, gopts);
               passo = cand.find(x => x.id === acao.id && x.targetId === acao.targetId) || null;
             }
           }
@@ -5035,8 +5122,12 @@ function gLayoutCandidateSafety(cand, ctx, problemasJaMedidos){
      não uma medida desta camada — é o que torna a conferência independente do detector. */
   const reprovadas = (typeof gLayoutCamadaReprovada === 'function')
     ? r.layers.filter(l => l && gLayoutCamadaReprovada(l)).map(l => l.id).sort() : [];
-  return { seguro: !problemas.length && !reprovadas.length,
-           problemas: problemas.length, reprovadas:reprovadas,
+  /* ⚠ SEGURANÇA É AUSÊNCIA DE DANO, não ausência de problema (Fase 7.5): `optional-empty` é
+     espaço livre sobrando, e reprovar uma composição por isso transformava arte que o produto
+     aprova em candidato inseguro. Os dois números saem lado a lado para o diagnóstico. */
+  const dano = _gSoDano(problemas);
+  return { seguro: !dano.length && !reprovadas.length,
+           problemas: problemas.length, dano: dano.length, reprovadas:reprovadas,
            tipos:[...new Set(problemas.map(x => x.tipo))].sort() };
 }
 
@@ -5892,8 +5983,10 @@ function gLayoutStateSafety(camadas, ctx){
   catch(e){ problemas = []; }
   const reprovadas = (typeof gLayoutCamadaReprovada === 'function')
     ? camadas.filter(l => l && gLayoutCamadaReprovada(l)).map(l => l.id).sort() : [];
-  return { seguro: !problemas.length && !reprovadas.length, problemas:problemas.length,
-           reprovadas:reprovadas, tipos:[...new Set(problemas.map(x => x.tipo))].sort() };
+  const dano = _gSoDano(problemas);
+  return { seguro: !dano.length && !reprovadas.length, problemas:problemas.length,
+           dano:dano.length, reprovadas:reprovadas,
+           tipos:[...new Set(problemas.map(x => x.tipo))].sort() };
 }
 
 /* ── 19.4 A EXPLICAÇÃO — o traço camada a camada, e a margem ──────────────────────────────

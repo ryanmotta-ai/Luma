@@ -256,7 +256,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 79 arquivos JS (72.082 linhas, 2.664 funções) · 31 arquivos CSS (29.238 linhas) · `index.html` com 3.884 linhas e 80 `<script>`.
+**Tamanho real de hoje:** 79 arquivos JS (72.175 linhas, 2.666 funções) · 31 arquivos CSS (29.238 linhas) · `index.html` com 3.884 linhas e 80 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -303,9 +303,9 @@ AUTH via Supabase (Fase 5.1). Login/logout/recuperação usam supabase.auth (win
 · API: gRoleLevel, gLoadProfile, gLogin, gLogout, gCurrentUser, gCurrentRole, gIsAdmin, gIsSuperAdmin, gCanManageUsers, gForgotPassword, gResetPassword, gGetAllUsers, gSetUserRole, gSetUserAtivo … (+11; 26 funções no total)
 · Estado global: gAuthState
 
-**`js/core/auto-layout.js`** · 6637 linhas
+**`js/core/auto-layout.js`** · 6730 linhas
 AUTO-LAYOUT — a camada de JULGAMENTO O solver de composição mora em `00-config.js` (`gApplyRelativeAnchors`):
-· API: gLayoutFontProbe, gStampLayoutBaseline, gLayoutLimpaCarimbos, gLayoutTextoAutorado, gEnsureLayoutBaseline, gLayoutFontDrift, gLayoutFontStatus, gLayoutRefInk, gLayoutRoleOf, gLayoutSemanticRole, gCompileLayoutRoles, gLayoutRoleMaxLines, gLayoutCampoEhPreco, gLayoutEhPrecoDinamico … (+102; 153 funções no total)
+· API: gLayoutFontProbe, gStampLayoutBaseline, gLayoutLimpaCarimbos, gLayoutTextoAutorado, gEnsureLayoutBaseline, gLayoutFontDrift, gLayoutFontStatus, gLayoutRefInk, gLayoutRoleOf, gLayoutSemanticRole, gCompileLayoutRoles, gLayoutRoleMaxLines, gLayoutCampoEhPreco, gLayoutEhPrecoDinamico … (+102; 155 funções no total)
 · Estado global: _gLayoutTempos
 
 **`js/core/console.js`** · 887 linhas

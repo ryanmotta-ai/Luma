@@ -766,13 +766,20 @@
       +soNovoFalha.length+' ('+pct(legadoIlegivel,soNovoFalha.length)+'%) têm texto ABAIXO do'
       +' piso de legibilidade na arte que o legado aprova hoje.');
     amostraIlegivel.forEach(e=>avisos.push('      '+e));
+    /* A leitura sai do DADO, não de uma frase fixa: "o contrato reprovou todas" e "a busca não
+       gerou nenhuma" são diagnósticos diferentes e pedem correções diferentes. */
+    const porContratoAqui=conta(soNovoFalha,r=>r.scoring&&r.scoring.porContrato>0);
+    const semSolucaoAqui=conta(soNovoFalha,r=>r.search&&r.search.solved===0);
+    avisos.push('   → decomposição: '+porContratoAqui+' com TODAS as soluções reprovadas pelo'
+      +' Candidate Contract · '+semSolucaoAqui+' sem NENHUMA solução gerada');
     avisos.push(legadoIlegivel
       ? '   → leitura: nesses casos o contrato está pegando arte ilegível que o produto aprova'
         +' hoje. O motor novo é o primeiro a reparar, e o portão legado tem um buraco.'
-      : '   → leitura: o solver acha uma solução LEGÍVEL e a busca só acha soluções abaixo do'
-        +' piso, que o contrato reprova. Isto NÃO é rigor excessivo do contrato — é LACUNA DE'
-        +' COBERTURA DA BUSCA: existe saída boa e ela não está no espaço explorado. É o mesmo'
-        +' "so-solver" das fases anteriores, agora quantificado em massa.');
+      : porContratoAqui
+        ? '   → leitura: a busca só alcança soluções abaixo do piso e o contrato as reprova —'
+          +' LACUNA DE COBERTURA: existe saída legível e ela não está no espaço explorado.'
+        : '   → leitura: a busca não chega a NENHUMA solução onde o solver chega a uma legível.'
+          +' LACUNA DE COBERTURA pura, sem envolvimento do contrato.');
     window.__SEMVENC={ total:sem.length, legadoTambem:legadoTambemFalha, soNovo:soNovoFalha.length,
                        legadoIlegivel:legadoIlegivel };
     /* ⛔ Nenhum sem-vencedor pode virar entrega: todos têm que cair no fallback. */
