@@ -1068,8 +1068,11 @@ const _DPSD_WORKER_SRC = ""
   // documento, e o offset era calculado no espaço errado).
   + "if(n.mask&&n.mask.imageData&&n.mask.imageData.data){o._mask={w:n.mask.imageData.width,h:n.mask.imageData.height,buf:n.mask.imageData.data.buffer,left:n.mask.left,top:n.mask.top,defaultColor:n.mask.defaultColor,disabled:n.mask.disabled,density:n.mask.userMaskDensity,feather:n.mask.userMaskFeather,relativa:n.mask.positionRelativeToLayer,deVetor:n.mask.fromVectorData};transfers.push(n.mask.imageData.data.buffer);}"
   + "if(n.children)o.children=n.children.map(strip);return o;}"
-  + "var res=(psd.imageResources&&psd.imageResources.resolutionInfo&&psd.imageResources.resolutionInfo.horizontalResolution)||72;"
+  + "var _ri=(psd.imageResources&&psd.imageResources.resolutionInfo)||null;"
+  + "var res=(_ri&&_ri.horizontalResolution)||72;"
   + "if(res&&res.value)res=res.value;"
+  + "var _un=String((_ri&&(_ri.horizontalResolutionUnit||_ri.resolutionUnit))||'').toUpperCase();"
+  + "if(_un==='PPCM'||_un==='2')res=res*2.54;"
   + "var ga=(psd.imageResources&&psd.imageResources.globalAngle);"
   + "var out={width:psd.width,height:psd.height,res:res,globalAngle:(ga==null?null:ga),children:(psd.children||[]).map(strip)};"
   // Composto do documento: só é usado quando não sobra camada utilizável (PSD achatado).
@@ -1162,9 +1165,16 @@ async function _dPsdRebuildTree(nodes, onProgress, isCancelled){
   return arvore;
 }
 function _dPsdResolution(psd){
-  let r=(psd.imageResources&&psd.imageResources.resolutionInfo&&psd.imageResources.resolutionInfo.horizontalResolution)||psd.res||72;
+  const ri=(psd.imageResources&&psd.imageResources.resolutionInfo)||null;
+  let r=(ri&&ri.horizontalResolution)||psd.res||72;
   if(r&&r.value) r=r.value;
-  return (+r)||72;
+  r=(+r)||72;
+  /* PSD grava a resolução em PPI **ou** em PPCM (pixels por centímetro) — arquivo feito com o
+     Photoshop em unidade métrica cai no segundo caso. Lido como PPI, um documento de 300dpi
+     virava 118, o fator `res/72` saía 1,64 em vez de 4,17 e TODA a tipografia importava menor. */
+  const un=String((ri&&(ri.horizontalResolutionUnit||ri.resolutionUnit))||psd.resUnit||'').toUpperCase();
+  if(un==='PPCM'||un==='2') r=r*2.54;
+  return r||72;
 }
 /* Cancelamento. Um PSD de 400MB pode levar minutos; sem isto, quem abriu o arquivo errado
    ficava preso olhando o overlay, sem botão e sem como interromper o worker.
@@ -2809,7 +2819,13 @@ function dItemToLayer(it){
     // do editor caem em l.imgUrl quando não há foto no campo (png-generator.js:708, canvas.js:1212),
     // então a arte do PSD continua aparecendo e a foto do franqueado só a SUBSTITUI. Antes a
     // moldura nascia vazia e virar moldura APAGAVA a imagem importada — perda silenciosa.
-    const F=Object.assign(base,{type:'frame', imgUrl:it.imgUrl||'', imgVar:it.varName||'foto_produto', objectFit:'cover', shapeKind:it.shapeKind||'rect'});
+    /* `cover` é o certo para FOTO (enche o quadro, o corte é enquadramento) e destrutivo para
+       LOGO (corta a marca do parceiro). O render já tem a rede — mas ela só arma quando
+       `objectFit` está VAZIO (png-generator.js §LOGO NUNCA É CORTADO), e carimbar 'cover' aqui
+       desarmava a rede justamente nas molduras que vêm do PSD. */
+    const _fVar=it.varName||'foto_produto';
+    const _fFit=(typeof gCampoEhLogo==='function'&&gCampoEhLogo(_fVar))?'contain':'cover';
+    const F=Object.assign(base,{type:'frame', imgUrl:it.imgUrl||'', imgVar:_fVar, objectFit:_fFit, shapeKind:it.shapeKind||'rect'});
     if(it.radius) F.radius=it.radius;
     if(it.radii) F.radii=it.radii;
     if(it.points) F.points=it.points;

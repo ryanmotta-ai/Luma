@@ -253,15 +253,21 @@ function gProfileHandleUpload(input) {
       const email = user ? user.email : 'ryan@deliverymuch.com.br';
 
       // Salvar no localStorage com tratamento de exceção
+      let _gravou = true;
       try {
         localStorage.setItem('__luma_user_photo_' + email, base64Image);
-      } catch (err) {}
+      } catch (err) { _gravou = false; }
 
       // Atualizar visual da Topbar e do Modal instantaneamente
       if (typeof gUpdateUserTopbar === 'function') gUpdateUserTopbar();
       gProfileUpdateModalAvatars(user ? user.displayName : 'Ryan', email);
-      
-      if (typeof gToast === 'function') gToast('Foto de perfil atualizada!');
+
+      /* O catch mudo prometia sucesso com a cota cheia: a foto aparecia, sumia no reload e
+         ninguém sabia por quê. Dizer o que aconteceu é o mínimo. */
+      if (typeof gToast === 'function') {
+        if (_gravou) gToast('Foto de perfil atualizada!');
+        else gToast('Mostrei a foto aqui, mas não consegui guardá-la — o armazenamento do navegador está cheio.', 'error');
+      }
     };
     img.onerror = function() {
       if (typeof gToast === 'function') gToast('Não foi possível processar a imagem selecionada.', 'error');

@@ -833,11 +833,13 @@ function dToggleLayersFilterMenu(e) {
   
   if (!isOpen) {
     menu.classList.add('open');
+    /* O listener saía do documento só quando o clique caía FORA. Escolher um filtro (clique
+       dentro) fechava o menu por outro caminho e deixava este aqui pendurado — um a mais a
+       cada abertura. Agora ele é de uso único: sempre se remove, e só fecha quando é fora. */
     const closeMenu = (evt) => {
-      if (!menu.contains(evt.target) && evt.target !== e.currentTarget) {
-        menu.classList.remove('open');
-        document.removeEventListener('click', closeMenu);
-      }
+      const dentro = menu.contains(evt.target) || evt.target === e.currentTarget;
+      document.removeEventListener('click', closeMenu);
+      if (!dentro) menu.classList.remove('open');
     };
     setTimeout(() => document.addEventListener('click', closeMenu), 0);
   }
@@ -1805,10 +1807,17 @@ function dInsertVar(){
 ══════════════════════════════════════════════════════════════ */
 // string "{{nome}}" → HTML do contentEditable (chips atômicos, contenteditable=false).
 function dFieldTokensToChips(str){
-  return _dEsc(String(str==null?'':str)).replace(gVarRegex(),(m,n)=>{
+  /* ⚠ O TOKEN TEM DUAS PARTES: `{{preco}}` e `{{preco:inteiro}}` são coisas diferentes — o
+     segundo grupo da `gVarRegex` é o formato do preço fracionado (`:inteiro`/`:centavos`), que
+     o designer compôs. O chip guardava só o nome e o `dFieldReadContent` devolvia `{{preco}}`:
+     encostar no painel de propriedades apagava a formatação da camada de preço. */
+  return _dEsc(String(str==null?'':str)).replace(gVarRegex(),(m,n,fmt)=>{
     const v=(typeof dVars!=='undefined')&&dVars.find(x=>x.name===n);
     const lab=v?(v.label||n):n;
-    return `<span class="field-chip" contenteditable="false" data-var="${n}">${_dEsc(lab)}</span>`;
+    // O formato vive no `data-fmt` (é o que o `dFieldReadContent` devolve ao token) e no
+    // `title` — sem mudar o desenho do chip, que é o mesmo de sempre.
+    const _tit=fmt?(' — '+(fmt==='centavos'?'centavos':'parte inteira')):'';
+    return `<span class="field-chip" contenteditable="false" data-var="${_dEsc(n)}" data-fmt="${_dEsc(fmt||'')}" title="${_dEsc(lab+_tit)}">${_dEsc(lab)}</span>`;
   });
 }
 // contentEditable → string com "{{nome}}" (chips viram tokens; <br>/<div> viram \n).
@@ -1817,7 +1826,10 @@ function dFieldReadContent(el){
   el.childNodes.forEach(node=>{
     if(node.nodeType===3){ out+=node.nodeValue; }
     else if(node.nodeType===1){
-      if(node.classList && node.classList.contains('field-chip')){ out+='{{'+(node.dataset.var||'')+'}}'; }
+      if(node.classList && node.classList.contains('field-chip')){
+        const _f=node.dataset.fmt||'';
+        out+='{{'+(node.dataset.var||'')+(_f?(':'+_f):'')+'}}';
+      }
       else if(node.tagName==='BR'){ out+='\n'; }
       else if(node.tagName==='DIV'||node.tagName==='P'){ if(out&&!out.endsWith('\n'))out+='\n'; out+=dFieldReadContent(node); }
       else { out+=node.textContent||''; }
@@ -3643,7 +3655,7 @@ function dVarTypePopover(name, anchorEl){
   const old=document.getElementById('d-var-typepop'); if(old)old.remove();
   const pop=document.createElement('div');
   pop.id='d-var-typepop'; pop.className='var-ac';
-  pop.innerHTML=`<div style="padding:4px 8px;font-size:11px;color:var(--d-text3)">Tipo de {{${name}}}</div>
+  pop.innerHTML=`<div style="padding:4px 8px;font-size:11px;color:var(--d-text3)">Tipo de {{${_dEsc(name)}}}</div>
     <select id="d-var-typepop-sel" style="width:100%;padding:5px;font-size:12px">
       <option value="text">Texto livre</option><option value="number">Número</option>
       <option value="image">Imagem (URL)</option><option value="select">Seleção fixa</option><option value="date">Data</option>
@@ -4543,7 +4555,10 @@ function dAddShapeKind(kind, x, y, customW, customH){
   }
 
   document.addEventListener('DOMContentLoaded',function(){
-    const saved=parseInt(sessionStorage.getItem(KEY)||'0',10);
+    // sessionStorage LANÇA (não devolve null) em aba com dados de site bloqueados; sem a
+    // guarda, a exceção matava o resto deste bloco de inicialização do painel de camadas.
+    let _savedRaw='0'; try{ _savedRaw=sessionStorage.getItem(KEY)||'0'; }catch(e){}
+    const saved=parseInt(_savedRaw,10);
     if(saved>=MIN_H) _applyH(saved);
 
     const handle=document.getElementById('d-layers-resize-handle');
@@ -4571,7 +4586,7 @@ function dAddShapeKind(kind, x, y, customW, customH){
       document.body.style.cursor='';
       document.body.style.userSelect='';
       const sec=document.getElementById('d-layers-section');
-      if(sec) sessionStorage.setItem(KEY,sec.offsetHeight);
+      if(sec){ try{ sessionStorage.setItem(KEY,sec.offsetHeight); }catch(e){} }
     });
   });
 })();

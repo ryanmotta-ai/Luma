@@ -1239,6 +1239,17 @@ function gFieldSlugify(label, existingNames){
    passa disso, e o cache não pode virar vazamento de memória numa aba aberta o dia todo. */
 let _G_MEDIDA_CACHE = new Map();
 
+/* FONTE QUE CHEGA DEPOIS INVALIDA A MEDIDA. Enquanto a Roboto (ou uma fonte enviada pelo
+   designer) não terminou de carregar, `measureText` responde com as métricas do fallback do
+   sistema. Essa largura errada entrava no cache e ficava lá: a primeira pintura definia o
+   layout da sessão inteira, e a arte só voltava ao normal com F5. */
+try{
+  if(typeof document!=='undefined' && document.fonts){
+    if(document.fonts.ready && document.fonts.ready.then) document.fonts.ready.then(()=>_G_MEDIDA_CACHE.clear(), ()=>{});
+    if(document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', ()=>_G_MEDIDA_CACHE.clear());
+  }
+}catch(e){}
+
 // gCachePodar(map, teto) -- descarte PARCIAL num Map usado como cache.
 // `.clear()` no teto era mais barato de escrever e pior de usar: zerava as 4000 medidas
 // de uma vez e a proxima repintura pagava 4000 measureText seguidos -- um engasgo visivel
@@ -1283,7 +1294,8 @@ function gMeasureLayerWidth(layer, text, ctxAux) {
     let totalW = 0;
     runs.forEach(r => {
       const rFp = (typeof dTextFontParts === 'function') ? dTextFontParts(r.font) : fp;
-      ctx.font = `${ital}${rFp.weight} ${r.fontSize}px ${rFp.family}`;
+      const rPeso = r.fontWeightOverride || rFp.weight;   // mesmo faux bold do desenho
+      ctx.font = `${ital}${rPeso} ${r.fontSize}px ${rFp.family}`;
       ctx.letterSpacing = r.letterSpacing ? (r.letterSpacing) + 'px' : '0px';
       totalW += ctx.measureText(r.text || '').width;
     });
@@ -1297,7 +1309,12 @@ function gMeasureLayerWidth(layer, text, ctxAux) {
    memoizado e o caminho com runs usem exatamente a MESMA conta (duas réguas para a mesma
    pergunta é como medida e desenho divergiram no passado). */
 function _gMedirLarguraDireto(layer, text, ctx, fp, fontSize, ital) {
-  ctx.font = `${ital}${fp.weight} ${fontSize}px ${fp.family}`;
+  /* ⚠ `fontWeightOverride` é o faux bold que vem do PSD e o RENDER aplica (png-generator.js
+     §fwt, canvas.js). Medir com o peso "normal" e desenhar em 900 dava uma régua mais curta
+     que a tinta: a escada achava que cabia e o texto estourava a caixa na arte final.
+     A chave do cache já continha o override — faltava a conta usá-lo. */
+  const _peso = (layer && layer.fontWeightOverride) || fp.weight;
+  ctx.font = `${ital}${_peso} ${fontSize}px ${fp.family}`;
   ctx.letterSpacing = layer.letterSpacing ? (layer.letterSpacing) + 'px' : '0px';
   const lines = String(text || '').split('\n');
   let maxW = 0;

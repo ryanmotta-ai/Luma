@@ -717,7 +717,12 @@ function dSvgText(l, mctx, fillVars, dados, defaults){
   const svgFamily = fp.familyName ? `'${fp.familyName}', 'Roboto', sans-serif` : 'Roboto, sans-serif';
   // Auto-fit: mesmo algoritmo do png-generator (mede em canvas off-screen e encolhe)
   let fontSize=l.fontSize||24;
-  mctx.font=`${weight} ${fontSize}px ${fp.family}`;
+  /* A régua tem que ter as MESMAS propriedades do que vai ser desenhado. Sem itálico, sem
+     tracking e sem o faux bold do PSD, o auto-fit media mais estreito do que o SVG escreve —
+     e o texto saía do vetor por fora da caixa em que o designer o compôs. */
+  const _pesoMed=l.fontWeightOverride||weight;
+  mctx.font=`${l.italic?'italic ':''}${_pesoMed} ${fontSize}px ${fp.family}`;
+  try{ mctx.letterSpacing = l.letterSpacing ? (l.letterSpacing+'px') : '0px'; }catch(e){}
   let maxW=0; lines.forEach(ln=>{const w=mctx.measureText(ln).width;if(w>maxW)maxW=w;});
   const innerPad=Math.round(fontSize*0.08);
 

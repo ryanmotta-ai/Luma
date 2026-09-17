@@ -111,18 +111,28 @@ async function gForgotPassword(email) {
   const sb = _gSb();
   if (!sb) return { ok: false, error: 'Backend indisponível.' };
   const redirectTo = location.origin + location.pathname;
-  const { error } = await sb.auth.resetPasswordForEmail(String(email).trim().toLowerCase(), { redirectTo });
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
+  // Mesma razão do gLogin: uma rejeição (rede caiu) NÃO pode escapar — quem chama espera
+  // sempre um objeto, senão o botão fica preso em "Enviando…" e a tela não diz nada.
+  try {
+    const { error } = await sb.auth.resetPasswordForEmail(String(email).trim().toLowerCase(), { redirectTo });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: 'Não foi possível conectar. Verifique sua internet e tente de novo.' };
+  }
 }
 
 // Roda sobre a sessão de recovery materializada pelo supabase-js ao abrir o link do e-mail.
 async function gResetPassword(newPassword) {
   const sb = _gSb();
   if (!sb) return { ok: false, error: 'Backend indisponível.' };
-  const { error } = await sb.auth.updateUser({ password: newPassword });
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
+  try {
+    const { error } = await sb.auth.updateUser({ password: newPassword });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: 'Não foi possível conectar. Verifique sua internet e tente de novo.' };
+  }
 }
 
 /* ── GESTÃO DE USUÁRIOS — Supabase (Fase 1: listar + role + ativo via RLS) ──
@@ -208,7 +218,16 @@ async function gDoLogin(e) {
 
   const res = await gLogin(email, pass);
   if(res.ok) {
-    if(typeof gOnLoginSuccess === 'function') await gOnLoginSuccess();
+    /* A senha já foi aceita: um erro daqui pra frente é de MONTAGEM do app, não de login.
+       Sem a guarda, qualquer exceção na abertura da tela deixava o botão desabilitado com
+       "Autenticando…" para sempre — a pessoa autenticada presa na porta. */
+    try { if(typeof gOnLoginSuccess === 'function') await gOnLoginSuccess(); }
+    catch(e){
+      console.warn('[Luma] falha ao montar o app depois do login:', e);
+      const _l = document.getElementById('g-login-screen');
+      if(_l) _l.style.display = 'none';
+      if(typeof gToast === 'function') gToast('Entrei, mas parte da tela não carregou. Recarregue a página.', 'error');
+    }
   } else {
     errEl.textContent = res.error;
     errEl.style.display = 'block';

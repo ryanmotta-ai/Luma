@@ -226,6 +226,14 @@ function _fArtePodeExportar(){
 }
 function _fArteBaixarArquivo(prep){
   const a=document.createElement('a'); a.download=prep.fname;
+  /* `_fArtePreparar` JÁ produziu o Blob. Re-codificar o canvas em dataURL travava a aba por
+     centenas de ms num 2160×2700 e ainda inflava o resultado em ~33% (base64). */
+  if(prep.blob && typeof URL!=='undefined' && URL.createObjectURL){
+    const url=URL.createObjectURL(prep.blob);
+    a.href=url; a.click();
+    setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(e){} }, 60000);
+    return;
+  }
   a.href=prep.canvas.toDataURL('image/png'); a.click();
 }
 // Arte que saiu do Luma deixa de ser rascunho — e vira evento de analytics.
@@ -431,11 +439,15 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
   ctx.imageSmoothingQuality = 'high';
   // Fundo da prancheta/campanha
   const _renderMaterial=materialOverride||(typeof fState!=='undefined'?fState.material:null)||{layers,w:W,h:H,fmt:'orig'};
-  const _matBg=_renderMaterial.bg&&_renderMaterial.bg!=='transparent'?_renderMaterial.bg:null;
+  /* 'transparent' é uma ESCOLHA do designer, não ausência de escolha — logo, selo e adesivo
+     precisam do alfa. Sem esta guarda o `else` abaixo pintava o laranja da campanha por cima
+     de tudo e o franqueado baixava um PNG opaco onde tinha que haver recorte. */
+  const _bgEscolhido=_renderMaterial.bg||'';
+  const _matBg=(_bgEscolhido&&_bgEscolhido!=='transparent')?_bgEscolhido:null;
   if(_matBg){
     ctx.fillStyle=_matBg==='white'?'#ffffff':_matBg;
     ctx.fillRect(0,0,W,H);
-  }else{
+  }else if(_bgEscolhido!=='transparent'){
     const hasBackground=layers.some(l=>l.type==='shape'&&l.x===0&&l.y===0&&l.w>=W*0.9&&l.h>=H*0.9);
     if(!hasBackground){ctx.fillStyle=camp.color||'#FF9000';ctx.fillRect(0,0,W,H);}
   }
@@ -1609,7 +1621,11 @@ async function fRenderMaterialToDataURL(dados, camp, fmt){
   const fctx=finalCv.getContext('2d');
   fctx.imageSmoothingEnabled=true;fctx.imageSmoothingQuality='high';
   fctx.drawImage(renderCv,0,0,w,h);
-  return finalCv.toDataURL('image/png');
+  const _url=finalCv.toDataURL('image/png');
+  /* Zerar as dimensões devolve o backing store NA HORA. O lote chama isto dezenas de vezes
+     seguidas; esperar o GC acumulava centenas de MB de textura e derrubava a aba no celular. */
+  try{ renderCv.width=renderCv.height=0; finalCv.width=finalCv.height=0; }catch(e){}
+  return _url;
 }
 
 let _fLastMaterialId = null;

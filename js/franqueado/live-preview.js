@@ -1084,7 +1084,7 @@ function _fLpGuessSegment() {
 }
 // Dimensões por formato — espelha o png-generator (cobre 'post' e 'wide', que o
 // DFMT_SIZES do designer não tem). fState.fmt.id pode ser 'post'.
-const F_LP_SIZES = {story:[1080,1920], feed:[1080,1350], wide:[1200,628], post:[1200,628]};
+const F_LP_SIZES = {story:[1080,1920], feed:[1080,1350], wide:[1200,628], post:[1200,628], horizontal:[1920,1080]};
 
 let _lpRendering = false;
 let _lpLastErr = null; // última causa do estado de erro — vira texto na tela (diagnóstico por print)
@@ -1315,11 +1315,18 @@ async function fUpdateLivePreview(opts){
     {
       // Coleta overflow de texto durante ESTE render (só a prévia liga o coletor).
       window._fOverflowSink = new Set();
-      const rendered=await fRenderTemplateLayers(ctx,fState.material.layers,W,H,dadosPreview,fState.camp,null,
+      /* ⚠ QUEM RENDERIZOU É QUEM ASSINA. `fRenderTemplateLayers` tem `await` dentro (fontes,
+         imagens): trocar de material durante a espera fazia `_lpEffectiveMaterial` receber o
+         material NOVO junto com a geometria do VELHO. Quem lê esse par (o enquadramento de
+         foto, `fLpFrameVar`) passava a mexer numa camada de outra arte. */
+      const _matRender = fState.material;
+      const rendered=await fRenderTemplateLayers(ctx,_matRender.layers,W,H,dadosPreview,fState.camp,null,
         {scope:'franqueado',purpose:'preview'});
       _lpEffectiveLayers=Array.isArray(rendered)?rendered:[];
       _lpLayoutResult=rendered&&rendered._layoutResult||null;
-      _lpEffectiveMaterial=fState.material;
+      _lpEffectiveMaterial=_matRender;
+      // Material trocou no meio: este desenho já é passado. O `finally` re-agenda o render novo.
+      if(fState.material!==_matRender) _lpPendingRender=true;
       _lpOverflow = window._fOverflowSink; window._fOverflowSink = null;
       _fLpSyncAutoLayoutButton();
 
@@ -1810,7 +1817,10 @@ function fLpInjectPlaceholders(layers, dadosPreview, defaults){
         }
         if(!ex){
           // 3ª Linha de Defesa: Rótulos amigáveis ou o nome puro da variável
-          ex = (vDef && vDef.label) || F_FIELD_LABELS[name] || name;
+          // ⛔ O `|| name` desenhava `precoPor` DENTRO da arte. Motor único do nome visível.
+          ex = (typeof gFieldLabel==='function')
+            ? gFieldLabel(name, (fState.camp&&fState.camp.perguntas||[]).find(p=>p&&p.id===name))
+            : ((vDef && vDef.label) || F_FIELD_LABELS[name] || 'Campo');
         }
         dadosPreview[name] = ex;
       }
@@ -2226,6 +2236,9 @@ function _fLpCommit(v,val,opts){
       if(antes===''||antes==null) delete fState.dados[v]; else fState.dados[v]=antes;
       try{ if(typeof fSaveChatDraft==='function') fSaveChatDraft(); }catch(e){}
       _fLpRender();
+      // Mesma razão do commit acima: desfazer sem repintar deixava a linha da revisão com o
+      // valor que acabou de ser descartado, a 200px da arte que já voltou ao anterior.
+      try{ if(typeof fRevisaoRepinta==='function') fRevisaoRepinta(); }catch(e){}
     });
   }
 }

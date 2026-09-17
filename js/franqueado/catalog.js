@@ -64,13 +64,21 @@ function _fHistMatch(h, q){
 
    ⚠ Falha ABERTA: material não encontrado (catálogo ainda sincronizando, template apagado)
    não bloqueia nada. Travar arte válida por falta de dado seria pior que o problema. */
-function _fHistMaterial(h){
-  if(!h || !h.materialId || typeof dFolders==='undefined' || !dFolders) return null;
+/* O MATERIAL DE UM ID, UM LUGAR SÓ.
+   ⚠ `materialId` do histórico vem de DUAS origens: o id local (arte criada neste aparelho) e
+   o `template_id` do banco, que é UUID (`_fRowToArte`, history.js). Comparar só com `x.id`
+   fazia toda arte sincronizada de outro aparelho "perder" o template de origem: reabrir caía
+   no fallback sem layers e a arte voltava sem o desenho publicado. */
+function fFindMaterialById(mid){
+  if(!mid || typeof dFolders==='undefined' || !dFolders) return null;
   for(const folder of dFolders){
-    const t=(folder.templates||[]).find(x=>x.id===h.materialId);
+    const t=(folder.templates||[]).find(x=>x&&(x.id===mid||x.remoteId===mid));
     if(t) return t;
   }
   return null;
+}
+function _fHistMaterial(h){
+  return (h&&h.materialId) ? fFindMaterialById(h.materialId) : null;
 }
 function _fHistVencida(h){
   const m=_fHistMaterial(h);
@@ -380,12 +388,7 @@ async function fDownloadHist(id, btn){
   const f=FMTS.find(x=>x.id===h.fmtId)||FMTS[0];
   // Carrega material original se ainda existir (pra renderer usar layers reais)
   const prevMaterial = fState.material;
-  if(h.materialId && typeof dFolders !== 'undefined' && dFolders){
-    for(const folder of dFolders){
-      const t = folder.templates.find(x=>x.id===h.materialId);
-      if(t){ fState.material = t; break; }
-    }
-  }
+  { const _m = h.materialId ? fFindMaterialById(h.materialId) : null; if(_m) fState.material = _m; }
   // O botao so reagia DEPOIS de fEnsureMaterialLayers e do download das fontes -- em 3G
   // sao ate 10s de botao mudo, e a pessoa clica de novo achando que nao pegou. O loading
   // entra AQUI, antes do primeiro await, e sai no finally (todo caminho de saida passa la).
@@ -435,12 +438,7 @@ async function fEditFromHist(id, btn){
 
   // Se o histórico tem materialId, tenta carregar o material original
   let material = null;
-  if(h.materialId && typeof dFolders !== 'undefined' && dFolders){
-    for(const folder of dFolders){
-      const t = folder.templates.find(x=>x.id===h.materialId);
-      if(t){ material = t; break; }
-    }
-  }
+  if(h.materialId) material = fFindMaterialById(h.materialId);
   // Template sincronizado do backend pode estar sem layers (lazy) — baixa antes de montar as perguntas
   if(material && typeof fEnsureMaterialLayers==='function'){
     const restoreBtn=(material._needsLayersFetch && typeof gBtnLoading==='function') ? gBtnLoading(btn,'Abrindo…') : ()=>{};
@@ -554,12 +552,7 @@ async function fConfirmDuplicate(id, fmtId){
   const f = FMTS.find(x=>x.id===fmtId) || FMTS[0];
   // Carrega material original se ainda existir
   const prevMaterial = fState.material;
-  if(h.materialId && typeof dFolders !== 'undefined' && dFolders){
-    for(const folder of dFolders){
-      const t = folder.templates.find(x=>x.id===h.materialId);
-      if(t){ fState.material = t; break; }
-    }
-  }
+  { const _m = h.materialId ? fFindMaterialById(h.materialId) : null; if(_m) fState.material = _m; }
   if(fState.material && typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(fState.material);
   try {
     await fGenPNG(h.dados, c, f);

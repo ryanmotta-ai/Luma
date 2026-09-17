@@ -611,7 +611,9 @@ async function dPubSuggestMetadata(abId){
   let html = '<div class="pub-ai-suggestions" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;font-size:11px">';
   if (meta.suggestedName && meta.suggestedName !== ab.name) {
     const escName = gEsc(meta.suggestedName);
-    html += `<button type="button" class="pub-ai-chip pub-ai-name-chip" onclick="event.stopPropagation();dPubApplySuggestedName('${gEsc(abId)}', '${escName}')" title="Clique para adotar este nome" style="background:var(--dm-orange-bg,#fff3eb);border:1px solid var(--dm-orange-tint,#ffd2b8);color:var(--dm-orange-d,#b84000);border-radius:12px;padding:2px 8px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;font-size:11px">
+    // ⚠ gEsc NÃO protege argumento de handler inline: o parser HTML decodifica a entidade
+    // ANTES de compilar o JS, então `&#39;` volta a ser aspa e fecha a string. gEscJs é o motor.
+    html += `<button type="button" class="pub-ai-chip pub-ai-name-chip" onclick="event.stopPropagation();dPubApplySuggestedName('${gEscJs(abId)}', '${gEscJs(meta.suggestedName)}')" title="Clique para adotar este nome" style="background:var(--dm-orange-bg,#fff3eb);border:1px solid var(--dm-orange-tint,#ffd2b8);color:var(--dm-orange-d,#b84000);border-radius:12px;padding:2px 8px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;font-size:11px">
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
       <span>Nome: ${escName}</span>
     </button>`;
@@ -881,8 +883,14 @@ function dPublishConfirm(){
     // ID do template: o template CARREGADO quando existe; senão um id ÚNICO por arte.
     // O antigo 'tmpl-ab-'+abId colidia (abId é sempre 'ab-single'): publicar a arte B
     // sobrescrevia silenciosamente a arte A publicada antes.
-    const _target=_dPubFindTmpl();
-    const tmplId=_target?_target.tmpl.id:('tmpl-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7));
+    /* ⚠ `_dPubFindTmpl()` responde pela prancheta ATIVA (dActiveTmplId / dGetActiveAB), então
+       dentro deste laço ele devolvia o MESMO template para todas as pranchetas selecionadas:
+       publicar 3 formatos de uma vez gravava os 3 por cima do mesmo id e só o último sobrava.
+       Agora cada prancheta lembra o template que ela publicou (`ab.tmplId`); só a prancheta
+       ativa herda o template carregado. Republicar continua atualizando, sem duplicar. */
+    const _ehAtiva=(abId===dActiveABId);
+    const _target=_ehAtiva?_dPubFindTmpl():null;
+    const tmplId=ab.tmplId||(_target?_target.tmpl.id:('tmpl-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7)));
     // Procura template existente (em qualquer pasta) para reutilizar publishMeta
     let tmpl=null;
     let tmplFolder=null;
@@ -916,7 +924,9 @@ function dPublishConfirm(){
       tmpl.tags = dPubPermissoes._metaTags[abId];
     }
     // Vincula a arte aberta ao template publicado: republicar atualiza ESTE template.
-    if(typeof dActiveTmplId!=='undefined') dActiveTmplId=tmpl.id;
+    // Memória por prancheta — é o que impede o próximo lote de colidir tudo num id só.
+    ab.tmplId=tmpl.id;
+    if(_ehAtiva && typeof dActiveTmplId!=='undefined') dActiveTmplId=tmpl.id;
     // Contrato do schema: {template_id, template_name, fmt_id, camp_id, camp_name}
     if(typeof gTrackEvent==='function') gTrackEvent('template_publicado',{
       template_id:tmpl.remoteId||tmpl.id||null, template_name:tmpl.name||'', fmt_id:tmpl.fmt||'',

@@ -3149,9 +3149,9 @@ body:not(.theme-light) input:-webkit-autofill:active {
 <script src="js/designer/psd-import.js?v=85"></script>
 <script src="js/designer/mask.js?v=85"></script>
 <script src="js/designer/tutorial-panel.js?v=85"></script>
-<script src="assets/vendor/colorthief.js"></script>
-<script src="assets/vendor/pica.js"></script>
-<script src="assets/vendor/jszip.min.js"></script>
+<script src="assets/vendor/colorthief.js?v=85"></script>
+<script src="assets/vendor/pica.js?v=85"></script>
+<script src="assets/vendor/jszip.min.js?v=85"></script>
 <!-- ══ pdf-lib NÃO entra no boot ══
      Medido em 02/09: o boot baixava 4.738 KB de js+css, e o pdf-lib sozinho eram
      **513 KB = 11% disso** — para uma feature atrás de flag (`franqueado.export.pdf`)
@@ -3180,7 +3180,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
     return window.__gPdfLibCarregando;
   };
 </script>
-<script src="assets/vendor/supabase.js"></script>
+<script src="assets/vendor/supabase.js?v=85"></script>
 <script src="js/core/supabase-config.js?v=85"></script>
 <script src="js/core/supabase.js?v=85"></script>
 <!-- Camada Única de Inteligência (Gemini Intelligence Layer) -->
@@ -3203,6 +3203,11 @@ body:not(.theme-light) input:-webkit-autofill:active {
 <!-- Luma CLI: por último entre os core porque só usa globais já definidos
      (gIsAdmin, gHasBackend, gAskAI, dFolders…) e é o único que abre por atalho -->
 <script src="js/core/console.js?v=85"></script>
+<!-- Utilitários do Estúdio: carregavam DEPOIS do main.js, então o DOMContentLoaded do
+     bootstrap corria antes do deles. main.js é o ÚLTIMO, como o cabeçalho dele manda. -->
+<script src="js/designer/color-picker.js?v=85"></script>
+<script src="js/designer/tooltip.js?v=85"></script>
+<script src="js/designer/linter.js?v=85"></script>
 <script src="js/main.js?v=85"></script>
 
 
@@ -3874,9 +3879,6 @@ body:not(.theme-light) input:-webkit-autofill:active {
   </div>
 </div>
 
-<script src="js/designer/color-picker.js?v=85"></script>
-<script src="js/designer/tooltip.js?v=85"></script>
-<script src="js/designer/linter.js?v=85"></script>
   <!-- Tooltip Educativo Global -->
   <div id="d-rich-tooltip" class="d-rich-tooltip" style="display:none; opacity:0;"></div>
 </body>

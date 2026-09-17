@@ -193,7 +193,7 @@ function _fChipsDeFluxo(msgs, html){
 /* Os campos que um perfil de loja sabe responder. Nomes variam por template
    (o designer batiza o campo), então cada dado tem seus apelidos conhecidos. */
 const F_LOJA_CAMPOS = {
-  logo:     ['logo_loja'],
+  logo:     ['logo_loja','logo','logotipo','logo_marca','marca'],
   nome:     ['nome_loja','nomeLoja','loja','nome_da_loja','estabelecimento'],
   whatsapp: ['whatsapp','telefone','contato'],
   cor:      ['cor','cor_marca','cor_loja']
@@ -201,10 +201,25 @@ const F_LOJA_CAMPOS = {
 // A loja tem algo a oferecer neste material? (antes só olhava o logo — nome/whatsapp/cor
 // também são redigitação, e material sem campo de logo ficava sem o atalho.)
 function _fLojaServeMaterial(){
-  return Object.keys(F_LOJA_CAMPOS).some(k=>F_LOJA_CAMPOS[k].some(_fPergExists));
+  if(Object.keys(F_LOJA_CAMPOS).some(k=>F_LOJA_CAMPOS[k].some(_fPergExists))) return true;
+  /* A lista de apelidos sempre tem buraco. `gCampoEhLogo` é o motor único da pergunta
+     "isto é um logo?" (nome + `semantic` do designer) — ele fecha o que a lista não prevê. */
+  const ps=(fState.camp&&fState.camp.perguntas)||[];
+  return typeof gCampoEhLogo==='function' && ps.some(p=>p&&gCampoEhLogo(p.id));
+}
+// Os campos de logo DESTE material — os apelidos conhecidos mais o que o motor reconhecer.
+function _fLojaCamposLogo(){
+  const ps=(fState.camp&&fState.camp.perguntas)||[];
+  const dinam=(typeof gCampoEhLogo==='function')?ps.filter(p=>p&&gCampoEhLogo(p.id)).map(p=>p.id):[];
+  return [...new Set([...F_LOJA_CAMPOS.logo, ...dinam])];
 }
 
 function fMaterialPreStart(material){
+  /* ⚠ O SLOT DE DESFAZER É DA ARTE, NÃO DA SESSÃO. `_fUndoLimpa` existia e nunca era chamado:
+     o botão continuava oferecendo "Desfazer: Refazer arte" depois de trocar de material, e
+     aceitar restaurava campanha/material/conversa ANTIGOS por cima da arte nova. */
+  try{ if(typeof _fUndoLimpa==='function') _fUndoLimpa(); }catch(e){}
+  try{ if(typeof fLpStopFraming==='function') fLpStopFraming(); }catch(e){}
   if(_fGuidedAtivo()) return _fGuidedMaterialPreStart(material);
   const lojas = (typeof fGetLojas==='function') ? fGetLojas() : [];
   const lojaOffer = _fLojaServeMaterial() && lojas.length;
@@ -219,7 +234,7 @@ function fMaterialPreStart(material){
   const _rewindIco='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>';
   let chips='';
   if(lojaOffer){
-    chips += lojas.map(l=>`<div class="qr qr-loja" role="button" tabindex="0" onclick="fPickLoja('${l.id}')">${_lojaIco}${gEsc(l.nome||'Minha loja')}</div>`).join('');
+    chips += lojas.map(l=>`<div class="qr qr-loja" role="button" tabindex="0" onclick="fPickLoja('${gEscJs(l.id)}')">${_lojaIco}${gEsc(l.nome||'Minha loja')}</div>`).join('');
   }
   if(lastArte){
     chips += `<div class="qr" role="button" tabindex="0" onclick="fUseLastArte(${lastArte.id})">${_rewindIco}Usar dados da última arte</div>`;
@@ -254,15 +269,21 @@ function fPickLoja(lojaId){
      memória da sessão, do mesmo tipo do `_lastHistId`. Quem recarrega a página cai no
      caminho 1 do `_fPostedPerfil` (os campos da própria arte), que é o mais preciso. */
   fState._lojaId = lojaId;
-  _preenche(loja.logo,     F_LOJA_CAMPOS.logo);
+  _preenche(loja.logo,     _fLojaCamposLogo());
   _preenche(loja.nome,     F_LOJA_CAMPOS.nome);      // o nome da loja também é dado da loja
   _preenche(loja.whatsapp, F_LOJA_CAMPOS.whatsapp);
   _preenche(loja.cor,      F_LOJA_CAMPOS.cor);
   // Remove do fluxo tudo que já está respondido (pela loja agora ou pela prévia antes).
   /* No desktop guiado, campos preenchidos continuam na lista canônica: o cursor é que pula
      decisões resolvidas. Remover a pergunta faria “4 de 6 informações” virar “0 de 2”. */
-  if(!_fGuidedAtivo())
+  if(!_fGuidedAtivo()){
+    /* ⚠ GUARDA A LISTA CANÔNICA ANTES DE FILTRAR. `fRestartArt` zera `fState.dados` mas reusa
+       `fState.camp.perguntas` — sem esta cópia, refazer a arte depois de aplicar uma loja
+       deixava logo/nome/whatsapp fora do fluxo PARA SEMPRE, com os dados já apagados: a arte
+       saía sem a marca e não havia passo para preenchê-la de novo. */
+    if(!fState.camp._perguntasTodas) fState.camp._perguntasTodas=(fState.camp.perguntas||[]).slice();
     fState.camp.perguntas = (fState.camp.perguntas||[]).filter(p=>fState.dados[p.id]==null||fState.dados[p.id]==='');
+  }
   if(typeof gToast==='function') gToast(`Dados de ${loja.nome||'sua loja'} aplicados`);
   fLpRefresh();
   _fProceedMaterialStart(fState.material);
@@ -472,8 +493,8 @@ function _fGuidedOpcoes(p,cfg){
 function _fGuidedControleHTML(p,cfg,valor,uploadId){
   if(p.isImage||cfg.type==='image'){
     if(valor) return _fUploadPreviewHTML(p.id,valor,{jaEstava:true});
-    return `<div class="f-upload-zone fg-upload-zone" id="${uploadId}-zone" data-var="${gEsc(p.id)}" data-upload="${uploadId}" onclick="fOpenUploadPanel('${gEsc(p.id)}','${uploadId}')">
-      <input type="file" id="${uploadId}-input" accept="image/png,image/jpeg,image/webp" hidden onclick="event.stopPropagation()" onchange="fHandleImageUpload(event,'${gEsc(p.id)}','${uploadId}')">
+    return `<div class="f-upload-zone fg-upload-zone" id="${uploadId}-zone" data-var="${gEsc(p.id)}" data-upload="${uploadId}" onclick="fOpenUploadPanel('${gEscJs(p.id)}','${gEscJs(uploadId)}')">
+      <input type="file" id="${uploadId}-input" accept="image/png,image/jpeg,image/webp" hidden onclick="event.stopPropagation()" onchange="fHandleImageUpload(event,'${gEscJs(p.id)}','${gEscJs(uploadId)}')">
       <div class="f-upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
       <div class="f-upload-title">Escolher imagem</div><div class="f-upload-sub">PNG, JPG ou WebP · até 20MB</div>
     </div>`;
@@ -1564,10 +1585,14 @@ function _fApplyImageToField(varId, uploadId, resizedUrl){
      (`fConfirmarImagem`, no botão do próprio preview): quem subiu o arquivo errado descobre
      aqui, olhando, e não três passos adiante. Campo de logo ainda passa pela validação
      determinística antes — o aviso repinta o preview com as duas saídas do pedido. */
+  /* A conferência é assíncrona (IA/heurística). Trocar a foto enquanto ela roda fazia o
+     retorno da foto ANTIGA repintar o preview — a pessoa via voltar a imagem que acabou de
+     substituir. O aviso só vale se o campo ainda estiver com a MESMA imagem. */
+  const _aindaEhAtual=()=>fState.dados && fState.dados[varId]===resizedUrl;
   if(typeof fValidarImagemSemantica==='function'){
-    fValidarImagemSemantica(varId, resizedUrl, (aviso)=>{ if(aviso) pintaPreview(aviso); });
+    fValidarImagemSemantica(varId, resizedUrl, (aviso)=>{ if(aviso && _aindaEhAtual()) pintaPreview(aviso); });
   } else if(typeof gCampoEhLogo==='function' && gCampoEhLogo(varId) && typeof fValidarLogo==='function'){
-    fValidarLogo(resizedUrl, (aviso)=>{ if(aviso) pintaPreview(aviso); });
+    fValidarLogo(resizedUrl, (aviso)=>{ if(aviso && _aindaEhAtual()) pintaPreview(aviso); });
   }
 }
 /* `preservarAlpha`: a saída sai em PNG em vez de JPEG. Existe por causa do LOGO — o JPEG NÃO
@@ -1577,15 +1602,30 @@ function _fApplyImageToField(varId, uploadId, resizedUrl){
    estragava justamente o arquivo que mais precisa da transparência.
    ⚠ Continua opcional e desligado por padrão: foto de produto em PNG pesaria muitas vezes mais
    que o JPEG a 0,88, e ela não tem transparência nenhuma a preservar. */
+/* A imagem tem pixel transparente? Amostra num canvas 64×64: um recorte com fundo vazado
+   mantém alfa 0 mesmo reduzido, e 4 mil pixels custam menos de um milissegundo. Usar o
+   tamanho cheio (6M pixels num 2500²) travaria a aba justo no passo da foto. */
+function _fImagemTemAlpha(img){
+  try{
+    const c=document.createElement('canvas'); c.width=c.height=64;
+    const x=c.getContext('2d'); x.clearRect(0,0,64,64); x.drawImage(img,0,0,64,64);
+    const d=x.getImageData(0,0,64,64).data;
+    for(let i=3;i<d.length;i+=4){ if(d[i]<250) return true; }
+  }catch(e){}
+  return false;
+}
 function fResizeImageIfNeeded(dataUrl, maxDim, cb, preservarAlpha){
-  const tipo = preservarAlpha ? 'image/png' : 'image/jpeg';
-  const paraUrl = (canvasOuRes) => preservarAlpha
-    ? canvasOuRes.toDataURL('image/png')
-    : canvasOuRes.toDataURL('image/jpeg', 0.88);
   const img=new Image();
   img.onload=()=>{
     const {width:w, height:h} = img;
     if(w <= maxDim && h <= maxDim){cb(dataUrl);return;}
+    /* O flag do chamador cobre o LOGO. Mas qualquer PNG vazado (recorte de produto, selo,
+       adesivo) acima do teto caía em JPEG e voltava com fundo PRETO chapado. Quem não tem
+       alfa continua saindo em JPEG — o peso do PNG só é pago por quem precisa dele. */
+    const _alpha = preservarAlpha || _fImagemTemAlpha(img);
+    const paraUrl = (canvasOuRes) => _alpha
+      ? canvasOuRes.toDataURL('image/png')
+      : canvasOuRes.toDataURL('image/jpeg', 0.88);
     const scale = Math.min(maxDim/w, maxDim/h);
     const cv=document.createElement('canvas');
     cv.width=Math.round(w*scale); cv.height=Math.round(h*scale);
@@ -1612,7 +1652,6 @@ function fResizeImageIfNeeded(dataUrl, maxDim, cb, preservarAlpha){
     ctx.imageSmoothingQuality='high';
     ctx.drawImage(img,0,0,cv.width,cv.height);
     cb(paraUrl(cv));
-    void tipo;
   };
   img.onerror=()=>cb(dataUrl);
   img.src=dataUrl;
@@ -2292,6 +2331,11 @@ function _fCopyText(text){
   } else fCopyFallback(text,()=>{});
 }
 
+/* CARIMBO DA GERAÇÃO. O corpo do `fGerarArte` roda dentro de um `setTimeout` assíncrono: sem
+   este número, reiniciar (ou gerar de novo) durante a espera deixava o agendamento antigo
+   chegar depois, empurrando a arte ANTERIOR para dentro do chat já limpo e gravando histórico
+   de dados que não existem mais. Quem chega fora da vez simplesmente desiste. */
+let _fGerarSeq = 0;
 function fGerarArte(){
   if(_fGuidedAtivo()) _fGuidedPrepararConclusao();
   fState.done=true;fUpdateProg();
@@ -2311,7 +2355,9 @@ function fGerarArte(){
   const mic=document.getElementById('f-chat-mic'); if(mic) mic.disabled=false;
   const d=fState.dados,c=fState.camp;
   fAddBot('Gerando sua arte agora…',[]);
+  const _seqGer = ++_fGerarSeq;
   setTimeout(async ()=>{
+    if(_seqGer!==_fGerarSeq) return;   // reiniciou/gerou de novo enquanto esperávamos
     const prod=d.produto||d.categoria||d.brinde||d.oferta||c.name;
     const por=d.precoPor||d.desconto||'Ver no app';
     const de=d.precoDe?`De ${d.precoDe}`:'';
@@ -2792,7 +2838,12 @@ async function fAskRestartArt(){
 function fRestartArt(opts){
   opts = opts || {};
   const antes = opts.silencioso ? null : _fSnapshotArte();
+  // Enquadramento aberto sobre a arte antiga: a HUD e os listeners não podem sobreviver ao reset.
+  try{ if(typeof fLpStopFraming==='function') fLpStopFraming(); }catch(e){}
   fState.stepIdx = -1;
+  // A lista de perguntas volta ao estado publicado: `fPickLoja` tinha tirado do fluxo o que a
+  // loja respondeu, e zerar `dados` sem devolver as perguntas deixaria campos órfãos.
+  if(fState.camp && fState.camp._perguntasTodas) fState.camp.perguntas = fState.camp._perguntasTodas.slice();
   fState.dados = {};
   fState.done = false;
   fState.editIdx = null;
@@ -2801,6 +2852,7 @@ function fRestartArt(opts){
   _fArtSnapshots = {};
   _fArtCaptions = {};
   try{ fClearChatDraft(); }catch(e){}   // o rascunho velho não pode sobreviver ao reset
+  _fGerarSeq++;                         // invalida geração agendada e ainda não desenhada
   const msgs = document.getElementById('f-messages');
   if(msgs) msgs.innerHTML = '';
   fUpdateProg();

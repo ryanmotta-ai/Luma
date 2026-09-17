@@ -81,6 +81,15 @@ var gTrackEvent = (function(){
       })]);
     }finally{ clearTimeout(timer); }
   }
+  // Conta a falha NA LINHA, não numa variável solta: a fila sobrevive a reload e o contador
+  // precisa sobreviver junto, senão a pílula volta zerada a cada abertura do app.
+  function _marcarTentativa(uid,id){
+    const rows=read(uid);
+    const alvo=rows.find(x=>x&&x.id===id);
+    if(!alvo) return;
+    alvo._tent=(alvo._tent||0)+1;
+    write(uid,rows);
+  }
   async function flush(uid){
     uid=uid||currentId();
     if(!uid || uid!==currentId()) return false;
@@ -90,6 +99,14 @@ var gTrackEvent = (function(){
       if(!sb) return false;
       while(uid===currentId()){
         const row=read(uid)[0]; if(!row) return true;
+        /* PÍLULA ENVENENADA: um evento que o RPC rejeita SEMPRE (payload que o schema recusa)
+           ficava eternamente na cabeça da fila. A fila enchia até o teto e, a partir dali,
+           `track` recusava TODO evento novo — a telemetria morria inteira por causa de um. */
+        if((row._tent||0)>=3){
+          console.warn('[telemetria] evento descartado após 3 tentativas:', row.evento);
+          write(uid,read(uid).filter(x=>x.id!==row.id));
+          continue;
+        }
         try{
           // O espelho do perfil pode estar atrasado durante a troca de conta.
           // Confira também a sessão que o SDK usará para assinar a requisição.
@@ -99,11 +116,11 @@ var gTrackEvent = (function(){
           const {data,error}=await bounded(sb.schema('luma').rpc('registrar_evento',{
             p_id:row.id,p_evento:row.evento,p_payload:row.payload
           }).abortSignal(controller.signal),controller);
-          if(error || data!==true) return false;
+          if(error || data!==true){ _marcarTentativa(uid,row.id); return false; }
           confirmed.add(uid+':'+row.id);
           if(confirmed.size>1000) confirmed.delete(confirmed.values().next().value);
           write(uid,read(uid).filter(x=>x.id!==row.id));
-        }catch(e){ return false; }
+        }catch(e){ _marcarTentativa(uid,row.id); return false; }
       }
       return false;
     })();

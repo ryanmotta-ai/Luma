@@ -1296,18 +1296,18 @@ function dTemplateMenuOpen(ev, folderId, tmplId){
   const menu = document.createElement('div');
   menu.className = 'tmpl-context-menu';
   menu.innerHTML = `
-    <button class="tmpl-ctx-item" onclick="dRenameTemplate('${folderId}','${tmplId}')">
+    <button class="tmpl-ctx-item" onclick="dRenameTemplate('${gEscJs(folderId)}','${gEscJs(tmplId)}')">
       <span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>Renomear
     </button>
-    <button class="tmpl-ctx-item" onclick="dQuickEditValidade('${folderId}','${tmplId}')">
+    <button class="tmpl-ctx-item" onclick="dQuickEditValidade('${gEscJs(folderId)}','${gEscJs(tmplId)}')">
       <span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>Editar validade
     </button>
-    <button class="tmpl-ctx-item" onclick="dQuickEditPerms('${folderId}','${tmplId}')">
+    <button class="tmpl-ctx-item" onclick="dQuickEditPerms('${gEscJs(folderId)}','${gEscJs(tmplId)}')">
       <span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>Editar permissões
     </button>
     ${isPublished
-      ? `<button class="tmpl-ctx-item" onclick="dToggleTemplatePublish('${folderId}','${tmplId}',false)"><span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></span>Despublicar</button>`
-      : `<button class="tmpl-ctx-item" onclick="dToggleTemplatePublish('${folderId}','${tmplId}',true)"><span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M4.5 16.5c-1.5 1.25-2.5 3.5-2.5 3.5s2.25-1 3.5-2.5L18.5 4.5 19.5 5.5zm11-11l-3 3M9 12l-3 3"/></svg></span>Revisar e publicar</button>`
+      ? `<button class="tmpl-ctx-item" onclick="dToggleTemplatePublish('${gEscJs(folderId)}','${gEscJs(tmplId)}',false)"><span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></span>Despublicar</button>`
+      : `<button class="tmpl-ctx-item" onclick="dToggleTemplatePublish('${gEscJs(folderId)}','${gEscJs(tmplId)}',true)"><span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M4.5 16.5c-1.5 1.25-2.5 3.5-2.5 3.5s2.25-1 3.5-2.5L18.5 4.5 19.5 5.5zm11-11l-3 3M9 12l-3 3"/></svg></span>Revisar e publicar</button>`
     }
     <button class="tmpl-ctx-item" onclick="dDuplicateTemplate('${folderId}','${tmplId}')">
       <span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>Duplicar
@@ -1658,8 +1658,14 @@ function dTmplLoading(state, msg){
   }
 }
 
+/* CARIMBO DE CARREGAMENTO. O download dos layers é assíncrono: clicar no material A (lento,
+   vem do banco) e depois no B (rápido, já local) fazia a resposta de A chegar DEPOIS e
+   reescrever a prancheta do B — o designer via o material errado abrir sozinho. Quem volta
+   fora da vez desiste em silêncio, sem tocar o estado. */
+let _dLoadTmplSeq = 0;
 async function dLoadTemplate(tmpl,folder,options){
   if(!tmpl)return;
+  const _seq = ++_dLoadTmplSeq;
 
   // -- LAZY LOAD DOS LAYERS (catálogo leve: layers descem sob demanda) --
   if(tmpl._needsLayersFetch && tmpl.remoteId){
@@ -1668,6 +1674,7 @@ async function dLoadTemplate(tmpl,folder,options){
       dTmplLoading('show');
       try {
         const {data, error} = await sb.schema('luma').from('templates').select('layers').eq('id', tmpl.remoteId).single();
+        if(_seq!==_dLoadTmplSeq) return;   // o designer já abriu outro material
         if(error || !data){
           // Antes: erro engolido (catch vazio) → canvas em branco silencioso. Agora avisa
           // e ABORTA (mantém o canvas atual) em vez de fingir que carregou um template vazio.
@@ -1679,6 +1686,7 @@ async function dLoadTemplate(tmpl,folder,options){
         if(typeof dPersistFolders === 'function') dPersistFolders();
         dTmplLoading('hide');
       } catch(e) {
+        if(_seq!==_dLoadTmplSeq) return;
         dTmplLoading('error', 'Falha ao baixar o material — '+((e&&e.message)?e.message:'erro de rede.'));
         return;
       }
@@ -1689,7 +1697,11 @@ async function dLoadTemplate(tmpl,folder,options){
     }
   }
 
+  if(_seq!==_dLoadTmplSeq) return;
   dDeckRememberView();
+  // Simulação é estado da arte ANTERIOR: sem o reset, valores de teste do template velho
+  // continuavam pintados sobre o novo, e o designer via dado que não é dele.
+  if(typeof dResetSim==='function' && typeof dSimActive!=='undefined' && dSimActive) dResetSim();
   dActiveTmplId=tmpl.id;
   if(folder)dActiveTmplFolderId=folder.id; // destaca a pasta da arte ativa na grade
   else dActiveTmplFolderId=null;
@@ -1700,6 +1712,10 @@ async function dLoadTemplate(tmpl,folder,options){
   const f=DFMT_SIZES[tmpl.fmt]||DFMT_SIZES.story;
   const _w=(tmpl.w>0)?tmpl.w:f.w, _h=(tmpl.h>0)?tmpl.h:f.h;
   dCustomFmt=null; // limpa override ad-hoc de um "Novo arquivo" anterior; o tamanho real vem de ab.w/h abaixo
+  /* O FUNDO DA PRANCHETA vem do template. `dGetActiveAB()` reescreve `ab.bg` a partir de
+     `dCanvasBg` toda vez que roda, então atribuir em `ab` não adiantaria: a verdade é a
+     variável. Sem isto, abrir um template carregava o fundo do template ANTERIOR. */
+  dCanvasBg = tmpl.bg || '';
   const ab=dGetActiveAB();
   if(ab){ab.layers=JSON.parse(JSON.stringify(tmpl.layers||[]));ab.fmt=tmpl.fmt;ab.name=tmpl.name;ab.w=_w;ab.h=_h;}
   dLayers=JSON.parse(JSON.stringify(tmpl.layers||[]));
@@ -2231,7 +2247,9 @@ function dNewDocConfirm(){
 }
 
 /* ── FORMATO / CANVAS ── */
-const DFMT_SIZES={story:{w:1080,h:1920},feed:{w:1080,h:1350},wide:{w:1200,h:628},horizontal:{w:1920,h:1080}};
+// 'post' é o id do mesmo 1200×628 no catálogo do franqueado (FMTS) — sem o alias, um template
+// legado gravado com fmt:'post' caía no fallback 'story' e abria em 1080×1920.
+const DFMT_SIZES={story:{w:1080,h:1920},feed:{w:1080,h:1350},wide:{w:1200,h:628},post:{w:1200,h:628},horizontal:{w:1920,h:1080}};
 
 /* ══════════════════════════════════════════════════════════════
    NOVO MOTOR DE IMPORTAÇÃO DE SVG (ILLUSTRATOR COMPATIBLE)
@@ -2982,17 +3000,17 @@ function dRenderTemplateToDOM(container, tmpl) {
       if(vectorD){
         const inner=document.createElement('div'); inner.style.cssText='position:absolute;inset:0;';
         const rule=typeof gVectorPathFillRule==='function'?gVectorPathFillRule(l.vectorPath):'nonzero';
-        let st=(l.strokeW>0)?' stroke="'+(l.strokeColor||'#000')+'" stroke-width="'+l.strokeW+'"':'';
+        let st=(l.strokeW>0)?' stroke="'+gSafeColor(l.strokeColor,'#000')+'" stroke-width="'+l.strokeW+'"':'';
         if(l.strokeDash&&l.strokeDash.length)st+=' stroke-dasharray="'+l.strokeDash.join(' ')+'"';
-        inner.innerHTML='<svg width="100%" height="100%" viewBox="0 0 '+l.w+' '+l.h+'" preserveAspectRatio="none" style="display:block;overflow:visible"><path d="'+vectorD+'" fill="'+(l.fill||'#FF9000')+'" fill-rule="'+rule+'"'+st+'/></svg>';
+        inner.innerHTML='<svg width="100%" height="100%" viewBox="0 0 '+l.w+' '+l.h+'" preserveAspectRatio="none" style="display:block;overflow:visible"><path d="'+vectorD+'" fill="'+gSafeColor(l.fill,'#FF9000')+'" fill-rule="'+rule+'"'+st+'/></svg>';
         el.appendChild(inner);
       } else if (pts) {
         const inner = document.createElement('div');
         inner.style.cssText = 'position:absolute;inset:0;';
         const abs = pts.map(p => [p[0] * l.w, p[1] * l.h]);
         const d = gRoundPolyD(abs, l.radius || 0);
-        const _st = (l.strokeW > 0) ? ' stroke="' + (l.strokeColor || '#000') + '" stroke-width="' + l.strokeW + '"' : '';
-        inner.innerHTML = '<svg width="100%" height="100%" viewBox="0 0 ' + l.w + ' ' + l.h + '" preserveAspectRatio="none" style="display:block;overflow:visible"><path d="' + d + '" fill="' + (l.fill || '#FF9000') + '"' + _st + '/></svg>';
+        const _st = (l.strokeW > 0) ? ' stroke="' + gSafeColor(l.strokeColor,'#000') + '" stroke-width="' + l.strokeW + '"' : '';
+        inner.innerHTML = '<svg width="100%" height="100%" viewBox="0 0 ' + l.w + ' ' + l.h + '" preserveAspectRatio="none" style="display:block;overflow:visible"><path d="' + d + '" fill="' + gSafeColor(l.fill,'#FF9000') + '"' + _st + '/></svg>';
         el.appendChild(inner);
       } else {
         el.style.background = dFxShapeBg(l);
@@ -3042,10 +3060,12 @@ function dRenderTemplateToDOM(container, tmpl) {
         // terceira cópia da mesma montagem — e seguia vulnerável depois de eu corrigir a primeira.
         textNode.innerHTML = gRichTextHtml(l.runs, _renderFs);
       } else {
+        // O rótulo é digitado pelo designer (e desce do sync) — entrava cru DEPOIS do gEsc,
+        // o que anulava o escape. Motor único para o nome visível: gFieldLabel.
         textNode.innerHTML = gEsc(l.content || '').replace(gVarRegex(), (m, n) => {
           const varName = n.trim();
-          const v = (typeof dVars !== 'undefined') && dVars.find(x => x.name === varName);
-          return v ? (v.label || varName) : varName;
+          const lab = (typeof gFieldLabel === 'function') ? gFieldLabel(varName) : varName;
+          return gEsc(lab);
         });
       }
       if (l.gradient && l.gradient.stops && l.gradient.stops.length && !(l.runs && l.runs.length)) {
@@ -3081,7 +3101,9 @@ function dRenderTemplateToDOM(container, tmpl) {
       }
       el.appendChild(textNode);
     } else if (l.type === 'frame') {
-      el.style.position = 'relative';
+      /* ⛔ `position:relative` aqui SOBRESCREVIA o `position:absolute` do cssText acima (com o
+         left/top da camada): a moldura saía do lugar e entrava no fluxo, embaralhando a
+         miniatura. O `inset:0` do inner já se ancora no `el`, que continua posicionado. */
       el.style.overflow = 'visible';
       const borderR = (l.frameShape === 'circle' ? '50%' : (l.radius || 8) + 'px');
       const inner = document.createElement('div');

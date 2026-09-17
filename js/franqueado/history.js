@@ -44,12 +44,9 @@ async function _fUploadUserImg(uid, sub, dataUrl){
 // têm UUID → null (linha antiga do banco também é null; o front já trata).
 function _fTemplateUuidFor(h){
   const mid=h&&h.materialId; if(!mid) return null;
-  if(typeof dFolders!=='undefined'&&Array.isArray(dFolders)){
-    for(const f of dFolders){
-      const t=(f.templates||[]).find(x=>x&&x.id===mid);
-      if(t) return t.remoteId||null;
-    }
-  }
+  // Mesmo motor do catálogo: casa por id local OU por UUID remoto (arte vinda do sync).
+  const _t=(typeof fFindMaterialById==='function')?fFindMaterialById(mid):null;
+  if(_t) return _t.remoteId||null;
   // Sem catálogo carregado: num device que só puxou do banco o id local JÁ é o UUID remoto.
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(mid))?mid:null;
 }

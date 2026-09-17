@@ -77,6 +77,9 @@ function dHistoryReset(){
     if (typeof dCountRender === 'function') dCountRender();
   }
   dPaintDirty=true;            // captura a pintura atual como baseline
+  // O commit agendado (400ms) do template ANTERIOR não pode cair na pilha recém-zerada:
+  // ele empilharia o estado velho como se fosse a primeira edição do novo material.
+  clearTimeout(_dHistDebounce); _dHistDebounce=null;
   dHistory=[dHistorySnapshot()];
   dHistoryIdx=0;
   _dHistPending=false;

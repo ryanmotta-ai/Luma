@@ -114,13 +114,21 @@ function fRemoveRecentImg(i, ev){
 }
 
 /* ── PAINEL ── */
+/* "Isto é um campo de logo?" tem UM dono: `gCampoEhLogo` (nome + `semantic` do designer).
+   Este arquivo comparava com a string 'logo_loja' em três pontos — template que batiza o
+   campo de `logo`, `marca_parceiro` ou `logotipo` ficava sem a seção "Minhas lojas", e o
+   `_fApplyImageToField('logo_loja',…)` do final gravava num campo que nem existia na arte. */
+function _fUpEhLogo(varId){
+  return (typeof gCampoEhLogo==='function') ? !!gCampoEhLogo(varId) : (varId==='logo_loja');
+}
 function fOpenUploadPanel(varId, uploadId){
   _fUpPanelVar=varId; _fUpPanelUploadId=uploadId;
   const recents=fGetRecentImgs();
-  const lojas=(varId==='logo_loja' && typeof fGetLojas==='function') ? fGetLojas() : [];
+  const _ehLogo=_fUpEhLogo(varId);
+  const lojas=(_ehLogo && typeof fGetLojas==='function') ? fGetLojas() : [];
   // Nada guardado ainda → não faz sentido um painel vazio; vai direto pro arquivo.
   // As fotos de exemplo contam como conteúdo: com elas o painel tem o que oferecer.
-  if(!recents.length && !lojas.length && !fDemoImgsPara(varId==='logo_loja').length){ fUploadPanelNewFile(); return; }
+  if(!recents.length && !lojas.length && !fDemoImgsPara(_ehLogo).length){ fUploadPanelNewFile(); return; }
   let host=document.getElementById('f-upload-panel');
   if(!host){
     host=document.createElement('div'); host.id='f-upload-panel';
@@ -137,7 +145,7 @@ function fCloseUploadPanel(){
 }
 function _fRenderUploadPanel(){
   const host=document.getElementById('f-upload-panel'); if(!host) return;
-  const isLogo=_fUpPanelVar==='logo_loja';
+  const isLogo=_fUpEhLogo(_fUpPanelVar);
   const recents=fGetRecentImgs();
   const lojas=(isLogo && typeof fGetLojas==='function') ? fGetLojas() : [];
   const _icoClose='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
@@ -243,9 +251,11 @@ function fPickRecentImg(i){
 function fUploadPanelPickLoja(id){
   const loja=(typeof fGetLojas==='function') ? fGetLojas().find(l=>l.id===id) : null;
   const uploadId=_fUpPanelUploadId;
+  const _varAlvo=_fUpPanelVar||'logo_loja';   // lido ANTES do close, que zera o estado do painel
   fCloseUploadPanel();
   if(!loja || !loja.logo){ if(typeof gToast==='function') gToast('Essa loja não tem logo salvo.','error'); return; }
-  if(typeof _fApplyImageToField==='function') _fApplyImageToField('logo_loja', uploadId, loja.logo);
+  // O campo é o que o painel ABRIU, não um nome fixo: o designer batiza como quiser.
+  if(typeof _fApplyImageToField==='function') _fApplyImageToField(_varAlvo, uploadId, loja.logo);
   if(typeof gToast==='function') gToast(`Logo de ${loja.nome||'sua loja'} aplicado`);
 }
 function fUploadPanelDeleteLoja(id, ev){

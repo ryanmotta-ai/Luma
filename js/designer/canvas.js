@@ -1919,10 +1919,12 @@ function dAppendFieldMapBadge(el,l){
   if(!dFieldMapVisible||dSimActive||!el||!l)return;
   const names=dFieldMapNames(l);if(!names.length)return;
   const badge=document.createElement('div');badge.className='field-map-badge';
-  badge.textContent=names.map(name=>{
-    const v=(typeof dVars!=='undefined'&&dVars)?dVars.find(x=>x.name===name):null;
-    return (v&&(v.label||v.name))||((typeof gFieldLabel==='function')?gFieldLabel(name):name);
-  }).join(' · ');
+  // ⛔ O `v.name` do curto-circuito devolvia o identificador técnico (`precoPor`) na tela.
+  // `gFieldLabel` já resolve designer > catálogo > humanização > genérico — nesta ordem.
+  badge.textContent=names.map(name=>
+    (typeof gFieldLabel==='function') ? gFieldLabel(name)
+      : (()=>{const v=(typeof dVars!=='undefined'&&dVars)?dVars.find(x=>x.name===name):null;return (v&&v.label)||name;})()
+  ).join(' · ');
   el.classList.add('has-field-map');el.appendChild(badge);
 }
 let dSimDraftValues = {};
