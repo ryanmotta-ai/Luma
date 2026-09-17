@@ -207,6 +207,7 @@ CHROMIUM_PATH=/caminho/chrome node scripts/run-browser-tests.js
 | `tests/auto-layout.html` | invariantes do solver de layout | 34 |
 | `tests/corpus.html` | corpus de composições reais + golden de geometria + **ORIGINAL FIRST** (conteúdo que cabe → geometria idêntica ao desenho publicado) | 25 |
 | `tests/fuzz.html` | exceção, `NaN`, laço que não converge, bloqueio sem diagnóstico | 63 |
+| `tests/scoring.html` | **calibração do julgamento** (Fase 6.5): pares controlados A/B, hierarquia relativa contra a referência autoral, violações duras com fixture positivo e negativo, invariantes, adversariais, sensibilidade/cliff, papel efetivo e auditoria legacy × papel corrigido | 68 |
 | `tests/psd-import.html` | regressão do importador de PSD (geometria de texto, alpha, raster, selo de fidelidade) | 10 |
 | `tests/export.html` | contrato de saída: dimensões e escala do que o franqueado baixa | 3 |
 | `tests/search-feedback.html` | busca do catálogo, feedback (convite pós-download + carência) e eventos offline | 34 |
@@ -254,7 +255,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 79 arquivos JS (71.038 linhas, 2.644 funções) · 31 arquivos CSS (29.238 linhas) · `index.html` com 3.884 linhas e 80 `<script>`.
+**Tamanho real de hoje:** 79 arquivos JS (71.436 linhas, 2.654 funções) · 31 arquivos CSS (29.238 linhas) · `index.html` com 3.884 linhas e 80 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -301,9 +302,9 @@ AUTH via Supabase (Fase 5.1). Login/logout/recuperação usam supabase.auth (win
 · API: gRoleLevel, gLoadProfile, gLogin, gLogout, gCurrentUser, gCurrentRole, gIsAdmin, gIsSuperAdmin, gCanManageUsers, gForgotPassword, gResetPassword, gGetAllUsers, gSetUserRole, gSetUserAtivo … (+11; 26 funções no total)
 · Estado global: gAuthState
 
-**`js/core/auto-layout.js`** · 5593 linhas
+**`js/core/auto-layout.js`** · 5991 linhas
 AUTO-LAYOUT — a camada de JULGAMENTO O solver de composição mora em `00-config.js` (`gApplyRelativeAnchors`):
-· API: gLayoutFontProbe, gStampLayoutBaseline, gLayoutLimpaCarimbos, gLayoutTextoAutorado, gEnsureLayoutBaseline, gLayoutFontDrift, gLayoutFontStatus, gLayoutRefInk, gLayoutRoleOf, gLayoutSemanticRole, gCompileLayoutRoles, gLayoutRoleMaxLines, gLayoutCampoEhPreco, gLayoutEhPrecoDinamico … (+85; 133 funções no total)
+· API: gLayoutFontProbe, gStampLayoutBaseline, gLayoutLimpaCarimbos, gLayoutTextoAutorado, gEnsureLayoutBaseline, gLayoutFontDrift, gLayoutFontStatus, gLayoutRefInk, gLayoutRoleOf, gLayoutSemanticRole, gCompileLayoutRoles, gLayoutRoleMaxLines, gLayoutCampoEhPreco, gLayoutEhPrecoDinamico … (+93; 143 funções no total)
 · Estado global: _gLayoutTempos
 
 **`js/core/console.js`** · 887 linhas

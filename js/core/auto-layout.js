@@ -548,6 +548,12 @@ function _gScoreFonte(l){ return (l && l._tetoFonte != null) ? l._tetoFonte : ((
  */
 function gScoreComposition(layers, opts){
   const cv = (opts && opts.canvas) || { w:1080, h:1080 };
+  /* ── QUEM RESPONDE "QUAL É O PAPEL DESTA CAMADA" ──────────────────────────────────────────
+     Por padrão, `gLayoutRoleOf` — o leitor de sempre, para que esta função continue devolvendo
+     exatamente a mesma nota que devolvia. `opts.papel` existe para a AUDITORIA da Fase 6.5
+     (§19) rodar a MESMA função com o papel efetivo e medir a diferença, em vez de nascer um
+     segundo scorer ao lado (dois scorers = duas verdades, e nenhuma auditável). */
+  const papelDe = (opts && opts.papel) || gLayoutRoleOf;
   const curto = Math.max(1, Math.min(cv.w || 1080, cv.h || 1080));
   const area = Math.max(1, (cv.w||1080) * (cv.h||1080));
   const vis = (layers||[]).filter(l => l && (typeof _gLayoutVisivel !== 'function' || _gLayoutVisivel(l)));
@@ -577,7 +583,7 @@ function gScoreComposition(layers, opts){
 
   // ── ALTERAÇÃO MÍNIMA (corpo perdido + deslocamento) ──
   textos.forEach(l => {
-    const peso = G_SCORE_PESO_PAPEL[gLayoutRoleOf(l)] != null ? G_SCORE_PESO_PAPEL[gLayoutRoleOf(l)] : 1;
+    const peso = G_SCORE_PESO_PAPEL[papelDe(l)] != null ? G_SCORE_PESO_PAPEL[papelDe(l)] : 1;
     const perda = Math.max(0, 1 - _gScoreFonte(l) / Math.max(1, l.fontSize || 24));
     itens.reducao += perda * G_SCORE_PESOS.reducao * peso;
     const r = _gScoreRect(l), b = _gScoreSemAjuste(l);
@@ -595,14 +601,14 @@ function gScoreComposition(layers, opts){
 
   // ── LINHAS E EDITORIAL ──
   textos.forEach(l => {
-    const peso = G_SCORE_PESO_PAPEL[gLayoutRoleOf(l)] != null ? G_SCORE_PESO_PAPEL[gLayoutRoleOf(l)] : 1;
+    const peso = G_SCORE_PESO_PAPEL[papelDe(l)] != null ? G_SCORE_PESO_PAPEL[papelDe(l)] : 1;
     const linhas = (l._fit.lines && l._fit.lines.length) || 1;
     // Linhas que o texto do franqueado já usaria SEM adaptação: cobrar dele o comprimento do
     // que a pessoa digitou não é avaliar o motor.
     const refLinhas = (l._layoutSemAjuste && l._layoutSemAjuste.linhas)
       || (l.layoutRef && l.layoutRef.linhas) || 1;
     if(linhas > refLinhas) itens.linhas += (linhas - refLinhas) * G_SCORE_PESOS.linhaExtra * peso;
-    const teto = gLayoutRoleMaxLines(gLayoutRoleOf(l));
+    const teto = gLayoutRoleMaxLines(papelDe(l));
     if(linhas > teto) itens.linhas += (linhas - teto) * G_SCORE_PESOS.linhaExtra * peso * 2;
     itens.editorial += gLayoutPenalidadeEditorial(l._fit.lines || []) * G_SCORE_PESOS.editorial * peso;
   });
@@ -714,6 +720,20 @@ function gLayoutPrecisaAlternativas(cloned){
                                       || l._layoutInvalido || l._foraDaArte));
 }
 
+/* A REGRA DE TROCA, isolada porque agora tem DOIS leitores: a escolha real (`gLayoutEscolherAlternativa`)
+   e a auditoria de papel da §19, que precisa perguntar "com o papel efetivo, o vencedor mudaria?".
+   Duplicá-la lá dentro criaria a segunda verdade justamente no lugar onde se quer medir UMA
+   diferença. O comportamento é o de sempre: `cands[0]` é a política PADRÃO. */
+function _gLayoutMelhorAlternativa(cands){
+  const _margem = Math.max(3, cands[0].score.penal * 0.02);
+  let melhor = cands[0];
+  cands.forEach(c => {
+    if(c === cands[0]) return;
+    if(c.score.penal < melhor.score.penal - (melhor === cands[0] ? _margem : 0.001)) melhor = c;
+  });
+  return melhor;
+}
+
 function gLayoutEscolherAlternativa(layers, dados, defaults, opts, padrao){
   if(typeof gApplyRelativeAnchors !== 'function') return padrao;
   const cvOpts = { canvas: (opts && opts.canvas) || null };
@@ -730,12 +750,7 @@ function gLayoutEscolherAlternativa(layers, dados, defaults, opts, padrao){
      e faz a arte mudar entre versões sem ninguém ter pedido. A padrão é a composição que o corpus
      conhece e a de alteração mínima; para destroná-la, a alternativa tem que ganhar de forma
      VISÍVEL: 3 pontos absolutos ou 2% da penalidade, o que for maior. */
-  const _margem = Math.max(3, cands[0].score.penal * 0.02);
-  let melhor = cands[0];
-  cands.forEach(c => {
-    if(c === cands[0]) return;
-    if(c.score.penal < melhor.score.penal - (melhor === cands[0] ? _margem : 0.001)) melhor = c;
-  });
+  const melhor = _gLayoutMelhorAlternativa(cands);
   const msTotal = cands.reduce((s,c) => s + ((c.out._layoutMeta && c.out._layoutMeta.ms) || 0), 0);
   melhor.out._layoutMeta = Object.assign({}, melhor.out._layoutMeta || {}, {
     politica: melhor.politica, ms: Math.round(msTotal * 100) / 100,
@@ -5106,6 +5121,10 @@ function gShadowLayoutSearch(layers, dados, canvas, opts){
         modo: esc.winner.searchMode, depth: esc.winner.depth,
         wonBy: esc.explanation.wonBy, criterio: esc.explanation.criterio,
         razoes: esc.explanation.reasons,
+        /* A MARGEM DE DECISÃO (§17 da Fase 6.5): a distância entre #1 e #2 DENTRO do critério
+           que decidiu. Diagnóstico — não muda decisão nenhuma. */
+        margem: esc.explanation.margem,
+        explicacao: gExplainLayoutDecision(esc),
         originalFirst: esc.diagnostics.originalFirst,
         avaliados: esc.diagnostics.avaliados, descartados: esc.diagnostics.descartados,
         /* O TOP 3, com o vetor de cada um: é o que permite ler por que o #1 ganhou do #2 sem
@@ -5206,20 +5225,21 @@ const G_SCORE_REL_AUTORAIS = ['ancora-autoral', 'dependencia-dinamica', 'dentro-
 /* O corpo que vale por PAPEL: o maior entre as camadas daquele papel. Comparar camada a camada
    faria duas linhas de apoio de tamanhos diferentes virarem "inversão"; o que a leitura enxerga
    é o degrau do bloco. */
-function _gScorePorPapel(camadas, ctx){
+function _gScorePorPapel(camadas, ctx, autoral){
   const m = new Map();
   (camadas || []).forEach(l => {
     if(!l || l.type !== 'text') return;
     if(typeof _gLayoutVisivel === 'function' && !_gLayoutVisivel(l)) return;
-    /* ⚠ O PAPEL COMPILADO VEM DO NÓ DA GRAMÁTICA. `gLayoutRoleOf` lê `layoutRole`, que é a
-       marcação MANUAL do designer — na maioria das artes ela é nula, e a função devolve 'apoio'
-       para todo mundo. Com todos no mesmo papel não existe par ordenado, e a checagem de
-       inversão ficava muda: o título podia descer até o tamanho do preço sem nenhuma violação
-       ser reportada. O papel que a §1 compila mora em `ctx._no.get(id).papel`. */
-    const n = ctx && ctx._no && ctx._no.get(l.id);
-    const papel = (n && n.papel) || ((typeof gLayoutRoleOf === 'function') ? gLayoutRoleOf(l) : null);
+    /* ⚠ O PAPEL SAI DA API ÚNICA (§19.1). `gLayoutRoleOf` lê `layoutRole`, que só carrega
+       'background'/'protected' — na arte real ele devolve 'apoio' para todo mundo, e sem par
+       ordenado a checagem de inversão fica muda: o título desceria até o tamanho do preço sem
+       nenhuma violação ser reportada. */
+    const papel = gLayoutEffectiveRole(ctx, l);
     if(!papel) return;
-    const corpo = gLayoutCorpoAtual(l);
+    /* DUAS RÉGUAS, DUAS PERGUNTAS (§19.2): `autoral` devolve o corpo que o DESIGNER desenhou —
+       a referência contra a qual a relação é medida — e o padrão devolve o corpo que vale
+       AGORA. Medir as duas com a mesma régua responderia sempre 100% preservado. */
+    const corpo = autoral ? ((l.fontSize || 24)) : gLayoutCorpoAtual(l);
     if(!m.has(papel) || corpo > m.get(papel)) m.set(papel, corpo);
   });
   return m;
@@ -5237,42 +5257,46 @@ function _gScorePorPapel(camadas, ctx){
  */
 function gLayoutSemanticDamage(base, candidato, ctx){
   const violacoes = [];
-  const pA = _gScorePorPapel(base, ctx), pB = _gScorePorPapel(candidato, ctx);
-
-  /* ── INVERSÃO DE PAPEL ── o par que o desenho ordenou e a solução desordenou. */
-  for(let i = 0; i < G_SCORE_PAPEIS_ORDEM.length; i++){
-    for(let j = i + 1; j < G_SCORE_PAPEIS_ORDEM.length; j++){
-      const a = G_SCORE_PAPEIS_ORDEM[i], b = G_SCORE_PAPEIS_ORDEM[j];
-      const aA = pA.get(a), bA = pA.get(b), aB = pB.get(a), bB = pB.get(b);
-      if(aA == null || bA == null || aB == null || bB == null) continue;
-      if(!(aA > bA + 0.5)) continue;                  // o desenho não declarou essa ordem
-      if(aB <= bB + 0.5) violacoes.push({ tipo:'inversao-de-papel', de:a, para:b,
-        base:Math.round(aA) + '>' + Math.round(bA), atual:Math.round(aB) + '≤' + Math.round(bB) });
-    }
-  }
-  /* COMPRESSÃO PRESERVANDO A ORDEM: todos desceram, a leitura continua de pé. Sai como
-     diagnóstico, não como violação — é o que distingue "quebrou" de "apertou". */
-  let comprimiu = 0, degraus = 0;
-  pA.forEach((corpoA, papel) => {
-    const corpoB = pB.get(papel);
-    if(corpoB == null) return;
-    degraus++;
-    if(corpoB < corpoA - 0.5) comprimiu += (corpoA - corpoB) / Math.max(1, corpoA);
-  });
+  /* A HIERARQUIA É RELACIONAL (§19.2): a medida compara a razão entre papéis contra a razão que
+     o desenho tinha, e separa INVERSÃO (violação dura, posição 1 do vetor) de COMPRESSÃO
+     (diagnóstico, posição 2). A medida antiga somava fração de corpo perdido por papel — que
+     mede encolhimento, não hierarquia: encolher a peça inteira em 20% preservando todas as
+     razões pontuava 0,2 de "compressão de hierarquia" sem ter comprimido relação nenhuma. */
+  const hier = gLayoutHierarchyRelation(base, candidato, ctx);
+  hier.pares.filter(p => p.classe === 'inversao').forEach(p => violacoes.push({
+    tipo: p.escopo === 'componente' ? 'inversao-no-componente' : 'inversao-de-papel',
+    de:p.de, para:p.para,
+    base:p.corpoAutoralDe + '>' + p.corpoAutoralPara,
+    atual:p.corpoDe + '≤' + p.corpoPara }));
 
   /* ── COMPONENTE QUEBRADO ── o bloco semântico deixou de existir ou perdeu membro.
      `gCompareLayoutComponents` é a régua da §12; não se reimplementa comparação aqui. */
   const comps = (ctx && ctx._diffComponentes) || null;
   if(comps){
-    comps.removed.forEach(c => violacoes.push({ tipo:'componente-desfeito', componente:c.tipo,
-      membros:c.membros }));
-    /* ⚠ SÓ CONTA COMO QUEBRA QUANDO A MEMBRESIA MUDA. `componentSignature` inclui as raízes
+    /* ⚠ FUSÃO NÃO É PERDA (auditoria da Fase 6.5, §10). Dois blocos que se aproximam viram um
+       bloco só, e o diff reporta o menor como `removed` — mas nenhum membro ficou órfão: eles
+       estão todos dentro do bloco maior. Cobrar isso como "componente desfeito" reprovava, como
+       violação DURA, uma solução que não perdeu função nenhuma. A pergunta certa é se algum
+       membro ficou SEM bloco. */
+    const cobertos = new Set();
+    ((ctx && ctx._compsCandidato) || []).forEach(c =>
+      (c.membros || []).forEach(id => cobertos.add(id)));
+    comps.removed.forEach(c => {
+      const orfaos = (c.membros || []).filter(id => !cobertos.has(id));
+      if(!orfaos.length) return;                    // absorvido por outro bloco: fusão
+      violacoes.push({ tipo:'componente-desfeito', componente:c.tipo, membros:orfaos });
+    });
+    /* ⚠ SÓ CONTA COMO QUEBRA QUANDO A MEMBRESIA DIMINUI. `componentSignature` inclui as raízes
        dinâmicas, então um bloco com exatamente os mesmos membros aparece como "alterado" só
-       porque o grafo mudou em volta dele — e isso não é o bloco se desfazendo. Assinatura
-       diferente com membros iguais é assunto da camada de INTENÇÃO, não de função. */
-    comps.changed.filter(c => c.de.slice().sort().join('+') !== c.para.slice().sort().join('+'))
-      .forEach(c => violacoes.push({ tipo:'componente-perdeu-membro', componente:c.tipo,
-        de:c.de, para:c.para }));
+       porque o grafo mudou em volta dele — e isso não é o bloco se desfazendo. GANHAR membro
+       também não é: o bloco não perdeu ninguém. Assinatura diferente sem membro perdido é
+       assunto da camada de INTENÇÃO, não de função. */
+    comps.changed.forEach(c => {
+      const perdidos = (c.de || []).filter(id => (c.para || []).indexOf(id) < 0);
+      if(!perdidos.length) return;
+      violacoes.push({ tipo:'componente-perdeu-membro', componente:c.tipo,
+        de:c.de, para:c.para, perdidos:perdidos });
+    });
   }
   /* ── PLACA SOLTA ── a forma deixou de acompanhar o texto dela. A relação `plate-of` é do
      Graph; se ela some, a placa virou retângulo solto. */
@@ -5289,9 +5313,9 @@ function gLayoutSemanticDamage(base, candidato, ctx){
   }
   violacoes.sort((a, b) => (a.tipo + (a.de || '') + (a.componente || ''))
                          < (b.tipo + (b.de || '') + (b.componente || '')) ? -1 : 1);
-  return { violacoes, hierarquiaPreservada: !violacoes.some(v => v.tipo === 'inversao-de-papel'),
-           hierarquiaComprimida: degraus ? Math.round((comprimiu / degraus) * 1000) / 1000 : 0,
-           degraus };
+  return { violacoes, hierarquiaPreservada: !violacoes.some(v => v.tipo === 'inversao-de-papel'
+                                                            || v.tipo === 'inversao-no-componente'),
+           hierarquiaComprimida: hier.compressao, hierarquia: hier, degraus: hier.degraus };
 }
 
 /**
@@ -5386,7 +5410,10 @@ function _gScoreDiffs(ctx, base, camadas, chave){
   const cA = ctx._compBase || (ctx._compBase = gCompileLayoutComponents(gA, gCompileCompositionGraph(gA)));
   const gB = gCompileLayoutGrammar(camadas, cv);
   const cB = gCompileLayoutComponents(gB, gCompileCompositionGraph(gB));
-  const r = { estrutura: gCompareLayoutStructure(gA, gB), componentes: gCompareLayoutComponents(cA, cB) };
+  const r = { estrutura: gCompareLayoutStructure(gA, gB), componentes: gCompareLayoutComponents(cA, cB),
+              /* Os componentes do CANDIDATO viajam junto: é com eles que a §10 distingue
+                 "o bloco se desfez" de "o bloco foi absorvido por outro". */
+              compsCandidato: cB };
   if(cache.size > 200) cache.clear();
   if(chave) cache.set(chave, r);
   return r;
@@ -5403,13 +5430,30 @@ function _gScoreDiffs(ctx, base, camadas, chave){
 function gLayoutScoreProfile(cand, ctx, opts){
   const o = opts || {};
   const assentado = gSettleCandidateState(cand, ctx);
-  const camadas = assentado.layers;
+  return gLayoutScoreProfileState(assentado.layers, ctx,
+    Object.assign({}, o, { cand:cand, safety:gLayoutCandidateSafety(cand, ctx) }));
+}
+
+/**
+ * O MESMO PERFIL, sobre um ESTADO explícito. É o que o corpus de scoring (Fase 6.5) usa para
+ * montar par controlado: a mutação é a variável do experimento, e passar pelo assentamento a
+ * apagaria (`gSettleLayoutState` restaura `_geoAutor` e roda o motor de novo).
+ *
+ * @param {Array}  camadas  as camadas JÁ no estado final (com `_fit`, `_tetoFonte`, …)
+ * @param {object} ctx      de `gBuildOperationalContext`
+ * @param {object} opts     {base, cand?, safety?, id?, legacySolverOutcome?}
+ */
+function gLayoutScoreProfileState(camadas, ctx, opts){
+  const o = opts || {};
+  const cand = o.cand || { id:o.id || 'estado', signature:o.signature || (o.id || 'estado'),
+                           depth:0, searchMode:'normal', actions:[], scaleGroupIds:[] };
   const base = o.base || camadas;
-  const seg = gLayoutCandidateSafety(cand, ctx);
+  const seg = o.safety || gLayoutStateSafety(camadas, ctx);
   const nota = (typeof gScoreComposition === 'function')
     ? gScoreComposition(camadas, { canvas:ctx.canvas }) : { itens:{} };
   const diffs = _gScoreDiffs(ctx, base, camadas, cand.settledSignature || cand.signature);
   const ctxDiff = { _diffEstrutura:diffs.estrutura, _diffComponentes:diffs.componentes,
+                    _compsCandidato:diffs.compsCandidato, components:ctx.components,
                     _no:ctx._no, _placa:ctx._placa };
   const sem = gLayoutSemanticDamage(base, camadas, ctxDiff);
   const aut = gLayoutAuthoredDamage(base, camadas, ctxDiff);
@@ -5439,6 +5483,7 @@ function gLayoutScoreProfile(cand, ctx, opts){
               invalidoNaNota: _gScoreDaCamada(nota.itens, 'safety') },
     semantics: { violacoes:sem.violacoes, hierarquiaPreservada:sem.hierarquiaPreservada,
                  hierarquiaComprimida:sem.hierarquiaComprimida, degraus:sem.degraus,
+                 hierarquia:sem.hierarquia,
                  penalDaNota:_gScoreDaCamada(nota.itens, 'semantics') },
     authoredIntent: Object.assign({ penalDaNota:_gScoreDaCamada(nota.itens, 'authored-intent') }, aut),
     mode: { emergency: !!emergencia, acoesDeEmergencia:custo.acoesDeEmergencia,
@@ -5503,17 +5548,16 @@ function gCompareLayoutCandidates(a, b){
   return (a.signature || '') < (b.signature || '') ? -1 : (a.signature || '') > (b.signature || '') ? 1 : 0;
 }
 
-/* Em que posição do vetor `a` passou na frente de `b` — o "por que venceu". */
+/* Em que posição do vetor `a` passou na frente de `b` — o "por que venceu". Sai do TRAÇO
+   (§19.4), não de uma segunda varredura do vetor: a explicação tem que corresponder ao
+   comparador, e duas implementações do mesmo laço é exatamente como elas se soltam. */
 function _gScorePorQue(a, b){
-  const va = a.vector || [], vb = b.vector || [];
-  for(let i = 0; i < Math.max(va.length, vb.length); i++){
-    const x = va[i] || 0, y = vb[i] || 0;
-    if(Math.abs(x - y) > 1e-9)
-      return { posicao:i, camada:a.vectorCamadas[i], criterio:G_SCORE_VETOR_MOTIVO[i],
-               vencedor:Math.round(x * 1000) / 1000, perdedor:Math.round(y * 1000) / 1000 };
-  }
-  return { posicao:-1, camada:'empate', criterio:'desempate determinístico',
-           vencedor:null, perdedor:null };
+  const tr = gLayoutDecisionTrace(a, b);
+  const t = tr.parouEm >= 0 ? tr.tiers[tr.tiers.length - 1] : null;
+  return t ? { posicao:t.posicao, camada:t.camada, criterio:t.criterio,
+               vencedor:t.vencedor, perdedor:t.perdedor, trace:tr }
+           : { posicao:-1, camada:'empate', criterio:'desempate determinístico',
+               vencedor:null, perdedor:null, trace:tr };
 }
 
 /**
@@ -5587,6 +5631,364 @@ function gSelectLayoutCandidate(resultado, ctx, opts){
     diagnostics: diag,
     explanation: { wonBy: porque ? porque.camada : 'unico',
                    criterio: porque ? porque.criterio : null,
-                   posicao: porque ? porque.posicao : null, reasons: razoes }
+                   posicao: porque ? porque.posicao : null, reasons: razoes,
+                   /* O TRAÇO INTEIRO e a MARGEM (§16/§17). A explicação não fabrica camada
+                      nenhuma: ela lista os empates até o critério que decidiu e para ali. */
+                   trace: porque ? porque.trace : null,
+                   margem: porque ? porque.trace.margem : null }
   };
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   19. CALIBRAÇÃO DO JULGAMENTO (Fase 6.5) — observacional
+   ════════════════════════════════════════════════════════════════════
+   A §18 escolhe. Esta seção responde se ela escolhe por PRINCÍPIO ou por sorte de fixture, e
+   mede o custo de um defeito conhecido: o scorer legado lê `layoutRole` (marcação manual, quase
+   sempre nula) enquanto a arquitetura nova lê o papel COMPILADO.
+
+   ⛔ NADA AQUI DECIDE. `gApplyRelativeAnchors` e `gLayoutEscolherAlternativa` continuam sem
+   conhecer esta seção: ela existe para MEDIR antes de migrar, que é o oposto de migrar e ver
+   no que dá. A migração é decisão de outra fase, com estes números na mesa. */
+
+/* ── 19.1 PAPEL EFETIVO — a fonte única ───────────────────────────────────────────────────
+   Hoje existem três leituras do mesmo fato, e elas discordam:
+     · `gLayoutRoleOf(l)`      → `layoutRoleManual || layoutRole || 'apoio'`. `layoutRole` só
+       carrega 'background'/'protected' (o contrato antigo do runtime), então na prática ele
+       devolve 'apoio' para TODA camada de arte real — inclusive título, preço e CTA.
+     · `ctx._no.get(id).papel` → o papel compilado, que a Gramática já resolveu.
+     · `l.layoutSemantic`      → o mesmo papel compilado, carimbado no clone pelo solver.
+   Os três estão no mesmo objeto. O defeito não é falta de informação: é o leitor errado.
+
+   A prioridade, na ordem que a §7 pede:
+     1. papel explícito e confiável do designer (`layoutRoleManual`);
+     2. papel semântico compilado (nó da Gramática → carimbo no clone);
+     3. a tradução do contrato antigo ('protected'/'background'), para camada fora da Gramática;
+     4. fallback 'apoio' — o papel neutro, nunca um palpite.
+
+   ⚠ `layoutRole` não é lido como vocabulário rico em lugar nenhum daqui pra frente. */
+const G_ROLE_LEGADO = { protected:'protegida', background:'fundo' };
+
+function _gLayoutRoleResolve(ctx, l){
+  if(!l) return { papel:'apoio', fonte:'sem-camada' };
+  if(l.layoutRoleManual && G_LAYOUT_ROLES.indexOf(l.layoutRoleManual) >= 0)
+    return { papel:l.layoutRoleManual, fonte:'manual' };
+  const n = ctx && ctx._no && ctx._no.get(l.id);
+  if(n && n.papel) return { papel:n.papel, fonte:'gramatica' };
+  if(l.layoutSemantic) return { papel:l.layoutSemantic, fonte:'carimbo' };
+  const trad = G_ROLE_LEGADO[l.layoutRole];
+  if(trad) return { papel:trad, fonte:'contrato-antigo' };
+  return { papel:'apoio', fonte:'fallback' };
+}
+
+/** O PAPEL DE UMA CAMADA — a única API. `ctx` pode ser nulo (o carimbo do clone responde). */
+function gLayoutEffectiveRole(ctx, l){ return _gLayoutRoleResolve(ctx, l).papel; }
+
+/** A PROCEDÊNCIA do papel + a divergência contra o leitor legado. Só a auditoria usa. */
+function gLayoutRoleTrace(ctx, l){
+  const r = _gLayoutRoleResolve(ctx, l);
+  const legado = (typeof gLayoutRoleOf === 'function') ? gLayoutRoleOf(l) : 'apoio';
+  const pesoL = G_SCORE_PESO_PAPEL[legado] != null ? G_SCORE_PESO_PAPEL[legado] : 1;
+  const pesoE = G_SCORE_PESO_PAPEL[r.papel] != null ? G_SCORE_PESO_PAPEL[r.papel] : 1;
+  return { id:l && l.id, papel:r.papel, fonte:r.fonte, legado:legado,
+           diverge: legado !== r.papel, pesoLegado:pesoL, pesoEfetivo:pesoE,
+           pesoDiverge: Math.abs(pesoL - pesoE) > 1e-9 };
+}
+
+/* ── 19.2 HIERARQUIA RELATIVA — a medida formal de compressão ─────────────────────────────
+   A posição 2 do vetor decidiu 6 dos 8 casos contestados do corpus da Fase 6, e a medida que
+   ela carregava era ERRADA para a pergunta: somava a fração de corpo que cada papel perdeu.
+   Isso mede ENCOLHIMENTO, não hierarquia — uma peça inteira reduzida em 20% pontuava 0,2 de
+   "compressão de hierarquia" sem ter comprimido hierarquia nenhuma (todas as razões intactas).
+
+   A pergunta certa é a da §6: QUANTO DA RELAÇÃO VISUAL QUE O DESIGNER CRIOU SOBREVIVEU? Ela
+   não tem resposta universal — não existe razão título/apoio ideal —, então a referência é
+   sempre a composição AUTORADA, par a par.
+
+   Para cada par de papéis que o desenho ORDENOU (a maior que b):
+     razaoAutoral  rA = corpoAutorado(a) / corpoAutorado(b)
+     razaoAtual    rB = corpoAtual(a)    / corpoAtual(b)
+     preservação   = log(rB) / log(rA), limitado a [0,1]
+
+   O log é o que torna a medida uma RELAÇÃO e não uma diferença: corpo é percebido de forma
+   multiplicativa, e `log` é a única forma de "72/36 virou 56/32" (rA 2,0 → rB 1,75, 81%
+   preservado) e "46/44 virou 45/44" caírem na mesma régua. Diferença absoluta de fontSize
+   diria que o primeiro perdeu 16px e o segundo 1px — e erraria os dois.
+
+   AS QUATRO CLASSES QUE A §4 pede, sem misturar inversão com compressão:
+     A `preservado`              preservação ≥ 85%: a leitura do designer está de pé.
+     B `comprimido`              0 < preservação < 85%: a ordem sobreviveu, o contraste encolheu.
+     C `empate-visual`           rB ≤ 1,05: formalmente a > b, visualmente o mesmo degrau.
+     D `inversao`                a ficou ≤ b: VIOLAÇÃO DURA, vai para a posição 1 do vetor.
+
+   E uma quinta, que é um falso positivo que precisava morrer:
+       `sem-contraste-autoral`   rA ≤ 1,05 — o DESENHO já era um empate visual. Não há relação a
+       preservar, então o par sai da média (mas continua valendo para inversão). Sem esta saída,
+       um par autorado em 46/44 cobraria do candidato um contraste que o designer nunca criou —
+       e, pior, dividir por um log(rA) quase zero amplificaria ruído de 1px em nota cheia.
+
+   ⚠ TODOS OS LIMIARES SÃO AVALIADOS NA COMPOSIÇÃO AUTORADA, que é a MESMA para todos os
+   candidatos de uma decisão. É isso que impede um limiar de virar cliff de decisão: o conjunto
+   de pares medidos não muda de candidato para candidato. */
+const G_SCORE_HIER_EMPATE     = 1.05;   // abaixo disto dois corpos leem como o mesmo degrau
+const G_SCORE_HIER_PRESERVADO = 0.85;   // acima disto a compressão não é perceptualmente relevante
+
+function gLayoutHierarchyRelation(base, candidato, ctx){
+  const pA = _gScorePorPapel(base, ctx, true);      // a relação AUTORADA (o corpo desenhado)
+  const pB = _gScorePorPapel(candidato, ctx, false); // a relação que sobreviveu
+  const pares = [];
+  /* A MEDIDA DE UM PAR, uma só, usada pelos dois escopos: entre PAPÉIS e DENTRO de um
+     componente. Duas implementações da mesma régua divergiriam no primeiro ajuste. */
+  function medirPar(de, para, aA, bA, aB, bB, escopo){
+    if(aA == null || bA == null || aB == null || bB == null) return;
+    if(!(aA > bA + 0.5)) return;                    // o desenho não declarou esta ordem
+    const rA = aA / Math.max(1, bA), rB = aB / Math.max(1, bB);
+    let classe, preservacao;
+    if(rA <= G_SCORE_HIER_EMPATE){ classe = 'sem-contraste-autoral'; preservacao = null; }
+    else if(aB <= bB + 0.5){ classe = 'inversao'; preservacao = 0; }
+    else if(rB <= G_SCORE_HIER_EMPATE){ classe = 'empate-visual'; preservacao = 0; }
+    else {
+      preservacao = Math.min(1, Math.log(rB) / Math.log(rA));
+      classe = preservacao >= G_SCORE_HIER_PRESERVADO ? 'preservado' : 'comprimido';
+    }
+    pares.push({ de:de, para:para, escopo:escopo, classe:classe,
+                 corpoAutoralDe:Math.round(aA), corpoAutoralPara:Math.round(bA),
+                 corpoDe:Math.round(aB), corpoPara:Math.round(bB),
+                 razaoAutoral:Math.round(rA * 1000) / 1000, razaoAtual:Math.round(rB * 1000) / 1000,
+                 preservacao: preservacao == null ? null : Math.round(preservacao * 1000) / 1000 });
+  }
+
+  // ── ESCOPO 1: ENTRE PAPÉIS ── o degrau do BLOCO, que é o que a leitura enxerga.
+  for(let i = 0; i < G_SCORE_PAPEIS_ORDEM.length; i++)
+    for(let j = i + 1; j < G_SCORE_PAPEIS_ORDEM.length; j++){
+      const a = G_SCORE_PAPEIS_ORDEM[i], b = G_SCORE_PAPEIS_ORDEM[j];
+      medirPar(a, b, pA.get(a), pA.get(b), pB.get(a), pB.get(b), 'papel');
+    }
+
+  /* ── ESCOPO 2: DENTRO DO COMPONENTE ──────────────────────────────────────────────────────
+     O par "De: R$ 79,90" / "Por: R$ 49,90" é a hierarquia mais carregada da peça e some no
+     escopo de papel: os dois são 'preco', e o papel guarda o MAIOR corpo. Medido só por papel,
+     encolher o "por" até o tamanho do "de" não move um número — e a §10 chama isso, com todas
+     as letras, de violação dura ("price hierarchy quebrada").
+     ⚠ Só DENTRO de componente compilado (§12). Comparar duas camadas quaisquer do mesmo papel
+     faria duas linhas de apoio de corpos diferentes virarem hierarquia — e não são. */
+  const corpoA = new Map(), corpoB = new Map(), nome = new Map();
+  const visivel = (l) => !(typeof _gLayoutVisivel === 'function') || _gLayoutVisivel(l);
+  (base || []).forEach(l => { if(l && l.type === 'text' && visivel(l)){
+    corpoA.set(l.id, l.fontSize || 24); nome.set(l.id, l.name || l.id); } });
+  (candidato || []).forEach(l => { if(l && l.type === 'text' && visivel(l))
+    corpoB.set(l.id, gLayoutCorpoAtual(l)); });
+  ((ctx && ctx.components) || []).forEach(c => {
+    const textos = (c.membros || []).filter(id => corpoA.has(id) && corpoB.has(id));
+    for(let i = 0; i < textos.length; i++)
+      for(let j = 0; j < textos.length; j++){
+        if(i === j) continue;
+        const x = textos[i], y = textos[j];
+        if(!(corpoA.get(x) > corpoA.get(y) + 0.5)) continue;
+        medirPar(c.tipo + ':' + (nome.get(x) || x), nome.get(y) || y,
+                 corpoA.get(x), corpoA.get(y), corpoB.get(x), corpoB.get(y), 'componente');
+      }
+  });
+
+  /* A MÉDIA É SOBRE OS PARES MEDÍVEIS — e INVERSÃO CONTA, com preservação zero.
+     A versão anterior a excluía ("não cobrar o mesmo dano duas vezes"), e a varredura de
+     sensibilidade (§14) mostrou o preço disso: quando o título cruza o preço, o par mais
+     comprimido SAI da média e a compressão CAI de 0,140 para 0,051 — encolher mais pontuava
+     melhor. Pior que a não-monotonicidade: dois candidatos com inversões em pares DIFERENTES
+     tinham denominadores diferentes, e a posição 2 comparava médias de conjuntos distintos.
+     Com a inversão dentro, o denominador é o conjunto de pares que o DESENHO declarou — igual
+     para todos os candidatos da mesma decisão. E não há dupla cobrança de verdade: a posição 1
+     já separou quem inverte de quem não inverte, então a posição 2 só é lida entre candidatos
+     que empataram lá. */
+  const medidos = pares.filter(p => p.preservacao != null);
+  const soma = medidos.reduce((s, p) => s + p.preservacao, 0);
+  const preservada = medidos.length ? soma / medidos.length : 1;
+  const classes = {};
+  pares.forEach(p => { classes[p.classe] = (classes[p.classe] || 0) + 1; });
+  return {
+    pares: pares,
+    paresMedidos: medidos.length,
+    preservada: Math.round(preservada * 1000) / 1000,
+    compressao: Math.round((1 - preservada) * 1000) / 1000,
+    classes: classes,
+    inversoes: pares.filter(p => p.classe === 'inversao'),
+    empatesVisuais: pares.filter(p => p.classe === 'empate-visual').length,
+    degraus: pA.size,
+    /* O resumo humano — é o que a explicação da §16 imprime: "preservou 82% da razão
+       título/apoio que o desenho tinha". */
+    resumo: medidos.map(p => p.de + '/' + p.para + ' ' + Math.round(p.preservacao * 100) + '% de '
+      + p.razaoAutoral + '×').join(', ')
+  };
+}
+
+/* ── 19.3 PERFIL DE UM ESTADO — o que permite o par CONTROLADO ────────────────────────────
+   A §17 devolve os candidatos que a busca por acaso gerou, e calibrar com eles é calibrar com
+   o que a busca já sabe fazer. O corpus de scoring precisa do contrário: dois estados em que
+   exatamente UMA dimensão difere, montados à mão.
+
+   ⚠ NÃO PASSA POR `gSettleCandidateState`. Assentar restaura `_geoAutor` e roda o motor —
+   o que apagaria a mutação controlada e devolveria a composição que o solver quer, que é
+   justamente a variável que se quer fixar. */
+function gLayoutStateSafety(camadas, ctx){
+  let problemas = [];
+  try{ problemas = gDetectLayoutProblems({ layers:camadas, solveState:{} }, ctx) || []; }
+  catch(e){ problemas = []; }
+  const reprovadas = (typeof gLayoutCamadaReprovada === 'function')
+    ? camadas.filter(l => l && gLayoutCamadaReprovada(l)).map(l => l.id).sort() : [];
+  return { seguro: !problemas.length && !reprovadas.length, problemas:problemas.length,
+           reprovadas:reprovadas, tipos:[...new Set(problemas.map(x => x.tipo))].sort() };
+}
+
+/* ── 19.4 A EXPLICAÇÃO — o traço camada a camada, e a margem ──────────────────────────────
+   A explicação da Fase 6 dizia em que posição o #1 passou o #2. Faltava o que a §16 pede: o
+   traço INTEIRO até ali, e a declaração de que a decisão PAROU — porque continuar listando
+   estética depois que a semântica decidiu é fingir que ela participou.
+
+   A margem (§17) é a distância entre #1 e #2 DENTRO do critério que decidiu. Não é confiança e
+   não muda decisão nenhuma nesta fase: é o que vai permitir, depois, distinguir vencedor óbvio
+   de empate quase perfeito. */
+function gLayoutDecisionTrace(a, b){
+  const va = (a && a.vector) || [], vb = (b && b.vector) || [];
+  const tiers = []; let parou = null;
+  for(let i = 0; i < Math.max(va.length, vb.length); i++){
+    const x = va[i] || 0, y = vb[i] || 0;
+    const difere = Math.abs(x - y) > 1e-9;
+    const t = { posicao:i, camada:(a.vectorCamadas && a.vectorCamadas[i]) || null,
+                criterio:G_SCORE_VETOR_MOTIVO[i],
+                vencedor:Math.round(x * 1000) / 1000, perdedor:Math.round(y * 1000) / 1000,
+                resultado: difere ? 'decidiu' : 'empate' };
+    /* O detalhe da compressão: é o número que a §16 quer ver na explicação, e ele só existe
+       nesta posição do vetor. */
+    if(i === 2){
+      const ha = a.semantics && a.semantics.hierarquia, hb = b.semantics && b.semantics.hierarquia;
+      if(ha || hb) t.detalhe = { vencedor: ha ? ha.resumo : null, perdedor: hb ? hb.resumo : null };
+    }
+    tiers.push(t);
+    if(difere){ parou = t; break; }
+  }
+  const ca = (a && a.alteration) || {}, cb = (b && b.alteration) || {};
+  let desempatePor = null;
+  if(!parou){
+    if((ca.camadasAlteradas || 0) !== (cb.camadasAlteradas || 0)) desempatePor = 'camadas alteradas';
+    else if((ca.acoes || 0) !== (cb.acoes || 0)) desempatePor = 'número de ações';
+    else if((a.depth || 0) !== (b.depth || 0)) desempatePor = 'profundidade';
+    else desempatePor = 'assinatura';
+  }
+  const delta = parou ? Math.abs(parou.vencedor - parou.perdedor) : 0;
+  const escala = parou ? Math.max(Math.abs(parou.vencedor), Math.abs(parou.perdedor)) : 0;
+  return {
+    tiers: tiers,
+    parouEm: parou ? parou.posicao : -1,
+    camadaDecisora: parou ? parou.camada : 'desempate',
+    criterio: parou ? parou.criterio : 'desempate determinístico',
+    /* A MARGEM DE DECISÃO (§17). `deltaRelativo` existe porque 0,02 de compressão e 0,02 de
+       estética não são a mesma distância: uma é 2% de uma escala [0,1], a outra é ruído numa
+       penalidade que chega a 400. */
+    margem: { posicao: parou ? parou.posicao : -1, camada: parou ? parou.camada : 'desempate',
+              criterio: parou ? parou.criterio : 'desempate determinístico',
+              delta: Math.round(delta * 1000) / 1000,
+              deltaRelativo: escala > 0 ? Math.round((delta / escala) * 1000) / 1000 : 0,
+              empatesAcima: tiers.filter(t => t.resultado === 'empate').length,
+              desempate: !parou, desempatePor:desempatePor }
+  };
+}
+
+/** A explicação em PT-BR, linha a linha — e ela CORRESPONDE ao comparador por construção:
+ *  as linhas saem do mesmo traço que `gCompareLayoutCandidates` percorre. */
+function gExplainLayoutDecision(esc){
+  const linhas = [];
+  if(!esc || !esc.winner){
+    return [(esc && esc.explanation && esc.explanation.reasons && esc.explanation.reasons[0])
+            || 'sem vencedor'];
+  }
+  const acoes = (esc.winner.actions || []).map(a => a.id).join('→') || '(original)';
+  linhas.push('Vencedor: [' + acoes + '] ' + (esc.winner.searchMode || 'normal')
+              + ' d' + (esc.winner.depth || 0));
+  if(esc.explanation.wonBy === 'original-first'){
+    linhas.push('  ORIGINAL FIRST — a composição publicada resolve o conteúdo real');
+    linhas.push('  DECISÃO PAROU AQUI: nenhum perfil foi calculado');
+    return linhas;
+  }
+  const tr = esc.explanation.trace;
+  if(!tr){ linhas.push('  único candidato seguro'); return linhas; }
+  tr.tiers.forEach(t => {
+    if(t.resultado === 'empate'){
+      linhas.push('  ' + t.criterio + ': empate (' + t.vencedor + ')');
+    }else{
+      linhas.push('  ' + t.criterio + ': ' + t.vencedor + ' contra ' + t.perdedor + ' → DECIDIU');
+      if(t.detalhe && (t.detalhe.vencedor || t.detalhe.perdedor)){
+        linhas.push('      #1 preservou ' + (t.detalhe.vencedor || '—'));
+        linhas.push('      #2 preservou ' + (t.detalhe.perdedor || '—'));
+      }
+    }
+  });
+  if(tr.parouEm >= 0){
+    const restantes = G_SCORE_VETOR_MOTIVO.slice(tr.parouEm + 1);
+    linhas.push('  DECISÃO PAROU AQUI' + (restantes.length
+      ? ' — ' + restantes.join(', ') + (restantes.length > 1 ? ' não participaram' : ' não participou')
+      : ''));
+    linhas.push('  margem no critério decisor: ' + tr.margem.delta
+      + ' (' + Math.round(tr.margem.deltaRelativo * 100) + '% da escala)');
+  }else{
+    linhas.push('  empate em TODOS os critérios — decidido por ' + tr.margem.desempatePor);
+  }
+  return linhas;
+}
+
+/* ── 19.5 AUDITORIA DO SCORER LEGADO — legacy × role-corrected ────────────────────────────
+   A pergunta da §21, sem rodeio: QUANTAS DECISÕES DO SCORER LEGADO MUDARIAM se ele lesse o
+   papel certo? A resposta tem que sair da MESMA função rodando duas vezes — um segundo scorer
+   escrito "corrigido" mediria a diferença entre dois códigos, não o impacto do defeito.
+
+   ⛔ Não altera nada. Roda o mesmo caminho da produção (`G_LAYOUT_POLITICAS` + a regra de
+   margem de `_gLayoutMelhorAlternativa`) e devolve os dois vereditos lado a lado. */
+function gAuditLegacyRoleImpact(layers, dados, canvas, opts){
+  const o = opts || {};
+  const out = { aplicavel:false, mudou:false, erro:null, politicaLegacy:null,
+                politicaCorrigida:null, penalLegacy:null, penalCorrigido:null,
+                papeis:[], divergentes:0, camadas:0 };
+  try{
+    const clone = () => (layers || []).map(l => JSON.parse(JSON.stringify(l)));
+    const sopts = Object.assign({ fitText:true, canvas:canvas, scope:'franqueado' }, o.solveOpts || {});
+    const padrao = gApplyRelativeAnchors(clone(), dados || {}, {}, sopts);
+    if(!padrao || !padrao.length){ out.erro = 'o motor não devolveu composição'; return out; }
+    /* O MESMO PORTÃO DA PRODUÇÃO: sem carimbo de adaptação, `gLayoutEscolherAlternativa` nem é
+       chamada — a arte que coube no primeiro degrau não tem alternativa a escolher. */
+    if(typeof gLayoutPrecisaAlternativas === 'function' && !gLayoutPrecisaAlternativas(padrao)){
+      out.motivo = 'sem adaptação: a escolha legada não roda'; return out;
+    }
+    const cands = [{ politica:'padrao', out:padrao }];
+    (typeof G_LAYOUT_POLITICAS !== 'undefined' ? G_LAYOUT_POLITICAS : []).forEach(politica => {
+      let alt = null;
+      try{ alt = gApplyRelativeAnchors(clone(), dados || {}, {},
+             Object.assign({}, sopts, { _politica:politica })); }catch(e){ alt = null; }
+      if(alt && alt.length) cands.push({ politica:politica, out:alt });
+    });
+    out.aplicavel = cands.length > 1;
+    const cvOpts = { canvas:canvas };
+    /* O CONTEXTO DO PAPEL EFETIVO. Sem ele o papel sai do carimbo do clone (`layoutSemantic`),
+       que o próprio solver escreveu — mesma resposta, um passo mais barato. */
+    const ctx = o.ctx || null;
+    const papelEfetivo = (l) => gLayoutEffectiveRole(ctx, l);
+    const legado = cands.map(c => ({ politica:c.politica, out:c.out,
+      score: gScoreComposition(c.out, cvOpts) }));
+    const corrigido = cands.map(c => ({ politica:c.politica, out:c.out,
+      score: gScoreComposition(c.out, Object.assign({ papel:papelEfetivo }, cvOpts)) }));
+    const vL = _gLayoutMelhorAlternativa(legado), vC = _gLayoutMelhorAlternativa(corrigido);
+    out.politicaLegacy = vL.politica; out.politicaCorrigida = vC.politica;
+    out.penalLegacy = vL.score.penal; out.penalCorrigido = vC.score.penal;
+    out.mudou = vL.politica !== vC.politica;
+    /* A NOTA DA MESMA COMPOSIÇÃO sob os dois leitores — é o delta que explica a divergência
+       sem depender de qual política venceu. */
+    const notaL = legado.find(x => x.politica === 'padrao').score;
+    const notaC = corrigido.find(x => x.politica === 'padrao').score;
+    out.deltaPenalPadrao = Math.round((notaC.penal - notaL.penal) * 100) / 100;
+    out.itensLegacy = notaL.itens; out.itensCorrigido = notaC.itens;
+    out.papeis = padrao.filter(l => l && l.type === 'text').map(l => gLayoutRoleTrace(ctx, l));
+    out.camadas = out.papeis.length;
+    out.divergentes = out.papeis.filter(p => p.diverge).length;
+    out.pesoDivergentes = out.papeis.filter(p => p.pesoDiverge).length;
+    out.ranking = { legacy: legado.map(x => x.politica + ':' + x.score.penal),
+                    corrigido: corrigido.map(x => x.politica + ':' + x.score.penal) };
+  }catch(e){ out.erro = String(e && e.message || e); }
+  return out;
 }
