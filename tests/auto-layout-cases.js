@@ -623,6 +623,26 @@
   const temRel=(g,tipo,de,para)=>gGrammarRelations(g,tipo).some(r=>r.de===de&&r.para===para);
   const coluna=(g,tipo,ids)=>gGrammarRelations(g,tipo).some(r=>r.membros&&ids.every(i=>r.membros.indexOf(i)>=0));
   // Arte sintética grande: N blocos em 6 colunas, relações reais em toda a extensão da lista.
+  /* CONTEÚDO REAL PARA A ARTE GRANDE. ⚠ Os bancos de desempenho rodavam com `dados:{}` — todos
+     os campos VAZIOS —, e o que eles mediam era a busca trabalhando em cima de `optional-empty`:
+     centenas de candidatos para recolher vão de campo vazio. Desde a Fase 7.5 espaço livre
+     deixou de ser dano (é oportunidade), então aquele banco passou a medir uma busca que
+     corretamente não acontece: 0 candidatos. Com conteúdo de verdade os campos crescem, colidem,
+     e a medida volta a ser sobre o que interessa. */
+  const dadosGrande=(n)=>{
+    const d={}; let longos=0;
+    for(let i=0;i<n;i++){
+      if(i%4!==0) continue;
+      /* ⚠ SÓ TRÊS CAMPOS CRESCEM. Fazer TODOS os campos dinâmicos estourarem ao mesmo tempo
+         (86 deles numa arte de 344) produz um conflito que nenhuma peça real tem, e o banco
+         passa a medir o pior caso teórico da busca em vez do custo dela. Três causas
+         simultâneas é o que o corpus real mostra na cauda. O resto recebe conteúdo que CABE. */
+      d['campo'+i] = (longos++ < 1)
+        ? 'Combo artesanal da casa com borda recheada e bebida gelada '+i
+        : 'Combo '+i;
+    }
+    return d;
+  };
   const arteGrande=(n)=>{
     const L=[],COLS=6,CW=170;
     for(let i=0;i<n;i++){
@@ -2827,12 +2847,23 @@
     const dados={titulo:'Combo artesanal da casa com borda recheada',preco:'R$ 9,99'};
     const {r}=busca(arteB(),dados);
     assert(r.diagnostics.pruned>0,'nada foi podado numa busca que repetiu estados');
-    // Repetição por ação: nunca além do que o motor tem de degraus.
+    /* Repetição por ação: nunca além do que o motor tem de degraus.
+       ⚠ O TETO É DINÂMICO, e a tabela é só o PISO dele: quando a capacidade contou os degraus
+       (`params.degraus`), o motor autoriza `max(tabela, degraus)` — está escrito no próprio
+       laço da busca. E a chave é `id/escopo`, porque `scale-component` do componente e do
+       grupo de colisão têm orçamentos separados desde a Fase 5.9. Conferir só contra a tabela
+       estática era medir uma regra que o motor não executa. */
+    const chaveTeto=(a)=>a.id+((a.params&&a.params.escopo)?'/'+a.params.escopo:'');
     [].concat(r.solved,r.partial).forEach(c=>{
-      const conta={};
-      c.actions.forEach(a=>{conta[a.id]=(conta[a.id]||0)+1;});
-      Object.keys(conta).forEach(id=>assert(conta[id]<=G_ACAO_REPETICAO[id],
-        id+' repetiu '+conta[id]+'× (teto '+G_ACAO_REPETICAO[id]+')'));
+      const conta={}, teto={};
+      c.actions.forEach(a=>{
+        const k=chaveTeto(a);
+        conta[k]=(conta[k]||0)+1;
+        teto[k]=Math.max(teto[k]||0,G_ACAO_REPETICAO[a.id]||1,(a.params&&a.params.degraus)||0);
+      });
+      Object.keys(conta).forEach(k=>assert(conta[k]<=teto[k],
+        k+' repetiu '+conta[k]+'× (teto efetivo '+teto[k]+', tabela '
+        +(G_ACAO_REPETICAO[k.split('/')[0]]||1)+')'));
     });
     // `compress-gap` tem UM degrau: nunca aparece duas vezes na mesma sequência.
     assert(G_ACAO_REPETICAO['compress-gap']===1,'o respiro ganhou um degrau que o motor não tem');
@@ -2918,7 +2949,12 @@
     /* Tempo de relógio nunca é determinístico e não descreve a busca — sai da comparação;
        todo o resto do diagnóstico (expandidos, gerados, dedupe, podados, profundidade) entra. */
     const semTempo=(d)=>JSON.stringify(Object.assign({},d,
-      {porDepth:(d.porDepth||[]).map(x=>Object.assign({},x,{ms:null}))}));
+      {porDepth:(d.porDepth||[]).map(x=>Object.assign({},x,{ms:null})),
+       /* `msPrimeiroSeguro` é relógio também (Fase 7.6, §21): diagnóstico de UX, não descrição
+          da busca. Entra na mesma exclusão que o `ms` de cada profundidade. */
+       msPrimeiroSeguro:null,
+       emergencia:d.emergencia?Object.assign({},d.emergencia,{msPrimeiroSeguro:null,
+         porDepth:(d.emergencia.porDepth||[]).map(x=>Object.assign({},x,{ms:null}))}):d.emergencia}));
     assert(semTempo(a.diagnostics)===semTempo(b.diagnostics),
       'o diagnóstico não é determinístico');
     // Serializável e sem função.
@@ -3430,7 +3466,7 @@
        (é rodar o solver por candidato), é aqui que aparece antes de chegar na mão de alguém. */
     [58,172].forEach(n=>{
       const L=arteGrande(n), cv={w:1080,h:40+Math.ceil(n/6)*72+200};
-      const C=gBuildOperationalContext(L,cv,{dados:{}});
+      const C=gBuildOperationalContext(L,cv,{dados:dadosGrande(n)});
       const t0=performance.now();
       const st=gSettleLayoutState({layers:L,solveState:{}},C);
       const ms=performance.now()-t0;
@@ -3443,9 +3479,242 @@
     });
   });
 
+  /* ══ COBERTURA DA BUSCA (Fase 7.5) ═══════════════════════════════════════════════════════
+     A Fase 7 mediu em massa: em 17 de 341 execuções o SOLVER entregava arte legível e a busca
+     não achava vencedor nenhum. Não era rigor do Candidate Contract — eram três defeitos da
+     busca, cada um com endereço. Os três voltam aqui como teste. */
+
+  test('cobertura: a raiz da busca nasce com os pisos carimbados',()=>{
+    /* `gLayoutPisoFonte` lê `_pisoLegivel` e `_pisoFonte` da camada. Quem escreve é
+       `gStampPisosHierarquia`, e o solver e o contexto o chamam sobre os PRÓPRIOS clones — a
+       busca nascia de `o.base` cru. Sem carimbo, o piso de emergência desabava de
+       `max(8, legível)` para 8px, e a busca "resolvia" num espaço ilegal. */
+    const layers=[
+      text('titulo',60,40,420,90,'{{t}}',{fontSize:88,name:'Título'}),
+      text('cta',60,300,300,50,'PEÇA AGORA',{fontSize:34,name:'CTA'})
+    ];
+    const cru=layers.map(l=>Object.assign({},l));
+    assert(cru[1]._pisoLegivel==null,'o fixture já vinha carimbado: o teste perdeu o sentido');
+    const C=ctxB(layers,{t:'Combo artesanal da casa com borda recheada e bebida gelada'},CV_P);
+    const r=gSearchLayoutCandidates({ctx:C,base:layers});
+    /* Todo estado que a busca produz conhece o piso real — nenhum candidato desce abaixo dele. */
+    [].concat(r.solved,r.partial).forEach(c=>{
+      const st=gSettleCandidateState(c,C);
+      st.layers.filter(l=>l&&l.type==='text').forEach(l=>{
+        const piso=gLayoutPisoFonte(l,true);
+        assert(gLayoutCorpoAtual(l)>=piso-0.5,
+          l.id+' desceu a '+Math.round(gLayoutCorpoAtual(l))+'px com piso de legibilidade '
+          +Math.round(piso)+' — a raiz da busca perdeu os carimbos');
+      });
+    });
+  });
+
+  test('cobertura: papel protegido INFERIDO não congela campo dinâmico',()=>{
+    /* `papel === 'protegida'` sai do NOME: qualquer camada chamada "Selo", "Logo" ou "Carimbo"
+       ganha o papel. Isso serve para julgar composição; para imobilizar, não — e a Gramática
+       imobilizava. A régua é a do próprio motor: `gCompileLayoutRoles` já se recusa a carimbar
+       'protected' em camada COM CAMPO. */
+    const comCampo=text('selo',60,300,300,50,'{{selo}}',{fontSize:34,name:'Selo'});
+    const semCampo=text('selo2',60,400,300,50,'NOVIDADE',{fontSize:34,name:'Selo'});
+    const g=gram([comCampo,semCampo],{w:700,h:600});
+    assert(gGrammarNode(g,'selo').papel==='protegida','o papel deixou de ser inferido do nome');
+    assert(gGrammarNode(g,'selo').protegida===false,
+      'campo dinâmico chamado "Selo" foi imobilizado por inferência de nome');
+    assert(gGrammarNode(g,'selo2').protegida===true,
+      'texto FIXO chamado "Selo" deixou de ser protegido — a inferência continua valendo sem campo');
+    // E a declaração explícita continua mandando, com campo ou sem.
+    const travado=Object.assign({},comCampo,{id:'selo3',locked:true});
+    assert(gGrammarNode(gram([travado],{w:700,h:600}),'selo3').protegida===true,
+      'a trava explícita do designer deixou de proteger');
+  });
+
+  test('cobertura: campo opcional vazio é oportunidade, não dano',()=>{
+    /* `optional-empty` é espaço livre SOBRANDO. Ele exigia resolução para a composição virar
+       `solved`, e não existia ação que o resolvesse — o caso virava no-winner garantido numa
+       arte que o produto aprova. */
+    const layers=[
+      text('titulo',80,90,360,60,'OFERTA',{fontSize:44,name:'Título'}),
+      text('opcional',80,170,360,40,'{{opcional}}',{fontSize:26,name:'Selo'}),
+      text('cta',80,230,240,44,'APROVEITE',{fontSize:28,name:'CTA'})
+    ];
+    const C=ctxB(layers,{opcional:''},{w:600,h:500});
+    const st=gSettleLayoutState({layers:layers,solveState:{}},C);
+    const probs=gDetectLayoutProblems({layers:st.layers,solveState:{}},C);
+    const tipos=[...new Set(probs.map(p=>p.tipo))];
+    assert(tipos.length===0||tipos.indexOf('optional-empty')>=0,
+      'o fixture perdeu o sentido: apareceu dano de verdade '+JSON.stringify(tipos));
+    const r=gSearchLayoutCandidates({ctx:C,base:layers});
+    assert(r.solved.length>0,'campo opcional vazio impediu a busca de achar solução');
+    // E a segurança concorda: espaço livre não torna a composição insegura.
+    const seg=gLayoutCandidateSafety(r.solved[0],C);
+    assert(seg.seguro,'espaço livre reprovou a composição no portão de segurança');
+    assert(seg.dano===0,'o portão contou espaço livre como dano');
+  });
+
+  test('cobertura: o preço imune deixa de ser piso no ÚLTIMO recurso',()=>{
+    /* A escada tem essa saída desde sempre (`00-config.js`): quando ninguém mais consegue
+       descer, ela para de contar o preço imune como piso de hierarquia e dá mais uma volta. A
+       busca não tinha — e parava com o produto travado no corpo do preço. */
+    const l=text('x',0,0,100,40,'{{p}}',{fontSize:40,name:'Preço'});
+    assert(Math.round(gLayoutPisoDoModo([l],l,'emergency',['x'],null,false))
+        >= Math.round(gLayoutPisoDoModo([l],l,'emergency',['x'],null,true)),
+      'liberar o preço como piso subiu o piso em vez de baixá-lo');
+    /* ⛔ E continua sendo ÚLTIMO recurso: só roda quando normal e emergência esgotaram. A prova
+       é que uma arte que resolve no normal nunca chega lá. */
+    const layers=[
+      text('titulo',90,100,420,60,'{{t}}',{fontSize:46,name:'Título'}),
+      text('cta',90,180,260,48,'PEÇA AGORA',{fontSize:30,name:'CTA'})
+    ];
+    const C=ctxB(layers,{t:'Combo artesanal da casa com bebida'},CV_P);
+    const r=gSearchLayoutCandidates({ctx:C,base:layers});
+    if(r.solved.length&&r.diagnostics.modo==='normal')
+      assert(!r.diagnostics.precoLivre,
+        'a terceira escalada rodou numa arte que o modo normal já resolvia');
+  });
+
+  /* ══ CORREÇÃO CAUSAL (Fase 7.6) ══════════════════════════════════════════════════════════
+     A régua antiga somava `(y+h) - (base.y+base.h)`, que sobe tanto quando a camada CRESCE
+     quanto quando ela é EMPURRADA. Empurrada é vítima. Culpa passa a exigir crescimento
+     INTRÍNSECO — a tinta ficar maior. */
+  const arteCorrente=()=>[
+    text('titulo',60,40,420,80,'{{t}}',{fontSize:60,name:'Título',textBox:'box',_layoutW:420}),
+    text('apoio',60,200,420,50,'APOIO FIXO',{fontSize:24,name:'Descrição'}),
+    text('cta',60,300,300,50,'PEÇA AGORA',{fontSize:30,name:'CTA'}),
+    shape('foto',60,420,420,200,{locked:true,name:'Foto'})
+  ];
+  const problemasDe=(L,d,cv)=>{
+    const C=ctxB(L,d,cv||{w:560,h:700});
+    const st=gSettleLayoutState({layers:L,solveState:{}},C);
+    return { probs:gDetectLayoutProblems({layers:st.layers,solveState:{}},C), C:C };
+  };
+
+  test('causal: quem cresce é culpado, quem é empurrado não',()=>{
+    /* O título cresce para cinco linhas e empurra apoio, CTA e foto. Nenhum dos empurrados
+       cresceu de verdade — a culpa tem que subir a corrente até o título. */
+    const {probs}=problemasDe(arteCorrente(),
+      {t:'Combo artesanal da casa com borda recheada bebida gelada e sobremesa do dia'});
+    const colisoes=probs.filter(p=>p.tipo==='collision');
+    assert(colisoes.length,'o cenário perdeu o sentido: nenhuma colisão');
+    colisoes.forEach(p=>{
+      assert(p.detalhe.culpado==='titulo',
+        'a culpa caiu em "'+p.detalhe.culpado+'" e quem cresceu foi o título');
+      assert(p.detalhe.cresceu==='titulo','o campo `cresceu` aponta para a vítima');
+    });
+    /* E a causa agrupa por ele: é isso que faz a busca atacar a origem, não a vítima. */
+    const causas=gGroupLayoutProblems(colisoes);
+    assert(causas.every(g=>g.culpritId==='titulo'),
+      'a causa não agrupou pelo título: '+causas.map(g=>g.culpritId).join(','));
+  });
+
+  test('causal: dois que cresceram viram causa MÚLTIPLA',()=>{
+    const L=arteCorrente();
+    L[1].content='{{a}}'; L[1].textBox='box'; L[1]._layoutW=420;   // o apoio também vira campo
+    const {probs}=problemasDe(L,{t:'Combo artesanal da casa com borda recheada e bebida gelada',
+      a:'Batata rústica com molho especial queijo e calabresa por tempo limitado só hoje'});
+    const comDois=probs.filter(p=>p.tipo==='collision'&&p.detalhe.culpados);
+    if(comDois.length){
+      comDois.forEach(p=>{
+        assert(p.detalhe.culpados.length>=2,'`culpados` veio com menos de dois');
+        assert(p.detalhe.evidencia==='crescimento-intrinseco',
+          'causa múltipla sem evidência de crescimento: '+p.detalhe.evidencia);
+      });
+    }
+    /* O que NÃO pode acontecer em hipótese nenhuma: culpar uma camada que não cresceu nem é
+       ancestral de quem cresceu. */
+    probs.filter(p=>p.tipo==='collision'&&p.detalhe.culpado).forEach(p=>{
+      assert(['titulo','apoio'].indexOf(p.detalhe.culpado)>=0,
+        'culpou "'+p.detalhe.culpado+'", que não cresceu');
+    });
+  });
+
+  test('causal: sem evidência, culpado é null — e o problema vira a própria causa',()=>{
+    /* Duas camadas FIXAS que já nascem colidindo: ninguém cresceu, e não há corrente acima.
+       Inventar um culpado aqui mandaria a busca encolher um inocente. */
+    const L=[
+      text('a',60,60,300,60,'TEXTO FIXO A',{fontSize:40,name:'Texto A'}),
+      text('b',60,90,300,60,'TEXTO FIXO B',{fontSize:40,name:'Texto B'})
+    ];
+    const {probs}=problemasDe(L,{},{w:560,h:400});
+    probs.filter(p=>p.tipo==='collision').forEach(p=>{
+      assert(p.detalhe.culpado===null,'inventou culpado sem crescimento nenhum: '+p.detalhe.culpado);
+      assert(p.detalhe.evidencia==='sem-evidencia','a evidência não foi declarada como ausente');
+    });
+    const causas=gGroupLayoutProblems(probs.filter(p=>p.tipo==='collision'));
+    causas.forEach(g=>assert(g.type==='isolated',
+      'problema sem culpado provado não virou causa isolada'));
+  });
+
+  test('cache: a detecção memoizada devolve exatamente o mesmo resultado',()=>{
+    /* A detecção é pura no estado assentado, e o cache existe porque 44% das chamadas repetem
+       estado. Cache que muda resposta não é cache, é bug. */
+    const L=arteCorrente();
+    const d={t:'Combo artesanal da casa com borda recheada e bebida gelada'};
+    const C=ctxB(L,d,{w:560,h:700});
+    const st=gSettleLayoutState({layers:L,solveState:{}},C);
+    const estado={layers:st.layers,solveState:{}};
+    const a=gDetectLayoutProblems(estado,C);           // frio
+    const b=gDetectLayoutProblems(estado,C);           // quente
+    assert(JSON.stringify(a)===JSON.stringify(b),'o cache de detecção mudou a resposta');
+    assert(a!==b,'o cache devolveu a MESMA referência: um consumidor pode reordenar o cache alheio');
+    // E um contexto novo, sem cache nenhum, chega ao mesmo lugar.
+    const C2=ctxB(arteCorrente(),d,{w:560,h:700});
+    const st2=gSettleLayoutState({layers:arteCorrente(),solveState:{}},C2);
+    assert(JSON.stringify(gDetectLayoutProblems({layers:st2.layers,solveState:{}},C2))
+      ===JSON.stringify(a),'contexto novo e contexto com cache discordaram');
+  });
+
+  test('cache: o índice de piso memoizado não muda decisão nenhuma',()=>{
+    const L=arteCorrente();
+    const C=ctxB(L,{t:'Combo artesanal da casa com borda recheada e bebida gelada'},{w:560,h:700});
+    const r1=gSearchLayoutCandidates({ctx:C,base:L});
+    const C2=ctxB(arteCorrente(),{t:'Combo artesanal da casa com borda recheada e bebida gelada'},{w:560,h:700});
+    const r2=gSearchLayoutCandidates({ctx:C2,base:arteCorrente()});
+    const chave=(r)=>[].concat(r.solved,r.partial).map(c=>c.depth+':'+seq(c)+':'+c.signature).join('|');
+    assert(chave(r1)===chave(r2),'dois contextos deram buscas diferentes');
+  });
+
+  test('saturação: chegar ao teto vem com diagnóstico, não só com o número',()=>{
+    /* `bloco-arejado | todos extremo` satura. O §16 exige saber POR QUÊ. */
+    const L=arteGrande(172), cv={w:1080,h:40+Math.ceil(172/6)*72+200};
+    const C=gBuildOperationalContext(L,cv,{dados:dadosGrande(172)});
+    const r=gSearchLayoutCandidates({ctx:C,base:L});
+    const sat=r.diagnostics.saturacao
+      ||(r.diagnostics.emergencia&&r.diagnostics.emergencia.saturacao);
+    assert(r.diagnostics.generated>=G_SEARCH_LIMITES.maxCandidatos,
+      'o cenário não saturou: '+r.diagnostics.generated);
+    assert(sat,'saturou sem diagnóstico nenhum');
+    ['teto','profundidadeAlcancada','causasVivas','ramosPorCausa','familiasDeAcao',
+     'repeticaoMaxPorAcao','estadosDeduplicados','podados','trajetoriaDeDano','progrediu']
+      .forEach(k=>assert(k in sat,'o diagnóstico de saturação não traz "'+k+'"'));
+    assert(sat.trajetoriaDeDano.length,'a trajetória de dano veio vazia');
+    /* O campo que fecha a pergunta: o dano mínimo caiu ao longo da busca? */
+    assert(sat.progrediu===true||sat.progrediu===false||sat.progrediu===null,
+      '`progrediu` não é um veredito');
+  });
+
+  test('banco: o benchmark da busca nunca mais roda com todos os campos vazios',()=>{
+    /* ⛔ GUARD DO §24. Os bancos de desempenho rodaram por fases inteiras com `dados:{}`, e o
+       que mediam era a busca em cima de campo vazio — depois que espaço livre deixou de ser
+       dano, eles passaram a medir ZERO candidatos e ninguém notou. Este caso trava isso: o
+       conteúdo do banco tem que produzir dano de verdade. */
+    [58,172,344].forEach(n=>{
+      const d=dadosGrande(n);
+      const chaves=Object.keys(d);
+      assert(chaves.length,'o banco de '+n+' camadas voltou a rodar sem dados');
+      assert(chaves.some(k=>String(d[k]).length>40),
+        'nenhum campo do banco de '+n+' camadas tem conteúdo que estoura');
+    });
+    const L=arteGrande(58), cv={w:1080,h:40+Math.ceil(58/6)*72+200};
+    const C=gBuildOperationalContext(L,cv,{dados:dadosGrande(58)});
+    const r=gSearchLayoutCandidates({ctx:C,base:L});
+    assert(r.diagnostics.problemasIniciais>0,
+      'o banco não produz dano nenhum: a busca não tem o que medir');
+    assert(r.diagnostics.generated>0,'o banco gerou ZERO candidatos — voltou a medir nada');
+  });
+
   test('busca: assentar cabe no orçamento de 344 camadas',()=>{
     const L=arteGrande(344), cv={w:1080,h:4600};
-    const C=gBuildOperationalContext(L,cv,{dados:{}});
+    const C=gBuildOperationalContext(L,cv,{dados:dadosGrande(344)});
     const t0=performance.now();
     const st=gSettleLayoutState({layers:L,solveState:{}},C);
     const msSettle=performance.now()-t0;
@@ -3460,7 +3729,18 @@
       +msCausa.toFixed(1)+'ms · busca '+msBusca.toFixed(1)+'ms ('+r.diagnostics.generated+' candidatos)');
     assert(msSettle<400,'assentar levou '+msSettle.toFixed(1)+'ms em 344 camadas');
     assert(msCausa<400,'detectar+agrupar levou '+msCausa.toFixed(1)+'ms');
-    assert(msBusca<4000,'a busca levou '+msBusca.toFixed(1)+'ms ('+r.diagnostics.generated+' candidatos)');
+    /* ⚠ O TOTAL DA BUSCA NÃO É ORÇAMENTO — É O TETO DE CANDIDATOS VEZES O CUSTO DA ARTE, e os
+       dois são projeto: cada candidato paga um ASSENTAMENTO inteiro (rodar o solver). Com o
+       conteúdo real que a Fase 7.5 trouxe para este banco, 344 camadas saturam o teto e a busca
+       leva ~19s. Medido nas duas versões do motor, antes e depois da 7.5: 18,6s contra 18,9s —
+       o custo é do desenho, não de uma regressão. Cravar "menos de 4s" aqui era um número que só
+       passava porque o banco rodava com TODOS os campos vazios e a busca não tinha o que fazer.
+       O que este gate protege é a CURVA: o custo por candidato, que é estável e é o que denuncia
+       assentamento ficando mais caro. O total continua impresso, à vista. */
+    const porCand = msBusca / Math.max(1, r.diagnostics.generated);
+    avisos.push('344 camadas: ' + porCand.toFixed(1) + 'ms por candidato (o total é o teto de '
+      + r.diagnostics.generated + ' vezes isso)');
+    assert(porCand<150,'o custo por candidato subiu para '+porCand.toFixed(1)+'ms em 344 camadas');
   });
 
   /* ══ EMERGENCY PARITY + MULTI-CAUSE SEARCH (Fase 5.9) ════════════════════════════════════
@@ -3707,15 +3987,20 @@
        novo abre. É isso que se mede — e o caso normal nunca paga por ele. */
     [58,172,344].forEach(n=>{
       const L=arteGrande(n), cv={w:1080,h:40+Math.ceil(n/6)*72+200};
-      const C=gBuildOperationalContext(L,cv,{dados:{}});
+      const C=gBuildOperationalContext(L,cv,{dados:dadosGrande(n)});
       const t0=performance.now();
       const r=gSearchLayoutCandidates({ctx:C,base:L});
       const ms=performance.now()-t0;
       const de=r.diagnostics.emergencia;
-      avisos.push(n+' camadas: total '+ms.toFixed(1)+'ms · normal '
+      const porCand=ms/Math.max(1,r.diagnostics.generated);
+      avisos.push(n+' camadas: total '+ms.toFixed(1)+'ms · '+porCand.toFixed(1)
+        +'ms por candidato · normal '
         +(r.diagnostics.generated-(de?de.generated:0))+' cands · emergência '
         +(de?de.generated+' cands':'não rodou'));
-      assert(ms<5000,'a busca com fallback levou '+ms.toFixed(1)+'ms em '+n+' camadas');
+      /* Mesma régua do banco de 344 (ver lá o porquê): o gate é o custo POR CANDIDATO. O total
+         é o teto de candidatos vezes o porte da arte, e os dois são decisão de projeto. */
+      assert(porCand<150,'o custo por candidato com fallback subiu para '+porCand.toFixed(1)
+        +'ms em '+n+' camadas');
     });
   });
 
@@ -4204,9 +4489,15 @@
     if(esc.ranked.length>1){
       assert(esc.explanation.posicao>=0,'não disse em que posição do vetor a decisão caiu');
       const a=esc.ranked[0].profile.vector, b=esc.ranked[1].profile.vector;
-      for(let i=0;i<esc.explanation.posicao;i++)
-        assert(Math.abs((a[i]||0)-(b[i]||0))<1e-9,
-          'a posição declarada não é a PRIMEIRA que diferiu (posição '+i+')');
+      /* ⚠ A PRIMEIRA QUE DIFERIU **ALÉM DA RESOLUÇÃO DA MÉTRICA** (zona morta, Fase 6.6).
+         Antes bastava diferir; hoje uma diferença contínua menor que o ruído medido daquela
+         arte é empate perceptual, e a decisão desce de camada de propósito. */
+      const zonas=esc.ranked[0].profile.deadZone||{};
+      for(let i=0;i<esc.explanation.posicao;i++){
+        const z=(G_SCORE_VETOR_ZONA[i]&&zonas[G_SCORE_VETOR_ZONA[i]])||0;
+        assert(Math.abs((a[i]||0)-(b[i]||0))<=Math.max(1e-9,z),
+          'a posição declarada não é a PRIMEIRA que diferiu além da zona morta (posição '+i+')');
+      }
     }
   });
 

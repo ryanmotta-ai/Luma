@@ -548,6 +548,12 @@ function _gScoreFonte(l){ return (l && l._tetoFonte != null) ? l._tetoFonte : ((
  */
 function gScoreComposition(layers, opts){
   const cv = (opts && opts.canvas) || { w:1080, h:1080 };
+  /* ── QUEM RESPONDE "QUAL É O PAPEL DESTA CAMADA" ──────────────────────────────────────────
+     Por padrão, `gLayoutRoleOf` — o leitor de sempre, para que esta função continue devolvendo
+     exatamente a mesma nota que devolvia. `opts.papel` existe para a AUDITORIA da Fase 6.5
+     (§19) rodar a MESMA função com o papel efetivo e medir a diferença, em vez de nascer um
+     segundo scorer ao lado (dois scorers = duas verdades, e nenhuma auditável). */
+  const papelDe = (opts && opts.papel) || gLayoutRoleOf;
   const curto = Math.max(1, Math.min(cv.w || 1080, cv.h || 1080));
   const area = Math.max(1, (cv.w||1080) * (cv.h||1080));
   const vis = (layers||[]).filter(l => l && (typeof _gLayoutVisivel !== 'function' || _gLayoutVisivel(l)));
@@ -577,7 +583,7 @@ function gScoreComposition(layers, opts){
 
   // ── ALTERAÇÃO MÍNIMA (corpo perdido + deslocamento) ──
   textos.forEach(l => {
-    const peso = G_SCORE_PESO_PAPEL[gLayoutRoleOf(l)] != null ? G_SCORE_PESO_PAPEL[gLayoutRoleOf(l)] : 1;
+    const peso = G_SCORE_PESO_PAPEL[papelDe(l)] != null ? G_SCORE_PESO_PAPEL[papelDe(l)] : 1;
     const perda = Math.max(0, 1 - _gScoreFonte(l) / Math.max(1, l.fontSize || 24));
     itens.reducao += perda * G_SCORE_PESOS.reducao * peso;
     const r = _gScoreRect(l), b = _gScoreSemAjuste(l);
@@ -595,14 +601,14 @@ function gScoreComposition(layers, opts){
 
   // ── LINHAS E EDITORIAL ──
   textos.forEach(l => {
-    const peso = G_SCORE_PESO_PAPEL[gLayoutRoleOf(l)] != null ? G_SCORE_PESO_PAPEL[gLayoutRoleOf(l)] : 1;
+    const peso = G_SCORE_PESO_PAPEL[papelDe(l)] != null ? G_SCORE_PESO_PAPEL[papelDe(l)] : 1;
     const linhas = (l._fit.lines && l._fit.lines.length) || 1;
     // Linhas que o texto do franqueado já usaria SEM adaptação: cobrar dele o comprimento do
     // que a pessoa digitou não é avaliar o motor.
     const refLinhas = (l._layoutSemAjuste && l._layoutSemAjuste.linhas)
       || (l.layoutRef && l.layoutRef.linhas) || 1;
     if(linhas > refLinhas) itens.linhas += (linhas - refLinhas) * G_SCORE_PESOS.linhaExtra * peso;
-    const teto = gLayoutRoleMaxLines(gLayoutRoleOf(l));
+    const teto = gLayoutRoleMaxLines(papelDe(l));
     if(linhas > teto) itens.linhas += (linhas - teto) * G_SCORE_PESOS.linhaExtra * peso * 2;
     itens.editorial += gLayoutPenalidadeEditorial(l._fit.lines || []) * G_SCORE_PESOS.editorial * peso;
   });
@@ -714,6 +720,20 @@ function gLayoutPrecisaAlternativas(cloned){
                                       || l._layoutInvalido || l._foraDaArte));
 }
 
+/* A REGRA DE TROCA, isolada porque agora tem DOIS leitores: a escolha real (`gLayoutEscolherAlternativa`)
+   e a auditoria de papel da §19, que precisa perguntar "com o papel efetivo, o vencedor mudaria?".
+   Duplicá-la lá dentro criaria a segunda verdade justamente no lugar onde se quer medir UMA
+   diferença. O comportamento é o de sempre: `cands[0]` é a política PADRÃO. */
+function _gLayoutMelhorAlternativa(cands){
+  const _margem = Math.max(3, cands[0].score.penal * 0.02);
+  let melhor = cands[0];
+  cands.forEach(c => {
+    if(c === cands[0]) return;
+    if(c.score.penal < melhor.score.penal - (melhor === cands[0] ? _margem : 0.001)) melhor = c;
+  });
+  return melhor;
+}
+
 function gLayoutEscolherAlternativa(layers, dados, defaults, opts, padrao){
   if(typeof gApplyRelativeAnchors !== 'function') return padrao;
   const cvOpts = { canvas: (opts && opts.canvas) || null };
@@ -730,12 +750,7 @@ function gLayoutEscolherAlternativa(layers, dados, defaults, opts, padrao){
      e faz a arte mudar entre versões sem ninguém ter pedido. A padrão é a composição que o corpus
      conhece e a de alteração mínima; para destroná-la, a alternativa tem que ganhar de forma
      VISÍVEL: 3 pontos absolutos ou 2% da penalidade, o que for maior. */
-  const _margem = Math.max(3, cands[0].score.penal * 0.02);
-  let melhor = cands[0];
-  cands.forEach(c => {
-    if(c === cands[0]) return;
-    if(c.score.penal < melhor.score.penal - (melhor === cands[0] ? _margem : 0.001)) melhor = c;
-  });
+  const melhor = _gLayoutMelhorAlternativa(cands);
   const msTotal = cands.reduce((s,c) => s + ((c.out._layoutMeta && c.out._layoutMeta.ms) || 0), 0);
   melhor.out._layoutMeta = Object.assign({}, melhor.out._layoutMeta || {}, {
     politica: melhor.politica, ms: Math.round(msTotal * 100) / 100,
@@ -1134,7 +1149,16 @@ function gCompileLayoutGrammar(layers, canvas){
                 || ((typeof gLayoutSemanticRole === 'function') ? gLayoutSemanticRole(l, ctxPapel) : 'apoio');
     const campos = (typeof gLayoutCamposDe === 'function') ? gLayoutCamposDe(l) : [];
     const fundo = l.type !== 'group' && _gGramFundo(l, cv);
-    const protegida = !!(l.locked || l.lockPosition || l.layoutRole === 'protected' || papel === 'protegida');
+    /* ⚠ PROTEÇÃO INFERIDA NÃO IMOBILIZA CAMPO DINÂMICO (Fase 7.5). `papel === 'protegida'` sai
+       do NOME — qualquer camada chamada "Selo", "Logo" ou "Carimbo" ganha o papel. Isso serve
+       para JULGAR composição; para dizer "isto não pode se mexer", não serve. A regra já existe
+       e é do próprio motor: `gCompileLayoutRoles` se recusa a carimbar 'protected' em camada com
+       campo, porque imobilizar um campo desliga o Auto-layout exatamente onde ele precisa agir.
+       A Gramática não seguia essa regra, e o preço foi medido: um campo dinâmico chamado "Selo"
+       ficava intocável para a busca, que então moía `produto` e `titulo` até o piso sem nunca
+       encolher quem de fato cresceu — 4 das 5 lacunas de cobertura que sobraram da Fase 7. */
+    const protegidaExplicita = !!(l.locked || l.lockPosition || l.layoutRole === 'protected');
+    const protegida = protegidaExplicita || (papel === 'protegida' && !campos.length);
     /* A caixa do ASSUNTO — rosto, produto, logo dentro da foto. A contagem sozinha diz que a
        proteção existe; o retângulo diz ONDE, e é dele que sai o `bounds.seguro` de um
        componente. Sai de `gLayoutSafeZones`, o motor único — não de uma segunda leitura. */
@@ -3221,12 +3245,17 @@ const G_SEARCH_MODOS = ['normal', 'emergency'];
  * @param {Array} camadas o estado ATUAL (os corpos já reduzidos contam como piso externo)
  * @param {Set|Array} [grupo] quem desce junto — não conta como piso
  */
-function gLayoutPisoDoModo(camadas, l, modo, grupo, indice){
+function gLayoutPisoDoModo(camadas, l, modo, grupo, indice, precoLivre){
   if(!l || typeof gLayoutPisoFonte !== 'function') return 8;
   if(modo !== 'emergency') return gLayoutPisoFonte(l, false);
   const legivel = gLayoutPisoFonte(l, true);
+  /* `precoLivre` é o ÚLTIMO RECURSO do solver, espelhado (Fase 7.5). O preço imune não cede
+     tamanho por causa dos outros (regra de 19/08), e por isso ele vira piso de hierarquia para
+     todo mundo — o que às vezes tranca a arte inteira. Quando ninguém mais consegue descer, o
+     solver para de contá-lo como piso e dá mais uma volta (`00-config.js:3355`). Sem esta
+     escapatória a busca desistia onde a escada seguia. */
   const hier = (typeof gLayoutPisoHierarquiaExterno === 'function')
-    ? gLayoutPisoHierarquiaExterno(camadas || [], l, grupo || [l.id], false, indice) : 0;
+    ? gLayoutPisoHierarquiaExterno(camadas || [], l, grupo || [l.id], !!precoLivre, indice) : 0;
   return Math.max(legivel, hier);
 }
 
@@ -3240,7 +3269,7 @@ function gLayoutPisoDoModo(camadas, l, modo, grupo, indice){
  * @param {Array} [camadas] o estado atual; sem ele, cai no clone autorado do contexto
  * @returns {{permitido, motivo, origem, atual?, piso?, folga?, degraus?}}
  */
-function gLayoutCanEmergencyShrink(ctx, targetId, camadas){
+function gLayoutCanEmergencyShrink(ctx, targetId, camadas, precoLivre){
   if(!ctx) return _gCapNao('sem-contexto');
   const n = ctx._no.get(targetId);
   const autorada = ctx._camada.get(targetId);
@@ -3253,7 +3282,8 @@ function gLayoutCanEmergencyShrink(ctx, targetId, camadas){
   const vivo = (camadas || []).find(x => x && x.id === targetId) || autorada;
   const medida = Object.assign({}, autorada, { _tetoFonte: vivo._tetoFonte });
   const atual = Math.round(gLayoutCorpoAtual(medida));
-  const piso = Math.round(gLayoutPisoDoModo(camadas || [...ctx._camada.values()], medida, 'emergency'));
+  const piso = Math.round(gLayoutPisoDoModo(camadas || [...ctx._camada.values()], medida,
+    'emergency', null, null, precoLivre));
   const det = { atual, piso, folga: atual - piso,
                 pisoNormal: Math.round(gLayoutPisoFonte(autorada, false)) };
   if(piso >= atual) return _gCapNao('no-piso-de-emergencia', det);
@@ -3379,12 +3409,12 @@ function gBuildAdaptiveScaleGroup(ctx, estado, grupoProblema, problemas, previo)
  *
  * @returns {{permitido, motivo, origem, degraus?, membros?, pisos?}}
  */
-function gLayoutCanEmergencyScale(ctx, componentId, camadas, modo){
+function gLayoutCanEmergencyScale(ctx, componentId, camadas, modo, precoLivre){
   if(!ctx) return _gCapNao('sem-contexto');
   const cap = gComponentCapability(ctx, componentId, 'canScaleComponent');
   if(!cap.permitido) return cap;                         // as guardas do componente valem iguais
   const c = gComponentById(ctx.components, componentId);
-  const r = _gDegrausDeEscala(ctx, c.membros, camadas, modo);
+  const r = _gDegrausDeEscala(ctx, c.membros, camadas, modo, null, precoLivre);
   return r.permitido ? _gCapOk('componente-pode-descer', r.detalhe)
                      : _gCapNao('componente-no-piso', r.detalhe);
 }
@@ -3395,7 +3425,7 @@ function gLayoutCanEmergencyScale(ctx, componentId, camadas, modo){
  * grupo de dois e é legítimo) — mas protegida, fundo e elasticidade que proíbe escala continuam
  * bloqueando membro a membro, exatamente como no componente.
  */
-function gLayoutCanScaleGroup(ctx, grupo, camadas, modo){
+function gLayoutCanScaleGroup(ctx, grupo, camadas, modo, precoLivre){
   if(!ctx) return _gCapNao('sem-contexto');
   const membros = (grupo && grupo.escalaveis) || [];
   if(!membros.length) return _gCapNao('grupo-sem-quem-desca', { membros:0 });
@@ -3411,24 +3441,47 @@ function gLayoutCanScaleGroup(ctx, grupo, camadas, modo){
      isso: `textosComponente` (quem desce) é filtrado do `ids` (o fecho), mas `_pisoHierExterno`
      recebe o `ids`. No `de-por-lateral` o "por" está no fecho e não desce — e é justamente ele
      que, contado como piso, travava o "produto" em 84. */
-  const r = _gDegrausDeEscala(ctx, membros, camadas, modo, grupo.membros);
+  const r = _gDegrausDeEscala(ctx, membros, camadas, modo, grupo.membros, precoLivre);
   return r.permitido ? _gCapOk('grupo-pode-descer', Object.assign({ grupo:grupo.id }, r.detalhe))
                      : _gCapNao('grupo-no-piso', Object.assign({ grupo:grupo.id }, r.detalhe));
+}
+
+/* ── ÍNDICE DE PISO EXTERNO, MEMOIZADO POR ESTADO (Fase 7.6) ──────────────────────────────
+   `gLayoutIndicePisoExterno` varre a arte inteira e ordena: O(n log n) por chamada. Medido numa
+   peça de 344 camadas, a busca o chamava 9.518 vezes para apenas 16 CHAVES DISTINTAS — 100% de
+   repetição, ~3ms por candidato jogados fora.
+
+   A chave é o par (estado, grupo, preço-livre), e o estado entra por REFERÊNCIA DE ARRAY num
+   WeakMap: dentro de um candidato o mesmo array de camadas é consultado dezenas de vezes, e
+   `gApplyLayoutAction` clona antes de mexer (nunca muta a entrada), então referência igual
+   garante estado igual. Sem hash de estado, sem custo de chave, e a memória sai sozinha com o
+   candidato. */
+function _gIndicePisoMemo(ctx, camadas, grupo, precoLivre){
+  if(typeof gLayoutIndicePisoExterno !== 'function') return null;
+  if(!camadas || !ctx) return gLayoutIndicePisoExterno(camadas || [], grupo, !!precoLivre);
+  const porEstado = ctx._idxPiso || (ctx._idxPiso = new WeakMap());
+  let mapa = porEstado.get(camadas);
+  if(!mapa){ mapa = new Map(); porEstado.set(camadas, mapa); }
+  const ids = (grupo instanceof Set) ? [...grupo] : (grupo || []);
+  const chave = ids.slice().sort().join(',') + '|' + (precoLivre ? 1 : 0);
+  if(mapa.has(chave)) return mapa.get(chave);
+  const r = gLayoutIndicePisoExterno(camadas, grupo, !!precoLivre);
+  mapa.set(chave, r);
+  return r;
 }
 
 /* Quantas voltas de 0,92 ainda cabem para ESTE conjunto — o mesmo laço do motor, que só para
    quando ninguém mais desce. O piso de cada membro é medido com o conjunto INTEIRO como grupo:
    quem desce junto sai da conta do piso de hierarquia externo, e é exatamente daí que o degrau
    proporcional tira a folga que o encolhimento isolado não tem. */
-function _gDegrausDeEscala(ctx, membros, camadas, modo, grupoPiso){
+function _gDegrausDeEscala(ctx, membros, camadas, modo, grupoPiso, precoLivre){
   const vivos = camadas || [...ctx._camada.values()];
   const idx = new Map(vivos.map(l => [l.id, l]));
   const grupo = new Set(grupoPiso || membros);
   /* O índice do piso externo é do GRUPO, não do membro: todos compartilham o mesmo conjunto de
      fora. Construir um por membro era varrer a arte inteira k vezes — medido em 3,4ms por
      consulta numa peça de 344 camadas, com a busca consultando centenas de vezes. */
-  const indice = (typeof gLayoutIndicePisoExterno === 'function' && modo === 'emergency')
-    ? gLayoutIndicePisoExterno(vivos, grupo, false) : null;
+  const indice = (modo === 'emergency') ? _gIndicePisoMemo(ctx, vivos, grupo, precoLivre) : null;
   let degraus = 0;
   const pisos = [];
   membros.forEach(id => {
@@ -3438,7 +3491,7 @@ function _gDegrausDeEscala(ctx, membros, camadas, modo, grupoPiso){
     const medida = Object.assign({}, autorada, { _tetoFonte: vivo && vivo._tetoFonte });
     const atual = Math.round(gLayoutCorpoAtual(medida));
     const piso = Math.round(gLayoutPisoDoModo(vivos, medida,
-      modo === 'emergency' ? 'emergency' : 'normal', grupo, indice));
+      modo === 'emergency' ? 'emergency' : 'normal', grupo, indice, precoLivre));
     pisos.push({ id, atual, piso });
     if(piso < atual) degraus = Math.max(degraus, Math.ceil(Math.log(piso / atual) / Math.log(0.92)));
   });
@@ -3698,9 +3751,13 @@ function _gAcaoTexto(ctx, l){
  * @param {object} problem {tipo, targetId, rootId?, detalhe?}
  * @returns {Array} descritores, ORDENADOS (pela escada real, depois por assinatura)
  */
-function gGenerateLayoutActions(ctx, problem, camadas, modo){
+function gGenerateLayoutActions(ctx, problem, camadas, modo, opts){
   if(!ctx || !problem || !G_LAYOUT_PROBLEMAS[problem.tipo]) return [];
   const emergencia = (modo === 'emergency');
+  /* ÚLTIMO RECURSO (Fase 7.5): o preço imune deixa de contar como piso de hierarquia. Só chega
+     aqui na terceira escalada da busca, depois de a emergência inteira esgotar — igual ao
+     solver, que só levanta essa trava quando ninguém mais consegue descer. */
+  const precoLivre = !!(opts && opts.precoLivre) && emergencia;
   /* ── DE ONDE SAEM OS PARÂMETROS ───────────────────────────────────────────────────────────
      O PORTÃO (elasticidade, capacidade, zona) continua lendo a arte AUTORADA pelo contexto: a
      liberdade que o designer deixou não muda porque a busca já encolheu o título uma vez.
@@ -3761,14 +3818,16 @@ function gGenerateLayoutActions(ctx, problem, camadas, modo){
       if(c){
         const portao = gLayoutCanAttempt({ ctx, action:acaoId, targetId:c.id, rootId:null });
         if(portao.permitido){
-          const esc = gLayoutCanEmergencyScale(ctx, c.id, _estadoVivo, emergencia ? 'emergency' : 'normal');
+          const esc = gLayoutCanEmergencyScale(ctx, c.id, _estadoVivo,
+            emergencia ? 'emergency' : 'normal', precoLivre);
           if(esc.permitido) escopos.push({ escopo:'component', componentId:c.id, grupoId:null,
                                            membros:null, degraus:esc.degraus });
         }
       }
       const asg = problem._adaptiveGroup || null;
       if(asg && asg.escalaveis.length >= 2){
-        const cap = gLayoutCanScaleGroup(ctx, asg, _estadoVivo, emergencia ? 'emergency' : 'normal');
+        const cap = gLayoutCanScaleGroup(ctx, asg, _estadoVivo,
+          emergencia ? 'emergency' : 'normal', precoLivre);
         /* Só vale a pena quando o grupo é REALMENTE outro conjunto: se ele coincide com o
            componente, gerar os dois seria duplicar a mesma ação com outro nome. */
         /* "É o mesmo conjunto?" pergunta pelos DOIS: quem desce e quem sai do piso. Um grupo
@@ -3785,6 +3844,7 @@ function gGenerateLayoutActions(ctx, problem, camadas, modo){
         out.push(_gAcao(acaoId, null, { componentId:e.componentId, adaptiveGroupId:e.grupoId,
           rootId:raiz, ordem:i + k * 0.5,
           params:{ fator:0.92, modo:emergencia ? 'emergency' : 'normal', degraus:e.degraus,
+                   precoLivre:precoLivre || undefined,
                    escopo:e.escopo, membros:e.membros, grupoPiso:e.grupoPiso || null },
           motivo:motivo, reason:meta.degrau }));
       });
@@ -3806,10 +3866,10 @@ function gGenerateLayoutActions(ctx, problem, camadas, modo){
                   && portao.bloqueadoPor === 'solver-capability'
                   && portao.capacidade && portao.capacidade.motivo === 'no-piso';
       if(!sopiso) return;
-      emerg = gLayoutCanEmergencyShrink(ctx, alvoId, _estadoVivo);
+      emerg = gLayoutCanEmergencyShrink(ctx, alvoId, _estadoVivo, precoLivre);
       if(!emerg.permitido) return;
     }else if(emergencia && acaoId === 'shrink-text'){
-      emerg = gLayoutCanEmergencyShrink(ctx, alvoId, _estadoVivo);
+      emerg = gLayoutCanEmergencyShrink(ctx, alvoId, _estadoVivo, precoLivre);
       if(!emerg.permitido) return;
     }
 
@@ -3867,6 +3927,7 @@ function gGenerateLayoutActions(ctx, problem, camadas, modo){
         if(!(novo < atual)){ ok = false; break; }
         params.de = atual; params.para = novo; params.piso = piso;
         params.modo = emergencia ? 'emergency' : 'normal';
+        if(precoLivre) params.precoLivre = true;
         if(emerg) params.degraus = emerg.degraus;
         break;
       }
@@ -4046,12 +4107,16 @@ function gApplyLayoutAction(base, action, ctx){
          do fecho. Passar um grupo aqui e outro no piso seria prometer uma descida que o motor
          não autoriza. */
       const grupo = new Set(p.grupoPiso || membrosEsc);
+      /* O ÍNDICE, UMA VEZ PARA O GRUPO INTEIRO. Sem ele, `gLayoutPisoHierarquiaExterno`
+         reconstruía a varredura ordenada da arte para CADA membro do grupo. */
+      const indiceGrupo = (modoEsc === 'emergency')
+        ? _gIndicePisoMemo(ctx, camadas, grupo, p.precoLivre) : null;
       const alvos = [];
       membrosEsc.forEach(id => {
         const m = idx.get(id);
         if(!m || m.type !== 'text') return;
         const atual = Math.round(gLayoutCorpoAtual(m));
-        const piso = gLayoutPisoDoModo(camadas, m, modoEsc, grupo);
+        const piso = gLayoutPisoDoModo(camadas, m, modoEsc, grupo, indiceGrupo, p.precoLivre);
         const novo = Math.max(piso, Math.floor(atual * p.fator));
         if(novo < atual){ m._tetoFonte = novo; marca(id); alvos.push({ id, de:atual, para:novo, piso }); }
       });
@@ -4174,6 +4239,22 @@ const G_ACAO_MONOTONICA = { 'shrink-text':1, 'compress-line-height':1, 'push-dep
 const G_LAYOUT_PROBLEM_PRIORITY = ['outside-canvas','collision','text-overflow',
                                    'container-mismatch','spacing-pressure','optional-empty'];
 
+/* ── DANO × OPORTUNIDADE (Fase 7.5) ───────────────────────────────────────────────────────
+   `optional-empty` não é arte quebrada: é o contrário — um campo opcional ficou vazio e SOBROU
+   espaço. O detector o reporta para que a busca POSSA recolher o vão (`collapse-empty-gap`),
+   e a própria lista de prioridade acima já o classifica como acabamento.
+
+   ⛔ MAS ELE ESTAVA BLOQUEANDO `solved`, e isso é um defeito de definição: a busca exigia ZERO
+   problemas para declarar uma composição resolvida, então uma arte que o PRODUTO aprova ficava
+   eternamente "não resolvida" por causa de espaço livre — e sem ação disponível para recolhê-lo,
+   o caso virava no-winner garantido. Medido no corpus: `de-por-lateral | cupom vazio`, em que o
+   solver entrega em ZERO voltas e a busca gerava ZERO candidatos.
+
+   A régua de "resolvido" passa a ser DANO. Recolher o vão continua sendo ação legítima e
+   continua melhorando o candidato — só deixou de ser condição para existir solução. */
+function _gEhDano(p){ return !!p && p.tipo !== 'optional-empty'; }
+function _gSoDano(problemas){ return (problemas || []).filter(_gEhDano); }
+
 /* REPETIÇÃO POR AÇÃO — quantas vezes cada movimento pode aparecer na MESMA sequência.
    Não é opinião: é quantos degraus o motor tem. `shrink-text` reduz 8% por vez e pode repetir
    até o piso; `compress-gap` tem UM degrau (1 → 0.5) e repetir seria fingir um segundo;
@@ -4195,6 +4276,18 @@ function gDetectLayoutProblems(state, ctx){
   if(!ctx) return [];
   const _st = _gEstado(state);
   const camadas = _st.layers;
+  /* ── CACHE POR ESTADO (Fase 7.6) ────────────────────────────────────────────────────────
+     A detecção é uma função PURA do estado assentado, e custa uma varredura da arte inteira —
+     ~15ms numa peça de 344 camadas, 37% do custo de um candidato. Medido na mesma peça: 393
+     chamadas para apenas 221 estados DISTINTOS. Candidatos diferentes assentam no mesmo lugar,
+     e cada um pagava a varredura de novo.
+     A chave é a assinatura do estado (a mesma régua que a busca usa para deduplicar) e custa
+     ~0,2ms contra os 15ms que evita. Devolve CÓPIA do array: quem consome ordena e filtra, e
+     entregar a lista interna deixaria um consumidor reordenar o cache dos outros. */
+  const _chaveDet = (typeof gLayoutCandidateSignature === 'function')
+    ? gLayoutCandidateSignature({ layers:camadas, solveState:_st.solveState }) : null;
+  const _cacheDet = ctx._detectCache || (ctx._detectCache = new Map());
+  if(_chaveDet && _cacheDet.has(_chaveDet)) return _cacheDet.get(_chaveDet).slice();
   /* O RESPIRO EXIGIDO AGORA. Depois de `compress-gap` o candidato opera em 0.5, e medir como se
      ainda fosse 1 faria a ação parecer inútil — a busca então descartaria o único movimento que
      resolvia o caso. É o estado do candidato que manda, não o default. */
@@ -4339,11 +4432,66 @@ function gDetectLayoutProblems(state, ctx){
            apontava a placa como culpada de uma colisão causada pelo título — e a busca então
            tentava encolher a vítima. Cada candidato é medido contra a PRÓPRIA tinta autorada;
            misturar as duas referências produzia delta inventado. */
-        const _cresceu = (l, ag, bs) => (!l || !ag || !bs) ? 0
-          : Math.max(0, (ag.y + ag.h) - (bs.y + bs.h)) + Math.max(0, (ag.w || 0) - (bs.w || 0));
+        /* ⚠ CULPA É CRESCIMENTO INTRÍNSECO, NÃO DESLOCAMENTO (Fase 7.6). A régua anterior somava
+           `(y+h) - (base.y+base.h)`, que sobe tanto quando a camada CRESCE quanto quando ela é
+           EMPURRADA — e empurrada é vítima. Medido no corpus: em `legado-sem-baseline | titulo
+           longo` quem cresceu cinco linhas foi o `titulo`, e a culpa caía no `produto`, que só
+           tinha descido junto com a corrente. A busca então moía a vítima e desistia.
+           O que prova crescimento é a TINTA ficar maior: largura e altura. Coordenada, não. */
+        const _cresceuIntrinseco = (ag, bs) => (!ag || !bs) ? 0
+          : Math.max(0, (ag.w || 0) - (bs.w || 0)) + Math.max(0, (ag.h || 0) - (bs.h || 0));
         const obAtual = atual.get(o.id), obBase = base(o.id) || { x:o.x||0, y:o.y||0, w:o.w||0, h:o.h||0 };
-        const cT = _cresceu(t, ta, tb), cO = _cresceu(o, obAtual, obBase);
-        const culpado = cO > cT ? o : t;
+        const cT = _cresceuIntrinseco(ta, tb), cO = _cresceuIntrinseco(obAtual, obBase);
+        /* SOBE A CORRENTE procurando o primeiro ancestral que cresceu DE VERDADE. É o caso em
+           que nenhum dos dois envolvidos cresceu: os dois foram empurrados, e a origem está
+           acima. ⛔ Só atravessa aresta ESTRUTURAL de dependência — a mesma restrição de
+           `_gGraphRaiz`, porque subir por vizinhança inventaria uma origem que a composição não
+           demonstra. */
+        const _ancestraisQueCresceram = (idInicial) => {
+          if(typeof gGraphOutgoing !== 'function' || !ctx.graph) return [];
+          const vistos = new Set([idInicial]), achados = [];
+          let no = idInicial, guarda = 0;
+          while(guarda++ < 64){
+            const arestas = gGraphOutgoing(ctx.graph, no).filter(e =>
+              G_GRAPH_DEPENDENCIA.indexOf(e.tipo) >= 0 && gGraphIsStructural(e) && !vistos.has(e.para));
+            if(!arestas.length) break;
+            if(arestas.length > 1) arestas.sort((a, b) => gGraphRelationStrength(b) - gGraphRelationStrength(a)
+              || (a.para < b.para ? -1 : a.para > b.para ? 1 : 0));
+            no = arestas[0].para; vistos.add(no);
+            if(_cresceuIntrinseco(atual.get(no), base(no)) > 1) achados.push(no);
+          }
+          return achados;                       // do mais próximo da vítima para o topo
+        };
+        /* ⚠ A ORIGEM É O TOPO DA CORRENTE, não o primeiro que aparecer. Numa peça em que
+           título, selo e produto crescem juntos, subir e parar no primeiro elegia o `produto` —
+           e a busca gastava os onze candidatos que tinha encolhendo só ele, enquanto o solver
+           aliviava os três. Quem empurra todo mundo é quem está no alto; atacá-lo é o único
+           movimento que relaxa a corrente inteira. Os demais viajam em `culpados` (§14). */
+        const _ancestralQueCresceu = (idInicial) => {
+          const a = _ancestraisQueCresceram(idInicial);
+          return a.length ? a[a.length - 1] : null;
+        };
+        /* ── AS REGRAS, DETERMINÍSTICAS (§13) ── nenhuma pontuação subjetiva de culpa. */
+        let culpado = null, culpados = null;
+        if(cT > 1 && cO > 1){
+          // Os dois cresceram: causa MÚLTIPLA. A chave de agrupamento fica com o maior; o par
+          // inteiro viaja no detalhe, porque atribuir a um só seria invenção.
+          culpado = cO > cT ? o : (cT > cO ? t : (t.id < o.id ? t : o));
+          culpados = [t.id, o.id].sort();
+        }else if(cT > 1) culpado = t;
+        else if(cO > 1) culpado = o;
+        else {
+          const cadeiaT = _ancestraisQueCresceram(t.id), cadeiaO = _ancestraisQueCresceram(o.id);
+          const aT = cadeiaT.length ? cadeiaT[cadeiaT.length - 1] : null;
+          const aO = cadeiaO.length ? cadeiaO[cadeiaO.length - 1] : null;
+          const topos = [...new Set([aT, aO].filter(Boolean))].sort();
+          const todos = [...new Set(cadeiaT.concat(cadeiaO))].sort();
+          if(topos.length === 1) culpado = idx.get(topos[0]) || null;
+          else if(topos.length > 1){ culpado = idx.get(topos[0]) || null; }
+          if(todos.length > 1) culpados = todos;
+          /* ⛔ SEM EVIDÊNCIA, SEM CULPADO. Melhor não saber do que culpar errado: sem culpado o
+             problema vira a própria causa e a busca ataca o alvo, não um inocente. */
+        }
         /* ── QUEM CRESCEU × QUEM É A ORIGEM ────────────────────────────────────────────────
            A medida acima responde quem MEXEU; ela não responde POR QUÊ. Um CTA empurrado 200px
            corrente abaixo "cresceu" mais que todo mundo, e o detector o acusava de invadir a
@@ -4360,10 +4508,14 @@ function gDetectLayoutProblems(state, ctx){
           const r = (typeof gGraphDynamicRoot === 'function') ? gGraphDynamicRoot(ctx.graph, l.id) : null;
           return (r && r.id) || l.id;
         };
-        const origem = _raizDe(culpado);
-        const cb = culpado === t ? tb : obBase, ca = culpado === t ? ta : obAtual;
-        const vitima = culpado === t ? o : t;
-        const vb = culpado === t ? obBase : tb, va = culpado === t ? obAtual : ta;
+        const origem = culpado ? _raizDe(culpado) : null;
+        /* Sem culpado provado, a geometria do empurrão ainda precisa sair de ALGUM par — e o par
+           honesto é o que está na frente: quem invadiu (t) e quem foi invadido (o). O delta
+           continua sendo distância entre retângulos; o que muda é não batizar ninguém de causa. */
+        const refCulpado = culpado || t;
+        const cb = refCulpado === t ? tb : obBase, ca = refCulpado === t ? ta : obAtual;
+        const vitima = refCulpado === t ? o : t;
+        const vb = refCulpado === t ? obBase : tb, va = refCulpado === t ? obAtual : ta;
         /* O DELTA é o EMPURRÃO QUE FALTA, não o excesso total do culpado — e a diferença não é
            sutil. A corrente do solver posiciona em ABSOLUTO (`paiTinta + gap autorado`) e
            reposiciona do zero a cada volta, justamente para não acumular empurrão sobre
@@ -4376,7 +4528,11 @@ function gDetectLayoutProblems(state, ctx){
         const alvoY = (ca.y + ca.h) + gapAutorado;
         out.push({ tipo:'collision', targetId:o.id, withId:t.id,
           detalhe:{ delta: Math.round(Math.max(0, alvoY - va.y)),
-                    culpado:origem, cresceu:culpado.id, vitima:vitima.id, motivo:apertado.motivo } });
+                    culpado:origem, culpados:culpados || undefined,
+                    cresceu:culpado ? culpado.id : null, vitima:vitima.id,
+                    evidencia: culpado ? (cT > 1 || cO > 1 ? 'crescimento-intrinseco' : 'ancestral-que-cresceu')
+                                       : 'sem-evidencia',
+                    motivo:apertado.motivo } });
       }else if(ideal.colide){
         out.push({ tipo:'spacing-pressure', targetId:t.id, withId:o.id,
           detalhe:{ gapBase:Math.round(ideal.gapBase) } });
@@ -4391,11 +4547,13 @@ function gDetectLayoutProblems(state, ctx){
     || (a.withId || '') < (b.withId || '') ? -1 : 1);
   // Um problema por par/alvo: o mesmo dano visto dos dois lados é um dano só.
   const vistos = new Set();
-  return out.filter(p => {
+  const _final = out.filter(p => {
     const k = p.tipo + '|' + [p.targetId, p.withId || ''].sort().join('|');
     if(vistos.has(k)) return false;
     vistos.add(k); return true;
   });
+  if(_chaveDet){ if(_cacheDet.size > 400) _cacheDet.clear(); _cacheDet.set(_chaveDet, _final); }
+  return _final.slice();
 }
 /* A MAGNITUDE do dano — a soma dos excessos que os próprios problemas já reportam. Serve a UMA
    pergunta: este ramo progrediu? Contar problemas não basta — um degrau de 8% num título que
@@ -4607,13 +4765,32 @@ function gSearchLayoutCandidates(p){
                     diagnostics:{ generated:0, expanded:0, deduplicated:0, pruned:0,
                                   maxDepthReached:0, acoes:{}, problemasIniciais:0 } };
 
+  /* ── O PISO CHEGA CARIMBADO NA RAIZ (Fase 7.5) ────────────────────────────────────────────
+     ⛔ ISTO ERA UM BURACO, e ele custava caro. `gLayoutPisoFonte` lê DOIS carimbos da camada:
+     `_pisoFonte` (hierarquia — não passar por baixo de quem é menor) e `_pisoLegivel` (o corpo
+     mínimo em que o texto ainda se lê). Quem os escreve é `gStampPisosHierarquia`, e tanto o
+     solver quanto `gBuildOperationalContext` o chamam sobre os PRÓPRIOS clones. A busca não:
+     ela nascia de `o.base` cru, sem carimbo nenhum.
+
+     Sem carimbo, o piso de emergência desabava de `max(8, legível)` para `max(8, 0)` = 8px. A
+     busca então explorava, gastava beam e "resolvia" num espaço ILEGAL — e o assentamento, que
+     roda o motor de verdade, devolvia as camadas já carimbadas, com o Candidate Contract
+     reprovando tudo no fim. Medido na Fase 7: em 17 execuções o solver achava saída LEGÍVEL e a
+     busca não achava nenhuma, porque todas as dela desciam o CTA a 18px com piso real de 24.
+
+     A régua é a mesma do motor — não existe segunda conta de piso em lugar nenhum. */
+  const baseCarimbada = (o.base || []).map(l => Object.assign({}, l));
+  if(typeof gStampPisosHierarquia === 'function')
+    gStampPisosHierarquia(baseCarimbada, (ctx.canvas && ctx.canvas.w) ? ctx.canvas : null);
+  const oc = Object.assign({}, o, { base:baseCarimbada });
+
   /* ── ESCALADA DE MODO ─────────────────────────────────────────────────────────────────────
      NORMAL inteiro primeiro. Emergência só começa quando o normal ESGOTOU e o dano objetivo
      continua — menor sacrifício primeiro, que é a mesma filosofia da escada do solver (ele só
      entra no degrau proporcional quando ninguém mais tem folga normal).
      ⛔ Os dois modos NÃO se misturam desde a profundidade 1: um candidato de emergência não
      compete com um normal, porque não custa a mesma coisa. */
-  const normal = _gBuscarNoModo(o, ctx, lim, 'normal');
+  const normal = _gBuscarNoModo(oc, ctx, lim, 'normal');
   if(normal.solved.length || o.modo === 'normal'){
     normal.diagnostics.modo = 'normal';
     normal.diagnostics.emergencia = null;
@@ -4625,7 +4802,35 @@ function gSearchLayoutCandidates(p){
     normal.diagnostics.emergencia = null;
     return normal;
   }
-  const emerg = _gBuscarNoModo(o, ctx, lim, 'emergency');
+  let emerg = _gBuscarNoModo(oc, ctx, lim, 'emergency');
+  /* ── TERCEIRA ESCALADA: O PREÇO DEIXA DE SER PISO (Fase 7.5) ──────────────────────────────
+     O preço imune não cede tamanho por causa dos outros, e por isso vira piso de hierarquia
+     para a arte inteira. Em peça onde ele é o MAIOR corpo que ficou parado, isso tranca todo
+     mundo: medido no corpus, a busca parava com `produto` em 56 (o corpo do preço) enquanto o
+     solver levava o mesmo `produto` a 33 e entregava arte aprovada.
+
+     A escada do solver tem essa saída há tempos (`00-config.js:3355`): quando NINGUÉM mais
+     consegue descer, ela para de contar o preço imune como piso e dá mais uma volta. A busca
+     não tinha — e era exatamente essa a "lacuna de cobertura" que a Fase 7 mediu em 19
+     execuções. Aqui ela vira o terceiro degrau da escalada, na mesma ordem do motor: normal
+     inteiro → emergência inteira → emergência sem o preço como piso.
+
+     ⛔ O MENOR SACRIFÍCIO CONTINUA PRIMEIRO. Isto só roda quando os dois anteriores esgotaram,
+     e só quando existe preço imune para liberar — sem ele a terceira volta seria idêntica à
+     segunda, e pagar uma busca inteira para repetir o resultado é desperdício puro. */
+  if(!emerg.solved.length && typeof _gLayoutPrecoImune === 'function'
+     && baseCarimbada.some(l => l && l.type === 'text'
+        && (typeof _gLayoutVisivel !== 'function' || _gLayoutVisivel(l)) && _gLayoutPrecoImune(l))){
+    const livre = _gBuscarNoModo(oc, ctx, lim, 'emergency', { precoLivre:true });
+    livre.diagnostics.precoLivre = true;
+    if(livre.solved.length){
+      livre.diagnostics.escalada = 'emergency-preco-livre';
+      emerg = { solved:livre.solved, partial:emerg.partial.concat(livre.partial),
+                invalid:emerg.invalid.concat(livre.invalid),
+                unsafe:(emerg.unsafe || []).concat(livre.unsafe || []),
+                original:emerg.original, diagnostics:livre.diagnostics };
+    }
+  }
   const out = {
     original: normal.original,
     solved: emerg.solved,
@@ -4651,9 +4856,10 @@ function gSearchLayoutCandidates(p){
 
 /* A BUSCA DE UM MODO. Tudo o que era `gSearchLayoutCandidates` mora aqui; a função pública
    virou o orquestrador dos dois modos. */
-function _gBuscarNoModo(o, ctx, lim, modo){
+function _gBuscarNoModo(o, ctx, lim, modo, gopts){
   const base = o.base || [];
   const emergencia = (modo === 'emergency');
+  gopts = gopts || null;
   const diag = { generated:0, expanded:0, deduplicated:0, pruned:0, maxDepthReached:0,
                  acoes:{}, problemasIniciais:0, modo:modo, firstSolvedMode:null };
 
@@ -4676,6 +4882,13 @@ function _gBuscarNoModo(o, ctx, lim, modo){
     return { layers:a.layers, solveState:cand.solveState };
   };
 
+  /* ── DIAGNÓSTICO DE SATURAÇÃO (§16 da Fase 7.6) ───────────────────────────────────────────
+     "atingiu 480" não é diagnóstico — não diz se a busca repetiu estados, se as causas se
+     multiplicaram, ou se simplesmente não há saída. O acumulador abaixo responde isso, e só
+     é impresso quando o teto é de fato alcançado. */
+  const sat = { familias:{}, causasVistas:new Set(), ramosPorCausa:{}, danoPorDepth:[],
+                estadosUnicos:new Set(), repeticaoMax:0 };
+  const _t0Busca = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
   const bruto = _gEstado(base);
   const raiz = _gCandidato(bruto.layers, { depth:0, rootId:o.rootId || null, searchMode:modo,
     solveState:bruto.solveState, actions:[], actionSignatures:[] });
@@ -4695,13 +4908,15 @@ function _gBuscarNoModo(o, ctx, lim, modo){
   diag.porDepth = [];
 
   /* ── ORIGINAL-FIRST ── sem dano objetivo no estado ASSENTADO não há o que buscar. */
-  if(!problemasBase.length){
+  if(!_gSoDano(problemasBase).length){
     /* ORIGINAL-FIRST também passa pelo portão: a arte publicada com o conteúdo real assentado
        tem que ser aprovada pelo produto, não só pelo detector. */
     const segRaiz = gLayoutCandidateSafety(raiz, ctx, problemasBase);
     if(segRaiz.seguro){
       raiz.status = 'solved';
       diag.firstSolvedDepth = 0; diag.firstSolvedMode = modo;
+      diag.msPrimeiroSeguro = Math.round((((typeof performance !== 'undefined'
+        && performance.now) ? performance.now() : 0) - _t0Busca) * 100) / 100;
       return { original:raiz, solved:[raiz], partial:[], invalid:[], unsafe:[], diagnostics:diag };
     }
     raiz.status = 'unsafe';
@@ -4756,6 +4971,8 @@ function _gBuscarNoModo(o, ctx, lim, modo){
         const alvo = grupo.problems[0];
         const culpado = grupo.culpritId;
         diag.expanded++; doDepth.expandidos++;
+        sat.causasVistas.add(grupo.key);
+        sat.ramosPorCausa[grupo.key] = (sat.ramosPorCausa[grupo.key] || 0) + 1;
 
         /* ── O ADAPTIVE SCALE GROUP DESTE CONFLITO ── derivado do estado assentado, agora. Ele
            viaja no problema porque é a geração que decide se `scale-component` vale a pena no
@@ -4774,7 +4991,7 @@ function _gBuscarNoModo(o, ctx, lim, modo){
                `text-overflow` sem culpado não gerava nada. Sem origem provada a pergunta é só
                sobre o alvo, e é o que a política de auto-adaptação diz. */
             { rootId: culpado || null, impactLevel:nivel, _adaptiveGroup:asg }),
-            medidoPai.layers, modo);
+            medidoPai.layers, modo, gopts);
           /* ⛔ `scale-component` é o maior raio que existe aqui: escalar o bloco inteiro. Ela não
              compete com um wrap barato no primeiro passo. */
           if(depth === 0) acoes = acoes.filter(a => a.id !== 'scale-component');
@@ -4888,11 +5105,18 @@ function _gBuscarNoModo(o, ctx, lim, modo){
                divergem — foi assim que um `estouro` de largura passou pelo detector na Fase 5.9.
                ⛔ Detector em zero e produto reprovando NÃO vira `partial` em silêncio: vira
                `unsafe`, com o motivo à vista. Candidato inseguro nunca sai daqui como solução. */
-            if(!restantes.length){
+            if(!_gSoDano(restantes).length){
               const seg = gLayoutCandidateSafety(filho, ctx, restantes);
               if(seg.seguro){
                 filho.status = 'solved'; solved.push(filho); doDepth.solved++;
-                if(diag.firstSolvedDepth == null){ diag.firstSolvedDepth = filho.depth; diag.firstSolvedMode = modo; }
+                if(diag.firstSolvedDepth == null){
+                  diag.firstSolvedDepth = filho.depth; diag.firstSolvedMode = modo;
+                  /* §21 · TEMPO ATÉ O PRIMEIRO CANDIDATO SEGURO. A experiência futura precisa
+                     parecer imediata, e a pergunta que ela faz é esta: quando existe ALGO
+                     seguro para mostrar? Diagnóstico — nada aqui muda decisão. */
+                  diag.msPrimeiroSeguro = Math.round((((typeof performance !== 'undefined'
+                    && performance.now) ? performance.now() : 0) - _t0Busca) * 100) / 100;
+                }
                 break;
               }
               filho.status = 'unsafe';
@@ -4929,7 +5153,7 @@ function _gBuscarNoModo(o, ctx, lim, modo){
               const asgK = gBuildAdaptiveScaleGroup(ctx, medido, gMesma, restantes, asg.membros);
               const cand = gGenerateLayoutActions(ctx, Object.assign({}, gMesma.problems[0],
                 { rootId: gMesma.culpritId || null, impactLevel:3, _adaptiveGroup:asgK }),
-                medido.layers, modo);
+                medido.layers, modo, gopts);
               passo = cand.find(x => x.id === acao.id && x.targetId === acao.targetId) || null;
             }
           }
@@ -4937,6 +5161,15 @@ function _gBuscarNoModo(o, ctx, lim, modo){
       });
     });
     doDepth.ms = Math.round((((typeof performance !== 'undefined' && performance.now) ? performance.now() : 0) - t0) * 100) / 100;
+    /* A TRAJETÓRIA DO DANO por profundidade: é ela que separa "a busca está progredindo e o
+       teto chegou antes" de "a busca está girando sem reduzir dano nenhum". */
+    sat.danoPorDepth.push({ depth:depth, gerados:doDepth.gerados,
+      /* ⚠ O CAMPO É `problemasDepois` — o dano que SOBROU no filho. `problemas` só existe na
+         raiz, e lê-lo aqui devolvia 0 para todo mundo: a trajetória dizia "dano zero em toda
+         profundidade" numa busca que não resolveu nada. */
+      danoMin: proxima.length
+        ? Math.min.apply(null, proxima.map(c => (c.diagnostics && c.diagnostics.problemasDepois) || 0)) : null,
+      causas: doDepth.causasNoBeam });
     diag.porDepth.push(doDepth);
     diag.maxDepthReached = Math.max(diag.maxDepthReached, depth + 1);
     if(solved.length) break;
@@ -4945,6 +5178,33 @@ function _gBuscarNoModo(o, ctx, lim, modo){
   }
 
   diag.bloqueios = _bloqueios;
+  /* ── O RELATÓRIO DA SATURAÇÃO (§16) ── só quando o teto foi realmente alcançado. */
+  if(diag.generated >= lim.maxCandidatos){
+    const familias = {};
+    [].concat(solved, partial, invalid).forEach(c => (c.actions || []).forEach(a => {
+      familias[a.id] = (familias[a.id] || 0) + 1; }));
+    const repet = {};
+    [].concat(solved, partial, invalid).forEach(c => {
+      const conta = {};
+      (c.actions || []).forEach(a => { conta[a.id] = (conta[a.id] || 0) + 1; });
+      Object.keys(conta).forEach(k => { repet[k] = Math.max(repet[k] || 0, conta[k]); });
+    });
+    diag.saturacao = {
+      teto: lim.maxCandidatos, profundidadeAlcancada: diag.maxDepthReached,
+      causasVivas: sat.causasVistas.size,
+      ramosPorCausa: sat.ramosPorCausa,
+      familiasDeAcao: familias,
+      repeticaoMaxPorAcao: repet,
+      estadosDeduplicados: diag.deduplicated, podados: diag.pruned,
+      trajetoriaDeDano: sat.danoPorDepth,
+      /* A pergunta que fecha o diagnóstico: o dano MÍNIMO caiu ao longo da busca? Se não caiu,
+         a busca não estava progredindo — e o teto não é a causa, é a consequência. */
+      progrediu: (function(){
+        const v = sat.danoPorDepth.map(d => d.danoMin).filter(x => x != null);
+        return v.length > 1 ? v[v.length - 1] < v[0] : null;
+      })()
+    };
+  }
   const _ord = (a, b) => a.depth - b.depth || a.actions.length - b.actions.length
     || (a.signature < b.signature ? -1 : 1);
   solved.sort(_ord); partial.sort(_ord); invalid.sort(_ord); unsafe.sort(_ord);
@@ -5020,8 +5280,12 @@ function gLayoutCandidateSafety(cand, ctx, problemasJaMedidos){
      não uma medida desta camada — é o que torna a conferência independente do detector. */
   const reprovadas = (typeof gLayoutCamadaReprovada === 'function')
     ? r.layers.filter(l => l && gLayoutCamadaReprovada(l)).map(l => l.id).sort() : [];
-  return { seguro: !problemas.length && !reprovadas.length,
-           problemas: problemas.length, reprovadas:reprovadas,
+  /* ⚠ SEGURANÇA É AUSÊNCIA DE DANO, não ausência de problema (Fase 7.5): `optional-empty` é
+     espaço livre sobrando, e reprovar uma composição por isso transformava arte que o produto
+     aprova em candidato inseguro. Os dois números saem lado a lado para o diagnóstico. */
+  const dano = _gSoDano(problemas);
+  return { seguro: !dano.length && !reprovadas.length,
+           problemas: problemas.length, dano: dano.length, reprovadas:reprovadas,
            tipos:[...new Set(problemas.map(x => x.tipo))].sort() };
 }
 
@@ -5106,6 +5370,10 @@ function gShadowLayoutSearch(layers, dados, canvas, opts){
         modo: esc.winner.searchMode, depth: esc.winner.depth,
         wonBy: esc.explanation.wonBy, criterio: esc.explanation.criterio,
         razoes: esc.explanation.reasons,
+        /* A MARGEM DE DECISÃO (§17 da Fase 6.5): a distância entre #1 e #2 DENTRO do critério
+           que decidiu. Diagnóstico — não muda decisão nenhuma. */
+        margem: esc.explanation.margem,
+        explicacao: gExplainLayoutDecision(esc),
         originalFirst: esc.diagnostics.originalFirst,
         avaliados: esc.diagnostics.avaliados, descartados: esc.diagnostics.descartados,
         /* O TOP 3, com o vetor de cada um: é o que permite ler por que o #1 ganhou do #2 sem
@@ -5119,7 +5387,9 @@ function gShadowLayoutSearch(layers, dados, canvas, opts){
           grupo: x.profile ? x.profile.observabilidade.adaptiveGroupRatio : null
         }))
       } : { acoes:null, wonBy:null, razoes:esc.explanation.reasons,
-            avaliados:esc.diagnostics.avaliados, descartados:esc.diagnostics.descartados, top:[] };
+            avaliados:esc.diagnostics.avaliados, descartados:esc.diagnostics.descartados,
+            porSeguranca:esc.diagnostics.porSeguranca, porContrato:esc.diagnostics.porContrato,
+            contratoViolado:[...new Set(esc.diagnostics.contratoViolado)].slice(0, 6), top:[] };
     }
     // O que sobrou no melhor ramo parcial: o retrato do que a busca não conseguiu apagar.
     const melhor = r.partial[r.partial.length - 1] || null;
@@ -5206,20 +5476,21 @@ const G_SCORE_REL_AUTORAIS = ['ancora-autoral', 'dependencia-dinamica', 'dentro-
 /* O corpo que vale por PAPEL: o maior entre as camadas daquele papel. Comparar camada a camada
    faria duas linhas de apoio de tamanhos diferentes virarem "inversão"; o que a leitura enxerga
    é o degrau do bloco. */
-function _gScorePorPapel(camadas, ctx){
+function _gScorePorPapel(camadas, ctx, autoral){
   const m = new Map();
   (camadas || []).forEach(l => {
     if(!l || l.type !== 'text') return;
     if(typeof _gLayoutVisivel === 'function' && !_gLayoutVisivel(l)) return;
-    /* ⚠ O PAPEL COMPILADO VEM DO NÓ DA GRAMÁTICA. `gLayoutRoleOf` lê `layoutRole`, que é a
-       marcação MANUAL do designer — na maioria das artes ela é nula, e a função devolve 'apoio'
-       para todo mundo. Com todos no mesmo papel não existe par ordenado, e a checagem de
-       inversão ficava muda: o título podia descer até o tamanho do preço sem nenhuma violação
-       ser reportada. O papel que a §1 compila mora em `ctx._no.get(id).papel`. */
-    const n = ctx && ctx._no && ctx._no.get(l.id);
-    const papel = (n && n.papel) || ((typeof gLayoutRoleOf === 'function') ? gLayoutRoleOf(l) : null);
+    /* ⚠ O PAPEL SAI DA API ÚNICA (§19.1). `gLayoutRoleOf` lê `layoutRole`, que só carrega
+       'background'/'protected' — na arte real ele devolve 'apoio' para todo mundo, e sem par
+       ordenado a checagem de inversão fica muda: o título desceria até o tamanho do preço sem
+       nenhuma violação ser reportada. */
+    const papel = gLayoutEffectiveRole(ctx, l);
     if(!papel) return;
-    const corpo = gLayoutCorpoAtual(l);
+    /* DUAS RÉGUAS, DUAS PERGUNTAS (§19.2): `autoral` devolve o corpo que o DESIGNER desenhou —
+       a referência contra a qual a relação é medida — e o padrão devolve o corpo que vale
+       AGORA. Medir as duas com a mesma régua responderia sempre 100% preservado. */
+    const corpo = autoral ? ((l.fontSize || 24)) : gLayoutCorpoAtual(l);
     if(!m.has(papel) || corpo > m.get(papel)) m.set(papel, corpo);
   });
   return m;
@@ -5237,42 +5508,46 @@ function _gScorePorPapel(camadas, ctx){
  */
 function gLayoutSemanticDamage(base, candidato, ctx){
   const violacoes = [];
-  const pA = _gScorePorPapel(base, ctx), pB = _gScorePorPapel(candidato, ctx);
-
-  /* ── INVERSÃO DE PAPEL ── o par que o desenho ordenou e a solução desordenou. */
-  for(let i = 0; i < G_SCORE_PAPEIS_ORDEM.length; i++){
-    for(let j = i + 1; j < G_SCORE_PAPEIS_ORDEM.length; j++){
-      const a = G_SCORE_PAPEIS_ORDEM[i], b = G_SCORE_PAPEIS_ORDEM[j];
-      const aA = pA.get(a), bA = pA.get(b), aB = pB.get(a), bB = pB.get(b);
-      if(aA == null || bA == null || aB == null || bB == null) continue;
-      if(!(aA > bA + 0.5)) continue;                  // o desenho não declarou essa ordem
-      if(aB <= bB + 0.5) violacoes.push({ tipo:'inversao-de-papel', de:a, para:b,
-        base:Math.round(aA) + '>' + Math.round(bA), atual:Math.round(aB) + '≤' + Math.round(bB) });
-    }
-  }
-  /* COMPRESSÃO PRESERVANDO A ORDEM: todos desceram, a leitura continua de pé. Sai como
-     diagnóstico, não como violação — é o que distingue "quebrou" de "apertou". */
-  let comprimiu = 0, degraus = 0;
-  pA.forEach((corpoA, papel) => {
-    const corpoB = pB.get(papel);
-    if(corpoB == null) return;
-    degraus++;
-    if(corpoB < corpoA - 0.5) comprimiu += (corpoA - corpoB) / Math.max(1, corpoA);
-  });
+  /* A HIERARQUIA É RELACIONAL (§19.2): a medida compara a razão entre papéis contra a razão que
+     o desenho tinha, e separa INVERSÃO (violação dura, posição 1 do vetor) de COMPRESSÃO
+     (diagnóstico, posição 2). A medida antiga somava fração de corpo perdido por papel — que
+     mede encolhimento, não hierarquia: encolher a peça inteira em 20% preservando todas as
+     razões pontuava 0,2 de "compressão de hierarquia" sem ter comprimido relação nenhuma. */
+  const hier = gLayoutHierarchyRelation(base, candidato, ctx);
+  hier.pares.filter(p => p.classe === 'inversao').forEach(p => violacoes.push({
+    tipo: p.escopo === 'componente' ? 'inversao-no-componente' : 'inversao-de-papel',
+    de:p.de, para:p.para,
+    base:p.corpoAutoralDe + '>' + p.corpoAutoralPara,
+    atual:p.corpoDe + '≤' + p.corpoPara }));
 
   /* ── COMPONENTE QUEBRADO ── o bloco semântico deixou de existir ou perdeu membro.
      `gCompareLayoutComponents` é a régua da §12; não se reimplementa comparação aqui. */
   const comps = (ctx && ctx._diffComponentes) || null;
   if(comps){
-    comps.removed.forEach(c => violacoes.push({ tipo:'componente-desfeito', componente:c.tipo,
-      membros:c.membros }));
-    /* ⚠ SÓ CONTA COMO QUEBRA QUANDO A MEMBRESIA MUDA. `componentSignature` inclui as raízes
+    /* ⚠ FUSÃO NÃO É PERDA (auditoria da Fase 6.5, §10). Dois blocos que se aproximam viram um
+       bloco só, e o diff reporta o menor como `removed` — mas nenhum membro ficou órfão: eles
+       estão todos dentro do bloco maior. Cobrar isso como "componente desfeito" reprovava, como
+       violação DURA, uma solução que não perdeu função nenhuma. A pergunta certa é se algum
+       membro ficou SEM bloco. */
+    const cobertos = new Set();
+    ((ctx && ctx._compsCandidato) || []).forEach(c =>
+      (c.membros || []).forEach(id => cobertos.add(id)));
+    comps.removed.forEach(c => {
+      const orfaos = (c.membros || []).filter(id => !cobertos.has(id));
+      if(!orfaos.length) return;                    // absorvido por outro bloco: fusão
+      violacoes.push({ tipo:'componente-desfeito', componente:c.tipo, membros:orfaos });
+    });
+    /* ⚠ SÓ CONTA COMO QUEBRA QUANDO A MEMBRESIA DIMINUI. `componentSignature` inclui as raízes
        dinâmicas, então um bloco com exatamente os mesmos membros aparece como "alterado" só
-       porque o grafo mudou em volta dele — e isso não é o bloco se desfazendo. Assinatura
-       diferente com membros iguais é assunto da camada de INTENÇÃO, não de função. */
-    comps.changed.filter(c => c.de.slice().sort().join('+') !== c.para.slice().sort().join('+'))
-      .forEach(c => violacoes.push({ tipo:'componente-perdeu-membro', componente:c.tipo,
-        de:c.de, para:c.para }));
+       porque o grafo mudou em volta dele — e isso não é o bloco se desfazendo. GANHAR membro
+       também não é: o bloco não perdeu ninguém. Assinatura diferente sem membro perdido é
+       assunto da camada de INTENÇÃO, não de função. */
+    comps.changed.forEach(c => {
+      const perdidos = (c.de || []).filter(id => (c.para || []).indexOf(id) < 0);
+      if(!perdidos.length) return;
+      violacoes.push({ tipo:'componente-perdeu-membro', componente:c.tipo,
+        de:c.de, para:c.para, perdidos:perdidos });
+    });
   }
   /* ── PLACA SOLTA ── a forma deixou de acompanhar o texto dela. A relação `plate-of` é do
      Graph; se ela some, a placa virou retângulo solto. */
@@ -5289,9 +5564,9 @@ function gLayoutSemanticDamage(base, candidato, ctx){
   }
   violacoes.sort((a, b) => (a.tipo + (a.de || '') + (a.componente || ''))
                          < (b.tipo + (b.de || '') + (b.componente || '')) ? -1 : 1);
-  return { violacoes, hierarquiaPreservada: !violacoes.some(v => v.tipo === 'inversao-de-papel'),
-           hierarquiaComprimida: degraus ? Math.round((comprimiu / degraus) * 1000) / 1000 : 0,
-           degraus };
+  return { violacoes, hierarquiaPreservada: !violacoes.some(v => v.tipo === 'inversao-de-papel'
+                                                            || v.tipo === 'inversao-no-componente'),
+           hierarquiaComprimida: hier.compressao, hierarquia: hier, degraus: hier.degraus };
 }
 
 /**
@@ -5332,6 +5607,15 @@ function gLayoutAuthoredDamage(base, candidato, ctx){
 function gLayoutChangeCost(cand, camadasBase, camadasFinais){
   const idxB = new Map((camadasBase || []).map(l => [l.id, l]));
   let movidos = 0, distancia = 0, reducaoFonte = 0, reducaoEntrelinha = 0, tracking = 0;
+  /* DOIS TRACKINGS, E ELES NÃO CUSTAM A MESMA COISA (§9 da Fase 6.6):
+     · AUTORAL — o designer escreveu `letterSpacing` no PSD. Mexer nisso é desfazer decisão de
+       quem desenhou, e por isso conta na INTENÇÃO AUTORAL.
+     · DO MOTOR — o render soma 2% do corpo em fonte display (≥900), e o degrau 3.7 da escada
+       devolve o que ele mesmo somou (`_trackApertado`). Devolver tracking que o motor pôs não
+       desfaz intenção nenhuma: é custo de ALTERAÇÃO.
+     A régua de "quem escreveu" já existe e não se reinventa aqui: `letterSpacing` presente na
+     BASE sem o carimbo `_trackApertado` é do designer. */
+  let trackingAutoral = 0, trackingDoMotor = 0;
   const mexidos = new Set();
   (camadasFinais || []).forEach(l => {
     const b = idxB.get(l.id);
@@ -5346,6 +5630,8 @@ function gLayoutChangeCost(cand, camadasBase, camadasFinais){
     if(lhB < lhA - 0.001){ reducaoEntrelinha += (lhA - lhB) / Math.max(0.01, lhA); mexidos.add(l.id); }
     if((l.letterSpacing == null ? null : l.letterSpacing) !== (b.letterSpacing == null ? null : b.letterSpacing)){
       tracking++; mexidos.add(l.id);
+      if(b.letterSpacing != null && !b._trackApertado) trackingAutoral++;
+      else trackingDoMotor++;
     }
   });
   const acoes = (cand && cand.actions) || [];
@@ -5357,6 +5643,8 @@ function gLayoutChangeCost(cand, camadasBase, camadasFinais){
     reducaoFonte: Math.round(reducaoFonte * 1000) / 1000,
     reducaoEntrelinha: Math.round(reducaoEntrelinha * 1000) / 1000,
     mudancasDeTracking: tracking,
+    trackingAutoral: trackingAutoral,
+    trackingDoMotor: trackingDoMotor,
     placasRedimensionadas: conta('resize-container'),
     componentesEscalados: conta('scale-component'),
     acoes: acoes.length,
@@ -5386,7 +5674,10 @@ function _gScoreDiffs(ctx, base, camadas, chave){
   const cA = ctx._compBase || (ctx._compBase = gCompileLayoutComponents(gA, gCompileCompositionGraph(gA)));
   const gB = gCompileLayoutGrammar(camadas, cv);
   const cB = gCompileLayoutComponents(gB, gCompileCompositionGraph(gB));
-  const r = { estrutura: gCompareLayoutStructure(gA, gB), componentes: gCompareLayoutComponents(cA, cB) };
+  const r = { estrutura: gCompareLayoutStructure(gA, gB), componentes: gCompareLayoutComponents(cA, cB),
+              /* Os componentes do CANDIDATO viajam junto: é com eles que a §10 distingue
+                 "o bloco se desfez" de "o bloco foi absorvido por outro". */
+              compsCandidato: cB };
   if(cache.size > 200) cache.clear();
   if(chave) cache.set(chave, r);
   return r;
@@ -5403,13 +5694,33 @@ function _gScoreDiffs(ctx, base, camadas, chave){
 function gLayoutScoreProfile(cand, ctx, opts){
   const o = opts || {};
   const assentado = gSettleCandidateState(cand, ctx);
-  const camadas = assentado.layers;
+  return gLayoutScoreProfileState(assentado.layers, ctx,
+    Object.assign({}, o, { cand:cand, safety:gLayoutCandidateSafety(cand, ctx) }));
+}
+
+/**
+ * O MESMO PERFIL, sobre um ESTADO explícito. É o que o corpus de scoring (Fase 6.5) usa para
+ * montar par controlado: a mutação é a variável do experimento, e passar pelo assentamento a
+ * apagaria (`gSettleLayoutState` restaura `_geoAutor` e roda o motor de novo).
+ *
+ * @param {Array}  camadas  as camadas JÁ no estado final (com `_fit`, `_tetoFonte`, …)
+ * @param {object} ctx      de `gBuildOperationalContext`
+ * @param {object} opts     {base, cand?, safety?, id?, legacySolverOutcome?}
+ */
+function gLayoutScoreProfileState(camadas, ctx, opts){
+  const o = opts || {};
+  const cand = o.cand || { id:o.id || 'estado', signature:o.signature || (o.id || 'estado'),
+                           depth:0, searchMode:'normal', actions:[], scaleGroupIds:[] };
   const base = o.base || camadas;
-  const seg = gLayoutCandidateSafety(cand, ctx);
+  const seg = o.safety || gLayoutStateSafety(camadas, ctx);
+  /* O CONTRATO DO CANDIDATO (§20.2) — a outra camada de segurança, com nome próprio. */
+  const contrato = gLayoutCandidateContract(camadas, ctx,
+    { base:o.base || camadas, actions:cand.actions, searchMode:cand.searchMode });
   const nota = (typeof gScoreComposition === 'function')
     ? gScoreComposition(camadas, { canvas:ctx.canvas }) : { itens:{} };
   const diffs = _gScoreDiffs(ctx, base, camadas, cand.settledSignature || cand.signature);
   const ctxDiff = { _diffEstrutura:diffs.estrutura, _diffComponentes:diffs.componentes,
+                    _compsCandidato:diffs.compsCandidato, components:ctx.components,
                     _no:ctx._no, _placa:ctx._placa };
   const sem = gLayoutSemanticDamage(base, camadas, ctxDiff);
   const aut = gLayoutAuthoredDamage(base, camadas, ctxDiff);
@@ -5433,14 +5744,19 @@ function gLayoutScoreProfile(cand, ctx, opts){
     id: cand.id, signature: cand.signature, settledSignature: cand.settledSignature || null,
     depth: cand.depth, searchMode: cand.searchMode,
     actions: (cand.actions || []).map(a => a.id),
+    /* ⚠ DUAS CAMADAS, DOIS NOMES. `safety` é o PRODUTO (`gLayoutCamadaReprovada`);
+       `contract` é o que o GERADOR promete. Um candidato só compete se os dois passarem. */
+    contract: { ok:contrato.ok, violacoes:contrato.violacoes },
     safety: { seguro:seg.seguro, reprovadas:seg.reprovadas, problemas:seg.problemas,
               margemBorda: isFinite(margemBorda) ? Math.round(margemBorda) : null,
               margemLegibilidade: isFinite(margemLegibilidade) ? Math.round(margemLegibilidade) : null,
               invalidoNaNota: _gScoreDaCamada(nota.itens, 'safety') },
     semantics: { violacoes:sem.violacoes, hierarquiaPreservada:sem.hierarquiaPreservada,
                  hierarquiaComprimida:sem.hierarquiaComprimida, degraus:sem.degraus,
+                 hierarquia:sem.hierarquia,
                  penalDaNota:_gScoreDaCamada(nota.itens, 'semantics') },
-    authoredIntent: Object.assign({ penalDaNota:_gScoreDaCamada(nota.itens, 'authored-intent') }, aut),
+    authoredIntent: Object.assign({ penalDaNota:_gScoreDaCamada(nota.itens, 'authored-intent'),
+                                   trackingAutoralPerdido:custo.trackingAutoral || 0 }, aut),
     mode: { emergency: !!emergencia, acoesDeEmergencia:custo.acoesDeEmergencia,
             profundidade:cand.depth },
     aesthetics: { score:_gScoreDaCamada(nota.itens, 'aesthetics'), itens:nota.itens,
@@ -5460,7 +5776,10 @@ function gLayoutScoreProfile(cand, ctx, opts){
     sem.violacoes.length,                                           // semantics — violação DURA
     sem.hierarquiaComprimida,                                       // semantics — compressão
     aut.relacoesAutoraisPerdidas.length + aut.componentesPerdidos,  // intenção — relação perdida
-    aut.alinhamentosPerdidos + aut.componentesAlterados + (aut.assinaturaVisualMudou ? 1 : 0),
+    /* + TRACKING AUTORAL PERDIDO (§8/§9 da Fase 6.6): `letterSpacing` que o designer escreveu
+       e a solução desfez é composição autoral alterada, como um alinhamento que se soltou. */
+    aut.alinhamentosPerdidos + aut.componentesAlterados + (aut.assinaturaVisualMudou ? 1 : 0)
+      + (custo.trackingAutoral || 0),
     emergencia,                                                     // mode
     perfil.aesthetics.score,                                        // aesthetics
     perfil.alteration.score                                         // alteration
@@ -5468,6 +5787,10 @@ function gLayoutScoreProfile(cand, ctx, opts){
   /* O nome da camada de cada posição — é o que torna a decisão EXPLICÁVEL sem adivinhação. */
   perfil.vectorCamadas = ['safety', 'semantics', 'semantics', 'authored-intent',
                           'authored-intent', 'mode', 'aesthetics', 'alteration'];
+  /* AS ZONAS MORTAS VIAJAM NO PERFIL porque o comparador é chamado com dois perfis e nada mais.
+     Elas saem da BASE, então são idênticas para todos os candidatos da mesma decisão — o que
+     é exatamente o que impede a zona morta de depender de candidato ou de ordem. */
+  perfil.deadZone = gLayoutDeadZones(base, ctx);
   return perfil;
 }
 
@@ -5486,34 +5809,48 @@ const G_SCORE_VETOR_MOTIVO = [
  *
  * @returns {number} <0 se `a` vence, >0 se `b` vence, 0 se equivalentes em todos os critérios
  */
-function gCompareLayoutCandidates(a, b){
+function gCompareLayoutCandidates(a, b, opts){
   const va = (a && a.vector) || [], vb = (b && b.vector) || [];
   const n = Math.max(va.length, vb.length);
+  /* ── ZONA MORTA PERCEPTUAL (§20, Fase 6.6) ── só nas posições contínuas, e só onde a
+     resolução da métrica foi MEDIDA. Diferença abaixo dela é empate: a decisão desce de
+     camada em vez de ser tirada no ruído. `opts.semDeadZone` existe para a auditoria comparar
+     o antes e o depois com UM comparador só. */
+  const zonas = (opts && opts.zonas) || ((opts && opts.semDeadZone) ? null : _gZonasDaComparacao(a, b));
   for(let i = 0; i < n; i++){
     const x = va[i] || 0, y = vb[i] || 0;
-    if(Math.abs(x - y) > 1e-9) return x < y ? -1 : 1;
+    const nome = G_SCORE_VETOR_ZONA[i];
+    const z = (zonas && nome && zonas[nome]) || 0;
+    if(Math.abs(x - y) > Math.max(1e-9, z)) return x < y ? -1 : 1;
   }
   /* ── DESEMPATE DETERMINÍSTICO (§18) ── menos alteração, menos ações, menor profundidade,
      assinatura. A ordem em que os candidatos entraram no array NUNCA decide. */
   const ca = (a && a.alteration) || {}, cb = (b && b.alteration) || {};
   if((ca.camadasAlteradas || 0) !== (cb.camadasAlteradas || 0))
     return (ca.camadasAlteradas || 0) - (cb.camadasAlteradas || 0);
+  /* TRACKING DO MOTOR (§8 da Fase 6.6). Dois candidatos que só diferem no tracking que a
+     ESCADA mexeu empatavam no vetor inteiro e caíam no desempate por ASSINATURA — decisão
+     tirada no hash. Aqui ele é o que é: custo de alteração, sem peso inventado e sem entrar
+     na nota legada. O tracking AUTORAL não passa por aqui: ele é intenção do designer e já
+     conta na posição 4 do vetor, e contá-lo duas vezes seria cobrar o mesmo dano em duas
+     camadas. */
+  if((ca.trackingDoMotor || 0) !== (cb.trackingDoMotor || 0))
+    return (ca.trackingDoMotor || 0) - (cb.trackingDoMotor || 0);
   if((ca.acoes || 0) !== (cb.acoes || 0)) return (ca.acoes || 0) - (cb.acoes || 0);
   if((a.depth || 0) !== (b.depth || 0)) return (a.depth || 0) - (b.depth || 0);
   return (a.signature || '') < (b.signature || '') ? -1 : (a.signature || '') > (b.signature || '') ? 1 : 0;
 }
 
-/* Em que posição do vetor `a` passou na frente de `b` — o "por que venceu". */
-function _gScorePorQue(a, b){
-  const va = a.vector || [], vb = b.vector || [];
-  for(let i = 0; i < Math.max(va.length, vb.length); i++){
-    const x = va[i] || 0, y = vb[i] || 0;
-    if(Math.abs(x - y) > 1e-9)
-      return { posicao:i, camada:a.vectorCamadas[i], criterio:G_SCORE_VETOR_MOTIVO[i],
-               vencedor:Math.round(x * 1000) / 1000, perdedor:Math.round(y * 1000) / 1000 };
-  }
-  return { posicao:-1, camada:'empate', criterio:'desempate determinístico',
-           vencedor:null, perdedor:null };
+/* Em que posição do vetor `a` passou na frente de `b` — o "por que venceu". Sai do TRAÇO
+   (§19.4), não de uma segunda varredura do vetor: a explicação tem que corresponder ao
+   comparador, e duas implementações do mesmo laço é exatamente como elas se soltam. */
+function _gScorePorQue(a, b, opts){
+  const tr = gLayoutDecisionTrace(a, b, opts);
+  const t = tr.parouEm >= 0 ? tr.tiers[tr.tiers.length - 1] : null;
+  return t ? { posicao:t.posicao, camada:t.camada, criterio:t.criterio,
+               vencedor:t.vencedor, perdedor:t.perdedor, trace:tr }
+           : { posicao:-1, camada:'empate', criterio:'desempate determinístico',
+               vencedor:null, perdedor:null, trace:tr };
 }
 
 /**
@@ -5531,7 +5868,8 @@ function _gScorePorQue(a, b){
 function gSelectLayoutCandidate(resultado, ctx, opts){
   const o = opts || {};
   const r = resultado || {};
-  const diag = { avaliados:0, descartados:0, ms:0, originalFirst:false };
+  const diag = { avaliados:0, descartados:0, porSeguranca:0, porContrato:0,
+                 contratoViolado:[], ms:0, originalFirst:false };
   const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
   const solved = (r.solved || []).filter(c => c && c.status === 'solved');
   if(!solved.length){
@@ -5556,7 +5894,16 @@ function gSelectLayoutCandidate(resultado, ctx, opts){
     /* ⛔ O PORTÃO OUTRA VEZ, e de propósito. Um candidato que chegou aqui já passou pela §17,
        mas o perfil recalcula a segurança sobre o estado assentado — se divergir, ele sai da
        disputa em vez de ser ranqueado. Rede dupla no lugar onde o erro é mais caro. */
-    if(!p.safety.seguro){ diag.descartados++; return; }
+    if(!p.safety.seguro){ diag.descartados++; diag.porSeguranca++; return; }
+    /* ⛔ O SEGUNDO PORTÃO (§20.2, Fase 6.6): CANDIDATE CONTRACT. `gLayoutCamadaReprovada`
+       responde por arte publicada e não reprova corpo abaixo do piso nem camada travada que se
+       mexeu — hoje quem impede isso é o gerador. Defesa em profundidade é conferir o que se
+       assume, e o nome fica separado de propósito: isto não é o veredito do produto. */
+    if(!p.contract.ok){
+      diag.descartados++; diag.porContrato++;
+      p.contract.violacoes.forEach(v => diag.contratoViolado.push(v.tipo + ':' + v.id));
+      return;
+    }
     perfis.push({ candidate:c, profile:p });
   });
   diag.avaliados = perfis.length;
@@ -5565,9 +5912,13 @@ function gSelectLayoutCandidate(resultado, ctx, opts){
     return { winner:null, ranked:[], diagnostics:diag,
              explanation:{ wonBy:null, reasons:['todos os candidatos resolvidos foram reprovados pelo produto'] } };
   }
-  perfis.sort((x, y) => gCompareLayoutCandidates(x.profile, y.profile));
+  /* `semDeadZone` existe para UMA coisa: a auditoria da Fase 6.6 comparar o antes e o depois
+     com o MESMO comparador, em vez de guardar uma cópia do comparador antigo. Fora dela,
+     ninguém passa esta opção. */
+  const _cmpOpts = o.semDeadZone ? { semDeadZone:true } : undefined;
+  perfis.sort((x, y) => gCompareLayoutCandidates(x.profile, y.profile, _cmpOpts));
   const vencedor = perfis[0], segundo = perfis[1] || null;
-  const porque = segundo ? _gScorePorQue(vencedor.profile, segundo.profile) : null;
+  const porque = segundo ? _gScorePorQue(vencedor.profile, segundo.profile, _cmpOpts) : null;
   const razoes = [];
   if(segundo){
     if(porque.posicao < 0) razoes.push('empate em todos os critérios: decidido pelo desempate determinístico');
@@ -5587,6 +5938,1000 @@ function gSelectLayoutCandidate(resultado, ctx, opts){
     diagnostics: diag,
     explanation: { wonBy: porque ? porque.camada : 'unico',
                    criterio: porque ? porque.criterio : null,
-                   posicao: porque ? porque.posicao : null, reasons: razoes }
+                   posicao: porque ? porque.posicao : null, reasons: razoes,
+                   /* O TRAÇO INTEIRO e a MARGEM (§16/§17). A explicação não fabrica camada
+                      nenhuma: ela lista os empates até o critério que decidiu e para ali. */
+                   trace: porque ? porque.trace : null,
+                   margem: porque ? porque.trace.margem : null }
   };
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   19. CALIBRAÇÃO DO JULGAMENTO (Fase 6.5) — observacional
+   ════════════════════════════════════════════════════════════════════
+   A §18 escolhe. Esta seção responde se ela escolhe por PRINCÍPIO ou por sorte de fixture, e
+   mede o custo de um defeito conhecido: o scorer legado lê `layoutRole` (marcação manual, quase
+   sempre nula) enquanto a arquitetura nova lê o papel COMPILADO.
+
+   ⛔ NADA AQUI DECIDE. `gApplyRelativeAnchors` e `gLayoutEscolherAlternativa` continuam sem
+   conhecer esta seção: ela existe para MEDIR antes de migrar, que é o oposto de migrar e ver
+   no que dá. A migração é decisão de outra fase, com estes números na mesa. */
+
+/* ── 19.1 PAPEL EFETIVO — a fonte única ───────────────────────────────────────────────────
+   Hoje existem três leituras do mesmo fato, e elas discordam:
+     · `gLayoutRoleOf(l)`      → `layoutRoleManual || layoutRole || 'apoio'`. `layoutRole` só
+       carrega 'background'/'protected' (o contrato antigo do runtime), então na prática ele
+       devolve 'apoio' para TODA camada de arte real — inclusive título, preço e CTA.
+     · `ctx._no.get(id).papel` → o papel compilado, que a Gramática já resolveu.
+     · `l.layoutSemantic`      → o mesmo papel compilado, carimbado no clone pelo solver.
+   Os três estão no mesmo objeto. O defeito não é falta de informação: é o leitor errado.
+
+   A prioridade, na ordem que a §7 pede:
+     1. papel explícito e confiável do designer (`layoutRoleManual`);
+     2. papel semântico compilado (nó da Gramática → carimbo no clone);
+     3. a tradução do contrato antigo ('protected'/'background'), para camada fora da Gramática;
+     4. fallback 'apoio' — o papel neutro, nunca um palpite.
+
+   ⚠ `layoutRole` não é lido como vocabulário rico em lugar nenhum daqui pra frente. */
+const G_ROLE_LEGADO = { protected:'protegida', background:'fundo' };
+
+function _gLayoutRoleResolve(ctx, l){
+  if(!l) return { papel:'apoio', fonte:'sem-camada' };
+  if(l.layoutRoleManual && G_LAYOUT_ROLES.indexOf(l.layoutRoleManual) >= 0)
+    return { papel:l.layoutRoleManual, fonte:'manual' };
+  const n = ctx && ctx._no && ctx._no.get(l.id);
+  if(n && n.papel) return { papel:n.papel, fonte:'gramatica' };
+  if(l.layoutSemantic) return { papel:l.layoutSemantic, fonte:'carimbo' };
+  const trad = G_ROLE_LEGADO[l.layoutRole];
+  if(trad) return { papel:trad, fonte:'contrato-antigo' };
+  return { papel:'apoio', fonte:'fallback' };
+}
+
+/** O PAPEL DE UMA CAMADA — a única API. `ctx` pode ser nulo (o carimbo do clone responde). */
+function gLayoutEffectiveRole(ctx, l){ return _gLayoutRoleResolve(ctx, l).papel; }
+
+/** A PROCEDÊNCIA do papel + a divergência contra o leitor legado. Só a auditoria usa. */
+function gLayoutRoleTrace(ctx, l){
+  const r = _gLayoutRoleResolve(ctx, l);
+  const legado = (typeof gLayoutRoleOf === 'function') ? gLayoutRoleOf(l) : 'apoio';
+  const pesoL = G_SCORE_PESO_PAPEL[legado] != null ? G_SCORE_PESO_PAPEL[legado] : 1;
+  const pesoE = G_SCORE_PESO_PAPEL[r.papel] != null ? G_SCORE_PESO_PAPEL[r.papel] : 1;
+  return { id:l && l.id, papel:r.papel, fonte:r.fonte, legado:legado,
+           diverge: legado !== r.papel, pesoLegado:pesoL, pesoEfetivo:pesoE,
+           pesoDiverge: Math.abs(pesoL - pesoE) > 1e-9 };
+}
+
+/* ── 19.2 HIERARQUIA RELATIVA — a medida formal de compressão ─────────────────────────────
+   A posição 2 do vetor decidiu 6 dos 8 casos contestados do corpus da Fase 6, e a medida que
+   ela carregava era ERRADA para a pergunta: somava a fração de corpo que cada papel perdeu.
+   Isso mede ENCOLHIMENTO, não hierarquia — uma peça inteira reduzida em 20% pontuava 0,2 de
+   "compressão de hierarquia" sem ter comprimido hierarquia nenhuma (todas as razões intactas).
+
+   A pergunta certa é a da §6: QUANTO DA RELAÇÃO VISUAL QUE O DESIGNER CRIOU SOBREVIVEU? Ela
+   não tem resposta universal — não existe razão título/apoio ideal —, então a referência é
+   sempre a composição AUTORADA, par a par.
+
+   Para cada par de papéis que o desenho ORDENOU (a maior que b):
+     razaoAutoral  rA = corpoAutorado(a) / corpoAutorado(b)
+     razaoAtual    rB = corpoAtual(a)    / corpoAtual(b)
+     preservação   = log(rB) / log(rA), limitado a [0,1]
+
+   O log é o que torna a medida uma RELAÇÃO e não uma diferença: corpo é percebido de forma
+   multiplicativa, e `log` é a única forma de "72/36 virou 56/32" (rA 2,0 → rB 1,75, 81%
+   preservado) e "46/44 virou 45/44" caírem na mesma régua. Diferença absoluta de fontSize
+   diria que o primeiro perdeu 16px e o segundo 1px — e erraria os dois.
+
+   AS QUATRO CLASSES QUE A §4 pede, sem misturar inversão com compressão:
+     A `preservado`              preservação ≥ 85%: a leitura do designer está de pé.
+     B `comprimido`              0 < preservação < 85%: a ordem sobreviveu, o contraste encolheu.
+     C `empate-visual`           rB ≤ 1,05: formalmente a > b, visualmente o mesmo degrau.
+     D `inversao`                a ficou ≤ b: VIOLAÇÃO DURA, vai para a posição 1 do vetor.
+
+   E uma quinta, que é um falso positivo que precisava morrer:
+       `sem-contraste-autoral`   rA ≤ 1,05 — o DESENHO já era um empate visual. Não há relação a
+       preservar, então o par sai da média (mas continua valendo para inversão). Sem esta saída,
+       um par autorado em 46/44 cobraria do candidato um contraste que o designer nunca criou —
+       e, pior, dividir por um log(rA) quase zero amplificaria ruído de 1px em nota cheia.
+
+   ⚠ TODOS OS LIMIARES SÃO AVALIADOS NA COMPOSIÇÃO AUTORADA, que é a MESMA para todos os
+   candidatos de uma decisão. É isso que impede um limiar de virar cliff de decisão: o conjunto
+   de pares medidos não muda de candidato para candidato. */
+const G_SCORE_HIER_EMPATE     = 1.05;   // abaixo disto dois corpos leem como o mesmo degrau
+const G_SCORE_HIER_PRESERVADO = 0.85;   // acima disto a compressão não é perceptualmente relevante
+
+function gLayoutHierarchyRelation(base, candidato, ctx){
+  const pA = _gScorePorPapel(base, ctx, true);      // a relação AUTORADA (o corpo desenhado)
+  const pB = _gScorePorPapel(candidato, ctx, false); // a relação que sobreviveu
+  const pares = [];
+  /* A MEDIDA DE UM PAR, uma só, usada pelos dois escopos: entre PAPÉIS e DENTRO de um
+     componente. Duas implementações da mesma régua divergiriam no primeiro ajuste. */
+  function medirPar(de, para, aA, bA, aB, bB, escopo){
+    if(aA == null || bA == null || aB == null || bB == null) return;
+    if(!(aA > bA + 0.5)) return;                    // o desenho não declarou esta ordem
+    const rA = aA / Math.max(1, bA), rB = aB / Math.max(1, bB);
+    let classe, preservacao;
+    if(rA <= G_SCORE_HIER_EMPATE){ classe = 'sem-contraste-autoral'; preservacao = null; }
+    else if(aB <= bB + 0.5){ classe = 'inversao'; preservacao = 0; }
+    else if(rB <= G_SCORE_HIER_EMPATE){ classe = 'empate-visual'; preservacao = 0; }
+    else {
+      preservacao = Math.min(1, Math.log(rB) / Math.log(rA));
+      classe = preservacao >= G_SCORE_HIER_PRESERVADO ? 'preservado' : 'comprimido';
+    }
+    pares.push({ de:de, para:para, escopo:escopo, classe:classe,
+                 corpoAutoralDe:Math.round(aA), corpoAutoralPara:Math.round(bA),
+                 corpoDe:Math.round(aB), corpoPara:Math.round(bB),
+                 razaoAutoral:Math.round(rA * 1000) / 1000, razaoAtual:Math.round(rB * 1000) / 1000,
+                 preservacao: preservacao == null ? null : Math.round(preservacao * 1000) / 1000 });
+  }
+
+  // ── ESCOPO 1: ENTRE PAPÉIS ── o degrau do BLOCO, que é o que a leitura enxerga.
+  for(let i = 0; i < G_SCORE_PAPEIS_ORDEM.length; i++)
+    for(let j = i + 1; j < G_SCORE_PAPEIS_ORDEM.length; j++){
+      const a = G_SCORE_PAPEIS_ORDEM[i], b = G_SCORE_PAPEIS_ORDEM[j];
+      medirPar(a, b, pA.get(a), pA.get(b), pB.get(a), pB.get(b), 'papel');
+    }
+
+  /* ── ESCOPO 2: DENTRO DO COMPONENTE ──────────────────────────────────────────────────────
+     O par "De: R$ 79,90" / "Por: R$ 49,90" é a hierarquia mais carregada da peça e some no
+     escopo de papel: os dois são 'preco', e o papel guarda o MAIOR corpo. Medido só por papel,
+     encolher o "por" até o tamanho do "de" não move um número — e a §10 chama isso, com todas
+     as letras, de violação dura ("price hierarchy quebrada").
+     ⚠ Só DENTRO de componente compilado (§12). Comparar duas camadas quaisquer do mesmo papel
+     faria duas linhas de apoio de corpos diferentes virarem hierarquia — e não são. */
+  const corpoA = new Map(), corpoB = new Map(), nome = new Map();
+  const visivel = (l) => !(typeof _gLayoutVisivel === 'function') || _gLayoutVisivel(l);
+  (base || []).forEach(l => { if(l && l.type === 'text' && visivel(l)){
+    corpoA.set(l.id, l.fontSize || 24); nome.set(l.id, l.name || l.id); } });
+  (candidato || []).forEach(l => { if(l && l.type === 'text' && visivel(l))
+    corpoB.set(l.id, gLayoutCorpoAtual(l)); });
+  ((ctx && ctx.components) || []).forEach(c => {
+    const textos = (c.membros || []).filter(id => corpoA.has(id) && corpoB.has(id));
+    for(let i = 0; i < textos.length; i++)
+      for(let j = 0; j < textos.length; j++){
+        if(i === j) continue;
+        const x = textos[i], y = textos[j];
+        if(!(corpoA.get(x) > corpoA.get(y) + 0.5)) continue;
+        medirPar(c.tipo + ':' + (nome.get(x) || x), nome.get(y) || y,
+                 corpoA.get(x), corpoA.get(y), corpoB.get(x), corpoB.get(y), 'componente');
+      }
+  });
+
+  /* A MÉDIA É SOBRE OS PARES MEDÍVEIS — e INVERSÃO CONTA, com preservação zero.
+     A versão anterior a excluía ("não cobrar o mesmo dano duas vezes"), e a varredura de
+     sensibilidade (§14) mostrou o preço disso: quando o título cruza o preço, o par mais
+     comprimido SAI da média e a compressão CAI de 0,140 para 0,051 — encolher mais pontuava
+     melhor. Pior que a não-monotonicidade: dois candidatos com inversões em pares DIFERENTES
+     tinham denominadores diferentes, e a posição 2 comparava médias de conjuntos distintos.
+     Com a inversão dentro, o denominador é o conjunto de pares que o DESENHO declarou — igual
+     para todos os candidatos da mesma decisão. E não há dupla cobrança de verdade: a posição 1
+     já separou quem inverte de quem não inverte, então a posição 2 só é lida entre candidatos
+     que empataram lá. */
+  const medidos = pares.filter(p => p.preservacao != null);
+  const soma = medidos.reduce((s, p) => s + p.preservacao, 0);
+  const preservada = medidos.length ? soma / medidos.length : 1;
+  const classes = {};
+  pares.forEach(p => { classes[p.classe] = (classes[p.classe] || 0) + 1; });
+  return {
+    pares: pares,
+    paresMedidos: medidos.length,
+    preservada: Math.round(preservada * 1000) / 1000,
+    compressao: Math.round((1 - preservada) * 1000) / 1000,
+    classes: classes,
+    inversoes: pares.filter(p => p.classe === 'inversao'),
+    empatesVisuais: pares.filter(p => p.classe === 'empate-visual').length,
+    degraus: pA.size,
+    /* O resumo humano — é o que a explicação da §16 imprime: "preservou 82% da razão
+       título/apoio que o desenho tinha". */
+    resumo: medidos.map(p => p.de + '/' + p.para + ' ' + Math.round(p.preservacao * 100) + '% de '
+      + p.razaoAutoral + '×').join(', ')
+  };
+}
+
+/* ── 19.3 PERFIL DE UM ESTADO — o que permite o par CONTROLADO ────────────────────────────
+   A §17 devolve os candidatos que a busca por acaso gerou, e calibrar com eles é calibrar com
+   o que a busca já sabe fazer. O corpus de scoring precisa do contrário: dois estados em que
+   exatamente UMA dimensão difere, montados à mão.
+
+   ⚠ NÃO PASSA POR `gSettleCandidateState`. Assentar restaura `_geoAutor` e roda o motor —
+   o que apagaria a mutação controlada e devolveria a composição que o solver quer, que é
+   justamente a variável que se quer fixar. */
+function gLayoutStateSafety(camadas, ctx){
+  let problemas = [];
+  try{ problemas = gDetectLayoutProblems({ layers:camadas, solveState:{} }, ctx) || []; }
+  catch(e){ problemas = []; }
+  const reprovadas = (typeof gLayoutCamadaReprovada === 'function')
+    ? camadas.filter(l => l && gLayoutCamadaReprovada(l)).map(l => l.id).sort() : [];
+  const dano = _gSoDano(problemas);
+  return { seguro: !dano.length && !reprovadas.length, problemas:problemas.length,
+           dano:dano.length, reprovadas:reprovadas,
+           tipos:[...new Set(problemas.map(x => x.tipo))].sort() };
+}
+
+/* ── 19.4 A EXPLICAÇÃO — o traço camada a camada, e a margem ──────────────────────────────
+   A explicação da Fase 6 dizia em que posição o #1 passou o #2. Faltava o que a §16 pede: o
+   traço INTEIRO até ali, e a declaração de que a decisão PAROU — porque continuar listando
+   estética depois que a semântica decidiu é fingir que ela participou.
+
+   A margem (§17) é a distância entre #1 e #2 DENTRO do critério que decidiu. Não é confiança e
+   não muda decisão nenhuma nesta fase: é o que vai permitir, depois, distinguir vencedor óbvio
+   de empate quase perfeito. */
+function gLayoutDecisionTrace(a, b, opts){
+  const va = (a && a.vector) || [], vb = (b && b.vector) || [];
+  /* AS MESMAS ZONAS QUE O COMPARADOR USA — e por isso o traço não pode calcular as suas. */
+  const zonas = (opts && opts.zonas)
+    || ((opts && opts.semDeadZone) ? null : _gZonasDaComparacao(a, b));
+  const tiers = []; let parou = null;
+  for(let i = 0; i < Math.max(va.length, vb.length); i++){
+    const x = va[i] || 0, y = vb[i] || 0;
+    const nome = G_SCORE_VETOR_ZONA[i];
+    const z = (zonas && nome && zonas[nome]) || 0;
+    const bruto = Math.abs(x - y);
+    const difere = bruto > Math.max(1e-9, z);
+    const t = { posicao:i, camada:(a.vectorCamadas && a.vectorCamadas[i]) || null,
+                criterio:G_SCORE_VETOR_MOTIVO[i],
+                vencedor:Math.round(x * 1000) / 1000, perdedor:Math.round(y * 1000) / 1000,
+                /* §18: TRÊS números, e eles não são sinônimos. `rawDelta` é o que a métrica
+                   mediu; `deadZone` é a resolução dela; `effectiveDelta` é o que sobrou para
+                   decidir — zero quando a diferença não passa da resolução. */
+                rawDelta: Math.round(bruto * 1000) / 1000,
+                deadZone: Math.round(z * 1000) / 1000,
+                effectiveDelta: difere ? Math.round(bruto * 1000) / 1000 : 0,
+                resultado: difere ? 'decidiu'
+                  : (bruto > 1e-9 && z > 0 ? 'empate-perceptual' : 'empate') };
+    /* O detalhe da compressão: é o número que a §16 quer ver na explicação, e ele só existe
+       nesta posição do vetor. */
+    if(i === 2){
+      const ha = a.semantics && a.semantics.hierarquia, hb = b.semantics && b.semantics.hierarquia;
+      if(ha || hb) t.detalhe = { vencedor: ha ? ha.resumo : null, perdedor: hb ? hb.resumo : null };
+    }
+    tiers.push(t);
+    if(difere){ parou = t; break; }
+  }
+  const ca = (a && a.alteration) || {}, cb = (b && b.alteration) || {};
+  let desempatePor = null;
+  if(!parou){
+    if((ca.camadasAlteradas || 0) !== (cb.camadasAlteradas || 0)) desempatePor = 'camadas alteradas';
+    else if((ca.trackingDoMotor || 0) !== (cb.trackingDoMotor || 0)) desempatePor = 'tracking do motor';
+    else if((ca.acoes || 0) !== (cb.acoes || 0)) desempatePor = 'número de ações';
+    else if((a.depth || 0) !== (b.depth || 0)) desempatePor = 'profundidade';
+    else desempatePor = 'assinatura';
+  }
+  const delta = parou ? Math.abs(parou.vencedor - parou.perdedor) : 0;
+  const escala = parou ? Math.max(Math.abs(parou.vencedor), Math.abs(parou.perdedor)) : 0;
+  /* Quantos critérios contínuos empataram POR RESOLUÇÃO, não por igualdade: é o número que diz
+     se a decisão desceu de camada porque a de cima não sabia responder. */
+  const perceptuais = tiers.filter(t => t.resultado === 'empate-perceptual');
+  return {
+    tiers: tiers,
+    parouEm: parou ? parou.posicao : -1,
+    camadaDecisora: parou ? parou.camada : 'desempate',
+    criterio: parou ? parou.criterio : 'desempate determinístico',
+    /* A MARGEM DE DECISÃO (§17). `deltaRelativo` existe porque 0,02 de compressão e 0,02 de
+       estética não são a mesma distância: uma é 2% de uma escala [0,1], a outra é ruído numa
+       penalidade que chega a 400. */
+    empatesPerceptuais: perceptuais.map(t => ({ criterio:t.criterio, rawDelta:t.rawDelta,
+                                                deadZone:t.deadZone })),
+    margem: { posicao: parou ? parou.posicao : -1, camada: parou ? parou.camada : 'desempate',
+              criterio: parou ? parou.criterio : 'desempate determinístico',
+              delta: Math.round(delta * 1000) / 1000,
+              deltaRelativo: escala > 0 ? Math.round((delta / escala) * 1000) / 1000 : 0,
+              /* §18 · os três, também aqui. `delta` continua sendo o efetivo, para não quebrar
+                 quem já lia a margem da Fase 6.5. ⛔ Nada disto é confiança: é diagnóstico. */
+              rawDelta: parou ? parou.rawDelta : 0,
+              effectiveDelta: parou ? parou.effectiveDelta : 0,
+              deadZone: parou ? parou.deadZone : 0,
+              empatesAcima: tiers.filter(t => t.resultado === 'empate'
+                                          || t.resultado === 'empate-perceptual').length,
+              empatesPerceptuaisAcima: perceptuais.length,
+              desempate: !parou, desempatePor:desempatePor }
+  };
+}
+
+/** A explicação em PT-BR, linha a linha — e ela CORRESPONDE ao comparador por construção:
+ *  as linhas saem do mesmo traço que `gCompareLayoutCandidates` percorre. */
+function gExplainLayoutDecision(esc){
+  const linhas = [];
+  if(!esc || !esc.winner){
+    return [(esc && esc.explanation && esc.explanation.reasons && esc.explanation.reasons[0])
+            || 'sem vencedor'];
+  }
+  const acoes = (esc.winner.actions || []).map(a => a.id).join('→') || '(original)';
+  linhas.push('Vencedor: [' + acoes + '] ' + (esc.winner.searchMode || 'normal')
+              + ' d' + (esc.winner.depth || 0));
+  if(esc.explanation.wonBy === 'original-first'){
+    linhas.push('  ORIGINAL FIRST — a composição publicada resolve o conteúdo real');
+    linhas.push('  DECISÃO PAROU AQUI: nenhum perfil foi calculado');
+    return linhas;
+  }
+  const tr = esc.explanation.trace;
+  if(!tr){ linhas.push('  único candidato seguro'); return linhas; }
+  tr.tiers.forEach(t => {
+    if(t.resultado === 'empate-perceptual'){
+      /* §17: a explicação precisa mostrar POR QUE o comparador ignorou uma diferença que
+         existe. Dizer "empate" e esconder o 0,018 seria mentir por omissão. */
+      linhas.push('  ' + t.criterio + ': ' + t.vencedor + ' contra ' + t.perdedor
+        + ' · delta ' + t.rawDelta + ' ≤ zona morta ' + t.deadZone + ' → EMPATE PERCEPTUAL');
+    }else if(t.resultado === 'empate'){
+      linhas.push('  ' + t.criterio + ': empate (' + t.vencedor + ')');
+    }else{
+      linhas.push('  ' + t.criterio + ': ' + t.vencedor + ' contra ' + t.perdedor + ' → DECIDIU');
+      if(t.detalhe && (t.detalhe.vencedor || t.detalhe.perdedor)){
+        linhas.push('      #1 preservou ' + (t.detalhe.vencedor || '—'));
+        linhas.push('      #2 preservou ' + (t.detalhe.perdedor || '—'));
+      }
+    }
+  });
+  if(tr.parouEm >= 0){
+    const restantes = G_SCORE_VETOR_MOTIVO.slice(tr.parouEm + 1);
+    linhas.push('  DECISÃO PAROU AQUI' + (restantes.length
+      ? ' — ' + restantes.join(', ') + (restantes.length > 1 ? ' não participaram' : ' não participou')
+      : ''));
+    linhas.push('  margem no critério decisor: ' + tr.margem.delta
+      + ' (' + Math.round(tr.margem.deltaRelativo * 100) + '% da escala)'
+      + (tr.margem.deadZone ? ' · zona morta ' + tr.margem.deadZone : ''));
+  }else{
+    linhas.push('  empate em TODOS os critérios — decidido por ' + tr.margem.desempatePor);
+  }
+  return linhas;
+}
+
+/* ── 19.5 AUDITORIA DO SCORER LEGADO — legacy × role-corrected ────────────────────────────
+   A pergunta da §21, sem rodeio: QUANTAS DECISÕES DO SCORER LEGADO MUDARIAM se ele lesse o
+   papel certo? A resposta tem que sair da MESMA função rodando duas vezes — um segundo scorer
+   escrito "corrigido" mediria a diferença entre dois códigos, não o impacto do defeito.
+
+   ⛔ Não altera nada. Roda o mesmo caminho da produção (`G_LAYOUT_POLITICAS` + a regra de
+   margem de `_gLayoutMelhorAlternativa`) e devolve os dois vereditos lado a lado. */
+function gAuditLegacyRoleImpact(layers, dados, canvas, opts){
+  const o = opts || {};
+  const out = { aplicavel:false, mudou:false, erro:null, politicaLegacy:null,
+                politicaCorrigida:null, penalLegacy:null, penalCorrigido:null,
+                papeis:[], divergentes:0, camadas:0 };
+  try{
+    const clone = () => (layers || []).map(l => JSON.parse(JSON.stringify(l)));
+    const sopts = Object.assign({ fitText:true, canvas:canvas, scope:'franqueado' }, o.solveOpts || {});
+    const padrao = gApplyRelativeAnchors(clone(), dados || {}, {}, sopts);
+    if(!padrao || !padrao.length){ out.erro = 'o motor não devolveu composição'; return out; }
+    /* O MESMO PORTÃO DA PRODUÇÃO: sem carimbo de adaptação, `gLayoutEscolherAlternativa` nem é
+       chamada — a arte que coube no primeiro degrau não tem alternativa a escolher. */
+    if(typeof gLayoutPrecisaAlternativas === 'function' && !gLayoutPrecisaAlternativas(padrao)){
+      out.motivo = 'sem adaptação: a escolha legada não roda'; return out;
+    }
+    const cands = [{ politica:'padrao', out:padrao }];
+    (typeof G_LAYOUT_POLITICAS !== 'undefined' ? G_LAYOUT_POLITICAS : []).forEach(politica => {
+      let alt = null;
+      try{ alt = gApplyRelativeAnchors(clone(), dados || {}, {},
+             Object.assign({}, sopts, { _politica:politica })); }catch(e){ alt = null; }
+      if(alt && alt.length) cands.push({ politica:politica, out:alt });
+    });
+    out.aplicavel = cands.length > 1;
+    const cvOpts = { canvas:canvas };
+    /* O CONTEXTO DO PAPEL EFETIVO. Sem ele o papel sai do carimbo do clone (`layoutSemantic`),
+       que o próprio solver escreveu — mesma resposta, um passo mais barato. */
+    const ctx = o.ctx || null;
+    const papelEfetivo = (l) => gLayoutEffectiveRole(ctx, l);
+    const legado = cands.map(c => ({ politica:c.politica, out:c.out,
+      score: gScoreComposition(c.out, cvOpts) }));
+    const corrigido = cands.map(c => ({ politica:c.politica, out:c.out,
+      score: gScoreComposition(c.out, Object.assign({ papel:papelEfetivo }, cvOpts)) }));
+    const vL = _gLayoutMelhorAlternativa(legado), vC = _gLayoutMelhorAlternativa(corrigido);
+    out.politicaLegacy = vL.politica; out.politicaCorrigida = vC.politica;
+    out.penalLegacy = vL.score.penal; out.penalCorrigido = vC.score.penal;
+    out.mudou = vL.politica !== vC.politica;
+    /* A NOTA DA MESMA COMPOSIÇÃO sob os dois leitores — é o delta que explica a divergência
+       sem depender de qual política venceu. */
+    const notaL = legado.find(x => x.politica === 'padrao').score;
+    const notaC = corrigido.find(x => x.politica === 'padrao').score;
+    out.deltaPenalPadrao = Math.round((notaC.penal - notaL.penal) * 100) / 100;
+    out.itensLegacy = notaL.itens; out.itensCorrigido = notaC.itens;
+    out.papeis = padrao.filter(l => l && l.type === 'text').map(l => gLayoutRoleTrace(ctx, l));
+    out.camadas = out.papeis.length;
+    out.divergentes = out.papeis.filter(p => p.diverge).length;
+    out.pesoDivergentes = out.papeis.filter(p => p.pesoDiverge).length;
+    out.ranking = { legacy: legado.map(x => x.politica + ':' + x.score.penal),
+                    corrigido: corrigido.map(x => x.politica + ':' + x.score.penal) };
+  }catch(e){ out.erro = String(e && e.message || e); }
+  return out;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   20. ZONAS MORTAS PERCEPTUAIS E CONTRATO DO CANDIDATO (Fase 6.6)
+   ════════════════════════════════════════════════════════════════════
+   A §19 mediu duas decisões REAIS do corpus escolhidas por compressão com margens de 0,012 e
+   0,020, contra um ruído de quantização de até 0,302 nos conjuntos de fonte pequenos. O sistema
+   é determinístico e mesmo assim escolhe por diferença que ninguém vê.
+
+   ⛔ NÃO É SUAVIZAÇÃO. Suavizar é mudar o valor da métrica. Aqui o valor não muda: o que muda é
+   o comparador reconhecer que a métrica tem RESOLUÇÃO FINITA, e que abaixo dela "A tem 0,112 e
+   B tem 0,094" não é informação — é ruído com três casas decimais. Abaixo da resolução, EMPATE,
+   e a decisão desce para a camada seguinte, que é comportamento definido.
+
+   ⛔ E NÃO É HISTERESE. Nada aqui olha decisão anterior, relógio ou aleatório: a zona morta sai
+   da composição AUTORADA, é a mesma para todos os candidatos da decisão e a mesma entrada
+   devolve o mesmo vencedor, sempre.
+
+   ⛔ E NÃO MUDA PRODUÇÃO. `gApplyRelativeAnchors`, `gLayoutEscolherAlternativa` e
+   `gLayoutCamadaReprovada` continuam sem conhecer esta seção. */
+
+/* ── 20.1 A ZONA MORTA DE CADA CRITÉRIO ───────────────────────────────────────────────────
+   ⛔ NÃO EXISTE EPSILON GLOBAL. Cada métrica tem a sua resolução, e medir mostrou que para a
+   compressão nem uma constante serve: o ruído varia 11× entre conjuntos de fonte reais
+   (0,027 no display 96/84/38/20 contra 0,302 no legal 20/18/14). Uma constante que cobrisse o
+   rodapé deixaria a métrica muda no título.
+
+   A CAUSA É ARITMÉTICA, não estatística. O motor não guarda corpo fracionário —
+   `Math.max(piso, Math.floor(atual * fator))` em `00-config.js:3350` e `auto-layout.js:4071`.
+   A quantização erra ±1px em ABSOLUTO, logo o erro RELATIVO de um corpo é 1/corpo; e a
+   preservação divide por ln(razaoAutoral). Daí a resolução de um par:
+
+       resolução(a,b) ≈ passo · (1/a + 1/b) / |ln(rA)|
+
+   Corpo pequeno e razão rente explodem os dois termos juntos — é por isso que 20/18 não resolve
+   nada e 120/24 resolve tudo (ruído medido nesse conjunto: exatamente 0).
+
+   O `fator` é o único número que sai de calibragem, e sai com regra declarada: o menor que
+   cobre o PIOR ruído medido em todos os conjuntos da grade (8 conjuntos × 50 escalas × 3
+   quantizações = 1.200 amostras, em `tests/scoring-cases.js`). Há teste que reprova se alguém
+   baixá-lo sem refazer a medição. */
+const G_SCORE_DEAD_ZONE = {
+  'hierarchy-compression': {
+    tipo:'derivada',
+    passo: 1,        // a quantização do motor: 1px
+    /* FATOR 0,70 — a regra, declarada: o menor múltiplo de 0,05 que cobre o PIOR ruído medido
+       em toda a grade (o pior conjunto precisa de 0,65; ver o teste de calibração). Ele é
+       menor que 1 por um motivo físico, não estatístico: (1/a + 1/b) é o pior caso TEÓRICO,
+       com os dois corpos errando um pixel inteiro em sentidos opostos ao mesmo tempo. A grade
+       mostra que isso não acontece — o observado para em 0,65 do teto teórico. Adotar o teto
+       inteiro muraria mais sinal do que o necessário; adotar menos deixaria ruído decidir. */
+    fator: 0.70,
+    /* TETO: acima disto a métrica não resolve NADA naquela arte. Continuar com meia resolução
+       seria fingir; declarar empate perceptual sempre e descer de camada é o honesto. */
+    teto: 0.5
+  },
+  /* ESTÉTICA: ZERO, e é resultado de medição, não omissão. A sensibilidade da nota estética a
+     perturbações geométricas de 1px foi medida (grade em `tests/scoring-cases.js`): o maior
+     |Δ| é ~0,01, e os itens individuais ficam abaixo disso (densidade 0,008, equilíbrio 0,007,
+     respiro/linhas/editorial exatamente 0 fora de mudança de quebra). As margens estéticas que
+     a Fase 6.5 observou decidindo disputas são de 0,18 a 0,57 — entre 18× e 57× o ruído.
+     Margem de estética é SINAL. Criar zona morta aqui seria apagar decisão boa.
+     ⚠ Uma exceção fica registrada: quando 1px muda a CONTAGEM DE LINHAS, a nota pula ~9
+     pontos. Isso não é ruído da medida — é a arte mudando de verdade, e a métrica acertando. */
+  'aesthetics': { tipo:'constante', valor: 0 }
+};
+
+/* Que posição do vetor recebe zona morta. ⛔ As outras NÃO recebem, e a razão é a mesma em
+   todas: segurança é portão, violação dura é contagem discreta de fatos, modo é booleano,
+   relação perdida e composição alterada são contagens de estrutura. "Meia violação" e "meio
+   componente perdido" não existem — dar tolerância a um inteiro é apagar o fato. */
+const G_SCORE_VETOR_ZONA = [null, null, 'hierarchy-compression', null, null, null,
+                            'aesthetics', null];
+
+/** A RESOLUÇÃO da compressão para UMA composição autorada. Depende só do desenho — nunca do
+ *  candidato, nunca da ordem, nunca do relógio. */
+function gLayoutCompressionResolution(base, ctx, fatorAux){
+  const cfg = G_SCORE_DEAD_ZONE['hierarchy-compression'];
+  const f = (fatorAux != null) ? fatorAux : cfg.fator;
+  /* A base contra ela mesma: devolve os pares que o DESENHO declarou, com as razões autorais.
+     É a mesma função da §19.2 — a lista de pares medíveis não pode ter duas verdades. */
+  const rel = gLayoutHierarchyRelation(base, base, ctx);
+  const medidos = rel.pares.filter(p => p.preservacao != null);
+  if(!medidos.length) return 0;
+  let soma = 0;
+  medidos.forEach(p => {
+    const ln = Math.abs(Math.log(p.razaoAutoral));
+    if(ln < 1e-6){ soma += 1; return; }             // razão sem contraste: não resolve nada
+    soma += Math.min(1, cfg.passo * (1 / Math.max(1, p.corpoAutoralDe)
+                                   + 1 / Math.max(1, p.corpoAutoralPara)) / ln);
+  });
+  return Math.min(cfg.teto, f * soma / medidos.length);
+}
+
+/** As zonas mortas de UMA decisão. Memorizada no contexto: a base é a mesma para todos os
+ *  candidatos, então calcular por candidato seria pagar a mesma conta N vezes. */
+function gLayoutDeadZones(base, ctx){
+  if(ctx && ctx._deadZone) return ctx._deadZone;
+  const z = { 'hierarchy-compression': gLayoutCompressionResolution(base, ctx),
+              'aesthetics': G_SCORE_DEAD_ZONE.aesthetics.valor || 0 };
+  if(ctx) ctx._deadZone = z;
+  return z;
+}
+
+/* As zonas de uma COMPARAÇÃO. Cada perfil carrega as suas (iguais por construção — mesma base);
+   o MÁXIMO entre as duas é o que mantém a comparação simétrica mesmo se alguém montar perfis
+   de bases diferentes, e antissimetria é o que impede a ordenação de depender da ordem. */
+function _gZonasDaComparacao(a, b){
+  const za = (a && a.deadZone) || null, zb = (b && b.deadZone) || null;
+  if(!za && !zb) return null;
+  const out = {};
+  Object.keys(G_SCORE_DEAD_ZONE).forEach(k => {
+    out[k] = Math.max((za && za[k]) || 0, (zb && zb[k]) || 0);
+  });
+  return out;
+}
+
+/* ── 20.2 O CONTRATO DO CANDIDATO ─────────────────────────────────────────────────────────
+   ⚠ SÃO DUAS CAMADAS DE SEGURANÇA, COM NOMES DIFERENTES DE PROPÓSITO:
+
+     PRODUCT SAFETY   `gLayoutCamadaReprovada` — o veredito que o checklist e a publicação
+                      usam. É o produto falando. Não se toca nele aqui.
+     CANDIDATE CONTRACT  o que o GERADOR promete e que ninguém conferia: corpo acima do piso
+                      operacional e camada protegida intacta. Hoje isso vale porque as ações
+                      nunca produzem o contrário — é verdade, e não é um portão. Defesa em
+                      profundidade quer dizer conferir o que se assume.
+
+   A §19 provou a lacuna: um estado com título em 6px passa por `gLayoutCamadaReprovada` com
+   `seguro=true` e `margemLegibilidade=-2`. O piso era medido e não decidia nada.
+
+   ⛔ Isto NÃO é o veredito legado e não vira um. Ele responde por arte publicada; este responde
+   por candidato de uma busca. Misturar os dois nomes seria dar ao produto uma regra que ele
+   nunca teve. */
+function gLayoutCandidateContract(camadas, ctx, opts){
+  const o = opts || {};
+  const base = o.base || camadas;
+  const idxB = new Map((base || []).map(l => [l.id, l]));
+  /* As ações do candidato dizem em quem ele tinha autorização para mexer. Camada protegida
+     nunca aparece aqui — o gerador não a oferece —, e é justamente isso que o contrato confere
+     em vez de assumir. */
+  const autorizados = new Set();
+  (o.actions || []).forEach(a => {
+    if(!a) return;
+    if(a.targetId) autorizados.add(a.targetId);
+    const ids = (a.params && (a.params.ids || a.params.membros)) || null;
+    if(Array.isArray(ids)) ids.forEach(id => autorizados.add(id));
+  });
+  const violacoes = [];
+  (camadas || []).forEach(l => {
+    if(!l) return;
+    const visivel = (typeof _gLayoutVisivel !== 'function') || _gLayoutVisivel(l);
+    /* ── 1. PISO DE LEGIBILIDADE ── o corpo operacional que o motor promete nunca cruzar.
+       ⚠ O PISO DO CONTRATO É O DE EMERGÊNCIA (`gLayoutPisoFonte(l, true)` = max(8, legível)),
+       não o normal. A primeira versão desta função usou o normal (50% do corpo autorado) e
+       reprovou 7 candidatos LEGÍTIMOS do corpus real de uma vez: o degrau proporcional da
+       escada desce abaixo dos 50% de propósito, e é ele que o `scale-component` executa.
+       Os 50% são POLÍTICA do degrau normal — o quanto a escada se contém antes de apelar. O
+       contrato responde por outra coisa: o limite que NENHUM modo cruza. Confundir política
+       com contrato transforma defesa em profundidade em portão quebrado. */
+    if(l.type === 'text' && visivel && typeof gLayoutPisoFonte === 'function'){
+      const piso = gLayoutPisoFonte(l, true);
+      const corpo = gLayoutCorpoAtual(l);
+      if(corpo < piso - 0.5)
+        violacoes.push({ tipo:'abaixo-do-piso-de-legibilidade', id:l.id,
+                         corpo:Math.round(corpo * 10) / 10, piso:Math.round(piso * 10) / 10 });
+    }
+    /* ── 2. INTEGRIDADE DA PROTEGIDA ── travada pelo designer, logo imóvel.
+       ⚠ SÓ A MARCA EXPLÍCITA VALE: `locked`, `lockPosition` e o contrato antigo
+       `layoutRole === 'protected'` — a MESMA régua que o motor usa (`00-config.js:2677`). O
+       papel `protegida` da Gramática NÃO serve aqui: ele é INFERIDO do nome (qualquer camada
+       chamada "Selo", "Logo" ou "Carimbo" ganha o papel), e no corpus real isso reprovou um
+       campo dinâmico chamado "Selo" que a corrente move — legitimamente. Papel inferido é bom
+       para julgar composição; para dizer "isto não pode se mexer", só a declaração serve. */
+    const explicitamenteProtegida = !!(l.locked || l.lockPosition || l.layoutRole === 'protected');
+    if(!explicitamenteProtegida) return;
+    const b = idxB.get(l.id);
+    if(!b || autorizados.has(l.id)) return;
+    const moveu = Math.abs((l.x || 0) - (b.x || 0)) + Math.abs((l.y || 0) - (b.y || 0)) > 0.5;
+    const redim = Math.abs((l.w || 0) - (b.w || 0)) + Math.abs((l.h || 0) - (b.h || 0)) > 0.5;
+    const corpo = l.type === 'text'
+      && Math.abs(gLayoutCorpoAtual(l) - gLayoutCorpoAtual(b)) > 0.5;
+    if(moveu || redim || corpo)
+      violacoes.push({ tipo:'protegida-alterada', id:l.id, moveu:moveu, redimensionou:redim,
+                       corpo:corpo });
+  });
+  violacoes.sort((x, y) => (x.tipo + x.id) < (y.tipo + y.id) ? -1 : 1);
+  return { ok: !violacoes.length, violacoes:violacoes,
+           /* O nome importa: quem lê um diagnóstico precisa saber QUAL das duas camadas falou. */
+           camada:'candidate-contract' };
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   20.9 A BUSCA FORA DA MAIN THREAD — ANÁLISE, NÃO IMPLEMENTAÇÃO (Fase 7.6, §20)
+   ------------------------------------------------------------------------------------------
+   ⛔ NADA AQUI FOI IMPLEMENTADO. Esta seção é o levantamento que a §20 pediu, com os números
+   medidos, para que a decisão de mover a busca para um Worker seja tomada com fato e não com
+   intuição. Migrar agora seria trocar um problema de custo por um problema de arquitetura sem
+   saber se o primeiro exige o segundo.
+
+   O QUE PRENDE O MOTOR À THREAD PRINCIPAL: oito chamadas. Medido com `grep`, não estimado —
+   `document.createElement('canvas')` aparece 4× em `00-config.js` e 4× em `core/auto-layout.js`,
+   e NÃO existe uma única referência a `window`, `document.fonts`, DOM ou evento em nenhum dos
+   dois arquivos. O motor de layout já é, na prática, uma biblioteca pura que só precisa de um
+   contexto 2D para medir texto.
+
+   O CAMINHO, SE FOR PRECISO:
+   1. UM FABRICANTE DE CONTEXTO. As oito chamadas viram uma função só (`gMedidaCtx()`) que
+      devolve `document.createElement('canvas').getContext('2d')` na janela e
+      `new OffscreenCanvas(1,1).getContext('2d')` no Worker. `measureText` e `letterSpacing`
+      existem nos dois — é a mesma API.
+   2. AS FONTES. O Worker tem `self.fonts` (FontFaceSet) e aceita `FontFace` com a mesma fonte
+      que o Estúdio já carrega (`js/designer/fonts.js`). Sem isso a medida cai na fonte
+      substituta e a §2 da Fase 1 (determinismo de fonte) passa a valer com outra pilha — o
+      motor já sabe lidar com isso (`gLayoutFontStatus`), mas a paridade precisaria ser medida.
+   3. A SERIALIZAÇÃO. As camadas já são JSON puro (o próprio motor as clona com
+      `JSON.parse(JSON.stringify(...))`), então atravessam `postMessage` por structured clone
+      sem trabalho. O que NÃO atravessa é o contexto operacional: ele carrega `Map`, `Set` e um
+      `_ctx2d`. A forma certa é mandar as camadas e os dados, e RECONSTRUIR o contexto dentro do
+      Worker com `gBuildOperationalContext` — que é barato (medido: 0,5ms numa arte pequena,
+      ~47ms em 344 camadas, contra os 14,5s da busca inteira).
+   4. A CARGA. `importScripts('00-config.js','core/auto-layout.js')` — sem build e sem ESM,
+      exatamente como o `index.html` já faz. A 1ª lei continua de pé.
+
+   O QUE ISSO RESOLVE E O QUE NÃO RESOLVE. Worker não deixa a busca mais rápida: 14,5s continuam
+   14,5s. O que ele muda é QUEM espera — a interface para de travar, e o `timeToFirstSafeCandidate`
+   (p95 de 18,7ms, medido em 341 execuções) passa a poder virar tela enquanto o resto continua.
+   ⚠ Em arte pequena, que é 98% do corpus real, a busca inteira cabe em 213ms no p95: ali o
+   Worker só adiciona latência de mensagem. A decisão certa depende do porte, e o dado para
+   tomá-la está medido. */
+
+/* ════════════════════════════════════════════════════════════════════
+   21. SHADOW VALIDATION (Fase 7) — observar em massa, sem dar autoridade
+   ════════════════════════════════════════════════════════════════════
+   As fases 5 a 6.6 construíram e calibraram. Esta não inventa arquitetura: ela OLHA. Para cada
+   execução elegível, o pipeline novo roda inteiro ao lado do solver — e o que o franqueado
+   baixa continua saindo do solver, byte a byte.
+
+   ⛔ NENHUM WINNER GANHA AUTORIDADE AQUI. `gApplyRelativeAnchors` e `gLayoutEscolherAlternativa`
+   seguem sem conhecer esta seção.
+
+   ⛔ E SHADOW NUNCA PODE BLOQUEAR. Toda a seção roda dentro de `try`, o solver legado é
+   executado PRIMEIRO e de forma independente, e qualquer exceção vira diagnóstico — nunca
+   interrompe a criação da arte. Há teste de injeção de falha para cada etapa. */
+
+/* Classes de tamanho, para orçamento de desempenho por porte de arte (§14). Os cortes saem do
+   que o corpus real tem: peça de campanha fica na casa de 5–15 camadas, PSD importado passa de
+   100 com facilidade. */
+function gShadowTemplateSize(n){ return n <= 20 ? 'small' : n <= 120 ? 'medium' : 'large'; }
+
+/* ── 21.1 EQUIVALÊNCIA — cinco níveis, não "igual/diferente" (§4) ─────────────────────────
+   Duas composições podem ser geometricamente diferentes e ainda dizer a mesma coisa. Comparar
+   pixel a pixel responderia "diferente" para uma solução que preserva a intenção melhor que a
+   do solver — e é justamente esse caso que esta fase precisa enxergar.
+
+   A ordem de avaliação é do mais grave para o mais benigno, e para na primeira que casar. */
+const G_SHADOW_EQUIV = ['safety-different', 'semantically-different', 'visually-different',
+                        'structurally-equivalent', 'exact'];
+
+function gShadowEquivalence(legado, novo, ctx, canvas){
+  if(!legado || !novo) return { nivel:'safety-different', motivo:'uma das composições não existe' };
+  const cv = canvas || (ctx && ctx.canvas) || { w:1080, h:1080 };
+  const reprovada = (ls) => (typeof gLayoutCamadaReprovada === 'function')
+    ? ls.some(l => l && gLayoutCamadaReprovada(l)) : false;
+  // ── 1. SEGURANÇA ── um entrega arte aprovada e o outro não: nada mais importa.
+  if(reprovada(legado) !== reprovada(novo))
+    return { nivel:'safety-different',
+             motivo: reprovada(legado) ? 'o legado reprova e o novo aprova'
+                                       : 'o novo reprova e o legado aprova' };
+  // ── 2. SEMÂNTICA ── a função dos elementos sobreviveu igual nos dois?
+  const gL = gCompileLayoutGrammar(legado, cv), gN = gCompileLayoutGrammar(novo, cv);
+  const cL = gCompileLayoutComponents(gL, gCompileCompositionGraph(gL));
+  const cN = gCompileLayoutComponents(gN, gCompileCompositionGraph(gN));
+  const estrut = gCompareLayoutStructure(gL, gN);
+  const comps = gCompareLayoutComponents(cL, cN);
+  const dano = gLayoutSemanticDamage(legado, novo, { _diffEstrutura:estrut, _diffComponentes:comps,
+    _compsCandidato:cN, components:cL, _no:new Map((gL.nodes || []).map(n => [n.id, n])),
+    _placa:ctx && ctx._placa });
+  if(dano.violacoes.length)
+    return { nivel:'semantically-different', motivo:dano.violacoes.map(v => v.tipo).join(','),
+             violacoes:dano.violacoes };
+  // ── 3. GEOMETRIA IDÊNTICA ── o caso mais comum e o mais fácil de provar.
+  const geo = (ls) => ls.filter(l => l && l.type === 'text').map(l => {
+    const r = (typeof gInkRect === 'function') ? gInkRect(l, l._fit) : l;
+    return l.id + ':' + Math.round(r.x) + ',' + Math.round(r.y) + ',' + Math.round(r.w) + ','
+         + Math.round(r.h) + '@' + Math.round(gLayoutCorpoAtual(l));
+  }).sort().join('|');
+  if(geo(legado) === geo(novo)) return { nivel:'exact', motivo:'mesma geometria e mesma tipografia' };
+  // ── 4. ESTRUTURA ── mudou a geometria, mas as relações da Gramática continuam as mesmas.
+  if(estrut.sameStructure && !comps.added.length && !comps.removed.length
+     && !comps.changed.length)
+    return { nivel:'structurally-equivalent',
+             motivo:'a geometria mudou e nenhuma relação nem componente mudou' };
+  return { nivel:'visually-different',
+           motivo:(estrut.relationsRemoved.length + ' relação(ões) a menos, '
+                 + estrut.relationsAdded.length + ' a mais, '
+                 + (comps.changed.length + comps.added.length + comps.removed.length)
+                 + ' componente(s) mexido(s)'),
+           relacoesPerdidas:estrut.relationsRemoved.map(r => r.tipo) };
+}
+
+/* ── 21.2 CONFIANÇA — não é a nota, e não é beleza (§5/§6) ────────────────────────────────
+   ⛔ O VETOR DE SCORING NÃO SERVE COMO CONFIANÇA. Ele responde "qual é a melhor composição
+   entre estas"; confiança responde outra pergunta: "quão segura é esta decisão para receber
+   autoridade?". Uma composição lindíssima escolhida por um fio, em modo de emergência, com
+   metade da arte descendo junto, é uma decisão FRÁGIL — e o vetor não sabe disso.
+
+   Os sinais são FATOS do processo, todos já medidos pelas fases anteriores. Nenhum deles é
+   estético, e nenhum é aprendido. */
+/* ⚠ O GRUPO ADAPTATIVO NÃO SE MEDE SÓ POR FRAÇÃO, e a corrida em massa é quem provou isso: em
+   arte real de 5 a 8 camadas, TODOS os 81 vencedores adaptados tinham grupo de 3 a 6 camadas
+   cobrindo de 43% a 83% da peça (p50 = 0,67). Um sinal que dispara em 100% de uma classe não
+   informa nada — ele estava medindo o tamanho da arte, não a qualidade da solução.
+   O dano real é quantas camadas foram efetivamente arrastadas, então o limiar principal é
+   ABSOLUTO e a fração entra como qualificador. Oito camadas é mais do que a maior arte do
+   corpus real inteira; trinta é o porte em que a Fase 5.95 viu 132 de 344 descendo juntas. */
+const G_SHADOW_CONF = {
+  grupoGrandeAbs: 8,   // grupo grande em termos absolutos: mais que uma arte pequena inteira
+  grupoMedioAbs:  5,   // com fração alta junto, já é boa parte da composição
+  grupoFracao:  0.50,
+  quaseEmpate: 3,      // candidatos empatados com o vencedor até o critério que decidiu
+  margemBaixa: 0.15    // fração da escala do critério decisor
+};
+
+function gShadowConfidence(rec){
+  const motivos = [], sinais = {};
+  // ── BLOQUEADO ── não há decisão a confiar.
+  if(rec.erro) return { tier:'BLOQUEADO', motivos:['exceção no pipeline: ' + rec.erro], sinais };
+  if(!rec.winner || !rec.winner.acoes)
+    return { tier:'BLOQUEADO', motivos:['nenhum candidato venceu'], sinais };
+  if(rec.winner.seguro === false)
+    return { tier:'BLOQUEADO', motivos:['o portão de segurança reprovou'], sinais };
+  if(rec.winner.contrato === false)
+    return { tier:'BLOQUEADO', motivos:['o Candidate Contract reprovou'], sinais };
+
+  let baixa = false, media = false;
+  // ── EMERGÊNCIA ── o piso tipográfico normal não bastou: é sacrifício, e sacrifício é risco.
+  sinais.emergencia = rec.winner.modo === 'emergency';
+  if(sinais.emergencia){ baixa = true; motivos.push('venceu em modo de emergência'); }
+  // ── GRUPO ADAPTATIVO ── quantidade da arte que precisou descer junto.
+  sinais.grupoRatio = rec.winner.grupoRatio || 0;
+  sinais.grupoSize = rec.winner.grupoSize || 0;
+  const _grupo = sinais.grupoSize + ' camadas / ' + Math.round(sinais.grupoRatio * 100) + '% da arte';
+  if(sinais.grupoSize >= G_SHADOW_CONF.grupoGrandeAbs){
+    baixa = true; motivos.push('grupo adaptativo de ' + _grupo);
+  }else if(sinais.grupoSize >= G_SHADOW_CONF.grupoMedioAbs
+           && sinais.grupoRatio >= G_SHADOW_CONF.grupoFracao){
+    media = true; motivos.push('grupo adaptativo de ' + _grupo);
+  }
+  // ── DIVERGÊNCIA DO LEGADO ── quanto mais longe do que o solver entrega, mais atenção.
+  sinais.equivalencia = rec.equivalencia;
+  if(rec.equivalencia === 'semantically-different'){
+    baixa = true; motivos.push('a solução nova tem violação semântica que o solver não tem');
+  }else if(rec.equivalencia === 'safety-different'){
+    /* ⚠ `safety-different` é AMBÍGUO e os dois lados são opostos: ou o novo resolve o que o
+       solver reprova (so-search, o caso que prova valor), ou o novo entrega o que o solver
+       aprova como quebrado — e este último nem chega aqui, porque o portão e o contrato o
+       barram antes. Então, com o legado reprovando, divergir é o trabalho dando certo. */
+    if(rec.legacy && rec.legacy.safe === false)
+      motivos.push('so-search: o solver reprova esta arte e a busca resolveu');
+    else { baixa = true; motivos.push('divergência de segurança contra o solver'); }
+  }else if(rec.equivalencia === 'visually-different'){
+    media = true; motivos.push('resultado visualmente diferente do solver');
+  }
+  /* ⛔ `structurally-equivalent` NÃO É RISCO. A §6 lista "estrutura preservada" entre os sinais
+     de ALTA, e é exatamente isso que esse nível significa: a geometria mudou e nenhuma relação
+     da Gramática nem componente mudou. Tratá-lo como divergência fazia ALTA virar sinônimo de
+     "a arte já cabia" — 192 de 192, com toda solução adaptada rebaixada por definição. */
+  // ── QUASE-EMPATE ── várias soluções indistinguíveis até o critério que decidiu.
+  sinais.quaseEmpatados = rec.winner.quaseEmpatados || 0;
+  if(sinais.quaseEmpatados >= G_SHADOW_CONF.quaseEmpate){
+    media = true; motivos.push(sinais.quaseEmpatados + ' candidatos empatados até o critério decisor');
+  }
+  // ── MARGEM ── decisão apertada DENTRO do critério que decidiu (já fora da zona morta).
+  sinais.margemRelativa = (rec.winner.margem && rec.winner.margem.deltaRelativo) || 0;
+  if(rec.winner.margem && !rec.winner.margem.desempate
+     && sinais.margemRelativa > 0 && sinais.margemRelativa < G_SHADOW_CONF.margemBaixa){
+    media = true; motivos.push('margem de ' + Math.round(sinais.margemRelativa * 100) + '% no critério decisor');
+  }
+  // ── EMPATE PERCEPTUAL ATRAVESSADO ── a decisão desceu de camada por falta de resolução.
+  sinais.empatesPerceptuais = (rec.winner.margem && rec.winner.margem.empatesPerceptuaisAcima) || 0;
+  if(sinais.empatesPerceptuais > 0){
+    media = true; motivos.push(sinais.empatesPerceptuais + ' critério(s) empatado(s) por resolução');
+  }
+  /* ── VIOLAÇÃO SEMÂNTICA NO PRÓPRIO VENCEDOR ── ele é o MENOS ruim entre os candidatos, e
+     ainda assim carrega uma inversão de papel. Pode até ser idêntico ao que o solver entrega
+     hoje (e aí `equivalencia` é 'exact' e nenhum outro sinal dispara), mas "o resultado tem
+     problema semântico conhecido" é fragilidade do RESULTADO — e a §6 pede ALTA sem sinal de
+     fragilidade nenhum. A corrida em massa encontrou 2 casos assim escondidos em ALTA. */
+  sinais.violacoesNoVencedor = rec.winner.semantica || 0;
+  if(sinais.violacoesNoVencedor > 0){
+    media = true;
+    motivos.push(sinais.violacoesNoVencedor + ' violação(ões) semântica(s) no próprio vencedor');
+  }
+  // ── CAUSAS ── conflito com muitas origens é composição sob pressão.
+  sinais.causas = rec.search ? (rec.search.causas || 0) : 0;
+  if(sinais.causas >= 3){ media = true; motivos.push(sinais.causas + ' causas simultâneas'); }
+  // ── DESEMPATE POR ASSINATURA ── a decisão caiu no hash: não há critério que a explique.
+  if(rec.winner.margem && rec.winner.margem.desempatePor === 'assinatura'){
+    media = true; motivos.push('decidido no desempate por assinatura');
+  }
+  const tier = baixa ? 'BAIXA' : media ? 'MEDIA' : 'ALTA';
+  if(tier === 'ALTA') motivos.push('modo normal, sem sinal de fragilidade');
+  return { tier:tier, motivos:motivos, sinais:sinais };
+}
+
+/* ── 21.3 POLÍTICA DE FALLBACK — documentada, NÃO ativada (§12) ───────────────────────────
+   ⛔ Nenhuma falha do Automatic Designer pode quebrar a criação de arte. A regra abaixo é o
+   contrato que a Fase 8 vai executar; aqui ela só CLASSIFICA o que aconteceria.
+
+     · sem vencedor            → solver legado
+     · contrato reprovado      → solver legado
+     · segurança reprovada     → solver legado
+     · confiança BAIXA/BLOQUEADA → solver legado
+     · exceção ou timeout      → solver legado
+     · confiança ALTA/MÉDIA com vencedor seguro → entregaria o novo
+
+   O legado SEMPRE termina: ele roda primeiro, fora do `try` do pipeline novo. */
+function gShadowWouldDeliver(rec){
+  if(rec.erro) return { decisao:'wouldFallbackLegacy', motivo:'exceção no pipeline novo' };
+  if(!rec.winner || !rec.winner.acoes)
+    return { decisao:'wouldFallbackLegacy', motivo:'nenhum vencedor' };
+  if(rec.winner.seguro === false || rec.winner.contrato === false)
+    return { decisao:'wouldBlock', motivo:'portão de segurança ou Candidate Contract reprovou' };
+  if(rec.confianca && (rec.confianca.tier === 'BAIXA' || rec.confianca.tier === 'BLOQUEADO'))
+    return { decisao:'wouldFallbackLegacy', motivo:'confiança ' + rec.confianca.tier };
+  return { decisao:'wouldDeliverSafe', motivo:'confiança ' + (rec.confianca && rec.confianca.tier) };
+}
+
+/* ── 21.4 BALDE DE REGRESSÃO (§17) ────────────────────────────────────────────────────────
+   O que precisa aparecer em destaque no relatório, mesmo quando o resultado é "seguro". Cada
+   item é um FATO comparado contra o solver, nunca um juízo de gosto. */
+function gShadowRegressions(rec, legado, novo, ctx){
+  const out = [];
+  if(!legado || !novo) return out;
+  const hierL = gLayoutHierarchyRelation(legado, legado, ctx);
+  const hierN = gLayoutHierarchyRelation(legado, novo, ctx);
+  const zona = (ctx && ctx._deadZone && ctx._deadZone['hierarchy-compression']) || 0;
+  if(hierN.compressao > hierL.compressao + Math.max(zona, 1e-9))
+    out.push({ tipo:'hierarchy-worse', de:hierL.compressao, para:hierN.compressao, zona:zona });
+  if(hierN.pares.some(p => p.classe === 'inversao'))
+    out.push({ tipo:'semantic-role-worse',
+               pares:hierN.pares.filter(p => p.classe === 'inversao').map(p => p.de + '>' + p.para) });
+  if(rec.winner && rec.winner.grupoSize >= G_SHADOW_CONF.grupoGrandeAbs)
+    out.push({ tipo:'excessive-scale-group', camadas:rec.winner.grupoSize,
+               ratio:rec.winner.grupoRatio });
+  if(rec.winner && rec.winner.modo === 'emergency' && rec.legacy && rec.legacy.safe)
+    out.push({ tipo:'emergency-unnecessary', nota:'o solver resolveu sem emergência' });
+  /* DESLOCAMENTO EXCESSIVO: a solução nova mexeu MUITO mais na posição que a do solver. A régua
+     é o lado curto da prancheta — 10% dele é um bloco viajando. */
+  const cv = (ctx && ctx.canvas) || { w:1080, h:1080 };
+  const curto = Math.max(1, Math.min(cv.w || 1080, cv.h || 1080));
+  const idxL = new Map(legado.map(l => [l.id, l]));
+  let desloc = 0;
+  novo.forEach(l => { const b = idxL.get(l.id); if(!b) return;
+    desloc = Math.max(desloc, Math.abs((l.x || 0) - (b.x || 0)) + Math.abs((l.y || 0) - (b.y || 0))); });
+  if(desloc > curto * 0.10)
+    out.push({ tipo:'excessive-displacement', px:Math.round(desloc),
+               fracaoDoLadoCurto:Math.round(desloc / curto * 100) / 100 });
+  return out;
+}
+
+/* ── 21.5 O REGISTRO DE UMA EXECUÇÃO (§2) ─────────────────────────────────────────────────
+   Determinístico, serializável e sem dado sensível: o conteúdo do franqueado entra como HASH,
+   nunca como texto. Uma execução, um registro.
+   ⛔ O SOLVER RODA PRIMEIRO E FORA DO `try` DO PIPELINE NOVO. É essa ordem que garante a §23:
+   o legado sempre termina, aconteça o que acontecer depois. */
+function gShadowValidationRecord(fx, dados, opts){
+  const o = opts || {};
+  const agora = () => (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
+  const t0 = agora();
+  const clonar = (ls) => ls.map(l => JSON.parse(JSON.stringify(l)));
+  const rec = {
+    templateId: fx.nome || fx.id || '?',
+    inputSignature: (typeof _gGramHash === 'function') ? _gGramHash(JSON.stringify(dados || {})) : '',
+    camadas: (fx.layers || []).length,
+    tamanho: gShadowTemplateSize((fx.layers || []).length),
+    /* LOCAL FIT (§8): a frente paralela existe (`js/core/local-fit.js`) mas ainda NÃO está
+       ligada a nenhum caminho de produção — ninguém chama `gFitTextToAuthoredBox` fora da suíte
+       dela. `disponivel` diz se o módulo carregou; enquanto ele não estiver no caminho, os
+       campos de decisão ficam nulos e o que se mede é o proxy honesto, `original-first`: a arte
+       que resolve o conteúdo real sem nenhuma adaptação. */
+    localFit: { disponivel: (typeof gFitTextToAuthoredBox === 'function'), ligado:false,
+                resolvedByLocalFit:null, escalatedToAutomaticDesigner:null,
+                localFitOverflowReason:null },
+    legacy:null, search:null, scoring:null, winner:null, equivalencia:null, equivalenciaMotivo:null,
+    classe:null, confianca:null, entrega:null, regressoes:[], erro:null, ms:0
+  };
+
+  // ── 1. O SOLVER LEGADO, sozinho e primeiro ──────────────────────────────────────────────
+  let saidaLegado = null;
+  const tL = agora();
+  try{
+    saidaLegado = gApplyRelativeAnchors(clonar(fx.layers), dados || {}, {},
+      { fitText:true, canvas:fx.canvas, scope:'franqueado' });
+  }catch(e){ saidaLegado = null; }
+  const msLegado = agora() - tL;
+  const legadoSeguro = saidaLegado
+    ? !saidaLegado.some(l => typeof gLayoutCamadaReprovada === 'function'
+        ? gLayoutCamadaReprovada(l) : !!(l && (l._layoutInvalido || l._foraDaArte)))
+    : null;
+  rec.legacy = { safe:legadoSeguro, ms:Math.round(msLegado * 100) / 100,
+                 voltas:(saidaLegado && saidaLegado._layoutMeta && saidaLegado._layoutMeta.tentativas) || 0,
+                 efetivo:(saidaLegado && saidaLegado._layoutMeta && saidaLegado._layoutMeta.efetivo) || null };
+
+  // ── 2. O PIPELINE NOVO, inteiro dentro de um `try` ──────────────────────────────────────
+  try{
+    const tB = agora();
+    const ctx = gBuildOperationalContext(clonar(fx.layers), fx.canvas, { dados:dados || {} });
+    const r = gSearchLayoutCandidates({ ctx:ctx, base:clonar(fx.layers) });
+    const msBusca = agora() - tB;
+    const rd = (r.original && r.original.diagnostics) || {};
+    rec.search = { gerados:r.diagnostics.generated, solved:r.solved.length,
+                   partial:r.partial.length, invalid:r.invalid.length,
+                   profundidade:r.diagnostics.maxDepthReached,
+                   primeiraSolucao:r.diagnostics.firstSolvedDepth,
+                   modo:r.diagnostics.firstSolvedMode || null,
+                   emergenciaRodou:!!r.diagnostics.emergencia,
+                   /* §21 · as duas métricas que uma UX imediata precisaria. Diagnóstico. */
+                   msPrimeiroSeguro:r.diagnostics.msPrimeiroSeguro != null
+                     ? r.diagnostics.msPrimeiroSeguro
+                     : ((r.diagnostics.emergencia && r.diagnostics.emergencia.msPrimeiroSeguro) || null),
+                   saturacao:r.diagnostics.saturacao
+                     || (r.diagnostics.emergencia && r.diagnostics.emergencia.saturacao) || null,
+                   problemas:rd.problemas || 0, causas:(rd.causas || []).length,
+                   tipos:[...new Set(rd.tipos || [])].sort(),
+                   ms:Math.round(msBusca * 100) / 100 };
+    /* ORIGINAL-FIRST: a arte já cabe. É o proxy do Local Fit enquanto ele não existe. */
+    rec.originalFirst = (rd.problemas || 0) === 0;
+
+    const tS = agora();
+    const esc = gSelectLayoutCandidate(r, ctx, { legacySolverOutcome:
+      legadoSeguro == null ? null : (legadoSeguro ? 'solved' : 'unsafe') });
+    const msScore = agora() - tS;
+    /* §21 · TEMPO ATÉ O VENCEDOR: busca + scoring, do zero até a decisão. */
+    rec.msAteVencedor = Math.round((agora() - tB) * 100) / 100;
+    rec.scoring = { avaliados:esc.diagnostics.avaliados, descartados:esc.diagnostics.descartados,
+                    porSeguranca:esc.diagnostics.porSeguranca || 0,
+                    porContrato:esc.diagnostics.porContrato || 0,
+                    contratoViolado:[...new Set(esc.diagnostics.contratoViolado || [])].slice(0, 4),
+                    originalFirst:esc.diagnostics.originalFirst,
+                    ms:Math.round(msScore * 100) / 100 };
+
+    if(esc.winner){
+      const pv = (esc.ranked[0] && esc.ranked[0].profile) || null;
+      /* QUASE-EMPATADOS: quantos candidatos são indistinguíveis do vencedor ATÉ o critério que
+         decidiu. É o sinal de "a decisão podia ter caído para qualquer um destes". */
+      const pos = (esc.explanation.margem && esc.explanation.margem.posicao);
+      let quase = 0;
+      if(pv && pos != null && pos >= 0)
+        quase = esc.ranked.slice(1).filter(x => x.profile
+          && x.profile.vector.slice(0, pos).every((v, i) => Math.abs(v - pv.vector[i]) < 1e-9)).length;
+      const assentado = gSettleCandidateState(esc.winner, ctx);
+      rec._novo = assentado.layers;
+      rec.winner = {
+        acoes:(esc.winner.actions || []).map(a => a.id),
+        modo:esc.winner.searchMode, depth:esc.winner.depth,
+        wonBy:esc.explanation.wonBy, criterio:esc.explanation.criterio,
+        margem:esc.explanation.margem || null,
+        seguro:pv ? pv.safety.seguro : null, contrato:pv ? pv.contract.ok : null,
+        grupoSize:pv ? pv.observabilidade.adaptiveGroupSize : 0,
+        grupoRatio:pv ? pv.observabilidade.adaptiveGroupRatio : 0,
+        semantica:pv ? pv.semantics.violacoes.length : null,
+        compressao:pv ? pv.semantics.hierarquiaComprimida : null,
+        camadasAlteradas:pv ? pv.alteration.camadasAlteradas : null,
+        quaseEmpatados:quase,
+        explicacao:gExplainLayoutDecision(esc)
+      };
+      // ── 3. EQUIVALÊNCIA contra o que o solver entregou ────────────────────────────────
+      if(saidaLegado){
+        const eq = gShadowEquivalence(saidaLegado, assentado.layers, ctx, fx.canvas);
+        rec.equivalencia = eq.nivel; rec.equivalenciaMotivo = eq.motivo;
+        rec.regressoes = gShadowRegressions(rec, saidaLegado, assentado.layers, ctx);
+      }
+    }
+  }catch(e){ rec.erro = String(e && e.message || e); }
+
+  /* ── 4. CLASSIFICAÇÃO, CONFIANÇA E O QUE SERIA ENTREGUE ─────────────────────────────────
+     ⛔ TAMBÉM DENTRO DE `try`, e isto foi um defeito real que a injeção de falha da §22 pegou:
+     este bloco vivia fora do `catch` acima, então uma exceção na confiança ESCAPAVA do shadow
+     — exatamente o que a regra absoluta proíbe. Shadow que lança para fora é shadow que
+     derruba a criação de arte. Falhando aqui, o registro vira fallback e segue. */
+  try{
+    const novoSeguro = !!(rec.winner && rec.winner.acoes && rec.winner.seguro !== false
+                          && rec.winner.contrato !== false);
+    rec.classe = (rec.scoring && rec.scoring.porContrato > 0 && !novoSeguro) ? 'F'
+      : (legadoSeguro === true && novoSeguro && rec.equivalencia === 'exact') ? 'A'
+      : (legadoSeguro === true && novoSeguro) ? 'B'
+      : (legadoSeguro === false && novoSeguro) ? 'C'
+      : (legadoSeguro === true && !novoSeguro) ? 'D'
+      : (legadoSeguro === false && !novoSeguro) ? 'E' : 'F';
+    rec.confianca = gShadowConfidence(rec);
+    const ent = gShadowWouldDeliver(rec);
+    rec.entrega = ent.decisao; rec.entregaMotivo = ent.motivo;
+  }catch(e){
+    rec.erro = rec.erro || String(e && e.message || e);
+    rec.classe = rec.classe || 'F';
+    rec.confianca = { tier:'BLOQUEADO', motivos:['exceção ao classificar: ' + rec.erro], sinais:{} };
+    rec.entrega = 'wouldFallbackLegacy';
+    rec.entregaMotivo = 'exceção ao classificar';
+  }
+  rec.ms = Math.round((agora() - t0) * 100) / 100;
+  return rec;
 }

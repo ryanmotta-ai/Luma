@@ -61,6 +61,19 @@
      acha uma equivalente em capacidade? E quantas vezes ela precisou do piso de emergência? */
   const _cobertura={ total:0, solverSolved:0, searchSolved:0, normal:0, emergencia:0,
                      unsafeRejeitados:0, comGrupo:[], soSolver:[], soBusca:[] };
+  /* AUDITORIA DO PAPEL SEMÂNTICO (Fase 6.5, §21). `gScoreComposition` lê `gLayoutRoleOf`, que
+     devolve 'apoio' para quase toda camada de arte real; o papel COMPILADO mora ao lado, no
+     mesmo objeto. A pergunta desta fase é uma só: quantas decisões do scorer legado mudariam
+     se ele lesse o papel certo? A resposta sai daqui, cenário a cenário, em SOMBRA — nada do
+     que está abaixo altera a arte que o corpus renderizou e comparou com o golden. */
+  const _papel={ porCenario:{}, mudou:[], aplicaveis:0, deltas:[], camadas:0, divergentes:0 };
+  /* §15 · QUEM DECIDIU, no corpus real. A mesma contagem que o corpus de scoring faz sobre
+     pares controlados — aqui sobre os candidatos que a busca de fato gerou. */
+  const _tiers={};
+  /* §13 da Fase 6.6 · ANTES × DEPOIS da zona morta perceptual, nas decisões REAIS. A Fase 6.5
+     achou duas escolhas tiradas por margens de 0,012 e 0,020 contra um ruído de 0,045; aqui se
+     vê, caso a caso, para que camada elas desceram. Em SOMBRA: nada disto muda a arte. */
+  const _zona={ linhas:[], mudou:0, desceu:0, total:0 };
   const solve=(fx,dados,opts)=>gApplyRelativeAnchors(clonar(fx.layers),dados,{},
     Object.assign({fitText:true,canvas:fx.canvas,scope:'franqueado'},opts||{}));
   const geo=(out)=>out.filter(l=>l&&l.type==='text').map(l=>{
@@ -249,12 +262,78 @@
                 +(sh.msEscolha!=null?' '+sh.msEscolha+'ms':''):'')
               +(sh.acoesNaSolucao?' · ['+sh.acoesNaSolucao.join('→')+']'
                 :(sh.restante?' · restou ['+sh.restante.tipos.join(',')+'] em '+sh.restante.causas+' causa(s) após ['+sh.restante.acoes.join('→')+']':'')))));
+          /* ── ANTES × DEPOIS DA ZONA MORTA (Fase 6.6 §13) ─────────────────────────────── */
+          if(typeof gSelectLayoutCandidate==='function'&&typeof gBuildOperationalContext==='function'
+             &&sh.escolha&&!sh.escolha.originalFirst){
+            if(!sh.escolha.acoes) _zona.linhas.push(chave+' | SEM VENCEDOR: '
+              +sh.escolha.descartados+' descartados ('+sh.escolha.porSeguranca+' segurança, '
+              +sh.escolha.porContrato+' contrato) '+JSON.stringify(sh.escolha.contratoViolado||[]));
+            try{
+              if(!sh.escolha.acoes) throw new Error('sem vencedor');
+              const ctxZ=gBuildOperationalContext(clonar(fx.layers),fx.canvas,{dados:dados});
+              const rZ=gSearchLayoutCandidates({ctx:ctxZ,base:clonar(fx.layers)});
+              const nomes=['safety','semantics-hard','hierarchy-compression',
+                'authored-intent-relacao','authored-intent-composicao','mode','aesthetics','alteration'];
+              const ler=(esc)=>({ acoes:esc.winner?(esc.winner.actions||[]).map(a=>a.id).join('→'):null,
+                tier:esc.explanation.margem?(esc.explanation.margem.desempate?'desempate'
+                  :nomes[esc.explanation.margem.posicao]):null,
+                margem:esc.explanation.margem?esc.explanation.margem.delta:null,
+                zona:esc.explanation.margem?esc.explanation.margem.deadZone:0,
+                bruto:esc.explanation.margem?esc.explanation.margem.rawDelta:null });
+              const antes=ler(gSelectLayoutCandidate(rZ,ctxZ,{semDeadZone:true}));
+              const escD=gSelectLayoutCandidate(rZ,ctxZ);
+              const depois=ler(escD);
+              /* A zona morta que interessa é a da COMPRESSÃO daquela arte — a do tier decisor
+                 é 0 sempre que a decisão desceu para uma camada sem zona. */
+              const zc=(escD.ranked[0]&&escD.ranked[0].profile&&escD.ranked[0].profile.deadZone)
+                ? escD.ranked[0].profile.deadZone['hierarchy-compression'] : 0;
+              _zona.total++;
+              const mudouV=antes.acoes!==depois.acoes, desceuT=antes.tier!==depois.tier;
+              if(mudouV) _zona.mudou++;
+              if(desceuT) _zona.desceu++;
+              _zona.linhas.push(chave+' | antes: '+antes.tier+' Δ'+antes.margem
+                +' | depois: '+depois.tier+' Δ'+depois.margem
+                +' | zona de compressão da arte: '+(Math.round(zc*1000)/1000)
+                +(mudouV?' ⚠ VENCEDOR MUDOU':'')+(desceuT&&!mudouV?' · desceu de tier':''));
+            }catch(e){ _zona.linhas.push(chave+' | ERRO '+(e&&e.message||e)); }
+          }
+          if(sh.escolha){
+            const k=sh.escolha.originalFirst?'original-first'
+              :(sh.escolha.margem&&sh.escolha.margem.desempate)?'desempate-deterministico'
+              :sh.escolha.margem?['safety','semantics-hard','hierarchy-compression',
+                'authored-intent-relacao','authored-intent-composicao','mode','aesthetics',
+                'alteration'][sh.escolha.margem.posicao]||'?':'sem-vencedor';
+            _tiers[k]=(_tiers[k]||0)+1;
+          }
+          /* ── AUDITORIA LEGACY × ROLE-CORRECTED (Fase 6.5) ───────────────────────────── */
+          if(typeof gAuditLegacyRoleImpact==='function'){
+            const au=gAuditLegacyRoleImpact(clonar(fx.layers),dados,fx.canvas);
+            const cen=_papel.porCenario[cenario]||(_papel.porCenario[cenario]={aplicaveis:0,mudou:0});
+            if(!au.erro&&au.aplicavel){
+              _papel.aplicaveis++; cen.aplicaveis++;
+              _papel.deltas.push(au.deltaPenalPadrao);
+              _papel.camadas+=au.camadas; _papel.divergentes+=au.divergentes;
+              if(au.mudou){ _papel.mudou.push(chave+': '+au.politicaLegacy+'→'+au.politicaCorrigida);
+                cen.mudou++; }
+              avisos.push('papel '+chave+' → legado "'+au.politicaLegacy+'" ('+au.penalLegacy
+                +') · corrigido "'+au.politicaCorrigida+'" ('+au.penalCorrigido+') · '
+                +(au.mudou?'MUDOU':'mesmo vencedor')+' · Δpenal '+au.deltaPenalPadrao
+                +' · papéis errados no legado '+au.divergentes+'/'+au.camadas);
+            }else avisos.push('papel '+chave+' → '+(au.erro?('ERRO '+au.erro)
+              :(au.motivo||'sem alternativa a decidir')));
+          }
           if(sh.escolha&&sh.escolha.top&&sh.escolha.top.length>1){
             avisos.push('  top '+chave+':');
             sh.escolha.top.forEach((t,i)=>avisos.push('    #'+(i+1)+' ['+t.acoes+'] '+t.modo
               +' d'+t.depth+' vetor='+JSON.stringify(t.vector)+' semantica='+t.semantica
               +' camadasAlteradas='+t.custo+' grupo='+t.grupo));
             avisos.push('    → #1 venceu #2 em '+sh.escolha.criterio+': '+sh.escolha.razoes.join(' · '));
+            if(sh.escolha.margem) avisos.push('    → margem no critério decisor: '
+              +sh.escolha.margem.delta+' ('+Math.round(sh.escolha.margem.deltaRelativo*100)
+              +'% da escala) · empates acima: '+sh.escolha.margem.empatesAcima
+              +(sh.escolha.margem.desempate?' · decidido no desempate por '
+                +sh.escolha.margem.desempatePor:''));
+            (sh.escolha.explicacao||[]).forEach(l=>avisos.push('    '+l));
           }
         }
       });
@@ -363,5 +442,28 @@
     +' · inseguros barrados '+_cobertura.unsafeRejeitados
     +' · dependem do grupo adaptativo '+_cobertura.comGrupo.length
     +(_cobertura.comGrupo.length?' ('+_cobertura.comGrupo.join(',')+')':''));
+  if(_zona.total){
+    avisos.push('ZONA MORTA PERCEPTUAL (Fase 6.6 §13) — antes × depois nas '+_zona.total
+      +' decisões contestadas do corpus real: '+_zona.mudou+' mudaram de vencedor · '
+      +_zona.desceu+' mudaram de tier decisor');
+    _zona.linhas.forEach(l=>avisos.push('   '+l));
+  }
+  if(Object.keys(_tiers).length){
+    const t=Object.keys(_tiers).reduce((a,k)=>a+_tiers[k],0);
+    avisos.push('DISTRIBUIÇÃO DOS TIERS DECISORES no corpus real ('+t+' escolhas): '
+      +Object.keys(_tiers).sort((a,b)=>_tiers[b]-_tiers[a])
+        .map(k=>k+' '+_tiers[k]+' ('+Math.round(_tiers[k]/t*100)+'%)').join(' · '));
+  }
+  /* ── §21 · O IMPACTO MEDIDO DO BUG DE PAPEL, por cenário ───────────────────────────────── */
+  if(_papel.aplicaveis){
+    const med=_papel.deltas.reduce((a,b)=>a+b,0)/_papel.deltas.length;
+    avisos.push('PAPEL SEMÂNTICO (Fase 6.5 §21): '+_papel.mudou.length+'/'+_papel.aplicaveis
+      +' decisões do scorer legado mudariam com o papel correto'
+      +(_papel.mudou.length?' → '+_papel.mudou.join(' · '):'')
+      +' · por cenário '+Object.keys(_papel.porCenario).map(c=>c+' '
+        +_papel.porCenario[c].mudou+'/'+_papel.porCenario[c].aplicaveis).join(', ')
+      +' · papel errado no leitor legado em '+_papel.divergentes+'/'+_papel.camadas
+      +' camadas de texto · Δpenal médio da MESMA composição '+(Math.round(med*100)/100));
+  }
   window.__lumaTest={passed:passed,total:cases.length,failures:falhas,perf:perf,notas:avisos};
 })();

@@ -207,12 +207,15 @@ CHROMIUM_PATH=/caminho/chrome node scripts/run-browser-tests.js
 | `tests/auto-layout.html` | invariantes do solver de layout | 34 |
 | `tests/corpus.html` | corpus de composições reais + golden de geometria + **ORIGINAL FIRST** (conteúdo que cabe → geometria idêntica ao desenho publicado) | 25 |
 | `tests/fuzz.html` | exceção, `NaN`, laço que não converge, bloqueio sem diagnóstico | 63 |
+| `tests/scoring.html` | **calibração do julgamento** (Fases 6.5 e 6.6): pares controlados A/B, hierarquia relativa contra a referência autoral, violações duras com fixture positivo e negativo, invariantes, adversariais, sensibilidade/cliff, papel efetivo, auditoria legacy × papel corrigido, **medição do ruído da métrica, zonas mortas perceptuais, winnerFlipRate e o Candidate Safety Contract** | 86 |
+| `tests/shadow.html` | **Shadow Validation** (Fase 7): 341 execuções do pipeline novo ao lado do solver, com gerador determinístico de variações de conteúdo · classificação legado × novo · equivalência em 5 níveis · confiança e sua validação · estabilidade sob perturbação de entrada · saúde por template · injeção de falha | 19 |
 | `tests/psd-import.html` | regressão do importador de PSD (geometria de texto, alpha, raster, selo de fidelidade) | 10 |
 | `tests/export.html` | contrato de saída: dimensões e escala do que o franqueado baixa | 3 |
 | `tests/search-feedback.html` | busca do catálogo, feedback (convite pós-download + carência) e eventos offline | 34 |
 | `tests/franqueado-honestidade.html` | material-demo vs. material real, validade real, estados vazios/erro do catálogo + **rótulo nunca cru**, ordem semântica das perguntas, par de preço | 36 |
 | `tests/franqueado-fluxo.html` | **chat e prévia como uma verdade só** + **controle e confiança**: refazer confirma e desfaz, snapshot completo, enquadramento, contexto por formato, carência do feedback, entrega enxuta | 34 |
 | `tests/_bancada.html` | bancada de sondagem do Auto-layout (exploração, não é portão) | — |
+| `tests/_perf-search.html` | bancada de desempenho da Candidate Search: decomposição por etapa, custo por candidato e teto de cada otimização (não é portão) | — |
 | `tests/_paridade-render.html` | bancada: distância entre a saída do Estúdio e a do franqueado | — |
 
 **Como respeita a 1ª lei:** o runner fala DevTools Protocol direto, com o WebSocket nativo do
@@ -254,7 +257,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 80 arquivos JS (71.749 linhas, 2.665 funções) · 31 arquivos CSS (29.239 linhas) · `index.html` com 3.916 linhas e 80 `<script>`.
+**Tamanho real de hoje:** 80 arquivos JS (73.091 linhas, 2.688 funções) · 31 arquivos CSS (29.239 linhas) · `index.html` com 3.916 linhas e 80 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -301,9 +304,9 @@ AUTH via Supabase (Fase 5.1). Login/logout/recuperação usam supabase.auth (win
 · API: gRoleLevel, gLoadProfile, gLogin, gLogout, gCurrentUser, gCurrentRole, gIsAdmin, gIsSuperAdmin, gCanManageUsers, gForgotPassword, gResetPassword, gAuthLinkPendente, gNovaSenhaResolvida, gGetAllUsers … (+16; 32 funções no total)
 · Estado global: gAuthState
 
-**`js/core/auto-layout.js`** · 5593 linhas
+**`js/core/auto-layout.js`** · 6935 linhas
 AUTO-LAYOUT — a camada de JULGAMENTO O solver de composição mora em `00-config.js` (`gApplyRelativeAnchors`):
-· API: gLayoutFontProbe, gStampLayoutBaseline, gLayoutLimpaCarimbos, gLayoutTextoAutorado, gEnsureLayoutBaseline, gLayoutFontDrift, gLayoutFontStatus, gLayoutRefInk, gLayoutRoleOf, gLayoutSemanticRole, gCompileLayoutRoles, gLayoutRoleMaxLines, gLayoutCampoEhPreco, gLayoutEhPrecoDinamico … (+85; 133 funções no total)
+· API: gLayoutFontProbe, gStampLayoutBaseline, gLayoutLimpaCarimbos, gLayoutTextoAutorado, gEnsureLayoutBaseline, gLayoutFontDrift, gLayoutFontStatus, gLayoutRefInk, gLayoutRoleOf, gLayoutSemanticRole, gCompileLayoutRoles, gLayoutRoleMaxLines, gLayoutCampoEhPreco, gLayoutEhPrecoDinamico … (+102; 156 funções no total)
 · Estado global: _gLayoutTempos
 
 **`js/core/console.js`** · 887 linhas
