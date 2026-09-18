@@ -470,66 +470,48 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
     if(typeof gApplyRules==='function') eff = gApplyRules(eff, dados, {defaults:_defaults});
     return eff;
   });
-  // Âncoras manuais existem nos dois lados; Auto-layout inferido só existe no runtime do
-  // franqueado. Calculamos original e acomodado em CLONES independentes — o template publicado
-  // nunca recebe x/y/fonte temporários.
+  /* ══ LOCAL FIT — o runtime oficial (09/2026) ═══════════════════════════════════════════
+     A arte sai com a GEOMETRIA QUE O DESIGNER PUBLICOU. `gApplyRelativeAnchors` interpola e
+     resolve as âncoras MANUAIS do designer — nada mais: a escada que empurrava CTA, abria
+     corredor, escalava componente e escolhia composição por nota foi removida, junto com o
+     Automatic Designer inteiro.
+     O que resolve o conteúdo novo é o Local Fit: cada texto com campo tenta caber na PRÓPRIA
+     caixa (corpo autorado → quebra → encolhimento progressivo → piso de legibilidade). Coube,
+     desenha. Não coube no piso, BLOQUEIA — nunca desenha texto quebrado em silêncio. */
   if(typeof gApplyRelativeAnchors==='function'){
-    const original=gApplyRelativeAnchors(effective,dados,_defaults,{fitText:false,canvas:{w:W,h:H},scope:_renderScope});
+    const original=gApplyRelativeAnchors(effective,dados,_defaults,{canvas:{w:W,h:H},scope:_renderScope});
     const disponivel=_renderScope==='franqueado'
-      &&((typeof gLayoutVivoDisponivel==='function')?gLayoutVivoDisponivel():true);
+      &&((typeof gLayoutVivoDisponivel==='function')?gLayoutVivoDisponivel():true)
+      &&typeof gLocalFitArte==='function';
     if(disponivel){
-      // A ENTRADA do solver, guardada antes de `effective` virar o resultado: o diagnóstico
-      // re-roda o motor com valores encurtados e precisa partir do mesmo ponto de partida.
-      const entradaLayout=effective;
-      const solved=gApplyRelativeAnchors(effective,dados,_defaults,{fitText:true,canvas:{w:W,h:H},scope:'franqueado'});
-      const result=(typeof gDescribeFranchiseeLayout==='function')
-        ?gDescribeFranchiseeLayout(original,solved)
-        :{status:'adapted',adapted:true,invalid:false,requiresAdaptation:true,forced:false,changes:[],invalidIds:[]};
-      /* ══ ORIGINAL FIRST (rodada de usabilidade, 09/2026) ═══════════════════════════════════
-         A regra passou a ser incondicional: **se o conteúdo cabe no layout que o designer fez,
-         nada se mexe**. Antes, o desenhado só ganhava quando o franqueado tinha DESLIGADO o
-         Auto-layout no botão da prévia — sem o botão (ele saiu da UI), a arte que já cabia
-         ainda era desenhada a partir do clone `solved`.
-         `requiresAdaptation` é `adapted || invalid`: `adapted` só é verdade quando o solver
-         MEXEU de fato (geometria ou tipografia, medido em `gDescribeFranchiseeLayout`). Então
-         `!requiresAdaptation` é exatamente "o solver não teve nada a fazer" — e nesse caso o
-         `original` é a resposta certa por definição, não uma preferência.
-         Por que trocar se os dois são equivalentes: `solved` volta carimbado (`_fit`,
-         `_layoutW`, `_tetoFonte`, `_entrelinha`) e a tolerância de comparação é de 0,5px. Meio
-         pixel não é "igual ao que o designer desenhou" — e o critério de aceite desta rodada é
-         geometria IDÊNTICA quando o conteúdo cabe. Devolvendo o `original`, a igualdade deixa
-         de depender de tolerância: é o mesmo clone que a arte publicada produz.
-         A rede de proteção não muda: `requiresAdaptation` verdadeiro → continua o `solved`. */
-      effective=result.requiresAdaptation?solved:original;
-      /* `forced` era "o franqueado pediu o original e não deu" — sem o botão, ninguém pede.
-         Fica `false` para não mentir a quem lê o resultado (telemetria e a nota da prévia). */
-      result.forced=false;
+      const lf=gLocalFitArte(original,{canvas:{w:W,h:H},dados,defaults:_defaults});
+      effective=lf.layers;
+      const result=lf.result;
       effective._layoutResult=result;
       window.gLastFranchiseeLayoutResult=result;
-      /* DIAGNÓSTICO ACIONÁVEL. Só quando a composição REPROVOU: a busca binária re-roda o solver
-         algumas vezes, e isso não pode entrar no laço da digitação. Aqui já é o caminho de
-         falha, onde o custo se paga em o franqueado saber o que fazer. */
-      if(result.invalid&&typeof gLayoutDiagnosis==='function'){
-        result.diagnostico=gLayoutDiagnosis(entradaLayout,dados,_defaults,
-          {fitText:true,canvas:{w:W,h:H},scope:'franqueado'},solved);
-      }
       if(typeof gLayoutTelemetry==='function'){
-        if(result.meta&&typeof gLayoutFonteStatusArte==='function')
-          result.meta.fonte=gLayoutFonteStatusArte(solved);
+        if(typeof gLayoutFonteStatusArte==='function')
+          result.meta=Object.assign({},result.meta,{fonte:gLayoutFonteStatusArte(effective)});
         gLayoutTelemetry(result,{purpose:renderOpts.purpose||'preview',
           template:(_renderMaterial&&(_renderMaterial.templateId||_renderMaterial.template_id))||null,
           material:(_renderMaterial&&(_renderMaterial.id||_renderMaterial.nome))||null,
           formato:W+'x'+H});
       }
+      /* FAIL SAFE. Baixar uma arte com o texto estourado é o pior resultado possível: ela vai
+         para o Instagram e ninguém mais a corrige. Na prévia o bloqueio não interrompe — a
+         pessoa precisa VER o que não cabe para saber o que encurtar. */
       if(result.invalid&&renderOpts.purpose==='export'){
+        if(typeof gLocalFitDiagnostico==='function')
+          result.diagnostico=gLocalFitDiagnostico(effective,result,dados,
+            {canvas:{w:W,h:H},defaults:_defaults})||result.diagnostico;
         const err=new Error((result.diagnostico&&result.diagnostico.mensagem)
-          ||'A arte não tem espaço seguro para estes dados. Encurte o texto ou escolha outro material.');
-        err.code='LUMA_LAYOUT_UNSAFE';err.layoutResult=result;throw err;
+          ||'Esse texto não cabe com segurança nesta arte. Encurte o conteúdo ou escolha outro material.');
+        err.code='LUMA_CONTENT_TOO_LARGE';err.layoutResult=result;throw err;
       }
     }else{
       effective=original;
       effective._layoutResult={status:'original',adapted:false,invalid:false,
-        requiresAdaptation:false,forced:false,changes:[],invalidIds:[]};
+        requiresAdaptation:false,forced:false,changes:[],campos:[],bloqueios:[],invalidIds:[]};
     }
   }
   // O renderer continua único: prévia e exportação recebem exatamente o mesmo clone resolvido.

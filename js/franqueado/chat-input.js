@@ -82,6 +82,38 @@ function fMaxLenDaCaixa(id){
   return limite;
 }
 
+/* ══════════════════════════════════════════════════════════════
+   LIMITE SEGURO — o que o Local Fit mediu quando a arte BLOQUEOU
+   ══════════════════════════════════════════════════════════════
+   `fMaxLenDaCaixa` mede o limite ANTES de a pessoa digitar, com uma frase genérica, e por
+   isso só LEVANTA o teto (ver o bloco acima). Este aqui é outra coisa: o número medido
+   DEPOIS do bloqueio, com o conteúdo real dos outros campos na mão. Ele é mais apertado e
+   mais verdadeiro — e é o que o contador mostra a partir do momento em que a arte travou.
+
+   ⛔ Ele NÃO corta o que a pessoa digita. O corte continua no `maxLen` do designer, porque
+   limite de caractere nunca é exato ("WWWW" e "iiii" têm a mesma contagem e larguras
+   diferentes): apertar a tesoura por uma estimativa comeria copy que talvez coubesse. Aqui
+   ele só MOSTRA o alvo e liga o botão Encurtar. */
+const _F_LIMITE_SEGURO = new Map();          // 'materialId|campo' → limite medido no bloqueio
+function _fLsChave(id){
+  const mat = (typeof fState !== 'undefined' && fState) ? fState.material : null;
+  return ((mat && mat.id) || '?') + '|' + id;
+}
+function fMarcaLimiteSeguro(id, limite){
+  if(!id || !Number.isFinite(limite) || limite < 0) return;
+  _F_LIMITE_SEGURO.set(_fLsChave(id), Math.round(limite));
+}
+function fLimiteSeguro(id){
+  if(!id) return 0;
+  const v = _F_LIMITE_SEGURO.get(_fLsChave(id));
+  return Number.isFinite(v) ? v : 0;
+}
+/* O alvo que a pessoa vê. Nunca maior que o limite do designer: ele é permissão, não medida. */
+function fAlvoDoCampo(id, cfg){
+  const seguro = fLimiteSeguro(id);
+  return seguro ? Math.min(seguro, cfg.maxLen) : cfg.maxLen;
+}
+
 function fGetFieldType(id){
   // 3.2: o TIPO da variável (dVars[id].type) dirige o comportamento. F_FIELD_TYPES
   // vira só fallback por nome (legado), eliminando a dependência de nomes mágicos.
@@ -425,9 +457,12 @@ function fUpdateCharCount(){
   const cfg = fGetFieldType(id);
   const len = box.value.length;
   if(len === 0){counter.textContent=''; counter.classList.remove('warn'); return;}
-  counter.textContent = `${len}/${cfg.maxLen}`;
-  
-  const isWarn = len >= cfg.maxLen * 0.90;
+  /* Depois de a arte bloquear, o número que vale é o MEDIDO naquela caixa — não a permissão
+     do designer. Mostrar 47/60 quando só cabem 28 é o contador mentindo no pior momento. */
+  const alvo = fAlvoDoCampo(id, cfg);
+  counter.textContent = `${len}/${alvo}`;
+
+  const isWarn = len >= alvo * 0.90;
   if (isWarn) {
     // Remove e re-adiciona com reflow para re-disparar a animação de shake
     counter.classList.remove('warn');
@@ -467,7 +502,12 @@ function _fFitSync(box, id, cfg, len){
   const wrap=document.getElementById('f-input-wrap'); if(!wrap) return;
   let btn=document.getElementById('f-fit-btn');
   const tipoTexto = cfg.type==='text' || cfg.type==='code';
-  const cabe = len>=cfg.maxLen && _fFitAttempt(box,id).length>cfg.maxLen;
+  /* Duas portas para o mesmo botão: bateu no teto do designer (e existe a tentativa inteira
+     guardada antes do corte), OU passou do limite SEGURO medido no bloqueio — neste segundo
+     caso não houve corte nenhum, o texto está todo aí, e o que falta é ele caber na arte. */
+  const alvo = fAlvoDoCampo(id, cfg);
+  const cabe = (len>=cfg.maxLen && _fFitAttempt(box,id).length>cfg.maxLen)
+            || (alvo<cfg.maxLen && len>alvo);
   const podeIA = (typeof window.gAI==='object' && gAI.isReady('copy.fit'))
     || (typeof gAskAI==='function' && typeof gAiReady==='function' && gAiReady());
   if(!(tipoTexto && cabe && podeIA)){
@@ -480,7 +520,7 @@ function _fFitSync(box, id, cfg, len){
   if(btn) return;
   btn=document.createElement('button');
   btn.type='button'; btn.id='f-fit-btn'; btn.className='f-fit-btn';
-  btn.title='Encurtar para caber em '+cfg.maxLen+' caracteres';
+  btn.title='Encurtar para caber em '+fAlvoDoCampo(id, cfg)+' caracteres';
   btn.setAttribute('aria-label', btn.title);
   btn.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg><span>Encurtar</span>';
   btn.onclick=(ev)=>{ ev.preventDefault(); fFitTextWithAI(); };
@@ -497,6 +537,9 @@ async function fFitTextWithAI(){
   const box=document.getElementById('f-msg-box'); if(!box) return;
   const id=fState.camp?.perguntas?.[fState.stepIdx]?.id; if(!id) return;
   const cfg=fGetFieldType(id);
+  /* O alvo que a IA recebe e que o código valida é o mesmo que o contador mostra — senão ela
+     devolveria três opções de 58 caracteres para uma caixa onde só cabem 28. */
+  const alvo=fAlvoDoCampo(id, cfg);
   const original=_fFitAttempt(box,id) || box.value;
   if(!original) return;
   const btn=document.getElementById('f-fit-btn');
@@ -508,7 +551,7 @@ async function fFitTextWithAI(){
     if(typeof window.gAI==='object' && gAI.isReady('copy.fit')){
       const res = await gAI.run('copy.fit', {
         original: original,
-        maxLen: cfg.maxLen,
+        maxLen: alvo,
         fieldName: cfg.label
       });
       if(res.ok && res.data && Array.isArray(res.data.suggestions)){
@@ -518,7 +561,7 @@ async function fFitTextWithAI(){
     // Fallback legado se gAI não trouxe opções
     if(!brutas.length && typeof gAskAI==='function' && gAiReady()){
       const camp=(fState.camp&&fState.camp.name)||'Delivery Much';
-      const prompt=`Reescreva em no máximo ${cfg.maxLen} caracteres: "${original}". Responda apenas JSON: {"opcoes":["...","..."]}`;
+      const prompt=`Reescreva em no máximo ${alvo} caracteres: "${original}". Responda apenas JSON: {"opcoes":["...","..."]}`;
       const txt = await gAskAI('encurtar', prompt, {json:true});
       const parsed = txt && (typeof gAiParseJson==='function'?gAiParseJson(txt):null);
       if(parsed && Array.isArray(parsed.opcoes)) brutas = parsed.opcoes;
@@ -533,7 +576,7 @@ async function fFitTextWithAI(){
   // Validação no CÓDIGO (§31, §33): medição do Luma decide o que cabe
   _fFitOpts=brutas
     .map(s=>String(s||'').replace(/[\r\n\t]/g,' ').replace(/\s+/g,' ').trim())
-    .filter(s=>s && s.length<=cfg.maxLen)
+    .filter(s=>s && s.length<=alvo)
     .filter((s,i,arr)=>arr.indexOf(s)===i)
     .slice(0,3);
   if(!_fFitOpts.length){
@@ -543,7 +586,7 @@ async function fFitTextWithAI(){
   const wrap=document.getElementById('f-input-wrap'); if(!wrap) return;
   const pop=document.createElement('div');
   pop.id='f-fit-pop'; pop.className='f-fit-pop'; pop.setAttribute('role','menu');
-  pop.innerHTML=`<div class="f-fit-pop-head">Cabe em ${cfg.maxLen} caracteres</div>`+
+  pop.innerHTML=`<div class="f-fit-pop-head">Cabe em ${alvo} caracteres</div>`+
     _fFitOpts.map((s,i)=>`<button type="button" class="f-fit-opt" role="menuitem" onclick="fFitApply(${i})"><span>${gEsc(s)}</span><em>${s.length}</em></button>`).join('')+
     `<div class="f-fit-pop-foot">Sugestão de IA — confira antes de gerar.</div>`;
   wrap.appendChild(pop);

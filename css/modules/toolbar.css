@@ -332,8 +332,9 @@ body.theme-light .vt-color-sep { background: rgba(0,0,0,0.1); }
 /* O veredito é a informação, então ele é quem carrega a cor — verde sai igual, laranja o motor
    acomodou, vermelho travou. Mesma leitura dos três estados do runtime do franqueado. */
 .sim-tensao-chip[data-status="original"]{border-color:color-mix(in srgb,var(--green) 45%,var(--d-border));color:var(--green-text)}
-.sim-tensao-chip[data-status="adapted"]{border-color:color-mix(in srgb,var(--dm-orange) 45%,var(--d-border));color:var(--dm-orange)}
-.sim-tensao-chip[data-status="unsafe"]{border-color:color-mix(in srgb,var(--d-error) 55%,var(--d-border));color:var(--d-error)}
+.sim-tensao-chip[data-status="shrunk"],
+.sim-tensao-chip[data-status="wrapped"]{border-color:color-mix(in srgb,var(--dm-orange) 45%,var(--d-border));color:var(--dm-orange)}
+.sim-tensao-chip[data-status="overflow"]{border-color:color-mix(in srgb,var(--d-error) 55%,var(--d-border));color:var(--d-error)}
 .sim-tensao-btn{flex:0 0 auto;min-height:30px;padding:0 11px;border:1px solid var(--d-border);border-radius:var(--r-sm);background:var(--d-surf);color:var(--d-text2);font-family:inherit;font-size:10.5px;font-weight:700;cursor:pointer;transition:border-color var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard)}
 .sim-tensao-btn:hover{border-color:var(--dm-orange);background:color-mix(in srgb,var(--dm-orange) 8%,var(--d-surf));color:var(--d-text)}
 .sim-tensao-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}

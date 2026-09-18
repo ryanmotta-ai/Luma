@@ -44,23 +44,47 @@ modo, mais uma aba, mais uma flag.
 
 ### Fechado nesta rodada (setembro/2026)
 
-- [x] **Login antigo destravado (17/09)** — quem foi convidado antes de 08/09/2026 (quando o `invite-user` usava `inviteUserByEmail`) tinha conta **sem senha nenhuma**: entrava pelo link mágico e, quando a sessão morria, batia em "E-mail ou senha incorretos" para sempre. "Esqueci minha senha" não resolvia porque o link do e-mail caía direto na home — o `gResetPassword` só era alcançável por Perfil › Segurança, que exige já estar logado. Agora o link desemboca no passo **"Defina sua senha"** (`gl-step-senha`), e link vencido passa a **avisar** em vez de não fazer nada.
-  - O hash é fotografado em `supabase.js` **antes do `createClient`** — o SDK o apaga ao materializar a sessão, num tick anterior ao `auth.js`. É a única janela em que ele existe.
-  - Flag em `sessionStorage` segura o passo através de um F5; sem ele, recarregar pulava a definição da senha e devolvia a pessoa ao mesmo beco.
-  - Zero CSS novo (herda `login.css`) e nenhuma senha definida no front: quem grava é o `gResetPassword`, o mesmo motor do Perfil › Segurança.
-  - **A gestão ganhou a saída na aba Equipe**: botão de chave em cada membro ATIVO dispara o link de redefinição (`gForgotPassword`, o mesmo do "Esqueci minha senha"). Sem service_role no front não existe "trocar a senha de alguém" — o que existe é mandar o link. Inativo não recebe: ele não entra de jeito nenhum enquanto `ativo=false`. A coluna de ações foi de 42px para 82px (44→92 no celular) para caber os dois botões.
-- [x] **Sheets no celular** — a folha de edição inteira: arte fixa que encolhe com o teclado, campos em ordem de cabeça, foto com miniatura, fila de ofertas ("próxima pendente"), duplicar/apagar, criar oferta, miniaturas sob demanda.
-  - ⛔ **Desligado em 09/09 por decisão do Ryan** ("sem o luma sheets no mobile por enquanto"). O código todo continua onde está — a guarda é um `return` no funil `fBulkOpen`. A volta é apagar o bloco, não reescrever a tela.
-- [x] **Foto em todas as ofertas** — a raiz era `fValidate` tratando dataURL como texto e marcando toda linha com foto como "muito longa" (linha com erro é pulada na geração).
-- [x] **"Mudar tudo de uma vez"** — de seis botões para uma barra que conhece o tipo do campo (texto, data com chips, logo de loja, foto) e três atalhos.
-- [x] **Instagram e WhatsApp** — abriam no vazio no celular; agora a folha nativa vem primeiro e o app abre por deep link quando ela é recusada.
-- [x] **Teste de fogo (02/09)** — dois botões que chamavam funções inexistentes, a arte esperando a legenda por IA (13,5s → 0,9s) e texto gigante estourando a lista (37.790px → 360px).
-- [x] **Chat do franqueado (02/09)** — hierarquia: avatar sólido só na pergunta ativa, selo "EU" fora, "Passo X de Y" como legenda (não chip na frente da pergunta), a conversa apoiada no rodapé (eram 470px de vazio) e a arte da conversa em palco no celular. Achado no caminho: no tema escuro o campo de resposta tinha texto a **1,04:1** — invisível.
-- [x] **Tela de login (02/09)** — o baralho de artes agora **se rende ao vivo**: mão sorteada por visita entre as 13 capas reais da pasta e uma carta trocando a cada 4,5s em rodízio (18s por carta), com fila para não repetir capa, pré-carregamento para não piscar, e parada quando a aba está oculta, depois do login ou com movimento reduzido. Mais varredura de marca ao baralho assentar, relevo das cartas ao ponteiro, floração do anel de foco e luz no CTA.
-  - **Geometria do baralho virou contrato**: sorteando, o que se perde no corte é imprevisível. A carta 3 escondia **21% da área** sob a carta 2; agora a pior sobreposição é 13% (só em 1280) e 7–10% no resto. Medido em 1100/1280/1440/1680/1920/2560 — mexer nas larguras exige refazer a medição.
-  - **Gradiente: fora por decisão do Ryan.** A passagem teve aurora deslizante, véu escuro sob o texto e calor no lado do formulário; nada disso ficou. Registrado no `login.css`: era o véu que segurava o branco em 2,36–2,60:1, e sem ele o contraste volta a **2,27:1** — o valor que o `04_DESIGN_SYSTEM` já documenta para display branco sobre #FF9000, medido no ponto. Quem reintroduzir luz ali precisa medir o fundo sob os glifos (a 1ª tentativa derrubou para 1,89:1 sem nada denunciar na tela).
-
-### Fechado nesta rodada (setembro/2026)
+- [x] **A FRENTE DO AUTOMATIC DESIGNER FOI ENCERRADA (18/09) — decisão de produto do Ryan.**
+  O Luma **não recompõe mais a arte de ninguém**. O comportamento oficial passou a ser: o
+  designer desenha uma caixa, o franqueado troca o conteúdo, o Luma faz o texto caber **dentro
+  daquela caixa** (corpo autorado → quebra → encolhimento progressivo → piso de legibilidade) e,
+  se não couber mantendo legibilidade, **BLOQUEIA** em vez de quebrar a arte.
+  - **O que saiu do repositório:** Layout Grammar, Composition Graph, Layout Components,
+    elasticidade, impact zones, operational capability, designer moves, Candidate Search (beam),
+    canonical/causal search, emergency search, adaptive scale groups, scoring lexicográfico,
+    candidate selection, zonas mortas perceptuais, shadow validation, confiança e rollout — e
+    junto a **escada de recomposição** que vivia dentro do `gApplyRelativeAnchors` (correntes
+    inferidas, corredores, respiro, empurrão, escala de componente, emergência, alternativas
+    por nota). `js/core/auto-layout.js` 6.937 → 544 linhas; `js/00-config.js` 3.914 → 2.620.
+    **−15.657 linhas, +1.289.**
+  - **O que resolve conteúdo hoje:** `js/core/local-fit.js` (`gLocalFitArte`), que era a frente
+    paralela em shadow e virou o runtime. Contrato em `docs/LOCAL-FIT-CONTRACT.md`.
+  - **A garantia nova:** nenhum elemento se move por causa de outro. A única geometria que o
+    Local Fit escreve fora do próprio texto é a da **placa ligada àquele texto**. Cobrado camada
+    a camada no corpus e no fuzz, contra a geometria publicada.
+  - **Medido:** o Local Fit resolve sozinho **78,3%** do corpus (curto 100% original, médio 100%
+    original, longo 50% shrink / 50% overflow, extremo 60% shrink / 40% overflow). Overflow
+    seguro é resultado válido — 100% seria a meta errada. Custo por edição de campo: cabe de
+    primeira p95 12,1ms, shrink p95 11,2ms, até o piso p95 8,2ms; fuzz p95 3,9ms e pior caso
+    43ms (era 141ms). A Candidate Search custava 14,5s numa arte de 344 camadas.
+  - **Uma lição foi preservada de propósito:** teto de linhas SEMÂNTICO é preferência, não dano.
+    O motor antigo bloqueava por ele, e 12 dos 14 bloqueios do corpus eram artes inteiras dentro
+    da prancheta, barradas só por isso. Só `maxLines` EXPLÍCITO bloqueia.
+  - **Testes:** as suítes `scoring` (86) e `shadow` (19) e ~230 casos de `auto-layout` foram
+    removidos — testar arquitetura que não existe é ruído que o time aprende a ignorar. A suíte
+    ficou em **376 casos verdes**, com o comportamento novo coberto em `local-fit` (37) e o
+    corpus reescrito para 4 níveis de copy (30). Dois portões novos reprovam se qualquer símbolo
+    do Automatic Designer voltar ao runtime.
+  - **A UI do bloqueio entrou junto.** Bloquear sem saída é o pior resultado do produto. Agora
+    o aviso aparece na PRÉVIA no momento em que acontece (ponto vermelho, o rótulo do campo e
+    "encurtar", clicável — e calado enquanto o texto cabe), o download abre um diálogo com o
+    número medido (*"cabem até 28 caracteres aqui — hoje tem 46"*) e o botão leva ao campo, com
+    o contador já no alvo. `gHandleLayoutUnsafeError` e a prévia chamam a MESMA função. O limite
+    medido não corta o texto: é estimativa por caractere, e cortar por estimativa comeria copy
+    que talvez coubesse. Medido no navegador: contraste 6,44:1 no escuro e 5,83:1 no claro, alvo
+    de 206×32px no container de 300px, sem estouro na barra. 6 casos em `franqueado-fluxo`.
+  - **Fica em aberto:** wrap puro quase não aparece em arte real — caixa de PSD é o bbox justo
+    do texto, a altura não sobra.
 
 - [x] **Peso do boot e cache (02/09)** — o buraco era grave: **59 dos 95 assets sem `?v=` nenhum** (entre eles `core/auth.js`, `core/supabase.js`, `core/feature-flags.js`, `modules/franqueado.css`), ou seja correção nesses arquivos não chegava em quem já tinha aberto o Luma. Agora é **um número só para todos** (`?v=N`, `sed` num comando — convenção no `03_ENGINEERING` §6.1). Junto: pdf-lib saiu do boot (513 KB sob demanda) e papaparse morto foi deletado → **4.738 KB → 4.207 KB (−11%)**.
 

@@ -903,7 +903,7 @@ async function dExportSVG(opts){
     return e;
   });
   if(typeof gApplyRelativeAnchors==='function'){
-    // Sem `fitText`: o layout vivo é do lado do franqueado (ver gLayoutVivoAtivo). Esta prévia
+    // Sem Local Fit: o encaixe é do lado do franqueado (ver gLayoutVivoAtivo). Esta prévia
     // é do designer e mostra a geometria desenhada.
     layers=gApplyRelativeAnchors(layers,dados,defaults);
   }

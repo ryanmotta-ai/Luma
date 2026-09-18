@@ -1142,18 +1142,52 @@ function _fLpSyncBaixar(){
 const F_LP_AUTO_LAYOUT_KEY_LEGADO = 'luma-lp-auto-layout';
 try { localStorage.removeItem(F_LP_AUTO_LAYOUT_KEY_LEGADO); } catch(e){}
 
-/* O motor continua protegendo a composição sem expor esse detalhe técnico no rodapé. */
-function _fLpSyncAutoLayoutButton(){
+/* ══ O AVISO DE BLOQUEIO — a única coisa que a prévia diz sobre o encaixe ═══════════════
+   Enquanto o texto cabe (encolhendo ou não), o rodapé fica CALADO: a arte na tela já é a
+   resposta, e narrar "layout ajustado" era pedir que o franqueado administrasse mecanismo
+   interno — o que a rodada de usabilidade de 09/2026 tirou da tela.
+
+   Quando NÃO cabe é outra história. Antes, a pessoa só descobria no download: preenchia tudo,
+   clicava em baixar e levava um toast. Agora o bloqueio aparece no momento em que acontece,
+   nomeia o campo e é CLICÁVEL — leva direto para ele, com o contador já no alvo medido.
+   ⚠ A prévia continua DESENHANDO a arte: ver o texto estourando é o que explica o aviso. */
+function _fLpSyncBloqueio(resArg){
   const nota=document.getElementById('lp-layout-nota'); if(!nota) return;
-  nota.hidden=true;
-  nota.textContent='';
+  /* O parâmetro existe para a bancada conseguir pintar um bloqueio sem re-renderizar a arte
+     inteira. No app ninguém o passa: a fonte é o resultado do último render. */
+  const res=(resArg!==undefined)?resArg:_lpLayoutResult;
+  const campo=(res&&res.invalid&&res.bloqueios&&res.bloqueios[0]
+              &&(res.bloqueios[0].campos||[])[0])||null;
+  if(!campo){ nota.hidden=true; nota.textContent=''; nota.classList.remove('is-bloqueio'); return; }
+  const rotulo=(typeof gFieldLabel==='function')?gFieldLabel(campo):campo;
+  nota.hidden=false;
+  nota.classList.add('is-bloqueio');
+  nota.textContent='“'+rotulo+'” não cabe — encurtar';
+  nota.title='“'+rotulo+'” não cabe nesta arte nem no menor tamanho legível. Toque para encurtar.';
+  nota.setAttribute('aria-label', nota.title);
+  nota.onclick=()=>{
+    if(typeof fCorrigirTextoLongo!=='function') return;
+    /* O laudo com o LIMITE em caracteres custa ~12 encaixes de uma camada. Sai daqui, no
+       clique, e não no render: a prévia repinta a cada tecla e isso não pode entrar no laço. */
+    let r=res;
+    if(!r.diagnostico&&typeof gLocalFitDiagnostico==='function'){
+      try{
+        const mat=_lpEffectiveMaterial||fState.material;
+        const cv=(typeof fMaterialSize==='function')?fMaterialSize(mat):null;
+        r=Object.assign({},res,{diagnostico:gLocalFitDiagnostico(_lpEffectiveLayers,res,
+          fState.dados||{},{canvas:cv?{w:cv[0],h:cv[1]}:null})});
+      }catch(e){ /* sem laudo, o diálogo cai na frase sem número */ }
+    }
+    fCorrigirTextoLongo(r);
+  };
 }
 
-/* ══ MODO DEMONSTRAÇÃO + AUTO-LAYOUT À VISTA ════════════════════════════════════════════
-   O solver não mudou uma linha. O que muda é o QUANTO dele se vê: fora do modo demo a
-   prévia salta do estado antigo para o novo, como sempre; dentro dele, a mesma troca é
-   percorrida em 260ms e dá para assistir o texto encolher, a placa acompanhar e o vizinho
-   ser empurrado. É a diferença entre "apareceu outra arte" e "o Luma reorganizou a arte".
+/* ══ MODO DEMONSTRAÇÃO + O ENCAIXE À VISTA ══════════════════════════════════════════════
+   O motor não muda aqui. O que muda é o QUANTO dele se vê: fora do modo demo a prévia salta
+   do estado antigo para o novo, como sempre; dentro dele, a mesma troca é percorrida em 260ms
+   e dá para assistir o texto se encaixar na própria caixa e a placa dele acompanhar. ⚠ Desde
+   09/2026 NENHUM vizinho é empurrado — se esta animação mostrar um terceiro se movendo, é bug
+   de composição, não de demonstração.
 
    POR QUE ATRÁS DE UM INTERRUPTOR, e não ligado para todo mundo: quem está preenchendo o
    formulário quer a resposta agora — 260ms por tecla viraria peso. O franqueado real segue
@@ -1260,7 +1294,7 @@ async function fUpdateLivePreview(opts){
   if(!canvas || canvas.tagName !== 'CANVAS') return;
   // O botão depende do TEMPLATE aberto (nem todo template tem Layout vivo), então é
   // re-sincronizado a cada update — diferente do Auto-zoom, que independe do material.
-  try { _fLpSyncAutoLayoutButton(); } catch(e){}
+  try { _fLpSyncBloqueio(); } catch(e){}
   try { _fLpSyncBaixar(); } catch(e){}
   try { _fLpSyncVerComoFica(); } catch(e){}
 
@@ -1328,7 +1362,7 @@ async function fUpdateLivePreview(opts){
       // Material trocou no meio: este desenho já é passado. O `finally` re-agenda o render novo.
       if(fState.material!==_matRender) _lpPendingRender=true;
       _lpOverflow = window._fOverflowSink; window._fOverflowSink = null;
-      _fLpSyncAutoLayoutButton();
+      _fLpSyncBloqueio();
 
       // Véu sutil sobre os campos ainda não preenchidos (tom mais suave)
       fLpHighlightEmpty(ctx,_lpEffectiveLayers,pendentes,W,H);

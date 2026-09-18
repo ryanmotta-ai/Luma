@@ -1148,7 +1148,7 @@ function dRenderCanvas(){
   });
   // Aplica Alinhamento Magnético Relativo (Auto-spacing)
   if(typeof gApplyRelativeAnchors==='function'){
-    // SEM `fitText`: o layout vivo é do lado do franqueado (prévia ao vivo + PNG). A prancheta
+    // SEM Local Fit: o encaixe é do lado do franqueado (prévia ao vivo + PNG). A prancheta
     // mostra a geometria DESENHADA — camada escorregando sob o cursor de quem está
     // posicionando é o oposto de uma ferramenta de autoria. Quem quer ver a acomodação usa a
     // prévia do franqueado; quem quer ver o pior caso usa o checklist.
@@ -2149,8 +2149,8 @@ function dSimMarkOverflow(sink){
    ⚠ EXCEÇÃO CONSCIENTE AO ESCOPO DO ESTÚDIO. A prévia do simulador mostra a geometria
    DESENHADA de propósito (bloco escorregando sob o cursor é o oposto de uma ferramenta de
    autoria). O veredito aqui é a outra pergunta — "o que o FRANQUEADO vai receber?" —, então
-   ele roda o motor com `fitText` e compara pelo mesmo contrato do runtime
-   (`gDescribeFranchiseeLayout`). Nada disso toca a prancheta nem o template: são clones. */
+   ele roda o runtime do franqueado (âncoras autoradas + Local Fit) e lê o mesmo contrato
+   (`gLocalFitArte`). Nada disso toca a prancheta nem o template: são clones. */
 let dSimTensao = 0;
 let _dSimTensaoTimer = null;
 
@@ -2195,19 +2195,18 @@ function _dSimTensaoValores(pct){
   return out;
 }
 
-/* O veredito do RUNTIME do franqueado para um conjunto de dados: dois solves (com e sem
-   acomodação) comparados pelo mesmo contrato que a prévia e o PNG usam. */
+/* O veredito do RUNTIME do franqueado para um conjunto de dados — o MESMO Local Fit que a
+   prévia e o PNG usam. Se aqui rodasse outra coisa, o Estúdio mentiria para o designer. */
 function _dSimVeredito(dados){
-  if(typeof gApplyRelativeAnchors !== 'function' || typeof gDescribeFranchiseeLayout !== 'function') return null;
+  if(typeof gApplyRelativeAnchors !== 'function' || typeof gLocalFitArte !== 'function') return null;
   const defaults = (typeof gVarDefaults === 'function') ? gVarDefaults() : null;
   const ab = (typeof dGetActiveAB === 'function') ? dGetActiveAB() : null;
   const base = DFMT_SIZES[dFmt] || DFMT_SIZES.story;
   const canvas = { w:(ab&&ab.w)||base.w, h:(ab&&ab.h)||base.h };
-  const clonar = () => dSimLayersForFmt().map(l => ({...l}));
   try{
-    const solved = gApplyRelativeAnchors(clonar(), dados, defaults, {fitText:true, canvas, scope:'franqueado'});
-    const orig   = gApplyRelativeAnchors(clonar(), dados, defaults, {fitText:false, canvas, scope:'franqueado'});
-    return gDescribeFranchiseeLayout(orig, solved);
+    const orig = gApplyRelativeAnchors(dSimLayersForFmt().map(l => ({...l})), dados, defaults,
+                                       {canvas, scope:'franqueado'});
+    return gLocalFitArte(orig, {canvas, dados, defaults}).result;
   }catch(e){ return null; }
 }
 
@@ -2232,11 +2231,13 @@ function _dSimPintaVeredito(res){
   if(!chip) return;
   const st = res ? res.status : null;
   chip.dataset.status = st || '';
-  if(st === 'unsafe'){
+  if(st === 'overflow'){
     const campo = _dSimCampoCulpado(res);
-    chip.textContent = campo ? `Trava aqui — ${campo} não cabe com segurança.` : 'Trava aqui — não cabe com segurança.';
-  } else if(st === 'adapted'){
-    chip.textContent = 'O motor acomoda — o franqueado recebe a arte adaptada.';
+    chip.textContent = campo ? `Trava aqui — ${campo} não cabe na caixa.` : 'Trava aqui — não cabe na caixa.';
+  } else if(st === 'shrunk'){
+    chip.textContent = 'O texto encolhe dentro da própria caixa — nada mais se move.';
+  } else if(st === 'wrapped'){
+    chip.textContent = 'O texto quebra em mais linhas dentro da própria caixa.';
   } else if(st === 'original'){
     chip.textContent = 'Sai exatamente como você desenhou.';
   } else {
@@ -2265,8 +2266,8 @@ function dSimSetTensao(pct){
 }
 
 /* Varre a régua de 10 em 10 e conta a história em uma frase: até onde sai igual, de onde o
-   motor acomoda e onde trava. 11 paradas × 2 solves — com a memória de encaixe isso é barato,
-   e roda só no clique, nunca no arrasto. */
+   texto encolhe na própria caixa e onde trava. 11 paradas × 1 Local Fit — com a memória de
+   encaixe isso é barato, e roda só no clique, nunca no arrasto. */
 function dSimOndeTrava(){
   const chip = document.getElementById('sim-tensao-veredito');
   if(chip){ chip.dataset.status=''; chip.textContent = 'Procurando o ponto de ruptura…'; }
@@ -2276,15 +2277,15 @@ function dSimOndeTrava(){
       const res = _dSimVeredito(_dSimTensaoValores(p));
       const st = res ? res.status : null;
       if(st === 'original') ultimoOriginal = p;
-      if(st === 'adapted' && primeiroAdaptado < 0) primeiroAdaptado = p;
-      if(st === 'unsafe'){ primeiroUnsafe = p; break; }
+      if((st === 'shrunk' || st === 'wrapped') && primeiroAdaptado < 0) primeiroAdaptado = p;
+      if(st === 'overflow'){ primeiroUnsafe = p; break; }
     }
     const partes = [];
     if(ultimoOriginal >= 0) partes.push(`sai igual até ${ultimoOriginal}%`);
-    if(primeiroAdaptado >= 0) partes.push(`o motor acomoda a partir de ${primeiroAdaptado}%`);
+    if(primeiroAdaptado >= 0) partes.push(`o texto se encaixa sozinho a partir de ${primeiroAdaptado}%`);
     partes.push(primeiroUnsafe >= 0 ? `trava aos ${primeiroUnsafe}%` : 'não trava nem no limite do campo');
     if(chip){
-      chip.dataset.status = primeiroUnsafe >= 0 ? 'unsafe' : (primeiroAdaptado >= 0 ? 'adapted' : 'original');
+      chip.dataset.status = primeiroUnsafe >= 0 ? 'overflow' : (primeiroAdaptado >= 0 ? 'shrunk' : 'original');
       chip.textContent = partes.join(' · ').replace(/^./, c => c.toUpperCase()) + '.';
     }
     // Leva a régua para o ponto que interessa olhar.

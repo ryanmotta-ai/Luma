@@ -260,11 +260,26 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
   display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 10px;
   font:600 10.5px 'Roboto',sans-serif;color:var(--text-3);white-space:nowrap;
   max-width:100%;overflow:hidden;text-overflow:ellipsis;
+  background:none;border:0;border-radius:8px;cursor:default;
 }
 .lp-layout-nota::before{
   content:'';width:5px;height:5px;flex:0 0 5px;border-radius:50%;background:var(--dm-orange-tint);
 }
 .lp-layout-nota[hidden]{display:none}
+/* BLOQUEIO: a arte não sai assim. O ponto vira vermelho porque no celular estreito o texto
+   some (`font-size:0` no @media abaixo) e o ponto é tudo o que resta — se ele continuasse
+   laranja, o aviso mais importante da tela seria indistinguível de um aviso comum.
+   `--dm-red-text` e não `--dm-red`: é o par que vira claro no escuro e volta ao vermelho da
+   marca no claro. O vermelho de fundo reprova como texto sobre superfície escura (2,98:1). */
+.lp-layout-nota.is-bloqueio{
+  color:var(--dm-red-text);cursor:pointer;
+  transition:background var(--transition-fast);
+}
+.lp-layout-nota.is-bloqueio::before{background:var(--dm-red-text)}
+.lp-layout-nota.is-bloqueio:hover{background:color-mix(in srgb,var(--dm-red-text) 12%,transparent)}
+.lp-layout-nota.is-bloqueio:focus-visible{
+  outline:2px solid var(--dm-red-text);outline-offset:2px;
+}
 
 .lp-tool-btn {
   width:32px;height:32px;background:var(--off-white);
@@ -427,8 +442,13 @@ body:not(.theme-light) .lp-toggle.active{background:var(--dm-orange)}
   .lp-fit-btn,.lp-posted-btn{width:28px;min-width:28px;height:30px}
   .lp-zoom-group{height:30px;min-width:120px}
   .lp-zoom-step,#lp-zoom{height:24px}
-  /* Espaço apertado: o aviso vira só o ponto laranja — a arte é que importa aqui. */
+  /* Espaço apertado: o aviso comum vira só o ponto — a arte é que importa aqui. */
   .lp-layout-nota{font-size:0;padding-inline:6px}
+  /* ⛔ O BLOQUEIO NÃO ENCOLHE. Um ponto vermelho sozinho não diz o que houve, e este é o
+     único aviso da barra que impede a arte de sair. Ele mantém o texto (com reticências, pela
+     regra de `overflow` do bloco base) e um alvo de toque honesto: virou botão, e 17px de
+     largura — o que sobraria de `font-size:0` — não se acerta com o dedo. */
+  .lp-layout-nota.is-bloqueio{font-size:10px;min-width:44px;padding-inline:8px}
 }
 @media (max-width:680px){
   #f-live-preview{display:none}

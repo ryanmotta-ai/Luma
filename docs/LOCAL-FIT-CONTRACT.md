@@ -1,50 +1,62 @@
 # LOCAL FIT CONTRACT
 
-> Frente **paralela** à Fase 6 do Automatic Designer. Camada determinística que faz um texto
-> tentar caber **na própria caixa autorada** antes de qualquer composição.
-> Estado: **shadow only** — não está no `index.html`, nenhum byte de produção depende dela.
-> Código: [`js/core/local-fit.js`](../js/core/local-fit.js) · Testes: `tests/local-fit.html` ·
-> Bancada: `tests/_local-fit-bancada.html`
+> **O runtime oficial do Luma desde 09/2026.** Camada determinística que faz um texto tentar
+> caber **na própria caixa autorada** — e bloquear quando não couber, em vez de recompor a arte.
+> Código: [`js/core/local-fit.js`](../js/core/local-fit.js) · Testes: `tests/local-fit.html`
+> (37 casos) · Corpus: `tests/corpus.html` · Bancada: `tests/_local-fit-bancada.html`
 
 ---
 
-## 0. Confirmação explícita de escopo
+## 0. Estado — e o que ele substituiu
 
-**Candidate Search, beam, adaptive scale groups, scoring, candidate selection,
-`gLayoutEscolherAlternativa` e o comportamento final de produção NÃO foram alterados.**
+Este documento nasceu descrevendo uma **frente paralela em shadow**, construída ao lado do
+Automatic Designer para responder a uma pergunta: *quanto dá para resolver sem recompor?*
+A resposta medida no corpus foi **87,5%** (§10). Com ela na mesa, a decisão de produto mudou.
 
-Prova, em três níveis:
+**O Automatic Designer foi REMOVIDO do repositório em 09/2026.** Saíram: Layout Grammar,
+Composition Graph, Layout Components, elasticidade, impact zones, operational capability,
+designer moves, Candidate Search (beam), scoring lexicográfico, candidate selection, adaptive
+scale groups, zonas mortas perceptuais, shadow validation, confiança e rollout — e junto com
+eles a escada de recomposição que vivia dentro do `gApplyRelativeAnchors` (correntes inferidas,
+corredores, respiro, empurrão, escala de componente, emergência, alternativas por nota).
 
-1. **`git diff --stat` não toca nenhum arquivo de produção.** Os únicos arquivos novos são
-   `js/core/local-fit.js`, `tests/local-fit.{html,js}` e `tests/_local-fit-bancada.{html,js}`.
-   `js/core/auto-layout.js`, `js/00-config.js`, `js/franqueado/*` e `index.html` ficaram
-   intocados.
-2. **O arquivo não é carregado pela aplicação.** Ele não está no `index.html` de propósito —
-   só as suítes de `tests/` o carregam. Enquanto for shadow, nem código morto ele é: ele não
-   chega ao navegador do franqueado.
-3. **Um teste cobra isso.** `local-fit-cases.js` caso 19 instrumenta
-   `gLayoutEscolherAlternativa`, `gApplyRelativeAnchors`, `gScoreComposition`,
-   `gLayoutBuscarCandidatos` e `gLayoutBeam` e falha se o Local Fit chamar qualquer um deles.
+O que ficou no lugar:
 
-Nenhuma primitiva compartilhada foi modificada. Duas limitações foram **encontradas** dentro
-delas; estão documentadas em §9 e **não** foram corrigidas — a regra é parar e documentar.
+| Antes | Agora |
+|---|---|
+| `gApplyRelativeAnchors(fitText:true)` recompunha a arte | `gApplyRelativeAnchors` interpola e resolve âncora MANUAL, só |
+| `gLayoutEscolherAlternativa` escolhia composição por nota | não existe; não há o que escolher |
+| `gLayoutDiagnosis` re-rodava o solver até 8 vezes | `gLocalFitDiagnostico`, busca binária sobre o Local Fit de UMA camada |
+| `gDescribeFranchiseeLayout` comparava dois solves | `gLocalFitArte` devolve o laudo direto |
+| veredito `original`/`adapted`/`unsafe` | `original`/`wrapped`/`shrunk`/`overflow` |
+| `LUMA_LAYOUT_UNSAFE` | `LUMA_CONTENT_TOO_LARGE` |
+
+**A garantia que o contrato passou a dar, e que antes não existia:** nenhum elemento se move
+por causa de outro. A única geometria que o Local Fit escreve fora do próprio texto é a da
+**placa ligada àquele texto** (§9 do `LUMA.md`). O corpus e o fuzz cobram isso camada a camada,
+comparando com a geometria publicada.
+
+**Onde ele está ligado:** `index.html` carrega `js/core/local-fit.js`;
+`fRenderTemplateLayers` (`png-generator.js`) chama `gLocalFitArte` no escopo `franqueado`;
+o teste de tensão do Estúdio (`canvas.js`) chama o mesmo par para não mentir ao designer.
 
 ---
 
 ## 1. Princípio
 
 **EXPLICIT > INFERRED.** Se o designer desenhou uma caixa de texto, essa caixa é informação
-explícita: não precisa ser inferida do Composition Graph.
+explícita: não precisa ser inferida de grafo nenhum.
 
 ```
 conteúdo novo
-  → Local Fit
-      cabe?  sim → terminou, zero alteração
-             não → overflow OBJETIVO (pixels, linhas, corpo, piso)
-                   → o Automatic Designer poderá agir depois
+  → Local Fit (na caixa autorada daquele texto)
+      cabe?  sim → desenha, zero alteração
+             não → CONTENT_TOO_LARGE, com pixels, linhas, corpo e piso
+                   → exportação BLOQUEIA · prévia mostra e explica
 ```
 
-Esta fase **não** conecta o fallback. O overflow é um valor de retorno, não um gatilho.
+**Não existe fallback.** Overflow é o fim da linha, de propósito: era exatamente aqui que o
+Automatic Designer entrava, e é por isso que ele não existe mais.
 
 ---
 
@@ -202,9 +214,9 @@ Quatro decisões, e o porquê de cada uma:
 
 ## 7. Piso
 
-`gLayoutPisoFonte(camada, false)` — modo **NORMAL**, sempre. O `true` (emergência) é escala
-proporcional de componente: movimento de composição, não escopo local. Caso 5b cobra a
-igualdade com o motor e a recusa da emergência.
+`gLayoutPisoFonte(camada)` — piso único. O modo de **emergência** (escala proporcional de
+componente) não existe mais: era movimento de composição, e composição saiu do produto. O
+parâmetro foi removido da assinatura. Caso 5b cobra a igualdade com o motor.
 
 O piso real é `min(fontSizeAutorado, max(8, pisoDoMotor))` — Local Fit **nunca aumenta** a
 fonte (caso 17 cobra `fontSize ≤ fontSizeAutorado` em toda a grade hostil).
@@ -240,12 +252,25 @@ Chegou ao piso normal e não coube: **para**. Não continua diminuindo.
 **Nunca "parece que coube".** O status é sempre um dos dois, e um `overflow` sempre traz
 excesso mensurável — caso 5 falha se vier bloqueio sem número.
 
+Na **arte inteira** (`gLocalFitArte`), cada overflow vira um item de `result.bloqueios` no
+formato do item 8 do briefing:
+
+```js
+{ status:'CONTENT_TOO_LARGE', fieldId, campos, overflowX, overflowY,
+  requiredLines, maxLines, fontSize, minimumFontSize, motivo }
+```
+
+`fRenderTemplateLayers` lança `LUMA_CONTENT_TOO_LARGE` na **exportação** e segue desenhando na
+**prévia** — a pessoa precisa VER o que não cabe para saber o que encurtar.
+
 ### Placa interna
 
 Quando a placa/selo faz parte explicitamente do próprio campo e passa pela régua estável
 (`gLayoutFormaEhPlaca`), o retorno ganha `diagnostics.placa` com `mismatch`, a geometria atual
-e a que seria coerente (`gLayoutPlacaSegue`). **Diagnóstico apenas** — nada é reposicionado, e
-o caso 18 falha se a placa for tocada.
+e a que seria coerente (`gLayoutPlacaSegue`). Na API de UMA camada isso é **diagnóstico
+apenas** — nada é reposicionado, e o caso 18 falha se a placa for tocada. Na arte inteira
+(`gLocalFitArte`) a placa do próprio campo de fato ACOMPANHA a tinta: é a única exceção do
+contrato (item 9 do briefing), e o caso 22 cobra que seja a única geometria escrita.
 
 ---
 
@@ -292,7 +317,18 @@ casarem. **Não aplicada** — é primitiva da outra frente.
 
 ---
 
-## 10. Corpus shadow
+## 10. Corpus — a medição que motivou a decisão
+
+> ⚠ Os números abaixo foram medidos com o Local Fit em SHADOW, antes de ele virar o runtime, e
+> ficam como o registro da medição que motivou a decisão. As medições de hoje:
+>
+> | Instrumento | Unidade | Resolvido sozinho |
+> |---|---|---|
+> | `tests/_local-fit-bancada.html` | por CAMPO (48) | **83,3%** — original 50%, wrap 6,3%, shrink 27,1%, overflow 16,7% |
+> | `tests/corpus.html` | por ARTE (23 cenários) | **78,3%** — curto 100% original, médio 100% original, longo 50% shrink / 50% overflow, extremo 60% shrink / 40% overflow |
+>
+> A diferença entre os dois é de método, não de motor: uma arte com quatro campos vira overflow
+> se um único deles não couber.
 
 `node scripts/run-browser-tests.js _local-fit-bancada` (com `LUMA_VERBOSE=1`).
 48 campos = 6 materiais reais de `tests/corpus/` × cenários × campos dinâmicos.
@@ -439,29 +475,73 @@ existe nesta máquina e não existia na que gravou o golden.
 
 ---
 
-## 13. Arquivos tocados
-
-**Novos — 5 arquivos, todos fora do caminho de produção:**
+## 13. Arquivos
 
 ```
-js/core/local-fit.js            ~300 linhas   a camada
-tests/local-fit.html                          o portão (CI)
-tests/local-fit-cases.js        26 casos
-tests/_local-fit-bancada.html                 instrumento (fora do CI, `_`)
-tests/_local-fit-bancada.js                   corpus shadow + stress + benchmark
-docs/LOCAL-FIT-CONTRACT.md                    este documento
+js/core/local-fit.js              o motor: caixa autorada, escada, arte inteira, diagnóstico
+tests/local-fit.html/-cases.js    37 casos — o comportamento inteiro
+tests/_local-fit-bancada.*        instrumento (fora do CI): corpus, stress e benchmark
+docs/LOCAL-FIT-CONTRACT.md        este documento
 ```
 
-**Modificados: nenhum.** `index.html`, `js/00-config.js`, `js/core/auto-layout.js`,
-`js/franqueado/*` e `js/designer/*` não foram tocados. Não há `?v=N` a subir.
+Ligado em `index.html`, consumido por `js/franqueado/png-generator.js` (prévia e exportação) e
+por `js/designer/canvas.js` (teste de tensão do Estúdio).
 
 ---
 
-## 14. Próximos passos (não feitos aqui, de propósito)
+## 14. O que ficou em aberto
 
-1. **Ligar na produção** — entra no `index.html`, sobe o `?v=N`, e aí sim há superfície.
-   Antes disso, aplicar a recomendação de §11 (carimbar pisos uma vez por arte).
-2. **Conectar o fallback** — `status: 'overflow'` vira a entrada do Automatic Designer. É a
-   junção com a Fase 6 e depende da outra frente estar estável.
-3. **Corrigir (b) de §9.1** no `gSemanticUnits` — uma linha, dono é a outra frente.
-4. **Medir o corpus legado** sem `layoutRefText`, onde a tinta autorada é `{0,0}` (§9.2).
+1. **Wrap puro quase não aparece.** No corpus, nenhum cenário resolve só com quebra: ou já cabe,
+   ou precisa encolher. É consequência de caixa de PSD ser o bbox justo do texto — a altura não
+   sobra. Não é defeito, mas significa que o degrau `wrapped` está pouco exercido em arte real.
+2. **A UI do bloqueio existe** (`fCorrigirTextoLongo`, em `js/franqueado/chat.js`) — ver §15.
+3. **Placa em cadeia.** Uma placa que é placa de um texto que é placa de outro não existe no
+   corpus e não é tratada. Se aparecer, o comportamento é: só a placa direta acompanha.
+4. **Safari/iOS e Android reais.** A deriva de fonte é medida e corrigida, mas nunca foi
+   exercida nesses navegadores — segue no `luma-brain/07_ROADMAP.md`.
+
+---
+
+## 15. A UI do bloqueio
+
+Bloquear sem saída é o pior resultado do produto: a pessoa preenche tudo, clica em baixar e
+leva um toast que some em segundos. A UI do bloqueio responde três coisas, nesta ordem: **qual
+campo**, **quanto sobra** e **como chegar lá**.
+
+**Uma porta só.** `fCorrigirTextoLongo(result)` é chamada pelos dois caminhos:
+`gHandleLayoutUnsafeError` (exportação, PNG/PDF/compartilhar/lote) e o aviso da prévia. Duas
+portas com comportamentos diferentes para o mesmo evento é o defeito de sempre.
+
+**Na prévia, no momento em que acontece.** O `#lp-layout-nota` — que estava desligado desde a
+rodada de usabilidade de 09/2026 — volta **só para o bloqueio**: ponto vermelho, o rótulo do
+campo e "encurtar", clicável. Enquanto o texto cabe (encolhendo ou não) a linha fica calada: a
+arte na tela já é a resposta, e narrar "layout ajustado" era pedir que o franqueado
+administrasse mecanismo interno. A prévia continua **desenhando** a arte — ver o texto
+estourando é o que explica o aviso.
+
+**No download, com o número.** O diálogo (`gConfirm`, nenhum componente novo) diz: *"O texto de
+«Nome do produto» é longo demais para esta arte. Cabem até 28 caracteres aqui — hoje tem 46."*
+— e o botão é **"Encurtar agora"**, que leva ao campo. O limite sai de `gLocalFitDiagnostico`
+(busca binária sobre o próprio Local Fit daquele campo).
+
+**O contador adota o alvo medido.** A partir do bloqueio, `fMarcaLimiteSeguro(campo, limite)`
+grava o número por `materialId|campo` e o contador passa a mostrar **46/28** em vez de 46/60.
+O botão **Encurtar** (IA, opcional) passa a mirar no mesmo número.
+⛔ O limite medido **não corta** o que a pessoa digitou: ele é estimativa por caractere ("WWWW"
+e "iiii" têm a mesma contagem e larguras diferentes), e cortar por estimativa comeria copy que
+talvez coubesse. O corte continua sendo só o `maxLen` do designer.
+
+**Sem campo editável** (texto fixo do designer, ou arte reaberta fora do fluxo do chat), a
+única saída honesta é trocar de material — e é isso que a mensagem diz. ⛔ Aqui a frase do
+motor **não** vale mesmo trazendo o número: mandar alguém encurtar o que ela não pode editar é
+pior que não dizer nada.
+
+**Medido no navegador:** contraste do aviso 6,44:1 no escuro e 5,83:1 no claro (AA nos dois);
+alvo de toque 206×32px no container de 300px, sem estouro nem rolagem na barra. O aviso comum
+vira só o ponto a partir de 340px, mas **o bloqueio não encolhe** — um ponto vermelho sozinho
+não diz o que houve, e 17px de largura não se acerta com o dedo.
+
+**Cobertura:** 6 casos em `tests/franqueado-fluxo.html` — o diálogo nomeia o campo e leva até
+ele; "Agora não" não mexe no fluxo; o contador adota o limite medido e **não** corta o texto;
+sem campo editável a saída é trocar de material; o aviso da prévia acende, nomeia e apaga
+quando a arte volta a caber; e a porta é única.

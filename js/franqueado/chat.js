@@ -1762,6 +1762,61 @@ function fMostrarConfirm(){
   const existing=document.getElementById('confirm-msg'); if(existing) existing.remove();
   fGerarArte();
 }
+/* ══════════════════════════════════════════════════════════════════════════════════════
+   O TEXTO NÃO CABE — a saída, não só o aviso
+   ══════════════════════════════════════════════════════════════════════════════════════
+   Quando o Local Fit bloqueia (o texto não cabe na caixa autorada nem no menor corpo
+   legível), o franqueado precisa de três coisas, nesta ordem: QUAL campo, QUANTO sobra e
+   COMO chegar lá. Antes era só um toast com a frase — e ele fechava sozinho em segundos,
+   deixando a pessoa de volta na mesma tela sem saber o que fazer.
+
+   Esta é a porta ÚNICA do bloqueio: o `gHandleLayoutUnsafeError` (00-config.js) delega para
+   cá quando o franqueado está carregado, e o aviso da prévia (`lp-layout-nota`) chama a mesma
+   função. Duas portas com comportamentos diferentes para o mesmo evento é o defeito de sempre.
+
+   ⛔ NÃO reescreve a copy de ninguém. Ela abre o campo e mostra o alvo; encurtar é decisão
+   (e texto) de quem vende. O botão Encurtar com IA continua existindo lá dentro, opcional. */
+async function fCorrigirTextoLongo(res){
+  const d = res && res.diagnostico;
+  const campo = (d && d.campo)
+    || (res && res.bloqueios && res.bloqueios[0] && (res.bloqueios[0].campos || [])[0]) || null;
+  const rotulo = (d && d.rotulo)
+    || (campo && typeof gFieldLabel === 'function' ? gFieldLabel(campo) : 'este texto');
+
+  /* O limite MEDIDO passa a valer para o contador daquele campo: a partir daqui ele mostra
+     47/28 em vez de 47/60, que é o número que a pessoa precisa perseguir. */
+  if(campo && d && Number.isFinite(d.limite) && d.limite > 0
+     && typeof fMarcaLimiteSeguro === 'function') fMarcaLimiteSeguro(campo, d.limite);
+
+  const perguntas = (fState.camp && fState.camp.perguntas) || [];
+  const idx = campo ? perguntas.findIndex(p => p && p.id === campo) : -1;
+
+  const quanto = (d && Number.isFinite(d.limite) && d.limite > 0)
+    ? 'Cabem até ' + d.limite + ' caracteres aqui — hoje tem ' + d.atual + '.'
+    : 'Ele não cabe nesta arte nem no menor tamanho legível.';
+
+  /* Sem campo editável no chat (texto fixo do designer, ou arte reaberta fora do fluxo), não
+     há para onde levar. ⛔ Aqui a mensagem do motor NÃO vale, mesmo quando ela traz o número:
+     "cabem até 28 caracteres" é um pedido que a pessoa não tem como atender nesta tela, e
+     mandar alguém encurtar o que ela não pode editar é pior que não dizer nada. A saída
+     honesta é trocar de material. */
+  if(idx < 0){
+    if(typeof gToast === 'function')
+      gToast('O texto de “' + rotulo + '” não cabe nesta arte. Escolha outro material para este conteúdo.', 'error');
+    return false;
+  }
+
+  const ok = await gConfirm(
+    'O texto de “' + rotulo + '” é longo demais para esta arte. ' + quanto,
+    { title: 'Esse texto não cabe', okLabel: 'Encurtar agora', cancelLabel: 'Agora não' });
+  if(!ok) return true;
+  fEditCampo(idx);
+  /* O contador só repinta no próximo `input`, e a pessoa acabou de chegar aqui pelo alvo
+     novo — sem isto ela veria o limite antigo até digitar a primeira letra. */
+  try{ if(typeof fUpdateCharCount === 'function') fUpdateCharCount(); }catch(e){}
+  return true;
+}
+
 function fEditCampo(idx){
   if(_fGuidedAtivo()){
     const p=_fGuidedPerguntas()[idx]; if(!p) return;

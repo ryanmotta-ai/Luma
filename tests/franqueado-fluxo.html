@@ -29,7 +29,7 @@
 <span id="f-char-count"></span><div id="prog-fill"></div><div id="f-ctx-tag"></div>
 <div class="lp-stage"><div class="lp-canvas-wrap"><canvas id="lp-canvas" width="1080" height="1920"></canvas></div></div>
 <div id="lp-empty"><span id="lp-empty-title"></span><span id="lp-empty-sub"></span></div>
-<span id="lp-dim"></span><span id="lp-sub"></span><span id="lp-layout-nota" hidden></span>
+<span id="lp-dim"></span><span id="lp-sub"></span><button type="button" id="lp-layout-nota" hidden></button>
 <!-- `live-preview.js` liga um listener em `#f-preview-modal` no topo do arquivo, fora de
      qualquer guarda: sem este nó o script morre na linha 56 e metade da prévia nunca inicializa.
      (Achado montando esta bancada — no app o nó existe no index.html.) -->
@@ -702,6 +702,128 @@ await test('Colar/arrastar: a foto cai no passo que pede foto, e só nele', asyn
     window.gToast=toastReal;
     document.body.classList.remove('mode-franqueado');
   }
+});
+
+/* ══ A UI DO BLOQUEIO — "não cabe" tem que ter saída ════════════════════════════════════
+   O Local Fit BLOQUEIA quando o texto não cabe nem no menor corpo legível. O que se cobra
+   aqui não é o bloqueio (isso é `tests/local-fit.html`): é o que a pessoa vê e para onde ela
+   consegue ir. Antes era um toast que sumia em segundos, e ela ficava na mesma tela. */
+
+const bloqueio=(campo,limite,atual)=>({
+  status:'overflow', invalid:true, invalidIds:['produto'], adapted:false,
+  requiresAdaptation:true, forced:false, changes:[], campos:[], meta:null,
+  bloqueios:[{status:'CONTENT_TOO_LARGE',fieldId:'produto',campos:[campo],
+              overflowX:120,overflowY:0,requiredLines:3,maxLines:3,
+              fontSize:18,minimumFontSize:18,motivo:'largura excedida em 120px'}],
+  diagnostico:{campo:campo,rotulo:'Nome do produto',atual:atual,limite:limite,
+               mensagem:'O texto de “Nome do produto” é longo demais para esta arte. Cabem até '
+                        +limite+' caracteres aqui — hoje tem '+atual+'.'}
+});
+
+await test('bloqueio: o diálogo nomeia o campo, diz o limite e LEVA até ele', async()=>{
+  reset();
+  fState.dados={produto:'Hambúrguer Artesanal Duplo com Bacon e Cheddar'};
+  fState.done=true; fState.stepIdx=3;
+  _perguntou=0; _respostaConfirm=true; _confirmOpts=null;
+  const tratou = await fCorrigirTextoLongo(bloqueio('produto',28,45));
+  assert(tratou===true,'o bloqueio não foi tratado');
+  assert(_perguntou===1,'não perguntou antes de mexer no fluxo');
+  assert(/Nome do produto/.test(_confirmOpts.msg),'o diálogo não nomeou o campo: '+_confirmOpts.msg);
+  assert(/28 caracteres/.test(_confirmOpts.msg),'o diálogo não disse o limite medido');
+  assert(/hoje tem 45/.test(_confirmOpts.msg),'o diálogo não disse o tamanho atual');
+  assert(!/\{\{|_|undefined/.test(_confirmOpts.msg),'vazou termo técnico: '+_confirmOpts.msg);
+  const idx=fState.camp.perguntas.findIndex(p=>p.id==='produto');
+  assert(fState.stepIdx===idx,'não levou para o campo culpado (ficou em '+fState.stepIdx+')');
+  assert(fState.done===false,'deixou o fluxo como "pronto" — a resposta da edição não seria salva');
+});
+
+await test('bloqueio: "Agora não" não mexe no fluxo', async()=>{
+  reset();
+  fState.dados={produto:'Hambúrguer Artesanal Duplo com Bacon e Cheddar'};
+  fState.done=true; fState.stepIdx=3;
+  _perguntou=0; _respostaConfirm=false;
+  await fCorrigirTextoLongo(bloqueio('produto',28,45));
+  assert(fState.stepIdx===3,'levou para o campo mesmo com a pessoa recusando');
+  assert(fState.done===true,'reabriu o fluxo sem permissão');
+  _respostaConfirm=true;
+});
+
+await test('bloqueio: o contador passa a mostrar o limite MEDIDO, não a permissão do designer', async()=>{
+  reset();
+  /* Material próprio: o limite medido é guardado por `materialId|campo` e SOBREVIVE entre
+     artes de propósito (quem volta para a mesma peça não perde o número). Reaproveitar o
+     `mat-1` faria este caso ler o limite que o caso anterior gravou. */
+  fState.material.id='mat-contador';
+  const box=document.getElementById('f-msg-box');
+  const counter=document.getElementById('f-char-count');
+  const idx=fState.camp.perguntas.findIndex(p=>p.id==='produto');
+  fState.stepIdx=idx; fState.done=false;
+  const permissao=fGetFieldType('produto').maxLen;
+  box.value='Hambúrguer Artesanal Duplo com Bacon e Cheddar';
+  const n=box.value.length;
+  fUpdateCharCount();
+  assert(counter.textContent===n+'/'+permissao,
+         'antes do bloqueio o contador deveria mostrar a permissão do designer, veio '+counter.textContent);
+  _respostaConfirm=true;
+  await fCorrigirTextoLongo(bloqueio('produto',28,n));
+  fUpdateCharCount();
+  assert(counter.textContent===n+'/28','o contador não adotou o limite medido: '+counter.textContent);
+  assert(counter.classList.contains('warn'),'passou do alvo e o contador não avisou');
+  /* ⛔ O limite medido NÃO corta o que a pessoa digitou: ele é estimativa por caractere
+     ("WWWW" e "iiii" têm a mesma contagem e larguras diferentes). Cortar aqui comeria copy
+     que talvez coubesse — o corte continua sendo só o do designer. */
+  box.dispatchEvent(new Event('input',{bubbles:true}));
+  assert(box.value.length===n,'o limite medido cortou o texto: sobrou '+box.value.length);
+});
+
+await test('bloqueio: sem campo editável no chat, a saída honesta é trocar de material', async()=>{
+  reset();
+  fState.done=true; fState.stepIdx=3;
+  const toastReal=window.gToast; let disse='';
+  window.gToast=(m)=>{disse=String(m||'');};
+  _perguntou=0;
+  try{
+    const tratou=await fCorrigirTextoLongo(bloqueio('campoQueNaoExiste',0,46));
+    assert(tratou===false,'disse ter resolvido um bloqueio sem saída');
+    assert(_perguntou===0,'ofereceu editar um campo que o chat não pergunta');
+    assert(/outro material/.test(disse),'não ofereceu a única saída real: '+disse);
+  }finally{ window.gToast=toastReal; }
+});
+
+await test('bloqueio: o aviso da prévia acende, nomeia o campo e é clicável', async()=>{
+  reset();
+  const nota=document.getElementById('lp-layout-nota');
+  nota.hidden=true; nota.className=''; nota.textContent='';
+  /* A prévia lê o resultado do render; aqui ele entra por parâmetro para o caso medir a UI e
+     não o motor (que já tem suíte própria). */
+  _fLpSyncBloqueio(bloqueio('produto',28,46));
+  assert(!nota.hidden,'a arte bloqueou e a prévia não disse nada');
+  assert(nota.classList.contains('is-bloqueio'),'o aviso não entrou no estado de bloqueio');
+  /* O rótulo sai do motor único (`gFieldLabel`), não do laudo: é a mesma régua do chat e da
+     lista de respostas. Nome técnico (`produto`) nunca aparece cru para quem lê. */
+  const rotulo=gFieldLabel('produto');
+  assert(nota.textContent.indexOf(rotulo)>=0,'o aviso não nomeia o campo: '+nota.textContent);
+  assert(!/\{\{|_/.test(nota.textContent),'o aviso vazou nome técnico: '+nota.textContent);
+  assert(typeof nota.onclick==='function','o aviso não leva a lugar nenhum');
+  /* E some quando a arte volta a caber — aviso que fica é aviso que ninguém lê. */
+  _fLpSyncBloqueio({status:'shrunk',invalid:false,bloqueios:[],diagnostico:null});
+  assert(nota.hidden,'o aviso continuou na tela depois de a arte caber');
+  assert(!nota.classList.contains('is-bloqueio'),'ficou com o estado de bloqueio pendurado');
+});
+
+await test('bloqueio: a porta é ÚNICA — gHandleLayoutUnsafeError delega para a mesma UI', async()=>{
+  reset();
+  fState.dados={produto:'Hambúrguer Artesanal Duplo com Bacon e Cheddar'};
+  fState.done=true; fState.stepIdx=3;
+  _perguntou=0; _respostaConfirm=true;
+  const err=new Error('não cabe');
+  err.code='LUMA_CONTENT_TOO_LARGE'; err.layoutResult=bloqueio('produto',28,45);
+  assert(gHandleLayoutUnsafeError(err)===true,'o erro tipado não foi reconhecido');
+  await espera(30);
+  assert(_perguntou===1,'caiu no toast em vez de abrir a UI do bloqueio');
+  // Erro de outra natureza continua passando direto — este handler não é pega-tudo.
+  assert(gHandleLayoutUnsafeError(new Error('qualquer outra'))===false,
+         'engoliu um erro que não é de bloqueio');
 });
 
 window.gConfirm=_gConfirmReal;

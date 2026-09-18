@@ -1,33 +1,38 @@
 /* ══════════════════════════════════════════════════════════════════════════════════════════
-   CORPUS REPRODUZÍVEL DO AUTO-LAYOUT — abra `tests/corpus.html` ou rode
+   CORPUS REPRODUZÍVEL DO LOCAL FIT — abra `tests/corpus.html` ou rode
    `node scripts/run-browser-tests.js corpus`.
 
    O que ele é: cada fixture de `tests/corpus/` é uma prancheta real sanitizada (geometria e
    tipografia dos PSDs da Deskfy, sem dado de cliente e sem imagem embutida). Cada uma roda em
-   3 cenários (nominal, longo, extremo) pelo MESMO motor da prévia e da exportação.
+   4 NÍVEIS DE COPY pelo MESMO runtime da prévia e da exportação:
 
-   O que ele cobra — dois níveis, de propósito:
+     curto   — o conteúdo AUTORAL (o `example` do campo, que é o texto que o designer tinha na
+               tela quando compôs). Por construção ele cabe.
+     medio   — o cenário nominal do fixture.
+     longo   — copy real esticada.
+     extremo — copy que um franqueado apressado cola de um WhatsApp.
 
-   1. INVARIANTES (o portão de verdade). Não dependem da pilha de fontes da máquina, então valem
-      igual no seu Chrome, no meu e no runner do GitHub:
-        · o solver devolve a mesma quantidade de camadas;
+   O que ele cobra:
+
+   1. INVARIANTES (o portão de verdade). Não dependem da pilha de fontes da máquina:
+        · o runtime devolve a mesma quantidade de camadas;
         · rodar duas vezes dá geometria IDÊNTICA (sem isso, prévia e PNG podem divergir);
-        · a hierarquia tipográfica não inverte (título nunca fica menor que o preço);
-        · a tinta não escapa da prancheta além do que o desenho já escapava;
-        · o veredito (`original`/`adapted`/`unsafe`) é o esperado;
+        · ⛔ NENHUM TERCEIRO SE MOVE — a única geometria que o Local Fit escreve é a da placa
+          ligada ao próprio texto. Esta é a asserção que define o produto;
+        · a hierarquia tipográfica não inverte;
+        · o veredito é um dos quatro (`original`/`wrapped`/`shrunk`/`overflow`);
         · quando bloqueia, o diagnóstico diz QUAL campo e QUANTOS caracteres cabem;
-        · o tempo de solve entra no orçamento de desempenho (p50/p95 no fim).
+        · o tempo entra no orçamento de desempenho (p50/p95 no fim).
 
-   2. GOLDEN (geometria + imagem). Comparação fina, e por isso ancorada na PILHA DE FONTES: o
-      golden é gravado por "impressão digital" de fonte (`fp`). Se a máquina atual não tiver
-      golden gravado, a comparação é PULADA com aviso — nunca vira falso vermelho. Regravar:
-      abra `tests/corpus.html?record=1` e cole o JSON impresso em `tests/corpus-golden.js`.
-      ⚠ Isto é deliberado: reprovar por 2px de diferença entre rasterizadores treina o time a
-      ignorar o vermelho, que é pior do que não ter o teste.
+   2. GOLDEN (geometria + imagem). Comparação fina, ancorada na PILHA DE FONTES: o golden é
+      gravado por "impressão digital" de fonte (`fp`). Sem golden da máquina atual, a comparação
+      é PULADA com aviso — nunca vira falso vermelho. Regravar: `tests/corpus.html?record=1`.
 
-   Como crescer o corpus (o item "aprendizado pelo corpus" do roadmap): todo PSD que der
-   problema vira um arquivo em `tests/corpus/`, com um `<script>` em `corpus.html`. A partir daí
-   ele nunca mais pode regredir em silêncio.
+   3. DISTRIBUIÇÃO. Quanto o Local Fit resolve sozinho, por nível de copy. Overflow seguro é
+      RESULTADO VÁLIDO, não falha: 100% é a meta errada. O número sai no resumo.
+
+   Como crescer o corpus: todo PSD que der problema vira um arquivo em `tests/corpus/`, com um
+   `<script>` em `corpus.html`. A partir daí ele nunca mais pode regredir em silêncio.
    ══════════════════════════════════════════════════════════════════════════════════════════ */
 (async function(){
   const results=document.getElementById('results');
@@ -57,30 +62,25 @@
   const usarCampos=(campos)=>{ window.dVars=(campos||[]).map(c=>Object.assign({type:'text'},c)); };
 
   const clonar=(ls)=>ls.map(l=>JSON.parse(JSON.stringify(l)));
-  /* COBERTURA Search × Solver (Fase 5.9). A pergunta: quando o motor acha saída segura, a busca
-     acha uma equivalente em capacidade? E quantas vezes ela precisou do piso de emergência? */
-  const _cobertura={ total:0, solverSolved:0, searchSolved:0, normal:0, emergencia:0,
-                     unsafeRejeitados:0, comGrupo:[], soSolver:[], soBusca:[] };
-  /* AUDITORIA DO PAPEL SEMÂNTICO (Fase 6.5, §21). `gScoreComposition` lê `gLayoutRoleOf`, que
-     devolve 'apoio' para quase toda camada de arte real; o papel COMPILADO mora ao lado, no
-     mesmo objeto. A pergunta desta fase é uma só: quantas decisões do scorer legado mudariam
-     se ele lesse o papel certo? A resposta sai daqui, cenário a cenário, em SOMBRA — nada do
-     que está abaixo altera a arte que o corpus renderizou e comparou com o golden. */
-  const _papel={ porCenario:{}, mudou:[], aplicaveis:0, deltas:[], camadas:0, divergentes:0 };
-  /* §15 · QUEM DECIDIU, no corpus real. A mesma contagem que o corpus de scoring faz sobre
-     pares controlados — aqui sobre os candidatos que a busca de fato gerou. */
-  const _tiers={};
-  /* §13 da Fase 6.6 · ANTES × DEPOIS da zona morta perceptual, nas decisões REAIS. A Fase 6.5
-     achou duas escolhas tiradas por margens de 0,012 e 0,020 contra um ruído de 0,045; aqui se
-     vê, caso a caso, para que camada elas desceram. Em SOMBRA: nada disto muda a arte. */
-  const _zona={ linhas:[], mudou:0, desceu:0, total:0 };
-  const solve=(fx,dados,opts)=>gApplyRelativeAnchors(clonar(fx.layers),dados,{},
-    Object.assign({fitText:true,canvas:fx.canvas,scope:'franqueado'},opts||{}));
-  const geo=(out)=>out.filter(l=>l&&l.type==='text').map(l=>{
-    const r=gInkRect(l,l._fit);
-    return [l.id,Math.round(r.x),Math.round(r.y),Math.round(r.w),Math.round(r.h),
-            Math.round((l._tetoFonte!=null?l._tetoFonte:l.fontSize)||0)];
-  });
+  /* ── O RUNTIME, igual ao da prévia e do PNG: âncoras autoradas + Local Fit ─────────────── */
+  const runtime=(fx,dados)=>{
+    const base=gApplyRelativeAnchors(clonar(fx.layers),dados,{},
+      {canvas:fx.canvas,scope:'franqueado'});
+    return { base, lf:gLocalFitArte(base,{canvas:fx.canvas,dados:dados,defaults:{}}) };
+  };
+  const geo=(out)=>out.filter(l=>l&&l.type==='text').map(l=>
+    [l.id,Math.round(l.x||0),Math.round(l.y||0),Math.round(l.w||0),Math.round(l.h||0),
+     Math.round((l._tetoFonte!=null?l._tetoFonte:l.fontSize)||0)]);
+
+  /* DISTRIBUIÇÃO (item 16): quanto o Local Fit resolve sozinho, por nível de copy. */
+  const _dist={};
+  const contar=(nivel,status)=>{
+    const d=_dist[nivel]||(_dist[nivel]={original:0,wrapped:0,shrunk:0,overflow:0,n:0});
+    d[status]++; d.n++;
+  };
+  /* DESEMPENHO POR EDIÇÃO DE CAMPO (item 17): o custo REAL de uma tecla. Medido com conteúdo
+     de verdade, nunca com `dados:{}` — arte sem conteúdo não mede nada. */
+  const _perf={ original:[], wrap:[], shrink:[], piso:[] };
 
   /* Assinatura VISUAL: a arte renderizada pelo motor único, reduzida a 8×8 tons de cinza e
      comparada por diferença de vizinhos (dHash). Sobrevive a antialiasing e a meio pixel de
@@ -111,63 +111,91 @@
   const TOL_GEO=(fx)=>Math.round(Math.min(fx.canvas.w,fx.canvas.h)*0.03);   // 3% do lado curto
   const TOL_HASH=10;                                                        // de 64 bits
 
+  /* O nível `curto` é o conteúdo AUTORAL: o `example` de cada campo, que é de onde saiu o
+     `layoutRefText` do fixture. Por construção ele cabe — se o Local Fit mexer aqui, ele está
+     redesenhando arte saudável. */
+  const copyAutoral=(fx)=>{
+    const d={};
+    (fx.campos||[]).forEach(c=>{ if(c&&c.name&&c.example!=null) d[c.name]=String(c.example); });
+    return d;
+  };
+  const niveis=(fx)=>Object.assign({ curto:copyAutoral(fx) },
+    { medio:fx.cenarios.nominal, longo:fx.cenarios.longo, extremo:fx.cenarios.extremo });
+
   fixtures.forEach(fx=>{
-    Object.keys(fx.cenarios).forEach(cenario=>{
-      const dados=fx.cenarios[cenario];
-      test(fx.nome+' · '+cenario,async()=>{
+    const cen=niveis(fx);
+    Object.keys(cen).forEach(nivel=>{
+      const dados=cen[nivel];
+      if(!dados||!Object.keys(dados).length) return;
+      test(fx.nome+' · '+nivel,async()=>{
         usarCampos(fx.campos);
         const t0=performance.now();
-        const out=solve(fx,dados);
+        const r=runtime(fx,dados);
         const ms=performance.now()-t0;
-        const original=gApplyRelativeAnchors(clonar(fx.layers),dados,{},
-          {fitText:false,canvas:fx.canvas,scope:'franqueado'});
-        const res=gDescribeFranchiseeLayout(original,out);
+        const out=r.lf.layers, res=r.lf.result;
 
         // ── INVARIANTE 1: nada some no caminho ──
-        assert(out.length===fx.layers.length,'o solver devolveu '+out.length+' camadas de '+fx.layers.length);
+        assert(out.length===fx.layers.length,'saíram '+out.length+' camadas de '+fx.layers.length);
 
         // ── INVARIANTE 2: determinismo (prévia e PNG saem do mesmo lugar) ──
-        const g1=JSON.stringify(geo(out)), g2=JSON.stringify(geo(solve(fx,dados)));
-        assert(g1===g2,'duas execuções iguais deram geometrias diferentes — a prévia mentiria sobre o PNG');
+        assert(JSON.stringify(geo(out))===JSON.stringify(geo(runtime(fx,dados).lf.layers)),
+          'duas execuções iguais deram geometrias diferentes — a prévia mentiria sobre o PNG');
 
-        // ── INVARIANTE 3: a hierarquia não inverte ──
-        const txt=out.filter(l=>l&&l.type==='text'&&l._fit);
+        /* ── INVARIANTE 3: ⛔ TERCEIROS NUNCA MUDAM ─────────────────────────────────────────
+           A asserção que define o produto. A ÚNICA camada autorizada a ter geometria diferente
+           da publicada é a PLACA ligada ao texto que encaixou — e ela só porque a forma faz
+           parte do próprio campo. Qualquer outro deslocamento é recomposição. */
+        const placas=new Set(res.changes.filter(c=>c.geometry&&c.placaDe).map(c=>c.id));
+        assert(res.changes.filter(c=>c.geometry).every(c=>c.placaDe),
+               'houve mudança de geometria que não é de placa de campo nenhum');
+        const antes=new Map(r.base.map(l=>[l.id,l]));
+        out.forEach(l=>{
+          if(placas.has(l.id)) return;              // placa local: a exceção do contrato (item 9)
+          const o=antes.get(l.id)||{};
+          ['x','y','w','h'].forEach(k=>assert((l[k]||0)===(o[k]||0),
+            '“'+l.name+'” teve '+k+' alterado de '+(o[k]||0)+' para '+(l[k]||0)
+            +' — isso é recomposição, e ela saiu do produto'));
+        });
+
+        // ── INVARIANTE 4: a hierarquia não inverte ──
+        const txt=out.filter(l=>l&&l.type==='text');
         const corpo=(l)=>(l._tetoFonte!=null?l._tetoFonte:(l.fontSize||24));
         txt.forEach(a=>txt.forEach(b=>{
           if((a.fontSize||24)<=(b.fontSize||24))return;
-          /* EXCEÇÃO DO PREÇO (regra 19/08, `core/auto-layout.js`): campo de preço só cede por
-             causa do PRÓPRIO preço — nunca porque o título ou o produto ficaram longos. Como ele
-             para de descer quando a própria caixa já cabe, uma camada autorada maior pode
-             terminar menor que ele. É decisão de produto (o preço é o argumento da peça), não
-             defeito do solver: nas artes da marca o preço costuma ser o maior elemento. A
-             inversão continua PESANDO na nota (`gScoreComposition`), só deixou de reprovar. */
+          /* EXCEÇÃO DO PREÇO: campo de preço só cede por causa do PRÓPRIO preço. Como cada
+             texto agora encaixa isolado, uma camada autorada maior pode terminar menor que ele.
+             É decisão de produto (o preço é o argumento da peça), não defeito. */
           if(typeof gLayoutEhPrecoDinamico==='function'&&gLayoutEhPrecoDinamico(b))return;
           assert(corpo(a)>=corpo(b)-0.5,'“'+a.name+'” ficou menor que “'+b.name+'” — hierarquia invertida');
         }));
 
-        // ── INVARIANTE 4: a tinta não piora a sangria da prancheta ──
-        out.forEach(l=>{
-          if(!l||l.type!=='text'||!l._fit)return;
-          const r=gInkRect(l,l._fit), b=l._layoutBase||r;
-          const foraAgora=Math.max(0,-r.x)+Math.max(0,-r.y)
-            +Math.max(0,r.x+r.w-fx.canvas.w)+Math.max(0,r.y+r.h-fx.canvas.h);
-          const foraAntes=Math.max(0,-b.x)+Math.max(0,-b.y)
-            +Math.max(0,b.x+b.w-fx.canvas.w)+Math.max(0,b.y+b.h-fx.canvas.h);
-          if(res.status!=='unsafe')
-            assert(foraAgora<=foraAntes+3,'“'+l.name+'” saiu da prancheta ('+Math.round(foraAgora)+'px) sem a arte ser marcada como insegura');
+        // ── INVARIANTE 5: o veredito é um dos quatro ──
+        assert(['original','wrapped','shrunk','overflow'].indexOf(res.status)>=0,
+               'veredito inesperado: '+res.status);
+        contar(nivel,res.status);
+        const degraus=res.campos.map(c=>c.degrau);
+        if(degraus.indexOf('piso')>=0) _perf.piso.push(ms);
+        else if(degraus.indexOf('shrink')>=0) _perf.shrink.push(ms);
+        else if(degraus.indexOf('wrap')>=0) _perf.wrap.push(ms);
+        else _perf.original.push(ms);
+
+        // ── INVARIANTE 6: nenhum encaixe para ANTES do piso ──
+        res.campos.forEach(c=>{
+          if(c.status!=='overflow')return;
+          assert(c.fontSize<=c.piso+1,'“'+c.id+'” desistiu em '+c.fontSize
+            +'px com piso '+c.piso+'px — parou antes do fundo do poço');
         });
 
-        // ── INVARIANTE 5: baseline autorado universal (inclusive material antigo) ──
+        // ── INVARIANTE 7: baseline autorado universal (inclusive material antigo) ──
         (fx.exigeBaselineMigrado||[]).forEach(id=>{
           const l=out.find(x=>x.id===id);
           assert(l&&l.layoutRef&&l.layoutRef.ink&&l.layoutRefText,
             'a camada “'+id+'” continuou sem baseline — a migração em runtime não rodou');
         });
 
-        // ── INVARIANTE 6: bloqueio tem saída ──
-        if(res.status==='unsafe'){
-          const diag=gLayoutDiagnosis(clonar(fx.layers),dados,{},
-            {fitText:true,canvas:fx.canvas,scope:'franqueado'},out);
+        // ── INVARIANTE 8: bloqueio tem saída ──
+        if(res.status==='overflow'){
+          const diag=gLocalFitDiagnostico(out,res,dados,{canvas:fx.canvas,defaults:{}});
           assert(diag&&diag.campo,'a arte foi bloqueada sem dizer qual campo travou');
           assert(!/\{\{|_/.test(diag.mensagem),'a mensagem do bloqueio vazou nome técnico');
           assert(diag.limite<=String(dados[diag.campo]||'').length,
@@ -175,14 +203,12 @@
         }
 
         // ── GOLDEN ── (só quando a pilha de fontes bate com a gravada)
-        const chave=fx.nome+'|'+cenario;
+        const chave=fx.nome+'|'+nivel;
         const hash=await assinatura(fx,dados);
-        if(gravando){
-          gravado[chave]={fp:fpMaquina,status:res.status,hash:hash,geo:geo(out)};
-        }
+        if(gravando) gravado[chave]={fp:fpMaquina,status:res.status,hash:hash,geo:geo(out)};
         const g=goldens[chave];
         if(!g){ avisos.push(chave+': sem golden gravado'); }
-        else if(g.fp!==fpMaquina){ avisos.push(chave+': golden é de outra pilha de fontes ('+g.fp+' ≠ '+fpMaquina+') — comparação fina pulada'); }
+        else if(g.fp!==fpMaquina){ avisos.push(chave+': golden é de outra pilha de fontes — comparação fina pulada'); }
         else {
           assert(res.status===g.status,'o veredito mudou: era “'+g.status+'”, virou “'+res.status+'”');
           const atual=geo(out), tol=TOL_GEO(fx);
@@ -195,173 +221,23 @@
           const dist=hamming(hash,g.hash);
           assert(dist<=TOL_HASH,'a arte renderizada mudou visualmente ('+dist+'/64 células diferentes)');
         }
-        // Status fora do golden ainda é informação: registra para o resumo.
         if(!g||g.fp!==fpMaquina) avisos.push(chave+' → '+res.status+' em '+Math.round(ms)+'ms');
-
-        /* ── PARIDADE DO ASSENTAMENTO (Fase 5.8) ────────────────────────────────────────────
-           ⛔ ESTA É ASSERÇÃO, não nota. O assentamento canônico não é uma segunda opinião: é o
-           MESMO motor, por uma saída dedicada (`_soAssentar`) que devolve o estado logo depois
-           de `_posicionar()`. Quando o solver resolve a arte sem subir a escada (`tentativas`
-           zero), o que ele entrega É esse estado — então a geometria tem que bater camada por
-           camada. Se um dia divergir, a busca passou a medir uma arte que o motor não produz,
-           e todo o resto desta frente perde o chão. */
-        if(typeof gSettleLayoutState==='function'&&out._layoutMeta&&out._layoutMeta.tentativas===0){
-          const C=gBuildOperationalContext(clonar(fx.layers),fx.canvas,{dados:dados});
-          const st=gSettleLayoutState({layers:clonar(fx.layers),solveState:{}},C);
-          const chapa=(ls)=>ls.map(l=>[l.id,Math.round(l.x||0),Math.round(l.y||0),
-            Math.round(l.w||0),Math.round(l.h||0)]).sort().join('|');
-          assert(chapa(st.layers)===chapa(out),
-            'o estado assentado divergiu do solver em '+chave+':\nbusca:  '+chapa(st.layers)
-            +'\nsolver: '+chapa(out));
-        }
-
-        /* ── SHADOW MODE (Fase 5.5) ─────────────────────────────────────────────────────────
-           A arquitetura nova roda AO LADO do solver, sobre a MESMA arte e os MESMOS dados, e
-           não tem autoridade nenhuma: o que foi renderizado e comparado com o golden acima já
-           aconteceu, e nada aqui o altera. Isto só OBSERVA o que a busca de candidatos teria
-           encontrado — é assim que se dá autoridade a um motor novo: olhando antes de confiar.
-           ⚠ Sai como NOTA, nunca como asserção. Um `catch` no `gShadowLayoutSearch` garante que
-           um defeito na arquitetura nova jamais reprove o portão do solver atual. */
-        if(typeof gShadowLayoutSearch==='function'){
-          const sh=gShadowLayoutSearch(clonar(fx.layers),dados,fx.canvas);
-          _cobertura.total++;
-          if(sh.solverSolved) _cobertura.solverSolved++;
-          if(sh.solved){ _cobertura.searchSolved++;
-            if(sh.firstSolvedMode==='emergency') _cobertura.emergencia++;
-            else _cobertura.normal++; }
-          if(sh.cobertura==='so-solver') _cobertura.soSolver.push(chave);
-          if(sh.cobertura==='so-busca') _cobertura.soBusca.push(chave);
-          _cobertura.unsafeRejeitados += (sh.unsafeRejeitados||0);
-          if(sh.dependeDoGrupo) _cobertura.comGrupo.push(chave);
-          /* ⛔ ESTA É ASSERÇÃO, e é a única direção que não pode falhar em silêncio: a busca
-             APROVAR o que o solver reprova. Cobertura a menos é lacuna a fechar e sai como
-             nota; cobertura a mais é arte insegura passando, e isso é vermelho. */
-          /* ⛔ A ASSERÇÃO DE SEGURANÇA, e é a única direção que não pode falhar em silêncio: uma
-             solução da busca que o MOTOR reprovaria. `so-busca` sozinho não é isso — pode ser a
-             busca achando saída onde a escada fixa desistiu, e aí é cobertura a mais. O que
-             vale é o veredito de `gLayoutCamadaReprovada` sobre a composição resultante. */
-          assert(!(sh.solucoesInseguras||[]).length,
-            'a busca declarou resolvida uma composição que o motor reprova em '+chave+': '
-            +(sh.solucoesInseguras||[]).join(' / '));
-          avisos.push('shadow '+chave+' → '+(sh.erro?('ERRO '+sh.erro)
-            :('solver='+(sh.solverSolved?'solved':'unsafe')+'('+(sh.solverVoltas||0)+'v)'
-              +' busca='+(sh.solved?'solved@d'+sh.firstSolvedDepth+'/'+sh.firstSolvedMode:'nenhum')
-              +' cob='+sh.cobertura
-              +' · '+sh.problemas+' probs'+(sh.tipos.length?' ['+sh.tipos.join(',')+']':'')
-              +' · '+sh.gerados+' cands ('+sh.solved+'s/'+sh.partial+'p)'
-              +' · dmax'+sh.profundidade+' · '+sh.ms+'ms'
-              +(sh.causas&&sh.causas.length?' · causas '+sh.causas.join('+'):'')
-              +(sh.emergenciaRodou?' · EMERG '+sh.emergencia.gerados+' cands d'+sh.emergencia.profundidade
-                +(Object.keys(sh.emergencia.bloqueios).length?' bloq '+JSON.stringify(sh.emergencia.bloqueios):''):'')
-              +(sh.causasReabertas?' · '+sh.causasReabertas+' reabriram causa':'')
-              +(sh.bloqueios&&Object.keys(sh.bloqueios).length?' · SEM AÇÃO '+JSON.stringify(sh.bloqueios):'')
-              +(sh.escolha&&sh.escolha.acoes?' · ESCOLHA ['+sh.escolha.acoes.join('→')+'] '
-                +sh.escolha.modo+' d'+sh.escolha.depth+' por '+sh.escolha.wonBy
-                +' ('+sh.escolha.avaliados+' avaliados'
-                +(sh.escolha.descartados?', '+sh.escolha.descartados+' descartados':'')+')'
-                +(sh.msEscolha!=null?' '+sh.msEscolha+'ms':''):'')
-              +(sh.acoesNaSolucao?' · ['+sh.acoesNaSolucao.join('→')+']'
-                :(sh.restante?' · restou ['+sh.restante.tipos.join(',')+'] em '+sh.restante.causas+' causa(s) após ['+sh.restante.acoes.join('→')+']':'')))));
-          /* ── ANTES × DEPOIS DA ZONA MORTA (Fase 6.6 §13) ─────────────────────────────── */
-          if(typeof gSelectLayoutCandidate==='function'&&typeof gBuildOperationalContext==='function'
-             &&sh.escolha&&!sh.escolha.originalFirst){
-            if(!sh.escolha.acoes) _zona.linhas.push(chave+' | SEM VENCEDOR: '
-              +sh.escolha.descartados+' descartados ('+sh.escolha.porSeguranca+' segurança, '
-              +sh.escolha.porContrato+' contrato) '+JSON.stringify(sh.escolha.contratoViolado||[]));
-            try{
-              if(!sh.escolha.acoes) throw new Error('sem vencedor');
-              const ctxZ=gBuildOperationalContext(clonar(fx.layers),fx.canvas,{dados:dados});
-              const rZ=gSearchLayoutCandidates({ctx:ctxZ,base:clonar(fx.layers)});
-              const nomes=['safety','semantics-hard','hierarchy-compression',
-                'authored-intent-relacao','authored-intent-composicao','mode','aesthetics','alteration'];
-              const ler=(esc)=>({ acoes:esc.winner?(esc.winner.actions||[]).map(a=>a.id).join('→'):null,
-                tier:esc.explanation.margem?(esc.explanation.margem.desempate?'desempate'
-                  :nomes[esc.explanation.margem.posicao]):null,
-                margem:esc.explanation.margem?esc.explanation.margem.delta:null,
-                zona:esc.explanation.margem?esc.explanation.margem.deadZone:0,
-                bruto:esc.explanation.margem?esc.explanation.margem.rawDelta:null });
-              const antes=ler(gSelectLayoutCandidate(rZ,ctxZ,{semDeadZone:true}));
-              const escD=gSelectLayoutCandidate(rZ,ctxZ);
-              const depois=ler(escD);
-              /* A zona morta que interessa é a da COMPRESSÃO daquela arte — a do tier decisor
-                 é 0 sempre que a decisão desceu para uma camada sem zona. */
-              const zc=(escD.ranked[0]&&escD.ranked[0].profile&&escD.ranked[0].profile.deadZone)
-                ? escD.ranked[0].profile.deadZone['hierarchy-compression'] : 0;
-              _zona.total++;
-              const mudouV=antes.acoes!==depois.acoes, desceuT=antes.tier!==depois.tier;
-              if(mudouV) _zona.mudou++;
-              if(desceuT) _zona.desceu++;
-              _zona.linhas.push(chave+' | antes: '+antes.tier+' Δ'+antes.margem
-                +' | depois: '+depois.tier+' Δ'+depois.margem
-                +' | zona de compressão da arte: '+(Math.round(zc*1000)/1000)
-                +(mudouV?' ⚠ VENCEDOR MUDOU':'')+(desceuT&&!mudouV?' · desceu de tier':''));
-            }catch(e){ _zona.linhas.push(chave+' | ERRO '+(e&&e.message||e)); }
-          }
-          if(sh.escolha){
-            const k=sh.escolha.originalFirst?'original-first'
-              :(sh.escolha.margem&&sh.escolha.margem.desempate)?'desempate-deterministico'
-              :sh.escolha.margem?['safety','semantics-hard','hierarchy-compression',
-                'authored-intent-relacao','authored-intent-composicao','mode','aesthetics',
-                'alteration'][sh.escolha.margem.posicao]||'?':'sem-vencedor';
-            _tiers[k]=(_tiers[k]||0)+1;
-          }
-          /* ── AUDITORIA LEGACY × ROLE-CORRECTED (Fase 6.5) ───────────────────────────── */
-          if(typeof gAuditLegacyRoleImpact==='function'){
-            const au=gAuditLegacyRoleImpact(clonar(fx.layers),dados,fx.canvas);
-            const cen=_papel.porCenario[cenario]||(_papel.porCenario[cenario]={aplicaveis:0,mudou:0});
-            if(!au.erro&&au.aplicavel){
-              _papel.aplicaveis++; cen.aplicaveis++;
-              _papel.deltas.push(au.deltaPenalPadrao);
-              _papel.camadas+=au.camadas; _papel.divergentes+=au.divergentes;
-              if(au.mudou){ _papel.mudou.push(chave+': '+au.politicaLegacy+'→'+au.politicaCorrigida);
-                cen.mudou++; }
-              avisos.push('papel '+chave+' → legado "'+au.politicaLegacy+'" ('+au.penalLegacy
-                +') · corrigido "'+au.politicaCorrigida+'" ('+au.penalCorrigido+') · '
-                +(au.mudou?'MUDOU':'mesmo vencedor')+' · Δpenal '+au.deltaPenalPadrao
-                +' · papéis errados no legado '+au.divergentes+'/'+au.camadas);
-            }else avisos.push('papel '+chave+' → '+(au.erro?('ERRO '+au.erro)
-              :(au.motivo||'sem alternativa a decidir')));
-          }
-          if(sh.escolha&&sh.escolha.top&&sh.escolha.top.length>1){
-            avisos.push('  top '+chave+':');
-            sh.escolha.top.forEach((t,i)=>avisos.push('    #'+(i+1)+' ['+t.acoes+'] '+t.modo
-              +' d'+t.depth+' vetor='+JSON.stringify(t.vector)+' semantica='+t.semantica
-              +' camadasAlteradas='+t.custo+' grupo='+t.grupo));
-            avisos.push('    → #1 venceu #2 em '+sh.escolha.criterio+': '+sh.escolha.razoes.join(' · '));
-            if(sh.escolha.margem) avisos.push('    → margem no critério decisor: '
-              +sh.escolha.margem.delta+' ('+Math.round(sh.escolha.margem.deltaRelativo*100)
-              +'% da escala) · empates acima: '+sh.escolha.margem.empatesAcima
-              +(sh.escolha.margem.desempate?' · decidido no desempate por '
-                +sh.escolha.margem.desempatePor:''));
-            (sh.escolha.explicacao||[]).forEach(l=>avisos.push('    '+l));
-          }
-        }
       });
     });
   });
 
-  /* ══ ORIGINAL FIRST — o contrato da rodada de usabilidade de 09/2026 ═══════════════════════
-     "Conteúdo que já cabe permanece pixel/geometricamente igual." Não é uma tolerância de 3%
-     como o golden acima: é IGUALDADE EXATA. O golden mede "a arte continua parecida"; isto mede
-     "o Luma não encostou na arte".
-     O cenário é o AUTORAL: cada campo recebe o `example` do próprio fixture, que é o texto que o
-     designer tinha na tela quando compôs (é dele que sai o `layoutRefText`). Por construção,
-     esse conteúdo cabe — se o solver mexer aqui, ele está redesenhando arte saudável.
-     A asserção é sobre o que o RENDER devolve (`fRenderTemplateLayers`), não sobre o solver
-     isolado: é lá que mora a escolha entre `original` e `solved`, e é ela que se quer travar.
-     ⚠ Um `effective=solved` de volta reprova aqui de duas formas: pelos carimbos do solver
-     (`_tetoFonte`/`_layoutW`/`_entrelinha`) e por qualquer meio pixel de diferença. */
-  const cenarioAutoral=(fx)=>{
-    const d={};
-    (fx.campos||[]).forEach(c=>{ if(c&&c.name&&c.example!=null) d[c.name]=String(c.example); });
-    return d;
-  };
+  /* ══ ORIGINAL FIRST ABSOLUTO ══════════════════════════════════════════════════════════════
+     "Conteúdo que já cabe permanece geometricamente igual." Não é a tolerância de 3% do golden:
+     é IGUALDADE EXATA, e a ausência de QUALQUER carimbo. O golden mede "a arte continua
+     parecida"; isto mede "o Luma não encostou na arte".
+     A asserção é sobre o que o RENDER devolve (`fRenderTemplateLayers`), não sobre o Local Fit
+     isolado: é no render que o runtime inteiro se fecha, e é ele que se quer travar. */
   let intactas=0;
   fixtures.forEach(fx=>{
     test(fx.nome+' · autoral · cabe → geometria intacta',async()=>{
       usarCampos(fx.campos);
-      const dados=cenarioAutoral(fx);
-      assert(Object.keys(dados).length,'o fixture não tem `example` em nenhum campo — sem conteúdo autoral não há contrato a medir');
+      const dados=copyAutoral(fx);
+      assert(Object.keys(dados).length,'o fixture não tem `example` em nenhum campo');
       const cv=document.createElement('canvas');cv.width=fx.canvas.w;cv.height=fx.canvas.h;
       const rendered=await fRenderTemplateLayers(cv.getContext('2d'),clonar(fx.layers),
         fx.canvas.w,fx.canvas.h,dados,{color:'#FF9000'},
@@ -369,16 +245,12 @@
       const res=rendered&&rendered._layoutResult;
       assert(res,'o render não devolveu o contrato de layout (_layoutResult)');
       if(res.requiresAdaptation){
-        // Não é falha: há fixture no corpus desenhado para NÃO caber (é para isso que ele existe).
-        // O contrato só fala do caso que cabe — e o resumo registra quantos exerceram de fato.
+        // Há fixture no corpus desenhado para NÃO caber — é para isso que ele existe.
         avisos.push(fx.nome+' · autoral → '+res.status+' (o contrato de geometria intacta não se aplica)');
         return;
       }
       intactas++;
-      /* A régua é o DESENHO PUBLICADO — `fx.layers` cru, o x/y/w/h que o designer salvou —
-         e não o resultado de mais uma passada do solver. Comparar solver com solver deixaria
-         passar um deslocamento que os dois caminhos fizessem igual; a promessa de "geometria
-         idêntica" é sobre a arte do designer, e é contra ela que se mede. */
+      /* A régua é o DESENHO PUBLICADO — `fx.layers` cru, o x/y/w/h que o designer salvou. */
       const porId=new Map(fx.layers.filter(l=>l&&l.id).map(l=>[l.id,l]));
       rendered.forEach(l=>{
         if(!l||!l.id)return;
@@ -389,12 +261,12 @@
         assert((Number(l.fontSize)||0)===(Number(o.fontSize)||0),
           'a camada “'+l.id+'” teve o corpo trocado com conteúdo que cabe');
         assert(l._tetoFonte==null&&l._layoutW==null&&l._entrelinha==null,
-          'a camada “'+l.id+'” voltou carimbada pelo solver — a arte que cabia foi desenhada pelo caminho adaptado');
+          'a camada “'+l.id+'” voltou carimbada — a arte que cabia passou pelo caminho adaptado');
       });
     });
   });
   test('o contrato de geometria intacta é exercido por algum fixture',async()=>{
-    assert(intactas>0,'nenhum fixture do corpus chegou a “cabe” com o conteúdo autoral — o contrato ORIGINAL FIRST ficaria sem prova');
+    assert(intactas>0,'nenhum fixture chegou a “cabe” com o conteúdo autoral — o contrato ficaria sem prova');
   });
 
   let passed=0;
@@ -413,9 +285,37 @@
   }
   const failed=cases.length-passed;
   const perf=(typeof gLayoutPerfStats==='function')?gLayoutPerfStats():null;
+
+  /* ── DISTRIBUIÇÃO (item 16) ────────────────────────────────────────────────────────────── */
+  const pct=(a,b)=>b?Math.round(a/b*1000)/10:0;
+  const geral={original:0,wrapped:0,shrunk:0,overflow:0,n:0};
+  ['curto','medio','longo','extremo'].forEach(nv=>{
+    const d=_dist[nv]; if(!d)return;
+    Object.keys(geral).forEach(k=>geral[k]+=d[k]);
+    avisos.push('DISTRIBUIÇÃO · '+nv.padEnd(8)+' original '+d.original+' ('+pct(d.original,d.n)
+      +'%) · wrap '+d.wrapped+' ('+pct(d.wrapped,d.n)+'%) · shrink '+d.shrunk+' ('+pct(d.shrunk,d.n)
+      +'%) · overflow '+d.overflow+' ('+pct(d.overflow,d.n)+'%) · n='+d.n);
+  });
+  if(geral.n){
+    const resolvido=geral.original+geral.wrapped+geral.shrunk;
+    avisos.push('DISTRIBUIÇÃO · TOTAL   o Local Fit resolve sozinho '+resolvido+'/'+geral.n
+      +' ('+pct(resolvido,geral.n)+'%) · bloqueio seguro em '+geral.overflow
+      +' ('+pct(geral.overflow,geral.n)+'%) — overflow é resultado válido, não falha');
+  }
+  /* ── DESEMPENHO POR EDIÇÃO DE CAMPO (item 17) ──────────────────────────────────────────── */
+  const p95=(a)=>{ if(!a.length)return null; const s=a.slice().sort((x,y)=>x-y);
+                   return Math.round(s[Math.min(s.length-1,Math.floor(s.length*0.95))]*10)/10; };
+  const med=(a)=>a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length*10)/10:null;
+  avisos.push('DESEMPENHO por edição de campo (runtime completo: âncoras + Local Fit):');
+  ['original','wrap','shrink','piso'].forEach(k=>{
+    const a=_perf[k]; if(!a.length){ avisos.push('   '+k+': sem casos'); return; }
+    avisos.push('   '+k.padEnd(9)+' n='+a.length+' · média '+med(a)+'ms · p95 '+p95(a)+'ms'
+      +' · máx '+Math.round(Math.max.apply(null,a)*10)/10+'ms');
+  });
+
   summary.textContent=passed+'/'+cases.length+' cenários passaram'
     +(failed?' · '+failed+' falharam':'')
-    +(perf&&perf.n?' · solver p50 '+perf.p50+'ms / p95 '+perf.p95+'ms':'')
+    +(perf&&perf.n?' · Local Fit p50 '+perf.p50+'ms / p95 '+perf.p95+'ms':'')
     +' · fontes '+fpMaquina;
   if(avisos.length){
     const li=document.createElement('li');li.className='case';
@@ -428,42 +328,9 @@
     li.innerHTML='<strong>Golden desta máquina — cole em tests/corpus-golden.js</strong>'
       +'<textarea style="width:100%;height:240px" readonly></textarea>';
     results.appendChild(li);li.querySelector('textarea').value=json;
-    // O runner de CI grava o arquivo sozinho quando roda com LUMA_RECORD=1; a textarea acima
-    // atende quem abriu a página na mão.
     window.__lumaGolden=json;
     console.log(json);
   }
   document.title=(failed?'FALHOU':'OK')+' — Corpus ('+passed+'/'+cases.length+')';
-  if(_cobertura.total) avisos.push('COBERTURA Search × Solver: solver resolve '
-    +_cobertura.solverSolved+'/'+_cobertura.total+' · busca resolve '+_cobertura.searchSolved
-    +' ('+_cobertura.normal+' no normal, '+_cobertura.emergencia+' só em emergência)'
-    +' · so-solver '+(_cobertura.soSolver.length?_cobertura.soSolver.join(','):'nenhum')
-    +' · so-busca '+(_cobertura.soBusca.length?_cobertura.soBusca.join(','):'nenhum')
-    +' · inseguros barrados '+_cobertura.unsafeRejeitados
-    +' · dependem do grupo adaptativo '+_cobertura.comGrupo.length
-    +(_cobertura.comGrupo.length?' ('+_cobertura.comGrupo.join(',')+')':''));
-  if(_zona.total){
-    avisos.push('ZONA MORTA PERCEPTUAL (Fase 6.6 §13) — antes × depois nas '+_zona.total
-      +' decisões contestadas do corpus real: '+_zona.mudou+' mudaram de vencedor · '
-      +_zona.desceu+' mudaram de tier decisor');
-    _zona.linhas.forEach(l=>avisos.push('   '+l));
-  }
-  if(Object.keys(_tiers).length){
-    const t=Object.keys(_tiers).reduce((a,k)=>a+_tiers[k],0);
-    avisos.push('DISTRIBUIÇÃO DOS TIERS DECISORES no corpus real ('+t+' escolhas): '
-      +Object.keys(_tiers).sort((a,b)=>_tiers[b]-_tiers[a])
-        .map(k=>k+' '+_tiers[k]+' ('+Math.round(_tiers[k]/t*100)+'%)').join(' · '));
-  }
-  /* ── §21 · O IMPACTO MEDIDO DO BUG DE PAPEL, por cenário ───────────────────────────────── */
-  if(_papel.aplicaveis){
-    const med=_papel.deltas.reduce((a,b)=>a+b,0)/_papel.deltas.length;
-    avisos.push('PAPEL SEMÂNTICO (Fase 6.5 §21): '+_papel.mudou.length+'/'+_papel.aplicaveis
-      +' decisões do scorer legado mudariam com o papel correto'
-      +(_papel.mudou.length?' → '+_papel.mudou.join(' · '):'')
-      +' · por cenário '+Object.keys(_papel.porCenario).map(c=>c+' '
-        +_papel.porCenario[c].mudou+'/'+_papel.porCenario[c].aplicaveis).join(', ')
-      +' · papel errado no leitor legado em '+_papel.divergentes+'/'+_papel.camadas
-      +' camadas de texto · Δpenal médio da MESMA composição '+(Math.round(med*100)/100));
-  }
   window.__lumaTest={passed:passed,total:cases.length,failures:falhas,perf:perf,notas:avisos};
 })();

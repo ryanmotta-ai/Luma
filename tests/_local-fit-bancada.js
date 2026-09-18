@@ -3,19 +3,22 @@
    (com `LUMA_VERBOSE=1` para ver todas as linhas).
 
    INSTRUMENTO, NÃO PORTÃO. O `_` no nome mantém o arquivo fora da rodada padrão e do CI: ele
-   mede e nunca reprova. A pergunta que ele responde é a única que decide se vale ligar esta
-   camada na produção:
+   mede e nunca reprova. Ele nasceu para responder a pergunta que DECIDIU o produto — e a
+   resposta (87,5% dos campos) foi o que levou à remoção do Automatic Designer em 09/2026:
 
-        ATÉ ONDE O LOCAL FIT RESOLVE SOZINHO, SEM O AUTOMATIC DESIGNER?
+        ATÉ ONDE O LOCAL FIT RESOLVE SOZINHO?
+
+   Hoje ele serve para calibrar: a medição por CAMPO que ele faz é mais fina que a por ARTE do
+   `tests/corpus.html` (uma arte com quatro campos vira overflow se um só não couber).
 
    Três medições:
-     1. CORPUS SHADOW — nos mesmos materiais reais de `tests/corpus/`, quantos campos já cabem
-        no original, quantos resolvem só com wrap, quantos precisam de shrink e quantos chegam
-        em overflow. ⚠ SHADOW: nada da produção muda, nada é escrito em layer nenhum.
+     1. CORPUS POR CAMPO — nos mesmos materiais reais de `tests/corpus/`, quantos campos já
+        cabem no original, quantos resolvem só com wrap, quantos precisam de shrink e quantos
+        chegam em overflow. Trabalha em clones; nada é escrito em layer nenhum.
      2. STRESS — grade de caixas × conteúdos × fontes, para achar o limite de cada forma de
         caixa (estreita, baixa, larga/baixa, estreita/alta).
      3. BENCHMARK — custo por campo nos três regimes (cabe de primeira, wrap, shrink completo),
-        porque esta camada poderá rodar a cada tecla digitada na copy.
+        porque esta camada roda a cada tecla digitada na copy.
    ══════════════════════════════════════════════════════════════════════════════════════════ */
 (function(){
   const saida = document.getElementById('saida');
@@ -64,8 +67,8 @@
     ? gInterpolate(String(l.content||''), dados, { defaults:{}, onEmpty:'remove' })
     : String(l.content||'');
 
-  /* ══ 1. CORPUS SHADOW ══════════════════════════════════════════════════════════════════ */
-  log('══ 1. CORPUS SHADOW — materiais reais, nenhuma escrita em produção ═══════════════════');
+  /* ══ 1. CORPUS POR CAMPO ═══════════════════════════════════════════════════════════════ */
+  log('══ 1. CORPUS POR CAMPO — materiais reais, medidos em clones ══════════════════════════');
   log('');
   const corpus = window.LUMA_CORPUS || [];
   const totalCorpus = contar();

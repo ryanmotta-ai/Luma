@@ -403,6 +403,187 @@
     assert(!chamou.length, 'Local Fit chamou a outra frente: ' + chamou.join(', '));
   });
 
+
+  /* ══════════════════════════════════════════════════════════════════════════════════════
+     5. A ARTE INTEIRA — `gLocalFitArte`, o runtime oficial
+     ══════════════════════════════════════════════════════════════════════════════════════
+     Os casos acima provam UMA camada. Estes provam o contrato do produto: o que acontece com
+     a arte, com os vizinhos e com quem consome o resultado. */
+
+  const shape = (id, x, y, w, h, extra) => Object.assign({
+    id, name:id, type:'shape', shapeKind:'rect', x, y, w, h,
+    fill:'#0A0A0A', visible:true, opacity:100 }, extra || {});
+
+  /* Arte de referência: fundo + placa + preço dentro dela + título + CTA fixo + campo opcional.
+     A placa é a ÚNICA forma autorizada a se mover (ela é do próprio preço); o CTA e o fundo são
+     os terceiros que nunca podem mudar. */
+  const ARTE = () => [
+    shape('fundo', 0, 0, 1080, 1350, { fill:'#FF9000' }),
+    ponto({ id:'titulo', x:80, y:120, w:700, h:110, fontSize:80 }),
+    caixa({ id:'produto', x:80, y:280, w:620, h:150, fontSize:48 }),
+    shape('placa', 760, 260, 250, 120),
+    Object.assign(ponto({ id:'preco' }), { name:'Preço', content:'{{preco}}', x:780, y:285,
+      w:210, h:70, fontSize:56, textAlign:'center', textTransform:null,
+      layoutRefText:'R$ 29,90' }),
+    caixa({ id:'selo', name:'Selo opcional', content:'{{selo}}', x:80, y:520, w:400, h:60,
+      fontSize:32, layoutRefText:'' }),
+    Object.assign(ponto({ id:'cta' }), { name:'CTA', content:'PEÇA AGORA PELO APP', isVar:false,
+      x:80, y:640, w:420, h:56, fontSize:34, textTransform:null, layoutRefText:null })
+  ];
+  const AUTORAL = { titulo:'OFERTA DA SEMANA', produto:'Combo Burger', preco:'R$ 29,90', selo:'' };
+  const arte = (dados) => {
+    const base = gApplyRelativeAnchors(ARTE(), dados, {}, { canvas:CANVAS, scope:'franqueado' });
+    return gLocalFitArte(base, { canvas:CANVAS, dados:dados, defaults:{} });
+  };
+  const camada = (r, id) => r.layers.find(l => l.id === id);
+  const g4 = (l) => [Math.round(l.x||0), Math.round(l.y||0), Math.round(l.w||0), Math.round(l.h||0)];
+
+  test('20 · a arte que cabe sai SEM UM ÚNICO CARIMBO (original first absoluto)', () => {
+    const r = arte(AUTORAL);
+    assert(r.result.status === 'original', 'a arte autoral virou ' + r.result.status);
+    assert(r.result.changes.length === 0, 'a arte autoral registrou ' + r.result.changes.length + ' mudanças');
+    const publicado = new Map(ARTE().map(l => [l.id, l]));
+    r.layers.forEach(l => {
+      assert(JSON.stringify(g4(l)) === JSON.stringify(g4(publicado.get(l.id))),
+             '“' + l.id + '” mudou de geometria com conteúdo que cabe');
+      assert(l._tetoFonte == null, '“' + l.id + '” recebeu teto de fonte com conteúdo que cabe');
+      assert(l._layoutW == null && l._entrelinha == null,
+             '“' + l.id + '” voltou com carimbo de composição');
+    });
+  });
+
+  test('21 · TERCEIROS NUNCA MUDAM — nem quando o vizinho encolhe, nem quando ele estoura', () => {
+    [LONGO, ABSURDO].forEach(copy => {
+      const r = arte(Object.assign({}, AUTORAL, { produto:copy }));
+      const base = gApplyRelativeAnchors(ARTE(), Object.assign({}, AUTORAL, { produto:copy }), {},
+                                         { canvas:CANVAS, scope:'franqueado' });
+      const antes = new Map(base.map(l => [l.id, l]));
+      ['fundo','titulo','preco','cta','selo'].forEach(id => {
+        const a = antes.get(id), b = camada(r, id);
+        assert(JSON.stringify(g4(a)) === JSON.stringify(g4(b)),
+               '“' + id + '” se moveu por causa do produto (' + g4(a) + ' → ' + g4(b) + ')');
+        assert(b._tetoFonte == null, '“' + id + '” encolheu por causa do produto');
+      });
+    });
+  });
+
+  test('22 · a PLACA do próprio texto acompanha — e é a única geometria que o Local Fit escreve', () => {
+    const r = arte(Object.assign({}, AUTORAL, { preco:'R$ 1.249,00' }));
+    const placa = camada(r, 'placa'), publicada = ARTE().find(l => l.id === 'placa');
+    const mexeu = JSON.stringify(g4(placa)) !== JSON.stringify(g4(publicada));
+    if(!mexeu){
+      /* Se a copy do preço couber sem mudar a tinta, a placa fica igual — e isso é o contrato,
+         não uma falha. O que não pode acontecer é OUTRA forma se mover. */
+      assert(r.result.changes.every(c => !c.geometry), 'algo se moveu sem ser a placa');
+      return;
+    }
+    const geometricas = r.result.changes.filter(c => c.geometry);
+    assert(geometricas.length === 1 && geometricas[0].id === 'placa',
+           'moveu geometria de ' + geometricas.map(c => c.id).join(', ') + ' — só a placa do campo pode');
+    assert(geometricas[0].placaDe === 'preco',
+           'a placa mexeu sem dizer de qual campo ela é');
+  });
+
+  test('23 · campo opcional VAZIO não é erro, não bloqueia e não adapta nada', () => {
+    const r = arte(AUTORAL);                       // `selo` vem vazio de propósito
+    const laudo = r.result.campos.find(c => c.id === 'selo');
+    assert(laudo && laudo.status === 'vazio', 'o campo vazio não foi reportado como vazio');
+    assert(!r.result.invalid, 'campo vazio bloqueou a arte');
+    assert(r.result.status === 'original', 'campo vazio virou adaptação: ' + r.result.status);
+  });
+
+  test('24 · texto FIXO do designer não entra no encaixe — ele escreveu, ele mediu', () => {
+    const r = arte(Object.assign({}, AUTORAL, { produto:ABSURDO }));
+    assert(!r.result.campos.some(c => c.id === 'cta'),
+           'o CTA fixo entrou no laudo — encaixar o que ninguém pode editar só gera bloqueio sem saída');
+    assert(camada(r, 'cta')._tetoFonte == null, 'o CTA fixo foi encolhido');
+  });
+
+  test('25 · overflow devolve o payload de CONTENT_TOO_LARGE, com pixels e piso', () => {
+    const r = arte(Object.assign({}, AUTORAL, { produto:ABSURDO }));
+    assert(r.result.status === 'overflow', 'a copy absurda não bloqueou: ' + r.result.status);
+    const b = r.result.bloqueios[0];
+    assert(b && b.status === 'CONTENT_TOO_LARGE', 'o bloqueio não saiu tipado');
+    assert(b.fieldId === 'produto', 'o bloqueio culpou “' + b.fieldId + '”');
+    assert(b.campos.indexOf('produto') >= 0, 'o bloqueio não diz qual {{campo}} travou');
+    assert(b.overflowX > 0 || b.overflowY > 0, 'bloqueou sem excesso medido');
+    assert(b.fontSize <= b.minimumFontSize + 1,
+           'desistiu em ' + b.fontSize + 'px antes do piso de ' + b.minimumFontSize + 'px');
+    assert(b.requiredLines >= 1 && typeof b.motivo === 'string' && b.motivo.length > 0,
+           'o payload não diz quantas linhas nem por quê');
+  });
+
+  test('26 · o diagnóstico diz o LIMITE em caracteres, com o rótulo do Dado e em PT-BR', () => {
+    const antes = window.dVars;
+    window.dVars = [{ name:'produto', label:'Nome do produto', example:'Combo Burger', type:'text' }];
+    try{
+      const dados = Object.assign({}, AUTORAL, { produto:ABSURDO });
+      const r = arte(dados);
+      const d = gLocalFitDiagnostico(r.layers, r.result, dados, { canvas:CANVAS, defaults:{} });
+      assert(d && d.campo === 'produto', 'o diagnóstico não achou o campo culpado');
+      assert(d.mensagem.indexOf('Nome do produto') >= 0, 'a mensagem não usou o rótulo do Dado');
+      assert(!/\{\{|_|undefined/.test(d.mensagem), 'a mensagem vazou termo técnico: ' + d.mensagem);
+      assert(d.limite >= 0 && d.limite < dados.produto.length,
+             'o limite prometido (' + d.limite + ') não faz sentido');
+      if(d.limite){
+        const cabe = arte(Object.assign({}, dados, { produto:gLocalFitCorta(dados.produto, d.limite) }));
+        assert(!cabe.result.invalid,
+               'o limite prometido (' + d.limite + ' caracteres) ainda não cabe — a promessa é falsa');
+      }
+    }finally{ window.dVars = antes; }
+  });
+
+  test('27 · mesma entrada → mesmo resultado, byte a byte, na arte inteira', () => {
+    const dados = Object.assign({}, AUTORAL, { produto:LONGO, titulo:'SEMANA DE OFERTAS IMPERDÍVEIS' });
+    const a = arte(dados), b = arte(dados);
+    const chapa = (r) => JSON.stringify(r.layers.map(l => [l.id, g4(l), l._tetoFonte || 0]));
+    assert(chapa(a) === chapa(b), 'duas execuções idênticas divergiram');
+    assert(JSON.stringify(a.result.campos) === JSON.stringify(b.result.campos),
+           'o laudo por campo divergiu entre execuções');
+  });
+
+  test('28 · PRÉVIA = EXPORTAÇÃO: o mesmo estado alimenta os dois', async () => {
+    /* Cenário que EXERCITA o encaixe (o produto encolhe) e ainda assim CABE — paridade só faz
+       sentido quando os dois lados chegam a desenhar. */
+    const dados = Object.assign({}, AUTORAL, { produto:LONGO });
+    const pintar = async (purpose) => {
+      const cv = document.createElement('canvas'); cv.width = CANVAS.w; cv.height = CANVAS.h;
+      const out = await fRenderTemplateLayers(cv.getContext('2d'), ARTE(), CANVAS.w, CANVAS.h,
+        dados, { color:'#FF9000' }, { layers:[], w:CANVAS.w, h:CANVAS.h, bg:'#fff' },
+        { scope:'franqueado', purpose:purpose });
+      return { out, png:cv.toDataURL('image/png') };
+    };
+    const p = await pintar('preview'), e = await pintar('export');
+    assert(!p.out._layoutResult.invalid, 'o cenário escolhido bloqueia — ele precisa CABER para medir paridade');
+    const chapa = (o) => JSON.stringify(o.filter(l => l && l.type === 'text')
+      .map(l => [l.id, g4(l), l._tetoFonte || 0]));
+    assert(chapa(p.out) === chapa(e.out), 'prévia e exportação resolveram geometrias diferentes');
+    assert(p.png === e.png, 'prévia e exportação desenharam PNGs diferentes — o pior bug possível aqui');
+  });
+
+  test('29 · o custo é O(campos × degraus), não O(candidatos) — não existe busca escondida', () => {
+    const real = window.gFitTextLayer;
+    let chamadas = 0;
+    window.gFitTextLayer = function(){ chamadas++; return real.apply(this, arguments); };
+    try{
+      arte(Object.assign({}, AUTORAL, { produto:ABSURDO }));
+    }finally{ window.gFitTextLayer = real; }
+    /* 4 campos dinâmicos. Com o pior caso descendo do corpo autorado ao piso em degraus de 8%,
+       são ~35 medidas por campo, mais a base visual e o baseline. Uma beam search com 240
+       candidatos e profundidade 8 passaria MUITO disto — é essa a diferença que se cobra. */
+    assert(chamadas < 400, 'o encaixe fez ' + chamadas + ' medidas — isso tem cheiro de busca');
+    assert(chamadas > 0, 'não mediu nada — o teste não exercitou o motor');
+  });
+
+  test('30 · ⛔ nenhum símbolo de Candidate Search, scoring ou rollout existe no runtime', () => {
+    const removidos = ['gSearchLayoutCandidates','gSelectLayoutCandidate','gScoreComposition',
+      'gApplyLayoutAction','gLayoutDesignerMoves','gCompileLayoutGrammar','gCompileCompositionGraph',
+      'gCompileLayoutComponents','gLayoutElasticity','gLayoutImpactZones','gAdaptiveScaleGroups',
+      'gLayoutOperationalCapability','gShadowValidationRecord','gLayoutEscolherAlternativa'];
+    const vivos = removidos.filter(n => typeof window[n] === 'function');
+    assert(!vivos.length, 'o Automatic Designer voltou: ' + vivos.join(', '));
+  });
+
   /* ── Execução ─────────────────────────────────────────────────────────────────────── */
   let passed = 0;
   for(const item of cases){

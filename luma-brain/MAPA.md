@@ -75,6 +75,9 @@
 |---|---|
 | Campanhas, formatos, categorias de campo, ícones SVG de campo | `js/00-config.js` (`CAMPS_ATIVAS:27`) — ⚠️ campanha ainda é hardcode, criar campanha exige deploy |
 | Abas e modos (franqueado/estúdio/academia), gate por role+flag | `js/main.js` (`setMode:68`, `G_MODE_FEATURE:23`, `gModeAllowed:26`) |
+| **O texto do franqueado não cabe** — encaixe, wrap, encolhimento, bloqueio, diagnóstico | `js/core/local-fit.js` (`gLocalFitArte`) · contrato em `docs/LOCAL-FIT-CONTRACT.md` |
+| "Como este texto ocupa esta caixa" — quebra, caixa-alta, medida | `js/00-config.js` (`gFitTextLayer`) — a régua ÚNICA do render e do encaixe |
+| Papel semântico, baseline autorado, deriva de fonte, safe zone | `js/core/auto-layout.js` |
 | Toast, confirm, prompt | `js/core/toast.js` (`gToast:20`, `gConfirm:129`, `gPrompt:130`) |
 | Login, logout, role, `gIsAdmin` | `js/core/auth.js` |
 | Cliente Supabase (`window.sb`) | `js/core/supabase.js` (+ `supabase-config.js`) |
@@ -142,8 +145,10 @@ franqueado (o Quick Add em linguagem natural existiu e saiu em 03/09).
 | `fBuildPerguntas` | `js/franqueado/materials.js` | Monta as perguntas do chat (ordem, copy, par de preço). O `catalog.js` tinha a segunda montagem, mais pobre: a mesma arte perguntava diferente conforme a porta de entrada |
 | Smart resize | `js/core/layout.js` (`gReflowLayers:67`) | Re-ancora entre formatos por fator único. Nunca redimensione à mão |
 | Ordem das perguntas | `js/00-config.js` (`gSortTemplateVars`) | Peso semântico por conceito; `ordemManual` no catálogo faz a ordem do array vencer. Lido por `materials.js`, `catalog.js` e pelo painel Campos |
-| Solver de composição | `js/00-config.js:1745` (`gApplyRelativeAnchors`) | Âncoras relativas |
-| Julgamento de layout | `js/core/auto-layout.js` | A camada que decide, acima do solver |
+| Âncoras relativas | `js/00-config.js` (`gApplyRelativeAnchors`) | Interpola o conteúdo e resolve a âncora MANUAL do designer. **Só isso** — a escada de recomposição saiu em 09/2026 |
+| Encaixe do texto | `js/core/local-fit.js` (`gLocalFitArte`) | O texto cabe na PRÓPRIA caixa autorada, ou bloqueia. ⛔ Nada se move |
+| Medida do texto | `js/00-config.js` (`gFitTextLayer`) | "Como este texto ocupa esta caixa" — a régua do render, do encaixe e do Estúdio |
+| Leitura da arte | `js/core/auto-layout.js` | Baseline autorado, deriva de fonte, papel semântico, safe zone, quebra semântica. Descreve, não decide |
 | Feature flags | `js/core/feature-flags.js` | Nenhum outro arquivo fala com a tabela de flags |
 | Tubulação de IA | `js/core/ai.js` (`gAskAI:78`) | Ninguém monta `fetch` para o modelo na mão |
 | Tokens | `css/00-tokens.css` | Cor e motion nascem aqui |
@@ -204,18 +209,17 @@ CHROMIUM_PATH=/caminho/chrome node scripts/run-browser-tests.js
 
 | Suíte | Cobre | Casos |
 |---|---|---|
-| `tests/auto-layout.html` | invariantes do solver de layout | 34 |
-| `tests/corpus.html` | corpus de composições reais + golden de geometria + **ORIGINAL FIRST** (conteúdo que cabe → geometria idêntica ao desenho publicado) | 25 |
-| `tests/fuzz.html` | exceção, `NaN`, laço que não converge, bloqueio sem diagnóstico | 63 |
-| `tests/scoring.html` | **calibração do julgamento** (Fases 6.5 e 6.6): pares controlados A/B, hierarquia relativa contra a referência autoral, violações duras com fixture positivo e negativo, invariantes, adversariais, sensibilidade/cliff, papel efetivo, auditoria legacy × papel corrigido, **medição do ruído da métrica, zonas mortas perceptuais, winnerFlipRate e o Candidate Safety Contract** | 86 |
-| `tests/shadow.html` | **Shadow Validation** (Fase 7): 341 execuções do pipeline novo ao lado do solver, com gerador determinístico de variações de conteúdo · classificação legado × novo · equivalência em 5 níveis · confiança e sua validação · estabilidade sob perturbação de entrada · saúde por template · injeção de falha | 19 |
+| `tests/local-fit.html` | **o comportamento do produto**: a escada (original → wrap → shrink → piso), caixa 2D, `maxLines`, palavra longa, caixa alta, fonte display, preço/unidade, campo vazio, placa local, **terceiros nunca mudam**, determinismo, **prévia = exportação** e o portão de que nenhum símbolo do Automatic Designer voltou | 37 |
+| `tests/auto-layout.html` | as primitivas de leitura (baseline autorado, deriva de fonte, papel semântico, safe zone, quebra semântica) + os invariantes do que sobrou das âncoras | 14 |
+| `tests/corpus.html` | 6 pranchetas reais × 4 níveis de copy (curto/médio/longo/extremo) + golden de geometria e imagem + **ORIGINAL FIRST** (conteúdo que cabe → geometria idêntica ao desenho publicado) + a distribuição de quanto o Local Fit resolve sozinho | 30 |
+| `tests/fuzz.html` | exceção, `NaN`, laço que não converge, bloqueio sem diagnóstico, terceiros movidos | 63 |
 | `tests/psd-import.html` | regressão do importador de PSD (geometria de texto, alpha, raster, selo de fidelidade) | 10 |
 | `tests/export.html` | contrato de saída: dimensões e escala do que o franqueado baixa | 3 |
 | `tests/search-feedback.html` | busca do catálogo, feedback (convite pós-download + carência) e eventos offline | 34 |
 | `tests/franqueado-honestidade.html` | material-demo vs. material real, validade real, estados vazios/erro do catálogo + **rótulo nunca cru**, ordem semântica das perguntas, par de preço | 36 |
 | `tests/franqueado-fluxo.html` | **chat e prévia como uma verdade só** + **controle e confiança**: refazer confirma e desfaz, snapshot completo, enquadramento, contexto por formato, carência do feedback, entrega enxuta | 34 |
-| `tests/_bancada.html` | bancada de sondagem do Auto-layout (exploração, não é portão) | — |
-| `tests/_perf-search.html` | bancada de desempenho da Candidate Search: decomposição por etapa, custo por candidato e teto de cada otimização (não é portão) | — |
+| `tests/_bancada.html` | bancada de sondagem do encaixe (exploração, não é portão) | — |
+| `tests/_local-fit-bancada.html` | bancada do Local Fit: corpus por campo, grade de stress e benchmark (não é portão) | — |
 | `tests/_paridade-render.html` | bancada: distância entre a saída do Estúdio e a do franqueado | — |
 
 **Como respeita a 1ª lei:** o runner fala DevTools Protocol direto, com o WebSocket nativo do
@@ -223,10 +227,11 @@ Node 22 e o Chromium que já existe na máquina. Zero dependência, nenhum `npm 
 disso entra no `index.html`. `.github/workflows/tests.yml` roda a cada push e PR que toque
 `js/**` — **é portão de CI, reprova o commit.**
 
-**O que a suíte cobre e o que não cobre:** ela cobre o solver de layout, o importador de PSD, a
-busca/feedback do catálogo e — desde 09/2026 — o **fluxo de respostas do chat e da prévia**
-(`franqueado-fluxo`) e o **catálogo de rótulos** (`franqueado-honestidade`). Ela **não** cobre o
-interpolador, o gerador de PNG, o Estúdio nem a aparência de nada — CSS, layout de coluna, cor e
+**O que a suíte cobre e o que não cobre:** ela cobre o **encaixe do texto** (Local Fit, corpus e
+fuzz), as primitivas de leitura da arte, o importador de PSD, a busca/feedback do catálogo e —
+desde 09/2026 — o **fluxo de respostas do chat e da prévia** (`franqueado-fluxo`) e o **catálogo
+de rótulos** (`franqueado-honestidade`). Ela **não** cobre o interpolador, o gerador de PNG, o
+Estúdio nem a aparência de nada — CSS, layout de coluna, cor e
 motion continuam sendo verificação no navegador. Suíte verde não substitui abrir o fluxo tocado.
 
 ⚠️ **Uma classe de bug que a suíte NÃO pega e o navegador pega em 1 segundo:** colisão de
@@ -247,7 +252,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 | Cache-busting: **um `?v=N` para todos** os assets de `js/` e `css/` | `index.html` — `sed -i 's/?v=9/?v=10/g' index.html` (`03_ENGINEERING` §6.1) |
 | Ordem de carga dos `<script>` | `index.html` — a lista completa está no trecho gerado |
 | Backup diário | `.github/workflows/` + `scripts/backup-storage.js` |
-| Suítes de regressão (solver de layout, PSD) | `tests/*.html` + `scripts/run-browser-tests.js` |
+| Suítes de regressão (encaixe do texto, PSD, catálogo) | `tests/*.html` + `scripts/run-browser-tests.js` |
 | Este mapa | `scripts/mapa.js` |
 
 ---
@@ -257,15 +262,15 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 80 arquivos JS (73.091 linhas, 2.688 funções) · 31 arquivos CSS (29.239 linhas) · `index.html` com 3.916 linhas e 80 `<script>`.
+**Tamanho real de hoje:** 80 arquivos JS (65.772 linhas, 2.537 funções) · 31 arquivos CSS (29.262 linhas) · `index.html` com 3.916 linhas e 81 `<script>`.
 
 ## JS — o que cada arquivo é
 
 ### js (raiz)
 
-**`js/00-config.js`** · 3915 linhas
+**`js/00-config.js`** · 2634 linhas
 Constantes globais imutaveis: HIST_KEY, CAMPS_ATIVAS, CAMPS_OUTRAS, FMTS. Deve ser carregado PRIMEIRO (todos os modulos dependem destas constantes).
-· API: gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss, gGradientCanvas … (+68; 113 funções no total)
+· API: gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss, gGradientCanvas … (+50; 86 funções no total)
 · Estado global: _G_MEDIDA_CACHE, gLayoutVivoOff, _gCanvasWrap
 
 **`js/01-state.js`** · 11 linhas
@@ -304,9 +309,9 @@ AUTH via Supabase (Fase 5.1). Login/logout/recuperação usam supabase.auth (win
 · API: gRoleLevel, gLoadProfile, gLogin, gLogout, gCurrentUser, gCurrentRole, gIsAdmin, gIsSuperAdmin, gCanManageUsers, gForgotPassword, gResetPassword, gAuthLinkPendente, gNovaSenhaResolvida, gGetAllUsers … (+16; 32 funções no total)
 · Estado global: gAuthState
 
-**`js/core/auto-layout.js`** · 6935 linhas
-AUTO-LAYOUT — a camada de JULGAMENTO O solver de composição mora em `00-config.js` (`gApplyRelativeAnchors`):
-· API: gLayoutFontProbe, gStampLayoutBaseline, gLayoutLimpaCarimbos, gLayoutTextoAutorado, gEnsureLayoutBaseline, gLayoutFontDrift, gLayoutFontStatus, gLayoutRefInk, gLayoutRoleOf, gLayoutSemanticRole, gCompileLayoutRoles, gLayoutRoleMaxLines, gLayoutCampoEhPreco, gLayoutEhPrecoDinamico … (+102; 156 funções no total)
+**`js/core/auto-layout.js`** · 545 linhas
+AUTO-LAYOUT — as primitivas de LEITURA da arte ⚠ O QUE ESTE ARQUIVO DEIXOU DE SER (09/2026).
+· API: gLayoutFontProbe, gStampLayoutBaseline, gLayoutLimpaCarimbos, gLayoutTextoAutorado, gEnsureLayoutBaseline, gLayoutFontDrift, gLayoutFontStatus, gLayoutRefInk, gLayoutSemanticRole, gCompileLayoutRoles, gLayoutRoleMaxLines, gLayoutCampoEhPreco, gLayoutEhPrecoDinamico, gLayoutSafeZones … (+8; 22 funções no total)
 · Estado global: _gLayoutTempos
 
 **`js/core/console.js`** · 887 linhas
@@ -341,9 +346,9 @@ Armazenamento de imagens grandes (fundos de PSD, fotos) em IndexedDB, fora do lo
 · API: gInferAnchor, gEnsureAnchors, gReflowLayers, gFmtKey
 · Depende de: nada (puro). Carregar antes de franqueado/ e designer/.
 
-**`js/core/local-fit.js`** · 327 linhas
+**`js/core/local-fit.js`** · 564 linhas
 LOCAL FIT CONTRACT — o texto tenta caber na PRÓPRIA CAIXA antes de qualquer composição EXPLICIT > INFERRED.
-· API: gAuthoredTextBox, gFitTextToAuthoredBox
+· API: gAuthoredTextBox, gFitTextToAuthoredBox, gLocalFitArte, gLocalFitCorta, gLocalFitRotulo, gLocalFitMensagem, gLocalFitDiagnostico
 · Estado global: _gLfCanvas
 · Depende de: 00-config.js (gFitTextLayer, gSmartWrapText, gLayoutPisoFonte, gLineHeightDe,
 
@@ -396,15 +401,15 @@ Catalogo de campanhas: fRenderCatalogs, fFilterCamps, fSelectCamp, fSwitchTab, f
 · Estado global: fHistFilter, _fHistPreviewCache, _fHistPreviewRun, _fHistPreviewObserver, _fhFilter, _fhRevealIO, _fhRevealGen, _fhStickyBound, _fhSemanticResult, _fhSearchTimer
 · Depende de: 00-config.js, 01-state.js
 
-**`js/franqueado/chat-input.js`** · 645 linhas
+**`js/franqueado/chat-input.js`** · 688 linhas
 F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES define o comportamento de cada variavel do template.
-· API: fMaxLenDaCaixa, fGetFieldType, fCleanTextNumber, fApplyMask, fValidate, fShowFieldError, fAttachInputGuard, fUpdateCharCount, fFitTextWithAI, fFitApply, fSaveAdv, fInitSmartInputFormatter
+· API: fMaxLenDaCaixa, fMarcaLimiteSeguro, fLimiteSeguro, fAlvoDoCampo, fGetFieldType, fCleanTextNumber, fApplyMask, fValidate, fShowFieldError, fAttachInputGuard, fUpdateCharCount, fFitTextWithAI, fFitApply, fSaveAdv … (+1; 21 funções no total)
 · Estado global: _F_MAXLEN_MED, _fFitOpts, _fFitBusy
 · Depende de: 00-config.js
 
-**`js/franqueado/chat.js`** · 3190 linhas
+**`js/franqueado/chat.js`** · 3245 linhas
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
-· API: fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fVoltarParaEdicao, fAbrirRevisao, fPosEdicao … (+56; 141 funções no total)
+· API: fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fVoltarParaEdicao, fAbrirRevisao, fPosEdicao … (+57; 142 funções no total)
 · Estado global: fNextTimeout, _fGuidedNav, _fGuidedTimer, _fGuidedBound, _fProntaCtxAberto, _fRevisando, _fArtSnapshots, _fArtCaptions, _fGerarSeq, _fUndoSlot
 · Depende de: 00-config.js, 01-state.js, franqueado/chat-input.js
 
@@ -419,7 +424,7 @@ Historico de artes do franqueado: fGetHist, fSaveHist, fAddHist, fMarkHistBaixad
 · Estado global: _fArtesPushBusy, _fArtesPushQueued
 · Depende de: 00-config.js (HIST_KEY), 01-state.js (fState)
 
-**`js/franqueado/live-preview.js`** · 2926 linhas
+**`js/franqueado/live-preview.js`** · 2960 linhas
 Preview lateral em tempo real (fUpdateLivePreview) e modal de preview multi-formato (fOpenPreview, fClosePreview, fStartFromPreview).
 · API: fOpenPreview, fStartFromPreview, fClosePreview, fPostedRepintaLegenda, fPostedSetCtx, fPostedCloseQR, fPostedOpenQR, fPostedCopyQRLink, fPostedContextForFormat, fLpTrocarContexto, fOpenPosted, fClosePosted, fDemoAtivo, fDemoModo … (+21; 133 funções no total)
 · Estado global: _postedArt, renderizada, _postedCtx, _pstStageBound, _pstTiltRaf, _pstQRUrl, _pstQRBusy, _lpConclusaoAtiva, _lpCardPintado, _lpConclusaoSaindo (+26)
@@ -437,7 +442,7 @@ Drag & drop das 3 colunas do workspace do franqueado (só desktop largo).
 · Estado global: _panelOrder, _panelDrag
 · Depende de: index.html (grips + #fran-main), css/modules/panel-dock.css,
 
-**`js/franqueado/png-generator.js`** · 5015 linhas
+**`js/franqueado/png-generator.js`** · 4997 linhas
 Geracao de PNG a partir dos templates: fGenPNG, fRenderTemplateLayers, fBaixar, fOutroFormato. Sistema de nomenclatura padronizado para downloads.
 · API: fLoadLogoBranca, fMaterialSize, fExportScale, fRenderCanvasHelper, fGenPNG, fGenPDF, fPostarInstagram, fEnviarWhatsApp, fDrawDMLogo, fAdjustImageData, fRenderTemplateLayers, fTraceLayerShape, fRenderOneLayer, roundedRect … (+71; 159 funções no total)
 · Estado global: _fLogoBrancaImg, fBulkRows, _fBulkAudit, _fBulkAsyncAudit, _fBulkAuditFingerprint, _fBulkImageAudit, _fBulkAutosaveTimer, _fBulkAutosaveSeq, _fBulkGenerationState, _fBulkPreflightRunning (+39)
@@ -471,7 +476,7 @@ Sistema de pincel/borracha/carimbo: dPaintStart, dPaintMove, dPaintEnd, dStampAt
 · Estado global: dStampSource, dStampOffset, dGradStart, dBrush, dStampAligned, _dSharpenC1, _dSharpenC2, dNitidezLast, _dNitidezHinted, dFormaLast (+7)
 · Depende de: designer/canvas.js
 
-**`js/designer/canvas.js`** · 2542 linhas
+**`js/designer/canvas.js`** · 2543 linhas
 Render do canvas, zoom, pan, formato, réguas, barra contextual, smart guides, simulacao de dados e interacoes de mouse.
 · API: dSetFormat, dApplyFormat, dFitToScreen, dPositionArtboard, dZoom, dSetZoom, dSampleImg, dSetPhTest, dEscolherFotoDaMoldura, dRenderWorkspace, dABAddResizeHandles, dUpdateBrushCursor, dSetTool, dEnsureMarqueeEl … (+57; 83 funções no total)
 · Estado global: dPhTestAR, dMarquee, dDrawShapeState, dABDraw, dLastClickLayerId, dLastClickTime, dPainting, dPaintLast, dSnapEnabled, dSimValues (+11)
@@ -705,14 +710,14 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/modules/console.css` | 244 |
 | `css/modules/designer.css` | 5362 |
 | `css/modules/feedback.css` | 199 |
-| `css/modules/franqueado.css` | 1593 |
+| `css/modules/franqueado.css` | 1595 |
 | `css/modules/franqueado_effects.css` | 406 |
 | `css/modules/help-widget.css` | 1678 |
 | `css/modules/layers-panel.css` | 4530 |
-| `css/modules/live-preview.css` | 1268 |
+| `css/modules/live-preview.css` | 1288 |
 | `css/modules/panel-dock.css` | 116 |
 | `css/modules/publish-modal.css` | 628 |
-| `css/modules/toolbar.css` | 1034 |
+| `css/modules/toolbar.css` | 1035 |
 | `css/modules/topbar.css` | 217 |
 | `css/modules/upload-panel.css` | 136 |
 
@@ -730,77 +735,78 @@ A ordem **é** a arquitetura: sem ESM, um arquivo depende de o anterior já ter 
  7. js/core/qr.js
  8. js/core/layout.js
  9. js/core/auto-layout.js
-10. js/core/help.js
-11. js/tutorial/catalog.js
-12. js/tutorial/mocks.js
-13. js/tutorial/mocks-studio.js
-14. js/tutorial/catalog-studio.js
-15. js/tutorial/engine.js
-16. js/franqueado/history.js
-17. js/franqueado/prefs.js
-18. js/franqueado/catalog.js
-19. js/franqueado/search.js
-20. js/franqueado/materials.js
-21. js/franqueado/chat.js
-22. js/franqueado/live-preview.js
-23. js/franqueado/panel-dock.js
-24. js/franqueado/upload-panel.js
-25. js/franqueado/chat-input.js
-26. js/academia/motion.js
-27. js/academia/academia.js
-28. js/academia/aula.js
-29. js/academia/agente.js
-30. js/academia/gestao.js
-31. js/academia/certificado.js
-32. js/academia/conclusao.js
-33. js/calendario/conteudo.js
-34. js/calendario/calendario.js
-35. js/calendario/agenda.js
-36. js/calendario/evento.js
-37. js/calendario/apresentacao.js
-38. js/designer/blending.js
-39. js/franqueado/png-generator.js
-40. js/designer/templates.js
-41. js/designer/canvas.js
-42. js/designer/selection.js
-43. js/designer/brush.js
-44. js/designer/eraser-tools.js
-45. js/designer/layers.js
-46. js/designer/props-panel.js
-47. js/designer/measurement.js
-48. js/designer/publish.js
-49. js/designer/preview.js
-50. js/designer/library.js
-51. js/designer/undo-redo.js
-52. js/widgets/help-widget.js
-53. js/designer/tools.js
-54. js/designer/fonts.js
-55. js/designer/psd-parse.js
-56. js/designer/psd-import.js
-57. js/designer/mask.js
-58. js/designer/tutorial-panel.js
-59. assets/vendor/colorthief.js
-60. assets/vendor/pica.js
-61. assets/vendor/jszip.min.js
-62. assets/vendor/supabase.js
-63. js/core/supabase-config.js
-64. js/core/supabase.js
-65. js/core/ai/ai-cache.js
-66. js/core/ai/ai-telemetry.js
-67. js/core/ai/ai-schemas.js
-68. js/core/ai/ai-registry.js
-69. js/core/ai/ai-client.js
-70. js/core/ai.js
-71. js/core/auth.js
-72. js/franqueado/feedback.js
-73. js/core/feature-flags.js
-74. js/core/user-profile.js
-75. js/core/product-control.js
-76. js/core/console.js
-77. js/designer/color-picker.js
-78. js/designer/tooltip.js
-79. js/designer/linter.js
-80. js/main.js
+10. js/core/local-fit.js
+11. js/core/help.js
+12. js/tutorial/catalog.js
+13. js/tutorial/mocks.js
+14. js/tutorial/mocks-studio.js
+15. js/tutorial/catalog-studio.js
+16. js/tutorial/engine.js
+17. js/franqueado/history.js
+18. js/franqueado/prefs.js
+19. js/franqueado/catalog.js
+20. js/franqueado/search.js
+21. js/franqueado/materials.js
+22. js/franqueado/chat.js
+23. js/franqueado/live-preview.js
+24. js/franqueado/panel-dock.js
+25. js/franqueado/upload-panel.js
+26. js/franqueado/chat-input.js
+27. js/academia/motion.js
+28. js/academia/academia.js
+29. js/academia/aula.js
+30. js/academia/agente.js
+31. js/academia/gestao.js
+32. js/academia/certificado.js
+33. js/academia/conclusao.js
+34. js/calendario/conteudo.js
+35. js/calendario/calendario.js
+36. js/calendario/agenda.js
+37. js/calendario/evento.js
+38. js/calendario/apresentacao.js
+39. js/designer/blending.js
+40. js/franqueado/png-generator.js
+41. js/designer/templates.js
+42. js/designer/canvas.js
+43. js/designer/selection.js
+44. js/designer/brush.js
+45. js/designer/eraser-tools.js
+46. js/designer/layers.js
+47. js/designer/props-panel.js
+48. js/designer/measurement.js
+49. js/designer/publish.js
+50. js/designer/preview.js
+51. js/designer/library.js
+52. js/designer/undo-redo.js
+53. js/widgets/help-widget.js
+54. js/designer/tools.js
+55. js/designer/fonts.js
+56. js/designer/psd-parse.js
+57. js/designer/psd-import.js
+58. js/designer/mask.js
+59. js/designer/tutorial-panel.js
+60. assets/vendor/colorthief.js
+61. assets/vendor/pica.js
+62. assets/vendor/jszip.min.js
+63. assets/vendor/supabase.js
+64. js/core/supabase-config.js
+65. js/core/supabase.js
+66. js/core/ai/ai-cache.js
+67. js/core/ai/ai-telemetry.js
+68. js/core/ai/ai-schemas.js
+69. js/core/ai/ai-registry.js
+70. js/core/ai/ai-client.js
+71. js/core/ai.js
+72. js/core/auth.js
+73. js/franqueado/feedback.js
+74. js/core/feature-flags.js
+75. js/core/user-profile.js
+76. js/core/product-control.js
+77. js/core/console.js
+78. js/designer/color-picker.js
+79. js/designer/tooltip.js
+80. js/designer/linter.js
+81. js/main.js
 ```
 
 <!-- AUTO-FIM -->

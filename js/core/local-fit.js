@@ -14,15 +14,16 @@
      · não move, não empurra e não redimensiona NENHUM outro layer (nem o próprio: devolve
        valor, nunca escreve na camada recebida);
      · não escala componente, não abre corredor, não usa emergência;
-     · não fala com Candidate Search, beam, scoring, adaptive scale groups nem
-       `gLayoutEscolherAlternativa`;
+     · não fala com Candidate Search, beam, scoring nem adaptive scale groups — nada disso
+       existe mais no repositório;
      · não cria segunda quebra (`gSmartWrapText` é a única) nem segundo piso
        (`gLayoutPisoFonte` em modo NORMAL é o único) nem segunda medida (`gFitTextLayer` é a
        régua do render — medir diferente do render é como prévia e arquivo final divergiram).
 
-   ⚠ NÃO ESTÁ NO `index.html` DE PROPÓSITO. Enquanto for shadow-only, nenhum byte de produção
-   depende disto; só as suítes de `tests/` carregam o arquivo. Ligar na produção é decisão de
-   outra tarefa — e aí sim entra o `?v=N`.
+   ✅ ESTE É O RUNTIME OFICIAL desde 09/2026. `gLocalFitArte` (§3) é o que a prévia e o
+   arquivo final chamam; o Automatic Designer (grammar, graph, components, elasticity, moves,
+   candidate search, scoring, rollout) foi REMOVIDO do repositório, e a escada de recomposição
+   do `gApplyRelativeAnchors` saiu junto. Não existe mais caminho que empurre terceiros.
 
    ── As duas invariantes que sustentam tudo ────────────────────────────────────────────────
    1. A CAIXA AUTORADA NUNCA VEM DA GEOMETRIA ADAPTADA. `gApplyRelativeAnchors` trabalha em
@@ -61,7 +62,7 @@ function _gLfCtx(ctxAux){
   return _gLfCanvas.getContext('2d');
 }
 
-/* Os carimbos transitórios da cascata. `gLayoutLimpaCarimbos` é o dono desta lista; a cópia
+/* Os carimbos transitórios do encaixe. `gLayoutLimpaCarimbos` é o dono desta lista; a cópia
    local só existe para o caso de `auto-layout.js` não ter carregado (suíte enxuta). */
 function _gLfLimpa(l){
   if(typeof gLayoutLimpaCarimbos === 'function') return gLayoutLimpaCarimbos(l);
@@ -92,7 +93,7 @@ function gAuthoredTextBox(layer, opts){
   const origemCaixa = ref ? 'layoutRef' : (base ? '_layoutBase' : 'camada');
 
   /* A camada de PROVA: os campos autorados por cima da camada já sem carimbos. É ela que vai
-     ao `gFitTextLayer` — a medida não pode ver nada que a cascata tenha deixado para trás. */
+     ao `gFitTextLayer` — a medida não pode ver nada que uma passada anterior tenha deixado. */
   const camada = Object.assign({}, limpo, {
     x: Math.round((ref ? ref.x : (base ? base.x : limpo.x)) || 0),
     y: Math.round((ref ? ref.y : (base ? base.y : limpo.y)) || 0),
@@ -126,7 +127,7 @@ function gAuthoredTextBox(layer, opts){
     camada._pisoLegivel = camadaPiso._pisoLegivel;
   }
   const piso = (typeof gLayoutPisoFonte === 'function')
-    ? Math.min(fontSize, Math.max(8, Math.round(gLayoutPisoFonte(camadaPiso, false))))
+    ? Math.min(fontSize, Math.max(8, Math.round(gLayoutPisoFonte(camadaPiso))))
     : Math.max(8, Math.round(fontSize * 0.5));
 
   /* A TINTA AUTORADA. `layoutRef.ink`/`layoutRef.linhas` já guardam a medida feita no vínculo;
@@ -136,7 +137,8 @@ function gAuthoredTextBox(layer, opts){
   let tinta = (ref && ref.ink) ? { w: ref.ink.w || 0, h: ref.ink.h || 0 } : { w:0, h:0 };
   let linhasAutoradas = (ref && ref.linhas) || 0;
   if((!tinta.w && !tinta.h) && textoAutorado && typeof gFitTextLayer === 'function'){
-    const f = gFitTextLayer(camada, textoAutorado, _gLfCtx(opts.ctx), { encolher:false });
+    const f = gFitTextLayer(camada, textoAutorado, _gLfCtx(opts.ctx),
+                           { encolher:false, runs: opts.runs || null });
     tinta = { w: Math.round(f.larguraMax || 0), h: Math.round(f.altura || 0) };
     linhasAutoradas = (f.lines && f.lines.length) || 1;
   }
@@ -147,7 +149,7 @@ function gAuthoredTextBox(layer, opts){
      `_layoutW` do guardião faz), e isso é da outra camada. Texto de ponto só encolhe. */
   const quebravel = (camada.textBox === 'box') && !camada.vertical;
 
-  const maxLinhasEditorial = _gLfMaxLinhasEditorial(layer, camada);
+  const editorial = _gLfMaxLinhasEditorial(layer, camada);
 
   return {
     v: G_LOCAL_FIT_V,
@@ -164,7 +166,8 @@ function gAuthoredTextBox(layer, opts){
     textoAutorado,
     tintaAutorada: tinta,
     linhasAutoradas,
-    maxLinhasEditorial,
+    maxLinhasEditorial: editorial.n,
+    maxLinhasDuro: editorial.duro,
     /* O espaço REAL de cada eixo (ver invariante 2 do cabeçalho). */
     larguraDisponivel: Math.max(_gLfLarguraCaixa(camada, fontSize), tinta.w || 0),
     alturaDisponivel: Math.max(camada.h || 0, tinta.h || 0)
@@ -175,10 +178,15 @@ function gAuthoredTextBox(layer, opts){
    Regra explícita vence sempre; sem ela, infere-se de forma conservadora.
 
    1. EXPLÍCITO — `layer.maxLines` (número finito > 0). É o único campo que um designer/campo
-      pode definir à mão e ele manda em tudo.
+      pode definir à mão, e o ÚNICO que BLOQUEIA. Os outros dois são preferência.
    2. SEMÂNTICO — `_gLayoutMaxLinhas(camada)`, que já cruza papel compilado (`layoutSemantic`)
       e, como rede, o nome/conteúdo. Título 3, preço 2, CTA 2, legal 8, apoio 4.
       ⛔ `_layoutMaxLines` (com underscore) NÃO entra: é carimbo de runtime, geometria adaptada.
+      ⚠ ISTO É PREFERÊNCIA EDITORIAL, NÃO DANO — e a diferença custou caro. O motor antigo
+      bloqueava por aqui: 12 dos 14 bloqueios do corpus eram artes INTEIRAS dentro da prancheta,
+      sem tocar em nada, barradas só pelo teto semântico. Bloquear por preferência deixa o
+      franqueado sem arte E sem saída, porque reduzir linhas exige uma caixa MAIS LARGA — e
+      alargar caixa é recompor, que saiu do produto. Então o teto semântico informa, não trava.
    3. GEOMÉTRICO — quantas linhas cabem na altura disponível NO CORPO DAQUELE PASSO:
       `floor(alturaDisponivel / (fontSize × lineHeight))`. Recalculado a cada degrau de
       encolhimento de propósito: um corpo menor cabe em mais linhas, e travar o teto no corpo
@@ -189,9 +197,9 @@ function gAuthoredTextBox(layer, opts){
    O valor final é `max(linhasAutoradas, min(editorial, geométrico))`. */
 function _gLfMaxLinhasEditorial(layer, camada){
   const explicito = Number(layer && layer.maxLines);
-  if(Number.isFinite(explicito) && explicito > 0) return Math.round(explicito);
-  if(typeof _gLayoutMaxLinhas === 'function') return _gLayoutMaxLinhas(camada);
-  return 4;
+  if(Number.isFinite(explicito) && explicito > 0) return { n: Math.round(explicito), duro: true };
+  const n = (typeof _gLayoutMaxLinhas === 'function') ? _gLayoutMaxLinhas(camada) : 4;
+  return { n, duro: false };
 }
 
 function _gLfMaxLinhas(box, fs){
@@ -242,14 +250,15 @@ function gFitTextToAuthoredBox(layer, conteudo, opts){
     /* `fontSize` cru, nunca `_tetoFonte`: o teto é carimbo da cascata e a prova tem que ser
        lida como camada autorada de outro corpo, não como camada já adaptada. */
     const prova = Object.assign({}, box.camada, { fontSize: fs });
-    const f = gFitTextLayer(prova, texto, ctx, { encolher:false });
+    const f = gFitTextLayer(prova, texto, ctx, { encolher:false, runs: opts.runs || null });
     const linhas = (f.lines || []).length;
     const dispX = _gLfLarguraDisponivel(box, fs);
     const dispY = box.alturaDisponivel;
     const maxLinhas = _gLfMaxLinhas(box, fs);
     const overflowX = Math.max(0, Math.round((f.larguraMax || 0) - dispX));
     const overflowY = Math.max(0, Math.round((f.altura || 0) - dispY));
-    const excedeuLinhas = linhas > maxLinhas;
+    /* Só o teto EXPLÍCITO reprova. O semântico entra no laudo e não no veredito (ver §1). */
+    const excedeuLinhas = box.maxLinhasDuro && linhas > maxLinhas;
 
     passos.push({ fontSize:fs, linhas, maxLinhas, overflowX, overflowY });
     ultimo = { f, fs, linhas, maxLinhas, overflowX, overflowY, dispX, dispY, passo:i };
@@ -323,4 +332,232 @@ function _gLfPlaca(box, u, opts){
   return { id:p.id, mismatch: !cabe, placa: pRect, tinta: tintaNova, sugerida,
            motivo: cabe ? 'a placa ainda abraça a tinta'
                         : 'a tinta passou da placa desenhada — diagnóstico apenas, nada foi movido' };
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   3. LOCAL FIT DA ARTE — o runtime oficial
+   ════════════════════════════════════════════════════════════════════
+   A §2 responde por UMA camada. Esta responde pela ARTE inteira, e é o que a prévia e a
+   exportação chamam. O contrato é o mesmo, escalado:
+
+     conteúdo novo → caixa autorada de cada texto → cabe? → render
+                                                  → não cabe no piso? → CONTENT_TOO_LARGE
+
+   ⛔ O QUE ELA NÃO FAZ (e é o motivo de existir): não empurra, não reancora, não abre corredor,
+   não escala componente, não gera candidato, não pontua, não escolhe. Terceiros NUNCA mudam.
+   A única exceção é a do contrato: a PLACA explicitamente ligada ao próprio texto acompanha a
+   tinta dele, pela primitiva já validada (`_gInferirPlacas` + `gLayoutPlacaSegue`).
+
+   ORIGINAL FIRST ABSOLUTO: quando o conteúdo cabe como o designer desenhou, a camada sai daqui
+   SEM UM ÚNICO CARIMBO — é o mesmo objeto que a arte publicada produz. Não é tolerância de
+   comparação, é ausência de escrita.
+
+   COMO O RESULTADO CHEGA AO DESENHO: o único carimbo é `_tetoFonte`. `gFitTextLayer` (a régua
+   do render, em `00-config.js`) lê `min(_tetoFonte, fontSize)` como corpo de partida, então
+   prévia e PNG desenham no corpo que o Local Fit decidiu — sem segundo motor e sem segunda
+   medida. É daí que sai a paridade do item 13.
+
+   @returns {object} { layers, result } — `result` mantém as chaves que a prévia, a telemetria
+   e o Estúdio já liam (`status`, `invalid`, `invalidIds`, `changes`, `requiresAdaptation`) e
+   acrescenta `campos` (o laudo por campo) e `bloqueios` (o payload de CONTENT_TOO_LARGE). */
+function gLocalFitArte(layers, opts){
+  opts = opts || {};
+  const cv = opts.canvas || null;
+  const dados = opts.dados || {};
+  const defaults = (opts.defaults !== undefined && opts.defaults !== null) ? opts.defaults
+                 : ((typeof gVarDefaults === 'function') ? gVarDefaults() : null);
+  const ctx = _gLfCtx(opts.ctx);
+  const out = (layers || []).map(l => Object.assign({}, l));
+  const _t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
+
+  /* As MESMAS preparações que a cascata fazia antes de medir — baseline autorado, papel
+     semântico e piso de hierarquia. Elas não movem nada: descrevem o desenho. Sem elas o piso
+     do Local Fit não seria o piso da produção, e o encaixe pararia no corpo errado. */
+  if(typeof gEnsureLayoutBaseline === 'function') gEnsureLayoutBaseline(out, ctx);
+  if(typeof gCompileLayoutRoles === 'function' && out.some(l => l && l.layoutSemantic == null))
+    gCompileLayoutRoles(out, cv);
+  if(typeof gStampPisosHierarquia === 'function') gStampPisosHierarquia(out, cv);
+
+  /* PLACAS (item 9). `_gInferirPlacas` é a régua estrutural já validada: retângulo ou pill
+     horizontal, atrás no z-order, abraçando a tinta pelos quatro lados, no máximo 6× a área do
+     texto, UM texto só e com campo. Ela carimba `_placa` na FORMA, dizendo de qual texto a
+     forma é placa. Nenhuma outra camada é tocada. */
+  const baseVisual = (typeof _gLayoutBaseVisual === 'function')
+    ? _gLayoutBaseVisual(out, defaults, ctx) : {};
+  if(typeof _gInferirPlacas === 'function') _gInferirPlacas(out, { canvas: cv }, baseVisual);
+
+  const campos = [], bloqueios = [], changes = [], invalidIds = [];
+  let encolheu = false, quebrou = false;
+
+  out.forEach(l => {
+    if(!l || l.type !== 'text') return;
+    if(typeof _gLayoutVisivel === 'function' && !_gLayoutVisivel(l)) return;
+    /* Texto FIXO é do designer: ele escreveu, ele mediu, ele publicou. Encaixar o que o
+       franqueado não pode mudar só produziria bloqueio que ninguém consegue resolver. */
+    if(typeof _gLayoutTemCampo === 'function' && !_gLayoutTemCampo(l)) return;
+
+    const conteudo = (typeof gInterpolate === 'function')
+      ? gInterpolate(l.content, dados, { onEmpty:'remove', defaults })
+      : String(l.content || '');
+    /* CAMPO VAZIO NÃO É ERRO (item 14). Não encaixa, não bloqueia, não adapta nada: a camada
+       segue exatamente como está e quem decide se ela aparece é o render. */
+    if(!String(conteudo).trim()){ campos.push({ id:l.id, status:'vazio', degrau:'vazio' }); return; }
+
+    /* Os MESMOS runs do render (split de preço: inteiro, símbolo e centavos em corpos
+       diferentes). Medir sem eles é medir outro texto. */
+    const runs = (typeof gBuildVirtualRuns === 'function')
+      ? gBuildVirtualRuns(l, dados, 1, defaults) : null;
+    const placa = out.find(p => p && p._placa && p._placa.alvo === l.id) || null;
+
+    const r = gFitTextToAuthoredBox(l, conteudo, { layers: out, canvas: cv, ctx, runs, placa });
+    if(!r) return;
+
+    campos.push({ id:l.id, status:r.status, degrau:r.degrau, fontSize:r.fontSize,
+                  fontSizeAutorado:r.diagnostics.fontSizeAutorado, linhas:r.lines.length,
+                  overflowX:r.overflowX, overflowY:r.overflowY, piso:r.diagnostics.piso });
+
+    if(r.status === 'overflow'){
+      l._layoutInvalido = true;
+      invalidIds.push(l.id);
+      /* FAIL SAFE (item 8): o payload é OBJETIVO — quem travou, por quantos pixels, quantas
+         linhas precisaria e onde o piso parou. Sem LLM, sem estimativa por caractere. */
+      bloqueios.push({ status:'CONTENT_TOO_LARGE', fieldId:l.id,
+                       campos:(typeof gLayoutCamposDe === 'function') ? gLayoutCamposDe(l) : [],
+                       overflowX:r.overflowX, overflowY:r.overflowY,
+                       requiredLines:r.lines.length, maxLines:r.diagnostics.maxLinhas,
+                       fontSize:r.fontSize, minimumFontSize:r.diagnostics.piso,
+                       motivo:r.diagnostics.motivo });
+    }
+
+    /* ORIGINAL FIRST ABSOLUTO: coube como desenhado → nenhum carimbo, nenhum `change`. */
+    if(r.degrau === 'original') return;
+
+    if(r.degrau === 'shrink' || r.degrau === 'piso'){ encolheu = true; }
+    if(r.degrau === 'wrap'){ quebrou = true; }
+    if(r.fontSize !== r.diagnostics.fontSizeAutorado) l._tetoFonte = r.fontSize;
+    /* TEXTO NÃO SOBE. Enquanto cabe na caixa segue centralizado (é o desenho do designer);
+       quando passa dela, ancora no topo e cresce só para baixo — senão metade do excesso come
+       a margem que o designer deixou em cima. Mesma regra do `_gStampVTop` da cascata antiga,
+       agora escrita por quem de fato mediu o encaixe. */
+    if(typeof _gStampVTop === 'function') _gStampVTop(l, r.diagnostics.alturaNecessaria);
+    changes.push({ id:l.id, geometry:false, typography:true, moved:false, resized:false });
+
+    /* A PLACA ACOMPANHA — a única geometria que o Local Fit escreve, e só na forma que o
+       próprio texto carrega. `gLayoutPlacaSegue` é a conta única do card. */
+    if(placa && typeof gLayoutPlacaSegue === 'function' && typeof gInkRect === 'function'){
+      const sim = { altura:r.diagnostics.alturaNecessaria, larguraMax:r.diagnostics.larguraNecessaria,
+                    lines:r.lines, fontSize:r.fontSize, text:r.text };
+      const tinta = gInkRect(Object.assign({}, l, { fontSize:r.fontSize }), sim);
+      const g = gLayoutPlacaSegue(placa._placa, tinta, r.fontSize);
+      if(g && (placa.x !== g.x || placa.y !== g.y || placa.w !== g.w || placa.h !== g.h)){
+        placa.x = g.x; placa.y = g.y; placa.w = g.w; placa.h = g.h;
+        /* `placaDe` diz DE QUEM esta forma é placa. É o que permite a um teste provar que a
+           única geometria escrita foi a da exceção do contrato, e não "alguma geometria". */
+        changes.push({ id:placa.id, placaDe:l.id, geometry:true, typography:false,
+                       moved:true, resized:true });
+      }
+    }
+  });
+
+  out.forEach(l => { if(l) delete l._placa; });
+  const _ms = _t0 ? (performance.now() - _t0) : null;
+  if(typeof gLayoutRegistraTempo === 'function' && _ms != null) gLayoutRegistraTempo(_ms);
+
+  const invalid = invalidIds.length > 0;
+  const status = invalid ? 'overflow' : (encolheu ? 'shrunk' : (quebrou ? 'wrapped' : 'original'));
+  return {
+    layers: out,
+    result: { status, adapted: changes.length > 0, invalid, invalidIds,
+              requiresAdaptation: changes.length > 0 || invalid, forced:false,
+              changes, campos, bloqueios,
+              meta: { ms: (_ms != null) ? Math.round(_ms * 10) / 10 : null },
+              diagnostico: bloqueios[0] || null }
+  };
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   4. DIAGNÓSTICO ACIONÁVEL — "cabem até N caracteres aqui"
+   ════════════════════════════════════════════════════════════════════
+   Bloquear com "não cabe" deixa o franqueado sem saída: ele não sabe se faltou UMA palavra ou
+   metade da frase. O limite sai de busca binária sobre o PRÓPRIO Local Fit do campo culpado —
+   nada de estimativa por caractere, que erraria com fonte proporcional.
+
+   Custo: até ~12 encaixes de UMA camada. A versão anterior re-rodava o solver inteiro (até 8
+   solves da arte toda); esta é ordens de grandeza mais barata. Mesmo assim roda só no caminho
+   de FALHA (exportação bloqueada), nunca na digitação. */
+
+/* Corta na PALAVRA, não no caractere: um limite que parte a última palavra no meio parece bug
+   para quem lê, e o número que o franqueado vê tem que ser o número que ele consegue digitar. */
+function gLocalFitCorta(s, n){
+  const t = String(s || '');
+  if(n >= t.length) return t;
+  const bruto = t.slice(0, Math.max(0, n));
+  const corte = bruto.lastIndexOf(' ');
+  return (corte > n * 0.6 ? bruto.slice(0, corte) : bruto).trim();
+}
+
+/* Motor único de rótulo (`gFieldLabel`, em 00-config.js). Nome técnico (`precoPor`) nunca
+   aparece para quem lê. */
+function gLocalFitRotulo(nome){
+  if(typeof gFieldLabel === 'function') return gFieldLabel(nome);
+  if(typeof dVars !== 'undefined' && Array.isArray(dVars)){
+    const v = dVars.find(x => x && x.name === nome);
+    if(v && v.label) return v.label;
+  }
+  return 'este campo';
+}
+
+function gLocalFitMensagem(rotulo, atual, limite){
+  if(!limite) return 'O texto de “' + rotulo + '” não cabe nesta arte. Escolha outro material para este conteúdo.';
+  return 'O texto de “' + rotulo + '” é longo demais para esta arte. Cabem até ' + limite
+       + ' caracteres aqui — hoje tem ' + atual + '.';
+}
+
+/**
+ * @param {Array}  layers  as camadas JÁ passadas por `gLocalFitArte` (é onde mora o culpado)
+ * @param {object} result  o `result` devolvido por `gLocalFitArte`
+ * @returns {{campo,rotulo,atual,limite,mensagem}|null} `null` quando não há campo identificável
+ *          (arte impossível por desenho, não por conteúdo) — aí vale a mensagem genérica.
+ */
+function gLocalFitDiagnostico(layers, result, dados, opts){
+  try{
+    const bloqueio = result && result.bloqueios && result.bloqueios[0];
+    if(!bloqueio) return null;
+    const alvo = (layers || []).find(l => l && l.id === bloqueio.fieldId);
+    if(!alvo) return null;
+    const campos = bloqueio.campos || [];
+    if(!campos.length) return null;
+    // Com mais de um campo na mesma camada, o culpado é o de valor mais longo.
+    const campo = campos.slice().sort((a, b) =>
+      String((dados && dados[b]) || '').length - String((dados && dados[a]) || '').length)[0];
+    const valor = String((dados && dados[campo]) != null ? dados[campo] : '');
+    const rotulo = gLocalFitRotulo(campo);
+    if(valor.length < 3) return { campo, rotulo, atual: valor.length, limite: 0,
+      mensagem: 'A arte não tem espaço seguro para “' + rotulo + '” neste material. Escolha outro material para este conteúdo.' };
+
+    const o = opts || {};
+    const defaults = (o.defaults != null) ? o.defaults
+                   : ((typeof gVarDefaults === 'function') ? gVarDefaults() : null);
+    const cabe = (n) => {
+      const d = Object.assign({}, dados);
+      d[campo] = gLocalFitCorta(valor, n);
+      const texto = (typeof gInterpolate === 'function')
+        ? gInterpolate(alvo.content, d, { onEmpty:'remove', defaults }) : d[campo];
+      const runs = (typeof gBuildVirtualRuns === 'function')
+        ? gBuildVirtualRuns(alvo, d, 1, defaults) : null;
+      const r = gFitTextToAuthoredBox(alvo, texto,
+        { layers, canvas:o.canvas || null, ctx:o.ctx, runs });
+      return !!r && r.status === 'fits';
+    };
+
+    let baixo = 1, alto = valor.length, limite = 0, voltas = 0;
+    while(baixo <= alto && voltas++ < 8 && !limite){
+      const meio = Math.floor((baixo + alto) / 2);
+      if(cabe(meio)){ limite = meio; baixo = meio + 1; } else alto = meio - 1;
+    }
+    // Refina para cima: o meio da busca costuma ser conservador e prometer menos do que cabe.
+    while(limite && voltas++ < 12 && limite < valor.length && cabe(limite + 1)) limite++;
+    return { campo, rotulo, atual: valor.length, limite,
+             mensagem: gLocalFitMensagem(rotulo, valor.length, limite) };
+  }catch(e){ return null; }
 }
