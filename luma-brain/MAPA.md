@@ -215,6 +215,7 @@ CHROMIUM_PATH=/caminho/chrome node scripts/run-browser-tests.js
 | `tests/franqueado-honestidade.html` | material-demo vs. material real, validade real, estados vazios/erro do catálogo + **rótulo nunca cru**, ordem semântica das perguntas, par de preço | 36 |
 | `tests/franqueado-fluxo.html` | **chat e prévia como uma verdade só** + **controle e confiança**: refazer confirma e desfaz, snapshot completo, enquadramento, contexto por formato, carência do feedback, entrega enxuta | 34 |
 | `tests/_bancada.html` | bancada de sondagem do Auto-layout (exploração, não é portão) | — |
+| `tests/_perf-search.html` | bancada de desempenho da Candidate Search: decomposição por etapa, custo por candidato e teto de cada otimização (não é portão) | — |
 | `tests/_paridade-render.html` | bancada: distância entre a saída do Estúdio e a do franqueado | — |
 
 **Como respeita a 1ª lei:** o runner fala DevTools Protocol direto, com o WebSocket nativo do
@@ -256,7 +257,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 79 arquivos JS (72.175 linhas, 2.666 funções) · 31 arquivos CSS (29.238 linhas) · `index.html` com 3.884 linhas e 80 `<script>`.
+**Tamanho real de hoje:** 79 arquivos JS (72.380 linhas, 2.667 funções) · 31 arquivos CSS (29.238 linhas) · `index.html` com 3.884 linhas e 80 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -303,9 +304,9 @@ AUTH via Supabase (Fase 5.1). Login/logout/recuperação usam supabase.auth (win
 · API: gRoleLevel, gLoadProfile, gLogin, gLogout, gCurrentUser, gCurrentRole, gIsAdmin, gIsSuperAdmin, gCanManageUsers, gForgotPassword, gResetPassword, gGetAllUsers, gSetUserRole, gSetUserAtivo … (+11; 26 funções no total)
 · Estado global: gAuthState
 
-**`js/core/auto-layout.js`** · 6730 linhas
+**`js/core/auto-layout.js`** · 6935 linhas
 AUTO-LAYOUT — a camada de JULGAMENTO O solver de composição mora em `00-config.js` (`gApplyRelativeAnchors`):
-· API: gLayoutFontProbe, gStampLayoutBaseline, gLayoutLimpaCarimbos, gLayoutTextoAutorado, gEnsureLayoutBaseline, gLayoutFontDrift, gLayoutFontStatus, gLayoutRefInk, gLayoutRoleOf, gLayoutSemanticRole, gCompileLayoutRoles, gLayoutRoleMaxLines, gLayoutCampoEhPreco, gLayoutEhPrecoDinamico … (+102; 155 funções no total)
+· API: gLayoutFontProbe, gStampLayoutBaseline, gLayoutLimpaCarimbos, gLayoutTextoAutorado, gEnsureLayoutBaseline, gLayoutFontDrift, gLayoutFontStatus, gLayoutRefInk, gLayoutRoleOf, gLayoutSemanticRole, gCompileLayoutRoles, gLayoutRoleMaxLines, gLayoutCampoEhPreco, gLayoutEhPrecoDinamico … (+102; 156 funções no total)
 · Estado global: _gLayoutTempos
 
 **`js/core/console.js`** · 887 linhas

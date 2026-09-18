@@ -584,6 +584,24 @@
         +' · scoring '+percentil(rs.map(r=>r.scoring?r.scoring.ms:0),0.95)+'ms p95'
         +' · legado '+percentil(rs.map(r=>r.legacy?r.legacy.ms:0),0.95)+'ms p95');
     });
+    /* §21 · AS DUAS MÉTRICAS DE UX. A experiência futura precisa parecer imediata: uma delas
+       diz quando existe ALGO seguro para mostrar, a outra quando a decisão está fechada.
+       ⛔ Diagnóstico — nenhuma UI foi tocada e nenhuma decisão depende disto. */
+    const primeiro=REGISTROS.map(r=>r.search&&r.search.msPrimeiroSeguro)
+      .filter(v=>typeof v==='number');
+    const vencedor=REGISTROS.map(r=>r.msAteVencedor).filter(v=>typeof v==='number');
+    avisos.push('§21 · CAMINHO ATÉ A TELA:');
+    avisos.push('   timeToFirstSafeCandidate: p50 '+percentil(primeiro,0.5)+'ms · p95 '
+      +percentil(primeiro,0.95)+'ms · p99 '+percentil(primeiro,0.99)+'ms · máx '
+      +percentil(primeiro,1)+'ms ('+primeiro.length+' execuções com candidato seguro)');
+    avisos.push('   timeToWinner: p50 '+percentil(vencedor,0.5)+'ms · p95 '
+      +percentil(vencedor,0.95)+'ms · p99 '+percentil(vencedor,0.99)+'ms · máx '
+      +percentil(vencedor,1)+'ms');
+    const cedo=conta(REGISTROS,r=>r.search&&typeof r.search.msPrimeiroSeguro==='number'
+      &&typeof r.msAteVencedor==='number'&&r.search.msPrimeiroSeguro<r.msAteVencedor*0.5);
+    avisos.push('   execuções em que o PRIMEIRO seguro aparece antes da metade do caminho até'
+      +' o vencedor: '+cedo+' ('+pct(cedo,Math.max(1,primeiro.length))+'%) — é a janela que uma'
+      +' UX imediata teria para mostrar algo antes do ranking fechar');
     window.__PERF={ total:etapa(r=>r.ms), busca:etapa(r=>r.search&&r.search.ms) };
     /* ⛔ Nenhum timeout é aplicado nesta fase (§13): só observabilidade. A asserção existe para
        pegar explosão, não para definir orçamento. */

@@ -3446,6 +3446,30 @@ function gLayoutCanScaleGroup(ctx, grupo, camadas, modo, precoLivre){
                      : _gCapNao('grupo-no-piso', Object.assign({ grupo:grupo.id }, r.detalhe));
 }
 
+/* ── ÍNDICE DE PISO EXTERNO, MEMOIZADO POR ESTADO (Fase 7.6) ──────────────────────────────
+   `gLayoutIndicePisoExterno` varre a arte inteira e ordena: O(n log n) por chamada. Medido numa
+   peça de 344 camadas, a busca o chamava 9.518 vezes para apenas 16 CHAVES DISTINTAS — 100% de
+   repetição, ~3ms por candidato jogados fora.
+
+   A chave é o par (estado, grupo, preço-livre), e o estado entra por REFERÊNCIA DE ARRAY num
+   WeakMap: dentro de um candidato o mesmo array de camadas é consultado dezenas de vezes, e
+   `gApplyLayoutAction` clona antes de mexer (nunca muta a entrada), então referência igual
+   garante estado igual. Sem hash de estado, sem custo de chave, e a memória sai sozinha com o
+   candidato. */
+function _gIndicePisoMemo(ctx, camadas, grupo, precoLivre){
+  if(typeof gLayoutIndicePisoExterno !== 'function') return null;
+  if(!camadas || !ctx) return gLayoutIndicePisoExterno(camadas || [], grupo, !!precoLivre);
+  const porEstado = ctx._idxPiso || (ctx._idxPiso = new WeakMap());
+  let mapa = porEstado.get(camadas);
+  if(!mapa){ mapa = new Map(); porEstado.set(camadas, mapa); }
+  const ids = (grupo instanceof Set) ? [...grupo] : (grupo || []);
+  const chave = ids.slice().sort().join(',') + '|' + (precoLivre ? 1 : 0);
+  if(mapa.has(chave)) return mapa.get(chave);
+  const r = gLayoutIndicePisoExterno(camadas, grupo, !!precoLivre);
+  mapa.set(chave, r);
+  return r;
+}
+
 /* Quantas voltas de 0,92 ainda cabem para ESTE conjunto — o mesmo laço do motor, que só para
    quando ninguém mais desce. O piso de cada membro é medido com o conjunto INTEIRO como grupo:
    quem desce junto sai da conta do piso de hierarquia externo, e é exatamente daí que o degrau
@@ -3457,8 +3481,7 @@ function _gDegrausDeEscala(ctx, membros, camadas, modo, grupoPiso, precoLivre){
   /* O índice do piso externo é do GRUPO, não do membro: todos compartilham o mesmo conjunto de
      fora. Construir um por membro era varrer a arte inteira k vezes — medido em 3,4ms por
      consulta numa peça de 344 camadas, com a busca consultando centenas de vezes. */
-  const indice = (typeof gLayoutIndicePisoExterno === 'function' && modo === 'emergency')
-    ? gLayoutIndicePisoExterno(vivos, grupo, !!precoLivre) : null;
+  const indice = (modo === 'emergency') ? _gIndicePisoMemo(ctx, vivos, grupo, precoLivre) : null;
   let degraus = 0;
   const pisos = [];
   membros.forEach(id => {
@@ -4084,12 +4107,16 @@ function gApplyLayoutAction(base, action, ctx){
          do fecho. Passar um grupo aqui e outro no piso seria prometer uma descida que o motor
          não autoriza. */
       const grupo = new Set(p.grupoPiso || membrosEsc);
+      /* O ÍNDICE, UMA VEZ PARA O GRUPO INTEIRO. Sem ele, `gLayoutPisoHierarquiaExterno`
+         reconstruía a varredura ordenada da arte para CADA membro do grupo. */
+      const indiceGrupo = (modoEsc === 'emergency')
+        ? _gIndicePisoMemo(ctx, camadas, grupo, p.precoLivre) : null;
       const alvos = [];
       membrosEsc.forEach(id => {
         const m = idx.get(id);
         if(!m || m.type !== 'text') return;
         const atual = Math.round(gLayoutCorpoAtual(m));
-        const piso = gLayoutPisoDoModo(camadas, m, modoEsc, grupo, null, p.precoLivre);
+        const piso = gLayoutPisoDoModo(camadas, m, modoEsc, grupo, indiceGrupo, p.precoLivre);
         const novo = Math.max(piso, Math.floor(atual * p.fator));
         if(novo < atual){ m._tetoFonte = novo; marca(id); alvos.push({ id, de:atual, para:novo, piso }); }
       });
@@ -4249,6 +4276,18 @@ function gDetectLayoutProblems(state, ctx){
   if(!ctx) return [];
   const _st = _gEstado(state);
   const camadas = _st.layers;
+  /* ── CACHE POR ESTADO (Fase 7.6) ────────────────────────────────────────────────────────
+     A detecção é uma função PURA do estado assentado, e custa uma varredura da arte inteira —
+     ~15ms numa peça de 344 camadas, 37% do custo de um candidato. Medido na mesma peça: 393
+     chamadas para apenas 221 estados DISTINTOS. Candidatos diferentes assentam no mesmo lugar,
+     e cada um pagava a varredura de novo.
+     A chave é a assinatura do estado (a mesma régua que a busca usa para deduplicar) e custa
+     ~0,2ms contra os 15ms que evita. Devolve CÓPIA do array: quem consome ordena e filtra, e
+     entregar a lista interna deixaria um consumidor reordenar o cache dos outros. */
+  const _chaveDet = (typeof gLayoutCandidateSignature === 'function')
+    ? gLayoutCandidateSignature({ layers:camadas, solveState:_st.solveState }) : null;
+  const _cacheDet = ctx._detectCache || (ctx._detectCache = new Map());
+  if(_chaveDet && _cacheDet.has(_chaveDet)) return _cacheDet.get(_chaveDet).slice();
   /* O RESPIRO EXIGIDO AGORA. Depois de `compress-gap` o candidato opera em 0.5, e medir como se
      ainda fosse 1 faria a ação parecer inútil — a busca então descartaria o único movimento que
      resolvia o caso. É o estado do candidato que manda, não o default. */
@@ -4393,11 +4432,66 @@ function gDetectLayoutProblems(state, ctx){
            apontava a placa como culpada de uma colisão causada pelo título — e a busca então
            tentava encolher a vítima. Cada candidato é medido contra a PRÓPRIA tinta autorada;
            misturar as duas referências produzia delta inventado. */
-        const _cresceu = (l, ag, bs) => (!l || !ag || !bs) ? 0
-          : Math.max(0, (ag.y + ag.h) - (bs.y + bs.h)) + Math.max(0, (ag.w || 0) - (bs.w || 0));
+        /* ⚠ CULPA É CRESCIMENTO INTRÍNSECO, NÃO DESLOCAMENTO (Fase 7.6). A régua anterior somava
+           `(y+h) - (base.y+base.h)`, que sobe tanto quando a camada CRESCE quanto quando ela é
+           EMPURRADA — e empurrada é vítima. Medido no corpus: em `legado-sem-baseline | titulo
+           longo` quem cresceu cinco linhas foi o `titulo`, e a culpa caía no `produto`, que só
+           tinha descido junto com a corrente. A busca então moía a vítima e desistia.
+           O que prova crescimento é a TINTA ficar maior: largura e altura. Coordenada, não. */
+        const _cresceuIntrinseco = (ag, bs) => (!ag || !bs) ? 0
+          : Math.max(0, (ag.w || 0) - (bs.w || 0)) + Math.max(0, (ag.h || 0) - (bs.h || 0));
         const obAtual = atual.get(o.id), obBase = base(o.id) || { x:o.x||0, y:o.y||0, w:o.w||0, h:o.h||0 };
-        const cT = _cresceu(t, ta, tb), cO = _cresceu(o, obAtual, obBase);
-        const culpado = cO > cT ? o : t;
+        const cT = _cresceuIntrinseco(ta, tb), cO = _cresceuIntrinseco(obAtual, obBase);
+        /* SOBE A CORRENTE procurando o primeiro ancestral que cresceu DE VERDADE. É o caso em
+           que nenhum dos dois envolvidos cresceu: os dois foram empurrados, e a origem está
+           acima. ⛔ Só atravessa aresta ESTRUTURAL de dependência — a mesma restrição de
+           `_gGraphRaiz`, porque subir por vizinhança inventaria uma origem que a composição não
+           demonstra. */
+        const _ancestraisQueCresceram = (idInicial) => {
+          if(typeof gGraphOutgoing !== 'function' || !ctx.graph) return [];
+          const vistos = new Set([idInicial]), achados = [];
+          let no = idInicial, guarda = 0;
+          while(guarda++ < 64){
+            const arestas = gGraphOutgoing(ctx.graph, no).filter(e =>
+              G_GRAPH_DEPENDENCIA.indexOf(e.tipo) >= 0 && gGraphIsStructural(e) && !vistos.has(e.para));
+            if(!arestas.length) break;
+            if(arestas.length > 1) arestas.sort((a, b) => gGraphRelationStrength(b) - gGraphRelationStrength(a)
+              || (a.para < b.para ? -1 : a.para > b.para ? 1 : 0));
+            no = arestas[0].para; vistos.add(no);
+            if(_cresceuIntrinseco(atual.get(no), base(no)) > 1) achados.push(no);
+          }
+          return achados;                       // do mais próximo da vítima para o topo
+        };
+        /* ⚠ A ORIGEM É O TOPO DA CORRENTE, não o primeiro que aparecer. Numa peça em que
+           título, selo e produto crescem juntos, subir e parar no primeiro elegia o `produto` —
+           e a busca gastava os onze candidatos que tinha encolhendo só ele, enquanto o solver
+           aliviava os três. Quem empurra todo mundo é quem está no alto; atacá-lo é o único
+           movimento que relaxa a corrente inteira. Os demais viajam em `culpados` (§14). */
+        const _ancestralQueCresceu = (idInicial) => {
+          const a = _ancestraisQueCresceram(idInicial);
+          return a.length ? a[a.length - 1] : null;
+        };
+        /* ── AS REGRAS, DETERMINÍSTICAS (§13) ── nenhuma pontuação subjetiva de culpa. */
+        let culpado = null, culpados = null;
+        if(cT > 1 && cO > 1){
+          // Os dois cresceram: causa MÚLTIPLA. A chave de agrupamento fica com o maior; o par
+          // inteiro viaja no detalhe, porque atribuir a um só seria invenção.
+          culpado = cO > cT ? o : (cT > cO ? t : (t.id < o.id ? t : o));
+          culpados = [t.id, o.id].sort();
+        }else if(cT > 1) culpado = t;
+        else if(cO > 1) culpado = o;
+        else {
+          const cadeiaT = _ancestraisQueCresceram(t.id), cadeiaO = _ancestraisQueCresceram(o.id);
+          const aT = cadeiaT.length ? cadeiaT[cadeiaT.length - 1] : null;
+          const aO = cadeiaO.length ? cadeiaO[cadeiaO.length - 1] : null;
+          const topos = [...new Set([aT, aO].filter(Boolean))].sort();
+          const todos = [...new Set(cadeiaT.concat(cadeiaO))].sort();
+          if(topos.length === 1) culpado = idx.get(topos[0]) || null;
+          else if(topos.length > 1){ culpado = idx.get(topos[0]) || null; }
+          if(todos.length > 1) culpados = todos;
+          /* ⛔ SEM EVIDÊNCIA, SEM CULPADO. Melhor não saber do que culpar errado: sem culpado o
+             problema vira a própria causa e a busca ataca o alvo, não um inocente. */
+        }
         /* ── QUEM CRESCEU × QUEM É A ORIGEM ────────────────────────────────────────────────
            A medida acima responde quem MEXEU; ela não responde POR QUÊ. Um CTA empurrado 200px
            corrente abaixo "cresceu" mais que todo mundo, e o detector o acusava de invadir a
@@ -4414,10 +4508,14 @@ function gDetectLayoutProblems(state, ctx){
           const r = (typeof gGraphDynamicRoot === 'function') ? gGraphDynamicRoot(ctx.graph, l.id) : null;
           return (r && r.id) || l.id;
         };
-        const origem = _raizDe(culpado);
-        const cb = culpado === t ? tb : obBase, ca = culpado === t ? ta : obAtual;
-        const vitima = culpado === t ? o : t;
-        const vb = culpado === t ? obBase : tb, va = culpado === t ? obAtual : ta;
+        const origem = culpado ? _raizDe(culpado) : null;
+        /* Sem culpado provado, a geometria do empurrão ainda precisa sair de ALGUM par — e o par
+           honesto é o que está na frente: quem invadiu (t) e quem foi invadido (o). O delta
+           continua sendo distância entre retângulos; o que muda é não batizar ninguém de causa. */
+        const refCulpado = culpado || t;
+        const cb = refCulpado === t ? tb : obBase, ca = refCulpado === t ? ta : obAtual;
+        const vitima = refCulpado === t ? o : t;
+        const vb = refCulpado === t ? obBase : tb, va = refCulpado === t ? obAtual : ta;
         /* O DELTA é o EMPURRÃO QUE FALTA, não o excesso total do culpado — e a diferença não é
            sutil. A corrente do solver posiciona em ABSOLUTO (`paiTinta + gap autorado`) e
            reposiciona do zero a cada volta, justamente para não acumular empurrão sobre
@@ -4430,7 +4528,11 @@ function gDetectLayoutProblems(state, ctx){
         const alvoY = (ca.y + ca.h) + gapAutorado;
         out.push({ tipo:'collision', targetId:o.id, withId:t.id,
           detalhe:{ delta: Math.round(Math.max(0, alvoY - va.y)),
-                    culpado:origem, cresceu:culpado.id, vitima:vitima.id, motivo:apertado.motivo } });
+                    culpado:origem, culpados:culpados || undefined,
+                    cresceu:culpado ? culpado.id : null, vitima:vitima.id,
+                    evidencia: culpado ? (cT > 1 || cO > 1 ? 'crescimento-intrinseco' : 'ancestral-que-cresceu')
+                                       : 'sem-evidencia',
+                    motivo:apertado.motivo } });
       }else if(ideal.colide){
         out.push({ tipo:'spacing-pressure', targetId:t.id, withId:o.id,
           detalhe:{ gapBase:Math.round(ideal.gapBase) } });
@@ -4445,11 +4547,13 @@ function gDetectLayoutProblems(state, ctx){
     || (a.withId || '') < (b.withId || '') ? -1 : 1);
   // Um problema por par/alvo: o mesmo dano visto dos dois lados é um dano só.
   const vistos = new Set();
-  return out.filter(p => {
+  const _final = out.filter(p => {
     const k = p.tipo + '|' + [p.targetId, p.withId || ''].sort().join('|');
     if(vistos.has(k)) return false;
     vistos.add(k); return true;
   });
+  if(_chaveDet){ if(_cacheDet.size > 400) _cacheDet.clear(); _cacheDet.set(_chaveDet, _final); }
+  return _final.slice();
 }
 /* A MAGNITUDE do dano — a soma dos excessos que os próprios problemas já reportam. Serve a UMA
    pergunta: este ramo progrediu? Contar problemas não basta — um degrau de 8% num título que
@@ -4778,6 +4882,13 @@ function _gBuscarNoModo(o, ctx, lim, modo, gopts){
     return { layers:a.layers, solveState:cand.solveState };
   };
 
+  /* ── DIAGNÓSTICO DE SATURAÇÃO (§16 da Fase 7.6) ───────────────────────────────────────────
+     "atingiu 480" não é diagnóstico — não diz se a busca repetiu estados, se as causas se
+     multiplicaram, ou se simplesmente não há saída. O acumulador abaixo responde isso, e só
+     é impresso quando o teto é de fato alcançado. */
+  const sat = { familias:{}, causasVistas:new Set(), ramosPorCausa:{}, danoPorDepth:[],
+                estadosUnicos:new Set(), repeticaoMax:0 };
+  const _t0Busca = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
   const bruto = _gEstado(base);
   const raiz = _gCandidato(bruto.layers, { depth:0, rootId:o.rootId || null, searchMode:modo,
     solveState:bruto.solveState, actions:[], actionSignatures:[] });
@@ -4804,6 +4915,8 @@ function _gBuscarNoModo(o, ctx, lim, modo, gopts){
     if(segRaiz.seguro){
       raiz.status = 'solved';
       diag.firstSolvedDepth = 0; diag.firstSolvedMode = modo;
+      diag.msPrimeiroSeguro = Math.round((((typeof performance !== 'undefined'
+        && performance.now) ? performance.now() : 0) - _t0Busca) * 100) / 100;
       return { original:raiz, solved:[raiz], partial:[], invalid:[], unsafe:[], diagnostics:diag };
     }
     raiz.status = 'unsafe';
@@ -4858,6 +4971,8 @@ function _gBuscarNoModo(o, ctx, lim, modo, gopts){
         const alvo = grupo.problems[0];
         const culpado = grupo.culpritId;
         diag.expanded++; doDepth.expandidos++;
+        sat.causasVistas.add(grupo.key);
+        sat.ramosPorCausa[grupo.key] = (sat.ramosPorCausa[grupo.key] || 0) + 1;
 
         /* ── O ADAPTIVE SCALE GROUP DESTE CONFLITO ── derivado do estado assentado, agora. Ele
            viaja no problema porque é a geração que decide se `scale-component` vale a pena no
@@ -4994,7 +5109,14 @@ function _gBuscarNoModo(o, ctx, lim, modo, gopts){
               const seg = gLayoutCandidateSafety(filho, ctx, restantes);
               if(seg.seguro){
                 filho.status = 'solved'; solved.push(filho); doDepth.solved++;
-                if(diag.firstSolvedDepth == null){ diag.firstSolvedDepth = filho.depth; diag.firstSolvedMode = modo; }
+                if(diag.firstSolvedDepth == null){
+                  diag.firstSolvedDepth = filho.depth; diag.firstSolvedMode = modo;
+                  /* §21 · TEMPO ATÉ O PRIMEIRO CANDIDATO SEGURO. A experiência futura precisa
+                     parecer imediata, e a pergunta que ela faz é esta: quando existe ALGO
+                     seguro para mostrar? Diagnóstico — nada aqui muda decisão. */
+                  diag.msPrimeiroSeguro = Math.round((((typeof performance !== 'undefined'
+                    && performance.now) ? performance.now() : 0) - _t0Busca) * 100) / 100;
+                }
                 break;
               }
               filho.status = 'unsafe';
@@ -5039,6 +5161,15 @@ function _gBuscarNoModo(o, ctx, lim, modo, gopts){
       });
     });
     doDepth.ms = Math.round((((typeof performance !== 'undefined' && performance.now) ? performance.now() : 0) - t0) * 100) / 100;
+    /* A TRAJETÓRIA DO DANO por profundidade: é ela que separa "a busca está progredindo e o
+       teto chegou antes" de "a busca está girando sem reduzir dano nenhum". */
+    sat.danoPorDepth.push({ depth:depth, gerados:doDepth.gerados,
+      /* ⚠ O CAMPO É `problemasDepois` — o dano que SOBROU no filho. `problemas` só existe na
+         raiz, e lê-lo aqui devolvia 0 para todo mundo: a trajetória dizia "dano zero em toda
+         profundidade" numa busca que não resolveu nada. */
+      danoMin: proxima.length
+        ? Math.min.apply(null, proxima.map(c => (c.diagnostics && c.diagnostics.problemasDepois) || 0)) : null,
+      causas: doDepth.causasNoBeam });
     diag.porDepth.push(doDepth);
     diag.maxDepthReached = Math.max(diag.maxDepthReached, depth + 1);
     if(solved.length) break;
@@ -5047,6 +5178,33 @@ function _gBuscarNoModo(o, ctx, lim, modo, gopts){
   }
 
   diag.bloqueios = _bloqueios;
+  /* ── O RELATÓRIO DA SATURAÇÃO (§16) ── só quando o teto foi realmente alcançado. */
+  if(diag.generated >= lim.maxCandidatos){
+    const familias = {};
+    [].concat(solved, partial, invalid).forEach(c => (c.actions || []).forEach(a => {
+      familias[a.id] = (familias[a.id] || 0) + 1; }));
+    const repet = {};
+    [].concat(solved, partial, invalid).forEach(c => {
+      const conta = {};
+      (c.actions || []).forEach(a => { conta[a.id] = (conta[a.id] || 0) + 1; });
+      Object.keys(conta).forEach(k => { repet[k] = Math.max(repet[k] || 0, conta[k]); });
+    });
+    diag.saturacao = {
+      teto: lim.maxCandidatos, profundidadeAlcancada: diag.maxDepthReached,
+      causasVivas: sat.causasVistas.size,
+      ramosPorCausa: sat.ramosPorCausa,
+      familiasDeAcao: familias,
+      repeticaoMaxPorAcao: repet,
+      estadosDeduplicados: diag.deduplicated, podados: diag.pruned,
+      trajetoriaDeDano: sat.danoPorDepth,
+      /* A pergunta que fecha o diagnóstico: o dano MÍNIMO caiu ao longo da busca? Se não caiu,
+         a busca não estava progredindo — e o teto não é a causa, é a consequência. */
+      progrediu: (function(){
+        const v = sat.danoPorDepth.map(d => d.danoMin).filter(x => x != null);
+        return v.length > 1 ? v[v.length - 1] < v[0] : null;
+      })()
+    };
+  }
   const _ord = (a, b) => a.depth - b.depth || a.actions.length - b.actions.length
     || (a.signature < b.signature ? -1 : 1);
   solved.sort(_ord); partial.sort(_ord); invalid.sort(_ord); unsafe.sort(_ord);
@@ -6365,6 +6523,45 @@ function gLayoutCandidateContract(camadas, ctx, opts){
            camada:'candidate-contract' };
 }
 
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   20.9 A BUSCA FORA DA MAIN THREAD — ANÁLISE, NÃO IMPLEMENTAÇÃO (Fase 7.6, §20)
+   ------------------------------------------------------------------------------------------
+   ⛔ NADA AQUI FOI IMPLEMENTADO. Esta seção é o levantamento que a §20 pediu, com os números
+   medidos, para que a decisão de mover a busca para um Worker seja tomada com fato e não com
+   intuição. Migrar agora seria trocar um problema de custo por um problema de arquitetura sem
+   saber se o primeiro exige o segundo.
+
+   O QUE PRENDE O MOTOR À THREAD PRINCIPAL: oito chamadas. Medido com `grep`, não estimado —
+   `document.createElement('canvas')` aparece 4× em `00-config.js` e 4× em `core/auto-layout.js`,
+   e NÃO existe uma única referência a `window`, `document.fonts`, DOM ou evento em nenhum dos
+   dois arquivos. O motor de layout já é, na prática, uma biblioteca pura que só precisa de um
+   contexto 2D para medir texto.
+
+   O CAMINHO, SE FOR PRECISO:
+   1. UM FABRICANTE DE CONTEXTO. As oito chamadas viram uma função só (`gMedidaCtx()`) que
+      devolve `document.createElement('canvas').getContext('2d')` na janela e
+      `new OffscreenCanvas(1,1).getContext('2d')` no Worker. `measureText` e `letterSpacing`
+      existem nos dois — é a mesma API.
+   2. AS FONTES. O Worker tem `self.fonts` (FontFaceSet) e aceita `FontFace` com a mesma fonte
+      que o Estúdio já carrega (`js/designer/fonts.js`). Sem isso a medida cai na fonte
+      substituta e a §2 da Fase 1 (determinismo de fonte) passa a valer com outra pilha — o
+      motor já sabe lidar com isso (`gLayoutFontStatus`), mas a paridade precisaria ser medida.
+   3. A SERIALIZAÇÃO. As camadas já são JSON puro (o próprio motor as clona com
+      `JSON.parse(JSON.stringify(...))`), então atravessam `postMessage` por structured clone
+      sem trabalho. O que NÃO atravessa é o contexto operacional: ele carrega `Map`, `Set` e um
+      `_ctx2d`. A forma certa é mandar as camadas e os dados, e RECONSTRUIR o contexto dentro do
+      Worker com `gBuildOperationalContext` — que é barato (medido: 0,5ms numa arte pequena,
+      ~47ms em 344 camadas, contra os 14,5s da busca inteira).
+   4. A CARGA. `importScripts('00-config.js','core/auto-layout.js')` — sem build e sem ESM,
+      exatamente como o `index.html` já faz. A 1ª lei continua de pé.
+
+   O QUE ISSO RESOLVE E O QUE NÃO RESOLVE. Worker não deixa a busca mais rápida: 14,5s continuam
+   14,5s. O que ele muda é QUEM espera — a interface para de travar, e o `timeToFirstSafeCandidate`
+   (p95 de 18,7ms, medido em 341 execuções) passa a poder virar tela enquanto o resto continua.
+   ⚠ Em arte pequena, que é 98% do corpus real, a busca inteira cabe em 213ms no p95: ali o
+   Worker só adiciona latência de mensagem. A decisão certa depende do porte, e o dado para
+   tomá-la está medido. */
+
 /* ════════════════════════════════════════════════════════════════════
    21. SHADOW VALIDATION (Fase 7) — observar em massa, sem dar autoridade
    ════════════════════════════════════════════════════════════════════
@@ -6649,6 +6846,12 @@ function gShadowValidationRecord(fx, dados, opts){
                    primeiraSolucao:r.diagnostics.firstSolvedDepth,
                    modo:r.diagnostics.firstSolvedMode || null,
                    emergenciaRodou:!!r.diagnostics.emergencia,
+                   /* §21 · as duas métricas que uma UX imediata precisaria. Diagnóstico. */
+                   msPrimeiroSeguro:r.diagnostics.msPrimeiroSeguro != null
+                     ? r.diagnostics.msPrimeiroSeguro
+                     : ((r.diagnostics.emergencia && r.diagnostics.emergencia.msPrimeiroSeguro) || null),
+                   saturacao:r.diagnostics.saturacao
+                     || (r.diagnostics.emergencia && r.diagnostics.emergencia.saturacao) || null,
                    problemas:rd.problemas || 0, causas:(rd.causas || []).length,
                    tipos:[...new Set(rd.tipos || [])].sort(),
                    ms:Math.round(msBusca * 100) / 100 };
@@ -6659,6 +6862,8 @@ function gShadowValidationRecord(fx, dados, opts){
     const esc = gSelectLayoutCandidate(r, ctx, { legacySolverOutcome:
       legadoSeguro == null ? null : (legadoSeguro ? 'solved' : 'unsafe') });
     const msScore = agora() - tS;
+    /* §21 · TEMPO ATÉ O VENCEDOR: busca + scoring, do zero até a decisão. */
+    rec.msAteVencedor = Math.round((agora() - tB) * 100) / 100;
     rec.scoring = { avaliados:esc.diagnostics.avaliados, descartados:esc.diagnostics.descartados,
                     porSeguranca:esc.diagnostics.porSeguranca || 0,
                     porContrato:esc.diagnostics.porContrato || 0,

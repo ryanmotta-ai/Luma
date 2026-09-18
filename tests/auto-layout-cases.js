@@ -2949,7 +2949,12 @@
     /* Tempo de relógio nunca é determinístico e não descreve a busca — sai da comparação;
        todo o resto do diagnóstico (expandidos, gerados, dedupe, podados, profundidade) entra. */
     const semTempo=(d)=>JSON.stringify(Object.assign({},d,
-      {porDepth:(d.porDepth||[]).map(x=>Object.assign({},x,{ms:null}))}));
+      {porDepth:(d.porDepth||[]).map(x=>Object.assign({},x,{ms:null})),
+       /* `msPrimeiroSeguro` é relógio também (Fase 7.6, §21): diagnóstico de UX, não descrição
+          da busca. Entra na mesma exclusão que o `ms` de cada profundidade. */
+       msPrimeiroSeguro:null,
+       emergencia:d.emergencia?Object.assign({},d.emergencia,{msPrimeiroSeguro:null,
+         porDepth:(d.emergencia.porDepth||[]).map(x=>Object.assign({},x,{ms:null}))}):d.emergencia}));
     assert(semTempo(a.diagnostics)===semTempo(b.diagnostics),
       'o diagnóstico não é determinístico');
     // Serializável e sem função.
@@ -3565,6 +3570,146 @@
     if(r.solved.length&&r.diagnostics.modo==='normal')
       assert(!r.diagnostics.precoLivre,
         'a terceira escalada rodou numa arte que o modo normal já resolvia');
+  });
+
+  /* ══ CORREÇÃO CAUSAL (Fase 7.6) ══════════════════════════════════════════════════════════
+     A régua antiga somava `(y+h) - (base.y+base.h)`, que sobe tanto quando a camada CRESCE
+     quanto quando ela é EMPURRADA. Empurrada é vítima. Culpa passa a exigir crescimento
+     INTRÍNSECO — a tinta ficar maior. */
+  const arteCorrente=()=>[
+    text('titulo',60,40,420,80,'{{t}}',{fontSize:60,name:'Título',textBox:'box',_layoutW:420}),
+    text('apoio',60,200,420,50,'APOIO FIXO',{fontSize:24,name:'Descrição'}),
+    text('cta',60,300,300,50,'PEÇA AGORA',{fontSize:30,name:'CTA'}),
+    shape('foto',60,420,420,200,{locked:true,name:'Foto'})
+  ];
+  const problemasDe=(L,d,cv)=>{
+    const C=ctxB(L,d,cv||{w:560,h:700});
+    const st=gSettleLayoutState({layers:L,solveState:{}},C);
+    return { probs:gDetectLayoutProblems({layers:st.layers,solveState:{}},C), C:C };
+  };
+
+  test('causal: quem cresce é culpado, quem é empurrado não',()=>{
+    /* O título cresce para cinco linhas e empurra apoio, CTA e foto. Nenhum dos empurrados
+       cresceu de verdade — a culpa tem que subir a corrente até o título. */
+    const {probs}=problemasDe(arteCorrente(),
+      {t:'Combo artesanal da casa com borda recheada bebida gelada e sobremesa do dia'});
+    const colisoes=probs.filter(p=>p.tipo==='collision');
+    assert(colisoes.length,'o cenário perdeu o sentido: nenhuma colisão');
+    colisoes.forEach(p=>{
+      assert(p.detalhe.culpado==='titulo',
+        'a culpa caiu em "'+p.detalhe.culpado+'" e quem cresceu foi o título');
+      assert(p.detalhe.cresceu==='titulo','o campo `cresceu` aponta para a vítima');
+    });
+    /* E a causa agrupa por ele: é isso que faz a busca atacar a origem, não a vítima. */
+    const causas=gGroupLayoutProblems(colisoes);
+    assert(causas.every(g=>g.culpritId==='titulo'),
+      'a causa não agrupou pelo título: '+causas.map(g=>g.culpritId).join(','));
+  });
+
+  test('causal: dois que cresceram viram causa MÚLTIPLA',()=>{
+    const L=arteCorrente();
+    L[1].content='{{a}}'; L[1].textBox='box'; L[1]._layoutW=420;   // o apoio também vira campo
+    const {probs}=problemasDe(L,{t:'Combo artesanal da casa com borda recheada e bebida gelada',
+      a:'Batata rústica com molho especial queijo e calabresa por tempo limitado só hoje'});
+    const comDois=probs.filter(p=>p.tipo==='collision'&&p.detalhe.culpados);
+    if(comDois.length){
+      comDois.forEach(p=>{
+        assert(p.detalhe.culpados.length>=2,'`culpados` veio com menos de dois');
+        assert(p.detalhe.evidencia==='crescimento-intrinseco',
+          'causa múltipla sem evidência de crescimento: '+p.detalhe.evidencia);
+      });
+    }
+    /* O que NÃO pode acontecer em hipótese nenhuma: culpar uma camada que não cresceu nem é
+       ancestral de quem cresceu. */
+    probs.filter(p=>p.tipo==='collision'&&p.detalhe.culpado).forEach(p=>{
+      assert(['titulo','apoio'].indexOf(p.detalhe.culpado)>=0,
+        'culpou "'+p.detalhe.culpado+'", que não cresceu');
+    });
+  });
+
+  test('causal: sem evidência, culpado é null — e o problema vira a própria causa',()=>{
+    /* Duas camadas FIXAS que já nascem colidindo: ninguém cresceu, e não há corrente acima.
+       Inventar um culpado aqui mandaria a busca encolher um inocente. */
+    const L=[
+      text('a',60,60,300,60,'TEXTO FIXO A',{fontSize:40,name:'Texto A'}),
+      text('b',60,90,300,60,'TEXTO FIXO B',{fontSize:40,name:'Texto B'})
+    ];
+    const {probs}=problemasDe(L,{},{w:560,h:400});
+    probs.filter(p=>p.tipo==='collision').forEach(p=>{
+      assert(p.detalhe.culpado===null,'inventou culpado sem crescimento nenhum: '+p.detalhe.culpado);
+      assert(p.detalhe.evidencia==='sem-evidencia','a evidência não foi declarada como ausente');
+    });
+    const causas=gGroupLayoutProblems(probs.filter(p=>p.tipo==='collision'));
+    causas.forEach(g=>assert(g.type==='isolated',
+      'problema sem culpado provado não virou causa isolada'));
+  });
+
+  test('cache: a detecção memoizada devolve exatamente o mesmo resultado',()=>{
+    /* A detecção é pura no estado assentado, e o cache existe porque 44% das chamadas repetem
+       estado. Cache que muda resposta não é cache, é bug. */
+    const L=arteCorrente();
+    const d={t:'Combo artesanal da casa com borda recheada e bebida gelada'};
+    const C=ctxB(L,d,{w:560,h:700});
+    const st=gSettleLayoutState({layers:L,solveState:{}},C);
+    const estado={layers:st.layers,solveState:{}};
+    const a=gDetectLayoutProblems(estado,C);           // frio
+    const b=gDetectLayoutProblems(estado,C);           // quente
+    assert(JSON.stringify(a)===JSON.stringify(b),'o cache de detecção mudou a resposta');
+    assert(a!==b,'o cache devolveu a MESMA referência: um consumidor pode reordenar o cache alheio');
+    // E um contexto novo, sem cache nenhum, chega ao mesmo lugar.
+    const C2=ctxB(arteCorrente(),d,{w:560,h:700});
+    const st2=gSettleLayoutState({layers:arteCorrente(),solveState:{}},C2);
+    assert(JSON.stringify(gDetectLayoutProblems({layers:st2.layers,solveState:{}},C2))
+      ===JSON.stringify(a),'contexto novo e contexto com cache discordaram');
+  });
+
+  test('cache: o índice de piso memoizado não muda decisão nenhuma',()=>{
+    const L=arteCorrente();
+    const C=ctxB(L,{t:'Combo artesanal da casa com borda recheada e bebida gelada'},{w:560,h:700});
+    const r1=gSearchLayoutCandidates({ctx:C,base:L});
+    const C2=ctxB(arteCorrente(),{t:'Combo artesanal da casa com borda recheada e bebida gelada'},{w:560,h:700});
+    const r2=gSearchLayoutCandidates({ctx:C2,base:arteCorrente()});
+    const chave=(r)=>[].concat(r.solved,r.partial).map(c=>c.depth+':'+seq(c)+':'+c.signature).join('|');
+    assert(chave(r1)===chave(r2),'dois contextos deram buscas diferentes');
+  });
+
+  test('saturação: chegar ao teto vem com diagnóstico, não só com o número',()=>{
+    /* `bloco-arejado | todos extremo` satura. O §16 exige saber POR QUÊ. */
+    const L=arteGrande(172), cv={w:1080,h:40+Math.ceil(172/6)*72+200};
+    const C=gBuildOperationalContext(L,cv,{dados:dadosGrande(172)});
+    const r=gSearchLayoutCandidates({ctx:C,base:L});
+    const sat=r.diagnostics.saturacao
+      ||(r.diagnostics.emergencia&&r.diagnostics.emergencia.saturacao);
+    assert(r.diagnostics.generated>=G_SEARCH_LIMITES.maxCandidatos,
+      'o cenário não saturou: '+r.diagnostics.generated);
+    assert(sat,'saturou sem diagnóstico nenhum');
+    ['teto','profundidadeAlcancada','causasVivas','ramosPorCausa','familiasDeAcao',
+     'repeticaoMaxPorAcao','estadosDeduplicados','podados','trajetoriaDeDano','progrediu']
+      .forEach(k=>assert(k in sat,'o diagnóstico de saturação não traz "'+k+'"'));
+    assert(sat.trajetoriaDeDano.length,'a trajetória de dano veio vazia');
+    /* O campo que fecha a pergunta: o dano mínimo caiu ao longo da busca? */
+    assert(sat.progrediu===true||sat.progrediu===false||sat.progrediu===null,
+      '`progrediu` não é um veredito');
+  });
+
+  test('banco: o benchmark da busca nunca mais roda com todos os campos vazios',()=>{
+    /* ⛔ GUARD DO §24. Os bancos de desempenho rodaram por fases inteiras com `dados:{}`, e o
+       que mediam era a busca em cima de campo vazio — depois que espaço livre deixou de ser
+       dano, eles passaram a medir ZERO candidatos e ninguém notou. Este caso trava isso: o
+       conteúdo do banco tem que produzir dano de verdade. */
+    [58,172,344].forEach(n=>{
+      const d=dadosGrande(n);
+      const chaves=Object.keys(d);
+      assert(chaves.length,'o banco de '+n+' camadas voltou a rodar sem dados');
+      assert(chaves.some(k=>String(d[k]).length>40),
+        'nenhum campo do banco de '+n+' camadas tem conteúdo que estoura');
+    });
+    const L=arteGrande(58), cv={w:1080,h:40+Math.ceil(58/6)*72+200};
+    const C=gBuildOperationalContext(L,cv,{dados:dadosGrande(58)});
+    const r=gSearchLayoutCandidates({ctx:C,base:L});
+    assert(r.diagnostics.problemasIniciais>0,
+      'o banco não produz dano nenhum: a busca não tem o que medir');
+    assert(r.diagnostics.generated>0,'o banco gerou ZERO candidatos — voltou a medir nada');
   });
 
   test('busca: assentar cabe no orçamento de 344 camadas',()=>{
