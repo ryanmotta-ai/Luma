@@ -217,7 +217,7 @@ CHROMIUM_PATH=/caminho/chrome node scripts/run-browser-tests.js
 | `tests/export.html` | contrato de saída: dimensões e escala do que o franqueado baixa | 3 |
 | `tests/search-feedback.html` | busca do catálogo, feedback (convite pós-download + carência) e eventos offline | 34 |
 | `tests/franqueado-honestidade.html` | material-demo vs. material real, validade real, estados vazios/erro do catálogo + **rótulo nunca cru**, ordem semântica das perguntas, par de preço | 36 |
-| `tests/franqueado-fluxo.html` | **chat e prévia como uma verdade só** + **controle e confiança**: refazer confirma e desfaz, snapshot completo, enquadramento, contexto por formato, carência do feedback, entrega enxuta | 34 |
+| `tests/franqueado-fluxo.html` | **chat e prévia como uma verdade só** + **controle e confiança**: refazer confirma e desfaz, snapshot completo, enquadramento, contexto por formato, carência do feedback, entrega enxuta + **a UI do bloqueio** (o diálogo nomeia o campo e leva até ele, o contador adota o limite medido sem cortar o texto, o aviso da prévia acende e apaga, porta única) | 42 |
 | `tests/_bancada.html` | bancada de sondagem do encaixe (exploração, não é portão) | — |
 | `tests/_local-fit-bancada.html` | bancada do Local Fit: corpus por campo, grade de stress e benchmark (não é portão) | — |
 | `tests/_paridade-render.html` | bancada: distância entre a saída do Estúdio e a do franqueado | — |

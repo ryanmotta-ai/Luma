@@ -72,7 +72,8 @@ modo, mais uma aba, mais uma flag.
     da prancheta, barradas só por isso. Só `maxLines` EXPLÍCITO bloqueia.
   - **Testes:** as suítes `scoring` (86) e `shadow` (19) e ~230 casos de `auto-layout` foram
     removidos — testar arquitetura que não existe é ruído que o time aprende a ignorar. A suíte
-    ficou em **376 casos verdes**, com o comportamento novo coberto em `local-fit` (37) e o
+    ficou em **382 casos verdes**, com o comportamento novo coberto em `local-fit` (37), a UI
+    do bloqueio em `franqueado-fluxo` (42, +6) e o
     corpus reescrito para 4 níveis de copy (30). Dois portões novos reprovam se qualquer símbolo
     do Automatic Designer voltar ao runtime.
   - **A UI do bloqueio entrou junto.** Bloquear sem saída é o pior resultado do produto. Agora

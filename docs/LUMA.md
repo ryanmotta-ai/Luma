@@ -587,7 +587,7 @@ Interpola o conteúdo e resolve as âncoras **manuais** do designer. É tudo. N�
 
 #### Cobertura
 
-`node scripts/run-browser-tests.js` — **376 casos**. `tests/local-fit.html` (37) é a suíte do comportamento: escada, caixa 2D, maxLines, palavras longas, uppercase, display, preço/unidades, campo vazio, placa local, terceiros intocados, determinismo, prévia = exportação, e o portão de que nenhum símbolo do Automatic Designer voltou. `tests/corpus.html` (30) roda 6 pranchetas reais em 4 níveis de copy com golden de geometria e imagem. `tests/fuzz.html` (63) prova que o motor sobrevive ao que o franqueado digita de verdade. `tests/auto-layout.html` (14) cobre as primitivas de leitura.
+`node scripts/run-browser-tests.js` — **382 casos**. `tests/local-fit.html` (37) é a suíte do comportamento: escada, caixa 2D, maxLines, palavras longas, uppercase, display, preço/unidades, campo vazio, placa local, terceiros intocados, determinismo, prévia = exportação, e o portão de que nenhum símbolo do Automatic Designer voltou. `tests/corpus.html` (30) roda 6 pranchetas reais em 4 níveis de copy com golden de geometria e imagem. `tests/fuzz.html` (63) prova que o motor sobrevive ao que o franqueado digita de verdade. `tests/auto-layout.html` (14) cobre as primitivas de leitura. `tests/franqueado-fluxo.html` (42) cobre a UI do bloqueio, em 6 casos.
 
 
 #### O CONTRATO: a geometria publicada manda (2026-08-14, reafirmado em 09/2026)
