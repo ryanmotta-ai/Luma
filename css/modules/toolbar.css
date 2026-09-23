@@ -875,7 +875,7 @@ body:not(.theme-light) .g-toast-acao:hover {
   background: var(--white); color: var(--text); outline: none; margin-bottom: 18px;
 }
 .g-dialog-input:focus { border-color: var(--dm-orange); }
-.g-dialog-acts { display: flex; gap: 8px; justify-content: flex-end; }
+.g-dialog-acts { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .g-dialog-cancel, .g-dialog-ok { font-size: 12px; border-radius: 7px; cursor: pointer; }
 .g-dialog-cancel {
   font-weight: 600; padding: 8px 14px;

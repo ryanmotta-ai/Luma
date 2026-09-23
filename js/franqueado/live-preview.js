@@ -1285,7 +1285,7 @@ function _fLpSyncBalao(){
       const cabe=_fLpBalaoCabe(bloq,campo,cv.width,cv.height); if(!cabe) continue;
       let sug=[];
       try{ sug=gCopyFitSugestoes(valor,cabe,1).sugestoes; }catch(e){ sug=[]; }
-      if(sug.length){ _lpBalao={chave, fieldId:bloq.fieldId, campo, sug}; break; }
+      if(sug.length){ _lpBalao={chave, fieldId:bloq.fieldId, campo, valor, sug}; break; }
     }
   }
   if(!stage) return;
@@ -1377,6 +1377,37 @@ function fLpBalaoAplica(i){
   if(typeof _fUndoRegistra==='function') _fUndoRegistra(rotulo, ()=>_fLpBalaoRestaura(campo, antes));
 }
 window.addEventListener('resize',()=>{ try{ _fLpPosBalao(); }catch(e){} });
+/* A SOLUÇÃO DO BALÃO PARA QUEM NÃO VÊ O BALÃO — o diálogo do bloqueio (`fCorrigirTextoLongo`) e
+   o "Encurtar" do chat. No celular a prévia fica escondida, mas continua renderizando e medindo:
+   a versão que cabe já está aqui. Sem argumento, é a solução da PRÓPRIA prévia (o chat pergunta
+   sobre o campo que está sendo digitado). ⛔ Com `bloqueio`, só vale se ele é O MESMO que a
+   prévia mediu (mesmo material, mesma caixa estourada pelos mesmos pixels, mesmo valor): baixar
+   uma bolha antiga ou "Outro formato" é outra arte — lá a versão pode não caber.
+   @returns {{campo,text,removidas,cabe:function(string):boolean,aplica:function():boolean}|null} */
+function fLpBalaoSolucao(bloqueio){
+  const B=_lpBalao, s=B&&B.sug&&B.sug[0];
+  if(!s||_lpEffectiveMaterial!==fState.material) return null;
+  if(String((fState.dados||{})[B.campo]==null?'':fState.dados[B.campo])!==B.valor) return null;
+  const visto=((_lpLayoutResult&&_lpLayoutResult.bloqueios)||[]).find(b=>b&&b.fieldId===B.fieldId);
+  if(!visto) return null;
+  if(bloqueio){
+    const k=b=>[b.fieldId,b.requiredLines,b.maxLines,b.fontSize,b.minimumFontSize,
+                Math.round(b.overflowX||0),Math.round(b.overflowY||0)]
+      .concat(b.placa?[b.placa.x,b.placa.y,b.placa.w,b.placa.h].map(v=>Math.round(+v||0)):[]).join('|');
+    if(k(visto)!==k(bloqueio)) return null;
+  }
+  const text=s.text, campo=B.campo, cv=document.getElementById('lp-canvas');
+  return { campo, text, removidas:s.removidas||[],
+    // A mesma régua do balão, para quem traz outra versão (a IA) conferir em pixel.
+    cabe:(t)=>{ const f=cv&&cv.width?_fLpBalaoCabe(visto,campo,cv.width,cv.height):null;
+                const r=f?f(t):null; return !!(r&&r.ok); },
+    // Aplica pelo caminho do balão (caixa ou dados, rascunho, prévia, revisão e Desfazer) — se
+    // ele ainda for a mesma sugestão: o diálogo espera a pessoa, e a prévia pode ter repintado.
+    aplica:()=>{
+      if(!_lpBalao||_lpBalao.campo!==campo||!_lpBalao.sug[0]||_lpBalao.sug[0].text!==text) return false;
+      fLpBalaoAplica(0); return true;
+    } };
+}
 
 /* ══ MODO DEMONSTRAÇÃO + O ENCAIXE À VISTA ══════════════════════════════════════════════
    O motor não muda aqui. O que muda é o QUANTO dele se vê: fora do modo demo a prévia salta
@@ -1561,6 +1592,8 @@ async function fUpdateLivePreview(opts){
       _lpOverflow = window._fOverflowSink; window._fOverflowSink = null;
       // Balão ANTES do aviso: o aviso anuncia (aria-live) a solução que o balão acabou de medir.
       try{ _fLpSyncBalao(); }catch(e){ console.warn('[Luma] balão do encaixe:', e); }
+      // O "Encurtar" do chat lê esta mesma medida — no celular é a única porta dela.
+      try{ if(typeof fFitSync==='function') fFitSync(); }catch(e){}
       _fLpSyncBloqueio();
 
       // Véu sutil sobre os campos ainda não preenchidos (tom mais suave)

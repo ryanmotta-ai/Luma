@@ -169,6 +169,7 @@ function _gDialog(opts){
       ${isPrompt?`<input class="g-dialog-input" type="text" value="${gEsc(opts.default||'')}" placeholder="${gEsc(opts.placeholder||'')}">`:''}
       <div class="g-dialog-acts">
         <button class="g-dialog-cancel" type="button">${gEsc(opts.cancelLabel||'Cancelar')}</button>
+        ${opts.altLabel?`<button class="g-dialog-cancel g-dialog-alt" type="button">${gEsc(opts.altLabel)}</button>`:''}
         <button class="g-dialog-ok${opts.danger?' danger':''}" type="button">${gEsc(opts.okLabel||'Confirmar')}</button>
       </div>
     </div>`;
@@ -179,6 +180,8 @@ function _gDialog(opts){
     const onCancel=()=>done(isPrompt?null:false);
     ov.querySelector('.g-dialog-ok').onclick=onOk;
     ov.querySelector('.g-dialog-cancel').onclick=onCancel;
+    // Terceira saída OPCIONAL (`altLabel`): resolve 'alt'. Quem não passa não muda em nada.
+    const alt=ov.querySelector('.g-dialog-alt'); if(alt) alt.onclick=()=>done('alt');
     ov.addEventListener('mousedown',e=>{ if(e.target===ov) onCancel(); });
     function onKey(e){
       if(e.key==='Escape'){ e.preventDefault(); onCancel(); }
@@ -188,7 +191,7 @@ function _gDialog(opts){
     setTimeout(()=>{ if(input){input.focus();input.select();} else { const ok=ov.querySelector('.g-dialog-ok'); if(ok)ok.focus(); } },30);
   });
 }
-function gConfirm(message, opts){ opts=opts||{}; return _gDialog({prompt:false, message, title:opts.title, okLabel:opts.okLabel, cancelLabel:opts.cancelLabel, danger:opts.danger}); }
+function gConfirm(message, opts){ opts=opts||{}; return _gDialog({prompt:false, message, title:opts.title, okLabel:opts.okLabel, cancelLabel:opts.cancelLabel, altLabel:opts.altLabel, danger:opts.danger}); }
 function gPrompt(message, defaultVal, opts){ opts=opts||{}; return _gDialog({prompt:true, message, default:defaultVal||'', placeholder:opts.placeholder, title:opts.title, okLabel:opts.okLabel||'OK', cancelLabel:opts.cancelLabel}); }
 
 // C6: aviso (uma vez por sessão) de que imagens enviadas não são persistidas.

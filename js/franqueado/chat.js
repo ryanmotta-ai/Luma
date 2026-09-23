@@ -1789,12 +1789,17 @@ function fMostrarConfirm(){
    cá quando o franqueado está carregado, e o aviso da prévia (`lp-layout-nota`) chama a mesma
    função. Duas portas com comportamentos diferentes para o mesmo evento é o defeito de sempre.
 
-   ⛔ NÃO reescreve a copy de ninguém. Ela abre o campo e mostra o alvo; encurtar é decisão
-   (e texto) de quem vende. O botão Encurtar com IA continua existindo lá dentro, opcional. */
+   ⛔ NUNCA reescreve a copy sozinha. Quando o Copy Fit tem uma versão que CABE (medida em pixel
+   pela prévia, a mesma do balão), ela vira a ação principal — mas a troca só acontece com o
+   toque explícito do franqueado, é uma, e tem Desfazer. Sem versão que caiba, fica como era:
+   abre o campo e mostra o alvo; encurtar é decisão (e texto) de quem vende. */
 async function fCorrigirTextoLongo(res){
   const d = res && res.diagnostico;
+  const bloq0 = (res && res.bloqueios && res.bloqueios[0]) || null;
+  // Sem laudo, o culpado sai da MESMA conta do aviso e do balão — não do `campos[0]`.
   const campo = (d && d.campo)
-    || (res && res.bloqueios && res.bloqueios[0] && (res.bloqueios[0].campos || [])[0]) || null;
+    || (bloq0 && (typeof gLocalFitCulpado === 'function' ? gLocalFitCulpado(bloq0, fState.dados || {})
+                                                         : (bloq0.campos || [])[0])) || null;
   const rotulo = (d && d.rotulo)
     || (campo && typeof gFieldLabel === 'function' ? gFieldLabel(campo) : 'este texto');
 
@@ -1821,10 +1826,41 @@ async function fCorrigirTextoLongo(res){
     return false;
   }
 
-  const ok = await gConfirm(
-    'O texto de “' + rotulo + '” é longo demais para esta arte. ' + quanto,
-    { title: 'Esse texto não cabe', okLabel: 'Encurtar agora', cancelLabel: 'Agora não' });
-  if(!ok) return true;
+  /* A VERSÃO QUE CABE, se houver. Lida AGORA, antes do primeiro `await`: quem baixa troca o
+     `fState.material` pelo da bolha e o devolve no `finally` — é com ele que se confere que a
+     prévia mediu esta mesma arte (`fLpBalaoSolucao`). */
+  const sol = (bloq0 && typeof fLpBalaoSolucao === 'function') ? fLpBalaoSolucao(bloq0) : null;
+  const versao = (sol && sol.campo === campo) ? sol : null;
+
+  if(versao){
+    const sem = versao.removidas.length ? ' (sai: ' + versao.removidas.join(', ') + ')' : '';
+    const r = await gConfirm(
+      'O texto de “' + rotulo + '” é longo demais para esta arte. Esta versão cabe: “'
+        + versao.text + '”' + sem + '.',
+      { title: 'Esse texto não cabe', okLabel: 'Usar esta versão', altLabel: 'Editar', cancelLabel: 'Agora não' });
+    if(!r) return true;
+    if(r === true){
+      if(!versao.aplica()){
+        gToast('A arte mudou enquanto você decidia. Confira o texto e tente de novo.');
+        return true;
+      }
+      /* Continua o que foi interrompido do jeito que editar um campo continua: com a arte já
+         gerada, gera de novo (bolha nova, pronta para Baixar; é o `fGerarArte` do `fPosEdicao`,
+         sem o ramo guiado, que aqui não veio de uma edição). ⛔ O download em si NÃO é
+         refeito: a bolha que falhou guarda os dados antigos, e no celular a folha de
+         compartilhar exige o gesto que o diálogo já consumiu. */
+      const regerar = !!fState.done && !_fRevisando;
+      gToast('“' + rotulo + '” trocado pela versão que cabe' + (regerar ? ' — gerando a arte de novo.' : '.'),
+        null, null, { acao: { rotulo: 'Desfazer', onClick: fDesfazer } });
+      if(regerar) fGerarArte();
+      return true;
+    }
+  } else {
+    const ok = await gConfirm(
+      'O texto de “' + rotulo + '” é longo demais para esta arte. ' + quanto,
+      { title: 'Esse texto não cabe', okLabel: 'Encurtar agora', cancelLabel: 'Agora não' });
+    if(!ok) return true;
+  }
   fEditCampo(idx);
   /* O contador só repinta no próximo `input`, e a pessoa acabou de chegar aqui pelo alvo
      novo — sem isto ela veria o limite antigo até digitar a primeira letra. */

@@ -559,11 +559,28 @@ function fUpdateCharCount(){
    pela guarda acima e fica tentando abreviar na mão, letra por letra. Esta é a
    tarefa repetitiva mais frequente do fluxo — acontece em todo campo de texto.
    Aqui: guarda a tentativa completa, pede 3 versões que CAIBAM e valida o
-   tamanho no código (não confia no modelo). Sem IA disponível, o botão nem
-   aparece — nada muda pra quem não tem.
+   tamanho no código (não confia no modelo).
+   PRIMEIRO O COPY FIT (23/09/2026): quando a prévia mede em PIXEL que o texto não cabe e o
+   Copy Fit tem uma versão que cabe (a mesma do balão, `fLpBalaoSolucao`), o botão aparece
+   mesmo sem IA e oferece essa versão; a IA fica como "mais opções", se existir. No celular,
+   onde a prévia (e o balão) ficam escondidos, este é o único lugar em que a solução aparece.
 ══════════════════════════════════════════════════════════════ */
 let _fFitOpts = [];          // últimas opções (o onclick passa índice, nunca o texto)
 let _fFitBusy = false;
+let _fFitCf = null;          // a solução do Copy Fit por trás de `_fFitOpts[0]`, quando houver
+// A versão do Copy Fit para ESTE campo, medida pela prévia — ou null.
+function _fFitCopyFit(id){
+  const s = (typeof fLpBalaoSolucao==='function') ? fLpBalaoSolucao() : null;
+  return (s && s.campo===id) ? s : null;
+}
+// A prévia termina de medir DEPOIS da tecla (debounce + render): ela chama isto para o botão
+// acompanhar a medida nova sem repintar o contador (que re-dispararia a animação de aviso).
+function fFitSync(){
+  const box=document.getElementById('f-msg-box'); if(!box) return;
+  const id=fState.camp?.perguntas?.[fState.stepIdx]?.id;
+  if(!id || fState.done || box.disabled){ _fFitSync(box, null, {}, 0); return; }
+  _fFitSync(box, id, fGetFieldType(id), box.value.length);
+}
 
 // Guarda o texto que o usuário QUIS escrever, por campo (o corte já aconteceu).
 function _fFitRemember(box, id, textoCompleto, maxLen){
@@ -575,8 +592,8 @@ function _fFitAttempt(box, id){
   const f=box && box._fFit;
   return (f && f.id===id && f.text) ? f.text : '';
 }
-// Mostra/esconde o botão. Aparece só quando: bateu no teto, existe tentativa maior
-// que o limite, o campo é de texto e há IA no ar.
+// Mostra/esconde o botão. Aparece quando o campo é de texto e: o Copy Fit tem versão que cabe
+// (sem IA), OU bateu no teto / passou do limite seguro e há IA no ar.
 function _fFitSync(box, id, cfg, len){
   const wrap=document.getElementById('f-input-wrap'); if(!wrap) return;
   let btn=document.getElementById('f-fit-btn');
@@ -589,29 +606,36 @@ function _fFitSync(box, id, cfg, len){
             || (alvo<cfg.maxLen && len>alvo);
   const podeIA = (typeof window.gAI==='object' && gAI.isReady('copy.fit'))
     || (typeof gAskAI==='function' && typeof gAiReady==='function' && gAiReady());
-  if(!(tipoTexto && cabe && podeIA)){
+  const cf = id ? _fFitCopyFit(id) : null;
+  if(!(tipoTexto && (cf || (cabe && podeIA)))){
     if(btn) btn.remove();
     wrap.classList.remove('has-fit');
     _fFitClosePop();
     return;
   }
   wrap.classList.add('has-fit');   // abre espaço no padding do campo (ver chat.css)
-  if(btn) return;
+  const titulo = cf ? 'Encurtar para caber na arte' : 'Encurtar para caber em '+alvo+' caracteres';
+  if(btn){ btn.title=titulo; btn.setAttribute('aria-label', titulo); return; }
   btn=document.createElement('button');
   btn.type='button'; btn.id='f-fit-btn'; btn.className='f-fit-btn';
-  btn.title='Encurtar para caber em '+fAlvoDoCampo(id, cfg)+' caracteres';
+  btn.title=titulo;
   btn.setAttribute('aria-label', btn.title);
   btn.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg><span>Encurtar</span>';
   btn.onclick=(ev)=>{ ev.preventDefault(); fFitTextWithAI(); };
   wrap.appendChild(btn);
 }
+let _fFitFora = null;         // o "clicou fora" do popover aberto
 function _fFitClosePop(){
   const p=document.getElementById('f-fit-pop'); if(p) p.remove();
   document.removeEventListener('keydown', _fFitEsc);
+  /* Sai junto: o de um popover já fechado ficava armado e fechava o PRÓXIMO no mesmo clique
+     que o abria (o botão reaparece depois de aplicar — com o Copy Fit, a toda hora). */
+  if(_fFitFora){ document.removeEventListener('click', _fFitFora); _fFitFora=null; }
 }
 function _fFitEsc(e){ if(e.key==='Escape') _fFitClosePop(); }
 
-async function fFitTextWithAI(){
+// `comIA`: pula o Copy Fit e vai direto à IA (o "Mais opções com IA" do próprio popover).
+async function fFitTextWithAI(comIA){
   if(_fFitBusy) return;
   const box=document.getElementById('f-msg-box'); if(!box) return;
   const id=fState.camp?.perguntas?.[fState.stepIdx]?.id; if(!id) return;
@@ -622,7 +646,19 @@ async function fFitTextWithAI(){
   const original=_fFitAttempt(box,id) || box.value;
   if(!original) return;
   const btn=document.getElementById('f-fit-btn');
-  _fFitBusy=true; _fFitClosePop();
+  const podeIA = (typeof window.gAI==='object' && gAI.isReady('copy.fit'))
+    || (typeof gAskAI==='function' && typeof gAiReady==='function' && gAiReady());
+  const cf=_fFitCopyFit(id);
+  _fFitClosePop();
+  // Sem IA, sem espera: a versão já foi medida pela prévia. O que saiu vai no rodapé.
+  if(cf && !comIA){
+    _fFitOpts=[cf.text]; _fFitCf=cf;
+    _fFitPop(btn, 'Cabe na arte',
+      (cf.removidas.length ? 'Sai: '+cf.removidas.join(', ')+'. ' : '')+'Confira antes de enviar.', podeIA);
+    return;
+  }
+  if(!podeIA) return;
+  _fFitBusy=true;
   if(btn){ btn.classList.add('is-loading'); btn.disabled=true; }
 
   let brutas = [];
@@ -656,25 +692,34 @@ async function fFitTextWithAI(){
   _fFitOpts=brutas
     .map(s=>String(s||'').replace(/[\r\n\t]/g,' ').replace(/\s+/g,' ').trim())
     .filter(s=>s && s.length<=alvo)
+    .filter(s=>!cf || cf.cabe(s))          // com a medida em pixel à mão, ela decide também
     .filter((s,i,arr)=>arr.indexOf(s)===i)
     .slice(0,3);
+  _fFitCf=null;
   if(!_fFitOpts.length){
     gToast('Não conseguimos encurtar sem perder informação importante — ajuste manualmente','warning');
     return;
   }
+  _fFitPop(btn, cf ? 'Cabe na arte' : `Cabe em ${alvo} caracteres`, 'Sugestão de IA — confira antes de gerar.', false);
+}
+// O popover das opções — o mesmo para o Copy Fit e para a IA; o rodapé diz de onde vieram.
+function _fFitPop(btn, head, foot, maisIA){
   const wrap=document.getElementById('f-input-wrap'); if(!wrap) return;
   const pop=document.createElement('div');
   pop.id='f-fit-pop'; pop.className='f-fit-pop'; pop.setAttribute('role','menu');
-  pop.innerHTML=`<div class="f-fit-pop-head">Cabe em ${alvo} caracteres</div>`+
+  pop.innerHTML=`<div class="f-fit-pop-head">${gEsc(head)}</div>`+
     _fFitOpts.map((s,i)=>`<button type="button" class="f-fit-opt" role="menuitem" onclick="fFitApply(${i})"><span>${gEsc(s)}</span><em>${s.length}</em></button>`).join('')+
-    `<div class="f-fit-pop-foot">Sugestão de IA — confira antes de gerar.</div>`;
+    (maisIA?`<button type="button" class="f-fit-opt" role="menuitem" onclick="fFitTextWithAI(true)"><span>Mais opções com IA</span></button>`:'')+
+    `<div class="f-fit-pop-foot">${gEsc(foot)}</div>`;
   wrap.appendChild(pop);
   setTimeout(()=>{
+    if(!pop.isConnected) return;
     document.addEventListener('keydown', _fFitEsc);
-    document.addEventListener('click', function fora(ev){
+    _fFitFora=function fora(ev){
       if(pop.contains(ev.target) || (btn&&btn.contains(ev.target))) { document.addEventListener('click', fora, {once:true}); return; }
       _fFitClosePop();
-    }, {once:true});
+    };
+    document.addEventListener('click', _fFitFora, {once:true});
   },0);
 }
 // Aplica a opção escolhida reusando o caminho de digitação (evento 'input' →
@@ -682,6 +727,11 @@ async function fFitTextWithAI(){
 function fFitApply(i){
   const s=_fFitOpts[i]; const box=document.getElementById('f-msg-box');
   if(!s||!box) return;
+  // A versão do Copy Fit entra pelo caminho do balão: o mesmo `input`, e mais o Desfazer.
+  if(i===0 && _fFitCf && _fFitCf.text===s && _fFitCf.aplica()){
+    box._fFit=null; _fFitCf=null; _fFitClosePop();
+    return;
+  }
   box.value=s;
   box._fFit=null;                      // encaixou: a tentativa antiga não vale mais
   _fFitClosePop();
