@@ -12,6 +12,8 @@
 
 **Por quê:** a senha inicial compartilhada (`invite-user`) estava escrita no front público (`user-profile.js`). O front agora pergunta ao banco e, se `true`, leva a pessoa ao passo "defina sua senha" (`gShowNovaSenhaView('inicial')`) no login e no boot com sessão aberta. A senha saiu do front; continua só na Edge Function `invite-user` e nesta função. ⚠ Se a senha inicial do `invite-user` mudar, esta função muda junto.
 
+**Mesmo dia — senha inicial vira `dmbrasil`:** Edge Function `invite-user` v4 e migration `luma_senha_inicial_dmbrasil`. A função reconhece `dmbrasil` e a antiga `dmbrasil@123`, para que quem ainda está na antiga também seja levado a trocar.
+
 **Auth (painel, feito pelo Ryan):** Site URL passou de `http://localhost:3000` (padrão) para `https://ryanmotta-ai.github.io/Luma/`, e a Redirect URL `https://ryanmotta-ai.github.io/Luma/**` entrou na lista. Antes, todo link de e-mail (recuperação/convite) apontava para `localhost:3000` — confirmado nos `auth_logs` (`referer`). **Pendente:** SMTP próprio (Google Workspace da DM); sem ele o Supabase envia poucos e-mails/hora e só para membros da equipe do projeto.
 
 **MCP:** `.mcp.json` com escrita e todos os grupos de ferramentas, preso a `project_ref=uqrqzjafhigjuvtjqzid`.
