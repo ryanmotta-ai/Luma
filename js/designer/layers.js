@@ -3787,9 +3787,11 @@ function dSave(options){
   // RLS + pasta inativa). Publicar depois PROMOVE o mesmo template (dPublishConfirm acha
   // por tmpl-ab-<id> e move pra pasta escolhida). Roda a cada save até publicar (idempotente).
   else if(Array.isArray(dArtboards) && dArtboards.some(a=>a&&a.layers&&a.layers.length)){
-    let rasc=dFolders.find(f=>f.id==='f-rascunhos');
+    // Pela identidade, não pelo id local: depois do pull a pasta tem o id do banco, e procurar
+    // 'f-rascunhos' criava outra "Rascunhos" a cada sessão (eram 8 no banco em 23/09/2026).
+    let rasc=dFolders.find(f=>f.remoteId===G_PASTA_RASC_ID)||dFolders.find(f=>gPastaSistema(f)==='rascunhos');
     if(!rasc){
-      rasc={id:'f-rascunhos', name:'Rascunhos', color:'#9CA3AF', campId:'', cover:'',
+      rasc={id:'f-rascunhos', remoteId:G_PASTA_RASC_ID, name:'Rascunhos', color:'#9CA3AF', campId:'', cover:'',
             grupos:['Todos os usuários'], agendamento:null, templates:[]};
       dFolders.push(rasc);
     }
@@ -3929,6 +3931,14 @@ async function _dPushFoldersNow(){
   try{
     let idx=-1;
     for(const f of (dFolders||[])){ idx++;
+      /* Pasta de sistema: id FIXO no banco (G_PASTA_*_ID, 00-config.js) — o upsert cai sempre na
+         mesma linha. O "Modelo de exemplo" semeado neste aparelho (sem remoteId) não sobe: ele
+         é o mesmo em todo lugar, e subir cada semente é o que fabricava as 21 cópias. */
+      // Cópia com id VELHO (cache de antes do id fixo) também não sobe: reenviá-la antes do pull
+      // ressuscitaria a duplicata apagada. O pull a dobra na do banco (ver dSyncFoldersFromBackend).
+      const _sis=gPastaSistema(f);
+      if(_sis==='modelo' && f.remoteId!==G_PASTA_MODELO_ID) continue;
+      if(_sis==='rascunhos'){ if(!f.remoteId) f.remoteId=G_PASTA_RASC_ID; else if(f.remoteId!==G_PASTA_RASC_ID) continue; }
       if(!f.remoteId) f.remoteId=_dUuid('p');
       let _capaPend=false;
       if(typeof f.cover==='string' && f.cover.startsWith('data:')){
@@ -3959,6 +3969,9 @@ async function _dPushFoldersNow(){
         ativa:(f.ativa!==false && !f.arquivada), ordem:(typeof f.ordem==='number'?f.ordem:idx),
         agendamento:f.agendamento||null
       };
+      // Seção da vitrine ("Ativas agora" × "Outras"). Só sobe quando a pasta a conhece: omitir
+      // não toca a coluna, e a pasta de cache antigo não rebaixa ninguém para o padrão.
+      if(typeof f.destaque==='boolean') _rowPasta.destaque=f.destaque;
       if(f.cover==='') _rowPasta.cover_url=null;
       else if(typeof f.cover==='string' && !f.cover.startsWith('data:') && f.cover.indexOf('idb://')!==0 && f.cover!=='__local__') _rowPasta.cover_url=f.cover;
       // Erro no upsert da pasta (rede/RLS) era 100% silencioso: a edição de campanha vivia
@@ -4085,7 +4098,8 @@ function _dRowToFolder(p, templates){
     // ativa/ordem/agendamento e o push re-gravava ativa:true (arquivar seria desfeito).
     ativa:(p.ativa!==false), ordem:(typeof p.ordem==='number'?p.ordem:null),
     agendamento:p.agendamento||null, templates:templates||[],
-    arquivada:(p.ativa===false)   // coluna `ativa` do banco: false = pasta arquivada (some da vitrine)
+    arquivada:(p.ativa===false),  // coluna `ativa` do banco: false = pasta arquivada (some da vitrine)
+    destaque:(p.destaque!==false) // seção da vitrine: true = "Ativas agora", false = "Outras campanhas"
   };
 }
 // Chave de comparação de nome de pasta: sem acento, sem caixa, sem espaço duplo.
@@ -4132,6 +4146,11 @@ async function dSyncFoldersFromBackend(){
       // vitrine lia a semente (capa hardcoded) em vez da pasta que o designer edita.
       // Pasta local COM remoteId nunca cai aqui: pode ser trabalho pendente de subir.
       if(!f.remoteId && rNomes.has(_dChaveNome(f.name))) return false;
+      // Pasta de sistema com id VELHO (cache de antes do id fixo): a do banco manda. Sem isto
+      // ela sobrevivia como "local" e o próximo push a recriava — desfazendo a limpeza. Os
+      // templates pendentes dela migram pelo casamento por nome logo abaixo.
+      const _sis=gPastaSistema(f);
+      if(_sis && remote.some(r=>gPastaSistema(r)===_sis)) return false;
       return true;
     });
     // Trabalho local ainda NÃO sincronizado (_syncPending) não pode ser engolido pelo

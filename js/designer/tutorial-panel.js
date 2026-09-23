@@ -69,7 +69,7 @@ function dTutToggle(i){
 }
 // Carrega o template-modelo de exemplo na prancheta ativa (ou reconstrói se a pasta sumiu)
 function dTutLoadExample(){
-  const f=(typeof dFolders!=='undefined'&&dFolders)?dFolders.find(x=>x.id==='f-modelo'):null;
+  const f=(typeof dFolders!=='undefined'&&dFolders)?dFolders.find(x=>gPastaSistema(x)==='modelo'):null;
   const t=f&&f.templates&&f.templates[0];
   if(t){ dLoadTemplate(t,f); gToast('Modelo de exemplo aberto — explore e edite à vontade'); return; }
   // Fallback: monta o showcase direto no artboard ativo

@@ -916,11 +916,48 @@ function fCampEl(c,isRec,ghost,searching){
    TODA leitura de campanha do franqueado passa por aqui (fGetCampaigns/fResolveCamp) —
    nunca por CAMPS_* direto. Hoje devolve as constantes (comportamento idêntico ao legado);
    o flip pra luma.pastas (dFolders) muda SÓ este ponto, com CAMPS_* virando seed. */
+/* A VITRINE SAI DAS PASTAS DO BANCO (23/09/2026 — o "flip" que estava pela metade desde 07/2026).
+   Com pastas sincronizadas na memória, cada pasta É uma campanha: nome, cor, selo, perguntas,
+   ordem, seção (`destaque`) e arquivamento vêm dela, e excluir a pasta tira a campanha. O
+   CAMPS_* do 00-config.js entra só para completar o que o banco não tem (banner do calendário,
+   tema) e para a seção de pasta que ainda não trouxe `destaque`. Sem pasta sincronizada
+   (offline, modo local, primeira pintura antes do pull), vale o caminho antigo: config + pastas
+   dinâmicas. Pasta de sistema (Modelo, Rascunhos) nunca é campanha — `gPastaSistema`. */
+// Cor de campanha sem cor (pasta nova): a laranja da marca — um lugar só para os dois caminhos.
+const _F_COR_CAMP='#FF9000';
 function fGetCampaigns(){
-  // Config (CAMPS_*) é a BASE; pastas do banco sem campanha correspondente viram
-  // campanhas dinâmicas na vitrine — o MKT cria a pasta no Estúdio e ela aparece
-  // pro franqueado sem mexer em código. (Antes: só as hardcoded eram listadas, e
-  // "criar campanha" no Estúdio não refletia em lugar nenhum do franqueado.)
+  const impl=(typeof CAMPS_IMPLEMENTACAO!=='undefined')?CAMPS_IMPLEMENTACAO:[];
+  const pastas=(typeof dFolders!=='undefined'&&Array.isArray(dFolders))
+    ? dFolders.filter(f=>f&&f.remoteId&&!gPastaSistema(f)) : [];
+  if(pastas.length){
+    const conf=[...CAMPS_ATIVAS.map((c,i)=>({c,dest:true,i})), ...CAMPS_OUTRAS.map((c,i)=>({c,dest:false,i:100+i}))];
+    const porId=new Map(conf.map(x=>[x.c.id,x])), porNome=new Map(conf.map(x=>[x.c.name,x]));
+    const vistos=new Set(), lista=[];
+    pastas.forEach((f,k)=>{
+      if(f.arquivada) return;
+      const base=(f.campId&&porId.get(f.campId))||porNome.get(f.name)||null, c0=base?base.c:{};
+      // remoteId (estável pós-sync) > id local; histórico/artes gravam este id
+      const id=f.campId||(base&&c0.id)||f.remoteId||f.id;
+      if(vistos.has(id)) return;          // duas pastas da mesma campanha: a primeira (ordem) vale
+      vistos.add(id);
+      lista.push({o:(typeof f.ordem==='number'?f.ordem:0), i:base?base.i:500+k,
+        dest:(typeof f.destaque==='boolean')?f.destaque:(base?base.dest:true),
+        c:Object.assign({}, c0, {
+          id, name:f.name, color:f.color||c0.color||_F_COR_CAMP,
+          count:(f.templates||[]).length, badge:f.badge||'', theme:f.theme||c0.theme||'',
+          expiraDias:f.expiraDias||c0.expiraDias, popular:!!f.popular,
+          previewProd:f.previewProd||'', previewDe:f.previewDe||'', previewPor:f.previewPor||'',
+          // Pasta sem perguntas (criada no Estúdio) herda as da semente, se houver; senão o
+          // chat pergunta pelos campos do material, como já fazia com campanha dinâmica.
+          perguntas:(Array.isArray(f.perguntas)&&f.perguntas.length)?f.perguntas:(c0.perguntas||[])
+        })});
+    });
+    // Ordem da pasta primeiro; empate (muitas estão em 0) cai na ordem histórica do config.
+    lista.sort((a,b)=>(a.o-b.o)||(a.i-b.i));
+    return {ativas:lista.filter(x=>x.dest).map(x=>x.c), outras:lista.filter(x=>!x.dest).map(x=>x.c), impl};
+  }
+  // ── Sem pasta sincronizada: config é a BASE; pastas locais sem campanha correspondente
+  // viram campanhas dinâmicas (o caminho de antes do flip).
   const ativas=[...CAMPS_ATIVAS];
   try{
     if(typeof dFolders!=='undefined' && dFolders){
@@ -928,12 +965,12 @@ function fGetCampaigns(){
       const ids=new Set(conhecidas.map(c=>c.id));
       const nomes=new Set(conhecidas.map(c=>c.name));
       dFolders.forEach(f=>{
-        if(!f || f.id==='f-modelo' || f.id==='f-rascunhos') return; // exemplo/rascunhos não são campanha
+        if(!f || gPastaSistema(f)) return; // exemplo/rascunhos não são campanha
         if(f.campId && ids.has(f.campId)) return;        // já listada via config
         if(nomes.has(f.name)) return;                    // mesma campanha (match por nome)
         ativas.push({
           // remoteId (estável pós-sync) > id local; histórico/artes gravam este id
-          id:f.campId||f.remoteId||f.id, name:f.name, color:f.color||'#FF9000',
+          id:f.campId||f.remoteId||f.id, name:f.name, color:f.color||_F_COR_CAMP,
           cover:'', count:(f.templates||[]).length, badge:f.badge||'',
           theme:f.theme||'', // pasta pode carregar tema próprio (ex.: Much+) — ver fApplyCampTheme
           expiraDias:f.expiraDias, popular:!!f.popular,
@@ -947,12 +984,12 @@ function fGetCampaigns(){
   // dinâmica (id=pasta) quanto pra config cuja pasta foi arquivada. fResolveCamp/fFolderForCamp
   // continuam achando a arquivada por id, então o painel de arquivadas ainda a resolve.
   const _naoArq = (c)=>{ const ff=(typeof fFolderForCamp==='function')?fFolderForCamp(c):null; return !(ff && ff.arquivada); };
-  return {ativas:ativas.filter(_naoArq), outras:CAMPS_OUTRAS.filter(_naoArq), impl:(typeof CAMPS_IMPLEMENTACAO!=='undefined')?CAMPS_IMPLEMENTACAO:[]};
+  return {ativas:ativas.filter(_naoArq), outras:CAMPS_OUTRAS.filter(_naoArq), impl};
 }
 // Só as pastas arquivadas (pro painel admin). Resolve nome/capa pela própria pasta.
 function fGetArchivedCamps(){
   if(typeof dFolders==='undefined' || !dFolders) return [];
-  return dFolders.filter(f=>f && f.arquivada && f.id!=='f-modelo').map(f=>({
+  return dFolders.filter(f=>f && f.arquivada && !gPastaSistema(f)).map(f=>({
     id:f.campId||f.remoteId||f.id, name:f.name, color:f.color||'#FF9000', cover:f.cover||'',
     badge:f.badge||'', _folderId:f.id
   }));

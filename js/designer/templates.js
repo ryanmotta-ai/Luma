@@ -222,7 +222,7 @@ function dPreloadFolders(){
 
     // Faxina única: remove mocks legados já persistidos (t-mock-*) de sessões antigas —
     // sem isto o designer via os exemplos "presos" mesmo com o injetor desligado.
-    if(f.id!=='f-modelo' && f.templates.some(t=>t&&typeof t.id==='string'&&t.id.indexOf('t-mock-')===0)){
+    if(gPastaSistema(f)!=='modelo' && f.templates.some(t=>t&&typeof t.id==='string'&&t.id.indexOf('t-mock-')===0)){
       f.templates=f.templates.filter(t=>{
         const ehMock=t&&typeof t.id==='string'&&t.id.indexOf('t-mock-')===0;
         // Mock que chegou a subir pro banco: deleta lá também, senão o pull ressuscita.
@@ -1911,6 +1911,7 @@ function dOpenNewFolder(){
   document.getElementById('df-name').value='';
   dFolderSelectColor('#FF9000');
   dPopFolderCampaignSelect('');
+  document.getElementById('df-destaque').checked=true;   // pasta nova entra em "Ativas agora"
   dFolderRenderGroups(['Todos os usuários']);
   document.getElementById('df-schedule-toggle').checked=false;
   document.getElementById('df-schedule-date').value='';
@@ -1932,6 +1933,9 @@ function dEditFolder(id){
   const col=(f.color&&f.color[0]==='#')?f.color:'#FF9000';
   dFolderSelectColor(col);
   dPopFolderCampaignSelect(f.campId||'');
+  // Pasta sem `destaque` (cache de antes da coluna): mostra a seção que a vitrine usa hoje.
+  document.getElementById('df-destaque').checked=(typeof f.destaque==='boolean')?f.destaque
+    :!(typeof CAMPS_OUTRAS!=='undefined'&&CAMPS_OUTRAS.some(c=>c.id===f.campId));
   dFolderRenderGroups(f.grupos||['Todos os usuários']);
   const hasSched=!!(f.agendamento);
   document.getElementById('df-schedule-toggle').checked=hasSched;
@@ -1950,10 +1954,11 @@ function dConfirmFolder(){
   const grupos=Array.from(document.querySelectorAll('#df-groups input:checked')).map(x=>x.value);
   const schedOn=document.getElementById('df-schedule-toggle').checked;
   const agendamento=schedOn?(document.getElementById('df-schedule-date').value||null):null;
+  const destaque=!!document.getElementById('df-destaque').checked;
   if(!name){gToast('Digite um nome para a pasta');return;}
   if(dEditingFolderId){
     const f=dFolders.find(x=>x.id===dEditingFolderId);
-    if(f){ f.name=name;f.color=color;f.campId=campId;f.grupos=grupos.length?grupos:['Todos os usuários'];f.agendamento=agendamento;f.cover=dFolderDraftCover||''; }
+    if(f){ f.name=name;f.color=color;f.campId=campId;f.grupos=grupos.length?grupos:['Todos os usuários'];f.agendamento=agendamento;f.destaque=destaque;f.cover=dFolderDraftCover||''; }
     if(!dPersistFolders()){dRenderFolders();return;} // persiste antes de fechar; se falhar, mantém modal aberto
     dRenderFolders();
     dCloseFolderModal();
@@ -1963,7 +1968,7 @@ function dConfirmFolder(){
     return;
   }
   const id='f'+Date.now();
-  dFolders.push({id,name,color,campId,cover:dFolderDraftCover||'',grupos:grupos.length?grupos:['Todos os usuários'],agendamento,templates:[]});
+  dFolders.push({id,name,color,campId,destaque,cover:dFolderDraftCover||'',grupos:grupos.length?grupos:['Todos os usuários'],agendamento,templates:[]});
   dFolderOpen[id]=true;
   dRenderFolders();
   dPersistFolders();

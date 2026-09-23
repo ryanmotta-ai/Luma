@@ -279,8 +279,8 @@ depois que ele estiver de pé e em uso.
 
 *Não são refino nem calendário, mas bloqueiam o lançamento.*
 
-- [ ] 🔴 **Pedro aplicar o SQL das colunas `w/h/bg`** em `luma.templates` — **o sync de templates está parado desde 11/07**. SQL pronto no `docs/LUMA-BACKEND-CHANGELOG.md`. *Lição registrada: migration só está pronta quando aplicada e conferida com um select.*
-- [ ] **Campanhas ainda saem do hardcode** (`js/00-config.js`) — criar campanha exige deploy. O flip da fonte para `luma.pastas` estava na metade (passos 4 e 5 do plano antigo, no git). **Isso agora importa mais**, porque o calendário aponta para campanhas: se criar campanha exige deploy, o calendário fica preso ao mesmo gargalo.
+- [x] ✅ *Conferido em 23/09/2026: as colunas `w/h/bg` existem e o sync de templates anda (última atualização 18/09).* ~~🔴 **Pedro aplicar o SQL das colunas `w/h/bg`** em `luma.templates` — **o sync de templates está parado desde 11/07**. SQL pronto no `docs/LUMA-BACKEND-CHANGELOG.md`. *Lição registrada: migration só está pronta quando aplicada e conferida com um select.*
+- [x] **Campanhas saem do banco (23/09/2026).** A vitrine e o calendário são montados a partir de `luma.pastas` (`fGetCampaigns`); `CAMPS_*` virou semente. A seção da vitrine é a coluna `destaque` (interruptor no modal da pasta). Junto: fim dos geradores de duplicata — "Modelo de exemplo" (21 cópias, 20 aparecendo na vitrine) e "Rascunhos" (8) têm id fixo (`G_PASTA_*_ID`) e nunca são campanha. *Texto antigo:* ~~Campanhas ainda saem do hardcode (`js/00-config.js`) — criar campanha exige deploy.~~ O flip da fonte para `luma.pastas` estava na metade (passos 4 e 5 do plano antigo, no git). **Isso agora importa mais**, porque o calendário aponta para campanhas: se criar campanha exige deploy, o calendário fica preso ao mesmo gargalo.
 - [ ] **Grupos de visibilidade são órfãos** — gravados na UI do designer, ninguém lê no franqueado. Decidir: aplicar de verdade ou remover da UI.
 - [ ] **Academia** — funcional, mas depende de a equipe publicar o conteúdo oficial e gravar o vídeo dos CEOs. Ver `docs/LUMA-ACADEMIA.md` §15.
 

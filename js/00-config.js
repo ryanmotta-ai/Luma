@@ -43,7 +43,28 @@ window.AI_FEATURES = window.AI_FEATURES || {
               carrega a identidade e o texto ao lado carrega a data e a regra.
    Campanha sem `banner` não quebra nada — quem exibe cai no tratamento
    tipográfico (trilho de cor + título). O mesmo vale se o arquivo faltar: o
-   `onerror` do <img> some com ele. Ver `calBanner` em js/calendario/calendario.js. */
+   `onerror` do <img> some com ele. Ver `calBanner` em js/calendario/calendario.js.
+
+   ⚠ Desde 23/09/2026 isto é SEMENTE, não a fonte: com as pastas do banco carregadas, a
+   vitrine é montada a partir delas (`fGetCampaigns`, catalog.js) — criar, arquivar e trocar
+   de seção é no Estúdio. Daqui só saem o `banner` (o banco não tem a coluna), a seção de uma
+   pasta ainda sem `destaque` e a lista inteira quando o banco não respondeu. */
+/* PASTAS DE SISTEMA — "Modelo de exemplo" e "Rascunhos" não são campanha. Elas nasciam com id
+   LOCAL ('f-modelo'/'f-rascunhos') em cada aparelho e o push dava a cada uma um id novo no
+   banco: eram 21 "Modelo" e 8 "Rascunhos" em 23/09/2026, e as Modelo apareciam na vitrine
+   (a exclusão comparava o id local, que o pull troca pelo do banco). Id FIXO no banco = o
+   upsert cai sempre na mesma linha. O nome é a rede para cópias antigas ainda em cache. */
+const G_PASTA_MODELO_ID='4c554d41-0000-4000-8000-00000000000a';
+const G_PASTA_RASC_ID='4c554d41-0000-4000-8000-00000000000b';
+function gPastaSistema(f){
+  if(!f) return null;
+  if(f.id==='f-modelo'||f.remoteId===G_PASTA_MODELO_ID||f.id===G_PASTA_MODELO_ID) return 'modelo';
+  if(f.id==='f-rascunhos'||f.remoteId===G_PASTA_RASC_ID||f.id===G_PASTA_RASC_ID) return 'rascunhos';
+  const n=String(f.name||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z ]/g,'').trim();
+  if(n==='modelo de exemplo') return 'modelo';
+  if(n==='rascunhos') return 'rascunhos';
+  return null;
+}
 const CAMPS_ATIVAS=[
   {id:'muchplus',name:'Much+ Benefícios',color:'#FFB900',count:4,badge:'',expiraDias:90,popular:true,theme:'muchplus',cover:'assets/covers/muchplus.png',
    previewProd:'CLUBE MUCH+',previewDe:'',previewPor:'MAIS BENEFÍCIOS',
