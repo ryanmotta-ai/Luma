@@ -59,7 +59,7 @@ async function gLoadProfile() {
     if (!user) { gAuthState = { user: null }; return null; }
     const { data: prof, error: profErr } = await sb
       .from('profiles')
-      .select('role, nome, departamento, telefone, ativo')
+      .select('role, nome, departamento, telefone, ativo, avatar_url')
       .eq('id', user.id)
       .maybeSingle();
     // Falha ao carregar o profile (rede/RLS) rebaixava gestão→franqueado EM SILÊNCIO:
@@ -93,6 +93,7 @@ async function gLoadProfile() {
       displayName: (prof && prof.nome) || (user.email || '').split('@')[0],
       departamento: (prof && prof.departamento) || null,
       telefone: (prof && prof.telefone) || '',
+      foto: (prof && prof.avatar_url) || '',
       senhaInicial,
     } };
     return gAuthState.user;
@@ -133,6 +134,15 @@ async function gLogout() {
 
 function gCurrentUser() { return gAuthState.user; }
 function gCurrentRole() { return gAuthState.user ? gAuthState.user.role : null; }
+/* A foto de perfil de alguém — o ÚNICO lugar que decide isso (topbar, painel da conta, lista
+   da Equipe, chat do franqueado). A fonte é `profiles.avatar_url`; o localStorage
+   (`__luma_user_photo_<email>`) é só o legado de quando a foto não saía do navegador — vale
+   enquanto a foto antiga não sobe (gProfileSyncFotoLocal, no login). '' = sem foto → iniciais. */
+function gUserFoto(u){
+  if(!u) return '';
+  if(u.foto) return u.foto;
+  try{ return (u.email && localStorage.getItem('__luma_user_photo_'+u.email)) || ''; }catch(e){ return ''; }
+}
 function gIsAdmin(){ return gRoleLevel(gCurrentRole()) >= ROLE_HIERARCHY.equipe_dm; } // equipe_dm + gestao = Designer
 function gIsSuperAdmin(){ return gCurrentRole()==='gestao'; }
 function gCanManageUsers(){ return gIsSuperAdmin(); }
@@ -218,11 +228,11 @@ async function gGetAllUsers(){
   if(!sb) return [];
   try{
     const { data, error }=await sb.from('profiles')
-      .select('id,nome,email,role,departamento,ativo')
+      .select('id,nome,email,role,departamento,ativo,avatar_url')
       .order('role',{ascending:false}).order('nome',{ascending:true});
     if(error || !Array.isArray(data)) return [];
     return data.map(p=>({ id:p.id, email:p.email, displayName:p.nome||p.email, role:p.role,
-      departamento:p.departamento||null, ativo:p.ativo!==false }));
+      departamento:p.departamento||null, ativo:p.ativo!==false, foto:p.avatar_url||'' }));
   }catch(e){ return []; }
 }
 async function gSetUserRole(idOrEmail, newRole){
@@ -530,10 +540,8 @@ function gUpdateUserTopbar() {
   }
 
   if (avEl) {
-    // Safari/Firefox com storage bloqueado LANÇAM aqui (não devolvem null) — sem o try
-    // o avatar derrubava o resto do cabeçalho (nome, role) junto.
-    let savedPhoto = null;
-    try{ savedPhoto = localStorage.getItem('__luma_user_photo_' + email); }catch(e){}
+    // gUserFoto já protege o localStorage legado (Safari/Firefox com storage bloqueado LANÇAM).
+    const savedPhoto = gUserFoto(user);
     if (savedPhoto) {
       avEl.innerHTML = `<img src="${gEsc(savedPhoto)}" alt="${gEsc(displayName)}">`;
       avEl.style.background = 'transparent';

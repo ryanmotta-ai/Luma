@@ -18,7 +18,14 @@
     searchQuery: '',
     pillTimer: null,
     pillHideTimer: null,
-    pillMessageIndex: -1
+    pillMessageIndex: -1,
+    // Suporte ao vivo (js/core/suporte.js). O rascunho mora no estado porque CADA mensagem nova
+    // re-renderiza o painel — sem isto, o que a pessoa digitava sumia quando a resposta chegava.
+    supRascunho: '',
+    supOrigem: null,        // 'assistente' quando a conversa veio do "Não resolveu?" da IA
+    supFiltro: 'aguardando',
+    supErro: '',
+    supEnviando: false
   };
 
   // Base de Conhecimento Completa do Luma (15 Artigos Estruturados)
@@ -180,6 +187,7 @@
     paperclip: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>',
     mic: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>',
     back: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>',
+    users: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
     trash: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
     sparkle: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 1.3 3.7L17 8l-3.7 1.3L12 13l-1.3-3.7L7 8l3.7-1.3L12 3Z"/><path d="m18 14 .8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8L18 14Z"/><path d="m5 12 .7 1.8 1.8.7-1.8.7L5 17l-.7-1.8-1.8-.7 1.8-.7L5 12Z"/></svg>'
   };
@@ -244,13 +252,16 @@
   }
 
   function wmHeaderCopy() {
-    if (widgetState.activeTab === 'messages') {
+    if (widgetState.activeTab === 'messages' && wmSuporte()) return wmSupHeader();
+    if (widgetState.activeTab === 'messages' || widgetState.activeTab === 'assistente') {
       return { title: 'Assistente do Luma', detail: 'Pergunte sobre o produto — as respostas vêm da Central de Ajuda.' };
     }
     if (widgetState.activeTab === 'help' || widgetState.activeTab === 'article') {
       return { title: 'Central de ajuda', detail: 'Encontre respostas rápidas sobre o seu fluxo.' };
     }
-    return { title: 'Como podemos ajudar?', detail: 'Busque uma resposta ou pergunte ao assistente.' };
+    return { title: 'Como podemos ajudar?', detail: wmSuporte()
+      ? 'Busque uma resposta, pergunte ao assistente ou fale com a equipe.'
+      : 'Busque uma resposta ou pergunte ao assistente.' };
   }
 
   function connectLegacyDesignerHelp() {
@@ -302,6 +313,7 @@
 
     renderWidgetModalContent();
     connectLegacyDesignerHelp();
+    if (typeof gSupOnChange === 'function') gSupOnChange(wmSupAoMudar);
     document.addEventListener('keydown', function(event) {
       if (!widgetState.isOpen) return;
       if (event.key === 'Escape') {
@@ -498,6 +510,7 @@
 
   window.lumaWidgetClose = function () {
     widgetState.isOpen = false;
+    if (typeof gSupVendo === 'function') gSupVendo(false);
     const modal = document.getElementById('luma-widget-modal');
     const trigger = document.getElementById('luma-widget-fab-trigger');
 
@@ -520,6 +533,7 @@
   window.lumaWidgetSetTab = function (tab) {
     widgetState.activeTab = tab;
     if (tab !== 'article') widgetState.selectedArticleId = null;
+    if (tab === 'messages' && wmSuporte()) wmSupEntrar();
     renderWidgetModalContent();
   };
 
@@ -531,7 +545,9 @@
       return;
     }
     widgetState.hasActiveChat = true;
-    widgetState.activeTab = 'messages';
+    // Com o suporte ao vivo, "Mensagens" é a conversa com PESSOAS; a IA vira a aba própria
+    // 'assistente' (acesa em "Ajuda", porque responde pela Central). Sem suporte, é como era.
+    widgetState.activeTab = wmSuporte() ? 'assistente' : 'messages';
     renderWidgetModalContent();
   };
 
@@ -690,6 +706,8 @@
     if (widgetState.activeTab === 'home') {
       bodyHTML = renderHomeTab();
     } else if (widgetState.activeTab === 'messages') {
+      bodyHTML = wmSuporte() ? renderSuporteTab() : renderMessagesTab();
+    } else if (widgetState.activeTab === 'assistente') {
       bodyHTML = renderMessagesTab();
     } else if (widgetState.activeTab === 'help') {
       bodyHTML = renderHelpTab();
@@ -713,11 +731,11 @@
         </div>
         <div class="luma-wm-heading">
           <h2 class="luma-wm-greeting" id="luma-wm-title">${wmEsc(headerCopy.title)}</h2>
-          <p>${wmEsc(headerCopy.detail)}</p>
+          <p${headerCopy.online ? ' class="luma-wm-sup-status"' : ''}>${headerCopy.online ? '<i class="luma-wm-sup-dot" aria-hidden="true"></i>' : ''}${wmEsc(headerCopy.detail)}</p>
         </div>
       </header>
 
-      <main class="luma-wm-body luma-wm-body-${widgetState.activeTab}">
+      <main class="luma-wm-body luma-wm-body-${widgetState.activeTab === 'assistente' ? 'messages' : widgetState.activeTab}">
         ${bodyHTML}
       </main>
 
@@ -726,11 +744,12 @@
           ${WIDGET_SVGS.home}
           <span>Início</span>
         </button>
-        <button type="button" class="luma-wm-nav-btn ${widgetState.activeTab === 'messages' ? 'active' : ''}" onclick="lumaWidgetSetTab('messages')" ${widgetState.activeTab === 'messages' ? 'aria-current="page"' : ''}>
+        <button type="button" class="luma-wm-nav-btn ${widgetState.activeTab === 'messages' ? 'active' : ''}" data-tab="messages" onclick="lumaWidgetSetTab('messages')" ${widgetState.activeTab === 'messages' ? 'aria-current="page"' : ''}>
           ${WIDGET_SVGS.messagesNav}
           <span>Mensagens</span>
+          ${wmSupNavBadge()}
         </button>
-        <button type="button" class="luma-wm-nav-btn ${widgetState.activeTab === 'help' || widgetState.activeTab === 'article' ? 'active' : ''}" onclick="lumaWidgetSetTab('help')" ${widgetState.activeTab === 'help' || widgetState.activeTab === 'article' ? 'aria-current="page"' : ''}>
+        <button type="button" class="luma-wm-nav-btn ${['help', 'article', 'assistente'].indexOf(widgetState.activeTab) >= 0 ? 'active' : ''}" onclick="lumaWidgetSetTab('help')" ${['help', 'article', 'assistente'].indexOf(widgetState.activeTab) >= 0 ? 'aria-current="page"' : ''}>
           ${WIDGET_SVGS.helpNav}
           <span>Ajuda</span>
         </button>
@@ -738,7 +757,8 @@
     `;
 
     // Re-bind attachment area if in chat tab
-    if (widgetState.activeTab === 'messages' && widgetState.hasActiveChat) {
+    const naSuporte = widgetState.activeTab === 'messages' && wmSuporte();
+    if ((wmNaIA() && widgetState.hasActiveChat) || naSuporte) {
       renderAttachmentPreview();
       const messages = modal.querySelector('.luma-wm-chat-messages');
       if (messages) messages.scrollTop = messages.scrollHeight;
@@ -746,6 +766,8 @@
     if (widgetState.activeTab === 'help' && widgetState.searchQuery) {
       window.lumaWidgetFilterHelp(widgetState.searchQuery);
     }
+    // Por ÚLTIMO: pode marcar como lida → avisar → re-render. Nada depois disto no render.
+    if (typeof gSupVendo === 'function') gSupVendo(widgetState.isOpen && naSuporte && !!G_SUP.conversaDe);
   }
 
   function renderHomeTab() {
@@ -755,6 +777,8 @@
         <span>Busque uma resposta</span>
         <small>Ex.: baixar em PDF</small>
       </button>
+
+      ${wmSupHomeCard()}
 
       <div class="luma-wm-section-head">
         <span class="luma-wm-eyebrow">Mais acessados</span>
@@ -853,7 +877,7 @@
 
           ${widgetState.pensando ? `<div class="luma-wm-bubble bot luma-wm-digitando" role="status" aria-label="Assistente digitando">
             <span></span><span></span><span></span>
-          </div>` : ''}
+          </div>` : wmSupHandoff()}
         </div>
 
         <div id="luma-wm-attach-area"></div>
@@ -1098,6 +1122,322 @@ REGRAS:
     });
     _podarMensagens();
     renderWidgetModalContent();
+  };
+
+  /* ── SUPORTE AO VIVO ────────────────────────────────────────────────────────────────────
+     Dados, Realtime e presença moram em js/core/suporte.js (gSup*, estado em G_SUP). Aqui só
+     se desenha. Com a chave global.help.suporte desligada (ou sem backend), "Mensagens" volta
+     a ser o assistente de IA exatamente como era — nada regride.
+     ⛔ Dado de usuário (texto, nome, cidade, contexto, URL) passa SEMPRE por wmEsc/wmText. */
+  function wmSuporte() { return typeof gSupDisponivel === 'function' && gSupDisponivel(); }
+  function wmNaIA() {
+    return widgetState.activeTab === 'assistente' || (widgetState.activeTab === 'messages' && !wmSuporte());
+  }
+
+  function wmSupData(iso) { const d = new Date(iso); return isNaN(d) ? null : d; }
+  function wmSupHora(iso) {
+    const d = wmSupData(iso);
+    return d ? d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+  }
+  function wmSupDiasAtras(d) {
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const dia = new Date(d); dia.setHours(0, 0, 0, 0);
+    return Math.round((hoje - dia) / 86400000);
+  }
+  function wmSupDia(iso) {
+    const d = wmSupData(iso);
+    if (!d) return '';
+    const n = wmSupDiasAtras(d);
+    return n === 0 ? 'Hoje' : n === 1 ? 'Ontem' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+  function wmSupQuando(iso) {
+    const d = wmSupData(iso);
+    if (!d) return '';
+    const n = wmSupDiasAtras(d);
+    return n === 0 ? wmSupHora(iso) : n === 1 ? 'ontem' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  }
+  function wmSupIniciais(nome) {
+    const p = String(nome || '').trim().split(/\s+/).filter(Boolean);
+    if (!p.length) return '?';
+    return (p.length > 1 ? p[0][0] + p[p.length - 1][0] : p[0].slice(0, 2)).toUpperCase();
+  }
+  function wmSupNomes(lista) {
+    if (lista.length <= 2) return lista.join(' e ');
+    return lista.slice(0, 2).join(', ') + ' e mais ' + (lista.length - 2);
+  }
+  function wmSupLinhaAberta() {
+    return G_SUP.caixa.find(function (c) { return c.franqueado_id === G_SUP.conversaDe; }) || null;
+  }
+
+  function wmSupHeader() {
+    if (G_SUP.souEquipe) {
+      if (G_SUP.conversaDe) {
+        const c = wmSupLinhaAberta();
+        return { title: (c && c.nome) || 'Franqueado', detail: (c && c.cidade) || 'Conversa com o franqueado' };
+      }
+      const n = gSupAguardando();
+      return { title: 'Conversas', online: true,
+        detail: 'Online para a rede · ' + (n ? n + ' aguardando resposta' : 'nenhuma aguardando') };
+    }
+    if (G_SUP.online.length) return { title: 'Equipe DM', online: true, detail: 'Online agora · ' + wmSupNomes(G_SUP.online) };
+    return { title: 'Equipe DM', detail: 'Ninguém online agora — a resposta aparece aqui assim que a equipe voltar.' };
+  }
+
+  function wmSupNavBadge() {
+    if (!wmSuporte()) return '';
+    const n = gSupContador();
+    return n > 0 ? `<b class="luma-wm-sup-navbadge"><span aria-hidden="true">${n > 9 ? '9+' : n}</span><span class="g-help-sr-only">, ${n} novas</span></b>` : '';
+  }
+  // Troca só o contador da aba: re-renderizar o painel inteiro apagaria o que se digita na IA.
+  function wmSupPintarNav() {
+    const btn = document.querySelector('#luma-widget-modal .luma-wm-nav-btn[data-tab="messages"]');
+    if (!btn) return;
+    const velho = btn.querySelector('.luma-wm-sup-navbadge');
+    if (velho) velho.remove();
+    btn.insertAdjacentHTML('beforeend', wmSupNavBadge());
+  }
+
+  function wmSupHomeCard() {
+    if (!wmSuporte()) return '';
+    const seta = `<span class="luma-wm-list-arrow" aria-hidden="true">${WIDGET_SVGS.chevronRight}</span>`;
+    if (G_SUP.souEquipe) {
+      const n = gSupAguardando();
+      return `<button type="button" class="luma-wm-ask-card luma-wm-sup-card" onclick="lumaWidgetSetTab('messages')">
+          <span class="luma-wm-ask-icon" aria-hidden="true">${WIDGET_SVGS.chatBubble}</span>
+          <div class="luma-wm-ask-copy"><strong>Conversas do suporte</strong><span>${n ? n + ' aguardando resposta' : 'Nenhuma conversa aguardando'}</span></div>
+          ${seta}
+        </button>`;
+    }
+    const on = G_SUP.online;
+    const icone = on.length
+      ? `<span class="luma-wm-sup-avatares" aria-hidden="true">${on.slice(0, 3).map(function (n) { return `<span class="luma-wm-sup-av">${wmEsc(wmSupIniciais(n))}</span>`; }).join('')}</span>`
+      : `<span class="luma-wm-ask-icon" aria-hidden="true">${WIDGET_SVGS.users}</span>`;
+    const linha = on.length
+      ? '<span><i class="luma-wm-sup-dot" aria-hidden="true"></i> Online agora — você fala com uma pessoa</span>'
+      : '<span>Você fala com uma pessoa. A resposta aparece aqui.</span>';
+    return `<button type="button" class="luma-wm-ask-card luma-wm-sup-card" onclick="lumaWidgetSetTab('messages')">
+        ${icone}
+        <div class="luma-wm-ask-copy"><strong>Falar com a equipe</strong>${linha}</div>
+        ${seta}
+      </button>`;
+  }
+
+  // Depois de uma resposta da IA: a saída para uma pessoa, levando a pergunta junto.
+  function wmSupHandoff() {
+    if (!wmSuporte() || G_SUP.souEquipe) return '';
+    if (!widgetState.messages.some(function (m) { return m.sender === 'bot'; })) return '';
+    return `<button type="button" class="luma-wm-sup-handoff" onclick="lumaWidgetFalarComEquipe()">${G_SUP.online.length ? '<i class="luma-wm-sup-dot" aria-hidden="true"></i>' : ''}Não resolveu? Falar com a equipe</button>
+      <span class="luma-wm-sup-sys">Sua pergunta vai escrita — é só enviar.</span>`;
+  }
+
+  function wmSupEntrar() {
+    if (typeof gSupIniciar === 'function') gSupIniciar();   // idempotente; fixa quem é equipe
+    if (G_SUP.conversaDe) return;
+    if (G_SUP.souEquipe) gSupCarregarCaixa();
+    else gSupAbrirConversa();
+  }
+
+  function renderSuporteTab() {
+    return (G_SUP.souEquipe && !G_SUP.conversaDe) ? renderSupCaixa() : renderSupConversa();
+  }
+
+  function renderSupCaixa() {
+    const f = widgetState.supFiltro;
+    const aguardando = G_SUP.caixa.filter(function (c) { return !c.ultima_da_equipe; });
+    const lista = f === 'aguardando' ? aguardando : G_SUP.caixa;
+    const seg = `<div class="luma-wm-sup-seg" role="group" aria-label="Filtrar conversas">
+        <button type="button" class="${f === 'aguardando' ? 'on' : ''}" aria-pressed="${f === 'aguardando'}" onclick="lumaWidgetSupFiltro('aguardando')">Aguardando · ${aguardando.length}</button>
+        <button type="button" class="${f === 'todas' ? 'on' : ''}" aria-pressed="${f === 'todas'}" onclick="lumaWidgetSupFiltro('todas')">Todas</button>
+      </div>`;
+    if (!lista.length) {
+      return seg + `<div class="luma-wm-chat-empty">
+          <div class="luma-wm-chat-empty-icon">${WIDGET_SVGS.chatBubble}</div>
+          <strong>${f === 'aguardando' ? 'Ninguém esperando resposta' : 'Nenhuma conversa ainda'}</strong>
+          <span>${f === 'aguardando' ? 'Quando um franqueado escrever, a conversa aparece aqui e o Luma avisa.' : 'As conversas com os franqueados aparecem aqui.'}</span>
+        </div>`;
+    }
+    return seg + `<div class="luma-wm-sup-lista">${lista.map(renderSupLinha).join('')}</div>`;
+  }
+
+  function renderSupLinha(c) {
+    const ctx = c.ultimo_contexto || {};
+    const onde = [c.cidade, gSupContextoTexto(ctx)].filter(Boolean).join(' · ');
+    const ultimo = (c.ultima_da_equipe ? 'Equipe: ' : '') + (c.ultimo_texto || (c.ultimo_tem_anexo ? 'Imagem' : ''));
+    const av = c.avatar_url ? `<img src="${wmEsc(c.avatar_url)}" alt="">` : wmEsc(wmSupIniciais(c.nome));
+    return `<button type="button" class="luma-wm-sup-linha${c.ultima_da_equipe ? '' : ' espera'}" data-id="${wmEsc(c.franqueado_id)}" onclick="lumaWidgetSupAbrir(this)">
+        <span class="luma-wm-sup-av grande${c.avatar_url ? ' foto' : ''}" aria-hidden="true">${av}</span>
+        <span class="luma-wm-sup-linha-main">
+          <span class="luma-wm-sup-linha-top"><strong>${wmEsc(c.nome || 'Franqueado')}</strong><time>${wmEsc(wmSupQuando(c.ultima_em))}</time></span>
+          ${onde || ctx.origem === 'assistente' ? `<span class="luma-wm-sup-linha-onde">${wmEsc(onde)}${ctx.origem === 'assistente' ? ' <b class="luma-wm-sup-tag">veio do assistente</b>' : ''}</span>` : ''}
+          <span class="luma-wm-sup-linha-ultima">${wmEsc(ultimo)}</span>
+        </span>
+        ${c.nao_lidas > 0 ? `<span class="luma-wm-sup-badge"><span aria-hidden="true">${c.nao_lidas}</span><span class="g-help-sr-only">${c.nao_lidas} não lidas</span></span>` : ''}
+      </button>`;
+  }
+
+  function wmSupBolhas() {
+    const eq = G_SUP.souEquipe;
+    const eu = typeof gCurrentUser === 'function' ? gCurrentUser() : null;
+    const meu = function (m) { return eq ? m.da_equipe : !m.da_equipe; };
+    let ultimaMinha = null;
+    G_SUP.msgs.forEach(function (m) { if (meu(m)) ultimaMinha = m.id; });
+    const franq = wmSupLinhaAberta();
+    let html = '', diaAnt = '', ctxAnt = '';
+    G_SUP.msgs.forEach(function (m) {
+      const dia = wmSupDia(m.created_at);
+      if (dia && dia !== diaAnt) { html += `<div class="luma-wm-sup-sys">${wmEsc(dia)}</div>`; diaAnt = dia; }
+      const url = m.anexo_path ? gSupAnexoUrl(m.anexo_path) : '';
+      const img = !m.anexo_path ? '' : url
+        ? `<img src="${wmEsc(url)}" class="luma-wm-bubble-img" alt="Imagem enviada na conversa">`
+        : '<span class="luma-wm-sup-sys">Carregando imagem…</span>';
+      let autor;
+      if (m.da_equipe) autor = (eu && m.autor_id === eu.id) ? 'Você' : (m.autor_nome || 'Equipe') + (eq ? '' : ' · Equipe DM');
+      else autor = eq ? ((franq && franq.nome) || 'Franqueado') : 'Você';
+      const visto = meu(m) && m.id === ultimaMinha && m.lida_em ? ' · Visto' : '';
+      html += `<div class="luma-wm-bubble ${meu(m) ? 'user' : 'bot'}">
+          ${img}${m.texto ? wmText(m.texto) : ''}
+          <div class="luma-wm-bubble-meta">${wmEsc(autor)} · ${wmEsc(wmSupHora(m.created_at))}${visto}</div>
+        </div>`;
+      // O contexto só reaparece quando MUDA — repetido em toda bolha, vira ruído.
+      if (!m.da_equipe) {
+        const t = gSupContextoTexto(m.contexto);
+        if (t && t !== ctxAnt) html += `<span class="luma-wm-sup-ctx${meu(m) ? ' meu' : ''}">Estava em: ${wmEsc(t)}</span>`;
+        if (t) ctxAnt = t;
+      }
+    });
+    return html;
+  }
+
+  function renderSupConversa() {
+    const eq = G_SUP.souEquipe;
+    let corpo;
+    if (G_SUP.carregando && !G_SUP.msgs.length) corpo = '<p class="luma-wm-sup-sys" role="status">Carregando a conversa…</p>';
+    else if (G_SUP.msgs.length) corpo = wmSupBolhas();
+    else if (eq) corpo = '<p class="luma-wm-sup-sys">Nenhuma mensagem nesta conversa.</p>';
+    else corpo = `<div class="luma-wm-chat-empty">
+        <div class="luma-wm-chat-empty-icon">${WIDGET_SVGS.users}</div>
+        <span class="luma-wm-eyebrow">Equipe DM</span>
+        <strong>Fale com uma pessoa</strong>
+        <span>Dúvidas de uso e problemas no Luma. Aprovação de peça e pedido de arte continuam com o marketing da sua empresa.</span>
+      </div>`;
+    const pronto = widgetState.supRascunho.trim() || widgetState.attachedFile;
+    return `
+      <div class="luma-wm-chat-active luma-wm-sup">
+        ${eq ? `<button type="button" class="luma-wm-sup-voltar" onclick="lumaWidgetSupVoltar()">${WIDGET_SVGS.back}<span>Conversas</span></button>` : ''}
+        <div class="luma-wm-chat-messages">${corpo}</div>
+        <div id="luma-wm-attach-area"></div>
+        ${widgetState.supErro ? `<p class="luma-wm-sup-erro" role="status">${wmEsc(widgetState.supErro)}</p>` : ''}
+        <div class="luma-wm-chat-input-bar">
+          <textarea id="luma-wm-input-box" placeholder="${eq ? 'Responder ao franqueado' : 'Escreva para a equipe'}" aria-label="${eq ? 'Resposta para o franqueado' : 'Mensagem para a equipe DM'}" oninput="lumaWidgetSupDigitando(this)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();lumaWidgetSupEnviar();}">${wmEsc(widgetState.supRascunho)}</textarea>
+          <div class="luma-wm-chat-input-tools">
+            <div class="luma-wm-input-actions">
+              <button type="button" class="luma-wm-tool-btn" onclick="lumaWidgetTriggerFileSelect()" aria-label="Anexar um print da tela" title="Anexar print">${WIDGET_SVGS.paperclip}</button>
+            </div>
+            <button type="button" class="luma-wm-send-btn${pronto ? ' ready' : ''}" id="luma-wm-send-trigger" onclick="lumaWidgetSupEnviar()" aria-label="Enviar mensagem"${widgetState.supEnviando ? ' disabled' : ''}>${WIDGET_SVGS.send}</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  /* Re-render vindo do Realtime: guarda foco, cursor e a rolagem de quem está lendo o
+     histórico. Só desce até o fim se a pessoa JÁ estava no fim (motion.md: rolagem
+     automática é interrupção). */
+  function wmSupRerender(forcarFim) {
+    const modal = document.getElementById('luma-widget-modal');
+    if (!modal || !widgetState.isOpen) return;
+    const box = modal.querySelector('.luma-wm-sup .luma-wm-chat-messages');
+    const noFim = !box || (box.scrollHeight - box.scrollTop - box.clientHeight < 80);
+    const topo = box ? box.scrollTop : 0;
+    const corpo = modal.querySelector('.luma-wm-body');
+    const corpoTopo = corpo ? corpo.scrollTop : 0;
+    const input = document.getElementById('luma-wm-input-box');
+    const foco = !!input && document.activeElement === input;
+    const sel = foco ? [input.selectionStart, input.selectionEnd] : null;
+    renderWidgetModalContent();
+    const box2 = modal.querySelector('.luma-wm-sup .luma-wm-chat-messages');
+    if (box2 && !noFim && !forcarFim) box2.scrollTop = topo;
+    const corpo2 = modal.querySelector('.luma-wm-body');
+    if (corpo2 && !box2) corpo2.scrollTop = corpoTopo;
+    if (foco) {
+      const i2 = document.getElementById('luma-wm-input-box');
+      if (i2) { i2.focus(); try { i2.setSelectionRange(sel[0], sel[1]); } catch (e) {} }
+    }
+  }
+  function wmSupAoMudar() {
+    if (!widgetState.isOpen) return;
+    if (widgetState.activeTab === 'home' || (widgetState.activeTab === 'messages' && wmSuporte())) wmSupRerender(false);
+    else wmSupPintarNav();
+  }
+
+  window.lumaWidgetSupDigitando = function (el) {
+    widgetState.supRascunho = el.value;
+    widgetState.supErro = '';
+    window.lumaWidgetInputCheck(el);
+  };
+
+  window.lumaWidgetSupEnviar = async function () {
+    if (widgetState.supEnviando || typeof gSupEnviar !== 'function') return;
+    const input = document.getElementById('luma-wm-input-box');
+    const texto = (input ? input.value : widgetState.supRascunho).trim();
+    const anexo = widgetState.attachedFile;
+    if (!texto && !anexo) return;
+    if (anexo && !anexo.isImage) {
+      widgetState.supErro = 'No suporte, o anexo precisa ser uma imagem (PNG, JPG ou WEBP).';
+      wmSupRerender(false);
+      return;
+    }
+    widgetState.supEnviando = true;
+    const r = await gSupEnviar(texto, anexo ? anexo.dataUrl : null, widgetState.supOrigem);
+    widgetState.supEnviando = false;
+    if (r.ok) {
+      // Se a pessoa seguiu digitando durante o envio, o que é novo fica no campo.
+      const atual = document.getElementById('luma-wm-input-box');
+      const agora = atual ? atual.value : '';
+      widgetState.supRascunho = agora.trim() === texto ? '' : agora;
+      widgetState.attachedFile = null;
+      widgetState.supOrigem = null;
+      widgetState.supErro = '';
+    } else {
+      widgetState.supErro = r.erro || '';
+    }
+    wmSupRerender(true);
+  };
+
+  window.lumaWidgetSupAbrir = function (btn) {
+    const id = btn && btn.dataset ? btn.dataset.id : '';
+    if (!id) return;
+    widgetState.supRascunho = ''; widgetState.supErro = ''; widgetState.attachedFile = null;
+    gSupAbrirConversa(id);
+  };
+  window.lumaWidgetSupVoltar = function () {
+    widgetState.supRascunho = ''; widgetState.supErro = ''; widgetState.attachedFile = null;
+    gSupFecharConversa();
+    gSupCarregarCaixa();
+  };
+  window.lumaWidgetSupFiltro = function (f) {
+    widgetState.supFiltro = f === 'todas' ? 'todas' : 'aguardando';
+    wmSupRerender(false);
+  };
+
+  window.lumaWidgetFalarComEquipe = function () {
+    const ultima = widgetState.messages.slice().reverse().find(function (m) { return m.sender === 'user' && m.text; });
+    if (ultima && !widgetState.supRascunho) widgetState.supRascunho = ultima.text;
+    widgetState.supOrigem = 'assistente';
+    window.lumaWidgetSetTab('messages');
+    const input = document.getElementById('luma-wm-input-box');
+    if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+  };
+
+  // Porta de entrada do suporte: botão "Conversas" da topbar (equipe) e o "Ver" dos avisos.
+  window.lumaWidgetAbrirSuporte = function (trigger, franqueadoId) {
+    if (!wmSuporte()) { window.lumaWidgetOpen(trigger); return; }
+    if (widgetState.isOpen && widgetState.activeTab === 'messages' && !franqueadoId) { window.lumaWidgetClose(); return; }
+    widgetState.activeTab = 'messages';
+    if (typeof gSupIniciar === 'function') gSupIniciar();
+    if (G_SUP.souEquipe && franqueadoId) gSupAbrirConversa(franqueadoId);
+    else wmSupEntrar();
+    if (widgetState.isOpen) renderWidgetModalContent();
+    else window.lumaWidgetOpen(trigger);
   };
 
   // Inicializa quando o DOM estiver pronto

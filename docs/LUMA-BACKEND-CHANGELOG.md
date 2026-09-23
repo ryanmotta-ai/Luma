@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-09-23 — Suporte ao vivo (franqueado ↔ equipe DM) e foto de perfil no banco
+
+**`20260923187500_luma_profiles_avatar`** (aplicada): a foto de perfil vivia só no `localStorage` do navegador. A coluna `profiles.avatar_url` já existia desde o schema inicial (espelho do DM CRM) e nunca foi usada. A migration só acrescenta o CHECK `profiles_avatar_url_storage` (NOT VALID), que prende a URL ao Storage do projeto (`…/object/public/luma-user-uploads/…`). O arquivo vai para `luma-user-uploads/<uid>/avatar.jpeg` pelas policies de dono que já existiam. **Front:** `gUserFoto` (auth.js) é o único lugar que decide a foto de alguém; `gProfileSalvarFoto` sobe e grava; `gProfileSyncFotoLocal` sobe, no login, a foto antiga que só estava no navegador.
+
+**`20260923188000_luma_suporte_ao_vivo`** (aplicada): `luma.suporte_mensagens`. Uma tabela só: a conversa é o `franqueado_id`, e "aguardando" é derivado (a última mensagem veio do franqueado). O gatilho `suporte_msg_carimbo` grava `autor_id`, `autor_nome` (primeiro nome), `da_equipe` (= `is_designer()`) e força o franqueado a escrever só na própria conversa, nunca confiando no cliente. RLS: o franqueado lê e escreve só a própria conversa; a equipe e a gestão leem tudo e respondem; UPDATE só em `lida_em` (grant por coluna); ninguém apaga. View `luma.suporte_caixa` (security_invoker) para a caixa de entrada. A tabela entra na publicação `supabase_realtime`. **Presença:** canal privado `luma:suporte`, com policies em `realtime.messages` (só a equipe anuncia; todo logado ativo escuta). **Bucket privado `luma-suporte`** (5 MB, PNG/JPG/WEBP) para prints, na pasta `<franqueado_id>/`. Flag `global.help.suporte` (filha de `global.help`) semeada ligada. **Front:** `js/core/suporte.js` (`gSup*`) + widget de ajuda + botão "Conversas" na topbar da equipe. **Limite da v1:** o "ao vivo" só funciona com o Luma aberto dos dois lados; ainda não há aviso por e-mail ou push.
+
+**Conferido depois de aplicar:** o canal de mensagens e o canal PRIVADO de presença conectam com a sessão de gestão; `track` da equipe aparece na presença e `untrack` a tira; `suporte_caixa` responde 200; nenhum aviso novo no linter de segurança.
+
+**`supabase/tests/rls.sql`**: +15 casos (anon, franqueado A e equipe no suporte; URL externa e foto de outro no perfil). ⚠ **Ainda não rodados**: a execução de SQL foi bloqueada na sessão que aplicou. Rodar no SQL Editor.
+
+⚠ **Falta testar:** a troca real de mensagens entre um franqueado e a equipe (Realtime de INSERT/UPDATE, print anexado, "Visto"). Precisa de duas contas logadas.
+
+---
+
 ## 2026-09-23 — Funções de policy sem EXECUTE para anon
 
 **`20260923187000_luma_helpers_sem_anon`** (aplicada): fecha o aviso 0028 do Supabase — `is_designer`, `is_ativo` e `get_user_role` não são mais executáveis sem login. Conferido: anon recusado; franqueado logado lê pastas (17), templates publicados e flags normalmente. ⚠ O EXECUTE de `authenticated` fica: as policies dependem dele. **Segue aberto (Dashboard, ação do Ryan):** ligar a proteção contra senha vazada no Auth.

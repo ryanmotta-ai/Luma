@@ -194,7 +194,7 @@ function gProfileSwitchTab(tabName) {
 function gProfileUpdateModalAvatars(displayName, email) {
   const sidebarAv = document.getElementById('prof-sidebar-avatar');
   const editorAv = document.getElementById('prof-avatar-editor-img');
-  let savedPhoto=null; try{ savedPhoto = localStorage.getItem('__luma_user_photo_' + email); }catch(e){}
+  const savedPhoto = gUserFoto(gCurrentUser());
 
   [sidebarAv, editorAv].forEach(el => {
     if (!el) return;
@@ -255,25 +255,11 @@ function gProfileHandleUpload(input) {
 
       // Comprime para JPEG de alta qualidade (~45KB no final)
       const base64Image = canvas.toDataURL('image/jpeg', 0.88);
-      const user = gCurrentUser();
-      const email = user ? user.email : 'ryan@deliverymuch.com.br';
-
-      // Salvar no localStorage com tratamento de exceção
-      let _gravou = true;
-      try {
-        localStorage.setItem('__luma_user_photo_' + email, base64Image);
-      } catch (err) { _gravou = false; }
-
-      // Atualizar visual da Topbar e do Modal instantaneamente
-      if (typeof gUpdateUserTopbar === 'function') gUpdateUserTopbar();
-      gProfileUpdateModalAvatars(user ? user.displayName : 'Ryan', email);
-
-      /* O catch mudo prometia sucesso com a cota cheia: a foto aparecia, sumia no reload e
-         ninguém sabia por quê. Dizer o que aconteceu é o mínimo. */
-      if (typeof gToast === 'function') {
-        if (_gravou) gToast('Foto de perfil atualizada!');
-        else gToast('Mostrei a foto aqui, mas não consegui guardá-la — o armazenamento do navegador está cheio.', 'error');
-      }
+      gProfileSalvarFoto(base64Image).then(function(ok){
+        if (typeof gToast !== 'function') return;
+        if (ok) gToast('Foto de perfil atualizada!');
+        else gToast('Não consegui salvar a foto. Confira sua internet e tente de novo.', 'error');
+      });
     };
     img.onerror = function() {
       if (typeof gToast === 'function') gToast('Não foi possível processar a imagem selecionada.', 'error');
@@ -281,6 +267,39 @@ function gProfileHandleUpload(input) {
     img.src = e.target.result;
   };
   reader.readAsDataURL(file);
+}
+
+/* A foto vai para o Storage (luma-user-uploads/<uid>/avatar.jpeg) e a URL para
+   profiles.avatar_url. Antes ela ficava SÓ no localStorage: sumia em outro navegador e ninguém
+   mais a via. O `?v=` troca a URL a cada envio — o arquivo tem sempre o mesmo nome, e sem isso
+   o navegador (e o CDN do Storage) seguiriam mostrando a foto antiga. */
+async function gProfileSalvarFoto(dataUrl){
+  const user = gCurrentUser();
+  const sb = (typeof gSupabase === 'function') ? gSupabase() : null;
+  if (!user || !user.id || !sb || typeof _fUploadUserImg !== 'function') return false;
+  const url = await _fUploadUserImg(user.id, 'avatar', dataUrl);
+  if (!url) return false;
+  const foto = url + '?v=' + Date.now();
+  try {
+    const { error } = await sb.from('profiles').update({ avatar_url: foto }).eq('id', user.id);
+    if (error) return false;
+  } catch (e) { return false; }
+  user.foto = foto;
+  // A cópia local era o legado; com a foto no banco ela só ocupa espaço (≈45 KB por conta).
+  try { localStorage.removeItem('__luma_user_photo_' + user.email); } catch (e) {}
+  if (typeof gUpdateUserTopbar === 'function') gUpdateUserTopbar();
+  gProfileUpdateModalAvatars(user.displayName, user.email);
+  return true;
+}
+
+/* Quem já tinha trocado a foto antes de 23/09/2026 a tem só neste navegador. No login, se o
+   banco ainda não tem foto e o navegador tem, ela sobe uma vez — ninguém precisa reenviar. */
+async function gProfileSyncFotoLocal(){
+  const user = gCurrentUser();
+  if (!user || user.foto) return;
+  let local = '';
+  try { local = localStorage.getItem('__luma_user_photo_' + user.email) || ''; } catch (e) {}
+  if (local.indexOf('data:image/') === 0) await gProfileSalvarFoto(local);
 }
 
 // Salva as alterações de dados pessoais
@@ -676,8 +695,7 @@ async function gProfileRenderEquipe(){
   const rows=orderedUsers.map((u,idx)=>{
     const isMe=u.email===me.email;
     const displayName=String(u.displayName||u.email||'Membro');
-    let photo='';
-    try{photo=localStorage.getItem('__luma_user_photo_'+u.email)||'';}catch(e){}
+    const photo=gUserFoto(u);
     const avatarClass=photo?' has-photo':' '+_profAvatarTone(displayName);
     const avContent=photo
       ?`<img src="${gEsc(photo)}" alt="">`

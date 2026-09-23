@@ -1675,3 +1675,90 @@ body:not(.theme-light) .luma-wm-nav-btn.active {
 @keyframes lumaWmDot{0%,60%,100%{opacity:.28;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
 @media (prefers-reduced-motion:reduce){.luma-wm-digitando span{animation:none;opacity:.5}}
 
+
+/* ── Suporte ao vivo (js/core/suporte.js + bloco "SUPORTE AO VIVO" do help-widget.js) ──
+   Pessoa de verdade do outro lado, então nada de selo "IA" aqui. O laranja do contador é a
+   MESMA mistura das iniciais do avatar da topbar (4,67:1 com branco, medido): o
+   `--dm-orange` puro com texto branco de 10–11px não passa na régua de 4,5:1. */
+#luma-widget-modal, #topbar-suporte, .fh-help { --sup-laranja: color-mix(in srgb, var(--dm-orange-d) 82%, var(--text)); }
+
+.luma-wm-sup-dot{display:inline-block;flex:none;width:8px;height:8px;border-radius:50%;background:var(--green);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--green) 22%,transparent)}
+.luma-wm-sup-status{display:flex;align-items:center;gap:7px}
+
+.luma-wm-sup-avatares{display:flex;flex:none}
+.luma-wm-sup-av{width:28px;height:28px;margin-left:-7px;display:grid;place-items:center;flex:none;overflow:hidden;
+  border:2px solid var(--wm-surface);border-radius:50%;background:var(--sup-laranja);color:var(--white);
+  font-size:10.5px;font-weight:800;line-height:1}
+.luma-wm-sup-av:first-child{margin-left:0}
+.luma-wm-sup-av.grande{width:36px;height:36px;margin:0;font-size:12px}
+.luma-wm-sup-av.foto{background:var(--wm-surface-hover)}
+.luma-wm-sup-av img{width:100%;height:100%;object-fit:cover}
+.luma-wm-sup-card .luma-wm-ask-copy span{display:flex;align-items:center;gap:6px}
+
+/* Saída da IA para uma pessoa: discreta, mas é um botão de verdade (alvo de 36px). */
+.luma-wm-sup-handoff{flex:none;align-self:flex-start;display:inline-flex;align-items:center;gap:7px;min-height:36px;padding:0 14px;
+  border:1px solid color-mix(in srgb,var(--dm-orange-d) 40%,transparent);border-radius:var(--r-pill);
+  background:transparent;color:var(--sup-laranja);font-size:13px;font-weight:600;cursor:pointer;
+  transition:background var(--dur-fast) var(--ease-out),border-color var(--dur-fast) var(--ease-out)}
+.luma-wm-sup-handoff:hover{border-color:var(--dm-orange-d);background:color-mix(in srgb,var(--dm-orange) 8%,transparent)}
+body:not(.theme-light) .luma-wm-sup-handoff{color:var(--dm-orange)}
+
+.luma-wm-sup-sys{flex:none;align-self:center;margin:2px 0;color:var(--wm-text-3);font-size:11px;text-align:center}
+/* flex:none: a lista de mensagens é coluna flex e, cheia, ESPREMIA o chip até 8px. */
+.luma-wm-sup-ctx{flex:none;align-self:flex-start;max-width:90%;margin:-4px 0 2px;padding:3px 10px;overflow:hidden;
+  border:1px dashed var(--wm-border);border-radius:var(--r-pill);background:var(--wm-surface);
+  color:var(--wm-text-3);font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+.luma-wm-sup-ctx.meu{align-self:flex-end}
+.luma-wm-sup-erro{margin:0 2px 6px;color:var(--wm-text-2);font-size:12px}
+
+.luma-wm-sup-voltar{flex:none;align-self:flex-start;display:inline-flex;align-items:center;gap:5px;min-height:32px;margin-bottom:6px;
+  padding:0 10px 0 6px;border:1px solid var(--wm-border);border-radius:var(--r-pill);background:var(--wm-surface);
+  color:var(--wm-text-2);font-size:12px;font-weight:600;cursor:pointer}
+.luma-wm-sup-voltar:hover{color:var(--wm-text);background:var(--wm-surface-hover)}
+
+.luma-wm-sup-seg{display:flex;gap:6px;margin-bottom:12px}
+.luma-wm-sup-seg button{min-height:32px;padding:0 13px;border:1px solid var(--wm-border);border-radius:var(--r-pill);
+  background:var(--wm-surface);color:var(--wm-text-2);font-size:12px;font-weight:600;cursor:pointer}
+.luma-wm-sup-seg button.on{border-color:var(--wm-text);background:var(--wm-text);color:var(--wm-bg)}
+
+.luma-wm-sup-lista{display:flex;flex-direction:column;gap:8px}
+.luma-wm-sup-linha{display:flex;align-items:flex-start;gap:11px;width:100%;padding:12px;text-align:left;cursor:pointer;
+  border:1px solid var(--wm-border-soft);border-radius:12px;background:var(--wm-surface);color:var(--wm-text);
+  transition:border-color var(--dur-fast) var(--ease-out),background var(--dur-fast) var(--ease-out)}
+.luma-wm-sup-linha:hover{border-color:var(--wm-border);background:var(--wm-surface-hover)}
+.luma-wm-sup-linha-main{display:flex;flex:1;flex-direction:column;gap:2px;min-width:0}
+.luma-wm-sup-linha-top{display:flex;justify-content:space-between;gap:8px;font-size:13px}
+.luma-wm-sup-linha-top time{flex:none;color:var(--wm-text-3);font-size:11px}
+.luma-wm-sup-linha-onde{overflow:hidden;color:var(--wm-text-3);font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+.luma-wm-sup-linha-ultima{overflow:hidden;color:var(--wm-text-2);font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+.luma-wm-sup-linha.espera .luma-wm-sup-linha-ultima{color:var(--wm-text);font-weight:500}
+.luma-wm-sup-tag{color:var(--sup-laranja);font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase}
+body:not(.theme-light) .luma-wm-sup-tag{color:var(--dm-orange)}
+
+.luma-wm-sup-badge,.luma-wm-sup-navbadge{min-width:18px;height:18px;display:inline-grid;place-items:center;flex:none;
+  padding:0 5px;border-radius:var(--r-pill);background:var(--sup-laranja);color:var(--white);
+  font-size:10.5px;font-weight:800;line-height:1}
+.luma-wm-sup-badge{align-self:center}
+
+/* Contador fora do widget: mora no body (--sup-contador), porque o botão Ajuda da home do
+   franqueado é re-renderizado pelo catálogo e perderia um nó pendurado nele. */
+.fh-help,#topbar-suporte{position:relative}
+body.sup-tem-contador .fh-help::after,
+body.sup-tem-contador #topbar-suporte::after{content:var(--sup-contador);position:absolute;top:-6px;right:-6px;
+  min-width:18px;height:18px;display:grid;place-items:center;padding:0 5px;border-radius:var(--r-pill);
+  background:var(--sup-laranja);color:var(--white);font-size:10.5px;font-weight:800;line-height:1;
+  box-shadow:0 0 0 2px var(--white);pointer-events:none}
+/* Na barra laranja o contador inverte: disco branco, número no laranja escuro. */
+body.sup-tem-contador #topbar-suporte::after{background:var(--white);color:var(--sup-laranja);
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--dm-orange-d) 40%,transparent)}
+
+/* Botão "Conversas" da equipe na topbar — a mesma família de vidro do perfil. */
+#topbar-suporte{appearance:none;display:inline-flex;align-items:center;gap:7px;min-height:38px;margin-right:10px;
+  padding:0 14px;border:1px solid color-mix(in srgb,var(--white) 20%,transparent);border-radius:var(--r-pill);
+  background:color-mix(in srgb,var(--white) 12%,transparent);color:var(--white);font:inherit;font-size:12.5px;
+  font-weight:600;cursor:pointer;transition:background var(--dur-fast) var(--ease-out),border-color var(--dur-fast) var(--ease-out)}
+#topbar-suporte[hidden]{display:none}
+#topbar-suporte:hover{border-color:color-mix(in srgb,var(--white) 34%,transparent);background:color-mix(in srgb,var(--white) 18%,transparent)}
+#topbar-suporte:focus-visible{outline:2px solid var(--white);outline-offset:2px}
+@media (max-width:767px){ #topbar-suporte span{display:none} #topbar-suporte{padding:0 11px} }

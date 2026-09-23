@@ -3192,12 +3192,12 @@ function _fUserInitials(){
     return (parts[0][0]+parts[parts.length-1][0]).toUpperCase();
   }catch(e){ return 'EU'; }
 }
-// Mesma foto do perfil (topbar/modal usam a chave __luma_user_photo_<email>).
+// Mesma foto do perfil (gUserFoto — a mesma da topbar e do painel da conta).
 // Sem foto, cai nas iniciais — é o mesmo contrato do gUpdateUserTopbar.
 function _fUserAvatarInner(){
   try{
     const u=(typeof gCurrentUser==='function')?gCurrentUser():null;
-    const photo=u&&u.email?localStorage.getItem('__luma_user_photo_'+u.email):'';
+    const photo=(typeof gUserFoto==='function')?gUserFoto(u):'';
     if(photo) return `<img src="${gEsc(photo)}" alt="${gEsc(u.displayName||'Você')}">`;
   }catch(e){}
   return _fUserInitials();

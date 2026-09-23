@@ -182,7 +182,7 @@ Tipos: `text`, `number`, `currency`, `date`, `image`, `select`, `color`, `boolea
 **Regras / invariantes:**
 - ⛔ **O Luma NÃO envia mensagem.** Ele _prepara_ a peça; o disparo é no CleverTap. Não modele "Luma manda push".
 - ⛔ **Much+ é programa da DM, não entidade do Luma.** Não invente tabela de fidelidade no Luma.
-- ⚠️ **Não confundir com o "CRM/Portal de Franqueados"** — é **outro produto**, outro Supabase, com comunicados/tickets/helpdesk. O Luma não tem esses módulos. (Docs daquele projeto viviam em `LUMA-BACK_CONTEXT.md`/`LUMA-REGRAS_BACKEND.md`.)
+- ⚠️ **Não confundir com o "CRM/Portal de Franqueados"** — é **outro produto**, outro Supabase, com comunicados/tickets/helpdesk. O Luma não tem esses módulos. (O **suporte ao vivo** do Luma, §10, não é esse helpdesk: é conversa sobre USO do Luma, com a equipe DM, dentro do próprio app.) (Docs daquele projeto viviam em `LUMA-BACK_CONTEXT.md`/`LUMA-REGRAS_BACKEND.md`.)
 - Dependência crítica antes de construir: **estudar os formatos que o CleverTap aceita**.
 
 ---
@@ -202,6 +202,14 @@ Tipos: `text`, `number`, `currency`, `date`, `image`, `select`, `color`, `boolea
 - ⛔ **O relatório semanal nunca é individual:** um envio por grupo, todo mundo em BCC, materiais agrupados por campanha. Nunca um e-mail por material, nunca um e-mail por pessoa.
 - ⛔ **Franqueado só recebe a seção de artes.** Seções internas (RH, quando existir) saem só para `equipe_dm`/`gestao`. A regra vive na tabela `SECOES` do script.
 - ⚠️ Isso **não** contradiz o invariante "o Luma não envia mensagem" (§9): aquilo é sobre **push/inapp para o consumidor do app**, que segue sendo do CleverTap. Comunicação operacional com a própria rede é outra coisa.
+
+**Suporte ao vivo** (desde 2026-09-23, decisão do Ryan): o franqueado conversa em tempo real com a **equipe DM** (`equipe_dm` + `gestao`) pelo widget de Ajuda. Motor em `js/core/suporte.js`, tabela `luma.suporte_mensagens`.
+- ⛔ **Quem atende é a equipe DM, no próprio Luma** — não o suporte da franqueadora nem o Portal de Franqueados.
+- ⛔ **Escopo: dúvida de uso e erro no Luma.** Aprovação de peça e pedido de arte nova **continuam com o marketing** (a copy do widget diz isso). Não transforme o chat em fila de pedidos de criação.
+- A conversa **é o franqueado**: uma por pessoa, sem status de "aberto/fechado". "Aguardando" = a última mensagem veio dele.
+- "Online agora" = alguém da equipe com o Luma aberto numa aba visível (automático, sem botão de disponível).
+- A gestão desliga pelo Controle do produto (`global.help.suporte`), sem deploy. Desligado, "Mensagens" volta a ser o assistente de IA.
+- ⚠️ Limite da v1: sem e-mail/push — quem fechou o app só vê a resposta ao voltar (contador + aviso).
 
 ---
 

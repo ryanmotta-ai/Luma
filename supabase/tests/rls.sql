@@ -175,6 +175,78 @@ do $$ declare n int; u record; begin
 end $$;
 reset role;
 
+-- ── SUPORTE AO VIVO (migration 20260923188000) ──────────────────────────────────────────
+-- Semente: uma mensagem do franqueado B, gravada como dono do banco com o JWT de B — o gatilho
+-- carimba autor e lado a partir do auth.uid(), então ela nasce "de B, não da equipe".
+select set_config('request.jwt.claims', json_build_object('sub', fb, 'role', 'authenticated')::text, true) from _u;
+insert into luma.suporte_mensagens (texto) values ('RLS-TESTE de B');
+
+select set_config('request.jwt.claims', '{"role":"anon"}', true);
+set local role anon;
+do $$ declare n int; begin
+  begin select count(*) into n from luma.suporte_mensagens; insert into _t(passo,esperado,obtido) values ('suporte: anon lê mensagens','0 ou recusa',n::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('suporte: anon lê mensagens','0 ou recusa','recusa'); end;
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', json_build_object('sub', fa, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare n int; u record; b boolean; fid uuid; begin
+  select * into u from _u;
+  select count(*) into n from luma.suporte_mensagens where franqueado_id = u.fb;
+  insert into _t(passo,esperado,obtido) values ('suporte: A lê a conversa de B','0',n::text);
+  select count(*) into n from luma.suporte_caixa where franqueado_id <> u.fa;
+  insert into _t(passo,esperado,obtido) values ('suporte: A vê outra linha na caixa','0',n::text);
+  begin insert into luma.suporte_mensagens (texto) values ('RLS-TESTE de A');
+    insert into _t(passo,esperado,obtido) values ('suporte: A escreve na própria conversa','ok','ok');
+  exception when others then insert into _t(passo,esperado,obtido) values ('suporte: A escreve na própria conversa','ok','recusa: '||sqlstate); end;
+  begin insert into luma.suporte_mensagens (texto, da_equipe) values ('RLS-TESTE finge equipe', true) returning da_equipe into b;
+    insert into _t(passo,esperado,obtido) values ('suporte: A grava da_equipe=true','false',b::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('suporte: A grava da_equipe=true','false','recusa'); end;
+  begin insert into luma.suporte_mensagens (franqueado_id, texto) values (u.fb, 'RLS-TESTE invade B') returning franqueado_id into fid;
+    insert into _t(passo,esperado,obtido) values ('suporte: A escreve na conversa de B','própria',case when fid = u.fa then 'própria' else 'CONSEGUIU' end);
+  exception when others then insert into _t(passo,esperado,obtido) values ('suporte: A escreve na conversa de B','própria','própria'); end;
+  begin update luma.suporte_mensagens set texto = 'editado' where franqueado_id = u.fa;
+    get diagnostics n = row_count;
+    insert into _t(passo,esperado,obtido) values ('suporte: A edita texto enviado','0 ou recusa',n::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('suporte: A edita texto enviado','0 ou recusa','recusa'); end;
+  begin delete from luma.suporte_mensagens where franqueado_id = u.fa;
+    get diagnostics n = row_count;
+    insert into _t(passo,esperado,obtido) values ('suporte: A apaga mensagem','0 ou recusa',n::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('suporte: A apaga mensagem','0 ou recusa','recusa'); end;
+  begin insert into storage.objects (bucket_id, name, owner) values ('luma-suporte', u.fb::text || '/rls-teste.png', u.fa);
+    insert into _t(passo,esperado,obtido) values ('suporte: A anexa print na conversa de B','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('suporte: A anexa print na conversa de B','recusa','recusa'); end;
+  -- Foto de perfil (migration 20260923187500): só URL do Storage do projeto.
+  begin update public.profiles set avatar_url = 'https://exemplo.com/rastreio.png' where id = u.fa;
+    insert into _t(passo,esperado,obtido) values ('foto: A grava URL externa','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('foto: A grava URL externa','recusa','recusa'); end;
+  begin update public.profiles set avatar_url = 'https://projeto.supabase.co/storage/v1/object/public/luma-user-uploads/' || u.fa || '/avatar.jpeg' where id = u.fa;
+    get diagnostics n = row_count;
+    insert into _t(passo,esperado,obtido) values ('foto: A grava a própria foto','1',n::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('foto: A grava a própria foto','1','recusa: '||sqlstate); end;
+  update public.profiles set avatar_url = 'https://projeto.supabase.co/storage/v1/object/public/luma-user-uploads/x/avatar.jpeg' where id = u.fb;
+  get diagnostics n = row_count;
+  insert into _t(passo,esperado,obtido) values ('foto: A troca a foto de B (linhas)','0',n::text);
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', json_build_object('sub', eq, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare n int; u record; b boolean; begin
+  select * into u from _u;
+  select count(*) into n from luma.suporte_mensagens where franqueado_id = u.fb;
+  insert into _t(passo,esperado,obtido) values ('suporte: equipe lê a conversa de B','>0',case when n>0 then '>0' else '0' end);
+  begin insert into luma.suporte_mensagens (franqueado_id, texto) values (u.fb, 'RLS-TESTE resposta') returning da_equipe into b;
+    insert into _t(passo,esperado,obtido) values ('suporte: equipe responde B (da_equipe)','true',b::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('suporte: equipe responde B (da_equipe)','true','recusa: '||sqlstate); end;
+  begin update luma.suporte_mensagens set lida_em = now() where franqueado_id = u.fb and not da_equipe;
+    get diagnostics n = row_count;
+    insert into _t(passo,esperado,obtido) values ('suporte: equipe marca como lida','>0',case when n>0 then '>0' else '0' end);
+  exception when others then insert into _t(passo,esperado,obtido) values ('suporte: equipe marca como lida','>0','recusa: '||sqlstate); end;
+end $$;
+reset role;
+
 select n, passo, esperado, obtido,
        case when esperado = obtido then true
             when esperado = '0 ou recusa' and obtido in ('0','recusa') then true

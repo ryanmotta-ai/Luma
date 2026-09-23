@@ -212,6 +212,9 @@ const G_FEATURE_REGISTRY = [
   { key:'global.help.chat', label:'Chat de ajuda', desc:'A conversa de apoio dentro da Central de Ajuda.',
     module:'global', parent:'global.help', categoria:'chats', behaviors:['hide','disabled','maintenance'],
     preserva:['load'], tags:['ajuda','chat','suporte'] },
+  { key:'global.help.suporte', label:'Suporte ao vivo', desc:'O franqueado conversa com a equipe DM em tempo real, dentro da Ajuda.',
+    module:'global', parent:'global.help', categoria:'chats', behaviors:['hide','maintenance'],
+    preserva:['load'], tags:['suporte','atendimento','equipe','ao vivo'] },
   { key:'global.tutorials', label:'Tutoriais animados', desc:'Os passo a passo guiados dentro do produto.',
     module:'global', parent:null, categoria:'areas', behaviors:['hide','maintenance'],
     preserva:['load'], tags:['tutorial','onboarding','passo a passo'] }

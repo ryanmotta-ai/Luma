@@ -379,6 +379,10 @@ async function gOnLoginSuccess() {
   // propósito — o boot já montou com o cache e não espera a rede. Ao chegar,
   // dispara luma:feature-flags-changed e a navegação se reconstrói sozinha.
   if (typeof gFeatureSyncFromBackend === 'function') { gFeatureSyncFromBackend(); }
+  // Foto antiga só no navegador sobe para o perfil; suporte ao vivo liga o Realtime.
+  // Os dois são assíncronos e engolem erro: nenhum pode travar o boot.
+  if (typeof gProfileSyncFotoLocal === 'function') { gProfileSyncFotoLocal().catch(()=>{}); }
+  if (typeof gSupIniciar === 'function') { try { gSupIniciar(); } catch (e) {} }
 
   // Gate de navegação por role: franqueado só vê a própria área (esconde o Estúdio).
   gApplyModeAccess();
