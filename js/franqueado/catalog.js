@@ -1118,8 +1118,14 @@ function fSelectCamp(id){
   // vazam pré-preenchidas nos passos da nova (fNextStep rehidrata de fState.dados).
   if(fState.camp && fState.camp.id!==c.id){
     fState.stepIdx=-1; fState.dados={}; fState.done=false; fState.material=null;
+    if(typeof fChatNovaConversa==='function') fChatNovaConversa();   // mata o passo agendado da campanha anterior
   }
-  fState.camp=c;
+  /* ⚠ Reabrir a MESMA campanha mantém o objeto em uso. As perguntas do material aberto moram
+     nele (`fSelectMaterial` as monta ali) e a conversa continua na tela: trocar por um `c`
+     novo, sem perguntas, fazia o próximo toque no chat ("Sim, continuar", "Manter", enviar)
+     ler `perguntas.length` de undefined e morrer — o chat ficava no limbo. Achado pela
+     varredura de ações (celular: arte → Campanhas → mesma campanha → chip do rascunho). */
+  if(!fState.camp || fState.camp.id!==c.id) fState.camp=c;
   try{ localStorage.setItem('__luma_camp', c.id); }catch(e){} // F5 reabre esta campanha (gRestoreFranqueado)
   // Vindo da home (categoria ainda null): abre o rail na lista certa, não nos cards de categoria
   if(!fState.categoria){

@@ -44,6 +44,13 @@ modo, mais uma aba, mais uma flag.
 
 ### Fechado nesta rodada (setembro/2026)
 
+- [x] **CHAT NO LIMBO — achado por varredura automática de ações (23/09).** O teste do time viu o chat parar "sem ação" e ninguém sabia reproduzir. Um robô dirigiu o app real (sem backend) com ~110 sequências aleatórias de cliques, digitação, upload, cliques na arte e teclas, no desktop e no celular, checando a cada passo se sobrava ação e se havia erro. Três causas reais:
+  - **Outro formato depois da arte pronta** (`fOutroFormato`, `chat.js`): esperava a legenda da IA ANTES de gerar, fora do `try`. A chamada estourava sempre (`gAI.isEnabled` não existe) → o cabeçalho dizia "Feed", nenhum PNG saía, nenhum aviso. Agora a legenda local entra na hora e a da IA por cima, sem travar.
+  - **Reabrir a mesma campanha com a arte aberta** (`fSelectCamp`, `catalog.js`): trocava `fState.camp` por um objeto sem perguntas; o próximo toque no chat morria. Mesma campanha agora mantém o objeto.
+  - **Passo agendado de conversa antiga** (`fTyping`/`fNextTimeout`/`_fGuidedTimer`): sair e abrir outra campanha em <1s fazia o passo rodar na nova. `_fChatGen` + `fChatNovaConversa()` descartam o passo velho; `fNextStep` sem material não faz nada.
+  - De brinde: `fSelectMaterial` levava `_perguntasTodas` do material anterior no spread (Refazer arte restauraria as perguntas do outro material).
+  - Suíte `franqueado-fluxo`: 2 casos novos (falham sem a correção). A bancada da varredura não entrou no repo — é ferramenta de caça, não portão.
+
 - [x] **A FRENTE DO AUTOMATIC DESIGNER FOI ENCERRADA (18/09) — decisão de produto do Ryan.**
   O Luma **não recompõe mais a arte de ninguém**. O comportamento oficial passou a ser: o
   designer desenha uma caixa, o franqueado troca o conteúdo, o Luma faz o texto caber **dentro
@@ -271,6 +278,7 @@ depois que ele estiver de pé e em uso.
 | **2** | **A Academia entra no lançamento?** | É um módulo inteiro pronto; a aba muda de duas para três | **Fica atrás da flag, desligada no lançamento.** Liga quando o conteúdo oficial estiver publicado — não faz sentido lançar formação sem aula |
 | 3 | **Fotos do franqueado em bucket público** — aceitar ou URLs assinadas? | — | Aceitar na v1, documentado: o PNG final é público por natureza |
 | 4 | **Criar usuário pelo app** (Edge Function) ou seguir no Dashboard? | — | Dashboard na v1; Edge Function depois |
+| **5** | **As features de IA do gateway que nunca rodaram** — legenda (`caption`), validação de imagem (`imageValidation`), revisão da peça (`contentReview`) no franqueado, e sugestão de metadados/casos de estresse/mapeamento de PSD no Estúdio. Todas checam `gAI.isEnabled(...)`, que **não existe** em `ai-client.js` desde 11/09: a checagem estoura e a feature morre calada. | Criar o `isEnabled` LIGA de uma vez 7 chamadas ao modelo que hoje ninguém recebe — muda custo, latência e o que o franqueado vê | Decidir por feature. Se ligar: `isEnabled(flag)` = chave presente + flag ligada (`_isFeatureEnabled`), e testar cada uma com a IA fora do ar antes |
 
 ---
 

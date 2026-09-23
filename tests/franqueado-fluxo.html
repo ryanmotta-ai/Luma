@@ -526,6 +526,28 @@ await test('Arrastar o logo move a imagem para o mesmo lado do dedo (contain e c
   fLpCancelFraming();
 });
 
+/* ── LIMBO: PASSO AGENDADO DE UMA CONVERSA QUE JÁ ACABOU ────────────────────────────────────
+   Achado pela varredura de ações no celular: o chat agenda o próximo passo (~900ms); voltar a
+   Campanhas e abrir outra nesse intervalo fazia o passo rodar na campanha nova, sem perguntas —
+   `perguntas.length` de undefined, erro no console, chat parado. */
+await test('Passo agendado da conversa anterior não roda depois de trocar de conversa', async()=>{
+  reset();
+  let rodou=false;
+  fTyping(()=>{ rodou=true; });
+  fChatNovaConversa();                    // é o que abrir material / trocar de campanha fazem
+  await espera(1100);
+  assert(!rodou,'o passo agendado da conversa anterior rodou na conversa nova');
+});
+
+await test('fNextStep sem material aberto não estoura', async()=>{
+  reset();
+  fState.camp={id:'outra',name:'Outra campanha'};   // campanha recém-aberta: ainda sem perguntas
+  fState.material=null;
+  let erro=null;
+  try{ fNextStep(); }catch(e){ erro=e; }
+  assert(!erro,'fNextStep estourou sem material aberto: '+(erro&&erro.message));
+});
+
 await test('Editar pela prévia também é desfazível', async()=>{
   reset();
   fState.dados={produto:'Pizza Grande'};
