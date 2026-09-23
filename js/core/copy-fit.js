@@ -19,7 +19,11 @@
    Alcance (ciclo 4, 14 caixas × 177 copies, em pixel): resgata 22,4% dos bloqueios; ~90% do resto
    passa de 15% de falta — ali só cortar produto resolveria, e isso ele não faz.
 
+   IA como ÚLTIMO degrau (23/09/2026): versão que não saiu daqui (a IA do "Encurtar" do chat)
+   só aparece se passa em `gCopyFitConfere` — as mesmas garantias, cobradas palavra a palavra.
+
    API: gCopyFitCandidatos(texto) · gCopyFitSugestoes(texto, cabe, max) · gCopyFitGuarda(a, b)
+        · gCopyFitConfere(original, candidato) → {ok, motivo, removidas}
    ══════════════════════════════════════════════════════════════════════════════════════════ */
 
 /* Fronteira de palavra que entende acento (o `\b` do JS não entende: "promoção" quebraria). */
@@ -113,6 +117,24 @@ function _gCfLimpa(s){
 const _G_CF_BLINDA = /\{\{[\s\S]*?\}\}|<[^<>]*>|&(?:#\d+|#x[\da-f]+|[a-z]+\d*);/giu;
 const _gCfBlindados = s => (String(s || '').match(_G_CF_BLINDA) || []).join('\u0001');
 
+/* Unidade por extenso → abreviação (e o separador entre número e abreviação). */
+const _G_CF_UNIDADES = [['litros?|lts?', 'L', ''], ['mililitros?', 'ml', ''], ['gramas?', 'g', ''],
+  ['quilos?', 'kg', ''], ['unidades?', 'un', ' ']];
+/* O enfeite em `palavras[i]` pode sair ALI? Só ANTEPOSTO: "Delicioso X-Tudo", "Leve um super
+   combo". Depois do substantivo é NOME ("Burger Top", "X-Tudo mega", "Brigadeiro Gourmet") —
+   sai o produto junto. Trecho blindado ({{x}}, tag) conta como palavra: "{{produto}} Super
+   Mercado" não é abertura. Super/mega antes de TAMANHO ou em nome composto é o que se vende
+   ("Pizza Super Grande", "Super Família"). A MESMA regra no degrau e no `gCopyFitConfere`. */
+const _G_CF_PRESO = /^(?:grandes?|gigantes?|fam[ií]lia|gg?|m|p|mercados?|market|store|star|her[oó]is?)$/iu;
+function _gCfEnfeiteSai(palavras, i, w){
+  const ant = palavras[i - 1];
+  const anteposto = i === 0 || /[:!?.,;]$/.test(ant) || !/[\p{L}\d\uE000-\uF8FF]/u.test(ant) || _G_CF_LIGA.test(ant);
+  const prox = _gCfNu(palavras[i + 1]);
+  if(!anteposto || !/^\p{L}/u.test(prox)) return false;
+  if(/^(?:da|do|de)$/iu.test(prox)) return false;   // "Famosa da Vila"
+  return !(/^(?:super|mega)$/iu.test(w) && _G_CF_PRESO.test(prox));
+}
+
 /* Os degraus: cada um recebe o texto e `r` (onde anota `trocas`/`removidas`) e devolve o texto.
    A limpeza de espaço depois de cada degrau é do `passo`, não deles. */
 const _G_CF_DEGRAUS = [
@@ -140,10 +162,8 @@ const _G_CF_DEGRAUS = [
     return _gCfAbre(s, t);
   }},
   { id:'unidades', fn:(s, r) => {
-    const un = [['litros?|lts?', 'L', ''], ['mililitros?', 'ml', ''], ['gramas?', 'g', ''],
-                ['quilos?', 'kg', ''], ['unidades?', 'un', ' ']];
     let t = s;
-    un.forEach(([p, abrev, sep]) => {
+    _G_CF_UNIDADES.forEach(([p, abrev, sep]) => {
       // A abreviação herda a caixa (ciclo 3: "500 GRAMAS" virava "500g" numa arte em caixa alta,
       // "10 UNIDADES" → "10 un"). O L já é maiúsculo. Grama em caixa alta NÃO abrevia: "500G" se lê
       // como tamanho G — fica "500 GRAMAS".
@@ -258,22 +278,12 @@ const _G_CF_DEGRAUS = [
     // linha é anteposto (antes de uma "palavra" sem letra), e a quebra volta no _gCfLimpa.
     const palavras = s.replace(/\n/g, ' \n ').split(' ');
     const re = _gCfRx('^(' + G_CF_ENFEITES.join('|') + ')$', 'iu');
-    // Super/mega antes de TAMANHO ou em nome composto é o que se vende: "Pizza Super Grande",
-    // "Super Família", "Super Mercado".
-    const preso = /^(?:grandes?|gigantes?|fam[ií]lia|gg?|m|p|mercados?|market|store|star|her[oó]is?)$/iu;
     const out = [];
     palavras.forEach((w, i) => {
       const m = w.match(re);
-      if(!m){ out.push(w); return; }
-      // Só ANTEPOSTO sai: "Delicioso X-Tudo", "Leve um super combo". Depois do substantivo
-      // é NOME ("Burger Top", "X-Tudo mega", "Brigadeiro Gourmet") — sai o produto junto.
-      // Trecho blindado ({{x}}, tag) conta como palavra: "{{produto}} Super Mercado" não é abertura.
+      // Só ANTEPOSTO sai (regra em `_gCfEnfeiteSai`, a mesma que o confere cobra).
+      if(!m || !_gCfEnfeiteSai(palavras, i, m[1])){ out.push(w); return; }
       const ant = palavras[i - 1];
-      const anteposto = i === 0 || /[:!?.,;]$/.test(ant) || !/[\p{L}\d\uE000-\uF8FF]/u.test(ant) || _G_CF_LIGA.test(ant);
-      const prox = _gCfNu(palavras[i + 1]);
-      if(!anteposto || !/^\p{L}/u.test(prox)) { out.push(w); return; }
-      if(/^(?:da|do|de)$/iu.test(prox)) { out.push(w); return; }   // "Famosa da Vila"
-      if(/^(?:super|mega)$/iu.test(m[1]) && preso.test(prox)) { out.push(w); return; }
       r.removidas.push(w);
       // Abria FRASE no meio do texto ("Oferta! Deliciosa coxinha", ou abrindo uma linha): a
       // maiúscula passa para a próxima — senão sai "Oferta! coxinha". A abertura do texto
@@ -290,6 +300,86 @@ const _G_CF_DEGRAUS = [
 function gCopyFitGuarda(original, candidato){
   return _gCfNums(original) === _gCfNums(candidato) && _gCfBlindados(original) === _gCfBlindados(candidato)
     && String(candidato).length <= String(original).length;
+}
+
+/* ══ CONFERE — a checagem de PRODUÇÃO para versão que não saiu do motor (a IA) ═══════════════
+   O motor é seguro por construção; a IA não. Toda versão que vem de fora passa aqui ANTES de
+   aparecer ao franqueado, e todo candidato do próprio motor também passa (a suíte cobra no
+   fuzz — é uma catraca a mais em cima dos degraus). Reprova quando:
+     · a guarda reprova: número mudou/sumiu/trocou de ordem, {{campo}}/tag/entidade não voltou
+       idêntico e na ordem, ou ficou mais longo;
+     · a CAIXA quebrou: original todo em maiúscula e a versão não;
+     · um ITEM sumiu: toda palavra de conteúdo do original tem que estar na versão depois de
+       normalizar as abreviações QUE O MOTOR CONHECE (as mesmas listas dos degraus: formas
+       curtas, unidades, tamanhos, dias, "de desconto" → OFF, "taxa de entrega grátis");
+       só pode sair ligação (artigo/preposição), "tamanho", enfeite ANTEPOSTO, "apenas/somente"
+       antes de preço e "com/e" antes de item de pedido (o "+");
+     · entrou palavra NOVA: a IA não inventa ("grátis", "promo" que não estavam lá). */
+const _G_CF_CANON = G_CF_TAMANHOS.concat(_G_CF_UNIDADES)
+  .map(([p, a]) => [new RegExp('^(?:' + p + ')$', 'iu'), a.toLowerCase()])
+  .concat([[new RegExp('^(?:(?:' + _G_CF_DIA + ')s?(?:-feiras?)?|seg|ter|qua|qui|sex|s[aá]b|dom)$', 'iu'), null]]);
+const _G_CF_PODE_SAIR = /^(?:por|à|ao|aos|tamanho)$/iu;   // além das de ligação (_G_CF_LIGA)
+/* As palavras do texto: {raw, nu, chave}. `chave` = forma normalizada ('' para número puro). */
+function _gCfPalavras(s){
+  // O trecho blindado vira o MESMO tipo de marcador do motor, colado como lá ("<b>Combo</b>" é
+  // palavra "Combo"; o enfeite antes dela está anteposto).
+  let t = String(s || '').replace(_G_CF_BLINDA, '\uE000');
+  // "Taxa de entrega grátis" ≡ "Entrega grátis" (a mesma troca do degrau curtas).
+  t = t.replace(_gCfRe('taxa(?=\\s+de\\s+entrega\\s+gr[aá]tis)'), (m, pre) => pre);
+  G_CF_CURTAS.forEach(([p, curta]) => { t = t.replace(_gCfRe(p), (m, pre) => pre + curta); });
+  t = t.replace(_gCfRe('de\\s+desconto|desconto'), (m, pre) => pre + 'off');
+  return t.replace(/\n/g, ' \n ').split(/[^\S\n]+/).filter(Boolean).map(raw => {
+    const nu = _gCfNu(raw), w = nu.replace(/^[\d.,/]+(?=\p{L})/u, '');   // "2L" → "l": o número é da guarda
+    let chave = /\p{L}/u.test(w) ? w.toLowerCase() : '';
+    for(const [re, c] of _G_CF_CANON) if(chave && re.test(chave)){ chave = c || _G_CF_DIA3[chave.slice(0, 3).replace('á', 'a')] || chave; break; }
+    return { raw, nu, chave };
+  });
+}
+/**
+ * @returns {{ok:boolean, motivo:string, removidas?:string[]}}  `motivo` curto (log/teste, '' quando ok);
+ *   `removidas` (só com ok) = o que saiu, na caixa digitada — a UI mostra como as do motor.
+ */
+function gCopyFitConfere(original, candidato){
+  const o = String(original || ''), c = String(candidato || '');
+  if(!c.trim()) return { ok: false, motivo: 'vazio' };
+  if(_gCfNums(o) !== _gCfNums(c)) return { ok: false, motivo: 'número mudou' };
+  if(_gCfBlindados(o) !== _gCfBlindados(c)) return { ok: false, motivo: '{{campo}}/tag mudou' };
+  if(c.length > o.length) return { ok: false, motivo: 'mais longo' };
+  const letras = s => s.replace(_G_CF_BLINDA, '').replace(/[^\p{L}]/gu, '');
+  const lo = letras(o);
+  if(lo.length > 1 && lo === lo.toUpperCase() && letras(c) !== letras(c).toUpperCase()) return { ok: false, motivo: 'caixa alta quebrou' };
+  const po = _gCfPalavras(o), pc = _gCfPalavras(c);
+  const resta = {}, conhecidas = {};
+  pc.forEach(p => { if(p.chave) resta[p.chave] = (resta[p.chave] || 0) + 1; });
+  po.forEach(p => { if(p.chave) conhecidas[p.chave] = 1; });
+  const novo = pc.find(p => p.chave && !conhecidas[p.chave]);
+  if(novo) return { ok: false, motivo: 'palavra nova: ' + novo.nu };
+  const item = _gCfRx('^(?:' + G_CF_ITENS + ')$', 'iu');
+  const enfeite = _gCfRx('^(?:' + G_CF_ENFEITES.join('|') + ')$', 'iu');
+  const raws = po.map(p => p.raw), podia = {}, total = {}, nomes = {}, falta = [], removidas = [];
+  const livre = [];
+  po.forEach((p, i) => {
+    if(!p.chave) return;
+    // Palavra que só pode sair NA POSIÇÃO certa: conta onde podia e confere no fim.
+    let pos = null;
+    if(/^(?:com|e)$/.test(p.nu.toLowerCase())) pos = i > 0 && !/^\d+$/.test(po[i - 1].nu) && !!po[i + 1] && item.test(po[i + 1].nu);
+    else if(/^(?:apenas|somente)$/i.test(p.nu)) pos = !!po[i + 1] && /^(?:r\$|\d+,\d{2})/i.test(po[i + 1].raw);
+    else if(enfeite.test(p.nu)) pos = _gCfEnfeiteSai(raws, i, p.nu);
+    if(pos !== null){
+      total[p.chave] = (total[p.chave] || 0) + 1; podia[p.chave] = (podia[p.chave] || 0) + (pos ? 1 : 0);
+      (nomes[p.chave] = nomes[p.chave] || []).push(_gCfNu(p.raw)); return;
+    }
+    if(_G_CF_PODE_SAIR.test(p.nu) || (_G_CF_LIGA.test(p.nu) && !/^(?:e|com)$/i.test(p.nu))){ livre.push(p); return; }
+    if(resta[p.chave]) resta[p.chave]--; else falta.push(p.nu);
+  });
+  Object.keys(total).forEach(k => {
+    const saiu = total[k] - Math.min(total[k], resta[k] || 0);
+    if(saiu > podia[k]) falta.push(k); else removidas.push(...nomes[k].slice(0, saiu));
+  });
+  if(falta.length) return { ok: false, motivo: 'sumiu: ' + falta.join(', ') };
+  // O que saiu (para a UI mostrar, como as `removidas` do motor), na caixa em que foi digitado.
+  livre.forEach(p => { if(resta[p.chave]) resta[p.chave]--; else removidas.push(_gCfNu(p.raw)); });
+  return { ok: true, motivo: '', removidas };
 }
 
 /* CUSTO PERCEPTÍVEL de cada degrau — quanto o franqueado estranha ao ler a versão sugerida.

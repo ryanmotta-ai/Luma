@@ -354,12 +354,55 @@ await test('IA lenta: a resposta é descartada se a pergunta mudou (regressão d
   solta('{"opcoes":["Calabresa Mussarela"]}'); await p;
   assert(!$('#f-fit-pop'),'a resposta atrasada do produto abriu opções na pergunta do preço');
   assert(box.value==='R$ 10,00','a resposta atrasada mexeu na caixa do preço');
-  // Controle: sem trocar de pergunta, a mesma resposta vira opção.
+  // Controle: sem trocar de pergunta, uma resposta VÁLIDA vira opção. (A de cima, "Calabresa
+  // Mussarela", hoje também cairia no gCopyFitConfere: sumiu "Pizza".)
   await reset({produto:''});
   window.gAiReady=()=>true; window.gAskAI=()=>new Promise(r=>{ solta=r; });
-  naPergunta('produto'); digita(SEM_VERSAO);
-  const p2=fFitTextWithAI(true); solta('{"opcoes":["Calabresa Mussarela"]}'); await p2;
+  naPergunta('produto'); digita(LONGO); await render();
+  const p2=fFitTextWithAI(true); solta('{"opcoes":["'+CURTO+'"]}'); await p2;
   assert($('#f-fit-pop .f-fit-opt'),'controle: a resposta na mesma pergunta deveria virar opção');
+});
+
+/* IA como ÚLTIMO degrau (23/09/2026): toda opção da IA passa por gCopyFitConfere E pela régua
+   em pixel. Reprovada some calada; todas reprovadas → frase honesta, nunca opção ruim. */
+await test('IA: 3 opções, 2 inválidas (produto trocado, preço inventado) → só a válida aparece, com o que saiu', async()=>{
+  await reset({produto:''});
+  window.gAiReady=()=>true;
+  window.gAskAI=()=>Promise.resolve(JSON.stringify({opcoes:['Pizza Mussarela', CURTO, CURTO+' 2x']}));
+  naPergunta('produto'); digita(LONGO); await render();
+  await fFitTextWithAI(true);
+  const opts=Array.from(document.querySelectorAll('#f-fit-pop .f-fit-opt'));
+  assert(opts.length===1 && opts[0].querySelector('span').textContent===CURTO,
+    'esperava só "'+CURTO+'": '+opts.map(o=>o.textContent).join(' | '));
+  assert(_fFitIaReprovadas===2,'a conta de reprovadas devia ser 2: '+_fFitIaReprovadas);
+  const foot=$('#f-fit-pop .f-fit-pop-foot').textContent;
+  assert(/Sugestão de IA/.test(foot) && /Sai: Deliciosa/.test(foot),'rodapé sem a origem ou sem o que saiu: "'+foot+'"');
+  assert(/sem Deliciosa/.test(opts[0].getAttribute('aria-label')||''),'a opção não diz o que saiu');
+});
+
+await test('IA: todas inválidas → nenhuma opção e a frase honesta', async()=>{
+  await reset({produto:''});
+  window.gAiReady=()=>true;
+  window.gAskAI=()=>Promise.resolve(JSON.stringify({opcoes:['Pizza Mussarela','Calabresa','Pizza Calabresa R$ 5']}));
+  naPergunta('produto'); digita(LONGO); await render();
+  await fFitTextWithAI(true);
+  assert(!$('#f-fit-pop'),'opção reprovada apareceu');
+  assert(toastCom(/A IA não achou uma versão que mantenha preço e produtos/),'sem a frase honesta');
+});
+
+await test('Motor sem versão + IA → o Encurtar aparece e um toque vai direto à IA', async()=>{
+  await reset({produto:''});
+  let chamou=0; window.gAiReady=()=>true;
+  window.gAskAI=()=>{ chamou++; return Promise.resolve('{"opcoes":["Calabresa Mussarela"]}'); };
+  naPergunta('produto'); digita(SEM_VERSAO); await render();
+  assert(_lpLayoutResult.invalid && !_fFitCopyFit('produto'),'pré-condição: bloqueia e o motor não tem versão');
+  assert(!chamou,'a IA foi chamada sem toque (por tecla/render)');
+  const btn=document.getElementById('f-fit-btn');
+  assert(btn,'sem versão e com IA, o Encurtar sumiu');
+  assert(/Tentar com IA/.test(btn.getAttribute('aria-label')||''),'o botão não diz que vai tentar com IA: '+btn.getAttribute('aria-label'));
+  btn.click(); await tick(); await tick();
+  assert(chamou===1,'um toque devia chamar a IA uma vez: '+chamou);
+  assert(!$('#f-fit-pop') && toastCom(/A IA não achou/),'"Calabresa Mussarela" (sumiu Pizza) não pode virar opção');
 });
 
 await test('IA lenta: a resposta é descartada se o texto foi reescrito', async()=>{
@@ -370,6 +413,55 @@ await test('IA lenta: a resposta é descartada se o texto foi reescrito', async(
   digita('Frango Catupiry Especial da Casa');
   solta('{"opcoes":["Calabresa Mussarela"]}'); await p;
   assert(!$('#f-fit-pop'),'opções de um texto que a pessoa já reescreveu');
+});
+
+/* ══ 4. SEM VERSÃO: QUANTO FALTA ══════════════════════════════════════════════════════════ */
+const notaVis=()=>{ const v=document.querySelector('#lp-layout-nota .lp-nota-vis'); return v?v.textContent:''; };
+const faltaDaNota=()=>{ const m=/tire (?:umas (\d+) letras|(1) letra)/.exec(notaVis()); return m?+(m[1]||m[2]):0; };
+
+await test('Sem versão: o aviso diz quantas letras tirar, e o corte desse tamanho CABE', async()=>{
+  await reset({produto:SEM_VERSAO});
+  assert(_lpLayoutResult.invalid&&!balao(),'pré-condição: bloqueia e não tem versão');
+  const n=faltaDaNota();
+  assert(n>=1&&n<SEM_VERSAO.length,'o aviso não diz quanto tirar: "'+notaVis()+'"');
+  // Determinístico: o texto atual não cabe; o começo dele com (atual − N) caracteres cabe.
+  fState.dados.produto=SEM_VERSAO.slice(0,SEM_VERSAO.length-n); await render();
+  assert(!(_lpLayoutResult.bloqueios||[]).some(b=>b.fieldId==='produto'),
+    'tirei as '+n+' letras que o aviso pediu e segue sem caber: "'+fState.dados.produto+'"');
+});
+
+await test('Sem versão: o diálogo diz o MESMO número e o contador bate com ele', async()=>{
+  await reset({produto:SEM_VERSAO});
+  const n=faltaDaNota(); assert(n>=1,'pré-condição: aviso com o número');
+  const ov=await abreDialogo(); assert(ov,'o aviso não abriu o diálogo');
+  const quanto=n===1?'1 letra':'umas '+n+' letras';
+  assert(ov.textContent.includes(quanto),'o diálogo não disse "'+quanto+'": "'+ov.textContent+'"');
+  ov.querySelector('.g-dialog-ok').click(); await tick(); clearTimeout(box._lpPreviewT);
+  fUpdateCharCount();
+  const L=SEM_VERSAO.length;
+  assert(document.getElementById('f-char-count').textContent===L+'/'+(L-n),
+    'o contador não bate com o aviso: '+document.getElementById('f-char-count').textContent+' (esperado '+L+'/'+(L-n)+')');
+});
+
+await test('Campo de preço bloqueado não ganha "tire N letras" (cortar o fim de um preço não é conselho)', async()=>{
+  await reset({precoPor:PRECO_LONGO});
+  assert(_lpLayoutResult.invalid,'pré-condição: bloqueia');
+  assert(!faltaDaNota()&&/encurtar/.test(notaVis()),'o preço ganhou número de letras: "'+notaVis()+'"');
+});
+
+await test('Leitor de tela: o número que muda a cada tecla só é falado na pausa', async()=>{
+  const n=document.createElement('button');
+  _fLpNotaTexto(n,'“Produto” não cabe — tire umas 9 letras','');
+  const vis=n.querySelector('.lp-nota-vis'), sr=n.querySelector('.lp-nota-sr');
+  assert(vis&&vis.getAttribute('aria-hidden')==='true'&&sr,'sem a parte visível escondida e a parte falada');
+  assert(/9 letras/.test(sr.textContent),'a primeira frase não foi falada: "'+sr.textContent+'"');
+  _fLpNotaTexto(n,'“Produto” não cabe — tire umas 8 letras','');
+  assert(/8 letras/.test(vis.textContent),'a barra não acompanhou a tecla');
+  assert(/9 letras/.test(sr.textContent),'o leitor de tela repetiu o aviso na tecla: "'+sr.textContent+'"');
+  await tick(F_LP_NOTA_PAUSA+80);
+  assert(/8 letras/.test(sr.textContent),'parou de digitar e o número novo não foi falado');
+  _fLpNotaTexto(n,'“Borda” não cabe — encurtar','');
+  assert(/Borda/.test(sr.textContent),'frase nova (outro campo) esperou a pausa');
 });
 
 await reset();

@@ -79,11 +79,14 @@ Sua tarefa é sugerir até 3 alternativas mais curtas preservando o significado 
 TEXTO ORIGINAL:
 "${original}"
 
-REGRAS:
+REGRAS (o Luma confere cada alternativa no código — gCopyFitConfere — e descarta a que quebrar qualquer uma):
 1. O texto DEVE ter no máximo ${maxLen} caracteres.
-2. NUNCA mude marcas, produtos ou números fornecidos.
-3. NUNCA use emojis.
-4. Responda com alternativas que soem naturais em português brasileiro.`;
+2. Mantenha TODOS os números e preços exatamente como estão, na mesma ordem.
+3. Mantenha TODOS os produtos, sabores, tamanhos, itens e marcas; não troque um produto por outro.
+4. Não invente nada: nenhuma palavra que não esteja no texto original. NUNCA use emojis.
+5. Pode tirar: artigos e preposições, "apenas/somente" antes de preço, adjetivo de enfeite antes do produto (delicioso, super, incrível), trocar "com"/"e" por "+" entre itens, e abreviar: refrigerante→refri, hambúrguer→burger, promoção→promo, litros→L, grande/médio/pequeno→G/M/P, segunda-feira→seg, "de desconto"→OFF.
+6. Mantenha qualquer {{campo}} e tag exatamente como estão. Se o original está em MAIÚSCULAS, responda em MAIÚSCULAS.
+7. Responda com alternativas que soem naturais em português brasileiro.`;
 
         return { prompt: prompt, parts: [] };
       }

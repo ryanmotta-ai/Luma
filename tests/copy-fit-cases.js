@@ -545,6 +545,8 @@
         if(!gCopyFitGuarda(x.texto, s.text)) erro(x, 'reprovou na guarda: "' + s.text + '"');
         const sumiu = itensIntactos(x.texto, s.text);
         if(sumiu.length) erro(x, 'sumiu ' + sumiu.join(', ') + ': "' + s.text + '"');
+        const cf = gCopyFitConfere(x.texto, s.text);
+        if(!cf.ok) erro(x, 'reprovou no confere (' + cf.motivo + '): "' + s.text + '"');
       });
       const cabem = gCopyFitCandidatos(x.texto).filter(c => x.b.cabe(c.text).ok);
       if(x.r.nenhuma){ if(cabem.length) erro(x, 'disse "não coube", mas "' + cabem[0].text + '" cabe'); return; }
@@ -578,6 +580,43 @@
     // acima dele é regressão de ordem de grandeza (medida sem memo, O(n²) no motor), não ruído.
     assert(BANCADA_PASSO === 1 || B.ms < 10000, 'a bancada levou ' + Math.round(B.ms) + 'ms');
   }));
+
+  /* ── gCopyFitConfere: a guarda de PRODUÇÃO que a IA do "Encurtar" atravessa (23/09/2026). A
+     especificação acima (itensIntactos) é escrita à parte; o confere mora no motor e reusa as
+     listas dele. O motor tem que passar nele sempre — é uma catraca a mais nos degraus. */
+  test('35 · confere aprova TODO candidato do motor (frases, fuzz de 2.000, corpus de 177 e o 2º passe)', () => {
+    const erros = [];
+    const cobra = (f, t) => { const r = gCopyFitConfere(f, t); if(!r.ok) erros.push('"' + f + '" → "' + t + '" (' + r.motivo + ')'); };
+    FRASES.concat(FUZZ, window.LUMA_COPY_CORPUS || []).forEach(f => {
+      const cs = gCopyFitCandidatos(f);
+      cs.forEach(c => cobra(f, c.text));
+      if(cs[0]) gCopyFitCandidatos(cs[0].text).forEach(c2 => cobra(f, c2.text));
+    });
+    assert(!erros.length, erros.length + ' candidatos do motor reprovados: ' + erros.slice(0, 4).join(' | '));
+  });
+
+  test('36 · confere reprova o que a IA erraria e aprova a reescrita legítima', () => {
+    const nao = (o, c, porque) => { const r = gCopyFitConfere(o, c); assert(!r.ok && porque.test(r.motivo), 'devia reprovar (' + porque + '): "' + o + '" → "' + c + '" deu ' + JSON.stringify(r)); };
+    const sim = (o, c) => { const r = gCopyFitConfere(o, c); assert(r.ok, 'devia aprovar: "' + o + '" → "' + c + '" (' + r.motivo + ')'); };
+    sim('Pizza grande de calabresa com refrigerante', 'Pizza G calabresa + refri');
+    sim('Taxa de entrega grátis todos os dias', 'Entrega grátis todo dia');
+    sim('Refrigerante 2 litros por apenas R$ 9,90', 'Refri 2L R$ 9,90');
+    sim('50% de desconto de segunda a sexta', '50% OFF seg a sex');
+    sim('Deliciosa Pizza Calabresa', 'Pizza Calabresa');
+    nao('Pizza Calabresa por R$ 39,90', 'Pizza Calabresa R$ 29,90', /número/);          // preço mudado
+    nao('Pizza 2 sabores por R$ 39,90', 'Pizza R$ 39,90', /número/);                    // quantidade sumiu
+    nao('Pizza de Calabresa com Borda R$ 39,90', 'Pizza Calabresa R$ 39,90', /sumiu: borda/i);   // produto sumido
+    nao('Combo X-Tudo com batata e refri', 'X-Tudo + batata + refri', /sumiu: combo/i);
+    nao('{{produto}} com refrigerante', '{{Produto}} + refri', /campo/);                // {{campo}} alterado
+    nao('{{produto}} com refrigerante', '{{nome}} + refri', /campo/);
+    nao('COMBO COM REFRIGERANTE', 'Combo + refri', /caixa/);                            // caixa quebrada
+    nao('Pizza Calabresa', 'Pizza Calabresa G', /mais longo/);                          // mais longo
+    nao('Deliciosa Pizza Calabresa com refri', 'Pizza Calabresa grátis', /palavra nova|sumiu/);   // inventou
+    nao('Brigadeiro Gourmet com refri', 'Brigadeiro + refri', /sumiu: gourmet/i);        // enfeite POSPOSTO é nome
+    nao('Café com leite', 'Café leite', /sumiu: com/i);                                  // "com" só sai antes de item
+    nao('Frete grátis apenas para o centro', 'Frete grátis para o centro', /sumiu: apenas/i);  // restrição, não preço
+    nao('Pizza Calabresa', '', /vazio/);
+  });
 
   let passed = 0;
   for(const item of cases){
