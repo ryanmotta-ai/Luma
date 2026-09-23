@@ -26,6 +26,30 @@ let gAuthState = { user: null };
 
 function _gSb(){ return (typeof gSupabase === 'function') ? gSupabase() : window.sb; }
 
+/* Erro do Supabase Auth em PT-BR, dizendo O QUE FAZER (23/09/2026). O cru ("Email rate limit
+   exceeded", "Email not confirmed") chegava em inglês na tela do franqueado. Nos logs de 18/09,
+   21 tentativas seguidas de "senha incorreta" em 25 min, de duas pessoas: quem nunca entrou não
+   sabia que a conta nasce com a senha inicial passada pela gestão. */
+function _gAuthErroPt(error, contexto) {
+  const m = String((error && (error.message || error.code)) || '');
+  if (/invalid login|invalid_credentials/i.test(m))
+    return 'E-mail ou senha incorretos. No primeiro acesso, use a senha inicial que a gestão te passou — ou toque em "Esqueci minha senha".';
+  if (/not confirmed/i.test(m)) return 'Seu e-mail ainda não foi confirmado. Fale com a gestão para liberar o acesso.';
+  if (/rate limit|too many|over_email_send_rate/i.test(m))
+    return 'Muitos pedidos em pouco tempo. Espere alguns minutos e tente de novo.';
+  const seg = m.match(/after (\d+) seconds?/i);
+  if (seg) return 'Aguarde ' + seg[1] + ' segundos para pedir outro link.';
+  if (/not authorized|not allowed/i.test(m))
+    return contexto === 'recuperar'
+      ? 'Não consegui enviar o e-mail para esse endereço. Fale com a gestão para redefinir sua senha.'
+      : 'Acesso não autorizado. Fale com a gestão.';
+  if (/banned/i.test(m)) return 'Seu acesso está bloqueado. Fale com a gestão.';
+  if (/timeout|unexpected_failure|500/i.test(m)) return 'O servidor demorou para responder. Tente de novo em instantes.';
+  if (/weak|should be at least|password.*characters/i.test(m)) return 'Senha fraca: use no mínimo 8 caracteres, misturando letras e números.';
+  if (/same.*password|different from the old/i.test(m)) return 'A nova senha precisa ser diferente da atual.';
+  return m || 'Não deu certo. Tente de novo.';
+}
+
 // Carrega a sessão atual do Supabase + o profile (role) do banco. Idempotente.
 async function gLoadProfile() {
   const sb = _gSb();
@@ -80,12 +104,7 @@ async function gLogin(email, password) {
       email: String(email).trim().toLowerCase(),
       password
     });
-    if (error) {
-      const msg = /invalid login|invalid_credentials/i.test(error.message || '')
-        ? 'E-mail ou senha incorretos.'
-        : (error.message || 'Falha no login.');
-      return { ok: false, error: msg };
-    }
+    if (error) return { ok: false, error: _gAuthErroPt(error, 'login') };
     await gLoadProfile();
     return { ok: true };
   } catch (e) {
@@ -115,7 +134,7 @@ async function gForgotPassword(email) {
   // sempre um objeto, senão o botão fica preso em "Enviando…" e a tela não diz nada.
   try {
     const { error } = await sb.auth.resetPasswordForEmail(String(email).trim().toLowerCase(), { redirectTo });
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: _gAuthErroPt(error, 'recuperar') };
     return { ok: true };
   } catch (e) {
     return { ok: false, error: 'Não foi possível conectar. Verifique sua internet e tente de novo.' };
@@ -128,7 +147,8 @@ async function gResetPassword(newPassword) {
   if (!sb) return { ok: false, error: 'Backend indisponível.' };
   try {
     const { error } = await sb.auth.updateUser({ password: newPassword });
-    if (error) return { ok: false, error: error.message };
+    // A mensagem crua segue junto: o passo "nova senha" detecta sessão vencida por ela.
+    if (error) return { ok: false, error: /session|jwt|expired|token/i.test(error.message || '') ? error.message : _gAuthErroPt(error, 'senha') };
     return { ok: true };
   } catch (e) {
     return { ok: false, error: 'Não foi possível conectar. Verifique sua internet e tente de novo.' };
@@ -334,7 +354,9 @@ async function gDoForgot(e) {
 
   const res = await gForgotPassword(email);
   if (res.ok) {
-    succEl.textContent = 'Link enviado! Verifique seu e-mail.';
+    // O Supabase responde "ok" até para e-mail sem conta (não revela quem existe): a frase
+    // não promete entrega, e o spam é onde o e-mail automático costuma cair.
+    succEl.textContent = 'Pronto! Se esse e-mail tiver acesso ao Luma, o link chega em alguns minutos. Olhe também a caixa de spam.';
     succEl.style.display = 'block';
     btn.style.display = 'none';
   } else {
