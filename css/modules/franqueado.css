@@ -1087,6 +1087,68 @@ body:not(.theme-light) #f-home-btn{border-color:var(--dm-orange);background:var(
   .fh-draft-th{width:68px;height:88px}
 }
 
+/* ── HOME NO CELULAR — "busca no centro" (proposta B, aprovada em 23/09/2026) ──
+   A pergunta vira o título, a busca ganha a borda da marca e os filtros saem do dropdown
+   para chips. Atalhos viram dois blocos, rascunhos viram lista de uma linha e a destacada
+   deixa o hero para abrir a grade de capas (fCampEl(rec,true) — no desktop ela fica escondida
+   na grade e o hero continua). Mesmo DOM nos dois tamanhos: a ordem troca por `order`. */
+.fh-chips,.fh-act-txt small{display:none}
+@media (min-width:769px){
+  .fh-grid .camp-card.recommended,.fh-sec-so-rec{display:none}
+}
+@media (max-width:768px){
+  .fh-head{display:contents}
+  .fh-head-copy{order:1}
+  .fh-search-row{order:2}
+  .fh-chips{order:3}
+  .fh-head-actions{order:4}
+  #fh-body{order:5}
+
+  .fh-kicker{display:none}
+  .fh-greet{font-size:14px;font-weight:500;color:var(--text-3);letter-spacing:0;line-height:1.3}
+  #f-home.fh-anim .fh-greet{animation-name:gFadeInUp}
+  .fh-sub{margin-top:2px;color:var(--text);font-size:clamp(26px,7.6vw,30px);font-weight:900;letter-spacing:-.03em;line-height:1.1}
+
+  .fh-search-row{min-height:58px;border:2px solid var(--dm-orange)}
+  .fh-search-row.is-stuck{border-color:var(--dm-orange)}
+  .fh-search-field label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .fh-search-tools{display:none}
+
+  .fh-chips{display:flex;gap:8px;margin-top:-10px;overflow-x:auto;scrollbar-width:none}
+  .fh-chips::-webkit-scrollbar{display:none}
+  .fh-chip{flex:none;min-height:40px;padding:0 15px;border:1px solid var(--gray-light);border-radius:var(--r-pill);background:var(--white);color:var(--text-2);font-family:'Roboto',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard)}
+  .fh-chip.is-on{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--text);font-weight:700}
+  .fh-chip:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+
+  .fh-head-actions{width:auto;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .fh-head-actions .fh-help,.fh-head-actions .fh-mine{min-height:64px;justify-content:flex-start;gap:10px;padding:12px;border:1px solid var(--gray-light);border-radius:14px;background:var(--white);box-shadow:none;text-align:left}
+  .fh-head-actions button svg{width:36px;height:36px;flex:none;padding:9px;border-radius:10px;background:var(--dm-orange-bg);color:var(--dm-orange-d)}
+  .fh-head-actions .fh-act-txt{min-width:0}
+  .fh-head-actions .fh-act-txt>span{font-size:14px;font-weight:700;color:var(--text)}
+  .fh-head-actions .fh-act-txt small{display:block;margin-top:1px;color:var(--text-3);font-size:12px;font-weight:400}
+  .fh-mine-badge{display:none}
+
+  .fh-cont{gap:0;background:var(--white);border:1px solid var(--gray-light);border-radius:16px;overflow:hidden}
+  .fh-cont .fh-draft{min-height:0;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;padding:10px 12px;border:0;border-bottom:1px solid var(--gray-light);border-radius:0;box-shadow:none;transform:none}
+  .fh-cont .fh-draft:last-child{border-bottom:0}
+  .fh-cont .fh-draft-th{width:44px;height:56px;padding:0;border-radius:8px;transform:none}
+  .fh-draft-th span,.fh-draft-status,.fh-draft-foot,.fh-draft-go svg{display:none}
+  .fh-draft-name{font-size:14px;font-weight:700}
+  .fh-draft-meta{margin-top:2px;font-size:12px}
+  .fh-draft-go,.fh-draft:hover .fh-draft-go{width:auto;height:auto;border:0;background:none;color:var(--dm-orange-d);font-size:13px;font-weight:700;transform:none}
+  .fh-draft-go::before{content:'Continuar'}
+
+  .fh-featured{display:none}
+  #f-home .fh-grid .camp-card{aspect-ratio:4/5;border:0;border-radius:16px}
+  #f-home .fh-grid .camp-thumb{position:absolute;inset:0;height:auto;aspect-ratio:auto !important;border-radius:0}
+  #f-home .fh-grid .camp-body{position:absolute;left:0;right:0;bottom:0;z-index:1;padding:32px 10px 10px;background:linear-gradient(transparent,rgba(10,10,10,.8))}
+  #f-home .fh-grid .camp-name{min-height:0;color:var(--white);font-size:14px;font-weight:700}
+  #f-home .fh-grid .camp-sub{color:rgba(255,255,255,.85);font-size:11px}
+  #f-home .fh-grid .camp-prev-btn{top:8px;left:8px;bottom:auto;right:auto}
+  #f-home .fh-grid .camp-card.recommended::after{content:'DESTAQUE';position:absolute;top:8px;left:8px;z-index:4;padding:4px 8px;border-radius:var(--r-pill);background:var(--white);color:var(--dm-red);font-size:10px;font-weight:900;letter-spacing:.04em}
+  #f-home .fh-grid .camp-card.recommended .camp-prev-btn{top:34px}
+}
+
 /* ══════════════════════════════════════════════════════════════
    HOME — COREOGRAFIA DE ENTRADA E MICROINTERAÇÕES (premium feel).
    Usa os tokens de motion (00-tokens) e keyframes g* (02-animations).

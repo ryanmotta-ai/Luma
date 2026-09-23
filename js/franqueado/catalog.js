@@ -1365,6 +1365,10 @@ function _fhEmptyState(title,sub){
 function _fhFilterPanelHTML(){
   return _FH_FILTERS.map(f=>`<button type="button" class="fh-filter-opt${_fhFilter===f.id?' is-current':''}" role="menuitemradio" aria-checked="${_fhFilter===f.id}" onclick="fHomeSetFilter('${f.id}')">${gEsc(f.label)}${_fhFilter===f.id?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>':''}</button>`).join('');
 }
+// Mesmo filtro em chips (celular troca o dropdown por eles — um estado só, _fhFilter).
+function _fhChipsHTML(){
+  return _FH_FILTERS.map(f=>`<button type="button" class="fh-chip${_fhFilter===f.id?' is-on':''}" aria-pressed="${_fhFilter===f.id}" onclick="fHomeSetFilter('${f.id}')">${gEsc(f.label)}</button>`).join('');
+}
 // Painel de filtro: abre/fecha como o menu do 3-pontos (fCampAdminMenu) — fora do
 // clique/Esc fecha; listener em {once:true} porque reabre a cada toggle.
 function fHomeToggleFilter(btn,ev){
@@ -1398,6 +1402,7 @@ function fHomeSetFilter(id){
       else if(id==='todas'&&dot) dot.remove();
     }
   }
+  const chips=document.querySelector('.fh-chips'); if(chips) chips.innerHTML=_fhChipsHTML();
   const s=document.getElementById('fh-search');
   fHomeFilter(s?s.value:'');
 }
@@ -1468,8 +1473,8 @@ function _fHomeBodyHTML(query){
     ${favs.length?`<section class="fh-section"><div class="fh-sec"><span>Favoritas</span><em>${favs.length} fixada${favs.length!==1?'s':''}</em></div>
     <div class="camp-grid fh-grid">${favs.map(c=>fCampEl(c,false,!_fCampHasMats(c))).join('')}</div></section>`:''}
     ${rec?_fHomeHeroEl(rec):''}
-    ${gridProntas.length?`<section class="fh-section"><div class="fh-sec"><span>Prontas para usar</span><em>${gridProntas.length} campanha${gridProntas.length!==1?'s':''} disponíveis</em></div>
-    <div class="camp-grid fh-grid">${gridProntas.map(c=>fCampEl(c,false)).join('')}</div></section>`:''}`;
+    ${prontas.length?`<section class="fh-section${gridProntas.length?'':' fh-sec-so-rec'}"><div class="fh-sec"><span>Prontas para usar</span><em>${prontas.length} campanha${prontas.length!==1?'s':''} disponíveis</em></div>
+    <div class="camp-grid fh-grid">${rec?fCampEl(rec,true):''}${gridProntas.map(c=>fCampEl(c,false)).join('')}</div></section>`:''}`;
 }
 
 /* ── Revelação por rolagem ─────────────────────────────────────
@@ -1535,8 +1540,8 @@ function fRenderHome(opts){
         <p class="fh-sub">Qual arte vamos criar hoje?</p>
       </div>
       <div class="fh-head-actions">
-        <button class="fh-help" type="button" onclick="lumaWidgetOpen(this)" data-help-trigger aria-controls="luma-widget-modal" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 1 1 3.6 1.9c-.9.6-1.4 1.1-1.4 2.1"/><path d="M12 17h.01"/></svg><span>Ajuda</span></button>
-        <button class="fh-mine" type="button" onclick="fHomeOpenHist()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 4v5"/></svg><span>Minhas artes</span>${nHist?` <span class="fh-mine-badge">${nHist}</span>`:''}</button>
+        <button class="fh-help" type="button" onclick="lumaWidgetOpen(this)" data-help-trigger aria-controls="luma-widget-modal" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 1 1 3.6 1.9c-.9.6-1.4 1.1-1.4 2.1"/><path d="M12 17h.01"/></svg><span class="fh-act-txt"><span>Ajuda</span><small>Fale com a gente</small></span></button>
+        <button class="fh-mine" type="button" onclick="fHomeOpenHist()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 4v5"/></svg><span class="fh-act-txt"><span>Minhas artes</span><small>${nHist?nHist+(nHist!==1?' salvas':' salva'):'Nenhuma ainda'}</small></span>${nHist?` <span class="fh-mine-badge">${nHist}</span>`:''}</button>
       </div>
     </div>
     <div class="fh-search-row" role="search">
@@ -1552,6 +1557,7 @@ function fRenderHome(opts){
         </div>
       </div>
     </div>
+    <div class="fh-chips" role="group" aria-label="Filtrar vitrine">${_fhChipsHTML()}</div>
     <div id="fh-body">${_fHomeBodyHTML('')}</div>
   </div>`;
   // Tudo que roda depois do innerHTML é envolvido: um throw aqui deixava os cards em
