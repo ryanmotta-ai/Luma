@@ -18,17 +18,34 @@
   const assert = (c, m) => { if(!c) throw new Error(m || 'asserção falhou'); };
   const textos = s => gCopyFitCandidatos(s).map(c => c.text);
 
-  /* Tudo o que o motor PODE fazer sumir. Qualquer outra palavra do original tem que estar
-     no candidato — é assim que se prova que item nenhum foi cortado. */
-  const PODE_SUMIR = /^(por|apenas|somente|com|e|litros?|lts?|mililitros?|ml|gramas?|quilos?|unidades?|refrigerantes?|hamb[uú]rgueres|hamb[uú]rguer|promo[cç](?:[aã]o|[oõ]es)|de|desconto|segunda|sexta|s[aá]bado|a|segunda-feira|ter[cç]a-feira|quarta-feira|quinta-feira|sexta-feira|grandes?|m[eé]di[oa]s?|pequen[oa]s?|tamanho|super|mega|delicios[oa]s?|incr[ií]ve(?:l|is)|gourmet|maravilhos[oa]s?|exclusiv[oa]s?|imperd[ií]ve(?:l|is)|irresist[ií]ve(?:l|is)|famos[oa]s?|saboros[oa]s?|top)$/iu;
+  /* "ITEM NÃO SOME", provado palavra a palavra (ciclo 3). Cada palavra de conteúdo do original
+     tem que estar no candidato DEPOIS DE NORMALIZAR as abreviações que o motor pode fazer
+     (refrigerante ≡ refri, litros ≡ L, grande ≡ G, segunda-feira ≡ seg…). Antes a lista
+     deixava "refrigerante" SUMIR sem cobrar que o "refri" aparecesse — um corte passava.
+     Só as palavras de ligação abaixo podem sumir de qualquer lugar; "com/e/apenas/enfeite"
+     só na posição certa (saiAqui). */
+  const PODE_SUMIR = /^(por|de|a|à|os|tamanho|taxa|para|pedidos)$/iu;
+  const CANON = [
+    [/^refrigerantes?$/, 'refri'], [/^refris$/, 'refri'], [/^hamb[uú]rguer(es)?$/, 'burger'], [/^burgers$/, 'burger'],
+    [/^promo[cç](ão|ao|ões|oes)$/, 'promo'], [/^promos$/, 'promo'],
+    [/^(litros?|lts?|l)$/, 'l'], [/^mililitros?$/, 'ml'], [/^gramas?$/, 'g'], [/^quilos?$/, 'kg'], [/^unidades?$/, 'un'],
+    [/^grandes?$/, 'g'], [/^m[eé]di[oa]s?$/, 'm'], [/^pequen[oa]s?$/, 'p'],
+    [/^(seg|segundas?)(-feiras?)?$/, 'seg'], [/^(ter|ter[cç]as?)(-feiras?)?$/, 'ter'], [/^(qua|quartas?)(-feiras?)?$/, 'qua'],
+    [/^(qui|quintas?)(-feiras?)?$/, 'qui'], [/^(sex|sextas?)(-feiras?)?$/, 'sex'], [/^(s[aá]b|s[aá]bados?)$/, 'sab'], [/^(dom|domingos?)$/, 'dom'],
+    [/^todos$/, 'todo'], [/^dias$/, 'dia'], [/^desconto$/, 'off']
+  ];
+  const canon = w => { for(const [re, c] of CANON) if(re.test(w)) return c; return w; };
+  /* "2L" / "500ml" / "2x": o número some da conta (a guarda cuida dele), a unidade fica. */
+  const semNum = w => w.replace(/^[\d.,/]+(?=\p{L})/u, '');
   /* Estar na lista não basta: "com", "apenas" e o enfeite só podem sair NA POSIÇÃO certa. Sem
      isso a suíte aprovava "Café + leite", "Frete grátis para o centro" e "Pizza" (de "Pizza
      Especial"). Estas regras são a especificação, escritas à parte do motor. */
   const ITEM = /^(refris?|refrigerantes?|batatas?|fritas|sucos?|burgers?|hamb[uú]rgueres|hamb[uú]rguer|pizzas?|por[cç](?:[aã]o|[oõ]es)|sobremesas?|bebidas?|guaran[aá]s?|coca-cola|cocas?|milk-?shakes?|a[cç]a[ií]s?|sorvetes?|past[eé]is|pastel|esfihas?|coxinhas?|x-\p{L}+)$/iu;
-  const ENFEITE = /^(super|mega|delicios[oa]s?|incr[ií]ve(?:l|is)|gourmet|maravilhos[oa]s?|exclusiv[oa]s?|imperd[ií]ve(?:l|is)|irresist[ií]ve(?:l|is)|famos[oa]s?|saboros[oa]s?|top)$/iu;
+  const ENFEITE = /^(super|mega|delicios[oa]s?|incr[ií]ve(?:l|is)|gourmet|maravilhos[oa]s?|exclusiv[oa]s?|imperd[ií]ve(?:l|is)|irresist[ií]ve(?:l|is)|famos[oa]s?|saboros[oa]s?)$/iu;
   const LIGA = /^(o|a|os|as|um|uma|uns|umas|de|do|da|dos|das|no|na|nos|nas|e|em|com|para|pra|seu|sua|seus|suas|\+)$/iu;
   const nu = w => String(w || '').toLowerCase().replace(/^[^\p{L}\d]+|[^\p{L}\d]+$/gu, '');
-  const brutas = s => String(s).split(/\s+/).filter(Boolean);
+  // A quebra de linha é palavra própria: o enfeite que ABRE uma linha está anteposto.
+  const brutas = s => String(s).replace(/\n/g, ' \n ').split(/[^\S\n]+/).filter(Boolean);
   const preco = w => /^r\$/i.test(w || '') || /^\d+,\d{2}/.test(w || '');
   const saiAqui = (b, i) => {                       // a palavra b[i] do original PODE sair aqui?
     const w = nu(b[i]), ant = b[i - 1], prox = nu(b[i + 1]);
@@ -43,15 +60,16 @@
   };
   const itensIntactos = (orig, cand) => {
     const b = brutas(orig), resta = {};
-    brutas(cand).forEach(w => { w = nu(w); resta[w] = (resta[w] || 0) + 1; });
+    const chave = raw => { const w = nu(raw); return /^[\d.,/]*$/.test(w) ? '' : canon(semNum(w)); };
+    brutas(cand).forEach(raw => { const w = chave(raw); if(w) resta[w] = (resta[w] || 0) + 1; });
     const sumiu = [], podia = {};
     b.forEach((raw, i) => {
-      const w = nu(raw);
-      if(!w || /^\d/.test(w)) return;
+      const w = chave(raw);
+      if(!w) return;                                  // número puro: é da guarda
       const ctx = saiAqui(b, i);
       if(ctx !== null){ podia[w] = (podia[w] || 0) + (ctx ? 1 : 0); podia['#' + w] = (podia['#' + w] || 0) + 1; return; }
-      if(PODE_SUMIR.test(w)) return;
-      if(resta[w]) resta[w]--; else sumiu.push(w);
+      if(PODE_SUMIR.test(nu(raw))) return;
+      if(resta[w]) resta[w]--; else sumiu.push(nu(raw));
     });
     // Palavra de posição: quantas saíram ≤ quantas estavam num lugar em que podiam sair.
     Object.keys(podia).filter(k => k[0] !== '#').forEach(w => {
@@ -132,22 +150,58 @@
     FRASES.forEach(f => assert(JSON.stringify(gCopyFitCandidatos(f)) === JSON.stringify(gCopyFitCandidatos(f)), f));
   });
 
-  test('11 · fuzz: 2.000 combos montados — garantias valem em todos', () => {
-    const itens = ['Burger', 'Hambúrguer Duplo', 'Pizza Grande', 'Batata Média', 'Refrigerante 2 litros',
-      'Açaí 300 ml', 'Pastel de Queijo', 'Coxinha', 'Suco Natural', 'Sorvete Pequeno', 'X-Salada'];
-    const abre = ['', 'Super ', 'Combo ', 'Delicioso ', 'Promoção ', 'MEGA '];
+  /* Fuzz determinístico (seed fixa). Ciclo 3: além de item/adjetivo/preço, entram dia, unidade,
+     desconto, nome que parece gatilho, placeholder, tag, emoji, quebra de linha e as 3 caixas —
+     e cada candidato é encurtado DE NOVO (idempotência: o 2º passe também não corta item nem
+     mexe em número, e nunca devolve o próprio texto). */
+  const FUZZ = (() => {
+    const itens = ['Burger', 'Hambúrguer Duplo', 'Pizza Grande', 'Batata Média', 'Refrigerante 2 litros', 'Açaí 300 ml',
+      'Pastel de Queijo', 'Coxinha', 'Suco Natural', 'Sorvete Pequeno', 'X-Salada', 'X-Tudo Especial', 'Burger Artesanal',
+      'Pizza de Calabresa Tradicional', 'Refri Zero', 'Pastel da Feira', 'Pizza Grande São Paulo', 'Café com leite',
+      'Esfiha Média', 'Porção de fritas grande', 'Hot Roll 10 unidades', '{{produto}}', '<b>Combo</b>', 'Burger Top',
+      'Pizza Super Grande', 'Coca-Cola 2 lts', 'Refrigerantes (lata)', 'Promoção de Hambúrguer'];
+    const abre = ['', 'Super ', 'Combo ', 'Delicioso ', 'Promoção ', 'MEGA ', 'Top ', 'Famosa ', 'Especial ', 'Artesanal ', '🔥 ', 'Oferta! Deliciosa ', 'Leve um incrível '];
+    const liga = [' com ', ' e ', ' + ', ', ', '\n'];
+    const fim = ['', ' de segunda a sexta', ' todos os dias', ' com 50% de desconto', '. Taxa de entrega grátis', ' 500 gramas',
+      ' para pedidos acima de R$ 50', ' válido somente hoje', ' 👨‍👩‍👧', ' de terça-feira a domingo'];
     let seed = 7; const rnd = n => { seed = (seed * 9301 + 49297) % 233280; return Math.floor(seed / 233280 * n); };
+    const out = [];
     for(let i = 0; i < 2000; i++){
       const n = 1 + rnd(3), partes = [];
       for(let k = 0; k < n; k++) partes.push(itens[rnd(itens.length)]);
-      let f = abre[rnd(abre.length)] + partes.join(rnd(2) ? ' com ' : ' e ') + (rnd(3) ? '' : ' por apenas R$ ' + (10 + rnd(90)) + ',90');
-      if(rnd(4) === 0) f = f.toUpperCase();
-      gCopyFitCandidatos(f).forEach(c => {
-        assert(gCopyFitGuarda(f, c.text), 'guarda: ' + f + ' → ' + c.text);
-        const sumiu = itensIntactos(f, c.text);
-        assert(!sumiu.length, 'sumiu ' + sumiu + ': ' + f + ' → ' + c.text);
-      });
+      const preco = [' por apenas R$ ', ' por R$ ', ' R$', ' somente ', ' 3 por R$ '][rnd(5)] + (10 + rnd(90)) + ',90';
+      let f = abre[rnd(abre.length)] + partes.join(liga[rnd(liga.length)]) + (rnd(3) ? '' : preco) + fim[rnd(fim.length)];
+      const caixa = rnd(6);
+      if(caixa === 0) f = f.toUpperCase(); else if(caixa === 1) f = f.toLowerCase();
+      out.push(f);
     }
+    return out;
+  })();
+  const blindados = s => (String(s).match(/\{\{[\s\S]*?\}\}|<[^<>]*>|&[#\w]+;/g) || []).join('|');
+
+  test('11 · fuzz: 2.000 combos — guarda, item não some, placeholder/tag intactos, 2º passe', () => {
+    FUZZ.forEach(f => gCopyFitCandidatos(f).forEach(c => {
+      assert(gCopyFitGuarda(f, c.text), 'guarda: ' + f + ' → ' + c.text);
+      assert(blindados(f) === blindados(c.text), 'mexeu em {{}}/tag: ' + f + ' → ' + c.text);
+      const sumiu = itensIntactos(f, c.text);
+      assert(!sumiu.length, 'sumiu ' + sumiu + ': ' + f + ' → ' + c.text);
+      assert((f.match(/\n/g) || []).length === (c.text.match(/\n/g) || []).length, 'quebra de linha sumiu: ' + JSON.stringify(c.text));
+      // Caixa: MAIÚSCULA segue maiúscula; minúscula só ganha as letras-padrão (G/M/P, OFF, L).
+      if(f === f.toUpperCase()) assert(c.text === c.text.toUpperCase(), 'caixa alta quebrou: ' + f + ' → ' + c.text);
+      if(f === f.toLowerCase()){
+        const t = c.text.replace(/(^|[^\p{L}])(G|M|P|OFF|L)(?=$|[^\p{L}])/gu, '$1');
+        assert(t === t.toLowerCase(), 'minúscula ganhou maiúscula: ' + f + ' → ' + c.text);
+      }
+    }));
+    // 2º passe só no 1º candidato (o que a UI oferece primeiro): o fuzz fica < 1s.
+    FUZZ.forEach(f => {
+      const c1 = gCopyFitCandidatos(f)[0]; if(!c1) return;
+      gCopyFitCandidatos(c1.text).forEach(c2 => {
+        assert(c2.text !== c1.text && gCopyFitGuarda(c1.text, c2.text), '2º passe: ' + c1.text + ' → ' + c2.text);
+        const sumiu = itensIntactos(f, c2.text);
+        assert(!sumiu.length, '2º passe sumiu ' + sumiu + ': ' + f + ' → ' + c1.text + ' → ' + c2.text);
+      });
+    });
   });
 
   test('12 · com o Local Fit de verdade: a sugestão aplicada CABE na caixa', () => {
@@ -261,6 +315,65 @@
     const t = textos('Pizza grande com refri. Batata grande ou média');
     assert(t.includes('Pizza G com refri. Batata grande ou média'), 'o 1º trecho deveria abreviar sozinho: ' + t.join(' | '));
     assert(t.every(x => /Batata grande ou média/.test(x)), 'o 2º trecho (um tamanho sem item) não pode abreviar pela metade');
+  });
+
+  /* 23–27: ciclo 3 (23/09) — red team. Cada caso aqui QUEBRAVA antes (ou é a trava do que
+     foi confirmado ok): entrada → o que saía está no comentário. */
+  test('23 · {{campo}}, tag e entidade passam intactos (e a guarda cobra)', () => {
+    // antes: "{{produto}}" → "{{Produto}}", "{{refrigerante}}" → "{{refri}}", "{{promoção}}" → "{{promo}}"
+    assert(textos('{{produto}} com refrigerante').includes('{{produto}} + refri'), 'placeholder deveria ficar e o resto encurtar');
+    semMexer(['Delicioso {{produto}} por apenas {{preco}}', '{{refrigerante}} com batata', '{{promoção}} todos os dias',
+      '{{ Hambúrguer }} com refri', '<span class="promocao">Refrigerante</span> todos os dias', 'Pizza&nbsp;grande com refrigerante',
+      '<b>Super</b> Combo com refrigerante'], (f, t) => blindados(f) === blindados(t), 'mexeu dentro do {{}}/tag/entidade');
+    assert(textos('{{promoção}} todos os dias').includes('{{promoção}} todo dia'), 'fora do placeholder ainda encurta');
+    assert(textos('<span class="promocao">Refrigerante</span> todos os dias').includes('<span class="promocao">Refri</span> todo dia'), 'texto entre tags encurta');
+    assert(!gCopyFitGuarda('{{promoção}} hoje', '{{promo}} hoje'), 'a guarda deveria recusar placeholder alterado');
+    // texto que já usa a área privada (fonte de ícone): não sugere nada, e não quebra
+    assert(!textos(String.fromCharCode(0xE000) + ' promoção todos os dias').length, 'área privada não é blindável');
+  });
+
+  test('24 · quebra de linha e NBSP ficam; enfeite que abre frase passa a maiúscula', () => {
+    // antes: "Pizza\nGrande\ncom refrigerante" → "Pizza Grande com refri" (a quebra do franqueado sumia)
+    semMexer(['Pizza\nGrande\ncom refrigerante', 'Super Combo\ncom refrigerante\nde segunda a sexta'],
+      (f, t) => f.split('\n').length === t.split('\n').length, 'quebra de linha sumiu');
+    assert(textos('Pizza grande\nDeliciosa coxinha com refri').includes('Pizza G\nCoxinha + refri'), 'linha abre com maiúscula');
+    // antes: "Oferta! Deliciosa coxinha" → "Oferta! coxinha"
+    assert(textos('Oferta! Deliciosa coxinha').includes('Oferta! Coxinha'), 'frase nova herda a maiúscula');
+    const nb = String.fromCharCode(160), f = 'Pizza' + nb + 'Grande com refrigerante';
+    assert(textos(f).length && textos(f).every(t => t.includes(nb)), 'o NBSP virou espaço comum: ' + JSON.stringify(textos(f)));
+  });
+
+  test('25 · nome que parece gatilho fica como está', () => {
+    // antes: "Pizza Grande São Paulo" → "Pizza G São Paulo"; "Top Lanches" → "Lanches"
+    semMexer(['Pizza Grande São Paulo', 'Super Mercado', 'Mega Store', 'Top Lanches', 'Casa do Especial', 'Pastel da Feira',
+      'Burger King', 'Top 10 pizzas', 'Grande Família', 'Refri Zero', 'Médio Oriente', 'Por do Sol', 'Com Amor Doces',
+      'Famosa da Vila', 'Esfiha Média Oriente', 'Pizza Grande Família', 'Top Burger'], () => false, 'mexeu num nome');
+    semMexer(['Top Lanches com refrigerante', 'Pizza Grande São Paulo com refri', 'Mega Store: combo com refrigerante',
+      'Refri Zero com batata', 'Com Amor Doces com brigadeiro'],
+      (f, t) => t.startsWith(f.split(/ com | com$|:/)[0]), 'o nome da loja/produto mudou');
+  });
+
+  test('26 · preço colado, quantidade e formatos de número', () => {
+    // antes: "Pizza R$39,90 por R$29,90" → "Pizza R$39,90 R$29,90" (de/por virava dois preços soltos)
+    semMexer(['Pizza R$39,90 por R$29,90', 'Pizza x2 por R$ 30', 'De R$59,90 por R$39,90'], (f, t) => / por /.test(t), 'tirou o "por" do de/por');
+    const espera = [['2º burger com 50% de desconto', '2º burger com 50% OFF'], ['Ligue (11) 99999-9999 promoção', 'Ligue (11) 99999-9999 promo'],
+      ['Cupom DELIVERY10 promoção', 'Cupom DELIVERY10 promo'], ['Das 18h às 23h de segunda a sexta', 'Das 18h às 23h seg a sex'],
+      ['De Segunda A Sexta', 'Seg A Sex'], ['Açaí 1/2 litro', 'Açaí 1/2L'], ['Pizza por R$39,90', 'Pizza R$39,90']];
+    espera.forEach(([f, t]) => assert(textos(f).includes(t), '"' + f + '" deveria ter "' + t + '": ' + textos(f).join(' | ')));
+    ['Pizza 1.299,00', 'Combo #2 com refri', 'CEP 01234-567', '3/4 de pizza', '24h', 'Pizza 39.90 com refri']
+      .forEach(f => gCopyFitCandidatos(f).forEach(c => assert(gCopyFitGuarda(f, c.text), 'número mudou: ' + f + ' → ' + c.text)));
+  });
+
+  test('27 · desempenho: 300 letras < 2ms (mediana), 2.000 letras não explode', () => {
+    const base = 'Super Combo Família com 2 Hambúrgueres + Batata Grande e Refrigerante 2 litros por apenas R$ 49,90 de segunda a sexta. ' +
+      'Delicioso X-Tudo com refrigerante e batata média! Taxa de entrega grátis todos os dias. ';
+    const s300 = (base + base).slice(0, 300), ts = [];
+    for(let i = 0; i < 5; i++) gCopyFitCandidatos(s300 + i);       // aquece o JIT
+    for(let i = 0; i < 21; i++){ const t0 = performance.now(); gCopyFitCandidatos(s300.slice(0, 296) + i); ts.push(performance.now() - t0); }
+    ts.sort((a, b) => a - b);
+    assert(ts[10] < 2, '300 letras levou ' + ts[10].toFixed(2) + 'ms (mediana)');
+    const t0 = performance.now(), c = gCopyFitCandidatos(base.repeat(12).slice(0, 2000)), dt = performance.now() - t0;
+    assert(dt < 50 && c.length <= 12, '2.000 letras: ' + dt.toFixed(1) + 'ms, ' + c.length + ' candidatos');
   });
 
   let passed = 0;

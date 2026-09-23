@@ -26,7 +26,12 @@
 
 /* Fronteira de palavra que entende acento (o `\b` do JS não entende: "promoção" quebraria). */
 const _G_CF_L = '[^\\p{L}\\d]';
-function _gCfRe(padrao){ return new RegExp('(^|' + _G_CF_L + ')(' + padrao + ')(?=$|' + _G_CF_L + ')', 'giu'); }
+/* Regex compilada UMA vez: os degraus rodam até 63× por texto (32 combinações) e recompilar
+   ~25 padrões com \p{L} a cada chamada era metade do custo (ciclo 3: 300 letras passavam de
+   2ms). Seguro com a flag g porque só se usa em replace/match, que zeram o lastIndex. */
+const _G_CF_RX = {};
+function _gCfRx(src, fl){ const k = fl + '/' + src; return _G_CF_RX[k] || (_G_CF_RX[k] = new RegExp(src, fl)); }
+function _gCfRe(padrao){ return _gCfRx('(^|' + _G_CF_L + ')(' + padrao + ')(?=$|' + _G_CF_L + ')', 'giu'); }
 
 /* A troca herda a CAIXA de quem foi trocado: "REFRIGERANTE" → "REFRI", "Refrigerante" →
    "Refri". A arte do franqueado em caixa alta não pode ganhar um "Refri" no meio. */
@@ -54,10 +59,15 @@ const _G_CF_DIA3 = { seg:'seg', ter:'ter', qua:'qua', qui:'qui', sex:'sex', sab:
 /* Enfeite: adjetivo que não diz O QUE é o produto. "Tradicional", "artesanal", "caseiro" NÃO
    entram — são sabor/descrição e mudariam o que se vende. "Especial" também não: "Pizza
    Especial", "molho especial", "Especial da Casa" — é quase sempre o NOME do sabor. */
+/* "Top" saiu da lista (ciclo 3): em PT ele não é adjetivo anteposto — "Top Lanches", "Top
+   Pizza", "Top Burger" são NOME de loja; e depois do substantivo já era nome ("Burger Top"). */
 const G_CF_ENFEITES = ['super', 'mega', 'delicios[oa]s?', 'incr[ií]ve(?:l|is)',
   'gourmet', 'maravilhos[oa]s?', 'exclusiv[oa]s?', 'imperd[ií]ve(?:l|is)', 'irresist[ií]ve(?:l|is)',
-  'famos[oa]s?', 'saboros[oa]s?', 'top'];
-/* Tamanho só vira letra DEPOIS de algo que tem tamanho — "Grande São Paulo" fica como está. */
+  'famos[oa]s?', 'saboros[oa]s?'];
+/* Tamanho só vira letra DEPOIS de algo que tem tamanho — "Grande São Paulo" fica como está.
+   E nem depois do item, se o que vem a seguir faz do tamanho um NOME: "Pizza Grande São Paulo"
+   (pizzaria), "Esfiha Média Oriente", "Pizza Grande Família". Lista fechada de inícios de nome. */
+const _G_CF_TAM_NOME = '\\s+(?:s[aã]o|sant[oa]s?|rio|porto|belo|campos?|vila|fam[ií]lia|oriente)(?=$|' + _G_CF_L + ')';
 const G_CF_TEM_TAMANHO = 'pizzas?|batatas?\\s+fritas?|batatas?|fritas|refris?|refrigerantes?|a[cç]a[ií]s?|copos?|por[cç](?:[aã]o|[oõ]es)|milk-?shakes?|sucos?|combos?|lanches?|past[eé]is|pastel|esfihas?|sorvetes?';
 const G_CF_TAMANHOS = [['grandes?', 'G'], ['m[eé]di[oa]s?', 'M'], ['pequen[oa]s?', 'P']];
 /* Item de PEDIDO — só antes dele o "com" vira "+". "Café com leite", "Combinado com salmão",
@@ -70,30 +80,47 @@ const _gCfNu = w => String(w || '').replace(/^[^\p{L}\d]+|[^\p{L}\d]+$/gu, '');
 /* Tirar a 1ª palavra não pode deixar a frase abrindo em minúscula: "Famosa coxinha" →
    "Coxinha". Só quando o original abria em maiúscula (caixa alta toda já vem do texto). */
 function _gCfAbre(orig, novo){
-  if(/^[^\p{L}]*\p{Lu}/u.test(orig) && /^[^\p{L}]*\p{Ll}/u.test(novo)) return novo.replace(/\p{Ll}/u, c => c.toUpperCase());
+  // Para no trecho blindado (\uE000…): "{{produto}} por…" não vira "{{Produto}}" nem "Por".
+  if(/^[^\p{L}\uE000-\uF8FF]*\p{Lu}/u.test(orig) && /^[^\p{L}\uE000-\uF8FF]*\p{Ll}/u.test(novo)) return novo.replace(/\p{Ll}/u, c => c.toUpperCase());
   return novo;
 }
 
+/* Limpeza de espaço. A QUEBRA DE LINHA fica (ciclo 3): "Pizza\nGrande" é o franqueado
+   escolhendo onde a arte quebra — virar "Pizza Grande" mudava o layout sem ninguém pedir.
+   O NBSP (\u00A0) também fica: "R$\u00A039,90" é justamente para não separar. */
 function _gCfLimpa(s){
-  return String(s || '').replace(/\s+/g, ' ').replace(/\s+([,.!?;:])/g, '$1')
-    .replace(/([!?.])\1+/g, '$1').replace(/(\+\s*){2,}/g, '+ ').replace(/^\s*\+\s*|\s*\+\s*$/g, '')
-    .replace(/\s+/g, ' ').trim();
+  s = String(s || '');
+  // Atalho: se nenhuma das trocas abaixo acharia o que trocar, o texto já está limpo. Uma
+  // passada em vez de oito — roda depois de todo degrau, e quase sempre não há nada (ciclo 3).
+  if(!/[^\S\n\u00A0 ]| {2}| \n|\n | [,.!?;:]|([!?.])\1|\+ *\+|^\s*\+|\+\s*$|^\s|\s$/.test(s)) return s;
+  return s.replace(/[^\S\n\u00A0]+/g, ' ').replace(/ *\n */g, '\n').replace(/ +([,.!?;:])/g, '$1')
+    .replace(/([!?.])\1+/g, '$1').replace(/(\+ *){2,}/g, '+ ').replace(/^\s*\+ *| *\+\s*$/g, '')
+    .replace(/ {2,}/g, ' ').trim();
 }
+
+/* BLINDAGEM: placeholder {{x}}, tag HTML e entidade (&amp;) não são prosa. Antes deles o motor
+   fazia "{{produto}}" → "{{Produto}}" e "{{refrigerante}}" → "{{refri}}" — campo que não
+   interpola mais. Cada trecho vira um marcador da área de uso privado (\uE000 + \uE100+i):
+   não é letra nem dígito, então nenhuma regra casa dentro dele, e volta intacto no fim. */
+const _G_CF_BLINDA = /\{\{[\s\S]*?\}\}|<[^<>]*>|&(?:#\d+|#x[\da-f]+|[a-z]+\d*);/giu;
+const _gCfBlindados = s => (String(s || '').match(_G_CF_BLINDA) || []).join('\u0001');
 
 /* Os degraus. Cada um recebe {text, trocas, removidas} e devolve o mesmo formato. */
 const _G_CF_DEGRAUS = [
   { id:'limpeza', fn:(s, r) => {
     // Só ANTES DE PREÇO ("por apenas R$", "somente 9,90"). "Frete grátis apenas para o centro",
     // "Válido somente hoje": ali é RESTRIÇÃO — tirar muda a oferta.
-    const re = new RegExp('(^|' + _G_CF_L + ')(por apenas|por somente|apenas|somente)(?=\\s+(?:R\\$|\\d+,\\d{2}))', 'giu');
+    const re = _gCfRx('(^|' + _G_CF_L + ')(por apenas|por somente|apenas|somente)(?=\\s+(?:R\\$|\\d+,\\d{2}))', 'giu');
     let t = s.replace(re, (m, pre, w) => { r.removidas.push(w); return pre; });
     // "por R$ 39,90" → "R$ 39,90": o preço sozinho já diz. Mas "3 por R$ 20", "duas por R$ 60",
     // "De R$ 59,90 por R$ 39,90": ali o "por" amarra o preço à QUANTIDADE (ou ao de/por) —
     // sem ele "3 R$ 20" não se lê. Por isso só sai quando a palavra antes não é número — nem
     // quantificador: "Tudo por R$ 10" é o nome da promoção, "cada" amarra o preço à unidade.
     // Número COM unidade ("500ml por R$ 12", "1kg por R$ 39") é volume, não quantidade: sai.
-    const qtd = /^(?:\d+(?:[.,]\d+)?x?|tudo|tod[oa]s|qualquer|cada|um|uma|dois|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|doze|d[uú]zias?|meia)$/iu;
-    t = t.replace(new RegExp('(^|' + _G_CF_L + ')(por)(?=\\s+R\\$)', 'giu'), (m, pre, w, off, str) => {
+    // Palavra antes terminando em DÍGITO também amarra: "R$39,90 por R$29,90" (de/por colado ao
+    // R$) virava "R$39,90 R$29,90" — dois preços soltos. "x2 por R$ 30" é quantidade.
+    const qtd = /^(?:\d+(?:[.,]\d+)?x?|.*\d|x\d+|tudo|tod[oa]s|qualquer|cada|um|uma|dois|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|doze|d[uú]zias?|meia)$/iu;
+    t = t.replace(_gCfRx('(^|' + _G_CF_L + ')(por)(?=\\s+R\\$)', 'giu'), (m, pre, w, off, str) => {
       const ant = _gCfNu(str.slice(0, off + pre.length).trim().split(/\s+/).pop());
       if(ant && qtd.test(ant)) return m;
       r.removidas.push(w); return pre;
@@ -108,13 +135,19 @@ const _G_CF_DEGRAUS = [
                 ['quilos?', 'kg', ''], ['unidades?', 'un', ' ']];
     let t = s;
     un.forEach(([p, abrev, sep]) => {
-      t = t.replace(new RegExp('(\\d)\\s*(' + p + ')(?=$|' + _G_CF_L + ')', 'giu'), (m, d, w) => {
-        r.trocas.push([w, abrev]); return d + sep + abrev;
+      // A abreviação herda a caixa (ciclo 3: "500 GRAMAS" virava "500g" numa arte em caixa alta,
+      // "10 UNIDADES" → "10 un"). O L já é maiúsculo. Grama em caixa alta NÃO abrevia: "500G" se lê
+      // como tamanho G — fica "500 GRAMAS".
+      t = t.replace(_gCfRx('(\\d)\\s*(' + p + ')(?=$|' + _G_CF_L + ')', 'giu'), (m, d, w) => {
+        // Só a caixa ALTA conta: "Gramas" em Título continua "g" (unidade não vira "G"/"Un").
+        const n = w.length > 1 && w === w.toUpperCase() ? abrev.toUpperCase() : abrev;
+        if(n === 'G') return m;
+        r.trocas.push([w, n]); return d + sep + n;
       });
     });
     // "500 ml" → "500ml": a unidade já é abreviada, só cola no número (como "2L" acima). Só ml,
     // o caso confirmado no corpus; "2 L" solto fica como o franqueado escreveu.
-    t = t.replace(new RegExp('(\\d)\\s+(ml)(?=$|' + _G_CF_L + ')', 'giu'), (m, d, w) => {
+    t = t.replace(_gCfRx('(\\d)\\s+(ml)(?=$|' + _G_CF_L + ')', 'giu'), (m, d, w) => {
       r.trocas.push([d + ' ' + w, d + w]); return d + w;
     });
     return t;
@@ -124,9 +157,10 @@ const _G_CF_DEGRAUS = [
     // "de segunda a domingo" → "seg a dom". Cada abreviação herda a caixa do SEU dia; o "de" que
     // sai passa a maiúscula de abertura para a 1ª ("De segunda a sábado," → "Seg a sáb,").
     const dia = '(' + _G_CF_DIA + ')(?:-feira)?';
-    t = t.replace(_gCfRe('de\\s+' + dia + '\\s+[aà]\\s+' + dia), (m, pre, w, d1, d2) => {
+    t = t.replace(_gCfRe('de\\s+' + dia + '\\s+([aàAÀ])\\s+' + dia), (m, pre, w, d1, a, d2) => {
       const ab = d => _gCfCaixa(d, _G_CF_DIA3[d.slice(0, 3).toLowerCase()] || d);
-      let n = ab(d1) + (w === w.toUpperCase() ? ' A ' : ' a ') + ab(d2);
+      // o "a" herda a caixa digitada: "De Segunda A Sexta" → "Seg A Sex" (não "Seg a Sex")
+      let n = ab(d1) + (/[AÀ]/.test(a) ? ' A ' : ' a ') + ab(d2);
       if(/^\p{Lu}/u.test(w)) n = n.charAt(0).toUpperCase() + n.slice(1);
       r.trocas.push([w, n]); return pre + n;
     });
@@ -155,9 +189,10 @@ const _G_CF_DEGRAUS = [
     //  · se o trecho segue com vírgula: "A + B, C e D" mistura dois jeitos de listar.
     // O " e " → " + " não economiza letra; só existe para não sair "A + B e C" — por isso só
     // depois de um "com" que virou "+" no MESMO trecho, e só antes de outro item.
-    const item = new RegExp('^(?:' + G_CF_ITENS + ')$', 'iu');
+    const item = _gCfRx('^(?:' + G_CF_ITENS + ')$', 'iu');
     let mudou = false;
-    const t = s.split(/([:;.!?()])/).map((p, k) => {
+    // A quebra de linha também fecha o trecho: "Pizza\ncom refri" é "Com refri" abrindo a linha.
+    const t = s.split(/([:;.!?()\n])/).map((p, k) => {
       if(k % 2) return p;
       const w = p.split(' ');
       let ativo = false;
@@ -190,43 +225,53 @@ const _G_CF_DEGRAUS = [
       const trocas = [];
       let t = parte;
       G_CF_TAMANHOS.forEach(([p, letra]) => {
-        t = t.replace(new RegExp('(' + G_CF_TEM_TAMANHO + ')(\\s+)(?:tamanho\\s+)?(' + p + ')(?=$|' + _G_CF_L + ')', 'giu'),
+        t = t.replace(_gCfRx('(' + G_CF_TEM_TAMANHO + ')(\\s+)(?:tamanho\\s+)?(' + p + ')(?=$|' + _G_CF_L + ')(?!' + _G_CF_TAM_NOME + ')', 'giu'),
           (m, item, esp, w) => { trocas.push([w, letra]); return item + esp + letra; });
       });
       if(trocas.length !== todos) return parte;
       trocas.forEach(x => r.trocas.push(x));
       return t;
     };
-    return s.split(/([.!?;|])/).map((p, k) => k % 2 ? p : sub(p)).join('');
+    return s.split(/([.!?;|\n])/).map((p, k) => k % 2 ? p : sub(p)).join('');
   }},
   { id:'enfeite', fn:(s, r) => {
-    const palavras = s.split(' ');
-    const re = new RegExp('^(' + G_CF_ENFEITES.join('|') + ')$', 'iu');
+    // A quebra de linha vira palavra própria: "Pizza\nDeliciosa coxinha" — o enfeite que abre a
+    // linha é anteposto (antes de uma "palavra" sem letra), e a quebra volta no _gCfLimpa.
+    const palavras = s.replace(/\n/g, ' \n ').split(' ');
+    const re = _gCfRx('^(' + G_CF_ENFEITES.join('|') + ')$', 'iu');
     // Super/mega antes de TAMANHO ou em nome composto é o que se vende: "Pizza Super Grande",
     // "Super Família", "Super Mercado".
     const preso = /^(?:grandes?|gigantes?|fam[ií]lia|gg?|m|p|mercados?|market|store|star|her[oó]is?)$/iu;
-    const out = palavras.filter((w, i) => {
+    const out = [];
+    palavras.forEach((w, i) => {
       const m = w.match(re);
-      if(!m) return true;
+      if(!m){ out.push(w); return; }
       // Só ANTEPOSTO sai: "Delicioso X-Tudo", "Leve um super combo". Depois do substantivo
       // é NOME ("Burger Top", "X-Tudo mega", "Brigadeiro Gourmet") — sai o produto junto.
+      // Trecho blindado ({{x}}, tag) conta como palavra: "{{produto}} Super Mercado" não é abertura.
       const ant = palavras[i - 1];
-      const anteposto = i === 0 || /[:!?.,;]$/.test(ant) || !/[\p{L}\d]/u.test(ant) || _G_CF_LIGA.test(ant);
+      const anteposto = i === 0 || /[:!?.,;]$/.test(ant) || !/[\p{L}\d\uE000-\uF8FF]/u.test(ant) || _G_CF_LIGA.test(ant);
       const prox = _gCfNu(palavras[i + 1]);
-      if(!anteposto || !/^\p{L}/u.test(prox)) return true;
-      if(/^(?:da|do|de)$/iu.test(prox)) return true;               // "Famosa da Vila"
-      if(/^(?:super|mega)$/iu.test(m[1]) && preso.test(prox)) return true;
+      if(!anteposto || !/^\p{L}/u.test(prox)) { out.push(w); return; }
+      if(/^(?:da|do|de)$/iu.test(prox)) { out.push(w); return; }   // "Famosa da Vila"
+      if(/^(?:super|mega)$/iu.test(m[1]) && preso.test(prox)) { out.push(w); return; }
       r.removidas.push(w);
-      return false;
+      // Abria FRASE no meio do texto ("Oferta! Deliciosa coxinha", ou abrindo uma linha): a
+      // maiúscula passa para a próxima — senão sai "Oferta! coxinha". A abertura do texto
+      // inteiro é o _gCfAbre abaixo.
+      if(i > 0 && /^\p{Lu}/u.test(w) && (/[.!?]$/.test(ant) || ant === '\n'))
+        palavras[i + 1] = palavras[i + 1].replace(/^([^\p{L}]*)(\p{Ll})/u, (x, a, c) => a + c.toUpperCase());
     });
     return _gCfAbre(s, _gCfLimpa(out.join(' ')));
   }}
 ];
 
-/* O que NÃO pode mudar: os números, na mesma ordem; e nunca ficar mais longo. */
+/* O que NÃO pode mudar: os números, na mesma ordem; os trechos blindados ({{x}}, tag,
+   entidade), idênticos e na mesma ordem; e nunca ficar mais longo. */
 function gCopyFitGuarda(original, candidato){
   const nums = s => (String(s || '').match(/\d+(?:[.,]\d+)?/g) || []).join('|');
-  return nums(original) === nums(candidato) && String(candidato).length <= String(original).length;
+  return nums(original) === nums(candidato) && _gCfBlindados(original) === _gCfBlindados(candidato)
+    && String(candidato).length <= String(original).length;
 }
 
 /* CUSTO PERCEPTÍVEL de cada degrau — quanto o franqueado estranha ao ler a versão sugerida.
@@ -248,23 +293,29 @@ const _G_CF_MAX = 12;
  *   `degrau` = o último degrau que mudou (compatível com a escada antiga).
  */
 function gCopyFitCandidatos(texto){
-  const original = _gCfLimpa(texto);
-  if(!original) return [];
+  const limpo = _gCfLimpa(texto);
+  // Texto que já traz o marcador (fonte de ícone mora na área privada) não é blindável com
+  // segurança: a resposta honesta é não sugerir nada.
+  if(!limpo || limpo.indexOf('\uE000') >= 0) return [];
+  const blindados = [];
+  const original = limpo.replace(_G_CF_BLINDA, m => '\uE000' + String.fromCharCode(0xE100 + blindados.push(m) - 1));
+  if(blindados.length > 0x1700) return [];
+  const solta = s => s.replace(/\uE000([\uE100-\uF7FF])/g, (m, c) => blindados[c.charCodeAt(0) - 0xE100]);
   // Um degrau só vale se passa na guarda; o que ele anotou em trocas/removidas só entra junto.
   // O resultado de um degrau só depende do texto de entrada — as 32 combinações repetem muito
-  // prefixo, então memoiza por (degrau, texto) e o custo fica perto do da escada antiga.
-  const memo = {};
+  // prefixo, então memoiza por (degrau, estado). A chave é o próprio OBJETO do estado (degrau
+  // que não muda nada devolve o mesmo objeto): chavear pelo texto concatenado custava hash de
+  // string longa a cada passo — era o maior gasto do motor (ciclo 3).
+  const numsOrig = (original.match(/\d+(?:[.,]\d+)?/g) || []).join('|');
   const passo = (d, est) => {
-    const k = d.id + '\u0000' + est.text;
-    let m = memo[k];
-    if(!m){
-      const r = { trocas: [], removidas: [] };
-      let t;
-      try{ t = _gCfLimpa(d.fn(est.text, r)); }catch(e){ t = est.text; }
-      m = memo[k] = (t === est.text || !gCopyFitGuarda(original, t)) ? { t: null } : { t, r };
-    }
-    if(!m.t) return est;
-    return { text: m.t, trocas: est.trocas.concat(m.r.trocas), removidas: est.removidas.concat(m.r.removidas),
+    const memo = est.prox || (est.prox = {});
+    if(memo[d.id]) return memo[d.id];
+    const r = { trocas: [], removidas: [] };
+    let t;
+    try{ t = _gCfLimpa(d.fn(est.text, r)); }catch(e){ t = est.text; }
+    // = gCopyFitGuarda(original, t) sem recontar o original (aqui o texto está blindado)
+    const ok = t !== est.text && t.length <= original.length && (t.match(/\d+(?:[.,]\d+)?/g) || []).join('|') === numsOrig;
+    return memo[d.id] = !ok ? est : { text: t, trocas: est.trocas.concat(r.trocas), removidas: est.removidas.concat(r.removidas),
       degraus: est.degraus.concat(d.id) };
   };
   // A limpeza é a base de todos (custo 0); os outros 5 degraus entram em todas as 2^5 = 32
@@ -284,7 +335,13 @@ function gCopyFitCandidatos(texto){
     const ja = porTexto[c.text];
     if(!ja || antes(c, ja) < 0) porTexto[c.text] = c;     // mesmo texto: fica o caminho mais barato
   }
-  const todos = Object.keys(porTexto).map(k => porTexto[k]).sort(antes);
+  // Solta a blindagem (texto, trocas, removidas) e confere a guarda de novo no texto REAL —
+  // o marcador tem 2 caracteres e o {{x}} tem mais, então o comprimento só se prova aqui.
+  const todos = Object.keys(porTexto).map(k => {
+    const c = porTexto[k];
+    if(!blindados.length) return c;
+    return Object.assign(c, { text: solta(c.text), trocas: c.trocas.map(p => p.map(solta)), removidas: c.removidas.map(solta) });
+  }).filter(c => !blindados.length || gCopyFitGuarda(limpo, c.text)).sort(antes);
   // Dominado sai: se um candidato mais BARATO já é tão curto quanto este, este nunca seria a
   // melhor resposta — e cada candidato custa uma medição em pixel no chamador.
   const out = [];
