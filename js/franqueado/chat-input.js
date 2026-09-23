@@ -224,6 +224,13 @@ function fApplyMask(id, raw){
       if(sepPos>=0 && tail>=1 && tail<=2){
         decPart = s.slice(sepPos+1).replace(/\D/g,'');
         intPart = s.slice(0,sepPos).replace(/\D/g,'');
+      }else if(sepPos>=0 && tail>=3 && s[sepPos]===','){
+        /* VÍRGULA É SEMPRE DECIMAL em pt-BR. "12,500" (balança/PDV com 3 casas, ou zero a mais)
+           caía no `else` abaixo, perdia a vírgula e virava R$ 12.500,00 — preço 1000× na arte.
+           Arredonda para centavos. O ponto com 3 dígitos ("12.500") segue sendo milhar. */
+        const cents = Math.round(parseFloat(s.slice(0,sepPos).replace(/\D/g,'')+'.'+s.slice(sepPos+1).replace(/\D/g,''))*100);
+        intPart = String(Math.floor(cents/100));
+        decPart = String(cents%100).padStart(2,'0');
       }else{
         intPart = s.replace(/\D/g,''); // sem decimal
       }
@@ -359,6 +366,11 @@ function fValidate(id, val){
   if(!val || !val.trim()) return cfg.required ? `Preencha o campo de ${cfg.label}.` : null;
   if(cfg.type!=='price' && cfg.type!=='discount' && val.length > cfg.maxLen) return `O ${cfg.label} ficou muito longo (máx ${cfg.maxLen} caracteres).`; // preço/desconto: tamanho vem da máscara, não do usuário
   if(cfg.type === 'price'){
+    /* Preço ZERADO ("0", "R$ 0", "0,00", "taxa 0"): "R$ 0" passava cru para a arte e os outros
+       ouviam só "use um valor em R$", sem saber por quê. Item de graça tem palavra própria. */
+    if(!/qualquer|grátis|gratis|sem valor/i.test(val) && /\d/.test(val) && !/[1-9]/.test(val)){
+      return 'Preço zerado não vai para a arte. Se o item é de graça, escreva “Grátis”.';
+    }
     const ok = /r\$\s?\d/i.test(val) || /qualquer|grátis|gratis|sem valor/i.test(val);
     if(!ok) return `Use um valor em R$ (ex: R$ 9,90).`;
   }

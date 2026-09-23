@@ -375,7 +375,7 @@ function gInterpolate(content, dados, opts){
   opts = opts || {};
   const keep = opts.onEmpty === 'keep';
   const defaults = opts.defaults;
-  return String(content==null?'':content).replace(gVarRegex(), (m, name, format)=>{
+  return String(content==null?'':content).replace(gVarRegex(), (m, name, format, offset, str)=>{
     let v = dados ? dados[name] : undefined;
     if(v==null || v==='') v = defaults ? defaults[name] : undefined;
     if(v==null || v==='') return keep ? m : '';
@@ -388,8 +388,22 @@ function gInterpolate(content, dados, opts){
       return gSplitPrice(v).centavos;
     }
     
-    return String(v);
+    return _gSemRotuloRepetido(String(v), typeof str === 'string' ? str.slice(0, offset) : '');
   });
+}
+
+/* O TEMPLATE JÁ ESCREVE O RÓTULO. O chat rotula o preço ("De: R$ 12,90", "Por: R$ 29,90" —
+   chat-input.js, fApplyMask), mas há template que traz o rótulo no próprio texto:
+   'R$\n{{precoPor}}' e 'DE {{precoDe}}' (templates.js). Saía "R$\nPor: R$ 29,90" e
+   "DE De: R$ 12,90". Se o texto logo ANTES do campo termina em R$, DE ou POR, o valor perde o
+   que repete. Só mexe em valor com cara de preço — texto livre passa intacto. */
+function _gSemRotuloRepetido(v, antes){
+  if(!/^\s*(?:(?:de|por)\b:?\s*)?r\$/i.test(v)) return v;
+  const fim = String(antes||'').trimEnd();
+  if(/r\$$/i.test(fim)) return v.replace(/^\s*(?:(?:de|por)\b:?\s*)?r\$\s*/i, '');
+  const rot = fim.match(/(?:^|[^\p{L}])(de|por):?$/iu);
+  if(rot) return v.replace(new RegExp('^\\s*'+rot[1]+'\\b:?\\s*','i'), '');
+  return v;
 }
 
 // Separa um preço em inteiros e centavos de forma robusta
@@ -2503,7 +2517,10 @@ function gSmartTitleCase(str) {
     if (idx === 0 || !G_CONNECTORS.has(wordClean)) {
       // Capitaliza a primeira letra, lidando com hifens (ex: "terça-feira" -> "Terça-feira")
       const parts = wordClean.split('-');
-      const cappedParts = parts.map(p => p ? p[0].toUpperCase() + p.slice(1) : '');
+      // A 1ª LETRA, não o 1º caractere: "<COMBO", "(PROMOÇÃO" e "\"X-BURGER" começam com
+      // símbolo, e o p[0] maiúsculo deixava a letra real em minúscula ("<combo"). Só pula
+      // SÍMBOLO: número na frente fica como está ("500ml", "2x1" não viram "500Ml", "2X1").
+      const cappedParts = parts.map(p => p ? p.replace(/^([^\p{L}\p{N}]*)(\p{L})/u, (m, a, ch) => a + ch.toUpperCase()) : '');
       return cappedParts.join('-') + punctuation;
     }
     
