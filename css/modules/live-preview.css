@@ -178,8 +178,25 @@
 .lp-canvas{
   display:block;
   max-width:100%;
-  transition: transform var(--dur-slow) var(--ease-spring-soft), transform-origin var(--dur-slow) var(--ease-spring-soft);
+  transition: transform var(--dur-slow) var(--ease-spring-soft), transform-origin var(--dur-slow) var(--ease-spring-soft), opacity var(--dur-base) var(--ease-out);
 }
+
+/* ── BLINDAGEM DE ABERTURA — esqueleto enquanto a 1ª pintura deste material não chega ──
+   O canvas já está no tamanho real da peça (fUpdateLivePreview dimensiona antes de desenhar),
+   então o bloco tem a proporção exata da arte. Tira o xadrez (que lê "imagem transparente",
+   não "carregando") e deixa o shimmer do `.loading` correr por cima. O rótulo entra com
+   atraso: arte em cache resolve antes disso e nunca pisca "Preparando…". A arte entra com
+   fade quando o `.montando` sai. */
+.lp-montando{display:none}
+.lp-stage.montando .lp-canvas-wrap{background-image:none}
+.lp-stage.montando .lp-canvas{opacity:0}
+.lp-stage.montando .lp-montando{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  position:absolute;inset:0;z-index:11;padding:16px;text-align:center;
+  font-size:12px;font-weight:600;line-height:1.45;color:var(--text-3);
+  opacity:0;animation:lpMontandoIn var(--dur-base) var(--ease-out) .18s forwards;
+}
+@keyframes lpMontandoIn{to{opacity:1}}
 
 /* Anel que pulsa quando a prévia acabou de refletir uma resposta nova */
 .lp-canvas-wrap.updated{animation:lpPulse .55s var(--ease-out)}

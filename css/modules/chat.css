@@ -2647,7 +2647,10 @@ body:not(.theme-light) .step-label{background:none;color:var(--d-text2)}
    rascunho): lá eles vêm DEPOIS da pergunta, então nada os esconde.
    O histórico continua legível — some o controle, fica a conversa. */
 #f-messages>.msg:has(~.msg.active-prompt) .qr-back-wrap,
-#f-messages>.msg:has(~.msg.active-prompt) .qr-wrap{display:none}
+#f-messages>.msg:has(~.msg.active-prompt) .qr-wrap,
+/* "Usar esta imagem / Trocar" de foto JÁ respondida: o "Usar" de uma bolha velha chamava
+   fNextStep a partir do passo ATUAL e pulava uma pergunta. Trocar foto antiga é pelo Respostas. */
+#f-messages>.msg:has(~.msg.active-prompt) .f-upload-confirm{display:none}
 body:not(.theme-light) .qr-back{background:var(--d-surf);border-color:var(--d-border2);color:var(--d-text2)}
 body:not(.theme-light) .qr-back:hover{border-color:var(--dm-orange);color:var(--dm-orange)}
 
@@ -3109,6 +3112,12 @@ body:not(.theme-light) #f-msg-box:disabled{background:var(--d-surf2);color:var(-
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-upload-ok{min-height:var(--tap-min);font-size:14px;border-radius:13px}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-upload-confirm .f-upload-replace{min-height:var(--tap-min);padding-inline:15px;border-radius:13px}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet-foot{order:6}
+  /* FOTO ESCOLHIDA, ESPERANDO "USAR ESTA IMAGEM": a tarefa agora é confirmar a foto. A pergunta
+     ("Foto do produto · Envie a foto do produto") e a caixa de digitar ("Use o botão de upload
+     acima") ficavam EMBAIXO do cartão pedindo o que já tinha sido feito. Saem enquanto houver
+     preview a confirmar; voltam sozinhas quando a pessoa confirma (a bolha deixa de ser ativa). */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.active-prompt:has(.f-upload-confirm) .bbl,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet:has(.msg.active-prompt .f-upload-confirm) #f-input-row{display:none}
 
   /* O respiro lateral era do `#f-messages`; agora é de cada item. */
   /* ── O RITMO VERTICAL DO PAINEL ──────────────────────────────────────────────────

@@ -1296,6 +1296,23 @@ let _lpLayoutResult = null;  // contrato do solver só desta prévia (não confu
    com `_lpLayoutResult`: quem re-mede um bloqueio (balão, "cabem até N") precisa dos mesmos. */
 let _lpDadosRender = null;
 let _lpEffectiveMaterial = null;
+/* Canvas fora da tela onde o render desenha (ver BLINDAGEM DE ABERTURA em fUpdateLivePreview).
+   UM só, reaproveitado: um 1080×1920 novo a cada tecla são ~8 MB esperando o GC, e o Safari do
+   iPhone tem teto de memória de canvas — estourou, o getContext volta null e a prévia morre. */
+let _lpBuf = null;
+let _lpMontandoTimer = 0;
+// Esqueleto da 1ª pintura de um material. Passou de 6 s, diz o porquê (rede lenta) em vez de
+// parecer travado — o watchdog de imagem (fLoadImageDataUrl) só desiste aos 20 s.
+function _fLpMontando(stage, on){
+  clearTimeout(_lpMontandoTimer);
+  if(!stage) return;
+  stage.classList.toggle('montando', on);
+  const txt = document.getElementById('lp-montando-txt');
+  if(txt) txt.textContent = 'Preparando sua arte…';
+  if(on) _lpMontandoTimer = setTimeout(() => {
+    if(txt) txt.textContent = 'Ainda carregando as imagens da arte — a conexão está lenta.';
+  }, 6000);
+}
 
 // Zoom/pan manual da prova digital (item: inspecionar a arte de perto).
 // _lpUserZoom=1 é o ajuste à tela; >1 amplia. Pan em px de tela relativo ao centro do quadro.
@@ -1856,13 +1873,27 @@ async function fUpdateLivePreview(opts){
     // Template 1:1 do PSD guarda w/h reais → preview no tamanho exato; senão o preset por formato.
     const W = (fState.material.w>0) ? fState.material.w : sz[0];
     const H = (fState.material.h>0) ? fState.material.h : sz[1];
-    // Arte diferente da anterior → zera o zoom/pan manual (senão a prova abre já ampliada/deslocada).
-    if (canvas.width !== W || canvas.height !== H) { _lpUserZoom = 1; _lpPanX = 0; _lpPanY = 0; }
-    canvas.width = W; canvas.height = H;
-    fLpSizeCanvas(canvas, W, H);
+    /* ══ BLINDAGEM DE ABERTURA (23/09/2026) ══
+       O canvas visível era LIMPO aqui e redesenhado camada a camada, com `await` de fonte e de
+       download de imagem no meio. Ao abrir um material, o painel entrava antes da arte: palco
+       vazio, ou só a cor de fundo, por segundos — sensação de bug. E, a cada tecla, qualquer
+       `await` que cedesse um quadro podia mostrar a arte pela metade.
+       Agora o desenho acontece em `_lpBuf`, fora da tela, e só chega ao palco inteiro, num
+       bloco síncrono (tamanho + pixels): o navegador nunca pinta o intervalo. Enquanto a arte
+       DESTE material não foi pintada nenhuma vez, o palco mostra o esqueleto no tamanho real
+       da peça; dali em diante, cada re-render segura o quadro anterior até o novo ficar pronto. */
+    const _dimensiona = () => {
+      // Arte diferente da anterior → zera o zoom/pan manual (senão a prova abre já ampliada/deslocada).
+      if (canvas.width !== W || canvas.height !== H) { _lpUserZoom = 1; _lpPanX = 0; _lpPanY = 0; }
+      canvas.width = W; canvas.height = H; // atribuir limpa o canvas — mesmo com o valor igual
+      fLpSizeCanvas(canvas, W, H);
+    };
+    // Sem isto, o palco seguraria a arte do material ANTERIOR enquanto o novo baixa.
+    if(_lpEffectiveMaterial !== fState.material){ _dimensiona(); _fLpMontando(stage, true); }
+    if(!_lpBuf) _lpBuf = document.createElement('canvas');
+    _lpBuf.width = W; _lpBuf.height = H;
 
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, W, H);
 
     // Dados preenchidos + placeholders {{var}} nos campos de texto ainda vazios
     // (e sem default do designer). dadosPreview é uma cópia — não mexe em fState.dados.
@@ -1878,14 +1909,20 @@ async function fUpdateLivePreview(opts){
          material NOVO junto com a geometria do VELHO. Quem lê esse par (o enquadramento de
          foto, `fLpFrameVar`) passava a mexer numa camada de outra arte. */
       const _matRender = fState.material;
-      const rendered=await fRenderTemplateLayers(ctx,_matRender.layers,W,H,dadosPreview,fState.camp,null,
+      const rendered=await fRenderTemplateLayers(_lpBuf.getContext('2d'),_matRender.layers,W,H,dadosPreview,fState.camp,null,
         {scope:'franqueado',purpose:'preview'});
+      /* Material trocou no meio: este desenho já é passado e NEM chega ao palco — pintá-lo
+         seria mostrar a arte errada por um instante. O palco e o `_lpEffective*` continuam
+         com o par do último render aplicado; o `finally` re-agenda o do material novo. */
+      if(fState.material!==_matRender){ _lpPendingRender=true; window._fOverflowSink=null; return; }
+      // O commit: daqui ao fim do bloco não há `await`, então tamanho e pixels mudam juntos.
+      _dimensiona();
+      ctx.drawImage(_lpBuf, 0, 0);
+      _fLpMontando(stage, false);
       _lpEffectiveLayers=Array.isArray(rendered)?rendered:[];
       _lpLayoutResult=rendered&&rendered._layoutResult||null;
       _lpDadosRender=dadosPreview;
       _lpEffectiveMaterial=_matRender;
-      // Material trocou no meio: este desenho já é passado. O `finally` re-agenda o render novo.
-      if(fState.material!==_matRender) _lpPendingRender=true;
       _lpOverflow = window._fOverflowSink; window._fOverflowSink = null;
       // Balão ANTES do aviso: o aviso anuncia (aria-live) a solução que o balão acabou de medir.
       try{ _fLpSyncBalao(); }catch(e){ console.warn('[Luma] balão do encaixe:', e); }
@@ -2309,6 +2346,7 @@ function _fLpRoundRect(ctx, x, y, w, h, r){
 function fLpShowEmpty(canvas){
   const stage = canvas.closest('.lp-stage') || document.querySelector('.lp-stage');
   if(stage) stage.classList.add('empty');
+  _fLpMontando(stage, false); // render que falhou não pode deixar o esqueleto (nem o timer) vivo
   /* Sem arte não há bloqueio nem solução. O balão mora no `.lp-stage` (o `.empty` só esconde o
      `.lp-canvas-wrap`) e ficava por cima do vazio, clicável: voltar às boas-vindas ou tirar o
      material e tocar nele escrevia a sugestão da arte anterior no `fState.dados` novo. E com
@@ -2817,6 +2855,8 @@ function _fLpCommit(v,val,opts){
      desta arte; sem este aviso, mudar o preço clicando na peça deixava a linha "Preço" com o
      valor velho a 200px de distância. `fRevisaoRepinta` não faz nada fora da revisão. */
   try{ if(typeof fRevisaoRepinta==='function') fRevisaoRepinta(); }catch(e){}
+  // E no chat: a caixa da pergunta aberta e a frase de contexto (ver fChatSincronizaCampo).
+  try{ if(typeof fChatSincronizaCampo==='function') fChatSincronizaCampo(v, mv); }catch(e){}
   if(antes!==undefined && String(antes)!==String(mv==null?'':mv) && typeof _fUndoRegistra==='function'){
     const rot=(typeof _fLpLabel==='function')?_fLpLabel(v):'campo';
     _fUndoRegistra('Edição de '+String(rot).toLowerCase(), ()=>{
@@ -2826,6 +2866,7 @@ function _fLpCommit(v,val,opts){
       // Mesma razão do commit acima: desfazer sem repintar deixava a linha da revisão com o
       // valor que acabou de ser descartado, a 200px da arte que já voltou ao anterior.
       try{ if(typeof fRevisaoRepinta==='function') fRevisaoRepinta(); }catch(e){}
+      try{ if(typeof fChatSincronizaCampo==='function') fChatSincronizaCampo(v, antes); }catch(e){}
     });
   }
 }
@@ -3292,7 +3333,11 @@ function fLpFrameVar(v){
   return true;
 }
 /* Ponte para o chat: no celular a prévia mora numa gaveta, então abrir o enquadramento sem
-   abrir a gaveta deixaria a pessoa mexendo numa foto que ela não vê. */
+   abrir a gaveta deixaria a pessoa mexendo numa foto que ela não vê.
+   ⚠ O botão que chama isto PRECISA de `event.stopPropagation()` (está no onclick do
+   `_fUploadPreviewHTML`): sem ele o "clicou fora da gaveta → fecha" do documento
+   (fInitMobilePreviewEvents) fechava a gaveta no MESMO toque que a abriu — o Ajustar do
+   celular não fazia nada (23/09/2026). Mesma armadilha do cartão da arte, logo acima. */
 function fAjustarFoto(v){
   try{ if(typeof _fLpAbrirGaveta==='function' && window.matchMedia && matchMedia('(max-width:680px)').matches) _fLpAbrirGaveta(); }catch(e){}
   if(!fLpFrameVar(v) && typeof gToast==='function') gToast('Esta foto não pode ser reposicionada nesta arte.');

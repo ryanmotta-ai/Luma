@@ -511,7 +511,7 @@ function _fGuidedOpcoes(p,cfg){
 }
 function _fGuidedControleHTML(p,cfg,valor,uploadId){
   if(p.isImage||cfg.type==='image'){
-    if(valor) return _fUploadPreviewHTML(p.id,valor,{jaEstava:true});
+    if(valor) return `<div id="${uploadId}-preview">${_fUploadPreviewHTML(p.id,valor,{jaEstava:true})}</div>`;
     return `<div class="f-upload-zone fg-upload-zone" id="${uploadId}-zone" data-var="${gEsc(p.id)}" data-upload="${uploadId}" onclick="fOpenUploadPanel('${gEscJs(p.id)}','${gEscJs(uploadId)}')">
       <input type="file" id="${uploadId}-input" accept="image/png,image/jpeg,image/webp" hidden onclick="event.stopPropagation()" onchange="fHandleImageUpload(event,'${gEscJs(p.id)}','${gEscJs(uploadId)}')">
       <div class="f-upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
@@ -1116,6 +1116,30 @@ function fPerguntaTexto(p){
   return `${p.texto}<span class="perg-ctx">O preço original é ${gEsc(String(de))}.</span>`;
 }
 
+/* A PRÉVIA EDITOU UM CAMPO — o chat não pode seguir com o valor velho (23/09/2026). Caso real:
+   "90" digitado no chat, "80" corrigido na arte, e o passo seguinte dizia "O preço original é
+   90": a prévia gravou 80 nos dados, mas a CAIXA de digitar ainda tinha 90, e o Enviar gravou
+   por cima. Chamado pelo `_fLpCommit` (o funil de toda edição pela arte). Duas coisas:
+   1. campo da pergunta ABERTA → a caixa recebe o valor pelo mesmo caminho de quem digita
+      (espelho, contador, prévia), como o balão do Copy Fit já fazia;
+   2. a frase da pergunta aberta é refeita dos dados de agora (o "preço original" do contexto). */
+function fChatSincronizaCampo(campo, valor){
+  const p = ((fState.camp && fState.camp.perguntas) || [])[fState.stepIdx];
+  if(!p) return;
+  const box = document.getElementById('f-msg-box');
+  const novo = valor==null ? '' : String(valor);
+  if(p.id===campo && box && !box.disabled && box.value!==novo){
+    /* ⚠ Confirma o espelho ANTES. A edição pela arte é decisão, não digitação: sem isto o
+       `input` abaixo virava o "último valor digitado" do espelho, e sair do passo sem enviar
+       devolvia o preço de ANTES da edição (franqueado-fluxo: "o que outra ação escreveu depois
+       também não é desfeito"). Confirmado, o espelho reabre com o valor da arte como base. */
+    if(typeof fEspelhoConfirma==='function') fEspelhoConfirma();
+    box.value = novo; box.dispatchEvent(new Event('input',{bubbles:true}));
+  }
+  const frase = document.querySelector('#f-messages .msg.active-prompt .perg-frase');
+  if(frase && p.precoPar==='por') frase.innerHTML = fPerguntaTexto(p);
+}
+
 function fNextStep(){
   if(_fGuidedAtivo()){
     const atual=_fGuidedIndice(_fGuidedNav.currentField);
@@ -1275,7 +1299,7 @@ function _fUploadPreviewHTML(varId, url, opts){
       <img src="${gEsc(url)}" alt="Imagem enviada"/>
       <div class="f-upload-preview-overlay">
         <span style="display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg>${ehLogo?'Logo enviado':'Foto enviada'}</span>
-        <span style="display:inline-flex;gap:6px"><button class="f-upload-frame" onclick="fAjustarFoto('${gEsc(varId)}')" title="Reposicionar e dar zoom na imagem dentro da arte"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>Ajustar</button></span>
+        <span style="display:inline-flex;gap:6px"><button class="f-upload-frame" onclick="event.stopPropagation();fAjustarFoto('${gEscJs(varId)}')" title="Reposicionar e dar zoom na imagem dentro da arte"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>Ajustar</button></span>
       </div>
     </div>${opts.semConfirmar ? '' : barra}`;
 }
@@ -1364,7 +1388,8 @@ function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
   // lugar da zona de upload — pedir de novo o que já está na arte é o bug, não a feature.
   const jaTemFoto = fState.dados && fState.dados[pergunta.id];
   // `jaEstava`: a imagem não acabou de ser escolhida, ela já estava no campo → "Manter", não "Usar".
-  const zoneHtml = jaTemFoto ? _fUploadPreviewHTML(pergunta.id, fState.dados[pergunta.id], {jaEstava:true})
+  // O host com id `-preview` é o que o Trocar e o repintar acham (fReplaceImage/_fApplyImageToField).
+  const zoneHtml = jaTemFoto ? `<div id="${uploadId}-preview">${_fUploadPreviewHTML(pergunta.id, fState.dados[pergunta.id], {jaEstava:true})}</div>`
     : `<div class="f-upload-zone" id="${uploadId}-zone" data-var="${pergunta.id}" data-upload="${uploadId}" onclick="fOpenUploadPanel('${pergunta.id}','${uploadId}')">
       <!-- O input fica DENTRO da zona, que abre o painel no clique. O clique
            programático de fUploadPanelNewFile borbulhava até aqui e REABRIA o
@@ -1705,7 +1730,28 @@ function fResizeImageIfNeeded(dataUrl, maxDim, cb, preservarAlpha){
   img.onerror=()=>cb(dataUrl);
   img.src=dataUrl;
 }
+/* TROCAR = escolher OUTRA imagem para ESTE campo, sem sair do lugar (23/09/2026).
+   Antes apagava a bolha e refazia a pergunta pelo fluxo linear (`stepIdx = idx-1`): com a foto
+   sendo a 1ª pergunta, o `stepIdx` virava -1 e a conversa RECOMEÇAVA do zero no celular. Agora
+   abre o mesmo painel de fotos da zona de upload (recentes, exemplos, novo arquivo); a imagem
+   nova entra por `_fApplyImageToField`, que repinta ESTE preview no lugar, e o "Usar esta
+   imagem" segue de onde estava. A atual só sai quando a nova chega — desistir mantém a foto.
+   O caminho antigo fica só para preview sem host (não deveria existir). */
 function fReplaceImage(varId, btn){
+  const host = btn && btn.closest('[id$="-preview"]');
+  if(host && typeof fOpenUploadPanel==='function'){
+    const uploadId = host.id.slice(0, -'-preview'.length);
+    // O input morava na zona de upload, que o preview substituiu — recria aqui, invisível.
+    if(!document.getElementById(uploadId+'-input')){
+      const inp = document.createElement('input');
+      inp.type = 'file'; inp.id = uploadId+'-input'; inp.hidden = true;
+      inp.accept = 'image/png,image/jpeg,image/webp';
+      inp.addEventListener('change', e=>fHandleImageUpload(e, varId, uploadId));
+      host.appendChild(inp);
+    }
+    fOpenUploadPanel(varId, uploadId);
+    return;
+  }
   // Apaga o dado atual e força nova pergunta
   delete fState.dados[varId];
   fSaveChatDraft();

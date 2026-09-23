@@ -936,6 +936,20 @@ await test('O que foi enviado vale; o que outra ação escreveu depois também n
   assert(fState.dados.precoDe==='De: R$ 50,00','a edição pela arte foi desfeita ao sair do passo: '+fState.dados.precoDe);
 });
 
+await test('Editar pela arte o campo da pergunta aberta chega na caixa do chat (e o Enviar não desfaz)', async()=>{
+  // Relato do celular (23/09): "90" digitado no chat, "80" corrigido na arte, Enviar → o passo
+  // seguinte dizia "O preço original é 90". A caixa guardava o 90 e gravava por cima.
+  reset(); fAttachInputGuard();
+  fState.dados={produto:'X-Bacon',precoDe:'De: R$ 30,00'};
+  irAoPasso('precoDe');
+  const box=document.getElementById('f-msg-box');
+  box.value='90'; box.dispatchEvent(new Event('input',{bubbles:true}));
+  _fLpCommit('precoDe','80');                                              // corrigiu pela arte
+  assert(box.value===fState.dados.precoDe,'a caixa ficou "'+box.value+'" e a arte "'+fState.dados.precoDe+'"');
+  fSend(); await espera(PASSO);
+  assert(fState.dados.precoDe===fApplyMask('precoDe','80'),'o Enviar gravou por cima da edição pela arte: '+fState.dados.precoDe);
+});
+
 window.__lumaTest={total,passed:total-failures.length,failures};
 })().catch(e=>window.__lumaTest={total:1,passed:0,failures:[{name:'bancada',error:e.stack}]});
 </script></body></html>
