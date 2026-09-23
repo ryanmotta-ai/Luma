@@ -158,13 +158,27 @@
     assert(r.lines.length > 2, 'caixa estreita deveria render muitas linhas');
   });
 
-  test('7b · texto de PONTO não vira caixa: não quebra, só encolhe', () => {
-    const l = ponto();
-    const box = gAuthoredTextBox(l, { canvas:CANVAS });
-    assert(box.quebravel === false, 'texto de ponto não é quebrável no escopo local');
+  /* Caixa do Illustrator (decisão do Ryan, 22/09/2026): texto de ponto também quebra na
+     largura DESENHADA e só encolhe quando as linhas lotaram a altura. */
+  test('7b · texto de PONTO quebra na caixa desenhada antes de encolher', () => {
+    const l = ponto({ h:300 });
     const r = gFitTextToAuthoredBox(l, 'OFERTA RELÂMPAGO DE ANIVERSÁRIO', { canvas:CANVAS });
-    assert(r.lines.length === 1, 'texto de ponto não pode ganhar linha, veio ' + r.lines.length);
-    assert(r.changed === true || r.status === 'fits', 'ou coube, ou encolheu — nada além disso');
+    assert(r.status === 'fits', 'caixa com altura de sobra deveria caber: ' + r.diagnostics.motivo);
+    assert(r.lines.length > 1, 'deveria ter pulado de linha, veio ' + r.lines.length);
+    assert(r.layoutW === l.w, 'a quebra usa a largura desenhada, veio ' + r.layoutW);
+    assert(r.fontSize === l.fontSize, 'cabendo quebrando, não podia encolher: ' + r.fontSize);
+  });
+
+  test('7c · texto de PONTO com caixa baixa: lotou a altura → encolhe', () => {
+    const r = gFitTextToAuthoredBox(ponto(), 'OFERTA RELÂMPAGO DE ANIVERSÁRIO', { canvas:CANVAS });
+    assert(r.changed === true || r.status === 'overflow', 'sem altura para quebrar, tinha que encolher');
+    if(r.status === 'fits') assert(r.diagnostics.alturaNecessaria <= r.diagnostics.alturaDisponivel + 1,
+      'FITS não pode passar da altura');
+  });
+
+  test('7d · texto de PONTO autorado segue em 1 linha, sem carimbo de quebra', () => {
+    const r = gFitTextToAuthoredBox(ponto(), 'OFERTA DA SEMANA', { canvas:CANVAS });
+    assert(r.degrau === 'original' && r.lines.length === 1 && !r.layoutW, 'o desenho autorado mudou');
   });
 
   /* ── 8. maxLines ──────────────────────────────────────────────────────────────────── */
@@ -327,7 +341,8 @@
      [ponto(), 'OFERTA RELÂMPAGO EXCLUSIVA DE ANIVERSÁRIO']].forEach(([l, t]) => {
       const r = gFitTextToAuthoredBox(l, t, { canvas:CANVAS });
       const box = gAuthoredTextBox(l, { canvas:CANVAS });
-      const prova = Object.assign({}, box.camada, { fontSize:r.fontSize });
+      const prova = Object.assign({}, box.camada, { fontSize:r.fontSize },
+                                  r.layoutW ? { _layoutW:r.layoutW } : {});
       const f = gFitTextLayer(prova, t, null, { encolher:false });
       assert(r.text === f.text, 'texto divergiu do render');
       assert(r.lines.join('') === f.lines.join(''), 'linhas divergiram do render');

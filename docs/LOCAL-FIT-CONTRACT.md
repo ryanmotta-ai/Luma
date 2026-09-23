@@ -151,9 +151,13 @@ Conservadora, e **nada além do texto alvo se move**.
 O degrau de **0,92** é o mesmo que o teto de linhas do `gFitTextLayer` usa. Inventar um passo
 diferente faria o Local Fit e o motor pararem em corpos distintos para o mesmo texto.
 
-**Texto de ponto não vira caixa.** Criar uma largura de quebra que o designer não desenhou é
-movimento de composição (é o que o `_layoutW` do guardião faz) — é da outra camada. Texto de
-ponto só encolhe. `box.quebravel` declara isso.
+**Texto de ponto quebra na caixa desenhada — caixa do Illustrator (decisão do Ryan, 22/09/2026).**
+Antes texto de ponto só encolhia, e o franqueado via a frase atravessar a caixa numa linha só.
+Agora, em cada corpo: linha única primeiro (o autorado nunca muda); não coube na LARGURA,
+quebra em `w` (a largura que o designer desenhou, nunca uma inventada); as linhas lotaram a
+ALTURA, desce o corpo. A quebra chega ao render por `_layoutW = w` (o resultado traz
+`layoutW`), que `gFitTextLayer` e `fRenderOneLayer` já honram. Nada se move. `box.quebravel`
+continua querendo dizer só "caixa de parágrafo". Casos 7b–7d em `tests/local-fit-cases.js`.
 
 **Fora do escopo, sempre:** mover outro elemento, alterar container externo, escalar componente,
 emergência, corredor, `_layoutW`.

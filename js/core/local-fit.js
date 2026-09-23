@@ -144,9 +144,8 @@ function gAuthoredTextBox(layer, opts){
   }
   linhasAutoradas = Math.max(1, linhasAutoradas || 1);
 
-  /* Quebrar é privilégio de CAIXA DE PARÁGRAFO. Texto de ponto não vira caixa aqui: criar uma
-     largura de quebra que o designer não desenhou é movimento de composição (é o que o
-     `_layoutW` do guardião faz), e isso é da outra camada. Texto de ponto só encolhe. */
+  /* `quebravel` = CAIXA DE PARÁGRAFO (a quebra vem do próprio `gFitTextLayer`). Texto de ponto
+     também quebra, mas na largura DESENHADA (`w`), via `_layoutW` — ver o laço da §2. */
   const quebravel = (camada.textBox === 'box') && !camada.vertical;
 
   const editorial = _gLfMaxLinhasEditorial(layer, camada);
@@ -246,10 +245,18 @@ function gFitTextToAuthoredBox(layer, conteudo, opts){
   const passos = [];
   let fs = box.fontSize, ultimo = null;
 
-  for(let i = 0; i < G_LF_MAX_PASSOS; i++){
+  /* CAIXA DO ILLUSTRATOR. Texto de PONTO também quebra dentro da caixa que o designer
+     desenhou (`w/h` da camada): em cada corpo tenta primeiro a linha única (ORIGINAL FIRST —
+     o texto autorado nunca muda de desenho), depois quebra na largura da caixa, e só se a
+     quebra não couber na altura desce o corpo. A quebra usa `_layoutW = w`, que o
+     `gFitTextLayer` e o render já honram — nada muda de lugar, a largura é a desenhada.
+     (Decisão do Ryan, 22/09/2026: "vai pulando pra linha de baixo; lotou, diminui".) */
+  const podeQuebrarPonto = !box.quebravel && !box.vertical && (box.w || 0) > 0;
+  const prova_ = (fs, layoutW) => {
     /* `fontSize` cru, nunca `_tetoFonte`: o teto é carimbo da cascata e a prova tem que ser
        lida como camada autorada de outro corpo, não como camada já adaptada. */
     const prova = Object.assign({}, box.camada, { fontSize: fs });
+    if(layoutW != null) prova._layoutW = layoutW;
     const f = gFitTextLayer(prova, texto, ctx, { encolher:false, runs: opts.runs || null });
     const linhas = (f.lines || []).length;
     const dispX = _gLfLarguraDisponivel(box, fs);
@@ -259,11 +266,23 @@ function gFitTextToAuthoredBox(layer, conteudo, opts){
     const overflowY = Math.max(0, Math.round((f.altura || 0) - dispY));
     /* Só o teto EXPLÍCITO reprova. O semântico entra no laudo e não no veredito (ver §1). */
     const excedeuLinhas = box.maxLinhasDuro && linhas > maxLinhas;
+    const cabe = overflowX <= G_LF_TOL && overflowY <= G_LF_TOL && !excedeuLinhas;
+    return { f, fs, linhas, maxLinhas, overflowX, overflowY, dispX, dispY, cabe,
+             layoutW: (layoutW != null && linhas > 1) ? layoutW : null };
+  };
 
-    passos.push({ fontSize:fs, linhas, maxLinhas, overflowX, overflowY });
-    ultimo = { f, fs, linhas, maxLinhas, overflowX, overflowY, dispX, dispY, passo:i };
+  for(let i = 0; i < G_LF_MAX_PASSOS; i++){
+    let u = prova_(fs, null);
+    /* Só a LARGURA justifica quebrar: se faltou altura, linha a mais só piora. */
+    if(!u.cabe && podeQuebrarPonto && u.overflowX > G_LF_TOL){
+      const q = prova_(fs, box.w);
+      if(q.linhas > u.linhas) u = q;
+    }
+    ultimo = Object.assign(u, { passo:i });
+    passos.push({ fontSize:fs, linhas:u.linhas, maxLinhas:u.maxLinhas,
+                  overflowX:u.overflowX, overflowY:u.overflowY });
 
-    if(overflowX <= G_LF_TOL && overflowY <= G_LF_TOL && !excedeuLinhas){
+    if(u.cabe){
       return _gLfResultado(box, ultimo, passos, 'fits', opts);
     }
     if(fs <= box.piso) break;
@@ -279,7 +298,7 @@ function gFitTextToAuthoredBox(layer, conteudo, opts){
 function _gLfResultado(box, u, passos, status, opts){
   const f = u.f;
   const encolheu = u.fs !== box.fontSize;
-  const intacto = status === 'fits' && !encolheu && u.linhas <= box.linhasAutoradas;
+  const intacto = status === 'fits' && !encolheu && !u.layoutW && u.linhas <= box.linhasAutoradas;
   const degrau = status === 'overflow' ? 'piso'
                : intacto ? 'original'
                : encolheu ? 'shrink' : 'wrap';
@@ -292,6 +311,8 @@ function _gLfResultado(box, u, passos, status, opts){
   return {
     v: G_LOCAL_FIT_V,
     status, degrau, intacto, changed: encolheu,
+    /* Largura de quebra do texto de PONTO (null quando não quebrou). O render lê `_layoutW`. */
+    layoutW: u.layoutW || null,
     text: f.text, lines: (f.lines || []).slice(),
     fontSize: u.fs, lineHeight: box.lineHeight,
     overflowX: u.overflowX, overflowY: u.overflowY,
@@ -435,6 +456,7 @@ function gLocalFitArte(layers, opts){
     if(r.degrau === 'shrink' || r.degrau === 'piso'){ encolheu = true; }
     if(r.degrau === 'wrap'){ quebrou = true; }
     if(r.fontSize !== r.diagnostics.fontSizeAutorado) l._tetoFonte = r.fontSize;
+    if(r.layoutW) l._layoutW = r.layoutW;
     /* TEXTO NÃO SOBE. Enquanto cabe na caixa segue centralizado (é o desenho do designer);
        quando passa dela, ancora no topo e cresce só para baixo — senão metade do excesso come
        a margem que o designer deixou em cima. Mesma regra do `_gStampVTop` da cascata antiga,
