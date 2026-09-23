@@ -608,12 +608,18 @@ function gLocalFitArte(layers, opts){
       invalidIds.push(l.id);
       /* FAIL SAFE (item 8): o payload é OBJETIVO — quem travou, por quantos pixels, quantas
          linhas precisaria e onde o piso parou. Sem LLM, sem estimativa por caractere. */
+      /* `placa`: a forma COMO ELA ESTAVA quando o texto foi medido (cópia tirada antes de ela
+         acompanhar a tinta, logo abaixo, e ainda com o `_placa` que a fase 4 apaga). Quem mede
+         de novo este campo depois — "cabem até N", o balão da solução — precisa da MESMA placa
+         que o runtime usou: sem ela o interior da placa não limita a altura, e a sugestão
+         "cabe" lá e não aqui (`gLocalFitMedidor`). */
       bloqueios.push({ status:'CONTENT_TOO_LARGE', fieldId:l.id,
                        campos:(typeof gLayoutCamposDe === 'function') ? gLayoutCamposDe(l) : [],
                        overflowX:r.overflowX, overflowY:r.overflowY,
                        requiredLines:r.lines.length, maxLines:r.diagnostics.maxLinhas,
                        fontSize:r.fontSize, minimumFontSize:r.diagnostics.piso,
-                       motivo:r.diagnostics.motivo });
+                       motivo:r.diagnostics.motivo,
+                       placa: placa ? Object.assign({}, placa) : null });
     }
 
     /* ORIGINAL FIRST ABSOLUTO: coube como desenhado → nenhum carimbo, nenhum `change`. */
@@ -725,6 +731,40 @@ function gLocalFitMensagem(rotulo, atual, limite){
        + ' caracteres aqui — hoje tem ' + atual + '.';
 }
 
+/* O CULPADO de um bloqueio, numa conta só. Com mais de um campo na mesma camada, é o de valor
+   mais longo (empate: a ordem da camada). O aviso da prévia, o balão da solução e o laudo
+   escolhiam cada um o seu — `campos[0]` num, o mais longo no outro — e o aviso podia nomear um
+   campo enquanto o "cabem até N" media outro. */
+function gLocalFitCulpado(bloqueio, dados){
+  const campos = (bloqueio && bloqueio.campos) || [];
+  if(!campos.length) return null;
+  const tam = (c) => String((dados && dados[c] != null) ? dados[c] : '').length;
+  return campos.slice().sort((a, b) => tam(b) - tam(a))[0];
+}
+
+/* "ESTE VALOR NESTE CAMPO DESTA ARTE CABE?" pelo MESMO caminho do `gLocalFitArte`: mesma
+   interpolação, mesmos runs, mesmas camadas (pilha e pisos) e a MESMA placa (`bloqueio.placa`).
+   Uma medida por fora do runtime é como o balão sugeria texto que "cabia" e a arte seguia
+   bloqueada — a placa limitava a altura aqui e não lá.
+   @returns {function(valor):object|null} o resultado do `gFitTextToAuthoredBox` por valor. */
+function gLocalFitMedidor(layers, bloqueio, campo, dados, opts){
+  const alvo = bloqueio && (layers || []).find(l => l && l.id === bloqueio.fieldId);
+  if(!alvo || !campo) return null;
+  const o = opts || {};
+  const defaults = (o.defaults != null) ? o.defaults
+                 : ((typeof gVarDefaults === 'function') ? gVarDefaults() : null);
+  return (valor) => {
+    const d = Object.assign({}, dados || {});
+    d[campo] = valor;
+    const texto = (typeof gInterpolate === 'function')
+      ? gInterpolate(alvo.content, d, { onEmpty:'remove', defaults }) : String(valor);
+    const runs = (typeof gBuildVirtualRuns === 'function')
+      ? gBuildVirtualRuns(alvo, d, 1, defaults) : null;
+    return gFitTextToAuthoredBox(alvo, texto,
+      { layers, canvas:o.canvas || null, ctx:o.ctx, runs, placa:bloqueio.placa || null });
+  };
+}
+
 /**
  * @param {Array}  layers  as camadas JÁ passadas por `gLocalFitArte` (é onde mora o culpado)
  * @param {object} result  o `result` devolvido por `gLocalFitArte`
@@ -735,32 +775,17 @@ function gLocalFitDiagnostico(layers, result, dados, opts){
   try{
     const bloqueio = result && result.bloqueios && result.bloqueios[0];
     if(!bloqueio) return null;
-    const alvo = (layers || []).find(l => l && l.id === bloqueio.fieldId);
-    if(!alvo) return null;
-    const campos = bloqueio.campos || [];
-    if(!campos.length) return null;
-    // Com mais de um campo na mesma camada, o culpado é o de valor mais longo.
-    const campo = campos.slice().sort((a, b) =>
-      String((dados && dados[b]) || '').length - String((dados && dados[a]) || '').length)[0];
+    /* `opts.campo`: a prévia mede com placeholders nos campos vazios, e o culpado tem que ser
+       escolhido pelo que a PESSOA digitou (é o que ela pode encurtar) — ela o passa pronto. */
+    const campo = (opts && opts.campo) || gLocalFitCulpado(bloqueio, dados);
+    const medir = gLocalFitMedidor(layers, bloqueio, campo, dados, opts);
+    if(!medir) return null;
     const valor = String((dados && dados[campo]) != null ? dados[campo] : '');
     const rotulo = gLocalFitRotulo(campo);
     if(valor.length < 3) return { campo, rotulo, atual: valor.length, limite: 0,
       mensagem: 'A arte não tem espaço seguro para “' + rotulo + '” neste material. Escolha outro material para este conteúdo.' };
 
-    const o = opts || {};
-    const defaults = (o.defaults != null) ? o.defaults
-                   : ((typeof gVarDefaults === 'function') ? gVarDefaults() : null);
-    const cabe = (n) => {
-      const d = Object.assign({}, dados);
-      d[campo] = gLocalFitCorta(valor, n);
-      const texto = (typeof gInterpolate === 'function')
-        ? gInterpolate(alvo.content, d, { onEmpty:'remove', defaults }) : d[campo];
-      const runs = (typeof gBuildVirtualRuns === 'function')
-        ? gBuildVirtualRuns(alvo, d, 1, defaults) : null;
-      const r = gFitTextToAuthoredBox(alvo, texto,
-        { layers, canvas:o.canvas || null, ctx:o.ctx, runs });
-      return !!r && r.status === 'fits';
-    };
+    const cabe = (n) => { const r = medir(gLocalFitCorta(valor, n)); return !!r && r.status === 'fits'; };
 
     let baixo = 1, alto = valor.length, limite = 0, voltas = 0;
     while(baixo <= alto && voltas++ < 8 && !limite){

@@ -1095,6 +1095,9 @@ let _lpFraming = null;   // {layer, varName} enquanto o franqueado enquadra a fo
 let _lpOverflow = new Set(); // ids de camadas de texto com estouro no último render (avisos)
 let _lpEffectiveLayers = []; // geometria que o render realmente desenhou (reflow + layout vivo)
 let _lpLayoutResult = null;  // contrato do solver só desta prévia (não confunde com thumbs)
+/* Os dados com que ESTE render mediu (fState.dados + placeholders dos campos vazios). Anda em par
+   com `_lpLayoutResult`: quem re-mede um bloqueio (balão, "cabem até N") precisa dos mesmos. */
+let _lpDadosRender = null;
 let _lpEffectiveMaterial = null;
 
 // Zoom/pan manual da prova digital (item: inspecionar a arte de perto).
@@ -1156,8 +1159,12 @@ function _fLpSyncBloqueio(resArg){
   /* O parâmetro existe para a bancada conseguir pintar um bloqueio sem re-renderizar a arte
      inteira. No app ninguém o passa: a fonte é o resultado do último render. */
   const res=(resArg!==undefined)?resArg:_lpLayoutResult;
-  const campo=(res&&res.invalid&&res.bloqueios&&res.bloqueios[0]
-              &&(res.bloqueios[0].campos||[])[0])||null;
+  /* O culpado sai da MESMA conta do laudo e do balão (`gLocalFitCulpado`), escolhido pelo que a
+     pessoa digitou — com `campos[0]` aqui e "o mais longo" lá, o aviso nomeava um campo e o
+     "cabem até N" media outro. */
+  const bloq0=(res&&res.invalid&&res.bloqueios&&res.bloqueios[0])||null;
+  const campo=bloq0?((typeof gLocalFitCulpado==='function')?gLocalFitCulpado(bloq0,fState.dados||{})
+                                                           :(bloq0.campos||[])[0])||null:null;
   nota.classList.remove('is-aviso');
   /* LETRA BEM MENOR, SEM BLOQUEIO (22/09/2026). Coube, mas a ≤75% do corpo desenhado — é
      a arte que sai "certa" e feia. Aviso laranja, discreto e clicável: leva ao campo. Não
@@ -1171,12 +1178,12 @@ function _fLpSyncBloqueio(resArg){
       .sort((a,b)=>a.fontSize/a.fontSizeAutorado-b.fontSize/b.fontSizeAutorado)[0];
     const perguntas=(fState&&fState.camp&&fState.camp.perguntas)||[];
     const idx=menor?perguntas.findIndex(p=>p&&p.id===menor.nomes[0]):-1;
-    if(idx<0){ nota.hidden=true; nota.textContent=''; nota.classList.remove('is-bloqueio'); return; }
+    if(idx<0){ nota.hidden=true; _fLpNotaTexto(nota,'',''); nota.classList.remove('is-bloqueio'); return; }
     const rot=(typeof gFieldLabel==='function')?gFieldLabel(menor.nomes[0]):menor.nomes[0];
     nota.hidden=false;
     nota.classList.remove('is-bloqueio');
     nota.classList.add('is-aviso');
-    nota.textContent='“'+rot+'” ficou com a letra pequena — encurtar';
+    _fLpNotaTexto(nota,'“'+rot+'” ficou com a letra pequena — encurtar','');
     nota.title='O texto de “'+rot+'” coube, mas a letra diminuiu bastante. Um texto mais curto deixa a arte mais forte.';
     nota.setAttribute('aria-label', nota.title);
     nota.onclick=()=>{ if(typeof fEditCampo==='function') fEditCampo(idx); };
@@ -1185,24 +1192,40 @@ function _fLpSyncBloqueio(resArg){
   const rotulo=(typeof gFieldLabel==='function')?gFieldLabel(campo):campo;
   nota.hidden=false;
   nota.classList.add('is-bloqueio');
-  nota.textContent='“'+rotulo+'” não cabe — encurtar';
+  /* A SOLUÇÃO TAMBÉM É DITA. O balão aparece em cima da arte sem anunciar nada; este aviso já é
+     `aria-live`, então a sugestão entra nele como texto só para leitor de tela — nada a mais
+     na barra, que continua com a mesma frase. (O balão é calculado antes deste aviso no render.) */
+  const B=_lpBalao&&_lpBalao.sug&&_lpBalao.sug[0]?_lpBalao:null;
+  const falado=B?' Sugestão para “'+((typeof gFieldLabel==='function')?gFieldLabel(B.campo):B.campo)
+                 +'”: '+B.sug[0].text+'. Botão sobre a arte.':'';
+  _fLpNotaTexto(nota,'“'+rotulo+'” não cabe — encurtar',falado);
   nota.title='“'+rotulo+'” não cabe nesta arte nem no menor tamanho legível. Toque para encurtar.';
-  nota.setAttribute('aria-label', nota.title);
+  nota.setAttribute('aria-label', nota.title+falado);
   nota.onclick=()=>{
     if(typeof fCorrigirTextoLongo!=='function') return;
     /* O laudo com o LIMITE em caracteres custa ~12 encaixes de uma camada. Sai daqui, no
-       clique, e não no render: a prévia repinta a cada tecla e isso não pode entrar no laço. */
+       clique, e não no render: a prévia repinta a cada tecla e isso não pode entrar no laço.
+       Mede com os dados DO RENDER (placeholders nos vazios) — os que o bloqueio viu. */
     let r=res;
     if(!r.diagnostico&&typeof gLocalFitDiagnostico==='function'){
       try{
         const mat=_lpEffectiveMaterial||fState.material;
         const cv=(typeof fMaterialSize==='function')?fMaterialSize(mat):null;
         r=Object.assign({},res,{diagnostico:gLocalFitDiagnostico(_lpEffectiveLayers,res,
-          fState.dados||{},{canvas:cv?{w:cv[0],h:cv[1]}:null})});
+          _lpDadosRender||fState.dados||{},{canvas:cv?{w:cv[0],h:cv[1]}:null,campo})});
       }catch(e){ /* sem laudo, o diálogo cai na frase sem número */ }
     }
     fCorrigirTextoLongo(r);
   };
+}
+/* Escreve o aviso SÓ quando a frase muda. A prévia repinta a cada tecla, e reescrever o mesmo
+   texto num `aria-live` faz o leitor de tela repetir o aviso a cada letra digitada. */
+function _fLpNotaTexto(nota, visivel, falado){
+  const k=visivel+'\u0000'+falado;
+  if(nota.dataset.txt===k) return;
+  nota.dataset.txt=k;
+  nota.textContent=visivel;
+  if(falado){ const s=document.createElement('span'); s.className='f-sr-only'; s.textContent=falado; nota.appendChild(s); }
 }
 
 /* ══ O BALÃO DA SOLUÇÃO — em cima da caixa que não coube (22/09/2026) ════════════════════
@@ -1212,42 +1235,70 @@ function _fLpSyncBloqueio(resArg){
    Um toque aplica pelo mesmo caminho da digitação (contador, prévia e rascunho de uma vez) e
    o Desfazer cobre o arrependimento. Sem versão que caiba, não há balão: nunca corta produto
    sozinho, e o aviso da barra continua levando ao campo. */
-let _lpBalao = null;          // {chave, campo, sug:[...]} — o onclick passa índice, nunca o texto
-function _fLpBalaoCabe(alvo, campo){
-  const mat=_lpEffectiveMaterial||fState.material;
-  const tam=(typeof fMaterialSize==='function')?fMaterialSize(mat):null;
-  const canvas=tam?{w:tam[0],h:tam[1]}:null;
+let _lpBalao = null;          // {chave, fieldId, campo, sug:[...]} — o onclick passa índice, nunca o texto
+/* "Cabe?" do balão = a porta única do Local Fit (`gLocalFitMedidor`): as camadas, os dados
+   (com os placeholders dos campos vazios) e a PLACA que o render usou. Medir por fora — dados
+   crus, sem placa — sugeria versões que "cabiam" aqui e seguiam bloqueadas na arte. */
+function _fLpBalaoCabe(bloq, campo, W, H){
+  const medir=(typeof gLocalFitMedidor==='function')
+    ? gLocalFitMedidor(_lpEffectiveLayers,bloq,campo,_lpDadosRender||fState.dados||{},{canvas:{w:W,h:H}}) : null;
+  if(!medir) return null;
+  return (t)=>{ const r=medir(t); return {ok:!!r&&r.status==='fits', fontSize:r?r.fontSize:0}; };
+}
+/* A chave diz EM QUE ARTE a sugestão foi medida: material, tamanho da prancheta e, por
+   bloqueio, o conteúdo JÁ INTERPOLADO do alvo (o valor digitado e os vizinhos da mesma camada).
+   Só `campo|valor` reaproveitava a sugestão de outra arte com o mesmo texto — que lá cabia.
+   A caixa, o corpo, o piso e a placa entram também: o mesmo material republicado com outra
+   geometria (ou outro vizinho que sobe o piso de hierarquia) é outra arte para quem mede. */
+function _fLpBalaoChave(bloqs, W, H){
+  const mat=_lpEffectiveMaterial||fState.material||{};
+  const d=_lpDadosRender||fState.dados||{};
   const defaults=(typeof gVarDefaults==='function')?gVarDefaults():null;
-  return (t)=>{
-    const d=Object.assign({},fState.dados||{},{[campo]:t});
-    const texto=gInterpolate(alvo.content||'',d,{onEmpty:'remove',defaults});
-    const runs=(typeof gBuildVirtualRuns==='function')?gBuildVirtualRuns(alvo,d,1,defaults):null;
-    const r=gFitTextToAuthoredBox(alvo,texto,{layers:_lpEffectiveLayers,canvas,runs});
-    return {ok:!!r&&r.status==='fits', fontSize:r?r.fontSize:0};
-  };
+  const g=(o)=>o?[o.x,o.y,o.w,o.h].map(v=>Math.round(+v||0)).join(','):'';
+  return [mat.id||mat.templateId||mat.template_id||'', W+'x'+H].concat(bloqs.map(b=>{
+    const alvo=(_lpEffectiveLayers||[]).find(l=>l&&l.id===b.fieldId);
+    return b.fieldId+'|'+gLocalFitCulpado(b,fState.dados||{})+'|'+g(alvo)+'|'+(alvo&&alvo.fontSize)
+      +'|'+b.minimumFontSize+'|'+g(b.placa)+'|'
+      +(alvo?gInterpolate(alvo.content||'',d,{onEmpty:'remove',defaults}):'');
+  })).join('\u0001');
 }
 function _fLpBalaoTira(){ const b=document.getElementById('lp-balao'); if(b) b.remove(); }
 function _fLpSyncBalao(){
   const res=_lpLayoutResult;
-  const bloq=res&&res.invalid&&res.bloqueios&&res.bloqueios[0];
-  const campo=bloq&&(bloq.campos||[])[0];
-  const alvo=campo&&(_lpEffectiveLayers||[]).find(l=>l&&l.id===bloq.fieldId);
-  const valor=campo?String((fState.dados||{})[campo]==null?'':fState.dados[campo]):'';
-  const chave=campo?(campo+'|'+valor):'';
-  if(!alvo||!valor||typeof gCopyFitSugestoes!=='function'){
+  const bloqs=(res&&res.invalid&&res.bloqueios)||[];
+  const stage=document.querySelector('.lp-stage'), cv=document.getElementById('lp-canvas');
+  if(!bloqs.length||!cv||!cv.width||typeof gCopyFitSugestoes!=='function'
+     ||typeof gLocalFitCulpado!=='function'){
     _lpBalao=null; _fLpBalaoTira(); return;
   }
+  const chave=_fLpBalaoChave(bloqs,cv.width,cv.height);
   if(!_lpBalao||_lpBalao.chave!==chave){
-    const cfg=(typeof fGetFieldType==='function')?fGetFieldType(campo):{type:'text'};
-    const texto=!cfg.type||cfg.type==='text';
-    let sug=[];
-    try{ if(texto) sug=gCopyFitSugestoes(valor,_fLpBalaoCabe(alvo,campo),1).sugestoes; }catch(e){ sug=[]; }
-    _lpBalao={chave, campo, sug};
+    /* O PRIMEIRO BLOQUEIO QUE TEM SOLUÇÃO. Olhar só o [0] deixava a arte sem balão quando o
+       primeiro campo não tinha versão que coubesse (ou não era texto) e o segundo tinha. */
+    _lpBalao={chave, fieldId:null, campo:null, sug:[]};
+    for(const bloq of bloqs){
+      const campo=gLocalFitCulpado(bloq,fState.dados||{});
+      const valor=campo?String((fState.dados||{})[campo]==null?'':fState.dados[campo]):'';
+      if(!valor) continue;
+      const cfg=(typeof fGetFieldType==='function')?fGetFieldType(campo):{type:'text'};
+      if(cfg.type&&cfg.type!=='text') continue;
+      const cabe=_fLpBalaoCabe(bloq,campo,cv.width,cv.height); if(!cabe) continue;
+      let sug=[];
+      try{ sug=gCopyFitSugestoes(valor,cabe,1).sugestoes; }catch(e){ sug=[]; }
+      if(sug.length){ _lpBalao={chave, fieldId:bloq.fieldId, campo, sug}; break; }
+    }
   }
-  const stage=document.querySelector('.lp-stage'), cv=document.getElementById('lp-canvas');
-  if(!stage||!cv||!cv.width) return;
+  if(!stage) return;
   // Sem versão que caiba, não há solução para mostrar: fica só o aviso da barra.
   if(!_lpBalao.sug.length){ _fLpBalaoTira(); return; }
+  /* A arte ANIMA (mola do `.lp-canvas-wrap` no zoom, no Reajustar e no recentrar): medir a
+     posição na hora da troca pegava o card no meio do caminho. Reposiciona quando a mola
+     assenta — um listener só, preso ao próprio card (mesmo padrão do `_lpZoomBound`). */
+  const wrap=cv.closest('.lp-canvas-wrap');
+  if(wrap&&!wrap._lpBalaoBound){
+    wrap._lpBalaoBound=true;
+    wrap.addEventListener('transitionend',e=>{ if(e.propertyName==='transform'){ try{ _fLpPosBalao(); }catch(_){} } });
+  }
   let b=document.getElementById('lp-balao');
   if(!b||b.dataset.chave!==chave){
     if(b) b.remove();
@@ -1270,8 +1321,7 @@ function _fLpSyncBalao(){
 function _fLpPosBalao(){
   const b=document.getElementById('lp-balao'); if(!b||!_lpBalao) return;
   const stage=document.querySelector('.lp-stage'), cv=document.getElementById('lp-canvas');
-  const alvo=(_lpEffectiveLayers||[]).find(l=>l&&_lpLayoutResult&&_lpLayoutResult.bloqueios
-    &&_lpLayoutResult.bloqueios[0]&&l.id===_lpLayoutResult.bloqueios[0].fieldId);
+  const alvo=(_lpEffectiveLayers||[]).find(l=>l&&l.id===_lpBalao.fieldId);
   if(!stage||!cv||!alvo) return;
   const sr=stage.getBoundingClientRect(), cr=cv.getBoundingClientRect();
   const k=cr.width/(cv.width||1);
@@ -1285,15 +1335,38 @@ function _fLpPosBalao(){
   // A seta aponta para o CENTRO da caixa mesmo quando o balão encosta na borda da mesa.
   b.style.setProperty('--seta-x',Math.max(16,Math.min(bw-16,x+w/2-left))+'px');
 }
+/* Volta o campo pelo caminho dos DADOS (fora do chat, ou quando a pergunta já foi enviada). */
+function _fLpBalaoRestaura(campo, valor){
+  if(!fState.dados) fState.dados={};
+  if(valor==null) delete fState.dados[campo]; else fState.dados[campo]=valor;
+  try{ if(typeof fSaveChatDraft==='function') fSaveChatDraft(); }catch(e){}
+  _fLpRender();
+  try{ if(typeof fRevisaoRepinta==='function') fRevisaoRepinta(); }catch(e){}
+}
 function fLpBalaoAplica(i){
   const B=_lpBalao, s=B&&B.sug[i]; if(!s) return;
   const campo=B.campo, antes=(fState.dados||{})[campo];
+  const rotulo='Encurtar '+String((typeof gFieldLabel==='function')?gFieldLabel(campo):'texto').toLowerCase();
   _fLpBalaoTira();
   const box=document.getElementById('f-msg-box');
-  const noChat=box&&!box.disabled&&fState.camp?.perguntas?.[fState.stepIdx]?.id===campo;
-  if(noChat){
+  const naPergunta=(bx)=>bx&&!bx.disabled&&fState.camp?.perguntas?.[fState.stepIdx]?.id===campo;
+  if(naPergunta(box)){
     // Mesmo caminho de quem digita: espelho, contador e prévia por um só lugar.
+    const antesBox=box.value;
     box.value=s.text; box.dispatchEvent(new Event('input',{bubbles:true}));
+    /* O botão focado acabou de sair do DOM, e o foco caía no body: quem usa teclado ou leitor
+       de tela perdia o lugar. Volta para onde a pessoa estava escrevendo. */
+    try{ box.focus(); }catch(e){}
+    /* O Desfazer vale aqui também — era o caminho mais comum e saía antes de registrar. Com a
+       pergunta ainda aberta, devolve o texto à caixa (mesmo caminho da digitação); se ela já
+       foi enviada, devolve pelos dados o que estava escrito antes do toque. */
+    if(typeof _fUndoRegistra==='function') _fUndoRegistra(rotulo, ()=>{
+      const bx=document.getElementById('f-msg-box');
+      if(naPergunta(bx)){
+        bx.value=antesBox; bx.dispatchEvent(new Event('input',{bubbles:true}));
+        try{ bx.focus(); }catch(e){}
+      } else _fLpBalaoRestaura(campo, antesBox);
+    });
     return;
   }
   if(!fState.dados) fState.dados={};
@@ -1301,15 +1374,7 @@ function fLpBalaoAplica(i){
   try{ if(typeof fSaveChatDraft==='function') fSaveChatDraft(); }catch(e){}
   _fLpRender();
   try{ if(typeof fRevisaoRepinta==='function') fRevisaoRepinta(); }catch(e){}
-  if(typeof _fUndoRegistra==='function'){
-    const rot=(typeof gFieldLabel==='function')?gFieldLabel(campo):'texto';
-    _fUndoRegistra('Encurtar '+String(rot).toLowerCase(), ()=>{
-      if(antes==null) delete fState.dados[campo]; else fState.dados[campo]=antes;
-      try{ if(typeof fSaveChatDraft==='function') fSaveChatDraft(); }catch(e){}
-      _fLpRender();
-      try{ if(typeof fRevisaoRepinta==='function') fRevisaoRepinta(); }catch(e){}
-    });
-  }
+  if(typeof _fUndoRegistra==='function') _fUndoRegistra(rotulo, ()=>_fLpBalaoRestaura(campo, antes));
 }
 window.addEventListener('resize',()=>{ try{ _fLpPosBalao(); }catch(e){} });
 
@@ -1489,12 +1554,14 @@ async function fUpdateLivePreview(opts){
         {scope:'franqueado',purpose:'preview'});
       _lpEffectiveLayers=Array.isArray(rendered)?rendered:[];
       _lpLayoutResult=rendered&&rendered._layoutResult||null;
+      _lpDadosRender=dadosPreview;
       _lpEffectiveMaterial=_matRender;
       // Material trocou no meio: este desenho já é passado. O `finally` re-agenda o render novo.
       if(fState.material!==_matRender) _lpPendingRender=true;
       _lpOverflow = window._fOverflowSink; window._fOverflowSink = null;
-      _fLpSyncBloqueio();
+      // Balão ANTES do aviso: o aviso anuncia (aria-live) a solução que o balão acabou de medir.
       try{ _fLpSyncBalao(); }catch(e){ console.warn('[Luma] balão do encaixe:', e); }
+      _fLpSyncBloqueio();
 
       // Véu sutil sobre os campos ainda não preenchidos (tom mais suave)
       fLpHighlightEmpty(ctx,_lpEffectiveLayers,pendentes,W,H);
@@ -1574,6 +1641,8 @@ function fLpSizeCanvas(canvas, W, H){
         _fLpStageWidthCache = entries[0].contentRect.width;
         _fLpStageHeightCache = entries[0].contentRect.height;
       }
+      // Gaveta abrindo/fechando muda o palco sem mudar a janela: o balão acompanha a arte.
+      try{ _fLpPosBalao(); }catch(e){}
     }).observe(stage);
     _fLpStageWidthCache = stage.clientWidth;
     _fLpStageHeightCache = stage.clientHeight;

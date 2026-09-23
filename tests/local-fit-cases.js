@@ -367,6 +367,38 @@
     assert(pl.y + pl.h <= foto.y, 'a placa invadiu a foto: termina em ' + (pl.y + pl.h));
   });
 
+  /* Quem RE-MEDE um bloqueio (o balão da solução, o "cabem até N") tem que dar o veredito do
+     runtime. Antes media sem a placa: o interior dela não limitava a altura, e uma versão que
+     "cabia" ali seguia bloqueada na arte. */
+  test('15g · re-medir um bloqueio usa a MESMA placa do runtime (gLocalFitMedidor)', () => {
+    const placa = { id:'pl', type:'shape', shapeKind:'rect', x:60, y:100, w:360, h:70,
+                    fill:'#FF9000', visible:true, opacity:100 };
+    const cta = ponto({ id:'cta', name:'CTA', content:'{{cta}}', x:80, y:110, w:320, h:150,
+                        fontSize:36, textAlign:'center', layoutRefText:'PEÇA JÁ' });
+    const foto = { id:'foto', type:'shape', x:60, y:190, w:360, h:200, fill:'#333', visible:true, opacity:100 };
+    const rodar = (t) => gLocalFitArte([placa, cta, foto].map(clone), { canvas:CANVAS,
+      dados:{ cta:t }, defaults:{} });
+    const LONGA = 'PEÇA JÁ PELO APP E GANHE FRETE GRÁTIS EM TODO O CARDÁPIO HOJE AMANHÃ E DEPOIS SEM PEDIDO MÍNIMO NENHUM';
+    const lf = rodar(LONGA);
+    const b = lf.result.bloqueios[0];
+    assert(b && b.fieldId === 'cta', 'o cenário precisa bloquear o CTA');
+    assert(b.placa && b.placa.id === 'pl', 'o bloqueio não levou a placa que o runtime usou');
+    assert(gLocalFitCulpado(b, { cta:LONGA }) === 'cta', 'culpado errado');
+    const medir = gLocalFitMedidor(lf.layers, b, 'cta', { cta:LONGA }, { canvas:CANVAS, defaults:{} });
+    const alvo = lf.layers.find(l => l.id === 'cta');
+    const palavras = LONGA.split(' ');
+    let semPlacaErra = false;
+    for(let n = 1; n <= palavras.length; n++){
+      const t = palavras.slice(0, n).join(' ');
+      const runtime = rodar(t).result.invalid ? 'overflow' : 'fits';
+      const r = medir(t);
+      assert(r.status === runtime, '“' + t + '”: o medidor diz ' + r.status + ' e a arte diz ' + runtime);
+      const sem = gFitTextToAuthoredBox(alvo, t, { layers:lf.layers, canvas:CANVAS });
+      if(sem.status !== runtime) semPlacaErra = true;
+    }
+    assert(semPlacaErra, 'o cenário não exercita a placa: sem ela a medida já batia');
+  });
+
   test('15c · irmãos com o mesmo desenho saem no MESMO corpo', () => {
     const card = (id, x) => ponto({ id, name:id, content:'{{'+id+'}}', x, y:80, w:300, h:90,
                                     fontSize:34, textAlign:'center', layoutRefText:'X-BURGER' });
