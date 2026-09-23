@@ -1201,6 +1201,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
           // (a Prévia ao Vivo deixa o franqueado enquadrar a própria foto). Retrocompatível:
           // sem override, usa o enquadramento do designer, exatamente como antes.
           const _fit = (dados && l.imgVar) ? dados['__fit__'+l.imgVar] : null;
+          if(!_fit && imgSource === varVal) fFrameAnalisa(img, imgSource);   // uma vez por imagem (cache)
           const _pad = fFrameFitPadrao(l, dados);
           const sc = (_fit && _fit.scale>0) ? _fit.scale : _pad.scale;
           const drawW = baseW*sc, drawH = baseH*sc;
@@ -1382,8 +1383,85 @@ function fFrameBaseSize(l, imgW, imgH, w, h){
 function fFrameFitPadrao(l, dados){
   const v = l && l.imgVar, src = v && dados ? dados[v] : null;
   const propria = typeof src === 'string' && src && src !== l.imgUrl;
-  return propria ? { scale:1, offX:0, offY:0 }
-    : { scale:(l && l.imgScale) || 1, offX:(l && l.imgOffsetX) || 0, offY:(l && l.imgOffsetY) || 0 };
+  if(!propria) return { scale:(l && l.imgScale) || 1, offX:(l && l.imgOffsetX) || 0, offY:(l && l.imgOffsetY) || 0 };
+  return fFrameInteligente(l, _fFrameAnalises.get(src)) || { scale:1, offX:0, offY:0 };
+}
+
+/* ENQUADRAMENTO INTELIGENTE (23/09/2026) — pedido do Ryan: quem enquadra não é o designer, é
+   o Luma, olhando a imagem. Determinístico, sem IA e sem rede: uma leitura de ~96px da imagem,
+   feita uma vez por imagem (cache) quando o motor a carrega.
+     · LOGO (encaixe `contain`): acha a MARCA — o que não é fundo (transparente, ou a cor da
+       borda) — e dá zoom até ela ocupar a moldura, centralizada. Logo que chega com 60% de
+       margem branca deixava de nascer um selinho no meio do quadro. A marca nunca é cortada:
+       o zoom é o que faz a caixa da marca CABER, não encher.
+     · FOTO (encaixe `cover`): acha onde está o ASSUNTO (contraste e cor, com leve preferência
+       pelo centro) e leva o corte até ele — o prato fora do meio não perde metade no recorte.
+       Sem zoom: aproximar é decisão de quem vê a foto.
+   Sem leitura possível (imagem de outro domínio sem CORS), fica o neutro: inteira e no centro. */
+const _fFrameAnalises = new Map();
+function fFrameAnalisa(img, src){
+  if(!img || !img.width || !src) return null;
+  if(_fFrameAnalises.has(src)) return _fFrameAnalises.get(src);
+  let a = null;
+  try{
+    const k = 96 / Math.max(img.width, img.height);
+    const W = Math.max(1, Math.round(img.width * k)), H = Math.max(1, Math.round(img.height * k));
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const cx = cv.getContext('2d', { willReadFrequently:true });
+    cx.drawImage(img, 0, 0, W, H);
+    const d = cx.getImageData(0, 0, W, H).data;
+    const px = (x, y) => (y * W + x) * 4;
+    // Fundo: com transparência na borda, o fundo é o vazio; senão, a cor mais comum da borda.
+    let transp = 0, borda = [];
+    for(let x = 0; x < W; x++){ borda.push(px(x, 0), px(x, H - 1)); }
+    for(let y = 0; y < H; y++){ borda.push(px(0, y), px(W - 1, y)); }
+    borda.forEach(i => { if(d[i + 3] < 200) transp++; });
+    const temAlfa = transp > borda.length * 0.25;
+    const med = c => { const v = borda.map(i => d[i + c]).sort((p, q) => p - q); return v[v.length >> 1]; };
+    const fundo = [med(0), med(1), med(2)];
+    const ehConteudo = i => temAlfa ? d[i + 3] > 24
+      : d[i + 3] > 24 && Math.abs(d[i] - fundo[0]) + Math.abs(d[i + 1] - fundo[1]) + Math.abs(d[i + 2] - fundo[2]) > 60;
+    let x0 = W, y0 = H, x1 = -1, y1 = -1, sw = 0, sx = 0, sy = 0;
+    const lum = i => 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    for(let y = 0; y < H; y++) for(let x = 0; x < W; x++){
+      const i = px(x, y);
+      if(!ehConteudo(i)) continue;
+      if(x < x0) x0 = x; if(x > x1) x1 = x; if(y < y0) y0 = y; if(y > y1) y1 = y;
+      // Peso do assunto: borda (contraste com o vizinho) + saturação, com leve viés ao centro.
+      const g = (x > 0 && x < W - 1 && y > 0 && y < H - 1)
+        ? Math.abs(lum(px(x + 1, y)) - lum(px(x - 1, y))) + Math.abs(lum(px(x, y + 1)) - lum(px(x, y - 1))) : 0;
+      const mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2]);
+      const sat = mx ? (mx - mn) / mx : 0;
+      const dx = (x + 0.5) / W - 0.5, dy = (y + 0.5) / H - 0.5;
+      const w = (g + 40 * sat) * Math.exp(-(dx * dx + dy * dy) / 0.18);
+      sw += w; sx += w * (x + 0.5); sy += w * (y + 0.5);
+    }
+    if(x1 >= x0) a = {
+      caixa: { x:x0 / W, y:y0 / H, w:(x1 - x0 + 1) / W, h:(y1 - y0 + 1) / H },
+      foco: sw > 0 ? { x:sx / sw / W, y:sy / sw / H } : { x:0.5, y:0.5 },
+      iw: img.width, ih: img.height
+    };
+  }catch(e){ a = null; }        // canvas "tingido" (imagem sem CORS): sem leitura, sem palpite
+  _fFrameAnalises.set(src, a);
+  return a;
+}
+/* A análise vira {scale, offX, offY} na convenção do motor: drawX = x + (w − drawW)·(0.5+offX). */
+function fFrameInteligente(l, a){
+  if(!l || !a || !(l.w > 0) || !(l.h > 0)) return null;
+  const w = l.w, h = l.h;
+  const b = fFrameBaseSize(l, a.iw, a.ih, w, h);
+  // Deslocamento que põe o ponto (fx, fy) da imagem no centro da moldura, preso ao que o motor aceita.
+  const off = (f, base, dim) => Math.abs(dim - base) < 0.5 ? 0
+    : Math.max(-0.5, Math.min(0.5, (dim / 2 - f * base) / (dim - base) - 0.5));
+  const contain = b.baseW <= w + 0.5 && b.baseH <= h + 0.5;
+  if(contain){
+    const c = a.caixa;
+    // Margem de respiro de 8% em volta da marca; teto de 3,5× (o mesmo do controle de zoom).
+    const sc = Math.max(1, Math.min(3.5, 0.92 * Math.min(w / (c.w * b.baseW), h / (c.h * b.baseH))));
+    const dw = b.baseW * sc, dh = b.baseH * sc;
+    return { scale:Math.round(sc * 100) / 100, offX:off(c.x + c.w / 2, dw, w), offY:off(c.y + c.h / 2, dh, h) };
+  }
+  return { scale:1, offX:off(a.foco.x, b.baseW, w), offY:off(a.foco.y, b.baseH, h) };
 }
 
 function fLoadImageDataUrl(dataUrl){
