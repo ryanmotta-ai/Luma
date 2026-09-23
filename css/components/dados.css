@@ -180,6 +180,24 @@
   .gd-funil li{grid-template-columns:1fr auto;gap:6px 10px}
   .gd-funil li .gd-bar-h{grid-column:1 / -1;grid-row:2}
   .gd-chart{height:150px}
+  /* Tabelas viram CARTÕES: rolar de lado escondia colunas e espremia a primeira em
+     3 palavras por linha. Cada linha é um cartão; a 1ª célula é o título e as demais
+     viram pares rótulo/valor em 2 colunas, lendo o data-l que o dados.js põe em cada <td>.
+     (O cabeçalho some — a ordenação por coluna da tabela Pessoas fica no desktop.) */
+  .gd-scroll{overflow:visible;border:0;background:none}
+  .gd-table,.gd-table tbody{display:block}
+  .gd-table-pessoas{min-width:0}
+  .gd-table thead{display:none}
+  .gd-table tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px;margin-bottom:8px;padding:12px 14px;border:1px solid var(--prof-border);border-radius:var(--r-sm);background:var(--prof-surface)}
+  .gd-table tbody tr:hover td{background:none}
+  .gd-table td{display:flex;flex-direction:column;gap:2px;min-width:0;padding:0;border:0;text-align:left;font-weight:600}
+  .gd-table td::before{content:attr(data-l);color:var(--prof-text-3);font-size:11px;font-weight:600}
+  .gd-table td:first-child{display:block;grid-column:1 / -1;padding:0 0 8px;border-bottom:1px solid var(--prof-border);font-size:14px}
+  .gd-table td:first-child::before{display:none}
+  .gd-table td.is-num{text-align:left}
+  .gd-table td>*{min-width:0}
+  .gd-payload pre{max-width:100%}
+  .gd-filtros .gd-select{flex:1 1 100%}
 }
 @media(prefers-reduced-motion:reduce){
   .gd-skel-box{animation:none}

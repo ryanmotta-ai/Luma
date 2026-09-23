@@ -286,7 +286,7 @@ function _gDadosSecao(titulo, sub, corpo, extra) {
 function _gDadosTabela(cols, rows, vazio) {
   if (!rows || !rows.length) return `<p class="gd-vazio">${gEsc(vazio || 'Nada neste período.')}</p>`;
   return `<div class="gd-scroll"><table class="gd-table"><thead><tr>${cols.map(c => `<th scope="col"${c.num ? ' class="is-num"' : ''}>${gEsc(c.t)}</th>`).join('')}</tr></thead>
-    <tbody>${rows.map(r => `<tr>${cols.map(c => `<td${c.num ? ' class="is-num"' : ''}>${c.k(r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+    <tbody>${rows.map(r => `<tr>${cols.map(c => `<td data-l="${gEsc(c.t)}"${c.num ? ' class="is-num"' : ''}>${c.k(r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 function _gDadosBarra(frac) {
   const p = Math.max(0, Math.min(100, Math.round((frac || 0) * 100)));
@@ -426,16 +426,17 @@ function _gDadosPessoasTabela() {
     const on = col === k;
     return `<th scope="col"${num ? ' class="is-num"' : ''} aria-sort="${on ? (dir > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" class="gd-sort${on ? ' is-on' : ''}" onclick="gDadosPessoasOrdenar('${k}')">${gEsc(t)}<span aria-hidden="true">${on ? (dir > 0 ? '↑' : '↓') : ''}</span></button></th>`;
   }).join('');
+  const L = G_DADOS_COLS_PESSOAS.map(c => gEsc(c[1]));
   const tr = rows.map(p => {
     const [st, stTxt] = _gDadosStatus(p.ultimo_acesso);
     const local = [p.cidade, p.franquia].filter(Boolean).join(' · ') || '—';
     return `<tr${p.ativo === false ? ' class="is-inativo"' : ''}>
       <td><button type="button" class="gd-pessoa" data-id="${gEsc(p.user_id)}" onclick="gDadosAbrirPessoa(this.dataset.id)"><span class="gd-dot is-${st}" title="${gEsc(stTxt)}"></span><span><strong>${gEsc(p.nome || p.email || '—')}</strong>${p.ativo === false ? '<small>Inativa</small>' : ''}</span></button></td>
-      <td>${gEsc(_gDadosPapel(p.role))}</td><td>${gEsc(local)}</td>
-      <td title="${gEsc(_gDadosDataHora(p.ultimo_acesso))}"><span class="gd-sr">${gEsc(stTxt)}. </span>${gEsc(_gDadosRel(p.ultimo_acesso))}</td>
-      <td class="is-num">${_gDadosN(p.sessoes)}</td><td class="is-num">${gEsc(p.tempo_s ? _gDadosDur(p.tempo_s) : '—')}</td>
-      <td class="is-num">${_gDadosN(p.artes)}</td><td class="is-num">${_gDadosN(p.downloads)}</td>
-      <td>${gEsc(G_DADOS_DISP[p.disp] || p.disp || '—')}</td></tr>`;
+      <td data-l="${L[1]}">${gEsc(_gDadosPapel(p.role))}</td><td data-l="${L[2]}">${gEsc(local)}</td>
+      <td data-l="${L[3]}" title="${gEsc(_gDadosDataHora(p.ultimo_acesso))}"><span class="gd-sr">${gEsc(stTxt)}. </span>${gEsc(_gDadosRel(p.ultimo_acesso))}</td>
+      <td data-l="${L[4]}" class="is-num">${_gDadosN(p.sessoes)}</td><td data-l="${L[5]}" class="is-num">${gEsc(p.tempo_s ? _gDadosDur(p.tempo_s) : '—')}</td>
+      <td data-l="${L[6]}" class="is-num">${_gDadosN(p.artes)}</td><td data-l="${L[7]}" class="is-num">${_gDadosN(p.downloads)}</td>
+      <td data-l="${L[8]}">${gEsc(G_DADOS_DISP[p.disp] || p.disp || '—')}</td></tr>`;
   }).join('');
   return `<p class="gd-contagem" role="status">${rows.length} ${rows.length > 1 ? 'pessoas' : 'pessoa'}</p>
     <div class="gd-scroll"><table class="gd-table gd-table-pessoas"><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table></div>`;
@@ -746,10 +747,10 @@ function _gDadosEventosHtml() {
   if (!linhas.length) return filtros + _gDadosVazioHtml(e.evento || e.user ? 'Nenhum evento com esse filtro no período.' : G_DADOS_VAZIO);
   const total = r.total || 0, ini = e.offset + 1, fim = Math.min(e.offset + linhas.length, total);
   const tr = linhas.map(l => `<tr>
-      <td class="gd-nowrap">${gEsc(_gDadosDataHora(l.ocorreu_em))}</td>
-      <td>${gEsc(l.nome || '—')}<small class="gd-sub">${gEsc(_gDadosPapel(l.role))}</small></td>
-      <td>${gEsc(_gDadosRotulo(l.evento, l.payload))}<small class="gd-sub"><code>${gEsc(l.evento)}</code></small></td>
-      <td>${l.payload && Object.keys(l.payload).length ? `<details class="gd-payload"><summary>Ver dados</summary><pre>${gEsc(JSON.stringify(l.payload, null, 2))}</pre></details>` : '—'}</td></tr>`).join('');
+      <td data-l="Quando" class="gd-nowrap">${gEsc(_gDadosDataHora(l.ocorreu_em))}</td>
+      <td data-l="Pessoa">${gEsc(l.nome || '—')}<small class="gd-sub">${gEsc(_gDadosPapel(l.role))}</small></td>
+      <td data-l="Evento">${gEsc(_gDadosRotulo(l.evento, l.payload))}<small class="gd-sub"><code>${gEsc(l.evento)}</code></small></td>
+      <td data-l="Dados">${l.payload && Object.keys(l.payload).length ? `<details class="gd-payload"><summary>Ver dados</summary><pre>${gEsc(JSON.stringify(l.payload, null, 2))}</pre></details>` : '—'}</td></tr>`).join('');
   return filtros + `<p class="gd-contagem" role="status">${_gDadosN(ini)}–${_gDadosN(fim)} de ${_gDadosN(total)} eventos</p>
     <div class="gd-scroll"><table class="gd-table"><thead><tr><th scope="col">Quando</th><th scope="col">Pessoa</th><th scope="col">Evento</th><th scope="col">Dados</th></tr></thead><tbody>${tr}</tbody></table></div>
     <div class="gd-pag"><button type="button" class="gd-btn" onclick="gDadosEventosPagina(-1)" ${e.offset ? '' : 'disabled'}>Anteriores</button>

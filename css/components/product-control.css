@@ -418,6 +418,13 @@
   .gprod-overview-actions{width:100%}
   .gprod-overview-actions .gprod-btn-ghost{flex:1;justify-content:center}
   .gprod-tools{flex-direction:column;align-items:stretch}
+  /* em coluna, o flex-basis de 260px da busca virava ALTURA: o campo ficava no topo
+     de uma caixa de 260px e a lupa (centrada nela) boiava 100px abaixo */
+  .gprod-search-wrap{flex:none;min-width:0}
+  /* os 3 números lado a lado, compactos (cada um ocupava a linha inteira) */
+  .gprod-metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .gprod-metric{flex-direction:column;gap:6px;padding:10px 12px}
+  .gprod-metric>.gprod-dot{margin-top:0}
   .gprod-filters{overflow-x:auto;flex-wrap:nowrap}
   /* Descrição some antes do nome: em tela estreita o nome + o switch são o que
      importa; a descrição volta no toque do recurso (confirmação). */
