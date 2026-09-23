@@ -351,6 +351,33 @@
     assert(erros.length===0,'máscara de preço:\n  '+erros.join('\n  '));
   });
 
+  test('regressão · persona do interior: preço com 3 casas, preço zerado, tag, rótulo do template',()=>{
+    /* Auditoria de persona (franqueado que cola do PDV/balança e do WhatsApp). */
+    const erros=[];
+    const mask=[
+      ['preco','12,500','R$ 12,50'],          // vírgula é decimal: nunca R$ 12.500,00
+      ['preco','12,999','R$ 13,00'],          // arredonda para centavos
+      ['preco','1.234,567','R$ 1.234,57'],
+      ['preco','12.500','R$ 12.500,00'],      // ponto com 3 dígitos segue milhar (pt-BR)
+      ['precoPor','12,500','Por: R$ 12,50'],
+    ];
+    mask.forEach(([id,ent,esp])=>{ const r=fApplyMask(id,ent); if(r!==esp) erros.push(id+'("'+ent+'") → "'+r+'" (esperado "'+esp+'")'); });
+    ['0','R$ 0','0,00','taxa 0'].forEach(ent=>{
+      const e=fValidate('preco',fApplyMask('preco',ent));
+      if(!e||!/zerado/i.test(e)) erros.push('preço "'+ent+'" deveria ser recusado como zerado, veio: '+e);
+    });
+    if(fValidate('preco',fApplyMask('preco','grátis'))) erros.push('"grátis" não pode ser recusado');
+    [['<COMBO ESPECIAL>','<Combo Especial>'],['(PROMOÇÃO DE TERÇA)','(Promoção de Terça)'],['"X-BURGER"','"X-Burger"'],['COCA 500ML 2X1','Coca 500ml 2x1']]
+      .forEach(([ent,esp])=>{ const r=gSmartTitleCase(ent); if(r!==esp) erros.push('título "'+ent+'" → "'+r+'" (esperado "'+esp+'")'); });
+    [['R$\n{{precoPor}}',{precoPor:'Por: R$ 29,90'},'R$\n29,90'],
+     ['DE {{precoDe}}',{precoDe:'De: R$ 12,90'},'DE R$ 12,90'],
+     ['POR {{precoPor}}',{precoPor:'Por: R$ 9,90'},'POR R$ 9,90'],
+     ['{{precoPor}}',{precoPor:'Por: R$ 9,90'},'Por: R$ 9,90'],           // sem rótulo no template: intacto
+     ['Pedido de {{nome}}',{nome:'Por do sol'},'Pedido de Por do sol']]  // texto livre não é mexido
+      .forEach(([c,d,esp])=>{ const r=gInterpolate(c,d); if(r!==esp) erros.push('interpolar '+JSON.stringify(c)+' → '+JSON.stringify(r)+' (esperado '+JSON.stringify(esp)+')'); });
+    assert(erros.length===0,'persona:\n  '+erros.join('\n  '));
+  });
+
   test('regressão · o rótulo "De:"/"Por:" não vaza para dentro da frase',()=>{
     solta();
     for(let i=0;i<120;i++){

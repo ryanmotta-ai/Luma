@@ -164,13 +164,6 @@ body:not(.theme-light) .hist-thumb-real.is-preview-ready{background:var(--d-surf
 .hist-act-download{width:34px;padding:0}
 .hist-act-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 
-/* Bar de duplicar (aparece inline no card) */
-.hist-dup-bar{width:100%;display:flex;align-items:center;gap:5px;padding:8px 10px;background:var(--dm-orange-bg);border-top:1px solid var(--dm-orange-tint);font-size:11px;color:var(--dm-red);font-weight:500;flex-wrap:wrap;animation:gFadeInUp .25s cubic-bezier(.2,.9,.4,1) both}
-.hist-dup-btn{padding:4px 10px;font-size:10px;font-weight:700;border:1px solid var(--dm-orange);background:var(--white);color:var(--dm-orange-d);border-radius:var(--r-sm);cursor:pointer;font-family:'Roboto',sans-serif;transition:all .12s}
-.hist-dup-btn:hover{background:var(--dm-orange);color:var(--white)}
-.hist-dup-cancel{margin-left:auto;padding:4px 8px;font-size:10px;border:none;background:transparent;color:var(--text-3);cursor:pointer;font-family:'Roboto',sans-serif}
-.hist-dup-cancel:hover{color:var(--dm-red)}
-
 
 /* M1.3 — empty states empáticos (histórico/catálogo) */
 .empty-state{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:48px 24px;animation:gFadeInUp .35s ease-out both}
@@ -321,18 +314,6 @@ body:not(.theme-light).f-catalogo-aberto #f-back-campanhas{background: var(--d-s
 body:not(.theme-light) .lp-head-sep{background: var(--d-border2)}
 
 /* Botões do header do chat */
-body:not(.theme-light) #f-undo-btn,
-body:not(.theme-light) #f-reset-btn {
-  background: var(--d-surf);
-  color: var(--d-text2);
-  border-color: var(--d-border2);
-}
-body:not(.theme-light) #f-undo-btn:hover,
-body:not(.theme-light) #f-reset-btn:hover {
-  border-color: var(--dm-orange);
-  color: var(--dm-orange);
-  background: var(--d-surf2);
-}
 body:not(.theme-light) #f-bulk-head-btn {
   background: var(--d-surf);
   color: var(--dm-orange);
@@ -588,26 +569,6 @@ body:not(.theme-light) .hist-act-btn.pri {
 }
 body:not(.theme-light) .hist-act-btn.pri:hover {
   background: var(--dm-orange-d);
-}
-body:not(.theme-light) .hist-dup-bar {
-  background: color-mix(in srgb,var(--dm-orange) 12%,transparent);
-  border-top-color: var(--d-border);
-  color: var(--dm-orange);
-}
-body:not(.theme-light) .hist-dup-btn {
-  background: var(--d-surf);
-  color: var(--dm-orange);
-  border-color: var(--dm-orange);
-}
-body:not(.theme-light) .hist-dup-btn:hover {
-  background: var(--dm-orange);
-  color: var(--white);
-}
-body:not(.theme-light) .hist-dup-cancel {
-  color: var(--d-text2);
-}
-body:not(.theme-light) .hist-dup-cancel:hover {
-  color: var(--dm-red);
 }
 
 /* Empty States */

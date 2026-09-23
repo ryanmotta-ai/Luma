@@ -868,7 +868,11 @@ async function fSelectMaterial(materialId, card){
     perguntas.push({id:'_dummy', texto:'Este material não tem campos editáveis. Posso gerar do jeito que está?', sugestoes:['Sim, gerar agora'], maxLen:60, label:'confirmar'});
   }
   // Aplica perguntas customizadas à campanha atual
-  fState.camp = {...fState.camp, perguntas, materialName: found.name};
+  /* `_perguntasTodas` é a lista canônica que o `fPickLoja` guarda ANTES de filtrar, para o
+     `fRestartArt` devolver — e ela é do material ANTERIOR. Levada no spread, refazer a arte
+     deste material restauraria as perguntas do outro. Material novo, lista nova. */
+  const { _perguntasTodas, ...campBase } = fState.camp || {};
+  fState.camp = {...campBase, perguntas, materialName: found.name};
   // Switch para a view de chat
   const chatCol=document.getElementById('f-chat-col');
   const matView=document.getElementById('f-material-view');

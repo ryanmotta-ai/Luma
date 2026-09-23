@@ -44,7 +44,6 @@
 #f-head-actions button[hidden]{display:none}
 /* Desfazer é reparo, não ação de rotina: fica neutro ao lado do Recomeçar, e só ganha cor
    no hover. Ele já chama atenção por aparecer do nada quando há o que desfazer. */
-#f-head-actions #f-undo-btn:hover{border-color:var(--dm-orange-tint);background:var(--dm-orange-bg);color:var(--dm-orange-d)}
 #f-head-actions #f-bulk-head-btn{border-color:var(--dm-orange-tint);background:var(--dm-orange-bg);color:var(--dm-orange-d)}
 #f-head-actions #f-bulk-head-btn:hover{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--dm-orange-d);box-shadow:0 5px 14px color-mix(in srgb,var(--dm-orange-d) 10%,transparent)}
 #f-head-actions #f-bulk-head-btn{display:none}
@@ -112,7 +111,7 @@
 .av.u img{width:100%;height:100%;object-fit:cover;display:block}
 .bbl{padding:11px 15px;font-size:13px;line-height:1.58;border-radius:16px}
 .bot .bbl{background:var(--white);border:1px solid var(--gray-light);border-top-left-radius:6px;color:var(--text);box-shadow:0 3px 12px rgba(10,10,10,.025)}
-.user .bbl{background:var(--dm-orange);border-bottom-right-radius:6px;color:var(--text);font-weight:600;box-shadow:0 5px 16px color-mix(in srgb,var(--dm-orange-d) 14%,transparent)}
+.user .bbl{white-space:pre-line;background:var(--dm-orange);border-bottom-right-radius:6px;color:var(--text);font-weight:600;box-shadow:0 5px 16px color-mix(in srgb,var(--dm-orange-d) 14%,transparent)}
 .bbl strong{font-weight:800}
 .qr-wrap{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
 .qr{min-height:34px;display:inline-flex;align-items:center;padding:6px 13px;font-size:11.5px;font-weight:700;cursor:pointer;border:1px solid var(--dm-orange-tint);border-radius:var(--r-pill);color:var(--dm-orange-d);background:var(--dm-orange-bg);transition:transform var(--dur-fast) var(--ease-spring),background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard);font-family:'Roboto',sans-serif;animation:gPopIn var(--dur-fast) var(--ease-spring) forwards}
@@ -484,6 +483,10 @@ body:not(.theme-light) .art-bulk-txt em { color: var(--d-text2) }
 #f-input-row{padding:12px 20px;flex-shrink:0;background:var(--glass-bg);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border-top:1px solid var(--glass-border);display:flex;gap:10px;align-items:center;position:relative;z-index:10}
 #f-input-wrap{flex:1;position:relative;display:flex;align-items:center}
 #f-msg-box{flex:1;padding:9px 56px 9px 14px;font-size:13px;border:1.5px solid var(--gray-mid);border-radius:var(--r-pill);font-family:'Roboto',sans-serif;background:var(--off-white);color:var(--text);outline:none;width:100%}
+/* É um textarea (Shift+Enter): 1 linha em repouso, cresce até ~5 linhas (fMsgAutoGrow) e rola
+   depois disso. Com mais de uma linha a pílula vira cápsula — o raio fixo evita isso. */
+textarea#f-msg-box{display:block;resize:none;line-height:1.4;max-height:calc(5 * 1.4em + 22px);overflow-y:auto}
+textarea#f-msg-box.is-multi{border-radius:20px}
 .f-msg-box-transition{transition:opacity .15s ease,color .15s ease;opacity:.2;color:var(--dm-orange)!important}
 #f-char-count{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--text-3);font-weight:500;pointer-events:none;letter-spacing:.02em;font-variant-numeric:tabular-nums}
 #f-char-count.warn{color:var(--dm-orange-d);font-weight:700}   /* laranja, não vermelho: chegar no limite não é erro */
@@ -2751,13 +2754,16 @@ body:not(.theme-light) .art-review-badge{
     background:var(--white);color:var(--text-2);font:750 13px 'Roboto',sans-serif;cursor:pointer;
     transition:color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-spring);
   }
-  body.f-guided-desktop .fg-option:hover,body.f-guided-desktop .fg-suggestions button:hover,body.f-guided-desktop .fg-secondary:hover{border-color:var(--dm-orange);color:var(--text);transform:translateY(-1px)}
+  body.f-guided-desktop .fg-option:hover,body.f-guided-desktop .fg-suggestions button:hover,body.f-guided-desktop .fg-secondary:hover,body.f-guided-desktop .fg-skip:hover{border-color:var(--dm-orange);color:var(--text);transform:translateY(-1px)}
   body.f-guided-desktop .fg-option.selected{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--text)}
   body.f-guided-desktop .fg-primary{border-color:var(--dm-orange);background:var(--dm-orange);color:var(--on-orange)}
   body.f-guided-desktop .fg-primary:hover{filter:brightness(.96);transform:translateY(-1px)}
-  body.f-guided-desktop .fg-link,body.f-guided-desktop .fg-skip{border-color:transparent;background:transparent;color:var(--text-3)}
-  body.f-guided-desktop .fg-link:hover,body.f-guided-desktop .fg-skip:hover{background:var(--gray-light);color:var(--text)}
-  body.f-guided-desktop .fg-skip{align-self:flex-start;margin-top:12px;min-height:34px;padding:6px 9px;font-size:12px}
+  body.f-guided-desktop .fg-link{border-color:transparent;background:transparent;color:var(--text-3)}
+  body.f-guided-desktop .fg-link:hover{background:var(--gray-light);color:var(--text)}
+  /* Pular é AÇÃO, não nota de rodapé: com cara de link (sem borda nem fundo) só se descobria
+     que era botão passando o mouse. Veste o secundário — borda e fundo visíveis — mas menor
+     que o "Escolher imagem"/Continuar, que seguem sendo o caminho principal. */
+  body.f-guided-desktop .fg-skip{align-self:flex-start;margin-top:12px;min-height:36px;padding:7px 14px;font-size:12.5px}
   body.f-guided-desktop .fg-option:focus-visible,body.f-guided-desktop .fg-suggestions button:focus-visible,
   body.f-guided-desktop .fg-primary:focus-visible,body.f-guided-desktop .fg-secondary:focus-visible,
   body.f-guided-desktop .fg-link:focus-visible,body.f-guided-desktop .fg-skip:focus-visible,
@@ -2801,9 +2807,8 @@ body:not(.theme-light) .art-review-badge{
   body:not(.theme-light).f-guided-desktop .fg-decision>p{color:var(--d-text2)}
   body:not(.theme-light).f-guided-desktop:not(.f-guided-no-input) #f-input-row,
   body:not(.theme-light).f-guided-desktop .fg-option,body:not(.theme-light).f-guided-desktop .fg-suggestions button,
-  body:not(.theme-light).f-guided-desktop .fg-secondary,body:not(.theme-light).f-guided-desktop .fg-date{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text)}
-  body:not(.theme-light).f-guided-desktop .fsf-btn:hover,body:not(.theme-light).f-guided-desktop .fg-link:hover,
-  body:not(.theme-light).f-guided-desktop .fg-skip:hover{background:var(--d-surf2);color:var(--d-text)}
+  body:not(.theme-light).f-guided-desktop .fg-secondary,body:not(.theme-light).f-guided-desktop .fg-skip,body:not(.theme-light).f-guided-desktop .fg-date{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text)}
+  body:not(.theme-light).f-guided-desktop .fsf-btn:hover,body:not(.theme-light).f-guided-desktop .fg-link:hover{background:var(--d-surf2);color:var(--d-text)}
   body:not(.theme-light).f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-row{border-bottom-color:var(--d-border)}
   body:not(.theme-light).f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-val{color:var(--d-text)}
   body:not(.theme-light).f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-ed{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text2)}

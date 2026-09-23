@@ -186,15 +186,13 @@ async function _fHistRenderPreview(img,run){
     const size=(typeof fMaterialSize==='function')?fMaterialSize(material,fmt):[1080,1920];
     const mw=size[0], mh=size[1];
     const off=document.createElement('canvas'); off.width=mw; off.height=mh;
-    const previousMaterial=fState.material;
-    fState.material=material;
-    try{
-      await fRenderTemplateLayers(off.getContext('2d'),material.layers,mw,mh,h.dados||{},camp,null,
-        {scope:'franqueado',purpose:'preview'});
-    }finally{
-      // Se outro fluxo mudou o material durante o await, ele vence; não restauramos estado velho.
-      if(fState.material===material) fState.material=previousMaterial;
-    }
+    /* ⛔ O material vai por PARÂMETRO (`materialOverride`), nunca emprestado ao `fState.material`.
+       O empréstimo antigo devolvia o valor anterior depois do await — e, com o catálogo aberto,
+       esse valor era `null`. Quem clicava no MESMO material durante o render (a miniatura é do
+       histórico dele) via o chat seguir normal e o `fState.material` virar `null` por baixo:
+       o "Gerar em lote" dizia "Escolha um material primeiro" com a arte pronta na tela. */
+    await fRenderTemplateLayers(off.getContext('2d'),material.layers,mw,mh,h.dados||{},camp,material,
+      {scope:'franqueado',purpose:'preview'});
     if(run!==_fHistPreviewRun || !img.isConnected) return;
 
     // A biblioteca precisa de leitura visual, não de um segundo PNG gigante. Reduzimos uma
@@ -360,7 +358,7 @@ function fRenderHist(){
           : `<div class="hist-meta"><span>${gEsc(h.campName)}</span><span class="hist-meta-sep">·</span><span>${gEsc(h.fmtName)}</span></div>`}
         <div class="hist-actions">
           <button class="hist-act-btn hist-act-main"${dis} onclick="fEditFromHist(${h.id},this)" title="Abrir e editar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>${isRascunho?'Continuar':'Editar'}</button>
-          <button class="hist-act-btn"${dis} onclick="fDuplicateInOtherFmt(${h.id})" title="Gerar em outro formato"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplicar</button>
+          <button class="hist-act-btn"${dis} onclick="fDuplicateInOtherFmt(${h.id})" title="Duplicar esta arte no mesmo formato"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplicar</button>
           <button class="hist-act-btn hist-act-download"${dis} onclick="fDownloadHist(${h.id},this)" title="${vencida?'Material fora da validade':'Baixar PNG'}" aria-label="Baixar ${gEsc(artName)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M5 21h14"/></svg></button>
         </div>
       </div>
@@ -517,31 +515,13 @@ async function fEditFromHist(id, btn){
   setTimeout(()=>fGerarArte(), 500);
 }
 
-// F-04: duplicar a arte em outro formato sem refazer perguntas
+/* Duplicar = a MESMA arte, no MESMO formato, sem perguntar nada (pedido de 09/2026). A barra
+   "Gerar de novo em: Story (mesmo) · Feed · Post wide" saiu: quem clica em Duplicar já decidiu.
+   Nome mantido (f* não regride). Trocar de formato continua no card da arte (fOutroFormato). */
 function fDuplicateInOtherFmt(id){
   const h = fGetHist().find(x=>x.id===id);
   if(!h) return;
-  if(_fHistBloqueiaVencida(h)){ fRenderHist(); return; }
-  const {ativas:_ca3,outras:_co3}=fGetCampaigns(); const all=[..._ca3,..._co3];
-  const c = all.find(x=>x.id===h.campId) || {id:h.campId,name:h.campName,color:h.campColor,perguntas:[]};
-  // Sugere o próximo formato (rotaciona)
-  const idx = FMTS.findIndex(f=>f.id===h.fmtId);
-  const next = FMTS[(idx + 1) % FMTS.length];
-  // Confirmação inline na aba do histórico
-  const card = document.querySelector(`.hist-card [onclick*="fDuplicateInOtherFmt(${id})"]`)?.closest('.hist-card');
-  if(card && !card.querySelector('.hist-dup-bar')){
-    const bar = document.createElement('div');
-    bar.className = 'hist-dup-bar';
-    const fmtAtual=FMTS.find(f=>f.id===h.fmtId);
-    bar.innerHTML = `<span>Gerar de novo em:</span>` +
-      // Mesmo formato = regerar a arte como está (útil após editar preço/validade pelo "Editar").
-      (fmtAtual?`<button class="hist-dup-btn" onclick="fConfirmDuplicate(${id},'${fmtAtual.id}')">${gEsc(fmtAtual.name)} (mesmo)</button>`:'') +
-      FMTS.filter(f=>f.id !== h.fmtId).map(f=>
-        `<button class="hist-dup-btn" onclick="fConfirmDuplicate(${id},'${f.id}')">${gEsc(f.name)}</button>`
-      ).join('') +
-      `<button class="hist-dup-cancel" onclick="this.parentElement.remove()">cancelar</button>`;
-    card.appendChild(bar);
-  }
+  fConfirmDuplicate(id, h.fmtId);
 }
 async function fConfirmDuplicate(id, fmtId){
   const h = fGetHist().find(x=>x.id===id);
@@ -565,7 +545,7 @@ async function fConfirmDuplicate(id, fmtId){
     fState.material = prevMaterial; // restaura sempre, mesmo se fGenPNG lançar
   }
   fRenderHist();
-  gToast(`Duplicada em ${f.name}!`);
+  gToast(fmtId===h.fmtId ? 'Arte duplicada!' : `Duplicada em ${f.name}!`);
 }
 
 /* ── CATÁLOGO ── */
@@ -1120,8 +1100,14 @@ function fSelectCamp(id){
   // vazam pré-preenchidas nos passos da nova (fNextStep rehidrata de fState.dados).
   if(fState.camp && fState.camp.id!==c.id){
     fState.stepIdx=-1; fState.dados={}; fState.done=false; fState.material=null;
+    if(typeof fChatNovaConversa==='function') fChatNovaConversa();   // mata o passo agendado da campanha anterior
   }
-  fState.camp=c;
+  /* ⚠ Reabrir a MESMA campanha mantém o objeto em uso. As perguntas do material aberto moram
+     nele (`fSelectMaterial` as monta ali) e a conversa continua na tela: trocar por um `c`
+     novo, sem perguntas, fazia o próximo toque no chat ("Sim, continuar", "Manter", enviar)
+     ler `perguntas.length` de undefined e morrer — o chat ficava no limbo. Achado pela
+     varredura de ações (celular: arte → Campanhas → mesma campanha → chip do rascunho). */
+  if(!fState.camp || fState.camp.id!==c.id) fState.camp=c;
   try{ localStorage.setItem('__luma_camp', c.id); }catch(e){} // F5 reabre esta campanha (gRestoreFranqueado)
   // Vindo da home (categoria ainda null): abre o rail na lista certa, não nos cards de categoria
   if(!fState.categoria){

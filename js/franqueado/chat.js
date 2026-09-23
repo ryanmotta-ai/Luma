@@ -7,6 +7,13 @@
  */
 
 let fNextTimeout = null;
+/* QUAL CONVERSA É A ATUAL. O chat anda por relógio (`fTyping` e `fNextTimeout`, ~900ms), e o
+   passo agendado disparava mesmo depois de a pessoa sair: voltar a Campanhas e abrir outra
+   dentro desse intervalo fazia o `fNextStep` rodar na campanha nova, ainda sem perguntas —
+   erro no console e chat parado. Abrir material ou trocar de campanha sobe o número; o passo
+   que foi agendado na conversa anterior vê o número mudado e não faz nada. */
+let _fChatGen = 0;
+function fChatNovaConversa(){ _fChatGen++; clearTimeout(fNextTimeout); clearTimeout(_fGuidedTimer); }
 
 // Atalhos de validade com DATAS REAIS calculadas na hora (uma sugestão estática vira
 // mentira amanhã). As frases já vêm com "Válido" → passam intactas pelo humanizador de
@@ -94,6 +101,7 @@ function _fChatBindTeclado(){
 }
 
 function fStartChatComMaterial(material){
+  fChatNovaConversa();   // passos agendados da conversa anterior não entram nesta
   /* A escuta é neutra enquanto a largura não cruza o breakpoint; ligada também no início
      mobile, impede que um resize posterior deixe timeline e layout desktop misturados. */
   try{ _fGuidedBind(); }catch(e){}
@@ -299,7 +307,8 @@ function fUseLastArte(histId){
   fState.done=false; fState.editIdx=null;
   fUpdateProg();
   fAddBot(`Peguei os dados da sua última arte de <strong>${gEsc(fState.material.name)}</strong>.`,[]);
-  setTimeout(()=>fGerarArte(),500);
+  const gen=_fChatGen;
+  setTimeout(()=>{ if(gen===_fChatGen) fGerarArte(); },500);
 }
 function _fProceedMaterialStart(material){
   if(_fGuidedAtivo()){
@@ -1077,8 +1086,10 @@ function fNextStep(){
     _fGuidedAbrirProximo(atual>=0?atual+1:0);
     return;
   }
+  // Sem material aberto não há passo a dar (a pessoa está no catálogo). Rede da `_fChatGen`.
+  const pergs=fState.camp&&fState.camp.perguntas;
+  if(!fState.material||!Array.isArray(pergs)) return;
   fState.stepIdx++;fUpdateProg();
-  const pergs=fState.camp.perguntas;
   if(fState.stepIdx>=pergs.length){fGerarArte();return;}
   const p=pergs[fState.stepIdx];
   fLpRefresh();
@@ -2628,9 +2639,18 @@ async function fOutroFormato(id, snapId){
   const prevFmt=fState.fmt;         // p/ reverter se a geração falhar (senão o rail fica num fmt que não saiu)
   fState.fmt=f;fRenderFmts();fUpdateCtx();
 
-  // Atualiza as sugestões de legenda para o novo formato
-  const suggestions = await fFetchAICaptionSuggestions(snap.dados, snap.camp, f);
+  /* ⚠ A ARTE NÃO ESPERA A LEGENDA — mesma regra do `fGerarArte`. Aqui havia um `await` da
+     legenda da IA ANTES de gerar, fora de qualquer `try`: se ela falhasse, a função morria
+     depois de já ter trocado o `fState.fmt`. O rail e o cabeçalho diziam "Feed", nenhum PNG
+     saía, nenhum aviso aparecia e o "reverter o formato" do `catch` lá embaixo nunca rodava —
+     o chat ficava no limbo. E ela falhava SEMPRE: `gAI.isEnabled` não existe no gateway
+     (ai-client.js), então a checagem estourava. Agora a legenda do motor local entra na hora
+     e a da IA, se vier, entra por cima (`_fAplicarLegendaIA`) — sem poder travar a geração. */
+  const suggestions = fGenCaptionSuggestions(snap.dados, snap.camp, f);
+  suggestions._ia = false;
   _fArtCaptions[snapId] = suggestions;
+  Promise.resolve().then(()=>fFetchAICaptionSuggestions(snap.dados, snap.camp, f))
+    .then(sug=>_fAplicarLegendaIA(snapId, sug)).catch(()=>{});
 
   // Atualiza a UI se o card correspondente estiver no DOM
   const panel = document.querySelector(`.caption-assistant-panel[data-canvas-id="${snapId}"]`);
@@ -3103,9 +3123,11 @@ function fTyping(cb){
   w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div class="msg-content"><div class="bbl"><div class="typing-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div></div>`;
   msgs.querySelectorAll('.msg').forEach(m => m.classList.remove('active-prompt'));
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
+  const gen=_fChatGen;
   setTimeout(()=>{
     const t=document.getElementById('typing-el');if(t)t.remove();
     botCircles.forEach(c => c.classList.remove('thinking'));
+    if(gen!==_fChatGen) return;   // a pessoa saiu desta conversa enquanto o bot "digitava"
     cb();
   },900);
 }
@@ -3162,9 +3184,34 @@ function fSend(){
     fShowFieldError(err);
     return;
   }
-  b.value='';
+  b.value=''; fMsgAutoGrow(b);
   fAddUser(masked);
   fSaveAdv(masked);
+}
+/* Enter envia; Shift+Enter pula linha — padrão de chat. Só em campo de TEXTO: preço,
+   desconto e código são uma linha (a máscara achataria a quebra). No celular não há Shift,
+   então o Enter do teclado segue sendo "Enviar". `isComposing`: Enter que fecha acento/IME
+   não envia. */
+function fMsgKeydown(e){
+  if(e.key!=='Enter'||e.isComposing) return;
+  if(e.shiftKey&&_fMsgAceitaQuebra()) return;          // o textarea insere a quebra sozinho
+  e.preventDefault(); fSend();
+}
+function _fMsgAceitaQuebra(){
+  let id=null;
+  try{
+    if(typeof _fGuidedAtivo==='function'&&_fGuidedAtivo()){ const p=_fGuidedPerguntas()[_fGuidedIndice(_fGuidedNav.currentField)]; id=p&&p.id; }
+    else id=fState.camp?.perguntas?.[fState.stepIdx]?.id;
+  }catch(e){}
+  return !!id && fGetFieldType(id).type==='text';
+}
+// A caixa cresce com as linhas até o teto do CSS (max-height) e volta a 1 linha ao enviar.
+function fMsgAutoGrow(box){
+  if(!box||box.tagName!=='TEXTAREA') return;
+  box.style.height='auto';
+  const umaLinha=box.clientHeight;                      // altura de repouso (rows=1)
+  if(box.value) box.style.height=box.scrollHeight+'px';
+  box.classList.toggle('is-multi', !!box.value && box.scrollHeight>umaLinha+2);
 }
 
 function fSaveChatDraft() {
