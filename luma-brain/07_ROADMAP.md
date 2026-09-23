@@ -100,6 +100,16 @@ modo, mais uma aba, mais uma flag.
   - **Fica em aberto:** wrap puro quase não aparece em arte real — caixa de PSD é o bbox justo
     do texto, a altura não sobra.
 
+- [x] **Copy Fit — a saída do bloqueio (22–23/09).** Quando o texto não cabe, o Luma oferece a
+  versão curta que cabe, medida em pixel na arte, com um toque e Desfazer — nunca troca sozinho.
+  Três portas: balão na prévia (desktop), diálogo "Esse texto não cabe" ao gerar/baixar
+  (inclusive celular) e "Encurtar" do chat sem IA. Motor em `js/core/copy-fit.js`; medida única
+  `gLocalFitMedidor` e culpado único `gLocalFitCulpado`; `tests/copy-fit.html` (31 casos, fuzz
+  2.000). Resgata ~22% dos bloqueios (14 caixas × 177 copies); 92% dos não resgatados estão a
+  >15% de caber. Detalhe em `docs/LOCAL-FIT-CONTRACT.md` §16 ("Copy Fit").
+  - [ ] Regras que renderiam mais (172 → 232 resgates) e 8 propostas de UX esperam o Ryan —
+    decisão aberta #6.
+
 - [x] **Peso do boot e cache (02/09)** — o buraco era grave: **59 dos 95 assets sem `?v=` nenhum** (entre eles `core/auth.js`, `core/supabase.js`, `core/feature-flags.js`, `modules/franqueado.css`), ou seja correção nesses arquivos não chegava em quem já tinha aberto o Luma. Agora é **um número só para todos** (`?v=N`, `sed` num comando — convenção no `03_ENGINEERING` §6.1). Junto: pdf-lib saiu do boot (513 KB sob demanda) e papaparse morto foi deletado → **4.738 KB → 4.207 KB (−11%)**.
 
 - [x] **Rodada de usabilidade V1 (08/09) — teste com gente do time criando uma arte de ponta a ponta.** Dez achados, todos de fricção, nenhum de feature faltando. O que mudou:
@@ -285,6 +295,7 @@ depois que ele estiver de pé e em uso.
 | 3 | **Fotos do franqueado em bucket público** — aceitar ou URLs assinadas? | — | Aceitar na v1, documentado: o PNG final é público por natureza |
 | 4 | **Criar usuário pelo app** (Edge Function) ou seguir no Dashboard? | — | Dashboard na v1; Edge Function depois |
 | **5** | **As features de IA do gateway que nunca rodaram** — legenda (`caption`), validação de imagem (`imageValidation`), revisão da peça (`contentReview`) no franqueado, e sugestão de metadados/casos de estresse/mapeamento de PSD no Estúdio. Todas checam `gAI.isEnabled(...)`, que **não existe** em `ai-client.js` desde 11/09: a checagem estoura e a feature morre calada. | Criar o `isEnabled` LIGA de uma vez 7 chamadas ao modelo que hoje ninguém recebe — muda custo, latência e o que o franqueado vê | Decidir por feature. Se ligar: `isEnabled(flag)` = chave presente + flag ligada (`_isFeatureEnabled`), e testar cada uma com a IA fora do ar antes |
+| 6 | **Copy Fit: quais abreviações a marca aceita?** "com" → "c/" (+27 resgates), Combo/pçs/acomp. (+9), emoji separador (+5), "R$ 25,00" → "R$ 25" (+4), "40 reais" → "R$ 40" (+4), tamanho longe do item (+4), "frete grátis" (+3), enfeite de chamada (+2), "11h às 15h" (+2). E as propostas de UX abertas (aviso no fim do fluxo, linha sob o campo no celular, toast que cobre o campo…) | É tom de voz e gosto, não técnica; cada regra já foi medida | Tabela e lista em `docs/LOCAL-FIT-CONTRACT.md` §16, "Decisões pendentes do Ryan (Copy Fit)". Juntas: 172 → 232 de 784 bloqueios (29,6%) |
 
 ---
 

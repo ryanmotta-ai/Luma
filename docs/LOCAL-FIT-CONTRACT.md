@@ -525,22 +525,78 @@ por `js/designer/canvas.js` (teste de tensão do Estúdio).
 | Linter 4b: campo com altura para 1 linha só, somando o respiro livre embaixo | `linter.js` | — |
 | **Respiro abaixo da caixa** (decisão do Ryan): texto ancorado no topo cresce PARA BAIXO até o próximo objeto na mesma faixa, menos ¼ do corpo; teto na margem e na safe zone do Story; o painel que contém a caixa e a placa do próprio texto não contam; sem camadas/prancheta não cresce. Nada se move — o render já desenha para baixo; `_layoutH` só alarga o toque da prévia. Na arte da Copa, "COMBO FAMÍLIA TORCEDOR" e "PIZZA GRANDE CALABRESA" deixaram de bloquear | `_gLfEspacoAbaixo` | 15f–15i |
 | Palavra partida ("RECHEA-" / "DA") não conta como caber: desce o corpo | `gFitTextToAuthoredBox` | 15j |
-
-| **Balão da solução** na prévia, em cima da caixa bloqueada: o balão É o botão — a versão mais curta que cabe (a que menos mexeu), gerada pelo Copy Fit e MEDIDA no Local Fit desta arte; um toque troca (Desfazer cobre); o que saiu vai no title ("sem Delicioso"); sem versão que caiba, não há balão e fica o aviso da barra | `js/core/copy-fit.js` · `_fLpSyncBalao` | `tests/copy-fit.html` (22) |
-
+| **Copy Fit** — a versão curta que cabe, oferecida (nunca aplicada sozinha) nas três portas abaixo | `js/core/copy-fit.js` | `tests/copy-fit.html` (31) |
 | **Pilha do designer** (decisão do Ryan): `relativeAnchor top-to-bottom` passa a valer com o encaixe. O TOPO da pilha cresce até o menor vazio livre embaixo de qualquer membro; depois do encaixe os membros descem exatamente o que o topo cresceu (placa junto) — fase 4 do `gLocalFitArte`. Só âncora MANUAL; só desce; membro não reserva respiro. Na arte da Copa, com o Detalhes ancorado, "X-TUDO DUPLO COM BACON" e "VAMO DALE MEU PRA NAO TOMAR" deixam de bloquear (67px, 3 linhas) e "COMBO FAMÍLIA" fica no corpo do designer (95px, 2 linhas) | `_gLfTetoPilha` · `_gLfPilha` | 15k–15n |
 | Linter 4c: sugere ancorar a camada que está logo abaixo de um campo de texto na mesma coluna ("Ancorar"), com o gap que mantém a posição de hoje; preço/desconto/código não são topo | `linter.js` | — |
 
-**Copy Fit — as garantias** (cobradas em `tests/copy-fit.html`, com fuzz de 2.000 combos): número
-nenhum muda; nunca fica mais longo; item nenhum some — o motor só limpa ("por apenas"), abrevia
-unidade (litros → L), troca por forma curta consagrada (refrigerante → refri, hambúrguer → burger,
-promoção → promo, "50% de desconto" → "50% OFF"), compacta lista ("A com B e C" → "A + B + C", nunca
-um "Com" abrindo a frase), abrevia tamanho SÓ depois de algo que tem tamanho (Batata Grande → Batata
-G; "Grande São Paulo" fica) e tira enfeite de lista fechada ("Especial" abrindo a frase é nome de
-sabor e fica). Preserva a caixa do que foi digitado. A 1ª sugestão é a que menos mexeu; as outras
-só entram se deixam a letra maior.
-
 ⚠ O respiro muda o contrato de 18/09: o Local Fit deixou de ser cego para vizinhos, mas SÓ para ler o vazio abaixo — continua sem mover, empurrar ou recompor nada.
+
+### Copy Fit — a saída do bloqueio (23/09/2026)
+
+Motor puro em `js/core/copy-fit.js` (saiu de `js/franqueado/` no `c9d6e8e`: é `g*`, mora no core).
+Não mede nada — gera candidatos; quem decide se cabe é o Local Fit.
+
+**Onde o franqueado vê.** Toda porta mostra a versão que CABE, com um toque e Desfazer por toast.
+Sem versão que caiba, nenhuma porta inventa: fica o fluxo do §15.
+
+| Porta | Onde | Como |
+|---|---|---|
+| **Balão na prévia** (desktop) | `_fLpSyncBalao` · `fLpBalaoSolucao` (`live-preview.js`) | Em cima da caixa bloqueada; o balão É o botão. Percorre os bloqueios e mostra o 1º que tem solução; o que saiu vai no title ("sem Delicioso"); anunciado no `aria-live` da barra |
+| **Diálogo "Esse texto não cabe"** ao gerar, baixar ou trocar de formato — também no celular | `fCorrigirTextoLongo` (`chat.js`) | `gConfirm` com "Usar esta versão" / "Editar" / "Agora não" (3ª saída = `altLabel`, opcional, em `toast.js`). Usar gera a arte de novo; "Editar" e "Encurtar agora" abrem o campo com o texto atual |
+| **"Encurtar" do chat**, sem IA | `fFitTextWithAI` (`chat-input.js`) | Aparece quando o Copy Fit tem versão que cabe; a IA vira "Mais opções com IA" e também passa pela régua em pixel. Versão de um texto que já mudou não aplica |
+
+**Uma medida, um culpado.** Balão, diálogo e Encurtar medem com `gLocalFitMedidor` (`local-fit.js`):
+os mesmos dados e a mesma placa da prévia, caminho único do runtime (caso 15g). Aviso, balão e laudo
+culpam o mesmo campo via `gLocalFitCulpado`.
+
+**Ranking.** `gCopyFitCandidatos` combina os degraus (não só a escada cumulativa) e ordena por custo
+perceptível (`_G_CF_PESO`: limpeza < unidades < curtas < tamanho/lista < enfeite); até 12, e o mais
+curto sempre fica. `gCopyFitSugestoes(texto, cabe, max)` devolve a 1ª que cabe (a que menos mexeu);
+as outras só entram se deixam a letra maior. Sem nenhuma, devolve `maisPerto` (o mais curto) —
+**nenhuma UI consome ainda**.
+
+**Garantias** (cobradas por `gCopyFitGuarda` e em `tests/copy-fit.html`: 31 casos, fuzz de 2.000
+combos, 2 medidos em pixel): número nenhum muda; nunca fica mais longo; item nenhum some — o motor só
+limpa ("por apenas"), abrevia unidade (litros → L), troca por forma curta consagrada (refrigerante →
+refri, hambúrguer → burger, "50% de desconto" → "50% OFF"), compacta lista ("A com B e C" → "A + B +
+C", só antes de item de pedido; nunca um "Com" abrindo a frase), abrevia tamanho SÓ depois de algo
+que tem tamanho e tudo-ou-nada por trecho (Batata Grande → Batata G; "Grande São Paulo" e "Casa do
+Pastel Grande" ficam) e tira enfeite anteposto de lista fechada ("Especial" nunca sai). Preserva a
+caixa do que foi digitado. `{{campo}}`, tags e entidades HTML viram marcadores opacos e voltam
+intactos; quebra de linha e NBSP preservadas.
+
+**Medido** (bancada em pixel, 14 caixas reais × 177 copies): o Copy Fit resgata **~22%** dos
+bloqueios (20,8% → 22,4% no `d72901c`). **92% dos não resgatados estão a >15% de caber** — ali só
+cortando produto, o que é decisão de quem vende. Regras novas que renderiam mais estão em
+**Decisões pendentes do Ryan**, abaixo.
+
+#### Decisões pendentes do Ryan (Copy Fit)
+
+Regras medidas e **não ligadas** — cada uma é gosto/negócio, não técnica. Ganho = resgates a mais em
+784 bloqueios, sobre a base de 172:
+
+| Regra | Ganho |
+|---|---|
+| "com" → "c/" e "para N pessoas" → "p/ N" | +27 |
+| Combinado → Combo, peças → pçs, acompanhamentos → acomp. | +9 |
+| Tirar emoji usado como separador | +5 |
+| "R$ 25,00" → "R$ 25" (todos os preços do texto ou nenhum) | +4 |
+| "40 reais" → "R$ 40" | +4 |
+| Tamanho longe do item | +4 |
+| "taxa de entrega grátis"/"entrega grátis" → "frete grátis" | +3 |
+| Enfeite de chamada: imperdível, aproveite, peça já — **"só hoje" nunca** | +2 |
+| "das 11h às 15h" → "11h às 15h" | +2 |
+| **Todas juntas** | **172 → 232 (29,6%)** |
+
+Propostas de UX abertas (achadas percorrendo o fluxo, nada implementado):
+
+- Avisar no fim do fluxo quando "Sua arte está pronta" tem texto que não cabe.
+- Linha curta sob o campo no celular (hoje só o diálogo ao gerar/baixar).
+- O toast com Desfazer cobre o campo no celular (`toolbar.css`: `bottom: calc(96px + …)`).
+- O corte mudo pelo `maxLen` do designer quebra palavra ("2 litros" → "2 litro").
+- Botões do diálogo empilhados no celular.
+- A revisão marcar o campo que não cabe.
+- Copy: "Pizza G de Calabresa" soa estranho; "Petit gâteau + sorvete de baunilha" idem.
 
 ---
 
