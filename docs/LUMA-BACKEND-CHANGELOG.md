@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-09-23 — Franquias (unidades), suíte de RLS e estado das migrations
+
+**`20260923184000_luma_franquias`** (aplicada): `luma.franquias` (nome, cidade, UF, `codigo` único, status ativa/inativa; único por nome+cidade) e `luma.usuario_franquias` (N:N, `origem` manual/perfil). RLS: franqueado vê só as próprias unidades e vínculos; equipe DM vê tudo; **só a gestão escreve**. Gatilho `perfil_para_franquia` em `profiles`: quando a gestão preenche Cidade/Franquia na tela Equipe, acha ou cria a unidade e liga a pessoa (troca só o vínculo de origem `perfil`; vínculos manuais ficam). Testado em transação desfeita: 2 franqueados na mesma unidade → 1 unidade/2 vínculos; troca de cidade troca o vínculo; franqueado vê só a sua e não cria/não se vincula; equipe não cria. **Ainda não:** filtrar conteúdo por unidade (regra de negócio não decidida) e tela de cadastro de unidades (hoje via Equipe ou SQL).
+
+**`supabase/tests/rls.sql`** — suíte de RLS: anon, franqueado A/B, equipe e gestão numa transação desfeita, com casos negativos. **40 casos, todos verdes.** Rodar depois de toda migration que mexa em policy.
+
+**`supabase/MIGRATIONS.md`** — repo × banco conferido objeto a objeto: o repo é superconjunto do banco; só a Academia (2 arquivos) está no repo sem ter sido aplicada. Falta testar a reconstrução do zero num ambiente separado.
+
+---
+
 ## 2026-09-23 — Versionamento de templates (`luma.template_versions`)
 
 **Problema:** publicar sobrescrevia `templates.layers` e a arte guardava só `template_id` — mudar o template hoje mudava a arte de ontem ao reabrir/rebaixar, sem rollback nem histórico.

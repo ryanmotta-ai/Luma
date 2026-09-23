@@ -10,7 +10,7 @@
    usado no `apply_migration`. Nada de editar produção pelo Dashboard sem arquivo.
 2. Depois de aplicar, **confira com um select** (a lição de 07/2026: migration só está pronta
    quando aplicada e conferida).
-3. Mexeu em policy, função de policy ou tabela nova → rode **`supabase/tests/rls.sql`** (37
+3. Mexeu em policy, função de policy ou tabela nova → rode **`supabase/tests/rls.sql`** (40
    casos em 23/09/2026, todos verdes). Qualquer `ok = false` bloqueia.
 
 ## Estado

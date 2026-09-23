@@ -111,6 +111,11 @@ do $$ declare n int; u record; begin
     insert into _t(passo,esperado,obtido) values ('franqueado faz rollback de template','recusa','CONSEGUIU');
   exception when others then insert into _t(passo,esperado,obtido) values ('franqueado faz rollback de template','recusa','recusa'); end;
 
+  begin insert into luma.franquias (nome) values ('RLS-TESTE');
+    insert into _t(passo,esperado,obtido) values ('franqueado cria unidade','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('franqueado cria unidade','recusa','recusa'); end;
+  select count(*) into n from luma.usuario_franquias where user_id <> u.fa;
+  insert into _t(passo,esperado,obtido) values ('franqueado vê vínculo de outro com unidade','0',n::text);
   begin insert into storage.objects (bucket_id, name, owner) values ('luma-covers', 'rls-teste/x.png', u.fa);
     insert into _t(passo,esperado,obtido) values ('franqueado envia capa de campanha','recusa','CONSEGUIU');
   exception when others then insert into _t(passo,esperado,obtido) values ('franqueado envia capa de campanha','recusa','recusa'); end;
@@ -147,6 +152,9 @@ do $$ declare n int; u record; begin
   update luma.feature_flags set enabled = enabled;
   get diagnostics n = row_count;
   insert into _t(passo,esperado,obtido) values ('equipe altera feature flag (linhas)','0',n::text);
+  begin insert into luma.franquias (nome) values ('RLS-TESTE');
+    insert into _t(passo,esperado,obtido) values ('equipe cria unidade (só gestão)','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('equipe cria unidade (só gestão)','recusa','recusa'); end;
 end $$;
 reset role;
 
