@@ -151,6 +151,14 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);  /* home indicator do iOS */
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
+
+  /* ── ESTADO LIGADO (botão apertado / aba escolhida) ─────────────────────────
+     UMA receita para a interface inteira — ver 04_DESIGN_SYSTEM §8 "Estados de botão".
+     Desligado = fundo neutro/transparente; ligado = estes três juntos. O fundo
+     tingido é o sinal que não depende só da cor do texto (daltonismo, tela ruim). */
+  --press-bg: rgba(255,144,0,.12);
+  --press-border: var(--dm-orange);
+  --press-text: var(--dm-orange-text);         /* já faz o flip AA no tema claro */
 }
 
 /* Flip do verde-texto por tema (theme-light = claro em TODOS os módulos).

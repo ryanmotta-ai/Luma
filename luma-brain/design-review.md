@@ -19,6 +19,7 @@ Avalie sua proposta visual atribuindo uma nota de `0.0` a `10.0` em cada um dos 
 | **Responsividade** | A tela se adapta perfeitamente do mobile a monitores ultrawide sem larguras rígidas ou quebras? | |
 | **Microinterações** | Hovers elásticos, transições de estado e motion estão polidos e fluidos? | |
 | **Consistência** | O layout herda os padrões visuais e comportamentais do resto do Luma? | |
+| **Estado de botão** | Todo toggle tem `aria-pressed` sincronizado e usa `--press-*`? O hover é neutro (nada de laranja) e dá para distinguir ligado de desligado sem depender só da cor? | |
 | **Escaneabilidade** | O usuário consegue ler a tela em 3 segundos e entender onde clicar ou o que preencher? | |
 | **Design Premium** | A interface passa a sensação de software moderno e polido no nível de Linear ou Stripe? | |
 

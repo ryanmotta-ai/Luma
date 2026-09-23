@@ -101,6 +101,7 @@ O Luma utiliza a fonte **Roboto**.
 * **Hover:** Transições suaves em todas as propriedades interativas (cor, borda, shadow).
 * **Focus-Visible:** Outline laranja de `2px` com offset de `2px` obrigatório para navegação via teclado.
 * **Disabled:** `opacity: 0.5`, `cursor: not-allowed`, pointer-events desativados.
+* **Ligado (toggle apertado / aba escolhida):** `aria-pressed="true"` (aba: `aria-selected`) + tokens `--press-bg` / `--press-border` / `--press-text`, aplicados globalmente por `css/01-reset.css`. Hover **nunca** usa laranja, para não parecer ligado. Contrato completo: `04_DESIGN_SYSTEM.md` §8 "Estados de botão".
 * **Loading:** Skeletons ou spinners semânticos sem travar a interface inteira de forma desnecessária.
 
 ---

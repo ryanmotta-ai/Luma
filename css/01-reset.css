@@ -24,3 +24,14 @@ textarea:focus-visible,[tabindex]:focus-visible,[contenteditable]:focus-visible{
   border-radius:inherit;
 }
 
+/* ══ ESTADO LIGADO — padrão global ══
+   Todo botão que liga/desliga declara o estado em aria-pressed (aba: aria-selected)
+   e ganha a receita --press-*. O :where() zera a especificidade DE PROPÓSITO:
+   estilo de módulo que já pinta o próprio estado ligado continua vencendo, e quem
+   só marcava o aria sem pintar nada passa a mostrar o padrão. Nunca subir a
+   especificidade daqui — quebraria os ligados que já têm desenho próprio. */
+:where(button[aria-pressed="true"],[role="tab"][aria-selected="true"]){
+  background:var(--press-bg);
+  border-color:var(--press-border);
+  color:var(--press-text);
+}
