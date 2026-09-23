@@ -399,9 +399,9 @@
     assert(semPlacaErra, 'o cenário não exercita a placa: sem ela a medida já batia');
   });
 
-  test('15c · irmãos com o mesmo desenho saem no MESMO corpo', () => {
+  test('15c · conjunto declarado sai no MESMO corpo', () => {
     const card = (id, x) => ponto({ id, name:id, content:'{{'+id+'}}', x, y:80, w:300, h:90,
-                                    fontSize:34, textAlign:'center', layoutRefText:'X-BURGER' });
+                                    fontSize:34, textAlign:'center', layoutRefText:'X-BURGER', fitFontGroup:'produtos' });
     /* A faixa de preço logo abaixo é o que uma grade real tem — sem ela o card longo cresce
        para o respiro (ver 15f) e cabe sem encolher, e o grupo não teria o que igualar. */
     const faixa = { id:'faixa', type:'shape', x:0, y:180, w:1080, h:60, fill:'#FF9000', visible:true, opacity:100 };
@@ -542,6 +542,121 @@
   });
 
   /* ── Bordas do contrato ───────────────────────────────────────────────────────────── */
+  const cadeiaVertical = () => {
+    const a = caixa({ id:'a', content:'{{a}}', x:80, y:80, w:310, h:58, fontSize:48,
+      layoutRefText:'Produto' });
+    const b = caixa({ id:'b', content:'{{b}}', x:80, y:160, w:310, h:40, fontSize:32,
+      layoutRefText:'Detalhes', relativeAnchor:{ layerId:'a', type:'top-to-bottom', gap:22 } });
+    const c = caixa({ id:'c', content:'{{c}}', x:80, y:222, w:310, h:40, fontSize:32,
+      layoutRefText:'Preço', relativeAnchor:{ layerId:'b', type:'top-to-bottom', gap:22 } });
+    const rodape = { id:'rodape', type:'shape', x:60, y:700, w:500, h:20, visible:true };
+    return [a, b, c, rodape];
+  };
+  const dadosCadeia = { a:'Pizza grande calabresa especial', b:'Com borda recheada e refrigerante', c:'R$ 49,90' };
+  const rodaCadeia = (layers, dados) => gLocalFitArte(gApplyRelativeAnchors(layers, dados, {}),
+    { canvas:CANVAS, dados, defaults:{} });
+  test('15o · título e detalhes crescem juntos e preço segue a altura FINAL dos dois', () => {
+    const lf = rodaCadeia(cadeiaVertical(), dadosCadeia);
+    assert(!lf.result.invalid, JSON.stringify(lf.result.bloqueios));
+    const [a,b,c] = ['a','b','c'].map(id => lf.layers.find(l => l.id === id));
+    const h = id => lf.result.campos.find(c => c.id === id).linhas;
+    assert(h('a') > 1 && h('b') > 1, 'cenário não exercitou crescimento simultâneo');
+    assert(b.y > 160 && c.y > 222, 'os dois membros deveriam descer');
+    const tinta = l => gFitTextLayer(l, dadosCadeia[l.id], null, {encolher:false}).altura;
+    assert(Math.abs(b.y - a.y - tinta(a) - 22) <= 1, 'gap do título não foi preservado');
+    assert(Math.abs(c.y - b.y - tinta(b) - 22) <= 1, 'gap dos detalhes não foi preservado');
+    assert(c.y + tinta(c) < 700, 'preço invadiu rodapé');
+    assert(lf.layers.find(l => l.id === 'rodape').y === 700, 'rodapé se moveu');
+  });
+  test('15p · ordem no array e serialização não mudam a solução da cadeia', () => {
+    const layers = cadeiaVertical(), antes = JSON.stringify(layers);
+    const a = rodaCadeia(layers, dadosCadeia), b = rodaCadeia(clone(layers).reverse(), dadosCadeia);
+    const geometria = lf => lf.layers.map(l => [l.id,l.x,l.y,l.w,l.h,l._tetoFonte,l._layoutW]).sort();
+    assert(JSON.stringify(geometria(a)) === JSON.stringify(geometria(b)), 'ordem mudou a solução');
+    assert(JSON.stringify(layers) === antes, 'mutou o template');
+  });
+  test('15q · curto → longo → curto retorna à mesma geometria e fonte', () => {
+    const layers = cadeiaVertical(), curto = { a:'Produto', b:'Detalhes', c:'Preço' };
+    const a = rodaCadeia(layers, curto); rodaCadeia(layers, dadosCadeia);
+    const b = rodaCadeia(layers, curto);
+    assert(JSON.stringify(a.layers) === JSON.stringify(b.layers), 'adaptação acumulou');
+  });
+  test('15r · cadeia impossível bloqueia sem aplicar deslocamento parcial', () => {
+    const layers = cadeiaVertical(); layers[3].y = 290;
+    const dados = { a:ABSURDO, b:ABSURDO, c:'R$ 49,90' };
+    const antes = gApplyRelativeAnchors(layers, dados, {});
+    const lf = gLocalFitArte(antes, { canvas:CANVAS, dados, defaults:{} });
+    assert(lf.result.invalid, 'deveria bloquear');
+    assert(lf.layers.every(l => l.y === antes.find(o => o.id === l.id).y), 'moveu metade da cadeia');
+    assert(lf.result.bloqueios.every(b => b.motivo), 'bloqueio sem explicação');
+  });
+  test('15s · medidor do bloqueio considera o texto dos outros membros', () => {
+    const layers = cadeiaVertical(); layers[3].y = 400;
+    const dados = { a:ABSURDO, b:'Detalhes com bebida', c:'R$ 49,90' };
+    const lf = rodaCadeia(layers, dados), bloqueio = lf.result.bloqueios.find(b => b.fieldId === 'a');
+    assert(bloqueio, 'cenário deveria bloquear a');
+    const medir = gLocalFitMedidor(lf.layers, bloqueio, 'a', dados, { canvas:CANVAS, defaults:{} });
+    ['Pizza', 'Pizza grande calabresa', ABSURDO].forEach(a => {
+      const real = rodaCadeia(layers, Object.assign({}, dados, { a })).result.campos.find(c => c.id === 'a');
+      assert(medir(a).status === real.status, 'medidor divergiu para ' + a);
+    });
+  });
+  test('15t · ciclo, pai ausente e ramificação recusam movimento parcial', () => {
+    ['ciclo','ausente','ramo'].forEach(tipo => {
+      const layers = cadeiaVertical();
+      if(tipo === 'ciclo') layers[0].relativeAnchor = { layerId:'c', type:'top-to-bottom', gap:22 };
+      if(tipo === 'ausente') layers[1].relativeAnchor.layerId = 'sumiu';
+      if(tipo === 'ramo') layers[2].relativeAnchor.layerId = 'a';
+      const lf = rodaCadeia(layers, dadosCadeia);
+      assert(lf.result.invalid, 'aceitou ' + tipo);
+      assert(lf.layers.every(l => l.y === layers.find(o => o.id === l.id).y), 'moveu ' + tipo);
+    });
+  });
+  test('15u · textos idênticos em regiões independentes não igualam fontes', () => {
+    const a = caixa({ id:'a', content:'{{a}}', x:50, y:80, w:300, h:58, fontSize:48, layoutRefText:'Pizza' });
+    const b = Object.assign({}, a, { id:'b', content:'{{b}}', x:600 });
+    const parede = { id:'parede', type:'shape', x:0, y:150, w:1080, h:30, visible:true };
+    const lf = gLocalFitArte([a,b,parede], { canvas:CANVAS, dados:{ a:'Pizza grande calabresa', b:'Pizza' }, defaults:{} });
+    assert(lf.result.campos.find(c => c.id === 'b').fontSize === 48, 'texto independente encolheu');
+    assert(lf.result.campos.find(c => c.id === 'a').fontSize < 48, 'cenário não exercitou encolhimento');
+  });
+  test('15v · cadeia e conjunto de fontes mantêm espaço e igualdade após serializar', () => {
+    const layers = cadeiaVertical();
+    layers[1].fitFontGroup = layers[2].fitFontGroup = 'apoios';
+    const lf = rodaCadeia(clone(layers), dadosCadeia);
+    assert(!lf.result.invalid, 'conjunto bloqueou');
+    const b = lf.result.campos.find(c => c.id === 'b'), c = lf.result.campos.find(c => c.id === 'c');
+    assert(b.fontSize === c.fontSize, 'grupo perdeu igualdade');
+    const lb = lf.layers.find(l => l.id === 'b'), lc = lf.layers.find(l => l.id === 'c');
+    const hb = gFitTextLayer(lb, dadosCadeia.b, null, {encolher:false}).altura;
+    assert(Math.abs(lc.y - lb.y - hb - 22) <= 1, 'grupo perdeu o gap');
+  });
+  test('15w · preço com placa acompanha a pilha sem invadir rodapé', () => {
+    const layers = cadeiaVertical();
+    layers[2].layoutRefText = 'R$ 49,90';
+    const placa = { id:'placa', type:'shape', x:70, y:212, w:330, h:60,
+      shapeKind:'rect', visible:true, opacity:100, fill:'#ff9000' };
+    layers.unshift(placa);
+    const lf = rodaCadeia(layers, dadosCadeia);
+    assert(!lf.result.invalid, JSON.stringify(lf.result.bloqueios));
+    const p = lf.layers.find(l => l.id === 'placa'), c = lf.layers.find(l => l.id === 'c');
+    assert(p.y > placa.y, 'placa não acompanhou');
+    assert(p.y <= c.y && p.y + p.h >= c.y + (c._layoutH || c.h) - 1, 'placa perdeu o texto');
+    assert(p.y + p.h < 700, 'placa invadiu rodapé');
+  });
+  test('15x · cadeia: PNG da prévia é idêntico ao PNG da exportação', async () => {
+    const pintar = async purpose => {
+      const cv = document.createElement('canvas'); cv.width = CANVAS.w; cv.height = CANVAS.h;
+      const out = await fRenderTemplateLayers(cv.getContext('2d'), cadeiaVertical(), CANVAS.w, CANVAS.h,
+        dadosCadeia, {color:'#ff9000'}, {layers:[],w:CANVAS.w,h:CANVAS.h,bg:'#fff'}, {scope:'franqueado',purpose});
+      return { out, png:cv.toDataURL() };
+    };
+    const p = await pintar('preview'), e = await pintar('export');
+    assert(!p.out._layoutResult.invalid, 'prévia bloqueou');
+    assert(p.out.find(l => l.id === 'c').y > 222, 'não exercitou a pilha');
+    assert(p.png === e.png, 'PNGs divergiram');
+  });
+
   test('16 · entradas de borda não quebram e não inventam veredito', () => {
     assert(gFitTextToAuthoredBox({ id:'x', type:'shape' }, 'oi', {}) === null, 'shape deveria devolver null');
     assert(gAuthoredTextBox(null) === null, 'null deveria devolver null');

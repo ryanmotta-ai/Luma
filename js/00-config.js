@@ -2142,6 +2142,11 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
   if (!layers || !layers.length) return layers;
   
   const cloned = layers.map(l => ({...l}));
+  // Relação inválida não pode mover metade da cadeia antes do Local Fit recusá-la.
+  const invalidAnchors = new Set();
+  if(typeof _gLfCadeias === 'function') _gLfCadeias(cloned).cadeias.forEach(c => {
+    if(!c.valida) c.membros.forEach(l => invalidAnchors.add(l.id));
+  });
   const canvasAux = document.createElement('canvas');
   const ctxAux = canvasAux.getContext('2d');
   
@@ -2174,6 +2179,7 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
       // A âncora MANUAL do designer sempre vence a inferida — ele desenhou por um motivo.
       const anchor = l.relativeAnchor || l._anchorAuto;
       if (!anchor || !anchor.layerId) return;
+      if(invalidAnchors.has(l.id)) return;
       
       const parent = resolved[anchor.layerId];
       if (!parent) return;

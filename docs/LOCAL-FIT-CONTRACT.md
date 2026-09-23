@@ -1,9 +1,37 @@
 # LOCAL FIT CONTRACT
 
-> **O runtime oficial do Luma desde 09/2026.** Camada determinística que faz um texto tentar
-> caber **na própria caixa autorada** — e bloquear quando não couber, em vez de recompor a arte.
-> Código: [`js/core/local-fit.js`](../js/core/local-fit.js) · Testes: `tests/local-fit.html`
-> (37 casos) · Corpus: `tests/corpus.html` · Bancada: `tests/_local-fit-bancada.html`
+ > **Contrato vigente — 23/09/2026.** Texto cabe na caixa; cadeias verticais declaradas
+> podem compartilhar espaço e deslocar seus próprios membros. Fora desses vínculos, apenas
+> o par inferido legado e as placas continuam como exceções locais. Nenhuma composição global.
+
+### Cadeia vertical e conjuntos de fonte
+
+- Autoria usa `relativeAnchor: { layerId, type:'top-to-bottom', gap }`, já existente no Estúdio.
+- O runtime valida a cadeia por ID antes de mover: pai ausente, ciclo, ramificação, rotação,
+  texto vertical ou alinhamento que não seja no topo ficam fora do recorte suportado.
+- Mede a altura final de **todos** os membros com `gFitTextLayer`; largura é fixa. A busca
+  reduz os tetos de fonte em 8%, no máximo 60 passagens, sempre respeitando os pisos.
+- Crescimento mantém os gaps; conteúdo curto preserva a posição autorada. Nenhum membro sobe.
+- Cada membro respeita o objeto externo abaixo de sua faixa horizontal e a margem/safe zone.
+  Placas acompanham o texto, e sua largura também participa do limite externo.
+- A movimentação é transacional: se o conjunto não cabe, nenhum deslocamento da cadeia é aplicado.
+- `fitFontGroup` é um identificador autorado para campos com tamanho de fonte sincronizado,
+  limitado à mesma prancheta. Sem esse identificador, aparência semelhante não cria vínculo.
+  No Estúdio: **Editar → Tipografia → Mesmo tamanho de fonte**; escolher outro campo vincula
+  os dois. “Independente” remove o vínculo da camada selecionada. Texto fixo não participa.
+- Âncoras e `fitFontGroup` viajam no JSON das camadas e no histórico de desfazer/refazer.
+- Diagnóstico de um campo em cadeia/conjunto remede o contexto completo, com os demais valores
+  preservados. O encaixe isolado continua atendendo textos independentes.
+- O par inferido para templates antigos mantém a heurística anterior; não infere cadeias novas.
+- O editor mantém o desenho autorado. A acomodação acontece no runtime do franqueado e no teste
+  de tensão do Estúdio, como antes. Não se altera o canvas sob o cursor.
+
+Validação: `tests/local-fit-cases.js` cobre crescimento simultâneo, gaps, ordem no array,
+serialização, retorno curto/longo/curto, falha sem movimento parcial, relações inválidas,
+fontes independentes, conjunto explícito, placa e igualdade de pixels entre prévia e PNG.
+
+Os números de corpus e descrições datadas abaixo registram etapas anteriores; não são medições
+novas desta revisão. O contrato vigente acima substitui as antigas garantias de “nada se move”.
 
 ---
 
@@ -31,7 +59,7 @@ O que ficou no lugar:
 | veredito `original`/`adapted`/`unsafe` | `original`/`wrapped`/`shrunk`/`overflow` |
 | `LUMA_LAYOUT_UNSAFE` | `LUMA_CONTENT_TOO_LARGE` |
 
-**A garantia que o contrato passou a dar, e que antes não existia:** nenhum elemento se move
+**Garantia histórica da primeira versão (substituída pelo contrato vigente acima):** nenhum elemento se move
 por causa de outro. A única geometria que o Local Fit escreve fora do próprio texto é a da
 **placa ligada àquele texto** (§9 do `LUMA.md`). O corpus e o fuzz cobram isso camada a camada,
 comparando com a geometria publicada.
@@ -55,7 +83,7 @@ conteúdo novo
                    → exportação BLOQUEIA · prévia mostra e explica
 ```
 
-**Não existe fallback.** Overflow é o fim da linha, de propósito: era exatamente aqui que o
+**No contrato original não existia fallback.** As exceções locais vigentes estão descritas acima: era exatamente aqui que o
 Automatic Designer entrava, e é por isso que ele não existe mais.
 
 ---
@@ -77,8 +105,7 @@ Uma casca determinística sobre os motores que já existem. **Nenhuma régua nov
 | texto autorado provável | `gLayoutTextoAutorado` | `js/core/auto-layout.js:114` |
 | "isto é uma placa?" | `gLayoutFormaEhPlaca` / `gLayoutPlacaSegue` | `js/00-config.js:2084` |
 
-O arquivo novo contém **duas funções públicas** e cinco privadas. Ele não escreve em nenhuma
-camada — nem na que recebe.
+A medição isolada não escreve na camada recebida. O runtime da arte aplica resultados em clones.
 
 ```js
 gAuthoredTextBox(layer, opts)               // → o modelo da caixa autorada (leitura)
@@ -517,7 +544,7 @@ por `js/designer/canvas.js` (teste de tensão do Estúdio).
 |---|---|---|
 | Texto de ponto quebra na caixa desenhada antes de encolher | `gFitTextToAuthoredBox` | 7b–7d |
 | Com placa, a altura útil é o INTERIOR da placa (CTA de 70px virava 152px e cobria a foto) | idem | 15b |
-| Irmãos (papel, fonte, corpo, largura e alinhamento iguais) saem no MENOR corpo do grupo | `gLocalFitArte`, fase 2 | 15c, 15d |
+| Campos com `fitFontGroup` explícito saem no mesmo corpo, respeitando seus pisos | `gLocalFitArte`, fase 2 | 15c, 15d |
 | "por R$ 999,90" não parte o preço | `gSemanticUnits` | 15e |
 | Viúva (palavra sozinha fechando o bloco) pesa na escolha da quebra, quando há alternativa | `_gSmartWrapCalc` | — |
 | Contador de caracteres mede com o Local Fit, não com a régua antiga | `fMaxLenDaCaixa` | — |

@@ -1,48 +1,14 @@
-/* ══════════════════════════════════════════════════════════════════════════════════════════
-   LOCAL FIT CONTRACT — o texto tenta caber na PRÓPRIA CAIXA antes de qualquer composição
-   ------------------------------------------------------------------------------------------
-   EXPLICIT > INFERRED. Se o designer desenhou uma caixa de texto, essa caixa é informação
-   explícita: não precisa ser inferida do grafo de composição. Esta camada responde UMA
-   pergunta, sem ambiguidade e sem mover nada:
-
-        este conteúdo cabe na caixa que o designer desenhou?   →  FITS | OVERFLOW
-
-   Fluxo: conteúdo novo → Local Fit → cabe? sim, terminou. não? overflow OBJETIVO (com pixels,
-   linhas, corpo e piso) que OUTRA camada decidirá o que fazer. Aqui o fallback NÃO é acionado.
-
-   ⛔ O QUE ESTA CAMADA NÃO FAZ — e a lista é o contrato:
-     · não move, não empurra e não redimensiona NENHUM outro layer (nem o próprio: devolve
-       valor, nunca escreve na camada recebida);
-     · não escala componente, não abre corredor, não usa emergência;
-     · não fala com Candidate Search, beam, scoring nem adaptive scale groups — nada disso
-       existe mais no repositório;
-     · não cria segunda quebra (`gSmartWrapText` é a única) nem segundo piso
-       (`gLayoutPisoFonte` em modo NORMAL é o único) nem segunda medida (`gFitTextLayer` é a
-       régua do render — medir diferente do render é como prévia e arquivo final divergiram).
-
-   ✅ ESTE É O RUNTIME OFICIAL desde 09/2026. `gLocalFitArte` (§3) é o que a prévia e o
-   arquivo final chamam; o Automatic Designer (grammar, graph, components, elasticity, moves,
-   candidate search, scoring, rollout) foi REMOVIDO do repositório, e a escada de recomposição
-   do `gApplyRelativeAnchors` saiu junto. Não existe mais caminho que empurre terceiros.
-
-   ── As duas invariantes que sustentam tudo ────────────────────────────────────────────────
-   1. A CAIXA AUTORADA NUNCA VEM DA GEOMETRIA ADAPTADA. `gApplyRelativeAnchors` trabalha em
-      CLONES e move/encolhe `x/y/w/h/fontSize` neles. Ler um clone adaptado como "o que o
-      designer desenhou" faria a caixa encolher a cada volta. Ordem de confiança:
-      `layoutRef` (o contrato carimbado no vínculo) > `_layoutBase` (a base do solve atual,
-      só geometria) > a camada com os carimbos da cascata removidos.
-   2. A TINTA AUTORADA É O PISO DA CAIXA. O `w/h` que vem do PSD costuma ser o bbox JUSTO do
-      texto original — com `lineHeight` 1.2 a tinta de uma linha pode medir 1px a mais que a
-      caixa. Sem isto o próprio texto do designer seria declarado OVERFLOW, que é o oposto do
-      ORIGINAL FIRST. Então o espaço disponível é `max(caixa desenhada, tinta autorada)`.
-      Consequência boa: "conteúdo igual ao autorado ⇒ FITS" passa a ser verdade por
-      CONSTRUÇÃO, não por sorte de arredondamento.
-
-   API: gAuthoredTextBox(layer, opts) · gFitTextToAuthoredBox(layer, conteudo, opts)
-   Depende de: 00-config.js (gFitTextLayer, gSmartWrapText, gLayoutPisoFonte, gLineHeightDe,
-   _gLayoutMaxLinhas, gStampPisosHierarquia, gLayoutFormaEhPlaca, gLayoutPlacaSegue) e de
-   core/auto-layout.js (gLayoutLimpaCarimbos, gLayoutTextoAutorado). Não escreve em nenhum.
-   ══════════════════════════════════════════════════════════════════════════════════════════ */
+/* LOCAL FIT — medida única de texto e adaptação local, em clones.
+   Caixa autorada: layoutRef > _layoutBase > camada limpa; tinta autorada é o mínimo da caixa.
+   Texto: corpo original → quebra → redução até o piso → overflow com diagnóstico.
+   Cadeia vertical declarada: mede TODOS os membros, preserva gaps, respeita paredes e safe
+   zone, aplica posições somente quando o conjunto cabe. Sem ciclos, ramificações ou rotação.
+   Legado: o par inferido no bloqueio continua limitado a um nível, sem ampliar a heurística.
+   fitFontGroup declara quais campos mantêm o mesmo corpo; sem vínculo, são independentes.
+   A régua continua gFitTextLayer; quebra, piso e placa continuam nas primitivas existentes.
+   Sem busca de composições, scoring, LLM, escala de componente ou movimento global.
+   API: gAuthoredTextBox, gFitTextToAuthoredBox, gLocalFitArte, gLocalFitMedidor e diagnóstico.
+   Contrato e critérios: docs/LOCAL-FIT-CONTRACT.md. */
 
 const G_LOCAL_FIT_V = 1;
 /* Mesmo degrau de 8% que o teto de linhas do `gFitTextLayer` usa. Inventar um passo diferente
@@ -191,8 +157,8 @@ function gAuthoredTextBox(layer, opts){
    descem exatamente o que o topo cresceu (fase 4 do `gLocalFitArte`), placa junto.
    ⛔ Âncora MANUAL sempre vence. Sem ela, só no BLOQUEIO vale o par inferido (`_gLfPilhaInferida`).
    ⛔ Só desce, nunca sobe. Membro não reserva respiro próprio: o vazio é do topo.
-   ⚠ Pilha aninhada: só o TOPO propaga crescimento; um membro que quebra dentro da própria
-     caixa não empurra o de baixo dele. */
+   No runtime da arte, `_gLfResolverCadeia` resolve a cadeia inteira. As primitivas abaixo
+     também atendem medições isoladas e o fallback legado; não são um segundo solver. */
 function _gLfEhMembro(o){
   const a = o && o.relativeAnchor;
   return !!(a && a.layerId && a.type === 'top-to-bottom');
@@ -460,7 +426,7 @@ function gFitTextToAuthoredBox(layer, conteudo, opts){
     if(u.cabe){
       return _gLfResultado(box, ultimo, passos, 'fits', opts);
     }
-    if(fs <= box.piso) break;
+    if(opts.fonteExata || fs <= box.piso) break;
     /* FAIL SAFE: chegou ao piso normal, PARA. Continuar descendo é o que transforma "não
        coube" em "saiu ilegível" — e a decisão do que fazer daqui é de outra camada. */
     const prox = Math.max(box.piso, Math.floor(fs * G_LF_DEGRAU));
@@ -539,16 +505,14 @@ function _gLfPlaca(box, u, opts){
      conteúdo novo → caixa autorada de cada texto → cabe? → render
                                                   → não cabe no piso? → CONTENT_TOO_LARGE
 
-   ⛔ O QUE ELA NÃO FAZ (e é o motivo de existir): não empurra, não reancora, não abre corredor,
-   não escala componente, não gera candidato, não pontua, não escolhe. Terceiros NUNCA mudam.
-   A única exceção é a do contrato: a PLACA explicitamente ligada ao próprio texto acompanha a
-   tinta dele, pela primitiva já validada (`_gInferirPlacas` + `gLayoutPlacaSegue`).
+   Fora de cadeias declaradas e do par legado inferido, terceiros não se movem. Placas
+   acompanham o próprio texto. Não abre corredor, não escala componente nem busca composição.
 
    ORIGINAL FIRST ABSOLUTO: quando o conteúdo cabe como o designer desenhou, a camada sai daqui
    SEM UM ÚNICO CARIMBO — é o mesmo objeto que a arte publicada produz. Não é tolerância de
    comparação, é ausência de escrita.
 
-   COMO O RESULTADO CHEGA AO DESENHO: o único carimbo é `_tetoFonte`. `gFitTextLayer` (a régua
+   COMO O RESULTADO CHEGA AO DESENHO: `_tetoFonte`, `_layoutW`, `_layoutH` e posições nos clones. `gFitTextLayer` (a régua
    do render, em `00-config.js`) lê `min(_tetoFonte, fontSize)` como corpo de partida, então
    prévia e PNG desenham no corpo que o Local Fit decidiu — sem segundo motor e sem segunda
    medida. É daí que sai a paridade do item 13.
@@ -610,9 +574,9 @@ function _gLfResolverCadeia(cadeia, medidos, layers, canvas, ctx){
         const m = medidas.get(l.id);
         const visivel = typeof _gLayoutVisivel !== 'function' || _gLayoutVisivel(l);
         const vazio = !visivel || (m && m.vazio);
-        const y = anterior ? Math.max(l.y || 0, anterior.y + anterior.h + Number(l.relativeAnchor.gap || 0)) : (l.y || 0);
+        const y = _gLfYDepois(l, anterior);
         const fitOpts = m && !m.vazio ? Object.assign({}, m.fitOpts, {
-          pilha:null, alturaDisponivel:canvas.h, tetoFonte:tetos.get(l.id)
+          pilha:null, alturaDisponivel:canvas.h, tetoFonte:tetos.get(l.id), fonteExata:true
         }) : null;
         const r = fitOpts ? gFitTextToAuthoredBox(l, m.conteudo, fitOpts) : null;
         const h = vazio ? 0 : r ? r.diagnostics.alturaNecessaria : l.type === 'text'
@@ -624,7 +588,11 @@ function _gLfResolverCadeia(cadeia, medidos, layers, canvas, ctx){
             altura:h, larguraMax:r.diagnostics.larguraNecessaria, lines:r.lines, fontSize:r.fontSize, text:r.text
           });
           const ret = gLayoutPlacaSegue(placa._placa, tinta, r.fontSize);
-          if(ret) fundo = Math.max(fundo, ret.y + ret.h);
+          if(ret){
+            fundo = Math.max(fundo, ret.y + ret.h);
+            // A placa pode ser mais larga que o texto e encontrar uma parede só na lateral.
+            excesso = Math.max(excesso, ret.y + ret.h - _gLfParedeAbaixo(placa, layers, canvas, ignora) + 8);
+          }
         }
         const respiro = Math.max(8, Math.round((l.fontSize || 24) * 0.25));
         const parede = _gLfParedeAbaixo(l, layers, canvas, ignora) - respiro;
@@ -655,6 +623,12 @@ function _gLfResolverCadeia(cadeia, medidos, layers, canvas, ctx){
         ? 'a pilha não cabe no espaço disponível' : 'âncora inválida: use uma cadeia vertical simples' }) });
   });
   return [];
+}
+
+function _gLfYDepois(l, anterior){
+  const base = l.y || 0;
+  const y = anterior ? anterior.y + anterior.h + Number(l.relativeAnchor.gap || 0) : base;
+  return y > base + G_LF_TOL ? y : base;
 }
 
 function gLocalFitArte(layers, opts){
@@ -727,7 +701,12 @@ function gLocalFitArte(layers, opts){
   });
   grupos.forEach(g => {
     if(g.length < 2) return;
-    const menor = Math.max(...g.map(m => m.r.diagnostics.piso), Math.min(...g.map(m => m.r.fontSize)));
+    const menor = Math.min(...g.map(m => m.r.fontSize));
+    if(g.some(m => m.r.diagnostics.piso > menor)){
+      g.forEach(m => { m.r = Object.assign({}, m.r, { status:'overflow', degrau:'piso',
+        diagnostics:Object.assign({}, m.r.diagnostics, { motivo:'o conjunto de fontes tem pisos incompatíveis' }) }); });
+      return;
+    }
     g.forEach(m => {
       if(m.r.fontSize === menor) return;
       const r2 = gFitTextToAuthoredBox(m.l, m.conteudo, Object.assign({}, m.fitOpts, { tetoFonte: menor }));
@@ -736,7 +715,21 @@ function gLocalFitArte(layers, opts){
   });
 
   /* FASE 3 — APLICAR. */
-  // Mantém as folgas calculadas antes de igualar fontes; diminuir tinta não empurra terceiros.
+  // Reposiciona com as alturas finais, inclusive após igualar fontes, preservando o gap.
+  estrutura.cadeias.forEach(c => {
+    let anterior = null;
+    const falhou = medidos.some(m => !m.vazio && c.membros.some(l => l.id === m.l.id) && m.r.status !== 'fits');
+    c.membros.forEach(l => {
+      const p = posicoes.find(p => p.id === l.id);
+      if(!p) return;
+      if(falhou){ p.y = l.y; return; }
+      const m = medidos.find(m => m.l.id === l.id);
+      const h = m ? (m.vazio ? 0 : m.r.diagnostics.alturaNecessaria)
+        : l.type === 'text' ? gFitTextLayer(_gLfLimpa(l), l.content || '', ctx, { encolher:false }).altura : l.h || 0;
+      p.y = _gLfYDepois(l, anterior);
+      anterior = { y:p.y, h };
+    });
+  });
   posicoes.forEach(p => {
     const l = out.find(o => o.id === p.id), delta = p.y - l.y;
     if(!delta) return;
@@ -774,6 +767,8 @@ function gLocalFitArte(layers, opts){
                        requiredLines:r.lines.length, maxLines:r.diagnostics.maxLinhas,
                        fontSize:r.fontSize, minimumFontSize:r.diagnostics.piso,
                        motivo:r.diagnostics.motivo,
+                       contextoPilha: estrutura.ids.has(l.id) || l.fitFontGroup
+                         ? { layers:(layers || []).map(o => Object.assign({}, o)), canvas:cv } : null,
                        placa: placa ? Object.assign({}, placa) : null });
     }
 
@@ -812,7 +807,7 @@ function gLocalFitArte(layers, opts){
     }
   });
 
-  /* FASE 4 — A PILHA DESCE. Depois de todo mundo encaixado (e das placas acompanharem os
+  /* FASE 4 — O PAR LEGADO INFERIDO DESCE. Depois de todo mundo encaixado (e das placas acompanharem os
      próprios textos), os membros da pilha de um topo que COUBE descem exatamente o que ele
      cresceu além da altura que as âncoras usaram. O teto (`_gLfTetoPilha`) já garantiu que a
      descida para antes do próximo objeto. Só desce: encolher o topo não puxa ninguém para
@@ -844,7 +839,9 @@ function gLocalFitArte(layers, opts){
               requiresAdaptation: changes.length > 0 || invalid, forced:false,
               changes, campos, bloqueios,
               meta: { ms: (_ms != null) ? Math.round(_ms * 10) / 10 : null },
-              diagnostico: bloqueios[0] || null }
+              diagnostico: bloqueios[0] || null },
+    // Somente o medidor de bloqueio pede o encaixe completo, sem duplicar o solve da cadeia.
+    medicao: opts.medirId ? (medidos.find(m => m.l.id === opts.medirId) || {}).r : null
   };
 }
 
@@ -911,6 +908,11 @@ function gLocalFitMedidor(layers, bloqueio, campo, dados, opts){
   return (valor) => {
     const d = Object.assign({}, dados || {});
     d[campo] = valor;
+    if(bloqueio.contextoPilha){
+      const base = bloqueio.contextoPilha;
+      return gLocalFitArte(base.layers, { canvas:base.canvas, ctx:o.ctx, dados:d, defaults,
+        medirId:alvo.id }).medicao || null;
+    }
     const texto = (typeof gInterpolate === 'function')
       ? gInterpolate(alvo.content, d, { onEmpty:'remove', defaults }) : String(valor);
     const runs = (typeof gBuildVirtualRuns === 'function')

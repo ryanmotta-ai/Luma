@@ -1626,6 +1626,35 @@ function dRenderAnchorProps(l) {
     sel.value = '';
     if (details) details.style.display = 'none';
   }
+  let campo = document.getElementById('dp-fit-font-group-field');
+  if(!campo){
+    campo = document.createElement('div');
+    campo.id = 'dp-fit-font-group-field'; campo.className = 'dp-field';
+    campo.innerHTML = '<label class="dp-field-label" for="dp-fit-font-group">Mesmo tamanho de fonte</label>'
+      + '<select class="prop-input" id="dp-fit-font-group" onchange="dUpdateFitFontGroup(this.value)"></select>';
+    const tipografia = document.querySelector('#dp-sec-text .dp-sec-body');
+    (tipografia || sel.closest('.dp-sec-body')).appendChild(campo);
+  }
+  campo.hidden = l.type !== 'text' || ! _gLayoutTemCampo(l);
+  const fontes = campo.querySelector('select');
+  const textos = others.filter(x => x.type === 'text' && _gLayoutTemCampo(x));
+  fontes.innerHTML = '<option value="">Independente</option>' + textos.map(x =>
+    '<option value="' + gEsc(x.id) + '">' + gEsc(x.name || x.content || 'Texto') + '</option>').join('');
+  const par = l.fitFontGroup && textos.find(x => x.fitFontGroup === l.fitFontGroup);
+  fontes.value = par ? par.id : '';
+}
+
+/* O vínculo é dado autorado (serializado junto com a camada), nunca um carimbo de render. */
+function dUpdateFitFontGroup(id){
+  const l = dLayers.find(x => x.id === dSelId);
+  const par = dLayers.find(x => x.id === id && l && x.abId === l.abId && x.type === 'text' && _gLayoutTemCampo(x));
+  if(!l || l.type !== 'text' || !_gLayoutTemCampo(l) || (id && (!par || par.id === l.id))) return;
+  dHistoryPush();
+  if(par){
+    const grupo = par.fitFontGroup || par.id;
+    par.fitFontGroup = grupo; l.fitFontGroup = grupo;
+  }else delete l.fitFontGroup;
+  dRenderAnchorProps(l); dMarkUnsaved(); dRenderCanvas();
 }
 
 function dUpdateAnchorLayer(val) {
