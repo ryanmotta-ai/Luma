@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-09-23 — Funções de policy sem EXECUTE para anon
+
+**`20260923187000_luma_helpers_sem_anon`** (aplicada): fecha o aviso 0028 do Supabase — `is_designer`, `is_ativo` e `get_user_role` não são mais executáveis sem login. Conferido: anon recusado; franqueado logado lê pastas (17), templates publicados e flags normalmente. ⚠ O EXECUTE de `authenticated` fica: as policies dependem dele. **Segue aberto (Dashboard, ação do Ryan):** ligar a proteção contra senha vazada no Auth.
+
+---
+
 ## 2026-09-23 — Observabilidade do Local Fit (`luma.dados_localfit`)
 
 **`20260923186000_luma_dados_localfit`** (aplicada): lê o evento `layout_resolvido` (já gravado pelo front desde 08/2026) e devolve a divisão por resultado (`original`/`wrapped`/`shrunk`/`overflow`, e `adapted`/`unsafe` do motor anterior), separada entre **export** (a arte que saiu) e **preview** (cada repintura — infla), a parcela de exportadas que couberam, a mediana de tempo e os materiais/campos que mais bloquearam. Primeira leitura real (90 dias): **24 de 24 exportadas couberam**, mediana 9,7 ms; o que mais estoura na prévia é o `precoPor` de um material (20×). **Front (v=130):** seção "O texto coube?" no fim da aba Qualidade do painel de Dados, carregada só quando a aba abre.
