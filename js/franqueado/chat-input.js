@@ -687,6 +687,10 @@ async function fFitTextWithAI(comIA){
     if(btn){ btn.classList.remove('is-loading'); btn.disabled=false; }
     _fFitBusy=false;
   }
+  /* A IA demora: se nesse meio-tempo a pessoa enviou (outra pergunta na caixa) ou reescreveu,
+     as opções são de OUTRO texto. Sem esta guarda, a versão do produto caía no campo do preço. */
+  if(fState.camp?.perguntas?.[fState.stepIdx]?.id!==id || fState.done || box.disabled
+     || (_fFitAttempt(box,id) || box.value)!==original) return;
 
   // Validação no CÓDIGO (§31, §33): medição do Luma decide o que cabe
   _fFitOpts=brutas
@@ -728,8 +732,13 @@ function fFitApply(i){
   const s=_fFitOpts[i]; const box=document.getElementById('f-msg-box');
   if(!s||!box) return;
   // A versão do Copy Fit entra pelo caminho do balão: o mesmo `input`, e mais o Desfazer.
-  if(i===0 && _fFitCf && _fFitCf.text===s && _fFitCf.aplica()){
-    box._fFit=null; _fFitCf=null; _fFitClosePop();
+  /* ⛔ Nunca cai no caminho cru abaixo: se `aplica` recusa, a pessoa digitou depois de abrir o
+     popover e a versão é de OUTRO texto (medido para "Calabresa", ela já escreveu "Mussarela"). */
+  if(i===0 && _fFitCf && _fFitCf.text===s){
+    const ok=_fFitCf.aplica();
+    _fFitCf=null; _fFitClosePop();
+    if(ok) box._fFit=null;
+    else if(typeof gToast==='function') gToast('O texto mudou. Toque em Encurtar de novo para ver a versão que cabe.');
     return;
   }
   box.value=s;

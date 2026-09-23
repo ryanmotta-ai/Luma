@@ -1405,6 +1405,9 @@ function fLpBalaoSolucao(bloqueio){
     // ele ainda for a mesma sugestão: o diálogo espera a pessoa, e a prévia pode ter repintado.
     aplica:()=>{
       if(!_lpBalao||_lpBalao.campo!==campo||!_lpBalao.sug[0]||_lpBalao.sug[0].text!==text) return false;
+      /* E o texto ainda é o que foi medido: entre a tecla e o render (debounce) o balão ainda é o
+         do valor anterior — aplicar aí trocava "Mussarela" recém-digitada pela "Calabresa" velha. */
+      if(String((fState.dados||{})[campo]==null?'':fState.dados[campo])!==_lpBalao.valor) return false;
       fLpBalaoAplica(0); return true;
     } };
 }
@@ -2012,6 +2015,12 @@ function _fLpRoundRect(ctx, x, y, w, h, r){
 function fLpShowEmpty(canvas){
   const stage = canvas.closest('.lp-stage') || document.querySelector('.lp-stage');
   if(stage) stage.classList.add('empty');
+  /* Sem arte não há bloqueio nem solução. O balão mora no `.lp-stage` (o `.empty` só esconde o
+     `.lp-canvas-wrap`) e ficava por cima do vazio, clicável: voltar às boas-vindas ou tirar o
+     material e tocar nele escrevia a sugestão da arte anterior no `fState.dados` novo. E com
+     `_lpEffectiveMaterial` e `fState.material` ambos null, `fLpBalaoSolucao` seguia valendo. */
+  _lpLayoutResult=null; _lpDadosRender=null; _lpBalao=null; _fLpBalaoTira();
+  try{ if(typeof fFitSync==='function') fFitSync(); }catch(e){}
   const t = document.getElementById('lp-empty-title');
   const s = document.getElementById('lp-empty-sub');
   if(t && s){

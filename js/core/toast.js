@@ -185,7 +185,13 @@ function _gDialog(opts){
     ov.addEventListener('mousedown',e=>{ if(e.target===ov) onCancel(); });
     function onKey(e){
       if(e.key==='Escape'){ e.preventDefault(); onCancel(); }
-      else if(e.key==='Enter'){ e.preventDefault(); onOk(); }
+      else if(e.key==='Enter'){
+        e.preventDefault();
+        /* Enter aciona o botão FOCADO: quem chega por Tab em "Cancelar"/"Editar" e tecla Enter
+           confirmava — no diálogo `danger` isso apagava; no "não cabe", trocava o texto. */
+        const f=document.activeElement;
+        if(f&&f.tagName==='BUTTON'&&ov.contains(f)) f.click(); else onOk();
+      }
     }
     document.addEventListener('keydown',onKey,true);
     setTimeout(()=>{ if(input){input.focus();input.select();} else { const ok=ov.querySelector('.g-dialog-ok'); if(ok)ok.focus(); } },30);
