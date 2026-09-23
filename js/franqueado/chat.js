@@ -1850,7 +1850,7 @@ async function fCorrigirTextoLongo(res){
          refeito: a bolha que falhou guarda os dados antigos, e no celular a folha de
          compartilhar exige o gesto que o diálogo já consumiu. */
       const regerar = !!fState.done && !_fRevisando;
-      gToast('“' + rotulo + '” trocado pela versão que cabe' + (regerar ? ' — gerando a arte de novo.' : '.'),
+      gToast('Trocamos “' + rotulo + '” pela versão que cabe' + (regerar ? ' — gerando a arte de novo.' : '.'),
         null, null, { acao: { rotulo: 'Desfazer', onClick: fDesfazer } });
       if(regerar) fGerarArte();
       return true;
@@ -1862,6 +1862,16 @@ async function fCorrigirTextoLongo(res){
     if(!ok) return true;
   }
   fEditCampo(idx);
+  /* "Encurtar" é encurtar O QUE ESTÁ ESCRITO: fora do guiado o campo abria vazio e a pessoa
+     redigitava tudo para tirar duas palavras. O `input` passa pelo caminho da digitação
+     (contador com o limite medido, prévia e o "Encurtar"). O guiado já abre preenchido. */
+  const boxEd = document.getElementById('f-msg-box');
+  const atual = fState.dados && fState.dados[campo];
+  if(!_fGuidedAtivo() && boxEd && !boxEd.disabled && !boxEd.value && typeof atual === 'string' && atual){
+    boxEd.value = atual;
+    boxEd.dispatchEvent(new Event('input', { bubbles: true }));
+    try{ boxEd.focus(); }catch(e){}
+  }
   /* O contador só repinta no próximo `input`, e a pessoa acabou de chegar aqui pelo alvo
      novo — sem isto ela veria o limite antigo até digitar a primeira letra. */
   try{ if(typeof fUpdateCharCount === 'function') fUpdateCharCount(); }catch(e){}

@@ -2720,7 +2720,12 @@ body:not(.theme-light) .art-review-badge{
   }
   body.f-guided-desktop #f-input-wrap{min-width:0}
   /* A barra já é a superfície do conjunto: o input não desenha uma segunda pílula dentro dela. */
-  body.f-guided-desktop #f-input-wrap #f-msg-box{appearance:none;min-height:44px;padding-inline:0;border:0;border-radius:0;background:transparent;font-size:15px;box-shadow:none}
+  body.f-guided-desktop #f-input-wrap #f-msg-box{appearance:none;min-height:44px;padding-inline:0 48px;border:0;border-radius:0;background:transparent;font-size:15px;box-shadow:none}
+  /* O contador mora DENTRO do campo (absoluto): sem a folga à direita o texto corria por baixo
+     dele. O "Encurtar" não cabe ali também — a barra do guiado é estreita e o texto ficava numa
+     coluna de 140px —, então sobe para logo acima da barra, alinhado à direita. */
+  body.f-guided-desktop .f-fit-btn{top:auto;bottom:calc(100% + 16px);right:0;transform:none}
+  body.f-guided-desktop .f-fit-btn:hover{transform:scale(1.03)}
   body.f-guided-desktop #f-msg-box:focus{outline:0;box-shadow:none}
   /* O foco continua visível na barra externa; o outline global no input duplicaria o contorno. */
   body.f-guided-desktop #f-input-wrap #f-msg-box:focus-visible{outline:0!important}
@@ -3337,6 +3342,14 @@ body:not(.theme-light) #f-msg-box:disabled{background:var(--d-surf2);color:var(-
   body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-h,
   body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fsf-btn,
   body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-mob-prog{color:var(--d-text2)}
+  /* ── "ENCURTAR" NO CELULAR (chat-input.js: _fFitPop) ──
+     O painel rola (`overflow-y:auto`) e cortava o popover que abre para cima do campo: sumia
+     justamente a versão que cabe. Aqui ele é um item do painel, logo acima do campo. As
+     opções e o próprio botão ganham o alvo de toque mínimo (o botão por um `::after`
+     invisível, sem mudar o desenho dentro do campo). */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet>.f-fit-pop{position:static;order:3;flex:0 0 auto;margin:0 18px 10px;min-width:0;max-width:none}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-fit-opt{min-height:var(--tap-min);font-size:14px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-fit-btn::after{content:'';position:absolute;inset:-12px -4px}
 }
 
 /* Movimento é sinal, não enfeite: quem pede menos movimento não perde nada aqui — o painel

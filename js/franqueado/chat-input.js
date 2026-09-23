@@ -503,6 +503,11 @@ function fAttachInputGuard(){
     if(box.value.length > cfg.maxLen){
       _fFitRemember(box, id, box.value, cfg.maxLen); // o que ele QUIS escrever, antes do corte
       box.value = box.value.slice(0, cfg.maxLen);
+    } else if(box._fFit && box._fFit.id===id
+              && !box._fFit.text.startsWith(box.value.replace(/\s+/g,' ').trim())){
+      /* Apagou e escreveu OUTRO texto: a tentativa guardada é do anterior. Sem isto o
+         "Encurtar" seguia aceso e encurtava o texto que a pessoa já tinha desistido. */
+      box._fFit=null;
     }
     fUpdateCharCount();
     // Só espelha na prévia campos de TEXTO (imagem/select/cor/boolean não vêm de digitação).
@@ -715,7 +720,13 @@ function _fFitPop(btn, head, foot, maisIA){
     _fFitOpts.map((s,i)=>`<button type="button" class="f-fit-opt" role="menuitem" onclick="fFitApply(${i})"><span>${gEsc(s)}</span><em>${s.length}</em></button>`).join('')+
     (maisIA?`<button type="button" class="f-fit-opt" role="menuitem" onclick="fFitTextWithAI(true)"><span>Mais opções com IA</span></button>`:'')+
     `<div class="f-fit-pop-foot">${gEsc(foot)}</div>`;
-  wrap.appendChild(pop);
+  /* No celular o painel (`#f-sheet`) rola, e o popover que abre PARA CIMA do campo era cortado
+     por ele: a própria versão que cabe sumia atrás da arte. Lá ele entra no fluxo do painel,
+     logo acima do campo (chat.css, bloco do celular). */
+  const row=document.getElementById('f-input-row');
+  if(typeof _fCelular==='function' && _fCelular() && row && row.parentElement && row.parentElement.id==='f-sheet')
+    row.parentElement.insertBefore(pop, row);
+  else wrap.appendChild(pop);
   setTimeout(()=>{
     if(!pop.isConnected) return;
     document.addEventListener('keydown', _fFitEsc);

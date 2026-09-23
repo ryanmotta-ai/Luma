@@ -1263,6 +1263,19 @@ function _fLpBalaoChave(bloqs, W, H){
   })).join('\u0001');
 }
 function _fLpBalaoTira(){ const b=document.getElementById('lp-balao'); if(b) b.remove(); }
+/* O que o franqueado lê em "sai: …": só palavra de verdade. "de"/"e"/"o" saem de carona numa
+   troca ("de 2 litros" → "2L") e, listados, soavam como se algo tivesse sido cortado. */
+function _fLpRemovidasVisiveis(lista){
+  return (lista||[]).filter(w=>String(w).replace(/[^\p{L}\d]/gu,'').length>2);
+}
+/* A troca pelo balão avisa e dá o Desfazer: o botão de desfazer do cabeçalho saiu (09/2026) e
+   o Ctrl+Z ninguém descobre. ⚠ O "Encurtar" do chat NÃO chama isto: no celular o toast cai em
+   cima do campo e do enviar (toolbar.css, `bottom:96px`), e lá o texto trocado segue na caixa. */
+function fLpAvisaTroca(campo){
+  if(typeof gToast!=='function' || typeof fDesfazer!=='function') return;
+  const r=(campo && typeof gFieldLabel==='function') ? gFieldLabel(campo) : 'o texto';
+  gToast('Trocamos “'+r+'” pela versão que cabe.', null, null, { acao:{ rotulo:'Desfazer', onClick:fDesfazer } });
+}
 function _fLpSyncBalao(){
   const res=_lpLayoutResult;
   const bloqs=(res&&res.invalid&&res.bloqueios)||[];
@@ -1301,18 +1314,23 @@ function _fLpSyncBalao(){
   }
   let b=document.getElementById('lp-balao');
   if(!b||b.dataset.chave!==chave){
-    if(b) b.remove();
     /* SÓ A SOLUÇÃO (pedido do Ryan): o balão É o botão — a versão que cabe, e um toque troca.
        Sem título, sem fechar: some sozinho quando o texto passa a caber. O que saiu vai no
        title/aria-label ("sem Delicioso"), para quem quiser conferir. */
     const s=_lpBalao.sug[0];
-    const sem=s.removidas.length?' (sem '+s.removidas.join(', ')+')':'';
-    b=document.createElement('button'); b.type='button'; b.id='lp-balao'; b.className='lp-balao'; b.dataset.chave=chave;
+    const rem=_fLpRemovidasVisiveis(s.removidas);
+    const sem=rem.length?' (sem '+rem.join(', ')+')':'';
+    /* O MESMO botão, com o texto novo: recriar a cada tecla repetia a entrada (gFadeInUp) e o
+       balão piscava enquanto a pessoa digitava. Só nasce quando não havia balão. */
+    if(!b){
+      b=document.createElement('button'); b.type='button'; b.id='lp-balao'; b.className='lp-balao';
+      b.onclick=()=>{ const c=_lpBalao&&_lpBalao.campo; if(fLpBalaoAplica(0)) fLpAvisaTroca(c); };
+      stage.appendChild(b);
+    }
+    b.dataset.chave=chave;
     b.title='Não cabe. Trocar por: '+s.text+sem;
     b.setAttribute('aria-label',b.title);
-    b.onclick=()=>fLpBalaoAplica(0);
     b.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3l4 4-4 4"/><path d="M3 11V9a2 2 0 0 1 2-2h16"/><path d="M7 21l-4-4 4-4"/><path d="M21 13v2a2 2 0 0 1-2 2H3"/></svg><span>'+gEsc(s.text)+'</span>';
-    stage.appendChild(b);
   }
   _fLpPosBalao();
 }
@@ -1344,7 +1362,7 @@ function _fLpBalaoRestaura(campo, valor){
   try{ if(typeof fRevisaoRepinta==='function') fRevisaoRepinta(); }catch(e){}
 }
 function fLpBalaoAplica(i){
-  const B=_lpBalao, s=B&&B.sug[i]; if(!s) return;
+  const B=_lpBalao, s=B&&B.sug[i]; if(!s) return false;
   const campo=B.campo, antes=(fState.dados||{})[campo];
   const rotulo='Encurtar '+String((typeof gFieldLabel==='function')?gFieldLabel(campo):'texto').toLowerCase();
   _fLpBalaoTira();
@@ -1367,7 +1385,7 @@ function fLpBalaoAplica(i){
         try{ bx.focus(); }catch(e){}
       } else _fLpBalaoRestaura(campo, antesBox);
     });
-    return;
+    return true;
   }
   if(!fState.dados) fState.dados={};
   fState.dados[campo]=s.text;
@@ -1375,6 +1393,7 @@ function fLpBalaoAplica(i){
   _fLpRender();
   try{ if(typeof fRevisaoRepinta==='function') fRevisaoRepinta(); }catch(e){}
   if(typeof _fUndoRegistra==='function') _fUndoRegistra(rotulo, ()=>_fLpBalaoRestaura(campo, antes));
+  return true;
 }
 window.addEventListener('resize',()=>{ try{ _fLpPosBalao(); }catch(e){} });
 /* A SOLUÇÃO DO BALÃO PARA QUEM NÃO VÊ O BALÃO — o diálogo do bloqueio (`fCorrigirTextoLongo`) e
@@ -1397,7 +1416,7 @@ function fLpBalaoSolucao(bloqueio){
     if(k(visto)!==k(bloqueio)) return null;
   }
   const text=s.text, campo=B.campo, cv=document.getElementById('lp-canvas');
-  return { campo, text, removidas:s.removidas||[],
+  return { campo, text, removidas:_fLpRemovidasVisiveis(s.removidas),
     // A mesma régua do balão, para quem traz outra versão (a IA) conferir em pixel.
     cabe:(t)=>{ const f=cv&&cv.width?_fLpBalaoCabe(visto,campo,cv.width,cv.height):null;
                 const r=f?f(t):null; return !!(r&&r.ok); },
