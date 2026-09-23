@@ -503,6 +503,26 @@ por `js/designer/canvas.js` (teste de tensão do Estúdio).
    corpus e não é tratada. Se aparecer, o comportamento é: só a placa direta acompanha.
 4. **Safari/iOS e Android reais.** A deriva de fonte é medida e corrigida, mas nunca foi
    exercida nesses navegadores — segue no `luma-brain/07_ROADMAP.md`.
+5. **Piso que preserva a hierarquia — medido e NÃO ligado (22/09/2026).** Guardar 1/3 do salto
+   até o degrau de baixo (título de 60 não desce a 34 sobre subtítulo de 30) levou o bloqueio
+   do corpus de 17,4% a 26,1% e +16 bloqueios no fuzz. Decisão de produto pendente (Ryan);
+   hoje a hierarquia achatada cai no aviso de letra pequena (§16).
+6. **No bloqueio, a prévia desenha o texto estourando** — e o texto de ponto agora estoura
+   para BAIXO, podendo cobrir o campo vizinho. O download continua travado; o aviso só nomeia
+   o PRIMEIRO campo bloqueado.
+
+## 16. Rodada de 22/09/2026 — o que entrou
+
+| O quê | Onde | Caso |
+|---|---|---|
+| Texto de ponto quebra na caixa desenhada antes de encolher | `gFitTextToAuthoredBox` | 7b–7d |
+| Com placa, a altura útil é o INTERIOR da placa (CTA de 70px virava 152px e cobria a foto) | idem | 15b |
+| Irmãos (papel, fonte, corpo, largura e alinhamento iguais) saem no MENOR corpo do grupo | `gLocalFitArte`, fase 2 | 15c, 15d |
+| "por R$ 999,90" não parte o preço | `gSemanticUnits` | 15e |
+| Viúva (palavra sozinha fechando o bloco) pesa na escolha da quebra, quando há alternativa | `_gSmartWrapCalc` | — |
+| Contador de caracteres mede com o Local Fit, não com a régua antiga | `fMaxLenDaCaixa` | — |
+| Aviso laranja "letra pequena" na prévia: coube a ≤75% do corpo com 20+ caracteres | `_fLpSyncBloqueio` | fluxo |
+| Linter 4b: campo com altura para 1 linha só (a causa nº 1 de encolher cedo) | `linter.js` | — |
 
 ---
 

@@ -857,6 +857,25 @@ await test('bloqueio: o aviso da prévia acende, nomeia o campo e é clicável',
   assert(!nota.classList.contains('is-bloqueio'),'ficou com o estado de bloqueio pendurado');
 });
 
+await test('letra pequena: coube a ≤75% do corpo → aviso laranja que leva ao campo; pouco encolhido fica calado', async()=>{
+  reset();
+  const nota=document.getElementById('lp-layout-nota');
+  const idx=((fState.camp&&fState.camp.perguntas)||[]).findIndex(p=>p&&p.id==='produto');
+  assert(idx>=0,'o cenário precisa perguntar produto');
+  const campo=fs=>({invalid:false,bloqueios:[],campos:[{id:'L',nomes:['produto'],status:'fits',fontSize:fs,fontSizeAutorado:40}]});
+  const editReal=window.fEditCampo; let foi=-1; window.fEditCampo=i=>{foi=i;};
+  try{
+    _fLpSyncBloqueio(campo(28));
+    assert(!nota.hidden&&nota.classList.contains('is-aviso'),'encolheu 30% e a prévia não disse nada');
+    assert(!nota.classList.contains('is-bloqueio'),'aviso de letra pequena não é bloqueio');
+    assert(nota.textContent.indexOf(gFieldLabel('produto'))>=0,'não nomeia o campo: '+nota.textContent);
+    nota.click();
+    assert(foi===idx,'o clique não levou ao campo');
+    _fLpSyncBloqueio(campo(36));
+    assert(nota.hidden&&!nota.classList.contains('is-aviso'),'encolheu 10% e o aviso acendeu');
+  }finally{ window.fEditCampo=editReal; }
+});
+
 await test('bloqueio: a porta é ÚNICA — gHandleLayoutUnsafeError delega para a mesma UI', async()=>{
   reset();
   fState.dados={produto:'Hambúrguer Artesanal Duplo com Bacon e Cheddar'};

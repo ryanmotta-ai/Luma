@@ -1411,6 +1411,10 @@ function gStampPisosHierarquia(layers, canvas){
     if(!l || l.type!=='text' || !_gLayoutVisivel(l)) return;
     const s=Math.round(l.fontSize||24);
     const abaixo=degraus.find(t => t < s);
+    /* ⚠ Guardar 1/3 do SALTO até o degrau de baixo (título 60 não desce a 34 sobre sub 30)
+       foi medido em 22/09/2026 e NÃO entrou: sozinho, levou o bloqueio do corpus de 17,4% a
+       26,1% e +16 bloqueios no fuzz. Trocar arte fraca por franqueado travado é decisão de
+       produto (Ryan). Hoje a hierarquia achatada cai no aviso de "letra pequena" da prévia. */
     l._pisoFonte = (abaixo!=null) ? Math.max(abaixo, Math.round(s*0.5)) : null;
     /* O piso de hierarquia impede INVERSÃO, mas sozinho ainda autorizava 8px numa arte de
        1080px. Isso tecnicamente cabe e visualmente falha. O segundo piso é de legibilidade:
@@ -2414,6 +2418,10 @@ function _gSmartWrapCalc(text, maxW, layer) {
         const lastWord = lastLineWords[0];
         if (lastWord.length < 4) {
           orphanScore += 400;
+        } else if (!/\s/.test(lastWord)) {
+          // Viúva: uma palavra sozinha fechando o bloco ("COMBO FAMÍLIA / COM BATATA /
+          // GRANDE"). Menos grave que a órfã curta, mas é o que o olho acusa primeiro.
+          orphanScore += 220;
         }
       }
       

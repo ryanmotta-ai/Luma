@@ -354,6 +354,45 @@
     });
   });
 
+  /* ── 15b–15e. rodada de 22/09/2026 ────────────────────────────────────────────────── */
+  test('15b · placa não cresce para cima do vizinho: o texto cabe no INTERIOR dela', () => {
+    const placa = { id:'pl', type:'shape', shapeKind:'rect', x:60, y:100, w:360, h:70,
+                    fill:'#FF9000', visible:true, opacity:100 };
+    const cta = ponto({ id:'cta', name:'CTA', content:'{{cta}}', x:80, y:110, w:320, h:150,
+                        fontSize:36, textAlign:'center', layoutRefText:'PEÇA JÁ' });
+    const foto = { id:'foto', type:'shape', x:60, y:190, w:360, h:200, fill:'#333', visible:true, opacity:100 };
+    const lf = gLocalFitArte([placa, cta, foto], { canvas:CANVAS,
+      dados:{ cta:'PEÇA JÁ PELO APP E GANHE FRETE GRÁTIS' }, defaults:{} });
+    const pl = lf.layers.find(l => l.id === 'pl');
+    assert(pl.y + pl.h <= foto.y, 'a placa invadiu a foto: termina em ' + (pl.y + pl.h));
+  });
+
+  test('15c · irmãos com o mesmo desenho saem no MESMO corpo', () => {
+    const card = (id, x) => ponto({ id, name:id, content:'{{'+id+'}}', x, y:80, w:300, h:90,
+                                    fontSize:34, textAlign:'center', layoutRefText:'X-BURGER' });
+    const lf = gLocalFitArte([card('p1',40), card('p2',380), card('p3',720)], { canvas:CANVAS,
+      dados:{ p1:'X-BURGER', p2:'X-SALADA', p3:'X-TUDO DUPLO COM BACON E OVO' }, defaults:{} });
+    const fs = lf.result.campos.map(c => c.fontSize);
+    assert(lf.result.campos.every(c => c.status === 'fits'), 'os três deveriam caber');
+    assert(new Set(fs).size === 1, 'corpos diferentes na mesma grade: ' + fs.join('/'));
+    assert(fs[0] < 34, 'o grupo deveria ter descido junto com o mais longo');
+  });
+
+  test('15d · irmão NÃO é quem só parece: largura diferente não entra no grupo', () => {
+    const a = ponto({ id:'a', name:'a', content:'{{a}}', w:300, h:90, fontSize:34, layoutRefText:'X' });
+    const b = ponto({ id:'b', name:'b', content:'{{b}}', x:500, w:600, h:90, fontSize:34, layoutRefText:'X' });
+    const lf = gLocalFitArte([a, b], { canvas:CANVAS,
+      dados:{ a:'X-TUDO DUPLO COM BACON E OVO', b:'X-SALADA' }, defaults:{} });
+    const cb = lf.result.campos.find(c => c.id === 'b');
+    assert(cb.fontSize === 34 && cb.degrau === 'original', 'b não era irmão e encolheu: ' + cb.fontSize);
+  });
+
+  test('15e · "por R$ 999,90" não parte o preço entre linhas', () => {
+    const medir = s => s.length * 10;
+    const u = gSemanticUnits('De R$ 1.249,00 por R$ 999,90 com brinde'.split(' '), medir, 400);
+    assert(u.includes('por R$ 999,90'), 'o valor ficou órfão: ' + JSON.stringify(u));
+  });
+
   /* ── Bordas do contrato ───────────────────────────────────────────────────────────── */
   test('16 · entradas de borda não quebram e não inventam veredito', () => {
     assert(gFitTextToAuthoredBox({ id:'x', type:'shape' }, 'oi', {}) === null, 'shape deveria devolver null');

@@ -1158,7 +1158,30 @@ function _fLpSyncBloqueio(resArg){
   const res=(resArg!==undefined)?resArg:_lpLayoutResult;
   const campo=(res&&res.invalid&&res.bloqueios&&res.bloqueios[0]
               &&(res.bloqueios[0].campos||[])[0])||null;
-  if(!campo){ nota.hidden=true; nota.textContent=''; nota.classList.remove('is-bloqueio'); return; }
+  nota.classList.remove('is-aviso');
+  /* LETRA BEM MENOR, SEM BLOQUEIO (22/09/2026). Coube, mas a ≤75% do corpo desenhado — é
+     a arte que sai "certa" e feia. Aviso laranja, discreto e clicável: leva ao campo. Não
+     trava nada; encurtar é escolha de quem vende.
+     ⚠ Só com 20+ caracteres: num template de caixa justa, "COMBO FAMÍLIA" (13) já cai a 60%
+     — pedir para encurtar isso é pedir o impossível. Caixa justa é do Estúdio (linter 4b). */
+  if(!campo){
+    const menor=((res&&res.campos)||[])
+      .filter(c=>c&&c.status==='fits'&&c.fontSizeAutorado&&c.nomes&&c.nomes.length
+                &&(c.chars==null||c.chars>=20)&&c.fontSize/c.fontSizeAutorado<=0.75)
+      .sort((a,b)=>a.fontSize/a.fontSizeAutorado-b.fontSize/b.fontSizeAutorado)[0];
+    const perguntas=(fState&&fState.camp&&fState.camp.perguntas)||[];
+    const idx=menor?perguntas.findIndex(p=>p&&p.id===menor.nomes[0]):-1;
+    if(idx<0){ nota.hidden=true; nota.textContent=''; nota.classList.remove('is-bloqueio'); return; }
+    const rot=(typeof gFieldLabel==='function')?gFieldLabel(menor.nomes[0]):menor.nomes[0];
+    nota.hidden=false;
+    nota.classList.remove('is-bloqueio');
+    nota.classList.add('is-aviso');
+    nota.textContent='“'+rot+'” ficou com a letra pequena — encurtar';
+    nota.title='O texto de “'+rot+'” coube, mas a letra diminuiu bastante. Um texto mais curto deixa a arte mais forte.';
+    nota.setAttribute('aria-label', nota.title);
+    nota.onclick=()=>{ if(typeof fEditCampo==='function') fEditCampo(idx); };
+    return;
+  }
   const rotulo=(typeof gFieldLabel==='function')?gFieldLabel(campo):campo;
   nota.hidden=false;
   nota.classList.add('is-bloqueio');

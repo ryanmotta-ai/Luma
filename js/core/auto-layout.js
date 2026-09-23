@@ -453,7 +453,10 @@ function gSemanticUnits(words, medir, disponivel){
       const junto = unidade + ' ' + b;
       if(!cabe(junto)) break;                 // não cabe colado → melhor separado que partido
       unidade = junto; i++;
-      if(casaConector && !casaPar) break;     // conector cola UMA palavra, não a frase inteira
+      if(casaConector && !casaPar){           // conector cola UMA palavra, não a frase inteira —
+        const prox = words[i+1];              // exceto quando ela abre um par: "por R$" + "999,90"
+        if(!(prox && G_LAYOUT_UNIDADES.some(r => r.antes.test(b) && r.depois.test(prox)))) break;
+      }
     }
     out.push(unidade);
   }

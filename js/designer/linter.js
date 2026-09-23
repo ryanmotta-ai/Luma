@@ -22,7 +22,7 @@ let _dAiStressLoading = false;
    Gera casos realistas para o nicho de delivery e testa contra as regras
    determinísticas do motor geométrico do Luma. */
 async function _dLinterFetchAIStress(varsTeste){
-  if (_dAiStressLoading || !window.gAI || !window.gAI.isEnabled('stressCases')) return;
+  if (_dAiStressLoading || !window.gAI || !(typeof window.gAI.isEnabled === 'function' && window.gAI.isEnabled('stressCases'))) return;
   const fields = (varsTeste || []).filter(v => v && v.type !== 'image').map(v => ({
     name: v.name,
     maxLen: v.maxLen || 0
@@ -102,7 +102,9 @@ function _dLinterEstresse() {
   const exemplo = {};
   usados.forEach(vn => { exemplo[vn] = gFieldSampleValue(varsTeste.find(x => x.name === vn) || { name: vn }); });
 
-  if (!_dAiStressCases && !_dAiStressLoading && window.gAI && window.gAI.isEnabled('stressCases')) {
+  /* ⚠ `gAI.isEnabled` não existe no gateway (ai-client.js só tem `isFeatureEnabled`): sem o
+     `typeof`, esta linha estourava e o checklist INTEIRO do Estúdio morria aqui (22/09/2026). */
+  if (!_dAiStressCases && !_dAiStressLoading && window.gAI && (typeof window.gAI.isEnabled === 'function' && window.gAI.isEnabled('stressCases'))) {
     _dLinterFetchAIStress(varsTeste);
   }
 
@@ -330,6 +332,27 @@ function dRunLinter() {
       }
     }
     
+    /* 4b. CAIXA COM ALTURA DE UMA LINHA SÓ (22/09/2026). O Local Fit quebra o texto dentro da
+       caixa e só encolhe quando as linhas lotam a altura. Caixa de 1 linha (o padrão do PSD,
+       que traz o bbox justo da frase) não tem para onde quebrar: texto maior já sai diminuindo
+       a letra. Aqui é onde se resolve de uma vez, e não em cada franqueado. Preço/desconto/
+       código ficam fora: o tamanho deles vem da máscara e a caixa é justa por desenho. */
+    if (l.type === 'text' && !l.vertical) {
+      const campo = dLayerBoundField(l);
+      const v = campo ? dVars.find(x => x.name === campo) : null;
+      const lh = (l.fontSize || 24) * ((typeof gLineHeightDe === 'function') ? gLineHeightDe(l) : (l.lineHeight || 1.2));
+      if (v && !['price', 'discount', 'code', 'image'].includes(v.type || 'text')
+          && Math.floor((l.h || 0) / Math.max(1, lh)) <= 1) {
+        issues.push({
+          type: 'info',
+          title: 'Campo com altura para 1 linha',
+          desc: `A caixa de “${v.label || campo}” só tem altura para uma linha. Se o franqueado escrever um texto maior, a letra diminui em vez de pular para a linha de baixo. Se esse texto pode crescer, aumente a altura da caixa até onde ele pode ocupar.`,
+          layerId: l.id,
+          layerName: l.name
+        });
+      }
+    }
+
     // 5. OTIMIZAÇÃO: Imagem Gigante
     // ⚠ Esta regra nunca disparou: testava `l.url`, mas camadas image/frame guardam a fonte em
     // `l.imgUrl` (`layers.js:382,390,408`). Regra morta desde sempre, achada na revisão pró-1.0.

@@ -239,11 +239,22 @@ function gFitTextToAuthoredBox(layer, conteudo, opts){
   opts = opts || {};
   const box = gAuthoredTextBox(layer, opts);
   if(!box) return null;
+  /* PLACA NÃO CRESCE PARA CIMA DO VIZINHO. A placa acompanha a tinta, então cada linha nova
+     do texto era uma placa mais alta — medido: CTA de 70px virou 152px e cobriu a foto de
+     baixo. Com placa, a altura útil é o INTERIOR dela: o texto quebra/encolhe lá dentro. */
+  const _pl = opts.placa && opts.placa._placa;
+  if(_pl && _pl.refH > 0){
+    const interno = (opts.placa.h || 0) - Math.max(0, _pl.padT) - Math.max(0, _pl.padB);
+    box.alturaDisponivel = Math.min(box.alturaDisponivel,
+                                    Math.max(box.tintaAutorada.h || 0, _pl.refH, interno));
+  }
 
   const ctx = _gLfCtx(opts.ctx);
   const texto = String(conteudo == null ? '' : conteudo);
   const passos = [];
-  let fs = box.fontSize, ultimo = null;
+  /* `tetoFonte`: corpo máximo imposto pelo grupo de irmãos (§3, fase 2). Nunca sobe. */
+  let fs = (opts.tetoFonte > 0) ? Math.max(box.piso, Math.min(box.fontSize, Math.round(opts.tetoFonte)))
+                                : box.fontSize, ultimo = null;
 
   /* CAIXA DO ILLUSTRATOR. Texto de PONTO também quebra dentro da caixa que o designer
      desenhou (`w/h` da camada): em cada corpo tenta primeiro a linha única (ORIGINAL FIRST —
@@ -410,6 +421,8 @@ function gLocalFitArte(layers, opts){
   const campos = [], bloqueios = [], changes = [], invalidIds = [];
   let encolheu = false, quebrou = false;
 
+  /* FASE 1 — MEDIR cada texto com campo, sem escrever nada. */
+  const medidos = [];
   out.forEach(l => {
     if(!l || l.type !== 'text') return;
     if(typeof _gLayoutVisivel === 'function' && !_gLayoutVisivel(l)) return;
@@ -422,18 +435,51 @@ function gLocalFitArte(layers, opts){
       : String(l.content || '');
     /* CAMPO VAZIO NÃO É ERRO (item 14). Não encaixa, não bloqueia, não adapta nada: a camada
        segue exatamente como está e quem decide se ela aparece é o render. */
-    if(!String(conteudo).trim()){ campos.push({ id:l.id, status:'vazio', degrau:'vazio' }); return; }
+    if(!String(conteudo).trim()){ medidos.push({ l, vazio:true }); return; }
 
     /* Os MESMOS runs do render (split de preço: inteiro, símbolo e centavos em corpos
        diferentes). Medir sem eles é medir outro texto. */
     const runs = (typeof gBuildVirtualRuns === 'function')
       ? gBuildVirtualRuns(l, dados, 1, defaults) : null;
     const placa = out.find(p => p && p._placa && p._placa.alvo === l.id) || null;
+    const fitOpts = { layers: out, canvas: cv, ctx, runs, placa };
+    const r = gFitTextToAuthoredBox(l, conteudo, fitOpts);
+    if(r) medidos.push({ l, conteudo, fitOpts, r });
+  });
 
-    const r = gFitTextToAuthoredBox(l, conteudo, { layers: out, canvas: cv, ctx, runs, placa });
-    if(!r) return;
+  /* FASE 2 — IRMÃOS NO MESMO CORPO. Três cards iguais ("X-BURGER", "X-SALADA", "X-TUDO DUPLO
+     COM BACON E OVO") saíam 34/34/28px: numa grade isso parece erro, não ajuste. Textos com o
+     mesmo desenho (papel, fonte, corpo, largura e alinhamento autorados) formam um grupo e
+     todos usam o MENOR corpo que coube no grupo. Só tipografia: nada se move. Quem bloqueou
+     não puxa o grupo para o piso — o bloqueio já é a resposta dele. */
+  const grupos = new Map();
+  medidos.forEach(m => {
+    if(m.vazio || m.r.status !== 'fits') return;
+    const l = m.l;
+    const k = [l.layoutSemantic || '', l.font || '', Math.round(m.r.diagnostics.fontSizeAutorado),
+               Math.round((l.w || 0) / 4), l.textAlign || 'left', l.textBox || 'point'].join('|');
+    if(!grupos.has(k)) grupos.set(k, []);
+    grupos.get(k).push(m);
+  });
+  grupos.forEach(g => {
+    if(g.length < 2) return;
+    const menor = Math.min(...g.map(m => m.r.fontSize));
+    g.forEach(m => {
+      if(m.r.fontSize <= menor) return;
+      const r2 = gFitTextToAuthoredBox(m.l, m.conteudo, Object.assign({}, m.fitOpts, { tetoFonte: menor }));
+      if(r2 && r2.status === 'fits') m.r = r2;
+    });
+  });
 
-    campos.push({ id:l.id, status:r.status, degrau:r.degrau, fontSize:r.fontSize,
+  /* FASE 3 — APLICAR. */
+  medidos.forEach(m => {
+    const l = m.l;
+    if(m.vazio){ campos.push({ id:l.id, status:'vazio', degrau:'vazio' }); return; }
+    const r = m.r, placa = m.fitOpts.placa;
+
+    campos.push({ id:l.id, nomes:(typeof gLayoutCamposDe === 'function') ? gLayoutCamposDe(l) : [],
+                  chars:String(m.conteudo || '').length,
+                  status:r.status, degrau:r.degrau, fontSize:r.fontSize,
                   fontSizeAutorado:r.diagnostics.fontSizeAutorado, linhas:r.lines.length,
                   overflowX:r.overflowX, overflowY:r.overflowY, piso:r.diagnostics.piso });
 

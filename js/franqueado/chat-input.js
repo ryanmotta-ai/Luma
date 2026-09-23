@@ -65,7 +65,15 @@ function fMaxLenDaCaixa(id){
         const dados = Object.assign({}, (fState && fState.dados) || {});
         dados[id] = (typeof gStressTexto === 'function')
           ? gStressTexto(_F_MAXLEN_FRASE, n) : _F_MAXLEN_FRASE.slice(0, n);
-        const f = gFitTextLayer(alvo, gInterpolate(l.content || '', dados, {onEmpty:'remove'}));
+        const texto = gInterpolate(l.content || '', dados, {onEmpty:'remove'});
+        /* A MESMA regua do bloqueio (Local Fit): cabe na caixa no corpo autorado, quebrando
+           se precisar. Com a regua antiga, texto de ponto nunca quebrava aqui e o contador
+           prometia um numero diferente do "cabem ate N" do bloqueio. */
+        if(typeof gFitTextToAuthoredBox === 'function'){
+          const r = gFitTextToAuthoredBox(l, texto, {});
+          return !!r && r.status === 'fits' && !r.changed;
+        }
+        const f = gFitTextLayer(alvo, texto);
         // Corpo autorado intacto + nao estourou a caixa + dentro do teto de linhas.
         return !!f && !f.estourou && !f.excedeuLinhas && f.fontSize >= base - 0.5;
       };

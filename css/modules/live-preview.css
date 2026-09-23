@@ -281,6 +281,10 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
 .lp-layout-nota.is-bloqueio:focus-visible{
   outline:2px solid var(--dm-red-text);outline-offset:2px;
 }
+/* LETRA PEQUENA: a arte sai, mas fraca. Mesmo ponto laranja do aviso comum, só que clicável. */
+.lp-layout-nota.is-aviso{cursor:pointer;transition:background var(--transition-fast)}
+.lp-layout-nota.is-aviso:hover{background:color-mix(in srgb,var(--dm-orange) 12%,transparent)}
+.lp-layout-nota.is-aviso:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 
 .lp-tool-btn {
   width:32px;height:32px;background:var(--off-white);
