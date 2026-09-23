@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-09-23 — Recursos do gateway LIGADOS + modelo Gemini 2.5 Flash com escada de reserva
+
+**Decisão do Ryan (roadmap, decisão 5):** `gAI.isEnabled(flag)` passa a existir (`js/core/ai/ai-client.js`) = há caminho (sessão + function) **e** a flag do `AI_FEATURES` não é `false`. Liga de uma vez: legenda por IA (`caption`), revisão da peça (`contentReview`), validação de imagem (`imageValidation`), mapeamento de PSD (`psdMapping`), sugestão de metadados (`materialEnrichment`) e casos de estresse (`stressCases`). Todos já caem no fallback local se a IA falhar.
+
+**Modelo:** padrão `gemini-2.5-flash` (front e function). Function `ai` publicada (versão 8): se o Google recusar o modelo (404/403 — os 2.5 só abrem para contas que já os usavam), desce por `gemini-2.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-3.6-flash` e lembra o recusado enquanto a instância vive. Nos 2.5 manda `thinkingBudget: 0` (o pensamento é cobrado como saída e nenhuma tarefa precisa dele). A resposta traz `modelo` (o que respondeu de fato) e o `ia_chamada` grava esse nome. Preços de 09/2026 por 1M tokens (entrada/saída): 2.5 Flash 0,30/2,50 · 2.5 Flash-Lite 0,10/0,40 · 3.1 Flash-Lite 0,25/1,50 · 3.6 Flash 0,75/3,75.
+
+---
+
 ## 2026-09-23 — IA só pela Edge Function `ai` (v2); chave do Gemini saiu do front
 
 **Achado:** desde 11/09 (`eb1e98c`) o front chamava o Gemini direto, com a chave escrita em `js/00-config.js` — pública para qualquer navegador e no histórico do git. A function `ai` (v1, 08/2026) estava no ar mas nunca era chamada (`_gAiEdgeOk = false` fixo). **A chave foi revogada pelo Ryan e a nova está só no secret `GEMINI_API_KEY`.**

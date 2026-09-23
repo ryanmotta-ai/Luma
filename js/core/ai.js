@@ -44,7 +44,7 @@ function gAiModel(){
     const escolhido = localStorage.getItem('luma_gemini_model');
     if(escolhido && !['gemini-1.5-flash','gemini-2.0-flash','gemini-flash-latest'].includes(escolhido)) return escolhido;
   }catch(e){}
-  return window.LUMA_GEMINI_MODEL || 'gemini-3.6-flash';
+  return window.LUMA_GEMINI_MODEL || 'gemini-2.5-flash';
 }
 
 /**
@@ -103,7 +103,10 @@ async function gAiEdgeFetch(body, signal){
     _gAiTrackChamada(body, t0, 0, (e&&e.name==='AbortError')?'timeout':'rede');
     throw e;
   }
-  _gAiTrackChamada(body, t0, res.status, res.ok?null:('http_'+res.status));
+  // Com sucesso, a function diz qual modelo respondeu (pode ser a reserva): é o dado de custo.
+  if(res.ok) res.clone().json().then(d=>_gAiTrackChamada(body, t0, res.status, null, d&&d.modelo))
+    .catch(()=>_gAiTrackChamada(body, t0, res.status, null));
+  else _gAiTrackChamada(body, t0, res.status, 'http_'+res.status);
   if(res.status===404){ _gAiEdgeOk=false; console.warn('[ai] Edge Function `ai` não existe no Supabase'); }
   else if(res.status===503){
     const txt=await res.clone().text().catch(()=>'');
@@ -116,13 +119,13 @@ async function gAiEdgeFetch(body, signal){
 /* ia_chamada: UMA linha por ida à function, dos dois clientes — é daqui que o painel tira uso
    por tarefa, taxa de erro e latência. Sem prompt nem resposta: só a tarefa, o tempo e o
    desfecho (a conta que importa é de custo e de falha, não de conteúdo). */
-function _gAiTrackChamada(body, t0, status, erro){
+function _gAiTrackChamada(body, t0, status, erro, modelo){
   try{
     if(typeof gTrackEvent!=='function') return;
     const anexos=(body&&Array.isArray(body.parts))?body.parts:[];
     gTrackEvent('ia_chamada',{task:String((body&&body.task)||''), ok:!erro, status:status||null, erro:erro||null,
       ms:Date.now()-t0, anexos:anexos.length, tipo_anexo:anexos[0]?String(anexos[0].mimeType||'').split('/')[0]:null,
-      gateway:!!(body&&body.responseSchema), modelo:gAiModel()});
+      gateway:!!(body&&body.responseSchema), modelo:modelo||gAiModel()});
   }catch(e){}
 }
 

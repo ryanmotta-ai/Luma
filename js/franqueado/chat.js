@@ -2283,12 +2283,9 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
     }
   }catch(e){}
 
-  /* ⚠ `gAI.isEnabled` não existe no gateway (ai-client.js só tem `isReady`/`isFeatureEnabled`):
-     a checagem estourava e a legenda por IA nunca rodou. Segue DESLIGADA até o Ryan decidir
-     ligá-la (roadmap, decisão 5) — sai a do motor local, como já saía. */
-  if (!window.gAI || typeof window.gAI.isEnabled !== 'function') return fallback;
-  // Gateway Novo e Blindado: gAI (§14, §32, §60)
-  if (window.gAI.isEnabled('caption')) {
+  // Gateway Novo e Blindado: gAI (§14, §32, §60). O typeof fica como rede: sem ele, um gateway
+  // antigo em cache sem `isEnabled` derrubava a legenda inteira em vez de cair no motor local.
+  if (window.gAI && typeof window.gAI.isEnabled === 'function' && window.gAI.isEnabled('caption')) {
     const res = await window.gAI.run('caption.generate', {
       produto: prod,
       precoDe: dados.precoDe || '',

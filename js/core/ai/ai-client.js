@@ -29,10 +29,10 @@
 
   function _resolveModel(modelType){
     const cfg = window.AI_MODELS || {};
-    if (modelType === 'vision') return cfg.vision || 'gemini-3.6-flash';
-    if (modelType === 'reasoning') return cfg.reasoning || 'gemini-3.6-flash';
+    if (modelType === 'vision') return cfg.vision || 'gemini-2.5-flash';
+    if (modelType === 'reasoning') return cfg.reasoning || 'gemini-2.5-flash';
     if (modelType === 'embedding') return cfg.embedding || 'text-embedding-004';
-    return cfg.fast || 'gemini-3.6-flash';
+    return cfg.fast || 'gemini-2.5-flash';
   }
 
   function _isFeatureEnabled(flagName){
@@ -75,6 +75,13 @@
 
     isFeatureEnabled: function(flagName){
       return _isFeatureEnabled(flagName);
+    },
+
+    /* O que as features perguntam antes de chamar (chat, publish, psd-import, linter). Faltou de
+       11/09 a 23/09/2026 e cada checagem estourava calada — os recursos nunca rodaram. Ligado a
+       pedido do Ryan (23/09): há caminho (sessão + function) E a flag do AI_FEATURES não é false. */
+    isEnabled: function(flagName){
+      return _temCaminho() && _isFeatureEnabled(flagName);
     },
 
     abort: function(identifier){

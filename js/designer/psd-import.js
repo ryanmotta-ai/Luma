@@ -1752,9 +1752,8 @@ async function dPsdMapWithAI(){
   let resp=null;
 
   // Gateway Seguro gAI (§45-§51)
-  /* `gAI.isEnabled` não existe no gateway: sem a guarda, isto estourava DEPOIS do
-     `_dPsdAiBusy=true` e o botão ficava preso em "Analisando a arte…". Sem ele, o botão (que a
-     pessoa aperta de propósito) segue pelo gAskAI `mapear-psd` abaixo, como antes de 11/09. */
+  /* O typeof protege o `_dPsdAiBusy=true` acima: sem `gAI.isEnabled` (gateway antigo em cache) a
+     checagem estourava e o botão ficava preso em "Analisando a arte…"; assim cai no `mapear-psd`. */
   if (window.gAI && (typeof window.gAI.isEnabled === 'function' && window.gAI.isEnabled('psdMapping'))) {
     const allowedFields = vars.map(v => v.name);
     const layersPayload = itens.map(o => ({

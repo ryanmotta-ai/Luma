@@ -11,15 +11,17 @@
 const HIST_KEY='dm_artes_hist_v2';
 /* A chave do Gemini NÃO mora no front: é o secret GEMINI_API_KEY da Edge Function `ai`
    (supabase/functions/ai). A que ficava aqui vazou e foi revogada em 23/09/2026. */
-// Modelo dos 2 agentes, em UM lugar só. 'gemini-3.6-flash' é estável e não sofre da oscilação de alta demanda do 3.8.
-window.LUMA_GEMINI_MODEL = window.LUMA_GEMINI_MODEL || 'gemini-3.6-flash';
+/* Modelo da IA, em UM lugar só. 'gemini-2.5-flash' (23/09/2026, pedido do Ryan): menos da metade do
+   preço do 3.6 Flash. Se a conta não tiver acesso aos 2.5, a Edge Function desce sozinha para o
+   mais barato disponível (MODELOS_RESERVA em supabase/functions/ai) — o front não precisa saber. */
+window.LUMA_GEMINI_MODEL = window.LUMA_GEMINI_MODEL || 'gemini-2.5-flash';
 
 /* ── CAMADA DE INTELIGÊNCIA (GEMINI INTELLIGENCE LAYER) ──
    Modelos centralizados (§6) e Feature Flags individuais (§14). */
 window.AI_MODELS = window.AI_MODELS || {
-  fast: 'gemini-3.6-flash',
-  vision: 'gemini-3.6-flash',
-  reasoning: 'gemini-3.6-flash',
+  fast: 'gemini-2.5-flash',
+  vision: 'gemini-2.5-flash',
+  reasoning: 'gemini-2.5-flash',
   embedding: 'text-embedding-004'
 };
 window.AI_FEATURES = window.AI_FEATURES || {

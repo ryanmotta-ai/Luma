@@ -49,8 +49,15 @@ const TASKS = ["legenda", "encurtar", "ajuda", "cardapio", "casar-fotos", "cli",
 
 // Modelo: o front escolhe (console `modelo`), mas só dentro da família Gemini — nome arbitrário
 // não chega na URL do provedor.
-const MODELO_PADRAO = "gemini-3.6-flash";
+const MODELO_PADRAO = "gemini-2.5-flash";
 const MODELO_OK = /^gemini-[a-z0-9.\-]{1,40}$/i;
+// Se o Google recusar o modelo (404/403 — os 2.5 só abrem para conta que já os usava), desce
+// por esta escada, do mais barato para o mais caro (preço de 09/2026, por 1M tokens de entrada/
+// saída): 2.5 Flash-Lite 0,10/0,40 · 3.1 Flash-Lite 0,25/1,50 · 3.6 Flash 0,75/3,75.
+const MODELOS_RESERVA = ["gemini-2.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.6-flash"];
+// Recusado uma vez, recusado sempre (é permissão da conta): a instância lembra e pula direto,
+// em vez de pagar uma ida ao Google a mais em toda chamada.
+const recusados = new Set<string>();
 const MAX_SCHEMA = 20000;      // caracteres do responseSchema serializado
 
 // Tetos por chamada: prompt de peça de marketing é curto; anexo é foto/PDF de cardápio.
@@ -231,17 +238,33 @@ Deno.serve(async (req) => {
 
     // 4) Gemini
     // A chave vai no cabeçalho, não na query: URL acaba em log de proxy e de erro.
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": chave },
-      body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: !querJson ? {}
-          : schema ? { responseMimeType: "application/json", responseSchema: schema }
-          : { responseMimeType: "application/json" },
-      }),
-    });
+    const chama = (m: string) => {
+      const cfg: Record<string, unknown> = !querJson ? {}
+        : schema ? { responseMimeType: "application/json", responseSchema: schema }
+        : { responseMimeType: "application/json" };
+      // 2.5 "pensa" por padrão e cobra esse pensamento como saída: aqui nenhuma tarefa precisa
+      // disso (legenda, encurtar, mapear) — orçamento 0 corta custo e latência. Só nos 2.5: nos
+      // 3.x o parâmetro é outro e mandá-lo daria 400.
+      if (/^gemini-2\.5-flash/i.test(m)) cfg.thinkingConfig = { thinkingBudget: 0 };
+      return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": chave },
+        body: JSON.stringify({ contents: [{ parts }], generationConfig: cfg }),
+      });
+    };
+    const escada = [modelo, ...MODELOS_RESERVA.filter((m) => m !== modelo)];
+    const fila = escada.filter((m) => !recusados.has(m));
+    if (!fila.length) fila.push(escada[escada.length - 1]);
+    let usado = fila[0];
+    let res = await chama(usado);
+    for (const reserva of fila.slice(1)) {
+      if (res.ok || (res.status !== 404 && res.status !== 403)) break;
+      console.warn(`[ai] modelo ${usado} recusado (${res.status}) — tentando ${reserva}`);
+      recusados.add(usado);
+      await res.body?.cancel();
+      usado = reserva;
+      res = await chama(usado);
+    }
     if (!res.ok) {
       const detalhe = await res.text().catch(() => "");
       console.warn("[ai] Gemini respondeu " + res.status + ": " + detalhe.slice(0, 300));
@@ -255,7 +278,8 @@ Deno.serve(async (req) => {
       .join("");
     if (!text) return json({ error: "resposta vazia do provedor" }, 502);
 
-    return json({ ok: true, task, text });
+    // `modelo` = o que respondeu de fato (pode ser a reserva): vai para a telemetria de custo.
+    return json({ ok: true, task, text, modelo: usado });
   } catch (e) {
     console.warn("[ai] falhou:", e);
     return json({ error: String((e as Error)?.message ?? e) }, 500);

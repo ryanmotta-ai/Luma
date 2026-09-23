@@ -102,8 +102,8 @@ function _dLinterEstresse() {
   const exemplo = {};
   usados.forEach(vn => { exemplo[vn] = gFieldSampleValue(varsTeste.find(x => x.name === vn) || { name: vn }); });
 
-  /* ⚠ `gAI.isEnabled` não existe no gateway (ai-client.js só tem `isFeatureEnabled`): sem o
-     `typeof`, esta linha estourava e o checklist INTEIRO do Estúdio morria aqui (22/09/2026). */
+  /* O `typeof` fica: de 11/09 a 23/09/2026 o `gAI.isEnabled` não existia e esta linha derrubava o
+     checklist INTEIRO do Estúdio. Com um gateway antigo em cache, ele volta a proteger. */
   if (!_dAiStressCases && !_dAiStressLoading && window.gAI && (typeof window.gAI.isEnabled === 'function' && window.gAI.isEnabled('stressCases'))) {
     _dLinterFetchAIStress(varsTeste);
   }
