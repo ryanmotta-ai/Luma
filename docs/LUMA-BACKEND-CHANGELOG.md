@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-09-23 — Modelo medido: 2.5 indisponível; padrão 3.1 Flash-Lite com escada por disponibilidade
+
+**Medido pelo site, logado como gestão:** `gemini-2.5-flash` e `gemini-2.5-flash-lite` → **404** (o Google só abre os 2.5 para quem já os usava). `gemini-3.1-flash-lite` → 503 "high demand" em todas as tentativas. `gemini-3.5-flash-lite` → 200, mas **25s** para um "olá" (fora). `gemini-3.6-flash` → 200 em 3–5s, com picos de 20s e 503. `gemini-3.8-flash` → 503 no mesmo pico. Às 14h50 (UTC) todos os Flash davam 503: a sobrecarga era do Google.
+
+**Function `ai` (versão 11):** padrão `gemini-3.1-flash-lite`; escada `3.1-flash-lite → 3.6-flash → 3.8-flash → 3.7-flash` (os três Flash têm o mesmo preço, filas separadas). Desce em 403/404/429/503. Aceita do front só nomes da escada (um 2.5 de front em cache viraria um 404 por chamada). Sem memória de "recusado": cada chamada costuma subir instância nova. O `thinkingBudget` dos 2.5 saiu junto. Front: padrão `gemini-3.1-flash-lite` (`00-config.js`, `ai.js`, `ai-client.js`).
+
+---
+
 ## 2026-09-23 — Recursos do gateway LIGADOS + modelo Gemini 2.5 Flash com escada de reserva
 
 **Decisão do Ryan (roadmap, decisão 5):** `gAI.isEnabled(flag)` passa a existir (`js/core/ai/ai-client.js`) = há caminho (sessão + function) **e** a flag do `AI_FEATURES` não é `false`. Liga de uma vez: legenda por IA (`caption`), revisão da peça (`contentReview`), validação de imagem (`imageValidation`), mapeamento de PSD (`psdMapping`), sugestão de metadados (`materialEnrichment`) e casos de estresse (`stressCases`). Todos já caem no fallback local se a IA falhar.

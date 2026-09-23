@@ -47,17 +47,19 @@ const TASKS = ["legenda", "encurtar", "ajuda", "cardapio", "casar-fotos", "cli",
   "caption.generate", "copy.fit", "content.review", "image.validate", "psd.map", "metadata.suggest",
   "stress.generate", "search.expand"];
 
-// Modelo: o front escolhe (console `modelo`), mas só dentro da família Gemini — nome arbitrário
-// não chega na URL do provedor.
-const MODELO_PADRAO = "gemini-2.5-flash";
+// O mais barato que ESTA conta tem (medido em 23/09/2026). Os 2.5 (Flash 0,30/2,50 e Flash-Lite
+// 0,10/0,40 por 1M tokens) dão 404: o Google só os abre para conta que já os usava — ficaram fora.
+const MODELO_PADRAO = "gemini-3.1-flash-lite";
 const MODELO_OK = /^gemini-[a-z0-9.\-]{1,40}$/i;
-// Se o Google recusar o modelo (404/403 — os 2.5 só abrem para conta que já os usava), desce
-// por esta escada, do mais barato para o mais caro (preço de 09/2026, por 1M tokens de entrada/
-// saída): 2.5 Flash-Lite 0,10/0,40 · 3.1 Flash-Lite 0,25/1,50 · 3.6 Flash 0,75/3,75.
-const MODELOS_RESERVA = ["gemini-2.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.6-flash"];
-// Recusado uma vez, recusado sempre (é permissão da conta): a instância lembra e pula direto,
-// em vez de pagar uma ida ao Google a mais em toda chamada.
-const recusados = new Set<string>();
+// Escada, do mais barato para o mais caro (entrada/saída por 1M tokens, 09/2026):
+// 3.1 Flash-Lite 0,25/1,50 · 3.6, 3.8 e 3.7 Flash 0,75/3,75 (mesmo preço, filas separadas).
+// Desce quando o modelo não existe para a conta (404/403) OU está sem vaga (503 "high demand",
+// 429 cota) — cada modelo tem fila própria. Medido em 23/09/2026: o 3.1 Flash-Lite deu 503 em
+// todas as tentativas; o 3.6 Flash respondeu entre 3s e 20s e também deu 503 no pico — daí os
+// dois Flash de mesmo preço no fim. ⛔ O 3.5 Flash-Lite (0,30/2,50) FICOU FORA: levou 25s para
+// um "olá" e empurrava a chamada para além do timeout de 45s do front.
+const MODELOS_RESERVA = ["gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.7-flash"];
+const DESCE = new Set([403, 404, 429, 503]);
 const MAX_SCHEMA = 20000;      // caracteres do responseSchema serializado
 
 // Tetos por chamada: prompt de peça de marketing é curto; anexo é foto/PDF de cardápio.
@@ -197,7 +199,10 @@ Deno.serve(async (req) => {
     const task = String(body?.task ?? "");
     let prompt = String(body?.prompt ?? "");
     const partes = Array.isArray(body?.parts) ? body.parts : [];
-    const modelo = MODELO_OK.test(String(body?.model ?? "")) ? String(body.model) : MODELO_PADRAO;
+    // Pedido do front vale só se for um degrau da escada: um nome fora dela (o 2.5 de um front em
+    // cache, um palpite no console) custaria um 404 em toda chamada antes de cair na reserva.
+    const pedido = String(body?.model ?? "");
+    const modelo = MODELO_OK.test(pedido) && MODELOS_RESERVA.includes(pedido) ? pedido : MODELO_PADRAO;
     const schema = (body?.responseSchema && typeof body.responseSchema === "object") ? body.responseSchema : null;
     if (schema && JSON.stringify(schema).length > MAX_SCHEMA) return json({ error: "schema grande demais" }, 400);
     let querJson = body?.json !== false; // padrão: resposta em JSON (todas as tarefas de hoje)
@@ -239,28 +244,23 @@ Deno.serve(async (req) => {
     // 4) Gemini
     // A chave vai no cabeçalho, não na query: URL acaba em log de proxy e de erro.
     const chama = (m: string) => {
-      const cfg: Record<string, unknown> = !querJson ? {}
+      const cfg = !querJson ? {}
         : schema ? { responseMimeType: "application/json", responseSchema: schema }
         : { responseMimeType: "application/json" };
-      // 2.5 "pensa" por padrão e cobra esse pensamento como saída: aqui nenhuma tarefa precisa
-      // disso (legenda, encurtar, mapear) — orçamento 0 corta custo e latência. Só nos 2.5: nos
-      // 3.x o parâmetro é outro e mandá-lo daria 400.
-      if (/^gemini-2\.5-flash/i.test(m)) cfg.thinkingConfig = { thinkingBudget: 0 };
       return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": chave },
         body: JSON.stringify({ contents: [{ parts }], generationConfig: cfg }),
       });
     };
-    const escada = [modelo, ...MODELOS_RESERVA.filter((m) => m !== modelo)];
-    const fila = escada.filter((m) => !recusados.has(m));
-    if (!fila.length) fila.push(escada[escada.length - 1]);
+    // Cada chamada costuma subir uma instância nova ("booted" no log), então não adianta lembrar
+    // recusa em memória: a escada curta e sem modelo sabidamente morto é o que poupa tempo.
+    const fila = [modelo, ...MODELOS_RESERVA.filter((m) => m !== modelo)];
     let usado = fila[0];
     let res = await chama(usado);
     for (const reserva of fila.slice(1)) {
-      if (res.ok || (res.status !== 404 && res.status !== 403)) break;
-      console.warn(`[ai] modelo ${usado} recusado (${res.status}) — tentando ${reserva}`);
-      recusados.add(usado);
+      if (res.ok || !DESCE.has(res.status)) break;
+      console.warn(`[ai] modelo ${usado} indisponível (${res.status}) — tentando ${reserva}`);
       await res.body?.cancel();
       usado = reserva;
       res = await chama(usado);

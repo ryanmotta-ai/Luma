@@ -44,7 +44,7 @@ function gAiModel(){
     const escolhido = localStorage.getItem('luma_gemini_model');
     if(escolhido && !['gemini-1.5-flash','gemini-2.0-flash','gemini-flash-latest'].includes(escolhido)) return escolhido;
   }catch(e){}
-  return window.LUMA_GEMINI_MODEL || 'gemini-2.5-flash';
+  return window.LUMA_GEMINI_MODEL || 'gemini-3.1-flash-lite';
 }
 
 /**

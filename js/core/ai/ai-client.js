@@ -29,10 +29,10 @@
 
   function _resolveModel(modelType){
     const cfg = window.AI_MODELS || {};
-    if (modelType === 'vision') return cfg.vision || 'gemini-2.5-flash';
-    if (modelType === 'reasoning') return cfg.reasoning || 'gemini-2.5-flash';
+    if (modelType === 'vision') return cfg.vision || 'gemini-3.1-flash-lite';
+    if (modelType === 'reasoning') return cfg.reasoning || 'gemini-3.1-flash-lite';
     if (modelType === 'embedding') return cfg.embedding || 'text-embedding-004';
-    return cfg.fast || 'gemini-2.5-flash';
+    return cfg.fast || 'gemini-3.1-flash-lite';
   }
 
   function _isFeatureEnabled(flagName){
