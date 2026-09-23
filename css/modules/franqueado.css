@@ -1189,6 +1189,48 @@ body.f-cols-enter #fran-right{animation:gFadeIn var(--dur-base) var(--ease-out) 
      "Duplicar". Errar entre baixar e duplicar cria lixo no histórico. */
   .hist-act-btn{min-height:var(--tap-min);font-size:11px}
 }
+/* Tablet em pé: um card por linha a 768px é um cartaz — duas colunas cabem folgadas. */
+@media (min-width:561px) and (max-width:768px){
+  .f-history-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+/* ── CELULAR (23/09/2026) ─────────────────────────────────────────────────────────────
+   Medido no print de 385px: "Nova arte" quebrava em duas linhas espremido pelo "Voltar para
+   Copa Do Mundo 2026"; o "Limpar" gastava uma linha só dele; e cada arte ocupava a tela
+   inteira (miniatura de 180px + bloco de info) — uma por vez, na tela cujo trabalho é ACHAR
+   a arte certa. Só CSS, mesmo HTML:
+   · o voltar vira link discreto NO TOPO e o "Nova arte" ganha a linha inteira — o
+     `display:contents` solta os dois botões da caixa de ações para o `order` valer;
+   · busca em cima; filtros + lixeira (só ícone) dividem a linha de baixo;
+   · o card vira linha: miniatura à esquerda, info e ações à direita. Duplicar e baixar
+     ficam só ícone (o texto segue no botão para leitor de tela); "Continuar/Editar", a ação
+     principal, mantém a palavra. O selo de formato sai da miniatura: a linha de meta já diz. */
+@media (max-width:560px){
+  .f-history-head{gap:14px}
+  .f-history-head-actions{display:contents}
+  .f-history-head-actions .f-history-home{order:-1;align-self:flex-start;margin:-10px 0 -6px -10px;padding:6px 10px;border-color:transparent;background:transparent}
+  body:not(.theme-light) .f-history-head-actions .f-history-home{border-color:transparent;background:transparent}
+  .f-history-new{order:1;width:100%}
+
+  .f-history-toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+  .hist-search-row{grid-column:1/-1}
+  .hist-filter-btn{padding-inline:8px}
+  .hist-clear-btn{align-self:stretch;width:var(--tap-min);padding:0;gap:0;justify-content:center;font-size:0}
+
+  .f-history-results{margin-top:22px}
+  .f-history-grid{gap:10px}
+  .hist-card{flex-direction:row}
+  .hist-thumb{flex:0 0 104px;width:104px;height:auto;padding:8px}
+  .hist-preview-art{max-height:136px}
+  .hist-thumb-fmt{display:none}
+  .hist-preview-fallback{padding:10px}
+  .hist-thumb-camp{top:10px;left:10px;font-size:8px}
+  .hist-thumb strong{font-size:13px}
+  .hist-thumb-offer{font-size:12px}
+  .hist-info{padding:12px 12px 12px 14px}
+  .hist-card-top{margin-bottom:6px}
+  .hist-actions{margin-top:12px;padding-top:10px}
+  .hist-act-btn:not(.hist-act-main){flex:0 0 var(--tap-min);width:var(--tap-min);padding:0;gap:0;font-size:0}
+}
 
 /* ══════════════════════════════════════════════════════════════
    Novas funcionalidades do franqueado (favoritos, badge "novo",
