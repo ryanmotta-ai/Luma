@@ -247,6 +247,52 @@ do $$ declare n int; u record; b boolean; begin
 end $$;
 reset role;
 
+-- ── CONTA DESATIVADA (migration 20260923189000) ─────────────────────────────────────────
+-- Desativar tirava a pessoa do APP, não do banco: a senha segue valendo no Auth. Aqui cada
+-- papel desativado tenta o que conseguia antes da correção. O claim é zerado antes do UPDATE
+-- (como dono do banco, sem auth.uid(), o guard de papel deixa passar — e tudo volta no rollback).
+select set_config('request.jwt.claims', '', true);
+update public.profiles set ativo = false where id in (select fa from _u union all select eq from _u union all select ge from _u);
+
+select set_config('request.jwt.claims', json_build_object('sub', eq, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare n int; begin
+  insert into _t(passo,esperado,obtido) values ('desativada: equipe ainda é designer?','false',public.is_designer()::text);
+  update luma.templates set publicado = publicado;
+  get diagnostics n = row_count;
+  insert into _t(passo,esperado,obtido) values ('desativada: equipe altera templates (linhas)','0',n::text);
+  update storage.objects set name = name where bucket_id = 'luma-template-assets';
+  get diagnostics n = row_count;
+  insert into _t(passo,esperado,obtido) values ('desativada: equipe mexe nos assets (linhas)','0',n::text);
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', json_build_object('sub', ge, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare n int; u record; begin
+  select * into u from _u;
+  insert into _t(passo,esperado,obtido) values ('desativada: gestão ainda tem papel?','(nulo)',coalesce(public.get_user_role(),'(nulo)'));
+  update luma.feature_flags set enabled = enabled;
+  get diagnostics n = row_count;
+  insert into _t(passo,esperado,obtido) values ('desativada: gestão mexe nas flags (linhas)','0',n::text);
+  begin update public.profiles set role = 'gestao' where id = u.fb;
+    get diagnostics n = row_count;
+    insert into _t(passo,esperado,obtido) values ('desativada: gestão promove B','0 ou recusa',n::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('desativada: gestão promove B','0 ou recusa','recusa'); end;
+  begin update public.profiles set ativo = true where id = u.ge;
+    insert into _t(passo,esperado,obtido) values ('desativada: gestão se reativa','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('desativada: gestão se reativa','recusa','recusa'); end;
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', json_build_object('sub', fa, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare n int; begin
+  select count(*) into n from luma.templates;
+  insert into _t(passo,esperado,obtido) values ('desativada: franqueado lê templates','0',n::text);
+end $$;
+reset role;
+
 select n, passo, esperado, obtido,
        case when esperado = obtido then true
             when esperado = '0 ou recusa' and obtido in ('0','recusa') then true

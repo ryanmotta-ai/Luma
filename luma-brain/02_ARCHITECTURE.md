@@ -177,7 +177,7 @@ Postgres, três schemas, **RLS habilitado em tudo**:
 | `analytics` | `fct_eventos` + views `vw_*` de extração | INSERT autenticado em nome próprio; SELECT só `gestao` |
 
 **Princípios de arquitetura do banco:**
-- **RLS como fronteira** — `anon` sem acesso; regra por role via funções `get_user_role()` / `is_designer()` embutidas nas policies.
+- **RLS como fronteira** — `anon` sem acesso; regra por role via funções `get_user_role()` / `is_designer()` embutidas nas policies. **As duas só valem para conta ativa** (desde 23/09/2026): desativar alguém tira o poder no banco, não só a tela — a senha continua valendo no Auth, então o app deslogar não bastava.
 - **Analytics por extração**, não por dashboard: as views `analytics.vw_*` são consumidas via SQL Editor/BI, sem grant e sem módulo no front.
 - Estrutura desenhada para eventualmente **fundir com o CRM da DM**.
 - Migrations versionadas em `supabase/migrations/`; toda mudança vai no `docs/LUMA-BACKEND-CHANGELOG.md`.

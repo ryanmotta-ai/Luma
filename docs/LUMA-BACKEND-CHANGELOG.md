@@ -6,6 +6,22 @@
 
 ---
 
+## 2026-09-23 — Ataque simulado pela API + conta desativada perde o poder no banco
+
+**O ataque.** Pergunta do Ryan: "alguém pode quebrar o Luma pelo DevTools?". O DevTools é o navegador da pessoa — o que importa é o que a anon key pública + o JWT de uma conta real conseguem pela API. Rodado como o PostgREST roda (papel `authenticated`/`anon` + `request.jwt.claims`), em transação que termina num `raise exception` proposital: nada fica gravado. ~110 tentativas: franqueado ativo contra outro franqueado (ver, alterar, apagar, forjar em 17 tabelas + Storage + RPCs), anônimo, franqueado/equipe/gestão desativados.
+
+**O que segurou** (sem mudança): anon não entra nos schemas `luma`/`analytics`; franqueado não vê rascunho, pasta arquivada, arte/perfil/conversa/feedback/evento de outro; não altera nem apaga template, pasta, flag, versão, franquia, vínculo ou asset; não se promove (`guard_profile_role`); `restaurar_versao` e as RPCs de Dados recusam. Três forjas são **neutralizadas por gatilho**, não recusadas: evento com `user_id` de outro é regravado em nome de quem mandou (`evt_forca_identidade`); mensagem "como equipe" na conversa de outro cai na própria conversa, como franqueado (`suporte_msg_carimbo`); e o texto de mensagem não é editável (grant de UPDATE só em `lida_em`). Views `analytics.vw_*` são `security_invoker`.
+
+**O que furou.** Desativar (`profiles.ativo = false`) só tirava a pessoa do APP (`auth.js` desloga no boot); a senha segue valendo no Auth e, pela API: equipe_dm desativada seguia `is_designer()` = true (despublicar/apagar os 56 templates, arquivar as 17 pastas, mexer nos 946 assets do Storage); gestão desativada seguia `get_user_role()` = 'gestao' (as 35 flags, promover qualquer conta a gestão); franqueado desativado ainda lia os templates publicados.
+
+**`20260923189000_luma_desativado_perde_poder`** (aplicada): a correção mora nas duas funções que TODAS as policies consultam — `is_designer()` exige `ativo`; `get_user_role()` devolve nulo para conta desativada (fecha tudo que é "só gestão", inclusive se reativar pelo guard). A policy de SELECT de `luma.templates` passa a pedir `is_ativo()` no ramo do franqueado, como pastas/variáveis/versões já pediam. ⚠ Gestão que se desativa por engano não se reativa sozinha: a outra conta de gestão reativa.
+
+**`supabase/tests/rls.sql`**: +8 casos (bloco "CONTA DESATIVADA"). **64 de 64 verdes** em produção depois da migration; conferido que nada ficou gravado (templates 56, publicados 8, pastas ativas 17, zero perfis desativados, zero resíduo `RLS-TESTE`/`HACK`). Linter de segurança sem aviso novo.
+
+⚠ **Segue aberto (baixo):** conta desativada ainda grava arte própria e sobe arquivo na própria pasta (`luma-user-uploads`, 8 MB por arquivo); a Edge Function `invite-user` confere `role = 'gestao'` mas não `ativo`; a `ai` aceita qualquer JWT, com limite de 20 chamadas/min por usuário **em memória** (por instância — não é teto global da cota do Gemini).
+
+---
+
 ## 2026-09-23 — Suporte ao vivo (franqueado ↔ equipe DM) e foto de perfil no banco
 
 **`20260923187500_luma_profiles_avatar`** (aplicada): a foto de perfil vivia só no `localStorage` do navegador. A coluna `profiles.avatar_url` já existia desde o schema inicial (espelho do DM CRM) e nunca foi usada. A migration só acrescenta o CHECK `profiles_avatar_url_storage` (NOT VALID), que prende a URL ao Storage do projeto (`…/object/public/luma-user-uploads/…`). O arquivo vai para `luma-user-uploads/<uid>/avatar.jpeg` pelas policies de dono que já existiam. **Front:** `gUserFoto` (auth.js) é o único lugar que decide a foto de alguém; `gProfileSalvarFoto` sobe e grava; `gProfileSyncFotoLocal` sobe, no login, a foto antiga que só estava no navegador.
