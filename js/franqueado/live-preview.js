@@ -1205,6 +1205,114 @@ function _fLpSyncBloqueio(resArg){
   };
 }
 
+/* ══ O BALÃO DA SOLUÇÃO — em cima da caixa que não coube (22/09/2026) ════════════════════
+   O aviso da barra diz QUE não coube; o balão, em cima do próprio texto, É a solução: a
+   versão mais curta que cabe (a que MENOS mexeu), gerada pelo `gCopyFitSugestoes`
+   (copy-fit.js) e MEDIDA no Local Fit desta arte — "cabe" é pixel, nunca contagem de letras.
+   Um toque aplica pelo mesmo caminho da digitação (contador, prévia e rascunho de uma vez) e
+   o Desfazer cobre o arrependimento. Sem versão que caiba, não há balão: nunca corta produto
+   sozinho, e o aviso da barra continua levando ao campo. */
+let _lpBalao = null;          // {chave, campo, sug:[...]} — o onclick passa índice, nunca o texto
+function _fLpBalaoCabe(alvo, campo){
+  const mat=_lpEffectiveMaterial||fState.material;
+  const tam=(typeof fMaterialSize==='function')?fMaterialSize(mat):null;
+  const canvas=tam?{w:tam[0],h:tam[1]}:null;
+  const defaults=(typeof gVarDefaults==='function')?gVarDefaults():null;
+  return (t)=>{
+    const d=Object.assign({},fState.dados||{},{[campo]:t});
+    const texto=gInterpolate(alvo.content||'',d,{onEmpty:'remove',defaults});
+    const runs=(typeof gBuildVirtualRuns==='function')?gBuildVirtualRuns(alvo,d,1,defaults):null;
+    const r=gFitTextToAuthoredBox(alvo,texto,{layers:_lpEffectiveLayers,canvas,runs});
+    return {ok:!!r&&r.status==='fits', fontSize:r?r.fontSize:0};
+  };
+}
+function _fLpBalaoTira(){ const b=document.getElementById('lp-balao'); if(b) b.remove(); }
+function _fLpSyncBalao(){
+  const res=_lpLayoutResult;
+  const bloq=res&&res.invalid&&res.bloqueios&&res.bloqueios[0];
+  const campo=bloq&&(bloq.campos||[])[0];
+  const alvo=campo&&(_lpEffectiveLayers||[]).find(l=>l&&l.id===bloq.fieldId);
+  const valor=campo?String((fState.dados||{})[campo]==null?'':fState.dados[campo]):'';
+  const chave=campo?(campo+'|'+valor):'';
+  if(!alvo||!valor||typeof gCopyFitSugestoes!=='function'){
+    _lpBalao=null; _fLpBalaoTira(); return;
+  }
+  if(!_lpBalao||_lpBalao.chave!==chave){
+    const cfg=(typeof fGetFieldType==='function')?fGetFieldType(campo):{type:'text'};
+    const texto=!cfg.type||cfg.type==='text';
+    let sug=[];
+    try{ if(texto) sug=gCopyFitSugestoes(valor,_fLpBalaoCabe(alvo,campo),1).sugestoes; }catch(e){ sug=[]; }
+    _lpBalao={chave, campo, sug};
+  }
+  const stage=document.querySelector('.lp-stage'), cv=document.getElementById('lp-canvas');
+  if(!stage||!cv||!cv.width) return;
+  // Sem versão que caiba, não há solução para mostrar: fica só o aviso da barra.
+  if(!_lpBalao.sug.length){ _fLpBalaoTira(); return; }
+  let b=document.getElementById('lp-balao');
+  if(!b||b.dataset.chave!==chave){
+    if(b) b.remove();
+    /* SÓ A SOLUÇÃO (pedido do Ryan): o balão É o botão — a versão que cabe, e um toque troca.
+       Sem título, sem fechar: some sozinho quando o texto passa a caber. O que saiu vai no
+       title/aria-label ("sem Delicioso"), para quem quiser conferir. */
+    const s=_lpBalao.sug[0];
+    const sem=s.removidas.length?' (sem '+s.removidas.join(', ')+')':'';
+    b=document.createElement('button'); b.type='button'; b.id='lp-balao'; b.className='lp-balao'; b.dataset.chave=chave;
+    b.title='Não cabe. Trocar por: '+s.text+sem;
+    b.setAttribute('aria-label',b.title);
+    b.onclick=()=>fLpBalaoAplica(0);
+    b.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3l4 4-4 4"/><path d="M3 11V9a2 2 0 0 1 2-2h16"/><path d="M7 21l-4-4 4-4"/><path d="M21 13v2a2 2 0 0 1-2 2H3"/></svg><span>'+gEsc(s.text)+'</span>';
+    stage.appendChild(b);
+  }
+  _fLpPosBalao();
+}
+/* Em cima da caixa, com a seta apontando para ela; sem espaço em cima, embaixo. Mora no
+   `.lp-stage` (que não recebe o zoom), então a letra do balão não escala com a arte. */
+function _fLpPosBalao(){
+  const b=document.getElementById('lp-balao'); if(!b||!_lpBalao) return;
+  const stage=document.querySelector('.lp-stage'), cv=document.getElementById('lp-canvas');
+  const alvo=(_lpEffectiveLayers||[]).find(l=>l&&_lpLayoutResult&&_lpLayoutResult.bloqueios
+    &&_lpLayoutResult.bloqueios[0]&&l.id===_lpLayoutResult.bloqueios[0].fieldId);
+  if(!stage||!cv||!alvo) return;
+  const sr=stage.getBoundingClientRect(), cr=cv.getBoundingClientRect();
+  const k=cr.width/(cv.width||1);
+  const x=cr.left-sr.left+(alvo.x||0)*k, y=cr.top-sr.top+(alvo.y||0)*k, w=(alvo.w||0)*k, h=(alvo.h||0)*k;
+  const bw=b.offsetWidth, bh=b.offsetHeight, gap=10;
+  const embaixo=y-bh-gap<8;
+  const left=Math.max(8,Math.min(x+w/2-bw/2, sr.width-bw-8));
+  b.style.left=left+'px';
+  b.style.top=(embaixo?y+h+gap:y-bh-gap)+'px';
+  b.classList.toggle('is-embaixo',embaixo);
+  // A seta aponta para o CENTRO da caixa mesmo quando o balão encosta na borda da mesa.
+  b.style.setProperty('--seta-x',Math.max(16,Math.min(bw-16,x+w/2-left))+'px');
+}
+function fLpBalaoAplica(i){
+  const B=_lpBalao, s=B&&B.sug[i]; if(!s) return;
+  const campo=B.campo, antes=(fState.dados||{})[campo];
+  _fLpBalaoTira();
+  const box=document.getElementById('f-msg-box');
+  const noChat=box&&!box.disabled&&fState.camp?.perguntas?.[fState.stepIdx]?.id===campo;
+  if(noChat){
+    // Mesmo caminho de quem digita: espelho, contador e prévia por um só lugar.
+    box.value=s.text; box.dispatchEvent(new Event('input',{bubbles:true}));
+    return;
+  }
+  if(!fState.dados) fState.dados={};
+  fState.dados[campo]=s.text;
+  try{ if(typeof fSaveChatDraft==='function') fSaveChatDraft(); }catch(e){}
+  _fLpRender();
+  try{ if(typeof fRevisaoRepinta==='function') fRevisaoRepinta(); }catch(e){}
+  if(typeof _fUndoRegistra==='function'){
+    const rot=(typeof gFieldLabel==='function')?gFieldLabel(campo):'texto';
+    _fUndoRegistra('Encurtar '+String(rot).toLowerCase(), ()=>{
+      if(antes==null) delete fState.dados[campo]; else fState.dados[campo]=antes;
+      try{ if(typeof fSaveChatDraft==='function') fSaveChatDraft(); }catch(e){}
+      _fLpRender();
+      try{ if(typeof fRevisaoRepinta==='function') fRevisaoRepinta(); }catch(e){}
+    });
+  }
+}
+window.addEventListener('resize',()=>{ try{ _fLpPosBalao(); }catch(e){} });
+
 /* ══ MODO DEMONSTRAÇÃO + O ENCAIXE À VISTA ══════════════════════════════════════════════
    O motor não muda aqui. O que muda é o QUANTO dele se vê: fora do modo demo a prévia salta
    do estado antigo para o novo, como sempre; dentro dele, a mesma troca é percorrida em 260ms
@@ -1386,6 +1494,7 @@ async function fUpdateLivePreview(opts){
       if(fState.material!==_matRender) _lpPendingRender=true;
       _lpOverflow = window._fOverflowSink; window._fOverflowSink = null;
       _fLpSyncBloqueio();
+      try{ _fLpSyncBalao(); }catch(e){ console.warn('[Luma] balão do encaixe:', e); }
 
       // Véu sutil sobre os campos ainda não preenchidos (tom mais suave)
       fLpHighlightEmpty(ctx,_lpEffectiveLayers,pendentes,W,H);
@@ -1560,6 +1669,7 @@ function _fLpApplyUserView(){
   wrap.style.transformOrigin = 'center center';
   wrap.style.transform = `translate(${_lpPanX}px, ${_lpPanY}px) scale(${_lpUserZoom})`;
   _fLpUpdateZoomLabel();
+  try{ _fLpPosBalao(); }catch(e){}
 }
 
 /* Com o Auto-zoom fora, o canvas nunca mais recebe transform próprio — a mesa inteira é quem

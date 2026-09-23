@@ -526,6 +526,17 @@ por `js/designer/canvas.js` (teste de tensão do Estúdio).
 | **Respiro abaixo da caixa** (decisão do Ryan): texto ancorado no topo cresce PARA BAIXO até o próximo objeto na mesma faixa, menos ¼ do corpo; teto na margem e na safe zone do Story; o painel que contém a caixa e a placa do próprio texto não contam; sem camadas/prancheta não cresce. Nada se move — o render já desenha para baixo; `_layoutH` só alarga o toque da prévia. Na arte da Copa, "COMBO FAMÍLIA TORCEDOR" e "PIZZA GRANDE CALABRESA" deixaram de bloquear | `_gLfEspacoAbaixo` | 15f–15i |
 | Palavra partida ("RECHEA-" / "DA") não conta como caber: desce o corpo | `gFitTextToAuthoredBox` | 15j |
 
+| **Balão da solução** na prévia, em cima da caixa bloqueada: o balão É o botão — a versão mais curta que cabe (a que menos mexeu), gerada pelo Copy Fit e MEDIDA no Local Fit desta arte; um toque troca (Desfazer cobre); o que saiu vai no title ("sem Delicioso"); sem versão que caiba, não há balão e fica o aviso da barra | `js/franqueado/copy-fit.js` · `_fLpSyncBalao` | `tests/copy-fit.html` (12) |
+
+**Copy Fit — as garantias** (cobradas em `tests/copy-fit.html`, com fuzz de 2.000 combos): número
+nenhum muda; nunca fica mais longo; item nenhum some — o motor só limpa ("por apenas"), abrevia
+unidade (litros → L), troca por forma curta consagrada (refrigerante → refri, hambúrguer → burger,
+promoção → promo, "50% de desconto" → "50% OFF"), compacta lista ("A com B e C" → "A + B + C", nunca
+um "Com" abrindo a frase), abrevia tamanho SÓ depois de algo que tem tamanho (Batata Grande → Batata
+G; "Grande São Paulo" fica) e tira enfeite de lista fechada ("Especial" abrindo a frase é nome de
+sabor e fica). Preserva a caixa do que foi digitado. A 1ª sugestão é a que menos mexeu; as outras
+só entram se deixam a letra maior.
+
 ⚠ O respiro muda o contrato de 18/09: o Local Fit deixou de ser cego para vizinhos, mas SÓ para ler o vazio abaixo — continua sem mover, empurrar ou recompor nada.
 
 ---

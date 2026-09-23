@@ -426,6 +426,38 @@ body:not(.theme-light) .lp-toggle.active{background:var(--dm-orange)}
 }
 
 
+/* ── O BALÃO DA SOLUÇÃO (22/09/2026) — em cima da caixa que não coube ──
+   Só a solução: o balão É o botão (a versão que cabe) e um toque troca. Mora no `.lp-stage`
+   (sem zoom), então a letra não escala com a arte. A seta aponta para o centro da caixa
+   (`--seta-x`, calculado no JS). */
+.lp-balao{
+  position:absolute;z-index:30;display:inline-flex;align-items:center;gap:6px;
+  width:max-content;max-width:min(240px,calc(100% - 16px));
+  padding:6px 10px;border-radius:10px;cursor:pointer;text-align:left;
+  background:var(--d-surf,#fff);color:var(--text,#0A0A0A);
+  border:1px solid var(--dm-orange-tint,#FFE0BD);
+  box-shadow:0 6px 18px rgba(0,0,0,.14);
+  font:600 12px/1.3 'Roboto',sans-serif;
+  animation:gFadeInUp var(--dur-fast,.18s) var(--ease-out) both;
+  transition:border-color var(--transition-fast);
+}
+.lp-balao svg{flex:0 0 12px;color:var(--dm-orange-text,#F85400)}
+.lp-balao:hover{border-color:var(--dm-orange)}
+.lp-balao:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+.lp-balao::after{
+  content:'';position:absolute;left:var(--seta-x,50%);bottom:-5px;width:8px;height:8px;
+  margin-left:-4px;background:inherit;border:inherit;border-top:0;border-left:0;
+  transform:rotate(45deg);border-radius:0 0 2px 0;
+}
+.lp-balao.is-embaixo::after{bottom:auto;top:-5px;transform:rotate(-135deg)}
+body:not(.theme-light) .lp-balao{
+  background:var(--d-surf,#1A1A1A);color:var(--d-text,#F5F5F5);
+  border-color:rgba(255,144,0,.35);box-shadow:0 8px 24px rgba(0,0,0,.4);
+}
+body:not(.theme-light) .lp-balao svg{color:var(--dm-orange)}
+body:not(.theme-light) .lp-balao:hover{border-color:var(--dm-orange)}
+@media (prefers-reduced-motion:reduce){ .lp-balao{animation:none} }
+
 /* ── Edição direta na prévia (clique-para-preencher) ── */
 /* ── Edição direta na prévia (clique-para-preencher) ── */
 .lp-canvas{cursor:pointer}
