@@ -2724,16 +2724,33 @@ async function fBaixar(btn, snapId){
   const prevMat=fState.material;
   if(snap.material) fState.material=snap.material; // gera com o material DESTA arte
   try{
-    // Gera primeiro; só marca "baixada" se não lançar (canvas tainted, quota, etc.).
-    await fGenPNG(snap.dados,snap.camp,snap.fmt);
+    /* CELULAR: o `<a download>` com dataURL do `fGenPNG` não faz NADA no Safari do iOS
+       (arte 2× vira vários MB de base64, depois de um await) — e o toast dizia "baixada".
+       Aqui vai a folha nativa (o "Salvar imagem" dela é o único caminho de página web
+       até o Fotos); recusada, cai no download por Blob, o mesmo do Instagram/WhatsApp. */
+    let noCelular=null;   // null = desktop · 'share' · 'arquivo'
+    if(typeof _fArteEhCelular==='function'&&_fArteEhCelular()&&typeof _fArtePreparar==='function'){
+      const prep=await _fArtePreparar(snapId);
+      noCelular='arquivo';
+      if(prep.podeShare){
+        try{ await navigator.share({files:[prep.file]}); noCelular='share'; }
+        catch(e){ if(e&&e.name==='AbortError') return; }   // fechou a folha: nada saiu
+      }
+      if(noCelular==='arquivo') _fArteBaixarArquivo(prep);
+    } else {
+      // Gera primeiro; só marca "baixada" se não lançar (canvas tainted, quota, etc.).
+      await fGenPNG(snap.dados,snap.camp,snap.fmt);
+    }
     if(snap.histId){ fMarkHistBaixada(snap.histId); }
     else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
     if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt_id:snap.fmt.id,tipo:'png'});
     if(typeof fFeedbackAfterDownload==='function') fFeedbackAfterDownload(snap,btn,snapId,'png');
     // Baixa a imagem e já deixa a legenda na área de transferência — 1 passo a menos pra postar.
     const cap=_fActiveCaptionText(snapId);
-    if(cap){ _fCopyText(cap); gToast('Arte baixada • legenda copiada!'); }
-    else gToast('Arte baixada!');
+    // A legenda vai DEPOIS da folha: copiar gasta o gesto e o iOS recusaria o share.
+    const onde=noCelular==='arquivo'?' em Arquivos › Downloads':'';
+    if(cap){ _fCopyText(cap); gToast('Arte salva'+onde+' • legenda copiada!'); }
+    else gToast(noCelular==='share'?'Arte pronta!':'Arte baixada'+onde+'!');
     if (typeof gTriggerOnboardingStep === 'function') {
       gTriggerOnboardingStep('downloadedPng');
     }
