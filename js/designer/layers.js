@@ -3931,6 +3931,9 @@ async function _dPushFoldersNow(){
   try{
     let idx=-1;
     for(const f of (dFolders||[])){ idx++;
+      // O for percorre o array do INÍCIO do push; pasta excluída durante o voo (dDeleteFolder
+      // troca o dFolders) seria regravada logo depois do DELETE — ressuscitava.
+      if(!dFolders.some(x=>x.id===f.id)) continue;
       /* Pasta de sistema: id FIXO no banco (G_PASTA_*_ID, 00-config.js) — o upsert cai sempre na
          mesma linha. O "Modelo de exemplo" semeado neste aparelho (sem remoteId) não sobe: ele
          é o mesmo em todo lugar, e subir cada semente é o que fabricava as 21 cópias. */
@@ -4147,8 +4150,12 @@ async function dSyncFoldersFromBackend(){
       // vincular campanha (camp_id NULL) não casava por campId, então a semente do
       // CAMPS_* sobrevivia ao lado dela — eram duas "Much+ Benefícios" na árvore, e a
       // vitrine lia a semente (capa hardcoded) em vez da pasta que o designer edita.
-      // Pasta local COM remoteId nunca cai aqui: pode ser trabalho pendente de subir.
+      // Pasta local COM remoteId não casa por nome: é tratada logo abaixo.
       if(!f.remoteId && rNomes.has(_dChaveNome(f.name))) return false;
+      // Pasta COM remoteId que o banco não tem e SEM nada pendente = foi excluída (aqui ou em
+      // outro aparelho). Mantê-la era o "a pasta sempre volta": o próximo push, que regrava
+      // todas as pastas, fazia o upsert dela de volta. Só sobrevive se ainda falta subir algo.
+      if(f.remoteId && !f._syncPending && !(f.templates||[]).some(t=>t&&t._syncPending)) return false;
       // Pasta de sistema com id VELHO (cache de antes do id fixo): a do banco manda. Sem isto
       // ela sobrevivia como "local" e o próximo push a recriava — desfazendo a limpeza. Os
       // templates pendentes dela migram pelo casamento por nome logo abaixo.
