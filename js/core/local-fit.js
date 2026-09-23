@@ -785,16 +785,29 @@ function gLocalFitDiagnostico(layers, result, dados, opts){
     if(valor.length < 3) return { campo, rotulo, atual: valor.length, limite: 0,
       mensagem: 'A arte não tem espaço seguro para “' + rotulo + '” neste material. Escolha outro material para este conteúdo.' };
 
-    const cabe = (n) => { const r = medir(gLocalFitCorta(valor, n)); return !!r && r.status === 'fits'; };
-
-    let baixo = 1, alto = valor.length, limite = 0, voltas = 0;
-    while(baixo <= alto && voltas++ < 8 && !limite){
-      const meio = Math.floor((baixo + alto) / 2);
-      if(cabe(meio)){ limite = meio; baixo = meio + 1; } else alto = meio - 1;
-    }
-    // Refina para cima: o meio da busca costuma ser conservador e prometer menos do que cabe.
-    while(limite && voltas++ < 12 && limite < valor.length && cabe(limite + 1)) limite++;
+    const { limite } = gLocalFitMaiorPrefixo(valor, (t) => { const r = medir(t); return !!r && r.status === 'fits'; });
     return { campo, rotulo, atual: valor.length, limite,
              mensagem: gLocalFitMensagem(rotulo, valor.length, limite) };
   }catch(e){ return null; }
+}
+
+/* O MAIOR COMEÇO DO TEXTO, cortado na palavra (`gLocalFitCorta`), que cabe — o "cabem até N"
+   do laudo e o "tire umas N letras" da prévia saem desta mesma busca, então o aviso da barra,
+   o diálogo e o contador dizem o mesmo número. Busca binária de verdade: os cortes crescem
+   aninhados com `n` (cada um é prefixo do seguinte), então "cabe" é monotônico. ~log2(n)
+   medições (50 letras → 6). A anterior parava no primeiro meio que cabia e subia de 1 em 1.
+   ⚠ `limite` é o comprimento do TEXTO QUE FOI MEDIDO, não o `n` da busca: em "Pizza Calabresa
+   Mussarela", n=24 corta em "Pizza Calabresa" (15) — prometer 24 era prometer 9 letras que
+   ninguém mediu ("tire 1 letra" quando falta uma palavra inteira).
+   @param {function(string):boolean} cabe  "este texto cabe?" — o medidor em pixel do chamador
+   @returns {{limite:number, texto:string, medidas:number}}  `limite` 0 = nem 1 letra cabe */
+function gLocalFitMaiorPrefixo(valor, cabe){
+  const t = String(valor || '');
+  let baixo = 1, alto = t.length, texto = '', medidas = 0;
+  while(baixo <= alto){
+    const meio = (baixo + alto) >> 1, corte = gLocalFitCorta(t, meio);
+    medidas++;
+    if(corte && cabe(corte)){ texto = corte; baixo = meio + 1; } else alto = meio - 1;
+  }
+  return { limite: texto.length, texto, medidas };
 }

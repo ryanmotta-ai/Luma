@@ -1198,16 +1198,27 @@ function _fLpSyncBloqueio(resArg){
   const B=_lpBalao&&_lpBalao.sug&&_lpBalao.sug[0]?_lpBalao:null;
   const falado=B?' Sugestão para “'+((typeof gFieldLabel==='function')?gFieldLabel(B.campo):B.campo)
                  +'”: '+B.sug[0].text+'. Botão sobre a arte.':'';
-  _fLpNotaTexto(nota,'“'+rotulo+'” não cabe — encurtar',falado);
-  nota.title='“'+rotulo+'” não cabe nesta arte nem no menor tamanho legível. Toque para encurtar.';
+  /* QUANTO FALTA (sem versão): medido pelo `_fLpSyncBalao` deste mesmo render, para este campo
+     e este texto. Só vale para o resultado do render — a bancada que passa `resArg` mede a UI. */
+  const F0=(!B&&resArg===undefined&&_lpBalao&&_lpBalao.falta)||null;
+  const F=(F0&&F0.campo===campo&&F0.fieldId===bloq0.fieldId
+           &&String((fState.dados||{})[campo]==null?'':fState.dados[campo])===F0.valor)?F0:null;
+  const tire=F?'tire '+(F.n===1?'1 letra':'umas '+F.n+' letras'):'';
+  _fLpNotaTexto(nota,'“'+rotulo+'” não cabe — '+(tire||'encurtar'),falado);
+  nota.title='“'+rotulo+'” não cabe nesta arte nem no menor tamanho legível.'
+    +(tire?' '+tire[0].toUpperCase()+tire.slice(1)+'.':'')+' Toque para encurtar.';
   nota.setAttribute('aria-label', nota.title+falado);
   nota.onclick=()=>{
     if(typeof fCorrigirTextoLongo!=='function') return;
-    /* O laudo com o LIMITE em caracteres custa ~12 encaixes de uma camada. Sai daqui, no
+    /* O laudo com o LIMITE em caracteres custa ~log2(n) encaixes de uma camada. Sai daqui, no
        clique, e não no render: a prévia repinta a cada tecla e isso não pode entrar no laço.
-       Mede com os dados DO RENDER (placeholders nos vazios) — os que o bloqueio viu. */
+       Mede com os dados DO RENDER (placeholders nos vazios) — os que o bloqueio viu.
+       Com o "quanto falta" já medido, é ele: o diálogo e o contador dizem o número da barra. */
     let r=res;
-    if(!r.diagnostico&&typeof gLocalFitDiagnostico==='function'){
+    if(F){
+      r=Object.assign({},res,{diagnostico:{campo, rotulo, atual:F.atual, limite:F.limite,
+        mensagem:(typeof gLocalFitMensagem==='function')?gLocalFitMensagem(rotulo,F.atual,F.limite):''}});
+    } else if(!r.diagnostico&&typeof gLocalFitDiagnostico==='function'){
       try{
         const mat=_lpEffectiveMaterial||fState.material;
         const cv=(typeof fMaterialSize==='function')?fMaterialSize(mat):null;
@@ -1219,13 +1230,28 @@ function _fLpSyncBloqueio(resArg){
   };
 }
 /* Escreve o aviso SÓ quando a frase muda. A prévia repinta a cada tecla, e reescrever o mesmo
-   texto num `aria-live` faz o leitor de tela repetir o aviso a cada letra digitada. */
+   texto num `aria-live` faz o leitor de tela repetir o aviso a cada letra digitada.
+   O NÚMERO NÃO FALA A CADA TECLA. "Tire umas 9 letras" muda enquanto a pessoa digita: a barra
+   acompanha na hora (parte visível, `aria-hidden`), e o leitor de tela só ouve a frase nova
+   quando a digitação para (1,5s). Frase que muda de verdade (outro campo, outro estado) fala já. */
+const F_LP_NOTA_PAUSA=1500;
 function _fLpNotaTexto(nota, visivel, falado){
   const k=visivel+'\u0000'+falado;
   if(nota.dataset.txt===k) return;
+  const soNumero=!!nota.dataset.txt&&nota.dataset.txt.replace(/\d+/g,'#')===k.replace(/\d+/g,'#');
   nota.dataset.txt=k;
-  nota.textContent=visivel;
-  if(falado){ const s=document.createElement('span'); s.className='f-sr-only'; s.textContent=falado; nota.appendChild(s); }
+  clearTimeout(nota._lpFalaT);
+  const dito=visivel+falado;
+  let vis=nota.querySelector('.lp-nota-vis'), sr=nota.querySelector('.lp-nota-sr');
+  if(!vis||!sr){
+    nota.textContent='';
+    vis=document.createElement('span'); vis.className='lp-nota-vis'; vis.setAttribute('aria-hidden','true');
+    sr=document.createElement('span'); sr.className='lp-nota-sr f-sr-only';
+    nota.append(vis,sr);
+  }
+  vis.textContent=visivel;
+  if(!soNumero){ sr.textContent=dito; return; }
+  nota._lpFalaT=setTimeout(()=>{ if(nota.dataset.txt===k) sr.textContent=dito; },F_LP_NOTA_PAUSA);
 }
 
 /* ══ O BALÃO DA SOLUÇÃO — em cima da caixa que não coube (22/09/2026) ════════════════════
@@ -1261,6 +1287,23 @@ function _fLpBalaoChave(bloqs, W, H){
       +'|'+b.minimumFontSize+'|'+g(b.placa)+'|'
       +(alvo?gInterpolate(alvo.content||'',d,{onEmpty:'remove',defaults}):'');
   })).join('\u0001');
+}
+/* QUANTO FALTA, quando nenhuma versão cabe (pedido do Ryan): "não cabe" sozinho não diz se é
+   uma palavra ou meia frase. O maior corte na palavra do texto DIGITADO que cabe, medido com a
+   régua do balão (`gLocalFitMaiorPrefixo`, a mesma busca do "cabem até N" do laudo); falta =
+   o que passa dele. Só texto: cortar o fim de um preço não é conselho. ~log2(n) medições,
+   só no bloqueio sem versão e só quando a chave muda. */
+function _fLpFalta(bloq, W, H){
+  if(typeof gLocalFitMaiorPrefixo!=='function') return null;
+  const campo=gLocalFitCulpado(bloq,fState.dados||{});
+  const valor=campo?String((fState.dados||{})[campo]==null?'':fState.dados[campo]):'';
+  if(!valor) return null;
+  const cfg=(typeof fGetFieldType==='function')?fGetFieldType(campo):{type:'text'};
+  if(cfg.type&&cfg.type!=='text') return null;
+  const cabe=_fLpBalaoCabe(bloq,campo,W,H); if(!cabe) return null;
+  const limite=gLocalFitMaiorPrefixo(valor,t=>cabe(t).ok).limite;
+  if(!limite||limite>=valor.length) return null;
+  return {campo, fieldId:bloq.fieldId, valor, atual:valor.length, limite, n:valor.length-limite};
 }
 function _fLpBalaoTira(){ const b=document.getElementById('lp-balao'); if(b) b.remove(); }
 /* O que o franqueado lê em "sai: …": só palavra de verdade. "de"/"e"/"o" saem de carona numa
@@ -1300,6 +1343,8 @@ function _fLpSyncBalao(){
       try{ sug=gCopyFitSugestoes(valor,cabe,1).sugestoes; }catch(e){ sug=[]; }
       if(sug.length){ _lpBalao={chave, fieldId:bloq.fieldId, campo, valor, sug}; break; }
     }
+    // Sem versão: o aviso da barra diz QUANTO falta. Mede aqui, na mesma chave — uma vez por texto.
+    if(!_lpBalao.sug.length) _lpBalao.falta=_fLpFalta(bloqs[0],cv.width,cv.height);
   }
   if(!stage) return;
   // Sem versão que caiba, não há solução para mostrar: fica só o aviso da barra.

@@ -712,6 +712,25 @@
     }finally{ window.dVars = antes; }
   });
 
+  test('26b · gLocalFitMaiorPrefixo acha o MAIOR corte que cabe, em ~log2(n) medições', () => {
+    // Régua sintética: cabe até 17 letras. O maior corte na palavra que cabe é "Pizza Calabresa" (15);
+    // "Pizza Calabresa Mussarela" (25) já não. O limite é o do TEXTO medido, não o `n` da busca (24).
+    const t = 'Pizza Calabresa Mussarela Especial';
+    const r = gLocalFitMaiorPrefixo(t, (s) => s.length <= 17);
+    assert(r.texto === 'Pizza Calabresa' && r.limite === 15,
+           'achou "' + r.texto + '" (' + r.limite + ') — esperado "Pizza Calabresa" (15)');
+    assert(r.medidas <= Math.ceil(Math.log2(t.length + 1)), 'mediu ' + r.medidas + ' vezes para ' + t.length + ' letras');
+    assert(gLocalFitMaiorPrefixo(t, () => false).limite === 0, 'nada cabe e prometeu limite');
+    assert(gLocalFitMaiorPrefixo(t, () => true).limite === t.length, 'tudo cabe e o limite não é o texto inteiro');
+    // Na arte de verdade: o começo do texto com o comprimento prometido cabe.
+    const dados = Object.assign({}, AUTORAL, { produto:ABSURDO });
+    const a = arte(dados);
+    const d = gLocalFitDiagnostico(a.layers, a.result, dados, { canvas:CANVAS, defaults:{} });
+    if(d && d.limite)
+      assert(!arte(Object.assign({}, dados, { produto:ABSURDO.slice(0, d.limite) })).result.invalid,
+             'os ' + d.limite + ' primeiros caracteres prometidos não cabem');
+  });
+
   test('27 · mesma entrada → mesmo resultado, byte a byte, na arte inteira', () => {
     const dados = Object.assign({}, AUTORAL, { produto:LONGO, titulo:'SEMANA DE OFERTAS IMPERDÍVEIS' });
     const a = arte(dados), b = arte(dados);

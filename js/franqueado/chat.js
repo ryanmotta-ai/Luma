@@ -1811,8 +1811,14 @@ async function fCorrigirTextoLongo(res){
   const perguntas = (fState.camp && fState.camp.perguntas) || [];
   const idx = campo ? perguntas.findIndex(p => p && p.id === campo) : -1;
 
+  /* QUANTO TIRAR vem primeiro: é o número que a pessoa persegue (o mesmo da barra da prévia,
+     `_fLpFalta`, e o do contador: atual − falta = limite). */
+  const falta = (d && Number.isFinite(d.limite) && d.limite > 0 && Number.isFinite(d.atual)) ? d.atual - d.limite : 0;
   const quanto = (d && Number.isFinite(d.limite) && d.limite > 0)
-    ? 'Cabem até ' + d.limite + ' caracteres aqui — hoje tem ' + d.atual + '.'
+    ? (falta > 0
+        ? 'Tire ' + (falta === 1 ? '1 letra' : 'umas ' + falta + ' letras') + ' — cabem até ' + d.limite
+          + ' caracteres aqui, hoje tem ' + d.atual + '.'
+        : 'Cabem até ' + d.limite + ' caracteres aqui — hoje tem ' + d.atual + '.')
     : 'Ele não cabe nesta arte nem no menor tamanho legível.';
 
   /* Sem campo editável no chat (texto fixo do designer, ou arte reaberta fora do fluxo), não
