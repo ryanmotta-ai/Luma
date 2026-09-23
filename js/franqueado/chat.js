@@ -2404,8 +2404,9 @@ REGRAS OBRIGATÓRIAS:
 3. As 3 opções têm ângulos DIFERENTES entre si — não reescreva a mesma frase.
 4. ${ehStory ? 'Formato STORY: no máximo 2 linhas curtas em "promo" e "engajar" (texto que caiba num story, leitura de 2 segundos).' : 'Formato FEED: "promo" e "engajar" podem ter 2 a 4 linhas.'}
 5. ${hashtags} — só em "promo" e "engajar". A opção "whatsapp" NÃO leva hashtag.
-6. "whatsapp" é mensagem pra lista de transmissão: usa *asteriscos* pra negrito e chama pra pedir no app.${blocoGiriasPrompt ? `
-7. Sobre o jeito de falar da cidade: use NO MÁXIMO UMA dessas expressões, em UMA das três opções, e só se ela couber com naturalidade na frase. Se nenhuma couber, NÃO force — gíria enfiada soa falsa e o franqueado é vizinho de quem lê. Nunca explique a expressão nem use mais de uma.` : ''}${blocoGiriasPrompt}
+6. "whatsapp" é mensagem pra lista de transmissão: usa *asteriscos* pra negrito e chama pra pedir no app.
+7. Português do Brasil com TODA a acentuação e o "ç" corretos (família, peça, promoção, você, já). Os fatos podem ter sido digitados sem acento: corrija a grafia na legenda, mas não troque palavras, nomes próprios nem preços.${blocoGiriasPrompt ? `
+8. Sobre o jeito de falar da cidade: use NO MÁXIMO UMA dessas expressões, em UMA das três opções, e só se ela couber com naturalidade na frase. Se nenhuma couber, NÃO force — gíria enfiada soa falsa e o franqueado é vizinho de quem lê. Nunca explique a expressão nem use mais de uma.` : ''}${blocoGiriasPrompt}
 
 Responda APENAS com JSON válido:
 {"promo":"legenda que vende (foco na oferta)","engajar":"legenda que puxa comentário/marcação de amigo","whatsapp":"mensagem curta pra lista do WhatsApp com *negrito*"}`;

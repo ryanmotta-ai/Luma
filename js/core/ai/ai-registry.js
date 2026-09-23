@@ -14,7 +14,7 @@
 
   const TASKS = {
     'caption.generate': {
-      version: '1.1.0',
+      version: '1.2.0',
       modelType: 'fast',
       featureFlag: 'caption',
       defaultTtl: 0, // legendas não devem ser repetidas em cache cego
@@ -54,7 +54,8 @@ REGRAS RÍGIDAS:
 3. Se não houver preço nos fatos, NÃO cite valores numéricos.
 4. ${ehStory ? 'Formato STORY: no máximo 2 linhas curtas em promo e engajar.' : 'Formato FEED: 2 a 4 linhas curtas em promo e engajar.'}
 5. Termine "promo" e "engajar" com as hashtags: ${hashtags}
-6. As 3 opções devem ter abordagens e frases diferentes.${p.girias ? `\n7. Expressões regionais da cidade (opcional se couber com naturalidade): ${p.girias}` : ''}`;
+6. As 3 opções devem ter abordagens e frases diferentes.
+7. Português do Brasil com TODA a acentuação e o "ç" corretos (família, peça, promoção, você, já). Os fatos podem ter sido digitados sem acento: corrija a grafia na legenda ("Combo familia" vira "Combo família"), mas não troque palavras, nomes próprios nem preços.${p.girias ? `\n8. Expressões regionais da cidade (opcional se couber com naturalidade): ${p.girias}` : ''}`;
 
         return { prompt: prompt, parts: [] };
       }
