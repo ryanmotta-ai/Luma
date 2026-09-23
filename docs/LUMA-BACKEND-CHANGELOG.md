@@ -6,6 +6,18 @@
 
 ---
 
+## 2026-09-23 — Login: troca obrigatória da senha inicial e URL de recuperação
+
+**Migration aplicada (via MCP):** `luma_usa_senha_inicial`. Cria `luma.usa_senha_inicial() returns boolean` — `SECURITY DEFINER`, `search_path = ''`, responde só sobre `auth.uid()` (compara `auth.users.encrypted_password` com a senha inicial do convite via `extensions.crypt`). `EXECUTE` revogado de `public`/`anon`, concedido a `authenticated`. Testado com role `authenticated` simulada (conta na senha inicial → `true`; conta que trocou → `false`) e `anon` (sem permissão no schema).
+
+**Por quê:** a senha inicial compartilhada (`invite-user`) estava escrita no front público (`user-profile.js`). O front agora pergunta ao banco e, se `true`, leva a pessoa ao passo "defina sua senha" (`gShowNovaSenhaView('inicial')`) no login e no boot com sessão aberta. A senha saiu do front; continua só na Edge Function `invite-user` e nesta função. ⚠ Se a senha inicial do `invite-user` mudar, esta função muda junto.
+
+**Auth (painel, feito pelo Ryan):** Site URL passou de `http://localhost:3000` (padrão) para `https://ryanmotta-ai.github.io/Luma/`, e a Redirect URL `https://ryanmotta-ai.github.io/Luma/**` entrou na lista. Antes, todo link de e-mail (recuperação/convite) apontava para `localhost:3000` — confirmado nos `auth_logs` (`referer`). **Pendente:** SMTP próprio (Google Workspace da DM); sem ele o Supabase envia poucos e-mails/hora e só para membros da equipe do projeto.
+
+**MCP:** `.mcp.json` com escrita e todos os grupos de ferramentas, preso a `project_ref=uqrqzjafhigjuvtjqzid`.
+
+---
+
 ## 2026-09-06 — Busca de campanhas e feedback contextual V1
 
 **Migration:** `20260906152238_luma_campaign_search_feedback.sql`. **Preparada e testada localmente; ainda não aplicada no Supabase do Luma.** Em 06/09 o conector recusou até a consulta de leitura no projeto `uqrqzjafhigjuvtjqzid` (`You do not have permission to perform this action`). Não houve acesso a outro projeto nem alteração remota.
