@@ -189,7 +189,7 @@ function gAuthoredTextBox(layer, opts){
    Agora: o TOPO da pilha (texto não ancorado em ninguém, com membros ancorados embaixo) pode
    crescer até o menor vazio livre embaixo de QUALQUER membro; depois do encaixe, os membros
    descem exatamente o que o topo cresceu (fase 4 do `gLocalFitArte`), placa junto.
-   ⛔ Só âncora MANUAL. Nada é inferido — pilha que o designer não declarou não existe.
+   ⛔ Âncora MANUAL sempre vence. Sem ela, só no BLOQUEIO vale o par inferido (`_gLfPilhaInferida`).
    ⛔ Só desce, nunca sobe. Membro não reserva respiro próprio: o vazio é do topo.
    ⚠ Pilha aninhada: só o TOPO propaga crescimento; um membro que quebra dentro da própria
      caixa não empurra o de baixo dele. */
@@ -224,6 +224,31 @@ function _gLfParedeAbaixo(r, layers, canvas, ignora){
     if(oy < limite) limite = oy;
   });
   return limite;
+}
+/* PILHA INFERIDA (23/09/2026) — revê o "só âncora manual" de 22/09. Na arte da Copa publicada
+   sem âncora, "QUANTO TU SABE MANO SOBRE" bloqueava com o Detalhes colado embaixo, e o
+   franqueado não tem como ancorar nada: a saída estava no Estúdio, fora do alcance dele. Agora,
+   quando o texto BLOQUEARIA, o vizinho que o linter 4c já aponta como par de pilha (logo abaixo,
+   até 1,5 linha; mesma coluna pela borda esquerda ou pelo centro; nada entre os dois) desce
+   junto — a MESMA régua do linter, não outra.
+   ⛔ Só no bloqueio: o que cabe sem pilha segue exatamente como o designer desenhou.
+   ⛔ Um nível só (o vizinho direto); o de baixo dele é parede. Âncora manual sempre vence. */
+function _gLfPilhaInferida(layer, layers){
+  if(!layer || layer.vertical || layer.vAlign !== 'top') return [];
+  const ax = layer.x || 0, aw = layer.w || 0, fim = (layer.y || 0) + (layer.h || 0);
+  const vis = o => o && o !== layer && o.type !== 'group' && (o.w || 0) > 0 && (o.h || 0) > 0 && !o._placa
+                && (typeof _gLayoutVisivel !== 'function' || _gLayoutVisivel(o));
+  return (layers || []).filter(o => {
+    if(!vis(o) || o.relativeAnchor) return false;
+    const vao = (o.y || 0) - fim;
+    if(vao < -2 || vao > (layer.fontSize || 24) * 1.5) return false;
+    const esq = Math.abs((o.x || 0) - ax) <= 12;
+    const cen = Math.abs(((o.x || 0) + (o.w || 0) / 2) - (ax + aw / 2)) <= 12;
+    if(!esq && !cen) return false;
+    return !(layers || []).some(b => vis(b) && b !== o
+      && (b.y || 0) >= fim - 1 && (b.y || 0) + (b.h || 0) <= (o.y || 0) + 1
+      && (b.x || 0) < ax + aw && (b.x || 0) + (b.w || 0) > ax);
+  });
 }
 function _gLfTetoPilha(layer, camada, opts){
   const p = opts && opts.pilha;
@@ -345,14 +370,33 @@ function gFitTextToAuthoredBox(layer, conteudo, opts){
      "cabem até N" do bloqueio e o balão da solução meçam a mesma pilha. `alturaAncora` é a
      altura que `gApplyRelativeAnchors` usou para posicionar os membros — a régua de quanto eles
      descem depois (fase 4 do `gLocalFitArte`, que lê `opts.pilha` deste mesmo objeto). */
+  let inferidos = null;
   if(opts.pilha === undefined && Array.isArray(opts.layers) && layer && !_gLfEhMembro(layer)){
     const membros = _gLfPilha(opts.layers, layer.id);
     opts.pilha = membros.length ? { membros,
       alturaAncora: (typeof gMeasureLayerHeight === 'function')
         ? gMeasureLayerHeight(layer, String(conteudo == null ? '' : conteudo)) : (layer.h || 0) } : null;
+    // Sem âncora manual: o par do linter 4c fica de reserva para o caso de bloqueio (abaixo).
+    if(!membros.length && opts.canvas){
+      const cand = _gLfPilhaInferida(layer, opts.layers);
+      if(cand.length) inferidos = cand;
+    }
+  }
+  if(inferidos){
+    const r0 = gFitTextToAuthoredBox(layer, conteudo, opts);
+    if(!r0 || r0.status !== 'overflow') return r0;
+    /* Inferida, o membro está onde o designer o pôs: a régua de quanto desce é a caixa
+       desenhada do topo (`h`), não a medida das quebras manuais que a âncora usaria. */
+    opts.pilha = { membros: inferidos, inferida: true, alturaAncora: gAuthoredTextBox(layer, opts).h || 0 };
+    const r1 = gFitTextToAuthoredBox(layer, conteudo, opts);
+    if(r1 && r1.status === 'fits') return r1;
+    opts.pilha = null;
+    return r0;
   }
   const box = gAuthoredTextBox(layer, opts);
   if(!box) return null;
+  // Uma cadeia declarada empresta altura aos membros; a transação valida o conjunto depois.
+  if(Number.isFinite(opts.alturaDisponivel)) box.alturaDisponivel = Math.max(0, opts.alturaDisponivel);
   /* PLACA NÃO CRESCE PARA CIMA DO VIZINHO. A placa acompanha a tinta, então cada linha nova
      do texto era uma placa mais alta — medido: CTA de 70px virou 152px e cobriu a foto de
      baixo. Com placa, a altura útil é o INTERIOR dela: o texto quebra/encolhe lá dentro. */
@@ -512,6 +556,107 @@ function _gLfPlaca(box, u, opts){
    @returns {object} { layers, result } — `result` mantém as chaves que a prévia, a telemetria
    e o Estúdio já liam (`status`, `invalid`, `invalidIds`, `changes`, `requiresAdaptation`) e
    acrescenta `campos` (o laudo por campo) e `bloqueios` (o payload de CONTENT_TOO_LARGE). */
+/* Cadeias simples, declaradas por ID. Relações ambíguas nunca entram no fallback inferido.
+   Não há busca de composição: cada cadeia tem uma ordem e um limite externo por membro. */
+function _gLfCadeias(layers){
+  const porId = new Map(layers.map(l => [l.id, l])), ids = new Set(), cadeias = [];
+  layers.forEach(l => {
+    if(!_gLfEhMembro(l)) return;
+    ids.add(l.id); ids.add(l.relativeAnchor.layerId);
+  });
+  const vistos = new Set();
+  ids.forEach(id => {
+    if(vistos.has(id)) return;
+    const componente = [], fila = [id];
+    while(fila.length){
+      const atual = fila.pop();
+      if(vistos.has(atual)) continue;
+      vistos.add(atual);
+      const l = porId.get(atual);
+      if(l) componente.push(l);
+      if(_gLfEhMembro(l)) fila.push(l.relativeAnchor.layerId);
+      layers.forEach(o => { if(_gLfEhMembro(o) && o.relativeAnchor.layerId === atual) fila.push(o.id); });
+    }
+    const raizes = componente.filter(l => !_gLfEhMembro(l));
+    const ordem = [], visitados = new Set();
+    let atual = raizes.length === 1 ? raizes[0] : null;
+    while(atual && !visitados.has(atual.id)){
+      ordem.push(atual); visitados.add(atual.id);
+      const filhos = componente.filter(l => _gLfEhMembro(l) && l.relativeAnchor.layerId === atual.id);
+      atual = filhos.length === 1 ? filhos[0] : null;
+    }
+    const valida = ordem.length === componente.length && ordem.length > 1 && componente.every(l =>
+      l.abId === ordem[0].abId && l.type !== 'group' && !l.vertical && !l.rotation
+      && (l.type !== 'text' || l.vAlign === 'top')
+      && (!_gLfEhMembro(l) || Number.isFinite(Number(l.relativeAnchor.gap || 0))));
+    cadeias.push({ membros: valida ? ordem : componente, valida });
+  });
+  return { ids, cadeias };
+}
+
+function _gLfResolverCadeia(cadeia, medidos, layers, canvas, ctx){
+  const medidas = new Map(medidos.map(m => [m.l.id, m]));
+  const variaveis = cadeia.membros.map(l => medidas.get(l.id)).filter(m => m && !m.vazio);
+  if(!variaveis.length) return [];
+  const ignora = new Set(cadeia.membros.map(l => l.id));
+  layers.forEach(l => { if(l._placa && ignora.has(l._placa.alvo)) ignora.add(l.id); });
+  const tetos = new Map(variaveis.map(m => [m.l.id, m.r.diagnostics.fontSizeAutorado]));
+  let tentativa = [], excesso = 0;
+  if(cadeia.valida && canvas && canvas.h){
+    for(let passo = 0; passo < G_LF_MAX_PASSOS; passo++){
+      tentativa = []; excesso = 0;
+      let anterior = null;
+      for(const l of cadeia.membros){
+        const m = medidas.get(l.id);
+        const visivel = typeof _gLayoutVisivel !== 'function' || _gLayoutVisivel(l);
+        const vazio = !visivel || (m && m.vazio);
+        const y = anterior ? Math.max(l.y || 0, anterior.y + anterior.h + Number(l.relativeAnchor.gap || 0)) : (l.y || 0);
+        const fitOpts = m && !m.vazio ? Object.assign({}, m.fitOpts, {
+          pilha:null, alturaDisponivel:canvas.h, tetoFonte:tetos.get(l.id)
+        }) : null;
+        const r = fitOpts ? gFitTextToAuthoredBox(l, m.conteudo, fitOpts) : null;
+        const h = vazio ? 0 : r ? r.diagnostics.alturaNecessaria : l.type === 'text'
+          ? gFitTextLayer(_gLfLimpa(l), l.content || '', ctx, { encolher:false }).altura : (l.h || 0);
+        let fundo = y + h;
+        const placa = m && m.fitOpts && m.fitOpts.placa;
+        if(placa && r && typeof gInkRect === 'function'){
+          const tinta = gInkRect(Object.assign({}, l, { y, fontSize:r.fontSize }), {
+            altura:h, larguraMax:r.diagnostics.larguraNecessaria, lines:r.lines, fontSize:r.fontSize, text:r.text
+          });
+          const ret = gLayoutPlacaSegue(placa._placa, tinta, r.fontSize);
+          if(ret) fundo = Math.max(fundo, ret.y + ret.h);
+        }
+        const respiro = Math.max(8, Math.round((l.fontSize || 24) * 0.25));
+        const parede = _gLfParedeAbaixo(l, layers, canvas, ignora) - respiro;
+        if(!vazio) excesso = Math.max(excesso, fundo - parede);
+        tentativa.push({ l, m, r, fitOpts, y, h });
+        anterior = { y, h };
+      }
+      if(excesso <= G_LF_TOL && tentativa.every(t => !t.r || t.r.status === 'fits')){
+        tentativa.forEach(t => { if(t.r){ t.m.r = t.r; t.m.fitOpts = t.fitOpts; } });
+        return tentativa.map(t => ({ id:t.l.id, y:t.y, raiz:cadeia.membros[0].id }));
+      }
+      let mudou = false;
+      variaveis.forEach(m => {
+        const teto = tetos.get(m.l.id), piso = m.r.diagnostics.piso;
+        const proximo = Math.max(piso, Math.floor(teto * G_LF_DEGRAU));
+        if(proximo < teto){ tetos.set(m.l.id, proximo); mudou = true; }
+      });
+      if(!mudou) break;
+    }
+  }
+  // Transação recusada: nenhum y é aplicado. O diagnóstico explica o limite do conjunto.
+  variaveis.forEach(m => {
+    const t = tentativa.find(t => t.l.id === m.l.id);
+    const r = t && t.r ? t.r : m.r;
+    m.r = Object.assign({}, r, { status:'overflow', degrau:'piso',
+      overflowY:Math.max(r.overflowY, Math.ceil(Math.max(0, excesso))),
+      diagnostics:Object.assign({}, r.diagnostics, { motivo:cadeia.valida
+        ? 'a pilha não cabe no espaço disponível' : 'âncora inválida: use uma cadeia vertical simples' }) });
+  });
+  return [];
+}
+
 function gLocalFitArte(layers, opts){
   opts = opts || {};
   const cv = opts.canvas || null;
@@ -543,6 +688,7 @@ function gLocalFitArte(layers, opts){
 
   /* FASE 1 — MEDIR cada texto com campo, sem escrever nada. */
   const medidos = [];
+  const estrutura = _gLfCadeias(out);
   out.forEach(l => {
     if(!l || l.type !== 'text') return;
     if(typeof _gLayoutVisivel === 'function' && !_gLayoutVisivel(l)) return;
@@ -563,35 +709,44 @@ function gLocalFitArte(layers, opts){
       ? gBuildVirtualRuns(l, dados, 1, defaults) : null;
     const placa = out.find(p => p && p._placa && p._placa.alvo === l.id) || null;
     const fitOpts = { layers: out, canvas: cv, ctx, runs, placa };
+    if(estrutura.ids.has(l.id)) fitOpts.pilha = null;
     const r = gFitTextToAuthoredBox(l, conteudo, fitOpts);
     if(r) medidos.push({ l, conteudo, fitOpts, r });
   });
 
-  /* FASE 2 — IRMÃOS NO MESMO CORPO. Três cards iguais ("X-BURGER", "X-SALADA", "X-TUDO DUPLO
-     COM BACON E OVO") saíam 34/34/28px: numa grade isso parece erro, não ajuste. Textos com o
-     mesmo desenho (papel, fonte, corpo, largura e alinhamento autorados) formam um grupo e
-     todos usam o MENOR corpo que coube no grupo. Só tipografia: nada se move. Quem bloqueou
-     não puxa o grupo para o piso — o bloqueio já é a resposta dele. */
+  const posicoes = estrutura.cadeias.flatMap(c => _gLfResolverCadeia(c, medidos, out, cv, ctx));
+
+  /* Mesmo corpo somente no conjunto declarado pelo designer. Aparência não é vínculo. */
   const grupos = new Map();
   medidos.forEach(m => {
-    if(m.vazio || m.r.status !== 'fits') return;
+    if(m.vazio || m.r.status !== 'fits' || !m.l.fitFontGroup) return;
     const l = m.l;
-    const k = [l.layoutSemantic || '', l.font || '', Math.round(m.r.diagnostics.fontSizeAutorado),
-               Math.round((l.w || 0) / 4), l.textAlign || 'left', l.textBox || 'point'].join('|');
+    const k = JSON.stringify([l.abId || '', l.fitFontGroup]);
     if(!grupos.has(k)) grupos.set(k, []);
     grupos.get(k).push(m);
   });
   grupos.forEach(g => {
     if(g.length < 2) return;
-    const menor = Math.min(...g.map(m => m.r.fontSize));
+    const menor = Math.max(...g.map(m => m.r.diagnostics.piso), Math.min(...g.map(m => m.r.fontSize)));
     g.forEach(m => {
-      if(m.r.fontSize <= menor) return;
+      if(m.r.fontSize === menor) return;
       const r2 = gFitTextToAuthoredBox(m.l, m.conteudo, Object.assign({}, m.fitOpts, { tetoFonte: menor }));
-      if(r2 && r2.status === 'fits') m.r = r2;
+      if(r2) m.r = r2;
     });
   });
 
   /* FASE 3 — APLICAR. */
+  // Mantém as folgas calculadas antes de igualar fontes; diminuir tinta não empurra terceiros.
+  posicoes.forEach(p => {
+    const l = out.find(o => o.id === p.id), delta = p.y - l.y;
+    if(!delta) return;
+    const placa = out.find(o => o._placa && o._placa.alvo === l.id);
+    [l, placa].forEach(o => {
+      if(!o) return;
+      o.y += delta;
+      changes.push({ id:o.id, pilhaDe:p.raiz, geometry:true, typography:false, moved:true, resized:false });
+    });
+  });
   medidos.forEach(m => {
     const l = m.l;
     if(m.vazio){ campos.push({ id:l.id, status:'vazio', degrau:'vazio' }); return; }

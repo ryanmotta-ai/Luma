@@ -208,5 +208,6 @@ window.LUMA_COPY_CORPUS = [
    pilha de fontes `fp` de quem gravou (Edge/Windows, 23/09/2026). Só SOBE: se o resgate subir,
    a suíte avisa com o objeto novo pronto para colar. Em máquina com outra `fp` (o CI Linux), o
    número exato não é comparado — ver o caso 33. Referência: a bancada TODA (2.478 pares) dava
-   172/784 nesta mesma máquina. */
-window.LUMA_COPY_FIT_PISO = { fp: '1317.2/1317.2/1214.6', bloqueios: 260, resgates: 50 };
+   172/784 nesta mesma máquina, antes da pilha inferida (que baixou a amostra de 260/50 para
+   187/46: 73 bloqueios passaram a caber sozinhos). */
+window.LUMA_COPY_FIT_PISO = { fp: '1317.2/1317.2/1214.6', bloqueios: 187, resgates: 46 };

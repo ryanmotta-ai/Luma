@@ -213,7 +213,8 @@
     const d = { id:'d', type:'text', content:'Com batata', x:126, y:1387, w:188, h:58, font:'Arial', fontSize:48,
       textBox:'point', vAlign:'top', visible:true, opacity:100 };
     const canvas = { w:1080, h:1920 };
-    const cabe = t => { const r = gFitTextToAuthoredBox(l, t, { layers:[l, d], canvas }); return { ok:r.status === 'fits', fontSize:r.fontSize }; };
+    // pilha:null — o cenário é o Copy Fit; o Detalhes colado seria pilha inferida (local-fit 15l).
+    const cabe = t => { const r = gFitTextToAuthoredBox(l, t, { layers:[l, d], canvas, pilha:null }); return { ok:r.status === 'fits', fontSize:r.fontSize }; };
     const f = 'Delicioso Hambúrguer de Costela';
     assert(!cabe(f).ok, 'o cenário precisa começar bloqueado');
     const { sugestoes } = gCopyFitSugestoes(f, cabe, 3);
@@ -427,7 +428,8 @@
       layoutRefText:'PRODUTO' };
     const d = { id:'d', type:'text', content:'Com batata', x:126, y:1387, w:188, h:58, font:'Arial', fontSize:48,
       textBox:'point', vAlign:'top', visible:true, opacity:100 };
-    const cabe = t => { const r = gFitTextToAuthoredBox(l, t, { layers:[l, d], canvas:{ w:1080, h:1920 } }); return { ok:r.status === 'fits', fontSize:r.fontSize }; };
+    // pilha:null — idem ao 12.
+    const cabe = t => { const r = gFitTextToAuthoredBox(l, t, { layers:[l, d], canvas:{ w:1080, h:1920 }, pilha:null }); return { ok:r.status === 'fits', fontSize:r.fontSize }; };
     const f = 'X-Salada com Refrigerante Lata por apenas R$ 19,90';
     assert(!cabe(f).ok, 'o cenário precisa começar bloqueado');
     const { sugestoes } = gCopyFitSugestoes(f, cabe, 3);
@@ -452,7 +454,8 @@
       const { sugestoes } = gCopyFitSugestoes(f, cabe, 3);
       assert(sugestoes.length, 'deveria haver uma versão que cabe');
       sugestoes.forEach(s => assert(cabe(s.text).ok, 'sugeriu o que não cabe: ' + s.text));
-      assert(/refri 2L/.test(sugestoes[0].text), 'a 1ª deveria usar "refri 2L": ' + sugestoes[0].text);
+      // Com a pilha inferida (o CTA desce), "2 litros" → "2L" sozinho já cabe: é a 1ª, a que menos mexe.
+      assert(/ 2L /.test(sugestoes[0].text), 'a 1ª deveria usar "2L": ' + sugestoes[0].text);
     } finally { window.dVars = dvAntes; }
   });
 

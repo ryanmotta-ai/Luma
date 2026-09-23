@@ -437,7 +437,8 @@
   const LONGO_P = 'PIZZA GRANDE CALABRESA';
 
   test('15f · caixa justa com vazio embaixo: cresce até o próximo objeto e CABE', () => {
-    const r = gFitTextToAuthoredBox(produto(), LONGO_P, { layers:[produto(), detalhes], canvas:STORY });
+    // pilha:null — aqui se prova o RESPIRO; o Detalhes colado seria pilha inferida (15l).
+    const r = gFitTextToAuthoredBox(produto(), LONGO_P, { layers:[produto(), detalhes], canvas:STORY, pilha:null });
     assert(r.status === 'fits', 'deveria caber usando o respiro: ' + r.diagnostics.motivo);
     assert(r.lines.length >= 2, 'deveria ter pulado de linha, veio ' + r.lines.length);
     const fundo = 1220 + r.diagnostics.alturaNecessaria;
@@ -499,11 +500,33 @@
     assert(lf.result.changes.some(c => c.id === 'detalhes' && c.pilhaDe === 'produto'), 'a descida não foi declarada');
   });
 
-  test('15l · sem a âncora o MESMO texto bloqueia — a pilha é o que resolve', () => {
-    const { lf } = copa(false, TRES_LINHAS);
-    assert(lf.result.campos.find(c => c.id === 'produto').status === 'overflow',
-      'sem âncora deveria bloquear (Detalhes é parede)');
-    assert(lf.layers.find(o => o.id === 'detalhes').y === 1387, 'sem âncora o Detalhes não pode se mover');
+  test('15l · sem âncora, o vizinho colado na mesma coluna vira pilha QUANDO senão bloquearia', () => {
+    const { antes, lf } = copa(false, 'QUANTO TU SABE MANO SOBRE');
+    const cp = lf.result.campos.find(c => c.id === 'produto');
+    assert(cp.status === 'fits', 'a pilha inferida deveria resolver: ' + JSON.stringify(cp));
+    const d1 = lf.layers.find(o => o.id === 'detalhes');
+    assert(d1.y > 1387, 'o Detalhes deveria ter descido');
+    assert(d1.y + d1.h <= 1610 - 8, 'a pilha inferida passou da linha: termina em ' + (d1.y + d1.h));
+    assert(1220 + lf.layers.find(o => o.id === 'produto')._layoutH <= d1.y, 'o texto cobre o Detalhes');
+    const l1 = lf.layers.find(o => o.id === 'linha');
+    assert(l1.y === antes.find(o => o.id === 'linha').y, 'o de baixo do vizinho é parede, não desce');
+  });
+
+  test('15l2 · pilha inferida só no bloqueio: o que cabe sem ela não mexe no vizinho', () => {
+    const { lf } = copa(false, 'QUANTO TU SABE');
+    assert(lf.result.campos.find(c => c.id === 'produto').status === 'fits', 'deveria caber sozinho');
+    assert(lf.layers.find(o => o.id === 'detalhes').y === 1387, 'o Detalhes se moveu sem precisar');
+  });
+
+  test('15l3 · vizinho fora da coluna não é pilha: segue parede e bloqueia', () => {
+    const p = produto();
+    const preco = { id:'preco', type:'text', content:'R$ 49,90', x:560, y:1230, w:300, h:70, font:'Arial',
+      fontSize:57, lineHeight:1.2, textBox:'point', vAlign:'top', visible:true, opacity:100 };
+    // Começa 60px à direita: cruza a faixa (é parede), mas não é a mesma coluna (não desce).
+    const torto = Object.assign({}, detalhes, { x:190 });
+    const lf = gLocalFitArte([p, torto, preco], { canvas:STORY, dados:{ produto:'QUANTO TU SABE MANO SOBRE' }, defaults:{} });
+    assert(lf.result.campos.find(c => c.id === 'produto').status === 'overflow', 'sem par de pilha deveria bloquear');
+    assert(lf.layers.find(o => o.id === 'detalhes').y === 1387, 'o vizinho fora da coluna se moveu');
   });
 
   test('15m · texto que coube em 1 linha não mexe na pilha (só desce, nunca sobe)', () => {

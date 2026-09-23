@@ -365,9 +365,9 @@ function dRunLinter() {
     }
 
     /* 4c. SUGERIR A PILHA (22/09/2026). O Local Fit faz o de baixo descer junto quando o texto
-       de cima ganha linhas — mas SÓ se o designer ancorou (a pilha é declarada, nunca
-       inferida pelo motor). Aqui o Luma só APONTA o par candidato; quem decide é o designer,
-       num clique. Sinal forte para não gritar demais: o de cima é campo de texto ancorado no
+       de cima ganha linhas. Sem âncora, o motor usa ESTE MESMO par só quando o texto bloquearia
+       (`_gLfPilhaInferida`, 23/09 — mantenha as duas réguas iguais); ancorado, vale sempre.
+       Sinal forte para não gritar demais: o de cima é campo de texto ancorado no
        topo, o de baixo começa logo depois (até 1,5 linha), na MESMA coluna (borda esquerda ou
        centro alinhados), e nada fica entre os dois. */
     if (!l.relativeAnchor && l.type !== 'group' && (l.w || 0) > 0 && (l.h || 0) > 0) {

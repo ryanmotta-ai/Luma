@@ -120,10 +120,13 @@
 
       /* ⛔ TERCEIROS NUNCA MUDAM — o contrato inteiro em uma asserção. Sem placa no molde,
          NENHUMA camada pode ter x/y/w/h diferente do que a arte publicada produz. */
+      /* Exceção declarada: a PILHA (âncora ou o par inferido no bloqueio) só DESCE, no y. */
       const antes=new Map(r.base.map(l=>[l.id,l]));
+      const pilha=new Set(res.changes.filter(c=>c.pilhaDe).map(c=>c.id));
       r.lf.layers.forEach(l=>{
         const o=antes.get(l.id)||{};
-        ['x','y','w','h'].forEach(k=>assert((l[k]||0)===(o[k]||0),
+        if(pilha.has(l.id)) assert((l.y||0)>(o.y||0),'“'+l.name+'” subiu na pilha');
+        ['x','y','w','h'].filter(k=>!(k==='y'&&pilha.has(l.id))).forEach(k=>assert((l[k]||0)===(o[k]||0),
           '“'+l.name+'” teve '+k+' alterado de '+(o[k]||0)+' para '+(l[k]||0)+' — isso é recomposição'));
       });
 

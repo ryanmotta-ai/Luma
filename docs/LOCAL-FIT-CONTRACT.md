@@ -527,9 +527,10 @@ por `js/designer/canvas.js` (teste de tensão do Estúdio).
 | Palavra partida ("RECHEA-" / "DA") não conta como caber: desce o corpo | `gFitTextToAuthoredBox` | 15j |
 | **Copy Fit** — a versão curta que cabe, oferecida (nunca aplicada sozinha) nas três portas abaixo | `js/core/copy-fit.js` | `tests/copy-fit.html` (31) |
 | **Pilha do designer** (decisão do Ryan): `relativeAnchor top-to-bottom` passa a valer com o encaixe. O TOPO da pilha cresce até o menor vazio livre embaixo de qualquer membro; depois do encaixe os membros descem exatamente o que o topo cresceu (placa junto) — fase 4 do `gLocalFitArte`. Só âncora MANUAL; só desce; membro não reserva respiro. Na arte da Copa, com o Detalhes ancorado, "X-TUDO DUPLO COM BACON" e "VAMO DALE MEU PRA NAO TOMAR" deixam de bloquear (67px, 3 linhas) e "COMBO FAMÍLIA" fica no corpo do designer (95px, 2 linhas) | `_gLfTetoPilha` · `_gLfPilha` | 15k–15n |
+| **Pilha inferida no bloqueio** (23/09/2026, revê o "só âncora manual"): sem âncora, quando o texto BLOQUEARIA, o vizinho que o linter 4c aponta (logo abaixo, até 1,5 linha; mesma coluna pela borda esquerda ou centro; nada entre os dois) vira membro e desce junto. Um nível só; o que cabe sem pilha não mexe em ninguém. Na arte da Copa sem âncora, "QUANTO TU SABE MANO SOBRE" deixou de bloquear (61px, 4 linhas) e parou de ser desenhado por cima do Detalhes. Na bancada do Copy Fit, 73 dos 260 bloqueios passaram a caber sozinhos | `_gLfPilhaInferida` | 15l–15l3 |
 | Linter 4c: sugere ancorar a camada que está logo abaixo de um campo de texto na mesma coluna ("Ancorar"), com o gap que mantém a posição de hoje; preço/desconto/código não são topo | `linter.js` | — |
 
-⚠ O respiro muda o contrato de 18/09: o Local Fit deixou de ser cego para vizinhos, mas SÓ para ler o vazio abaixo — continua sem mover, empurrar ou recompor nada.
+⚠ O respiro muda o contrato de 18/09: o Local Fit deixou de ser cego para vizinhos, mas SÓ para ler o vazio abaixo — continua sem mover, empurrar ou recompor nada. A única exceção é a pilha (ancorada, ou o par inferido no bloqueio): o membro só DESCE, no y, e só até antes do próximo objeto.
 
 ### Copy Fit — a saída do bloqueio (23/09/2026)
 
