@@ -98,8 +98,10 @@ async function subirNavegador(bin) {
     const pStderr = dePortaNoStderr();
     if (pStderr > 0) return { proc, porta: pStderr, perfil };
     if (fs.existsSync(arquivoPorta)) {
-      const porta = Number(String(fs.readFileSync(arquivoPorta, 'utf8')).split('\n')[0]);
-      if (porta > 0) return { proc, porta, perfil };
+      try {
+        const porta = Number(String(fs.readFileSync(arquivoPorta, 'utf8')).split('\n')[0]);
+        if (porta > 0) return { proc, porta, perfil };
+      } catch (e) { /* Windows file lock transitório */ }
     }
     if (proc.exitCode != null) break;
     await esperar(100);

@@ -257,7 +257,15 @@ function fMaterialPreStart(material){
   _fSoChips('Escolha uma das opções acima');
 }
 function _fClearPreStart(){ const m=document.getElementById('prestart-msg'); if(m) m.remove(); }
-function fSkipPreStart(){ _fClearPreStart(); _fProceedMaterialStart(fState.material); }
+/* "Começar do zero" é do zero: o `fSelectMaterial` herda `fState.dados` do material/arte
+   anterior, e no guiado o cursor pulava tudo que estava resolvido — a pessoa caía na arte
+   pronta sem poder redigitar. Mesmo reset do "Começar do zero" do rascunho (`fApplyRecoverDraft`). */
+function fSkipPreStart(){
+  _fClearPreStart();
+  fState.dados={}; fState.extractedColors={};
+  try{ fClearChatDraft(); fLpRefresh(); }catch(e){}
+  _fProceedMaterialStart(fState.material);
+}
 // Aplica uma loja salva: preenche logo (e whatsapp/cor se o template os tiver) e remove
 // essas perguntas do fluxo — o franqueado não redigita o que já é da loja.
 function fPickLoja(lojaId){
@@ -393,7 +401,7 @@ function fUpdateProg(){
   try{
     const av=document.getElementById('f-arte-status');
     if(av){
-      const texto = fState.done ? 'Sua arte está pronta. Baixar PNG e publicar no Instagram estão disponíveis.' : '';
+      const texto = fState.done ? 'Sua arte está pronta. Baixar PNG e Editar arte estão disponíveis.' : '';
       if(av.textContent !== texto) av.textContent = texto;
     }
   }catch(e){}
