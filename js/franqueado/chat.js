@@ -1315,7 +1315,7 @@ async function fValidarImagemSemantica(varId, url, cb){
   }
 
   // 2. Análise semântica via IA Gateway
-  if (!window.gAI || !window.gAI.isEnabled('imageValidation')) return;
+  if (!window.gAI || !(typeof window.gAI.isEnabled === 'function' && window.gAI.isEnabled('imageValidation'))) return;
 
   try {
     const match = url && url.match(/^data:([^;]+);base64,(.+)$/);
@@ -2066,11 +2066,25 @@ const _ICO_PEN = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" st
 /* Substitui a legenda do motor local pela da IA quando ela chega. Se a IA falhou (o
    `fFetchAICaptionSuggestions` devolve o fallback com `_ia:false`), não mexe em nada —
    trocar texto igual por texto igual só piscaria a tela. */
+/* Legenda no painel de Dados: gerada (local ou IA) × copiada, por onde saiu. A fonte da cópia
+   é a do conjunto que estava na tela naquela hora — é isso que mede se a IA vale o custo. */
+function fTrackLegenda(evento, canvasId, extra){
+  try{
+    if(typeof gTrackEvent!=='function') return;
+    const caps=_fArtCaptions[canvasId]||[];
+    const painel=document.querySelector(`.caption-assistant-panel[data-canvas-id="${canvasId}"]`);
+    const snap=(typeof _fArtSnapshots!=='undefined'&&_fArtSnapshots[canvasId])||{};
+    gTrackEvent(evento, Object.assign({fonte:caps._ia?'ia':'local', variacao:(painel&&painel.dataset.activeTab)||(caps[0]&&caps[0].id)||null,
+      camp_id:(snap.camp&&snap.camp.id)||(fState.camp&&fState.camp.id)||null,
+      template_id:(typeof _fTplId==='function')?_fTplId(snap.material||fState.material):null}, extra||{}));
+  }catch(e){}
+}
 function _fAplicarLegendaIA(canvasId, sug){
   if(!sug || !sug._ia || !sug.length) return;
   const painel = document.querySelector(`.caption-assistant-panel[data-canvas-id="${canvasId}"]`);
   if(!painel) return;                       // a pessoa já saiu da tela — nada a fazer
   _fArtCaptions[canvasId] = sug;
+  fTrackLegenda('legenda_gerada', canvasId, {n:sug.length});
   const aba = painel.dataset.activeTab || sug[0].id;
   const sel = sug.find(x => x.id === aba) || sug[0];
   const box = document.getElementById('caption-content-' + canvasId);
@@ -2099,7 +2113,7 @@ function _fCaptionSrcTag(suggestions){
    Conferência factual não-bloqueante entre dados da arte e legenda.
    Não julga estética. Não bloqueia download. */
 async function _fRevisarArteIA(canvasId, dados, camp, legendaPromise){
-  if (!window.gAI || !window.gAI.isEnabled('contentReview')) return;
+  if (!window.gAI || !(typeof window.gAI.isEnabled === 'function' && window.gAI.isEnabled('contentReview'))) return;
   const painel = document.querySelector(`.art-wrap:has(#${canvasId})`) || (document.getElementById(canvasId) && document.getElementById(canvasId).closest('.art-wrap'));
   if (!painel) return;
 
@@ -2269,8 +2283,12 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
     }
   }catch(e){}
 
+  /* ⚠ `gAI.isEnabled` não existe no gateway (ai-client.js só tem `isReady`/`isFeatureEnabled`):
+     a checagem estourava e a legenda por IA nunca rodou. Segue DESLIGADA até o Ryan decidir
+     ligá-la (roadmap, decisão 5) — sai a do motor local, como já saía. */
+  if (!window.gAI || typeof window.gAI.isEnabled !== 'function') return fallback;
   // Gateway Novo e Blindado: gAI (§14, §32, §60)
-  if (window.gAI && window.gAI.isEnabled('caption')) {
+  if (window.gAI.isEnabled('caption')) {
     const res = await window.gAI.run('caption.generate', {
       produto: prod,
       precoDe: dados.precoDe || '',
@@ -2431,6 +2449,7 @@ function fCopyCaption(canvasId) {
       copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:2px"><polyline points="20 6 9 17 4 12"/></svg> Copiado!`;
       
       gToast('Legenda copiada!');
+      fTrackLegenda('legenda_copiada', canvasId, {origem:'botao'});
       if (caps._ia && window.gAiTelemetry) {
         window.gAiTelemetry.emit('ai_suggestion_accepted', { task: 'caption.generate' });
       }
@@ -2539,6 +2558,7 @@ function fGerarArte(){
     const suggestions = fGenCaptionSuggestions(d, c, fState.fmt);
     suggestions._ia = false;
     _fArtCaptions[previewCanvasId] = suggestions;
+    fTrackLegenda('legenda_gerada', previewCanvasId, {n:suggestions.length});
     const _legendaIA = fFetchAICaptionSuggestions(d, c, fState.fmt);
 
     // ENTREGA FINAL, parte 2 de 3: a legenda. Card editorial (título + selo de origem +
@@ -2739,6 +2759,7 @@ async function fOutroFormato(id, snapId){
   const suggestions = fGenCaptionSuggestions(snap.dados, snap.camp, f);
   suggestions._ia = false;
   _fArtCaptions[snapId] = suggestions;
+  fTrackLegenda('legenda_gerada', snapId, {n:suggestions.length, outro_formato:true});
   Promise.resolve().then(()=>fFetchAICaptionSuggestions(snap.dados, snap.camp, f))
     .then(sug=>_fAplicarLegendaIA(snapId, sug)).catch(()=>{});
 
@@ -2859,7 +2880,7 @@ async function fBaixar(btn, snapId){
     const cap=_fActiveCaptionText(snapId);
     // A legenda vai DEPOIS da folha: copiar gasta o gesto e o iOS recusaria o share.
     const onde=noCelular==='arquivo'?' em Arquivos › Downloads':'';
-    if(cap){ _fCopyText(cap); gToast('Arte salva'+onde+' • legenda copiada!'); }
+    if(cap){ _fCopyText(cap); fTrackLegenda('legenda_copiada', snapId, {origem:'download'}); gToast('Arte salva'+onde+' • legenda copiada!'); }
     else gToast(noCelular==='share'?'Arte pronta!':'Arte baixada'+onde+'!');
     if (typeof gTriggerOnboardingStep === 'function') {
       gTriggerOnboardingStep('downloadedPng');

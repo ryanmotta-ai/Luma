@@ -17,12 +17,13 @@ let _gDados = {
   data: null, erro: null, carregando: false, req: 0, intervalo: null,
   sort: { col: 'ultimo_acesso', dir: -1 }, busca: '', papel: '',
   pessoa: null, pessoaData: null, pessoaErro: null,
-  ev: { evento: '', user: '', offset: 0, limit: 50, data: null, erro: null, carregando: false, req: 0 }
+  ev: { evento: '', user: '', offset: 0, limit: 50, data: null, erro: null, carregando: false, req: 0 },
+  ia: { data: null, erro: null, carregando: false, req: 0 }
 };
 
 const G_DADOS_ABAS = [
   ['visao', 'Visão geral'], ['pessoas', 'Pessoas'], ['funil', 'Funil'], ['conteudo', 'Conteúdo'],
-  ['buscas', 'Buscas'], ['qualidade', 'Qualidade'], ['eventos', 'Eventos']
+  ['buscas', 'Buscas'], ['qualidade', 'Qualidade'], ['ia', 'IA'], ['eventos', 'Eventos']
 ];
 const G_DADOS_PERIODOS = [[1, 'Hoje'], [7, '7 dias'], [30, '30 dias'], [90, '90 dias']];
 const G_DADOS_PAPEL = { gestao: 'Gestão', superadmin: 'Gestão', equipe_dm: 'Equipe DM', admin: 'Equipe DM', franqueado: 'Franqueado' };
@@ -123,6 +124,9 @@ function _gDadosRotulo(ev, p) {
     case 'jornada_aberta': return 'Abriu a jornada da Academia';
     case 'aula_aberta': return 'Abriu uma aula';
     case 'aula_concluida': return 'Concluiu uma aula';
+    case 'ia_chamada': return (p.ok === false ? 'IA falhou em ' : 'Usou a IA: ') + _gDadosIaTask(p.task) + (p.ms ? ' (' + _gDadosMs(p.ms) + ')' : '');
+    case 'legenda_gerada': return 'Recebeu sugestão de legenda' + (p.fonte === 'ia' ? ' da IA' : '');
+    case 'legenda_copiada': return 'Copiou a legenda' + (p.origem && G_DADOS_IA_ORIGEM[p.origem] ? ' (' + G_DADOS_IA_ORIGEM[p.origem].toLowerCase() + ')' : '');
   }
   if (/^calendario_/.test(ev || '')) return 'Usou o calendário (' + String(ev).slice(11).replace(/_/g, ' ') + ')';
   return String(ev || '—');
@@ -159,6 +163,7 @@ async function gDadosCarregar() {
   _gDados.carregando = true; _gDados.erro = null;
   _gDados.intervalo = _gDadosIntervalo();
   _gDados.ev.data = null; _gDados.ev.offset = 0;
+  _gDados.ia.data = null;
   _gDados.pessoaData = null;
   _gDadosRender();
   let res;
@@ -186,6 +191,7 @@ function gDadosSetAba(aba, foco) {
   _gDadosRender();
   if (foco) document.getElementById('gd-tab-' + aba)?.focus();
   if (aba === 'eventos' && !_gDados.ev.data && !_gDados.ev.carregando && _gDados.data) gDadosEventosCarregar();
+  if (aba === 'ia' && !_gDados.ia.data && !_gDados.ia.carregando && _gDados.data) gDadosIaCarregar();
 }
 // Setas/Home/End no tablist (padrão WAI-ARIA de abas, ativação automática).
 function gDadosTabsKeydown(e) {
@@ -264,6 +270,7 @@ function _gDadosPainelHtml() {
     case 'conteudo': return _gDadosConteudoHtml(d);
     case 'buscas': return _gDadosBuscasHtml(d);
     case 'qualidade': return _gDadosQualidadeHtml(d);
+    case 'ia': return _gDadosIaHtml();
     case 'eventos': return _gDadosEventosHtml();
     default: return _gDadosVisaoHtml(d);
   }
@@ -578,6 +585,74 @@ function _gDadosQualidadeHtml(d) {
     </div>`;
 }
 
+/* ── IA (uso, erro, latência, legendas) ─────────────────────────────────────────────── */
+// Carrega à parte (RPC luma.dados_ia) e só quando a aba abre: é a mesma regra do explorador.
+const G_DADOS_IA_TASK = {
+  'legenda': 'Legenda', 'caption.generate': 'Legenda (gateway)', 'girias': 'Gírias da cidade',
+  'encurtar': 'Encurtar texto', 'copy.fit': 'Encurtar texto (gateway)', 'transcrever-audio': 'Ditado por voz',
+  'mapear-psd': 'Mapear PSD', 'psd.map': 'Mapear PSD (gateway)', 'aula': 'Tutor da Academia',
+  'ajuda': 'Ajuda', 'cardapio': 'Leitura de cardápio', 'casar-fotos': 'Casar fotos', 'cli': 'Console da equipe',
+  'content.review': 'Revisão da peça', 'image.validate': 'Validação de imagem', 'metadata.suggest': 'Sugestão de metadados',
+  'stress.generate': 'Casos de estresse', 'search.expand': 'Busca semântica'
+};
+const G_DADOS_IA_ERRO = { timeout: 'Demorou demais (timeout)', rede: 'Sem conexão', http_502: 'O Gemini falhou', http_429: 'Limite de chamadas por minuto', http_401: 'Sessão expirada', http_400: 'Pedido recusado pela function', http_503: 'IA sem chave no servidor' };
+const G_DADOS_IA_ORIGEM = { botao: 'Botão Copiar', download: 'Junto do download', instagram: 'Postar no Instagram', whatsapp: 'Enviar no WhatsApp' };
+function _gDadosIaTask(t) { return G_DADOS_IA_TASK[t] || t || '—'; }
+function _gDadosMs(ms) { return ms == null ? '—' : ms < 1000 ? Math.round(ms) + ' ms' : (ms / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' s'; }
+async function gDadosIaCarregar() {
+  const s = _gDados.ia, req = ++s.req;
+  s.carregando = true; s.erro = null;
+  if (_gDados.aba === 'ia') _gDadosRender();
+  const iv = _gDados.intervalo || _gDadosIntervalo();
+  let res;
+  try { res = await _gDadosRpc('dados_ia', { p_de: iv.de, p_ate: iv.ate }); } catch (err) { res = { error: err }; }
+  if (req !== s.req) return;
+  s.carregando = false;
+  if (res.error || !res.data) s.erro = _gDadosMsgErro(res.error || 'A consulta voltou vazia.');
+  else s.data = res.data;
+  if (_gDados.aba === 'ia') _gDadosRender();
+}
+function _gDadosIaHtml() {
+  const s = _gDados.ia, d = s.data;
+  if (s.erro) return _gDadosErroHtml(s.erro, 'gDadosIaCarregar()');
+  if (s.carregando || !d) return _gDadosSkeleton();
+  const r = d.resumo || {}, lg = d.legendas || {}, cf = d.copyfit_ia || {};
+  if (!r.chamadas && !lg.geradas_local && !lg.geradas_ia) return _gDadosVazioHtml('Nenhuma chamada de IA neste período — o rastreamento da IA começou em 23/09/2026.');
+  const total = r.chamadas || 0;
+  const geradas = (lg.geradas_local || 0) + (lg.geradas_ia || 0), copiadas = (lg.copiadas_local || 0) + (lg.copiadas_ia || 0);
+  const porTask = _gDadosTabela([
+    { t: 'Tarefa', k: x => `<strong>${gEsc(_gDadosIaTask(x.task))}</strong><small class="gd-sub"><code>${gEsc(x.task)}</code></small>` },
+    { t: 'Chamadas', num: 1, k: x => _gDadosN(x.n) },
+    { t: 'Parcela', k: x => _gDadosBarra(total ? x.n / total : 0) + ' ' + _gDadosPct(total ? x.n / total : null) },
+    { t: 'Erros', num: 1, k: x => _gDadosN(x.erros) + (x.n ? ` <small class="gd-sub">${_gDadosPct(x.erros / x.n)}</small>` : '') },
+    { t: 'Pessoas', num: 1, k: x => _gDadosN(x.pessoas) },
+    { t: 'Mediana', num: 1, k: x => gEsc(_gDadosMs(x.p50_ms)) },
+    { t: 'p95', num: 1, k: x => gEsc(_gDadosMs(x.p95_ms)) }
+  ], d.por_task, 'Nenhuma chamada no período.');
+  const erros = _gDadosTabela([
+    { t: 'Tarefa', k: x => gEsc(_gDadosIaTask(x.task)) },
+    { t: 'Erro', k: x => gEsc(G_DADOS_IA_ERRO[x.erro] || x.erro || '—') + (G_DADOS_IA_ERRO[x.erro] ? `<small class="gd-sub"><code>${gEsc(x.erro)}</code></small>` : '') },
+    { t: 'Vezes', num: 1, k: x => _gDadosN(x.n) }, { t: 'Pessoas', num: 1, k: x => _gDadosN(x.pessoas) },
+    { t: 'Último', k: x => gEsc(_gDadosDataHora(x.ultimo)) }
+  ], d.erros, 'Nenhuma falha de IA no período.');
+  const origens = (lg.por_origem || []).length
+    ? `<ul class="gd-lista">${lg.por_origem.map(o => `<li><strong>${gEsc(G_DADOS_IA_ORIGEM[o.origem] || o.origem)}</strong><small>${_gDadosN(o.n)}</small></li>`).join('')}</ul>`
+    : '<p class="gd-vazio">Nenhuma legenda copiada no período.</p>';
+  return `<div class="gd-kpis">
+      ${_gDadosKpi('Chamadas de IA', _gDadosN(total), gEsc(_gDadosN(r.pessoas) + ' pessoas'))}
+      ${_gDadosKpi('Taxa de erro', _gDadosPct(r.taxa_erro), gEsc(_gDadosN(r.erros) + ' falhas'))}
+      ${_gDadosKpi('Tempo de resposta', gEsc(_gDadosMs(r.p50_ms)), gEsc('Mediana · p95 ' + _gDadosMs(r.p95_ms)))}
+      ${_gDadosKpi('Legendas usadas', _gDadosPct(geradas ? copiadas / geradas : null), gEsc(_gDadosN(copiadas) + ' de ' + _gDadosN(geradas) + ' geradas'))}
+      ${_gDadosKpi('Legendas da IA', _gDadosN(lg.geradas_ia), gEsc('Usadas ' + _gDadosN(lg.copiadas_ia) + ' · do motor local ' + _gDadosN(lg.copiadas_local)))}
+      ${_gDadosKpi('Encurtar com IA', _gDadosN(cf.pedidos), gEsc(_gDadosN(cf.opcoes_ok) + ' opções aprovadas · ' + _gDadosN(cf.reprovadas) + ' reprovadas'))}
+    </div>
+    ${_gDadosSecao('Consumo por tarefa', 'Cada ida à Edge Function de IA. O tempo conta só as que deram certo.', porTask)}
+    <div class="gd-duas">
+      ${_gDadosSecao('Falhas', 'O que deu errado, por tarefa.', erros)}
+      ${_gDadosSecao('Por onde a legenda saiu', 'Cópias da legenda, pelo caminho usado.', origens)}
+    </div>`;
+}
+
 /* ── Eventos (explorador) ───────────────────────────────────────────────────────────── */
 async function gDadosEventosCarregar() {
   const e = _gDados.ev, req = ++e.req;
@@ -674,6 +749,11 @@ async function gDadosExportarCsv() {
     return _gDadosCsvBaixar('qualidade', ['tipo', 'item', 'detalhe', 'vezes', 'pessoas', 'ultimo'], []
       .concat((q.nao_cabe || []).map(r => ['texto não cabe', r.template_name || r.template_id, r.campo, r.n, '', '']))
       .concat((q.erros || []).map(r => ['erro do app', r.msg, '', r.n, r.pessoas, r.ultimo])));
+  }
+  if (aba === 'ia') {
+    const x = _gDados.ia.data;
+    if (!x) return;
+    return _gDadosCsvBaixar('ia', ['tarefa', 'chamadas', 'ok', 'erros', 'pessoas', 'mediana_ms', 'p95_ms'], (x.por_task || []).map(r => [r.task, r.n, r.ok, r.erros, r.pessoas, r.p50_ms, r.p95_ms]));
   }
   if (aba === 'eventos') {
     // Exporta o filtro inteiro (até 500), não só a página visível.

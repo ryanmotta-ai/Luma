@@ -6,11 +6,10 @@
  * ninguém mais monta fetch pro Gemini na mão. Um caminho = um lugar pra trocar
  * de modelo, pôr timeout, cachear e tratar falha.
  *
- * Caminho preferido: Edge Function `ai` (supabase/functions/ai) — a chave mora
- * no servidor. Caminho de TRANSIÇÃO: chamada direta com a chave do front
- * (js/00-config.js), que é como o Luma funciona hoje. ⚠ Essa chave é pública
- * pra qualquer browser: ela deve ser ROTACIONADA e apagada do config assim que
- * a function estiver publicada. Ver docs/LUMA-BACKEND-CHANGELOG.md.
+ * Caminho ÚNICO: Edge Function `ai` (supabase/functions/ai) — a chave mora no servidor
+ * (secret GEMINI_API_KEY). ⛔ Não existe mais chave no front: de 11/09 a 23/09/2026 o
+ * 00-config.js levava a chave pra todo navegador e ela vazou (foi revogada). O gateway
+ * gAI (ai/ai-client.js) usa a mesma porta, `gAiEdgeFetch`.
  *
  * Contrato: gAskAI NUNCA lança e NUNCA trava a UI (timeout). Devolve string ou
  * null; quem chama decide o fallback (motor local, esconder o botão, avisar).
@@ -19,40 +18,24 @@
  */
 
 const G_AI_TIMEOUT_MS = 45000;     // teto por chamada — cold start do Gemini 3.6 / cardápio em PDF
-let _gAiEdgeOk = false;            // operando 100% pelo front (sem secret na Edge Function do Supabase)
+let _gAiEdgeOk = null;             // null = ainda não perguntou · true = respondeu · false = function fora (404/sem secret)
 const _gAiCache = new Map();       // hash(task|prompt) → texto (só chamadas SEM anexo)
 
-// Há algum caminho pra IA? A UI usa isto pra decidir se MOSTRA o recurso — então não
-// pode ser otimismo cego: botão que aparece e falha é pior que botão que não existe.
-// Sem chamar rede, dá pra saber que NÃO há caminho: ou existe sessão no Supabase (a
-// function pode responder), ou existe chave de transição no front. Nenhum dos dois =
-// modo local puro → o recurso simplesmente não aparece.
+// Há caminho pra IA? A UI usa isto pra decidir se MOSTRA o recurso — então não pode ser
+// otimismo cego: botão que aparece e falha é pior que botão que não existe. Sem rede, dá
+// pra saber que NÃO há caminho: sem sessão a function responde 401; se ela já disse que
+// está fora (404/sem secret), fica fora nesta aba.
 function gAiReady(){
-  if(_gAiEdgeOk===false) return !!_gAiKeyLocal();   // function ausente/quebrada → só com chave
-  if(_gAiEdgeOk===true) return true;                // já respondeu antes nesta sessão
-  const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
-  const logado=(typeof gCurrentUser==='function') ? !!gCurrentUser() : false;
-  return (!!sb && logado) || !!_gAiKeyLocal();
-}
-// Há o caminho SERVIDOR (Edge Function)? Recurso cujo prompt vive na function —
-// hoje o tutor da Academia (task 'aula') — não funciona com a chave do front, então
-// perguntar por gAiReady() daria "disponível" e a resposta falharia sempre.
-// Este é o gate certo para esses recursos.
-function gAiEdgeReady(){
+  if(_gAiEdgeOk===false) return false;
   if(_gAiEdgeOk===true) return true;
-  if(_gAiKeyLocal()) return true; // operando pelo front: chave local atende todas as tasks
   const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
   const cfg=window.LUMA_SUPABASE||{};
   const logado=(typeof gCurrentUser==='function') ? !!gCurrentUser() : false;
-  return !!(sb && cfg.url && cfg.anonKey && logado);  // sem sessão a function responde 401
+  return !!(sb && cfg.url && cfg.anonKey && logado);
 }
-function _gAiKeyLocal(){
-  try{
-    return window.LUMA_GEMINI_API_KEY
-      || (typeof LUMA_CONFIG!=='undefined' && LUMA_CONFIG.geminiApiKey)
-      || localStorage.getItem('luma_gemini_api_key') || '';
-  }catch(e){ return ''; }
-}
+// Mantida pelo nome: o tutor da Academia (agente.js) pergunta por ela. Com um caminho só,
+// "tem servidor" e "tem IA" são a mesma pergunta.
+function gAiEdgeReady(){ return gAiReady(); }
 // A escolha do time (console: comando `modelo`) vence o padrão do config. A ordem
 // importa: 00-config.js SEMPRE define window.LUMA_GEMINI_MODEL no boot, então com o
 // window na frente a troca não sobrevivia ao recarregar — voltava calada pro padrão.
@@ -64,79 +47,9 @@ function gAiModel(){
   return window.LUMA_GEMINI_MODEL || 'gemini-3.6-flash';
 }
 
-const _G_AI_AULA_SISTEMA = `Você é o tutor da Academia Delivery Much, o agente educacional da Formação do Franqueado.
-Seu papel é ajudar o estudante — um franqueado que está implantando a Delivery Much na cidade dele — a COMPREENDER e APLICAR o conteúdo oficial da aula atual.
-
-MÉTODO
-- Prefira perguntas orientadoras, pistas, exemplos e verificações de entendimento a respostas mastigadas.
-- Quando fizer sentido: confirme a dúvida, descubra o que a pessoa já entendeu, aponte o trecho/conceito relevante, dê uma pista e faça UMA pergunta de checagem.
-- Faça no máximo uma pergunta por resposta. Não transforme a conversa em interrogatório.
-- Responda direto, sem rodeio socrático, quando: a dúvida for operacional e objetiva; a pessoa só quer localizar um material ou recurso; houver risco de executar um processo errado; ou perguntar de volta só atrasaria.
-
-LIMITES (não negociáveis)
-- Use apenas o CONTEXTO OFICIAL fornecido abaixo. Não invente política, processo, prazo, valor, meta ou regra da rede.
-- Se a informação não estiver no contexto, diga isso com clareza e indique o caminho: o material da aula, outra aula da formação, ou a equipe Delivery Much.
-- Nunca entregue a resposta de uma atividade avaliativa. Você recebe apenas os enunciados, nunca o gabarito: conduza o raciocínio, dê pistas, não conclua por ela.
-- Se a dúvida envolver risco operacional, financeiro, jurídico, de segurança ou uma decisão oficial da rede, diga explicitamente que a confirmação humana da equipe Delivery Much é necessária.
-- Não fale de outros franqueados nem de dados de gestão. Você não executa ações no sistema.
-- Só cite minutagem do vídeo (formato mm:ss) se ela aparecer na transcrição do contexto. Sem transcrição, não invente tempo.
-
-TOM
-- Português do Brasil, claro e breve (em geral 2 a 5 frases). Profissional e próximo, sem infantilizar e sem bajular.
-- Fale de operação real de franquia, não de teoria abstrata. Trate a pessoa como adulta responsável pelo próprio negócio.
-- Texto corrido ou lista curta. Nada de markdown pesado, título nem emoji.`;
-
-function _gAiMontaPromptAula(c, pergunta){
-  c = c || {};
-  const mats = Array.isArray(c.materiais) ? c.materiais : [];
-  const ativ = c.atividade || null;
-  const hist = Array.isArray(c.historico) ? c.historico : [];
-  const prog = c.progresso || {};
-
-  const partes = [];
-  partes.push("CONTEXTO OFICIAL DA AULA");
-  partes.push(`Formação: ${String(c.curso||'').slice(0,200)}`);
-  partes.push(`Módulo: ${String(c.modulo||'').slice(0,200)}`);
-  partes.push(`Aula: ${String(c.aula||'').slice(0,200)}`);
-  if (c.objetivo) partes.push(`Objetivo da aula: ${String(c.objetivo).slice(0,800)}`);
-  if (c.resumo) partes.push(`Resumo: ${String(c.resumo).slice(0,2500)}`);
-  if (c.descricao) partes.push(`Descrição: ${String(c.descricao).slice(0,2500)}`);
-  if (mats.length) {
-    partes.push("Materiais desta aula: " + mats.map(m => `${String(m.titulo||'').slice(0,120)} (${String(m.tipo||'').slice(0,30)})`).join("; "));
-  }
-  if (ativ) {
-    partes.push(`Atividade da aula (SEM gabarito — não responda por ela): ${String(ativ.titulo||'').slice(0,120)}`);
-    const ens = Array.isArray(ativ.enunciados) ? ativ.enunciados : [];
-    ens.slice(0, 12).forEach((e, i) => partes.push(`  ${i + 1}. ${String(e||'').slice(0,400)}`));
-  }
-  if (c.transcricao) {
-    partes.push("Transcrição (use os tempos [mm:ss] para citar momentos):");
-    partes.push(String(c.transcricao).slice(0,12000));
-  } else if (c.tem_video) {
-    partes.push("Esta aula tem vídeo, mas SEM transcrição disponível — não cite minutagem.");
-  } else {
-    partes.push("Esta aula não tem vídeo (é de leitura).");
-  }
-  partes.push(`Situação do estudante: ${prog.aula_concluida ? "já concluiu esta aula" : "ainda não concluiu esta aula"}; ${Number(prog.pct_formacao) || 0}% da formação concluída${prog.formacao_concluida ? "; já formado (está revisando)" : ""}.`);
-
-  if (hist.length) {
-    partes.push("CONVERSA RECENTE NESTA AULA");
-    hist.slice(-8).forEach(m => {
-      const quem = String(m.papel) === "usuario" ? "Estudante" : "Tutor";
-      partes.push(`${quem}: ${String(m.texto||'').slice(0,900)}`);
-    });
-  }
-
-  partes.push("PERGUNTA DO ESTUDANTE");
-  partes.push(pergunta);
-  partes.push("Responda seguindo o método, os limites e o tom definidos acima.");
-
-  return `${_G_AI_AULA_SISTEMA}\n\n${partes.join('\n')}`;
-}
-
 /**
  * Pergunta ao modelo.
- * @param {string} task   'legenda'|'encurtar'|'ajuda'|'cardapio'|'casar-fotos'|'aula'|'mapear-psd' (a function só aceita estas)
+ * @param {string} task   uma das tarefas da allowlist da function (TASKS em supabase/functions/ai)
  * @param {string} prompt prompt completo, montado por quem chama — EXCETO na task
  *                        'aula', em que este campo é só a pergunta do estudante e
  *                        o prompt pedagógico é montado na Edge Function (ver
@@ -158,15 +71,7 @@ async function gAskAI(task, prompt, opts){
   const chaveCache = podeCachear ? gImgHash(task+'|'+gAiModel()+'|'+prompt) : '';
   if(chaveCache && _gAiCache.has(chaveCache)) return _gAiCache.get(chaveCache);
 
-  let texto = await _gAiViaEdge(task, prompt, parts, querJson, contexto);
-  // Caminho 100% front / transição: se a function falhar ou não tiver secret, chave local responde tudo
-  if(texto==null){
-    let promptFinal = prompt;
-    if(contexto && typeof _gAiMontaPromptAula==='function'){
-      promptFinal = _gAiMontaPromptAula(contexto, prompt);
-    }
-    texto = await _gAiViaChaveLocal(promptFinal, parts, querJson);
-  }
+  const texto = await _gAiViaEdge(task, prompt, parts, querJson, contexto);
   if(texto!=null && chaveCache){
     if(typeof gCachePodar==='function') gCachePodar(_gAiCache, 200); else if(_gAiCache.size>200) _gAiCache.clear();   // teto de sessão, descarte parcial
     _gAiCache.set(chaveCache, texto);
@@ -174,9 +79,11 @@ async function gAskAI(task, prompt, opts){
   return texto;
 }
 
-// Caminho 1 — Edge Function (chave no servidor). fetch cru em vez de
-// functions.invoke pra ter AbortController (invoke não aceita signal).
-async function _gAiViaEdge(task, prompt, parts, querJson, contexto){
+/* A PORTA da Edge Function, para os dois clientes (gAskAI e o gateway gAI). fetch cru em vez
+   de functions.invoke pra ter AbortController (invoke não aceita signal). Devolve o Response,
+   ou null quando nem dá pra tentar (sem sessão, function já dada como fora). 404 e "sem
+   secret" desligam a IA nesta aba — tentar de novo a cada clique só atrasaria o fallback. */
+async function gAiEdgeFetch(body, signal){
   if(_gAiEdgeOk===false) return null;
   const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
   const cfg=window.LUMA_SUPABASE||{};
@@ -184,64 +91,57 @@ async function _gAiViaEdge(task, prompt, parts, querJson, contexto){
   let token='';
   try{ const {data}=await sb.auth.getSession(); token=(data&&data.session&&data.session.access_token)||''; }catch(e){}
   if(!token) return null;   // sem sessão a function recusa (401) — nem tenta
+  const t0=Date.now();
+  let res;
+  try{
+    res=await fetch(cfg.url.replace(/\/+$/,'')+'/functions/v1/ai',{
+      method:'POST', signal,
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'apikey':cfg.anonKey},
+      body:JSON.stringify(Object.assign({model:gAiModel()}, body))
+    });
+  }catch(e){
+    _gAiTrackChamada(body, t0, 0, (e&&e.name==='AbortError')?'timeout':'rede');
+    throw e;
+  }
+  _gAiTrackChamada(body, t0, res.status, res.ok?null:('http_'+res.status));
+  if(res.status===404){ _gAiEdgeOk=false; console.warn('[ai] Edge Function `ai` não existe no Supabase'); }
+  else if(res.status===503){
+    const txt=await res.clone().text().catch(()=>'');
+    if(/secret/i.test(txt)){ _gAiEdgeOk=false; console.warn('[ai] Edge Function `ai` sem o secret GEMINI_API_KEY'); }
+  }
+  else if(res.ok) _gAiEdgeOk=true;
+  return res;
+}
+
+/* ia_chamada: UMA linha por ida à function, dos dois clientes — é daqui que o painel tira uso
+   por tarefa, taxa de erro e latência. Sem prompt nem resposta: só a tarefa, o tempo e o
+   desfecho (a conta que importa é de custo e de falha, não de conteúdo). */
+function _gAiTrackChamada(body, t0, status, erro){
+  try{
+    if(typeof gTrackEvent!=='function') return;
+    const anexos=(body&&Array.isArray(body.parts))?body.parts:[];
+    gTrackEvent('ia_chamada',{task:String((body&&body.task)||''), ok:!erro, status:status||null, erro:erro||null,
+      ms:Date.now()-t0, anexos:anexos.length, tipo_anexo:anexos[0]?String(anexos[0].mimeType||'').split('/')[0]:null,
+      gateway:!!(body&&body.responseSchema), modelo:gAiModel()});
+  }catch(e){}
+}
+
+async function _gAiViaEdge(task, prompt, parts, querJson, contexto){
   const ctrl=new AbortController();
   const t=setTimeout(()=>ctrl.abort(), G_AI_TIMEOUT_MS);
   try{
-    const res=await fetch(cfg.url.replace(/\/+$/,'')+'/functions/v1/ai',{
-      method:'POST', signal:ctrl.signal,
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'apikey':cfg.anonKey},
-      body:JSON.stringify(contexto
-        ? {task,prompt,parts,model:gAiModel(),json:querJson,contexto}
-        : {task,prompt,parts,model:gAiModel(),json:querJson})
-    });
-    if(res.status===404 || res.status===503){
-      _gAiEdgeOk=false;
-      console.warn('[ai] Edge Function `ai` indisponível no Supabase (status '+res.status+') — operando pelo front');
-      return null;
-    }
+    const body={task,prompt,parts,json:querJson};
+    if(contexto) body.contexto=contexto;
+    const res=await gAiEdgeFetch(body, ctrl.signal);
+    if(!res) return null;
     const data=await res.json().catch(()=>null);
     if(!res.ok || !data || !data.ok){
-      if(data && data.error && String(data.error).includes('secret')){
-        _gAiEdgeOk=false;
-        console.warn('[ai] Edge Function `ai` sem secret no Supabase — operando 100% pelo front');
-      } else {
-        console.warn('[ai] function respondeu '+res.status+': '+((data&&data.error)||''));
-      }
+      console.warn('[ai] function respondeu '+res.status+': '+((data&&data.error)||''));
       return null;
     }
-    _gAiEdgeOk=true;
     return data.text||'';
   }catch(e){
     console.warn('[ai] chamada à function falhou:', (e&&e.name==='AbortError')?'timeout':e);
-    return null;
-  }finally{ clearTimeout(t); }
-}
-
-// Caminho 2 — TRANSIÇÃO: chave no front. Sai de cena quando a function subir.
-async function _gAiViaChaveLocal(prompt, parts, querJson){
-  const chave=_gAiKeyLocal();
-  if(!chave) return null;
-  const ctrl=new AbortController();
-  const t=setTimeout(()=>ctrl.abort(), G_AI_TIMEOUT_MS);
-  try{
-    const textoPrompt = (typeof prompt==='string') ? prompt : (prompt ? JSON.stringify(prompt) : '');
-    const corpo={contents:[{parts:[{text:textoPrompt}].concat(parts.map(p=>({inlineData:{mimeType:p.mimeType,data:p.data}})))}]};
-    if(querJson) corpo.generationConfig={responseMimeType:'application/json'};
-    const res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+gAiModel()+':generateContent?key='+chave,{
-      method:'POST', signal:ctrl.signal,
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(corpo)
-    });
-    if(!res.ok){
-      const errTxt = await res.text().catch(()=>'');
-      console.warn('[ai] Gemini direto respondeu '+res.status+': '+errTxt);
-      return null;
-    }
-    const data=await res.json();
-    const txt=data&&data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts&&data.candidates[0].content.parts[0]&&data.candidates[0].content.parts[0].text;
-    return txt||null;
-  }catch(e){
-    console.warn('[ai] Gemini direto falhou:', (e&&e.name==='AbortError')?'timeout':e);
     return null;
   }finally{ clearTimeout(t); }
 }

@@ -9,15 +9,8 @@
    FRANQUEADO — dados e estado
 ══════════════════════════════════════════════════════════════ */
 const HIST_KEY='dm_artes_hist_v2';
-/* Chave do Gemini do caminho de transição (o front fala direto com o provedor
-   quando a Edge Function `ai` não responde). Trocada em 2026-08-19: a anterior
-   estava REVOGADA e devolvia 401 UNAUTHENTICATED em toda chamada — o que deixava
-   legenda, cardápio, ajuda, encurtar e transcrição falhando em silêncio, porque
-   gAskAI devolve null e cada recurso cai no fallback sem dizer o motivo.
-   ⚠ Formato: chave de API do Gemini hoje começa com 'AQ.' — não é mais 'AIza…'.
-   Verificado por chamada real ao provedor antes de entrar aqui. */
-window.LUMA_CONFIG = window.LUMA_CONFIG || { geminiApiKey: 'AQ.Ab8RN6K57nnQafJs2rkB_41z-6skw3EXjdngiUVSSZw0GmKVWg' };
-window.LUMA_GEMINI_API_KEY = window.LUMA_GEMINI_API_KEY || 'AQ.Ab8RN6K57nnQafJs2rkB_41z-6skw3EXjdngiUVSSZw0GmKVWg';
+/* A chave do Gemini NÃO mora no front: é o secret GEMINI_API_KEY da Edge Function `ai`
+   (supabase/functions/ai). A que ficava aqui vazou e foi revogada em 23/09/2026. */
 // Modelo dos 2 agentes, em UM lugar só. 'gemini-3.6-flash' é estável e não sofre da oscilação de alta demanda do 3.8.
 window.LUMA_GEMINI_MODEL = window.LUMA_GEMINI_MODEL || 'gemini-3.6-flash';
 

@@ -1,6 +1,10 @@
 // ============================================================
 // LUMA — Edge Function: ai (tubulação única de IA)
 // ============================================================
+// v2 (23/09/2026): volta a ser o ÚNICO caminho. Entre 11/09 e 23/09 o front falou direto com o
+// Gemini com a chave no js/00-config.js (vazou — foi revogada). Agora os dois clientes do front
+// (gAskAI em js/core/ai.js e o gateway gAI em js/core/ai/ai-client.js) só chamam aqui.
+//
 // PROBLEMA QUE ESTA FUNCTION RESOLVE: até aqui a chave do Gemini vivia em
 // js/00-config.js, servida a TODO browser de franqueado — qualquer DevTools
 // lia e gastava a cota da DM, sem freio e sem rastro. Isso fere o guardrail
@@ -11,9 +15,9 @@
 // usam IA). Não há dado sensível na resposta; o que se protege é a COTA.
 //
 // ponytail: este proxy REPASSA o prompt montado pelo front em vez de montar o
-// prompt aqui. Motivo: o Luma não tem build/ESM, então prompt no servidor viraria
-// prompt DUPLICADO (front precisa dele pro modo transição) — e duplicar motor é
-// a proibição nº 1 desta base. Teto assumido: um usuário logado da DM consegue
+// prompt aqui. Motivo: os prompts de cada recurso moram junto do recurso no front
+// (sem build/ESM, não há como compartilhar módulo) e duplicá-los aqui seria motor em
+// dois lugares — a proibição nº 1 desta base. Teto assumido: um usuário logado da DM consegue
 // gastar tokens com prompt próprio, limitado pelo rate-limit abaixo. Se algum dia
 // precisar de controle rígido, os builders de prompt migram pra cá (task por task)
 // e o front passa a mandar só payload.
@@ -36,7 +40,18 @@ const json = (body: unknown, status = 200) =>
 // outras (só `aula` monta aqui).
 // `girias` = o jeito de falar da cidade do franqueado (js/franqueado/chat.js): roda UMA vez
 // por cidade, o resultado fica no localStorage e entra no prompt da legenda como tempero.
-const TASKS = ["legenda", "encurtar", "ajuda", "cardapio", "casar-fotos", "cli", "aula", "mapear-psd", "girias"];
+// `transcrever-audio` = ditado do campo de texto (png-generator.js): anexo de áudio do navegador.
+// As com ponto são as tarefas do gateway gAI (js/core/ai/ai-registry.js) — mandam `responseSchema`.
+const TASKS = ["legenda", "encurtar", "ajuda", "cardapio", "casar-fotos", "cli", "aula", "mapear-psd", "girias",
+  "transcrever-audio",
+  "caption.generate", "copy.fit", "content.review", "image.validate", "psd.map", "metadata.suggest",
+  "stress.generate", "search.expand"];
+
+// Modelo: o front escolhe (console `modelo`), mas só dentro da família Gemini — nome arbitrário
+// não chega na URL do provedor.
+const MODELO_PADRAO = "gemini-3.6-flash";
+const MODELO_OK = /^gemini-[a-z0-9.\-]{1,40}$/i;
+const MAX_SCHEMA = 20000;      // caracteres do responseSchema serializado
 
 // Tetos por chamada: prompt de peça de marketing é curto; anexo é foto/PDF de cardápio.
 const MAX_PROMPT = 12000;      // caracteres
@@ -175,7 +190,9 @@ Deno.serve(async (req) => {
     const task = String(body?.task ?? "");
     let prompt = String(body?.prompt ?? "");
     const partes = Array.isArray(body?.parts) ? body.parts : [];
-    const modelo = /^[a-z0-9.\-]{3,60}$/i.test(String(body?.model ?? "")) ? String(body.model) : "gemini-flash-latest";
+    const modelo = MODELO_OK.test(String(body?.model ?? "")) ? String(body.model) : MODELO_PADRAO;
+    const schema = (body?.responseSchema && typeof body.responseSchema === "object") ? body.responseSchema : null;
+    if (schema && JSON.stringify(schema).length > MAX_SCHEMA) return json({ error: "schema grande demais" }, 400);
     let querJson = body?.json !== false; // padrão: resposta em JSON (todas as tarefas de hoje)
 
     if (!TASKS.includes(task)) return json({ error: "tarefa desconhecida" }, 400);
@@ -199,26 +216,30 @@ Deno.serve(async (req) => {
     }
     if (partes.length > MAX_PARTS) return json({ error: "anexos demais" }, 400);
 
-    // 3) Anexos (foto/PDF de cardápio): só inlineData com mime de imagem/pdf
+    // 3) Anexos: imagem/PDF (cardápio, arte do PSD) e áudio (ditado). Só inlineData.
     const parts: unknown[] = [{ text: prompt }];
     let bytes = 0;
     for (const p of partes) {
-      const mime = String(p?.mimeType ?? "");
+      // "audio/webm;codecs=opus" → "audio/webm": o parâmetro do codec não muda o tipo.
+      const mime = String(p?.mimeType ?? "").split(";")[0].trim();
       const dados = String(p?.data ?? "");
-      if (!/^(image\/(png|jpe?g|webp|gif)|application\/pdf)$/i.test(mime)) return json({ error: "tipo de anexo não aceito" }, 400);
+      if (!/^(image\/(png|jpe?g|webp|gif)|application\/pdf|audio\/(webm|ogg|mp4|mpeg|wav|x-m4a|aac))$/i.test(mime)) return json({ error: "tipo de anexo não aceito" }, 400);
       bytes += dados.length;
       if (bytes > MAX_INLINE_BYTES) return json({ error: "anexos pesados demais" }, 400);
       parts.push({ inlineData: { mimeType: mime, data: dados } });
     }
 
     // 4) Gemini
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${chave}`;
+    // A chave vai no cabeçalho, não na query: URL acaba em log de proxy e de erro.
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`;
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": chave },
       body: JSON.stringify({
         contents: [{ parts }],
-        generationConfig: querJson ? { responseMimeType: "application/json" } : {},
+        generationConfig: !querJson ? {}
+          : schema ? { responseMimeType: "application/json", responseSchema: schema }
+          : { responseMimeType: "application/json" },
       }),
     });
     if (!res.ok) {
@@ -227,7 +248,11 @@ Deno.serve(async (req) => {
       return json({ error: "o provedor de IA falhou (" + res.status + ")" }, 502);
     }
     const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    // Junta as partes de texto: modelo com raciocínio pode devolver mais de uma (e as de
+    // pensamento vêm marcadas com `thought` — não são resposta).
+    const text = ((data?.candidates?.[0]?.content?.parts ?? []) as { text?: string; thought?: boolean }[])
+      .map((p) => (p && !p.thought && typeof p.text === "string") ? p.text : "")
+      .join("");
     if (!text) return json({ error: "resposta vazia do provedor" }, 502);
 
     return json({ ok: true, task, text });

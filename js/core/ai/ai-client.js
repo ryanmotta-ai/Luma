@@ -21,15 +21,10 @@
   let _activeControllers = new Map(); // requestId -> AbortController
   let _requestSequence = 0;
 
-  function _getKey(){
-    try {
-      return (window.LUMA_CONFIG && window.LUMA_CONFIG.geminiApiKey)
-        || window.LUMA_GEMINI_API_KEY
-        || localStorage.getItem('luma_gemini_api_key')
-        || '';
-    } catch(e){
-      return '';
-    }
+  // Há caminho? A mesma resposta do gAskAI (core/ai.js): sessão + function no ar. Não existe
+  // mais chave no front — a do 00-config.js vazou e foi revogada (23/09/2026).
+  function _temCaminho(){
+    return typeof window.gAiReady === 'function' && window.gAiReady();
   }
 
   function _resolveModel(modelType){
@@ -59,41 +54,17 @@
     return null;
   }
 
-  async function _callGeminiApi(model, prompt, parts, schema, signal, key){
-    const corpo = {
-      contents: [
-        {
-          parts: [{ text: prompt }].concat(parts.map(p => ({
-            inlineData: { mimeType: p.mimeType, data: p.data }
-          })))
-        }
-      ],
-      generationConfig: {
-        responseMimeType: 'application/json'
-      }
-    };
-
-    if (schema && schema.responseSchema) {
-      corpo.generationConfig.responseSchema = schema.responseSchema;
-    }
-
-    const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/' +
-      encodeURIComponent(model) + ':generateContent?key=' + encodeURIComponent(key);
-
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      signal: signal,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(corpo)
-    });
-
-    return res;
+  // Pela Edge Function `ai` (core/ai.js → gAiEdgeFetch). Devolve o Response ou null.
+  async function _callEdge(task, model, prompt, parts, schema, signal){
+    if (typeof window.gAiEdgeFetch !== 'function') return null;
+    const body = { task: task, model: model, prompt: prompt, parts: parts || [], json: true };
+    if (schema && schema.responseSchema) body.responseSchema = schema.responseSchema;
+    return window.gAiEdgeFetch(body, signal);
   }
 
   const gAI = {
     isReady: function(task){
-      const key = _getKey();
-      if (!key) return false;
+      if (!_temCaminho()) return false;
       if (!task) return true;
       const reg = window.gAiRegistry && window.gAiRegistry.get(task);
       if (reg && reg.featureFlag && !_isFeatureEnabled(reg.featureFlag)) {
@@ -142,8 +113,7 @@
       }
 
       // 2. Guarda de Chave / Autenticação
-      const key = _getKey();
-      if (!key) {
+      if (!_temCaminho()) {
         if (window.gAiTelemetry) {
           window.gAiTelemetry.emit('ai_fallback_used', { task, reason: 'missing_key' });
         }
@@ -202,9 +172,10 @@
         while (attempt < maxAttempts) {
           attempt++;
           try {
-            res = await _callGeminiApi(model, built.prompt, built.parts, schema, ctrl.signal, key);
-            // Se recebeu 503 (High Demand) ou erro de rede transitório, tenta 1x com backoff
-            if (res.status === 503 && attempt < maxAttempts) {
+            res = await _callEdge(task, model, built.prompt, built.parts, schema, ctrl.signal);
+            if (!res) break;
+            // 502 = o provedor falhou do lado de lá (alta demanda do Gemini): tenta 1x com backoff.
+            if (res.status === 502 && attempt < maxAttempts) {
               await new Promise(r => setTimeout(r, 1200));
               continue;
             }
@@ -235,7 +206,7 @@
         }
 
         const data = await res.json();
-        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const rawText = (data && data.ok && data.text) || '';
         const parsedJson = _parseJsonSafe(rawText);
 
         if (!parsedJson) {

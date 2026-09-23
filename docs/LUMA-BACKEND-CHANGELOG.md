@@ -6,6 +6,27 @@
 
 ---
 
+## 2026-09-23 — IA só pela Edge Function `ai` (v2); chave do Gemini saiu do front
+
+**Achado:** desde 11/09 (`eb1e98c`) o front chamava o Gemini direto, com a chave escrita em `js/00-config.js` — pública para qualquer navegador e no histórico do git. A function `ai` (v1, 08/2026) estava no ar mas nunca era chamada (`_gAiEdgeOk = false` fixo). **A chave foi revogada pelo Ryan e a nova está só no secret `GEMINI_API_KEY`.**
+
+**Function `ai` v2** (`supabase/functions/ai/index.ts`, `verify_jwt` mantido):
+- allowlist ganha `transcrever-audio` (anexo de áudio: webm/ogg/mp4/mpeg/wav/m4a/aac) e as 8 tarefas do gateway `gAI` (`caption.generate`, `copy.fit`, `content.review`, `image.validate`, `psd.map`, `metadata.suggest`, `stress.generate`, `search.expand`);
+- repassa `responseSchema` (teto 20 mil caracteres);
+- modelo padrão `gemini-3.6-flash`; só nomes `gemini-*` passam;
+- chave vai no cabeçalho `x-goog-api-key`, não na URL;
+- junta as partes de texto da resposta e ignora as de pensamento.
+
+**Front:** sem chave em lugar nenhum. `gAskAI` (`js/core/ai.js`) e `gAI.run` (`js/core/ai/ai-client.js`) usam a mesma porta, `gAiEdgeFetch`. O prompt do tutor, que estava duplicado no front para a rota direta, saiu: mora só na function. `gAI.isEnabled` (inexistente) ganhou guarda nos 5 pontos — os recursos do gateway seguem desligados (roadmap, decisão 5).
+
+⚠ **Ordem de publicação:** secret → deploy da function → push do front. Front novo com a function v1 perde o ditado e o gateway.
+
+**Publicado:** function `ai` versão 4 no Supabase (conferida igual ao repo), secret `GEMINI_API_KEY` lido — sem sessão a resposta é `401`, não mais `503`.
+
+**Rastreamento da IA + RPC `luma.dados_ia(p_de, p_ate)`** (migration `20260923170000_luma_dados_ia`, aplicada via MCP): INVOKER + `_dados_autoriza`, separada da `dados_painel` de propósito (a aba IA busca só quando abre). Lê três eventos novos do front: `ia_chamada` (uma por ida à function, em `gAiEdgeFetch`: tarefa, ok, status/erro, ms, anexos — sem prompt nem resposta), `legenda_gerada` (fonte local/IA) e `legenda_copiada` (botão, download, Instagram, WhatsApp). Devolve resumo (chamadas, taxa de erro, p50/p95), uso por tarefa, falhas, legendas geradas × usadas e o Copy Fit por IA. Testada como gestão com eventos de exemplo em transação desfeita.
+
+---
+
 ## 2026-09-23 — Telemetria voltou (estava morta desde 06/09) + RLS de conta ativa + cidade/franquia
 
 **Achado:** o último evento em `analytics.fct_eventos` era de 06/09. Desde o V1 de busca/feedback o front chama `luma.registrar_evento`, mas a migration `20260906152238` nunca tinha sido aplicada (o changelog de 06/09 registra o conector bloqueado). Cada evento falhava 3× e era descartado pela fila (`gTrackEvent`). Em toda a história só 3 usuários aparecem nos eventos. O mesmo valia para `submit_feedback`/`content_requests`.

@@ -583,7 +583,7 @@ function dPublishRenderArtboards(){
 /* Sugestão de Auto-Metadata com IA (Fase 5, §23-§25).
    Sugere nome descritivo e tags relevantes como chips clicáveis. */
 async function dPubSuggestMetadata(abId){
-  if (!window.gAI || !window.gAI.isEnabled('metadataSuggest')) return;
+  if (!window.gAI || !(typeof window.gAI.isEnabled === 'function' && window.gAI.isEnabled('metadataSuggest'))) return;
   const ab = (typeof dArtboards !== 'undefined' && dArtboards ? dArtboards.find(a => a.id === abId) : null) || (typeof dGetActiveAB === 'function' ? dGetActiveAB() : null);
   if (!ab) return;
 

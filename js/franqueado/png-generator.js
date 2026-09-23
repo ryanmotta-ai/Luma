@@ -300,7 +300,7 @@ async function fPostarInstagram(btn, snapId){
         compartilhou=true;
       }catch(e){ if(!_fArteShareRecusado(e)) throw e; }
     }
-    if(prep.cap && typeof _fCopyText==='function') _fCopyText(prep.cap);
+    if(prep.cap && typeof _fCopyText==='function'){ _fCopyText(prep.cap); if(typeof fTrackLegenda==='function') fTrackLegenda('legenda_copiada', snapId, {origem:'instagram'}); }
     if(compartilhou){
       _fArteEntregue(prep,'arte_compartilhada',{canal:'instagram',via:'share'});
       gToast(prep.cap ? 'Arte enviada • legenda copiada, é só colar na publicação.' : 'Arte enviada pro Instagram.');
@@ -334,6 +334,8 @@ async function fEnviarWhatsApp(btn, snapId){
       try{
         await navigator.share({files:[prep.file], text:prep.cap||undefined, title:'Delivery Much'});
         _fArteEntregue(prep,'arte_compartilhada',{canal:'whatsapp',via:'share'});
+        // A folha nativa leva a legenda junto (`text`): conta como legenda usada.
+        if(prep.cap && typeof fTrackLegenda==='function') fTrackLegenda('legenda_copiada', snapId, {origem:'whatsapp'});
         return;
       }catch(e){ if(!_fArteShareRecusado(e)) throw e; }   // recusou o share → segue pro app
     }
@@ -344,7 +346,7 @@ async function fEnviarWhatsApp(btn, snapId){
         imagemNaArea=true;
       }
     }catch(e){ /* navegador sem suporte (Firefox) ou permissão negada — segue sem drama */ }
-    if(!imagemNaArea && prep.cap && typeof _fCopyText==='function') _fCopyText(prep.cap);
+    if(!imagemNaArea && prep.cap && typeof _fCopyText==='function'){ _fCopyText(prep.cap); if(typeof fTrackLegenda==='function') fTrackLegenda('legenda_copiada', snapId, {origem:'whatsapp'}); }
     _fArteBaixarArquivo(prep);
     _fArteEntregue(prep,'arte_compartilhada',{canal:'whatsapp',via:'web'});
     // O `whatsapp://send` abre o app já numa conversa com a legenda; a imagem vai
@@ -2440,7 +2442,7 @@ async function fRecordedSpeechStart(){
         const type = _fMediaRecorder.mimeType || _fAudioChunks[0].type || 'audio/webm';
         const file = new File([new Blob(_fAudioChunks,{type})], 'fala.'+(type.includes('mp4')?'m4a':'webm'), {type});
         const part = await gAiFileToPart(file);
-        const text = part && await gAskAI('transcrever-audio','Transcreva este áudio em português do Brasil. Retorne somente o texto falado, sem aspas, título ou explicação.',{parts:[part],cache:false});
+        const text = part && await gAskAI('transcrever-audio','Transcreva este áudio em português do Brasil. Retorne somente o texto falado, sem aspas, título ou explicação.',{parts:[part],cache:false,json:false});   // texto corrido: com o JSON padrão o ditado voltava entre aspas/chaves
         if(text && input){ input.value = _fSpeechBase + String(text).trim(); input.dispatchEvent(new Event('input',{bubbles:true})); gToast('Transcrição adicionada.'); }
         else gToast('Não consegui entender o áudio. Tente falar mais perto do microfone.', 'error');
       }catch(e){ console.error('Audio transcription error:',e); gToast('Não consegui transcrever o áudio. Tente novamente.', 'error'); }
