@@ -170,10 +170,75 @@ function gAuthoredTextBox(layer, opts){
     maxLinhasDuro: editorial.duro,
     /* O espaço REAL de cada eixo (ver invariante 2 do cabeçalho). */
     larguraDisponivel: Math.max(_gLfLarguraCaixa(camada, fontSize), tinta.w || 0),
-    /* A caixa desenhada + o RESPIRO livre abaixo dela (ver `_gLfEspacoAbaixo`). */
+    /* A caixa desenhada + o RESPIRO livre abaixo dela (ver `_gLfEspacoAbaixo`), com o teto da
+       PILHA quando há camadas ancoradas embaixo (ver `_gLfTetoPilha`). */
     alturaLivre: livre,
-    alturaDisponivel: Math.max(camada.h || 0, tinta.h || 0, (camada.h || 0) + livre)
+    alturaDisponivel: Math.min(Math.max(camada.h || 0, tinta.h || 0, (camada.h || 0) + livre),
+                               Math.max(_gLfTetoPilha(layer, camada, opts), tinta.h || 0))
   };
+}
+
+/* ── A PILHA DO DESIGNER (decisão do Ryan, 22/09/2026) ────────────────────────────────────
+   `relativeAnchor {type:'top-to-bottom', gap}` é a pilha do Figma que o Luma já tinha: o
+   designer ancora o "Detalhes" embaixo do "Produto", e `gApplyRelativeAnchors` põe o filho em
+   `y do pai + altura do pai + gap`. Só que essa altura é a das quebras MANUAIS
+   (`gMeasureLayerHeight`) e é calculada ANTES do Local Fit — a quebra automática vem depois.
+   Resultado: o Produto ia para 3 linhas, o Detalhes não descia, e o respiro o tratava como
+   parede. A intenção declarada era ignorada.
+
+   Agora: o TOPO da pilha (texto não ancorado em ninguém, com membros ancorados embaixo) pode
+   crescer até o menor vazio livre embaixo de QUALQUER membro; depois do encaixe, os membros
+   descem exatamente o que o topo cresceu (fase 4 do `gLocalFitArte`), placa junto.
+   ⛔ Só âncora MANUAL. Nada é inferido — pilha que o designer não declarou não existe.
+   ⛔ Só desce, nunca sobe. Membro não reserva respiro próprio: o vazio é do topo.
+   ⚠ Pilha aninhada: só o TOPO propaga crescimento; um membro que quebra dentro da própria
+     caixa não empurra o de baixo dele. */
+function _gLfEhMembro(o){
+  const a = o && o.relativeAnchor;
+  return !!(a && a.layerId && a.type === 'top-to-bottom');
+}
+function _gLfPilha(layers, raizId){
+  const membros = [], vistos = new Set([raizId]);
+  let fila = [raizId];
+  while(fila.length){
+    const pai = fila.shift();
+    (layers || []).forEach(o => {
+      if(!_gLfEhMembro(o) || o.relativeAnchor.layerId !== pai || vistos.has(o.id)) return;
+      vistos.add(o.id); membros.push(o); fila.push(o.id);
+    });
+  }
+  return membros;
+}
+/* O primeiro objeto abaixo de `r` na faixa dele, fora de `ignora`, com o teto da prancheta. */
+function _gLfParedeAbaixo(r, layers, canvas, ignora){
+  const story = canvas.w && canvas.h / canvas.w >= 1.7;
+  let limite = canvas.h - (story ? 250 : Math.round(canvas.h * 0.04));
+  const fim = (r.y || 0) + (r.h || 0);
+  (layers || []).forEach(o => {
+    if(!o || ignora.has(o.id)) return;
+    if(typeof _gLayoutVisivel === 'function' && !_gLayoutVisivel(o)) return;
+    const ox = o.x || 0, oy = o.y || 0, ow = o.w || 0, oh = o.h || 0;
+    if(ow <= 0 || oh <= 0) return;
+    if(ox >= (r.x || 0) + (r.w || 0) || ox + ow <= (r.x || 0)) return;
+    if(oy < fim - 1) return;
+    if(oy < limite) limite = oy;
+  });
+  return limite;
+}
+function _gLfTetoPilha(layer, camada, opts){
+  const p = opts && opts.pilha;
+  if(!p || !p.membros || !p.membros.length || !opts.canvas || !opts.canvas.h) return Infinity;
+  const ignora = new Set([layer.id].concat(p.membros.map(m => m.id)));
+  (opts.layers || []).forEach(o => { if(o && o._placa && ignora.has(o._placa.alvo)) ignora.add(o.id); });
+  const respiro = Math.max(8, Math.round((camada.fontSize || 24) * 0.25));
+  let folga = Infinity;
+  p.membros.forEach(m => {
+    if(typeof _gLayoutVisivel === 'function' && !_gLayoutVisivel(m)) return;
+    const parede = _gLfParedeAbaixo(m, opts.layers, opts.canvas, ignora);
+    folga = Math.min(folga, parede - respiro - ((m.y || 0) + (m.h || 0)));
+  });
+  if(!isFinite(folga)) return Infinity;
+  return (p.alturaAncora || 0) + Math.max(0, Math.floor(folga));
 }
 
 /* ── O RESPIRO ABAIXO DA CAIXA (decisão do Ryan, 22/09/2026) ──────────────────────────────
@@ -196,26 +261,20 @@ function gAuthoredTextBox(layer, opts){
 function _gLfEspacoAbaixo(layer, camada, opts){
   if(!opts || !Array.isArray(opts.layers) || !opts.canvas || !opts.canvas.h) return 0;
   if(camada.vertical || camada.vAlign !== 'top') return 0;
-  const bx = camada.x || 0, bw = camada.w || 0, by = camada.y || 0, bh = camada.h || 0;
-  const fim = by + bh;
+  // Membro de pilha não reserva respiro: o vazio abaixo da pilha é do TOPO (ver a pilha).
+  if(_gLfEhMembro(layer)) return 0;
+  const bw = camada.w || 0, bh = camada.h || 0;
   if(bw <= 0 || bh <= 0) return 0;
-  const cv = opts.canvas;
-  const story = cv.w && cv.h / cv.w >= 1.7;
-  let limite = cv.h - (story ? 250 : Math.round(cv.h * 0.04));
-  const placaId = opts.placa && opts.placa.id;
-  opts.layers.forEach(o => {
-    if(!o || o.id === layer.id || o.id === placaId) return;
-    if(o._placa && o._placa.alvo === layer.id) return;
-    if(typeof _gLayoutVisivel === 'function' && !_gLayoutVisivel(o)) return;
-    const ox = o.x || 0, oy = o.y || 0, ow = o.w || 0, oh = o.h || 0;
-    if(ow <= 0 || oh <= 0) return;
-    if(ox >= bx + bw || ox + ow <= bx) return;                // fora da faixa horizontal
-    if(oy < fim - 1) return;                                  // ao lado/atrás, não abaixo
-    // (o painel que CONTÉM a caixa começa acima dela, então a linha de cima já o exclui)
-    if(oy < limite) limite = oy;
-  });
+  /* Fora da conta: o próprio texto, a placa dele e — numa pilha — os membros (e as placas
+     deles), que DESCEM junto em vez de serem parede. O painel que CONTÉM a caixa começa
+     acima dela, então `_gLfParedeAbaixo` já o deixa de fora. */
+  const ignora = new Set([layer.id]);
+  if(opts.placa && opts.placa.id) ignora.add(opts.placa.id);
+  if(opts.pilha && opts.pilha.membros) opts.pilha.membros.forEach(m => ignora.add(m.id));
+  opts.layers.forEach(o => { if(o && o._placa && ignora.has(o._placa.alvo)) ignora.add(o.id); });
+  const limite = _gLfParedeAbaixo(camada, opts.layers, opts.canvas, ignora);
   const respiro = Math.max(8, Math.round((camada.fontSize || 24) * 0.25));
-  return Math.max(0, Math.floor(limite - respiro - fim));
+  return Math.max(0, Math.floor(limite - respiro - ((camada.y || 0) + bh)));
 }
 
 /* ── TETO DE LINHAS ───────────────────────────────────────────────────────────────────────
@@ -282,6 +341,16 @@ function _gLfLarguraDisponivel(box, fs){
                        fontSize, lineHeight, overflowX, overflowY, diagnostics } */
 function gFitTextToAuthoredBox(layer, conteudo, opts){
   opts = opts || {};
+  /* TOPO DE PILHA (ver `_gLfTetoPilha`): derivado AQUI, na porta única, para que a prévia, o
+     "cabem até N" do bloqueio e o balão da solução meçam a mesma pilha. `alturaAncora` é a
+     altura que `gApplyRelativeAnchors` usou para posicionar os membros — a régua de quanto eles
+     descem depois (fase 4 do `gLocalFitArte`, que lê `opts.pilha` deste mesmo objeto). */
+  if(opts.pilha === undefined && Array.isArray(opts.layers) && layer && !_gLfEhMembro(layer)){
+    const membros = _gLfPilha(opts.layers, layer.id);
+    opts.pilha = membros.length ? { membros,
+      alturaAncora: (typeof gMeasureLayerHeight === 'function')
+        ? gMeasureLayerHeight(layer, String(conteudo == null ? '' : conteudo)) : (layer.h || 0) } : null;
+  }
   const box = gAuthoredTextBox(layer, opts);
   if(!box) return null;
   /* PLACA NÃO CRESCE PARA CIMA DO VIZINHO. A placa acompanha a tinta, então cada linha nova
@@ -580,6 +649,26 @@ function gLocalFitArte(layers, opts){
                        moved:true, resized:true });
       }
     }
+  });
+
+  /* FASE 4 — A PILHA DESCE. Depois de todo mundo encaixado (e das placas acompanharem os
+     próprios textos), os membros da pilha de um topo que COUBE descem exatamente o que ele
+     cresceu além da altura que as âncoras usaram. O teto (`_gLfTetoPilha`) já garantiu que a
+     descida para antes do próximo objeto. Só desce: encolher o topo não puxa ninguém para
+     cima — isso recomporia o que o designer posicionou. */
+  medidos.forEach(m => {
+    const p = m.fitOpts && m.fitOpts.pilha;
+    if(!p || m.vazio || m.r.status !== 'fits') return;
+    const delta = Math.round(m.r.diagnostics.alturaNecessaria - (p.alturaAncora || 0));
+    if(delta <= 0) return;
+    p.membros.forEach(mb => {
+      const placaMb = out.find(o => o && o._placa && o._placa.alvo === mb.id);
+      [mb, placaMb].forEach(o => {
+        if(!o) return;
+        o.y = (o.y || 0) + delta;
+        changes.push({ id:o.id, pilhaDe:m.l.id, geometry:true, typography:false, moved:true, resized:false });
+      });
+    });
   });
 
   out.forEach(l => { if(l) delete l._placa; });

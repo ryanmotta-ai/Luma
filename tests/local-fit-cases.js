@@ -438,6 +438,54 @@
     assert(pedacos <= 3, 'alguma palavra foi partida: ' + JSON.stringify(r.lines));
   });
 
+  /* ── 15k–15n. a pilha do designer (relativeAnchor top-to-bottom) ──────────────────── */
+  const copa = (ancorado, produtoTxt) => {
+    const p = produto();
+    const d = Object.assign({}, detalhes, { id:'detalhes' },
+      ancorado ? { relativeAnchor:{ layerId:'produto', type:'top-to-bottom', gap:48 } } : {});
+    const linha = { id:'linha', type:'shape', x:126, y:1610, w:760, h:5, fill:'#fff', visible:true, opacity:100 };
+    // O preço de 57px ao lado (fora da faixa) é o degrau que segura o piso do Produto em 57,
+    // como na arte real da Copa: sem ele o nome desceria até 48 e caberia sem pilha nenhuma.
+    const preco = { id:'preco', type:'text', content:'R$ 49,90', x:560, y:1230, w:300, h:70, font:'Arial',
+      fontSize:57, lineHeight:1.2, textBox:'point', vAlign:'top', visible:true, opacity:100 };
+    const dados = { produto: produtoTxt };
+    const ancoradas = gApplyRelativeAnchors([p, d, linha, preco], dados, {}, { canvas:STORY });
+    return { antes: ancoradas.map(o => Object.assign({}, o)),
+             lf: gLocalFitArte(ancoradas, { canvas:STORY, dados, defaults:{} }) };
+  };
+  const TRES_LINHAS = 'X-TUDO DUPLO COM BACON';
+
+  test('15k · pilha: o topo cresce, o ancorado DESCE junto e a arte cabe', () => {
+    const { antes, lf } = copa(true, TRES_LINHAS);
+    const cp = lf.result.campos.find(c => c.id === 'produto');
+    assert(cp.status === 'fits', 'com a pilha deveria caber: ' + JSON.stringify(cp));
+    const d0 = antes.find(o => o.id === 'detalhes'), d1 = lf.layers.find(o => o.id === 'detalhes');
+    assert(d1.y > d0.y, 'o Detalhes ancorado não desceu');
+    assert(d1.y + d1.h <= 1610 - 8, 'a pilha passou da linha do rodapé: termina em ' + (d1.y + d1.h));
+    const p1 = lf.layers.find(o => o.id === 'produto');
+    assert(p1.y === 1220, 'o topo da pilha não pode se mover');
+    assert(lf.result.changes.some(c => c.id === 'detalhes' && c.pilhaDe === 'produto'), 'a descida não foi declarada');
+  });
+
+  test('15l · sem a âncora o MESMO texto bloqueia — a pilha é o que resolve', () => {
+    const { lf } = copa(false, TRES_LINHAS);
+    assert(lf.result.campos.find(c => c.id === 'produto').status === 'overflow',
+      'sem âncora deveria bloquear (Detalhes é parede)');
+    assert(lf.layers.find(o => o.id === 'detalhes').y === 1387, 'sem âncora o Detalhes não pode se mover');
+  });
+
+  test('15m · texto que coube em 1 linha não mexe na pilha (só desce, nunca sobe)', () => {
+    const { antes, lf } = copa(true, 'COMBO');
+    const d0 = antes.find(o => o.id === 'detalhes'), d1 = lf.layers.find(o => o.id === 'detalhes');
+    assert(d1.y === d0.y, 'a pilha se mexeu sem o topo crescer: ' + d0.y + ' → ' + d1.y);
+  });
+
+  test('15n · membro da pilha não reserva respiro próprio (o vazio é do topo)', () => {
+    const d = Object.assign({}, detalhes, { relativeAnchor:{ layerId:'produto', type:'top-to-bottom', gap:48 } });
+    const box = gAuthoredTextBox(d, { layers:[produto(), d], canvas:STORY });
+    assert(box.alturaLivre === 0, 'o membro reservou respiro: +' + box.alturaLivre);
+  });
+
   /* ── Bordas do contrato ───────────────────────────────────────────────────────────── */
   test('16 · entradas de borda não quebram e não inventam veredito', () => {
     assert(gFitTextToAuthoredBox({ id:'x', type:'shape' }, 'oi', {}) === null, 'shape deveria devolver null');

@@ -528,6 +528,9 @@ por `js/designer/canvas.js` (teste de tensão do Estúdio).
 
 | **Balão da solução** na prévia, em cima da caixa bloqueada: o balão É o botão — a versão mais curta que cabe (a que menos mexeu), gerada pelo Copy Fit e MEDIDA no Local Fit desta arte; um toque troca (Desfazer cobre); o que saiu vai no title ("sem Delicioso"); sem versão que caiba, não há balão e fica o aviso da barra | `js/franqueado/copy-fit.js` · `_fLpSyncBalao` | `tests/copy-fit.html` (12) |
 
+| **Pilha do designer** (decisão do Ryan): `relativeAnchor top-to-bottom` passa a valer com o encaixe. O TOPO da pilha cresce até o menor vazio livre embaixo de qualquer membro; depois do encaixe os membros descem exatamente o que o topo cresceu (placa junto) — fase 4 do `gLocalFitArte`. Só âncora MANUAL; só desce; membro não reserva respiro. Na arte da Copa, com o Detalhes ancorado, "X-TUDO DUPLO COM BACON" e "VAMO DALE MEU PRA NAO TOMAR" deixam de bloquear (67px, 3 linhas) e "COMBO FAMÍLIA" fica no corpo do designer (95px, 2 linhas) | `_gLfTetoPilha` · `_gLfPilha` | 15k–15n |
+| Linter 4c: sugere ancorar a camada que está logo abaixo de um campo de texto na mesma coluna ("Ancorar"), com o gap que mantém a posição de hoje; preço/desconto/código não são topo | `linter.js` | — |
+
 **Copy Fit — as garantias** (cobradas em `tests/copy-fit.html`, com fuzz de 2.000 combos): número
 nenhum muda; nunca fica mais longo; item nenhum some — o motor só limpa ("por apenas"), abrevia
 unidade (litros → L), troca por forma curta consagrada (refrigerante → refri, hambúrguer → burger,
