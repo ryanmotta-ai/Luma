@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-09-23 — Observabilidade do Local Fit (`luma.dados_localfit`)
+
+**`20260923186000_luma_dados_localfit`** (aplicada): lê o evento `layout_resolvido` (já gravado pelo front desde 08/2026) e devolve a divisão por resultado (`original`/`wrapped`/`shrunk`/`overflow`, e `adapted`/`unsafe` do motor anterior), separada entre **export** (a arte que saiu) e **preview** (cada repintura — infla), a parcela de exportadas que couberam, a mediana de tempo e os materiais/campos que mais bloquearam. Primeira leitura real (90 dias): **24 de 24 exportadas couberam**, mediana 9,7 ms; o que mais estoura na prévia é o `precoPor` de um material (20×). **Front (v=130):** seção "O texto coube?" no fim da aba Qualidade do painel de Dados, carregada só quando a aba abre.
+
+---
+
 ## 2026-09-23 — Audit log (`luma.audit_log`)
 
 **`20260923185000_luma_audit_log`** (aplicada): gatilho genérico `auditar` (AFTER, SECURITY DEFINER) em `pastas`, `templates`, `profiles`, `franquias` e `usuario_franquias`. Grava tabela, id, ação, **quem** (`auth.uid()`), quando e os NOMES dos campos que mudaram (sem valores; `layers` fica de fora — o conteúdo mora em `template_versions`). Ações com nome de negócio: `publicou`, `despublicou`, `arquivou`, `desarquivou`, `mudou_papel` (com antes/depois), `desativou`, `reativou`. Upsert sem mudança não registra; edição só de conteúdo (autosave) registra no máximo 1 linha a cada 10 min por pessoa+template. Lê: equipe DM e gestão. Ninguém escreve nem apaga pelo app. Testado em transação desfeita (7 casos verdes).

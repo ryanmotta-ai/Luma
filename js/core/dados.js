@@ -18,7 +18,8 @@ let _gDados = {
   sort: { col: 'ultimo_acesso', dir: -1 }, busca: '', papel: '',
   pessoa: null, pessoaData: null, pessoaErro: null,
   ev: { evento: '', user: '', offset: 0, limit: 50, data: null, erro: null, carregando: false, req: 0 },
-  ia: { data: null, erro: null, carregando: false, req: 0 }
+  ia: { data: null, erro: null, carregando: false, req: 0 },
+  lf: { data: null, erro: null, carregando: false, req: 0 }
 };
 
 const G_DADOS_ABAS = [
@@ -163,7 +164,7 @@ async function gDadosCarregar() {
   _gDados.carregando = true; _gDados.erro = null;
   _gDados.intervalo = _gDadosIntervalo();
   _gDados.ev.data = null; _gDados.ev.offset = 0;
-  _gDados.ia.data = null;
+  _gDados.ia.data = null; _gDados.lf.data = null;
   _gDados.pessoaData = null;
   _gDadosRender();
   let res;
@@ -192,6 +193,7 @@ function gDadosSetAba(aba, foco) {
   if (foco) document.getElementById('gd-tab-' + aba)?.focus();
   if (aba === 'eventos' && !_gDados.ev.data && !_gDados.ev.carregando && _gDados.data) gDadosEventosCarregar();
   if (aba === 'ia' && !_gDados.ia.data && !_gDados.ia.carregando && _gDados.data) gDadosIaCarregar();
+  if (aba === 'qualidade' && !_gDados.lf.data && !_gDados.lf.carregando && _gDados.data) gDadosLfCarregar();
 }
 // Setas/Home/End no tablist (padrão WAI-ARIA de abas, ativação automática).
 function gDadosTabsKeydown(e) {
@@ -554,6 +556,52 @@ function _gDadosBuscasHtml(d) {
 }
 
 /* ── Qualidade ──────────────────────────────────────────────────────────────────────── */
+/* Local Fit: o texto coube? (RPC luma.dados_localfit, lendo `layout_resolvido`). Carrega à parte
+   e só quando a aba Qualidade abre, como IA e Eventos. `export` = arte que saiu (a que importa);
+   `preview` conta cada repintura e infla — por isso as duas vêm separadas. */
+const G_DADOS_LF_ST = { original: 'Coube como desenhado', wrapped: 'Quebrou linha', shrunk: 'Diminuiu a fonte', overflow: 'Não coube (bloqueou)', adapted: 'Ajustado (motor antigo)', unsafe: 'Não coube (motor antigo)' };
+async function gDadosLfCarregar() {
+  const s = _gDados.lf, req = ++s.req;
+  s.carregando = true; s.erro = null;
+  const iv = _gDados.intervalo || _gDadosIntervalo();
+  let res;
+  try { res = await _gDadosRpc('dados_localfit', { p_de: iv.de, p_ate: iv.ate }); } catch (err) { res = { error: err }; }
+  if (req !== s.req) return;
+  s.carregando = false;
+  if (res.error || !res.data) s.erro = _gDadosMsgErro(res.error || 'A consulta voltou vazia.');
+  else s.data = res.data;
+  if (_gDados.aba === 'qualidade') _gDadosRender();
+}
+function _gDadosLfHtml(d) {
+  const s = _gDados.lf, x = s.data;
+  if (s.erro) return _gDadosSecao('O texto coube?', '', _gDadosErroHtml(s.erro, 'gDadosLfCarregar()'));
+  if (s.carregando || !x) return _gDadosSecao('O texto coube?', '', '<p class="gd-vazio">Carregando…</p>');
+  const r = x.resolveu || {}, st = x.por_status || [];
+  if (!st.length) return _gDadosSecao('O texto coube?', 'Resultado do Local Fit a cada arte.', '<p class="gd-vazio">Nenhuma arte montada no período.</p>');
+  // material vem como id: o nome sai da lista de templates que o painel já carregou.
+  const nomes = {}; (((d || {}).conteudo || {}).templates || []).forEach(t => { nomes[t.template_id] = t.nome; });
+  const linhas = o => {
+    const l = st.filter(y => y.origem === o), tot = l.reduce((a, y) => a + (y.n || 0), 0);
+    return _gDadosTabela([
+      { t: 'Resultado', k: y => gEsc(G_DADOS_LF_ST[y.status] || y.status) },
+      { t: 'Vezes', num: 1, k: y => _gDadosN(y.n) },
+      { t: 'Parcela', k: y => _gDadosBarra(tot ? y.n / tot : 0) + ' ' + _gDadosPct(tot ? y.n / tot : null) }
+    ], l, 'Nada no período.');
+  };
+  const nc = _gDadosTabela([
+    { t: 'Material', k: y => gEsc(nomes[y.material] || (y.material ? 'Material ' + String(y.material).slice(0, 8) : '—')) },
+    { t: 'Campo', k: y => gEsc(y.campo || '—') }, { t: 'Vezes', num: 1, k: y => _gDadosN(y.n) }
+  ], x.nao_coube, 'Nenhum texto deixou de caber no período.');
+  const ms = r.ms_p50 != null ? gEsc(String(r.ms_p50).replace('.', ',') + ' ms') : '—';
+  return '<div class="gd-kpis gd-kpis-2">'
+    + _gDadosKpi('Artes que saíram e couberam', _gDadosPct(r.export_total ? r.export_ok / r.export_total : null), gEsc(_gDadosN(r.export_ok) + ' de ' + _gDadosN(r.export_total) + ' exportadas'))
+    + _gDadosKpi('Tempo do Local Fit', ms, 'Mediana por resolução')
+    + '</div><div class="gd-duas">'
+    + _gDadosSecao('Na arte que saiu', 'Export: o que o franqueado baixou.', linhas('export'))
+    + _gDadosSecao('Na prévia', 'Cada repintura conta — infla.', linhas('preview'))
+    + '</div>'
+    + _gDadosSecao('Onde o texto não coube', 'Material e campo que mais bloquearam.', nc);
+}
 function _gDadosQualidadeHtml(d) {
   const q = d.qualidade || {}, cf = q.copyfit || {}, en = q.enquadramento || {}, fb = d.feedback || {};
   const naoCabe = _gDadosTabela([
@@ -582,7 +630,8 @@ function _gDadosQualidadeHtml(d) {
     <div class="gd-duas">
       ${_gDadosSecao('Feedback das campanhas', '', `<div class="gd-kpis gd-kpis-2">${_gDadosKpi('Positivo', _gDadosN(fb.positivo))}${_gDadosKpi('Negativo', _gDadosN(fb.negativo))}</div>${motivos}`)}
       ${_gDadosSecao('Comentários recentes', '', coment)}
-    </div>`;
+    </div>
+    ${_gDadosLfHtml(d)}`;
 }
 
 /* ── IA (uso, erro, latência, legendas) ─────────────────────────────────────────────── */
