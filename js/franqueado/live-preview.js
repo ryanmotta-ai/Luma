@@ -75,23 +75,29 @@ const _PST_HEART = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" s
 const _PST_SEND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>';
 const _PST_COMMENT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 01-11.9 7.6L3 21l1.9-6a8.4 8.4 0 1116.1-3.5z"/></svg>';
 const _PST_BOOKMARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>';
+/* O repost (as duas setas em laço) entrou nas ações do post do Instagram em 2025, entre o
+   comentário e o enviar. Sem contagem ao lado — pelo mesmo motivo das "128 curtidas". */
+const _PST_REPOST = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2.5 3 3-3 3"/><path d="M4 11.5v-2a4 4 0 0 1 4-4h12"/><path d="m7 21.5-3-3 3-3"/><path d="M20 12.5v2a4 4 0 0 1-4 4H4"/></svg>';
 /* A barra de abas do Instagram. Ela não é enfeite: é o que faz o olho reconhecer o app
-   antes de ler qualquer coisa. Cabe porque a conta fecha — numa tela de 282×576 sobram
-   ~90px depois do cabeçalho, da arte 4:5, das ações e das duas linhas de legenda. */
-const _PST_TAB_HOME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 10.2 12 3l9 7.2V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>';
+   antes de ler qualquer coisa.
+   ⚠ A ORDEM É A DE DEZ/2025: Início · Reels · Mensagens · Busca · Perfil. A de antes tinha a
+   aba Loja, que o app tirou em 2023 — um detalhe velho basta para o print "parecer falso".
+   O Início vem PREENCHIDO porque é a aba em que se está (é assim que o app marca a ativa). */
+const _PST_TAB_HOME = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 10.2 12 3l9 7.2V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>';
 const _PST_TAB_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>';
 const _PST_TAB_REELS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M3 8.5h18M8.5 3l3 5.5M15 3l3 5.5"/><path d="m10.8 12.4 4.2 2.4-4.2 2.4z" stroke-linejoin="round"/></svg>';
-const _PST_TAB_SHOP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M5 7h14l-1 13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/></svg>';
-const _PST_BACK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg>';
-const _PST_VIDEO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>';
-const _PST_CALL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3-8.6A2 2 0 014.1 2h3a2 2 0 012 1.7c.1 1 .4 1.9.7 2.8a2 2 0 01-.5 2.1L8.1 9.9a16 16 0 006 6l1.3-1.3a2 2 0 012.1-.4c.9.3 1.8.6 2.8.7a2 2 0 011.8 2z"/></svg>';
-/* A barra de digitar do WhatsApp tem quatro controles, e nenhum deles existia aqui: emoji
-   dentro do campo, clipe e camera do lado direito dele, e o microfone no botao verde. */
-const _PST_EMOJI = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8.6 14.2a4.2 4.2 0 0 0 6.8 0"/><circle cx="9" cy="9.8" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="9.8" r="1.1" fill="currentColor" stroke="none"/></svg>';
-const _PST_CLIP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 11.5 12.2 19.3a4.6 4.6 0 0 1-6.5-6.5l8.2-8.2a3 3 0 0 1 4.3 4.3l-8.2 8.2a1.5 1.5 0 0 1-2.1-2.1l7.4-7.4"/></svg>';
+/* ⚠ WHATSAPP DE IPHONE, NÃO DE ANDROID (23/09/2026). O chassi é um iPhone e a tela rodava o
+   WhatsApp do Android: três pontinhos verticais no topo, clipe e emoji dentro do campo,
+   microfone num círculo verde. No iPhone o topo tem só vídeo e ligação, e a barra de digitar
+   é "+", o campo com o adesivo dentro, câmera e microfone soltos. Um aparelho não roda o app
+   do outro — era o primeiro detalhe que denunciava a montagem. */
+const _PST_BACK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4.5 7.5 12l7.5 7.5"/></svg>';
+const _PST_VIDEO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="2" y="6" width="13.5" height="12" rx="3"/><path d="m15.5 10.2 5.2-3.1c.6-.3 1.3.1 1.3.7v8.4c0 .6-.7 1-1.3.7l-5.2-3.1"/></svg>';
+const _PST_CALL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3-8.6A2 2 0 014.1 2h3a2 2 0 012 1.7c.1 1 .4 1.9.7 2.8a2 2 0 01-.5 2.1L8.1 9.9a16 16 0 006 6l1.3-1.3a2 2 0 012.1-.4c.9.3 1.8.6 2.8.7a2 2 0 011.8 2z"/></svg>';
+const _PST_PLUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4.5v15M4.5 12h15"/></svg>';
+const _PST_STICKER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M20.5 12.5V7A3.5 3.5 0 0 0 17 3.5H7A3.5 3.5 0 0 0 3.5 7v10A3.5 3.5 0 0 0 7 20.5h5.5z"/><path d="M12.5 20.5V16a3.5 3.5 0 0 1 3.5-3.5h4.5"/></svg>';
 const _PST_CAM = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8.4A1.4 1.4 0 0 1 4.4 7h2.3l1.2-2h8.2l1.2 2h2.3A1.4 1.4 0 0 1 21 8.4v8.2a1.4 1.4 0 0 1-1.4 1.4H4.4A1.4 1.4 0 0 1 3 16.6z"/><circle cx="12" cy="12.4" r="3.4"/></svg>';
-const _PST_MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"/><path d="M12 18v3.5"/></svg>';
-const _PST_VDOTS = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>';
+const _PST_MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"/><path d="M12 18v3.5"/></svg>';
 const _PST_LOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4.5" y="10.5" width="15" height="10" rx="2.2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg>';
 /* ⚠ UM TIQUE, E CINZA — não os dois tiques azuis de antes. Azul no WhatsApp significa que a
    outra pessoa LEU a mensagem, e esta mensagem ainda não foi enviada: é a prévia de um envio
@@ -104,14 +110,25 @@ const _PST_CHECK = '<svg class="pst-check" viewBox="0 0 14 12" fill="none" strok
    não dizia nada (a conversa é genérica de propósito, decisão do Ryan em 11/09). */
 const _PST_PESSOA = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8.6" r="3.9"/><path d="M12 13.6c-4.2 0-7 2.3-7 4.6V21h14v-2.8c0-2.3-2.8-4.6-7-4.6z"/></svg>';
 
-// Barra de status do sistema (bateria/wifi/sinal). whiteText=true sobre fundo escuro.
+/* A HORA DO APARELHO É A HORA DE AGORA. O "21:47" fixo era o único número da moldura que não
+   correspondia a nada, e o relógio é dado que existe. A mesma hora vai na mensagem do
+   WhatsApp: ela é a prévia de um envio que acontece agora. */
+function _fPostedHora(){
+  const d = new Date();
+  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+
+/* Barra de status do sistema. whiteText=true sobre fundo escuro.
+   Os glifos estão no tamanho do iOS EM PONTOS (sinal 18×12, bateria 27×13) porque a tela
+   inteira é desenhada em pontos e reduzida junto — ver `.pst-ui` no CSS. As duas "orelhas"
+   ficam uma de cada lado da ilha, e cada uma centraliza o que tem dentro, como no iPhone. */
 function _fPostedSysbar(whiteText){
   return `<div class="pst-sysbar ${whiteText?'dark':'light'}">
-    <span class="pst-t">21:47</span>
-    <span class="pst-ic">
-      <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx=".5"/><rect x="4" y="5" width="3" height="6" rx=".5"/><rect x="8" y="3" width="3" height="8" rx=".5"/><rect x="12" y="1" width="3" height="10" rx=".5"/></svg>
-      <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M8 2.2c2 0 3.9.8 5.3 2.1l1.1-1.2A9.3 9.3 0 008 .6 9.3 9.3 0 001.6 3.1l1.1 1.2A7.6 7.6 0 018 2.2zM8 5.6c1.1 0 2.1.4 2.9 1.2l1.1-1.2A6 6 0 008 3.9 6 6 0 004 5.6l1.1 1.2A4.2 4.2 0 018 5.6zm0 3.4l1.9-2a2.6 2.6 0 00-3.8 0L8 9z"/></svg>
-      <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="17" height="8" rx="1.5" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+    <span class="pst-sys-ear"><span class="pst-t">${_fPostedHora()}</span></span>
+    <span class="pst-sys-ear pst-ic">
+      <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7.6" width="3.2" height="4.4" rx="1"/><rect x="4.9" y="5.1" width="3.2" height="6.9" rx="1"/><rect x="9.8" y="2.6" width="3.2" height="9.4" rx="1"/><rect x="14.7" y="0" width="3.2" height="12" rx="1"/></svg>
+      <svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor"><path d="M8.5 2.4c2.4 0 4.6.9 6.3 2.5.2.2.5.2.7 0l1-1c.2-.2.2-.5 0-.7A11.3 11.3 0 0 0 8.5 0 11.3 11.3 0 0 0 .5 3.2c-.2.2-.2.5 0 .7l1 1c.2.2.5.2.7 0a9 9 0 0 1 6.3-2.5z"/><path d="M8.5 6c1.4 0 2.6.5 3.6 1.4.2.2.5.2.7 0l1-1c.2-.2.2-.5 0-.7a7.7 7.7 0 0 0-10.6 0c-.2.2-.2.5 0 .7l1 1c.2.2.5.2.7 0C5.9 6.5 7.1 6 8.5 6z"/><path d="M10.9 9.3c.2-.2.2-.5 0-.7a3.4 3.4 0 0 0-4.8 0c-.2.2-.2.5 0 .7l2 2c.2.2.5.2.7 0z"/></svg>
+      <svg width="27" height="13" viewBox="0 0 27 13" fill="none"><rect x=".5" y=".5" width="23" height="12" rx="3.8" stroke="currentColor" opacity=".38"/><rect x="2" y="2" width="20" height="9" rx="2.4" fill="currentColor"/><path d="M25 4.4v4.2c.8-.3 1.4-1.1 1.4-2.1S25.8 4.7 25 4.4z" fill="currentColor" opacity=".45"/></svg>
     </span>
   </div>`;
 }
@@ -220,18 +237,22 @@ function _fPostedStory(slot){
   /* ⚠ UMA BARRA, E NÃO TRÊS. Três segmentos afirmam que a conta tem três stories no ar — é
      invenção do mesmo tipo das "128 curtidas" que saíram do Feed. Um segmento é a verdade:
      este story, tocando. E continua lendo como Instagram, que é o que a barra faz ali.
-     ⚠ O FUNDO BORRADO existe porque a peça é 9:16 (0,562) e a tela do aparelho é 0,450: a
-     arte enche a largura e sobra faixa em cima e embaixo. Preto ali é o que NENHUM celular
-     mostra — o Instagram põe uma cópia ampliada e desfocada da própria mídia. Quem preenche
-     este `div` é o `_fPostedMountArt`, com um canvas minúsculo que o CSS amplia. */
+     ⚠ O STORY É UM CARTÃO, NÃO A TELA INTEIRA (23/09/2026). A tela do iPhone é mais alta que
+     9:16, e o Instagram resolve assim: a mídia vira um cartão 9:16 de cantos arredondados logo
+     abaixo da barra de status, e a caixa "Enviar mensagem" mora EMBAIXO dele, no preto. Antes a
+     arte ia de ponta a ponta e a caixa de resposta ficava POR CIMA do pé da peça — justamente
+     onde mora a validade e o texto legal da oferta. Agora a arte aparece inteira.
+     O FUNDO BORRADO continua, dentro do cartão: é o que o app faz quando a mídia não é 9:16
+     exata. Quem preenche o `div` é o `_fPostedMountArt`. */
   return `<div class="pst-story">
-    <div class="pst-story-fundo" aria-hidden="true"></div>
-    ${slot}
-    <div class="pst-story-sombra" aria-hidden="true"></div>
-    <div class="pst-story-sombra-pe" aria-hidden="true"></div>
-    <div class="pst-story-bars"><i class="on"></i></div>
-    ${topo}
-    <div class="pst-story-bot"><div class="pst-story-input">Enviar mensagem</div>${_PST_HEART}${_PST_SEND}</div>
+    <div class="pst-story-card" title="Segure para ver a arte sem a moldura do app">
+      <div class="pst-story-fundo" aria-hidden="true"></div>
+      ${slot}
+      <div class="pst-story-sombra" aria-hidden="true"></div>
+      <div class="pst-story-bars"><i class="on"></i></div>
+      ${topo}
+    </div>
+    <div class="pst-story-bot"><div class="pst-story-input">Enviar mensagem</div><span class="pst-like">${_PST_HEART}</span>${_PST_SEND}</div>
   </div>`;
 }
 /* A legenda do Feed é a LEGENDA DE VERDADE, a mesma que o painel mostra e que o "Copiar
@@ -248,30 +269,42 @@ function _fPostedFeed(slot){
       <span class="pst-feed-id"><span class="pst-feed-user">${gEsc(p.nome)}</span>${p.cidade?`<span class="pst-feed-loc">${gEsc(p.cidade)}</span>`:''}</span>
       <span class="pst-grow"></span>${_PST_DOTS}
     </div>` : '';
-  /* A legenda vem com o handle na frente e corta na segunda linha, com "mais" — é assim que
-     o Feed mostra. O limite desconta o nome porque ele ocupa a mesma linha. */
-  /* 74 e nao 92: medido no chassi. A linha util tem 256px e cabem ~45 caracteres em 13px,
-     entao duas linhas sao ~90 — menos o nome em negrito na frente e os 7 do " … mais" no
-     fim. Com 92 a legenda quebrava para TRES linhas e comia altura da arte. */
-  const limite = Math.max(30, 74 - (p.nome ? p.nome.length + 1 : 0));
-  const c = _fPostedCapCurta(cap, limite);
-  const legenda = cap ? `<div class="pst-feed-cap">${p.nome?`<b>${gEsc(p.nome)}</b> `:''}${gEsc(c.texto)}${c.cortou?`<span class="muted"> … mais</span>`:''}</div>` : '';
+  const legenda = cap ? `<div class="pst-feed-cap">${_fPostedCapFeedHTML(cap, p)}</div>` : '';
   /* A barra de abas fecha a tela. Na bolinha de perfil vai a marca da REDE (pedido do Ryan,
      11/09) — e não o logo da loja, que já está no cabeçalho do post. Duas vezes o mesmo logo
      na mesma tela é repetição; a Delivery Much ali diz "esta é uma loja da rede", que é a
      informação que faltava. Escolhi a DM e não o Luma porque o Luma é a ferramenta que fez a
      arte, não a marca que aparece para o cliente final. */
   const abas = `<nav class="pst-feed-tabs" aria-hidden="true">
-      ${_PST_TAB_HOME}${_PST_TAB_SEARCH}${_PST_TAB_REELS}${_PST_TAB_SHOP}
+      ${_PST_TAB_HOME}${_PST_TAB_REELS}${_PST_SEND}${_PST_TAB_SEARCH}
       <span class="pst-av pst-tab-perfil pst-tab-dm" role="img" aria-label="Delivery Much"></span>
     </nav>`;
+  /* O `.pst-feed-rola` é o trecho que ROLA no app (tudo menos a barra de abas). Ele não rola
+     com a roda — rolagem dentro do mockup continua fora — mas o "mais" o desloca para a
+     legenda aberta caber, que é o que o dedo faria. */
   return `<div class="pst-feed">
-    ${head}
-    ${slot}
-    <div class="pst-feed-actions">${_PST_HEART}${_PST_COMMENT}${_PST_SEND}<span class="pst-grow"></span>${_PST_BOOKMARK}</div>
-    ${legenda}
+    <div class="pst-feed-rola">
+      ${head}
+      ${slot}
+      <div class="pst-feed-actions"><span class="pst-like">${_PST_HEART}</span><span class="pst-comentar">${_PST_COMMENT}</span>${_PST_REPOST}${_PST_SEND}<span class="pst-grow"></span><span class="pst-salvar">${_PST_BOOKMARK}</span></div>
+      ${legenda}
+      <div class="pst-feed-prox" aria-hidden="true"><span><i></i><b></b></span><em></em></div>
+    </div>
     ${abas}
   </div>`;
+}
+
+/* A legenda do Feed, montada num lugar só: o `_fPostedFeed` e o `fPostedRepintaLegenda`
+   tinham cada um a sua cópia desta conta, e o número mágico precisava mudar nas duas.
+   Vem com o nome na frente e corta na segunda linha, com "mais", que é como o Feed mostra.
+   ⚠ 100, medido na tela em pontos (402pt de largura, texto de 14pt): com o nome e o " … mais"
+   no total, 108 caracteres ainda cabiam em duas linhas e 112 quebravam para TRÊS — que comem
+   altura da arte. 100 deixa folga para legenda em caixa-alta e para a SF do Mac, um pouco
+   mais larga que a Segoe em que isto foi medido. O nome desconta porque ocupa a mesma linha. */
+function _fPostedCapFeedHTML(cap, p){
+  const limite = Math.max(40, 100 - (p.nome ? p.nome.length + 1 : 0));
+  const c = _fPostedCapCurta(cap, limite);
+  return `${p.nome?`<b>${gEsc(p.nome)}</b> `:''}${gEsc(c.texto)}${c.cortou?`<span class="muted pst-mais"> … mais</span>`:''}`;
 }
 
 /* A legenda ativa, sem depender de quem chamou. O `_fActiveCaptionText` (chat.js) pede o id
@@ -320,21 +353,17 @@ function fPostedRepintaLegenda(){
     if(!cap){ if(el) el.remove(); return; }
     if(!el){
       el = document.createElement('div'); el.className='pst-feed-cap';
-      /* ANTES DA BARRA DE ABAS. Um `appendChild` aqui punha a legenda DEPOIS das abas, e a
-         primeira troca de sugestão desmontava a tela. */
-      const abas = feed.querySelector('.pst-feed-tabs');
-      if(abas) feed.insertBefore(el, abas); else feed.appendChild(el);
+      /* LOGO DEPOIS DAS AÇÕES, antes do próximo post e da barra de abas. Um `appendChild`
+         aqui punha a legenda DEPOIS das abas, e a primeira troca de sugestão desmontava a tela. */
+      /* ⚠ `parentNode.insertBefore`: o próximo post mora dentro do `.pst-feed-rola`, não no
+         `.pst-feed` — inserir pelo feed com uma referência que não é filha dele lança erro. */
+      const depois = feed.querySelector('.pst-feed-prox') || feed.querySelector('.pst-feed-tabs');
+      if(depois) depois.parentNode.insertBefore(el, depois); else feed.appendChild(el);
     }
     /* ⚠ MESMA MONTAGEM DO `_fPostedFeed`, e não `textContent = cap`: sem isto, trocar a
        sugestão trocava a legenda curta com handle por um bloco de texto cru e comprido —
        a mesma tela com duas gramáticas, dependendo de você ter clicado ou não. */
-    const p = _fPostedPerfil();
-    /* 74 e nao 92: medido no chassi. A linha util tem 256px e cabem ~45 caracteres em 13px,
-     entao duas linhas sao ~90 — menos o nome em negrito na frente e os 7 do " … mais" no
-     fim. Com 92 a legenda quebrava para TRES linhas e comia altura da arte. */
-  const limite = Math.max(30, 74 - (p.nome ? p.nome.length + 1 : 0));
-    const c = _fPostedCapCurta(cap, limite);
-    el.innerHTML = `${p.nome?`<b>${gEsc(p.nome)}</b> `:''}${gEsc(c.texto)}${c.cortou?`<span class="muted"> … mais</span>`:''}`;
+    el.innerHTML = _fPostedCapFeedHTML(cap, _fPostedPerfil());
   });
 }
 function _fPostedWhats(slot){
@@ -344,23 +373,31 @@ function _fPostedWhats(slot){
      ⚠ A legenda é a MESMA do Feed e do painel (`_fPostedLegendaAtual`). Corta mais tarde que
      lá — o WhatsApp mostra ~3 linhas antes do "Ler mais", o Feed mostra 2. */
   const cap = _fPostedLegendaAtual();
-  const c = cap ? _fPostedCapCurta(cap, 118) : null;
-  /* A hora e o selo FECHAM A ÚLTIMA LINHA da legenda (`float:right`), que é como o app
-     desenha. Sem legenda eles voltam para dentro da imagem, na pílula escura — também como
-     o app faz quando a mensagem é só a foto. */
-  const selo = `<span class="pst-meta">21:45 ${_PST_CHECK}</span>`;
-  const legenda = c ? `<div class="pst-bub-cap">${selo}${gEsc(c.texto)}${c.cortou?`<span class="pst-wa-mais"> … Ler mais</span>`:''}</div>` : '';
+  const c = cap ? _fPostedCapCurta(cap, 150) : null;
+  const hora = _fPostedHora();
+  /* A hora e o selo FECHAM A ÚLTIMA LINHA da legenda, que é como o app desenha. ⚠ Era um
+     `float:right` posto ANTES do texto — e float no começo flutua na PRIMEIRA linha. O truque
+     do próprio app: um espaçador invisível no fim do texto reserva o lugar, e a hora vai
+     ancorada no canto de baixo. Sem legenda eles voltam para dentro da imagem, na pílula
+     escura — também como o app faz quando a mensagem é só a foto. */
+  const selo = `<span class="pst-meta">${hora} ${_PST_CHECK}</span>`;
+  const legenda = c ? `<div class="pst-bub-cap">${gEsc(c.texto)}${c.cortou?`<span class="pst-wa-mais"> … Ler mais</span>`:''}<span class="pst-meta-esp"></span>${selo}</div>` : '';
+  /* A BOLHA DE 2026. O WhatsApp de iPhone trocou a bolha com rabicho por uma de cantos bem
+     redondos, e a foto passou a encostar na borda — sem a moldura verde de 3px em volta.
+     Os botões do topo são as pílulas de vidro do iOS 26, que é o sistema de um iPhone 17.
+     "Hoje", e não "HOJE": a caixa-alta no divisor é do Android. */
   return `<div class="pst-wa">
     <div class="pst-wa-bg"></div>
-    <div class="pst-wa-head">${_PST_BACK}<span class="pst-wa-av">${_PST_PESSOA}</span><span class="pst-wa-id"><span class="pst-wa-name">Clientes</span><span class="pst-wa-status">online</span></span><span class="pst-grow"></span>${_PST_VIDEO}${_PST_CALL}${_PST_VDOTS}</div>
+    <div class="pst-wa-head"><span class="pst-glass pst-wa-voltar">${_PST_BACK}</span><span class="pst-wa-av">${_PST_PESSOA}</span><span class="pst-wa-id"><span class="pst-wa-name">Clientes</span><span class="pst-wa-status">online</span></span><span class="pst-grow"></span><span class="pst-glass pst-wa-acoes">${_PST_VIDEO}${_PST_CALL}</span></div>
     <div class="pst-wa-body">
-      <div class="pst-wa-aviso">${_PST_LOCK}<span>As mensagens são protegidas com criptografia de ponta a ponta.</span></div>
-      <div class="pst-wa-day">HOJE</div>
-      <div class="pst-bub-img${legenda?' com-cap':''}">${slot}${legenda||`<div class="pst-meta-ov">21:45 ${_PST_CHECK}</div>`}</div>
+      <div class="pst-wa-aviso">${_PST_LOCK}<span>As mensagens e ligações são protegidas com a criptografia de ponta a ponta.</span></div>
+      <div class="pst-wa-day">Hoje</div>
+      <div class="pst-bub-img${legenda?' com-cap':''}" title="Abrir a foto">${slot}${legenda||`<div class="pst-meta-ov">${hora} ${_PST_CHECK}</div>`}</div>
     </div>
     <div class="pst-wa-input">
-      <div class="pst-wa-field">${_PST_EMOJI}<span class="pst-grow">Mensagem</span>${_PST_CLIP}${_PST_CAM}</div>
-      <div class="pst-wa-send">${_PST_MIC}</div>
+      ${_PST_PLUS}
+      <div class="pst-glass pst-wa-field"><span class="pst-grow"></span>${_PST_STICKER}</div>
+      ${_PST_CAM}${_PST_MIC}
     </div>
   </div>`;
 }
@@ -379,13 +416,30 @@ function _fPostedOrder(){ return _fPostedContextsFor(fPostedContextForFormat(nul
 function _fPostedHomeBar(claro){
   return `<div class="pst-home ${claro?'dark':'light'}" aria-hidden="true"></div>`;
 }
+/* ⚠ A TELA É DESENHADA EM PONTOS DO iOS (23/09/2026). O `.pst-ui` tem 402 de largura — a
+   do iPhone 17 Pro — e o CSS o reduz inteiro para os 282px do chassi. Antes cada peça era
+   desenhada em pixel da página, "1pt = 1px": ícone de 24, avatar de 32, campo de 42. Numa
+   tela de 282px isso deixava a interface do app 1,4× maior do que é, e a arte encolhia no
+   meio de botões gigantes — o que mais fazia o celular parecer desenho. */
 function _fPostedScreenHTML(){
   const slot = '<div class="pst-artslot"></div>';
   const chrome = _postedCtx==='feed' ? _fPostedFeed(slot)
                : _postedCtx==='whatsapp' ? _fPostedWhats(slot)
                : _fPostedStory(slot);
   const claro = _postedCtx!=='feed';
-  return _fPostedSysbar(claro) + chrome + _fPostedHomeBar(claro);
+  return `<div class="pst-ui">${_fPostedSysbar(claro)}${chrome}${_fPostedHomeBar(claro)}</div>`;
+}
+
+/* O APARELHO, UMA VEZ SÓ. O modal e o palco montavam o mesmo chassi em duas strings.
+   Os botões laterais são elementos, e não sombras de um pseudo-elemento, porque no 17 Pro
+   eles têm tamanhos diferentes: Ação curto, volume longo, lateral mais longo ainda e o
+   Controle da Câmera embutido no alumínio — sombra copiada só repete o mesmo tamanho. */
+function _fPostedPhoneHTML(extra){
+  return `<div class="pst-phone${extra?' '+extra:''} pst-ctx-${_postedCtx}">`
+    + `<i class="pst-bt pst-bt-acao" title="Botão de Ação" aria-hidden="true"></i><i class="pst-bt pst-bt-vol" title="Volume +" aria-hidden="true"></i><i class="pst-bt pst-bt-vol pst-bt-vol2" title="Volume −" aria-hidden="true"></i><i class="pst-bt pst-bt-lado" title="Botão lateral" aria-hidden="true"></i><i class="pst-bt pst-bt-cam" aria-hidden="true"></i>`
+    + `<div class="pst-island"></div>`
+    + `<div class="pst-screen">${_fPostedScreenHTML()}</div>`
+    + `</div>`;
 }
 // Encaixa o canvas REAL no slot. É sempre o mesmo objeto DOM — só troca de pai, nunca
 // re-renderiza (render de arte é caro e o resultado não muda ao trocar de ambiente).
@@ -400,30 +454,39 @@ function _fPostedMountArt(scope){
      disso ganha a caixa do limite e sobra dentro dela — o app corta, e nós não: cortar aqui
      mostraria um enquadramento que o PNG baixado não tem.
      Story e WhatsApp não entram: lá o slot é a tela inteira e a bolha, que têm regra própria. */
+  const cv = _postedArt.canvas;
+  const r = (cv.width && cv.height) ? (cv.width / cv.height) : 0;
   if(_postedCtx === 'feed'){
-    const cv = _postedArt.canvas;
-    const r = (cv.width && cv.height) ? (cv.width / cv.height) : 0;
     holder.style.aspectRatio = r ? String(Math.min(1.91, Math.max(0.8, r))) : '';
   }
-  /* O FUNDO DO STORY. A peça 9:16 não enche a tela do aparelho, e o Instagram preenche a
-     sobra com a própria mídia ampliada e desfocada — nunca com preto.
+  /* NO WHATSAPP, A BOLHA TEM A PROPORÇÃO DA PEÇA. A foto encosta na borda da bolha (é o
+     desenho de 2026), então qualquer sobra dentro dela viraria tarja. O CSS usa `--pst-r`
+     para limitar a largura pela altura máxima — uma arte de Stories fica mais estreita, e
+     inteira, em vez de cortada. */
+  if(_postedCtx === 'whatsapp' && r){
+    holder.style.aspectRatio = String(r);
+    const bub = holder.closest('.pst-bub-img');
+    if(bub) bub.style.setProperty('--pst-r', String(r));
+  }
+  /* O FUNDO DO STORY E A LUZ DO PALCO saem da mesma miniatura da peça.
+     · no Stories, a mídia que não é 9:16 exata não enche o cartão, e o Instagram preenche a
+       sobra com a própria mídia ampliada e desfocada — nunca com preto;
+     · atrás do aparelho, a mesma miniatura vira a luz ambiente: as cores DA ARTE tingem o
+       palco. É a cor da peça e não a da campanha — o palco não afirma nada que a arte não diz.
      ⚠ 40px de largura de propósito: o desfoque vai comer o detalhe de qualquer jeito, então
-     desenhar em tamanho grande seria pagar caro por pixel que ninguém vê. A ampliação do CSS
-     (de 40px para ~370) já é metade do borrão; o `filter:blur` só alisa o que sobrou.
+     desenhar em tamanho grande seria pagar caro por pixel que ninguém vê.
      ⚠ `drawImage` de um canvas que já existe, sem `toDataURL`: reaproveita o render, não
      recodifica a imagem. */
-  const fundo = (scope||document).querySelector('.pst-story-fundo');
-  if(fundo){
+  (scope||document).querySelectorAll('.pst-story-fundo, .pst-ambiente').forEach(fundo=>{
     try{
-      const src = _postedArt.canvas;
       let mini = fundo.querySelector('canvas');
       if(!mini){ mini = document.createElement('canvas'); fundo.appendChild(mini); }
       const L = 40;
       mini.width = L;
-      mini.height = Math.max(1, Math.round(L * (src.height/src.width) || L));
-      mini.getContext('2d').drawImage(src, 0, 0, mini.width, mini.height);
-    }catch(e){ /* fundo é acabamento: se falhar, fica o preto de antes */ }
-  }
+      mini.height = Math.max(1, Math.round(L * (cv.height/cv.width) || L));
+      mini.getContext('2d').drawImage(cv, 0, 0, mini.width, mini.height);
+    }catch(e){ /* acabamento: se falhar, fica o fundo liso de antes */ }
+  });
 }
 // Monta o celular inteiro. Só na ABERTURA — trocar de ambiente não passa por aqui, senão o
 // chassi subiria com mola a cada swipe (ver _fPostedSwapScreen).
@@ -433,10 +496,8 @@ function _fPostedMountArt(scope){
 function _fPostedPaint(){
   const stage = document.getElementById('posted-stage');
   if(!stage || !_postedArt) return;
-  stage.innerHTML = `<div class="pst-enter"><div class="pst-tilt"><div class="pst-phone pst-ctx-${_postedCtx}">`
-    + `<div class="pst-island"></div>`
-    + `<div class="pst-screen">${_fPostedScreenHTML()}</div>`
-    + `</div></div></div>`;
+  stage.innerHTML = `<div class="pst-ambiente" aria-hidden="true"></div>`
+    + `<div class="pst-enter"><div class="pst-tilt">${_fPostedPhoneHTML()}</div></div>`;
   _fPostedMountArt(stage);
   _fPostedBindStage(stage);
 }
@@ -727,10 +788,7 @@ function _fLpSlotContexto(){
 function _fLpPintarContexto(){
   const slot = _fLpSlotContexto();
   if(!slot || !_postedArt) return;
-  slot.innerHTML = `<div class="lp-ctx-phone pst-phone pst-ctx-${_postedCtx}">`
-    + `<div class="pst-island"></div>`
-    + `<div class="pst-screen">${_fPostedScreenHTML()}</div>`
-    + `</div>`;
+  slot.innerHTML = `<div class="pst-ambiente" aria-hidden="true"></div>` + _fPostedPhoneHTML('lp-ctx-phone');
   _fPostedMountArt(slot);
 }
 
@@ -980,6 +1038,145 @@ function _fPostedKey(e){
 }
 // Clique no fundo (fora do box) fecha — mesmo padrão do f-preview-modal.
 (function(){ const m=document.getElementById('f-posted-modal'); if(m) m.addEventListener('click', function(e){ if(e.target===this) fClosePosted(); }); })();
+
+/* ══ AS CURIOSIDADES DO APARELHO ══════════════════════════════════════════════════════════
+   Quem vê um celular na tela aperta os botões dele. Cada toque aqui faz o que o aparelho ou o
+   app de verdade fariam — e nada que eles não fariam:
+   · coração: acende (e dois toques na foto do Feed também). Não conta curtida nenhuma, pela
+     mesma regra que tirou as "128 curtidas";
+   · botão lateral: apaga e acende a tela; tocar na tela apagada acende, como no iPhone;
+   · volume: a régua do iOS aparece ao lado dos botões;
+   · botão de Ação: alterna o silencioso, e a ilha avisa — é a função de fábrica dele;
+   · Stories: SEGURAR esconde a moldura do app, que é o que o Instagram faz. A arte fica limpa;
+   · Feed: "mais" abre a legenda inteira; o balão abre os comentários — VAZIOS, porque o post
+     ainda não existe; o marcador salva;
+   · WhatsApp: a foto abre em tela cheia.
+   Nada anima sozinho: tudo é resposta a um toque (motion.md proíbe o decorativo).
+   ⚠ Delegado no `document`, UMA vez: o chassi é refeito por `innerHTML` a cada troca de
+   ambiente e mora em dois lugares (modal e palco); ouvinte preso nele morreria no repaint. */
+const _PST_SINO = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22a2.5 2.5 0 0 0 2.4-1.8H9.6A2.5 2.5 0 0 0 12 22zm7-5.2-1.6-1.9V10a5.4 5.4 0 0 0-4.2-5.3V4a1.2 1.2 0 0 0-2.4 0v.7A5.4 5.4 0 0 0 6.6 10v4.9L5 16.8a.8.8 0 0 0 .6 1.4h12.8a.8.8 0 0 0 .6-1.4z"/></svg>';
+const _PST_SINO_OFF = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22a2.5 2.5 0 0 0 2.4-1.8H9.6A2.5 2.5 0 0 0 12 22zm7-5.2-1.6-1.9V10a5.4 5.4 0 0 0-4.2-5.3V4a1.2 1.2 0 0 0-2.4 0v.7A5.4 5.4 0 0 0 6.6 10v4.9L5 16.8a.8.8 0 0 0 .6 1.4h12.8a.8.8 0 0 0 .6-1.4z"/><path d="m3.5 3.5 17 17" stroke="#000" stroke-width="4"/><path d="m3.5 3.5 17 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const _PST_PARTILHA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M7 11H5.5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1H17"/></svg>';
+const _PST_VOL_DEGRAUS = 16;          // os degraus do volume no iPhone
+let _pstVolume = 10, _pstSilencio = false, _pstVolTimer = 0, _pstIlhaTimer = 0, _pstSegura = 0;
+
+function _fPostedVolume(phone, passo){
+  _pstVolume = Math.max(0, Math.min(_PST_VOL_DEGRAUS, _pstVolume + passo));
+  const tela = phone.querySelector('.pst-screen');
+  if(!tela) return;
+  /* Criada sob demanda DENTRO da tela: a troca de ambiente refaz o `innerHTML` e ela some
+     junto, que é o certo — a régua do iOS também não sobrevive a uma troca de app. */
+  let hud = tela.querySelector('.pst-vol-hud');
+  if(!hud){ hud = document.createElement('div'); hud.className = 'pst-vol-hud'; hud.setAttribute('aria-hidden','true'); hud.innerHTML = '<i></i>'; tela.appendChild(hud); }
+  hud.style.setProperty('--pst-vol', String(_pstVolume / _PST_VOL_DEGRAUS));
+  hud.classList.add('on');
+  clearTimeout(_pstVolTimer);
+  _pstVolTimer = setTimeout(()=>hud.classList.remove('on'), 1400);
+}
+
+function _fPostedSilencio(phone){
+  _pstSilencio = !_pstSilencio;
+  const ilha = phone.querySelector('.pst-island');
+  if(!ilha) return;
+  ilha.innerHTML = `<span class="pst-ilha-msg${_pstSilencio?' mudo':''}">${_pstSilencio?_PST_SINO_OFF:_PST_SINO}<b>${_pstSilencio?'Silencioso':'Toque'}</b></span>`;
+  /* `pst-ilha-on` no aparelho apaga a barra de status: aberta, a ilha passa por cima da hora
+     e da bateria, e o iOS as esconde enquanto ela fala. */
+  ilha.classList.add('aberta'); phone.classList.add('pst-ilha-on');
+  clearTimeout(_pstIlhaTimer);
+  _pstIlhaTimer = setTimeout(()=>{ ilha.classList.remove('aberta'); phone.classList.remove('pst-ilha-on'); }, 1600);
+}
+
+/* A legenda INTEIRA, com as quebras de linha que ela tem (o Feed mostra as quebras). A
+   curta corta em palavra e junta espaços; aqui o texto vai como veio, escapado. */
+function _fPostedAbreLegenda(cap){
+  const p = _fPostedPerfil();
+  cap.innerHTML = `${p.nome?`<b>${gEsc(p.nome)}</b> `:''}${gEsc(_fPostedLegendaAtual()).replace(/\n/g,'<br>')}`;
+  const rola = cap.closest('.pst-feed-rola');
+  if(rola) rola.scrollTo({ top: rola.scrollHeight, behavior: _fPostedReducedMotion() ? 'auto' : 'smooth' });
+}
+
+/* A folha de comentários mora no `.pst-ui` (acima do Feed e da barra de abas) e fala a
+   frase do próprio app para post sem comentário — que é a verdade de um post que ainda
+   nem foi publicado. */
+function _fPostedComentarios(ui){
+  if(!ui || ui.querySelector('.pst-ig-sheet')) return;
+  const folha = document.createElement('div');
+  folha.className = 'pst-ig-sheet';
+  folha.innerHTML = `<div class="pst-ig-painel"><i class="pst-ig-alca"></i><b class="pst-ig-tit">Comentários</b>`
+    + `<div class="pst-ig-vazio"><strong>Ainda não há comentários</strong><span>Inicie a conversa.</span></div>`
+    + `<div class="pst-ig-campo">${_fPostedAvatar(_fPostedPerfil())}<span>Adicione um comentário…</span></div></div>`;
+  ui.appendChild(folha);
+}
+
+/* A foto em tela cheia leva o MESMO canvas (troca de pai, como o `_fPostedMountArt`), e ao
+   fechar ele volta para a bolha. Nada é renderizado de novo. */
+function _fPostedVisor(wa, abrir){
+  const cv = _postedArt && _postedArt.canvas;
+  let visor = wa.querySelector('.pst-wa-visor');
+  if(abrir){
+    if(visor || !cv) return;
+    visor = document.createElement('div');
+    visor.className = 'pst-wa-visor';
+    visor.innerHTML = `<div class="pst-wa-visor-topo">${_PST_BACK}<span class="pst-wa-id"><span class="pst-wa-name">Você</span><span class="pst-wa-status">hoje, ${_fPostedHora()}</span></span><span class="pst-grow"></span>${_PST_PARTILHA}</div><div class="pst-wa-visor-arte"></div>`;
+    wa.appendChild(visor);
+    visor.querySelector('.pst-wa-visor-arte').appendChild(cv);
+    return;
+  }
+  if(!visor) return;
+  const slot = wa.querySelector('.pst-bub-img .pst-artslot');
+  if(slot && cv) slot.appendChild(cv);
+  visor.remove();
+}
+
+document.addEventListener('click', e=>{
+  const t = e.target;
+  if(!t || !t.closest) return;
+  const phone = t.closest('.pst-phone');
+  if(!phone) return;
+  const em = (sel)=>t.closest(sel);
+  if(em('.pst-bt-lado')){ phone.classList.toggle('pst-tela-off'); return; }
+  if(phone.classList.contains('pst-tela-off')){ if(em('.pst-screen')) phone.classList.remove('pst-tela-off'); return; }
+  if(em('.pst-bt-vol')){ _fPostedVolume(phone, em('.pst-bt-vol2') ? -1 : 1); return; }
+  if(em('.pst-bt-acao')){ _fPostedSilencio(phone); return; }
+  const liga = em('.pst-like') || em('.pst-salvar');
+  if(liga){ liga.classList.toggle('on'); return; }
+  if(em('.pst-mais')){ _fPostedAbreLegenda(em('.pst-feed-cap')); return; }
+  if(em('.pst-comentar')){ _fPostedComentarios(em('.pst-ui')); return; }
+  /* Fecha a folha só pelo véu, e não por dentro do painel — como no app. */
+  const folha = em('.pst-ig-sheet');
+  if(folha){ if(!em('.pst-ig-painel')) folha.remove(); return; }
+  const wa = em('.pst-wa');
+  if(wa && em('.pst-wa-visor')){ _fPostedVisor(wa, false); return; }
+  if(wa && em('.pst-bub-img')){ _fPostedVisor(wa, true); return; }
+});
+
+/* Segurar o Stories. 160ms antes de esconder, para um clique rápido não piscar a moldura. */
+document.addEventListener('pointerdown', e=>{
+  const card = e.target.closest && e.target.closest('.pst-phone:not(.pst-tela-off) .pst-story-card');
+  if(!card) return;
+  const story = card.closest('.pst-story');
+  clearTimeout(_pstSegura);
+  _pstSegura = setTimeout(()=>story.classList.add('pst-segurando'), 160);
+  const solta = ()=>{
+    clearTimeout(_pstSegura);
+    story.classList.remove('pst-segurando');
+    document.removeEventListener('pointerup', solta);
+    document.removeEventListener('pointercancel', solta);
+  };
+  document.addEventListener('pointerup', solta);
+  document.addEventListener('pointercancel', solta);
+});
+document.addEventListener('dblclick', e=>{
+  const slot = e.target.closest && e.target.closest('.pst-phone .pst-feed .pst-artslot');
+  if(!slot) return;
+  const h = slot.closest('.pst-feed').querySelector('.pst-like');
+  if(h) h.classList.add('on');
+  if(_fPostedReducedMotion()) return;
+  const b = document.createElement('span');
+  b.className = 'pst-burst'; b.innerHTML = _PST_HEART;
+  slot.appendChild(b);
+  b.addEventListener('animationend', ()=>b.remove());
+});
 
 
 /* ── LIVE PREVIEW (F-01) ──

@@ -713,7 +713,7 @@ body:not(.theme-light) .lp-edit-input{background:var(--d-card,#242424);border-co
 
 
 /* ════════════════════════════════════════════════════════════════════
-   "VER POSTADO" — a arte real dentro do iPhone 17 Pro Max
+   "VER POSTADO" — a arte real dentro do iPhone 17 Pro
    Chassi premium + chrome de Stories/Feed/WhatsApp. Tudo escopado em
    #f-posted-modal pra não vazar. Proposta: docs/mockups/previa-mockup-celular.html
    ════════════════════════════════════════════════════════════════════ */
@@ -770,85 +770,124 @@ body:not(.theme-light) .pst-seg-btn{color:var(--d-text2)}
 body:not(.theme-light) .pst-seg-btn.active{background:color-mix(in srgb,var(--dm-orange-d) 18%,transparent);color:var(--dm-orange)}
 body:not(.theme-light) .posted-stage{background:var(--d-dark)}
 
-/* ══ CHASSI iPhone 17 Pro Max ══ */
+/* ══ CHASSI iPhone 17 Pro ══ */
 /* ⚠ O CHASSI SERVE A DOIS DONOS. Ele nasceu escopado em `#f-posted-modal` (o "Ver como
    fica" durante a criação) e passou a ser também o conteúdo do PALCO no estado final. Em vez
-   de duplicar 73 regras — duas cópias que sairiam de sincronia no primeiro ajuste — o escopo
+   de duplicar as regras — duas cópias que sairiam de sincronia no primeiro ajuste — o escopo
    virou `:is(#f-posted-modal,#lp-contextos)`. O `:is()` mantém a especificidade do ID, então
    nada do que já existia mudou de peso.
    Sem isto o celular do palco ficava SEM DIMENSÕES (as regras não o alcançavam) e esticava
    até estourar a coluna, com a arte transbordando — medido a 1440×900. */
-/* ══ A MOLDURA (refinada em 11/09/2026) ══
-   Quatro coisas mudaram, e nenhuma é enfeite — cada uma responde a um detalhe que o olho
-   procura num aparelho de verdade:
-   · o CORPO ganhou mais paradas no degradê. Titânio não vai de claro a escuro de forma
-     linear: ele tem duas quinas que pegam luz (as laterais) e uma barriga escura no meio.
-     Cinco paradas viravam uma rampa; nove desenham as quinas;
-   · a SOMBRA virou três camadas. Uma de contato (curta, fechada, logo abaixo do aparelho),
-     uma média e uma ambiente larga. Uma sombra só, larga, faz o objeto FLUTUAR em vez de
-     pousar — é o que mais denuncia um mockup desenhado;
-   · os BOTÕES eram um retângulo chapado #4A4B51. Agora têm degradê no eixo curto e uma
-     linha de luz na quina de cima, que é como um botão de metal reage à luz de cima;
-   · o VIDRO ganhou a borda interna. Todo aparelho tem uma linha escura entre a tela e a
-     carcaça, e uma faísca clara no topo do vidro — sem isso a tela parece impressa na
-     carcaça, não encaixada dentro dela. */
-:is(#f-posted-modal,#lp-contextos) .pst-phone{width:300px;height:640px;border-radius:56px;padding:9px;position:relative;flex-shrink:0;
-  background:linear-gradient(150deg,#4E4F56 0%,#3A3B41 8%,#25262B 20%,#1C1D21 34%,#17181C 50%,#1C1D21 66%,#26272C 80%,#3E3F45 92%,#4A4B52 100%);
+/* ══ A MOLDURA (refeita em 23/09/2026) ══
+   O aparelho é o iPhone 17 Pro, e isso decide o que o olho confere num print de celular:
+   · ALUMÍNIO AZUL-PROFUNDO, e não titânio grafite. O 17 Pro saiu do titânio e não existe em
+     preto — o azul-profundo é a cor escura dele. O degradê mantém as duas quinas que pegam
+     luz e a barriga escura no meio (titânio ou alumínio, metal não reflete em rampa linear);
+   · O VIDRO TEM BORDA PRETA. De frente, um iPhone é um fio de metal por fora, uma borda de
+     vidro preto de ~1,5mm e só então a tela. Antes o metal ia até a beira da imagem, e a tela
+     parecia impressa na carcaça. Agora são 3px de metal (`padding`) e 6px de vidro (`border`
+     do `.pst-screen`) — a mesma soma de 9px de antes, então nada do palco muda de tamanho;
+   · a SOMBRA segue em três camadas: contato (curta, logo abaixo), média e ambiente larga.
+     Uma sombra só, larga, faz o objeto FLUTUAR em vez de pousar. */
+:is(#f-posted-modal,#lp-contextos) .pst-phone{width:300px;height:640px;border-radius:54px;padding:3px;position:relative;z-index:1;flex-shrink:0;
+  --pst-fonte:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro",system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  background:linear-gradient(150deg,#5A687B 0%,#3D495B 8%,#283241 20%,#1E2632 34%,#1A212B 50%,#1E2632 66%,#29333F 80%,#46525F 92%,#576474 100%);
   box-shadow:
-    inset 0 0 0 1.5px rgba(255,255,255,.16),
-    inset 0 0 0 3px #0B0C0F,
-    inset 0 1px 1px rgba(255,255,255,.22),
-    0 2px 4px -1px rgba(0,0,0,.5),
+    inset 0 0 0 1px rgba(255,255,255,.2),
+    inset 0 1px 1.5px rgba(255,255,255,.3),
+    0 1.5px 3px -1px rgba(0,0,0,.55),
     0 12px 24px -10px rgba(0,0,0,.45),
-    0 34px 70px -22px rgba(20,12,0,.55)}
-/* Botões laterais: volume (3) à esquerda, ação/power à direita. O degradê corre no eixo
-   CURTO (90deg), que é o que dá a barriga de metal; a linha branca de cima é o brilho. */
-:is(#f-posted-modal,#lp-contextos) .pst-phone::before{content:'';position:absolute;left:-2.5px;top:150px;width:3.5px;height:22px;border-radius:3px;
-  background:linear-gradient(90deg,#2E2F35,#5A5B62 45%,#3C3D43);
-  box-shadow:0 46px 0 #4A4B51,0 84px 0 #4A4B51,inset 0 1px 0 rgba(255,255,255,.3)}
-:is(#f-posted-modal,#lp-contextos) .pst-phone::after{content:'';position:absolute;right:-2.5px;top:176px;width:3.5px;height:58px;border-radius:3px;
-  background:linear-gradient(270deg,#2E2F35,#5A5B62 45%,#3C3D43);
-  box-shadow:0 96px 0 #4A4B51,inset 0 1px 0 rgba(255,255,255,.3)}
-:is(#f-posted-modal,#lp-contextos) .pst-screen{width:100%;height:100%;border-radius:48px;overflow:hidden;position:relative;background:#000;display:flex;flex-direction:column}
-/* A borda do vidro. Camada própria (`::after` do screen) porque o `.pst-screen` tem
-   `overflow:hidden` e o conteúdo rolaria por cima de um `box-shadow` inset dele. */
-:is(#f-posted-modal,#lp-contextos) .pst-screen::after{content:'';position:absolute;inset:0;border-radius:48px;z-index:60;pointer-events:none;
-  box-shadow:inset 0 0 0 1px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.13)}
-/* A ilha, com a lente. O ponto não é decoração: é o que diferencia a ilha de uma tarja preta
-   qualquer — e ele fica à direita, como no aparelho. */
-:is(#f-posted-modal,#lp-contextos) .pst-island{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:88px;height:27px;background:#000;border-radius:16px;z-index:40;
-  box-shadow:0 0 0 1px rgba(255,255,255,.06),inset 0 -1px 1px rgba(255,255,255,.05)}
+    0 34px 70px -22px rgba(8,14,28,.55)}
+/* Os botões. O degradê corre no eixo CURTO, que é o que dá a barriga de metal; a linha clara
+   de cima é o brilho da luz que vem de cima. O Controle da Câmera é safira embutida no
+   alumínio: mais escuro e quase rente à lateral. Posições estimadas pelas medidas do 17 Pro (150mm de altura = 640px). */
+:is(#f-posted-modal,#lp-contextos) .pst-bt{position:absolute;width:3.5px;border-radius:2px;
+  background:linear-gradient(90deg,#222B37,#5E6C7F 45%,#2E3947);box-shadow:inset 0 1px 0 rgba(255,255,255,.32)}
+:is(#f-posted-modal,#lp-contextos) .pst-bt-acao,:is(#f-posted-modal,#lp-contextos) .pst-bt-vol{left:-2.5px}
+:is(#f-posted-modal,#lp-contextos) .pst-bt-lado,:is(#f-posted-modal,#lp-contextos) .pst-bt-cam{right:-2.5px;background:linear-gradient(270deg,#222B37,#5E6C7F 45%,#2E3947)}
+:is(#f-posted-modal,#lp-contextos) .pst-bt-acao{top:118px;height:26px}
+:is(#f-posted-modal,#lp-contextos) .pst-bt-vol{top:164px;height:44px}
+:is(#f-posted-modal,#lp-contextos) .pst-bt-vol2{top:220px}
+:is(#f-posted-modal,#lp-contextos) .pst-bt-lado{top:182px;height:70px}
+:is(#f-posted-modal,#lp-contextos) .pst-bt-cam{top:410px;height:48px;right:-1.5px;width:2.5px;
+  background:linear-gradient(270deg,#0E1218,#343F4E 50%,#141920);box-shadow:inset 0 1px 0 rgba(255,255,255,.18)}
+/* A borda de vidro é o `border` preto; o `overflow` recorta a imagem no raio de DENTRO dela
+   (51 − 6 = 45px), que é o canto da tela de verdade. O anel claro de fora é o fio onde o
+   vidro encontra o metal. */
+:is(#f-posted-modal,#lp-contextos) .pst-screen{width:100%;height:100%;border-radius:51px;border:6px solid #040506;overflow:hidden;position:relative;background:#000;display:flex;flex-direction:column;
+  box-shadow:0 0 0 .5px rgba(255,255,255,.1)}
+/* A linha entre a imagem e o vidro. Camada própria (`::after`) porque o `.pst-screen` tem
+   `overflow:hidden` e o conteúdo passaria por cima de um `box-shadow` inset dele. */
+:is(#f-posted-modal,#lp-contextos) .pst-screen::after{content:'';position:absolute;inset:0;border-radius:45px;z-index:60;pointer-events:none;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.5)}
+/* A ilha, com a lente. 88×26 a 16px do topo do aparelho é o 126×37pt do iPhone, a 11pt da
+   beira da tela, na escala desta tela. O ponto não é decoração: é o que diferencia a ilha de
+   uma tarja preta qualquer — e ele fica à direita, como no aparelho. */
+:is(#f-posted-modal,#lp-contextos) .pst-island{position:absolute;top:16px;left:50%;transform:translateX(-50%);width:88px;height:26px;background:#000;border-radius:13px;z-index:40;
+  box-shadow:0 0 0 1px rgba(255,255,255,.05),inset 0 -1px 1px rgba(255,255,255,.05)}
 :is(#f-posted-modal,#lp-contextos) .pst-island::after{content:'';position:absolute;right:8px;top:50%;transform:translateY(-50%);width:9px;height:9px;border-radius:50%;
   background:radial-gradient(circle at 34% 30%,#26313F 0%,#131A22 46%,#05070A 100%);
   box-shadow:0 0 0 .5px rgba(90,120,160,.28)}
 
-/* status bar */
-:is(#f-posted-modal,#lp-contextos) .pst-sysbar{position:absolute;top:0;left:0;right:0;height:46px;z-index:35;display:flex;align-items:center;justify-content:space-between;padding:16px 22px 0;pointer-events:none;font-size:12px;font-weight:700;font-family:'Roboto',sans-serif}
-:is(#f-posted-modal,#lp-contextos) .pst-sysbar .pst-ic{display:flex;align-items:center;gap:5px}
-:is(#f-posted-modal,#lp-contextos) .pst-sysbar.dark,:is(#f-posted-modal,#lp-contextos) .pst-sysbar.dark *{color:#fff}
-:is(#f-posted-modal,#lp-contextos) .pst-sysbar.light,:is(#f-posted-modal,#lp-contextos) .pst-sysbar.light *{color:#0A0A0A}
+/* ══ A TELA EM PONTOS ══
+   Tudo o que está dentro do `.pst-ui` é medido em PONTOS DO iOS, no tamanho real do iPhone
+   17 Pro (402pt de largura), e o `zoom` reduz o conjunto para os 282px da tela: 282 ÷ 402 =
+   0,7015. Assim cada número abaixo é conferível contra o app de verdade — barra de status de
+   54, avatar de 32, texto de legenda de 14 — em vez de ser um palpite em pixel de página.
+   ⚠ `zoom` e não `transform:scale`: o zoom refaz o layout na escala final, então o texto sai
+   nítido e o bloco ocupa o espaço reduzido no fluxo. Com `scale` o bloco continuaria ocupando
+   402px e o texto seria rasterizado grande e encolhido.
+   A fonte é a do sistema: num Mac ou num iPhone é a SF, a mesma do Instagram e do WhatsApp; no
+   Windows cai na Segoe. Roboto aqui era o Luma aparecendo dentro do app dos outros. */
+:is(#f-posted-modal,#lp-contextos) .pst-ui{width:402px;height:886.7px;zoom:.7015;flex-shrink:0;position:relative;display:flex;flex-direction:column;overflow:hidden;
+  font-family:var(--pst-fonte);
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;letter-spacing:-.01em}
 
-/* A barra de gesto do iOS. Depois da ilha, é o elemento que mais faz um print parecer um
-   print de celular — e ela não existia aqui. `z-index:50` para ficar acima do chrome do app
+/* status bar — uma orelha de cada lado da ilha (o `column-gap` é a largura dela) */
+:is(#f-posted-modal,#lp-contextos) .pst-sysbar{position:absolute;top:0;left:0;right:0;height:54px;z-index:35;display:flex;align-items:center;column-gap:134px;padding:5px 8px 0;pointer-events:none}
+:is(#f-posted-modal,#lp-contextos) .pst-sys-ear{flex:1;display:flex;align-items:center;justify-content:center;gap:6px}
+:is(#f-posted-modal,#lp-contextos) .pst-sysbar .pst-t{font-size:17px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+:is(#f-posted-modal,#lp-contextos) .pst-sysbar svg{display:block;flex-shrink:0}
+:is(#f-posted-modal,#lp-contextos) .pst-sysbar.dark,:is(#f-posted-modal,#lp-contextos) .pst-sysbar.dark *{color:#fff}
+:is(#f-posted-modal,#lp-contextos) .pst-sysbar.light,:is(#f-posted-modal,#lp-contextos) .pst-sysbar.light *{color:#000}
+
+/* A barra de gesto do iOS: 139×5pt a 8pt do pé. Depois da ilha, é o elemento que mais faz
+   um print parecer um print de celular. `z-index:50` para ficar acima do chrome do app
    (a barra de abas do Feed passa por baixo), abaixo da ilha e da borda do vidro. */
-:is(#f-posted-modal,#lp-contextos) .pst-home{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);width:34%;height:4.5px;border-radius:4px;z-index:50;pointer-events:none}
+:is(#f-posted-modal,#lp-contextos) .pst-home{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);width:139px;height:5px;border-radius:3px;z-index:50;pointer-events:none}
 :is(#f-posted-modal,#lp-contextos) .pst-home.dark{background:rgba(255,255,255,.92)}
-:is(#f-posted-modal,#lp-contextos) .pst-home.light{background:rgba(0,0,0,.82)}
+:is(#f-posted-modal,#lp-contextos) .pst-home.light{background:rgba(0,0,0,.86)}
 
 /* slot da arte real (o canvas é encaixado aqui pelo JS) */
-:is(#f-posted-modal,#lp-contextos) .pst-artslot{display:flex;align-items:center;justify-content:center;overflow:hidden}
+:is(#f-posted-modal,#lp-contextos) .pst-artslot{display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
 :is(#f-posted-modal,#lp-contextos) .pst-artslot canvas,:is(#f-posted-modal,#lp-contextos) .pst-artslot .pst-art{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block}
 /* O AVATAR É O LOGO DA LOJA (11/09/2026) — ver `_fPostedPerfil` em live-preview.js.
    ⚠ `contain` sobre branco, e NÃO `cover`: logo de loja vem com margem própria e proporção
    qualquer, e o `cover` cortava a marca. Logo pequeno é aceitável; logo cortado não.
    O degradê continua só como fundo de quando não há logo nenhum. */
-:is(#f-posted-modal,#lp-contextos) .pst-av{width:30px;height:30px;border-radius:50%;flex-shrink:0;background:linear-gradient(158deg,var(--dm-orange),var(--dm-red));overflow:hidden;display:flex;align-items:center;justify-content:center}
+:is(#f-posted-modal,#lp-contextos) .pst-av{width:32px;height:32px;border-radius:50%;flex-shrink:0;background:linear-gradient(158deg,var(--dm-orange),var(--dm-red));overflow:hidden;display:flex;align-items:center;justify-content:center}
 :is(#f-posted-modal,#lp-contextos) .pst-av.tem-logo{background:#fff;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
-:is(#f-posted-modal,#lp-contextos) .pst-av img{width:100%;height:100%;object-fit:contain;display:block;padding:1.5px}
-:is(#f-posted-modal,#lp-contextos) .pst-av.inicial{color:#fff;font-size:13px;font-weight:800;letter-spacing:-.01em}
+:is(#f-posted-modal,#lp-contextos) .pst-av img{width:100%;height:100%;object-fit:contain;display:block;padding:2px}
+:is(#f-posted-modal,#lp-contextos) .pst-av.inicial{color:#fff;font-size:14px;font-weight:700;letter-spacing:-.01em}
 :is(#f-posted-modal,#lp-contextos) .pst-av.vazio{background:#EFEFEF;color:#8A8A8A;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
 :is(#f-posted-modal,#lp-contextos) .pst-av.vazio svg{width:64%;height:64%}
 :is(#f-posted-modal,#lp-contextos) .pst-grow{flex:1}
+
+/* O coração que acende (ver o ouvinte delegado em live-preview.js). O vermelho é o do
+   Instagram, e o pulo é a mola dos tokens — curto, é resposta a um toque. */
+:is(#f-posted-modal,#lp-contextos) .pst-like{display:inline-flex;flex-shrink:0;cursor:pointer}
+:is(#f-posted-modal,#lp-contextos) .pst-like.on svg{fill:#FF3040;stroke:#FF3040;color:#FF3040;animation:gPstLike var(--dur-base) var(--ease-spring)}
+@keyframes gPstLike{from{transform:scale(.55)}to{transform:scale(1)}}
+:is(#f-posted-modal,#lp-contextos) .pst-burst{position:absolute;left:50%;top:50%;width:110px;height:110px;margin:-55px 0 0 -55px;z-index:5;pointer-events:none;
+  animation:gPstBurst var(--dur-celebration) var(--ease-out) both}
+:is(#f-posted-modal,#lp-contextos) .pst-burst svg{width:100%;height:100%;fill:#fff;stroke:none;filter:drop-shadow(0 6px 18px rgba(0,0,0,.3))}
+@keyframes gPstBurst{
+  0%{opacity:0;transform:scale(.3)}
+  25%{opacity:1;transform:scale(1.08)}
+  40%{transform:scale(1)}
+  75%{opacity:1;transform:scale(1)}
+  100%{opacity:0;transform:scale(.85) translateY(-14px)}
+}
 
 /* ══ 1 · STORIES ══ */
 /* ⛔ O FUNDO É PRETO, NÃO O DEGRADÊ DA CAMPANHA (11/09/2026). Havia aqui um
@@ -856,144 +895,241 @@ body:not(.theme-light) .posted-stage{background:var(--d-dark)}
    tokens, a resposta para "como vai ficar no Stories" MUDAVA DE COR conforme a campanha
    aberta. O Instagram não faz isso: sobra de tela no Stories é preta, em qualquer conta e
    qualquer post. Cor de marca aqui é o mockup mentindo sobre o app. */
-:is(#f-posted-modal,#lp-contextos) .pst-story{flex:1;position:relative;background:#000;overflow:hidden}
-/* O véu de cima. As barras de progresso e o nome são brancos, e sem isto eles sumiam sobre
-   arte clara — que é metade das artes. Só no topo, e fraco: é legibilidade, não moldura. */
-/* O FUNDO. Cópia ampliada e desfocada da própria peça, no lugar do preto — é o que o
-   Instagram faz quando a mídia não enche a tela (a peça é 0,562 e o aparelho 0,450).
-   ⚠ `scale(1.25)` antes do blur: sem a folga, o desfoque puxa transparência das bordas e
-   aparece uma moldura clara em volta. O brilho cai para a arte da frente continuar sendo a
+:is(#f-posted-modal,#lp-contextos) .pst-story{flex:1;position:relative;background:#000;overflow:hidden;display:flex;flex-direction:column}
+/* O CARTÃO (23/09/2026): 9:16 com cantos de 12pt, logo abaixo da barra de status — é como o
+   Instagram mostra um story numa tela mais alta que 9:16. A caixa de resposta mora embaixo
+   dele, no preto, e não mais por cima do pé da arte. */
+:is(#f-posted-modal,#lp-contextos) .pst-story-card{position:relative;flex-shrink:0;margin-top:56px;width:100%;aspect-ratio:9/16;border-radius:12px;overflow:hidden;background:#000;isolation:isolate}
+/* O FUNDO DO CARTÃO. Cópia ampliada e desfocada da própria peça, para a mídia que não é 9:16
+   exata. ⚠ `scale(1.25)` antes do blur: sem a folga, o desfoque puxa transparência das bordas
+   e aparece uma moldura clara em volta. O brilho cai para a arte da frente continuar sendo a
    coisa mais clara da tela. */
 :is(#f-posted-modal,#lp-contextos) .pst-story-fundo{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;background:#000}
-:is(#f-posted-modal,#lp-contextos) .pst-story-fundo canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:blur(22px) brightness(.5) saturate(1.15);transform:scale(1.25)}
-:is(#f-posted-modal,#lp-contextos) .pst-story .pst-artslot{z-index:1}
-/* .55 no topo, e não .42. A conta: branco sobre véu de 42% em cima de arte CLARA dá um
-   fundo de 148 e contraste de 2,6:1 — abaixo do mínimo até para texto grande. Com 55% o
-   fundo cai para 115 e a razão sobe para 3,6:1, que com a sombra do texto fecha. Metade das
-   artes tem topo claro, então isto não é caso raro. */
-:is(#f-posted-modal,#lp-contextos) .pst-story-sombra{position:absolute;top:0;left:0;right:0;height:132px;z-index:15;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,.22) 58%,transparent)}
-/* O véu do pé, que faltava. A caixa de resposta e os dois ícones são brancos e sumiam sobre
-   arte clara — metade das artes. O do topo já existia; sem o de baixo a conta ficava pela
-   metade. */
-:is(#f-posted-modal,#lp-contextos) .pst-story-sombra-pe{position:absolute;bottom:0;left:0;right:0;height:150px;z-index:15;pointer-events:none;background:linear-gradient(0deg,rgba(0,0,0,.55),rgba(0,0,0,.22) 48%,transparent)}
-:is(#f-posted-modal,#lp-contextos) .pst-story .pst-artslot{position:absolute;inset:0}
-:is(#f-posted-modal,#lp-contextos) .pst-story-bars{position:absolute;top:52px;left:12px;right:12px;display:flex;gap:4px;z-index:20}
-:is(#f-posted-modal,#lp-contextos) .pst-story-bars i{flex:1;height:2.5px;border-radius:2px;background:rgba(255,255,255,.38);overflow:hidden;box-shadow:0 0 2px rgba(0,0,0,.35)}
+:is(#f-posted-modal,#lp-contextos) .pst-story-fundo canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:blur(30px) brightness(.5) saturate(1.15);transform:scale(1.25)}
+:is(#f-posted-modal,#lp-contextos) .pst-story .pst-artslot{position:absolute;inset:0;z-index:1}
+/* O véu de cima. As barras de progresso e o nome são brancos, e sem isto eles sumiam sobre
+   arte clara — que é metade das artes.
+   .55 no topo, e não .42. A conta: branco sobre véu de 42% em cima de arte CLARA dá um fundo
+   de 148 e contraste de 2,6:1 — abaixo do mínimo até para texto grande. Com 55% o fundo cai
+   para 115 e a razão sobe para 3,6:1, que com a sombra do texto fecha.
+   ⛔ O véu do PÉ saiu junto com a caixa de resposta de cima da arte: ela agora está no preto. */
+:is(#f-posted-modal,#lp-contextos) .pst-story-sombra{position:absolute;top:0;left:0;right:0;height:118px;z-index:15;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,.22) 58%,transparent)}
+:is(#f-posted-modal,#lp-contextos) .pst-story-bars{position:absolute;top:8px;left:8px;right:8px;display:flex;gap:4px;z-index:20}
+:is(#f-posted-modal,#lp-contextos) .pst-story-bars i{flex:1;height:2.5px;border-radius:2px;background:rgba(255,255,255,.38);overflow:hidden;box-shadow:0 0 2px rgba(0,0,0,.3)}
 :is(#f-posted-modal,#lp-contextos) .pst-story-bars i.on::before,:is(#f-posted-modal,#lp-contextos) .pst-story-bars i.done::before{content:'';display:block;height:100%;background:#fff;border-radius:2px}
 /* 64%: o story está TOCANDO. Cheia diria "acabou", vazia diria "não começou" — e nenhuma
    das duas é o instante que este mockup retrata. */
 :is(#f-posted-modal,#lp-contextos) .pst-story-bars i.on::before{width:64%}
-/* 64px e não 62: as barras terminam em 54,5 (topo 52 + 2,5 de altura) e o cabeçalho
-   encostava nelas. Dez pixels de respiro é o que o app dá. */
-:is(#f-posted-modal,#lp-contextos) .pst-story-top{position:absolute;top:64px;left:14px;right:12px;display:flex;align-items:center;gap:9px;z-index:20;color:#fff}
 /* Sem anel: o anel colorido é da BANDEJA de stories ("tem story novo"), não do visualizador.
    Dentro do story aberto o avatar do autor é liso — quem dá contraste é o véu. */
-:is(#f-posted-modal,#lp-contextos) .pst-story-top .pst-av{width:32px;height:32px}
-:is(#f-posted-modal,#lp-contextos) .pst-story-user{font-size:13px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.45);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:58%}
+:is(#f-posted-modal,#lp-contextos) .pst-story-top{position:absolute;top:20px;left:12px;right:10px;display:flex;align-items:center;gap:10px;z-index:20;color:#fff}
+:is(#f-posted-modal,#lp-contextos) .pst-story-user{font-size:14px;font-weight:600;text-shadow:0 1px 3px rgba(0,0,0,.45);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62%}
 /* Os ícones não têm sombra própria como o texto tem. Sobre arte clara eles somem no véu —
    um `drop-shadow` curto resolve sem escurecer a tela inteira. */
-:is(#f-posted-modal,#lp-contextos) .pst-story-top svg{width:20px;height:20px;opacity:.98;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
-:is(#f-posted-modal,#lp-contextos) .pst-story-bot{position:absolute;bottom:24px;left:14px;right:14px;display:flex;align-items:center;gap:12px;z-index:20}
-:is(#f-posted-modal,#lp-contextos) .pst-story-input{flex:1;height:42px;border-radius:var(--r-pill);border:1.5px solid rgba(255,255,255,.6);display:flex;align-items:center;padding:0 16px;color:rgba(255,255,255,.9);font-size:13px}
-:is(#f-posted-modal,#lp-contextos) .pst-story-bot svg{width:25px;height:25px;color:#fff;flex-shrink:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
+:is(#f-posted-modal,#lp-contextos) .pst-story-top svg{width:24px;height:24px;flex-shrink:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
+:is(#f-posted-modal,#lp-contextos) .pst-story-top svg:last-child{width:26px;height:26px;margin-left:6px}
+/* A barra de resposta ocupa o preto entre o cartão e a barra de gesto (os 34pt de baixo). */
+:is(#f-posted-modal,#lp-contextos) .pst-story-bot{flex:1;display:flex;align-items:center;gap:18px;padding:0 16px 34px 12px;color:#fff}
+:is(#f-posted-modal,#lp-contextos) .pst-story-input{flex:1;height:44px;border-radius:22px;border:1.5px solid rgba(255,255,255,.42);display:flex;align-items:center;padding:0 18px;color:rgba(255,255,255,.92);font-size:15px}
+:is(#f-posted-modal,#lp-contextos) .pst-story-bot svg{width:27px;height:27px;flex-shrink:0}
 
 /* ══ 2 · FEED ══ */
-:is(#f-posted-modal,#lp-contextos) .pst-feed{flex:1;background:#fff;display:flex;flex-direction:column;padding-top:46px;overflow:hidden}
-:is(#f-posted-modal,#lp-contextos) .pst-feed-head{display:flex;align-items:center;gap:10px;padding:10px 13px}
-:is(#f-posted-modal,#lp-contextos) .pst-feed-head .pst-av{width:32px;height:32px}
+:is(#f-posted-modal,#lp-contextos) .pst-feed{flex:1;background:#fff;color:#000;display:flex;flex-direction:column;padding-top:54px;overflow:hidden}
+:is(#f-posted-modal,#lp-contextos) .pst-feed-head{display:flex;align-items:center;gap:10px;padding:11px 12px 11px 14px}
 :is(#f-posted-modal,#lp-contextos) .pst-feed-id{display:flex;flex-direction:column;line-height:1.25;min-width:0}
-:is(#f-posted-modal,#lp-contextos) .pst-feed-user{font-size:13px;font-weight:700;color:#0A0A0A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-:is(#f-posted-modal,#lp-contextos) .pst-feed-loc{font-size:11px;color:#3A3A3A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-:is(#f-posted-modal,#lp-contextos) .pst-feed-head svg{width:18px;height:18px;color:#0A0A0A}
+:is(#f-posted-modal,#lp-contextos) .pst-feed-user{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+:is(#f-posted-modal,#lp-contextos) .pst-feed-loc{font-size:12px;color:#262626;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+:is(#f-posted-modal,#lp-contextos) .pst-feed-head svg{width:22px;height:22px;flex-shrink:0}
 /* Sobra ao redor da arte em BRANCO, não cinza: o feed é branco, e uma faixa cinza em volta
-   da peça lia como erro de renderização em vez de enquadramento. */
-/* `flex:0 0 auto` + proporção: a PEÇA define a altura do post, como no feed de verdade.
+   da peça lia como erro de renderização em vez de enquadramento.
+   `flex:0 0 auto` + proporção: a PEÇA define a altura do post, como no feed de verdade.
    O 4/5 daqui é só o padrão; o valor real vem inline do `_fPostedMountArt`. */
 :is(#f-posted-modal,#lp-contextos) .pst-feed .pst-artslot{flex:0 0 auto;width:100%;aspect-ratio:4/5;background:#fff}
-:is(#f-posted-modal,#lp-contextos) .pst-feed-actions{display:flex;align-items:center;gap:15px;padding:11px 13px 6px}
-:is(#f-posted-modal,#lp-contextos) .pst-feed-actions svg{width:24px;height:24px;color:#0A0A0A}
-:is(#f-posted-modal,#lp-contextos) .pst-feed-cap{font-size:13px;padding:3px 13px;color:#0A0A0A;line-height:1.4}
-:is(#f-posted-modal,#lp-contextos) .pst-feed-cap b{font-weight:700}
-:is(#f-posted-modal,#lp-contextos) .pst-feed-cap .muted{color:#8A8A8A}
+:is(#f-posted-modal,#lp-contextos) .pst-feed-actions{display:flex;align-items:center;gap:16px;padding:12px 14px 8px}
+:is(#f-posted-modal,#lp-contextos) .pst-feed-actions svg{width:25px;height:25px;flex-shrink:0}
+/* ⚠ SEM ROLAGEM, e é de propósito. Rolagem dentro de um mockup não existe em lugar nenhum
+   do app real — o corte acontece no JS (`_fPostedCapFeedHTML`), com "… mais" no fim, que é o
+   que o Feed faz. O texto completo está no painel, a 200px daqui. */
+:is(#f-posted-modal,#lp-contextos) .pst-feed-cap{font-size:14px;line-height:18px;padding:2px 14px 10px}
+:is(#f-posted-modal,#lp-contextos) .pst-feed-cap b{font-weight:600}
+:is(#f-posted-modal,#lp-contextos) .pst-feed-cap .muted{color:#737373}
+/* O PRÓXIMO POST, CARREGANDO. Sem ele sobrava um vão branco entre as ações e a barra de abas
+   — o feed de verdade nunca termina ali. O que aparece é o esqueleto cinza que o app mostra
+   enquanto carrega: não é conta, nome nem foto de ninguém.
+   ⚠ `flex:1` + `min-height:0`: ele ocupa só a SOBRA e nunca empurra a barra de abas. */
+:is(#f-posted-modal,#lp-contextos) .pst-feed-prox{flex:1 1 0;min-height:0;overflow:hidden;padding-top:6px}
+:is(#f-posted-modal,#lp-contextos) .pst-feed-prox span{display:flex;align-items:center;gap:10px;padding:11px 14px}
+:is(#f-posted-modal,#lp-contextos) .pst-feed-prox i{width:32px;height:32px;border-radius:50%;background:#EFEFEF;flex-shrink:0}
+:is(#f-posted-modal,#lp-contextos) .pst-feed-prox b{width:112px;height:11px;border-radius:6px;background:#EFEFEF}
+:is(#f-posted-modal,#lp-contextos) .pst-feed-prox em{display:block;height:402px;background:#F4F4F4}
 /* ══ A BARRA DE ABAS ══
-   É o que faz o olho reconhecer o Instagram antes de ler qualquer palavra. Cabe: numa tela
-   de 282×576 sobram ~90px depois do cabeçalho, da arte 4:5, das ações e das duas linhas de
-   legenda — e ela custa 49, a mesma altura do app.
+   É o que faz o olho reconhecer o Instagram antes de ler qualquer palavra. 83pt = os 49 da
+   barra do app + os 34 da área segura onde mora a barra de gesto — por isso os ícones sobem
+   (`align-items:flex-start` + `padding-top`) em vez de centralizar na altura toda.
    ⚠ `margin-top:auto` prende a barra no rodapé sem posicionamento absoluto, então ela nunca
    cobre a legenda quando a arte é mais alta. */
-/* 60px e não 49: os 49 são a barra do app, e abaixo dela vem a área segura onde mora a
-   barra de gesto. Sem o acréscimo os ícones ficavam com a pílula preta em cima deles. */
-:is(#f-posted-modal,#lp-contextos) .pst-feed-tabs{margin-top:auto;display:flex;align-items:center;justify-content:space-around;height:60px;padding:0 8px 11px;border-top:1px solid #DBDBDB;background:#fff;flex-shrink:0}
-:is(#f-posted-modal,#lp-contextos) .pst-feed-tabs svg{width:23px;height:23px;color:#0A0A0A;flex-shrink:0}
-/* ⚠ `url()` DIRETO, e não `var(--logo-*)`: os tokens de logo moram em `00-tokens.css` e o
-   aviso lá é explícito — `url()` dentro de custom property resolve relativo ao arquivo que
-   USA a variável em alguns navegadores, e daqui (`css/modules/`) viraria `/css/assets/…`,
-   404. Este arquivo está um nível mais fundo, então são dois `..`. */
-:is(#f-posted-modal,#lp-contextos) .pst-feed-tabs .pst-tab-perfil{width:23px;height:23px;box-shadow:0 0 0 1.5px #0A0A0A}
-:is(#f-posted-modal,#lp-contextos) .pst-feed-tabs .pst-tab-dm{background:#fff url('../../assets/logos/dm-simbolo.png') center/84% no-repeat}
+:is(#f-posted-modal,#lp-contextos) .pst-feed-tabs{margin-top:auto;display:flex;align-items:flex-start;justify-content:space-around;height:83px;padding:12px 8px 0;border-top:1px solid #DBDBDB;background:#fff;flex-shrink:0}
+:is(#f-posted-modal,#lp-contextos) .pst-feed-tabs svg{width:26px;height:26px;flex-shrink:0}
+/* O perfil não é a aba ativa (o Início é), então vai sem o anel preto — só o fio cinza que
+   o app põe em volta de qualquer foto de perfil. */
+:is(#f-posted-modal,#lp-contextos) .pst-feed-tabs .pst-tab-perfil{width:27px;height:27px;box-shadow:0 0 0 1px #DBDBDB}
 /* ⚠ `dm-simbolo.png` E NÃO `dm-v-principal.png`. O arquivo principal é o lockup inteiro
-   (chapéu + a palavra "delivery much"), e a 23px a palavra vira borrão: o que aparecia era
-   uma mancha vermelha. Tentei recortar pelo CSS e não fecha — o chapéu é quase quadrado e
-   a palavra começa 8px abaixo dele, então qualquer janela que centralize o símbolo ou o
-   deixa encostando na borda do círculo (vira um disco vermelho) ou deixa entrar o topo do
-   "d". O `dm-simbolo.png` é o MESMO arquivo recortado uma vez: só o chapéu, fundo
-   transparente, com 30% de margem já embutida — por isso aqui basta `center/100%`, sem
-   número mágico nenhum.
+   (chapéu + a palavra "delivery much"), e neste tamanho a palavra vira borrão: o que aparecia
+   era uma mancha vermelha. O `dm-simbolo.png` é o MESMO arquivo recortado uma vez: só o
+   chapéu, fundo transparente, com 30% de margem já embutida.
    Para regerar (o recorte foi medido no PNG de 240x240: x 53-166, y 16-132):
    `PIL.Image.open('dm-v-principal.png').crop((53,16,167,133))` centrado num quadrado
    transparente de lado 1,30x e reamostrado para 2x.
    ⚠ `url()` DIRETO, e não `var(--logo-*)`: o aviso em `00-tokens.css` é explícito — `url()`
    dentro de custom property resolve relativo ao arquivo que USA a variável em alguns
    navegadores, e daqui (`css/modules/`) viraria `/css/assets/…`, 404. */
+:is(#f-posted-modal,#lp-contextos) .pst-feed-tabs .pst-tab-dm{background:#fff url('../../assets/logos/dm-simbolo.png') center/84% no-repeat}
 
-/* ══ 3 · WHATSAPP ══ */
-:is(#f-posted-modal,#lp-contextos) .pst-wa{flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden;background:#0B141A}
-:is(#f-posted-modal,#lp-contextos) .pst-wa-bg{position:absolute;inset:0;opacity:.06;pointer-events:none;background-image:radial-gradient(circle at 20% 30%,#fff 0 1.5px,transparent 2px),radial-gradient(circle at 70% 60%,#fff 0 1.5px,transparent 2px),radial-gradient(circle at 45% 85%,#fff 0 1.5px,transparent 2px);background-size:60px 60px}
-:is(#f-posted-modal,#lp-contextos) .pst-wa-head{padding:46px 14px 9px 8px;background:#1F2C34;display:flex;align-items:center;gap:10px;position:relative;z-index:5}
-:is(#f-posted-modal,#lp-contextos) .pst-wa-head svg{width:22px;height:22px;color:#E9EDEF}
-:is(#f-posted-modal,#lp-contextos) .pst-wa-head>svg:last-child{width:18px;height:18px;margin-left:2px}
+/* ══ 3 · WHATSAPP (de iPhone, com o desenho de 2026) ══ */
+:is(#f-posted-modal,#lp-contextos) .pst-wa{flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden;background:#0B141A;color:#E9EDEF}
+/* O papel de parede de rabiscos. É o fundo que qualquer pessoa reconhece como WhatsApp antes
+   de ler uma palavra — os pontinhos de antes não diziam nada. Linha branca a 5,5%: o padrão
+   do app é textura, não desenho; mais que isso e a grade dos ladrilhos começa a aparecer. */
+:is(#f-posted-modal,#lp-contextos) .pst-wa-bg{position:absolute;inset:0;opacity:.055;pointer-events:none;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150' fill='none' stroke='%23fff' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 27c-5-3.6-8-6.4-8-9.6a4 4 0 0 1 8-1.2 4 4 0 0 1 8 1.2c0 3.2-3 6-8 9.6z'/%3E%3Cpath d='M72 10l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.6-4.8 2.6.9-5.4-3.9-3.8 5.4-.8z'/%3E%3Ccircle cx='122' cy='22' r='9'/%3E%3Cpath d='M117.5 24.5a5.5 5.5 0 0 0 9 0M119 19h.01M125 19h.01'/%3E%3Cpath d='M30 78V60l14-3v18'/%3E%3Ccircle cx='26' cy='78' r='4'/%3E%3Ccircle cx='40' cy='75' r='4'/%3E%3Cpath d='M78 76h18a5 5 0 0 0 .5-10 8 8 0 0 0-15.3-2A5 5 0 0 0 78 76z'/%3E%3Crect x='114' y='58' width='20' height='15' rx='3'/%3E%3Ccircle cx='124' cy='65.5' r='4'/%3E%3Cpath d='M119 58l2-3h6l2 3'/%3E%3Cpath d='M14 118h14v8a7 7 0 0 1-14 0zM28 120h3a3 3 0 0 1 0 6h-3M18 112c0-2 2-2 2-4M24 112c0-2 2-2 2-4'/%3E%3Cpath d='M64 124l22-10-8 22-4-8zM74 128l12-14'/%3E%3Cpath d='M128 110a10 10 0 1 0 8 14 8 8 0 0 1-8-14z'/%3E%3C/svg%3E") 0 0/150px 150px}
+/* O topo do iOS 26: sem barra sólida. O papel de parede corre por baixo e os controles são
+   pílulas de vidro; um véu escuro curto só garante a leitura do nome. */
+:is(#f-posted-modal,#lp-contextos) .pst-wa-head{position:relative;z-index:5;display:flex;align-items:center;gap:10px;padding:58px 14px 12px 12px;
+  background:linear-gradient(180deg,rgba(11,20,26,.96) 55%,rgba(11,20,26,0))}
+:is(#f-posted-modal,#lp-contextos) .pst-glass{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:999px;color:#fff;
+  background:rgba(62,68,72,.5);backdrop-filter:blur(16px) saturate(1.6);-webkit-backdrop-filter:blur(16px) saturate(1.6);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.1),inset 0 1px 0 rgba(255,255,255,.16),0 4px 14px rgba(0,0,0,.28)}
+:is(#f-posted-modal,#lp-contextos) .pst-wa-voltar{width:44px;height:44px}
+:is(#f-posted-modal,#lp-contextos) .pst-wa-voltar svg{width:22px;height:22px}
+:is(#f-posted-modal,#lp-contextos) .pst-wa-acoes{height:44px;padding:0 16px;gap:22px}
+:is(#f-posted-modal,#lp-contextos) .pst-wa-acoes svg{width:23px;height:23px}
 /* O contato não tem foto, e não pode ganhar uma: a conversa é genérica de propósito. O
    degradê da marca que estava aqui pintava uma bolha magenta que não dizia nada — e, pior,
    sugeria que "Clientes" fosse uma marca. Cinza com o boneco, como o próprio app faz. */
-:is(#f-posted-modal,#lp-contextos) .pst-wa-head .pst-wa-av{width:34px;height:34px;border-radius:50%;flex-shrink:0;background:#6A7175;display:flex;align-items:flex-end;justify-content:center;overflow:hidden}
-:is(#f-posted-modal,#lp-contextos) .pst-wa-head .pst-wa-av svg{width:26px;height:26px;color:#CFD6DA;display:block}
-:is(#f-posted-modal,#lp-contextos) .pst-wa-id{display:flex;flex-direction:column;line-height:1.3}
-:is(#f-posted-modal,#lp-contextos) .pst-wa-name{font-size:14px;font-weight:600;color:#E9EDEF}
-:is(#f-posted-modal,#lp-contextos) .pst-wa-status{font-size:11px;color:#8696A0}
-:is(#f-posted-modal,#lp-contextos) .pst-wa-body{flex:1;min-height:0;overflow:hidden;position:relative;z-index:2;padding:14px 10px;display:flex;flex-direction:column;gap:7px;justify-content:flex-end}
+:is(#f-posted-modal,#lp-contextos) .pst-wa-av{width:38px;height:38px;border-radius:50%;flex-shrink:0;background:#6A7175;display:flex;align-items:flex-end;justify-content:center;overflow:hidden}
+:is(#f-posted-modal,#lp-contextos) .pst-wa-av svg{width:29px;height:29px;color:#CFD6DA;display:block}
+:is(#f-posted-modal,#lp-contextos) .pst-wa-id{display:flex;flex-direction:column;line-height:1.25;min-width:0}
+:is(#f-posted-modal,#lp-contextos) .pst-wa-name{font-size:17px;font-weight:600;color:#fff}
+:is(#f-posted-modal,#lp-contextos) .pst-wa-status{font-size:12.5px;color:#8696A0}
+/* ⚠ SEM `margin-bottom:auto` no aviso. Com ele o aviso grudava no topo e abria um vão morto
+   até a primeira mensagem. No app a conversa inteira — aviso, divisor do dia e mensagens —
+   fica ancorada embaixo, e o vazio sobra ACIMA dela. */
+:is(#f-posted-modal,#lp-contextos) .pst-wa-body{flex:1;min-height:0;overflow:hidden;position:relative;z-index:2;padding:10px 14px 10px;display:flex;flex-direction:column;gap:8px;justify-content:flex-end}
 /* O aviso que abre toda conversa nova no WhatsApp. Não é conteúdo inventado sobre ninguém —
-   é chrome do app, igual à barra de status — e resolve o vazio que sobrava no topo quando a
-   conversa tem uma mensagem só. */
-/* ⚠ SEM `margin-bottom:auto`. Com ele o aviso grudava no topo da tela e abria um vão morto
-   de 150px até a primeira mensagem. No app a conversa inteira — aviso, divisor do dia e
-   mensagens — fica ancorada embaixo, e o vazio sobra ACIMA dela. */
-:is(#f-posted-modal,#lp-contextos) .pst-wa-aviso{align-self:center;max-width:88%;margin-bottom:9px;background:#182229;color:#FFD279;font-size:10.5px;line-height:1.4;text-align:center;padding:7px 11px;border-radius:8px;display:flex;align-items:center;gap:6px}
-:is(#f-posted-modal,#lp-contextos) .pst-wa-aviso svg{width:11px;height:11px;flex-shrink:0;color:#FFD279}
-:is(#f-posted-modal,#lp-contextos) .pst-wa-day{align-self:center;background:#182229;color:#8696A0;font-size:11px;font-weight:500;padding:5px 12px;border-radius:8px;margin-bottom:4px}
-/* ⛔ `.pst-bub` (a bolha de texto solta) SAIU junto com a copy inventada que ela carregava —
-   ver `_fPostedWhats`. No WhatsApp a oferta vai numa mensagem só: foto com legenda. */
-/* A hora fecha a ÚLTIMA LINHA do texto, e não uma linha própria: é `float:right` com a
-   margem esquerda que o app usa para o texto não encostar nela. */
-:is(#f-posted-modal,#lp-contextos) .pst-meta{float:right;margin:7px 0 -2px 10px;font-size:10.5px;color:#8FB0A6;display:flex;align-items:center;gap:3px}
-:is(#f-posted-modal,#lp-contextos) .pst-bub-img{align-self:flex-end;max-width:80%;background:#005C4B;border-radius:9px;padding:3px;position:relative}
-/* O RABICHO. É o detalhe que diz "mensagem enviada por mim" antes de qualquer cor — e faltava:
-   havia um `border-top-right-radius:2px` fingindo de canto. Um triângulo na quina de cima,
-   na cor da bolha, exatamente como o app desenha. */
-:is(#f-posted-modal,#lp-contextos) .pst-bub-img::before{content:'';position:absolute;top:0;right:-7px;width:8px;height:13px;background:#005C4B;clip-path:polygon(0 0,100% 0,0 100%)}
-:is(#f-posted-modal,#lp-contextos) .pst-bub-img .pst-artslot{border-radius:7px;max-height:330px}
-/* Com legenda a imagem perde o arredondamento de baixo: ela e o texto viram um bloco só. */
-:is(#f-posted-modal,#lp-contextos) .pst-bub-img.com-cap .pst-artslot{border-radius:7px 7px 0 0}
-:is(#f-posted-modal,#lp-contextos) .pst-bub-cap{padding:6px 8px 7px;font-size:13px;line-height:1.38;color:#E9EDEF}
+   é chrome do app, igual à barra de status. */
+:is(#f-posted-modal,#lp-contextos) .pst-wa-aviso{align-self:center;max-width:86%;margin-bottom:10px;background:rgba(24,34,41,.94);color:#FFD279;font-size:12.5px;line-height:1.38;text-align:center;padding:9px 14px;border-radius:12px;display:flex;align-items:flex-start;gap:6px}
+:is(#f-posted-modal,#lp-contextos) .pst-wa-aviso svg{width:12px;height:12px;flex-shrink:0;margin-top:2px;color:#FFD279}
+:is(#f-posted-modal,#lp-contextos) .pst-wa-day{align-self:center;background:rgba(24,34,41,.94);color:#AEBAC1;font-size:12.5px;font-weight:500;padding:5px 12px;border-radius:9px;margin-bottom:4px}
+/* A BOLHA DE 2026: cantos de 18pt, sem rabicho, e a foto encosta na borda — sem a moldura
+   verde que sobrava em volta dela. A largura sai da proporção da peça (`--pst-r`, posto pelo
+   `_fPostedMountArt`): no máximo 292pt, e nunca mais alta que 470 — uma arte de Stories fica
+   mais estreita e INTEIRA, em vez de cortada. */
+:is(#f-posted-modal,#lp-contextos) .pst-bub-img{align-self:flex-end;position:relative;width:min(292px,calc(470px * var(--pst-r,.8)));background:#005C4B;border-radius:18px;overflow:hidden;flex-shrink:0}
+:is(#f-posted-modal,#lp-contextos) .pst-bub-img .pst-artslot{width:100%;aspect-ratio:4/5}
+:is(#f-posted-modal,#lp-contextos) .pst-bub-img .pst-artslot canvas{width:100%;height:100%}
+:is(#f-posted-modal,#lp-contextos) .pst-bub-cap{position:relative;padding:8px 11px 8px 12px;font-size:16px;line-height:21px;color:#E9EDEF}
+/* A hora fecha a ÚLTIMA LINHA do texto, e não uma linha própria: o `.pst-meta-esp` no fim do
+   texto guarda a largura dela, e ela mesma fica ancorada no canto de baixo. */
+:is(#f-posted-modal,#lp-contextos) .pst-meta-esp{display:inline-block;width:60px;height:1px}
+:is(#f-posted-modal,#lp-contextos) .pst-meta{position:absolute;right:10px;bottom:7px;font-size:11.5px;line-height:1;color:rgba(233,237,239,.62);display:flex;align-items:center;gap:3px}
 :is(#f-posted-modal,#lp-contextos) .pst-wa-mais{color:#8FB0A6}
-:is(#f-posted-modal,#lp-contextos) .pst-meta-ov{position:absolute;right:10px;bottom:9px;font-size:10px;color:#fff;display:flex;align-items:center;gap:3px;background:rgba(0,0,0,.4);padding:2px 7px;border-radius:8px}
-:is(#f-posted-modal,#lp-contextos) .pst-check{width:15px;height:15px;color:#53BDEB}
-:is(#f-posted-modal,#lp-contextos) .pst-wa-input{position:relative;z-index:5;padding:7px 8px 18px;display:flex;align-items:center;gap:7px}
-:is(#f-posted-modal,#lp-contextos) .pst-wa-field{flex:1;background:#202C33;border-radius:var(--r-pill);height:40px;display:flex;align-items:center;gap:9px;padding:0 12px;color:#8696A0;font-size:13px}
-:is(#f-posted-modal,#lp-contextos) .pst-wa-field svg{width:19px;height:19px;color:#8696A0;flex-shrink:0}
-/* ⚠ MICROFONE, e não a seta de enviar. Com o campo vazio — que é o estado desenhado aqui — o
-   botão verde do WhatsApp é o microfone; a seta só aparece depois de digitar algo. */
-:is(#f-posted-modal,#lp-contextos) .pst-wa-send{width:40px;height:40px;border-radius:50%;background:#00A884;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-:is(#f-posted-modal,#lp-contextos) .pst-wa-send svg{width:20px;height:20px;color:#0B141A}
+:is(#f-posted-modal,#lp-contextos) .pst-meta-ov{position:absolute;right:9px;bottom:9px;font-size:11.5px;color:#fff;display:flex;align-items:center;gap:3px;background:rgba(0,0,0,.38);padding:3px 8px;border-radius:10px}
+/* ⚠ O tique herda a cor da hora. Ele estava pintado de #53BDEB — o AZUL de "a pessoa leu" —
+   enquanto o comentário do `_PST_CHECK` explica justamente que esta mensagem ainda não foi
+   lida, só enviada. */
+:is(#f-posted-modal,#lp-contextos) .pst-check{width:16px;height:16px;color:currentColor}
+/* A barra de digitar do iPhone: "+", o campo com o adesivo dentro, câmera e microfone soltos
+   — sem o círculo verde, que é do Android. Fica acima da área segura de 34pt da barra de
+   gesto, com um véu para o papel de parede não brigar com o campo. */
+:is(#f-posted-modal,#lp-contextos) .pst-wa-input{position:relative;z-index:5;display:flex;align-items:center;gap:16px;padding:10px 16px 40px 14px;color:#fff;
+  background:linear-gradient(0deg,rgba(11,20,26,.96) 55%,rgba(11,20,26,0))}
+:is(#f-posted-modal,#lp-contextos) .pst-wa-input>svg{width:27px;height:27px;flex-shrink:0}
+:is(#f-posted-modal,#lp-contextos) .pst-wa-field{flex:1;height:40px;padding:0 10px 0 16px;justify-content:flex-start}
+:is(#f-posted-modal,#lp-contextos) .pst-wa-field svg{width:23px;height:23px;color:rgba(255,255,255,.85)}
+
+/* ══ A LUZ DO PALCO ══
+   Atrás do aparelho, a própria arte ampliada e desfocada tinge o fundo — é o que faz o
+   celular parecer fotografado num estúdio, e não recortado sobre um cinza. A cor é a DA PEÇA
+   (a miniatura vem do `_fPostedMountArt`), nunca a da campanha. Fica fraca de propósito: é
+   ambiente, não moldura. */
+:is(#f-posted-modal,#lp-contextos) .pst-ambiente{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+/* 420×640 é quase o aparelho: com o desfoque, o halo passa ~80px da borda dele e morre antes
+   da beira do palco. Maior que isso o palco inteiro virava a cor da arte. */
+:is(#f-posted-modal,#lp-contextos) .pst-ambiente canvas{position:absolute;left:50%;top:50%;width:420px;height:640px;transform:translate(-50%,-50%);filter:blur(64px) saturate(1.3);opacity:.42}
+body:not(.theme-light) :is(#f-posted-modal,#lp-contextos) .pst-ambiente canvas{opacity:.34}
+
+/* ══ AS CURIOSIDADES (o porquê de cada uma está no despachante, em live-preview.js) ══ */
+/* Os botões físicos. Com 3,5px de largura eles são alvos impossíveis — o `::before` abre uma
+   área de toque de ~17px sem mudar o desenho. Apertar empurra o botão PARA DENTRO do corpo. */
+:is(#f-posted-modal,#lp-contextos) .pst-bt{cursor:pointer;transition:filter var(--dur-micro),transform var(--dur-micro) var(--ease-standard)}
+:is(#f-posted-modal,#lp-contextos) .pst-bt::before{content:'';position:absolute;inset:-3px -7px}
+:is(#f-posted-modal,#lp-contextos) .pst-bt:hover{filter:brightness(1.4)}
+:is(#f-posted-modal,#lp-contextos) .pst-bt-acao:active,:is(#f-posted-modal,#lp-contextos) .pst-bt-vol:active{transform:translateX(1px)}
+:is(#f-posted-modal,#lp-contextos) .pst-bt-lado:active{transform:translateX(-1px)}
+/* O Controle da Câmera abriria a câmera — e não há câmera para abrir. Fica sem resposta, e
+   sem cursor que prometa uma. */
+:is(#f-posted-modal,#lp-contextos) .pst-bt-cam{cursor:auto}
+:is(#f-posted-modal,#lp-contextos) .pst-bt-cam:hover{filter:none}
+:is(#f-posted-modal,#lp-contextos) .pst-bt-cam::before{content:none}
+
+/* A tela apaga. O vidro continua preto por cima — é só a imagem que some. */
+:is(#f-posted-modal,#lp-contextos) .pst-screen>.pst-ui{transition:opacity var(--dur-fast) var(--ease-out)}
+:is(#f-posted-modal,#lp-contextos) .pst-tela-off .pst-screen>.pst-ui{opacity:0}
+:is(#f-posted-modal,#lp-contextos) .pst-tela-off .pst-screen{cursor:pointer}
+:is(#f-posted-modal,#lp-contextos) .pst-tela-off .pst-vol-hud{display:none}
+
+/* A régua de volume do iOS: uma pílula estreita encostada na borda, na altura dos botões
+   (164–264px no aparelho = 155–255 na tela). Em pixel, fora do `.pst-ui`, porque ela se
+   alinha com o CHASSI, não com o app. */
+:is(#f-posted-modal,#lp-contextos) .pst-vol-hud{position:absolute;left:5px;top:156px;width:10px;height:98px;border-radius:6px;z-index:55;overflow:hidden;pointer-events:none;
+  background:rgba(60,60,64,.55);backdrop-filter:blur(12px) saturate(1.4);-webkit-backdrop-filter:blur(12px) saturate(1.4);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.2);
+  opacity:0;transform:translateX(-6px) scaleX(.7);transform-origin:left center;
+  transition:opacity var(--dur-fast) var(--ease-out),transform var(--dur-base) var(--ease-spring-soft)}
+:is(#f-posted-modal,#lp-contextos) .pst-vol-hud.on{opacity:1;transform:none}
+:is(#f-posted-modal,#lp-contextos) .pst-vol-hud i{position:absolute;left:0;right:0;bottom:0;height:calc(var(--pst-vol,.6) * 100%);background:#fff;transition:height var(--dur-fast) var(--ease-out)}
+
+/* A ilha abre com a mola suave e fala. O sino cortado vem em vermelho, como no iOS; o corte
+   do sino é um traço preto por baixo do branco, que na ilha preta lê como vão. */
+:is(#f-posted-modal,#lp-contextos) .pst-island{transition:width var(--dur-base) var(--ease-spring-soft),height var(--dur-base) var(--ease-spring-soft),border-radius var(--dur-base) var(--ease-spring-soft)}
+:is(#f-posted-modal,#lp-contextos) .pst-island.aberta{width:168px;height:30px;border-radius:15px}
+:is(#f-posted-modal,#lp-contextos) .pst-ilha-msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;padding:0 28px 0 11px;color:#fff;
+  font:600 11px/1 var(--pst-fonte);opacity:0;transition:opacity var(--dur-micro)}
+:is(#f-posted-modal,#lp-contextos) .pst-island.aberta .pst-ilha-msg{opacity:1;transition-delay:90ms}
+:is(#f-posted-modal,#lp-contextos) .pst-ilha-msg svg{width:14px;height:14px;flex-shrink:0}
+:is(#f-posted-modal,#lp-contextos) .pst-ilha-msg.mudo svg{color:#FF453A}
+:is(#f-posted-modal,#lp-contextos) .pst-sysbar{transition:opacity var(--dur-fast) var(--ease-out)}
+:is(#f-posted-modal,#lp-contextos) .pst-ilha-on .pst-sysbar{opacity:0}
+
+/* Segurar o Stories: a moldura do app some, a arte fica. Sem seleção de texto nem o menu de
+   "salvar imagem" do toque longo, que roubariam o gesto. */
+:is(#f-posted-modal,#lp-contextos) .pst-story-card{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+:is(#f-posted-modal,#lp-contextos) .pst-story :is(.pst-story-top,.pst-story-bars,.pst-story-sombra,.pst-story-bot){transition:opacity var(--dur-fast) var(--ease-out)}
+:is(#f-posted-modal,#lp-contextos) .pst-story.pst-segurando :is(.pst-story-top,.pst-story-bars,.pst-story-sombra,.pst-story-bot){opacity:0}
+
+/* Feed: o trecho que rola, os ícones que respondem e a folha de comentários.
+   ⚠ A folha fica em `z-index:34`, logo ABAIXO da barra de status (35): o véu escurece o app,
+   não o relógio do sistema — é assim no iPhone. */
+:is(#f-posted-modal,#lp-contextos) .pst-feed-rola{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+:is(#f-posted-modal,#lp-contextos) .pst-comentar,:is(#f-posted-modal,#lp-contextos) .pst-salvar{display:inline-flex;flex-shrink:0;cursor:pointer}
+:is(#f-posted-modal,#lp-contextos) .pst-salvar.on svg{fill:currentColor}
+:is(#f-posted-modal,#lp-contextos) .pst-mais{cursor:pointer}
+:is(#f-posted-modal,#lp-contextos) .pst-ig-sheet{position:absolute;inset:0;z-index:34;display:flex;align-items:flex-end;background:rgba(0,0,0,.4);cursor:pointer;animation:gFadeIn var(--dur-fast) var(--ease-out)}
+:is(#f-posted-modal,#lp-contextos) .pst-ig-painel{width:100%;height:64%;display:flex;flex-direction:column;align-items:center;background:#fff;color:#000;border-radius:14px 14px 0 0;cursor:auto;animation:gPstSobe var(--dur-base) var(--ease-out)}
+@keyframes gPstSobe{from{transform:translateY(100%)}to{transform:none}}
+:is(#f-posted-modal,#lp-contextos) .pst-ig-alca{width:36px;height:5px;border-radius:3px;background:#D0D0D0;margin:8px 0 12px;flex-shrink:0}
+:is(#f-posted-modal,#lp-contextos) .pst-ig-tit{width:100%;padding-bottom:12px;text-align:center;font-size:16px;font-weight:700;border-bottom:1px solid #EFEFEF}
+:is(#f-posted-modal,#lp-contextos) .pst-ig-vazio{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center}
+:is(#f-posted-modal,#lp-contextos) .pst-ig-vazio strong{font-size:22px;font-weight:700}
+:is(#f-posted-modal,#lp-contextos) .pst-ig-vazio span{font-size:14px;color:#737373}
+:is(#f-posted-modal,#lp-contextos) .pst-ig-campo{width:100%;display:flex;align-items:center;gap:12px;padding:12px 14px 46px;border-top:1px solid #EFEFEF}
+:is(#f-posted-modal,#lp-contextos) .pst-ig-campo>span:last-child{flex:1;height:40px;display:flex;align-items:center;padding:0 16px;border:1px solid #DBDBDB;border-radius:20px;font-size:14px;color:#737373}
+
+/* WhatsApp: a foto em tela cheia, no preto, com o cabeçalho do visualizador do app. */
+:is(#f-posted-modal,#lp-contextos) .pst-bub-img{cursor:zoom-in}
+:is(#f-posted-modal,#lp-contextos) .pst-wa-visor{position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;background:#000;cursor:zoom-out;animation:gFadeIn var(--dur-fast) var(--ease-out)}
+:is(#f-posted-modal,#lp-contextos) .pst-wa-visor-topo{display:flex;align-items:center;gap:12px;padding:58px 16px 12px 14px;color:#fff}
+:is(#f-posted-modal,#lp-contextos) .pst-wa-visor-topo svg{width:24px;height:24px;flex-shrink:0}
+:is(#f-posted-modal,#lp-contextos) .pst-wa-visor-arte{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding-bottom:60px}
+:is(#f-posted-modal,#lp-contextos) .pst-wa-visor-arte canvas{max-width:100%;max-height:100%;width:auto;height:auto;display:block}
 
 /* Entrada premium do celular: sobe com mola suave ao abrir e a cada troca de
    contexto (o rebuild do innerHTML re-dispara). Vive no wrapper .pst-enter — NÃO
@@ -1005,7 +1141,7 @@ body:not(.theme-light) .posted-stage{background:var(--d-dark)}
 /* fill 'backwards', nunca 'both': fill de animação encerrada vence a cascata e
    sequestraria opacity/transform do wrapper de qualquer estilo futuro (a página
    de mockups teve esse bug real com o seletor). */
-:is(#f-posted-modal,#lp-contextos) .pst-enter{animation:gPstPhoneIn var(--dur-slow) var(--ease-spring-soft) backwards}
+:is(#f-posted-modal,#lp-contextos) .pst-enter{position:relative;z-index:1;animation:gPstPhoneIn var(--dur-slow) var(--ease-spring-soft) backwards}
 
 /* ── Parallax: o celular acompanha o cursor ──
    Camada PRÓPRIA (.pst-tilt) entre .pst-enter e .pst-phone. Os três têm transform e cada
@@ -1074,11 +1210,20 @@ body:not(.theme-light) .pst-qr-head span,body:not(.theme-light) .pst-qr-note,bod
 body:not(.theme-light) .pst-qr-copy{background:var(--d-surf);border-color:var(--d-border2);color:var(--d-text2)}
 body:not(.theme-light) .pst-qr-x:hover{background:var(--d-surf2);color:var(--d-text)}
 
-/* telas baixas: encolhe o celular pra caber no modal */
-@media (max-height:760px){ :is(#f-posted-modal,#lp-contextos) .pst-phone{transform:scale(.84)} }
+/* Telas baixas: encolhe o celular pra caber no modal.
+   ⚠ `zoom` e não `transform:scale`. O scale encolhia o desenho mas o aparelho continuava
+   ocupando 640px no layout, e o palco rolava mesmo com o celular pequeno — medido a 375×812:
+   55px de rolagem, com o pé do aparelho cortado. O zoom devolve o espaço.
+   Só no modal: o palco escala pelo `--lp-ctx-escala`, que já mede a altura dele. */
+@media (max-height:880px){ #f-posted-modal .pst-phone{zoom:.9} }
+@media (max-height:760px){ #f-posted-modal .pst-phone{zoom:.8} }
+@media (max-height:660px){ #f-posted-modal .pst-phone{zoom:.68} }
 @media (prefers-reduced-motion:reduce){
   #f-posted-modal,.posted-box,:is(#f-posted-modal,#lp-contextos) .pst-enter,.pst-qr,
-  :is(#f-posted-modal,#lp-contextos) .pst-screen.pst-slide-l,:is(#f-posted-modal,#lp-contextos) .pst-screen.pst-slide-r{animation:none!important}
+  :is(#f-posted-modal,#lp-contextos) .pst-screen.pst-slide-l,:is(#f-posted-modal,#lp-contextos) .pst-screen.pst-slide-r,
+  :is(#f-posted-modal,#lp-contextos) .pst-like.on svg,
+  :is(#f-posted-modal,#lp-contextos) :is(.pst-ig-sheet,.pst-ig-painel,.pst-wa-visor){animation:none!important}
+  :is(#f-posted-modal,#lp-contextos) :is(.pst-island,.pst-vol-hud,.pst-vol-hud i,.pst-screen>.pst-ui){transition:none!important}
   /* parallax é movimento puro: desliga inteiro, não só a transição */
   :is(#f-posted-modal,#lp-contextos) .pst-tilt{transform:none!important;transition:none!important}
 }
@@ -1129,18 +1274,6 @@ body:not(.theme-light) .pst-qr-x:hover{background:var(--d-surf2);color:var(--d-t
    chassi nenhum, e isso já é o que o palco mostra durante a criação inteira — uma aba para
    repetir a tela ao lado. Ficam os ambientes que respondem "onde isso vai ser publicado". */
 
-/* ── A legenda do Feed agora é a legenda de verdade ──
-   Era uma linha só ("<b>sualoja</b> produto · preço ... mais"); passa a ser o texto inteiro,
-   que costuma ter 3-5 linhas. Ganha altura e rolagem própria para não empurrar a arte. */
-/* ⚠ SEM ROLAGEM, e é de propósito. Esta regra já teve `max-height:34%` + `overflow-y:auto`,
-   de quando a legenda inteira era despejada aqui. Rolagem dentro de um mockup não existe em
-   lugar nenhum do app real — e o corte agora acontece no JS (`_fPostedCapCurta`), com "…
-   mais" no fim, que é o que o Feed faz. O texto completo está no painel, a 200px daqui. */
-.pst-feed-cap{
-  padding:4px 13px 9px;
-  line-height:1.45;
-}
-
 /* ── O CABEÇALHO DO "COMO VAI FICAR" NUM TELEFONE ──
    São três abas (Stories/WhatsApp/Arte, ou Feed/WhatsApp/Arte), o título, o "Ver no celular"
    e o fechar. Em 375px isso não cabe: medido, "WhatsApp" saía cortado e "Arte" nem aparecia —
@@ -1156,6 +1289,9 @@ body:not(.theme-light) .pst-qr-x:hover{background:var(--d-surf2);color:var(--d-t
   #f-posted-modal .posted-sub{display:none}
   #f-posted-modal .posted-seg{order:1;flex:1 1 auto;justify-content:center}
   #f-posted-modal .posted-close{order:2}
+  /* 300px de aparelho + 20px de cada lado não cabiam nos 333px do palco a 375: sobrava uma
+     rolagem lateral de 4px. 12px de respiro fecham a conta com os botões laterais dentro. */
+  #f-posted-modal .posted-stage{padding-inline:12px}
   :is(#f-posted-modal,#lp-contextos) .pst-seg-btn{flex:1 1 0;padding-inline:10px;font-size:12px;white-space:nowrap}
 }
 
