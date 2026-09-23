@@ -3162,9 +3162,34 @@ function fSend(){
     fShowFieldError(err);
     return;
   }
-  b.value='';
+  b.value=''; fMsgAutoGrow(b);
   fAddUser(masked);
   fSaveAdv(masked);
+}
+/* Enter envia; Shift+Enter pula linha — padrão de chat. Só em campo de TEXTO: preço,
+   desconto e código são uma linha (a máscara achataria a quebra). No celular não há Shift,
+   então o Enter do teclado segue sendo "Enviar". `isComposing`: Enter que fecha acento/IME
+   não envia. */
+function fMsgKeydown(e){
+  if(e.key!=='Enter'||e.isComposing) return;
+  if(e.shiftKey&&_fMsgAceitaQuebra()) return;          // o textarea insere a quebra sozinho
+  e.preventDefault(); fSend();
+}
+function _fMsgAceitaQuebra(){
+  let id=null;
+  try{
+    if(typeof _fGuidedAtivo==='function'&&_fGuidedAtivo()){ const p=_fGuidedPerguntas()[_fGuidedIndice(_fGuidedNav.currentField)]; id=p&&p.id; }
+    else id=fState.camp?.perguntas?.[fState.stepIdx]?.id;
+  }catch(e){}
+  return !!id && fGetFieldType(id).type==='text';
+}
+// A caixa cresce com as linhas até o teto do CSS (max-height) e volta a 1 linha ao enviar.
+function fMsgAutoGrow(box){
+  if(!box||box.tagName!=='TEXTAREA') return;
+  box.style.height='auto';
+  const umaLinha=box.clientHeight;                      // altura de repouso (rows=1)
+  if(box.value) box.style.height=box.scrollHeight+'px';
+  box.classList.toggle('is-multi', !!box.value && box.scrollHeight>umaLinha+2);
 }
 
 function fSaveChatDraft() {

@@ -180,6 +180,13 @@ function fCleanTextNumber(v, type) {
   return Object.prototype.hasOwnProperty.call(numbers, key) ? numbers[key] : v;
 }
 
+/* Quebra de linha do franqueado (Shift+Enter no chat, ou colada): cada linha tem os espaços
+   normalizados e linhas vazias caem — uma linha em branco na arte seria só um buraco. O motor
+   de encaixe já entende `\n` como quebra manual (`gFitTextLayer`, teto de linhas incluso). */
+function _fLimpaLinhas(raw){
+  return String(raw==null?'':raw).replace(/\r\n?/g,'\n').split('\n')
+    .map(l=>l.replace(/\s+/g,' ').trim()).filter(Boolean).join('\n');
+}
 // Máscara aplicada no valor antes de salvar — formata sem rejeitar
 function fApplyMask(id, raw){
   if(raw==null) return '';
@@ -195,7 +202,9 @@ function fApplyMask(id, raw){
   if(cfg.type === 'image' || cfg.type === 'date' || cfg.type === 'select' || cfg.type === 'color' || cfg.type === 'boolean'){
     return String(rawCleaned);
   }
-  let v = String(rawCleaned).replace(/[\r\n\t]/g,' ').replace(/\s+/g,' ').trim();
+  let v = (cfg.type === 'text')
+    ? _fLimpaLinhas(rawCleaned)                       // texto livre guarda o Shift+Enter
+    : String(rawCleaned).replace(/[\r\n\t]/g,' ').replace(/\s+/g,' ').trim();
 
   if(cfg.type === 'price'){
     // Aceita "9,90", "9.90", "R$ 9,90", "R$9,90", "qualquer valor" etc.
@@ -325,7 +334,8 @@ function fApplyMask(id, raw){
   if (id === 'validade' || cfg.type === 'date') {
     v = (typeof gSmartHumanizeDate === 'function') ? gSmartHumanizeDate(v) : v;
   } else {
-    v = (typeof gSmartTitleCase === 'function') ? gSmartTitleCase(v) : v;
+    // Linha a linha: o gSmartTitleCase achata todo espaço (e a quebra do Shift+Enter junto).
+    v = (typeof gSmartTitleCase === 'function') ? v.split('\n').map(gSmartTitleCase).join('\n') : v;
   }
   return v.slice(0, cfg.maxLen);
 }
@@ -399,13 +409,14 @@ function fAttachInputGuard(){
   box.addEventListener('paste', (e)=>{
     e.preventDefault();
     const text = (e.clipboardData || window.clipboardData).getData('text');
-    const clean = text.replace(/[\r\n\t]/g,' ').replace(/\s+/g,' ').trim();
+    const id = fState.camp?.perguntas?.[fState.stepIdx]?.id;
+    const cfg = id ? fGetFieldType(id) : {maxLen:120};
+    // Campo de texto aceita as quebras coladas; os demais seguem numa linha só.
+    const clean = cfg.type === 'text' ? _fLimpaLinhas(text) : text.replace(/[\r\n\t]/g,' ').replace(/\s+/g,' ').trim();
     // Insere texto limpo respeitando seleção atual
     const start = box.selectionStart;
     const end = box.selectionEnd;
     const newVal = box.value.slice(0,start) + clean + box.value.slice(end);
-    const id = fState.camp?.perguntas?.[fState.stepIdx]?.id;
-    const cfg = id ? fGetFieldType(id) : {maxLen:120};
     _fFitRemember(box, id, newVal, cfg.maxLen);   // guarda a tentativa ANTES do corte
     // Colar a descricao do cardapio num campo de 30 cortava no 30o caractere sem dizer
     // nada: a arte saia com "File de Tilapia Grelhado com L" e a pessoa nem via. O corte
@@ -421,6 +432,7 @@ function fAttachInputGuard(){
   });
   // Limite vivo + prévia ao vivo do texto digitado.
   box.addEventListener('input', ()=>{
+    if(typeof fMsgAutoGrow==='function') fMsgAutoGrow(box);
     const id = fState.camp?.perguntas?.[fState.stepIdx]?.id;
     if(!id) return;
     const cfg = fGetFieldType(id);
@@ -435,7 +447,8 @@ function fAttachInputGuard(){
     // no flag de skip — isso é decisão do submit, não de cada tecla.
     if(cfg.type==='image'||cfg.type==='select'||cfg.type==='color'||cfg.type==='boolean') return;
     if(!fState.dados) fState.dados={};
-    fState.dados[id]=box.value.replace(/[\r\n\t]/g,' ');
+    // Texto livre espelha o Shift+Enter na prévia (o submit grava o mesmo, via fApplyMask).
+    fState.dados[id]=cfg.type==='text' ? box.value.replace(/\r/g,'').replace(/\t/g,' ') : box.value.replace(/[\r\n\t]/g,' ');
     // Debounce leve: gSmartWrapText mede texto por tecla; sem isso trava em texto longo.
     clearTimeout(box._lpPreviewT);
     box._lpPreviewT=setTimeout(()=>{ fLpRefresh(); }, 110);

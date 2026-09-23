@@ -112,7 +112,7 @@
 .av.u img{width:100%;height:100%;object-fit:cover;display:block}
 .bbl{padding:11px 15px;font-size:13px;line-height:1.58;border-radius:16px}
 .bot .bbl{background:var(--white);border:1px solid var(--gray-light);border-top-left-radius:6px;color:var(--text);box-shadow:0 3px 12px rgba(10,10,10,.025)}
-.user .bbl{background:var(--dm-orange);border-bottom-right-radius:6px;color:var(--text);font-weight:600;box-shadow:0 5px 16px color-mix(in srgb,var(--dm-orange-d) 14%,transparent)}
+.user .bbl{white-space:pre-line;background:var(--dm-orange);border-bottom-right-radius:6px;color:var(--text);font-weight:600;box-shadow:0 5px 16px color-mix(in srgb,var(--dm-orange-d) 14%,transparent)}
 .bbl strong{font-weight:800}
 .qr-wrap{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
 .qr{min-height:34px;display:inline-flex;align-items:center;padding:6px 13px;font-size:11.5px;font-weight:700;cursor:pointer;border:1px solid var(--dm-orange-tint);border-radius:var(--r-pill);color:var(--dm-orange-d);background:var(--dm-orange-bg);transition:transform var(--dur-fast) var(--ease-spring),background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard);font-family:'Roboto',sans-serif;animation:gPopIn var(--dur-fast) var(--ease-spring) forwards}
@@ -484,6 +484,10 @@ body:not(.theme-light) .art-bulk-txt em { color: var(--d-text2) }
 #f-input-row{padding:12px 20px;flex-shrink:0;background:var(--glass-bg);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border-top:1px solid var(--glass-border);display:flex;gap:10px;align-items:center;position:relative;z-index:10}
 #f-input-wrap{flex:1;position:relative;display:flex;align-items:center}
 #f-msg-box{flex:1;padding:9px 56px 9px 14px;font-size:13px;border:1.5px solid var(--gray-mid);border-radius:var(--r-pill);font-family:'Roboto',sans-serif;background:var(--off-white);color:var(--text);outline:none;width:100%}
+/* É um textarea (Shift+Enter): 1 linha em repouso, cresce até ~5 linhas (fMsgAutoGrow) e rola
+   depois disso. Com mais de uma linha a pílula vira cápsula — o raio fixo evita isso. */
+textarea#f-msg-box{display:block;resize:none;line-height:1.4;max-height:calc(5 * 1.4em + 22px);overflow-y:auto}
+textarea#f-msg-box.is-multi{border-radius:20px}
 .f-msg-box-transition{transition:opacity .15s ease,color .15s ease;opacity:.2;color:var(--dm-orange)!important}
 #f-char-count{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--text-3);font-weight:500;pointer-events:none;letter-spacing:.02em;font-variant-numeric:tabular-nums}
 #f-char-count.warn{color:var(--dm-orange-d);font-weight:700}   /* laranja, não vermelho: chegar no limite não é erro */
