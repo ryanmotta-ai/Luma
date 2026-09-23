@@ -322,7 +322,7 @@
     background: var(--off-white);
   }
 
-  .lp-tool-left{flex:1 1 auto;min-width:0}
+  .lp-tool-left{flex:0 0 auto;min-width:0}
   .lp-tool-right{flex:0 0 auto;min-width:0}
 
   .lp-viewseg-btn {

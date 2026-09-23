@@ -238,8 +238,10 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
   flex-wrap:nowrap;
   min-width:0;
 }
-.lp-tool-left{flex:1 1 auto}
+.lp-tool-left{flex:0 0 auto}
 .lp-tool-right{flex:0 0 auto;justify-content:flex-start}
+/* Centro da barra: só o aviso de bloqueio mora aqui. Cresce para empurrar a ação à direita. */
+.lp-tool-center{flex:1 1 auto;display:flex;justify-content:center;min-width:0}
 /* ── SOZINHO NA FAIXA, O GRUPO SE CENTRALIZA ──
    O `.lp-tool-left` já cresce (`flex:1 1 auto`), mas seus filhos hugavam a borda esquerda e
    sobrava METADE da barra vazia. Isso acontece sempre que o lado direito não tem nada
@@ -248,9 +250,8 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
    ⚠ A condição é DERIVADA do que está visível, não de uma classe de modo: `[hidden]` é
    exatamente o que o `_fLpSyncVerComoFica` e o aviso de layout usam para sumir. Uma regra
    serve os dois casos, e um terceiro que apareça depois. */
-.lp-toolbar:not(:has(.lp-tool-right>*:not([hidden]))) .lp-tool-left{justify-content:center}
-/* E o cursor de zoom deixa de ser um tico de 178px: com a faixa só para ele, ocupa o dobro. */
-.lp-toolbar:not(:has(.lp-tool-right>*:not([hidden]))) .lp-zoom-group{max-width:330px}
+.lp-toolbar:not(:has(.lp-tool-right>*:not([hidden]),.lp-layout-nota:not([hidden])))>.lp-tool-center{flex:0 0 0}
+.lp-toolbar:not(:has(.lp-tool-right>*:not([hidden]),.lp-layout-nota:not([hidden]))){justify-content:center}
 .lp-tool-left>*,.lp-tool-right>*{flex-shrink:0}
 
 /* O grupo "Auto" (chips Zoom e Layout) saiu na rodada de usabilidade de 09/2026 — com ele,
@@ -299,44 +300,23 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
 }
 .lp-tool-btn:active{transform:scale(.94)}
 .lp-tool-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
-.lp-fit-btn{width:32px;min-width:32px;padding:0;gap:6px;font:700 10.5px 'Roboto',sans-serif;white-space:nowrap}
-.lp-fit-btn svg{flex:0 0 14px}
-.lp-fit-btn>span,.lp-posted-btn>span{display:none}
+/* Presets "Tela inteira" · "Tamanho real": o `.lp-viewseg` de sempre, com ícone. Rótulo só
+   quando o painel tem largura (container query abaixo); no estreito, ícone + tooltip. */
+.lp-fit-seg .lp-viewseg-btn{display:inline-flex;align-items:center;gap:6px;height:26px;white-space:nowrap}
+.lp-fit-seg .lp-viewseg-btn svg{flex:0 0 14px}
+.lp-fit-seg .lp-viewseg-btn>span,.lp-posted-btn>span{display:none}
 /* `display:inline-flex` na regra do botão vence o `[hidden]` do navegador — mesma armadilha
    já documentada nos chips da barra. Sem isto o "Ver como fica" apareceria em arte sem
    ambiente compatível, que é justamente o que ele passou a evitar. */
 .lp-posted-btn[hidden]{display:none}
 
-.lp-zoom-group{height:32px;min-width:134px;max-width:178px;flex:1 1 158px;display:inline-flex;align-items:center;padding:2px;border:1px solid var(--gray-light);border-radius:10px;background:var(--off-white)}
+.lp-zoom-group{height:32px;flex:0 0 auto;display:inline-flex;align-items:center;padding:2px;border:1px solid var(--gray-light);border-radius:10px;background:var(--off-white)}
 .lp-zoom-step{width:24px;height:26px;display:grid;place-items:center;padding:0;border:0;border-radius:7px;background:transparent;color:var(--text-2);cursor:pointer;transition:background var(--dur-micro),color var(--dur-micro),transform var(--dur-micro) var(--ease-spring)}
 .lp-zoom-step svg{width:13px;height:13px}
 .lp-zoom-step:hover{background:var(--white);color:var(--text)}
 .lp-zoom-step:active{transform:scale(.9)}
 .lp-zoom-step:focus-visible{outline:2px solid var(--dm-orange);outline-offset:-1px}
 .lp-zoom-step:disabled{opacity:.32;cursor:not-allowed;transform:none}
-
-/* Slider compacto, mas com alvo de 26px. O preenchimento laranja é atualizado pelo JS para
-   acompanhar a escala logarítmica: há precisão perto do ajuste e alcance para inspecionar detalhes. */
-.lp-zoom-range{
-  --lp-zoom-progress:36.9%;
-  flex:1 1 62px;min-width:40px;width:62px;height:26px;margin:0 2px;padding:0;
-  appearance:none;-webkit-appearance:none;background:transparent;cursor:pointer;accent-color:var(--dm-orange);
-}
-.lp-zoom-range::-webkit-slider-runnable-track{
-  height:3px;border-radius:999px;
-  background:linear-gradient(to right,var(--dm-orange) 0 var(--lp-zoom-progress),var(--gray-mid) var(--lp-zoom-progress) 100%);
-}
-.lp-zoom-range::-webkit-slider-thumb{
-  appearance:none;-webkit-appearance:none;width:13px;height:13px;margin-top:-5px;border-radius:50%;
-  border:2px solid var(--white);background:var(--dm-orange);box-shadow:0 1px 4px rgba(10,10,10,.28);
-  transition:transform var(--dur-micro) var(--ease-spring),box-shadow var(--dur-micro);
-}
-.lp-zoom-range::-moz-range-track{height:3px;border:0;border-radius:999px;background:var(--gray-mid)}
-.lp-zoom-range::-moz-range-progress{height:3px;border-radius:999px;background:var(--dm-orange)}
-.lp-zoom-range::-moz-range-thumb{width:13px;height:13px;border-radius:50%;border:2px solid var(--white);background:var(--dm-orange);box-shadow:0 1px 4px rgba(10,10,10,.28)}
-.lp-zoom-range:hover::-webkit-slider-thumb{transform:scale(1.12);box-shadow:0 1px 4px rgba(10,10,10,.28),0 0 0 4px color-mix(in srgb,var(--dm-orange) 14%,transparent)}
-.lp-zoom-range:focus-visible{outline:none}
-.lp-zoom-range:focus-visible::-webkit-slider-thumb{box-shadow:0 1px 4px rgba(10,10,10,.28),0 0 0 3px var(--white),0 0 0 5px var(--dm-orange)}
 
 .lp-tool-label {
   display:none;
@@ -353,15 +333,6 @@ body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
   font-weight:650;
   color:var(--text-2);
 }
-#lp-zoom{height:26px;min-width:38px;font-variant-numeric:tabular-nums}
-/* O % vira botão (voltar ao ajuste) — reseta o visual nativo de <button> e vira clicável. */
-.lp-zoom-reset{
-  background:none;border:none;padding:2px 5px;border-radius:6px;cursor:pointer;
-  font-family:inherit;text-align:center;
-  transition:background var(--dur-micro),color var(--dur-micro);
-}
-.lp-zoom-reset:hover{background:var(--gray-light);color:var(--text)}
-.lp-zoom-reset:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 
 .lp-toggle {
   width:28px;
@@ -424,24 +395,20 @@ body:not(.theme-light) .lp-toggle.active{background:var(--dm-orange)}
 
 /* O painel é um slot redimensionável: a decisão usa a largura dele, não a viewport. */
 @container lpreview (min-width:510px){
-  .lp-fit-btn{width:auto;padding-inline:8px}
-  .lp-fit-btn>span,.lp-posted-btn>span{display:inline}
+  .lp-fit-seg .lp-viewseg-btn>span,.lp-posted-btn>span{display:inline}
 }
 @container lpreview (max-width:390px){
   .lp-toolbar{padding-inline:7px;gap:4px}
   .lp-tool-left,.lp-tool-right{gap:4px}
-  .lp-fit-btn,.lp-posted-btn{width:30px;min-width:30px}
-  .lp-zoom-group{min-width:126px;flex-basis:136px}
+  .lp-posted-btn{width:30px;min-width:30px}
   .lp-zoom-step{width:22px}
-  #lp-zoom{min-width:35px;padding-inline:3px}
-  .lp-zoom-range{min-width:36px;margin-inline:1px}
   .lp-layout-nota{padding-inline:6px;font-size:10px}
 }
 @container lpreview (max-width:340px){
   .lp-toolbar{padding-inline:6px}
-  .lp-fit-btn,.lp-posted-btn{width:28px;min-width:28px;height:30px}
-  .lp-zoom-group{height:30px;min-width:120px}
-  .lp-zoom-step,#lp-zoom{height:24px}
+  .lp-posted-btn{width:28px;min-width:28px;height:30px}
+  .lp-zoom-group{height:30px}
+  .lp-zoom-step{height:24px}
   /* Espaço apertado: o aviso comum vira só o ponto — a arte é que importa aqui. */
   .lp-layout-nota{font-size:0;padding-inline:6px}
   /* ⛔ O BLOQUEIO NÃO ENCOLHE. Um ponto vermelho sozinho não diz o que houve, e este é o
@@ -1092,7 +1059,8 @@ body:not(.theme-light) .pst-qr-x:hover{background:var(--d-surf2);color:var(--d-t
   .lp-toolbar{flex-wrap:wrap;row-gap:6px}
   .lp-tool-left,.lp-tool-right{flex-wrap:wrap;row-gap:6px}
   /* `.lp-posted-btn` NÃO carrega `.lp-tool-btn` — precisa ser nomeado. */
-  .lp-tool-btn,.lp-fit-btn,.lp-posted-btn{height:var(--tap-min)}
+  .lp-tool-btn,.lp-posted-btn{height:var(--tap-min)}
+  .lp-fit-seg .lp-viewseg-btn{height:38px;min-width:40px;justify-content:center}
   /* ⚠ `min-width`, NÃO `width`. Este bloco é o tratamento de TOQUE e nasceu pensando em tela
      estreita, onde os dois botões são só ícone. Mas `hover:none` não fala de largura de tela —
      fala de PONTEIRO. Num tablet ou notebook de toque com o painel largo, a outra regra
@@ -1101,7 +1069,7 @@ body:not(.theme-light) .pst-qr-x:hover{background:var(--d-surf2);color:var(--d-t
      Medido num painel de 979px com ponteiro grosso: caixa de 40×44 com 13 caracteres dentro.
      Com `min-width` o alvo de toque continua garantido e o botão cresce quando há rótulo.
      ⚠ Não é regressão da rodada de 09/09 — "Mockups" cortava igual, só que menos. */
-  .lp-fit-btn,.lp-posted-btn{min-width:40px}
+  .lp-posted-btn{min-width:40px}
   .lp-zoom-group{height:var(--tap-min)}
   .lp-zoom-step{width:36px;height:38px}
   .lp-tool-text{min-height:38px}

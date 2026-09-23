@@ -1499,6 +1499,12 @@ function _fLpUpdateZoomLabel(){
     range.setAttribute('aria-valuetext',actual+'% da arte final');
     range.title='Zoom '+actual+'%';
   }
+  /* Presets com nome: "Tela inteira" = ajuste sem zoom nem pan; "Tamanho real" = 100% da arte
+     final. Fora dos dois (roda, pinça, −/+), nenhum fica marcado. */
+  const fitOn=_lpUserZoom===1&&!_lpPanX&&!_lpPanY, realOn=!fitOn&&Math.abs(_lpScale*_lpUserZoom-1)<.01;
+  const fitBtn=document.getElementById('lp-zoom-reset-btn'), realBtn=document.getElementById('lp-zoom-real-btn');
+  if(fitBtn){ fitBtn.classList.toggle('active',fitOn); fitBtn.setAttribute('aria-checked',String(fitOn)); }
+  if(realBtn){ realBtn.classList.toggle('active',realOn); realBtn.setAttribute('aria-checked',String(realOn)); }
   const minus=document.querySelector('[data-lp-zoom-step="-1"]');
   const plus=document.querySelector('[data-lp-zoom-step="1"]');
   if(minus)minus.disabled=_lpUserZoom<=F_LP_ZOOM_MIN+.001;
@@ -1626,13 +1632,21 @@ function fLpZoomStep(dir){
   _fLpZoomAround(next, r.left + r.width / 2, r.top + r.height / 2);
 }
 // Slider: o mesmo motor da roda/pinça, centrado na mesa para não fazer a arte "saltar".
+// O slider saiu da barra (redesign 09/2026); mantida sem chamador — f* não regride.
 function fLpZoomSlider(value){
   const stage=document.querySelector('.lp-stage'); if(!stage)return;
   const r=stage.getBoundingClientRect();
   _fLpZoomAround(_fLpSliderToZoom(value),r.left+r.width/2,r.top+r.height/2);
 }
-// Clicar no % recentraliza e volta ao ajuste de tela.
+// Clicar no % recentraliza e volta ao ajuste de tela. O % saiu da barra (redesign 09/2026);
+// mantida sem chamador — f* não regride.
 function fLpZoomReset(){ fLpRefit(); }
+// "Tamanho real": 100% da arte final (ajuste × zoom = 1), pelo mesmo motor da roda e do −/+.
+function fLpZoomReal(){
+  const stage=document.querySelector('.lp-stage'); if(!stage||!_lpScale)return;
+  const r=stage.getBoundingClientRect();
+  _fLpZoomAround(1/_lpScale,r.left+r.width/2,r.top+r.height/2);
+}
 
 // Liga/desliga as guias de composição (margens de segurança + terços + centro).
 // Sobreposição da prévia: 'off' | 'guides' | 'env'. Substitui o antigo liga/desliga de

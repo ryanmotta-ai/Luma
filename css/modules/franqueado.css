@@ -480,14 +480,12 @@ body:not(.theme-light) .lp-tool-btn:hover {
   color: var(--d-text);
 }
 body:not(.theme-light) .lp-zoom-step,
-body:not(.theme-light) .lp-zoom-reset,
 /* `:not(.is-bloqueio)` porque esta regra é MAIS específica que a do bloqueio
    (`live-preview.css`) e apagaria o vermelho do único aviso que precisa ser visto. */
 body:not(.theme-light) .lp-layout-nota:not(.is-bloqueio) {
   color: var(--d-text3);
 }
-body:not(.theme-light) .lp-zoom-step:hover,
-body:not(.theme-light) .lp-zoom-reset:hover {
+body:not(.theme-light) .lp-zoom-step:hover {
   background: var(--d-surf);
   color: var(--d-text);
 }
