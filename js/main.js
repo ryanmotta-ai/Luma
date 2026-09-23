@@ -482,6 +482,12 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (_dlInit) gSaveDeepLink(_dlInit);
     document.getElementById('g-login-screen').style.display = 'flex';
     gShowNovaSenhaView(_link.tipo);
+  } else if (gCurrentUser().senhaInicial) {
+    // Sessão aberta, mas ainda na senha inicial compartilhada (inclusive de quem já estava
+    // logado antes da troca obrigatória existir): cria a própria antes de usar o app.
+    if (_dlInit) gSaveDeepLink(_dlInit);
+    document.getElementById('g-login-screen').style.display = 'flex';
+    gShowNovaSenhaView('inicial');
   } else {
     // Usuário logado, init normal
     await gOnLoginSuccess();

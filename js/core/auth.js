@@ -78,6 +78,14 @@ async function gLoadProfile() {
       gAuthState = { user: null };
       return null;
     }
+    /* Ainda na senha inicial compartilhada? Quem responde é o banco (`luma.usa_senha_inicial`)
+       — a senha vive só lá, nunca neste código público. Se a pergunta falhar (rede), a pessoa
+       entra: travar o login por causa disso seria pior que adiar a troca para o próximo acesso. */
+    let senhaInicial = false;
+    try {
+      const { data: si } = await sb.schema('luma').rpc('usa_senha_inicial');
+      senhaInicial = si === true;
+    } catch (e) {}
     gAuthState = { user: {
       id: user.id,
       email: user.email,
@@ -85,6 +93,7 @@ async function gLoadProfile() {
       displayName: (prof && prof.nome) || (user.email || '').split('@')[0],
       departamento: (prof && prof.departamento) || null,
       telefone: (prof && prof.telefone) || '',
+      senhaInicial,
     } };
     return gAuthState.user;
   } catch (e) {
@@ -295,7 +304,10 @@ async function gDoLogin(e) {
   errEl.style.display = 'none';
 
   const res = await gLogin(email, pass);
-  if(res.ok) {
+  if(res.ok && gCurrentUser() && gCurrentUser().senhaInicial) {
+    // Entrou com a senha inicial compartilhada: primeiro cria a própria, depois entra.
+    gShowNovaSenhaView('inicial');
+  } else if(res.ok) {
     await _gEntrarNoApp();
   } else {
     errEl.textContent = res.error;
@@ -382,7 +394,9 @@ function gShowNovaSenhaView(tipo) {
   const sub = document.getElementById('gs-sub');
   if (sub) sub.textContent = (tipo === 'invite')
     ? 'Seu acesso está criado. Defina a senha que você vai usar daqui pra frente.'
-    : 'Escolha uma nova senha. Ela passa a valer em qualquer aparelho.';
+    : (tipo === 'inicial')
+      ? 'Você entrou com a senha inicial, que é igual para todos. Crie a sua para continuar — ela passa a valer em qualquer aparelho.'
+      : 'Escolha uma nova senha. Ela passa a valer em qualquer aparelho.';
   const inp = document.getElementById('gs-pass');
   if (inp) { try { inp.focus(); } catch(e){} }
 }
@@ -417,6 +431,7 @@ async function gDoNovaSenha(e) {
 
   if (res && res.ok) {
     gNovaSenhaResolvida();
+    if (gAuthState.user) gAuthState.user.senhaInicial = false;
     if (typeof gToast === 'function') gToast('Senha definida. Agora ela vale em qualquer aparelho.');
     await _gEntrarNoApp();
     return;

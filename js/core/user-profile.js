@@ -829,7 +829,7 @@ function gProfileShowInviteForm(){
       <div>
         <span class="prof-team-kicker">Novo acesso</span>
         <h4 id="prof-invite-title">Criar acesso</h4>
-        <p>A conta é criada na hora com a permissão escolhida e a <strong>senha inicial <code>dmbrasil@123</code></strong>. Passe o e-mail e essa senha pra pessoa — ela troca no primeiro acesso (Perfil › Segurança).</p>
+        <p>A conta é criada na hora com a permissão escolhida e a <strong>senha inicial</strong>, que aparece quando você criar. Passe o e-mail e essa senha pra pessoa — no primeiro acesso o Luma pede que ela crie a própria.</p>
       </div>
       <button type="button" class="prof-invite-close" onclick="gProfileHideInviteForm()" aria-label="Fechar formulário de convite">${_ICO_CLOSE}</button>
     </div>
@@ -868,9 +868,10 @@ async function gProfileInviteUser(event){
   const res=await gInviteUser(email,name,role,tel);
   if(btn){btn.disabled=false;btn.innerHTML=originalHTML;}
   if(!res.ok){gToast('Não foi possível criar o acesso: '+res.error,'error');return;}
-  // Conta criada JÁ com a senha padrão (a dica fixa no form mostra qual; a pessoa
-  // troca no Perfil › Segurança no 1º acesso).
-  gToast('Acesso criado para '+email+' — senha inicial: '+(res.senha_padrao||'dmbrasil@123'));
+  // Conta criada JÁ com a senha inicial. Ela vem da função (servidor), nunca deste código
+  // público — quem lê o site não aprende a senha. No 1º acesso o Luma obriga a troca
+  // (`luma.usa_senha_inicial` → passo "defina sua senha").
+  gToast(res.senha_padrao ? 'Acesso criado para '+email+' — senha inicial: '+res.senha_padrao : 'Acesso criado para '+email+'.');
   const form=document.getElementById('prof-invite-form'); if(form){form.hidden=true;form.innerHTML='';}
   gProfileRenderEquipe(); // o profile já existe (trigger) — aparece na lista na hora
 }
