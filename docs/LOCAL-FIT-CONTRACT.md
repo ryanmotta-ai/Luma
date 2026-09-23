@@ -316,7 +316,7 @@ casarem. **Não aplicada** — é primitiva da outra frente.
 | `_gLfLarguraCaixa` **espelha** a conta de padding do `gFitTextLayer`. Se alguém mudar lá e não aqui, medida e veredito divergem. | alta | comentário apontando o bloco de origem nos dois lados; caso 15 compara os dois resultados e falha na divergência. |
 | O piso depende de `opts.layers`. Sem eles, o piso é o padrão de 50% — mais permissivo que o de produção, então o shadow pode **subestimar** o overflow. | média | documentado; a bancada sempre passa `layers`. |
 | `gLayoutTextoAutorado` devolve `''` quando não há baseline nem exemplo confiável. Aí a tinta autorada é `{0,0}` e a caixa desenhada vira o único limite — que pode ser mais apertado que a realidade autoral. | média | é o comportamento conservador correto (declara overflow em vez de aprovar no escuro), mas vale medir no corpus legado. |
-| Local Fit não conhece obstáculos. Um texto que cabe na própria caixa pode colidir com um vizinho. | por design | é literalmente o trabalho da outra camada — §1. |
+| Local Fit só enxerga o vazio ABAIXO da caixa (respiro, §16). Texto centralizado, crescendo para o lado ou um vizinho desenhado dentro da própria caixa continuam fora da conta. | média | o respiro para no primeiro objeto da faixa, com folga de ¼ do corpo; o linter 4b avisa o designer quando não há vazio. |
 | `p95 de 9,5ms` por campo no caminho ponta a ponta do corpus. | média | §11. |
 
 ---
@@ -522,7 +522,11 @@ por `js/designer/canvas.js` (teste de tensão do Estúdio).
 | Viúva (palavra sozinha fechando o bloco) pesa na escolha da quebra, quando há alternativa | `_gSmartWrapCalc` | — |
 | Contador de caracteres mede com o Local Fit, não com a régua antiga | `fMaxLenDaCaixa` | — |
 | Aviso laranja "letra pequena" na prévia: coube a ≤75% do corpo com 20+ caracteres | `_fLpSyncBloqueio` | fluxo |
-| Linter 4b: campo com altura para 1 linha só (a causa nº 1 de encolher cedo) | `linter.js` | — |
+| Linter 4b: campo com altura para 1 linha só, somando o respiro livre embaixo | `linter.js` | — |
+| **Respiro abaixo da caixa** (decisão do Ryan): texto ancorado no topo cresce PARA BAIXO até o próximo objeto na mesma faixa, menos ¼ do corpo; teto na margem e na safe zone do Story; o painel que contém a caixa e a placa do próprio texto não contam; sem camadas/prancheta não cresce. Nada se move — o render já desenha para baixo; `_layoutH` só alarga o toque da prévia. Na arte da Copa, "COMBO FAMÍLIA TORCEDOR" e "PIZZA GRANDE CALABRESA" deixaram de bloquear | `_gLfEspacoAbaixo` | 15f–15i |
+| Palavra partida ("RECHEA-" / "DA") não conta como caber: desce o corpo | `gFitTextToAuthoredBox` | 15j |
+
+⚠ O respiro muda o contrato de 18/09: o Local Fit deixou de ser cego para vizinhos, mas SÓ para ler o vazio abaixo — continua sem mover, empurrar ou recompor nada.
 
 ---
 

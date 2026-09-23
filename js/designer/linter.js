@@ -341,12 +341,16 @@ function dRunLinter() {
       const campo = dLayerBoundField(l);
       const v = campo ? dVars.find(x => x.name === campo) : null;
       const lh = (l.fontSize || 24) * ((typeof gLineHeightDe === 'function') ? gLineHeightDe(l) : (l.lineHeight || 1.2));
+      /* Desde o respiro (22/09/2026) a caixa ancorada no topo cresce sozinha até o próximo
+         objeto. Então só vale avisar quando, somando esse vazio, ainda cabe 1 linha só. */
+      const livre = (typeof _gLfEspacoAbaixo === 'function' && _ab)
+        ? _gLfEspacoAbaixo(l, l, { layers: dLayers, canvas: { w: _ab.w, h: _ab.h } }) : 0;
       if (v && !['price', 'discount', 'code', 'image'].includes(v.type || 'text')
-          && Math.floor((l.h || 0) / Math.max(1, lh)) <= 1) {
+          && Math.floor(((l.h || 0) + livre) / Math.max(1, lh)) <= 1) {
         issues.push({
           type: 'info',
           title: 'Campo com altura para 1 linha',
-          desc: `A caixa de “${v.label || campo}” só tem altura para uma linha. Se o franqueado escrever um texto maior, a letra diminui em vez de pular para a linha de baixo. Se esse texto pode crescer, aumente a altura da caixa até onde ele pode ocupar.`,
+          desc: `A caixa de “${v.label || campo}” só tem altura para uma linha, e não há espaço livre logo abaixo dela. Se o franqueado escrever um texto maior, a letra diminui em vez de pular para a linha de baixo. Se esse texto pode crescer, aumente a altura da caixa ou abra espaço abaixo dela.`,
           layerId: l.id,
           layerName: l.name
         });

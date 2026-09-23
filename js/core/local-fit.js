@@ -68,7 +68,7 @@ function _gLfLimpa(l){
   if(typeof gLayoutLimpaCarimbos === 'function') return gLayoutLimpaCarimbos(l);
   const c = Object.assign({}, l);
   ['_layoutW','_layoutDx','_layoutMaxLines','_tetoFonte','_entrelinha','_fit','_vTopAuto',
-   '_foraDaArte','_layoutInvalido','_layoutBase'].forEach(k => { delete c[k]; });
+   '_foraDaArte','_layoutInvalido','_layoutBase','_layoutH'].forEach(k => { delete c[k]; });
   return c;
 }
 
@@ -149,6 +149,7 @@ function gAuthoredTextBox(layer, opts){
   const quebravel = (camada.textBox === 'box') && !camada.vertical;
 
   const editorial = _gLfMaxLinhasEditorial(layer, camada);
+  const livre = _gLfEspacoAbaixo(layer, camada, opts);
 
   return {
     v: G_LOCAL_FIT_V,
@@ -169,8 +170,52 @@ function gAuthoredTextBox(layer, opts){
     maxLinhasDuro: editorial.duro,
     /* O espaço REAL de cada eixo (ver invariante 2 do cabeçalho). */
     larguraDisponivel: Math.max(_gLfLarguraCaixa(camada, fontSize), tinta.w || 0),
-    alturaDisponivel: Math.max(camada.h || 0, tinta.h || 0)
+    /* A caixa desenhada + o RESPIRO livre abaixo dela (ver `_gLfEspacoAbaixo`). */
+    alturaLivre: livre,
+    alturaDisponivel: Math.max(camada.h || 0, tinta.h || 0, (camada.h || 0) + livre)
   };
+}
+
+/* ── O RESPIRO ABAIXO DA CAIXA (decisão do Ryan, 22/09/2026) ──────────────────────────────
+   O PSD traz a caixa justa na frase de exemplo: na arte da Copa, "Produto" tinha 72px de
+   altura e 167px vazios até o "Detalhes". Texto maior bloqueava com o espaço ali, sem uso.
+   Agora a caixa pode CRESCER PARA BAIXO até o próximo objeto, menos um respiro — e dentro
+   dela vale a mesma caixa do Illustrator: quebra, lotou, diminui. NADA SE MOVE: o texto só
+   passa a enxergar o vazio que já existe na arte.
+
+   As regras (e cada uma existe porque sem ela a caixa atravessa o que não devia):
+     · só texto ancorado no TOPO (`vAlign:'top'`) — é o único que cresce só para baixo;
+       centralizado ou ancorado embaixo cresceria para cima também. Vertical também não;
+     · "próximo objeto" = qualquer camada visível que comece abaixo do fim da caixa e cruze
+       a mesma faixa horizontal. NÃO contam: o fundo/painel que CONTÉM a caixa, a placa do
+       próprio texto, e o que já está ao lado (começa antes do fim da caixa);
+     · respiro mínimo de ¼ do corpo (mín. 8px) até esse objeto — o texto não encosta;
+     · teto na prancheta: margem de 4% embaixo, e a safe zone de 250px no Story (9:16);
+     · sem prancheta ou sem camadas (o contador do chat, por exemplo), não cresce: sem saber
+       o que tem embaixo, a única resposta segura é a caixa desenhada. */
+function _gLfEspacoAbaixo(layer, camada, opts){
+  if(!opts || !Array.isArray(opts.layers) || !opts.canvas || !opts.canvas.h) return 0;
+  if(camada.vertical || camada.vAlign !== 'top') return 0;
+  const bx = camada.x || 0, bw = camada.w || 0, by = camada.y || 0, bh = camada.h || 0;
+  const fim = by + bh;
+  if(bw <= 0 || bh <= 0) return 0;
+  const cv = opts.canvas;
+  const story = cv.w && cv.h / cv.w >= 1.7;
+  let limite = cv.h - (story ? 250 : Math.round(cv.h * 0.04));
+  const placaId = opts.placa && opts.placa.id;
+  opts.layers.forEach(o => {
+    if(!o || o.id === layer.id || o.id === placaId) return;
+    if(o._placa && o._placa.alvo === layer.id) return;
+    if(typeof _gLayoutVisivel === 'function' && !_gLayoutVisivel(o)) return;
+    const ox = o.x || 0, oy = o.y || 0, ow = o.w || 0, oh = o.h || 0;
+    if(ow <= 0 || oh <= 0) return;
+    if(ox >= bx + bw || ox + ow <= bx) return;                // fora da faixa horizontal
+    if(oy < fim - 1) return;                                  // ao lado/atrás, não abaixo
+    // (o painel que CONTÉM a caixa começa acima dela, então a linha de cima já o exclui)
+    if(oy < limite) limite = oy;
+  });
+  const respiro = Math.max(8, Math.round((camada.fontSize || 24) * 0.25));
+  return Math.max(0, Math.floor(limite - respiro - fim));
 }
 
 /* ── TETO DE LINHAS ───────────────────────────────────────────────────────────────────────
@@ -263,6 +308,7 @@ function gFitTextToAuthoredBox(layer, conteudo, opts){
      `gFitTextLayer` e o render já honram — nada muda de lugar, a largura é a desenhada.
      (Decisão do Ryan, 22/09/2026: "vai pulando pra linha de baixo; lotou, diminui".) */
   const podeQuebrarPonto = !box.quebravel && !box.vertical && (box.w || 0) > 0;
+  const nPalavras = texto.split(/\s+/).filter(Boolean).length;
   const prova_ = (fs, layoutW) => {
     /* `fontSize` cru, nunca `_tetoFonte`: o teto é carimbo da cascata e a prova tem que ser
        lida como camada autorada de outro corpo, não como camada já adaptada. */
@@ -277,7 +323,12 @@ function gFitTextToAuthoredBox(layer, conteudo, opts){
     const overflowY = Math.max(0, Math.round((f.altura || 0) - dispY));
     /* Só o teto EXPLÍCITO reprova. O semântico entra no laudo e não no veredito (ver §1). */
     const excedeuLinhas = box.maxLinhasDuro && linhas > maxLinhas;
-    const cabe = overflowX <= G_LF_TOL && overflowY <= G_LF_TOL && !excedeuLinhas;
+    /* PALAVRA PARTIDA NÃO É "CABER". Quando uma palavra é mais larga que a caixa, a quebra
+       cai no corte por letra ("RECHEA-" / "DA") — medido na arte da Copa depois do respiro.
+       Mais pedaços nas linhas do que palavras no texto = alguma foi partida: desce o corpo. */
+    const pedacos = (f.lines || []).join(' ').split(/\s+/).filter(Boolean).length;
+    const partiu = linhas > 1 && pedacos > nPalavras;
+    const cabe = overflowX <= G_LF_TOL && overflowY <= G_LF_TOL && !excedeuLinhas && !partiu;
     return { f, fs, linhas, maxLinhas, overflowX, overflowY, dispX, dispY, cabe,
              layoutW: (layoutW != null && linhas > 1) ? layoutW : null };
   };
@@ -503,6 +554,10 @@ function gLocalFitArte(layers, opts){
     if(r.degrau === 'wrap'){ quebrou = true; }
     if(r.fontSize !== r.diagnostics.fontSizeAutorado) l._tetoFonte = r.fontSize;
     if(r.layoutW) l._layoutW = r.layoutW;
+    /* Caixa que cresceu para o respiro: o render já desenha para baixo (âncora no topo);
+       `_layoutH` só conta até onde, para o toque da prévia cobrir o texto inteiro. */
+    if(r.status === 'fits' && r.diagnostics.alturaNecessaria > (l.h || 0))
+      l._layoutH = r.diagnostics.alturaNecessaria;
     /* TEXTO NÃO SOBE. Enquanto cabe na caixa segue centralizado (é o desenho do designer);
        quando passa dela, ancora no topo e cresce só para baixo — senão metade do excesso come
        a margem que o designer deixou em cima. Mesma regra do `_gStampVTop` da cascata antiga,

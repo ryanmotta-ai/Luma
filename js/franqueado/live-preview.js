@@ -2241,7 +2241,8 @@ function _fLpVisualRect(l){
   if(l.type==='text'&&l._fit&&typeof gInkRect==='function')return gInkRect(l,l._fit);
   const dx=l.type==='text'?(l._layoutDx||0):0;
   const w=l.type==='text'&&l._layoutW!=null?l._layoutW:(l.w||0);
-  return{x:(l.x||0)+dx,y:l.y||0,w,h:l.h||0};
+  const h=l.type==='text'&&l._layoutH!=null?Math.max(l.h||0,l._layoutH):(l.h||0);
+  return{x:(l.x||0)+dx,y:l.y||0,w,h};
 }
 /* `cvAlvo`: idem. Note que este teste lê `fState.material` — e isso está certo para os
    dois, porque o Sheets trabalha no MESMO material do chat; o que difere entre eles é só

@@ -109,7 +109,7 @@ function gLayoutLimpaCarimbos(l){
   const c = Object.assign({}, l);
   delete c._layoutW; delete c._layoutDx; delete c._layoutMaxLines; delete c._tetoFonte;
   delete c._entrelinha; delete c._fit; delete c._vTopAuto; delete c._foraDaArte;
-  delete c._layoutInvalido; delete c._layoutBase;
+  delete c._layoutInvalido; delete c._layoutBase; delete c._layoutH;
   return c;
 }
 

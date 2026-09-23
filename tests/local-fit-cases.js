@@ -370,7 +370,10 @@
   test('15c · irmãos com o mesmo desenho saem no MESMO corpo', () => {
     const card = (id, x) => ponto({ id, name:id, content:'{{'+id+'}}', x, y:80, w:300, h:90,
                                     fontSize:34, textAlign:'center', layoutRefText:'X-BURGER' });
-    const lf = gLocalFitArte([card('p1',40), card('p2',380), card('p3',720)], { canvas:CANVAS,
+    /* A faixa de preço logo abaixo é o que uma grade real tem — sem ela o card longo cresce
+       para o respiro (ver 15f) e cabe sem encolher, e o grupo não teria o que igualar. */
+    const faixa = { id:'faixa', type:'shape', x:0, y:180, w:1080, h:60, fill:'#FF9000', visible:true, opacity:100 };
+    const lf = gLocalFitArte([card('p1',40), card('p2',380), card('p3',720), faixa], { canvas:CANVAS,
       dados:{ p1:'X-BURGER', p2:'X-SALADA', p3:'X-TUDO DUPLO COM BACON E OVO' }, defaults:{} });
     const fs = lf.result.campos.map(c => c.fontSize);
     assert(lf.result.campos.every(c => c.status === 'fits'), 'os três deveriam caber');
@@ -391,6 +394,48 @@
     const medir = s => s.length * 10;
     const u = gSemanticUnits('De R$ 1.249,00 por R$ 999,90 com brinde'.split(' '), medir, 400);
     assert(u.includes('por R$ 999,90'), 'o valor ficou órfão: ' + JSON.stringify(u));
+  });
+
+  /* ── 15f–15i. o respiro abaixo da caixa ───────────────────────────────────────────── */
+  const produto = (extra) => ponto(Object.assign({ id:'produto', name:'Produto', content:'{{produto}}',
+    x:130, y:1220, w:363, h:72, fontSize:95, layoutRefText:'PRODUTO' }, extra || {}));
+  const detalhes = { id:'detalhes', name:'Detalhes', type:'text', content:'Com batata', x:126, y:1387,
+    w:188, h:58, font:'Arial', fontSize:48, lineHeight:1.2, textBox:'point', vAlign:'top', visible:true, opacity:100 };
+  const STORY = { w:1080, h:1920 };
+  const LONGO_P = 'PIZZA GRANDE CALABRESA';
+
+  test('15f · caixa justa com vazio embaixo: cresce até o próximo objeto e CABE', () => {
+    const r = gFitTextToAuthoredBox(produto(), LONGO_P, { layers:[produto(), detalhes], canvas:STORY });
+    assert(r.status === 'fits', 'deveria caber usando o respiro: ' + r.diagnostics.motivo);
+    assert(r.lines.length >= 2, 'deveria ter pulado de linha, veio ' + r.lines.length);
+    const fundo = 1220 + r.diagnostics.alturaNecessaria;
+    assert(fundo <= detalhes.y - 8, 'o texto encostou no vizinho: termina em ' + fundo);
+  });
+
+  test('15g · sem camadas/prancheta a caixa NÃO cresce (o contador do chat não adivinha)', () => {
+    const box = gAuthoredTextBox(produto(), {});
+    assert(box.alturaLivre === 0, 'cresceu sem saber o que tem embaixo: +' + box.alturaLivre);
+  });
+
+  test('15h · texto centralizado na vertical não cresce (cresceria para cima também)', () => {
+    const p = produto({ vAlign:'middle' });
+    const box = gAuthoredTextBox(p, { layers:[p, detalhes], canvas:STORY });
+    assert(box.alturaLivre === 0, 'caixa centralizada cresceu: +' + box.alturaLivre);
+  });
+
+  test('15i · o painel que CONTÉM a caixa não é obstáculo; a safe zone do Story é o teto', () => {
+    const painel = { id:'painel', type:'shape', x:0, y:900, w:1080, h:1020, fill:'#05c', visible:true, opacity:100 };
+    const p = produto();
+    const box = gAuthoredTextBox(p, { layers:[painel, p], canvas:STORY });
+    assert(box.alturaLivre > 0, 'o painel de trás travou a caixa');
+    assert(1220 + 72 + box.alturaLivre <= 1920 - 250, 'passou da safe zone do Story');
+  });
+
+  test('15j · palavra partida não é "caber": encolhe em vez de "RECHEA-" / "DA"', () => {
+    const d = Object.assign({}, detalhes, { content:'{{detalhes}}', isVar:true });
+    const r = gFitTextToAuthoredBox(d, 'Com borda recheada', { layers:[d], canvas:STORY });
+    const pedacos = r.lines.join(' ').split(/\s+/).filter(Boolean).length;
+    assert(pedacos <= 3, 'alguma palavra foi partida: ' + JSON.stringify(r.lines));
   });
 
   /* ── Bordas do contrato ───────────────────────────────────────────────────────────── */
