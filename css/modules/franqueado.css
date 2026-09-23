@@ -13,7 +13,7 @@
    notch (a topbar cresceu +safe-top). Fallback vh p/ navegadores sem dvh. */
 #view-franqueado{display:flex;flex-direction:column;height:calc(100vh - 52px);height:calc(100dvh - 52px - var(--safe-top));background:var(--off-white)}
 #prog-bar{height:3px;background:var(--gray-light);flex-shrink:0}
-#prog-fill{height:100%;background:var(--dm-orange);transition:width .4s ease;width:0%}
+#prog-fill{height:100%;background:var(--dm-orange);transition:width var(--dur-slow) var(--ease-out);width:0%}
 #fran-main{display:flex;flex:1;overflow:hidden}
 
 /* LEFT */
@@ -166,7 +166,7 @@ body:not(.theme-light) .hist-thumb-real.is-preview-ready{background:var(--d-surf
 
 
 /* M1.3 — empty states empáticos (histórico/catálogo) */
-.empty-state{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:48px 24px;animation:gFadeInUp .35s ease-out both}
+.empty-state{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:48px 24px;animation:gFadeInUp var(--dur-base) var(--ease-out) both}
 .empty-state-sm{padding:32px 24px}
 .empty-icon{color:var(--gray-mid);opacity:.7}
 .empty-title{font-size:15px;font-weight:700;color:var(--text-2);font-family:'Roboto',sans-serif}

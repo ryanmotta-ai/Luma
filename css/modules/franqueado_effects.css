@@ -5,9 +5,8 @@
    aqui: eles vêm do 00-tokens (fonte única). Este arquivo carrega por último; redefini-los
    sobrescrevia o sistema de motion do app inteiro. */
 :root {
-  /* --transition-smooth é PRÓPRIO deste módulo (não existe no 00-tokens → não há colisão).
-     NÃO redefinir --transition-fast aqui: esse é do 00-tokens e sobrescrevê-lo quebrava o app. */
-  --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  /* ⛔ Sem token de motion próprio: o --transition-smooth (all .3s + curva fora do sistema)
+     saiu em 23/09/2026 — cada transição daqui usa as durações e curvas do 00-tokens. */
   --shadow-premium: 0 10px 30px -10px rgba(0, 0, 0, 0.08),
                     0 1px 3px rgba(0, 0, 0, 0.02);
   --shadow-glow: 0 12px 24px -6px rgba(255, 144, 0, 0.15);
@@ -21,13 +20,16 @@
   animation: gPopIn var(--dur-base) var(--ease-spring-soft) forwards;
 }
 
-/* Delays dinâmicos para cards */
-.camp-card:nth-child(1), .f-mat-card:nth-child(1) { animation-delay: 0.05s; }
-.camp-card:nth-child(2), .f-mat-card:nth-child(2) { animation-delay: 0.10s; }
-.camp-card:nth-child(3), .f-mat-card:nth-child(3) { animation-delay: 0.15s; }
-.camp-card:nth-child(4), .f-mat-card:nth-child(4) { animation-delay: 0.20s; }
-.camp-card:nth-child(5), .f-mat-card:nth-child(5) { animation-delay: 0.25s; }
-.camp-card:nth-child(6), .f-mat-card:nth-child(6) { animation-delay: 0.30s; }
+/* Cascata de entrada — a ÚNICA dos cards (motion.md §4: 30ms por card, teto no 6º).
+   Antes havia duas: esta e uma no catalog.css, e o 7º card entrava ANTES do 6º (260 < 300ms).
+   E sem regra depois do 6º, o 7º .camp-card em diante entrava com atraso zero — antes do 1º.
+   A home tem a própria cascata (--bi/--ci em franqueado.css), que vence por especificidade. */
+.camp-card:nth-child(1), .f-mat-card:nth-child(1) { animation-delay: 30ms; }
+.camp-card:nth-child(2), .f-mat-card:nth-child(2) { animation-delay: 60ms; }
+.camp-card:nth-child(3), .f-mat-card:nth-child(3) { animation-delay: 90ms; }
+.camp-card:nth-child(4), .f-mat-card:nth-child(4) { animation-delay: 120ms; }
+.camp-card:nth-child(5), .f-mat-card:nth-child(5) { animation-delay: 150ms; }
+.camp-card:nth-child(n+6), .f-mat-card:nth-child(n+6) { animation-delay: 180ms; }
 
 /* ==========================================================================
    PREMIUM CARDS (HOVER EFFECTS)
@@ -55,7 +57,7 @@
 
 /* Thumbnail Overlay Glow */
 .camp-thumb::before, .f-mat-thumb::before {
-  transition: var(--transition-smooth);
+  transition: transform var(--dur-slow) var(--ease-out), background var(--dur-base) var(--ease-standard);
 }
 .camp-card:hover .camp-thumb::before, 
 .f-mat-card:hover .f-mat-thumb::before {
@@ -66,7 +68,7 @@
 /* Urgency & Popular Badges pulse */
 .camp-badge, .camp-popular, .camp-urgency, .f-mat-urgency {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  transition: var(--transition-smooth);
+  transition: transform var(--dur-fast) var(--ease-spring);
 }
 .camp-card:hover .camp-popular,
 .camp-card:hover .camp-urgency {
@@ -78,7 +80,7 @@
    ========================================================================== */
 /* Suavizar a alternância do Catálogo de Materiais e Chat */
 #f-chat-col, #f-material-view {
-  transition: opacity 0.25s ease-in-out, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity var(--dur-base) var(--ease-standard), transform var(--dur-base) var(--ease-out);
 }
 
 .fade-exit {
@@ -110,21 +112,15 @@
   animation: shakeCharLimit 0.35s ease-in-out !important;
 }
 
-/* (.qr agora é dono do chat.css, tokenizado com mola — a duplicata daqui foi removida
-   pra não sobrescrever a versão do sistema, já que este arquivo carrega por último.) */
-.qr-wrap-collapsing {
-  opacity: 0;
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
-}
+/* (.qr e .qr-wrap-collapsing são do chat.css, tokenizados — as duplicatas daqui saíram
+   pra não disputar com a versão do sistema, já que este arquivo carrega por último.) */
 
 /* Zona de Upload animada */
 .f-upload-zone {
   position: relative;
   overflow: hidden;
   border: 2px dashed var(--gray-mid);
-  transition: var(--transition-smooth);
+  /* transição: chat.css (.f-upload-zone) — aqui ela derrotava a do sistema com `all .3s`. */
 }
 
 .f-upload-zone::after {
@@ -133,7 +129,7 @@
   top: 0; left: 0; right: 0; bottom: 0;
   border: 2px solid transparent;
   border-radius: var(--r);
-  transition: var(--transition-smooth);
+  transition: border-color var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-spring-soft);
   pointer-events: none;
 }
 
