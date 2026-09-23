@@ -20,11 +20,44 @@
 
   /* Tudo o que o motor PODE fazer sumir. Qualquer outra palavra do original tem que estar
      no candidato — é assim que se prova que item nenhum foi cortado. */
-  const PODE_SUMIR = /^(por|apenas|somente|com|e|litros?|lts?|mililitros?|gramas?|quilos?|unidades?|refrigerantes?|hamb[uú]rgueres|hamb[uú]rguer|promo[cç](?:[aã]o|[oõ]es)|de|desconto|segunda|sexta|s[aá]bado|a|segunda-feira|ter[cç]a-feira|quarta-feira|quinta-feira|sexta-feira|grandes?|m[eé]di[oa]s?|pequen[oa]s?|tamanho|super|mega|delicios[oa]s?|incr[ií]ve(?:l|is)|especia(?:l|is)|gourmet|maravilhos[oa]s?|exclusiv[oa]s?|imperd[ií]ve(?:l|is)|irresist[ií]ve(?:l|is)|famos[oa]s?|saboros[oa]s?|top)$/iu;
-  const palavras = s => String(s).toLowerCase().split(/[^\p{L}\d-]+/u).filter(Boolean);
+  const PODE_SUMIR = /^(por|apenas|somente|com|e|litros?|lts?|mililitros?|gramas?|quilos?|unidades?|refrigerantes?|hamb[uú]rgueres|hamb[uú]rguer|promo[cç](?:[aã]o|[oõ]es)|de|desconto|segunda|sexta|s[aá]bado|a|segunda-feira|ter[cç]a-feira|quarta-feira|quinta-feira|sexta-feira|grandes?|m[eé]di[oa]s?|pequen[oa]s?|tamanho|super|mega|delicios[oa]s?|incr[ií]ve(?:l|is)|gourmet|maravilhos[oa]s?|exclusiv[oa]s?|imperd[ií]ve(?:l|is)|irresist[ií]ve(?:l|is)|famos[oa]s?|saboros[oa]s?|top)$/iu;
+  /* Estar na lista não basta: "com", "apenas" e o enfeite só podem sair NA POSIÇÃO certa. Sem
+     isso a suíte aprovava "Café + leite", "Frete grátis para o centro" e "Pizza" (de "Pizza
+     Especial"). Estas regras são a especificação, escritas à parte do motor. */
+  const ITEM = /^(refris?|refrigerantes?|batatas?|fritas|sucos?|burgers?|hamb[uú]rgueres|hamb[uú]rguer|pizzas?|por[cç](?:[aã]o|[oõ]es)|sobremesas?|bebidas?|guaran[aá]s?|coca-cola|cocas?|milk-?shakes?|a[cç]a[ií]s?|sorvetes?|past[eé]is|pastel|esfihas?|coxinhas?|x-\p{L}+)$/iu;
+  const ENFEITE = /^(super|mega|delicios[oa]s?|incr[ií]ve(?:l|is)|gourmet|maravilhos[oa]s?|exclusiv[oa]s?|imperd[ií]ve(?:l|is)|irresist[ií]ve(?:l|is)|famos[oa]s?|saboros[oa]s?|top)$/iu;
+  const LIGA = /^(o|a|os|as|um|uma|uns|umas|de|do|da|dos|das|no|na|nos|nas|e|em|com|para|pra|seu|sua|seus|suas|\+)$/iu;
+  const nu = w => String(w || '').toLowerCase().replace(/^[^\p{L}\d]+|[^\p{L}\d]+$/gu, '');
+  const brutas = s => String(s).split(/\s+/).filter(Boolean);
+  const preco = w => /^r\$/i.test(w || '') || /^\d+,\d{2}/.test(w || '');
+  const saiAqui = (b, i) => {                       // a palavra b[i] do original PODE sair aqui?
+    const w = nu(b[i]), ant = b[i - 1], prox = nu(b[i + 1]);
+    if(w === 'com' || w === 'e') return !!ant && !/^\d+$/.test(nu(ant)) && ITEM.test(prox);
+    if(w === 'apenas' || w === 'somente') return preco(b[i + 1]);
+    if(w === 'por' && /^(apenas|somente)$/.test(prox)) return preco(b[i + 2]);
+    if(ENFEITE.test(w)){
+      const anteposto = i === 0 || /[:!?.,;]$/.test(ant) || !/[\p{L}\d]/u.test(ant) || LIGA.test(ant);
+      return anteposto && /^\p{L}/u.test(prox) && !/^(grandes?|gigantes?|fam[ií]lia|g|m|p|mercados?)$/.test(prox);
+    }
+    return null;                                    // não depende de posição
+  };
   const itensIntactos = (orig, cand) => {
-    const tem = new Set(palavras(cand));
-    return palavras(orig).filter(w => !/^\d/.test(w) && !PODE_SUMIR.test(w) && !tem.has(w));
+    const b = brutas(orig), resta = {};
+    brutas(cand).forEach(w => { w = nu(w); resta[w] = (resta[w] || 0) + 1; });
+    const sumiu = [], podia = {};
+    b.forEach((raw, i) => {
+      const w = nu(raw);
+      if(!w || /^\d/.test(w)) return;
+      const ctx = saiAqui(b, i);
+      if(ctx !== null){ podia[w] = (podia[w] || 0) + (ctx ? 1 : 0); podia['#' + w] = (podia['#' + w] || 0) + 1; return; }
+      if(PODE_SUMIR.test(w)) return;
+      if(resta[w]) resta[w]--; else sumiu.push(w);
+    });
+    // Palavra de posição: quantas saíram ≤ quantas estavam num lugar em que podiam sair.
+    Object.keys(podia).filter(k => k[0] !== '#').forEach(w => {
+      if(podia['#' + w] - (resta[w] || 0) > podia[w]) sumiu.push(w + ' (fora de posição)');
+    });
+    return sumiu;
   };
 
   const FRASES = [
@@ -35,7 +68,10 @@
     'Açaí 500 mililitros com granola e leite condensado',
     'Delicioso X-Tudo Especial com bacon', 'Especial da Casa com Batata Frita',
     'Leve 3 pague 2 em pizzas médias', 'Refrigerante 2 litros grátis na compra acima de R$ 60',
-    'Combo Tradicional com Pastel de Carne e Caldo de Cana 300 ml'
+    'Combo Tradicional com Pastel de Carne e Caldo de Cana 300 ml',
+    // os que já saíram dizendo OUTRA COISA (22/09): a regra de posição do teste 2 cobra
+    'Café com leite e pão na chapa', 'Burger com molho especial e refri', 'Pizza Especial com Refrigerante',
+    'Frete grátis apenas para o centro por R$ 5,00', 'Famosa coxinha da Dona Maria', 'X-Tudo mega com fritas'
   ];
 
   test('1 · número nenhum muda, e nada fica mais longo — em todo degrau', () => {
@@ -127,6 +163,52 @@
     const { sugestoes } = gCopyFitSugestoes(f, cabe, 3);
     assert(sugestoes.length, 'deveria haver uma versão que cabe');
     sugestoes.forEach(s => assert(cabe(s.text).ok, 'sugeriu o que não cabe: ' + s.text));
+  });
+
+  /* 13–18: a arte sugerida não pode DIZER OUTRA COISA (diagnóstico de 22/09). */
+  const semMexer = (lista, cobra, msg) => lista.forEach(f => textos(f).forEach(t =>
+    assert(cobra(f, t), msg + ': "' + f + '" → "' + t + '"')));
+
+  test('13 · "com" só vira "+" antes de ITEM de pedido (não em composição, número, regra da oferta)', () => {
+    semMexer(['Café com leite e pão na chapa', 'Combinado de 30 peças com salmão', 'Pizza com 50% de desconto',
+      'Leve 2 pague 1 com refri', 'Pizza doce de chocolate com morango', 'Kit semanal com 5 marmitas',
+      'Brigadeiro caixa com 12 un', 'Burger com molho especial', 'Açaí com granola, leite condensado, banana e morango',
+      'Combo com refri, batata e sobremesa'], (f, t) => !t.includes('+'), 'virou "+" sem ser combo');
+    assert(textos('Burger com refri e batata').includes('Burger + refri + batata'), 'combo de itens deveria virar "+"');
+    assert(textos('Combo com batata e salada').includes('Combo + batata e salada'), '" e " só vira "+" antes de item');
+  });
+
+  test('14 · enfeite DEPOIS do substantivo é nome; "especial" nunca sai', () => {
+    semMexer(['Pizza Especial', 'Combo Especial', 'Burger com molho especial', 'Burger Top', 'X-Tudo mega com fritas',
+      'Brigadeiro Gourmet', 'Pizza Especial Grande com Refrigerante', 'Especial de Frango com Refri'],
+      (f, t) => ['especial', 'top', 'mega', 'gourmet'].every(w => !new RegExp(w, 'i').test(f) || new RegExp(w, 'i').test(t)),
+      'tirou o nome do produto');
+    assert(textos('Mega Pizza Especial de Calabresa').includes('Pizza Especial de Calabresa'), 'enfeite anteposto sai, o nome fica');
+    assert(textos('Leve um delicioso X-Tudo').includes('Leve um X-Tudo'), 'enfeite depois de artigo ainda é anteposto');
+  });
+
+  test('15 · super/mega antes de TAMANHO ou em nome composto fica', () => {
+    semMexer(['Pizza Super Grande', 'Super Grande Pizza', 'Super Mercado Bom Preço', 'Mega Família com refri'],
+      (f, t) => /super|mega/i.test(t), 'tirou o super/mega que diz o tamanho/nome');
+  });
+
+  test('16 · "apenas/somente" só sai antes de PREÇO; restrição fica', () => {
+    semMexer(['Frete grátis apenas para o centro', 'Válido somente hoje', 'Promoção válida apenas para retirada'],
+      (f, t) => /apenas|somente/i.test(t), 'tirou a restrição da oferta');
+    assert(textos('Pizza por apenas R$ 30').includes('Pizza R$ 30'), '"por apenas R$" deveria sair');
+    assert(textos('Combo somente 9,90').includes('Combo 9,90'), '"somente 9,90" deveria sair');
+  });
+
+  test('17 · tirar a 1ª palavra não deixa a frase abrindo em minúscula', () => {
+    assert(textos('Famosa coxinha da Dona Maria').includes('Coxinha da Dona Maria'), 'deveria herdar a maiúscula');
+    assert(textos('FAMOSA COXINHA DE FRANGO').includes('COXINHA DE FRANGO'), 'caixa alta segue caixa alta');
+    assert(textos('famosa coxinha de frango').includes('coxinha de frango'), 'minúscula digitada fica minúscula');
+  });
+
+  test('18 · tamanho: todos da frase viram letra, ou nenhum', () => {
+    semMexer(['Pizzas médias a R$ 29,90 e grandes a R$ 39,90', 'Batata grande ou média', 'Compre 1 pizza grande e leve outra média'],
+      (f, t) => !/\b[GMP]\b/.test(t), 'abreviou só parte dos tamanhos');
+    assert(textos('Pizza grande e batata média').includes('Pizza G e batata M'), 'todos com item deveriam abreviar');
   });
 
   let passed = 0;
