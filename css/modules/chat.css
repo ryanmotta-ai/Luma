@@ -2755,13 +2755,16 @@ body:not(.theme-light) .art-review-badge{
     background:var(--white);color:var(--text-2);font:750 13px 'Roboto',sans-serif;cursor:pointer;
     transition:color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-spring);
   }
-  body.f-guided-desktop .fg-option:hover,body.f-guided-desktop .fg-suggestions button:hover,body.f-guided-desktop .fg-secondary:hover{border-color:var(--dm-orange);color:var(--text);transform:translateY(-1px)}
+  body.f-guided-desktop .fg-option:hover,body.f-guided-desktop .fg-suggestions button:hover,body.f-guided-desktop .fg-secondary:hover,body.f-guided-desktop .fg-skip:hover{border-color:var(--dm-orange);color:var(--text);transform:translateY(-1px)}
   body.f-guided-desktop .fg-option.selected{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--text)}
   body.f-guided-desktop .fg-primary{border-color:var(--dm-orange);background:var(--dm-orange);color:var(--on-orange)}
   body.f-guided-desktop .fg-primary:hover{filter:brightness(.96);transform:translateY(-1px)}
-  body.f-guided-desktop .fg-link,body.f-guided-desktop .fg-skip{border-color:transparent;background:transparent;color:var(--text-3)}
-  body.f-guided-desktop .fg-link:hover,body.f-guided-desktop .fg-skip:hover{background:var(--gray-light);color:var(--text)}
-  body.f-guided-desktop .fg-skip{align-self:flex-start;margin-top:12px;min-height:34px;padding:6px 9px;font-size:12px}
+  body.f-guided-desktop .fg-link{border-color:transparent;background:transparent;color:var(--text-3)}
+  body.f-guided-desktop .fg-link:hover{background:var(--gray-light);color:var(--text)}
+  /* Pular é AÇÃO, não nota de rodapé: com cara de link (sem borda nem fundo) só se descobria
+     que era botão passando o mouse. Veste o secundário — borda e fundo visíveis — mas menor
+     que o "Escolher imagem"/Continuar, que seguem sendo o caminho principal. */
+  body.f-guided-desktop .fg-skip{align-self:flex-start;margin-top:12px;min-height:36px;padding:7px 14px;font-size:12.5px}
   body.f-guided-desktop .fg-option:focus-visible,body.f-guided-desktop .fg-suggestions button:focus-visible,
   body.f-guided-desktop .fg-primary:focus-visible,body.f-guided-desktop .fg-secondary:focus-visible,
   body.f-guided-desktop .fg-link:focus-visible,body.f-guided-desktop .fg-skip:focus-visible,
@@ -2805,9 +2808,8 @@ body:not(.theme-light) .art-review-badge{
   body:not(.theme-light).f-guided-desktop .fg-decision>p{color:var(--d-text2)}
   body:not(.theme-light).f-guided-desktop:not(.f-guided-no-input) #f-input-row,
   body:not(.theme-light).f-guided-desktop .fg-option,body:not(.theme-light).f-guided-desktop .fg-suggestions button,
-  body:not(.theme-light).f-guided-desktop .fg-secondary,body:not(.theme-light).f-guided-desktop .fg-date{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text)}
-  body:not(.theme-light).f-guided-desktop .fsf-btn:hover,body:not(.theme-light).f-guided-desktop .fg-link:hover,
-  body:not(.theme-light).f-guided-desktop .fg-skip:hover{background:var(--d-surf2);color:var(--d-text)}
+  body:not(.theme-light).f-guided-desktop .fg-secondary,body:not(.theme-light).f-guided-desktop .fg-skip,body:not(.theme-light).f-guided-desktop .fg-date{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text)}
+  body:not(.theme-light).f-guided-desktop .fsf-btn:hover,body:not(.theme-light).f-guided-desktop .fg-link:hover{background:var(--d-surf2);color:var(--d-text)}
   body:not(.theme-light).f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-row{border-bottom-color:var(--d-border)}
   body:not(.theme-light).f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-val{color:var(--d-text)}
   body:not(.theme-light).f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-ed{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text2)}
