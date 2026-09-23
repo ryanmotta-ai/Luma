@@ -1,0 +1,64 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Luma — Copy Fit na interface do franqueado</title>
+<link rel="stylesheet" href="../css/00-tokens.css">
+<body class="theme-light"><h1>Copy Fit — balão, diálogo "não cabe" e Encurtar do chat</h1><ol id="results"></ol>
+
+<!-- ══════════════════════════════════════════════════════════════════════════════════════════
+     POR QUE ESTA SUÍTE EXISTE
+     ------------------------------------------------------------------------------------------
+     `tests/copy-fit.html` cobra o MOTOR (o que ele sugere). Esta cobra as três PORTAS por onde a
+     sugestão chega ao franqueado — o balão da prévia, o diálogo "Esse texto não cabe" e o
+     "Encurtar" do chat — com os módulos reais (chat.js, chat-input.js, live-preview.js,
+     toast.js, local-fit.js, copy-fit.js) e a arte medida de verdade pelo Local Fit.
+     Tudo aqui foi verificado à mão antes (35fb5ec, 2470e6b, df5cdec, 4cb4f29) e cada defeito
+     achado naquela rodada é um caso de regressão: Desfazer, sugestão velha, culpado único,
+     percorrer bloqueios, estado vazio, Enter no botão focado, IA lenta, balão que pisca.
+     Casos em `copy-fit-ui-cases.js`. Sem relógio de verdade: a prévia é chamada direto e o
+     debounce da digitação é descartado — a suíte roda em poucos segundos.
+     ══════════════════════════════════════════════════════════════════════════════════════════ -->
+
+<!-- Palco mínimo: os nós que o chat e a prévia procuram por id (mesmo palco de franqueado-fluxo.html,
+     mais o `#f-input-wrap`, que é onde o botão Encurtar e o popover moram). -->
+<div id="f-chat-col">
+<div id="f-messages"></div>
+<div id="f-input-wrap"><input id="f-msg-box"></div><button id="f-snd"></button><button id="f-chat-mic"></button>
+</div>
+<span id="f-char-count"></span><div id="prog-fill"></div><div id="f-ctx-tag"></div>
+<div class="lp-stage"><div class="lp-canvas-wrap"><canvas id="lp-canvas" width="1080" height="1920"></canvas></div></div>
+<div id="lp-empty"><span id="lp-empty-title"></span><span id="lp-empty-sub"></span></div>
+<span id="lp-dim"></span><span id="lp-sub"></span><button type="button" id="lp-layout-nota" hidden></button>
+<div id="f-preview-modal"><div id="pv-title"></div><div id="pv-note"></div><div id="pv-multi"></div></div>
+<div id="g-toast-container"></div>
+<div id="f-head-actions"><button id="f-undo-btn" hidden onclick="fDesfazer()"></button></div>
+
+<script>
+// Bancada sem rede e sem credencial. Só o que o código do franqueado consulta na carga.
+var dFolders=[], dVars=[];
+function gCurrentUser(){return {id:'11111111-1111-4111-8111-111111111111'};}
+function gIsAdmin(){return false;}
+function gFeatureCan(){return true;}
+function gTrackEvent(){}
+function gAiReady(){return false;}
+var sbFake={schema(){return {from(){return {
+  upsert(){return Promise.resolve({error:null});},
+  select(){return {eq(){return {single(){return Promise.resolve({data:null});}};}};}
+};}};}};
+function gSupabase(){return sbFake;} window.sb=sbFake;
+</script>
+<script src="../js/00-config.js"></script>
+<script src="../js/01-state.js"></script>
+<script src="../js/core/toast.js"></script>
+<script src="../js/core/layout.js"></script>
+<script src="../js/core/auto-layout.js"></script>
+<script src="../js/core/local-fit.js"></script>
+<script src="../js/franqueado/prefs.js"></script>
+<script src="../js/franqueado/history.js"></script>
+<script src="../js/franqueado/materials.js"></script>
+<script src="../js/franqueado/catalog.js"></script>
+<script src="../js/franqueado/chat.js"></script>
+<script src="../js/core/copy-fit.js"></script>
+<script src="../js/franqueado/live-preview.js"></script>
+<script src="../js/franqueado/chat-input.js"></script>
+<script src="../js/franqueado/png-generator.js"></script>
+<script src="copy-fit-ui-cases.js"></script>
+</body></html>

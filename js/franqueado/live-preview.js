@@ -1363,6 +1363,10 @@ function _fLpBalaoRestaura(campo, valor){
 }
 function fLpBalaoAplica(i){
   const B=_lpBalao, s=B&&B.sug[i]; if(!s) return false;
+  /* O toque direto no balão também confere o texto medido (o `aplica` da solução já conferia):
+     entre a tecla e o render (debounce) o balão ainda é o do valor anterior, e tocar nele
+     trocava a "Mussarela" recém-digitada pela "Calabresa" velha. O render seguinte o atualiza. */
+  if(String((fState.dados||{})[B.campo]==null?'':fState.dados[B.campo])!==B.valor) return false;
   const campo=B.campo, antes=(fState.dados||{})[campo];
   const rotulo='Encurtar '+String((typeof gFieldLabel==='function')?gFieldLabel(campo):'texto').toLowerCase();
   _fLpBalaoTira();
