@@ -456,6 +456,129 @@
     } finally { window.dVars = dvAntes; }
   });
 
+  /* ══ BANCADA EM PIXEL (32–34) — 14 caixas reais × 177 copies (`copy-fit-corpus.js`) ══════════
+     O que era bancada de sessão virou CATRACA. Cada copy passa pelo Local Fit REAL de cada caixa;
+     o que bloqueia vai ao motor com o `cabe` em pixel — igual à prévia do franqueado.
+     Pixel depende da PILHA DE FONTES da máquina (o CI roda Linux, com outras fontes): por isso
+     a suíte separa o que é universal do que é da máquina, no padrão do `corpus-cases.js`:
+       32 · INVARIANTES — valem em qualquer máquina, em TODO bloqueio: a sugestão cabe de verdade
+            (medida de novo, sem cache), passa na guarda, não some item; a 1ª é a de menor custo
+            entre as que cabem; "nenhuma" só quando nenhum candidato cabe.
+       33 · CATRACA de resgate — o nº exato só é cobrado quando a fingerprint de fonte bate com a
+            gravada (`LUMA_COPY_FIT_PISO.fp`). Em outra pilha, vira nota + um piso GROSSO (metade da
+            taxa gravada), que só quebra se o motor desabar — nunca por fonte.
+       34 · orçamento de tempo da bancada inteira. */
+  const fpMaquina = (() => {                        // a mesma impressão digital do corpus
+    try{
+      const c = document.createElement('canvas').getContext('2d');
+      const medir = f => { c.font = '700 100px ' + f; c.letterSpacing = '0px';
+        return Math.round(c.measureText('Wg08 Preço Mn R$ 1.249,00').width * 10) / 10; };
+      return [medir('Arial'), medir('sans-serif'), medir('serif')].join('/');
+    }catch(e){ return 'desconhecida'; }
+  })();
+  const notas = [];
+  /* A bancada completa (2.478 pares) custa ~6s nesta máquina — demais para uma suíte que roda a
+     cada commit. Roda-se 1 par a cada BANCADA_PASSO, em diagonal ((caixa + copy) % passo): toda
+     caixa vê 1/3 das copies e toda copy passa por ~1/3 das caixas. Determinístico. A bancada
+     inteira: `tests/copy-fit.html?bancada=toda` (o piso da amostra NÃO vale para ela). */
+  const BANCADA_PASSO = /[?&]bancada=toda/.test(location.search) ? 1 : 3;
+  let _bancada = null;
+  const bancada = () => _bancada || (_bancada = (() => {
+    const clone = o => JSON.parse(JSON.stringify(o));
+    const boxes = [];
+    // Os campos de texto de cada prancheta do corpus que recebem copy de franqueado.
+    const USAR = { 'bloco-arejado':['manchete','corpo'], 'card-placa-grupo':['chamada','detalhe'],
+      'de-por-lateral':['produto'], 'foto-safe-zone':['titulo','apoio'], 'legado-sem-baseline':['titulo','produto'],
+      'promo-preco-circulo':['titulo','produto'] };
+    (window.LUMA_CORPUS || []).forEach(fx => {
+      const dados = {}; (fx.campos || []).forEach(c => { dados[c.name] = c.example; });
+      window.dVars = (fx.campos || []).map(c => Object.assign({ type:'text' }, c));
+      const base = gApplyRelativeAnchors(clone(fx.layers), dados, {}, { canvas:fx.canvas, scope:'franqueado' });
+      (USAR[fx.nome] || []).forEach(id => {
+        const l = base.find(x => x.id === id); if(!l) return;
+        const campo = (String(l.content).match(/\{\{\s*(\w+)\s*\}\}/) || [])[1];
+        boxes.push({ nome: fx.nome + '/' + id, medir: gLocalFitMedidor(base, { fieldId:id }, campo, dados, { canvas:fx.canvas, defaults:{} }) });
+      });
+    });
+    // Story (caso 12) e as caixas-padrão do local-fit-cases (caixa e ponto).
+    const sp = { id:'p', type:'text', content:'{{p}}', isVar:true, x:130, y:1220, w:363, h:72, font:'Arial',
+      fontSize:95, lineHeight:1.2, textBox:'point', vAlign:'top', textTransform:'uppercase', visible:true, opacity:100, layoutRefText:'PRODUTO' };
+    const sd = { id:'d', type:'text', content:'Com batata', x:126, y:1387, w:188, h:58, font:'Arial', fontSize:48,
+      textBox:'point', vAlign:'top', visible:true, opacity:100 };
+    boxes.push({ nome:'story/produto', medir: t => gFitTextToAuthoredBox(sp, t, { layers:[sp, sd], canvas:{ w:1080, h:1920 } }) });
+    const cx = { id:'produto', type:'text', content:'{{produto}}', isVar:true, x:80, y:260, w:620, h:150, font:'Arial', fontSize:48,
+      lineHeight:1.2, textAlign:'left', textBox:'box', vAlign:'top', visible:true, opacity:100, layoutRefText:'Combo Burger' };
+    boxes.push({ nome:'lf/caixa', medir: t => gFitTextToAuthoredBox(cx, t, { canvas:{ w:1080, h:1350 } }) });
+    const pt = { id:'titulo', type:'text', content:'{{titulo}}', isVar:true, x:80, y:120, w:700, h:110, font:'Arial', fontSize:80,
+      lineHeight:1.1, textAlign:'left', textBox:'point', vAlign:'top', textTransform:'uppercase', visible:true, opacity:100, layoutRefText:'OFERTA DA SEMANA' };
+    boxes.push({ nome:'lf/ponto', medir: t => gFitTextToAuthoredBox(pt, t, { canvas:{ w:1080, h:1350 } }) });
+
+    const bloqueios = [];
+    let pares = 0;
+    const t0 = performance.now();
+    boxes.forEach((b, bi) => {
+      const memo = new Map();
+      b.cabe = t => {                               // o `cabe` da prévia: {ok, fontSize}
+        if(!memo.has(t)){ const r = b.medir(t); memo.set(t, { ok: !!r && r.status === 'fits', fontSize: r ? r.fontSize : 0 }); }
+        return memo.get(t);
+      };
+      (window.LUMA_COPY_CORPUS || []).forEach((texto, ti) => {
+        if((bi + ti) % BANCADA_PASSO) return;       // amostra em diagonal: toda caixa, toda copy
+        pares++;
+        if(b.cabe(texto).ok) return;
+        bloqueios.push({ b, texto, r: gCopyFitSugestoes(texto, b.cabe, 3) });
+      });
+    });
+    return { boxes, pares, bloqueios, resgates: bloqueios.filter(x => !x.r.nenhuma).length, ms: performance.now() - t0 };
+  })());
+  const comBancada = fn => () => { const dv = window.dVars; try{ return fn(bancada()); } finally { window.dVars = dv; } };
+
+  test('32 · pixel, 14 caixas × 177 copies (1 par em 3): toda sugestão cabe, passa na guarda, não some item; a 1ª é a mais barata', comBancada(B => {
+    assert(B.boxes.length === 14, 'a bancada precisa das 14 caixas (fixture do corpus não carregou?): ' + B.boxes.length);
+    assert((window.LUMA_COPY_CORPUS || []).length >= 177, 'o corpus de copy encolheu');
+    const erros = [];
+    const erro = (x, m) => erros.push(x.b.nome + ' · "' + x.texto + '" → ' + m);
+    B.bloqueios.forEach(x => {
+      x.r.sugestoes.forEach(s => {
+        const r = x.b.medir(s.text);                // medida NOVA, sem o cache do `cabe`
+        if(!r || r.status !== 'fits') erro(x, 'sugeriu o que não cabe: "' + s.text + '"');
+        if(!gCopyFitGuarda(x.texto, s.text)) erro(x, 'reprovou na guarda: "' + s.text + '"');
+        const sumiu = itensIntactos(x.texto, s.text);
+        if(sumiu.length) erro(x, 'sumiu ' + sumiu.join(', ') + ': "' + s.text + '"');
+      });
+      const cabem = gCopyFitCandidatos(x.texto).filter(c => x.b.cabe(c.text).ok);
+      if(x.r.nenhuma){ if(cabem.length) erro(x, 'disse "não coube", mas "' + cabem[0].text + '" cabe'); return; }
+      const menor = Math.min.apply(null, cabem.map(c => c.custo));
+      if(x.r.sugestoes[0].custo !== menor) erro(x, 'a 1ª custa ' + x.r.sugestoes[0].custo + ', havia uma que cabe custando ' + menor);
+    });
+    assert(!erros.length, erros.length + ' violações em ' + B.bloqueios.length + ' bloqueios. ' + erros.slice(0, 4).join(' | '));
+  }));
+
+  test('33 · catraca: resgates em pixel não caem abaixo do piso gravado', comBancada(B => {
+    const piso = window.LUMA_COPY_FIT_PISO || {};
+    const atual = { fp: fpMaquina, bloqueios: B.bloqueios.length, resgates: B.resgates };
+    notas.push('bancada (' + B.pares + ' pares): ' + B.resgates + '/' + B.bloqueios.length + ' resgatados (' + (100 * B.resgates / (B.bloqueios.length || 1)).toFixed(1)
+      + '%) · piso ' + piso.resgates + '/' + piso.bloqueios + ' · ' + Math.round(B.ms) + 'ms · ' + JSON.stringify(atual));
+    if(BANCADA_PASSO !== 3){ notas.push('bancada toda: o piso é da amostra 1/3 — não comparado'); return; }
+    assert(piso.resgates > 0, 'sem piso gravado (LUMA_COPY_FIT_PISO em copy-fit-corpus.js)');
+    assert(B.bloqueios.length >= 100, 'quase nada bloqueou (' + B.bloqueios.length + '): a bancada não mede nada — fonte não carregou?');
+    if(piso.fp === fpMaquina){
+      assert(B.resgates >= piso.resgates, 'o motor resgatava ' + piso.resgates + ' e agora resgata ' + B.resgates
+        + '. Se foi o LOCAL FIT que mudou (bloqueios ' + piso.bloqueios + ' → ' + B.bloqueios.length + '), regrave: ' + JSON.stringify(atual));
+      if(B.resgates > piso.resgates) notas.push('o resgate SUBIU — aperte a catraca: LUMA_COPY_FIT_PISO = ' + JSON.stringify(atual));
+    } else {
+      notas.push('piso é de outra pilha de fontes (' + piso.fp + ') — comparação fina pulada; valendo o piso grosso');
+      const taxa = B.resgates / B.bloqueios.length, gravada = piso.resgates / piso.bloqueios;
+      assert(taxa >= gravada / 2, 'resgate desabou: ' + (100 * taxa).toFixed(1) + '% (gravado ' + (100 * gravada).toFixed(1) + '%, piso grosso ' + (50 * gravada).toFixed(1) + '%)');
+    }
+  }));
+
+  test('34 · orçamento: a bancada (826 pares + os bloqueios) < 10s', comBancada(B => {
+    // ~2,6s nesta máquina (Edge, Windows). Teto com ~4× de folga, no espírito do `carga-cases.js`:
+    // acima dele é regressão de ordem de grandeza (medida sem memo, O(n²) no motor), não ruído.
+    assert(BANCADA_PASSO === 1 || B.ms < 10000, 'a bancada levou ' + Math.round(B.ms) + 'ms');
+  }));
+
   let passed = 0;
   for(const item of cases){
     const li = document.createElement('li'); li.className = 'case';
@@ -473,5 +596,5 @@
   const failed = cases.length - passed;
   summary.textContent = passed + '/' + cases.length + ' casos passaram' + (failed ? ' · ' + failed + ' falharam' : '');
   document.title = (failed ? 'FALHOU' : 'OK') + ' — Copy Fit (' + passed + '/' + cases.length + ')';
-  window.__lumaTest = { passed:passed, total:cases.length, failures:falhas };
+  window.__lumaTest = { passed:passed, total:cases.length, failures:falhas, notas:notas };
 })();
