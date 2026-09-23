@@ -1194,23 +1194,8 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       try {
         const img = await fLoadImageDataUrl(imgSource);
         if(img && img.width){
-          const imgAR = img.width / img.height, frameAR = w / h;
-          let baseW, baseH;
-          /* LOGO NUNCA É CORTADO. O padrão da moldura é `cover` (o `else` abaixo), que é certo
-             para FOTO — enche o quadro e o corte é enquadramento. Para LOGO é destrutivo: corta
-             a marca do parceiro, que é exatamente o que ninguém pode publicar. O teste de
-             usabilidade pegou isso no passo do logo, e a regra vale no desenho, não só no aviso.
-             ⚠ Isto NÃO desrespeita a intenção do designer: `contain` só entra onde o campo é
-             semanticamente logo (`gCampoEhLogo`) E o designer não escolheu `objectFit`
-             explicitamente. Quem marcou `cover` num campo de logo de propósito continua com o
-             que marcou. Foto de produto não passa por aqui. */
-          const _ehLogoAuto = !l.objectFit && l.imgVar
-            && typeof gCampoEhLogo==='function' && gCampoEhLogo(l.imgVar);
-          if(l.objectFit === 'contain' || _ehLogoAuto){
-            if(imgAR > frameAR){ baseW = w; baseH = w/imgAR; } else { baseH = h; baseW = h*imgAR; }
-          } else { // cover
-            if(imgAR > frameAR){ baseH = h; baseW = h*imgAR; } else { baseW = w; baseH = w/imgAR; }
-          }
+          // Tamanho base (contain × cover, com a regra do logo) mora em fFrameBaseSize.
+          const { baseW, baseH } = fFrameBaseSize(l, img.width, img.height, w, h);
           // Zoom + reposição da foto dentro da moldura. Override por-arte do franqueado
           // (dados['__fit__'+var]) VENCE o do template — sem mutar a camada compartilhada
           // (a Prévia ao Vivo deixa o franqueado enquadrar a própria foto). Retrocompatível:
@@ -1364,6 +1349,27 @@ function roundedRectPath(ctx, x, y, w, h, tl, tr, br, bl){
 // Cache de imagens já decodificadas. Evita re-decodificar o mesmo base64
 // ao gerar múltiplos formatos ou ao ter a mesma imagem em vários layers.
 const _fImgCache = new Map();
+
+/* Motor ÚNICO do encaixe da imagem na moldura, em escala 1 (antes do zoom `__fit__`). O modo
+   enquadrar da prévia (live-preview.js) usa a MESMA conta para saber quanto a imagem pode
+   andar — se os dois divergirem, o arrasto volta a andar ao contrário do dedo no logo.
+   LOGO NUNCA É CORTADO. O padrão da moldura é `cover`, que é certo para FOTO — enche o
+   quadro e o corte é enquadramento. Para LOGO é destrutivo: corta a marca do parceiro, que é
+   exatamente o que ninguém pode publicar. O teste de usabilidade pegou isso no passo do logo,
+   e a regra vale no desenho, não só no aviso.
+   ⚠ Isto NÃO desrespeita a intenção do designer: `contain` só entra onde o campo é
+   semanticamente logo (`gCampoEhLogo`) E o designer não escolheu `objectFit` explicitamente.
+   Quem marcou `cover` num campo de logo de propósito continua com o que marcou. */
+function fFrameBaseSize(l, imgW, imgH, w, h){
+  const imgAR = imgW / imgH, frameAR = w / h;
+  const _ehLogoAuto = !l.objectFit && l.imgVar
+    && typeof gCampoEhLogo==='function' && gCampoEhLogo(l.imgVar);
+  if(l.objectFit === 'contain' || _ehLogoAuto){
+    return imgAR > frameAR ? { baseW: w, baseH: w/imgAR } : { baseW: h*imgAR, baseH: h };
+  }
+  // cover
+  return imgAR > frameAR ? { baseW: h*imgAR, baseH: h } : { baseW: w, baseH: w/imgAR };
+}
 
 function fLoadImageDataUrl(dataUrl){
   if(_fImgCache.has(dataUrl)) return Promise.resolve(_fImgCache.get(dataUrl));

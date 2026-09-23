@@ -2435,18 +2435,52 @@ function _fLpUploadImage(file,v){
 let _fLpFrameDrag=null;
 let _fLpPinch=null;
 function _fLpTouchDist(e){ const a=e.touches[0], b=e.touches[1]; return Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY); }
+/* ── A IMAGEM ANDA JUNTO COM O DEDO ─────────────────────────────────────────────────────────
+   O motor desenha em `x + (w − drawW)·(0.5 + offX)`. A conta antiga (`off −= Δ/w`) só acerta
+   para FOTO em `cover` a 2×: nela `w − drawW` é negativo. LOGO é `contain` (fFrameBaseSize) e
+   sobra moldura, então `w − drawW` é POSITIVO — arrastar para baixo jogava o logo para cima e
+   ele grudava no topo, que é o "nasce bugado em cima" do teste. Dividir pela folga REAL
+   (`span`) acerta sentido e velocidade em qualquer encaixe e zoom. */
+function _fLpFrameSpan(){
+  const fr=_lpFraming;
+  if(!fr||!fr.img||typeof fFrameBaseSize!=='function') return null;
+  const l=fr.layer, w=l.w||1, h=l.h||1;
+  const b=fFrameBaseSize(l,fr.img.w,fr.img.h,w,h);
+  const f=fState.dados['__fit__'+fr.varName]||{};
+  const sc=f.scale>0?f.scale:1;
+  return {sx:w-b.baseW*sc, sy:h-b.baseH*sc};
+}
+// Offset base + deslocamento em px da ARTE → offset novo, preso ao que o motor aceita (±0.5).
+function _fLpFrameShift(ox,oy,dxArt,dyArt){
+  const l=_lpFraming.layer, sp=_fLpFrameSpan();
+  const eixo=(o,d,span,dim)=>{
+    if(span==null) return o-d/dim;       // imagem ainda sem medida: conta antiga (cover)
+    if(Math.abs(span)<0.5) return o;     // imagem do tamanho exato da moldura: não tem para onde ir
+    return o+d/span;
+  };
+  const cl=x=>Math.max(-.5,Math.min(.5,x));
+  return {offX:cl(eixo(ox,dxArt,sp&&sp.sx,l.w||1)), offY:cl(eixo(oy,dyArt,sp&&sp.sy,l.h||1))};
+}
+/* Início do arrasto. `k` (px da arte por px da tela) sai do tamanho REAL do canvas na tela,
+   não de `_lpScale`: este ignora o zoom manual da mesa, e com a mesa ampliada a foto corria
+   mais que o dedo. */
+function _fLpFrameGrab(cx,cy){
+  const cv=document.getElementById('lp-canvas');
+  const r=cv&&cv.getBoundingClientRect();
+  const k=(r&&r.width)?cv.width/r.width:1/(_lpScale||1);
+  const f=fState.dados['__fit__'+_lpFraming.varName]||{};
+  return {sx:cx,sy:cy,ox:f.offX||0,oy:f.offY||0,k};
+}
 function _fLpFrameMove(e){
   if(!_fLpFrameDrag||!_lpFraming) return;
-  const l=_lpFraming.layer, v=_lpFraming.varName;
+  const d=_fLpFrameDrag, v=_lpFraming.varName;
   const cx=(e.touches?e.touches[0].clientX:e.clientX);
   const cy=(e.touches?e.touches[0].clientY:e.clientY);
-  const dx=(cx-_fLpFrameDrag.sx)/((_lpScale||1)*(l.w||1));
-  const dy=(cy-_fLpFrameDrag.sy)/((_lpScale||1)*(l.h||1));
-  const offX=Math.max(-.5,Math.min(.5,_fLpFrameDrag.ox-dx));
-  const offY=Math.max(-.5,Math.min(.5,_fLpFrameDrag.oy-dy));
+  const o=_fLpFrameShift(d.ox,d.oy,(cx-d.sx)*d.k,(cy-d.sy)*d.k);
   const f=fState.dados['__fit__'+v]||{scale:1};
-  fState.dados['__fit__'+v]={scale:f.scale||1,offX,offY};
+  fState.dados['__fit__'+v]={scale:f.scale||1,offX:o.offX,offY:o.offY};
   _fLpRender();
+  _fLpUpdateFramingHUD();
 }
 function _fLpFrameUp(){
   _fLpFrameDrag=null;
@@ -2459,24 +2493,24 @@ function _fLpFrameKey(e){
   // era um jeito de confirmar sem querer.
   if(e.key==='Escape'){ e.preventDefault(); fLpCancelFraming(); return; }
   if(e.key==='Enter'){ e.preventDefault(); fLpStopFraming(); return; }
-  const v=_lpFraming.varName;
+  const v=_lpFraming.varName, l=_lpFraming.layer;
   const f=fState.dados['__fit__'+v]||{scale:1,offX:0,offY:0};
   let changed=false;
-  if(e.key==='ArrowLeft'){ f.offX=Math.min(.5,(f.offX||0)+0.02); changed=true; }
-  else if(e.key==='ArrowRight'){ f.offX=Math.max(-.5,(f.offX||0)-0.02); changed=true; }
-  else if(e.key==='ArrowUp'){ f.offY=Math.min(.5,(f.offY||0)+0.02); changed=true; }
-  else if(e.key==='ArrowDown'){ f.offY=Math.max(-.5,(f.offY||0)-0.02); changed=true; }
+  // Seta move a IMAGEM para o lado da seta, 2% da moldura por toque — mesma conta do arrasto.
+  const passo={ArrowLeft:[-.02*(l.w||1),0],ArrowRight:[.02*(l.w||1),0],
+    ArrowUp:[0,-.02*(l.h||1)],ArrowDown:[0,.02*(l.h||1)]}[e.key];
+  if(passo){ Object.assign(f,_fLpFrameShift(f.offX||0,f.offY||0,passo[0],passo[1])); changed=true; }
   else if(e.key==='+'||e.key==='='){
-    const sc=Math.min(3.5,(f.scale||1)+0.1);
+    const sc=Math.min(3.5,Math.round(((f.scale||1)+0.1)*100)/100);
     f.scale=sc; changed=true;
     _fLpUpdateFramingHUD();
   }
   else if(e.key==='-'||e.key==='_'){
-    const sc=Math.max(1,(f.scale||1)-0.1);
+    const sc=Math.max(1,Math.round(((f.scale||1)-0.1)*100)/100);
     f.scale=sc; changed=true;
     _fLpUpdateFramingHUD();
   }
-  if(changed){ e.preventDefault(); fState.dados['__fit__'+v]=f; _fLpRender(); }
+  if(changed){ e.preventDefault(); fState.dados['__fit__'+v]=f; _fLpRender(); _fLpUpdateFramingHUD(); }
 }
 function _fLpUpdateFramingHUD(){
   if(!_lpFraming) return;
@@ -2506,9 +2540,22 @@ function fLpStartFraming(l,v){
      reinicia o fluxo, não apaga o upload e não mexe em nenhum outro campo: restaura o
      `__fit__<campo>` ao valor que ele tinha neste instante. `tinha` distingue "não havia
      enquadramento" de "havia um zerado" — sem isso, cancelar deixaria um objeto onde não havia. */
-  _lpFraming={layer:l,varName:v,
-    snap:{scale:init.scale||1,offX:init.offX||0,offY:init.offY||0},
-    tinha:!!(fState.dados&&fState.dados['__fit__'+v])};
+  /* Reabrir o MESMO campo com o modo já aberto (segundo clique na arte) mantém o snapshot de
+     quando ele abriu de verdade — senão o Cancelar passaria a devolver o meio do ajuste. */
+  const jaAberto=_lpFraming&&_lpFraming.varName===v?_lpFraming:null;
+  _lpFraming={layer:l,varName:v,img:jaAberto&&jaAberto.img,
+    snap:jaAberto?jaAberto.snap:{scale:init.scale||1,offX:init.offX||0,offY:init.offY||0},
+    tinha:jaAberto?jaAberto.tinha:!!(fState.dados&&fState.dados['__fit__'+v])};
+  /* Tamanho natural da imagem, para o arrasto saber a folga real (_fLpFrameSpan). Mesma fonte
+     que o render usa; já está no cache dele, então resolve na hora. Até resolver, o arrasto
+     usa a conta antiga — nunca trava. */
+  const _src=(typeof fState.dados[v]==='string'&&/^(data:image|blob:|https?:\/\/)/.test(fState.dados[v]))
+    ?fState.dados[v]:(l.imgUrl&&l.imgUrl!=='__local__'?l.imgUrl:null);
+  if(_src&&typeof fLoadImageDataUrl==='function'){
+    fLoadImageDataUrl(_src).then(img=>{
+      if(img&&img.width&&_lpFraming&&_lpFraming.varName===v) _lpFraming.img={w:img.width,h:img.height};
+    }).catch(()=>{});
+  }
   fState.dados['__fit__'+v]={scale:init.scale||1,offX:init.offX||0,offY:init.offY||0};
   _fLpRender();
 
@@ -2576,6 +2623,7 @@ function fLpStartFraming(l,v){
     if(slider) slider.value=sc;
     if(pctLabel) pctLabel.textContent=Math.round(sc*100)+'%';
     _fLpRender();
+    _fLpUpdateFramingHUD();
   };
 
   if(slider) slider.oninput=(e)=>updateScale(parseFloat(e.target.value));
@@ -2588,6 +2636,7 @@ function fLpStartFraming(l,v){
     const f=fState.dados['__fit__'+v]||{scale:1};
     fState.dados['__fit__'+v]={scale:f.scale||1,offX:0,offY:0};
     _fLpRender();
+    _fLpUpdateFramingHUD();
   };
   ov.querySelector('#lp-frame-reset').onclick=()=>{
     fLpResetFraming();
@@ -2616,18 +2665,19 @@ function fLpStartFraming(l,v){
   }
 
   ov.onmousedown=(e)=>{
-    if(e.target.closest('.lp-frame-hud')) return;
+    if(e.target.closest('.lp-frame-hud')||e.button!==0) return;
     e.preventDefault();
     ov.classList.add('is-dragging');
-    const f=fState.dados['__fit__'+v]||{};
-    _fLpFrameDrag={sx:e.clientX,sy:e.clientY,ox:f.offX||0,oy:f.offY||0};
+    _fLpFrameDrag=_fLpFrameGrab(e.clientX,e.clientY);
   };
 
+  /* Zoom proporcional ao giro: o passo fixo de 8% por evento fazia o trackpad (dezenas de
+     eventos pequenos por gesto) saltar de 100% a 350% num deslize. Linha (deltaMode 1) vira px. */
   ov.onwheel=(e)=>{
     e.preventDefault();
     const f=fState.dados['__fit__'+v]||{scale:1,offX:0,offY:0};
-    const delta=e.deltaY>0?-0.08:0.08;
-    updateScale((f.scale||1)+delta);
+    const dy=Math.max(-120,Math.min(120,e.deltaY*(e.deltaMode===1?33:1)));
+    updateScale((f.scale||1)*Math.exp(-dy*0.0015));
   };
 
   ov.ontouchstart=(e)=>{
@@ -2637,7 +2687,7 @@ function fLpStartFraming(l,v){
       _fLpPinch={d:_fLpTouchDist(e),sc:f.scale||1};
       _fLpFrameDrag=null;
     } else {
-      _fLpFrameDrag={sx:e.touches[0].clientX,sy:e.touches[0].clientY,ox:f.offX||0,oy:f.offY||0};
+      _fLpFrameDrag=_fLpFrameGrab(e.touches[0].clientX,e.touches[0].clientY);
     }
   };
 
@@ -2648,19 +2698,17 @@ function fLpStartFraming(l,v){
       const nd=_fLpTouchDist(e);
       updateScale(_fLpPinch.sc*(nd/(_fLpPinch.d||1)));
     } else if(_fLpFrameDrag){
-      const dx=(e.touches[0].clientX-_fLpFrameDrag.sx)/((_lpScale||1)*(l.w||1));
-      const dy=(e.touches[0].clientY-_fLpFrameDrag.sy)/((_lpScale||1)*(l.h||1));
-      const f=fState.dados['__fit__'+v]||{scale:1};
-      fState.dados['__fit__'+v]={
-        scale:f.scale||1,
-        offX:Math.max(-.5,Math.min(.5,_fLpFrameDrag.ox-dx)),
-        offY:Math.max(-.5,Math.min(.5,_fLpFrameDrag.oy-dy))
-      };
-      _fLpRender();
+      _fLpFrameMove(e);
     }
   };
 
   ov.ontouchend=(e)=>{
+    // Soltou um dedo da pinça: o que ficou continua arrastando, sem precisar tirar e pôr de novo.
+    if(e.touches.length===1&&_fLpPinch){
+      _fLpPinch=null;
+      _fLpFrameDrag=_fLpFrameGrab(e.touches[0].clientX,e.touches[0].clientY);
+      return;
+    }
     if(!e.touches.length){
       _fLpFrameDrag=null;
       _fLpPinch=null;

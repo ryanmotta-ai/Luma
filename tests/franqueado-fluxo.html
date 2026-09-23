@@ -502,6 +502,30 @@ await test('Aplicar enquadramento deixa saída; cancelar não registra desfazer'
   assert(!fUndoDisponivel(),'cancelar registrou um desfazer para uma mudança que já foi descartada');
 });
 
+/* O "nasce bugado em cima" do logo: a conta antiga do arrasto supunha foto em `cover` (sobra
+   imagem). Logo é `contain` (sobra moldura) e o sinal invertia — arrastar para baixo jogava o
+   logo para cima e ele grudava no topo. A regra: a imagem anda para o lado do dedo, 1:1. */
+await test('Arrastar o logo move a imagem para o mesmo lado do dedo (contain e cover)', async()=>{
+  reset();
+  const logo={id:'lg',type:'frame',imgVar:'logo_loja',x:0,y:0,w:200,h:200,visible:true};
+  fState.dados={logo_loja:'data:image/png;base64,x'};
+  fLpStartFraming(logo,'logo_loja');
+  _lpFraming.img={w:400,h:200};          // logo largo numa moldura quadrada: contain, sobra 100px no Y
+  let o=_fLpFrameShift(0,0,0,50);        // dedo 50px (da arte) para baixo
+  assert(o.offY>0,'arrastar para baixo mandou o logo para cima: '+JSON.stringify(o));
+  assert(Math.abs(o.offY*100-50)<1e-9,'o logo não andou junto com o dedo (esperado 50px): '+JSON.stringify(o));
+  assert(_fLpFrameShift(0,0,30,0).offX===0,'o logo andou num eixo em que ele já ocupa a moldura inteira');
+  fLpCancelFraming();
+  const foto={id:'ft',type:'frame',imgVar:'foto_produto',x:0,y:0,w:200,h:200,visible:true};
+  fState.dados={foto_produto:'data:image/png;base64,x'};
+  fLpStartFraming(foto,'foto_produto');
+  _lpFraming.img={w:400,h:200};          // foto em cover: sobra 200px de imagem no X
+  o=_fLpFrameShift(0,0,50,0);
+  const antes=(200-400)*0.5, depois=(200-400)*(0.5+o.offX);
+  assert(Math.abs((depois-antes)-50)<1e-9,'a foto não andou 50px para a direita com o dedo: '+JSON.stringify(o));
+  fLpCancelFraming();
+});
+
 await test('Editar pela prévia também é desfazível', async()=>{
   reset();
   fState.dados={produto:'Pizza Grande'};
