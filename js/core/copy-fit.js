@@ -243,8 +243,11 @@ const _G_CF_DEGRAUS = [
       let t = parte;
       // "tamanho grande" sem item colado ("Milho tamanho grande", "Yakisoba de carne tamanho
       // grande"): a própria palavra TAMANHO diz o que a letra é — vira "tamanho G", e ela fica.
+      // NOME DE LOJA não é tamanho: "Casa do Pastel Grande", "Pastel Grande da Feira" — antes
+      // viravam "Pastel G". Trava pelo que vem antes (casa/cantinho… do) e depois (da feira/vila…).
+      const loja = '|\\s+d[aoe]s?\\s+(?:feira|vila|pra[cç]a|esquina|centro|bairro|casa|cidade|fam[ií]lia)(?=$|' + _G_CF_L + ')';
       G_CF_TAMANHOS.forEach(([p, letra]) => {
-        t = t.replace(_gCfRx('(' + G_CF_TEM_TAMANHO + '|tamanho)(\\s+)(?:tamanho\\s+)?(' + p + ')(?=$|' + _G_CF_L + ')(?!' + _G_CF_TAM_NOME + ')', 'giu'),
+        t = t.replace(_gCfRx('((?<!(?:casa|cantinho|recanto|point|rei|mundo|espa[cç]o|toca)\\s+d[aoe]s?\\s+)(?:' + G_CF_TEM_TAMANHO + '|tamanho))(\\s+)(?:tamanho\\s+)?(' + p + ')(?=$|' + _G_CF_L + ')(?!' + _G_CF_TAM_NOME + loja + ')', 'giu'),
           (m, item, esp, w) => { trocas.push([w, letra]); return item + esp + letra; });
       });
       if(trocas.length !== todos) return parte;

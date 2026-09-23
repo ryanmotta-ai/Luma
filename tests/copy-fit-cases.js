@@ -349,7 +349,8 @@
     // antes: "Pizza Grande São Paulo" → "Pizza G São Paulo"; "Top Lanches" → "Lanches"
     semMexer(['Pizza Grande São Paulo', 'Super Mercado', 'Mega Store', 'Top Lanches', 'Casa do Especial', 'Pastel da Feira',
       'Burger King', 'Top 10 pizzas', 'Grande Família', 'Refri Zero', 'Médio Oriente', 'Por do Sol', 'Com Amor Doces',
-      'Famosa da Vila', 'Esfiha Média Oriente', 'Pizza Grande Família', 'Top Burger'], () => false, 'mexeu num nome');
+      'Famosa da Vila', 'Esfiha Média Oriente', 'Pizza Grande Família', 'Top Burger',
+      'Casa do Pastel Grande', 'Pastel Grande da Feira', 'CASA DA PIZZA GRANDE'], () => false, 'mexeu num nome');
     semMexer(['Top Lanches com refrigerante', 'Pizza Grande São Paulo com refri', 'Mega Store: combo com refrigerante',
       'Refri Zero com batata', 'Com Amor Doces com brigadeiro'],
       (f, t) => t.startsWith(f.split(/ com | com$|:/)[0]), 'o nome da loja/produto mudou');
