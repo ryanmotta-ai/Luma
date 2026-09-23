@@ -115,7 +115,7 @@ async function fPushArtesToBackend(){
       id:h.remoteId, user_id:user.id,
       camp_id:h.campId||null, camp_name:h.campName||null, camp_color:h.campColor||null,
       fmt_id:h.fmtId||null, fmt_name:h.fmtName||null,
-      template_id:_fTemplateUuidFor(h), material_name:h.materialName||null,
+      template_id:_fTemplateUuidFor(h), template_version_id:h.templateVersionId||null, material_name:h.materialName||null,
       dados:dados, prod:h.prod||null, por:h.por||null, de:h.de||null,
       status:h.status||'rascunho', sig:h._sig||null,
       baixada_em:h.tsBaixada?new Date(h.tsBaixada).toISOString():null,
@@ -124,8 +124,8 @@ async function fPushArtesToBackend(){
     let { error }=await sb.schema('luma').from('artes').upsert(row, {onConflict:'id'});
     // FK: se o template foi apagado no banco entre gerar e sincronizar, o vínculo não pode
     // segurar a arte inteira fora do histórico cross-device — regrava sem o vínculo.
-    if(error && row.template_id){
-      row.template_id=null;
+    if(error && (row.template_id || row.template_version_id)){
+      row.template_id=null; row.template_version_id=null;
       ({ error }=await sb.schema('luma').from('artes').upsert(row, {onConflict:'id'}));
     }
     if(!error){ h._synced=true; changed=true; }
@@ -154,6 +154,7 @@ function _fRowToArte(r){
     // template_id (UUID) vira o materialId local: num device recém-sincronizado o id do
     // template no catálogo É o UUID do banco — "Editar" volta a achar o material de origem.
     fmtId:r.fmt_id, fmtName:r.fmt_name, materialId:r.template_id||null, materialName:r.material_name,
+    templateVersionId:r.template_version_id||null,
     dados:(r.dados&&typeof r.dados==='object')?r.dados:{},
     prod:r.prod||'', por:r.por||'', de:r.de||''
   };
@@ -241,6 +242,9 @@ function fAddHist(d,c,f,status){
     fmtId:f.id, fmtName:f.name,
     materialId: fState.material?.id || null,
     materialName: fState.material?.name || null,
+    // A versão do template com que ESTA arte foi feita: mudar o template amanhã não pode
+    // mudar a arte de ontem (reabrir/rebaixar usa esta versão — fMaterialDaVersao).
+    templateVersionId: fState.material?.versaoAtualId || null,
     _demo: !!(fState.material && fState.material._demo),
     dados:{...d},
     prod: d.produto || d.categoria || d.brinde || d.oferta || c.name,

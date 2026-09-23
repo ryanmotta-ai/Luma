@@ -393,6 +393,8 @@ async function fDownloadHist(id, btn){
   const _restore = (typeof gBtnLoading==='function') ? gBtnLoading(btn) : (()=>{});
   try{
   if(fState.material && typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(fState.material);
+  // Arte feita com versão anterior do template: rebaixa/duplica com a versão DELA (materials.js).
+  if(fState.material && h.templateVersionId && typeof fMaterialDaVersao==='function') fState.material = await fMaterialDaVersao(fState.material, h.templateVersionId);
   // Honestidade: se os layers do material não desceram (sem rede), o fGenPNG cairia no
   // renderer GENÉRICO e entregava arte errada com toast de sucesso. Avisa e para.
   if(fState.material && fState.material._needsLayersFetch){
@@ -444,6 +446,7 @@ async function fEditFromHist(id, btn){
     finally{ restoreBtn(); }
     if(material._needsLayersFetch) material = null; // fetch falhou → segue pro fallback (estrutura padrão)
   }
+  if(material && h.templateVersionId && typeof fMaterialDaVersao==='function') material = await fMaterialDaVersao(material, h.templateVersionId);
 
   if(material){
     // Carrega via fluxo de material (reconstrói perguntas das vars + permissões)
@@ -534,6 +537,8 @@ async function fConfirmDuplicate(id, fmtId){
   const prevMaterial = fState.material;
   { const _m = h.materialId ? fFindMaterialById(h.materialId) : null; if(_m) fState.material = _m; }
   if(fState.material && typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(fState.material);
+  // Arte feita com versão anterior do template: rebaixa/duplica com a versão DELA (materials.js).
+  if(fState.material && h.templateVersionId && typeof fMaterialDaVersao==='function') fState.material = await fMaterialDaVersao(fState.material, h.templateVersionId);
   try {
     await fGenPNG(h.dados, c, f);
     fAddHist(h.dados, c, f, 'baixada'); // só registra se o PNG saiu (material ainda carregado aqui)

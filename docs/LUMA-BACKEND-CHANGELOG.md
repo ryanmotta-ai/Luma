@@ -6,6 +6,24 @@
 
 ---
 
+## 2026-09-23 — Versionamento de templates (`luma.template_versions`)
+
+**Problema:** publicar sobrescrevia `templates.layers` e a arte guardava só `template_id` — mudar o template hoje mudava a arte de ontem ao reabrir/rebaixar, sem rollback nem histórico.
+
+**`20260923183000_luma_template_versions`** (aplicada):
+- `luma.template_versions` imutável (sem policy de insert/update/delete; leitura para designer e conta ativa). `template_id` sem FK de propósito: excluir o template não leva a versão que uma arte antiga usa.
+- Gatilho `versionar_template` (BEFORE, SECURITY DEFINER): template **publicado** cujo conteúdo (layers, w/h, bg, fmt, formats, permissões) difere da versão atual ganha versão nova e `templates.versao_atual_id` aponta para ela. Autosave sem mudança não versiona; rascunho não versiona. É o servidor quem garante.
+- `artes.template_version_id` (FK, `on delete set null`) + índice.
+- `luma.restaurar_versao(uuid)` (INVOKER — só quem a RLS deixa editar template): rollback que vira versão NOVA.
+- Carga: as 8 publicadas ganharam a versão 1 (sem tocar `updated_at`).
+- **Testado em transação desfeita:** salvar igual → 1 versão; mudar → 2 e a atual troca; rollback → 3 com layers idênticos à 1; rascunho → 0; franqueado insere → 42501; franqueado altera → 0 linhas; franqueado lê → sim.
+
+**Front (v=129):** o template traz `versaoAtualId`; `fAddHist` grava `templateVersionId` e o push manda `template_version_id`. Baixar, editar e duplicar do histórico passam por `fMaterialDaVersao` (materials.js): se a arte foi feita com outra versão, monta uma cópia do material com os layers daquela versão — o catálogo não é tocado. Arte anterior a 23/09 (sem versão) segue com o material atual.
+
+**Ainda não tem:** tela de histórico de versões no Estúdio (o rollback existe só como RPC).
+
+---
+
 ## 2026-09-23 — Campanhas saem do banco, pastas de sistema com id fixo, MIME nos buckets
 
 **`20260923180000_luma_pastas_destaque`** (aplicada): `luma.pastas.destaque boolean not null default true` — a seção da vitrine ("Ativas agora" × "Outras campanhas") deixa de ser a lista do `00-config.js`. As 8 que estavam em `CAMPS_OUTRAS` nasceram `false`. Interruptor no modal da pasta.

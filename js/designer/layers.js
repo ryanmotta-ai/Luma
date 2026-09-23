@@ -4070,6 +4070,9 @@ function _dRowToTemplate(t){
   return {
     id:t.id, remoteId:t.id, name:t.nome||'(sem nome)', fmt:t.fmt||'story',
     _remoteUpdatedAt:t.updated_at||null, // snapshot p/ o aviso de conflito no push (LWW)
+    // Versão publicada que estes layers representam (luma.template_versions, gravada pelo
+    // gatilho do banco). A arte do franqueado guarda este id — reabrir usa a versão dela.
+    versaoAtualId:t.versao_atual_id||null,
     formats:Array.isArray(t.formats)?t.formats:['story','feed','wide'],
     // Tamanho real vem do banco (sync leve). Templates antigos têm NULL → dLoadTemplate
     // cai no preset do fmt (comportamento atual); republicar grava o tamanho correto.
@@ -4116,7 +4119,7 @@ async function dSyncFoldersFromBackend(){
     if(e1 || !Array.isArray(rp) || !rp.length) return; // banco vazio → mantém local (push migra)
     // Lazy Load: exclui propositalmente a coluna `layers` pesada do download em lote no boot.
     // Os layers descem sob demanda: dLoadTemplate (designer) / fEnsureMaterialLayers (franqueado).
-    const { data:rt, error:eT }=await sb.schema('luma').from('templates').select('id, pasta_id, nome, fmt, formats, w, h, bg, publicado, publicado_em, validade, instrucoes, permissoes, updated_at');
+    const { data:rt, error:eT }=await sb.schema('luma').from('templates').select('id, pasta_id, nome, fmt, formats, w, h, bg, publicado, publicado_em, validade, instrucoes, permissoes, updated_at, versao_atual_id');
     // Pull mudo = catálogo vazio sem explicação (mesmo incidente de 07/2026). Nomear a causa.
     // E ABORTAR: seguir o merge com rt=null montava TODA pasta com zero material — a vitrine
     // jogava o catálogo inteiro em "Em breve" (card fantasma, sem clique) e a linha 3087
