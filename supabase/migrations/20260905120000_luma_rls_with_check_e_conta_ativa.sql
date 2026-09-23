@@ -80,10 +80,14 @@ AS $$
      );
 $$;
 
--- Mesma trava das outras funções SECURITY DEFINER do projeto
--- (`20260622150000_luma_sec_revoke_trigger_funcs.sql`): a policy chama a
--- função, o cliente não precisa de EXECUTE direto.
-REVOKE EXECUTE ON FUNCTION public.is_ativo() FROM PUBLIC, anon, authenticated;
+-- ⚠ CORRIGIDO ao aplicar (23/09/2026): a versão original revogava EXECUTE também de
+-- `authenticated`, supondo que "a policy chama a função". Não chama: função dentro de policy
+-- roda com o privilégio de QUEM CONSULTA — sem EXECUTE, todo SELECT em pastas/variaveis/
+-- fontes daria "permission denied" e o catálogo parava (mesmo tropeço de
+-- 20260619162256_fix_grant_execute_policy_helpers). is_ativo() só fala de auth.uid() e é
+-- false sem sessão, então conceder não expõe nada.
+REVOKE EXECUTE ON FUNCTION public.is_ativo() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_ativo() TO authenticated, anon;
 
 DROP POLICY IF EXISTS "franqueado vê pastas ativas; designer vê todas" ON luma.pastas;
 CREATE POLICY "franqueado vê pastas ativas; designer vê todas"

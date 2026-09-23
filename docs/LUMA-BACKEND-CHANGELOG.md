@@ -6,6 +6,22 @@
 
 ---
 
+## 2026-09-23 — Telemetria voltou (estava morta desde 06/09) + RLS de conta ativa + cidade/franquia
+
+**Achado:** o último evento em `analytics.fct_eventos` era de 06/09. Desde o V1 de busca/feedback o front chama `luma.registrar_evento`, mas a migration `20260906152238` nunca tinha sido aplicada (o changelog de 06/09 registra o conector bloqueado). Cada evento falhava 3× e era descartado pela fila (`gTrackEvent`). Em toda a história só 3 usuários aparecem nos eventos. O mesmo valia para `submit_feedback`/`content_requests`.
+
+**Aplicadas via MCP (arquivos do repo):**
+- `20260906152238_luma_campaign_search_feedback` — sem alteração. Testado: `registrar_evento` como franqueado grava com `user_id`/`role` corretos.
+- `20260905120000_luma_rls_with_check_e_conta_ativa` — **com correção**: o original revogava `EXECUTE` de `is_ativo()` para `authenticated`; função em policy roda com o privilégio de quem consulta, então o catálogo do franqueado quebraria. Aplicada com `GRANT EXECUTE ... TO authenticated, anon` (arquivo do repo corrigido junto). Testado: franqueado ativo lê 35 pastas/34 variáveis; com `ativo=false`, lê 0.
+- `20260923130000_luma_profiles_cidade_franquia` (nova) — `profiles.cidade`/`franquia`, nulos; `guard_profile_role` passa a travar os dois (só gestão altera).
+- `20260923124809_luma_usa_senha_inicial` e `20260923125556_luma_senha_inicial_dmbrasil` gravados no repo (aplicados mais cedo).
+
+**Ainda NÃO aplicadas (drift conhecido):** `20260731120000_luma_academia` e `20260731180000_luma_academia_conclusao` — as tabelas da Academia não existem no banco (o front roda em modo demo). Aguardando decisão.
+
+⚠ `registrar_evento` é INVOKER e chama `public.get_user_role()`: revogar o EXECUTE dessa função de `authenticated` (o advisor sugere) derruba a telemetria. Mesma lógica para `is_designer()`/`is_ativo()` nas policies.
+
+---
+
 ## 2026-09-23 — Login: troca obrigatória da senha inicial e URL de recuperação
 
 **Migration aplicada (via MCP):** `luma_usa_senha_inicial`. Cria `luma.usa_senha_inicial() returns boolean` — `SECURITY DEFINER`, `search_path = ''`, responde só sobre `auth.uid()` (compara `auth.users.encrypted_password` com a senha inicial do convite via `extensions.crypt`). `EXECUTE` revogado de `public`/`anon`, concedido a `authenticated`. Testado com role `authenticated` simulada (conta na senha inicial → `true`; conta que trocou → `false`) e `anon` (sem permissão no schema).
