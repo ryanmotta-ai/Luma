@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-09-23 — Campanhas saem do banco, pastas de sistema com id fixo, MIME nos buckets
+
+**`20260923180000_luma_pastas_destaque`** (aplicada): `luma.pastas.destaque boolean not null default true` — a seção da vitrine ("Ativas agora" × "Outras campanhas") deixa de ser a lista do `00-config.js`. As 8 que estavam em `CAMPS_OUTRAS` nasceram `false`. Interruptor no modal da pasta.
+
+**`20260923181000_luma_pastas_sistema_id_fixo`** (aplicada depois do front v=128 no ar): "⭐ Modelo de exemplo" e "Rascunhos" ganham id fixo (`…00000000000a` / `…00000000000b`, iguais a `G_PASTA_*_ID` no front). Os templates das cópias foram MOVIDOS para elas antes de apagar as cópias vazias (`templates.pasta_id` é `ON DELETE CASCADE`). Conferido: **templates 56 → 56, publicados 8 → 8, pastas 46 → 20**; Modelo ficou com 8 templates, Rascunhos com 9.
+
+**`20260923182000_luma_storage_mime`** (aplicada): os 5 buckets passam a ter `allowed_mime_types` (antes NULL: qualquer arquivo ia para bucket público). Imagens nos de imagem, fontes no de fontes, PNG/JPEG/PDF no de renders; SVG só na biblioteca do Estúdio. ⚠ `luma-user-uploads` segue PÚBLICO por decisão registrada (roadmap, decisão 3).
+
+---
+
 ## 2026-09-23 — Modelo medido: 2.5 indisponível; padrão 3.1 Flash-Lite com escada por disponibilidade
 
 **Medido pelo site, logado como gestão:** `gemini-2.5-flash` e `gemini-2.5-flash-lite` → **404** (o Google só abre os 2.5 para quem já os usava). `gemini-3.1-flash-lite` → 503 "high demand" em todas as tentativas. `gemini-3.5-flash-lite` → 200, mas **25s** para um "olá" (fora). `gemini-3.6-flash` → 200 em 3–5s, com picos de 20s e 503. `gemini-3.8-flash` → 503 no mesmo pico. Às 14h50 (UTC) todos os Flash davam 503: a sobrecarga era do Google.
