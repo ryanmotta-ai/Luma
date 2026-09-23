@@ -1201,10 +1201,11 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
           // (a Prévia ao Vivo deixa o franqueado enquadrar a própria foto). Retrocompatível:
           // sem override, usa o enquadramento do designer, exatamente como antes.
           const _fit = (dados && l.imgVar) ? dados['__fit__'+l.imgVar] : null;
-          const sc = (_fit && _fit.scale>0) ? _fit.scale : (l.imgScale || 1);
+          const _pad = fFrameFitPadrao(l, dados);
+          const sc = (_fit && _fit.scale>0) ? _fit.scale : _pad.scale;
           const drawW = baseW*sc, drawH = baseH*sc;
-          const _ox = (_fit && _fit.offX!=null) ? _fit.offX : (l.imgOffsetX||0);
-          const _oy = (_fit && _fit.offY!=null) ? _fit.offY : (l.imgOffsetY||0);
+          const _ox = (_fit && _fit.offX!=null) ? _fit.offX : _pad.offX;
+          const _oy = (_fit && _fit.offY!=null) ? _fit.offY : _pad.offY;
           const posX = Math.max(0, Math.min(1, 0.5 + _ox));
           const posY = Math.max(0, Math.min(1, 0.5 + _oy));
           const drawX = x + (w - drawW)*posX;
@@ -1369,6 +1370,20 @@ function fFrameBaseSize(l, imgW, imgH, w, h){
   }
   // cover
   return imgAR > frameAR ? { baseW: h*imgAR, baseH: h } : { baseW: w, baseH: w/imgAR };
+}
+
+/* ENQUADRAMENTO DE PARTIDA (23/09/2026). O zoom/deslocamento do designer (`imgScale`,
+   `imgOffsetX/Y`) foi ajustado para a foto de EXEMPLO dele. Herdado pela imagem que o
+   franqueado sobe, empurrava a dele para uma borda — num logo (`contain`, sobra moldura) a
+   marca nascia grudada embaixo do quadro, e o "Ajustar" abria já torto. Imagem PRÓPRIA do
+   franqueado parte do neutro (inteira, centralizada), como qualquer editor faz ao trocar a
+   imagem; a do designer segue com o enquadramento que ele deu. Um lugar só para o motor, o
+   "Ajustar" e o "Desfazer ajuste" — se divergirem, o modo enquadrar abre num e desenha noutro. */
+function fFrameFitPadrao(l, dados){
+  const v = l && l.imgVar, src = v && dados ? dados[v] : null;
+  const propria = typeof src === 'string' && src && src !== l.imgUrl;
+  return propria ? { scale:1, offX:0, offY:0 }
+    : { scale:(l && l.imgScale) || 1, offX:(l && l.imgOffsetX) || 0, offY:(l && l.imgOffsetY) || 0 };
 }
 
 function fLoadImageDataUrl(dataUrl){

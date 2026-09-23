@@ -2850,17 +2850,17 @@ function _fLpUpdateFramingHUD(){
   if(pct) pct.textContent=Math.round(sc*100)+'%';
   /* "Desfazer ajuste" só existe quando HÁ ajuste. Botão que não faz nada ensina a ignorar
      botão — e aqui ele compete por espaço com Cancelar e Aplicar, que sempre valem. */
-  const l=_lpFraming.layer||{};
-  const mexido=Math.abs(sc-(l.imgScale||1))>0.005
-    ||Math.abs((f.offX||0)-(l.imgOffsetX||0))>0.005
-    ||Math.abs((f.offY||0)-(l.imgOffsetY||0))>0.005;
+  const p=fFrameFitPadrao(_lpFraming.layer||{},fState.dados);
+  const mexido=Math.abs(sc-p.scale)>0.005
+    ||Math.abs((f.offX||0)-p.offX)>0.005
+    ||Math.abs((f.offY||0)-p.offY)>0.005;
   const btnReset=document.getElementById('lp-frame-reset');
   if(btnReset) btnReset.hidden=!mexido;
 }
 function fLpStartFraming(l,v){
   const canvas=document.getElementById('lp-canvas'); const wrap=canvas&&canvas.closest('.lp-canvas-wrap'); if(!wrap) return;
   document.getElementById('lp-frame-hud')?.remove();
-  const init=(fState.dados&&fState.dados['__fit__'+v])||{scale:(l.imgScale||1),offX:(l.imgOffsetX||0),offY:(l.imgOffsetY||0)};
+  const init=(fState.dados&&fState.dados['__fit__'+v])||fFrameFitPadrao(l,fState.dados);
   /* SNAPSHOT DO QUE EXISTIA AO ABRIR — é isto, e só isto, que o "Cancelar" devolve. O modo não
      tinha saída de descarte: "Concluir" gravava e Esc fazia a MESMA coisa que Concluir, então
      quem entrava por curiosidade saía com a foto deslocada e sem como voltar. Cancelar não
@@ -3074,7 +3074,7 @@ function fAjustarFoto(v){
 function fLpResetFraming(){
   if(!_lpFraming) return;
   const l=_lpFraming.layer, v=_lpFraming.varName;
-  fState.dados['__fit__'+v]={scale:(l.imgScale||1),offX:(l.imgOffsetX||0),offY:(l.imgOffsetY||0)};
+  fState.dados['__fit__'+v]=fFrameFitPadrao(l,fState.dados);
   _fLpFrameDrag=null; _fLpPinch=null;
   try{if(typeof fSaveChatDraft==='function') fSaveChatDraft();}catch(e){}
   _fLpRender();
