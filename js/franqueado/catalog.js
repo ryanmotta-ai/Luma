@@ -1078,11 +1078,11 @@ function fFilterCamps(q){
   if(!qq){ fSearchRecord('',null,'catalog'); fRenderCatalogs(ativas,outras); return; }
   const result=fSearchCampaigns(q,[...ativas,...outras]);
   fRenderCatalogs(result.campaigns,[],{search:q,suggestions:result.suggestions});
-  fSearchRecord(q,result,'catalog');
+  try{ if(typeof fSearchRecord==='function') fSearchRecord(q,result,'catalog'); }catch(e){}
 }
 function fSelectCamp(id){
   const c=fResolveCamp(id);if(!c)return;
-  fSearchRecordOpen(c.id);
+  try{ if(typeof fSearchRecordOpen==='function') fSearchRecordOpen(c.id); }catch(e){}
   fExitHome(); // vindo da home → devolve o layout de 3 colunas antes de seguir o fluxo normal
   if(fState.camp && fState.camp.id===c.id) {
     // Reabrir a MESMA campanha (pasta ou chat ainda abertos atrás da home): o
@@ -1123,7 +1123,7 @@ function fSelectCamp(id){
 // Resultado da busca principal: entra na campanha certa e pula a etapa de escolher a pasta.
 async function fSearchOpenMaterial(campId,materialId,searchMaterialId,card){
   const c=fResolveCamp(campId);if(!c)return;
-  fSearchRecordOpen(c.id,searchMaterialId);
+  try{ if(typeof fSearchRecordOpen==='function') fSearchRecordOpen(c.id,searchMaterialId); }catch(e){}
   fExitHome();
   if(fState.camp&&fState.camp.id!==c.id){
     fState.stepIdx=-1;fState.dados={};fState.done=false;fState.material=null;
