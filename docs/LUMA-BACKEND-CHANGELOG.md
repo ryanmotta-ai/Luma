@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-09-23 — Audit log (`luma.audit_log`)
+
+**`20260923185000_luma_audit_log`** (aplicada): gatilho genérico `auditar` (AFTER, SECURITY DEFINER) em `pastas`, `templates`, `profiles`, `franquias` e `usuario_franquias`. Grava tabela, id, ação, **quem** (`auth.uid()`), quando e os NOMES dos campos que mudaram (sem valores; `layers` fica de fora — o conteúdo mora em `template_versions`). Ações com nome de negócio: `publicou`, `despublicou`, `arquivou`, `desarquivou`, `mudou_papel` (com antes/depois), `desativou`, `reativou`. Upsert sem mudança não registra; edição só de conteúdo (autosave) registra no máximo 1 linha a cada 10 min por pessoa+template. Lê: equipe DM e gestão. Ninguém escreve nem apaga pelo app. Testado em transação desfeita (7 casos verdes).
+
+---
+
 ## 2026-09-23 — Franquias (unidades), suíte de RLS e estado das migrations
 
 **`20260923184000_luma_franquias`** (aplicada): `luma.franquias` (nome, cidade, UF, `codigo` único, status ativa/inativa; único por nome+cidade) e `luma.usuario_franquias` (N:N, `origem` manual/perfil). RLS: franqueado vê só as próprias unidades e vínculos; equipe DM vê tudo; **só a gestão escreve**. Gatilho `perfil_para_franquia` em `profiles`: quando a gestão preenche Cidade/Franquia na tela Equipe, acha ou cria a unidade e liga a pessoa (troca só o vínculo de origem `perfil`; vínculos manuais ficam). Testado em transação desfeita: 2 franqueados na mesma unidade → 1 unidade/2 vínculos; troca de cidade troca o vínculo; franqueado vê só a sua e não cria/não se vincula; equipe não cria. **Ainda não:** filtrar conteúdo por unidade (regra de negócio não decidida) e tela de cadastro de unidades (hoje via Equipe ou SQL).
