@@ -3495,17 +3495,17 @@ async function fBulkDownloadAll(){
       try{
         const dataUrl=await fRenderMaterialToDataURL(row.dados,c,fmt);
         const b64 = dataUrl.split(',')[1];
-        // Naming do lote: pasta por formato (só quando há +de 1) + "NN_Produto.png".
+        // Naming do lote: pasta por formato (só quando há +de 1) + "NN - Produto.png".
         // O NN (01, 02…) ordena e já garante unicidade; o Set é backstop p/ produtos
         // repetidos. Era a colisão de nomes que fazia o ZIP guardar só 1 arte.
         const seq = String(i+1).padStart(2,'0');
         const prodPart = fSanitizeNamePart(_fRowProductName(row.dados)) || 'Arte';
         const folder = selectedFmts.length>1 ? (fSanitizeNamePart(fmt.name)||fmt.id||'Formato')+'/' : '';
-        let entry = folder + seq + '_' + prodPart + '.png';
+        let entry = folder + seq + ' - ' + prodPart + '.png';
         if(usedNames.has(entry)){
           const base = entry.replace(/\.png$/i,'');
-          let n=2; while(usedNames.has(base+'_'+n+'.png')) n++;
-          entry = base+'_'+n+'.png';
+          let n=2; while(usedNames.has(base+' ('+n+').png')) n++;
+          entry = base+' ('+n+').png';
         }
         usedNames.add(entry);
         if(b64) zip.file(entry, b64, {base64: true});
@@ -3584,7 +3584,7 @@ async function fBulkDownloadAll(){
     const zipBlob = await zip.generateAsync({type: "blob"});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(zipBlob);
-    a.download = `Luma_Artes_${fSanitizeNamePart(fState.material.name)||'Lote'}.zip`;
+    a.download = (fSanitizeNamePart(fState.material.name, 40)||'Artes') + ' - artes.zip';
     a.click();
     if(typeof window.gPlayBatchCompleteSound==='function') window.gPlayBatchCompleteSound();
     setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
@@ -3605,17 +3605,42 @@ async function fBulkDownloadAll(){
   if(typeof fClearImgCache === 'function') fClearImgCache();
 }
 
-/* Sistema de nomenclatura padronizado para downloads
-   Formato: DM_<Campanha>_<Produto>_<Formato>_<YYYY-MM-DD>.png */
-function fSanitizeNamePart(s){
+/* NOME DO ARQUIVO BAIXADO (23/09/2026) \u2014 leg\u00edvel como o franqueado escreveria, porque \u00e9 o que
+   ele v\u00ea na galeria, nos Downloads e no WhatsApp:
+     "X-Tudo Duplo com Bacon - Story - Copa do Mundo.png"   (era "DM_CopaDoMundo_XTudoDuploCom\u2026
+   BaconEBatataFr_Story_2026-09-23.png": sem acento, sem espa\u00e7o, cortado no meio da palavra).
+   Acento e espa\u00e7o ficam (Windows, Mac, Android, iOS e o ZIP em UTF-8 aceitam); sai s\u00f3 o que o
+   sistema de arquivos pro\u00edbe (\ / : * ? " < > |), emoji e controle. Texto TODO EM MAI\u00daSCULA
+   vira T\u00edtulo ("X-TUDO DUPLO" \u2192 "X-Tudo Duplo") \u2014 nome de arquivo gritando \u00e9 feio; o que o
+   franqueado escreveu em caixa mista fica como est\u00e1. Corte em fronteira de palavra. Sem data:
+   a galeria j\u00e1 mostra quando o arquivo chegou. */
+const _F_NOME_MINUSC = /^(a|o|as|os|e|de|da|do|das|dos|com|em|na|no|nas|nos|para|por|ou)$/;
+function fSanitizeNamePart(s, max){
   if(!s) return '';
-  return String(s)
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')  // remove acentos
-    .replace(/[^a-zA-Z0-9\s]/g,'')                     // remove especiais
-    .split(/\s+/).filter(Boolean)
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join('')                                          // PascalCase
-    .slice(0, 28);
+  max = max || 48;
+  let t = String(s).normalize('NFC')
+    .replace(/[\p{Extended_Pictographic}\ufe0f\u200d\p{Cc}]/gu, ' ')
+    .replace(/\//g, '-').replace(/[\\:*?"<>|{}]/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+  const letras = t.replace(/[^\p{L}]/gu, '');
+  if(letras.length > 3 && letras === letras.toUpperCase()){
+    t = t.split(' ').map((w, i) => {
+      const low = w.toLowerCase();
+      if(i > 0 && _F_NOME_MINUSC.test(low)) return low;       // "com", "e", "de" no meio
+      if(/\d/.test(w) || w.length === 1) return w;             // "2L", "500ml", "G", "X" ficam
+      return low.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('-');
+    }).join(' ');
+  }
+  t = t.replace(/([!?.,])\1+/g, '$1').replace(/[!?]+$/, '');   // "OFF!!" \u2192 "OFF"
+  if(t.length > max){
+    const corte = t.slice(0, max + 1).lastIndexOf(' ');
+    t = t.slice(0, corte > max * 0.5 ? corte : max);
+    // Corte n\u00e3o termina em "com"/"de": "\u2026de costela com" vira "\u2026de costela".
+    t = t.replace(/[\s.,;:+\-\u2013]+$/u, '');
+    while(/ \S+$/.test(t) && _F_NOME_MINUSC.test(t.slice(t.lastIndexOf(' ') + 1).toLowerCase())) t = t.slice(0, t.lastIndexOf(' '));
+  }
+  t = t.replace(/[\s.,;:+\-\u2013]+$/u, '').replace(/^[\s.\-]+/, '');   // Windows recusa nome terminando em ponto/espa\u00e7o
+  return /^\p{Ll}/u.test(t) ? t.charAt(0).toUpperCase() + t.slice(1) : t;   // "combo" \u2192 "Combo"
 }
 // Nome cru do produto de uma linha: chaves conhecidas → heurística por nome da variável
 // → 1ª coluna preenchida. Vazio se não achar nada. (Sem isso, materiais com variável
@@ -3632,15 +3657,15 @@ function _fRowProductName(d){
   }
   return p || '';
 }
+// Produto primeiro (é o que se procura na galeria), depois o formato (distingue Story de Feed
+// da mesma oferta), depois a campanha. Sem produto, não repete a campanha duas vezes.
 function fBuildFilename(c, fmt, d){
-  const camp = fSanitizeNamePart(c.name) || 'Campanha';
-  const prod = fSanitizeNamePart(_fRowProductName(d) || c.name) || 'Arte';
-  const fmtName = fSanitizeNamePart(fmt.name) || 'Story';
-  const now = new Date();
-  const date = now.getFullYear() + '-' +
-               String(now.getMonth()+1).padStart(2,'0') + '-' +
-               String(now.getDate()).padStart(2,'0');
-  return `DM_${camp}_${prod}_${fmtName}_${date}.png`;
+  const camp = fSanitizeNamePart(c && c.name, 32);
+  const prod = fSanitizeNamePart(_fRowProductName(d), 48);
+  const fmtName = fSanitizeNamePart(fmt && fmt.name, 16);
+  const partes = [prod || camp || 'Arte', fmtName];
+  if(prod && camp && camp.toLowerCase() !== prod.toLowerCase()) partes.push(camp);
+  return partes.filter(Boolean).join(' - ') + '.png';
 }
 
 

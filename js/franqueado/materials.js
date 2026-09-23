@@ -171,8 +171,8 @@ async function fGenerateCampaignKit(){
       const dataUrl=await fRenderMaterialToDataURL(dados, c, fmt);
       const b64=dataUrl.split(',')[1];
       if(b64){
-        let base=fSanitizeNamePart(m.name)||('Material_'+(ok+1)), name=base, n=2;
-        while(usedNames.has(name.toLowerCase())){ name=base+'_'+(n++); } // nome único → nada some no ZIP
+        let base=fSanitizeNamePart(m.name)||('Material '+(ok+1)), name=base, n=2;
+        while(usedNames.has(name.toLowerCase())){ name=base+' ('+(n++)+')'; } // nome único → nada some no ZIP
         usedNames.add(name.toLowerCase());
         zip.file(name+'.png', b64, {base64:true}); ok++;
       }
@@ -186,7 +186,7 @@ async function fGenerateCampaignKit(){
     const blob=await zip.generateAsync({type:'blob'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
-    a.download='Kit_'+(fSanitizeNamePart(c.name)||'Campanha')+'.zip';
+    a.download=(fSanitizeNamePart(c.name, 40)||'Campanha')+' - kit.zip';
     a.click();
     setTimeout(()=>URL.revokeObjectURL(a.href),5000);
   }catch(e){ console.error(e); restoreBtn(); if(progress) progress.style.display='none'; gToast('Não consegui montar o kit. Tente de novo.','error'); return; }
