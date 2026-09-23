@@ -14,7 +14,7 @@
 
 **Conferido depois de aplicar:** o canal de mensagens e o canal PRIVADO de presença conectam com a sessão de gestão; `track` da equipe aparece na presença e `untrack` a tira; `suporte_caixa` responde 200; nenhum aviso novo no linter de segurança.
 
-**`supabase/tests/rls.sql`**: +15 casos (anon, franqueado A e equipe no suporte; URL externa e foto de outro no perfil). ⚠ **Ainda não rodados**: a execução de SQL foi bloqueada na sessão que aplicou. Rodar no SQL Editor.
+**`supabase/tests/rls.sql`**: +15 casos (anon, franqueado A e equipe no suporte; URL externa e foto de outro no perfil). **15 de 15 verdes** em produção (transação desfeita, conferido que nada ficou gravado).
 
 ⚠ **Falta testar:** a troca real de mensagens entre um franqueado e a equipe (Realtime de INSERT/UPDATE, print anexado, "Visto"). Precisa de duas contas logadas.
 
