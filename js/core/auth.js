@@ -123,6 +123,9 @@ async function gLogin(email, password) {
 
 async function gLogout() {
   const sb = _gSb();
+  /* `logout` ANTES do signOut: depois dele a RPC não tem mais sessão para assinar. Espera no
+     máximo 1,2s — sair não trava por telemetria; o que não subir fica na fila deste usuário. */
+  try { if (typeof gTrackEvent === 'function') await Promise.race([gTrackEvent('logout', {}), new Promise(r => setTimeout(r, 1200))]); } catch (e) {}
   try { if (sb) await sb.auth.signOut(); } catch (e) {}
   gAuthState = { user: null };
   location.reload();
@@ -304,6 +307,7 @@ async function gDoLogin(e) {
   errEl.style.display = 'none';
 
   const res = await gLogin(email, pass);
+  if(res.ok) { try { if(typeof gTrackEvent === 'function') gTrackEvent('login_ok', {metodo:'senha'}); } catch(_) {} }
   if(res.ok && gCurrentUser() && gCurrentUser().senhaInicial) {
     // Entrou com a senha inicial compartilhada: primeiro cria a própria, depois entra.
     gShowNovaSenhaView('inicial');

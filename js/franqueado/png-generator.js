@@ -242,7 +242,7 @@ function _fArteEntregue(prep, evento, payload){
   if(snap.histId){ fMarkHistBaixada(snap.histId); }
   else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
   if(typeof gTrackEvent==='function'){
-    gTrackEvent(evento, Object.assign({camp_id:snap.camp.id, fmt_id:snap.fmt.id}, payload||{}));
+    gTrackEvent(evento, Object.assign({camp_id:snap.camp.id, fmt_id:snap.fmt.id, template_id:(typeof _fTplId==='function')?_fTplId(snap.material):null}, payload||{}));
   }
 }
 // window.open depois de um await pode cair no bloqueador de pop-up: se voltar nulo,
@@ -302,11 +302,11 @@ async function fPostarInstagram(btn, snapId){
     }
     if(prep.cap && typeof _fCopyText==='function') _fCopyText(prep.cap);
     if(compartilhou){
-      _fArteEntregue(prep,'arte_postada',{canal:'instagram',via:'share'});
+      _fArteEntregue(prep,'arte_compartilhada',{canal:'instagram',via:'share'});
       gToast(prep.cap ? 'Arte enviada • legenda copiada, é só colar na publicação.' : 'Arte enviada pro Instagram.');
     } else {
       _fArteBaixarArquivo(prep);
-      _fArteEntregue(prep,'arte_postada',{canal:'instagram',via:'web'});
+      _fArteEntregue(prep,'arte_compartilhada',{canal:'instagram',via:'web'});
       // O Instagram não aceita imagem por link: o app abre no feed e a arte já está
       // salva no aparelho — a pessoa escolhe ela no (+) Criar.
       _fArteAbrirDestino('instagram://app','https://www.instagram.com/','Baixei a arte e copiei a legenda. Abra o instagram.com pra publicar.');
@@ -3679,6 +3679,7 @@ async function fBulkDownloadAll(){
     a.href = URL.createObjectURL(zipBlob);
     a.download = (fSanitizeNamePart(fState.material.name, 40)||'Artes') + ' - artes.zip';
     a.click();
+    try{ if(typeof gTrackEvent==='function') gTrackEvent('lote_baixado',{n:ok, formatos:selectedFmts.map(x=>x.id), falhas:_falhas.length, cancelado:!!_fBulkCancel, camp_id:c&&c.id, template_id:(typeof _fTplId==='function')?_fTplId(fState.material):null}); }catch(e){}
     if(typeof window.gPlayBatchCompleteSound==='function') window.gPlayBatchCompleteSound();
     setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
   } catch(err) {

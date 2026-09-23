@@ -1344,6 +1344,7 @@ function dToggleTemplatePublish(folderId, tmplId, publicar){
   if(!t.publishMeta) t.publishMeta = dDefaultPublishMeta();
   t.publishMeta.publicado = false;
   dPersistFolders();
+  if(typeof _dTrackTemplate==='function') _dTrackTemplate('template_despublicado',t,{camp_id:f.campId||f.remoteId||f.id||null});
   dRenderFolders();
   if(document.body.classList.contains('d-studio-home-open')) dStudioHomeRender();
   document.querySelectorAll('.tmpl-context-menu').forEach(m=>m.remove());
@@ -1556,6 +1557,7 @@ async function dSaveAsConfirm(){
   dSaveAsClose();
   const conflictNote=finalName!==requested?' com nome ajustado para evitar conflito':'';
   gToast('Cópia salva como "'+finalName+'"'+conflictNote);
+  if(typeof _dTrackTemplate==='function') _dTrackTemplate('template_criado',clone,{origem:'copia'});
 }
 
 function dBindSaveAsProjectAction(){

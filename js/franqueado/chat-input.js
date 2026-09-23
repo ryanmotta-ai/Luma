@@ -748,6 +748,7 @@ Responda apenas JSON: {"opcoes":["...","...","..."]}`;
     opts.push(s); sai.push(conf.removidas||[]);
   });
   _fFitIaReprovadas=reprovadas;
+  try{ if(typeof gTrackEvent==='function') gTrackEvent('copyfit_ia',{campo:id, ok_n:opts.length, reprovadas_n:reprovadas, respondeu:brutas.length>0}); }catch(e){}
   if(reprovadas) console.info('[Luma] encurtar: '+reprovadas+' opção(ões) da IA reprovada(s) na conferência');
   _fFitOpts=opts.slice(0,3); _fFitSai=sai.slice(0,3);
   _fFitCf=null;
@@ -805,7 +806,7 @@ function fFitApply(i){
   /* ⛔ Nunca cai no caminho cru abaixo: se `aplica` recusa, a pessoa digitou depois de abrir o
      popover e a versão é de OUTRO texto (medido para "Calabresa", ela já escreveu "Mussarela"). */
   if(i===0 && _fFitCf && _fFitCf.text===s){
-    const ok=_fFitCf.aplica();
+    const ok=_fFitCf.aplica('chat');
     _fFitCf=null; _fFitClosePop();
     if(ok) box._fFit=null;
     else if(typeof gToast==='function') gToast('O texto mudou. Toque em Encurtar de novo para ver a versão que cabe.');
@@ -814,6 +815,7 @@ function fFitApply(i){
   box.value=s;
   box._fFit=null;                      // encaixou: a tentativa antiga não vale mais
   _fFitClosePop();
+  try{ if(typeof gTrackEvent==='function') gTrackEvent('copyfit_aplicado',{origem:_fFitCf?'chat':'ia', campo:fState.camp?.perguntas?.[fState.stepIdx]?.id||null, removidas_n:_fFitSaiVisivel(_fFitSai[i]).length}); }catch(e){}
   box.dispatchEvent(new Event('input',{bubbles:true}));
   box.focus();
 }
@@ -832,6 +834,7 @@ function fSaveAdv(val){
     fEspelhoConfirma();   // enviou: o que foi digitado passa a ser o valor
     if(skipped) fState.dados['__skipped__'+savedField]=true;
     else delete fState.dados['__skipped__'+savedField];
+    if(typeof fTrackResposta==='function') fTrackResposta(pergs[fState.stepIdx], finalVal, skipped);
     if (typeof fSaveChatDraft === 'function') fSaveChatDraft();
   }
   // Atualiza live preview com animação no campo que acabou de ser preenchido

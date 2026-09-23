@@ -584,6 +584,30 @@ function _fGuidedErro(msg){
   const box=document.getElementById('f-msg-box');
   if(box){ if(msg) box.setAttribute('aria-describedby','fg-field-error'); else box.removeAttribute('aria-describedby'); }
 }
+/* pergunta_respondida — o funil "respondeu" do painel. Vai o TAMANHO e, só em texto, os 60
+   primeiros caracteres (para ver o que se escreve sem guardar a oferta inteira); imagem nunca
+   leva conteúdo: o valor dela é um dataURL de MB. */
+function fTrackResposta(p, valor, pulou){
+  try{
+    if(typeof gTrackEvent!=='function'||!p) return;
+    const cfg=fGetFieldType(p.id)||{}, img=!!(p.isImage||cfg.type==='image');
+    const v=String(valor==null?'':valor);
+    const out={camp_id:fState.camp&&fState.camp.id, template_id:(typeof _fTplId==='function')?_fTplId(fState.material):null,
+      campo:p.id, tipo:img?'image':(cfg.type||'text'), tam:img?null:v.length, pulou:!!pulou};
+    if(!img&&!pulou&&v) out.amostra=v.slice(0,60);
+    gTrackEvent('pergunta_respondida',out);
+  }catch(e){}
+}
+// foto_enviada: dimensões ORIGINAIS (lidas do arquivo, antes do redimensionamento) e o peso.
+function fTrackFoto(campo, dataUrl, file, origem){
+  try{
+    if(typeof gTrackEvent!=='function') return;
+    const im=new Image();
+    const manda=()=>{ try{ gTrackEvent('foto_enviada',{campo, w:im.naturalWidth||null, h:im.naturalHeight||null,
+      kb:file&&file.size?Math.round(file.size/1024):null, origem}); }catch(e){} };
+    im.onload=manda; im.onerror=manda; im.src=dataUrl;
+  }catch(e){}
+}
 function _fGuidedSalvar(raw){
   const idx=_fGuidedIndice(_fGuidedNav.currentField), p=_fGuidedPerguntas()[idx]; if(!p) return;
   const cfg=fGetFieldType(p.id), pulou=String(raw).toLowerCase()==='pular';
@@ -595,6 +619,7 @@ function _fGuidedSalvar(raw){
   fState.dados[p.id]=valor;
   try{ if(typeof fEspelhoConfirma==='function') fEspelhoConfirma(); }catch(e){}
   if(pulou) fState.dados['__skipped__'+p.id]=true; else delete fState.dados['__skipped__'+p.id];
+  fTrackResposta(p, valor, pulou);
   try{ fSaveChatDraft(); }catch(e){}
   try{ fUpdateLivePreview({animateField:p.id}); }catch(e){}
   _fGuidedPintaProgresso();
@@ -1551,6 +1576,7 @@ function fProcessImageFile(file, varId, uploadId){
   reader.onload=(e)=>{
     if(_bar)_bar.style.width='85%';
     const dataUrl=e.target.result;
+    fTrackFoto(varId, dataUrl, file, 'chat');
     // Redimensiona se for muito grande (>2500px). 2500 cobre story a 2× (2160px) sem
     // esticar a foto — 1500 antes borrava em arte grande. Ainda limita o peso do draft.
     const _ehLogo = (typeof gCampoEhLogo==='function') && gCampoEhLogo(varId);
@@ -2755,7 +2781,7 @@ async function fOutroFormato(id, snapId){
   try{
     await fGenPNG(snap.dados,snap.camp,f);
     fAddHist(snap.dados,snap.camp,f,'baixada');
-    if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt_id:f.id,tipo:'png',outro_formato:true});
+    if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt_id:f.id,template_id:(typeof _fTplId==='function')?_fTplId(snap.material):null,tipo:'png',outro_formato:true,origem:'chat'});
     snap.fmt=f; // a bolha agora "é" deste formato — o Baixar PNG dela acompanha
     gToast(`${f.name} baixado!`);
     await _fRerenderArtThumb(snapId, snap, f); // thumb acompanha a nova geometria
@@ -2827,7 +2853,7 @@ async function fBaixar(btn, snapId){
     }
     if(snap.histId){ fMarkHistBaixada(snap.histId); }
     else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
-    if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt_id:snap.fmt.id,tipo:'png'});
+    if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt_id:snap.fmt.id,template_id:(typeof _fTplId==='function')?_fTplId(snap.material):null,tipo:'png',origem:'chat',via:noCelular||'download'});
     if(typeof fFeedbackAfterDownload==='function') fFeedbackAfterDownload(snap,btn,snapId,'png');
     // Baixa a imagem e já deixa a legenda na área de transferência — 1 passo a menos pra postar.
     const cap=_fActiveCaptionText(snapId);
@@ -3124,7 +3150,7 @@ async function fBaixarPDF(btn, snapId){
     await fGenPDF(snap.dados, snap.camp, snap.fmt);
     if(snap.histId){ fMarkHistBaixada(snap.histId); }
     else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
-    if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt_id:snap.fmt.id,tipo:'pdf'});
+    if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt_id:snap.fmt.id,template_id:(typeof _fTplId==='function')?_fTplId(snap.material):null,tipo:'pdf',origem:'chat'});
     if(typeof fFeedbackAfterDownload==='function') fFeedbackAfterDownload(snap,btn,snapId,'pdf');
     gToast('PDF baixado!');
     if (typeof gTriggerOnboardingStep === 'function') {

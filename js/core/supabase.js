@@ -80,6 +80,39 @@ var gTrackEvent = (function(){
     memory.set(uid,rows);
     try{ localStorage.setItem(prefix+uid,JSON.stringify(rows)); }catch(e){}
   }
+  /* SESSÃO = ABA. O id mora no sessionStorage (sobrevive ao F5, zera na aba nova) e vai em todo
+     evento como `_ctx.sid` — é por ele que o painel junta os eventos de uma visita. Sem
+     sessionStorage (aba privada restrita), vale para esta página. */
+  const sessao={id:null,t:Date.now()};
+  try{ sessao.id=sessionStorage.getItem('luma_sid'); sessao.t=+sessionStorage.getItem('luma_sid_t')||sessao.t; }catch(e){}
+  if(!sessao.id){
+    sessao.id=gUuid();
+    try{ sessionStorage.setItem('luma_sid',sessao.id); sessionStorage.setItem('luma_sid_t',String(sessao.t)); }catch(e){}
+  }
+  // `?v=` do próprio script: diz de qual deploy veio o evento. `currentScript` só existe
+  // agora, na carga; o seletor é a rede (o vendor também se chama supabase.js, daí o `core/`).
+  const versao=(function(){
+    try{
+      const s=(document.currentScript&&document.currentScript.src)
+        ||(document.querySelector('script[src*="core/supabase.js"]')||{}).src||'';
+      const m=s.match(/[?&]v=(\d+)/); return m?+m[1]:null;
+    }catch(e){ return null; }
+  })();
+  function contexto(){
+    try{
+      const w=window.innerWidth||0, ua=navigator.userAgent||'';
+      // Ordem importa: Samsung e Edge também dizem "Chrome/"; Chrome também diz "Safari/".
+      const nav=/SamsungBrowser/.test(ua)?'samsung':/\bEdg(e|A|iOS)?\//.test(ua)?'edge'
+        :/Firefox\/|FxiOS/.test(ua)?'firefox':/Chrome\/|CriOS/.test(ua)?'chrome'
+        :/Safari\//.test(ua)?'safari':'outro';
+      const c={sid:sessao.id, disp:w<680?'mobile':w<1024?'tablet':'desktop',
+        vw:w, vh:window.innerHeight||0, nav, v:versao};
+      // Área = a classe de modo do body (setMode, main.js): franqueado/designer/academia/calendario.
+      const area=((document.body&&String(document.body.className||''))||'').match(/\bmode-(\w+)/);
+      if(area) c.area=area[1];
+      return c;
+    }catch(e){ return null; }
+  }
   async function bounded(request,controller){
     let timer;
     try{
@@ -108,7 +141,8 @@ var gTrackEvent = (function(){
       const sb=gSupabase();
       if(!sb) return false;
       while(uid===currentId()){
-        const row=read(uid)[0]; if(!row) return true;
+        // O `sessao_encerrada` DESTA aba fica na fila até ela acabar (ver `encerra`).
+        const row=read(uid).find(x=>x.id!==sessao.id); if(!row) return true;
         /* PÍLULA ENVENENADA: um evento que o RPC rejeita SEMPRE (payload que o schema recusa)
            ficava eternamente na cabeça da fila. A fila enchia até o teto e, a partir dali,
            `track` recusava TODO evento novo — a telemetria morria inteira por causa de um. */
@@ -149,6 +183,7 @@ var gTrackEvent = (function(){
         const body=Object.assign({},payload||{});
         body.user_id=uid;
         body.client_created_at=body.client_created_at||new Date().toISOString();
+        if(body._ctx==null){ const c=contexto(); if(c) body._ctx=c; }
         const serialized=JSON.stringify(body);
         // Deixa margem para o overhead JSONB do teto de 8192 bytes no banco.
         if(new TextEncoder().encode(serialized).length>7000) return false;
@@ -161,6 +196,51 @@ var gTrackEvent = (function(){
     }catch(e){ return false; }
   }
   track.flush=()=>flush();
+  /* sessao_encerrada: UMA linha por sessão, com a duração FINAL. Cada saída da aba (trocar de
+     aba, minimizar, fechar) regrava a MESMA linha da fila (id = sid) sem tocar a rede — o unload
+     nunca espera. O flush desta aba a segura; ela sobe no primeiro flush da PRÓXIMA sessão.
+     Enviar já na primeira saída cravaria no banco (on conflict do nothing) a duração até a
+     primeira troca de aba. `pagehide` só conta se a aba ainda estava visível: fechar uma aba
+     esquecida em segundo plano não pode somar as horas em que ninguém olhava. */
+  function encerra(){
+    try{
+      const uid=currentId(); if(!uid) return;
+      const rows=read(uid).filter(x=>x.id!==sessao.id);
+      if(rows.length>=limit) return;
+      const payload={dur_s:Math.max(0,Math.round((Date.now()-sessao.t)/1000)), user_id:uid,
+        client_created_at:new Date().toISOString()};
+      const c=contexto(); if(c) payload._ctx=c;
+      rows.push({id:sessao.id,user_id:uid,evento:'sessao_encerrada',payload});
+      write(uid,rows);
+    }catch(e){}
+  }
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') encerra(); });
+  window.addEventListener('pagehide',()=>{ if(document.visibilityState!=='hidden') encerra(); });
+  /* erro_app: o erro que o franqueado vive como "travou" e nunca reporta. Teto de 5 por sessão e
+     um por mensagem — um laço de erro não pode virar enxurrada. Só o que é DO Luma: script de
+     outra origem (extensão) e o ruído benigno do ResizeObserver ficam de fora. */
+  const errVistos=(function(){ try{ return JSON.parse(sessionStorage.getItem('luma_err')||'[]'); }catch(e){ return []; } })();
+  function erroApp(msg,url,linha,tipo){
+    try{
+      msg=String(msg||'').slice(0,160);
+      if(!msg||/ResizeObserver loop|^Script error\.?$/i.test(msg)) return;
+      if(url){ try{ if(new URL(url,location.href).origin!==location.origin) return; }catch(e){ return; } }
+      if(!currentId()||errVistos.length>=5||errVistos.includes(msg)) return;
+      errVistos.push(msg);
+      try{ sessionStorage.setItem('luma_err',JSON.stringify(errVistos)); }catch(e){}
+      track('erro_app',{msg, src:url?String(url).split(/[?#]/)[0].split('/').slice(-2).join('/'):null,
+        linha:linha||null, tipo});
+    }catch(e){}
+  }
+  window.addEventListener('error',e=>{ if(e&&e.message!=null) erroApp(e.message,e.filename,e.lineno,'erro'); });
+  window.addEventListener('unhandledrejection',e=>{
+    try{
+      const r=e&&e.reason, st=String((r&&r.stack)||'');
+      if(/-extension:\/\//.test(st)) return;
+      const m=st.match(/(https?:\/\/[^\s()]+?|file:\/\/[^\s()]+?):(\d+):\d+/);
+      erroApp((r&&r.message)||r, m&&m[1], m&&+m[2], 'promessa');
+    }catch(_){}
+  });
   window.addEventListener('online',()=>{ flush(); });
   const sb=gSupabase();
   if(sb?.auth?.onAuthStateChange){

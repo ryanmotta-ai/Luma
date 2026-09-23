@@ -122,6 +122,10 @@ function fCampValidade(campId){
 }
 function fCampDiasRestantes(campId){ return fDiasRestantes(fCampValidade(campId)); }
 
+// Id do template que o painel de Dados cruza com luma.templates (remoteId = id no banco). Mora aqui, com o
+// material, porque chat, prévia, histórico e PNG usam — e nem toda página carrega o png-generator.
+function _fTplId(m){ return (m&&(m.remoteId||m.id))||null; }
+
 /* ── KIT DA CAMPANHA: preencher uma vez → gerar todos os materiais ──
    Reusa os dados já respondidos (fState.dados) e renderiza cada material publicado da
    campanha com o motor final, empacotando num ZIP. Pula materiais que não aproveitam
@@ -189,6 +193,7 @@ async function fGenerateCampaignKit(){
     a.download=(fSanitizeNamePart(c.name, 40)||'Campanha')+' - kit.zip';
     a.click();
     setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+    try{ if(typeof gTrackEvent==='function') gTrackEvent('kit_baixado',{n:ok, pulados, camp_id:c.id}); }catch(_){}
   }catch(e){ console.error(e); restoreBtn(); if(progress) progress.style.display='none'; gToast('Não consegui montar o kit. Tente de novo.','error'); return; }
   restoreBtn();
   if(progress) progress.style.display='none';

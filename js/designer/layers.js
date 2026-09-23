@@ -3747,6 +3747,17 @@ function dAssetDragEnd(e){
 }
 
 /* ── SAVE / PREVIEW ── */
+/* Telemetria do Estúdio. template_salvo tem teto de 1 por template a cada 5 min: o autosave
+   roda a cada edição e, sem teto, afogaria o painel — o que interessa é "trabalhou nele hoje". */
+const _dTrackSalvoEm={};
+function _dTrackTemplate(evento, t, extra){
+  try{
+    if(typeof gTrackEvent!=='function'||!t) return;
+    const id=t.remoteId||t.id||null;
+    if(evento==='template_salvo'){ const agora=Date.now(); if(agora-(_dTrackSalvoEm[id]||0)<300000) return; _dTrackSalvoEm[id]=agora; }
+    gTrackEvent(evento, Object.assign({template_id:id, template_name:t.name||'', fmt_id:t.fmt||''}, extra||{}));
+  }catch(e){}
+}
 function dSave(options){
   const silent=!!(options&&options.silent);
   // Sincronizar layers editados de volta pro artboard ativo antes de salvar
@@ -3787,7 +3798,7 @@ function dSave(options){
       if(!ab || !ab.layers || !ab.layers.length) continue;
       const tid='tmpl-ab-'+ab.id;
       let t=null; for(const f of dFolders){ const x=f.templates.find(y=>y.id===tid); if(x){t=x;break;} }
-      if(!t){ t={id:tid, publishMeta:dDefaultPublishMeta()}; rasc.templates.unshift(t); }
+      if(!t){ t={id:tid, publishMeta:dDefaultPublishMeta()}; rasc.templates.unshift(t); _dTrackTemplate('template_criado',t,{origem:'rascunho', template_name:ab.name||'Rascunho', fmt_id:ab.fmt||'story'}); }
       t.name=ab.name||'Rascunho'; t.fmt=ab.fmt||'story';
       if(ab.w>0){ t.w=ab.w; t.h=ab.h; }
       if(ab.bg!==undefined) t.bg=ab.bg;
@@ -3803,6 +3814,7 @@ function dSave(options){
   const saveBtn=document.querySelector('.d-btn-pri[onclick="dSave()"]');
   if(saveBtn){saveBtn.classList.add('save-success');setTimeout(()=>saveBtn.classList.remove('save-success'),2000);}
   if(typeof dSetSaveState==='function')dSetSaveState('saved'); // limpa dDirty + mostra "Guardado"
+  if(dActiveTmplId) dFolders.forEach(f=>f.templates.forEach(t=>{ if(t.id===dActiveTmplId) _dTrackTemplate('template_salvo',t,{auto:silent}); }));
   if(typeof dRenderPagesTray==='function')dRenderPagesTray();
   // Não sobrescreve o aviso de imagens se ele acabou de aparecer neste save
   if(!silent&&!(gImgPersistWarned&&!hadImgWarn))gToast('Rascunho salvo!');

@@ -411,7 +411,7 @@ async function fDownloadHist(id, btn){
   }
   fMarkHistBaixada(id);
   fRenderHist();
-  if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:h.campId,fmt_id:h.fmtId,tipo:'png',origem:'historico'});
+  if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:h.campId,fmt_id:h.fmtId,template_id:(h.materialId&&typeof _fTplId==='function'&&_fTplId(fFindMaterialById(h.materialId)))||h.materialId||null,tipo:'png',origem:'historico'});
   gToast('Arte baixada!');
   } finally { _restore(); }
 }

@@ -55,6 +55,16 @@ function _gHideNoModuleView(){
   const el=document.getElementById('g-no-module');
   if(el) el.remove();
 }
+/* pagina_aberta = boot E troca de área. O boot manda {rota:'app'} e o gRestoreMode chama o
+   setMode logo em seguida: a janela de 1s impede que um F5 no Estúdio conte duas aberturas. */
+let _gPaginaAbertaEm=0;
+function gTrackPagina(rota){
+  try{
+    if(typeof gTrackEvent!=='function') return;
+    const agora=Date.now(); if(agora-_gPaginaAbertaEm<1000) return;
+    _gPaginaAbertaEm=agora; gTrackEvent('pagina_aberta',{rota});
+  }catch(e){}
+}
 
 // Clique na logo do topbar: sempre volta pra home do app (Franqueado > Catálogo),
 // saindo de qualquer aba/estado em que a pessoa esteja.
@@ -93,8 +103,10 @@ function setMode(m){
   // fica pairando por cima do Franqueado, que não tem como fechá-lo).
   if(m!=='academia' && typeof acFecharPaineis==='function') acFecharPaineis();
   // Troca só a classe de modo, preservando as demais (theme-light, rulers-on, simulating...)
+  const _trocouArea=!document.body.classList.contains('mode-'+m);   // clique na aba já ativa não é abertura
   document.body.classList.remove('mode-franqueado','mode-designer','mode-academia','mode-calendario');
   document.body.classList.add('mode-'+m);
+  if(_trocouArea) gTrackPagina(m);
   document.getElementById('tab-fran').classList.toggle('active', m==='franqueado');
   document.getElementById('tab-design').classList.toggle('active', m==='designer');
   const tabAcad = document.getElementById('tab-academia');
@@ -357,7 +369,7 @@ async function gOnLoginSuccess() {
   // navegador (sessionStorage sobrevive a F5, zera ao fechar a aba). Antes: sessao_iniciada
   // disparava a cada reload (inflava "sessões") e pagina_aberta, previsto no schema, nunca saía.
   if(typeof gTrackEvent === 'function'){
-    gTrackEvent('pagina_aberta', {rota:'app'});
+    gTrackPagina('app');
     let _novaSessao=true;
     try{ if(sessionStorage.getItem('__luma_sess')){ _novaSessao=false; } else { sessionStorage.setItem('__luma_sess','1'); } }catch(e){}
     if(_novaSessao) gTrackEvent('sessao_iniciada', {rota:'app'});

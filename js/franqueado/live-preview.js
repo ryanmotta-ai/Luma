@@ -1305,6 +1305,23 @@ function _fLpFalta(bloq, W, H){
   if(!limite||limite>=valor.length) return null;
   return {campo, fieldId:bloq.fieldId, valor, atual:valor.length, limite, n:valor.length-limite};
 }
+/* Telemetria do "não cabe": a chave do balão muda a cada tecla, então contar por chave faria
+   cada letra digitada virar um evento. Conta UMA vez por material+campo nesta aba — o painel
+   quer saber QUAIS campos estouram, não quantas teclas a pessoa deu. */
+const _lpNaoCabeVistos=new Set();
+function _fLpTrackNaoCabe(bloq0){
+  try{
+    if(typeof gTrackEvent!=="function"||!_lpBalao) return;
+    const tid=(typeof _fTplId==="function")?_fTplId(fState.material):null;
+    const campo=_lpBalao.campo||(bloq0&&gLocalFitCulpado(bloq0,fState.dados||{}))||null;
+    const k=tid+"|"+campo;
+    if(!campo||_lpNaoCabeVistos.has(k)) return;
+    _lpNaoCabeVistos.add(k);
+    const F=_lpBalao.falta;
+    gTrackEvent("texto_nao_cabe",{campo, template_id:tid, falta_n:F?F.n:null, tem_versao:!!_lpBalao.sug.length});
+    if(_lpBalao.sug.length) gTrackEvent("copyfit_balao_exibido",{campo, template_id:tid});
+  }catch(e){}
+}
 function _fLpBalaoTira(){ const b=document.getElementById('lp-balao'); if(b) b.remove(); }
 /* O que o franqueado lê em "sai: …": só palavra de verdade. "de"/"e"/"o" saem de carona numa
    troca ("de 2 litros" → "2L") e, listados, soavam como se algo tivesse sido cortado. */
@@ -1345,6 +1362,7 @@ function _fLpSyncBalao(){
     }
     // Sem versão: o aviso da barra diz QUANTO falta. Mede aqui, na mesma chave — uma vez por texto.
     if(!_lpBalao.sug.length) _lpBalao.falta=_fLpFalta(bloqs[0],cv.width,cv.height);
+    _fLpTrackNaoCabe(bloqs[0]);
   }
   if(!stage) return;
   // Sem versão que caiba, não há solução para mostrar: fica só o aviso da barra.
@@ -1406,8 +1424,19 @@ function _fLpBalaoRestaura(campo, valor){
   _fLpRender();
   try{ if(typeof fRevisaoRepinta==='function') fRevisaoRepinta(); }catch(e){}
 }
-function fLpBalaoAplica(i){
+function fLpBalaoAplica(i, origem){
   const B=_lpBalao, s=B&&B.sug[i]; if(!s) return false;
+  const ok=_fLpBalaoAplicaCore(B,s);
+  if(ok) try{ if(typeof gTrackEvent==="function") gTrackEvent("copyfit_aplicado",{origem:origem||"balao", campo:B.campo,
+    template_id:(typeof _fTplId==="function")?_fTplId(fState.material):null, removidas_n:_fLpRemovidasVisiveis(s.removidas).length}); }catch(e){}
+  return ok;
+}
+// Desfazer da troca do Copy Fit também vira evento: é o sinal de que a versão não agradou.
+function _fLpUndoCopyFit(rotulo, campo, fn){
+  if(typeof _fUndoRegistra!=="function") return;
+  _fUndoRegistra(rotulo, ()=>{ fn(); try{ if(typeof gTrackEvent==="function") gTrackEvent("copyfit_desfeito",{campo}); }catch(e){} });
+}
+function _fLpBalaoAplicaCore(B,s){
   /* O toque direto no balão também confere o texto medido (o `aplica` da solução já conferia):
      entre a tecla e o render (debounce) o balão ainda é o do valor anterior, e tocar nele
      trocava a "Mussarela" recém-digitada pela "Calabresa" velha. O render seguinte o atualiza. */
@@ -1427,7 +1456,7 @@ function fLpBalaoAplica(i){
     /* O Desfazer vale aqui também — era o caminho mais comum e saía antes de registrar. Com a
        pergunta ainda aberta, devolve o texto à caixa (mesmo caminho da digitação); se ela já
        foi enviada, devolve pelos dados o que estava escrito antes do toque. */
-    if(typeof _fUndoRegistra==='function') _fUndoRegistra(rotulo, ()=>{
+    _fLpUndoCopyFit(rotulo, campo, ()=>{
       const bx=document.getElementById('f-msg-box');
       if(naPergunta(bx)){
         bx.value=antesBox; bx.dispatchEvent(new Event('input',{bubbles:true}));
@@ -1441,7 +1470,7 @@ function fLpBalaoAplica(i){
   try{ if(typeof fSaveChatDraft==='function') fSaveChatDraft(); }catch(e){}
   _fLpRender();
   try{ if(typeof fRevisaoRepinta==='function') fRevisaoRepinta(); }catch(e){}
-  if(typeof _fUndoRegistra==='function') _fUndoRegistra(rotulo, ()=>_fLpBalaoRestaura(campo, antes));
+  _fLpUndoCopyFit(rotulo, campo, ()=>_fLpBalaoRestaura(campo, antes));
   return true;
 }
 window.addEventListener('resize',()=>{ try{ _fLpPosBalao(); }catch(e){} });
@@ -1471,12 +1500,12 @@ function fLpBalaoSolucao(bloqueio){
                 const r=f?f(t):null; return !!(r&&r.ok); },
     // Aplica pelo caminho do balão (caixa ou dados, rascunho, prévia, revisão e Desfazer) — se
     // ele ainda for a mesma sugestão: o diálogo espera a pessoa, e a prévia pode ter repintado.
-    aplica:()=>{
+    aplica:(origem)=>{
       if(!_lpBalao||_lpBalao.campo!==campo||!_lpBalao.sug[0]||_lpBalao.sug[0].text!==text) return false;
       /* E o texto ainda é o que foi medido: entre a tecla e o render (debounce) o balão ainda é o
          do valor anterior — aplicar aí trocava "Mussarela" recém-digitada pela "Calabresa" velha. */
       if(String((fState.dados||{})[campo]==null?'':fState.dados[campo])!==_lpBalao.valor) return false;
-      fLpBalaoAplica(0); return true;
+      return fLpBalaoAplica(0, origem||'dialogo');
     } };
 }
 
@@ -2752,6 +2781,7 @@ function _fLpUploadImage(file,v){
       }
       _fLpCloseEditor();
     };
+    if(typeof fTrackFoto==='function') fTrackFoto(v, e.target.result, file, 'previa');
     const ehLogo=(typeof gCampoEhLogo==='function') && gCampoEhLogo(v);
     if(typeof fResizeImageIfNeeded==='function') fResizeImageIfNeeded(e.target.result,2500,done,ehLogo); else done(e.target.result);
   };
@@ -3087,12 +3117,26 @@ function fLpResetFraming(){
 function fLpCancelFraming(){
   if(!_lpFraming){ return; }
   const v=_lpFraming.varName, snap=_lpFraming.snap, tinha=_lpFraming.tinha;
+  _fLpTrackFraming('cancelar');   // antes de restaurar: depois dele "mexeu" seria sempre falso
+  _lpFraming._rastreado=true;
   if(tinha && snap) fState.dados['__fit__'+v]={scale:snap.scale,offX:snap.offX,offY:snap.offY};
   else delete fState.dados['__fit__'+v];   // não havia enquadramento → volta a não haver
   fLpStopFraming();
   if(typeof gToast==='function') gToast('Ajuste descartado');
 }
+// A mesma conta de "mudou" do Desfazer abaixo: o enquadramento atual difere do de quando abriu.
+function _fLpFramingMexeu(){
+  const fr=_lpFraming; if(!fr) return false;
+  const agora=fState.dados&&fState.dados['__fit__'+fr.varName], snap=fr.snap;
+  return !agora||!snap||Math.abs((agora.scale||1)-(snap.scale||1))>0.005
+    ||Math.abs((agora.offX||0)-(snap.offX||0))>0.005||Math.abs((agora.offY||0)-(snap.offY||0))>0.005;
+}
+function _fLpTrackFraming(acao){
+  try{ if(typeof gTrackEvent==='function'&&_lpFraming&&!_lpFraming._rastreado)
+    gTrackEvent('enquadramento_ajustado',{campo:_lpFraming.varName, acao, mexeu:_fLpFramingMexeu()}); }catch(e){}
+}
 function fLpStopFraming(){
+  _fLpTrackFraming('aplicar');
   /* APLICAR também deixa saída. Cancelar cobre "desisti enquanto mexia"; isto cobre
      "apliquei e me arrependi", que é o caso que o teste pegou. Registra no MESMO slot único
      do franqueado (`_fUndoRegistra`, chat.js) — não é um segundo histórico, e o enquadramento
