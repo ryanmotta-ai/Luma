@@ -538,6 +538,9 @@
   };
 
   window.lumaWidgetStartChat = function () {
+    // Equipe online → a pergunta vai direto para uma PESSOA (decisão do Ryan, 23/09/2026).
+    // Vem antes da chave da IA de propósito: com gente para atender, a IA nem entra.
+    if (wmSupEquipeOnline()) { window.lumaWidgetSetTab('messages'); return; }
     // Controle do produto: o chat de ajuda pode ser desligado sem derrubar os
     // artigos da Central — por isso a chave é filha de global.help, não a mesma.
     if (typeof gFeatureCan === 'function' && !gFeatureCan('global.help.chat', 'access')) {
@@ -803,14 +806,14 @@
         </button>
       </div>
 
-      <button type="button" class="luma-wm-ask-card" onclick="lumaWidgetStartChat()">
+      ${wmSupEquipeOnline() ? '' : `<button type="button" class="luma-wm-ask-card" onclick="lumaWidgetStartChat()">
         <span class="luma-wm-ask-icon" aria-hidden="true">${WIDGET_SVGS.chatBubble}</span>
         <div class="luma-wm-ask-copy">
           <strong>Não achou a resposta?</strong>
           <span>Pergunte ao assistente do Luma.</span>
         </div>
         <span class="luma-wm-list-arrow" aria-hidden="true">${WIDGET_SVGS.chevronRight}</span>
-      </button>
+      </button>`}
     `;
   }
 
@@ -1072,6 +1075,15 @@ REGRAS:
 
     if (!msgText && !widgetState.attachedFile) return;
 
+    // Alguém da equipe entrou enquanto a pessoa estava na IA: a pergunta vai para ela, não
+    // para o modelo — pelo MESMO envio do suporte (lumaWidgetSupEnviar), com o anexo junto.
+    if (wmSupEquipeOnline()) {
+      widgetState.supRascunho = msgText;
+      window.lumaWidgetSetTab('messages');
+      window.lumaWidgetSupEnviar();
+      return;
+    }
+
     const newMsg = {
       sender: 'user',
       author: 'Você',
@@ -1130,6 +1142,10 @@ REGRAS:
      a ser o assistente de IA exatamente como era — nada regride.
      ⛔ Dado de usuário (texto, nome, cidade, contexto, URL) passa SEMPRE por wmEsc/wmText. */
   function wmSuporte() { return typeof gSupDisponivel === 'function' && gSupDisponivel(); }
+  // Franqueado com alguém da equipe online agora: é o que manda a pergunta direto para a pessoa.
+  function wmSupEquipeOnline() {
+    return wmSuporte() && !G_SUP.souEquipe && G_SUP.online.length > 0;
+  }
   function wmNaIA() {
     return widgetState.activeTab === 'assistente' || (widgetState.activeTab === 'messages' && !wmSuporte());
   }

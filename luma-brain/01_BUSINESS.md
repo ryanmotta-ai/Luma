@@ -208,6 +208,7 @@ Tipos: `text`, `number`, `currency`, `date`, `image`, `select`, `color`, `boolea
 - ⛔ **Escopo: dúvida de uso e erro no Luma.** Aprovação de peça e pedido de arte nova **continuam com o marketing** (a copy do widget diz isso). Não transforme o chat em fila de pedidos de criação.
 - A conversa **é o franqueado**: uma por pessoa, sem status de "aberto/fechado". "Aguardando" = a última mensagem veio dele.
 - "Online agora" = alguém da equipe com o Luma aberto numa aba visível (automático, sem botão de disponível).
+- ⛔ **Equipe online → a pergunta vai direto para a pessoa, sem passar pela IA** (decisão do Ryan, 23/09/2026). O card do assistente some da Início, e o que for digitado no chat da IA segue para a conversa com a equipe. Ninguém online → a IA responde, com o "Não resolveu? Falar com a equipe".
 - A gestão desliga pelo Controle do produto (`global.help.suporte`), sem deploy. Desligado, "Mensagens" volta a ser o assistente de IA.
 - ⚠️ Limite da v1: sem e-mail/push — quem fechou o app só vê a resposta ao voltar (contador + aviso).
 

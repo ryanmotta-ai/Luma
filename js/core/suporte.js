@@ -200,7 +200,13 @@ async function _gSupCarregarMsgs(){
   if (!t || !de) return;
   try {
     const { data, error } = await t.select('*').eq('franqueado_id', de).order('created_at', { ascending: false }).limit(200);
-    if (!error && Array.isArray(data) && G_SUP.conversaDe === de) G_SUP.msgs = data.reverse();
+    if (!error && Array.isArray(data) && G_SUP.conversaDe === de) {
+      // O que chegou ou foi enviado ENQUANTO a busca estava no ar não pode sumir da tela —
+      // é o caso da pergunta desviada da IA, enviada junto com a abertura da conversa.
+      const novos = data.reverse();
+      G_SUP.msgs.forEach(function (m) { if (!novos.some(function (x) { return x.id === m.id; })) novos.push(m); });
+      G_SUP.msgs = novos;
+    }
   } catch (e) {}
 }
 
