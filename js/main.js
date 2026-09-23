@@ -16,6 +16,19 @@ function dUpdateTabPill() {
     pill.style.transform = `translateX(${activeTab.offsetLeft}px)`;
   }
 }
+// A pílula é medida em px, mas as abas mudam de largura DEPOIS da medida: a Roboto
+// chega (swap), uma aba aparece/some pelo gate de role/flag (a grade 1fr redistribui
+// as colunas), a janela muda. Sem isto a pílula ficava com a largura velha — mais
+// curta que "Franqueado" ou deslocada. Observar as próprias abas cobre todos os casos.
+(function(){
+  if (typeof ResizeObserver !== 'function') return;
+  let raf = 0;
+  const ro = new ResizeObserver(() => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(dUpdateTabPill);
+  });
+  document.querySelectorAll('.mode-tabs, .mode-tab').forEach(el => ro.observe(el));
+})();
 
 /* ── CONTROLE DO PRODUTO: gate de módulo ─────────────────────────
    A chave de cada aba da topbar. O Controle do produto pode desligar um módulo
