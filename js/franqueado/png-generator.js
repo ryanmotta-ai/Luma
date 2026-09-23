@@ -3743,9 +3743,14 @@ function fSanitizeNamePart(s, max){
 // "titulo"/"sabor" caíam todos no nome da campanha e geravam nomes idênticos.)
 function _fRowProductName(d){
   if(!d) return '';
+  /* Valor que é IMAGEM (foto enviada = data URL, cache idb://, blob:, URL do Storage ou da
+     planilha) nunca é nome. `foto_produto` casava o /produto/ abaixo e o arquivo baixado no
+     celular saía "Data image-jpeg;base64,-9j-4AAQ… - Feed - …" (23/09/2026). O teste é no VALOR,
+     não no nome do campo: lista de apelidos de campo sempre tem buraco. */
+  const texto = v => typeof v==='string' && v.trim() && !/^\s*(data:|blob:|idb:\/\/|https?:\/\/)/i.test(v);
   // Ignora chaves internas (ex.: '__fit__var' = enquadramento por-arte, que é objeto).
-  const ok = k => k.indexOf('__')!==0 && d[k] && typeof d[k]==='string' && String(d[k]).trim();
-  let p = (typeof d.produto==='string'&&d.produto) || d.categoria || d.brinde || d.oferta;
+  const ok = k => k.indexOf('__')!==0 && texto(d[k]);
+  let p = [d.produto, d.categoria, d.brinde, d.oferta].find(texto);
   if(!p){
     const k = Object.keys(d).find(k=>/produto|titulo|título|nome|item|sabor/i.test(k) && ok(k));
     if(k) p = d[k];

@@ -120,6 +120,19 @@
     assert(f.scale===1&&f.offX===0&&f.offY===0,'sem análise deveria ser o neutro: '+JSON.stringify(f));
   });
 
+  /* Nome do arquivo baixado: a foto enviada (data URL) virou o nome no celular, porque
+     `foto_produto` casa o /produto/ da busca do nome (23/09/2026). */
+  test('nome do arquivo nunca é a foto enviada (data URL, idb://, URL)',()=>{
+    const camp={name:'Rangos Que Baixaram O Preço'}, fmt={name:'Feed'};
+    const foto='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD';
+    const soFoto=fBuildFilename(camp,fmt,{foto_produto:foto});
+    assert(soFoto==='Rangos Que Baixaram O Preço - Feed.png','só foto deveria cair na campanha: '+soFoto);
+    const outros=fBuildFilename(camp,fmt,{foto_produto:'idb://abc',logo:'https://x.supabase.co/a.png',precoPor:'19,90'});
+    assert(!/idb|https|supabase/i.test(outros),'referência de imagem vazou no nome: '+outros);
+    const comNome=fBuildFilename(camp,fmt,{foto_produto:foto,nomeProduto:'X-Tudo Duplo'});
+    assert(comNome==='X-Tudo Duplo - Feed - Rangos Que Baixaram O Preço.png','o nome do produto sumiu: '+comNome);
+  });
+
   let passed=0;
   const falhas=[];
   for(const item of cases){
