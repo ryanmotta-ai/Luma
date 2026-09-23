@@ -314,18 +314,6 @@ body:not(.theme-light).f-catalogo-aberto #f-back-campanhas{background: var(--d-s
 body:not(.theme-light) .lp-head-sep{background: var(--d-border2)}
 
 /* Botões do header do chat */
-body:not(.theme-light) #f-undo-btn,
-body:not(.theme-light) #f-reset-btn {
-  background: var(--d-surf);
-  color: var(--d-text2);
-  border-color: var(--d-border2);
-}
-body:not(.theme-light) #f-undo-btn:hover,
-body:not(.theme-light) #f-reset-btn:hover {
-  border-color: var(--dm-orange);
-  color: var(--dm-orange);
-  background: var(--d-surf2);
-}
 body:not(.theme-light) #f-bulk-head-btn {
   background: var(--d-surf);
   color: var(--dm-orange);
