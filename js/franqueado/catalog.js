@@ -186,15 +186,13 @@ async function _fHistRenderPreview(img,run){
     const size=(typeof fMaterialSize==='function')?fMaterialSize(material,fmt):[1080,1920];
     const mw=size[0], mh=size[1];
     const off=document.createElement('canvas'); off.width=mw; off.height=mh;
-    const previousMaterial=fState.material;
-    fState.material=material;
-    try{
-      await fRenderTemplateLayers(off.getContext('2d'),material.layers,mw,mh,h.dados||{},camp,null,
-        {scope:'franqueado',purpose:'preview'});
-    }finally{
-      // Se outro fluxo mudou o material durante o await, ele vence; não restauramos estado velho.
-      if(fState.material===material) fState.material=previousMaterial;
-    }
+    /* ⛔ O material vai por PARÂMETRO (`materialOverride`), nunca emprestado ao `fState.material`.
+       O empréstimo antigo devolvia o valor anterior depois do await — e, com o catálogo aberto,
+       esse valor era `null`. Quem clicava no MESMO material durante o render (a miniatura é do
+       histórico dele) via o chat seguir normal e o `fState.material` virar `null` por baixo:
+       o "Gerar em lote" dizia "Escolha um material primeiro" com a arte pronta na tela. */
+    await fRenderTemplateLayers(off.getContext('2d'),material.layers,mw,mh,h.dados||{},camp,material,
+      {scope:'franqueado',purpose:'preview'});
     if(run!==_fHistPreviewRun || !img.isConnected) return;
 
     // A biblioteca precisa de leitura visual, não de um segundo PNG gigante. Reduzimos uma
