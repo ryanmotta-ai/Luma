@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════════════════════════════════
-   COPY FIT — regressão das GARANTIAS do motor de encurtar (js/franqueado/copy-fit.js).
+   COPY FIT — regressão das GARANTIAS do motor de encurtar (js/core/copy-fit.js).
    `node scripts/run-browser-tests.js copy-fit`.
 
    O que se cobra é o que torna seguro aplicar a sugestão com um toque:
@@ -8,7 +8,7 @@
        contexto e enfeite de lista fechada;
      · a caixa (MAIÚSCULA) do que foi digitado é preservada · mesma entrada, mesma saída;
      · "cabe" vem de quem mede (aqui um `cabe` falso; na prévia, o Local Fit), e a 1ª
-       sugestão é a que MENOS mexeu.
+       sugestão é a de menor CUSTO perceptível — combinação de degraus, não escada fixa.
    ══════════════════════════════════════════════════════════════════════════════════════════ */
 (async function(){
   const results = document.getElementById('results');
@@ -20,7 +20,7 @@
 
   /* Tudo o que o motor PODE fazer sumir. Qualquer outra palavra do original tem que estar
      no candidato — é assim que se prova que item nenhum foi cortado. */
-  const PODE_SUMIR = /^(por|apenas|somente|com|e|litros?|lts?|mililitros?|gramas?|quilos?|unidades?|refrigerantes?|hamb[uú]rgueres|hamb[uú]rguer|promo[cç](?:[aã]o|[oõ]es)|de|desconto|segunda|sexta|s[aá]bado|a|segunda-feira|ter[cç]a-feira|quarta-feira|quinta-feira|sexta-feira|grandes?|m[eé]di[oa]s?|pequen[oa]s?|tamanho|super|mega|delicios[oa]s?|incr[ií]ve(?:l|is)|gourmet|maravilhos[oa]s?|exclusiv[oa]s?|imperd[ií]ve(?:l|is)|irresist[ií]ve(?:l|is)|famos[oa]s?|saboros[oa]s?|top)$/iu;
+  const PODE_SUMIR = /^(por|apenas|somente|com|e|litros?|lts?|mililitros?|ml|gramas?|quilos?|unidades?|refrigerantes?|hamb[uú]rgueres|hamb[uú]rguer|promo[cç](?:[aã]o|[oõ]es)|de|desconto|segunda|sexta|s[aá]bado|a|segunda-feira|ter[cç]a-feira|quarta-feira|quinta-feira|sexta-feira|grandes?|m[eé]di[oa]s?|pequen[oa]s?|tamanho|super|mega|delicios[oa]s?|incr[ií]ve(?:l|is)|gourmet|maravilhos[oa]s?|exclusiv[oa]s?|imperd[ií]ve(?:l|is)|irresist[ií]ve(?:l|is)|famos[oa]s?|saboros[oa]s?|top)$/iu;
   /* Estar na lista não basta: "com", "apenas" e o enfeite só podem sair NA POSIÇÃO certa. Sem
      isso a suíte aprovava "Café + leite", "Frete grátis para o centro" e "Pizza" (de "Pizza
      Especial"). Estas regras são a especificação, escritas à parte do motor. */
@@ -209,6 +209,58 @@
     semMexer(['Pizzas médias a R$ 29,90 e grandes a R$ 39,90', 'Batata grande ou média', 'Compre 1 pizza grande e leve outra média'],
       (f, t) => !/\b[GMP]\b/.test(t), 'abreviou só parte dos tamanhos');
     assert(textos('Pizza grande e batata média').includes('Pizza G e batata M'), 'todos com item deveriam abreviar');
+  });
+
+  /* 19–22: ciclo 2 (23/09) — ranking por custo perceptível e formas curtas que faltavam. */
+  test('19 · ranking: só tirar "Delicioso" é candidato, e vence quando basta', () => {
+    const f = 'Delicioso Hambúrguer de Costela com Cebola Caramelizada e Molho Especial';
+    const soEnfeite = 'Hambúrguer de Costela com Cebola Caramelizada e Molho Especial';
+    assert(textos(f).includes(soEnfeite), 'faltou o candidato só sem o enfeite: ' + textos(f).join(' | '));
+    // Cabe o sem-"Delicioso" (62) mas não o só-"Burger" (68): a antiga escada levava junto o
+    // "Hambúrguer → Burger" sem precisar.
+    const s = gCopyFitSugestoes(f, t => ({ ok: t.length <= soEnfeite.length, fontSize: 50 }), 1).sugestoes;
+    assert(s.length && s[0].text === soEnfeite, 'a 1ª deveria ser só sem "Delicioso": ' + (s[0] && s[0].text));
+    // Se a troca barata já basta, ela vem antes do enfeite.
+    const s2 = gCopyFitSugestoes(f, t => ({ ok: t.length <= 68, fontSize: 50 }), 1).sugestoes;
+    assert(s2.length && /^Delicioso Burger/.test(s2[0].text), 'a troca mais barata deveria vir 1ª: ' + (s2[0] && s2[0].text));
+  });
+
+  test('20 · ranking: custo nunca desce, sem repetido, enxuto, e o mais curto sempre fica', () => {
+    FRASES.concat(['SUPER PROMOÇÃO!!!!! PIZZA GRANDE R$ 39,90!!!!!', 'Mega Combo com X-Bacon, X-Salada, Batata Grande e Refrigerante 2 Litros'])
+      .forEach(f => {
+        const c = gCopyFitCandidatos(f);
+        assert(c.length <= 12, 'lista longa demais (' + c.length + '): ' + f);
+        assert(new Set(c.map(x => x.text)).size === c.length, 'candidato repetido: ' + f);
+        c.forEach((x, i) => {
+          if(!i) return;
+          assert(x.custo >= c[i - 1].custo, 'custo desceu: ' + f);
+          // mais caro e não mais curto nunca seria a melhor resposta — só gastaria uma medição
+          assert(x.text.length < c[i - 1].text.length, 'candidato dominado: "' + x.text + '"');
+        });
+        if(c.length) assert(c[c.length - 1].degraus.length === Math.max(...c.map(x => x.degraus.length)), 'sumiu o mais agressivo: ' + f);
+      });
+  });
+
+  test('21 · formas curtas seguras: "por R$", ml, dias, "todo dia", entrega, parêntese', () => {
+    const espera = [
+      ['Pizza por R$ 39,90', 'Pizza R$ 39,90'], ['Açaí 500 ml', 'Açaí 500ml'],
+      ['Todas as quartas-feiras', 'Todas as quartas'], ['Entrega de segunda a domingo', 'Entrega seg a dom'],
+      ['Aberto de terça a domingo', 'Aberto ter a dom'], ['Válida de segunda-feira a quinta-feira', 'Válida seg a qui'],
+      ['DE SEGUNDA A SÁBADO: PIZZA', 'SEG A SÁB: PIZZA'], ['De segunda a sábado, almoço', 'Seg a sáb, almoço'],
+      ['Aberto todos os dias', 'Aberto todo dia'], ['Taxa de entrega grátis hoje', 'Entrega grátis hoje'],
+      ['Frete grátis para pedidos acima de R$ 50', 'Frete grátis acima de R$ 50'], ['Refri (lata) R$ 5', 'Refri lata R$ 5']
+    ];
+    espera.forEach(([f, t]) => assert(textos(f).includes(t), '"' + f + '" deveria ter "' + t + '": ' + textos(f).join(' | ')));
+    // "por" que amarra preço à QUANTIDADE fica; "2 por 1" não é preço
+    semMexer(['3 por R$ 20', 'Leve 2 por R$ 30', 'Pizza duas por R$ 60', 'De R$ 59,90 por R$ 39,90', '2 por 1 em lanches', 'Tudo por R$ 10'],
+      (f, t) => /\bpor\b/i.test(t), 'tirou o "por" da quantidade');
+    semMexer(['Todos os dias úteis', 'Pizza (8 fatias)', 'Coca 2 L'], (f, t) => false, 'não devia mexer');
+  });
+
+  test('22 · tamanho "tudo ou nada" vale por TRECHO, não pela frase inteira', () => {
+    const t = textos('Pizza grande com refri. Batata grande ou média');
+    assert(t.includes('Pizza G com refri. Batata grande ou média'), 'o 1º trecho deveria abreviar sozinho: ' + t.join(' | '));
+    assert(t.every(x => /Batata grande ou média/.test(x)), 'o 2º trecho (um tamanho sem item) não pode abreviar pela metade');
   });
 
   let passed = 0;

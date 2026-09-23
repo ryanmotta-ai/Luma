@@ -16,9 +16,10 @@
        basta, a resposta honesta é "não coube" — nunca cortar produto;
      · nunca fica mais longo, e preserva a CAIXA do que foi digitado (MAIÚSCULA segue maiúscula).
 
-   Os degraus vão do menos ao mais perceptível, CUMULATIVOS: a 1ª sugestão que cabe é a que
-   menos mexeu. Cada candidato leva a lista do que mudou (`trocas`, `removidas`) — a UI mostra
-   o que saiu, a pessoa confere antes de aceitar.
+   Os candidatos são COMBINAÇÕES dos degraus (não só a escada cumulativa), ordenadas por CUSTO
+   PERCEPTÍVEL (`_G_CF_PESO`): a 1ª sugestão que cabe é a que menos mexeu. Cada candidato leva
+   a lista do que mudou (`trocas`, `removidas`) — a UI mostra o que saiu, a pessoa confere antes
+   de aceitar.
 
    API: gCopyFitCandidatos(texto) · gCopyFitSugestoes(texto, cabe, max) · gCopyFitGuarda(a, b)
    ══════════════════════════════════════════════════════════════════════════════════════════ */
@@ -43,10 +44,13 @@ const G_CF_CURTAS = [
   ['refrigerantes', 'refris'], ['refrigerante', 'refri'],
   ['hamb[uú]rgueres', 'burgers'], ['hamb[uú]rguer', 'burger'],
   ['promo[cç][oõ]es', 'promos'], ['promo[cç][aã]o', 'promo'],
-  ['de segunda a sexta', 'seg a sex'], ['de segunda a s[aá]bado', 'seg a sáb'],
-  ['segunda-feira', 'segunda'], ['ter[cç]a-feira', 'terça'], ['quarta-feira', 'quarta'],
-  ['quinta-feira', 'quinta'], ['sexta-feira', 'sexta']
+  // "dias úteis" fica: "todo dia úteis" seria erro de português.
+  ['todos os dias(?!\\s+[úu]teis)', 'todo dia'], ['para pedidos acima de', 'acima de']
 ];
+/* Dia da semana fica fora da lista: são 7×7 intervalos ("de segunda a domingo", "de terça-feira
+   a quinta-feira") mais o plural ("quartas-feiras") — lista fechada ali teria buraco. */
+const _G_CF_DIA = 'segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo';
+const _G_CF_DIA3 = { seg:'seg', ter:'ter', qua:'qua', qui:'qui', sex:'sex', sab:'sáb', 'sáb':'sáb', dom:'dom' };
 /* Enfeite: adjetivo que não diz O QUE é o produto. "Tradicional", "artesanal", "caseiro" NÃO
    entram — são sabor/descrição e mudariam o que se vende. "Especial" também não: "Pizza
    Especial", "molho especial", "Especial da Casa" — é quase sempre o NOME do sabor. */
@@ -83,6 +87,20 @@ const _G_CF_DEGRAUS = [
     // "Válido somente hoje": ali é RESTRIÇÃO — tirar muda a oferta.
     const re = new RegExp('(^|' + _G_CF_L + ')(por apenas|por somente|apenas|somente)(?=\\s+(?:R\\$|\\d+,\\d{2}))', 'giu');
     let t = s.replace(re, (m, pre, w) => { r.removidas.push(w); return pre; });
+    // "por R$ 39,90" → "R$ 39,90": o preço sozinho já diz. Mas "3 por R$ 20", "duas por R$ 60",
+    // "De R$ 59,90 por R$ 39,90": ali o "por" amarra o preço à QUANTIDADE (ou ao de/por) —
+    // sem ele "3 R$ 20" não se lê. Por isso só sai quando a palavra antes não é número — nem
+    // quantificador: "Tudo por R$ 10" é o nome da promoção, "cada" amarra o preço à unidade.
+    // Número COM unidade ("500ml por R$ 12", "1kg por R$ 39") é volume, não quantidade: sai.
+    const qtd = /^(?:\d+(?:[.,]\d+)?x?|tudo|tod[oa]s|qualquer|cada|um|uma|dois|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|doze|d[uú]zias?|meia)$/iu;
+    t = t.replace(new RegExp('(^|' + _G_CF_L + ')(por)(?=\\s+R\\$)', 'giu'), (m, pre, w, off, str) => {
+      const ant = _gCfNu(str.slice(0, off + pre.length).trim().split(/\s+/).pop());
+      if(ant && qtd.test(ant)) return m;
+      r.removidas.push(w); return pre;
+    });
+    // "(lata)" → "lata": parêntese em volta de UMA palavra é só pontuação. Com mais de uma
+    // ("(8 fatias)", "(2 burgers + batata)") o parêntese agrupa — fica.
+    t = t.replace(/\((\p{L}+)\)/gu, (m, w) => { r.trocas.push([m, w]); return w; });
     return _gCfAbre(s, _gCfLimpa(t));
   }},
   { id:'unidades', fn:(s, r) => {
@@ -94,10 +112,35 @@ const _G_CF_DEGRAUS = [
         r.trocas.push([w, abrev]); return d + sep + abrev;
       });
     });
+    // "500 ml" → "500ml": a unidade já é abreviada, só cola no número (como "2L" acima). Só ml,
+    // o caso confirmado no corpus; "2 L" solto fica como o franqueado escreveu.
+    t = t.replace(new RegExp('(\\d)\\s+(ml)(?=$|' + _G_CF_L + ')', 'giu'), (m, d, w) => {
+      r.trocas.push([d + ' ' + w, d + w]); return d + w;
+    });
     return t;
   }},
   { id:'curtas', fn:(s, r) => {
     let t = s.replace(/(\d)\s*%\s*de\s+desconto/giu, (m, d) => { r.trocas.push(['de desconto', 'OFF']); return d + '% OFF'; });
+    // "de segunda a domingo" → "seg a dom". Cada abreviação herda a caixa do SEU dia; o "de" que
+    // sai passa a maiúscula de abertura para a 1ª ("De segunda a sábado," → "Seg a sáb,").
+    const dia = '(' + _G_CF_DIA + ')(?:-feira)?';
+    t = t.replace(_gCfRe('de\\s+' + dia + '\\s+[aà]\\s+' + dia), (m, pre, w, d1, d2) => {
+      const ab = d => _gCfCaixa(d, _G_CF_DIA3[d.slice(0, 3).toLowerCase()] || d);
+      let n = ab(d1) + (w === w.toUpperCase() ? ' A ' : ' a ') + ab(d2);
+      if(/^\p{Lu}/u.test(w)) n = n.charAt(0).toUpperCase() + n.slice(1);
+      r.trocas.push([w, n]); return pre + n;
+    });
+    // "quarta-feira" → "quarta", "quartas-feiras" → "quartas" (o plural fica: "toda quarta" e
+    // "todas as quartas" dizem a mesma coisa, mas trocar a concordância não é papel daqui).
+    t = t.replace(_gCfRe('(segunda|ter[cç]a|quarta|quinta|sexta)(s?)-feiras?'), (m, pre, w, d, pl) => {
+      r.trocas.push([w, d + pl]); return pre + d + pl;
+    });
+    // "Taxa de entrega grátis" → "Entrega grátis": a taxa que é grátis É a entrega grátis. O resto
+    // mantém a caixa digitada; só a abertura herda a maiúscula do "Taxa".
+    t = t.replace(_gCfRe('taxa\\s+de\\s+(entrega\\s+gr[aá]tis)'), (m, pre, w, resto) => {
+      const n = _gCfCaixa(w.slice(0, 4), resto.charAt(0)) + resto.slice(1);
+      r.trocas.push([w, n]); return pre + n;
+    });
     G_CF_CURTAS.forEach(([p, curta]) => {
       t = t.replace(_gCfRe(p), (m, pre, w) => { const n = _gCfCaixa(w, curta); r.trocas.push([w, n]); return pre + n; });
     });
@@ -139,17 +182,22 @@ const _G_CF_DEGRAUS = [
   }},
   { id:'tamanho', fn:(s, r) => {
     // TODOS OU NENHUM: "Pizzas M a R$ 29,90 e grandes a R$ 39,90" parece erro de digitação.
-    // Se algum tamanho da frase não tem item antes (não dá para abreviar), nenhum abrevia.
-    const todos = (s.match(_gCfRe(G_CF_TAMANHOS.map(x => x[0]).join('|'))) || []).length;
-    const trocas = [];
-    let t = s;
-    G_CF_TAMANHOS.forEach(([p, letra]) => {
-      t = t.replace(new RegExp('(' + G_CF_TEM_TAMANHO + ')(\\s+)(?:tamanho\\s+)?(' + p + ')(?=$|' + _G_CF_L + ')', 'giu'),
-        (m, item, esp, w) => { trocas.push([w, letra]); return item + esp + letra; });
-    });
-    if(trocas.length !== todos) return s;
-    trocas.forEach(x => r.trocas.push(x));
-    return t;
+    // Se algum tamanho do TRECHO não tem item antes (não dá para abreviar), nenhum dele abrevia.
+    // O trecho vai até . ! ? ; | — "Pizza G com refri. Batata grande ou média" é outra frase,
+    // e o leitor não compara as duas; valer para o texto inteiro travava ganho à toa.
+    const sub = parte => {
+      const todos = (parte.match(_gCfRe(G_CF_TAMANHOS.map(x => x[0]).join('|'))) || []).length;
+      const trocas = [];
+      let t = parte;
+      G_CF_TAMANHOS.forEach(([p, letra]) => {
+        t = t.replace(new RegExp('(' + G_CF_TEM_TAMANHO + ')(\\s+)(?:tamanho\\s+)?(' + p + ')(?=$|' + _G_CF_L + ')', 'giu'),
+          (m, item, esp, w) => { trocas.push([w, letra]); return item + esp + letra; });
+      });
+      if(trocas.length !== todos) return parte;
+      trocas.forEach(x => r.trocas.push(x));
+      return t;
+    };
+    return s.split(/([.!?;|])/).map((p, k) => k % 2 ? p : sub(p)).join('');
   }},
   { id:'enfeite', fn:(s, r) => {
     const palavras = s.split(' ');
@@ -181,24 +229,68 @@ function gCopyFitGuarda(original, candidato){
   return nums(original) === nums(candidato) && String(candidato).length <= String(original).length;
 }
 
+/* CUSTO PERCEPTÍVEL de cada degrau — quanto o franqueado estranha ao ler a versão sugerida.
+   A escada cumulativa de antes era ordem fixa: para tirar "Delicioso" era preciso aceitar também
+   "Hambúrguer → Burger", mesmo quando só o enfeite já bastava. Agora cada COMBINAÇÃO de degraus
+   vira candidato, e a lista sai ordenada por:
+     1. soma dos pesos dos degraus que MUDARAM o texto (degrau que não achou nada não custa);
+     2. menos trocas + removidas (duas mexidas pesam mais que uma do mesmo degrau);
+     3. texto mais longo (menos cortado) · 4. o próprio texto — só para ser determinístico.
+   Os pesos: limpeza 0 (espaço, "por apenas", parêntese de uma palavra: ninguém sente falta);
+   unidade 1 ("500ml" é como se escreve); forma curta 2 (consagrada, mas a palavra muda);
+   tamanho e lista 3 (a letra/o "+" mudam a cara da frase); enfeite 5 (sai uma palavra dita). */
+const _G_CF_PESO = { limpeza:0, unidades:1, curtas:2, tamanho:3, lista:3, enfeite:5 };
+const _G_CF_MAX = 12;
+
 /**
- * Os candidatos CUMULATIVOS, do menos ao mais perceptível. Sem medir nada.
- * @returns {Array<{text, degrau, trocas:[[de,para]], removidas:[string]}>}
+ * Os candidatos, do MENOR ao maior custo perceptível. Sem medir nada.
+ * @returns {Array<{text, degrau, degraus:[string], custo:number, trocas:[[de,para]], removidas:[string]}>}
+ *   `degrau` = o último degrau que mudou (compatível com a escada antiga).
  */
 function gCopyFitCandidatos(texto){
   const original = _gCfLimpa(texto);
   if(!original) return [];
+  // Um degrau só vale se passa na guarda; o que ele anotou em trocas/removidas só entra junto.
+  // O resultado de um degrau só depende do texto de entrada — as 32 combinações repetem muito
+  // prefixo, então memoiza por (degrau, texto) e o custo fica perto do da escada antiga.
+  const memo = {};
+  const passo = (d, est) => {
+    const k = d.id + '\u0000' + est.text;
+    let m = memo[k];
+    if(!m){
+      const r = { trocas: [], removidas: [] };
+      let t;
+      try{ t = _gCfLimpa(d.fn(est.text, r)); }catch(e){ t = est.text; }
+      m = memo[k] = (t === est.text || !gCopyFitGuarda(original, t)) ? { t: null } : { t, r };
+    }
+    if(!m.t) return est;
+    return { text: m.t, trocas: est.trocas.concat(m.r.trocas), removidas: est.removidas.concat(m.r.removidas),
+      degraus: est.degraus.concat(d.id) };
+  };
+  // A limpeza é a base de todos (custo 0); os outros 5 degraus entram em todas as 2^5 = 32
+  // combinações, sempre na ordem da escada (lista depende de curtas: "refrigerante" → "refri").
+  const [limpeza, ...resto] = _G_CF_DEGRAUS;
+  const base = passo(limpeza, { text: original, trocas: [], removidas: [], degraus: [] });
+  const antes = (a, b) =>
+    (a.custo - b.custo) || ((a.trocas.length + a.removidas.length) - (b.trocas.length + b.removidas.length))
+    || (b.text.length - a.text.length) || (a.text < b.text ? -1 : a.text > b.text ? 1 : 0);
+  const porTexto = {};
+  for(let mask = 0; mask < (1 << resto.length); mask++){
+    let est = base;
+    resto.forEach((d, i) => { if(mask & (1 << i)) est = passo(d, est); });
+    if(est.text === original) continue;
+    const c = { text: est.text, degrau: est.degraus[est.degraus.length - 1], degraus: est.degraus,
+      custo: est.degraus.reduce((a, id) => a + _G_CF_PESO[id], 0), trocas: est.trocas, removidas: est.removidas };
+    const ja = porTexto[c.text];
+    if(!ja || antes(c, ja) < 0) porTexto[c.text] = c;     // mesmo texto: fica o caminho mais barato
+  }
+  const todos = Object.keys(porTexto).map(k => porTexto[k]).sort(antes);
+  // Dominado sai: se um candidato mais BARATO já é tão curto quanto este, este nunca seria a
+  // melhor resposta — e cada candidato custa uma medição em pixel no chamador.
   const out = [];
-  const r = { trocas: [], removidas: [] };
-  let atual = original;
-  _G_CF_DEGRAUS.forEach(d => {
-    const antes = atual;
-    try{ atual = _gCfLimpa(d.fn(atual, r)); }catch(e){ atual = antes; }
-    if(!gCopyFitGuarda(original, atual)){ atual = antes; return; }
-    if(atual !== antes && atual !== original && !out.some(c => c.text === atual))
-      out.push({ text: atual, degrau: d.id, trocas: r.trocas.slice(), removidas: r.removidas.slice() });
-  });
-  return out;
+  todos.forEach(c => { if(!out.length || c.text.length < out[out.length - 1].text.length) out.push(c); });
+  // Teto: os mais baratos + sempre o mais curto, para o "não coube" continuar honesto.
+  return out.length > _G_CF_MAX ? out.slice(0, _G_CF_MAX - 1).concat(out[out.length - 1]) : out;
 }
 
 /**
