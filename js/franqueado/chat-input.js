@@ -224,8 +224,17 @@ function fApplyMask(id, raw){
     // Helper interno para formatar um valor numérico em R$
     const formatSinglePrice = (valStr) => {
       if (!valStr) return '';
+      /* ⛔ AMBÍGUO NÃO VIRA PREÇO. O passo que volta com valor (Anterior, rascunho, prévia) põe
+         "De: R$ 30,00" na caixa com o cursor no fim; quem digitava "35" por cima mandava
+         "De: R$ 30,0035", e juntar os dígitos dava R$ 300.035,00 — aceito e publicado. Duas
+         vírgulas, dois números soltos ou 4+ casas depois da vírgula não são um preço: devolver
+         vazio deixa o texto como veio e o `fValidate` recusa. Falha limpa > preço inventado.
+         ⚠ 3 casas ("12,500", balança/PDV) NÃO entram aqui: arredondam para centavos logo
+         abaixo — decisão da auditoria de persona. Nenhum preço real tem 4 casas. */
+      if (/\d\s+\d/.test(valStr)) return '';
       let s = valStr.replace(/[^\d.,]/g,'');
       if(!s) return '';
+      if ((s.match(/,/g)||[]).length > 1 || /,\d{4,}$/.test(s)) return '';
       const sepPos = Math.max(s.lastIndexOf(','), s.lastIndexOf('.'));
       const tail = sepPos>=0 ? s.length-sepPos-1 : -1;
       let intPart, decPart='';
@@ -379,7 +388,11 @@ function fValidate(id, val){
     if(!/qualquer|grátis|gratis|sem valor/i.test(val) && /\d/.test(val) && !/[1-9]/.test(val)){
       return 'Preço zerado não vai para a arte. Se o item é de graça, escreva “Grátis”.';
     }
-    const ok = /r\$\s?\d/i.test(val) || /qualquer|grátis|gratis|sem valor/i.test(val);
+    /* Todo "R$" precisa estar no formato que a máscara produz ("R$ 1.234,56"). Antes bastava
+       "R$" + um dígito, então "De: R$ 30,0035" (valor digitado por cima do anterior) passava. */
+    const precos = String(val).match(/r\$\s?[\d.,]+(?:\s+[\d.,]+)*/gi) || [];
+    const ok = (precos.length && precos.every(t=>/^r\$\s?\d{1,3}(?:\.\d{3})*,\d{2}$/i.test(t)))
+      || /qualquer|grátis|gratis|sem valor/i.test(val);
     if(!ok) return `Use um valor em R$ (ex: R$ 9,90).`;
   }
   if(cfg.type === 'discount'){
@@ -421,6 +434,37 @@ function fShowFieldError(msg){
 }
 
 // Limite de caracteres + sanitização no input — atualiza contador visual
+/* ── O QUE ESTÁ SENDO DIGITADO AINDA NÃO É VALOR ─────────────────────────────────────────────
+   A caixa espelha cada tecla em `fState.dados` para a prévia responder ao vivo. Só que nada
+   desfazia o espelho quando a pessoa saía do passo SEM enviar (Anterior, Respostas, trocar de
+   material): apagar o preço para redigitar e tocar em Anterior deixava o "De:" da arte em
+   branco, ou com o "4" cru que ela começou a digitar — no rascunho inclusive. Era o "o preço
+   sumiu / reescreveu sozinho" do teste no celular.
+   Regra: a primeira tecla de um passo guarda o valor que o campo TINHA; enviar (`fSaveAdv`,
+   `_fGuidedSalvar`) confirma; sair do passo sem enviar devolve. `ultimo` é o que o espelho
+   escreveu — se outra ação explícita mexeu no campo depois (edição pela arte, última arte,
+   loja), o valor dela vence e nada é devolvido. `fEspelhoSincroniza` roda no `fUpdateProg`,
+   que é por onde toda troca de passo passa, nos dois renderizadores. */
+function _fEspelhoAbre(box, id){
+  if(box._fEsp && box._fEsp.id===id) return;
+  const d = fState.dados || {};
+  box._fEsp = {id, tinha:Object.prototype.hasOwnProperty.call(d,id), valor:d[id], ultimo:d[id]};
+}
+function fEspelhoConfirma(){
+  const b = document.getElementById('f-msg-box');
+  if(b) b._fEsp = null;
+}
+function fEspelhoSincroniza(){
+  const b = document.getElementById('f-msg-box'), e = b && b._fEsp;
+  if(!e) return;
+  const atual = (b.disabled || fState.done) ? null : fState.camp?.perguntas?.[fState.stepIdx]?.id;
+  if(atual === e.id) return;                       // continua no mesmo passo: segue digitando
+  b._fEsp = null;
+  if(!fState.dados || fState.dados[e.id] !== e.ultimo) return;   // outra ação já decidiu o valor
+  if(e.tinha) fState.dados[e.id] = e.valor; else delete fState.dados[e.id];
+  try{ fSaveChatDraft(); }catch(err){}
+  try{ fLpRefresh(); }catch(err){}
+}
 function fAttachInputGuard(){
   const box = document.getElementById('f-msg-box');
   if(!box || box._guarded) return;
@@ -467,8 +511,10 @@ function fAttachInputGuard(){
     // no flag de skip — isso é decisão do submit, não de cada tecla.
     if(cfg.type==='image'||cfg.type==='select'||cfg.type==='color'||cfg.type==='boolean') return;
     if(!fState.dados) fState.dados={};
+    _fEspelhoAbre(box, id);
     // Texto livre espelha o Shift+Enter na prévia (o submit grava o mesmo, via fApplyMask).
     fState.dados[id]=cfg.type==='text' ? box.value.replace(/\r/g,'').replace(/\t/g,' ') : box.value.replace(/[\r\n\t]/g,' ');
+    box._fEsp.ultimo=fState.dados[id];
     // Debounce leve: gSmartWrapText mede texto por tecla; sem isso trava em texto longo.
     clearTimeout(box._lpPreviewT);
     box._lpPreviewT=setTimeout(()=>{ fLpRefresh(); }, 110);
@@ -654,6 +700,7 @@ function fSaveAdv(val){
     const skipped = String(val).toLowerCase() === 'pular';
     const finalVal = skipped ? '' : val;
     fState.dados[savedField]=finalVal;
+    fEspelhoConfirma();   // enviou: o que foi digitado passa a ser o valor
     if(skipped) fState.dados['__skipped__'+savedField]=true;
     else delete fState.dados['__skipped__'+savedField];
     if (typeof fSaveChatDraft === 'function') fSaveChatDraft();
@@ -690,6 +737,34 @@ function fInitSmartInputFormatter() {
   // Instagram. Formatar so quando a pessoa termina e a unica forma de a mascara nunca
   // disputar o cursor com quem esta digitando.
 
+  /* PREÇO QUE JÁ EXISTE CHEGA SELECIONADO. O passo que volta com valor (Anterior, rascunho,
+     prévia) põe "De: R$ 30,00" na caixa com o cursor no fim, e quem digitava por cima emendava
+     os dígitos no valor velho ("De: R$ 30,0035"). Em texto o cursor no fim é o certo (corrigir
+     uma letra do produto); em preço, emendar nunca é a intenção — digitar substitui, Enter
+     mantém. No FOCO e não ao montar o passo: no celular o toque reposiciona o cursor e
+     desfaria a seleção. Só enquanto a caixa ainda tem o valor salvo intacto. */
+  const selecionaPrecoSalvo = (ev) => {
+    const id = fState.camp?.perguntas?.[fState.stepIdx]?.id;
+    if (!id) return;
+    const cfg = fGetFieldType(id);
+    if (cfg.type !== 'price' && cfg.type !== 'discount') return;
+    const salvo = fState.dados && fState.dados[id];
+    if (!salvo || b.value !== String(salvo)) return;
+    // Uma vez por valor: o segundo toque posiciona o cursor, para quem quer mesmo editar.
+    // Só o TOQUE gasta a vez: o foco automático do passo seleciona mas não conta, senão o
+    // primeiro toque real (que move o cursor) já chegaria sem direito a seleção.
+    const chave = id + '|' + salvo;
+    if (b._fSelChave === chave) return;
+    if (ev && ev.type === 'click') b._fSelChave = chave;
+    // No `click` o navegador já pôs o cursor: seleciona na hora. No `focus` ainda vai pôr,
+    // então espera um tique.
+    const sel = () => { try { if (document.activeElement === b) b.select(); } catch(e){} };
+    if (ev && ev.type === 'click') sel(); else setTimeout(sel, 0);
+  };
+  // `click` cobre a caixa que o passo já focou sozinho (o toque não dispara `focus` de novo).
+  b.addEventListener('focus', selecionaPrecoSalvo);
+  b.addEventListener('click', selecionaPrecoSalvo);
+
   b.addEventListener('blur', () => {
     const v = b.value.trim();
     if(!v) return;
@@ -705,8 +780,13 @@ function fInitSmartInputFormatter() {
     
     b.classList.add('f-msg-box-transition');
     setTimeout(() => {
-      b.value = masked;
       b.classList.remove('f-msg-box-transition');
+      /* ⚠ 130ms depois o passo pode ter mudado: o blur que dispara isto é justamente o toque
+         em "Anterior" ou num chip. Sem esta guarda o preço formatado do passo que saiu era
+         escrito na caixa do passo NOVO ("De: R$ 4,00" no campo do produto) e um Enter o
+         gravava lá. Só formata se a caixa ainda é daquele campo e daquele texto. */
+      if (fState.camp?.perguntas?.[fState.stepIdx]?.id !== id || b.value.trim() !== v) return;
+      b.value = masked;
     }, 130);
   });
 }
