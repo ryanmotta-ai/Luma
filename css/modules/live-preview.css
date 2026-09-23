@@ -661,6 +661,82 @@ body:not(.theme-light) .lp-edit-input{background:var(--d-card,#242424);border-co
 }
 .lp-frame-hud-cancel:hover{background:rgba(255,255,255,0.16);border-color:rgba(255,255,255,0.55)}
 .lp-frame-hud-cancel:active{transform:scale(0.97)}
+/* título e dica só existem no modo tela cheia do celular (abaixo) */
+.lp-frame-hud-title,.lp-frame-hud-hint{display:none}
+
+/* ══ AJUSTAR FOTO NO CELULAR: MODO PRÓPRIO, TELA CHEIA (proposta A, 23/09/2026) ══
+   Como recortar foto na galeria do celular. `body.lp-framing` é ligado por fLpStartFraming
+   (só ≤680px), que também tira a HUD de dentro da arte e a põe no body. A gaveta da prévia
+   vira a tela inteira e escura; cabeçalho, dicas, ferramentas e Baixar PNG somem. O palco
+   fica entre a barra de cima (Cancelar · título · Aplicar) e a de baixo (zoom + atalhos),
+   e o fLpRefit encaixa a arte nele.
+   A HUD cobre a tela toda com `pointer-events:none` — só os controles recebem toque, então
+   arrastar e pinçar na arte passam direto para o overlay de enquadramento. */
+@media (max-width:680px){
+  html body.lp-framing #f-live-preview{
+    position:fixed!important;inset:0!important;top:0!important;height:100dvh!important;max-height:none!important;
+    z-index:10050!important;transform:none!important;border:0!important;border-radius:0!important;
+    background:#0E0E0E!important;box-shadow:none!important;display:block!important;
+  }
+  body.lp-framing #f-live-preview::before,
+  body.lp-framing #f-live-preview .lp-head,
+  body.lp-framing #f-live-preview .lp-toolbar,
+  body.lp-framing #f-live-preview .lp-mobile-download-bar,
+  body.lp-framing #f-live-preview .lp-ctx-bar,
+  body.lp-framing #f-live-preview .lp-stage-meta,
+  body.lp-framing .lp-balao{display:none!important}
+  body.lp-framing #f-live-preview .lp-stage{
+    position:absolute!important;left:0;right:0;
+    top:calc(64px + var(--safe-top,0px));bottom:calc(176px + var(--safe-bottom,0px));
+    height:auto!important;background:transparent!important;
+  }
+  body.lp-framing .lp-canvas-wrap{box-shadow:0 12px 40px rgba(0,0,0,.5)}
+  body.lp-framing .lp-frame-ov{background:none}
+  body.lp-framing .lp-frame-crop-box{box-shadow:0 0 0 9999px rgba(0,0,0,.55),inset 0 0 0 2px #fff}
+  body.lp-framing .lp-crop-corner{width:20px;height:20px;border-color:#fff;border-width:3px}
+  body.lp-framing .lp-crop-line{background:rgba(255,255,255,.4)}
+
+  /* a HUD vira o layout da tela: grade de 3 colunas, controles nas bordas */
+  body.lp-framing #lp-frame-hud{
+    position:fixed;inset:0;z-index:10060;transform:none;left:0;bottom:0;
+    display:grid;grid-template-columns:auto 1fr auto;
+    grid-template-rows:calc(64px + var(--safe-top,0px)) auto 1fr auto auto auto;
+    column-gap:12px;row-gap:0;align-items:center;
+    padding:var(--safe-top,0px) 16px calc(22px + var(--safe-bottom,0px));
+    background:none;backdrop-filter:none;box-shadow:none;border-radius:0;
+    color:#fff;font-size:14px;white-space:normal;pointer-events:none;
+  }
+  body.lp-framing #lp-frame-hud>*,body.lp-framing #lp-frame-hud .lp-frame-hud-group>*{pointer-events:auto}
+  body.lp-framing #lp-frame-hud .lp-frame-hud-divider{display:none}
+  body.lp-framing #lp-frame-hud .lp-frame-hud-group:has(#lp-frame-slider){display:contents}
+
+  /* barra de cima */
+  body.lp-framing .lp-frame-hud-cancel{grid-row:1;grid-column:1;justify-self:start;border:0;background:none;padding:10px 4px;font-size:15px;font-weight:500;color:#D0D0D0}
+  body.lp-framing .lp-frame-hud-title{display:block;grid-row:1;grid-column:2;text-align:center;font-size:15px;font-weight:700;pointer-events:none!important}
+  body.lp-framing .lp-frame-hud-done{grid-row:1;grid-column:3;justify-self:end;padding:10px 18px;font-size:15px;gap:6px}
+  body.lp-framing .lp-frame-hud-done svg{width:15px;height:15px}
+  body.lp-framing .lp-frame-hud-hint{
+    display:inline-flex;grid-row:2;grid-column:1 / -1;justify-self:center;margin-top:4px;
+    padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.12);color:#E6E6E6;
+    font-size:12.5px;font-weight:600;pointer-events:none!important;
+    animation:lpHintSome .4s var(--ease-out) 2.6s both;
+  }
+  /* barra de baixo: % → zoom grande → atalhos */
+  body.lp-framing .lp-frame-hud-pct{grid-row:4;grid-column:1 / -1;justify-self:center;margin-bottom:12px;font-size:13px;font-weight:700;color:#BBB}
+  body.lp-framing .lp-frame-hud-pct::before{content:'Zoom '}
+  body.lp-framing #lp-frame-zoom-out{grid-row:5;grid-column:1}
+  body.lp-framing #lp-frame-zoom-in{grid-row:5;grid-column:3}
+  body.lp-framing .lp-frame-hud-btn{width:44px;height:44px;background:rgba(255,255,255,.12)}
+  body.lp-framing .lp-frame-hud-btn svg{width:18px;height:18px}
+  body.lp-framing .lp-frame-hud-slider{grid-row:5;grid-column:2;width:100%;height:4px;background:rgba(255,255,255,.22)}
+  body.lp-framing .lp-frame-hud-slider::-webkit-slider-thumb{width:26px;height:26px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+  body.lp-framing .lp-frame-hud-slider::-moz-range-thumb{width:26px;height:26px;background:#fff}
+  body.lp-framing #lp-frame-hud .lp-frame-hud-group:has(#lp-frame-center){grid-row:6;grid-column:1 / -1;justify-self:center;display:flex;gap:8px;margin-top:18px}
+  body.lp-framing .lp-frame-hud-text-btn{height:38px;padding:0 16px;border:0;background:rgba(255,255,255,.12);color:#EEE;font-size:13px}
+  /* sem o resto do app por cima do modo */
+  body.lp-framing #mobile-preview-toggle,body.lp-framing #luma-widget-fab-wrap,body.lp-framing #g-help-float{display:none!important}
+}
+@keyframes lpHintSome{to{opacity:0;visibility:hidden}}
 
 /* ── A BANDEJA DE VALIDAÇÃO FOI REMOVIDA (02/09) ──
    Aqui viviam ~30 linhas estilando `.lp-warnings` e quatro chips

@@ -3182,7 +3182,9 @@ function fLpStartFraming(l,v){
         <div class="lp-crop-line v2"></div>
       </div>
     </div>
-    <div class="lp-frame-hud">
+    <div class="lp-frame-hud" id="lp-frame-hud">
+      <span class="lp-frame-hud-title">Ajustar foto</span>
+      <span class="lp-frame-hud-hint">Arraste para mover · pinça para zoom</span>
       <div class="lp-frame-hud-group">
         <button class="lp-frame-hud-btn" id="lp-frame-zoom-out" type="button" title="Diminuir zoom (-)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -3314,6 +3316,19 @@ function fLpStartFraming(l,v){
   window.addEventListener('mousemove',_fLpFrameMove);
   window.addEventListener('mouseup',_fLpFrameUp);
   window.addEventListener('keydown',_fLpFrameKey);
+
+  /* CELULAR: modo próprio de tela cheia (proposta A, 23/09/2026). A barra que morava dentro
+     da arte estourava a largura (o Aplicar ficava fora da tela) e a prévia seguia com
+     cabeçalho, dicas e Baixar PNG em volta. Aqui a HUD sai da arte para o body (fica fixa,
+     fora do zoom da mesa), o body ganha `.lp-framing` (o CSS apaga o resto e escurece) e a
+     arte reencaixa no palco novo. A HUD já foi tirada da arte logo acima (irmã do palco, com estilo inline para o desktop);
+     aqui o inline sai e ela vai para o body. As ligações já foram feitas: mover o nó não as perde. */
+  if(window.matchMedia && matchMedia('(max-width:680px)').matches){
+    const hud=document.getElementById('lp-frame-hud');   // já saiu da arte (irmão do palco, acima)
+    if(hud){ hud.removeAttribute('style'); hud.querySelectorAll('.lp-frame-hud-divider').forEach(el=>el.removeAttribute('style')); document.body.appendChild(hud); }
+    document.body.classList.add('lp-framing');
+    requestAnimationFrame(()=>{ try{ fLpRefit(); }catch(e){} });
+  }
 }
 /* ── ENQUADRAR SEM CAÇAR O CLIQUE NA ARTE ────────────────────────────────────────────────
    O teste de usabilidade foi direto: ninguém descobriu que dá pra reposicionar a foto, porque
@@ -3403,6 +3418,10 @@ function fLpStopFraming(){
   _fLpFrameDrag=null; _fLpPinch=null; _lpFraming=null;
   const ov=document.getElementById('lp-frame-ov'); if(ov) ov.remove();
   document.getElementById('lp-frame-hud')?.remove();
+  if(document.body.classList.contains('lp-framing')){
+    document.body.classList.remove('lp-framing');
+    requestAnimationFrame(()=>{ try{ fLpRefit(); }catch(e){} });   // palco voltou ao tamanho da gaveta
+  }
   try{if(typeof fSaveChatDraft==='function') fSaveChatDraft();}catch(e){}
   _fLpRender();
 }
