@@ -125,7 +125,7 @@ franqueado (o Quick Add em linguagem natural existiu e saiu em 03/09).
 |---|---|
 | **Qualquer cor, espaçamento, curva de motion** | `css/00-tokens.css` — nunca hex solto |
 | Keyframes globais + guarda de `reduced-motion` | `css/02-animations.css` |
-| Tela de login (⚠️ geometria do baralho é contrato medido) | `css/components/login.css` |
+| Tela de login (desktop editorial + celular em leque) | `css/components/login.css` |
 | Estilo de um módulo | `css/modules/<módulo>.css` — tabela completa no trecho gerado |
 
 ---

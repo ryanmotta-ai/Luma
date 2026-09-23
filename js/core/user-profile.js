@@ -88,6 +88,8 @@ function gOpenUserProfileModal() {
   // Gate mais estreito aqui deixaria o designer sem caminho no celular, onde não há Ctrl+`.
   const cliBtn = document.getElementById('prof-nav-console');
   if(cliBtn) cliBtn.style.display = (typeof gIsAdmin==='function' && gIsAdmin()) ? '' : 'none';
+  const gestaoLbl = document.getElementById('prof-nav-label-gestao');
+  if(gestaoLbl) gestaoLbl.style.display = (typeof gIsAdmin==='function' && gIsAdmin()) ? '' : 'none';
 
   // Modo das ferramentas do Estúdio: mesmo gate da aba Designer (gIsAdmin). Para o
   // franqueado a opção não existe — ele nunca entra no Estúdio.
@@ -103,8 +105,18 @@ function gOpenUserProfileModal() {
   // Inicializar estatísticas reais
   gProfileRenderStats(role);
 
+  // Celular: abre no índice de seções (o CSS só usa a classe abaixo de 768px)
+  gProfileShowHub();
+
   // Abrir modal
   modal.classList.add('open');
+}
+
+// Índice de seções do celular (lista agrupada). Tocar numa seção chama
+// gProfileSwitchTab, que tira a classe; o "‹" do cabeçalho devolve para cá.
+function gProfileShowHub(){
+  const box = document.querySelector('#g-profile-modal .prof-box');
+  if (box) box.classList.add('prof-hub');
 }
 
 // Fecha o Modal
@@ -126,6 +138,7 @@ function gProfileOpenCli(){
 }
 
 function gProfileSwitchTab(tabName) {
+  document.querySelector('#g-profile-modal .prof-box')?.classList.remove('prof-hub');
   if((tabName==='feedback'||tabName==='painel')&&!gIsAdmin())return;
   // Ajustar botões da navegação lateral
   document.querySelectorAll('.prof-nav-btn').forEach(btn => {

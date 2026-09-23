@@ -1141,3 +1141,64 @@ body:not(.theme-light) .prof-role-picker-opt-equipe_dm .prof-role-picker-opt-ico
 .prof-user-local-form{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .prof-user-local-form .prof-input{flex:1 1 120px;width:auto;min-width:0;height:34px;padding:6px 10px;font-size:12px}
 .prof-user-local-form .prof-btn{min-height:34px;padding:0 12px;font-size:12px}
+
+/* ==========================================================================
+   CELULAR: ÍNDICE DE SEÇÕES (proposta A, aprovada 23/09)
+   O painel abre numa lista agrupada — você no topo, "Sua conta" e "Gestão" —
+   no lugar da fita de abas que rolava de lado e escondia 6 das 8 seções.
+   Tocar numa seção abre a tela dela (gProfileSwitchTab tira .prof-hub); o "‹"
+   do cabeçalho volta (gProfileShowHub). No desktop nada disto aparece.
+   Fica no fim do arquivo de propósito: vence as três camadas de mobile acima.
+   ========================================================================== */
+.prof-hub-close,.prof-back,.prof-nav .prof-nav-label{display:none}
+
+@media(max-width:768px){
+  /* tela da seção: a lista sai, o cabeçalho ganha o "‹" */
+  .prof-box:not(.prof-hub) .prof-sidebar{display:none!important}
+  .prof-back{display:grid;place-items:center;width:40px;height:40px;flex:0 0 auto;margin-left:-6px;border:0;border-radius:var(--r-sm);background:transparent;color:var(--prof-text);cursor:pointer}
+  .prof-back svg{width:22px;height:22px}
+  .prof-back:active{background:var(--prof-muted)}
+  .prof-header{justify-content:flex-start;gap:8px;padding-top:calc(14px + var(--safe-top))}
+  .prof-title-area{flex:1}
+  .prof-eyebrow{display:none}
+
+  /* índice */
+  .prof-box.prof-hub{background:var(--prof-muted)}
+  .prof-box.prof-hub .prof-content{display:none}
+  .prof-box.prof-hub .prof-sidebar{
+    display:flex!important;flex-direction:column;align-items:stretch;flex:1 1 auto!important;height:auto!important;
+    position:relative;overflow-y:auto;gap:0;padding:calc(18px + var(--safe-top)) 16px calc(24px + var(--safe-bottom));
+    border:0;background:var(--prof-muted);
+  }
+  .prof-hub .prof-brand{display:flex;align-items:center;justify-content:flex-start;min-height:40px;padding:0 4px 16px;border:0}
+  .prof-hub .prof-brand-mark,.prof-hub .prof-brand-copy strong{display:none}
+  .prof-hub .prof-brand-copy{display:flex}
+  .prof-hub .prof-brand-copy small{display:block;margin:0;font-size:22px;font-weight:900;letter-spacing:-.02em;text-transform:none;color:var(--prof-text)}
+  .prof-hub .prof-hub-close{display:grid;position:absolute;top:calc(14px + var(--safe-top));right:16px;width:40px;height:40px}
+  .prof-hub .prof-sidebar-user{display:grid;grid-template-columns:52px minmax(0,1fr);gap:14px;margin:0;padding:14px;border:0;border-radius:18px;background:var(--prof-surface)}
+  .prof-hub .prof-sidebar-av-wrap{width:52px;height:52px}
+  .prof-hub .prof-sidebar-name{font-size:16px}
+  .prof-hub .prof-nav-label{display:block;margin:20px 6px 8px;padding:0;font-size:11px;letter-spacing:.1em}
+  .prof-hub .prof-nav{display:flex;flex-direction:column;gap:0;overflow:visible;flex:none}
+
+  /* linhas: fundo branco contínuo, cantos só nas pontas de cada grupo */
+  .prof-hub .prof-nav-btn{
+    min-height:54px;padding:0 14px;gap:12px;border:0;border-radius:0;border-bottom:1px solid var(--prof-border);
+    background:var(--prof-surface);color:var(--prof-text);font-size:15px;font-weight:500;white-space:normal;transform:none;box-shadow:none;
+  }
+  .prof-hub .prof-nav-btn.active{background:var(--prof-surface);font-weight:500}
+  .prof-hub .prof-nav-btn.active::before{display:none}
+  .prof-hub .prof-nav-btn svg{width:32px;height:32px;padding:7px;border-radius:10px;background:var(--dm-orange-bg);color:var(--dm-orange-d)}
+  .prof-hub .prof-nav-label-gestao~.prof-nav-btn svg{background:var(--prof-muted);color:var(--prof-text-2)}
+  .prof-hub .prof-nav-btn::after{content:'';width:8px;height:8px;margin-left:auto;flex:0 0 auto;border-right:2px solid var(--prof-border-strong);border-bottom:2px solid var(--prof-border-strong);rotate:-45deg}
+  .prof-hub .prof-nav-tag{display:none}
+  .prof-hub .prof-nav>.prof-nav-btn:first-child,.prof-hub .prof-nav-label+.prof-nav-btn{border-radius:18px 18px 0 0}
+  .prof-hub .prof-nav-btn:has(+.prof-nav-label),.prof-hub .prof-nav>.prof-nav-btn:last-child{border-bottom:0;border-radius:0 0 18px 18px}
+  .prof-hub .prof-logout-btn{
+    width:100%;min-height:54px;margin:20px 0 0;padding:0;justify-content:center;gap:10px;border:0;border-radius:18px;
+    background:var(--prof-surface);color:var(--dm-red-text);font-size:15px;font-weight:700;
+  }
+  .prof-hub .prof-logout-btn svg{width:20px;height:20px;padding:0;background:none;color:inherit}
+  .prof-hub .prof-logout-btn::after{display:none}
+  .prof-hub .prof-logout-btn span{display:inline}
+}
