@@ -21,6 +21,10 @@
    a lista do que mudou (`trocas`, `removidas`) — a UI mostra o que saiu, a pessoa confere antes
    de aceitar.
 
+   ALCANCE (ciclo 4, bancada em pixel: 14 caixas reais × 177 copies do corpus, Local Fit real):
+   de 784 bloqueios, o motor resgatava 163 (20,8%); com as regras do ciclo 4, 176 (22,4%). Dos que
+   sobram, ~90% passam de 15% de falta — ali só cortar produto resolveria, e isso ele não faz.
+
    API: gCopyFitCandidatos(texto) · gCopyFitSugestoes(texto, cabe, max) · gCopyFitGuarda(a, b)
    ══════════════════════════════════════════════════════════════════════════════════════════ */
 
@@ -47,7 +51,9 @@ function _gCfCaixa(orig, novo){
    só se é o que o próprio cliente escreveria no pedido. */
 const G_CF_CURTAS = [
   ['refrigerantes', 'refris'], ['refrigerante', 'refri'],
-  ['hamb[uú]rgueres', 'burgers'], ['hamb[uú]rguer', 'burger'],
+  // "Hamburger" (grafia inglesa, corpus do ciclo 4: "Hamburger de picanha 200g…") é a MESMA
+  // palavra — ficava de fora e o texto voltava sem nenhuma versão.
+  ['hamb[uú]rgueres', 'burgers'], ['hamb[uú]rgu?ers', 'burgers'], ['hamb[uú]rgu?er', 'burger'],
   ['promo[cç][oõ]es', 'promos'], ['promo[cç][aã]o', 'promo'],
   // "dias úteis" fica: "todo dia úteis" seria erro de português.
   ['todos os dias(?!\\s+[úu]teis)', 'todo dia'], ['para pedidos acima de', 'acima de']
@@ -68,11 +74,11 @@ const G_CF_ENFEITES = ['super', 'mega', 'delicios[oa]s?', 'incr[ií]ve(?:l|is)',
    E nem depois do item, se o que vem a seguir faz do tamanho um NOME: "Pizza Grande São Paulo"
    (pizzaria), "Esfiha Média Oriente", "Pizza Grande Família". Lista fechada de inícios de nome. */
 const _G_CF_TAM_NOME = '\\s+(?:s[aã]o|sant[oa]s?|rio|porto|belo|campos?|vila|fam[ií]lia|oriente)(?=$|' + _G_CF_L + ')';
-const G_CF_TEM_TAMANHO = 'pizzas?|batatas?\\s+fritas?|batatas?|fritas|refris?|refrigerantes?|a[cç]a[ií]s?|copos?|por[cç](?:[aã]o|[oõ]es)|milk-?shakes?|sucos?|combos?|lanches?|past[eé]is|pastel|esfihas?|sorvetes?';
+const G_CF_TEM_TAMANHO = 'pizzas?|batatas?\\s+fritas?|batatas?|fritas|refris?|refrigerantes?|a[cç]a[ií]s?|copos?|por[cç](?:[aã]o|[oõ]es)|milk-?shakes?|sucos?|combos?|lanches?|past[eé]is|pastel|esfihas?|sorvetes?|marmitas?|marmitex|yakisobas?';
 const G_CF_TAMANHOS = [['grandes?', 'G'], ['m[eé]di[oa]s?', 'M'], ['pequen[oa]s?', 'P']];
 /* Item de PEDIDO — só antes dele o "com" vira "+". "Café com leite", "Combinado com salmão",
    "Pizza doce com morango": ali o "com" é composição, e o "+" venderia duas coisas. */
-const G_CF_ITENS = 'refris?|refrigerantes?|batatas?|fritas|sucos?|burgers?|hamb[uú]rgueres|hamb[uú]rguer|pizzas?|por[cç](?:[aã]o|[oõ]es)|sobremesas?|bebidas?|guaran[aá]s?|coca-cola|cocas?|milk-?shakes?|a[cç]a[ií]s?|sorvetes?|past[eé]is|pastel|esfihas?|coxinhas?|x-\\p{L}+';
+const G_CF_ITENS = 'refris?|refrigerantes?|batatas?|fritas|sucos?|burgers?|hamb[uú]rgueres|hamb[uú]rgu?ers?|pizzas?|por[cç](?:[aã]o|[oõ]es)|sobremesas?|bebidas?|guaran[aá]s?|coca-cola|cocas?|milk-?shakes?|a[cç]a[ií]s?|sorvetes?|past[eé]is|pastel|esfihas?|coxinhas?|x-\\p{L}+';
 /* Palavra de ligação: o enfeite depois dela ainda está ANTEPOSTO ("Leve um delicioso X-Tudo"). */
 const _G_CF_LIGA = /^(?:o|a|os|as|um|uma|uns|umas|de|do|da|dos|das|no|na|nos|nas|e|em|com|para|pra|seu|sua|seus|suas|\+)$/iu;
 const _gCfNu = w => String(w || '').replace(/^[^\p{L}\d]+|[^\p{L}\d]+$/gu, '');
@@ -150,10 +156,19 @@ const _G_CF_DEGRAUS = [
     t = t.replace(_gCfRx('(\\d)\\s+(ml)(?=$|' + _G_CF_L + ')', 'giu'), (m, d, w) => {
       r.trocas.push([d + ' ' + w, d + w]); return d + w;
     });
+    // "Refri de 2L" → "Refri 2L", "Açaí de 700ml" → "Açaí 700ml" (ciclo 4, corpus: "refris de
+    // 600ml", "refri de 2L grátis", "Milkshake de 500 ml"). Só com ITEM de pedido colado antes e
+    // volume/peso depois: o "de" ali só liga o produto à medida. "a partir de 500g", "acima de
+    // 2L", "ganhe 1 de 300ml" ficam — antes do "de" não há item.
+    t = t.replace(_gCfRx('(^|' + _G_CF_L + ')(' + G_CF_ITENS + ')(\\s+)(de)\\s+(?=\\d+(?:[.,]\\d+)?\\s*(?:ml|l|g|kg)(?=$|' + _G_CF_L + '))', 'giu'),
+      (m, pre, item, esp, de) => { r.removidas.push(de); return pre + item + esp; });
     return t;
   }},
   { id:'curtas', fn:(s, r) => {
-    let t = s.replace(/(\d)\s*%\s*de\s+desconto/giu, (m, d) => { r.trocas.push(['de desconto', 'OFF']); return d + '% OFF'; });
+    // "40 reais" FICA: trocar por "R$ 40" muda o tom que o franqueado escolheu — decisão do Ryan,
+    // pendente. Não reintroduzir sem ela.
+    // "de desconto" → "OFF" depois de % ou de um valor em R$ ("R$ 20 de desconto" → "R$ 20 OFF").
+    let t = s.replace(/(\d\s*%|R\$\s*\d+(?:[.,]\d+)?)\s*de\s+desconto/giu, (m, v) => { r.trocas.push(['de desconto', 'OFF']); return v.replace(/\s*%$/, '%') + ' OFF'; });
     // "de segunda a domingo" → "seg a dom". Cada abreviação herda a caixa do SEU dia; o "de" que
     // sai passa a maiúscula de abertura para a 1ª ("De segunda a sábado," → "Seg a sáb,").
     const dia = '(' + _G_CF_DIA + ')(?:-feira)?';
@@ -203,7 +218,9 @@ const _G_CF_DEGRAUS = [
           const ant = w.slice(0, i).filter(Boolean).slice(-2);
           if(!ant.length || /,$/.test(ant[ant.length - 1]) || !item.test(prox)) continue;
           if(/^\d+$/.test(ant[ant.length - 1]) || ant.some(a => /^(?:leve|pague|caixa|kit)$/iu.test(_gCfNu(a)))) continue;
-          if(w.slice(i + 1).join(' ').includes(',')) continue;
+          // Vírgula DECIMAL não é lista (ciclo 4): "X-Tudo com batata e refri 2L R$ 39,90" ficava
+          // sem o "+" só por causa do preço — era a vírgula do 39,90 travando o trecho inteiro.
+          if(/(^|\D),|,(?!\d)/.test(w.slice(i + 1).join(' '))) continue;
           w[i] = '+'; ativo = mudou = true;
         } else if(b === 'e' && ativo && item.test(prox)){
           w[i] = '+';
@@ -224,8 +241,10 @@ const _G_CF_DEGRAUS = [
       const todos = (parte.match(_gCfRe(G_CF_TAMANHOS.map(x => x[0]).join('|'))) || []).length;
       const trocas = [];
       let t = parte;
+      // "tamanho grande" sem item colado ("Milho tamanho grande", "Yakisoba de carne tamanho
+      // grande"): a própria palavra TAMANHO diz o que a letra é — vira "tamanho G", e ela fica.
       G_CF_TAMANHOS.forEach(([p, letra]) => {
-        t = t.replace(_gCfRx('(' + G_CF_TEM_TAMANHO + ')(\\s+)(?:tamanho\\s+)?(' + p + ')(?=$|' + _G_CF_L + ')(?!' + _G_CF_TAM_NOME + ')', 'giu'),
+        t = t.replace(_gCfRx('(' + G_CF_TEM_TAMANHO + '|tamanho)(\\s+)(?:tamanho\\s+)?(' + p + ')(?=$|' + _G_CF_L + ')(?!' + _G_CF_TAM_NOME + ')', 'giu'),
           (m, item, esp, w) => { trocas.push([w, letra]); return item + esp + letra; });
       });
       if(trocas.length !== todos) return parte;
@@ -341,7 +360,13 @@ function gCopyFitCandidatos(texto){
     const c = porTexto[k];
     if(!blindados.length) return c;
     return Object.assign(c, { text: solta(c.text), trocas: c.trocas.map(p => p.map(solta)), removidas: c.removidas.map(solta) });
-  }).filter(c => !blindados.length || gCopyFitGuarda(limpo, c.text)).sort(antes);
+  }).filter(c => !blindados.length || gCopyFitGuarda(limpo, c.text));
+  // A LIMPEZA SOZINHA também é resposta (ciclo 4): "pedidos!!!" → "pedidos!", espaço duplo. Ela
+  // roda antes de tudo e virava a BASE — se só ela bastava, o motor dizia "não coube" com a
+  // versão que cabia na mão. Custo 0: ninguém sente falta do "!!" a mais.
+  if(limpo !== String(texto) && gCopyFitGuarda(texto, limpo))
+    todos.push({ text: limpo, degrau: 'limpeza', degraus: ['limpeza'], custo: 0, trocas: [], removidas: [] });
+  todos.sort(antes);
   // Dominado sai: se um candidato mais BARATO já é tão curto quanto este, este nunca seria a
   // melhor resposta — e cada candidato custa uma medição em pixel no chamador.
   const out = [];
@@ -353,19 +378,25 @@ function gCopyFitCandidatos(texto){
 /**
  * Até `max` sugestões que CABEM, validadas por quem desenha.
  * @param {string}   texto
- * @param {function} cabe  (texto) → {ok:boolean, fontSize:number}  — o Local Fit do campo
- * @returns {{sugestoes:Array, nenhuma:boolean}}
+ * @param {function} cabe  (texto) → {ok:boolean, fontSize:number, ...}  — o Local Fit do campo.
+ *   Campos a mais são OPCIONAIS e só repassados no `maisPerto` (ex.: `falta` em letras,
+ *   `overflowX`/`overflowY` em px). O `_fLpBalaoCabe` de hoje devolve só {ok, fontSize}.
+ * @returns {{sugestoes:Array, nenhuma:boolean, maisPerto?:object|null}}
  *   A 1ª é a que MENOS mexeu e coube; as seguintes só entram se deixam a letra maior (≥2px):
  *   três versões que dão a mesma arte seriam três perguntas para uma resposta só.
+ *   `maisPerto` só vem com `nenhuma:true`: o candidato MAIS CURTO (o que chegou mais perto),
+ *   {text, fontSize, degraus, trocas, removidas, ...o que o `cabe` informou além de `ok`} — para
+ *   a UI poder dizer "faltam N letras". `null` quando o motor não achou candidato nenhum.
  */
 function gCopyFitSugestoes(texto, cabe, max){
   max = max || 3;
   const candidatos = gCopyFitCandidatos(texto);
   const sugestoes = [];
-  let melhorFs = -1;
+  let melhorFs = -1, ultimo = null;
   for(const c of candidatos){
     let v = null;
     try{ v = cabe(c.text); }catch(e){ v = null; }
+    ultimo = { c, v };
     if(!v || !v.ok) continue;
     const fs = Number(v.fontSize) || 0;
     if(sugestoes.length && fs < melhorFs + 2) continue;
@@ -373,5 +404,15 @@ function gCopyFitSugestoes(texto, cabe, max){
     melhorFs = Math.max(melhorFs, fs);
     if(sugestoes.length >= max) break;
   }
-  return { sugestoes, nenhuma: !sugestoes.length };
+  if(sugestoes.length) return { sugestoes, nenhuma: false };
+  // Nenhuma coube: o laço mediu todos, então o último medido é o mais curto (a lista termina nele).
+  let maisPerto = null;
+  if(ultimo){
+    const extra = Object.assign({}, (ultimo.v && typeof ultimo.v === 'object') ? ultimo.v : {});
+    delete extra.ok;
+    const c = ultimo.c;
+    maisPerto = Object.assign(extra, { text: c.text, fontSize: Number(extra.fontSize) || 0,
+      degraus: c.degraus, trocas: c.trocas, removidas: c.removidas });
+  }
+  return { sugestoes, nenhuma: true, maisPerto };
 }

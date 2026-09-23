@@ -26,13 +26,13 @@
      só na posição certa (saiAqui). */
   const PODE_SUMIR = /^(por|de|a|à|os|tamanho|taxa|para|pedidos)$/iu;
   const CANON = [
-    [/^refrigerantes?$/, 'refri'], [/^refris$/, 'refri'], [/^hamb[uú]rguer(es)?$/, 'burger'], [/^burgers$/, 'burger'],
+    [/^refrigerantes?$/, 'refri'], [/^refris$/, 'refri'], [/^hamb[uú]rgu?er(e?s)?$/, 'burger'], [/^burgers$/, 'burger'],
     [/^promo[cç](ão|ao|ões|oes)$/, 'promo'], [/^promos$/, 'promo'],
     [/^(litros?|lts?|l)$/, 'l'], [/^mililitros?$/, 'ml'], [/^gramas?$/, 'g'], [/^quilos?$/, 'kg'], [/^unidades?$/, 'un'],
     [/^grandes?$/, 'g'], [/^m[eé]di[oa]s?$/, 'm'], [/^pequen[oa]s?$/, 'p'],
     [/^(seg|segundas?)(-feiras?)?$/, 'seg'], [/^(ter|ter[cç]as?)(-feiras?)?$/, 'ter'], [/^(qua|quartas?)(-feiras?)?$/, 'qua'],
     [/^(qui|quintas?)(-feiras?)?$/, 'qui'], [/^(sex|sextas?)(-feiras?)?$/, 'sex'], [/^(s[aá]b|s[aá]bados?)$/, 'sab'], [/^(dom|domingos?)$/, 'dom'],
-    [/^todos$/, 'todo'], [/^dias$/, 'dia'], [/^desconto$/, 'off']
+    [/^todos$/, 'todo'], [/^dias$/, 'dia'], [/^desconto$/, 'off'], [/^reais$/, 'r']
   ];
   const canon = w => { for(const [re, c] of CANON) if(re.test(w)) return c; return w; };
   /* "2L" / "500ml" / "2x": o número some da conta (a guarda cuida dele), a unidade fica. */
@@ -40,7 +40,7 @@
   /* Estar na lista não basta: "com", "apenas" e o enfeite só podem sair NA POSIÇÃO certa. Sem
      isso a suíte aprovava "Café + leite", "Frete grátis para o centro" e "Pizza" (de "Pizza
      Especial"). Estas regras são a especificação, escritas à parte do motor. */
-  const ITEM = /^(refris?|refrigerantes?|batatas?|fritas|sucos?|burgers?|hamb[uú]rgueres|hamb[uú]rguer|pizzas?|por[cç](?:[aã]o|[oõ]es)|sobremesas?|bebidas?|guaran[aá]s?|coca-cola|cocas?|milk-?shakes?|a[cç]a[ií]s?|sorvetes?|past[eé]is|pastel|esfihas?|coxinhas?|x-\p{L}+)$/iu;
+  const ITEM = /^(refris?|refrigerantes?|batatas?|fritas|sucos?|burgers?|hamb[uú]rgueres|hamb[uú]rgu?ers?|pizzas?|por[cç](?:[aã]o|[oõ]es)|sobremesas?|bebidas?|guaran[aá]s?|coca-cola|cocas?|milk-?shakes?|a[cç]a[ií]s?|sorvetes?|past[eé]is|pastel|esfihas?|coxinhas?|x-\p{L}+)$/iu;
   const ENFEITE = /^(super|mega|delicios[oa]s?|incr[ií]ve(?:l|is)|gourmet|maravilhos[oa]s?|exclusiv[oa]s?|imperd[ií]ve(?:l|is)|irresist[ií]ve(?:l|is)|famos[oa]s?|saboros[oa]s?)$/iu;
   const LIGA = /^(o|a|os|as|um|uma|uns|umas|de|do|da|dos|das|no|na|nos|nas|e|em|com|para|pra|seu|sua|seus|suas|\+)$/iu;
   const nu = w => String(w || '').toLowerCase().replace(/^[^\p{L}\d]+|[^\p{L}\d]+$/gu, '');
@@ -159,11 +159,13 @@
       'Pastel de Queijo', 'Coxinha', 'Suco Natural', 'Sorvete Pequeno', 'X-Salada', 'X-Tudo Especial', 'Burger Artesanal',
       'Pizza de Calabresa Tradicional', 'Refri Zero', 'Pastel da Feira', 'Pizza Grande São Paulo', 'Café com leite',
       'Esfiha Média', 'Porção de fritas grande', 'Hot Roll 10 unidades', '{{produto}}', '<b>Combo</b>', 'Burger Top',
-      'Pizza Super Grande', 'Coca-Cola 2 lts', 'Refrigerantes (lata)', 'Promoção de Hambúrguer'];
+      'Pizza Super Grande', 'Coca-Cola 2 lts', 'Refrigerantes (lata)', 'Promoção de Hambúrguer',
+      'Hamburger de Picanha', 'Refri de 2 litros', 'Açaí de 700 ml', 'Marmita grande', 'Yakisoba tamanho médio'];
     const abre = ['', 'Super ', 'Combo ', 'Delicioso ', 'Promoção ', 'MEGA ', 'Top ', 'Famosa ', 'Especial ', 'Artesanal ', '🔥 ', 'Oferta! Deliciosa ', 'Leve um incrível '];
     const liga = [' com ', ' e ', ' + ', ', ', '\n'];
     const fim = ['', ' de segunda a sexta', ' todos os dias', ' com 50% de desconto', '. Taxa de entrega grátis', ' 500 gramas',
-      ' para pedidos acima de R$ 50', ' válido somente hoje', ' 👨‍👩‍👧', ' de terça-feira a domingo'];
+      ' para pedidos acima de R$ 50', ' válido somente hoje', ' 👨‍👩‍👧', ' de terça-feira a domingo',
+      ' acima de 40 reais', ' e ganhe 20 reais de desconto', ' a partir de 500g'];
     let seed = 7; const rnd = n => { seed = (seed * 9301 + 49297) % 233280; return Math.floor(seed / 233280 * n); };
     const out = [];
     for(let i = 0; i < 2000; i++){
@@ -186,10 +188,10 @@
       const sumiu = itensIntactos(f, c.text);
       assert(!sumiu.length, 'sumiu ' + sumiu + ': ' + f + ' → ' + c.text);
       assert((f.match(/\n/g) || []).length === (c.text.match(/\n/g) || []).length, 'quebra de linha sumiu: ' + JSON.stringify(c.text));
-      // Caixa: MAIÚSCULA segue maiúscula; minúscula só ganha as letras-padrão (G/M/P, OFF, L).
+      // Caixa: MAIÚSCULA segue maiúscula; minúscula só ganha as letras-padrão (G/M/P, OFF, L, o R de "R$").
       if(f === f.toUpperCase()) assert(c.text === c.text.toUpperCase(), 'caixa alta quebrou: ' + f + ' → ' + c.text);
       if(f === f.toLowerCase()){
-        const t = c.text.replace(/(^|[^\p{L}])(G|M|P|OFF|L)(?=$|[^\p{L}])/gu, '$1');
+        const t = c.text.replace(/(^|[^\p{L}])(G|M|P|OFF|L|R)(?=$|[^\p{L}])/gu, '$1');
         assert(t === t.toLowerCase(), 'minúscula ganhou maiúscula: ' + f + ' → ' + c.text);
       }
     }));
@@ -374,6 +376,83 @@
     assert(ts[10] < 2, '300 letras levou ' + ts[10].toFixed(2) + 'ms (mediana)');
     const t0 = performance.now(), c = gCopyFitCandidatos(base.repeat(12).slice(0, 2000)), dt = performance.now() - t0;
     assert(dt < 50 && c.length <= 12, '2.000 letras: ' + dt.toFixed(1) + 'ms, ' + c.length + ' candidatos');
+  });
+
+  /* 28–31: ciclo 4 (23/09) — ALCANCE em pixel. A bancada (14 caixas reais × 177 copies, Local
+     Fit real) resgatava 163 de 784 bloqueios (20,8%); com as regras abaixo, 176 (22,4%), sem
+     perder nenhum dos 163. Cada regra vem de copy do corpus que ficava a uma palavra de caber. */
+  test('28 · regras do ciclo 4: vírgula decimal, Hamburger, "de" da medida, reais, tamanho, limpeza', () => {
+    const espera = [
+      // antes: a vírgula do "39,90" contava como lista e travava o "+" do trecho inteiro
+      ['X-Tudo com batata e refrigerante 2 litros por apenas R$ 39,90', 'X-Tudo + batata + refri 2L R$ 39,90'],
+      ['X-Salada com Refrigerante Lata por apenas R$ 19,90', 'X-Salada + Refri Lata R$ 19,90'],
+      ['Hamburger de picanha 200g', 'Burger de picanha 200g'], ['HAMBURGERS', 'BURGERS'],
+      ['Refrigerante de 2 litros', 'Refrigerante 2L'], ['Burger com 2 refrigerantes de 600 ml', 'Burger com 2 refris 600ml'],
+      ['Na compra de 2 açaís de 500ml ganhe 1 de 300ml', 'Na compra de 2 açaís 500ml ganhe 1 de 300ml'],
+      ['Ganhe R$ 20 de desconto', 'Ganhe R$ 20 OFF'],
+      ['Pizza de Frango e Milho tamanho grande', 'Pizza de Frango e Milho tamanho G'],
+      ['Marmita grande com salada', 'Marmita G com salada'], ['Marmitex tamanho médio', 'Marmitex M'],
+      ['Só hoje: entrega grátis!!!', 'Só hoje: entrega grátis!']
+    ];
+    espera.forEach(([f, t]) => assert(textos(f).includes(t), '"' + f + '" deveria ter "' + t + '": ' + textos(f).join(' | ')));
+    // vírgula de LISTA continua travando; o "de" sem item antes fica; tamanho segue todos-ou-nenhum
+    semMexer(['Combo com refri, batata e sobremesa R$ 29,90', 'Açaí com granola, banana e morango R$ 19,90'],
+      (f, t) => !t.includes('+'), 'virou "+" numa lista com vírgula');
+    // "reais" → "R$" é decisão de negócio pendente: o motor não troca
+    semMexer(['Pedidos acima de 40 reais', 'Ganhe 20 reais de desconto'], (f, t) => /reais/.test(t), 'trocou "reais" por R$');
+    semMexer(['Porções a partir de 500g', 'Frete grátis acima de 2L', 'Ganhe 1 de 300ml', 'Copo de 500ml'],
+      (f, t) => / de /.test(t), 'tirou o "de" que não liga item à medida');
+    semMexer(['Marmita pequena R$ 14, média R$ 17 e grande R$ 20'], (f, t) => !/\b[GMP]\b/.test(t), 'abreviou só parte dos tamanhos');
+    // só a limpeza já é candidato, e o mais barato
+    const c = gCopyFitCandidatos('Só hoje: entrega grátis!!!')[0];
+    assert(c && c.custo === 0 && c.degraus.join() === 'limpeza', 'a limpeza sozinha deveria ser o 1º candidato');
+  });
+
+  test('29 · nenhuma coube → `maisPerto` é o mais curto, com o que o `cabe` informou', () => {
+    const f = 'Super Combo com Refrigerante';
+    const r = gCopyFitSugestoes(f, t => ({ ok:false, fontSize:40, falta: t.length - 10 }), 3);
+    const curto = gCopyFitCandidatos(f).pop();
+    assert(r.nenhuma && !r.sugestoes.length, 'inventou sugestão');
+    assert(r.maisPerto && r.maisPerto.text === curto.text, 'maisPerto não é o mais curto: ' + JSON.stringify(r.maisPerto));
+    assert(r.maisPerto.falta === curto.text.length - 10 && r.maisPerto.fontSize === 40 && !('ok' in r.maisPerto), 'não repassou o que o cabe disse');
+    assert(r.maisPerto.removidas.includes('Super'), 'maisPerto sem o que mudou');
+    assert(gCopyFitSugestoes('Pizza', () => ({ ok:false })).maisPerto === null, 'sem candidato, maisPerto é null');
+    assert(!('maisPerto' in gCopyFitSugestoes(f, () => ({ ok:true, fontSize:50 }))), 'coube: não há maisPerto');
+  });
+
+  test('30 · pixel, Story: o "+" com preço (vírgula decimal) é o que faz caber', () => {
+    const l = { id:'p', type:'text', content:'{{p}}', isVar:true, x:130, y:1220, w:363, h:72, font:'Arial',
+      fontSize:95, lineHeight:1.2, textBox:'point', vAlign:'top', textTransform:'uppercase', visible:true, opacity:100,
+      layoutRefText:'PRODUTO' };
+    const d = { id:'d', type:'text', content:'Com batata', x:126, y:1387, w:188, h:58, font:'Arial', fontSize:48,
+      textBox:'point', vAlign:'top', visible:true, opacity:100 };
+    const cabe = t => { const r = gFitTextToAuthoredBox(l, t, { layers:[l, d], canvas:{ w:1080, h:1920 } }); return { ok:r.status === 'fits', fontSize:r.fontSize }; };
+    const f = 'X-Salada com Refrigerante Lata por apenas R$ 19,90';
+    assert(!cabe(f).ok, 'o cenário precisa começar bloqueado');
+    const { sugestoes } = gCopyFitSugestoes(f, cabe, 3);
+    assert(sugestoes.length, 'deveria haver uma versão que cabe');
+    sugestoes.forEach(s => assert(cabe(s.text).ok, 'sugeriu o que não cabe: ' + s.text));
+    // sem o "+" nenhum candidato cabe — é a regra nova que resgata
+    assert(gCopyFitCandidatos(f).filter(c => !c.text.includes('+')).every(c => !cabe(c.text).ok), 'caberia sem a lista: o caso não prova a regra');
+  });
+
+  test('31 · pixel, arte do corpus (promo-preco-circulo): "refri de 2L" → "refri 2L" faz caber', () => {
+    const fx = (window.LUMA_CORPUS || []).find(x => x.nome === 'promo-preco-circulo');
+    assert(fx, 'fixture do corpus não carregou');
+    const dvAntes = window.dVars;
+    try{
+      const dados = {}; fx.campos.forEach(c => { dados[c.name] = c.example; });
+      window.dVars = fx.campos.map(c => Object.assign({ type:'text' }, c));
+      const base = gApplyRelativeAnchors(JSON.parse(JSON.stringify(fx.layers)), dados, {}, { canvas:fx.canvas, scope:'franqueado' });
+      const medir = gLocalFitMedidor(base, { fieldId:'produto' }, 'produto', dados, { canvas:fx.canvas, defaults:{} });
+      const cabe = t => { const r = medir(t); return { ok: !!r && r.status === 'fits', fontSize: r ? r.fontSize : 0 }; };
+      const f = 'Na compra de 2 pizzas grandes ganhe 1 refrigerante de 2 litros grátis';
+      assert(!cabe(f).ok, 'o cenário precisa começar bloqueado');
+      const { sugestoes } = gCopyFitSugestoes(f, cabe, 3);
+      assert(sugestoes.length, 'deveria haver uma versão que cabe');
+      sugestoes.forEach(s => assert(cabe(s.text).ok, 'sugeriu o que não cabe: ' + s.text));
+      assert(/refri 2L/.test(sugestoes[0].text), 'a 1ª deveria usar "refri 2L": ' + sugestoes[0].text);
+    } finally { window.dVars = dvAntes; }
   });
 
   let passed = 0;
