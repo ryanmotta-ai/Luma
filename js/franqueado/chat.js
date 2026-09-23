@@ -379,6 +379,7 @@ function fUpdateCtx(){
   fLpRefresh();
 }
 function fUpdateProg(){
+  try{ if(typeof fEspelhoSincroniza==='function') fEspelhoSincroniza(); }catch(e){}   // saiu do passo sem enviar → devolve o valor
   const tot=(fState.camp&&fState.camp.perguntas)?fState.camp.perguntas.length:0;
   /* Mobile continua contando o cursor. Desktop conta informação válida, porque draft,
      reuso e edição pela arte podem preencher campos fora da ordem. */
@@ -470,6 +471,7 @@ function _fGuidedConfigInput(p,cfg,valor){
   const box=document.getElementById('f-msg-box'), snd=document.getElementById('f-snd');
   if(!box||!snd) return;
   box.type='text'; box.disabled=false; box.value=valor||''; box.maxLength=cfg.maxLen||120;
+  box._fSelChave=null;   // passo novo: o 1º toque num preço salvo volta a selecionar (chat-input.js)
   box.removeAttribute('aria-describedby');
   snd.disabled=false; snd.dataset.label=_fGuidedNav.mode==='field-edit'?'Salvar':'Continuar';
   snd.setAttribute('aria-label',snd.dataset.label);
@@ -583,6 +585,7 @@ function _fGuidedSalvar(raw){
   if(erro){ _fGuidedErro(erro); return; }
   _fGuidedErro('');
   fState.dados[p.id]=valor;
+  try{ if(typeof fEspelhoConfirma==='function') fEspelhoConfirma(); }catch(e){}
   if(pulou) fState.dados['__skipped__'+p.id]=true; else delete fState.dados['__skipped__'+p.id];
   try{ fSaveChatDraft(); }catch(e){}
   try{ fUpdateLivePreview({animateField:p.id}); }catch(e){}
@@ -1195,6 +1198,7 @@ function fNextStep(){
        Aparecia mais agora porque o "Manter" nasce em cima de uma caixa JÁ preenchida (o
        `jaTem`), então o texto velho era a regra e não a exceção. Achado pela sonda da bancada. */
     box.value = jaTem ? String(fState.dados[p.id]) : '';
+    box._fSelChave = null;   // passo novo: o 1º toque num preço salvo volta a selecionar (chat-input.js)
     try { box.setSelectionRange(box.value.length, box.value.length); } catch(e){}
     try { fUpdateCharCount(); } catch(e){}
   }
@@ -1883,7 +1887,7 @@ function fEditCampo(idx){
   } else {
     fAddBot(`Qual é o novo valor para <strong>${gEsc(label)}</strong>?`,p.sugestoes);
     const box=document.getElementById('f-msg-box');
-    if(box){box.disabled=false;}
+    if(box){box.disabled=false; box._fSelChave=null;}
     const snd=document.getElementById('f-snd'); if(snd) snd.disabled=false;
     const mic=document.getElementById('f-chat-mic'); if(mic) mic.disabled=false;
     try { fUpdateInputPlaceholder(p.id); } catch(e){}

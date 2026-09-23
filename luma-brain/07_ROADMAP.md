@@ -44,6 +44,12 @@ modo, mais uma aba, mais uma flag.
 
 ### Fechado nesta rodada (setembro/2026)
 
+- [x] **PREÇO QUE SUMIA OU REESCREVIA NO CELULAR (23/09).** Relato do teste do time, reproduzido de ponta a ponta no celular. Três causas:
+  - **Digitar por cima do preço que voltou preenchido** (Anterior, rascunho, prévia): o cursor ficava no fim, "De: R$ 30,00"+"35" virava "De: R$ 30,0035" e a máscara o transformava em **R$ 300.035,00**, aceito pela validação. Agora o 1º toque num preço salvo seleciona o texto (digitar substitui; texto comum segue com cursor no fim) e a máscara recusa ambiguidade (duas vírgulas, dois números, 4+ casas). 3 casas ("12,500") seguem arredondando — decisão da auditoria de persona. O `fValidate` exige o formato canônico `R$ 1.234,56`.
+  - **Espelho ao vivo sem confirmação** (`chat-input.js`): cada tecla grava em `fState.dados` para a prévia acompanhar, e nada desfazia isso quando a pessoa saía do passo sem enviar — apagar o preço e tocar em Anterior deixava "4" cru na arte e no rascunho. Agora sair sem enviar devolve o valor anterior (`fEspelhoSincroniza`, no `fUpdateProg`), a menos que outra ação explícita tenha mexido no campo depois.
+  - **Corrida do blur**: o formatador de preço escrevia, 130ms depois, na caixa do passo seguinte ("De: R$ 4,00" no campo do produto). Guarda de passo no timeout.
+  - Hipótese descartada com medição: chips de perguntas antigas — o `chat.css` já os esconde (`:has(~.msg.active-prompt)`).
+
 - [x] **CHAT NO LIMBO — achado por varredura automática de ações (23/09).** O teste do time viu o chat parar "sem ação" e ninguém sabia reproduzir. Um robô dirigiu o app real (sem backend) com ~110 sequências aleatórias de cliques, digitação, upload, cliques na arte e teclas, no desktop e no celular, checando a cada passo se sobrava ação e se havia erro. Três causas reais:
   - **Outro formato depois da arte pronta** (`fOutroFormato`, `chat.js`): esperava a legenda da IA ANTES de gerar, fora do `try`. A chamada estourava sempre (`gAI.isEnabled` não existe) → o cabeçalho dizia "Feed", nenhum PNG saía, nenhum aviso. Agora a legenda local entra na hora e a da IA por cima, sem travar.
   - **Reabrir a mesma campanha com a arte aberta** (`fSelectCamp`, `catalog.js`): trocava `fState.camp` por um objeto sem perguntas; o próximo toque no chat morria. Mesma campanha agora mantém o objeto.

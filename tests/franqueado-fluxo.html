@@ -873,6 +873,50 @@ await test('bloqueio: a porta é ÚNICA — gHandleLayoutUnsafeError delega para
 });
 
 window.gConfirm=_gConfirmReal;
+/* ── PREÇO QUE SUMIA OU REESCREVIA NO CELULAR (teste do time, 23/09) ─────────────────────────
+   ⚠ NO FIM DE PROPÓSITO: estes casos ligam o `fAttachInputGuard` (é nele que mora o espelho
+   da digitação), e o guarda também assume o colar da caixa — antes do caso de colar/arrastar,
+   ele o contaminaria. */
+await test('Digitar por cima de um preço que voltou preenchido não inventa valor', async()=>{
+  // "Anterior" devolve "De: R$ 30,00" na caixa; quem digitava "35" mandava "De: R$ 30,0035",
+  // que a máscara transformava em R$ 300.035,00 — e a validação aceitava.
+  for(const [id,caixa] of [['precoDe','De: R$ 30,0035'],['precoPor','Por: R$ 20,0019,90'],['precoPor','Por: R$ 20,00 19,90']]){
+    const salvo=fApplyMask(id,caixa);
+    assert(fValidate(id,salvo),'"'+caixa+'" foi aceito como preço: '+salvo);
+  }
+  // e o que é preço de verdade continua passando
+  for(const [id,v,esperado] of [['precoDe','30','De: R$ 30,00'],['precoPor','1.234,56','Por: R$ 1.234,56'],['precoPor','R$ 1.000','Por: R$ 1.000,00'],['precoDe','De 30 por 20','De R$ 30,00 Por R$ 20,00']]){
+    const m=fApplyMask(id,v);
+    assert(m===esperado && !fValidate(id,m),'"'+v+'" deveria virar '+esperado+' e virou '+m+' ('+fValidate(id,m)+')');
+  }
+});
+
+await test('Sair do passo sem enviar devolve o preço que estava lá', async()=>{
+  reset(); fAttachInputGuard();
+  fState.dados={produto:'X-Bacon',precoDe:'De: R$ 30,00'};
+  irAoPasso('precoDe');
+  const box=document.getElementById('f-msg-box');
+  box.value='4'; box.dispatchEvent(new Event('input',{bubbles:true}));   // apagou e começou a redigitar
+  assert(fState.dados.precoDe==='4','a prévia deixou de acompanhar a digitação');
+  fGoBack(); await espera(PASSO);                                          // desistiu: "Anterior"
+  assert(fState.dados.precoDe==='De: R$ 30,00','sair sem enviar deixou o preço como "'+fState.dados.precoDe+'"');
+});
+
+await test('O que foi enviado vale; o que outra ação escreveu depois também não é desfeito', async()=>{
+  reset(); fAttachInputGuard();
+  fState.dados={produto:'X-Bacon',precoDe:'De: R$ 30,00'};
+  irAoPasso('precoDe');
+  const box=document.getElementById('f-msg-box');
+  box.value='45'; box.dispatchEvent(new Event('input',{bubbles:true}));
+  fSend(); await espera(PASSO);
+  assert(fState.dados.precoDe==='De: R$ 45,00','o valor enviado não ficou: '+fState.dados.precoDe);
+  irAoPasso('precoDe');
+  box.value='5'; box.dispatchEvent(new Event('input',{bubbles:true}));
+  _fLpCommit('precoDe','De: R$ 50,00');                                    // editou pela arte
+  fGoBack(); await espera(PASSO);
+  assert(fState.dados.precoDe==='De: R$ 50,00','a edição pela arte foi desfeita ao sair do passo: '+fState.dados.precoDe);
+});
+
 window.__lumaTest={total,passed:total-failures.length,failures};
 })().catch(e=>window.__lumaTest={total:1,passed:0,failures:[{name:'bancada',error:e.stack}]});
 </script></body></html>

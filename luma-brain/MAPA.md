@@ -262,15 +262,15 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 80 arquivos JS (65.893 linhas, 2.546 funções) · 31 arquivos CSS (29.251 linhas) · `index.html` com 3.928 linhas e 81 `<script>`.
+**Tamanho real de hoje:** 80 arquivos JS (66.020 linhas, 2.551 funções) · 31 arquivos CSS (29.213 linhas) · `index.html` com 3.926 linhas e 81 `<script>`.
 
 ## JS — o que cada arquivo é
 
 ### js (raiz)
 
-**`js/00-config.js`** · 2634 linhas
+**`js/00-config.js`** · 2651 linhas
 Constantes globais imutaveis: HIST_KEY, CAMPS_ATIVAS, CAMPS_OUTRAS, FMTS. Deve ser carregado PRIMEIRO (todos os modulos dependem destas constantes).
-· API: gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss, gGradientCanvas … (+50; 86 funções no total)
+· API: gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss, gGradientCanvas … (+50; 87 funções no total)
 · Estado global: _G_MEDIDA_CACHE, gLayoutVivoOff, _gCanvasWrap
 
 **`js/01-state.js`** · 11 linhas
@@ -395,22 +395,22 @@ Controladores do Modal e Configurações de Perfil do Usuário. Suporta edição
 
 ### js/franqueado
 
-**`js/franqueado/catalog.js`** · 1576 linhas
+**`js/franqueado/catalog.js`** · 1564 linhas
 Catalogo de campanhas: fRenderCatalogs, fFilterCamps, fSelectCamp, fSwitchTab, fSetHistFilter, fRenderHist, fEditFromHist, fDuplicateInOtherFmt.
 · API: fSwitchTab, fSetHistFilter, fGoToCampaigns, fFindMaterialById, fAskClearHist, fHistVoltar, fRenderHist, fDownloadHist, fEditFromHist, fDuplicateInOtherFmt, fConfirmDuplicate, fEditCampFolder, fCampAdminMenu, fCampAnalyticsClose … (+34; 82 funções no total)
 · Estado global: fHistFilter, _fHistPreviewCache, _fHistPreviewRun, _fHistPreviewObserver, _fhFilter, _fhRevealIO, _fhRevealGen, _fhStickyBound, _fhSemanticResult, _fhSearchTimer
 · Depende de: 00-config.js, 01-state.js
 
-**`js/franqueado/chat-input.js`** · 701 linhas
+**`js/franqueado/chat-input.js`** · 793 linhas
 F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES define o comportamento de cada variavel do template.
-· API: fMaxLenDaCaixa, fMarcaLimiteSeguro, fLimiteSeguro, fAlvoDoCampo, fGetFieldType, fCleanTextNumber, fApplyMask, fValidate, fShowFieldError, fAttachInputGuard, fUpdateCharCount, fFitTextWithAI, fFitApply, fSaveAdv … (+1; 22 funções no total)
+· API: fMaxLenDaCaixa, fMarcaLimiteSeguro, fLimiteSeguro, fAlvoDoCampo, fGetFieldType, fCleanTextNumber, fApplyMask, fValidate, fShowFieldError, fEspelhoConfirma, fEspelhoSincroniza, fAttachInputGuard, fUpdateCharCount, fFitTextWithAI … (+3; 25 funções no total)
 · Estado global: _F_MAXLEN_MED, _fFitOpts, _fFitBusy
 · Depende de: 00-config.js
 
-**`js/franqueado/chat.js`** · 3287 linhas
+**`js/franqueado/chat.js`** · 3313 linhas
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
-· API: fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fVoltarParaEdicao, fAbrirRevisao, fPosEdicao … (+59; 145 funções no total)
-· Estado global: fNextTimeout, _fGuidedNav, _fGuidedTimer, _fGuidedBound, _fProntaCtxAberto, _fRevisando, _fArtSnapshots, _fArtCaptions, _fGerarSeq, _fUndoSlot
+· API: fChatNovaConversa, fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fVoltarParaEdicao, fAbrirRevisao … (+60; 146 funções no total)
+· Estado global: fNextTimeout, _fChatGen, _fGuidedNav, _fGuidedTimer, _fGuidedBound, _fProntaCtxAberto, _fRevisando, _fArtSnapshots, _fArtCaptions, _fGerarSeq (+1)
 · Depende de: 00-config.js, 01-state.js, franqueado/chat-input.js
 
 **`js/franqueado/feedback.js`** · 334 linhas
@@ -430,7 +430,7 @@ Preview lateral em tempo real (fUpdateLivePreview) e modal de preview multi-form
 · Estado global: _postedArt, renderizada, _postedCtx, _pstStageBound, _pstTiltRaf, _pstQRUrl, _pstQRBusy, _lpConclusaoAtiva, _lpCardPintado, _lpConclusaoSaindo (+26)
 · Depende de: 00-config.js, 01-state.js
 
-**`js/franqueado/materials.js`** · 937 linhas
+**`js/franqueado/materials.js`** · 941 linhas
 Catalogo de materiais do franqueado: fOpenMaterialCatalog, fRenderMaterialCatalog, fRenderMaterialCard, fCloseMaterialCatalog, fSelectMaterial.
 · API: fDemoModeOn, fSetDemoMode, fGetMaterialsForCamp, fIsMaterialValid, fIsMaterialReal, fRealMaterialsForCamp, fDiasRestantes, fCampValidade, fCampDiasRestantes, fGenerateCampaignKit, fApplyCampTheme, fRemoveCampTheme, fOpenMaterialCatalog, fRenderMaterialCatalog … (+9; 32 funções no total)
 · Estado global: _fCampThemeAtivo
@@ -705,12 +705,12 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/modules/all-tools.css` | 113 |
 | `css/modules/calendario.css` | 1544 |
 | `css/modules/catalog.css` | 299 |
-| `css/modules/chat.css` | 3700 |
+| `css/modules/chat.css` | 3701 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
 | `css/modules/designer.css` | 5362 |
 | `css/modules/feedback.css` | 199 |
-| `css/modules/franqueado.css` | 1593 |
+| `css/modules/franqueado.css` | 1554 |
 | `css/modules/franqueado_effects.css` | 406 |
 | `css/modules/help-widget.css` | 1678 |
 | `css/modules/layers-panel.css` | 4530 |
