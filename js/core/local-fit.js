@@ -226,7 +226,7 @@ function _gLfTetoPilha(layer, camada, opts){
   p.membros.forEach(m => {
     if(typeof _gLayoutVisivel === 'function' && !_gLayoutVisivel(m)) return;
     const parede = _gLfParedeAbaixo(m, opts.layers, opts.canvas, ignora);
-    folga = Math.min(folga, parede - respiro - ((m.y || 0) + (m.h || 0)));
+    folga = Math.min(folga, _gLfLimiteDescida(m), parede - respiro - ((m.y || 0) + (m.h || 0)));
   });
   if(!isFinite(folga)) return Infinity;
   return (p.alturaAncora || 0) + Math.max(0, Math.floor(folga));
@@ -558,6 +558,12 @@ function _gLfCadeias(layers){
   return { ids, cadeias };
 }
 
+// A folga pertence ao vizinho: três linhas AUTORADAS, sem aumentar a cada tentativa.
+function _gLfLimiteDescida(l){
+  const ref = l.layoutRef || l._layoutBase || l;
+  return 3 * (ref.fontSize || l.fontSize || 24) * (ref.lineHeight || l.lineHeight || 1.2);
+}
+
 function _gLfResolverCadeia(cadeia, medidos, layers, canvas, ctx){
   const medidas = new Map(medidos.map(m => [m.l.id, m]));
   const variaveis = cadeia.membros.map(l => medidas.get(l.id)).filter(m => m && !m.vazio);
@@ -569,7 +575,7 @@ function _gLfResolverCadeia(cadeia, medidos, layers, canvas, ctx){
   if(cadeia.valida && canvas && canvas.h){
     for(let passo = 0; passo < G_LF_MAX_PASSOS; passo++){
       tentativa = []; excesso = 0;
-      let anterior = null;
+      let anterior = null, candidatos = null;
       for(const l of cadeia.membros){
         const m = medidas.get(l.id);
         const visivel = typeof _gLayoutVisivel !== 'function' || _gLayoutVisivel(l);
@@ -581,7 +587,9 @@ function _gLfResolverCadeia(cadeia, medidos, layers, canvas, ctx){
         const r = fitOpts ? gFitTextToAuthoredBox(l, m.conteudo, fitOpts) : null;
         const h = vazio ? 0 : r ? r.diagnostics.alturaNecessaria : l.type === 'text'
           ? gFitTextLayer(_gLfLimpa(l), l.content || '', ctx, { encolher:false }).altura : (l.h || 0);
-        let fundo = y + h;
+        let fundo = y + h, excessoLocal = 0;
+        const origemY = Number.isFinite(l._localFitY) ? l._localFitY : (l.y || 0);
+        const descida = anterior && !vazio ? y - origemY - _gLfLimiteDescida(l) : 0;
         const placa = m && m.fitOpts && m.fitOpts.placa;
         if(placa && r && typeof gInkRect === 'function'){
           const tinta = gInkRect(Object.assign({}, l, { y, fontSize:r.fontSize }), {
@@ -591,25 +599,33 @@ function _gLfResolverCadeia(cadeia, medidos, layers, canvas, ctx){
           if(ret){
             fundo = Math.max(fundo, ret.y + ret.h);
             // A placa pode ser mais larga que o texto e encontrar uma parede só na lateral.
-            excesso = Math.max(excesso, ret.y + ret.h - _gLfParedeAbaixo(placa, layers, canvas, ignora) + 8);
+            excessoLocal = Math.max(excessoLocal, ret.y + ret.h - _gLfParedeAbaixo(placa, layers, canvas, ignora) + 8);
           }
         }
         const respiro = Math.max(8, Math.round((l.fontSize || 24) * 0.25));
-        const parede = _gLfParedeAbaixo(l, layers, canvas, ignora) - respiro;
-        if(!vazio) excesso = Math.max(excesso, fundo - parede);
+        const parede = _gLfParedeAbaixo(Object.assign({}, l, { y:Math.min(l.y || 0, origemY) }), layers, canvas, ignora) - respiro;
+        if(!vazio) excessoLocal = Math.max(excessoLocal, fundo - parede);
+        excesso = Math.max(excesso, excessoLocal, descida);
+        // A primeira restrição identifica quem pode resolvê-la. Encolher o vizinho
+        // não reduz sua posição: nesse caso só os antecessores podem ceder espaço.
+        if(!candidatos && (descida > G_LF_TOL || excessoLocal > G_LF_TOL || (r && r.status !== 'fits'))){
+          candidatos = tentativa.map(t => t.m).filter(Boolean);
+          if(descida <= G_LF_TOL && m) candidatos.unshift(m);
+        }
         tentativa.push({ l, m, r, fitOpts, y, h });
-        anterior = { y, h };
+        anterior = { y, h, visible:visivel };
       }
       if(excesso <= G_LF_TOL && tentativa.every(t => !t.r || t.r.status === 'fits')){
         tentativa.forEach(t => { if(t.r){ t.m.r = t.r; t.m.fitOpts = t.fitOpts; } });
         return tentativa.map(t => ({ id:t.l.id, y:t.y, raiz:cadeia.membros[0].id }));
       }
       let mudou = false;
-      variaveis.forEach(m => {
+      for(const m of candidatos || variaveis){
+        if(m.vazio) continue;
         const teto = tetos.get(m.l.id), piso = m.r.diagnostics.piso;
         const proximo = Math.max(piso, Math.floor(teto * G_LF_DEGRAU));
-        if(proximo < teto){ tetos.set(m.l.id, proximo); mudou = true; }
-      });
+        if(proximo < teto){ tetos.set(m.l.id, proximo); mudou = true; break; }
+      }
       if(!mudou) break;
     }
   }
@@ -626,8 +642,9 @@ function _gLfResolverCadeia(cadeia, medidos, layers, canvas, ctx){
 }
 
 function _gLfYDepois(l, anterior){
-  const base = l.y || 0;
-  const y = anterior ? anterior.y + anterior.h + Number(l.relativeAnchor.gap || 0) : base;
+  const base = Number.isFinite(l._localFitY) ? Math.min(l.y || 0, l._localFitY) : (l.y || 0);
+  const y = anterior ? anterior.y + anterior.h
+    + (anterior.visible === false ? 0 : Number(l.relativeAnchor.gap || 0)) : base;
   return y > base + G_LF_TOL ? y : base;
 }
 
@@ -716,18 +733,21 @@ function gLocalFitArte(layers, opts){
 
   /* FASE 3 — APLICAR. */
   // Reposiciona com as alturas finais, inclusive após igualar fontes, preservando o gap.
+  const cadeiasRecusadas = new Set();
   estrutura.cadeias.forEach(c => {
     let anterior = null;
     const falhou = medidos.some(m => !m.vazio && c.membros.some(l => l.id === m.l.id) && m.r.status !== 'fits');
+    if(falhou) c.membros.forEach(l => cadeiasRecusadas.add(l.id));
     c.membros.forEach(l => {
       const p = posicoes.find(p => p.id === l.id);
       if(!p) return;
       if(falhou){ p.y = l.y; return; }
       const m = medidos.find(m => m.l.id === l.id);
-      const h = m ? (m.vazio ? 0 : m.r.diagnostics.alturaNecessaria)
+      const visivel = typeof _gLayoutVisivel !== 'function' || _gLayoutVisivel(l);
+      const h = !visivel ? 0 : m ? (m.vazio ? 0 : m.r.diagnostics.alturaNecessaria)
         : l.type === 'text' ? gFitTextLayer(_gLfLimpa(l), l.content || '', ctx, { encolher:false }).altura : l.h || 0;
       p.y = _gLfYDepois(l, anterior);
-      anterior = { y:p.y, h };
+      anterior = { y:p.y, h, visible:visivel };
     });
   });
   posicoes.forEach(p => {
@@ -792,7 +812,7 @@ function gLocalFitArte(layers, opts){
 
     /* A PLACA ACOMPANHA — a única geometria que o Local Fit escreve, e só na forma que o
        próprio texto carrega. `gLayoutPlacaSegue` é a conta única do card. */
-    if(placa && typeof gLayoutPlacaSegue === 'function' && typeof gInkRect === 'function'){
+    if(placa && !cadeiasRecusadas.has(l.id) && typeof gLayoutPlacaSegue === 'function' && typeof gInkRect === 'function'){
       const sim = { altura:r.diagnostics.alturaNecessaria, larguraMax:r.diagnostics.larguraNecessaria,
                     lines:r.lines, fontSize:r.fontSize, text:r.text };
       const tinta = gInkRect(Object.assign({}, l, { fontSize:r.fontSize }), sim);

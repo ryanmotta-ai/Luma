@@ -2181,7 +2181,11 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
   // Posição PUBLICADA de cada camada: a âncora `auto` de um template antigo nunca sobe além
   // dela (o laço abaixo muta l.y a cada iteração, então o original tem que ser guardado antes).
   const yPub = {};
-  cloned.forEach(l => { yPub[l.id] = l.y || 0; });
+  cloned.forEach(l => {
+    yPub[l.id] = l.y || 0;
+    // Guarda a origem antes que quebras explícitas do conteúdo resolvam a âncora.
+    if(l.relativeAnchor && l.relativeAnchor.type === 'top-to-bottom') l._localFitY = l.y || 0;
+  });
 
   const maxIter = cloned.length;
   let changed = true;

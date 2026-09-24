@@ -12,6 +12,11 @@
 - Mede a altura final de **todos** os membros com `gFitTextLayer`; largura é fixa. A busca
   reduz os tetos de fonte em 8%, no máximo 60 passagens, sempre respeitando os pisos.
 - Crescimento mantém os gaps; conteúdo curto preserva a posição autorada. Nenhum membro sobe.
+- A descida é limitada a três alturas de linha autoradas do próprio vizinho, ou ao obstáculo
+  anterior, o que vier primeiro. O limite vale também no par inferido. Quebras explícitas não
+  renovam essa folga: a origem é guardada antes da resolução das âncoras.
+- Ao atingir o limite, reduz os antecessores a partir do topo que ainda podem ceder fonte.
+  O vizinho não encolhe para compensar sua própria descida; os pisos continuam obrigatórios.
 - Cada membro respeita o objeto externo abaixo de sua faixa horizontal e a margem/safe zone.
   Placas acompanham o texto, e sua largura também participa do limite externo.
 - A movimentação é transacional: se o conjunto não cabe, nenhum deslocamento da cadeia é aplicado.
@@ -29,6 +34,10 @@
 Validação: `tests/local-fit-cases.js` cobre crescimento simultâneo, gaps, ordem no array,
 serialização, retorno curto/longo/curto, falha sem movimento parcial, relações inválidas,
 fontes independentes, conjunto explícito, placa e igualdade de pixels entre prévia e PNG.
+`tests/local-fit-studio.html` exercita o controle real, histórico e persistência em dados
+isolados. Em 23/09/2026, Edge/Windows: 72 casos do motor e 4 de autoria passaram, incluindo
+limite acumulado de descida, prioridade do título, par inferido e quebras explícitas; benchmark
+da cadeia com 25 entradas: p50 2,9 ms, p95 3,9 ms. São medidas locais, não promessa para todo aparelho.
 
 Os números de corpus e descrições datadas abaixo registram etapas anteriores; não são medições
 novas desta revisão. O contrato vigente acima substitui as antigas garantias de “nada se move”.

@@ -19,6 +19,7 @@
   const results = document.getElementById('results');
   const summary = document.getElementById('summary');
   const cases = [], falhas = [];
+  let perfPilha = null;
   const test = (name, fn) => cases.push({ name, fn });
   const assert = (c, m) => { if(!c) throw new Error(m || 'asserção falhou'); };
   const clone = o => JSON.parse(JSON.stringify(o));
@@ -555,6 +556,46 @@
   const dadosCadeia = { a:'Pizza grande calabresa especial', b:'Com borda recheada e refrigerante', c:'R$ 49,90' };
   const rodaCadeia = (layers, dados) => gLocalFitArte(gApplyRelativeAnchors(layers, dados, {}),
     { canvas:CANVAS, dados, defaults:{} });
+  test('15n2 · limite de três linhas reduz o título e preserva a fonte dos detalhes', () => {
+    const layers = cadeiaVertical().slice(0, 2); layers[0].w = 180;
+    const lf = rodaCadeia(layers, {...dadosCadeia,b:'Detalhes'});
+    assert(!lf.result.invalid, JSON.stringify(lf.result.bloqueios));
+    const b = lf.layers.find(l => l.id === 'b');
+    assert(b.y > 160 && b.y <= 160 + 3 * 32 * 1.2 + 1, 'desceu além de três linhas: '+b.y);
+    assert(lf.result.campos.find(c=>c.id==='a').fontSize < 48, 'título não cedeu');
+    assert(lf.result.campos.find(c=>c.id==='b').fontSize === 32, 'encolheu o vizinho sem necessidade');
+  });
+  test('15n3 · quebras explícitas não deslocam a origem do limite', () => {
+    const layers = cadeiaVertical().slice(0, 2);
+    const lf = rodaCadeia(layers, {a:'Pizza\ngrande\nsaborosa\nespecial',b:'Detalhes'});
+    assert(!lf.result.invalid, JSON.stringify(lf.result.bloqueios));
+    assert(lf.layers.find(l=>l.id==='b').y <= 160 + 3 * 32 * 1.2 + 1, 'a âncora renovou a folga');
+    assert(lf.result.campos.find(c=>c.id==='a').fontSize < 48, 'quebras não reduziram o título');
+    layers.push({id:'parede',type:'shape',x:60,y:300,w:500,h:20,visible:true});
+    const perto = rodaCadeia(layers, {a:'Pizza\ngrande\nsaborosa\nespecial',b:dadosCadeia.b});
+    if(!perto.result.invalid){
+      const b = perto.layers.find(l=>l.id==='b');
+      assert(b.y + gFitTextLayer(b,dadosCadeia.b,null,{encolher:false}).altura <= 292,
+        'âncora inicial além do obstáculo fez a parede desaparecer');
+    }
+  });
+  test('15n4 · vizinho inferido também tem limite mesmo com rodapé distante', () => {
+    const layers = cadeiaVertical().slice(0, 2); layers[0].w = 180;
+    delete layers[1].relativeAnchor;
+    layers[1].fontSize = 16; layers[1].h = 20;
+    const lf = rodaCadeia(layers, {...dadosCadeia,b:'Detalhes'});
+    assert(!lf.result.invalid, JSON.stringify(lf.result.bloqueios));
+    assert(lf.layers.find(l=>l.id==='b').y <= 160 + 3 * 16 * 1.2 + 1, 'par inferido perdeu o limite');
+    assert(lf.result.campos.find(c=>c.id==='b').fontSize === 16, 'vizinho inferido encolheu');
+  });
+  test('15n5 · cada membro respeita seu limite acumulado desde o desenho', () => {
+    const layers = cadeiaVertical(), lf = rodaCadeia(layers, dadosCadeia);
+    assert(!lf.result.invalid, 'cadeia bloqueou');
+    assert(lf.result.campos.find(c=>c.id==='a').fontSize < 48, 'o topo não cedeu espaço');
+    assert(lf.result.campos.find(c=>c.id==='b').fontSize === 32, 'reduziu Detalhes antes de esgotar o topo');
+    layers.slice(1,3).forEach(l => assert(lf.layers.find(o=>o.id===l.id).y <= l.y + 3*l.fontSize*l.lineHeight + 1,
+      l.id+' acumulou mais de três linhas'));
+  });
   test('15o · título e detalhes crescem juntos e preço segue a altura FINAL dos dois', () => {
     const lf = rodaCadeia(cadeiaVertical(), dadosCadeia);
     assert(!lf.result.invalid, JSON.stringify(lf.result.bloqueios));
@@ -643,6 +684,11 @@
     assert(p.y > placa.y, 'placa não acompanhou');
     assert(p.y <= c.y && p.y + p.h >= c.y + (c._layoutH || c.h) - 1, 'placa perdeu o texto');
     assert(p.y + p.h < 700, 'placa invadiu rodapé');
+    const bloqueada = rodaCadeia(layers, {...dadosCadeia,a:ABSURDO,b:ABSURDO});
+    assert(bloqueada.result.invalid, 'deveria bloquear a cadeia com placa');
+    const original = gApplyRelativeAnchors(layers, {...dadosCadeia,a:ABSURDO,b:ABSURDO}, {}).find(l => l.id === 'placa');
+    const preservada = bloqueada.layers.find(l => l.id === 'placa');
+    assert(['x','y','w','h'].every(k=>preservada[k]===original[k]), 'falha aplicou geometria parcial na placa');
   });
   test('15x · cadeia: PNG da prévia é idêntico ao PNG da exportação', async () => {
     const pintar = async purpose => {
@@ -655,6 +701,29 @@
     assert(!p.out._layoutResult.invalid, 'prévia bloqueou');
     assert(p.out.find(l => l.id === 'c').y > 222, 'não exercitou a pilha');
     assert(p.png === e.png, 'PNGs divergiram');
+  });
+  test('15y · membro oculto não reaparece como espaço na aplicação final', () => {
+    const layers = cadeiaVertical(); layers[1].visible = false;
+    const lf = rodaCadeia(layers, dadosCadeia);
+    assert(!lf.result.invalid, 'membro oculto bloqueou');
+    const b = lf.layers.find(l => l.id === 'b'), c = lf.layers.find(l => l.id === 'c');
+    assert(!b.visible, 'membro reapareceu');
+    assert(Math.abs(c.y - b.y) <= 1, 'altura ou gap do membro oculto empurrou o preço');
+  });
+  test('15z · cadeia impossível tem custo limitado; benchmark do caminho novo', () => {
+    const real = window.gFitTextLayer; let chamadas = 0;
+    window.gFitTextLayer = function(){ chamadas++; return real.apply(this, arguments); };
+    try{ rodaCadeia(cadeiaVertical(), {a:ABSURDO,b:ABSURDO,c:ABSURDO}); }
+    finally{ window.gFitTextLayer = real; }
+    assert(chamadas < 500, 'cadeia fez ' + chamadas + ' medidas');
+    const tempos = [];
+    for(let n=0;n<25;n++){
+      const t0=performance.now();
+      rodaCadeia(cadeiaVertical(), {...dadosCadeia,a:dadosCadeia.a+' '+n});
+      tempos.push(performance.now()-t0);
+    }
+    tempos.sort((a,b)=>a-b);
+    perfPilha={n:tempos.length,p50:tempos[12],p95:tempos[23],max:tempos[24]};
   });
 
   test('16 · entradas de borda não quebram e não inventam veredito', () => {
@@ -939,5 +1008,5 @@
   const failed = cases.length - passed;
   summary.textContent = passed + '/' + cases.length + ' casos passaram' + (failed ? ' · ' + failed + ' falharam' : '');
   document.title = (failed ? 'FALHOU' : 'OK') + ' — Local Fit (' + passed + '/' + cases.length + ')';
-  window.__lumaTest = { passed:passed, total:cases.length, failures:falhas };
+  window.__lumaTest = { passed:passed, total:cases.length, failures:falhas, perf:perfPilha };
 })();
