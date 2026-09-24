@@ -141,10 +141,10 @@ const DP_WORKSPACE_MODE_KEY = 'dp-workspace-mode';
 
 const DP_ESSENTIAL_TOOL_LABELS = {
   'vt-text-wrap': 'Texto',
-  'vt-frame-wrap': 'Imagens',
+  'vt-frame-wrap': 'Molduras de foto',
   'vt-forma-wrap': 'Formas',
   'vt-data-wrap': 'Campos',
-  'dtool-resources': 'Elementos'
+  'dtool-resources': 'Assets'
 };
 
 const DP_ESSENTIAL_TOOL_FLYOUTS = {
