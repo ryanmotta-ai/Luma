@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-09-24 — Local Fit completo no painel de Dados (`luma.dados_localfit` v2)
+
+**`20260924100000_luma_dados_localfit_completo`** (aplicada): mesma assinatura, retorno é superconjunto do de 23/09 (`por_status`, `resolveu`, `nao_coube` seguem com as mesmas chaves). Novos blocos: `resumo` (export coube/como desenhado/ajustou/bloqueou, prévia, p50/p95/pior tempo, pessoas e templates afetados, caixas que estouraram, fonte substituída), `anterior` (mesmo recorte no período anterior de igual tamanho, para a variação em p.p.), `por_dia`, `por_material` (com nome e pasta do template), `nao_coube` com limite seguro mediano/formatos/pessoas, recortes `por_formato`/`por_dispositivo`/`por_navegador`/`por_fonte`/`por_versao`, `tempo_faixas`, `camadas_faixas`, `recuperacao` (texto_nao_cabe → copyfit_* → arte baixada na MESMA sessão `_ctx.sid`), `por_pessoa` e `recentes` (25 últimos bloqueios, para reproduzir). Front: aba **Local Fit** própria em `js/core/dados.js` (antes era um bloco dentro de Qualidade).
+
+⚠ `camadas_invalidas` do evento NÃO é geometria quebrada: é a lista de caixas que estouraram (`invalidIds` do `gLocalFitArte`). O painel lê como "caixas que estouraram".
+
+Testado: equipe (gestão/equipe DM) lê; franqueado recebe 42501 de `_dados_autoriza`; anon não entra no schema `luma`.
+
+## 2026-09-24 — Edge Function `ai`: fila de reservas quando o Gemini falha
+
+Depois da escada Gemini, tenta em ordem, no formato OpenAI (`/chat/completions`), com timeout de 20 s cada: NVIDIA (`NVIDIA_API_KEY`, depois `NVIDIA2_API_KEY`, Llama 3.3 70B) → Ollama Cloud (`OLLAMA_API_KEY`, gpt-oss 120B) → Cloudflare Workers AI (`CLOUDFLARE_API_KEY`, Llama 3.3 70B fp8-fast; account id do secret `CLOUDFLARE_ACCOUNT_ID` ou descoberto pela chave) → OpenRouter (`OPENROUTER_API_KEY`, `openrouter/free`). Secret ausente = provedor pulado. Só chamadas sem anexo descem (os modelos de reserva não leem imagem/PDF/áudio). Deploy: versão 16.
+
+---
+
 ## 2026-09-23 — Ataque simulado pela API + conta desativada perde o poder no banco
 
 **O ataque.** Pergunta do Ryan: "alguém pode quebrar o Luma pelo DevTools?". O DevTools é o navegador da pessoa — o que importa é o que a anon key pública + o JWT de uma conta real conseguem pela API. Rodado como o PostgREST roda (papel `authenticated`/`anon` + `request.jwt.claims`), em transação que termina num `raise exception` proposital: nada fica gravado. ~110 tentativas: franqueado ativo contra outro franqueado (ver, alterar, apagar, forjar em 17 tabelas + Storage + RPCs), anônimo, franqueado/equipe/gestão desativados.

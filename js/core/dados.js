@@ -24,7 +24,7 @@ let _gDados = {
 
 const G_DADOS_ABAS = [
   ['visao', 'Visão geral'], ['pessoas', 'Pessoas'], ['funil', 'Funil'], ['conteudo', 'Conteúdo'],
-  ['buscas', 'Buscas'], ['qualidade', 'Qualidade'], ['ia', 'IA'], ['eventos', 'Eventos']
+  ['buscas', 'Buscas'], ['qualidade', 'Qualidade'], ['localfit', 'Local Fit'], ['ia', 'IA'], ['eventos', 'Eventos']
 ];
 const G_DADOS_PERIODOS = [[1, 'Hoje'], [7, '7 dias'], [30, '30 dias'], [90, '90 dias']];
 const G_DADOS_PAPEL = { gestao: 'Gestão', superadmin: 'Gestão', equipe_dm: 'Equipe DM', admin: 'Equipe DM', franqueado: 'Franqueado' };
@@ -175,7 +175,9 @@ async function gDadosCarregar() {
   if (res.error || !res.data) { _gDados.erro = _gDadosMsgErro(res.error || 'A consulta voltou vazia.'); _gDados.data = null; }
   else _gDados.data = res.data;
   if (_gDados.pessoa) gDadosAbrirPessoa(_gDados.pessoa);
-  _gDadosRender();
+  // Via SetAba: re-renderiza E recarrega a aba sob demanda aberta (IA, Eventos, Local Fit),
+  // cujo dado foi zerado acima — senão ela ficaria no esqueleto depois de trocar o período.
+  if (_gDados.data && !_gDados.pessoa) gDadosSetAba(_gDados.aba); else _gDadosRender();
 }
 
 function gDadosSetPeriodo(n) {
@@ -193,7 +195,7 @@ function gDadosSetAba(aba, foco) {
   if (foco) document.getElementById('gd-tab-' + aba)?.focus();
   if (aba === 'eventos' && !_gDados.ev.data && !_gDados.ev.carregando && _gDados.data) gDadosEventosCarregar();
   if (aba === 'ia' && !_gDados.ia.data && !_gDados.ia.carregando && _gDados.data) gDadosIaCarregar();
-  if (aba === 'qualidade' && !_gDados.lf.data && !_gDados.lf.carregando && _gDados.data) gDadosLfCarregar();
+  if (aba === 'localfit' && !_gDados.lf.data && !_gDados.lf.carregando && _gDados.data) gDadosLfCarregar();
 }
 // Setas/Home/End no tablist (padrão WAI-ARIA de abas, ativação automática).
 function gDadosTabsKeydown(e) {
@@ -272,6 +274,7 @@ function _gDadosPainelHtml() {
     case 'conteudo': return _gDadosConteudoHtml(d);
     case 'buscas': return _gDadosBuscasHtml(d);
     case 'qualidade': return _gDadosQualidadeHtml(d);
+    case 'localfit': return _gDadosLfHtml();
     case 'ia': return _gDadosIaHtml();
     case 'eventos': return _gDadosEventosHtml();
     default: return _gDadosVisaoHtml(d);
@@ -557,13 +560,53 @@ function _gDadosBuscasHtml(d) {
 }
 
 /* ── Qualidade ──────────────────────────────────────────────────────────────────────── */
-/* Local Fit: o texto coube? (RPC luma.dados_localfit, lendo `layout_resolvido`). Carrega à parte
-   e só quando a aba Qualidade abre, como IA e Eventos. `export` = arte que saiu (a que importa);
-   `preview` conta cada repintura e infla — por isso as duas vêm separadas. */
+/* ── Local Fit (aba própria) ────────────────────────────────────────────────────────── */
+/* RPC luma.dados_localfit (migration 20260924100000), lendo `layout_resolvido` + a recuperação
+   (texto_nao_cabe, copyfit_*, arte_baixada na mesma sessão). Carrega à parte e só quando a aba
+   abre, como IA e Eventos. `export` = arte que saiu (a taxa que importa); `preview` conta cada
+   estado novo da prévia — por isso as duas vêm separadas. É a bancada de melhoria do motor. */
 const G_DADOS_LF_ST = { original: 'Coube como desenhado', wrapped: 'Quebrou linha', shrunk: 'Diminuiu a fonte', overflow: 'Não coube (bloqueou)', adapted: 'Ajustado (motor antigo)', unsafe: 'Não coube (motor antigo)' };
+const G_DADOS_LF_FONTE = { ok: 'Fontes carregadas', parcial: 'Parte substituída', substituida: 'Fonte substituída', desconhecida: 'Sem medida' };
+const G_DADOS_LF_ORIGEM = { export: 'Arte que saiu', preview: 'Prévia' };
+function _gDadosLfChave(tipo, v) {
+  if (v === 'sem contexto') return 'Sem contexto (antes de 23/09)';
+  if (tipo === 'disp') return G_DADOS_DISP[v] || v;
+  if (tipo === 'fonte') return G_DADOS_LF_FONTE[v] || v;
+  if (tipo === 'formato') return _gDadosFmt(v);
+  if (tipo === 'nav') return v ? v.charAt(0).toUpperCase() + v.slice(1) : '—';
+  return v || '—';
+}
+function _gDadosLfTpl(x) {
+  const id = x.material || '';
+  const nome = x.nome || x.template || (/^demo-|^m-/.test(id) ? 'Demonstração (' + id + ')' : id ? 'Template ' + id.slice(0, 8) : '—');
+  return `<strong>${gEsc(nome)}</strong>${x.pasta ? `<small class="gd-sub">${gEsc(x.pasta)}</small>` : ''}`;
+}
+function _gDadosLfCampo(c) {
+  if (!c) return '<span class="gd-sub">Não informado</span>';
+  const rot = typeof gFieldLabel === 'function' ? gFieldLabel(c) : c;
+  return gEsc(rot) + (rot !== c ? `<small class="gd-sub"><code>${gEsc(c)}</code></small>` : '');
+}
+// Barra empilhada coube / ajustou / bloqueou (as três somam 100%).
+function _gDadosLfPilha(o, a, b) {
+  const t = (o || 0) + (a || 0) + (b || 0);
+  if (!t) return '<span class="gd-sub">—</span>';
+  const w = v => Math.round((v || 0) / t * 1000) / 10;
+  return `<span class="gd-pilha" role="img" aria-label="${gEsc('Coube ' + _gDadosPct(o / t) + ', ajustou ' + _gDadosPct(a / t) + ', bloqueou ' + _gDadosPct(b / t))}">`
+    + `<i class="is-ok" style="width:${w(o)}%"></i><i class="is-ajuste" style="width:${w(a)}%"></i><i class="is-bloqueio" style="width:${w(b)}%"></i></span>`;
+}
+const _G_DADOS_LF_LEGENDA = '<p class="gd-legenda" aria-hidden="true"><span><i class="is-ok"></i>Coube como desenhado</span><span><i class="is-ajuste"></i>Ajustou (quebrou linha ou diminuiu)</span><span><i class="is-bloqueio"></i>Não coube (bloqueou)</span></p>';
+function _gDadosLfTaxa(num, den) { return den ? num / den : null; }
+// Variação de TAXA em pontos percentuais (a _gDadosVar compara contagens).
+function _gDadosLfVarPp(atual, ant, menorMelhor) {
+  if (atual == null || ant == null) return '';
+  const pp = Math.round((atual - ant) * 100);
+  const bom = menorMelhor ? pp < 0 : pp > 0;
+  return `<span class="gd-var ${pp === 0 ? '' : bom ? 'is-up' : 'is-down'}">${pp > 0 ? '+' : ''}${pp} p.p. vs. período anterior</span>`;
+}
 async function gDadosLfCarregar() {
   const s = _gDados.lf, req = ++s.req;
   s.carregando = true; s.erro = null;
+  if (_gDados.aba === 'localfit') _gDadosRender();
   const iv = _gDados.intervalo || _gDadosIntervalo();
   let res;
   try { res = await _gDadosRpc('dados_localfit', { p_de: iv.de, p_ate: iv.ate }); } catch (err) { res = { error: err }; }
@@ -571,16 +614,79 @@ async function gDadosLfCarregar() {
   s.carregando = false;
   if (res.error || !res.data) s.erro = _gDadosMsgErro(res.error || 'A consulta voltou vazia.');
   else s.data = res.data;
-  if (_gDados.aba === 'qualidade') _gDadosRender();
+  if (_gDados.aba === 'localfit') _gDadosRender();
 }
-function _gDadosLfHtml(d) {
+// "O que olhar primeiro": achados calculados do próprio dado, do mais grave ao menos.
+function _gDadosLfAchados(x) {
+  const r = x.resumo || {}, it = [];
+  if (r.export_bloqueou) it.push(`${_gDadosN(r.export_bloqueou)} ${r.export_bloqueou > 1 ? 'artes exportadas saíram' : 'arte exportada saiu'} com texto que não coube — o bloqueio deveria impedir isso.`);
+  const pm = (x.por_material || []).filter(m => m.bloqueou)[0];
+  if (pm) it.push(`“${pm.nome || pm.material}”${pm.pasta ? ' (' + pm.pasta + ')' : ''} é o template que mais bloqueia: ${_gDadosN(pm.bloqueou)} de ${_gDadosN(pm.n)} resoluções.`);
+  const nc = (x.nao_coube || [])[0];
+  if (nc && nc.campo) it.push(`O campo “${typeof gFieldLabel === 'function' ? gFieldLabel(nc.campo) : nc.campo}” é o que mais estoura${nc.limite_p50 != null ? ' (limite seguro mediano: ' + nc.limite_p50 + ' caracteres)' : ''}.`);
+  const fm = (x.por_formato || []).filter(f => f.n >= 5).sort((a, b) => b.bloqueou / b.n - a.bloqueou / a.n)[0];
+  if (fm && fm.bloqueou) it.push(`O formato ${_gDadosFmt(fm.chave)} bloqueia em ${_gDadosPct(fm.bloqueou / fm.n)} das resoluções.`);
+  const vs = (x.por_versao || []).filter(v => v.ordem != null && v.n >= 5);
+  if (vs.length > 1 && vs[0].bloqueou / vs[0].n > vs[1].bloqueou / vs[1].n + 0.05) it.push(`A versão ${vs[0].chave} bloqueia mais que a ${vs[1].chave} (${_gDadosPct(vs[0].bloqueou / vs[0].n)} contra ${_gDadosPct(vs[1].bloqueou / vs[1].n)}) — possível regressão.`);
+  if (r.ms_p95 != null && r.ms_p95 > 50) it.push(`O p95 do tempo está em ${_gDadosMs(r.ms_p95)} — acima de 50 ms a digitação na prévia começa a pesar em celular fraco.`);
+  const fn = _gDadosLfTaxa(r.fonte_nao_ok, r.fonte_conhecida);
+  if (fn != null && fn > 0.1) it.push(`${_gDadosPct(fn)} das resoluções rodaram com fonte substituída — a medida pode divergir entre aparelhos.`);
+  const rc = x.recuperacao || {};
+  if (rc.sessoes_bloqueadas >= 5 && rc.sessoes_baixaram / rc.sessoes_bloqueadas < 0.5) it.push(`Só ${_gDadosPct(rc.sessoes_baixaram / rc.sessoes_bloqueadas)} das visitas que bateram em bloqueio terminaram em download.`);
+  if (!it.length) return '<p class="gd-vazio">Nada fora do normal neste período.</p>';
+  return `<ul class="gd-lista gd-achados">${it.slice(0, 6).map(t => `<li><span>${gEsc(t)}</span></li>`).join('')}</ul>`;
+}
+function _gDadosLfDias(dias) {
+  if (!dias.length) return '<p class="gd-vazio">Sem dias no período.</p>';
+  const max = Math.max(1, ...dias.map(x => x.n || 0)), n = dias.length;
+  const bars = dias.map((x, i) => {
+    const h = v => (v || 0) / max * 100;
+    const lado = i < n * 0.2 ? ' is-esq' : i > n * 0.8 ? ' is-dir' : '';
+    const txt = `${_gDadosDiaCurto(x.dia)}: ${x.n} resoluções, ${x.original} couberam, ${x.ajustou} ajustaram, ${x.bloqueou} bloquearam; ${x.export_n} exportadas`;
+    return `<div class="gd-col gd-col-pilha${lado}" tabindex="0" aria-label="${gEsc(txt)}">`
+      + `<i class="is-ok" style="height:${h(x.original)}%"></i><i class="is-ajuste" style="height:${h(x.ajustou)}%"></i><i class="is-bloqueio" style="height:${h(x.bloqueou)}%"></i>`
+      + `<span class="gd-tip" aria-hidden="true"><b>${gEsc(_gDadosDiaCurto(x.dia))}</b>${_gDadosN(x.n)} resoluções<br>${_gDadosN(x.original)} couberam · ${_gDadosN(x.ajustou)} ajustaram<br>${_gDadosN(x.bloqueou)} bloquearam · ${_gDadosN(x.export_n)} exportadas</span></div>`;
+  }).join('');
+  const meio = dias[Math.floor((n - 1) / 2)];
+  return `<div class="gd-chart"><div class="gd-chart-y" aria-hidden="true"><span>${max}</span><span>0</span></div><div class="gd-chart-bars">${bars}</div></div>
+    <div class="gd-chart-x" aria-hidden="true"><span>${gEsc(_gDadosDiaCurto(dias[0].dia))}</span>${n > 2 ? `<span>${gEsc(_gDadosDiaCurto(meio.dia))}</span>` : ''}${n > 1 ? `<span>${gEsc(_gDadosDiaCurto(dias[n - 1].dia))}</span>` : ''}</div>${_G_DADOS_LF_LEGENDA}`;
+}
+// Tabela de recorte (formato, aparelho, navegador, fonte): mesmas colunas para comparar.
+function _gDadosLfRecorte(tipo, rows) {
+  return _gDadosTabela([
+    { t: 'Recorte', k: y => gEsc(_gDadosLfChave(tipo, y.chave)) },
+    { t: 'Resoluções', num: 1, k: y => _gDadosN(y.n) },
+    { t: 'Resultado', k: y => _gDadosLfPilha(y.original, y.ajustou, y.bloqueou) },
+    { t: 'Bloqueou', num: 1, k: y => _gDadosPct(_gDadosLfTaxa(y.bloqueou, y.n)) },
+    { t: 'Mediana', num: 1, k: y => gEsc(_gDadosMs(y.ms_p50)) },
+    { t: 'p95', num: 1, k: y => gEsc(_gDadosMs(y.ms_p95)) }
+  ], rows, 'Nada no período.');
+}
+function _gDadosLfFaixas(rows) {
+  const tot = (rows || []).reduce((a, y) => a + (y.n || 0), 0);
+  if (!tot) return '<p class="gd-vazio">Nada no período.</p>';
+  return `<ul class="gd-lista">${rows.map(y => `<li><strong>${gEsc(y.faixa)}</strong><span class="gd-faixa">${_gDadosBarra(y.n / tot)}<small>${_gDadosN(y.n)} · ${_gDadosPct(y.n / tot)}</small></span></li>`).join('')}</ul>`;
+}
+function _gDadosLfRecuperacao(rc) {
+  const passos = [
+    ['Aviso de texto que não cabe', rc.nao_cabe, ''],
+    ['… com versão curta pronta', rc.nao_cabe_com_versao, 'Sugestão de copy disponível na hora'],
+    ['Balão de sugestão exibido', rc.balao_exibido, ''],
+    ['Sugestão aplicada', rc.aplicado, `Balão ${_gDadosN(rc.aplicado_balao)} · chat ${_gDadosN(rc.aplicado_chat)} · IA ${_gDadosN(rc.aplicado_ia)}`],
+    ['Ajuste desfeito', rc.desfeito, 'Aplicou e voltou atrás'],
+    ['Pediu à IA um texto que caiba', rc.ia_pedidos, _gDadosN(rc.ia_com_opcao) + ' com opção aprovada']
+  ];
+  const lista = `<ul class="gd-lista">${passos.map(([t, n, sub]) => `<li><span><strong>${gEsc(t)}</strong>${sub ? `<small class="gd-sub">${gEsc(sub)}</small>` : ''}</span><small>${_gDadosN(n)}</small></li>`).join('')}</ul>`;
+  const taxa = _gDadosLfTaxa(rc.sessoes_baixaram, rc.sessoes_bloqueadas);
+  return `<div class="gd-kpis gd-kpis-2">${_gDadosKpi('Visitas que bateram em bloqueio', _gDadosN(rc.sessoes_bloqueadas), 'Com contexto de sessão (desde 23/09)')}`
+    + `${_gDadosKpi('… e ainda baixaram a arte', _gDadosPct(taxa), gEsc(_gDadosN(rc.sessoes_baixaram) + ' visitas'))}</div>${lista}`;
+}
+function _gDadosLfHtml() {
   const s = _gDados.lf, x = s.data;
-  if (s.erro) return _gDadosSecao('O texto coube?', '', _gDadosErroHtml(s.erro, 'gDadosLfCarregar()'));
-  if (s.carregando || !x) return _gDadosSecao('O texto coube?', '', '<p class="gd-vazio">Carregando…</p>');
-  const r = x.resolveu || {}, st = x.por_status || [];
-  if (!st.length) return _gDadosSecao('O texto coube?', 'Resultado do Local Fit a cada arte.', '<p class="gd-vazio">Nenhuma arte montada no período.</p>');
-  // material vem como id: o nome sai da lista de templates que o painel já carregou.
-  const nomes = {}; (((d || {}).conteudo || {}).templates || []).forEach(t => { nomes[t.template_id] = t.nome; });
+  if (s.erro) return _gDadosErroHtml(s.erro, 'gDadosLfCarregar()');
+  if (s.carregando || !x) return _gDadosSkeleton();
+  const r = x.resumo || {}, an = x.anterior || {}, st = x.por_status || [];
+  if (!r.total) return _gDadosVazioHtml('Nenhuma arte montada neste período — o Local Fit registra cada resolução desde 15/08/2026.');
   const linhas = o => {
     const l = st.filter(y => y.origem === o), tot = l.reduce((a, y) => a + (y.n || 0), 0);
     return _gDadosTabela([
@@ -589,19 +695,88 @@ function _gDadosLfHtml(d) {
       { t: 'Parcela', k: y => _gDadosBarra(tot ? y.n / tot : 0) + ' ' + _gDadosPct(tot ? y.n / tot : null) }
     ], l, 'Nada no período.');
   };
+  const okExp = _gDadosLfTaxa(r.export_total - r.export_bloqueou, r.export_total), okAnt = _gDadosLfTaxa(an.export_total - an.export_bloqueou, an.export_total);
+  const origExp = _gDadosLfTaxa(r.export_original, r.export_total), origAnt = _gDadosLfTaxa(an.export_original, an.export_total);
+  const bloq = (r.export_bloqueou || 0) + (r.preview_bloqueou || 0);
+  const mats = _gDadosTabela([
+    { t: 'Template', k: _gDadosLfTpl },
+    { t: 'Resoluções', num: 1, k: y => _gDadosN(y.n) + `<small class="gd-sub">${_gDadosN(y.export_n)} exportadas</small>` },
+    { t: 'Resultado', k: y => _gDadosLfPilha(y.original, y.ajustou, y.bloqueou) },
+    { t: 'Bloqueou', num: 1, k: y => _gDadosN(y.bloqueou) + `<small class="gd-sub">${_gDadosPct(_gDadosLfTaxa(y.bloqueou, y.n))}</small>` },
+    { t: 'Quebrou / diminuiu', num: 1, k: y => _gDadosN(y.wrapped) + ' / ' + _gDadosN(y.shrunk) },
+    { t: 'Camadas mexidas', num: 1, k: y => y.alt_media == null ? '—' : gEsc(String(y.alt_media).replace('.', ',')) },
+    { t: 'Mediana', num: 1, k: y => gEsc(_gDadosMs(y.ms_p50)) },
+    { t: 'Pessoas', num: 1, k: y => _gDadosN(y.pessoas) },
+    { t: 'Último', k: y => gEsc(_gDadosRel(y.ultimo)) }
+  ], x.por_material, 'Nenhum template no período.');
   const nc = _gDadosTabela([
-    { t: 'Material', k: y => gEsc(nomes[y.material] || (y.material ? 'Material ' + String(y.material).slice(0, 8) : '—')) },
-    { t: 'Campo', k: y => gEsc(y.campo || '—') }, { t: 'Vezes', num: 1, k: y => _gDadosN(y.n) }
+    { t: 'Template', k: _gDadosLfTpl },
+    { t: 'Campo', k: y => _gDadosLfCampo(y.campo) },
+    { t: 'Vezes', num: 1, k: y => _gDadosN(y.n) + (y.export_n ? `<small class="gd-sub">${_gDadosN(y.export_n)} no export</small>` : '') },
+    { t: 'Limite seguro', num: 1, k: y => y.limite_p50 == null ? '—' : gEsc(y.limite_p50 + ' caract.') },
+    { t: 'Formatos', k: y => gEsc(String(y.formatos || '—').split(', ').map(_gDadosFmt).join(', ')) },
+    { t: 'Pessoas', num: 1, k: y => _gDadosN(y.pessoas) },
+    { t: 'Último', k: y => gEsc(_gDadosRel(y.ultimo)) }
   ], x.nao_coube, 'Nenhum texto deixou de caber no período.');
-  const ms = r.ms_p50 != null ? gEsc(String(r.ms_p50).replace('.', ',') + ' ms') : '—';
-  return '<div class="gd-kpis gd-kpis-2">'
-    + _gDadosKpi('Artes que saíram e couberam', _gDadosPct(r.export_total ? r.export_ok / r.export_total : null), gEsc(_gDadosN(r.export_ok) + ' de ' + _gDadosN(r.export_total) + ' exportadas'))
-    + _gDadosKpi('Tempo do Local Fit', ms, 'Mediana por resolução')
-    + '</div><div class="gd-duas">'
-    + _gDadosSecao('Na arte que saiu', 'Export: o que o franqueado baixou.', linhas('export'))
-    + _gDadosSecao('Na prévia', 'Cada repintura conta — infla.', linhas('preview'))
-    + '</div>'
-    + _gDadosSecao('Onde o texto não coube', 'Material e campo que mais bloquearam.', nc);
+  const versoes = _gDadosTabela([
+    { t: 'Versão', k: y => y.ordem != null ? `<strong>v${gEsc(y.chave)}</strong>` : gEsc(_gDadosLfChave('', y.chave)) },
+    { t: 'No ar', k: y => gEsc(_gDadosDataHora(y.primeiro)) + `<small class="gd-sub">até ${gEsc(_gDadosDataHora(y.ultimo))}</small>` },
+    { t: 'Resoluções', num: 1, k: y => _gDadosN(y.n) },
+    { t: 'Resultado', k: y => _gDadosLfPilha(y.original, y.ajustou, y.bloqueou) },
+    { t: 'Bloqueou', num: 1, k: y => _gDadosPct(_gDadosLfTaxa(y.bloqueou, y.n)) },
+    { t: 'Mediana', num: 1, k: y => gEsc(_gDadosMs(y.ms_p50)) },
+    { t: 'p95', num: 1, k: y => gEsc(_gDadosMs(y.ms_p95)) }
+  ], x.por_versao, 'Sem versão registrada no período.');
+  const pessoas = _gDadosTabela([
+    { t: 'Pessoa', k: y => `<strong>${gEsc(y.nome || '—')}</strong>${y.cidade ? `<small class="gd-sub">${gEsc(y.cidade)}</small>` : ''}` },
+    { t: 'Resoluções', num: 1, k: y => _gDadosN(y.n) },
+    { t: 'Ajustou', num: 1, k: y => _gDadosN(y.ajustou) },
+    { t: 'Bloqueou', num: 1, k: y => _gDadosN(y.bloqueou) },
+    { t: 'Último', k: y => gEsc(_gDadosRel(y.ultimo)) }
+  ], x.por_pessoa, 'Ninguém no período.');
+  const recentes = _gDadosTabela([
+    { t: 'Quando', k: y => gEsc(_gDadosDataHora(y.ocorreu_em)) },
+    { t: 'Pessoa', k: y => gEsc(y.nome || '—') + (y.cidade ? `<small class="gd-sub">${gEsc(y.cidade)}</small>` : '') },
+    { t: 'Template', k: _gDadosLfTpl },
+    { t: 'Campo', k: y => _gDadosLfCampo(y.campo) },
+    { t: 'Formato', k: y => gEsc(_gDadosFmt(y.formato)) + `<small class="gd-sub">${gEsc(G_DADOS_LF_ORIGEM[y.origem] || y.origem)}</small>` },
+    { t: 'Aparelho', k: y => gEsc(_gDadosLfChave('disp', y.disp)) + (y.nav !== 'sem contexto' ? `<small class="gd-sub">${gEsc(_gDadosLfChave('nav', y.nav))}</small>` : '') },
+    { t: 'Fonte', k: y => gEsc(_gDadosLfChave('fonte', y.fonte)) },
+    { t: 'Limite', num: 1, k: y => y.limite == null ? '—' : gEsc(String(y.limite)) },
+    { t: 'Versão', k: y => y.versao ? 'v' + gEsc(y.versao) : '—' }
+  ], x.recentes, 'Nenhum bloqueio no período.');
+  return `<div class="gd-kpis">
+      ${_gDadosKpi('Artes que saíram e couberam', _gDadosPct(okExp), gEsc(_gDadosN(r.export_total - r.export_bloqueou) + ' de ' + _gDadosN(r.export_total) + ' exportadas'), _gDadosLfVarPp(okExp, okAnt))}
+      ${_gDadosKpi('Couberam sem o motor mexer', _gDadosPct(origExp), gEsc(_gDadosN(r.export_original) + ' como desenhado · ' + _gDadosN(r.export_ajustou) + ' ajustadas'), _gDadosLfVarPp(origExp, origAnt))}
+      ${_gDadosKpi('Bloqueios', _gDadosN(bloq), gEsc(_gDadosN(r.preview_bloqueou) + ' na prévia · ' + _gDadosN(r.export_bloqueou) + ' no export · ' + _gDadosN(r.caixas_estouradas) + ' caixas estouraram'))}
+      ${_gDadosKpi('Tempo do Local Fit', gEsc(_gDadosMs(r.ms_p50)), gEsc('Mediana · p95 ' + _gDadosMs(r.ms_p95) + ' · pior ' + _gDadosMs(r.ms_max)))}
+      ${_gDadosKpi('Templates com bloqueio', _gDadosN(r.materiais_bloqueados), gEsc('de ' + _gDadosN(r.materiais) + ' usados · ' + _gDadosN(r.pessoas_bloqueadas) + ' de ' + _gDadosN(r.pessoas) + ' pessoas afetadas'))}
+      ${_gDadosKpi('Fonte substituída', _gDadosPct(_gDadosLfTaxa(r.fonte_nao_ok, r.fonte_conhecida)), gEsc(_gDadosN(r.fonte_nao_ok) + ' de ' + _gDadosN(r.fonte_conhecida) + ' resoluções medidas'))}
+    </div>
+    ${_gDadosSecao('O que olhar primeiro', 'Achados calculados a partir dos números abaixo.', _gDadosLfAchados(x))}
+    ${_gDadosSecao('Resultado por dia', 'Toda resolução (prévia e export). A altura é o volume do dia.', _gDadosLfDias(x.por_dia || []))}
+    <div class="gd-duas">
+      ${_gDadosSecao('Na arte que saiu', 'Export: o que o franqueado baixou.', linhas('export'))}
+      ${_gDadosSecao('Na prévia', 'Cada estado novo da prévia conta uma vez.', linhas('preview'))}
+    </div>
+    ${_gDadosSecao('Por template', 'Ordenado por quem mais bloqueia, depois por quem mais precisa de ajuste. É a fila de templates para revisar no Estúdio.', mats)}
+    ${_gDadosSecao('Onde o texto não coube', 'Template e campo do diagnóstico do bloqueio. O limite seguro é quantos caracteres cabem na caixa.', nc)}
+    <div class="gd-duas">
+      ${_gDadosSecao('Por formato', '', _gDadosLfRecorte('formato', x.por_formato))}
+      ${_gDadosSecao('Por fonte', 'Fonte substituída muda a medida do texto.', _gDadosLfRecorte('fonte', x.por_fonte))}
+      ${_gDadosSecao('Por aparelho', '', _gDadosLfRecorte('disp', x.por_dispositivo))}
+      ${_gDadosSecao('Por navegador', '', _gDadosLfRecorte('nav', x.por_navegador))}
+    </div>
+    ${_gDadosSecao('Por versão do app', 'Compare versões seguidas para achar regressão depois de um deploy.', versoes)}
+    <div class="gd-duas">
+      ${_gDadosSecao('Tempo por resolução', 'Quanto o motor leva para decidir a arte.', _gDadosLfFaixas(x.tempo_faixas))}
+      ${_gDadosSecao('Camadas mexidas por resolução', 'Quantas caixas de texto o motor precisou tocar.', _gDadosLfFaixas(x.camadas_faixas))}
+    </div>
+    <div class="gd-duas">
+      ${_gDadosSecao('Depois do bloqueio', 'O franqueado conseguiu sair do bloqueio?', _gDadosLfRecuperacao(x.recuperacao || {}))}
+      ${_gDadosSecao('Quem mais esbarra no bloqueio', '', pessoas)}
+    </div>
+    ${_gDadosSecao('Bloqueios recentes', 'Os 25 últimos, com o necessário para reproduzir o caso.', recentes)}`;
 }
 function _gDadosQualidadeHtml(d) {
   const q = d.qualidade || {}, cf = q.copyfit || {}, en = q.enquadramento || {}, fb = d.feedback || {};
@@ -631,8 +806,7 @@ function _gDadosQualidadeHtml(d) {
     <div class="gd-duas">
       ${_gDadosSecao('Feedback das campanhas', '', `<div class="gd-kpis gd-kpis-2">${_gDadosKpi('Positivo', _gDadosN(fb.positivo))}${_gDadosKpi('Negativo', _gDadosN(fb.negativo))}</div>${motivos}`)}
       ${_gDadosSecao('Comentários recentes', '', coment)}
-    </div>
-    ${_gDadosLfHtml(d)}`;
+    </div>`;
 }
 
 /* ── IA (uso, erro, latência, legendas) ─────────────────────────────────────────────── */
@@ -799,6 +973,16 @@ async function gDadosExportarCsv() {
     return _gDadosCsvBaixar('qualidade', ['tipo', 'item', 'detalhe', 'vezes', 'pessoas', 'ultimo'], []
       .concat((q.nao_cabe || []).map(r => ['texto não cabe', r.template_name || r.template_id, r.campo, r.n, '', '']))
       .concat((q.erros || []).map(r => ['erro do app', r.msg, '', r.n, r.pessoas, r.ultimo])));
+  }
+  if (aba === 'localfit') {
+    const x = _gDados.lf.data;
+    if (!x) return;
+    return _gDadosCsvBaixar('local-fit', ['tipo', 'template_id', 'template', 'pasta', 'recorte', 'resolucoes', 'coube', 'ajustou', 'bloqueou', 'mediana_ms', 'p95_ms', 'pessoas', 'ultimo'], []
+      .concat((x.por_material || []).map(m => ['template', m.material, m.nome, m.pasta, '', m.n, m.original, m.ajustou, m.bloqueou, m.ms_p50, '', m.pessoas, m.ultimo]))
+      .concat((x.nao_coube || []).map(y => ['nao coube', y.material, y.nome, y.pasta, 'campo ' + (y.campo || '—') + ' · limite ' + (y.limite_p50 == null ? '—' : y.limite_p50), y.n, '', '', y.n, '', '', y.pessoas, y.ultimo]))
+      .concat([['formato', x.por_formato], ['aparelho', x.por_dispositivo], ['navegador', x.por_navegador], ['fonte', x.por_fonte], ['versao', x.por_versao]]
+        .flatMap(([t, rows]) => (rows || []).map(y => [t, '', '', '', y.chave, y.n, y.original, y.ajustou, y.bloqueou, y.ms_p50, y.ms_p95, '', y.ultimo || ''])))
+      .concat((x.recentes || []).map(y => ['bloqueio recente', y.material, y.template, y.pasta, [y.campo, y.formato, y.origem, y.disp, y.nav, y.fonte, 'v' + (y.versao || '?')].join(' · '), 1, '', '', 1, y.ms, '', y.nome, y.ocorreu_em])));
   }
   if (aba === 'ia') {
     const x = _gDados.ia.data;

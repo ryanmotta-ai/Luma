@@ -143,6 +143,24 @@
 .gd-comentarios small{color:var(--prof-text-3);font-size:12px}
 .gd-kpis-2 .gd-kpi{margin-bottom:12px}
 
+/* Local Fit: coube / ajustou / bloqueou — a mesma escala de gravidade na barra, no gráfico e na legenda */
+.gd-pilha{display:flex;height:8px;min-width:90px;border-radius:var(--r-pill);background:var(--prof-muted);overflow:hidden}
+.gd-pilha i,.gd-legenda i,.gd-col-pilha i{display:block;flex:none}
+.gd-pilha i{height:100%}
+.gd-pilha .is-ok,.gd-legenda .is-ok,.gd-col-pilha .is-ok{background:var(--green)}
+.gd-pilha .is-ajuste,.gd-legenda .is-ajuste,.gd-col-pilha .is-ajuste{background:var(--dm-yellow)}
+.gd-pilha .is-bloqueio,.gd-legenda .is-bloqueio,.gd-col-pilha .is-bloqueio{background:var(--dm-red)}
+.gd-col-pilha{flex-direction:column-reverse;justify-content:flex-start}
+.gd-col-pilha i{border-radius:0}
+.gd-col-pilha i:last-of-type{border-radius:3px 3px 0 0}
+.gd-legenda{display:flex;flex-wrap:wrap;gap:6px 16px;margin:10px 0 0;color:var(--prof-text-3);font-size:12px}
+.gd-legenda span{display:inline-flex;align-items:center;gap:6px}
+.gd-legenda i{width:10px;height:10px;border-radius:3px}
+.gd-faixa{display:flex;align-items:center;gap:10px;min-width:45%}
+.gd-faixa .gd-bar-h{flex:1}
+.gd-faixa small{white-space:nowrap}
+.gd-achados li{justify-content:flex-start;line-height:1.45}
+
 /* detalhe da pessoa */
 .gd-voltar{align-self:flex-start}
 .gd-perfil{display:flex;align-items:flex-start;gap:12px}
