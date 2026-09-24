@@ -26,7 +26,7 @@
         properties: {
           promo: { type: 'STRING', description: 'Legenda comercial com foco na oferta e no app' },
           engajar: { type: 'STRING', description: 'Legenda descontraída que incentiva comentários ou marcação' },
-          whatsapp: { type: 'STRING', description: 'Mensagem para lista de transmissão no WhatsApp com *negrito*' },
+          whatsapp: { type: 'STRING', description: 'Mensagem para lista de transmissão no WhatsApp, sem asterisco nem markdown' },
           caption: { type: 'STRING', description: 'Legenda principal (caso formato simplificado)' },
           style: { type: 'STRING', enum: ['promo', 'engajar', 'whatsapp'], description: 'Estilo da legenda' },
           usedFacts: {

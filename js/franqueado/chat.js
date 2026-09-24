@@ -2208,7 +2208,8 @@ async function _fRevisarArteIA(canvasId, dados, camp, legendaPromise){
  * - Nada de inventar preço, validade ou benefício: a legenda acompanha uma arte
  *   com dados reais; texto que promete o que a peça não diz vira reclamação na loja.
  * - Uma ANGULAÇÃO por opção (vender / engajar / lista de WhatsApp) e formato certo
- *   por canal — story é curto, feed é completo, WhatsApp usa *negrito*.
+ *   por canal — story é curto, feed é completo, WhatsApp sem hashtag.
+ * - Nenhum `*`: o asterisco aparecia cru na copy colada (decisão do produto).
  * - Ancorado na cidade: é a alavanca real do franqueado (hiperlocal, 00_PRODUCT §1).
  * O motor local (fBuildCopy, via fGenCaptionSuggestions) segue sendo o fallback —
  * sem rede, sem chave ou com resposta torta, a legenda continua saindo.
@@ -2347,10 +2348,12 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
       const p = res.data.promo || res.data.caption || fallback[0].text;
       const e = res.data.engajar || fallback[1].text;
       const w = res.data.whatsapp || fallback[2].text;
+      // Modelo às vezes escorrega um *negrito* mesmo proibido: tira aqui, não confia no prompt.
+      const semAst = s => String(s).replace(/\*/g, '').replace(/[ \t]{2,}/g, ' ').trim();
       const out = [
-        { id: 'promo', label: 'Promo', text: p },
-        { id: 'engajar', label: 'Engajar', text: e },
-        { id: 'whatsapp', label: 'WhatsApp', text: w }
+        { id: 'promo', label: 'Promo', text: semAst(p) },
+        { id: 'engajar', label: 'Engajar', text: semAst(e) },
+        { id: 'whatsapp', label: 'WhatsApp', text: semAst(w) }
       ];
       if (out[1].text === out[0].text) out[1].text = fallback[1].text;
       if (out[2].text === out[0].text) out[2].text = fallback[2].text;
@@ -2404,12 +2407,12 @@ REGRAS OBRIGATÓRIAS:
 3. As 3 opções têm ângulos DIFERENTES entre si — não reescreva a mesma frase.
 4. ${ehStory ? 'Formato STORY: no máximo 2 linhas curtas em "promo" e "engajar" (texto que caiba num story, leitura de 2 segundos).' : 'Formato FEED: "promo" e "engajar" podem ter 2 a 4 linhas.'}
 5. ${hashtags} — só em "promo" e "engajar". A opção "whatsapp" NÃO leva hashtag.
-6. "whatsapp" é mensagem pra lista de transmissão: usa *asteriscos* pra negrito e chama pra pedir no app.
+6. "whatsapp" é mensagem pra lista de transmissão: chama pra pedir no app. NUNCA use asterisco (*) nem qualquer marcação de negrito/markdown, em nenhuma opção.
 7. Português do Brasil com TODA a acentuação e o "ç" corretos (família, peça, promoção, você, já). Os fatos podem ter sido digitados sem acento: corrija a grafia na legenda, mas não troque palavras, nomes próprios nem preços.${blocoGiriasPrompt ? `
 8. Sobre o jeito de falar da cidade: use NO MÁXIMO UMA dessas expressões, em UMA das três opções, e só se ela couber com naturalidade na frase. Se nenhuma couber, NÃO force — gíria enfiada soa falsa e o franqueado é vizinho de quem lê. Nunca explique a expressão nem use mais de uma.` : ''}${blocoGiriasPrompt}
 
 Responda APENAS com JSON válido:
-{"promo":"legenda que vende (foco na oferta)","engajar":"legenda que puxa comentário/marcação de amigo","whatsapp":"mensagem curta pra lista do WhatsApp com *negrito*"}`;
+{"promo":"legenda que vende (foco na oferta)","engajar":"legenda que puxa comentário/marcação de amigo","whatsapp":"mensagem curta pra lista do WhatsApp, sem asterisco"}`;
 
   const texto = await gAskAI('legenda', prompt, { json: true });
   const parsed = texto && (typeof gAiParseJson === 'function' ? gAiParseJson(texto) : null);
@@ -2417,9 +2420,9 @@ Responda APENAS com JSON válido:
 
   const limpa = (v, i) => {
     let s = (typeof v === 'string' ? v : '').trim();
-    // Cinto de segurança da regra 1: modelo às vezes escorrega um emoji. Tira em vez de
-    // devolver peça fora do padrão de marca.
-    s = s.replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}]/gu, '').replace(/[ \t]{2,}/g, ' ').trim();
+    // Cinto de segurança das regras 1 e 6: modelo às vezes escorrega um emoji ou um *negrito*.
+    // Tira em vez de devolver peça fora do padrão de marca.
+    s = s.replace(/\*/g, '').replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}]/gu, '').replace(/[ \t]{2,}/g, ' ').trim();
     return s || fallback[i].text;
   };
   const out = [

@@ -73,7 +73,8 @@
     // formato por aba
     if(qual==='op3'){
       if(/#\w/.test(t))out.push('WhatsApp com hashtag');
-    }else if(/\*/.test(t))out.push('negrito de WhatsApp fora do WhatsApp');
+    }
+    if(/\*/.test(t))out.push('asterisco na copy');
     return out;
   }
 
@@ -421,13 +422,12 @@
 
   /* ─────────────── AS 3 ABAS SÃO DIFERENTES DE VERDADE ─────────────── */
 
-  test('WhatsApp: sem hashtag, com negrito real do app',()=>{
+  test('WhatsApp: sem hashtag e sem asterisco',()=>{
     solta();
     for(let i=0;i<80;i++){
       const o=gerar(BRIEF({por:'R$ 39,90',de:'R$ 59,90'}));
       assert(!/#\w/.test(o.op3),'a mensagem de WhatsApp saiu com hashtag: '+o.op3);
-      assert(/\*[^*]+\*/.test(o.op3),'a mensagem de WhatsApp perdeu o negrito: '+o.op3);
-      assert(!/\*/.test(o.op1)&&!/\*/.test(o.op2),'negrito de WhatsApp vazou para o feed');
+      assert(!/\*/.test(o.op1+o.op2+o.op3),'asterisco na copy: '+o.op3);
     }
   });
 

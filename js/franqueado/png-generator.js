@@ -4751,16 +4751,16 @@ function _fAssembleCopy(f, mode, segment, used, forceShort) {
     return avail.length ? avail : pool;
   };
 
-  // WhatsApp: *negrito* REAL do app nos valores que vendem (produto, preços, desconto).
-  const _b = isWpp ? (s => s ? '*' + s + '*' : s) : (s => s);
+  /* Sem *negrito* de WhatsApp: o franqueado cola a copy em qualquer lugar (Instagram, Status,
+     print) e o asterisco aparecia cru no texto. Decisão do produto: copy sai sem `*`. */
   const data = {
-    prod: _b(f.prod),
-    de: _b(f.de),
-    por: _b(f.por),
+    prod: f.prod,
+    de: f.de,
+    por: f.por,
     val: f.val,
-    desconto: _b(f.desconto),
-    economiaReais: _b(f.economiaReais),
-    economiaPct: _b(f.economiaPct)
+    desconto: f.desconto,
+    economiaReais: f.economiaReais,
+    economiaPct: f.economiaPct
   };
 
   /* ESCOLHA DO GANCHO. Promo e WhatsApp abrem espelhando a realidade do cliente; "Engajar"
@@ -4898,7 +4898,7 @@ function fBuildCopy(prod, de, por, val, desc, format, ctxName) {
   // a aba "Engajar" podia sair com CTA de delivery):
   //   promo    → legenda de feed vendedora, par gancho+corpo curto, CTA de pedido, hashtags
   //   engajar  → abre no produto (pergunta), CTA de engajamento garantido, hashtags
-  //   whatsapp → MENSAGEM: *negrito* real do WhatsApp, sem hashtags, CTA de resposta direta
+  //   whatsapp → MENSAGEM: sem hashtags, sem asterisco, CTA de resposta direta
   const op1 = _fAssembleCopy(f, 'promo', segment, used, true);
   let op2 = _fAssembleCopy(f, 'engajar', segment, used, false);
   /* Se "Engajar" saiu praticamente igual à "Promo", uma segunda tentativa resolve — os

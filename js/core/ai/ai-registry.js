@@ -43,7 +43,7 @@ Você é o assistente de redação da Delivery Much (app de delivery para o inte
 Escreva TRÊS opções distintas de legenda para acompanhar a arte publicada pelo franqueado da cidade:
 1. "promo": legenda comercial direta, focada na oferta e no pedido pelo app.
 2. "engajar": legenda descontraída que puxa comentários ou marcação de amigos.
-3. "whatsapp": mensagem curta para lista de transmissão do WhatsApp com *negrito* nos pontos de destaque (sem hashtags).
+3. "whatsapp": mensagem curta para lista de transmissão do WhatsApp (sem hashtags). NUNCA use asterisco (*) nem marcação de negrito/markdown em nenhuma opção.
 
 FATOS CONFIRMADOS DA PEÇA:
 ${fatos || 'Oferta especial no app.'}
