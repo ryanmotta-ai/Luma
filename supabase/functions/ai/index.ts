@@ -61,13 +61,36 @@ const MODELO_OK = /^gemini-[a-z0-9.\-]{1,40}$/i;
 const MODELOS_RESERVA = ["gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.7-flash"];
 const DESCE = new Set([403, 404, 429, 503]);
 
-// Reserva fora do Google: NVIDIA NIM (API no formato OpenAI), uma chave por vez — cada chave tem
-// cota própria (free tier ~40 req/min), então 2 chaves = 2 cotas. Entra quando a escada Gemini
-// inteira falhar (qualquer erro, inclusive rede). Llama 3.3 70B: rápido (cabe nos 45s do front),
-// PT-BR bom e segue instrução de JSON. ⛔ Só texto: chamada com anexo (foto, PDF, áudio) não desce.
-const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
-const NVIDIA_MODELO = "meta/llama-3.3-70b-instruct";
-const NVIDIA_CHAVES = ["NVIDIA_API_KEY", "NVIDIA2_API_KEY"];
+// Reservas fora do Google, todas no formato OpenAI (/chat/completions). Entram em ordem quando a
+// escada Gemini inteira falhar (qualquer erro, inclusive rede); cada uma que der erro passa para a
+// próxima. Secret ausente = provedor pulado. ⛔ Só texto: chamada com anexo (foto, PDF, áudio) não
+// desce — os modelos abaixo não leem arquivo. Ordem = da cota mais folgada para a mais apertada:
+// · NVIDIA NIM (free ~40 req/min POR CHAVE — 2 chaves, 2 cotas). Llama 3.3 70B: rápido, PT-BR bom.
+// · Ollama Cloud (cota por hora/semana). gpt-oss 120B.
+// · Cloudflare Workers AI (free 10 mil neurons/dia). A URL leva o account id: vem do secret
+//   CLOUDFLARE_ACCOUNT_ID ou é descoberto pela própria chave (GET /accounts).
+// · OpenRouter (free ~50 req/dia sem crédito — a mais apertada, fica por último). `openrouter/free`
+//   sorteia um modelo gratuito disponível: os `:free` somem e mudam de nome com frequência.
+const RESERVAS = [
+  { nome: "nvidia", secret: "NVIDIA_API_KEY", url: "https://integrate.api.nvidia.com/v1/chat/completions", modelo: "meta/llama-3.3-70b-instruct" },
+  { nome: "nvidia2", secret: "NVIDIA2_API_KEY", url: "https://integrate.api.nvidia.com/v1/chat/completions", modelo: "meta/llama-3.3-70b-instruct" },
+  { nome: "ollama", secret: "OLLAMA_API_KEY", url: "https://ollama.com/v1/chat/completions", modelo: "gpt-oss:120b" },
+  { nome: "cloudflare", secret: "CLOUDFLARE_API_KEY", url: "", modelo: "@cf/meta/llama-3.3-70b-instruct-fp8-fast" },
+  { nome: "openrouter", secret: "OPENROUTER_API_KEY", url: "https://openrouter.ai/api/v1/chat/completions", modelo: "openrouter/free" },
+];
+const RESERVA_TIMEOUT_MS = 20_000; // uma reserva travada não pode comer o timeout de 45s do front
+
+async function urlCloudflare(chave: string): Promise<string> {
+  let conta = Deno.env.get("CLOUDFLARE_ACCOUNT_ID") ?? "";
+  if (!conta) {
+    const r = await fetch("https://api.cloudflare.com/client/v4/accounts", {
+      headers: { Authorization: "Bearer " + chave }, signal: AbortSignal.timeout(5000),
+    });
+    conta = String((await r.json().catch(() => ({})))?.result?.[0]?.id ?? "");
+    if (!conta) throw new Error("account id não encontrado — crie o secret CLOUDFLARE_ACCOUNT_ID");
+  }
+  return `https://api.cloudflare.com/client/v4/accounts/${conta}/ai/v1/chat/completions`;
+}
 const MAX_SCHEMA = 20000;      // caracteres do responseSchema serializado
 
 // Tetos por chamada: prompt de peça de marketing é curto; anexo é foto/PDF de cardápio.
@@ -192,8 +215,8 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "método não suportado" }, 405);
   try {
     const chave = Deno.env.get("GEMINI_API_KEY") ?? "";
-    const chavesNv = NVIDIA_CHAVES.map((n) => Deno.env.get(n)).filter(Boolean) as string[];
-    if (!chave && !chavesNv.length) return json({ error: "IA não configurada (falta o secret GEMINI_API_KEY)" }, 503);
+    const reservas = RESERVAS.map((r) => ({ ...r, chave: Deno.env.get(r.secret) ?? "" })).filter((r) => r.chave);
+    if (!chave && !reservas.length) return json({ error: "IA não configurada (falta o secret GEMINI_API_KEY)" }, 503);
 
     // 1) Quem chama? (mesmo padrão do invite-user: valida o JWT com o client anon)
     const caller = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -295,32 +318,35 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 5) Reserva NVIDIA: Gemini falhou (ou veio vazio) e a chamada é só texto.
+    // 5) Reservas: Gemini falhou (ou veio vazio) e a chamada é só texto.
     if (!text && parts.length === 1) {
       const instrucao = !querJson ? "Responda em português do Brasil."
         : "Responda APENAS com JSON válido, sem markdown e sem texto fora do JSON." +
           (schema ? " Siga este schema: " + JSON.stringify(schema) : "");
-      for (const [i, k] of chavesNv.entries()) {
+      for (const rv of reservas) {
         try {
-          const r = await fetch(NVIDIA_URL, {
+          const url = rv.url || await urlCloudflare(rv.chave);
+          const r = await fetch(url, {
             method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: "Bearer " + k },
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + rv.chave },
             body: JSON.stringify({
-              model: NVIDIA_MODELO, temperature: 0.6, max_tokens: 4096,
+              model: rv.modelo, temperature: 0.6, max_tokens: 4096,
               messages: [{ role: "system", content: instrucao }, { role: "user", content: prompt }],
             }),
+            signal: AbortSignal.timeout(RESERVA_TIMEOUT_MS),
           });
           status = r.status;
           if (!r.ok) {
-            console.warn(`[ai] NVIDIA chave ${i + 1} respondeu ${r.status}: ` + (await r.text().catch(() => "")).slice(0, 300));
+            console.warn(`[ai] reserva ${rv.nome} respondeu ${r.status}: ` + (await r.text().catch(() => "")).slice(0, 300));
             continue;
           }
           const d = await r.json();
-          // Llama às vezes embrulha o JSON em ```json … ```: tira a cerca.
+          // Modelo aberto às vezes embrulha o JSON em ```json … ```: tira a cerca.
           text = String(d?.choices?.[0]?.message?.content ?? "").trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
-          if (text) { usado = NVIDIA_MODELO; break; }
+          if (text) { usado = rv.nome + ":" + String(d?.model || rv.modelo); break; }
+          console.warn(`[ai] reserva ${rv.nome} veio vazia`);
         } catch (e) {
-          console.warn(`[ai] NVIDIA chave ${i + 1} falhou na rede:`, e);
+          console.warn(`[ai] reserva ${rv.nome} falhou:`, String((e as Error)?.message ?? e));
         }
       }
     }
