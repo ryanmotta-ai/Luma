@@ -4,8 +4,9 @@
     {
       "name": "luma-static",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "5605"],
-      "port": 5605
+      "runtimeArgs": ["-c", "import os,http.server as h; h.test(HandlerClass=h.SimpleHTTPRequestHandler, port=int(os.environ.get('PORT','5605')), bind='127.0.0.1')"],
+      "port": 5605,
+      "autoPort": true
     },
     {
       "name": "luma-attach",

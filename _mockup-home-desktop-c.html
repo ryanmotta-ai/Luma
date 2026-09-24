@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Home desktop — variações da C</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/00-tokens.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Roboto',sans-serif;background:#E4E4E4;color:var(--text);padding:32px 24px 80px}
+.opt{max-width:1180px;margin:0 auto 56px}
+.opt h2{font-size:18px;font-weight:900;margin-bottom:6px}
+.opt p.note{font-size:14px;line-height:1.55;color:var(--text-2);margin-bottom:16px;max-width:900px}
+.stage{width:1180px;height:737px;overflow:hidden;border-radius:14px;box-shadow:0 30px 60px rgba(15,23,42,.16),0 0 0 1px rgba(0,0,0,.08)}
+.frame{width:1280px;height:800px;transform:scale(.921875);transform-origin:0 0;display:flex;flex-direction:column;background:var(--off-white)}
+.page{flex:1;overflow-y:auto;scrollbar-width:thin}
+svg{display:block}
+.cover{background-size:cover;background-position:center;background-color:#2B55B5}
+.top{height:54px;flex:none;background:linear-gradient(90deg,#FF9400,#FA8200);display:flex;align-items:center;justify-content:space-between;padding:0 24px;color:#fff}
+.logo{display:flex;align-items:center;gap:8px;font-weight:900;font-size:21px}
+.seg{display:flex;background:rgba(0,0,0,.08);border-radius:99px;padding:3px}
+.seg span{font-size:13px;font-weight:700;padding:7px 18px;border-radius:99px}
+.seg span.on{background:#fff;color:var(--dm-orange-d)}
+.top-r{display:flex;gap:10px;align-items:center}
+.tb{height:38px;padding:0 14px;border-radius:99px;background:rgba(255,255,255,.18);font-size:13px;font-weight:700;display:flex;align-items:center;gap:7px}
+.ava{width:30px;height:30px;border-radius:50%;background:#555 url(assets/covers/muchplus.png) center/cover}
+.wrap{padding:28px 36px 48px}
+.sec-h{display:flex;align-items:baseline;gap:10px;margin:0 0 12px}
+.sec-h b{font-size:16px;font-weight:900}
+.sec-h em{font-style:normal;font-size:12px;color:var(--text-3)}
+.sec-h a{margin-left:auto;font-size:13px;font-weight:700;color:var(--dm-orange-d);text-decoration:none}
+.chip{flex:none;font-size:13px;font-weight:500;padding:9px 15px;border-radius:99px;background:#fff;border:1px solid var(--gray-light);color:var(--text-2)}
+.chip.on{background:var(--dm-orange-bg);border-color:var(--dm-orange);color:var(--text);font-weight:700}
+.ico{width:38px;height:38px;border-radius:11px;background:var(--dm-orange-bg);color:var(--dm-orange-d);display:grid;place-items:center;flex:none}
+.badge{background:var(--dm-orange);color:#fff;font-size:11px;font-weight:900;border-radius:99px;min-width:22px;height:22px;display:grid;place-items:center;padding:0 7px}
+.bar{height:4px;border-radius:4px;background:var(--gray-light);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--dm-orange)}
+.cg{display:grid;gap:14px;grid-template-columns:repeat(5,1fr)}
+.cc{border-radius:16px;overflow:hidden;position:relative;aspect-ratio:4/5}
+.cc .cover{position:absolute;inset:0}
+.cc .sh{position:absolute;inset:auto 0 0 0;padding:36px 12px 12px;background:linear-gradient(transparent,rgba(0,0,0,.8));color:#fff}
+.cc b{font-size:15px;display:block}
+.cc small{font-size:12px;opacity:.85}
+
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px}
+.greet{font-size:46px;font-weight:900;letter-spacing:-2.2px;line-height:1}
+.sub{font-size:15px;color:var(--text-3);margin-top:10px}
+.acts{display:flex;gap:10px}
+.btn{height:46px;padding:0 16px;border-radius:12px;background:#fff;border:1px solid var(--gray-mid);font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px}
+.search{height:58px;border-radius:16px;background:#fff;border:1px solid var(--gray-light);box-shadow:0 10px 30px rgba(10,10,10,.06);display:flex;align-items:center;gap:10px;padding:0 10px;font-size:15px;color:var(--text-3)}
+.search .t{flex:1}
+
+/* banner (a capa em tela cheia + degradê escuro) */
+.ban{border-radius:22px;overflow:hidden;position:relative}
+.ban .cover{position:absolute;inset:0}
+.ban .shd{position:absolute;inset:0;background:linear-gradient(90deg,rgba(10,10,10,.84) 0%,rgba(10,10,10,.55) 38%,transparent 70%)}
+.ban .tx{position:absolute;left:36px;bottom:34px;color:#fff;max-width:440px}
+.ey{font-size:11px;font-weight:900;letter-spacing:.12em;color:var(--dm-yellow)}
+.ban h3{font-size:42px;font-weight:900;letter-spacing:-1.2px;line-height:1.02;margin-top:8px}
+.ban p{font-size:14px;opacity:.85;margin-top:6px}
+.cta{margin-top:18px;display:inline-flex;height:46px;padding:0 20px;border-radius:12px;background:#fff;color:var(--text);font-weight:700;font-size:14px;align-items:center;gap:8px}
+.dots{position:absolute;right:24px;bottom:24px;display:flex;gap:6px}
+.dots i{width:8px;height:8px;border-radius:99px;background:rgba(255,255,255,.5)}
+.dots i.on{width:22px;background:#fff}
+.arw{position:absolute;top:50%;transform:translateY(-50%);width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.9);display:grid;place-items:center;color:var(--text);box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.arw.l{left:16px}.arw.r{right:16px}
+
+/* ===== C1 ===== */
+.c1-ban{height:330px;margin-top:22px}
+.c1-search{position:relative;z-index:2;margin:-29px 80px 0}
+.c1-row{display:flex;gap:10px;margin-top:22px;align-items:center}
+.pl{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--gray-light);border-radius:99px;padding:5px 16px 5px 5px}
+.pl .cover{width:34px;height:34px;border-radius:50%}
+.pl b{font-size:13px}.pl small{font-size:11px;color:var(--text-3);display:block}
+.lbl{font-size:13px;font-weight:900;margin-right:4px;white-space:nowrap}
+
+/* ===== C2 ===== */
+.c2-head{display:grid;grid-template-columns:auto 1fr;gap:40px;align-items:end}
+.c2-stage{display:grid;grid-template-columns:1fr 300px;gap:14px;margin-top:24px;height:340px}
+.c2-side{background:#fff;border:1px solid var(--gray-light);border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:4px}
+.c2-side h4{font-size:14px;font-weight:900;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+.c2-side h4 a{font-size:12px;color:var(--dm-orange-d);text-decoration:none}
+.row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--gray-light)}
+.row .cover{width:42px;height:54px;border-radius:8px;flex:none}
+.row .inf{flex:1;min-width:0}
+.row b{font-size:13.5px;display:block}
+.row small{font-size:12px;color:var(--text-3);display:block;margin-bottom:5px}
+.row .go{font-size:12.5px;font-weight:700;color:var(--dm-orange-d)}
+.c2-mine{margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px;border-radius:14px;background:var(--off-white)}
+.c2-mine b{font-size:13.5px;display:block}.c2-mine small{font-size:12px;color:var(--text-3)}
+.c2-mine .badge{margin-left:auto}
+.c2-chips{display:flex;gap:8px;margin-top:24px}
+
+/* ===== C3 ===== */
+.c3-ban{margin-top:22px;height:320px;border-radius:22px;overflow:hidden;position:relative;background:#fff;border:1px solid var(--gray-light)}
+.c3-ban .cover{position:absolute;top:0;right:0;bottom:0;width:62%}
+.c3-ban .fade{position:absolute;top:0;bottom:0;right:0;width:62%;background:linear-gradient(90deg,#fff 0%,rgba(255,255,255,.85) 12%,rgba(255,255,255,.4) 30%,transparent 55%)}
+.c3-ban .tx{position:absolute;left:36px;top:50%;transform:translateY(-50%);max-width:420px}
+.c3-ban .ey2{font-size:11px;font-weight:900;letter-spacing:.12em;color:var(--dm-red)}
+.c3-ban h3{font-size:42px;font-weight:900;letter-spacing:-1.2px;line-height:1.02;margin-top:8px}
+.c3-ban p{font-size:14px;color:var(--text-3);margin-top:6px}
+.c3-ban .cta2{margin-top:18px;display:inline-flex;height:46px;padding:0 20px;border-radius:12px;background:var(--dm-orange-d);color:#fff;font-weight:700;font-size:14px;align-items:center;gap:8px}
+.c3-strip{display:flex;gap:10px;margin-top:12px}
+.c3-th{flex:1;height:64px;border-radius:12px;position:relative;overflow:hidden;opacity:.7}
+.c3-th.on{opacity:1;outline:3px solid var(--dm-orange);outline-offset:2px}
+.c3-th .cover{position:absolute;inset:0}
+.c3-th span{position:absolute;left:8px;bottom:6px;color:#fff;font-size:11px;font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,.7)}
+.c3-mid{display:grid;grid-template-columns:1fr auto;gap:14px;margin-top:22px;align-items:center}
+.c3-drafts{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:22px}
+.c3-d{background:#fff;border:1px solid var(--gray-light);border-radius:16px;padding:10px;display:flex;gap:12px;align-items:center}
+.c3-d .cover{width:48px;height:60px;border-radius:9px;flex:none}
+.c3-d .inf{flex:1;min-width:0}
+.c3-d b{font-size:13.5px;display:block}
+.c3-d small{font-size:12px;color:var(--text-3);display:block;margin:2px 0 7px}
+</style>
+</head>
+<body>
+
+<!-- ================= C1 ================= -->
+<section class="opt">
+  <h2>C1 · Banner largo com a busca encaixada</h2>
+  <p class="note">O banner ocupa a largura toda, com setas e pontos de carrossel entre as campanhas em destaque. A busca "morde" a base do banner e fica colada nele, como a pergunta que vem logo depois da vitrine. Os rascunhos seguem em pílulas numa linha só.</p>
+  <div class="stage"><div class="frame">
+    <div class="top"><div class="logo"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="m3 21 12-12"/><path d="M15 3v3M13.5 4.5h3M20 8v3M18.5 9.5h3"/></svg>Luma</div><div class="seg"><span class="on">Franqueado</span><span>Designer</span></div><div class="top-r"><span class="tb">Conversas</span><span class="tb"><span class="ava"></span>ryan.motta</span></div></div>
+    <div class="page"><div class="wrap">
+      <div class="head">
+        <div><div class="greet">Boa tarde, Ryan Motta</div><div class="sub">Qual arte vamos criar hoje?</div></div>
+        <div class="acts"><span class="btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 1 1 3.6 1.9c-.9.6-1.4 1.1-1.4 2.1M12 17h.01"/></svg>Ajuda</span><span class="btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5"/></svg>Minhas artes <span class="badge">3</span></span></div>
+      </div>
+      <div class="ban c1-ban"><div class="cover" style="background-image:url(assets/covers/muchplus.png)"></div><div class="shd"></div>
+        <div class="tx" style="bottom:56px;left:80px"><div class="ey">★ EM DESTAQUE NESTA SEMANA</div><h3>Much+ Mais Benefícios</h3><p>Materiais em breve · Story, Feed</p><span class="cta">Criar arte agora <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+        <span class="arw l"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m15 6-6 6 6 6"/></svg></span><span class="arw r"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg></span>
+        <div class="dots" style="bottom:44px"><i class="on"></i><i></i><i></i></div>
+      </div>
+      <div class="search c1-search"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span><span class="t">Busque uma campanha, produto ou ocasião…</span><span class="chip on">Todas</span><span class="chip">Prontas</span><span class="chip">Favoritas</span></div>
+      <div class="c1-row"><span class="lbl">Continue:</span>
+        <span class="pl"><span class="cover" style="background-image:url(assets/covers/muchplus.png)"></span><span><b>Much+ · Combo família</b><small>hoje 16:00</small></span></span>
+        <span class="pl"><span class="cover" style="background-image:url(assets/covers/muchplus.png)"></span><span><b>Much+ · Combo família</b><small>hoje 15:00</small></span></span>
+        <span class="pl"><span class="cover" style="background-image:url(assets/covers/muchplus.png)"></span><span><b>Much+ · Combo família</b><small>hoje 14:00</small></span></span>
+      </div>
+      <div style="margin-top:26px"><div class="sec-h"><b>Prontas para usar</b><em>16 campanhas disponíveis</em></div>
+        <div class="cg">
+          <div class="cc"><div class="cover" style="background-image:url(assets/covers/cd.png)"></div><div class="sh"><b>Combão</b><small>6 materiais</small></div></div>
+          <div class="cc"><div class="cover" style="background-image:url(assets/covers/tr25.png)"></div><div class="sh"><b>Tudo até R$ 25</b><small>4 materiais</small></div></div>
+          <div class="cc"><div class="cover" style="background-image:url(assets/covers/pt.png)"></div><div class="sh"><b>Pizza Time</b><small>8 materiais</small></div></div>
+          <div class="cc"><div class="cover" style="background-image:url(assets/covers/gb.png)"></div><div class="sh"><b>Good Burger</b><small>5 materiais</small></div></div>
+          <div class="cc"><div class="cover" style="background-image:url(assets/covers/aai.png)"></div><div class="sh"><b>Açaí</b><small>5 materiais</small></div></div>
+        </div></div>
+    </div></div>
+  </div></div>
+</section>
+
+<!-- ================= C2 ================= -->
+<section class="opt">
+  <h2>C2 · Banner + seus rascunhos ao lado</h2>
+  <p class="note">A saudação e a busca dividem a mesma linha, então o banner sobe. Ao lado dele, no lugar das campanhas "a seguir", entra um painel com o que é seu: os rascunhos com progresso e "Continuar", e embaixo o acesso a Minhas artes. A vitrine fica à esquerda e o seu trabalho à direita, os dois na primeira dobra.</p>
+  <div class="stage"><div class="frame">
+    <div class="top"><div class="logo"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="m3 21 12-12"/><path d="M15 3v3M13.5 4.5h3M20 8v3M18.5 9.5h3"/></svg>Luma</div><div class="seg"><span class="on">Franqueado</span><span>Designer</span></div><div class="top-r"><span class="tb">Conversas</span><span class="tb"><span class="ava"></span>ryan.motta</span></div></div>
+    <div class="page"><div class="wrap">
+      <div class="c2-head">
+        <div><div class="greet">Boa tarde, Ryan Motta</div><div class="sub">Qual arte vamos criar hoje?</div></div>
+        <div class="search"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span><span class="t">Busque uma campanha, produto ou ocasião…</span><span class="btn" style="height:38px;border-radius:99px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 1 1 3.6 1.9c-.9.6-1.4 1.1-1.4 2.1M12 17h.01"/></svg>Ajuda</span></div>
+      </div>
+      <div class="c2-stage">
+        <div class="ban"><div class="cover" style="background-image:url(assets/covers/muchplus.png)"></div><div class="shd"></div>
+          <div class="tx"><div class="ey">★ EM DESTAQUE NESTA SEMANA</div><h3>Much+ Mais Benefícios</h3><p>Materiais em breve · Story, Feed</p><span class="cta">Criar arte agora <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+          <div class="dots"><i class="on"></i><i></i><i></i></div>
+        </div>
+        <aside class="c2-side">
+          <h4>Continue de onde parou <a href="#">Ver todos</a></h4>
+          <div class="row"><div class="cover" style="background-image:url(assets/covers/muchplus.png)"></div><div class="inf"><b>Much+ Mais Benefícios</b><small>Combo família · 16:00</small><div class="bar"><i style="width:50%"></i></div></div></div>
+          <div class="row"><div class="cover" style="background-image:url(assets/covers/muchplus.png)"></div><div class="inf"><b>Much+ Mais Benefícios</b><small>Combo família · 15:00</small><div class="bar"><i style="width:50%"></i></div></div></div>
+          <div class="row" style="border-bottom:0"><div class="cover" style="background-image:url(assets/covers/muchplus.png)"></div><div class="inf"><b>Much+ Mais Benefícios</b><small>Combo família · 14:00</small><div class="bar"><i style="width:50%"></i></div></div></div>
+          <div class="c2-mine"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5"/></svg></span><div><b>Minhas artes</b><small>Baixadas e salvas</small></div><span class="badge">3</span></div>
+        </aside>
+      </div>
+      <div class="c2-chips"><span class="chip on">Todas</span><span class="chip">Prontas para usar</span><span class="chip">Favoritas</span></div>
+      <div style="margin-top:16px"><div class="sec-h"><b>Prontas para usar</b><em>16 campanhas disponíveis</em></div>
+        <div class="cg">
+          <div class="cc"><div class="cover" style="background-image:url(assets/covers/cd.png)"></div><div class="sh"><b>Combão</b><small>6 materiais</small></div></div>
+          <div class="cc"><div class="cover" style="background-image:url(assets/covers/tr25.png)"></div><div class="sh"><b>Tudo até R$ 25</b><small>4 materiais</small></div></div>
+          <div class="cc"><div class="cover" style="background-image:url(assets/covers/pt.png)"></div><div class="sh"><b>Pizza Time</b><small>8 materiais</small></div></div>
+          <div class="cc"><div class="cover" style="background-image:url(assets/covers/gb.png)"></div><div class="sh"><b>Good Burger</b><small>5 materiais</small></div></div>
+          <div class="cc"><div class="cover" style="background-image:url(assets/covers/aai.png)"></div><div class="sh"><b>Açaí</b><small>5 materiais</small></div></div>
+        </div></div>
+    </div></div>
+  </div></div>
+</section>
+
+<!-- ================= C3 ================= -->
+<section class="opt">
+  <h2>C3 · Banner claro + trilha de destaques</h2>
+  <p class="note">Versão clara do banner: a capa fica à direita e se funde no branco, e o texto escuro fica à esquerda com o botão laranja (sem o degradê preto). Embaixo, uma trilha de miniaturas funciona como carrossel e mostra quais campanhas estão em destaque. Os rascunhos viram três cards lado a lado com progresso.</p>
+  <div class="stage"><div class="frame">
+    <div class="top"><div class="logo"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="m3 21 12-12"/><path d="M15 3v3M13.5 4.5h3M20 8v3M18.5 9.5h3"/></svg>Luma</div><div class="seg"><span class="on">Franqueado</span><span>Designer</span></div><div class="top-r"><span class="tb">Conversas</span><span class="tb"><span class="ava"></span>ryan.motta</span></div></div>
+    <div class="page"><div class="wrap">
+      <div class="head">
+        <div><div class="greet">Boa tarde, Ryan Motta</div><div class="sub">Qual arte vamos criar hoje?</div></div>
+        <div class="acts"><span class="btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 1 1 3.6 1.9c-.9.6-1.4 1.1-1.4 2.1M12 17h.01"/></svg>Ajuda</span><span class="btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5"/></svg>Minhas artes <span class="badge">3</span></span></div>
+      </div>
+      <div class="c3-ban"><div class="cover" style="background-image:url(assets/covers/muchplus.png)"></div><div class="fade"></div>
+        <div class="tx"><div class="ey2">★ EM DESTAQUE NESTA SEMANA</div><h3>Much+ Mais Benefícios</h3><p>Materiais em breve · Story, Feed</p><span class="cta2">Criar arte agora <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+      </div>
+      <div class="c3-strip">
+        <div class="c3-th on"><div class="cover" style="background-image:url(assets/covers/muchplus.png)"></div><span>Much+</span></div>
+        <div class="c3-th"><div class="cover" style="background-image:url(assets/covers/cd.png)"></div><span>Combão</span></div>
+        <div class="c3-th"><div class="cover" style="background-image:url(assets/covers/tr25.png)"></div><span>Tudo até R$ 25</span></div>
+        <div class="c3-th"><div class="cover" style="background-image:url(assets/covers/pt.png)"></div><span>Pizza Time</span></div>
+      </div>
+      <div class="search" style="margin-top:22px"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span><span class="t">Busque uma campanha, produto ou ocasião…</span><span class="chip on">Todas</span><span class="chip">Prontas</span><span class="chip">Favoritas</span></div>
+      <div class="c3-drafts">
+        <div class="c3-d"><div class="cover" style="background-image:url(assets/covers/muchplus.png)"></div><div class="inf"><b>Much+ Mais Benefícios</b><small>Combo família · hoje 16:00</small><div class="bar"><i style="width:50%"></i></div></div></div>
+        <div class="c3-d"><div class="cover" style="background-image:url(assets/covers/muchplus.png)"></div><div class="inf"><b>Much+ Mais Benefícios</b><small>Combo família · hoje 15:00</small><div class="bar"><i style="width:50%"></i></div></div></div>
+        <div class="c3-d"><div class="cover" style="background-image:url(assets/covers/muchplus.png)"></div><div class="inf"><b>Much+ Mais Benefícios</b><small>Combo família · hoje 14:00</small><div class="bar"><i style="width:50%"></i></div></div></div>
+      </div>
+      <div style="margin-top:26px"><div class="sec-h"><b>Prontas para usar</b><em>16 campanhas disponíveis</em></div>
+        <div class="cg">
+          <div class="cc"><div class="cover" style="background-image:url(assets/covers/cd.png)"></div><div class="sh"><b>Combão</b><small>6 materiais</small></div></div>
+          <div class="cc"><div class="cover" style="background-image:url(assets/covers/tr25.png)"></div><div class="sh"><b>Tudo até R$ 25</b><small>4 materiais</small></div></div>
+          <div class="cc"><div class="cover" style="background-image:url(assets/covers/pt.png)"></div><div class="sh"><b>Pizza Time</b><small>8 materiais</small></div></div>
+          <div class="cc"><div class="cover" style="background-image:url(assets/covers/gb.png)"></div><div class="sh"><b>Good Burger</b><small>5 materiais</small></div></div>
+          <div class="cc"><div class="cover" style="background-image:url(assets/covers/aai.png)"></div><div class="sh"><b>Açaí</b><small>5 materiais</small></div></div>
+        </div></div>
+    </div></div>
+  </div></div>
+</section>
+
+</body>
+</html>
