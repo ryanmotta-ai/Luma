@@ -18,7 +18,7 @@ let _gDados = {
   sort: { col: 'ultimo_acesso', dir: -1 }, busca: '', papel: '',
   pessoa: null, pessoaData: null, pessoaErro: null,
   ev: { evento: '', user: '', offset: 0, limit: 50, data: null, erro: null, carregando: false, req: 0 },
-  ia: { data: null, erro: null, carregando: false, req: 0 },
+  ia: { data: null, erro: null, carregando: false, req: 0, modelos: null, calcModelo: '', calcN: null },
   lf: { data: null, erro: null, carregando: false, req: 0 }
 };
 
@@ -829,8 +829,16 @@ async function gDadosIaCarregar() {
   if (_gDados.aba === 'ia') _gDadosRender();
   const iv = _gDados.intervalo || _gDadosIntervalo();
   let res;
-  try { res = await _gDadosRpc('dados_ia', { p_de: iv.de, p_ate: iv.ate }); } catch (err) { res = { error: err }; }
+  let mod = null;
+  try {
+    // O consumo por modelo é uma RPC à parte: se ela falhar, o resto da aba continua.
+    [res, mod] = await Promise.all([
+      _gDadosRpc('dados_ia', { p_de: iv.de, p_ate: iv.ate }),
+      _gDadosRpc('dados_ia_modelos', { p_de: iv.de, p_ate: iv.ate }).catch(() => null)
+    ]);
+  } catch (err) { res = { error: err }; }
   if (req !== s.req) return;
+  s.modelos = (mod && !mod.error && mod.data) || null;
   s.carregando = false;
   if (res.error || !res.data) s.erro = _gDadosMsgErro(res.error || 'A consulta voltou vazia.');
   else s.data = res.data;
@@ -870,11 +878,91 @@ function _gDadosIaHtml() {
       ${_gDadosKpi('Legendas da IA', _gDadosN(lg.geradas_ia), gEsc('Usadas ' + _gDadosN(lg.copiadas_ia) + ' · do motor local ' + _gDadosN(lg.copiadas_local)))}
       ${_gDadosKpi('Encurtar com IA', _gDadosN(cf.pedidos), gEsc(_gDadosN(cf.opcoes_ok) + ' opções aprovadas · ' + _gDadosN(cf.reprovadas) + ' reprovadas'))}
     </div>
+    ${_gDadosIaCustoHtml()}
     ${_gDadosSecao('Consumo por tarefa', 'Cada ida à Edge Function de IA. O tempo conta só as que deram certo.', porTask)}
     <div class="gd-duas">
       ${_gDadosSecao('Falhas', 'O que deu errado, por tarefa.', erros)}
       ${_gDadosSecao('Por onde a legenda saiu', 'Cópias da legenda, pelo caminho usado.', origens)}
     </div>`;
+}
+
+/* ── Custo por modelo + calculadora ──────────────────────────────────────────────────
+   US$ por 1 MILHÃO de tokens (entrada, saída), da tabela da própria function `ai` (09/2026).
+   As reservas (NVIDIA, Ollama, Cloudflare, OpenRouter) estão no plano gratuito: custo 0.
+   ⚠ Preço muda: atualizar AQUI e no comentário da escada em supabase/functions/ai/index.ts. */
+const G_DADOS_IA_PRECO = {
+  'gemini-3.1-flash-lite': [0.25, 1.50], 'gemini-3.5-flash-lite': [0.30, 2.50],
+  'gemini-3.6-flash': [0.75, 3.75], 'gemini-3.7-flash': [0.75, 3.75], 'gemini-3.8-flash': [0.75, 3.75],
+  'gemini-2.5-flash': [0.30, 2.50], 'gemini-2.5-flash-lite': [0.10, 0.40]
+};
+function _gDadosIaPreco(m) {
+  if (G_DADOS_IA_PRECO[m]) return G_DADOS_IA_PRECO[m];
+  if (/^(nvidia2?|ollama|cloudflare|openrouter):/.test(m || '')) return [0, 0];
+  return null;
+}
+function _gDadosUsd(v) { return v == null ? '—' : 'US$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: v < 1 ? 4 : 2, maximumFractionDigits: v < 1 ? 4 : 2 }); }
+function _gDadosTok(v) { return v >= 1e6 ? (v / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' mi' : v >= 1e3 ? (v / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil' : _gDadosN(v); }
+/* Por modelo: tokens MEDIDOS (a function conta desde a v18) + estimativa das chamadas antigas pela
+   média de tokens por chamada do próprio modelo (ou da média geral, se ele nunca foi medido). */
+function _gDadosIaModelos() {
+  const lista = (_gDados.ia.modelos && _gDados.ia.modelos.por_modelo) || [];
+  let ci = 0, co = 0, cn = 0;
+  lista.forEach(x => { ci += +x.tokens_in || 0; co += +x.tokens_out || 0; cn += +x.com_tokens || 0; });
+  const geral = cn ? [ci / cn, co / cn] : null;
+  return lista.map(x => {
+    const med = x.com_tokens ? [x.tokens_in / x.com_tokens, x.tokens_out / x.com_tokens] : geral;
+    const est = med ? [med[0] * (x.sem_tokens || 0), med[1] * (x.sem_tokens || 0)] : [0, 0];
+    const tin = (+x.tokens_in || 0) + est[0], tout = (+x.tokens_out || 0) + est[1];
+    const pr = _gDadosIaPreco(x.modelo);
+    return Object.assign({}, x, { media: med, tin, tout, estimado: !!(x.sem_tokens && med),
+      custo: pr ? (tin * pr[0] + tout * pr[1]) / 1e6 : null });
+  });
+}
+function _gDadosIaCustoHtml() {
+  const s = _gDados.ia;
+  if (!s.modelos) return _gDadosSecao('Custo por modelo', '', '<p class="gd-vazio">O consumo por modelo não carregou.</p>');
+  const ms = _gDadosIaModelos();
+  if (!ms.length) return _gDadosSecao('Custo por modelo', '', '<p class="gd-vazio">Nenhuma chamada bem-sucedida no período.</p>');
+  const total = ms.reduce((a, x) => a + (x.custo || 0), 0);
+  const tokTot = ms.reduce((a, x) => a + x.tin + x.tout, 0);
+  const p = s.modelos.periodo || {}, dias = Math.max(1, (new Date(p.ate) - new Date(p.de)) / 864e5);
+  const tabela = _gDadosTabela([
+    { t: 'Modelo', k: x => `<strong>${gEsc(x.modelo)}</strong>${_gDadosIaPreco(x.modelo) ? '' : '<small class="gd-sub">sem preço cadastrado</small>'}` },
+    { t: 'Chamadas', num: 1, k: x => _gDadosN(x.n) },
+    { t: 'Entrada', num: 1, k: x => gEsc(_gDadosTok(Math.round(x.tin))) },
+    { t: 'Saída', num: 1, k: x => gEsc(_gDadosTok(Math.round(x.tout))) },
+    { t: 'Por chamada', num: 1, k: x => x.media ? gEsc(_gDadosTok(Math.round(x.media[0] + x.media[1]))) : '—' },
+    { t: 'Gasto', num: 1, k: x => gEsc(_gDadosUsd(x.custo)) + (x.estimado ? `<small class="gd-sub">${_gDadosN(x.sem_tokens)} estimadas</small>` : '') }
+  ], ms, '');
+  // Calculadora: modelo + chamadas/mês → custo. Começa no ritmo atual (período → 30 dias).
+  const ritmo = Math.round(ms.reduce((a, x) => a + x.n, 0) / dias * 30);
+  const sel = s.calcModelo && G_DADOS_IA_PRECO[s.calcModelo] ? s.calcModelo : (ms.find(x => G_DADOS_IA_PRECO[x.modelo]) || {}).modelo || 'gemini-3.1-flash-lite';
+  const n = s.calcN != null ? s.calcN : ritmo;
+  const base = ms.find(x => x.modelo === sel && x.media) || ms.find(x => x.media);
+  const med = base ? base.media : null, pr = G_DADOS_IA_PRECO[sel];
+  const proj = (med && pr) ? n * (med[0] * pr[0] + med[1] * pr[1]) / 1e6 : null;
+  const opts = Object.keys(G_DADOS_IA_PRECO).map(m => `<option value="${gEsc(m)}"${m === sel ? ' selected' : ''}>${gEsc(m)}</option>`).join('');
+  const calc = `<div class="gd-calc">
+      <label>Modelo <select class="gd-select" onchange="gDadosIaCalc('modelo', this.value)">${opts}</select></label>
+      <label>Chamadas por mês <input class="gd-input" type="number" min="0" step="100" value="${n}" oninput="gDadosIaCalc('n', this.value)"></label>
+      <p class="gd-calc-res"><strong>${gEsc(_gDadosUsd(proj))}</strong> por mês
+        <small class="gd-sub">${med ? gEsc(_gDadosTok(Math.round(med[0])) + ' de entrada + ' + _gDadosTok(Math.round(med[1])) + ' de saída por chamada (média medida)') : 'Sem tokens medidos ainda — a contagem começou em 24/09/2026.'}</small></p>
+    </div>`;
+  return `<div class="gd-kpis gd-kpis-2">
+      ${_gDadosKpi('Gasto com IA', gEsc(_gDadosUsd(total)), gEsc('No período · ' + _gDadosTok(Math.round(tokTot)) + ' tokens'))}
+      ${_gDadosKpi('Ritmo atual', gEsc(_gDadosUsd(total / dias * 30)), gEsc('Por mês · ' + _gDadosN(ritmo) + ' chamadas'))}
+    </div>
+    ${_gDadosSecao('Custo por modelo', 'Quem respondeu de fato (inclui as reservas grátis). Tokens contados pelo provedor; chamadas anteriores à contagem são estimadas pela média do modelo.', tabela)}
+    ${_gDadosSecao('Calculadora de custo', 'Quanto custaria um volume de chamadas no modelo escolhido, pela média de tokens medida no Luma.', calc)}`;
+}
+function gDadosIaCalc(campo, v) {
+  const s = _gDados.ia;
+  if (campo === 'modelo') s.calcModelo = String(v || '');
+  else s.calcN = Math.max(0, Math.round(+v || 0));
+  const res = document.querySelector('.gd-calc-res');
+  // Digitando o número: repinta só o resultado, sem perder o foco do campo.
+  if (campo === 'n' && res) { const tmp = document.createElement('div'); tmp.innerHTML = _gDadosIaCustoHtml(); const novo = tmp.querySelector('.gd-calc-res'); if (novo) res.replaceWith(novo); return; }
+  _gDadosRender();
 }
 
 /* ── Eventos (explorador) ───────────────────────────────────────────────────────────── */

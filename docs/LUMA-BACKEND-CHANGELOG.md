@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-09-24 — Tokens e custo de IA por modelo (function `ai` v18 + RPC `luma.dados_ia_modelos`)
+
+- Function `ai` v18 devolve `tokens:{in,out}` contados pelo provedor (Gemini `usageMetadata`, com o pensamento somado à saída; reservas `usage`). O front grava em `ia_chamada` (`tokens_in`, `tokens_out`).
+- Nova RPC `luma.dados_ia_modelos(p_de, p_ate)` (migration `20260924_dados_ia_modelos.sql`): chamadas bem-sucedidas por modelo, tokens medidos e quantas vieram sem contagem. Mesma autorização do painel (`luma._dados_autoriza`); `execute` só para `authenticated`.
+- Dados → IA ganha "Custo por modelo" e a calculadora de custo; o preço por 1M tokens mora em `G_DADOS_IA_PRECO` (`js/core/dados.js`).
+
 ## 2026-09-24 — Function `ai` v17: reservas NVIDIA voltam a responder
 
 As duas reservas NVIDIA davam **410 Gone**: o `meta/llama-3.3-70b-instruct` saiu do catálogo da NVIDIA em 26/08/2026, e a fila perdia duas tentativas mortas a cada pane do Gemini (vista em 24/09, 13:30 e 16:30 UTC). Agora cada chave usa um modelo diferente, conferido no catálogo vivo (`/v1/models`): `nvidia` → `google/gemma-4-31b-it`, `nvidia2` → `deepseek-ai/deepseek-v4.1-flash`. Um modelo por chave, para uma descontinuação não derrubar as duas de novo. Sem migration, `verify_jwt` mantido.

@@ -294,6 +294,8 @@ Deno.serve(async (req) => {
     let usado = fila[0];
     let text = "";
     let status = 503;
+    // Tokens contados pelo PROVEDOR (não estimados): vão para a telemetria e a calculadora de custo.
+    let tokens: { in: number; out: number } | null = null;
     if (chave) {
       try {
         let res = await chama(usado);
@@ -307,6 +309,9 @@ Deno.serve(async (req) => {
         status = res.status;
         if (res.ok) {
           const data = await res.json();
+          // Pensamento (thoughtsTokenCount) é cobrado como saída no Gemini.
+          const u = data?.usageMetadata;
+          if (u) tokens = { in: Number(u.promptTokenCount) || 0, out: (Number(u.candidatesTokenCount) || 0) + (Number(u.thoughtsTokenCount) || 0) };
           // Junta as partes de texto: modelo com raciocínio pode devolver mais de uma (e as de
           // pensamento vêm marcadas com `thought` — não são resposta).
           text = ((data?.candidates?.[0]?.content?.parts ?? []) as { text?: string; thought?: boolean }[])
@@ -344,6 +349,7 @@ Deno.serve(async (req) => {
             continue;
           }
           const d = await r.json();
+          if (d?.usage) tokens = { in: Number(d.usage.prompt_tokens) || 0, out: Number(d.usage.completion_tokens) || 0 };
           // Modelo aberto às vezes embrulha o JSON em ```json … ```: tira a cerca.
           text = String(d?.choices?.[0]?.message?.content ?? "").trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
           if (text) { usado = rv.nome + ":" + String(d?.model || rv.modelo); break; }
@@ -356,7 +362,7 @@ Deno.serve(async (req) => {
     if (!text) return json({ error: "o provedor de IA falhou (" + status + ")" }, 502);
 
     // `modelo` = o que respondeu de fato (pode ser a reserva): vai para a telemetria de custo.
-    return json({ ok: true, task, text, modelo: usado });
+    return json({ ok: true, task, text, modelo: usado, tokens });
   } catch (e) {
     console.warn("[ai] falhou:", e);
     return json({ error: String((e as Error)?.message ?? e) }, 500);

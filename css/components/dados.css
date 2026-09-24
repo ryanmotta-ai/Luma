@@ -55,6 +55,9 @@
 .gd-card-head h4{margin:0;color:var(--prof-text);font-size:15px;font-weight:900}
 .gd-card-head p{margin:4px 0 0;color:var(--prof-text-3);font-size:12px}
 .gd-duas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+/* Calculadora de custo da IA (Dados → IA) */
+.gd-calc{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 16px}.gd-calc label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--prof-text-3)}.gd-calc .gd-input{min-width:160px}
+.gd-calc-res{margin:0;font-size:13px;color:var(--prof-text-2)}.gd-calc-res strong{display:block;font-size:22px;color:var(--prof-text)}
 .gd-vazio{margin:0;color:var(--prof-text-3);font-size:13px}
 .gd-contagem{margin:0;color:var(--prof-text-3);font-size:12px}
 .gd-destaque{margin:14px 0 0;padding:10px 12px;border-radius:var(--r-sm);background:var(--dm-orange-bg);color:var(--prof-text);font-size:13px;line-height:1.45}

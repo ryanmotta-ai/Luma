@@ -104,7 +104,7 @@ async function gAiEdgeFetch(body, signal){
     throw e;
   }
   // Com sucesso, a function diz qual modelo respondeu (pode ser a reserva): é o dado de custo.
-  if(res.ok) res.clone().json().then(d=>_gAiTrackChamada(body, t0, res.status, null, d&&d.modelo))
+  if(res.ok) res.clone().json().then(d=>_gAiTrackChamada(body, t0, res.status, null, d&&d.modelo, d&&d.tokens))
     .catch(()=>_gAiTrackChamada(body, t0, res.status, null));
   else _gAiTrackChamada(body, t0, res.status, 'http_'+res.status);
   if(res.status===404){ _gAiEdgeOk=false; console.warn('[ai] Edge Function `ai` não existe no Supabase'); }
@@ -119,13 +119,16 @@ async function gAiEdgeFetch(body, signal){
 /* ia_chamada: UMA linha por ida à function, dos dois clientes — é daqui que o painel tira uso
    por tarefa, taxa de erro e latência. Sem prompt nem resposta: só a tarefa, o tempo e o
    desfecho (a conta que importa é de custo e de falha, não de conteúdo). */
-function _gAiTrackChamada(body, t0, status, erro, modelo){
+function _gAiTrackChamada(body, t0, status, erro, modelo, tokens){
   try{
     if(typeof gTrackEvent!=='function') return;
     const anexos=(body&&Array.isArray(body.parts))?body.parts:[];
     gTrackEvent('ia_chamada',{task:String((body&&body.task)||''), ok:!erro, status:status||null, erro:erro||null,
       ms:Date.now()-t0, anexos:anexos.length, tipo_anexo:anexos[0]?String(anexos[0].mimeType||'').split('/')[0]:null,
-      gateway:!!(body&&body.responseSchema), modelo:modelo||gAiModel()});
+      gateway:!!(body&&body.responseSchema), modelo:modelo||gAiModel(),
+      // Tokens que o PROVEDOR contou (entrada/saída): é a base da calculadora de custo em Dados → IA.
+      tokens_in:(tokens&&Number.isFinite(+tokens.in))?+tokens.in:null,
+      tokens_out:(tokens&&Number.isFinite(+tokens.out))?+tokens.out:null});
   }catch(e){}
 }
 
