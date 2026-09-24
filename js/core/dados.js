@@ -144,7 +144,8 @@ function _gDadosIntervalo() {
 function _gDadosRpc(nome, args) {
   const sb = typeof gSupabase === 'function' ? gSupabase() : null;
   if (!sb) return Promise.resolve({ data: null, error: { message: 'Sem conexão com o servidor.' } });
-  return sb.schema('luma').rpc(nome, args);
+  // Promise.resolve: o builder do supabase-js só tem .then — sem isto, `.catch()` quebra a aba.
+  return Promise.resolve(sb.schema('luma').rpc(nome, args));
 }
 function _gDadosMsgErro(err) {
   const m = String((err && err.message) || err || '');
