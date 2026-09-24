@@ -616,18 +616,20 @@ function _fFitAttempt(box, id){
   return (f && f.id===id && f.text) ? f.text : '';
 }
 // Mostra/esconde o botão. Aparece quando o campo é de texto e: o Copy Fit tem versão que cabe
-// (sem IA), OU bateu no teto / passou do limite seguro / a arte bloqueou nele e há IA no ar —
-// aí o toque vai direto à IA ("Tentar com IA"): o motor já disse que não tem versão.
+// (sem IA), OU bateu no teto / chegou perto do alvo (90%, o mesmo ponto em que o contador vira
+// "warn") / a arte bloqueou nele e há IA no ar — aí o toque vai direto à IA ("Tentar com IA").
 function _fFitSync(box, id, cfg, len){
   const wrap=document.getElementById('f-input-wrap'); if(!wrap) return;
   let btn=document.getElementById('f-fit-btn');
   const tipoTexto = cfg.type==='text' || cfg.type==='code';
-  /* Duas portas para o mesmo botão: bateu no teto do designer (e existe a tentativa inteira
-     guardada antes do corte), OU passou do limite SEGURO medido no bloqueio — neste segundo
-     caso não houve corte nenhum, o texto está todo aí, e o que falta é ele caber na arte. */
+  /* Antes só acendia DEPOIS de estourar o teto do designer ou bloquear a arte — no chat guiado,
+     sem prévia medindo, isso quase nunca acontecia (Vanessa, 24/09/2026: "nunca mais apareceu").
+     Agora nasce em 90% do alvo, ANTES de bloquear: mesmo limiar do contador (`fUpdateCharCount`),
+     "Tentar com IA: encurtar para caber em N caracteres" já cobria esse caso na label — só
+     faltava a porta abrir antes do estouro. */
   const alvo = fAlvoDoCampo(id, cfg);
   const cabe = (len>=cfg.maxLen && _fFitAttempt(box,id).length>cfg.maxLen)
-            || (alvo<cfg.maxLen && len>alvo);
+            || len >= alvo*0.9;
   const podeIA = (typeof window.gAI==='object' && gAI.isReady('copy.fit'))
     || (typeof gAskAI==='function' && typeof gAiReady==='function' && gAiReady());
   const cf = id ? _fFitCopyFit(id) : null;
