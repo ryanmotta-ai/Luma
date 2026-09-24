@@ -2850,7 +2850,7 @@ function _fBulkRenderFolhaCampos(forcar){
   alvo.innerHTML = ordenadas.map((k, pos) => {
     const rot = gEsc(rotuloDe(k)).replace(/"/g,'&quot;');
     const val = gEsc(r.dados[k] || '').replace(/"/g,'&quot;');
-    const erro = (r.erros||[]).some(e => e.includes(k));
+    const erro = (r.erros||[]).find(e => e.includes(k)) || null;
     if(fIsImageVar(k)){
       const tem = !!(r.dados[k]);
       /* ⚠ O botão antigo chamava `fBulkUploadCellImage(i,k)` — assinatura errada: a função
@@ -2876,11 +2876,16 @@ function _fBulkRenderFolhaCampos(forcar){
        recusa a vírgula em boa parte dos aparelhos. `inputmode="decimal"` traz o teclado de
        números sem impor o formato — o `fValidate` continua sendo quem julga o valor. */
     const numerico = /pre[çc]o|valor|de_|por_/i.test(k);
+    // Mesmo reparo da grade do desktop: erro de campo só pintava a borda ("tem-erro") sem
+    // dizer o motivo. Aqui o celular nem tem hover para um `title` — a mensagem vira legenda
+    // visível, pequena, abaixo do campo.
+    const errSeguro = erro ? gEsc(erro).replace(/"/g,'&quot;') : '';
     return `<label class="f-bulk-fcampo" style="--fi:${Math.min(pos,7)}">
       <span class="f-bulk-flabel">${rot}</span>
       <input type="text" id="f-bulk-edit-${i}-${k}" class="f-bulk-fin${erro?' tem-erro':''}" value="${val}"
-        ${numerico?'inputmode="decimal" ':''}placeholder="${rot}" aria-label="${rot}"
+        ${numerico?'inputmode="decimal" ':''}placeholder="${rot}" aria-label="${rot}${erro?': '+errSeguro:''}"${erro?' aria-invalid="true"':''}
         oninput="fBulkLiveEdit(${i})" onblur="fBulkSaveRow(${i}, true)">
+      ${erro?`<small class="f-bulk-ferro">${errSeguro}</small>`:''}
     </label>`;
   }).join('');
 
@@ -3191,10 +3196,16 @@ function fBulkRenderPreview(){
            campo, de graça. A dica só entra em oferta vazia — repetir "Produto" dentro de um
            campo que já tem título em cima é dizer a mesma coisa duas vezes. */
         const dica = (estado==='vazia') ? ` placeholder="${rotSeguro}"` : '';
-        const tit = val ? ` title="${safeV}"` : '';
+        /* ⚠ ANTES: erro de campo (fValidate) só pintava a borda vermelha (`f-bulk-cell-err`) —
+           a MENSAGEM ("Preço zerado não vai para a arte...") existia em `isFieldErr` mas nunca
+           chegava à tela. A pessoa via um quadrado vermelho sem saber o quê corrigir e só
+           descobria o motivo real abrindo o "erros.txt" do ZIP, depois de gerar o lote inteiro.
+           O `title` (tooltip) já é o padrão desta grade para mostrar o valor — em erro, ele
+           mostra a MENSAGEM em vez do valor, que é a informação que falta. */
+        const tit = isFieldErr ? ` title="${gEsc(isFieldErr).replace(/"/g,'&quot;')}"` : (val ? ` title="${safeV}"` : '');
         return `<label class="f-bulk-campo${isFieldErr?' is-falta':''}" data-span="${span}">
           <span class="f-bulk-campo-rot" title="${rotSeguro}">${gEsc(rotulo)}</span>
-          <input type="text" id="f-bulk-edit-${i}-${k}" class="f-bulk-cell${isFieldErr?' f-bulk-cell-err':''}" value="${safeV}"${dica}${tit} oninput="fBulkLiveEdit(${i})" onfocus="fBulkSetActive(${i})" onchange="_fBulkPiscarCelula(this,'is-salvo')" onblur="fBulkSaveRow(${i}, true)">
+          <input type="text" id="f-bulk-edit-${i}-${k}" class="f-bulk-cell${isFieldErr?' f-bulk-cell-err':''}" value="${safeV}"${dica}${tit}${isFieldErr?` aria-invalid="true" aria-label="${rotSeguro}: ${gEsc(isFieldErr).replace(/"/g,'&quot;')}"`:''} oninput="fBulkLiveEdit(${i})" onfocus="fBulkSetActive(${i})" onchange="_fBulkPiscarCelula(this,'is-salvo')" onblur="fBulkSaveRow(${i}, true)">
         </label>`;
       }).join('');
 

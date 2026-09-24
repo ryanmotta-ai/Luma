@@ -2374,6 +2374,10 @@ body:not(.theme-light) #f-chat-art{border-color:var(--d-line,#2A2A2A);background
   /* Campo pendente é CONVITE, não alarme: tracejado laranja da marca, como o Luma marca
      campo vazio na prévia. Vermelho aqui contrariaria a regra “o Luma não alarma”. */
   #f-bulk-modal .f-bulk-folha-campos .f-bulk-fin.tem-erro{border-style:dashed; border-color:var(--dm-orange); background:#FFF8F0}
+  /* A borda tracejada dizia QUE algo faltava; a legenda diz O QUÊ — mesmo motivo do `fValidate`
+     que já aparece como toast no chat guiado, só que aqui embaixo do campo (sem hover no celular
+     para um `title` fazer esse papel). */
+  .f-bulk-ferro{display:block; margin-top:4px; font-size:11px; font-weight:600; color:var(--dm-orange)}
 
   /* Foto: a miniatura do que JÁ subiu, não a palavra “trocar”. Sem ela a pessoa precisava
      gerar a arte pra descobrir qual foto tinha mandado. */
