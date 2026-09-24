@@ -65,15 +65,18 @@ const DESCE = new Set([403, 404, 429, 503]);
 // escada Gemini inteira falhar (qualquer erro, inclusive rede); cada uma que der erro passa para a
 // próxima. Secret ausente = provedor pulado. ⛔ Só texto: chamada com anexo (foto, PDF, áudio) não
 // desce — os modelos abaixo não leem arquivo. Ordem = da cota mais folgada para a mais apertada:
-// · NVIDIA NIM (free ~40 req/min POR CHAVE — 2 chaves, 2 cotas). Llama 3.3 70B: rápido, PT-BR bom.
+// · NVIDIA NIM (free ~40 req/min POR CHAVE — 2 chaves, 2 cotas). UM MODELO DIFERENTE POR CHAVE: o
+//   Llama 3.3 70B saiu do catálogo em 26/08/2026 (410 Gone) e derrubou as duas de uma vez. Modelos
+//   de instrução, sem raciocínio exposto (o texto de "pensamento" quebraria o JSON). Conferir o
+//   catálogo vivo em https://integrate.api.nvidia.com/v1/models antes de trocar.
 // · Ollama Cloud (cota por hora/semana). gpt-oss 120B.
 // · Cloudflare Workers AI (free 10 mil neurons/dia). A URL leva o account id: vem do secret
 //   CLOUDFLARE_ACCOUNT_ID ou é descoberto pela própria chave (GET /accounts).
 // · OpenRouter (free ~50 req/dia sem crédito — a mais apertada, fica por último). `openrouter/free`
 //   sorteia um modelo gratuito disponível: os `:free` somem e mudam de nome com frequência.
 const RESERVAS = [
-  { nome: "nvidia", secret: "NVIDIA_API_KEY", url: "https://integrate.api.nvidia.com/v1/chat/completions", modelo: "meta/llama-3.3-70b-instruct" },
-  { nome: "nvidia2", secret: "NVIDIA2_API_KEY", url: "https://integrate.api.nvidia.com/v1/chat/completions", modelo: "meta/llama-3.3-70b-instruct" },
+  { nome: "nvidia", secret: "NVIDIA_API_KEY", url: "https://integrate.api.nvidia.com/v1/chat/completions", modelo: "google/gemma-4-31b-it" },
+  { nome: "nvidia2", secret: "NVIDIA2_API_KEY", url: "https://integrate.api.nvidia.com/v1/chat/completions", modelo: "deepseek-ai/deepseek-v4.1-flash" },
   { nome: "ollama", secret: "OLLAMA_API_KEY", url: "https://ollama.com/v1/chat/completions", modelo: "gpt-oss:120b" },
   { nome: "cloudflare", secret: "CLOUDFLARE_API_KEY", url: "", modelo: "@cf/meta/llama-3.3-70b-instruct-fp8-fast" },
   { nome: "openrouter", secret: "OPENROUTER_API_KEY", url: "https://openrouter.ai/api/v1/chat/completions", modelo: "openrouter/free" },

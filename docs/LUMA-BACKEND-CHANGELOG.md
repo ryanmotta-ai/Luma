@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-09-24 — Function `ai` v17: reservas NVIDIA voltam a responder
+
+As duas reservas NVIDIA davam **410 Gone**: o `meta/llama-3.3-70b-instruct` saiu do catálogo da NVIDIA em 26/08/2026, e a fila perdia duas tentativas mortas a cada pane do Gemini (vista em 24/09, 13:30 e 16:30 UTC). Agora cada chave usa um modelo diferente, conferido no catálogo vivo (`/v1/models`): `nvidia` → `google/gemma-4-31b-it`, `nvidia2` → `deepseek-ai/deepseek-v4.1-flash`. Um modelo por chave, para uma descontinuação não derrubar as duas de novo. Sem migration, `verify_jwt` mantido.
+
 ## 2026-09-24 — Local Fit completo no painel de Dados (`luma.dados_localfit` v2)
 
 **`20260924100000_luma_dados_localfit_completo`** (aplicada): mesma assinatura, retorno é superconjunto do de 23/09 (`por_status`, `resolveu`, `nao_coube` seguem com as mesmas chaves). Novos blocos: `resumo` (export coube/como desenhado/ajustou/bloqueou, prévia, p50/p95/pior tempo, pessoas e templates afetados, caixas que estouraram, fonte substituída), `anterior` (mesmo recorte no período anterior de igual tamanho, para a variação em p.p.), `por_dia`, `por_material` (com nome e pasta do template), `nao_coube` com limite seguro mediano/formatos/pessoas, recortes `por_formato`/`por_dispositivo`/`por_navegador`/`por_fonte`/`por_versao`, `tempo_faixas`, `camadas_faixas`, `recuperacao` (texto_nao_cabe → copyfit_* → arte baixada na MESMA sessão `_ctx.sid`), `por_pessoa` e `recentes` (25 últimos bloqueios, para reproduzir). Front: aba **Local Fit** própria em `js/core/dados.js` (antes era um bloco dentro de Qualidade).
