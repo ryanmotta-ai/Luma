@@ -262,7 +262,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 83 arquivos JS (70.494 linhas, 2.762 funções) · 32 arquivos CSS (29.999 linhas) · `index.html` com 4.010 linhas e 84 `<script>`.
+**Tamanho real de hoje:** 83 arquivos JS (70.727 linhas, 2.772 funções) · 32 arquivos CSS (30.028 linhas) · `index.html` com 4.010 linhas e 84 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -281,7 +281,7 @@ Bootstrap: setMode (troca entre franqueado/designer) e chamadas de inicializacao
 
 ### js/core
 
-**`js/core/ai.js`** · 178 linhas
+**`js/core/ai.js`** · 181 linhas
 MOTOR ÚNICO de IA do front. Todo recurso de IA do Luma (legenda, encurtar texto, ajuda, leitura de cardápio, casar fotos, mapear camadas do PSD) fala com o modelo POR AQUI — ninguém mais monta fetch pro Gemini na mão. Um…
 · API: gAiReady, gAiEdgeReady, gAiModel, gAskAI, gAiEdgeFetch, gAiParseJson, gAiFileToPart
 · Depende de: core/supabase.js (gSupabase), core/img-store.js (gImgHash).
@@ -319,9 +319,9 @@ LUMA CLI Console de comandos do Luma, só pra quem é da casa (equipe_dm/gestao)
 COPY FIT — encurtar a copy do franqueado SEM mudar o que se vende (22/09/2026) Quando o Local Fit bloqueia, o franqueado precisa de uma SAÍDA, não de um aviso.
 · API: gCopyFitGuarda, gCopyFitConfere, gCopyFitCandidatos, gCopyFitSugestoes
 
-**`js/core/dados.js`** · 1003 linhas
+**`js/core/dados.js`** · 1091 linhas
 Área "Dados" do painel da conta — o que a rede faz no Luma (product intelligence).
-· API: gDadosAbrir, gDadosCarregar, gDadosSetPeriodo, gDadosSetCidade, gDadosSetAba, gDadosTabsKeydown, gDadosPessoasBusca, gDadosPessoasPapel, gDadosPessoasOrdenar, gDadosAbrirPessoa, gDadosFecharPessoa, gDadosLfCarregar, gDadosIaCarregar, gDadosEventosCarregar … (+3; 78 funções no total)
+· API: gDadosAbrir, gDadosCarregar, gDadosSetPeriodo, gDadosSetCidade, gDadosSetAba, gDadosTabsKeydown, gDadosPessoasBusca, gDadosPessoasPapel, gDadosPessoasOrdenar, gDadosAbrirPessoa, gDadosFecharPessoa, gDadosLfCarregar, gDadosIaCarregar, gDadosIaCalc … (+4; 84 funções no total)
 · Depende de: core/toast.js (gEsc, gToast), core/auth.js (gIsAdmin), core/supabase.js (gSupabase).
 
 **`js/core/feature-flags.js`** · 700 linhas
@@ -396,13 +396,13 @@ Controladores do Modal e Configurações de Perfil do Usuário. Suporta edição
 
 ### js/franqueado
 
-**`js/franqueado/catalog.js`** · 1612 linhas
+**`js/franqueado/catalog.js`** · 1741 linhas
 Catalogo de campanhas: fRenderCatalogs, fFilterCamps, fSelectCamp, fSwitchTab, fSetHistFilter, fRenderHist, fEditFromHist, fDuplicateInOtherFmt.
-· API: fSwitchTab, fSetHistFilter, fGoToCampaigns, fFindMaterialById, fAskClearHist, fHistVoltar, fRenderHist, fDownloadHist, fEditFromHist, fDuplicateInOtherFmt, fConfirmDuplicate, fEditCampFolder, fCampAdminMenu, fCampAnalyticsClose … (+34; 83 funções no total)
-· Estado global: fHistFilter, _fHistPreviewCache, _fHistPreviewRun, _fHistPreviewObserver, _fhFilter, _fhRevealIO, _fhRevealGen, _fhStickyBound, _fhSemanticResult, _fhSearchTimer
+· API: fSwitchTab, fSetHistFilter, fGoToCampaigns, fFindMaterialById, fAskClearHist, fHistVoltar, fRenderHist, fDownloadHist, fEditFromHist, fDuplicateInOtherFmt, fConfirmDuplicate, fEditCampFolder, fCampAdminMenu, fCampAnalyticsClose … (+36; 87 funções no total)
+· Estado global: fHistFilter, _fHistPreviewCache, _fHistPreviewRun, _fHistPreviewObserver, _fRedeRun, _fRedeObserver, _fhFilter, _fhRevealIO, _fhRevealGen, _fhStickyBound (+2)
 · Depende de: 00-config.js, 01-state.js
 
-**`js/franqueado/chat-input.js`** · 933 linhas
+**`js/franqueado/chat-input.js`** · 935 linhas
 F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES define o comportamento de cada variavel do template.
 · API: fMaxLenDaCaixa, fMarcaLimiteSeguro, fLimiteSeguro, fAlvoDoCampo, fGetFieldType, fCleanTextNumber, fApplyMask, fValidate, fShowFieldError, fEspelhoConfirma, fEspelhoSincroniza, fAttachInputGuard, fUpdateCharCount, fFitSync … (+4; 31 funções no total)
 · Depende de: 00-config.js
@@ -436,7 +436,7 @@ Drag & drop das 3 colunas do workspace do franqueado (só desktop largo).
 · API: fLoadPanelOrder, fSavePanelOrder, fSetPanelOrder, fInitPanelDock
 · Depende de: index.html (grips + #fran-main), css/modules/panel-dock.css,
 
-**`js/franqueado/png-generator.js`** · 5144 linhas
+**`js/franqueado/png-generator.js`** · 5155 linhas
 Geracao de PNG a partir dos templates: fGenPNG, fRenderTemplateLayers, fBaixar, fOutroFormato. Sistema de nomenclatura padronizado para downloads.
 · API: fLoadLogoBranca, fMaterialSize, fExportScale, fRenderCanvasHelper, fGenPNG, fGenPDF, fPostarInstagram, fEnviarWhatsApp, fDrawDMLogo, fAdjustImageData, fRenderTemplateLayers, fTraceLayerShape, fRenderOneLayer, roundedRect … (+75; 163 funções no total)
 · Depende de: 00-config.js, 01-state.js, designer/canvas.js (dRenderCanvas)
@@ -662,7 +662,7 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/01-reset.css` | 38 |
 | `css/02-animations.css` | 172 |
 | `css/03-fonts.css` | 60 |
-| `css/components/dados.css` | 224 |
+| `css/components/dados.css` | 227 |
 | `css/components/help-modal.css` | 719 |
 | `css/components/login.css` | 377 |
 | `css/components/product-control.css` | 450 |
@@ -675,12 +675,12 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/modules/all-tools.css` | 113 |
 | `css/modules/calendario.css` | 1544 |
 | `css/modules/catalog.css` | 290 |
-| `css/modules/chat.css` | 3722 |
+| `css/modules/chat.css` | 3726 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
 | `css/modules/designer.css` | 5362 |
 | `css/modules/feedback.css` | 199 |
-| `css/modules/franqueado.css` | 1658 |
+| `css/modules/franqueado.css` | 1680 |
 | `css/modules/franqueado_effects.css` | 402 |
 | `css/modules/help-widget.css` | 1765 |
 | `css/modules/layers-panel.css` | 4530 |
