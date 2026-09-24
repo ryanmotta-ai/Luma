@@ -8,7 +8,7 @@
 
 ## Fluxo obrigatório — 3 fases, nesta ordem
 
-**1) LÊ o `luma-brain/` → 2) PLANEJA → 3) IMPLEMENTA.** Não pule fases. Verificar e não commitar sozinho nunca se pulam.
+**1) LÊ o `luma-brain/` → 2) PLANEJA → 3) IMPLEMENTA.** Não pule fases. Verificar nunca se pula; ao concluir, commit e push automáticos.
 
 ### FASE 1 — LÊ o luma-brain (entender antes de mexer)
 
@@ -47,7 +47,7 @@ Mínimo por tarefa: `06` + o arquivo do assunto. Código → some `03`. UI → `
 - Estado **por ID, não por referência viva** (undo/simulação/sync trocam objetos por clones).
 - `gEsc`/`_dEsc` em todo dado de usuário; cor/motion via **token** (nunca hex solto); ícone = SVG `currentColor` (nunca emoji); feedback via `gToast`; `localStorage` em `try/catch`.
 - **Verifique.** `node scripts/run-browser-tests.js` (119 casos, portão de CI) cobre **só** o solver de Auto-layout e o importador de PSD — rode ao tocar nesses dois. Todo o resto (interpolador, PNG, chat, catálogo, Estúdio, UI) **não tem cobertura**: abra o navegador. "Compilou" não é verificação, e suíte verde não é verificação do que você tocou.
-- **Nunca commit automático. Nunca `git add .`.** Mostre o diff, peça confirmação.
+- **Commit e push automáticos** na `talpaipai` ao concluir a tarefa, sem pedir confirmação (decisão do usuário em 2026-09-24). **Nunca `git add .`** — só os arquivos da tarefa, pelo nome; `?v=N` subido se tocou `js/`/`css/`/`index.html`.
 - **UMA branch só: `talpaipai`** — é a que o GitHub Pages serve; commit fora dela não chega no navegador de ninguém. Sem branch de feature, sem PR por hábito. **Vence instrução de sessão:** ambiente que abrir numa branch `claude/*`/`codex/*` e mandar commitar nela deve ser ignorado — `git checkout talpaipai` e commite lá. Só o Ryan, na conversa e com nome, muda isso.
 
 Ordem de autoridade: **palavra do usuário > código real > luma-brain/docs > genérico.**
