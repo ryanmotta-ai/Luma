@@ -1991,10 +1991,11 @@ function _fLpCineEscala(o, S){
    `fixas` ficam no estado final desde o 1º quadro: é o texto que a pessoa está DIGITANDO — ele
    responde na hora; só os vizinhos abrem espaço. Camada que não existia (ou estava oculta)
    entra desbotada com `c`. */
-function _fLpCineQuadro(antes, finais, e, c, fixas){
-  const lerp=(p,q)=>p+(q-p)*e;
+function _fLpCineQuadro(antes, finais, eDe, c, fixas){
   return finais.map(l=>{
     if(!l||l.id==null) return l;
+    // `eDe` pode ser um número ou, no deslize encadeado, o progresso próprio de cada camada.
+    const e=typeof eDe==='function'?eDe(l.id):eDe, lerp=(p,q)=>p+(q-p)*e;
     const a=antes.get(l.id), o=Object.assign({},l);
     const op=(!a||!a.vis)?c:(a.op<1?a.op+(1-a.op)*c:1);
     if(op<1){ o.opacity=(l.opacity!=null?+l.opacity:100)*op; o._fxOp=op; }
@@ -2058,13 +2059,24 @@ async function _fLpCinema(canvas, fx, antes, finais, W, H, dados, dadosAntes, mu
   // Vez perdida = um commit novo capturou a tela e já decidiu o próximo gesto. Checada depois de
   // CADA `await`: um render real em andamento não para o deslize (os buffers são dele).
   const perdeu=()=>{ if(token===_lpCineToken) return false; solta(); return true; };
+  /* ENCADEADO: quem está mais abaixo foi empurrado por quem está acima, então sai depois — uma
+     reação em cadeia (título abre espaço → detalhes → preço e a placa dele). Camadas a menos de
+     2% da arte uma da outra andam juntas (o preço e a placa). 10% do gesto por degrau, teto de 3:
+     é coreografia, não fila. O Local Fit não muda: a ordem vertical já conta a causa. */
+  const atraso=new Map();
+  { let deg=-1, yAnt=-Infinity; const junto=Math.max(W,H)*.02;
+    finais.filter(l=>{ const a=l&&l.id!=null&&antes.get(l.id);
+        return a&&a.vis&&(Math.abs((+l.y||0)-a.y)>1||Math.abs((+l.h||0)-a.h)>1); })
+      .sort((p,q)=>antes.get(p.id).y-antes.get(q.id).y)
+      .forEach(l=>{ const y=antes.get(l.id).y; if(y-yAnt>junto){ deg++; yAnt=y; } atraso.set(l.id,Math.min(3,deg)*.1); }); }
   const t0=performance.now();
   for(let i=0;;i++){
     if(perdeu()) return;
     const agora=performance.now();
-    const t=Math.min(1,(agora-t0)/dur), e=curva(t);
+    const t=Math.min(1,(agora-t0)/dur);
+    const eDe=(id)=>{ const d=atraso.get(id)||0; return curva(Math.max(0,Math.min(1,(t-d)/(1-d)))); };
     const cSai=curva(Math.min(1,t/.45)), cEntra=curva(Math.max(0,Math.min(1,(t-.12)/.45)));
-    const mix=_fLpCineQuadro(antes,finais,e,cEntra,fixas);
+    const mix=_fLpCineQuadro(antes,finais,eDe,cEntra,fixas);
     try{
       limpa(bctx);
       await fRenderTemplateLayers(bctx,mix.filter(l=>!(l&&troca.has(l.id))),W,H,dados,fState.camp,_lpEffectiveMaterial,
@@ -2082,7 +2094,7 @@ async function _fLpCinema(canvas, fx, antes, finais, W, H, dados, dadosAntes, mu
           n.y=(+n.y||0)+sobe*(1-c);
           if(!fixa&&(!n._fxEscala||n._fxEscala===1)){ _fLpCineEscala(n,_fLpCorpo(n)*(.985+.015*c)); }
           novos.push(n);
-          const v=_fLpCineVelho(antes.get(l.id),porId.get(l.id),e,1-c,fixa);
+          const v=_fLpCineVelho(antes.get(l.id),porId.get(l.id),eDe(l.id),1-c,fixa);
           v.y=(+v.y||0)-sobe*c*.6;
           velhos.push(v);
         });
