@@ -198,12 +198,22 @@
 }
 @keyframes lpMontandoIn{to{opacity:1}}
 
-/* Anel que pulsa quando a prévia acabou de refletir uma resposta nova */
-.lp-canvas-wrap.updated{animation:lpPulse .55s var(--ease-out)}
-@keyframes lpPulse{
-  0%{box-shadow:0 8px 32px rgba(0,0,0,.12), 0 0 0 0 color-mix(in srgb,var(--dm-orange) 45%,transparent)}
-  100%{box-shadow:0 8px 32px rgba(0,0,0,.12), 0 0 0 14px color-mix(in srgb,var(--dm-orange) 0%,transparent)}
+/* ── A TRANSIÇÃO DA PRÉVIA (JS: "A ARTE SE MONTANDO", live-preview.js) ──
+   Camada por cima do #lp-canvas SÓ enquanto uma transição roda: o quadro final já está embaixo,
+   intacto. Largura e altura vêm do JS (a caixa de layout do canvas, `_fLpFxCamada`). O fundo é
+   o mesmo que aparece atrás de arte transparente (xadrez do wrap no claro, `--d-surf` do canvas
+   no escuro): a camada cobre o quadro final por inteiro e a troca nunca vaza por baixo.
+   z-index 5: acima da arte, abaixo do esqueleto (11), dos selos (24) e da moldura de hover (25).
+   ⛔ Nada aqui toca em `transform` — a arte não se move na mesa, só o que mudou se move nela.
+   (O anel `.updated`, que pulsava no cartão inteiro a cada tecla, saiu no lugar disto.) */
+#lp-canvas-fx{
+  position:absolute;left:0;top:0;
+  display:none;pointer-events:none;z-index:5;background:inherit;
 }
+body:not(.theme-light) #lp-canvas-fx{background:var(--d-surf)}
+/* O assentar: entra rápido, se desfaz devagar. A camada já tem o clarão desenhado. */
+#lp-canvas-fx.assenta{animation:lpFxAssenta var(--dur-slow) var(--ease-standard) both}
+@keyframes lpFxAssenta{0%{opacity:0}30%{opacity:1}100%{opacity:0}}
 
 /* Varredura de luz (Scanline) na conclusão da arte */
 .lp-canvas-wrap.is-rendering::after {
@@ -217,7 +227,10 @@
   animation: gScanline 0.55s var(--ease-out) forwards;
 }
 
-.lp-stage.loading .lp-canvas-wrap::after {
+/* Shimmer SÓ na primeira pintura (`.montando`). Nos re-renders o quadro anterior fica na tela
+   até o novo chegar com a transição — um brilho de "carregando" a cada tecla era o oposto de
+   uma arte viva. */
+.lp-stage.loading.montando .lp-canvas-wrap::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -228,7 +241,7 @@
   z-index: 10;
 }
 
-body:not(.theme-light) .lp-stage.loading .lp-canvas-wrap::after {
+body:not(.theme-light) .lp-stage.loading.montando .lp-canvas-wrap::after {
   background: linear-gradient(100deg, rgba(255, 255, 255, 0) 30%, rgba(255, 255, 255, 0.12) 50%, rgba(255, 255, 255, 0) 70%);
   background-size: 200% 100%;
 }

@@ -433,6 +433,12 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
   // Fail-safe: chamadas sem escopo são tratadas como autoria. Só um consumidor que se declara
   // `franqueado` pode executar o Auto-layout temporário.
   const _renderScope=renderOpts.scope||'designer';
+  /* `resolvido`: as camadas JÁ SAÍRAM deste motor — reflow, bindings, regras, âncoras e Local
+     Fit aplicados. Quem pede é o quadro de transição da prévia (`_fLpCinema`), que só
+     interpola geometria entre dois estados prontos. Rodar a escada de novo não é idempotente:
+     `shrinkFont` encolhe outra vez, `shiftX` soma de novo e a âncora manual devolve o membro da
+     cadeia para antes do Local Fit. Aqui só se desenha, como recebido. */
+  const _jaResolvido=renderOpts.resolvido===true;
   // Garante que as fontes (Roboto + enviadas pelo usuário) estejam carregadas antes
   // de desenhar texto no canvas — senão a primeira geração sai com fonte fallback.
   if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
@@ -461,13 +467,13 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
   // Quando o material tem w/h reais e está sendo renderizado no próprio tamanho, tw/th==W/H → sem reflow.
   const [tw, th] = fMaterialSize(_renderMaterial);
   let geomLayers = layers;
-  if((tw !== W || th !== H) && typeof gReflowLayers === 'function'){
+  if(!_jaResolvido && (tw !== W || th !== H) && typeof gReflowLayers === 'function'){
     const fmtKey = Object.keys(fmtSizes).find(k => fmtSizes[k][0]===W && fmtSizes[k][1]===H);
     geomLayers = gReflowLayers(layers, {w:tw,h:th}, {w:W,h:H}, {fmtKey: fmtKey ? gFmtKey(fmtKey) : null});
   }
   // Aplica bindings (4.1) e regras condicionais (4.2) ANTES de filtrar visibilidade.
   const _defaults = (typeof gVarDefaults==='function') ? gVarDefaults() : null;
-  let effective = geomLayers.map(l=>{
+  let effective = _jaResolvido ? geomLayers.slice() : geomLayers.map(l=>{
     let eff = (typeof gApplyBindings==='function') ? gApplyBindings(l, dados, {defaults:_defaults}) : l;
     if(typeof gApplyRules==='function') eff = gApplyRules(eff, dados, {defaults:_defaults});
     return eff;
@@ -480,7 +486,7 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
      O que resolve o conteúdo novo é o Local Fit: cada texto com campo tenta caber na PRÓPRIA
      caixa (corpo autorado → quebra → encolhimento progressivo → piso de legibilidade). Coube,
      desenha. Não coube no piso, BLOQUEIA — nunca desenha texto quebrado em silêncio. */
-  if(typeof gApplyRelativeAnchors==='function'){
+  if(!_jaResolvido && typeof gApplyRelativeAnchors==='function'){
     const original=gApplyRelativeAnchors(effective,dados,_defaults,{canvas:{w:W,h:H},scope:_renderScope});
     const disponivel=_renderScope==='franqueado'
       &&((typeof gLayoutVivoDisponivel==='function')?gLayoutVivoDisponivel():true)
@@ -684,6 +690,15 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
       if(actualParent!==parentId)continue;
       if(l.type==='group')await _fRenderGroup(target,l);
       else if(l.type==='adjustment')await _fRenderAdjustment(target,l);
+      else if(_jaResolvido&&l._fxEscala>0&&l._fxEscala!==1){
+        /* Escala VISUAL do quadro de transição: o texto é desenhado com a tipografia final e
+           a camada inteira cresce ou encolhe em volta de (_fxOx,_fxOy). Interpolar o corpo
+           faria o `gFitTextLayer` re-quebrar a cada tamanho intermediário — palavra pulando
+           de linha no meio da animação. Assim a quebra é a final desde o primeiro quadro. */
+        const s=l._fxEscala, ox=+l._fxOx||0, oy=+l._fxOy||0;
+        target.save(); target.translate(ox,oy); target.scale(s,s); target.translate(-ox,-oy);
+        try{ await _fRenderLeaf(target,l); } finally { target.restore(); }
+      }
       else await _fRenderLeaf(target,l);
     }
   }

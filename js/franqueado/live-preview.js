@@ -1723,114 +1723,425 @@ function fLpBalaoSolucao(bloqueio){
     } };
 }
 
-/* ══ MODO DEMONSTRAÇÃO + O ENCAIXE À VISTA ══════════════════════════════════════════════
-   O motor não muda aqui. O que muda é o QUANTO dele se vê: fora do modo demo a prévia salta
-   do estado antigo para o novo, como sempre; dentro dele, a mesma troca é percorrida em 260ms
-   e dá para assistir o texto se encaixar na própria caixa e a placa dele acompanhar. ⚠ Desde
-   09/2026 NENHUM vizinho é empurrado — se esta animação mostrar um terceiro se movendo, é bug
-   de composição, não de demonstração.
+/* ══ PREVIEW AO VIVO — A ARTE SE MONTANDO NA FRENTE DA PESSOA (24/09/2026) ═════════════════
+   A prévia saltava do estado anterior para o novo: o texto trocava seco, a placa mudava de
+   tamanho num quadro, o preço empurrado pela quebra de linha teleportava. Agora cada commit é
+   seguido de uma TRANSIÇÃO — e ela não decide nada. O Local Fit calcula como sempre; a animação
+   só percorre o caminho visual entre o que estava na tela e o que ele devolveu.
 
-   POR QUE ATRÁS DE UM INTERRUPTOR, e não ligado para todo mundo: quem está preenchendo o
-   formulário quer a resposta agora — 260ms por tecla viraria peso. O franqueado real segue
-   com o caminho de sempre, byte a byte. Ligar: `?demo=1` na URL (fica gravado no navegador)
-   ou `fDemoModo(true)` no console da equipe. Desligar: `?demo=0` ou `fDemoModo(false)`.
+   ONDE MORA: numa camada própria (`#lp-canvas-fx`), canvas irmão por cima do #lp-canvas, como
+   o dos selos. O #lp-canvas recebe o quadro FINAL no mesmo commit síncrono de sempre — PiP,
+   cartão da conversa, hit-test e as suítes continuam lendo a verdade. A camada de cima só
+   aparece durante a transição e some quando ela acaba.
 
-   NADA DE CURSOR, NADA DE ETIQUETA: uma mãozinha desenhada passeando pela arte ENCENA
-   inteligência em vez de mostrar a que existe, e um rótulo dizendo "ajustando layout" narra
-   o que já está visível acontecendo. O que se vê aqui é só o resultado do solver se
-   acomodando. A transição é o argumento; qualquer adorno em volta dela seria perfumaria. */
-const F_DEMO_KEY='luma_demo_v1';
-let _fDemoFlag=null;
-function fDemoAtivo(){
-  if(_fDemoFlag===null){
-    let v=null;
-    try{ const p=new URLSearchParams(location.search); if(p.has('demo')) v=(p.get('demo')!=='0'); }catch(e){}
-    if(v===null){ try{ v=localStorage.getItem(F_DEMO_KEY)==='1'; }catch(e){ v=false; } }
-    else { try{ localStorage.setItem(F_DEMO_KEY, v?'1':'0'); }catch(e){} }
-    _fDemoFlag=!!v;
-    try{ if(document.body) document.body.classList.toggle('luma-demo',_fDemoFlag); }catch(e){}
+   TRÊS GESTOS (`_fLpTransicaoTipo` escolhe):
+   · DISSOLVER — a camada guarda o quadro que estava na tela e desbota por cima do novo. Pixel
+     que não mudou é idêntico nos dois, então só o que mudou "troca". Roda no compositor
+     (opacidade CSS): não disputa a thread com o render da próxima tecla. É o gesto de cada
+     TECLA — nada de coreografia a cada letra, nada de gelatina.
+   · DESLIZAR — quando a GEOMETRIA mexeu: placa cresce, membro da cadeia desce, o corpo do texto
+     muda. Quadros em JS desenhados pelo MESMO motor (`fRenderTemplateLayers` com
+     `resolvido:true`), com a geometria interpolada entre os dois estados prontos. O corpo do
+     texto não é interpolado (re-quebraria a cada tamanho): sai com a tipografia final, ESCALADO
+     do tamanho que tinha até 1. Texto que trocou é cruzado sozinho, versão antiga → nova (ver
+     `_fLpCinema`). Na mudança discreta (enviar o campo, foto, opção, balão, desfazer) tudo desliza; na
+     digitação só os VIZINHOS deslizam, e só se a estrutura mudou (quebrou linha) — o texto
+     digitado fica fixo, respondendo na hora.
+   · ASSENTAR — o micro-destaque do que acabou de mudar: um clarão leve na silhueta da camada,
+     que entra e se desfaz. Depois do gesto discreto e quando a digitação PARA — nunca por tecla.
+
+   ⛔ NÃO É O AUTO-ZOOM DE VOLTA. Nenhum gesto toca no `transform` do wrap ou do canvas, nem no
+   zoom/pan da mesa: a arte inteira fica parada na mesma área, só o que mudou se move nela.
+   ⛔ Movimento reduzido, aba oculta, palco fora da tela, enquadramento de foto: nada roda.
+   Custo: dissolver = uma cópia de canvas + opacidade no compositor. Deslizar re-desenha a arte
+   por quadro, então só roda enquanto um quadro deste aparelho for barato (`_lpQuadroMs`) e cai
+   para o dissolver se um quadro passar do teto. */
+const F_LP_ASSENTA_MS=480;    // sem tecla por este tempo = parou de digitar (limiar, não duração de motion)
+const F_LP_QUADRO_TETO=50;    // quadro do deslize mais caro que isto (ms): aborta para o dissolver
+const F_LP_ASSENTA_LUZ=.09;   // força do clarão do assentar, no pico (luz somada)
+let _lpCineToken=0;      // cada transição carimba a sua vez; a seguinte cancela a anterior
+let _lpFx=null;          // #lp-canvas-fx
+let _lpFxBuf=null, _lpFxPrev=null, _lpFxNovo=null, _lpFxVelho=null;   // só durante o deslize (ver _fLpCinema)
+let _lpShown=null;       // geometria NA TELA no meio de um deslize — o "de onde" se outro commit chegar
+let _lpQuadroMs=0;       // custo médio de um quadro do deslize aqui (0 = ainda não medido)
+let _lpAssentaTimer=0;
+const _lpAssentaIds=new Set();       // camadas mexidas na rajada de digitação em curso
+let _lpPendingDiscreto=false;        // o render da fila herda "foi discreto" de quem pediu
+let _lpSigAtivo='';                  // campo ativo + vista do último commit (trocar de passo dissolve o anel)
+
+function _fLpFxMovimento(canvas){
+  try{ if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches) return false; }catch(e){}
+  if(document.hidden||!canvas||!(_fLpMotionMs('--dur-base')>0)) return false;
+  const r=canvas.getBoundingClientRect();
+  return r.width>0&&r.bottom>0&&r.right>0&&r.top<innerHeight&&r.left<innerWidth;
+}
+// Curva de motion lida do TOKEN (motion.md: nenhum easing nasce em JS) — cubic-bezier resolvido
+// por bisseção. Token ilegível vira linear, o mesmo fallback do `_fLpMotionEase`.
+const _lpCurvas={};
+function _fLpCurva(token){
+  if(_lpCurvas[token]) return _lpCurvas[token];
+  const m=/cubic-bezier\(\s*([-\d.]+)\s*,\s*([-\d.]+)\s*,\s*([-\d.]+)\s*,\s*([-\d.]+)\s*\)/.exec(_fLpMotionEase(token));
+  if(!m) return t=>t;
+  const x1=+m[1],y1=+m[2],x2=+m[3],y2=+m[4];
+  const bz=(p1,p2,s)=>3*p1*s*(1-s)*(1-s)+3*p2*s*s*(1-s)+s*s*s;
+  return _lpCurvas[token]=u=>{
+    if(u<=0) return 0; if(u>=1) return 1;
+    let lo=0,hi=1,s=u;
+    for(let i=0;i<24;i++){ const x=bz(x1,x2,s); if(Math.abs(x-u)<1e-4) break; if(x<u) lo=s; else hi=s; s=(lo+hi)/2; }
+    return bz(y1,y2,s);
+  };
+}
+// O antigo "modo demonstração" (`?demo=1`, `fDemoModo`) ligava o deslize só para a equipe.
+// Com a transição valendo para todos, o interruptor saiu — e a preferência gravada, junto.
+try{ localStorage.removeItem('luma_demo_v1'); }catch(e){}
+// O campo da pergunta ativa do chat, na geometria que está sendo desenhada (Focus Sync).
+function _fLpCamadaAtiva(layers){
+  const v=fState.camp?.perguntas?.[fState.stepIdx]?.id;
+  return v?(layers||[]).find(l=>_fLpLayerVars(l).indexOf(v)>=0)||null:null;
+}
+// O corpo que o render DESENHA: o Local Fit não mexe no `fontSize`, ele põe o teto `_tetoFonte`.
+function _fLpCorpo(l){ const f=+l.fontSize||0, t=+l._tetoFonte||0; return t>0&&t<f?t:f; }
+function _fLpDigitando(){
+  const a=document.activeElement;
+  if(!a||!/^(TEXTAREA|INPUT)$/.test(a.tagName)) return false;
+  // Chat, editor de texto pela arte e as células do Sheets (`f-bulk-edit-<linha>-<campo>`).
+  return a.id==='f-msg-box'||/^f-bulk-edit-/.test(a.id||'')||!!(a.closest&&a.closest('#lp-edit-pop'));
+}
+function _fLpCamposMudaram(a,b){
+  const out=new Set(); if(!a||!b) return out;
+  new Set(Object.keys(a).concat(Object.keys(b))).forEach(k=>{
+    if(a[k]!==b[k]) out.add(k.replace(/^__(?:fit|skipped)__/,''));
+  });
+  return out;
+}
+// Camadas que DESENHAM um dos campos mudados — pelo conteúdo, pela foto ou por um binding.
+function _fLpCamadasDosCampos(layers, campos){
+  const ids=new Set(); if(!campos||!campos.size) return ids;
+  (layers||[]).forEach(l=>{
+    if(!l||l.id==null) return;
+    const vs=_fLpLayerVars(l).concat(l.bindings?Object.values(l.bindings):[]);
+    if(vs.some(v=>campos.has(v))) ids.add(l.id);
+  });
+  return ids;
+}
+
+function _fLpFxCamada(canvas){
+  if(!canvas||!canvas.closest('.lp-canvas-wrap')) return null;
+  if(!_lpFx||!_lpFx.isConnected){
+    _lpFx=document.createElement('canvas');
+    _lpFx.id='lp-canvas-fx'; _lpFx.setAttribute('aria-hidden','true');
+    canvas.insertAdjacentElement('afterend',_lpFx);
+    _lpFx.addEventListener('transitionend',_fLpFxFimCss);
+    _lpFx.addEventListener('animationend',_fLpFxFimCss);
   }
-  return _fDemoFlag;
+  if(_lpFx.width!==canvas.width||_lpFx.height!==canvas.height){ _lpFx.width=canvas.width; _lpFx.height=canvas.height; }
+  /* A caixa de LAYOUT do canvas (já com a compressão do `max-width:100%`), não a do wrap: palco
+     mais baixo que a arte encolhe o wrap (flex + overflow:hidden) e corta o canvas — com
+     `inset:0` a camada sairia noutra proporção e a arte "encolheria" durante a transição. */
+  _fLpFxAcompanha(canvas);
+  return _lpFx;
 }
-// Interruptor para a equipe (console) — devolve o estado novo para confirmar em voz alta.
-function fDemoModo(on){
-  _fDemoFlag=!!on;
-  try{ localStorage.setItem(F_DEMO_KEY, _fDemoFlag?'1':'0'); }catch(e){}
-  try{ if(document.body) document.body.classList.toggle('luma-demo',_fDemoFlag); }catch(e){}
-  if(typeof gToast==='function') gToast(_fDemoFlag?'Modo demonstração ligado':'Modo demonstração desligado');
-  return _fDemoFlag;
+function _fLpFxAcompanha(canvas){
+  if(_lpFx&&canvas){ _lpFx.style.width=canvas.offsetWidth+'px'; _lpFx.style.height=canvas.offsetHeight+'px'; }
+}
+// Os buffers do deslize voltam a 0×0 fora dele: o Safari do iPhone tem teto de memória de canvas.
+function _fLpFxSolta(){ [_lpFxBuf,_lpFxPrev,_lpFxNovo,_lpFxVelho].forEach(c=>{ if(c){ c.width=0; c.height=0; } }); }
+function _fLpFxVisivel(){ return !!(_lpFx&&_lpFx.style.display==='block'); }
+/* Esconder também ENCERRA a vez: sem isto, um deslize em curso (troca de material no meio, erro
+   de render) seguia desenhando escondido, recriava `_lpShown` com a geometria da arte velha e, no
+   fim, assentava uma camada de mesmo id na arte nova. Quem chama `depois()` o faz em seguida. */
+function _fLpFxEsconde(){
+  _lpShown=null;
+  _lpCineToken++;
+  _fLpFxSolta();
+  if(!_lpFx) return;
+  _lpFx._fxDepois=null;
+  _lpFx.classList.remove('assenta');
+  _lpFx.style.transition='none'; _lpFx.style.opacity='0'; _lpFx.style.display='none';
+}
+function _fLpFxFimCss(ev){
+  const fx=_lpFx;
+  if(!fx||(ev&&ev.target!==fx)||fx._fxVez!==_lpCineToken||!_fLpFxVisivel()) return;
+  const depois=fx._fxDepois;
+  _fLpFxEsconde();
+  if(depois) depois();
+}
+// Rede para o `transitionend` que não chega (aba trocada no meio, elemento re-anexado).
+function _fLpFxSeguro(ms){
+  const vez=_lpCineToken;
+  setTimeout(()=>{ if(_lpFx&&_lpFx._fxVez===vez) _fLpFxFimCss(null); }, ms+160);
+}
+function _fLpFxOpacidade(){
+  if(!_fLpFxVisivel()) return 0;
+  const o=parseFloat(getComputedStyle(_lpFx).opacity);
+  return isFinite(o)?o:0;
+}
+/* Antes de o commit sobrescrever o #lp-canvas, a camada passa a guardar EXATAMENTE o que está na
+   tela. No meio de outra transição, "o que está na tela" é a mistura das duas camadas: desenhar
+   o quadro de baixo sobre o de cima com alfa (1 − a) dá a mesma mistura em pixels. É isso que
+   deixa uma tecla nova interromper qualquer gesto sem salto. */
+function _fLpFxCaptura(canvas){
+  const a=_fLpFxOpacidade(), fx=_fLpFxCamada(canvas);
+  if(!fx) return null;
+  const c=fx.getContext('2d');
+  c.save(); c.setTransform(1,0,0,1,0,0);
+  if(a<=.001){ c.globalAlpha=1; c.clearRect(0,0,fx.width,fx.height); c.drawImage(canvas,0,0); }
+  else if(a<.999){ c.globalAlpha=1-a; c.drawImage(canvas,0,0); }
+  c.restore();
+  _lpCineToken++;                       // deslize, dissolver ou assentar em curso perde a vez
+  fx._fxVez=_lpCineToken; fx._fxDepois=null;
+  fx.classList.remove('assenta');
+  fx.style.transition='none'; fx.style.opacity='1'; fx.style.display='block';
+  void fx.offsetWidth;                  // fixa o 1 antes de a transição partir dele
+  return fx;
+}
+function _fLpFxDissolve(fx, durToken, depois){
+  const ms=_fLpMotionMs(durToken);
+  fx._fxVez=_lpCineToken; fx._fxDepois=depois||null;
+  fx.style.transition='opacity '+ms+'ms '+_fLpMotionEase('--ease-out');
+  fx.style.opacity='0';
+  _fLpFxSeguro(ms);
+}
+/* ASSENTAR. A camada vira a verdade + um clarão na silhueta do que mudou, e entra e sai por
+   `@keyframes lpFxAssenta` (CSS, compositor). Luz somada, e não a cor da marca: laranja some em
+   cima de arte laranja; clarear aparece em foto, placa escura e na própria cor da campanha. */
+function _fLpFxAssenta(canvas, ids){
+  if(!ids||!ids.size||_lpRendering||_lpPendingRender||_lpFraming||_fLpFxVisivel()||!_fLpFxMovimento(canvas)) return;
+  const camadas=(_lpEffectiveLayers||[]).filter(l=>l&&ids.has(l.id)&&l.visible!==false);
+  if(!camadas.length) return;
+  const fx=_fLpFxCamada(canvas); if(!fx) return;
+  const c=fx.getContext('2d');
+  c.save(); c.setTransform(1,0,0,1,0,0);
+  c.globalAlpha=1; c.clearRect(0,0,fx.width,fx.height); c.drawImage(canvas,0,0);
+  c.globalCompositeOperation='lighter'; c.fillStyle='white'; c.globalAlpha=F_LP_ASSENTA_LUZ;
+  const pad=Math.max(4,Math.round(fx.width*.005));
+  // Borda difusa: o clarão é luz que se espalha, não uma caixa recortada.
+  c.shadowColor='white'; c.shadowBlur=pad*4;
+  camadas.forEach(l=>{ const regra=_fLpTraceLayerPath(c,l,_fLpVisualRect(l),pad); if(regra) c.fill(regra); });
+  c.restore();
+  _lpCineToken++;
+  fx._fxVez=_lpCineToken; fx._fxDepois=null;
+  fx.style.transition='none'; fx.style.opacity='0'; fx.style.display='block';
+  void fx.offsetWidth;
+  fx.classList.add('assenta');
+  _fLpFxSeguro(_fLpMotionMs('--dur-slow'));
+}
+function _fLpAssentaAgora(){
+  if(!_lpAssentaIds.size) return;
+  // Outra transição na tela ou render a caminho: espera ela acabar em vez de atropelar.
+  if(_lpRendering||_lpPendingRender||_fLpFxVisivel()){ _lpAssentaTimer=setTimeout(_fLpAssentaAgora,F_LP_ASSENTA_MS/2); return; }
+  const ids=new Set(_lpAssentaIds); _lpAssentaIds.clear();
+  _fLpFxAssenta(document.getElementById('lp-canvas'),ids);
 }
 
-let _lpCineToken=0;      // cada animação carimba a sua vez; a seguinte cancela a anterior
-const F_LP_CINE_MS=260;  // curto de propósito: é uma transição, não uma abertura de filme
-
-// Geometria RESOLVIDA da prévia anterior, por camada. É o "de onde" da animação.
+// Geometria de cada camada COMO APARECE NA TELA, por id. É o "de onde" do deslize.
 function _fLpCineSnapshot(layers){
-  const m={};
-  (layers||[]).forEach(l=>{ if(l&&l.id!=null) m[l.id]={x:+l.x||0,y:+l.y||0,w:+l.w||0,h:+l.h||0,fs:+l.fontSize||0}; });
+  const m=new Map();
+  (layers||[]).forEach(l=>{
+    if(!l||l.id==null) return;
+    const k=l._fxEscala>0?l._fxEscala:1, vr=_fLpVisualRect(l), ox=+l._fxOx||0, oy=+l._fxOy||0;
+    m.set(l.id,{l0:l,x:+l.x||0,y:+l.y||0,w:+l.w||0,h:+l.h||0,fs:_fLpCorpo(l)*k,vis:l.visible!==false,
+      op:l._fxOp!=null?l._fxOp:1,
+      vr:k===1?vr:{x:ox+(vr.x-ox)*k,y:oy+(vr.y-oy)*k,w:vr.w*k,h:vr.h*k}});
+  });
   return m;
 }
-/* Quantas camadas MEXERAM de verdade. Sem este filtro a arte tremeria a cada tecla: trocar
-   uma letra reposiciona por frações de pixel, e animar isso é ruído, não informação. */
-function _fLpCineMoveu(antes, depois, W, H){
+/* Quantas camadas MEXERAM de verdade. Sem o filtro a arte tremeria: trocar uma letra reposiciona
+   por frações de pixel, e animar isso é ruído, não informação. `fixas` não contam (ver abaixo). */
+function _fLpCineMoveu(antes, depois, W, H, fixas){
   if(!antes) return 0;
-  const tolPos=Math.max(4,Math.max(W,H)*0.006), tolFs=0.02;
+  const tol=Math.max(4,Math.max(W,H)*0.006);
   let n=0;
   (depois||[]).forEach(l=>{
-    const a=l&&antes[l.id]; if(!a) return;
-    if(Math.abs((+l.x||0)-a.x)>tolPos||Math.abs((+l.y||0)-a.y)>tolPos){ n++; return; }
-    if(Math.abs((+l.w||0)-a.w)>tolPos||Math.abs((+l.h||0)-a.h)>tolPos){ n++; return; }
-    if(a.fs&&l.fontSize&&Math.abs((+l.fontSize)-a.fs)/a.fs>tolFs) n++;
+    const a=l&&antes.get(l.id); if(!a||!a.vis||l.visible===false||(fixas&&fixas.has(l.id))) return;
+    if(Math.abs((+l.x||0)-a.x)>tol||Math.abs((+l.y||0)-a.y)>tol) n++;
+    else if(l.type!=='text'&&(Math.abs((+l.w||0)-a.w)>tol||Math.abs((+l.h||0)-a.h)>tol)) n++;
+    else if(l.type==='text'&&a.fs>0&&Math.abs(_fLpCorpo(l)-a.fs)/a.fs>.02) n++;
   });
   return n;
 }
-/* A ANIMAÇÃO. Desenha os MESMOS layers resolvidos que o motor acabou de devolver, com a
-   geometria interpolada entre o estado anterior e o novo. Roda com `scope:'designer'`, que
-   é o escopo que desenha a geometria COMO RECEBIDA — nada de rodar o solver a cada quadro:
-   a decisão já foi tomada uma vez, aqui só se mostra o caminho até ela. */
-async function _fLpCinema(canvas, antes, finais, W, H, dados){
-  if(!canvas||!Array.isArray(finais)||!finais.length) return;
-  try{ if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; }catch(e){}
-  const token=++_lpCineToken;
-  const ctx=canvas.getContext('2d');
-  const base=finais.map(l=>Object.assign({},l));
-  const t0=(typeof performance!=='undefined'?performance.now():Date.now());
-  for(;;){
-    // Digitou de novo? A resposta ao usuário vem antes da animação — sempre.
-    if(token!==_lpCineToken||_lpRendering) break;
-    const agora=(typeof performance!=='undefined'?performance.now():Date.now());
-    if(agora-t0 > F_LP_CINE_MS*4) break;   // nada de animação eterna, aconteça o que acontecer
-    const t=Math.min(1,(agora-t0)/F_LP_CINE_MS);
-    const e=1-Math.pow(1-t,3);   // ease-out cúbico: sai rápido, assenta devagar
-    const mix=base.map(l=>{
-      const a=l&&antes[l.id]; if(!a) return l;
-      const o=Object.assign({},l);
-      o.x=a.x+((+l.x||0)-a.x)*e; o.y=a.y+((+l.y||0)-a.y)*e;
-      o.w=a.w+((+l.w||0)-a.w)*e; o.h=a.h+((+l.h||0)-a.h)*e;
-      if(a.fs&&l.fontSize) o.fontSize=a.fs+((+l.fontSize)-a.fs)*e;
-      return o;
-    });
+function _fLpCineCorpoMudou(a, l){ return l.type==='text'&&a.fs>0&&Math.abs(_fLpCorpo(l)-a.fs)/a.fs>.02; }
+/* Pode ser cruzado num sprite à parte sem mudar o desenho? Só o que se compõe com source-over
+   puro: sem blend, máscara ou recorte, e fora de grupo que isola, desbota ou mistura (a mesma
+   régua do `_fRenderGroup`). O resto cai no fantasma de região. */
+function _fLpCineIsolavel(l, porId){
+  if(!l||l.type!=='text'||l.mask||l.clipBaseId||(l.blendMode&&l.blendMode!=='normal')) return false;
+  for(let g=porId.get(l.parentId), n=0; g&&n<32; g=porId.get(g.parentId), n++){
+    if(g.isolation===true||g.mask||(g.opacity!=null&&g.opacity<100)||(g.blendMode&&g.blendMode!=='normal')||g.shadow||g.glow) return false;
+  }
+  return true;
+}
+// Escala visual de um texto para que ele apareça com o corpo `S` na tela (png-generator, `_fxEscala`).
+// Só em texto de desenho direto: máscara/recorte/blend por software usam um offscreen que assume
+// transform de supersampling puro (`_fRenderLeaf`) e recortariam a camada.
+function _fLpCineEscala(o, S){
+  o._fxEscala=1;
+  const f=_fLpCorpo(o);
+  if(!(S>0)||!(f>0)||o.mask||o.clipBaseId||(o.blendMode&&o.blendMode!=='normal')) return;
+  const k=Math.max(.5,Math.min(2,S/f));
+  if(Math.abs(k-1)<=.002) return;
+  const vr=_fLpVisualRect(o);
+  o._fxEscala=k;
+  o._fxOx=o.textAlign==='center'?vr.x+vr.w/2:o.textAlign==='right'?vr.x+vr.w:vr.x;
+  o._fxOy=(o.vAlign==='top'||o._vTopAuto)?vr.y:vr.y+vr.h/2;
+}
+/* Um quadro: as camadas FINAIS com a geometria no ponto `e` do caminho. Forma e foto interpolam
+   x/y/w/h; texto interpola a posição e aparece com o corpo interpolado (escala visual sobre a
+   tipografia final — interpolar o corpo de verdade re-quebraria as linhas a cada tamanho).
+   `fixas` ficam no estado final desde o 1º quadro: é o texto que a pessoa está DIGITANDO — ele
+   responde na hora; só os vizinhos abrem espaço. Camada que não existia (ou estava oculta)
+   entra desbotada com `c`. */
+function _fLpCineQuadro(antes, finais, e, c, fixas){
+  const lerp=(p,q)=>p+(q-p)*e;
+  return finais.map(l=>{
+    if(!l||l.id==null) return l;
+    const a=antes.get(l.id), o=Object.assign({},l);
+    const op=(!a||!a.vis)?c:(a.op<1?a.op+(1-a.op)*c:1);
+    if(op<1){ o.opacity=(l.opacity!=null?+l.opacity:100)*op; o._fxOp=op; }
+    if(!a||(fixas&&fixas.has(l.id))) return o;
+    o.x=lerp(a.x,+l.x||0); o.y=lerp(a.y,+l.y||0);
+    if(l.type!=='text'){ o.w=lerp(a.w,+l.w||0); o.h=lerp(a.h,+l.h||0); return o; }
+    _fLpCineEscala(o, lerp(a.fs,_fLpCorpo(l)));
+    return o;
+  });
+}
+// A versão ANTIGA de um texto que trocou, no mesmo ponto do caminho e com o MESMO corpo na tela
+// que a nova — as duas se transformam uma na outra em vez de uma sumir e a outra aparecer.
+function _fLpCineVelho(a, l, e, op, fixa){
+  const o=Object.assign({},a.l0);
+  o.opacity=(a.l0.opacity!=null?+a.l0.opacity:100)*op;
+  o._fxEscala=1;
+  if(fixa) return o;
+  const lerp=(p,q)=>p+(q-p)*e;
+  o.x=lerp(a.x,+l.x||0); o.y=lerp(a.y,+l.y||0);
+  _fLpCineEscala(o, lerp(a.fs,_fLpCorpo(l)));
+  return o;
+}
+/* DESLIZAR. `fx` já guarda o quadro que estava na tela (`_fLpFxCaptura`). Cada quadro é montado
+   fora da tela e sobe inteiro: um `await` de imagem no meio nunca mostra meia arte.
+   A TROCA DE CONTEÚDO tem dois caminhos:
+   · TEXTO que trocou (ou mudou de corpo) sai do quadro e é cruzado SOZINHO: a versão antiga
+     (com os dados antigos) e a nova em dois sprites transparentes, somados com `lighter` —
+     que é o crossfade de imagem exato: onde as letras coincidem não há buraco de opacidade no
+     meio da troca. O cruzamento espera o espaço abrir quando o texto CRESCE (a linha nova não
+     atropela o vizinho que ainda está descendo) e começa na hora quando ele ENCOLHE (o
+     antigo sai antes de o vizinho subir para o lugar dele). Os sprites vão por cima da arte:
+     texto quase sempre está no topo, e são ~260ms.
+   · FOTO, forma ou camada que SUMIU: um fantasma do quadro antigo, recortado na caixa antiga. */
+async function _fLpCinema(canvas, fx, antes, finais, W, H, dados, dadosAntes, mudou, fixas, durToken, depois){
+  const token=_lpCineToken;
+  const dur=_fLpMotionMs(durToken), curva=_fLpCurva('--ease-out');
+  const pad=Math.max(4,Math.round(Math.max(W,H)*.006));
+  const porId=new Map(finais.filter(l=>l&&l.id!=null).map(l=>[l.id,l]));
+  const troca=new Map(), fantasmas=[];   // troca: id → cresce?
+  antes.forEach((a,id)=>{
+    if(!a.vis) return;
+    const l=porId.get(id), some=!l||l.visible===false;
+    if(!some&&!mudou.has(id)&&!_fLpCineCorpoMudou(a,l)) return;
+    if(!some&&a.l0&&_fLpCineIsolavel(l,porId)&&_fLpCineIsolavel(a.l0,porId)){ troca.set(id,_fLpVisualRect(l).h>a.vr.h+1); return; }
+    fantasmas.push({x:a.vr.x-pad,y:a.vr.y-pad,w:a.vr.w+pad*2,h:a.vr.h+pad*2});
+  });
+  /* Buffers PRÓPRIOS deste deslize. Um deslize que perdeu a vez pode ainda estar no meio de um
+     render (fonte carregando atravessa tasks): com buffers compartilhados ele pintaria, na
+     geometria dele, dentro dos do deslize novo. Os globais só existem para o `_fLpFxEsconde`
+     soltar a memória (o Safari do iPhone tem teto de memória de canvas). */
+  const novoBuf=()=>{ const c=document.createElement('canvas'); c.width=W; c.height=H; return c; };
+  _fLpFxSolta();
+  const cBase=_lpFxBuf=novoBuf(), cPrev=_lpFxPrev=fantasmas.length?novoBuf():null;
+  const cNovo=_lpFxNovo=troca.size?novoBuf():null, cVelho=_lpFxVelho=troca.size?novoBuf():null;
+  const solta=()=>[cBase,cPrev,cNovo,cVelho].forEach(c=>{ if(c){ c.width=0; c.height=0; } });
+  if(cPrev) cPrev.getContext('2d').drawImage(fx,0,0);
+  // Sprite = só as camadas pedidas, sem fundo (o material "transparente" não pinta a cor da campanha).
+  const semFundo={bg:'transparent',w:W,h:H};
+  const bctx=cBase.getContext('2d'), fctx=fx.getContext('2d');
+  const limpa=(x)=>{ x.setTransform(1,0,0,1,0,0); x.globalAlpha=1; x.globalCompositeOperation='source-over'; x.clearRect(0,0,W,H); };
+  // Vez perdida = um commit novo capturou a tela e já decidiu o próximo gesto. Checada depois de
+  // CADA `await`: um render real em andamento não para o deslize (os buffers são dele).
+  const perdeu=()=>{ if(token===_lpCineToken) return false; solta(); return true; };
+  const t0=performance.now();
+  for(let i=0;;i++){
+    if(perdeu()) return;
+    const agora=performance.now();
+    const t=Math.min(1,(agora-t0)/dur), e=curva(t);
+    const cSai=curva(Math.min(1,t/.45)), cEntra=curva(Math.max(0,Math.min(1,(t-.12)/.45)));
+    const mix=_fLpCineQuadro(antes,finais,e,cEntra,fixas);
     try{
-      ctx.clearRect(0,0,W,H);
-      await fRenderTemplateLayers(ctx,mix,W,H,dados,fState.camp,null,{scope:'designer',purpose:'preview'});
+      limpa(bctx);
+      await fRenderTemplateLayers(bctx,mix.filter(l=>!(l&&troca.has(l.id))),W,H,dados,fState.camp,_lpEffectiveMaterial,
+        {scope:'designer',purpose:'preview',resolvido:true});
+      if(perdeu()) return;
+      if(troca.size){
+        const nctx=cNovo.getContext('2d'), vctx=cVelho.getContext('2d');
+        const novos=[], velhos=[];
+        mix.forEach(l=>{
+          if(!l||!troca.has(l.id)) return;
+          const c=troca.get(l.id)?cEntra:cSai, fixa=!!(fixas&&fixas.has(l.id));
+          /* Entrada com peso: o texto novo sobe ~0,5% da arte e cresce de 98,5% até assentar; o
+             antigo sai subindo um pouco, como quem dá lugar. Sutil de propósito — sem bounce. */
+          const sobe=fixa?0:Math.max(W,H)*.005, n=Object.assign({},l,{opacity:(l.opacity!=null?+l.opacity:100)*c});
+          n.y=(+n.y||0)+sobe*(1-c);
+          if(!fixa&&(!n._fxEscala||n._fxEscala===1)){ _fLpCineEscala(n,_fLpCorpo(n)*(.985+.015*c)); }
+          novos.push(n);
+          const v=_fLpCineVelho(antes.get(l.id),porId.get(l.id),e,1-c,fixa);
+          v.y=(+v.y||0)-sobe*c*.6;
+          velhos.push(v);
+        });
+        limpa(nctx); limpa(vctx);
+        await fRenderTemplateLayers(nctx,novos,W,H,dados,fState.camp,semFundo,{scope:'designer',purpose:'preview',resolvido:true});
+        if(perdeu()) return;
+        await fRenderTemplateLayers(vctx,velhos,W,H,dadosAntes||dados,fState.camp,semFundo,{scope:'designer',purpose:'preview',resolvido:true});
+        if(perdeu()) return;
+        nctx.globalCompositeOperation='lighter'; nctx.drawImage(cVelho,0,0); nctx.globalCompositeOperation='source-over';
+      }
     }catch(err){ break; }
+    fctx.save(); limpa(fctx); fctx.drawImage(cBase,0,0);
+    if(cPrev&&cSai<1){
+      fctx.save(); fctx.beginPath(); fantasmas.forEach(r=>fctx.rect(r.x,r.y,r.w,r.h)); fctx.clip();
+      fctx.globalAlpha=1-cSai; fctx.drawImage(cPrev,0,0); fctx.restore();
+    }
+    if(cNovo) fctx.drawImage(cNovo,0,0);
+    fctx.restore();
+    // O anel do campo ativo acompanha a camada — pintado DEPOIS, como no render normal.
+    const ativa=_fLpCamadaAtiva(mix);
+    if(ativa) fLpHighlightActiveField(fctx,ativa,W,H);
+    _lpShown=_fLpCineSnapshot(mix);
     if(t>=1) break;
-    // Corrida com um timeout: em aba oculta (ou minimizada) o requestAnimationFrame NÃO
-    // dispara, e o laço ficava preso para sempre — com a etiqueta acesa na tela e a vez
-    // (`_lpCineToken`) travada. Com o relógio de parede a animação termina de qualquer jeito;
-    // no pior caso ela salta em dois ou três passos em vez de correr quadro a quadro.
+    // O 1º quadro é frio (buffers recém-alocados, fonte, glifos em escala nova) e não conta: nem
+    // para o custo médio do aparelho, nem para abortar.
+    const q=performance.now()-agora;
+    if(i>0){
+      _lpQuadroMs=_lpQuadroMs?_lpQuadroMs*.6+q*.4:q;
+      if(q>F_LP_QUADRO_TETO){
+        // Aparelho não segura quadros: o que já está na tela desbota até a verdade.
+        _lpShown=null; solta(); _fLpFxDissolve(fx,'--dur-fast',depois); return;
+      }
+    }
+    // Corrida com um timeout: em aba oculta o requestAnimationFrame NÃO dispara, e o laço
+    // ficava preso com a vez travada. Com o relógio de parede o deslize termina de qualquer jeito.
     await new Promise(r=>{ let f=false; const ok=()=>{ if(!f){ f=true; r(); } };
       try{ requestAnimationFrame(ok); }catch(e){}
       setTimeout(ok,120);
     });
   }
-  // Último quadro pelo caminho normal: o véu dos campos vazios, o destaque do campo ativo e
-  // o lápis são pintados DEPOIS das camadas — sem este fecho eles ficariam de fora.
-  if(token===_lpCineToken && !_lpRendering) fUpdateLivePreview();
+  if(perdeu()) return;
+  solta();
+  // Último quadro = a verdade (mesmas camadas, mesmo motor): a camada sai sem que nada mude.
+  _fLpFxEsconde();
+  if(depois) depois();
+}
+/* Qual gesto este commit pede. Tudo o que não for mudança do MESMO material, no MESMO tamanho,
+   fora do enquadramento e com movimento liberado é troca instantânea, como sempre foi. */
+function _fLpTransicaoTipo(mesmoPalco, campos, discreto, sig){
+  if(!mesmoPalco||_lpFraming) return 'nenhuma';
+  const cv=document.getElementById('lp-canvas');
+  if(!_fLpFxMovimento(cv)) return 'nenhuma';
+  if(campos.size) return (!discreto&&_fLpDigitando())?'digitacao':'discreta';
+  if(_lpShown) return 'discreta';       // deslize congelado no meio: termina o caminho
+  return sig!==_lpSigAtivo?'passo':'nenhuma';
 }
 
 async function fUpdateLivePreview(opts){
-  opts = opts || {}; // animateField é ignorado: o canvas já reflete o estado atual
+  opts = opts || {}; // animateField marca a mudança como DISCRETA (enviar, foto) — ver _fLpTransicaoTipo
   const canvas = document.getElementById('lp-canvas');
   if(!canvas || canvas.tagName !== 'CANVAS') return;
   // O botão depende do TEMPLATE aberto (nem todo template tem Layout vivo), então é
@@ -1849,17 +2160,19 @@ async function fUpdateLivePreview(opts){
       ? 'conteúdo do material não baixou do servidor'
       : 'material sem camadas no servidor';
     _lpEffectiveLayers=[];_lpEffectiveMaterial=null;
+    _fLpFxEsconde();
     fLpShowEmpty(canvas);
     fLpUpdateMeta(false);
     try{ _fLpPaintPip(); }catch(e){} // sem material → a miniatura volta a ser o ícone
     return;
   }
 
-  // Render em andamento → agenda só mais um (coalesce de digitação rápida)
-  if(_lpRendering){ _lpPendingRender = true; return; }
+  // Render em andamento → agenda só mais um (coalesce de digitação rápida). O da fila herda
+  // "foi discreto": sem isto, enviar o campo no meio de um render virava gesto de digitação.
+  if(_lpRendering){ _lpPendingRender = true; if(opts.animateField) _lpPendingDiscreto = true; return; }
   _lpRendering = true;
-  // Onde as camadas estão AGORA — o "de onde" da animação do modo demonstração.
-  const _cineAntes = fDemoAtivo() ? _fLpCineSnapshot(_lpEffectiveLayers) : null;
+  const _discreto = !!opts.animateField || _lpPendingDiscreto;
+  _lpPendingDiscreto = false;
 
   const stage = document.querySelector('.lp-stage');
   if(stage) stage.classList.add('loading');
@@ -1889,7 +2202,7 @@ async function fUpdateLivePreview(opts){
       fLpSizeCanvas(canvas, W, H);
     };
     // Sem isto, o palco seguraria a arte do material ANTERIOR enquanto o novo baixa.
-    if(_lpEffectiveMaterial !== fState.material){ _dimensiona(); _fLpMontando(stage, true); }
+    if(_lpEffectiveMaterial !== fState.material){ _fLpFxEsconde(); _dimensiona(); _fLpMontando(stage, true); }
     if(!_lpBuf) _lpBuf = document.createElement('canvas');
     _lpBuf.width = W; _lpBuf.height = H;
 
@@ -1900,6 +2213,7 @@ async function fUpdateLivePreview(opts){
     const _defaults = (typeof gVarDefaults === 'function') ? gVarDefaults() : {};
     const dadosPreview = Object.assign({}, fState.dados || {});
     const pendentes = fLpInjectPlaceholders(fState.material.layers, dadosPreview, _defaults);
+    let _trans = 'nenhuma', _fx = null, _antes = null, _campos = null, _dadosAntes = null;
 
     {
       // Coleta overflow de texto durante ESTE render (só a prévia liga o coletor).
@@ -1915,6 +2229,18 @@ async function fUpdateLivePreview(opts){
          seria mostrar a arte errada por um instante. O palco e o `_lpEffective*` continuam
          com o par do último render aplicado; o `finally` re-agenda o do material novo. */
       if(fState.material!==_matRender){ _lpPendingRender=true; window._fOverflowSink=null; return; }
+      /* A TRANSIÇÃO (ver "A ARTE SE MONTANDO"): escolhe o gesto e guarda o que está na tela
+         ANTES de o commit sobrescrever o #lp-canvas. */
+      const _sig = (fState.camp?.perguntas?.[fState.stepIdx]?.id || '') + '|' + _lpView;
+      const _mesmoPalco = _lpEffectiveMaterial===_matRender && canvas.width===W && canvas.height===H;
+      _campos = _mesmoPalco ? _fLpCamposMudaram(_lpDadosRender, dadosPreview) : new Set();
+      _dadosAntes = _lpDadosRender;     // o texto que SAI é desenhado com os dados de antes
+      _trans = _fLpTransicaoTipo(_mesmoPalco, _campos, _discreto, _sig);
+      if(_trans==='discreta'||_trans==='digitacao') _antes = _lpShown || _fLpCineSnapshot(_lpEffectiveLayers);
+      if(_trans!=='nenhuma') _fx = _fLpFxCaptura(canvas);
+      else if(_lpShown || !_mesmoPalco || _lpFraming) _fLpFxEsconde();
+      if(!_mesmoPalco||_lpFraming){ _lpAssentaIds.clear(); clearTimeout(_lpAssentaTimer); }
+      _lpSigAtivo = _sig;
       // O commit: daqui ao fim do bloco não há `await`, então tamanho e pixels mudam juntos.
       _dimensiona();
       ctx.drawImage(_lpBuf, 0, 0);
@@ -1933,25 +2259,9 @@ async function fUpdateLivePreview(opts){
       // Véu sutil sobre os campos ainda não preenchidos (tom mais suave)
       fLpHighlightEmpty(ctx,_lpEffectiveLayers,pendentes,W,H);
       
-      // Focus Sync: Destaque sutil no campo correspondente à pergunta ativa do chat
-      const activeVar = fState.camp?.perguntas?.[fState.stepIdx]?.id;
-      let activeLayer = null;
-      if (activeVar) {
-        activeLayer = _lpEffectiveLayers.find(l => {
-          if (l.type === 'text' && l.content) {
-            const re = gVarRegex();
-            let match;
-            while ((match = re.exec(l.content)) !== null) {
-              if (match[1] === activeVar) return true;
-            }
-          }
-          if ((l.type === 'image' || l.type === 'frame') && l.imgVar === activeVar) return true;
-          return false;
-        });
-        if (activeLayer) {
-          fLpHighlightActiveField(ctx, activeLayer, W, H);
-        }
-      }
+      // Focus Sync: destaque sutil no campo da pergunta ativa do chat (o deslize usa o mesmo)
+      const activeLayer = _fLpCamadaAtiva(_lpEffectiveLayers);
+      if (activeLayer) fLpHighlightActiveField(ctx, activeLayer, W, H);
       // O lápis mora no MESMO objeto que o Focus Sync destaca — um por arte, nunca uma fileira.
       try{ _fLpPaintEditBadge(canvas, activeLayer); }catch(e){}
       
@@ -1964,23 +2274,46 @@ async function fUpdateLivePreview(opts){
     if(_lpView==='guides') _fLpDrawGuides(ctx, W, H);
     else if(_lpView==='env') _fLpDrawEnvironment(ctx, W, H);
 
-    // Micro-sinal de "vivo": anel que pulsa quando a prévia reflete uma resposta nova
-    const wrap = canvas.closest('.lp-canvas-wrap');
-    if(wrap){ wrap.classList.remove('updated'); void wrap.offsetWidth; wrap.classList.add('updated'); }
-
+    /* O anel laranja que pulsava no CARTÃO inteiro a cada render (`.updated`) saiu: disparava a
+       cada tecla — o "piscar" — e não dizia O QUE mudou. O micro-destaque agora é da camada
+       (o assentar, abaixo). */
     fLpUpdateMeta(true);
     try{ _fLpPaintPip(); }catch(e){} // miniatura viva no celular acompanha cada resposta
 
-    // Modo demonstração: refaz o caminho do solver à vista. Não é `await` de propósito —
-    // a prévia já está pronta e a próxima tecla não pode esperar a animação terminar.
-    if(_cineAntes && _fLpCineMoveu(_cineAntes,_lpEffectiveLayers,W,H) > 0 && !_lpPendingRender){
-      const _dadosCine=dadosPreview;
-      setTimeout(()=>{ _fLpCinema(canvas,_cineAntes,_lpEffectiveLayers,W,H,_dadosCine); },0);
+    // A TRANSIÇÃO parte daqui, sem `await`: a prévia já está pronta e a próxima tecla não
+    // espera animação nenhuma.
+    if(_fx){
+      const mudou = _fLpCamadasDosCampos(_lpEffectiveLayers, _campos);
+      if(_trans==='passo'){
+        _fLpFxDissolve(_fx, '--dur-fast');   // mudou só o campo ativo: o anel troca de lugar
+      } else {
+        /* DIGITAÇÃO: o texto digitado é `fixa` — responde na hora, sem deslizar nem escalar a
+           cada letra (a gelatina). Só se a ESTRUTURA mexeu (quebrou linha, a placa cresceu, o
+           vizinho desceu) os outros deslizam, no degrau curto. O micro-destaque espera a
+           pessoa parar (`F_LP_ASSENTA_MS`). Mudança DISCRETA: tudo desliza e assenta no fim. */
+        const digitando = _trans==='digitacao';
+        /* O que assenta fica em `_lpAssentaIds`, não num closure: se outro commit interromper o
+           gesto (no fluxo guiado a troca de passo chega aos 260ms, junto com o fim do deslize), o
+           clarão não se perde — o timer o entrega quando a tela ficar livre. */
+        mudou.forEach(id=>_lpAssentaIds.add(id));
+        clearTimeout(_lpAssentaTimer); _lpAssentaTimer = setTimeout(_fLpAssentaAgora, F_LP_ASSENTA_MS);
+        const fixas = digitando ? mudou : null;
+        const _assenta = digitando ? null : _fLpAssentaAgora;
+        const _quer = _lpView==='off' && _fLpCineMoveu(_antes, _lpEffectiveLayers, W, H, fixas) > 0;
+        // Aparelho que já foi lento ganha uma nova chance a cada deslize que pulou.
+        if(_quer && _lpQuadroMs>F_LP_QUADRO_TETO) _lpQuadroMs *= .8;
+        if(_quer && _lpQuadroMs<=F_LP_QUADRO_TETO){
+          _fLpCinema(canvas, _fx, _antes, _lpEffectiveLayers, W, H, dadosPreview, _dadosAntes, mudou, fixas,
+                     digitando ? '--dur-fast' : '--dur-slow', _assenta)   // o gesto discreto é o "momento": respira mais
+            .catch(err=>{ console.warn('[Luma] transição da prévia:', err); _fLpFxEsconde(); });
+        } else _fLpFxDissolve(_fx, digitando ? '--dur-micro' : '--dur-base', _assenta);
+      }
     }
   } catch(e){
     console.warn('[lp] erro ao renderizar preview:', e);
     _lpLastErr = 'erro no render: ' + ((e && e.message) || e);
     _lpEffectiveLayers=[];_lpEffectiveMaterial=null;
+    _fLpFxEsconde();
     window._fOverflowSink=null;
     fLpShowEmpty(canvas);
     fLpUpdateMeta(true);
@@ -2025,6 +2358,9 @@ function fLpSizeCanvas(canvas, W, H){
   const scale = Math.min(availW / W, availH / H);
   canvas.style.width  = Math.round(W * scale) + 'px';
   canvas.style.height = Math.round(H * scale) + 'px';
+  /* A camada da transição segue o canvas: o commit re-encaixa a arte (gaveta, Sheets, janela
+     redimensionada) DEPOIS da captura — sem isto o quadro antigo ficava no tamanho velho. */
+  if(_fLpFxVisivel()) _fLpFxAcompanha(canvas);
   // Toolbar honesta: escala real da prévia (× zoom manual) + dimensões da arte final
   _lpScale = scale;
   _fLpUpdateZoomLabel();
