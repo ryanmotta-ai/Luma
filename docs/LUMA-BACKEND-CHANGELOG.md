@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-09-24 — Gestão lê as artes da rede (modo "Ver a rede")
+
+- Nova policy `"gestao lê artes da rede"` em `luma.artes` (migration `20260924120000_luma_artes_gestao_le_rede.sql`): `FOR SELECT USING ((select public.get_user_role()) = 'gestao')`. Só leitura, só `gestao` (decisão do Ryan); `equipe_dm` e franqueado seguem lendo apenas as próprias. INSERT/UPDATE/DELETE continuam exclusivos do dono.
+- Consumidor: `fCampRedeOpen` (`js/franqueado/catalog.js`), item "Ver a rede" no menu de 3 pontos da campanha. Nome da loja vem de `profiles.franquia/cidade` (já legível por `is_designer()`).
+- Efeito colateral bom: o "Analisar campanha" (`_fCampAnaUsoBackend`) passa a mostrar o uso real da rede para a gestão, em vez de cair no histórico local.
+
 ## 2026-09-24 — Tokens e custo de IA por modelo (function `ai` v18 + RPC `luma.dados_ia_modelos`)
 
 - Function `ai` v18 devolve `tokens:{in,out}` contados pelo provedor (Gemini `usageMetadata`, com o pensamento somado à saída; reservas `usage`). O front grava em `ia_chamada` (`tokens_in`, `tokens_out`).

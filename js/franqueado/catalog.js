@@ -176,41 +176,45 @@ async function _fHistRenderPreview(img,run){
   if(cached){ _fHistApplyPreview(img,cached); return; }
 
   try{
-    if(typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(material);
-    if(run!==_fHistPreviewRun || !img.isConnected) return;
-    if(!Array.isArray(material.layers) || !material.layers.length) return;
-
-    const fmt=FMTS.find(x=>x.id===h.fmtId)||FMTS[0];
-    const brandColor=getComputedStyle(document.documentElement).getPropertyValue('--dm-orange').trim();
-    const camp={id:h.campId,name:h.campName||'Luma',color:h.campColor||brandColor};
-    const size=(typeof fMaterialSize==='function')?fMaterialSize(material,fmt):[1080,1920];
-    const mw=size[0], mh=size[1];
-    const off=document.createElement('canvas'); off.width=mw; off.height=mh;
-    /* ⛔ O material vai por PARÂMETRO (`materialOverride`), nunca emprestado ao `fState.material`.
-       O empréstimo antigo devolvia o valor anterior depois do await — e, com o catálogo aberto,
-       esse valor era `null`. Quem clicava no MESMO material durante o render (a miniatura é do
-       histórico dele) via o chat seguir normal e o `fState.material` virar `null` por baixo:
-       o "Gerar em lote" dizia "Escolha um material primeiro" com a arte pronta na tela. */
-    await fRenderTemplateLayers(off.getContext('2d'),material.layers,mw,mh,h.dados||{},camp,material,
-      {scope:'franqueado',purpose:'preview'});
-    if(run!==_fHistPreviewRun || !img.isConnected) return;
-
-    // A biblioteca precisa de leitura visual, não de um segundo PNG gigante. Reduzimos uma
-    // vez com smoothing alto e guardamos apenas este JPEG leve durante a sessão.
-    const maxSide=720;
-    const scale=Math.min(1,maxSide/Math.max(mw,mh));
-    const thumb=document.createElement('canvas');
-    thumb.width=Math.max(1,Math.round(mw*scale));
-    thumb.height=Math.max(1,Math.round(mh*scale));
-    const ctx=thumb.getContext('2d');
-    ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
-    ctx.drawImage(off,0,0,mw,mh,0,0,thumb.width,thumb.height);
-    const url=thumb.toDataURL('image/jpeg',.86);
+    const url=await _fArteThumb(h,material,720,()=>run===_fHistPreviewRun && img.isConnected);
+    if(!url) return;
     _fHistPreviewCache.set(key,url);
     _fHistApplyPreview(img,url);
   }catch(e){
     // Material indisponível, CORS ou imagem ainda sincronizando: o fallback do card continua.
   }
+}
+// Miniatura de UMA arte pelo render oficial: "Minhas artes" e o modo rede passam por aqui.
+// `vivo()` falso entre os awaits aborta (o card saiu da tela) → null.
+async function _fArteThumb(h,material,maxSide,vivo){
+  if(typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(material);
+  if(!vivo()) return null;
+  if(!Array.isArray(material.layers) || !material.layers.length) return null;
+
+  const fmt=FMTS.find(x=>x.id===h.fmtId)||FMTS[0];
+  const brandColor=getComputedStyle(document.documentElement).getPropertyValue('--dm-orange').trim();
+  const camp={id:h.campId,name:h.campName||'Luma',color:h.campColor||brandColor};
+  const size=(typeof fMaterialSize==='function')?fMaterialSize(material,fmt):[1080,1920];
+  const mw=size[0], mh=size[1];
+  const off=document.createElement('canvas'); off.width=mw; off.height=mh;
+  /* ⛔ O material vai por PARÂMETRO (`materialOverride`), nunca emprestado ao `fState.material`.
+     O empréstimo antigo devolvia o valor anterior depois do await — e, com o catálogo aberto,
+     esse valor era `null`. Quem clicava no MESMO material durante o render (a miniatura é do
+     histórico dele) via o chat seguir normal e o `fState.material` virar `null` por baixo:
+     o "Gerar em lote" dizia "Escolha um material primeiro" com a arte pronta na tela. */
+  await fRenderTemplateLayers(off.getContext('2d'),material.layers,mw,mh,h.dados||{},camp,material,
+    {scope:'franqueado',purpose:'preview'});
+  if(!vivo()) return null;
+
+  // Leitura visual, não um segundo PNG gigante: reduz uma vez e guarda só um JPEG leve.
+  const scale=Math.min(1,maxSide/Math.max(mw,mh));
+  const thumb=document.createElement('canvas');
+  thumb.width=Math.max(1,Math.round(mw*scale));
+  thumb.height=Math.max(1,Math.round(mh*scale));
+  const ctx=thumb.getContext('2d');
+  ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+  ctx.drawImage(off,0,0,mw,mh,0,0,thumb.width,thumb.height);
+  return thumb.toDataURL('image/jpeg',.86);
 }
 function _fHistRenderPreviews(run){
   const previews=Array.from(document.querySelectorAll('.hist-preview-art[data-hist-preview]'));
@@ -565,6 +569,7 @@ function fEditCampFolder(folderId){
 }
 const _ICO_STATS='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V5M16 20v-7M22 20V3"/></svg>';
 const _ICO_EDIT='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+const _ICO_REDE='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>';
 const _ICO_ARCHIVE='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg>';
 // Menu do 3-pontos (só DM staff): Editar / Arquivar. Menu flutuante fixo posicionado no botão.
 function fCampAdminMenu(ev, folderId){
@@ -575,6 +580,8 @@ function fCampAdminMenu(ev, folderId){
   menu.className = 'camp-admin-menu';
   menu.innerHTML =
     `<button type="button" onclick="fCloseCampAdminMenu();fCampAnalyticsOpen('${gEscJs(folderId)}')">${_ICO_STATS}<span>Analisar campanha</span></button>`+
+    ((typeof gIsSuperAdmin==='function'&&gIsSuperAdmin())
+      ? `<button type="button" onclick="fCloseCampAdminMenu();fCampRedeOpen('${gEscJs(folderId)}')">${_ICO_REDE}<span>Ver a rede</span></button>` : '')+
     `<button type="button" onclick="fCloseCampAdminMenu();fEditCampFolder('${gEscJs(folderId)}')">${_ICO_EDIT}<span>Editar campanha</span></button>`+
     `<button type="button" onclick="fCloseCampAdminMenu();fArchiveFolder('${gEscJs(folderId)}')">${_ICO_ARCHIVE}<span>Arquivar campanha</span></button>`;
   document.body.appendChild(menu);
@@ -745,6 +752,128 @@ async function fCampAnalyticsOpen(folderId){
       <div><span>Última atividade</span><strong>${_fCampAnaData(uso.ultima)}</strong></div>
     </div>
     ${origem}`;
+}
+
+/* ══ VER A REDE (3-pontos, só gestão) ══
+   Mosaico da versão mais recente que cada loja gerou de cada material da campanha.
+   A leitura das artes alheias é liberada pela policy "gestao lê artes da rede" — sem ela a
+   RLS devolve só as próprias, e o painel diz isso em vez de parecer vazio.
+   CUSTO: não existe PNG salvo, só os dados. Cada card é redesenhado pelo render oficial
+   (`_fArteThumb`), mas só quando chega perto da tela, um por vez, em JPEG de 360px guardado
+   na sessão. Abrir o mosaico custa uma consulta; o render cresce com a rolagem, não com a rede. */
+const _F_REDE_MAX=120;
+let _fRedeRun=0, _fRedeObserver=null;
+const _fRedeCache=new Map();
+function fCampRedeClose(){
+  _fRedeRun++;
+  if(_fRedeObserver){ _fRedeObserver.disconnect(); _fRedeObserver=null; }
+  const el=document.getElementById('f-camp-rede');
+  if(el) el.remove();
+  document.removeEventListener('keydown', _fCampRedeEsc);
+}
+function _fCampRedeEsc(e){ if(e.key==='Escape'){ e.preventDefault(); fCampRedeClose(); } }
+async function fCampRedeOpen(folderId){
+  if(typeof gIsSuperAdmin!=='function' || !gIsSuperAdmin()) return; // gate de UX; RLS é a fronteira real
+  const f=_fCampAnaFolder(folderId);
+  if(!f){ gToast('Não achei essa campanha.','error'); return; }
+  fCampRedeClose();
+  const run=_fRedeRun;
+  const box=document.createElement('div');
+  box.id='f-camp-rede'; box.className='camp-ana-overlay';
+  box.setAttribute('role','dialog'); box.setAttribute('aria-modal','true');
+  box.setAttribute('aria-label','Artes da rede na campanha '+(f.name||''));
+  box.onclick=(ev)=>{ if(ev.target===box) fCampRedeClose(); };
+  box.innerHTML=`<div class="camp-ana-box camp-rede-box">
+    <div class="camp-ana-head">
+      <span class="camp-ana-dot" style="background:${gSafeColor(f.color)}"></span>
+      <div class="camp-ana-title"><span>A rede nesta campanha</span><strong>${gEsc(f.name||'Campanha')}</strong></div>
+      <span class="camp-rede-count" id="f-camp-rede-count"></span>
+      <button type="button" class="camp-ana-x" onclick="fCampRedeClose()" aria-label="Fechar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="camp-ana-body" id="f-camp-rede-body"><div class="camp-ana-loading">Consultando a rede…</div></div>
+  </div>`;
+  document.body.appendChild(box);
+  document.addEventListener('keydown', _fCampRedeEsc);
+
+  const body=document.getElementById('f-camp-rede-body');
+  const vazio=msg=>{ if(run===_fRedeRun && body) body.innerHTML=`<div class="camp-ana-empty">${gEsc(msg)}</div>`; };
+  const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
+  const ids=((f.templates)||[]).map(t=>t&&t.remoteId).filter(Boolean);
+  if(!sb){ vazio('Sem conexão com o servidor.'); return; }
+  if(!ids.length){ vazio('Nenhum material desta campanha foi publicado ainda.'); return; }
+
+  let rows=[], lojas=new Map(), cortou=false;
+  try{
+    const { data, error }=await sb.schema('luma').from('artes')
+      .select('id,user_id,template_id,fmt_id,camp_id,camp_name,camp_color,dados,created_at')
+      .in('template_id', ids).order('created_at',{ascending:false}).limit(600);
+    if(error) throw error;
+    // Uma "versão" por loja e material: a mais recente (a lista já vem do mais novo).
+    const vistos=new Set();
+    (data||[]).forEach(r=>{
+      const k=r.user_id+'|'+r.template_id;
+      if(!vistos.has(k)){ vistos.add(k); rows.push(r); }
+    });
+    cortou=rows.length>_F_REDE_MAX;
+    rows=rows.slice(0,_F_REDE_MAX);
+    const uids=[...new Set(rows.map(r=>r.user_id).filter(Boolean))];
+    if(uids.length){
+      const { data:perfis }=await sb.from('profiles').select('id,nome,franquia,cidade').in('id', uids);
+      (perfis||[]).forEach(p=>lojas.set(p.id,p));
+    }
+  }catch(e){ vazio('Não consegui consultar as artes da rede agora.'); return; }
+  if(run!==_fRedeRun) return;
+  if(!rows.length){ vazio('Nenhuma loja gerou arte desta campanha ainda.'); return; }
+
+  const nLojas=new Set(rows.map(r=>r.user_id)).size;
+  const cnt=document.getElementById('f-camp-rede-count');
+  if(cnt) cnt.textContent=`${cortou?'As '+rows.length+' mais recentes':rows.length+' arte'+(rows.length===1?'':'s')} · ${nLojas} loja${nLojas===1?'':'s'}`;
+  const byId=new Map(rows.map(r=>[String(r.id),r]));
+  body.innerHTML=`<div class="camp-rede-grid">${rows.map(r=>{
+    const p=lojas.get(r.user_id)||{};
+    const loja=p.franquia||p.nome||'Loja sem nome';
+    const mat=((f.templates)||[]).find(t=>t&&t.remoteId===r.template_id);
+    const sub=[p.cidade, mat&&mat.name].filter(Boolean).join(' · ');
+    return `<figure class="camp-rede-card">
+      <div class="camp-rede-thumb"><img alt="" data-rede-arte="${gEsc(String(r.id))}"></div>
+      <figcaption><strong>${gEsc(loja)}</strong>${sub?`<small>${gEsc(sub)}</small>`:''}</figcaption>
+    </figure>`;
+  }).join('')}</div>`;
+
+  const render=async img=>{
+    const r=byId.get(img.dataset.redeArte);
+    if(!r || run!==_fRedeRun) return;
+    const material=(typeof fFindMaterialById==='function')?fFindMaterialById(r.template_id):null;
+    const card=img.closest('.camp-rede-card');
+    if(!material){ if(card) card.classList.add('is-sem-material'); return; }
+    const key=r.id+'|'+(material.remoteId||material.id);
+    let url=_fRedeCache.get(key);
+    if(!url){
+      try{
+        url=await _fArteThumb({fmtId:r.fmt_id,campId:r.camp_id,campName:r.camp_name,campColor:r.camp_color,dados:r.dados},
+          material,360,()=>run===_fRedeRun && img.isConnected);
+      }catch(e){ url=null; }
+      if(url) _fRedeCache.set(key,url);
+    }
+    if(!url || !img.isConnected) return;
+    img.onload=()=>{ if(card) card.classList.add('is-ready'); };
+    img.src=url;
+  };
+  // Fila serial pela mesma razão do histórico: o render oficial não é reentrante.
+  let fila=Promise.resolve();
+  const enfileira=img=>{ fila=fila.then(()=>render(img)).catch(()=>{}); };
+  const imgs=Array.from(body.querySelectorAll('img[data-rede-arte]'));
+  if(typeof IntersectionObserver!=='function'){ imgs.forEach(enfileira); return; }
+  _fRedeObserver=new IntersectionObserver(entries=>{
+    entries.forEach(en=>{
+      if(!en.isIntersecting) return;
+      _fRedeObserver.unobserve(en.target);
+      enfileira(en.target);
+    });
+  },{root:body,rootMargin:'240px 0px'});
+  imgs.forEach(img=>_fRedeObserver.observe(img));
 }
 
 function _fCampMenuEsc(e){ if(e.key==='Escape') fCloseCampAdminMenu(); }
