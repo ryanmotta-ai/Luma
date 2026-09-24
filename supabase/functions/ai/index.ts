@@ -60,6 +60,14 @@ const MODELO_OK = /^gemini-[a-z0-9.\-]{1,40}$/i;
 // um "olá" e empurrava a chamada para além do timeout de 45s do front.
 const MODELOS_RESERVA = ["gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.7-flash"];
 const DESCE = new Set([403, 404, 429, 503]);
+
+// Reserva fora do Google: NVIDIA NIM (API no formato OpenAI), uma chave por vez — cada chave tem
+// cota própria (free tier ~40 req/min), então 2 chaves = 2 cotas. Entra quando a escada Gemini
+// inteira falhar (qualquer erro, inclusive rede). Llama 3.3 70B: rápido (cabe nos 45s do front),
+// PT-BR bom e segue instrução de JSON. ⛔ Só texto: chamada com anexo (foto, PDF, áudio) não desce.
+const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
+const NVIDIA_MODELO = "meta/llama-3.3-70b-instruct";
+const NVIDIA_CHAVES = ["NVIDIA_API_KEY", "NVIDIA2_API_KEY"];
 const MAX_SCHEMA = 20000;      // caracteres do responseSchema serializado
 
 // Tetos por chamada: prompt de peça de marketing é curto; anexo é foto/PDF de cardápio.
@@ -183,8 +191,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "método não suportado" }, 405);
   try {
-    const chave = Deno.env.get("GEMINI_API_KEY");
-    if (!chave) return json({ error: "IA não configurada (falta o secret GEMINI_API_KEY)" }, 503);
+    const chave = Deno.env.get("GEMINI_API_KEY") ?? "";
+    const chavesNv = NVIDIA_CHAVES.map((n) => Deno.env.get(n)).filter(Boolean) as string[];
+    if (!chave && !chavesNv.length) return json({ error: "IA não configurada (falta o secret GEMINI_API_KEY)" }, 503);
 
     // 1) Quem chama? (mesmo padrão do invite-user: valida o JWT com o client anon)
     const caller = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -257,26 +266,65 @@ Deno.serve(async (req) => {
     // recusa em memória: a escada curta e sem modelo sabidamente morto é o que poupa tempo.
     const fila = [modelo, ...MODELOS_RESERVA.filter((m) => m !== modelo)];
     let usado = fila[0];
-    let res = await chama(usado);
-    for (const reserva of fila.slice(1)) {
-      if (res.ok || !DESCE.has(res.status)) break;
-      console.warn(`[ai] modelo ${usado} indisponível (${res.status}) — tentando ${reserva}`);
-      await res.body?.cancel();
-      usado = reserva;
-      res = await chama(usado);
+    let text = "";
+    let status = 503;
+    if (chave) {
+      try {
+        let res = await chama(usado);
+        for (const reserva of fila.slice(1)) {
+          if (res.ok || !DESCE.has(res.status)) break;
+          console.warn(`[ai] modelo ${usado} indisponível (${res.status}) — tentando ${reserva}`);
+          await res.body?.cancel();
+          usado = reserva;
+          res = await chama(usado);
+        }
+        status = res.status;
+        if (res.ok) {
+          const data = await res.json();
+          // Junta as partes de texto: modelo com raciocínio pode devolver mais de uma (e as de
+          // pensamento vêm marcadas com `thought` — não são resposta).
+          text = ((data?.candidates?.[0]?.content?.parts ?? []) as { text?: string; thought?: boolean }[])
+            .map((p) => (p && !p.thought && typeof p.text === "string") ? p.text : "")
+            .join("");
+        } else {
+          const detalhe = await res.text().catch(() => "");
+          console.warn("[ai] Gemini respondeu " + res.status + ": " + detalhe.slice(0, 300));
+        }
+      } catch (e) {
+        console.warn("[ai] Gemini falhou na rede:", e);
+      }
     }
-    if (!res.ok) {
-      const detalhe = await res.text().catch(() => "");
-      console.warn("[ai] Gemini respondeu " + res.status + ": " + detalhe.slice(0, 300));
-      return json({ error: "o provedor de IA falhou (" + res.status + ")" }, 502);
+
+    // 5) Reserva NVIDIA: Gemini falhou (ou veio vazio) e a chamada é só texto.
+    if (!text && parts.length === 1) {
+      const instrucao = !querJson ? "Responda em português do Brasil."
+        : "Responda APENAS com JSON válido, sem markdown e sem texto fora do JSON." +
+          (schema ? " Siga este schema: " + JSON.stringify(schema) : "");
+      for (const [i, k] of chavesNv.entries()) {
+        try {
+          const r = await fetch(NVIDIA_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + k },
+            body: JSON.stringify({
+              model: NVIDIA_MODELO, temperature: 0.6, max_tokens: 4096,
+              messages: [{ role: "system", content: instrucao }, { role: "user", content: prompt }],
+            }),
+          });
+          status = r.status;
+          if (!r.ok) {
+            console.warn(`[ai] NVIDIA chave ${i + 1} respondeu ${r.status}: ` + (await r.text().catch(() => "")).slice(0, 300));
+            continue;
+          }
+          const d = await r.json();
+          // Llama às vezes embrulha o JSON em ```json … ```: tira a cerca.
+          text = String(d?.choices?.[0]?.message?.content ?? "").trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
+          if (text) { usado = NVIDIA_MODELO; break; }
+        } catch (e) {
+          console.warn(`[ai] NVIDIA chave ${i + 1} falhou na rede:`, e);
+        }
+      }
     }
-    const data = await res.json();
-    // Junta as partes de texto: modelo com raciocínio pode devolver mais de uma (e as de
-    // pensamento vêm marcadas com `thought` — não são resposta).
-    const text = ((data?.candidates?.[0]?.content?.parts ?? []) as { text?: string; thought?: boolean }[])
-      .map((p) => (p && !p.thought && typeof p.text === "string") ? p.text : "")
-      .join("");
-    if (!text) return json({ error: "resposta vazia do provedor" }, 502);
+    if (!text) return json({ error: "o provedor de IA falhou (" + status + ")" }, 502);
 
     // `modelo` = o que respondeu de fato (pode ser a reserva): vai para a telemetria de custo.
     return json({ ok: true, task, text, modelo: usado });
