@@ -4062,11 +4062,23 @@ function _fBulkRevalidateCol(r, col){
   if (err) r.erros.push(err);
 }
 
+/* Foto/logo nunca é preço: o "aplicar mesmo assim?" deixava passar, e fParsePriceNumber
+   achava dígitos na URL/dataURL — a foto virava "R$ 12,34" e sumia da arte. Aqui não há
+   o que confirmar, é bloqueio. */
+function _fBulkBloqueiaFotoEmPreco(col) {
+  if (typeof fIsImageVar === 'function' && fIsImageVar(col)) {
+    gToast('Esse campo é uma foto — desconto e arredondamento só valem para preço.', 'error');
+    return true;
+  }
+  return false;
+}
+
 async function fBulkApplyDiscountPrompt() {
   fBulkCollectCurrentInputs();
   const col = document.getElementById('f-bulk-action-col')?.value;
   if (!col) return;
 
+  if (_fBulkBloqueiaFotoEmPreco(col)) return;
   const isPrice = /preco|valor|min|taxa|de|por/i.test(col);
   if (!isPrice && !(await gConfirm(`A coluna "${col}" não parece ser de preço. Aplicar mesmo assim?`, {okLabel:'Aplicar'}))) return;
 
@@ -4095,6 +4107,7 @@ async function fBulkApplyRounding() {
   const col = document.getElementById('f-bulk-action-col')?.value;
   if (!col) return;
 
+  if (_fBulkBloqueiaFotoEmPreco(col)) return;
   const isPrice = /preco|valor|min|taxa|de|por/i.test(col);
   if (!isPrice && !(await gConfirm(`A coluna "${col}" não parece ser de preço. Arredondar mesmo assim?`, {okLabel:'Arredondar'}))) return;
 
