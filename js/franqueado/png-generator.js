@@ -2645,7 +2645,9 @@ function fBulkUpdateReadiness(readiness=fBulkGetReadiness()) {
       dlBtn.classList.add('acabou-de-liberar');
       dlBtn.addEventListener('animationend', ()=>dlBtn.classList.remove('acabou-de-liberar'), {once:true});
     }
-    const label = ready ? `Gerar ${readiness.artCount} arte${readiness.artCount === 1 ? '' : 's'}` : (errors ? 'Revise para gerar' : 'Preencha uma oferta');
+    const label = ready ? `Gerar ${readiness.artCount} arte${readiness.artCount === 1 ? '' : 's'} (ZIP)` : (errors ? 'Revise para gerar' : 'Preencha uma oferta');
+    const soltasBtn = document.getElementById('f-bulk-dl-soltas-btn');
+    if (soltasBtn) soltasBtn.disabled = ready === 0;
     dlBtn.disabled = ready === 0;
     dlBtn.setAttribute('aria-disabled', ready === 0 ? 'true' : 'false');
     dlBtn.title = ready ? `${readiness.artCount} arte(s) pronta(s) para gerar` : 'Preencha e revise a planilha antes de gerar';
@@ -2897,6 +2899,7 @@ function _fBulkRenderFolhaCampos(forcar){
           <span class="f-bulk-ffoto-tx">${tem?'Trocar a foto':'Enviar a foto'}<small>${tem?'toque para trocar':'do seu celular'}</small></span>
           <input type="file" accept="image/*" hidden onchange="fBulkUploadCellImage(this, ${i}, '${gEsc(k)}')">
         </label>
+        ${_fBulkTemRecentes(k)?`<button type="button" class="f-bulk-ffoto-todas" onclick="fBulkFotoRecente(${i},'${gEsc(k)}',this)">Usar uma foto recente</button>`:''}
         ${tem?`<div class="f-bulk-ffoto-acoes">
           ${fBulkRows.length>1?`<button type="button" class="f-bulk-ffoto-todas" onclick="fBulkUsarFotoEmTodas(${i},'${gEsc(k)}')">Usar em todas</button>`:''}
           <button type="button" class="f-bulk-ffoto-del" onclick="fBulkLimparFoto(${i},'${gEsc(k)}')">Remover</button>
@@ -3217,6 +3220,7 @@ function fBulkRenderPreview(){
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Enviar foto
                   <input type="file" accept="image/*" onchange="fBulkUploadCellImage(this, ${i}, '${k}')">
                 </label>
+                ${_fBulkTemRecentes(k)?`<button type="button" class="f-bulk-foto-btn f-bulk-foto-rec" onclick="fBulkFotoRecente(${i}, '${k}', this)" title="Usar uma foto que você já enviou">Recentes</button>`:''}
               `}
             </div>
           </div>`;
@@ -3567,13 +3571,14 @@ function fBulkCancelGen(){
   const b = document.getElementById('f-bulk-cancel-btn');
   if(b){ b.disabled = true; b.textContent = 'Cancelando…'; }
 }
-async function fBulkDownloadAll(){
+async function fBulkDownloadAll(modo){
+  const soltas = modo === 'soltas'; // cada arte vira um download próprio, sem ZIP
   if(typeof gFeatureCan==='function' && !gFeatureCan('franqueado.export.zip','execute')){
     if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback('franqueado.export.zip');
     return;
   }
   if(!fBulkRows.length){gToast('Envie uma planilha primeiro.');return;}
-  if(typeof JSZip === 'undefined'){gToast('Não consegui preparar o pacote. Recarregue a página e tente de novo.','error');return;}
+  if(!soltas && typeof JSZip === 'undefined'){gToast('Não consegui preparar o pacote. Recarregue a página e tente de novo.','error');return;}
 
   // Salva e valida todas as linhas da tabela antes do download
   fBulkSaveAllRows(true);
@@ -3602,12 +3607,13 @@ async function fBulkDownloadAll(){
   let _resumo = `Vou gerar ${valid.length} arte(s)`;
   if (selectedFmts.length > 1) _resumo += ` × ${selectedFmts.length} formatos = ${_totalArtes} imagens`;
   _resumo += '.';
-  if (_nErro) _resumo += `\n• ${_nErro} linha(s) com erro serão puladas (vão pro erros.txt).`;
+  if (_nErro) _resumo += `\n• ${_nErro} linha(s) com erro ficam de fora — corrija na tabela.`;
+  if (soltas && _totalArtes > 1) _resumo += `\n\nO navegador pode perguntar se permite baixar vários arquivos — aceite.`;
   if (_nVazias) _resumo += `\n• ${_nVazias} linha(s) vazia(s) ignorada(s).`;
   if (_totalArtes > 80) _resumo += `\n\nÉ bastante coisa — pode demorar e pesar no navegador do celular.`;
   if (typeof gConfirm === 'function' && !(await gConfirm(_resumo + '\n\nGerar agora?', {okLabel:`Gerar ${_totalArtes}`}))) return;
   _fBulkCancel = false;
-  const _falhas = []; // renders que lançaram (vão pro erros.txt)
+  const _falhas = []; // renders que lançaram (avisados na tela no fim)
 
   const wrap = document.getElementById('f-bulk-progress-wrap');
   const txt = document.getElementById('f-bulk-progress-text');
@@ -3621,7 +3627,7 @@ async function fBulkDownloadAll(){
   if(cancelBtn){ cancelBtn.disabled = false; cancelBtn.textContent = 'Cancelar'; }
 
   let ok=0;
-  const zip = new JSZip();
+  const zip = soltas ? null : new JSZip();
   const c=fState.camp;
   const totalRenders = valid.length * selectedFmts.length;
   let currentRender = 0;
@@ -3660,7 +3666,17 @@ async function fBulkDownloadAll(){
           entry = base+' ('+n+').png';
         }
         usedNames.add(entry);
-        if(b64) zip.file(entry, b64, {base64: true});
+        if(soltas){
+          // Um arquivo por arte. O respiro entre downloads é o que evita o navegador engolir
+          // os seguintes (Chrome descarta cliques de download em rajada).
+          const blob = await (await fetch(dataUrl)).blob();
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = entry.split('/').pop();
+          a.click();
+          setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+          await new Promise(res=>setTimeout(res, 350));
+        } else if(b64) zip.file(entry, b64, {base64: true});
         ok++;
       }catch(err){
         console.warn('Bulk linha '+(i+1)+' falhou',err);
@@ -3673,66 +3689,52 @@ async function fBulkDownloadAll(){
     fState.fmt = oldFmt;
   }
   
-  // Gerador de Legendas v2 — Motor Combinatório com tom DM
-  const copyFormat = (document.getElementById('f-bulk-copy-format') || {}).value || 'feed';
+  if(!soltas){
+    // Gerador de Legendas v2 — Motor Combinatório com tom DM
+    const copyFormat = (document.getElementById('f-bulk-copy-format') || {}).value || 'feed';
+    
+    let captionsText = `========================================================\n`;
+    captionsText += `   LEGENDAS PARA POSTS — GERADAS PELO LUMA SHEETS\n`;
+    captionsText += `   Formato: ${copyFormat === 'stories' ? 'Stories (curto)' : 'Feed (completo)'}\n`;
+    captionsText += `========================================================\n\n`;
+    
+    const cleanStr = s => (typeof s === 'string' && !s.startsWith('data:') && s.length < 500) ? s : '';
   
-  let captionsText = `========================================================\n`;
-  captionsText += `   LEGENDAS PARA POSTS — GERADAS PELO LUMA SHEETS\n`;
-  captionsText += `   Formato: ${copyFormat === 'stories' ? 'Stories (curto)' : 'Feed (completo)'}\n`;
-  captionsText += `========================================================\n\n`;
-  
-  const cleanStr = s => (typeof s === 'string' && !s.startsWith('data:') && s.length < 500) ? s : '';
-
-  valid.forEach((row, idx) => {
-    const vars = Object.keys(row.dados).filter(v => !/foto|logo|imagem|img|avatar/i.test(v));
-    const nameKey = vars.find(v => /produto|titulo|nome/i.test(v)) || vars[0] || '';
-    const deKey = vars.find(v => /de|antigo/i.test(v)) || '';
-    const porKey = vars.find(v => /por|preco|preço|atual|valor/i.test(v)) || '';
-    const valKey = vars.find(v => /validade|data|condicao|condição/i.test(v)) || '';
-    const descKey = vars.find(v => /desconto|selo|off/i.test(v)) || '';
+    valid.forEach((row, idx) => {
+      const vars = Object.keys(row.dados).filter(v => !/foto|logo|imagem|img|avatar/i.test(v));
+      const nameKey = vars.find(v => /produto|titulo|nome/i.test(v)) || vars[0] || '';
+      const deKey = vars.find(v => /de|antigo/i.test(v)) || '';
+      const porKey = vars.find(v => /por|preco|preço|atual|valor/i.test(v)) || '';
+      const valKey = vars.find(v => /validade|data|condicao|condição/i.test(v)) || '';
+      const descKey = vars.find(v => /desconto|selo|off/i.test(v)) || '';
+      
+      const prod = cleanStr(row.dados[nameKey]) || ('Produto ' + (idx + 1));
+      const de = deKey ? cleanStr(row.dados[deKey]) : '';
+      const por = porKey ? cleanStr(row.dados[porKey]) : '';
+      const val = valKey ? cleanStr(row.dados[valKey]) : '';
+      const desc = descKey ? cleanStr(row.dados[descKey]) : '';
+      
+      captionsText += `--------------------------------------------------------\n`;
+      captionsText += `ITEM #${idx+1}: ${prod}\n`;
+      captionsText += `--------------------------------------------------------\n\n`;
+      
+      const copys = fBuildCopy(prod, de, por, val, desc, copyFormat);
+      
+      captionsText += `Opcao 1:\n${copys.op1}\n\n`;
+      captionsText += `Opcao 2:\n${copys.op2}\n\n`;
+      captionsText += `Opcao 3:\n${copys.op3}\n\n\n`;
+    });
     
-    const prod = cleanStr(row.dados[nameKey]) || ('Produto ' + (idx + 1));
-    const de = deKey ? cleanStr(row.dados[deKey]) : '';
-    const por = porKey ? cleanStr(row.dados[porKey]) : '';
-    const val = valKey ? cleanStr(row.dados[valKey]) : '';
-    const desc = descKey ? cleanStr(row.dados[descKey]) : '';
-    
-    captionsText += `--------------------------------------------------------\n`;
-    captionsText += `ITEM #${idx+1}: ${prod}\n`;
-    captionsText += `--------------------------------------------------------\n\n`;
-    
-    const copys = fBuildCopy(prod, de, por, val, desc, copyFormat);
-    
-    captionsText += `Opcao 1:\n${copys.op1}\n\n`;
-    captionsText += `Opcao 2:\n${copys.op2}\n\n`;
-    captionsText += `Opcao 3:\n${copys.op3}\n\n\n`;
-  });
-  
-  zip.file("legendas_posts.txt", captionsText);
-
-  // erros.txt: por que uma arte não saiu (linha pulada por erro/vazia, falha de render ou
-  // cancelamento). Sem isso, o franqueado baixava o ZIP e não sabia o que faltou.
-  if(_pulados.length || _falhas.length || _fBulkCancel){
-    let et = 'RELATORIO DO LOTE — LUMA SHEETS\n========================================\n\n';
-    if(_pulados.length){
-      et += `LINHAS NAO GERADAS (${_pulados.length}):\n`;
-      _pulados.forEach(r=>{
-        const p=_fRowProductName(r.dados)||'(sem nome)';
-        const motivo=(r.erros&&r.erros.length)?r.erros.join('; '):'linha vazia';
-        et += ` - ${p}: ${motivo}\n`;
-      });
-      et += '\n';
-    }
-    if(_falhas.length){
-      et += `FALHAS AO GERAR (${_falhas.length}):\n`;
-      _falhas.forEach(f=>{ et += ` - ${f.prod} (${f.fmt}): ${f.motivo}\n`; });
-      et += '\n';
-    }
-    if(_fBulkCancel) et += 'GERACAO CANCELADA — o ZIP tem so as artes prontas ate o cancelamento.\n';
-    zip.file('erros.txt', et);
+    zip.file("legendas_posts.txt", captionsText);
   }
 
-  try {
+  /* erros.txt SAIU (25/09, feedback da Laura): o motivo de uma arte não ter saído aparece
+     na tela, na notificação de erro do fim — ninguém abre um .txt dentro do ZIP. */
+
+  if(soltas){
+    try{ if(typeof gTrackEvent==='function') gTrackEvent('lote_baixado',{n:ok, soltas:true, formatos:selectedFmts.map(x=>x.id), falhas:_falhas.length, cancelado:!!_fBulkCancel, camp_id:c&&c.id, template_id:(typeof _fTplId==='function')?_fTplId(fState.material):null}); }catch(e){}
+    if(ok && typeof window.gPlayBatchCompleteSound==='function') window.gPlayBatchCompleteSound();
+  } else try {
     const zipBlob = await zip.generateAsync({type: "blob"});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(zipBlob);
@@ -3750,9 +3752,15 @@ async function fBulkDownloadAll(){
   if(wrap) wrap.style.display = 'none';
   
   const _fail=totalRenders-ok;
-  if(_fBulkCancel) gToast(`Cancelado — ${ok} arte(s) prontas no pacote.`);
-  else if(_fail>0) gToast(`${ok}/${totalRenders} geradas — ${_fail} falhou(ram). O arquivo "erros.txt" no pacote diz o que deu errado.`,'error');
-  else gToast(ok+' artes geradas e baixadas no pacote!');
+  // O que ficou de fora é dito AQUI, com nome e motivo (antes ia para um erros.txt no ZIP).
+  const _fora = _pulados.filter(r=>r.erros&&r.erros.length)
+    .map(r=>`${_fRowProductName(r.dados)||'(sem nome)'}: ${r.erros[0]}`)
+    .concat(_falhas.map(f=>`${f.prod}: não consegui gerar`));
+  const _foraTxt = _fora.length ? ` Ficaram de fora — ${_fora.slice(0,3).join(' · ')}${_fora.length>3?` e mais ${_fora.length-3}`:''}.` : '';
+  const _onde = soltas ? 'baixadas' : 'no pacote';
+  if(_fBulkCancel) gToast(`Cancelado — ${ok} arte(s) ${_onde}.${_foraTxt}`, _fora.length?'error':undefined);
+  else if(_fora.length) gToast(`${ok} arte(s) ${_onde}.${_foraTxt}`,'error');
+  else gToast(`${ok} artes geradas e ${_onde}!`);
   _fBulkCancel = false;
   
   if(typeof fClearImgCache === 'function') fClearImgCache();
@@ -3940,7 +3948,12 @@ function fBulkFotoEmTodas(col){
     const rd = new FileReader();
     rd.onerror = () => gToast('Não consegui ler essa imagem. Tente outra.', 'error');
     rd.onload = e => {
-      const grava = (url) => {
+      const grava = async (url) => {
+        if(typeof fPortaoFoto === 'function'){
+          gToast('Conferindo a foto…');
+          const motivo = await fPortaoFoto(alvo, url);
+          if(motivo){ gToast(motivo, 'error'); return; }
+        }
         fBulkRows.forEach(r => { r.dados[alvo] = url; _fBulkRevalidateCol(r, alvo); });
         const n = fBulkRows.length;
         gToast(`Foto aplicada em ${n} oferta${n===1?'':'s'}`);
@@ -4185,47 +4198,87 @@ function fBulkUploadCellImage(input, i, k) {
   }
 
   fBulkCollectCurrentInputs();
-  
+
   const reader = new FileReader();
   reader.onload = function(e) {
-    const base64 = e.target.result;
-    if (typeof fResizeImageIfNeeded === 'function') {
-      fResizeImageIfNeeded(base64, 1500, (resizedUrl) => {
-        fBulkRows[i].dados[k] = resizedUrl;
-        fBulkRows[i].erros = fBulkRows[i].erros.filter(err => !err.includes(k));
-        const img = new Image();
-        img.onload = function() {
-          if (img.width < 600 || img.height < 600) {
-            gToast(`Foto de baixa resolução (${img.width}x${img.height}px) — pode sair pixelada na arte.`, 'warning');
-          }
-          fBulkRenderPreview();
-        };
-        img.onerror = function() {
-          gToast('Não consegui carregar a imagem. Verifique se o arquivo está íntegro e tente de novo.', 'error');
-        };
-        img.src = resizedUrl;
-        gToast('Foto carregada.');
-        fBulkRenderPreview();
-      });
-    } else {
-      fBulkRows[i].dados[k] = base64;
+    // Mesmo portão do chat (tamanho mínimo + não-comida). Antes o lote só avisava "baixa
+    // resolução" e não perguntava nada sobre o conteúdo — foi por aqui que o carro entrou.
+    const grava = async (url) => {
+      if (typeof fPortaoFoto === 'function') {
+        gToast('Conferindo a foto…');
+        const motivo = await fPortaoFoto(k, url);
+        if (motivo) { gToast(motivo, 'error'); return; }
+      }
+      if (!fBulkRows[i]) return; // a linha saiu enquanto a IA conferia
+      fBulkRows[i].dados[k] = url;
       fBulkRows[i].erros = fBulkRows[i].erros.filter(err => !err.includes(k));
-      const img = new Image();
-      img.onload = function() {
-        if (img.width < 600 || img.height < 600) {
-          gToast(`Foto de baixa resolução (${img.width}x${img.height}px) — pode sair pixelada na arte.`, 'warning');
-        }
-        fBulkRenderPreview();
-      };
-      img.onerror = function() {
-        gToast('Não consegui carregar a imagem. Verifique se o arquivo está íntegro e tente de novo.', 'error');
-      };
-      img.src = base64;
+      if (typeof fRecordRecentImg === 'function') fRecordRecentImg(url, k);
       gToast('Foto carregada.');
       fBulkRenderPreview();
-    }
+    };
+    if (typeof fResizeImageIfNeeded === 'function') fResizeImageIfNeeded(e.target.result, 1500, grava);
+    else grava(e.target.result);
   };
   reader.readAsDataURL(file);
+}
+
+/* ── FOTO RECENTE POR OFERTA (25/09/2026, feedback da Laura) ──
+   Além de "uma foto para todas", cada oferta pode puxar uma foto já enviada. A lista é a
+   MESMA do painel de upload do chat (`fGetRecentImgs`, upload-panel.js) — um estoque só.
+   Passa pelo portão da foto: recente antiga pode ser de antes da regra de hoje. */
+function _fBulkTemRecentes(k){
+  if (typeof gCampoEhLogo === 'function' && gCampoEhLogo(k)) return false;
+  return typeof fGetRecentImgs === 'function' && fGetRecentImgs().length > 0;
+}
+function _fBulkFecharRecentes(){
+  const p = document.getElementById('f-bulk-rec-pop');
+  if (p) p.remove();
+  document.removeEventListener('pointerdown', _fBulkRecForaClique, true);
+  document.removeEventListener('keydown', _fBulkRecEsc, true);
+}
+function _fBulkRecForaClique(e){ const p = document.getElementById('f-bulk-rec-pop'); if (p && !p.contains(e.target)) _fBulkFecharRecentes(); }
+function _fBulkRecEsc(e){ if (e.key === 'Escape') _fBulkFecharRecentes(); }
+function fBulkFotoRecente(i, k, btn){
+  _fBulkFecharRecentes();
+  const arr = (typeof fGetRecentImgs === 'function') ? fGetRecentImgs() : [];
+  if (!arr.length) { gToast('Você ainda não enviou nenhuma foto.'); return; }
+  const pop = document.createElement('div');
+  pop.id = 'f-bulk-rec-pop';
+  pop.className = 'f-bulk-rec-pop';
+  pop.setAttribute('role', 'dialog');
+  pop.setAttribute('aria-label', 'Fotos recentes');
+  pop.innerHTML = `<div class="f-bulk-rec-tit">Fotos recentes</div><div class="f-bulk-rec-grid">${
+    arr.map((x, n) => `<button type="button" class="f-bulk-rec-item" onclick="_fBulkUsarRecente(${i},'${gEsc(k)}',${n})" aria-label="Usar a foto recente ${n+1}"><img src="${gEsc(x.thumb||'')}" alt=""></button>`).join('')
+  }</div>`;
+  document.body.appendChild(pop);
+  const r = btn.getBoundingClientRect();
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  pop.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
+  pop.style.top = (r.bottom + 6 + h > innerHeight ? Math.max(8, r.top - h - 6) : r.bottom + 6) + 'px';
+  setTimeout(() => {
+    document.addEventListener('pointerdown', _fBulkRecForaClique, true);
+    document.addEventListener('keydown', _fBulkRecEsc, true);
+  }, 0);
+}
+async function _fBulkUsarRecente(i, k, n){
+  _fBulkFecharRecentes();
+  const entry = fGetRecentImgs()[n];
+  if (!entry || !fBulkRows[i]) return;
+  let url = '';
+  try { url = await Promise.resolve(typeof gResolveImgUrl === 'function' ? gResolveImgUrl(entry.ref) : entry.ref); } catch(e) {}
+  if (!url) { gToast('Não consegui carregar essa foto. Envie de novo.', 'error'); return; }
+  if (typeof fPortaoFoto === 'function') {
+    gToast('Conferindo a foto…');
+    const motivo = await fPortaoFoto(k, url);
+    if (motivo) { gToast(motivo, 'error'); return; }
+  }
+  if (!fBulkRows[i]) return;
+  fBulkCollectCurrentInputs();
+  fBulkRows[i].dados[k] = url;
+  _fBulkRevalidateCol(fBulkRows[i], k);
+  gToast('Foto aplicada.');
+  fBulkRenderPreview();
+  if (document.body.classList.contains('f-bulk-folha')) _fBulkRenderFolhaCampos(true);
 }
 
 function fBulkClearImage(i, k) {

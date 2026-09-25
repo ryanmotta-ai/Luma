@@ -3350,7 +3350,13 @@ function _fLpImageEditor(l,v,ev){
 function _fLpUploadImage(file,v){
   const reader=new FileReader();
   reader.onload=e=>{
-    const done=(url)=>{
+    const done=async (url)=>{
+      // Mesmo portão do chat (tamanho mínimo + não-comida): "trocar imagem" era a porta dos fundos.
+      if(typeof fPortaoFoto==='function'){
+        gToast('Conferindo a foto…');
+        const motivo=await fPortaoFoto(v,url);
+        if(motivo){ gToast(motivo,'error'); return; }
+      }
       if(!fState.dados)fState.dados={};
       fState.dados[v]=url; delete fState.dados['__fit__'+v];
       try{if(typeof fSaveChatDraft==='function') fSaveChatDraft();}catch(e){}

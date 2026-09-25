@@ -1284,6 +1284,7 @@ function _fUploadPreviewHTML(varId, url, opts){
      O aviso de logo, quando existe, entra ACIMA e traz as duas saídas que o pedido define:
      trocar o arquivo ou seguir mesmo assim. Nunca bloqueia — só informa (logo horizontal
      legítimo é comum, e reprovar por proporção seria pior que o problema). */
+  if (opts.bloqueio) opts.aviso = opts.bloqueio;
   const aviso = opts.aviso ? `<div class="f-upload-aviso" role="status">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       <span>${gEsc(opts.aviso)}</span>
@@ -1291,8 +1292,8 @@ function _fUploadPreviewHTML(varId, url, opts){
   const barra = `<div class="f-upload-confirm">
       ${aviso}
       <div class="f-upload-confirm-row">
-        <button class="f-upload-ok" onclick="fConfirmarImagem('${gEsc(varId)}')">${opts.aviso ? 'Usar mesmo assim' : (opts.jaEstava ? 'Manter esta imagem' : 'Usar esta imagem')}</button>
-        <button class="f-upload-replace" onclick="fReplaceImage('${gEsc(varId)}',this)">${opts.aviso ? 'Trocar arquivo' : 'Trocar'}</button>
+        ${opts.bloqueio ? '' : `<button class="f-upload-ok" onclick="fConfirmarImagem('${gEsc(varId)}')"${opts.conferindo?' disabled':''}>${opts.conferindo ? 'Conferindo a foto…' : (opts.aviso ? 'Usar mesmo assim' : (opts.jaEstava ? 'Manter esta imagem' : 'Usar esta imagem'))}</button>`}
+        <button class="f-upload-replace" onclick="fReplaceImage('${gEsc(varId)}',this)">${opts.bloqueio ? 'Trocar foto' : (opts.aviso ? 'Trocar arquivo' : 'Trocar')}</button>
       </div>
     </div>`;
   return `<div class="f-upload-preview f-upload-preview-pop">
@@ -1362,6 +1363,41 @@ async function fValidarImagemSemantica(varId, url, cb){
   } catch(e) {
     console.warn('[AI ImageValidate] Falha:', e);
   }
+}
+
+/* ── PORTÃO DA FOTO DE PRODUTO — o ÚNICO, para todas as entradas (25/09/2026) ──────────────
+   Feedback da Laura: "consegui publicar um carro", "trocar imagem passa por cima do mínimo",
+   "no lote o 'não é comida' deixa ir". Cada entrada (chat, trocar imagem da prévia, célula
+   e "foto para todas" do Sheets) tinha regra própria ou nenhuma. Agora todas perguntam aqui.
+   Devolve '' (pode usar) ou o MOTIVO da recusa. Decisão do Ryan:
+   · menos de F_FOTO_MIN_LADO no lado menor → recusa (antes era só aviso de 600px);
+   · IA com confiança ALTA de que não é comida → recusa. IA em dúvida, fora do ar ou com
+     erro → passa: o portão não pode travar o franqueado por falha nossa.
+   Logo fica de fora: tem régua própria (`fValidarLogo`) e não é comida por definição. */
+const F_FOTO_MIN_LADO = 400;
+function fFotoDimensoes(url){
+  return new Promise(res=>{
+    const im=new Image();
+    im.onload=()=>res({w:im.naturalWidth||0, h:im.naturalHeight||0});
+    im.onerror=()=>res({w:0,h:0});
+    im.src=url;
+  });
+}
+async function fPortaoFoto(varId, url){
+  if(!url) return '';
+  if(typeof gCampoEhLogo==='function' && gCampoEhLogo(varId)) return '';
+  const {w,h}=await fFotoDimensoes(url);
+  if(w && h && Math.min(w,h) < F_FOTO_MIN_LADO)
+    return `Essa foto é pequena demais (${w}×${h}px). Envie uma com pelo menos ${F_FOTO_MIN_LADO}px no lado menor.`;
+  try{
+    if(!window.gAI || !(typeof window.gAI.isEnabled==='function' && window.gAI.isEnabled('imageValidation'))) return '';
+    const m=url.match(/^data:([^;]+);base64,(.+)$/);
+    if(!m) return '';
+    const res=await window.gAI.run('image.validate',{fieldType:'foto_produto', imagePart:{mimeType:m[1], data:m[2]}});
+    if(res && res.ok && res.data && res.data.valid===false && res.data.confidence==='high')
+      return (res.data.reason ? res.data.reason+' ' : '')+'Use uma foto do produto (comida ou bebida).';
+  }catch(e){ console.warn('[portão da foto] IA falhou, liberando:', e); }
+  return '';
 }
 
 /* Confirmação do passo de imagem: é AQUI que o fluxo anda, e só por ação da pessoa. */
@@ -1640,17 +1676,18 @@ function _fApplyImageToField(varId, uploadId, resizedUrl){
   } catch(colorThiefErr) { console.warn('[ColorThief] Falha ao ler imagem:', colorThiefErr); }
   // Substitui a zona de upload pela prévia da imagem escolhida
   const zone=document.getElementById(uploadId+'-zone');
-  const pintaPreview=(aviso)=>{
+  const pintaPreview=(aviso,extra)=>{
     const z=document.getElementById(uploadId+'-zone');
     const alvo=z||document.getElementById(uploadId+'-preview');
     if(!alvo) return;
     const wrap=document.createElement('div');
     wrap.id=uploadId+'-preview';
-    wrap.innerHTML=_fUploadPreviewHTML(varId, resizedUrl, {aviso});
+    wrap.innerHTML=_fUploadPreviewHTML(varId, resizedUrl, Object.assign({aviso}, extra||{}));
     alvo.replaceWith(wrap);
     const msgs=document.getElementById('f-messages'); if(msgs) msgs.scrollTop=msgs.scrollHeight;
   };
-  if(zone) pintaPreview('');
+  const _ehFotoProduto = !(typeof gCampoEhLogo==='function' && gCampoEhLogo(varId));
+  if(zone) pintaPreview('', _ehFotoProduto ? {conferindo:true} : null);
   const box=document.getElementById('f-msg-box');
   if(box){box.disabled=false;}
   try { fUpdateLivePreview({animateField:varId}); } catch(e){}
@@ -1663,7 +1700,20 @@ function _fApplyImageToField(varId, uploadId, resizedUrl){
      retorno da foto ANTIGA repintar o preview — a pessoa via voltar a imagem que acabou de
      substituir. O aviso só vale se o campo ainda estiver com a MESMA imagem. */
   const _aindaEhAtual=()=>fState.dados && fState.dados[varId]===resizedUrl;
-  if(typeof fValidarImagemSemantica==='function'){
+  if(_ehFotoProduto && typeof fPortaoFoto==='function'){
+    /* O "Usar esta imagem" nasce DESABILITADO ("Conferindo a foto…") e só libera depois do
+       portão — antes a conferência corria em paralelo e dava para confirmar o carro antes
+       da IA responder. Recusou: o campo esvazia e só resta "Trocar foto". */
+    fPortaoFoto(varId, resizedUrl).then(motivo=>{
+      if(!_aindaEhAtual()) return;
+      if(motivo){
+        fState.dados[varId]='';
+        fSaveChatDraft();
+        try { fUpdateLivePreview(); } catch(e){}
+        pintaPreview('', {bloqueio:motivo});
+      } else pintaPreview('');
+    });
+  } else if(typeof fValidarImagemSemantica==='function'){
     fValidarImagemSemantica(varId, resizedUrl, (aviso)=>{ if(aviso && _aindaEhAtual()) pintaPreview(aviso); });
   } else if(typeof gCampoEhLogo==='function' && gCampoEhLogo(varId) && typeof fValidarLogo==='function'){
     fValidarLogo(resizedUrl, (aviso)=>{ if(aviso && _aindaEhAtual()) pintaPreview(aviso); });

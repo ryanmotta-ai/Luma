@@ -643,6 +643,7 @@ body:not(.theme-light) .f-fit-btn{background:color-mix(in srgb,var(--dm-orange) 
 .f-upload-ok:hover{background:var(--dm-orange-d);border-color:var(--dm-orange-d)}
 .f-upload-ok:active{transform:scale(.97)}
 .f-upload-ok:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+.f-upload-ok:disabled{opacity:.6;cursor:progress;transform:none}
 .f-upload-confirm .f-upload-replace{flex:0 0 auto;min-height:36px}
 
 /* O aviso do logo: informa, não bloqueia. Âmbar, nunca vermelho — não é erro, é um "olha isto". */
@@ -1387,6 +1388,21 @@ body:not(.theme-light) .f-bulk-alt-body,body:not(.theme-light) .f-bulk-massbar-b
 .f-bulk-campo:hover .f-bulk-foto-btn{border-color:color-mix(in srgb,var(--gray-mid) 55%,transparent);background:var(--white)}
 .f-bulk-foto-btn:hover{border-color:var(--dm-orange-tint);color:var(--dm-orange-text)}
 .f-bulk-foto-btn:focus-within{outline:2px solid var(--dm-orange);outline-offset:1px}
+/* "Recentes" divide a caixa com "Enviar foto" — não preenche, só ocupa o que precisa. */
+.f-bulk-foto-rec{flex:0 0 auto}
+/* Popover das fotos recentes do Sheets (fBulkFotoRecente). */
+.f-bulk-rec-pop{
+  position:fixed;z-index:10050;width:min(284px,calc(100vw - 16px));padding:10px;
+  background:var(--white);color:var(--text);border:1px solid var(--gray-mid);border-radius:var(--r-sm);
+  box-shadow:0 12px 32px rgba(10,10,10,.14);
+  animation:gToastItemIn var(--dur-base) var(--ease-spring) both;
+}
+body:not(.theme-light) .f-bulk-rec-pop{background:var(--d-surf2);color:var(--d-text);border-color:var(--d-border2)}
+.f-bulk-rec-tit{font:600 11px 'Roboto',sans-serif;color:var(--text-2);margin:0 2px 8px}
+.f-bulk-rec-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.f-bulk-rec-item{aspect-ratio:1;padding:0;border:1px solid var(--gray-mid);border-radius:var(--r-sm);overflow:hidden;background:var(--gray-light);cursor:pointer;transition:border-color var(--dur-fast) var(--ease-standard)}
+.f-bulk-rec-item img{width:100%;height:100%;object-fit:cover;display:block}
+.f-bulk-rec-item:hover,.f-bulk-rec-item:focus-visible{border-color:var(--dm-orange);outline:none}
 
 
 /* ── AÇÕES DA OFERTA: só onde a mão está; no toque, sempre ─────────────────────────────── */

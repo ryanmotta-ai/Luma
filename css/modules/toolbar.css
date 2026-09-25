@@ -791,6 +791,47 @@ body:not(.theme-light) .g-toast-item {
   transform: translateY(8px) scale(0.95);
 }
 
+/* ── ERRO COMO NOTIFICAÇÃO (canto superior direito) — ver _gNotifErro em toast.js ──
+   Neutra de propósito (o Luma não alarma): mesma superfície do toast, só que em cartão,
+   com quebra de linha e X. */
+#g-notif-container {
+  position: fixed;
+  top: calc(16px + var(--safe-top));
+  right: 16px;
+  display: flex; flex-direction: column; gap: 8px;
+  z-index: 99999;
+  pointer-events: none;
+  width: min(360px, calc(100vw - 32px));
+}
+.g-notif-item {
+  pointer-events: auto;
+  display: flex; align-items: flex-start; gap: 10px;
+  background: var(--white);
+  color: var(--text);
+  border: 1px solid var(--gray-mid);
+  border-radius: var(--r-sm);
+  padding: 12px 10px 12px 14px;
+  font-size: 13px; font-weight: 500; line-height: 1.45;
+  box-shadow: 0 10px 28px rgba(10,10,10,.12), 0 2px 6px rgba(10,10,10,.04);
+  animation: gToastItemIn var(--dur-base) var(--ease-spring) both;
+  transition: opacity var(--dur-fast) var(--ease-in), transform var(--dur-fast) var(--ease-in);
+}
+body:not(.theme-light) .g-notif-item {
+  background: var(--d-surf2); color: var(--d-text); border-color: var(--d-border2);
+  box-shadow: 0 16px 40px rgba(0,0,0,.45);
+}
+.g-notif-item.hide { opacity: 0; transform: translateX(12px); }
+.g-notif-ic { width: 18px; height: 18px; flex: none; margin-top: 1px; color: var(--dm-orange); }
+.g-notif-txt { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.g-notif-x {
+  flex: none; width: 28px; height: 28px; margin: -4px 0 -4px 0;
+  display: grid; place-items: center;
+  border: 0; background: transparent; color: inherit; opacity: .6;
+  border-radius: var(--r-sm); cursor: pointer;
+}
+.g-notif-x:hover { opacity: 1; background: color-mix(in srgb, currentColor 8%, transparent); }
+.g-notif-x svg { width: 14px; height: 14px; }
+
 /* ── TOAST COM AÇÃO ("Arte reiniciada · Desfazer") ──
    Componente da casa: superfície clara com elevação, texto nítido e botão
    de ação em formato de chip/pílula da marca Delivery Much com ícone de desfazer. */
