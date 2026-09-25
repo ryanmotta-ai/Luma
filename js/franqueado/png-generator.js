@@ -1619,7 +1619,32 @@ function _fBulkSetSaveStatus(text,state){
   el.dataset.state=state||'';
 }
 
-async function fBulkSaveDraft(){
+/* ⛔ SHEETS SEM HISTÓRICO — decisão do Ryan em 25/09/2026.
+   O rascunho (localStorage + fotos no IndexedDB) devolvia, a cada abertura, as linhas da
+   sessão anterior: alguém encheu o Sheets de linhas com a foto quebrada pelo "Dar desconto"
+   e o estrago voltava sozinho. Agora nada persiste: fechou/recarregou, começa do zero, e
+   o que já estava gravado é apagado na próxima abertura. As funções ficam (são chamadas
+   em vários pontos) e só limpam. Para voltar a ter rascunho, é reverter este commit. */
+function _fBulkPurgeDrafts(){
+  try{
+    for(let i=localStorage.length-1;i>=0;i--){
+      const k=localStorage.key(i);
+      if(!k||!(k.startsWith('luma-sheets-draft-v1:')||k.startsWith('luma-sheets-generation-v1:')))continue;
+      // As fotos do rascunho moram no IndexedDB como `idb://sheets-draft-…` — sem isto ficavam órfãs.
+      try{
+        const d=JSON.parse(localStorage.getItem(k)||'{}');
+        (d.rows||[]).forEach(r=>Object.values((r&&r.dados)||{}).forEach(v=>{
+          if(typeof v==='string'&&v.startsWith('idb://sheets-draft-')&&typeof gIdbDel==='function')gIdbDel(v.slice(6));
+        }));
+      }catch(e){}
+      localStorage.removeItem(k);
+    }
+  }catch(e){}
+}
+
+async function fBulkSaveDraft(){ _fBulkPurgeDrafts(); }
+
+async function _fBulkSaveDraftLegado(){
   if(!fState.material)return;
   const seq=++_fBulkAutosaveSeq;
   _fBulkSetSaveStatus('Salvando…','saving');
@@ -1642,6 +1667,7 @@ async function fBulkSaveDraft(){
 // No fechamento inesperado não dá tempo de esperar o IndexedDB. Texto e links ainda são
 // preservados; fotos locais já salvas pelo autosave continuam referenciadas no rascunho anterior.
 function _fBulkSaveDraftSync(){
+  return; // sem histórico (ver _fBulkPurgeDrafts)
   if(!fState.material||!_fBulkHasContent())return;
   try{
     const rows=(fBulkRows||[]).map(r=>{
@@ -1663,6 +1689,8 @@ function fBulkScheduleAutosave(){
 }
 
 async function fBulkRestoreDraft(){
+  _fBulkPurgeDrafts();
+  return false; // sem histórico (ver _fBulkPurgeDrafts)
   let draft=null;
   try{
     const raw=localStorage.getItem(_fBulkDraftKey());
@@ -1687,6 +1715,7 @@ async function fBulkRestoreDraft(){
 }
 
 function fBulkSaveGenerationState(){
+  return; // sem histórico (ver _fBulkPurgeDrafts)
   try{
     if(_fBulkGenerationState)localStorage.setItem(_fBulkGenerationKey(),JSON.stringify(_fBulkGenerationState));
     else localStorage.removeItem(_fBulkGenerationKey());
@@ -1694,6 +1723,7 @@ function fBulkSaveGenerationState(){
 }
 
 function fBulkRestoreGenerationState(){
+  _fBulkGenerationState=null; return; // sem histórico (ver _fBulkPurgeDrafts)
   try{
     const raw=localStorage.getItem(_fBulkGenerationKey());
     _fBulkGenerationState=raw?JSON.parse(raw):null;
@@ -1801,7 +1831,8 @@ async function fBulkOpen(opcoes){
   }
   if(!fState.material||!fState.material.layers){gToast('Escolha um material primeiro.');return;}
   
-  if (_fLastMaterialId !== fState.material.id) {
+  // Sem histórico: antes só zerava na troca de material; fechar e reabrir trazia as linhas de volta.
+  {
     fBulkRows = [];
     _fLastMaterialId = fState.material.id;
     _fBulkAudit=[];
