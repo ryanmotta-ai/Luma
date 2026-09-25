@@ -209,5 +209,6 @@ window.LUMA_COPY_CORPUS = [
    a suíte avisa com o objeto novo pronto para colar. Em máquina com outra `fp` (o CI Linux), o
    número exato não é comparado — ver o caso 33. Referência: a bancada TODA (2.478 pares) dava
    172/784 nesta mesma máquina, antes da pilha inferida (que baixou a amostra de 260/50 para
-   187/46: 73 bloqueios passaram a caber sozinhos). */
-window.LUMA_COPY_FIT_PISO = { fp: '1317.2/1317.2/1214.6', bloqueios: 187, resgates: 46 };
+   187/46: 73 bloqueios passaram a caber sozinhos). 25/09/2026: hierarquia por família (preço
+   não segura mais o piso do produto) + degrau `barra` ("com" → "c/") → 155/55. */
+window.LUMA_COPY_FIT_PISO = { fp: '1317.2/1317.2/1214.6', bloqueios: 155, resgates: 55 };

@@ -568,6 +568,39 @@ por `js/designer/canvas.js` (teste de tensão do Estúdio).
 
 ⚠ O respiro muda o contrato de 18/09: o Local Fit deixou de ser cego para vizinhos, mas SÓ para ler o vazio abaixo — continua sem mover, empurrar ou recompor nada. A única exceção é a pilha (ancorada, ou o par inferido no bloqueio): o membro só DESCE, no y, e só até antes do próximo objeto.
 
+### Rodada de 25/09/2026 — hierarquia por família + "com → c/" (decisões do Ryan)
+
+Medido na bancada inteira (14 caixas reais × 177 copies = 2.478 pares), variando uma regra por vez:
+
+| Variante | Bloqueia | Depois do Copy Fit |
+|---|---|---|
+| Base (25/09, antes) | 25,8% | 18,5% |
+| Tolerância 1px → 8px | 23,7% | 14,9% |
+| Respiro ¼ → 10% do corpo | 24,1% | 15,2% |
+| Margem de baixo 4% → 2% | 25,8% | 18,5% |
+| **Hierarquia por família** (aplicada) | **17,8%** | **12,0%** |
+| Hierarquia por família + título desce até 85% do produto | 11,2% | 4,9% |
+| Sem piso de hierarquia | 8,4% | 3,3% |
+| **Aplicado: família + degrau `barra`** | **17,8%** | **11,1%** |
+
+**O achado.** 76% dos bloqueios eram o piso de HIERARQUIA (`gStampPisosHierarquia`): um texto não
+podia ficar menor que o próximo tamanho usado na arte — incluindo o PREÇO. O produto de 58px do
+`promo-preco-circulo` só descia a 56px (o preço); o de 96px do `de-por-lateral` só a 84px. Produto
+menor que o preço é arte de delivery comum, não inversão.
+
+**A regra nova** (`_gPisoFamilia`, `00-config.js`): cada texto só se compara com a sua família —
+preço (preço, valor, de/por, desconto, cupom, R$) com preço; o resto com o resto. Título continua
+≥ produto. Efeito colateral bom: o preço deixou de ser espremido para ficar abaixo do produto
+(`promo-preco-circulo`: preço 38/46px → 56px, o desenhado).
+
+**O que sobra** (276 bloqueios): títulos longos presos ao tamanho do produto (hierarquia real —
+afrouxar é a linha "título desce até 85%", decisão de gosto em aberto) e a caixa de uma linha do
+Story no piso de 50%.
+
+**Copy Fit — degrau `barra`** (peso 3, depois da `lista`): "com" → "c/" no meio do trecho (nunca
+abrindo: "Com batata" fica) e "para 2 pessoas" → "p/ 2". O `confere` e a especificação da suíte
+canonizam os dois lados ("para N pessoas"). Catraca da amostra: 187/46 → 155/55.
+
 ### Copy Fit — a saída do bloqueio (23/09/2026)
 
 Motor puro em `js/core/copy-fit.js` (saiu de `js/franqueado/` no `c9d6e8e`: é `g*`, mora no core).
@@ -614,7 +647,7 @@ Regras medidas e **não ligadas** — cada uma é gosto/negócio, não técnica.
 
 | Regra | Ganho |
 |---|---|
-| "com" → "c/" e "para N pessoas" → "p/ N" | +27 |
+| ~~"com" → "c/" e "para N pessoas" → "p/ N"~~ — **ligada em 25/09/2026** (degrau `barra`) | +27 |
 | Combinado → Combo, peças → pçs, acompanhamentos → acomp. | +9 |
 | Tirar emoji usado como separador | +5 |
 | "R$ 25,00" → "R$ 25" (todos os preços do texto ou nenhum) | +4 |

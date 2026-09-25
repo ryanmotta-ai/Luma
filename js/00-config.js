@@ -1418,15 +1418,29 @@ function _gLayoutVisivel(l){
   return l.opacity==null || !Number.isFinite(op) || op>0;
 }
 
+/* HIERARQUIA POR FAMÍLIA (decisão do Ryan, 25/09/2026). O piso de hierarquia impedia um texto
+   de ficar menor que QUALQUER texto menor da arte — inclusive o preço. Medido na bancada (14
+   caixas reais × 177 copies): 76% dos bloqueios eram esse piso, e o pior caso era o produto de
+   58px que só podia descer a 56px porque o preço tinha 56px. Produto menor que o preço é arte
+   de delivery comum, não inversão. Agora cada texto só se compara com a sua FAMÍLIA: preço
+   (preço, valor, de/por, desconto, cupom, R$) com preço; o resto com o resto. Título continua
+   ≥ produto. Resultado na bancada: bloqueio final (depois do Copy Fit) 18,5% → 12,0%. */
+function _gPisoFamilia(l){
+  const sinal=String((l.name||'')+' '+(l.id||'')+' '+(l.content||''));
+  return /(pre[cç]o|valor|desconto|cupom|r\$|\{\{\s*(de|por)\s*\}\})/i.test(sinal) ? 'preco' : 'texto';
+}
 function gStampPisosHierarquia(layers, canvas){
-  const degraus=[...new Set((layers||[])
-    .filter(l => l && l.type==='text' && _gLayoutVisivel(l))
-    .map(l => Math.round(l.fontSize||24)))].sort((a,b)=>b-a);
+  const degrausPor={};
+  (layers||[]).filter(l => l && l.type==='text' && _gLayoutVisivel(l)).forEach(l => {
+    const f=_gPisoFamilia(l);
+    (degrausPor[f]=degrausPor[f]||new Set()).add(Math.round(l.fontSize||24));
+  });
+  Object.keys(degrausPor).forEach(f => { degrausPor[f]=[...degrausPor[f]].sort((a,b)=>b-a); });
   const ladoCurto=canvas&&canvas.w&&canvas.h?Math.min(canvas.w,canvas.h):0;
   (layers||[]).forEach(l => {
     if(!l || l.type!=='text' || !_gLayoutVisivel(l)) return;
     const s=Math.round(l.fontSize||24);
-    const abaixo=degraus.find(t => t < s);
+    const abaixo=(degrausPor[_gPisoFamilia(l)]||[]).find(t => t < s);
     /* ⚠ Guardar 1/3 do SALTO até o degrau de baixo (título 60 não desce a 34 sobre sub 30)
        foi medido em 22/09/2026 e NÃO entrou: sozinho, levou o bloqueio do corpus de 17,4% a
        26,1% e +16 bloqueios no fuzz. Trocar arte fraca por franqueado travado é decisão de

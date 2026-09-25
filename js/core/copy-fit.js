@@ -255,6 +255,26 @@ const _G_CF_DEGRAUS = [
     r.trocas.push(['com', '+']);
     return t;
   }},
+  /* ABREVIAÇÕES DE BARRA (decisão do Ryan, 25/09/2026 — a regra pendente de maior ganho: +27
+     resgates em 784 bloqueios): "com" → "c/" e "para 2 pessoas" → "p/ 2". Depois da `lista` de
+     propósito: antes de ITEM de pedido o "+" é mais curto e já levou o "com". Nunca abrindo o
+     trecho ("Com batata" → "C/ batata" não se lê) e só com palavra depois. O `confere` desfaz
+     as duas antes de comparar (`_gCfPalavras`), então nada conta como palavra nova ou sumida. */
+  { id:'barra', fn:(s, r) => {
+    let t = s.replace(_gCfRx('(^|' + _G_CF_L + ')(para)\\s+(\\d+)\\s+(pessoas?)' + _G_CF_FIM, 'giu'), (m, pre, w, n) => {
+      const x = _gCfCaixa(w, 'p/'); r.trocas.push([m.slice(pre.length), x + ' ' + n]); return pre + x + ' ' + n;
+    });
+    t = t.split(/([:;.!?()\n])/).map((p, k) => {
+      if(k % 2) return p;
+      const w = p.split(' ');
+      for(let i = 1; i < w.length - 1; i++){
+        if(w[i].toLowerCase() !== 'com' || !w.slice(0, i).some(Boolean) || !/^\p{L}/u.test(w[i + 1] || '')) continue;
+        const x = _gCfCaixa(w[i], 'c/'); r.trocas.push([w[i], x]); w[i] = x;
+      }
+      return w.join(' ');
+    }).join('');
+    return t;
+  }},
   { id:'tamanho', fn:(s, r) => {
     // TODOS OU NENHUM: "Pizzas M a R$ 29,90 e grandes a R$ 39,90" parece erro de digitação.
     // Se algum tamanho do TRECHO não tem item antes (não dá para abreviar), nenhum dele abrevia.
@@ -324,6 +344,12 @@ function _gCfPalavras(s){
   // O trecho blindado vira o MESMO tipo de marcador do motor, colado como lá ("<b>Combo</b>" é
   // palavra "Combo"; o enfeite antes dela está anteposto).
   let t = String(s || '').replace(_G_CF_BLINDA, '\uE000');
+  // "c/" ≡ "com" e "p/ 2" ≡ "para 2 pessoas" (as trocas do degrau `barra`).
+  // Forma canônica nos dois lados: "para 2 pessoas" (singular também). Tirar a palavra deixava o
+  // "com" seguinte colado ao número e a lista ("PARA 4 PESSOAS + BATATA") passava a reprovar.
+  t = t.replace(/(^|[^\p{L}\d])c\/(?=\s)/giu, '$1com')
+       .replace(/(^|[^\p{L}\d])(para\s+\d+)\s+pessoas?(?=$|[^\p{L}\d])/giu, '$1$2 pessoas')
+       .replace(/(^|[^\p{L}\d])p\/\s+(\d+)/giu, '$1para $2 pessoas');
   // "Taxa de entrega grátis" ≡ "Entrega grátis" (a mesma troca do degrau curtas).
   t = t.replace(_gCfRe('taxa(?=\\s+de\\s+entrega\\s+gr[aá]tis)'), (m, pre) => pre);
   G_CF_CURTAS.forEach(([p, curta]) => { t = t.replace(_gCfRe(p), (m, pre) => pre + curta); });
@@ -391,7 +417,7 @@ function gCopyFitConfere(original, candidato){
    Os pesos: limpeza 0 (espaço, "por apenas", parêntese de uma palavra: ninguém sente falta);
    unidade 1 ("500ml" é como se escreve); forma curta 2 (consagrada, mas a palavra muda);
    tamanho e lista 3 (a letra/o "+" mudam a cara da frase); enfeite 5 (sai uma palavra dita). */
-const _G_CF_PESO = { limpeza:0, unidades:1, curtas:2, tamanho:3, lista:3, enfeite:5 };
+const _G_CF_PESO = { limpeza:0, unidades:1, curtas:2, tamanho:3, lista:3, barra:3, enfeite:5 };
 const _G_CF_MAX = 12;
 
 /**
@@ -425,7 +451,7 @@ function gCopyFitCandidatos(texto){
     return memo[d.id] = !ok ? est : { text: t, trocas: est.trocas.concat(r.trocas), removidas: est.removidas.concat(r.removidas),
       degraus: est.degraus.concat(d.id) };
   };
-  // A limpeza é a base de todos (custo 0); os outros 5 degraus entram em todas as 2^5 = 32
+  // A limpeza é a base de todos (custo 0); os outros 6 degraus entram em todas as 2^6 = 64
   // combinações, sempre na ordem da escada (lista depende de curtas: "refrigerante" → "refri").
   const [limpeza, ...resto] = _G_CF_DEGRAUS;
   const base = passo(limpeza, { text: original, trocas: [], removidas: [], degraus: [] });

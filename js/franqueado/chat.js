@@ -1946,7 +1946,8 @@ async function fCorrigirTextoLongo(res){
   const falta = (d && Number.isFinite(d.limite) && d.limite > 0 && Number.isFinite(d.atual)) ? d.atual - d.limite : 0;
   const quanto = (d && Number.isFinite(d.limite) && d.limite > 0)
     ? (falta > 0
-        ? 'Hoje tem ' + d.atual + ' letras e cabem ' + d.limite + ' — faltam cortar ' + falta + '.'
+        ? 'Cabem até ' + d.limite + ' caracteres aqui — hoje tem ' + d.atual + '. Tire '
+          + (falta === 1 ? '1 letra' : falta + ' letras') + '.'
         : 'Cabem até ' + d.limite + ' caracteres aqui — hoje tem ' + d.atual + '.')
     : 'Ele não cabe nesta arte nem no menor tamanho legível.';
 

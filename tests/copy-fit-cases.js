@@ -58,7 +58,14 @@
     }
     return null;                                    // não depende de posição
   };
+  /* "c/" ≡ "com" e "p/ 2" ≡ "para 2 pessoas" (degrau `barra`, 25/09/2026): as duas formas
+     valem a mesma palavra — a especificação canoniza os dois lados, como o confere do motor. */
+  const barra = x => String(x)
+    .replace(/(^|[^\p{L}\d])c\/(?=\s)/giu, '$1com')
+    .replace(/(^|[^\p{L}\d])(para\s+\d+)\s+pessoas?(?=$|[^\p{L}\d])/giu, '$1$2 pessoas')
+    .replace(/(^|[^\p{L}\d])p\/\s+(\d+)/giu, '$1para $2 pessoas');
   const itensIntactos = (orig, cand) => {
+    orig = barra(orig); cand = barra(cand);
     const b = brutas(orig), resta = {};
     const chave = raw => { const w = nu(raw); return /^[\d.,/]*$/.test(w) ? '' : canon(semNum(w)); };
     brutas(cand).forEach(raw => { const w = chave(raw); if(w) resta[w] = (resta[w] || 0) + 1; });
@@ -447,15 +454,18 @@
       const dados = {}; fx.campos.forEach(c => { dados[c.name] = c.example; });
       window.dVars = fx.campos.map(c => Object.assign({ type:'text' }, c));
       const base = gApplyRelativeAnchors(JSON.parse(JSON.stringify(fx.layers)), dados, {}, { canvas:fx.canvas, scope:'franqueado' });
-      const medir = gLocalFitMedidor(base, { fieldId:'produto' }, 'produto', dados, { canvas:fx.canvas, defaults:{} });
+      /* No TÍTULO desde 25/09/2026: com a hierarquia por família o produto pode ficar menor que
+         o preço e a caixa dele parou de bloquear com copy razoável. O título segue preso ao
+         produto (hierarquia real), então o cenário continua de verdade. */
+      const medir = gLocalFitMedidor(base, { fieldId:'titulo' }, 'titulo', dados, { canvas:fx.canvas, defaults:{} });
       const cabe = t => { const r = medir(t); return { ok: !!r && r.status === 'fits', fontSize: r ? r.fontSize : 0 }; };
-      const f = 'Na compra de 2 pizzas grandes ganhe 1 refrigerante de 2 litros grátis';
+      const f = 'Ganhe 1 refrigerante de 2 litros';
       assert(!cabe(f).ok, 'o cenário precisa começar bloqueado');
       const { sugestoes } = gCopyFitSugestoes(f, cabe, 3);
       assert(sugestoes.length, 'deveria haver uma versão que cabe');
       sugestoes.forEach(s => assert(cabe(s.text).ok, 'sugeriu o que não cabe: ' + s.text));
-      // Com a pilha inferida (o CTA desce), "2 litros" → "2L" sozinho já cabe: é a 1ª, a que menos mexe.
-      assert(/ 2L /.test(sugestoes[0].text), 'a 1ª deveria usar "2L": ' + sugestoes[0].text);
+      // "2 litros" → "2L" sozinho já cabe: é a 1ª, a que menos mexe.
+      assert(/ 2L(\s|$)/.test(sugestoes[0].text), 'a 1ª deveria usar "2L": ' + sugestoes[0].text);
     } finally { window.dVars = dvAntes; }
   });
 

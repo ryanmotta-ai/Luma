@@ -686,8 +686,12 @@ await test('Sheets: o celular é recusado com aviso, o desktop passa', async()=>
    mexer no roteamento: a foto tem de cair no campo que o chat está PEDINDO (e não em outro),
    o gesto tem de ser RECUSADO COM AVISO quando nenhum passo pede foto, e o Ctrl+V de quem
    está DIGITANDO não pode ser sequestrado. */
+/* 400×400 desde 25/09/2026: o portão da foto (`fPortaoFoto`) recusa menos de 400px no lado
+   menor — a miniatura 4×4 de antes agora é recusada DE PROPÓSITO. */
 const _pngMinimo = ()=>{
-  const b64='iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAFklEQVR42mP8z8BQz0AEYBxVSF+FAAlWBAWt6bVzAAAAAElFTkSuQmCC';
+  const cv=document.createElement('canvas'); cv.width=cv.height=400;
+  const cx=cv.getContext('2d'); cx.fillStyle='#c33'; cx.fillRect(0,0,400,400);
+  const b64=cv.toDataURL('image/png').split(',')[1];
   const bin=atob(b64), arr=new Uint8Array(bin.length);
   for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
   return new File([arr],'print.png',{type:'image/png'});

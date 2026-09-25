@@ -31,7 +31,10 @@ const camadas=(wProduto)=>[
   {id:'fundo',type:'shape',shapeKind:'rect',x:0,y:0,w:1080,h:1920,fill:'#E8231A',visible:true,opacity:100},
   T('produto',{content:'{{produto}}',x:90,y:400,w:wProduto||900,h:110,fontSize:90}),
   T('linha',{content:'{{sabor}} {{borda}}',x:90,y:700,w:900,h:110,fontSize:90}),
-  T('por',{content:'{{precoPor}}',x:90,y:1000,w:400,h:110,fontSize:84,textBox:'point'})
+  T('por',{content:'{{precoPor}}',x:90,y:1000,w:400,h:110,fontSize:84,textBox:'point'}),
+  /* Texto fixo de 84px ao lado do preço (25/09/2026): com a hierarquia por família o preço não
+     segura mais o piso do produto — este texto segura, e a bancada continua bloqueando igual. */
+  T('selo',{content:'SÓ HOJE',isVar:false,x:560,y:1000,w:430,h:110,fontSize:84,textBox:'point'})
 ];
 const material=(id,wProduto)=>({id,name:'Bancada '+id,fmt:'story',w:1080,h:1920,
   layers:camadas(wProduto),publishMeta:{publicado:true}});
@@ -417,7 +420,8 @@ await test('IA lenta: a resposta é descartada se o texto foi reescrito', async(
 
 /* ══ 4. SEM VERSÃO: QUANTO FALTA ══════════════════════════════════════════════════════════ */
 const notaVis=()=>{ const v=document.querySelector('#lp-layout-nota .lp-nota-vis'); return v?v.textContent:''; };
-const faltaDaNota=()=>{ const m=/tire (?:umas (\d+) letras|(1) letra)/.exec(notaVis()); return m?+(m[1]||m[2]):0; };
+// Aviso desde 25/09/2026: "“Produto” não cabe na arte (tem 25 letras, cabem 15) · Encurtar".
+const faltaDaNota=()=>{ const m=/tem (\d+) letras?, cabem (\d+)/.exec(notaVis()); return m?(+m[1])-(+m[2]):0; };
 
 await test('Sem versão: o aviso diz quantas letras tirar, e o corte desse tamanho CABE', async()=>{
   await reset({produto:SEM_VERSAO});
@@ -434,7 +438,7 @@ await test('Sem versão: o diálogo diz o MESMO número e o contador bate com el
   await reset({produto:SEM_VERSAO});
   const n=faltaDaNota(); assert(n>=1,'pré-condição: aviso com o número');
   const ov=await abreDialogo(); assert(ov,'o aviso não abriu o diálogo');
-  const quanto=n===1?'1 letra':'umas '+n+' letras';
+  const quanto='Tire '+(n===1?'1 letra':n+' letras');
   assert(ov.textContent.includes(quanto),'o diálogo não disse "'+quanto+'": "'+ov.textContent+'"');
   ov.querySelector('.g-dialog-ok').click(); await tick(); clearTimeout(box._lpPreviewT);
   fUpdateCharCount();
@@ -446,7 +450,7 @@ await test('Sem versão: o diálogo diz o MESMO número e o contador bate com el
 await test('Campo de preço bloqueado não ganha "tire N letras" (cortar o fim de um preço não é conselho)', async()=>{
   await reset({precoPor:PRECO_LONGO});
   assert(_lpLayoutResult.invalid,'pré-condição: bloqueia');
-  assert(!faltaDaNota()&&/encurtar/.test(notaVis()),'o preço ganhou número de letras: "'+notaVis()+'"');
+  assert(!faltaDaNota()&&/encurtar/i.test(notaVis()),'o preço ganhou número de letras: "'+notaVis()+'"');
 });
 
 await test('Leitor de tela: o número que muda a cada tecla só é falado na pausa', async()=>{
