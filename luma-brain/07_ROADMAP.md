@@ -151,6 +151,12 @@ modo, mais uma aba, mais uma flag.
 
 ### Aberto
 
+- [ ] 🔴 **Local Fit — roadmap próprio em `docs/LOCAL-FIT-ROADMAP.md` (25/09).** O motor resolve
+  87,5% na bancada; o que está ruim fica em volta: a telemetria grava `campo` sempre nulo, o CI da
+  `talpaipai` está vermelho, o limite de caracteres publicado (padrão 32) passa por cima da medida
+  da caixa, e no celular o franqueado só descobre o bloqueio no "Baixar". Fases: 0 enxergar → 1
+  régua única designer↔franqueado → 2 bloqueio antes do "Baixar" → 3 motor → 4 Copy Fit, com as
+  decisões D1–D5 do Ryan.
 - [x] **Hex soltos: encerrado, e era premissa errada minha (02/09).** Reportei "115 hex soltos em CSS que o franqueado vê". Classificando os 140 hex dos 5 arquivos: **45 são `var(--token, #fallback)`** (padrão defensivo, correto), **43 são paleta de MARCA ALHEIA** (a simulação de WhatsApp e o chassi do iPhone no `#f-posted-modal` — tokenizar seria mentir sobre o que o franqueado vai ver) e ~9 estão dentro de comentários citando medições. Dos ~37 restantes, os que dão para medir **passam nos dois temas** (`.lp-empty-title` 16,3:1 escuro / 18,7:1 claro; `.lp-empty-sub` 5,4:1 / 5,1:1 — `#F0EDE9`/`#8F8880` são variantes quentes afinadas a olho, e medem bem). O resto é `color:#fff` em botão de marca, idêntico em qualquer tema.
   - **O que foi feito de verdade:** a magenta do Much+ (`#F8006E`) estava cravada em 2 arquivos tendo token no `:root` → virou `var(--muchplus-magenta)` nos 4 usos, conferido pixel a pixel (`rgb(248,0,110)` antes e depois).
   - **Não fazer:** troca em massa de `color:#fff` por `var(--white)`. É churn sem ganho medido e contra a lei do patch cirúrgico. *E não repetir a varredura estática de hex: sem separar fallback de `var()`, marca alheia e comentário, ela infla o número em ~3×.*
