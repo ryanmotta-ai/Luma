@@ -1569,7 +1569,7 @@ function _fBulkRevalidateRows(rows){
     const isEmpty=keys.every(k=>!dados[k].trim());
     const erros=[];
     if(!isEmpty) keys.forEach(k=>{
-      const err=typeof fValidate==='function'?fValidate(k,dados[k]):null;
+      const err=typeof fValidate==='function'?fValidate(k,dados[k],dados):null;
       if(err) erros.push(err);
     });
     return {dados,erros};
@@ -1870,7 +1870,7 @@ async function fBulkOpen(opcoes){
     });
     linhaDaArte.erros = [];
     Object.keys(linhaDaArte.dados).forEach(v => {
-      const err = (typeof fValidate === 'function') ? fValidate(v, linhaDaArte.dados[v]) : null;
+      const err = (typeof fValidate === 'function') ? fValidate(v, linhaDaArte.dados[v], linhaDaArte.dados) : null;
       if (err) linhaDaArte.erros.push(err);
     });
     const l0 = fBulkRows && fBulkRows[0];
@@ -2321,7 +2321,7 @@ function _fBulkRowFromCampos(c){
   // Validação
   const erros = [];
   vars.forEach(v => {
-    const err = typeof fValidate === 'function' ? fValidate(v, dados[v]) : null;
+    const err = typeof fValidate === 'function' ? fValidate(v, dados[v], dados) : null;
     if (err) erros.push(err);
   });
 
@@ -3428,6 +3428,15 @@ function fBulkSaveRow(i, isSilent=false, skipReadiness=false) {
       dados[k] = row.dados[k];
     }
   });
+  // "por" < "de" só dá para conferir com a linha inteira lida — a ordem das colunas não é garantida.
+  if (!isEmpty && typeof _fPrecoDePorErro === 'function') keys.forEach(k => {
+    const e = _fPrecoDePorErro(k, dados[k], dados);
+    if (e && !erros.includes(e)) {
+      erros.push(e);
+      const input = document.getElementById(`f-bulk-edit-${i}-${k}`);
+      if (input && isSilent) input.classList.add('f-bulk-cell-err');
+    }
+  });
   
   // Auto-Categorizador Rodada 2:
   if (keys.includes('categoria') && keys.includes('produto')) {
@@ -4101,9 +4110,14 @@ function fBulkApplyFill() {
 // Revalida UMA coluna de uma linha após uma transformação em massa: em vez de só
 // apagar o erro antigo (que deixava dado inválido "verde"), reexecuta fValidate.
 function _fBulkRevalidateCol(r, col){
-  r.erros = (r.erros||[]).filter(e => !e.includes(col));
-  const err = (typeof fValidate==='function') ? fValidate(col, r.dados[col]) : null;
-  if (err) r.erros.push(err);
+  /* Revalida a LINHA inteira, não só a coluna: a regra "por < de" cruza campos, e o filtro
+     antigo (`e.includes(col)`) procurava o id técnico dentro de mensagens que usam o RÓTULO —
+     o erro velho nunca saía. */
+  if (typeof fValidate !== 'function') return;
+  const keys = Object.keys(r.dados||{});
+  const vazia = keys.every(k => !String(r.dados[k]||'').trim());
+  r.erros = [];
+  if (!vazia) keys.forEach(k => { const e = fValidate(k, r.dados[k], r.dados); if (e) r.erros.push(e); });
 }
 
 /* Foto/logo nunca é preço: o "aplicar mesmo assim?" deixava passar, e fParsePriceNumber

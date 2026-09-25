@@ -364,8 +364,39 @@ function fApplyMask(id, raw){
   return v.slice(0, cfg.maxLen);
 }
 
-// Validação pós-máscara — retorna mensagem de erro ou null
-function fValidate(id, val){
+/* "POR" TEM QUE SER MENOR QUE "DE" (25/09/2026, feedback da Laura: nada impedia "de R$ 20
+   por R$ 30"). Regra cruzada — precisa do outro campo, por isso vem em `dados` (opcional:
+   sem ele, só o caso de um campo com os dois preços, "De R$ X Por R$ Y", é checado).
+   Igual também reprova: "de R$ 20 por R$ 20" anuncia uma oferta que não existe. */
+function _fPrecoNum(v){
+  const m = String(v||'').match(/r\$\s?(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+  return m ? parseFloat(m[1].replace(/\./g,'').replace(',','.')) : NaN;
+}
+function _fPrecoDePorErro(id, val, dados){
+  const precos = String(val||'').match(/r\$\s?\d{1,3}(?:\.\d{3})*,\d{2}/gi) || [];
+  if(precos.length >= 2 && /\bde\b/i.test(val) && /\bpor\b/i.test(val)){
+    const de = _fPrecoNum(precos[0]), por = _fPrecoNum(precos[1]);
+    if(de > 0 && por > 0 && por >= de) return `O preço “por” (${precos[1]}) precisa ser menor que o “de” (${precos[0]}).`;
+  }
+  if(!dados || typeof fPrecoPapel !== 'function') return null;
+  const papel = fPrecoPapel(id);
+  if(papel !== 'de' && papel !== 'por') return null;
+  const outro = papel === 'de' ? 'por' : 'de';
+  const k2 = Object.keys(dados).find(k => k !== id && fPrecoPapel(k) === outro && String(dados[k]||'').trim());
+  if(!k2) return null;
+  const a = _fPrecoNum(val), b = _fPrecoNum(dados[k2]);
+  if(!(a > 0) || !(b > 0)) return null;
+  const de = papel === 'de' ? a : b, por = papel === 'de' ? b : a;
+  if(por < de) return null;
+  const tDe = papel === 'de' ? val : dados[k2], tPor = papel === 'de' ? dados[k2] : val;
+  return papel === 'por'
+    ? `O preço “por” (${String(tPor).trim()}) precisa ser menor que o “de” (${String(tDe).trim()}).`
+    : `O preço “de” (${String(tDe).trim()}) precisa ser maior que o “por” (${String(tPor).trim()}).`;
+}
+
+// Validação pós-máscara — retorna mensagem de erro ou null.
+// `dados` (opcional) = os outros campos da arte/linha, para regras cruzadas (por < de).
+function fValidate(id, val, dados){
   const cfg = fGetFieldType(id);
   // Se o franqueado escolheu pular o campo opcional, valida com sucesso (retorna null)
   if(val && String(val).toLowerCase() === 'pular') return null;
@@ -394,6 +425,8 @@ function fValidate(id, val){
     const ok = (precos.length && precos.every(t=>/^r\$\s?\d{1,3}(?:\.\d{3})*,\d{2}$/i.test(t)))
       || /qualquer|grátis|gratis|sem valor/i.test(val);
     if(!ok) return `Use um valor em R$ (ex: R$ 9,90).`;
+    const cruzado = _fPrecoDePorErro(id, val, dados);
+    if(cruzado) return cruzado;
   }
   if(cfg.type === 'discount'){
     const ok = /\d+%|r\$/i.test(val);
@@ -674,9 +707,19 @@ async function fFitTextWithAI(comIA){
   const cfg=fGetFieldType(id);
   /* O alvo que a IA recebe e que o código valida é o mesmo que o contador mostra — senão ela
      devolveria três opções de 58 caracteres para uma caixa onde só cabem 28. */
-  const alvo=fAlvoDoCampo(id, cfg);
+  let alvo=fAlvoDoCampo(id, cfg);
   const original=_fFitAttempt(box,id) || box.value;
   if(!original) return;
+  /* ⚠ O ENCURTAR "NÃO FUNCIONAVA" (Laura, 25/09): o alvo era o `maxLen`, e a caixa nunca passa
+     dele (maxLength nativo). A IA recebia "no máximo 32" para um texto de 30, devolvia o mesmo
+     texto, e a conferência o descartava como igual → "a IA não achou versão". Agora:
+     · a arte bloqueou neste campo → o alvo é o que CABE EM PIXEL (a mesma conta do aviso);
+     · não bloqueou e já está dentro → pede um corte de verdade (~80% do atual). */
+  const _bloqA=_fFitBloqueio(id), _cvA=document.getElementById('lp-canvas');
+  const _faltaA=(_bloqA && _cvA && _cvA.width && typeof _fLpFalta==='function') ? _fLpFalta(_bloqA, _cvA.width, _cvA.height) : null;
+  if(_faltaA && _faltaA.limite>0) alvo=Math.min(alvo, _faltaA.limite);
+  const _soMaisCurto = !_bloqA && original.length<=alvo;
+  if(_soMaisCurto) alvo=Math.max(4, Math.floor(original.length*0.8));
   const btn=document.getElementById('f-fit-btn');
   const podeIA = (typeof window.gAI==='object' && gAI.isReady('copy.fit'))
     || (typeof gAskAI==='function' && typeof gAiReady==='function' && gAiReady());
@@ -691,9 +734,11 @@ async function fFitTextWithAI(comIA){
       (cf.removidas.length ? 'Sai: '+cf.removidas.join(', ')+'. ' : '')+'Confira antes de enviar.', podeIA);
     return;
   }
-  if(!podeIA) return;
+  // Sem IA no ar o toque morria calado — mais um "o Encurtar não funciona".
+  if(!podeIA){ gToast('A IA não está disponível agora — encurte o texto à mão.', 'error'); return; }
   _fFitBusy=true;
   if(btn){ btn.classList.add('is-loading'); btn.disabled=true; }
+  const _fimProgresso=_fFitProgresso(btn);
 
   let brutas = [];
   try{
@@ -720,7 +765,8 @@ REGRAS:
 4. Pode tirar: artigos e preposições, "apenas/somente" antes de preço, adjetivo de enfeite antes do produto (delicioso, super, incrível), trocar "com"/"e" por "+" entre itens, e abreviar: refrigerante→refri, hambúrguer→burger, promoção→promo, litros→L, grande/médio/pequeno→G/M/P, segunda-feira→seg, "de desconto"→OFF.
 5. Mantenha qualquer {{campo}} e tag exatamente como estão. Se o texto está em MAIÚSCULAS, responda em MAIÚSCULAS.
 Responda apenas JSON: {"opcoes":["...","...","..."]}`;
-      const txt = await gAskAI('encurtar', prompt, {json:true});
+      // cache:false — repetir o toque devolvia na hora a MESMA resposta já reprovada.
+      const txt = await gAskAI('encurtar', prompt, {json:true, cache:false});
       const parsed = txt && (typeof gAiParseJson==='function'?gAiParseJson(txt):null);
       if(parsed && Array.isArray(parsed.opcoes)) brutas = parsed.opcoes;
     }
@@ -728,6 +774,7 @@ Responda apenas JSON: {"opcoes":["...","...","..."]}`;
     console.warn('[Luma] encurtar falhou:', e);
   }finally{
     if(btn){ btn.classList.remove('is-loading'); btn.disabled=false; }
+    _fimProgresso();
     _fFitBusy=false;
   }
   /* A IA demora: se nesse meio-tempo a pessoa enviou (outra pergunta na caixa) ou reescreveu,
@@ -746,7 +793,8 @@ Responda apenas JSON: {"opcoes":["...","...","..."]}`;
   brutas.map(s=>String(s||'').replace(/[\r\n\t]/g,' ').replace(/\s+/g,' ').trim()).forEach(s=>{
     if(!s || s===original || opts.includes(s)) return;
     const conf=(typeof gCopyFitConfere==='function') ? gCopyFitConfere(original, s) : {ok:false, motivo:'sem motor'};
-    if(!conf.ok || s.length>cfg.maxLen || !(regua ? regua(s) : s.length<=alvo)){ reprovadas++; return; }
+    const cabeOk = regua ? regua(s) : (_soMaisCurto ? s.length<original.length : s.length<=alvo);
+    if(!conf.ok || s.length>cfg.maxLen || !cabeOk){ reprovadas++; return; }
     opts.push(s); sai.push(conf.removidas||[]);
   });
   _fFitIaReprovadas=reprovadas;
@@ -761,8 +809,26 @@ Responda apenas JSON: {"opcoes":["...","...","..."]}`;
   }
   // O que saiu vai no rodapé quando há uma opção só (cabe no desenho); com várias, no title de cada.
   const s0=_fFitOpts.length===1 ? _fFitSaiVisivel(_fFitSai[0]) : [];
-  _fFitPop(btn, regua ? 'Cabe na arte' : `Cabe em ${alvo} caracteres`,
+  _fFitPop(btn, regua ? 'Cabe na arte' : (_soMaisCurto ? 'Versões mais curtas' : `Cabe em ${alvo} caracteres`),
     (s0.length ? 'Sai: '+s0.join(', ')+'. ' : '')+'Sugestão de IA — confira antes de gerar.', false);
+}
+/* BARRA DE PROGRESSO DO ENCURTAR (Laura, 25/09: "falta feedback"). A IA leva de 2 a 20s e
+   antes só o ícone girava. Não há progresso real para medir, então a barra anda rápido no
+   começo e desacelera perto de 90% — nunca "chega" antes da resposta. Devolve o que fecha. */
+function _fFitProgresso(btn){
+  const wrap=document.getElementById('f-input-wrap'); if(!wrap) return ()=>{};
+  _fFitClosePop();
+  const pop=document.createElement('div');
+  pop.id='f-fit-pop'; pop.className='f-fit-pop f-fit-pop-carregando';
+  pop.setAttribute('role','status'); pop.setAttribute('aria-live','polite');
+  pop.innerHTML='<div class="f-fit-pop-head">Encurtando com IA…</div><div class="f-fit-prog"><div class="f-fit-prog-bar"></div></div><div class="f-fit-pop-foot">Mantendo produto e preço. Leva alguns segundos.</div>';
+  const row=document.getElementById('f-input-row');
+  if(typeof _fCelular==='function' && _fCelular() && row && row.parentElement && row.parentElement.id==='f-sheet')
+    row.parentElement.insertBefore(pop, row);
+  else wrap.appendChild(pop);
+  const bar=pop.querySelector('.f-fit-prog-bar'), t0=Date.now();
+  const tick=setInterval(()=>{ const s=(Date.now()-t0)/1000; bar.style.width=(90*(1-Math.exp(-s/6))).toFixed(1)+'%'; },200);
+  return ()=>{ clearInterval(tick); if(pop.isConnected) pop.remove(); };
 }
 // O que o franqueado lê em "Sai:": o mesmo filtro do balão (só palavra de verdade).
 function _fFitSaiVisivel(lista){

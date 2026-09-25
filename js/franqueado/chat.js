@@ -443,7 +443,7 @@ function _fGuidedCampoResolvido(p){
   const v=fState.dados&&fState.dados[p.id];
   if(v==null||v==='') return false;
   const masked=fApplyMask(p.id,String(v));
-  return !fValidate(p.id,masked);
+  return !fValidate(p.id,masked,fState.dados);
 }
 function _fGuidedPreenchidas(){
   return _fGuidedPerguntas().reduce((n,p)=>n+(_fGuidedCampoResolvido(p)&&!(fState.dados&&fState.dados['__skipped__'+p.id])?1:0),0);
@@ -613,7 +613,7 @@ function _fGuidedSalvar(raw){
   const cfg=fGetFieldType(p.id), pulou=String(raw).toLowerCase()==='pular';
   if(pulou&&cfg.required){ _fGuidedErro('Esta informação é necessária para gerar a arte.'); return; }
   const valor=pulou?'':fApplyMask(p.id,String(raw||''));
-  const erro=pulou?null:fValidate(p.id,valor);
+  const erro=pulou?null:fValidate(p.id,valor,fState.dados);
   if(erro){ _fGuidedErro(erro); return; }
   _fGuidedErro('');
   fState.dados[p.id]=valor;
@@ -1946,8 +1946,7 @@ async function fCorrigirTextoLongo(res){
   const falta = (d && Number.isFinite(d.limite) && d.limite > 0 && Number.isFinite(d.atual)) ? d.atual - d.limite : 0;
   const quanto = (d && Number.isFinite(d.limite) && d.limite > 0)
     ? (falta > 0
-        ? 'Tire ' + (falta === 1 ? '1 letra' : 'umas ' + falta + ' letras') + ' — cabem até ' + d.limite
-          + ' caracteres aqui, hoje tem ' + d.atual + '.'
+        ? 'Hoje tem ' + d.atual + ' letras e cabem ' + d.limite + ' — faltam cortar ' + falta + '.'
         : 'Cabem até ' + d.limite + ' caracteres aqui — hoje tem ' + d.atual + '.')
     : 'Ele não cabe nesta arte nem no menor tamanho legível.';
 
@@ -2007,6 +2006,14 @@ async function fCorrigirTextoLongo(res){
     boxEd.value = atual;
     boxEd.dispatchEvent(new Event('input', { bubbles: true }));
     try{ boxEd.focus(); }catch(e){}
+  }
+  /* "Encurtar agora" ENCURTA: antes só abria o campo e deixava o corte com a pessoa — quem
+     tocou em "Encurtar" esperava uma versão menor (Laura, 25/09). A IA sugere; aplicar continua
+     sendo toque dela no popover. */
+  if(!versao && typeof fFitTextWithAI === 'function'){
+    setTimeout(()=>{
+      if(fState.camp?.perguntas?.[fState.stepIdx]?.id === campo) fFitTextWithAI(true);
+    }, 60);
   }
   /* O contador só repinta no próximo `input`, e a pessoa acabou de chegar aqui pelo alvo
      novo — sem isto ela veria o limite antigo até digitar a primeira letra. */
@@ -3344,7 +3351,7 @@ function fQR(val, el){
   // ou curtas não devem escapar da validação só por serem clicadas)
   const id = fState.camp.perguntas[fState.stepIdx]?.id;
   const masked = id ? fApplyMask(id, val) : val;
-  const err = id ? fValidate(id, masked) : null;
+  const err = id ? fValidate(id, masked, fState.dados) : null;
   if(err){ fShowFieldError(err); return; }
   // M1.1: a sugestão transita visualmente — colapsa as outras e some suave a clicada
   if(el && el.classList){
@@ -3387,7 +3394,7 @@ function fSend(){
   // Aplica máscara e valida antes de salvar
   const id = fState.camp.perguntas[fState.stepIdx]?.id;
   const masked = id ? fApplyMask(id, v) : v;
-  const err = id ? fValidate(id, masked) : null;
+  const err = id ? fValidate(id, masked, fState.dados) : null;
   if(err){
     fShowFieldError(err);
     return;

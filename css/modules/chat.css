@@ -506,6 +506,8 @@ textarea#f-msg-box.is-multi{border-radius:20px}
   background:var(--white);border:1px solid var(--gray-light);border-radius:12px;box-shadow:0 12px 32px rgba(10,10,10,.14);
   padding:6px;animation:gFadeInUp var(--dur-fast) var(--ease-out) both}
 .f-fit-pop-head{padding:6px 8px 4px;font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
+.f-fit-prog{height:6px;margin:6px 8px 4px;border-radius:var(--r-pill);background:var(--gray-light);overflow:hidden}
+.f-fit-prog-bar{height:100%;width:0;border-radius:inherit;background:var(--dm-orange);transition:width .2s linear}
 .f-fit-opt{display:flex;align-items:center;gap:8px;width:100%;padding:7px 8px;border:none;background:transparent;border-radius:8px;
   cursor:pointer;text-align:left;font-family:'Roboto',sans-serif;font-size:12px;color:var(--text);
   transition:background var(--dur-fast) var(--ease-standard)}

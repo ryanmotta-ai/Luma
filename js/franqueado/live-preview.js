@@ -1417,10 +1417,12 @@ function _fLpSyncBloqueio(resArg){
   const F0=(!B&&resArg===undefined&&_lpBalao&&_lpBalao.falta)||null;
   const F=(F0&&F0.campo===campo&&F0.fieldId===bloq0.fieldId
            &&String((fState.dados||{})[campo]==null?'':fState.dados[campo])===F0.valor)?F0:null;
-  const tire=F?'tire '+(F.n===1?'1 letra':'umas '+F.n+' letras'):'';
-  _fLpNotaTexto(nota,'“'+rotulo+'” não cabe — '+(tire||'encurtar'),falado);
+  /* A frase antiga era "“Produto” não cabe — tire umas 20 letras" (Laura, 25/09: "essa copy
+     está muito ruim"): "umas" é chute e não diz o que fazer. Agora: o número exato e a ação. */
+  const conta=F?'tem '+F.atual+' letras, cabem '+F.limite:'';
+  _fLpNotaTexto(nota,'“'+rotulo+'” não cabe na arte'+(conta?' ('+conta+')':'')+' · Encurtar',falado);
   nota.title='“'+rotulo+'” não cabe nesta arte nem no menor tamanho legível.'
-    +(tire?' '+tire[0].toUpperCase()+tire.slice(1)+'.':'')+' Toque para encurtar.';
+    +(conta?' Hoje '+conta+'.':'')+' Toque para encurtar com IA.';
   nota.setAttribute('aria-label', nota.title+falado);
   nota.onclick=()=>{
     if(typeof fCorrigirTextoLongo!=='function') return;
