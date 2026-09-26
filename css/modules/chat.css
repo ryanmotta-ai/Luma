@@ -502,12 +502,36 @@ textarea#f-msg-box.is-multi{border-radius:20px}
 .f-fit-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 .f-fit-btn.is-loading{opacity:.6;pointer-events:none}
 .f-fit-btn.is-loading svg{animation:gSpin 1s linear infinite}
-.f-fit-pop{position:absolute;right:0;bottom:calc(100% + 8px);z-index:30;min-width:260px;max-width:min(420px,80vw);
+/* Largura FIXA: a espera e o resultado são o mesmo painel (chat-input.js: _fFitPopEl), e pela
+   largura do conteúdo ele encolhia na espera e alargava quando a resposta chegava. */
+.f-fit-pop{position:absolute;right:0;bottom:calc(100% + 8px);z-index:30;width:min(360px,80vw);
   background:var(--white);border:1px solid var(--gray-light);border-radius:12px;box-shadow:0 12px 32px rgba(10,10,10,.14);
   padding:6px;animation:gFadeInUp var(--dur-fast) var(--ease-out) both}
-.f-fit-pop-head{padding:6px 8px 4px;font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
-.f-fit-prog{height:6px;margin:6px 8px 4px;border-radius:var(--r-pill);background:var(--gray-light);overflow:hidden}
-.f-fit-prog-bar{height:100%;width:0;border-radius:inherit;background:var(--dm-orange);transition:width .2s linear}
+.f-fit-pop-head{display:flex;align-items:center;gap:6px;padding:6px 8px 4px;font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
+.f-fit-pop-head svg{flex-shrink:0;color:var(--green-text)}
+.f-fit-pop-falha .f-fit-pop-head{color:var(--text-2)}
+.f-fit-pop-falha .f-fit-pop-head svg{color:var(--dm-orange-text)}
+/* AS ETAPAS DO ENCURTAR (chat-input.js: _fFitProgresso) — só avançam quando uma etapa termina
+   de verdade; a ativa gira e conta segundos reais. Sem barra de tempo: ela prometia progresso
+   que ninguém media. */
+.f-fit-etapas{list-style:none;margin:4px 0 6px;padding:0 8px;display:grid;gap:7px}
+.f-fit-etapas li{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-3)}
+.f-fit-etapas li.is-feita{color:var(--text-2)}
+.f-fit-etapas li.is-ativa{color:var(--text);font-weight:600}
+.f-fit-etapas i{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;
+  border-radius:50%;border:1.5px solid var(--gray-mid);box-sizing:border-box}
+.f-fit-etapas .is-feita i{border:none;color:var(--green-text)}
+.f-fit-etapas .is-ativa i{border-color:var(--dm-orange-tint);border-top-color:var(--dm-orange);animation:gSpin .8s linear infinite}
+.f-fit-etapas em{margin-left:auto;padding-left:8px;font-style:normal;font-size:10px;font-weight:700;color:var(--text-3);font-variant-numeric:tabular-nums}
+.f-fit-pop-msg{margin:0;padding:0 8px 8px;font-size:12px;line-height:1.4;color:var(--text-2)}
+.f-fit-acoes{display:flex;justify-content:flex-end;gap:6px;padding:2px 4px 2px}
+.f-fit-acao{padding:5px 12px;border:1px solid var(--gray-light);border-radius:var(--r-pill);background:transparent;color:var(--text-2);
+  font-family:'Roboto',sans-serif;font-size:11px;font-weight:700;cursor:pointer;
+  transition:background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard)}
+.f-fit-acao:hover{background:var(--gray-light)}
+.f-fit-acao:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+.f-fit-acao.is-primaria{background:var(--dm-orange-bg);border-color:var(--dm-orange-tint);color:var(--dm-orange-text)}
+.f-fit-acao.is-primaria:hover{background:var(--dm-orange-tint)}
 .f-fit-opt{display:flex;align-items:center;gap:8px;width:100%;padding:7px 8px;border:none;background:transparent;border-radius:8px;
   cursor:pointer;text-align:left;font-family:'Roboto',sans-serif;font-size:12px;color:var(--text);
   transition:background var(--dur-fast) var(--ease-standard)}
@@ -518,6 +542,14 @@ textarea#f-msg-box.is-multi{border-radius:20px}
 body:not(.theme-light) .f-fit-pop{background:var(--d-surf);border-color:var(--d-border)}
 body:not(.theme-light) .f-fit-opt{color:var(--d-text)}
 body:not(.theme-light) .f-fit-opt:hover{background:var(--d-surf2)}
+body:not(.theme-light) .f-fit-etapas li,body:not(.theme-light) .f-fit-etapas li.is-feita,
+body:not(.theme-light) .f-fit-pop-msg,body:not(.theme-light) .f-fit-pop-falha .f-fit-pop-head{color:var(--d-text2)}
+body:not(.theme-light) .f-fit-etapas li.is-ativa{color:var(--d-text)}
+body:not(.theme-light) .f-fit-etapas i{border-color:var(--d-border)}
+body:not(.theme-light) .f-fit-etapas .is-ativa i{border-color:var(--d-border);border-top-color:var(--dm-orange)}
+body:not(.theme-light) .f-fit-acao{border-color:var(--d-border);color:var(--d-text2)}
+body:not(.theme-light) .f-fit-acao:hover{background:var(--d-surf2)}
+body:not(.theme-light) .f-fit-acao.is-primaria{background:color-mix(in srgb,var(--dm-orange) 14%,var(--d-surf));border-color:color-mix(in srgb,var(--dm-orange) 34%,var(--d-border));color:var(--dm-orange)}
 body:not(.theme-light) .f-fit-btn{background:color-mix(in srgb,var(--dm-orange) 14%,var(--d-surf));border-color:color-mix(in srgb,var(--dm-orange) 34%,var(--d-border));color:var(--dm-orange)}
 .step-label{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dm-orange-d);background:var(--dm-orange-bg);padding:2px 7px;border-radius:3px;margin-right:8px;vertical-align:middle;animation:gFadeIn .3s ease-out both}
 .field-hint{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:4px 9px;background:var(--gray-light);border-radius:var(--r-pill);font-size:10px;color:var(--text-2);font-weight:500;animation:gFadeInUp .3s ease-out .15s both;opacity:0}
@@ -3377,9 +3409,12 @@ body:not(.theme-light) #f-msg-box:disabled{background:var(--d-surf2);color:var(-
      justamente a versão que cabe. Aqui ele é um item do painel, logo acima do campo. As
      opções e o próprio botão ganham o alvo de toque mínimo (o botão por um `::after`
      invisível, sem mudar o desenho dentro do campo). */
-  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet>.f-fit-pop{position:static;order:3;flex:0 0 auto;margin:0 18px 10px;min-width:0;max-width:none}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet>.f-fit-pop{position:static;order:3;flex:0 0 auto;margin:0 18px 10px;width:auto}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-fit-opt{min-height:var(--tap-min);font-size:14px}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-fit-btn::after{content:'';position:absolute;inset:-12px -4px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-fit-acao{min-height:var(--tap-min);padding:0 16px;font-size:13px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-fit-etapas li,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .f-fit-pop-msg{font-size:13px}
 }
 
 /* Movimento é sinal, não enfeite: quem pede menos movimento não perde nada aqui — o painel

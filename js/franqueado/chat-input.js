@@ -570,10 +570,11 @@ function fUpdateCharCount(){
   const counter = document.getElementById('f-char-count');
   if(!box || !counter) return;
   const id = fState.camp?.perguntas?.[fState.stepIdx]?.id;
-  if(!id || fState.done){counter.textContent=''; counter.classList.remove('warn'); return;}
+  // Saiu da pergunta ou apagou tudo com a IA trabalhando: a espera é de um texto que não existe mais.
+  if(!id || fState.done){counter.textContent=''; counter.classList.remove('warn'); _fFitCancela(); return;}
   const cfg = fGetFieldType(id);
   const len = box.value.length;
-  if(len === 0){counter.textContent=''; counter.classList.remove('warn'); return;}
+  if(len === 0){counter.textContent=''; counter.classList.remove('warn'); _fFitCancela(); return;}
   /* Depois de a arte bloquear, o número que vale é o MEDIDO naquela caixa — não a permissão
      do designer. Mostrar 47/60 quando só cabem 28 é o contador mentindo no pior momento. */
   const alvo = fAlvoDoCampo(id, cfg);
@@ -604,7 +605,7 @@ function fUpdateCharCount(){
    onde a prévia (e o balão) ficam escondidos, este é o único lugar em que a solução aparece.
 ══════════════════════════════════════════════════════════════ */
 let _fFitOpts = [];          // últimas opções (o onclick passa índice, nunca o texto)
-let _fFitBusy = false;
+let _fFitRun = null;         // a rodada da IA em curso {id, original, ctrl, tick} — null = parada
 let _fFitSai = [];           // o que saiu de cada opção (paralelo a `_fFitOpts`)
 let _fFitIaReprovadas = 0;   // quantas opções da IA a conferência jogou fora na última rodada
 let _fFitCf = null;        // a solução do Copy Fit por trás de `_fFitOpts[0]`, quando houver
@@ -653,6 +654,13 @@ function _fFitAttempt(box, id){
 // "warn") / a arte bloqueou nele e há IA no ar — aí o toque vai direto à IA ("Tentar com IA").
 function _fFitSync(box, id, cfg, len){
   const wrap=document.getElementById('f-input-wrap'); if(!wrap) return;
+  /* Com a IA trabalhando, a prévia segue medindo e chama isto: sem a guarda, o painel de
+     progresso sumia no meio da espera. Mexer no texto (ou sair da pergunta) é cancelar — a
+     resposta seria de outro texto. */
+  if(_fFitRun){
+    if(_fFitRun.id===id && (_fFitAttempt(box,id) || box.value)===_fFitRun.original) return;
+    _fFitCancela();
+  }
   let btn=document.getElementById('f-fit-btn');
   const tipoTexto = cfg.type==='text' || cfg.type==='code';
   /* Antes só acendia DEPOIS de estourar o teto do designer ou bloquear a arte — no chat guiado,
@@ -697,11 +705,25 @@ function _fFitClosePop(){
      que o abria (o botão reaparece depois de aplicar — com o Copy Fit, a toda hora). */
   if(_fFitFora){ document.removeEventListener('click', _fFitFora); _fFitFora=null; }
 }
-function _fFitEsc(e){ if(e.key==='Escape') _fFitClosePop(); }
+function _fFitEsc(e){ if(e.key==='Escape'){ if(_fFitRun) _fFitCancela(); else _fFitClosePop(); } }
+/* Cancelar devolve o controle na hora: a espera acaba, o texto fica como estava e o botão volta.
+   A resposta que ainda chegar é de uma rodada que não existe mais — `fFitTextWithAI` a ignora. */
+function _fFitCancela(){
+  const r=_fFitRun; if(!r) return;
+  _fFitRun=null;
+  try{ r.ctrl.abort(); }catch(e){}
+  _fFitFimRodada(r);
+  _fFitClosePop();
+}
+function _fFitFimRodada(r){
+  clearInterval(r.tick);
+  const btn=document.getElementById('f-fit-btn');
+  if(btn){ btn.classList.remove('is-loading'); btn.disabled=false; }
+}
 
 // `comIA`: pula o Copy Fit e vai direto à IA (o "Mais opções com IA" do próprio popover).
 async function fFitTextWithAI(comIA){
-  if(_fFitBusy) return;
+  if(_fFitRun) return;
   const box=document.getElementById('f-msg-box'); if(!box) return;
   const id=fState.camp?.perguntas?.[fState.stepIdx]?.id; if(!id) return;
   const cfg=fGetFieldType(id);
@@ -736,24 +758,28 @@ async function fFitTextWithAI(comIA){
   }
   // Sem IA no ar o toque morria calado — mais um "o Encurtar não funciona".
   if(!podeIA){ gToast('A IA não está disponível agora — encurte o texto à mão.', 'error'); return; }
-  _fFitBusy=true;
   if(btn){ btn.classList.add('is-loading'); btn.disabled=true; }
-  const _fimProgresso=_fFitProgresso(btn);
+  const prog=_fFitProgresso('Meta: até '+alvo+' caracteres (hoje '+original.length+')');
+  const run=_fFitRun={id, original, ctrl:new AbortController(), tick:prog.tick};
 
   let brutas = [];
   try{
+    let tentouGateway=false;
     if(typeof window.gAI==='object' && gAI.isReady('copy.fit')){
+      tentouGateway=true;
       const res = await gAI.run('copy.fit', {
         original: original,
         maxLen: alvo,
         fieldName: cfg.label
-      });
+      }, {callerController: run.ctrl});
       if(res.ok && res.data && Array.isArray(res.data.suggestions)){
         brutas = res.data.suggestions.map(s => s.text);
       }
     }
-    // Fallback legado se gAI não trouxe opções
+    if(_fFitRun!==run) return;         // cancelada no meio: a pessoa já tem o controle
+    // Fallback legado se gAI não trouxe opções — é uma segunda espera, e o painel diz isso.
     if(!brutas.length && typeof gAskAI==='function' && gAiReady()){
+      if(tentouGateway) prog.etapa(1, 'Segunda tentativa, por outro caminho');
       /* As regras são as do `gCopyFitConfere`, que confere a resposta: pedir o que se vai
          cobrar poupa opções jogadas fora. O texto vai entre aspas e como DADO, nunca instrução. */
       const prompt=`Encurte este texto de arte de delivery (campo "${cfg.label||'texto'}") para no máximo ${alvo} caracteres.
@@ -772,15 +798,15 @@ Responda apenas JSON: {"opcoes":["...","...","..."]}`;
     }
   }catch(e){
     console.warn('[Luma] encurtar falhou:', e);
-  }finally{
-    if(btn){ btn.classList.remove('is-loading'); btn.disabled=false; }
-    _fimProgresso();
-    _fFitBusy=false;
   }
+  /* Cancelada (Cancelar, Esc, texto mexido): quem cancelou já limpou o painel e o botão. Checar
+     a rodada — e não um "ocupado" — é o que impede a resposta velha de soltar a rodada nova. */
+  if(_fFitRun!==run) return;
+  _fFitRun=null; _fFitFimRodada(run);
   /* A IA demora: se nesse meio-tempo a pessoa enviou (outra pergunta na caixa) ou reescreveu,
      as opções são de OUTRO texto. Sem esta guarda, a versão do produto caía no campo do preço. */
   if(fState.camp?.perguntas?.[fState.stepIdx]?.id!==id || fState.done || box.disabled
-     || (_fFitAttempt(box,id) || box.value)!==original) return;
+     || (_fFitAttempt(box,id) || box.value)!==original){ _fFitClosePop(); return; }
 
   /* Validação no CÓDIGO (§31, §33) — a IA é o ÚLTIMO degrau do Copy Fit e passa pelas MESMAS
      garantias: `gCopyFitConfere` (números, produtos, {{campo}}, caixa, nada inventado, nunca
@@ -803,32 +829,97 @@ Responda apenas JSON: {"opcoes":["...","...","..."]}`;
   _fFitOpts=opts.slice(0,3); _fFitSai=sai.slice(0,3);
   _fFitCf=null;
   if(!_fFitOpts.length){
-    gToast(brutas.length ? 'A IA não achou uma versão que mantenha preço e produtos — edite à mão.'
-                         : 'A IA não respondeu agora — tente de novo ou edite à mão.', 'warning');
+    // A falha fica NO painel, não num toast de 3s: diz o que houve, que o texto não mudou, e a saída.
+    if(brutas.length) _fFitFalha('Nenhuma versão passou na conferência',
+      'A IA não achou uma versão que mantenha preço e produtos e caiba na arte. Seu texto continua como estava — edite à mão ou tente de novo.');
+    else _fFitFalha('A IA não respondeu',
+      'Pode ser instabilidade momentânea. Seu texto continua como estava — tente de novo ou edite à mão.');
     return;
   }
   // O que saiu vai no rodapé quando há uma opção só (cabe no desenho); com várias, no title de cada.
   const s0=_fFitOpts.length===1 ? _fFitSaiVisivel(_fFitSai[0]) : [];
-  _fFitPop(btn, regua ? 'Cabe na arte' : (_soMaisCurto ? 'Versões mais curtas' : `Cabe em ${alvo} caracteres`),
-    (s0.length ? 'Sai: '+s0.join(', ')+'. ' : '')+'Sugestão de IA — confira antes de gerar.', false);
+  const n=_fFitOpts.length;
+  _fFitPop(btn, (regua ? 'Cabe na arte' : (_soMaisCurto ? 'Versões mais curtas' : `Cabe em ${alvo} caracteres`))
+      +' · '+n+(n>1?' versões':' versão'),
+    (s0.length ? 'Sai: '+s0.join(', ')+'. ' : '')+'Sugestão de IA, com preço e produtos conferidos. Seu texto só muda se você escolher.', false);
 }
-/* BARRA DE PROGRESSO DO ENCURTAR (Laura, 25/09: "falta feedback"). A IA leva de 2 a 20s e
-   antes só o ícone girava. Não há progresso real para medir, então a barra anda rápido no
-   começo e desacelera perto de 90% — nunca "chega" antes da resposta. Devolve o que fecha. */
-function _fFitProgresso(btn){
-  const wrap=document.getElementById('f-input-wrap'); if(!wrap) return ()=>{};
+const _F_FIT_ICO_OK='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+const _F_FIT_ICO_ALERTA='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.5M12 16h.01"/></svg>';
+const _F_FIT_DEMORA_S=15;    // passou disto, o painel diz que está demorando (o teto é 45s por tentativa)
+/* O QUE O LUMA ESTÁ FAZENDO (26/09/2026). A barra de antes enchia por uma curva de TEMPO até 90%
+   e parava lá — não media nada, e quem esperava 20s via um "quase pronto" que não era verdade.
+   Agora o painel mostra as etapas que existem de fato e só avança quando uma termina:
+     1. a meta, já medida (o mesmo número do contador);
+     2. a IA escrevendo — a única espera. O relógio conta segundos reais; depois de 15s o
+        rodapé diz que está demorando, e o Cancelar está sempre ali;
+     3. a conferência de preço e produtos (`gCopyFitConfere`) — é instantânea, então o painel
+        vai dela direto ao resultado, que diz o que ela decidiu.
+   O texto da caixa não muda em nenhuma etapa: só o toque numa versão troca. Devolve {tick, etapa}. */
+function _fFitProgresso(meta){
   _fFitClosePop();
-  const pop=document.createElement('div');
-  pop.id='f-fit-pop'; pop.className='f-fit-pop f-fit-pop-carregando';
+  const pop=_fFitPopEl();
+  pop.className='f-fit-pop';
   pop.setAttribute('role','status'); pop.setAttribute('aria-live','polite');
-  pop.innerHTML='<div class="f-fit-pop-head">Encurtando com IA…</div><div class="f-fit-prog"><div class="f-fit-prog-bar"></div></div><div class="f-fit-pop-foot">Mantendo produto e preço. Leva alguns segundos.</div>';
-  const row=document.getElementById('f-input-row');
+  pop.innerHTML='<div class="f-fit-pop-head"><span>Encurtando com IA</span></div><ol class="f-fit-etapas"></ol>'
+    +'<div class="f-fit-pop-foot">Seu texto não muda até você escolher uma versão.</div>'
+    +'<div class="f-fit-acoes"><button type="button" class="f-fit-acao" onclick="_fFitCancela()">Cancelar</button></div>';
+  document.addEventListener('keydown', _fFitEsc);
+  const rotulos=[meta, 'IA escrevendo versões mais curtas', 'Conferir preço e produtos'];
+  const lista=pop.querySelector('.f-fit-etapas');
+  const pinta=(ativa)=>{
+    // O relógio fica fora do que o leitor de tela anuncia: um número por segundo seria ruído.
+    lista.innerHTML=rotulos.map((r,i)=>`<li class="${i<ativa?'is-feita':(i===ativa?'is-ativa':'')}"><i aria-hidden="true">${i<ativa?_F_FIT_ICO_OK:''}</i><span>${gEsc(r)}</span>${i===ativa?'<em aria-hidden="true"></em>':''}</li>`).join('');
+  };
+  pinta(1);
+  const t0=Date.now();
+  let avisou=false;
+  const tick=setInterval(()=>{
+    const s=Math.floor((Date.now()-t0)/1000);
+    const em=lista.querySelector('.is-ativa em'); if(em && s>=1) em.textContent=s+'s';
+    if(!avisou && s>=_F_FIT_DEMORA_S){
+      avisou=true;
+      const foot=pop.querySelector('.f-fit-pop-foot');
+      if(foot) foot.textContent='Está demorando mais que o normal. Pode esperar ou cancelar — seu texto não muda.';
+    }
+  },1000);
+  return { tick, etapa:(i, rotulo)=>{ if(rotulo) rotulos[i]=rotulo; pinta(i); } };
+}
+/* O painel é UM só do começo ao fim: progresso, resultado e falha trocam o conteúdo no lugar.
+   Fechar um e abrir outro fazia o painel piscar e pular justo na hora da resposta. */
+function _fFitPopEl(){
+  let pop=document.getElementById('f-fit-pop');
+  if(pop) return pop;
+  pop=document.createElement('div'); pop.id='f-fit-pop';
+  /* No celular o painel (`#f-sheet`) rola, e o popover que abre PARA CIMA do campo era cortado
+     por ele: a própria versão que cabe sumia atrás da arte. Lá ele entra no fluxo do painel,
+     logo acima do campo (chat.css, bloco do celular). */
+  const wrap=document.getElementById('f-input-wrap'), row=document.getElementById('f-input-row');
   if(typeof _fCelular==='function' && _fCelular() && row && row.parentElement && row.parentElement.id==='f-sheet')
     row.parentElement.insertBefore(pop, row);
-  else wrap.appendChild(pop);
-  const bar=pop.querySelector('.f-fit-prog-bar'), t0=Date.now();
-  const tick=setInterval(()=>{ const s=(Date.now()-t0)/1000; bar.style.width=(90*(1-Math.exp(-s/6))).toFixed(1)+'%'; },200);
-  return ()=>{ clearInterval(tick); if(pop.isConnected) pop.remove(); };
+  else if(wrap) wrap.appendChild(pop);
+  return pop;
+}
+// Esc e "clicou fora" fecham o painel quando ele já tem resultado (na espera, só o Cancelar/Esc).
+function _fFitArmaFechar(pop, btn){
+  setTimeout(()=>{
+    if(!pop.isConnected) return;
+    document.addEventListener('keydown', _fFitEsc);
+    if(_fFitFora) document.removeEventListener('click', _fFitFora);
+    _fFitFora=function fora(ev){
+      if(pop.contains(ev.target) || (btn&&btn.contains(ev.target))) { document.addEventListener('click', fora, {once:true}); return; }
+      _fFitClosePop();
+    };
+    document.addEventListener('click', _fFitFora, {once:true});
+  },0);
+}
+function _fFitFalha(head, msg){
+  const pop=_fFitPopEl();
+  pop.className='f-fit-pop f-fit-pop-falha';
+  pop.setAttribute('role','status'); pop.setAttribute('aria-live','polite');
+  pop.innerHTML=`<div class="f-fit-pop-head">${_F_FIT_ICO_ALERTA}<span>${gEsc(head)}</span></div><p class="f-fit-pop-msg">${gEsc(msg)}</p>`
+    +'<div class="f-fit-acoes"><button type="button" class="f-fit-acao is-primaria" onclick="fFitTextWithAI(true)">Tentar de novo</button>'
+    +'<button type="button" class="f-fit-acao" onclick="_fFitClosePop()">Fechar</button></div>';
+  _fFitArmaFechar(pop, document.getElementById('f-fit-btn'));
 }
 // O que o franqueado lê em "Sai:": o mesmo filtro do balão (só palavra de verdade).
 function _fFitSaiVisivel(lista){
@@ -836,10 +927,11 @@ function _fFitSaiVisivel(lista){
 }
 // O popover das opções — o mesmo para o Copy Fit e para a IA; o rodapé diz de onde vieram.
 function _fFitPop(btn, head, foot, maisIA){
-  const wrap=document.getElementById('f-input-wrap'); if(!wrap) return;
-  const pop=document.createElement('div');
-  pop.id='f-fit-pop'; pop.className='f-fit-pop'; pop.setAttribute('role','menu');
-  pop.innerHTML=`<div class="f-fit-pop-head">${gEsc(head)}</div>`+
+  if(!document.getElementById('f-input-wrap')) return;
+  /* Vindo da espera, é o MESMO painel: o `aria-live` que ele já tem anuncia o resultado. */
+  const pop=_fFitPopEl();
+  pop.className='f-fit-pop'; pop.setAttribute('role','menu');
+  pop.innerHTML=`<div class="f-fit-pop-head">${_F_FIT_ICO_OK}<span>${gEsc(head)}</span></div>`+
     _fFitOpts.map((s,i)=>{
       // O que saiu desta opção, no title/aria-label (mesmo jeito do balão: "sem Delicioso").
       const sem=_fFitSaiVisivel(_fFitSai[i]);
@@ -848,22 +940,7 @@ function _fFitPop(btn, head, foot, maisIA){
     }).join('')+
     (maisIA?`<button type="button" class="f-fit-opt" role="menuitem" onclick="fFitTextWithAI(true)"><span>Mais opções com IA</span></button>`:'')+
     `<div class="f-fit-pop-foot">${gEsc(foot)}</div>`;
-  /* No celular o painel (`#f-sheet`) rola, e o popover que abre PARA CIMA do campo era cortado
-     por ele: a própria versão que cabe sumia atrás da arte. Lá ele entra no fluxo do painel,
-     logo acima do campo (chat.css, bloco do celular). */
-  const row=document.getElementById('f-input-row');
-  if(typeof _fCelular==='function' && _fCelular() && row && row.parentElement && row.parentElement.id==='f-sheet')
-    row.parentElement.insertBefore(pop, row);
-  else wrap.appendChild(pop);
-  setTimeout(()=>{
-    if(!pop.isConnected) return;
-    document.addEventListener('keydown', _fFitEsc);
-    _fFitFora=function fora(ev){
-      if(pop.contains(ev.target) || (btn&&btn.contains(ev.target))) { document.addEventListener('click', fora, {once:true}); return; }
-      _fFitClosePop();
-    };
-    document.addEventListener('click', _fFitFora, {once:true});
-  },0);
+  _fFitArmaFechar(pop, btn);
 }
 // Aplica a opção escolhida reusando o caminho de digitação (evento 'input' →
 // contador, prévia ao vivo e fState.dados atualizam por um só lugar).

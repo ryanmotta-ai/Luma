@@ -69,7 +69,7 @@ if(typeof window.gAiParseJson!=='function') window.gAiParseJson=(t)=>{ try{retur
 
 async function reset(dados, mat){
   fechaDialogos(); _fFitClosePop();
-  window.gAskAI=undefined; window.gAiReady=()=>false; _fFitBusy=false;
+  window.gAskAI=undefined; window.gAiReady=()=>false; _fFitCancela();
   try{ _fUndoLimpa(); }catch(e){}
   document.getElementById('g-toast-container').innerHTML='';
   document.getElementById('f-messages').innerHTML='';
@@ -395,8 +395,12 @@ await test('IA: todas inválidas → nenhuma opção e a frase honesta', async()
   window.gAskAI=()=>Promise.resolve(JSON.stringify({opcoes:['Pizza Mussarela','Calabresa','Pizza Calabresa R$ 5']}));
   naPergunta('produto'); digita(LONGO); await render();
   await fFitTextWithAI(true);
-  assert(!$('#f-fit-pop'),'opção reprovada apareceu');
-  assert(toastCom(/A IA não achou uma versão que mantenha preço e produtos/),'sem a frase honesta');
+  assert(!$('#f-fit-pop .f-fit-opt'),'opção reprovada apareceu');
+  // A falha fica NO painel (26/09/2026): diz o que houve, que o texto não mudou, e dá a saída.
+  const pop=$('#f-fit-pop.f-fit-pop-falha');
+  assert(pop && /A IA não achou uma versão que mantenha preço e produtos/.test(pop.textContent),'sem a frase honesta no painel');
+  assert(/continua como estava/.test(pop.textContent) && box.value===LONGO,'a falha não garante o texto original');
+  assert(Array.from(pop.querySelectorAll('.f-fit-acao')).some(b=>/Tentar de novo/.test(b.textContent)),'falha sem "Tentar de novo"');
 });
 
 await test('Motor sem versão + IA → o Encurtar aparece e um toque vai direto à IA', async()=>{
@@ -411,7 +415,7 @@ await test('Motor sem versão + IA → o Encurtar aparece e um toque vai direto 
   assert(/Tentar com IA/.test(btn.getAttribute('aria-label')||''),'o botão não diz que vai tentar com IA: '+btn.getAttribute('aria-label'));
   btn.click(); await tick(); await tick();
   assert(chamou===1,'um toque devia chamar a IA uma vez: '+chamou);
-  assert(!$('#f-fit-pop') && toastCom(/A IA não achou/),'"Calabresa Mussarela" (sumiu Pizza) não pode virar opção');
+  assert(!$('#f-fit-pop .f-fit-opt') && /A IA não achou/.test(($('#f-fit-pop')||{}).textContent||''),'"Calabresa Mussarela" (sumiu Pizza) não pode virar opção');
 });
 
 await test('IA lenta: a resposta é descartada se o texto foi reescrito', async()=>{
@@ -422,6 +426,50 @@ await test('IA lenta: a resposta é descartada se o texto foi reescrito', async(
   digita('Frango Catupiry Especial da Casa');
   solta('{"opcoes":["Calabresa Mussarela"]}'); await p;
   assert(!$('#f-fit-pop'),'opções de um texto que a pessoa já reescreveu');
+});
+
+/* O QUE O LUMA ESTÁ FAZENDO (26/09/2026): na espera, o painel mostra as etapas reais — sem barra de
+   tempo —, o texto não muda, e Cancelar/Esc/editar devolvem o controle na hora. */
+await test('IA trabalhando: etapas reais, texto intacto, e Cancelar devolve o controle', async()=>{
+  await reset({produto:''});
+  let solta; window.gAiReady=()=>true; window.gAskAI=()=>new Promise(r=>{ solta=r; });
+  naPergunta('produto'); digita(LONGO); await render();
+  const p=fFitTextWithAI(true);
+  const pop=$('#f-fit-pop'); assert(pop,'a espera não abriu o painel');
+  const lis=Array.from(pop.querySelectorAll('.f-fit-etapas li'));
+  assert(lis.length===3 && lis[0].classList.contains('is-feita') && lis[1].classList.contains('is-ativa') && !lis[2].className,
+    'as etapas não dizem onde está: '+lis.map(l=>l.className||'-').join(','));
+  assert(/Meta: até \d+ caracteres \(hoje 25\)/.test(lis[0].textContent),'a meta medida não aparece: "'+lis[0].textContent+'"');
+  assert(!pop.querySelector('.f-fit-prog'),'voltou a barra de tempo');
+  assert(document.getElementById('f-fit-btn').disabled,'o botão aceitou um segundo toque na espera');
+  assert(box.value===LONGO,'o texto mudou antes de haver versão');
+  fFitSync();                                          // a prévia mede de novo no meio da espera
+  assert($('#f-fit-pop .f-fit-etapas'),'a prévia medindo fechou o painel de progresso');
+  const cancelar=Array.from(pop.querySelectorAll('.f-fit-acao')).find(b=>/Cancelar/.test(b.textContent));
+  assert(cancelar,'a espera não tem Cancelar'); cancelar.click();
+  assert(!$('#f-fit-pop') && !_fFitRun,'Cancelar não encerrou a espera');
+  assert(!document.getElementById('f-fit-btn').disabled,'depois de cancelar o botão ficou travado');
+  solta('{"opcoes":["'+CURTO+'"]}'); await p;
+  assert(!$('#f-fit-pop') && box.value===LONGO,'a resposta de uma rodada cancelada apareceu');
+  // Esc também cancela, e editar o texto cancela (a resposta seria de outro texto).
+  fFitTextWithAI(true); assert(_fFitRun,'pré-condição: rodada nova');
+  document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}));
+  assert(!_fFitRun && !$('#f-fit-pop'),'Esc não cancelou a espera');
+  fFitTextWithAI(true); digita(LONGO2);
+  assert(!_fFitRun,'editar o texto não cancelou a espera');
+});
+
+await test('IA não respondeu: a falha fica no painel e "Tentar de novo" chama de novo', async()=>{
+  await reset({produto:''});
+  let chamou=0; window.gAiReady=()=>true; window.gAskAI=()=>{ chamou++; return Promise.resolve(null); };
+  naPergunta('produto'); digita(LONGO); await render();
+  await fFitTextWithAI(true);
+  const pop=$('#f-fit-pop.f-fit-pop-falha');
+  assert(pop && /A IA não respondeu/.test(pop.textContent),'a falha sumiu num toast (ou nem apareceu)');
+  assert(box.value===LONGO && !document.getElementById('f-fit-btn').disabled,'a falha mexeu no texto ou travou o botão');
+  Array.from(pop.querySelectorAll('.f-fit-acao')).find(b=>/Tentar de novo/.test(b.textContent)).click();
+  await tick(); await tick();
+  assert(chamou===2,'"Tentar de novo" não chamou a IA: '+chamou);
 });
 
 /* ══ 4. SEM VERSÃO: QUANTO FALTA ══════════════════════════════════════════════════════════ */
