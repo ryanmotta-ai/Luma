@@ -262,15 +262,15 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 83 arquivos JS (71.000 linhas, 2.787 funções) · 32 arquivos CSS (30.087 linhas) · `index.html` com 4.009 linhas e 84 `<script>`.
+**Tamanho real de hoje:** 83 arquivos JS (71.041 linhas, 2.788 funções) · 32 arquivos CSS (30.087 linhas) · `index.html` com 4.009 linhas e 84 `<script>`.
 
 ## JS — o que cada arquivo é
 
 ### js (raiz)
 
-**`js/00-config.js`** · 2685 linhas
+**`js/00-config.js`** · 2699 linhas
 Constantes globais imutaveis: HIST_KEY, CAMPS_ATIVAS, CAMPS_OUTRAS, FMTS. Deve ser carregado PRIMEIRO (todos os modulos dependem destas constantes).
-· API: gPastaSistema, gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss … (+51; 88 funções no total)
+· API: gPastaSistema, gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss … (+51; 89 funções no total)
 · Estado global: _G_MEDIDA_CACHE, gLayoutVivoOff, _gCanvasWrap
 
 **`js/01-state.js`** · 11 linhas
@@ -321,7 +321,7 @@ LUMA CLI Console de comandos do Luma, só pra quem é da casa (equipe_dm/gestao)
 · Estado global: _gCliMontado, _gCliAberto, _gCliHist, _gCliHistIdx, _gCliBusy, _gCliRoboTimer, _gCliRoboI, _gCliInfoCache, _gCliSpinAtual
 · Depende de: core/toast.js (gToast/gConfirm), core/auth.js (gIsAdmin/gCurrentRole),
 
-**`js/core/copy-fit.js`** · 505 linhas
+**`js/core/copy-fit.js`** · 531 linhas
 COPY FIT — encurtar a copy do franqueado SEM mudar o que se vende (22/09/2026) Quando o Local Fit bloqueia, o franqueado precisa de uma SAÍDA, não de um aviso.
 · API: gCopyFitGuarda, gCopyFitConfere, gCopyFitCandidatos, gCopyFitSugestoes
 
@@ -421,7 +421,7 @@ F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES defi
 · Estado global: _F_MAXLEN_MED, _fFitOpts, _fFitBusy, _fFitSai, _fFitIaReprovadas, _fFitCf, quando, _fFitFora
 · Depende de: 00-config.js
 
-**`js/franqueado/chat.js`** · 3524 linhas
+**`js/franqueado/chat.js`** · 3525 linhas
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
 · API: fChatNovaConversa, fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fTrackResposta, fTrackFoto … (+66; 152 funções no total)
 · Estado global: fNextTimeout, _fChatGen, _fGuidedNav, _fGuidedTimer, _fGuidedBound, _fProntaCtxAberto, _fRevisando, _fArtSnapshots, _fArtCaptions, _fGerarSeq (+1)
