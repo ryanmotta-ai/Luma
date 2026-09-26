@@ -676,6 +676,23 @@ na quebra e no veredito de conteúdo novo; o próprio texto do designer segue ca
 **Número honesto: bloqueio final 2,6%** (64 pares) — contra 18,5% em 24/09. O que sobra é quase todo o
 título do `promo-preco-circulo`, encostado no selo. Suíte: 539 verdes.
 
+### Rodada de 26/09/2026 (4) — nada atravessa nada (decisão do Ryan)
+
+`_gLfChoque` (`local-fit.js`), conferido em cada prova da escada: a parte da TINTA (`gInkRect`) que saiu
+da caixa desenhada não pode encostar em nenhum outro objeto visível. Encostou → a prova reprova e a
+escada segue (quebra, encolhe, alarga, folga); no piso ainda encostando → bloqueia, com o motivo
+"encosta em “id”".
+
+- Dentro da caixa desenhada é decisão do designer (caixa sobre foto é intenção).
+- Não são obstáculo: o próprio texto, a placa dele, membros da pilha, tudo que está ancorado a ele
+  (desce junto na cadeia) e o fundo/painel que contém a caixa.
+- Forma real: elipse/círculo como elipse — o canto vazio do bbox do selo não é choque.
+- Vale para o texto do designer: com a fonte da máquina desenhando maior, "OFERTA DA SEMANA" sai a
+  67px em vez de 88px para não entrar no círculo (corpus, cenários curto/médio — golden regravado).
+
+Casos 7e–7g no `local-fit` (7e confirmado por mutação: sem o guarda, ele falha). Bancada: 2,6% (igual —
+nenhum encaixe que existia passou a bloquear). Suíte: 542 verdes.
+
 ### Copy Fit — a saída do bloqueio (23/09/2026)
 
 Motor puro em `js/core/copy-fit.js` (saiu de `js/franqueado/` no `c9d6e8e`: é `g*`, mora no core).

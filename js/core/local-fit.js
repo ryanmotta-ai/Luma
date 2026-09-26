@@ -328,6 +328,70 @@ function _gLfLarguraLivre(layer, box, opts, semTeto){
   return (esq + dir >= 8) ? { esq, dir } : null;
 }
 
+/* ── NADA ATRAVESSA NADA (decisão do Ryan, 26/09/2026) ─────────────────────────────────────────
+   A tinta que SAIU da caixa desenhada não pode encostar em nenhum outro objeto. Visto na prova
+   visual: "OFERTA DA SEMANA", medida com a fonte da máquina, passava da caixa e entrava no círculo
+   do preço — e o motor dizia "cabe", porque só olhava a caixa.
+     · só a parte FORA da caixa desenhada conta: o que fica dentro dela é decisão do designer
+       (caixa sobre foto é intenção, não choque);
+     · não são obstáculo: o próprio texto, a placa dele, os membros da pilha (descem junto) e o
+       fundo/painel que CONTÉM a caixa;
+     · forma de verdade: elipse/círculo é conferido como elipse — o canto vazio do retângulo em
+       volta do selo não é choque (a caixa da própria arte já encosta nesse canto);
+     · vale para o texto do designer também: se a fonte da máquina desenha maior e choca, encolhe.
+   Devolve o id do primeiro obstáculo tocado, ou null. */
+function _gLfRetMenos(a, b){                      // a − b, em até 4 retângulos
+  const ax2 = a.x + a.w, ay2 = a.y + a.h, bx2 = b.x + b.w, by2 = b.y + b.h;
+  if(bx2 <= a.x || b.x >= ax2 || by2 <= a.y || b.y >= ay2) return [a];
+  const out = [];
+  if(b.x > a.x) out.push({ x:a.x, y:a.y, w:b.x - a.x, h:a.h });
+  if(bx2 < ax2) out.push({ x:bx2, y:a.y, w:ax2 - bx2, h:a.h });
+  const mx = Math.max(a.x, b.x), mw = Math.min(ax2, bx2) - mx;
+  if(b.y > a.y) out.push({ x:mx, y:a.y, w:mw, h:b.y - a.y });
+  if(by2 < ay2) out.push({ x:mx, y:by2, w:mw, h:ay2 - by2 });
+  return out.filter(r => r.w > 0.5 && r.h > 0.5);
+}
+function _gLfToca(r, o){                          // retângulo r × forma real de o
+  const ox = o.x || 0, oy = o.y || 0, ow = o.w || 0, oh = o.h || 0, T = G_LF_TOL + 1;
+  if(r.x + r.w <= ox + T || r.x >= ox + ow - T || r.y + r.h <= oy + T || r.y >= oy + oh - T) return false;
+  if(o.type === 'shape' && (o.shapeKind === 'ellipse' || o.shapeKind === 'circle')){
+    const cx = ox + ow / 2, cy = oy + oh / 2, rx = ow / 2, ry = oh / 2;
+    const px = Math.max(r.x, Math.min(cx, r.x + r.w)), py = Math.max(r.y, Math.min(cy, r.y + r.h));
+    const dx = (px - cx) / rx, dy = (py - cy) / ry;
+    return dx * dx + dy * dy < 1 - 0.02;
+  }
+  return true;
+}
+function _gLfChoque(prova, f, caixaDes, layer, opts){
+  if(!Array.isArray(opts.layers) || !opts.canvas || typeof gInkRect !== 'function') return null;
+  const tinta = gInkRect(prova, f);
+  const fora = _gLfRetMenos(tinta, caixaDes);
+  if(!fora.length) return null;
+  const ignora = new Set([layer.id]);
+  if(opts.placa && opts.placa.id) ignora.add(opts.placa.id);
+  if(opts.pilha && opts.pilha.membros) opts.pilha.membros.forEach(m => ignora.add(m.id));
+  /* Quem está ANCORADO a este texto (direta ou indiretamente) desce junto com ele — a cadeia é
+     resolvida depois (`_gLfResolverCadeia`), então aqui ele ainda está na posição de antes. */
+  for(let mudou = true; mudou; ){
+    mudou = false;
+    opts.layers.forEach(o => {
+      const ra = o && o.relativeAnchor;
+      if(ra && ra.layerId && ignora.has(ra.layerId) && !ignora.has(o.id)){ ignora.add(o.id); mudou = true; }
+    });
+  }
+  opts.layers.forEach(o => { if(o && o._placa && ignora.has(o._placa.alvo)) ignora.add(o.id); });
+  for(const o of opts.layers){
+    if(!o || ignora.has(o.id) || o.type === 'group' || o.rotation) continue;
+    if(typeof _gLayoutVisivel === 'function' && !_gLayoutVisivel(o)) continue;
+    const ox = o.x || 0, oy = o.y || 0, ow = o.w || 0, oh = o.h || 0;
+    if(ow <= 0 || oh <= 0) continue;
+    // Fundo/painel que CONTÉM a caixa desenhada: é o chão do texto, não obstáculo.
+    if(ox <= caixaDes.x + 1 && oy <= caixaDes.y + 1 && ox + ow >= caixaDes.x + caixaDes.w - 1 && oy + oh >= caixaDes.y + caixaDes.h - 1) continue;
+    if(fora.some(r => _gLfToca(r, o))) return o.id;
+  }
+  return null;
+}
+
 /* ── TETO DE LINHAS ───────────────────────────────────────────────────────────────────────
    Regra explícita vence sempre; sem ela, infere-se de forma conservadora.
 
@@ -433,6 +497,7 @@ function gFitTextToAuthoredBox(layer, conteudo, opts){
   }
   const box = gAuthoredTextBox(layer, opts);
   if(!box) return null;
+  const caixaDes = { x: box.x || 0, y: box.y || 0, w: box.w || 0, h: box.h || 0 };   // o que o designer desenhou
   /* Tentativa ALARGADA (ver `_gLfLarguraLivre`): a mesma escada numa caixa mais larga, com a
      origem deslocada para o lado que o alinhamento permite. O render recebe `_layoutW/_layoutDx`. */
   if(opts.alargar){
@@ -504,8 +569,11 @@ function gFitTextToAuthoredBox(layer, conteudo, opts){
        Mais pedaços nas linhas do que palavras no texto = alguma foi partida: desce o corpo. */
     const pedacos = (f.lines || []).join(' ').split(/\s+/).filter(Boolean).length;
     const partiu = linhas > 1 && pedacos > nPalavras;
-    const cabe = overflowX <= G_LF_TOL && overflowY <= G_LF_TOL && !excedeuLinhas && !partiu;
-    return { f, fs, linhas, maxLinhas, overflowX, overflowY, dispX, dispY, cabe,
+    let cabe = overflowX <= G_LF_TOL && overflowY <= G_LF_TOL && !excedeuLinhas && !partiu;
+    // Nada atravessa nada: só vale conferir o que já caberia na caixa (o resto já reprovou).
+    const choque = cabe ? _gLfChoque(prova, f, caixaDes, layer, opts) : null;
+    if(choque) cabe = false;
+    return { f, fs, linhas, maxLinhas, overflowX, overflowY, dispX, dispY, cabe, choque,
              layoutW: (layoutW != null && linhas > 1) ? layoutW : null };
   };
 
@@ -572,6 +640,7 @@ function _gLfResultado(box, u, passos, status, opts){
   if(u.overflowX > G_LF_TOL) motivos.push('largura excedida em ' + u.overflowX + 'px');
   if(u.overflowY > G_LF_TOL) motivos.push('altura excedida em ' + u.overflowY + 'px');
   if(u.linhas > u.maxLinhas) motivos.push('precisa de ' + u.linhas + ' linhas e o teto é ' + u.maxLinhas);
+  if(u.choque) motivos.push('encosta em “' + u.choque + '”');
 
   return {
     v: G_LOCAL_FIT_V,

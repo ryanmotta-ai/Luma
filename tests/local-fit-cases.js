@@ -185,6 +185,33 @@
     assert(r.degrau === 'original' && r.lines.length === 1 && !r.layoutW, 'o desenho autorado mudou');
   });
 
+  /* ── 7e–7g. NADA ATRAVESSA NADA (26/09/2026) ──────────────────────────────────────────
+     A tinta que sai da caixa desenhada não encosta em objeto nenhum. O caso da prova visual:
+     "OFERTA DA SEMANA" passando da caixa e entrando no círculo do preço. */
+  const circulo = { id:'selo', type:'shape', shapeKind:'ellipse', x:760, y:100, w:250, h:250, visible:true, opacity:100 };
+  const fundo = { id:'fundo', type:'shape', shapeKind:'rect', x:0, y:0, w:1080, h:1350, visible:true, opacity:100 };
+  test('7e · tinta que sai da caixa e toca o círculo: encolhe até parar de tocar', () => {
+    const l = ponto({ w:600 });      // caixa 80..680; "OFERTA DA SEMANA" a 80px passa disso
+    const r = gFitTextToAuthoredBox(l, 'OFERTA DA SEMANA', { canvas:CANVAS, layers:[fundo, l, circulo], pilha:null });
+    assert(r.status === 'fits', 'deveria caber encolhendo: ' + r.diagnostics.motivo);
+    const tinta = gInkRect(Object.assign({}, l, { fontSize:r.fontSize, _layoutW:r.layoutW || undefined }), { larguraMax:r.diagnostics.larguraNecessaria, altura:r.diagnostics.alturaNecessaria });
+    const cx = 885, cy = 225, raio = 125;
+    const px = Math.max(tinta.x, Math.min(cx, tinta.x + tinta.w)), py = Math.max(tinta.y, Math.min(cy, tinta.y + tinta.h));
+    assert(Math.hypot(px - cx, py - cy) >= raio - 2, 'a tinta ainda encosta no círculo');
+    const sem = gFitTextToAuthoredBox(l, 'OFERTA DA SEMANA', { canvas:CANVAS, layers:[fundo, l], pilha:null });
+    assert(r.fontSize < sem.fontSize, 'sem o círculo não havia por que encolher mais (' + r.fontSize + ' × ' + sem.fontSize + ')');
+  });
+  test('7f · o fundo que contém a caixa não é obstáculo', () => {
+    const r = gFitTextToAuthoredBox(ponto(), 'OFERTA DA SEMANA', { canvas:CANVAS, layers:[fundo, ponto()], pilha:null });
+    assert(r.status === 'fits' && !/encosta/.test(r.diagnostics.motivo), 'o fundo contou como choque: ' + r.diagnostics.motivo);
+  });
+  test('7g · o canto vazio do retângulo em volta do círculo não é choque', () => {
+    // Caixa 80..780 × 120..230; o círculo (bbox 760..1010 × 180..430) só cruza o CANTO do bbox.
+    const l = ponto(), c = Object.assign({}, circulo, { y:180 });
+    const r = gFitTextToAuthoredBox(l, 'OFERTA', { canvas:CANVAS, layers:[fundo, l, c], pilha:null });
+    assert(r.degrau === 'original', 'texto curto dentro da caixa mudou por causa do canto vazio: ' + r.diagnostics.motivo);
+  });
+
   /* ── 8. maxLines ──────────────────────────────────────────────────────────────────── */
   test('8 · maxLines explícito manda em tudo e nunca é ultrapassado num FITS', () => {
     const solto  = caixa({ h:900, maxLines:12 });
