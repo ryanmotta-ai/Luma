@@ -45,7 +45,7 @@
   const LONGO   = 'Super Combo Duplo Mega Burger Artesanal com Batata';
   const ABSURDO = ('Super Combo Duplo Mega Burger Artesanal com Batata Frita Cheddar Bacon e '
                  + 'Refrigerante Dois Litros Mais Sobremesa Especial da Casa e Brinde Surpresa ')
-                 .repeat(2);
+                 .repeat(4);   // 4× desde 26/09/2026: com a folga de hierarquia (80%) + largura livre, 2× (~300 caracteres) passou a caber
 
   /* ── 1. texto curto → original intacto ────────────────────────────────────────────── */
   test('1 · conteúdo do tamanho autorado → FITS, degrau original, ZERO alteração', () => {

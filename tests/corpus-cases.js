@@ -157,8 +157,13 @@
             +' — isso é recomposição, e ela saiu do produto'));
         });
 
-        // ── INVARIANTE 4: a hierarquia não inverte ──
+        /* ── INVARIANTE 4: a hierarquia não inverte ALÉM DA FOLGA ──
+           26/09/2026 (decisão do Ryan): no último recurso antes do bloqueio um texto pode descer
+           até 80% do próximo degrau DA MESMA FAMÍLIA (`G_PISO_FOLGA_HIERARQUIA`); entre famílias
+           (preço × texto) não há hierarquia. Abaixo disso continua sendo inversão. */
         const txt=out.filter(l=>l&&l.type==='text');
+        const folga=(typeof G_PISO_FOLGA_HIERARQUIA==='number')?G_PISO_FOLGA_HIERARQUIA:1;
+        const familia=(l)=>(typeof _gPisoFamilia==='function')?_gPisoFamilia(l):'texto';
         const corpo=(l)=>(l._tetoFonte!=null?l._tetoFonte:(l.fontSize||24));
         txt.forEach(a=>txt.forEach(b=>{
           if((a.fontSize||24)<=(b.fontSize||24))return;
@@ -166,7 +171,8 @@
              texto agora encaixa isolado, uma camada autorada maior pode terminar menor que ele.
              É decisão de produto (o preço é o argumento da peça), não defeito. */
           if(typeof gLayoutEhPrecoDinamico==='function'&&gLayoutEhPrecoDinamico(b))return;
-          assert(corpo(a)>=corpo(b)-0.5,'“'+a.name+'” ficou menor que “'+b.name+'” — hierarquia invertida');
+          if(familia(a)!==familia(b))return;
+          assert(corpo(a)>=Math.round((b.fontSize||24)*folga)-0.5,'“'+a.name+'” ficou menor que 80% de “'+b.name+'” — hierarquia invertida além da folga');
         }));
 
         // ── INVARIANTE 5: o veredito é um dos quatro ──

@@ -629,6 +629,25 @@ direita — não cresce, por regra) preso à hierarquia real (título ≥ produt
 "título desce até 85% do produto" da rodada de 25/09, decisão de gosto em aberto.
 Suíte: 538 casos verdes (o 15f do `local-fit`, que falhava desde antes, passou a caber).
 
+### Rodada de 26/09/2026 (2) — folga de hierarquia de 80% (decisão do Ryan: "pode deixar chegar a 80%")
+
+`gStampPisosHierarquia` carimba, além do `_pisoFonte`, o `_pisoFonteFolga`: até **80% do próximo
+degrau da MESMA família** (`G_PISO_FOLGA_HIERARQUIA`), nunca abaixo de 50% do corpo nem do piso de
+legibilidade. Só o Local Fit usa, e **só como último recurso**, nesta ordem (a que menos mexe no desenho):
+
+1. caixa desenhada: corpo → quebra → encolher até o piso de hierarquia;
+2. largura livre ao lado (nada se move, nada inverte);
+3. o vizinho logo abaixo desce junto (pilha inferida — mantém a hierarquia);
+4. **folga**: o mesmo, com o piso a 80% do próximo degrau (aqui o título pode ficar um pouco menor
+   que o produto). O clone leva `_pisoFonte` = o piso usado, para o render não subir a letra de volta.
+
+Bancada inteira (2.478 pares): **bloqueio final 7,9% → 1,1%** (28 pares); antes do Copy Fit, 10,3% → 5,4%.
+No corpus: título do `promo-preco-circulo` 88px sai a 51px (longo) e 46px (extremo) com o produto a 58px;
+cupom do `de-por-lateral` a 36px com o "De" a 38px. O invariante 4 do corpus passou a cobrar "não inverte
+além de 80% dentro da família". Suíte: 538 casos verdes.
+
+**Acumulado 25–26/09:** bloqueio final da bancada **18,5% → 1,1%**.
+
 ### Copy Fit — a saída do bloqueio (23/09/2026)
 
 Motor puro em `js/core/copy-fit.js` (saiu de `js/franqueado/` no `c9d6e8e`: é `g*`, mora no core).

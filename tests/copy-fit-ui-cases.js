@@ -29,12 +29,18 @@ const T=(id,o)=>Object.assign({id,type:'text',visible:true,opacity:100,textAlign
   font:'Arial',color:'#fff',lineHeight:1.05,isVar:true},o);
 const camadas=(wProduto)=>[
   {id:'fundo',type:'shape',shapeKind:'rect',x:0,y:0,w:1080,h:1920,fill:'#E8231A',visible:true,opacity:100},
-  T('produto',{content:'{{produto}}',x:90,y:400,w:wProduto||900,h:110,fontSize:90}),
-  T('linha',{content:'{{sabor}} {{borda}}',x:90,y:700,w:900,h:110,fontSize:90}),
+  /* 760px desde 26/09/2026 (eram 900): com a folga de hierarquia (piso 71px) o texto longo cabia
+     em 900. Medido: em 760 o longo bloqueia até 820px de caixa e o curto cabe até 700 — ±8%. */
+  T('produto',{content:'{{produto}}',x:90,y:400,w:wProduto||760,h:110,fontSize:90}),
+  T('linha',{content:'{{sabor}} {{borda}}',x:90,y:700,w:760,h:110,fontSize:90}),
   T('por',{content:'{{precoPor}}',x:90,y:1000,w:400,h:110,fontSize:84,textBox:'point'}),
-  /* Texto fixo de 84px ao lado do preço (25/09/2026): com a hierarquia por família o preço não
-     segura mais o piso do produto — este texto segura, e a bancada continua bloqueando igual. */
-  T('selo',{content:'SÓ HOJE',isVar:false,x:560,y:1000,w:430,h:110,fontSize:84,textBox:'point'})
+  /* Texto fixo ao lado do preço (25/09/2026): com a hierarquia por família o preço não segura
+     mais o piso do produto — este texto segura. 89px desde 26/09: com a folga de 80% o piso do
+     produto fica em 71px, e a bancada continua bloqueando com margem. */
+  T('selo',{content:'SÓ HOJE',isVar:false,x:560,y:1000,w:430,h:110,fontSize:89,textBox:'point'}),
+  /* Faixa à direita (26/09/2026): parede para a largura livre — esta bancada mede o Copy Fit, não
+     o alargamento (coberto em local-fit/copy-fit). */
+  {id:'faixa',type:'shape',shapeKind:'rect',x:855,y:380,w:40,h:460,fill:'#B01C14',visible:true,opacity:100}
 ];
 const material=(id,wProduto)=>({id,name:'Bancada '+id,fmt:'story',w:1080,h:1920,
   layers:camadas(wProduto),publishMeta:{publicado:true}});
@@ -211,7 +217,7 @@ await test('Trocar de material invalida a sugestão (a chave é da ARTE, não do
   await reset({produto:LONGO});
   assert(fLpBalaoSolucao(),'pré-condição: solução na arte A');
   // Arte B com a caixa do produto estreita: lá nem a versão curta cabe.
-  fState.material=material('mat-b',420);
+  fState.material=material('mat-b',300);   // 300 desde 26/09/2026: em 420 a versão curta cabia alargando (+50%)
   assert(!fLpBalaoSolucao(),'o material trocou (ainda sem render) e a solução da arte A seguiu valendo');
   await render();
   assert(_lpLayoutResult.invalid,'pré-condição: bloqueia na arte B');

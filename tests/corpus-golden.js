@@ -99,8 +99,8 @@ window.LUMA_CORPUS_GOLDEN={
  },
  "promo-preco-circulo|longo": {
   "fp": "1317.2/1317.2/1214.6",
-  "status": "overflow",
-  "hash": "0110111000111110001111100001011000000000000000000000000000001100",
+  "status": "shrunk",
+  "hash": "0100111000111110001111100001011000000000000000000000000000001100",
   "geo": [
    [
     "titulo",
@@ -108,7 +108,7 @@ window.LUMA_CORPUS_GOLDEN={
     120,
     700,
     110,
-    58
+    51
    ],
    [
     "produto",
@@ -146,8 +146,8 @@ window.LUMA_CORPUS_GOLDEN={
  },
  "promo-preco-circulo|extremo": {
   "fp": "1317.2/1317.2/1214.6",
-  "status": "overflow",
-  "hash": "0011111000111110001111100011011000000000000000000000000000001100",
+  "status": "shrunk",
+  "hash": "0000111000111110011111100011011000000000000000000000000000001100",
   "geo": [
    [
     "titulo",
@@ -155,7 +155,7 @@ window.LUMA_CORPUS_GOLDEN={
     120,
     700,
     110,
-    58
+    46
    ],
    [
     "produto",
@@ -426,7 +426,7 @@ window.LUMA_CORPUS_GOLDEN={
  },
  "de-por-lateral|extremo": {
   "fp": "1317.2/1317.2/1214.6",
-  "status": "overflow",
+  "status": "shrunk",
   "hash": "0000000000001111001001110000111000001110000000000000000000100011",
   "geo": [
    [
@@ -459,7 +459,7 @@ window.LUMA_CORPUS_GOLDEN={
     890,
     400,
     60,
-    38
+    36
    ],
    [
     "legal",

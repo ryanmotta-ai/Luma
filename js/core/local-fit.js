@@ -92,10 +92,15 @@ function gAuthoredTextBox(layer, opts){
     gStampPisosHierarquia(clones, opts.canvas);
     camadaPiso = clones.find(o => o && o.id === layer.id) || camada;
     camada._pisoFonte = camadaPiso._pisoFonte;
+    camada._pisoFonteFolga = camadaPiso._pisoFonteFolga;
     camada._pisoLegivel = camadaPiso._pisoLegivel;
   }
+  /* `folgaHierarquia`: a última tentativa antes do bloqueio usa o piso com folga (80% do
+     próximo degrau da família) no lugar do de hierarquia — ver `gStampPisosHierarquia`. */
+  const camadaParaPiso = (opts.folgaHierarquia && camadaPiso._pisoFonteFolga != null)
+    ? Object.assign({}, camadaPiso, { _pisoFonte: camadaPiso._pisoFonteFolga }) : camadaPiso;
   const piso = (typeof gLayoutPisoFonte === 'function')
-    ? Math.min(fontSize, Math.max(8, Math.round(gLayoutPisoFonte(camadaPiso))))
+    ? Math.min(fontSize, Math.max(8, Math.round(gLayoutPisoFonte(camadaParaPiso))))
     : Math.max(8, Math.round(fontSize * 0.5));
 
   /* A TINTA AUTORADA. `layoutRef.ink`/`layoutRef.linhas` já guardam a medida feita no vínculo;
@@ -402,13 +407,25 @@ function gFitTextToAuthoredBox(layer, conteudo, opts){
     }
   }
   if(inferidos){
-    const r0 = gFitTextToAuthoredBox(layer, conteudo, opts);
+    /* ORDEM (26/09/2026): alargar (dentro do r0) → o vizinho desce (r1) → só então a folga de
+       hierarquia (r2/r3). Descer um vizinho mantém a hierarquia; a folga, não. */
+    const semFolga = Object.assign({}, opts, { semFolga:true });
+    const r0 = gFitTextToAuthoredBox(layer, conteudo, semFolga);
     if(!r0 || r0.status !== 'overflow') return r0;
     /* Inferida, o membro está onde o designer o pôs: a régua de quanto desce é a caixa
        desenhada do topo (`h`), não a medida das quebras manuais que a âncora usaria. */
-    opts.pilha = { membros: inferidos, inferida: true, alturaAncora: gAuthoredTextBox(layer, opts).h || 0 };
-    const r1 = gFitTextToAuthoredBox(layer, conteudo, opts);
+    const pilhaInf = { membros: inferidos, inferida: true, alturaAncora: gAuthoredTextBox(layer, opts).h || 0 };
+    opts.pilha = pilhaInf;
+    const r1 = gFitTextToAuthoredBox(layer, conteudo, Object.assign({}, opts, { semFolga:true }));
     if(r1 && r1.status === 'fits') return r1;
+    if(!opts.semFolga){
+      opts.pilha = null;
+      const r2 = gFitTextToAuthoredBox(layer, conteudo, opts);
+      if(r2 && r2.status === 'fits') return r2;
+      opts.pilha = pilhaInf;
+      const r3 = gFitTextToAuthoredBox(layer, conteudo, opts);
+      if(r3 && r3.status === 'fits') return r3;
+    }
     opts.pilha = null;
     return r0;
   }
@@ -505,6 +522,16 @@ function gFitTextToAuthoredBox(layer, conteudo, opts){
       if(a.esq + a.dir < 8) continue;
       const r = gFitTextToAuthoredBox(layer, conteudo, Object.assign({}, opts, { alargar:a }));
       if(r && r.status === 'fits') return r;
+    }
+  }
+  /* DEPOIS de alargar, e só então: a folga de hierarquia (o texto pode ficar até 80% do
+     próximo degrau da família). Nesta ordem porque alargar não inverte nada; a folga inverte.
+     A tentativa com folga repete a escada inteira — caixa desenhada e, se preciso, alargada. */
+  if(!opts.folgaHierarquia && !opts.semFolga && !opts.alargar && !opts.fonteExata){
+    const cf = gAuthoredTextBox(layer, Object.assign({}, opts, { folgaHierarquia:true }));
+    if(cf && cf.piso < box.piso){
+      const r = gFitTextToAuthoredBox(layer, conteudo, Object.assign({}, opts, { folgaHierarquia:true }));
+      if(r && r.status === 'fits'){ r.folgaHierarquia = true; return r; }
     }
   }
   return bloqueio;
@@ -877,6 +904,8 @@ function gLocalFitArte(layers, opts){
     if(r.fontSize !== r.diagnostics.fontSizeAutorado) l._tetoFonte = r.fontSize;
     if(r.layoutW) l._layoutW = r.layoutW;
     if(r.alargado){ l._layoutW = r.alargado.w; l._layoutDx = -r.alargado.esq; }
+    // Na folga, o clone leva o piso que o encaixe usou: o render não sobe a letra de volta.
+    if(r.folgaHierarquia) l._pisoFonte = r.diagnostics.piso;
     /* Caixa que cresceu para o respiro: o render já desenha para baixo (âncora no topo);
        `_layoutH` só conta até onde, para o toque da prévia cobrir o texto inteiro. */
     if(r.status === 'fits' && r.diagnostics.alturaNecessaria > (l.h || 0))

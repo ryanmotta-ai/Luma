@@ -461,7 +461,8 @@
          produto (hierarquia real), então o cenário continua de verdade. */
       const medir = gLocalFitMedidor(base, { fieldId:'titulo' }, 'titulo', dados, { canvas:fx.canvas, defaults:{} });
       const cabe = t => { const r = medir(t); return { ok: !!r && r.status === 'fits', fontSize: r ? r.fontSize : 0 }; };
-      const f = 'Ganhe 1 refrigerante de 2 litros';
+      // 26/09/2026: com a folga de 80% e a largura livre, frases curtas passaram a caber no título.
+      const f = 'Na compra de 2 pizzas grandes ganhe 1 refrigerante de 2 litros grátis';
       assert(!cabe(f).ok, 'o cenário precisa começar bloqueado');
       const { sugestoes } = gCopyFitSugestoes(f, cabe, 3);
       assert(sugestoes.length, 'deveria haver uma versão que cabe');
@@ -578,7 +579,9 @@
       + '%) · piso ' + piso.resgates + '/' + piso.bloqueios + ' · ' + Math.round(B.ms) + 'ms · ' + JSON.stringify(atual));
     if(BANCADA_PASSO !== 3){ notas.push('bancada toda: o piso é da amostra 1/3 — não comparado'); return; }
     assert(piso.resgates > 0, 'sem piso gravado (LUMA_COPY_FIT_PISO em copy-fit-corpus.js)');
-    assert(B.bloqueios.length >= 100, 'quase nada bloqueou (' + B.bloqueios.length + '): a bancada não mede nada — fonte não carregou?');
+    // 30, não 100, desde 26/09/2026: com a folga de hierarquia e a largura livre o motor bloqueia bem menos
+    // (amostra: 48). O guarda continua pegando o que ele existe para pegar — fonte que não carregou dá ~0.
+    assert(B.bloqueios.length >= 30, 'quase nada bloqueou (' + B.bloqueios.length + '): a bancada não mede nada — fonte não carregou?');
     if(piso.fp === fpMaquina){
       assert(B.resgates >= piso.resgates, 'o motor resgatava ' + piso.resgates + ' e agora resgata ' + B.resgates
         + '. Se foi o LOCAL FIT que mudou (bloqueios ' + piso.bloqueios + ' → ' + B.bloqueios.length + '), regrave: ' + JSON.stringify(atual));

@@ -1425,6 +1425,7 @@ function _gLayoutVisivel(l){
    de delivery comum, não inversão. Agora cada texto só se compara com a sua FAMÍLIA: preço
    (preço, valor, de/por, desconto, cupom, R$) com preço; o resto com o resto. Título continua
    ≥ produto. Resultado na bancada: bloqueio final (depois do Copy Fit) 18,5% → 12,0%. */
+const G_PISO_FOLGA_HIERARQUIA = 0.8;
 function _gPisoFamilia(l){
   const sinal=String((l.name||'')+' '+(l.id||'')+' '+(l.content||''));
   return /(pre[cç]o|valor|desconto|cupom|r\$|\{\{\s*(de|por)\s*\}\})/i.test(sinal) ? 'preco' : 'texto';
@@ -1446,6 +1447,12 @@ function gStampPisosHierarquia(layers, canvas){
        26,1% e +16 bloqueios no fuzz. Trocar arte fraca por franqueado travado é decisão de
        produto (Ryan). Hoje a hierarquia achatada cai no aviso de "letra pequena" da prévia. */
     l._pisoFonte = (abaixo!=null) ? Math.max(abaixo, Math.round(s*0.5)) : null;
+    /* FOLGA (decisão do Ryan, 26/09/2026): no ÚLTIMO recurso antes do bloqueio — depois de
+       quebrar, encolher até o piso acima e alargar para o vazio ao lado — o texto pode descer
+       até 80% do próximo degrau da família. É o título que fica um pouco menor que o produto
+       numa copy longa, em vez de o franqueado ficar sem arte. Só o Local Fit usa (ver
+       `gFitTextToAuthoredBox`, `folgaHierarquia`); o resto do app continua com `_pisoFonte`. */
+    l._pisoFonteFolga = (abaixo!=null) ? Math.max(Math.round(abaixo*G_PISO_FOLGA_HIERARQUIA), Math.round(s*0.5)) : null;
     /* O piso de hierarquia impede INVERSÃO, mas sozinho ainda autorizava 8px numa arte de
        1080px. Isso tecnicamente cabe e visualmente falha. O segundo piso é de legibilidade:
        destaque/campo comercial não desce de 2,2% do lado curto; apoio pode chegar a 1,35%.
