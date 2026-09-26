@@ -317,16 +317,16 @@ body:not(.theme-light) #luma-widget-fab-trigger:focus-visible {
   right:24px;
   bottom:90px;
   z-index:10000;
-  /* Dock mais largo: 540px era medida de bolha de chat, e o painel virou tela (artigos com
-     passos, conversa com sugestões, resumo). Continua flutuante — não é modal de tela cheia. */
-  width:min(760px,calc(100vw - 32px));
+  /* 400px, a medida de mensageiro (Deskfy/Intercom) — redesenho de 26/09/2026. Os 760px
+     de antes cobriam metade do app e liam como uma segunda tela, não como ajuda ao lado.
+     O `largura` do wmAncorar (help-widget.js) acompanha este número. */
+  width:min(400px,calc(100vw - 32px));
   height:min(720px,calc(100vh - 84px));
   display:flex;
   flex-direction:column;
   overflow:hidden;
   border:1px solid var(--wm-border);
-  border-top:4px solid var(--dm-orange);
-  border-radius:16px;
+  border-radius:18px;
   background:var(--wm-bg);
   color:var(--wm-text);
   box-shadow:0 22px 56px color-mix(in srgb,var(--text) 18%,transparent);
@@ -426,8 +426,6 @@ body.mode-designer #luma-widget-modal {
 
 .luma-wm-header {
   flex:none;
-  padding:18px 20px 20px;
-  border-bottom:1px solid var(--wm-border-soft);
   background:var(--wm-bg);
 }
 
@@ -437,7 +435,6 @@ body.mode-designer #luma-widget-modal {
   align-items:center;
   justify-content:space-between;
   gap:12px;
-  margin-bottom:16px;
 }
 
 .luma-wm-brand {
@@ -492,7 +489,7 @@ body:not(.theme-light) .luma-wm-logo-dark {
   place-items:center;
   flex:none;
   border:1px solid transparent;
-  border-radius:var(--r-sm);
+  border-radius:50%;
   background:transparent;
   color:var(--wm-text-3);
   cursor:pointer;
@@ -503,29 +500,6 @@ body:not(.theme-light) .luma-wm-logo-dark {
   border-color:var(--wm-border-soft);
   background:var(--wm-surface-hover);
   color:var(--wm-text);
-}
-
-.luma-wm-heading {
-  display:flex;
-  flex-direction:column;
-  gap:6px;
-}
-
-.luma-wm-greeting {
-  margin:0;
-  color:var(--wm-text);
-  font-size:22px;
-  font-weight:900;
-  line-height:1.15;
-  letter-spacing:-.025em;
-  text-wrap:balance;
-}
-
-.luma-wm-heading p {
-  margin:0;
-  color:var(--wm-text-3);
-  font-size:13px;
-  line-height:1.4;
 }
 
 .luma-wm-body {
@@ -634,104 +608,23 @@ body:not(.theme-light) .luma-wm-section-head button {
   pointer-events:none;
 }
 
-.luma-wm-search-prompt {
-  min-height:58px;
-  display:grid;
-  grid-template-columns:22px minmax(0,1fr) auto;
-  align-items:center;
-  gap:10px;
-  padding:8px 12px;
-  border:1px solid var(--wm-border);
-  border-radius:var(--r);
-  background:var(--wm-surface);
-  color:var(--wm-text-2);
-  font-size:13px;
-  text-align:left;
-  cursor:pointer;
-  transition:border-color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard),box-shadow var(--dur-micro) var(--ease-standard);
-}
-
-.luma-wm-search-prompt:hover {
-  border-color:color-mix(in srgb,var(--dm-orange) 46%,var(--wm-border));
-  background:var(--wm-surface-hover);
-  box-shadow:0 5px 16px color-mix(in srgb,var(--dm-orange-d) 8%,transparent);
-}
-
-.luma-wm-search-prompt > svg {
-  position:static;
-  color:var(--dm-red);
-  transform:none;
-}
-
-body:not(.theme-light) .luma-wm-search-prompt > svg {
-  color:var(--dm-orange);
-}
-
-.luma-wm-search-prompt > span {
-  font-weight:700;
-}
-
-.luma-wm-search-prompt > small {
-  color:var(--wm-text-3);
-  font-size:11px;
-}
-
 /* ── Início e listas ───────────────────────────────────────────────────── */
 
-.luma-wm-topic-list,
-.luma-wm-articles-list {
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
-  border:1px solid var(--wm-border-soft);
-  border-radius:var(--r);
-  background:var(--wm-surface);
-}
-
-.luma-wm-topic-item {
-  width:100%;
-  min-height:48px;
-  display:grid;
-  grid-template-columns:minmax(0,1fr) 18px;
-  align-items:center;
-  gap:10px;
-  padding:8px 12px;
-  border:0;
-  border-bottom:1px solid var(--wm-border-soft);
-  border-radius:0;
-  background:transparent;
-  color:var(--wm-text-2);
-  font-size:12.5px;
-  font-weight:600;
-  line-height:1.35;
-  text-align:left;
-  cursor:pointer;
-  transition:background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
-}
-
-.luma-wm-topic-item:last-child {
-  border-bottom:0;
-}
-
-.luma-wm-topic-item:hover {
-  background:var(--wm-surface-hover);
-  color:var(--wm-text);
-}
-
-.luma-wm-topic-item svg,
 .luma-wm-list-arrow {
   color:var(--wm-text-3);
 }
 
-.luma-wm-topic-item:hover svg,
-.luma-wm-article-card:hover .luma-wm-list-arrow,
+.luma-wm-row:hover .luma-wm-list-arrow,
+.luma-wm-col:hover .luma-wm-list-arrow,
+.luma-wm-news-mini:hover .luma-wm-list-arrow,
 .luma-wm-ask-card:hover .luma-wm-list-arrow {
   color:var(--dm-orange-d);
   transform:translateX(2px);
 }
 
-body:not(.theme-light) .luma-wm-topic-item:hover svg,
-body:not(.theme-light) .luma-wm-article-card:hover .luma-wm-list-arrow,
+body:not(.theme-light) .luma-wm-row:hover .luma-wm-list-arrow,
+body:not(.theme-light) .luma-wm-col:hover .luma-wm-list-arrow,
+body:not(.theme-light) .luma-wm-news-mini:hover .luma-wm-list-arrow,
 body:not(.theme-light) .luma-wm-ask-card:hover .luma-wm-list-arrow {
   color:var(--dm-orange);
 }
@@ -804,67 +697,6 @@ body:not(.theme-light) .luma-wm-ask-card:hover .luma-wm-list-arrow {
 
 /* ── Catálogo de ajuda ─────────────────────────────────────────────────── */
 
-.luma-wm-article-card {
-  width:100%;
-  min-height:112px;
-  display:grid;
-  grid-template-columns:minmax(0,1fr) 18px;
-  align-items:center;
-  gap:14px;
-  padding:14px 16px;
-  border:1px solid var(--wm-border-soft);
-  border-radius:var(--r);
-  background:var(--wm-surface);
-  color:var(--wm-text);
-  text-align:left;
-  cursor:pointer;
-  transition:background var(--dur-micro) var(--ease-standard);
-}
-
-.luma-wm-article-card:hover {
-  background:var(--wm-surface-hover);
-}
-
-.luma-wm-body-help .luma-wm-articles-list {
-  gap:10px;
-  overflow:visible;
-  border:0;
-  border-radius:0;
-  background:transparent;
-}
-
-.luma-wm-article-card-copy {
-  min-width:0;
-  display:flex;
-  flex-direction:column;
-  align-items:flex-start;
-  gap:6px;
-}
-
-.luma-wm-article-card strong {
-  color:var(--wm-text);
-  font-size:13px;
-  font-weight:800;
-  line-height:1.4;
-}
-
-.luma-wm-article-summary {
-  display:-webkit-box;
-  overflow:hidden;
-  color:var(--wm-text-2);
-  font-size:12px;
-  line-height:1.5;
-  -webkit-box-orient:vertical;
-  -webkit-line-clamp:2;
-}
-
-.luma-wm-article-card small {
-  margin-top:1px;
-  color:var(--wm-text-3);
-  font-size:10.5px;
-  line-height:1.4;
-}
-
 .luma-wm-no-results {
   min-height:260px;
   display:flex;
@@ -901,194 +733,6 @@ body:not(.theme-light) .luma-wm-ask-card:hover .luma-wm-list-arrow {
 
 /* ── Artigo ────────────────────────────────────────────────────────────── */
 
-.luma-wm-article-view {
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-
-.luma-wm-article-back {
-  min-height:36px;
-  align-self:flex-start;
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  margin:0 0 2px;
-  padding:0 6px 0 0;
-  border:0;
-  background:transparent;
-  color:var(--wm-text-2);
-  font-size:12px;
-  font-weight:700;
-  cursor:pointer;
-}
-
-.luma-wm-article-back:hover {
-  color:var(--dm-red);
-}
-
-body:not(.theme-light) .luma-wm-article-back:hover {
-  color:var(--dm-orange);
-}
-
-.luma-wm-article-title {
-  margin:0;
-  color:var(--wm-text);
-  font-size:20px;
-  font-weight:900;
-  line-height:1.25;
-  letter-spacing:-.02em;
-  text-wrap:balance;
-}
-
-.luma-wm-article-meta {
-  display:flex;
-  align-items:center;
-  gap:8px;
-  padding-bottom:12px;
-  border-bottom:1px solid var(--wm-border-soft);
-  color:var(--wm-text-3);
-  font-size:11px;
-}
-
-.luma-wm-article-body {
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-  color:var(--wm-text-2);
-}
-
-.luma-wm-article-lead {
-  margin:0 0 2px;
-  color:var(--wm-text-2);
-  font-size:13px;
-  font-weight:500;
-  line-height:1.55;
-}
-
-.luma-wm-article-step {
-  position:relative;
-  display:grid;
-  grid-template-columns:28px minmax(0,1fr);
-  gap:10px;
-}
-
-.luma-wm-article-step:not(:last-of-type)::after {
-  content:'';
-  position:absolute;
-  top:28px;
-  bottom:-12px;
-  left:13px;
-  width:1px;
-  background:var(--wm-border);
-}
-
-.luma-wm-article-step-marker {
-  position:relative;
-  z-index:1;
-  width:28px;
-  height:28px;
-  display:grid;
-  place-items:center;
-  border:1px solid color-mix(in srgb,var(--dm-orange) 40%,var(--wm-border));
-  border-radius:50%;
-  background:var(--wm-surface);
-  color:var(--dm-red);
-  font-size:10px;
-  font-weight:800;
-}
-
-body:not(.theme-light) .luma-wm-article-step-marker {
-  color:var(--dm-orange);
-}
-
-.luma-wm-article-step > div {
-  min-width:0;
-  padding:3px 0 8px;
-}
-
-.luma-wm-article-step-num {
-  color:var(--wm-text-3);
-  font-size:9.5px;
-  font-weight:800;
-  letter-spacing:.08em;
-  text-transform:uppercase;
-}
-
-.luma-wm-article-step-title {
-  margin-top:2px;
-  color:var(--wm-text);
-  font-size:13px;
-  font-weight:800;
-  line-height:1.35;
-}
-
-.luma-wm-article-step p {
-  margin:4px 0 0;
-  color:var(--wm-text-2);
-  font-size:12.5px;
-  line-height:1.5;
-}
-
-.luma-wm-article-box-tip {
-  display:grid;
-  grid-template-columns:28px minmax(0,1fr);
-  gap:10px;
-  padding:11px 12px;
-  border:1px solid color-mix(in srgb,var(--dm-orange) 28%,var(--wm-border));
-  border-radius:var(--r);
-  background:color-mix(in srgb,var(--dm-orange) 7%,var(--wm-surface));
-}
-
-.luma-wm-article-box-tip > span {
-  width:28px;
-  height:28px;
-  display:grid;
-  place-items:center;
-  border-radius:var(--r-sm);
-  background:color-mix(in srgb,var(--dm-orange) 13%,transparent);
-  color:var(--dm-red);
-}
-
-body:not(.theme-light) .luma-wm-article-box-tip > span {
-  color:var(--dm-orange);
-}
-
-.luma-wm-article-box-tip strong {
-  color:var(--wm-text);
-  font-size:12px;
-}
-
-.luma-wm-article-box-tip p {
-  margin:3px 0 0;
-  color:var(--wm-text-2);
-  font-size:12px;
-  line-height:1.45;
-}
-
-.luma-wm-article-feedback {
-  display:flex;
-  flex-direction:column;
-  align-items:flex-start;
-  gap:10px;
-  margin-top:4px;
-  padding:12px;
-  border:1px solid var(--wm-border-soft);
-  border-radius:var(--r);
-  background:var(--wm-surface);
-}
-
-.luma-wm-article-feedback > strong {
-  color:var(--wm-text);
-  font-size:12.5px;
-}
-
-.luma-wm-feedback-actions {
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-}
-
 /* ── Mensagens ─────────────────────────────────────────────────────────── */
 
 .luma-wm-body-messages {
@@ -1114,14 +758,9 @@ body:not(.theme-light) .luma-wm-article-box-tip > span {
   display:grid;
   place-items:center;
   margin-bottom:3px;
-  border:1px solid color-mix(in srgb,var(--dm-orange) 28%,var(--wm-border));
-  border-radius:var(--r);
-  background:color-mix(in srgb,var(--dm-orange) 9%,var(--wm-surface));
-  color:var(--dm-red);
-}
-
-body:not(.theme-light) .luma-wm-chat-empty-icon {
-  color:var(--dm-orange);
+  border-radius:16px;
+  background:var(--wm-surface-hover);
+  color:var(--wm-text);
 }
 
 .luma-wm-chat-empty-icon svg {
@@ -1164,35 +803,6 @@ body:not(.theme-light) .luma-wm-chat-empty-icon {
    O espaçador com `margin-top:auto` faz isso sem `justify-content:flex-end`, que em coluna
    com rolagem corta o começo da lista quando a conversa cresce. */
 .luma-wm-chat-messages::before { content:''; margin-top:auto }
-
-/* ── ABERTURA DA CONVERSA ──────────────────────────────────────────────────────────────────
-   Três avisos diziam a mesma coisa (tarja no topo + caixa laranja na bolha + linha no pé).
-   A primeira tentativa juntou tudo num cartão laranja — que virou o elemento mais pesado da
-   tela, acima da própria saudação: a ressalva ganhava mais destaque que a conversa.
-   Agora a ordem é a natural do chat: a saudação vem primeiro, como bolha, e a ressalva é
-   RODAPÉ dela — sem fundo, sem moldura, 11.5px. Continua sempre visível (a regra é que a
-   pessoa saiba que fala com máquina), só deixou de gritar. */
-.luma-wm-ressalva {
-  display:flex;
-  align-items:flex-start;
-  gap:7px;
-  margin:-2px 0 2px;
-  padding:0 2px;
-  max-width:62ch;
-  color:var(--wm-text-3);
-  font-size:11.5px;
-  line-height:1.5;
-}
-
-.luma-wm-ressalva strong { color:var(--wm-text-2); font-weight:700 }
-
-.luma-wm-ressalva svg {
-  flex:none;
-  width:13px;
-  height:13px;
-  margin-top:2px;
-  color:var(--dm-orange-d);
-}
 
 /* ── SUGESTÕES DE PERGUNTA ──
    Ocupam o vão entre a saudação e o campo — e, por virem dos artigos reais da base, a
@@ -1461,8 +1071,7 @@ body:not(.theme-light) .luma-wm-chat-empty-icon {
 
 /* ── Botões e navegação ────────────────────────────────────────────────── */
 
-.luma-wm-btn-primary,
-.luma-wm-btn-secondary {
+.luma-wm-btn-primary {
   min-height:40px;
   display:inline-flex;
   align-items:center;
@@ -1486,18 +1095,6 @@ body:not(.theme-light) .luma-wm-chat-empty-icon {
   border-color:var(--dm-orange);
   background:var(--dm-orange);
   transform:translateY(-1px);
-}
-
-.luma-wm-btn-secondary {
-  border:1px solid var(--wm-border);
-  background:var(--wm-surface);
-  color:var(--wm-text-2);
-}
-
-.luma-wm-btn-secondary:hover {
-  border-color:color-mix(in srgb,var(--dm-orange) 38%,var(--wm-border));
-  background:var(--wm-surface-hover);
-  color:var(--wm-text);
 }
 
 .luma-wm-nav {
@@ -1551,6 +1148,1110 @@ body:not(.theme-light) .luma-wm-nav-btn.active {
   color:var(--dm-orange);
 }
 
+/* ══ REDESENHO DA AJUDA (26/09/2026, referência: Deskfy) ═══════════════════════════════════
+   Início = saudação + "Faça uma pergunta" + busca + Novidades do Luma. Ajuda = busca, "Nesta
+   tela" e coleções por intenção. Toda tela interna ganha uma barra curta (voltar · título ·
+   fechar) no lugar do cabeçalho grande, que agora é só da Início.
+   ⚠ As regras de corpo por aba usam #luma-widget-modal na frente de propósito: o bloco de
+   responsividade logo abaixo reescreve `.luma-wm-body` no celular e, com a mesma
+   especificidade, venceria por vir depois — tirando o sangrado das listas. */
+
+/* ── Cabeçalho: saudação (Início) e barra (demais telas) ─────────────────── */
+
+.luma-wm-hero {
+  padding:18px 20px 22px;
+  /* Laranja que DISSOLVE no fundo, não superfície chapada: o hero laranja cheio da home do
+     franqueado foi rejeitado (memória de 09/2026). A marca aparece como luz, não como bloco. */
+  background:linear-gradient(180deg,color-mix(in srgb,var(--dm-orange) 13%,var(--wm-bg)) 0%,color-mix(in srgb,var(--dm-orange) 5%,var(--wm-bg)) 62%,var(--wm-body) 100%);
+}
+
+.luma-wm-hero-oi {
+  margin:26px 0 3px;
+  color:var(--wm-text-2);
+  font-size:15px;
+  line-height:1.3;
+}
+
+.luma-wm-hero-title {
+  margin:0;
+  color:var(--wm-text);
+  font-size:26px;
+  font-weight:900;
+  line-height:1.12;
+  letter-spacing:-.025em;
+  text-wrap:balance;
+}
+
+.luma-wm-bar {
+  min-height:60px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:10px 12px;
+  border-bottom:1px solid var(--wm-border-soft);
+}
+
+.luma-wm-bar-gap {
+  width:40px;
+  flex:none;
+}
+
+.luma-wm-bar-title {
+  min-width:0;
+  flex:1;
+  text-align:center;
+}
+
+.luma-wm-bar.is-ident .luma-wm-bar-title {
+  padding-left:4px;
+  text-align:left;
+}
+
+.luma-wm-bar-title h2 {
+  margin:0;
+  overflow:hidden;
+  color:var(--wm-text);
+  font-size:15px;
+  font-weight:800;
+  line-height:1.25;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.luma-wm-bar-title p {
+  margin:2px 0 0;
+  overflow:hidden;
+  color:var(--wm-text-3);
+  font-size:12px;
+  line-height:1.3;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.luma-wm-bar-mark {
+  width:34px;
+  height:34px;
+  display:grid;
+  flex:none;
+  place-items:center;
+  border-radius:10px;
+  background:var(--dm-orange);
+  color:var(--on-orange);
+}
+
+.luma-wm-icon-btn {
+  width:40px;
+  height:40px;
+  display:grid;
+  flex:none;
+  place-items:center;
+  border:0;
+  border-radius:50%;
+  background:transparent;
+  color:var(--wm-text-2);
+  cursor:pointer;
+  transition:background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-icon-btn:hover {
+  background:var(--wm-surface-hover);
+  color:var(--wm-text);
+}
+
+.luma-wm-sup-avatares.mini .luma-wm-sup-av {
+  width:26px;
+  height:26px;
+  font-size:10px;
+}
+
+/* ── Corpo por aba ───────────────────────────────────────────────────────── */
+
+#luma-widget-modal .luma-wm-body-home {
+  gap:12px;
+  padding:4px 16px 20px;
+}
+
+#luma-widget-modal .luma-wm-body-help,
+#luma-widget-modal .luma-wm-body-collection,
+#luma-widget-modal .luma-wm-body-article,
+#luma-widget-modal .luma-wm-body-news,
+#luma-widget-modal .luma-wm-body-novidade {
+  gap:0;
+  padding:0;
+  background:var(--wm-bg);
+}
+
+/* ── Início ──────────────────────────────────────────────────────────────── */
+
+.luma-wm-ask {
+  width:100%;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:15px 16px;
+  border:1px solid var(--wm-border-soft);
+  border-radius:14px;
+  background:var(--wm-surface);
+  color:var(--wm-text);
+  text-align:left;
+  cursor:pointer;
+  box-shadow:0 1px 2px color-mix(in srgb,var(--text) 6%,transparent);
+  transition:border-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard);
+}
+
+.luma-wm-ask:hover {
+  border-color:color-mix(in srgb,var(--dm-orange) 45%,var(--wm-border));
+  box-shadow:0 6px 18px color-mix(in srgb,var(--text) 9%,transparent);
+}
+
+.luma-wm-ask-txt {
+  min-width:0;
+  display:flex;
+  flex:1;
+  flex-direction:column;
+  gap:2px;
+}
+
+.luma-wm-ask-txt strong {
+  font-size:15px;
+  font-weight:800;
+  line-height:1.3;
+}
+
+.luma-wm-ask-txt > span {
+  color:var(--wm-text-3);
+  font-size:13px;
+  line-height:1.4;
+}
+
+.luma-wm-ask-txt > .luma-wm-ask-online {
+  display:flex;
+  align-items:center;
+  gap:7px;
+  margin-top:6px;
+  color:var(--green-text);
+  font-size:12px;
+  font-weight:600;
+}
+
+.luma-wm-ask-go {
+  display:grid;
+  flex:none;
+  color:var(--dm-orange-d);
+  transition:transform var(--dur-fast) var(--ease-standard);
+}
+
+.luma-wm-ask:hover .luma-wm-ask-go {
+  transform:translateX(2px);
+}
+
+body:not(.theme-light) .luma-wm-ask-go {
+  color:var(--dm-orange);
+}
+
+.luma-wm-search-btn {
+  width:100%;
+  min-height:46px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:0 14px;
+  border:1px solid var(--wm-border-soft);
+  border-radius:12px;
+  background:var(--wm-surface);
+  color:var(--wm-text-3);
+  font-size:14px;
+  text-align:left;
+  cursor:pointer;
+  transition:border-color var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-search-btn:hover {
+  border-color:var(--wm-border);
+  color:var(--wm-text-2);
+}
+
+.luma-wm-body-home .luma-wm-section-head {
+  padding:10px 2px 0;
+}
+
+.luma-wm-section-title {
+  color:var(--wm-text);
+  font-size:14px;
+  font-weight:800;
+}
+
+.luma-wm-body-home .luma-wm-section-head button {
+  font-size:12.5px;
+}
+
+.luma-wm-tag {
+  padding:3px 7px;
+  border-radius:var(--r-pill);
+  background:var(--dm-orange-bg);
+  color:var(--dm-red);
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.06em;
+  line-height:1.2;
+  text-transform:uppercase;
+}
+
+body:not(.theme-light) .luma-wm-tag {
+  background:color-mix(in srgb,var(--dm-orange) 16%,transparent);
+  color:var(--dm-orange);
+}
+
+.luma-wm-news {
+  width:100%;
+  display:flex;
+  flex:none;
+  flex-direction:column;
+  overflow:hidden;
+  padding:0;
+  border:1px solid var(--wm-border-soft);
+  border-radius:14px;
+  background:var(--wm-surface);
+  color:var(--wm-text);
+  text-align:left;
+  cursor:pointer;
+  transition:border-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard);
+}
+
+.luma-wm-news:hover {
+  border-color:var(--wm-border);
+  box-shadow:0 6px 18px color-mix(in srgb,var(--text) 8%,transparent);
+}
+
+.luma-wm-news-art {
+  position:relative;
+  display:block;
+  height:150px;
+  overflow:hidden;
+}
+
+.luma-wm-news-body {
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  padding:13px 16px 16px;
+}
+
+.luma-wm-news-meta {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:0;
+  color:var(--wm-text-3);
+  font-size:12px;
+}
+
+.luma-wm-news-body strong {
+  font-size:15px;
+  font-weight:800;
+  line-height:1.3;
+}
+
+.luma-wm-news-sum {
+  color:var(--wm-text-2);
+  font-size:13px;
+  line-height:1.45;
+}
+
+.luma-wm-news-list {
+  display:flex;
+  flex:none;
+  flex-direction:column;
+  overflow:hidden;
+  border:1px solid var(--wm-border-soft);
+  border-radius:14px;
+  background:var(--wm-surface);
+}
+
+.luma-wm-body-news .luma-wm-news-list {
+  margin:16px;
+}
+
+.luma-wm-news-mini {
+  width:100%;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:12px 14px;
+  border:0;
+  border-top:1px solid var(--wm-border-soft);
+  background:transparent;
+  color:var(--wm-text);
+  text-align:left;
+  cursor:pointer;
+  transition:background var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-news-mini:first-child {
+  border-top:0;
+}
+
+.luma-wm-news-mini:hover {
+  background:var(--wm-surface-hover);
+}
+
+.luma-wm-news-ico {
+  width:40px;
+  height:40px;
+  display:grid;
+  flex:none;
+  place-items:center;
+  border-radius:10px;
+  background:color-mix(in srgb,var(--dm-orange) 12%,var(--wm-surface));
+  color:var(--dm-orange-d);
+}
+
+body:not(.theme-light) .luma-wm-news-ico {
+  color:var(--dm-orange);
+}
+
+.luma-wm-news-mini-txt {
+  min-width:0;
+  display:flex;
+  flex:1;
+  flex-direction:column;
+  gap:3px;
+}
+
+.luma-wm-news-mini-txt strong {
+  font-size:13.5px;
+  font-weight:700;
+  line-height:1.3;
+}
+
+.luma-wm-news-mini-txt small {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  color:var(--wm-text-3);
+  font-size:11.5px;
+}
+
+/* Ilustrações das novidades: fragmentos de UI. As cores são fixas da MARCA (não seguem o
+   tema) porque cada uma desenha um pedaço do app claro — tinta escura sobre o branco. */
+.luma-wm-il {
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  overflow:hidden;
+  font-family:'Roboto',sans-serif;
+}
+
+.luma-wm-il-suporte {
+  background:radial-gradient(120% 90% at 20% 10%,var(--d-surf3),var(--d-bg));
+}
+
+.luma-wm-il-pill {
+  position:absolute;
+  top:22px;
+  left:24px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:5px 10px 5px 8px;
+  border-radius:var(--r-pill);
+  background:color-mix(in srgb,var(--white) 10%,transparent);
+  color:var(--d-text);
+  font-size:11px;
+}
+
+.luma-wm-il-bub {
+  position:absolute;
+  max-width:200px;
+  padding:9px 12px;
+  border-radius:14px;
+  font-size:12px;
+  line-height:1.35;
+}
+
+.luma-wm-il-bub.eu {
+  top:20px;
+  right:22px;
+  max-width:168px;
+  border-bottom-right-radius:4px;
+  background:var(--dm-orange);
+  color:var(--on-orange);
+}
+
+.luma-wm-il-bub.eles {
+  top:78px;
+  left:24px;
+  border-bottom-left-radius:4px;
+  background:var(--white);
+  color:var(--text);
+}
+
+.luma-wm-il-bub b {
+  display:block;
+  margin-bottom:2px;
+  color:var(--text-3);
+  font-size:10.5px;
+  font-weight:600;
+}
+
+.luma-wm-il-encurtar {
+  background:linear-gradient(160deg,var(--dm-orange-bg),var(--dm-orange-tint));
+}
+
+.luma-wm-il-campo {
+  width:258px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  padding:12px 12px 10px;
+  border-radius:12px;
+  background:var(--white);
+  color:var(--text);
+  box-shadow:0 10px 26px color-mix(in srgb,var(--dm-orange-d) 22%,transparent);
+}
+
+.luma-wm-il-campo small {
+  color:var(--text-3);
+  font-size:10.5px;
+  font-weight:600;
+}
+
+.luma-wm-il-campo strong {
+  font-size:14px;
+  font-weight:800;
+  letter-spacing:-.01em;
+}
+
+.luma-wm-il-campo s {
+  color:var(--dm-red);
+  text-decoration-thickness:2px;
+}
+
+.luma-wm-il-campo-pe {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-top:4px;
+  color:var(--text-3);
+  font-size:11px;
+}
+
+.luma-wm-il-chip {
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:5px 10px;
+  border-radius:var(--r-pill);
+  background:var(--text);
+  color:var(--white);
+  font-size:11.5px;
+  font-weight:600;
+}
+
+.luma-wm-il-quebra {
+  background:linear-gradient(160deg,var(--dm-orange),var(--dm-orange-d));
+}
+
+.luma-wm-il-antes,
+.luma-wm-il-agora {
+  width:150px;
+  display:flex;
+  flex-direction:column;
+  padding:12px;
+  border-radius:12px;
+  background:var(--white);
+  color:var(--text);
+}
+
+.luma-wm-il-antes {
+  opacity:.78;
+}
+
+.luma-wm-il-antes small,
+.luma-wm-il-agora small {
+  margin-bottom:5px;
+  color:var(--text-3);
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+
+.luma-wm-il-antes b,
+.luma-wm-il-agora b {
+  font-size:13px;
+  font-weight:900;
+  line-height:1.2;
+  white-space:nowrap;
+}
+
+/* A palavra órfã é o defeito que a novidade conserta — ela ganha a cor de alerta. */
+.luma-wm-il-antes b:last-child {
+  color:var(--dm-red);
+}
+
+.luma-wm-il-foto {
+  flex-direction:column;
+  gap:12px;
+  background:radial-gradient(120% 100% at 30% 20%,var(--dm-orange-bg),var(--dm-orange-tint));
+}
+
+.luma-wm-il-moldura {
+  position:relative;
+  width:150px;
+  height:80px;
+  border:2px dashed color-mix(in srgb,var(--dm-orange-d) 60%,transparent);
+  border-radius:10px;
+  background:color-mix(in srgb,var(--white) 55%,transparent);
+}
+
+.luma-wm-il-prato {
+  position:absolute;
+  top:50%;
+  left:50%;
+  width:54px;
+  height:54px;
+  margin:-27px 0 0 -27px;
+  border-radius:50%;
+  background:radial-gradient(circle at 40% 35%,var(--dm-yellow),var(--dm-orange-d));
+  box-shadow:0 0 0 7px var(--white);
+}
+
+.luma-wm-il-moldura .h1,
+.luma-wm-il-moldura .h2,
+.luma-wm-il-moldura .h3,
+.luma-wm-il-moldura .h4 {
+  position:absolute;
+  width:10px;
+  height:10px;
+  border:2px solid var(--dm-orange-d);
+  border-radius:2px;
+  background:var(--white);
+}
+
+.luma-wm-il-moldura .h1 { top:-6px; left:-6px; }
+.luma-wm-il-moldura .h2 { top:-6px; right:-6px; }
+.luma-wm-il-moldura .h3 { bottom:-6px; left:-6px; }
+.luma-wm-il-moldura .h4 { right:-6px; bottom:-6px; }
+
+/* ── Novidade aberta ─────────────────────────────────────────────────────── */
+
+.luma-wm-novidade-art {
+  position:relative;
+  height:180px;
+  overflow:hidden;
+}
+
+.luma-wm-novidade-body {
+  padding:18px 22px 24px;
+}
+
+.luma-wm-novidade-body h3 {
+  margin:10px 0;
+  color:var(--wm-text);
+  font-size:21px;
+  font-weight:900;
+  line-height:1.2;
+  letter-spacing:-.02em;
+  text-wrap:balance;
+}
+
+.luma-wm-novidade-body > p:not(.luma-wm-news-meta) {
+  margin:0 0 12px;
+  color:var(--wm-text-2);
+  font-size:14px;
+  line-height:1.6;
+}
+
+.luma-wm-link {
+  display:flex;
+  align-items:center;
+  gap:4px;
+  margin-top:6px;
+  padding:6px 0;
+  border:0;
+  background:transparent;
+  color:var(--dm-red);
+  font-size:14px;
+  font-weight:700;
+  text-align:left;
+  cursor:pointer;
+}
+
+body:not(.theme-light) .luma-wm-link {
+  color:var(--dm-orange);
+}
+
+.luma-wm-link svg {
+  transition:transform var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-link:hover svg {
+  transform:translateX(2px);
+}
+
+/* ── Ajuda: busca, "Nesta tela", coleções e linhas ───────────────────────── */
+
+.luma-wm-help-top {
+  padding:16px 16px 4px;
+}
+
+.luma-wm-ctx {
+  margin:12px 16px 4px;
+  padding:12px 14px 4px;
+  border-radius:14px;
+  background:color-mix(in srgb,var(--dm-orange) 9%,var(--wm-surface));
+}
+
+.luma-wm-ctx-label {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin:0 0 2px;
+  color:var(--dm-red);
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+}
+
+body:not(.theme-light) .luma-wm-ctx-label {
+  color:var(--dm-orange);
+}
+
+.luma-wm-ctx-item {
+  width:100%;
+  min-height:44px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:0;
+  border:0;
+  border-top:1px solid color-mix(in srgb,var(--dm-orange) 16%,transparent);
+  background:transparent;
+  color:var(--wm-text);
+  font-size:14px;
+  font-weight:600;
+  text-align:left;
+  cursor:pointer;
+}
+
+.luma-wm-ctx-label + .luma-wm-ctx-item {
+  border-top:0;
+}
+
+.luma-wm-ctx-item svg {
+  flex:none;
+  color:var(--wm-text-3);
+  transition:transform var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-ctx-item:hover svg {
+  color:var(--dm-orange-d);
+  transform:translateX(2px);
+}
+
+.luma-wm-count {
+  margin:0;
+  padding:14px 20px 6px;
+  color:var(--wm-text-3);
+  font-size:12px;
+}
+
+.luma-wm-rows {
+  display:flex;
+  flex-direction:column;
+  border-top:1px solid var(--wm-border-soft);
+}
+
+.luma-wm-col,
+.luma-wm-row {
+  width:100%;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:14px 20px;
+  border:0;
+  border-bottom:1px solid var(--wm-border-soft);
+  background:transparent;
+  color:var(--wm-text);
+  text-align:left;
+  cursor:pointer;
+  transition:background var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-col:hover,
+.luma-wm-row:hover {
+  background:var(--wm-surface-hover);
+}
+
+.luma-wm-col-ico {
+  width:40px;
+  height:40px;
+  display:grid;
+  flex:none;
+  place-items:center;
+  border-radius:12px;
+  background:var(--wm-surface-hover);
+  color:var(--wm-text);
+  transition:background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-col:hover .luma-wm-col-ico {
+  background:color-mix(in srgb,var(--dm-orange) 12%,var(--wm-surface));
+  color:var(--dm-orange-d);
+}
+
+.luma-wm-col-txt,
+.luma-wm-row-txt {
+  min-width:0;
+  display:flex;
+  flex:1;
+  flex-direction:column;
+  gap:2px;
+}
+
+.luma-wm-col-txt strong {
+  font-size:14.5px;
+  font-weight:700;
+  line-height:1.3;
+}
+
+.luma-wm-col-txt span {
+  color:var(--wm-text-3);
+  font-size:13px;
+  line-height:1.35;
+}
+
+.luma-wm-col-txt small {
+  margin-top:3px;
+  color:var(--wm-text-3);
+  font-size:11.5px;
+}
+
+.luma-wm-row-txt strong {
+  font-size:14px;
+  font-weight:600;
+  line-height:1.35;
+}
+
+.luma-wm-row-txt small {
+  color:var(--dm-red);
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+
+body:not(.theme-light) .luma-wm-row-txt small {
+  color:var(--dm-orange);
+}
+
+.luma-wm-help-results .luma-wm-no-results {
+  min-height:220px;
+}
+
+.luma-wm-col-head {
+  padding:16px 20px 14px;
+}
+
+.luma-wm-crumb {
+  margin:0 0 6px;
+  color:var(--wm-text-3);
+  font-size:12px;
+}
+
+.luma-wm-col-head h3 {
+  margin:0 0 4px;
+  color:var(--wm-text);
+  font-size:21px;
+  font-weight:900;
+  letter-spacing:-.02em;
+}
+
+.luma-wm-col-head p:last-child {
+  margin:0;
+  color:var(--wm-text-3);
+  font-size:13px;
+}
+
+/* ── Artigo ──────────────────────────────────────────────────────────────── */
+
+.luma-wm-article {
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  padding:20px 22px 8px;
+}
+
+.luma-wm-article-title {
+  margin:0;
+  color:var(--wm-text);
+  font-size:21px;
+  font-weight:900;
+  line-height:1.22;
+  letter-spacing:-.02em;
+  text-wrap:balance;
+}
+
+.luma-wm-article-meta {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin:0;
+  color:var(--wm-text-3);
+  font-size:12px;
+}
+
+.luma-wm-article-lead {
+  margin:6px 0 4px;
+  color:var(--wm-text-2);
+  font-size:14.5px;
+  line-height:1.55;
+}
+
+.luma-wm-steps {
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  margin:4px 0 0;
+  padding:0;
+  list-style:none;
+  counter-reset:wmpasso;
+}
+
+.luma-wm-steps li {
+  display:flex;
+  gap:12px;
+  color:var(--wm-text);
+  font-size:14px;
+  line-height:1.5;
+  counter-increment:wmpasso;
+}
+
+.luma-wm-steps li::before {
+  content:counter(wmpasso);
+  width:24px;
+  height:24px;
+  display:grid;
+  flex:none;
+  place-items:center;
+  margin-top:-1px;
+  border-radius:50%;
+  background:color-mix(in srgb,var(--dm-orange) 13%,var(--wm-surface));
+  color:var(--dm-red);
+  font-size:12px;
+  font-weight:800;
+}
+
+body:not(.theme-light) .luma-wm-steps li::before {
+  color:var(--dm-orange);
+}
+
+.luma-wm-tip {
+  display:flex;
+  gap:10px;
+  margin-top:8px;
+  padding:12px 14px;
+  border:1px solid var(--wm-border-soft);
+  border-radius:12px;
+  background:var(--wm-body);
+}
+
+.luma-wm-tip svg {
+  flex:none;
+  margin-top:1px;
+  color:var(--dm-orange-d);
+}
+
+body:not(.theme-light) .luma-wm-tip svg {
+  color:var(--dm-orange);
+}
+
+.luma-wm-tip p {
+  margin:0;
+  color:var(--wm-text-2);
+  font-size:13.5px;
+  line-height:1.5;
+}
+
+.luma-wm-article-feedback {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+  margin:16px 22px 24px;
+  padding-top:18px;
+  border-top:1px solid var(--wm-border-soft);
+  text-align:center;
+}
+
+.luma-wm-article-feedback > strong {
+  color:var(--wm-text);
+  font-size:14px;
+}
+
+.luma-wm-feedback-actions {
+  display:flex;
+  gap:10px;
+}
+
+.luma-wm-vote {
+  width:48px;
+  height:40px;
+  display:grid;
+  place-items:center;
+  border:1px solid var(--wm-border);
+  border-radius:12px;
+  background:var(--wm-surface);
+  color:var(--wm-text-2);
+  cursor:pointer;
+  transition:border-color var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-vote:hover {
+  border-color:var(--dm-orange);
+  color:var(--dm-orange-d);
+}
+
+.luma-wm-fb-more {
+  margin:4px 0 0;
+  color:var(--wm-text-3);
+  font-size:13.5px;
+}
+
+.luma-wm-fb-more button {
+  padding:0;
+  border:0;
+  background:transparent;
+  color:var(--dm-red);
+  font:inherit;
+  font-weight:700;
+  cursor:pointer;
+}
+
+body:not(.theme-light) .luma-wm-fb-more button {
+  color:var(--dm-orange);
+}
+
+/* ── Conversa: quem responde, o escopo e a tela vazia ────────────────────── */
+
+.luma-wm-chat-intro {
+  flex:none;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:5px;
+  padding:8px 16px 6px;
+  text-align:center;
+}
+
+.luma-wm-chat-intro-mark {
+  width:44px;
+  height:44px;
+  display:grid;
+  place-items:center;
+  margin-bottom:3px;
+  border-radius:14px;
+  background:var(--dm-orange);
+  color:var(--on-orange);
+}
+
+.luma-wm-chat-intro strong {
+  color:var(--wm-text);
+  font-size:14.5px;
+}
+
+.luma-wm-chat-intro > span:last-child {
+  max-width:280px;
+  color:var(--wm-text-3);
+  font-size:12.5px;
+  line-height:1.45;
+}
+
+.luma-wm-escopo {
+  flex:none;
+  margin:0;
+  padding:0 8px;
+  color:var(--wm-text-3);
+  font-size:11px;
+  line-height:1.4;
+  text-align:center;
+}
+
+.luma-wm-empty-ask {
+  min-height:44px;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  margin-top:14px;
+  padding:0 18px;
+  border:0;
+  border-radius:12px;
+  background:var(--wm-text);
+  color:var(--wm-bg);
+  font-size:14px;
+  font-weight:700;
+  cursor:pointer;
+  box-shadow:0 8px 20px color-mix(in srgb,var(--text) 18%,transparent);
+  transition:transform var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-empty-ask:hover {
+  transform:translateY(-1px);
+}
+
+.luma-wm-empty-ask svg {
+  width:16px;
+  height:16px;
+}
+
+/* ── Navegação: ícone sobre o rótulo, como o mensageiro de referência ────── */
+
+.luma-wm-nav {
+  min-height:62px;
+  padding:6px 8px;
+}
+
+.luma-wm-nav-btn {
+  position:relative;
+  min-height:48px;
+  flex-direction:column;
+  gap:4px;
+  border:0;
+  border-radius:12px;
+  font-size:11.5px;
+}
+
+.luma-wm-nav-btn svg {
+  width:20px;
+  height:20px;
+}
+
+#luma-widget-modal .luma-wm-nav-btn.active {
+  border-color:transparent;
+  background:transparent;
+  color:var(--wm-text);
+}
+
+.luma-wm-nav-btn.active svg {
+  color:var(--dm-orange-d);
+}
+
+body:not(.theme-light) .luma-wm-nav-btn.active svg {
+  color:var(--dm-orange);
+}
+
+.luma-wm-nav-btn .luma-wm-sup-navbadge {
+  position:absolute;
+  top:3px;
+  left:calc(50% + 6px);
+}
+
 /* ── Responsividade ────────────────────────────────────────────────────── */
 
 @media (max-width:480px) {
@@ -1594,38 +2295,22 @@ body:not(.theme-light) .luma-wm-nav-btn.active {
     transform:translateY(0);
   }
 
-  .luma-wm-header {
-    padding:calc(16px + env(safe-area-inset-top)) 18px 18px;
+  .luma-wm-hero {
+    padding-top:calc(16px + env(safe-area-inset-top));
+  }
+
+  .luma-wm-bar {
+    padding-top:calc(10px + env(safe-area-inset-top));
   }
 
   .luma-wm-body {
     padding:16px 18px 20px;
   }
 
-  .luma-wm-body-help {
-    gap:18px;
-  }
-
-  .luma-wm-body-help .luma-wm-articles-list {
-    gap:12px;
-  }
-
-  .luma-wm-article-card {
-    min-height:116px;
-    padding:15px 14px;
-  }
-
   .luma-wm-nav {
     padding-bottom:calc(8px + env(safe-area-inset-bottom));
   }
 
-  .luma-wm-search-prompt {
-    grid-template-columns:22px minmax(0,1fr);
-  }
-
-  .luma-wm-search-prompt small {
-    display:none;
-  }
 }
 
 @media (max-height:620px) and (min-width:481px) {
@@ -1636,17 +2321,13 @@ body:not(.theme-light) .luma-wm-nav-btn.active {
     height:auto;
   }
 
-  .luma-wm-header {
+  .luma-wm-hero {
     padding-top:10px;
     padding-bottom:12px;
   }
 
-  .luma-wm-header-top {
-    margin-bottom:8px;
-  }
-
-  .luma-wm-heading p {
-    display:none;
+  .luma-wm-hero-oi {
+    margin-top:10px;
   }
 }
 

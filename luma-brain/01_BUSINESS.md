@@ -212,6 +212,11 @@ Tipos: `text`, `number`, `currency`, `date`, `image`, `select`, `color`, `boolea
 - A gestão desliga pelo Controle do produto (`global.help.suporte`), sem deploy. Desligado, "Mensagens" volta a ser o assistente de IA.
 - ⚠️ Limite da v1: sem e-mail/push — quem fechou o app só vê a resposta ao voltar (contador + aviso).
 
+**Novidades do Luma** (desde 2026-09-26, na Início do widget de Ajuda): contam ao franqueado o que mudou no produto.
+- A novidade mora no **código** (`LUMA_NOVIDADES`, `js/widgets/help-widget.js`), não numa tabela. Novidade é o que acabou de ir ao ar, e isso já exige deploy: escrever a notícia é uma linha no mesmo commit. Só vale criar tabela editável quando alguém de fora do desenvolvimento for publicar.
+- ⛔ Só entra o que existe na tela, com o nome que está na tela. Recurso desligado pelo Controle do produto não vira notícia (`requer`).
+- É comunicação **sobre o Luma** para a rede. Não é comunicado da franqueadora (isso é do Portal de Franqueados) nem push/inapp para consumidor (§9).
+
 ---
 
 ## 11. Workflow (o fluxo ponta a ponta)

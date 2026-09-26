@@ -129,10 +129,8 @@ const G_FRA_HELP_ARTS={
     {steps:['Baixe o modelo de planilha.','Preencha uma linha por produto.','Envie a planilha e confira a grade.','Toque em <b>Baixar todas</b> pra gerar o pacote.']},
     {tip:'Tem os produtos num texto? Cole direto que o Luma tenta montar a planilha sozinho.'}
   ]},
-  'ajuda-pdf':{title:'Baixar a arte em PDF',read:'1 min',blocks:[
-    {lead:'Precisa imprimir? Baixe em PDF no lugar do PNG.'},
-    {p:'Depois de gerar a arte, use <b>Baixar PDF</b> na tela final. O arquivo sai no tamanho exato da arte, pronto pra gráfica.'}
-  ]},
+  // 'ajuda-pdf' saiu em 26/09/2026: não existe "Baixar PDF" na tela (fBaixarPDF sem
+  // chamador), e este texto chega à IA pelo gHelpKnowledge — ela ensinava um botão fantasma.
   'regras-marca':{title:'Regras da marca Delivery Much',read:'1 min',blocks:[
     {lead:'Relaxa: é impossível estragar a marca no Luma.'},
     {p:'Cores, fontes e logo vêm travados no template pela gestão. Você preenche só o conteúdo — produto, preço, foto.'},
@@ -146,9 +144,9 @@ const G_FRA_HELP_ARTS={
 };
 const G_FRA_HELP_COLS=[
   {id:'comece',title:'Comece por aqui',desc:'O básico pra criar sua primeira arte',arts:['primeira-arte','qual-formato','enviar-foto','editar-arte']},
-  {id:'alem',title:'Vá além',desc:'Lote, PDF e regras da marca',arts:['gerar-varios','ajuda-pdf','regras-marca']}
+  {id:'alem',title:'Vá além',desc:'Lote e regras da marca',arts:['gerar-varios','regras-marca']}
 ];
-const G_FRA_HELP_KW={'primeira-arte':'começar gerar campanha material','qual-formato':'story feed post wide tamanho','enviar-foto':'foto imagem upload png jpg 20mb qualidade','editar-arte':'histórico minhas artes rascunho duplicar','gerar-varios':'lote planilha csv cardápio muitas','ajuda-pdf':'pdf imprimir baixar','regras-marca':'marca cor fonte logo'};
+const G_FRA_HELP_KW={'primeira-arte':'começar gerar campanha material','qual-formato':'story feed post wide tamanho','enviar-foto':'foto imagem upload png jpg 20mb qualidade','editar-arte':'histórico minhas artes rascunho duplicar','gerar-varios':'lote planilha csv cardápio muitas','regras-marca':'marca cor fonte logo'};
 
 let _fhPrev='ajuda', _fhLastCol='comece', _fhPrevOverflow='';
 
@@ -321,7 +319,6 @@ const G_HELP_KEYWORDS={
 };
 
 const G_HELP_ARTICLES=[
-  {id:'ajuda-pdf',cat:'franqueado',title:'Baixar a arte em PDF',sub:'Onde encontrar o download em PDF',keywords:['pdf','baixar','imprimir','download'],body:'Depois de gerar a arte, use Baixar PDF na tela final. Se a arte usar uma imagem por URL e a geracao falhar, confirme que a imagem esta publica.'},
   {id:'ajuda-csv',cat:'franqueado',title:'Gerar artes por planilha',sub:'CSV Modelo, envio e download em lote',keywords:['csv','planilha','lote','sheets','excel'],body:'Abra Gerar varios, baixe o CSV Modelo, preencha uma linha por produto e envie a planilha. Ao revisar a grade, use Baixar todos para gerar o ZIP.'},
   {id:'ajuda-upload',cat:'franqueado',title:'Enviar foto do produto',sub:'Formatos e limite de tamanho',keywords:['foto','imagem','upload','20mb','png','jpg'],body:'Envie imagens PNG ou JPG de ate 20 MB. Para imagens por URL, o endereco precisa ser publico para que a arte possa ser gerada.'},
 ];
