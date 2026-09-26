@@ -601,6 +601,34 @@ Story no piso de 50%.
 abrindo: "Com batata" fica) e "para 2 pessoas" → "p/ 2". O `confere` e a especificação da suíte
 canonizam os dois lados ("para N pessoas"). Catraca da amostra: 187/46 → 155/55.
 
+### Rodada de 26/09/2026 — a largura livre ao lado (decisão do Ryan: "ganho máximo preservando ao máximo a estética")
+
+`_gLfLarguraLivre` (`local-fit.js`) — irmã do respiro abaixo, no eixo horizontal. **Só roda quando o
+texto BLOQUEARIA** na caixa desenhada: tudo que cabe hoje sai idêntico. Nada se move — o texto passa a
+usar o vazio que já existe ao lado, e o render recebe `_layoutW`/`_layoutDx` (que ele já honrava).
+
+- **O alinhamento manda:** esquerda cresce para a direita, direita para a esquerda, centralizado para os
+  dois lados por igual (o eixo fica onde o designer pôs).
+- **Parede:** qualquer camada visível na faixa do texto que passe da borda naquele lado (foto, preço,
+  selo, outro texto); se já invade a caixa, aquele lado não cresce. Não são parede: o próprio texto, a
+  placa dele, os membros da pilha e o fundo que contém a caixa. Respiro ¼ do corpo; margem 5%.
+- **O mínimo necessário:** tenta 25/50/75/100% da folga e fica com a primeira que cabe; dentro dela, a
+  escada fica com o maior corpo. **Teto `G_LF_ALARGA_MAX` = +50%** da largura desenhada.
+- Fora: texto vertical, girado ou com placa.
+
+| Teto | Bloqueio final (depois do Copy Fit) | Alargamento típico | Pior |
+|---|---|---|---|
+| sem alargar (25/09) | 11,1% | — | — |
+| +30% | 8,4% | +15% | +30% |
+| **+50% (aplicado)** | **7,9%** | **+15%** | **+50%** |
+| +100% | 7,5% | +50% | +100% |
+| sem teto | 7,4% | +74% | +147% |
+
+O que sobra é, em sua maior parte, o título do `promo-preco-circulo` (o selo do preço invade a borda
+direita — não cresce, por regra) preso à hierarquia real (título ≥ produto). Afrouxar isso é a linha
+"título desce até 85% do produto" da rodada de 25/09, decisão de gosto em aberto.
+Suíte: 538 casos verdes (o 15f do `local-fit`, que falhava desde antes, passou a caber).
+
 ### Copy Fit — a saída do bloqueio (23/09/2026)
 
 Motor puro em `js/core/copy-fit.js` (saiu de `js/franqueado/` no `c9d6e8e`: é `g*`, mora no core).

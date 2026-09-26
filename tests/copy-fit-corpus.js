@@ -210,5 +210,6 @@ window.LUMA_COPY_CORPUS = [
    número exato não é comparado — ver o caso 33. Referência: a bancada TODA (2.478 pares) dava
    172/784 nesta mesma máquina, antes da pilha inferida (que baixou a amostra de 260/50 para
    187/46: 73 bloqueios passaram a caber sozinhos). 25/09/2026: hierarquia por família (preço
-   não segura mais o piso do produto) + degrau `barra` ("com" → "c/") → 155/55. */
-window.LUMA_COPY_FIT_PISO = { fp: '1317.2/1317.2/1214.6', bloqueios: 155, resgates: 55 };
+   não segura mais o piso do produto) + degrau `barra` ("com" → "c/") → 155/55. 26/09/2026:
+   largura livre ao lado no bloqueio → 101/28 (os fáceis passaram a caber sem o Copy Fit). */
+window.LUMA_COPY_FIT_PISO = { fp: '1317.2/1317.2/1214.6', bloqueios: 101, resgates: 28 };

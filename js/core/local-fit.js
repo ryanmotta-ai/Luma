@@ -20,6 +20,8 @@ const G_LF_TOL = 1;
 /* Teto duro de passos. De 120px até o piso de 8px são ~33 degraus de 8%; 60 é folga larga e
    garante que nenhuma entrada hostil (fonte ausente, métrica zero) vire laço infinito. */
 const G_LF_MAX_PASSOS = 60;
+/* Quanto a caixa pode alargar para o vazio ao lado, no bloqueio (ver `_gLfLarguraLivre`). */
+const G_LF_ALARGA_MAX = 0.5;
 
 let _gLfCanvas = null;
 function _gLfCtx(ctxAux){
@@ -268,6 +270,57 @@ function _gLfEspacoAbaixo(layer, camada, opts){
   return Math.max(0, Math.floor(limite - respiro - ((camada.y || 0) + bh)));
 }
 
+/* ── A LARGURA LIVRE AO LADO DA CAIXA (decisão do Ryan, 26/09/2026: "o ganho máximo possível
+   preservando ao máximo a estética da arte") ─────────────────────────────────────────────────
+   Irmã do respiro abaixo, no outro eixo. Só entra quando o texto BLOQUEARIA na caixa desenhada
+   (ver o fim de `gFitTextToAuthoredBox`): tudo que cabe hoje continua idêntico, e o que sairia
+   sem arte nenhuma passa a sair usando o vazio que já existe ao lado. NADA SE MOVE.
+   As regras (e por que cada uma):
+     · o ALINHAMENTO manda para onde cresce — esquerda cresce para a direita, direita para a
+       esquerda, centralizado para os dois lados por igual (o eixo do desenho fica onde está);
+     · parede = qualquer camada visível na FAIXA do texto (do topo até a altura disponível)
+       que passe da borda da caixa naquele lado — foto, preço, selo, outro texto. Se ela já
+       invade a caixa, aquele lado não cresce nada;
+     · NÃO são parede: o próprio texto, a placa dele, os membros da pilha (descem junto) e o
+       fundo/painel que contém a caixa inteira na horizontal;
+     · respiro de ¼ do corpo (mín. 8px) até a parede; teto na margem de 5% da prancheta;
+     · texto vertical, girado ou com placa fica de fora (a placa deixaria de abraçar a tinta). */
+function _gLfLarguraLivre(layer, box, opts){
+  const cv = opts && opts.canvas;
+  if(!cv || !cv.w || !Array.isArray(opts.layers) || box.vertical || opts.placa) return null;
+  if(box.camada.rotation) return null;
+  const x0 = box.camada.x || 0, x1 = x0 + (box.camada.w || 0);
+  const y0 = box.camada.y || 0, y1 = y0 + Math.max(box.alturaDisponivel || 0, box.camada.h || 0);
+  const respiro = Math.max(8, Math.round((box.fontSize || 24) * 0.25));
+  const margem = Math.round(cv.w * 0.05);
+  let limE = margem, limD = cv.w - margem;
+  const ignora = new Set([layer.id]);
+  if(opts.pilha && opts.pilha.membros) opts.pilha.membros.forEach(m => ignora.add(m.id));
+  opts.layers.forEach(o => { if(o && o._placa && ignora.has(o._placa.alvo)) ignora.add(o.id); });
+  opts.layers.forEach(o => {
+    if(!o || ignora.has(o.id) || o.type === 'group') return;
+    if(typeof _gLayoutVisivel === 'function' && !_gLayoutVisivel(o)) return;
+    const ox = o.x || 0, ow = o.w || 0, oy = o.y || 0, oh = o.h || 0;
+    if(ow <= 0 || oh <= 0) return;
+    if(oy >= y1 || oy + oh <= y0) return;                  // fora da faixa do texto
+    if(ox <= x0 + 1 && ox + ow >= x1 - 1) return;          // contém a caixa: fundo/painel
+    if(ox + ow > x1 + 1) limD = Math.min(limD, ox >= x1 ? ox - respiro : x1);
+    if(ox < x0 - 1)      limE = Math.max(limE, ox + ow <= x0 ? ox + ow + respiro : x0);
+  });
+  let esq = Math.max(0, Math.floor(x0 - limE)), dir = Math.max(0, Math.floor(limD - x1));
+  const al = box.textAlign;
+  if(al === 'center'){ const e = Math.min(esq, dir); esq = dir = e; }
+  else if(al === 'right') dir = 0;
+  else esq = 0;
+  /* TETO: no máximo +50% da largura desenhada. Medido na bancada (2.478 pares): sem teto o
+     bloqueio final ia a 7,4%, mas a caixa típica crescia +74% e a pior +147% — outra coluna,
+     outra arte. Com +50%: 7,9%, caixa típica +15%. 86% do ganho com a coluna reconhecível. */
+  const teto = Math.round((box.camada.w || 0) * G_LF_ALARGA_MAX);
+  esq = Math.min(esq, al === 'center' ? Math.round(teto / 2) : teto);
+  dir = Math.min(dir, al === 'center' ? Math.round(teto / 2) : teto);
+  return (esq + dir >= 8) ? { esq, dir } : null;
+}
+
 /* ── TETO DE LINHAS ───────────────────────────────────────────────────────────────────────
    Regra explícita vence sempre; sem ela, infere-se de forma conservadora.
 
@@ -361,6 +414,14 @@ function gFitTextToAuthoredBox(layer, conteudo, opts){
   }
   const box = gAuthoredTextBox(layer, opts);
   if(!box) return null;
+  /* Tentativa ALARGADA (ver `_gLfLarguraLivre`): a mesma escada numa caixa mais larga, com a
+     origem deslocada para o lado que o alinhamento permite. O render recebe `_layoutW/_layoutDx`. */
+  if(opts.alargar){
+    const a = opts.alargar;
+    box.camada = Object.assign({}, box.camada, { x:(box.camada.x || 0) - a.esq, w:(box.camada.w || 0) + a.esq + a.dir });
+    box.x = box.camada.x; box.w = box.camada.w;
+    box.alargado = { esq:a.esq, dir:a.dir, w:box.w };
+  }
   // Uma cadeia declarada empresta altura aos membros; a transação valida o conjunto depois.
   if(Number.isFinite(opts.alturaDisponivel)) box.alturaDisponivel = Math.max(0, opts.alturaDisponivel);
   /* PLACA NÃO CRESCE PARA CIMA DO VIZINHO. A placa acompanha a tinta, então cada linha nova
@@ -433,13 +494,26 @@ function gFitTextToAuthoredBox(layer, conteudo, opts){
     if(prox === fs) break;
     fs = prox;
   }
-  return _gLfResultado(box, ultimo, passos, 'overflow', opts);
+  const bloqueio = _gLfResultado(box, ultimo, passos, 'overflow', opts);
+  /* ÚLTIMO RECURSO ANTES DO BLOQUEIO: o vazio ao lado. Em degraus de 25% da folga, o PRIMEIRO
+     que cabe — a caixa cresce só o necessário e, dentro dela, a escada fica com o maior corpo.
+     Coluna o mais perto possível da desenhada, letra o maior possível. */
+  if(!opts.alargar && !opts.fonteExata){
+    const livre = _gLfLarguraLivre(layer, box, opts);
+    if(livre) for(const f of [0.25, 0.5, 0.75, 1]){
+      const a = { esq:Math.round(livre.esq * f), dir:Math.round(livre.dir * f) };
+      if(a.esq + a.dir < 8) continue;
+      const r = gFitTextToAuthoredBox(layer, conteudo, Object.assign({}, opts, { alargar:a }));
+      if(r && r.status === 'fits') return r;
+    }
+  }
+  return bloqueio;
 }
 
 function _gLfResultado(box, u, passos, status, opts){
   const f = u.f;
   const encolheu = u.fs !== box.fontSize;
-  const intacto = status === 'fits' && !encolheu && !u.layoutW && u.linhas <= box.linhasAutoradas;
+  const intacto = status === 'fits' && !encolheu && !u.layoutW && !box.alargado && u.linhas <= box.linhasAutoradas;
   const degrau = status === 'overflow' ? 'piso'
                : intacto ? 'original'
                : encolheu ? 'shrink' : 'wrap';
@@ -454,6 +528,9 @@ function _gLfResultado(box, u, passos, status, opts){
     status, degrau, intacto, changed: encolheu,
     /* Largura de quebra do texto de PONTO (null quando não quebrou). O render lê `_layoutW`. */
     layoutW: u.layoutW || null,
+    /* A caixa usou a largura livre ao lado: {esq, dir, w}. O runtime carimba `_layoutW = w` e
+       `_layoutDx = -esq` (a origem desloca só quando cresceu para a esquerda). */
+    alargado: box.alargado || null,
     text: f.text, lines: (f.lines || []).slice(),
     fontSize: u.fs, lineHeight: box.lineHeight,
     overflowX: u.overflowX, overflowY: u.overflowY,
@@ -799,6 +876,7 @@ function gLocalFitArte(layers, opts){
     if(r.degrau === 'wrap'){ quebrou = true; }
     if(r.fontSize !== r.diagnostics.fontSizeAutorado) l._tetoFonte = r.fontSize;
     if(r.layoutW) l._layoutW = r.layoutW;
+    if(r.alargado){ l._layoutW = r.alargado.w; l._layoutDx = -r.alargado.esq; }
     /* Caixa que cresceu para o respiro: o render já desenha para baixo (âncora no topo);
        `_layoutH` só conta até onde, para o toque da prévia cobrir o texto inteiro. */
     if(r.status === 'fits' && r.diagnostics.alturaNecessaria > (l.h || 0))

@@ -437,7 +437,9 @@
       textBox:'point', vAlign:'top', visible:true, opacity:100 };
     // pilha:null — idem ao 12.
     const cabe = t => { const r = gFitTextToAuthoredBox(l, t, { layers:[l, d], canvas:{ w:1080, h:1920 }, pilha:null }); return { ok:r.status === 'fits', fontSize:r.fontSize }; };
-    const f = 'X-Salada com Refrigerante Lata por apenas R$ 19,90';
+    /* 26/09/2026: a caixa do Story agora alarga para o vazio à direita no bloqueio (+50% no
+       máximo) e o X-Salada passou a caber com "refri" ou "c/". Este segue exigindo o "+". */
+    const f = 'X-Burger com Batata Frita e Refrigerante por apenas R$ 29,90';
     assert(!cabe(f).ok, 'o cenário precisa começar bloqueado');
     const { sugestoes } = gCopyFitSugestoes(f, cabe, 3);
     assert(sugestoes.length, 'deveria haver uma versão que cabe');
