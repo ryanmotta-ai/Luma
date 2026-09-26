@@ -787,6 +787,7 @@ function _fSheetSync(){
   if(b) b.hidden = _fGuidedAtivo()
     ? !(_fGuidedIndice(_fGuidedNav.currentField)>0 && !fState.done && !_fRevisando && !document.body.classList.contains('f-guided-respostas'))
     : !(fState.stepIdx>0 && !fState.done && fState.editIdx===null && !_fRevisando);
+  try{ _fRespostasBadge(); }catch(e){}
   /* Arte pronta: a caixa de resposta some. Não é estética — com `fState.done` o `fSaveAdv`
      corta na primeira linha e devolve "Quer gerar outra arte?", ou seja, digitar ali não faz
      nada além de empurrar o card de entrega para fora da vista. E o painel ganha altura,
@@ -930,6 +931,8 @@ function fConcluirRevisao(){
    o preço na arte deixava a linha "Preço" com o valor velho: a mesma verdade em dois
    lugares, a 200px de distância. */
 function fRevisaoRepinta(){
+  // O número do botão "Respostas" também é essa verdade, e a edição pela arte não passa pelo `fUpdateProg`.
+  try{ _fRespostasBadge(); }catch(e){}
   if(!_fRevisando || fState.editIdx!==null) return;
   const lista=document.getElementById('f-respostas');
   if(lista && !lista.hidden) fRenderRespostas();
@@ -990,6 +993,21 @@ function fToggleRespostas(){
   if(l) l.textContent = abrir ? 'Fechar' : 'Respostas';
 }
 
+/* Quantas perguntas já têm resposta. É a MESMA régua do `.feita` de cada linha (valor não
+   vazio), para o número do botão e o "2 de 4" do cabeçalho nunca discordarem da lista. */
+function _fRespostasFeitas(){
+  const pergs=(fState.camp&&fState.camp.perguntas)||[];
+  return pergs.reduce((n,p)=>{ const v=fState.dados?fState.dados[p.id]:null; return n+(v!=null&&v!==''?1:0); },0);
+}
+/* O número no botão "Respostas" — é o que faz ele ler como área com conteúdo, e não como
+   link de rodapé. Zero some: selo "0" é ruído, não informação. */
+function _fRespostasBadge(){
+  const n=document.getElementById('f-sheet-hist-n'); if(!n) return;
+  const k=_fRespostasFeitas();
+  n.hidden=!k;
+  n.innerHTML=k?`${k}<span class="f-sr-only"> respondidas</span>`:'';
+}
+
 function fRenderRespostas(){
   const box=document.getElementById('f-respostas'); if(!box) return;
   const pergs=(fState.camp&&fState.camp.perguntas)||[];
@@ -999,12 +1017,16 @@ function fRenderRespostas(){
     const rot=(typeof gFieldLabel==='function')?gFieldLabel(p.id,p):(p.label||p.id);
     // Foto não vira data-url na tela: vira a miniatura da própria foto + uma palavra.
     const val = p.isImage
-      ? (tem?`<img class="fr-mini" src="${gEsc(v)}" alt="">Foto enviada`:'<i>sem foto</i>')
-      : (tem?gEsc(String(v)):'<i>ainda não respondido</i>');
+      ? (tem?`<img class="fr-mini" src="${gEsc(v)}" alt="">Foto enviada`:'<i>Sem foto</i>')
+      : (tem?gEsc(String(v)):'<i>Ainda não respondido</i>');
     /* "atual" responde "onde eu estou no fluxo?". Na revisão não existe passo atual — a
-       pessoa está na lista inteira — e marcar o último campo editado seria mentir. */
-    return `<div class="fr-row${(!_fRevisando && i===fState.stepIdx)?' atual':''}">
-      <span class="fr-lbl">${gEsc(rot)}</span>
+       pessoa está na lista inteira — e marcar o último campo editado seria mentir.
+       O `.fr-mk` (check / tracejado / anel) é decorativo: o valor já diz o estado em texto.
+       A revisão tem desenho próprio e o esconde no CSS. */
+    const atual = !_fRevisando && i===fState.stepIdx;
+    return `<div class="fr-row${tem?' feita':''}${atual?' atual':''}">
+      <span class="fr-mk" aria-hidden="true">${tem?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':''}</span>
+      <span class="fr-lbl">${gEsc(rot)}${atual?'<span class="fr-agora">Agora</span>':''}</span>
       <span class="fr-val${tem?'':' vazia'}">${val}</span>
       <button type="button" class="fr-ed" onclick="fRespostaEditar(${i})" aria-label="Alterar ${gEsc(rot)}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
@@ -1017,12 +1039,18 @@ function fRenderRespostas(){
      de prévia (`_fLpPaintCartao`), ela não edita campo. Prometer lá seria mandar a pessoa
      tocar numa coisa que responde outra. */
   const dica = _fCelular() ? '' : `<p class="fr-dica">Você também pode clicar direto no campo, na arte.</p>`;
+  /* Na consulta o cabeçalho diz QUANTO já foi, não só o nome da lista: "RESPOSTAS" em 11px
+     cinza era um rótulo, e ninguém lia a lista como lugar de conferir o trabalho. */
+  const feitas=_fRespostasFeitas(), total=pergs.length;
+  const topo=`<div class="fr-top"><div class="fr-top-l"><h3 class="fr-tit">Suas respostas</h3>`
+    + `<span class="fr-n">${feitas} de ${total}</span></div>`
+    + `<div class="fr-bar" aria-hidden="true"><i style="width:${total?Math.round(feitas/total*100):0}%"></i></div></div>`;
   box.innerHTML = _fRevisando
     ? `<h3 class="fr-h">O que você quer corrigir?</h3>${linhas}${dica}`
       + `<button type="button" class="art-btn pri fr-ok" onclick="fConcluirRevisao()">Concluir alterações</button>`
     : _fGuidedAtivo()
-      ? `<h3 class="fr-h">Respostas</h3>${linhas}`
-    : `<h3 class="fr-h">Respostas</h3>${linhas}`
+      ? `${topo}${linhas}`
+    : `${topo}${linhas}`
       + `<button type="button" class="fr-reset" onclick="fResetFlow()">Recomeçar esta arte</button>`;
 }
 

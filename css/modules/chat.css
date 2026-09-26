@@ -2797,8 +2797,10 @@ body:not(.theme-light) .art-review-badge{
     display:flex;align-items:center;justify-content:space-between;gap:12px;width:min(calc(100% - 40px),520px);
     margin:0 auto 24px;padding:0;background:transparent;border:0;flex:0 0 auto;
   }
-  body.f-guided-desktop.f-guided-prestart #f-sheet-foot,
-  body.f-guided-desktop.f-guided-respostas #f-sheet-foot{display:none}
+  /* ⚠ Com as Respostas abertas o rodapé FICA: é nele que está o "Fechar". Escondê-lo deixava a
+     lista sem saída — só o lápis tirava a pessoa de lá. Na revisão ele some pela regra
+     `body.f-revisao #f-sheet #f-sheet-foot`, mais abaixo. */
+  body.f-guided-desktop.f-guided-prestart #f-sheet-foot{display:none}
   body.f-guided-desktop .fsf-btn{
     appearance:none;display:inline-flex;align-items:center;gap:6px;min-height:38px;padding:7px 10px;
     border:0;border-radius:9px;background:transparent;color:var(--text-3);font:700 12.5px 'Roboto',sans-serif;cursor:pointer;
@@ -2850,7 +2852,6 @@ body:not(.theme-light) .art-review-badge{
     display:flex;flex-direction:column;align-items:center;justify-content:safe center;flex:1;min-height:0;overflow-y:auto;padding:clamp(24px,4vh,40px) 20px;
   }
   body.f-guided-desktop.f-guided-respostas:not(.f-revisao) #f-respostas>*{width:min(100%,520px)}
-  body.f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-h{margin:0 0 8px;font-size:11px;font-weight:850;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3)}
   body.f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:3px 12px;padding:13px 2px;border-bottom:1px solid var(--gray-light)}
   body.f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-lbl{grid-column:1;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3)}
   body.f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-val{grid-column:1;display:flex;align-items:center;gap:7px;font-size:14.5px;font-weight:700;color:var(--text);overflow-wrap:anywhere}
@@ -3776,3 +3777,92 @@ body:not(.theme-light) .fr-cancelar{border-color:var(--d-border2);color:var(--d-
   body:not(.theme-light).f-revisao .fr-ed{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text2)}
   body:not(.theme-light).f-revisao .fr-ed:hover{background:var(--d-surf3);border-color:var(--dm-orange);color:var(--dm-orange)}
 }
+
+/* ══ ABA "RESPOSTAS" — PRESENÇA (26/09/2026) ═══════════════════════════════════════════════
+   A lista é onde o franqueado confere o que já entrou na arte, e estava vestida de rodapé: o
+   botão era texto cinza de 12,5px igual ao "Anterior", e a lista abria com um "RESPOSTAS" de
+   11px que não dizia quanto faltava. Aqui ela ganha corpo (pílula com contagem, cabeçalho com
+   "2 de 4", marcador de situação por linha) SEM virar CTA: o laranja cheio continua sendo só
+   do "Continuar", que é a conversa principal.
+
+   ⚠ POR QUE `#f-sheet-foot #f-sheet-hist` E `#f-sheet #f-respostas`: os blocos do celular e do
+   desktop guiado escopam em cinco classes (`body.f-mobile-chat:not()…`), e id vence qualquer
+   quantidade de classe. Um bloco só serve os dois tamanhos, em vez de duas cópias.
+   ⛔ `:not(.f-revisao)` em tudo que é linha: a revisão ("O que você quer corrigir?") usa o MESMO
+   `#f-respostas`, mas é outra tela, com desenho próprio (seção acima). O `.fr-top` nem nasce lá. */
+
+/* ── 1. O BOTÃO: pílula neutra; o laranja fica no número ── */
+#f-sheet-foot #f-sheet-hist{
+  margin-left:auto;min-height:40px;padding:0 12px;gap:7px;
+  border:1px solid var(--gray-mid);border-radius:var(--r-pill);background:var(--white);
+  color:var(--text-2);font-size:13px;font-weight:750;
+  transition:background var(--dur-micro) var(--ease-standard),border-color var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+}
+/* Hover nunca usa laranja: laranja aqui quer dizer "aberto" (contrato de estado, 04 §8). */
+#f-sheet-foot #f-sheet-hist:hover{background:var(--gray-light);border-color:color-mix(in srgb,var(--gray-mid) 60%,var(--text-3));color:var(--text)}
+#f-sheet-foot #f-sheet-hist:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+#f-sheet-foot #f-sheet-hist svg{width:15px;height:15px;flex-shrink:0}
+/* Aberto = ligado (`--press-*`). O rótulo vira "Fechar" no JS e o ícone vira ✕ aqui: o mesmo
+   botão, no mesmo lugar, abre e fecha — nos dois tamanhos. */
+#f-sheet-foot #f-sheet-hist[aria-expanded="true"]{background:var(--press-bg);border-color:var(--press-border);color:var(--press-text);padding-right:14px}
+#f-sheet-hist .fsf-ico-x,
+#f-sheet-hist[aria-expanded="true"] .fsf-ico-list,
+#f-sheet-hist[aria-expanded="true"] .fsf-n{display:none}
+#f-sheet-hist[aria-expanded="true"] .fsf-ico-x{display:block}
+/* ⚠ `.fsf-n[hidden]` explícito: o `display:inline-grid` abaixo venceria o `[hidden]` do navegador. */
+#f-sheet-hist .fsf-n{
+  min-width:20px;height:20px;margin-right:-5px;padding:0 6px;border-radius:var(--r-pill);
+  background:var(--dm-orange-bg);color:var(--dm-orange-text);
+  font-size:11.5px;font-weight:800;font-variant-numeric:tabular-nums;display:inline-grid;place-items:center;
+}
+#f-sheet-hist .fsf-n[hidden]{display:none}
+
+/* ── 2. O CABEÇALHO DA LISTA: nome de seção + quanto já foi ── */
+#f-respostas .fr-top{padding:0 10px 12px}
+#f-respostas .fr-top-l{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+#f-respostas .fr-tit{margin:0;font-size:20px;font-weight:900;line-height:1.2;letter-spacing:-.01em;color:var(--text)}
+#f-respostas .fr-n{font-size:12.5px;font-weight:700;color:var(--text-3);white-space:nowrap;font-variant-numeric:tabular-nums}
+#f-respostas .fr-bar{height:4px;margin-top:10px;border-radius:var(--r-pill);background:var(--gray-light);overflow:hidden}
+#f-respostas .fr-bar>i{display:block;height:100%;border-radius:inherit;background:var(--dm-orange)}
+
+/* ── 3. AS LINHAS: marcador de situação à esquerda, lápis à direita ── */
+.fr-mk{display:none}
+body:not(.f-revisao) #f-sheet #f-respostas .fr-row{grid-template-columns:22px minmax(0,1fr) auto;column-gap:12px;padding:11px 10px;border-bottom:0;border-radius:12px}
+body:not(.f-revisao) #f-sheet #f-respostas .fr-lbl,
+body:not(.f-revisao) #f-sheet #f-respostas .fr-val{grid-column:2}
+body:not(.f-revisao) #f-sheet #f-respostas .fr-ed{grid-column:3}
+body:not(.f-revisao) #f-sheet #f-respostas .fr-row.atual{background:var(--dm-orange-bg)}
+/* Pendente = tracejado; respondida = check; atual = anel com ponto (ganha de "respondida"
+   quando a pessoa voltou a um campo já preenchido — ela está NELE agora). */
+body:not(.f-revisao) #f-sheet #f-respostas .fr-mk{
+  grid-column:1;grid-row:1/3;display:grid;place-items:center;width:22px;height:22px;border-radius:50%;
+  border:1.5px dashed color-mix(in srgb,var(--gray-mid) 65%,var(--text-3));color:var(--dm-orange-text);
+}
+body:not(.f-revisao) #f-sheet #f-respostas .fr-row.feita .fr-mk{border:0;background:var(--dm-orange-bg)}
+body:not(.f-revisao) #f-sheet #f-respostas .fr-row.atual .fr-mk{border:2px solid var(--dm-orange);background:var(--dm-orange);box-shadow:inset 0 0 0 4px var(--white)}
+body:not(.f-revisao) #f-sheet #f-respostas .fr-mk svg{width:12px;height:12px}
+body:not(.f-revisao) #f-sheet #f-respostas .fr-val i{font-style:normal}
+body:not(.f-revisao) #f-sheet #f-respostas .fr-val.vazia{font-size:13.5px}
+body:not(.f-revisao) #f-sheet #f-respostas .fr-agora{margin-left:7px;padding:1px 7px;border-radius:var(--r-pill);background:var(--dm-orange);color:var(--on-orange);font-size:10px;font-weight:800;letter-spacing:.04em;vertical-align:1px}
+
+/* ── 4. CELULAR: as linhas encostam na margem de 18px do painel, como a pergunta ── */
+@media (max-width:680px){
+  #f-respostas .fr-top,
+  body:not(.f-revisao) #f-sheet #f-respostas .fr-row{margin-inline:-10px}
+  #f-respostas .fr-tit{font-size:18px}
+}
+
+/* ── 5. TEMA ESCURO ── */
+body:not(.theme-light) #f-sheet-foot #f-sheet-hist{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text)}
+body:not(.theme-light) #f-sheet-foot #f-sheet-hist:hover{background:var(--d-surf3)}
+body:not(.theme-light) #f-sheet-foot #f-sheet-hist[aria-expanded="true"]{background:var(--press-bg);border-color:var(--press-border);color:var(--press-text)}
+body:not(.theme-light) #f-sheet-hist .fsf-n{background:color-mix(in srgb,var(--dm-orange) 18%,transparent)}
+body:not(.theme-light) #f-respostas .fr-tit{color:var(--d-text)}
+body:not(.theme-light) #f-respostas .fr-n{color:var(--d-text2)}
+body:not(.theme-light) #f-respostas .fr-bar{background:var(--d-surf3)}
+body:not(.theme-light):not(.f-revisao) #f-sheet #f-respostas .fr-row.atual{background:color-mix(in srgb,var(--dm-orange) 15%,transparent)}
+body:not(.theme-light):not(.f-revisao) #f-sheet #f-respostas .fr-mk{border-color:var(--d-border2)}
+/* O bloco escuro do celular pinta todo `.fr-val` de `--d-text`, e o pendente ficava tão aceso quanto o respondido. */
+body:not(.theme-light):not(.f-revisao) #f-sheet #f-respostas .fr-val.vazia{color:var(--d-text2)}
+body:not(.theme-light):not(.f-revisao) #f-sheet #f-respostas .fr-row.feita .fr-mk{background:color-mix(in srgb,var(--dm-orange) 18%,transparent)}
+body:not(.theme-light):not(.f-revisao) #f-sheet #f-respostas .fr-row.atual .fr-mk{box-shadow:inset 0 0 0 4px var(--d-surf)}
