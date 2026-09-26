@@ -6,6 +6,21 @@
 
 ---
 
+## 2026-09-26 — Suporte: atendimento com dono, estado e histórico
+
+**`20260926120000_luma_suporte_atendimento`** (⏳ **escrita, NÃO aplicada** — a aplicação pelo agente foi bloqueada; aplicar pelo SQL Editor ou `apply_migration` e rodar `supabase/tests/rls.sql`). Em cima da conversa (que continua sendo o `franqueado_id`):
+
+- `luma.suporte_conversas` — uma linha por franqueado: `status` (`novo` · `em_atendimento` · `aguardando_usuario` · `resolvido`), `responsavel_id`, `aberta_em`, `resolvida_em`. Sem grant de escrita para ninguém: muda só pelo gatilho e pelas RPCs.
+- `luma.suporte_eventos` — histórico (`assumiu`, `repassou`, `resolveu`, `reabriu`) com ator/de/para e os primeiros nomes copiados na hora (o franqueado não lê `profiles` da equipe).
+- Gatilho `suporte_msg_estado` (BEFORE INSERT em `suporte_mensagens`, roda depois do `suporte_msg_carimbo`): cria/trava a linha do atendimento (`for update`), **recusa resposta da equipe quando outra pessoa é a responsável** (`SUPORTE_OUTRO_RESPONSAVEL`), faz a resposta assumir conversa sem dono, passa a vez, e reabre como `novo` sem dono quando o franqueado escreve depois de resolvida.
+- RPCs (SECURITY DEFINER, só `is_designer()`): `suporte_assumir(p_franqueado, p_forcar)`, `suporte_repassar(p_franqueado, p_para)`, `suporte_resolver(p_franqueado)`. Devolvem `{ok:false, erro:'outro_responsavel', responsavel_nome}` em vez de erro quando outra pessoa atende.
+- `suporte_equipe()` — o cartão da equipe ativa (id, nome, cargo = `departamento` ou "Equipe DM", `avatar_url`), para o franqueado ver quem atende. Só esses quatro campos, só da equipe.
+- View `suporte_caixa` ganha `status` e `responsavel_id` (no fim). `suporte_conversas` entra na publicação `supabase_realtime`. Backfill: conversa cuja última mensagem foi da equipe nasce `aguardando_usuario` com o autor dela como responsável; as outras, `novo`.
+
+**Front:** `js/core/suporte.js` (`gSupAssumir`, `gSupRepassar`, `gSupResolver`, `gSupSetStatus`, `gSupPessoa`, `gSupOnlinePessoas`, `gSupPedeAcao`) + widget de ajuda (barra do atendimento, trava no campo de resposta, filtros Fila/Comigo/Todas, histórico no fio, status Disponível/Ausente, cartão de quem atende). **Sem a migration no ar, o front detecta (`G_SUP.atendimento = false`) e continua exatamente como a v1.**
+
+**`supabase/tests/rls.sql`**: +14 casos "atendimento:" (franqueado não lê nem muda atendimento alheio, não chama as RPCs, não aparece em `suporte_equipe`; gestão não responde por cima da equipe; assumir forçando fica no histórico; repassar para franqueado recusa; resolvida + nova mensagem volta para a fila). **Ainda não rodados** — dependem da migration.
+
 ## 2026-09-24 — Gestão lê as artes da rede (modo "Ver a rede")
 
 - Nova policy `"gestao lê artes da rede"` em `luma.artes` (migration `20260924120000_luma_artes_gestao_le_rede.sql`): `FOR SELECT USING ((select public.get_user_role()) = 'gestao')`. Só leitura, só `gestao` (decisão do Ryan); `equipe_dm` e franqueado seguem lendo apenas as próprias. INSERT/UPDATE/DELETE continuam exclusivos do dono.

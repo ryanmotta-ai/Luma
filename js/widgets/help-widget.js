@@ -28,9 +28,11 @@
     // re-renderiza o painel — sem isto, o que a pessoa digitava sumia quando a resposta chegava.
     supRascunho: '',
     supOrigem: null,        // 'assistente' quando a conversa veio do "Não resolveu?" da IA
-    supFiltro: 'aguardando',
+    supFiltro: 'aguardando', // v1: aguardando|todas · com atendimento: fila|comigo|todas
     supErro: '',
-    supEnviando: false
+    supEnviando: false,
+    supRepasse: false,      // equipe: a lista "passar para quem?" aberta na conversa
+    supAcaoRodando: false   // assumir/repassar/resolver no ar (trava clique duplo)
   };
 
   /* ── A BASE DA AJUDA (redesenho de 26/09/2026, referência: Deskfy) ────────────────────────
@@ -344,8 +346,10 @@
   }
 
   function wmAvataresOnline(tam) {
-    return `<span class="luma-wm-sup-avatares${tam ? ' ' + tam : ''}" aria-hidden="true">${G_SUP.online.slice(0, 3).map(function (n) {
-      return `<span class="luma-wm-sup-av">${wmEsc(wmSupIniciais(n))}</span>`; }).join('')}</span>`;
+    const lista = typeof gSupOnlinePessoas === 'function' ? gSupOnlinePessoas()
+      : G_SUP.online.map(function (n) { return { nome: n }; });
+    return `<span class="luma-wm-sup-avatares${tam ? ' ' + tam : ''}" aria-hidden="true">${lista.slice(0, 3).map(function (p) {
+      return wmSupAvatar(p, ''); }).join('')}</span>`;
   }
 
   function wmBarCopy() {
@@ -386,12 +390,14 @@
       : '<span class="luma-wm-bar-gap" aria-hidden="true"></span>';
     const ident = c.ia || c.detail;
     const marca = c.ia ? `<span class="luma-wm-bar-mark" aria-hidden="true">${WIDGET_SVGS.sparkle}</span>`
+      : c.pessoa ? `<span class="luma-wm-sup-avatares mini" aria-hidden="true">${wmSupAvatar(c.pessoa, '')}</span>`
       : (c.online && !G_SUP.souEquipe && G_SUP.online.length ? wmAvataresOnline('mini') : '');
+    const dot = c.dot || (c.online ? 'on' : '');   // on | ausente | off
     return `<header class="luma-wm-header luma-wm-bar${ident ? ' is-ident' : ''}">
         ${voltar}${marca}
         <div class="luma-wm-bar-title">
           <h2 id="luma-wm-title">${wmEsc(c.title)}</h2>
-          ${c.detail ? `<p${c.online ? ' class="luma-wm-sup-status"' : ''}>${c.online ? '<i class="luma-wm-sup-dot" aria-hidden="true"></i>' : ''}${wmEsc(c.detail)}</p>` : ''}
+          ${c.detail ? `<p${dot ? ' class="luma-wm-sup-status"' : ''}>${dot ? `<i class="luma-wm-sup-dot${dot !== 'on' ? ' ' + dot : ''}" aria-hidden="true"></i>` : ''}${wmEsc(c.detail)}</p>` : ''}
         </div>
         ${fechar}
       </header>`;
@@ -1399,6 +1405,26 @@ REGRAS:
   function wmSupLinhaAberta() {
     return G_SUP.caixa.find(function (c) { return c.franqueado_id === G_SUP.conversaDe; }) || null;
   }
+  function wmSupEuId() {
+    const eu = typeof gCurrentUser === 'function' ? gCurrentUser() : null;
+    return eu ? eu.id : null;
+  }
+  // Avatar de uma pessoa: foto quando há, iniciais quando não. Decorativo — o nome vem ao lado.
+  function wmSupAvatar(p, tam) {
+    const foto = p && p.foto;
+    return `<span class="luma-wm-sup-av${tam ? ' ' + tam : ''}${foto ? ' foto' : ''}" aria-hidden="true">${foto ? `<img src="${wmEsc(foto)}" alt="">` : wmEsc(wmSupIniciais(p && p.nome))}</span>`;
+  }
+  const WM_SUP_ESTADOS = { novo: 'Novo', em_atendimento: 'Em atendimento', aguardando_usuario: 'Aguardando franqueado', resolvido: 'Resolvido' };
+  function wmSupChip(status) {
+    return WM_SUP_ESTADOS[status] ? `<b class="luma-wm-sup-st st-${status}">${WM_SUP_ESTADOS[status]}</b>` : '';
+  }
+  // Onde a pessoa está, em PALAVRAS: a cor da bolinha sozinha não informa (WCAG 1.4.1).
+  function wmSupOndeEsta(p, curto) {
+    if (p.status === 'disponivel') return curto ? 'Online' : 'Online agora';
+    if (p.status === 'ausente') return curto ? 'Ausente' : 'Ausente no momento';
+    return curto ? 'Fora do Luma' : 'Responde aqui quando voltar';
+  }
+  function wmSupDot(p) { return p.status === 'disponivel' ? 'on' : p.status === 'ausente' ? 'ausente' : 'off'; }
 
   function wmSupHeader() {
     if (G_SUP.souEquipe) {
@@ -1407,9 +1433,14 @@ REGRAS:
         return { title: (c && c.nome) || 'Franqueado', detail: (c && c.cidade) || 'Conversa com o franqueado' };
       }
       const n = gSupAguardando();
-      return { title: 'Conversas', online: true,
-        detail: 'Online para a rede · ' + (n ? n + ' aguardando resposta' : 'nenhuma aguardando') };
+      const aus = G_SUP.meuStatus === 'ausente';
+      return { title: 'Conversas', dot: aus ? 'ausente' : 'on',
+        detail: (aus ? 'Ausente' : 'Disponível') + ' · ' + (n ? n + ' pedindo resposta' : 'nada pedindo resposta') };
     }
+    // Franqueado: com responsável, a barra diz QUEM está cuidando da conversa — foto, nome e cargo.
+    const at = G_SUP.atendimento ? G_SUP.conversa : null;
+    const dono = at && at.responsavel_id && at.status !== 'resolvido' ? gSupPessoa(at.responsavel_id) : null;
+    if (dono) return { title: dono.nome, pessoa: dono, dot: wmSupDot(dono), detail: dono.cargo + ' · ' + wmSupOndeEsta(dono) };
     if (G_SUP.online.length) return { title: 'Equipe DM', online: true, detail: 'Online agora · ' + wmSupNomes(G_SUP.online) };
     return { title: 'Equipe DM', detail: 'Ninguém online agora — a resposta aparece aqui assim que a equipe voltar.' };
   }
@@ -1435,7 +1466,7 @@ REGRAS:
     const n = gSupAguardando();
     return `<button type="button" class="luma-wm-ask-card luma-wm-sup-card" onclick="lumaWidgetSetTab('messages')">
         <span class="luma-wm-ask-icon" aria-hidden="true">${WIDGET_SVGS.chatBubble}</span>
-        <div class="luma-wm-ask-copy"><strong>Conversas do suporte</strong><span>${n ? n + ' aguardando resposta' : 'Nenhuma conversa aguardando'}</span></div>
+        <div class="luma-wm-ask-copy"><strong>Conversas do suporte</strong><span>${n ? n + ' pedindo resposta' : 'Nenhuma conversa pedindo resposta'}</span></div>
         <span class="luma-wm-list-arrow" aria-hidden="true">${WIDGET_SVGS.chevronRight}</span>
       </button>`;
   }
@@ -1459,35 +1490,73 @@ REGRAS:
     return (G_SUP.souEquipe && !G_SUP.conversaDe) ? renderSupCaixa() : renderSupConversa();
   }
 
-  function renderSupCaixa() {
-    const f = widgetState.supFiltro;
-    const aguardando = G_SUP.caixa.filter(function (c) { return !c.ultima_da_equipe; });
-    const lista = f === 'aguardando' ? aguardando : G_SUP.caixa;
-    const seg = `<div class="luma-wm-sup-seg" role="group" aria-label="Filtrar conversas">
-        <button type="button" class="${f === 'aguardando' ? 'on' : ''}" aria-pressed="${f === 'aguardando'}" onclick="lumaWidgetSupFiltro('aguardando')">Aguardando · ${aguardando.length}</button>
-        <button type="button" class="${f === 'todas' ? 'on' : ''}" aria-pressed="${f === 'todas'}" onclick="lumaWidgetSupFiltro('todas')">Todas</button>
+  /* Filtros da caixa. Com o atendimento no ar a pergunta é "de quem é a vez": a FILA (ninguém
+     assumiu) e o que está COMIGO. Sem ele, a regra da v1 (a última mensagem veio do franqueado). */
+  function wmSupFiltros() {
+    const eu = wmSupEuId();
+    if (!G_SUP.atendimento) return [
+      { id: 'aguardando', rotulo: 'Aguardando', f: function (c) { return !c.ultima_da_equipe; } },
+      { id: 'todas', rotulo: 'Todas', f: null }];
+    return [
+      { id: 'fila', rotulo: 'Fila', f: function (c) { return c.status === 'novo'; } },
+      { id: 'comigo', rotulo: 'Comigo', f: function (c) { return !!eu && c.responsavel_id === eu && c.status !== 'resolvido'; } },
+      { id: 'todas', rotulo: 'Todas', f: null }];
+  }
+  const WM_SUP_VAZIO = {
+    aguardando: ['Ninguém esperando resposta', 'Quando um franqueado escrever, a conversa aparece aqui e o Luma avisa.'],
+    fila: ['Fila vazia', 'Conversa nova, sem ninguém cuidando, aparece aqui e o Luma avisa.'],
+    comigo: ['Nada com você', 'As conversas que você assumir ou receber de um colega ficam aqui até resolver.'],
+    todas: ['Nenhuma conversa ainda', 'As conversas com os franqueados aparecem aqui.']
+  };
+
+  // Disponível (a rede vê você online e a pergunta vem direto) ou Ausente (a caixa segue chegando).
+  function wmSupEu() {
+    const aus = G_SUP.meuStatus === 'ausente';
+    return `<div class="luma-wm-sup-eu">
+        <i class="luma-wm-sup-dot${aus ? ' ausente' : ''}" aria-hidden="true"></i>
+        <span class="luma-wm-sup-eu-txt"><strong>${aus ? 'Você está ausente' : 'Você está disponível'}</strong>
+          <span>${aus ? 'A rede não vê você online. As conversas continuam chegando aqui.' : 'A rede vê você online e a pergunta chega direto para a equipe.'}</span></span>
+        <button type="button" onclick="lumaWidgetSupStatus('${aus ? 'disponivel' : 'ausente'}')">${aus ? 'Ficar disponível' : 'Ficar ausente'}</button>
       </div>`;
+  }
+
+  function renderSupCaixa() {
+    const filtros = wmSupFiltros();
+    const atual = filtros.find(function (x) { return x.id === widgetState.supFiltro; }) || filtros[0];
+    const lista = atual.f ? G_SUP.caixa.filter(atual.f) : G_SUP.caixa;
+    const seg = `<div class="luma-wm-sup-seg" role="group" aria-label="Filtrar conversas">${filtros.map(function (x) {
+        const on = x === atual;
+        return `<button type="button" class="${on ? 'on' : ''}" aria-pressed="${on}" onclick="lumaWidgetSupFiltro('${x.id}')">${x.rotulo}${x.f ? ' · ' + G_SUP.caixa.filter(x.f).length : ''}</button>`;
+      }).join('')}</div>`;
     if (!lista.length) {
-      return seg + `<div class="luma-wm-chat-empty">
+      const v = WM_SUP_VAZIO[atual.id];
+      return wmSupEu() + seg + `<div class="luma-wm-chat-empty">
           <div class="luma-wm-chat-empty-icon">${WIDGET_SVGS.chatBubble}</div>
-          <strong>${f === 'aguardando' ? 'Ninguém esperando resposta' : 'Nenhuma conversa ainda'}</strong>
-          <span>${f === 'aguardando' ? 'Quando um franqueado escrever, a conversa aparece aqui e o Luma avisa.' : 'As conversas com os franqueados aparecem aqui.'}</span>
+          <strong>${v[0]}</strong>
+          <span>${v[1]}</span>
         </div>`;
     }
-    return seg + `<div class="luma-wm-sup-lista">${lista.map(renderSupLinha).join('')}</div>`;
+    return wmSupEu() + seg + `<div class="luma-wm-sup-lista">${lista.map(renderSupLinha).join('')}</div>`;
   }
 
   function renderSupLinha(c) {
     const ctx = c.ultimo_contexto || {};
     const onde = [c.cidade, gSupContextoTexto(ctx)].filter(Boolean).join(' · ');
     const ultimo = (c.ultima_da_equipe ? 'Equipe: ' : '') + (c.ultimo_texto || (c.ultimo_tem_anexo ? 'Imagem' : ''));
-    const av = c.avatar_url ? `<img src="${wmEsc(c.avatar_url)}" alt="">` : wmEsc(wmSupIniciais(c.nome));
-    return `<button type="button" class="luma-wm-sup-linha${c.ultima_da_equipe ? '' : ' espera'}" data-id="${wmEsc(c.franqueado_id)}" onclick="lumaWidgetSupAbrir(this)">
-        <span class="luma-wm-sup-av grande${c.avatar_url ? ' foto' : ''}" aria-hidden="true">${av}</span>
+    let estado = '';
+    if (G_SUP.atendimento && c.status) {
+      const dono = c.responsavel_id ? gSupPessoa(c.responsavel_id) : null;
+      const quem = c.status === 'resolvido' || !c.responsavel_id ? ''
+        : c.responsavel_id === wmSupEuId() ? 'com você' : 'com ' + (dono ? dono.primeiro : 'outra pessoa');
+      estado = `<span class="luma-wm-sup-linha-estado">${wmSupChip(c.status)}${quem ? `<span>${wmEsc(quem)}</span>` : ''}</span>`;
+    }
+    return `<button type="button" class="luma-wm-sup-linha${gSupPedeAcao(c) ? ' espera' : ''}" data-id="${wmEsc(c.franqueado_id)}" onclick="lumaWidgetSupAbrir(this)">
+        ${wmSupAvatar({ nome: c.nome, foto: c.avatar_url }, 'grande')}
         <span class="luma-wm-sup-linha-main">
           <span class="luma-wm-sup-linha-top"><strong>${wmEsc(c.nome || 'Franqueado')}</strong><time>${wmEsc(wmSupQuando(c.ultima_em))}</time></span>
           ${onde || ctx.origem === 'assistente' ? `<span class="luma-wm-sup-linha-onde">${wmEsc(onde)}${ctx.origem === 'assistente' ? ' <b class="luma-wm-sup-tag">veio do assistente</b>' : ''}</span>` : ''}
           <span class="luma-wm-sup-linha-ultima">${wmEsc(ultimo)}</span>
+          ${estado}
         </span>
         ${c.nao_lidas > 0 ? `<span class="luma-wm-sup-badge"><span aria-hidden="true">${c.nao_lidas}</span><span class="g-help-sr-only">${c.nao_lidas} não lidas</span></span>` : ''}
       </button>`;
@@ -1500,10 +1569,22 @@ REGRAS:
     let ultimaMinha = null;
     G_SUP.msgs.forEach(function (m) { if (meu(m)) ultimaMinha = m.id; });
     const franq = wmSupLinhaAberta();
+    // O histórico do atendimento entra no fio, na hora em que aconteceu. Eventos primeiro no
+    // empate: "Ana assumiu" e a primeira resposta dela nascem na mesma transação.
+    const tempo = function (iso) { const t = new Date(iso).getTime(); return isNaN(t) ? 0 : t; };
+    const itens = (G_SUP.atendimento ? G_SUP.eventos : []).map(function (e) { return { e: e, t: e.created_at }; })
+      .concat(G_SUP.msgs.map(function (m) { return { m: m, t: m.created_at }; }))
+      .sort(function (a, b) { return tempo(a.t) - tempo(b.t); });
     let html = '', diaAnt = '', ctxAnt = '';
-    G_SUP.msgs.forEach(function (m) {
-      const dia = wmSupDia(m.created_at);
+    itens.forEach(function (it) {
+      const dia = wmSupDia(it.t);
       if (dia && dia !== diaAnt) { html += `<div class="luma-wm-sup-sys">${wmEsc(dia)}</div>`; diaAnt = dia; }
+      if (it.e) {
+        const txt = wmSupEventoTexto(it.e);
+        if (txt) html += `<div class="luma-wm-sup-sys luma-wm-sup-evt">${wmEsc(txt)} · ${wmEsc(wmSupHora(it.t))}</div>`;
+        return;
+      }
+      const m = it.m;
       const url = m.anexo_path ? gSupAnexoUrl(m.anexo_path) : '';
       const img = !m.anexo_path ? '' : url
         ? `<img src="${wmEsc(url)}" class="luma-wm-bubble-img" alt="Imagem enviada na conversa">`
@@ -1526,8 +1607,93 @@ REGRAS:
     return html;
   }
 
+  // Uma linha do histórico, contada para QUEM LÊ: a equipe vê o "de quem" e o "reabriu"; o
+  // franqueado vê quem está cuidando da conversa dele, sem os bastidores da troca.
+  function wmSupEventoTexto(e) {
+    const eq = G_SUP.souEquipe, eu = wmSupEuId();
+    const quem = eq && e.ator_id === eu ? 'Você' : (e.ator_nome || 'Alguém da equipe');
+    if (e.tipo === 'assumiu') return quem + ' assumiu o atendimento' + (eq && e.de_nome && e.de_id !== e.ator_id ? ' de ' + e.de_nome : '');
+    if (e.tipo === 'repassou') return quem + ' passou o atendimento para ' + (eq && e.para_id === eu ? 'você' : (e.para_nome || 'outra pessoa da equipe'));
+    if (e.tipo === 'resolveu') return quem + ' marcou a conversa como resolvida';
+    if (e.tipo === 'reabriu') return eq ? 'O franqueado escreveu de novo — a conversa voltou para a fila' : '';
+    return '';
+  }
+
+  // Equipe: estado, responsável e o que dá para fazer. Quem é o responsável responde, repassa e
+  // resolve; conversa de outra pessoa pede "Assumir" antes (a trava do banco garante).
+  function wmSupTicket() {
+    const c = G_SUP.conversa;
+    if (!G_SUP.atendimento || !c) return '';
+    const eu = wmSupEuId();
+    const resolvida = c.status === 'resolvido';
+    const livre = resolvida || !c.responsavel_id;
+    const meu = !resolvida && c.responsavel_id === eu;
+    const dono = c.responsavel_id ? gSupPessoa(c.responsavel_id) : null;
+    const quem = resolvida ? 'Resolvida' + (dono ? ' por ' + (c.responsavel_id === eu ? 'você' : dono.primeiro) : '')
+      : !c.responsavel_id ? 'Sem responsável' : meu ? 'Com você' : 'Com ' + (dono ? dono.primeiro : 'outra pessoa');
+    const off = widgetState.supAcaoRodando ? ' disabled' : '';
+    const botoes = [];
+    if (livre) botoes.push(`<button type="button" class="prim" onclick="lumaWidgetSupAssumir(false)"${off}>Assumir</button>`);
+    if (meu || livre) botoes.push(`<button type="button" aria-expanded="${widgetState.supRepasse}" onclick="lumaWidgetSupRepasse()"${off}>${meu ? 'Repassar' : 'Atribuir'}</button>`);
+    if (meu || (!resolvida && !c.responsavel_id)) botoes.push(`<button type="button" onclick="lumaWidgetSupResolver()"${off}>Resolver</button>`);
+    return `<div class="luma-wm-sup-ticket">
+        <div class="luma-wm-sup-ticket-top">
+          ${wmSupChip(c.status)}
+          <span class="luma-wm-sup-ticket-dono">${dono && !resolvida ? wmSupAvatar(dono, '') : ''}${wmEsc(quem)}</span>
+        </div>
+        ${botoes.length ? `<div class="luma-wm-sup-acoes">${botoes.join('')}</div>` : ''}
+        ${widgetState.supRepasse && (meu || livre) ? wmSupRepasseLista(c) : ''}
+      </div>`;
+  }
+
+  function wmSupRepasseLista(c) {
+    const eu = wmSupEuId();
+    const ordem = { disponivel: 0, ausente: 1, offline: 2 };
+    const pessoas = Object.keys(G_SUP.time).filter(function (id) { return id !== eu && id !== c.responsavel_id; })
+      .map(gSupPessoa).filter(Boolean)
+      .sort(function (a, b) { return (ordem[a.status] - ordem[b.status]) || a.nome.localeCompare(b.nome, 'pt-BR'); });
+    if (!pessoas.length) return '<p class="luma-wm-sup-sys">Ninguém mais da equipe para receber esta conversa.</p>';
+    const off = widgetState.supAcaoRodando ? ' disabled' : '';
+    return `<div class="luma-wm-sup-repasse" role="group" aria-label="Passar a conversa para">${pessoas.map(function (p) {
+        const dot = wmSupDot(p);
+        return `<button type="button" data-id="${wmEsc(p.id)}" onclick="lumaWidgetSupRepassar(this)"${off}>
+            ${wmSupAvatar(p, '')}
+            <span class="luma-wm-sup-repasse-main"><strong>${wmEsc(p.nome)}</strong><span>${wmEsc(p.cargo)}</span></span>
+            <span class="luma-wm-sup-repasse-onde"><i class="luma-wm-sup-dot${dot !== 'on' ? ' ' + dot : ''}" aria-hidden="true"></i>${wmEsc(wmSupOndeEsta(p, true))}</span>
+          </button>`;
+      }).join('')}</div>`;
+  }
+
+  // No lugar do campo de resposta, quando a conversa é de outra pessoa da equipe.
+  function wmSupTrava(c) {
+    const dono = gSupPessoa(c.responsavel_id);
+    const nome = dono ? dono.primeiro : 'Outra pessoa da equipe';
+    return `<div class="luma-wm-sup-trava">
+        ${dono ? wmSupAvatar(dono, '') : ''}
+        <span class="luma-wm-sup-trava-txt"><strong>${wmEsc(nome)} está atendendo esta conversa.</strong>
+          <span>Para responder, assuma o atendimento. Fica registrado no histórico.</span></span>
+        <button type="button" onclick="lumaWidgetSupAssumir(true)"${widgetState.supAcaoRodando ? ' disabled' : ''}>Assumir</button>
+      </div>`;
+  }
+
+  // Franqueado, antes da primeira mensagem: com quem ele vai falar (foto, nome e cargo).
+  function wmSupQuemOnline() {
+    const lista = typeof gSupOnlinePessoas === 'function' ? gSupOnlinePessoas() : [];
+    if (!lista.length) return '';
+    return `<div class="luma-wm-sup-pessoas">
+        <span class="luma-wm-eyebrow">Online agora</span>
+        ${lista.slice(0, 3).map(function (p) {
+          return `<div class="luma-wm-sup-pessoa">${wmSupAvatar(p, 'grande')}
+              <span class="luma-wm-sup-pessoa-txt"><strong>${wmEsc(p.nome)}</strong><span>${wmEsc(p.cargo)}</span></span>
+              <i class="luma-wm-sup-dot" aria-hidden="true"></i></div>`;
+        }).join('')}
+      </div>`;
+  }
+
   function renderSupConversa() {
     const eq = G_SUP.souEquipe;
+    const at = G_SUP.atendimento ? G_SUP.conversa : null;
+    const deOutro = eq && at && at.status !== 'resolvido' && at.responsavel_id && at.responsavel_id !== wmSupEuId();
     let corpo;
     if (G_SUP.carregando && !G_SUP.msgs.length) corpo = '<p class="luma-wm-sup-sys" role="status">Carregando a conversa…</p>';
     else if (G_SUP.msgs.length) corpo = wmSupBolhas();
@@ -1537,15 +1703,20 @@ REGRAS:
         <span class="luma-wm-eyebrow">Equipe DM</span>
         <strong>Fale com uma pessoa</strong>
         <span>Dúvidas de uso e problemas no Luma. Aprovação de peça e pedido de arte continuam com o marketing da sua empresa.</span>
+        ${wmSupQuemOnline()}
       </div>`;
+    if (!eq && at && at.status === 'resolvido' && G_SUP.msgs.length) {
+      corpo += '<p class="luma-wm-sup-sys">Precisa de mais alguma coisa? É só escrever.</p>';
+    }
     const pronto = widgetState.supRascunho.trim() || widgetState.attachedFile;
     return `
       <div class="luma-wm-chat-active luma-wm-sup">
         ${eq ? `<button type="button" class="luma-wm-sup-voltar" onclick="lumaWidgetSupVoltar()">${WIDGET_SVGS.back}<span>Conversas</span></button>` : ''}
+        ${eq ? wmSupTicket() : ''}
         <div class="luma-wm-chat-messages">${corpo}</div>
         <div id="luma-wm-attach-area"></div>
         ${widgetState.supErro ? `<p class="luma-wm-sup-erro" role="status">${wmEsc(widgetState.supErro)}</p>` : ''}
-        <div class="luma-wm-chat-input-bar">
+        ${deOutro ? wmSupTrava(at) : `<div class="luma-wm-chat-input-bar">
           <textarea id="luma-wm-input-box" placeholder="${eq ? 'Responder ao franqueado' : 'Escreva para a equipe'}" aria-label="${eq ? 'Resposta para o franqueado' : 'Mensagem para a equipe DM'}" oninput="lumaWidgetSupDigitando(this)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();lumaWidgetSupEnviar();}">${wmEsc(widgetState.supRascunho)}</textarea>
           <div class="luma-wm-chat-input-tools">
             <div class="luma-wm-input-actions">
@@ -1553,7 +1724,7 @@ REGRAS:
             </div>
             <button type="button" class="luma-wm-send-btn${pronto ? ' ready' : ''}" id="luma-wm-send-trigger" onclick="lumaWidgetSupEnviar()" aria-label="Enviar mensagem"${widgetState.supEnviando ? ' disabled' : ''}>${WIDGET_SVGS.send}</button>
           </div>
-        </div>
+        </div>`}
       </div>`;
   }
 
@@ -1624,17 +1795,55 @@ REGRAS:
   window.lumaWidgetSupAbrir = function (btn) {
     const id = btn && btn.dataset ? btn.dataset.id : '';
     if (!id) return;
-    widgetState.supRascunho = ''; widgetState.supErro = ''; widgetState.attachedFile = null;
+    widgetState.supRascunho = ''; widgetState.supErro = ''; widgetState.attachedFile = null; widgetState.supRepasse = false;
     gSupAbrirConversa(id);
   };
   window.lumaWidgetSupVoltar = function () {
-    widgetState.supRascunho = ''; widgetState.supErro = ''; widgetState.attachedFile = null;
+    widgetState.supRascunho = ''; widgetState.supErro = ''; widgetState.attachedFile = null; widgetState.supRepasse = false;
     gSupFecharConversa();
     gSupCarregarCaixa();
   };
   window.lumaWidgetSupFiltro = function (f) {
-    widgetState.supFiltro = f === 'todas' ? 'todas' : 'aguardando';
+    widgetState.supFiltro = ['aguardando', 'fila', 'comigo', 'todas'].indexOf(f) >= 0 ? f : 'aguardando';
     wmSupRerender(false);
+  };
+
+  /* ── Atendimento: status de quem atende, assumir, repassar, resolver ── */
+  window.lumaWidgetSupStatus = function (s) {
+    if (typeof gSupSetStatus !== 'function') return;
+    gSupSetStatus(s);
+    if (typeof gToast === 'function') gToast(s === 'ausente' ? 'Você está ausente. As conversas continuam chegando.' : 'Você está disponível para a rede.');
+  };
+  // Uma ação por vez: o botão trava enquanto o banco responde; a recusa vira texto na conversa.
+  async function wmSupRodar(fn) {
+    if (widgetState.supAcaoRodando) return null;
+    widgetState.supAcaoRodando = true; widgetState.supErro = '';
+    wmSupRerender(false);
+    const r = await fn();
+    widgetState.supAcaoRodando = false;
+    widgetState.supErro = r && !r.ok ? (r.erro || '') : '';
+    if (r && r.ok) widgetState.supRepasse = false;
+    wmSupRerender(false);
+    return r;
+  }
+  window.lumaWidgetSupAssumir = function (forcar) {
+    if (typeof gSupAssumir === 'function') wmSupRodar(function () { return gSupAssumir(forcar); });
+  };
+  window.lumaWidgetSupResolver = async function () {
+    if (typeof gSupResolver !== 'function') return;
+    const r = await wmSupRodar(gSupResolver);
+    if (r && r.ok && typeof gToast === 'function') gToast('Conversa resolvida. Se o franqueado escrever de novo, ela volta para a fila.');
+  };
+  window.lumaWidgetSupRepasse = function () {
+    widgetState.supRepasse = !widgetState.supRepasse;
+    wmSupRerender(false);
+  };
+  window.lumaWidgetSupRepassar = async function (btn) {
+    const id = btn && btn.dataset ? btn.dataset.id : '';
+    if (!id || typeof gSupRepassar !== 'function') return;
+    const p = gSupPessoa(id);
+    const r = await wmSupRodar(function () { return gSupRepassar(id); });
+    if (r && r.ok && typeof gToast === 'function') gToast('Conversa passada para ' + (p ? p.primeiro : 'a pessoa escolhida') + '.');
   };
 
   window.lumaWidgetFalarComEquipe = function () {

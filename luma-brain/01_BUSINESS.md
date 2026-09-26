@@ -206,11 +206,16 @@ Tipos: `text`, `number`, `currency`, `date`, `image`, `select`, `color`, `boolea
 **Suporte ao vivo** (desde 2026-09-23, decisão do Ryan): o franqueado conversa em tempo real com a **equipe DM** (`equipe_dm` + `gestao`) pelo widget de Ajuda. Motor em `js/core/suporte.js`, tabela `luma.suporte_mensagens`.
 - ⛔ **Quem atende é a equipe DM, no próprio Luma** — não o suporte da franqueadora nem o Portal de Franqueados.
 - ⛔ **Escopo: dúvida de uso e erro no Luma.** Aprovação de peça e pedido de arte nova **continuam com o marketing** (a copy do widget diz isso). Não transforme o chat em fila de pedidos de criação.
-- A conversa **é o franqueado**: uma por pessoa, sem status de "aberto/fechado". "Aguardando" = a última mensagem veio dele.
-- "Online agora" = alguém da equipe com o Luma aberto numa aba visível (automático, sem botão de disponível).
+- A conversa **é o franqueado**: uma por pessoa. Sobre ela existe um **atendimento** (desde 2026-09-26, decisão do Ryan; migration `20260926120000`), com estado e responsável:
+  - **Estados:** `novo` (ninguém assumiu — a fila) → `em_atendimento` (tem responsável, a vez é da equipe) ⇄ `aguardando_usuario` (a equipe respondeu) → `resolvido`. Quem muda o estado é o banco: a resposta da equipe passa a vez ao franqueado; a mensagem do franqueado devolve a vez à equipe.
+  - ⛔ **Resolvida + nova mensagem do franqueado = o mesmo atendimento reabre como `novo`, sem responsável** (volta para a fila). Não nasce um segundo atendimento, e ninguém fica esperando um colega que saiu.
+  - ⛔ **Com responsável definido, só ele responde, repassa e resolve.** Outra pessoa da equipe precisa **assumir** antes — a trava é do banco (gatilho `suporte_msg_estado`), não da tela. Responder uma conversa sem dono já assume.
+  - **Atribuição explícita:** da fila, qualquer pessoa da equipe atribui a conversa a um colega; o responsável repassa a conversa dele. Tudo fica no histórico (`luma.suporte_eventos`: assumiu, repassou, resolveu, reabriu), visível na própria conversa. O franqueado vê quem assumiu e quem recebeu; não vê o "reabriu" nem o "de quem" da troca.
+- **Quem atende aparece com foto, nome e cargo.** Cargo = `profiles.departamento` (só a gestão edita), "Equipe DM" quando vazio.
+- "Online agora" = alguém da equipe com o Luma aberto numa aba visível **e disponível**. Cada pessoa da equipe escolhe **Disponível** ou **Ausente** (na caixa de conversas, lembrado no navegador). Ausente continua recebendo a caixa, mas o franqueado não o vê online — e por isso a pergunta dele não é desviada para a pessoa.
 - ⛔ **Equipe online → a pergunta vai direto para a pessoa, sem passar pela IA** (decisão do Ryan, 23/09/2026). O card do assistente some da Início, e o que for digitado no chat da IA segue para a conversa com a equipe. Ninguém online → a IA responde, com o "Não resolveu? Falar com a equipe".
 - A gestão desliga pelo Controle do produto (`global.help.suporte`), sem deploy. Desligado, "Mensagens" volta a ser o assistente de IA.
-- ⚠️ Limite da v1: sem e-mail/push — quem fechou o app só vê a resposta ao voltar (contador + aviso).
+- ⚠️ Limite da v1: sem e-mail/push — quem fechou o app só vê a resposta ao voltar (contador + aviso). A ponte com o Telegram para a equipe receber/responder fora do Luma foi **estudada, não construída**: `docs/SUPORTE-TELEGRAM.md` (depende de aval do jurídico sobre os dados do franqueado irem para o Telegram).
 
 **Novidades do Luma** (desde 2026-09-26, na Início do widget de Ajuda): contam ao franqueado o que mudou no produto.
 - A novidade mora no **código** (`LUMA_NOVIDADES`, `js/widgets/help-widget.js`), não numa tabela. Novidade é o que acabou de ir ao ar, e isso já exige deploy: escrever a notícia é uma linha no mesmo commit. Só vale criar tabela editável quando alguém de fora do desenvolvimento for publicar.

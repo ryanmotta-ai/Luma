@@ -180,6 +180,9 @@ reset role;
 -- carimba autor e lado a partir do auth.uid(), então ela nasce "de B, não da equipe".
 select set_config('request.jwt.claims', json_build_object('sub', fb, 'role', 'authenticated')::text, true) from _u;
 insert into luma.suporte_mensagens (texto) values ('RLS-TESTE de B');
+-- B pode ter uma conversa real com dono (20260926120000): zera o dono para a resposta da equipe
+-- abaixo assumir de forma previsível. Volta no rollback.
+update luma.suporte_conversas set responsavel_id = null, status = 'novo' where franqueado_id = (select fb from _u);
 
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 set local role anon;
@@ -244,6 +247,74 @@ do $$ declare n int; u record; b boolean; begin
     get diagnostics n = row_count;
     insert into _t(passo,esperado,obtido) values ('suporte: equipe marca como lida','>0',case when n>0 then '>0' else '0' end);
   exception when others then insert into _t(passo,esperado,obtido) values ('suporte: equipe marca como lida','>0','recusa: '||sqlstate); end;
+end $$;
+reset role;
+
+-- ── ATENDIMENTO: dono, estado, histórico (migration 20260926120000) ──────────────────────
+-- A resposta da equipe acima já assumiu a conversa de B (responsável = equipe). Daqui: o
+-- franqueado não enxerga nem mexe no atendimento dos outros; a gestão não responde por cima
+-- de quem atende sem assumir; e tudo fica no histórico.
+select set_config('request.jwt.claims', json_build_object('sub', fa, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare n int; u record; j jsonb; begin
+  select * into u from _u;
+  select count(*) into n from luma.suporte_conversas where franqueado_id = u.fb;
+  insert into _t(passo,esperado,obtido) values ('atendimento: A lê o atendimento de B','0',n::text);
+  select count(*) into n from luma.suporte_eventos where franqueado_id = u.fb;
+  insert into _t(passo,esperado,obtido) values ('atendimento: A lê o histórico de B','0',n::text);
+  begin update luma.suporte_conversas set status = 'resolvido' where franqueado_id = u.fa;
+    get diagnostics n = row_count;
+    insert into _t(passo,esperado,obtido) values ('atendimento: A muda o próprio estado','0 ou recusa',n::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('atendimento: A muda o próprio estado','0 ou recusa','recusa'); end;
+  begin j := luma.suporte_assumir(u.fb, true);
+    insert into _t(passo,esperado,obtido) values ('atendimento: A assume a conversa de B','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('atendimento: A assume a conversa de B','recusa','recusa'); end;
+  select count(*) into n from luma.suporte_equipe() e where e.id in (u.fa, u.fb);
+  insert into _t(passo,esperado,obtido) values ('atendimento: franqueado aparece em suporte_equipe','0',n::text);
+  select count(*) into n from luma.suporte_equipe();
+  insert into _t(passo,esperado,obtido) values ('atendimento: A vê o cartão da equipe','>0',case when n>0 then '>0' else '0' end);
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', json_build_object('sub', ge, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare n int; u record; j jsonb; begin
+  select * into u from _u;
+  begin insert into luma.suporte_mensagens (franqueado_id, texto) values (u.fb, 'RLS-TESTE por cima');
+    insert into _t(passo,esperado,obtido) values ('atendimento: gestão responde conversa da equipe','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('atendimento: gestão responde conversa da equipe','recusa',
+    case when sqlerrm like '%SUPORTE_OUTRO_RESPONSAVEL%' then 'recusa' else 'recusa: '||sqlerrm end); end;
+  j := luma.suporte_assumir(u.fb, false);
+  insert into _t(passo,esperado,obtido) values ('atendimento: gestão assume sem forçar','false',coalesce(j->>'ok','(nulo)'));
+  j := luma.suporte_assumir(u.fb, true);
+  insert into _t(passo,esperado,obtido) values ('atendimento: gestão assume forçando','true',coalesce(j->>'ok','(nulo)'));
+  select count(*) into n from luma.suporte_eventos where franqueado_id = u.fb and tipo = 'assumiu' and ator_id = u.ge and de_id = u.eq;
+  insert into _t(passo,esperado,obtido) values ('atendimento: histórico registra "assumiu de"','1',n::text);
+  j := luma.suporte_repassar(u.fb, u.eq);
+  insert into _t(passo,esperado,obtido) values ('atendimento: gestão repassa para a equipe','true',coalesce(j->>'ok','(nulo)'));
+  j := luma.suporte_repassar(u.fb, u.fa);
+  insert into _t(passo,esperado,obtido) values ('atendimento: repassar para franqueado','false',coalesce(j->>'ok','(nulo)'));
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', json_build_object('sub', eq, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare u record; j jsonb; s text; begin
+  select * into u from _u;
+  j := luma.suporte_resolver(u.fb);
+  select status into s from luma.suporte_conversas where franqueado_id = u.fb;
+  insert into _t(passo,esperado,obtido) values ('atendimento: responsável resolve','resolvido',coalesce(s,'(nulo)'));
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', json_build_object('sub', fb, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare u record; s text; r uuid; begin
+  select * into u from _u;
+  insert into luma.suporte_mensagens (texto) values ('RLS-TESTE B volta');
+  select status, responsavel_id into s, r from luma.suporte_conversas where franqueado_id = u.fb;
+  insert into _t(passo,esperado,obtido) values ('atendimento: B escreve depois de resolvida','novo sem dono',
+    case when s = 'novo' and r is null then 'novo sem dono' else coalesce(s,'(nulo)') || ' / ' || coalesce(r::text,'sem dono') end);
 end $$;
 reset role;
 

@@ -8,6 +8,13 @@
    A conversa É o franqueado (franqueado_id). "Aguardando" = a última mensagem veio dele.
    ⚠ Limite da v1: "ao vivo" só com o Luma aberto dos dois lados. Quem fechou o app vê a
    resposta pelo contador quando volta — não há e-mail nem push (precisaria de servidor).
+
+   ATENDIMENTO (26/09/2026, migration 20260926120000): em cima da conversa, um estado
+   (novo → em_atendimento ⇄ aguardando_usuario → resolvido), um RESPONSÁVEL e o histórico de
+   quem assumiu/repassou/resolveu. Quem muda isso é o banco (gatilho + RPCs suporte_*); daqui
+   só se lê e se pede. A trava "dois atendentes na mesma conversa" também é do banco: com
+   responsável definido, a resposta de outra pessoa é recusada (SUPORTE_OUTRO_RESPONSAVEL).
+   Sem a migration no ar, G_SUP.atendimento fica false e tudo volta a ser a v1 — nada quebra.
 ══════════════════════════════════════════════════════════════ */
 
 const G_SUP = {
@@ -18,9 +25,16 @@ const G_SUP = {
   carregando: false,
   caixa: [],         // equipe: uma linha por conversa (view luma.suporte_caixa)
   naoLidas: 0,       // franqueado: respostas da equipe que ele ainda não viu
-  online: [],        // primeiros nomes da equipe com o Luma aberto numa aba visível
+  online: [],        // primeiros nomes da equipe DISPONÍVEL (aba visível e não "ausente")
+  equipe: [],        // presença completa: {id, nome, foto, cargo, status: disponivel|ausente}
+  time: {},          // id → {nome, cargo, foto}: o cartão de cada pessoa da equipe (RPC suporte_equipe)
+  meuStatus: 'disponivel', // equipe: a escolha da pessoa, lembrada neste navegador
+  atendimento: null, // true = migration de atendimento no ar; false = v1; null = ainda não sabe
+  conversa: null,    // atendimento da conversa aberta: {status, responsavel_id, ...}
+  eventos: [],       // histórico da conversa aberta, do mais antigo para o mais novo
   vendo: false,      // o widget está com a conversa aberta NA TELA (é o que marca como lida)
-  _ouvintes: [], _canalMsgs: null, _canalPresenca: null, _urls: {}, _caixaTimer: null
+  _ouvintes: [], _canalMsgs: null, _canalPresenca: null, _canalConv: null, _urls: {}, _caixaTimer: null,
+  _acaoMinha: null   // {id, ate}: o que EU acabei de mudar não vira aviso "passaram para você"
 };
 
 function _gSupSb(){ return (typeof gSupabase === 'function') ? gSupabase() : null; }
@@ -40,8 +54,16 @@ function _gSupAvisar(){
   G_SUP._ouvintes.forEach(function (fn) { try { fn(); } catch (e) { console.warn('[suporte]', e); } });
 }
 
-// Franqueado: respostas não vistas. Equipe: conversas aguardando resposta.
-function gSupAguardando(){ return G_SUP.caixa.filter(function (c) { return !c.ultima_da_equipe; }).length; }
+// Equipe: esta conversa pede a MINHA ação? Na fila (sem dono) ou comigo esperando resposta.
+// Linha sem status (migration de atendimento fora do ar) = regra da v1: a última veio do franqueado.
+function gSupPedeAcao(c){
+  if (!c) return false;
+  if (c.status == null) return !c.ultima_da_equipe;
+  const eu = _gSupEu();
+  return c.status === 'novo' || (c.status === 'em_atendimento' && !!eu && c.responsavel_id === eu.id);
+}
+// Franqueado: respostas não vistas. Equipe: conversas que pedem a minha ação.
+function gSupAguardando(){ return G_SUP.caixa.filter(gSupPedeAcao).length; }
 function gSupContador(){ return G_SUP.souEquipe ? gSupAguardando() : G_SUP.naoLidas; }
 
 /* O contador mora no BODY (classe + variável CSS), não num nó: o botão Ajuda da home do
@@ -91,6 +113,14 @@ function gSupIniciar(){
   if (G_SUP.ligado || !sb || !eu || !gSupDisponivel()) { _gSupPintarContador(); return; }
   G_SUP.ligado = true;
   G_SUP.souEquipe = (typeof gIsAdmin === 'function') && gIsAdmin();
+  G_SUP.meuStatus = _gSupStatusSalvo();
+  _gSupCarregarTime();
+
+  // Atendimento (dono/estado) num canal À PARTE: sem a migration no ar a tabela não está na
+  // publicação, e a recusa desse canal não pode derrubar o das mensagens.
+  G_SUP._canalConv = sb.channel('luma-suporte-conv')
+    .on('postgres_changes', { event: '*', schema: 'luma', table: 'suporte_conversas' }, function (p) { _gSupConversaMudou(p.new); })
+    .subscribe();
 
   // Mensagens: a RLS de SELECT decide o que chega — o franqueado só recebe a própria conversa.
   G_SUP._canalMsgs = sb.channel('luma-suporte-msgs')
@@ -111,8 +141,10 @@ function _gSupDesligar(){
   const sb = _gSupSb();
   try { if (sb && G_SUP._canalMsgs) sb.removeChannel(G_SUP._canalMsgs); } catch (e) {}
   try { if (sb && G_SUP._canalPresenca) sb.removeChannel(G_SUP._canalPresenca); } catch (e) {}
+  try { if (sb && G_SUP._canalConv) sb.removeChannel(G_SUP._canalConv); } catch (e) {}
   document.removeEventListener('visibilitychange', _gSupVisibilidade);
-  G_SUP.ligado = false; G_SUP._canalMsgs = G_SUP._canalPresenca = null; G_SUP.online = [];
+  G_SUP.ligado = false; G_SUP._canalMsgs = G_SUP._canalPresenca = G_SUP._canalConv = null;
+  G_SUP.online = []; G_SUP.equipe = [];
   _gSupAvisar();
 }
 
@@ -123,7 +155,7 @@ window.addEventListener('luma:feature-flags-changed', function () {
 });
 
 async function _gSupRecarregar(){
-  if (G_SUP.conversaDe) await _gSupCarregarMsgs();
+  if (G_SUP.conversaDe) await Promise.all([_gSupCarregarMsgs(), _gSupCarregarAtendimento()]);
   if (G_SUP.souEquipe) await gSupCarregarCaixa();
   else await _gSupContarNaoLidas();
   _gSupAvisar();
@@ -145,7 +177,11 @@ async function gSupCarregarCaixa(){
   try {
     const { data, error } = await sb.schema('luma').from('suporte_caixa')
       .select('*').order('ultima_em', { ascending: false }).limit(200);
-    if (!error && Array.isArray(data)) G_SUP.caixa = data;
+    if (!error && Array.isArray(data)) {
+      G_SUP.caixa = data;
+      // A view só traz `status` com a migration de atendimento no ar.
+      if (data.length) G_SUP.atendimento = ('status' in data[0]);
+    }
   } catch (e) {}
   _gSupAvisar();
 }
@@ -156,25 +192,98 @@ function _gSupCaixaDepois(){
 }
 
 /* ── Presença ── */
+// A foto só vale se for do Storage do projeto — a mesma regra do CHECK de profiles.avatar_url.
+// A presença é escrita pelo navegador de quem anuncia; sem isto, viraria link externo na tela da rede.
+const _G_SUP_FOTO_OK = /^https:\/\/[a-z0-9]+\.supabase\.co\/storage\/v1\/object\/public\/luma-user-uploads\//;
+function _gSupFoto(u){ return (typeof u === 'string' && u.length <= 500 && _G_SUP_FOTO_OK.test(u)) ? u : ''; }
+
 function _gSupPresencaSync(){
   const canal = G_SUP._canalPresenca;
   if (!canal) return;
   const st = canal.presenceState() || {};
-  const nomes = [];
+  const equipe = [];
   Object.keys(st).forEach(function (k) {
-    (st[k] || []).forEach(function (m) { if (m && m.nome && nomes.indexOf(m.nome) < 0) nomes.push(String(m.nome).slice(0, 40)); });
+    (st[k] || []).forEach(function (m) {
+      if (!m || !m.nome) return;
+      const nome = String(m.nome).slice(0, 40);
+      const id = m.id ? String(m.id) : 'nome:' + nome;   // aba antiga (antes de 26/09) só mandava o nome
+      const status = m.status === 'ausente' ? 'ausente' : 'disponivel';
+      const ja = equipe.find(function (p) { return p.id === id; });
+      // A mesma pessoa em duas abas: basta uma disponível para ela estar disponível.
+      if (ja) { if (status === 'disponivel') ja.status = 'disponivel'; return; }
+      equipe.push({ id: id, nome: nome, foto: _gSupFoto(m.foto), cargo: String(m.cargo || '').slice(0, 60), status: status });
+    });
   });
-  G_SUP.online = nomes;
+  G_SUP.equipe = equipe;
+  G_SUP.online = equipe.filter(function (p) { return p.status === 'disponivel'; }).map(function (p) { return p.nome; })
+    .filter(function (n, i, a) { return a.indexOf(n) === i; });
   _gSupAvisar();
 }
-// Equipe "online" = Luma aberto numa aba VISÍVEL. Aba escondida sai da lista.
+// Equipe "online" = Luma aberto numa aba VISÍVEL. Aba escondida sai da lista. O status
+// (disponível/ausente) vai junto: ausente continua na presença para os colegas, mas o
+// franqueado não o conta como online (G_SUP.online).
 function _gSupAnunciar(){
   const canal = G_SUP._canalPresenca, eu = _gSupEu();
   if (!canal || !eu || !G_SUP.souEquipe) return;
   try {
-    if (document.visibilityState === 'visible') canal.track({ nome: String(eu.displayName || '').trim().split(/\s+/)[0] || 'Equipe' });
-    else canal.untrack();
+    if (document.visibilityState === 'visible') {
+      canal.track({
+        id: eu.id,
+        nome: String(eu.displayName || '').trim().split(/\s+/)[0] || 'Equipe',
+        foto: _gSupFoto(typeof gUserFoto === 'function' ? gUserFoto(eu) : ''),
+        cargo: String(eu.departamento || '').trim().slice(0, 60) || 'Equipe DM',
+        status: G_SUP.meuStatus
+      });
+    } else canal.untrack();
   } catch (e) {}
+}
+
+/* ── Quem atende: status escolhido e o cartão (foto, nome, cargo) ── */
+function _gSupStatusSalvo(){
+  try { return localStorage.getItem('luma_sup_status') === 'ausente' ? 'ausente' : 'disponivel'; } catch (e) { return 'disponivel'; }
+}
+// Disponível / Ausente. Ausente continua logado e recebendo a caixa, mas sai do "online agora"
+// do franqueado — e com isso do desvio direto da pergunta para a equipe.
+function gSupSetStatus(s){
+  G_SUP.meuStatus = s === 'ausente' ? 'ausente' : 'disponivel';
+  try { localStorage.setItem('luma_sup_status', G_SUP.meuStatus); } catch (e) {}
+  _gSupAnunciar();
+  _gSupAvisar();
+}
+
+async function _gSupCarregarTime(){
+  const sb = _gSupSb();
+  if (!sb) return;
+  try {
+    const { data, error } = await sb.schema('luma').rpc('suporte_equipe');
+    if (error || !Array.isArray(data)) return;
+    const t = {};
+    data.forEach(function (p) { if (p && p.id) t[p.id] = { nome: p.nome || '', cargo: p.cargo || 'Equipe DM', foto: _gSupFoto(p.avatar_url) }; });
+    G_SUP.time = t;
+    _gSupAvisar();
+  } catch (e) {}
+}
+
+// O cartão de uma pessoa da equipe: quem é (suporte_equipe) + onde está agora (presença).
+// status: disponivel | ausente | offline. null = não sei quem é.
+function gSupPessoa(id){
+  if (!id) return null;
+  const t = G_SUP.time[id];
+  const p = G_SUP.equipe.find(function (m) { return m.id === id; });
+  const nome = (t && t.nome) || (p && p.nome) || '';
+  if (!nome) return null;
+  return {
+    id: id, nome: nome, primeiro: nome.split(/\s+/)[0],
+    cargo: (t && t.cargo) || (p && p.cargo) || 'Equipe DM',
+    foto: (t && t.foto) || (p && p.foto) || '',
+    status: p ? p.status : 'offline'
+  };
+}
+// Quem da equipe está disponível agora, com cartão — para o franqueado ver com quem vai falar.
+function gSupOnlinePessoas(){
+  return G_SUP.equipe.filter(function (p) { return p.status === 'disponivel'; }).map(function (p) {
+    return (p.id.indexOf('nome:') === 0 ? null : gSupPessoa(p.id)) || { id: p.id, nome: p.nome, primeiro: p.nome, cargo: p.cargo || 'Equipe DM', foto: p.foto, status: p.status };
+  });
 }
 function _gSupVisibilidade(){
   _gSupAnunciar();
@@ -187,13 +296,84 @@ async function gSupAbrirConversa(franqueadoId){
   if (!eu) return;
   G_SUP.conversaDe = G_SUP.souEquipe ? franqueadoId : eu.id;
   if (!G_SUP.conversaDe) return;
-  G_SUP.msgs = []; G_SUP.carregando = true; _gSupAvisar();
-  await _gSupCarregarMsgs();
+  G_SUP.msgs = []; G_SUP.conversa = null; G_SUP.eventos = [];
+  G_SUP.carregando = true; _gSupAvisar();
+  await Promise.all([_gSupCarregarMsgs(), _gSupCarregarAtendimento()]);
   G_SUP.carregando = false;
   if (G_SUP.vendo) _gSupMarcarLidas();
   _gSupAvisar();
 }
-function gSupFecharConversa(){ G_SUP.conversaDe = null; G_SUP.msgs = []; G_SUP.vendo = false; _gSupAvisar(); }
+function gSupFecharConversa(){
+  G_SUP.conversaDe = null; G_SUP.msgs = []; G_SUP.conversa = null; G_SUP.eventos = []; G_SUP.vendo = false;
+  _gSupAvisar();
+}
+
+// Tabela/função que não existe = a migration de atendimento não está no ar (não é falha de rede).
+function _gSupSemAtendimento(err){
+  return !!err && (err.code === '42P01' || err.code === 'PGRST205' || err.code === 'PGRST202' || err.code === '42883');
+}
+async function _gSupCarregarAtendimento(){
+  const sb = _gSupSb(), de = G_SUP.conversaDe;
+  if (!sb || !de || G_SUP.atendimento === false) return;
+  try {
+    const r = await Promise.all([
+      sb.schema('luma').from('suporte_conversas').select('*').eq('franqueado_id', de).maybeSingle(),
+      sb.schema('luma').from('suporte_eventos').select('*').eq('franqueado_id', de).order('created_at', { ascending: false }).limit(100)
+    ]);
+    if (r[0].error) { if (_gSupSemAtendimento(r[0].error)) G_SUP.atendimento = false; return; }
+    G_SUP.atendimento = true;
+    if (G_SUP.conversaDe !== de) return;
+    G_SUP.conversa = r[0].data || null;
+    if (!r[1].error && Array.isArray(r[1].data)) G_SUP.eventos = r[1].data.reverse();
+  } catch (e) {}
+}
+
+// Realtime do atendimento: alguém assumiu, repassou ou resolveu — ou uma mensagem mudou o estado.
+function _gSupConversaMudou(c){
+  if (!c || !c.franqueado_id) return;
+  G_SUP.atendimento = true;
+  if (c.franqueado_id === G_SUP.conversaDe) {
+    G_SUP.conversa = c;
+    _gSupCarregarAtendimento().then(_gSupAvisar);   // o histórico ganhou uma linha
+  }
+  if (G_SUP.souEquipe) {
+    const eu = _gSupEu(), linha = G_SUP.caixa.find(function (x) { return x.franqueado_id === c.franqueado_id; });
+    const minha = G_SUP._acaoMinha && G_SUP._acaoMinha.id === c.franqueado_id && G_SUP._acaoMinha.ate > Date.now();
+    if (eu && linha && c.responsavel_id === eu.id && linha.responsavel_id !== eu.id && !minha) {
+      _gSupToast('Uma conversa do suporte foi passada para você.', c.franqueado_id);
+    }
+    if (linha) { linha.status = c.status; linha.responsavel_id = c.responsavel_id; }
+    _gSupCaixaDepois();
+  }
+  _gSupAvisar();
+}
+function _gSupMarcaAcao(id){ G_SUP._acaoMinha = { id: id, ate: Date.now() + 8000 }; }
+
+/* ── Assumir / repassar / resolver (só equipe). O banco decide e grava o histórico; daqui só
+   se pede e se traduz a resposta. Devolve {ok, erro}. ── */
+async function _gSupAcao(rpc, args){
+  const sb = _gSupSb(), de = G_SUP.conversaDe;
+  if (!sb || !de || !G_SUP.souEquipe) return { ok: false, erro: 'O suporte não está disponível agora. Recarregue a página.' };
+  _gSupMarcaAcao(de);
+  let r;
+  try { r = await sb.schema('luma').rpc(rpc, Object.assign({ p_franqueado: de }, args || {})); }
+  catch (e) { r = { error: e }; }
+  await _gSupCarregarAtendimento();
+  _gSupCaixaDepois();
+  _gSupAvisar();
+  if (r.error) return { ok: false, erro: 'Não consegui salvar. Confira sua internet e tente de novo.' };
+  const d = r.data || {};
+  if (d.ok === false) {
+    if (d.erro === 'outro_responsavel') return { ok: false, erro: (d.responsavel_nome || 'Outra pessoa da equipe') + ' está atendendo esta conversa.' };
+    if (d.erro === 'destino_invalido') return { ok: false, erro: 'Essa pessoa não pode receber conversas agora.' };
+    return { ok: false, erro: 'Esta conversa não está mais disponível.' };
+  }
+  return { ok: true };
+}
+// forcar = tirar de quem está atendendo (fica no histórico como "assumiu de <fulano>").
+function gSupAssumir(forcar){ return _gSupAcao('suporte_assumir', { p_forcar: !!forcar }); }
+function gSupRepassar(paraId){ return _gSupAcao('suporte_repassar', { p_para: paraId }); }
+function gSupResolver(){ return _gSupAcao('suporte_resolver'); }
 
 async function _gSupCarregarMsgs(){
   const t = _gSupTab(), de = G_SUP.conversaDe;
@@ -289,12 +469,25 @@ async function gSupEnviar(texto, dataUrl, origem){
     } catch (e) { return { ok: false, erro: 'Não consegui ler a imagem. Tente outro arquivo.' }; }
   }
   const row = { franqueado_id: de, texto: texto, anexo_path: anexo, contexto: G_SUP.souEquipe ? null : gSupContexto(origem) };
+  if (G_SUP.souEquipe) _gSupMarcaAcao(de);
   try {
     const { data, error } = await t.insert(row).select().single();
-    if (error) return { ok: false, erro: 'Não consegui enviar. Confira sua internet e tente de novo.' };
+    if (error) {
+      // A trava do banco: outra pessoa é a responsável (pode ter assumido segundos antes).
+      if (/SUPORTE_OUTRO_RESPONSAVEL/.test(error.message || '')) {
+        await _gSupCarregarAtendimento();
+        _gSupAvisar();
+        const p = gSupPessoa(G_SUP.conversa && G_SUP.conversa.responsavel_id);
+        return { ok: false, erro: (p ? p.primeiro : 'Outra pessoa da equipe') + ' assumiu esta conversa. Para responder, assuma o atendimento.' };
+      }
+      return { ok: false, erro: 'Não consegui enviar. Confira sua internet e tente de novo.' };
+    }
     _gSupJuntar(data);
     if (G_SUP.souEquipe) _gSupCaixaDepois();
     _gSupAvisar();
+    // A mensagem mudou o estado (a vez passou, ou a resposta assumiu o atendimento). O Realtime
+    // também avisa; esta leitura cobre o caso de o canal do atendimento estar reconectando.
+    _gSupCarregarAtendimento().then(_gSupAvisar);
     return { ok: true };
   } catch (e) { return { ok: false, erro: 'Não consegui enviar. Confira sua internet e tente de novo.' }; }
 }

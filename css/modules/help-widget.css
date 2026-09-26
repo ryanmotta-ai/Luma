@@ -2422,6 +2422,68 @@ body:not(.theme-light) .luma-wm-sup-tag{color:var(--dm-orange)}
   font-size:10.5px;font-weight:800;line-height:1}
 .luma-wm-sup-badge{align-self:center}
 
+/* ── Atendimento (26/09/2026): estado, responsável, status de quem atende ──
+   A bolinha nunca é a única pista: todo estado vem escrito ao lado (WCAG 1.4.1). */
+.luma-wm-sup-dot.ausente{background:var(--dm-orange);box-shadow:0 0 0 3px color-mix(in srgb,var(--dm-orange) 22%,transparent)}
+.luma-wm-sup-dot.off{background:transparent;border:1.5px solid var(--wm-text-3);box-shadow:none}
+
+.luma-wm-sup-st{display:inline-flex;align-items:center;flex:none;min-height:20px;padding:0 8px;border-radius:var(--r-pill);
+  border:1px solid var(--wm-border);color:var(--wm-text-2);font-size:10.5px;font-weight:700;letter-spacing:.02em;white-space:nowrap}
+.luma-wm-sup-st.st-novo{border-color:color-mix(in srgb,var(--dm-orange-d) 45%,transparent);
+  background:color-mix(in srgb,var(--dm-orange) 10%,transparent);color:var(--sup-laranja)}
+body:not(.theme-light) .luma-wm-sup-st.st-novo{color:var(--dm-orange)}
+.luma-wm-sup-st.st-aguardando_usuario{border-style:dashed;color:var(--wm-text-3)}
+.luma-wm-sup-st.st-resolvido{border-color:color-mix(in srgb,var(--green) 45%,transparent);color:var(--green-text)}
+
+.luma-wm-sup-linha-estado{display:flex;align-items:center;gap:6px;margin-top:4px;color:var(--wm-text-3);font-size:11px}
+
+/* Status de quem atende, no topo da caixa. */
+.luma-wm-sup-eu{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:10px 12px;
+  border:1px solid var(--wm-border-soft);border-radius:12px;background:var(--wm-surface)}
+.luma-wm-sup-eu-txt{display:flex;flex:1;flex-direction:column;gap:1px;min-width:0;color:var(--wm-text-3);font-size:11.5px;line-height:1.35}
+.luma-wm-sup-eu-txt strong{color:var(--wm-text);font-size:12.5px}
+.luma-wm-sup-eu button,.luma-wm-sup-acoes button,.luma-wm-sup-trava button{flex:none;min-height:32px;padding:0 13px;
+  border:1px solid var(--wm-border);border-radius:var(--r-pill);background:var(--wm-surface);color:var(--wm-text);
+  font-size:12px;font-weight:600;cursor:pointer;transition:background var(--dur-fast) var(--ease-out),border-color var(--dur-fast) var(--ease-out)}
+.luma-wm-sup-eu button:hover,.luma-wm-sup-acoes button:hover,.luma-wm-sup-trava button:hover{background:var(--wm-surface-hover)}
+.luma-wm-sup-acoes button.prim,.luma-wm-sup-trava button{border-color:var(--wm-text);background:var(--wm-text);color:var(--wm-bg)}
+.luma-wm-sup-acoes button.prim:hover,.luma-wm-sup-trava button:hover{background:var(--wm-text);opacity:.88}
+.luma-wm-sup-acoes button:disabled,.luma-wm-sup-trava button:disabled,.luma-wm-sup-repasse button:disabled{opacity:.5;cursor:default}
+
+/* A barra do atendimento, acima do fio da conversa. */
+.luma-wm-sup-ticket{flex:none;display:flex;flex-direction:column;gap:8px;margin-bottom:8px;padding:10px 12px;
+  border:1px solid var(--wm-border-soft);border-radius:12px;background:var(--wm-surface)}
+.luma-wm-sup-ticket-top{display:flex;align-items:center;gap:8px;min-width:0}
+.luma-wm-sup-ticket-dono{display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden;color:var(--wm-text-2);
+  font-size:12px;font-weight:600;text-overflow:ellipsis;white-space:nowrap}
+.luma-wm-sup-ticket-dono .luma-wm-sup-av{width:22px;height:22px;margin:0;font-size:9px}
+.luma-wm-sup-acoes{display:flex;flex-wrap:wrap;gap:6px}
+
+.luma-wm-sup-repasse{display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto}
+.luma-wm-sup-repasse button{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:6px 8px;text-align:left;
+  border:1px solid transparent;border-radius:10px;background:transparent;color:var(--wm-text);cursor:pointer}
+.luma-wm-sup-repasse button:hover{border-color:var(--wm-border-soft);background:var(--wm-surface-hover)}
+.luma-wm-sup-repasse .luma-wm-sup-av{margin:0}
+.luma-wm-sup-repasse-main{display:flex;flex:1;flex-direction:column;min-width:0;font-size:12.5px}
+.luma-wm-sup-repasse-main span{overflow:hidden;color:var(--wm-text-3);font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+.luma-wm-sup-repasse-onde{display:flex;align-items:center;gap:6px;flex:none;color:var(--wm-text-3);font-size:11px}
+
+/* Conversa de outra pessoa: no lugar do campo de resposta. */
+.luma-wm-sup-trava{flex:none;display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border:1px dashed var(--wm-border);border-radius:14px;background:var(--wm-surface)}
+.luma-wm-sup-trava .luma-wm-sup-av{margin:0}
+.luma-wm-sup-trava-txt{display:flex;flex:1;flex-direction:column;gap:1px;min-width:0;color:var(--wm-text-3);font-size:11.5px;line-height:1.35}
+.luma-wm-sup-trava-txt strong{color:var(--wm-text);font-size:12.5px}
+
+/* Franqueado: quem da equipe está online, com foto, nome e cargo. */
+.luma-wm-sup-pessoas{display:flex;flex-direction:column;gap:6px;width:100%;max-width:280px;margin-top:10px}
+.luma-wm-sup-pessoa{display:flex;align-items:center;gap:10px;padding:8px 10px;text-align:left;
+  border:1px solid var(--wm-border-soft);border-radius:12px;background:var(--wm-surface)}
+.luma-wm-sup-pessoa .luma-wm-sup-av{margin:0}
+.luma-wm-sup-pessoa-txt{display:flex;flex:1;flex-direction:column;min-width:0;font-size:12.5px}
+.luma-wm-sup-pessoa-txt strong{overflow:hidden;color:var(--wm-text);text-overflow:ellipsis;white-space:nowrap}
+.luma-wm-sup-pessoa-txt span{overflow:hidden;color:var(--wm-text-3);font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+
 /* Contador fora do widget: mora no body (--sup-contador), porque o botão Ajuda da home do
    franqueado é re-renderizado pelo catálogo e perderia um nó pendurado nele. */
 .fh-help,#topbar-suporte{position:relative}
