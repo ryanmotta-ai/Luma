@@ -104,6 +104,10 @@
 .gd-atencao strong{font-size:13px}
 .gd-atencao small{overflow:hidden;color:var(--prof-text-3);font-size:12px;white-space:nowrap;text-overflow:ellipsis}
 .gd-atencao svg{width:16px;height:16px;flex:0 0 auto;color:var(--prof-text-3)}
+/* Diagnóstico: a cor da borda é a gravidade (laranja = alto, o padrão acima) */
+.gd-atencao .is-critico button{border-left-color:var(--dm-red)}
+.gd-atencao .is-atencao button{border-left-color:var(--prof-text-3)}
+.gd-diag-mais{margin:12px 0 0}
 
 /* tabelas */
 .gd-filtros{display:flex;flex-wrap:wrap;gap:10px}

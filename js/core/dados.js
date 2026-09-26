@@ -13,7 +13,7 @@
 
 // Estado único da área. Mutação direta + re-render manual (03_ENGINEERING §3).
 let _gDados = {
-  periodo: 30, cidade: '', aba: 'visao',
+  periodo: 30, cidade: '', aba: 'diag',
   data: null, erro: null, carregando: false, req: 0, intervalo: null,
   sort: { col: 'ultimo_acesso', dir: -1 }, busca: '', papel: '',
   pessoa: null, pessoaData: null, pessoaErro: null,
@@ -23,7 +23,7 @@ let _gDados = {
 };
 
 const G_DADOS_ABAS = [
-  ['visao', 'Visão geral'], ['pessoas', 'Pessoas'], ['funil', 'Funil'], ['conteudo', 'Conteúdo'],
+  ['diag', 'Diagnóstico'], ['visao', 'Visão geral'], ['pessoas', 'Pessoas'], ['funil', 'Funil'], ['conteudo', 'Conteúdo'],
   ['buscas', 'Buscas'], ['qualidade', 'Qualidade'], ['localfit', 'Local Fit'], ['ia', 'IA'], ['eventos', 'Eventos']
 ];
 const G_DADOS_PERIODOS = [[1, 'Hoje'], [7, '7 dias'], [30, '30 dias'], [90, '90 dias']];
@@ -195,8 +195,8 @@ function gDadosSetAba(aba, foco) {
   _gDadosRender();
   if (foco) document.getElementById('gd-tab-' + aba)?.focus();
   if (aba === 'eventos' && !_gDados.ev.data && !_gDados.ev.carregando && _gDados.data) gDadosEventosCarregar();
-  if (aba === 'ia' && !_gDados.ia.data && !_gDados.ia.carregando && _gDados.data) gDadosIaCarregar();
-  if (aba === 'localfit' && !_gDados.lf.data && !_gDados.lf.carregando && _gDados.data) gDadosLfCarregar();
+  if ((aba === 'ia' || aba === 'diag') && !_gDados.ia.data && !_gDados.ia.carregando && _gDados.data) gDadosIaCarregar();
+  if ((aba === 'localfit' || aba === 'diag') && !_gDados.lf.data && !_gDados.lf.carregando && _gDados.data) gDadosLfCarregar();
 }
 // Setas/Home/End no tablist (padrão WAI-ARIA de abas, ativação automática).
 function gDadosTabsKeydown(e) {
@@ -278,6 +278,7 @@ function _gDadosPainelHtml() {
     case 'localfit': return _gDadosLfHtml();
     case 'ia': return _gDadosIaHtml();
     case 'eventos': return _gDadosEventosHtml();
+    case 'diag': return _gDadosDiagHtml(d);
     default: return _gDadosVisaoHtml(d);
   }
 }
@@ -355,9 +356,7 @@ function _gDadosGrafico(dias) {
     <div class="gd-chart-x" aria-hidden="true"><span>${gEsc(_gDadosDiaCurto(dias[0].dia))}</span>${n > 2 ? `<span>${gEsc(_gDadosDiaCurto(meio.dia))}</span>` : ''}${n > 1 ? `<span>${gEsc(_gDadosDiaCurto(dias[n - 1].dia))}</span>` : ''}</div>`;
 }
 
-function _gDadosFunilGeral(et) {
-  if (!et.length || !et[0].n) return '<p class="gd-vazio">Ninguém abriu campanha no período.</p>';
-  const topo = et[0].n || 1;
+function _gDadosPiorQueda(et) {
   let pior = null;
   for (let i = 1; i < et.length; i++) {
     const a = et[i - 1].n || 0, b = et[i].n || 0;
@@ -365,31 +364,96 @@ function _gDadosFunilGeral(et) {
     const queda = (a - b) / a;
     if (!pior || queda > pior.q) pior = { q: queda, de: et[i - 1].rotulo, para: et[i].rotulo };
   }
+  return pior;
+}
+function _gDadosFunilGeral(et) {
+  if (!et.length || !et[0].n) return '<p class="gd-vazio">Ninguém abriu campanha no período.</p>';
+  const topo = et[0].n || 1;
+  const pior = _gDadosPiorQueda(et);
   const linhas = et.map(e => `<li><span class="gd-funil-rot">${gEsc(e.rotulo || e.etapa)}</span>${_gDadosBarra((e.n || 0) / topo)}
     <span class="gd-funil-n">${_gDadosN(e.n)} <small>${Math.round((e.n || 0) / topo * 100)}%</small></span></li>`).join('');
   return `<ol class="gd-funil">${linhas}</ol>${pior && pior.q > 0 ? `<p class="gd-destaque">Maior queda: de <strong>${gEsc(pior.de)}</strong> para <strong>${gEsc(pior.para)}</strong> — ${Math.round(pior.q * 100)}% das sessões param aí.</p>` : ''}`;
 }
 
-// "Precisa de atenção" é DERIVADO aqui no front, dos mesmos dados que o painel já trouxe.
+// "Precisa de atenção" = o topo do Diagnóstico com o que o painel já trouxe (Local Fit e IA
+// carregam à parte e só entram na aba Diagnóstico).
 function _gDadosAtencao(d) {
-  const itens = [];
-  const sumidos = _gDadosPessoas().filter(p => p.ativo && _gDadosDiasDesde(p.ultimo_acesso) > 30);
-  if (sumidos.length) {
-    const nomes = sumidos.slice(0, 3).map(p => p.nome).join(', ') + (sumidos.length > 3 ? ' e mais ' + (sumidos.length - 3) : '');
-    itens.push(['pessoas', `${sumidos.length} ${sumidos.length > 1 ? 'pessoas ativas estão' : 'pessoa ativa está'} sem acesso há mais de 30 dias`, nomes]);
-  }
-  const semRes = ((d.buscas || {}).sem_resultado || []);
-  if (semRes.length) itens.push(['buscas', `${semRes.length} ${semRes.length > 1 ? 'buscas voltaram' : 'busca voltou'} sem resultado`, semRes.slice(0, 3).map(b => '“' + b.q + '”').join(', ')]);
-  const nunca = ((d.conteudo || {}).nunca_usados || []);
-  if (nunca.length) itens.push(['conteudo', `${nunca.length} ${nunca.length > 1 ? 'templates publicados nunca foram usados' : 'template publicado nunca foi usado'}`, '']);
-  const porTpl = {};
-  ((d.qualidade || {}).nao_cabe || []).forEach(q => { const k = q.template_name || q.template_id || 'Sem nome'; porTpl[k] = (porTpl[k] || 0) + (q.n || 0); });
-  const piorTpl = Object.keys(porTpl).sort((a, b) => porTpl[b] - porTpl[a])[0];
-  if (piorTpl) itens.push(['qualidade', `“${piorTpl}” é o template com mais texto que não cabe`, porTpl[piorTpl] + ' vezes no período']);
-  const erros = ((d.qualidade || {}).erros || []).reduce((s, e) => s + (e.n || 0), 0);
-  if (erros) itens.push(['qualidade', `${_gDadosN(erros)} ${erros > 1 ? 'erros' : 'erro'} do app no período`, '']);
+  const itens = _gDadosDiagPainel(d);
   if (!itens.length) return '<p class="gd-vazio">Nada pedindo atenção agora.</p>';
-  return `<ul class="gd-atencao">${itens.map(([aba, t, s]) => `<li><button type="button" onclick="gDadosSetAba('${aba}')"><span><strong>${gEsc(t)}</strong>${s ? `<small>${gEsc(s)}</small>` : ''}</span>${_G_DADOS_ICO.seta}</button></li>`).join('')}</ul>`;
+  return _gDadosDiagLista(itens.slice(0, 4)) +
+    `<p class="gd-diag-mais"><button type="button" class="gd-btn" onclick="gDadosSetAba('diag')">Ver o diagnóstico completo</button></p>`;
+}
+
+/* ── Diagnóstico: só o que está dando ruim ──────────────────────────────────────────── */
+/* Nada de SQL próprio: lê o painel + Local Fit + IA (as mesmas RPCs das outras abas) e
+   devolve itens { sev, t, s, aba }. sev: 'critico' quebra o produto, 'alto' trava o
+   franqueado, 'atencao' é sinal de desgaste. Três famílias: falha técnica, franqueado
+   travou, catálogo falhando (decisão do Ryan em 25/09/2026 — "rede esfriando" fica fora). */
+const G_DADOS_SEV = [['critico', 'Crítico', 'Quebra o produto ou entrega arte errada.'],
+  ['alto', 'Alto', 'O franqueado trava e não chega na arte.'], ['atencao', 'Atenção', 'Sinal de desgaste — vale olhar antes que piore.']];
+function _gDadosPl(n, um, varios) { return _gDadosN(n) + ' ' + (n > 1 ? varios : um); }
+function _gDadosDiagPainel(d) {
+  const it = [], k = d.kpis || {}, q = d.qualidade || {}, b = d.buscas || {}, c = d.conteudo || {}, fb = d.feedback || {};
+  // falha técnica
+  const erros = (q.erros || []).reduce((s, e) => s + (e.n || 0), 0);
+  if (erros) {
+    const e0 = q.erros[0] || {}, pes = (q.erros || []).reduce((s, e) => s + (e.pessoas || 0), 0);
+    it.push({ sev: 'critico', aba: 'qualidade', t: `${_gDadosPl(erros, 'erro', 'erros')} do app no período`, s: `Mais comum: “${e0.msg || '—'}” · ${_gDadosPl(pes, 'pessoa afetada', 'pessoas afetadas')}` });
+  }
+  // franqueado travou
+  if (k.primeira_arte_mediana_s > 60) it.push({ sev: 'alto', aba: 'visao', t: `A 1ª arte leva ${_gDadosDur(k.primeira_arte_mediana_s)} (meta: menos de 1 minuto)`, s: 'Mediana do início da sessão à primeira arte' });
+  const pior = _gDadosPiorQueda((d.funil || {}).geral || []);
+  if (pior && pior.q >= 0.3) it.push({ sev: pior.q >= 0.5 ? 'alto' : 'atencao', aba: 'funil', t: `${_gDadosPct(pior.q)} das sessões param entre ${pior.de} e ${pior.para}`, s: 'A maior queda do funil' });
+  if (k.artes_geradas >= 5 && k.taxa_download != null && k.taxa_download < 0.5) it.push({ sev: 'atencao', aba: 'funil', t: `Só ${_gDadosPct(k.taxa_download)} das artes geradas foram baixadas`, s: _gDadosPl(k.artes_geradas, 'arte gerada', 'artes geradas') + ' no período' });
+  const mat = ((d.funil || {}).por_material || []).filter(r => r.abriu >= 10 && r.baixou / r.abriu < 0.25).sort((a, b2) => a.baixou / a.abriu - b2.baixou / b2.abriu)[0];
+  if (mat) it.push({ sev: 'atencao', aba: 'funil', t: `“${mat.template_name || 'Sem nome'}” quase não converte: ${_gDadosPct(mat.baixou / mat.abriu)} de quem abriu baixou`, s: `${_gDadosN(mat.abriu)} aberturas${mat.camp_name ? ' · ' + mat.camp_name : ''}` });
+  // catálogo falhando
+  if (fb.negativo) {
+    const m0 = (fb.motivos || [])[0];
+    const mot = m0 ? ((typeof F_FEEDBACK_REASONS === 'object' && F_FEEDBACK_REASONS[m0.reason]) || m0.reason) : '';
+    it.push({ sev: fb.negativo > (fb.positivo || 0) ? 'alto' : 'atencao', aba: 'qualidade', t: `${_gDadosPl(fb.negativo, 'feedback negativo', 'feedbacks negativos')} nas campanhas`, s: [mot ? 'Motivo mais citado: ' + mot : '', _gDadosN(fb.positivo) + ' positivos'].filter(Boolean).join(' · ') });
+  }
+  const semRes = b.sem_resultado || [];
+  if (semRes.length) it.push({ sev: 'atencao', aba: 'buscas', t: `${_gDadosPl(semRes.length, 'busca voltou', 'buscas voltaram')} sem resultado`, s: semRes.slice(0, 3).map(x => '“' + x.q + '”').join(', ') });
+  const ped = b.pedidos || [];
+  if (ped.length) it.push({ sev: 'atencao', aba: 'buscas', t: `${_gDadosPl(ped.length, 'pedido de conteúdo', 'pedidos de conteúdo')} no período`, s: ped.slice(0, 3).map(x => '“' + x.q + '”').join(', ') });
+  const nunca = c.nunca_usados || [];
+  if (nunca.length) it.push({ sev: 'atencao', aba: 'conteudo', t: `${_gDadosPl(nunca.length, 'template publicado nunca foi usado', 'templates publicados nunca foram usados')}`, s: nunca.slice(0, 3).map(x => x.nome || 'Sem nome').join(', ') });
+  return it;
+}
+function _gDadosDiagIa(x) {
+  const it = [], r = x.resumo || {};
+  if (r.erros && r.taxa_erro > 0.05) {
+    const t0 = (x.por_task || []).filter(t => t.erros).sort((a, b) => b.erros / b.n - a.erros / a.n)[0];
+    it.push({ sev: r.taxa_erro > 0.15 ? 'alto' : 'atencao', aba: 'ia', t: `A IA falha em ${_gDadosPct(r.taxa_erro)} das chamadas`, s: `${_gDadosPl(r.erros, 'falha', 'falhas')}${t0 ? ' · pior tarefa: ' + _gDadosIaTask(t0.task) + ' (' + _gDadosPct(t0.erros / t0.n) + ')' : ''}` });
+  }
+  const e0 = (x.erros || [])[0];
+  if (e0 && e0.erro === 'http_503') it.push({ sev: 'critico', aba: 'ia', t: 'A IA está sem chave no servidor', s: `${_gDadosN(e0.n)} chamadas recusadas · última ${_gDadosRel(e0.ultimo)}` });
+  if (r.p95_ms > 10000) it.push({ sev: 'atencao', aba: 'ia', t: `A IA está lenta: 5% das respostas passam de ${_gDadosMs(r.p95_ms)}`, s: 'Mediana ' + _gDadosMs(r.p50_ms) });
+  return it;
+}
+function _gDadosDiagLista(itens) {
+  return `<ul class="gd-atencao">${itens.map(x => `<li class="is-${x.sev}"><button type="button" onclick="gDadosSetAba('${x.aba}')"><span><strong>${gEsc(x.t)}</strong>${x.s ? `<small>${gEsc(x.s)}</small>` : ''}</span>${_G_DADOS_ICO.seta}</button></li>`).join('')}</ul>`;
+}
+function _gDadosDiagItens(d) {
+  const it = _gDadosDiagPainel(d);
+  if (_gDados.lf.data) it.push(..._gDadosLfItens(_gDados.lf.data).map(([sev, t]) => ({ sev, t, s: '', aba: 'localfit' })));
+  if (_gDados.ia.data) it.push(..._gDadosDiagIa(_gDados.ia.data));
+  return it;
+}
+function _gDadosDiagHtml(d) {
+  const pend = [['lf', 'Local Fit', 'gDadosLfCarregar()'], ['ia', 'IA', 'gDadosIaCarregar()']].map(([k, rot, fn]) => {
+    const s = _gDados[k];
+    if (s.erro) return `<p class="gd-nota">Não deu para ler o ${rot}: ${gEsc(s.erro)} <button type="button" class="gd-btn" onclick="${fn}">Tentar de novo</button></p>`;
+    return s.data ? '' : `<p class="gd-nota" role="status">Lendo o ${rot}…</p>`;
+  }).join('');
+  const it = _gDadosDiagItens(d);
+  if (!it.length) return pend + (pend ? '' : _gDadosVazioHtml(_gDadosVazio(d) ? G_DADOS_VAZIO : 'Nada dando ruim neste período.'));
+  const kpis = G_DADOS_SEV.map(([sev, rot]) => _gDadosKpi(rot, _gDadosN(it.filter(x => x.sev === sev).length))).join('');
+  return `<div class="gd-kpis">${kpis}</div>${pend}` + G_DADOS_SEV.map(([sev, rot, sub]) => {
+    const g = it.filter(x => x.sev === sev);
+    return g.length ? _gDadosSecao(rot, sub, _gDadosDiagLista(g)) : '';
+  }).join('');
 }
 
 /* ── Pessoas ────────────────────────────────────────────────────────────────────────── */
@@ -607,7 +671,7 @@ function _gDadosLfVarPp(atual, ant, menorMelhor) {
 async function gDadosLfCarregar() {
   const s = _gDados.lf, req = ++s.req;
   s.carregando = true; s.erro = null;
-  if (_gDados.aba === 'localfit') _gDadosRender();
+  if (_gDados.aba === 'localfit' || _gDados.aba === 'diag') _gDadosRender();
   const iv = _gDados.intervalo || _gDadosIntervalo();
   let res;
   try { res = await _gDadosRpc('dados_localfit', { p_de: iv.de, p_ate: iv.ate }); } catch (err) { res = { error: err }; }
@@ -615,27 +679,32 @@ async function gDadosLfCarregar() {
   s.carregando = false;
   if (res.error || !res.data) s.erro = _gDadosMsgErro(res.error || 'A consulta voltou vazia.');
   else s.data = res.data;
-  if (_gDados.aba === 'localfit') _gDadosRender();
+  if (_gDados.aba === 'localfit' || _gDados.aba === 'diag') _gDadosRender();
 }
 // "O que olhar primeiro": achados calculados do próprio dado, do mais grave ao menos.
-function _gDadosLfAchados(x) {
+// Cada achado vem com a gravidade [sev, texto]: a aba Diagnóstico usa a mesma lista.
+function _gDadosLfItens(x) {
   const r = x.resumo || {}, it = [];
-  if (r.export_bloqueou) it.push(`${_gDadosN(r.export_bloqueou)} ${r.export_bloqueou > 1 ? 'artes exportadas saíram' : 'arte exportada saiu'} com texto que não coube — o bloqueio deveria impedir isso.`);
+  if (r.export_bloqueou) it.push(['critico', `${_gDadosN(r.export_bloqueou)} ${r.export_bloqueou > 1 ? 'artes exportadas saíram' : 'arte exportada saiu'} com texto que não coube — o bloqueio deveria impedir isso.`]);
   const pm = (x.por_material || []).filter(m => m.bloqueou)[0];
-  if (pm) it.push(`“${pm.nome || pm.material}”${pm.pasta ? ' (' + pm.pasta + ')' : ''} é o template que mais bloqueia: ${_gDadosN(pm.bloqueou)} de ${_gDadosN(pm.n)} resoluções.`);
+  if (pm) it.push(['alto', `“${pm.nome || pm.material}”${pm.pasta ? ' (' + pm.pasta + ')' : ''} é o template que mais bloqueia: ${_gDadosN(pm.bloqueou)} de ${_gDadosN(pm.n)} resoluções.`]);
   const nc = (x.nao_coube || [])[0];
-  if (nc && nc.campo) it.push(`O campo “${typeof gFieldLabel === 'function' ? gFieldLabel(nc.campo) : nc.campo}” é o que mais estoura${nc.limite_p50 != null ? ' (limite seguro mediano: ' + nc.limite_p50 + ' caracteres)' : ''}.`);
+  if (nc && nc.campo) it.push(['atencao', `O campo “${typeof gFieldLabel === 'function' ? gFieldLabel(nc.campo) : nc.campo}” é o que mais estoura${nc.limite_p50 != null ? ' (limite seguro mediano: ' + nc.limite_p50 + ' caracteres)' : ''}.`]);
   const fm = (x.por_formato || []).filter(f => f.n >= 5).sort((a, b) => b.bloqueou / b.n - a.bloqueou / a.n)[0];
-  if (fm && fm.bloqueou) it.push(`O formato ${_gDadosFmt(fm.chave)} bloqueia em ${_gDadosPct(fm.bloqueou / fm.n)} das resoluções.`);
+  if (fm && fm.bloqueou) it.push(['atencao', `O formato ${_gDadosFmt(fm.chave)} bloqueia em ${_gDadosPct(fm.bloqueou / fm.n)} das resoluções.`]);
   const vs = (x.por_versao || []).filter(v => v.ordem != null && v.n >= 5);
-  if (vs.length > 1 && vs[0].bloqueou / vs[0].n > vs[1].bloqueou / vs[1].n + 0.05) it.push(`A versão ${vs[0].chave} bloqueia mais que a ${vs[1].chave} (${_gDadosPct(vs[0].bloqueou / vs[0].n)} contra ${_gDadosPct(vs[1].bloqueou / vs[1].n)}) — possível regressão.`);
-  if (r.ms_p95 != null && r.ms_p95 > 50) it.push(`O p95 do tempo está em ${_gDadosMs(r.ms_p95)} — acima de 50 ms a digitação na prévia começa a pesar em celular fraco.`);
+  if (vs.length > 1 && vs[0].bloqueou / vs[0].n > vs[1].bloqueou / vs[1].n + 0.05) it.push(['alto', `A versão ${vs[0].chave} bloqueia mais que a ${vs[1].chave} (${_gDadosPct(vs[0].bloqueou / vs[0].n)} contra ${_gDadosPct(vs[1].bloqueou / vs[1].n)}) — possível regressão.`]);
+  if (r.ms_p95 != null && r.ms_p95 > 50) it.push(['atencao', `O p95 do tempo está em ${_gDadosMs(r.ms_p95)} — acima de 50 ms a digitação na prévia começa a pesar em celular fraco.`]);
   const fn = _gDadosLfTaxa(r.fonte_nao_ok, r.fonte_conhecida);
-  if (fn != null && fn > 0.1) it.push(`${_gDadosPct(fn)} das resoluções rodaram com fonte substituída — a medida pode divergir entre aparelhos.`);
+  if (fn != null && fn > 0.1) it.push(['atencao', `${_gDadosPct(fn)} das resoluções rodaram com fonte substituída — a medida pode divergir entre aparelhos.`]);
   const rc = x.recuperacao || {};
-  if (rc.sessoes_bloqueadas >= 5 && rc.sessoes_baixaram / rc.sessoes_bloqueadas < 0.5) it.push(`Só ${_gDadosPct(rc.sessoes_baixaram / rc.sessoes_bloqueadas)} das visitas que bateram em bloqueio terminaram em download.`);
+  if (rc.sessoes_bloqueadas >= 5 && rc.sessoes_baixaram / rc.sessoes_bloqueadas < 0.5) it.push(['alto', `Só ${_gDadosPct(rc.sessoes_baixaram / rc.sessoes_bloqueadas)} das visitas que bateram em bloqueio terminaram em download.`]);
+  return it;
+}
+function _gDadosLfAchados(x) {
+  const it = _gDadosLfItens(x);
   if (!it.length) return '<p class="gd-vazio">Nada fora do normal neste período.</p>';
-  return `<ul class="gd-lista gd-achados">${it.slice(0, 6).map(t => `<li><span>${gEsc(t)}</span></li>`).join('')}</ul>`;
+  return `<ul class="gd-lista gd-achados">${it.slice(0, 6).map(([, t]) => `<li><span>${gEsc(t)}</span></li>`).join('')}</ul>`;
 }
 function _gDadosLfDias(dias) {
   if (!dias.length) return '<p class="gd-vazio">Sem dias no período.</p>';
@@ -827,7 +896,7 @@ function _gDadosMs(ms) { return ms == null ? '—' : ms < 1000 ? Math.round(ms) 
 async function gDadosIaCarregar() {
   const s = _gDados.ia, req = ++s.req;
   s.carregando = true; s.erro = null;
-  if (_gDados.aba === 'ia') _gDadosRender();
+  if (_gDados.aba === 'ia' || _gDados.aba === 'diag') _gDadosRender();
   const iv = _gDados.intervalo || _gDadosIntervalo();
   let res;
   let mod = null;
@@ -843,7 +912,7 @@ async function gDadosIaCarregar() {
   s.carregando = false;
   if (res.error || !res.data) s.erro = _gDadosMsgErro(res.error || 'A consulta voltou vazia.');
   else s.data = res.data;
-  if (_gDados.aba === 'ia') _gDadosRender();
+  if (_gDados.aba === 'ia' || _gDados.aba === 'diag') _gDadosRender();
 }
 function _gDadosIaHtml() {
   const s = _gDados.ia, d = s.data;
@@ -1042,6 +1111,7 @@ async function gDadosExportarCsv() {
   const d = _gDados.data;
   if (!d) return;
   const aba = _gDados.aba;
+  if (aba === 'diag') return _gDadosCsvBaixar('diagnostico', ['gravidade', 'problema', 'detalhe', 'aba'], _gDadosDiagItens(d).map(x => [(G_DADOS_SEV.find(s => s[0] === x.sev) || [])[1], x.t, x.s, x.aba]));
   if (aba === 'visao') return _gDadosCsvBaixar('por-dia', ['dia', 'pessoas', 'sessoes', 'artes', 'downloads'], (d.por_dia || []).map(x => [x.dia, x.pessoas, x.sessoes, x.artes, x.downloads]));
   if (aba === 'pessoas') {
     if (_gDados.pessoa && _gDados.pessoaData) return _gDadosCsvBaixar('pessoa', ['ocorreu_em', 'evento', 'descricao', 'payload'], (_gDados.pessoaData.eventos || []).map(e => [e.ocorreu_em, e.evento, _gDadosRotulo(e.evento, e.payload), e.payload]));
