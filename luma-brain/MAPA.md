@@ -262,13 +262,13 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 83 arquivos JS (71.164 linhas, 2.790 funções) · 32 arquivos CSS (30.087 linhas) · `index.html` com 4.009 linhas e 84 `<script>`.
+**Tamanho real de hoje:** 83 arquivos JS (71.254 linhas, 2.798 funções) · 32 arquivos CSS (30.091 linhas) · `index.html` com 4.009 linhas e 84 `<script>`.
 
 ## JS — o que cada arquivo é
 
 ### js (raiz)
 
-**`js/00-config.js`** · 2711 linhas
+**`js/00-config.js`** · 2712 linhas
 Constantes globais imutaveis: HIST_KEY, CAMPS_ATIVAS, CAMPS_OUTRAS, FMTS. Deve ser carregado PRIMEIRO (todos os modulos dependem destas constantes).
 · API: gPastaSistema, gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss … (+51; 90 funções no total)
 · Estado global: _G_MEDIDA_CACHE, gLayoutVivoOff, _gCanvasWrap
@@ -325,9 +325,9 @@ LUMA CLI Console de comandos do Luma, só pra quem é da casa (equipe_dm/gestao)
 COPY FIT — encurtar a copy do franqueado SEM mudar o que se vende (22/09/2026) Quando o Local Fit bloqueia, o franqueado precisa de uma SAÍDA, não de um aviso.
 · API: gCopyFitGuarda, gCopyFitConfere, gCopyFitCandidatos, gCopyFitSugestoes
 
-**`js/core/dados.js`** · 1092 linhas
+**`js/core/dados.js`** · 1162 linhas
 Área "Dados" do painel da conta — o que a rede faz no Luma (product intelligence).
-· API: gDadosAbrir, gDadosCarregar, gDadosSetPeriodo, gDadosSetCidade, gDadosSetAba, gDadosTabsKeydown, gDadosPessoasBusca, gDadosPessoasPapel, gDadosPessoasOrdenar, gDadosAbrirPessoa, gDadosFecharPessoa, gDadosLfCarregar, gDadosIaCarregar, gDadosIaCalc … (+4; 84 funções no total)
+· API: gDadosAbrir, gDadosCarregar, gDadosSetPeriodo, gDadosSetCidade, gDadosSetAba, gDadosTabsKeydown, gDadosPessoasBusca, gDadosPessoasPapel, gDadosPessoasOrdenar, gDadosAbrirPessoa, gDadosFecharPessoa, gDadosLfCarregar, gDadosIaCarregar, gDadosIaCalc … (+4; 92 funções no total)
 · Estado global: _gDados
 · Depende de: core/toast.js (gEsc, gToast), core/auth.js (gIsAdmin), core/supabase.js (gSupabase).
 
@@ -357,7 +357,7 @@ Armazenamento de imagens grandes (fundos de PSD, fotos) em IndexedDB, fora do lo
 · API: gInferAnchor, gEnsureAnchors, gReflowLayers, gFmtKey
 · Depende de: nada (puro). Carregar antes de franqueado/ e designer/.
 
-**`js/core/local-fit.js`** · 1102 linhas
+**`js/core/local-fit.js`** · 1121 linhas
 LOCAL FIT — medida única de texto e adaptação local, em clones.
 · API: gAuthoredTextBox, gFitTextToAuthoredBox, gLocalFitArte, gLocalFitCorta, gLocalFitRotulo, gLocalFitMensagem, gLocalFitCulpado, gLocalFitMedidor, gLocalFitDiagnostico, gLocalFitMaiorPrefixo
 · Estado global: _gLfCanvas
@@ -707,7 +707,7 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/01-reset.css` | 38 |
 | `css/02-animations.css` | 172 |
 | `css/03-fonts.css` | 60 |
-| `css/components/dados.css` | 227 |
+| `css/components/dados.css` | 231 |
 | `css/components/help-modal.css` | 719 |
 | `css/components/login.css` | 377 |
 | `css/components/product-control.css` | 450 |
