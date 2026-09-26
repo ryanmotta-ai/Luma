@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Luma — Multi-Formatos, Dimensões e Smart Reflow (60 Artes)</title>
+  <style>
+    :root{color-scheme:light dark;font-family:system-ui,-apple-system,sans-serif;background:#111;color:#f5f5f5}
+    body{max-width:960px;margin:40px auto;padding:0 24px}
+    h1{font-size:24px;margin-bottom:8px;font-weight:700}
+    .summary{color:#aaa;margin-bottom:20px;font-size:14px}
+    .stats{display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap}
+    .stat-card{background:#181818;border:1px solid #333;border-radius:8px;padding:12px 18px;min-width:140px}
+    .stat-label{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.5px}
+    .stat-val{font-size:20px;font-weight:700;color:#f5f5f5;margin-top:4px}
+    ol{list-style:none;padding:0;display:grid;gap:6px}
+    .case{padding:10px 14px;border:1px solid #282828;border-radius:8px;background:#161616;display:flex;justify-content:space-between;align-items:center}
+    .pass{border-color:#225533;background:#131c15}
+    .fail{border-color:#882222;background:#241414}
+    .case strong{font-size:13px;display:block}
+    .case small{color:#aaa;font-size:11px}
+    .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+    .badge-ok{background:#1b4d2e;color:#55f288}
+    .badge-err{background:#5a1d1d;color:#ff7b7b}
+  </style>
+</head>
+<body>
+  <h1>Multi-Formatos, Dimensões e Smart Reflow</h1>
+  <div class="summary" id="summary">Gerando e validando 60 artes no motor Canvas 2D…</div>
+  <div class="stats" id="stats"></div>
+  <ol id="results"></ol>
+  <div id="f-preview-modal" hidden></div>
+
+  <!-- Motor do Franqueado e Core do Luma -->
+  <script src="../js/00-config.js"></script>
+  <script src="../js/01-state.js"></script>
+  <script src="../js/core/toast.js"></script>
+  <script src="../js/core/layout.js"></script>
+  <script src="../js/core/auto-layout.js"></script>
+  <script src="../js/core/local-fit.js"></script>
+  <script src="../js/franqueado/prefs.js"></script>
+  <script src="../js/franqueado/history.js"></script>
+  <script src="../js/franqueado/materials.js"></script>
+  <script src="../js/franqueado/png-generator.js"></script>
+  <script src="artes-multiformatos-cases.js"></script>
+</body>
+</html>

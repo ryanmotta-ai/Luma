@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Luma — Composição Visual & Recursos Gráficos (60 Artes)</title>
+  <link rel="stylesheet" href="../css/00-tokens.css">
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0d0d0d;
+      color: #f0f0f0;
+    }
+    body {
+      max-width: 1200px;
+      margin: 32px auto;
+      padding: 0 24px;
+    }
+    header {
+      border-bottom: 1px solid #222;
+      padding-bottom: 20px;
+      margin-bottom: 24px;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 0 0 8px 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .badge-subagent {
+      font-size: 11px;
+      font-weight: 700;
+      background: #FF9000;
+      color: #000;
+      padding: 3px 10px;
+      border-radius: 999px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .summary {
+      color: #888;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin: 20px 0 28px 0;
+    }
+    .stat-card {
+      background: #141414;
+      border: 1px solid #242424;
+      border-radius: 8px;
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .stat-val {
+      font-size: 26px;
+      font-weight: 800;
+      color: #FF9000;
+      font-feature-settings: "tnum";
+    }
+    .stat-val.green { color: #22C55E; }
+    .stat-val.red { color: #EF4444; }
+    .stat-lbl {
+      font-size: 11px;
+      font-weight: 600;
+      color: #777;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .category-tabs {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .cat-box {
+      background: #141414;
+      border: 1px solid #222;
+      border-radius: 8px;
+      padding: 12px 16px;
+    }
+    .cat-box h3 {
+      font-size: 13px;
+      font-weight: 600;
+      margin: 0 0 4px 0;
+      color: #eee;
+    }
+    .cat-box p {
+      font-size: 12px;
+      color: #888;
+      margin: 0;
+    }
+    .cat-progress {
+      font-size: 11px;
+      color: #22C55E;
+      font-weight: 700;
+      margin-top: 6px;
+    }
+    ol#results {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 12px;
+    }
+    .case {
+      background: #141414;
+      border: 1px solid #222;
+      border-radius: 8px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: border-color 0.2s;
+    }
+    .case.pass {
+      border-color: #1e3a29;
+      background: #111a14;
+    }
+    .case.fail {
+      border-color: #551c1c;
+      background: #201111;
+    }
+    .case-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .case-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #e5e5e5;
+      line-height: 1.3;
+    }
+    .case-badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #222;
+      color: #aaa;
+      white-space: nowrap;
+    }
+    .case.pass .case-badge {
+      background: #164e2e;
+      color: #4ade80;
+    }
+    .case.fail .case-badge {
+      background: #7f1d1d;
+      color: #f87171;
+    }
+    .case-desc {
+      font-size: 11px;
+      color: #888;
+      line-height: 1.4;
+    }
+    .case-metrics {
+      display: flex;
+      gap: 12px;
+      font-size: 11px;
+      color: #666;
+      border-top: 1px solid #1c1c1c;
+      padding-top: 6px;
+      margin-top: 2px;
+    }
+    .case-error {
+      font-size: 11px;
+      color: #f87171;
+      background: #331111;
+      padding: 6px 8px;
+      border-radius: 4px;
+    }
+    .case-thumb {
+      width: 100%;
+      height: 90px;
+      object-fit: contain;
+      background: #080808;
+      border-radius: 4px;
+      border: 1px solid #222;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>
+      Composição Visual & Efeitos Gráficos (60 Artes)
+      <span class="badge-subagent">Subagente 4</span>
+    </h1>
+    <div class="summary" id="summary">
+      Executando suíte automatizada no motor real Canvas 2D do Luma (fRenderTemplateLayers)...
+    </div>
+  </header>
+
+  <div class="stats-bar" id="stats-bar">
+    <div class="stat-card">
+      <span class="stat-val" id="stat-total">60</span>
+      <span class="stat-lbl">Total de Artes Planejadas</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-val green" id="stat-passed">0</span>
+      <span class="stat-lbl">Artes Renderizadas & Validadas</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-val red" id="stat-failed">0</span>
+      <span class="stat-lbl">Falhas de Composição</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-val" id="stat-time">0 ms</span>
+      <span class="stat-lbl">Tempo Médio por Arte</span>
+    </div>
+  </div>
+
+  <div class="category-tabs">
+    <div class="cat-box">
+      <h3>1. Paletas Contrastantes</h3>
+      <p>Delivery Much, Dark Mode, Tropical e Black Friday.</p>
+      <div class="cat-progress" id="cat-1-prog">0/15 aprovadas</div>
+    </div>
+    <div class="cat-box">
+      <h3>2. Formas & Cantos Complexos</h3>
+      <p>Radius 0, 12, 28, 999 pílula, círculo e assimétricos.</p>
+      <div class="cat-progress" id="cat-2-prog">0/15 aprovadas</div>
+    </div>
+    <div class="cat-box">
+      <h3>3. Sombras Projetadas</h3>
+      <p>Shadow blur 10..40, dist 4..16, ângulos e cores.</p>
+      <div class="cat-progress" id="cat-3-prog">0/15 aprovadas</div>
+    </div>
+    <div class="cat-box">
+      <h3>4. Transparência & Sobreposição</h3>
+      <p>Opacidade 15%..95%, molduras, selos e faixas.</p>
+      <div class="cat-progress" id="cat-4-prog">0/15 aprovadas</div>
+    </div>
+  </div>
+
+  <ol id="results"></ol>
+
+  <!-- Dependências do motor Canvas e Design System Luma -->
+  <script src="../js/00-config.js"></script>
+  <script src="../js/core/layout.js"></script>
+  <script src="../js/core/auto-layout.js"></script>
+  <script src="../js/designer/blending.js"></script>
+  <script src="../js/franqueado/png-generator.js"></script>
+  <script src="artes-composicao-grafica-cases.js"></script>
+</body>
+</html>

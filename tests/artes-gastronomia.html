@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Luma — 60 Artes Gastronomia & Delivery</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+    }
+    body {
+      max-width: 980px;
+      margin: 32px auto;
+      padding: 0 24px;
+    }
+    h1 {
+      font-size: 26px;
+      margin-bottom: 6px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .summary {
+      color: #8b949e;
+      margin-bottom: 20px;
+      font-size: 15px;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 12px 16px;
+    }
+    .stat-num {
+      font-size: 22px;
+      font-weight: 800;
+      color: #34d399;
+    }
+    .stat-label {
+      font-size: 11px;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 4px;
+    }
+    ol {
+      list-style: none;
+      padding: 0;
+      display: grid;
+      gap: 6px;
+    }
+    .case {
+      padding: 10px 14px;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      background: #161b22;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .pass { border-color: #238636; background: #0e2015; }
+    .fail { border-color: #da3633; background: #261113; }
+    .case strong { font-size: 13px; color: #f0f6fc; }
+    .case small { color: #8b949e; font-size: 11px; margin-left: 10px; }
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-right: 8px;
+    }
+    .badge-pizzaria { background: #7f1d1d; color: #fecaca; }
+    .badge-hamburgueria { background: #78350f; color: #fef3c7; }
+    .badge-sushi { background: #134e4a; color: #ccfbf1; }
+    .badge-acai { background: #581c87; color: #f3e8ff; }
+    .badge-almoco { background: #78350f; color: #fed7aa; }
+    .badge-doces { background: #831843; color: #fce7f3; }
+    .perf-time {
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      color: #34d399;
+    }
+    .preview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 8px;
+      margin-top: 32px;
+      padding-top: 20px;
+      border-top: 1px solid #30363d;
+    }
+    .preview-thumb {
+      width: 100%;
+      height: 130px;
+      object-fit: cover;
+      border-radius: 4px;
+      border: 1px solid #30363d;
+    }
+  </style>
+</head>
+<body>
+  <h1>60 Artes de Gastronomia & Delivery</h1>
+  <div class="summary" id="summary">Executando no motor real Canvas 2D…</div>
+  <div class="stats" id="stats"></div>
+  <ol id="results"></ol>
+  <div class="preview-grid" id="preview-grid"></div>
+
+  <!-- Dependências do Motor Luma -->
+  <script src="../js/00-config.js"></script>
+  <script src="../js/core/layout.js"></script>
+  <script src="../js/core/auto-layout.js"></script>
+  <script src="../js/core/local-fit.js"></script>
+  <script src="../js/designer/blending.js"></script>
+  <script src="../js/franqueado/png-generator.js"></script>
+
+  <!-- Casos das 60 Artes -->
+  <script src="artes-gastronomia-cases.js"></script>
+</body>
+</html>

@@ -42,8 +42,23 @@ function acharChromium() {
       candidatos.push(path.join(raizPw, dir));
     }
   } catch (e) { /* sem diretório do Playwright: segue para o PATH */ }
-  for (const nome of ['chromium', 'chromium-browser', 'google-chrome', 'google-chrome-stable']) {
-    try { candidatos.push(execSync('command -v ' + nome, { encoding: 'utf8' }).trim()); } catch (e) { /* não instalado */ }
+  if (process.platform === 'win32') {
+    const localAppData = process.env.LOCALAPPDATA || '';
+    const winCands = [
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      path.join(localAppData, 'Google\\Chrome\\Application\\chrome.exe'),
+      'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+      'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+      path.join(localAppData, 'Microsoft\\Edge\\Application\\msedge.exe')
+    ];
+    for (const p of winCands) {
+      if (p && fs.existsSync(p)) candidatos.push(p);
+    }
+  } else {
+    for (const nome of ['chromium', 'chromium-browser', 'google-chrome', 'google-chrome-stable']) {
+      try { candidatos.push(execSync('command -v ' + nome, { encoding: 'utf8' }).trim()); } catch (e) { /* não instalado */ }
+    }
   }
   for (const c of candidatos) {
     try { if (c && fs.existsSync(c) && fs.statSync(c).isFile()) return c; } catch (e) { /* ignora */ }
