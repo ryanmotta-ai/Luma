@@ -262,13 +262,13 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 83 arquivos JS (71.119 linhas, 2.789 funções) · 32 arquivos CSS (30.087 linhas) · `index.html` com 4.009 linhas e 84 `<script>`.
+**Tamanho real de hoje:** 83 arquivos JS (71.155 linhas, 2.789 funções) · 32 arquivos CSS (30.087 linhas) · `index.html` com 4.009 linhas e 84 `<script>`.
 
 ## JS — o que cada arquivo é
 
 ### js (raiz)
 
-**`js/00-config.js`** · 2699 linhas
+**`js/00-config.js`** · 2706 linhas
 Constantes globais imutaveis: HIST_KEY, CAMPS_ATIVAS, CAMPS_OUTRAS, FMTS. Deve ser carregado PRIMEIRO (todos os modulos dependem destas constantes).
 · API: gPastaSistema, gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss … (+51; 89 funções no total)
 · Estado global: _G_MEDIDA_CACHE, gLayoutVivoOff, _gCanvasWrap
@@ -357,7 +357,7 @@ Armazenamento de imagens grandes (fundos de PSD, fotos) em IndexedDB, fora do lo
 · API: gInferAnchor, gEnsureAnchors, gReflowLayers, gFmtKey
 · Depende de: nada (puro). Carregar antes de franqueado/ e designer/.
 
-**`js/core/local-fit.js`** · 1069 linhas
+**`js/core/local-fit.js`** · 1098 linhas
 LOCAL FIT — medida única de texto e adaptação local, em clones.
 · API: gAuthoredTextBox, gFitTextToAuthoredBox, gLocalFitArte, gLocalFitCorta, gLocalFitRotulo, gLocalFitMensagem, gLocalFitCulpado, gLocalFitMedidor, gLocalFitDiagnostico, gLocalFitMaiorPrefixo
 · Estado global: _gLfCanvas
