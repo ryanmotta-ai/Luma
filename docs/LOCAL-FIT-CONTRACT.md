@@ -667,8 +667,14 @@ além de 80% dentro da família". Suíte: 538 casos verdes.
   (antes quebrava em `w` e aceitava até a tinta — só funcionava por causa da medida errada).
 
 177 textos × 5 caixas (880 blocos): "+" pendurado 72 → 22 · número separado 132 → 63 · palavra sozinha
-no fim 70 → 57 · linha maior que a caixa 208 → 0 · equilíbrio igual (36–38%). Bancada do Local Fit:
-bloqueio final 1,1% → **0,2%** (4 pares). Catraca: caso 35 do `copy-fit`. Suíte: 539 verdes.
+no fim 70 → 57 · linha maior que a caixa 208 → 0 · equilíbrio igual (36–38%). Catraca: caso 35 do `copy-fit`.
+
+⚠ **CORREÇÃO pela prova visual (render real antes × depois, 26/09/2026).** O "0,2%" desta rodada era
+falso: com a quebra em `max(w, tinta)`, títulos entravam embaixo do selo do preço e a bancada contava
+isso como caber. Agora a tinta autorada só vale ATÉ A PAREDE (mesma régua da largura livre, sem teto),
+na quebra e no veredito de conteúdo novo; o próprio texto do designer segue cabendo até a tinta.
+**Número honesto: bloqueio final 2,6%** (64 pares) — contra 18,5% em 24/09. O que sobra é quase todo o
+título do `promo-preco-circulo`, encostado no selo. Suíte: 539 verdes.
 
 ### Copy Fit — a saída do bloqueio (23/09/2026)
 

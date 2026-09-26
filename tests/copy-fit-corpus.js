@@ -213,5 +213,6 @@ window.LUMA_COPY_CORPUS = [
    não segura mais o piso do produto) + degrau `barra` ("com" → "c/") → 155/55. 26/09/2026:
    largura livre ao lado no bloqueio → 101/28 (os fáceis passaram a caber sem o Copy Fit). No
    mesmo dia, folga de hierarquia (80%) → 48/38; quebra editorial medindo em caixa alta, na
-   largura autorada → 24/22. */
-window.LUMA_COPY_FIT_PISO = { fp: '1317.2/1317.2/1214.6', bloqueios: 24, resgates: 22 };
+   largura autorada → 24/22. Prova visual (26/09): a tinta autorada só vale até a parede → 53/32
+   (os "cabe" a mais eram títulos entrando embaixo do selo do preço). */
+window.LUMA_COPY_FIT_PISO = { fp: '1317.2/1317.2/1214.6', bloqueios: 53, resgates: 32 };

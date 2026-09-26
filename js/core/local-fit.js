@@ -290,7 +290,7 @@ function _gLfEspacoAbaixo(layer, camada, opts){
        fundo/painel que contém a caixa inteira na horizontal;
      · respiro de ¼ do corpo (mín. 8px) até a parede; teto na margem de 5% da prancheta;
      · texto vertical, girado ou com placa fica de fora (a placa deixaria de abraçar a tinta). */
-function _gLfLarguraLivre(layer, box, opts){
+function _gLfLarguraLivre(layer, box, opts, semTeto){
   const cv = opts && opts.canvas;
   if(!cv || !cv.w || !Array.isArray(opts.layers) || box.vertical || opts.placa) return null;
   if(box.camada.rotation) return null;
@@ -320,9 +320,11 @@ function _gLfLarguraLivre(layer, box, opts){
   /* TETO: no máximo +50% da largura desenhada. Medido na bancada (2.478 pares): sem teto o
      bloqueio final ia a 7,4%, mas a caixa típica crescia +74% e a pior +147% — outra coluna,
      outra arte. Com +50%: 7,9%, caixa típica +15%. 86% do ganho com a coluna reconhecível. */
-  const teto = Math.round((box.camada.w || 0) * G_LF_ALARGA_MAX);
-  esq = Math.min(esq, al === 'center' ? Math.round(teto / 2) : teto);
-  dir = Math.min(dir, al === 'center' ? Math.round(teto / 2) : teto);
+  if(!semTeto){
+    const teto = Math.round((box.camada.w || 0) * G_LF_ALARGA_MAX);
+    esq = Math.min(esq, al === 'center' ? Math.round(teto / 2) : teto);
+    dir = Math.min(dir, al === 'center' ? Math.round(teto / 2) : teto);
+  }
   return (esq + dir >= 8) ? { esq, dir } : null;
 }
 
@@ -465,6 +467,19 @@ function gFitTextToAuthoredBox(layer, conteudo, opts){
      `gFitTextLayer` e o render já honram — nada muda de lugar, a largura é a desenhada.
      (Decisão do Ryan, 22/09/2026: "vai pulando pra linha de baixo; lotou, diminui".) */
   const podeQuebrarPonto = !box.quebravel && !box.vertical && (box.w || 0) > 0;
+  /* LARGURA DE QUEBRA do texto de ponto: a maior entre a caixa e a tinta autorada (§3) — mas a
+     tinta só vale ATÉ A PAREDE. Visto na prova visual de 26/09/2026: a tinta do exemplo (medida
+     com a fonte disponível) passava da caixa e alcançava o selo do preço; quebrado nessa largura,
+     "EXCLUSIVA DE ANIVERSÁRIO" entrava embaixo do círculo. Linha única igual ao desenho segue
+     valendo até a tinta (é o desenho); a QUEBRA não passa do vazio que existe ao lado. */
+  const _tintaW = (box.tintaAutorada && box.tintaAutorada.w) || 0;
+  const _norm = t => String(t == null ? '' : t).replace(/\s+/g, ' ').trim().toLowerCase();
+  const ehAutorado = !!box.textoAutorado && _norm(texto) === _norm(box.textoAutorado);
+  let larguraQuebra = box.alargado ? (box.w || 0) : Math.max(box.w || 0, _tintaW);   // alargada: já parou nas paredes
+  if(_tintaW > (box.w || 0) && !box.alargado && Array.isArray(opts.layers) && opts.canvas){
+    const lv = _gLfLarguraLivre(layer, box, opts, true);
+    larguraQuebra = Math.max(box.w || 0, Math.min(_tintaW, (box.w || 0) + (lv ? lv.esq + lv.dir : 0)));
+  }
   const nPalavras = texto.split(/\s+/).filter(Boolean).length;
   const prova_ = (fs, layoutW) => {
     /* `fontSize` cru, nunca `_tetoFonte`: o teto é carimbo da cascata e a prova tem que ser
@@ -473,7 +488,11 @@ function gFitTextToAuthoredBox(layer, conteudo, opts){
     if(layoutW != null) prova._layoutW = layoutW;
     const f = gFitTextLayer(prova, texto, ctx, { encolher:false, runs: opts.runs || null });
     const linhas = (f.lines || []).length;
-    const dispX = _gLfLarguraDisponivel(box, fs);
+    /* Conteúdo NOVO só usa a tinta autorada até a parede (a mesma `larguraQuebra`); o próprio texto
+       do designer continua cabendo por construção até a tinta dele (§3). Antes a linha única nova
+       podia ir até a tinta e entrar embaixo do selo do preço — a bancada contava isso como caber. */
+    const dispX = ehAutorado ? _gLfLarguraDisponivel(box, fs)
+                             : Math.max(_gLfLarguraCaixa(box.camada, fs), Math.min(_gLfLarguraDisponivel(box, fs), larguraQuebra));
     const dispY = box.alturaDisponivel;
     const maxLinhas = _gLfMaxLinhas(box, fs);
     const overflowX = Math.max(0, Math.round((f.larguraMax || 0) - dispX));
@@ -498,7 +517,7 @@ function gFitTextToAuthoredBox(layer, conteudo, opts){
          maior (§3, "a tinta autorada é o piso da caixa"). Quebrar em `w` e aceitar em
          max(w, tinta) só funcionava porque a quebra media em minúsculas o que a arte desenha em
          caixa alta — corrigida a medida (26/09/2026), a diferença virava linha a mais. */
-      const q = prova_(fs, Math.max(box.w || 0, (box.tintaAutorada && box.tintaAutorada.w) || 0));
+      const q = prova_(fs, larguraQuebra);
       if(q.linhas > u.linhas) u = q;
     }
     ultimo = Object.assign(u, { passo:i });

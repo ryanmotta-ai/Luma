@@ -2346,6 +2346,7 @@ function _gQuebraCusto(words, j){
   if (/^(de|do|da|dos|das)$/.test(pb) && /^\p{L}{3,}$/u.test(ua) && !(typeof G_CONNECTORS !== 'undefined' && G_CONNECTORS.has(ua)))
     c += 250;                                                        // "Pizza Grande / de Calabresa"
   if (_G_QUEBRA_ADJ.has(pb) && /^\p{L}{3,}$/u.test(ua)) c += 300;   // "Pizza / Grande", "Batata / Frita"
+  if (/^\d+([.,]\d+)?\s?(l|ml|g|kg|un)$/i.test(b.split(' ')[0]) && /^\p{L}{3,}$/u.test(ua)) c += 300;   // "Refri / 2L"
   if (pb === '+') c -= 120;                                          // o "+" abre a linha: lista legível
   if (/^r\$/i.test(b.trim()) || /^por\s+r\$/i.test(b.trim())) c -= 80;   // preço começando a linha
   if (/^a\s+partir/i.test(b) || (pb === 'a' && nu(String(words[j + 1] || '').split(' ')[0]) === 'partir')) c -= 80;
