@@ -9,9 +9,40 @@
 > (`supabase/migrations/20260926120000_luma_suporte_atendimento.sql`). Sem isso, uma ponte externa
 > só multiplicaria o problema de dois atendentes respondendo a mesma conversa.
 
+## Decidido e construído (26/09/2026)
+
+**Decisões do Ryan** (respondendo o §10 abaixo):
+
+1. **Telegram.** A equipe vive no WhatsApp, mas o custo da Cloud API pesou.
+2. **Os prints vão** para o Telegram.
+3. **O jurídico aprovou** a conversa do franqueado no Telegram.
+4. **Quem atende pelo Telegram aparece online** para o franqueado.
+
+Com isso as duas etapas do §9 saíram juntas:
+
+- **Banco:** `supabase/migrations/20260926130000_luma_suporte_telegram.sql`.
+- **Edge Function:** `supabase/functions/suporte-telegram/index.ts`, com `verify_jwt = false` no
+  `config.toml`.
+- **Front:** `js/core/suporte.js` + widget de ajuda (vincular a conta, "pelo Telegram" nas
+  respostas).
+- **Chave** `global.help.suporte.telegram` no Controle do produto, **nascida desligada**.
+
+**Como fica:**
+
+- **Um tópico por franqueado** no supergrupo da equipe. O bot posta a mensagem do franqueado (com o
+  print), as respostas dadas no Luma ("Ana (pelo Luma): …") e o histórico do atendimento.
+- **Responder no tópico chega ao franqueado** como mensagem da pessoa, e passa pela mesma trava de
+  responsável.
+- **Comandos no tópico:** `/assumir`, `/resolver`, `/repassar <nome>`.
+- **Disponibilidade:** `/disponivel` põe a pessoa online para o franqueado por 8 horas (um turno);
+  `/ausente` encerra antes.
+- **Visto:** responder pelo Telegram marca as mensagens do franqueado como vistas.
+
+O passo a passo para ligar está em **"Como ligar"**, no fim deste arquivo.
+
 ---
 
-## Resposta curta
+## Resposta curta (do estudo, antes das decisões)
 
 **É viável, e o Telegram é a melhor opção entre as avaliadas, desde que o jurídico aprove o
 destino dos dados.** Recomendo fazer em duas etapas:
@@ -116,11 +147,11 @@ Function** (já usamos `ai` e `invite-user`), mais gatilhos no Postgres. A ponte
 - Prints do Luma (PNG/JPG/WEBP, até 5 MB) cabem nos dois sentidos. Upload multipart: foto até
   10 MB, documento até 50 MB. Download pelo bot (`getFile`): até 20 MB, e o link vale "pelo menos
   1 hora". <https://core.telegram.org/bots/api#sending-files> · <https://core.telegram.org/bots/api#getfile>
-- **Recomendação para a etapa 1: não mandar o print.** O aviso diz "Carla anexou uma imagem, veja no
-  Luma". Print de tela mostra dado de loja, e é o conteúdo mais sensível da conversa.
-- Etapa 2: foto enviada no tópico é baixada pela função, conferida (tipo e tamanho, as mesmas
-  regras do bucket) e regravada em `luma-suporte/<franqueado_id>/`. Arquivo que não for imagem é
-  recusado com aviso do bot.
+- ~~Recomendação para a etapa 1: não mandar o print.~~ **Decidido: o print vai** (26/09). Ele sai
+  do bucket privado pela função e é postado com `protect_content`.
+- Foto enviada no tópico é baixada pela função, conferida (tipo e tamanho, as mesmas regras do
+  bucket) e regravada em `luma-suporte/<franqueado_id>/`. Arquivo que não for imagem é recusado com
+  aviso do bot.
 
 ## 6. Privacidade (o ponto que decide)
 
@@ -157,7 +188,7 @@ mundo do grupo e sem prazo de retenção nosso. Antes da etapa 1:
 | Mensagem **editada** no Telegram | Não | O bot recebe `edited_message`, mas a mensagem do Luma é imutável (grant de UPDATE só em `lida_em`). O bot avisa: "edição não chega ao franqueado, mande de novo" |
 | Mensagem **apagada** no Telegram | Não | **Não existe** update de mensagem apagada em grupo (só para contas Business). <https://core.telegram.org/bots/api#update> |
 | "Visto" | Parcial | Não dá para saber quem leu no Telegram. Proposta: responder marca como lidas as mensagens do franqueado |
-| Presença ("online agora") | Não, na v1 | Quem atende pelo Telegram não aparece online no Luma, então o franqueado vê "responde quando voltar" e a IA responde primeiro. Pode virar um status "Disponível pelo Telegram" depois |
+| Presença ("online agora") | Sim (decidido em 26/09) | `/disponivel` no Telegram grava `disponivel_ate` (8 h). O franqueado vê a pessoa online, e a pergunta dele vai direto para a equipe, sem passar pela IA. `/ausente` encerra antes |
 
 **Limites de taxa.** Grupo aceita 20 mensagens/min do bot; o mesmo chat, cerca de 1/s; o erro 429
 traz `retry_after`. Com um aviso por mensagem de franqueado, sobra folga no volume atual. A fila
@@ -173,7 +204,7 @@ grupo. <https://core.telegram.org/bots/faq>
 | Slack (Events API) | Sim | Sim | Só serve se a equipe já usa Slack. Exige resposta 2xx em 3 s (senão, 3 tentativas), o que pede processar em segundo plano. <https://docs.slack.dev/apis/events-api/> |
 | Web Push (PWA) | Sim (só aviso) | Não | Não resolve "responder". No iPhone só funciona com o Luma instalado na Tela de Início. Complementa, não substitui. <https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/> |
 
-## 9. Plano
+## 9. Plano (histórico — as duas etapas foram feitas juntas em 26/09; ver "Como ligar")
 
 **Etapa 1 — aviso de mão única** (depois do aval do jurídico):
 
@@ -194,9 +225,53 @@ grupo. <https://core.telegram.org/bots/faq>
 7. Casos novos no `supabase/tests/rls.sql`: franqueado e anon não chamam a RPC externa; resposta
    de conta desvinculada ou desativada é recusada; a trava de responsável vale para o Telegram.
 
-## 10. Decisões que são do Ryan
+## 10. Decisões que eram do Ryan (respondidas em 26/09/2026)
 
-1. **O jurídico/DPO aprova** conversa de franqueado em servidor do Telegram? Sem isso, nada anda.
-2. **A equipe já usa Telegram?** Se ela vive no Slack ou no WhatsApp, o estudo muda de canal (§8).
-3. **Print vai para o Telegram na etapa 2**, ou fica sempre só no Luma?
-4. **Quem atende pelo Telegram conta como "online"** para o franqueado? (Mexe no desvio da IA.)
+1. **O jurídico/DPO aprova** conversa de franqueado em servidor do Telegram? → **Aprova.**
+2. **A equipe já usa Telegram?** → Usa o WhatsApp, mas **vai de Telegram** para não ter custo.
+3. **Print vai para o Telegram?** → **Vai.**
+4. **Quem atende pelo Telegram conta como "online"** para o franqueado? → **Conta** (`/disponivel`).
+
+---
+
+## Como ligar
+
+A ordem importa: o segredo no Vault é o **último** passo. Sem ele nada entra na fila. Com ele e sem
+a função no ar, os itens falhariam até serem descartados.
+
+1. **Banco.** No SQL Editor, aplicar em ordem `20260926120000_luma_suporte_atendimento.sql` e
+   `20260926130000_luma_suporte_telegram.sql`. Rodar `supabase/tests/rls.sql`: casos
+   "atendimento:" e "telegram:", todos `ok = true`.
+2. **Bot.** No Telegram, falar com o @BotFather: `/newbot` e guardar o token. Opcional:
+   `/setcommands` com `disponivel`, `ausente`, `assumir`, `resolver`, `repassar`.
+3. **Grupo.** Criar um supergrupo **privado** (ex.: "Suporte Luma"). Em Configurações, ligar
+   **Tópicos**. Adicionar o bot como **administrador** com permissão de gerenciar tópicos, e
+   adicionar a equipe.
+4. **ID do grupo.** Mandar uma mensagem qualquer no grupo e abrir
+   `https://api.telegram.org/bot<TOKEN>/getUpdates`. O `chat.id` começa com `-100`. Faça isso
+   **antes** do passo 7: com webhook ligado, o `getUpdates` não responde.
+5. **Segredos da função.** Gerar um segredo só com letras, números, `_` e `-` (ex.:
+   `openssl rand -hex 32`), e gravar os três:
+   `supabase secrets set TELEGRAM_BOT_TOKEN=<token> TELEGRAM_CHAT_ID=<-100…> TELEGRAM_WEBHOOK_SECRET=<segredo>`
+6. **Função.** `supabase functions deploy suporte-telegram --no-verify-jwt`
+7. **Webhook.** Configurar com o mesmo segredo:
+   `curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" -d "url=https://uqrqzjafhigjuvtjqzid.supabase.co/functions/v1/suporte-telegram" -d "secret_token=<segredo>" -d 'allowed_updates=["message","edited_message"]'`
+   Conferir com `getWebhookInfo` (sem `last_error_message`).
+8. **Vault.** No SQL Editor: `select vault.create_secret('<segredo>', 'luma_suporte_telegram_segredo');`
+   A partir daqui, mensagem nova no Luma vai para o Telegram. O histórico anterior não vai.
+9. **Tela.** Ligar "Suporte pelo Telegram" no Controle do produto (painel da conta → Controle do produto).
+10. **Cada atendente:** mandar `/start` no privado do bot, colar o código em Ajuda › Mensagens →
+    "Vincular o Telegram", e usar `/disponivel` quando for atender por lá.
+
+**Onde olhar se algo não chegar:**
+
+- `select id, tentativas, erro from luma.suporte_telegram_saida where enviado_em is null order by id;`
+  mostra a fila.
+- Os logs da função `suporte-telegram` ficam no painel do Supabase.
+- `getWebhookInfo` mostra o lado do Telegram.
+
+**Desligar:** apagar o segredo do Vault (a fila para de encher) e `deleteWebhook` no bot. A chave do
+Controle do produto só esconde a tela de vínculo.
+
+**Desligamento de alguém da equipe:** desativar no Luma já corta as respostas pelo Telegram, porque
+a RPC confere `ativo`. Também remover a pessoa do grupo (`banChatMember`, ou pelo próprio app).

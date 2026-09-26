@@ -26,6 +26,7 @@
 | `20260905120000` · `20260906152238` | ✅ | Aplicadas em 23/09 (nomes com timestamp de 23/09 no banco). |
 | `20260923187500_luma_profiles_avatar` · `20260923188000_luma_suporte_ao_vivo` | ✅ aplicadas (23/09) | Foto de perfil (CHECK na `avatar_url`, que já existia) e suporte ao vivo (tabela, view, Realtime, presença, bucket `luma-suporte`, flag). Casos "suporte:" e "foto:" do `rls.sql`: 15/15 verdes. |
 | `20260926120000_luma_suporte_atendimento` | ❌ **NÃO aplicada** (26/09) | Atendimento do suporte: estado, responsável, histórico, trava contra dois atendentes, `suporte_equipe()`. O front roda como a v1 até ela entrar. Depois de aplicar: `rls.sql` (casos "atendimento:"). |
+| `20260926130000_luma_suporte_telegram` | ❌ **NÃO aplicada** (26/09) | A ponte com o Telegram (liga `pg_net`/`pg_cron`, fila, vínculo, RPCs da Edge Function `suporte-telegram`). Depende da de cima. Roteiro completo em `docs/SUPORTE-TELEGRAM.md` → "Como ligar". |
 | `20260923124809` → `20260923183000` | ✅ registradas | Painel de Dados, IA, `destaque`, pastas de sistema, MIME dos buckets, versões de template. `luma_dados_painel` teve dois ajustes aplicados (`_fix_alias`, `_tempo_ativo`) já incorporados no arquivo. |
 
 **Todas as funções que existem no banco estão em algum arquivo daqui** (conferido: `rls_auto_enable`,

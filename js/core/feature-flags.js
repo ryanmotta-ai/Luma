@@ -215,6 +215,9 @@ const G_FEATURE_REGISTRY = [
   { key:'global.help.suporte', label:'Suporte ao vivo', desc:'O franqueado conversa com a equipe DM em tempo real, dentro da Ajuda.',
     module:'global', parent:'global.help', categoria:'chats', behaviors:['hide','maintenance'],
     preserva:['load'], tags:['suporte','atendimento','equipe','ao vivo'] },
+  { key:'global.help.suporte.telegram', label:'Suporte pelo Telegram', desc:'A equipe DM vincula a conta e recebe e responde o suporte pelo Telegram, sem o Luma aberto.',
+    module:'global', parent:'global.help.suporte', categoria:'chats', behaviors:['hide'],
+    preserva:[], tags:['suporte','telegram','atendimento','equipe'], defaultEnabled:false },
   { key:'global.tutorials', label:'Tutoriais animados', desc:'Os passo a passo guiados dentro do produto.',
     module:'global', parent:null, categoria:'areas', behaviors:['hide','maintenance'],
     preserva:['load'], tags:['tutorial','onboarding','passo a passo'] }

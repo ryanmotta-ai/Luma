@@ -2450,6 +2450,16 @@ body:not(.theme-light) .luma-wm-sup-st.st-novo{color:var(--dm-orange)}
 .luma-wm-sup-acoes button.prim:hover,.luma-wm-sup-trava button:hover{background:var(--wm-text);opacity:.88}
 .luma-wm-sup-acoes button:disabled,.luma-wm-sup-trava button:disabled,.luma-wm-sup-repasse button:disabled{opacity:.5;cursor:default}
 
+/* Telegram da própria pessoa (mesma caixa do status, logo abaixo dele). */
+.luma-wm-sup-tg{margin-top:-4px}
+.luma-wm-sup-tg.aberto{flex-wrap:wrap}
+.luma-wm-sup-tg-form{display:flex;gap:6px;width:100%}
+.luma-wm-sup-tg-form input{flex:1;min-width:0;min-height:32px;padding:0 12px;border:1px solid var(--wm-border);
+  border-radius:var(--r-pill);background:var(--wm-bg);color:var(--wm-text);font:inherit;font-size:13px;
+  letter-spacing:.08em;text-transform:uppercase}
+.luma-wm-sup-tg-form input::placeholder{color:var(--wm-text-3);letter-spacing:.08em}
+.luma-wm-sup-tg .luma-wm-sup-erro{width:100%;margin:0}
+
 /* A barra do atendimento, acima do fio da conversa. */
 .luma-wm-sup-ticket{flex:none;display:flex;flex-direction:column;gap:8px;margin-bottom:8px;padding:10px 12px;
   border:1px solid var(--wm-border-soft);border-radius:12px;background:var(--wm-surface)}

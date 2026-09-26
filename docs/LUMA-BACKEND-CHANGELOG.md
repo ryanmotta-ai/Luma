@@ -6,6 +6,28 @@
 
 ---
 
+## 2026-09-26 — Suporte pelo Telegram (a ponte)
+
+**`20260926130000_luma_suporte_telegram`** (⏳ **escrita, NÃO aplicada** — depende da `20260926120000`; aplicar as duas em ordem e seguir "Como ligar" em `docs/SUPORTE-TELEGRAM.md`). Decisões do Ryan: Telegram, prints vão, jurídico aprovou, `/disponivel` conta como online.
+
+- Liga `pg_net` e `pg_cron`.
+- **`suporte_mensagens.via`** (`luma` | `telegram`), decidido pelo gatilho `suporte_msg_via` a partir de uma marca da transação que só a RPC da ponte põe. O cliente não escolhe.
+- Tabelas, todas com RLS e sem escrita do cliente:
+  - `suporte_telegram_contas`: vínculo pessoa ↔ Telegram + `disponivel_ate`. A pessoa lê só o próprio.
+  - `suporte_telegram_codigos`: código de vínculo, guardado como hash, 10 min.
+  - `suporte_telegram_topicos`: franqueado ↔ tópico.
+  - `suporte_telegram_saida`: fila com aluguel de 2 min.
+  - `suporte_telegram_updates`: deduplicação do webhook.
+- **Fila:** gatilhos AFTER INSERT em `suporte_mensagens` (só `via = 'luma'`, sem eco) e em `suporte_eventos` enfileiram. Não enfileira nada sem o segredo `luma_suporte_telegram_segredo` no Vault. O INSERT na fila chama a função por `pg_net`, e o `pg_cron` (`luma-suporte-telegram`, a cada minuto) repete, porque o `pg_net` não tenta de novo.
+- **RPCs da Edge Function (execute só `service_role`):** `suporte_telegram_pegar`, `_feito`, `_topico`, `_update`, `_codigo`, `_conversa`, `_acao`. A `_acao` assume a identidade do atendente vinculado **só na transação** (`request.jwt.claims`) e grava pelo caminho normal: carimbo, trava de responsável e histórico valem igual ao Luma. Responder marca as mensagens do franqueado como vistas.
+- **RPCs do Luma:** `suporte_telegram_vincular(p_codigo)` (só equipe) e `suporte_telegram_desvincular()`.
+- **`suporte_equipe()`** recriada com `telegram_ate`: é o que põe quem está disponível pelo Telegram no "online agora" do franqueado.
+- **Flag** `global.help.suporte.telegram`, semeada **desligada**.
+
+**Edge Function `suporte-telegram`** (nova, **não publicada**): `verify_jwt = false`, porta = cabeçalho `X-Telegram-Bot-Api-Secret-Token`. Segredos `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_WEBHOOK_SECRET`.
+
+**`supabase/tests/rls.sql`**: +10 casos "telegram:" — o franqueado não chama a ponte, não lê a fila nem vínculos alheios, não vincula e não forja `via`; Telegram sem vínculo é recusado; a trava vale pelo Telegram; a resposta grava como a equipe, com `via = telegram`. **Ainda não rodados.**
+
 ## 2026-09-26 — Suporte: atendimento com dono, estado e histórico
 
 **`20260926120000_luma_suporte_atendimento`** (⏳ **escrita, NÃO aplicada** — a aplicação pelo agente foi bloqueada; aplicar pelo SQL Editor ou `apply_migration` e rodar `supabase/tests/rls.sql`). Em cima da conversa (que continua sendo o `franqueado_id`):

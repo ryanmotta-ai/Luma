@@ -27,13 +27,15 @@ const G_SUP = {
   naoLidas: 0,       // franqueado: respostas da equipe que ele ainda não viu
   online: [],        // primeiros nomes da equipe DISPONÍVEL (aba visível e não "ausente")
   equipe: [],        // presença completa: {id, nome, foto, cargo, status: disponivel|ausente}
-  time: {},          // id → {nome, cargo, foto}: o cartão de cada pessoa da equipe (RPC suporte_equipe)
+  time: {},          // id → {nome, cargo, foto, telegram}: o cartão de cada pessoa da equipe (RPC suporte_equipe)
+                     // telegram = até quando está disponível PELO TELEGRAM (ms; 0 = não) — conta como online
+  telegram: null,    // equipe: o próprio vínculo {vinculado, nome, ate}; null = ponte fora do ar
   meuStatus: 'disponivel', // equipe: a escolha da pessoa, lembrada neste navegador
   atendimento: null, // true = migration de atendimento no ar; false = v1; null = ainda não sabe
   conversa: null,    // atendimento da conversa aberta: {status, responsavel_id, ...}
   eventos: [],       // histórico da conversa aberta, do mais antigo para o mais novo
   vendo: false,      // o widget está com a conversa aberta NA TELA (é o que marca como lida)
-  _ouvintes: [], _canalMsgs: null, _canalPresenca: null, _canalConv: null, _urls: {}, _caixaTimer: null,
+  _ouvintes: [], _canalMsgs: null, _canalPresenca: null, _canalConv: null, _urls: {}, _caixaTimer: null, _timeTimer: null,
   _acaoMinha: null   // {id, ate}: o que EU acabei de mudar não vira aviso "passaram para você"
 };
 
@@ -115,6 +117,10 @@ function gSupIniciar(){
   G_SUP.souEquipe = (typeof gIsAdmin === 'function') && gIsAdmin();
   G_SUP.meuStatus = _gSupStatusSalvo();
   _gSupCarregarTime();
+  if (G_SUP.souEquipe) gSupTelegramCarregar();
+  // Quem está disponível PELO TELEGRAM não tem aba aberta, então não aparece na presença: o
+  // cartão da equipe é relido de tempos em tempos para o "online agora" acompanhar.
+  G_SUP._timeTimer = setInterval(function () { if (document.visibilityState === 'visible') _gSupCarregarTime(); }, 120000);
 
   // Atendimento (dono/estado) num canal À PARTE: sem a migration no ar a tabela não está na
   // publicação, e a recusa desse canal não pode derrubar o das mensagens.
@@ -143,6 +149,7 @@ function _gSupDesligar(){
   try { if (sb && G_SUP._canalPresenca) sb.removeChannel(G_SUP._canalPresenca); } catch (e) {}
   try { if (sb && G_SUP._canalConv) sb.removeChannel(G_SUP._canalConv); } catch (e) {}
   document.removeEventListener('visibilitychange', _gSupVisibilidade);
+  clearInterval(G_SUP._timeTimer); G_SUP._timeTimer = null;
   G_SUP.ligado = false; G_SUP._canalMsgs = G_SUP._canalPresenca = G_SUP._canalConv = null;
   G_SUP.online = []; G_SUP.equipe = [];
   _gSupAvisar();
@@ -215,9 +222,18 @@ function _gSupPresencaSync(){
     });
   });
   G_SUP.equipe = equipe;
-  G_SUP.online = equipe.filter(function (p) { return p.status === 'disponivel'; }).map(function (p) { return p.nome; })
-    .filter(function (n, i, a) { return a.indexOf(n) === i; });
+  _gSupRecalcOnline();
   _gSupAvisar();
+}
+// "Online agora" (o que o franqueado vê, e o que desvia a pergunta da IA para a equipe) =
+// disponível no Luma (presença) OU disponível pelo Telegram (decisão do Ryan, 26/09/2026).
+function _gSupTelegramOn(id){ const t = G_SUP.time[id]; return !!t && t.telegram > Date.now(); }
+function _gSupRecalcOnline(){
+  const nomes = G_SUP.equipe.filter(function (p) { return p.status === 'disponivel'; }).map(function (p) { return p.nome; });
+  Object.keys(G_SUP.time).forEach(function (id) {
+    if (_gSupTelegramOn(id)) nomes.push(String(G_SUP.time[id].nome || '').split(/\s+/)[0] || 'Equipe');
+  });
+  G_SUP.online = nomes.filter(function (n, i, a) { return a.indexOf(n) === i; });
 }
 // Equipe "online" = Luma aberto numa aba VISÍVEL. Aba escondida sai da lista. O status
 // (disponível/ausente) vai junto: ausente continua na presença para os colegas, mas o
@@ -258,32 +274,89 @@ async function _gSupCarregarTime(){
     const { data, error } = await sb.schema('luma').rpc('suporte_equipe');
     if (error || !Array.isArray(data)) return;
     const t = {};
-    data.forEach(function (p) { if (p && p.id) t[p.id] = { nome: p.nome || '', cargo: p.cargo || 'Equipe DM', foto: _gSupFoto(p.avatar_url) }; });
+    data.forEach(function (p) {
+      if (!p || !p.id) return;
+      t[p.id] = { nome: p.nome || '', cargo: p.cargo || 'Equipe DM', foto: _gSupFoto(p.avatar_url),
+                  telegram: (p.telegram_ate && Date.parse(p.telegram_ate)) || 0 };
+    });
     G_SUP.time = t;
+    _gSupRecalcOnline();
     _gSupAvisar();
   } catch (e) {}
 }
 
-// O cartão de uma pessoa da equipe: quem é (suporte_equipe) + onde está agora (presença).
-// status: disponivel | ausente | offline. null = não sei quem é.
+// O cartão de uma pessoa da equipe: quem é (suporte_equipe) + onde está agora (presença ou
+// Telegram). status: disponivel | ausente | offline; viaTelegram = só o Telegram a põe online.
+// null = não sei quem é.
 function gSupPessoa(id){
   if (!id) return null;
   const t = G_SUP.time[id];
   const p = G_SUP.equipe.find(function (m) { return m.id === id; });
   const nome = (t && t.nome) || (p && p.nome) || '';
   if (!nome) return null;
+  const noLuma = !!p && p.status === 'disponivel';
+  const tg = !noLuma && _gSupTelegramOn(id);
   return {
     id: id, nome: nome, primeiro: nome.split(/\s+/)[0],
     cargo: (t && t.cargo) || (p && p.cargo) || 'Equipe DM',
     foto: (t && t.foto) || (p && p.foto) || '',
-    status: p ? p.status : 'offline'
+    status: (noLuma || tg) ? 'disponivel' : (p ? p.status : 'offline'),
+    viaTelegram: tg
   };
 }
 // Quem da equipe está disponível agora, com cartão — para o franqueado ver com quem vai falar.
 function gSupOnlinePessoas(){
-  return G_SUP.equipe.filter(function (p) { return p.status === 'disponivel'; }).map(function (p) {
+  const lista = G_SUP.equipe.filter(function (p) { return p.status === 'disponivel'; }).map(function (p) {
     return (p.id.indexOf('nome:') === 0 ? null : gSupPessoa(p.id)) || { id: p.id, nome: p.nome, primeiro: p.nome, cargo: p.cargo || 'Equipe DM', foto: p.foto, status: p.status };
   });
+  Object.keys(G_SUP.time).forEach(function (id) {
+    if (_gSupTelegramOn(id) && !lista.some(function (x) { return x.id === id; })) lista.push(gSupPessoa(id));
+  });
+  return lista;
+}
+
+/* ── Telegram (equipe): o próprio vínculo. A ponte em si mora na Edge Function suporte-telegram;
+   daqui só se vincula a conta e se lê o estado. Chave global.help.suporte.telegram (nasce
+   desligada: a gestão liga depois de criar o bot — docs/SUPORTE-TELEGRAM.md). ── */
+function gSupTelegramLigado(){
+  return G_SUP.souEquipe && G_SUP.telegram !== null
+    && !(typeof gFeatureCan === 'function' && !gFeatureCan('global.help.suporte.telegram', 'access'));
+}
+async function gSupTelegramCarregar(){
+  const sb = _gSupSb(), eu = _gSupEu();
+  if (!sb || !eu) return;
+  try {
+    const { data, error } = await sb.schema('luma').from('suporte_telegram_contas')
+      .select('telegram_nome, disponivel_ate').eq('profile_id', eu.id).maybeSingle();
+    if (error) { G_SUP.telegram = null; return; }   // tabela fora do ar = ponte fora do ar
+    G_SUP.telegram = data
+      ? { vinculado: true, nome: data.telegram_nome || '', ate: (data.disponivel_ate && Date.parse(data.disponivel_ate)) || 0 }
+      : { vinculado: false, nome: '', ate: 0 };
+  } catch (e) { G_SUP.telegram = null; }
+  _gSupAvisar();
+}
+// O código vem do bot (/start no privado). Devolve {ok, erro}.
+async function gSupTelegramVincular(codigo){
+  const sb = _gSupSb();
+  if (!sb) return { ok: false, erro: 'O suporte não está disponível agora. Recarregue a página.' };
+  try {
+    const { data, error } = await sb.schema('luma').rpc('suporte_telegram_vincular', { p_codigo: String(codigo || '') });
+    if (error) return { ok: false, erro: 'Não consegui vincular. Confira sua internet e tente de novo.' };
+    if (!data || data.ok === false) return { ok: false, erro: 'Código inválido ou vencido. Mande /start para o bot de novo.' };
+    await gSupTelegramCarregar();
+    return { ok: true, nome: data.telegram_nome || '' };
+  } catch (e) { return { ok: false, erro: 'Não consegui vincular. Confira sua internet e tente de novo.' }; }
+}
+async function gSupTelegramDesvincular(){
+  const sb = _gSupSb();
+  if (!sb) return { ok: false };
+  try {
+    const { error } = await sb.schema('luma').rpc('suporte_telegram_desvincular');
+    if (error) return { ok: false, erro: 'Não consegui desvincular. Tente de novo.' };
+    await gSupTelegramCarregar();
+    _gSupCarregarTime();
+    return { ok: true };
+  } catch (e) { return { ok: false, erro: 'Não consegui desvincular. Tente de novo.' }; }
 }
 function _gSupVisibilidade(){
   _gSupAnunciar();

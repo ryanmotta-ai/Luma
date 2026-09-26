@@ -32,7 +32,9 @@
     supErro: '',
     supEnviando: false,
     supRepasse: false,      // equipe: a lista "passar para quem?" aberta na conversa
-    supAcaoRodando: false   // assumir/repassar/resolver no ar (trava clique duplo)
+    supAcaoRodando: false,  // assumir/repassar/resolver no ar (trava clique duplo)
+    supTgAberto: false,     // equipe: o campo do código do Telegram aberto na caixa
+    supTgCodigo: ''         // o que foi digitado nele (o Realtime re-renderiza a caixa)
   };
 
   /* ── A BASE DA AJUDA (redesenho de 26/09/2026, referência: Deskfy) ────────────────────────
@@ -1520,6 +1522,36 @@ REGRAS:
       </div>`;
   }
 
+  // Telegram da própria pessoa: vincular (código que o bot manda no /start) e o estado.
+  function wmSupTelegram() {
+    if (typeof gSupTelegramLigado !== 'function' || !gSupTelegramLigado()) return '';
+    const t = G_SUP.telegram;
+    const off = widgetState.supAcaoRodando ? ' disabled' : '';
+    if (t.vinculado) {
+      const on = t.ate > Date.now();
+      return `<div class="luma-wm-sup-eu luma-wm-sup-tg">
+          <span class="luma-wm-sup-eu-txt"><strong>Telegram vinculado${t.nome ? ' · ' + wmEsc(t.nome) : ''}</strong>
+            <span>${on ? 'Disponível pelo Telegram até ' + wmEsc(wmSupHora(new Date(t.ate).toISOString())) + '. O franqueado vê você online.'
+              : 'As conversas chegam no grupo da equipe. Mande /disponivel ao bot para aparecer online.'}</span></span>
+          <button type="button" onclick="lumaWidgetSupTgDesvincular()"${off}>Desvincular</button>
+        </div>`;
+    }
+    if (!widgetState.supTgAberto) {
+      return `<div class="luma-wm-sup-eu luma-wm-sup-tg">
+          <span class="luma-wm-sup-eu-txt"><strong>Atender pelo Telegram</strong><span>Receba e responda as conversas sem o Luma aberto.</span></span>
+          <button type="button" onclick="lumaWidgetSupTgAbrir()">Vincular</button>
+        </div>`;
+    }
+    return `<div class="luma-wm-sup-eu luma-wm-sup-tg aberto">
+        <span class="luma-wm-sup-eu-txt"><strong>Vincular o Telegram</strong><span>No Telegram, mande /start para o bot da equipe e cole aqui o código que ele responder.</span></span>
+        <form class="luma-wm-sup-tg-form" onsubmit="event.preventDefault();lumaWidgetSupTgVincular()">
+          <input type="text" id="luma-wm-sup-tg-codigo" value="${wmEsc(widgetState.supTgCodigo)}" autocomplete="one-time-code" maxlength="12" placeholder="A3F9-1C0B" aria-label="Código que o bot do Telegram mandou" oninput="lumaWidgetSupTgDigita(this)" required>
+          <button type="submit"${off}>Vincular</button>
+        </form>
+        ${widgetState.supErro ? `<p class="luma-wm-sup-erro" role="status">${wmEsc(widgetState.supErro)}</p>` : ''}
+      </div>`;
+  }
+
   function renderSupCaixa() {
     const filtros = wmSupFiltros();
     const atual = filtros.find(function (x) { return x.id === widgetState.supFiltro; }) || filtros[0];
@@ -1530,13 +1562,13 @@ REGRAS:
       }).join('')}</div>`;
     if (!lista.length) {
       const v = WM_SUP_VAZIO[atual.id];
-      return wmSupEu() + seg + `<div class="luma-wm-chat-empty">
+      return wmSupEu() + wmSupTelegram() + seg + `<div class="luma-wm-chat-empty">
           <div class="luma-wm-chat-empty-icon">${WIDGET_SVGS.chatBubble}</div>
           <strong>${v[0]}</strong>
           <span>${v[1]}</span>
         </div>`;
     }
-    return wmSupEu() + seg + `<div class="luma-wm-sup-lista">${lista.map(renderSupLinha).join('')}</div>`;
+    return wmSupEu() + wmSupTelegram() + seg + `<div class="luma-wm-sup-lista">${lista.map(renderSupLinha).join('')}</div>`;
   }
 
   function renderSupLinha(c) {
@@ -1592,6 +1624,8 @@ REGRAS:
       let autor;
       if (m.da_equipe) autor = (eu && m.autor_id === eu.id) ? 'Você' : (m.autor_nome || 'Equipe') + (eq ? '' : ' · Equipe DM');
       else autor = eq ? ((franq && franq.nome) || 'Franqueado') : 'Você';
+      // Só a equipe vê o canal: para o franqueado, a resposta é da pessoa, venha de onde vier.
+      if (eq && m.da_equipe && m.via === 'telegram') autor += ' · pelo Telegram';
       const visto = meu(m) && m.id === ultimaMinha && m.lida_em ? ' · Visto' : '';
       html += `<div class="luma-wm-bubble ${meu(m) ? 'user' : 'bot'}">
           ${img}${m.texto ? wmText(m.texto) : ''}
@@ -1659,7 +1693,7 @@ REGRAS:
         return `<button type="button" data-id="${wmEsc(p.id)}" onclick="lumaWidgetSupRepassar(this)"${off}>
             ${wmSupAvatar(p, '')}
             <span class="luma-wm-sup-repasse-main"><strong>${wmEsc(p.nome)}</strong><span>${wmEsc(p.cargo)}</span></span>
-            <span class="luma-wm-sup-repasse-onde"><i class="luma-wm-sup-dot${dot !== 'on' ? ' ' + dot : ''}" aria-hidden="true"></i>${wmEsc(wmSupOndeEsta(p, true))}</span>
+            <span class="luma-wm-sup-repasse-onde"><i class="luma-wm-sup-dot${dot !== 'on' ? ' ' + dot : ''}" aria-hidden="true"></i>${wmEsc(wmSupOndeEsta(p, true) + (p.viaTelegram ? ' · Telegram' : ''))}</span>
           </button>`;
       }).join('')}</div>`;
   }
@@ -1739,16 +1773,17 @@ REGRAS:
     const topo = box ? box.scrollTop : 0;
     const corpo = modal.querySelector('.luma-wm-body');
     const corpoTopo = corpo ? corpo.scrollTop : 0;
-    const input = document.getElementById('luma-wm-input-box');
-    const foco = !!input && document.activeElement === input;
-    const sel = foco ? [input.selectionStart, input.selectionEnd] : null;
+    // Campo com foco: a resposta da conversa ou o código do Telegram, na caixa.
+    const ativo = document.activeElement;
+    const focoId = ativo && (ativo.id === 'luma-wm-input-box' || ativo.id === 'luma-wm-sup-tg-codigo') ? ativo.id : '';
+    const sel = focoId ? [ativo.selectionStart, ativo.selectionEnd] : null;
     renderWidgetModalContent();
     const box2 = modal.querySelector('.luma-wm-sup .luma-wm-chat-messages');
     if (box2 && !noFim && !forcarFim) box2.scrollTop = topo;
     const corpo2 = modal.querySelector('.luma-wm-body');
     if (corpo2 && !box2) corpo2.scrollTop = corpoTopo;
-    if (foco) {
-      const i2 = document.getElementById('luma-wm-input-box');
+    if (focoId) {
+      const i2 = document.getElementById(focoId);
       if (i2) { i2.focus(); try { i2.setSelectionRange(sel[0], sel[1]); } catch (e) {} }
     }
   }
@@ -1833,6 +1868,26 @@ REGRAS:
     if (typeof gSupResolver !== 'function') return;
     const r = await wmSupRodar(gSupResolver);
     if (r && r.ok && typeof gToast === 'function') gToast('Conversa resolvida. Se o franqueado escrever de novo, ela volta para a fila.');
+  };
+  window.lumaWidgetSupTgAbrir = function () {
+    widgetState.supTgAberto = true; widgetState.supErro = '';
+    wmSupRerender(false);
+    const i = document.getElementById('luma-wm-sup-tg-codigo');
+    if (i) i.focus();
+  };
+  window.lumaWidgetSupTgDigita = function (el) { widgetState.supTgCodigo = el.value; widgetState.supErro = ''; };
+  window.lumaWidgetSupTgVincular = async function () {
+    if (typeof gSupTelegramVincular !== 'function') return;
+    const r = await wmSupRodar(function () { return gSupTelegramVincular(widgetState.supTgCodigo); });
+    if (!r || !r.ok) return;
+    widgetState.supTgAberto = false; widgetState.supTgCodigo = '';
+    wmSupRerender(false);
+    if (typeof gToast === 'function') gToast('Telegram vinculado. As conversas chegam no grupo da equipe.');
+  };
+  window.lumaWidgetSupTgDesvincular = async function () {
+    if (typeof gSupTelegramDesvincular !== 'function') return;
+    const r = await wmSupRodar(gSupTelegramDesvincular);
+    if (r && r.ok && typeof gToast === 'function') gToast('Telegram desvinculado. Suas respostas por lá não chegam mais ao Luma.');
   };
   window.lumaWidgetSupRepasse = function () {
     widgetState.supRepasse = !widgetState.supRepasse;

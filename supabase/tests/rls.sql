@@ -12,8 +12,8 @@
 begin;
 
 create temp table _t (n serial, passo text, esperado text, obtido text) on commit drop;
-grant all on _t to anon, authenticated;
-grant usage, select on sequence _t_n_seq to anon, authenticated;
+grant all on _t to anon, authenticated, service_role;
+grant usage, select on sequence _t_n_seq to anon, authenticated, service_role;
 
 -- As contas de teste (primeira ativa de cada papel) e uma arte do franqueado B, criada como
 -- dono do banco, para provar que A não a enxerga.
@@ -23,7 +23,7 @@ select
   (select id from public.profiles where role = 'franqueado' and coalesce(ativo, true) order by created_at offset 1 limit 1) as fb,
   (select id from public.profiles where role = 'equipe_dm' and coalesce(ativo, true) order by created_at limit 1) as eq,
   (select id from public.profiles where role = 'gestao' and coalesce(ativo, true) order by created_at limit 1) as ge;
-grant select on _u to anon, authenticated;
+grant select on _u to anon, authenticated, service_role;
 
 insert into luma.artes (id, user_id, camp_name, dados, status)
 select '00000000-0000-4000-8000-0000000000b1', fb, 'RLS-TESTE', '{}'::jsonb, 'rascunho' from _u;
@@ -317,6 +317,59 @@ do $$ declare u record; s text; r uuid; begin
     case when s = 'novo' and r is null then 'novo sem dono' else coalesce(s,'(nulo)') || ' / ' || coalesce(r::text,'sem dono') end);
 end $$;
 reset role;
+
+-- ── TELEGRAM: a ponte (migration 20260926130000) ─────────────────────────────────────────
+-- Vínculos de teste para a equipe e a gestão (ids de Telegram que não existem), como dono do banco.
+select set_config('request.jwt.claims', '', true);
+insert into luma.suporte_telegram_contas (profile_id, telegram_user_id, telegram_nome)
+select eq, 990000001, 'RLS equipe' from _u union all select ge, 990000002, 'RLS gestão' from _u;
+
+select set_config('request.jwt.claims', json_build_object('sub', fa, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare n int; u record; j jsonb; s text; begin
+  select * into u from _u;
+  begin j := luma.suporte_telegram_acao(990000001, u.fb, 'responder', 'RLS-TESTE finge Telegram');
+    insert into _t(passo,esperado,obtido) values ('telegram: franqueado chama a RPC da ponte','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('telegram: franqueado chama a RPC da ponte','recusa','recusa'); end;
+  begin select count(*) into n from luma.suporte_telegram_saida;
+    insert into _t(passo,esperado,obtido) values ('telegram: franqueado lê a fila','0 ou recusa',n::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('telegram: franqueado lê a fila','0 ou recusa','recusa'); end;
+  select count(*) into n from luma.suporte_telegram_contas;
+  insert into _t(passo,esperado,obtido) values ('telegram: franqueado vê vínculo de outro','0',n::text);
+  begin j := luma.suporte_telegram_vincular('ABCD-1234');
+    insert into _t(passo,esperado,obtido) values ('telegram: franqueado vincula conta','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('telegram: franqueado vincula conta','recusa','recusa'); end;
+  begin insert into luma.suporte_mensagens (texto, via) values ('RLS-TESTE via', 'telegram') returning via into s;
+    insert into _t(passo,esperado,obtido) values ('telegram: franqueado grava via=telegram','luma',s);
+  exception when others then insert into _t(passo,esperado,obtido) values ('telegram: franqueado grava via=telegram','luma','recusa: '||sqlstate); end;
+end $$;
+reset role;
+
+-- A Edge Function roda como service_role. B escreveu por último (conversa na fila, sem dono).
+select set_config('request.jwt.claims', '{"role":"service_role"}', true);
+set local role service_role;
+do $$ declare u record; j jsonb; begin
+  select * into u from _u;
+  j := luma.suporte_telegram_acao(990000001, u.fb, 'responder', 'RLS-TESTE pelo Telegram');
+  insert into _t(passo,esperado,obtido) values ('telegram: equipe vinculada responde','true',coalesce(j->>'ok','(nulo)'));
+  j := luma.suporte_telegram_acao(990000009, u.fb, 'responder', 'RLS-TESTE sem vínculo');
+  insert into _t(passo,esperado,obtido) values ('telegram: Telegram sem vínculo responde','nao_vinculado',coalesce(j->>'erro','(nulo)'));
+  j := luma.suporte_telegram_acao(990000002, u.fb, 'responder', 'RLS-TESTE gestão por cima');
+  insert into _t(passo,esperado,obtido) values ('telegram: gestão responde por cima (trava)','outro_responsavel',coalesce(j->>'erro','(nulo)'));
+  j := luma.suporte_telegram_acao(990000001, u.fb, 'repassar', 'NinguemRLS');
+  insert into _t(passo,esperado,obtido) values ('telegram: repassar para nome que não existe','destino_invalido',coalesce(j->>'erro','(nulo)'));
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', '', true);
+do $$ declare u record; m record; begin
+  select * into u from _u;
+  select da_equipe, autor_id, via into m from luma.suporte_mensagens
+   where franqueado_id = u.fb and texto = 'RLS-TESTE pelo Telegram';
+  insert into _t(passo,esperado,obtido) values ('telegram: resposta gravada como a equipe, via telegram','equipe/telegram',
+    case when m.da_equipe and m.autor_id = u.eq and m.via = 'telegram' then 'equipe/telegram'
+         else coalesce(m.da_equipe::text,'?') || '/' || coalesce(m.via,'?') end);
+end $$;
 
 -- ── CONTA DESATIVADA (migration 20260923189000) ─────────────────────────────────────────
 -- Desativar tirava a pessoa do APP, não do banco: a senha segue valendo no Auth. Aqui cada
