@@ -2326,6 +2326,32 @@ function gHifenizaPt(palavra){
   return cortes;
 }
 
+/* ── A GRAMÁTICA DA QUEBRA DE LINHA (cardápio) ─────────────────────────────────────────────────
+   Custo de quebrar ANTES da palavra `j` (a linha anterior termina em words[j-1]). Positivo = feio,
+   negativo = bom lugar. As palavras podem vir coladas pelo `gSemanticUnits` ("por R$ 49,90").
+   Cada regra existe por um defeito medido nos 177 textos reais (ver `_gSmartWrapCalc`). */
+const _G_QUEBRA_ADJ = new Set(['grande','grandes','média','médias','media','medias','médio','médios','pequena','pequenas',
+  'pequeno','pequenos','gigante','gigantes','frita','fritas','frito','fritos','duplo','dupla','triplo','tripla',
+  'especial','especiais','tradicional','tradicionais','artesanal','artesanais','recheada','recheado','recheadas',
+  'lata','zero','gelado','gelada','crocante','caseiro','caseira','família','familia','kids','premium','doce','doces','salgada','salgado']);
+function _gQuebraCusto(words, j){
+  const nu = s => String(s || '').toLowerCase().replace(/^[^\p{L}\d+$%]+|[^\p{L}\d+%]+$/gu, '');
+  const a = String(words[j - 1] || ''), b = String(words[j] || '');
+  const ua = nu(a.split(' ').pop()), pb = nu(b.split(' ')[0]);
+  let c = 0;
+  if (/[:;,.!?]$/.test(a.trim())) c -= 150;                          // depois de pontuação: o lugar natural
+  if (ua === '+') c += 900;                                          // "+" pendurado: vai abrir a linha de baixo
+  else if (typeof G_CONNECTORS !== 'undefined' && G_CONNECTORS.has(ua)) c += 2500;  // "… de / Calabresa": quase proibido — só quando não há outra quebra
+  if (/^\d+$/.test(ua) && /^\p{L}/u.test(pb) && !/^(por|x|e|ou|a)$/.test(pb)) c += 700;   // "12 / fatias"
+  if (/^(de|do|da|dos|das)$/.test(pb) && /^\p{L}{3,}$/u.test(ua) && !(typeof G_CONNECTORS !== 'undefined' && G_CONNECTORS.has(ua)))
+    c += 250;                                                        // "Pizza Grande / de Calabresa"
+  if (_G_QUEBRA_ADJ.has(pb) && /^\p{L}{3,}$/u.test(ua)) c += 300;   // "Pizza / Grande", "Batata / Frita"
+  if (pb === '+') c -= 120;                                          // o "+" abre a linha: lista legível
+  if (/^r\$/i.test(b.trim()) || /^por\s+r\$/i.test(b.trim())) c -= 80;   // preço começando a linha
+  if (/^a\s+partir/i.test(b) || (pb === 'a' && nu(String(words[j + 1] || '').split(' ')[0]) === 'partir')) c -= 80;
+  return c;
+}
+
 const _G_SEGMENTADOR = (typeof Intl!=='undefined'&&Intl.Segmenter)
   ? new Intl.Segmenter(undefined,{granularity:'grapheme'}) : null;
 let _gCanvasWrap = null;
@@ -2345,7 +2371,7 @@ function gSmartWrapText(text, maxW, layer, dados, defaults) {
   const _chaveWrap = (typeof dTextFontParts === 'function' ? dTextFontParts(layer && layer.font).weight : '')
     + '|' + ((layer && layer.font) || '') + '|' + ((layer && layer.fontSize) || 0)
     + '|' + ((layer && layer.letterSpacing) || 0) + '|' + ((layer && layer.italic) ? 1 : 0)
-    + '|' + ((layer && layer.fontWeightOverride) || '') + '|' + Math.round(maxW || 0)
+    + '|' + ((layer && layer.fontWeightOverride) || '') + '|' + ((layer && layer.textTransform) || '') + '|' + Math.round(maxW || 0)
     + '|' + ((layer && layer.content) || '') + '|' + text;
   const _memo = _G_MEDIDA_CACHE.get('W' + _chaveWrap);
   if (_memo !== undefined) return _memo;
@@ -2375,7 +2401,12 @@ function _gSmartWrapCalc(text, maxW, layer) {
   // Medição exata da largura de cada linha usando as métricas da própria camada
   const measure = (str) => {
     // Limpa tags de template temporárias (__VAR_START_...__) para obter medição física exata de pixels no editor
-    const cleanStr = str.replace(/__VAR_START_[a-zA-Z0-9_]+__/g, '').replace(/__VAR_END__/g, '');
+    let cleanStr = str.replace(/__VAR_START_[a-zA-Z0-9_]+__/g, '').replace(/__VAR_END__/g, '');
+    /* MEDE O QUE SERÁ DESENHADO. `gFitTextLayer` aplica a caixa alta DEPOIS de quebrar, então a
+       quebra media "Pizza Portuguesa" e o render desenhava "PIZZA PORTUGUESA" — mais larga. Com a
+       quebra equilibrada (26/09) as linhas encostam no limite e estouravam na caixa alta. */
+    if(layer && layer.textTransform === 'uppercase') cleanStr = cleanStr.toUpperCase();
+    else if(layer && layer.textTransform === 'lowercase') cleanStr = cleanStr.toLowerCase();
     if(medidas.has(cleanStr))return medidas.get(cleanStr);
     const largura=gMeasureLayerWidth(layer, cleanStr, ctx);
     medidas.set(cleanStr,largura);
@@ -2398,101 +2429,75 @@ function _gSmartWrapCalc(text, maxW, layer) {
   const words = (typeof gSemanticUnits === 'function')
     ? gSemanticUnits(palavras, measure, availableW) : palavras;
 
-  let bestPartition = null;
-  let bestScore = Infinity;
-  
-  // Testa partições em N = 2 e N = 3 linhas. Acima de 12 palavras vai direto ao encaixe
-  // guloso: avaliar equilíbrio editorial de uma frase desse tamanho custa mais que desenhá-la.
-  for (let n = 2; n <= 3 && words.length <= 12; n++) {
-    if (words.length < n) continue;
-    
-    const partitions = [];
-    /* Até 8 palavras, preserva a busca exaustiva que dá a quebra editorial mais bonita.
-       Acima disso, combinações de 3 linhas crescem ao quadrado e uma entrada de 40 palavras
-       congelava a prévia por 12s. Textos longos avaliam apenas cortes próximos das frações
-       naturais (1/2 ou 1/3 + 2/3); se nenhum couber, o fallback guloso abaixo continua sendo
-       a prova final de encaixe. O resultado segue determinístico com custo limitado. */
-    if(words.length<=8){
-      const getPartitions = (arr, partsLeft, currentPart) => {
-        if (partsLeft === 1) { partitions.push(currentPart.concat([arr])); return; }
-        for (let i = 1; i <= arr.length - partsLeft + 1; i++) {
-          getPartitions(arr.slice(i), partsLeft - 1, currentPart.concat([arr.slice(0, i)]));
-        }
-      };
-      getPartitions(words, n, []);
-    }else if(n===2){
-      const meio=Math.round(words.length/2);
-      for(let c=Math.max(1,meio-2);c<=Math.min(words.length-1,meio+2);c++){
-        partitions.push([words.slice(0,c),words.slice(c)]);
-      }
-    }else{
-      const a=Math.round(words.length/3),b=Math.round(words.length*2/3);
-      for(let c1=Math.max(1,a-1);c1<=Math.min(words.length-2,a+1);c1++){
-        for(let c2=Math.max(c1+1,b-1);c2<=Math.min(words.length-1,b+1);c2++){
-          partitions.push([words.slice(0,c1),words.slice(c1,c2),words.slice(c2)]);
-        }
-      }
-    }
-    
-    // Avalia cada partição candidata
-    partitions.forEach(part => {
-      const lines = part.map(p => p.join(' '));
-      const widths = lines.map(measure);
-      
-      let overflowScore = 0;
-      let grammarScore = 0;
-      let orphanScore = 0;
-      
-      widths.forEach((w, idx) => {
-        // Penalidade severa por estourar a largura da caixa do designer
-        if (w > availableW) {
-          overflowScore += (w - availableW) * 150 + 20000;
-        }
-        
-        // Penalidade por terminar linha com preposição/conjunção (quebra gramatical feia)
-        if (idx < lines.length - 1) {
-          const lineWords = part[idx];
-          const lastWord = lineWords[lineWords.length - 1].toLowerCase().replace(/[.,!?;:]/g, '');
-          if (G_CONNECTORS.has(lastWord)) {
-            grammarScore += 350;
+  /* ══ QUEBRA EDITORIAL (26/09/2026, pedido do Ryan: "quebrar as frases da melhor forma possível";
+     forma escolhida: EQUILIBRADO) ══
+     Antes: busca exaustiva só para 2–3 linhas e até 12 palavras; o resto caía no guloso, que enche
+     cada linha até onde dá. Medido nos 177 textos reais × 3 caixas: 59% dos blocos tinham 4+ linhas
+     (guloso puro), 37% partiam o produto antes do "de" ("Pizza Grande / de Calabresa"), 10% deixavam
+     o "+" pendurado, e "Pizza Gigante 12 / fatias" separava o número do que ele conta.
+     Agora: programação dinâmica sobre os pontos de quebra (Knuth-Plass), para QUALQUER nº de linhas.
+     ⛔ O Nº DE LINHAS É O MÍNIMO (o do guloso): a quebra bonita escolhe ONDE quebrar, nunca quebra
+     mais — bloco mais alto é bloco que volta a bloquear no Local Fit.
+     Custo de cada linha = distância ao comprimento médio (equilíbrio) + a quebra que ela faz no fim
+     (`_gQuebraCusto`) — a gramática do cardápio. Palavra maior que a caixa segue para o hífen abaixo. */
+  /* Na busca, só as UNIDADES são coladas de verdade (preço, %, medida — `G_LAYOUT_UNIDADES`). A
+     preposição colada à palavra seguinte ("com X-Bacon") tirava flexibilidade e gerava LINHA A MAIS
+     ("Picanha / na chapa / para 2 / pessoas…": 7 onde cabiam 5); aqui ela é decidida pelo custo
+     (`_gQuebraCusto`: terminar linha em preposição custa caro). */
+  const _unidades = [];
+  palavras.forEach(w => {
+    const ant = _unidades.length ? _unidades[_unidades.length - 1] : null;
+    const cola = ant != null && typeof G_LAYOUT_UNIDADES !== 'undefined'
+      && G_LAYOUT_UNIDADES.some(r => r.antes.test(ant.split(' ').pop()) && r.depois.test(w))
+      && measure(ant + ' ' + w) <= availableW;
+    if (cola) _unidades[_unidades.length - 1] = ant + ' ' + w; else _unidades.push(w);
+  });
+  const _cabeTudo = _unidades.every(w => measure(w) <= availableW);
+  if (_cabeTudo) {
+    const words = _unidades;
+    // Nº mínimo de linhas: o guloso é ótimo para contar linhas.
+    let nMin = 1, acc = '';
+    words.forEach(w => { const t = acc ? acc + ' ' + w : w; if (acc && measure(t) > availableW) { nMin++; acc = w; } else acc = t; });
+    const n = words.length;
+    const larg = (i, j) => measure(words.slice(i, j).join(' '));   // largura das palavras [i, j)
+    const total = measure(words.join(' '));
+    // A melhor quebra em EXATAMENTE `nl` linhas (programação dinâmica), ou null.
+    const melhorEm = (nl) => {
+      if (nl > n) return null;
+      const alvo = total / nl;                                     // o comprimento "equilibrado"
+      const INF = Infinity, melhor = [], de = [];
+      for (let k = 0; k <= nl; k++) { melhor.push(new Array(n + 1).fill(INF)); de.push(new Array(n + 1).fill(-1)); }
+      melhor[0][0] = 0;
+      for (let k = 1; k <= nl; k++) {
+        for (let i = k - 1; i < n; i++) {
+          if (melhor[k - 1][i] === INF) continue;
+          for (let j = i + 1; j <= n - (nl - k); j++) {
+            const w = larg(i, j);
+            if (w > availableW) break;                             // mais palavras só alargam
+            const ultima = (k === nl);
+            if (ultima && j !== n) continue;
+            const d = (w - alvo) / availableW;
+            let c = d * d * 2000;   // peso 2000: medido — equilíbrio igual ao de antes (36%) com a gramática melhor
+            if (!ultima) c += _gQuebraCusto(words, j);
+            else if (j - i === 1 && !/\s/.test(words[i]) && nl > 1) c += 400;   // palavra sozinha no fim
+            const tot = melhor[k - 1][i] + c;
+            if (tot < melhor[k][j]) { melhor[k][j] = tot; de[k][j] = i; }
           }
         }
-      });
-      
-      // Penalidade por palavra órfã muito curta na última linha
-      const lastLineWords = part[part.length - 1];
-      if (lastLineWords.length === 1) {
-        const lastWord = lastLineWords[0];
-        if (lastWord.length < 4) {
-          orphanScore += 400;
-        } else if (!/\s/.test(lastWord)) {
-          // Viúva: uma palavra sozinha fechando o bloco ("COMBO FAMÍLIA / COM BATATA /
-          // GRANDE"). Menos grave que a órfã curta, mas é o que o olho acusa primeiro.
-          orphanScore += 220;
-        }
       }
-      
-      // Desequilíbrio entre larguras (procura simetria visual entre as linhas)
-      const maxWLine = Math.max(...widths);
-      const minWLine = Math.min(...widths);
-      const unbalanceScore = (maxWLine - minWLine) * 2.5;
-      
-      const totalScore = overflowScore + grammarScore + orphanScore + unbalanceScore;
-      
-      if (totalScore < bestScore) {
-        bestScore = totalScore;
-        bestPartition = lines;
-      }
-    });
-    
-    // Se a melhor partição em N linhas couber 100% sem estourar os limites de pixel, para nela
-    if (bestScore < 15000) {
-      break;
-    }
-  }
-  
-  if (bestPartition && bestPartition.every(line => measure(line) <= availableW)) {
-    return bestPartition.join('\n');
+      if (melhor[nl][n] === INF) return null;
+      const linhas = [];
+      for (let k = nl, j = n; k > 0; k--) { const i = de[k][j]; linhas.unshift(words.slice(i, j).join(' ')); j = i; }
+      return { custo: melhor[nl][n], linhas };
+    };
+    const a = melhorEm(nMin);
+    /* UMA LINHA A MAIS só quando ela tira um defeito GRAVE (preposição ou "+" pendurado custam 900+):
+       "PIZZA GRANDE / + REFRI 2L POR / APENAS R$ 54,90" → "… / + REFRI 2L / POR APENAS / R$ 54,90".
+       O custo 1800 da linha extra é maior que qualquer ganho de equilíbrio ou de adjetivo — linha
+       a mais é bloco mais alto, e bloco alto é o que o Local Fit encolhe ou bloqueia. */
+    const b = (a && a.custo >= 900) ? melhorEm(nMin + 1) : null;
+    const escolha = (b && b.custo + 1800 < a.custo) ? b : a;
+    if (escolha) return escolha.linhas.join('\n');
   }
 
   const wrapped = [];

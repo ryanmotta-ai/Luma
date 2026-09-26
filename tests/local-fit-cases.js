@@ -166,7 +166,10 @@
     const r = gFitTextToAuthoredBox(l, 'OFERTA RELÂMPAGO DE ANIVERSÁRIO', { canvas:CANVAS });
     assert(r.status === 'fits', 'caixa com altura de sobra deveria caber: ' + r.diagnostics.motivo);
     assert(r.lines.length > 1, 'deveria ter pulado de linha, veio ' + r.lines.length);
-    assert(r.layoutW === l.w, 'a quebra usa a largura desenhada, veio ' + r.layoutW);
+    /* A largura de quebra é a que o veredito aceita: a desenhada ou a tinta autorada, a maior
+       (26/09/2026 — antes quebrava em `w` e aceitava até a tinta; ver `gFitTextToAuthoredBox`). */
+    const tinta = (gAuthoredTextBox(l, { canvas:CANVAS }).tintaAutorada || {}).w || 0;
+    assert(r.layoutW === Math.max(l.w, tinta), 'a quebra usa a largura desenhada/autorada, veio ' + r.layoutW);
     assert(r.fontSize === l.fontSize, 'cabendo quebrando, não podia encolher: ' + r.fontSize);
   });
 
@@ -502,7 +505,9 @@
   });
 
   test('15l · sem âncora, o vizinho colado na mesma coluna vira pilha QUANDO senão bloquearia', () => {
-    const { antes, lf } = copa(false, 'QUANTO TU SABE MANO SOBRE');
+    // "… FUTEBOL" desde 26/09/2026: a quebra passou a medir em caixa alta na largura autorada e
+    // "QUANTO TU SABE MANO SOBRE" cabe sem ninguém descer — que é melhor, mas não prova a pilha.
+    const { antes, lf } = copa(false, 'QUANTO TU SABE MANO SOBRE FUTEBOL');
     const cp = lf.result.campos.find(c => c.id === 'produto');
     assert(cp.status === 'fits', 'a pilha inferida deveria resolver: ' + JSON.stringify(cp));
     const d1 = lf.layers.find(o => o.id === 'detalhes');
@@ -525,7 +530,7 @@
       fontSize:57, lineHeight:1.2, textBox:'point', vAlign:'top', visible:true, opacity:100 };
     // Começa 60px à direita: cruza a faixa (é parede), mas não é a mesma coluna (não desce).
     const torto = Object.assign({}, detalhes, { x:190 });
-    const lf = gLocalFitArte([p, torto, preco], { canvas:STORY, dados:{ produto:'QUANTO TU SABE MANO SOBRE' }, defaults:{} });
+    const lf = gLocalFitArte([p, torto, preco], { canvas:STORY, dados:{ produto:'QUANTO TU SABE MANO SOBRE FUTEBOL' }, defaults:{} });
     assert(lf.result.campos.find(c => c.id === 'produto').status === 'overflow', 'sem par de pilha deveria bloquear');
     assert(lf.layers.find(o => o.id === 'detalhes').y === 1387, 'o vizinho fora da coluna se moveu');
   });

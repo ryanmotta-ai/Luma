@@ -494,7 +494,11 @@ function gFitTextToAuthoredBox(layer, conteudo, opts){
     let u = prova_(fs, null);
     /* Só a LARGURA justifica quebrar: se faltou altura, linha a mais só piora. */
     if(!u.cabe && podeQuebrarPonto && u.overflowX > G_LF_TOL){
-      const q = prova_(fs, box.w);
+      /* Quebra na MESMA largura que o veredito aceita: a caixa desenhada ou a tinta autorada, a
+         maior (§3, "a tinta autorada é o piso da caixa"). Quebrar em `w` e aceitar em
+         max(w, tinta) só funcionava porque a quebra media em minúsculas o que a arte desenha em
+         caixa alta — corrigida a medida (26/09/2026), a diferença virava linha a mais. */
+      const q = prova_(fs, Math.max(box.w || 0, (box.tintaAutorada && box.tintaAutorada.w) || 0));
       if(q.linhas > u.linhas) u = q;
     }
     ultimo = Object.assign(u, { passo:i });

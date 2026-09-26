@@ -648,6 +648,28 @@ além de 80% dentro da família". Suíte: 538 casos verdes.
 
 **Acumulado 25–26/09:** bloqueio final da bancada **18,5% → 1,1%**.
 
+### Rodada de 26/09/2026 (3) — quebra de linha editorial (pedido do Ryan: "da melhor forma possível"; forma: equilibrado)
+
+`_gSmartWrapCalc` (`00-config.js`) — o motor ÚNICO de quebra (prévia, PNG, Sheets).
+
+- **Programação dinâmica (Knuth-Plass)** sobre os pontos de quebra, para qualquer nº de linhas. Antes:
+  busca só para 2–3 linhas e ≤12 palavras; o resto caía no guloso (59% dos blocos reais).
+- **Nº de linhas:** o mínimo; **uma a mais só** quando ela tira um defeito grave (preposição ou "+"
+  pendurado) — a linha extra custa 1800, mais que qualquer ganho de equilíbrio.
+- **Custo:** distância de cada linha ao comprimento médio (equilíbrio, peso 2000) + `_gQuebraCusto`:
+  preposição no fim 2500, "+" no fim 900, número separado do que conta 700, adjetivo separado do
+  produto 300, "Pizza / de Calabresa" 250, palavra sozinha no fim 400; bônus depois de pontuação,
+  antes de "+", preço ou "a partir de" abrindo a linha.
+- **Cola rígida só em unidade** (preço, %, medida — `G_LAYOUT_UNIDADES`); a preposição virou custo.
+- **Mede o que desenha:** a quebra medía em minúsculas o que a arte desenha em CAIXA ALTA — em 208 de
+  876 blocos a linha passava da caixa. Agora mede com o `textTransform` (e ele entrou na chave do cache).
+- **Local Fit:** texto de ponto quebra na mesma largura que o veredito aceita, `max(w, tinta autorada)`
+  (antes quebrava em `w` e aceitava até a tinta — só funcionava por causa da medida errada).
+
+177 textos × 5 caixas (880 blocos): "+" pendurado 72 → 22 · número separado 132 → 63 · palavra sozinha
+no fim 70 → 57 · linha maior que a caixa 208 → 0 · equilíbrio igual (36–38%). Bancada do Local Fit:
+bloqueio final 1,1% → **0,2%** (4 pares). Catraca: caso 35 do `copy-fit`. Suíte: 539 verdes.
+
 ### Copy Fit — a saída do bloqueio (23/09/2026)
 
 Motor puro em `js/core/copy-fit.js` (saiu de `js/franqueado/` no `c9d6e8e`: é `g*`, mora no core).

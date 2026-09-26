@@ -439,7 +439,8 @@
     const cabe = t => { const r = gFitTextToAuthoredBox(l, t, { layers:[l, d], canvas:{ w:1080, h:1920 }, pilha:null }); return { ok:r.status === 'fits', fontSize:r.fontSize }; };
     /* 26/09/2026: a caixa do Story agora alarga para o vazio à direita no bloqueio (+50% no
        máximo) e o X-Salada passou a caber com "refri" ou "c/". Este segue exigindo o "+". */
-    const f = 'X-Burger com Batata Frita e Refrigerante por apenas R$ 29,90';
+    // 26/09/2026 (2): com a quebra medindo em caixa alta, o X-Burger passou a não caber de jeito nenhum.
+    const f = 'Pizza Grande com Refrigerante e Sobremesa por R$ 59,90';
     assert(!cabe(f).ok, 'o cenário precisa começar bloqueado');
     const { sugestoes } = gCopyFitSugestoes(f, cabe, 3);
     assert(sugestoes.length, 'deveria haver uma versão que cabe');
@@ -579,9 +580,9 @@
       + '%) · piso ' + piso.resgates + '/' + piso.bloqueios + ' · ' + Math.round(B.ms) + 'ms · ' + JSON.stringify(atual));
     if(BANCADA_PASSO !== 3){ notas.push('bancada toda: o piso é da amostra 1/3 — não comparado'); return; }
     assert(piso.resgates > 0, 'sem piso gravado (LUMA_COPY_FIT_PISO em copy-fit-corpus.js)');
-    // 30, não 100, desde 26/09/2026: com a folga de hierarquia e a largura livre o motor bloqueia bem menos
-    // (amostra: 48). O guarda continua pegando o que ele existe para pegar — fonte que não carregou dá ~0.
-    assert(B.bloqueios.length >= 30, 'quase nada bloqueou (' + B.bloqueios.length + '): a bancada não mede nada — fonte não carregou?');
+    // 10, não 100, desde 26/09/2026: com a folga de hierarquia, a largura livre e a quebra na largura
+    // autorada o motor bloqueia bem menos (amostra: 24). O guarda continua pegando o que ele existe para pegar — fonte que não carregou dá ~0.
+    assert(B.bloqueios.length >= 10, 'quase nada bloqueou (' + B.bloqueios.length + '): a bancada não mede nada — fonte não carregou?');
     if(piso.fp === fpMaquina){
       assert(B.resgates >= piso.resgates, 'o motor resgatava ' + piso.resgates + ' e agora resgata ' + B.resgates
         + '. Se foi o LOCAL FIT que mudou (bloqueios ' + piso.bloqueios + ' → ' + B.bloqueios.length + '), regrave: ' + JSON.stringify(atual));
@@ -598,6 +599,44 @@
     // acima dele é regressão de ordem de grandeza (medida sem memo, O(n²) no motor), não ruído.
     assert(BANCADA_PASSO === 1 || B.ms < 10000, 'a bancada levou ' + Math.round(B.ms) + 'ms');
   }));
+
+  /* ── 35 · QUEBRA EDITORIAL (26/09/2026, `_gSmartWrapCalc`) — catraca sobre os 177 textos reais
+     em 5 caixas (normal e caixa alta). INVARIANTES (valem em qualquer pilha de fonte): nenhuma
+     linha passa da caixa DEPOIS da caixa alta (antes: 208 de 876 blocos passavam — a quebra media
+     em minúsculas) e nunca há mais linhas que o mínimo (o guloso). CONTAGENS (só na `fp` gravada):
+     "+" pendurado, número separado do que conta ("12 / fatias") e palavra sozinha no fim não sobem.
+     Medido ao entrar: 22 / 43 / 57 (a quebra antiga, com a medida errada: 72 / 132 / 70). */
+  const LUMA_QUEBRA_PISO = { fp:'1317.2/1317.2/1214.6', maisNoFim:22, numeroPartido:43, viuva:57 };
+  test('35 · quebra editorial: cabe em caixa alta, nº mínimo de linhas, sem "+"/número/viúva a mais', () => {
+    const L = (fs, up, w) => ({ id:'x', type:'text', font:'Arial', fontSize:fs, textTransform:up ? 'uppercase' : null,
+      textBox:'box', w, h:600, content:'{{x}}', lineHeight:1.1, visible:true });
+    const caixas = [L(60,false,620), L(80,true,700), L(48,false,420), L(72,true,900), L(56,false,760)];
+    const n = { maisNoFim:0, numeroPartido:0, viuva:0 }, erros = [];
+    caixas.forEach(l => (window.LUMA_COPY_CORPUS || []).forEach(t => {
+      const ls = gSmartWrapText(t, l.w, l, null, null).split('\n');
+      const pad = Math.round(l.fontSize * 0.08), disp = l.w - 2 * pad;
+      const larg = x => gMeasureLayerWidth(l, l.textTransform ? x.toUpperCase() : x);
+      if(ls.some(x => larg(x) > disp + 1) && ls.every(x => x.trim().split(/\s+/).length > 1 || larg(x) <= disp + 1))
+        erros.push('passou da caixa: ' + JSON.stringify(ls));
+      // nº mínimo de linhas: o guloso por palavra (sem as colas semânticas, que só podem juntar)
+      let g = 1, acc = '';
+      t.replace(/\s+/g, ' ').trim().split(' ').forEach(w => { const c = acc ? acc + ' ' + w : w; if(acc && larg(c) > disp){ g++; acc = w; } else acc = c; });
+      if(ls.length > g + 1) erros.push('linhas a mais (' + ls.length + ' > ' + g + '): ' + JSON.stringify(ls));
+      if(ls.length < 2) return;
+      if(ls[ls.length - 1].trim().split(/\s+/).length === 1) n.viuva++;
+      let m = 0, nm = 0;
+      for(let i = 0; i < ls.length - 1; i++){
+        const u = ls[i].trim().split(/\s+/).pop().toLowerCase(), prim = ls[i + 1].trim().split(/\s+/)[0].toLowerCase();
+        if(u === '+') m = 1;
+        if(/^\d+$/.test(u) && /^[a-zà-ú]/.test(prim) && !/^(por|x|e|ou|a)$/.test(prim)) nm = 1;
+      }
+      n.maisNoFim += m; n.numeroPartido += nm;
+    }));
+    assert(!erros.length, erros.length + ' quebras inválidas: ' + erros.slice(0, 3).join(' | '));
+    notas.push('quebra editorial: ' + JSON.stringify(n));
+    if(LUMA_QUEBRA_PISO.fp !== fpMaquina) return;     // contagem exata só na pilha de fontes gravada
+    Object.keys(n).forEach(k => assert(n[k] <= LUMA_QUEBRA_PISO[k], k + ' subiu: ' + LUMA_QUEBRA_PISO[k] + ' → ' + n[k]));
+  });
 
   /* ── gCopyFitConfere: a guarda de PRODUÇÃO que a IA do "Encurtar" atravessa (23/09/2026). A
      especificação acima (itensIntactos) é escrita à parte; o confere mora no motor e reusa as

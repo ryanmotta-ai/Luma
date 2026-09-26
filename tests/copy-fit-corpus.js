@@ -212,5 +212,6 @@ window.LUMA_COPY_CORPUS = [
    187/46: 73 bloqueios passaram a caber sozinhos). 25/09/2026: hierarquia por família (preço
    não segura mais o piso do produto) + degrau `barra` ("com" → "c/") → 155/55. 26/09/2026:
    largura livre ao lado no bloqueio → 101/28 (os fáceis passaram a caber sem o Copy Fit). No
-   mesmo dia, folga de hierarquia (80%) → 48/38. */
-window.LUMA_COPY_FIT_PISO = { fp: '1317.2/1317.2/1214.6', bloqueios: 48, resgates: 38 };
+   mesmo dia, folga de hierarquia (80%) → 48/38; quebra editorial medindo em caixa alta, na
+   largura autorada → 24/22. */
+window.LUMA_COPY_FIT_PISO = { fp: '1317.2/1317.2/1214.6', bloqueios: 24, resgates: 22 };
