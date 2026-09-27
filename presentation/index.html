@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Luma — Apresentação do produto</title>
+<meta name="description" content="Luma: creative automation para a rede Delivery Much. Apresentação oficial de produto.">
+<link rel="icon" href="../assets/favicon.svg">
+<!-- Tokens do próprio Luma (somente leitura). Nada daqui é carregado pelo app. -->
+<link rel="stylesheet" href="../css/00-tokens.css">
+<link rel="stylesheet" href="presentation.css">
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v11m0 0-5-5m5 5 5-5M5 20h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-bot" viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 4v4M9 13h.01M15 13h.01M9.5 16h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="3.5" r="1.3" fill="currentColor"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21a8 8 0 0 1 16 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-funnel" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8L3 5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2.5 20h19L12 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4M12 17h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-quote" viewBox="0 0 24 24"><path d="M4 11h5v8H4zM4 11c0-4 2-6 5-7M14 11h5v8h-5zM14 11c0-4 2-6 5-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-full" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<div class="stage" id="stage">
+
+<!-- ═════ 01 · CAPA ═══════════════════════════════════════════════════════════════════════ -->
+<section class="slide t-orange s-capa" data-title="Capa" data-edge="#FF9000">
+  <div class="brand">
+    <img class="luma" src="../assets/logos/luma-h-branca.png" alt="Luma">
+    <span class="x" aria-hidden="true"></span>
+    <img class="dm" src="../assets/logos/dm-h-preta.png" alt="Delivery Much">
+  </div>
+  <div class="copy">
+    <h1 class="h-hero">Uma campanha<br>criada uma vez.<br>Uma rede inteira<br>pronta para executar.</h1>
+    <p class="lead">Creative automation para a rede Delivery Much.</p>
+  </div>
+  <div class="scene" aria-hidden="true">
+    <div class="win">
+      <div class="win-bar"><i></i><i></i><i></i><span>Estúdio · template publicado</span></div>
+      <div class="crop is-dark flat" style="width:740px;height:438px" data-crop="1024,196,2176,1286"><img src="captures/estudio-campos.webp" alt=""></div>
+    </div>
+    <div class="chip-live"><i></i>No franqueado, arte pronta para postar</div>
+    <div class="phone"><img src="assets/artes/chat-passo-5.webp" alt=""></div>
+  </div>
+  <p class="meta">Apresentação de produto · setembro de 2026</p>
+</section>
+
+<!-- ═════ 02 · O PROBLEMA ═════════════════════════════════════════════════════════════════ -->
+<section class="slide t-white s-problema" data-title="O problema" data-edge="#FFFFFF">
+  <div class="head">
+    <p class="eyebrow">O problema</p>
+    <h2 class="h1">Escalar a rede não deveria<br>escalar o retrabalho.</h2>
+  </div>
+  <div class="source">
+    <div class="cover"><img src="../assets/covers/rbp.png" alt="Capa da campanha Rangos que baixaram o preço"></div>
+    <p class="tag">1 campanha central<span>criada pela marca, uma vez</span></p>
+  </div>
+  <div class="fan" data-step="1" aria-hidden="true">
+    <svg viewBox="0 0 240 300"><g fill="none" stroke="#0A0A0A" stroke-opacity=".18" stroke-width="2">
+      <path d="M0 150 C 120 150, 120 20, 240 20"/><path d="M0 150 C 120 150, 120 90, 240 90"/><path d="M0 150 L 240 150"/><path d="M0 150 C 120 150, 120 210, 240 210"/><path d="M0 150 C 120 150, 120 280, 240 280"/></g>
+      <circle cx="0" cy="150" r="7" fill="#FF9000"/></svg>
+  </div>
+  <div class="grid" data-step="1" aria-label="Seis execuções locais da mesma campanha">
+    <div class="mini"><img src="assets/artes/lote-00.webp" alt=""></div>
+    <div class="mini"><img src="assets/artes/lote-01.webp" alt=""></div>
+    <div class="mini"><img src="assets/artes/lote-02.webp" alt=""></div>
+    <div class="mini"><img src="assets/artes/lote-03.webp" alt=""></div>
+    <div class="mini"><img src="assets/artes/lote-04.webp" alt=""></div>
+    <div class="mini"><img src="assets/artes/lote-05.webp" alt=""></div>
+  </div>
+  <div class="dims" data-step="1"><span>produto</span><span>preço</span><span>foto</span><span>oferta</span><span>cidade</span><span style="background:#0A0A0A;color:#fff;border-color:#0A0A0A">uma marca só</span></div>
+  <div class="tension" data-step="2">
+    <div class="side"><h3>Autonomia local</h3><p>Quanto mais autonomia damos à ponta,<br>maior o risco de perder padrão.</p></div>
+    <div class="bar" aria-hidden="true"></div>
+    <div class="side r"><h3>Controle de marca</h3><p>Quanto mais centralizamos,<br>maior o gargalo do marketing.</p></div>
+  </div>
+</section>
+
+<!-- ═════ 03 · A TESE ═════════════════════════════════════════════════════════════════════ -->
+<section class="slide t-night s-tese" data-title="A tese" data-edge="#0A0A0A">
+  <div class="head">
+    <p class="eyebrow">A tese</p>
+    <h2 class="h-hero">Autonomia local.<br><span class="acc">Controle central.</span><br><span class="l3">Sem colocar design no meio.</span></h2>
+  </div>
+  <div class="rail" aria-hidden="true"><i></i></div>
+  <div class="flow">
+    <div class="node on"><span class="dot"></span><h3>Estúdio</h3><p>O designer transforma a campanha em regras.</p></div>
+    <div class="node on"><span class="dot"></span><h3>Publicação</h3><p>Um material, disponível para a rede inteira.</p></div>
+    <div class="node on"><span class="dot"></span><h3>Franqueado</h3><p>Informa só o que é local: produto, preço, foto.</p></div>
+    <div class="node on"><span class="dot"></span><h3>Arte pronta</h3><p>Dentro da marca, pronta para postar.</p></div>
+  </div>
+  <div class="foot"><p class="quote">O designer continua decidindo o que é design.<br><em>O franqueado informa apenas o que é local.</em></p></div>
+</section>
+
+<!-- ═════ 04 · DUAS EXPERIÊNCIAS ══════════════════════════════════════════════════════════ -->
+<section class="slide t-light s-duas" data-title="Duas experiências" data-edge="#0A0A0A">
+  <div class="half l"></div><div class="half r dots"></div>
+  <h2 class="h1 l">Duas experiências.</h2>
+  <h2 class="h1 r">Um único produto.</h2>
+  <p class="role l"><b>ESTÚDIO</b><span>Quem cria as regras.</span></p>
+  <p class="role r"><b>FRANQUEADO</b><span>Quem transforma essas regras em comunicação local.</span></p>
+  <div class="crop is-dark" style="left:60px;top:360px;width:790px;height:468px" data-crop="0,106,3200,1894"><img src="captures/estudio-campos.webp" alt="Estúdio: template com os campos configurados"></div>
+  <div class="crop" style="left:1070px;top:360px;width:790px;height:468px" data-crop="0,106,3200,1894"><img src="captures/franqueado-chat-foto.webp" alt="Franqueado: prévia ao vivo e o chat guiado"></div>
+  <div class="spine" aria-label="O que liga os dois lados">
+    <span>campos</span><span>render</span><span>regras</span><span>marca</span><span>publicação</span>
+  </div>
+  <p class="cap" style="left:60px;top:852px;color:#A7B0BF">Estúdio · o template com os 5 campos que o franqueado vai preencher</p>
+  <p class="cap" style="left:1070px;top:852px">Franqueado · a mesma arte, perguntada campo a campo</p>
+</section>
+
+<!-- ═════ 05 · O FLUXO DO DESIGNER ════════════════════════════════════════════════════════ -->
+<section class="slide t-studio s-psd" data-title="O fluxo do designer" data-edge="#14171C">
+  <div class="head" style="right:auto;width:640px">
+    <p class="eyebrow">Estúdio · do Photoshop ao template</p>
+    <h2 class="h1" style="font-size:70px;color:#fff">O designer não precisa começar de novo.</h2>
+  </div>
+  <div class="steps" style="top:400px">
+    <span>PSD</span><i></i><span>Importação</span><i></i><span class="on">Revisão</span><i></i><span>Template</span><i></i><span>Campos</span>
+  </div>
+  <div class="claims" style="top:470px">
+    <div class="claim on" data-step="1"><h3>O que foi preservado</h3><p>Camadas, fotos, textos e fontes da marca chegam do arquivo. Texto continua texto, editável.</p></div>
+    <div class="claim" data-step="2"><h3>O que foi adaptado</h3><p>Onde o Luma aproxima, ele diz. <em>Arte aproximada, continua editável</em>: visual e editabilidade medidos separados.</p></div>
+    <div class="claim" data-step="3"><h3>O que exige atenção</h3><p>Só o que o Luma não resolve sozinho. Aqui: uma fonte do Photoshop que não existe no Luma.</p></div>
+    <div class="claim" data-step="4"><h3>Revisão por exceção</h3><p>O designer confere 3 pontos, não 13 camadas. Os campos com <em>@nome</em> já chegam prontos.</p></div>
+  </div>
+  <div class="crop is-dark" style="left:760px;top:200px;width:1040px;height:793px" data-crop="421,101,2358,1798"><img src="captures/estudio-psd-revisao.webp" alt="Revisão real da importação de um PSD no Estúdio"></div>
+  <p class="cap" style="left:760px;top:1008px">O Luma tenta preservar o trabalho existente e mostra exatamente onde o designer precisa intervir.</p>
+</section>
+
+<!-- ═════ 06 · PUBLICAÇÃO ═════════════════════════════════════════════════════════════════ -->
+<section class="slide t-studio s-pub" data-title="Publicação" data-edge="#14171C" data-demo="pub">
+  <div class="head" style="right:auto;width:900px">
+    <p class="eyebrow">Estúdio · publicação</p>
+    <h2 class="h1" style="color:#fff;font-size:76px">O designer publica uma vez.</h2>
+  </div>
+  <div class="eq" aria-label="O que vai junto na publicação">
+    <span>arte</span><b>+</b><span>campos locais</span><b>+</b><span>permissões</span><b>+</b><span>regras</span><b>→</b>
+    <span class="go"><svg><use href="#i-send"/></svg>PUBLICAR</span>
+  </div>
+  <div class="crop is-dark" style="left:120px;top:404px;width:660px;height:589px" data-crop="683,179,1834,1637" data-flyer-from="877,672,472,840"><img src="captures/estudio-publicar-revisao.webp" alt="Revisão da publicação no Estúdio"></div>
+  <div class="light dots">
+    <div class="tag"><b>DISPONÍVEL PARA A REDE</b><span>No catálogo de cada franquia.</span></div>
+    <div class="crop" style="left:90px;top:470px;width:720px;height:536px" data-crop="656,106,2544,1894" data-flyer-to="970,846,360,639"><img src="captures/franqueado-campanha.webp" alt="A campanha aberta no catálogo do franqueado, com o material publicado"></div>
+  </div>
+  <div class="flyer" aria-hidden="true"><img src="assets/artes/psd-rangos-composto.webp" alt=""></div>
+</section>
+
+<!-- ═════ 07 · O MOMENTO AHA ══════════════════════════════════════════════════════════════ -->
+<section class="slide t-light s-aha" data-title="Uma conversa" data-edge="#FAFAFA" data-demo="chat">
+  <div class="head">
+    <p class="eyebrow">Franqueado</p>
+    <h2 class="h1">O franqueado não edita uma arte.<br><span class="acc">Ele responde uma conversa.</span></h2>
+  </div>
+  <div class="stagebox dots">
+    <div class="preview">
+      <div class="artcard" aria-label="Prévia ao vivo da arte">
+        <img class="a1" src="assets/artes/chat-passo-1.webp" alt="">
+        <img class="a2 is-back" src="assets/artes/chat-passo-1.webp" alt="">
+        <i class="flash"></i>
+      </div>
+      <p class="artlabel">Prévia ao vivo</p>
+      <div class="chat" aria-live="polite">
+        <div class="chat-head">
+          <span class="avatar"><svg><use href="#i-bot"/></svg></span>
+          <span class="who">Luma</span><span class="sep"></span>
+          <span class="ctx"><small>CAMPANHA</small><span>Rangos Que Baixaram O Preço · Story</span></span>
+        </div>
+        <div class="q">
+          <p class="prog"><span class="pt">0 de 5 informações</span><i><b></b></i></p>
+          <p class="kicker">Foto do produto</p>
+          <h3 class="qt">Envie a foto do produto</h3>
+          <p class="sub"></p>
+          <div class="chips"></div>
+          <div class="photo" hidden><span class="thumb"><img src="assets/fotos/hamburguer-thumb.webp" alt=""></span><span class="ok"><svg width="26" height="26"><use href="#i-check"/></svg>Foto enviada</span></div>
+        </div>
+        <div class="done">
+          <div class="badge"><i><svg><use href="#i-check"/></svg></i><h3>Sua arte está pronta</h3></div>
+          <p>Salva em Minhas artes</p>
+          <div class="cta"><svg><use href="#i-down"/></svg>Baixar PNG</div>
+          <div class="legend"><small>LEGENDA PRONTA · SUGESTÃO DO LUMA</small>Smash Bacon Duplo por R$ 27,90 (era R$ 34,90). Válido só neste fim de semana. Tá no app, é só pedir.</div>
+        </div>
+        <div class="answer"><span class="txt ph">Escolher imagem</span><span class="btn">Continuar</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="note">Quadros gerados pelo motor de render do Luma a cada resposta</p>
+</section>
+
+<!-- ═════ 08 · INTELIGÊNCIA INVISÍVEL ═════════════════════════════════════════════════════ -->
+<section class="slide t-light s-intel" data-title="Inteligência invisível" data-edge="#FAFAFA">
+  <div class="head">
+    <p class="eyebrow">Por baixo</p>
+    <h2 class="h1" style="font-size:70px">Por baixo, o Luma resolve o que não deveria<br>virar problema do franqueado.</h2>
+  </div>
+  <div class="tiles">
+    <article class="tile" data-step="1">
+      <div class="vis">
+        <div class="fits">
+          <div class="crop flat row" style="position:relative;width:100%;height:80px;border-radius:12px" data-crop="70,1216,940,212"><img src="assets/artes/localfit-curto.webp" alt=""></div>
+          <div class="crop flat row" style="position:relative;width:100%;height:80px;border-radius:12px" data-crop="70,1216,940,212"><img src="assets/artes/localfit-medio.webp" alt=""></div>
+          <div class="crop flat row" style="position:relative;width:100%;height:80px;border-radius:12px" data-crop="70,1216,940,212"><img src="assets/artes/localfit-longo.webp" alt=""></div>
+        </div>
+      </div>
+      <div class="txt"><b>LOCAL FIT</b><h3>O texto cabe onde o designer desenhou.</h3><p>Nome curto ou longo: quebra ou reduz dentro da própria caixa. Nada mais se move.</p></div>
+    </article>
+    <article class="tile" data-step="2">
+      <div class="vis" style="background:#fff"><div class="crop flat" style="left:0;top:27px;width:100%;height:295px;border-radius:0" data-crop="8,704,792,585"><img src="captures/ajuda-funcionalidades-encurtar.webp" alt=""></div></div>
+      <div class="txt"><b>COPY FIT · ENCURTAR</b><h3>Não coube? Uma versão curta, na hora.</h3><p>Medida na própria arte. Preço, números e itens nunca somem. O franqueado escolhe.</p></div>
+    </article>
+    <article class="tile" data-step="3">
+      <div class="vis"><div class="crop flat" style="left:0;top:0;width:100%;height:350px;border-radius:0" data-crop="2200,640,960,839"><img src="captures/franqueado-respostas.webp" alt=""></div></div>
+      <div class="txt"><b>ABA RESPOSTAS</b><h3>Tudo o que entrou na arte fica conferível.</h3><p>Cada campo com seu estado e um lápis para corrigir, sem refazer a conversa.</p></div>
+    </article>
+    <article class="tile" data-step="4">
+      <div class="vis"><div class="crop flat" style="left:0;top:0;width:100%;height:350px;border-radius:0" data-crop="2250,840,880,770"><img src="captures/franqueado-validacao-preco.webp" alt=""></div></div>
+      <div class="txt"><b>VALIDAÇÕES</b><h3>O erro aparece antes da saída.</h3><p>Preço "por" maior que o "de" é recusado. No Estúdio, erro crítico não publica.</p></div>
+    </article>
+  </div>
+  <div class="foot"><p class="quote">Complexidade por baixo. <em>Simplicidade por cima.</em></p></div>
+</section>
+
+<!-- ═════ 09 · ESCALA ═════════════════════════════════════════════════════════════════════ -->
+<section class="slide t-light s-escala" data-title="Escala" data-edge="#FAFAFA" data-demo="wall">
+  <div class="head">
+    <p class="eyebrow">Escala · Luma Sheets</p>
+    <h2 class="h1">Uma arte por vez. <span class="acc">Ou dezenas.</span></h2>
+  </div>
+  <div class="crop" style="left:120px;top:330px;width:880px;height:550px" data-crop="0,0,3200,2000"><img src="captures/franqueado-sheets.webp" alt="Luma Sheets: cada linha da planilha vira uma arte"></div>
+  <p class="cap" style="left:120px;top:900px">Cada linha é uma oferta. A fila gera todas com as regras do designer.</p>
+  <svg class="arrow" viewBox="0 0 70 40" aria-hidden="true"><path d="M2 20h62M50 6l14 14-14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <p class="count num"><span class="c">0</span> artes · 4 campanhas · 2 formatos</p>
+  <div class="wall" style="columns:5;column-gap:12px;display:block">
+    <div class="a story" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-00.webp" alt=""></div>
+    <div class="a feed" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-06.webp" alt=""></div>
+    <div class="a story" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-09.webp" alt=""></div>
+    <div class="a story" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-01.webp" alt=""></div>
+    <div class="a feed" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-12.webp" alt=""></div>
+    <div class="a story" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-10.webp" alt=""></div>
+    <div class="a story" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-02.webp" alt=""></div>
+    <div class="a feed" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-07.webp" alt=""></div>
+    <div class="a story" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-03.webp" alt=""></div>
+    <div class="a feed" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-13.webp" alt=""></div>
+    <div class="a story" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-11.webp" alt=""></div>
+    <div class="a story" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-04.webp" alt=""></div>
+    <div class="a feed" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-08.webp" alt=""></div>
+    <div class="a story" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-05.webp" alt=""></div>
+    <div class="a feed" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-14.webp" alt=""></div>
+  </div>
+  <div class="foot"><p class="quote">O chat é uma interface. <em>Por trás existe um motor de creative automation.</em></p></div>
+</section>
+
+<!-- ═════ 10 · PRODUTO VIVO ═══════════════════════════════════════════════════════════════ -->
+<section class="slide t-light s-vivo" data-title="Produto vivo" data-edge="#FAFAFA">
+  <div class="head">
+    <p class="eyebrow">Produto vivo</p>
+    <h2 class="h1">O Luma não termina quando é lançado.<br><span class="acc">Ele aprende.</span></h2>
+  </div>
+  <div class="loop" aria-label="O ciclo de melhoria">
+    <div class="n" style="left:0;top:0"><b>01</b><span>Feedback</span><p>Convite depois do download, suporte e o beta.</p></div>
+    <svg class="ar r" aria-hidden="true"><use href="#i-arrow"/></svg>
+    <div class="n" style="left:410px;top:0"><b>02</b><span>Melhoria</span><p>Decidida pelo que a rede sentiu.</p></div>
+    <svg class="ar d" aria-hidden="true"><use href="#i-arrow"/></svg>
+    <div class="n" style="left:410px;top:224px"><b>03</b><span>Release</span><p>Deploy sem instalar nada.</p></div>
+    <svg class="ar l" aria-hidden="true"><use href="#i-arrow"/></svg>
+    <div class="n" style="left:0;top:224px"><b>04</b><span>Novidades</span><p>Contadas na língua de quem usa.</p></div>
+    <svg class="ar u" aria-hidden="true"><use href="#i-arrow"/></svg>
+  </div>
+  <div class="panels">
+    <div class="crop" style="left:0;top:0;width:398px;height:724px;border-radius:24px" data-crop="6,0,796,1448"><img src="captures/ajuda-novidades.webp" alt="Novidades do Luma: a edição da semana"></div>
+    <div class="crop" style="left:450px;top:0;width:398px;height:724px;border-radius:24px" data-crop="6,0,796,1448" data-step="1"><img src="captures/ajuda-novidades-beta.webp" alt="Convite para o beta dentro das Novidades"></div>
+  </div>
+  <div class="said">
+    <p class="quote">“Vocês pediram.<br>A gente ouviu.”</p>
+    <p>No máximo uma edição por semana. Commit não é notícia: entra só o que a rede sente.</p>
+  </div>
+</section>
+
+<!-- ═════ 11 · CONFIANÇA ══════════════════════════════════════════════════════════════════ -->
+<section class="slide t-night s-conf" data-title="Confiança" data-edge="#0A0A0A">
+  <div class="head">
+    <p class="eyebrow">Confiança</p>
+    <h2 class="h1" style="font-size:66px">Já existe engenharia suficiente para colocar<br>o produto diante de usuários reais.</h2>
+  </div>
+  <div class="grid">
+    <div class="cell"><p class="n">844</p><p>verificações automáticas em 22 suítes, rodando num navegador de verdade</p></div>
+    <div class="cell"><p class="n">300</p><p>artes geradas e conferidas pelo motor real, em cinco baterias de 60</p></div>
+    <div class="cell"><p class="n">60</p><p>artes pelo fluxo completo do franqueado — escolher, responder, gerar e baixar — no app real</p></div>
+    <div class="cell"><p class="n">31</p><p>cenários de estresse: fluxo completo, tela de iPhone e maratona de fuzz</p></div>
+    <div class="cell"><p class="n">73</p><p>casos de regressão no importador de PSD</p></div>
+    <div class="cell"><p class="n" style="font-size:44px;padding-top:10px">A cada push</p><p>o CI roda as leis da arquitetura, a regra das Novidades e as suítes</p></div>
+    <div class="cell"><p class="n">32<small>/32</small></p><p>tabelas com RLS: a segurança mora no banco, com 3 papéis e 69 políticas</p></div>
+    <div class="cell"><p class="n">41</p><p>recursos que a gestão liga e desliga sem deploy</p></div>
+  </div>
+  <div class="foot"><p class="quote">Não estamos dizendo que nunca vai quebrar.<br><em>Estamos dizendo que construímos mecanismos para saber quando quebra.</em></p></div>
+</section>
+
+<!-- ═════ 12 · BETA ═══════════════════════════════════════════════════════════════════════ -->
+<section class="slide t-orange s-beta" data-title="Beta" data-edge="#FF9000">
+  <div class="head">
+    <p class="eyebrow">Próxima etapa</p>
+    <h2 class="h-hero">A V1 está pronta.<br>Agora começa a parte mais importante.</h2>
+    <p class="lead">Colocar o Luma na mão da rede.</p>
+  </div>
+  <div class="chain">
+    <span>Franqueados reais</span><i></i><span>Uso real</span><i></i><span>Feedback</span><i></i><span>Ajuste</span><i></i><span class="soft">Nova rodada</span>
+  </div>
+  <div class="back" aria-hidden="true"><small>E DE NOVO</small></div>
+  <div class="metrics">
+    <h3>O QUE O BETA MEDE</h3>
+    <ul>
+      <li><svg><use href="#i-user"/></svg>Primeira arte sem ajuda</li>
+      <li><svg><use href="#i-clock"/></svg>Tempo até o download</li>
+      <li><svg><use href="#i-funnel"/></svg>Início → download</li>
+      <li><svg><use href="#i-repeat"/></svg>Recorrência semanal</li>
+      <li><svg><use href="#i-chat"/></svg>Onde pedem suporte</li>
+      <li><svg><use href="#i-alert"/></svg>Problemas detectados</li>
+      <li><svg><use href="#i-quote"/></svg>Feedback qualitativo</li>
+    </ul>
+  </div>
+  <p class="foot">O beta mede produto.</p>
+</section>
+
+<!-- ═════ 13 · VALOR ══════════════════════════════════════════════════════════════════════ -->
+<section class="slide t-white s-valor" data-title="Valor" data-edge="#FFFFFF">
+  <div class="head">
+    <p class="eyebrow">Valor</p>
+    <h2 class="h1">Economia foi o ponto de partida.<br><span class="acc">Não precisa ser o teto.</span></h2>
+  </div>
+  <div class="cols">
+    <div class="col" data-step="1"><p class="k">01 · REDUZ</p><h3>Menos custo de operação</h3>
+      <ul><li>Ferramentas externas</li><li>Retrabalho</li><li>Tarefas repetitivas</li><li>Dependência operacional</li></ul></div>
+    <div class="col" data-step="2"><p class="k">02 · AUMENTA</p><h3>Mais capacidade, mesmo time</h3>
+      <ul><li>Mais campanhas</li><li>Mais execuções locais</li><li>Mais velocidade</li><li>O mesmo time central</li></ul></div>
+    <div class="col hi" data-step="3"><p class="k">03 · CRIA</p><h3>Um ativo da empresa</h3>
+      <ul><li>Software próprio</li><li>Know-how de creative automation</li><li>Propriedade intelectual</li><li>Possibilidade futura de produto B2B</li></ul></div>
+  </div>
+  <div class="foot"><p class="quote">O cenário financeiro mudou. <em>O produto também.</em></p></div>
+</section>
+
+<!-- ═════ 14 · CLIENTE ZERO / WHITE LABEL ═════════════════════════════════════════════════ -->
+<section class="slide t-night s-white" data-title="Cliente zero" data-edge="#0A0A0A">
+  <div class="head">
+    <p class="eyebrow">Horizonte</p>
+    <h2 class="h1">Se funciona aqui,<br><span class="acc">o problema não existe só aqui.</span></h2>
+  </div>
+  <div class="map">
+    <svg viewBox="0 0 900 560" aria-hidden="true"><g fill="none" stroke="rgba(255,255,255,.28)" stroke-width="2.5">
+      <path d="M450 132 V 210 H 135 V 300"/><path d="M450 132 V 300"/><path d="M450 210 H 765 V 300"/></g></svg>
+    <div class="core"><img src="../assets/logos/luma-h-cor.png" alt="Luma"><small>CORE · UMA BASE ÚNICA</small></div>
+    <div class="net dm"><small>CLIENTE ZERO</small><b>Delivery Much</b><span class="sw"><i style="background:#0A0A0A"></i><i style="background:#fff"></i><i style="background:#C81818"></i></span></div>
+    <div class="net a"><small>WHITE LABEL</small><b>Rede A</b><span class="sw"><i style="background:#2F6FED"></i><i style="background:#fff"></i><i style="background:#0B1F4B"></i></span></div>
+    <div class="net b"><small>WHITE LABEL</small><b>Rede B</b><span class="sw"><i style="background:#18A058"></i><i style="background:#fff"></i><i style="background:#F2C230"></i></span></div>
+  </div>
+  <div class="points">
+    <ul>
+      <li><strong>White label não é vender o código.</strong> Nós continuamos donos da plataforma.</li>
+      <li>Outras redes licenciam o produto, cada uma com sua identidade e sua configuração.</li>
+      <li>Uma base única, que evolui para todos.</li>
+      <li>Para qualquer rede com <strong>marca central e execução local</strong>. Franquias são o primeiro público.</li>
+    </ul>
+  </div>
+  <div class="foot"><p class="quote">Hoje não estamos pedindo para vender o Luma.<br><em>Estamos construindo o case que permitiria essa conversa existir depois.</em></p></div>
+</section>
+
+<!-- ═════ 15 · FECHAMENTO ═════════════════════════════════════════════════════════════════ -->
+<section class="slide t-orange s-fim" data-title="Fechamento" data-edge="#FF9000">
+  <h2 class="big">Uma marca no controle.<br>Uma rede com autonomia.</h2>
+  <p class="then" data-step="1">E um produto pronto para enfrentar o mundo real.</p>
+  <div class="cta" data-step="2"><small>PRÓXIMO PASSO</small><b>Beta com a rede.</b></div>
+  <div class="logos">
+    <img class="luma" src="../assets/logos/luma-h-branca.png" alt="Luma">
+    <span class="x" aria-hidden="true"></span>
+    <img class="dm" src="../assets/logos/dm-h-preta.png" alt="Delivery Much">
+  </div>
+</section>
+
+<!-- ═════ APÊNDICE ════════════════════════════════════════════════════════════════════════ -->
+<section class="slide t-night s-apx" data-title="Apêndice" data-edge="#0A0A0A" data-apx="1">
+  <div class="head">
+    <p class="eyebrow">Apêndice · para perguntas</p>
+    <h2 class="h1">O detalhe, se alguém quiser.</h2>
+  </div>
+  <div class="list">
+    <button data-go="apx-a"><b>A</b><span>Arquitetura</span></button>
+    <button data-go="apx-b"><b>B</b><span>Segurança, Supabase e RLS</span></button>
+    <button data-go="apx-c"><b>C</b><span>Importador de PSD</span></button>
+    <button data-go="apx-d"><b>D</b><span>Local Fit e Copy Fit</span></button>
+    <button data-go="apx-e"><b>E</b><span>CI e testes</span></button>
+    <button data-go="apx-f"><b>F</b><span>Suporte e atendimento</span></button>
+    <button data-go="apx-g"><b>G</b><span>Telegram</span></button>
+    <button data-go="apx-h"><b>H</b><span>Feature flags</span></button>
+    <button data-go="apx-j"><b>J</b><span>Evoluções pós-V1</span></button>
+    <button data-go="apx-k"><b>K</b><span>Tese white label</span></button>
+    <button data-go="apx-l"><b>L</b><span>Fluxo anterior × Luma</span></button>
+  </div>
+</section>
+
+<!-- A · Arquitetura -->
+<section class="slide t-studio apx" id="apx-a" data-title="A · Arquitetura" data-edge="#14171C" data-apx="1">
+  <div class="head"><p class="eyebrow">Apêndice A</p><h2 class="h1" style="color:#fff">Um navegador, um banco. Nada no meio.</h2></div>
+  <div class="body-area">
+    <div class="cols2">
+      <div class="diagram" style="height:600px">
+        <svg viewBox="0 0 820 600" aria-hidden="true"><g fill="none" stroke="rgba(160,178,206,.45)" stroke-width="2.5"><path d="M410 186 V 262"/><path d="M410 402 V 468"/></g></svg>
+        <div class="box" style="left:0;top:0;width:820px;height:186px"><b>Navegador · SPA estática</b>HTML, CSS e JavaScript puro, sem build. Franqueado e Estúdio no mesmo app, separados por papel.<br><span class="pill" style="margin-top:10px">MOTORES ÚNICOS</span> interpolador · render · Local Fit · feature flags · IA</div>
+        <div class="box" style="left:0;top:262px;width:820px;height:140px"><b>Supabase · Auth, API e Storage</b>O front fala direto com o banco. Três Edge Functions para o que não pode morar no cliente: IA, convite e Telegram.</div>
+        <div class="box" style="left:0;top:468px;width:820px;height:132px"><b>Postgres + RLS</b>A única fronteira de segurança. Quem pode ler e escrever o quê é decidido pela política SQL.</div>
+      </div>
+      <div class="card" style="align-self:start">
+        <span class="k">POR QUE ASSIM</span>
+        <ul>
+          <li>Deploy é publicar arquivos: o GitHub Pages serve a versão nova para a rede inteira.</li>
+          <li>Offline-first: o navegador guarda cache e trabalha sem rede; o banco é a fonte compartilhada.</li>
+          <li>Um motor por responsabilidade: o que o designer vê na simulação é o que o franqueado baixa.</li>
+          <li>Leis de arquitetura viram portão de CI (sem ESM, sem npm, função global única).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <p class="srcline">Fonte: luma-brain/02_ARCHITECTURE.md · MAPA.md · scripts/arquitetura.js</p>
+</section>
+
+<!-- B · Segurança -->
+<section class="slide t-studio apx" id="apx-b" data-title="B · Segurança" data-edge="#14171C" data-apx="1">
+  <div class="head"><p class="eyebrow">Apêndice B</p><h2 class="h1" style="color:#fff">A segurança mora no banco, não na tela.</h2></div>
+  <div class="body-area">
+    <div class="cols3">
+      <div class="card"><span class="k">RLS</span><h3 style="color:#fff">32 de 32 tabelas</h3><p>Row Level Security em todas as tabelas do Luma, com 69 políticas versionadas nas migrations.</p></div>
+      <div class="card"><span class="k">PAPÉIS</span><h3 style="color:#fff">Franqueado, equipe DM, gestão</h3><p>O papel vem do servidor (profiles.role), nunca do token. Um gatilho no banco impede autopromoção.</p></div>
+      <div class="card"><span class="k">CONTA DESATIVADA</span><h3 style="color:#fff">Perde o poder no banco</h3><p>Desde 23/09 as funções de permissão só valem para conta ativa. Não basta o app deslogar.</p></div>
+      <div class="card"><span class="k">SEGREDOS</span><h3 style="color:#fff">Fora do front</h3><p>A chave da IA e o token do Telegram ficam em Edge Functions. No front só a chave pública, que a RLS protege.</p></div>
+      <div class="card"><span class="k">DADO DE USUÁRIO</span><h3 style="color:#fff">Sempre escapado</h3><p>Todo texto vindo de usuário passa pelo escape único antes de virar HTML.</p></div>
+      <div class="card"><span class="k">PRIVACIDADE</span><h3 style="color:#fff">O que é pessoal fica pessoal</h3><p>Histórico de artes por dono. Anotações e conversa com o tutor: nem a equipe lê.</p></div>
+    </div>
+  </div>
+  <p class="srcline">Fonte: supabase/migrations (contagem em 27/09/2026) · luma-brain/01_BUSINESS.md §2–3 · 02_ARCHITECTURE.md §7–9</p>
+</section>
+
+<!-- C · PSD -->
+<section class="slide t-studio apx" id="apx-c" data-title="C · Importador de PSD" data-edge="#14171C" data-apx="1">
+  <div class="head" style="right:auto;width:700px"><p class="eyebrow">Apêndice C</p><h2 class="h1" style="color:#fff;font-size:58px">Fidelidade é uma propriedade explícita.</h2></div>
+  <div style="position:absolute;left:120px;top:330px;width:640px;display:flex;flex-direction:column;gap:18px">
+    <div class="card"><span class="k">DOIS EIXOS, SEPARADOS</span><p>Visual (preservado, aproximado, perdido) e editabilidade (preservada, achatada, perdida). Um texto pode estar idêntico na arte e ainda assim não poder ser campo.</p></div>
+    <div class="card"><span class="k">CADA CAMADA COM MOTIVO</span><p>Nível nativo, nativo com perda, raster fiel ou não suportado — com o motivo nomeado e a etapa em que a decisão aconteceu.</p></div>
+    <div class="card"><span class="k">QUEM DECIDE O CAMPO</span><p>Designer &gt; memória aprovada &gt; convenção @campo &gt; regra determinística &gt; IA. A IA é opcional e a última.</p></div>
+  </div>
+  <div class="crop is-dark" style="left:800px;top:260px;width:1000px;height:592px" data-crop="0,106,3200,1894"><img src="captures/estudio-campos-pergunta.webp" alt="O Estúdio pergunta o que é uma camada em vez de adivinhar"></div>
+  <p class="cap" style="left:800px;top:870px">Depois do import, o Estúdio pergunta em vez de adivinhar: "Lettering da campanha" é qual conteúdo?</p>
+  <p class="srcline">Fonte: docs/PSD-ARQUITETURA-2026-09-10.md · luma-brain/07_ROADMAP.md (rodadas de 03/09 e 10/09) · tests/psd-import.html (73 casos)</p>
+</section>
+
+<!-- D · Local Fit / Copy Fit -->
+<section class="slide t-light apx" id="apx-d" data-title="D · Local Fit e Copy Fit" data-edge="#FAFAFA" data-apx="1">
+  <div class="head"><p class="eyebrow">Apêndice D</p><h2 class="h1" style="font-size:58px">O texto cabe na caixa do designer, ou o Luma avisa.</h2></div>
+  <div style="position:absolute;left:120px;top:300px;display:flex;gap:22px">
+    <div><div class="art" style="position:relative;width:250px;height:444px"><img src="assets/artes/localfit-curto.webp" alt=""></div><p class="cap" style="position:static;margin-top:12px">Curto · cabe como foi desenhado</p></div>
+    <div><div class="art" style="position:relative;width:250px;height:444px"><img src="assets/artes/localfit-medio.webp" alt=""></div><p class="cap" style="position:static;margin-top:12px">Médio · cabe como foi desenhado</p></div>
+    <div><div class="art" style="position:relative;width:250px;height:444px"><img src="assets/artes/localfit-longo.webp" alt=""></div><p class="cap" style="position:static;margin-top:12px">Longo · reduz dentro da caixa</p></div>
+  </div>
+  <div style="position:absolute;left:960px;right:120px;top:300px;display:flex;flex-direction:column;gap:16px">
+    <div class="card"><span class="k">A ESCADA</span><p>Corpo desenhado → quebra de linha → redução progressiva → piso de legibilidade → bloqueia com diagnóstico. Nunca estoura a arte em silêncio.</p></div>
+    <div class="card"><span class="k">NADA SE MOVE</span><p>Nenhum elemento é empurrado por causa de outro. O preço não encolhe porque o nome do produto cresceu.</p></div>
+    <div class="card"><span class="k">COPY FIT</span><p>Quando não cabe, sugere a versão curta medida em pixel na arte. Nunca troca sozinho, e preço, números e itens do pedido nunca somem.</p></div>
+    <div class="card"><span class="k">NA TELA</span><p>A prévia avisa ao vivo ("ficou com a letra pequena — encurtar") e o download explica o limite medido.</p></div>
+  </div>
+  <p class="srcline">Fonte: docs/LOCAL-FIT-CONTRACT.md · js/core/local-fit.js · js/core/copy-fit.js · artes renderizadas pelo motor do download</p>
+</section>
+
+<!-- E · CI e testes -->
+<section class="slide t-studio apx" id="apx-e" data-title="E · CI e testes" data-edge="#14171C" data-apx="1">
+  <div class="head"><p class="eyebrow">Apêndice E</p><h2 class="h1" style="color:#fff;font-size:58px">Testes em navegador real, portão a cada push.</h2></div>
+  <div class="body-area" style="top:280px">
+    <div class="cols2" style="grid-template-columns:1.15fr .85fr">
+      <table>
+        <thead><tr><th>Suíte</th><th style="text-align:right">Casos</th><th>27/09</th></tr></thead>
+        <tbody>
+          <tr><td>Artes: composição, gastronomia, multiformatos, tipografia</td><td class="n">240</td><td><span class="ok">verde</span></td></tr>
+          <tr><td>Artes pelo fluxo completo do franqueado, no app real</td><td class="n">60</td><td><span class="ok">verde</span></td></tr>
+          <tr><td>Local Fit · corpus · fuzz · auto-layout · Estúdio</td><td class="n">186</td><td><span class="no">1 caso</span> no corpus</td></tr>
+          <tr><td>Copy Fit (motor e interface) · motor de legendas</td><td class="n">114</td><td><span class="no">5 casos</span> no Copy Fit</td></tr>
+          <tr><td>Franqueado: fluxo e honestidade da interface</td><td class="n">87</td><td><span class="ok">verde</span></td></tr>
+          <tr><td>Importador de PSD</td><td class="n">73</td><td><span class="ok">verde</span></td></tr>
+          <tr><td>Busca e feedback · exportação · carga</td><td class="n">53</td><td><span class="ok">verde</span></td></tr>
+          <tr><td>Estresse: fluxo, tela de iPhone, maratona de fuzz</td><td class="n">31</td><td><span class="ok">verde</span></td></tr>
+          <tr><td><b style="color:#fff">Total · 22 suítes</b></td><td class="n">844</td><td><b style="color:#fff">838 verdes</b></td></tr>
+        </tbody>
+      </table>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card"><span class="k">COMO RODA</span><p>O runner fala direto com o Chromium pelo DevTools Protocol. Zero dependência, nada entra no app.</p></div>
+        <div class="card"><span class="k">PORTÃO DE CI</span><p>A cada push em js/, tests/ ou index.html: leis da arquitetura, regra das Novidades e as suítes.</p></div>
+        <div class="card"><span class="k">ESTADO HONESTO</span><p>Hoje o CI está vermelho no portão de arquitetura: uma catraca de localStorage subiu de 56 para 59. É o mecanismo funcionando — e está na lista antes do beta.</p></div>
+      </div>
+    </div>
+  </div>
+  <p class="srcline">Fonte: node scripts/run-browser-tests.js (execução local de 27/09/2026) · .github/workflows/tests.yml · node scripts/arquitetura.js</p>
+</section>
+
+<!-- F · Suporte -->
+<section class="slide t-light apx" id="apx-f" data-title="F · Suporte" data-edge="#FAFAFA" data-apx="1">
+  <div class="head"><p class="eyebrow">Apêndice F</p><h2 class="h1" style="font-size:58px">Suporte com dono, estado e histórico.</h2></div>
+  <div class="body-area" style="gap:56px">
+  <div style="display:flex;align-items:center;gap:16px">
+    <span class="pill" style="font-size:22px;padding:16px 26px">NOVO · na fila</span><span style="flex:0 0 40px;height:3px;background:#D4D4D4"></span>
+    <span class="pill" style="font-size:22px;padding:16px 26px">EM ATENDIMENTO</span><span style="font-size:28px;color:#6B6B6B">⇄</span>
+    <span class="pill" style="font-size:22px;padding:16px 26px">AGUARDANDO O FRANQUEADO</span><span style="flex:0 0 40px;height:3px;background:#D4D4D4"></span>
+    <span class="pill" style="font-size:22px;padding:16px 26px;background:#0A0A0A;color:#fff">RESOLVIDO</span>
+  </div>
+  <div class="cols3">
+    <div class="card"><span class="k">QUEM ATENDE</span><p>A equipe DM, dentro do próprio Luma, com foto, nome e cargo. Escopo: dúvida de uso e erro. Pedido de arte continua com o marketing.</p></div>
+    <div class="card"><span class="k">UM DONO POR VEZ</span><p>Com responsável definido, só ele responde, repassa ou resolve. A trava é do banco, não da tela.</p></div>
+    <div class="card"><span class="k">NINGUÉM ONLINE?</span><p>Com a equipe online a pergunta vai direto para a pessoa. Sem ninguém, o assistente responde e oferece "falar com a equipe".</p></div>
+  </div>
+  </div>
+  <p class="srcline">Fonte: luma-brain/01_BUSINESS.md §10 · js/core/suporte.js · migration 20260926120000</p>
+</section>
+
+<!-- G · Telegram -->
+<section class="slide t-light apx" id="apx-g" data-title="G · Telegram" data-edge="#FAFAFA" data-apx="1">
+  <div class="head"><p class="eyebrow">Apêndice G</p><h2 class="h1" style="font-size:58px">A equipe responde sem estar com o Luma aberto.</h2></div>
+  <div class="body-area" style="gap:40px">
+    <div class="bridge" aria-label="Ida: do Luma ao tópico da equipe">
+      <div class="fn"><small>NO LUMA</small><b>O franqueado escreve</b><span>A mensagem vai com o print, quando houver.</span></div>
+      <i aria-hidden="true"></i>
+      <div class="fn"><small>NO BANCO</small><b>Fila de saída</b><span>Varrida a cada minuto. Envio que falha tenta de novo.</span></div>
+      <i aria-hidden="true"></i>
+      <div class="fn dark"><small>NO TELEGRAM</small><b>Um tópico por franqueado</b><span>No grupo privado da equipe.</span></div>
+    </div>
+    <p class="volta"><svg aria-hidden="true"><use href="#i-arrow"/></svg>A resposta dada no tópico volta ao franqueado como mensagem da pessoa, pela mesma trava de responsável.</p>
+    <div class="cols3">
+      <div class="card"><span class="k">MESMAS REGRAS</span><p>O Telegram não é um segundo caminho de escrita: /assumir, /resolver e /repassar passam pela mesma trava de responsável e pelo mesmo histórico.</p></div>
+      <div class="card"><span class="k">QUEM ESTÁ ONLINE</span><p>/disponivel põe a pessoa online para o franqueado por 8 horas, um turno. /ausente encerra antes.</p></div>
+      <div class="card"><span class="k">ESTADO</span><p>Construído em 26/09, com aprovação do jurídico. A chave no Controle do produto nasceu desligada: liga quando a equipe estiver vinculada.</p></div>
+    </div>
+  </div>
+  <p class="srcline">Fonte: docs/SUPORTE-TELEGRAM.md · supabase/functions/suporte-telegram · js/core/feature-flags.js (global.help.suporte.telegram)</p>
+</section>
+
+<!-- H · Feature flags -->
+<section class="slide t-studio apx" id="apx-h" data-title="H · Feature flags" data-edge="#14171C" data-apx="1">
+  <div class="head"><p class="eyebrow">Apêndice H</p><h2 class="h1" style="color:#fff;font-size:58px">A gestão decide o que está no ar, sem deploy.</h2></div>
+  <div class="body-area">
+    <div class="cols2" style="height:auto;align-items:center">
+      <div class="tree" aria-label="Chaves reais do registro, com a cascata pai e filho">
+        <p class="t0"><code>module.franqueado</code><span>Franqueado</span></p>
+        <p class="t1"><code>franqueado.chat</code><span>Chat gerador</span></p>
+        <p class="t1"><code>franqueado.sheets</code><span>Luma Sheets</span></p>
+        <p class="t1"><code>franqueado.export</code><span>Exportação</span></p>
+        <p class="t2"><code>franqueado.export.zip</code><span>Baixar lote em ZIP</span></p>
+        <p class="t0 gap"><code>global.help</code><span>Central de Ajuda</span></p>
+        <p class="t1"><code>global.help.suporte</code><span>Suporte ao vivo</span></p>
+        <p class="t2 off"><code>global.help.suporte.telegram</code><span class="pill">NASCE DESLIGADA</span></p>
+        <p class="why">Se o pai desliga, o filho explica o porquê na própria tela:<span class="msg">Indisponível porque "Suporte ao vivo" está desativado</span></p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div class="card"><span class="k">41 RECURSOS</span><p>Cada área, ferramenta e canal do Luma tem uma chave no Controle do produto, com histórico de quem mudou e quando.</p></div>
+        <div class="card"><span class="k">EM CASCATA</span><p>Desligar um módulo desliga o que depende dele. Dá para liberar por papel antes de liberar para a rede.</p></div>
+        <div class="card"><span class="k">NUNCA APAGA</span><p>Experiência, não segurança: sem backend o Luma segue funcionando, e desligar quem cria não some com o que já foi criado.</p></div>
+      </div>
+    </div>
+  </div>
+  <p class="srcline">Fonte: js/core/feature-flags.js (G_FEATURE_REGISTRY) · js/core/product-control.js · luma-brain/02_ARCHITECTURE.md §12.1</p>
+</section>
+
+<!-- J · Evoluções -->
+<section class="slide t-white apx" id="apx-j" data-title="J · Evoluções pós-V1" data-edge="#FFFFFF" data-apx="1">
+  <div class="head"><p class="eyebrow">Apêndice J · horizonte, fora da V1</p><h2 class="h1" style="font-size:58px">Depois do beta, a mesma base destrava mais.</h2></div>
+  <div class="body-area"><div class="cols3">
+    <div class="card"><span class="k">CONSTRUÍDO, FORA DA V1</span><h3>Calendário da rede</h3><p>O que a rede comunica e quando, com a arte no mesmo toque. Falta a fonte oficial das datas.</p></div>
+    <div class="card"><span class="k">CONSTRUÍDO, ATRÁS DE CHAVE</span><h3>Academia</h3><p>Formação do franqueado com aulas e certificado. Liga quando houver conteúdo oficial publicado.</p></div>
+    <div class="card"><span class="k">A ESTUDAR</span><h3>CRM Visual</h3><p>Os mesmos templates alimentando in-app e push. O Luma prepara; o envio segue no CRM.</p></div>
+    <div class="card"><span class="k">APROVADO, ADIADO</span><h3>Par feed ↔ story</h3><p>Preencher uma vez e sair nos dois formatos.</p></div>
+    <div class="card"><span class="k">APROVADO, ADIADO</span><h3>Sinais de uso</h3><p>Mais usados da rede e demanda para o designer.</p></div>
+    <div class="card"><span class="k">APROVADO, ADIADO</span><h3>Repostar o que funcionou</h3><p>Do histórico, sem refazer a conversa.</p></div>
+  </div></div>
+  <p class="srcline">Fonte: luma-brain/07_ROADMAP.md §4–§7 · docs/LUMA-ACADEMIA.md</p>
+</section>
+
+<!-- K · White label -->
+<section class="slide t-night apx" id="apx-k" data-title="K · Tese white label" data-edge="#0A0A0A" data-apx="1">
+  <div class="head"><p class="eyebrow">Apêndice K</p><h2 class="h1" style="font-size:58px">White label: o que já existe e o que faltaria.</h2></div>
+  <div class="body-area"><div class="cols3">
+    <div class="card"><span class="k">JÁ EXISTE</span><ul><li>Identidade por token: cor, tipografia e motion nascem num lugar só</li><li>Tema por campanha: o Much+ já troca a cor da interface inteira</li><li>Papéis, RLS e Controle do produto</li></ul></div>
+    <div class="card"><span class="k">FALTARIA</span><ul><li>Isolamento por rede no banco (hoje o Luma é de uma rede só)</li><li>Configuração e marca por rede</li><li>Onboarding, suporte e contrato por cliente</li></ul></div>
+    <div class="card"><span class="k">PRINCÍPIOS</span><ul><li>A plataforma é nossa; licença, não venda de código</li><li>Uma base única para todos</li><li>Delivery Much como cliente zero: a prova vem daqui</li></ul></div>
+  </div></div>
+  <p class="srcline">Fonte: luma-brain/02_ARCHITECTURE.md §12 (sem multi-tenant hoje) · css/00-tokens.css (tema por campanha)</p>
+</section>
+
+<!-- L · Comparativo -->
+<section class="slide t-white apx" id="apx-l" data-title="L · Fluxo anterior × Luma" data-edge="#FFFFFF" data-apx="1">
+  <div class="head"><p class="eyebrow">Apêndice L</p><h2 class="h1" style="font-size:58px">O que muda no dia a dia.</h2></div>
+  <div class="body-area" style="top:300px">
+    <table class="tbl-lg" style="color:#0A0A0A">
+      <thead><tr><th style="color:#6B6B6B;border-color:#E5E5E5">Etapa</th><th style="color:#6B6B6B;border-color:#E5E5E5">Fluxo anterior (ferramenta de mercado)</th><th style="color:#6B6B6B;border-color:#E5E5E5">Com o Luma</th></tr></thead>
+      <tbody>
+        <tr><td style="color:#0A0A0A;border-color:#EEE;font-weight:700">Criar a campanha</td><td style="color:#3A3A3A;border-color:#EEE">O time monta os materiais na ferramenta</td><td style="color:#3A3A3A;border-color:#EEE">O designer importa o PSD que já tem e marca os campos</td></tr>
+        <tr><td style="color:#0A0A0A;border-color:#EEE;font-weight:700">Adaptar para a cidade</td><td style="color:#3A3A3A;border-color:#EEE">O franqueado edita o material</td><td style="color:#3A3A3A;border-color:#EEE">O franqueado responde perguntas; o design fica protegido</td></tr>
+        <tr><td style="color:#0A0A0A;border-color:#EEE;font-weight:700">Texto que não cabe</td><td style="color:#3A3A3A;border-color:#EEE">Ajuste na mão</td><td style="color:#3A3A3A;border-color:#EEE">Local Fit e Encurtar, medidos na arte</td></tr>
+        <tr><td style="color:#0A0A0A;border-color:#EEE;font-weight:700">Muitas ofertas</td><td style="color:#3A3A3A;border-color:#EEE">Uma de cada vez</td><td style="color:#3A3A3A;border-color:#EEE">Luma Sheets: uma linha, uma arte</td></tr>
+        <tr><td style="color:#0A0A0A;border-color:#EEE;font-weight:700">Evolução</td><td style="color:#3A3A3A;border-color:#EEE">Roadmap do fornecedor</td><td style="color:#3A3A3A;border-color:#EEE">Roadmap nosso, guiado pelo que a rede pede</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="srcline">Comparação de fluxo, não de fornecedor: cada ferramenta resolve o problema para o qual foi feita.</p>
+</section>
+
+  <div class="chrome-progress" aria-hidden="true"><i></i></div>
+  <p class="chrome-num" aria-live="polite"></p>
+</div>
+
+<div class="chrome-nav" aria-label="Navegação">
+  <button type="button" data-act="prev" aria-label="Slide anterior"><svg><use href="#i-left"/></svg></button>
+  <button type="button" data-act="next" aria-label="Próximo slide"><svg><use href="#i-right"/></svg></button>
+  <button type="button" data-act="index" aria-label="Índice dos slides (G)"><svg><use href="#i-grid"/></svg></button>
+  <button type="button" data-act="full" aria-label="Tela cheia (F)"><svg><use href="#i-full"/></svg></button>
+</div>
+
+<div class="index" role="dialog" aria-label="Índice dos slides" aria-modal="true">
+  <h2>Apresentação</h2><ol data-list="main"></ol>
+  <h2>Apêndice</h2><ol data-list="apx"></ol>
+  <p class="hint">← → espaço · PgUp PgDn · Home End · F tela cheia · G índice · Esc fecha</p>
+</div>
+
+<script src="presentation.js"></script>
+</body>
+</html>
