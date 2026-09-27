@@ -7,6 +7,7 @@
   let widgetState = {
     isOpen: false,
     // 'home' | 'news' | 'novidade' | 'messages' | 'assistente' | 'help' | 'collection' | 'article'
+    // | 'funcionalidades' | 'funcionalidade' (VITRINE, temporária)
     activeTab: 'home',
     hasActiveChat: false,
     messages: [],
@@ -17,6 +18,7 @@
     selectedNewsId: null,
     articleBack: 'help',    // de onde o artigo foi aberto: é para lá que o "voltar" leva
     newsBack: 'home',
+    vitId: null,            // VITRINE: a funcionalidade aberta na aba Funcionalidades
     // try/catch obrigatório: isto roda no CORPO do objeto, na carga do script. Em modo privado
     // (ou com storage bloqueado por política) o getItem LANÇA e o arquivo inteiro morre — o
     // widget de ajuda simplesmente não existiria na sessão.
@@ -343,6 +345,7 @@
     if (t === 'news' || t === 'assistente') return 'home';
     if (t === 'novidade') return widgetState.newsBack || 'home';
     if (t === 'collection') return 'help';
+    if (t === 'funcionalidade') return 'funcionalidades';   // VITRINE
     if (t === 'article') return widgetState.articleBack || 'help';
     return null;
   }
@@ -364,6 +367,11 @@
     if (t === 'messages') return { title: 'Mensagens' };
     if (t === 'news') return { title: 'Novidades' };
     if (t === 'novidade') return { title: 'Novidade' };
+    if (t === 'funcionalidades') return { title: 'Funcionalidades', detail: 'O que o Luma faz hoje' };   // VITRINE
+    if (t === 'funcionalidade') {   // VITRINE
+      const l = wmVitLista(), i = l.findIndex(function (f) { return f.id === widgetState.vitId; });
+      return { title: 'Funcionalidades', detail: i >= 0 ? (i + 1) + ' de ' + l.length : '' };
+    }
     return { title: 'Ajuda' };
   }
 
@@ -718,7 +726,7 @@
   window.lumaWidgetOpenArticle = function (id, origem) {
     if (!wmVisivel(wmArtigo(id))) return;
     widgetState.selectedArticleId = id;
-    widgetState.articleBack = ['collection', 'home', 'novidade', 'help'].indexOf(origem) >= 0 ? origem : 'help';
+    widgetState.articleBack = ['collection', 'home', 'novidade', 'help', 'funcionalidade'].indexOf(origem) >= 0 ? origem : 'help';
     window.lumaWidgetSetTab('article');
   };
 
@@ -867,7 +875,8 @@
   }
 
   // Renderiza o Modal com base na aba ativa
-  const WM_ABA_DA_NAV = { home: 'home', news: 'home', novidade: 'home', messages: 'messages', assistente: 'messages', help: 'help', collection: 'help', article: 'help' };
+  const WM_ABA_DA_NAV = { home: 'home', news: 'home', novidade: 'home', messages: 'messages', assistente: 'messages', help: 'help', collection: 'help', article: 'help',
+    funcionalidades: 'funcionalidades', funcionalidade: 'funcionalidades' };   // VITRINE
   const WM_RENDER = {
     home: function () { return renderHomeTab(); },
     news: function () { return renderNewsTab(); },
@@ -876,13 +885,17 @@
     assistente: function () { return renderMessagesTab(); },
     help: function () { return renderHelpTab(); },
     collection: function () { return renderColTab(); },
-    article: function () { return renderArticleViewTab(); }
+    article: function () { return renderArticleViewTab(); },
+    funcionalidades: function () { return renderVitrineTab(); },       // VITRINE
+    funcionalidade: function () { return renderVitrineItemTab(); }     // VITRINE
   };
 
   function renderWidgetModalContent() {
     const modal = document.getElementById('luma-widget-modal');
     if (!modal) return;
 
+    // VITRINE: chave desligada com a aba aberta (ou lembrada) → volta para a Início.
+    if (/^funcionalidade/.test(widgetState.activeTab) && !wmVitrineLigada()) widgetState.activeTab = 'home';
     const aba = WM_RENDER[widgetState.activeTab] ? widgetState.activeTab : 'home';
     widgetState.activeTab = aba;
     const bodyHTML = WM_RENDER[aba]();
@@ -905,6 +918,7 @@
         ${navBtn('home', WIDGET_SVGS.home, 'Início')}
         ${navBtn('messages', WIDGET_SVGS.messagesNav, 'Mensagens', wmSupNavBadge())}
         ${navBtn('help', WIDGET_SVGS.helpNav, 'Ajuda')}
+        ${wmVitrineLigada() ? navBtn('funcionalidades', WIDGET_SVGS.sparkle, 'Funcionalidades') : ''}
       </nav>
     `;
 
@@ -1008,6 +1022,384 @@
         </div>
       </article>`;
   }
+
+  /* ══ VITRINE DE FUNCIONALIDADES · TEMPORÁRIA (27/09/2026) ════════════════════════════════
+     Para quê: no beta e nas apresentações internas o Luma precisa se mostrar sozinho. Cada item
+     diz o que é, o problema que resolve, o que muda e, quando há fonte, a prova, e traz uma
+     demonstração que se opera ali mesmo. Serve a quem apresenta e ao franqueado explorando.
+     TEMPORÁRIA DE PROPÓSITO: quando a rede estiver em escala, sai. Desligar sem deploy: chave
+     `global.help.funcionalidades` no Controle do produto. Remover de vez: este bloco inteiro,
+     as linhas marcadas "VITRINE" neste arquivo, o bloco VITRINE do help-widget.css e a chave
+     no feature-flags.js.
+     ⛔ Mesma regra dos artigos: só o que existe na tela, com o nome que está na tela. `prova`
+     só com fonte, anotada ao lado: quem trocar o número confere a fonte antes.
+     As demos de TEXTO e de LEGENDA rodam os motores DE VERDADE (gFitTextToAuthoredBox,
+     gCopyFitSugestoes, fBuildCopy): alguém da plateia pede "digita outro" e o Luma responde
+     como responderia na arte. O resto é encenado em CSS, como as ilustrações das novidades,
+     porque depende de upload, de planilha ou do Estúdio, e demo que depende de rede falha no
+     palco. ⚠ Nada aqui grava: nem fState, nem histórico, nem Supabase. É vitrine. */
+  const WM_VITRINE = [
+    { id: 'conversa', icon: 'chat', demo: 'conversa', flag: 'franqueado.chat', artigo: 'primeira-arte',
+      title: 'Arte pronta numa conversa',
+      sub: 'Responda algumas perguntas e baixe a peça.',
+      oque: 'Você escolhe o material, responde o chat (produto, preço, foto) e o Luma monta a arte pronta para postar.',
+      antes: 'Arte de promoção dependia do Canva, de alguém que soubesse design ou da fila do time central.',
+      agora: 'Qualquer franqueado faz a própria arte, sozinho e dentro da marca, sem abrir programa de design.',
+      prova: 'Cerca de um minuto do catálogo ao PNG.' },                        // fonte: artigo 'primeira-arte'
+    { id: 'cabe', icon: 'text', demo: 'texto', artigo: 'texto-nao-cabe',
+      title: 'O texto sempre cabe',
+      sub: 'Digite o que quiser: o Luma encaixa na arte.',
+      oque: 'Cada texto tem um espaço reservado na arte. O Luma quebra a linha e ajusta a letra para o que você digitou caber ali.',
+      antes: 'Nome de produto comprido estourava a arte, cortava palavra ou deixava a letra minúscula.',
+      agora: 'A arte sai inteira e legível. Se não der para caber sem ficar pequeno demais, o Luma avisa antes de baixar.',
+      prova: 'Nos testes, 100% dos textos curtos e médios couberam do jeito que o designer desenhou.' },  // fonte: 07_ROADMAP, Local Fit (18/09)
+    { id: 'encurtar', icon: 'scissors', demo: 'texto', longo: true, artigo: 'texto-nao-cabe',
+      title: 'Encurtar sem mudar a oferta',
+      sub: 'Texto grande demais? Um toque e ele cabe.',
+      oque: 'Quando o texto passa do espaço, o botão Encurtar sugere versões mais curtas que cabem na arte. Você vê o que mudou e escolhe.',
+      antes: 'Era tentativa e erro: apagar uma palavra, gerar de novo e torcer para caber.',
+      agora: 'O Luma abrevia do jeito que o delivery já escreve (c/, Refri, 2L) e mede na própria arte antes de sugerir.',
+      prova: 'Preço, números e itens do pedido nunca somem. O que você vende continua igual.' },   // fonte: copy-fit.js (GARANTIAS) + tests/copy-fit.html
+    { id: 'foto', icon: 'crop', demo: 'foto', artigo: 'logo',
+      title: 'Foto e logo no lugar certo',
+      sub: 'Envie a imagem: o Luma enquadra.',
+      oque: 'O Luma olha a imagem que você envia e decide o enquadramento de partida, para o logo da loja e para a foto do produto.',
+      antes: 'Logo pequeno perdido no espaço, produto cortado ou fora do centro, e ajuste na mão toda vez.',
+      agora: 'O logo ganha zoom até ocupar a moldura, sem cortar. A foto fica centralizada no que importa. Quer mudar? Toque na foto na prévia.',
+      prova: null },
+    { id: 'legenda', icon: 'legenda', demo: 'legenda', flag: 'franqueado.legendas', artigo: 'legenda',
+      title: 'A legenda do post vem junto',
+      sub: 'Arte e texto para publicar, no mesmo lugar.',
+      oque: 'Junto com a arte pronta vem a legenda do post, escrita com o produto e o preço que você respondeu.',
+      antes: 'Com a arte pronta, ainda faltava pensar no texto do post, nas hashtags e na mensagem do WhatsApp.',
+      agora: 'É copiar e colar no Instagram ou no WhatsApp. Não gostou? Gere outra sugestão.',
+      prova: 'Três sugestões por arte, cada uma num tom diferente.' },          // fonte: fGenCaptionSuggestions (chat.js)
+    { id: 'lote', icon: 'layers', demo: 'lote', flag: 'franqueado.sheets', artigo: 'lote',
+      title: 'Várias artes de uma vez',
+      sub: 'Uma planilha, uma arte por linha.',
+      oque: 'No computador, a partir de uma arte pronta, o lote abre uma planilha em que cada linha vira uma arte. Dá para digitar, colar do Excel ou enviar um CSV.',
+      antes: 'Dez produtos do cardápio eram dez artes, feitas uma de cada vez.',
+      agora: 'Você preenche a planilha, confere as artes na prévia ao lado e gera todas juntas.',
+      prova: null },
+    { id: 'template', icon: 'grade', demo: 'template', aud: 'equipe', artigo: 'estudio-psd',
+      title: 'O design é feito uma vez só',
+      sub: 'Um template publicado serve a rede inteira.',
+      oque: 'O time de design importa o arquivo do Photoshop, marca o que o franqueado pode trocar e publica o template no catálogo.',
+      antes: 'Cada arte passava pelo time central: fila de pedidos, retrabalho e cada cidade com uma cara.',
+      agora: 'Um template atende todas as cidades. O franqueado troca só o conteúdo; cores, fontes e o logo da marca ficam travados.',
+      prova: null }
+  ];
+  Object.assign(WM_ICO, {
+    legenda: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M7 8h10M7 12h6"/>',
+    grade: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    alerta: '<circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>',
+    cadeado: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'
+  });
+  const WM_VIT_PRODUTOS = ['X-Tudo Duplo', 'Pizza Calabresa', 'Açaí 500 ml'];
+  const WM_VIT_PRECOS = ['R$ 19,90', 'R$ 29,90', 'R$ 39,90'];
+  // Um exemplo por degrau do motor (original → quebra → letra menor → não cabe), medido na caixa abaixo.
+  const WM_VIT_TEXTOS = [['Curto', 'X-Tudo'], ['Médio', 'X-Tudo Duplo'], ['Longo', 'X-Tudo Duplo com Bacon'],
+    ['Enorme', 'Combo Família: 2 Pizzas Grandes + Refrigerante 2 Litros']];
+  const WM_VIT_CIDADES = ['Santa Maria', 'Chapecó', 'Lajeado'];
+  /* A caixa do título na arte de demonstração, em px de tela (a arte não é escalada). `autorado`
+     é o que o "designer" desenhou: é contra ele que o motor decide se o texto saiu intacto.
+     `piso`: sem as outras camadas, o motor cairia no piso genérico de 50% e o "Enorme" encolheria
+     até 15px em vez de bloquear. Na arte real quem dá o piso é a hierarquia; 20px faz esse papel. */
+  const WM_VIT_CAIXA = { w: 168, h: 70, fs: 30, piso: 20, autorado: 'X-Tudo' };
+
+  let wmVit = {};   // estado da demo aberta; zera a cada funcionalidade aberta
+  function wmVitZera(f) {
+    wmVit = { etapa: 0, produto: 0, preco: 1, leg: 0, copys: null, sug: null, nenhuma: false, antes: null,
+      texto: WM_VIT_TEXTOS[f && f.longo ? 3 : 2][1],
+      linhas: WM_VIT_PRODUTOS.map(function (p, i) { return { p: p, v: WM_VIT_PRECOS[(i + 1) % 3] }; }) };
+  }
+  function wmVitrineLigada() { return !(typeof gFeatureCan === 'function' && !gFeatureCan('global.help.funcionalidades', 'access')); }
+  // Recurso desligado no Controle do produto não aparece na vitrine: mostrar seria promessa falsa.
+  function wmVitLista() {
+    return WM_VITRINE.filter(function (f) {
+      if (!wmVisivel(f)) return false;
+      if (f.flag && typeof gFeatureCan === 'function' && !gFeatureCan(f.flag, 'access')) return false;
+      if (f.demo === 'legenda' && typeof fBuildCopy !== 'function') return false;
+      return true;
+    });
+  }
+  function wmVitAtual() { return wmVitLista().find(function (f) { return f.id === widgetState.vitId; }) || null; }
+
+  function wmVitEncaixe(texto) {
+    const c = WM_VIT_CAIXA;
+    const camada = { id: 'vit-titulo', type: 'text', textBox: 'box', x: 0, y: 0, w: c.w, h: c.h, fontSize: c.fs,
+      font: 'Roboto Black', lineHeight: 1.05, textAlign: 'left', content: c.autorado, _pisoFonte: c.piso };
+    let r = null;
+    try { r = typeof gFitTextToAuthoredBox === 'function' ? gFitTextToAuthoredBox(camada, texto, {}) : null; } catch (e) { r = null; }
+    return (r && r.lines) ? r : { status: 'fits', degrau: 'original', lines: [String(texto)], fontSize: c.fs };
+  }
+
+  // A arte de mentira: fundo, selo, título (encaixado pelo motor real), preço e prato.
+  function wmVitArte(produto, preco, r) {
+    const c = WM_VIT_CAIXA;
+    const fit = r || wmVitEncaixe(produto);
+    return `<span class="luma-wm-vit-arte" aria-hidden="true">
+        <span class="luma-wm-vit-arte-selo">Oferta da semana</span>
+        <span class="luma-wm-vit-arte-titulo${fit.status === 'overflow' ? ' is-estourou' : ''}" style="width:${c.w}px;height:${c.h}px;font-size:${fit.fontSize}px">${fit.lines.map(function (l) { return `<span>${wmEsc(l)}</span>`; }).join('')}</span>
+        <span class="luma-wm-vit-arte-preco">${wmEsc(preco)}</span>
+        <i class="luma-wm-vit-arte-prato"></i>
+      </span>`;
+  }
+  function wmVitMini(produto, preco, rotulo, i) {
+    return `<span class="luma-wm-vit-mini" style="--i:${i || 0}">${wmVitArte(produto, preco)}${rotulo ? `<small>${wmEsc(rotulo)}</small>` : ''}</span>`;
+  }
+  function wmVitPassos(rotulos) {
+    return `<div class="luma-wm-vit-passos" role="group" aria-label="Etapas da demonstração">${rotulos.map(function (r, i) {
+      const on = i === wmVit.etapa;
+      return `<button type="button" class="${on ? 'is-on' : ''}" onclick="lumaVit('etapa',${i})"${on ? ' aria-current="step"' : ''}><b>${i + 1}</b>${wmEsc(r)}</button>`;
+    }).join('')}</div>`;
+  }
+  function wmVitChips(lista, campo, atual) {
+    return `<span class="luma-wm-vit-chips">${lista.map(function (t, i) {
+      return `<button type="button" class="luma-wm-vit-chip${i === atual ? ' is-on' : ''}" onclick="lumaVit('${campo}',${i})"${i === 0 ? ' data-foco' : ''}>${wmEsc(t)}</button>`;
+    }).join('')}</span>`;
+  }
+  function wmVitCena(html, extra) { return `<div class="luma-wm-vit-cena${extra ? ' ' + extra : ''}" id="luma-wm-vit-cena">${html}</div>`; }
+  function wmVitCtl(html) { return `<div class="luma-wm-vit-ctl">${html}</div>`; }
+
+  function wmVitDemoConversa() {
+    const prod = WM_VIT_PRODUTOS[wmVit.produto], preco = WM_VIT_PRECOS[wmVit.preco];
+    let cena;
+    if (wmVit.etapa === 0) {
+      cena = `<span class="luma-wm-vit-bub">Qual produto vai na arte?</span>${wmVitChips(WM_VIT_PRODUTOS, 'produto', -1)}`;
+    } else if (wmVit.etapa === 1) {
+      cena = `<span class="luma-wm-vit-bub eu">${wmEsc(prod)}</span><span class="luma-wm-vit-bub">E o preço?</span>${wmVitChips(WM_VIT_PRECOS, 'preco', -1)}`;
+    } else {
+      cena = `<span class="luma-wm-vit-nasce">${wmVitArte(prod, preco)}</span>
+        <span class="luma-wm-vit-pronta">${wmIco('check', 13)}Sua arte está pronta</span>`;
+    }
+    return wmVitCena(cena, 'is-conversa') + wmVitCtl(wmVitPassos(['Produto', 'Preço', 'Arte pronta'])
+      + (wmVit.etapa === 2 ? `<button type="button" class="luma-wm-link" onclick="lumaVit('etapa',0)" data-foco>Fazer outra</button>` : ''));
+  }
+
+  function wmVitSaida(r) {
+    const ok = r.status === 'fits';
+    const msg = { original: 'Coube do jeito que o designer desenhou.',
+      wrap: 'Quebrou a linha para caber. A letra continua do mesmo tamanho.',
+      shrink: 'Diminuiu um pouco a letra para caber, sem ficar ilegível.' }[r.degrau]
+      || 'Não cabe sem ficar pequeno demais. Na arte de verdade, o Luma avisa antes de baixar.';
+    let html = `<p class="luma-wm-vit-status ${ok ? 'is-ok' : 'is-alerta'}">${wmIco(ok ? 'check' : 'alerta', 15)}<span>${msg}</span></p>`;
+    if (!ok && !wmVit.sug && typeof gCopyFitSugestoes === 'function') {
+      html += `<button type="button" class="luma-wm-vit-acao" onclick="lumaVit('encurtar')" data-foco>${WIDGET_SVGS.sparkle}Encurtar</button>`;
+    }
+    if (wmVit.sug && wmVit.sug.length) {
+      html += `<div class="luma-wm-vit-sugs" role="group" aria-label="Versões mais curtas">${wmVit.sug.map(function (s, i) {
+        const mudou = (s.trocas || []).map(function (t) { return t[0] + ' → ' + t[1]; })
+          .concat((s.removidas || []).map(function (w) { return 'sem ' + w; })).join(' · ') || 'Mesmo texto, mais enxuto';
+        return `<button type="button" class="luma-wm-vit-sug" onclick="lumaVit('usar',${i})"${i === 0 ? ' data-foco' : ''}><strong>${wmEsc(s.text)}</strong><small>${wmEsc(mudou)}</small></button>`;
+      }).join('')}</div>`;
+    } else if (wmVit.sug) {
+      html += `<p class="luma-wm-vit-nota">Nem encurtando coube. Aqui só tirando um item do pedido, e isso o Luma não faz por você.</p>`;
+    }
+    if (wmVit.antes != null) html += `<button type="button" class="luma-wm-link" onclick="lumaVit('desfazer')" data-foco>Desfazer</button>`;
+    return html;
+  }
+  function wmVitDemoTexto() {
+    const r = wmVitEncaixe(wmVit.texto);
+    return wmVitCena(wmVitArte(wmVit.texto, 'R$ 29,90', r))
+      + wmVitCtl(`<label class="luma-wm-vit-campo"><small>Nome do produto</small>
+          <input type="text" value="${wmEsc(wmVit.texto)}" maxlength="90" autocomplete="off" oninput="lumaVit('digitar',this.value)"></label>
+        <span class="luma-wm-vit-exemplos"><small>Exemplos</small>${WM_VIT_TEXTOS.map(function (t, i) {
+          return `<button type="button" class="luma-wm-vit-chip${t[1] === wmVit.texto ? ' is-on' : ''}" onclick="lumaVit('exemplo',${i})">${wmEsc(t[0])}</button>`;
+        }).join('')}</span>
+        <div class="luma-wm-vit-saida" id="luma-wm-vit-saida" aria-live="polite">${wmVitSaida(r)}</div>`);
+  }
+
+  function wmVitDemoFoto() {
+    const e = wmVit.etapa === 1 ? ' is-enquadrado' : '';
+    return wmVitCena(`<span class="luma-wm-vit-quadros"><span class="luma-wm-vit-quadro${e}"><small>Logo da loja</small>
+          <span class="luma-wm-vit-moldura"><span class="luma-wm-vit-logo"><i></i>Burguer do Zé</span></span></span>
+        <span class="luma-wm-vit-quadro${e}"><small>Foto do produto</small>
+          <span class="luma-wm-vit-moldura"><i class="luma-wm-vit-foto"></i></span></span></span>
+        ${wmVit.etapa === 0 ? `<button type="button" class="luma-wm-vit-acao" onclick="lumaVit('etapa',1)" data-foco>${wmIco('crop', 14)}Enquadrar</button>`
+          : `<span class="luma-wm-vit-pronta">${wmIco('check', 13)}Pronto para a arte</span>`}`)
+      + wmVitCtl(wmVitPassos(['Como chegou', 'Enquadrado']));
+  }
+
+  function wmVitDemoLegenda() {
+    const prod = WM_VIT_PRODUTOS[wmVit.produto], preco = WM_VIT_PRECOS[wmVit.preco];
+    if (!wmVit.copys) {
+      let c = null;
+      try { c = fBuildCopy(prod, '', preco, '', '', 'feed', ''); } catch (e) { c = null; }
+      wmVit.copys = c ? [c.op1, c.op2, c.op3].filter(Boolean) : [];
+    }
+    const txt = wmVit.copys[wmVit.leg % Math.max(1, wmVit.copys.length)] || '';
+    return wmVitCena(`<span class="luma-wm-vit-legenda">
+          <span class="luma-wm-vit-legenda-topo">${wmVitMini(prod, preco)}<b>Legenda pronta</b></span>
+          <span class="luma-wm-vit-legenda-txt">${wmText(txt)}</span>
+          <span class="luma-wm-vit-legenda-pe">
+            <button type="button" class="luma-wm-link" onclick="lumaVit('outra')">Gerar outra sugestão</button>
+            <button type="button" class="luma-wm-vit-acao" onclick="lumaVit('copiar')" data-foco>Copiar legenda</button>
+          </span>
+        </span>`, 'is-legenda')
+      + wmVitCtl(`<span class="luma-wm-vit-exemplos"><small>Troque o produto</small>${WM_VIT_PRODUTOS.map(function (p, i) {
+          return `<button type="button" class="luma-wm-vit-chip${i === wmVit.produto ? ' is-on' : ''}" onclick="lumaVit('produto',${i})">${wmEsc(p)}</button>`;
+        }).join('')}</span>`);
+  }
+
+  function wmVitDemoLote() {
+    const cena = wmVit.etapa === 0
+      ? `<span class="luma-wm-vit-planilha" role="group" aria-label="Planilha do lote">
+          <span class="luma-wm-vit-planilha-cab"><b>Produto</b><b>Preço</b></span>
+          ${wmVit.linhas.map(function (l, i) {
+            return `<span class="luma-wm-vit-planilha-lin"><input value="${wmEsc(l.p)}" maxlength="40" aria-label="Produto da linha ${i + 1}" oninput="lumaVit('linha',${i},'p',this.value)"><input value="${wmEsc(l.v)}" maxlength="12" aria-label="Preço da linha ${i + 1}" oninput="lumaVit('linha',${i},'v',this.value)"></span>`;
+          }).join('')}
+        </span>
+        <button type="button" class="luma-wm-vit-acao" onclick="lumaVit('etapa',1)" data-foco>Gerar ${wmVit.linhas.length} artes</button>`
+      : `<span class="luma-wm-vit-minis">${wmVit.linhas.map(function (l, i) { return wmVitMini(l.p, l.v, 'Linha ' + (i + 1), i); }).join('')}</span>`;
+    return wmVitCena(cena, 'is-lote') + wmVitCtl(wmVitPassos(['A planilha', 'As artes'])
+      + '<small class="luma-wm-vit-obs">No computador</small>');
+  }
+
+  function wmVitDemoTemplate() {
+    const camadas = [['Fundo e cores', 0, 'layers'], ['Logo Delivery Much', 0, 'image'], ['Nome do produto', 1, 'text'],
+      ['Preço', 1, 'text'], ['Foto do produto', 1, 'image']];
+    const cena = wmVit.etapa === 2
+      ? `<span class="luma-wm-vit-minis">${WM_VIT_CIDADES.map(function (c, i) { return wmVitMini(WM_VIT_PRODUTOS[i], WM_VIT_PRECOS[(i + 1) % 3], c, i); }).join('')}</span>`
+      : `<span class="luma-wm-vit-camadas"><b>${wmVit.etapa === 0 ? 'Camadas do PSD' : 'O que o franqueado troca'}</b>${camadas.map(function (c) {
+          const tag = wmVit.etapa === 0 ? '' : c[1] ? '<em class="is-troca">Franqueado troca</em>' : `<em>${wmIco('cadeado', 11)}Fixo da marca</em>`;
+          return `<span class="luma-wm-vit-camada">${wmIco(c[2], 14)}<span>${wmEsc(c[0])}</span>${tag}</span>`;
+        }).join('')}</span>`;
+    return wmVitCena(cena, 'is-template') + wmVitCtl(wmVitPassos(['O PSD', 'O que muda', 'Na rede']));
+  }
+
+  function wmVitDemo(f) {
+    const d = { conversa: wmVitDemoConversa, texto: wmVitDemoTexto, foto: wmVitDemoFoto,
+      legenda: wmVitDemoLegenda, lote: wmVitDemoLote, template: wmVitDemoTemplate }[f.demo];
+    return d ? d() : '';
+  }
+
+  /* Repinta SÓ o palco: repintar o painel inteiro a cada toque levaria a rolagem para o topo.
+     Ao digitar, nem o palco: o campo não pode ser recriado, senão perde o foco a cada letra. */
+  function wmVitPinta(soSaida) {
+    const f = wmVitAtual();
+    const palco = document.getElementById('luma-wm-vit-palco');
+    if (!f || !palco) return;
+    const tinhaFoco = palco.contains(document.activeElement);
+    if (soSaida && f.demo === 'texto') {
+      const r = wmVitEncaixe(wmVit.texto);
+      const cena = document.getElementById('luma-wm-vit-cena');
+      const saida = document.getElementById('luma-wm-vit-saida');
+      if (cena) cena.innerHTML = wmVitArte(wmVit.texto, 'R$ 29,90', r);
+      if (saida) saida.innerHTML = wmVitSaida(r);
+      palco.querySelectorAll('.luma-wm-vit-exemplos .luma-wm-vit-chip').forEach(function (b, i) {
+        b.classList.toggle('is-on', WM_VIT_TEXTOS[i][1] === wmVit.texto);
+      });
+    } else {
+      palco.innerHTML = wmVitDemo(f);
+    }
+    // O botão tocado some na repintura: o foco vai para a próxima ação, não para o <body>.
+    if (tinhaFoco && !palco.contains(document.activeElement)) {
+      const alvo = palco.querySelector('[data-foco]') || palco.querySelector('[aria-current="step"]');
+      if (alvo) alvo.focus();
+    }
+  }
+
+  window.lumaVit = function (acao, a, b, c) {
+    if (!wmVitAtual()) return;
+    let soSaida = false;
+    if (acao === 'etapa') wmVit.etapa = a;
+    else if (acao === 'produto' || acao === 'preco') {
+      wmVit[acao] = a;
+      wmVit.copys = null; wmVit.leg = 0;
+      if (widgetState.vitId === 'conversa') wmVit.etapa = acao === 'produto' ? 1 : 2;
+    }
+    else if (acao === 'digitar') { wmVit.texto = String(a || ''); wmVit.sug = null; wmVit.antes = null; soSaida = true; }
+    else if (acao === 'exemplo') { wmVit.texto = WM_VIT_TEXTOS[a][1]; wmVit.sug = null; wmVit.antes = null; }
+    else if (acao === 'encurtar') {
+      let res = null;
+      try {
+        res = gCopyFitSugestoes(wmVit.texto, function (t) {
+          const r = wmVitEncaixe(t);
+          return { ok: r.status === 'fits', fontSize: r.fontSize };
+        }, 3);
+      } catch (e) { res = null; }
+      wmVit.sug = res ? res.sugestoes : [];
+      soSaida = true;
+    }
+    else if (acao === 'usar') {
+      const s = wmVit.sug && wmVit.sug[a];
+      if (!s) return;
+      wmVit.antes = wmVit.texto; wmVit.texto = s.text; wmVit.sug = null;
+    }
+    else if (acao === 'desfazer') {
+      if (wmVit.antes == null) return;
+      wmVit.texto = wmVit.antes; wmVit.antes = null;
+    }
+    else if (acao === 'outra') wmVit.leg += 1;
+    else if (acao === 'linha') { if (wmVit.linhas[a]) wmVit.linhas[a][b] = String(c || '').trim() || ' '; return; }
+    else if (acao === 'copiar') {
+      const txt = (wmVit.copys || [])[wmVit.leg % Math.max(1, (wmVit.copys || []).length)] || '';
+      const avisa = function (ok) { if (typeof gToast === 'function') gToast(ok ? 'Legenda copiada' : 'Não deu para copiar. Selecione o texto e copie.', ok ? 'success' : 'error'); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(function () { avisa(true); }, function () { avisa(false); });
+      else avisa(false);
+      return;
+    }
+    wmVitPinta(soSaida);
+  };
+
+  // A demonstração depende da MEDIDA do texto: medir antes de a Roboto 900 carregar mediria a
+  // fonte reserva, e a memória de encaixe (_G_MEDIDA_CACHE) guardaria a medida errada.
+  window.lumaWidgetOpenVit = function (id) {
+    const f = wmVitLista().find(function (x) { return x.id === id; });
+    if (!f) return;
+    widgetState.vitId = id;
+    wmVitZera(f);
+    const abrir = function () { if (widgetState.vitId === id) window.lumaWidgetSetTab('funcionalidade'); };
+    if (document.fonts && document.fonts.load) document.fonts.load('900 30px Roboto').then(abrir, abrir);
+    else abrir();
+  };
+
+  function renderVitrineTab() {
+    const lista = wmVitLista();
+    if (!lista.length) return renderHomeTab();
+    return `<section class="luma-wm-vit-intro">
+        <span class="luma-wm-vit-intro-ico" aria-hidden="true">${WIDGET_SVGS.sparkle}</span>
+        <h3>O que o Luma faz por você</h3>
+        <p>${lista.length} funcionalidades, cada uma com uma demonstração para testar aqui mesmo.</p>
+        <button type="button" class="luma-wm-vit-acao" onclick="lumaWidgetOpenVit('${lista[0].id}')">Começar pela primeira${WIDGET_SVGS.chevronRight}</button>
+      </section>
+      <div class="luma-wm-news-list">${lista.map(function (f) {
+        return `<button type="button" class="luma-wm-news-mini" onclick="lumaWidgetOpenVit('${f.id}')">
+            <span class="luma-wm-news-ico" aria-hidden="true">${wmIco(f.icon, 18)}</span>
+            <span class="luma-wm-news-mini-txt"><strong>${wmEsc(f.title)}</strong><small>${f.aud === 'equipe' ? '<b class="luma-wm-tag">Equipe</b>' : ''}${wmEsc(f.sub)}</small></span>
+            <span class="luma-wm-list-arrow" aria-hidden="true">${WIDGET_SVGS.chevronRight}</span>
+          </button>`;
+      }).join('')}</div>`;
+  }
+
+  function renderVitrineItemTab() {
+    const lista = wmVitLista();
+    const i = lista.findIndex(function (f) { return f.id === widgetState.vitId; });
+    if (i < 0) return renderVitrineTab();
+    const f = lista[i], prox = lista[i + 1];
+    const art = f.artigo ? wmArtigo(f.artigo) : null;
+    return `<article class="luma-wm-vit">
+        <section class="luma-wm-vit-palco" id="luma-wm-vit-palco" aria-label="Demonstração">${wmVitDemo(f)}</section>
+        <div class="luma-wm-vit-body">
+          <h3>${wmEsc(f.title)}</h3>
+          <p class="luma-wm-vit-oque">${wmEsc(f.oque)}</p>
+          <dl class="luma-wm-vit-par">
+            <div><dt>Antes</dt><dd>${wmEsc(f.antes)}</dd></div>
+            <div class="is-agora"><dt>Com o Luma</dt><dd>${wmEsc(f.agora)}</dd></div>
+          </dl>
+          ${f.prova ? `<p class="luma-wm-vit-prova">${wmIco('check', 15)}<span>${wmEsc(f.prova)}</span></p>` : ''}
+          ${art && wmVisivel(art) ? `<button type="button" class="luma-wm-link" onclick="lumaWidgetOpenArticle('${art.id}','funcionalidade')">Passo a passo: ${wmEsc(art.title)}${WIDGET_SVGS.chevronRight}</button>` : ''}
+        </div>
+        ${prox ? `<button type="button" class="luma-wm-vit-prox" onclick="lumaWidgetOpenVit('${prox.id}')">
+            <span><small>Próxima</small><strong>${wmEsc(prox.title)}</strong></span>${WIDGET_SVGS.chevronRight}
+          </button>` : `<button type="button" class="luma-wm-vit-prox" onclick="lumaWidgetSetTab('funcionalidades')">
+            <span><small>Fim do tour</small><strong>Ver todas as funcionalidades</strong></span>${WIDGET_SVGS.chevronRight}
+          </button>`}
+      </article>`;
+  }
+  /* ══ fim da VITRINE ══════════════════════════════════════════════════════════════════════ */
 
   /* ── A CONVERSA ──────────────────────────────────────────────────────────────────────────
      Três avisos diziam a MESMA coisa em lugares diferentes (a tarja de escopo no topo, a

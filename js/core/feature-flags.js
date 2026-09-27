@@ -218,6 +218,11 @@ const G_FEATURE_REGISTRY = [
   { key:'global.help.suporte.telegram', label:'Suporte pelo Telegram', desc:'A equipe DM vincula a conta e recebe e responde o suporte pelo Telegram, sem o Luma aberto.',
     module:'global', parent:'global.help.suporte', categoria:'chats', behaviors:['hide'],
     preserva:[], tags:['suporte','telegram','atendimento','equipe'], defaultEnabled:false },
+  /* TEMPORÁRIA: vitrine para o beta e as apresentações. Nasce ligada; quando a rede estiver em
+     escala, desliga aqui e o código sai (receita no bloco VITRINE do help-widget.js). */
+  { key:'global.help.funcionalidades', label:'Vitrine de funcionalidades', desc:'A aba Funcionalidades da Ajuda: o que o Luma faz, com uma demonstração de cada recurso. Temporária, para o beta e as apresentações.',
+    module:'global', parent:'global.help', categoria:'areas', behaviors:['hide'],
+    preserva:[], tags:['vitrine','funcionalidades','demonstração','apresentação','beta'] },
   { key:'global.tutorials', label:'Tutoriais animados', desc:'Os passo a passo guiados dentro do produto.',
     module:'global', parent:null, categoria:'areas', behaviors:['hide','maintenance'],
     preserva:['load'], tags:['tutorial','onboarding','passo a passo'] }

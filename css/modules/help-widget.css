@@ -1100,7 +1100,9 @@ body:not(.theme-light) .luma-wm-ask-card:hover .luma-wm-list-arrow {
 .luma-wm-nav {
   min-height:58px;
   display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
+  /* Colunas pelo número de abas (3, ou 4 com a vitrine ligada), não fixas em 3. */
+  grid-auto-columns:minmax(0,1fr);
+  grid-auto-flow:column;
   align-items:center;
   gap:5px;
   flex:none;
@@ -2515,3 +2517,930 @@ body.sup-tem-contador #topbar-suporte::after{background:var(--white);color:var(-
 #topbar-suporte:hover{border-color:color-mix(in srgb,var(--white) 34%,transparent);background:color-mix(in srgb,var(--white) 18%,transparent)}
 #topbar-suporte:focus-visible{outline:2px solid var(--white);outline-offset:2px}
 @media (max-width:767px){ #topbar-suporte span{display:none} #topbar-suporte{padding:0 11px} }
+
+/* ══ VITRINE DE FUNCIONALIDADES · TEMPORÁRIA (27/09/2026) ══════════════════════════════════
+   A aba Funcionalidades da Ajuda (bloco VITRINE do help-widget.js). Para remover: apague daqui
+   até o fim do bloco. O palco das demos usa as cores fixas da MARCA, como as ilustrações das
+   novidades (desenha pedaços do app claro); texto e controles fora dele seguem o tema. */
+
+#luma-widget-modal .luma-wm-body-funcionalidades {
+  gap:12px;
+  padding:16px 16px 20px;
+}
+
+#luma-widget-modal .luma-wm-body-funcionalidade {
+  gap:0;
+  padding:0;
+  background:var(--wm-bg);
+}
+
+/* Quatro abas: "Funcionalidades" é o rótulo mais longo e precisa do respiro lateral. */
+.luma-wm-nav-btn[data-tab="funcionalidades"] span {
+  white-space:nowrap;
+  letter-spacing:-.01em;
+}
+
+.luma-wm-nav:has(> .luma-wm-nav-btn:nth-child(4)) .luma-wm-nav-btn {
+  padding:0 2px;
+}
+
+.luma-wm-vit-intro {
+  display:flex;
+  flex:none;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:6px;
+  padding:18px 18px 16px;
+  border:1px solid color-mix(in srgb,var(--dm-orange) 22%,var(--wm-border-soft));
+  border-radius:14px;
+  background:linear-gradient(160deg,color-mix(in srgb,var(--dm-orange) 13%,var(--wm-surface)),var(--wm-surface) 70%);
+  color:var(--wm-text);
+}
+
+.luma-wm-vit-intro-ico {
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  margin-bottom:4px;
+  border-radius:10px;
+  background:var(--dm-orange);
+  color:var(--on-orange);
+}
+
+.luma-wm-vit-intro h3 {
+  margin:0;
+  font-size:18px;
+  font-weight:900;
+  line-height:1.25;
+  letter-spacing:-.01em;
+}
+
+.luma-wm-vit-intro p {
+  margin:0 0 6px;
+  color:var(--wm-text-2);
+  font-size:13px;
+  line-height:1.45;
+}
+
+/* Ação principal (no palco e fora dele): laranja da marca com a tinta escura do par. */
+.luma-wm-vit-acao {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  min-height:36px;
+  padding:0 14px;
+  border:0;
+  border-radius:var(--r-pill);
+  background:var(--dm-orange);
+  color:var(--on-orange);
+  font-size:13px;
+  font-weight:800;
+  cursor:pointer;
+  transition:transform var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-vit-acao:hover {
+  background:color-mix(in srgb,var(--dm-orange) 88%,var(--dm-orange-d));
+}
+
+.luma-wm-vit-acao:active {
+  transform:scale(.97);
+}
+
+.luma-wm-vit-acao svg {
+  width:14px;
+  height:14px;
+}
+
+/* ── O palco ─────────────────────────────────────────────────────────────── */
+
+.luma-wm-vit-palco {
+  flex:none;
+  border-bottom:1px solid var(--wm-border-soft);
+}
+
+.luma-wm-vit-cena {
+  position:relative;
+  min-height:276px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  overflow:hidden;
+  padding:18px 16px;
+  background:linear-gradient(160deg,var(--dm-orange-bg),var(--dm-orange-tint));
+  color:var(--text);
+  font-family:'Roboto',sans-serif;
+}
+
+.luma-wm-vit-ctl {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:10px;
+  padding:12px 16px;
+  background:var(--wm-surface);
+}
+
+.luma-wm-vit-passos {
+  min-width:0;
+  display:flex;
+  flex:1 1 220px;
+  gap:4px;
+}
+
+.luma-wm-vit-passos button {
+  min-width:0;
+  min-height:34px;
+  display:inline-flex;
+  flex:1;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:0 8px;
+  border:1px solid transparent;
+  border-radius:10px;
+  background:transparent;
+  color:var(--wm-text-3);
+  font-size:12px;
+  font-weight:700;
+  white-space:nowrap;
+  cursor:pointer;
+  transition:background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-vit-passos button:hover {
+  background:var(--wm-surface-hover);
+  color:var(--wm-text);
+}
+
+.luma-wm-vit-passos b {
+  width:18px;
+  height:18px;
+  display:grid;
+  flex:none;
+  place-items:center;
+  border-radius:50%;
+  background:var(--wm-surface-hover);
+  color:var(--wm-text-2);
+  font-size:10.5px;
+}
+
+.luma-wm-vit-passos button.is-on {
+  border-color:color-mix(in srgb,var(--dm-orange) 24%,var(--wm-border-soft));
+  background:color-mix(in srgb,var(--dm-orange) 9%,var(--wm-surface));
+  color:var(--wm-text);
+}
+
+.luma-wm-vit-passos button.is-on b {
+  background:var(--dm-orange);
+  color:var(--on-orange);
+}
+
+.luma-wm-vit-chips {
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:6px;
+}
+
+.luma-wm-vit-chip {
+  min-height:32px;
+  padding:0 13px;
+  border:1px solid color-mix(in srgb,var(--dm-orange-d) 30%,transparent);
+  border-radius:var(--r-pill);
+  background:var(--white);
+  color:var(--text);
+  font-size:12.5px;
+  font-weight:700;
+  cursor:pointer;
+  transition:border-color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-vit-chip:hover {
+  border-color:var(--dm-orange-d);
+}
+
+.luma-wm-vit-chip:active {
+  transform:scale(.96);
+}
+
+.luma-wm-vit-chip.is-on {
+  border-color:var(--text);
+  background:var(--text);
+  color:var(--white);
+}
+
+/* Fora do palco o chip segue o tema. */
+.luma-wm-vit-ctl .luma-wm-vit-chip {
+  border-color:var(--wm-border);
+  background:var(--wm-bg);
+  color:var(--wm-text);
+}
+
+.luma-wm-vit-ctl .luma-wm-vit-chip.is-on {
+  border-color:var(--wm-text);
+  background:var(--wm-text);
+  color:var(--wm-bg);
+}
+
+/* O palco é sempre claro: no tema escuro o link laranja some no branco, fica o vermelho. */
+.luma-wm-vit-cena .luma-wm-link,
+body:not(.theme-light) .luma-wm-vit-cena .luma-wm-link {
+  margin:0;
+  color:var(--dm-red);
+  font-size:13px;
+}
+
+.luma-wm-vit-obs {
+  margin-left:auto;
+  color:var(--wm-text-3);
+  font-size:11.5px;
+  font-weight:600;
+}
+
+/* ── A arte de demonstração ──────────────────────────────────────────────
+   Medidas em px de tela, iguais às da caixa que o motor mede (WM_VIT_CAIXA): o título chega
+   já quebrado em linhas, então o HTML só empilha, nunca re-quebra. O tracking de .02em é o
+   mesmo que a medida aplica em fonte 900. */
+
+.luma-wm-vit-arte {
+  position:relative;
+  width:200px;
+  height:250px;
+  display:block;
+  flex:none;
+  overflow:hidden;
+  border-radius:12px;
+  background:linear-gradient(165deg,var(--dm-orange),var(--dm-orange-d));
+  color:var(--on-orange);
+  box-shadow:0 12px 28px color-mix(in srgb,var(--dm-orange-d) 30%,transparent);
+}
+
+.luma-wm-vit-arte-selo {
+  position:absolute;
+  top:16px;
+  left:16px;
+  padding:4px 9px;
+  border-radius:var(--r-pill);
+  background:var(--dm-yellow);
+  color:var(--text);
+  font-size:9.5px;
+  font-weight:900;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+
+.luma-wm-vit-arte-titulo {
+  position:absolute;
+  top:42px;
+  left:16px;
+  display:flex;
+  flex-direction:column;
+  font-weight:900;
+  line-height:1.05;
+  letter-spacing:.02em;
+  white-space:nowrap;
+}
+
+/* Não coube: a caixa desenhada fica à mostra e o texto passa dela, como passaria na arte. A
+   tinta continua escura: vermelho sobre laranja não se lê, e quem avisa é o contorno. */
+.luma-wm-vit-arte-titulo.is-estourou {
+  outline:2px dashed var(--dm-red);
+  outline-offset:3px;
+}
+
+.luma-wm-vit-arte-preco {
+  position:absolute;
+  top:124px;
+  left:16px;
+  padding:5px 10px;
+  border-radius:8px;
+  background:var(--text);
+  color:var(--white);
+  font-size:17px;
+  font-weight:900;
+}
+
+.luma-wm-vit-arte-prato {
+  position:absolute;
+  right:-20px;
+  bottom:-20px;
+  width:120px;
+  height:120px;
+  border-radius:50%;
+  background:radial-gradient(circle at 40% 35%,var(--dm-yellow),var(--dm-orange-d));
+  box-shadow:0 0 0 9px color-mix(in srgb,var(--white) 88%,transparent);
+}
+
+/* Miniatura: a MESMA arte escalada; as margens negativas devolvem o espaço que a escala tirou. */
+.luma-wm-vit-mini {
+  display:flex;
+  flex:none;
+  flex-direction:column;
+  align-items:center;
+  gap:6px;
+  animation:luma-wm-vit-pop var(--dur-base) var(--ease-spring-soft) both;
+  animation-delay:calc(var(--i, 0) * 110ms);
+}
+
+.luma-wm-vit-mini > .luma-wm-vit-arte {
+  margin:0 -108px -135px 0;
+  transform:scale(.46);
+  transform-origin:0 0;
+}
+
+.luma-wm-vit-mini small {
+  color:var(--text-2);
+  font-size:10.5px;
+  font-weight:800;
+}
+
+.luma-wm-vit-minis {
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  gap:12px;
+}
+
+@keyframes luma-wm-vit-pop {
+  from { opacity:0; transform:translateY(8px) scale(.94); }
+}
+
+@keyframes luma-wm-vit-nasce {
+  0%   { opacity:0; transform:translateY(10px) scale(.96); filter:blur(4px); }
+  100% { opacity:1; transform:none; filter:none; }
+}
+
+/* ── Demo: conversa ─────────────────────────────────────────────────────── */
+
+.luma-wm-vit-cena.is-conversa {
+  align-items:stretch;
+}
+
+.luma-wm-vit-bub {
+  max-width:240px;
+  align-self:flex-start;
+  padding:9px 13px;
+  border-radius:14px 14px 14px 4px;
+  background:var(--white);
+  color:var(--text);
+  font-size:13px;
+  font-weight:600;
+  line-height:1.35;
+  box-shadow:0 4px 12px color-mix(in srgb,var(--dm-orange-d) 12%,transparent);
+  animation:luma-wm-vit-pop var(--dur-base) var(--ease-out) both;
+}
+
+.luma-wm-vit-bub.eu {
+  align-self:flex-end;
+  border-radius:14px 14px 4px 14px;
+  background:var(--dm-orange);
+  color:var(--on-orange);
+}
+
+.luma-wm-vit-bub + .luma-wm-vit-bub {
+  animation-delay:180ms;
+}
+
+.luma-wm-vit-cena.is-conversa .luma-wm-vit-chips {
+  margin-top:4px;
+  animation:luma-wm-vit-pop var(--dur-base) var(--ease-out) 260ms both;
+}
+
+.luma-wm-vit-nasce {
+  align-self:center;
+  animation:luma-wm-vit-nasce var(--dur-slow) var(--ease-out) 120ms both;
+}
+
+.luma-wm-vit-pronta {
+  display:inline-flex;
+  align-self:center;
+  align-items:center;
+  gap:6px;
+  padding:5px 11px;
+  border-radius:var(--r-pill);
+  background:var(--white);
+  color:var(--green-d);
+  font-size:12px;
+  font-weight:800;
+  animation:luma-wm-vit-pop var(--dur-base) var(--ease-spring-soft) 480ms both;
+}
+
+/* ── Demo: texto (encaixe e Encurtar) ───────────────────────────────────── */
+
+.luma-wm-vit-campo {
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+.luma-wm-vit-campo small,
+.luma-wm-vit-exemplos small {
+  color:var(--wm-text-3);
+  font-size:11px;
+  font-weight:700;
+}
+
+.luma-wm-vit-campo input {
+  width:100%;
+  height:40px;
+  padding:0 12px;
+  border:1px solid var(--wm-border);
+  border-radius:10px;
+  background:var(--wm-bg);
+  color:var(--wm-text);
+  font:inherit;
+  font-size:14px;
+  font-weight:600;
+  transition:border-color var(--dur-micro) var(--ease-standard),box-shadow var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-vit-campo input:focus {
+  border-color:var(--dm-orange);
+  outline:none;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--dm-orange) 22%,transparent);
+}
+
+.luma-wm-vit-exemplos {
+  width:100%;
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:6px;
+}
+
+.luma-wm-vit-exemplos small {
+  margin-right:2px;
+}
+
+.luma-wm-vit-saida {
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:8px;
+}
+
+.luma-wm-vit-status {
+  display:flex;
+  align-items:flex-start;
+  gap:8px;
+  margin:0;
+  color:var(--wm-text);
+  font-size:13px;
+  font-weight:600;
+  line-height:1.4;
+}
+
+.luma-wm-vit-status svg {
+  flex:none;
+  margin-top:1px;
+}
+
+.luma-wm-vit-status.is-ok svg {
+  color:var(--green-d);
+}
+
+.luma-wm-vit-status.is-alerta svg {
+  color:var(--dm-red);
+}
+
+body:not(.theme-light) .luma-wm-vit-status.is-ok svg {
+  color:var(--green);
+}
+
+body:not(.theme-light) .luma-wm-vit-status.is-alerta svg {
+  color:var(--dm-orange);
+}
+
+.luma-wm-vit-sugs {
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.luma-wm-vit-sug {
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  padding:10px 12px;
+  border:1px solid var(--wm-border);
+  border-radius:10px;
+  background:var(--wm-bg);
+  color:var(--wm-text);
+  text-align:left;
+  cursor:pointer;
+  animation:luma-wm-vit-pop var(--dur-base) var(--ease-out) both;
+  transition:border-color var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-vit-sug:hover {
+  border-color:var(--dm-orange);
+}
+
+.luma-wm-vit-sug strong {
+  font-size:13px;
+  font-weight:800;
+  line-height:1.35;
+}
+
+.luma-wm-vit-sug small {
+  color:var(--wm-text-3);
+  font-size:11.5px;
+}
+
+.luma-wm-vit-nota {
+  margin:0;
+  color:var(--wm-text-2);
+  font-size:12.5px;
+  line-height:1.45;
+}
+
+/* ── Demo: foto e logo ──────────────────────────────────────────────────── */
+
+.luma-wm-vit-quadros {
+  display:flex;
+  gap:14px;
+}
+
+.luma-wm-vit-quadro {
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.luma-wm-vit-quadro small {
+  color:var(--text-3);
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+
+.luma-wm-vit-moldura {
+  position:relative;
+  width:132px;
+  height:100px;
+  display:block;
+  overflow:hidden;
+  border:2px dashed color-mix(in srgb,var(--dm-orange-d) 55%,transparent);
+  border-radius:10px;
+  background:color-mix(in srgb,var(--white) 72%,transparent);
+}
+
+.luma-wm-vit-logo {
+  position:absolute;
+  top:50%;
+  left:50%;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  border-radius:8px;
+  background:var(--text);
+  color:var(--white);
+  font-size:12px;
+  font-weight:900;
+  white-space:nowrap;
+  transform:translate(-50%,-50%) scale(.42);
+}
+
+.luma-wm-vit-logo i {
+  width:16px;
+  height:16px;
+  flex:none;
+  border-radius:50%;
+  background:var(--dm-yellow);
+}
+
+.luma-wm-vit-foto {
+  position:absolute;
+  top:50%;
+  left:50%;
+  width:78px;
+  height:78px;
+  border-radius:50%;
+  background:radial-gradient(circle at 40% 35%,var(--dm-yellow),var(--dm-orange-d));
+  box-shadow:0 0 0 6px var(--white);
+  transform:translate(-50%,-50%) translate(40px,30px);
+}
+
+.luma-wm-vit-quadro.is-enquadrado .luma-wm-vit-moldura {
+  border-style:solid;
+  border-color:var(--dm-orange-d);
+}
+
+.luma-wm-vit-quadro.is-enquadrado .luma-wm-vit-logo {
+  transform:translate(-50%,-50%) scale(.88);
+  animation:luma-wm-vit-logo var(--dur-slow) var(--ease-spring-soft) both;
+}
+
+.luma-wm-vit-quadro.is-enquadrado .luma-wm-vit-foto {
+  transform:translate(-50%,-50%);
+  animation:luma-wm-vit-foto var(--dur-slow) var(--ease-spring-soft) 90ms both;
+}
+
+@keyframes luma-wm-vit-logo {
+  from { transform:translate(-50%,-50%) scale(.42); }
+}
+
+@keyframes luma-wm-vit-foto {
+  from { transform:translate(-50%,-50%) translate(40px,30px); }
+}
+
+/* ── Demo: legenda ──────────────────────────────────────────────────────── */
+
+.luma-wm-vit-legenda {
+  width:100%;
+  max-width:330px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  padding:12px 14px;
+  border-radius:14px;
+  background:var(--white);
+  color:var(--text);
+  box-shadow:0 10px 26px color-mix(in srgb,var(--dm-orange-d) 18%,transparent);
+}
+
+.luma-wm-vit-legenda-topo {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-size:13px;
+}
+
+.luma-wm-vit-legenda-topo .luma-wm-vit-mini > .luma-wm-vit-arte {
+  margin:0 -140px -175px 0;
+  transform:scale(.3);
+}
+
+.luma-wm-vit-legenda-txt {
+  max-height:150px;
+  overflow-y:auto;
+  color:var(--text-2);
+  font-size:12.5px;
+  line-height:1.45;
+  animation:luma-wm-vit-pop var(--dur-base) var(--ease-out) both;
+}
+
+.luma-wm-vit-legenda-pe {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+}
+
+/* ── Demo: lote ─────────────────────────────────────────────────────────── */
+
+.luma-wm-vit-planilha,
+.luma-wm-vit-camadas {
+  width:100%;
+  max-width:300px;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  border-radius:12px;
+  background:var(--white);
+  box-shadow:0 10px 26px color-mix(in srgb,var(--dm-orange-d) 16%,transparent);
+}
+
+.luma-wm-vit-planilha-cab,
+.luma-wm-vit-planilha-lin {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 92px;
+}
+
+.luma-wm-vit-planilha-cab b,
+.luma-wm-vit-camadas > b {
+  padding:8px 12px;
+  color:var(--text-3);
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+
+.luma-wm-vit-planilha-cab {
+  background:var(--gray-light);
+}
+
+.luma-wm-vit-planilha-lin {
+  border-top:1px solid var(--gray-light);
+}
+
+.luma-wm-vit-planilha-lin input {
+  min-width:0;
+  padding:9px 12px;
+  border:0;
+  background:transparent;
+  color:var(--text);
+  font:inherit;
+  font-size:13px;
+  font-weight:600;
+}
+
+.luma-wm-vit-planilha-lin input + input {
+  border-left:1px solid var(--gray-light);
+}
+
+.luma-wm-vit-planilha-lin input:focus {
+  background:var(--dm-orange-bg);
+  outline:2px solid var(--dm-orange);
+  outline-offset:-2px;
+}
+
+/* ── Demo: template (equipe) ────────────────────────────────────────────── */
+
+.luma-wm-vit-camadas > b {
+  background:var(--gray-light);
+}
+
+.luma-wm-vit-camada {
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:9px 12px;
+  border-top:1px solid var(--gray-light);
+  color:var(--text);
+  font-size:13px;
+  font-weight:600;
+}
+
+.luma-wm-vit-camada svg {
+  flex:none;
+  color:var(--text-3);
+}
+
+.luma-wm-vit-camada > span {
+  min-width:0;
+  flex:1;
+}
+
+.luma-wm-vit-camada em {
+  display:inline-flex;
+  flex:none;
+  align-items:center;
+  gap:4px;
+  padding:3px 8px;
+  border-radius:var(--r-pill);
+  background:var(--gray-light);
+  color:var(--text-3);
+  font-size:10.5px;
+  font-style:normal;
+  font-weight:800;
+  animation:luma-wm-vit-pop var(--dur-base) var(--ease-spring-soft) both;
+}
+
+.luma-wm-vit-camada em.is-troca {
+  background:var(--dm-orange-bg);
+  color:var(--dm-red);
+}
+
+/* ── Texto da funcionalidade ────────────────────────────────────────────── */
+
+.luma-wm-vit-body {
+  padding:18px 20px 6px;
+}
+
+.luma-wm-vit-body h3 {
+  margin:0 0 8px;
+  color:var(--wm-text);
+  font-size:20px;
+  font-weight:900;
+  line-height:1.2;
+  letter-spacing:-.02em;
+  text-wrap:balance;
+}
+
+.luma-wm-vit-oque {
+  margin:0 0 14px;
+  color:var(--wm-text-2);
+  font-size:14px;
+  line-height:1.55;
+}
+
+.luma-wm-vit-par {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  margin:0 0 12px;
+}
+
+.luma-wm-vit-par > div {
+  padding:11px 12px;
+  border:1px solid var(--wm-border-soft);
+  border-radius:12px;
+  background:var(--wm-surface-hover);
+}
+
+.luma-wm-vit-par > div.is-agora {
+  border-color:color-mix(in srgb,var(--dm-orange) 24%,var(--wm-border-soft));
+  background:color-mix(in srgb,var(--dm-orange) 8%,var(--wm-surface));
+}
+
+.luma-wm-vit-par dt {
+  margin-bottom:4px;
+  color:var(--wm-text-3);
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+
+.luma-wm-vit-par .is-agora dt {
+  color:var(--dm-red);
+}
+
+body:not(.theme-light) .luma-wm-vit-par .is-agora dt {
+  color:var(--dm-orange);
+}
+
+.luma-wm-vit-par dd {
+  margin:0;
+  color:var(--wm-text-2);
+  font-size:13px;
+  line-height:1.45;
+}
+
+.luma-wm-vit-prova {
+  display:flex;
+  align-items:flex-start;
+  gap:8px;
+  margin:0 0 4px;
+  padding:10px 12px;
+  border-radius:12px;
+  background:color-mix(in srgb,var(--green) 11%,var(--wm-surface));
+  color:var(--wm-text);
+  font-size:13px;
+  font-weight:600;
+  line-height:1.45;
+}
+
+.luma-wm-vit-prova svg {
+  flex:none;
+  margin-top:2px;
+  color:var(--green-d);
+}
+
+body:not(.theme-light) .luma-wm-vit-prova svg {
+  color:var(--green);
+}
+
+/* "Próxima": quem apresenta segue o tour sem voltar para a lista. */
+.luma-wm-vit-prox {
+  width:calc(100% - 32px);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin:12px 16px 18px;
+  padding:12px 14px;
+  border:1px solid var(--wm-border-soft);
+  border-radius:14px;
+  background:var(--wm-surface);
+  color:var(--wm-text);
+  text-align:left;
+  cursor:pointer;
+  transition:border-color var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-vit-prox:hover {
+  border-color:var(--wm-border);
+}
+
+.luma-wm-vit-prox small {
+  display:block;
+  color:var(--wm-text-3);
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+
+.luma-wm-vit-prox strong {
+  font-size:14px;
+  font-weight:800;
+}
+
+.luma-wm-vit-prox svg {
+  flex:none;
+  transition:transform var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-vit-prox:hover svg {
+  transform:translateX(2px);
+}
+
+@media (max-width:360px) {
+  .luma-wm-vit-par {
+    grid-template-columns:1fr;
+  }
+}
+/* ══ fim da VITRINE ══════════════════════════════════════════════════════════════════════ */
