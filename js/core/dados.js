@@ -121,6 +121,7 @@ function _gDadosRotulo(ev, p) {
     case 'template_despublicado': return 'Despublicou um template';
     case 'campaign_feedback_submitted': return 'Deu feedback sobre uma campanha';
     case 'content_requested': return 'Pediu um conteúdo' + (p.query ? ': ' + aspas(p.query) : '');
+    case 'beta_interesse': return 'Quer participar da beta ' + (aspas(p.beta) || '');   // botão da edição de novidades (help-widget.js)
     case 'layout_resolvido': return 'O layout se ajustou sozinho';
     case 'jornada_aberta': return 'Abriu a jornada da Academia';
     case 'aula_aberta': return 'Abriu uma aula';

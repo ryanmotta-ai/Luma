@@ -1795,6 +1795,160 @@ body:not(.theme-light) .luma-wm-link {
   transform:translateX(2px);
 }
 
+/* ── EDIÇÃO da semana (27/09/2026): cabeça + itens em sequência + beta ─────
+   A cabeça reusa .luma-wm-novidade-body. Cada item é uma seção com a arte
+   encaixada (não sangrada): seis artes de 180px sangradas viravam um mural. */
+
+.luma-wm-edicao {
+  padding-bottom:12px;
+}
+
+.luma-wm-edicao > .luma-wm-novidade-body {
+  padding-bottom:8px;
+}
+
+.luma-wm-ed-item {
+  margin:0 22px;
+  padding-top:18px;
+  border-top:1px solid var(--wm-border-soft);
+}
+
+.luma-wm-ed-item .luma-wm-novidade-art {
+  height:132px;
+  border-radius:12px;
+}
+
+.luma-wm-ed-item .luma-wm-novidade-body {
+  padding:14px 0 18px;
+}
+
+.luma-wm-ed-item h4 {
+  margin:0 0 8px;
+  color:var(--wm-text);
+  font-size:16px;
+  font-weight:800;
+  line-height:1.3;
+  text-wrap:balance;
+}
+
+/* "Vocês pediram… A gente ouviu." — o pedido da rede vem ANTES do título,
+   porque é ele que explica por que a mudança existe. */
+.luma-wm-novidade-body > .luma-wm-pedido {
+  display:flex;
+  align-items:flex-start;
+  gap:8px;
+  margin:0 0 10px;
+  padding:9px 11px;
+  border-radius:10px;
+  background:color-mix(in srgb,var(--dm-orange) 9%,var(--wm-surface));
+  color:var(--wm-text-2);
+  font-size:13px;
+  line-height:1.45;
+}
+
+.luma-wm-pedido svg {
+  flex:none;
+  margin-top:1px;
+  color:var(--dm-orange-d);
+}
+
+.luma-wm-pedido b {
+  color:var(--wm-text);
+  font-weight:800;
+}
+
+body:not(.theme-light) .luma-wm-pedido svg {
+  color:var(--dm-orange);
+}
+
+.luma-wm-tag-pedido {
+  background:color-mix(in srgb,var(--dm-orange) 10%,var(--wm-surface));
+  color:var(--dm-orange-d);
+}
+
+.luma-wm-beta {
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:8px;
+  margin:6px 22px 12px;
+  padding:16px;
+  border:1px solid color-mix(in srgb,var(--dm-orange) 30%,var(--wm-border-soft));
+  border-radius:14px;
+  background:color-mix(in srgb,var(--dm-orange) 6%,var(--wm-surface));
+}
+
+.luma-wm-beta-eyebrow {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin:0;
+  color:var(--dm-red);
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+}
+
+body:not(.theme-light) .luma-wm-beta-eyebrow {
+  color:var(--dm-orange);
+}
+
+.luma-wm-beta strong {
+  color:var(--wm-text);
+  font-size:15px;
+  font-weight:800;
+  line-height:1.3;
+}
+
+.luma-wm-beta > p:not(.luma-wm-beta-eyebrow) {
+  margin:0;
+  color:var(--wm-text-2);
+  font-size:13.5px;
+  line-height:1.5;
+}
+
+.luma-wm-beta .luma-wm-btn-primary {
+  margin-top:4px;
+  font-size:13px;
+}
+
+.luma-wm-beta > .luma-wm-beta-ok {
+  display:flex;
+  align-items:center;
+  gap:7px;
+  color:var(--wm-text);
+  font-weight:700;
+}
+
+.luma-wm-beta-ok svg {
+  flex:none;
+  color:var(--green-d);
+}
+
+body:not(.theme-light) .luma-wm-beta-ok svg {
+  color:var(--green-text);
+}
+
+.luma-wm-beta small {
+  color:var(--wm-text-3);
+  font-size:11.5px;
+}
+
+/* Destaque da edição no topo da aba Ajuda: o mesmo mini da Início. */
+.luma-wm-help-news {
+  margin:12px 16px 4px;
+}
+
+.luma-wm-help-news .luma-wm-news-mini-txt small {
+  color:var(--dm-red);
+  font-weight:700;
+}
+
+body:not(.theme-light) .luma-wm-help-news .luma-wm-news-mini-txt small {
+  color:var(--dm-orange);
+}
+
 /* ── Ajuda: busca, "Nesta tela", coleções e linhas ───────────────────────── */
 
 .luma-wm-help-top {

@@ -221,9 +221,15 @@ Tipos: `text`, `number`, `currency`, `date`, `image`, `select`, `color`, `boolea
   - ⛔ **`/disponivel` no Telegram conta como online para o franqueado** (8 h, ou até `/ausente`), com o mesmo efeito do Disponível no Luma: a pergunta vai direto para a equipe, sem passar pela IA.
   - O franqueado não vê de onde veio a resposta; a equipe vê "pelo Telegram". Edição e remoção feitas no Telegram **não** chegam ao Luma (a mensagem do Luma é imutável).
 
-**Novidades do Luma** (desde 2026-09-26, na Início do widget de Ajuda): contam ao franqueado o que mudou no produto.
-- A novidade mora no **código** (`LUMA_NOVIDADES`, `js/widgets/help-widget.js`), não numa tabela. Novidade é o que acabou de ir ao ar, e isso já exige deploy: escrever a notícia é uma linha no mesmo commit. Só vale criar tabela editável quando alguém de fora do desenvolvimento for publicar.
-- ⛔ Só entra o que existe na tela, com o nome que está na tela. Recurso desligado pelo Controle do produto não vira notícia (`requer`).
+**Novidades do Luma** (desde 2026-09-26, na Início do widget de Ajuda): contam ao franqueado o que mudou no produto. É o canal permanente da relação com a rede no beta: mostrar que o Luma está vivo, que a rede é ouvida e o que mudou, sem virar ruído.
+- ⛔ **No máximo 1 edição por semana** (decisão do Ryan, 27/09/2026): pelo menos 7 dias entre uma edição e a seguinte. Mudou mais coisa? Entra na mesma edição ou na próxima. O CI reprova a segunda (`node scripts/novidades.js --checar`).
+- ⛔ **Curada, nunca automática.** Commit não é notícia. Só entra o que a rede sente; refator, teste, doc e correção invisível ficam de fora.
+- **Copy de benefício, na língua de quem usa**, com o nome que está na tela. Recurso desligado pelo Controle do produto não vira notícia (`requer`).
+- **"Vocês pediram, a gente ouviu"**: o item leva `pedido` só quando a mudança veio de pedido da **rede** (franqueado, beta tester). Diz o que pediram, sem nome de pessoa. Pedido interno da equipe não conta.
+- **Beta**: a edição pode levar um convite ("Estamos testando X.") com um botão, "Quero participar". Vale só enquanto a edição é a mais recente. O interesse vira o evento `beta_interesse`, e a equipe vê quem topou em **Dados › Eventos**. ⛔ Não é feed social: sem curtir, sem comentar, sem contador.
+- **Onde aparece**: a Início mostra a edição da semana (cartão + 3 itens); "Ver todas" guarda o histórico completo; a aba Ajuda destaca a edição enquanto ela é nova (14 dias).
+- A novidade mora no **código** (`LUMA_NOVIDADES`, `js/widgets/novidades.js`), não numa tabela. Novidade é o que acabou de ir ao ar, e isso já exige deploy. Só vale criar tabela editável quando alguém de fora do desenvolvimento for publicar.
+- **Rascunho**: `node scripts/novidades.js` junta os commits marcados com o trailer `Novidade:` (e `Pedido:`) desde a última edição e imprime a próxima com "✎ REVISAR" onde falta curadoria. Nada vai ao ar sozinho: alguém revisa e cola. O CI reprova "✎ REVISAR" esquecido.
 - É comunicação **sobre o Luma** para a rede. Não é comunicado da franqueadora (isso é do Portal de Franqueados) nem push/inapp para consumidor (§9).
 
 ---

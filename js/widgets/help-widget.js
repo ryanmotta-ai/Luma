@@ -157,46 +157,11 @@
     ['mode-franqueado',    ['texto-nao-cabe', 'ajustar-foto']]
   ];
 
-  /* ── NOVIDADES DO LUMA (a primeira tela) ──────────────────────────────────────────────────
-     Decisão de 26/09/2026: a novidade mora AQUI, no código, e não numa tabela. Novidade do
-     Luma é o que acabou de ir ao ar — isso já exige deploy, então escrever a notícia é uma
-     linha a mais no mesmo commit. Tabela editável só compensa quando alguém de fora do
-     desenvolvimento for publicar novidade.
-     Mais recente PRIMEIRO. `data` em AAAA-MM-DD. `arte` = ilustração em CSS (wmNovidadeArte);
-     sem ela, o cartão sai só com o ícone. `requer:'suporte'` esconde a notícia quando o
-     suporte ao vivo está desligado — notícia de recurso desligado é promessa falsa.
-     ⛔ Mesma regra dos artigos: só o que existe na tela, com o nome que está na tela. */
-  const LUMA_NOVIDADES = [
-    { id: 'quebra-linha', data: '2026-09-26', icon: 'text', arte: 'quebra',
-      title: 'Quebras de linha mais bonitas',
-      summary: 'O texto da arte agora se divide em linhas de tamanho parecido, sem palavra sozinha no fim.',
-      body: ['O Luma passou a escolher onde quebrar cada texto olhando o conjunto: as linhas saem com tamanho parecido, sem preposição ou "+" pendurado no fim, sem separar o número do que ele conta e sem largar uma palavra sozinha na última linha.', 'Você não precisa fazer nada: vale para todas as artes.'] },
-    { id: 'encurtar', data: '2026-09-24', icon: 'scissors', arte: 'encurtar',
-      title: 'Texto grande demais? Toque em Encurtar',
-      summary: 'O Luma sugere versões mais curtas do seu texto sem mudar o que você está vendendo.',
-      body: ['Quando o que você digitou está perto do limite ou não cabe no espaço da arte, o botão Encurtar aparece no campo.', 'O Luma sugere versões mais curtas que mantêm o produto, o preço e a oferta. Você escolhe uma ou edita do seu jeito.'],
-      artigo: 'texto-nao-cabe' },
-    { id: 'suporte', data: '2026-09-23', icon: 'chat', arte: 'suporte', requer: 'suporte',
-      title: 'Fale com a equipe DM por aqui',
-      summary: 'Quando alguém da equipe está no Luma, sua pergunta vai direto para uma pessoa.',
-      body: ['Travou em alguma etapa? Agora dá para conversar com a equipe DM sem sair do Luma. Quando alguém da equipe está com o Luma aberto, sua pergunta vai direto para essa pessoa.', 'Se ninguém estiver online, o assistente responde na hora. O que você mandar para a equipe fica em Mensagens, e a resposta aparece lá.', 'Aprovação de peça e pedido de arte nova continuam com o marketing da sua empresa.'],
-      perguntar: true },
-    { id: 'foto-previa', data: '2026-09-23', icon: 'crop', arte: 'foto',
-      title: 'Ajuste a foto direto na prévia',
-      summary: 'Toque na foto dentro da prévia para trocar, reposicionar ou dar zoom.',
-      body: ['A foto agora se ajusta pela própria arte: toque nela na prévia e escolha Trocar foto ou Reposicionar e Zoom.', 'No celular, o ajuste abre em tela cheia, com espaço para arrastar a foto com o dedo.'],
-      artigo: 'ajustar-foto' },
-    { id: 'enquadramento', data: '2026-09-23', icon: 'image',
-      title: 'Foto e logo já entram no lugar certo',
-      summary: 'O Luma olha a imagem que você envia e decide o enquadramento de partida.',
-      body: ['O logo ganha zoom até a marca ocupar a moldura, sem cortar. A foto do produto é centralizada no que importa.', 'Se quiser mudar, é só tocar em Ajustar.'],
-      artigo: 'logo' },
-    { id: 'nome-arquivo', data: '2026-09-23', icon: 'file',
-      title: 'Arquivo baixado com nome de gente',
-      summary: 'A arte baixada vem com o nome do produto, do formato e da campanha.',
-      body: ['Nada de nome aleatório na galeria: o arquivo agora sai com um nome que dá para reconhecer, como "X-Tudo Duplo - Story - Copa.png".'],
-      artigo: 'baixar' }
-  ];
+  /* ── NOVIDADES DO LUMA ────────────────────────────────────────────────────────────────────
+     O conteúdo (LUMA_NOVIDADES) e as regras da edição semanal moram em js/widgets/novidades.js
+     desde 27/09/2026. Continua no código, não numa tabela (decisão de 26/09): novidade é o que
+     acabou de ir ao ar, e isso já exige deploy. O arquivo à parte existe para o
+     `scripts/novidades.js` conseguir ler, conferir e montar o rascunho da próxima edição. */
 
   // SVGs nativos reutilizáveis (Zero emojis)
   const WIDGET_SVGS = {
@@ -236,7 +201,8 @@
     file: '<path d="M6 2h8l4 4v16H6Z"/><path d="M14 2v5h5M9 13h6M9 17h4"/>',
     scissors: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/>',
     chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
-    ask: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>'
+    ask: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>'
   };
   function wmIco(nome, tam) {
     const t = tam || 18;
@@ -296,11 +262,21 @@
   function wmData(iso) { const d = new Date(String(iso) + 'T12:00:00'); return isNaN(d) ? null : d; }
   function wmDataCurta(iso) { const d = wmData(iso); return d ? d.getDate() + ' ' + WM_MESES[d.getMonth()] : ''; }
   function wmDataLonga(iso) { const d = wmData(iso); return d ? d.getDate() + ' de ' + WM_MESES_LONGOS[d.getMonth()] : ''; }
+  /* As edições que esta pessoa vê: item com `requer:'suporte'` some com o suporte desligado, e
+     a edição que ficar vazia some junto. Cópia rasa por edição: o dado de novidades.js não muda. */
+  function wmEdicoes() {
+    const todas = typeof LUMA_NOVIDADES !== 'undefined' && Array.isArray(LUMA_NOVIDADES) ? LUMA_NOVIDADES : [];
+    return todas.map(function (e) {
+      const itens = (e.itens || []).filter(function (n) { return n.requer !== 'suporte' || wmSuporte(); });
+      return itens.length ? Object.assign({}, e, { itens: itens }) : null;
+    }).filter(Boolean);
+  }
   // "Novo" por idade (14 dias), sem guardar o que a pessoa já viu: o painel abre na Início,
-  // então um "não lido" se apagaria no mesmo instante em que aparece.
-  function wmNovidadeNova(n) { const d = wmData(n.data); return !!d && (Date.now() - d.getTime()) < 14 * 86400000; }
-  function wmNovidades() {
-    return LUMA_NOVIDADES.filter(function (n) { return n.requer !== 'suporte' || wmSuporte(); });
+  // então um "não lido" se apagaria no mesmo instante em que aparece. Só a edição mais recente
+  // leva o selo — com uma por semana, duas "novas" ao mesmo tempo seria o selo mentindo.
+  function wmEdicaoNova(e) {
+    const ultima = wmEdicoes()[0], d = wmData(e.data);
+    return !!ultima && ultima.id === e.id && !!d && (Date.now() - d.getTime()) < 14 * 86400000;
   }
 
   function wmPrimeiroNome() {
@@ -366,7 +342,7 @@
     }
     if (t === 'messages') return { title: 'Mensagens' };
     if (t === 'news') return { title: 'Novidades' };
-    if (t === 'novidade') return { title: 'Novidade' };
+    if (t === 'novidade') return { title: 'Novidades' };   // a edição da semana, não uma notícia
     if (t === 'funcionalidades') return { title: 'Funcionalidades', detail: 'O que o Luma faz hoje' };   // VITRINE
     if (t === 'funcionalidade') {   // VITRINE
       const l = wmVitLista(), i = l.findIndex(function (f) { return f.id === widgetState.vitId; });
@@ -736,10 +712,52 @@
     window.lumaWidgetSetTab('collection');
   };
 
-  window.lumaWidgetOpenNews = function (id, origem) {
+  // `id` = a edição. `item` (opcional) = o item tocado na Início: a edição abre rolada até ele.
+  window.lumaWidgetOpenNews = function (id, origem, item) {
     widgetState.selectedNewsId = id;
-    widgetState.newsBack = origem === 'news' ? 'news' : 'home';
+    widgetState.newsBack = ['news', 'help'].indexOf(origem) >= 0 ? origem : 'home';
     window.lumaWidgetSetTab('novidade');
+    const corpo = document.querySelector('#luma-widget-modal .luma-wm-body');
+    const alvo = item && document.getElementById('luma-wm-ed-' + item);
+    if (corpo && alvo) corpo.scrollTop = alvo.getBoundingClientRect().top - corpo.getBoundingClientRect().top;
+  };
+
+  /* ── BETA: "Quero participar" ───────────────────────────────────────────────────────────
+     O interesse vira o evento `beta_interesse` pela fila de telemetria que já existe
+     (gTrackEvent: offline, retry, um id por envio). A equipe vê quem topou em Dados › Eventos.
+     Tabela própria não compensa: é uma lista curta, lida por gente, uma vez por beta.
+     Lembrado por conta NESTE navegador, para o botão não chamar de novo quem já disse sim.
+     Em outro aparelho a pessoa pode topar outra vez; a equipe lê nomes, a repetição não engana. */
+  const _wmBetaMem = {};
+  function wmBetaChave() {
+    const u = typeof gCurrentUser === 'function' ? gCurrentUser() : null;
+    return 'luma_beta_v1:' + ((u && u.id) || 'anon');
+  }
+  function wmBetaInscrito(id) {
+    if (_wmBetaMem[id]) return true;
+    try {
+      return (JSON.parse(localStorage.getItem(wmBetaChave()) || '[]') || []).indexOf(id) >= 0;
+    } catch (e) { return false; }
+  }
+  window.lumaWidgetBeta = function (id) {
+    const ed = wmEdicoes()[0];
+    // Só a beta da edição mais recente aceita inscrição: convite velho não abre fila nova.
+    if (!ed || !ed.beta || ed.beta.id !== id || wmBetaInscrito(id)) return;
+    if (typeof gTrackEvent !== 'function') {
+      if (typeof gToast === 'function') gToast('Não deu para registrar agora. Tente de novo em instantes.', 'error');
+      return;
+    }
+    try { gTrackEvent('beta_interesse', { beta: id, edicao: ed.id }); } catch (e) {}
+    _wmBetaMem[id] = true;
+    try {
+      const lista = JSON.parse(localStorage.getItem(wmBetaChave()) || '[]') || [];
+      lista.push(id);
+      localStorage.setItem(wmBetaChave(), JSON.stringify(lista.slice(-20)));
+    } catch (e) {}
+    if (typeof gToast === 'function') gToast('Anotado! A equipe DM vai entrar em contato.', 'success');
+    // Troca só o bloco: re-renderizar o painel inteiro jogaria a leitura de volta para o topo.
+    const bloco = document.getElementById('luma-wm-beta-' + id);
+    if (bloco) bloco.outerHTML = wmBetaHTML(ed.beta);
   };
 
   // Busca: toda palavra digitada precisa aparecer (título, resumo, passos, dica ou apelidos).
@@ -963,14 +981,17 @@
         <span class="luma-wm-ask-go" aria-hidden="true">${wmIco('ask', 20)}</span>
       </button>` : '';
 
-    const lista = wmNovidades();
-    const novidades = !lista.length ? '' : `
+    // A edição da semana: o cartão (título + resumo) e os 3 primeiros itens, que abrem a
+    // edição já no item. A ordem dos itens é a curadoria: o que mais muda o dia vem primeiro.
+    const eds = wmEdicoes();
+    const ed = eds[0];
+    const novidades = !ed ? '' : `
       <div class="luma-wm-section-head">
         <span class="luma-wm-section-title">Novidades do Luma</span>
-        ${lista.length > 5 ? `<button type="button" onclick="lumaWidgetSetTab('news')">Ver todas</button>` : ''}
+        ${eds.length > 1 ? `<button type="button" onclick="lumaWidgetSetTab('news')">Ver todas</button>` : ''}
       </div>
-      ${lista.slice(0, 2).map(wmNewsCard).join('')}
-      ${lista.length > 2 ? `<div class="luma-wm-news-list">${lista.slice(2, 5).map(function (n) { return wmNewsMini(n, 'home'); }).join('')}</div>` : ''}`;
+      ${wmNewsCard(ed)}
+      <div class="luma-wm-news-list">${ed.itens.slice(0, 3).map(function (n) { return wmNewsMini(ed, n); }).join('')}</div>`;
 
     return `
       ${G_SUP.souEquipe ? wmSupHomeCard() : ''}
@@ -982,44 +1003,103 @@
     `;
   }
 
-  function wmNewsTag(n) { return wmNovidadeNova(n) ? '<b class="luma-wm-tag">Novo</b>' : ''; }
+  function wmNewsTag(e) { return wmEdicaoNova(e) ? '<b class="luma-wm-tag">Novo</b>' : ''; }
+  function wmEdicaoConta(e) { const n = e.itens.length; return n + (n === 1 ? ' mudança' : ' mudanças'); }
+  // Selo do item que veio de pedido da rede: é o "vocês pediram" visto de fora da edição.
+  function wmPedidoTag(n) { return n.pedido ? '<b class="luma-wm-tag luma-wm-tag-pedido">Vocês pediram</b>' : ''; }
 
-  function wmNewsCard(n) {
-    return `<button type="button" class="luma-wm-news" onclick="lumaWidgetOpenNews('${n.id}','home')">
-        ${n.arte ? `<span class="luma-wm-news-art">${wmNovidadeArte(n.arte)}</span>` : ''}
+  // O cartão da EDIÇÃO na Início: a arte vem do primeiro item que tiver uma.
+  function wmNewsCard(e) {
+    const comArte = e.itens.find(function (n) { return n.arte; });
+    return `<button type="button" class="luma-wm-news" onclick="lumaWidgetOpenNews('${e.id}','home')">
+        ${comArte ? `<span class="luma-wm-news-art">${wmNovidadeArte(comArte.arte)}</span>` : ''}
         <span class="luma-wm-news-body">
-          <span class="luma-wm-news-meta">${wmNewsTag(n)}<time datetime="${wmEsc(n.data)}">${wmEsc(wmDataCurta(n.data))}</time></span>
-          <strong>${wmEsc(n.title)}</strong>
-          <span class="luma-wm-news-sum">${wmEsc(n.summary)}</span>
+          <span class="luma-wm-news-meta">${wmNewsTag(e)}<span><time datetime="${wmEsc(e.data)}">${wmEsc(wmDataCurta(e.data))}</time> · ${wmEdicaoConta(e)}</span></span>
+          <strong>${wmEsc(e.titulo)}</strong>
+          <span class="luma-wm-news-sum">${wmEsc(e.resumo)}</span>
         </span>
       </button>`;
   }
 
-  function wmNewsMini(n, origem) {
-    return `<button type="button" class="luma-wm-news-mini" onclick="lumaWidgetOpenNews('${n.id}','${origem}')">
+  // Um ITEM da edição (Início): abre a edição rolada até ele.
+  function wmNewsMini(e, n) {
+    const tag = wmPedidoTag(n);
+    return `<button type="button" class="luma-wm-news-mini" onclick="lumaWidgetOpenNews('${e.id}','home','${n.id}')">
         <span class="luma-wm-news-ico" aria-hidden="true">${wmIco(n.icon, 18)}</span>
-        <span class="luma-wm-news-mini-txt"><strong>${wmEsc(n.title)}</strong><small>${wmNewsTag(n)}${wmEsc(wmDataCurta(n.data))}</small></span>
+        <span class="luma-wm-news-mini-txt"><strong>${wmEsc(n.title)}</strong>${tag ? `<small>${tag}</small>` : ''}</span>
         <span class="luma-wm-list-arrow" aria-hidden="true">${WIDGET_SVGS.chevronRight}</span>
       </button>`;
   }
 
+  // "Ver todas": o histórico inteiro, uma linha por edição.
   function renderNewsTab() {
-    return `<div class="luma-wm-news-list">${wmNovidades().map(function (n) { return wmNewsMini(n, 'news'); }).join('')}</div>`;
+    return `<div class="luma-wm-news-list">${wmEdicoes().map(function (e) {
+      return `<button type="button" class="luma-wm-news-mini" onclick="lumaWidgetOpenNews('${e.id}','news')">
+          <span class="luma-wm-news-ico" aria-hidden="true">${wmIco(e.itens[0].icon, 18)}</span>
+          <span class="luma-wm-news-mini-txt"><strong>${wmEsc(e.titulo)}</strong><small>${wmNewsTag(e)}${wmEsc(wmDataCurta(e.data))} · ${wmEdicaoConta(e)}</small></span>
+          <span class="luma-wm-list-arrow" aria-hidden="true">${WIDGET_SVGS.chevronRight}</span>
+        </button>`;
+    }).join('')}</div>`;
   }
 
-  function renderNovidadeTab() {
-    const n = wmNovidades().find(function (x) { return x.id === widgetState.selectedNewsId; });
-    if (!n) return renderNewsTab();
+  /* Destaque da última edição no topo da aba Ajuda, enquanto ela é nova. Quem volta direto
+     para a Ajuda (o painel reabre na última aba) não passaria pela Início para ver. Passou
+     dos 14 dias, some: o histórico continua na Início. */
+  function wmEdicaoDestaque() {
+    const e = wmEdicoes()[0];
+    if (!e || !wmEdicaoNova(e)) return '';
+    return `<div class="luma-wm-news-list luma-wm-help-news">
+        <button type="button" class="luma-wm-news-mini" onclick="lumaWidgetOpenNews('${e.id}','help')">
+          <span class="luma-wm-news-ico" aria-hidden="true">${WIDGET_SVGS.sparkle}</span>
+          <span class="luma-wm-news-mini-txt"><small>Novidades da semana · ${wmEdicaoConta(e)}</small><strong>${wmEsc(e.titulo)}</strong></span>
+          <span class="luma-wm-list-arrow" aria-hidden="true">${WIDGET_SVGS.chevronRight}</span>
+        </button>
+      </div>`;
+  }
+
+  /* O convite da beta. Um botão e nada mais: sem contador de inscritos, sem curtir, sem
+     comentar. O changelog conta o que mudou; não é feed. A equipe vê, no próprio bloco, onde
+     ler as respostas. */
+  function wmBetaHTML(b) {
+    const dentro = wmBetaInscrito(b.id);
+    return `<aside class="luma-wm-beta" id="luma-wm-beta-${b.id}" aria-label="Convite para a beta">
+        <p class="luma-wm-beta-eyebrow">${WIDGET_SVGS.sparkle.replace('width="18" height="18"', 'width="13" height="13"')}Beta aberta</p>
+        <strong>${wmEsc(b.titulo)}</strong>
+        <p>${wmEsc(b.texto)}</p>
+        ${dentro
+          ? `<p class="luma-wm-beta-ok" role="status">${wmIco('check', 15)}Você está na lista. A equipe DM vai entrar em contato.</p>`
+          : `<button type="button" class="luma-wm-btn-primary" onclick="lumaWidgetBeta('${b.id}')">Quero participar</button>`}
+        ${wmEquipe() ? '<small>Equipe: quem topou aparece em Dados › Eventos, no evento “beta_interesse”.</small>' : ''}
+      </aside>`;
+  }
+
+  function wmEdicaoItem(n) {
     const art = n.artigo ? wmArtigo(n.artigo) : null;
-    return `<article class="luma-wm-novidade">
+    return `<section class="luma-wm-ed-item" id="luma-wm-ed-${n.id}">
         ${n.arte ? `<div class="luma-wm-novidade-art">${wmNovidadeArte(n.arte)}</div>` : ''}
         <div class="luma-wm-novidade-body">
-          <p class="luma-wm-news-meta">${wmNewsTag(n)}<time datetime="${wmEsc(n.data)}">${wmEsc(wmDataLonga(n.data))}</time></p>
-          <h3>${wmEsc(n.title)}</h3>
+          ${n.pedido ? `<p class="luma-wm-pedido">${wmIco('chat', 15)}<span><b>Vocês pediram:</b> ${wmEsc(n.pedido)} <b>A gente ouviu.</b></span></p>` : ''}
+          <h4>${wmEsc(n.title)}</h4>
           ${(n.body || []).map(function (p) { return `<p>${wmEsc(p)}</p>`; }).join('')}
           ${art && wmVisivel(art) ? `<button type="button" class="luma-wm-link" onclick="lumaWidgetOpenArticle('${art.id}','novidade')">Ler: ${wmEsc(art.title)}${WIDGET_SVGS.chevronRight}</button>` : ''}
           ${n.perguntar && wmPodePerguntar() ? `<button type="button" class="luma-wm-link" onclick="lumaWidgetStartChat()">Fazer uma pergunta${WIDGET_SVGS.chevronRight}</button>` : ''}
         </div>
+      </section>`;
+  }
+
+  // A edição aberta: cabeça (data, título, resumo), os itens em sequência e, se houver, a beta.
+  function renderNovidadeTab() {
+    const eds = wmEdicoes();
+    const e = eds.find(function (x) { return x.id === widgetState.selectedNewsId; });
+    if (!e) return renderNewsTab();
+    return `<article class="luma-wm-novidade luma-wm-edicao">
+        <div class="luma-wm-novidade-body">
+          <p class="luma-wm-news-meta">${wmNewsTag(e)}<span>Edição de <time datetime="${wmEsc(e.data)}">${wmEsc(wmDataLonga(e.data))}</time> · ${wmEdicaoConta(e)}</span></p>
+          <h3>${wmEsc(e.titulo)}</h3>
+          <p>${wmEsc(e.resumo)}</p>
+        </div>
+        ${e.itens.map(wmEdicaoItem).join('')}
+        ${e.beta && eds[0].id === e.id ? wmBetaHTML(e.beta) : ''}
       </article>`;
   }
 
@@ -1514,6 +1594,7 @@
       <div id="luma-wm-help-results" class="luma-wm-help-results" hidden></div>
 
       <div id="luma-wm-help-home">
+        ${wmEdicaoDestaque()}
         ${ctx.length ? `<div class="luma-wm-ctx">
           <p class="luma-wm-ctx-label">${wmIco('pin', 13)}Nesta tela</p>
           ${ctx.map(function (a) { return `<button type="button" class="luma-wm-ctx-item" onclick="lumaWidgetOpenArticle('${a.id}','help')"><span>${wmEsc(a.title)}</span>${WIDGET_SVGS.chevronRight}</button>`; }).join('')}

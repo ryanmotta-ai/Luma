@@ -23,6 +23,7 @@ on:
       - 'tests/**'
       - 'scripts/run-browser-tests.js'
       - 'scripts/arquitetura.js'
+      - 'scripts/novidades.js'
       - 'index.html'
       - '.github/workflows/tests.yml'
   pull_request:
@@ -31,6 +32,7 @@ on:
       - 'tests/**'
       - 'scripts/run-browser-tests.js'
       - 'scripts/arquitetura.js'
+      - 'scripts/novidades.js'
       - 'index.html'
   workflow_dispatch: {}
 
@@ -89,6 +91,11 @@ jobs:
       # funcional — o programa continua rodando e a feature morre calada.
       - name: Arquitetura (as leis do luma-brain como portão)
         run: node scripts/arquitetura.js
+
+      # Novidades: no máximo 1 edição a cada 7 dias e nenhum rascunho sem curadoria ("✎ REVISAR")
+      # chegando na rede. Segundos, sem navegador. Regras em js/widgets/novidades.js.
+      - name: Novidades (cadência e curadoria)
+        run: node scripts/novidades.js --checar
 
       - name: Rodar as suítes
         run: node scripts/run-browser-tests.js
