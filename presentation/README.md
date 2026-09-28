@@ -66,6 +66,13 @@ presentation/
   - sushi: `images.unsplash.com/photo-1579871494447-9811cf80d66c`
 - **Captura:** Edge sem janela, pelo DevTools Protocol, em escala 2×, com movimento reduzido para não pegar
   animação no meio. Depois, convertidas para WebP.
+- **Aparelhos da capa** (`assets/devices/`): molduras oficiais da Apple (Apple Design Resources, *Product Bezels*,
+  acabamento prata): MacBook Pro M5 14", iPad Pro (M5) 11" em paisagem e iPhone 18 Pro. A tela de cada uma é a home
+  do franqueado capturada na resolução nativa do aparelho (`captures/franqueado-home-macbook|tablet|mobile.webp`).
+  O MacBook mostra o Safari em tela cheia, com a faixa preta de 37 pt atrás do notch. O iPad e o iPhone mostram o Luma
+  aberto pela tela inicial, com a barra de status do sistema no laranja do `theme-color`, 21:41 porque a saudação é
+  "Boa noite". As regras de marketing da Apple valem aqui: aparelho inteiro, sem sobrepor, sem cortar, sem sombra ou
+  reflexo e em escala real entre eles (a capa usa 2,2 px por mm).
 
 ## Atualizar
 

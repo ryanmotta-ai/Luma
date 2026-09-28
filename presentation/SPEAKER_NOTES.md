@@ -25,7 +25,8 @@
 - **Ponto principal:** não é um conceito, é um produto com dois lados funcionando.
 - **Transição:** "Antes do produto, o problema que ele resolve."
 - **Perguntas difíceis:**
-  - *"Essas telas são reais ou mockup?"* São capturas do app, numa cópia local sem dados de produção.
+  - *"Essas telas são reais ou mockup?"* As telas são capturas do app, numa cópia local sem dados de produção,
+    na resolução nativa de cada aparelho. As molduras são as oficiais da Apple, em escala real.
     As campanhas da vitrine foram importadas de PSD e publicadas pelo fluxo normal do Estúdio.
 
 ## 02 · O problema — "Escalar a rede não deveria escalar o retrabalho."
