@@ -20,7 +20,7 @@
 - **Objetivo:** abrir com a promessa inteira em uma frase e mostrar, desde o primeiro segundo, que existe produto.
 - **Frase de abertura:** "Crie uma vez. A rede inteira executa."
 - **Discurso:** "Isto é o Luma, a plataforma de creative automation que construímos para a rede Delivery Much.
-  Na tela, a home do franqueado de verdade, no computador e no celular: as campanhas que a marca publicou,
+  Na tela, a home do franqueado de verdade, no computador, no tablet e no celular: as campanhas que a marca publicou,
   prontas para virar arte. Nos próximos minutos eu mostro como elas chegam ali e o que o franqueado faz com elas."
 - **Ponto principal:** não é um conceito, é um produto com dois lados funcionando.
 - **Transição:** "Antes do produto, o problema que ele resolve."

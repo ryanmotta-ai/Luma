@@ -183,7 +183,7 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 /* ══ SLIDES ═══════════════════════════════════════════════════════════════════════════════ */
 
 /* 01 — Capa */
-/* Palco central: frase no topo, aparelhos centralizados saindo pela borda de baixo (sem base do notebook) */
+/* Palco central: frase no topo; MacBook ao centro, iPad e iPhone nas pontas, todos saindo pela borda de baixo */
 .s-capa { background: radial-gradient(1100px 620px at 50% 96%, #FFB347 0%, rgba(255, 176, 60, 0) 62%), linear-gradient(180deg, var(--orange) 0%, #FF8C00 55%, #F87400 100%); }
 .s-capa .brand { position: absolute; left: var(--pad-x); top: 70px; display: flex; align-items: center; gap: 20px; }
 .s-capa .brand .luma { height: 50px; width: auto; }
@@ -201,13 +201,22 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 }
 .s-capa .mac-screen .cam { position: absolute; left: 50%; top: 5px; width: 5px; height: 5px; margin-left: -2px; border-radius: 50%; background: #2C3036; }
 .s-capa .mac-screen img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: top; border-radius: 4px; }
-/* iPhone: 19,5:9, ilha dinâmica sobre uma faixa de status na cor do cabeçalho do app */
-.s-capa .iphone {
-  position: absolute; left: 1000px; top: 90px; width: 240px; height: 520px; padding: 8px; border-radius: 46px; z-index: 2;
+/* iPad e iPhone na mesma altura, abaixo da linha "Boa noite · Ajuda · Minhas artes" do MacBook, com margens laterais iguais:
+   o iPad (mais pesado) avança mais sobre o notebook, o iPhone menos */
+.s-capa .ipad {
+  position: absolute; left: -30px; top: 170px; width: 400px; padding: 12px; border-radius: 32px; z-index: 2;
   background: #0A0A0A; box-shadow: 0 0 0 3px #4A4D52, 0 44px 90px rgba(60, 20, 0, .45);
 }
-.s-capa .iphone-screen { position: relative; height: 100%; border-radius: 38px; overflow: hidden; background: #FAFAFA; padding-top: 32px; }
-.s-capa .iphone-screen::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 32px; background: var(--orange); }
+.s-capa .ipad .cam { position: absolute; left: 50%; top: 4px; width: 5px; height: 5px; margin-left: -2px; border-radius: 50%; background: #2C3036; }
+.s-capa .ipad-screen { border-radius: 20px; overflow: hidden; background: #FAFAFA; aspect-ratio: 834 / 1194; }
+.s-capa .ipad-screen img { display: block; width: 100%; }
+/* iPhone: 19,5:9, ilha dinâmica sobre uma faixa de status na cor do cabeçalho do app */
+.s-capa .iphone {
+  position: absolute; left: 1040px; top: 170px; width: 260px; height: 563px; padding: 9px; border-radius: 50px; z-index: 2;
+  background: #0A0A0A; box-shadow: 0 0 0 3px #4A4D52, 0 44px 90px rgba(60, 20, 0, .45);
+}
+.s-capa .iphone-screen { position: relative; height: 100%; border-radius: 41px; overflow: hidden; background: #FAFAFA; padding-top: 34px; }
+.s-capa .iphone-screen::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 34px; background: var(--orange); }
 .s-capa .iphone-screen .island { position: absolute; left: 50%; top: 9px; width: 78px; height: 22px; margin-left: -39px; border-radius: 12px; background: #0A0A0A; z-index: 1; }
 .s-capa .iphone-screen img { display: block; width: 100%; }
 
