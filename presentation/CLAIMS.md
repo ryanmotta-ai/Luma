@@ -22,7 +22,7 @@
 | E | Estado de 27/09: **838 verdes**, 5 casos vermelhos no Copy Fit, 1 no corpus | mesma execução: `copy-fit` 34/37, `copy-fit-ui` 34/36, `corpus` 29/30 |
 | E | CI **vermelho** no portão de arquitetura: catraca de localStorage de 56 para 59 | `node scripts/arquitetura.js` e as execuções do workflow `tests.yml` no GitHub |
 | E | Totais por grupo (240, 60, 186, 114, 87, 73, 53, 31) | soma das suítes da mesma execução (ex.: 186 = `local-fit` 75 + `corpus` 30 + `fuzz` 63 + `auto-layout` 14 + `local-fit-studio` 4) |
-| 05 | **13** camadas, **5** campos preparados, **3** pontos de atenção, fidelidade visual **90%**, fonte "Gotham-Black" ausente | tela real do importador (`captures/estudio-psd-revisao.webp`), rodando sobre o PSD de demonstração |
+| 05 | **13** camadas, **5** campos preparados (nas notas), **3** pontos de atenção, fidelidade visual **90%**, fonte "Gotham-Black" ausente | tela real do importador (`captures/estudio-psd-revisao.webp`), rodando sobre o PSD de demonstração |
 | 04 | Template com **5** campos | tela real do Estúdio (`captures/estudio-campos.webp`, "5 campos configurados") |
 | 06 | Publicação em **3** etapas: qualidade, configuração, revisão; erro crítico não publica | `js/designer/publish.js` (etapas e checklist), `js/designer/linter.js`; telas `captures/estudio-publicar-*.webp` |
 | 07 | **5** perguntas; cada quadro vem do motor de render | roteiro do template de demonstração; quadros gerados por `fRenderCanvasHelper` (`assets/artes/chat-passo-1…5.webp`) |

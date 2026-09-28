@@ -76,10 +76,10 @@
 - **Objetivo:** o designer aproveita o PSD que já tem, e o Luma é honesto sobre o que conseguiu preservar.
 - **Frase de abertura:** "O designer não precisa começar de novo."
 - **Discurso:** "Ele traz o PSD do dia a dia. O Luma importa e, em vez de dizer que ficou perfeito, mostra uma
-  revisão: [avança] o que foi preservado, [avança] o que foi adaptado, [avança] o que exige atenção. Nesta
-  importação são 13 camadas e 5 campos preparados, e o ponto de atenção é uma fonte do Photoshop que não
-  existe no Luma. [avança] O designer confere 3 pontos, não 13 camadas. As camadas nomeadas com @campo já
-  chegam como campos."
+  revisão honesta. [avança] As 13 camadas do arquivo viram template, com 5 campos já preparados. [avança] A
+  fidelidade visual é medida e mostrada: aqui, 90%, e a diferença é uma fonte do Photoshop que não existe no
+  Luma. [avança] O designer confere 3 pontos, não 13 camadas. As camadas nomeadas com @campo já chegam como
+  campos."
 - **Ponto principal:** fidelidade medida e mostrada, revisão por exceção.
 - **Transição:** "Revisado, o template vai para a publicação."
 - **Perguntas difíceis:**
@@ -274,7 +274,8 @@
 
 - **Objetivo:** fechar a tese e pedir o próximo passo.
 - **Frase de abertura:** "Uma marca no controle. Uma rede com autonomia."
-- **Discurso:** "[avança] E um produto pronto para enfrentar o mundo real. [avança] O próximo passo é o beta com a rede."
+- **Discurso:** "[deixe o mural rodar um instante: são artes reais que o Luma gerou] Uma marca no controle. Uma
+  rede com autonomia. [avança] E um produto pronto para o mundo real. [avança] O próximo passo é o beta com a rede."
 - **Ponto principal:** o pedido é o beta.
 - **Transição:** abra para perguntas. Tecle **G** para o apêndice.
 
