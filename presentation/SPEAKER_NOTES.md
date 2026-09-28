@@ -1,6 +1,6 @@
 # Luma — notas do apresentador
 
-> Fica fora da tela. Os 16 slides principais cabem em 15–18 minutos (1 min por slide; o 07 e o 08 pedem um pouco mais).
+> Fica fora da tela. Os 17 slides principais cabem em 16–19 minutos (1 min por slide; o 07 e o 08 pedem um pouco mais).
 > O apêndice (A–L) é para perguntas: tecle **G** para o índice e pule direto para a letra.
 > Toda afirmação com número tem fonte em [`CLAIMS.md`](CLAIMS.md). Se um número não está lá, não fale.
 
@@ -259,7 +259,7 @@
   no mundo, crescendo 17% ao ano. Hoje não estamos pedindo para vender o Luma. Estamos construindo o case que
   permitiria essa conversa existir depois."
 - **Ponto principal:** o beta daqui é o case de amanhã.
-- **Transição:** "Para fechar."
+- **Transição:** "Um parêntese antes de fechar."
 - **Perguntas difíceis:**
   - *"O que falta para white label?"* Isolamento por rede no banco (hoje o Luma atende uma rede só),
     configuração e marca por rede, onboarding, suporte e contrato por cliente. Apêndice K.
@@ -270,7 +270,27 @@
     fundador ao Jornal do Comércio. O global é de consultoria e varia muito (de 2 a 7 bilhões de dólares);
     usamos o menor.
 
-## 16 · Fechamento — "Uma marca no controle. Uma rede com autonomia."
+## 16 · Potencial — "E se o Luma virasse produto?"
+
+- **Objetivo:** um parêntese, quase entre nós: mostrar o tamanho da oportunidade, sem previsão de receita.
+- **Frase de abertura:** "Um parêntese: e se o Luma virasse produto?"
+- **Discurso:** "Só um concorrente, o Deskfy, já fatura mais de 10 milhões por ano resolvendo esse problema.
+  [avança] Só as franquias do Brasil, ao preço que a DM paga hoje, seriam uns 25 milhões por ano. [avança] E
+  creative automation no mundo movimenta 2,2 bilhões de dólares, crescendo 17% ao ano. [avança] A tecnologia
+  já existe. Falta o investimento para virar produto: uma base por cliente, onboarding e suporte. O produto em
+  si é o que vocês acabaram de ver."
+- **Ponto principal:** o mercado é real e grande; o que separa o Luma dele é investimento, não tecnologia.
+- **Transição:** "Para fechar."
+- **Perguntas difíceis:**
+  - *"Quanto de investimento?"* Não trouxemos número: depende do escopo (isolamento por cliente, onboarding,
+    suporte e contrato, apêndice K). Dá para dimensionar com os dados do beta.
+  - *"Os 25 milhões são previsão?"* Não. É o tamanho do mercado de franquias no Brasil a um preço de
+    referência: R$ 11.903 ÷ 96 franqueados ≈ R$ 124 por unidade por ano, vezes 202 mil unidades. Redes grandes
+    pagam mais, e a conta não inclui varejo nem trade marketing.
+  - *"O número global é confiável?"* É estimativa de consultoria e varia muito (de 2 a 7 bilhões de dólares);
+    usamos o menor.
+
+## 17 · Fechamento — "Uma marca no controle. Uma rede com autonomia."
 
 - **Objetivo:** fechar a tese e pedir o próximo passo.
 - **Frase de abertura:** "Uma marca no controle. Uma rede com autonomia."

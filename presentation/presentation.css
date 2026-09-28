@@ -291,20 +291,41 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-pub .flyer { position: absolute; z-index: 6; width: 0; height: 0; border-radius: 12px; overflow: hidden; box-shadow: 0 30px 60px rgba(0, 0, 0, .35); transition: left 1s var(--ease), top 1s var(--ease), width 1s var(--ease), height 1s var(--ease), opacity .3s; opacity: 0; }
 .s-pub .flyer img { width: 100%; height: 100%; object-fit: cover; }
 
-/* 07 — Momento aha (demo do chat) */
+/* 07 — A experiência: cada resposta viaja da conversa até a arte, que se monta na hora */
 .s-aha .head .h1 { font-size: 74px; }
 .s-aha .stagebox { position: absolute; left: 0; right: 0; top: 330px; bottom: 0; }
-.s-aha .preview { position: absolute; left: 190px; top: 0; width: 1420px; height: 750px; }
-.s-aha .artcard { position: absolute; left: 70px; top: 26px; width: 360px; height: 640px; border-radius: 20px; overflow: hidden; background: #FFB900; box-shadow: 0 34px 80px rgba(10, 10, 10, .2), 0 2px 8px rgba(10, 10, 10, .08); }
+.s-aha .preview { position: absolute; inset: 0; }
+.s-aha .glow { position: absolute; left: 120px; top: -80px; width: 740px; height: 860px; background: radial-gradient(closest-side, rgba(255, 144, 0, .24), rgba(255, 144, 0, 0)); pointer-events: none; }
+.s-aha .artcard { position: absolute; left: 300px; top: 12px; width: 380px; height: 676px; border-radius: 26px; overflow: hidden; background: #FFB900; box-shadow: 0 0 0 1px rgba(10, 10, 10, .06), 0 30px 70px rgba(191, 63, 0, .22), 0 60px 120px rgba(10, 10, 10, .12); transition: transform .6s var(--ease), box-shadow .6s var(--ease); }
+/* Pronta: a arte sobe um pouco, ganha o contorno verde e o selo */
+.s-aha.pronta .artcard { transform: translateY(-6px) scale(1.02); box-shadow: 0 0 0 3px var(--green, #22C55E), 0 34px 80px rgba(191, 63, 0, .26), 0 70px 130px rgba(10, 10, 10, .16); }
 .s-aha .artcard img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity .5s var(--ease); }
 .s-aha .artcard img.is-back { opacity: 0; }
 .s-aha .artcard .flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
 .s-aha .artcard .flash.go { animation: flash .7s var(--ease); }
-@keyframes flash { 0% { opacity: .55; } 100% { opacity: 0; } }
-.s-aha .artlabel { position: absolute; left: 70px; top: 684px; width: 360px; text-align: center; font-size: 16px; font-weight: 700; letter-spacing: .12em; color: var(--ink-3); text-transform: uppercase; }
+@keyframes flash { 0% { opacity: .4; } 100% { opacity: 0; } }
+.s-aha .vivo { position: absolute; left: 16px; top: 16px; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: rgba(10, 10, 10, .72); color: #fff; font-size: 13px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; transition: opacity .3s var(--ease); }
+.s-aha .vivo i { width: 8px; height: 8px; border-radius: 50%; background: #FF3B30; box-shadow: 0 0 0 4px rgba(255, 59, 48, .25); animation: s-aha-vivo 1.4s ease-in-out infinite; }
+@keyframes s-aha-vivo { 50% { opacity: .3; } }
+.s-aha.pronta .vivo { opacity: 0; }
+.s-aha .selo { position: absolute; right: 16px; top: 16px; width: 46px; height: 46px; border-radius: 50%; background: var(--green, #22C55E); display: grid; place-items: center; transform: scale(0); transition: transform .5s cubic-bezier(.34, 1.56, .64, 1) .25s; box-shadow: 0 8px 20px rgba(21, 128, 61, .35); }
+.s-aha .selo svg { width: 24px; height: 24px; color: #fff; }
+.s-aha.pronta .selo { transform: scale(1); }
+/* O fio: a resposta sai da caixa de digitação, viaja como um cometa e pousa na arte (pathLength 100) */
+.s-aha .fio { position: absolute; left: 0; top: 0; width: 1920px; height: 750px; overflow: visible; pointer-events: none; z-index: 3; }
+.s-aha .fio path { fill: none; stroke-linecap: round; }
+.s-aha .fio .trilha { stroke: rgba(255, 144, 0, .45); stroke-width: 2; stroke-dasharray: 100; stroke-dashoffset: 100; opacity: 0; }
+.s-aha .fio .cometa { stroke: var(--orange); stroke-width: 6; stroke-dasharray: 16 100; stroke-dashoffset: 16; opacity: 0; filter: drop-shadow(0 0 6px rgba(255, 144, 0, .9)); }
+.s-aha .fio .pouso { fill: none; stroke: var(--orange); stroke-width: 3; opacity: 0; transform-box: fill-box; transform-origin: center; }
+.s-aha .fio.vai .trilha { animation: s-aha-trilha .9s var(--ease) forwards; }
+.s-aha .fio.vai .cometa { animation: s-aha-cometa .5s cubic-bezier(.5, 0, .75, 0) forwards; }
+.s-aha .fio.vai .pouso { animation: s-aha-pouso .6s var(--ease) .42s forwards; }
+@keyframes s-aha-trilha { 0% { opacity: 0; stroke-dashoffset: 100; } 30% { opacity: 1; } 55% { stroke-dashoffset: 0; } 100% { opacity: 0; stroke-dashoffset: 0; } }
+@keyframes s-aha-cometa { 0% { opacity: 1; stroke-dashoffset: 16; } 92% { opacity: 1; } 100% { opacity: 0; stroke-dashoffset: -100; } }
+@keyframes s-aha-pouso { 0% { opacity: .9; transform: scale(.4); } 100% { opacity: 0; transform: scale(2.6); } }
 .s-aha .chat {
-  position: absolute; left: 560px; top: 26px; width: 860px; height: 640px; border-radius: 24px;
-  background: #fff; box-shadow: 0 30px 80px rgba(10, 10, 10, .12), 0 0 0 1px rgba(10, 10, 10, .05); overflow: hidden;
+  position: absolute; left: 820px; top: 26px; width: 780px; height: 640px; border-radius: 28px;
+  background: #fff; box-shadow: 0 0 0 1px rgba(10, 10, 10, .05), 0 24px 60px rgba(10, 10, 10, .1), 0 60px 120px rgba(10, 10, 10, .06); overflow: hidden;
 }
 .s-aha .chat-head { height: 92px; display: flex; align-items: center; gap: 18px; padding: 0 34px; border-bottom: 1px solid var(--line); }
 .s-aha .avatar { width: 52px; height: 52px; border-radius: 14px; background: var(--orange); display: grid; place-items: center; position: relative; }
@@ -314,13 +335,13 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-aha .chat-head .sep { width: 1px; height: 38px; background: var(--line); margin: 0 6px; }
 .s-aha .chat-head .ctx small { display: block; font-size: 13px; letter-spacing: .14em; font-weight: 700; color: var(--ink-3); }
 .s-aha .chat-head .ctx span { font-size: 19px; font-weight: 700; }
-.s-aha .q { position: absolute; left: 60px; right: 60px; top: 128px; transition: opacity .35s var(--ease), transform .35s var(--ease); }
+.s-aha .q { position: absolute; left: 52px; right: 52px; top: 124px; transition: opacity .35s var(--ease), transform .35s var(--ease); }
 .s-aha .q.is-out { opacity: 0; transform: translateY(-10px); }
 .s-aha .q .prog { font-size: 18px; font-weight: 700; color: var(--ink-3); }
 .s-aha .q .prog i { display: block; margin-top: 12px; height: 5px; width: 100%; background: var(--gray-light, #F2F2F2); border-radius: 99px; overflow: hidden; }
 .s-aha .q .prog i b { display: block; height: 100%; width: 0; background: var(--orange); border-radius: 99px; transition: width .6s var(--ease); }
 .s-aha .q .kicker { margin-top: 34px; font-size: 17px; font-weight: 900; letter-spacing: .16em; color: var(--orange-ink); text-transform: uppercase; }
-.s-aha .q h3 { margin-top: 12px; font-size: 54px; line-height: 1.04; font-weight: 900; letter-spacing: -.028em; }
+.s-aha .q h3 { margin-top: 12px; font-size: 50px; line-height: 1.04; font-weight: 900; letter-spacing: -.028em; }
 .s-aha .q .sub { margin-top: 14px; font-size: 22px; color: var(--ink-3); font-weight: 500; }
 .s-aha .chips { margin-top: 26px; display: flex; gap: 12px; flex-wrap: wrap; }
 .s-aha .chips span { font-size: 19px; font-weight: 700; padding: 12px 20px; border-radius: 12px; border: 1.5px solid var(--gray-mid, #D4D4D4); color: var(--ink-2); background: #fff; }
@@ -335,18 +356,18 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-aha .photo .thumb { width: 116px; height: 116px; border-radius: 16px; overflow: hidden; border: 3px solid var(--green, #22C55E); }
 .s-aha .photo .thumb img { width: 100%; height: 100%; object-fit: cover; }
 .s-aha .photo .ok { font-size: 24px; font-weight: 700; color: var(--green-d, #15803D); display: flex; gap: 10px; align-items: center; }
-.s-aha .done { position: absolute; left: 60px; right: 60px; top: 128px; opacity: 0; transform: translateY(10px); transition: opacity .45s var(--ease) .15s, transform .45s var(--ease) .15s; }
+.s-aha .done { position: absolute; left: 52px; right: 52px; top: 124px; opacity: 0; transform: translateY(10px); transition: opacity .45s var(--ease) .15s, transform .45s var(--ease) .15s; }
 .s-aha .done.is-on { opacity: 1; transform: none; }
 .s-aha .done .badge { display: flex; gap: 18px; align-items: center; }
 .s-aha .done .badge i { width: 58px; height: 58px; border-radius: 50%; background: var(--green, #22C55E); display: grid; place-items: center; }
 .s-aha .done .badge svg { width: 30px; height: 30px; color: #fff; }
-.s-aha .done h3 { font-size: 54px; font-weight: 900; letter-spacing: -.028em; }
+.s-aha .done h3 { font-size: 50px; font-weight: 900; letter-spacing: -.028em; }
 .s-aha .done p { margin: 10px 0 0 76px; font-size: 22px; color: var(--ink-3); }
 .s-aha .done .cta { margin: 40px 0 0; height: 84px; border-radius: 16px; background: var(--orange); color: #0A0A0A; display: flex; align-items: center; justify-content: center; gap: 14px; font-size: 26px; font-weight: 900; }
 .s-aha .done .cta svg { width: 26px; height: 26px; }
 .s-aha .done .legend { margin-top: 30px; padding: 22px 26px; border-radius: 16px; border: 1px solid var(--line); font-size: 20px; line-height: 1.5; color: var(--ink-2); }
 .s-aha .done .legend small { display: block; font-size: 14px; letter-spacing: .14em; font-weight: 900; color: var(--ink-3); margin-bottom: 8px; }
-.s-aha .note { position: absolute; left: 750px; bottom: 34px; font-size: 16px; color: var(--ink-3); letter-spacing: .02em; }
+.s-aha .note { position: absolute; left: 820px; bottom: 34px; font-size: 16px; color: var(--ink-3); letter-spacing: .02em; }
 
 /* 08 — A legenda (motor de copy combinatório) */
 .s-copy .head .h1 { font-size: 74px; }
@@ -517,7 +538,31 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-white .foot { position: absolute; left: var(--pad-x); right: var(--pad-x); bottom: 64px; }
 .s-white .foot .quote { font-size: 34px; color: #fff; }
 
-/* 16 — Fechamento */
+/* 16 — Potencial: três círculos que crescem (um concorrente, franquias no Brasil, o mundo) e o que falta */
+.s-pot .bolhas { position: absolute; left: var(--pad-x); top: 330px; width: 1200px; height: 600px; }
+.s-pot .b { position: absolute; bottom: 0; border-radius: 50%; background: var(--night); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 34px; }
+.s-pot .b[data-step] { transform: scale(.82); }
+.s-pot .b[data-step].is-on { transform: none; }
+.s-pot .b small { font-size: 14px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: rgba(255, 255, 255, .6); }
+.s-pot .b b { margin-top: 10px; font-weight: 900; letter-spacing: -.04em; line-height: .95; white-space: nowrap; }
+.s-pot .b span { margin-top: 12px; color: rgba(255, 255, 255, .78); line-height: 1.3; }
+.s-pot .b1 { left: 0; width: 240px; height: 240px; }
+.s-pot .b1 b { font-size: 40px; }
+.s-pot .b1 span { font-size: 15px; }
+.s-pot .b2 { left: 270px; width: 340px; height: 340px; }
+.s-pot .b2 b { font-size: 60px; }
+.s-pot .b2 span { font-size: 18px; }
+.s-pot .b3 { left: 640px; width: 560px; height: 560px; box-shadow: 0 40px 100px rgba(120, 40, 0, .35); }
+.s-pot .b3 b { font-size: 84px; color: var(--orange); }
+.s-pot .b3 span { font-size: 22px; max-width: 360px; }
+/* O arremate: um cartão preto da mesma família dos círculos, com o "se receber" em laranja */
+.s-pot .fala { position: absolute; left: 1360px; right: var(--pad-x); bottom: 150px; padding: 36px 36px 38px; border-radius: 28px; background: var(--night); color: #fff; box-shadow: 0 30px 80px rgba(120, 40, 0, .3); }
+.s-pot .fala .quote { font-size: 34px; line-height: 1.16; color: #fff; }
+.s-pot .fala .quote em { color: var(--orange); }
+.s-pot .fala .falta { margin-top: 20px; font-size: 18px; line-height: 1.45; color: rgba(255, 255, 255, .7); text-wrap: pretty; }
+.s-pot .fontes { position: absolute; left: var(--pad-x); right: var(--pad-x); bottom: 50px; font-size: 15px; color: rgba(10, 10, 10, .58); }
+
+/* 17 — Fechamento */
 /* O mural: 10 colunas de artes reais do Luma, inclinadas, subindo e descendo devagar em velocidades diferentes.
    Cada trilho tem as mesmas 7 artes duas vezes, então andar -50% fecha o laço sem pulo. Parado fora do slide. */
 .s-fim .mural { position: absolute; left: -330px; top: -520px; width: 2580px; height: 2000px; display: flex; gap: 20px; transform: rotate(-10deg); opacity: 0; transition: opacity 1.6s var(--ease); }
@@ -610,5 +655,5 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 /* Acessibilidade de movimento: sem deslizes, sem pulso, trocas instantâneas */
 @media (prefers-reduced-motion: reduce) {
   .slide, [data-step], .s-aha .q, .s-aha .done, .s-copy .win ol, .s-copy .txt, .s-escala .wall .a, .s-pub .light, .s-pub .flyer { transition: none !important; }
-  .s-tese .rail i, .s-aha .answer .caret, .s-custo .dots i, .s-intel .fits .row, .s-fim .trilho { animation: none !important; }
+  .s-tese .rail i, .s-aha .answer .caret, .s-custo .dots i, .s-intel .fits .row, .s-fim .trilho, .s-aha .fio *, .s-aha .vivo i { animation: none !important; }
 }

@@ -253,7 +253,8 @@
           q, kicker: q.querySelector('.kicker'), qt: q.querySelector('.qt'), sub: q.querySelector('.sub'),
           chips: q.querySelector('.chips'), photo: q.querySelector('.photo'), pt: q.querySelector('.pt'), pb: q.querySelector('.prog b'),
           answer: s.querySelector('.answer'), txt: s.querySelector('.answer .txt'), done: s.querySelector('.done'),
-          a1: s.querySelector('.artcard .a1'), a2: s.querySelector('.artcard .a2'), flash: s.querySelector('.artcard .flash')
+          a1: s.querySelector('.artcard .a1'), a2: s.querySelector('.artcard .a2'), flash: s.querySelector('.artcard .flash'),
+          fio: s.querySelector('.fio')
         };
         return s._c;
       },
@@ -282,6 +283,7 @@
       // estado final de um passo, sem animação (para voltar e para abrir o slide pelo meio)
       estado(s, p) {
         const c = this.el(s);
+        s.classList.toggle('pronta', p >= 5);
         c.done.classList.toggle('is-on', p >= 5);
         c.q.classList.toggle('is-out', p >= 5);
         if (p >= 5) { c.answer.style.display = 'none'; c.pt.textContent = '5 de 5 informações'; c.pb.style.width = '100%'; this.arte(s, 5, false); return; }
@@ -292,14 +294,18 @@
       passo(s, p, animar) {
         if (!animar) { this.estado(s, p); return; }
         const c = this.el(s), anterior = this.roteiro[p - 1];
+        // a resposta viaja da caixa de digitação até a arte; quando pousa, a arte muda e pisca
         const conclui = () => {
-          this.arte(s, anterior.arte, true);
-          if (p === 1) { c.flash.classList.remove('go'); void c.flash.offsetWidth; c.flash.classList.add('go'); }
+          if (c.fio) { c.fio.classList.remove('vai'); void c.fio.getBoundingClientRect(); c.fio.classList.add('vai'); }
           agenda(() => {
-            if (p >= 5) { c.q.classList.add('is-out'); c.answer.style.display = 'none'; c.pt.textContent = '5 de 5 informações'; c.pb.style.width = '100%'; c.done.classList.add('is-on'); return; }
-            c.q.classList.add('is-out');
-            agenda(() => { this.pergunta(s, p); c.q.classList.remove('is-out'); }, 340);
-          }, 720);
+            this.arte(s, anterior.arte, true);
+            c.flash.classList.remove('go'); void c.flash.offsetWidth; c.flash.classList.add('go');
+            agenda(() => {
+              if (p >= 5) { c.q.classList.add('is-out'); c.answer.style.display = 'none'; c.pt.textContent = '5 de 5 informações'; c.pb.style.width = '100%'; c.done.classList.add('is-on'); s.classList.add('pronta'); return; }
+              c.q.classList.add('is-out');
+              agenda(() => { this.pergunta(s, p); c.q.classList.remove('is-out'); }, 340);
+            }, 560);
+          }, 470);
         };
         if (!anterior.resposta) {                       // passo da foto: a imagem chega pronta
           c.photo.hidden = false; c.txt.textContent = 'Usar esta imagem'; c.txt.className = 'txt';
