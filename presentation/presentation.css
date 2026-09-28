@@ -417,7 +417,31 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-escala .count { position: absolute; left: 1110px; top: 250px; font-size: 18px; font-weight: 700; letter-spacing: .08em; color: var(--ink-3); }
 .s-escala .foot { position: absolute; left: var(--pad-x); bottom: 64px; }
 
-/* 11 — Custo zero: R$ 0 de infraestrutura, a economia do Deskfy e a folga do plano gratuito */
+/* 11 — Confiança */
+.s-conf .grid { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 400px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+.s-conf .cell { border-radius: 20px; padding: 26px 28px 28px; background: #111418; border: 1px solid rgba(255, 255, 255, .08); min-height: 206px; }
+.s-conf .cell .n { font-size: 60px; font-weight: 900; letter-spacing: -.035em; line-height: 1; font-variant-numeric: tabular-nums; }
+.s-conf .cell .n small { font-size: 26px; letter-spacing: -.01em; font-weight: 900; color: #A7B0BF; margin-left: 6px; }
+.s-conf .cell.hi .n { color: var(--orange); }
+.s-conf .cell p { margin-top: 14px; font-size: 20px; line-height: 1.4; color: #C9D0DB; }
+.s-conf .foot { position: absolute; left: var(--pad-x); right: var(--pad-x); bottom: 70px; }
+.s-conf .foot .quote { font-size: 38px; color: #fff; }
+.s-conf .foot .quote em { color: var(--orange); }
+
+/* 12 — Suporte ao vivo: o texto conta só o que está no ar; as telas são o widget de Ajuda de verdade */
+.s-suporte .head .lead { margin-top: 24px; max-width: 800px; font-size: 26px; color: var(--ink-3); }
+.s-suporte .pontos { position: absolute; left: var(--pad-x); top: 450px; width: 780px; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 38px; }
+.s-suporte .pontos li { display: grid; grid-template-columns: 58px 1fr; column-gap: 18px; }
+.s-suporte .pontos b { padding-top: 9px; font-size: 17px; font-weight: 900; letter-spacing: .14em; color: var(--orange-ink); }
+.s-suporte .pontos h3 { font-size: 34px; font-weight: 900; letter-spacing: -.022em; line-height: 1.08; }
+.s-suporte .pontos p { margin-top: 8px; font-size: 22px; line-height: 1.42; color: var(--ink-2); text-wrap: pretty; }
+.s-suporte .telas { position: absolute; left: 1010px; top: 236px; width: 790px; height: 790px; }
+.s-suporte .telas .crop { width: 375px; height: 675px; border-radius: 26px; }
+.s-suporte .telas .a { left: 0; top: 0; }
+.s-suporte .telas .b { left: 415px; top: 80px; }
+.s-suporte .escopo { position: absolute; left: var(--pad-x); bottom: 60px; width: 860px; font-size: 18px; line-height: 1.45; color: var(--ink-3); }
+
+/* 13 — Custo zero: R$ 0 de infraestrutura, a economia do Deskfy e a folga do plano gratuito */
 .s-custo .nums { position: absolute; left: var(--pad-x); top: 364px; width: 760px; }
 .s-custo .num b { font-weight: 900; letter-spacing: -.045em; line-height: .86; }
 .s-custo .num .por { margin-left: 18px; font-size: 26px; font-weight: 700; color: var(--ink-3); }
@@ -444,18 +468,7 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-custo .lg.on i { background: var(--orange); box-shadow: 0 0 10px rgba(255, 144, 0, .8); }
 .s-custo .nota { position: absolute; left: var(--pad-x); right: var(--pad-x); bottom: 56px; font-size: 18px; color: var(--ink-3); }
 
-/* 12 — Confiança */
-.s-conf .grid { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 400px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
-.s-conf .cell { border-radius: 20px; padding: 26px 28px 28px; background: #111418; border: 1px solid rgba(255, 255, 255, .08); min-height: 206px; }
-.s-conf .cell .n { font-size: 60px; font-weight: 900; letter-spacing: -.035em; line-height: 1; font-variant-numeric: tabular-nums; }
-.s-conf .cell .n small { font-size: 26px; letter-spacing: -.01em; font-weight: 900; color: #A7B0BF; margin-left: 6px; }
-.s-conf .cell.hi .n { color: var(--orange); }
-.s-conf .cell p { margin-top: 14px; font-size: 20px; line-height: 1.4; color: #C9D0DB; }
-.s-conf .foot { position: absolute; left: var(--pad-x); right: var(--pad-x); bottom: 70px; }
-.s-conf .foot .quote { font-size: 38px; color: #fff; }
-.s-conf .foot .quote em { color: var(--orange); }
-
-/* 13 — Beta */
+/* 14 — Beta */
 .s-beta .head .h-hero { font-size: 96px; }
 .s-beta .head .lead { margin-top: 22px; font-size: 36px; font-weight: 700; color: rgba(10, 10, 10, .8); }
 .s-beta .chain { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 520px; display: flex; align-items: center; gap: 14px; }
@@ -472,19 +485,6 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-beta .metrics li { background: rgba(255, 255, 255, .9); border-radius: 16px; padding: 18px 18px 20px; font-size: 20px; font-weight: 700; line-height: 1.25; color: #0A0A0A; min-height: 112px; }
 .s-beta .metrics li svg { width: 26px; height: 26px; color: var(--orange-d); display: block; margin-bottom: 12px; }
 .s-beta .foot { position: absolute; right: var(--pad-x); bottom: 58px; font-size: 22px; font-weight: 900; }
-
-/* 14 — Suporte ao vivo: o texto conta só o que está no ar; as telas são o widget de Ajuda de verdade */
-.s-suporte .head .lead { margin-top: 24px; max-width: 800px; font-size: 26px; color: var(--ink-3); }
-.s-suporte .pontos { position: absolute; left: var(--pad-x); top: 450px; width: 780px; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 38px; }
-.s-suporte .pontos li { display: grid; grid-template-columns: 58px 1fr; column-gap: 18px; }
-.s-suporte .pontos b { padding-top: 9px; font-size: 17px; font-weight: 900; letter-spacing: .14em; color: var(--orange-ink); }
-.s-suporte .pontos h3 { font-size: 34px; font-weight: 900; letter-spacing: -.022em; line-height: 1.08; }
-.s-suporte .pontos p { margin-top: 8px; font-size: 22px; line-height: 1.42; color: var(--ink-2); text-wrap: pretty; }
-.s-suporte .telas { position: absolute; left: 1010px; top: 236px; width: 790px; height: 790px; }
-.s-suporte .telas .crop { width: 375px; height: 675px; border-radius: 26px; }
-.s-suporte .telas .a { left: 0; top: 0; }
-.s-suporte .telas .b { left: 415px; top: 80px; }
-.s-suporte .escopo { position: absolute; left: var(--pad-x); bottom: 60px; width: 860px; font-size: 18px; line-height: 1.45; color: var(--ink-3); }
 
 /* 15 — Cliente zero / white label */
 .s-white .map { position: absolute; left: var(--pad-x); top: 380px; width: 900px; height: 560px; }

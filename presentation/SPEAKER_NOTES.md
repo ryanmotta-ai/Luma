@@ -10,8 +10,8 @@
    As artes foram geradas pelo motor de render do Luma. Os templates foram montados importando PSDs
    feitos a partir das capas de campanha do próprio repositório, e as fotos dos produtos são do Unsplash.
    A franqueada "Carla" é uma persona de demonstração.
-2. O CI está **vermelho** hoje (27/09). Diga antes que perguntem: é o mecanismo funcionando (slide 12, apêndice E).
-3. Os números de custo (slide 11) têm fonte no `CLAIMS.md`: R$ 0 e os 94 franqueados vêm da arquitetura e do Ryan;
+2. O CI está **vermelho** hoje (27/09). Diga antes que perguntem: é o mecanismo funcionando (slide 11, apêndice E).
+3. Os números de custo (slide 13) têm fonte no `CLAIMS.md`: R$ 0 e os 94 franqueados vêm da arquitetura e do Ryan;
    a economia de R$ 11,9 mil/ano é o valor do Deskfy informado pelo Ryan; a folga de 15× é estimativa, não teste de carga.
 
 ---
@@ -165,12 +165,51 @@
   seis ofertas viram seis artes num ZIP. À direita, 15 artes de 4 campanhas em 2 formatos, todas saídas do
   mesmo motor. O chat é uma interface. Por trás existe um motor de creative automation."
 - **Ponto principal:** o motor é o produto; o chat e a planilha são interfaces.
-- **Transição:** "E esse produto não para no lançamento."
+- **Transição:** "Tudo isso precisa aguentar a rede de verdade. E aguenta."
 - **Perguntas difíceis:**
   - *"Essas 15 artes são da rede?"* Não, são artes de demonstração geradas pelo motor a partir de templates
     de demonstração. O motor é o mesmo que a rede vai usar.
 
-## 11 · Custo zero — "O Luma cresce com a rede. A conta, não."
+## 11 · Confiança — "Já existe engenharia suficiente para colocar o produto diante de usuários reais."
+
+- **Objetivo:** dar confiança com prova, sem prometer perfeição.
+- **Frase de abertura:** "Já existe engenharia suficiente para colocar o produto diante de usuários reais."
+- **Discurso:** "844 verificações automáticas, em 22 suítes, num navegador de verdade. 300 artes geradas e
+  conferidas pelo motor real, 60 delas pelo fluxo completo do franqueado no app. 31 cenários de estresse,
+  73 casos no importador de PSD. A segurança mora no banco: as 32 tabelas têm RLS. E 41 recursos a gestão
+  liga e desliga sem deploy. Não estamos dizendo que nunca vai quebrar. Estamos dizendo que construímos
+  mecanismos para saber quando quebra."
+- **Ponto principal:** mecanismos para saber quando quebra.
+- **Transição:** "Engenharia cuida do sistema. E quando o franqueado tiver dúvida, tem gente."
+- **Perguntas difíceis:**
+  - *"Está tudo verde?"* Não. Na execução de 27/09 são 838 de 844: 5 casos no Copy Fit e 1 no corpus do
+    Local Fit. E o CI está vermelho no portão de arquitetura (uma catraca de localStorage subiu de 56 para 59).
+    É o mecanismo fazendo o trabalho dele, e esses itens estão na lista antes do beta. Apêndice E.
+  - *"Quem mantém isso?"* O código tem leis de arquitetura cobradas pelo CI e os motores são únicos
+    (um interpolador, um render). Apêndice A.
+
+## 12 · Suporte ao vivo — "Tem gente da DM do outro lado."
+
+- **Objetivo:** mostrar que o franqueado não fica sozinho e que o atendimento já está no ar.
+- **Frase de abertura:** "Tem gente da DM do outro lado."
+- **Discurso:** "Desde 23 de setembro, o franqueado tira dúvida em tempo real sem sair do Luma. [aponta a primeira
+  tela] Quando alguém da equipe está online, o Luma mostra quem é, e a pergunta vai direto para essa pessoa,
+  sem passar pela IA. Se ninguém estiver online, o assistente responde na hora, e um toque leva a conversa para
+  a equipe. [avança] Aqui a Ana assumiu a conversa: a Carla vê quem está cuidando dela, com nome e cargo, e a
+  equipe vê de onde veio a dúvida. A conversa só fecha quando está resolvida. Se a dúvida voltar, ela reabre."
+- **Ponto principal:** suporte humano, dentro do produto, com alguém responsável por cada conversa.
+- **Transição:** "E tudo isso sem conta nova de infraestrutura."
+- **Perguntas difíceis:**
+  - *"E se o franqueado fechar o app?"* A resposta fica esperando: ele vê o aviso e o contador quando volta.
+    Nesta versão não há e-mail nem push.
+  - *"Quem atende?"* A equipe DM, dentro do Luma. Dúvida de uso e erro; aprovação de peça e pedido de arte
+    seguem com o marketing.
+  - *"E a equipe precisa ficar com o Luma aberto?"* Hoje, sim. A ponte com o Telegram já está construída e
+    aprovada pelo jurídico, e liga quando a equipe estiver vinculada (apêndice G).
+  - *"Essa conversa é real?"* A tela é a do produto; a conversa foi montada para a demonstração, com a Carla
+    e uma atendente fictícia.
+
+## 13 · Custo zero — "O Luma cresce com a rede. A conta, não."
 
 - **Objetivo:** mostrar que a rede inteira roda sem custo de infraestrutura e que o Luma ainda economiza.
 - **Frase de abertura:** "O Luma cresce com a rede. A conta, não."
@@ -181,7 +220,7 @@
   gratuito aguenta umas 1.500; a rede inteira são 94. São 15 vezes de folga. [avança] E tem o que sai do
   orçamento: são 11,9 mil reais por ano que vamos economizar com o fim do Deskfy."
 - **Ponto principal:** a rede cresce sem conta nova, e ainda sobra uma economia concreta.
-- **Transição:** "Custo baixo só vale se der para confiar. E confiança é engenharia."
+- **Transição:** "Produto pronto, rede atendida, conta zerada. Falta a parte mais importante: pôr o Luma na mão da rede."
 - **Perguntas difíceis:**
   - *"E se abrir para todos os lojistas?"* Aí o banco vai para o Supabase Pro: 25 dólares por mês, uns
     140 reais. O render continua nos aparelhos, então a conta não cresce com o número de artes.
@@ -191,25 +230,7 @@
     do plano gratuito), não teste de carga. Usamos o piso: 1.500.
   - *"Quando a economia do Deskfy entra?"* Quando a rede estiver no Luma e o contrato do Deskfy acabar.
 
-## 12 · Confiança — "Já existe engenharia suficiente para colocar o produto diante de usuários reais."
-
-- **Objetivo:** dar confiança com prova, sem prometer perfeição.
-- **Frase de abertura:** "Já existe engenharia suficiente para colocar o produto diante de usuários reais."
-- **Discurso:** "844 verificações automáticas, em 22 suítes, num navegador de verdade. 300 artes geradas e
-  conferidas pelo motor real, 60 delas pelo fluxo completo do franqueado no app. 31 cenários de estresse,
-  73 casos no importador de PSD. A segurança mora no banco: as 32 tabelas têm RLS. E 41 recursos a gestão
-  liga e desliga sem deploy. Não estamos dizendo que nunca vai quebrar. Estamos dizendo que construímos
-  mecanismos para saber quando quebra."
-- **Ponto principal:** mecanismos para saber quando quebra.
-- **Transição:** "Por isso a próxima etapa é pôr o Luma na mão da rede."
-- **Perguntas difíceis:**
-  - *"Está tudo verde?"* Não. Na execução de 27/09 são 838 de 844: 5 casos no Copy Fit e 1 no corpus do
-    Local Fit. E o CI está vermelho no portão de arquitetura (uma catraca de localStorage subiu de 56 para 59).
-    É o mecanismo fazendo o trabalho dele, e esses itens estão na lista antes do beta. Apêndice E.
-  - *"Quem mantém isso?"* O código tem leis de arquitetura cobradas pelo CI e os motores são únicos
-    (um interpolador, um render). Apêndice A.
-
-## 13 · Beta — "A V1 está pronta. Agora começa a parte mais importante."
+## 14 · Beta — "A V1 está pronta. Agora começa a parte mais importante."
 
 - **Objetivo:** pedir o beta com a rede e dizer o que ele mede.
 - **Frase de abertura:** "A V1 está pronta. Agora começa a parte mais importante: colocar o Luma na mão da rede."
@@ -217,32 +238,11 @@
   se a primeira arte sai sem ajuda, quanto tempo leva até o download, quantos que começam chegam ao download,
   se voltam toda semana, onde pedem suporte, que problemas aparecem e o que dizem."
 - **Ponto principal:** o beta mede produto, não receita.
-- **Transição:** "E o que isso vale para a empresa."
+- **Transição:** "E se funciona aqui..."
 - **Perguntas difíceis:**
   - *"Quantas franquias e por quanto tempo?"* É uma decisão da rede e da gestão, e é o que estamos pedindo
     para definir juntos.
   - *"O franqueado vai pagar?"* Não é o que este beta discute.
-
-## 14 · Suporte ao vivo — "Tem gente da DM do outro lado."
-
-- **Objetivo:** mostrar que o franqueado não fica sozinho e que o atendimento já está no ar.
-- **Frase de abertura:** "Tem gente da DM do outro lado."
-- **Discurso:** "Desde 23 de setembro, o franqueado tira dúvida em tempo real sem sair do Luma. [aponta a primeira
-  tela] Quando alguém da equipe está online, o Luma mostra quem é, e a pergunta vai direto para essa pessoa,
-  sem passar pela IA. Se ninguém estiver online, o assistente responde na hora, e um toque leva a conversa para
-  a equipe. [avança] Aqui a Ana assumiu a conversa: a Carla vê quem está cuidando dela, com nome e cargo, e a
-  equipe vê de onde veio a dúvida. A conversa só fecha quando está resolvida. Se a dúvida voltar, ela reabre."
-- **Ponto principal:** suporte humano, dentro do produto, com alguém responsável por cada conversa.
-- **Transição:** "E se funciona aqui..."
-- **Perguntas difíceis:**
-  - *"E se o franqueado fechar o app?"* A resposta fica esperando: ele vê o aviso e o contador quando volta.
-    Nesta versão não há e-mail nem push.
-  - *"Quem atende?"* A equipe DM, dentro do Luma. Dúvida de uso e erro; aprovação de peça e pedido de arte
-    seguem com o marketing.
-  - *"E a equipe precisa ficar com o Luma aberto?"* Hoje, sim. A ponte com o Telegram já está construída e
-    aprovada pelo jurídico, e liga quando a equipe estiver vinculada (apêndice G).
-  - *"Essa conversa é real?"* A tela é a do produto; a conversa foi montada para a demonstração, com a Carla
-    e uma atendente fictícia.
 
 ## 15 · Horizonte — "Se funciona aqui, o problema não existe só aqui."
 

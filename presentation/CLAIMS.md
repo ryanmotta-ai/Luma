@@ -7,14 +7,14 @@
 
 | Onde | Afirmação | Fonte (como conferir) |
 |---|---|---|
-| 12 · E | **844** verificações automáticas em **22** suítes, num navegador de verdade | `node scripts/run-browser-tests.js` (execução local de 27/09/2026): 22 suítes, 838/844 |
-| 12 · E | **300** artes geradas e conferidas pelo motor real, em 5 baterias de 60 | suítes `artes-composicao-grafica`, `artes-fluxo-interativo`, `artes-gastronomia`, `artes-multiformatos`, `artes-tipografia-fit` (60 cada) |
-| 12 · E | **60** artes pelo fluxo completo do franqueado no app real | suíte `artes-fluxo-interativo` (60/60) |
-| 12 · E | **31** cenários de estresse: fluxo, tela de iPhone, maratona de fuzz | `stress-franqueado-fluxo` 9 + `stress-franqueado-ios` 9 + `stress-fuzz-maratona` 13 |
-| 12 · C · E | **73** casos de regressão no importador de PSD | suíte `psd-import` (73/73), `tests/psd-import.html` |
-| 12 · E | O CI roda **a cada push**: leis da arquitetura, regra das Novidades e as suítes | `.github/workflows/tests.yml` (paths `js/`, `tests/`, `index.html`; passos `scripts/arquitetura.js`, `scripts/novidades.js --checar`, `scripts/run-browser-tests.js`) |
-| 12 · B | **32 de 32** tabelas com RLS, **3** papéis, **69** políticas | contagem em `supabase/migrations/` em 27/09/2026; papéis em `luma-brain/01_BUSINESS.md` §2 |
-| 12 · H | **41** recursos que a gestão liga e desliga sem deploy | entradas de `G_FEATURE_REGISTRY` em `js/core/feature-flags.js` (`grep -c "{ key:'"` = 41) |
+| 11 · E | **844** verificações automáticas em **22** suítes, num navegador de verdade | `node scripts/run-browser-tests.js` (execução local de 27/09/2026): 22 suítes, 838/844 |
+| 11 · E | **300** artes geradas e conferidas pelo motor real, em 5 baterias de 60 | suítes `artes-composicao-grafica`, `artes-fluxo-interativo`, `artes-gastronomia`, `artes-multiformatos`, `artes-tipografia-fit` (60 cada) |
+| 11 · E | **60** artes pelo fluxo completo do franqueado no app real | suíte `artes-fluxo-interativo` (60/60) |
+| 11 · E | **31** cenários de estresse: fluxo, tela de iPhone, maratona de fuzz | `stress-franqueado-fluxo` 9 + `stress-franqueado-ios` 9 + `stress-fuzz-maratona` 13 |
+| 11 · C · E | **73** casos de regressão no importador de PSD | suíte `psd-import` (73/73), `tests/psd-import.html` |
+| 11 · E | O CI roda **a cada push**: leis da arquitetura, regra das Novidades e as suítes | `.github/workflows/tests.yml` (paths `js/`, `tests/`, `index.html`; passos `scripts/arquitetura.js`, `scripts/novidades.js --checar`, `scripts/run-browser-tests.js`) |
+| 11 · B | **32 de 32** tabelas com RLS, **3** papéis, **69** políticas | contagem em `supabase/migrations/` em 27/09/2026; papéis em `luma-brain/01_BUSINESS.md` §2 |
+| 11 · H | **41** recursos que a gestão liga e desliga sem deploy | entradas de `G_FEATURE_REGISTRY` em `js/core/feature-flags.js` (`grep -c "{ key:'"` = 41) |
 | E | Estado de 27/09: **838 verdes**, 5 casos vermelhos no Copy Fit, 1 no corpus | mesma execução: `copy-fit` 34/37, `copy-fit-ui` 34/36, `corpus` 29/30 |
 | E | CI **vermelho** no portão de arquitetura: catraca de localStorage de 56 para 59 | `node scripts/arquitetura.js` e as execuções do workflow `tests.yml` no GitHub |
 | E | Totais por grupo (240, 60, 186, 114, 87, 73, 53, 31) | soma das suítes da mesma execução (ex.: 186 = `local-fit` 75 + `corpus` 30 + `fuzz` 63 + `auto-layout` 14 + `local-fit-studio` 4) |
@@ -27,12 +27,12 @@
 | 08 | As quatro legendas da demonstração | saídas do `fBuildCopy` com sorteio fixo (`_fCopySetRandom`, semente 42), rodando o arquivo real fora do navegador: as 3 opções de uma arte e a Promo da arte seguinte |
 | 09 | O Encurtar é determinístico, **<1 ms**, sem rede e sem IA; números nunca somem | cabeçalho de `js/core/copy-fit.js` (garantias cobradas por `tests/copy-fit.html`) |
 | 10 | **15** artes · **4** campanhas · **2** formatos; **6** ofertas viram um ZIP | `assets/artes/lote-00…14.webp`, geradas pelo Luma Sheets; tela `captures/franqueado-sheets.webp` |
-| 11 | **R$ 0** por mês de infraestrutura | `luma-brain/02_ARCHITECTURE.md` (Supabase `uqrqzjafhigjuvtjqzid`, plano Free); front estático no GitHub Pages da `talpaipai`; Ryan, 27/09/2026. A IA (Gemini, cobrada por uso) fica fora da conta de infraestrutura |
-| 11 | **94** franqueados | Ryan, 27/09/2026 ("hoje temos 94 franqueados") |
-| 11 | Capacidade estimada de **1.500** conexões simultâneas no plano gratuito; **15×** a rede inteira | análise de capacidade de 22/09/2026 (limite de ~200 req/s do PostgREST no plano Free, estimativa de 1.500 a 3.000 usuários simultâneos; usado o piso). 1.500 ÷ 94 ≈ 16, arredondado para baixo. É estimativa, não teste de carga |
-| 11 | **R$ 11,9 mil** por ano de economia com o fim do Deskfy | Ryan, 27/09/2026: valor do deck anterior (slide "A demanda": "R$ 11,9 mil é o que sai todo ano pro Deskfy"; na conta do ano, R$ 11.903) |
-| 11 | Supabase Pro a **cerca de R$ 140** por mês se abrir para milhares de lojistas | preço do plano Pro (US$ 25/mês), convertido; análise de 22/09/2026 |
-| 14 | Suporte ao vivo no ar desde **23/09**; atendimento com estado e responsável desde 26/09 | `luma-brain/01_BUSINESS.md` §10; `js/core/suporte.js`; chave `global.help.suporte` ligada por padrão; migration `20260926120000` |
+| 13 | **R$ 0** por mês de infraestrutura | `luma-brain/02_ARCHITECTURE.md` (Supabase `uqrqzjafhigjuvtjqzid`, plano Free); front estático no GitHub Pages da `talpaipai`; Ryan, 27/09/2026. A IA (Gemini, cobrada por uso) fica fora da conta de infraestrutura |
+| 13 | **94** franqueados | Ryan, 27/09/2026 ("hoje temos 94 franqueados") |
+| 13 | Capacidade estimada de **1.500** conexões simultâneas no plano gratuito; **15×** a rede inteira | análise de capacidade de 22/09/2026 (limite de ~200 req/s do PostgREST no plano Free, estimativa de 1.500 a 3.000 usuários simultâneos; usado o piso). 1.500 ÷ 94 ≈ 16, arredondado para baixo. É estimativa, não teste de carga |
+| 13 | **R$ 11,9 mil** por ano de economia com o fim do Deskfy | Ryan, 27/09/2026: valor do deck anterior (slide "A demanda": "R$ 11,9 mil é o que sai todo ano pro Deskfy"; na conta do ano, R$ 11.903) |
+| 13 | Supabase Pro a **cerca de R$ 140** por mês se abrir para milhares de lojistas | preço do plano Pro (US$ 25/mês), convertido; análise de 22/09/2026 |
+| 12 | Suporte ao vivo no ar desde **23/09**; atendimento com estado e responsável desde 26/09 | `luma-brain/01_BUSINESS.md` §10; `js/core/suporte.js`; chave `global.help.suporte` ligada por padrão; migration `20260926120000` |
 | A | **3** Edge Functions: IA, convite e Telegram | `supabase/functions/`: `ai`, `invite-user`, `suporte-telegram` |
 | B | Conta desativada perde o poder no banco desde **23/09** | `docs/LUMA-BACKEND-CHANGELOG.md`, entrada "2026-09-23 — Ataque simulado pela API + conta desativada perde o poder no banco" |
 | B | Um gatilho impede autopromoção | `docs/LUMA-BACKEND-CHANGELOG.md` (guard anti-auto-promoção, testado via API) |
@@ -51,9 +51,9 @@
 | 08 | Três leis: não inventa, não repete, não soa artificial | cabeçalho "MOTOR DE COPY COMBINATÓRIO v3 — Tom de Voz Delivery Much" em `js/franqueado/png-generator.js` |
 | 08 | "Alimentado por anos de copy da Delivery Much" | Ryan, 27/09/2026 (o código registra "Tom de Voz Delivery Much" e "bancos curados") |
 | 08 | No chat, a IA pode reescrever por cima; em lote e sem rede, quem escreve é o motor | `js/franqueado/chat.js`: a legenda do motor entra na hora e `fFetchAICaptionSuggestions` + `_fAplicarLegendaIA` trocam pela da IA quando ela responde; `AI_FEATURES.caption: true` em `js/00-config.js` (ligado em 23/09); o Luma Sheets chama `fBuildCopy` direto |
-| 11 | A arte é desenhada no aparelho do franqueado; o servidor não gera pixel | `luma-brain/02_ARCHITECTURE.md` (render no navegador: `fRenderCanvasHelper`, `js/franqueado/png-generator.js`) |
-| 14 | Equipe online: a pergunta vai direto para a pessoa, sem IA. Ninguém online: o assistente responde e oferece falar com a equipe | `luma-brain/01_BUSINESS.md` §10 (decisão de 23/09/2026); `js/widgets/help-widget.js` |
-| 14 | Quem assume aparece com nome e cargo; a conversa reabre se o franqueado escrever de novo | `luma-brain/01_BUSINESS.md` §10; gatilho `suporte_msg_estado` |
+| 13 | A arte é desenhada no aparelho do franqueado; o servidor não gera pixel | `luma-brain/02_ARCHITECTURE.md` (render no navegador: `fRenderCanvasHelper`, `js/franqueado/png-generator.js`) |
+| 12 | Equipe online: a pergunta vai direto para a pessoa, sem IA. Ninguém online: o assistente responde e oferece falar com a equipe | `luma-brain/01_BUSINESS.md` §10 (decisão de 23/09/2026); `js/widgets/help-widget.js` |
+| 12 | Quem assume aparece com nome e cargo; a conversa reabre se o franqueado escrever de novo | `luma-brain/01_BUSINESS.md` §10; gatilho `suporte_msg_estado` |
 | 15 · K | Hoje o Luma atende uma rede só (sem multi-tenant) | `luma-brain/02_ARCHITECTURE.md` §12 |
 | J | Calendário e Academia construídos, fora da V1; CRM Visual a estudar | `luma-brain/07_ROADMAP.md` §4–§7; Academia com `defaultEnabled:false` |
 
@@ -66,7 +66,7 @@
   de esconder o "de") foram feitas no próprio Estúdio.
 - **Fotos de produto:** quatro fotos do Unsplash (licença Unsplash), baixadas com autorização para a demo.
 - **Persona:** "Carla", franqueada de demonstração.
-- **Conversa do suporte (slide 14):** a interface é a do widget de Ajuda, capturada na cópia local; a conversa entre
+- **Conversa do suporte (slide 12):** a interface é a do widget de Ajuda, capturada na cópia local; a conversa entre
   a Carla e a atendente Ana Costa (as duas fictícias) foi montada para a demonstração.
 - **Calendário:** desligado na captura, porque não é V1.
 
@@ -79,7 +79,7 @@ Tudo abaixo estava em `Luma Apresentação do Produto (standalone).html` e ficou
 | "Import do Photoshop 1:1", "Camadas preservadas 1:1", "Importa 1:1" | Promete fidelidade total. O importador mede e mostra onde aproxima (slide 05, apêndice C). |
 | "Tecnologia rara de converter PSD no navegador (3ª no mundo)" | Sem fonte verificável. |
 | Assinatura de R$ 39,90/mês, "meta inicial 75% da base (64 de 96)", "+R$ 39.305/ano", cenário de R$ 89,90 | Cobrança do franqueado não é assunto deste deck, e os números não foram validados. |
-| "Só o corte do Deskfy paga a iniciativa" | Comparação que não entra. O valor em si (R$ 11,9 mil/ano) voltou no slide 11 por decisão do Ryan em 27/09. |
+| "Só o corte do Deskfy paga a iniciativa" | Comparação que não entra. O valor em si (R$ 11,9 mil/ano) voltou no slide 13 por decisão do Ryan em 27/09. |
 | Slide "Tração (Deskfy)", "96 franquias num único mês", "70 no Deskfy" | Métrica de outra ferramenta, sem fonte no Luma. |
 | "Feito por duas pessoas, fora do orçamento" | Não é argumento de produto. |
 | "Se os criadores se afastarem, estagiários assumem a frente sem drama" | Promessa sobre pessoas, não sobre o sistema. A manutenção é tratada pelas leis de arquitetura e pelo CI (apêndices A e E). |
