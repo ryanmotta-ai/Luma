@@ -185,7 +185,7 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 /* 01 — Capa */
 .s-capa .brand { position: absolute; left: var(--pad-x); top: 88px; display: flex; align-items: center; gap: 26px; }
 .s-capa .brand .luma { height: 64px; width: auto; }
-.s-capa .brand .x { width: 1px; height: 40px; background: rgba(10, 10, 10, .35); }
+.s-capa .brand .x { width: 1px; height: 40px; background: rgba(255, 255, 255, .6); }
 .s-capa .brand .dm { height: 52px; width: auto; }
 .s-capa .copy { position: absolute; left: var(--pad-x); top: 300px; width: 900px; }
 /* 96 px: a linha mais longa ("pronta para executar.") mede 841 px e termina antes do celular */
@@ -478,7 +478,7 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-fim .cta b { font-size: 40px; font-weight: 900; letter-spacing: -.02em; }
 .s-fim .logos { position: absolute; left: var(--pad-x); right: var(--pad-x); bottom: 76px; display: flex; align-items: center; gap: 28px; }
 .s-fim .logos .luma { height: 56px; }
-.s-fim .logos .x { width: 1px; height: 36px; background: rgba(10, 10, 10, .35); }
+.s-fim .logos .x { width: 1px; height: 36px; background: rgba(255, 255, 255, .6); }
 .s-fim .logos .dm { height: 48px; }
 
 /* 16 — Divisor do apêndice */
