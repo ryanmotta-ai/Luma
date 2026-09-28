@@ -26,7 +26,7 @@
 - **Transição:** "Antes do produto, o problema que ele resolve."
 - **Perguntas difíceis:**
   - *"Essas telas são reais ou mockup?"* As telas são capturas do app, numa cópia local sem dados de produção,
-    na resolução nativa de cada aparelho. As molduras são as oficiais da Apple, em escala real.
+    na resolução nativa de cada aparelho. As molduras dos aparelhos são as oficiais da Apple.
     As campanhas da vitrine foram importadas de PSD e publicadas pelo fluxo normal do Estúdio.
 
 ## 02 · O problema — "Escalar a rede não deveria escalar o retrabalho."

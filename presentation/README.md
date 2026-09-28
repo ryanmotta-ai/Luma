@@ -71,8 +71,9 @@ presentation/
   do franqueado capturada na resolução nativa do aparelho (`captures/franqueado-home-macbook|tablet|mobile.webp`).
   O MacBook mostra o Safari em tela cheia, com a faixa preta de 37 pt atrás do notch. O iPad e o iPhone mostram o Luma
   aberto pela tela inicial, com a barra de status do sistema no laranja do `theme-color`, 21:41 porque a saudação é
-  "Boa noite". As regras de marketing da Apple valem aqui: aparelho inteiro, sem sobrepor, sem cortar, sem sombra ou
-  reflexo e em escala real entre eles (a capa usa 2,2 px por mm).
+  "Boa noite". Atenção: a capa sobrepõe, corta pela borda e sombreia as molduras (decisão de 27/09). As diretrizes de
+  marketing da Apple pedem o contrário (aparelho inteiro, sem sobrepor, sem cortar, sem sombra, em escala real); se o
+  deck virar material de divulgação, reveja a capa.
 
 ## Atualizar
 
