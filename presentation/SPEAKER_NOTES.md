@@ -15,18 +15,18 @@
 
 ---
 
-## 01 · Capa — "Uma campanha criada uma vez. Uma rede inteira pronta para executar."
+## 01 · Capa — "Crie uma vez. A rede inteira executa."
 
 - **Objetivo:** abrir com a promessa inteira em uma frase e mostrar, desde o primeiro segundo, que existe produto.
-- **Frase de abertura:** "Uma campanha criada uma vez. Uma rede inteira pronta para executar."
+- **Frase de abertura:** "Crie uma vez. A rede inteira executa."
 - **Discurso:** "Isto é o Luma, a plataforma de creative automation que construímos para a rede Delivery Much.
-  Na tela, duas imagens reais: o Estúdio, onde o designer transforma uma campanha num template, e a arte
-  que sai do outro lado, no celular do franqueado. Nos próximos minutos eu mostro o caminho entre essas duas telas."
+  Na tela, a home do franqueado de verdade, no computador e no celular: as campanhas que a marca publicou,
+  prontas para virar arte. Nos próximos minutos eu mostro como elas chegam ali e o que o franqueado faz com elas."
 - **Ponto principal:** não é um conceito, é um produto com dois lados funcionando.
 - **Transição:** "Antes do produto, o problema que ele resolve."
 - **Perguntas difíceis:**
   - *"Essas telas são reais ou mockup?"* São capturas do app, numa cópia local sem dados de produção.
-    A arte do celular foi gerada pelo motor de render do Luma, o mesmo do download.
+    As campanhas da vitrine foram importadas de PSD e publicadas pelo fluxo normal do Estúdio.
 
 ## 02 · O problema — "Escalar a rede não deveria escalar o retrabalho."
 

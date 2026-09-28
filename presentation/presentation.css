@@ -188,33 +188,32 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-capa .brand .x { width: 1px; height: 40px; background: rgba(255, 255, 255, .6); }
 .s-capa .brand .dm { height: 52px; width: auto; }
 .s-capa .copy { position: absolute; left: var(--pad-x); top: 300px; width: 900px; }
-/* 96 px: a linha mais longa ("pronta para executar.") mede 841 px e termina antes do celular */
-.s-capa .copy .h-hero { font-size: 96px; }
+.s-capa .copy .h-hero { font-size: 84px; color: #fff; }
 .s-capa .copy .lead { margin-top: 40px; color: rgba(10, 10, 10, .78); }
 .s-capa .meta { position: absolute; left: var(--pad-x); bottom: 70px; font-size: 18px; font-weight: 500; letter-spacing: .04em; color: rgba(10, 10, 10, .62); }
 .s-capa .scene { position: absolute; left: 1010px; top: 150px; width: 910px; height: 860px; }
-.s-capa .win {
-  position: absolute; left: 130px; top: 40px; width: 740px; height: 478px; border-radius: 22px; overflow: hidden;
-  background: var(--studio); box-shadow: 0 50px 110px rgba(80, 30, 0, .38), 0 0 0 1px rgba(10, 10, 10, .12);
-  transform: rotate(-2.2deg);
+/* MacBook: tela 16:10 (a captura da home é 3200×2000), moldura fina, base mais larga que a tela */
+.s-capa .mac { position: absolute; left: 70px; top: 120px; width: 800px; }
+.s-capa .mac-screen {
+  position: relative; padding: 14px 12px 12px; border-radius: 22px 22px 6px 6px; background: #0A0A0A;
+  box-shadow: 0 0 0 2px #3A3D42, 0 50px 110px rgba(80, 30, 0, .38);
 }
-.s-capa .win-bar { height: 40px; background: #0F1216; display: flex; align-items: center; gap: 8px; padding: 0 16px; }
-.s-capa .win-bar i { width: 11px; height: 11px; border-radius: 50%; background: #2C3341; }
-.s-capa .win-bar span { margin-left: 14px; font-size: 13px; font-weight: 700; letter-spacing: .1em; color: #8C95A5; text-transform: uppercase; }
-.s-capa .win .crop { border-radius: 0; box-shadow: none; left: 0; top: 40px; }
-.s-capa .phone {
-  position: absolute; left: 10px; top: 330px; width: 270px; height: 480px; border-radius: 30px; overflow: hidden;
-  border: 9px solid #0A0A0A; background: #0A0A0A;
-  box-shadow: 0 44px 90px rgba(60, 20, 0, .45); transform: rotate(3deg);
+.s-capa .mac-screen .cam { position: absolute; left: 50%; top: 5px; width: 5px; height: 5px; margin-left: -2px; border-radius: 50%; background: #2C3036; }
+.s-capa .mac-screen img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: top; border-radius: 4px; }
+.s-capa .mac-base {
+  position: relative; left: -40px; width: 880px; height: 20px; border-radius: 3px 3px 14px 14px;
+  background: linear-gradient(#E4E6EA, #B9BDC4 70%, #8E939B); box-shadow: 0 18px 30px rgba(80, 30, 0, .3);
 }
-.s-capa .phone img { width: 100%; height: 100%; object-fit: cover; border-radius: 21px; }
-.s-capa .chip-live {
-  position: absolute; left: 300px; top: 700px; z-index: 3;
-  background: #fff; color: #0A0A0A; border-radius: 999px; padding: 10px 18px 10px 14px;
-  font-size: 17px; font-weight: 700; display: flex; gap: 10px; align-items: center;
-  box-shadow: 0 16px 36px rgba(60, 20, 0, .28); transform: rotate(-2deg);
+.s-capa .mac-base::before { content: ''; position: absolute; left: 50%; top: 0; width: 130px; height: 7px; margin-left: -65px; border-radius: 0 0 8px 8px; background: #A2A7AE; }
+/* iPhone: 19,5:9, cantos de 50 px, ilha dinâmica sobre uma faixa de status na cor do cabeçalho do app */
+.s-capa .iphone {
+  position: absolute; left: 0; top: 300px; width: 260px; height: 563px; padding: 9px; border-radius: 50px; z-index: 2;
+  background: #0A0A0A; box-shadow: 0 0 0 3px #4A4D52, 0 44px 90px rgba(60, 20, 0, .45);
 }
-.s-capa .chip-live i { width: 10px; height: 10px; border-radius: 50%; background: var(--green, #22C55E); box-shadow: 0 0 0 5px rgba(34, 197, 94, .18); }
+.s-capa .iphone-screen { position: relative; height: 100%; border-radius: 41px; overflow: hidden; background: #FAFAFA; padding-top: 34px; }
+.s-capa .iphone-screen::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 34px; background: var(--orange); }
+.s-capa .iphone-screen .island { position: absolute; left: 50%; top: 9px; width: 78px; height: 22px; margin-left: -39px; border-radius: 12px; background: #0A0A0A; z-index: 1; }
+.s-capa .iphone-screen img { display: block; width: 100%; }
 
 /* 02 — Problema */
 .s-problema .source { position: absolute; left: var(--pad-x); top: 376px; width: 380px; }
