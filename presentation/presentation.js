@@ -53,7 +53,7 @@
   stage.querySelectorAll('.crop[data-crop]').forEach(recorta);
 
   /* ── Quantos passos cada slide tem ─────────────────────────────────────────────────────── */
-  const DEMO_PASSOS = { chat: 5, pub: 1 };
+  const DEMO_PASSOS = { chat: 5, pub: 1, copy: 3 };
   function passosDe(s) {
     let n = 0;
     s.querySelectorAll('[data-step]').forEach(e => { n = Math.max(n, Number(e.dataset.step) || 0); });
@@ -319,7 +319,61 @@
       sai() {}
     },
 
-    /* 09 · as artes do lote entram uma a uma */
+    /* 08 · a legenda: os rolos giram e o cartão mostra o que o motor escreveu. As quatro legendas
+       são saídas reais do fBuildCopy (js/franqueado/png-generator.js) com sorteio semeado: as 3
+       opções de uma arte (Promo, Engajar, WhatsApp) e a Promo da arte seguinte, que não repete
+       nenhuma frase da anterior. O índice aponta a frase sorteada em cada rolo do HTML. */
+    copy: {
+      seq: [
+        { i: 1, aba: 'PROMO · OPÇÃO 1 DE 3', bancos: ['todo cardápio', 'com desconto', 'pedido'], tags: '#delivery #pecaagora #hamburguer #lanche #smashburger' },
+        { i: 3, aba: 'ENGAJAR · OPÇÃO 2 DE 3', bancos: ['lanches', 'com desconto', 'conversa'], tags: '#deliverymuch #pediu #lanche #smashburger #burger' },
+        { i: 4, aba: 'WHATSAPP · OPÇÃO 3 DE 3', bancos: ['lanches', 'com desconto', 'WhatsApp'], tags: '' },
+        { i: 6, aba: 'PROMO · A ARTE SEGUINTE', bancos: ['todo cardápio', 'com desconto', 'pedido'], tags: '#matoufome #pecaagora #lanche #burger #burgerlovers' }
+      ],
+      validade: 'Válido só neste fim de semana.',
+      rolos(s, r) {
+        return Array.from(s.querySelectorAll('.reel')).map((rolo, k) => {
+          const ol = rolo.querySelector('ol'), itens = Array.from(ol.children);
+          ol.style.transform = 'translateY(' + (-(r.i - 1) * 36) + 'px)';
+          itens.forEach((li, j) => li.classList.toggle('is-cur', j === r.i));
+          rolo.querySelector('.banco').textContent = r.bancos[k];
+          return itens[r.i].textContent;
+        });
+      },
+      cartao(s, r, pecas) {
+        s.querySelector('.leg .aba').textContent = r.aba;
+        const txt = s.querySelector('.leg .txt');
+        txt.textContent = '';
+        const par = (t, cls) => { const e = document.createElement('p'); e.textContent = t; if (cls) e.className = cls; txt.appendChild(e); };
+        par(pecas[0]);
+        const corpo = document.createElement('p');
+        corpo.append(pecas[1], document.createElement('br'), this.validade);
+        txt.appendChild(corpo);
+        par(pecas[2]);
+        if (r.tags) par(r.tags, 'tags');
+      },
+      estado(s, p) {
+        s.classList.add('sem-anim');
+        const r = this.seq[Math.min(p, this.seq.length - 1)];
+        this.cartao(s, r, this.rolos(s, r));
+        s.querySelector('.leg .txt').classList.remove('is-out');
+        void s.offsetWidth;
+        s.classList.remove('sem-anim');
+      },
+      entra(s, p) { this.estado(s, p); },
+      passo(s, p, animar) {
+        if (!animar) { this.estado(s, p); return; }
+        const r = this.seq[Math.min(p, this.seq.length - 1)];
+        const outra = s.querySelector('.leg .outra'), txt = s.querySelector('.leg .txt');
+        outra.classList.remove('go'); void outra.offsetWidth; outra.classList.add('go');
+        txt.classList.add('is-out');
+        const pecas = this.rolos(s, r);
+        agenda(() => { this.cartao(s, r, pecas); txt.classList.remove('is-out'); }, 700);
+      },
+      sai() {}
+    },
+
+    /* 10 · as artes do lote entram uma a uma */
     wall: {
       entra(s) {
         const itens = Array.from(s.querySelectorAll('.wall .a')), cont = s.querySelector('.count .c');

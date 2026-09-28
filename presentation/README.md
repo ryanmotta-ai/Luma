@@ -1,6 +1,6 @@
 # Apresentação oficial do Luma
 
-Deck de produto: 15 slides principais (12–18 min) e um apêndice técnico (A–L) para perguntas.
+Deck de produto: 16 slides principais (15–18 min) e um apêndice técnico (A–L) para perguntas.
 HTML, CSS e JavaScript puros, sem build e sem dependência. Fica isolado do app: só **lê** os tokens
 (`../css/00-tokens.css`), as fontes (`../assets/fonts/`), os logos e as capas do repositório. Nada daqui
 é carregado pelo `index.html` do Luma.
@@ -32,8 +32,8 @@ Funciona sem internet. Não usa Supabase, IA, upload, Telegram nem login, e não
 | deslizar no toque | avança ou volta |
 
 - **Link direto:** `#7` abre o slide 7; `#apx-c` abre o apêndice C.
-- **Demonstrações:** o 06 (publicação), o 07 (a conversa) e o 09 (o lote) são animados. No 07, espere a
-  digitação terminar antes de avançar.
+- **Demonstrações:** o 06 (publicação), o 07 (a conversa), o 08 (a legenda) e o 10 (o lote) são animados.
+  No 07, espere a digitação terminar antes de avançar.
 - **Qualquer tela:** o palco é 1920×1080 e escala para caber. Se a proporção não for 16:9, as faixas
   ficam na cor do slide. Testado em 1920×1080, 1440×900 e 1366×768.
 - **Notas do apresentador:** [`SPEAKER_NOTES.md`](SPEAKER_NOTES.md). **Fontes de cada número:** [`CLAIMS.md`](CLAIMS.md).
@@ -42,7 +42,7 @@ Funciona sem internet. Não usa Supabase, IA, upload, Telegram nem login, e não
 
 ```
 presentation/
-  index.html          os 27 slides (15 principais + divisor + apêndice A–L)
+  index.html          os 28 slides (16 principais + divisor + apêndice A–L)
   presentation.css    layout; cor, raio e movimento a partir dos tokens do Luma
   presentation.js     escala do palco, navegação, passos, índice e as demonstrações
   captures/           telas reais do produto (WebP, capturadas em 2×); o conjunto completo, nem todas entram nos slides

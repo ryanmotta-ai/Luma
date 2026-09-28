@@ -1,6 +1,6 @@
 # Luma — notas do apresentador
 
-> Fica fora da tela. Os 15 slides principais cabem em 12–18 minutos (1 min por slide, o 07 pede 2).
+> Fica fora da tela. Os 16 slides principais cabem em 15–18 minutos (1 min por slide; o 07 e o 08 pedem um pouco mais).
 > O apêndice (A–L) é para perguntas: tecle **G** para o índice e pule direto para a letra.
 > Toda afirmação com número tem fonte em [`CLAIMS.md`](CLAIMS.md). Se um número não está lá, não fale.
 
@@ -10,8 +10,8 @@
    As artes foram geradas pelo motor de render do Luma. Os templates foram montados importando PSDs
    feitos a partir das capas de campanha do próprio repositório, e as fotos dos produtos são do Unsplash.
    A franqueada "Carla" é uma persona de demonstração.
-2. O CI está **vermelho** hoje (27/09). Diga antes que perguntem: é o mecanismo funcionando (slide 11, apêndice E).
-3. Não há número financeiro validado neste deck, e não é para ter. O beta mede produto (slide 12).
+2. O CI está **vermelho** hoje (27/09). Diga antes que perguntem: é o mecanismo funcionando (slide 12, apêndice E).
+3. Não há número financeiro validado neste deck, e não é para ter. O beta mede produto (slide 13).
 
 ---
 
@@ -108,14 +108,37 @@
   veem foi gerado pelo motor de render do Luma, o mesmo do download. Não tem camada, não tem régua, não tem
   como quebrar a arte. [último passo] Arte pronta, salva em Minhas artes, com a legenda sugerida."
 - **Ponto principal:** parece vivo e não tem como quebrar.
-- **Transição:** "Parece simples. Por baixo, não é."
+- **Transição:** "E repara na legenda: ela também saiu pronta."
 - **Perguntas difíceis:**
   - *"Funciona no celular?"* Sim. Há uma suíte de estresse que roda o fluxo inteiro numa tela de iPhone.
-  - *"E se ele digitar um nome enorme ou errar o preço?"* É exatamente o próximo slide.
-  - *"A legenda é IA?"* Não. O motor de legendas gera as sugestões no próprio navegador, sem rede e sem IA,
-    a partir do produto e do preço que o franqueado informou.
+  - *"E se ele digitar um nome enorme ou errar o preço?"* Está no slide 09.
+  - *"A legenda é IA?"* É o próximo slide.
 
-## 08 · Inteligência invisível — "Por baixo, o Luma resolve o que não deveria virar problema do franqueado."
+## 08 · A legenda — "A arte sai com a legenda. E ela fala a nossa língua."
+
+- **Objetivo:** mostrar que a legenda também sai pronta, no tom da Delivery Much, e que anos de copy
+  viraram um ativo do produto.
+- **Frase de abertura:** "A arte sai com a legenda. E ela fala a nossa língua."
+- **Discurso:** "Quando a arte fica pronta, a legenda já está do lado. Ela sai de um motor combinatório
+  que a gente alimentou com anos de copy da Delivery Much: 107 ganchos, divididos por tipo de cardápio,
+  66 moldes de corpo e 25 chamadas. O motor junta um gancho, um corpo e uma chamada que combinam com o
+  que o franqueado informou. [avança] Gerar outra sugestão: a opção Engajar puxa conversa. [avança] A de
+  WhatsApp vira mensagem, sem hashtag. [avança] E na arte seguinte nenhuma frase se repete. Só para este
+  lanche em promoção são 2.430 legendas diferentes, sem contar as hashtags. Três leis: não inventa preço
+  nem validade, não repete frase, não soa artificial."
+- **Ponto principal:** a voz da marca virou produto. A rede escala sem perder o tom.
+- **Transição:** "Parece simples. Por baixo, não é."
+- **Perguntas difíceis:**
+  - *"Isso é IA?"* O motor, não: roda no navegador, sem rede, combinando frases que a gente escreveu.
+    No chat, quando a IA está disponível, ela pode reescrever por cima com as mesmas regras (sem inventar,
+    sem emoji) e com o jeito da cidade. Se ela não responder, a legenda do motor já está lá. No Luma
+    Sheets, cada arte do lote sai com legenda do motor.
+  - *"E se sair uma legenda errada?"* A primeira lei é não inventar: preço, desconto e validade só aparecem
+    se o franqueado informou. E é sugestão: ele copia, pede outra ou ajusta antes de publicar.
+  - *"Quantas legendas diferentes existem?"* Depende do produto e do que foi informado. Para este lanche
+    em promoção, 2.430 na opção Promo, sem contar as hashtags (a conta está no CLAIMS.md).
+
+## 09 · Inteligência invisível — "Por baixo, o Luma resolve o que não deveria virar problema do franqueado."
 
 - **Objetivo:** mostrar a engenharia que o franqueado não vê.
 - **Frase de abertura:** "Por baixo, o Luma resolve o que não deveria virar problema do franqueado."
@@ -132,7 +155,7 @@
   - *"Resolve todos os casos?"* Não, e não dizemos que resolve. Quando nada cabe com legibilidade, o Luma
     avisa antes do download em vez de estourar a arte.
 
-## 09 · Escala — "Uma arte por vez. Ou dezenas."
+## 10 · Escala — "Uma arte por vez. Ou dezenas."
 
 - **Objetivo:** mostrar que o chat é só uma das portas do mesmo motor.
 - **Frase de abertura:** "Uma arte por vez. Ou dezenas."
@@ -145,7 +168,7 @@
   - *"Essas 15 artes são da rede?"* Não, são artes de demonstração geradas pelo motor a partir de templates
     de demonstração. O motor é o mesmo que a rede vai usar.
 
-## 10 · Produto vivo — "O Luma não termina quando é lançado. Ele aprende."
+## 11 · Produto vivo — "O Luma não termina quando é lançado. Ele aprende."
 
 - **Objetivo:** mostrar o ciclo de melhoria e como a rede fica sabendo.
 - **Frase de abertura:** "O Luma não termina quando é lançado. Ele aprende."
@@ -159,7 +182,7 @@
   - *"Esse convite de beta já está no ar?"* O recurso é real: a edição pode trazer um convite e o "Quero
     participar" vira um sinal para a equipe. O texto desta captura foi montado para a demonstração.
 
-## 11 · Confiança — "Já existe engenharia suficiente para colocar o produto diante de usuários reais."
+## 12 · Confiança — "Já existe engenharia suficiente para colocar o produto diante de usuários reais."
 
 - **Objetivo:** dar confiança com prova, sem prometer perfeição.
 - **Frase de abertura:** "Já existe engenharia suficiente para colocar o produto diante de usuários reais."
@@ -177,7 +200,7 @@
   - *"Quem mantém isso?"* O código tem leis de arquitetura cobradas pelo CI e os motores são únicos
     (um interpolador, um render). Apêndice A.
 
-## 12 · Beta — "A V1 está pronta. Agora começa a parte mais importante."
+## 13 · Beta — "A V1 está pronta. Agora começa a parte mais importante."
 
 - **Objetivo:** pedir o beta com a rede e dizer o que ele mede.
 - **Frase de abertura:** "A V1 está pronta. Agora começa a parte mais importante: colocar o Luma na mão da rede."
@@ -191,7 +214,7 @@
     para definir juntos.
   - *"O franqueado vai pagar?"* Não é o que este beta discute.
 
-## 13 · Valor — "Economia foi o ponto de partida. Não precisa ser o teto."
+## 14 · Valor — "Economia foi o ponto de partida. Não precisa ser o teto."
 
 - **Objetivo:** reenquadrar o valor além do corte de custo, sem inventar número.
 - **Frase de abertura:** "Economia foi o ponto de partida. Não precisa ser o teto."
@@ -205,7 +228,7 @@
   - *"Quanto economiza?"* Não vou apresentar número que não foi validado. O beta mede o uso real e o número
     financeiro fecha com esses dados.
 
-## 14 · Horizonte — "Se funciona aqui, o problema não existe só aqui."
+## 15 · Horizonte — "Se funciona aqui, o problema não existe só aqui."
 
 - **Objetivo:** abrir o horizonte sem previsão e sem pedir para vender.
 - **Frase de abertura:** "Se funciona aqui, o problema não existe só aqui."
@@ -220,7 +243,7 @@
     configuração e marca por rede, onboarding, suporte e contrato por cliente. Apêndice K.
   - *"Quanto isso vale?"* Não há previsão neste deck, de propósito.
 
-## 15 · Fechamento — "Uma marca no controle. Uma rede com autonomia."
+## 16 · Fechamento — "Uma marca no controle. Uma rede com autonomia."
 
 - **Objetivo:** fechar a tese e pedir o próximo passo.
 - **Frase de abertura:** "Uma marca no controle. Uma rede com autonomia."
