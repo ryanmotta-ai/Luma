@@ -417,23 +417,32 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-escala .count { position: absolute; left: 1110px; top: 250px; font-size: 18px; font-weight: 700; letter-spacing: .08em; color: var(--ink-3); }
 .s-escala .foot { position: absolute; left: var(--pad-x); bottom: 64px; }
 
-/* 11 — Produto vivo */
-.s-vivo .loop { position: absolute; left: var(--pad-x); top: 372px; width: 700px; height: 340px; }
-.s-vivo .loop .n { position: absolute; width: 290px; }
-/* Setas nas calhas entre os passos: o ciclo lê em sentido horário sem cruzar o texto */
-.s-vivo .loop .ar { position: absolute; width: 40px; height: 40px; color: var(--orange); }
-.s-vivo .loop .ar.r { left: 336px; top: 19px; }
-.s-vivo .loop .ar.d { left: 410px; top: 148px; transform: rotate(90deg); }
-.s-vivo .loop .ar.l { left: 336px; top: 243px; transform: rotate(180deg); }
-.s-vivo .loop .ar.u { left: 0; top: 148px; transform: rotate(-90deg); }
-.s-vivo .loop .n b { display: block; font-size: 15px; letter-spacing: .16em; font-weight: 900; color: var(--orange-ink); }
-.s-vivo .loop .n span { display: block; margin-top: 6px; font-size: 26px; font-weight: 900; letter-spacing: -.01em; }
-.s-vivo .loop .n p { margin-top: 6px; font-size: 18px; color: var(--ink-3); line-height: 1.38; }
-.s-vivo .panels { position: absolute; left: 900px; top: 300px; width: 900px; height: 700px; }
-.s-vivo .panels .crop { width: 404px; height: 700px; border-radius: 24px; }
-.s-vivo .said { position: absolute; left: var(--pad-x); bottom: 70px; width: 720px; }
-.s-vivo .said .quote { font-size: 48px; line-height: 1.08; font-weight: 900; letter-spacing: -.025em; color: var(--ink); }
-.s-vivo .said p { margin-top: 14px; font-size: 20px; color: var(--ink-3); line-height: 1.45; text-wrap: balance; }
+/* 11 — Custo zero: R$ 0 de infraestrutura, a economia do Deskfy e a folga do plano gratuito */
+.s-custo .nums { position: absolute; left: var(--pad-x); top: 364px; width: 760px; }
+.s-custo .num b { font-weight: 900; letter-spacing: -.045em; line-height: .86; }
+.s-custo .num .por { margin-left: 18px; font-size: 26px; font-weight: 700; color: var(--ink-3); }
+.s-custo .num p { margin-top: 20px; max-width: 660px; font-size: 24px; line-height: 1.42; color: var(--ink-2); text-wrap: pretty; }
+.s-custo .num p strong { color: var(--ink); font-weight: 700; }
+.s-custo .zero b { font-size: 236px; color: var(--orange-d); }
+.s-custo .eco { margin-top: 48px; padding-top: 40px; border-top: 1px solid var(--line); }
+.s-custo .eco b { font-size: 100px; color: var(--ink); }
+/* A grade: cada ponto é uma conexão simultânea (60 × 25 = 1.500, a capacidade estimada) e os 94 acesos
+   são a rede inteira. Os apagados são só fundo; os acesos são elementos, para acenderem em sequência */
+.s-custo .grade { position: absolute; left: 960px; top: 316px; width: 840px; margin: 0; padding: 40px 60px 36px; border-radius: 32px; background: var(--night); color: #fff; }
+.s-custo .grade .topo { display: flex; justify-content: space-between; align-items: flex-end; }
+.s-custo .grade .k { font-size: 16px; font-weight: 900; letter-spacing: .16em; line-height: 1.5; text-transform: uppercase; color: var(--studio-ink-2); }
+.s-custo .grade .x { font-size: 88px; font-weight: 900; letter-spacing: -.04em; line-height: .86; color: var(--orange); text-align: right; }
+.s-custo .grade .x small { display: block; margin-top: 8px; font-size: 18px; font-weight: 700; letter-spacing: 0; color: var(--studio-ink-2); }
+.s-custo .dots { position: relative; width: 720px; height: 300px; margin-top: 32px; background: radial-gradient(circle, rgba(255, 255, 255, .17) 2px, transparent 2.5px) 0 0 / 12px 12px; }
+.s-custo .dots i { position: absolute; left: calc(var(--c) * 12px + 2.5px); top: calc(var(--r) * 12px + 2.5px); width: 7px; height: 7px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 0 3px rgba(255, 144, 0, .2), 0 0 14px rgba(255, 144, 0, .8); }
+.s-custo.is-active .dots i { animation: s-custo-acende .7s var(--ease) both; animation-delay: calc(250ms + var(--k) * 12ms); }
+@keyframes s-custo-acende { from { opacity: 0; transform: scale(.1); } }
+.s-custo .grade figcaption { display: flex; gap: 34px; margin-top: 26px; font-size: 18px; color: var(--studio-ink-2); }
+.s-custo .lg { display: inline-flex; align-items: center; gap: 10px; }
+.s-custo .lg i { width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 255, 255, .3); }
+.s-custo .lg.on { color: #fff; }
+.s-custo .lg.on i { background: var(--orange); box-shadow: 0 0 10px rgba(255, 144, 0, .8); }
+.s-custo .nota { position: absolute; left: var(--pad-x); right: var(--pad-x); bottom: 56px; font-size: 18px; color: var(--ink-3); }
 
 /* 12 — Confiança */
 .s-conf .grid { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 400px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
@@ -464,18 +473,18 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-beta .metrics li svg { width: 26px; height: 26px; color: var(--orange-d); display: block; margin-bottom: 12px; }
 .s-beta .foot { position: absolute; right: var(--pad-x); bottom: 58px; font-size: 22px; font-weight: 900; }
 
-/* 14 — Valor */
-.s-valor .cols { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 410px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
-.s-valor .col { border-radius: 24px; padding: 38px 38px 40px; background: var(--paper-2); border: 1px solid var(--line); min-height: 430px; position: relative; }
-.s-valor .col.hi { background: #0A0A0A; color: #fff; border-color: #0A0A0A; }
-.s-valor .col .k { font-size: 18px; letter-spacing: .16em; font-weight: 900; color: var(--orange-ink); }
-.s-valor .col.hi .k { color: var(--orange); }
-.s-valor .col h3 { margin-top: 12px; font-size: 44px; font-weight: 900; letter-spacing: -.025em; line-height: 1.02; }
-.s-valor .col ul { list-style: none; margin: 30px 0 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
-.s-valor .col li { font-size: 24px; line-height: 1.3; padding-left: 28px; position: relative; color: var(--ink-2); }
-.s-valor .col.hi li { color: #D9DEE6; }
-.s-valor .col li::before { content: ''; position: absolute; left: 0; top: 12px; width: 12px; height: 3px; border-radius: 2px; background: var(--orange); }
-.s-valor .foot { position: absolute; left: var(--pad-x); bottom: 70px; }
+/* 14 — Suporte ao vivo: o texto conta só o que está no ar; as telas são o widget de Ajuda de verdade */
+.s-suporte .head .lead { margin-top: 24px; max-width: 800px; font-size: 26px; color: var(--ink-3); }
+.s-suporte .pontos { position: absolute; left: var(--pad-x); top: 450px; width: 780px; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 38px; }
+.s-suporte .pontos li { display: grid; grid-template-columns: 58px 1fr; column-gap: 18px; }
+.s-suporte .pontos b { padding-top: 9px; font-size: 17px; font-weight: 900; letter-spacing: .14em; color: var(--orange-ink); }
+.s-suporte .pontos h3 { font-size: 34px; font-weight: 900; letter-spacing: -.022em; line-height: 1.08; }
+.s-suporte .pontos p { margin-top: 8px; font-size: 22px; line-height: 1.42; color: var(--ink-2); text-wrap: pretty; }
+.s-suporte .telas { position: absolute; left: 1010px; top: 236px; width: 790px; height: 790px; }
+.s-suporte .telas .crop { width: 375px; height: 675px; border-radius: 26px; }
+.s-suporte .telas .a { left: 0; top: 0; }
+.s-suporte .telas .b { left: 415px; top: 80px; }
+.s-suporte .escopo { position: absolute; left: var(--pad-x); bottom: 60px; width: 860px; font-size: 18px; line-height: 1.45; color: var(--ink-3); }
 
 /* 15 — Cliente zero / white label */
 .s-white .map { position: absolute; left: var(--pad-x); top: 380px; width: 900px; height: 560px; }
@@ -580,5 +589,5 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 /* Acessibilidade de movimento: sem deslizes, sem pulso, trocas instantâneas */
 @media (prefers-reduced-motion: reduce) {
   .slide, [data-step], .s-aha .q, .s-aha .done, .s-copy .win ol, .s-copy .txt, .s-escala .wall .a, .s-pub .light, .s-pub .flyer { transition: none !important; }
-  .s-tese .rail i, .s-aha .answer .caret { animation: none !important; }
+  .s-tese .rail i, .s-aha .answer .caret, .s-custo .dots i { animation: none !important; }
 }

@@ -11,7 +11,8 @@
    feitos a partir das capas de campanha do próprio repositório, e as fotos dos produtos são do Unsplash.
    A franqueada "Carla" é uma persona de demonstração.
 2. O CI está **vermelho** hoje (27/09). Diga antes que perguntem: é o mecanismo funcionando (slide 12, apêndice E).
-3. Não há número financeiro validado neste deck, e não é para ter. O beta mede produto (slide 13).
+3. Os números de custo (slide 11) têm fonte no `CLAIMS.md`: R$ 0 e os 94 franqueados vêm da arquitetura e do Ryan;
+   a economia de R$ 11,9 mil/ano é o valor do Deskfy informado pelo Ryan; a folga de 15× é estimativa, não teste de carga.
 
 ---
 
@@ -169,19 +170,26 @@
   - *"Essas 15 artes são da rede?"* Não, são artes de demonstração geradas pelo motor a partir de templates
     de demonstração. O motor é o mesmo que a rede vai usar.
 
-## 11 · Produto vivo — "O Luma não termina quando é lançado. Ele aprende."
+## 11 · Custo zero — "O Luma cresce com a rede. A conta, não."
 
-- **Objetivo:** mostrar o ciclo de melhoria e como a rede fica sabendo.
-- **Frase de abertura:** "O Luma não termina quando é lançado. Ele aprende."
-- **Discurso:** "O ciclo tem quatro passos: feedback (o convite depois do download, o suporte e o beta),
-  melhoria decidida pelo que a rede sentiu, release sem instalar nada, e as Novidades contadas na língua
-  de quem usa. [avança] As Novidades saem no máximo uma vez por semana. Commit não é notícia: entra só o que
-  a rede sente. E quando a mudança veio de um pedido da rede, a edição diz isso. Vocês pediram, a gente ouviu."
-- **Ponto principal:** a rede vê o produto melhorar, e sabe por quê.
-- **Transição:** "Para isso funcionar em escala, a engenharia tem que aguentar."
+- **Objetivo:** mostrar que a rede inteira roda sem custo de infraestrutura e que o Luma ainda economiza.
+- **Frase de abertura:** "O Luma cresce com a rede. A conta, não."
+- **Discurso:** "Hoje a infraestrutura do Luma custa zero real por mês para os 94 franqueados. O segredo é onde a
+  arte é feita: no celular ou no computador do próprio franqueado. O servidor não desenha nenhum pixel, então
+  mais artes não aumentam a conta. O site é estático, no GitHub Pages, e o banco roda no plano gratuito do
+  Supabase. [aponta a grade] Cada ponto é uma pessoa conectada ao mesmo tempo. Pela nossa estimativa, o plano
+  gratuito aguenta umas 1.500; a rede inteira são 94. São 15 vezes de folga. [avança] E tem o que sai do
+  orçamento: são 11,9 mil reais por ano que vamos economizar com o fim do Deskfy."
+- **Ponto principal:** a rede cresce sem conta nova, e ainda sobra uma economia concreta.
+- **Transição:** "Custo baixo só vale se der para confiar. E confiança é engenharia."
 - **Perguntas difíceis:**
-  - *"Esse convite de beta já está no ar?"* O recurso é real: a edição pode trazer um convite e o "Quero
-    participar" vira um sinal para a equipe. O texto desta captura foi montado para a demonstração.
+  - *"E se abrir para todos os lojistas?"* Aí o banco vai para o Supabase Pro: 25 dólares por mês, uns
+    140 reais. O render continua nos aparelhos, então a conta não cresce com o número de artes.
+  - *"E a IA?"* Fica fora da conta de infraestrutura: a IA da legenda e do assistente é cobrada por uso,
+    na API do Gemini, com provedores gratuitos de reserva.
+  - *"Essa capacidade foi medida?"* É estimativa, da análise de capacidade de 22/09 (limite de requisições
+    do plano gratuito), não teste de carga. Usamos o piso: 1.500.
+  - *"Quando a economia do Deskfy entra?"* Quando a rede estiver no Luma e o contrato do Deskfy acabar.
 
 ## 12 · Confiança — "Já existe engenharia suficiente para colocar o produto diante de usuários reais."
 
@@ -215,19 +223,26 @@
     para definir juntos.
   - *"O franqueado vai pagar?"* Não é o que este beta discute.
 
-## 14 · Valor — "Economia foi o ponto de partida. Não precisa ser o teto."
+## 14 · Suporte ao vivo — "Tem gente da DM do outro lado."
 
-- **Objetivo:** reenquadrar o valor além do corte de custo, sem inventar número.
-- **Frase de abertura:** "Economia foi o ponto de partida. Não precisa ser o teto."
-- **Discurso:** "O Luma reduz: ferramentas externas, retrabalho, tarefas repetitivas, dependência operacional.
-  [avança] Aumenta a capacidade: mais campanhas e mais execuções locais com o mesmo time central. [avança]
-  E cria um ativo: software próprio, know-how de creative automation, propriedade intelectual e a
-  possibilidade futura de um produto. O cenário financeiro mudou. O produto também."
-- **Ponto principal:** de custo evitado para capacidade e ativo.
+- **Objetivo:** mostrar que o franqueado não fica sozinho e que o atendimento já está no ar.
+- **Frase de abertura:** "Tem gente da DM do outro lado."
+- **Discurso:** "Desde 23 de setembro, o franqueado tira dúvida em tempo real sem sair do Luma. [aponta a primeira
+  tela] Quando alguém da equipe está online, o Luma mostra quem é, e a pergunta vai direto para essa pessoa,
+  sem passar pela IA. Se ninguém estiver online, o assistente responde na hora, e um toque leva a conversa para
+  a equipe. [avança] Aqui a Ana assumiu a conversa: a Carla vê quem está cuidando dela, com nome e cargo, e a
+  equipe vê de onde veio a dúvida. A conversa só fecha quando está resolvida. Se a dúvida voltar, ela reabre."
+- **Ponto principal:** suporte humano, dentro do produto, com alguém responsável por cada conversa.
 - **Transição:** "E se funciona aqui..."
 - **Perguntas difíceis:**
-  - *"Quanto economiza?"* Não vou apresentar número que não foi validado. O beta mede o uso real e o número
-    financeiro fecha com esses dados.
+  - *"E se o franqueado fechar o app?"* A resposta fica esperando: ele vê o aviso e o contador quando volta.
+    Nesta versão não há e-mail nem push.
+  - *"Quem atende?"* A equipe DM, dentro do Luma. Dúvida de uso e erro; aprovação de peça e pedido de arte
+    seguem com o marketing.
+  - *"E a equipe precisa ficar com o Luma aberto?"* Hoje, sim. A ponte com o Telegram já está construída e
+    aprovada pelo jurídico, e liga quando a equipe estiver vinculada (apêndice G).
+  - *"Essa conversa é real?"* A tela é a do produto; a conversa foi montada para a demonstração, com a Carla
+    e uma atendente fictícia.
 
 ## 15 · Horizonte — "Se funciona aqui, o problema não existe só aqui."
 
