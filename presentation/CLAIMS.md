@@ -9,12 +9,16 @@
 |---|---|---|
 | 11 · E | **844** verificações automáticas em **22** suítes, num navegador de verdade | `node scripts/run-browser-tests.js` (execução local de 27/09/2026): 22 suítes, 838/844 |
 | 11 · E | **300** artes geradas e conferidas pelo motor real, em 5 baterias de 60 | suítes `artes-composicao-grafica`, `artes-fluxo-interativo`, `artes-gastronomia`, `artes-multiformatos`, `artes-tipografia-fit` (60 cada) |
-| 11 · E | **60** artes pelo fluxo completo do franqueado no app real | suíte `artes-fluxo-interativo` (60/60) |
-| 11 · E | **31** cenários de estresse: fluxo, tela de iPhone, maratona de fuzz | `stress-franqueado-fluxo` 9 + `stress-franqueado-ios` 9 + `stress-fuzz-maratona` 13 |
-| 11 · C · E | **73** casos de regressão no importador de PSD | suíte `psd-import` (73/73), `tests/psd-import.html` |
+| E | **60** artes pelo fluxo completo do franqueado no app real | suíte `artes-fluxo-interativo` (60/60) |
+| E | **31** cenários de estresse: fluxo, tela de iPhone, maratona de fuzz | `stress-franqueado-fluxo` 9 + `stress-franqueado-ios` 9 + `stress-fuzz-maratona` 13 |
+| C · E | **73** casos de regressão no importador de PSD | suíte `psd-import` (73/73), `tests/psd-import.html` |
 | 11 · E | O CI roda **a cada push**: leis da arquitetura, regra das Novidades e as suítes | `.github/workflows/tests.yml` (paths `js/`, `tests/`, `index.html`; passos `scripts/arquitetura.js`, `scripts/novidades.js --checar`, `scripts/run-browser-tests.js`) |
-| 11 · B | **32 de 32** tabelas com RLS, **3** papéis, **69** políticas | contagem em `supabase/migrations/` em 27/09/2026; papéis em `luma-brain/01_BUSINESS.md` §2 |
+| 11 · B | **32 de 32** tabelas com RLS (no slide: **100%** das tabelas), **3** papéis, **69** políticas | contagem em `supabase/migrations/` em 27/09/2026; papéis em `luma-brain/01_BUSINESS.md` §2 |
 | 11 · H | **41** recursos que a gestão liga e desliga sem deploy | entradas de `G_FEATURE_REGISTRY` em `js/core/feature-flags.js` (`grep -c "{ key:'"` = 41) |
+| 15 | **3.297** redes de franquia, **202.444** unidades, **R$ 301,7 bi** faturados em 2025 | ABF, Pesquisa de Desempenho do Franchising 2025, divulgada em mar/2026 (abf.com.br/numeros-do-franchising; noticiada por PEGN, Exame e UOL) |
+| 15 | Deskfy: **mais de R$ 10 mi** de receita recorrente anual, **200+** empresas | Jornal do Comércio, 17/07/2025: "Com faturamento de R$ 10 milhões, startup gaúcha agrega IA em plataforma de marketing para grandes empresas" (fala do fundador) |
+| 15 | Creative automation: **US$ 2,18 bi** em 2025 (no slide, US$ 2,2 bi), **17%** ao ano até 2031 | Mordor Intelligence, "Creative Automation Software Market" (2026). Outras consultorias vão de US$ 2 a 7 bi; usado o menor |
+| 15 (notas) | Cerca de **R$ 25 mi** por ano no franchising brasileiro, ao preço que a DM paga | conta nossa: R$ 11.903 ÷ 96 franqueados ≈ R$ 124 por unidade/ano × 202.444 unidades ≈ R$ 25,1 mi. Ordem de grandeza, não previsão |
 | E | Estado de 27/09: **838 verdes**, 5 casos vermelhos no Copy Fit, 1 no corpus | mesma execução: `copy-fit` 34/37, `copy-fit-ui` 34/36, `corpus` 29/30 |
 | E | CI **vermelho** no portão de arquitetura: catraca de localStorage de 56 para 59 | `node scripts/arquitetura.js` e as execuções do workflow `tests.yml` no GitHub |
 | E | Totais por grupo (240, 60, 186, 114, 87, 73, 53, 31) | soma das suítes da mesma execução (ex.: 186 = `local-fit` 75 + `corpus` 30 + `fuzz` 63 + `auto-layout` 14 + `local-fit-studio` 4) |
@@ -25,7 +29,7 @@
 | 08 | **107** ganchos (15 universais, 80 em **15** tipos de cardápio, 12 perguntas), **66** moldes de corpo (41 + 25 curtos), **25** chamadas, **76** hashtags | contagem dos arrays de `_COPY_BLOCKS` em `js/franqueado/png-generator.js` |
 | 08 | **2.430** legendas diferentes na opção Promo para o Smash Bacon Duplo em promoção, sem contar as hashtags | a mesma escolha do `_fAssembleCopy`: 22 ganchos (lanches + universais) × 13 corpos "com desconto" = 286 pares, dos quais 243 cabem em 120 caracteres; × 10 chamadas de pedido |
 | 08 | As quatro legendas da demonstração | saídas do `fBuildCopy` com sorteio fixo (`_fCopySetRandom`, semente 42), rodando o arquivo real fora do navegador: as 3 opções de uma arte e a Promo da arte seguinte |
-| 09 | O Encurtar é determinístico, **<1 ms**, sem rede e sem IA; números nunca somem | cabeçalho de `js/core/copy-fit.js` (garantias cobradas por `tests/copy-fit.html`) |
+| 09 | O Encurtar é determinístico, **<1 ms**, sem rede e sem IA (no card: "< 1 ms · sem IA"); números nunca somem | cabeçalho de `js/core/copy-fit.js` (garantias cobradas por `tests/copy-fit.html`) |
 | 10 | **15** artes · **4** campanhas · **2** formatos; **6** ofertas viram um ZIP | `assets/artes/lote-00…14.webp`, geradas pelo Luma Sheets; tela `captures/franqueado-sheets.webp` |
 | 13 | **R$ 0** por mês de infraestrutura | `luma-brain/02_ARCHITECTURE.md` (Supabase `uqrqzjafhigjuvtjqzid`, plano Free); front estático no GitHub Pages da `talpaipai`; Ryan, 27/09/2026. A IA (Gemini, cobrada por uso) fica fora da conta de infraestrutura |
 | 13 | **94** franqueados | Ryan, 27/09/2026 ("hoje temos 94 franqueados") |

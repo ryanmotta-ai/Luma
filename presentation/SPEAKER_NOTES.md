@@ -144,11 +144,12 @@
 
 - **Objetivo:** mostrar a engenharia que o franqueado não vê.
 - **Frase de abertura:** "Por baixo, o Luma resolve o que não deveria virar problema do franqueado."
-- **Discurso:** "[avança] Local Fit: o nome curto, médio ou longo cabe na caixa que o designer desenhou,
-  quebrando linha ou reduzindo dentro dela, e nada mais na arte se move. [avança] Quando não cabe, o Encurtar
-  sugere versões mais curtas medidas na própria arte, e preço, números e itens nunca somem. O franqueado
-  escolhe. [avança] A aba Respostas mostra tudo o que entrou na arte, com um lápis para corrigir sem refazer
-  a conversa. [avança] E as validações: preço "por" maior que o "de" é recusado na hora."
+- **Discurso:** "[avança] Qualquer nome cabe: curto, médio ou longo, o Local Fit quebra a linha ou reduz dentro
+  da caixa que o designer desenhou, e nada mais na arte se move. [avança] Não coube? O Encurtar sugere versões
+  curtas num toque, medidas na própria arte, em menos de um milissegundo e sem IA. Preço, números e itens nunca
+  somem, e o franqueado escolhe. [avança] Errou? Na aba Respostas, cada resposta tem um lápis: corrige sem
+  recomeçar a conversa. [avança] E preço errado não sai: "por" maior que o "de" é recusado antes do download.
+  No Estúdio, erro crítico não publica."
 - **Ponto principal:** complexidade por baixo, simplicidade por cima.
 - **Transição:** "E isso não vale só para uma arte por vez."
 - **Perguntas difíceis:**
@@ -170,15 +171,15 @@
   - *"Essas 15 artes são da rede?"* Não, são artes de demonstração geradas pelo motor a partir de templates
     de demonstração. O motor é o mesmo que a rede vai usar.
 
-## 11 · Confiança — "Já existe engenharia suficiente para colocar o produto diante de usuários reais."
+## 11 · Confiança — "Testado como o franqueado usa. Vigiado a cada mudança."
 
 - **Objetivo:** dar confiança com prova, sem prometer perfeição.
-- **Frase de abertura:** "Já existe engenharia suficiente para colocar o produto diante de usuários reais."
-- **Discurso:** "844 verificações automáticas, em 22 suítes, num navegador de verdade. 300 artes geradas e
-  conferidas pelo motor real, 60 delas pelo fluxo completo do franqueado no app. 31 cenários de estresse,
-  73 casos no importador de PSD. A segurança mora no banco: as 32 tabelas têm RLS. E 41 recursos a gestão
-  liga e desliga sem deploy. Não estamos dizendo que nunca vai quebrar. Estamos dizendo que construímos
-  mecanismos para saber quando quebra."
+- **Frase de abertura:** "Testado como o franqueado usa. Vigiado a cada mudança."
+- **Discurso:** "Antes de chegar na mão da rede, um robô já gerou e conferiu 300 artes, do jeito que o
+  franqueado faria: escolher, responder, gerar e baixar. A cada mudança no código, 844 verificações rodam
+  sozinhas. Todas as tabelas são protegidas no próprio banco, então cada pessoa só acessa o que pode, mesmo
+  que alguém mexa na tela. E 41 recursos a gestão liga e desliga na hora, sem esperar nova versão. Não
+  estamos dizendo que nunca vai quebrar. Estamos dizendo que construímos mecanismos para saber quando quebra."
 - **Ponto principal:** mecanismos para saber quando quebra.
 - **Transição:** "Engenharia cuida do sistema. E quando o franqueado tiver dúvida, tem gente."
 - **Perguntas difíceis:**
@@ -187,6 +188,8 @@
     É o mecanismo fazendo o trabalho dele, e esses itens estão na lista antes do beta. Apêndice E.
   - *"Quem mantém isso?"* O código tem leis de arquitetura cobradas pelo CI e os motores são únicos
     (um interpolador, um render). Apêndice A.
+  - *"Qual o detalhe técnico?"* 22 suítes, 60 artes pelo fluxo completo, 31 cenários de estresse, 73 casos
+    no importador de PSD, RLS nas 32 tabelas com 69 políticas. Apêndices B, E e H.
 
 ## 12 · Suporte ao vivo — "Tem gente da DM do outro lado."
 
@@ -250,14 +253,22 @@
 - **Frase de abertura:** "Se funciona aqui, o problema não existe só aqui."
 - **Discurso:** "Toda rede com marca central e execução local tem esse problema. A Delivery Much é o cliente
   zero. White label não é vender o código: a plataforma continua nossa, outras redes licenciariam, cada uma
-  com sua identidade, sobre uma base única que evolui para todos. Hoje não estamos pedindo para vender o Luma.
-  Estamos construindo o case que permitiria essa conversa existir depois."
+  com sua identidade, sobre uma base única que evolui para todos. [aponta os números] E esse mercado existe:
+  são 3.297 redes de franquia no Brasil, que faturaram 301 bilhões em 2025. Só o Deskfy já passa de 10 milhões
+  por ano em receita recorrente resolvendo esse problema. E creative automation movimenta 2,2 bilhões de dólares
+  no mundo, crescendo 17% ao ano. Hoje não estamos pedindo para vender o Luma. Estamos construindo o case que
+  permitiria essa conversa existir depois."
 - **Ponto principal:** o beta daqui é o case de amanhã.
 - **Transição:** "Para fechar."
 - **Perguntas difíceis:**
   - *"O que falta para white label?"* Isolamento por rede no banco (hoje o Luma atende uma rede só),
     configuração e marca por rede, onboarding, suporte e contrato por cliente. Apêndice K.
-  - *"Quanto isso vale?"* Não há previsão neste deck, de propósito.
+  - *"Quanto isso vale para nós?"* Não é previsão de receita. Como ordem de grandeza: ao preço que a DM
+    paga ao Deskfy, uns R$ 124 por franqueado por ano, as 202 mil unidades do franchising brasileiro
+    somariam cerca de R$ 25 milhões por ano. Só franquias, só Brasil, e redes grandes pagam mais.
+  - *"Esses números de mercado são confiáveis?"* O da ABF é o censo do setor. O do Deskfy foi dito pelo
+    fundador ao Jornal do Comércio. O global é de consultoria e varia muito (de 2 a 7 bilhões de dólares);
+    usamos o menor.
 
 ## 16 · Fechamento — "Uma marca no controle. Uma rede com autonomia."
 

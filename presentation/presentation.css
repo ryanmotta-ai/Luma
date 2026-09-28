@@ -392,12 +392,18 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 
 /* 09 — Inteligência invisível */
 .s-intel .tiles { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 356px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 26px; }
-.s-intel .tile { position: relative; height: 580px; border-radius: 24px; background: #fff; box-shadow: 0 0 0 1px rgba(10, 10, 10, .06), 0 18px 50px rgba(10, 10, 10, .08); overflow: hidden; }
+.s-intel .tile { position: relative; height: 572px; border-radius: 24px; background: #fff; box-shadow: 0 0 0 1px rgba(10, 10, 10, .06), 0 18px 50px rgba(10, 10, 10, .08); overflow: hidden; }
 .s-intel .tile .vis { position: absolute; left: 0; right: 0; top: 0; height: 350px; background: var(--paper-2); overflow: hidden; }
-.s-intel .tile .txt { position: absolute; left: 30px; right: 30px; top: 374px; }
+.s-intel .tile .txt { position: absolute; left: 30px; right: 30px; top: 374px; bottom: 32px; }
 .s-intel .tile .txt b { display: block; font-size: 16px; letter-spacing: .16em; font-weight: 900; color: var(--orange-ink); }
-.s-intel .tile .txt h3 { margin-top: 10px; font-size: 30px; line-height: 1.1; font-weight: 900; letter-spacing: -.02em; }
-.s-intel .tile .txt p { margin-top: 10px; font-size: 19px; line-height: 1.42; color: var(--ink-3); }
+.s-intel .tile .txt h3 { margin-top: 10px; font-size: 36px; line-height: 1.05; font-weight: 900; letter-spacing: -.025em; }
+/* Uma prova curta por card: o "uau" vem da tela e da frase, não do parágrafo */
+.s-intel .tile .txt .chip { position: absolute; left: 0; bottom: 0; padding: 7px 12px; border-radius: 999px; font-size: 15px; font-weight: 900; letter-spacing: .04em; background: rgba(255, 144, 0, .14); color: var(--orange-ink); }
+/* Local Fit: os três nomes entram um depois do outro quando o card aparece */
+.s-intel .tile.is-on .fits .row { animation: s-intel-entra .5s var(--ease) both; }
+.s-intel .tile.is-on .fits .row:nth-child(2) { animation-delay: .22s; }
+.s-intel .tile.is-on .fits .row:nth-child(3) { animation-delay: .44s; }
+@keyframes s-intel-entra { from { opacity: 0; transform: translateY(12px); } }
 .s-intel .fits { position: absolute; left: 22px; right: 22px; top: 43px; display: flex; flex-direction: column; gap: 12px; }
 .s-intel .fits .row { position: relative; height: 80px; border-radius: 12px; overflow: hidden; background: #FFB900; box-shadow: 0 6px 16px rgba(10, 10, 10, .12); }
 .s-intel .fits .row img { position: absolute; left: 0; width: 100%; height: auto; }
@@ -418,12 +424,12 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-escala .foot { position: absolute; left: var(--pad-x); bottom: 64px; }
 
 /* 11 — Confiança */
-.s-conf .grid { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 400px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
-.s-conf .cell { border-radius: 20px; padding: 26px 28px 28px; background: #111418; border: 1px solid rgba(255, 255, 255, .08); min-height: 206px; }
-.s-conf .cell .n { font-size: 60px; font-weight: 900; letter-spacing: -.035em; line-height: 1; font-variant-numeric: tabular-nums; }
+.s-conf .grid { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 440px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+.s-conf .cell { border-radius: 24px; padding: 34px 32px 36px; background: #111418; border: 1px solid rgba(255, 255, 255, .08); min-height: 300px; }
+.s-conf .cell .n { font-size: 104px; font-weight: 900; letter-spacing: -.045em; line-height: .95; font-variant-numeric: tabular-nums; color: var(--orange); }
 .s-conf .cell .n small { font-size: 26px; letter-spacing: -.01em; font-weight: 900; color: #A7B0BF; margin-left: 6px; }
 .s-conf .cell.hi .n { color: var(--orange); }
-.s-conf .cell p { margin-top: 14px; font-size: 20px; line-height: 1.4; color: #C9D0DB; }
+.s-conf .cell p { margin-top: 20px; font-size: 24px; line-height: 1.38; color: #D9DEE6; }
 .s-conf .foot { position: absolute; left: var(--pad-x); right: var(--pad-x); bottom: 70px; }
 .s-conf .foot .quote { font-size: 38px; color: #fff; }
 .s-conf .foot .quote em { color: var(--orange); }
@@ -501,11 +507,14 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-white .net.a small, .s-white .net.b small { color: #A7B0BF; }
 .s-white .net .sw { display: flex; gap: 6px; }
 .s-white .net .sw i { width: 22px; height: 22px; border-radius: 6px; }
-.s-white .points { position: absolute; left: 1120px; right: var(--pad-x); top: 392px; display: flex; flex-direction: column; gap: 22px; }
-.s-white .points li { list-style: none; font-size: 25px; line-height: 1.36; color: #D9DEE6; padding-left: 30px; position: relative; }
-.s-white .points li::before { content: ''; position: absolute; left: 0; top: 14px; width: 14px; height: 3px; border-radius: 2px; background: var(--orange); }
-.s-white .points li strong { color: #fff; }
-.s-white .points ul { margin: 0; padding: 0; display: flex; flex-direction: column; gap: 20px; }
+/* O mercado: número à esquerda, o que ele significa e a fonte à direita */
+.s-white .mercado { position: absolute; left: 1100px; right: var(--pad-x); top: 372px; }
+.s-white .mercado .k { font-size: 16px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--studio-ink-2); }
+.s-white .mercado .m { display: grid; grid-template-columns: 250px 1fr; column-gap: 24px; align-items: start; padding: 24px 0; border-bottom: 1px solid rgba(255, 255, 255, .12); }
+.s-white .mercado .m:last-child { border-bottom: 0; }
+.s-white .mercado .m b { font-size: 52px; font-weight: 900; letter-spacing: -.035em; line-height: 1; color: var(--orange); white-space: nowrap; }
+.s-white .mercado .m p { font-size: 20px; line-height: 1.4; color: #D9DEE6; }
+.s-white .mercado .m small { display: block; margin-top: 6px; font-size: 14px; color: var(--studio-ink-2); }
 .s-white .foot { position: absolute; left: var(--pad-x); right: var(--pad-x); bottom: 64px; }
 .s-white .foot .quote { font-size: 34px; color: #fff; }
 
@@ -589,5 +598,5 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 /* Acessibilidade de movimento: sem deslizes, sem pulso, trocas instantâneas */
 @media (prefers-reduced-motion: reduce) {
   .slide, [data-step], .s-aha .q, .s-aha .done, .s-copy .win ol, .s-copy .txt, .s-escala .wall .a, .s-pub .light, .s-pub .flyer { transition: none !important; }
-  .s-tese .rail i, .s-aha .answer .caret, .s-custo .dots i { animation: none !important; }
+  .s-tese .rail i, .s-aha .answer .caret, .s-custo .dots i, .s-intel .fits .row { animation: none !important; }
 }
