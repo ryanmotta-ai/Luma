@@ -498,6 +498,15 @@ function fEspelhoSincroniza(){
   try{ fSaveChatDraft(); }catch(err){}
   try{ fLpRefresh(); }catch(err){}
 }
+/* O CORTE DO LIMITE DO DESIGNER NÃO PARTE PALAVRA (Local Fit 2.4). `slice` decidia por caractere,
+   e o que sobrava na caixa podia ser "2 litro" — um erro de copy que ia para a arte. Mesma
+   função do "cabem até N" (`gLocalFitCorta`): corta no último espaço, e só cai no corte cru
+   quando a palavra é maior que 40% do limite (aí não há onde cortar). */
+function _fCortaLimite(texto, max){
+  const t = String(texto || '');
+  if(t.length <= max) return t;
+  return (typeof gLocalFitCorta === 'function') ? gLocalFitCorta(t, max) : t.slice(0, max);
+}
 function fAttachInputGuard(){
   const box = document.getElementById('f-msg-box');
   if(!box || box._guarded) return;
@@ -520,9 +529,9 @@ function fAttachInputGuard(){
     // continua (e o limite do designer), mas agora ele e ANUNCIADO -- e o botao Encurtar
     // aparece logo abaixo porque _fFitRemember guardou a tentativa inteira.
     if(newVal.length > cfg.maxLen && typeof gToast==='function'){
-      gToast('Colei so os primeiros '+cfg.maxLen+' caracteres -- e o limite deste campo.');
+      gToast('Cabem '+cfg.maxLen+' caracteres aqui — colei só o começo, até a última palavra inteira.');
     }
-    box.value = newVal.slice(0, cfg.maxLen);
+    box.value = _fCortaLimite(newVal, cfg.maxLen);
     const cursor = Math.min(box.value.length, start + clean.length);
     box.setSelectionRange(cursor, cursor);
     box.dispatchEvent(new Event('input', {bubbles:true}));
@@ -535,7 +544,12 @@ function fAttachInputGuard(){
     const cfg = fGetFieldType(id);
     if(box.value.length > cfg.maxLen){
       _fFitRemember(box, id, box.value, cfg.maxLen); // o que ele QUIS escrever, antes do corte
-      box.value = box.value.slice(0, cfg.maxLen);
+      /* Digitando no FIM, a tecla que passa do limite é só recusada (o texto anterior fica como
+         estava). Inserir no MEIO empurra o fim para fora, e o corte por caractere o partia no
+         meio da palavra sem dizer nada ("2 litros" → "2 litro"): aí corta na palavra e avisa. */
+      const noFim = box.selectionStart === box.value.length;
+      box.value = noFim ? box.value.slice(0, cfg.maxLen) : _fCortaLimite(box.value, cfg.maxLen);
+      if(!noFim && typeof gToast==='function') gToast('Cabem '+cfg.maxLen+' caracteres aqui — o fim do texto não coube.');
     } else if(box._fFit && box._fFit.id===id
               && !box._fFit.text.startsWith(box.value.replace(/\s+/g,' ').trim())){
       /* Apagou e escreveu OUTRO texto: a tentativa guardada é do anterior. Sem isto o
@@ -609,6 +623,7 @@ let _fFitRun = null;         // a rodada da IA em curso {id, original, ctrl, tic
 let _fFitSai = [];           // o que saiu de cada opção (paralelo a `_fFitOpts`)
 let _fFitIaReprovadas = 0;   // quantas opções da IA a conferência jogou fora na última rodada
 let _fFitCf = null;        // a solução do Copy Fit por trás de `_fFitOpts[0]`, quando houver
+let _fFitPerto = false;    // `_fFitOpts[0]` é a versão que só chegou PERTO (ainda não cabe) — só muda a telemetria
 // A versão do Copy Fit para ESTE campo, medida pela prévia — ou null.
 function _fFitCopyFit(id){
   const s = (typeof fLpBalaoSolucao==='function') ? fLpBalaoSolucao() : null;
@@ -676,7 +691,10 @@ function _fFitSync(box, id, cfg, len){
   const cf = id ? _fFitCopyFit(id) : null;
   // Sem versão do motor, mas a arte bloqueou NESTE campo: com IA, o botão fica (antes sumia).
   const bloq = !cf && podeIA && id ? _fFitBloqueio(id) : null;
-  if(!(tipoTexto && (cf || ((cabe || bloq) && podeIA)))){
+  /* SEM IA E SEM VERSÃO que caiba, o botão sumia e a pessoa ficava só com o aviso vermelho. Se a
+     versão mais curta chegou perto (`fLpBalaoPerto`), ela é oferecida — com quanto ainda falta. */
+  const perto = (!cf && id && typeof fLpBalaoPerto === 'function') ? fLpBalaoPerto(id) : null;
+  if(!(tipoTexto && (cf || perto || ((cabe || bloq) && podeIA)))){
     if(btn) btn.remove();
     wrap.classList.remove('has-fit');
     _fFitClosePop();
@@ -686,6 +704,7 @@ function _fFitSync(box, id, cfg, len){
   /* O rótulo visível segue "Encurtar" (o padding do campo é medido para ele, chat.css); o
      title/aria-label diz o que o toque faz quando só a IA pode ajudar. */
   const titulo = cf ? 'Encurtar para caber na arte'
+    : perto ? 'Ver a versão mais curta e quanto ainda falta para caber'
     : bloq ? 'Tentar com IA: encurtar para caber na arte sem mudar preço nem produto'
     : 'Tentar com IA: encurtar para caber em '+alvo+' caracteres';
   if(btn){ btn.title=titulo; btn.setAttribute('aria-label', titulo); return; }
@@ -747,6 +766,20 @@ async function fFitTextWithAI(comIA){
     || (typeof gAskAI==='function' && typeof gAiReady==='function' && gAiReady());
   const cf=_fFitCopyFit(id);
   _fFitClosePop();
+  _fFitPerto=false;
+  /* "FALTA POUCO": nenhuma versão coube, mas a mais curta que o motor achou já está medida. Vai
+     antes da IA (mesma ordem do resto: primeiro o que não custa espera) e SEM IA é a única saída
+     que o botão tem. A troca é um toque, e o rodapé diz quanto ainda passa. */
+  const perto=(!cf && !comIA && typeof fLpBalaoPerto==='function') ? fLpBalaoPerto(id) : null;
+  if(perto){
+    _fFitOpts=[perto.text]; _fFitSai=[perto.removidas]; _fFitCf=null; _fFitPerto=true;
+    const sai=_fFitSaiVisivel(perto.removidas);
+    _fFitPop(btn, 'Quase cabe',
+      (sai.length ? 'Sai: '+sai.join(', ')+'. ' : '')
+      +(perto.n>0 ? 'Ainda passa '+perto.n+(perto.n===1?' letra':' letras')+' — use esta versão e tire mais um pouco. ' : '')
+      +'Seu texto só muda se você escolher.', podeIA);
+    return;
+  }
   // Sem IA, sem espera: a versão já foi medida pela prévia. O que saiu vai no rodapé.
   // (A IA só roda por toque explícito — aqui, no "Mais opções com IA" ou no "Tentar com IA"
   // do botão quando o motor não tem versão. Nunca por tecla: custo e latência.)
@@ -960,7 +993,7 @@ function fFitApply(i){
   box.value=s;
   box._fFit=null;                      // encaixou: a tentativa antiga não vale mais
   _fFitClosePop();
-  try{ if(typeof gTrackEvent==='function') gTrackEvent('copyfit_aplicado',{origem:_fFitCf?'chat':'ia', campo:fState.camp?.perguntas?.[fState.stepIdx]?.id||null, removidas_n:_fFitSaiVisivel(_fFitSai[i]).length}); }catch(e){}
+  try{ if(typeof gTrackEvent==='function') gTrackEvent('copyfit_aplicado',{origem:_fFitCf?'chat':(_fFitPerto?'perto':'ia'), campo:fState.camp?.perguntas?.[fState.stepIdx]?.id||null, removidas_n:_fFitSaiVisivel(_fFitSai[i]).length}); }catch(e){}
   box.dispatchEvent(new Event('input',{bubbles:true}));
   box.focus();
 }

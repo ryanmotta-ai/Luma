@@ -522,6 +522,74 @@ await test('Leitor de tela: o número que muda a cada tecla só é falado na pau
   assert(/Borda/.test(sr.textContent),'frase nova (outro campo) esperou a pausa');
 });
 
+/* ══ LOCAL FIT, FASE 2 — o franqueado não descobre no "Baixar" ══════════════════════════════
+   2.2: dois campos estourados eram tratados um por volta. 2.3: sem IA e sem versão que caiba, o
+   Encurtar sumia e o contador seguia dizendo a permissão do designer com a arte já bloqueada. */
+await test('2.2 · vários campos bloqueados: a barra e o diálogo nomeiam TODOS, não só o primeiro', async()=>{
+  await reset({produto:SEM_VERSAO, borda:'Deliciosa Calabresa'});
+  const bl=_lpLayoutResult.bloqueios||[];
+  assert(bl.length>=2&&bl[0].fieldId==='produto','pré-condição: produto e linha bloqueados');
+  const nota=document.getElementById('lp-layout-nota'), rp=gFieldLabel('produto'), rb=gFieldLabel('borda');
+  assert(nota.textContent.includes(rp)&&nota.textContent.includes(rb),'a barra nomeou só um campo: "'+nota.textContent+'"');
+  assert(/não cabem/.test(nota.textContent),'a frase segue no singular com dois campos: "'+nota.textContent+'"');
+  const ov=await abreDialogo(); assert(ov,'o aviso não abriu o diálogo');
+  assert(/Também não cabe/.test(ov.textContent)&&ov.textContent.includes(rb),
+    'o diálogo trata "'+rp+'" e não avisa do outro campo: '+ov.textContent);
+  fechaDialogos();
+});
+
+await test('2.2 · com um campo só nada muda: a frase segue no singular e sem "Também"', async()=>{
+  await reset({produto:SEM_VERSAO});
+  const nota=document.getElementById('lp-layout-nota');
+  assert(/não cabe na arte/.test(nota.textContent)&&!/não cabem/.test(nota.textContent),'singular quebrou: "'+nota.textContent+'"');
+  const ov=await abreDialogo(); assert(ov&&!/Também/.test(ov.textContent),'avisou de um "outro" campo que não existe');
+  fechaDialogos();
+});
+
+const PERTO='Super Pizza Calabresa Mussarela';   // 31 letras (cabe no maxLen 32); sem versão que caiba, mas o motor tira "Super"
+await test('2.3 · sem IA e sem versão: o Encurtar oferece a que chegou PERTO e diz quanto ainda passa', async()=>{
+  await reset({produto:PERTO});
+  assert(_lpLayoutResult.invalid&&!balao(),'pré-condição: bloqueia e não há versão que caiba');
+  const P=_lpBalao&&_lpBalao.perto;
+  assert(P&&P.campo==='produto'&&P.text&&P.text!==PERTO,'o motor não guardou a versão mais curta: '+JSON.stringify(P));
+  assert(P.n>0,'a versão que "chegou perto" já cabia — o caso perdeu o sentido: '+JSON.stringify(P));
+  naPergunta('produto'); box.value=PERTO; box.dispatchEvent(new Event('input',{bubbles:true})); clearTimeout(box._lpPreviewT);
+  fFitSync();
+  const btn=$('#f-fit-btn'); assert(btn,'sem IA, o botão Encurtar sumiu apesar de haver versão mais curta');
+  assert(/mais curta|falta/i.test(btn.title),'o botão promete o que não faz: "'+btn.title+'"');
+  btn.click(); await tick();
+  const pop=$('#f-fit-pop'); assert(pop,'o toque não abriu nada');
+  assert(/Quase cabe/.test(pop.textContent),'o painel não diz que ainda não cabe: '+pop.textContent);
+  assert(new RegExp('Ainda passa '+P.n+' letra').test(pop.textContent),'o painel não diz quanto falta ('+P.n+'): '+pop.textContent);
+  assert(!/Mais opções com IA/.test(pop.textContent),'ofereceu IA sem IA no ar');
+  const opt=pop.querySelector('.f-fit-opt'); assert(opt&&opt.textContent.includes(P.text),'a opção não é a versão mais curta');
+  assert(box.value===PERTO,'abrir o painel já trocou o texto');
+  opt.click(); await tick(); clearTimeout(box._lpPreviewT);
+  assert(box.value===P.text,'escolher a versão não a colocou na caixa: "'+box.value+'"');
+});
+
+await test('2.3 · o contador mostra o alvo MEDIDO assim que a arte bloqueia, sem esperar o "Baixar"', async()=>{
+  await reset({produto:PERTO});
+  const F=_lpBalao&&_lpBalao.falta;
+  assert(F&&F.limite>0&&F.limite<PERTO.length,'pré-condição: a prévia mediu o que cabe: '+JSON.stringify(F));
+  naPergunta('produto'); box.value=PERTO; fUpdateCharCount();
+  const c=document.getElementById('f-char-count');
+  assert(c.textContent===PERTO.length+'/'+F.limite,'o contador disse "'+c.textContent+'", esperava '+PERTO.length+'/'+F.limite);
+});
+
+await test('2.4 · colar além do limite corta na PALAVRA e avisa (nunca "2 litro")', async()=>{
+  await reset();
+  naPergunta('produto');
+  const max=fGetFieldType('produto').maxLen;
+  const txt='Refrigerante gelado '.repeat(6)+'de 2 litros';
+  const dt=new DataTransfer(); dt.setData('text',txt);
+  box.value=''; box.dispatchEvent(new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,cancelable:true}));
+  assert(box.value.length<=max,'passou do limite: '+box.value.length);
+  assert(txt.startsWith(box.value)&&(txt[box.value.length]===' '||txt[box.value.length]===undefined),
+    'cortou no meio da palavra: "'+box.value+'"');
+  assert(toastCom(/última palavra inteira/),'o corte não foi anunciado');
+});
+
 await reset();
 window.__lumaTest={total,passed:total-failures.length,failures};
 })().catch(e=>window.__lumaTest={total:1,passed:0,failures:[{name:'bancada',error:e.stack}]});

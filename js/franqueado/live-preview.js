@@ -1368,6 +1368,24 @@ try { localStorage.removeItem(F_LP_AUTO_LAYOUT_KEY_LEGADO); } catch(e){}
    clicava em baixar e levava um toast. Agora o bloqueio aparece no momento em que acontece,
    nomeia o campo e é CLICÁVEL — leva direto para ele, com o contador já no alvo medido.
    ⚠ A prévia continua DESENHANDO a arte: ver o texto estourando é o que explica o aviso. */
+/* TODOS OS CAMPOS QUE NÃO CABEM, não só o primeiro (Local Fit 2.2). O aviso, o diálogo e o card
+   da entrega nomeavam `bloqueios[0]`: com dois campos estourados a pessoa encurtava um, gerava de
+   novo e descobria o outro — uma volta por campo. Cada bloqueio vira UM campo pela mesma conta de
+   sempre (`gLocalFitCulpado`), sem repetir quando duas caixas culpam o mesmo. */
+function fLpCamposBloqueados(res, dados){
+  const out=[];
+  ((res&&res.invalid&&res.bloqueios)||[]).forEach(b=>{
+    const campo=(typeof gLocalFitCulpado==='function')?gLocalFitCulpado(b,dados||{}):(b.campos||[])[0];
+    if(!campo||out.some(o=>o.campo===campo)) return;
+    out.push({campo, rotulo:(typeof gFieldLabel==='function')?gFieldLabel(campo):campo});
+  });
+  return out;
+}
+// “A”, “B” e “C” — o rótulo entre aspas, como o resto do fluxo escreve.
+function fLpListaRotulos(rotulos){
+  const n=(rotulos||[]).map(r=>'“'+r+'”');
+  return n.length>1 ? n.slice(0,-1).join(', ')+' e '+n[n.length-1] : (n[0]||'');
+}
 function _fLpSyncBloqueio(resArg){
   const nota=document.getElementById('lp-layout-nota'); if(!nota) return;
   /* O parâmetro existe para a bancada conseguir pintar um bloqueio sem re-renderizar a arte
@@ -1420,9 +1438,18 @@ function _fLpSyncBloqueio(resArg){
   /* A frase antiga era "“Produto” não cabe — tire umas 20 letras" (Laura, 25/09: "essa copy
      está muito ruim"): "umas" é chute e não diz o que fazer. Agora: o número exato e a ação. */
   const conta=F?'tem '+F.atual+' letras, cabem '+F.limite:'';
-  _fLpNotaTexto(nota,'“'+rotulo+'” não cabe na arte'+(conta?' ('+conta+')':'')+' · Encurtar',falado);
-  nota.title='“'+rotulo+'” não cabe nesta arte nem no menor tamanho legível.'
-    +(conta?' Hoje '+conta+'.':'')+' Toque para encurtar com IA.';
+  /* Mais de um campo: a barra diz TODOS de uma vez. O número e a saída seguem sendo do primeiro
+     (é o que o toque abre); o próximo aparece quando ele couber. */
+  const todos=fLpCamposBloqueados(res,fState.dados||{});
+  if(todos.length>1){
+    const nomes=fLpListaRotulos(todos.map(t=>t.rotulo));
+    _fLpNotaTexto(nota,nomes+' não cabem na arte · Ajustar',falado);
+    nota.title=nomes+' não cabem nesta arte nem no menor tamanho legível. Toque para ajustar um de cada vez.';
+  }else{
+    _fLpNotaTexto(nota,'“'+rotulo+'” não cabe na arte'+(conta?' ('+conta+')':'')+' · Encurtar',falado);
+    nota.title='“'+rotulo+'” não cabe nesta arte nem no menor tamanho legível.'
+      +(conta?' Hoje '+conta+'.':'')+' Toque para encurtar com IA.';
+  }
   nota.setAttribute('aria-label', nota.title+falado);
   nota.onclick=()=>{
     if(typeof fCorrigirTextoLongo!=='function') return;
@@ -1565,6 +1592,7 @@ function _fLpSyncBalao(){
     /* O PRIMEIRO BLOQUEIO QUE TEM SOLUÇÃO. Olhar só o [0] deixava a arte sem balão quando o
        primeiro campo não tinha versão que coubesse (ou não era texto) e o segundo tinha. */
     _lpBalao={chave, fieldId:null, campo:null, sug:[]};
+    let perto=null;   // a versão MAIS CURTA do 1º campo sem solução — o `maisPerto` que ninguém lia
     for(const bloq of bloqs){
       const campo=gLocalFitCulpado(bloq,fState.dados||{});
       const valor=campo?String((fState.dados||{})[campo]==null?'':fState.dados[campo]):'';
@@ -1572,12 +1600,34 @@ function _fLpSyncBalao(){
       const cfg=(typeof fGetFieldType==='function')?fGetFieldType(campo):{type:'text'};
       if(cfg.type&&cfg.type!=='text') continue;
       const cabe=_fLpBalaoCabe(bloq,campo,cv.width,cv.height); if(!cabe) continue;
-      let sug=[];
-      try{ sug=gCopyFitSugestoes(valor,cabe,1).sugestoes; }catch(e){ sug=[]; }
+      let sug=[], gs=null;
+      try{ gs=gCopyFitSugestoes(valor,cabe,1); sug=gs.sugestoes; }catch(e){ sug=[]; }
       if(sug.length){ _lpBalao={chave, fieldId:bloq.fieldId, campo, valor, sug}; break; }
+      if(!perto&&gs&&gs.maisPerto&&gs.maisPerto.text&&gs.maisPerto.text!==valor)
+        perto={campo, fieldId:bloq.fieldId, valor, text:gs.maisPerto.text, removidas:gs.maisPerto.removidas||[], cabe};
     }
     // Sem versão: o aviso da barra diz QUANTO falta. Mede aqui, na mesma chave — uma vez por texto.
-    if(!_lpBalao.sug.length) _lpBalao.falta=_fLpFalta(bloqs[0],cv.width,cv.height);
+    if(!_lpBalao.sug.length){
+      _lpBalao.falta=_fLpFalta(bloqs[0],cv.width,cv.height);
+      /* O CONTADOR JÁ MOSTRA O ALVO MEDIDO, sem esperar o "Baixar" falhar. Antes o `limite` só
+         entrava depois do diálogo do bloqueio: quem digitava via 47/60 enquanto a arte já
+         estava bloqueada. É o mesmo número da barra (`_fLpFalta`). */
+      const F=_lpBalao.falta;
+      if(F&&F.limite>0&&typeof fMarcaLimiteSeguro==='function'){
+        fMarcaLimiteSeguro(F.campo,F.limite);
+        try{ if(typeof fUpdateCharCount==='function') fUpdateCharCount(); }catch(e){}
+      }
+      /* "FALTA POUCO" (Local Fit 2.3): nenhuma versão coube, mas a mais curta chegou perto — e o
+         quanto (`n` letras) é medido com a MESMA régua e a mesma busca do "cabem até N". Sem IA é
+         o único auxílio: mostra o que já foi encurtado e o que ainda sobra. */
+      if(perto&&typeof gLocalFitMaiorPrefixo==='function'){
+        try{
+          const lim=gLocalFitMaiorPrefixo(perto.text,t=>{ const r=perto.cabe(t); return !!(r&&r.ok); }).limite;
+          _lpBalao.perto={campo:perto.campo, fieldId:perto.fieldId, valor:perto.valor, text:perto.text,
+            removidas:perto.removidas, limite:lim, n:Math.max(0,perto.text.length-lim)};
+        }catch(e){}
+      }
+    }
     _fLpTrackNaoCabe(bloqs[0]);
   }
   if(!stage) return;
@@ -1723,6 +1773,16 @@ function fLpBalaoSolucao(bloqueio){
       if(String((fState.dados||{})[campo]==null?'':fState.dados[campo])!==_lpBalao.valor) return false;
       return fLpBalaoAplica(0, origem||'dialogo');
     } };
+}
+
+/* A VERSÃO QUE CHEGOU PERTO, para o "Encurtar" sem IA e sem versão que caiba (Local Fit 2.3).
+   Mesmas guardas da solução: mesma arte (material) e o texto ainda é o que foi medido.
+   @returns {{campo,text,removidas,limite,n}|null} `n` = letras que ainda passam do que cabe. */
+function fLpBalaoPerto(campo){
+  const P=_lpBalao&&_lpBalao.perto;
+  if(!P||P.campo!==campo||_lpEffectiveMaterial!==fState.material) return null;
+  if(String((fState.dados||{})[campo]==null?'':fState.dados[campo])!==P.valor) return null;
+  return P;
 }
 
 /* ══ PREVIEW AO VIVO — A ARTE SE MONTANDO NA FRENTE DA PESSOA (24/09/2026) ═════════════════

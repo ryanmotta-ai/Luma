@@ -1995,12 +1995,18 @@ async function fCorrigirTextoLongo(res){
      prévia mediu esta mesma arte (`fLpBalaoSolucao`). */
   const sol = (bloq0 && typeof fLpBalaoSolucao === 'function') ? fLpBalaoSolucao(bloq0) : null;
   const versao = (sol && sol.campo === campo) ? sol : null;
+  /* OS OUTROS CAMPOS QUE TAMBÉM NÃO CABEM (2.2): o diálogo resolve um por vez, mas avisa dos
+     demais já — senão a pessoa conserta este, gera de novo e descobre o próximo. */
+  const outros = (typeof fLpCamposBloqueados === 'function' ? fLpCamposBloqueados(res, fState.dados || {}) : [])
+    .filter(o => o.campo !== campo).map(o => o.rotulo);
+  const tambem = outros.length
+    ? ' Também não ' + (outros.length > 1 ? 'cabem' : 'cabe') + ': ' + fLpListaRotulos(outros) + '.' : '';
 
   if(versao){
     const sem = versao.removidas.length ? ' (sai: ' + versao.removidas.join(', ') + ')' : '';
     const r = await gConfirm(
       'O texto de “' + rotulo + '” é longo demais para esta arte. Esta versão cabe: “'
-        + versao.text + '”' + sem + '.',
+        + versao.text + '”' + sem + '.' + tambem,
       { title: 'Esse texto não cabe', okLabel: 'Usar esta versão', altLabel: 'Editar', cancelLabel: 'Agora não' });
     if(!r) return true;
     if(r === true){
@@ -2021,7 +2027,7 @@ async function fCorrigirTextoLongo(res){
     }
   } else {
     const ok = await gConfirm(
-      'O texto de “' + rotulo + '” é longo demais para esta arte. ' + quanto,
+      'O texto de “' + rotulo + '” é longo demais para esta arte. ' + quanto + tambem,
       { title: 'Esse texto não cabe', okLabel: 'Encurtar agora', cancelLabel: 'Agora não' });
     if(!ok) return true;
   }
@@ -2040,8 +2046,11 @@ async function fCorrigirTextoLongo(res){
      tocou em "Encurtar" esperava uma versão menor (Laura, 25/09). A IA sugere; aplicar continua
      sendo toque dela no popover. */
   if(!versao && typeof fFitTextWithAI === 'function'){
+    /* Com a versão que chegou PERTO medida, o popover "Quase cabe" abre sem IA (e oferece "Mais
+       opções com IA" quando ela existe). Sem ela, vai direto à IA, como antes. */
+    const temPerto = typeof fLpBalaoPerto === 'function' && !!fLpBalaoPerto(campo);
     setTimeout(()=>{
-      if(fState.camp?.perguntas?.[fState.stepIdx]?.id === campo) fFitTextWithAI(true);
+      if(fState.camp?.perguntas?.[fState.stepIdx]?.id === campo) fFitTextWithAI(!temPerto);
     }, 60);
   }
   /* O contador só repinta no próximo `input`, e a pessoa acabou de chegar aqui pelo alvo
@@ -2888,14 +2897,8 @@ function _fBolhaMarcaBloqueio(w, rendered, d, mw, mh){
     const bloqs = (res && res.invalid && res.bloqueios) || [];
     const ok = w && w.querySelector('.bbl.art-ok');
     if(!bloqs.length || !ok) return;
-    const rotulos = [];
-    bloqs.forEach(b=>{
-      const campo = (typeof gLocalFitCulpado === 'function') ? gLocalFitCulpado(b, d || {}) : (b.campos || [])[0];
-      const r = campo && ((typeof gFieldLabel === 'function') ? gFieldLabel(campo) : campo);
-      if(r && !rotulos.includes(r)) rotulos.push(r);
-    });
-    const nomes = rotulos.map(r=>'“'+r+'”');
-    const lista = nomes.length > 1 ? nomes.slice(0,-1).join(', ')+' e '+nomes[nomes.length-1] : (nomes[0] || 'Um texto');
+    const nomes = fLpCamposBloqueados(res, d || {});
+    const lista = fLpListaRotulos(nomes.map(n=>n.rotulo)) || 'Um texto';
     const tick = ok.querySelector('.art-ok-tick');
     if(tick){
       tick.className = 'art-ok-tick-bloq';
