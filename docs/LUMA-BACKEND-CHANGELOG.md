@@ -6,6 +6,18 @@
 
 ---
 
+## 2026-09-29 — Edge Function `ai`: prazo único e reservas em paralelo (⏳ escrita, NÃO publicada — em produção segue a v18)
+
+Medido antes (14 dias, 203 chamadas em `ia_chamada`): 15% em timeout de 45s, 24% em 502, reserva respondeu 4 vezes. Causa: tentativa ao Gemini sem teto (um modelo travado comia os 45s do front antes de chegar às reservas) e escada que só descia em 403/404/429/503.
+
+- **Prazo único de 38s** para a chamada inteira (abaixo dos 45s do front), que também cai quando o navegador desiste (`req.signal`).
+- **Teto por tentativa:** 15s no 1º Gemini, 10s nos seguintes, 12s por reserva — sempre limitado ao que sobra do prazo.
+- **Desce também** em 500/502/504, demora, erro de rede e resposta vazia. 400 não desce no Gemini (o pedido é que está errado) e vai direto às reservas.
+- **Disparo em paralelo (só texto):** Gemini calado por 8s, ou já falhou → as reservas fora do Google (NVIDIA, NVIDIA2, Ollama, Cloudflare, OpenRouter, em ordem) entram junto; fica a primeira resposta, a outra é abortada. Com anexo não há reserva.
+- **Prazo estourado = 504** "a IA demorou demais para responder" (antes: 502 genérico ou nada até o front desistir).
+- Front (`js/core/ai/ai-client.js`): o gateway `gAI` deixa de repetir a chamada no 502 — **só sobe junto com a publicação da function** (sem ela, tirar a repetição só perde uma segunda chance).
+- Simulada com fetch falso (8 cenários: Gemini rápido, travado, 503 em tudo, 400, vazio, com anexo, tudo travado): todos no desfecho esperado.
+
 ## 2026-09-26 — Suporte pelo Telegram (a ponte)
 
 **`20260926130000_luma_suporte_telegram`** (⏳ **escrita, NÃO aplicada** — depende da `20260926120000`; aplicar as duas em ordem e seguir "Como ligar" em `docs/SUPORTE-TELEGRAM.md`). Decisões do Ryan: Telegram, prints vão, jurídico aprovou, `/disponivel` conta como online.

@@ -54,16 +54,17 @@ const MODELO_OK = /^gemini-[a-z0-9.\-]{1,40}$/i;
 // Escada, do mais barato para o mais caro (entrada/saída por 1M tokens, 09/2026):
 // 3.1 Flash-Lite 0,25/1,50 · 3.6, 3.8 e 3.7 Flash 0,75/3,75 (mesmo preço, filas separadas).
 // Desce quando o modelo não existe para a conta (404/403) OU está sem vaga (503 "high demand",
-// 429 cota) — cada modelo tem fila própria. Medido em 23/09/2026: o 3.1 Flash-Lite deu 503 em
+// 429 cota) — cada modelo tem fila própria — e, desde 29/09, também em 500/502/504, demora e
+// resposta vazia (ver passo 4). Medido em 23/09/2026: o 3.1 Flash-Lite deu 503 em
 // todas as tentativas; o 3.6 Flash respondeu entre 3s e 20s e também deu 503 no pico — daí os
 // dois Flash de mesmo preço no fim. ⛔ O 3.5 Flash-Lite (0,30/2,50) FICOU FORA: levou 25s para
 // um "olá" e empurrava a chamada para além do timeout de 45s do front.
 const MODELOS_RESERVA = ["gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.7-flash"];
-const DESCE = new Set([403, 404, 429, 503]);
+const DESCE = new Set([403, 404, 429, 500, 502, 503, 504]);
 
-// Reservas fora do Google, todas no formato OpenAI (/chat/completions). Entram em ordem quando a
-// escada Gemini inteira falhar (qualquer erro, inclusive rede); cada uma que der erro passa para a
-// próxima. Secret ausente = provedor pulado. ⛔ Só texto: chamada com anexo (foto, PDF, áudio) não
+// Reservas fora do Google, todas no formato OpenAI (/chat/completions). Entram em ordem, EM PARALELO
+// com o Gemini quando ele fica HEDGE_MS calado ou falha (ver passo 5); cada uma que der erro passa
+// para a próxima. Secret ausente = provedor pulado. ⛔ Só texto: chamada com anexo (foto, PDF, áudio) não
 // desce — os modelos abaixo não leem arquivo. Ordem = da cota mais folgada para a mais apertada:
 // · NVIDIA NIM (free ~40 req/min POR CHAVE — 2 chaves, 2 cotas). UM MODELO DIFERENTE POR CHAVE: o
 //   Llama 3.3 70B saiu do catálogo em 26/08/2026 (410 Gone) e derrubou as duas de uma vez. Modelos
@@ -81,7 +82,12 @@ const RESERVAS = [
   { nome: "cloudflare", secret: "CLOUDFLARE_API_KEY", url: "", modelo: "@cf/meta/llama-3.3-70b-instruct-fp8-fast" },
   { nome: "openrouter", secret: "OPENROUTER_API_KEY", url: "https://openrouter.ai/api/v1/chat/completions", modelo: "openrouter/free" },
 ];
-const RESERVA_TIMEOUT_MS = 20_000; // uma reserva travada não pode comer o timeout de 45s do front
+// Tempos (29/09/2026, a partir de 203 chamadas reais de 14 dias). O front desiste aos 45s.
+const PRAZO_MS = 38_000;           // a chamada inteira: sobra margem para rede e cold start até os 45s
+const GEMINI_1_MS = 15_000;        // 1º degrau: o 3.1 Flash-Lite responde 90% dos casos em até 14s
+const GEMINI_N_MS = 10_000;        // degraus seguintes
+const RESERVA_TIMEOUT_MS = 12_000; // cada reserva
+const HEDGE_MS = 8_000;            // Gemini calado por 8s → reservas entram em paralelo (só texto)
 
 async function urlCloudflare(chave: string): Promise<string> {
   let conta = Deno.env.get("CLOUDFLARE_ACCOUNT_ID") ?? "";
@@ -276,62 +282,72 @@ Deno.serve(async (req) => {
       parts.push({ inlineData: { mimeType: mime, data: dados } });
     }
 
-    // 4) Gemini
-    // A chave vai no cabeçalho, não na query: URL acaba em log de proxy e de erro.
-    const chama = (m: string) => {
+    // 4) Orçamento de tempo: UM prazo para a chamada inteira, abaixo dos 45s do front. Antes cada
+    // tentativa não tinha teto — um Gemini travado comia os 45s, o front desistia e as reservas
+    // nunca chegavam a ser tentadas (medido em 29/09/2026: 15% das chamadas em timeout, 24% em 502,
+    // reserva respondeu 4 vezes em 203). O prazo também cai quando o navegador desiste (req.signal):
+    // ninguém mais esperando = para de gastar cota.
+    const t0 = Date.now();
+    const resta = () => PRAZO_MS - (Date.now() - t0);
+    const prazo = AbortSignal.any([AbortSignal.timeout(PRAZO_MS), ...(req.signal ? [req.signal] : [])]);
+    let status = 503;
+    type Resposta = { text: string; modelo: string; tokens: { in: number; out: number } | null };
+
+    // Gemini em escada. Cada degrau tem teto próprio e desce também por demora, rede, erro do lado
+    // de lá (500/502/504) e resposta vazia — não só por 403/404/429/503.
+    const viaGemini = async (sinal: AbortSignal): Promise<Resposta | null> => {
+      if (!chave) return null;
       const cfg = !querJson ? {}
         : schema ? { responseMimeType: "application/json", responseSchema: schema }
         : { responseMimeType: "application/json" };
-      return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": chave },
-        body: JSON.stringify({ contents: [{ parts }], generationConfig: cfg }),
-      });
-    };
-    // Cada chamada costuma subir uma instância nova ("booted" no log), então não adianta lembrar
-    // recusa em memória: a escada curta e sem modelo sabidamente morto é o que poupa tempo.
-    const fila = [modelo, ...MODELOS_RESERVA.filter((m) => m !== modelo)];
-    let usado = fila[0];
-    let text = "";
-    let status = 503;
-    // Tokens contados pelo PROVEDOR (não estimados): vão para a telemetria e a calculadora de custo.
-    let tokens: { in: number; out: number } | null = null;
-    if (chave) {
-      try {
-        let res = await chama(usado);
-        for (const reserva of fila.slice(1)) {
-          if (res.ok || !DESCE.has(res.status)) break;
-          console.warn(`[ai] modelo ${usado} indisponível (${res.status}) — tentando ${reserva}`);
-          await res.body?.cancel();
-          usado = reserva;
-          res = await chama(usado);
-        }
-        status = res.status;
-        if (res.ok) {
+      // Cada chamada costuma subir uma instância nova ("booted" no log), então não adianta lembrar
+      // recusa em memória: a escada curta e sem modelo sabidamente morto é o que poupa tempo.
+      const fila = [modelo, ...MODELOS_RESERVA.filter((m) => m !== modelo)];
+      for (let i = 0; i < fila.length; i++) {
+        const m = fila[i];
+        const teto = Math.min(i === 0 ? GEMINI_1_MS : GEMINI_N_MS, resta());
+        if (teto < 1000 || sinal.aborted) return null;
+        try {
+          // A chave vai no cabeçalho, não na query: URL acaba em log de proxy e de erro.
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-goog-api-key": chave },
+            body: JSON.stringify({ contents: [{ parts }], generationConfig: cfg }),
+            signal: AbortSignal.any([sinal, AbortSignal.timeout(teto)]),
+          });
+          status = res.status;
+          if (!res.ok) {
+            console.warn(`[ai] Gemini ${m} respondeu ${res.status}: ` + (await res.text().catch(() => "")).slice(0, 300));
+            if (DESCE.has(res.status)) continue;
+            return null;   // 400 e afins: o pedido é que está errado, outro Gemini daria o mesmo
+          }
           const data = await res.json();
           // Pensamento (thoughtsTokenCount) é cobrado como saída no Gemini.
           const u = data?.usageMetadata;
-          if (u) tokens = { in: Number(u.promptTokenCount) || 0, out: (Number(u.candidatesTokenCount) || 0) + (Number(u.thoughtsTokenCount) || 0) };
+          const tokens = u ? { in: Number(u.promptTokenCount) || 0, out: (Number(u.candidatesTokenCount) || 0) + (Number(u.thoughtsTokenCount) || 0) } : null;
           // Junta as partes de texto: modelo com raciocínio pode devolver mais de uma (e as de
           // pensamento vêm marcadas com `thought` — não são resposta).
-          text = ((data?.candidates?.[0]?.content?.parts ?? []) as { text?: string; thought?: boolean }[])
+          const text = ((data?.candidates?.[0]?.content?.parts ?? []) as { text?: string; thought?: boolean }[])
             .map((p) => (p && !p.thought && typeof p.text === "string") ? p.text : "")
             .join("");
-        } else {
-          const detalhe = await res.text().catch(() => "");
-          console.warn("[ai] Gemini respondeu " + res.status + ": " + detalhe.slice(0, 300));
+          if (text) return { text, modelo: m, tokens };
+          console.warn(`[ai] Gemini ${m} veio vazio`);
+        } catch (e) {
+          if (sinal.aborted) return null;
+          console.warn(`[ai] Gemini ${m} ${(e as Error)?.name === "TimeoutError" ? `passou de ${teto}ms` : "falhou na rede"} — descendo`);
         }
-      } catch (e) {
-        console.warn("[ai] Gemini falhou na rede:", e);
       }
-    }
+      return null;
+    };
 
-    // 5) Reservas: Gemini falhou (ou veio vazio) e a chamada é só texto.
-    if (!text && parts.length === 1) {
-      const instrucao = !querJson ? "Responda em português do Brasil."
-        : "Responda APENAS com JSON válido, sem markdown e sem texto fora do JSON." +
-          (schema ? " Siga este schema: " + JSON.stringify(schema) : "");
+    // Reservas fora do Google, em ordem, cada uma com teto — só texto (não leem anexo).
+    const instrucao = !querJson ? "Responda em português do Brasil."
+      : "Responda APENAS com JSON válido, sem markdown e sem texto fora do JSON." +
+        (schema ? " Siga este schema: " + JSON.stringify(schema) : "");
+    const viaReservas = async (sinal: AbortSignal): Promise<Resposta | null> => {
       for (const rv of reservas) {
+        const teto = Math.min(RESERVA_TIMEOUT_MS, resta());
+        if (teto < 1000 || sinal.aborted) return null;
         try {
           const url = rv.url || await urlCloudflare(rv.chave);
           const r = await fetch(url, {
@@ -341,28 +357,62 @@ Deno.serve(async (req) => {
               model: rv.modelo, temperature: 0.6, max_tokens: 4096,
               messages: [{ role: "system", content: instrucao }, { role: "user", content: prompt }],
             }),
-            signal: AbortSignal.timeout(RESERVA_TIMEOUT_MS),
+            signal: AbortSignal.any([sinal, AbortSignal.timeout(teto)]),
           });
-          status = r.status;
           if (!r.ok) {
             console.warn(`[ai] reserva ${rv.nome} respondeu ${r.status}: ` + (await r.text().catch(() => "")).slice(0, 300));
             continue;
           }
           const d = await r.json();
-          if (d?.usage) tokens = { in: Number(d.usage.prompt_tokens) || 0, out: Number(d.usage.completion_tokens) || 0 };
+          const tokens = d?.usage ? { in: Number(d.usage.prompt_tokens) || 0, out: Number(d.usage.completion_tokens) || 0 } : null;
           // Modelo aberto às vezes embrulha o JSON em ```json … ```: tira a cerca.
-          text = String(d?.choices?.[0]?.message?.content ?? "").trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
-          if (text) { usado = rv.nome + ":" + String(d?.model || rv.modelo); break; }
+          const text = String(d?.choices?.[0]?.message?.content ?? "").trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
+          if (text) return { text, modelo: rv.nome + ":" + String(d?.model || rv.modelo), tokens };
           console.warn(`[ai] reserva ${rv.nome} veio vazia`);
         } catch (e) {
+          if (sinal.aborted) return null;
           console.warn(`[ai] reserva ${rv.nome} falhou:`, String((e as Error)?.message ?? e));
         }
       }
+      return null;
+    };
+
+    // 5) Disparo em paralelo: se o Gemini não respondeu em HEDGE_MS (ou já falhou), as reservas
+    // entram JUNTO com ele — fica a primeira que responder, a outra é abortada. Só em chamada de
+    // texto: com anexo não há reserva, a escada Gemini é o caminho inteiro.
+    const ctrlG = new AbortController();
+    const ctrlR = new AbortController();
+    let r: Resposta | null;
+    if (parts.length > 1 || !reservas.length) {
+      r = await viaGemini(prazo);
+    } else {
+      r = await new Promise<Resposta | null>((resolve) => {
+        let pendentes = 2;
+        let reservasNoAr = false;
+        const fim = (x: Resposta | null) => { if (x) resolve(x); else if (--pendentes === 0) resolve(null); };
+        const disparaReservas = () => {
+          if (reservasNoAr) return;
+          reservasNoAr = true;
+          clearTimeout(relogio);
+          viaReservas(AbortSignal.any([prazo, ctrlR.signal])).then(fim, () => fim(null));
+        };
+        const relogio = setTimeout(disparaReservas, HEDGE_MS);
+        viaGemini(AbortSignal.any([prazo, ctrlG.signal])).then((x) => {
+          if (x) clearTimeout(relogio); else disparaReservas();
+          fim(x);
+        }, () => { disparaReservas(); fim(null); });
+      });
     }
-    if (!text) return json({ error: "o provedor de IA falhou (" + status + ")" }, 502);
+    ctrlG.abort();
+    ctrlR.abort();
+
+    if (!r) {
+      const estourou = resta() < 1000;
+      return json({ error: estourou ? "a IA demorou demais para responder" : "o provedor de IA falhou (" + status + ")" }, estourou ? 504 : 502);
+    }
 
     // `modelo` = o que respondeu de fato (pode ser a reserva): vai para a telemetria de custo.
-    return json({ ok: true, task, text, modelo: usado, tokens });
+    return json({ ok: true, task, text: r.text, modelo: r.modelo, tokens: r.tokens });
   } catch (e) {
     console.warn("[ai] falhou:", e);
     return json({ error: String((e as Error)?.message ?? e) }, 500);
