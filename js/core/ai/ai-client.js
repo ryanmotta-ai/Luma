@@ -180,12 +180,8 @@
           attempt++;
           try {
             res = await _callEdge(task, model, built.prompt, built.parts, schema, ctrl.signal);
-            if (!res) break;
-            // 502 = o provedor falhou do lado de lá (alta demanda do Gemini): tenta 1x com backoff.
-            if (res.status === 502 && attempt < maxAttempts) {
-              await new Promise(r => setTimeout(r, 1200));
-              continue;
-            }
+            // Sem repetir no 502/504: a Edge Function já percorreu Gemini e reservas dentro do prazo
+            // dela — repetir só dobrava a espera (e estourava os 45s daqui).
             break;
           } catch(netErr) {
             if (netErr.name === 'AbortError') throw netErr;

@@ -6,7 +6,7 @@
 
 ---
 
-## 2026-09-29 — Edge Function `ai`: prazo único e reservas em paralelo (⏳ escrita, NÃO publicada — em produção segue a v18)
+## 2026-09-29 — Edge Function `ai`: prazo único e reservas em paralelo (✅ publicada como v19 em 29/09/2026)
 
 Medido antes (14 dias, 203 chamadas em `ia_chamada`): 15% em timeout de 45s, 24% em 502, reserva respondeu 4 vezes. Causa: tentativa ao Gemini sem teto (um modelo travado comia os 45s do front antes de chegar às reservas) e escada que só descia em 403/404/429/503.
 
@@ -15,7 +15,7 @@ Medido antes (14 dias, 203 chamadas em `ia_chamada`): 15% em timeout de 45s, 24%
 - **Desce também** em 500/502/504, demora, erro de rede e resposta vazia. 400 não desce no Gemini (o pedido é que está errado) e vai direto às reservas.
 - **Disparo em paralelo (só texto):** Gemini calado por 8s, ou já falhou → as reservas fora do Google (NVIDIA, NVIDIA2, Ollama, Cloudflare, OpenRouter, em ordem) entram junto; fica a primeira resposta, a outra é abortada. Com anexo não há reserva.
 - **Prazo estourado = 504** "a IA demorou demais para responder" (antes: 502 genérico ou nada até o front desistir).
-- Front (`js/core/ai/ai-client.js`): o gateway `gAI` deixa de repetir a chamada no 502 — **só sobe junto com a publicação da function** (sem ela, tirar a repetição só perde uma segunda chance).
+- Front (`js/core/ai/ai-client.js`): o gateway `gAI` deixa de repetir a chamada no 502 (v=172).
 - Simulada com fetch falso (8 cenários: Gemini rápido, travado, 503 em tudo, 400, vazio, com anexo, tudo travado): todos no desfecho esperado.
 
 ## 2026-09-26 — Suporte pelo Telegram (a ponte)
