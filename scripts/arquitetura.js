@@ -264,10 +264,13 @@ const REGRAS = [
     // Heurística assumida: procura `try` nas 14 linhas acima e `catch` nas 14 abaixo. Erra
     // nos dois sentidos em casos raros, mas erra IGUAL antes e depois, que é o que a catraca
     // precisa. Um parser de verdade traria dependência — a 1ª lei não permite.
+    // A própria linha entra nos dois lados: o idioma da casa é `try{ localStorage… }catch(e){}`
+    // numa linha só, e sem isso as ~60 linhas JÁ guardadas eram contadas como dívida (e cada
+    // guarda nova, do jeito certo, subia a catraca e derrubava o CI).
     rodar: () => varrer((l, i, ls) => {
       if (ehComentario(l) || !/\blocalStorage\s*\./.test(l)) return null;
-      const acima = ls.slice(Math.max(0, i - 14), i).join('\n');
-      const abaixo = ls.slice(i + 1, i + 15).join('\n');
+      const acima = ls.slice(Math.max(0, i - 14), i + 1).join('\n');
+      const abaixo = ls.slice(i, i + 15).join('\n');
       return (/\btry\s*\{/.test(acima) && /\bcatch\s*\(/.test(abaixo)) ? null : l.trim();
     }) },
 
