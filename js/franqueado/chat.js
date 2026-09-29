@@ -2844,8 +2844,9 @@ function fGerarArte(){
           // reduzido no canvas visível — não guarda um backing nativo por bolha de resultado.
           const off = document.createElement('canvas'); off.width=mw; off.height=mh;
           const octx = off.getContext('2d');
-          await fRenderTemplateLayers(octx, fState.material.layers, mw, mh, d, c, null,
+          const rendered = await fRenderTemplateLayers(octx, fState.material.layers, mw, mh, d, c, null,
             {scope:'franqueado',purpose:'preview'});
+          _fBolhaMarcaBloqueio(w, rendered, d, mw, mh);
           await fDrawDMLogo(octx, mw, mh);
           const ctx = cv.getContext('2d');
           ctx.clearRect(0,0,cv.width,cv.height);
@@ -2873,6 +2874,55 @@ function fGerarArte(){
        ⚠ O `.art-ok-sub` deixou de ser só-celular por causa disto: ele passou a ser o ÚNICO
        lugar que comunica a persistência. A persistência em si não mudou (ver `fSaveHist`). */
   },800);
+}
+/* ══ A ENTREGA NÃO MENTE QUANDO O TEXTO NÃO CABE (Local Fit, fase 2.1) ═══════════════════
+   O card nasce "Sua arte está pronta" ANTES de a miniatura ser desenhada, e a miniatura usa o
+   mesmo Local Fit do download. Sem esta função, a arte bloqueada aparecia como pronta, com o
+   texto estourando na miniatura, e a pessoa só descobria no "Baixar" — no celular, com a prévia
+   fechada, é a única tela que ela vê. Agora o próprio cabeçalho do card vira o aviso e leva à
+   MESMA porta do bloqueio (`fCorrigirTextoLongo`), com o laudo que o download também monta.
+   Não bloqueia o Baixar: ele continua indo pelo diálogo, que é a saída completa. */
+function _fBolhaMarcaBloqueio(w, rendered, d, mw, mh){
+  try{
+    const res = rendered && rendered._layoutResult;
+    const bloqs = (res && res.invalid && res.bloqueios) || [];
+    const ok = w && w.querySelector('.bbl.art-ok');
+    if(!bloqs.length || !ok) return;
+    const rotulos = [];
+    bloqs.forEach(b=>{
+      const campo = (typeof gLocalFitCulpado === 'function') ? gLocalFitCulpado(b, d || {}) : (b.campos || [])[0];
+      const r = campo && ((typeof gFieldLabel === 'function') ? gFieldLabel(campo) : campo);
+      if(r && !rotulos.includes(r)) rotulos.push(r);
+    });
+    const nomes = rotulos.map(r=>'“'+r+'”');
+    const lista = nomes.length > 1 ? nomes.slice(0,-1).join(', ')+' e '+nomes[nomes.length-1] : (nomes[0] || 'Um texto');
+    const tick = ok.querySelector('.art-ok-tick');
+    if(tick){
+      tick.className = 'art-ok-tick-bloq';
+      tick.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="6" x2="12" y2="13"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>';
+    }
+    const copy = ok.querySelector('.art-ok-copy');
+    if(copy){
+      const forte = document.createElement('strong'); forte.textContent = 'Falta ajustar um texto';
+      const sub = document.createElement('small'); sub.className = 'art-ok-sub';
+      const varios = nomes.length > 1;
+      sub.textContent = lista+(varios ? ' não cabem' : ' não cabe')+' na arte · Toque para '+(varios ? 'ajustar' : 'encurtar');
+      copy.textContent = ''; copy.append(forte, sub);
+    }
+    const abrir = ()=>{
+      let r = res;
+      try{
+        if(!r.diagnostico && typeof gLocalFitDiagnostico === 'function')
+          r = Object.assign({}, res, {diagnostico: gLocalFitDiagnostico(rendered, res, d || {},
+            {canvas:{w:mw,h:mh}, defaults:(typeof gVarDefaults === 'function') ? gVarDefaults() : null})});
+      }catch(e){ /* sem laudo, o diálogo cai na frase sem número */ }
+      if(typeof fCorrigirTextoLongo === 'function') fCorrigirTextoLongo(r);
+    };
+    ok.classList.add('is-bloqueio');
+    ok.setAttribute('role','button'); ok.tabIndex = 0;
+    ok.onclick = abrir;
+    ok.onkeydown = e=>{ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); abrir(); } };
+  }catch(e){ console.warn('Aviso de bloqueio na entrega:', e); }
 }
 async function fOutroFormato(id, snapId){
   const f=FMTS.find(x=>x.id===id);if(!f)return;

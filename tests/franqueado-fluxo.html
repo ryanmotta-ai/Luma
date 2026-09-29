@@ -861,6 +861,37 @@ await test('bloqueio: o aviso da prévia acende, nomeia o campo e é clicável',
   assert(!nota.classList.contains('is-bloqueio'),'ficou com o estado de bloqueio pendurado');
 });
 
+await test('bloqueio: a entrega NÃO diz "pronta" — o cabeçalho do card vira o aviso e abre a porta única', async()=>{
+  reset();
+  /* No celular a prévia fica fechada e o card é a única tela: "Sua arte está pronta" sobre uma
+     miniatura estourada era a mentira que só o "Baixar" desmentia (Local Fit 2.1). */
+  const monta=()=>{
+    const w=document.createElement('div');
+    w.innerHTML='<div class="bbl art-ok"><span class="art-ok-tick"><svg></svg></span>'
+      +'<span class="art-ok-copy"><strong>Sua arte está pronta</strong><small class="art-ok-sub">Salva em Minhas artes</small></span></div>';
+    return w;
+  };
+  const fonte=window.fCorrigirTextoLongo; let recebeu=null;
+  window.fCorrigirTextoLongo=r=>{ recebeu=r; };
+  try{
+    const w=monta(), ok=w.querySelector('.bbl.art-ok');
+    _fBolhaMarcaBloqueio(w,{_layoutResult:bloqueio('produto',28,46)},{produto:'x'},1080,1350);
+    assert(!/pronta/.test(ok.textContent),'o card bloqueado seguiu dizendo "pronta": '+ok.textContent);
+    assert(ok.textContent.indexOf(gFieldLabel('produto'))>=0,'não nomeou o campo: '+ok.textContent);
+    assert(!ok.querySelector('.art-ok-tick'),'o tique verde continuou no card bloqueado');
+    assert(ok.classList.contains('is-bloqueio')&&ok.getAttribute('role')==='button'&&ok.tabIndex===0,'não virou um controle alcançável');
+    ok.click();
+    assert(recebeu&&recebeu.invalid,'o toque não chegou à porta única do bloqueio');
+    recebeu=null;
+    ok.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+    assert(recebeu,'Enter não abriu o bloqueio (teclado)');
+    // Caber não muda nada: o card honesto continua sendo o card de sempre.
+    const w2=monta(), ok2=w2.querySelector('.bbl.art-ok');
+    _fBolhaMarcaBloqueio(w2,{_layoutResult:{invalid:false,bloqueios:[]}},{},1080,1350);
+    assert(/Sua arte está pronta/.test(ok2.textContent)&&!ok2.classList.contains('is-bloqueio'),'mexeu no card de uma arte que coube');
+  }finally{ window.fCorrigirTextoLongo=fonte; }
+});
+
 await test('letra pequena: coube a ≤75% do corpo → aviso laranja que leva ao campo; pouco encolhido fica calado', async()=>{
   reset();
   const nota=document.getElementById('lp-layout-nota');

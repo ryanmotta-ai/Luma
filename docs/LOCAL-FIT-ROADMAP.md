@@ -88,7 +88,7 @@ o designer a baixar o limite no chute.
 
 | # | Item | Onde |
 |---|---|---|
-| - [ ] 2.1 | **Celular:** linha curta sob o campo quando o texto não cabe; "Sua arte está pronta" condicional (ou com o aviso junto); a miniatura não mostra o texto estourando sem aviso. | `chat.js:2675`, `:2762`, `chat-input.js` |
+| - [ ] 2.1 | *(28/09: o card "Sua arte está pronta" já vira "Falta ajustar um texto" e abre a porta única — `_fBolhaMarcaBloqueio`, `chat.js`. Faltam a linha sob o campo e o "pronta" do cabeçalho `#f-mob-prog`.)* **Celular:** linha curta sob o campo quando o texto não cabe; "Sua arte está pronta" condicional (ou com o aviso junto); a miniatura não mostra o texto estourando sem aviso. | `chat.js:2675`, `:2762`, `chat-input.js` |
 | - [ ] 2.2 | **Todos os campos bloqueados de uma vez**, não só `bloqueios[0]` (barra, diálogo, diagnóstico). | `live-preview.js:1379`, `chat.js:1878`, `local-fit.js:953` |
 | - [ ] 2.3 | **Saída sem IA:** contador com o alvo medido **antes** do bloqueio; mostrar o `maisPerto` do Copy Fit ("falta pouco: tire X") — produzido e nunca consumido (`copy-fit.js:503`). Sem IA e sem versão, o "Encurtar" nunca aparece (`chat-input.js:638`). | `chat-input.js`, `live-preview.js` |
 | - [ ] 2.4 | **O corte por `maxLen` não quebra palavra** ("2 litros" → "2 litro", mudo na digitação). | `chat-input.js:503`, `:364` |

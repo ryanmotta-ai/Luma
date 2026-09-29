@@ -3045,6 +3045,15 @@ body:not(.theme-light) #f-msg-box:disabled{background:var(--d-surf2);color:var(-
 /* "Salva em Minhas artes" é do CELULAR: no desktop a mensagem de rodapé do fGerarArte
    já diz isso logo depois da entrega, e as duas juntas seriam a mesma frase duas vezes. */
 .art-ok-sub{display:none}
+/* ARTE GERADA, MAS BLOQUEADA (Local Fit 2.1): `_fBolhaMarcaBloqueio` troca o tique verde por um
+   "!" e o cabeçalho vira o aviso clicável. O tique é OUTRA classe (não `art-ok-tick`) porque as
+   regras do celular e do modo "arte pronta" pintam aquela de verde com especificidade que uma
+   variante minha não venceria. O sub fica sempre visível: é ele que diz qual campo e o que fazer. */
+.art-ok-tick-bloq{width:24px;height:24px;flex-shrink:0;border-radius:50%;background:var(--dm-red);color:var(--white);display:inline-flex;align-items:center;justify-content:center}
+body.f-arte-pronta .art-ok-tick-bloq{width:28px;height:28px}
+.bbl.art-ok.is-bloqueio{cursor:pointer}
+.bbl.art-ok.is-bloqueio .art-ok-sub{display:block;text-decoration:underline;text-underline-offset:2px}
+.bbl.art-ok.is-bloqueio:focus-visible{outline:2px solid var(--dm-red-text);outline-offset:2px;border-radius:8px}
 #f-sheet-grip,#f-sheet-foot,#f-respostas{display:none}
 #f-mob-prog{display:none}
 
