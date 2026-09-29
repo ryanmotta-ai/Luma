@@ -1410,7 +1410,7 @@ function _fLpSyncBloqueio(resArg){
       .sort((a,b)=>a.fontSize/a.fontSizeAutorado-b.fontSize/b.fontSizeAutorado)[0];
     const perguntas=(fState&&fState.camp&&fState.camp.perguntas)||[];
     const idx=menor?perguntas.findIndex(p=>p&&p.id===menor.nomes[0]):-1;
-    if(idx<0){ nota.hidden=true; _fLpNotaTexto(nota,'',''); nota.classList.remove('is-bloqueio'); return; }
+    if(idx<0){ nota.hidden=true; _fLpNotaTexto(nota,'',''); nota.classList.remove('is-bloqueio'); _fLpLinhaCampo(nota); return; }
     const rot=(typeof gFieldLabel==='function')?gFieldLabel(menor.nomes[0]):menor.nomes[0];
     nota.hidden=false;
     nota.classList.remove('is-bloqueio');
@@ -1419,6 +1419,7 @@ function _fLpSyncBloqueio(resArg){
     nota.title='O texto de “'+rot+'” coube, mas a letra diminuiu bastante. Um texto mais curto deixa a arte mais forte.';
     nota.setAttribute('aria-label', nota.title);
     nota.onclick=()=>{ if(typeof fEditCampo==='function') fEditCampo(idx); };
+    _fLpLinhaCampo(nota);
     return;
   }
   const rotulo=(typeof gFieldLabel==='function')?gFieldLabel(campo):campo;
@@ -1471,6 +1472,26 @@ function _fLpSyncBloqueio(resArg){
     }
     fCorrigirTextoLongo(r);
   };
+  _fLpLinhaCampo(nota);
+}
+/* A MESMA FRASE, SOB O CAMPO (Local Fit 2.1, celular). A barra da prévia fica fora da tela no
+   celular, então quem digita um texto que não cabe só via o contador. Espelha o aviso — e só o de
+   BLOQUEIO; o de letra pequena não é urgente — e o toque faz o que o da barra faz. CSS: `.f-nao-cabe`
+   só existe no celular e some no modo "arte pronta" (o card já é o aviso). Sem `aria-live`: a barra
+   já anuncia, e dois anúncios da mesma frase seriam ruído. */
+function _fLpLinhaCampo(nota){
+  let l=document.getElementById('f-nao-cabe');
+  const ligado=!!nota&&!nota.hidden&&nota.classList.contains('is-bloqueio');
+  if(!ligado){ if(l) l.hidden=true; return; }
+  const row=document.getElementById('f-input-row'); if(!row) return;
+  if(!l){
+    l=document.createElement('button'); l.type='button'; l.id='f-nao-cabe'; l.className='f-nao-cabe';
+    row.insertAdjacentElement('afterend',l);
+  }
+  const vis=nota.querySelector('.lp-nota-vis');
+  l.hidden=false;
+  l.textContent=vis?vis.textContent:nota.textContent;
+  l.onclick=()=>{ if(typeof nota.onclick==='function') nota.onclick(); };
 }
 /* Escreve o aviso SÓ quando a frase muda. A prévia repinta a cada tecla, e reescrever o mesmo
    texto num `aria-live` faz o leitor de tela repetir o aviso a cada letra digitada.

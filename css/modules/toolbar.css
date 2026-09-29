@@ -937,6 +937,12 @@ body:not(.theme-light) .g-toast-acao:hover {
   .g-dialog-acts{gap:10px}
   .g-dialog-cancel,.g-dialog-ok{min-height:var(--tap-min);padding-inline:18px;font-size:13px}
   .g-dialog-input{font-size:16px}   /* 16px = sem auto-zoom no iOS */
+  /* TRÊS SAÍDAS (Local Fit 2.5, medido a 390px): "Agora não" e "Editar" ocupavam a 1ª linha e a
+     AÇÃO PRINCIPAL ("Usar esta versão") sobrava sozinha na 2ª, à direita, embaixo das duas
+     secundárias — o botão que a pessoa mais quer era o último a ser visto. Empilhado, com a
+     principal em cima (o DOM vem cancelar → alt → ok, então a coluna vai ao contrário). Com duas
+     saídas nada muda: lado a lado já cabe. */
+  .g-dialog-acts:has(.g-dialog-alt){flex-direction:column-reverse;align-items:stretch}
 }
 
 @keyframes gToastItemIn {

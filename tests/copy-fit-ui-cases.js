@@ -577,6 +577,76 @@ await test('2.3 · o contador mostra o alvo MEDIDO assim que a arte bloqueia, se
   assert(c.textContent===PERTO.length+'/'+F.limite,'o contador disse "'+c.textContent+'", esperava '+PERTO.length+'/'+F.limite);
 });
 
+await test('2.1 · a linha sob o campo espelha o aviso de bloqueio, leva ao mesmo diálogo e some quando cabe', async()=>{
+  await reset({produto:SEM_VERSAO});
+  const nota=document.getElementById('lp-layout-nota'), linha=document.getElementById('f-nao-cabe');
+  assert(linha&&!linha.hidden,'a arte bloqueou e não há linha sob o campo');
+  assert(linha.textContent===nota.querySelector('.lp-nota-vis').textContent,'a linha diz outra coisa que a barra: "'+linha.textContent+'"');
+  assert(linha.previousElementSibling===document.getElementById('f-input-row'),'a linha não está logo abaixo do campo');
+  linha.click(); await tick(40);
+  assert($('.g-dialog-ov'),'o toque na linha não abriu o diálogo do bloqueio'); fechaDialogos();
+  fState.dados.produto=CURTO; await render();
+  assert(!_lpLayoutResult.invalid&&linha.hidden,'coube e a linha ficou na tela');
+});
+
+await test('2.1 · o cabeçalho do celular e o leitor de tela não dizem "pronta" sobre um card bloqueado', async()=>{
+  await reset();
+  const msgs=document.getElementById('f-messages');
+  let prog=document.getElementById('f-mob-prog'), criou=false;
+  if(!prog){ prog=document.createElement('span'); prog.id='f-mob-prog'; document.body.appendChild(prog); criou=true; }
+  let av=document.getElementById('f-arte-status'), criouAv=false;
+  if(!av){ av=document.createElement('span'); av.id='f-arte-status'; document.body.appendChild(av); criouAv=true; }
+  try{
+    msgs.innerHTML='<div class="msg bot"><div><div class="bbl art-ok"></div></div></div>';
+    fState.done=true; fUpdateProg();
+    assert(prog.textContent==='pronta'&&/está pronta/.test(av.textContent),'card normal: "'+prog.textContent+'" / "'+av.textContent+'"');
+    msgs.querySelector('.bbl.art-ok').classList.add('is-bloqueio'); fUpdateProg();
+    assert(prog.textContent==='ajustar','card bloqueado e o cabeçalho diz "'+prog.textContent+'"');
+    assert(!/está pronta/.test(av.textContent)&&/não cabe/.test(av.textContent),'o leitor de tela seguiu dizendo pronta: "'+av.textContent+'"');
+    // Um card novo (que coube) vira o último: o estado velho não pode sobrar.
+    msgs.insertAdjacentHTML('beforeend','<div class="msg bot"><div><div class="bbl art-ok"></div></div></div>'); fUpdateProg();
+    assert(prog.textContent==='pronta','o card novo coube e o cabeçalho seguiu em "'+prog.textContent+'"');
+  }finally{ fState.done=false; msgs.innerHTML=''; if(criou) prog.remove(); if(criouAv) av.remove(); }
+});
+
+await test('2.6 · o lote mede cada linha ANTES de gerar: "não cabe", com a versão do Copy Fit', async()=>{
+  await reset();
+  const keys=['produto','sabor','borda','precoPor'];
+  const linha=(id,produto)=>({dados:Object.assign({},BASE,{produto}), erros:[], _rid:id});
+  const rows=[linha('r1',CURTO), linha('r2',LONGO), linha('r3',SEM_VERSAO)];
+  const guardadas=fBulkRows; fBulkRows=rows;
+  try{
+    assert(_fBulkEstadoLinha(rows[1],keys)==='pronta','antes de medir não pode haver selo: nunca se inventa um "não cabe"');
+    await _fBulkMedirTodas();
+    assert(_fBulkEstadoLinha(rows[0],keys)==='pronta','a linha que cabe virou "não cabe"');
+    assert(_fBulkEstadoLinha(rows[1],keys)==='naocabe','a linha que não cabe seguiu "pronta": '+_fBulkEstadoLinha(rows[1],keys));
+    const m1=_fBulkNaoCabe(rows[1]);
+    assert(m1.campos[0].campo==='produto'&&m1.sug&&m1.sug.text===CURTO,'sem a versão do Copy Fit: '+JSON.stringify(m1.sug));
+    const m2=_fBulkNaoCabe(rows[2]);
+    assert(m2&&!m2.sug,'sem versão que caiba, o lote inventou uma sugestão: '+JSON.stringify(m2&&m2.sug));
+    // O botão e o cabeçalho contam a MESMA verdade: a que não cabe não é "pronta" (era 3 prometidas, 1 entregue).
+    const rd=fBulkGetReadiness(keys);
+    assert(rd.readyRows.length===1&&rd.errorRows.length===2&&rd.errorRows.every(e=>e.naoCabe),
+      'a contagem prometeu artes que o render recusaria: '+rd.readyRows.length+' prontas, '+rd.errorRows.length+' para revisar');
+    // Erro de preenchimento continua valendo mais que "não cabe": a linha ainda tem o que preencher.
+    rows[1].erros=['Preencha o campo de Preço.'];
+    assert(_fBulkEstadoLinha(rows[1],keys)==='falta','"falta algo" perdeu a prioridade');
+    rows[1].erros=[];
+    // "Encurtar" da linha: um toque troca o texto medido, e o Desfazer devolve.
+    fBulkAplicarEncurtar(1);
+    assert(rows[1].dados.produto===CURTO,'o Encurtar da linha não trocou: '+rows[1].dados.produto);
+    const t=toastCom(/Trocamos/); assert(t&&t.querySelector('.g-toast-acao'),'sem toast com Desfazer');
+    t.querySelector('.g-toast-acao').click();
+    assert(rows[1].dados.produto===LONGO,'o Desfazer da linha não voltou: '+rows[1].dados.produto);
+    // O texto mudou depois de medido: não troca o que a pessoa acabou de digitar.
+    _fBulkNaoCabe(rows[1]).sug.valor='outro texto, medido antes';
+    document.getElementById('g-toast-container').innerHTML='';
+    fBulkAplicarEncurtar(1);
+    assert(rows[1].dados.produto===LONGO,'trocou um texto que não era o medido: '+rows[1].dados.produto);
+    assert(toastCom(/O texto mudou/),'não avisou que a medida ficou velha');
+  }finally{ fBulkRows=guardadas; }
+});
+
 await test('2.4 · colar além do limite corta na PALAVRA e avisa (nunca "2 litro")', async()=>{
   await reset();
   naPergunta('produto');

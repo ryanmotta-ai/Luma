@@ -497,7 +497,7 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
       const result=lf.result;
       effective._layoutResult=result;
       window.gLastFranchiseeLayoutResult=result;
-      if(typeof gLayoutTelemetry==='function'){
+      if(typeof gLayoutTelemetry==='function'&&!renderOpts.soLayout){
         if(typeof gLayoutFonteStatusArte==='function')
           result.meta=Object.assign({},result.meta,{fonte:gLayoutFonteStatusArte(effective)});
         gLayoutTelemetry(result,{purpose:renderOpts.purpose||'preview',
@@ -522,6 +522,11 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
         requiresAdaptation:false,forced:false,changes:[],campos:[],bloqueios:[],invalidIds:[]};
     }
   }
+  /* `soLayout`: só o ENCAIXE, sem desenhar (Local Fit 2.6). O Luma Sheets mede cada linha do lote
+     antes de gerar para dizer "não cabe" — a mesma conta do render, sem pré-carregar imagem nem
+     tocar no canvas. Devolve o clone resolvido, com `_layoutResult`; a telemetria fica de fora
+     (uma linha medida não é uma arte vista). */
+  if(renderOpts.soLayout) return effective;
   // O renderer continua único: prévia e exportação recebem exatamente o mesmo clone resolvido.
   // Renderiza só layers visíveis (geometria já está no formato alvo → escala 1:1)
   const visible = effective.filter(l => l.visible !== false);
@@ -2591,6 +2596,10 @@ function fBulkGetReadiness(keys=fBulkVars(), formatCount=null) {
       emptyRows.push({row, index});
     } else if (row.erros && row.erros.length) {
       errorRows.push({row, index});
+    } else if (_fBulkNaoCabe(row)) {
+      /* Medido antes de gerar (Local Fit 2.6): essa oferta falharia no render. Contar como
+         "pronta" fazia o botão prometer 30 artes e entregar 28. */
+      errorRows.push({row, index, naoCabe:true});
     } else {
       readyRows.push({row, index});
     }
@@ -2689,7 +2698,91 @@ function _fBulkEstadoLinha(r, keys){
   if(!r) return 'vazia';
   const vazia = keys.every(k => !String((r.dados||{})[k] || '').trim());
   if(vazia) return 'vazia';
-  return (r.erros && r.erros.length) ? 'falta' : 'pronta';
+  if(r.erros && r.erros.length) return 'falta';
+  return _fBulkNaoCabe(r) ? 'naocabe' : 'pronta';
+}
+
+/* ══ "NÃO CABE" POR LINHA, ANTES DE GERAR (Local Fit 2.6) ═════════════════════════════════
+   O lote descobria o texto que não cabe na hora de gerar — a oferta 17 de 30 saía da lista com
+   "não consegui gerar" (e antes, no `erros.txt` do ZIP). Aqui cada linha é MEDIDA no mesmo
+   encaixe do render (`fRenderTemplateLayers` com `soLayout`, sem desenhar), com a versão do
+   Copy Fit já calculada. O resultado mora num cache por CONTEÚDO da linha — não na linha:
+   `fBulkSaveRow` troca o objeto a cada edição e levaria um campo junto. O render lê o cache
+   (síncrono); a medição roda depois, uma linha por vez, e só re-desenha se algo mudou. */
+const _fBulkFitCache = new Map();   // chave (material|formato|dados) → {campos:[{campo,rotulo}], sug}
+let _fBulkFitSeq = 0, _fBulkFitT = null, _fBulkFitCv = null;
+function _fBulkFitChave(r){
+  const m = fState.material || {}, [W,H] = fMaterialSize(m, fState.fmt);
+  const d = {};   // foto (dataURL) não muda o encaixe do texto e pesaria na chave
+  Object.keys((r && r.dados) || {}).forEach(k => { const v = r.dados[k]; d[k] = (typeof v === 'string' && v.startsWith('data:')) ? '' : v; });
+  return [m.id || m.templateId || m.template_id || '', W+'x'+H, JSON.stringify(d)].join('|');
+}
+function _fBulkNaoCabe(r){
+  try{ const m = _fBulkFitCache.get(_fBulkFitChave(r)); return (m && m.campos.length) ? m : null; }
+  catch(e){ return null; }
+}
+async function _fBulkMedirLinha(r){
+  const [W,H] = fMaterialSize(fState.material, fState.fmt);
+  if(!_fBulkFitCv){ _fBulkFitCv = document.createElement('canvas'); _fBulkFitCv.width = _fBulkFitCv.height = 1; }
+  const eff = await fRenderTemplateLayers(_fBulkFitCv.getContext('2d'), fState.material.layers, W, H, r.dados,
+    fState.camp, null, {scope:'franqueado', purpose:'preview', soLayout:true});
+  const res = eff && eff._layoutResult;
+  const campos = fLpCamposBloqueados(res, r.dados);
+  let sug = null;
+  if(campos.length && typeof gCopyFitSugestoes === 'function' && typeof gLocalFitMedidor === 'function'){
+    const c0 = campos[0].campo;
+    const bloq = res.bloqueios.find(b => gLocalFitCulpado(b, r.dados) === c0);
+    const valor = String(r.dados[c0] == null ? '' : r.dados[c0]);
+    const cfg = (typeof fGetFieldType === 'function') ? fGetFieldType(c0) : {type:'text'};
+    const medir = bloq ? gLocalFitMedidor(eff, bloq, c0, r.dados, {canvas:{w:W,h:H}}) : null;
+    if(valor && medir && (!cfg.type || cfg.type === 'text')){
+      const cabe = t => { const x = medir(t); return {ok: !!x && x.status === 'fits', fontSize: x ? x.fontSize : 0}; };
+      const g = gCopyFitSugestoes(valor, cabe, 1);
+      if(g.sugestoes.length) sug = {campo:c0, rotulo:campos[0].rotulo, valor, text:g.sugestoes[0].text,
+        removidas:(typeof _fLpRemovidasVisiveis === 'function') ? _fLpRemovidasVisiveis(g.sugestoes[0].removidas) : (g.sugestoes[0].removidas || [])};
+    }
+  }
+  return {campos, sug};
+}
+function fBulkAgendaMedicao(){
+  clearTimeout(_fBulkFitT);
+  _fBulkFitT = setTimeout(_fBulkMedirTodas, 250);
+}
+async function _fBulkMedirTodas(){
+  if(!fState.material || !fState.material.layers || typeof gLocalFitArte !== 'function' || typeof fLpCamposBloqueados !== 'function') return;
+  const seq = ++_fBulkFitSeq;
+  let mudou = false;
+  for(const r of fBulkRows.slice()){
+    if(seq !== _fBulkFitSeq) return;      // outra edição chegou: a medição nova recomeça
+    if(Object.values(r.dados || {}).every(v => !String(v || '').trim())) continue;
+    const k = _fBulkFitChave(r);
+    if(_fBulkFitCache.has(k)) continue;
+    let m = {campos:[], sug:null};
+    try{ m = await _fBulkMedirLinha(r); }catch(e){ /* sem medida, sem selo: nunca inventa um "não cabe" */ }
+    _fBulkFitCache.set(k, m);
+    if(_fBulkFitCache.size > 400) _fBulkFitCache.delete(_fBulkFitCache.keys().next().value);
+    if(m.campos.length) mudou = true;
+  }
+  if(mudou && seq === _fBulkFitSeq) fBulkRenderPreview();
+}
+/* "Trocar por «…»" na linha: mesma regra do balão da prévia — um toque, só o texto medido, com
+   Desfazer. Confere que o campo ainda tem o valor que foi medido (a pessoa pode ter digitado). */
+function fBulkAplicarEncurtar(i){
+  const r = fBulkRows[i], m = r && _fBulkNaoCabe(r), s = m && m.sug;
+  if(!s) return;
+  if(String(r.dados[s.campo] == null ? '' : r.dados[s.campo]) !== s.valor){
+    if(typeof gToast === 'function') gToast('O texto mudou. Confira a oferta e tente de novo.');
+    return;
+  }
+  const antes = r.dados[s.campo];
+  const troca = (v) => {
+    const linha = fBulkRows[i]; if(!linha || linha._rid !== r._rid) return false;
+    linha.dados[s.campo] = v; _fBulkRevalidateCol(linha, s.campo); fBulkRenderPreview(); return true;
+  };
+  if(!troca(s.text)) return;
+  try{ if(typeof gTrackEvent === 'function') gTrackEvent('copyfit_aplicado', {origem:'lote', campo:s.campo, removidas_n:s.removidas.length}); }catch(e){}
+  if(typeof gToast === 'function') gToast('Trocamos “'+s.rotulo+'” da oferta '+(i+1)+' pela versão que cabe.', null, null,
+    { acao:{ rotulo:'Desfazer', onClick:()=>troca(antes) } });
 }
 
 /* Título e detalhe da linha na lista. Heurística honesta: o primeiro campo de texto é o
@@ -2729,6 +2822,7 @@ function _fBulkRenderLista(){
        dizem isso. Três cards repetindo a palavra "vazia" era ruído no primeiro uso. */
     const selo = est==='pronta' ? '<span class="f-bulk-lpill is-ok">pronta</span>'
       : est==='vazia' ? '<span class="f-bulk-lslot-tx">toque para preencher</span>'
+      : est==='naocabe' ? '<span class="f-bulk-lpill is-gap">não cabe na arte</span>'
       : `<span class="f-bulk-lpill is-gap">${(r.erros||[]).length} a preencher</span>`;
     /* A miniatura é a ARTE, não um número: numa lista de 30 ofertas a pessoa reconhece a
        própria peça pela cara dela antes de ler qualquer palavra. Reusa os ids
@@ -2738,7 +2832,7 @@ function _fBulkRenderLista(){
     /* O nome cai para "Oferta N" quando ainda não há texto — mostrar uma linha em branco
        na lista é pior que assumir o rótulo: a pessoa não sabe onde tocar. */
     return `<button type="button" class="f-bulk-litem${i===ativa?' is-active':''} is-${est}" data-row="${i}"
-      style="--fi:${Math.min(i,9)}" onclick="fBulkAbrirFolha(${i})" aria-label="Oferta ${i+1}${est==='pronta'?', pronta':est==='vazia'?', vazia — toque para preencher':', faltam '+((r.erros||[]).length)+' campos'}">
+      style="--fi:${Math.min(i,9)}" onclick="fBulkAbrirFolha(${i})" aria-label="Oferta ${i+1}${est==='pronta'?', pronta':est==='vazia'?', vazia — toque para preencher':est==='naocabe'?', um texto não cabe na arte':', faltam '+((r.erros||[]).length)+' campos'}">
       <span class="f-bulk-lthumb" data-n="${i+1}"><canvas id="f-bulk-cv-${i}" width="${cw}" height="${ch}"></canvas></span>
       <span class="f-bulk-ltx">
         <span class="f-bulk-lnome">${gEsc(titulo) || `<i>Oferta ${i+1}</i>`}</span>
@@ -3139,6 +3233,7 @@ function _fBulkPiscarCelula(el, classe){
 function fBulkRenderPreview(){
   const wrap=document.getElementById('f-bulk-preview');if(!wrap)return;
   fBulkUpdateReadiness();
+  fBulkAgendaMedicao();   // "não cabe" por linha (Local Fit 2.6): mede depois, re-desenha só se algo mudou
   if(!fBulkRows.length){
     /* No celular o texto "adicione uma linha" era um beco sem saída: a única ação de criar
        linha morava na tabela do desktop. Agora o estado vazio carrega as duas saídas reais. */
@@ -3191,9 +3286,11 @@ function fBulkRenderPreview(){
         if (!match) return '';
       }
       const estado = _fBulkEstadoLinha(r, keys);
+      const nc = _fBulkNaoCabe(r);   // {campos, sug} — medido antes de gerar (Local Fit 2.6)
       const campos = keys.map(k => {
         const val = r.dados[k] || '';
-        const isFieldErr = r.erros.find(e => e.includes(k));
+        const isFieldErr = r.erros.find(e => e.includes(k))
+          || ((nc && nc.campos.some(c => c.campo === k)) ? 'Não cabe na arte — encurte este texto.' : '');
         const safeV = gEsc(val).replace(/"/g, '&quot;');
         const rotulo = labelFor(k);
         const rotSeguro = gEsc(rotulo).replace(/"/g,'&quot;');
@@ -3252,9 +3349,11 @@ function fBulkRenderPreview(){
             <strong>${String(i+1).padStart(2,'0')}</strong>
             ${estado==='pronta'?`<span class="f-bulk-num-ok" role="img" aria-label="Oferta pronta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>`:''}
             ${estado==='falta'?`<span class="f-bulk-num-falta">falta algo</span>`:''}
+            ${estado==='naocabe'?`<span class="f-bulk-num-falta" title="${gEsc(fLpListaRotulos(nc.campos.map(c=>c.rotulo))+' não cabe nesta arte').replace(/"/g,'&quot;')}">não cabe</span>`:''}
             ${_fBulkIaChip(r)}
           </span>
           <span class="f-bulk-of-acoes">
+            ${estado==='naocabe'&&nc.sug?`<button type="button" class="f-bulk-rowfit" onclick="fBulkAplicarEncurtar(${i})" title="${gEsc('Trocar por: '+nc.sug.text+(nc.sug.removidas.length?' (sem '+nc.sug.removidas.join(', ')+')':'')).replace(/"/g,'&quot;')}" aria-label="${gEsc('Encurtar '+nc.sug.rotulo+' da oferta '+(i+1)+' para: '+nc.sug.text).replace(/"/g,'&quot;')}">Encurtar</button>`:''}
             <button type="button" class="f-bulk-rowact" onclick="fBulkShowCopyModal(${i})" title="Ver legendas geradas" aria-label="Legendas da oferta ${i+1}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
             <button type="button" class="f-bulk-rowact" onclick="fBulkCloneRow(${i})" title="Duplicar oferta" aria-label="Duplicar a oferta ${i+1}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
             <button type="button" class="f-bulk-rowact f-bulk-rowact--del" onclick="fBulkRemoveCard(${i})" title="Remover oferta" aria-label="Remover a oferta ${i+1}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
@@ -3602,6 +3701,7 @@ async function fBulkDownloadAll(modo){
   // Filtra linhas válidas que não tenham erro e que NÃO estejam completamente vazias
   const valid = fBulkRows.filter(r => {
     if (r.erros.length > 0) return false;
+    if (_fBulkNaoCabe(r)) return false;   // o texto não cabe: ficaria de fora de qualquer jeito, agora com aviso antes
     const isEmpty = keys.every(k => !r.dados[k] || !r.dados[k].trim());
     return !isEmpty;
   });
@@ -3611,12 +3711,14 @@ async function fBulkDownloadAll(modo){
   // Linhas com erro/vazias são puladas — o franqueado sabe ANTES, não ao abrir o ZIP.
   const _pulados = fBulkRows.filter(r => !valid.includes(r));
   const _nErro = _pulados.filter(r => r.erros && r.erros.length).length;
-  const _nVazias = _pulados.length - _nErro;
+  const _nNaoCabe = _pulados.filter(r => !(r.erros && r.erros.length) && _fBulkNaoCabe(r)).length;
+  const _nVazias = _pulados.length - _nErro - _nNaoCabe;
   const _totalArtes = valid.length * selectedFmts.length;
   let _resumo = `Vou gerar ${valid.length} arte(s)`;
   if (selectedFmts.length > 1) _resumo += ` × ${selectedFmts.length} formatos = ${_totalArtes} imagens`;
   _resumo += '.';
   if (_nErro) _resumo += `\n• ${_nErro} linha(s) com erro ficam de fora — corrija na tabela.`;
+  if (_nNaoCabe) _resumo += `\n• ${_nNaoCabe} oferta(s) com texto que não cabe na arte ficam de fora — toque em Encurtar na oferta.`;
   if (soltas && _totalArtes > 1) _resumo += `\n\nO navegador pode perguntar se permite baixar vários arquivos — aceite.`;
   if (_nVazias) _resumo += `\n• ${_nVazias} linha(s) vazia(s) ignorada(s).`;
   if (_totalArtes > 80) _resumo += `\n\nÉ bastante coisa — pode demorar e pesar no navegador do celular.`;
@@ -3689,7 +3791,7 @@ async function fBulkDownloadAll(modo){
         ok++;
       }catch(err){
         console.warn('Bulk linha '+(i+1)+' falhou',err);
-        _falhas.push({ prod: _fRowProductName(row.dados) || ('Linha '+(i+1)), motivo: (err&&err.message)||'erro ao renderizar', fmt: fmt.name });
+        _falhas.push({ prod: _fRowProductName(row.dados) || ('Linha '+(i+1)), motivo: (err&&err.message)||'erro ao renderizar', naoCabe: !!(err&&err.code==='LUMA_CONTENT_TOO_LARGE'), fmt: fmt.name });
       }
 
       await new Promise(res=>setTimeout(res, 50));
@@ -3762,9 +3864,10 @@ async function fBulkDownloadAll(modo){
   
   const _fail=totalRenders-ok;
   // O que ficou de fora é dito AQUI, com nome e motivo (antes ia para um erros.txt no ZIP).
-  const _fora = _pulados.filter(r=>r.erros&&r.erros.length)
-    .map(r=>`${_fRowProductName(r.dados)||'(sem nome)'}: ${r.erros[0]}`)
-    .concat(_falhas.map(f=>`${f.prod}: não consegui gerar`));
+  const _fora = _pulados.filter(r=>(r.erros&&r.erros.length)||_fBulkNaoCabe(r))
+    .map(r=>`${_fRowProductName(r.dados)||'(sem nome)'}: ${(r.erros&&r.erros[0])||'o texto não cabe na arte'}`)
+    // Texto que não coube diz isso (é o que a pessoa pode consertar); o resto segue genérico.
+    .concat(_falhas.map(f=>`${f.prod}: ${f.naoCabe?'o texto não coube na arte':'não consegui gerar'}`));
   const _foraTxt = _fora.length ? ` Ficaram de fora — ${_fora.slice(0,3).join(' · ')}${_fora.length>3?` e mais ${_fora.length-3}`:''}.` : '';
   const _onde = soltas ? 'baixadas' : 'no pacote';
   if(_fBulkCancel) gToast(`Cancelado — ${ok} arte(s) ${_onde}.${_foraTxt}`, _fora.length?'error':undefined);

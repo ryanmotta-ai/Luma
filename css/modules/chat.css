@@ -1457,6 +1457,17 @@ body:not(.theme-light) .f-bulk-rec-pop{background:var(--d-surf2);color:var(--d-t
 .f-bulk-rowact:hover{background:var(--dm-orange-bg);color:var(--dm-orange-text)}
 .f-bulk-rowact--del:hover{background:color-mix(in srgb,var(--dm-red) 10%,transparent);color:var(--dm-red-text)}
 @media (hover:none){ .f-bulk-rowact{opacity:1;width:var(--tap-min,44px);height:var(--tap-min,44px)} }
+/* "ENCURTAR" DA LINHA (Local Fit 2.6): a saída de um "não cabe" medido ANTES de gerar. Sempre
+   visível, ao contrário das ações de mesa acima — é um problema pedindo um toque, não um atalho. */
+.f-bulk-rowfit{
+  flex:0 0 auto;min-height:22px;padding:0 8px;white-space:nowrap;cursor:pointer;
+  border:1px solid var(--dm-orange-tint);border-radius:var(--r-pill);
+  background:var(--dm-orange-bg);color:var(--dm-orange-d);font:700 9.5px 'Roboto',sans-serif;
+  transition:background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+}
+.f-bulk-rowfit:hover{background:var(--dm-orange);border-color:var(--dm-orange);color:var(--on-orange)}
+.f-bulk-rowfit:focus-visible{outline:2px solid var(--dm-orange);outline-offset:1px}
+@media (hover:none){ .f-bulk-rowfit{min-height:var(--tap-min,44px);padding:0 12px;font-size:12px} }
 
 /* ── FAIXAS POR LARGURA ────────────────────────────────────────────────────────────────
    Sem media query para o número de campos por faixa: o `auto-fit` acima resolve pela
@@ -3054,6 +3065,23 @@ body.f-arte-pronta .art-ok-tick-bloq{width:28px;height:28px}
 .bbl.art-ok.is-bloqueio{cursor:pointer}
 .bbl.art-ok.is-bloqueio .art-ok-sub{display:block;text-decoration:underline;text-underline-offset:2px}
 .bbl.art-ok.is-bloqueio:focus-visible{outline:2px solid var(--dm-red-text);outline-offset:2px;border-radius:8px}
+/* LINHA SOB O CAMPO (Local Fit 2.1, celular): a barra de aviso da prévia mora na barra de
+   ferramentas, que no celular fica fora da tela (medido a 390×844: y=1536). Quem digitava um texto
+   que não cabe não via nada além do contador. `_fLpLinhaCampo` espelha a MESMA frase aqui, logo
+   abaixo do campo, e o toque faz o que o da barra faz. No desktop a barra já está à vista. */
+.f-nao-cabe{display:none}
+@media (max-width:680px){
+  /* `order:3` = o do `#f-input-row` neste layout (o painel é um flex que reordena os filhos): sem
+     ele a linha caía ACIMA da pergunta, pela ordem do DOM. Empate → vale o DOM, logo depois do campo. */
+  .f-nao-cabe{order:3;display:flex;align-items:center;gap:8px;width:100%;min-height:40px;padding:0 18px;
+    border:0;background:none;text-align:left;cursor:pointer;
+    font:600 12.5px 'Roboto',sans-serif;color:var(--dm-red-text)}
+  .f-nao-cabe[hidden]{display:none}
+  .f-nao-cabe::before{content:'';width:6px;height:6px;flex:0 0 6px;border-radius:50%;background:var(--dm-red-text)}
+  .f-nao-cabe:focus-visible{outline:2px solid var(--dm-red-text);outline-offset:-2px;border-radius:8px}
+  /* Arte pronta: o cabeçalho do card já é o aviso (`_fBolhaMarcaBloqueio`). */
+  body.f-arte-pronta .f-nao-cabe{display:none}
+}
 #f-sheet-grip,#f-sheet-foot,#f-respostas{display:none}
 #f-mob-prog{display:none}
 

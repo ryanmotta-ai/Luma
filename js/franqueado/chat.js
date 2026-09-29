@@ -398,10 +398,17 @@ function fUpdateProg(){
      com selo de sistema. O elemento existe nos dois, e o CSS decide quem o vê. */
   /* Acessibilidade: a mudança de modo é visual e precisa ser DITA. O `#f-arte-status` é um
      `aria-live="polite"` que só existe para isto — anuncia uma vez, quando o modo entra. */
+  /* A ENTREGA MAIS RECENTE ESTÁ BLOQUEADA? (Local Fit 2.1) `_fBolhaMarcaBloqueio` marca o card; o
+     cabeçalho do celular e o leitor de tela liam só `done` e diziam "pronta" sobre uma arte que
+     o Baixar recusaria. O card é a fonte: uma verdade só, sem estado novo. */
+  const _cards = document.querySelectorAll('.bbl.art-ok');
+  const bloqueada = !!fState.done && _cards.length > 0 && _cards[_cards.length-1].classList.contains('is-bloqueio');
   try{
     const av=document.getElementById('f-arte-status');
     if(av){
-      const texto = fState.done ? 'Sua arte está pronta. Baixar PNG e Editar arte estão disponíveis.' : '';
+      const texto = !fState.done ? ''
+        : bloqueada ? 'A arte foi gerada, mas um texto não cabe. Use o botão “Falta ajustar um texto” para corrigir.'
+        : 'Sua arte está pronta. Baixar PNG e Editar arte estão disponíveis.';
       if(av.textContent !== texto) av.textContent = texto;
     }
   }catch(e){}
@@ -409,7 +416,7 @@ function fUpdateProg(){
   if(n){
     const ativo = tot>0 && !!fState.material;
     n.hidden = !ativo;
-    n.textContent = ativo ? (fState.done ? 'pronta' : Math.min(done+1,tot)+'/'+tot) : '';
+    n.textContent = ativo ? (fState.done ? (bloqueada ? 'ajustar' : 'pronta') : Math.min(done+1,tot)+'/'+tot) : '';
   }
   _fSheetSync();
 }
@@ -2837,6 +2844,9 @@ function fGerarArte(){
        roda ANTES disto (o `fUpdateProg` é a primeira linha do `fGerarArte`), então naquele
        momento o card ainda não estava no DOM e não havia o que sincronizar. */
     try{ if(typeof _fLpSincronizarConclusao==='function') _fLpSincronizarConclusao(); }catch(e){}
+    /* O card mais recente é a fonte do "pronta/ajustar" do cabeçalho (`fUpdateProg`): o
+       `fUpdateProg` do início do `fGerarArte` rodou quando o card VELHO ainda era o último. */
+    try{ fUpdateProg(); }catch(e){}
     _legendaIA.then(sug => _fAplicarLegendaIA(previewCanvasId, sug)).catch(()=>{});
     try {
       if (typeof _fRevisarArteIA === 'function') {
@@ -2925,6 +2935,7 @@ function _fBolhaMarcaBloqueio(w, rendered, d, mw, mh){
     ok.setAttribute('role','button'); ok.tabIndex = 0;
     ok.onclick = abrir;
     ok.onkeydown = e=>{ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); abrir(); } };
+    try{ fUpdateProg(); }catch(e){}   // cabeçalho do celular e leitor de tela seguem o card
   }catch(e){ console.warn('Aviso de bloqueio na entrega:', e); }
 }
 async function fOutroFormato(id, snapId){
