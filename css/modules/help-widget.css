@@ -961,11 +961,16 @@ body:not(.theme-light) .luma-wm-ask-card:hover .luma-wm-list-arrow {
 .luma-wm-tool-btn,
 .luma-wm-send-btn,
 .luma-wm-attach-remove {
+  position:relative;
   display:grid;
   place-items:center;
   border:0;
   background:transparent;
   cursor:pointer;
+}
+.luma-wm-tool-btn::after,
+.luma-wm-send-btn::after {
+  content:'';position:absolute;inset:50%;min-width:var(--tap-min);min-height:var(--tap-min);transform:translate(-50%,-50%);
 }
 
 .luma-wm-tool-btn {

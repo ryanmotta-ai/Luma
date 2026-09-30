@@ -72,6 +72,7 @@ function dExtractTemplateVars(layers){const v=new Set();(layers||[]).forEach(l=>
 <script src="../js/franqueado/png-generator.js"></script>
 <script src="../js/franqueado/feedback.js"></script>
 <script src="../js/core/suporte.js"></script>
+<script src="../js/core/help.js"></script>
 <script>
 (async()=>{
 const failures=[];let total=0;
@@ -933,6 +934,16 @@ await test('bloqueio: a porta é ÚNICA — gHandleLayoutUnsafeError delega para
 });
 
 window.gConfirm=_gConfirmReal;
+await test('Ajuda: a busca casa pelo radical ("baixo", "baixei", "baixando" acham "baixar")', async()=>{
+  const r=gHelpStem('baixar');
+  ['baixo','baixei','baixando','baixou','baixa'].forEach(w=>assert(gHelpStem(w)===r,'"'+w+'" virou "'+gHelpStem(w)+'", esperado "'+r+'"'));
+  assert(gHelpStem('artes')===gHelpStem('arte') && gHelpStem('arte')==='arte','plural/singular de "arte" não casam');
+  assert(gHelpStem('pdf')==='pdf' && gHelpStem('logo')==='logo','palavra curta não pode perder letra');
+  const alvo='baixar a arte quando a arte fica pronta';
+  const set=gHelpStemSet(alvo);
+  assert(gHelpTermoCasa('baixo',alvo,set) && gHelpTermoCasa('baixando',alvo,set),'"baixo"/"baixando" não acharam o texto com "baixar"');
+  assert(!gHelpTermoCasa('planilha',alvo,set),'casou palavra que não está no texto');
+});
 await test('Lu: só oferece a equipe pelos gatilhos certos e lê a resposta do servidor', async()=>{
   const l=gLuLerResposta('{"texto":"Encurte o nome do produto.","nao_sei":false,"delegar":true}');
   assert(l.texto==='Encurte o nome do produto.' && l.delegar===true && l.naoSei===false,'JSON do servidor mal lido');

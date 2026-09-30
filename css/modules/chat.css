@@ -3169,6 +3169,7 @@ body.f-arte-pronta .art-ok-tick-bloq{width:28px;height:28px}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet{display:flex;flex-direction:column;flex:0 0 auto;position:relative;z-index:4;max-height:64%;overflow-y:auto;overscroll-behavior:contain;background:var(--white);border-radius:20px 20px 0 0;box-shadow:0 -12px 28px -16px rgba(10,10,10,.22),0 -1px 0 rgba(10,10,10,.04);transition:max-height var(--dur-base) var(--ease-standard)}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode).f-sheet-max #f-sheet{max-height:88%}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet-grip{flex:0 0 auto;display:flex;align-items:center;justify-content:center;width:100%;min-height:26px;padding:9px 0 4px;margin:0;background:var(--white);border:0;cursor:pointer;-webkit-tap-highlight-color:transparent;position:sticky;top:0;z-index:2;border-radius:20px 20px 0 0}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet-grip::after{content:'';position:absolute;inset:50%;min-width:var(--tap-min);min-height:var(--tap-min);transform:translate(-50%,-50%)}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet-grip i{display:block;width:38px;height:4px;border-radius:var(--r-pill);background:var(--gray-mid);transition:background var(--dur-micro) var(--ease-standard),width var(--dur-micro) var(--ease-standard)}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet-grip:active i{background:var(--text-3);width:46px}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet-grip:focus-visible{outline:2px solid var(--dm-orange);outline-offset:-2px;border-radius:var(--r)}
@@ -3397,7 +3398,7 @@ body.f-arte-pronta .art-ok-tick-bloq{width:28px;height:28px}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-voltar{order:4}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-redo{order:5}
   /* Terciários também no celular: sem caixa, longe do Baixar. */
-  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-voltar{background:transparent;border-color:transparent;box-shadow:none;color:var(--text-3);font-size:13.5px;font-weight:700;min-height:38px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-voltar{background:transparent;border-color:transparent;box-shadow:none;color:var(--text-3);font-size:13.5px;font-weight:700;min-height:var(--tap-min)}
 
   /* A confirmação: marca verde + duas linhas, como no mockup. */
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .bbl.art-ok{display:flex;align-items:center;gap:10px;padding:0 18px 12px;background:transparent;border:0;box-shadow:none;animation:none;max-width:none}
@@ -3421,7 +3422,7 @@ body.f-arte-pronta .art-ok-tick-bloq{width:28px;height:28px}
      terceiro botão desenhado ao lado de Baixar e Publicar disputa a ação que importa. */
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn{width:100%;min-height:var(--tap-min);border-radius:13px;font-size:15px;font-weight:800}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-voltar{margin-top:0}
-  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-redo{background:transparent;border-color:transparent;box-shadow:none;color:var(--text-3);font-size:13.5px;font-weight:700;min-height:38px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-redo{background:transparent;border-color:transparent;box-shadow:none;color:var(--text-3);font-size:13.5px;font-weight:700;min-height:var(--tap-min)}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-redo svg{display:none}
   /* Com a arte pronta a caixa de resposta não tem função (ver `_fSheetSync`), e o
      painel abre mais alto porque a entrega é mais alta que uma pergunta. */

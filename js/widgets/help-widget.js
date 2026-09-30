@@ -112,6 +112,11 @@
       summary: 'Quando a arte fica pronta, ela aparece no chat com os botões de entrega.',
       steps: ['Toque em Baixar PNG.', 'O arquivo sai com um nome fácil de achar: produto, formato e campanha.', 'A arte também fica salva em Minhas artes, para baixar de novo depois.'],
       tip: 'Hoje a arte sai em PNG, o formato que Instagram e WhatsApp aceitam direto. Não há download em PDF.' },
+    { id: 'kit-campanha', col: 'entregar', min: 2, kw: 'kit campanha todas peças formatos story feed zip pacote pasta várias artes de uma vez',
+      title: 'Gerar todas as peças da campanha (Kit)',
+      summary: 'Com a arte pronta, o botão Gerar todas as peças (N) faz a mesma arte em cada formato da campanha, com as suas respostas. Ele só aparece quando a campanha tem 2 ou mais materiais publicados.',
+      steps: ['Com a arte pronta, toque em Gerar todas as peças.', 'Se alguma peça tiver um campo só dela, o Luma pergunta apenas esse campo.', 'A peça em que o texto não cabe fica fora do pacote, e o Luma diz o nome dela e o motivo.', 'No computador, o pacote baixa em um arquivo ZIP. No celular, abre o compartilhar, ou baixa o ZIP se não der.'],
+      tip: 'Nada é redimensionado: cada peça é o desenho do designer, e o preço sai igual em todas. Cada peça entregue fica salva em Minhas artes.' },
     { id: 'legenda', col: 'entregar', min: 1, kw: 'legenda texto post instagram whatsapp copiar hashtag',
       title: 'Copiar a legenda do post',
       summary: 'Junto com a arte pronta vem uma legenda para publicar.',
@@ -1694,7 +1699,11 @@
     LUMA_ARTICLES.filter(wmVisivel).forEach(function (a) {
       const titulo = wmNormalize(a.title + ' ' + (a.kw || ''));
       const texto = wmNormalize([a.summary, (a.steps || []).join(' '), a.tip || ''].join(' '));
-      const n = termos.reduce(function (t, w) { return t + (titulo.indexOf(w) >= 0 ? 3 : texto.indexOf(w) >= 0 ? 1 : 0); }, 0);
+      // Casa pela palavra inteira OU pelo radical ("baixo" acha "Baixar a arte"): gHelpTermoCasa, core/help.js.
+      const rad = typeof gHelpTermoCasa === 'function' && typeof gHelpStemSet === 'function';
+      const ts = rad ? gHelpStemSet(titulo) : null, xs = rad ? gHelpStemSet(texto) : null;
+      const casa = function (w, alvo, set) { return rad ? gHelpTermoCasa(w, alvo, set) : alvo.indexOf(w) >= 0; };
+      const n = termos.reduce(function (t, w) { return t + (casa(w, titulo, ts) ? 3 : casa(w, texto, xs) ? 1 : 0); }, 0);
       if (n > nota) { nota = n; melhor = a; }
     });
     return melhor;
