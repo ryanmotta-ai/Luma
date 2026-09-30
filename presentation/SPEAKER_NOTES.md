@@ -10,8 +10,8 @@
    As artes foram geradas pelo motor de render do Luma. Os templates foram montados importando PSDs
    feitos a partir das capas de campanha do próprio repositório, e as fotos dos produtos são do Unsplash.
    A franqueada "Carla" é uma persona de demonstração.
-2. O CI está **vermelho** hoje (27/09). Diga antes que perguntem: é o mecanismo funcionando (slide 11, apêndice E).
-3. Os números de custo (slide 13) têm fonte no `CLAIMS.md`: R$ 0 e os 94 franqueados vêm da arquitetura e do Ryan;
+2. O CI está **vermelho** hoje (27/09). Diga antes que perguntem: é o mecanismo funcionando (slide 12, apêndice E).
+3. Os números de custo (slide 14) têm fonte no `CLAIMS.md`: R$ 0 e os 94 franqueados vêm da arquitetura e do Ryan;
    a economia de R$ 11,9 mil/ano é o valor do Deskfy informado pelo Ryan; a folga de 15× é estimativa, não teste de carga.
 
 ---
@@ -113,35 +113,41 @@
 - **Transição:** "E repara na legenda: ela também saiu pronta."
 - **Perguntas difíceis:**
   - *"Funciona no celular?"* Sim. Há uma suíte de estresse que roda o fluxo inteiro numa tela de iPhone.
-  - *"E se ele digitar um nome enorme ou errar o preço?"* Está no slide 09.
+  - *"E se ele digitar um nome enorme ou errar o preço?"* Está no slide 10.
   - *"A legenda é IA?"* É o próximo slide.
 
 ## 08 · A legenda — "A arte sai com a legenda, feita por IA. E ela fala a língua da sua cidade."
 
-- **Objetivo:** mostrar que a legenda também sai pronta, no tom da Delivery Much, e que anos de copy
-  viraram um ativo do produto.
+- **Objetivo:** mostrar que a legenda sai pronta, escrita por IA, e com a gíria de cada lugar.
 - **Frase de abertura:** "A arte sai com a legenda, feita por IA. E ela fala a língua da sua cidade."
-- **Discurso:** "Quando a arte fica pronta, a legenda já está do lado, escrita por IA. Atendendo um pedido
-  que apareceu em várias entrevistas com franqueados, ela usa a gíria local: em Santa Maria, por exemplo, pode
-  vir um bah ou um tchê, porque a Delivery Much fala a língua de cada lugar. E se a IA falhar, entra o motor
-  local de copy combinatória, treinado com anos de copy da Delivery Much: 107 aberturas, divididas por tipo de cardápio,
-  66 moldes de oferta e 25 chamadas. O motor junta uma de cada, e a cor de cada rolo mostra onde aquele
-  trecho entrou na legenda. [avança] Gerar outra sugestão: a opção Engajar puxa conversa. [avança] A de
-  WhatsApp vira mensagem, sem hashtag. [avança] E na arte seguinte nenhuma frase se repete. Só para este
-  lanche em promoção são 2.430 legendas diferentes, sem contar as hashtags. Três leis: não inventa preço
-  nem validade, não repete frase, não soa artificial."
-- **Ponto principal:** a voz da marca virou produto. A rede escala sem perder o tom.
+- **Discurso:** "Quando a arte fica pronta, a legenda já está do lado, escrita por IA. E atendendo um pedido que
+  apareceu em várias entrevistas com franqueados, ela usa a gíria local: em Santa Maria, por exemplo, pode vir um
+  bah ou um tchê. A Delivery Much fala a língua de cada lugar, e agora a legenda também."
+- **Ponto principal:** a voz da marca, com sotaque de cada cidade.
+- **Transição:** "E se a IA falhar? Tem um plano B."
+- **Perguntas difíceis:**
+  - *"Isso é IA?"* É, primeiro. A IA escreve com as mesmas regras (sem inventar, sem emoji) e com a gíria da
+    cidade. Se ela não responder, entra o motor local (próximo slide).
+  - *"E se sair uma legenda errada?"* Preço, desconto e validade só aparecem se o franqueado informou. E é
+    sugestão: ele copia, pede outra ou ajusta antes de publicar.
+
+## 09 · O motor local — "Se a IA falhar, o motor local assume."
+
+- **Objetivo:** mostrar que a legenda nunca fica de fora e que anos de copy viraram um ativo do produto.
+- **Frase de abertura:** "Se a IA falhar, o motor local assume."
+- **Discurso:** "O motor local é uma copy combinatória que a gente treinou com anos de copy da Delivery Much:
+  107 aberturas, divididas por tipo de cardápio, 66 moldes de oferta e 25 chamadas. Ele junta uma de cada, e a
+  cor de cada rolo mostra onde aquele trecho entrou na legenda. [avança] Gerar outra sugestão: a opção Engajar
+  puxa conversa. [avança] A de WhatsApp vira mensagem, sem hashtag. [avança] E na arte seguinte nenhuma frase se
+  repete. Só para este lanche em promoção são 2.430 legendas diferentes, sem contar as hashtags. Três leis: não
+  inventa preço nem validade, não repete frase, não soa artificial."
+- **Ponto principal:** a rede escala sem perder o tom, mesmo sem IA.
 - **Transição:** "Parece simples. Por baixo, não é."
 - **Perguntas difíceis:**
-  - *"Isso é IA?"* É, primeiro. No chat, a IA escreve a legenda com as mesmas regras (sem inventar, sem
-    emoji) e com a gíria da cidade. Se ela não responder, o motor local assume: roda no navegador, sem rede,
-    combinando frases da Delivery Much. No Luma Sheets, cada arte do lote sai com legenda do motor.
-  - *"E se sair uma legenda errada?"* A primeira lei é não inventar: preço, desconto e validade só aparecem
-    se o franqueado informou. E é sugestão: ele copia, pede outra ou ajusta antes de publicar.
-  - *"Quantas legendas diferentes existem?"* Depende do produto e do que foi informado. Para este lanche
-    em promoção, 2.430 na opção Promo, sem contar as hashtags (a conta está no CLAIMS.md).
+  - *"Esse motor é IA?"* Não: roda no navegador, sem rede, combinando frases que a gente escreveu. No Luma
+    Sheets, cada arte do lote sai com legenda do motor.
 
-## 09 · Inteligência invisível — "Por baixo, o Luma resolve o que não deveria virar problema do franqueado."
+## 10 · Inteligência invisível — "Por baixo, o Luma resolve o que não deveria virar problema do franqueado."
 
 - **Objetivo:** mostrar a engenharia que o franqueado não vê.
 - **Frase de abertura:** "Por baixo, o Luma resolve o que não deveria virar problema do franqueado."
@@ -159,7 +165,7 @@
   - *"Resolve todos os casos?"* Não, e não dizemos que resolve. Quando nada cabe com legibilidade, o Luma
     avisa antes do download em vez de estourar a arte.
 
-## 10 · Escala — "Uma arte por vez. Ou dezenas."
+## 11 · Escala — "Uma arte por vez. Ou dezenas."
 
 - **Objetivo:** mostrar que o chat é só uma das portas do mesmo motor.
 - **Frase de abertura:** "Uma arte por vez. Ou dezenas."
@@ -172,7 +178,7 @@
   - *"Essas 15 artes são da rede?"* Não, são artes de demonstração geradas pelo motor a partir de templates
     de demonstração. O motor é o mesmo que a rede vai usar.
 
-## 12 · Lu e suporte — "A Lu responde. A equipe DM assume."
+## 13 · Lu e suporte — "A Lu responde. A equipe DM assume."
 
 - **Objetivo:** mostrar que o franqueado nunca fica sem resposta: primeiro a assistente, depois uma pessoa.
 - **Frase de abertura:** "A Lu responde. A equipe DM assume."
@@ -195,7 +201,7 @@
   - *"Essa conversa é real?"* A tela é a do produto; a conversa foi montada para a demonstração, com a Carla
     e uma atendente fictícia.
 
-## 13 · Custo zero — "O Luma cresce com a rede. A conta, não."
+## 14 · Custo zero — "O Luma cresce com a rede. A conta, não."
 
 - **Objetivo:** mostrar que a rede inteira roda sem custo de infraestrutura e que o Luma ainda economiza.
 - **Frase de abertura:** "O Luma cresce com a rede. A conta, não."
@@ -216,7 +222,7 @@
     do plano gratuito), não teste de carga. Usamos o piso: 1.500.
   - *"Quando a economia do Deskfy entra?"* Quando a rede estiver no Luma e o contrato do Deskfy acabar.
 
-## 13b · IA custo zero — "A IA custa zero. E não fica sem resposta."
+## 14b · IA custo zero — "A IA custa zero. E não fica sem resposta."
 
 - **Objetivo:** mostrar, com a animação, que a IA do Luma é barata e nunca deixa o franqueado sem resposta.
 - **Frase de abertura:** "A IA custa zero. E não fica sem resposta."
@@ -233,7 +239,7 @@
     Cada tarefa tem teto de resposta, o que faz a cota render.
   - *"E se o Google cair?"* As reservas respondem sozinhas; é para isso que elas existem.
 
-## 14 · Beta — "A V1 está pronta. Agora começa a parte mais importante."
+## 15 · Beta — "A V1 está pronta. Agora começa a parte mais importante."
 
 - **Objetivo:** pedir o beta com a rede e dizer o que ele mede.
 - **Frase de abertura:** "A V1 está pronta. Agora começa a parte mais importante: colocar o Luma na mão da rede."
@@ -247,7 +253,7 @@
     para definir juntos.
   - *"O franqueado vai pagar?"* Não é o que este beta discute.
 
-## 15 · Horizonte — "Se funciona aqui, o problema não existe só aqui."
+## 16 · Horizonte — "Se funciona aqui, o problema não existe só aqui."
 
 - **Objetivo:** abrir o horizonte sem previsão e sem pedir para vender.
 - **Frase de abertura:** "Se funciona aqui, o problema não existe só aqui."
@@ -270,7 +276,7 @@
     fundador ao Jornal do Comércio. O global é de consultoria e varia muito (de 2 a 7 bilhões de dólares);
     usamos o menor.
 
-## 16 · Potencial — "E se o Luma virasse produto?"
+## 17 · Potencial — "E se o Luma virasse produto?"
 
 - **Objetivo:** um parêntese, quase entre nós: mostrar o tamanho da oportunidade, sem previsão de receita.
 - **Frase de abertura:** "Um parêntese: e se o Luma virasse produto?"
@@ -290,7 +296,7 @@
   - *"O número global é confiável?"* É estimativa de consultoria e varia muito (de 2 a 7 bilhões de dólares);
     usamos o menor.
 
-## 17 · Fechamento — "Uma marca no controle. Uma rede com autonomia."
+## 18 · Fechamento — "Uma marca no controle. Uma rede com autonomia."
 
 - **Objetivo:** fechar a tese e pedir o próximo passo.
 - **Frase de abertura:** "Uma marca no controle. Uma rede com autonomia."
