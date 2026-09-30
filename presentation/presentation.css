@@ -788,3 +788,18 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-susp .chips { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 250px; display: flex; flex-wrap: wrap; gap: 16px; }
 .s-susp .chips span { font-size: 34px; font-weight: 800; letter-spacing: -.015em; color: #fff; padding: 16px 28px; border-radius: 999px; border: 1.5px solid rgba(255, 255, 255, .22); background: rgba(255, 255, 255, .05); }
 .s-susp .q { position: absolute; left: var(--pad-x); right: var(--pad-x); bottom: 150px; font-size: 230px; line-height: .95; font-weight: 900; letter-spacing: -.05em; color: var(--orange); }
+
+/* 15 — a resposta do suspense: R$ 0 gigante no escuro; capacidade e economia entram depois */
+.s-custo .head .h1 { font-size: 72px; color: #fff; }
+.s-custo .nums { top: 330px; width: 820px; }
+.s-custo .zero b { font-size: 400px; line-height: .8; }
+.s-custo .num .por { font-size: 34px; color: rgba(255, 255, 255, .7); }
+.s-custo .num p { color: rgba(255, 255, 255, .78); font-size: 26px; }
+.s-custo .num p strong { color: #fff; }
+.s-custo .eco { border-top-color: rgba(255, 255, 255, .2); margin-top: 36px; padding-top: 30px; }
+.s-custo .eco b { color: #fff; font-size: 84px; }
+.s-custo .grade { background: #151515; box-shadow: 0 0 0 1px rgba(255, 255, 255, .1); top: 360px; }
+.s-custo .nota { color: rgba(255, 255, 255, .55); }
+.s-custo .zero b { font-size: 360px; }
+.s-custo .zero .por { display: block; margin: 14px 0 0 10px; }
+.s-custo .eco .por { margin-left: 14px; }

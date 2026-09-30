@@ -226,14 +226,14 @@
 - **Ponto principal:** suspense. A resposta é o próximo slide.
 - **Transição:** "A resposta é curta."
 
-## 15 · Custo zero — "O Luma cresce com a rede. A conta, não."
+## 15 · Custo zero — "Tudo isso, com IA integrada, custa: R$ 0."
 
 - **Objetivo:** mostrar que a rede inteira roda sem custo de infraestrutura e que o Luma ainda economiza.
-- **Frase de abertura:** "O Luma cresce com a rede. A conta, não."
-- **Discurso:** "Hoje a infraestrutura do Luma custa zero real por mês para os 94 franqueados. O segredo é onde a
+- **Frase de abertura:** "Tudo isso, com IA integrada, custa: R$ 0."
+- **Discurso:** "Zero. R$ 0 por mês, de infraestrutura e de IA, para os 94 franqueados. [pausa] O Luma cresce com a rede, a conta não. O segredo da infraestrutura é onde a
   arte é feita: no celular ou no computador do próprio franqueado. O servidor não desenha nenhum pixel, então
   mais artes não aumentam a conta. O site é estático, no GitHub Pages, e o banco roda no plano gratuito do
-  Supabase. [aponta a grade] Cada ponto é uma pessoa conectada ao mesmo tempo. Pela nossa estimativa, o plano
+  Supabase. [avança, mostra a grade] Cada ponto é uma pessoa conectada ao mesmo tempo. Pela nossa estimativa, o plano
   gratuito aguenta umas 1.500; a rede inteira são 94. São 15 vezes de folga. [avança] E tem o que sai do
   orçamento: são 11,9 mil reais por ano que vamos economizar com o fim do Deskfy."
 - **Ponto principal:** a rede cresce sem conta nova, e ainda sobra uma economia concreta.
@@ -241,8 +241,7 @@
 - **Perguntas difíceis:**
   - *"E se abrir para todos os lojistas?"* Aí o banco vai para o Supabase Pro: 25 dólares por mês, uns
     140 reais. O render continua nos aparelhos, então a conta não cresce com o número de artes.
-  - *"E a IA?"* Fica fora da conta de infraestrutura: a IA da legenda e do assistente é cobrada por uso,
-    na API do Gemini, com provedores gratuitos de reserva.
+  - *"E a IA?"* Entra no R$ 0: roda na cota gratuita de várias contas Google e em 5 provedores grátis de reserva. O próximo slide mostra a rota.
   - *"Essa capacidade foi medida?"* É estimativa, da análise de capacidade de 22/09 (limite de requisições
     do plano gratuito), não teste de carga. Usamos o piso: 1.500.
   - *"Quando a economia do Deskfy entra?"* Quando a rede estiver no Luma e o contrato do Deskfy acabar.
