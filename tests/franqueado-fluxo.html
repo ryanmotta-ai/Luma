@@ -51,12 +51,17 @@ var sbFake={schema(){return {from(){return {
   select(){return {eq(){return {single(){return Promise.resolve({data:null});}};}};}
 };}};}};
 function gSupabase(){return sbFake;} window.sb=sbFake;
+// `dExtractTemplateVars` mora no Estúdio (designer/templates.js), que a bancada não carrega;
+// o kit usa para listar os campos de cada peça. Mesma regra: {{campo}} no texto + imgVar.
+function dExtractTemplateVars(layers){const v=new Set();(layers||[]).forEach(l=>{String(l.content||'').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g,(_,n)=>{v.add(n);return _;});if(l.imgVar)v.add(l.imgVar);});return Array.from(v);}
 </script>
 <script src="../js/00-config.js"></script>
 <script src="../js/01-state.js"></script>
 <script src="../js/core/toast.js"></script>
 <script src="../js/core/layout.js"></script>
 <script src="../js/core/auto-layout.js"></script>
+<!-- Local Fit: o kit da campanha mede cada peça antes de gerar (regra C). -->
+<script src="../js/core/local-fit.js"></script>
 <script src="../js/franqueado/prefs.js"></script>
 <script src="../js/franqueado/history.js"></script>
 <script src="../js/franqueado/materials.js"></script>
@@ -983,6 +988,118 @@ await test('Editar pela arte o campo da pergunta aberta chega na caixa do chat (
   assert(box.value===fState.dados.precoDe,'a caixa ficou "'+box.value+'" e a arte "'+fState.dados.precoDe+'"');
   fSend(); await espera(PASSO);
   assert(fState.dados.precoDe===fApplyMask('precoDe','80'),'o Enviar gravou por cima da edição pela arte: '+fState.dados.precoDe);
+});
+
+/* ── KIT DA CAMPANHA (materials.js) ─────────────────────────────────────────────────────────
+   Religado em 29/09. A pasta é o vínculo: as peças são os materiais publicados da campanha.
+   Os casos cobrem o que a reunião pediu: o botão só com 2+ peças, perguntar SÓ o campo próprio
+   (A), a caixa mais apertada como limite (B) e o "não cabe" por peça fora do pacote (C). */
+const KIT_CAMP={id:'camp-kit',name:'Campanha do kit',color:'#FF9000'};
+const pecaKit=(id,nome,fmt,extra,publishMeta)=>{
+  const m=material(); m.id=id; m.name=nome; m.fmt=fmt;
+  m.publishMeta=Object.assign({publicado:true},publishMeta||{});
+  (extra||[]).forEach(l=>m.layers.push(l));
+  return m;
+};
+const txtKit=(id,campo,w,h,fs)=>({id,name:id,type:'text',content:'{{'+campo+'}}',isVar:true,x:90,y:1760,w,h,
+  font:'Arial',fontSize:fs,lineHeight:1.1,textAlign:'left',textBox:'box',visible:true,opacity:100});
+function pastaKit(templates){
+  dFolders.length=0;
+  dFolders.push({id:'pasta-kit',campId:KIT_CAMP.id,name:KIT_CAMP.name,templates});
+  fState.camp=Object.assign({},KIT_CAMP,{perguntas:fBuildPerguntas(['produto','precoDe','precoPor','foto_produto'],
+    {camp:KIT_CAMP,imageVars:new Set(['foto_produto'])})});
+}
+// A foto foi pulada no chat (é o `__skipped__` que o chat grava): foto não é o assunto destes casos.
+const DADOS_KIT={produto:'Pizza Grande',precoDe:'De: R$ 49,90',precoPor:'Por: R$ 29,90','__skipped__foto_produto':true};
+
+await test('Kit: com uma peça só publicada na pasta, o botão não aparece', async()=>{
+  reset();
+  pastaKit([pecaKit('k-1','Story da Copa','story'), Object.assign(pecaKit('k-rasc','Rascunho','feed'),{publishMeta:{publicado:false}})]);
+  assert(_fKitBtnHtml('snap-a')==='','o botão do kit apareceu com uma peça publicada (a outra é rascunho)');
+  pastaKit([pecaKit('k-1','Story','story'),pecaKit('k-2','Feed','feed')]);
+  assert(/Gerar todas as peças \(2\)/.test(_fKitBtnHtml('snap-a')),'com duas peças publicadas o botão não apareceu');
+  dFolders.length=0;
+});
+
+await test('Kit A: a peça com campo próprio não é pulada — o kit pergunta só esse campo', async()=>{
+  reset();
+  const story=pecaKit('k-1','Story','story');
+  const feed=pecaKit('k-2','Feed com brinde','feed',[txtKit('brinde','brinde',900,120,40)]);
+  pastaKit([story,feed]);
+  const plano=await fKitPlano([story,feed],DADOS_KIT,fState.camp);
+  assert(plano.pecas.every(p=>!p.bloqueio),'uma peça ficou bloqueada sem motivo');
+  assert(plano.campos.length===1&&plano.campos[0].id==='brinde',
+    'o kit devia perguntar só "brinde" e perguntou: '+plano.campos.map(c=>c.id).join(', '));
+  assert(plano.campos[0].pecas.length===1&&plano.campos[0].pecas[0].nome==='Feed com brinde','o campo não diz a que peça pertence');
+  assert(fState.material.id==='mat-1','o plano deixou fState.material apontando para uma peça do kit');
+  dFolders.length=0;
+});
+
+await test('Kit B: campo pedido por duas peças usa o limite da caixa mais apertada', async()=>{
+  reset();
+  const larga=pecaKit('k-2','Feed','feed',[txtKit('oferta','oferta',900,120,40)],{permissoes:{oferta:{maxLen:30}}});
+  const estreita=pecaKit('k-3','Story','story',[txtKit('oferta','oferta',300,60,40)],{permissoes:{oferta:{maxLen:14}}});
+  pastaKit([larga,estreita]);
+  const plano=await fKitPlano([larga,estreita],DADOS_KIT,fState.camp);
+  const c=plano.campos.find(x=>x.id==='oferta');
+  assert(c,'o campo compartilhado não foi perguntado');
+  assert(c.limite===14,'o limite devia ser o da caixa mais apertada (14) e veio '+c.limite);
+  assert(c.pecas.length===2,'o campo compartilhado virou duas perguntas em vez de uma');
+  dFolders.length=0;
+});
+
+await test('Kit B no chat: o limite de um campo de texto é o da peça mais apertada da pasta', async()=>{
+  reset();
+  const larga=pecaKit('k-2','Feed','feed',[txtKit('oferta','oferta',900,120,40)],{permissoes:{oferta:{maxLen:30}}});
+  const estreita=pecaKit('k-3','Story','story',[txtKit('oferta','oferta',300,60,40)],{permissoes:{oferta:{maxLen:14}}});
+  pastaKit([larga,estreita]);
+  fState.material=larga;
+  assert(fAlvoDoCampo('oferta',fGetFieldType('oferta'))===14,'o chat do Feed mostra '+fAlvoDoCampo('oferta',fGetFieldType('oferta'))+' e o Story só aceita 14');
+  assert(fGetFieldType('oferta').maxLen===30,'o corte da digitação mudou: ele segue no limite do designer');
+  assert(fState.material===larga,'medir a outra peça trocou o material aberto');
+  dFolders.length=0;
+  assert(fAlvoDoCampo('oferta',fGetFieldType('oferta'))===30,'fora de uma pasta com várias peças o limite apertou mesmo assim');
+});
+
+await test('Kit C: a peça em que o texto não cabe fica fora do pacote, com nome e motivo', async()=>{
+  reset();
+  const cabe=pecaKit('k-1','Story','story');
+  const apertada=pecaKit('k-2','Selo pequeno','feed');
+  apertada.layers.find(l=>l.id==='produto').w=90;       // caixa onde "Pizza Grande" não cabe no piso
+  apertada.layers.find(l=>l.id==='produto').h=40;
+  pastaKit([cabe,apertada]);
+  assert((await fKitNaoCabe(cabe,_fKitFmt(cabe),DADOS_KIT,fState.camp)).length===0,'o Story acusou "não cabe" sem motivo');
+  const nc=await fKitNaoCabe(apertada,_fKitFmt(apertada),DADOS_KIT,fState.camp);
+  assert(nc.some(x=>x.campo==='produto'),'o Local Fit não acusou o produto na caixa apertada');
+  // O fluxo inteiro, pela bolha: a peça apertada é nomeada e só a outra vai para o pacote.
+  const snapId='snap-kit-c';
+  _fArtSnapshots[snapId]={dados:{...DADOS_KIT},camp:fState.camp,fmt:fState.fmt,material:cabe};
+  document.getElementById('fixture').innerHTML=_fKitBtnHtml(snapId);
+  await fKitAbrir(document.querySelector('.art-kit-btn'),snapId);
+  const box=document.getElementById('art-kit-'+snapId);
+  assert(!box.hidden&&box.querySelectorAll('[data-kit-peca]').length===2,'o painel não listou as duas peças');
+  await fKitGerar(box.querySelector('.art-kit-gerar'),snapId);
+  const st=_fKit[snapId];
+  assert(st.prontas.map(x=>x.p.nome).join()==='Story','foram para o pacote: '+st.prontas.map(x=>x.p.nome).join());
+  assert(st.fora.length===1&&st.fora[0].nome==='Selo pequeno'&&/Produto/.test(st.fora[0].motivo),
+    'a peça que não coube não foi nomeada: '+JSON.stringify(st.fora));
+  assert(/Selo pequeno/.test(box.textContent)&&/ficou de fora/.test(box.textContent),'a tela não disse qual peça ficou de fora');
+  assert(fState.material.id==='mat-1','gerar o kit deixou fState.material numa peça do kit');
+  document.getElementById('fixture').innerHTML=''; dFolders.length=0;
+});
+
+await test('Kit: duas peças de mesmo formato com as mesmas respostas viram duas artes no histórico', async()=>{
+  reset();
+  try{ localStorage.removeItem(HIST_KEY); }catch(e){}
+  const a=pecaKit('k-1','Feed A','feed'), b=pecaKit('k-2','Feed B','feed');
+  const fmt=FMTS.find(f=>f.id==='feed')||FMTS[0];
+  fState.material=a; const ia=fAddHist(DADOS_KIT,KIT_CAMP,fmt,'rascunho');
+  await espera(5);   // o id da arte é o carimbo em ms: no kit há um render entre uma peça e a outra
+  fState.material=b; const ib=fAddHist(DADOS_KIT,KIT_CAMP,fmt,'rascunho');
+  assert(ia!==ib,'a segunda peça foi tratada como a mesma arte e sumiu do histórico');
+  fState.material=a;
+  assert(fAddHist(DADOS_KIT,KIT_CAMP,fmt,'baixada')===ia,'a mesma peça repetida deixou de deduplicar');
+  try{ localStorage.removeItem(HIST_KEY); }catch(e){}
 });
 
 window.__lumaTest={total,passed:total-failures.length,failures};

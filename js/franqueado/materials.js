@@ -126,79 +126,250 @@ function fCampDiasRestantes(campId){ return fDiasRestantes(fCampValidade(campId)
 // material, porque chat, prévia, histórico e PNG usam — e nem toda página carrega o png-generator.
 function _fTplId(m){ return (m&&(m.remoteId||m.id))||null; }
 
-/* ── KIT DA CAMPANHA: preencher uma vez → gerar todos os materiais ──
-   Reusa os dados já respondidos (fState.dados) e renderiza cada material publicado da
-   campanha com o motor final, empacotando num ZIP. Pula materiais que não aproveitam
-   nenhum dado preenchido (não gera arte vazia). Reusa fRenderMaterialToDataURL + JSZip. */
-function _fKitBtnHtml(){
+/* ══ KIT DA CAMPANHA — uma conversa, todas as peças da pasta ══════════════════════════════
+   Religado em 29/09/2026 (reunião técnica, aprovado pelo Ryan): o botão tinha ficado órfão no
+   `b29dbd8`. O VÍNCULO É A PASTA — as peças são os materiais publicados e válidos da mesma
+   campanha (`fRealMaterialsForCamp`); não existe campo de "par" no publishMeta. Com uma peça só
+   o botão não aparece: seria o Baixar PNG com outro nome.
+   Nada é redimensionado: cada peça é desenho do designer, só as respostas são as mesmas — e
+   por isso o preço sai igual em todas. Três regras que o kit antigo não tinha:
+   A) peça com campo próprio sem resposta → pergunta SÓ esse campo (antes: pulava a peça calado);
+   B) campo pedido por mais de uma peça → o limite é o da caixa mais apertada entre elas
+      (`fAlvoDoCampo` medido em cada material, a mesma régua do chat — lista nova não);
+   C) cada peça passa pelo Local Fit ANTES de gerar; a que não cabe fica fora do pacote, com nome.
+   ⚠ `fGetFieldType`, `fApplyMask`, `fAlvoDoCampo` e o render leem `fState.material`: toda conta
+   de uma peça roda dentro de `_fKitComMaterial`, que devolve o material de antes. */
+const _fKit={};   // snapId da bolha → {snap, plano, prontas, fora, files}
+// Tipos que o kit sabe perguntar numa linha. Foto, data e cor têm passo próprio no chat.
+const _F_KIT_TIPOS=new Set(['text','price','discount','code','select','boolean']);
+
+function fKitPecas(camp){ return camp ? fRealMaterialsForCamp(camp.id) : []; }
+function _fKitComMaterial(m, fn){
+  const prev=fState.material; fState.material=m;
+  try{ return fn(); } finally{ fState.material=prev; }
+}
+function _fKitFmt(m){
+  const mapa={story:'story',feed:'feed',wide:'post',post:'post'};
+  return FMTS.find(f=>f.id===(mapa[m&&m.fmt]||(m&&m.fmt)))||fState.fmt||FMTS[0];
+}
+function _fKitBtnHtml(snapId){
   try{
-    const c=fState.camp; if(!c) return '';
-    const mm=fGetMaterialsForCamp(c.id).filter(fIsMaterialValid);
-    if(mm.length<2) return '';
-    return `<button class="confirm-bulk" onclick="fGenerateCampaignKit()" title="Gerar todos os materiais desta campanha com os mesmos dados"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Gerar kit da campanha (${mm.length})</button>`;
+    const n=fKitPecas(fState.camp).length;
+    if(n<2) return '';
+    return `<button type="button" class="art-bulk-btn art-kit-btn" aria-expanded="false" onclick="fKitAbrir(this,'${gEscJs(snapId)}')" title="Gerar todas as peças desta campanha com as mesmas respostas">
+      <span class="art-bulk-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+      <span class="art-bulk-txt"><strong>Gerar todas as peças (${n})</strong><em>As mesmas respostas em cada formato desta campanha</em></span>
+      <svg class="art-bulk-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+    </button><div class="art-kit" id="art-kit-${gEsc(snapId)}" hidden></div>`;
   }catch(e){ return ''; }
 }
-async function fGenerateCampaignKit(){
-  const c=fState.camp; if(!c){ gToast('Escolha uma campanha primeiro.'); return; }
-  if(typeof JSZip==='undefined'){ gToast('Não consegui preparar o pacote agora. Recarregue a página e tente de novo.','error'); return; }
-  const mats=fGetMaterialsForCamp(c.id).filter(fIsMaterialValid);
-  if(mats.length<2){ gToast('Esta campanha só tem um material — o kit precisa de dois ou mais.'); return; }
-  const dados=fState.dados||{};
-  const fmtMap={story:'story',feed:'feed',wide:'post',post:'post'};
-  const zip=new JSZip();
-  const prevMat=fState.material, prevFmt=fState.fmt;
-  let ok=0, pulados=0;
-  const usedNames=new Set();   // evita que 2 materiais de mesmo nome se sobrescrevam no ZIP
-  const restoreBtn=(typeof gBtnLoading==='function') ? gBtnLoading(document.querySelector('[onclick="fGenerateCampaignKit()"]'),'Gerando…') : ()=>{};
-  const progress=document.getElementById('f-kit-progress');
-  const progressText=document.getElementById('f-kit-progress-text');
-  const progressPct=document.getElementById('f-kit-progress-pct');
-  const progressBar=document.getElementById('f-kit-progress-bar');
-  const updateProgress=(done)=>{
-    const pct=Math.round(done/mats.length*100);
-    if(progressText) progressText.textContent=`Material ${done}/${mats.length}`;
-    if(progressPct) progressPct.textContent=pct+'%';
-    if(progressBar) progressBar.style.width=pct+'%';
-  };
-  if(progress){ progress.style.display='block'; updateProgress(0); }
-  gToast('Gerando o kit da campanha…');
-  for(let i=0;i<mats.length;i++){
-    const m=mats[i];
-    try{
-      if(typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(m);
-      if(!m.layers||!m.layers.length){ pulados++; continue; }
-      // Pula material que não usa NENHUM dado já preenchido (sairia vazio → não vale a pena).
-      const mvars=(typeof dExtractTemplateVars==='function')?dExtractTemplateVars(m.layers):[];
-      if(mvars.length && !mvars.some(v=>dados[v]!=null && dados[v]!=='')){ pulados++; continue; }
-      const fmt=FMTS.find(f=>f.id===(fmtMap[m.fmt]||m.fmt))||fState.fmt||FMTS[0];
-      fState.material=m; fState.fmt=fmt;
-      const dataUrl=await fRenderMaterialToDataURL(dados, c, fmt);
-      const b64=dataUrl.split(',')[1];
-      if(b64){
-        let base=fSanitizeNamePart(m.name)||('Material '+(ok+1)), name=base, n=2;
-        while(usedNames.has(name.toLowerCase())){ name=base+' ('+(n++)+')'; } // nome único → nada some no ZIP
-        usedNames.add(name.toLowerCase());
-        zip.file(name+'.png', b64, {base64:true}); ok++;
-      }
-      else pulados++;
-    }catch(e){ console.warn('[kit] material falhou:', e); pulados++; }
-    finally{ updateProgress(i+1); }
+
+/* O plano do kit: o que cada peça ainda precisa (A) e o limite de cada campo que falta (B).
+   Campo fixo da marca (`edit:false`) já sai do `fBuildPerguntas` — o mesmo montador do chat. */
+async function fKitPlano(mats, dados, camp){
+  dados=dados||{};
+  const pecas=[], campos=new Map();
+  for(const m of (mats||[])){
+    try{ if(typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(m); }catch(e){}
+    const peca={m, nome:m.name||'Peça', fmt:_fKitFmt(m), faltam:[], bloqueio:''};
+    pecas.push(peca);
+    if(!m.layers||!m.layers.length){ peca.bloqueio='não consegui abrir esta peça agora'; continue; }
+    _fKitComMaterial(m, ()=>{
+      const vars=(typeof dExtractTemplateVars==='function')?dExtractTemplateVars(m.layers):[];
+      const perguntas=fBuildPerguntas(vars,{permissoes:(m.publishMeta&&m.publishMeta.permissoes)||{},
+        imageVars:fMaterialImageVars(m.layers), camp});
+      perguntas.forEach(p=>{
+        if(!p||p.id==='_dummy') return;
+        const v=dados[p.id];
+        if((v!=null&&v!=='')||dados['__skipped__'+p.id]) return;
+        const cfg=fGetFieldType(p.id);
+        const tipo=(p.isImage||cfg.type==='image')?'image':cfg.type;
+        if(!_F_KIT_TIPOS.has(tipo)){
+          if(cfg.required) peca.bloqueio=(tipo==='image'?'precisa de uma foto própria':'tem uma pergunta própria')+' — abra esta peça para gerar';
+          return;
+        }
+        const lim=(typeof fAlvoDoCampo==='function')?fAlvoDoCampo(p.id,cfg):cfg.maxLen;
+        let c=campos.get(p.id);
+        if(!c){
+          c={id:p.id, label:cfg.label||p.label||p.id, tipo, required:false, limite:lim, pecas:[],
+             options:(tipo==='boolean'&&!(cfg.options&&cfg.options.length))?['Sim','Não']:(cfg.options||[])};
+          campos.set(p.id,c);
+        }
+        if(lim && (!c.limite || lim<c.limite)) c.limite=lim;   // B: a caixa mais apertada manda
+        c.required=c.required||!!cfg.required;
+        c.pecas.push(peca);
+        peca.faltam.push(p.id);
+      });
+    });
   }
-  fState.material=prevMat; fState.fmt=prevFmt;
-  if(!ok){ restoreBtn(); if(progress) progress.style.display='none'; gToast('Não consegui gerar o kit — preencha ao menos um campo em comum aos materiais.','error'); return; }
+  return {pecas, campos:[...campos.values()]};
+}
+
+/* C: o MESMO encaixe do render (`soLayout`, sem desenhar) que o Sheets usa por linha. */
+async function fKitNaoCabe(m, fmt, dados, camp){
+  if(typeof gLocalFitArte!=='function'||typeof fLpCamposBloqueados!=='function') return [];
+  const [W,H]=fMaterialSize(m,fmt);
+  const cv=document.createElement('canvas'); cv.width=cv.height=1;
+  const prev=fState.material; fState.material=m;
   try{
+    const eff=await fRenderTemplateLayers(cv.getContext('2d'), m.layers, W, H, dados, camp, m,
+      {scope:'franqueado', purpose:'preview', soLayout:true});
+    return fLpCamposBloqueados(eff&&eff._layoutResult, dados);
+  }finally{ fState.material=prev; }
+}
+
+function _fKitFormHtml(snapId, plano){
+  const pecas=plano.pecas.map((p,i)=>`<label class="art-kit-peca${p.bloqueio?' is-off':''}">
+      <input type="checkbox" data-kit-peca="${i}" ${p.bloqueio?'disabled':'checked'}>
+      <span><strong>${gEsc(p.nome)}</strong><small>${gEsc(p.fmt.name)}${p.bloqueio?' · '+gEsc(p.bloqueio):''}</small></span>
+    </label>`).join('');
+  const campos=plano.campos.map(c=>{
+    const onde='Vai em: '+c.pecas.map(p=>p.nome).join(', ');
+    const ctrl=(c.tipo==='select'||c.tipo==='boolean')
+      ? `<select data-kit-campo="${gEsc(c.id)}"><option value="">Escolha…</option>${c.options.map(o=>`<option>${gEsc(o)}</option>`).join('')}</select>`
+      : `<input type="text" data-kit-campo="${gEsc(c.id)}" maxlength="${Number(c.limite)||120}" autocomplete="off">`;
+    return `<label class="art-kit-campo"><span>${gEsc(c.label)}${c.required?'':' <em>(opcional)</em>'}</span>${ctrl}
+      <small>${gEsc(onde)}${c.tipo==='text'&&c.limite?' · até '+Number(c.limite)+' caracteres':''}</small>
+      <small class="art-kit-erro" role="alert"></small></label>`;
+  }).join('');
+  const n=plano.campos.length;
+  return `<div class="art-kit-lista" role="group" aria-label="Peças da campanha">${pecas}</div>
+    ${n?`<p class="art-kit-sub">${n===1?'Uma peça pede uma informação a mais:':'Algumas peças pedem '+n+' informações a mais:'}</p>${campos}`:''}
+    <button type="button" class="art-btn pri art-kit-gerar" onclick="fKitGerar(this,'${gEscJs(snapId)}')">Gerar peças</button>
+    <div class="art-kit-status" role="status" aria-live="polite"></div>`;
+}
+
+async function fKitAbrir(btn, snapId){
+  const box=document.getElementById('art-kit-'+snapId); if(!box) return;
+  if(!box.hidden){ box.hidden=true; btn.setAttribute('aria-expanded','false'); return; }
+  const snap=(typeof _fArtSnapshots!=='undefined'&&_fArtSnapshots[snapId])
+    ||{dados:fState.dados,camp:fState.camp,fmt:fState.fmt,material:fState.material};
+  const mats=fKitPecas(snap.camp);
+  if(mats.length<2){ gToast('Esta campanha tem uma peça só.'); return; }
+  box.hidden=false; btn.setAttribute('aria-expanded','true');
+  box.innerHTML='<div class="art-kit-status" role="status">Conferindo as peças desta campanha…</div>';
+  const plano=await fKitPlano(mats, snap.dados, snap.camp);
+  _fKit[snapId]={snap, plano};
+  box.innerHTML=_fKitFormHtml(snapId, plano);
+}
+
+async function fKitGerar(btn, snapId){
+  const st=_fKit[snapId], box=document.getElementById('art-kit-'+snapId);
+  if(!st||!box) return;
+  if(typeof gFeatureCan==='function'&&!gFeatureCan('franqueado.export.png','execute')){
+    if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback('franqueado.export.png');
+    return;
+  }
+  const escolhidas=st.plano.pecas.filter((p,i)=>{ const cb=box.querySelector(`[data-kit-peca="${i}"]`); return cb&&cb.checked&&!p.bloqueio; });
+  if(!escolhidas.length){ gToast('Marque ao menos uma peça.'); return; }
+  const dados={...st.snap.dados};
+  let erro=false;
+  // A: cada resposta passa pela máscara e pela validação do chat, no material de quem pediu.
+  box.querySelectorAll('[data-kit-campo]').forEach(inp=>{
+    const c=st.plano.campos.find(x=>x.id===inp.dataset.kitCampo); if(!c) return;
+    const donos=c.pecas.filter(p=>escolhidas.includes(p));
+    const msgEl=inp.closest('.art-kit-campo').querySelector('.art-kit-erro');
+    let msg='';
+    const bruto=String(inp.value||'').trim();
+    if(donos.length){
+      if(!bruto){ if(c.required) msg='Responda para gerar '+donos.map(p=>p.nome).join(', ')+'.'; }
+      else _fKitComMaterial(donos[0].m, ()=>{
+        const v=fApplyMask(c.id,bruto);
+        msg=fValidate(c.id,v,dados)||'';
+        if(!msg) dados[c.id]=v;
+      });
+    }
+    if(msgEl) msgEl.textContent=msg;
+    inp.toggleAttribute('aria-invalid', !!msg);
+    if(msg) erro=true;
+  });
+  if(erro){ gToast('Falta responder uma informação das peças.','error'); return; }
+
+  const status=box.querySelector('.art-kit-status');
+  const restore=(typeof gBtnLoading==='function')?gBtnLoading(btn,'Gerando…'):()=>{};
+  const prontas=[], fora=[];
+  const prevMat=fState.material, prevFmt=fState.fmt;
+  try{
+    for(let i=0;i<escolhidas.length;i++){
+      const p=escolhidas[i];
+      if(status) status.textContent=`Gerando peça ${i+1} de ${escolhidas.length}…`;
+      try{
+        const nc=await fKitNaoCabe(p.m, p.fmt, dados, st.snap.camp);   // C
+        if(nc.length){ fora.push({nome:p.nome, motivo:'o texto de '+fLpListaRotulos(nc.map(x=>x.rotulo))+' não cabe'}); continue; }
+        fState.material=p.m; fState.fmt=p.fmt;
+        const url=await fRenderMaterialToDataURL(dados, st.snap.camp, p.fmt);
+        /* A peça que a pessoa acabou de fazer já está no histórico (`snap.histId`). Com um campo
+           a mais respondido no kit, a assinatura mudaria e ela entraria DUAS vezes. */
+        const mesma=st.snap.histId && st.snap.material && p.m.id===st.snap.material.id;
+        prontas.push({p, url, hist:mesma?st.snap.histId:fAddHist(dados, st.snap.camp, p.fmt, 'rascunho')});
+      }catch(e){
+        console.warn('[kit] peça falhou:', e);
+        fora.push({nome:p.nome, motivo:(e&&e.code==='LUMA_CONTENT_TOO_LARGE')?'o texto não cabe':'não consegui gerar'});
+      }finally{ fState.material=prevMat; fState.fmt=prevFmt; }
+    }
+  }finally{ restore(); if(typeof fClearImgCache==='function') fClearImgCache(); }
+  st.prontas=prontas; st.fora=fora; st.files=null;
+  const foraHtml=fora.length?`<ul class="art-kit-fora">${fora.map(f=>`<li><strong>${gEsc(f.nome)}</strong> ficou de fora: ${gEsc(f.motivo)}.</li>`).join('')}</ul>`:'';
+  if(!prontas.length){
+    if(status) status.innerHTML=foraHtml;
+    gToast('Nenhuma peça pôde ser gerada. Veja o motivo de cada uma.','error');
+    return;
+  }
+  const nomes=_fKitNomesArquivo(prontas);
+  /* Celular: a folha nativa exige gesto NOVO — depois de gerar várias peças o gesto do clique
+     já expirou e o WebKit recusaria. Por isso o share vira um segundo toque, "Salvar". */
+  const celular=(typeof _fArteEhCelular==='function')&&_fArteEhCelular();
+  if(celular&&navigator.canShare){
+    try{
+      const files=await Promise.all(prontas.map(async(x,i)=>new File([await (await fetch(x.url)).blob()], nomes[i]+'.png', {type:'image/png'})));
+      if(navigator.canShare({files})) st.files=files;
+    }catch(e){ st.files=null; }
+  }
+  const resumo=`<p class="art-kit-ok">${prontas.length===1?'1 peça pronta':prontas.length+' peças prontas'}.</p>`;
+  if(st.files){
+    if(status) status.innerHTML=resumo+foraHtml+`<button type="button" class="art-btn pri art-kit-salvar" onclick="fKitSalvar(this,'${gEscJs(snapId)}')">Salvar ${prontas.length===1?'a arte':'as '+prontas.length+' artes'}</button>`;
+    return;
+  }
+  if(status) status.innerHTML=resumo+foraHtml;
+  await _fKitZip(st, nomes);
+}
+function _fKitNomesArquivo(prontas){
+  const usados=new Set();
+  return prontas.map((x,i)=>{
+    const base=(typeof fSanitizeNamePart==='function'&&fSanitizeNamePart(x.p.nome))||('Peça '+(i+1));
+    let nome=base, n=2;
+    while(usados.has(nome.toLowerCase())) nome=base+' ('+(n++)+')';   // duas peças de mesmo nome não se sobrescrevem
+    usados.add(nome.toLowerCase());
+    return nome;
+  });
+}
+async function _fKitZip(st, nomes){
+  if(typeof JSZip==='undefined'){ gToast('Não consegui preparar o pacote agora. Recarregue a página e tente de novo.','error'); return; }
+  try{
+    const zip=new JSZip();
+    st.prontas.forEach((x,i)=>zip.file(nomes[i]+'.png', x.url.split(',')[1], {base64:true}));
     const blob=await zip.generateAsync({type:'blob'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
-    a.download=(fSanitizeNamePart(c.name, 40)||'Campanha')+' - kit.zip';
+    a.download=((typeof fSanitizeNamePart==='function'&&fSanitizeNamePart(st.snap.camp.name,40))||'Campanha')+' - peças.zip';
     a.click();
     setTimeout(()=>URL.revokeObjectURL(a.href),5000);
-    try{ if(typeof gTrackEvent==='function') gTrackEvent('kit_baixado',{n:ok, pulados, camp_id:c.id}); }catch(_){}
-  }catch(e){ console.error(e); restoreBtn(); if(progress) progress.style.display='none'; gToast('Não consegui montar o kit. Tente de novo.','error'); return; }
-  restoreBtn();
-  if(progress) progress.style.display='none';
-  gToast(`Kit pronto: ${ok} materiais`+(pulados?` (${pulados} pulados — precisam de dados próprios)`:'')+'.');
-  if(typeof fClearImgCache==='function') fClearImgCache();
+    _fKitEntregue(st,'zip');
+  }catch(e){ console.error('[kit] zip:', e); gToast('Não consegui montar o pacote. Tente de novo.','error'); }
+}
+async function fKitSalvar(btn, snapId){
+  const st=_fKit[snapId]; if(!st||!st.files) return;
+  try{ await navigator.share({files:st.files}); _fKitEntregue(st,'share'); }
+  catch(e){
+    if(e&&e.name==='AbortError') return;        // fechou a folha: nada saiu
+    await _fKitZip(st, st.files.map(f=>f.name.replace(/\.png$/,'')));
+  }
+}
+function _fKitEntregue(st, via){
+  st.prontas.forEach(x=>{ try{ fMarkHistBaixada(x.hist); }catch(e){} });
+  try{ if(typeof gTrackEvent==='function') gTrackEvent('kit_baixado',{n:st.prontas.length, fora:st.fora.length, camp_id:st.snap.camp.id, via}); }catch(_){}
+  const n=st.prontas.length;
+  gToast((n===1?'Arte salva':n+' artes salvas')+' em Minhas artes'+(st.fora.length?' · '+st.fora.length+(st.fora.length===1?' ficou':' ficaram')+' de fora':'')+'.');
 }
 /* ── TEMA POR CAMPANHA (1º caso: Much+) ──
    Campanha com `theme` — ou pasta com a tag/badge "MUCH+" — re-tokeniza o app

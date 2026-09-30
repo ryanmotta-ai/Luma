@@ -430,6 +430,40 @@ body:not(.theme-light) .art-bulk-btn:hover { background: var(--d-surf3) }
 body:not(.theme-light) .art-bulk-ico { background: var(--d-surf3); color: var(--dm-orange) }
 body:not(.theme-light) .art-bulk-txt em { color: var(--d-text2) }
 
+/* ── KIT DA CAMPANHA (materials.js, `_fKitBtnHtml`) ── veste a faixa do Gerar em lote, mas
+   NÃO some no celular: o Sheets saiu de lá (decisão de 09/09), o kit é justamente para quem
+   posta Story e Feed do telefone. Especificidade 0,2,0 vence o `display:none!important`. */
+.art-bulk-btn.art-kit-btn { display: flex !important }
+.art-kit { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; background: var(--dm-orange-bg); border-top: 1px solid var(--dm-orange-tint) }
+.art-kit[hidden] { display: none }
+/* No modo "arte pronta" o card vira flex com `order`: sem isto o painel (order 0) subia para o topo. */
+body.f-arte-pronta .art-wrap .art-kit { order: 4; flex: 1 1 100%; min-width: 0; margin-top: 8px; border-radius: 12px; border: 1px solid var(--dm-orange-tint) }
+.art-kit-lista { display: flex; flex-direction: column; gap: 4px }
+.art-kit-peca { display: flex; align-items: center; gap: 8px; min-height: var(--tap-min); padding: 4px 8px; border-radius: var(--r-sm); background: var(--white); cursor: pointer }
+.art-kit-peca input { accent-color: var(--dm-orange); width: 16px; height: 16px; flex-shrink: 0 }
+.art-kit-peca span { display: flex; flex-direction: column; min-width: 0 }
+.art-kit-peca strong { font-size: 12px; font-weight: 700; color: var(--text) }
+.art-kit-peca small, .art-kit-campo small { font-size: 10.5px; color: var(--text-3); line-height: 1.35 }
+.art-kit-peca.is-off { cursor: default; opacity: .7 }
+.art-kit-sub { margin: 4px 0 0; font-size: 11.5px; font-weight: 700; color: var(--text-2) }
+.art-kit-campo { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; font-weight: 600; color: var(--text-2) }
+.art-kit-campo em { font-style: normal; font-weight: 500; color: var(--text-3) }
+.art-kit-campo input, .art-kit-campo select { min-height: var(--tap-min); padding: 6px 9px; font: inherit; font-size: 13px; font-weight: 500; color: var(--text); background: var(--white); border: 1px solid var(--gray-mid); border-radius: var(--r-sm) }
+.art-kit-campo input:focus-visible, .art-kit-campo select:focus-visible { outline: 2px solid var(--dm-orange); outline-offset: 1px }
+.art-kit-campo [aria-invalid] { border-color: var(--dm-red) }
+.art-kit-campo .art-kit-erro { color: var(--dm-red); font-weight: 600 }
+.art-kit-campo .art-kit-erro:empty { display: none }
+.art-kit-gerar, .art-kit-salvar { width: 100%; min-height: var(--tap-min) }
+.art-kit-status { display: flex; flex-direction: column; gap: 6px; font-size: 11.5px; color: var(--text-2) }
+.art-kit-status:empty { display: none }
+.art-kit-ok { margin: 0; font-weight: 700 }
+.art-kit-fora { margin: 0; padding-left: 16px; color: var(--dm-red) }
+body:not(.theme-light) .art-kit { background: var(--d-surf2); border-top-color: var(--d-border) }
+body:not(.theme-light) .art-kit-peca, body:not(.theme-light) .art-kit-campo input, body:not(.theme-light) .art-kit-campo select { background: var(--d-surf3); color: var(--d-text); border-color: var(--d-border) }
+body:not(.theme-light) .art-kit-peca strong { color: var(--d-text) }
+body:not(.theme-light) .art-kit-sub, body:not(.theme-light) .art-kit-campo, body:not(.theme-light) .art-kit-status { color: var(--d-text2) }
+body:not(.theme-light) .art-kit-fora, body:not(.theme-light) .art-kit-campo .art-kit-erro { color: var(--d-error) }
+
 .art-btn {
   flex: 1;
   padding: 9px 10px;

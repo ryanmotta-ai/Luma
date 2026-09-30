@@ -220,7 +220,10 @@ function fAddHist(d,c,f,status){
   // megabytes por entrada no localStorage, mas o tamanho já distingue fotos diferentes.
   const _sigObj={};
   Object.keys(d||{}).sort().forEach(k=>{ const v=d[k]; _sigObj[k]=(typeof v==='string'&&v.startsWith('data:'))?('img:'+v.length):v; });
-  const sig = c.id+'|'+f.id+'|'+JSON.stringify(_sigObj);
+  // O material entra na assinatura: o Kit da campanha gera DUAS peças de mesmo formato com as
+  // mesmas respostas, e sem ele a segunda virava "a mesma arte" e sumia do histórico.
+  const _mid = fState.material && fState.material.id;
+  const sig = c.id+'|'+f.id+(_mid?'|m:'+_mid:'')+'|'+JSON.stringify(_sigObj);
   const recent = h.find(x => x._sig===sig && (now - x.id) < 5*60*1000);
   if(recent){
     // Promove status: rascunho → baixada se for o caso
