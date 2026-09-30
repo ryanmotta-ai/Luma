@@ -52,6 +52,12 @@
   }
   stage.querySelectorAll('.crop[data-crop]').forEach(recorta);
 
+  /* ── QR codes do deck: gerados no próprio navegador (js/core/qr.js), sem serviço externo ── */
+  stage.querySelectorAll('[data-qr]').forEach(el => {
+    const cv = (typeof gQRCanvas === 'function') ? gQRCanvas(el.dataset.qr, 12, 2) : null;
+    if (cv) el.appendChild(cv); else el.textContent = el.dataset.qr;
+  });
+
   /* ── Quantos passos cada slide tem ─────────────────────────────────────────────────────── */
   const DEMO_PASSOS = { chat: 5, pub: 1, copy: 3, ia: 3 };
   function passosDe(s) {

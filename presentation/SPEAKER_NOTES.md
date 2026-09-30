@@ -319,7 +319,19 @@
     fundador da ferramenta ao Jornal do Comércio. O global é de consultoria e varia muito (de 2 a 7 bilhões de
     dólares); usamos o menor.
 
-## 20 · Fechamento — "Uma marca no controle. Uma rede com autonomia."
+## 20 · Testem agora — "Melhor do que falar é mostrar."
+
+- **Objetivo:** tirar a plateia da cadeira: cada um faz uma arte no próprio celular, ao vivo.
+- **Frase de abertura:** "Melhor do que falar é mostrar. Chegou a hora de vocês testarem o Luma."
+- **Discurso:** "Aponta a câmera do celular para esse código. Vocês entram como visitante e o Luma guia a
+  primeira arte: escolhe a campanha, responde as perguntas e a arte sai pronta, com a legenda. [dê uns 2 minutos;
+  circule pela sala e ajude quem travar]"
+- **Ponto principal:** o produto se prova sozinho, na mão de quem nunca viu.
+- **Transição:** "Agora que vocês viram com os próprios olhos..."
+- **Atenção:** o QR abre `https://ryanmotta-ai.github.io/Luma/?visitante=1`. Esse endereço só funciona com o
+  **modo visitante** ligado (ainda em construção em 30/09/2026). Teste com o seu celular antes de apresentar.
+
+## 21 · Fechamento — "Uma marca no controle. Uma rede com autonomia."
 
 - **Objetivo:** fechar a tese e pedir o próximo passo.
 - **Frase de abertura:** "Uma marca no controle. Uma rede com autonomia."
