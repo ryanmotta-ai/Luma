@@ -844,4 +844,4 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-mkt .kick span { margin-left: 22px; font-size: 18px; font-weight: 500; letter-spacing: 0; color: var(--studio-ink-2); }
 @media (prefers-reduced-motion: reduce) { .s-mkt .ondas .r { stroke-dashoffset: 0; animation: none !important; } }
 .s-custo .zero b { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.s-ia .head .h1 { font-size: 66px; }
+.s-ia .head .h1 { font-size: 62px; line-height: 1.02; max-width: 960px; }
