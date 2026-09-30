@@ -8,7 +8,7 @@
 <link rel="icon" href="../assets/favicon.svg">
 <!-- Tokens do próprio Luma (somente leitura). Nada daqui é carregado pelo app. -->
 <link rel="stylesheet" href="../css/00-tokens.css">
-<link rel="stylesheet" href="presentation.css?v=20260930z">
+<link rel="stylesheet" href="presentation.css?v=20260930za">
 </head>
 <body>
 
@@ -478,47 +478,33 @@
 </section>
 
 <!-- ═════ 18 · CLIENTE ZERO / WHITE LABEL ═════════════════════════════════════════════════ -->
-<section class="slide t-night s-white" data-title="Cliente zero" data-edge="#0A0A0A">
+<section class="slide t-night s-mkt" data-title="Horizonte" data-edge="#0A0A0A">
   <div class="head">
     <p class="eyebrow">Horizonte</p>
     <h2 class="h1">Se funciona aqui,<br><span class="acc">o problema não existe só aqui.</span></h2>
   </div>
-  <div class="map">
-    <svg viewBox="0 0 900 560" aria-hidden="true"><g fill="none" stroke="rgba(255,255,255,.28)" stroke-width="2.5">
-      <path d="M450 132 V 210 H 135 V 300"/><path d="M450 132 V 300"/><path d="M450 210 H 765 V 300"/></g></svg>
-    <div class="core"><img src="../assets/logos/luma-h-cor.png" alt="Luma"><small>CORE · UMA BASE ÚNICA</small></div>
-    <div class="net dm"><small>CLIENTE ZERO</small><b>Delivery Much</b><span class="sw"><i style="background:#0A0A0A"></i><i style="background:#fff"></i><i style="background:#C81818"></i></span></div>
-    <div class="net a"><small>WHITE LABEL</small><b>Rede A</b><span class="sw"><i style="background:#2F6FED"></i><i style="background:#fff"></i><i style="background:#0B1F4B"></i></span></div>
-    <div class="net b"><small>WHITE LABEL</small><b>Rede B</b><span class="sw"><i style="background:#18A058"></i><i style="background:#fff"></i><i style="background:#F2C230"></i></span></div>
+  <svg class="ondas" viewBox="0 0 1000 680" aria-hidden="true">
+    <defs><radialGradient id="mkt-glow" cx="380" cy="660" r="640" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FF9000" stop-opacity=".22"/><stop offset="1" stop-color="#FF9000" stop-opacity="0"/></radialGradient></defs>
+    <path class="glow fade" data-step="3" d="M -260 660 A 640 640 0 0 1 1020 660 Z" fill="url(#mkt-glow)"/>
+    <path class="r r1 fade" data-step="1" pathLength="1" d="M 100 660 A 280 280 0 0 1 660 660"/>
+    <path class="r r2 fade" data-step="2" pathLength="1" d="M -80 660 A 460 460 0 0 1 840 660"/>
+    <path class="r r3 fade" data-step="3" pathLength="1" d="M -260 660 A 640 640 0 0 1 1020 660"/>
+    <path class="r0" d="M 270 660 A 110 110 0 0 1 490 660 Z"/>
+    <line class="base" x1="0" y1="660" x2="1000" y2="660"/>
+  </svg>
+  <div class="zero"><small>CLIENTE ZERO</small><b>Delivery Much</b></div>
+  <span class="tag t1 fade" data-step="1">Franquias no Brasil</span>
+  <span class="tag t2 fade" data-step="2">Ao preço de hoje</span>
+  <span class="tag t3 fade" data-step="3">O mundo</span>
+  <div class="nums">
+    <div class="m m1" data-step="1"><small>As redes</small><b>3.297</b><p>redes de franquia no Brasil, com 202 mil unidades.<i>ABF, 2026</i></p></div>
+    <div class="m m2" data-step="2"><small>Só franquias, só Brasil</small><b>R$ 25 mi<em>/ano</em></b><p>R$ 124 por unidade, o que a DM paga hoje, × 202 mil unidades. Uma só ferramenta do setor já fatura R$ 10 mi+ por ano.<i>Conta nossa, ordem de grandeza · Jornal do Comércio, jul/2025</i></p></div>
+    <div class="m m3" data-step="3"><small>O mundo</small><b>US$ 2,2 bi</b><p>em creative automation em 2025, crescendo 17% ao ano.<i>Mordor Intelligence, 2026</i></p></div>
   </div>
-  <div class="mercado">
-    <p class="k">O mercado</p>
-    <div class="m"><b>3.297</b><div><p>redes de franquia no Brasil, com 202 mil unidades e R$ 301,7 bilhões faturados em 2025</p><small>ABF, 2026</small></div></div>
-    <div class="m"><b>R$ 10 mi+</b><div><p>de receita recorrente por ano numa só ferramenta do setor, que resolve esse problema para mais de 200 empresas</p><small>Jornal do Comércio, jul/2025</small></div></div>
-    <div class="m"><b>US$ 2,2 bi</b><div><p>em creative automation no mundo em 2025, crescendo 17% ao ano</p><small>Mordor Intelligence, 2026</small></div></div>
-  </div>
-  <div class="foot"><p class="quote">Hoje não estamos pedindo para vender o Luma.<br><em>Estamos construindo o case que permitiria essa conversa existir depois.</em></p></div>
+  <p class="kick" data-step="4">O produto já existe. <em>O mercado também.</em><span>Falta o investimento para virar produto: uma base por cliente, onboarding e suporte.</span></p>
 </section>
 
-<!-- ═════ 19 · POTENCIAL ══════════════════════════════════════════════════════════════════════ -->
-<section class="slide t-orange s-pot" data-title="Potencial" data-edge="#FF9000">
-  <div class="head">
-    <p class="eyebrow">Um parêntese</p>
-    <h2 class="h1">E se o Luma virasse produto?</h2>
-  </div>
-  <div class="bolhas">
-    <div class="b b1"><small>Um concorrente</small><b>R$ 10 mi+</b><span>por ano, só uma ferramenta do setor</span></div>
-    <div class="b b2" data-step="1"><small>Franquias · Brasil</small><b>R$ 25 mi</b><span>por ano, ao preço que a DM paga</span></div>
-    <div class="b b3" data-step="2"><small>O mundo</small><b>US$ 2,2 bi</b><span>em creative automation, crescendo 17% ao ano</span></div>
-  </div>
-  <div class="fala" data-step="3">
-    <p class="quote">A tecnologia já existe.<br><em>Falta o investimento para virar produto.</em></p>
-    <p class="falta">Uma base por cliente, onboarding e suporte. O produto em si é o que vocês acabaram de ver.</p>
-  </div>
-  <p class="fontes">Fontes: Jornal do Comércio, jul/2025 · ABF 2026 × o preço que a DM paga hoje (conta nossa, ordem de grandeza) · Mordor Intelligence, 2026</p>
-</section>
-
-<!-- ═════ 20 · FECHAMENTO ═════════════════════════════════════════════════════════════════ -->
+<!-- ═════ 19 · FECHAMENTO ═════════════════════════════════════════════════════════════════ -->
 <section class="slide t-night s-fim" data-title="Fechamento" data-edge="#0A0A0A">
   <div class="mural" aria-hidden="true"><div class="col" style="--dur:68s;--atraso:-0s"><div class="trilho"><img src="assets/artes/lote-00.webp" alt=""><img src="assets/artes/lote-01.webp" alt=""><img src="assets/artes/lote-02.webp" alt=""><img src="assets/artes/lote-03.webp" alt=""><img src="assets/artes/lote-04.webp" alt=""><img src="assets/artes/lote-05.webp" alt=""><img src="assets/artes/lote-06.webp" alt=""><img src="assets/artes/lote-00.webp" alt=""><img src="assets/artes/lote-01.webp" alt=""><img src="assets/artes/lote-02.webp" alt=""><img src="assets/artes/lote-03.webp" alt=""><img src="assets/artes/lote-04.webp" alt=""><img src="assets/artes/lote-05.webp" alt=""><img src="assets/artes/lote-06.webp" alt=""></div></div><div class="col" style="--dur:80s;--atraso:-7s"><div class="trilho"><img src="assets/artes/lote-04.webp" alt=""><img src="assets/artes/lote-05.webp" alt=""><img src="assets/artes/lote-06.webp" alt=""><img src="assets/artes/lote-07.webp" alt=""><img src="assets/artes/lote-08.webp" alt=""><img src="assets/artes/lote-09.webp" alt=""><img src="assets/artes/lote-10.webp" alt=""><img src="assets/artes/lote-04.webp" alt=""><img src="assets/artes/lote-05.webp" alt=""><img src="assets/artes/lote-06.webp" alt=""><img src="assets/artes/lote-07.webp" alt=""><img src="assets/artes/lote-08.webp" alt=""><img src="assets/artes/lote-09.webp" alt=""><img src="assets/artes/lote-10.webp" alt=""></div></div><div class="col" style="--dur:60s;--atraso:-14s"><div class="trilho"><img src="assets/artes/lote-08.webp" alt=""><img src="assets/artes/lote-09.webp" alt=""><img src="assets/artes/lote-10.webp" alt=""><img src="assets/artes/lote-11.webp" alt=""><img src="assets/artes/lote-12.webp" alt=""><img src="assets/artes/lote-13.webp" alt=""><img src="assets/artes/lote-14.webp" alt=""><img src="assets/artes/lote-08.webp" alt=""><img src="assets/artes/lote-09.webp" alt=""><img src="assets/artes/lote-10.webp" alt=""><img src="assets/artes/lote-11.webp" alt=""><img src="assets/artes/lote-12.webp" alt=""><img src="assets/artes/lote-13.webp" alt=""><img src="assets/artes/lote-14.webp" alt=""></div></div><div class="col" style="--dur:74s;--atraso:-21s"><div class="trilho"><img src="assets/artes/lote-12.webp" alt=""><img src="assets/artes/lote-13.webp" alt=""><img src="assets/artes/lote-14.webp" alt=""><img src="assets/artes/chat-passo-5.webp" alt=""><img src="assets/artes/localfit-longo.webp" alt=""><img src="assets/artes/localfit-medio.webp" alt=""><img src="assets/artes/lote-00.webp" alt=""><img src="assets/artes/lote-12.webp" alt=""><img src="assets/artes/lote-13.webp" alt=""><img src="assets/artes/lote-14.webp" alt=""><img src="assets/artes/chat-passo-5.webp" alt=""><img src="assets/artes/localfit-longo.webp" alt=""><img src="assets/artes/localfit-medio.webp" alt=""><img src="assets/artes/lote-00.webp" alt=""></div></div><div class="col" style="--dur:64s;--atraso:-28s"><div class="trilho"><img src="assets/artes/localfit-longo.webp" alt=""><img src="assets/artes/localfit-medio.webp" alt=""><img src="assets/artes/lote-00.webp" alt=""><img src="assets/artes/lote-01.webp" alt=""><img src="assets/artes/lote-02.webp" alt=""><img src="assets/artes/lote-03.webp" alt=""><img src="assets/artes/lote-04.webp" alt=""><img src="assets/artes/localfit-longo.webp" alt=""><img src="assets/artes/localfit-medio.webp" alt=""><img src="assets/artes/lote-00.webp" alt=""><img src="assets/artes/lote-01.webp" alt=""><img src="assets/artes/lote-02.webp" alt=""><img src="assets/artes/lote-03.webp" alt=""><img src="assets/artes/lote-04.webp" alt=""></div></div><div class="col" style="--dur:78s;--atraso:-6s"><div class="trilho"><img src="assets/artes/lote-02.webp" alt=""><img src="assets/artes/lote-03.webp" alt=""><img src="assets/artes/lote-04.webp" alt=""><img src="assets/artes/lote-05.webp" alt=""><img src="assets/artes/lote-06.webp" alt=""><img src="assets/artes/lote-07.webp" alt=""><img src="assets/artes/lote-08.webp" alt=""><img src="assets/artes/lote-02.webp" alt=""><img src="assets/artes/lote-03.webp" alt=""><img src="assets/artes/lote-04.webp" alt=""><img src="assets/artes/lote-05.webp" alt=""><img src="assets/artes/lote-06.webp" alt=""><img src="assets/artes/lote-07.webp" alt=""><img src="assets/artes/lote-08.webp" alt=""></div></div><div class="col" style="--dur:58s;--atraso:-13s"><div class="trilho"><img src="assets/artes/lote-06.webp" alt=""><img src="assets/artes/lote-07.webp" alt=""><img src="assets/artes/lote-08.webp" alt=""><img src="assets/artes/lote-09.webp" alt=""><img src="assets/artes/lote-10.webp" alt=""><img src="assets/artes/lote-11.webp" alt=""><img src="assets/artes/lote-12.webp" alt=""><img src="assets/artes/lote-06.webp" alt=""><img src="assets/artes/lote-07.webp" alt=""><img src="assets/artes/lote-08.webp" alt=""><img src="assets/artes/lote-09.webp" alt=""><img src="assets/artes/lote-10.webp" alt=""><img src="assets/artes/lote-11.webp" alt=""><img src="assets/artes/lote-12.webp" alt=""></div></div><div class="col" style="--dur:72s;--atraso:-20s"><div class="trilho"><img src="assets/artes/lote-10.webp" alt=""><img src="assets/artes/lote-11.webp" alt=""><img src="assets/artes/lote-12.webp" alt=""><img src="assets/artes/lote-13.webp" alt=""><img src="assets/artes/lote-14.webp" alt=""><img src="assets/artes/chat-passo-5.webp" alt=""><img src="assets/artes/localfit-longo.webp" alt=""><img src="assets/artes/lote-10.webp" alt=""><img src="assets/artes/lote-11.webp" alt=""><img src="assets/artes/lote-12.webp" alt=""><img src="assets/artes/lote-13.webp" alt=""><img src="assets/artes/lote-14.webp" alt=""><img src="assets/artes/chat-passo-5.webp" alt=""><img src="assets/artes/localfit-longo.webp" alt=""></div></div><div class="col" style="--dur:66s;--atraso:-27s"><div class="trilho"><img src="assets/artes/lote-14.webp" alt=""><img src="assets/artes/chat-passo-5.webp" alt=""><img src="assets/artes/localfit-longo.webp" alt=""><img src="assets/artes/localfit-medio.webp" alt=""><img src="assets/artes/lote-00.webp" alt=""><img src="assets/artes/lote-01.webp" alt=""><img src="assets/artes/lote-02.webp" alt=""><img src="assets/artes/lote-14.webp" alt=""><img src="assets/artes/chat-passo-5.webp" alt=""><img src="assets/artes/localfit-longo.webp" alt=""><img src="assets/artes/localfit-medio.webp" alt=""><img src="assets/artes/lote-00.webp" alt=""><img src="assets/artes/lote-01.webp" alt=""><img src="assets/artes/lote-02.webp" alt=""></div></div><div class="col" style="--dur:76s;--atraso:-5s"><div class="trilho"><img src="assets/artes/lote-00.webp" alt=""><img src="assets/artes/lote-01.webp" alt=""><img src="assets/artes/lote-02.webp" alt=""><img src="assets/artes/lote-03.webp" alt=""><img src="assets/artes/lote-04.webp" alt=""><img src="assets/artes/lote-05.webp" alt=""><img src="assets/artes/lote-06.webp" alt=""><img src="assets/artes/lote-00.webp" alt=""><img src="assets/artes/lote-01.webp" alt=""><img src="assets/artes/lote-02.webp" alt=""><img src="assets/artes/lote-03.webp" alt=""><img src="assets/artes/lote-04.webp" alt=""><img src="assets/artes/lote-05.webp" alt=""><img src="assets/artes/lote-06.webp" alt=""></div></div></div>
   <div class="veu" aria-hidden="true"></div>
@@ -781,6 +767,6 @@
   <p class="hint">← → espaço · PgUp PgDn · Home End · F tela cheia · G índice · Esc fecha</p>
 </div>
 
-<script src="presentation.js?v=20260930z"></script>
+<script src="presentation.js?v=20260930za"></script>
 </body>
 </html>

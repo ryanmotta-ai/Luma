@@ -283,48 +283,29 @@
 
 ## 18 · Horizonte — "Se funciona aqui, o problema não existe só aqui."
 
-- **Objetivo:** abrir o horizonte sem previsão e sem pedir para vender.
+- **Objetivo:** o slide do dinheiro. Sair da sala pensando "isso pode dar muito dinheiro", sem prometer receita.
 - **Frase de abertura:** "Se funciona aqui, o problema não existe só aqui."
-- **Discurso:** "Toda rede com marca central e execução local tem esse problema. A Delivery Much é o cliente
-  zero. White label não é vender o código: a plataforma continua nossa, outras redes licenciariam, cada uma
-  com sua identidade, sobre uma base única que evolui para todos. [aponta os números] E esse mercado existe:
-  são 3.297 redes de franquia no Brasil, que faturaram 301 bilhões em 2025. Só uma ferramenta do setor já passa de 10 milhões
-  por ano em receita recorrente resolvendo esse problema. E creative automation movimenta 2,2 bilhões de dólares
-  no mundo, crescendo 17% ao ano. Hoje não estamos pedindo para vender o Luma. Estamos construindo o case que
-  permitiria essa conversa existir depois."
-- **Ponto principal:** o beta daqui é o case de amanhã.
-- **Transição:** "Um parêntese antes de fechar."
-- **Perguntas difíceis:**
-  - *"O que falta para white label?"* Isolamento por rede no banco (hoje o Luma atende uma rede só),
-    configuração e marca por rede, onboarding, suporte e contrato por cliente. Apêndice K.
-  - *"Quanto isso vale para nós?"* Não é previsão de receita. Como ordem de grandeza: ao preço que a DM
-    paga ao Deskfy, uns R$ 124 por franqueado por ano, as 202 mil unidades do franchising brasileiro
-    somariam cerca de R$ 25 milhões por ano. Só franquias, só Brasil, e redes grandes pagam mais.
-  - *"Esses números de mercado são confiáveis?"* O da ABF é o censo do setor. O do Deskfy foi dito pelo
-    fundador ao Jornal do Comércio. O global é de consultoria e varia muito (de 2 a 7 bilhões de dólares);
-    usamos o menor.
-
-## 19 · Potencial — "E se o Luma virasse produto?"
-
-- **Objetivo:** um parêntese, quase entre nós: mostrar o tamanho da oportunidade, sem previsão de receita.
-- **Frase de abertura:** "Um parêntese: e se o Luma virasse produto?"
-- **Discurso:** "Só uma ferramenta do setor já fatura mais de 10 milhões por ano resolvendo esse problema.
-  [avança] Só as franquias do Brasil, ao preço que a DM paga hoje, seriam uns 25 milhões por ano. [avança] E
-  creative automation no mundo movimenta 2,2 bilhões de dólares, crescendo 17% ao ano. [avança] A tecnologia
-  já existe. Falta o investimento para virar produto: uma base por cliente, onboarding e suporte. O produto em
-  si é o que vocês acabaram de ver."
+- **Discurso:** "A Delivery Much é o cliente zero. [avança] Toda rede com marca central e execução local tem
+  esse mesmo problema: são 3.297 redes de franquia no Brasil, 202 mil unidades. [avança] Agora a conta: a DM
+  paga hoje uns R$ 124 por unidade por ano. Vezes 202 mil unidades, são uns 25 milhões de reais por ano. Só
+  franquias, só Brasil. E isso não é teoria: uma só ferramenta do setor já fatura mais de 10 milhões por ano
+  com esse problema. [avança] E no mundo, creative automation movimenta 2,2 bilhões de dólares, crescendo 17%
+  ao ano. [avança] O produto já existe: é o que vocês acabaram de ver. O mercado também. O que falta para virar
+  produto é investimento: uma base por cliente, onboarding e suporte."
 - **Ponto principal:** o mercado é real e grande; o que separa o Luma dele é investimento, não tecnologia.
 - **Transição:** "Para fechar."
 - **Perguntas difíceis:**
+  - *"Os 25 milhões são previsão?"* Não. É ordem de grandeza: R$ 11.903 ÷ 96 franqueados ≈ R$ 124 por unidade
+    por ano, vezes 202 mil unidades. Redes grandes pagam mais, e a conta não inclui varejo nem trade marketing.
   - *"Quanto de investimento?"* Não trouxemos número: depende do escopo (isolamento por cliente, onboarding,
     suporte e contrato, apêndice K). Dá para dimensionar com os dados do beta.
-  - *"Os 25 milhões são previsão?"* Não. É o tamanho do mercado de franquias no Brasil a um preço de
-    referência: R$ 11.903 ÷ 96 franqueados ≈ R$ 124 por unidade por ano, vezes 202 mil unidades. Redes grandes
-    pagam mais, e a conta não inclui varejo nem trade marketing.
-  - *"O número global é confiável?"* É estimativa de consultoria e varia muito (de 2 a 7 bilhões de dólares);
-    usamos o menor.
+  - *"O que falta para white label?"* Isolamento por rede no banco (hoje o Luma atende uma rede só),
+    configuração e marca por rede, onboarding, suporte e contrato por cliente. Apêndice K.
+  - *"Esses números de mercado são confiáveis?"* O da ABF é o censo do setor. O de R$ 10 mi foi dito pelo
+    fundador da ferramenta ao Jornal do Comércio. O global é de consultoria e varia muito (de 2 a 7 bilhões de
+    dólares); usamos o menor.
 
-## 20 · Fechamento — "Uma marca no controle. Uma rede com autonomia."
+## 19 · Fechamento — "Uma marca no controle. Uma rede com autonomia."
 
 - **Objetivo:** fechar a tese e pedir o próximo passo.
 - **Frase de abertura:** "Uma marca no controle. Uma rede com autonomia."

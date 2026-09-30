@@ -810,3 +810,36 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 @keyframes s-susp-pop { from { opacity: 0; transform: scale(.7); } }
 .s-susp .chips { top: 190px; gap: 9px; }
 .s-susp .chips span { font-size: 23px; padding: 7px 15px; }
+
+/* 18 — Horizonte: ondas de mercado saindo do cliente zero; os números crescem a cada passo */
+.s-mkt .head .h1 { font-size: 70px; color: #fff; }
+.s-mkt .ondas { position: absolute; left: 0; top: 320px; width: 1000px; height: 680px; overflow: visible; }
+.s-mkt .ondas .r { fill: none; stroke-width: 2.5; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.s-mkt .ondas .r.is-on { animation: s-mkt-draw 1.3s var(--ease) forwards; }
+.s-mkt .ondas .r1 { stroke: rgba(255, 255, 255, .38); }
+.s-mkt .ondas .r2 { stroke: rgba(255, 144, 0, .6); stroke-width: 3; }
+.s-mkt .ondas .r3 { stroke: var(--orange); stroke-width: 4; filter: drop-shadow(0 0 14px rgba(255, 144, 0, .7)); }
+.s-mkt .ondas .r0 { fill: var(--orange); }
+.s-mkt .ondas .base { stroke: rgba(255, 255, 255, .14); stroke-width: 1.5; }
+@keyframes s-mkt-draw { to { stroke-dashoffset: 0; } }
+.s-mkt .zero { position: absolute; left: 290px; top: 916px; width: 180px; text-align: center; color: #0A0A0A; }
+.s-mkt .zero small { display: block; font-size: 12px; font-weight: 900; letter-spacing: .16em; }
+.s-mkt .zero b { display: block; margin-top: 4px; font-size: 21px; font-weight: 900; letter-spacing: -.01em; }
+.s-mkt .tag { position: absolute; left: 380px; padding: 6px 14px; border-radius: 999px; background: #0A0A0A; font-size: 15px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
+.s-mkt .tag, .s-mkt .tag.fade, .s-mkt .tag.is-on { transform: translateX(-50%); }
+.s-mkt .t1 { top: 684px; color: rgba(255, 255, 255, .75); border: 1px solid rgba(255, 255, 255, .3); }
+.s-mkt .t2 { top: 504px; color: var(--orange); border: 1px solid rgba(255, 144, 0, .55); }
+.s-mkt .t3 { top: 324px; color: #0A0A0A; background: var(--orange); }
+.s-mkt .nums { position: absolute; left: 1090px; right: var(--pad-x); top: 330px; display: flex; flex-direction: column; gap: 26px; }
+.s-mkt .m small { display: block; font-size: 15px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--studio-ink-2); }
+.s-mkt .m b { display: block; margin-top: 4px; font-weight: 900; letter-spacing: -.045em; line-height: .95; color: #fff; white-space: nowrap; }
+.s-mkt .m b em { font-style: normal; font-size: .36em; letter-spacing: 0; margin-left: 10px; color: rgba(255, 255, 255, .6); }
+.s-mkt .m p { margin-top: 8px; font-size: 19px; line-height: 1.38; color: #D9DEE6; max-width: 700px; text-wrap: pretty; }
+.s-mkt .m p i { display: block; margin-top: 4px; font-style: normal; font-size: 13px; color: var(--studio-ink-2); }
+.s-mkt .m1 b { font-size: 72px; }
+.s-mkt .m2 b { font-size: 96px; }
+.s-mkt .m3 b { font-size: 124px; color: var(--orange); text-shadow: 0 0 60px rgba(255, 144, 0, .45); }
+.s-mkt .kick { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 1000px; font-size: 34px; font-weight: 900; letter-spacing: -.02em; color: #fff; }
+.s-mkt .kick em { font-style: normal; color: var(--orange); }
+.s-mkt .kick span { margin-left: 22px; font-size: 18px; font-weight: 500; letter-spacing: 0; color: var(--studio-ink-2); }
+@media (prefers-reduced-motion: reduce) { .s-mkt .ondas .r { stroke-dashoffset: 0; animation: none !important; } }
