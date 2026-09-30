@@ -223,8 +223,8 @@
 ## 14 · Quanto custa? — "Tudo isso, e mais IA integrada. Quanto custa?"
 
 - **Objetivo:** criar a pausa antes do número: a plateia soma tudo o que viu e se pergunta o preço.
-- **Frase de abertura:** "Estúdio com PSD, publicação para a rede, conversa guiada, legenda por IA, suporte ao vivo, geração em lote. Tudo isso, e mais IA integrada. Quanto custa?"
-- **Discurso:** "[avança] Soma tudo o que a gente viu. [avança] E a pergunta que todo mundo faz: quanto custa?
+- **Frase de abertura:** "41 recursos, e mais IA integrada. Quanto custa?"
+- **Discurso:** "[avança] Olha a abundância: são 41 recursos, do Estúdio ao suporte, e as laranjas são as que têm IA. Soma tudo o que a gente viu. [avança] E a pergunta que todo mundo faz: quanto custa?
   Deixa a pergunta no ar por dois segundos antes de avançar."
 - **Ponto principal:** suspense. A resposta é o próximo slide.
 - **Transição:** "A resposta é curta."
