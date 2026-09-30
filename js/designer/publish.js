@@ -728,7 +728,7 @@ function dPublishRenderPerms(){
   permList.innerHTML=_dPermBar()+vars.map(v=>{
     const vDef=(dVars||[]).find(x=>x.name===v);
     const isImage=vDef?vDef.type==='image':false;
-    if(!dPubPermissoes[v]) dPubPermissoes[v]={edit:true,maxLen:isImage?0:32}; // imagem não usa maxLen de texto
+    if(!dPubPermissoes[v]) dPubPermissoes[v]={edit:true,maxLen:isImage?0:((vDef&&vDef.maxLen>0)?vDef.maxLen:32)}; // imagem não usa maxLen de texto; nasce do limite do campo
     const perm=dPubPermissoes[v];
     const label=vDef?vDef.label:v;
     return `<div class="pub-perm-row">
@@ -749,7 +749,7 @@ function dPublishRenderPerms(){
   }).join('');
 }
 function dPublishUpdatePerm(varName, key, value){
-  if(!dPubPermissoes[varName]) dPubPermissoes[varName]={edit:true,maxLen:32};
+  if(!dPubPermissoes[varName]){ const vd=(dVars||[]).find(x=>x.name===varName); dPubPermissoes[varName]={edit:true,maxLen:(vd&&vd.maxLen>0)?vd.maxLen:32}; }
   dPubPermissoes[varName][key]=value;
   if(key==='edit') dPublishRenderPerms();
   if(typeof dPublishRefreshChecklist==='function')dPublishRefreshChecklist();

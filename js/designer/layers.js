@@ -2789,6 +2789,18 @@ function _dFieldsResumoRender(){
   if(host) host.innerHTML=_dFieldsResumoHTML();
 }
 
+/* O limite que VALE no chat: a permissão da publicação (`perm.maxLen`) manda; sem ela vale o
+   `maxLen` do campo (mesma ordem de `fGetFieldType`). Imagem e campo travado não têm limite. */
+function dFieldLimiteEfetivo(v){
+  if(!v||v.type==='image')return null;
+  let perm=null;
+  try{ const t=(typeof _dPubFindTmpl==='function')?_dPubFindTmpl():null;
+    perm=(t&&t.tmpl&&t.tmpl.publishMeta&&t.tmpl.publishMeta.permissoes||{})[v.name]||null; }catch(e){}
+  if(perm&&perm.edit===false)return null;
+  if(perm&&perm.maxLen>0)return {n:Number(perm.maxLen),origem:'publicação'};
+  if(v.maxLen>0)return {n:Number(v.maxLen),origem:'campo'};
+  return null;
+}
 function dFieldCardHTML(v,i){
   const tm=gFieldTypeMeta(v.type);
   const usage=dFieldUsageLayers(v.name);
@@ -2797,6 +2809,8 @@ function dFieldCardHTML(v,i){
   const dupOf=_dFieldsDup[v.name];
   const metaParts=[_dEsc(tm.label)];
   if(v.required)metaParts.push('<b>Obrigatório</b>');
+  const lim=dFieldLimiteEfetivo(v);
+  if(lim)metaParts.push(`<span title="Limite que vale no chat (definido na ${lim.origem})">até ${lim.n} car.</span>`);
   metaParts.push(used?`<b>${usage.length} uso${usage.length>1?'s':''}</b>`:'Não usada');
   const warn=dupOf?`<span class="field-row-warn" title="Possível duplicata de “${_dEsc(dupOf)}”">${_D_FIELD_WARN}</span>`:'';
   let det='';
