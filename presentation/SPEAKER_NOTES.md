@@ -11,7 +11,7 @@
    feitos a partir das capas de campanha do próprio repositório, e as fotos dos produtos são do Unsplash.
    A franqueada "Carla" é uma persona de demonstração.
 2. O CI está **vermelho** hoje (27/09). Diga antes que perguntem: é o mecanismo funcionando (apêndice E).
-3. Os números de custo (slide 15) têm fonte no `CLAIMS.md`: R$ 0 e os 94 franqueados vêm da arquitetura e do Ryan;
+3. Os números de custo (slide 16) têm fonte no `CLAIMS.md`: R$ 0 e os 94 franqueados vêm da arquitetura e do Ryan;
    a economia de R$ 11,9 mil/ano é o valor do Deskfy informado pelo Ryan; a folga de 15× é estimativa, não teste de carga.
 
 ---
@@ -129,13 +129,27 @@
   veem foi gerado pelo motor de render do Luma, o mesmo do download. Não tem camada, não tem régua, não tem
   como quebrar a arte. [último passo] Arte pronta, salva em Minhas artes, com a legenda sugerida."
 - **Ponto principal:** parece vivo e não tem como quebrar.
-- **Transição:** "E repara na legenda: ela também saiu pronta."
+- **Transição:** "E dá para fazer isso de qualquer aparelho?"
 - **Perguntas difíceis:**
   - *"Funciona no celular?"* Sim. Há uma suíte de estresse que roda o fluxo inteiro numa tela de iPhone.
-  - *"E se ele digitar um nome enorme ou errar o preço?"* Está no slide 11.
+  - *"E se ele digitar um nome enorme ou errar o preço?"* Está no slide 12.
   - *"A legenda é IA?"* É o próximo slide.
 
-## 09 · A legenda — "A arte sai com a legenda, feita por IA. E ela fala a língua da sua cidade."
+## 09 · Qualquer tela — "Poxa, só vou conseguir fazer no PC?"
+
+- **Objetivo:** matar a objeção de que o Luma é coisa de computador. O franqueado usa no aparelho que tiver na mão.
+- **Frase de abertura:** "A primeira coisa que o franqueado pergunta: poxa, só vou conseguir fazer no PC?"
+- **Discurso:** "[pausa] [avança] Não. No computador, no tablet, no celular. E até no celular dobrável. É o mesmo
+  Luma: abre no navegador, sem instalar nada, e a tela se ajusta sozinha. Essas telas são capturas do app de verdade,
+  na resolução de cada aparelho."
+- **Ponto principal:** o franqueado cria a arte onde estiver, inclusive no balcão, pelo celular.
+- **Transição:** "E quando a arte fica pronta, a legenda já vem junto."
+- **Perguntas difíceis:**
+  - *"Tudo funciona no celular?"* A criação de arte, a legenda, o suporte e o download, sim. O Luma Sheets (lote
+    por planilha) é só no computador: no celular ele avisa e pede para abrir no computador.
+  - *"Precisa baixar app?"* Não. Abre no navegador, e dá para adicionar à tela inicial como app.
+
+## 10 · A legenda — "A arte sai com a legenda, feita por IA. E ela fala a língua da sua cidade."
 
 - **Objetivo:** mostrar que a legenda sai pronta, escrita por IA, e com a gíria de cada lugar.
 - **Frase de abertura:** "A arte sai com a legenda, feita por IA. E ela fala a língua da sua cidade."
@@ -150,7 +164,7 @@
   - *"E se sair uma legenda errada?"* Preço, desconto e validade só aparecem se o franqueado informou. E é
     sugestão: ele copia, pede outra ou ajusta antes de publicar.
 
-## 10 · O motor local — "Se a IA falhar, o motor local assume."
+## 11 · O motor local — "Se a IA falhar, o motor local assume."
 
 - **Objetivo:** mostrar que a legenda nunca fica de fora e que anos de copy viraram um ativo do produto.
 - **Frase de abertura:** "Se a IA falhar, o motor local assume."
@@ -166,7 +180,7 @@
   - *"Esse motor é IA?"* Não: roda no navegador, sem rede, combinando frases que a gente escreveu. No Luma
     Sheets, cada arte do lote sai com legenda do motor.
 
-## 11 · Inteligência invisível — "Por baixo, o Luma resolve o que não deveria virar problema do franqueado."
+## 12 · Inteligência invisível — "Por baixo, o Luma resolve o que não deveria virar problema do franqueado."
 
 - **Objetivo:** mostrar a engenharia que o franqueado não vê.
 - **Frase de abertura:** "Por baixo, o Luma resolve o que não deveria virar problema do franqueado."
@@ -184,7 +198,7 @@
   - *"Resolve todos os casos?"* Não, e não dizemos que resolve. Quando nada cabe com legibilidade, o Luma
     avisa antes do download em vez de estourar a arte.
 
-## 12 · Escala — "Uma arte por vez. Ou dezenas."
+## 13 · Escala — "Uma arte por vez. Ou dezenas."
 
 - **Objetivo:** mostrar que o chat é só uma das portas do mesmo motor.
 - **Frase de abertura:** "Uma arte por vez. Ou dezenas."
@@ -197,7 +211,7 @@
   - *"Essas 15 artes são da rede?"* Não, são artes de demonstração geradas pelo motor a partir de templates
     de demonstração. O motor é o mesmo que a rede vai usar.
 
-## 13 · Lu e suporte — "A Lu responde. A equipe DM assume."
+## 14 · Lu e suporte — "A Lu responde. A equipe DM assume."
 
 - **Objetivo:** mostrar que o franqueado nunca fica sem resposta: primeiro a assistente, depois uma pessoa.
 - **Frase de abertura:** "A Lu responde. A equipe DM assume."
@@ -220,7 +234,7 @@
   - *"Essa conversa é real?"* A tela é a do produto; a conversa foi montada para a demonstração, com a Carla
     e uma atendente fictícia.
 
-## 14 · Quanto custa? — "Tudo isso, e mais IA integrada. Quanto custa?"
+## 15 · Quanto custa? — "Tudo isso, e mais IA integrada. Quanto custa?"
 
 - **Objetivo:** criar a pausa antes do número: a plateia soma tudo o que viu e se pergunta o preço.
 - **Frase de abertura:** "Dezenas de recursos, e mais IA integrada. Quanto custa?"
@@ -229,7 +243,7 @@
 - **Ponto principal:** suspense. A resposta é o próximo slide.
 - **Transição:** "A resposta é curta."
 
-## 15 · Custo zero — "Tudo isso, com IA integrada, custa: R$ 0."
+## 16 · Custo zero — "Tudo isso, com IA integrada, custa: R$ 0."
 
 - **Objetivo:** mostrar que a rede inteira roda sem custo de infraestrutura e que o Luma ainda economiza.
 - **Frase de abertura:** "Tudo isso, com IA integrada, custa: R$ 0."
@@ -250,7 +264,7 @@
     do plano gratuito), não teste de carga. Usamos o piso: 1.500.
   - *"Quando a economia do Deskfy entra?"* Quando a rede estiver no Luma e o contrato do Deskfy acabar.
 
-## 16 · IA custo zero — "Tá, mas com tudo isso, como a IA custa zero? A gente te explica na prática."
+## 17 · IA custo zero — "Tá, mas com tudo isso, como a IA custa zero? A gente te explica na prática."
 
 - **Objetivo:** mostrar, com a animação, que a IA do Luma é barata e nunca deixa o franqueado sem resposta.
 - **Frase de abertura:** "Tá, mas com tudo isso, como a IA custa zero? A gente te explica na prática."
@@ -267,7 +281,7 @@
     Cada tarefa tem teto de resposta, o que faz a cota render.
   - *"E se o Google cair?"* As reservas respondem sozinhas; é para isso que elas existem.
 
-## 17 · Beta — "A V1 está pronta. Agora começa a parte mais importante."
+## 18 · Beta — "A V1 está pronta. Agora começa a parte mais importante."
 
 - **Objetivo:** pedir o beta com a rede e dizer o que ele mede.
 - **Frase de abertura:** "A V1 está pronta. Agora começa a parte mais importante: colocar o Luma na mão da rede."
@@ -281,7 +295,7 @@
     para definir juntos.
   - *"O franqueado vai pagar?"* Não é o que este beta discute.
 
-## 18 · Horizonte — "Se funciona aqui, o problema não existe só aqui."
+## 19 · Horizonte — "Se funciona aqui, o problema não existe só aqui."
 
 - **Objetivo:** o slide do dinheiro. Sair da sala pensando "isso pode dar muito dinheiro", sem prometer receita.
 - **Frase de abertura:** "Se funciona aqui, o problema não existe só aqui."
@@ -305,7 +319,7 @@
     fundador da ferramenta ao Jornal do Comércio. O global é de consultoria e varia muito (de 2 a 7 bilhões de
     dólares); usamos o menor.
 
-## 19 · Fechamento — "Uma marca no controle. Uma rede com autonomia."
+## 20 · Fechamento — "Uma marca no controle. Uma rede com autonomia."
 
 - **Objetivo:** fechar a tese e pedir o próximo passo.
 - **Frase de abertura:** "Uma marca no controle. Uma rede com autonomia."
@@ -332,7 +346,7 @@
 | **K · White label** | "O que falta para outra rede?" O que existe e o que faltaria. |
 | **L · Fluxo anterior × Luma** | "E a ferramenta que usamos hoje?" Comparação de fluxo, nunca de fornecedor. |
 
-**Sobre a ferramenta atual (Deskfy):** decisão do Ryan (30/09): o Deskfy é nomeado nos slides 2, 6 e 15 pela
+**Sobre a ferramenta atual (Deskfy):** decisão do Ryan (30/09): o Deskfy é nomeado nos slides 2, 6 e 16 pela
 dor que a rede viveu (retrabalho, arte feita duas vezes, sem SVG, manutenção difícil). Nos slides de mercado
-(18 e 19) ele aparece só como "uma ferramenta do setor". Não compare recursos nem preço em público. A diferença está no fluxo: no Luma o franqueado responde perguntas e o
+(19) ele aparece só como "uma ferramenta do setor". Não compare recursos nem preço em público. A diferença está no fluxo: no Luma o franqueado responde perguntas e o
 design fica protegido, e o roadmap é nosso, guiado pelo que a rede pede.

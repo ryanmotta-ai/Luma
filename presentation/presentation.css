@@ -847,3 +847,23 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-ia .head .h1 { font-size: 62px; line-height: 1.02; max-width: 960px; }
 .s-duas .spine small { font-size: 12px; font-weight: 900; letter-spacing: .16em; color: var(--orange); background: #0A0A0A; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
 .s-copy .como { position: absolute; left: var(--pad-x); top: 318px; font-size: 21px; color: var(--ink-2); }
+
+/* 09 — Em qualquer tela: a dúvida do franqueado e os quatro aparelhos com a tela real */
+.s-multi { background: radial-gradient(1200px 620px at 50% 108%, rgba(255, 144, 0, .28), transparent 70%), #0A0A0A; }
+.s-multi .head .h1 { font-size: 76px; color: #fff; }
+.s-multi .resp { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 262px; font-size: 40px; font-weight: 900; letter-spacing: -.02em; color: #fff; }
+.s-multi .resp em { font-style: normal; color: var(--orange); }
+.s-multi .aparelhos { position: absolute; left: var(--pad-x); right: var(--pad-x); bottom: 118px; display: flex; align-items: flex-end; justify-content: space-between; }
+.s-multi .aparelhos.is-on .dev { animation: s-multi-sobe .8s var(--ease) both; animation-delay: calc(120ms + var(--i) * 140ms); }
+@keyframes s-multi-sobe { from { opacity: 0; transform: translateY(60px); } }
+.s-multi .dev { margin: 0; display: flex; flex-direction: column; align-items: center; }
+.s-multi .dev img { display: block; height: auto; filter: drop-shadow(0 34px 50px rgba(0, 0, 0, .55)); }
+.s-multi .d-mac { width: 720px; }
+.s-multi .d-ipad { width: 430px; }
+.s-multi .d-phone { width: 156px; }
+.s-multi .fold { position: relative; width: 300px; aspect-ratio: 884 / 1000; box-sizing: content-box; border: 10px solid #1C1C1F; border-radius: 26px; background: #000; overflow: hidden; box-shadow: 0 0 0 1.5px #3A3A40, 0 34px 50px rgba(0, 0, 0, .55); }
+.s-multi .fold img { width: 100%; height: 100%; object-fit: cover; object-position: top; filter: none; }
+.s-multi .fold::after { content: ''; position: absolute; top: 0; bottom: 0; left: calc(50% - 9px); width: 18px; background: linear-gradient(90deg, transparent, rgba(0, 0, 0, .16) 45%, rgba(255, 255, 255, .14) 55%, transparent); pointer-events: none; }
+.s-multi figcaption { margin-top: 22px; font-size: 16px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: rgba(255, 255, 255, .72); }
+.s-multi .nota { position: absolute; left: var(--pad-x); right: var(--pad-x); bottom: 50px; text-align: center; font-size: 20px; color: var(--studio-ink-2); }
+@media (prefers-reduced-motion: reduce) { .s-multi .aparelhos.is-on .dev { animation: none; } }
