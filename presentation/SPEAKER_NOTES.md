@@ -166,30 +166,10 @@
   seis ofertas viram seis artes num ZIP. À direita, 15 artes de 4 campanhas em 2 formatos, todas saídas do
   mesmo motor. O chat é uma interface. Por trás existe um motor de creative automation."
 - **Ponto principal:** o motor é o produto; o chat e a planilha são interfaces.
-- **Transição:** "Tudo isso precisa aguentar a rede de verdade. E aguenta."
+- **Transição:** "E quando o franqueado tem dúvida, ele não fica sozinho."
 - **Perguntas difíceis:**
   - *"Essas 15 artes são da rede?"* Não, são artes de demonstração geradas pelo motor a partir de templates
     de demonstração. O motor é o mesmo que a rede vai usar.
-
-## 11 · Confiança — "Testado como o franqueado usa. Vigiado a cada mudança."
-
-- **Objetivo:** dar confiança com prova, sem prometer perfeição.
-- **Frase de abertura:** "Testado como o franqueado usa. Vigiado a cada mudança."
-- **Discurso:** "Antes de chegar na mão da rede, um robô já gerou e conferiu 300 artes, do jeito que o
-  franqueado faria: escolher, responder, gerar e baixar. A cada mudança no código, 844 verificações rodam
-  sozinhas. Todas as tabelas são protegidas no próprio banco, então cada pessoa só acessa o que pode, mesmo
-  que alguém mexa na tela. E 41 recursos a gestão liga e desliga na hora, sem esperar nova versão. Não
-  estamos dizendo que nunca vai quebrar. Estamos dizendo que construímos mecanismos para saber quando quebra."
-- **Ponto principal:** mecanismos para saber quando quebra.
-- **Transição:** "Engenharia cuida do sistema. E quando o franqueado tiver dúvida, tem gente."
-- **Perguntas difíceis:**
-  - *"Está tudo verde?"* Não. Na execução de 27/09 são 838 de 844: 5 casos no Copy Fit e 1 no corpus do
-    Local Fit. E o CI está vermelho no portão de arquitetura (uma catraca de localStorage subiu de 56 para 59).
-    É o mecanismo fazendo o trabalho dele, e esses itens estão na lista antes do beta. Apêndice E.
-  - *"Quem mantém isso?"* O código tem leis de arquitetura cobradas pelo CI e os motores são únicos
-    (um interpolador, um render). Apêndice A.
-  - *"Qual o detalhe técnico?"* 22 suítes, 60 artes pelo fluxo completo, 31 cenários de estresse, 73 casos
-    no importador de PSD, RLS nas 32 tabelas com 69 políticas. Apêndices B, E e H.
 
 ## 12 · Lu e suporte — "A Lu responde. A equipe DM assume."
 
@@ -235,14 +215,15 @@
     do plano gratuito), não teste de carga. Usamos o piso: 1.500.
   - *"Quando a economia do Deskfy entra?"* Quando a rede estiver no Luma e o contrato do Deskfy acabar.
 
-## 13b · IA de centavos — "A IA custa centavos. E não fica sem resposta."
+## 13b · A rota da IA — "A IA custa centavos. E não fica sem resposta."
 
-- **Objetivo:** mostrar que a IA do Luma é barata e confiável, sem entrar em detalhe técnico.
+- **Objetivo:** mostrar, com a animação, que a IA do Luma é barata e nunca deixa o franqueado sem resposta.
 - **Frase de abertura:** "A IA custa centavos. E não fica sem resposta."
-- **Discurso:** "Todo pedido de IA vai primeiro para o modelo mais barato do Google, que resolve a maioria.
-  [avança] Se ele demorar 8 segundos, cinco provedores gratuitos entram juntos e fica a primeira resposta que
-  chegar. [avança] O modelo mais caro só entra se nenhum outro respondeu. [avança] Resultado: numa semana inteira
-  de testes, com 157 respostas de IA, a conta foi de cerca de 50 centavos. As reservas não custam nada."
+- **Discurso:** "Olha um pedido de legenda saindo do celular do franqueado. O Luma manda primeiro para o modelo
+  mais barato do Google, e ele resolve a maioria. [avança] Agora o Google demorou: passaram 8 segundos. Na hora,
+  cinco provedores gratuitos entram juntos. O primeiro que responde vence e os outros são cancelados. [avança] E se
+  ninguém responder? Só então entra o modelo mais caro. [avança] Resultado: numa semana inteira de testes, com 157
+  respostas de IA, a conta foi de cerca de 50 centavos. As reservas não custam nada."
 - **Ponto principal:** custo quase zero e resposta garantida, por desenho.
 - **Transição:** "Com isso, a V1 está pronta."
 - **Perguntas difíceis:**

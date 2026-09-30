@@ -53,7 +53,7 @@
   stage.querySelectorAll('.crop[data-crop]').forEach(recorta);
 
   /* ── Quantos passos cada slide tem ─────────────────────────────────────────────────────── */
-  const DEMO_PASSOS = { chat: 5, pub: 1, copy: 3 };
+  const DEMO_PASSOS = { chat: 5, pub: 1, copy: 3, ia: 3 };
   function passosDe(s) {
     let n = 0;
     s.querySelectorAll('[data-step]').forEach(e => { n = Math.max(n, Number(e.dataset.step) || 0); });
@@ -377,6 +377,122 @@
         agenda(() => { this.cartao(s, r, pecas); txt.classList.remove('is-out'); }, 700);
       },
       sai() {}
+    },
+
+    /* 13b · a rota da IA: um pedido real anda pelo mapa. Passo 0 = o barato responde; 1 = demorou
+       8 s e as 5 reservas gratuitas disparam juntas (fica a primeira); 2 = ninguém respondeu e o
+       caro entra; 3 = os números. Regras de verdade: supabase/functions/ai/index.ts (HEDGE_MS, RESERVAS). */
+    ia: {
+      P: { F: [250, 670], L: [640, 670], G1: [1060, 470], G2: [1060, 880],
+        R0: [1560, 470], R1: [1560, 570], R2: [1560, 670], R3: [1560, 770], R4: [1560, 870] },
+      RS: ['R0', 'R1', 'R2', 'R3', 'R4'],
+      TXT: [
+        ['1', 'O modelo mais barato do Google responde a maioria dos pedidos.'],
+        ['2', 'Demorou 8 segundos? As 5 reservas gratuitas entram juntas. Vale a primeira.'],
+        ['3', 'Ninguém respondeu? Só então entra o modelo mais caro.'],
+        ['3', 'Ninguém respondeu? Só então entra o modelo mais caro.']
+      ],
+      anims: [],
+      nd(s, n) { return s.querySelector('.nd[data-n="' + n + '"]'); },
+      ln(s, n) { return s.querySelector('.ln[data-l="' + n + '"]'); },
+      marca(s, n, cls, tag) {
+        const e = this.nd(s, n); if (!e) return;
+        e.classList.remove('on', 'win', 'fail', 'off', 'wait');
+        if (cls) e.classList.add(cls);
+        const t = e.querySelector('.tg'); if (t) t.textContent = tag || t.dataset.base;
+      },
+      linha(s, n, cls) { const e = this.ln(s, n); e.classList.remove('on', 'win', 'off'); if (cls) e.classList.add(cls); },
+      pk(s, de, para, dur, volta) {
+        const e = document.createElement('i'), a = this.P[de], b = this.P[para];
+        e.className = 'pk' + (volta ? ' volta' : '');
+        s.querySelector('.ia-map').appendChild(e);
+        const an = e.animate([
+          { transform: 'translate(' + a[0] + 'px,' + a[1] + 'px) scale(.5)', opacity: 0 },
+          { opacity: 1, offset: .12 },
+          { transform: 'translate(' + b[0] + 'px,' + b[1] + 'px) scale(1)', opacity: 1 }
+        ], { duration: dur, easing: 'cubic-bezier(.45,0,.2,1)', fill: 'forwards' });
+        an.onfinish = () => e.remove();
+        this.anims.push(an);
+      },
+      zera(s) {
+        this.anims.forEach(a => { try { a.cancel(); } catch (e) {} });
+        this.anims = [];
+        s.querySelectorAll('.ia-map .pk').forEach(e => e.remove());
+        ['F', 'G1', 'G2'].concat(this.RS).forEach(n => { this.linha(s, n, null); if (n !== 'F') this.marca(s, n, null); });
+        s.querySelector('.fone').classList.remove('pronto');
+        s.querySelector('.luma').classList.remove('pulsa');
+      },
+      final(s, c) {
+        this.zera(s);
+        this.linha(s, 'F', 'win');
+        s.querySelector('.fone').classList.add('pronto');
+        if (c === 0) {
+          this.marca(s, 'G1', 'win', 'respondeu'); this.linha(s, 'G1', 'win');
+          this.RS.forEach(n => this.linha(s, n, 'off'));
+        } else if (c === 1) {
+          this.marca(s, 'G1', 'fail', 'demorou'); this.linha(s, 'G1', 'off');
+          this.marca(s, 'R0', 'win', 'respondeu primeiro'); this.linha(s, 'R0', 'win');
+          this.RS.slice(1).forEach(n => { this.marca(s, n, 'off', 'cancelada'); this.linha(s, n, 'off'); });
+        } else {
+          this.marca(s, 'G1', 'fail', 'falhou'); this.linha(s, 'G1', 'off');
+          this.RS.forEach(n => { this.marca(s, n, 'fail', 'sem resposta'); this.linha(s, n, 'off'); });
+          this.marca(s, 'G2', 'win', 'respondeu'); this.linha(s, 'G2', 'win');
+        }
+      },
+      texto(s, p) {
+        const t = this.TXT[Math.min(p, 3)], el = s.querySelector('.ia-st');
+        el.innerHTML = '<b>' + t[0] + '</b>' + t[1];
+      },
+      ida(s, t0) {
+        agenda(() => { this.linha(s, 'F', 'on'); this.pk(s, 'F', 'L', 650); }, t0);
+        agenda(() => { const l = s.querySelector('.luma'); l.classList.remove('pulsa'); void l.offsetWidth; l.classList.add('pulsa'); }, t0 + 650);
+      },
+      volta(s, de, t0) {
+        agenda(() => { this.pk(s, de, 'L', 600, true); }, t0);
+        agenda(() => { this.pk(s, 'L', 'F', 600, true); }, t0 + 600);
+        agenda(() => { this.linha(s, 'F', 'win'); s.querySelector('.fone').classList.add('pronto'); }, t0 + 1200);
+      },
+      cena(s, c) {
+        limpaTimers();   // o passo anterior pode ter timers no ar (avançar não limpa)
+        this.zera(s);
+        this.ida(s, 0);
+        agenda(() => { this.linha(s, 'G1', 'on'); this.marca(s, 'G1', 'on', 'pensando…'); this.pk(s, 'L', 'G1', 700); }, 700);
+        if (c === 0) {
+          agenda(() => { this.marca(s, 'G1', 'win', 'respondeu'); this.linha(s, 'G1', 'win'); }, 1500);
+          this.volta(s, 'G1', 1600);
+          return;
+        }
+        const espera = c === 1 ? 2400 : 1000, g1 = s.querySelector('.nd[data-n="G1"]');
+        g1.style.setProperty('--espera', espera + 'ms');
+        agenda(() => { this.marca(s, 'G1', 'wait', 'esperando…'); }, 1400);
+        if (c === 1) for (let k = 1; k <= 8; k++) agenda(() => { g1.querySelector('.tg').textContent = k + ' s'; }, 1400 + k * espera / 8);
+        const t1 = 1400 + espera;
+        agenda(() => {
+          this.marca(s, 'G1', 'fail', c === 1 ? 'demorou' : 'falhou'); this.linha(s, 'G1', 'off');
+          this.RS.forEach(n => { this.linha(s, n, 'on'); this.marca(s, n, 'on', 'pensando…'); this.pk(s, 'L', n, 800); });
+        }, t1);
+        if (c === 1) {
+          agenda(() => {
+            this.marca(s, 'R0', 'win', 'respondeu primeiro'); this.linha(s, 'R0', 'win');
+            this.RS.slice(1).forEach(n => { this.marca(s, n, 'off', 'cancelada'); this.linha(s, n, 'off'); });
+          }, t1 + 1300);
+          this.volta(s, 'R0', t1 + 1400);
+          return;
+        }
+        agenda(() => { this.RS.forEach(n => { this.marca(s, n, 'fail', 'sem resposta'); this.linha(s, n, 'off'); }); }, t1 + 1300);
+        agenda(() => { this.linha(s, 'G2', 'on'); this.marca(s, 'G2', 'on', 'pensando…'); this.pk(s, 'L', 'G2', 700); }, t1 + 1600);
+        agenda(() => { this.marca(s, 'G2', 'win', 'respondeu'); this.linha(s, 'G2', 'win'); }, t1 + 2400);
+        this.volta(s, 'G2', t1 + 2500);
+      },
+      entra(s, p) {
+        this.final(s, Math.min(p, 2)); this.texto(s, p);
+        if (!reduzido && p === 0) agenda(() => this.cena(s, 0), 500);
+      },
+      passo(s, p, animar) {
+        this.texto(s, p);
+        if (animar && p < 3) this.cena(s, p); else if (!animar || p < 3) this.final(s, Math.min(p, 2));
+      },
+      sai(s) { this.zera(s); }
     },
 
     /* 10 · as artes do lote entram uma a uma */

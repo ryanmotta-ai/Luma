@@ -658,20 +658,6 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
   .s-tese .rail i, .s-aha .answer .caret, .s-custo .dots i, .s-intel .fits .row, .s-fim .trilho, .s-aha .fio *, .s-aha .vivo i { animation: none !important; }
 }
 
-/* 13b · IA de centavos */
-.s-ia .rota { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 400px; display: grid; grid-template-columns: 1fr 1.5fr 1fr; gap: 28px; list-style: none; margin: 0; padding: 0; }
-.s-ia .rota li { padding: 30px 32px; border-radius: 22px; border: 1px solid rgba(255, 255, 255, .14); background: rgba(255, 255, 255, .04); }
-.s-ia .rota li.gratis { border-color: var(--orange); background: rgba(255, 144, 0, .1); }
-.s-ia .rota small { display: block; font-size: 16px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--orange); }
-.s-ia .rota h3 { margin: 14px 0 0; font-size: 34px; font-weight: 900; line-height: 1.1; letter-spacing: -.02em; color: #fff; }
-.s-ia .rota p { margin: 12px 0 0; font-size: 22px; line-height: 1.35; color: var(--studio-ink-2); }
-.s-ia .rota .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
-.s-ia .rota .chips span { font-size: 18px; font-weight: 700; padding: 8px 16px; border-radius: 999px; background: rgba(255, 255, 255, .1); color: #fff; }
-.s-ia .nums { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 720px; display: flex; gap: 90px; }
-.s-ia .num { max-width: 640px; }
-.s-ia .num b { display: block; font-size: 110px; font-weight: 900; letter-spacing: -.045em; line-height: .95; color: var(--orange); }
-.s-ia .num p { margin: 14px 0 0; font-size: 24px; line-height: 1.35; color: var(--studio-ink); }
-.s-ia .nota { position: absolute; left: var(--pad-x); bottom: 70px; font-size: 18px; color: var(--studio-ink-2); }
 
 /* 08 refinado (30/09): cada rolo tem uma cor, e a mesma cor marca o trecho que ele escreveu na legenda */
 .s-copy .reel:nth-of-type(1) { --c: #FF9000; }
@@ -690,3 +676,64 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-copy .txt p:nth-child(1) { border-color: #FF9000; }
 .s-copy .txt p:nth-child(2) { border-color: #F85400; }
 .s-copy .txt p:nth-child(3) { border-color: #0A0A0A; }
+
+/* 13b · A rota da IA: o pedido sai do franqueado, passa pelo Luma e segue a rota (demo "ia" em presentation.js) */
+.s-ia { --ok: #34D399; --ruim: #FF6B5E; }
+.s-ia .head .h1 { font-size: 76px; }
+.s-ia .ia-map { position: absolute; inset: 0; pointer-events: none; }
+.s-ia .ia-lns { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+.s-ia .ln { stroke: rgba(255, 255, 255, .1); stroke-width: 2; transition: stroke .35s, opacity .35s; }
+.s-ia .ln.on { stroke: var(--orange); stroke-dasharray: 10 12; animation: ia-flui .7s linear infinite; }
+.s-ia .ln.win { stroke: var(--ok); stroke-width: 3; stroke-dasharray: none; animation: none; }
+.s-ia .ln.off { opacity: .25; stroke-dasharray: none; animation: none; }
+@keyframes ia-flui { to { stroke-dashoffset: -22; } }
+
+.s-ia .nd { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 14px; z-index: 2;
+  padding: 16px 24px; border-radius: 18px; background: #15171C; border: 1.5px solid rgba(255, 255, 255, .13);
+  transition: border-color .35s, box-shadow .35s, opacity .35s, transform .35s var(--ease); }
+.s-ia .nd b { display: block; font-size: 26px; font-weight: 900; letter-spacing: -.01em; color: #fff; line-height: 1.1; }
+.s-ia .nd small { display: block; font-size: 17px; font-weight: 600; color: var(--studio-ink-2); margin-top: 3px; white-space: nowrap; }
+.s-ia .nd.on { border-color: var(--orange); box-shadow: 0 0 0 6px rgba(255, 144, 0, .12), 0 0 40px rgba(255, 144, 0, .25); }
+.s-ia .nd.win { border-color: var(--ok); box-shadow: 0 0 0 6px rgba(52, 211, 153, .14), 0 0 48px rgba(52, 211, 153, .3); transform: translate(-50%, -50%) scale(1.06); }
+.s-ia .nd.win .tg { color: var(--ok); }
+.s-ia .nd.fail { border-color: var(--ruim); opacity: .55; }
+.s-ia .nd.fail .tg { color: var(--ruim); }
+.s-ia .nd.off { opacity: .3; }
+
+.s-ia .luma { flex-direction: column; justify-content: center; gap: 0; width: 190px; height: 190px; border-radius: 50%; padding: 0; text-align: center;
+  background: radial-gradient(circle at 35% 30%, #FFB347, var(--orange) 55%, #F85400); border: 0; box-shadow: 0 20px 60px rgba(255, 144, 0, .35); }
+.s-ia .luma b { font-size: 38px; color: #0A0A0A; }
+.s-ia .luma small { color: rgba(10, 10, 10, .72); }
+.s-ia .luma.pulsa { animation: ia-pulsa .6s var(--ease); }
+@keyframes ia-pulsa { 50% { transform: translate(-50%, -50%) scale(1.1); } }
+
+.s-ia .fone { flex-direction: column; gap: 12px; padding: 0; background: none; border: 0; }
+.s-ia .fone .tela { position: relative; width: 150px; height: 250px; border-radius: 26px; background: #1B1E24; border: 2px solid rgba(255, 255, 255, .18); padding: 26px 18px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
+.s-ia .fone .tela i { display: block; height: 12px; border-radius: 6px; background: rgba(255, 255, 255, .12); }
+.s-ia .fone .tela i:nth-child(2) { width: 80%; } .s-ia .fone .tela i:nth-child(3) { width: 60%; }
+.s-ia .fone .ok { position: absolute; left: 12px; right: 12px; bottom: 16px; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 6px; border-radius: 16px;
+  background: rgba(52, 211, 153, .16); color: var(--ok); font-size: 17px; font-weight: 800; text-align: center; opacity: 0; transform: translateY(14px); transition: opacity .4s, transform .4s var(--ease); }
+.s-ia .fone .ok svg { width: 30px; height: 30px; }
+.s-ia .fone.pronto .ok { opacity: 1; transform: none; }
+.s-ia .fone small { font-size: 18px; }
+
+.s-ia .gg { min-width: 300px; }
+.s-ia .gg .anel { width: 44px; height: 44px; flex: none; transform: rotate(-90deg); }
+.s-ia .gg .anel circle { fill: none; stroke: rgba(255, 255, 255, .15); stroke-width: 4; stroke-dasharray: 119.4; stroke-dashoffset: 0; }
+.s-ia .gg.wait .anel circle { stroke: var(--orange); stroke-dashoffset: 119.4; animation: ia-anel var(--espera, 2.4s) linear forwards; }
+@keyframes ia-anel { to { stroke-dashoffset: 0; } }
+
+.s-ia .rs { width: 250px; padding: 10px 22px; flex-direction: column; align-items: flex-start; gap: 0; }
+.s-ia .rs b { font-size: 22px; }
+.s-ia .rs small { font-size: 15px; margin-top: 1px; }
+.s-ia .rs-tit { position: absolute; left: 1440px; top: 392px; width: 240px; text-align: center; font-size: 15px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--orange); }
+
+.s-ia .pk { position: absolute; left: 0; top: 0; z-index: 1; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%;
+  background: #fff; box-shadow: 0 0 0 6px rgba(255, 255, 255, .15), 0 0 26px rgba(255, 255, 255, .7); }
+.s-ia .pk.volta { background: var(--ok); box-shadow: 0 0 0 6px rgba(52, 211, 153, .2), 0 0 26px rgba(52, 211, 153, .8); }
+
+.s-ia .ia-st { position: absolute; left: var(--pad-x); bottom: 64px; max-width: 1100px; font-size: 30px; font-weight: 700; line-height: 1.3; color: #fff; transition: opacity .3s; }
+.s-ia .ia-st b { color: var(--orange); margin-right: 10px; }
+.s-ia .ia-nums { position: absolute; left: 1140px; top: 110px; display: flex; gap: 56px; }
+.s-ia .ia-nums b { display: block; font-size: 88px; font-weight: 900; letter-spacing: -.045em; line-height: .95; color: var(--orange); }
+.s-ia .ia-nums span { display: block; margin-top: 12px; font-size: 20px; line-height: 1.35; color: var(--studio-ink); }
