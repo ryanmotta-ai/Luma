@@ -136,12 +136,83 @@ async function fRenderCanvasHelper(d,c,fmt,opts){
   return cv;
 }
 
+/* ══ ASSINATURA DA ARTE — metadado invisível em todo arquivo que sai do Luma ═════════════
+   Pedido do Ryan (30/09/2026): reconhecer uma arte do Luma que circula por aí. O PNG ganha
+   blocos de texto (tEXt/iTXt), o PDF ganha os campos de documento. Não altera um pixel.
+   ⛔ Sem dado pessoal: nada de nome, e-mail ou cidade de quem gerou — só o que identifica a
+   PEÇA (template, campanha, formato, data, versão do Luma). Sem biblioteca: PNG é só bytes. */
+let _fCrcTab=null;
+function _fCrc32(bytes){
+  if(!_fCrcTab){ _fCrcTab=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); _fCrcTab[n]=c>>>0; } }
+  let c=0xFFFFFFFF; for(let i=0;i<bytes.length;i++) c=_fCrcTab[(c^bytes[i])&0xFF]^(c>>>8);
+  return (c^0xFFFFFFFF)>>>0;
+}
+function _fPngChunk(tipo, dados){
+  const t=new TextEncoder().encode(tipo), out=new Uint8Array(12+dados.length), v=new DataView(out.buffer);
+  v.setUint32(0,dados.length); out.set(t,4); out.set(dados,8);
+  const corpo=new Uint8Array(4+dados.length); corpo.set(t,0); corpo.set(dados,4);
+  v.setUint32(8+dados.length,_fCrc32(corpo)); return out;
+}
+// iTXt = texto UTF-8 (o tEXt só aceita Latin-1): chave  flag(0) método(0) idioma  chaveTraduzida  texto
+function _fPngITxt(chave, texto){
+  const enc=new TextEncoder(), k=enc.encode(chave), tx=enc.encode(String(texto));
+  const d=new Uint8Array(k.length+5+tx.length); d.set(k,0); d.set([0,0,0,0,0],k.length); d.set(tx,k.length+5);
+  return _fPngChunk('iTXt', d);
+}
+// O que vai na assinatura. `mat`/`camp`/`fmt` são os da peça que está sendo gerada.
+function fAssinaturaDados(camp, fmt, mat){
+  const m=mat||fState.material||{};
+  const v=(document.querySelector('script[src*="png-generator.js?v="]')||{}).src||'';
+  return {
+    'Software':'Luma · Delivery Much',
+    'Luma-Template':[m.id, m.name].filter(Boolean).join(' · '),
+    'Luma-Campanha':(camp&&camp.name)||'',
+    'Luma-Formato':(fmt&&(fmt.name||fmt.id))||'',
+    'Luma-Criado':new Date().toISOString(),
+    'Luma-Versao':(v.match(/[?&]v=(\w+)/)||[])[1]||''
+  };
+}
+// Bytes de PNG → bytes de PNG assinado (blocos logo depois do IHDR). Não-PNG volta intacto.
+function fAssinarPngBytes(bytes, meta){
+  const b=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes);
+  if(b.length<33||b[1]!==0x50||b[2]!==0x4E||b[3]!==0x47) return b;
+  const fimIhdr=8+12+new DataView(b.buffer,b.byteOffset).getUint32(8);
+  const blocos=Object.entries(meta||{}).filter(([,val])=>val).map(([k,val])=>_fPngITxt(k,val));
+  const extra=blocos.reduce((n,x)=>n+x.length,0), out=new Uint8Array(b.length+extra);
+  out.set(b.subarray(0,fimIhdr),0); let o=fimIhdr; blocos.forEach(x=>{ out.set(x,o); o+=x.length; });
+  out.set(b.subarray(fimIhdr),o); return out;
+}
+async function fAssinarPngBlob(blob, meta){
+  try{ return new Blob([fAssinarPngBytes(new Uint8Array(await blob.arrayBuffer()), meta)],{type:'image/png'}); }
+  catch(e){ console.warn('[assinatura] não assinou o PNG:', e); return blob; }
+}
+function fAssinarPngDataURL(url, meta){
+  try{
+    const i=url.indexOf(','); if(!/^data:image\/png/i.test(url)||i<0) return url;
+    const bin=atob(url.slice(i+1)), u8=new Uint8Array(bin.length); for(let k=0;k<bin.length;k++) u8[k]=bin.charCodeAt(k);
+    const out=fAssinarPngBytes(u8, meta); let s=''; for(let k=0;k<out.length;k+=0x8000) s+=String.fromCharCode.apply(null,out.subarray(k,k+0x8000));
+    return 'data:image/png;base64,'+btoa(s);
+  }catch(e){ console.warn('[assinatura] não assinou o PNG:', e); return url; }
+}
+// Leitura (para reconhecer uma arte do Luma): devolve {chave: texto} dos blocos tEXt/iTXt.
+function fLerAssinaturaPng(bytes){
+  const b=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes), v=new DataView(b.buffer,b.byteOffset), dec=new TextDecoder(), r={};
+  for(let o=8;o+8<=b.length;){
+    const len=v.getUint32(o), tipo=dec.decode(b.subarray(o+4,o+8)), d=b.subarray(o+8,o+8+len);
+    if(tipo==='iTXt'||tipo==='tEXt'){ const z=d.indexOf(0); const k=dec.decode(d.subarray(0,z)); let resto=d.subarray(z+1);
+      if(tipo==='iTXt'){ resto=resto.subarray(2); for(let n=0;n<2;n++){ const zz=resto.indexOf(0); resto=resto.subarray(zz+1); } }
+      r[k]=dec.decode(resto); }
+    if(tipo==='IEND') break; o+=12+len;
+  }
+  return r;
+}
+
 // opts.scale: 1 = tamanho nativo da prancheta; ausente = o 2× padrão.
 async function fGenPNG(d,c,fmt,opts){
   const canvas = await fRenderCanvasHelper(d,c,fmt,opts);
   const a=document.createElement('a');
   a.download=fBuildFilename(c,fmt,d);
-  a.href=canvas.toDataURL('image/png');
+  a.href=fAssinarPngDataURL(canvas.toDataURL('image/png'), fAssinaturaDados(c,fmt));
   a.click();
   if(typeof window.gPlayExportSuccessSound==='function') window.gPlayExportSuccessSound();
 }
@@ -154,7 +225,8 @@ async function fGenPDF(d,c,fmt,opts){
     throw new Error('Biblioteca pdf-lib não está disponível.');
   }
   const canvas = await fRenderCanvasHelper(d,c,fmt,opts);
-  const pngDataUrl = canvas.toDataURL('image/png');
+  const _assin = fAssinaturaDados(c,fmt);
+  const pngDataUrl = fAssinarPngDataURL(canvas.toDataURL('image/png'), _assin);
   
   // Cria documento PDF
   const pdfDoc = await PDFLib.PDFDocument.create();
@@ -173,6 +245,13 @@ async function fGenPDF(d,c,fmt,opts){
     height: canvas.height
   });
   
+  // Assinatura no documento (o PNG embutido já vai assinado): Produtor, Criador, Assunto, Palavras-chave.
+  try{
+    pdfDoc.setProducer(_assin['Software']); pdfDoc.setCreator(_assin['Software']);
+    pdfDoc.setSubject([_assin['Luma-Campanha'], _assin['Luma-Template']].filter(Boolean).join(' · '));
+    pdfDoc.setKeywords(['Luma', 'Delivery Much'].concat(_assin['Luma-Versao'] ? ['v'+_assin['Luma-Versao']] : []));
+    pdfDoc.setCreationDate(new Date());
+  }catch(e){ console.warn('[assinatura] PDF sem metadado:', e); }
   // Salva o PDF
   const pdfBytes = await pdfDoc.save();
   const blob = new Blob([pdfBytes], { type: 'application/pdf' });
@@ -208,7 +287,8 @@ async function _fArtePreparar(snapId){
   try{
     const canvas=await fRenderCanvasHelper(snap.dados,snap.camp,snap.fmt);
     const fname=fBuildFilename(snap.camp,snap.fmt,snap.dados);
-    const blob=await new Promise(res=>canvas.toBlob(res,'image/png'));
+    const cru=await new Promise(res=>canvas.toBlob(res,'image/png'));
+    const blob=cru ? await fAssinarPngBlob(cru, fAssinaturaDados(snap.camp,snap.fmt,snap.material)) : null;
     const file=blob ? new File([blob],fname,{type:'image/png'}) : null;
     let podeShare=false;
     try{ podeShare=!!(file && navigator.canShare && navigator.canShare({files:[file]})); }catch(e){}
@@ -234,7 +314,7 @@ function _fArteBaixarArquivo(prep){
     setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(e){} }, 60000);
     return;
   }
-  a.href=prep.canvas.toDataURL('image/png'); a.click();
+  a.href=fAssinarPngDataURL(prep.canvas.toDataURL('image/png'), fAssinaturaDados(prep.snap.camp,prep.snap.fmt,prep.snap.material)); a.click();
 }
 // Arte que saiu do Luma deixa de ser rascunho — e vira evento de analytics.
 function _fArteEntregue(prep, evento, payload){
@@ -1754,7 +1834,7 @@ async function fRenderMaterialToDataURL(dados, camp, fmt){
   const fctx=finalCv.getContext('2d');
   fctx.imageSmoothingEnabled=true;fctx.imageSmoothingQuality='high';
   fctx.drawImage(renderCv,0,0,w,h);
-  const _url=finalCv.toDataURL('image/png');
+  const _url=fAssinarPngDataURL(finalCv.toDataURL('image/png'), fAssinaturaDados(camp,fmt));
   /* Zerar as dimensões devolve o backing store NA HORA. O lote chama isto dezenas de vezes
      seguidas; esperar o GC acumulava centenas de MB de textura e derrubava a aba no celular. */
   try{ renderCv.width=renderCv.height=0; finalCv.width=finalCv.height=0; }catch(e){}
