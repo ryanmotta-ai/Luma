@@ -116,6 +116,7 @@ permissoes: { nome_do_campo: { edit: true|false, maxLen: 32 } }
 - ⛔ **O franqueado nunca edita camadas** — ele preenche campos. Redesenhar é só do designer.
 - ⛔ **Publicar não pode destruir a arte publicada anterior.** Cada publicação vincula a um template próprio (já foi bug de colisão de ID).
 - Ao editar um template já publicado, a cópia publicada e a de edição **não compartilham a mesma referência de array de camadas** (senão editar corrompe o publicado).
+- ⛔ **O checklist de design do Estúdio não bloqueia publicação** (decisão do Ryan, 30/09/2026: "o designer sabe por bom senso"). Ele só avisa ("N ponto(s) de atenção · Você pode publicar assim mesmo"); nenhuma trava de erro crítico no passo 0 nem no botão Publicar. Detalhe em `docs/LUMA-BACKEND-CHANGELOG.md` (30/09, `58ad6e5`).
 
 ---
 
@@ -168,6 +169,8 @@ Tipos: `text`, `number`, `currency`, `date`, `image`, `select`, `color`, `boolea
 
 **Regras / invariantes:**
 - ⛔ **A arte final é da loja do franqueado, não do Luma.** Não queime a marca "Luma" no PNG (é decisão de produto — a logo foi removida do gerador).
+- ⛔ **PDF está fora de uso** (decisão do Ryan, 30/09/2026: "inútil pra gente") — sem botão no franqueado. O motor de gerar PDF continua no código; não reative sem pedido novo.
+- ⛔ **Toda arte leva assinatura invisível, sem dado pessoal** (decisão do Ryan, 30/09/2026). PNG e PDF saem com metadado (template, campanha, formato, data, versão do Luma); nunca nome, e-mail ou cidade de quem gerou. Detalhe técnico em `docs/LUMA-BACKEND-CHANGELOG.md` (30/09, `5b7091b`).
 - O histórico é **por usuário** (RLS por dono em `luma.artes`).
 - Geração em lote (CSV) existe: 1 linha = 1 arte, via PapaParse, em fila.
 

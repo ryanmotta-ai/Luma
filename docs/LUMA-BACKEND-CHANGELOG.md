@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-09-30 — Assistente "Lu": persona no servidor e busca por radical (✅ função `ai` v22, v23)
+
+Reunião curta (Rafael, Juliana, Camila) → decisão do maestro: persona e regras da nova task `ajuda` (assistente da Central de Ajuda) saem do navegador para a função `ai`, como o tutor `aula` — regra de produto não pode ser reescrita no DevTools.
+
+- **`ajuda` é a 2ª task com prompt montado no servidor.** `AJUDA_SISTEMA` define a Lu (time da Delivery Much, assistente virtual assumida, direta, sem inventar regra); fonte só nos TRECHOS DA CENTRAL enviados pelo front, no ESTADO DA TELA e num resumo curado de `01_BUSINESS.md` (`AJUDA_REGRAS_REDE`, seções citadas). Saída fixa pelo `AJUDA_SCHEMA`: `{texto, nao_sei, delegar, motivo_delegar}`.
+- **`montaPromptAjuda`** monta o bloco com trechos (máx. 4, 1500 caracteres cada), estado da tela (material, campo bloqueado pelo Local Fit, erro de validação, formato) e quem da equipe está online — com estado, a Lu responde mesmo sem trecho da Central; sem trecho e sem estado, não chama IA. Teto de 9000 caracteres corta o CONTEXTO, nunca a pergunta (ela vai por último no prompt).
+- **`normalizaAjuda`** garante no servidor, não confiando no modelo: `nao_sei=true` sempre implica `delegar=true`; a frase "a equipe está online" só sobrevive na resposta se `equipeOnline` de fato tiver alguém.
+- **Delegar é código, não IA:** resposta com `delegar`/`nao_sei`, pedido explícito de gente ou 2 votos "não ajudou" oferecem "Chamar [nome]" (quem está online) ou a caixa de mensagem — decisão no front (`help-widget.js`), não no modelo.
+- **Segurança (Diego):** contexto vindo do navegador tem `"###"` e `'"""'` neutralizados antes de entrar no prompt — ninguém fecha a seção PERGUNTA nem abre um bloco falso de REGRAS pelo campo de texto.
+- **v23 (mesmo dia, `AJUDA_PROMPT_V` `2026-09-30.2`):** busca por radical no lado do front (`gHelpStem`/`gHelpTermoCasa`, `help.js` — "baixo" casa com "baixar"), artigo novo do Kit da campanha no `help-widget.js`, e a Lu passou a recusar assunto fora do Luma numa frase, sem delegar.
+- Celular (Camila): "Fechar" do modal de imagens, "Ajustar foto" e as áreas de toque da alça da gaveta/ferramentas/enviar/voltar/refazer em 44 px.
+
+Testado com chamadas reais: responde pelo trecho em passos e delega pedido de contrato. Testes: franqueado 117/117 (v22).
+
 ## 2026-09-29 — IA: regra por tarefa (camada 1) e prompts mais assertivos (✅ função `ai` v21)
 
 Pesquisa do Alicerce (14 dias de `ia_chamada`): o pensamento do Gemini era ~31% da saída; a revisão da arte falhava em 400 porque levava a foto em base64 no prompt.
