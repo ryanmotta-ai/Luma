@@ -387,10 +387,10 @@
         R0: [1560, 470], R1: [1560, 570], R2: [1560, 670], R3: [1560, 770], R4: [1560, 870] },
       RS: ['R0', 'R1', 'R2', 'R3', 'R4'],
       TXT: [
-        ['1', 'O modelo mais barato do Google responde a maioria dos pedidos.'],
+        ['1', 'O modelo rápido do Google responde a maioria dos pedidos.'],
         ['2', 'Demorou 8 segundos? As 5 reservas gratuitas entram juntas. Vale a primeira.'],
-        ['3', 'Ninguém respondeu? Só então entra o modelo mais caro.'],
-        ['3', 'Ninguém respondeu? Só então entra o modelo mais caro.']
+        ['3', 'Ninguém respondeu? Só então entra o modelo mais forte.'],
+        ['3', 'Tudo na cota gratuita: várias contas do Google e 5 provedores grátis.']
       ],
       anims: [],
       nd(s, n) { return s.querySelector('.nd[data-n="' + n + '"]'); },

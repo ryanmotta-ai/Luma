@@ -215,21 +215,21 @@
     do plano gratuito), não teste de carga. Usamos o piso: 1.500.
   - *"Quando a economia do Deskfy entra?"* Quando a rede estiver no Luma e o contrato do Deskfy acabar.
 
-## 13b · A rota da IA — "A IA custa centavos. E não fica sem resposta."
+## 13b · IA custo zero — "A IA custa zero. E não fica sem resposta."
 
 - **Objetivo:** mostrar, com a animação, que a IA do Luma é barata e nunca deixa o franqueado sem resposta.
-- **Frase de abertura:** "A IA custa centavos. E não fica sem resposta."
+- **Frase de abertura:** "A IA custa zero. E não fica sem resposta."
 - **Discurso:** "Olha um pedido de legenda saindo do celular do franqueado. O Luma manda primeiro para o modelo
-  mais barato do Google, e ele resolve a maioria. [avança] Agora o Google demorou: passaram 8 segundos. Na hora,
+  rápido do Google, e ele resolve a maioria. [avança] Agora o Google demorou: passaram 8 segundos. Na hora,
   cinco provedores gratuitos entram juntos. O primeiro que responde vence e os outros são cancelados. [avança] E se
-  ninguém responder? Só então entra o modelo mais caro. [avança] Resultado: numa semana inteira de testes, com 157
-  respostas de IA, a conta foi de cerca de 50 centavos. As reservas não custam nada."
+  ninguém responder? Só então entra o modelo mais forte. [avança] E nada disso custa: o Google roda na cota gratuita de
+  várias contas e as cinco reservas são gratuitas. Na semana de testes foram 157 respostas, sem pagar nada."
 - **Ponto principal:** custo quase zero e resposta garantida, por desenho.
 - **Transição:** "Com isso, a V1 está pronta."
 - **Perguntas difíceis:**
-  - *"É de graça?"* As reservas são. O Google cobra por uso, e numa semana de testes foi cerca de R$ 0,50.
-  - *"E com os 94 franqueados usando?"* Cresce com o uso, na casa de centavos por arte. Cada tarefa tem teto
-    de resposta, então nenhum pedido sai caro.
+  - *"É de graça mesmo?"* Sim: o Google na cota gratuita de várias contas, e as reservas no plano gratuito.
+  - *"E com os 94 franqueados usando?"* Se uma cota acabar, o pedido desce para a próxima conta ou reserva.
+    Cada tarefa tem teto de resposta, o que faz a cota render.
   - *"E se o Google cair?"* As reservas respondem sozinhas; é para isso que elas existem.
 
 ## 14 · Beta — "A V1 está pronta. Agora começa a parte mais importante."
