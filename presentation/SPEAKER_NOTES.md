@@ -43,15 +43,15 @@
   - *"Quantas variações a rede produz por mês?"* Não vou chutar. O beta mede recorrência semanal e o
     funil até o download, e é daí que sai esse número.
 
-## 03 · A tese — "Autonomia local. Controle central. Sem colocar design no meio."
+## 03 · A tese — "Autonomia local. Controle central. Com o design no comando."
 
 - **Objetivo:** fixar a frase que resume o produto.
-- **Frase de abertura:** "Autonomia local. Controle central. Sem colocar design no meio."
+- **Frase de abertura:** "Autonomia local. Controle central. Com o design no comando."
 - **Discurso:** "O fluxo tem quatro passos. No Estúdio, o designer transforma a campanha em regras. Na publicação,
   um material fica disponível para a rede inteira. O franqueado informa só o que é local: produto, preço, foto.
-  E sai a arte pronta, dentro da marca. O designer continua decidindo o que é design. O franqueado informa
+  E sai a arte pronta, dentro da marca. O design continua com quem entende de design. O franqueado informa
   apenas o que é local."
-- **Ponto principal:** cada um faz o que sabe fazer. Ninguém faz o trabalho do outro.
+- **Ponto principal:** o design é a origem de tudo: a rede só executa o que o designer decidiu. Ninguém faz o trabalho do outro.
 - **Transição:** "Na prática, isso vira duas experiências dentro de um produto só."
 - **Perguntas difíceis:**
   - *"E se o franqueado quiser mudar a cor ou o layout?"* Ele mexe no que o designer liberou na publicação
@@ -116,13 +116,15 @@
   - *"E se ele digitar um nome enorme ou errar o preço?"* Está no slide 09.
   - *"A legenda é IA?"* É o próximo slide.
 
-## 08 · A legenda — "A arte sai com a legenda. E ela fala a nossa língua."
+## 08 · A legenda — "A arte sai com a legenda, feita por IA. E ela fala a língua da sua cidade."
 
 - **Objetivo:** mostrar que a legenda também sai pronta, no tom da Delivery Much, e que anos de copy
   viraram um ativo do produto.
-- **Frase de abertura:** "A arte sai com a legenda. E ela fala a nossa língua."
-- **Discurso:** "Quando a arte fica pronta, a legenda já está do lado. Ela sai de um motor combinatório
-  que a gente alimentou com anos de copy da Delivery Much: 107 aberturas, divididas por tipo de cardápio,
+- **Frase de abertura:** "A arte sai com a legenda, feita por IA. E ela fala a língua da sua cidade."
+- **Discurso:** "Quando a arte fica pronta, a legenda já está do lado, escrita por IA. Atendendo um pedido
+  que apareceu em várias entrevistas com franqueados, ela usa a gíria local: em Santa Maria, por exemplo, pode
+  vir um bah ou um tchê, porque a Delivery Much fala a língua de cada lugar. E se a IA falhar, entra o motor
+  local de copy combinatória, treinado com anos de copy da Delivery Much: 107 aberturas, divididas por tipo de cardápio,
   66 moldes de oferta e 25 chamadas. O motor junta uma de cada, e a cor de cada rolo mostra onde aquele
   trecho entrou na legenda. [avança] Gerar outra sugestão: a opção Engajar puxa conversa. [avança] A de
   WhatsApp vira mensagem, sem hashtag. [avança] E na arte seguinte nenhuma frase se repete. Só para este
@@ -131,10 +133,9 @@
 - **Ponto principal:** a voz da marca virou produto. A rede escala sem perder o tom.
 - **Transição:** "Parece simples. Por baixo, não é."
 - **Perguntas difíceis:**
-  - *"Isso é IA?"* O motor, não: roda no navegador, sem rede, combinando frases que a gente escreveu.
-    No chat, quando a IA está disponível, ela pode reescrever por cima com as mesmas regras (sem inventar,
-    sem emoji) e com o jeito da cidade. Se ela não responder, a legenda do motor já está lá. No Luma
-    Sheets, cada arte do lote sai com legenda do motor.
+  - *"Isso é IA?"* É, primeiro. No chat, a IA escreve a legenda com as mesmas regras (sem inventar, sem
+    emoji) e com a gíria da cidade. Se ela não responder, o motor local assume: roda no navegador, sem rede,
+    combinando frases da Delivery Much. No Luma Sheets, cada arte do lote sai com legenda do motor.
   - *"E se sair uma legenda errada?"* A primeira lei é não inventar: preço, desconto e validade só aparecem
     se o franqueado informou. E é sugestão: ele copia, pede outra ou ajusta antes de publicar.
   - *"Quantas legendas diferentes existem?"* Depende do produto e do que foi informado. Para este lanche

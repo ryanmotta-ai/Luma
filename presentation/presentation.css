@@ -371,7 +371,15 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 
 /* 08 — A legenda (motor de copy combinatório) */
 .s-copy .head .h1 { font-size: 74px; }
-.s-copy .motor { position: absolute; left: var(--pad-x); top: 340px; width: 760px; display: flex; flex-direction: column; gap: 6px; }
+.s-copy .plano { position: absolute; left: var(--pad-x); top: 346px; width: 760px; font-size: 20px; line-height: 1.3; color: var(--ink-2); }
+.s-copy .plano b { display: block; font-size: 15px; letter-spacing: .16em; font-weight: 900; color: var(--orange-ink); margin-bottom: 4px; }
+.s-copy .giria { position: absolute; left: 960px; top: 902px; width: 840px; }
+.s-copy .giria small { display: block; font-size: 15px; letter-spacing: .16em; font-weight: 900; color: var(--orange-ink); }
+.s-copy .giria p { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.s-copy .giria b { font-size: 24px; font-weight: 900; margin-right: 6px; }
+.s-copy .giria p span { font-size: 22px; font-weight: 700; padding: 6px 16px; border-radius: 999px; background: rgba(255, 144, 0, .14); color: var(--orange-ink); }
+.s-copy .giria em { display: block; margin-top: 10px; font-style: normal; font-size: 20px; color: var(--ink-2); }
+.s-copy .motor { position: absolute; left: var(--pad-x); top: 410px; width: 760px; display: flex; flex-direction: column; gap: 6px; }
 .s-copy .lbl { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; }
 .s-copy .lbl b { font-size: 15px; letter-spacing: .16em; font-weight: 900; color: var(--orange-ink); }
 .s-copy .lbl span { font-size: 16px; color: var(--ink-3); }
@@ -387,7 +395,7 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-copy .win li { height: 36px; line-height: 36px; padding: 0 20px; font-size: 19px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color .3s, font-weight .3s; }
 .s-copy .win li.is-cur { color: var(--ink); font-weight: 700; }
 .s-copy .mais { font-style: normal; font-size: 26px; font-weight: 900; color: var(--orange-d); text-align: center; line-height: 1; margin: 2px 0 -4px; }
-.s-copy .conta { position: absolute; left: var(--pad-x); top: 852px; display: flex; align-items: center; gap: 22px; }
+.s-copy .conta { position: absolute; left: var(--pad-x); top: 920px; display: flex; align-items: center; gap: 22px; }
 .s-copy .conta b { font-size: 84px; font-weight: 900; letter-spacing: -.04em; line-height: .9; color: var(--orange-d); }
 .s-copy .conta span { font-size: 22px; line-height: 1.35; color: var(--ink-2); }
 .s-copy .leg { position: absolute; left: 960px; top: 330px; width: 840px; height: 540px; border-radius: 24px; background: #fff; padding: 34px 40px; box-shadow: 0 30px 80px rgba(10, 10, 10, .12), 0 0 0 1px rgba(10, 10, 10, .05); display: flex; flex-direction: column; }
@@ -663,14 +671,14 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-copy .reel:nth-of-type(1) { --c: #FF9000; }
 .s-copy .reel:nth-of-type(2) { --c: #F85400; }
 .s-copy .reel:nth-of-type(3) { --c: #0A0A0A; }
-.s-copy .motor { top: 360px; gap: 14px; }
+.s-copy .motor { top: 420px; gap: 14px; }
 .s-copy .lbl { margin-bottom: 10px; }
 .s-copy .lbl b { color: var(--c); }
 .s-copy .lbl .banco, .s-copy .mais { display: none; }
 .s-copy .win::before { border-left-color: var(--c); background: color-mix(in srgb, var(--c) 9%, transparent); }
-.s-copy .conta { top: 900px; }
+.s-copy .conta { top: 930px; }
 .s-copy .conta span { font-size: 26px; line-height: 1.25; color: var(--ink); font-weight: 700; }
-.s-copy .leg { top: 360px; height: 560px; padding: 36px 44px; }
+.s-copy .leg { top: 350px; height: 520px; padding: 36px 44px; }
 .s-copy .txt { font-size: 25px; text-wrap: pretty; }
 .s-copy .txt p:nth-child(-n+3) { padding-left: 18px; border-left: 5px solid; }
 .s-copy .txt p:nth-child(1) { border-color: #FF9000; }
