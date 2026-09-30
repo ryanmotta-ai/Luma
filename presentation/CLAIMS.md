@@ -7,14 +7,14 @@
 
 | Onde | Afirmação | Fonte (como conferir) |
 |---|---|---|
-| 13 · E | **844** verificações automáticas em **22** suítes, num navegador de verdade | `node scripts/run-browser-tests.js` (execução local de 27/09/2026): 22 suítes, 838/844 |
-| 13 · E | **300** artes geradas e conferidas pelo motor real, em 5 baterias de 60 | suítes `artes-composicao-grafica`, `artes-fluxo-interativo`, `artes-gastronomia`, `artes-multiformatos`, `artes-tipografia-fit` (60 cada) |
+| Apx E | **844** verificações automáticas em **22** suítes, num navegador de verdade | `node scripts/run-browser-tests.js` (execução local de 27/09/2026): 22 suítes, 838/844 |
+| Apx E | **300** artes geradas e conferidas pelo motor real, em 5 baterias de 60 | suítes `artes-composicao-grafica`, `artes-fluxo-interativo`, `artes-gastronomia`, `artes-multiformatos`, `artes-tipografia-fit` (60 cada) |
 | E | **60** artes pelo fluxo completo do franqueado no app real | suíte `artes-fluxo-interativo` (60/60) |
 | E | **31** cenários de estresse: fluxo, tela de iPhone, maratona de fuzz | `stress-franqueado-fluxo` 9 + `stress-franqueado-ios` 9 + `stress-fuzz-maratona` 13 |
 | C · E | **73** casos de regressão no importador de PSD | suíte `psd-import` (73/73), `tests/psd-import.html` |
-| 13 · E | O CI roda **a cada push**: leis da arquitetura, regra das Novidades e as suítes | `.github/workflows/tests.yml` (paths `js/`, `tests/`, `index.html`; passos `scripts/arquitetura.js`, `scripts/novidades.js --checar`, `scripts/run-browser-tests.js`) |
-| 13 · B | **32 de 32** tabelas com RLS (no slide: **100%** das tabelas), **3** papéis, **69** políticas | contagem em `supabase/migrations/` em 27/09/2026; papéis em `luma-brain/01_BUSINESS.md` §2 |
-| 13 · H | **41** recursos que a gestão liga e desliga sem deploy | entradas de `G_FEATURE_REGISTRY` em `js/core/feature-flags.js` (`grep -c "{ key:'"` = 41) |
+| Apx E | O CI roda **a cada push**: leis da arquitetura, regra das Novidades e as suítes | `.github/workflows/tests.yml` (paths `js/`, `tests/`, `index.html`; passos `scripts/arquitetura.js`, `scripts/novidades.js --checar`, `scripts/run-browser-tests.js`) |
+| Apx B | **32 de 32** tabelas com RLS (no slide: **100%** das tabelas), **3** papéis, **69** políticas | contagem em `supabase/migrations/` em 27/09/2026; papéis em `luma-brain/01_BUSINESS.md` §2 |
+| Apx H | **41** recursos que a gestão liga e desliga sem deploy | entradas de `G_FEATURE_REGISTRY` em `js/core/feature-flags.js` (`grep -c "{ key:'"` = 41) |
 | 18 · 19 | **3.297** redes de franquia, **202.444** unidades, **R$ 301,7 bi** faturados em 2025 | ABF, Pesquisa de Desempenho do Franchising 2025, divulgada em mar/2026 (abf.com.br/numeros-do-franchising; noticiada por PEGN, Exame e UOL) |
 | 18 · 19 | Deskfy: **mais de R$ 10 mi** de receita recorrente anual, **200+** empresas | Jornal do Comércio, 17/07/2025: "Com faturamento de R$ 10 milhões, startup gaúcha agrega IA em plataforma de marketing para grandes empresas" (fala do fundador) |
 | 18 · 19 | Creative automation: **US$ 2,18 bi** em 2025 (no slide, US$ 2,2 bi), **17%** ao ano até 2031 | Mordor Intelligence, "Creative Automation Software Market" (2026). Outras consultorias vão de US$ 2 a 7 bi; usado o menor |

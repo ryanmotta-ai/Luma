@@ -10,7 +10,7 @@
    As artes foram geradas pelo motor de render do Luma. Os templates foram montados importando PSDs
    feitos a partir das capas de campanha do próprio repositório, e as fotos dos produtos são do Unsplash.
    A franqueada "Carla" é uma persona de demonstração.
-2. O CI está **vermelho** hoje (27/09). Diga antes que perguntem: é o mecanismo funcionando (slide 13, apêndice E).
+2. O CI está **vermelho** hoje (27/09). Diga antes que perguntem: é o mecanismo funcionando (apêndice E).
 3. Os números de custo (slide 15) têm fonte no `CLAIMS.md`: R$ 0 e os 94 franqueados vêm da arquitetura e do Ryan;
    a economia de R$ 11,9 mil/ano é o valor do Deskfy informado pelo Ryan; a folga de 15× é estimativa, não teste de carga.
 
@@ -39,7 +39,7 @@
   autonomia damos à ponta, maior o risco de perder padrão. Quanto mais centralizamos, maior o gargalo do marketing. [avança] E a gente sabe como isso dói porque viveu: com o Deskfy, cada campanha
   nova virava retrabalho. Eram R$ 11,9 mil por ano, e o retrabalho continuava."
 - **Ponto principal:** hoje cada variação local é retrabalho de alguém, e a gente sentiu isso na pele.
-- **Transição:** "A tese do Luma é sair dessa escolha."
+- **Transição:** "Esse problema a gente não inventou. Antes de construir, foi ouvir quem vive isso."
 - **Perguntas difíceis:**
   - *"Quantas variações a rede produz por mês?"* Não vou chutar. O beta mede recorrência semanal e o
     funil até o download, e é daí que sai esse número.
@@ -204,7 +204,7 @@
   conversa para quem da equipe DM está online. [avança] Aqui a Ana assumiu: a Carla vê quem está cuidando dela,
   com nome e cargo, e a equipe vê de onde veio a dúvida. A conversa só fecha quando está resolvida."
 - **Ponto principal:** resposta imediata pela Lu, e uma pessoa responsável quando precisa.
-- **Transição:** "E tudo isso sem conta nova de infraestrutura."
+- **Transição:** "Esse é o Luma inteiro. Agora a pergunta que todo mundo tem."
 - **Perguntas difíceis:**
   - *"E se o franqueado fechar o app?"* A resposta fica esperando: ele vê o aviso e o contador quando volta.
     Nesta versão não há e-mail nem push.
@@ -237,7 +237,7 @@
   gratuito aguenta umas 1.500; a rede inteira são 94. São 15 vezes de folga. [avança] E tem o que sai do
   orçamento: são 11,9 mil reais por ano que vamos economizar com o fim do Deskfy."
 - **Ponto principal:** a rede cresce sem conta nova, e ainda sobra uma economia concreta.
-- **Transição:** "Produto pronto, rede atendida, conta zerada. Falta a parte mais importante: pôr o Luma na mão da rede."
+- **Transição:** "Zero de infraestrutura. E a IA, que parece a parte cara? Vem de graça também."
 - **Perguntas difíceis:**
   - *"E se abrir para todos os lojistas?"* Aí o banco vai para o Supabase Pro: 25 dólares por mês, uns
     140 reais. O render continua nos aparelhos, então a conta não cresce com o número de artes.
