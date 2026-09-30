@@ -345,7 +345,8 @@ body:not(.theme-light) .lp-stage.loading.montando .lp-canvas-wrap::after {
 .lp-posted-btn[hidden]{display:none}
 
 .lp-zoom-group{height:32px;flex:0 0 auto;display:inline-flex;align-items:center;padding:2px;border:1px solid var(--gray-light);border-radius:10px;background:var(--off-white)}
-.lp-zoom-step{width:24px;height:26px;display:grid;place-items:center;padding:0;border:0;border-radius:7px;background:transparent;color:var(--text-2);cursor:pointer;transition:background var(--dur-micro),color var(--dur-micro),transform var(--dur-micro) var(--ease-spring)}
+.lp-zoom-step{position:relative;width:24px;height:26px;display:grid;place-items:center;padding:0;border:0;border-radius:7px;background:transparent;color:var(--text-2);cursor:pointer;transition:background var(--dur-micro),color var(--dur-micro),transform var(--dur-micro) var(--ease-spring)}
+.lp-zoom-step::after{content:'';position:absolute;inset:50%;min-width:var(--tap-min);min-height:var(--tap-min);transform:translate(-50%,-50%)}
 .lp-zoom-step svg{width:13px;height:13px}
 .lp-zoom-step:hover{background:var(--white);color:var(--text)}
 .lp-zoom-step:active{transform:scale(.9)}
@@ -825,11 +826,12 @@ body:not(.theme-light) .lp-edit-input{background:var(--d-card,#242424);border-co
    ════════════════════════════════════════════════════════════════════ */
 
 /* Botão da toolbar da prévia (irmão de Limpo·Guias·Ambiente, mas é ação) */
-.lp-posted-btn{height:32px;display:inline-flex;align-items:center;gap:5px;font-family:'Roboto',sans-serif;
+.lp-posted-btn{position:relative;height:32px;display:inline-flex;align-items:center;gap:5px;font-family:'Roboto',sans-serif;
   white-space:nowrap;
   font-size:11px;font-weight:700;color:var(--dm-orange-d);background:var(--dm-orange-bg);
   border:1px solid transparent;border-radius:var(--r-pill);padding:5px 11px;cursor:pointer;
   transition:transform var(--dur-micro) var(--ease-spring),filter var(--dur-micro),background var(--dur-micro)}
+.lp-posted-btn::after{content:'';position:absolute;inset:50%;min-width:var(--tap-min);min-height:var(--tap-min);transform:translate(-50%,-50%)}
 .lp-posted-btn:hover{transform:translateY(-1px);filter:brightness(.97)}
 .lp-posted-btn:active{transform:translateY(0)}
 .lp-posted-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}

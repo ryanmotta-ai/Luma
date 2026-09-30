@@ -240,6 +240,7 @@ function _fKitFormHtml(snapId, plano){
 }
 
 async function fKitAbrir(btn, snapId){
+  _fKitPoda();
   const box=document.getElementById('art-kit-'+snapId); if(!box) return;
   if(!box.hidden){ box.hidden=true; btn.setAttribute('aria-expanded','false'); return; }
   const snap=(typeof _fArtSnapshots!=='undefined'&&_fArtSnapshots[snapId])
@@ -309,21 +310,27 @@ async function fKitGerar(btn, snapId){
     }
   }finally{ restore(); if(typeof fClearImgCache==='function') fClearImgCache(); }
   st.prontas=prontas; st.fora=fora; st.files=null;
+  let nomes=_fKitNomesArquivo(prontas);
+  /* Celular: a folha nativa exige gesto NOVO — depois de gerar várias peças o gesto do clique
+     já expirou e o WebKit recusaria. Por isso o share vira um segundo toque, "Salvar".
+     Uma peça que não vira arquivo sai do pacote, nomeada; as outras seguem. */
+  const celular=(typeof _fArteEhCelular==='function')&&_fArteEhCelular();
+  if(prontas.length&&celular&&navigator.canShare){
+    const r=await Promise.allSettled(prontas.map(async(x,i)=>new File([_fKitDataUrlBlob(x.url)], nomes[i]+'.png', {type:'image/png'})));
+    const files=[];
+    for(let i=r.length-1;i>=0;i--){
+      if(r[i].status==='fulfilled'){ files.unshift(r[i].value); continue; }
+      console.warn('[kit] arquivo falhou:', r[i].reason);
+      fora.push({nome:prontas[i].p.nome, motivo:'não consegui preparar o arquivo'});
+      prontas.splice(i,1); nomes.splice(i,1);
+    }
+    try{ if(files.length&&navigator.canShare({files})) st.files=files; }catch(e){ st.files=null; }
+  }
   const foraHtml=fora.length?`<ul class="art-kit-fora">${fora.map(f=>`<li><strong>${gEsc(f.nome)}</strong> ficou de fora: ${gEsc(f.motivo)}.</li>`).join('')}</ul>`:'';
   if(!prontas.length){
     if(status) status.innerHTML=foraHtml;
     gToast('Nenhuma peça pôde ser gerada. Veja o motivo de cada uma.','error');
     return;
-  }
-  const nomes=_fKitNomesArquivo(prontas);
-  /* Celular: a folha nativa exige gesto NOVO — depois de gerar várias peças o gesto do clique
-     já expirou e o WebKit recusaria. Por isso o share vira um segundo toque, "Salvar". */
-  const celular=(typeof _fArteEhCelular==='function')&&_fArteEhCelular();
-  if(celular&&navigator.canShare){
-    try{
-      const files=await Promise.all(prontas.map(async(x,i)=>new File([await (await fetch(x.url)).blob()], nomes[i]+'.png', {type:'image/png'})));
-      if(navigator.canShare({files})) st.files=files;
-    }catch(e){ st.files=null; }
   }
   const resumo=`<p class="art-kit-ok">${prontas.length===1?'1 peça pronta':prontas.length+' peças prontas'}.</p>`;
   if(st.files){
@@ -332,6 +339,11 @@ async function fKitGerar(btn, snapId){
   }
   if(status) status.innerHTML=resumo+foraHtml;
   await _fKitZip(st, nomes);
+}
+function _fKitDataUrlBlob(url){
+  const i=url.indexOf(','), bin=atob(url.slice(i+1)), u8=new Uint8Array(bin.length);
+  for(let k=0;k<bin.length;k++) u8[k]=bin.charCodeAt(k);
+  return new Blob([u8], {type:(/^data:([^;,]+)/.exec(url)||[])[1]||'image/png'});
 }
 function _fKitNomesArquivo(prontas){
   const usados=new Set();
@@ -359,7 +371,7 @@ async function _fKitZip(st, nomes){
 }
 async function fKitSalvar(btn, snapId){
   const st=_fKit[snapId]; if(!st||!st.files) return;
-  try{ await navigator.share({files:st.files}); _fKitEntregue(st,'share'); }
+  try{ await navigator.share({files:st.files}); _fKitEntregue(st,'share'); btn.remove(); }
   catch(e){
     if(e&&e.name==='AbortError') return;        // fechou a folha: nada saiu
     await _fKitZip(st, st.files.map(f=>f.name.replace(/\.png$/,'')));
@@ -370,6 +382,13 @@ function _fKitEntregue(st, via){
   try{ if(typeof gTrackEvent==='function') gTrackEvent('kit_baixado',{n:st.prontas.length, fora:st.fora.length, camp_id:st.snap.camp.id, via}); }catch(_){}
   const n=st.prontas.length;
   gToast((n===1?'Arte salva':n+' artes salvas')+' em Minhas artes'+(st.fora.length?' · '+st.fora.length+(st.fora.length===1?' ficou':' ficaram')+' de fora':'')+'.');
+  // Entregue: solta as imagens (MB de data URL). "Gerar peças" refaz tudo a partir de snap+plano.
+  st.prontas.forEach(x=>{ x.url=null; }); st.files=null;
+}
+/* A bolha saiu (conversa reiniciada → `_fArtSnapshots` zerado): o kit dela não tem mais dono. */
+function _fKitPoda(){
+  if(typeof _fArtSnapshots==='undefined') return;
+  Object.keys(_fKit).forEach(id=>{ if(!_fArtSnapshots[id]) delete _fKit[id]; });
 }
 /* ── TEMA POR CAMPANHA (1º caso: Much+) ──
    Campanha com `theme` — ou pasta com a tag/badge "MUCH+" — re-tokeniza o app

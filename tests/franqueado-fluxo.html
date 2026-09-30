@@ -932,6 +932,22 @@ await test('bloqueio: a porta é ÚNICA — gHandleLayoutUnsafeError delega para
 });
 
 window.gConfirm=_gConfirmReal;
+await test('Preço "por" maior que o "de" reprova mesmo sem ponto de milhar', async()=>{
+  assert(_fPrecoNum('R$ 1000,00')===1000,'"R$ 1000,00" não virou número');
+  assert(_fPrecoDePorErro('preco','De R$ 1000,00 Por R$ 2000,00',null),'"De 1000,00 / Por 2000,00" passou');
+  assert(!_fPrecoDePorErro('preco','De R$ 2000,00 Por R$ 1000,00',null),'par correto foi reprovado');
+});
+await test('Validade rejeita data que não existe e aceita texto livre válido', async()=>{
+  for(const v of ['00/00/0000','99/99/9999','31/02/2026']){
+    const m=fApplyMask('validade',v);
+    assert(fValidate('validade',m),'"'+v+'" foi aceito como validade ('+m+')');
+  }
+  // Texto livre nunca é recusado por vocabulário: lista de "palavras de prazo" sempre deixa um texto real de fora.
+  for(const v of ['até domingo','15/10','29/02/2028','12 de julho','enquanto durar o estoque','hoje','válido na loja do centro']){
+    const m=fApplyMask('validade',v);
+    assert(!fValidate('validade',m),'"'+v+'" foi recusado: '+fValidate('validade',m));
+  }
+});
 /* ── PREÇO QUE SUMIA OU REESCREVIA NO CELULAR (teste do time, 23/09) ─────────────────────────
    ⚠ NO FIM DE PROPÓSITO: estes casos ligam o `fAttachInputGuard` (é nele que mora o espelho
    da digitação), e o guarda também assume o colar da caixa — antes do caso de colar/arrastar,
@@ -1100,6 +1116,19 @@ await test('Kit: duas peças de mesmo formato com as mesmas respostas viram duas
   fState.material=a;
   assert(fAddHist(DADOS_KIT,KIT_CAMP,fmt,'baixada')===ia,'a mesma peça repetida deixou de deduplicar');
   try{ localStorage.removeItem(HIST_KEY); }catch(e){}
+});
+
+await test('Kit: data URL vira Blob sem fetch; entrega solta as imagens; bolha que saiu perde o kit', async()=>{
+  const b=_fKitDataUrlBlob('data:image/png;base64,iVBORw0KGgo=');
+  assert(b.type==='image/png'&&b.size===8,'o Blob local saiu errado: '+b.type+' '+b.size);
+  const st={prontas:[{url:'data:image/png;base64,AAAA',hist:'x'}],fora:[],snap:{camp:{id:'c'}}};
+  _fKitEntregue(st,'zip');
+  assert(st.prontas[0].url===null&&st.files===null,'a entrega não soltou as imagens');
+  _fKit['snap-vivo']={}; _fKit['snap-morto']={};
+  _fArtSnapshots['snap-vivo']={};
+  _fKitPoda();
+  assert(_fKit['snap-vivo']&&!_fKit['snap-morto'],'a poda não tirou só o kit da bolha que saiu');
+  delete _fKit['snap-vivo']; delete _fArtSnapshots['snap-vivo'];
 });
 
 window.__lumaTest={total,passed:total-failures.length,failures};

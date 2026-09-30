@@ -1428,7 +1428,12 @@ async function fPortaoFoto(varId, url){
     if(!window.gAI || !(typeof window.gAI.isEnabled==='function' && window.gAI.isEnabled('imageValidation'))) return '';
     const m=url.match(/^data:([^;]+);base64,(.+)$/);
     if(!m) return '';
-    const res=await window.gAI.run('image.validate',{fieldType:'foto_produto', imagePart:{mimeType:m[1], data:m[2]}});
+    /* Rejeição (400 "anexos pesados demais", 502) ou IA muda: segue sem a checagem. O timeout
+       evita o "Conferindo a foto…" eterno. */
+    const res=await Promise.race([
+      Promise.resolve().then(()=>window.gAI.run('image.validate',{fieldType:'foto_produto', imagePart:{mimeType:m[1], data:m[2]}})),
+      new Promise(r=>setTimeout(()=>r(null), 20000))
+    ]);
     if(res && res.ok && res.data && res.data.valid===false && res.data.confidence==='high')
       return (res.data.reason ? res.data.reason+' ' : '')+'Use uma foto do produto (comida ou bebida).';
   }catch(e){ console.warn('[portão da foto] IA falhou, liberando:', e); }
@@ -1657,7 +1662,7 @@ function fProcessImageFile(file, varId, uploadId){
   const reader=new FileReader();
   reader.onprogress=(ev)=>{ if(_bar&&ev.lengthComputable){_bar.style.width=Math.round(ev.loaded/ev.total*70)+'%';} };
   // Falha de leitura: restaura a zona clicável (com o input) em vez de travar no skeleton.
-  reader.onerror=()=>{
+  const falhaLeitura=()=>{
     if(_fGuidedAtivo()) _fGuidedErro('Não consegui ler essa imagem. Tente outra.');
     else fShowFieldError('Não consegui ler essa imagem. Tente outra.');
     const zEl=document.getElementById(uploadId+'-zone');
@@ -1669,9 +1674,18 @@ function fProcessImageFile(file, varId, uploadId){
         <div class="f-upload-sub">PNG ou JPG, até 20MB</div>`;
     }
   };
+  reader.onerror=falhaLeitura;
   reader.onload=(e)=>{
     if(_bar)_bar.style.width='85%';
     const dataUrl=e.target.result;
+    /* Um HTML/texto salvo como .jpeg tem type image/* e lê bem, mas não decodifica — virava
+       "Foto enviada" e só quebrava no desenho. Só aceita o que o navegador consegue abrir. */
+    const teste=new Image();
+    teste.onerror=falhaLeitura;
+    teste.onload=()=>seguirComImagem(dataUrl);
+    teste.src=dataUrl;
+  };
+  const seguirComImagem=(dataUrl)=>{
     fTrackFoto(varId, dataUrl, file, 'chat');
     // Redimensiona se for muito grande (>2500px). 2500 cobre story a 2× (2160px) sem
     // esticar a foto — 1500 antes borrava em arte grande. Ainda limita o peso do draft.
@@ -1722,7 +1736,8 @@ function _fApplyImageToField(varId, uploadId, resizedUrl){
     const msgs=document.getElementById('f-messages'); if(msgs) msgs.scrollTop=msgs.scrollHeight;
   };
   const _ehFotoProduto = !(typeof gCampoEhLogo==='function' && gCampoEhLogo(varId));
-  if(zone) pintaPreview('', _ehFotoProduto ? {conferindo:true} : null);
+  // Trocar foto: a zona já virou "-preview" no 1º upload, então `zone` é null — repinta pelo host.
+  if(zone || document.getElementById(uploadId+'-preview')) pintaPreview('', _ehFotoProduto ? {conferindo:true} : null);
   const box=document.getElementById('f-msg-box');
   if(box){box.disabled=false;}
   try { fUpdateLivePreview({animateField:varId}); } catch(e){}
@@ -1747,7 +1762,7 @@ function _fApplyImageToField(varId, uploadId, resizedUrl){
         try { fUpdateLivePreview(); } catch(e){}
         pintaPreview('', {bloqueio:motivo});
       } else pintaPreview('');
-    });
+    }).catch(()=>{ if(_aindaEhAtual()) pintaPreview(''); });   // conferência falhou: segue sem ela
   } else if(typeof fValidarImagemSemantica==='function'){
     fValidarImagemSemantica(varId, resizedUrl, (aviso)=>{ if(aviso && _aindaEhAtual()) pintaPreview(aviso); });
   } else if(typeof gCampoEhLogo==='function' && gCampoEhLogo(varId) && typeof fValidarLogo==='function'){
@@ -1995,7 +2010,8 @@ async function fCorrigirTextoLongo(res){
      honesta é trocar de material. */
   if(idx < 0){
     if(typeof gToast === 'function')
-      gToast('O conteúdo de “' + rotulo + '” não cabe nesta arte. Escolha outro material para este conteúdo.', 'error');
+      // Sem 'error': o gToast engole (`_gNotifErro`) parte dessas mensagens e o toque parecia morto.
+      gToast('O conteúdo de “' + rotulo + '” não cabe nesta arte. Escolha outro material para este conteúdo.');
     return false;
   }
 
@@ -2938,7 +2954,9 @@ function _fBolhaMarcaBloqueio(w, rendered, d, mw, mh){
           r = Object.assign({}, res, {diagnostico: gLocalFitDiagnostico(rendered, res, d || {},
             {canvas:{w:mw,h:mh}, defaults:(typeof gVarDefaults === 'function') ? gVarDefaults() : null})});
       }catch(e){ /* sem laudo, o diálogo cai na frase sem número */ }
-      if(typeof fCorrigirTextoLongo === 'function') fCorrigirTextoLongo(r);
+      const semAcao = ()=>{ if(typeof gToast === 'function') gToast('Abra o campo que não coube e encurte o texto. Se não achar, escolha outro material.'); };
+      if(typeof fCorrigirTextoLongo !== 'function') return semAcao();
+      try{ Promise.resolve(fCorrigirTextoLongo(r)).catch(semAcao); }catch(e){ semAcao(); }   // erro dentro do diálogo não pode deixar o toque mudo
     };
     ok.classList.add('is-bloqueio');
     ok.setAttribute('role','button'); ok.tabIndex = 0;

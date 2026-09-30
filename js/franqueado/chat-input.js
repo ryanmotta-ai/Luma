@@ -402,11 +402,12 @@ function fApplyMask(id, raw){
    sem ele, só o caso de um campo com os dois preços, "De R$ X Por R$ Y", é checado).
    Igual também reprova: "de R$ 20 por R$ 20" anuncia uma oferta que não existe. */
 function _fPrecoNum(v){
-  const m = String(v||'').match(/r\$\s?(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+  // `\d+` (não `\d{1,3}`): "1000,00" sem ponto de milhar dava NaN e a regra "por < de" aprovava tudo.
+  const m = String(v||'').match(/r\$\s?(\d+(?:\.\d{3})*,\d{2})/i);
   return m ? parseFloat(m[1].replace(/\./g,'').replace(',','.')) : NaN;
 }
 function _fPrecoDePorErro(id, val, dados){
-  const precos = String(val||'').match(/r\$\s?\d{1,3}(?:\.\d{3})*,\d{2}/gi) || [];
+  const precos = String(val||'').match(/r\$\s?\d+(?:\.\d{3})*,\d{2}/gi) || [];
   if(precos.length >= 2 && /\bde\b/i.test(val) && /\bpor\b/i.test(val)){
     const de = _fPrecoNum(precos[0]), por = _fPrecoNum(precos[1]);
     if(de > 0 && por > 0 && por >= de) return `O preço “por” (${precos[1]}) precisa ser menor que o “de” (${precos[0]}).`;
@@ -425,6 +426,18 @@ function _fPrecoDePorErro(id, val, dados){
   return papel === 'por'
     ? `O preço “por” (${String(tPor).trim()}) precisa ser menor que o “de” (${String(tDe).trim()}).`
     : `O preço “de” (${String(tDe).trim()}) precisa ser maior que o “por” (${String(tPor).trim()}).`;
+}
+
+/* VALIDADE: texto livre é válido ("até domingo", "válido na loja do centro"); só a data de
+   calendário que não existe é recusada ("31/02/2026", "99/99/9999"). Não há lista de palavras
+   "de prazo": ela sempre deixa de fora um texto legítimo de franqueado. */
+function _fValidadeErro(val){
+  const m = String(val||'').match(/(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?/);
+  if(!m) return null;
+  const d = +m[1], mes = +m[2], a = m[3] ? (m[3].length === 2 ? 2000 + +m[3] : +m[3]) : 2024; // sem ano: aceita 29/02
+  const dias = new Date(a, mes, 0).getDate();
+  if(mes < 1 || mes > 12 || d < 1 || a < 1 || d > dias) return 'Essa data não existe no calendário. Confira o dia e o mês (ex: 15/10).';
+  return null;
 }
 
 // Validação pós-máscara — retorna mensagem de erro ou null.
@@ -466,6 +479,7 @@ function fValidate(id, val, dados){
     if(!ok) return `Use um percentual (ex: 20% off) ou valor em R$.`;
   }
   if(cfg.type === 'code' && val.length < 3) return `O código precisa ter pelo menos 3 caracteres.`;
+  if(id === 'validade'){ const ev = _fValidadeErro(val); if(ev) return ev; }
   // 4.1: select só aceita uma das opções definidas pelo designer
   if(cfg.type === 'select' && cfg.options && cfg.options.length){
     const ok = cfg.options.some(o=>o.toLowerCase()===val.trim().toLowerCase());

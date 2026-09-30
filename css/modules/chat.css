@@ -3674,7 +3674,7 @@ body.f-arte-pronta .art-btn.art-redo{order:6}
 /* A régua contínua agrupa as duas rotas de saída; o peso neutro impede que pareçam novas
    etapas obrigatórias depois que a pessoa já concluiu a arte. */
 body.f-arte-pronta .art-wrap .art-btn.art-voltar,
-body.f-arte-pronta .art-wrap .art-btn.art-redo{flex:1 1 50%;width:auto;min-width:0}
+body.f-arte-pronta .art-wrap .art-btn.art-redo{flex:1 1 50%;width:auto;min-width:0;margin-bottom:calc(16px + env(safe-area-inset-bottom))}
 body.f-arte-pronta .art-btn.art-redo{
     min-height:44px;margin-top:18px;font-size:12.5px;font-weight:700;
     background:transparent;border-color:transparent;box-shadow:none;color:var(--text-2);
