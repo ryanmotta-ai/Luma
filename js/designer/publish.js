@@ -223,7 +223,7 @@ function dPublishClearError(){
 function dPublishValidateStep(step){
   dPublishClearError();
   if(step===0){
-    if(dPubLinterStats.errorsCount>0)return dPublishShowError('Corrija os erros críticos do checklist antes de continuar.',0,document.getElementById('d-pub-linter-issues'));
+    // O checklist de design só avisa (decisão do Ryan, 30/09/2026): o designer decide pelo bom senso.
     if(!dPubSelectedABs.size)return dPublishShowError('Selecione pelo menos um material para publicar.',0,document.getElementById('pub-ab-grid'));
     for(const id of dPubSelectedABs){
       const input=document.getElementById('pub-ab-name-'+id);
@@ -290,7 +290,7 @@ function dPublishUpdateFooter(){
   if(cancel)cancel.textContent=dPubWizardStep===0?'Fechar':'Voltar';
   if(draft)draft.hidden=false;
   if(primary){
-    primary.disabled=dPubWizardStep===0&&dPubLinterStats.errorsCount>0;
+    primary.disabled=false;   // o checklist nunca trava o avanço
     primary.innerHTML=dPubWizardStep===2
       ?'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4 20-7Z"/><path d="M22 2 11 13"/></svg><span>Publicar material</span>'
       :'<span>Continuar</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
@@ -477,7 +477,7 @@ function dPublishRefreshChecklist(){
   if(summaryEl){
     if(stats.errorsCount>0){
       summaryEl.className='pub-linter-summary error';
-      summaryEl.innerHTML=`<span class="pub-linter-main"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 17h.01"/></svg>${stats.errorsCount} erro(s) crítico(s)</span><span>Corrija os itens listados para continuar.</span>`;
+      summaryEl.innerHTML=`<span class="pub-linter-main"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 17h.01"/></svg>${stats.errorsCount} ponto(s) de atenção</span><span>Você pode publicar assim mesmo.</span>`;
     }else if(stats.warningsCount>0){
       summaryEl.className='pub-linter-summary warning';
       summaryEl.innerHTML=`<span class="pub-linter-main"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v4M12 17h.01"/></svg>${stats.warningsCount} alerta(s)</span><span>Você pode continuar, mas vale revisar o respiro e a área segura.</span>`;
@@ -488,8 +488,8 @@ function dPublishRefreshChecklist(){
   }
   const confirmBtn=document.querySelector('.pub-btn-confirm');
   if(confirmBtn){
-    confirmBtn.disabled=stats.errorsCount>0;
-    confirmBtn.title=stats.errorsCount>0?'Corrija os erros críticos no Checklist para liberar a publicação.':'';
+    confirmBtn.disabled=false;   // o checklist só avisa: nunca trava a publicação
+    confirmBtn.title='';
   }
   return stats;
 }
