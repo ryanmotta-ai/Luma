@@ -845,3 +845,5 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 @media (prefers-reduced-motion: reduce) { .s-mkt .ondas .r { stroke-dashoffset: 0; animation: none !important; } }
 .s-custo .zero b { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .s-ia .head .h1 { font-size: 62px; line-height: 1.02; max-width: 960px; }
+.s-duas .spine small { font-size: 12px; font-weight: 900; letter-spacing: .16em; color: var(--orange); background: #0A0A0A; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+.s-copy .como { position: absolute; left: var(--pad-x); top: 318px; font-size: 21px; color: var(--ink-2); }
