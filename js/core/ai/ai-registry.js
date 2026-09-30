@@ -14,7 +14,7 @@
 
   const TASKS = {
     'caption.generate': {
-      version: '1.2.0',
+      version: '1.3.0',
       modelType: 'fast',
       featureFlag: 'caption',
       defaultTtl: 0, // legendas não devem ser repetidas em cache cego
@@ -31,7 +31,7 @@
           p.formato ? `Formato da arte: ${p.formato}` : 'feed'
         ].filter(Boolean).join('\n');
 
-        const cidadeTag = (p.cidade || '').replace(/[^a-zA-Z0-9]/g, '');
+        const cidadeTag = (p.cidade || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '');
         const hashtags = cidadeTag
           ? `#${cidadeTag} #Delivery${cidadeTag} #DeliveryMuch`
           : `#DeliveryMuch #Delivery`;
@@ -39,30 +39,26 @@
         const ehStory = p.formato === 'story';
         const prompt = `${ANTI_INJECTION_PREAMBLE}
 
-Você é o assistente de redação da Delivery Much (app de delivery para o interior do Brasil).
-Escreva TRÊS opções distintas de legenda para acompanhar a arte publicada pelo franqueado da cidade:
-1. "promo": legenda comercial direta, focada na oferta e no pedido pelo app.
-2. "engajar": legenda descontraída que puxa comentários ou marcação de amigos.
-3. "whatsapp": mensagem curta para lista de transmissão do WhatsApp (sem hashtags). NUNCA use asterisco (*) nem marcação de negrito/markdown em nenhuma opção.
+Escreva 3 legendas da Delivery Much para o cliente do app no interior: voz próxima, direta, local, sem exagero.
+Gancho na primeira linha e CTA para pedir pelo app em todas. Abordagens e frases distintas:
+promo: vender a oferta.
+engajar: puxar comentário ou marcação de amigos com uma pergunta natural.
+whatsapp: convite curto para lista de transmissão, sem hashtags, com a mesma ortografia cuidada das outras (acentos inclusos, nada de escrita de chat).
+Use os fatos: com preço, promo e whatsapp citam o "Preço por" (o "de" só como comparação); com validade, cite-a. Não invente preços, prazos, cupons, fretes, brindes ou vantagens; sem preço nos fatos, nenhum valor numérico.
+Sem emojis, asteriscos ou markdown.
+PT-BR com acento e ç corretos nas 3 opções, inclusive whatsapp (família, preço, até, você, não, está, olá, peça). Os fatos podem vir sem acento: "Combo familia" vira "Combo família"; não troque palavras, nomes próprios nem preços.
+Promo e engajar: ${ehStory ? 'até 2' : '2 a 4'} linhas curtas, incluindo as hashtags finais: ${hashtags}
+Campanha é contexto, não produto.${p.girias ? '\nGírias opcionais, só se naturais: ' + p.girias : ''}
 
-FATOS CONFIRMADOS DA PEÇA:
-${fatos || 'Oferta especial no app.'}
-
-REGRAS RÍGIDAS:
-1. NUNCA use nenhum emoji — estritamente proibido em qualquer opção.
-2. NÃO invente preços, prazos, cupons, fretes ou brindes não citados nos fatos.
-3. Se não houver preço nos fatos, NÃO cite valores numéricos.
-4. ${ehStory ? 'Formato STORY: no máximo 2 linhas curtas em promo e engajar.' : 'Formato FEED: 2 a 4 linhas curtas em promo e engajar.'}
-5. Termine "promo" e "engajar" com as hashtags: ${hashtags}
-6. As 3 opções devem ter abordagens e frases diferentes.
-7. Português do Brasil com TODA a acentuação e o "ç" corretos (família, peça, promoção, você, já). Os fatos podem ter sido digitados sem acento: corrija a grafia na legenda ("Combo familia" vira "Combo família"), mas não troque palavras, nomes próprios nem preços.${p.girias ? `\n8. Expressões regionais da cidade (opcional se couber com naturalidade): ${p.girias}` : ''}`;
+FATOS:
+${fatos}`;
 
         return { prompt: prompt, parts: [] };
       }
     },
 
     'copy.fit': {
-      version: '1.0.0',
+      version: '1.1.0',
       modelType: 'fast',
       featureFlag: 'copyFit',
       defaultTtl: 3600000, // 1 hora de cache por texto + restrição
@@ -74,60 +70,62 @@ REGRAS RÍGIDAS:
 
         const prompt = `${ANTI_INJECTION_PREAMBLE}
 
-O usuário digitou um texto para o campo "${fieldName}" em uma arte de marketing, mas ele ficou longo demais e precisa caber em no máximo ${maxLen} caracteres.
-Sua tarefa é sugerir até 3 alternativas mais curtas preservando o significado exato, o produto e a clareza.
+Encurte o campo "${fieldName}": até 3 sugestões distintas, naturais em PT-BR, menores que o original e com até ${maxLen} caracteres (incluindo espaços).
+Preserve sentido, clareza, todos os produtos, sabores, tamanhos, itens e marcas. Números e preços exatos, na mesma ordem. {{campos}}, tags e entidades HTML intactos. Original em MAIÚSCULAS exige MAIÚSCULAS.
+Sem emoji, asterisco/markdown novo ou palavras novas, exceto estas trocas:
+refrigerante→refri; hambúrguer→burger; promoção→promo; litros→L; grande/médio/pequeno→G/M/P (tamanho, nunca nome); segunda-feira→seg; de desconto→OFF; com/e→+ só entre itens, não ingredientes.
+Pode tirar artigos/preposições sem mudar o sentido, apenas/somente antes de preço e enfeites antes do produto (delicioso, super, incrível), nunca parte do nome, tamanho ou restrição.
+Não force 3 opções: se nenhuma cumprir tudo, suggestions vazio.
 
-TEXTO ORIGINAL:
-"${original}"
-
-REGRAS (o Luma confere cada alternativa no código — gCopyFitConfere — e descarta a que quebrar qualquer uma):
-1. O texto DEVE ter no máximo ${maxLen} caracteres.
-2. Mantenha TODOS os números e preços exatamente como estão, na mesma ordem.
-3. Mantenha TODOS os produtos, sabores, tamanhos, itens e marcas; não troque um produto por outro.
-4. Não invente nada: nenhuma palavra que não esteja no texto original. NUNCA use emojis.
-5. Pode tirar: artigos e preposições, "apenas/somente" antes de preço, adjetivo de enfeite antes do produto (delicioso, super, incrível), trocar "com"/"e" por "+" entre itens, e abreviar: refrigerante→refri, hambúrguer→burger, promoção→promo, litros→L, grande/médio/pequeno→G/M/P, segunda-feira→seg, "de desconto"→OFF.
-6. Mantenha qualquer {{campo}} e tag exatamente como estão. Se o original está em MAIÚSCULAS, responda em MAIÚSCULAS.
-7. Responda com alternativas que soem naturais em português brasileiro.`;
+ORIGINAL: ${JSON.stringify(original)}`;
 
         return { prompt: prompt, parts: [] };
       }
     },
 
     'content.review': {
-      version: '1.0.0',
+      version: '1.1.0',
       modelType: 'fast',
       featureFlag: 'contentReview',
       defaultTtl: 0,
       build: function(payload){
         const p = payload || {};
-        const fieldsJson = JSON.stringify(p.fields || {}, null, 2);
-        const caption = String(p.caption || '').trim();
-        const camp = String(p.campaign || '').trim();
+        // O chat passa dados completos, inclusive foto em data URL. A revisão só lê texto.
+        // Orçamento já conta escapes JSON; campos + legenda + instruções ficam abaixo de 12 mil.
+        const fields = [];
+        let fieldsSize = 2;
+        Object.entries(p.fields || {}).forEach(([key, value]) => {
+          if (typeof value !== 'string' && !(typeof value === 'number' && Number.isFinite(value))) return;
+          const text = String(value).trim();
+          if (!text || /^(?:data:|blob:|idb:\/\/)/i.test(text)) return;
+          if (text.length > 200 && /^(?:https?:\/\/|\/\/|www\.)/i.test(text)) return;
+          const compact = text.replace(/\s/g, '');
+          if (compact.length >= 128 && /^[A-Za-z0-9+/_-]+={0,2}$/.test(compact)) return;
+          const entry = JSON.stringify(key) + ':' + JSON.stringify(text.slice(0, 400));
+          if (fieldsSize + entry.length + 1 > 6000) return;
+          fields.push(entry);
+          fieldsSize += entry.length + 1;
+        });
+        const fieldsJson = '{' + fields.join(',') + '}';
+        const caption = String(p.caption || '').trim().slice(0, 1500);
+        const camp = String(p.campaign || '').trim().slice(0, 160);
 
         const prompt = `${ANTI_INJECTION_PREAMBLE}
 
-Você é um revisor de consistência e conformidade de ofertas do Delivery Much.
-Revise se há contradições factuais evidentes entre os dados da arte e a legenda.
+Confira somente contradições factuais explícitas entre campos e legenda da Delivery Much: preço, produto, benefício ou data.
+Sem opinião estética, visual, contraste, layout ou design. Ausência de dado não é contradição; os textos podem estar cortados.
+Retorne até 5 issues: field exato, severity warning, message curta em PT-BR dizendo o que conferir e evidence com os trechos conflitantes. Sem emoji ou markdown. Sem contradição comprovada, issues vazio.
 
-DADOS DA ARTE:
 Campanha: ${camp}
-Campos:
-${fieldsJson}
-
-LEGENDA DA POSTAGEM:
-"${caption}"
-
-REGRAS DE REVISÃO:
-1. Apenas aponte DIVERGÊNCIAS FACTUAIS (ex: a arte diz um preço e a legenda outro; a arte diz pizza e a legenda fala em burger; datas diferentes).
-2. NÃO faça críticas estéticas, opiniões visuais, conselhos de contraste, layout ou design.
-3. Se tudo estiver consistente e não houver contradição, retorne a lista de "issues" vazia.`;
+Campos: ${fieldsJson}
+Legenda: ${caption}`;
 
         return { prompt: prompt, parts: [] };
       }
     },
 
     'image.validate': {
-      version: '1.0.0',
+      version: '1.1.0',
       modelType: 'vision',
       featureFlag: 'imageValidation',
       defaultTtl: 86400000, // 24 horas por hash da imagem
@@ -137,17 +135,14 @@ REGRAS DE REVISÃO:
         const imagePart = p.imagePart; // { mimeType, data }
 
         const expectation = (fieldType === 'logo_loja' || fieldType === 'logo')
-          ? 'espera-se um logotipo de restaurante, símbolo comercial ou vetor de marca'
-          : 'espera-se uma foto de comida, prato, lanche, bebida ou produto alimentício real';
+          ? 'logotipo de restaurante, símbolo comercial ou vetor de marca; foto de comida não é logo'
+          : 'foto real de comida, prato, lanche, bebida ou produto alimentício; logo ou desenho de alimento não é foto';
 
         const prompt = `${ANTI_INJECTION_PREAMBLE}
 
-Analise esta imagem enviada pelo usuário para o campo "${fieldType}".
-Neste campo, ${expectation}.
-
-Diga se a imagem é semanticamente compatível com o campo pretendido.
-NÃO avalie estética, beleza, qualidade fotográfica ou iluminação.
-Apenas classifique se o conteúdo parece ser o que o campo pede.`;
+Campo "${fieldType}": ${expectation}.
+Sem julgar estética, beleza, qualidade ou iluminação.
+Retorne valid, detectedKind, reason curta em PT-BR e confidence: high só com evidência clara; na dúvida, medium/low.`;
 
         const parts = imagePart ? [imagePart] : [];
         return { prompt: prompt, parts: parts };

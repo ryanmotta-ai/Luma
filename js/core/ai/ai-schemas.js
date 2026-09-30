@@ -65,6 +65,16 @@
         engajar = cleanPrice(engajar);
         whatsapp = cleanPrice(whatsapp);
 
+        // Hashtags da cidade: o modelo barato às vezes esquece — regra fixa é do Luma, não do prompt.
+        // Mesma montagem do caption.generate (ai-registry.js): cidade sem acento e sem espaço.
+        const cidadeTag = String((payload && payload.cidade) || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]/g, '');
+        const hashtags = cidadeTag ? `#${cidadeTag} #Delivery${cidadeTag} #DeliveryMuch` : '#DeliveryMuch #Delivery';
+        const comTags = (s) => (!s || /#DeliveryMuch\b/i.test(s)) ? s : s.replace(/\s+$/, '') + '\n' + hashtags;
+        caption = comTags(caption);
+        promo = comTags(promo);
+        engajar = comTags(engajar);
+        whatsapp = whatsapp.replace(/(^|\s)#\w+/g, '').replace(/[ \t]{2,}/g, ' ').trim();
+
         return {
           ok: true,
           data: {

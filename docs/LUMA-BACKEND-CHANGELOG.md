@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-09-29 — IA: regra por tarefa (camada 1) e prompts mais assertivos (✅ função `ai` v21)
+
+Pesquisa do Alicerce (14 dias de `ia_chamada`): o pensamento do Gemini era ~31% da saída; a revisão da arte falhava em 400 porque levava a foto em base64 no prompt.
+
+- **Política por tarefa no servidor** (`POLITICA` em `index.ts`): teto de saída e nível de pensamento por tarefa (`thinkingConfig.thinkingLevel`, só nos modelos que aceitam; 400 com o nível repete o mesmo modelo sem ele). Resposta cortada no teto desce de degrau. Legenda com `temperature` 0.5.
+- **Rota por custo (só texto):** Flash-Lite → reservas grátis → só então 3.6/3.8/3.7 Flash. Reservas recebem o schema em uma linha (−45% de entrada nelas).
+- **Prompts** (`ai-registry.js`): legenda 1.3.0 (gancho, CTA, preço e validade dos fatos, acento com exemplos), copy.fit, content.review (só campos de texto: fim do base64 — 66 mil → 1 mil caracteres no caso com foto) e image.validate (foto × logo sem ambiguidade). −9% a −29% de entrada.
+- **Validador da legenda** (`ai-schemas.js`): hashtags da cidade garantidas em promo/engajar e retiradas do WhatsApp — regra fixa é do Luma, não do modelo.
+- Testado com chamadas reais (Flash-Lite, 3–5s): preço, validade e hashtags certos. Limitação: quando os fatos vêm digitados sem acento, o WhatsApp às vezes sai sem acento (1 de 4 amostras).
+
 ## 2026-09-29 — Edge Function `ai`: prazo único e reservas em paralelo (✅ publicada como v19 em 29/09/2026)
 
 Medido antes (14 dias, 203 chamadas em `ia_chamada`): 15% em timeout de 45s, 24% em 502, reserva respondeu 4 vezes. Causa: tentativa ao Gemini sem teto (um modelo travado comia os 45s do front antes de chegar às reservas) e escada que só descia em 403/404/429/503.
