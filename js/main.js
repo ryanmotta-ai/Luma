@@ -396,6 +396,8 @@ async function gOnLoginSuccess() {
   // Os dois são assíncronos e engolem erro: nenhum pode travar o boot.
   if (typeof gProfileSyncFotoLocal === 'function') { gProfileSyncFotoLocal().catch(()=>{}); }
   if (typeof gSupIniciar === 'function') { try { gSupIniciar(); } catch (e) {} }
+  // A franquia de quem entrou (core/franquia.js): franqueado sem vínculo responde uma vez.
+  if (typeof gFranquiaIniciar === 'function') { gFranquiaIniciar().catch(()=>{}); }
 
   // Gate de navegação por role: franqueado só vê a própria área (esconde o Estúdio).
   gApplyModeAccess();

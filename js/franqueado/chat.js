@@ -2364,6 +2364,8 @@ const F_GIRIAS_MAX = 6;
 const F_CIDADE_KEY = 'dm_cidade_v1';
 function fCidadeAtual(){
   let c = '';
+  // A franquia vinculada (core/franquia.js) é a cidade certa; o resto é palpite.
+  try{ const fr = (typeof gMinhaFranquia === 'function') ? gMinhaFranquia() : null; if(fr && fr.cidade) return fr.cidade; }catch(e){}
   try{ c = (fState && fState.dados && fState.dados.cidade) || ''; }catch(e){}
   try{ c = c || localStorage.getItem('luma_bulk_city') || localStorage.getItem(F_CIDADE_KEY) || ''; }catch(e){}
   c = String(c || '').trim();
@@ -2388,10 +2390,20 @@ function fGiriasCache(cidade){
    também é resposta guardada: sem isso, cidade que o modelo não conhece viraria uma chamada
    nova a cada legenda, para sempre. */
 async function fGiriasDaCidade(cidade){
+  // Com franquia vinculada, a fonte é a tabela da franquia e só o APROVADO pelo franqueado vale.
+  const fr = (typeof gMinhaFranquia === 'function') ? gMinhaFranquia() : null;
+  if(fr) return _fGiriasDaFranquia(fr);
   if(!cidade) return [];
   const cache = fGiriasCache(cidade);
   if(cache) return cache;
-  if(typeof gAskAI !== 'function' || typeof gAiReady !== 'function' || !gAiReady()) return [];
+  const termos = await _fGiriasPesquisar(cidade);
+  try{ localStorage.setItem(F_GIRIAS_KEY, JSON.stringify({cidade, ts:Date.now(), termos})); }catch(e){}
+  return termos;
+}
+
+/* A pesquisa na IA (task `girias`), sem cache: quem guarda é quem chama. */
+async function _fGiriasPesquisar(cidade){
+  if(!cidade || typeof gAskAI !== 'function' || typeof gAiReady !== 'function' || !gAiReady()) return [];
 
   const prompt = `Você conhece o modo de falar das cidades do interior do Brasil. Liste expressões REALMENTE usadas no dia a dia em ${cidade}.
 
@@ -2417,8 +2429,112 @@ Responda APENAS com JSON válido:
         && !/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(t.termo + t.significado))
       .slice(0, F_GIRIAS_MAX);
   }catch(e){ termos = []; }
-  try{ localStorage.setItem(F_GIRIAS_KEY, JSON.stringify({cidade, ts:Date.now(), termos})); }catch(e){}
   return termos;
+}
+
+/* ── Gírias por FRANQUIA (30/09/2026; reunião em .maestri/reuniao-legenda/4-sintese.md) ──
+   Tabela luma.franquia_girias. A IA só SUGERE (status `sugerida`, uma vez por franquia); o
+   franqueado marca no painel da legenda (fGiriasPainel) e só `aprovada` entra no prompt.
+   `vetada` com franquia_id nulo = veto da DM para a rede: filtra ANTES de mostrar e nunca
+   vai para o prompt. A dose (1 termo por legenda) é o sorteio em `_fGiriaUma`. */
+const F_GIRIAS_FR_PEDIDO = 'dm_girias_fr_pedido_v1';   // {franquiaId: ts} — a IA já foi consultada
+let _fGiriasFr = null;                                  // {franquiaId, linhas}
+function _fGiriasSb(){ return (typeof gSupabase === 'function') ? gSupabase() : window.sb; }
+async function _fGiriasFrLer(fr, forcar){
+  if(!forcar && _fGiriasFr && _fGiriasFr.franquiaId === fr.id) return _fGiriasFr.linhas;
+  const sb = _fGiriasSb(); if(!sb) return null;
+  try{
+    const { data, error } = await sb.schema('luma').from('franquia_girias')
+      .select('id, termo, significado, status, franquia_id').or(`franquia_id.eq.${fr.id},franquia_id.is.null`);
+    if(error) return null;
+    _fGiriasFr = { franquiaId: fr.id, linhas: data || [] };
+  }catch(e){ return null; }
+  return _fGiriasFr.linhas;
+}
+const _fGiriaVetada = (linhas, termo) => linhas.some(l => l.status === 'vetada' && _fGiriaChave(l.termo) === _fGiriaChave(termo));
+async function _fGiriasDaFranquia(fr){
+  let linhas = await _fGiriasFrLer(fr);
+  if(!linhas) return [];
+  const minhas = linhas.filter(l => l.franquia_id === fr.id);
+  let pedido = {}; try{ pedido = JSON.parse(localStorage.getItem(F_GIRIAS_FR_PEDIDO) || '{}') || {}; }catch(e){}
+  if(!minhas.length && !(Date.now() - (pedido[fr.id] || 0) < F_GIRIAS_DIAS * 864e5)){
+    const termos = (await _fGiriasPesquisar(fr.cidade || fr.nome)).filter(t => !_fGiriaVetada(linhas, t.termo));
+    if(termos.length){
+      try{
+        await _fGiriasSb().schema('luma').from('franquia_girias').insert(termos.map(t => ({
+          franquia_id: fr.id, termo: t.termo, significado: t.significado || null, origem: 'ia', status: 'sugerida' })));
+      }catch(e){}
+      linhas = (await _fGiriasFrLer(fr, true)) || linhas;
+    }
+    // `[]` também é resposta guardada: cidade que o modelo não conhece não vira chamada por legenda.
+    pedido[fr.id] = Date.now(); try{ localStorage.setItem(F_GIRIAS_FR_PEDIDO, JSON.stringify(pedido)); }catch(e){}
+  }
+  return linhas.filter(l => l.franquia_id === fr.id && l.status === 'aprovada' && !_fGiriaVetada(linhas, l.termo))
+    .map(l => ({ termo: l.termo, significado: l.significado || '' }));
+}
+/* A dose, no código: UM termo sorteado por legenda (a IA nunca vê a lista inteira). */
+function _fGiriaUma(lista){ return (lista && lista.length) ? [lista[Math.floor(Math.random() * lista.length)]] : []; }
+
+/* O painel "Jeito de falar de <cidade>" embaixo da legenda: marcar = aprovar, × = não usar,
+   e um campo para o franqueado pôr uma expressão dele. Não bloqueia nada: sem marcar, a
+   legenda sai neutra. */
+async function fGiriasPainel(canvasId){
+  const fr = (typeof gMinhaFranquia === 'function') ? gMinhaFranquia() : null;
+  if(!fr) return;
+  const painel = document.querySelector(`.caption-assistant-panel[data-canvas-id="${canvasId}"]`);
+  if(!painel || painel.querySelector('.cap-girias')) return;
+  const linhas = await _fGiriasFrLer(fr);
+  if(!linhas) return;
+  const minhas = linhas.filter(l => l.franquia_id === fr.id && l.status !== 'vetada' && !_fGiriaVetada(linhas, l.termo));
+  const box = document.createElement('div');
+  box.className = 'cap-girias';
+  box.innerHTML = `<p class="cap-girias-tit">Jeito de falar de ${gEsc(fr.cidade || fr.nome)}</p>
+    <p class="cap-girias-sub">Marque o que se fala aí. A legenda usa no máximo um por vez.</p>
+    <div class="cap-girias-chips">${minhas.map(_fGiriaChipHTML).join('')}</div>
+    <form class="cap-girias-add" onsubmit="fGiriaAdicionar(event)">
+      <input type="text" maxlength="24" placeholder="Adicionar uma expressão daí" aria-label="Adicionar uma expressão da sua cidade">
+      <button type="submit">Adicionar</button>
+    </form>`;
+  painel.appendChild(box);
+  if(minhas.length && typeof gTrackEvent === 'function') gTrackEvent('giria_mostrada', { n: minhas.length });
+}
+function _fGiriaChipHTML(l){
+  return `<span class="cap-giria" data-id="${gEsc(l.id)}"><button type="button" class="cap-giria-t" aria-pressed="${l.status === 'aprovada'}" onclick="fGiriaMarcar(this)"${l.significado ? ` title="${gEsc(l.significado)}"` : ''}>${gEsc(l.termo)}</button><button type="button" class="cap-giria-x" aria-label="Não usar ${gEsc(l.termo)}" onclick="fGiriaVetar(this)">×</button></span>`;
+}
+async function _fGiriaSalvar(id, campos){
+  const { error } = await _fGiriasSb().schema('luma').from('franquia_girias').update(campos).eq('id', id);
+  if(error){ gToast('Não consegui salvar. Tente de novo.', 'error'); return false; }
+  const l = _fGiriasFr && _fGiriasFr.linhas.find(x => x.id === id); if(l) Object.assign(l, campos);
+  return true;
+}
+async function fGiriaMarcar(btn){
+  const id = btn.closest('.cap-giria').dataset.id, liga = btn.getAttribute('aria-pressed') !== 'true';
+  if(!(await _fGiriaSalvar(id, { status: liga ? 'aprovada' : 'sugerida' }))) return;
+  document.querySelectorAll(`.cap-giria[data-id="${id}"] .cap-giria-t`).forEach(b => b.setAttribute('aria-pressed', String(liga)));
+  if(typeof gTrackEvent === 'function') gTrackEvent(liga ? 'giria_aprovada' : 'giria_desmarcada', {});
+}
+async function fGiriaVetar(btn){
+  const id = btn.closest('.cap-giria').dataset.id;
+  if(!(await _fGiriaSalvar(id, { status: 'vetada' }))) return;
+  document.querySelectorAll(`.cap-giria[data-id="${id}"]`).forEach(e => e.remove());
+  if(typeof gTrackEvent === 'function') gTrackEvent('giria_vetada', {});
+}
+async function fGiriaAdicionar(ev){
+  ev.preventDefault();
+  const fr = (typeof gMinhaFranquia === 'function') ? gMinhaFranquia() : null;
+  const input = ev.target.querySelector('input'), termo = String(input.value || '').trim();
+  if(!fr || !termo) return;
+  if(termo.length > 24 || /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(termo)){ gToast('Use uma expressão curta, sem emoji.', 'error'); return; }
+  const linhas = (await _fGiriasFrLer(fr)) || [];
+  if(_fGiriaVetada(linhas, termo)){ gToast('Essa expressão não pode ser usada nas legendas.', 'error'); return; }
+  const { data, error } = await _fGiriasSb().schema('luma').from('franquia_girias')
+    .insert({ franquia_id: fr.id, termo, origem: 'franqueado', status: 'aprovada' }).select('id, termo, significado, status, franquia_id').single();
+  if(error){ gToast(/duplicate|unique/i.test(error.message || '') ? 'Essa expressão já está na lista.' : 'Não consegui salvar. Tente de novo.', 'error'); return; }
+  if(_fGiriasFr) _fGiriasFr.linhas.push(data);
+  const chips = ev.target.closest('.cap-girias').querySelector('.cap-girias-chips');
+  chips.insertAdjacentHTML('beforeend', _fGiriaChipHTML(data));
+  input.value = '';
+  if(typeof gTrackEvent === 'function') gTrackEvent('giria_adicionada', {});
 }
 
 async function fFetchAICaptionSuggestions(dados, camp, formato) {
@@ -2448,7 +2564,7 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
   let blocoGirias = '';
   try{
     if (typeof fGiriasDaCidade === 'function') {
-      const girias = await fGiriasDaCidade(cidade);
+      const girias = _fGiriaUma(await fGiriasDaCidade(cidade));
       if (girias && girias.length) {
         blocoGirias = girias.map(g => `"${g.termo}"${g.significado ? ` (${g.significado})` : ''}`).join(', ');
       }
@@ -2514,7 +2630,7 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
      simplesmente não existe e a legenda sai como sempre saiu. */
   let blocoGiriasPrompt = '';
   try{
-    const girias = await fGiriasDaCidade(cidade);
+    const girias = _fGiriaUma(await fGiriasDaCidade(cidade));
     if(girias && girias.length){
       const lista = girias.map(g => `"${g.termo}"${g.significado ? ` (${g.significado})` : ''}`).join(', ');
       blocoGiriasPrompt = `\n\nJEITO DE FALAR EM ${cidade.toUpperCase()} (opcional): ${lista}.`;
@@ -2872,7 +2988,8 @@ function fGerarArte(){
     /* O card mais recente é a fonte do "pronta/ajustar" do cabeçalho (`fUpdateProg`): o
        `fUpdateProg` do início do `fGerarArte` rodou quando o card VELHO ainda era o último. */
     try{ fUpdateProg(); }catch(e){}
-    _legendaIA.then(sug => _fAplicarLegendaIA(previewCanvasId, sug)).catch(()=>{});
+    _legendaIA.then(sug => _fAplicarLegendaIA(previewCanvasId, sug)).catch(()=>{})
+      .then(() => fGiriasPainel(previewCanvasId)).catch(()=>{});
     try {
       if (typeof _fRevisarArteIA === 'function') {
         _fRevisarArteIA(previewCanvasId, d, c, _legendaIA).catch(()=>{});

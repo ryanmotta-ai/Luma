@@ -28,6 +28,7 @@ Glossário de dois mundos: um mesmo nome pode significar coisas diferentes no ne
 - ⛔ **1 franqueado por cidade.** Nunca modele "vários franqueados disputando a mesma cidade".
 - ⛔ **Hierarquia é DM-central → franqueado**, não franqueado → franqueado. Não existe "franqueado que gerencia outro".
 - O franqueado **executa** marketing local; ele **não** define a marca nem cria as regras — isso é da DM central.
+- **Desde 30/09/2026 o Luma tem as franquias da rede** (`luma.franquias`, 41 unidades da lista do Ryan, com coordenada aproximada). O franqueado sem vínculo responde **uma vez**, no login, "Qual é a sua franquia?" (a localização só sugere a mais perto; ele confirma). Trocar depois é com a gestão. Primeiro uso: as **gírias por franquia** na legenda — a IA sugere, o franqueado aprova, 1 termo por legenda; a DM só veta (`luma.franquia_girias`).
 - ⚠️ Se pedirem algo "por cidade/multi-tenant" no Luma (ex.: catálogo diferente por franquia), isso **ainda não existe** — é decisão de arquitetura, não um dado que já está lá. Confirme antes de assumir.
 
 ---

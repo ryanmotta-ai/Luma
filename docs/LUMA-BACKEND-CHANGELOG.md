@@ -6,6 +6,15 @@
 
 ---
 
+## 2026-09-30 — Franquias da rede, escolha da própria franquia e gírias por franquia (✅ migration `20260930200000`)
+
+- `luma.franquias` ganhou `lat`/`lon` e as **41 franquias** da lista do Ryan (`codigo` = slug; a do bot de teste fica sem código e fora da lista).
+- `luma.franquias_para_escolha()` (SECURITY DEFINER): a lista para o franqueado, que pela RLS só enxerga as próprias.
+- `luma.escolher_minha_franquia(id)` (SECURITY DEFINER): vincula `auth.uid()` **uma vez** (`origem='manual'`); segunda escolha é recusada ("fale com a gestão").
+- `luma.franquia_girias`: `franquia_id` (nulo = veto da DM para a rede), `termo` ≤ 24, `origem` ia/franqueado/dm, `status` sugerida/aprovada/vetada. RLS: franqueado lê a própria + vetos da rede e escreve só a própria (nunca `origem=dm`); `is_designer()` faz tudo. Helper `luma.sou_da_franquia(id)`.
+- Testado por SQL como franqueado sem vínculo (transação desfeita): vê 41, vincula, 2ª escolha bloqueada, gíria em outra franquia bloqueada, veto da rede bloqueado, gíria na própria gravada.
+- Front: `js/core/franquia.js` (pergunta no login) e `js/franqueado/chat.js` (`_fGiriasDaFranquia`, `fGiriasPainel`, sorteio `_fGiriaUma`). Síntese da reunião em `.maestri/reuniao-legenda/4-sintese.md`.
+
 ## 2026-09-30 — Assistente "Lu": persona no servidor e busca por radical (✅ função `ai` v22, v23)
 
 Reunião curta (Rafael, Juliana, Camila) → decisão do maestro: persona e regras da nova task `ajuda` (assistente da Central de Ajuda) saem do navegador para a função `ai`, como o tutor `aula` — regra de produto não pode ser reescrita no DevTools.
