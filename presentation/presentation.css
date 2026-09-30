@@ -782,3 +782,9 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-aha .done .legend .ia svg { width: 15px; height: 15px; }
 .s-aha .done .legend p { margin: 0; font-size: 22px; line-height: 1.45; color: var(--ink); }
 .s-aha .done .legend mark { background: rgba(255, 144, 0, .28); color: inherit; font-weight: 800; padding: 0 5px; border-radius: 6px; }
+
+/* 15 — Quanto custa? (suspense antes do R$ 0) */
+.s-susp .head { top: 120px; }
+.s-susp .chips { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 250px; display: flex; flex-wrap: wrap; gap: 16px; }
+.s-susp .chips span { font-size: 34px; font-weight: 800; letter-spacing: -.015em; color: #fff; padding: 16px 28px; border-radius: 999px; border: 1.5px solid rgba(255, 255, 255, .22); background: rgba(255, 255, 255, .05); }
+.s-susp .q { position: absolute; left: var(--pad-x); right: var(--pad-x); bottom: 150px; font-size: 230px; line-height: .95; font-weight: 900; letter-spacing: -.05em; color: var(--orange); }

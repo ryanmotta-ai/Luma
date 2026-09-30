@@ -194,7 +194,7 @@
   - *"Essas 15 artes são da rede?"* Não, são artes de demonstração geradas pelo motor a partir de templates
     de demonstração. O motor é o mesmo que a rede vai usar.
 
-## 14 · Lu e suporte — "A Lu responde. A equipe DM assume."
+## 13 · Lu e suporte — "A Lu responde. A equipe DM assume."
 
 - **Objetivo:** mostrar que o franqueado nunca fica sem resposta: primeiro a assistente, depois uma pessoa.
 - **Frase de abertura:** "A Lu responde. A equipe DM assume."
@@ -217,6 +217,15 @@
   - *"Essa conversa é real?"* A tela é a do produto; a conversa foi montada para a demonstração, com a Carla
     e uma atendente fictícia.
 
+## 14 · Quanto custa? — "Tudo isso, e mais IA integrada. Quanto custa?"
+
+- **Objetivo:** criar a pausa antes do número: a plateia soma tudo o que viu e se pergunta o preço.
+- **Frase de abertura:** "Estúdio com PSD, publicação para a rede, conversa guiada, legenda por IA, suporte ao vivo, geração em lote. Tudo isso, e mais IA integrada. Quanto custa?"
+- **Discurso:** "[avança] Soma tudo o que a gente viu. [avança] E a pergunta que todo mundo faz: quanto custa?
+  Deixa a pergunta no ar por dois segundos antes de avançar."
+- **Ponto principal:** suspense. A resposta é o próximo slide.
+- **Transição:** "A resposta é curta."
+
 ## 15 · Custo zero — "O Luma cresce com a rede. A conta, não."
 
 - **Objetivo:** mostrar que a rede inteira roda sem custo de infraestrutura e que o Luma ainda economiza.
@@ -238,7 +247,7 @@
     do plano gratuito), não teste de carga. Usamos o piso: 1.500.
   - *"Quando a economia do Deskfy entra?"* Quando a rede estiver no Luma e o contrato do Deskfy acabar.
 
-## 15b · IA custo zero — "A IA custa zero. E não fica sem resposta."
+## 16 · IA custo zero — "A IA custa zero. E não fica sem resposta."
 
 - **Objetivo:** mostrar, com a animação, que a IA do Luma é barata e nunca deixa o franqueado sem resposta.
 - **Frase de abertura:** "A IA custa zero. E não fica sem resposta."
@@ -255,7 +264,7 @@
     Cada tarefa tem teto de resposta, o que faz a cota render.
   - *"E se o Google cair?"* As reservas respondem sozinhas; é para isso que elas existem.
 
-## 16 · Beta — "A V1 está pronta. Agora começa a parte mais importante."
+## 17 · Beta — "A V1 está pronta. Agora começa a parte mais importante."
 
 - **Objetivo:** pedir o beta com a rede e dizer o que ele mede.
 - **Frase de abertura:** "A V1 está pronta. Agora começa a parte mais importante: colocar o Luma na mão da rede."
@@ -269,7 +278,7 @@
     para definir juntos.
   - *"O franqueado vai pagar?"* Não é o que este beta discute.
 
-## 17 · Horizonte — "Se funciona aqui, o problema não existe só aqui."
+## 18 · Horizonte — "Se funciona aqui, o problema não existe só aqui."
 
 - **Objetivo:** abrir o horizonte sem previsão e sem pedir para vender.
 - **Frase de abertura:** "Se funciona aqui, o problema não existe só aqui."
@@ -292,7 +301,7 @@
     fundador ao Jornal do Comércio. O global é de consultoria e varia muito (de 2 a 7 bilhões de dólares);
     usamos o menor.
 
-## 18 · Potencial — "E se o Luma virasse produto?"
+## 19 · Potencial — "E se o Luma virasse produto?"
 
 - **Objetivo:** um parêntese, quase entre nós: mostrar o tamanho da oportunidade, sem previsão de receita.
 - **Frase de abertura:** "Um parêntese: e se o Luma virasse produto?"
@@ -312,7 +321,7 @@
   - *"O número global é confiável?"* É estimativa de consultoria e varia muito (de 2 a 7 bilhões de dólares);
     usamos o menor.
 
-## 19 · Fechamento — "Uma marca no controle. Uma rede com autonomia."
+## 20 · Fechamento — "Uma marca no controle. Uma rede com autonomia."
 
 - **Objetivo:** fechar a tese e pedir o próximo passo.
 - **Frase de abertura:** "Uma marca no controle. Uma rede com autonomia."
