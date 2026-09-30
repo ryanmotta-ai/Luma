@@ -246,7 +246,7 @@
   rápido do Google, e ele resolve a maioria. [avança] Agora o Google demorou: passaram 8 segundos. Na hora,
   cinco provedores gratuitos entram juntos. O primeiro que responde vence e os outros são cancelados. [avança] E se
   ninguém responder? Só então entra o modelo mais forte. [avança] E nada disso custa: o Google roda na cota gratuita de
-  várias contas e as cinco reservas são gratuitas. Na semana de testes foram 157 respostas, sem pagar nada."
+  várias contas e as cinco reservas são gratuitas. Na semana de testes foram 846 respostas, sem pagar nada."
 - **Ponto principal:** custo quase zero e resposta garantida, por desenho.
 - **Transição:** "Com isso, a V1 está pronta."
 - **Perguntas difíceis:**
