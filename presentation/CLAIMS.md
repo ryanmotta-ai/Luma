@@ -35,6 +35,7 @@
 | 13 | **94** franqueados | Ryan, 27/09/2026 ("hoje temos 94 franqueados") |
 | 13 | Capacidade estimada de **1.500** conexões simultâneas no plano gratuito; **15×** a rede inteira | análise de capacidade de 22/09/2026 (limite de ~200 req/s do PostgREST no plano Free, estimativa de 1.500 a 3.000 usuários simultâneos; usado o piso). 1.500 ÷ 94 ≈ 16, arredondado para baixo. É estimativa, não teste de carga |
 | 13b | **R$ 0** por mês de IA | Ryan, 30/09/2026: os modelos do Google rodam na cota gratuita de várias contas Google; as 5 reservas estão no plano gratuito (`supabase/functions/ai/index.ts`, `RESERVAS`). Obs.: a tabela de preço do painel Dados (`G_DADOS_IA_PRECO`) calcula como se fosse pago |
+| 13b | Modelos nos cartões: Gemini 3.1 Flash-Lite (1º); reservas Gemma 4 31B e DeepSeek V4.1 Flash (NVIDIA), gpt-oss 120B (Ollama), Llama 3.3 70B (Cloudflare), `openrouter/free` (sorteia um grátis); por último Gemini 3.6 / 3.8 / 3.7 Flash | `supabase/functions/ai/index.ts` v23: `MODELO_PADRAO`, `MODELOS_RESERVA`, `RESERVAS` |
 | 13b | **157** respostas de IA na semana de testes | `analytics.fct_eventos` (evento `ia_chamada`, `ok=true`, 23/09 a 30/09/2026): 122 Flash-Lite, 23 no 3.6 Flash, 5 NVIDIA, 7 outros |
 | 13b | **5** reservas gratuitas, que entram juntas após **8 s** | `supabase/functions/ai/index.ts` (`RESERVAS`, `HEDGE_MS = 8_000`), função `ai` v23 |
 | 13 | **R$ 11,9 mil** por ano de economia com o fim do Deskfy | Ryan, 27/09/2026: valor do deck anterior (slide "A demanda": "R$ 11,9 mil é o que sai todo ano pro Deskfy"; na conta do ano, R$ 11.903) |
