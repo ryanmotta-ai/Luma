@@ -122,9 +122,9 @@
   viraram um ativo do produto.
 - **Frase de abertura:** "A arte sai com a legenda. E ela fala a nossa língua."
 - **Discurso:** "Quando a arte fica pronta, a legenda já está do lado. Ela sai de um motor combinatório
-  que a gente alimentou com anos de copy da Delivery Much: 107 ganchos, divididos por tipo de cardápio,
-  66 moldes de corpo e 25 chamadas. O motor junta um gancho, um corpo e uma chamada que combinam com o
-  que o franqueado informou. [avança] Gerar outra sugestão: a opção Engajar puxa conversa. [avança] A de
+  que a gente alimentou com anos de copy da Delivery Much: 107 aberturas, divididas por tipo de cardápio,
+  66 moldes de oferta e 25 chamadas. O motor junta uma de cada, e a cor de cada rolo mostra onde aquele
+  trecho entrou na legenda. [avança] Gerar outra sugestão: a opção Engajar puxa conversa. [avança] A de
   WhatsApp vira mensagem, sem hashtag. [avança] E na arte seguinte nenhuma frase se repete. Só para este
   lanche em promoção são 2.430 legendas diferentes, sem contar as hashtags. Três leis: não inventa preço
   nem validade, não repete frase, não soa artificial."

@@ -672,3 +672,21 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-ia .num b { display: block; font-size: 110px; font-weight: 900; letter-spacing: -.045em; line-height: .95; color: var(--orange); }
 .s-ia .num p { margin: 14px 0 0; font-size: 24px; line-height: 1.35; color: var(--studio-ink); }
 .s-ia .nota { position: absolute; left: var(--pad-x); bottom: 70px; font-size: 18px; color: var(--studio-ink-2); }
+
+/* 08 refinado (30/09): cada rolo tem uma cor, e a mesma cor marca o trecho que ele escreveu na legenda */
+.s-copy .reel:nth-of-type(1) { --c: #FF9000; }
+.s-copy .reel:nth-of-type(2) { --c: #F85400; }
+.s-copy .reel:nth-of-type(3) { --c: #0A0A0A; }
+.s-copy .motor { top: 360px; gap: 14px; }
+.s-copy .lbl { margin-bottom: 10px; }
+.s-copy .lbl b { color: var(--c); }
+.s-copy .lbl .banco, .s-copy .mais { display: none; }
+.s-copy .win::before { border-left-color: var(--c); background: color-mix(in srgb, var(--c) 9%, transparent); }
+.s-copy .conta { top: 900px; }
+.s-copy .conta span { font-size: 26px; line-height: 1.25; color: var(--ink); font-weight: 700; }
+.s-copy .leg { top: 360px; height: 560px; padding: 36px 44px; }
+.s-copy .txt { font-size: 25px; text-wrap: pretty; }
+.s-copy .txt p:nth-child(-n+3) { padding-left: 18px; border-left: 5px solid; }
+.s-copy .txt p:nth-child(1) { border-color: #FF9000; }
+.s-copy .txt p:nth-child(2) { border-color: #F85400; }
+.s-copy .txt p:nth-child(3) { border-color: #0A0A0A; }
