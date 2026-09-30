@@ -26,11 +26,11 @@
 | 05 | Template com **5** campos | tela real do Estúdio (`captures/estudio-campos.webp`, "5 campos configurados") |
 | 07 | Publicação em **3** etapas: qualidade, configuração, revisão; erro crítico não publica | `js/designer/publish.js` (etapas e checklist), `js/designer/linter.js`; telas `captures/estudio-publicar-*.webp` |
 | 08 | **5** perguntas; cada quadro vem do motor de render | roteiro do template de demonstração; quadros gerados por `fRenderCanvasHelper` (`assets/artes/chat-passo-1…5.webp`) |
-| 11 | **107** ganchos (15 universais, 80 em **15** tipos de cardápio, 12 perguntas), **66** moldes de corpo (41 + 25 curtos), **25** chamadas, **76** hashtags | contagem dos arrays de `_COPY_BLOCKS` em `js/franqueado/png-generator.js` |
-| 11 | **2.430** legendas diferentes na opção Promo para o Smash Bacon Duplo em promoção, sem contar as hashtags | a mesma escolha do `_fAssembleCopy`: 22 ganchos (lanches + universais) × 13 corpos "com desconto" = 286 pares, dos quais 243 cabem em 120 caracteres; × 10 chamadas de pedido |
-| 11 | As quatro legendas da demonstração | saídas do `fBuildCopy` com sorteio fixo (`_fCopySetRandom`, semente 42), rodando o arquivo real fora do navegador: as 3 opções de uma arte e a Promo da arte seguinte |
-| 12 | O Encurtar é determinístico, **<1 ms**, sem rede e sem IA (no card: "< 1 ms · sem IA"); números nunca somem | cabeçalho de `js/core/copy-fit.js` (garantias cobradas por `tests/copy-fit.html`) |
-| 13 | **15** artes · **4** campanhas · **2** formatos; **6** ofertas viram um ZIP | `assets/artes/lote-00…14.webp`, geradas pelo Luma Sheets; tela `captures/franqueado-sheets.webp` |
+| 10 | **107** ganchos (15 universais, 80 em **15** tipos de cardápio, 12 perguntas), **66** moldes de corpo (41 + 25 curtos), **25** chamadas, **76** hashtags | contagem dos arrays de `_COPY_BLOCKS` em `js/franqueado/png-generator.js` |
+| 10 | **2.430** legendas diferentes na opção Promo para o Smash Bacon Duplo em promoção, sem contar as hashtags | a mesma escolha do `_fAssembleCopy`: 22 ganchos (lanches + universais) × 13 corpos "com desconto" = 286 pares, dos quais 243 cabem em 120 caracteres; × 10 chamadas de pedido |
+| 10 | As quatro legendas da demonstração | saídas do `fBuildCopy` com sorteio fixo (`_fCopySetRandom`, semente 42), rodando o arquivo real fora do navegador: as 3 opções de uma arte e a Promo da arte seguinte |
+| 11 | O Encurtar é determinístico, **<1 ms**, sem rede e sem IA (no card: "< 1 ms · sem IA"); números nunca somem | cabeçalho de `js/core/copy-fit.js` (garantias cobradas por `tests/copy-fit.html`) |
+| 12 | **15** artes · **4** campanhas · **2** formatos; **6** ofertas viram um ZIP | `assets/artes/lote-00…14.webp`, geradas pelo Luma Sheets; tela `captures/franqueado-sheets.webp` |
 | 16 | **R$ 0** por mês de infraestrutura | `luma-brain/02_ARCHITECTURE.md` (Supabase `uqrqzjafhigjuvtjqzid`, plano Free); front estático no GitHub Pages da `talpaipai`; Ryan, 27/09/2026. A IA (Gemini, cobrada por uso) fica fora da conta de infraestrutura |
 | 16 | **94** franqueados | Ryan, 27/09/2026 ("hoje temos 94 franqueados") |
 | 16 | Capacidade estimada de **1.500** conexões simultâneas no plano gratuito; **15×** a rede inteira | análise de capacidade de 22/09/2026 (limite de ~200 req/s do PostgREST no plano Free, estimativa de 1.500 a 3.000 usuários simultâneos; usado o piso). 1.500 ÷ 94 ≈ 16, arredondado para baixo. É estimativa, não teste de carga |
@@ -40,7 +40,7 @@
 | 17 | **5** reservas gratuitas, que entram juntas após **8 s** | `supabase/functions/ai/index.ts` (`RESERVAS`, `HEDGE_MS = 8_000`), função `ai` v23 |
 | 16 | **R$ 11,9 mil** por ano de economia com o fim do Deskfy | Ryan, 27/09/2026: valor do deck anterior (slide "A demanda": "R$ 11,9 mil é o que sai todo ano pro Deskfy"; na conta do ano, R$ 11.903) |
 | 16 | Supabase Pro a **cerca de R$ 140** por mês se abrir para milhares de lojistas | preço do plano Pro (US$ 25/mês), convertido; análise de 22/09/2026 |
-| 14 | Suporte ao vivo no ar desde **23/09**; atendimento com estado e responsável desde 26/09 | `luma-brain/01_BUSINESS.md` §10; `js/core/suporte.js`; chave `global.help.suporte` ligada por padrão; migration `20260926120000` |
+| 13 | Suporte ao vivo no ar desde **23/09**; atendimento com estado e responsável desde 26/09 | `luma-brain/01_BUSINESS.md` §10; `js/core/suporte.js`; chave `global.help.suporte` ligada por padrão; migration `20260926120000` |
 | A | **3** Edge Functions: IA, convite e Telegram | `supabase/functions/`: `ai`, `invite-user`, `suporte-telegram` |
 | B | Conta desativada perde o poder no banco desde **23/09** | `docs/LUMA-BACKEND-CHANGELOG.md`, entrada "2026-09-23 — Ataque simulado pela API + conta desativada perde o poder no banco" |
 | B | Um gatilho impede autopromoção | `docs/LUMA-BACKEND-CHANGELOG.md` (guard anti-auto-promoção, testado via API) |
@@ -56,12 +56,12 @@
 | 04 | "O designer continua decidindo o que é design. O franqueado informa apenas o que é local." | tese do produto (brief de 27/09) |
 | 05 · A | Um motor por responsabilidade; o que o designer vê é o que o franqueado baixa | `luma-brain/MAPA.md` (motores únicos), `luma-brain/02_ARCHITECTURE.md` |
 | 08 | A legenda do quadro final é a da tela real, palavra por palavra | `captures/franqueado-arte-pronta.webp` |
-| 11 | Três leis: não inventa, não repete, não soa artificial | cabeçalho "MOTOR DE COPY COMBINATÓRIO v3 — Tom de Voz Delivery Much" em `js/franqueado/png-generator.js` |
-| 11 | "Alimentado por anos de copy da Delivery Much" | Ryan, 27/09/2026 (o código registra "Tom de Voz Delivery Much" e "bancos curados") |
-| 10 | No chat, a IA pode reescrever por cima; em lote e sem rede, quem escreve é o motor | `js/franqueado/chat.js`: a legenda do motor entra na hora e `fFetchAICaptionSuggestions` + `_fAplicarLegendaIA` trocam pela da IA quando ela responde; `AI_FEATURES.caption: true` em `js/00-config.js` (ligado em 23/09); o Luma Sheets chama `fBuildCopy` direto |
+| 10 | Três leis: não inventa, não repete, não soa artificial | cabeçalho "MOTOR DE COPY COMBINATÓRIO v3 — Tom de Voz Delivery Much" em `js/franqueado/png-generator.js` |
+| 10 | "Alimentado por anos de copy da Delivery Much" | Ryan, 27/09/2026 (o código registra "Tom de Voz Delivery Much" e "bancos curados") |
+| 09 | No chat, a IA pode reescrever por cima; em lote e sem rede, quem escreve é o motor | `js/franqueado/chat.js`: a legenda do motor entra na hora e `fFetchAICaptionSuggestions` + `_fAplicarLegendaIA` trocam pela da IA quando ela responde; `AI_FEATURES.caption: true` em `js/00-config.js` (ligado em 23/09); o Luma Sheets chama `fBuildCopy` direto |
 | 16 | A arte é desenhada no aparelho do franqueado; o servidor não gera pixel | `luma-brain/02_ARCHITECTURE.md` (render no navegador: `fRenderCanvasHelper`, `js/franqueado/png-generator.js`) |
-| 14 | A Lu (assistente) responde com a Central de Ajuda e o estado da tela; passa para a equipe quando não sabe, quando é contrato/dinheiro/conta/erro sem solução, quando pedem gente ou após 2 "não ajudou". Pedido de gente não passa pela IA | função `ai` task `ajuda` (v23, `AJUDA_SISTEMA`); `gLuOferecerEquipe`/`gLuPedeHumano` em `js/core/suporte.js`; commits `7b1a23f`, `337564e` |
-| 14 | Quem assume aparece com nome e cargo; a conversa reabre se o franqueado escrever de novo | `luma-brain/01_BUSINESS.md` §10; gatilho `suporte_msg_estado` |
+| 13 | A Lu (assistente) responde com a Central de Ajuda e o estado da tela; passa para a equipe quando não sabe, quando é contrato/dinheiro/conta/erro sem solução, quando pedem gente ou após 2 "não ajudou". Pedido de gente não passa pela IA | função `ai` task `ajuda` (v23, `AJUDA_SISTEMA`); `gLuOferecerEquipe`/`gLuPedeHumano` em `js/core/suporte.js`; commits `7b1a23f`, `337564e` |
+| 13 | Quem assume aparece com nome e cargo; a conversa reabre se o franqueado escrever de novo | `luma-brain/01_BUSINESS.md` §10; gatilho `suporte_msg_estado` |
 | 19 · K | Hoje o Luma atende uma rede só (sem multi-tenant) | `luma-brain/02_ARCHITECTURE.md` §12 |
 | J | Calendário e Academia construídos, fora da V1; CRM Visual a estudar | `luma-brain/07_ROADMAP.md` §4–§7; Academia com `defaultEnabled:false` |
 
@@ -74,7 +74,7 @@
   de esconder o "de") foram feitas no próprio Estúdio.
 - **Fotos de produto:** quatro fotos do Unsplash (licença Unsplash), baixadas com autorização para a demo.
 - **Persona:** "Carla", franqueada de demonstração.
-- **Conversa do suporte (slide 14):** a interface é a do widget de Ajuda, capturada na cópia local; a conversa entre
+- **Conversa do suporte (slide 13):** a interface é a do widget de Ajuda, capturada na cópia local; a conversa entre
   a Carla e a atendente Ana Costa (as duas fictícias) foi montada para a demonstração.
 - **Calendário:** desligado na captura, porque não é V1.
 
@@ -102,4 +102,4 @@ com o estado real de cada um.
 
 - **Recursos do slide 15 (46 chips):** levantados no código em 30/09/2026 (arquivos entre parênteses no levantamento): chat gerador, prévia ao vivo e paridade prévia = arquivo final (`tests/_paridade-render.html`), Local Fit e Copy Fit (`js/core/local-fit.js`, `copy-fit.js`), auto-layout e smart resize (`auto-layout.js`, `layout.js`), importador de PSD com fidelidade medida e mapeamento por IA (`psd-import.js`), campos/regras/máscaras (`00-config.js`, `chat-input.js`), validação de foto e revisão factual por IA (`chat.js`), legendas com gíria local, busca semântica, teste de estresse (`linter.js`), lote por planilha e ZIP (`png-generator.js`), PNG assinado, publicação em 4 passos (`publish.js`), feature flags e papéis (`feature-flags.js`, `auth.js`), suporte ao vivo, assistente com voz e tutoriais. Fora de propósito: PDF (desligado), Calendário, Academia, Telegram e CRM Visual (pós-V1).
 
-- **Qualquer tela (slide 09):** telas reais do app. Computador, tablet e celular são as capturas da capa (molduras oficiais da Apple); o dobrável é a home da franqueada capturada a 884×1000 @2x em 30/09/2026, com moldura desenhada em CSS (não é foto de aparelho). Luma Sheets é só no computador.
+- **Qualquer tela (slide 14):** telas reais do app. Computador, tablet e celular são as capturas da capa (molduras oficiais da Apple); o iPhone Duo é a home da franqueada capturada a 669×915 @3x em 30/09/2026 (tela interna aberta, 2007×2853 px) e composta na moldura oficial "iPhone Duo - Star White - Inner Open Portrait" do Apple Design Resources (iPhone Duo anunciado em 09/09/2026). Luma Sheets é só no computador.

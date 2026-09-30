@@ -129,27 +129,13 @@
   veem foi gerado pelo motor de render do Luma, o mesmo do download. Não tem camada, não tem régua, não tem
   como quebrar a arte. [último passo] Arte pronta, salva em Minhas artes, com a legenda sugerida."
 - **Ponto principal:** parece vivo e não tem como quebrar.
-- **Transição:** "E dá para fazer isso de qualquer aparelho?"
+- **Transição:** "E repara na legenda: ela também saiu pronta."
 - **Perguntas difíceis:**
   - *"Funciona no celular?"* Sim. Há uma suíte de estresse que roda o fluxo inteiro numa tela de iPhone.
-  - *"E se ele digitar um nome enorme ou errar o preço?"* Está no slide 12.
+  - *"E se ele digitar um nome enorme ou errar o preço?"* Está no slide 11.
   - *"A legenda é IA?"* É o próximo slide.
 
-## 09 · Qualquer tela — "Poxa, só vou conseguir fazer no PC?"
-
-- **Objetivo:** matar a objeção de que o Luma é coisa de computador. O franqueado usa no aparelho que tiver na mão.
-- **Frase de abertura:** "A primeira coisa que o franqueado pergunta: poxa, só vou conseguir fazer no PC?"
-- **Discurso:** "[pausa] [avança] Não. No computador, no tablet, no celular. E até no celular dobrável. É o mesmo
-  Luma: abre no navegador, sem instalar nada, e a tela se ajusta sozinha. Essas telas são capturas do app de verdade,
-  na resolução de cada aparelho."
-- **Ponto principal:** o franqueado cria a arte onde estiver, inclusive no balcão, pelo celular.
-- **Transição:** "E quando a arte fica pronta, a legenda já vem junto."
-- **Perguntas difíceis:**
-  - *"Tudo funciona no celular?"* A criação de arte, a legenda, o suporte e o download, sim. O Luma Sheets (lote
-    por planilha) é só no computador: no celular ele avisa e pede para abrir no computador.
-  - *"Precisa baixar app?"* Não. Abre no navegador, e dá para adicionar à tela inicial como app.
-
-## 10 · A legenda — "A arte sai com a legenda, feita por IA. E ela fala a língua da sua cidade."
+## 09 · A legenda — "A arte sai com a legenda, feita por IA. E ela fala a língua da sua cidade."
 
 - **Objetivo:** mostrar que a legenda sai pronta, escrita por IA, e com a gíria de cada lugar.
 - **Frase de abertura:** "A arte sai com a legenda, feita por IA. E ela fala a língua da sua cidade."
@@ -164,7 +150,7 @@
   - *"E se sair uma legenda errada?"* Preço, desconto e validade só aparecem se o franqueado informou. E é
     sugestão: ele copia, pede outra ou ajusta antes de publicar.
 
-## 11 · O motor local — "Se a IA falhar, o motor local assume."
+## 10 · O motor local — "Se a IA falhar, o motor local assume."
 
 - **Objetivo:** mostrar que a legenda nunca fica de fora e que anos de copy viraram um ativo do produto.
 - **Frase de abertura:** "Se a IA falhar, o motor local assume."
@@ -180,7 +166,7 @@
   - *"Esse motor é IA?"* Não: roda no navegador, sem rede, combinando frases que a gente escreveu. No Luma
     Sheets, cada arte do lote sai com legenda do motor.
 
-## 12 · Inteligência invisível — "Por baixo, o Luma resolve o que não deveria virar problema do franqueado."
+## 11 · Inteligência invisível — "Por baixo, o Luma resolve o que não deveria virar problema do franqueado."
 
 - **Objetivo:** mostrar a engenharia que o franqueado não vê.
 - **Frase de abertura:** "Por baixo, o Luma resolve o que não deveria virar problema do franqueado."
@@ -198,7 +184,7 @@
   - *"Resolve todos os casos?"* Não, e não dizemos que resolve. Quando nada cabe com legibilidade, o Luma
     avisa antes do download em vez de estourar a arte.
 
-## 13 · Escala — "Uma arte por vez. Ou dezenas."
+## 12 · Escala — "Uma arte por vez. Ou dezenas."
 
 - **Objetivo:** mostrar que o chat é só uma das portas do mesmo motor.
 - **Frase de abertura:** "Uma arte por vez. Ou dezenas."
@@ -211,7 +197,7 @@
   - *"Essas 15 artes são da rede?"* Não, são artes de demonstração geradas pelo motor a partir de templates
     de demonstração. O motor é o mesmo que a rede vai usar.
 
-## 14 · Lu e suporte — "A Lu responde. A equipe DM assume."
+## 13 · Lu e suporte — "A Lu responde. A equipe DM assume."
 
 - **Objetivo:** mostrar que o franqueado nunca fica sem resposta: primeiro a assistente, depois uma pessoa.
 - **Frase de abertura:** "A Lu responde. A equipe DM assume."
@@ -221,7 +207,7 @@
   conversa para quem da equipe DM está online. [avança] Aqui a Ana assumiu: a Carla vê quem está cuidando dela,
   com nome e cargo, e a equipe vê de onde veio a dúvida. A conversa só fecha quando está resolvida."
 - **Ponto principal:** resposta imediata pela Lu, e uma pessoa responsável quando precisa.
-- **Transição:** "Esse é o Luma inteiro. Agora a pergunta que todo mundo tem."
+- **Transição:** "E uma pergunta que todo franqueado faz na hora."
 - **Perguntas difíceis:**
   - *"E se o franqueado fechar o app?"* A resposta fica esperando: ele vê o aviso e o contador quando volta.
     Nesta versão não há e-mail nem push.
@@ -233,6 +219,20 @@
     diz que não sabe e chama a equipe. Assunto fora do Luma ela recusa em uma frase.
   - *"Essa conversa é real?"* A tela é a do produto; a conversa foi montada para a demonstração, com a Carla
     e uma atendente fictícia.
+
+## 14 · Qualquer tela — "Poxa, só vou conseguir fazer no PC?"
+
+- **Objetivo:** matar a objeção de que o Luma é coisa de computador. O franqueado usa no aparelho que tiver na mão.
+- **Frase de abertura:** "A primeira coisa que o franqueado pergunta: poxa, só vou conseguir fazer no PC?"
+- **Discurso:** "[pausa] [avança] Não. No computador, no tablet, no celular. E até no novo iPhone Duo, o dobrável da Apple, aberto. É o mesmo
+  Luma: abre no navegador, sem instalar nada, e a tela se ajusta sozinha. Essas telas são capturas do app de verdade,
+  na resolução de cada aparelho."
+- **Ponto principal:** o franqueado cria a arte onde estiver, inclusive no balcão, pelo celular.
+- **Transição:** "Esse é o Luma inteiro. Agora a pergunta que todo mundo tem."
+- **Perguntas difíceis:**
+  - *"Tudo funciona no celular?"* A criação de arte, a legenda, o suporte e o download, sim. O Luma Sheets (lote
+    por planilha) é só no computador: no celular ele avisa e pede para abrir no computador.
+  - *"Precisa baixar app?"* Não. Abre no navegador, e dá para adicionar à tela inicial como app.
 
 ## 15 · Quanto custa? — "Tudo isso, e mais IA integrada. Quanto custa?"
 
