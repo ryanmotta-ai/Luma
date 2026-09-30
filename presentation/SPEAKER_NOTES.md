@@ -10,8 +10,8 @@
    As artes foram geradas pelo motor de render do Luma. Os templates foram montados importando PSDs
    feitos a partir das capas de campanha do próprio repositório, e as fotos dos produtos são do Unsplash.
    A franqueada "Carla" é uma persona de demonstração.
-2. O CI está **vermelho** hoje (27/09). Diga antes que perguntem: é o mecanismo funcionando (slide 12, apêndice E).
-3. Os números de custo (slide 14) têm fonte no `CLAIMS.md`: R$ 0 e os 94 franqueados vêm da arquitetura e do Ryan;
+2. O CI está **vermelho** hoje (27/09). Diga antes que perguntem: é o mecanismo funcionando (slide 13, apêndice E).
+3. Os números de custo (slide 15) têm fonte no `CLAIMS.md`: R$ 0 e os 94 franqueados vêm da arquitetura e do Ryan;
    a economia de R$ 11,9 mil/ano é o valor do Deskfy informado pelo Ryan; a folga de 15× é estimativa, não teste de carga.
 
 ---
@@ -43,7 +43,22 @@
   - *"Quantas variações a rede produz por mês?"* Não vou chutar. O beta mede recorrência semanal e o
     funil até o download, e é daí que sai esse número.
 
-## 03 · A tese — "Autonomia local. Controle central. Com o design no comando."
+## 03 · Quem ouvimos — "Antes do Luma, a gente foi ouvir quem sofre lá na ponta."
+
+- **Objetivo:** deixar claro que o Luma nasceu de escuta real, não de suposição: entrevistas com franqueados.
+- **Frase de abertura:** "Antes do Luma, a gente foi ouvir quem sofre lá na ponta."
+- **Discurso:** "Antes de desenhar qualquer tela, a gente foi conversar com franqueados, com quem usa a rede todo
+  dia e vive a dor real da operação. Três dores apareceram: esperar o marketing a cada arte, operar sozinho sem ser
+  designer e uma legenda que não fala como a cidade. Cada uma virou uma decisão de produto: arte pronta em
+  segundos, conversa guiada com a marca travada e legenda com a gíria de cada lugar. A tese que vem agora saiu
+  dessas conversas."
+- **Ponto principal:** o produto nasceu da ponta. Cada recurso responde a uma dor que alguém contou.
+- **Transição:** "Dessas conversas saiu a tese do Luma."
+- **Perguntas difíceis:**
+  - *"Quantos franqueados entrevistaram?"* Falar o número real da rodada de entrevistas. Não está em nenhum
+    documento do repositório, então só citar se o Ryan confirmar.
+
+## 04 · A tese — "Autonomia local. Controle central. Com o design no comando."
 
 - **Objetivo:** fixar a frase que resume o produto.
 - **Frase de abertura:** "Autonomia local. Controle central. Com o design no comando."
@@ -57,7 +72,7 @@
   - *"E se o franqueado quiser mudar a cor ou o layout?"* Ele mexe no que o designer liberou na publicação
     (os campos e as permissões). O resto fica com o designer, e esse é o ponto.
 
-## 04 · Duas experiências — "Duas experiências. Um único produto."
+## 05 · Duas experiências — "Duas experiências. Um único produto."
 
 - **Objetivo:** mostrar os dois lados e o que os liga.
 - **Frase de abertura:** "Duas experiências. Um único produto."
@@ -71,7 +86,7 @@
   - *"Por que não duas ferramentas?"* Porque o valor está na ponte: publicou, apareceu para a rede, sem
     exportar nada e sem ninguém refazer a arte.
 
-## 05 · O fluxo do designer — "O designer não refaz a arte."
+## 06 · O fluxo do designer — "O designer não refaz a arte."
 
 - **Objetivo:** o designer aproveita o PSD que já tem, e o Luma é honesto sobre o que conseguiu preservar.
 - **Frase de abertura:** "O designer não refaz a arte."
@@ -88,7 +103,7 @@
   - *"E PSD com efeito complexo?"* Cada camada recebe um nível (nativo, nativo com perda, raster fiel ou não
     suportado) com o motivo escrito. Nada some em silêncio. Detalhe no apêndice C, com 73 casos de regressão.
 
-## 06 · Publicação — "O designer publica uma vez."
+## 07 · Publicação — "O designer publica uma vez."
 
 - **Objetivo:** publicar uma vez = a rede inteira recebe.
 - **Frase de abertura:** "O designer publica uma vez."
@@ -101,7 +116,7 @@
   - *"E quando a campanha acaba?"* A validade vai na publicação. O material fica visível no catálogo
     enquanto estiver dentro dela (está escrito na própria tela de revisão).
 
-## 07 · Uma conversa — "O franqueado não edita uma arte. Ele responde uma conversa."
+## 08 · Uma conversa — "O franqueado não edita uma arte. Ele responde uma conversa."
 
 - **Objetivo:** o momento "aha". A arte se monta enquanto o franqueado responde.
 - **Frase de abertura:** "O franqueado não edita uma arte. Ele responde uma conversa."
@@ -113,10 +128,10 @@
 - **Transição:** "E repara na legenda: ela também saiu pronta."
 - **Perguntas difíceis:**
   - *"Funciona no celular?"* Sim. Há uma suíte de estresse que roda o fluxo inteiro numa tela de iPhone.
-  - *"E se ele digitar um nome enorme ou errar o preço?"* Está no slide 10.
+  - *"E se ele digitar um nome enorme ou errar o preço?"* Está no slide 11.
   - *"A legenda é IA?"* É o próximo slide.
 
-## 08 · A legenda — "A arte sai com a legenda, feita por IA. E ela fala a língua da sua cidade."
+## 09 · A legenda — "A arte sai com a legenda, feita por IA. E ela fala a língua da sua cidade."
 
 - **Objetivo:** mostrar que a legenda sai pronta, escrita por IA, e com a gíria de cada lugar.
 - **Frase de abertura:** "A arte sai com a legenda, feita por IA. E ela fala a língua da sua cidade."
@@ -131,7 +146,7 @@
   - *"E se sair uma legenda errada?"* Preço, desconto e validade só aparecem se o franqueado informou. E é
     sugestão: ele copia, pede outra ou ajusta antes de publicar.
 
-## 09 · O motor local — "Se a IA falhar, o motor local assume."
+## 10 · O motor local — "Se a IA falhar, o motor local assume."
 
 - **Objetivo:** mostrar que a legenda nunca fica de fora e que anos de copy viraram um ativo do produto.
 - **Frase de abertura:** "Se a IA falhar, o motor local assume."
@@ -147,7 +162,7 @@
   - *"Esse motor é IA?"* Não: roda no navegador, sem rede, combinando frases que a gente escreveu. No Luma
     Sheets, cada arte do lote sai com legenda do motor.
 
-## 10 · Inteligência invisível — "Por baixo, o Luma resolve o que não deveria virar problema do franqueado."
+## 11 · Inteligência invisível — "Por baixo, o Luma resolve o que não deveria virar problema do franqueado."
 
 - **Objetivo:** mostrar a engenharia que o franqueado não vê.
 - **Frase de abertura:** "Por baixo, o Luma resolve o que não deveria virar problema do franqueado."
@@ -165,7 +180,7 @@
   - *"Resolve todos os casos?"* Não, e não dizemos que resolve. Quando nada cabe com legibilidade, o Luma
     avisa antes do download em vez de estourar a arte.
 
-## 11 · Escala — "Uma arte por vez. Ou dezenas."
+## 12 · Escala — "Uma arte por vez. Ou dezenas."
 
 - **Objetivo:** mostrar que o chat é só uma das portas do mesmo motor.
 - **Frase de abertura:** "Uma arte por vez. Ou dezenas."
@@ -178,7 +193,7 @@
   - *"Essas 15 artes são da rede?"* Não, são artes de demonstração geradas pelo motor a partir de templates
     de demonstração. O motor é o mesmo que a rede vai usar.
 
-## 13 · Lu e suporte — "A Lu responde. A equipe DM assume."
+## 14 · Lu e suporte — "A Lu responde. A equipe DM assume."
 
 - **Objetivo:** mostrar que o franqueado nunca fica sem resposta: primeiro a assistente, depois uma pessoa.
 - **Frase de abertura:** "A Lu responde. A equipe DM assume."
@@ -201,7 +216,7 @@
   - *"Essa conversa é real?"* A tela é a do produto; a conversa foi montada para a demonstração, com a Carla
     e uma atendente fictícia.
 
-## 14 · Custo zero — "O Luma cresce com a rede. A conta, não."
+## 15 · Custo zero — "O Luma cresce com a rede. A conta, não."
 
 - **Objetivo:** mostrar que a rede inteira roda sem custo de infraestrutura e que o Luma ainda economiza.
 - **Frase de abertura:** "O Luma cresce com a rede. A conta, não."
@@ -222,7 +237,7 @@
     do plano gratuito), não teste de carga. Usamos o piso: 1.500.
   - *"Quando a economia do Deskfy entra?"* Quando a rede estiver no Luma e o contrato do Deskfy acabar.
 
-## 14b · IA custo zero — "A IA custa zero. E não fica sem resposta."
+## 15b · IA custo zero — "A IA custa zero. E não fica sem resposta."
 
 - **Objetivo:** mostrar, com a animação, que a IA do Luma é barata e nunca deixa o franqueado sem resposta.
 - **Frase de abertura:** "A IA custa zero. E não fica sem resposta."
@@ -239,11 +254,11 @@
     Cada tarefa tem teto de resposta, o que faz a cota render.
   - *"E se o Google cair?"* As reservas respondem sozinhas; é para isso que elas existem.
 
-## 15 · Beta — "A V1 está pronta. Agora começa a parte mais importante."
+## 16 · Beta — "A V1 está pronta. Agora começa a parte mais importante."
 
 - **Objetivo:** pedir o beta com a rede e dizer o que ele mede.
 - **Frase de abertura:** "A V1 está pronta. Agora começa a parte mais importante: colocar o Luma na mão da rede."
-- **Discurso:** "Franqueados reais, uso real, feedback, ajuste, nova rodada, e de novo. O beta mede produto:
+- **Discurso:** "No começo a gente ouviu a ponta para construir. Agora a ponta usa, e a gente volta a ouvir. Franqueados reais, uso real, feedback, ajuste, nova rodada, e de novo. O beta mede produto:
   se a primeira arte sai sem ajuda, quanto tempo leva até o download, quantos que começam chegam ao download,
   se voltam toda semana, onde pedem suporte, que problemas aparecem e o que dizem."
 - **Ponto principal:** o beta mede produto, não receita.
@@ -253,7 +268,7 @@
     para definir juntos.
   - *"O franqueado vai pagar?"* Não é o que este beta discute.
 
-## 16 · Horizonte — "Se funciona aqui, o problema não existe só aqui."
+## 17 · Horizonte — "Se funciona aqui, o problema não existe só aqui."
 
 - **Objetivo:** abrir o horizonte sem previsão e sem pedir para vender.
 - **Frase de abertura:** "Se funciona aqui, o problema não existe só aqui."
@@ -276,7 +291,7 @@
     fundador ao Jornal do Comércio. O global é de consultoria e varia muito (de 2 a 7 bilhões de dólares);
     usamos o menor.
 
-## 17 · Potencial — "E se o Luma virasse produto?"
+## 18 · Potencial — "E se o Luma virasse produto?"
 
 - **Objetivo:** um parêntese, quase entre nós: mostrar o tamanho da oportunidade, sem previsão de receita.
 - **Frase de abertura:** "Um parêntese: e se o Luma virasse produto?"
@@ -296,7 +311,7 @@
   - *"O número global é confiável?"* É estimativa de consultoria e varia muito (de 2 a 7 bilhões de dólares);
     usamos o menor.
 
-## 18 · Fechamento — "Uma marca no controle. Uma rede com autonomia."
+## 19 · Fechamento — "Uma marca no controle. Uma rede com autonomia."
 
 - **Objetivo:** fechar a tese e pedir o próximo passo.
 - **Frase de abertura:** "Uma marca no controle. Uma rede com autonomia."

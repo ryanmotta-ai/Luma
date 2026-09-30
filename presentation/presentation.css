@@ -747,3 +747,18 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-ia .nd .md { display: block; font-style: normal; font-size: 16px; font-weight: 700; color: #fff; opacity: .78; margin-top: 2px; white-space: nowrap; }
 .s-ia .rs { width: 270px; padding: 9px 22px; }
 .s-ia .rs .md { font-size: 14px; }
+
+/* 03 — A escuta (entrevistas com franqueados → dores → decisões de produto) */
+.s-escuta .quem { position: absolute; left: var(--pad-x); top: 376px; display: flex; align-items: center; gap: 16px; font-size: 28px; line-height: 1.3; color: var(--ink-2); max-width: 1500px; }
+.s-escuta .quem svg { flex: none; width: 34px; height: 34px; color: var(--orange-ink); }
+.s-escuta .pares { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 480px; display: flex; flex-direction: column; gap: 18px; }
+.s-escuta .cab { display: grid; grid-template-columns: 1fr 80px 1fr; }
+.s-escuta .cab b { font-size: 15px; letter-spacing: .16em; font-weight: 900; color: var(--orange-ink); }
+.s-escuta .cab b:last-child { grid-column: 3; }
+.s-escuta .par { display: grid; grid-template-columns: 1fr 80px 1fr; align-items: center; }
+.s-escuta .par span { padding: 26px 32px; border-radius: 18px; font-size: 32px; line-height: 1.2; font-weight: 800; letter-spacing: -.015em; }
+.s-escuta .dor { background: var(--paper-2); color: var(--ink); box-shadow: 0 0 0 1px rgba(10, 10, 10, .07); }
+.s-escuta .res { background: #0A0A0A; color: #fff; }
+.s-escuta .par i { position: relative; height: 3px; background: var(--orange); margin: 0 10px; }
+.s-escuta .par i::after { content: ''; position: absolute; right: -2px; top: -7px; border-left: 14px solid var(--orange); border-top: 8px solid transparent; border-bottom: 8px solid transparent; }
+.s-escuta .foot { position: absolute; left: var(--pad-x); bottom: 70px; font-size: 38px; font-weight: 900; letter-spacing: -.02em; color: var(--orange-d); }
