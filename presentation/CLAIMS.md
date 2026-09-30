@@ -97,3 +97,5 @@ Também ficaram de fora, por regra do brief (não apareciam no deck antigo): "ze
 com o estado real de cada um.
 
 - **Escuta dos franqueados (slide 03):** as entrevistas com franqueados e as três dores (esperar o marketing, operar sozinho, legenda sem a gíria da cidade) vêm do relato do Ryan (30/09/2026); a gíria local foi pedido explícito nas entrevistas. Sem número de entrevistados: não há fonte no repositório.
+
+- **Deskfy (slides 02 e 06):** "cada campanha nova virava retrabalho", "toda arte feita duas vezes porque a plataforma não aceitava nem SVG", "retrabalho gigante dos designers" e "manutenção do material muito problemática" vêm do relato do Ryan (30/09/2026). Em público, o foco é o fluxo, não os recursos do fornecedor.

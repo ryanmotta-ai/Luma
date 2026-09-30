@@ -33,11 +33,12 @@
 ## 02 · O problema — "Escalar a rede não deveria escalar o retrabalho."
 
 - **Objetivo:** nomear a dor. Criar a campanha não é o problema. O problema é executá-la dezenas de vezes.
-- **Frase de abertura:** "Toda rede de franquia vive a mesma tensão. A gente viveu isso com o Deskfy."
+- **Frase de abertura:** "Toda rede de franquia vive a mesma tensão."
 - **Discurso:** "Uma campanha central vira execuções locais: muda o produto, o preço, a foto, a oferta, a cidade.
   A marca é uma só. Essas seis artes são da mesma campanha. [avança] E aqui mora a tensão: quanto mais
-  autonomia damos à ponta, maior o risco de perder padrão. Quanto mais centralizamos, maior o gargalo do marketing."
-- **Ponto principal:** hoje cada variação local é retrabalho de alguém.
+  autonomia damos à ponta, maior o risco de perder padrão. Quanto mais centralizamos, maior o gargalo do marketing. [avança] E a gente sabe como isso dói porque viveu: com o Deskfy, cada campanha
+  nova virava retrabalho. Eram R$ 11,9 mil por ano, e o retrabalho continuava."
+- **Ponto principal:** hoje cada variação local é retrabalho de alguém, e a gente sentiu isso na pele.
 - **Transição:** "A tese do Luma é sair dessa escolha."
 - **Perguntas difíceis:**
   - *"Quantas variações a rede produz por mês?"* Não vou chutar. O beta mede recorrência semanal e o
@@ -90,7 +91,7 @@
 
 - **Objetivo:** o designer aproveita o PSD que já tem, e o Luma é honesto sobre o que conseguiu preservar.
 - **Frase de abertura:** "O designer não refaz a arte."
-- **Discurso:** "Ele traz o PSD do dia a dia. O Luma importa e, em vez de dizer que ficou perfeito, mostra uma
+- **Discurso:** "Antes, no Deskfy, toda arte tinha que ser feita duas vezes, porque a plataforma não aceitava nem SVG. Era retrabalho gigante dos designers, e manter o material era muito problemático. [avança] Agora o designer traz o PSD do dia a dia. O Luma importa e, em vez de dizer que ficou perfeito, mostra uma
   revisão honesta. [avança] As 13 camadas do arquivo viram template, com 5 campos já preparados. [avança] A
   fidelidade visual é medida e mostrada: aqui, 90%, e a diferença é uma fonte do Photoshop que não existe no
   Luma. [avança] O designer confere 3 pontos, não 13 camadas. As camadas nomeadas com @campo já chegam como

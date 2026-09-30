@@ -270,7 +270,7 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-psd .steps span.on { color: #0A0A0A; background: var(--orange); border-color: var(--orange); }
 .s-psd .steps i { width: 14px; height: 2px; background: rgba(160, 178, 206, .3); }
 /* Três números no lugar do texto: o que o importador fez, quanto preservou e o que sobra para o designer */
-.s-psd .provas { position: absolute; left: var(--pad-x); top: 470px; width: 600px; display: flex; flex-direction: column; gap: 34px; }
+.s-psd .provas { position: absolute; left: var(--pad-x); top: 600px; width: 600px; display: flex; flex-direction: column; gap: 26px; }
 .s-psd .prova { display: grid; grid-template-columns: 190px 1fr; align-items: center; column-gap: 20px; padding-left: 26px; border-left: 3px solid var(--orange); }
 .s-psd .prova b { font-size: 88px; font-weight: 900; letter-spacing: -.045em; line-height: .9; color: var(--orange); }
 .s-psd .prova span { font-size: 25px; line-height: 1.3; color: #fff; }
@@ -762,5 +762,14 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-escuta .par i { position: relative; height: 3px; background: var(--orange); margin: 0 10px; }
 .s-escuta .par i::after { content: ''; position: absolute; right: -2px; top: -7px; border-left: 14px solid var(--orange); border-top: 8px solid transparent; border-bottom: 8px solid transparent; }
 .s-escuta .foot { position: absolute; left: var(--pad-x); bottom: 70px; font-size: 38px; font-weight: 900; letter-spacing: -.02em; color: var(--orange-d); }
-.s-problema .deskfy { position: absolute; left: 1260px; top: 196px; padding: 22px 30px; border-radius: 18px; background: #0A0A0A; color: #fff; font-size: 34px; font-weight: 900; letter-spacing: -.02em; line-height: 1.1; }
-.s-problema .deskfy small { display: block; margin-bottom: 8px; font-size: 14px; letter-spacing: .16em; color: var(--orange); }
+.s-problema .deskfy { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 330px; bottom: 72px; border-radius: 28px; background: #0A0A0A; color: #fff; padding: 56px 80px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 30px 80px rgba(10, 10, 10, .25); }
+.s-problema .deskfy small { font-size: 18px; letter-spacing: .18em; font-weight: 900; color: var(--orange); }
+.s-problema .deskfy .big { margin-top: 20px; font-size: 100px; line-height: 1.02; font-weight: 900; letter-spacing: -.035em; }
+.s-problema .deskfy .big span { color: var(--orange); }
+.s-problema .deskfy .sub { margin-top: 30px; font-size: 38px; color: rgba(255, 255, 255, .78); }
+.s-problema .deskfy .sub b { color: #fff; font-weight: 900; }
+.s-psd .antes { position: absolute; left: var(--pad-x); top: 300px; width: 600px; padding: 20px 26px; border-radius: 16px; background: rgba(255, 144, 0, .1); border: 1px solid rgba(255, 144, 0, .45); }
+.s-psd .antes small { font-size: 14px; letter-spacing: .16em; font-weight: 900; color: var(--orange); }
+.s-psd .antes p { margin-top: 8px; font-size: 26px; line-height: 1.25; font-weight: 700; color: #fff; }
+.s-psd .antes p b { color: var(--orange); font-weight: 900; }
+.s-psd .antes p.l2 { font-size: 20px; font-weight: 500; color: var(--studio-ink); }
