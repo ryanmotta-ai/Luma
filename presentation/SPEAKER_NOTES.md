@@ -71,10 +71,10 @@
   - *"Por que não duas ferramentas?"* Porque o valor está na ponte: publicou, apareceu para a rede, sem
     exportar nada e sem ninguém refazer a arte.
 
-## 05 · O fluxo do designer — "O designer não precisa começar de novo."
+## 05 · O fluxo do designer — "O designer não refaz a arte."
 
 - **Objetivo:** o designer aproveita o PSD que já tem, e o Luma é honesto sobre o que conseguiu preservar.
-- **Frase de abertura:** "O designer não precisa começar de novo."
+- **Frase de abertura:** "O designer não refaz a arte."
 - **Discurso:** "Ele traz o PSD do dia a dia. O Luma importa e, em vez de dizer que ficou perfeito, mostra uma
   revisão honesta. [avança] As 13 camadas do arquivo viram template, com 5 campos já preparados. [avança] A
   fidelidade visual é medida e mostrada: aqui, 90%, e a diferença é uma fonte do Photoshop que não existe no
@@ -191,16 +191,16 @@
   - *"Qual o detalhe técnico?"* 22 suítes, 60 artes pelo fluxo completo, 31 cenários de estresse, 73 casos
     no importador de PSD, RLS nas 32 tabelas com 69 políticas. Apêndices B, E e H.
 
-## 12 · Suporte ao vivo — "Tem gente da DM do outro lado."
+## 12 · Lu e suporte — "A Lu responde. A equipe DM assume."
 
-- **Objetivo:** mostrar que o franqueado não fica sozinho e que o atendimento já está no ar.
-- **Frase de abertura:** "Tem gente da DM do outro lado."
-- **Discurso:** "Desde 23 de setembro, o franqueado tira dúvida em tempo real sem sair do Luma. [aponta a primeira
-  tela] Quando alguém da equipe está online, o Luma mostra quem é, e a pergunta vai direto para essa pessoa,
-  sem passar pela IA. Se ninguém estiver online, o assistente responde na hora, e um toque leva a conversa para
-  a equipe. [avança] Aqui a Ana assumiu a conversa: a Carla vê quem está cuidando dela, com nome e cargo, e a
-  equipe vê de onde veio a dúvida. A conversa só fecha quando está resolvida. Se a dúvida voltar, ela reabre."
-- **Ponto principal:** suporte humano, dentro do produto, com alguém responsável por cada conversa.
+- **Objetivo:** mostrar que o franqueado nunca fica sem resposta: primeiro a assistente, depois uma pessoa.
+- **Frase de abertura:** "A Lu responde. A equipe DM assume."
+- **Discurso:** "A Lu é a assistente do Luma. Ela responde na hora, com a Central de Ajuda e olhando a tela em
+  que a pessoa está: sabe em que material ela está e se um texto não coube. [aponta a primeira tela] Quando ela
+  não sabe, quando o assunto é sério (contrato, dinheiro, acesso) ou quando a pessoa pede gente, ela passa a
+  conversa para quem da equipe DM está online. [avança] Aqui a Ana assumiu: a Carla vê quem está cuidando dela,
+  com nome e cargo, e a equipe vê de onde veio a dúvida. A conversa só fecha quando está resolvida."
+- **Ponto principal:** resposta imediata pela Lu, e uma pessoa responsável quando precisa.
 - **Transição:** "E tudo isso sem conta nova de infraestrutura."
 - **Perguntas difíceis:**
   - *"E se o franqueado fechar o app?"* A resposta fica esperando: ele vê o aviso e o contador quando volta.
@@ -209,6 +209,8 @@
     seguem com o marketing.
   - *"E a equipe precisa ficar com o Luma aberto?"* Hoje, sim. A ponte com o Telegram já está construída e
     aprovada pelo jurídico, e liga quando a equipe estiver vinculada (apêndice G).
+  - *"A Lu inventa resposta?"* Ela só responde com a Central de Ajuda, a tela e as regras da rede. Sem fonte,
+    diz que não sabe e chama a equipe. Assunto fora do Luma ela recusa em uma frase.
   - *"Essa conversa é real?"* A tela é a do produto; a conversa foi montada para a demonstração, com a Carla
     e uma atendente fictícia.
 
@@ -232,6 +234,22 @@
   - *"Essa capacidade foi medida?"* É estimativa, da análise de capacidade de 22/09 (limite de requisições
     do plano gratuito), não teste de carga. Usamos o piso: 1.500.
   - *"Quando a economia do Deskfy entra?"* Quando a rede estiver no Luma e o contrato do Deskfy acabar.
+
+## 13b · IA de centavos — "A IA custa centavos. E não fica sem resposta."
+
+- **Objetivo:** mostrar que a IA do Luma é barata e confiável, sem entrar em detalhe técnico.
+- **Frase de abertura:** "A IA custa centavos. E não fica sem resposta."
+- **Discurso:** "Todo pedido de IA vai primeiro para o modelo mais barato do Google, que resolve a maioria.
+  [avança] Se ele demorar 8 segundos, cinco provedores gratuitos entram juntos e fica a primeira resposta que
+  chegar. [avança] O modelo mais caro só entra se nenhum outro respondeu. [avança] Resultado: numa semana inteira
+  de testes, com 157 respostas de IA, a conta foi de cerca de 50 centavos. As reservas não custam nada."
+- **Ponto principal:** custo quase zero e resposta garantida, por desenho.
+- **Transição:** "Com isso, a V1 está pronta."
+- **Perguntas difíceis:**
+  - *"É de graça?"* As reservas são. O Google cobra por uso, e numa semana de testes foi cerca de R$ 0,50.
+  - *"E com os 94 franqueados usando?"* Cresce com o uso, na casa de centavos por arte. Cada tarefa tem teto
+    de resposta, então nenhum pedido sai caro.
+  - *"E se o Google cair?"* As reservas respondem sozinhas; é para isso que elas existem.
 
 ## 14 · Beta — "A V1 está pronta. Agora começa a parte mais importante."
 

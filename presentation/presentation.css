@@ -657,3 +657,18 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
   .slide, [data-step], .s-aha .q, .s-aha .done, .s-copy .win ol, .s-copy .txt, .s-escala .wall .a, .s-pub .light, .s-pub .flyer { transition: none !important; }
   .s-tese .rail i, .s-aha .answer .caret, .s-custo .dots i, .s-intel .fits .row, .s-fim .trilho, .s-aha .fio *, .s-aha .vivo i { animation: none !important; }
 }
+
+/* 13b · IA de centavos */
+.s-ia .rota { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 400px; display: grid; grid-template-columns: 1fr 1.5fr 1fr; gap: 28px; list-style: none; margin: 0; padding: 0; }
+.s-ia .rota li { padding: 30px 32px; border-radius: 22px; border: 1px solid rgba(255, 255, 255, .14); background: rgba(255, 255, 255, .04); }
+.s-ia .rota li.gratis { border-color: var(--orange); background: rgba(255, 144, 0, .1); }
+.s-ia .rota small { display: block; font-size: 16px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--orange); }
+.s-ia .rota h3 { margin: 14px 0 0; font-size: 34px; font-weight: 900; line-height: 1.1; letter-spacing: -.02em; color: #fff; }
+.s-ia .rota p { margin: 12px 0 0; font-size: 22px; line-height: 1.35; color: var(--studio-ink-2); }
+.s-ia .rota .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.s-ia .rota .chips span { font-size: 18px; font-weight: 700; padding: 8px 16px; border-radius: 999px; background: rgba(255, 255, 255, .1); color: #fff; }
+.s-ia .nums { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 720px; display: flex; gap: 90px; }
+.s-ia .num { max-width: 640px; }
+.s-ia .num b { display: block; font-size: 110px; font-weight: 900; letter-spacing: -.045em; line-height: .95; color: var(--orange); }
+.s-ia .num p { margin: 14px 0 0; font-size: 24px; line-height: 1.35; color: var(--studio-ink); }
+.s-ia .nota { position: absolute; left: var(--pad-x); bottom: 70px; font-size: 18px; color: var(--studio-ink-2); }

@@ -34,6 +34,8 @@
 | 13 | **R$ 0** por mês de infraestrutura | `luma-brain/02_ARCHITECTURE.md` (Supabase `uqrqzjafhigjuvtjqzid`, plano Free); front estático no GitHub Pages da `talpaipai`; Ryan, 27/09/2026. A IA (Gemini, cobrada por uso) fica fora da conta de infraestrutura |
 | 13 | **94** franqueados | Ryan, 27/09/2026 ("hoje temos 94 franqueados") |
 | 13 | Capacidade estimada de **1.500** conexões simultâneas no plano gratuito; **15×** a rede inteira | análise de capacidade de 22/09/2026 (limite de ~200 req/s do PostgREST no plano Free, estimativa de 1.500 a 3.000 usuários simultâneos; usado o piso). 1.500 ÷ 94 ≈ 16, arredondado para baixo. É estimativa, não teste de carga |
+| 13b | **R$ 0,50** de IA na semana de testes, com **157** respostas | `analytics.fct_eventos` (evento `ia_chamada`, `ok=true`, 23/09 a 30/09/2026): 122 Flash-Lite, 23 no 3.6 Flash, 5 NVIDIA, 7 outros. Tokens medidos, extrapolados pela média onde faltam; preços de `G_DADOS_IA_PRECO` (`js/core/dados.js`); US$ 0,09 × ~R$ 5,4 |
+| 13b | **5** reservas gratuitas, que entram juntas após **8 s** | `supabase/functions/ai/index.ts` (`RESERVAS`, `HEDGE_MS = 8_000`), função `ai` v23 |
 | 13 | **R$ 11,9 mil** por ano de economia com o fim do Deskfy | Ryan, 27/09/2026: valor do deck anterior (slide "A demanda": "R$ 11,9 mil é o que sai todo ano pro Deskfy"; na conta do ano, R$ 11.903) |
 | 13 | Supabase Pro a **cerca de R$ 140** por mês se abrir para milhares de lojistas | preço do plano Pro (US$ 25/mês), convertido; análise de 22/09/2026 |
 | 12 | Suporte ao vivo no ar desde **23/09**; atendimento com estado e responsável desde 26/09 | `luma-brain/01_BUSINESS.md` §10; `js/core/suporte.js`; chave `global.help.suporte` ligada por padrão; migration `20260926120000` |
@@ -56,7 +58,7 @@
 | 08 | "Alimentado por anos de copy da Delivery Much" | Ryan, 27/09/2026 (o código registra "Tom de Voz Delivery Much" e "bancos curados") |
 | 08 | No chat, a IA pode reescrever por cima; em lote e sem rede, quem escreve é o motor | `js/franqueado/chat.js`: a legenda do motor entra na hora e `fFetchAICaptionSuggestions` + `_fAplicarLegendaIA` trocam pela da IA quando ela responde; `AI_FEATURES.caption: true` em `js/00-config.js` (ligado em 23/09); o Luma Sheets chama `fBuildCopy` direto |
 | 13 | A arte é desenhada no aparelho do franqueado; o servidor não gera pixel | `luma-brain/02_ARCHITECTURE.md` (render no navegador: `fRenderCanvasHelper`, `js/franqueado/png-generator.js`) |
-| 12 | Equipe online: a pergunta vai direto para a pessoa, sem IA. Ninguém online: o assistente responde e oferece falar com a equipe | `luma-brain/01_BUSINESS.md` §10 (decisão de 23/09/2026); `js/widgets/help-widget.js` |
+| 12 | A Lu (assistente) responde com a Central de Ajuda e o estado da tela; passa para a equipe quando não sabe, quando é contrato/dinheiro/conta/erro sem solução, quando pedem gente ou após 2 "não ajudou". Pedido de gente não passa pela IA | função `ai` task `ajuda` (v23, `AJUDA_SISTEMA`); `gLuOferecerEquipe`/`gLuPedeHumano` em `js/core/suporte.js`; commits `7b1a23f`, `337564e` |
 | 12 | Quem assume aparece com nome e cargo; a conversa reabre se o franqueado escrever de novo | `luma-brain/01_BUSINESS.md` §10; gatilho `suporte_msg_estado` |
 | 15 · K | Hoje o Luma atende uma rede só (sem multi-tenant) | `luma-brain/02_ARCHITECTURE.md` §12 |
 | J | Calendário e Academia construídos, fora da V1; CRM Visual a estudar | `luma-brain/07_ROADMAP.md` §4–§7; Academia com `defaultEnabled:false` |
