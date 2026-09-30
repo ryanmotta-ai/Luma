@@ -289,37 +289,13 @@
   se a primeira arte sai sem ajuda, quanto tempo leva até o download, quantos que começam chegam ao download,
   se voltam toda semana, onde pedem suporte, que problemas aparecem e o que dizem."
 - **Ponto principal:** o beta mede produto, não receita.
-- **Transição:** "E se funciona aqui..."
+- **Transição:** "Para fechar, vamos testar."
 - **Perguntas difíceis:**
   - *"Quantas franquias e por quanto tempo?"* É uma decisão da rede e da gestão, e é o que estamos pedindo
     para definir juntos.
   - *"O franqueado vai pagar?"* Não é o que este beta discute.
 
-## 19 · Horizonte — "Se funciona aqui, o problema não existe só aqui."
-
-- **Objetivo:** o slide do dinheiro. Sair da sala pensando "isso pode dar muito dinheiro", sem prometer receita.
-- **Frase de abertura:** "Se funciona aqui, o problema não existe só aqui."
-- **Discurso:** "A Delivery Much é o cliente zero. [avança] Toda rede com marca central e execução local tem
-  esse mesmo problema: são 3.297 redes de franquia no Brasil, 202 mil unidades. [avança] Agora a conta: a DM
-  paga hoje uns R$ 124 por unidade por ano. Vezes 202 mil unidades, são uns 25 milhões de reais por ano. Só
-  franquias, só Brasil. E isso não é teoria: uma só ferramenta do setor já fatura mais de 10 milhões por ano
-  com esse problema. [avança] E no mundo, creative automation movimenta 2,2 bilhões de dólares, crescendo 17%
-  ao ano. [avança] O produto já existe: é o que vocês acabaram de ver. O mercado também. O que falta para virar
-  produto é investimento: uma base por cliente, onboarding e suporte."
-- **Ponto principal:** o mercado é real e grande; o que separa o Luma dele é investimento, não tecnologia.
-- **Transição:** "Para fechar."
-- **Perguntas difíceis:**
-  - *"Os 25 milhões são previsão?"* Não. É ordem de grandeza: R$ 11.903 ÷ 96 franqueados ≈ R$ 124 por unidade
-    por ano, vezes 202 mil unidades. Redes grandes pagam mais, e a conta não inclui varejo nem trade marketing.
-  - *"Quanto de investimento?"* Não trouxemos número: depende do escopo (isolamento por cliente, onboarding,
-    suporte e contrato, apêndice K). Dá para dimensionar com os dados do beta.
-  - *"O que falta para white label?"* Isolamento por rede no banco (hoje o Luma atende uma rede só),
-    configuração e marca por rede, onboarding, suporte e contrato por cliente. Apêndice K.
-  - *"Esses números de mercado são confiáveis?"* O da ABF é o censo do setor. O de R$ 10 mi foi dito pelo
-    fundador da ferramenta ao Jornal do Comércio. O global é de consultoria e varia muito (de 2 a 7 bilhões de
-    dólares); usamos o menor.
-
-## 20 · Testem agora — "Melhor do que falar é mostrar."
+## 19 · Testem agora — "Melhor do que falar é mostrar."
 
 - **Objetivo:** tirar a plateia da cadeira: cada um faz uma arte no próprio celular, ao vivo.
 - **Frase de abertura:** "Melhor do que falar é mostrar. Chegou a hora de vocês testarem o Luma."
@@ -331,7 +307,7 @@
 - **Atenção:** o QR abre `https://ryanmotta-ai.github.io/Luma/?visitante=1`. Esse endereço só funciona com o
   **modo visitante** ligado (ainda em construção em 30/09/2026). Teste com o seu celular antes de apresentar.
 
-## 21 · Fechamento — "Uma marca no controle. Uma rede com autonomia."
+## 20 · Fechamento — "Uma marca no controle. Uma rede com autonomia."
 
 - **Objetivo:** fechar a tese e pedir o próximo passo.
 - **Frase de abertura:** "Uma marca no controle. Uma rede com autonomia."
