@@ -64,9 +64,9 @@
 - **Objetivo:** fixar a frase que resume o produto.
 - **Frase de abertura:** "Autonomia local. Controle central. Com o design no comando."
 - **Discurso:** "O fluxo tem quatro passos. No Estúdio, o designer transforma a campanha em regras. Na publicação,
-  um material fica disponível para a rede inteira. O franqueado informa só o que é local: produto, preço, foto.
+  um material fica disponível para a rede inteira. O franqueado informa só o que quer vender: produto, preço, foto.
   E sai a arte pronta, dentro da marca. O design continua com quem entende de design. O franqueado informa
-  apenas o que é local."
+  apenas o que quer vender."
 - **Ponto principal:** o design é a origem de tudo: a rede só executa o que o designer decidiu. Ninguém faz o trabalho do outro.
 - **Transição:** "Na prática, isso vira duas experiências dentro de um produto só."
 - **Perguntas difíceis:**
