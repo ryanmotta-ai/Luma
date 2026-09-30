@@ -1406,6 +1406,7 @@ function _fLpSyncBloqueio(resArg){
   if(!campo){
     const menor=((res&&res.campos)||[])
       .filter(c=>c&&c.status==='fits'&&c.fontSizeAutorado&&c.nomes&&c.nomes.length
+                &&fCampoPodeEncurtar(c.nomes[0])
                 &&(c.chars==null||c.chars>=20)&&c.fontSize/c.fontSizeAutorado<=0.75)
       .sort((a,b)=>a.fontSize/a.fontSizeAutorado-b.fontSize/b.fontSizeAutorado)[0];
     const perguntas=(fState&&fState.camp&&fState.camp.perguntas)||[];
@@ -1438,7 +1439,8 @@ function _fLpSyncBloqueio(resArg){
            &&String((fState.dados||{})[campo]==null?'':fState.dados[campo])===F0.valor)?F0:null;
   /* A frase antiga era "“Produto” não cabe — tire umas 20 letras" (Laura, 25/09: "essa copy
      está muito ruim"): "umas" é chute e não diz o que fazer. Agora: o número exato e a ação. */
-  const conta=F?'tem '+F.atual+' letras, cabem '+F.limite:'';
+  const podeEncurtar=fCampoPodeEncurtar(campo);
+  const conta=podeEncurtar&&F?'tem '+F.atual+' letras, cabem '+F.limite:'';
   /* Mais de um campo: a barra diz TODOS de uma vez. O número e a saída seguem sendo do primeiro
      (é o que o toque abre); o próximo aparece quando ele couber. */
   const todos=fLpCamposBloqueados(res,fState.dados||{});
@@ -1447,9 +1449,9 @@ function _fLpSyncBloqueio(resArg){
     _fLpNotaTexto(nota,nomes+' não cabem na arte · Ajustar',falado);
     nota.title=nomes+' não cabem nesta arte nem no menor tamanho legível. Toque para ajustar um de cada vez.';
   }else{
-    _fLpNotaTexto(nota,'“'+rotulo+'” não cabe na arte'+(conta?' ('+conta+')':'')+' · Encurtar',falado);
+    _fLpNotaTexto(nota,'“'+rotulo+'” não cabe na arte'+(conta?' ('+conta+')':'')+(podeEncurtar?' · Encurtar':' · Conferir valor'),falado);
     nota.title='“'+rotulo+'” não cabe nesta arte nem no menor tamanho legível.'
-      +(conta?' Hoje '+conta+'.':'')+' Toque para encurtar com IA.';
+      +(conta?' Hoje '+conta+'.':'')+(podeEncurtar?' Toque para encurtar com IA.':' Confira o valor; se estiver correto, escolha outro material.');
   }
   nota.setAttribute('aria-label', nota.title+falado);
   nota.onclick=()=>{
@@ -1562,8 +1564,7 @@ function _fLpFalta(bloq, W, H){
   const campo=gLocalFitCulpado(bloq,fState.dados||{});
   const valor=campo?String((fState.dados||{})[campo]==null?'':fState.dados[campo]):'';
   if(!valor) return null;
-  const cfg=(typeof fGetFieldType==='function')?fGetFieldType(campo):{type:'text'};
-  if(cfg.type&&cfg.type!=='text') return null;
+  if(!fCampoPodeEncurtar(campo)) return null;
   const cabe=_fLpBalaoCabe(bloq,campo,W,H); if(!cabe) return null;
   const limite=gLocalFitMaiorPrefixo(valor,t=>cabe(t).ok).limite;
   if(!limite||limite>=valor.length) return null;
@@ -1618,8 +1619,7 @@ function _fLpSyncBalao(){
       const campo=gLocalFitCulpado(bloq,fState.dados||{});
       const valor=campo?String((fState.dados||{})[campo]==null?'':fState.dados[campo]):'';
       if(!valor) continue;
-      const cfg=(typeof fGetFieldType==='function')?fGetFieldType(campo):{type:'text'};
-      if(cfg.type&&cfg.type!=='text') continue;
+      if(!fCampoPodeEncurtar(campo)) continue;
       const cabe=_fLpBalaoCabe(bloq,campo,cv.width,cv.height); if(!cabe) continue;
       let sug=[], gs=null;
       try{ gs=gCopyFitSugestoes(valor,cabe,1); sug=gs.sugestoes; }catch(e){ sug=[]; }
@@ -1724,6 +1724,7 @@ function _fLpUndoCopyFit(rotulo, campo, fn){
   _fUndoRegistra(rotulo, ()=>{ fn(); try{ if(typeof gTrackEvent==="function") gTrackEvent("copyfit_desfeito",{campo}); }catch(e){} });
 }
 function _fLpBalaoAplicaCore(B,s){
+  if(!fCampoPodeEncurtar(B.campo)) return false;
   /* O toque direto no balão também confere o texto medido (o `aplica` da solução já conferia):
      entre a tecla e o render (debounce) o balão ainda é o do valor anterior, e tocar nele
      trocava a "Mussarela" recém-digitada pela "Calabresa" velha. O render seguinte o atualiza. */
@@ -1770,7 +1771,7 @@ window.addEventListener('resize',()=>{ try{ _fLpPosBalao(); }catch(e){} });
    @returns {{campo,text,removidas,cabe:function(string):boolean,aplica:function():boolean}|null} */
 function fLpBalaoSolucao(bloqueio){
   const B=_lpBalao, s=B&&B.sug&&B.sug[0];
-  if(!s||_lpEffectiveMaterial!==fState.material) return null;
+  if(!s||!fCampoPodeEncurtar(B.campo)||_lpEffectiveMaterial!==fState.material) return null;
   if(String((fState.dados||{})[B.campo]==null?'':fState.dados[B.campo])!==B.valor) return null;
   const visto=((_lpLayoutResult&&_lpLayoutResult.bloqueios)||[]).find(b=>b&&b.fieldId===B.fieldId);
   if(!visto) return null;
@@ -1801,7 +1802,7 @@ function fLpBalaoSolucao(bloqueio){
    @returns {{campo,text,removidas,limite,n}|null} `n` = letras que ainda passam do que cabe. */
 function fLpBalaoPerto(campo){
   const P=_lpBalao&&_lpBalao.perto;
-  if(!P||P.campo!==campo||_lpEffectiveMaterial!==fState.material) return null;
+  if(!P||P.campo!==campo||!fCampoPodeEncurtar(campo)||_lpEffectiveMaterial!==fState.material) return null;
   if(String((fState.dados||{})[campo]==null?'':fState.dados[campo])!==P.valor) return null;
   return P;
 }

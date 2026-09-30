@@ -1968,9 +1968,11 @@ async function fCorrigirTextoLongo(res){
   const rotulo = (d && d.rotulo)
     || (campo && typeof gFieldLabel === 'function' ? gFieldLabel(campo) : 'este texto');
 
+  const podeEncurtar = typeof fCampoPodeEncurtar === 'function' && fCampoPodeEncurtar(campo);
+
   /* O limite MEDIDO passa a valer para o contador daquele campo: a partir daqui ele mostra
      47/28 em vez de 47/60, que é o número que a pessoa precisa perseguir. */
-  if(campo && d && Number.isFinite(d.limite) && d.limite > 0
+  if(podeEncurtar && d && Number.isFinite(d.limite) && d.limite > 0
      && typeof fMarcaLimiteSeguro === 'function') fMarcaLimiteSeguro(campo, d.limite);
 
   const perguntas = (fState.camp && fState.camp.perguntas) || [];
@@ -1993,14 +1995,14 @@ async function fCorrigirTextoLongo(res){
      honesta é trocar de material. */
   if(idx < 0){
     if(typeof gToast === 'function')
-      gToast('O texto de “' + rotulo + '” não cabe nesta arte. Escolha outro material para este conteúdo.', 'error');
+      gToast('O conteúdo de “' + rotulo + '” não cabe nesta arte. Escolha outro material para este conteúdo.', 'error');
     return false;
   }
 
   /* A VERSÃO QUE CABE, se houver. Lida AGORA, antes do primeiro `await`: quem baixa troca o
      `fState.material` pelo da bolha e o devolve no `finally` — é com ele que se confere que a
      prévia mediu esta mesma arte (`fLpBalaoSolucao`). */
-  const sol = (bloq0 && typeof fLpBalaoSolucao === 'function') ? fLpBalaoSolucao(bloq0) : null;
+  const sol = (podeEncurtar && bloq0 && typeof fLpBalaoSolucao === 'function') ? fLpBalaoSolucao(bloq0) : null;
   const versao = (sol && sol.campo === campo) ? sol : null;
   /* OS OUTROS CAMPOS QUE TAMBÉM NÃO CABEM (2.2): o diálogo resolve um por vez, mas avisa dos
      demais já — senão a pessoa conserta este, gera de novo e descobre o próximo. */
@@ -2009,7 +2011,12 @@ async function fCorrigirTextoLongo(res){
   const tambem = outros.length
     ? ' Também não ' + (outros.length > 1 ? 'cabem' : 'cabe') + ': ' + fLpListaRotulos(outros) + '.' : '';
 
-  if(versao){
+  if(!podeEncurtar){
+    const ok = await gConfirm(
+      'O valor de “' + rotulo + '” não cabe nesta arte. Confira se foi preenchido corretamente. Se estiver correto, escolha outro material; não corte o valor para caber.' + tambem,
+      { title: 'Esse valor não cabe', okLabel: 'Conferir valor', cancelLabel: 'Agora não' });
+    if(!ok) return true;
+  } else if(versao){
     const sem = versao.removidas.length ? ' (sai: ' + versao.removidas.join(', ') + ')' : '';
     const r = await gConfirm(
       'O texto de “' + rotulo + '” é longo demais para esta arte. Esta versão cabe: “'
@@ -2052,7 +2059,7 @@ async function fCorrigirTextoLongo(res){
   /* "Encurtar agora" ENCURTA: antes só abria o campo e deixava o corte com a pessoa — quem
      tocou em "Encurtar" esperava uma versão menor (Laura, 25/09). A IA sugere; aplicar continua
      sendo toque dela no popover. */
-  if(!versao && typeof fFitTextWithAI === 'function'){
+  if(podeEncurtar && !versao && typeof fFitTextWithAI === 'function'){
     /* Com a versão que chegou PERTO medida, o popover "Quase cabe" abre sem IA (e oferece "Mais
        opções com IA" quando ela existe). Sem ela, vai direto à IA, como antes. */
     const temPerto = typeof fLpBalaoPerto === 'function' && !!fLpBalaoPerto(campo);
@@ -2916,10 +2923,10 @@ function _fBolhaMarcaBloqueio(w, rendered, d, mw, mh){
     }
     const copy = ok.querySelector('.art-ok-copy');
     if(copy){
-      const forte = document.createElement('strong'); forte.textContent = 'Falta ajustar um texto';
+      const forte = document.createElement('strong'); forte.textContent = 'Falta ajustar um campo';
       const sub = document.createElement('small'); sub.className = 'art-ok-sub';
       const varios = nomes.length > 1;
-      sub.textContent = lista+(varios ? ' não cabem' : ' não cabe')+' na arte · Toque para '+(varios ? 'ajustar' : 'encurtar');
+      sub.textContent = lista+(varios ? ' não cabem' : ' não cabe')+' na arte · Toque para ajustar';
       copy.textContent = ''; copy.append(forte, sub);
     }
     const abrir = ()=>{

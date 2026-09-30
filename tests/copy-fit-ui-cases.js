@@ -33,6 +33,9 @@ const camadas=(wProduto)=>[
      em 900. Medido: em 760 o longo bloqueia até 820px de caixa e o curto cabe até 700 — ±8%. */
   T('produto',{content:'{{produto}}',x:90,y:400,w:wProduto||760,h:110,fontSize:90}),
   T('linha',{content:'{{sabor}} {{borda}}',x:90,y:700,w:760,h:110,fontSize:90}),
+  /* Parede do preço: sem ela, a largura livre deixou o PRECO_LONGO caber e os dois
+     testes de exclusão de valores perderam a pré-condição de bloqueio. */
+  {id:'limite-preco',type:'shape',shapeKind:'rect',x:510,y:980,w:30,h:150,fill:'#B01C14',visible:true,opacity:100},
   T('por',{content:'{{precoPor}}',x:90,y:1000,w:400,h:110,fontSize:84,textBox:'point'}),
   /* Texto fixo ao lado do preço (25/09/2026): com a hierarquia por família o preço não segura
      mais o piso do produto — este texto segura. 89px desde 26/09: com a folga de 80% o piso do
@@ -504,7 +507,7 @@ await test('Sem versão: o diálogo diz o MESMO número e o contador bate com el
 await test('Campo de preço bloqueado não ganha "tire N letras" (cortar o fim de um preço não é conselho)', async()=>{
   await reset({precoPor:PRECO_LONGO});
   assert(_lpLayoutResult.invalid,'pré-condição: bloqueia');
-  assert(!faltaDaNota()&&/encurtar/i.test(notaVis()),'o preço ganhou número de letras: "'+notaVis()+'"');
+  assert(!faltaDaNota()&&/Conferir valor/i.test(notaVis())&&!/encurtar/i.test(notaVis()),'o aviso de preço ofereceu corte: "'+notaVis()+'"');
 });
 
 await test('Leitor de tela: o número que muda a cada tecla só é falado na pausa', async()=>{
@@ -659,6 +662,99 @@ await test('2.4 · colar além do limite corta na PALAVRA e avisa (nunca "2 litr
     'cortou no meio da palavra: "'+box.value+'"');
   assert(toastCom(/última palavra inteira/),'o corte não foi anunciado');
 });
+
+
+/* Valores usam o tipo já resolvido pelo chat, inclusive campos com nomes personalizados.
+   A caixa estreita força overflow com VALORES reais; a parede impede largura livre. */
+const camposDeValor = [
+  {id:'precoDe', valor:'R$ 1.234,56'},
+  {id:'precoPor', valor:'R$ 1.234,56'},
+  {id:'pedidoMin', valor:'R$ 1.234,56'},
+  {id:'desconto', valor:'50%'},
+  {id:'medida_interna', valor:'1234', type:'number', label:'Quantidade'},
+  {id:'custo_interno', valor:'R$ 1.234,56', type:'currency', label:'Valor'}
+];
+function materialDeValor(id){
+  const mat=material('valor-sem-copy-fit-'+id);
+  const l=mat.layers.find(l=>l.id==='por');
+  l.content='{{'+id+'}}'; l.w=40;
+  mat.layers.push({id:'parede-valor',type:'shape',shapeKind:'rect',x:140,y:980,w:25,h:160,
+    fill:'#B01C14',visible:true,opacity:100});
+  return mat;
+}
+const varsAntesDosValores=dVars.slice();
+try{
+  camposDeValor.filter(c=>c.type).forEach(c=>dVars.push({name:c.id,type:c.type,label:c.label}));
+  for(const {id,valor} of camposDeValor){
+    await test('Valor no chat · '+id+': bloqueia sem Encurtar, IA ou opção antiga', async()=>{
+      const oldAI=window.gAI;
+      try{
+        await reset({[id]:valor},materialDeValor(id));
+        if(idx(id)<0) fState.camp.perguntas.push({id,label:gFieldLabel(id)});
+        naPergunta(id); box.value=valor;
+        const res=_lpLayoutResult;
+        const bloq=res&&res.invalid&&res.bloqueios.find(b=>b.campos.includes(id));
+        assert(bloq,'pré-condição: o valor real precisa bloquear no Local Fit');
+        assert(/Conferir valor/.test(notaVis())&&!/encurtar|letras/i.test(notaVis()),'aviso oferece corte: '+notaVis());
+        assert(!balao()&&!fLpBalaoSolucao()&&!fLpBalaoPerto(id),'valor ganhou sugestão');
+
+        let calls=0;
+        window.gAI={isReady:()=>true,run:async()=>{calls++;return {ok:false};}};
+        const cfg=fGetFieldType(id);
+        // Nem um limite guardado antes da correção pode induzir a cortar dígitos.
+        fMarcaLimiteSeguro(id,2);
+        assert(fAlvoDoCampo(id,cfg)===cfg.maxLen,'contador adotou corte do valor');
+        _fFitSync(box,id,cfg,cfg.maxLen);
+        assert(!$('#f-fit-btn'),'botão Encurtar apareceu no limite');
+        await fFitTextWithAI(true);
+        assert(calls===0,'chamada direta chegou à IA');
+
+        const dialogo=fCorrigirTextoLongo(Object.assign({},res,{diagnostico:{
+          campo:id,rotulo:gFieldLabel(id),atual:valor.length,limite:2
+        }}));
+        await tick(40);
+        const ov=$('.g-dialog-ov');
+        assert(ov&&ov.querySelector('.g-dialog-ok').textContent==='Conferir valor','ação errada');
+        assert(/outro material/.test(ov.textContent)&&!/Tire \d|Encurtar|Usar esta versão/.test(ov.textContent),'diálogo oferece corte');
+        ov.querySelector('.g-dialog-ok').click(); await dialogo; await tick(100);
+        clearTimeout(box._lpPreviewT);
+        assert(calls===0&&!$('#f-fit-btn')&&!$('#f-fit-pop'),'conferência acionou Copy Fit');
+        assert(fState.dados[id]===valor&&box.value===valor,'conferência alterou o valor');
+
+        _fFitOpts=['9']; _fFitCf=null; fFitApply(0);
+        assert(box.value===valor&&fState.dados[id]===valor,'opção antiga alterou o valor');
+        _lpBalao={campo:id,fieldId:bloq.fieldId,valor,sug:[{text:'9',removidas:[]}],
+          perto:{campo:id,fieldId:bloq.fieldId,valor,text:'9',removidas:[],limite:1,n:1}};
+        assert(!fLpBalaoSolucao()&&!fLpBalaoPerto(id),'expôs sugestão antiga');
+        assert(!_fLpBalaoAplicaCore(_lpBalao,_lpBalao.sug[0]),'balão aplicou corte no valor');
+        assert(fState.dados[id]===valor,'balão alterou o valor');
+      }finally{
+        fechaDialogos(); window.gAI=oldAI; _lpBalao=null;
+        _F_LIMITE_SEGURO.delete(_fLsChave(id));
+      }
+    });
+
+    await test('Valor no Sheets · '+id+': não pronto, sem sugestão nem aplicação antiga', async()=>{
+      await reset({[id]:valor},materialDeValor(id));
+      const row={_rid:'linha-valor-'+id,dados:Object.assign({},BASE,{[id]:valor}),erros:[]};
+      const result=await _fBulkMedirLinha(row);
+      assert(result.campos.some(c=>c.campo===id),'pré-condição: o valor real precisa bloquear');
+      assert(!result.sug,'Sheets sugeriu encurtar valor');
+      const chave=_fBulkFitChave(row);
+      _fBulkFitCache.set(chave,result);
+      const rowsAntes=fBulkRows; fBulkRows=[row];
+      try{
+        const keys=Object.keys(row.dados);
+        assert(_fBulkEstadoLinha(row,keys)==='naocabe','Sheets liberou linha');
+        const rd=fBulkGetReadiness(keys);
+        assert(rd.readyRows.length===0&&rd.errorRows.length===1&&rd.errorRows[0].naoCabe,'linha bloqueada foi considerada pronta');
+        result.sug={campo:id,rotulo:gFieldLabel(id),valor,text:'9',removidas:[]};
+        fBulkAplicarEncurtar(0);
+        assert(row.dados[id]===valor,'Sheets aplicou sugestão antiga ao valor');
+      }finally{ fBulkRows=rowsAntes; _fBulkFitCache.delete(chave); }
+    });
+  }
+}finally{ dVars=varsAntesDosValores; }
 
 await reset();
 window.__lumaTest={total,passed:total-failures.length,failures};

@@ -2733,9 +2733,9 @@ async function _fBulkMedirLinha(r){
     const c0 = campos[0].campo;
     const bloq = res.bloqueios.find(b => gLocalFitCulpado(b, r.dados) === c0);
     const valor = String(r.dados[c0] == null ? '' : r.dados[c0]);
-    const cfg = (typeof fGetFieldType === 'function') ? fGetFieldType(c0) : {type:'text'};
+    const podeEncurtar = fCampoPodeEncurtar(c0);
     const medir = bloq ? gLocalFitMedidor(eff, bloq, c0, r.dados, {canvas:{w:W,h:H}}) : null;
-    if(valor && medir && (!cfg.type || cfg.type === 'text')){
+    if(podeEncurtar && valor && medir){
       const cabe = t => { const x = medir(t); return {ok: !!x && x.status === 'fits', fontSize: x ? x.fontSize : 0}; };
       const g = gCopyFitSugestoes(valor, cabe, 1);
       if(g.sugestoes.length) sug = {campo:c0, rotulo:campos[0].rotulo, valor, text:g.sugestoes[0].text,
@@ -2769,7 +2769,7 @@ async function _fBulkMedirTodas(){
    Desfazer. Confere que o campo ainda tem o valor que foi medido (a pessoa pode ter digitado). */
 function fBulkAplicarEncurtar(i){
   const r = fBulkRows[i], m = r && _fBulkNaoCabe(r), s = m && m.sug;
-  if(!s) return;
+  if(!s || !fCampoPodeEncurtar(s.campo)) return;
   if(String(r.dados[s.campo] == null ? '' : r.dados[s.campo]) !== s.valor){
     if(typeof gToast === 'function') gToast('O texto mudou. Confira a oferta e tente de novo.');
     return;
@@ -3718,7 +3718,7 @@ async function fBulkDownloadAll(modo){
   if (selectedFmts.length > 1) _resumo += ` × ${selectedFmts.length} formatos = ${_totalArtes} imagens`;
   _resumo += '.';
   if (_nErro) _resumo += `\n• ${_nErro} linha(s) com erro ficam de fora — corrija na tabela.`;
-  if (_nNaoCabe) _resumo += `\n• ${_nNaoCabe} oferta(s) com texto que não cabe na arte ficam de fora — toque em Encurtar na oferta.`;
+  if (_nNaoCabe) _resumo += `\n• ${_nNaoCabe} oferta(s) com conteúdo que não cabe na arte ficam de fora — confira os campos indicados na oferta.`;
   if (soltas && _totalArtes > 1) _resumo += `\n\nO navegador pode perguntar se permite baixar vários arquivos — aceite.`;
   if (_nVazias) _resumo += `\n• ${_nVazias} linha(s) vazia(s) ignorada(s).`;
   if (_totalArtes > 80) _resumo += `\n\nÉ bastante coisa — pode demorar e pesar no navegador do celular.`;

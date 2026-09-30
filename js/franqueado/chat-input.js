@@ -118,8 +118,14 @@ function fLimiteSeguro(id){
 }
 /* O alvo que a pessoa vê. Nunca maior que o limite do designer: ele é permissão, não medida. */
 function fAlvoDoCampo(id, cfg){
-  const seguro = fLimiteSeguro(id);
+  const seguro = fCampoPodeEncurtar(id, cfg) ? fLimiteSeguro(id) : 0;
   return seguro ? Math.min(seguro, cfg.maxLen) : cfg.maxLen;
+}
+
+/* Copy Fit só reescreve texto livre. O tipo já foi resolvido para máscara/validação:
+   preço, desconto e número continuam sujeitos ao Local Fit, nunca a cortes de copy. */
+function fCampoPodeEncurtar(id, cfg){
+  return !!id && (cfg || fGetFieldType(id)).type === 'text';
 }
 
 function fGetFieldType(id){
@@ -673,11 +679,11 @@ function _fFitSync(box, id, cfg, len){
      progresso sumia no meio da espera. Mexer no texto (ou sair da pergunta) é cancelar — a
      resposta seria de outro texto. */
   if(_fFitRun){
-    if(_fFitRun.id===id && (_fFitAttempt(box,id) || box.value)===_fFitRun.original) return;
+    if(fCampoPodeEncurtar(id, cfg) && _fFitRun.id===id && (_fFitAttempt(box,id) || box.value)===_fFitRun.original) return;
     _fFitCancela();
   }
   let btn=document.getElementById('f-fit-btn');
-  const tipoTexto = cfg.type==='text' || cfg.type==='code';
+  const tipoTexto = fCampoPodeEncurtar(id, cfg);
   /* Antes só acendia DEPOIS de estourar o teto do designer ou bloquear a arte — no chat guiado,
      sem prévia medindo, isso quase nunca acontecia (Vanessa, 24/09/2026: "nunca mais apareceu").
      Agora nasce em 90% do alvo, ANTES de bloquear: mesmo limiar do contador (`fUpdateCharCount`),
@@ -746,6 +752,7 @@ async function fFitTextWithAI(comIA){
   const box=document.getElementById('f-msg-box'); if(!box) return;
   const id=fState.camp?.perguntas?.[fState.stepIdx]?.id; if(!id) return;
   const cfg=fGetFieldType(id);
+  if(!fCampoPodeEncurtar(id, cfg)){ _fFitClosePop(); return; }
   /* O alvo que a IA recebe e que o código valida é o mesmo que o contador mostra — senão ela
      devolveria três opções de 58 caracteres para uma caixa onde só cabem 28. */
   let alvo=fAlvoDoCampo(id, cfg);
@@ -979,7 +986,7 @@ function _fFitPop(btn, head, foot, maisIA){
 // contador, prévia ao vivo e fState.dados atualizam por um só lugar).
 function fFitApply(i){
   const s=_fFitOpts[i]; const box=document.getElementById('f-msg-box');
-  if(!s||!box) return;
+  if(!s||!box || !fCampoPodeEncurtar(fState.camp?.perguntas?.[fState.stepIdx]?.id)) return;
   // A versão do Copy Fit entra pelo caminho do balão: o mesmo `input`, e mais o Desfazer.
   /* ⛔ Nunca cai no caminho cru abaixo: se `aplica` recusa, a pessoa digitou depois de abrir o
      popover e a versão é de OUTRO texto (medido para "Calabresa", ela já escreveu "Mussarela"). */
