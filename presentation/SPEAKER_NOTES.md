@@ -56,8 +56,11 @@
 - **Ponto principal:** o produto nasceu da ponta. Cada recurso responde a uma dor que alguém contou.
 - **Transição:** "Dessas conversas saiu a tese do Luma."
 - **Perguntas difíceis:**
-  - *"Quantos franqueados entrevistaram?"* Falar o número real da rodada de entrevistas. Não está em nenhum
-    documento do repositório, então só citar se o Ryan confirmar.
+  - *"Quantos franqueados entrevistaram?"* Levar o número real da rodada (quantos, de quais regiões). O repositório
+    não tem esse dado, então o Ryan precisa confirmar antes da apresentação. Sem o número, dizer só que foram
+    conversas com franqueados da rede.
+  - *"Essas dores são citações deles?"* São os temas que apareceram nas conversas, resumidos pela equipe. A gíria
+    local foi pedido explícito.
 
 ## 04 · A tese — "Autonomia local. Controle central. Com o design no comando."
 
@@ -139,7 +142,7 @@
 - **Discurso:** "Quando a arte fica pronta, a legenda já está do lado, escrita por IA. E atendendo um pedido que
   apareceu em várias entrevistas com franqueados, ela usa a gíria local: em Santa Maria, por exemplo, pode vir um
   bah ou um tchê. A Delivery Much fala a língua de cada lugar, e agora a legenda também."
-- **Ponto principal:** a voz da marca, com sotaque de cada cidade.
+- **Ponto principal:** a voz da marca, com sotaque de cada cidade. A legenda do exemplo é ilustrativa. Atenção: no lote (Luma Sheets) a legenda sai do motor local, sem IA; dizer isso se perguntarem.
 - **Transição:** "E se a IA falhar? Tem um plano B."
 - **Perguntas difíceis:**
   - *"Isso é IA?"* É, primeiro. A IA escreve com as mesmas regras (sem inventar, sem emoji) e com a gíria da
@@ -241,6 +244,7 @@
 - **Perguntas difíceis:**
   - *"E se abrir para todos os lojistas?"* Aí o banco vai para o Supabase Pro: 25 dólares por mês, uns
     140 reais. O render continua nos aparelhos, então a conta não cresce com o número de artes.
+  - *"E se o Google mudar a cota gratuita?"* A IA tem 5 provedores grátis de reserva e, só em último caso, um modelo pago, então o risco é um custo pontual pequeno e não uma parada. O painel Dados do Luma ainda calcula o custo da IA como se fosse pago: se alguém abrir, explicar que é estimativa do custo de lista, não o que pagamos.
   - *"E a IA?"* Entra no R$ 0: roda na cota gratuita de várias contas Google e em 5 provedores grátis de reserva. O próximo slide mostra a rota.
   - *"Essa capacidade foi medida?"* É estimativa, da análise de capacidade de 22/09 (limite de requisições
     do plano gratuito), não teste de carga. Usamos o piso: 1.500.
@@ -254,7 +258,7 @@
   rápido do Google, e ele resolve a maioria. [avança] Agora o Google demorou: passaram 8 segundos. Na hora,
   cinco provedores gratuitos entram juntos. O primeiro que responde vence e os outros são cancelados. [avança] E se
   ninguém responder? Só então entra o modelo mais forte. [avança] E nada disso custa: o Google roda na cota gratuita de
-  várias contas e as cinco reservas são gratuitas. Na semana de testes foram 846 respostas, sem pagar nada."
+  várias contas e as cinco reservas são gratuitas. Na semana de testes foram 846 respostas, sem pagar nada (número do Ryan, 30/09; levar o print do painel se pedirem a fonte)."
 - **Ponto principal:** custo quase zero e resposta garantida, por desenho.
 - **Transição:** "Com isso, a V1 está pronta."
 - **Perguntas difíceis:**
@@ -284,7 +288,7 @@
 - **Discurso:** "Toda rede com marca central e execução local tem esse problema. A Delivery Much é o cliente
   zero. White label não é vender o código: a plataforma continua nossa, outras redes licenciariam, cada uma
   com sua identidade, sobre uma base única que evolui para todos. [aponta os números] E esse mercado existe:
-  são 3.297 redes de franquia no Brasil, que faturaram 301 bilhões em 2025. Só o Deskfy já passa de 10 milhões
+  são 3.297 redes de franquia no Brasil, que faturaram 301 bilhões em 2025. Só uma ferramenta do setor já passa de 10 milhões
   por ano em receita recorrente resolvendo esse problema. E creative automation movimenta 2,2 bilhões de dólares
   no mundo, crescendo 17% ao ano. Hoje não estamos pedindo para vender o Luma. Estamos construindo o case que
   permitiria essa conversa existir depois."
@@ -304,7 +308,7 @@
 
 - **Objetivo:** um parêntese, quase entre nós: mostrar o tamanho da oportunidade, sem previsão de receita.
 - **Frase de abertura:** "Um parêntese: e se o Luma virasse produto?"
-- **Discurso:** "Só um concorrente, o Deskfy, já fatura mais de 10 milhões por ano resolvendo esse problema.
+- **Discurso:** "Só uma ferramenta do setor já fatura mais de 10 milhões por ano resolvendo esse problema.
   [avança] Só as franquias do Brasil, ao preço que a DM paga hoje, seriam uns 25 milhões por ano. [avança] E
   creative automation no mundo movimenta 2,2 bilhões de dólares, crescendo 17% ao ano. [avança] A tecnologia
   já existe. Falta o investimento para virar produto: uma base por cliente, onboarding e suporte. O produto em
@@ -347,6 +351,7 @@
 | **K · White label** | "O que falta para outra rede?" O que existe e o que faltaria. |
 | **L · Fluxo anterior × Luma** | "E a ferramenta que usamos hoje?" Comparação de fluxo, nunca de fornecedor. |
 
-**Sobre a ferramenta atual (Deskfy):** é uma ferramenta madura e resolve bem o que se propõe. Não compare
-recursos nem preço em público. A diferença está no fluxo: no Luma o franqueado responde perguntas e o
+**Sobre a ferramenta atual (Deskfy):** decisão do Ryan (30/09): o Deskfy é nomeado nos slides 2, 6 e 15 pela
+dor que a rede viveu (retrabalho, arte feita duas vezes, sem SVG, manutenção difícil). Nos slides de mercado
+(18 e 19) ele aparece só como "uma ferramenta do setor". Não compare recursos nem preço em público. A diferença está no fluxo: no Luma o franqueado responde perguntas e o
 design fica protegido, e o roadmap é nosso, guiado pelo que a rede pede.
