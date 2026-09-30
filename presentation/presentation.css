@@ -762,3 +762,5 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-escuta .par i { position: relative; height: 3px; background: var(--orange); margin: 0 10px; }
 .s-escuta .par i::after { content: ''; position: absolute; right: -2px; top: -7px; border-left: 14px solid var(--orange); border-top: 8px solid transparent; border-bottom: 8px solid transparent; }
 .s-escuta .foot { position: absolute; left: var(--pad-x); bottom: 70px; font-size: 38px; font-weight: 900; letter-spacing: -.02em; color: var(--orange-d); }
+.s-problema .deskfy { position: absolute; left: 1260px; top: 196px; padding: 22px 30px; border-radius: 18px; background: #0A0A0A; color: #fff; font-size: 34px; font-weight: 900; letter-spacing: -.02em; line-height: 1.1; }
+.s-problema .deskfy small { display: block; margin-bottom: 8px; font-size: 14px; letter-spacing: .16em; color: var(--orange); }

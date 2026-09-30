@@ -33,7 +33,7 @@
 ## 02 · O problema — "Escalar a rede não deveria escalar o retrabalho."
 
 - **Objetivo:** nomear a dor. Criar a campanha não é o problema. O problema é executá-la dezenas de vezes.
-- **Frase de abertura:** "Toda rede de franquia vive a mesma tensão."
+- **Frase de abertura:** "Toda rede de franquia vive a mesma tensão. A gente viveu isso com o Deskfy."
 - **Discurso:** "Uma campanha central vira execuções locais: muda o produto, o preço, a foto, a oferta, a cidade.
   A marca é uma só. Essas seis artes são da mesma campanha. [avança] E aqui mora a tensão: quanto mais
   autonomia damos à ponta, maior o risco de perder padrão. Quanto mais centralizamos, maior o gargalo do marketing."
