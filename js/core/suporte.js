@@ -86,7 +86,7 @@ function _gSupPintarContador(){
 
 /* ── Contexto: onde o franqueado estava ao escrever ── */
 const _G_SUP_MODOS = { franqueado: 'Franqueado', designer: 'Estúdio', academia: 'Implementação', calendario: 'Calendário', video: 'Vídeo' };
-function gSupContexto(origem){
+function gSupContexto(origem, estado){
   const c = {};
   try {
     const cl = document.body.classList;
@@ -98,15 +98,76 @@ function gSupContexto(origem){
     }
     c.tela = window.innerWidth < 768 ? 'celular' : 'computador';
     if (origem) c.origem = String(origem).slice(0, 30);
+    // O que a equipe precisa ver para ajudar sem perguntar de novo (vem de gSupEstadoTela).
+    if (estado && estado.campoBloqueado) c.campo_bloqueado = String(estado.campoBloqueado).slice(0, 120);
+    if (estado && estado.erro) c.erro = String(estado.erro).slice(0, 200);
   } catch (e) {}
   return c;
+}
+
+/* ESTADO REAL DA TELA para a Lu (assistente do widget). Só o que o app já sabe agora: material
+   aberto, campo que o Local Fit bloqueou, primeiro erro de validação. Vazio = a pergunta não tem
+   nada da tela por trás (e, sem trecho da Central, a IA nem é chamada). Nunca lança. */
+function gSupEstadoTela(){
+  const e = {};
+  try {
+    const c = gSupContexto();
+    ['modo', 'campanha', 'material', 'formato', 'tela'].forEach(function (k) { if (c[k]) e[k] = c[k]; });
+    if (e.modo === 'franqueado' && typeof fState !== 'undefined' && fState) {
+      const dados = fState.dados || {};
+      if (typeof _lpLayoutResult !== 'undefined' && _lpLayoutResult && _lpLayoutResult.invalid && typeof fLpCamposBloqueados === 'function') {
+        const nomes = fLpCamposBloqueados(_lpLayoutResult, dados).map(function (o) { return o.rotulo; }).filter(Boolean);
+        if (nomes.length) e.campoBloqueado = nomes.join(', ');
+      }
+      if (typeof fValidate === 'function') {
+        const pergs = (fState.camp && fState.camp.perguntas) || [];
+        for (let i = 0; i < pergs.length; i++) {
+          const p = pergs[i];
+          if (!p || dados[p.id] == null || dados[p.id] === '' || (typeof fIsImageVar === 'function' && fIsImageVar(p.id))) continue;
+          const erro = fValidate(p.id, String(dados[p.id]), dados);
+          if (erro) { e.erro = erro; e.campoComErro = typeof gFieldLabel === 'function' ? gFieldLabel(p.id, p) : p.id; break; }
+        }
+      }
+    }
+  } catch (err) {}
+  return e;
+}
+// Tem algo da tela que justifique gastar IA? (material aberto, campo bloqueado ou erro)
+function gSupEstadoTemAssunto(estado){
+  return !!(estado && (estado.material || estado.campoBloqueado || estado.erro));
+}
+
+/* ── LU: decisões que NÃO são da IA ── */
+// A pessoa está pedindo gente? Então nem chama o modelo.
+function gLuPedeHumano(texto){
+  // Só pedido EXPLÍCITO: "equipe"/"pessoa" soltos aparecem em dúvida comum ("como ponho uma pessoa na arte?").
+  return /\b(falar|conversar|chamar|atendimento)\s+(com\s+)?(algu[eé]m|uma?\s+pessoa|a\s+equipe|um\s+humano|um\s+atendente|a\s+dm|a\s+delivery\s+much)\b|\b(atendente|humano|gente de verdade)\b/i.test(String(texto || ''));
+}
+/* A resposta da função `ai` (task "ajuda") vem como JSON {texto, nao_sei, delegar}; texto puro
+   também é aceito (função antiga ou modelo fora do formato). Devolve {texto, naoSei, delegar}. */
+function gLuLerResposta(bruto){
+  const s = String(bruto == null ? '' : bruto).trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
+  if (s.charAt(0) === '{') {
+    try {
+      const j = JSON.parse(s);
+      if (j && typeof j === 'object') {
+        return { texto: String(j.texto || j.text || '').trim(), naoSei: !!(j.nao_sei || j.naoSei), delegar: !!j.delegar };
+      }
+    } catch (e) {}
+  }
+  return { texto: s, naoSei: false, delegar: false };
+}
+// Oferecer a pessoa? `msgBot` = última resposta da Lu; `naoUteis` = respostas marcadas "não ajudou".
+function gLuOferecerEquipe(msgBot, naoUteis, pediuGente){
+  return !!(pediuGente || (naoUteis || 0) >= 2 || (msgBot && (msgBot.delegar || msgBot.naoSei)));
 }
 // Texto único do contexto — o mesmo na bolha e na caixa de entrada.
 function gSupContextoTexto(c){
   if (!c || typeof c !== 'object') return '';
   const partes = [c.campanha, c.material, c.formato].filter(Boolean);
   const onde = partes.length ? partes.join(' › ') : (_G_SUP_MODOS[c.modo] || '');
-  return [onde, c.tela === 'celular' ? 'no celular' : ''].filter(Boolean).join(' · ');
+  return [onde, c.tela === 'celular' ? 'no celular' : '',
+    c.campo_bloqueado ? 'não coube: ' + c.campo_bloqueado : '', c.erro || ''].filter(Boolean).join(' · ');
 }
 
 /* ── Início, reconexão e desligamento ── */
@@ -522,7 +583,7 @@ function _gSupToast(msg, franqueadoId){
 
 /* ── Enviar ── */
 // dataUrl opcional (print). Devolve {ok, erro} — o widget mostra o erro, este arquivo não pinta nada.
-async function gSupEnviar(texto, dataUrl, origem){
+async function gSupEnviar(texto, dataUrl, origem, estado){
   const t = _gSupTab(), sb = _gSupSb(), de = G_SUP.conversaDe;
   texto = String(texto || '').trim().slice(0, 4000);
   if (!t || !de) return { ok: false, erro: 'O suporte não está disponível agora. Recarregue a página.' };
@@ -541,7 +602,7 @@ async function gSupEnviar(texto, dataUrl, origem){
       anexo = path;
     } catch (e) { return { ok: false, erro: 'Não consegui ler a imagem. Tente outro arquivo.' }; }
   }
-  const row = { franqueado_id: de, texto: texto, anexo_path: anexo, contexto: G_SUP.souEquipe ? null : gSupContexto(origem) };
+  const row = { franqueado_id: de, texto: texto, anexo_path: anexo, contexto: G_SUP.souEquipe ? null : gSupContexto(origem, estado) };
   if (G_SUP.souEquipe) _gSupMarcaAcao(de);
   try {
     const { data, error } = await t.insert(row).select().single();

@@ -680,6 +680,7 @@ body:not(.theme-light) .f-fit-btn{background:color-mix(in srgb,var(--dm-orange) 
    Ele existe aqui porque o teste mostrou que ninguém achava o reposicionamento clicando na arte. */
 .f-upload-frame,
 .f-upload-replace{
+  position:relative;
   padding:4px 10px;
   font-size:11px;font-weight:500;
   background:transparent;
@@ -690,6 +691,7 @@ body:not(.theme-light) .f-fit-btn{background:color-mix(in srgb,var(--dm-orange) 
   font-family:'Roboto',sans-serif;
   transition:border-color var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard);
 }
+.f-upload-frame::after{content:'';position:absolute;inset:50%;min-width:var(--tap-min);min-height:var(--tap-min);transform:translate(-50%,-50%)}
 .f-upload-frame:hover,
 .f-upload-replace:hover{
   border-color:var(--dm-orange);

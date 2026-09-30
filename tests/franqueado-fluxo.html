@@ -71,6 +71,7 @@ function dExtractTemplateVars(layers){const v=new Set();(layers||[]).forEach(l=>
 <script src="../js/franqueado/live-preview.js"></script>
 <script src="../js/franqueado/png-generator.js"></script>
 <script src="../js/franqueado/feedback.js"></script>
+<script src="../js/core/suporte.js"></script>
 <script>
 (async()=>{
 const failures=[];let total=0;
@@ -932,6 +933,27 @@ await test('bloqueio: a porta é ÚNICA — gHandleLayoutUnsafeError delega para
 });
 
 window.gConfirm=_gConfirmReal;
+await test('Lu: só oferece a equipe pelos gatilhos certos e lê a resposta do servidor', async()=>{
+  const l=gLuLerResposta('{"texto":"Encurte o nome do produto.","nao_sei":false,"delegar":true}');
+  assert(l.texto==='Encurte o nome do produto.' && l.delegar===true && l.naoSei===false,'JSON do servidor mal lido');
+  const fence=gLuLerResposta('```json\n{"texto":"Oi","nao_sei":true}\n```');
+  assert(fence.texto==='Oi' && fence.naoSei===true,'JSON dentro de cerca de código não foi lido');
+  assert(gLuLerResposta('Resposta em texto puro').texto==='Resposta em texto puro','texto puro deveria passar');
+  assert(!gLuOferecerEquipe({delegar:false,naoSei:false},0,false),'ofereceu equipe sem motivo');
+  assert(gLuOferecerEquipe({delegar:true},0,false) && gLuOferecerEquipe({naoSei:true},0,false),'não ofereceu com delegar/nao_sei');
+  assert(!gLuOferecerEquipe({},1,false) && gLuOferecerEquipe({},2,false),'a oferta deveria abrir na 2ª resposta sem ajuda');
+  assert(gLuPedeHumano('quero falar com uma pessoa') && gLuPedeHumano('tem algum atendente?') && !gLuPedeHumano('como baixo a arte em PNG'),'detecção de "quero gente" errada');
+});
+await test('Lu: estado da tela traz o erro de validação e o gate de custo vê o assunto', async()=>{
+  reset();
+  fState.dados={produto:'X-Bacon',validade:'Válido 31/02/2026'};
+  const e=gSupEstadoTela();
+  assert(!gSupEstadoTemAssunto({}) && !gSupEstadoTemAssunto(null),'estado vazio não pode gastar IA');
+  assert(gSupEstadoTemAssunto({erro:'x'}) && gSupEstadoTemAssunto({campoBloqueado:'Produto'}) && gSupEstadoTemAssunto({material:'Combo'}),'estado com assunto foi ignorado');
+  assert(typeof e==='object','gSupEstadoTela deveria devolver objeto');
+  const c=gSupContexto('assistente',{campoBloqueado:'Produto',erro:'Essa data não existe'});
+  assert(c.campo_bloqueado==='Produto' && c.erro==='Essa data não existe','contexto para a equipe não leva o estado');
+});
 await test('Preço "por" maior que o "de" reprova mesmo sem ponto de milhar', async()=>{
   assert(_fPrecoNum('R$ 1000,00')===1000,'"R$ 1000,00" não virou número');
   assert(_fPrecoDePorErro('preco','De R$ 1000,00 Por R$ 2000,00',null),'"De 1000,00 / Por 2000,00" passou');

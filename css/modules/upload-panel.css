@@ -22,10 +22,12 @@
 }
 .f-up-head h2{font-family:'Roboto',sans-serif;font-size:16px;font-weight:700;letter-spacing:-.01em;color:var(--text)}
 .f-up-close{
-  width:32px;height:32px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;
-  border:none;background:transparent;color:var(--text-3);border-radius:var(--r-sm);cursor:pointer;
-  transition:background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+  position:relative;
+  width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+  border-radius:var(--r-pill);background:transparent;border:none;color:var(--text-3);
+  cursor:pointer;transition:background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
 }
+.f-up-close::after{content:'';position:absolute;inset:50%;min-width:var(--tap-min);min-height:var(--tap-min);transform:translate(-50%,-50%)}
 .f-up-close:hover{background:var(--gray-light);color:var(--text)}
 .f-up-close svg{width:18px;height:18px}
 .f-up-close:focus-visible,.f-up-newfile:focus-visible,.f-up-thumb:focus-visible,.f-up-loja:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}

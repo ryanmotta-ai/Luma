@@ -1521,22 +1521,23 @@
         <div class="luma-wm-chat-messages">
           <div class="luma-wm-chat-intro">
             <span class="luma-wm-chat-intro-mark" aria-hidden="true">${WIDGET_SVGS.sparkle}</span>
-            <strong>Assistente do Luma</strong>
-            <span>Responde pela Central de Ajuda e pode errar: confira antes de agir.${wmSuporte() && !G_SUP.souEquipe ? ' Se não resolver, você fala com a equipe.' : ''}</span>
+            <strong>Lu, do time da Delivery Much</strong>
+            <span>Sou uma assistente de IA: respondo pela Central de Ajuda e pelo que vejo na sua tela. Posso errar, confira antes de agir.${wmSuporte() && !G_SUP.souEquipe ? ' Se não resolver, você fala com a equipe.' : ''}</span>
           </div>
 
           <div class="luma-wm-bubble bot">
-            Conta o que aconteceu e em qual tela. Quanto mais específico, melhor eu acho a resposta.
-            <div class="luma-wm-bubble-meta">Assistente Luma · agora</div>
+            Oi, eu sou a Lu, do time da Delivery Much. Conta o que aconteceu e em qual tela: quanto mais específico, melhor eu acho a resposta.
+            <div class="luma-wm-bubble-meta">Lu · agora</div>
           </div>
 
           ${sugestoes}
 
-          ${widgetState.messages.map(m => `
+          ${widgetState.messages.map((m, i) => `
             <div class="luma-wm-bubble ${m.sender === 'user' ? 'user' : 'bot'}">
               ${m.image ? `<img src="${m.image}" class="luma-wm-bubble-img" alt="Anexo">` : ''}
               ${wmText(m.text)}
               <div class="luma-wm-bubble-meta">${m.fonte === 'ia' ? '<span class="luma-wm-ia-tag">IA</span>' : ''}${wmEsc(m.author)} · ${wmEsc(m.time)}</div>
+              ${wmLuVoto(m, i)}
             </div>
           `).join('')}
 
@@ -1548,7 +1549,7 @@
         <div id="luma-wm-attach-area"></div>
 
         <div class="luma-wm-chat-input-bar">
-          <textarea id="luma-wm-input-box" placeholder="Escreva sua pergunta" aria-label="Pergunta para o assistente do Luma" oninput="lumaWidgetInputCheck(this)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();lumaWidgetSendMsg();}"></textarea>
+          <textarea id="luma-wm-input-box" placeholder="Escreva sua pergunta" aria-label="Pergunta para a Lu, assistente do Luma" oninput="lumaWidgetInputCheck(this)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();lumaWidgetSendMsg();}"></textarea>
           <div class="luma-wm-chat-input-tools">
             <div class="luma-wm-input-actions">
               <button type="button" class="luma-wm-tool-btn" onclick="lumaWidgetTriggerFileSelect()" aria-label="Anexar imagem ou arquivo" title="Anexar arquivo">${WIDGET_SVGS.paperclip}</button>
@@ -1711,58 +1712,59 @@
     return ctx;
   }
 
+  /* A LU (assistente do widget). O prompt e a persona moram no SERVIDOR (task `ajuda`,
+     supabase/functions/ai/index.ts): o front manda só a pergunta e o contexto
+     {pergunta, trechos, estado, equipeOnline} e recebe {texto, nao_sei, delegar}.
+     Devolve {text, fonte, delegar, naoSei, pergunta, estado}. */
   async function lumaWidgetGenerateAIResponse(userMessage) {
     const temIA = typeof gAskAI === 'function' && typeof gAiReady === 'function' && gAiReady();
+    const estado = (typeof gSupEstadoTela === 'function') ? gSupEstadoTela() : {};
+    const base = { pergunta: userMessage, estado: estado };
 
     // Devolve {text, fonte} — quem renderiza precisa saber a ORIGEM pra rotular a bolha.
-    // Sem isso o usuário não distingue resposta de IA de busca na base, e o widget parecia
-    // atendimento humano (era o rótulo "Suporte ao Vivo") quando nunca houve humano nenhum.
     const buscarNaBase = () => {
       const matched = wmArtigoParaPergunta(userMessage);
-      return matched ? { fonte: 'base', text: `Sobre "${matched.title}":\n` + wmArtigoTexto(matched) } : null;
+      return matched ? { fonte: 'base', text: `Sobre "${matched.title}":
+` + wmArtigoTexto(matched) } : null;
     };
+
+    // Pediu gente: não gasta IA, vai direto para a oferta da equipe.
+    if (typeof gLuPedeHumano === 'function' && gLuPedeHumano(userMessage)) {
+      return Object.assign(base, { fonte: 'indisponivel', delegar: true,
+        text: 'Claro, vou te ligar com a equipe da Delivery Much.' });
+    }
 
     if (!temIA) {
       const daBase = buscarNaBase();
-      if (daBase) return daBase;
-      // Honestidade: NÃO existe notificação a humano nenhum aqui. O texto antigo prometia que
-      // "Ryan e Pedro foram notificados no painel" — nada no código faz isso.
-      return { fonte: 'indisponivel',
-        text: 'Não encontrei isso na Central de Ajuda, e o assistente de IA está desligado no momento.\n\nTente descrever com outras palavras ou procure direto na aba "Ajuda".' };
-    }
-    
-    const material = lumaWidgetKnowledge(userMessage);
-    // Sem material que case, NÃO chama a IA: ela responderia por conta própria sobre um
-    // produto interno que não conhece. Melhor dizer que não está na Central.
-    if (!material) {
-      return { fonte: 'indisponivel',
-        text: 'Não encontrei isso na Central de Ajuda.\n\nTente descrever com outras palavras, ou abra a aba "Ajuda" pra ver os temas disponíveis.' };
+      if (daBase) return Object.assign(base, daBase);
+      return Object.assign(base, { fonte: 'indisponivel', delegar: true,
+        text: 'Não encontrei isso na Central de Ajuda e a IA está desligada no momento. Procure na aba "Ajuda" ou fale com a equipe.' });
     }
 
-    const prompt = `Você é o assistente da Central de Ajuda do Luma, a ferramenta interna de criação de artes da Delivery Much. Quem pergunta é um franqueado (dono do app na cidade dele, não é designer) ou alguém do time de design.
+    const trechos = lumaWidgetKnowledge(userMessage);
+    // Gate de custo: sem trecho da Central E sem nada da tela, a IA não é chamada — a equipe é oferecida.
+    // Com estado (material, campo que não coube, erro) chama mesmo sem trecho.
+    if (!trechos && !(typeof gSupEstadoTemAssunto === 'function' && gSupEstadoTemAssunto(estado))) {
+      return Object.assign(base, { fonte: 'indisponivel', delegar: true,
+        text: 'Isso eu não encontrei na Central de Ajuda. Tente descrever com outras palavras ou fale com a equipe.' });
+    }
 
-RESPONDA APENAS COM BASE NO MATERIAL ABAIXO. Ele é a documentação real do produto.
-
-MATERIAL DA CENTRAL DE AJUDA:
-${material}
-
-PERGUNTA: "${userMessage}"
-
-REGRAS:
-1. Se a resposta NÃO estiver no material, diga exatamente: "Isso não está na Central de Ajuda." e sugira procurar na aba "Ajuda". Não invente tela, botão ou caminho.
-2. Não prometa contato humano, ticket ou notificação — isso não existe aqui.
-3. Sem emoji. Português do Brasil, direto e amigável, no máximo 5 linhas.
-4. Quando o material tiver passos, responda em passos curtos.`;
-
-    const txt = await gAskAI('ajuda', prompt, { json: false });
-    if (txt && txt.trim()) return { fonte: 'ia', text: txt.trim() };
+    // O servidor espera LISTA de {titulo, texto}; o conhecimento chega como um bloco "### Título" + texto.
+    const trechosLista = String(trechos || '').split(/\n(?=### )/).map(function (t) {
+      const m = t.match(/^###\s*(.+)\n([\s\S]*)$/); return m ? { titulo: m[1].trim(), texto: m[2].trim() } : { titulo: 'Central de Ajuda', texto: t.trim() };
+    }).filter(function (t) { return t.texto; });
+    const contexto = { pergunta: userMessage, trechos: trechosLista, estado: estado,
+      equipeOnline: wmSuporte() ? G_SUP.online.slice(0, 5) : [] };
+    const bruto = await gAskAI('ajuda', userMessage, { json: true, contexto: contexto });
+    const r = (typeof gLuLerResposta === 'function') ? gLuLerResposta(bruto) : { texto: String(bruto || '').trim(), naoSei: false, delegar: false };
+    if (r.texto) return Object.assign(base, { fonte: 'ia', text: r.texto, naoSei: r.naoSei, delegar: r.delegar });
 
     // IA não respondeu → entrega o artigo cru, que é melhor que nada e não mente.
     console.warn('[Luma IA Suporte] sem resposta da IA, caindo na base');
     const daBase = buscarNaBase();
-    if (daBase) return { fonte: 'base', text: daBase.text };
-    return { fonte: 'erro',
-      text: 'Não consegui falar com o assistente de IA agora.\n\nTente de novo em instantes ou procure na aba "Ajuda".' };
+    if (daBase) return Object.assign(base, { fonte: 'base', text: daBase.text });
+    return Object.assign(base, { fonte: 'erro', delegar: true,
+      text: 'Não consegui falar com a assistente agora. Tente de novo em instantes, procure na aba "Ajuda" ou fale com a equipe.' });
   }
 
   window.lumaWidgetSendMsg = async function () {
@@ -1816,16 +1818,20 @@ REGRAS:
 
     // Rótulo pela ORIGEM — nunca "ao vivo": não há humano do outro lado.
     const AUTORES = {
-      ia:           'Assistente de IA',
+      ia:           'Lu',
       base:         'Central de Ajuda',
       indisponivel: 'Central de Ajuda',
       erro:         'Central de Ajuda'
     };
     widgetState.messages.push({
       sender: 'bot',
-      author: AUTORES[r.fonte] || 'Assistente Luma',
+      author: AUTORES[r.fonte] || 'Lu',
       fonte: r.fonte,
       text: r.text,
+      delegar: !!r.delegar,
+      naoSei: !!r.naoSei,
+      util: null,             // null = sem voto; true/false = "Ajudou" / "Não ajudou"
+      pedeGente: r.delegar === true && r.fonte === 'indisponivel',
       time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
     });
     _podarMensagens();
@@ -1946,13 +1952,51 @@ REGRAS:
       </button>`;
   }
 
-  // Depois de uma resposta da IA: a saída para uma pessoa, levando a pergunta junto.
+  /* "Ajudou / Não ajudou" na ÚLTIMA resposta da Lu que veio de IA ou da base. Duas marcadas
+     "não ajudou" abrem a oferta da equipe (gLuOferecerEquipe) — é um `if`, não a IA decidindo. */
+  function wmLuVoto(m, i) {
+    if (m.sender !== 'bot' || (m.fonte !== 'ia' && m.fonte !== 'base')) return '';
+    if (i !== widgetState.messages.length - 1) return '';
+    if (m.util !== null && m.util !== undefined) return `<span class="luma-wm-sup-sys">${m.util ? 'Que bom que ajudou.' : 'Obrigada pelo aviso.'}</span>`;
+    return `<span class="luma-wm-sup-sys">Isso ajudou? <button type="button" class="luma-wm-link" onclick="lumaWidgetLuVoto(${i}, true)">Ajudou</button> · <button type="button" class="luma-wm-link" onclick="lumaWidgetLuVoto(${i}, false)">Não ajudou</button></span>`;
+  }
+  window.lumaWidgetLuVoto = function (i, util) {
+    const m = widgetState.messages[i];
+    if (!m || m.sender !== 'bot' || (m.util !== null && m.util !== undefined)) return;
+    m.util = !!util;
+    widgetState.luNaoUteis = util ? 0 : (widgetState.luNaoUteis || 0) + 1;
+    try { if (typeof gTrackEvent === 'function') gTrackEvent('ajuda_feedback', { util: !!util, origem: 'assistente', fonte: m.fonte }); } catch (e) {}
+    renderWidgetModalContent();
+  };
+
+  // Depois de uma resposta da Lu: a saída para uma pessoa, levando a pergunta e o estado da tela.
   function wmSupHandoff() {
     if (!wmSuporte() || G_SUP.souEquipe) return '';
-    if (!widgetState.messages.some(function (m) { return m.sender === 'bot'; })) return '';
+    const bots = widgetState.messages.filter(function (m) { return m.sender === 'bot'; });
+    if (!bots.length) return '';
+    const ultima = bots[bots.length - 1];
+    const oferta = typeof gLuOferecerEquipe === 'function' && gLuOferecerEquipe(ultima, widgetState.luNaoUteis, ultima.pedeGente);
+    if (oferta) {
+      // Presença lida AGORA (a cada render) e de novo no clique — nunca guardada.
+      const on = G_SUP.online.length > 0;
+      const primeiro = on ? G_SUP.online[0] : '';
+      return `<div class="luma-wm-bubble bot">
+          ${on ? `${wmEsc(primeiro)} está online agora. Posso chamar, e a sua pergunta já vai escrita.`
+               : 'Ninguém da equipe está online agora. Deixe sua mensagem: a equipe responde por aqui quando voltar.'}
+        </div>
+        <button type="button" class="luma-wm-sup-handoff" onclick="lumaWidgetChamarEquipe()">${on ? '<i class="luma-wm-sup-dot" aria-hidden="true"></i>Chamar ' + wmEsc(primeiro) : 'Deixar mensagem para a equipe'}</button>`;
+    }
     return `<button type="button" class="luma-wm-sup-handoff" onclick="lumaWidgetFalarComEquipe()">${G_SUP.online.length ? '<i class="luma-wm-sup-dot" aria-hidden="true"></i>' : ''}Não resolveu? Falar com a equipe</button>
       <span class="luma-wm-sup-sys">Sua pergunta vai escrita — é só enviar.</span>`;
   }
+  // Reusa o handoff que já existe (rascunho + aba de mensagens). Confere a presença no clique:
+  // quem estava online pode ter saído, e a promessa muda.
+  window.lumaWidgetChamarEquipe = function () {
+    const tinha = G_SUP.online.length > 0;
+    window.lumaWidgetFalarComEquipe();
+    if (tinha && !G_SUP.online.length && typeof gToast === 'function')
+      gToast('A equipe saiu agora. Deixe sua mensagem: ela responde por aqui quando voltar.');
+  };
 
   function wmSupEntrar() {
     if (typeof gSupIniciar === 'function') gSupIniciar();   // idempotente; fixa quem é equipe
@@ -2284,7 +2328,8 @@ REGRAS:
       return;
     }
     widgetState.supEnviando = true;
-    const r = await gSupEnviar(texto, anexo ? anexo.dataUrl : null, widgetState.supOrigem);
+    const r = await gSupEnviar(texto, anexo ? anexo.dataUrl : null, widgetState.supOrigem,
+      typeof gSupEstadoTela === 'function' ? gSupEstadoTela() : null);
     widgetState.supEnviando = false;
     if (r.ok) {
       // Se a pessoa seguiu digitando durante o envio, o que é novo fica no campo.
