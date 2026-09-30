@@ -233,7 +233,7 @@
 
 - **Objetivo:** mostrar que a rede inteira roda sem custo de infraestrutura e que o Luma ainda economiza.
 - **Frase de abertura:** "Tudo isso, com IA integrada, custa: R$ 0."
-- **Discurso:** "Zero. R$ 0 por mês, de infraestrutura e de IA, para os 94 franqueados. [pausa] O Luma cresce com a rede, a conta não. O segredo da infraestrutura é onde a
+- **Discurso:** "[o número despenca na tela até zero; espere ele parar] Zero. R$ 0 por mês, de infraestrutura e de IA, para os 94 franqueados. [pausa] O Luma cresce com a rede, a conta não. O segredo da infraestrutura é onde a
   arte é feita: no celular ou no computador do próprio franqueado. O servidor não desenha nenhum pixel, então
   mais artes não aumentam a conta. O site é estático, no GitHub Pages, e o banco roda no plano gratuito do
   Supabase. [avança, mostra a grade] Cada ponto é uma pessoa conectada ao mesmo tempo. Pela nossa estimativa, o plano
@@ -250,10 +250,10 @@
     do plano gratuito), não teste de carga. Usamos o piso: 1.500.
   - *"Quando a economia do Deskfy entra?"* Quando a rede estiver no Luma e o contrato do Deskfy acabar.
 
-## 16 · IA custo zero — "A IA custa zero. E não fica sem resposta."
+## 16 · IA custo zero — "Tá, mas com tudo isso, como a IA custa zero? A gente te explica na prática."
 
 - **Objetivo:** mostrar, com a animação, que a IA do Luma é barata e nunca deixa o franqueado sem resposta.
-- **Frase de abertura:** "A IA custa zero. E não fica sem resposta."
+- **Frase de abertura:** "Tá, mas com tudo isso, como a IA custa zero? A gente te explica na prática."
 - **Discurso:** "Olha um pedido de legenda saindo do celular do franqueado. O Luma manda primeiro para o modelo
   rápido do Google, e ele resolve a maioria. [avança] Agora o Google demorou: passaram 8 segundos. Na hora,
   cinco provedores gratuitos entram juntos. O primeiro que responde vence e os outros são cancelados. [avança] E se

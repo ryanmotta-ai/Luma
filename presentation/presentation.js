@@ -495,6 +495,26 @@
       sai(s) { this.zera(s); }
     },
 
+    /* 15 · a resposta do "Quanto custa?": um número grande despenca até R$ 0 */
+    zero: {
+      tm: 0,
+      entra(s) {
+        const b = s.querySelector('.zero b');
+        clearInterval(this.tm);
+        if (reduzido) { b.textContent = 'R$ 0'; return; }
+        const de = 99999, dur = 2200, t0 = Date.now() + 250;
+        const f = () => {
+          const k = Math.max(0, Math.min(1, (Date.now() - t0) / dur)), e = 1 - Math.pow(1 - k, 3);
+          b.textContent = 'R$ ' + Math.round(de * (1 - e)).toLocaleString('pt-BR');
+          if (k >= 1) clearInterval(this.tm);
+        };
+        f();
+        this.tm = setInterval(f, 30);
+      },
+      passo() {},
+      sai(s) { clearInterval(this.tm); s.querySelector('.zero b').textContent = 'R$ 0'; }
+    },
+
     /* 10 · as artes do lote entram uma a uma */
     wall: {
       entra(s) {
