@@ -387,6 +387,9 @@ function _gLfChoque(prova, f, caixaDes, layer, opts){
     if(ow <= 0 || oh <= 0) continue;
     // Fundo/painel que CONTÉM a caixa desenhada: é o chão do texto, não obstáculo.
     if(ox <= caixaDes.x + 1 && oy <= caixaDes.y + 1 && ox + ow >= caixaDes.x + caixaDes.w - 1 && oy + oh >= caixaDes.y + caixaDes.h - 1) continue;
+    /* Fundo que NÃO contém a caixa também é chão (raio, textura, ornamento): na Copa, o raio verde
+       cruzava o "DE R$" e o preço nunca baixava. A régua é a única do motor, não uma lista nova. */
+    if(typeof _gLayoutEhFundoExplicito === 'function' && _gLayoutEhFundoExplicito(o, opts.canvas)) continue;
     if(fora.some(r => _gLfToca(r, o))) return o.id;
   }
   return null;

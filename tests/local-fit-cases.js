@@ -211,6 +211,21 @@
     const r = gFitTextToAuthoredBox(l, 'OFERTA', { canvas:CANVAS, layers:[fundo, l, c], pilha:null });
     assert(r.degrau === 'original', 'texto curto dentro da caixa mudou por causa do canto vazio: ' + r.diagnostics.motivo);
   });
+  /* 7h — o caso da Copa (29/09/2026): o "DE R$ XX,XX" nunca baixava, "encosta em" o raio verde,
+     imagem de FUNDO que cruza a caixa sem contê-la. Fundo é chão do texto, contendo a caixa ou não;
+     quem diz o que é fundo é a régua única (`_gLayoutEhFundoExplicito`), não uma regra nova. */
+  test('7h · camada de fundo que NÃO contém a caixa (raio) não é obstáculo; imagem comum segue sendo', () => {
+    const l = ponto({ w:600 });
+    const raio = { id:'raio', name:'raio', type:'image', x:640, y:60, w:420, h:300, visible:true, opacity:100,
+                   layoutRole:'background', layoutSemantic:'fundo' };
+    const sem = gFitTextToAuthoredBox(l, 'OFERTA DA SEMANA', { canvas:CANVAS, layers:[fundo, l], pilha:null });
+    const com = gFitTextToAuthoredBox(l, 'OFERTA DA SEMANA', { canvas:CANVAS, layers:[fundo, raio, l], pilha:null });
+    assert(!/encosta/.test(com.diagnostics.motivo || ''), 'o raio de fundo contou como choque: ' + com.diagnostics.motivo);
+    assert(com.status === sem.status && com.fontSize === sem.fontSize, 'o raio mudou o encaixe (' + com.fontSize + ' × ' + sem.fontSize + ')');
+    const foto = Object.assign({}, raio, { id:'foto', name:'foto produto', layoutRole:undefined, layoutSemantic:'produto' });
+    const comFoto = gFitTextToAuthoredBox(l, 'OFERTA DA SEMANA', { canvas:CANVAS, layers:[fundo, foto, l], pilha:null });
+    assert(comFoto.fontSize < sem.fontSize || comFoto.status !== 'fits', 'a foto no mesmo lugar deixou de ser obstáculo');
+  });
 
   /* ── 8. maxLines ──────────────────────────────────────────────────────────────────── */
   test('8 · maxLines explícito manda em tudo e nunca é ultrapassado num FITS', () => {
