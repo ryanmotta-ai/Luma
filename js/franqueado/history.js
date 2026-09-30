@@ -25,7 +25,7 @@ function fSaveHist(a){
 /* ── Sync do histórico de artes com o Supabase (luma.artes — escopo do usuário) ──
    Offline-first: localStorage é cache; o banco é a fonte por usuário (cross-device).
    Fotos no `dados` vão inline por ora (C2 sobe pro Storage). */
-function _fSbArtes(){ return (typeof gSupabase==='function')?gSupabase():window.sb; }
+function _fSbArtes(){ if(typeof gVisitante==='function' && gVisitante()) return null; return (typeof gSupabase==='function')?gSupabase():window.sb; }
 // Sobe uma foto base64 do franqueado pro bucket público luma-user-uploads → URL pública.
 async function _fUploadUserImg(uid, sub, dataUrl){
   const sb=_fSbArtes();

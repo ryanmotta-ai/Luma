@@ -222,6 +222,12 @@
   }
 
   const DEMOS = {
+    /* 19 · o vídeo do celular recomeça do zero toda vez que o slide entra */
+    visita: {
+      entra(s) { const v = s.querySelector('video'); if (v) { v.currentTime = 0; const p = v.play(); if (p && p.catch) p.catch(() => {}); } },
+      sai(s) { const v = s.querySelector('video'); if (v) v.pause(); },
+      passo() {}
+    },
     /* 06 · a arte sai do Estúdio e aparece no catálogo do franqueado */
     pub: {
       entra(s) { s.classList.remove('fase-2'); const f = s.querySelector('.flyer'); f.style.opacity = 0; },

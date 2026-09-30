@@ -2571,7 +2571,9 @@ async function dSyncVarsFromBackend(){
   const sb = (typeof gSupabase==='function') ? gSupabase() : window.sb;
   if(!sb) return;
   try{
-    const { data, error }=await sb.schema('luma').from('variaveis').select('*').order('ordem',{ascending:true});
+    const _vis=(typeof gVisitante==='function' && gVisitante()) ? await gVisitanteCatalogo() : null;
+    const { data, error }=_vis ? { data:_vis.variaveis, error:null }
+      : await sb.schema('luma').from('variaveis').select('*').order('ordem',{ascending:true});
     if(error) return;
     if(Array.isArray(data) && data.length){
       // merge: o banco é a fonte, mas preserva (e sobe) vars locais ainda não sincronizadas
@@ -4132,11 +4134,15 @@ async function dSyncFoldersFromBackend(){
   const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
   if(!sb) return;
   try{
-    const { data:rp, error:e1 }=await sb.schema('luma').from('pastas').select('*').order('ordem',{ascending:true});
+    const _vis=(typeof gVisitante==='function' && gVisitante()) ? await gVisitanteCatalogo() : null;
+    if(typeof gVisitante==='function' && gVisitante() && !_vis) return;
+    const { data:rp, error:e1 }=_vis ? { data:_vis.pastas, error:null }
+      : await sb.schema('luma').from('pastas').select('*').order('ordem',{ascending:true});
     if(e1 || !Array.isArray(rp) || !rp.length) return; // banco vazio → mantém local (push migra)
     // Lazy Load: exclui propositalmente a coluna `layers` pesada do download em lote no boot.
     // Os layers descem sob demanda: dLoadTemplate (designer) / fEnsureMaterialLayers (franqueado).
-    const { data:rt, error:eT }=await sb.schema('luma').from('templates').select('id, pasta_id, nome, fmt, formats, w, h, bg, publicado, publicado_em, validade, instrucoes, permissoes, updated_at, versao_atual_id');
+    const { data:rt, error:eT }=_vis ? { data:_vis.templates.map(t=>{ const c=Object.assign({},t); delete c.layers; return c; }), error:null }
+      : await sb.schema('luma').from('templates').select('id, pasta_id, nome, fmt, formats, w, h, bg, publicado, publicado_em, validade, instrucoes, permissoes, updated_at, versao_atual_id');
     // Pull mudo = catálogo vazio sem explicação (mesmo incidente de 07/2026). Nomear a causa.
     // E ABORTAR: seguir o merge com rt=null montava TODA pasta com zero material — a vitrine
     // jogava o catálogo inteiro em "Em breve" (card fantasma, sem clique) e a linha 3087
@@ -4196,8 +4202,8 @@ async function dSyncFoldersFromBackend(){
         if(i>=0) rf.templates[i]=pt; else rf.templates.push(pt);
       });
     });
-    dFolders=[...remote, ...extras];
-    try{ localStorage.setItem('yngs_folders_v1', JSON.stringify(dFolders)); }catch(e){}
+    dFolders=_vis?remote:[...remote, ...extras];  // visitante: só as campanhas liberadas, sem semente local
+    if(!_vis){ try{ localStorage.setItem('yngs_folders_v1', JSON.stringify(dFolders)); }catch(e){} }
     if(typeof dRenderFolders==='function') dRenderFolders();
     if(typeof fGetCampaigns==='function' && typeof fRenderCatalogs==='function'){
       try{ const{ativas,outras}=fGetCampaigns(); fRenderCatalogs(ativas,outras); }catch(e){}

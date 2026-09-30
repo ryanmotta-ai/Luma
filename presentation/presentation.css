@@ -869,15 +869,18 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 @media (prefers-reduced-motion: reduce) { .s-multi .palco.is-on .dv { animation: none; } }
 
 /* 20 — Testem agora: o QR que leva a plateia para dentro do Luma */
-.s-teste .head { top: 110px; right: auto; width: 1040px; }
-.s-teste .h-hero { font-size: 124px; line-height: .95; }
-.s-teste .lead { margin-top: 30px; font-size: 40px; font-weight: 800; color: #0A0A0A; }
-.s-teste .passos { position: absolute; left: var(--pad-x); bottom: 110px; display: flex; gap: 22px; margin: 0; padding: 0; list-style: none; }
-.s-teste .passos li { display: flex; align-items: center; gap: 16px; padding: 20px 26px 20px 20px; border-radius: 22px; background: rgba(255, 255, 255, .22); }
+.s-teste .head { top: 96px; right: auto; width: 800px; }
+.s-teste .h-hero { font-size: 96px; line-height: .95; }
+.s-teste .lead { margin-top: 28px; font-size: 36px; font-weight: 800; color: #0A0A0A; }
+.s-teste .passos { position: absolute; left: var(--pad-x); bottom: 96px; width: 640px; display: flex; flex-direction: column; gap: 16px; margin: 0; padding: 0; list-style: none; }
+.s-teste .passos li { display: flex; align-items: center; gap: 18px; padding: 16px 26px 16px 18px; border-radius: 22px; background: rgba(255, 255, 255, .22); }
 .s-teste .passos b { flex: none; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: #0A0A0A; color: var(--orange); font-size: 26px; font-weight: 900; }
-.s-teste .passos span { font-size: 21px; line-height: 1.2; font-weight: 800; color: #0A0A0A; }
-.s-teste .qr { position: absolute; right: var(--pad-x); top: 150px; width: 560px; margin: 0; padding: 40px 40px 34px; border-radius: 40px; background: #fff; box-shadow: 0 40px 90px rgba(120, 40, 0, .35); }
+.s-teste .passos span { font-size: 25px; line-height: 1.2; font-weight: 800; color: #0A0A0A; }
+.s-teste .fone { position: absolute; left: 900px; top: 50px; height: 980px; aspect-ratio: 1088 / 2243; filter: drop-shadow(0 40px 70px rgba(80, 30, 0, .4)); }
+.s-teste .fone .tela { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; -webkit-mask: url(assets/devices/iphone-mascara.png) center / 100% 100%; mask: url(assets/devices/iphone-mascara.png) center / 100% 100%; mask-mode: luminance; }
+.s-teste .fone .moldura { position: absolute; inset: 0; width: 100%; height: 100%; }
+.s-teste .qr { position: absolute; right: var(--pad-x); top: 190px; width: 400px; margin: 0; padding: 30px 30px 26px; border-radius: 34px; background: #fff; box-shadow: 0 40px 90px rgba(120, 40, 0, .3); }
 .s-teste .qr-code canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; }
-.s-teste .qr figcaption { margin-top: 22px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.s-teste .qr figcaption b { font-size: 30px; font-weight: 900; letter-spacing: -.01em; color: #0A0A0A; }
-.s-teste .qr figcaption span { font-size: 19px; color: #6B6B6B; }
+.s-teste .qr figcaption { margin-top: 18px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.s-teste .qr figcaption b { font-size: 28px; font-weight: 900; letter-spacing: -.01em; color: #0A0A0A; }
+.s-teste .qr figcaption span { font-size: 17px; color: #6B6B6B; }

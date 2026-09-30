@@ -84,7 +84,8 @@ async function dDeleteFontFromBackend(remoteId){
 async function dSyncFontsFromBackend(){
   const sb=_gSbFont(); if(!sb) return;
   try{
-    const { data, error }=await sb.schema('luma').from('fontes').select('*');
+    const _vis=(typeof gVisitante==='function' && gVisitante()) ? await gVisitanteCatalogo() : null;
+    const { data, error }=_vis ? { data:_vis.fontes, error:null } : await sb.schema('luma').from('fontes').select('*');
     if(error || !Array.isArray(data) || !data.length) return;
     const have=new Set(dCustomFonts.map(f=>f.family&&f.family.toLowerCase()));
     let added=false;

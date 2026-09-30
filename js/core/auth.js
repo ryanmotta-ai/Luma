@@ -133,6 +133,26 @@ async function gLogout() {
 }
 
 function gCurrentUser() { return gAuthState.user; }
+
+/* Modo visitante (QR do deck, `?visitante=1`): sem login e sem sessão no banco. O usuário é
+   sintético (franqueado, só leitura): telemetria, histórico, IA, suporte e flags ficam desligados,
+   e o catálogo vem de UMA função pública (`luma_visitante_catalogo`) com as campanhas marcadas. */
+function gVisitante() { return !!(gAuthState.user && gAuthState.user.visitante); }
+function gVisitantePedido() { try { return new URLSearchParams(location.search).get('visitante') === '1'; } catch (e) { return false; } }
+function gEntrarVisitante() {
+  gAuthState = { user: { id: 'visitante', email: 'visitante@luma.local', role: 'franqueado',
+    displayName: 'Visitante', departamento: null, telefone: '', foto: '', senhaInicial: false, visitante: true } };
+  return gAuthState.user;
+}
+let _gVisCat = null;
+function gVisitanteCatalogo() {
+  if (!_gVisCat) {
+    const sb = _gSb();
+    _gVisCat = !sb ? Promise.resolve(null)
+      : Promise.resolve(sb.rpc('luma_visitante_catalogo')).then(r => (r && !r.error && r.data) || null).catch(() => null);
+  }
+  return _gVisCat;
+}
 function gCurrentRole() { return gAuthState.user ? gAuthState.user.role : null; }
 /* A foto de perfil de alguém — o ÚNICO lugar que decide isso (topbar, painel da conta, lista
    da Equipe, chat do franqueado). A fonte é `profiles.avatar_url`; o localStorage

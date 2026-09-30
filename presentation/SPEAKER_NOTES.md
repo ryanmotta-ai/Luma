@@ -304,8 +304,8 @@
   circule pela sala e ajude quem travar]"
 - **Ponto principal:** o produto se prova sozinho, na mão de quem nunca viu.
 - **Transição:** "Agora que vocês viram com os próprios olhos..."
-- **Atenção:** o QR abre `https://ryanmotta-ai.github.io/Luma/?visitante=1`. Esse endereço só funciona com o
-  **modo visitante** ligado (ainda em construção em 30/09/2026). Teste com o seu celular antes de apresentar.
+- **Na tela:** o vídeo no celular mostra o caminho inteiro (entrar como visitante, escolher a campanha, foto, preços, arte pronta) e recomeça toda vez que o slide entra.
+- **Atenção:** o QR abre `https://ryanmotta-ai.github.io/Luma/?visitante=1` (modo visitante no ar desde 30/09/2026: só a campanha Copa do Mundo, nada é gravado). Teste com o seu celular antes de apresentar.
 
 ## 20 · Fechamento — "Uma marca no controle. Uma rede com autonomia."
 

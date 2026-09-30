@@ -61,7 +61,7 @@ var gTrackEvent = (function(){
   const memory=new Map(), running=new Map(), confirmed=new Set();
   const prefix='luma_events_v1:', limit=200;
   function currentId(){
-    return (typeof gAuthState!=='undefined' && gAuthState.user && gAuthState.user.id)||null;
+    return (typeof gAuthState!=='undefined' && gAuthState.user && !gAuthState.user.visitante && gAuthState.user.id)||null;
   }
   function read(uid){
     let rows=memory.get(uid)||[];

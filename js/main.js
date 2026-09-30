@@ -381,7 +381,7 @@ async function gOnLoginSuccess() {
   // pagina_aberta = todo carregamento (F5 conta); sessao_iniciada = 1x por sessão real do
   // navegador (sessionStorage sobrevive a F5, zera ao fechar a aba). Antes: sessao_iniciada
   // disparava a cada reload (inflava "sessões") e pagina_aberta, previsto no schema, nunca saía.
-  if(typeof gTrackEvent === 'function'){
+  if(typeof gTrackEvent === 'function' && !gVisitante()){
     gTrackPagina('app');
     let _novaSessao=true;
     try{ if(sessionStorage.getItem('__luma_sess')){ _novaSessao=false; } else { sessionStorage.setItem('__luma_sess','1'); } }catch(e){}
@@ -391,13 +391,14 @@ async function gOnLoginSuccess() {
   // Estado remoto das flags: só agora, porque a RLS exige sessão. Assíncrono de
   // propósito — o boot já montou com o cache e não espera a rede. Ao chegar,
   // dispara luma:feature-flags-changed e a navegação se reconstrói sozinha.
-  if (typeof gFeatureSyncFromBackend === 'function') { gFeatureSyncFromBackend(); }
+  const _vis = gVisitante();
+  if (!_vis && typeof gFeatureSyncFromBackend === 'function') { gFeatureSyncFromBackend(); }
   // Foto antiga só no navegador sobe para o perfil; suporte ao vivo liga o Realtime.
   // Os dois são assíncronos e engolem erro: nenhum pode travar o boot.
-  if (typeof gProfileSyncFotoLocal === 'function') { gProfileSyncFotoLocal().catch(()=>{}); }
-  if (typeof gSupIniciar === 'function') { try { gSupIniciar(); } catch (e) {} }
+  if (!_vis && typeof gProfileSyncFotoLocal === 'function') { gProfileSyncFotoLocal().catch(()=>{}); }
+  if (!_vis && typeof gSupIniciar === 'function') { try { gSupIniciar(); } catch (e) {} }
   // A franquia de quem entrou (core/franquia.js): franqueado sem vínculo responde uma vez.
-  if (typeof gFranquiaIniciar === 'function') { gFranquiaIniciar().catch(()=>{}); }
+  if (!_vis && typeof gFranquiaIniciar === 'function') { gFranquiaIniciar().catch(()=>{}); }
 
   // Gate de navegação por role: franqueado só vê a própria área (esconde o Estúdio).
   gApplyModeAccess();
@@ -494,6 +495,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (typeof gLoadProfile === 'function') { try { await gLoadProfile(); } catch(e){} }
   if (typeof spStep === 'function') spStep('Carregando seu catálogo…');
 
+  // QR do deck: `?visitante=1` sem sessão real entra como visitante (franqueado, só leitura).
+  if (!gCurrentUser() && typeof gVisitantePedido === 'function' && gVisitantePedido()) gEntrarVisitante();
   const _dlInit = gParseDeepLink();
   // Chegou pelo link de e-mail (recuperação/convite)? Então o destino é DEFINIR A SENHA,
   // não a home: sem este desvio a pessoa entrava e continuava sem senha utilizável —
