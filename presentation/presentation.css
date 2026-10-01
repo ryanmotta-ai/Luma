@@ -184,25 +184,25 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 
 /* 01 — Capa */
 /* Palco central: frase no topo; MacBook ao centro saindo pela borda de baixo, iPad deitado e iPhone na frente */
-.s-capa { background: radial-gradient(1100px 620px at 50% 96%, #FFB347 0%, rgba(255, 176, 60, 0) 62%), linear-gradient(180deg, var(--orange) 0%, #FF8C00 55%, #F87400 100%); }
+.s-capa { background: var(--paper); }
 /* O PNG da Delivery Much tem margem transparente (o desenho ocupa 57 % da altura) e o do Luma não:
    34 px e 50 px deixam as duas marcas com o mesmo peso */
 .s-capa .brand { position: absolute; left: var(--pad-x); top: 70px; display: flex; align-items: center; gap: 20px; }
 .s-capa .brand .luma { height: 34px; width: auto; }
-.s-capa .brand .x { width: 1px; height: 28px; background: rgba(255, 255, 255, .6); }
+.s-capa .brand .x { width: 1px; height: 28px; background: rgba(10, 10, 10, .22); }
 .s-capa .brand .dm { height: 50px; width: auto; }
 .s-capa .meta { position: absolute; right: var(--pad-x); top: 88px; font-size: 18px; font-weight: 500; letter-spacing: .04em; color: rgba(10, 10, 10, .6); }
 .s-capa .copy { position: absolute; left: 0; right: 0; top: 190px; text-align: center; }
-.s-capa .copy .h-hero { font-size: 104px; color: #fff; }
-.s-capa .copy .lead { margin-top: 26px; font-size: 28px; color: rgba(10, 10, 10, .72); }
+.s-capa .copy .h-hero { font-size: 104px; color: var(--ink); }
+.s-capa .copy .lead { margin-top: 26px; font-size: 28px; color: var(--ink-3); }
 /* Molduras oficiais da Apple (Apple Design Resources) com a tela já composta, em palco dinâmico e escalonado:
    o iPhone cobre os botões "Ajuda · Minhas artes" do MacBook por inteiro e o iPad começa logo abaixo da busca,
    para não sobrar pedaço de interface na borda deles */
 .s-capa .scene { position: absolute; inset: 0; }
 .s-capa .dv { position: absolute; height: auto; }
-.s-capa .dv-mac { left: 378px; top: 520px; width: 1224px; z-index: 1; filter: drop-shadow(0 40px 70px rgba(80, 30, 0, .35)); }
-.s-capa .dv-ipad { left: 280px; top: 767px; width: 680px; z-index: 2; filter: drop-shadow(0 30px 60px rgba(60, 20, 0, .45)); }
-.s-capa .dv-phone { left: 1268px; top: 636px; width: 272px; z-index: 3; filter: drop-shadow(0 30px 60px rgba(60, 20, 0, .45)); }
+.s-capa .dv-mac { left: 378px; top: 520px; width: 1224px; z-index: 1; filter: drop-shadow(0 40px 70px rgba(10, 10, 10, .22)); }
+.s-capa .dv-ipad { left: 280px; top: 767px; width: 680px; z-index: 2; filter: drop-shadow(0 30px 60px rgba(10, 10, 10, .28)); }
+.s-capa .dv-phone { left: 1268px; top: 636px; width: 272px; z-index: 3; filter: drop-shadow(0 30px 60px rgba(10, 10, 10, .28)); }
 
 /* 02 — Problema */
 .s-problema .source { position: absolute; left: var(--pad-x); top: 376px; width: 380px; }
