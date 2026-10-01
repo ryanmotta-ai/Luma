@@ -869,18 +869,21 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 @media (prefers-reduced-motion: reduce) { .s-multi .palco.is-on .dv { animation: none; } }
 
 /* 20 — Testem agora: o QR que leva a plateia para dentro do Luma */
-.s-teste .head { top: 96px; right: auto; width: 800px; }
-.s-teste .h-hero { font-size: 96px; line-height: .95; }
-.s-teste .lead { margin-top: 28px; font-size: 36px; font-weight: 800; color: #0A0A0A; }
-.s-teste .passos { position: absolute; left: var(--pad-x); bottom: 96px; width: 640px; display: flex; flex-direction: column; gap: 16px; margin: 0; padding: 0; list-style: none; }
-.s-teste .passos li { display: flex; align-items: center; gap: 18px; padding: 16px 26px 16px 18px; border-radius: 22px; background: rgba(255, 255, 255, .22); }
-.s-teste .passos b { flex: none; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: #0A0A0A; color: var(--orange); font-size: 26px; font-weight: 900; }
-.s-teste .passos span { font-size: 25px; line-height: 1.2; font-weight: 800; color: #0A0A0A; }
-.s-teste .fone { position: absolute; left: 900px; top: 50px; height: 980px; aspect-ratio: 1088 / 2243; filter: drop-shadow(0 40px 70px rgba(80, 30, 0, .4)); }
+.s-teste .halo { position: absolute; left: 20px; top: 40px; width: 1000px; height: 1000px; border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 144, 0, .30), rgba(255, 144, 0, .10) 55%, rgba(255, 144, 0, 0)); }
+.s-teste .fone { position: absolute; left: 270px; top: 36px; height: 1008px; aspect-ratio: 1088 / 2243; filter: drop-shadow(0 50px 70px rgba(80, 40, 0, .28)); }
 .s-teste .fone .tela { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; -webkit-mask: url(assets/devices/iphone-mascara.png) center / 100% 100%; mask: url(assets/devices/iphone-mascara.png) center / 100% 100%; mask-mode: luminance; }
 .s-teste .fone .moldura { position: absolute; inset: 0; width: 100%; height: 100%; }
-.s-teste .qr { position: absolute; right: var(--pad-x); top: 190px; width: 400px; margin: 0; padding: 30px 30px 26px; border-radius: 34px; background: #fff; box-shadow: 0 40px 90px rgba(120, 40, 0, .3); }
+.s-teste .head { top: 130px; left: 940px; right: auto; width: 860px; }
+.s-teste .h-hero { font-size: 96px; line-height: .98; }
+.s-teste .lead { margin-top: 28px; font-size: 36px; font-weight: 700; color: var(--ink-2); }
+.s-teste .acao { position: absolute; left: 940px; top: 520px; display: flex; align-items: center; gap: 64px; }
+.s-teste .qr { width: 400px; margin: 0; padding: 28px 28px 24px; border-radius: 32px; background: #fff; border: 1px solid var(--line); box-shadow: 0 30px 70px rgba(80, 40, 0, .14); }
 .s-teste .qr-code canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; }
-.s-teste .qr figcaption { margin-top: 18px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.s-teste .qr figcaption b { font-size: 28px; font-weight: 900; letter-spacing: -.01em; color: #0A0A0A; }
-.s-teste .qr figcaption span { font-size: 17px; color: #6B6B6B; }
+.s-teste .qr figcaption { margin-top: 16px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.s-teste .qr figcaption b { font-size: 28px; font-weight: 900; letter-spacing: -.01em; color: var(--ink); }
+.s-teste .qr figcaption span { font-size: 17px; color: var(--ink-3); }
+.s-teste .passos { position: relative; display: flex; flex-direction: column; gap: 34px; margin: 0; padding: 0; list-style: none; }
+.s-teste .passos::before { content: ''; position: absolute; left: 25px; top: 30px; bottom: 30px; width: 2px; background: rgba(255, 144, 0, .45); }
+.s-teste .passos li { position: relative; display: flex; align-items: center; gap: 22px; }
+.s-teste .passos b { flex: none; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: var(--orange); color: #0A0A0A; font-size: 26px; font-weight: 900; box-shadow: 0 0 0 8px var(--paper-2); }
+.s-teste .passos span { font-size: 28px; line-height: 1.2; font-weight: 800; color: var(--ink); }
