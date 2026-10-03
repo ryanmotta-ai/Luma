@@ -1036,6 +1036,261 @@
     assert(!vivos.length, 'o Automatic Designer voltou: ' + vivos.join(', '));
   });
 
+  /* ── 31. DYNAMIC FIT REGION (FitEnvelope) ─────────────────────────────────────────── */
+
+  test('dynamic-fit-01 · apoio cresce até produto sem colidir ou empurrar', () => {
+    const produto = { id:'produto', name:'produto', type:'text', content:'{{produto}}', isVar:true,
+      x:220, y:100, w:140, h:50, fontSize:24, lineHeight:1.2, textBox:'box', font:'Arial', visible:true };
+    const apoio = { id:'apoio', name:'apoio', type:'text', content:'{{apoio}}', isVar:true,
+      x:20, y:100, w:80, h:50, fontSize:24, lineHeight:1.2, textBox:'box', font:'Arial', visible:true };
+    const cv = { w:600, h:400 };
+
+    const reg = gComputeDynamicFitRegion(apoio, [apoio, produto], cv, {});
+    assert(reg.safe, 'região deveria ser segura');
+    assert(reg.walls.right === 'produto', 'parede à direita deve ser produto, veio ' + reg.walls.right);
+    assert(reg.x + reg.w <= 220 - 8, 'invadiu o produto ou respiro: termina em ' + (reg.x + reg.w));
+    assert(reg.growth.right > 0, 'apoio deveria ter crescido para a direita');
+    assert(reg.growth.left === 0, 'texto alinhado à esquerda não deve crescer para esquerda');
+
+    const lf = gLocalFitArte([apoio, produto], { canvas:cv, dados:{ produto:'PIZZA', apoio:'EAI KARAI VAMO DALE' }, defaults:{} });
+    const pProd = lf.layers.find(l => l.id === 'produto');
+    assert(pProd.x === 220 && pProd.w === 140, 'produto mudou de lugar');
+    const cApoio = lf.result.campos.find(c => c.id === 'apoio');
+    assert(cApoio.status === 'fits', 'apoio deveria caber na região dinâmica: ' + JSON.stringify(cApoio));
+  });
+
+  test('dynamic-fit-02 · não invade reservedRegion do vizinho', () => {
+    const produto = { id:'produto', name:'produto', type:'text', content:'{{produto}}', isVar:true,
+      x:220, y:100, w:140, h:50, fontSize:24, lineHeight:1.2, textBox:'box', font:'Arial', visible:true,
+      reservedRegion: { x:200, y:100, w:160, h:50 } };
+    const apoio = { id:'apoio', name:'apoio', type:'text', content:'{{apoio}}', isVar:true,
+      x:20, y:100, w:80, h:50, fontSize:24, lineHeight:1.2, textBox:'box', font:'Arial', visible:true };
+    const cv = { w:600, h:400 };
+
+    const reg = gComputeDynamicFitRegion(apoio, [apoio, produto], cv, {});
+    assert(reg.x + reg.w <= 200 - 8, 'invadiu reservedRegion explícita: ' + (reg.x + reg.w));
+    assert(reg.walls.right === 'produto', 'parede deve ser produto');
+  });
+
+  test('dynamic-fit-03 · produto longo reduz região disponível do apoio', () => {
+    const produto = { id:'produto', name:'produto', type:'text', content:'{{produto}}', isVar:true,
+      x:220, y:100, w:140, h:50, fontSize:24, lineHeight:1.2, textBox:'box', font:'Arial', visible:true,
+      layoutPriority:'high', textAlign:'right' };
+    const apoio = { id:'apoio', name:'apoio', type:'text', content:'{{apoio}}', isVar:true,
+      x:20, y:100, w:80, h:50, fontSize:24, lineHeight:1.2, textBox:'box', font:'Arial', visible:true,
+      layoutPriority:'low', textAlign:'left' };
+    const cv = { w:600, h:400 };
+
+    const lfCurto = gLocalFitArte([apoio, produto], { canvas:cv,
+      dados:{ produto:'PIZZA', apoio:'EAI KARAI VAMO DALE' }, defaults:{} });
+    const regCurto = lfCurto.result.campos.find(c => c.id === 'apoio');
+
+    const lfLongo = gLocalFitArte([apoio, produto], { canvas:cv,
+      dados:{ produto:'SUPER COMBO FAMÍLIA DUPLO CHEDDAR BACON ARTESANAL', apoio:'EAI KARAI VAMO DALE' }, defaults:{} });
+    const pProdLongo = lfLongo.result.campos.find(c => c.id === 'produto');
+    assert(pProdLongo.status === 'fits', 'produto longo deveria caber');
+  });
+
+  test('dynamic-fit-04 · produto curto não cede espaço além do seguro (preserva authored box)', () => {
+    const produto = { id:'produto', name:'produto', type:'text', content:'{{produto}}', isVar:true,
+      x:220, y:100, w:140, h:50, fontSize:24, lineHeight:1.2, textBox:'box', font:'Arial', visible:true };
+    const apoio = { id:'apoio', name:'apoio', type:'text', content:'{{apoio}}', isVar:true,
+      x:20, y:100, w:80, h:50, fontSize:24, lineHeight:1.2, textBox:'box', font:'Arial', visible:true };
+    const cv = { w:600, h:400 };
+
+    const resProd = gComputeReservedRegion(produto, [apoio, produto], cv, {});
+    assert(resProd.x <= 220 && resProd.w >= 140, 'não preservou a caixa autorada do produto curto');
+
+    const regApoio = gComputeDynamicFitRegion(apoio, [apoio, produto], cv, {});
+    assert(regApoio.x + regApoio.w <= 220 - 8, 'apoio avançou para dentro da caixa do produto curto: ' + (regApoio.x + regApoio.w));
+  });
+
+  test('dynamic-fit-05 · preço é parede (prioridade critical)', () => {
+    const preco = { id:'preco', name:'preco', type:'text', content:'R$ 49,90', isVar:true,
+      x:300, y:100, w:120, h:60, fontSize:32, lineHeight:1, textBox:'box', font:'Arial', visible:true,
+      layoutSemantic:'preco' };
+    const apoio = { id:'apoio', name:'apoio', type:'text', content:'{{apoio}}', isVar:true,
+      x:50, y:100, w:80, h:50, fontSize:24, lineHeight:1.2, textBox:'box', font:'Arial', visible:true };
+    const cv = { w:600, h:400 };
+
+    assert(gLayoutLayerPriority(preco, { canvas:cv }) === 'critical', 'preço deve ter prioridade critical');
+    const reg = gComputeDynamicFitRegion(apoio, [apoio, preco], cv, {});
+    assert(reg.walls.right === 'preco', 'preço deve ser a parede à direita');
+    assert(reg.x + reg.w <= 300 - 8, 'apoio atravessou o preço');
+  });
+
+  test('dynamic-fit-06 · fundo e decoração não são paredes', () => {
+    const fundo = { id:'bg', name:'Background', type:'shape', x:0, y:0, w:800, h:600,
+      fill:'#112233', visible:true, opacity:100, layoutRole:'background' };
+    const decoracao = { id:'raio', name:'Raio', type:'image', x:100, y:80, w:300, h:300,
+      visible:true, opacity:100, layoutSemantic:'decoracao' };
+    const texto = { id:'texto', name:'Texto', type:'text', content:'{{texto}}', isVar:true,
+      x:50, y:100, w:80, h:50, fontSize:24, lineHeight:1.2, textBox:'box', font:'Arial', visible:true };
+    const cv = { w:800, h:600 };
+
+    const reg = gComputeDynamicFitRegion(texto, [fundo, decoracao, texto], cv, {});
+    assert(!reg.obstacleIds.includes('bg'), 'fundo não pode ser obstáculo');
+    assert(!reg.obstacleIds.includes('raio'), 'decoração não pode ser obstáculo');
+  });
+
+  test('dynamic-fit-07 · safe zone limita expansão', () => {
+    const texto = { id:'texto', name:'Texto', type:'text', content:'{{texto}}', isVar:true,
+      x:800, y:100, w:100, h:50, fontSize:24, lineHeight:1.2, textBox:'box', font:'Arial', visible:true,
+      textAlign:'left' };
+    const cv = { w:1080, h:1920 };
+
+    const reg = gComputeDynamicFitRegion(texto, [texto], cv, {});
+    assert(reg.x + reg.w <= 1080 - 54, 'ultrapassou a safe margin do Story: ' + (reg.x + reg.w));
+    assert(reg.walls.right === null, 'sem obstáculos, walls.right deve ser null');
+  });
+
+  test('dynamic-fit-08 · crescimento respeita alinhamento à esquerda (cresce para direita)', () => {
+    const texto = { id:'texto', name:'Texto', type:'text', content:'{{texto}}', isVar:true,
+      x:200, y:100, w:100, h:50, fontSize:24, lineHeight:1.2, textBox:'box', font:'Arial', visible:true,
+      textAlign:'left' };
+    const cv = { w:1080, h:1080 };
+
+    const reg = gComputeDynamicFitRegion(texto, [texto], cv, {});
+    assert(reg.growth.left === 0, 'alinhado à esquerda não deve crescer para esquerda');
+    assert(reg.growth.right > 0, 'alinhado à esquerda deve crescer para direita');
+    assert(reg.x === 200, 'origem x não deve mudar no alinhamento à esquerda');
+  });
+
+  test('dynamic-fit-09 · crescimento respeita alinhamento à direita (cresce para esquerda)', () => {
+    const texto = { id:'texto', name:'Texto', type:'text', content:'{{texto}}', isVar:true,
+      x:500, y:100, w:100, h:50, fontSize:24, lineHeight:1.2, textBox:'box', font:'Arial', visible:true,
+      textAlign:'right' };
+    const cv = { w:1080, h:1080 };
+
+    const reg = gComputeDynamicFitRegion(texto, [texto], cv, {});
+    assert(reg.growth.left > 0, 'alinhado à direita deve crescer para a esquerda');
+    assert(reg.growth.right === 0, 'alinhado à direita não deve crescer para a direita');
+    assert(reg.x < 500, 'origem x deve recuar para a esquerda');
+    assert(reg.x + reg.w === 500 + 100, 'borda direita deve permanecer fixa no alinhamento à direita');
+  });
+
+  test('dynamic-fit-10 · crescimento respeita alinhamento centralizado (cresce simétrico)', () => {
+    const texto = { id:'texto', name:'Texto', type:'text', content:'{{texto}}', isVar:true,
+      x:400, y:100, w:200, h:50, fontSize:24, lineHeight:1.2, textBox:'box', font:'Arial', visible:true,
+      textAlign:'center' };
+    const cv = { w:1080, h:1080 };
+
+    const reg = gComputeDynamicFitRegion(texto, [texto], cv, {});
+    assert(reg.growth.left === reg.growth.right, 'crescimento centralizado deve ser estritamente simétrico: ' + reg.growth.left + ' !== ' + reg.growth.right);
+    assert(reg.growth.left > 0, 'deve ter crescido simetricamente');
+  });
+
+  test('dynamic-fit-11 · original-first absoluto: coube na caixa, zero alteração', () => {
+    const texto = { id:'t', name:'Texto', type:'text', content:'{{t}}', isVar:true,
+      x:80, y:100, w:400, h:80, fontSize:32, lineHeight:1.2, textBox:'box', font:'Arial', visible:true };
+    const cv = { w:1080, h:1080 };
+
+    const lf = gLocalFitArte([texto], { canvas:cv, dados:{ t:'Pizza' }, defaults:{} });
+    const c = lf.result.campos[0];
+    assert(c.degrau === 'original', 'degrau deveria ser original, veio ' + c.degrau);
+    assert(!lf.result.changes.length, 'não deveria haver mudanças: ' + JSON.stringify(lf.result.changes));
+    const lFinal = lf.layers[0];
+    assert(lFinal._layoutW === undefined && lFinal._layoutDx === undefined, 'não deve haver carimbos de expansão');
+  });
+
+  test('dynamic-fit-12 · texto cercado por paredes chega ao piso e bloqueia', () => {
+    const texto = { id:'t', name:'Texto', type:'text', content:'{{t}}', isVar:true,
+      x:100, y:100, w:80, h:40, fontSize:24, lineHeight:1.2, textBox:'box', font:'Arial', visible:true };
+    const pEsq = { id:'pEsq', type:'shape', x:0, y:100, w:95, h:200, visible:true };
+    const pDir = { id:'pDir', type:'shape', x:185, y:100, w:100, h:200, visible:true };
+    const pBaixo = { id:'pBaixo', type:'shape', x:0, y:145, w:300, h:100, visible:true };
+    const cv = { w:400, h:400 };
+
+    const lf = gLocalFitArte([pEsq, texto, pDir, pBaixo], { canvas:cv,
+      dados:{ t:ABSURDO }, defaults:{} });
+    const c = lf.result.campos.find(k => k.id === 't');
+    assert(c.status === 'overflow', 'texto cercado sem espaço deve bloquear');
+    assert(lf.result.invalid, 'deve marcar arte como inválida');
+    assert(lf.result.bloqueios.length > 0, 'deve produzir payload de bloqueio');
+  });
+
+  test('dynamic-fit-13 · terceiros nunca mudam (geometria intacta)', () => {
+    const texto = { id:'t', name:'Texto', type:'text', content:'{{t}}', isVar:true,
+      x:100, y:100, w:80, h:50, fontSize:24, lineHeight:1.2, textBox:'box', font:'Arial', visible:true };
+    const terceiro1 = { id:'logo', type:'image', x:350, y:40, w:120, h:80, rotation:15, visible:true };
+    const terceiro2 = { id:'shape', type:'shape', x:500, y:200, w:200, h:100, visible:true };
+    const cv = { w:1080, h:1080 };
+
+    const lf = gLocalFitArte([texto, terceiro1, terceiro2], { canvas:cv,
+      dados:{ t:'Promoção da semana com desconto especial' }, defaults:{} });
+    const snap1 = JSON.stringify([terceiro1, terceiro2].map(l => [l.id, l.x, l.y, l.w, l.h, l.rotation]));
+    const snap2 = JSON.stringify(lf.layers.filter(l => l.id !== 't').map(l => [l.id, l.x, l.y, l.w, l.h, l.rotation]));
+    assert(snap1 === snap2, 'terceiros foram modificados durante o encaixe: ' + snap1 + ' !== ' + snap2);
+  });
+
+  test('dynamic-fit-14 · execuções repetidas produzem o mesmo resultado (determinismo)', () => {
+    const layers = [
+      { id:'apoio', name:'apoio', type:'text', content:'{{apoio}}', isVar:true, x:20, y:100, w:80, h:50, fontSize:24, textBox:'box', font:'Arial', visible:true },
+      { id:'produto', name:'produto', type:'text', content:'{{produto}}', isVar:true, x:220, y:100, w:140, h:50, fontSize:24, textBox:'box', font:'Arial', visible:true }
+    ];
+    const cv = { w:600, h:400 };
+    const dados = { apoio:'EAI KARAI VAMO DALE', produto:'PIZZA' };
+
+    const chapa = lf => JSON.stringify({
+      layers: lf.layers.map(l => [l.id, l.x, l.y, l.w, l.h, l._tetoFonte || 0, l._layoutW || 0, l._layoutDx || 0]),
+      campos: lf.result.campos
+    });
+    const r1 = chapa(gLocalFitArte(layers, { canvas:cv, dados, defaults:{} }));
+    const r2 = chapa(gLocalFitArte(layers, { canvas:cv, dados, defaults:{} }));
+    const r3 = chapa(gLocalFitArte(layers, { canvas:cv, dados, defaults:{} }));
+    assert(r1 === r2 && r2 === r3, 'execuções repetidas divergiram');
+  });
+
+  test('dynamic-fit-15 · curto → longo → curto tem drift zero', () => {
+    const layers = [
+      { id:'apoio', name:'apoio', type:'text', content:'{{apoio}}', isVar:true, x:20, y:100, w:80, h:50, fontSize:24, textBox:'box', font:'Arial', visible:true },
+      { id:'produto', name:'produto', type:'text', content:'{{produto}}', isVar:true, x:220, y:100, w:140, h:50, fontSize:24, textBox:'box', font:'Arial', visible:true }
+    ];
+    const cv = { w:600, h:400 };
+
+    const inicial = gLocalFitArte(layers, { canvas:cv, dados:{ apoio:'Oi', produto:'Pizza' }, defaults:{} });
+    const intermediario = gLocalFitArte(layers, { canvas:cv, dados:{ apoio:'EAI KARAI VAMO DALE SUPER LONGO', produto:'SUPER COMBO DUPLO' }, defaults:{} });
+    const volta = gLocalFitArte(layers, { canvas:cv, dados:{ apoio:'Oi', produto:'Pizza' }, defaults:{} });
+
+    const extrai = lf => lf.layers.map(l => ({ id:l.id, x:l.x, y:l.y, w:l.w, h:l.h, fs:l._tetoFonte, lw:l._layoutW, ldx:l._layoutDx }));
+    assert(JSON.stringify(extrai(inicial)) === JSON.stringify(extrai(volta)), 'drift detectado ao voltar para texto curto');
+  });
+
+  test('dynamic-fit-16 · debugDynamicFitRegion devolve payload completo e desenha no canvas', () => {
+    const layer = { id:'apoio', name:'apoio', type:'text', x:50, y:100, w:100, h:50, fontSize:24, visible:true };
+    const obs = { id:'parede', name:'parede', type:'shape', x:250, y:100, w:50, h:50, visible:true };
+    const cv = { w:800, h:600 };
+    const reg = gComputeDynamicFitRegion(layer, [layer, obs], cv, {});
+
+    const data = debugDynamicFitRegion(null, reg, { layers:[layer, obs] });
+    assert(data && data.original && data.safeRegion && data.walls, 'payload incompleto');
+    assert(data.original.color === 'blue', 'original deve ser azul');
+    assert(data.safeRegion.color === 'green', 'safe region deve ser verde');
+
+    const desenhados = [];
+    const mockCtx = {
+      save: () => {},
+      restore: () => {},
+      fillRect: (x,y,w,h) => desenhados.push({ op:'fill', x, y, w, h }),
+      strokeRect: (x,y,w,h) => desenhados.push({ op:'stroke', x, y, w, h }),
+      setLineDash: () => {}
+    };
+    debugDynamicFitRegion(mockCtx, reg, { layers:[layer, obs] });
+    assert(desenhados.length >= 4, 'não desenhou os retângulos de debug no canvas');
+  });
+
+  test('dynamic-fit-17 · Story vs Feed aplicam safe margins distintas', () => {
+    const layer = { id:'t', name:'Texto', type:'text', x:800, y:100, w:100, h:50, fontSize:24, visible:true, textAlign:'left' };
+    const storyCv = { w:1080, h:1920 };
+    const feedCv = { w:1080, h:1080 };
+
+    const regStory = gComputeDynamicFitRegion(layer, [layer], storyCv, {});
+    const regFeed = gComputeDynamicFitRegion(layer, [layer], feedCv, {});
+
+    assert(regStory.x + regStory.w <= 1080 - 54, 'Story extrapolou margem lateral');
+    assert(regFeed.x + regFeed.w <= 1080 - 54, 'Feed extrapolou margem lateral');
+  });
+
   /* ── Execução ─────────────────────────────────────────────────────────────────────── */
   let passed = 0;
   for(const item of cases){

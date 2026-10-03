@@ -805,3 +805,73 @@ não diz o que houve, e 17px de largura não se acerta com o dedo.
 ele; "Agora não" não mexe no fluxo; o contador adota o limite medido e **não** corta o texto;
 sem campo editável a saída é trocar de material; o aviso da prévia acende, nomeia e apaga
 quando a arte volta a caber; e a porta é única.
+
+---
+
+## 16. Dynamic Fit Region (FitEnvelope)
+
+> **Contrato vigente — 03/10/2026.** Cada variável de texto descobre geometricamente a maior região
+> contínua e segura disponível ao seu redor antes de bloquear, respeitando a intenção original,
+> margens seguras e paredes reais.
+
+### O Princípio e a Solução Geométrica
+
+Em vez de heurísticas arbitrárias (crescer percentuais fixos ou pixels mágicos sem olhar a prancheta),
+o Local Fit computa o envelope seguro contínuo que o texto pode ocupar sem colidir, invadir ou competir
+com variáveis prioritárias da composição.
+
+A função central é:
+```js
+gComputeDynamicFitRegion(layer, layers, canvas, opts)
+```
+
+Retorno garantido:
+```js
+{
+  x, y, w, h,
+  original: { x, y, w, h },
+  growth: { left, right, up, down },
+  walls: {
+    left: null,
+    right: "produto",
+    top: null,
+    bottom: "cta"
+  },
+  obstacleIds: [],
+  safe: true
+}
+```
+
+### Regras do Contrato
+
+1. **Original-First Absoluto:**
+   Se o texto couber na caixa original, nenhuma expansão é feita. `alargado` permanece `null`, e o
+   desenho permanece 100% idêntico ao autorado pelo designer.
+2. **Reserva de Espaço entre Variáveis (`reservedRegion`):**
+   Cada variável prioritária possui um `reservedRegion` que protege seu espaço autorado e adaptado.
+   Mesmo quando um produto for curto ("PIZZA"), ele **não** cede seu espaço autorado para vizinhos secundários.
+   Isso elimina o risco de competição futura ou desalinhamentos.
+3. **Hierarquia e Prioridade Estrutural:**
+   - `critical` (50): preço, código promocional, desconto.
+   - `high` (40): produto, título, headline, oferta.
+   - `medium` (30): cta, botão, selo, badge.
+   - `low` (20): apoio, descrição, legal.
+   - `decorative` (10): fundo, texturas, decorações.
+   Campos com prioridade maior reservam seu espaço antes; campos secundários utilizam o que sobra de forma determinística.
+4. **Alinhamento dita o Crescimento:**
+   - Texto alinhado à esquerda (`left`): cresce preferencialmente para a direita (`growth.left = 0`, `growth.right > 0`).
+   - Texto alinhado à direita (`right`): cresce preferencialmente para a esquerda (`growth.left > 0`, `growth.right = 0`).
+   - Texto centralizado (`center`): cresce de forma estritamente simétrica para ambos os lados (`growth.left === growth.right`).
+5. **Paredes Reais vs Elementos de Fundo:**
+   - Imagens importantes, preços, CTAs e outros campos atuam como paredes rígidas.
+   - Fundo (`layoutRole: 'background'`), texturas e painéis que contêm o texto **não** são barreiras.
+6. **Respiro e Safe Zones:**
+   - Respiro dinâmico seguro calculado por `max(8px, Math.round(fontSize * 0.25))`.
+   - Limite estrito pelas safe zones do formato (Story: 54px lateral, 140px topo, 250px base; Feed: 54px lateral, 4% vertical).
+7. **Depuração Visual (`debugDynamicFitRegion`):**
+   Disponibiliza overlay analítico:
+   - Azul: caixa original do designer.
+   - Verde: região segura dinâmica calculada (`FitEnvelope`).
+   - Vermelho: obstáculos detectados que limitam o crescimento.
+   - Amarelo: `reservedRegion` de variáveis vizinhas.
+
