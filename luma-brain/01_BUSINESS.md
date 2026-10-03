@@ -309,3 +309,11 @@ Se uma proposta contradiz qualquer item abaixo, ela está **errada** — reveja 
 - `00_PRODUCT.md` — propósito, público, missão, o que o Luma NÃO faz.
 - `docs/LUMA.md` — documentação técnica oficial (arquitetura, código, backend, RLS).
 - `docs/LUMA-BACKEND-CHANGELOG.md` — histórico vivo de mudanças de backend.
+
+## Ajuste rápido na prévia — 03/10/2026
+
+Designer/equipe e gestão podem usar **Modo editar** na prévia do fluxo do franqueado para ajustar o conteúdo, tamanho e alinhamento dos textos, inclusive fixos. O ajuste é um rascunho separado: não altera as respostas nem o material compartilhado antes da confirmação do servidor. **Cancelar** descarta; **Salvar e publicar** atualiza somente as camadas do material publicado e aproveita o versionamento existente. Artes anteriores continuam vinculadas à versão original.
+
+Os campos `{{…}}` e seus modificadores precisam ser preservados. Material histórico, não publicado, pendente de sincronização ou desatualizado não pode ser republicado por esse caminho. A gravação compara `updated_at` atomicamente para recusar alterações concorrentes; erro ou nenhuma linha atualizada nunca anuncia sucesso. A RLS existente continua sendo a fronteira de autorização. Não há migration nova.
+
+Implementação: `js/franqueado/live-preview.js`; controles em `index.html` e `css/modules/live-preview.css`. Verificação: `tests/previa-designer.html` (14 casos com servidor simulado, incluindo falhas e conflitos), fluxo do franqueado (72 casos) e edição por clique no navegador. A gravação autenticada em produção precisa ser validada com uma conta real de designer.

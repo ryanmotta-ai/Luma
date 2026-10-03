@@ -573,6 +573,21 @@ body:not(.theme-light) .lp-edit-btn.lp-btn-upload:hover{background:var(--dm-oran
 .lp-edit-btn.lp-edit-danger{color:var(--dm-red,#C81818)}
 .lp-edit-btn.lp-edit-danger:hover{border-color:var(--dm-red,#C81818);background:rgba(200,24,24,.06);color:var(--dm-red,#C81818)}
 
+.lp-design-tools{display:flex;align-items:center;gap:8px;padding:12px;flex-wrap:wrap;border-bottom:1px solid var(--gray-mid);color:var(--text);font-size:12px}
+.lp-design-tools[hidden]{display:none}
+.lp-design-tools span{flex:1;min-width:140px}
+.lp-design-label{display:block;font-size:12px;color:var(--text);margin-bottom:8px}
+.lp-design-props{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.lp-design-hint{font-size:11px;line-height:1.5;color:var(--text-3);margin:8px 0}
+.lp-design-pop textarea{resize:vertical;min-height:72px;max-height:160px}
+.lp-design-pop,.lp-design-pop .lp-edit-input{box-sizing:border-box}
+body.theme-light .lp-design-pop{background:var(--white)}
+body:not(.theme-light) .lp-design-label{color:var(--d-text)}
+body:not(.theme-light) .lp-design-hint{color:var(--d-text2)}
+body:not(.theme-light) .lp-design-tools{border-color:var(--d-border);color:var(--d-text)}
+.lp-design-editing .lp-stage-hint{visibility:hidden}
+.lp-design-tools button:disabled{opacity:.55;cursor:wait}
+.lp-design-tools .lp-edit-btn{width:auto;flex:none}
 .lp-edit-lbl{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3,#6B6B6B);margin-bottom:8px}
 .lp-edit-input{width:100%;font-size:13px;padding:9px 11px;border:1px solid var(--gray-mid,#D4D4D4);border-radius:8px;
   background:var(--white,#fff);color:var(--text,#0A0A0A);outline:none;transition:border-color var(--dur-micro) var(--ease-standard),box-shadow var(--dur-micro) var(--ease-standard)}
@@ -1533,3 +1548,7 @@ body.f-palco-conclusao #f-live-preview .lp-toolbar{display:none}
   body.f-completando #lp-contextos,
   body.f-palco-conclusao .lp-ctx-bar{transition:none!important;animation:none!important}
 }
+
+#lp-design-start{width:auto;min-width:0;padding:0 10px;white-space:nowrap}
+
+.lp-design-start[hidden]{display:none}

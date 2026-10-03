@@ -1,0 +1,119 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Luma — edição rápida na prévia</title>
+<link rel="stylesheet" href="../css/00-tokens.css">
+<link rel="stylesheet" href="../css/modules/live-preview.css">
+<style>body{font-family:Arial;margin:24px}#f-live-preview{width:560px;height:760px;display:flex;flex-direction:column;border:1px solid var(--gray-mid)}#f-live-preview .lp-stage{flex:1;min-height:0}#f-chat-col,#lp-empty,#f-preview-modal{display:none}</style>
+<body class="theme-light"><h1>Fluxo do franqueado — chat e prévia, uma verdade só</h1><ol id="results"></ol>
+
+<!-- ══════════════════════════════════════════════════════════════════════════════════════════
+     POR QUE ESTA SUÍTE EXISTE
+     ------------------------------------------------------------------------------------------
+     O teste de usabilidade com o time (09/2026) achou o defeito central da V1: chat e prévia
+     pareciam DUAS ferramentas concorrentes, e uma edição feita na prévia podia ser reescrita
+     pelo chat depois. O contrato novo é que os dois são interfaces da MESMA fonte de verdade
+     (`fState.dados`), e que **valor só muda por ação explícita de quem está criando**.
+
+     Contrato é promessa; sem teste é promessa de boca. Aqui os módulos REAIS do franqueado
+     (chat.js, chat-input.js, live-preview.js) são carregados e o fluxo é dirigido de verdade —
+     nada de mock do que está sendo testado. Cada caso é uma das sequências que o pedido lista:
+     chat→prévia→chat, prévia→chat→prévia, editar campo já respondido, voltar passo, trocar
+     formato, abrir rascunho, reabrir arte.
+     ══════════════════════════════════════════════════════════════════════════════════════════ -->
+
+<!-- Palco mínimo: os nós que o chat e a prévia procuram por id na carga e no render. -->
+<!-- `#f-chat-col` é o alvo do soltar-arquivo (`_fInitChatSoltarColar`, chat.js). No app ele
+     envolve a conversa e a barra de resposta — aqui também, senão o drop testaria um layout
+     que não existe. -->
+<div id="f-chat-col">
+<div id="f-messages"></div>
+<input id="f-msg-box"><button id="f-snd"></button><button id="f-chat-mic"></button>
+</div>
+<span id="f-char-count"></span><div id="prog-fill"></div><div id="f-ctx-tag"></div>
+<div class="lp-stage"><div class="lp-canvas-wrap"><canvas id="lp-canvas" width="1080" height="1920"></canvas></div></div>
+<div id="lp-empty"><span id="lp-empty-title"></span><span id="lp-empty-sub"></span></div>
+<span id="lp-dim"></span><span id="lp-sub"></span><button type="button" id="lp-layout-nota" hidden></button>
+<!-- `live-preview.js` liga um listener em `#f-preview-modal` no topo do arquivo, fora de
+     qualquer guarda: sem este nó o script morre na linha 56 e metade da prévia nunca inicializa.
+     (Achado montando esta bancada — no app o nó existe no index.html.) -->
+<div id="f-preview-modal"><div id="pv-title"></div><div id="pv-note"></div><div id="pv-multi"></div></div>
+<div id="g-toast-container"></div>
+<div id="f-head-actions"><button id="f-undo-btn" hidden onclick="fDesfazer()"></button></div>
+<div id="fixture"></div>
+
+<script>
+// Bancada sem rede e sem credencial. Só o que o código do franqueado consulta na carga.
+var dFolders=[], dVars=[];
+function gCurrentUser(){return {id:'11111111-1111-4111-8111-111111111111'};}
+function gIsAdmin(){return false;}
+function gFeatureCan(){return true;}
+function gTrackEvent(){}
+function gAiReady(){return false;}
+var sbFake={schema(){return {from(){return {
+  upsert(){return Promise.resolve({error:null});},
+  select(){return {eq(){return {single(){return Promise.resolve({data:null});}};}};}
+};}};}};
+function gSupabase(){return sbFake;} window.sb=sbFake;
+// `dExtractTemplateVars` mora no Estúdio (designer/templates.js), que a bancada não carrega;
+// o kit usa para listar os campos de cada peça. Mesma regra: {{campo}} no texto + imgVar.
+function dExtractTemplateVars(layers){const v=new Set();(layers||[]).forEach(l=>{String(l.content||'').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g,(_,n)=>{v.add(n);return _;});if(l.imgVar)v.add(l.imgVar);});return Array.from(v);}
+</script>
+<script src="../js/00-config.js"></script>
+<script src="../js/01-state.js"></script>
+<script src="../js/core/toast.js"></script>
+<script src="../js/core/layout.js"></script>
+<script src="../js/core/auto-layout.js"></script>
+<!-- Local Fit: o kit da campanha mede cada peça antes de gerar (regra C). -->
+<script src="../js/core/local-fit.js"></script>
+<script src="../js/franqueado/prefs.js"></script>
+<script src="../js/franqueado/history.js"></script>
+<script src="../js/franqueado/materials.js"></script>
+<script src="../js/franqueado/catalog.js"></script>
+<script src="../js/franqueado/chat.js"></script>
+<script src="../js/franqueado/chat-input.js"></script>
+<script src="../js/franqueado/live-preview.js"></script>
+<script src="../js/franqueado/png-generator.js"></script>
+<script src="../js/franqueado/feedback.js"></script>
+<script src="../js/core/suporte.js"></script>
+<script src="../js/core/help.js"></script>
+<script>
+let admin=true, mode='ok', calls=[], notices=[], row, total=0, failures=[];
+gIsAdmin=()=>admin;
+gToast=(message)=>notices.push(message);
+function assert(ok,message){if(!ok)throw Error(message);}
+async function settled(){for(let i=0;i<100;i++){await new Promise(r=>setTimeout(r,20));if(!_lpRendering&&!_lpPendingRender)return;}throw Error('prévia não terminou: '+_lpLastErr);}
+async function test(name,fn){total++;try{await fn();document.getElementById('results').innerHTML+='<li>OK '+gEsc(name)+'</li>';}catch(e){failures.push({name,error:e.message});document.getElementById('results').innerHTML+='<li>FALHOU '+gEsc(name)+': '+gEsc(e.message)+'</li>';}}
+function fixture(){
+  _fLpDesignDraft=null;admin=true;mode='ok';calls=[];notices=[];
+  row={id:'11111111-1111-4111-8111-111111111111',updated_at:'2026-10-03T12:00:00Z',versao_atual_id:'v1',publicado:true,
+    layers:[{id:'titulo',type:'text',content:'Oferta da semana',x:100,y:100,w:800,h:120,fontSize:64,textAlign:'left',font:'Arial',visible:true},
+    {id:'preco',type:'text',content:'Por {{preco}}',x:100,y:300,w:800,h:160,fontSize:96,textAlign:'left',font:'Arial',visible:true}]};
+  fState.material={id:row.id,remoteId:row.id,name:'Teste da edição rápida',w:1080,h:1920,fmt:'story',versaoAtualId:'v1',layers:JSON.parse(JSON.stringify(row.layers)),publishMeta:{publicado:true}};
+  fState.dados={preco:'29,90'};fState.camp={id:'teste',perguntas:[]};fState.done=false;fState.fmt={id:'story'};
+  dFolders=[{id:'camp',templates:[fState.material]}];
+  gSupabase=()=>({schema(){return {from(){let filters=[];return {
+    select(){return this;},eq(k,v){filters.push([k,v]);return this;},
+    single(){return Promise.resolve({data:JSON.parse(JSON.stringify(row)),error:mode==='read-error'?{message:'negado'}:null});},
+    update(payload){calls.push({payload:JSON.parse(JSON.stringify(payload)),filters});return {eq(k,v){filters.push([k,v]);return this;},select(){return Promise.resolve(mode==='error'?{error:{message:'offline'}}:{data:mode==='conflict'?[]:[{id:row.id,updated_at:'2026-10-03T12:01:00Z',versao_atual_id:'v2'}],error:null});}};}
+  };}};}});
+}
+const preview=document.createElement('aside');preview.id='f-live-preview';document.querySelector('.lp-stage').before(preview);preview.appendChild(document.querySelector('.lp-stage'));
+const head=document.createElement('div');head.innerHTML='<button class="lp-edit-btn lp-design-start" id="lp-design-start" onclick="fLpDesignStart()">Modo editar</button><div id="lp-design-tools" class="lp-design-tools" hidden><span>Clique no texto para editar a arte da rede</span><button class="lp-edit-btn" onclick="fLpDesignCancel()">Cancelar</button><button class="lp-edit-ok" id="lp-design-save" onclick="fLpDesignSave()">Salvar e publicar</button></div>';document.querySelector('.lp-stage').before(head);
+(async()=>{
+await test('Franqueado não entra nem grava',async()=>{fixture();admin=false;_fLpDesignSync();await fLpDesignStart();await settled();assert(!_fLpDesignDraft,'abriu sem permissão');assert(!await fLpDesignSave()&&calls.length===0,'gravou sem permissão');assert(document.getElementById('lp-design-start').hidden,'botão exposto');});
+await test('Versão histórica não permite publicação',async()=>{fixture();fState.material._versaoAntiga=true;await fLpDesignStart();await settled();assert(!_fLpDesignDraft,'editou uma versão antiga');});
+await test('Erro de leitura não inicia edição',async()=>{fixture();mode='read-error';await fLpDesignStart();await settled();assert(!_fLpDesignDraft&&!_fLpDesignOpening,'abriu ou deixou botão travado');});
+await test('Versão desatualizada pede reabertura',async()=>{fixture();row.versao_atual_id='v2';await fLpDesignStart();await settled();assert(!_fLpDesignDraft,'editou versão antiga do catálogo');});
+await test('Rascunho não muda template nem respostas',async()=>{fixture();await fLpDesignStart();await settled();_fLpDesignDraft.layers[0].content='Só hoje';assert(fState.material.layers[0].content==='Oferta da semana'&&fState.dados.preco==='29,90','mutou estado compartilhado');fLpDesignCancel();assert(!_fLpDesignDraft&&calls.length===0,'cancelar gravou');});
+await test('Texto fixo pode ser selecionado na arte',async()=>{fixture();await fLpDesignStart();await settled();await fUpdateLivePreview();await settled();const l=_fLpLayerAt(120,120);assert(l?.id==='titulo','texto fixo não selecionável');_fLpDesignEditor(l.id,{clientX:200,clientY:180});const inp=document.getElementById('lp-design-content');inp.value='Só hoje';inp.dispatchEvent(new Event('input'));assert(_fLpDesignDraft.layers[0].content==='Só hoje','editor não atualiza rascunho');await fUpdateLivePreview();await settled();assert(_lpEffectiveLayers.find(x=>x.id==='titulo').content==='Só hoje','render não usa rascunho');});
+await test('Tamanho e alinhamento respondem ao vivo',async()=>{fixture();await fLpDesignStart();await settled();_fLpDesignEditor('titulo');const size=document.getElementById('lp-design-size'),align=document.getElementById('lp-design-align');size.value=80;size.dispatchEvent(new Event('input'));align.value='center';align.dispatchEvent(new Event('change'));assert(_fLpDesignDraft.layers[0].fontSize===80&&_fLpDesignDraft.layers[0].textAlign==='center','propriedades não aplicadas');});
+await test('Sem mudanças não cria versão',async()=>{fixture();await fLpDesignStart();await settled();assert(!await fLpDesignSave()&&calls.length===0,'gravou sem alterações');});
+await test('Não deixa apagar um campo do chat',async()=>{fixture();await fLpDesignStart();await settled();_fLpDesignDraft.layers[1].content='Por 29,90';assert(!await fLpDesignSave()&&calls.length===0,'publicou dado de loja como fixo');});
+await test('Perda de permissão bloqueia gravação',async()=>{fixture();await fLpDesignStart();await settled();_fLpDesignDraft.layers[0].content='Hoje';admin=false;assert(!await fLpDesignSave()&&calls.length===0,'gravou após perder permissão');});
+await test('Falha de rede mantém rascunho e não anuncia sucesso',async()=>{fixture();await fLpDesignStart();await settled();_fLpDesignDraft.layers[0].content='Hoje';mode='error';assert(!await fLpDesignSave()&&_fLpDesignDraft&&!_fLpDesignDraft.saving,'rascunho perdido/travado');assert(fState.material.layers[0].content==='Oferta da semana'&&!notices.includes('Nova versão publicada para a rede.'),'anunciou publicação falsa');});
+await test('Conflito não sobrescreve versão concorrente',async()=>{fixture();await fLpDesignStart();await settled();_fLpDesignDraft.layers[0].content='Hoje';mode='conflict';assert(!await fLpDesignSave()&&_fLpDesignDraft,'conflito anunciou sucesso');assert(calls[0].filters.some(x=>x[0]==='updated_at'&&x[1]===row.updated_at),'sem proteção atômica');});
+await test('Publicação troca versão e só envia layers, preservando campos',async()=>{fixture();await fLpDesignStart();await settled();_fLpDesignDraft.layers[0].content='Só hoje';assert(await fLpDesignSave(),'publicação falhou');assert(calls.length===1&&Object.keys(calls[0].payload).join()==='layers','enviou catálogo ou metadados');assert(calls[0].payload.layers[1].content==='Por {{preco}}'&&fState.dados.preco==='29,90','fixou valor de loja');assert(fState.material.versaoAtualId==='v2'&&dFolders[0].templates[0].layers[0].content==='Só hoje'&&!_fLpDesignDraft,'estado não recebeu versão confirmada');});
+await test('Troca de material descarta rascunho sem gravação',async()=>{fixture();await fLpDesignStart();await settled();fState.material={id:'outro',layers:[]};_fLpDesignSync();assert(!_fLpDesignDraft&&calls.length===0,'rascunho vazou para outra arte');});
+fixture();await fLpDesignStart();await settled();await fUpdateLivePreview();await settled();
+window.__lumaTest={total,passed:total-failures.length,failures};
+})().catch(e=>window.__lumaTest={total:1,passed:0,failures:[{name:'bancada',error:e.stack}]});
+</script></body></html>

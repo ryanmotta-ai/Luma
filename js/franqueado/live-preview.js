@@ -2238,6 +2238,7 @@ function _fLpTransicaoTipo(mesmoPalco, campos, discreto, sig){
 
 async function fUpdateLivePreview(opts){
   opts = opts || {}; // animateField marca a mudança como DISCRETA (enviar, foto) — ver _fLpTransicaoTipo
+  _fLpDesignSync();
   const canvas = document.getElementById('lp-canvas');
   if(!canvas || canvas.tagName !== 'CANVAS') return;
   // O botão depende do TEMPLATE aberto (nem todo template tem Layout vivo), então é
@@ -2319,7 +2320,7 @@ async function fUpdateLivePreview(opts){
          material NOVO junto com a geometria do VELHO. Quem lê esse par (o enquadramento de
          foto, `fLpFrameVar`) passava a mexer numa camada de outra arte. */
       const _matRender = fState.material;
-      const rendered=await fRenderTemplateLayers(_lpBuf.getContext('2d'),_matRender.layers,W,H,dadosPreview,fState.camp,null,
+      const rendered=await fRenderTemplateLayers(_lpBuf.getContext('2d'),_fLpDesignActive()?_fLpDesignDraft.layers:_matRender.layers,W,H,dadosPreview,fState.camp,null,
         {scope:'franqueado',purpose:'preview'});
       /* Material trocou no meio: este desenho já é passado e NEM chega ao palco — pintá-lo
          seria mostrar a arte errada por um instante. O palco e o `_lpEffective*` continuam
@@ -3251,7 +3252,7 @@ function _fLpLayerAt(x,y,cvAlvo){
   }
   for(let i=layers.length-1;i>=0;i--){
     const l=layers[i];
-    if(!l||l.visible===false||!_fLpLayerVars(l).length) continue;
+    if(!l||l.visible===false||(_fLpDesignActive()?l.type!=='text':!_fLpLayerVars(l).length)) continue;
     const vr=_fLpVisualRect(l);
     const lx=vr.x,ly=vr.y,lw=vr.w,lh=vr.h;
     if(!(x>=lx&&x<=lx+lw&&y>=ly&&y<=ly+lh)) continue;
@@ -3872,6 +3873,124 @@ function _fLpVarChooser(l,vars,ev){
   p.querySelectorAll('[data-v]').forEach(b=>{ b.onclick=()=>{ const v=b.getAttribute('data-v'); const perm=_fLpPerm(v); if(!perm.editable){ _fLpLockToast(v); return; } _fLpTextEditor(v,perm.maxLen,ev); }; });
 }
 
+// Ajuste rápido do template publicado. O rascunho nunca entra em fState.dados nem no histórico.
+let _fLpDesignDraft=null;
+let _fLpDesignOpening=false;
+function _fLpDesignAllowed(){
+  const m=fState.material;
+  return !!(typeof gIsAdmin==='function'&&gIsAdmin()&&m&&m.remoteId&&m.publishMeta?.publicado&&!m._versaoAntiga&&!m._syncPending);
+}
+function _fLpDesignActive(){
+  return !!(_fLpDesignDraft&&_fLpDesignAllowed()&&_fLpDesignDraft.id===fState.material.id);
+}
+function _fLpDesignSync(){
+  if(_fLpDesignDraft&&!_fLpDesignActive()){
+    _fLpDesignDraft=null; _fLpCloseEditor();
+  }
+  const active=_fLpDesignActive(), busy=_fLpDesignOpening||!!_fLpDesignDraft?.saving;
+  const start=document.getElementById('lp-design-start');
+  const tools=document.getElementById('lp-design-tools');
+  if(start){start.hidden=!_fLpDesignAllowed()||active;start.disabled=busy;}
+  if(tools){tools.hidden=!active;tools.querySelectorAll('button').forEach(b=>b.disabled=busy);}
+  const save=document.getElementById('lp-design-save');
+  if(save) save.textContent=_fLpDesignDraft?.saving?'Publicando…':'Salvar e publicar';
+  const panel=document.getElementById('f-live-preview');
+  if(panel) panel.classList.toggle('lp-design-editing',active);
+}
+async function fLpDesignStart(){
+  if(!_fLpDesignAllowed()||_fLpDesignOpening||_fLpDesignDraft) return;
+  const m=fState.material, id=m.id, remoteId=m.remoteId;
+  // Não concorre com o autosave do mesmo material aberto no Estúdio.
+  if((typeof dActiveTmplId!=='undefined'&&dActiveTmplId===id)||(typeof _dPushBusy!=='undefined'&&_dPushBusy)){
+    gToast('Feche este material no Estúdio e aguarde a sincronização antes de editar aqui.','error');return;
+  }
+  const sb=typeof gSupabase==='function'?gSupabase():window.sb;
+  if(!sb){gToast('Conecte sua conta para editar o material da rede.','error');return;}
+  _fLpDesignOpening=true;_fLpDesignSync();
+  try{
+    const {data,error}=await sb.schema('luma').from('templates').select('id,layers,updated_at,versao_atual_id,publicado').eq('id',remoteId).single();
+    if(error||!data?.publicado||!data.updated_at||!Array.isArray(data.layers)) throw new Error('Não foi possível carregar a versão publicada.');
+    if(!_fLpDesignAllowed()||fState.material.id!==id) return;
+    if(m.versaoAtualId&&m.versaoAtualId!==data.versao_atual_id) throw new Error('Este material recebeu uma nova versão. Reabra pelo catálogo antes de editar.');
+    _fLpCloseEditor();if(_lpFraming) fLpCancelFraming();
+    _fLpDesignDraft={id,remoteId,stamp:data.updated_at,base:JSON.stringify(data.layers),layers:JSON.parse(JSON.stringify(data.layers)),saving:false};
+    _fLpSuspenderConclusao();
+    _fLpDesignSync();_fLpRender();
+    gToast('Clique em um texto da arte para ajustar. As mudanças serão publicadas para a rede ao salvar.');
+  }catch(e){gToast(e.message||'Não foi possível iniciar a edição.','error');}
+  finally{_fLpDesignOpening=false;_fLpDesignSync();}
+}
+function fLpDesignCancel(){
+  if(_fLpDesignDraft?.saving) return;
+  _fLpDesignDraft=null;_fLpCloseEditor();_fLpHideHover();_fLpDesignSync();_fLpRender();_fLpRetomarConclusao();
+}
+function _fLpDesignEditor(id,ev){
+  if(!_fLpDesignActive()||_fLpDesignDraft.saving) return;
+  const l=_fLpDesignDraft.layers.find(x=>x.id===id&&x.type==='text');if(!l) return;
+  const p=_fLpMakePop(ev);p.classList.add('lp-design-pop');_fLpHideHover();
+  p.innerHTML=`<div class="lp-edit-pop-header"><div class="lp-edit-pop-title">Editar texto da arte</div><button type="button" class="lp-edit-pop-close" aria-label="Fechar editor"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+    <label class="lp-design-label" for="lp-design-content">Texto</label><textarea id="lp-design-content" class="lp-edit-input" rows="3"></textarea>
+    <p class="lp-design-hint">Mantenha os campos entre {{chaves}}. Eles usam as respostas do chat.</p>
+    <div class="lp-design-props"><label class="lp-design-label">Tamanho<input id="lp-design-size" class="lp-edit-input" type="number" min="6" max="600" step="1"></label>
+    <label class="lp-design-label">Alinhamento<select id="lp-design-align" class="lp-edit-input"><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div>
+    <div class="lp-edit-row"><span class="lp-edit-count">Prévia ao vivo · ainda não publicado</span><button class="lp-edit-ok" type="button">Concluir</button></div>`;
+  const content=p.querySelector('#lp-design-content'),size=p.querySelector('#lp-design-size'),align=p.querySelector('#lp-design-align');
+  content.value=l.content||'';size.value=l.fontSize||32;align.value=l.textAlign||'left';
+  const change=()=>{
+    if(!_fLpDesignActive()||_fLpDesignDraft.saving) return;
+    const layer=_fLpDesignDraft.layers.find(x=>x.id===id);if(!layer) return;
+    layer.content=content.value;
+    const n=Number(size.value);if(Number.isFinite(n)&&n>=6&&n<=600) layer.fontSize=n;
+    layer.textAlign=align.value;_fLpRender();
+  };
+  content.oninput=change;size.oninput=change;align.onchange=change;
+  p.querySelector('.lp-edit-pop-close').onclick=_fLpCloseEditor;
+  p.querySelector('.lp-edit-ok').onclick=_fLpCloseEditor;
+  p.style.top=Math.max(12,Math.min(parseFloat(p.style.top)||12,window.innerHeight-p.offsetHeight-12))+'px';
+  content.focus();
+}
+async function fLpDesignSave(){
+  if(!_fLpDesignActive()||_fLpDesignDraft.saving) return false;
+  const draft=_fLpDesignDraft;
+  if(JSON.stringify(draft.layers)===draft.base){gToast('Nenhum ajuste para publicar.');return false;}
+  const original=JSON.parse(draft.base);
+  // Nunca grava nome/preço preenchido como texto fixo, nem remove a ligação com o chat.
+  const vars=l=>Array.from(String(l.content||'').matchAll(gVarRegex()),m=>m[1]+':'+(m[2]||'')).sort().join('|');
+  if(draft.layers.some(l=>vars(l)!==vars(original.find(x=>x.id===l.id)||{}))){
+    gToast('Mantenha os campos {{…}} originais do texto para preservar o chat.','error');return false;
+  }
+  if((typeof _dPushBusy!=='undefined'&&_dPushBusy)||(typeof _dFoldersPushTimer!=='undefined'&&_dFoldersPushTimer)){
+    gToast('Aguarde a sincronização do Estúdio e tente salvar novamente.','error');return false;
+  }
+  const sb=typeof gSupabase==='function'?gSupabase():window.sb;
+  if(!sb){gToast('Sem conexão. Seus ajustes continuam nesta prévia.','error');return false;}
+  draft.saving=true;_fLpCloseEditor();_fLpDesignSync();
+  try{
+    // UPDATE de uma única peça + comparação atômica: não sobrescreve outro designer.
+    // O gatilho existente cria template_versions e mantém artes anteriores na versão delas.
+    const {data,error}=await sb.schema('luma').from('templates').update({layers:draft.layers})
+      .eq('id',draft.remoteId).eq('updated_at',draft.stamp).eq('publicado',true)
+      .select('id,updated_at,versao_atual_id');
+    if(error) throw new Error('Não foi possível publicar. Seus ajustes continuam na prévia; tente novamente.');
+    if(!data?.length) throw new Error('O material mudou ou sua permissão foi alterada. Cancele e reabra pelo catálogo para conferir a versão atual.');
+    const patch={layers:JSON.parse(JSON.stringify(draft.layers)),_remoteUpdatedAt:data[0].updated_at,versaoAtualId:data[0].versao_atual_id,_needsLayersFetch:false};
+    if(typeof dFolders!=='undefined') dFolders.forEach(f=>{f.templates=(f.templates||[]).map(t=>t.remoteId===draft.remoteId?Object.assign({},t,patch):t);});
+    // Atualiza apenas a peça no cache já empacotado, sem disparar o push de todo o catálogo.
+    try{
+      const cached=JSON.parse(localStorage.getItem('yngs_folders_v1')||'null');
+      if(Array.isArray(cached)){
+        cached.forEach(f=>{f.templates=(f.templates||[]).map(t=>t.remoteId===draft.remoteId?Object.assign({},t,patch):t);});
+        localStorage.setItem('yngs_folders_v1',JSON.stringify(cached));
+      }
+    }catch(e){}
+    if(fState.material?.id===draft.id) fState.material=Object.assign({},fState.material,patch);
+    if(_fLpDesignDraft===draft) _fLpDesignDraft=null;
+    _fLpDesignSync();_fLpRender();_fLpRetomarConclusao();gToast('Nova versão publicada para a rede.');
+    return true;
+  }catch(e){gToast(e.message,'error');return false;}
+  finally{draft.saving=false;_fLpDesignSync();}
+}
+
 // ── Clique no canvas ──
 function _fLpOnCanvasClick(ev){
   if(_lpFraming) return;
@@ -3880,6 +3999,7 @@ function _fLpOnCanvasClick(ev){
   const pt=_fLpArtCoords(ev); if(!pt) return;
   const l=_fLpLayerAt(pt.x,pt.y);
   if(!l){ _fLpCloseEditor(); return; }
+  if(_fLpDesignActive()){ _fLpDesignEditor(l.id,ev); return; }
   if(l.type==='image'||l.type==='frame'){
     const perm=_fLpPerm(l.imgVar);
     if(!perm.editable){ _fLpLockToast(l.imgVar); return; }
@@ -3907,12 +4027,13 @@ function _fLpOnCanvasMove(ev){
   if(!l){ _fLpHideHover(); if(cv) cv.style.cursor='default'; return; }
   
   const isImg=(l.type==='image'||l.type==='frame');
-  const v=isImg?l.imgVar:_fLpLayerVars(l)[0];
+  const design=_fLpDesignActive();
+  const v=design?'template':(isImg?l.imgVar:_fLpLayerVars(l)[0]);
   if(!v){ _fLpHideHover(); if(cv) cv.style.cursor='default'; return; }
   
-  const perm=_fLpPerm(v);
+  const perm=design?{editable:true}:_fLpPerm(v);
   const editable=!!perm.editable;
-  const label=isImg?'foto':(typeof _fLpLabel==='function'?_fLpLabel(v):v);
+  const label=design?'texto da arte':(isImg?'foto':(typeof _fLpLabel==='function'?_fLpLabel(v):v));
   if(cv) cv.style.cursor=editable?'pointer':'not-allowed';
 
   // 1. Moldura sutil contínua sobre a camada editável (Opção 1)
