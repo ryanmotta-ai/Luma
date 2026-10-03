@@ -33,10 +33,12 @@ function dUpdateTabPill() {
 /* ── CONTROLE DO PRODUTO: gate de módulo ─────────────────────────
    A chave de cada aba da topbar. O Controle do produto pode desligar um módulo
    inteiro sem deploy; aqui é onde isso vira navegação bloqueada. */
-const G_MODE_FEATURE = { franqueado:'module.franqueado', designer:'module.designer', academia:'module.academia', calendario:'module.calendario' };
+const G_MODE_FEATURE = { franqueado:'module.franqueado', designer:'module.designer' };
 
 // Um modo só abre se a role permite E a flag permite.
 function gModeAllowed(m){
+  // Áreas removidas não voltam por cache antigo nem por uma flag legada do banco.
+  if(m!=='franqueado' && m!=='designer' && m!=='video') return false;
   // Estúdio e Vídeo são ferramentas da equipe. O Vídeo por um motivo extra: é
   // desktop-only e exporta em tempo real — o celular do franqueado não dá conta.
   if((m==='designer' || m==='video') && (typeof gIsAdmin!=='function' || !gIsAdmin())) return false;
@@ -46,7 +48,7 @@ function gModeAllowed(m){
 
 // Primeiro modo que esta pessoa pode abrir agora. null = nenhum.
 function gFirstAllowedMode(){
-  return ['franqueado','calendario','academia','designer','video'].find(gModeAllowed) || null;
+  return ['franqueado','designer','video'].find(gModeAllowed) || null;
 }
 
 /* Todos os módulos desligados: em vez de deixar o app numa tela em branco (que
@@ -95,9 +97,8 @@ function gGoHome(){
 }
 
 function setMode(m){
-  if(m!=='franqueado' && m!=='designer' && m!=='academia' && m!=='calendario' && m!=='video') m='franqueado';
+  if(m!=='franqueado' && m!=='designer' && m!=='video') m='franqueado';
   // Gate por role: franqueado NÃO acessa o Estúdio (trava no clique e via DOM/console).
-  // A Academia é das TRÊS personas (o franqueado estuda; a equipe administra) — sem gate.
   if((m==='designer' || m==='video') && (typeof gIsAdmin!=='function' || !gIsAdmin())) m='franqueado';
   // Gate por flag. Vem DEPOIS do gate de role e cobre todo caminho de entrada:
   // clique na aba, chamada pelo console e estado restaurado de sessão anterior.
@@ -110,11 +111,7 @@ function setMode(m){
   _gHideNoModuleView();
   // Tema de campanha (Much+) veste só o Franqueado. Sair para o Estúdio sem despir
   // deixava o body com camp-theme-* → tokens/fonte magenta vazavam pro Estúdio inteiro.
-  // Vale igual para a Academia: o magenta do Much+ não é a cor da formação.
   if(m!=='franqueado' && typeof fRemoveCampTheme==='function') fRemoveCampTheme();
-  // Sair da Academia fecha os drawers de aula (senão o painel fixo do agente/estrutura
-  // fica pairando por cima do Franqueado, que não tem como fechá-lo).
-  if(m!=='academia' && typeof acFecharPaineis==='function') acFecharPaineis();
   // Troca só a classe de modo, preservando as demais (theme-light, rulers-on, simulating...)
   const _trocouArea=!document.body.classList.contains('mode-'+m);   // clique na aba já ativa não é abertura
   document.body.classList.remove('mode-franqueado','mode-designer','mode-academia','mode-calendario');
@@ -122,10 +119,6 @@ function setMode(m){
   if(_trocouArea) gTrackPagina(m);
   document.getElementById('tab-fran').classList.toggle('active', m==='franqueado');
   document.getElementById('tab-design').classList.toggle('active', m==='designer');
-  const tabAcad = document.getElementById('tab-academia');
-  if(tabAcad) tabAcad.classList.toggle('active', m==='academia');
-  const tabCal = document.getElementById('tab-calendario');
-  if(tabCal) tabCal.classList.toggle('active', m==='calendario');
 
   dUpdateTabPill();
 
@@ -133,10 +126,6 @@ function setMode(m){
   const ctxDesign = document.getElementById('topbar-context-design');
   if(ctxFran) ctxFran.style.display = m==='franqueado'?'':'none';
   if(ctxDesign) ctxDesign.style.display = m==='designer'?'':'none';
-  // Academia carrega lazy, como o Estúdio: só na primeira entrada paga o sync.
-  if(m==='academia' && typeof acInit==='function') acInit();
-  // Calendário no mesmo trilho: monta na primeira entrada, re-renderiza depois.
-  if(m==='calendario' && typeof calInit==='function') calInit();
   if(m==='designer'){
     dInit();
     // Entrar no Estúdio sempre cai na CASA (aba Campanhas), nunca no painel de Camadas —
@@ -169,7 +158,7 @@ function gRestoreMode(){
   // home"). fExitHome remove a classe antes de restaurar.
   if(typeof fExitHome==='function') fExitHome();
   setMode(m);
-  // Fora da home o splash (boas-vindas de marca) é ruído a cada F5 no Estúdio/Academia:
+  // Fora da home o splash (boas-vindas de marca) é ruído a cada F5 no Estúdio:
   // dispensa na hora (spDismiss ignora o mínimo de 2.8s).
   if(typeof spDismiss==='function') spDismiss();
 }
@@ -183,16 +172,14 @@ function gApplyModeAccess(){
   if(tabDesign) tabDesign.style.display = isAdmin ? '' : 'none';
   // Módulo desativado some da topbar junto com a rota (setMode já bloqueia o
   // acesso; aqui é o CTA que também precisa sumir, senão o clique só frustra).
-  [['tab-fran','franqueado'],['tab-calendario','calendario'],['tab-academia','academia'],['tab-design','designer']].forEach(([id,modo])=>{
+  [['tab-fran','franqueado'],['tab-design','designer']].forEach(([id,modo])=>{
     const tab=document.getElementById(id);
     if(tab && !gModeAllowed(modo)) tab.style.display='none';
   });
   // Estáticos com data-feature (toolbar do Estúdio, abas, downloads).
   if(typeof gFeatureApplyToDOM==='function') gFeatureApplyToDOM();
 
-  const atual = document.body.classList.contains('mode-designer') ? 'designer'
-              : (document.body.classList.contains('mode-academia') ? 'academia'
-              : (document.body.classList.contains('mode-calendario') ? 'calendario' : 'franqueado'));
+  const atual = document.body.classList.contains('mode-designer') ? 'designer' : 'franqueado';
   if(!gModeAllowed(atual)){
     const alvo=gFirstAllowedMode();
     if(alvo) setMode(alvo); else _gShowNoModuleView();
@@ -418,7 +405,7 @@ async function gOnLoginSuccess() {
   let _bootCamp=null; try{ _bootCamp=localStorage.getItem('__luma_camp'); }catch(e){}
   const _bootDeepLink = gParseDeepLink();
   if (typeof fGoHome === 'function') fGoHome({silent:true, boot:true});
-  // F5 volta pro modo onde o usuário estava (Estúdio/Academia), não sempre pra home.
+  // F5 volta pro modo onde o usuário estava (Estúdio), não sempre pra home.
   // Depois do fGoHome de propósito: a home do franqueado fica montada por trás.
   // Se houver deep link explícito, ele tem precedência sobre a restauração do modo anterior.
   if(!_bootDeepLink) gRestoreMode();
@@ -427,10 +414,9 @@ async function gOnLoginSuccess() {
   // Pastas (capas/materiais) e artes (rascunhos) refrescam a home quando chegam.
   const _fhRefresh = () => { if (typeof fHomeRefreshIfIdle === 'function') fHomeRefreshIfIdle(); };
   // F5 dentro de uma campanha reabre ela — só depois das pastas descerem (materiais dependem
-  // do catálogo). Só no Franqueado (Estúdio/Academia já foram restaurados por gRestoreMode).
+  // do catálogo). Só no Franqueado (o Estúdio já foi restaurado por gRestoreMode).
   const _restoreCamp = () => {
-    if(!_bootCamp || document.body.classList.contains('mode-designer') || document.body.classList.contains('mode-academia')
-       || document.body.classList.contains('mode-calendario')) return;
+    if(!_bootCamp || document.body.classList.contains('mode-designer')) return;
     // Entrar rápido (clicar numa campanha/material antes do sync de pastas voltar) fazia o
     // restore atropelar a navegação viva: fSelectCamp chama fOpenMaterialCatalog, que zera
     // fState.material e joga a prévia no estado vazio com o chat ainda na tela. fState.camp
@@ -471,9 +457,8 @@ async function gOnLoginSuccess() {
   if (typeof dSyncLibFromBackend === 'function') dSyncLibFromBackend();
   if (typeof fSyncArtesFromBackend === 'function') Promise.resolve(fSyncArtesFromBackend()).then(_fhRefresh).catch(()=>{});
 
-  // Não segura Estúdio/Academia por uma campanha que não será restaurada.
-  if((_bootCamp || _bootDeepLink) && !document.body.classList.contains('mode-designer') && !document.body.classList.contains('mode-academia')
-     && !document.body.classList.contains('mode-calendario')) await _foldersReady;
+  // Não segura Estúdio por uma campanha que não será restaurada.
+  if((_bootCamp || _bootDeepLink) && !document.body.classList.contains('mode-designer')) await _foldersReady;
   if (typeof spStep === 'function') spStep('Quase lá…');
 }
 

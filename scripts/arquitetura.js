@@ -248,6 +248,9 @@ const REGRAS = [
           + 'existisse. É o caso do `pwa-install.js`: 129 linhas de JS e 129 de CSS, '
           + 'documentadas no MAPA e no LUMA.md, desligadas por inteiro.',
     rodar: () => arquivos
+      // Módulos retirados por decisão do Ryan em 03/10/2026 (00_PRODUCT §7).
+      // Código preservado como histórico; não é parte do produto ativo.
+      .filter(f => !/^js\/(academia|calendario)\//.test(f))
       .filter(f => !indexHtml.includes('src="' + f))
       // Carregamento sob demanda conta como carregado: alguém constrói a URL do arquivo.
       .filter(f => {
