@@ -270,9 +270,16 @@ function _gLfEspacoAbaixo(layer, camada, opts){
   if(opts.placa && opts.placa.id) ignora.add(opts.placa.id);
   if(opts.pilha && opts.pilha.membros) opts.pilha.membros.forEach(m => ignora.add(m.id));
   opts.layers.forEach(o => { if(o && o._placa && ignora.has(o._placa.alvo)) ignora.add(o.id); });
-  const limite = _gLfParedeAbaixo(camada, opts.layers, opts.canvas, ignora);
+  // A parede é a reserva FINAL dos vizinhos, não apenas a caixa publicada.
+  const paredes = opts.layers.map(o => {
+    const r = o && (opts.reservedRegions && opts.reservedRegions.get(o.id) || o.reservedRegion);
+    return r ? Object.assign({}, o, { x:r.x, y:r.y, w:r.w, h:r.h }) : o;
+  });
+  const limite = _gLfParedeAbaixo(camada, paredes, opts.canvas, ignora);
   const respiro = Math.max(8, Math.round((camada.fontSize || 24) * 0.25));
-  return Math.max(0, Math.floor(limite - respiro - ((camada.y || 0) + bh)));
+  const livre = Math.max(0, Math.floor(limite - respiro - ((camada.y || 0) + bh)));
+  const maxH = layer.fitRegion && layer.fitRegion.maxH;
+  return Number.isFinite(maxH) ? Math.min(livre, Math.max(0, maxH - bh)) : livre;
 }
 
 /* ── PRIORIDADE ESTRUTURAL (Hierarquia de Layout) ───────────────────────────
@@ -432,8 +439,7 @@ function gComputeDynamicFitRegion(layer, layers, canvas, opts){
 
   const targetY0 = y0;
   const targetY1 = y0 + Math.max(h0, (box && box.alturaDisponivel) || opts.alturaDisponivel || h0);
-  const targetX0 = x0;
-  const targetX1 = x1;
+  const obstaculos = [];
 
   for(const o of layers){
     if(!o || ignora.has(o.id) || o.type === 'group') continue;
@@ -457,6 +463,7 @@ function gComputeDynamicFitRegion(layer, layers, canvas, opts){
 
     const ox = oRect.x, oy = oRect.y, ow = oRect.w, oh = oRect.h;
     if(ow <= 0 || oh <= 0) continue;
+    obstaculos.push({ o, r:oRect });
 
     const vOverlap = (oy < targetY1 - 1) && (oy + oh > targetY0 + 1);
     if(vOverlap){
@@ -489,32 +496,6 @@ function gComputeDynamicFitRegion(layer, layers, canvas, opts){
       }
     }
 
-    const hOverlap = (ox < targetX1 - 1) && (ox + ow > targetX0 + 1);
-    if(hOverlap){
-      // Down
-      if(oy >= y1 - 1){
-        const candB = Math.max(y1, oy - respiro);
-        if(candB < limB){
-          limB = candB;
-          wallBottom = o.id || o.name || 'obstacle';
-          if(!obstacleIds.includes(o.id)) obstacleIds.push(o.id);
-        }
-      } else if(oy < y1 && oy + oh > y1){
-        limB = Math.min(limB, y1);
-        wallBottom = o.id || o.name || 'obstacle';
-        if(!obstacleIds.includes(o.id)) obstacleIds.push(o.id);
-      }
-
-      // Up
-      if(oy + oh <= y0 + 1){
-        const candT = Math.min(y0, oy + oh + respiro);
-        if(candT > limT){
-          limT = candT;
-          wallTop = o.id || o.name || 'obstacle';
-          if(!obstacleIds.includes(o.id)) obstacleIds.push(o.id);
-        }
-      }
-    }
   }
 
   const align = (box ? box.textAlign : layer.textAlign) || 'left';
@@ -536,8 +517,29 @@ function gComputeDynamicFitRegion(layer, layers, canvas, opts){
   // Explicit growth limits if authored
   if(layer.fitRegion && Number.isFinite(layer.fitRegion.maxW)){
     const maxExtraW = Math.max(0, layer.fitRegion.maxW - w0);
-    growthRight = Math.min(growthRight, maxExtraW);
-    growthLeft = Math.min(growthLeft, maxExtraW);
+    const porLado = align === 'center' ? Math.floor(maxExtraW / 2) : maxExtraW;
+    growthRight = Math.min(growthRight, porLado);
+    growthLeft = Math.min(growthLeft, porLado);
+  }
+
+  // O retângulo final precisa ser seguro por inteiro, inclusive seus cantos.
+  // Reconfere o eixo vertical na largura já expandida; a faixa original não via diagonais.
+  for(const { o, r } of obstaculos){
+    if(r.w <= 0 || r.h <= 0 || r.x >= x1 + growthRight - 1 || r.x + r.w <= x0 - growthLeft + 1) continue;
+    if(r.y >= y1 - 1 && Math.max(y1, r.y - respiro) < limB){
+      limB = Math.max(y1, r.y - respiro); wallBottom = o.id || o.name || 'obstacle';
+      if(!obstacleIds.includes(o.id)) obstacleIds.push(o.id);
+    } else if(r.y < y1 && r.y + r.h > y1){
+      limB = Math.min(limB, y1); wallBottom = o.id || o.name || 'obstacle';
+      if(!obstacleIds.includes(o.id)) obstacleIds.push(o.id);
+    }
+    if(r.y + r.h <= y0 + 1 && Math.min(y0, r.y + r.h + respiro) > limT){
+      limT = Math.min(y0, r.y + r.h + respiro); wallTop = o.id || o.name || 'obstacle';
+      if(!obstacleIds.includes(o.id)) obstacleIds.push(o.id);
+    } else if(r.y < y0 && r.y + r.h > y0){
+      limT = Math.max(limT, y0); wallTop = o.id || o.name || 'obstacle';
+      if(!obstacleIds.includes(o.id)) obstacleIds.push(o.id);
+    }
   }
 
   let growthUp = 0, growthDown = 0;
@@ -589,7 +591,7 @@ function gComputeDynamicFitRegion(layer, layers, canvas, opts){
    verde = região segura calculada
    vermelho = obstáculos
    amarelo = reserved regions */
-function debugDynamicFitRegion(ctxOrCanvas, region, opts){
+function gDebugDynamicFitRegion(ctxOrCanvas, region, opts){
   if(!region) return null;
   opts = opts || {};
   const data = {
@@ -607,32 +609,39 @@ function debugDynamicFitRegion(ctxOrCanvas, region, opts){
   }
 
   if(ctx){
+    const estilos = typeof getComputedStyle === 'function' && typeof document !== 'undefined'
+      ? getComputedStyle(document.documentElement) : null;
+    const cor = (token, fallback) => estilos && estilos.getPropertyValue(token).trim() || fallback;
     ctx.save();
+    const alfa = Number.isFinite(ctx.globalAlpha) ? ctx.globalAlpha : 1;
+    const preencher = (x, y, w, h, opacidade) => {
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.globalAlpha = alfa * opacidade;
+      ctx.fillRect(x, y, w, h);
+      ctx.globalAlpha = alfa;
+    };
     // 1. Safe region: verde
-    ctx.fillStyle = 'rgba(34, 197, 94, 0.12)';
-    ctx.strokeStyle = '#22C55E';
+    ctx.strokeStyle = cor('--green', 'green');
     ctx.lineWidth = 2;
     if(ctx.setLineDash) ctx.setLineDash([4, 4]);
-    ctx.fillRect(region.x, region.y, region.w, region.h);
+    preencher(region.x, region.y, region.w, region.h, 0.12);
     ctx.strokeRect(region.x, region.y, region.w, region.h);
 
     // 2. Original box: azul
-    ctx.fillStyle = 'rgba(59, 130, 246, 0.18)';
-    ctx.strokeStyle = '#3B82F6';
+    ctx.strokeStyle = cor('--d-sel', 'blue');
     ctx.lineWidth = 2;
     if(ctx.setLineDash) ctx.setLineDash([]);
-    ctx.fillRect(region.original.x, region.original.y, region.original.w, region.original.h);
+    preencher(region.original.x, region.original.y, region.original.w, region.original.h, 0.18);
     ctx.strokeRect(region.original.x, region.original.y, region.original.w, region.original.h);
 
     // 3. Obstacles: vermelho
     if(Array.isArray(opts.layers) && Array.isArray(region.obstacleIds)){
-      ctx.fillStyle = 'rgba(239, 68, 68, 0.15)';
-      ctx.strokeStyle = '#EF4444';
+      ctx.strokeStyle = cor('--dm-red', 'red');
       ctx.lineWidth = 2;
       region.obstacleIds.forEach(id => {
         const obs = opts.layers.find(l => l && l.id === id);
         if(obs && (obs.w || 0) > 0 && (obs.h || 0) > 0){
-          ctx.fillRect(obs.x || 0, obs.y || 0, obs.w || 0, obs.h || 0);
+          preencher(obs.x || 0, obs.y || 0, obs.w || 0, obs.h || 0, 0.15);
           ctx.strokeRect(obs.x || 0, obs.y || 0, obs.w || 0, obs.h || 0);
         }
       });
@@ -640,14 +649,13 @@ function debugDynamicFitRegion(ctxOrCanvas, region, opts){
 
     // 4. Reserved regions: amarelo
     if(opts.reservedRegions){
-      ctx.fillStyle = 'rgba(234, 179, 8, 0.12)';
-      ctx.strokeStyle = '#EAB308';
+      ctx.strokeStyle = cor('--dm-yellow', 'gold');
       ctx.lineWidth = 1.5;
       if(ctx.setLineDash) ctx.setLineDash([2, 2]);
       const entries = opts.reservedRegions.entries ? Array.from(opts.reservedRegions.entries()) : Object.entries(opts.reservedRegions);
       entries.forEach(([id, r]) => {
         if(r && r.w > 0 && r.h > 0 && id !== (region.layerId || '')){
-          ctx.fillRect(r.x, r.y, r.w, r.h);
+          preencher(r.x, r.y, r.w, r.h, 0.12);
           ctx.strokeRect(r.x, r.y, r.w, r.h);
         }
       });
@@ -658,6 +666,8 @@ function debugDynamicFitRegion(ctxOrCanvas, region, opts){
 
   return data;
 }
+// Compatibilidade com a API pública já exposta: o identificador continua disponível.
+const debugDynamicFitRegion = gDebugDynamicFitRegion;
 
 /* ── A LARGURA LIVRE AO LADO DA CAIXA (compatibilidade e delegador) ──────────
    Usa gComputeDynamicFitRegion para encontrar o envelope seguro geométrico real. */
@@ -851,6 +861,10 @@ function gFitTextToAuthoredBox(layer, conteudo, opts){
     box.camada = Object.assign({}, box.camada, { x:(box.camada.x || 0) - a.esq, w:(box.camada.w || 0) + a.esq + a.dir });
     box.x = box.camada.x; box.w = box.camada.w;
     box.alargado = { esq:a.esq, dir:a.dir, w:box.w, region: a.region || null };
+    // Alargar muda a faixa de obstáculos abaixo. Remede a altura nessa faixa final.
+    const altura = Math.max(box.h || 0, box.tintaAutorada.h || 0,
+      (box.h || 0) + _gLfEspacoAbaixo(layer, box.camada, opts));
+    box.alturaDisponivel = Math.min(box.alturaDisponivel, altura);
   }
   // Uma cadeia declarada empresta altura aos membros; a transação valida o conjunto depois.
   if(Number.isFinite(opts.alturaDisponivel)) box.alturaDisponivel = Math.max(0, opts.alturaDisponivel);
@@ -1203,7 +1217,9 @@ function gLocalFitArte(layers, opts){
   const defaults = (opts.defaults !== undefined && opts.defaults !== null) ? opts.defaults
                  : ((typeof gVarDefaults === 'function') ? gVarDefaults() : null);
   const ctx = _gLfCtx(opts.ctx);
-  const out = (layers || []).map(l => Object.assign({}, l));
+  // Resultado anterior pode voltar como entrada. Carimbos de encaixe não são autoria:
+  // removê-los antes das reservas impede que um texto curto herde a caixa/fonte do longo.
+  const out = (layers || []).map(l => _gLfLimpa(l));
   const _t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
 
   /* As MESMAS preparações que a cascata fazia antes de medir — baseline autorado, papel

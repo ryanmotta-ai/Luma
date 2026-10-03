@@ -875,3 +875,19 @@ Retorno garantido:
    - Vermelho: obstáculos detectados que limitam o crescimento.
    - Amarelo: `reservedRegion` de variáveis vizinhas.
 
+### Correção da revisão — 03/10/2026
+
+- A reserva dos vizinhos limita também a altura usada pelo encaixe final, inclusive depois
+  de alargar. `fitRegion.maxH` limita o respiro vertical; `maxW` limita a largura total,
+  dividindo a folga igualmente entre os lados quando o texto é centralizado.
+- O envelope confere obstáculos diagonais na largura final. A escolha é conservadora:
+  resolve o crescimento horizontal primeiro, depois limita a região vertical nessa faixa.
+  O runtime mantém o alinhamento autorado; apenas textos no topo usam respiro para baixo.
+- Cada solve limpa os carimbos transitórios antes de calcular reservas. O teste de retorno
+  curto → longo → curto reutiliza os resultados anteriores, em vez de repetir a entrada limpa.
+- O debug usa os tokens de cor existentes. `gDebugDynamicFitRegion` é a implementação;
+  `debugDynamicFitRegion` permanece como alias público por compatibilidade.
+- `dynamic-fit-18` a `21` cobram reserva vertical no runtime, largura centralizada,
+  obstáculos diagonais nos dois sentidos e limite de altura. `dynamic-fit-03` compara
+  efetivamente o espaço do apoio antes/depois da expansão do produto.
+

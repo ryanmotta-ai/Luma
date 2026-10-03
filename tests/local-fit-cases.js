@@ -1075,7 +1075,7 @@
   test('dynamic-fit-03 · produto longo reduz região disponível do apoio', () => {
     const produto = { id:'produto', name:'produto', type:'text', content:'{{produto}}', isVar:true,
       x:220, y:100, w:140, h:50, fontSize:24, lineHeight:1.2, textBox:'box', font:'Arial', visible:true,
-      layoutPriority:'high', textAlign:'right' };
+      layoutPriority:'high', textAlign:'right', maxLines:1 };
     const apoio = { id:'apoio', name:'apoio', type:'text', content:'{{apoio}}', isVar:true,
       x:20, y:100, w:80, h:50, fontSize:24, lineHeight:1.2, textBox:'box', font:'Arial', visible:true,
       layoutPriority:'low', textAlign:'left' };
@@ -1086,9 +1086,15 @@
     const regCurto = lfCurto.result.campos.find(c => c.id === 'apoio');
 
     const lfLongo = gLocalFitArte([apoio, produto], { canvas:cv,
-      dados:{ produto:'SUPER COMBO FAMÍLIA DUPLO CHEDDAR BACON ARTESANAL', apoio:'EAI KARAI VAMO DALE' }, defaults:{} });
+      dados:{ produto:'MMMMMMMMMMMMMMMMMMM', apoio:'EAI KARAI VAMO DALE' }, defaults:{} });
     const pProdLongo = lfLongo.result.campos.find(c => c.id === 'produto');
     assert(pProdLongo.status === 'fits', 'produto longo deveria caber');
+    const pFinal = lfLongo.layers.find(l => l.id === 'produto');
+    assert(pFinal._layoutW > produto.w, 'o cenário deve exigir expansão do produto');
+    const curto = gComputeDynamicFitRegion(apoio, lfCurto.layers, cv, {});
+    const longo = gComputeDynamicFitRegion(apoio, lfLongo.layers, cv, {});
+    assert(longo.w < curto.w, 'produto expandido deve reduzir o espaço do apoio');
+    assert(longo.x + longo.w <= pFinal.x + pFinal._layoutDx - 8, 'apoio invade a reserva final do produto');
   });
 
   test('dynamic-fit-04 · produto curto não cede espaço além do seguro (preserva authored box)', () => {
@@ -1249,8 +1255,8 @@
     const cv = { w:600, h:400 };
 
     const inicial = gLocalFitArte(layers, { canvas:cv, dados:{ apoio:'Oi', produto:'Pizza' }, defaults:{} });
-    const intermediario = gLocalFitArte(layers, { canvas:cv, dados:{ apoio:'EAI KARAI VAMO DALE SUPER LONGO', produto:'SUPER COMBO DUPLO' }, defaults:{} });
-    const volta = gLocalFitArte(layers, { canvas:cv, dados:{ apoio:'Oi', produto:'Pizza' }, defaults:{} });
+    const intermediario = gLocalFitArte(inicial.layers, { canvas:cv, dados:{ apoio:'EAI KARAI VAMO DALE SUPER LONGO', produto:'SUPER COMBO DUPLO' }, defaults:{} });
+    const volta = gLocalFitArte(intermediario.layers, { canvas:cv, dados:{ apoio:'Oi', produto:'Pizza' }, defaults:{} });
 
     const extrai = lf => lf.layers.map(l => ({ id:l.id, x:l.x, y:l.y, w:l.w, h:l.h, fs:l._tetoFonte, lw:l._layoutW, ldx:l._layoutDx }));
     assert(JSON.stringify(extrai(inicial)) === JSON.stringify(extrai(volta)), 'drift detectado ao voltar para texto curto');
@@ -1289,6 +1295,53 @@
 
     assert(regStory.x + regStory.w <= 1080 - 54, 'Story extrapolou margem lateral');
     assert(regFeed.x + regFeed.w <= 1080 - 54, 'Feed extrapolou margem lateral');
+  });
+
+  test('dynamic-fit-18 · reserva vertical limita o encaixe final, não só o envelope', () => {
+    const apoio = { id:'apoio', name:'apoio', type:'text', content:'{{apoio}}',
+      x:100, y:100, w:200, h:40, fontSize:24, font:'Arial', lineHeight:1.2,
+      textBox:'box', vAlign:'top', visible:true };
+    const produto = { id:'produto', name:'produto', type:'text', content:'{{produto}}',
+      x:100, y:350, w:200, h:40, fontSize:24, font:'Arial', lineHeight:1.2,
+      textBox:'box', vAlign:'top', visible:true, reservedRegion:{ x:100, y:180, w:200, h:210 } };
+    const lf = gLocalFitArte([apoio, produto], { canvas:{ w:600, h:600 },
+      dados:{ apoio:Array(24).fill('Pizza').join(' '), produto:'Pizza' }, defaults:{} });
+    const l = lf.layers.find(l => l.id === 'apoio');
+    const c = lf.result.campos.find(c => c.id === 'apoio');
+    assert(c.status !== 'fits' || l.y + (l._layoutH || l.h) <= 172,
+      'texto aceito invade a reserva vertical: ' + JSON.stringify(l));
+  });
+
+  test('dynamic-fit-19 · maxW centralizado limita a soma dos dois lados e o runtime', () => {
+    const l = { id:'t', name:'apoio', type:'text', content:'{{t}}', x:250, y:100, w:100, h:30,
+      fontSize:24, font:'Arial', lineHeight:1, textBox:'box', textAlign:'center', vAlign:'center',
+      visible:true, maxLines:1, fitRegion:{ maxW:150 } };
+    const cv = { w:600, h:400 };
+    const reg = gComputeDynamicFitRegion(l, [l], cv, {});
+    assert(reg.w <= 150 && reg.growth.left === reg.growth.right, 'maxW/simetria violados');
+    const lf = gLocalFitArte([l], { canvas:cv, dados:{ t:'MMMMMMMMMMMMMMMM' }, defaults:{} });
+    assert(lf.result.invalid || (lf.layers[0]._layoutW || l.w) <= 150, 'runtime ultrapassou maxW');
+  });
+
+  test('dynamic-fit-20 · envelope inteiro exclui obstáculos diagonais acima e abaixo', () => {
+    ['top','bottom'].forEach(vAlign => {
+      const l = { id:'t', type:'text', x:100, y:200, w:100, h:50, fontSize:24, vAlign };
+      const o = { id:'foto', type:'image', x:300, y:vAlign === 'top' ? 300 : 80, w:80, h:80, visible:true };
+      const reg = gComputeDynamicFitRegion(l, [l,o], { w:600, h:600 }, {});
+      const toca = reg.x < o.x + o.w && reg.x + reg.w > o.x
+        && reg.y < o.y + o.h && reg.y + reg.h > o.y;
+      assert(reg.safe && !toca, 'envelope dito seguro contém a foto diagonal');
+      assert(reg.obstacleIds.includes(o.id), 'a parede diagonal não aparece no diagnóstico');
+    });
+  });
+
+  test('dynamic-fit-21 · maxH limita o crescimento vertical efetivo', () => {
+    const l = { id:'t', name:'apoio', type:'text', content:'{{t}}', x:100, y:100, w:180, h:40,
+      fontSize:24, font:'Arial', lineHeight:1.2, textBox:'box', vAlign:'top', visible:true,
+      fitRegion:{ maxH:60 } };
+    const lf = gLocalFitArte([l], { canvas:{ w:600, h:600 },
+      dados:{ t:Array(24).fill('Pizza').join(' ') }, defaults:{} });
+    assert(lf.result.invalid || (lf.layers[0]._layoutH || l.h) <= 60, 'runtime ultrapassou maxH');
   });
 
   /* ── Execução ─────────────────────────────────────────────────────────────────────── */
