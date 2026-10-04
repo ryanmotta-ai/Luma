@@ -3784,16 +3784,18 @@ function dSave(options){
     const _ab=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
     const _custom=!!(_ab && typeof DFMT_SIZES!=='undefined' && !DFMT_SIZES[_ab.fmt] && _ab.w>0 && _ab.h>0);
     dFolders.forEach(f=>f.templates.forEach(t=>{if(t.id===dActiveTmplId){
-      t.layers=JSON.parse(JSON.stringify(dLayers));
-      // Fundo do canvas acompanha o save — mudar o bg no editor não chegava na arte
-      // final (o franqueado renderiza t.bg) até uma republicação.
-      if(_ab && _ab.bg!==undefined) t.bg=_ab.bg;
-      if(_custom){ t.fmt=_ab.fmt; t.w=_ab.w; t.h=_ab.h; }
-      // PENDENTE ATÉ CONFIRMAR: marca na escrita; só o upsert bem-sucedido limpa
-      // (_dPushFoldersNow). Sem isto, um push pulado (sessão caída), uma exceção no
-      // meio do loop ou fechar a aba no debounce deixava a edição SEM flag — e o pull
-      // do próximo boot descartava o trabalho ("banco manda").
-      t._syncPending=true;
+      // Guardar uma edição não publica: o catálogo continua usando o snapshot confirmado.
+      const edit={_ownerId:(typeof gCurrentUser==='function')?gCurrentUser()?.id:null,layers:JSON.parse(JSON.stringify(dLayers)),bg:(_ab?_ab.bg:t.bg),
+        fmt:(_custom?_ab.fmt:t.fmt),w:(_custom?_ab.w:t.w),h:(_custom?_ab.h:t.h)};
+      if(t.publishMeta&&t.publishMeta.publicado){
+        t._drafts=t._drafts||{};
+        if(t._draft&&t._draft._ownerId)t._drafts[t._draft._ownerId]=t._draft;
+        if(edit._ownerId)t._drafts[edit._ownerId]=edit;
+        t._draft=edit;
+        // Um novo save de rascunho cancela a republicação anterior ainda não confirmada.
+        if(t._publishPending){delete t._publishPending;t._syncPending=false;}
+      }
+      else { Object.assign(t,edit); t._syncPending=true;t._syncOwnerId=edit._ownerId; }
     }}));
   }
   // DOC NOVO (nunca virou template): Ctrl+S/Salvar agora persiste NO BANCO, não só neste
@@ -3821,7 +3823,7 @@ function dSave(options){
       if(ab.w>0){ t.w=ab.w; t.h=ab.h; }
       if(ab.bg!==undefined) t.bg=ab.bg;
       t.layers=JSON.parse(JSON.stringify(ab.layers));
-      t._syncPending=true; // pendente até o upsert confirmar (mesma proteção do save normal)
+      t._syncPending=true;t._syncOwnerId=(typeof gCurrentUser==='function')?gCurrentUser()?.id:null; // pendente até o upsert confirmar (mesma proteção do save normal)
     }
   }
   const hadImgWarn=gImgPersistWarned;
@@ -3835,11 +3837,26 @@ function dSave(options){
   if(dActiveTmplId) dFolders.forEach(f=>f.templates.forEach(t=>{ if(t.id===dActiveTmplId) _dTrackTemplate('template_salvo',t,{auto:silent}); }));
   if(typeof dRenderPagesTray==='function')dRenderPagesTray();
   // Não sobrescreve o aviso de imagens se ele acabou de aparecer neste save
-  if(!silent&&!(gImgPersistWarned&&!hadImgWarn))gToast('Rascunho salvo!');
+  if(!silent&&!(gImgPersistWarned&&!hadImgWarn))gToast('Rascunho salvo neste aparelho; publicar exige confirmação do servidor.');
   return true;
+}
+function _dOwnDraft(value){
+  const owner=(typeof gCurrentUser==='function')?gCurrentUser()?.id:null;
+  return !!(value&&owner&&value._ownerId===owner);
+}
+function _dTemplateDraft(t){
+  const owner=(typeof gCurrentUser==='function')?gCurrentUser()?.id:null;
+  return (owner&&t&&t._drafts&&_dOwnDraft(t._drafts[owner])&&t._drafts[owner])||(_dOwnDraft(t&&t._draft)?t._draft:null);
+}
+function _dTemplateMetaSignature(t){
+  return JSON.stringify([t.name,t.fmt,t.formats,t.w,t.h,t.bg,t.publishMeta]);
 }
 function dPersistFolders(){
   let droppedImg=false;
+  (dFolders||[]).forEach(f=>(f.templates||[]).forEach(t=>{
+    if(t._syncedMeta && t._syncedMeta!==_dTemplateMetaSignature(t))t._syncPending=true;
+    if(t._syncPending&&!t._syncOwnerId)t._syncOwnerId=(typeof gCurrentUser==='function')?gCurrentUser()?.id:null;
+  }));
   try{
     const saveable=dFolders.map(f=>({...f,templates:f.templates.map(t=>({...t,layers:t.layers.map(l=>{
       // Mantém imagens pequenas (sobrevivem ao reload); descarta grandes p/ não estourar quota.
@@ -3887,8 +3904,9 @@ async function _dUploadDataUrl(bucket, path, dataUrl){
   try{
     const blob=await (await fetch(dataUrl)).blob();
     const ext=((blob.type.split('/')[1]||'png').split('+')[0]).replace(/[^a-z0-9]/gi,'')||'png';
-    const full=path+'.'+ext;
-    const { error }=await sb.storage.from(bucket).upload(full, blob, {upsert:true, contentType:blob.type||'image/png'});
+    // Cada upload ganha URL nova: versões históricas nunca apontam para arquivo substituído.
+    const full=path+'-'+gUuid()+'.'+ext;
+    const { error }=await sb.storage.from(bucket).upload(full, blob, {upsert:false, contentType:blob.type||'image/png'});
     if(error){ console.warn('[sync] upload pro Storage falhou ('+bucket+'/'+full+'):', error.message||error); return null; }
     return sb.storage.from(bucket).getPublicUrl(full).data.publicUrl;
   }catch(e){ console.warn('[sync] upload pro Storage falhou ('+bucket+'):', e); return null; }
@@ -3927,26 +3945,24 @@ function _dUuid(p){ return gUuid(); }
 // LOCK: dois pushes ao mesmo tempo (debounce + clique no badge + flush do pagehide)
 // intercalavam upserts das mesmas linhas. Um por vez; pedido durante o voo roda ao final.
 let _dPushBusy=false, _dPushQueued=false;
+let _dPushFlight=null;
 async function _dPushFoldersNow(){
+  while(_dPushFlight)await _dPushFlight;
+  _dPushFlight=_dPushFoldersRun();
+  try{return await _dPushFlight;}finally{_dPushFlight=null;}
+}
+async function _dPushFoldersRun(){
   const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
   if(!sb || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
   if(_dPushBusy){ _dPushQueued=true; return; }
+  const owner=(typeof gCurrentUser==='function')?gCurrentUser()?.id:null;
+  const stillOwner=()=>gIsAdmin()&&((typeof gCurrentUser!=='function')||gCurrentUser()?.id===owner);
   _dPushBusy=true;
-  // AVISO DE CONFLITO (cross-device): o upsert é last-write-wins — se OUTRO device gravou
-  // o template depois do nosso último pull/push (carimbo do banco > snapshot local
-  // _remoteUpdatedAt), este push sobrescreve aquele trabalho. Continua sobrescrevendo
-  // (LWW é a regra), mas avisa o designer — a perda deixa de ser silenciosa.
-  const _confl=[]; let _stamps=null;
-  try{
-    const _ids=[]; (dFolders||[]).forEach(f=>(f.templates||[]).forEach(t=>{ if(t&&t.remoteId&&!t._needsLayersFetch) _ids.push(t.remoteId); }));
-    if(_ids.length){
-      const { data }=await sb.schema('luma').from('templates').select('id, updated_at').in('id', _ids);
-      _stamps=new Map((data||[]).map(r=>[r.id, r.updated_at]));
-    }
-  }catch(e){} // sem carimbo (rede) → só perde o aviso; o push segue normal
+  const _confl=[];
   try{
     let idx=-1;
     for(const f of (dFolders||[])){ idx++;
+      if(!stillOwner())return;
       // O for percorre o array do INÍCIO do push; pasta excluída durante o voo (dDeleteFolder
       // troca o dFolders) seria regravada logo depois do DELETE — ressuscitava.
       if(!dFolders.some(x=>x.id===f.id)) continue;
@@ -3995,51 +4011,74 @@ async function _dPushFoldersNow(){
       else if(typeof f.cover==='string' && !f.cover.startsWith('data:') && f.cover.indexOf('idb://')!==0 && f.cover!=='__local__') _rowPasta.cover_url=f.cover;
       // Erro no upsert da pasta (rede/RLS) era 100% silencioso: a edição de campanha vivia
       // só no cache e o próximo pull a descartava. Agora marca pendência (badge) e loga.
+      if(!stillOwner())return;
       const { error:_pErr }=await sb.schema('luma').from('pastas').upsert(_rowPasta, {onConflict:'id'});
       // Capa que não subiu conta como pendência: sem isso o upsert bem-sucedido zerava o
       // flag e a pasta ficava "sincronizada" com a capa só no cache local.
+      if(!stillOwner())return;
       f._syncPending=!!_pErr || _capaPend;
       if(_pErr) console.warn('[sync] upsert da pasta falhou ('+(f.name||'?')+'):', _pErr.message||_pErr);
       for(const t of (f.templates||[])){
         // Catálogo leve: template sem layers baixados (cache de sessão franqueado) —
         // upsert aqui gravaria layers:[] no banco e DESTRUIRIA o template. Nunca subir.
-        if(t._needsLayersFetch) continue;
-        if(!t.remoteId) t.remoteId=_dUuid('t');
-        await _dUploadLayerImages(t.layers, t.remoteId);
-        // Se alguma imagem/máscara AINDA está local (upload falhou: bucket/RLS/sem rede),
-        // NÃO grava no banco — base64 vira MB por linha e todo mundo re-baixa. O template
-        // fica marcado pendente (badge na topbar) e re-tenta no próximo save ou clique.
-        const localBin=(t.layers||[]).some(l=>l&&(
-          (typeof l.imgUrl==='string'&&(l.imgUrl.startsWith('data:')||l.imgUrl.indexOf('idb://')===0))||
-          (typeof l.mask==='string'&&l.mask.startsWith('data:'))
-        ));
-        if(localBin){ t._syncPending=true; continue; }
-        const pm=t.publishMeta||{};
-        const _remote=_stamps?_stamps.get(t.remoteId):null;
-        if(_remote && t._remoteUpdatedAt && new Date(_remote).getTime()>new Date(t._remoteUpdatedAt).getTime()){
-          _confl.push(t.name||'(sem nome)');
+        if(t._publishPending&&!_dOwnDraft(t._publishPending))continue;
+        if(t._syncOwnerId&&t._syncOwnerId!==owner)continue;
+        if(t._needsLayersFetch || (!t._syncPending && t.remoteId && !t._publishPending)) continue;
+        if(!t.remoteId){t.remoteId=_dUuid('t');t._newRemote=true;}
+        const localId=t.id, folderId=f.id;
+        const wasPublishing=!!t._publishPending;
+        const sentSignature=JSON.stringify(t._publishPending||{layers:t.layers,meta:_dTemplateMetaSignature(t)});
+        const source=JSON.parse(JSON.stringify(t._publishPending||t));
+        const baseline=t._remoteUpdatedAt;
+        // Não aprender um carimbo novo no envio: ele pertence à abertura da edição.
+        if(t.remoteId && !baseline && !t._newRemote){
+          const {data:existing,error:readErr}=await sb.schema('luma').from('templates').select('id').eq('id',t.remoteId).maybeSingle();
+          if(readErr||existing){t._syncPending=true;_confl.push(t.name||'(sem nome)');continue;}
+          t._newRemote=true;
         }
-        const { data:_up, error }=await sb.schema('luma').from('templates').upsert({
-          id:t.remoteId, pasta_id:f.remoteId, nome:t.name||'(sem nome)', fmt:t.fmt||'story',
-          formats:t.formats||['story','feed','wide'], layers:t.layers||[],
-          // Tamanho real do template (essencial p/ PSD 'orig', que não tem preset em DFMT_SIZES):
-          w:(t.w>0?t.w:null), h:(t.h>0?t.h:null), bg:t.bg||null,
-          publicado:!!pm.publicado, publicado_em:pm.publicadoEm?new Date(pm.publicadoEm).toISOString():null,
-          validade:pm.validade||null, instrucoes:pm.instrucoes||'', permissoes:pm.permissoes||{}
-        }, {onConflict:'id'}).select('updated_at');
-        t._syncPending=!!error; // erro de rede/RLS no upsert também conta como pendente
-        // Erro mudo custou 5 dias de sync quebrado (migration w/h/bg não aplicada, 07/2026):
-        // o badge acende mas SEM o motivo ninguém diagnostica. Sempre nomear a causa.
-        if(error) console.warn('[sync] upsert do template falhou:', t.name, '→', error.message||error);
-        // Snapshot novo: o carimbo que o NOSSO write acabou de gerar (trigger touch_updated_at).
-        // Sem isto o próximo push acusaria conflito com a própria gravação.
-        if(!error && _up && _up[0] && _up[0].updated_at) t._remoteUpdatedAt=_up[0].updated_at;
+        await _dUploadLayerImages(source.layers, t.remoteId);
+        const localBin=(source.layers||[]).some(l=>l&&(
+          (typeof l.imgUrl==='string'&&(l.imgUrl.startsWith('data:')||l.imgUrl.indexOf('idb://')===0||l.imgUrl==='__local__'))||
+          (typeof l.mask==='string'&&(l.mask.startsWith('data:')||l.mask.indexOf('idb://')===0))
+        ));
+        if(localBin){t._syncPending=true;continue;}
+        if(!stillOwner())return;
+        const pm=source.publishMeta||{};
+        const row={id:t.remoteId,pasta_id:f.remoteId,nome:source.name||'(sem nome)',fmt:source.fmt||'story',
+          formats:source.formats||['story','feed','wide'],layers:source.layers||[],
+          w:(source.w>0?source.w:null),h:(source.h>0?source.h:null),bg:source.bg||null,
+          publicado:!!pm.publicado,publicado_em:pm.publicadoEm?new Date(pm.publicadoEm).toISOString():null,
+          validade:pm.validade||null,instrucoes:pm.instrucoes||'',permissoes:pm.permissoes||{}};
+        let q=sb.schema('luma').from('templates');
+        q=baseline?q.update(row).eq('id',t.remoteId).eq('updated_at',baseline):q.insert(row);
+        const {data:up,error}=await q.select('id,updated_at,versao_atual_id');
+        // IDs são a identidade; o objeto pode ter sido trocado/excluído enquanto aguardávamos.
+        if(!stillOwner())return;
+        const currentFolder=dFolders.find(x=>x.id===folderId);
+        const current=currentFolder&&(currentFolder.templates||[]).find(x=>x.id===localId);
+        if(!current)continue;
+        const confirmed=Array.isArray(up)&&up.find(x=>x.id===row.id&&x.updated_at);
+        if(error||!confirmed){current._syncPending=true; if(!error)_confl.push(current.name||'(sem nome)');
+          console.warn('[sync] template não confirmado:',current.name,error||'conflito/sem linha');continue;}
+        current._remoteUpdatedAt=confirmed.updated_at;
+        current.versaoAtualId=confirmed.versao_atual_id||current.versaoAtualId||null;
+        const changed=sentSignature!==JSON.stringify(current._publishPending||{layers:current.layers,meta:_dTemplateMetaSignature(current)});
+        if(wasPublishing){
+          const drafts=current._drafts, draft=current._draft, pending=current._publishPending;
+          Object.assign(current,source);current._drafts=drafts;
+          if(changed){current._draft=draft;current._publishPending=pending;}
+          else {delete current._publishPending;if(_dOwnDraft(current._draft))delete current._draft;
+            if(current._drafts&&owner)delete current._drafts[owner];}
+        }else if(!changed)current.layers=source.layers;
+        current._remoteUpdatedAt=confirmed.updated_at;current.versaoAtualId=confirmed.versao_atual_id||current.versaoAtualId||null;
+        current._syncPending=changed;current._syncedMeta=_dTemplateMetaSignature(current);delete current._newRemote;
+
       }
     }
     if(_confl.length && typeof gToast==='function'){
       const nomes=_confl.slice(0,2).join('", "');
       const resto=_confl.length>2?` (e mais ${_confl.length-2})`:'';
-      gToast(`Atenção: "${nomes}"${resto} tinha alteração feita em outro dispositivo — esta gravação passou por cima. Se não foi você, reveja o template.`, 'error');
+      gToast(`Atenção: "${nomes}"${resto} tem alteração em outro dispositivo ou não pôde ser confirmado. Nada foi sobrescrito; seu rascunho foi preservado. Reabra a versão da rede antes de tentar novamente.`, 'error');
     }
     // re-salva o cache local com os remoteId/URLs recém-atribuídos (imagens já são URLs → leve)
     try{ localStorage.setItem('yngs_folders_v1', JSON.stringify(dFolders)); }catch(e){}
@@ -4086,7 +4125,7 @@ function gSyncBadgeUpdate(){
 /* ── LEITURA: carrega o catálogo (pastas + templates) do Supabase no boot ──
    Banco é a fonte; preserva pastas locais ainda não sincronizadas (merge). */
 function _dRowToTemplate(t){
-  return {
+  const out={
     id:t.id, remoteId:t.id, name:t.nome||'(sem nome)', fmt:t.fmt||'story',
     _remoteUpdatedAt:t.updated_at||null, // snapshot p/ o aviso de conflito no push (LWW)
     // Versão publicada que estes layers representam (luma.template_versions, gravada pelo
@@ -4108,6 +4147,8 @@ function _dRowToTemplate(t){
       permissoes:(t.permissoes&&typeof t.permissoes==='object')?t.permissoes:{}
     }
   };
+  out._syncedMeta=_dTemplateMetaSignature(out);
+  return out;
 }
 function _dRowToFolder(p, templates){
   return {
@@ -4133,11 +4174,14 @@ function _dChaveNome(n){
 async function dSyncFoldersFromBackend(){
   const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
   if(!sb) return;
+  const owner=(typeof gCurrentUser==='function')?gCurrentUser()?.id:null;
+  const stillOwner=()=>typeof gCurrentUser!=='function'||gCurrentUser()?.id===owner;
   try{
     const _vis=(typeof gVisitante==='function' && gVisitante()) ? await gVisitanteCatalogo() : null;
     if(typeof gVisitante==='function' && gVisitante() && !_vis) return;
     const { data:rp, error:e1 }=_vis ? { data:_vis.pastas, error:null }
       : await sb.schema('luma').from('pastas').select('*').order('ordem',{ascending:true});
+    if(!stillOwner())return;
     if(e1 || !Array.isArray(rp) || !rp.length) return; // banco vazio → mantém local (push migra)
     // Lazy Load: exclui propositalmente a coluna `layers` pesada do download em lote no boot.
     // Os layers descem sob demanda: dLoadTemplate (designer) / fEnsureMaterialLayers (franqueado).
@@ -4148,6 +4192,7 @@ async function dSyncFoldersFromBackend(){
     // jogava o catálogo inteiro em "Em breve" (card fantasma, sem clique) e a linha 3087
     // gravava esse vazio no localStorage, destruindo o cache que ainda estava íntegro. Uma
     // falha de rede num pull não pode apagar catálogo: mantém o local e re-tenta no próximo boot.
+    if(!stillOwner())return;
     if(eT){
       console.warn('[sync] pull de templates falhou (catálogo não desceu):', eT.message||eT);
       return;
@@ -4189,7 +4234,7 @@ async function dSyncFoldersFromBackend(){
     // o objeto e o dActiveTmplId ficaria órfão — o próximo dSave gravaria no vazio, em silêncio.
     const _openId=(typeof dActiveTmplId!=='undefined')?dActiveTmplId:null;
     (dFolders||[]).forEach(lf=>{
-      const pend=(lf.templates||[]).filter(t=>t&&(t._syncPending||(_openId&&t.id===_openId)));
+      const pend=(lf.templates||[]).filter(t=>t&&(t._syncPending||t._draft||t._drafts||t._publishPending||(_openId&&t.id===_openId)));
       if(!pend.length) return;
       // Mesma escada do filtro de extras acima (inclusive o nome): sem o casamento por
       // nome, a semente descartada levaria com ela o template ainda não sincronizado.

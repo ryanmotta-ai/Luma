@@ -62,7 +62,7 @@ const reset=()=>{
     {id:'f-curta',campId:'curta',templates:[mat('t3',{publishMeta:{publicado:true,validade:iso(2)}})]}
   ];
   _role='franqueado';
-  try{localStorage.removeItem('luma_demo_materiais_v1');localStorage.removeItem(HIST_KEY);}catch(e){}
+  try{localStorage.removeItem('luma_demo_materiais_v1');localStorage.removeItem(fUserCacheKey(HIST_KEY));}catch(e){}
   Object.keys(_F_DEMO_MAT_CACHE).forEach(k=>delete _F_DEMO_MAT_CACHE[k]);
   upserts.length=0;
 };

@@ -1,0 +1,65 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Luma — histórico do documento</title>
+<button class="dt-fmt" data-fmt="story">Story</button><button class="dt-fmt" data-fmt="feed">Feed</button>
+<button id="rotate">Girar</button><button id="undo">Desfazer</button><button id="redo">Refazer</button>
+<input id="d-ab-w-inp"><input id="d-ab-h-inp">
+<div id="d-canvas-container"><div id="d-canvas-frame"></div></div><span id="d-dim-label"></span>
+<canvas id="d-paint-canvas" width="1080" height="1920" style="display:none"></canvas><pre id="summary"></pre>
+<script src="../js/00-config.js"></script><script src="../js/core/layout.js"></script>
+<script src="../js/designer/templates.js"></script><script src="../js/designer/canvas.js"></script>
+<script src="../js/designer/brush.js"></script>
+<script src="../js/designer/undo-redo.js"></script>
+<script>
+let dHistory=[],dHistoryIdx=-1,dMultiSel=[];
+gToast=()=>{};gConfirm=async()=>false;dRenderRulers=()=>{};dRenderLayersList=()=>{};
+dStats=()=>{};dMarkUnsaved=()=>{};dPersistArtboards=()=>true;dApplyBg=()=>{};
+dRenderCanvas=()=>dEnsurePaintCanvas();
+const assert=(c,m)=>{if(!c)throw Error(m);};
+function reset(){dFmt='story';dCustomFmt=null;dCanvasBg='white';dSelId='title';
+ dLayers=[{id:'title',type:'text',x:100,y:150,w:600,h:100,fontSize:40,content:'{{produto}}'}];
+ dArtboards=[{id:'ab-single',name:'Minha arte',x:80,y:60,w:1080,h:1920,fmt:dFmt,bg:dCanvasBg,layers:dLayers}];
+ dActiveABId='ab-single';document.getElementById('d-paint-canvas')?.remove();dRenderCanvas();dHistoryReset();dApplyFormat();}
+function geometry(w,h){const ab=dGetActiveAB();assert(ab.w===w&&ab.h===h,'prancheta '+ab.w+'×'+ab.h);
+ assert(document.getElementById('d-canvas-frame').style.width===w+'px','frame não restaurou');}
+(async()=>{let passed=0;const failures=[];
+ const test=async(name,fn)=>{try{reset();await fn();passed++;}catch(e){failures.push({name,error:e.message});}};
+ await test('girar, desfazer e refazer restauram o documento',async()=>{
+  await dToggleOrientation();await Promise.resolve();geometry(1920,1080);
+  dUndo();geometry(1080,1920);assert(dCustomFmt===null,'override permaneceu');
+  dRedo();geometry(1920,1080);assert(dLayers[0].id==='title','ID perdido');});
+ await test('smart-resize gira e desfaz camadas e dimensões juntos',async()=>{
+  dLayers.push({id:'extra',type:'shape',x:800,y:900,w:100,h:100});dHistoryReset();
+  const before=JSON.stringify(dLayers);gConfirm=async()=>true;
+  try{await dToggleOrientation();await Promise.resolve();assert(JSON.stringify(dLayers)!==before,'não adaptou');
+   const after=JSON.stringify(dLayers);dUndo();geometry(1080,1920);assert(JSON.stringify(dLayers)===before,'camadas antigas não restauraram');
+   dRedo();geometry(1920,1080);assert(JSON.stringify(dLayers)===after,'redo das camadas');
+  }finally{gConfirm=async()=>false;}});
+ await test('fundo sem alteração de camada cria histórico',async()=>{
+  dSetABBg('transparent');await Promise.resolve();assert(dHistory.length===2,'não registrou fundo');
+  dUndo();assert(dCanvasBg==='white'&&dGetActiveAB().bg==='white','fundo não restaurou');
+  dRedo();assert(dCanvasBg==='transparent','redo do fundo');});
+ await test('dimensão sem adaptar camadas pode ser desfeita',async()=>{
+  document.getElementById('d-ab-w-inp').value=800;document.getElementById('d-ab-h-inp').value=800;
+  await dABDimUpdate();await Promise.resolve();geometry(800,800);dUndo();geometry(1080,1920);dRedo();geometry(800,800);});
+ await test('formato com somente uma camada entra no histórico',async()=>{
+  await dSetFormat('feed',document.querySelector('[data-fmt="feed"]'));await Promise.resolve();geometry(1080,1350);
+  dUndo();geometry(1080,1920);assert(dFmt==='story','fmt não voltou');
+  assert(document.querySelector('[data-fmt="story"]').classList.contains('active'),'preset visual errado');});
+ await test('snapshot independente e prancheta aponta às camadas restauradas',()=>{
+  const snap=dHistorySnapshot();dArtboards[0].name='Outro';assert(snap.document.artboards[0].name==='Minha arte','referência viva');
+  dApplyHistoryEntry(snap);assert(dArtboards[0].layers===dLayers,'prancheta com clone divergente');assert(dSelId==='title','seleção perdida');});
+ await test('entrada antiga sem documento continua aplicável',()=>{
+  dApplyHistoryEntry({layers:[{id:'title',type:'text',x:55}],paint:null});assert(dLayers[0].x===55&&dFmt==='story','compatibilidade');});
+ await test('undo imediato fecha debounce sem pular edição anterior',()=>{
+  dLayers[0].x=200;dHistoryCommit();dLayers[0].x=250;dHistoryPushDebounced();dUndo();
+  assert(dLayers[0].x===200,'pulou uma ação');dRedo();assert(dLayers[0].x===250,'redo perdeu edição');});
+ await test('pintura é restaurada no canvas das dimensões desfeitas',async()=>{
+  const ctx=document.getElementById('d-paint-canvas').getContext('2d');ctx.fillStyle='red';ctx.fillRect(20,20,10,10);
+  dPaintDirty=true;dHistoryCommit();await dToggleOrientation();await Promise.resolve();dUndo();
+  await new Promise(r=>setTimeout(r,60));const cv=document.getElementById('d-paint-canvas');
+  assert(cv.width===1080&&cv.height===1920,'pintura com dimensão errada');
+  assert(cv.getContext('2d').getImageData(25,25,1,1).data[3]===255,'pintura aplicada em canvas descartado');});
+ document.getElementById('summary').textContent=passed+'/'+(passed+failures.length)+' '+JSON.stringify(failures);
+ window.__lumaTest={passed,total:passed+failures.length,failures};reset();
+ document.getElementById('rotate').onclick=dToggleOrientation;document.getElementById('undo').onclick=dUndo;document.getElementById('redo').onclick=dRedo;
+})().catch(e=>{window.__lumaTest={passed:0,total:1,failures:[{name:'inicialização',error:e.message}]};});
+</script></html>

@@ -20,6 +20,7 @@ on:
     branches: ['**']
     paths:
       - 'js/**'
+      - 'css/**'
       - 'tests/**'
       - 'scripts/run-browser-tests.js'
       - 'scripts/arquitetura.js'
@@ -29,6 +30,7 @@ on:
   pull_request:
     paths:
       - 'js/**'
+      - 'css/**'
       - 'tests/**'
       - 'scripts/run-browser-tests.js'
       - 'scripts/arquitetura.js'

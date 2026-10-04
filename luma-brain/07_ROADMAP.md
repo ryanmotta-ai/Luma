@@ -5,8 +5,7 @@
 > completo (bugs com `arquivo:linha`, code reviews, decisões antigas) **continua no git** — é a
 > versão deste arquivo no commit anterior a esta reescrita. Nada foi perdido; foi tirado da frente.
 >
-> **A v1 agora tem duas frentes e nada mais:** refinar o que existe e entregar um módulo de
-> calendário simples. Feature nova fora dessas duas só entra depois do lançamento.
+> **Escopo vigente (04/10/2026, Ryan): refinar a v1 inteira. Calendário e Academia foram removidos por pedido explícito.** A lista de lançamento e a seção de Calendário abaixo registram o plano anterior; não autorizam reintroduzir esses módulos. Veja `docs/V1-REFINOS-2026-10-04.md` para correções e verificações desta rodada.
 >
 > Dono: Ryan. Atualize os checks conforme avança.
 
@@ -17,8 +16,8 @@
 O Luma lança quando estas três frases forem verdade **sem asterisco**:
 
 1. **O franqueado abre, gera e baixa sem suporte** — nenhum clique morre em silêncio, nenhuma tela mente sobre o que fez.
-2. **O calendário diz o que tem hoje** — a data traz a campanha, e a campanha traz as artes prontas.
-3. **O lançamento cabe em duas abas** — Franqueado e Calendário. Todo o resto está atrás de permissão ou fora.
+2. **A equipe salva e publica sem perder trabalho ou sobrescrever outra versão** — rascunho e publicação têm estados distintos.
+3. **Franqueado e Estúdio têm os acessos corretos** — Estúdio só para equipe; Calendário e Academia ficam fora.
 
 ---
 
@@ -27,9 +26,9 @@ O Luma lança quando estas três frases forem verdade **sem asterisco**:
 | Aba | Quem vê | Estado |
 |---|---|---|
 | **Franqueado** | todo mundo | ✅ existe, em refino |
-| **Calendário** | todo mundo | 🔨 a construir (Frente 2) |
+| **Calendário** | — | Removido por pedido do Ryan |
 | **Estúdio** | só a equipe (`equipe_dm`/`gestao`, via `gIsAdmin`) | ✅ existe, já escondido do franqueado |
-| **Academia** | atrás da flag `module.academia` | ⏸ decisão aberta #2 |
+| **Academia** | — | Removida por pedido do Ryan |
 
 **Como o gate já funciona** (`js/main.js:23-32`): cada modo tem uma flag (`G_MODE_FEATURE`) e
 `gModeAllowed` só abre se **a role permite E a flag permite**. O Estúdio já é bloqueado por role

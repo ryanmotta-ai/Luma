@@ -1139,7 +1139,7 @@ await test('Kit C: a peça em que o texto não cabe fica fora do pacote, com nom
 
 await test('Kit: duas peças de mesmo formato com as mesmas respostas viram duas artes no histórico', async()=>{
   reset();
-  try{ localStorage.removeItem(HIST_KEY); }catch(e){}
+  try{ localStorage.removeItem(fUserCacheKey(HIST_KEY)); }catch(e){}
   const a=pecaKit('k-1','Feed A','feed'), b=pecaKit('k-2','Feed B','feed');
   const fmt=FMTS.find(f=>f.id==='feed')||FMTS[0];
   fState.material=a; const ia=fAddHist(DADOS_KIT,KIT_CAMP,fmt,'rascunho');
@@ -1148,7 +1148,7 @@ await test('Kit: duas peças de mesmo formato com as mesmas respostas viram duas
   assert(ia!==ib,'a segunda peça foi tratada como a mesma arte e sumiu do histórico');
   fState.material=a;
   assert(fAddHist(DADOS_KIT,KIT_CAMP,fmt,'baixada')===ia,'a mesma peça repetida deixou de deduplicar');
-  try{ localStorage.removeItem(HIST_KEY); }catch(e){}
+  try{ localStorage.removeItem(fUserCacheKey(HIST_KEY)); }catch(e){}
 });
 
 await test('Kit: data URL vira Blob sem fetch; entrega solta as imagens; bolha que saiu perde o kit', async()=>{

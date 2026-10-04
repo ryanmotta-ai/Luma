@@ -50,7 +50,7 @@ let _fUpPanelVar = null, _fUpPanelUploadId = null;
 const F_RECENT_THUMB_MAX = 80 * 1024;
 function fGetRecentImgs(){
   try{
-    const a=JSON.parse(localStorage.getItem(F_RECENT_KEY)||'[]');
+    const a=JSON.parse(localStorage.getItem(fUserCacheKey(F_RECENT_KEY))||'[]');
     if(!Array.isArray(a)) return [];
     // Descarta na LEITURA o que uma versao antiga gravou grande: sem isto a quota
     // continuaria cheia e o proximo setItem seguiria falhando. Autolimpa no 1o save.
@@ -58,7 +58,7 @@ function fGetRecentImgs(){
   }catch(e){ return []; }
 }
 function _fSaveRecentImgs(arr){
-  try{ localStorage.setItem(F_RECENT_KEY, JSON.stringify((arr||[]).slice(0,F_RECENT_CAP))); }catch(e){}
+  try{ localStorage.setItem(fUserCacheKey(F_RECENT_KEY), JSON.stringify((arr||[]).slice(0,F_RECENT_CAP))); }catch(e){}
 }
 // Gera uma miniatura pequena (dataURL) a partir de uma imagem maior — só p/ o grid.
 function _fMakeThumb(dataUrl, size, cb){
@@ -82,7 +82,8 @@ function _fMakeThumb(dataUrl, size, cb){
 async function fRecordRecentImg(resizedUrl, field){
   if(!resizedUrl || typeof resizedUrl!=='string') return;
   if(typeof gIdbPut!=='function' || typeof indexedDB==='undefined') return; // sem idb → não guarda cru
-  const key = (typeof gImgHash==='function' ? gImgHash(resizedUrl) : 'rec-'+Date.now());
+  const ownerKey=fUserCacheKey(F_RECENT_KEY);
+  const key = ownerKey+':'+(typeof gImgHash==='function' ? gImgHash(resizedUrl) : 'rec-'+Date.now());
   const ref = 'idb://'+key;
   let stored=false;
   try{ stored=await gIdbPut(key, resizedUrl); }catch(e){}
@@ -90,6 +91,7 @@ async function fRecordRecentImg(resizedUrl, field){
   _fMakeThumb(resizedUrl, F_RECENT_THUMB, (thumb)=>{
     // Miniatura ausente ou acima do teto nao vai pro localStorage. A foto continua no
     // IndexedDB e reaproveitavel: o card so aparece com o icone em vez do preview.
+    if(fUserCacheKey(F_RECENT_KEY)!==ownerKey)return;
     const th = (thumb && thumb.length<=F_RECENT_THUMB_MAX) ? thumb : '';
     let arr=fGetRecentImgs().filter(x=>x.ref!==ref);   // dedup: mesma imagem sobe pro topo
     arr.unshift({ref, thumb:th, ts:Date.now(), field:field||''});

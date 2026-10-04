@@ -133,6 +133,90 @@
     assert(comNome==='X-Tudo Duplo - Feed - Rangos Que Baixaram O Preço.png','o nome do produto sumiu: '+comNome);
   });
 
+  const broken='data:image/png;base64,IMAGEM-QUEBRADA';
+  const renderImage=async(layers,dados,purpose)=>{
+    const cv=document.createElement('canvas');cv.width=40;cv.height=40;
+    const mat={w:40,h:40,bg:'transparent',layers};
+    return fRenderTemplateLayers(cv.getContext('2d'),layers,40,40,dados||{},camp,mat,{purpose:purpose||'export'});
+  };
+  const imgLayer=extra=>Object.assign({id:'foto',name:'Foto do produto',type:'image',imgUrl:broken,x:0,y:0,w:40,h:40},extra);
+  test('export recusa imagem quebrada e identifica o recurso, prévia continua',async()=>{
+    let error=null;try{await renderImage([imgLayer()]);}catch(e){error=e;}
+    assert(error&&error.code==='LUMA_IMAGE_UNAVAILABLE'&&error.layerId==='foto','export entregou arte incompleta');
+    assert(error.message.includes('Foto do produto'),'erro não identifica a camada');
+    await renderImage([imgLayer()],{},'preview');
+  });
+  test('foto enviada válida substitui amostra quebrada sem bloquear export',async()=>{
+    const c=document.createElement('canvas');c.width=4;c.height=4;
+    const url=c.toDataURL();
+    await renderImage([imgLayer({imgVar:'foto'})],{foto:url});
+  });
+  test('máscara quebrada bloqueia export mesmo sem uma camada imagem',async()=>{
+    let error=null;try{await renderImage([{id:'forma',name:'Recorte',type:'shape',shapeKind:'rect',fill:'red',x:0,y:0,w:40,h:40,mask:broken}]);}catch(e){error=e;}
+    assert(error&&error.resourceKind==='máscara','máscara falhou silenciosamente');
+  });
+  test('imagem de grupo oculto não bloqueia a arte',async()=>{
+    await renderImage([{id:'grupo',type:'group',visible:false},imgLayer({parentId:'grupo'})]);
+  });
+  test('cache negativo permite repetir export sem perder dados',async()=>{
+    const c=document.createElement('canvas');c.width=4;c.height=4;const url=c.toDataURL();
+    _fImgCache.set(url,null);
+    await renderImage([imgLayer({imgUrl:url})]);
+    assert(_fImgCache.get(url),'nova tentativa ficou presa na falha antiga');
+  });
+  test('imagem HTTP solicita CORS e recusa timeout sem cache tardio',async()=>{
+    const ImageOriginal=window.Image,timerOriginal=window.setTimeout;
+    let request=null;
+    window.Image=class{constructor(){request=this;}set src(v){this.url=v;}};
+    window.setTimeout=(fn,ms,...args)=>timerOriginal(fn,ms===20000?20:ms,...args);
+    try{
+      const url='https://imagem-teste.invalid/sem-resposta.png';
+      assert(await fLoadImageDataUrl(url)===null,'request estagnado não termina');
+      assert(request.crossOrigin==='anonymous','imagem HTTP pode contaminar export');
+      assert(request.onload===null&&request.onerror===null,'callback tardio modifica cache após timeout');
+      assert(_fImgCache.get(url)===null,'falha não ficou negativa para prévia');
+    }finally{window.Image=ImageOriginal;window.setTimeout=timerOriginal;}
+  });
+  test('referência IndexedDB sem resposta também termina no watchdog',async()=>{
+    const resolveOriginal=gResolveImgUrl,timerOriginal=window.setTimeout;
+    gResolveImgUrl=()=>new Promise(()=>{});
+    window.setTimeout=(fn,ms,...args)=>timerOriginal(fn,ms===20000?20:ms,...args);
+    try{assert(await fLoadImageDataUrl('idb://travado')===null,'leitura local segura render para sempre');}
+    finally{gResolveImgUrl=resolveOriginal;window.setTimeout=timerOriginal;}
+  });
+  test('IndexedDB confirma antes de compactar imagens e máscaras grandes',async()=>{
+    const data='data:image/png;base64,'+'A'.repeat(200000);
+    const pending=gPackImgUrl(data);
+    assert(pending.url===data&&!pending.dropped,'pack anunciou referência antes do commit');
+    assert(gPackMask(data).url===data,'máscara foi descartada enquanto pendente');
+    assert(await gImgStoreFlush([{imgUrl:data,mask:data}]),'gravação local falhou');
+    const packed=gPackImgUrl(data),mask=gPackMask(data);
+    assert(packed.url.startsWith('idb://')&&mask.url===packed.url,'commit confirmado não compactou');
+    assert(await gResolveImgUrl(packed.url)===data,'referência não resolve bytes originais');
+    await gIdbDel(packed.url.slice(6));
+  });
+  test('falha no armazenamento nunca cria referência nem descarta máscara',async()=>{
+    const old=_gIdbPromise;_gIdbPromise=Promise.reject(new Error('quota simulada'));
+    try{
+      const data='data:image/png;base64,'+'B'.repeat(200001);
+      assert(!(await gImgStoreFlush([{imgUrl:data,mask:data}])),'falha anunciou sucesso');
+      assert(gPackImgUrl(data).url===data&&gPackMask(data).url===data,'bytes perdidos na falha');
+      await Promise.all(Array.from(_gImgWrites.values()));
+    }finally{_gIdbPromise=old;}
+  });
+  test('transação IndexedDB travada termina sem anunciar referência tardia',async()=>{
+    const old=_gIdbPromise,timerOriginal=window.setTimeout;
+    let tx=null,aborted=false;
+    _gIdbPromise=Promise.resolve({transaction(){tx={objectStore:()=>({put(){}}),abort(){aborted=true;}};return tx;}});
+    window.setTimeout=(fn,ms,...args)=>timerOriginal(fn,ms===8000?20:ms,...args);
+    const data='data:image/png;base64,'+'C'.repeat(200002),key=gImgHash(data);
+    try{
+      assert(!(await gIdbPut(key,data))&&aborted,'transação travada não é recuperável');
+      tx.oncomplete();
+      assert(!gImgStoredRef(data),'commit tardio após falha anunciou referência');
+    }finally{_gIdbPromise=old;window.setTimeout=timerOriginal;}
+  });
+
   let passed=0;
   const falhas=[];
   for(const item of cases){

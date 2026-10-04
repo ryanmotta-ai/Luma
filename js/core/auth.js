@@ -52,6 +52,7 @@ function _gAuthErroPt(error, contexto) {
 
 // Carrega a sessão atual do Supabase + o profile (role) do banco. Idempotente.
 async function gLoadProfile() {
+  const previousId=gAuthState.user&&gAuthState.user.id;
   const sb = _gSb();
   if (!sb) { gAuthState = { user: null }; return null; }
   try {
@@ -100,6 +101,15 @@ async function gLoadProfile() {
   } catch (e) {
     gAuthState = { user: null };
     return null;
+  } finally {
+    const currentId=gAuthState.user&&gAuthState.user.id;
+    // O cache é por conta; respostas em memória também não podem atravessar a troca.
+    if(previousId!==currentId && typeof fState!=='undefined'){
+      if(typeof fChatNovaConversa==='function')fChatNovaConversa();
+      fState={camp:null,fmt:typeof FMTS!=='undefined'?FMTS[0]:null,stepIdx:-1,dados:{},done:false,editIdx:null,tab:'catalogo',material:null,materialView:false,categoria:null};
+      if(typeof fHistSearch!=='undefined') fHistSearch='';
+      const msgs=document.getElementById('f-messages'); if(msgs)msgs.innerHTML='';
+    }
   }
 }
 

@@ -387,6 +387,8 @@ function dRenderABProps(){
 }
 
 function dSetABBg(bg){
+  if(bg===dCanvasBg)return;
+  if(typeof dHistoryPush==='function')dHistoryPush();
   dCanvasBg=bg;
   if(typeof dApplyBg==='function')dApplyBg(dGetActiveAB());
   dRenderABProps();
@@ -433,10 +435,11 @@ async function dABDimUpdate(){
   if(dLayers.length>1&&typeof gReflowLayers==='function'){
     if(await gConfirm('As camadas re-ancoram no novo tamanho, sem distorcer (smart-resize).',
       {title:'Adaptar as camadas?',okLabel:'Adaptar',cancelLabel:'Manter como está'})){
-      if(typeof dHistoryPush==='function')dHistoryPush();
       dLayers=gReflowLayers(dLayers,{w:oldW,h:oldH},{w,h});
     }
   }
+  // Mesmo "Manter como está" altera o documento e precisa ser desfeito.
+  if(typeof dHistoryPush==='function')dHistoryPush();
   dCustomFmt={w,h};
   dApplyFormat();dRenderCanvas();
   dRenderABProps();
@@ -1707,20 +1710,22 @@ async function dLoadTemplate(tmpl,folder,options){
   dActiveTmplId=tmpl.id;
   if(folder)dActiveTmplFolderId=folder.id; // destaca a pasta da arte ativa na grade
   else dActiveTmplFolderId=null;
-  dFmt=tmpl.fmt;
-  dSyncLyrCnt(tmpl.layers); // ids 'l-N' do template não podem colidir com os próximos ++dLyrCnt
+  const draft=(typeof _dTemplateDraft==='function')?_dTemplateDraft(tmpl):null;
+  const editing=draft?Object.assign({},tmpl,draft):tmpl;
+  dFmt=editing.fmt;
+  dSyncLyrCnt(editing.layers); // ids 'l-N' do template não podem colidir com os próximos ++dLyrCnt
   // Carrega no artboard ativo (substitui layers e formato).
   // Template 1:1 do PSD guarda w/h reais (fmt 'orig' não tem DFMT_SIZES) → usa o tamanho real.
-  const f=DFMT_SIZES[tmpl.fmt]||DFMT_SIZES.story;
-  const _w=(tmpl.w>0)?tmpl.w:f.w, _h=(tmpl.h>0)?tmpl.h:f.h;
+  const f=DFMT_SIZES[editing.fmt]||DFMT_SIZES.story;
+  const _w=(editing.w>0)?editing.w:f.w, _h=(editing.h>0)?editing.h:f.h;
   dCustomFmt=null; // limpa override ad-hoc de um "Novo arquivo" anterior; o tamanho real vem de ab.w/h abaixo
   /* O FUNDO DA PRANCHETA vem do template. `dGetActiveAB()` reescreve `ab.bg` a partir de
      `dCanvasBg` toda vez que roda, então atribuir em `ab` não adiantaria: a verdade é a
      variável. Sem isto, abrir um template carregava o fundo do template ANTERIOR. */
-  dCanvasBg = tmpl.bg || '';
+  dCanvasBg = editing.bg || '';
   const ab=dGetActiveAB();
-  if(ab){ab.layers=JSON.parse(JSON.stringify(tmpl.layers||[]));ab.fmt=tmpl.fmt;ab.name=tmpl.name;ab.w=_w;ab.h=_h;}
-  dLayers=JSON.parse(JSON.stringify(tmpl.layers||[]));
+  if(ab){ab.layers=JSON.parse(JSON.stringify(editing.layers||[]));ab.fmt=editing.fmt;ab.name=tmpl.name;ab.w=_w;ab.h=_h;}
+  dLayers=JSON.parse(JSON.stringify(editing.layers||[]));
   // Re-hidrata fundos grandes (idb://) → dataURL real, e re-renderiza quando prontos.
   if(typeof gHydrateLayers==='function'){
     gHydrateLayers(dLayers).then(changed=>{

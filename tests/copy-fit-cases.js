@@ -214,9 +214,11 @@
   });
 
   test('12 · com o Local Fit de verdade: a sugestão aplicada CABE na caixa', () => {
+    // A caixa tem teto de autoria: com o envelope livre esta frase já cabe
+    // sem Copy Fit, então não exercitaria a aplicação de uma sugestão.
     const l = { id:'p', type:'text', content:'{{p}}', isVar:true, x:130, y:1220, w:363, h:72, font:'Arial',
       fontSize:95, lineHeight:1.2, textBox:'point', vAlign:'top', textTransform:'uppercase', visible:true, opacity:100,
-      layoutRefText:'PRODUTO' };
+      layoutRefText:'PRODUTO', fitRegion:{maxW:435} };
     const d = { id:'d', type:'text', content:'Com batata', x:126, y:1387, w:188, h:58, font:'Arial', fontSize:48,
       textBox:'point', vAlign:'top', visible:true, opacity:100 };
     const canvas = { w:1080, h:1920 };
@@ -432,14 +434,13 @@
   test('30 · pixel, Story: o "+" com preço (vírgula decimal) é o que faz caber', () => {
     const l = { id:'p', type:'text', content:'{{p}}', isVar:true, x:130, y:1220, w:363, h:72, font:'Arial',
       fontSize:95, lineHeight:1.2, textBox:'point', vAlign:'top', textTransform:'uppercase', visible:true, opacity:100,
-      layoutRefText:'PRODUTO' };
+      layoutRefText:'PRODUTO', fitRegion:{maxW:510} };
     const d = { id:'d', type:'text', content:'Com batata', x:126, y:1387, w:188, h:58, font:'Arial', fontSize:48,
       textBox:'point', vAlign:'top', visible:true, opacity:100 };
     // pilha:null — idem ao 12.
     const cabe = t => { const r = gFitTextToAuthoredBox(l, t, { layers:[l, d], canvas:{ w:1080, h:1920 }, pilha:null }); return { ok:r.status === 'fits', fontSize:r.fontSize }; };
-    /* 26/09/2026: a caixa do Story agora alarga para o vazio à direita no bloqueio (+50% no
-       máximo) e o X-Salada passou a caber com "refri" ou "c/". Este segue exigindo o "+". */
-    // 26/09/2026 (2): com a quebra medindo em caixa alta, o X-Burger passou a não caber de jeito nenhum.
+    // Teto autorado de 510px: original bloqueia, e só o candidato com "+"
+    // cabe. O envelope livre atual resolve o original sem encurtar.
     const f = 'Pizza Grande com Refrigerante e Sobremesa por R$ 59,90';
     assert(!cabe(f).ok, 'o cenário precisa começar bloqueado');
     const { sugestoes } = gCopyFitSugestoes(f, cabe, 3);
@@ -584,7 +585,9 @@
     // autorada o motor bloqueia bem menos (amostra: 24). O guarda continua pegando o que ele existe para pegar — fonte que não carregou dá ~0.
     assert(B.bloqueios.length >= 10, 'quase nada bloqueou (' + B.bloqueios.length + '): a bancada não mede nada — fonte não carregou?');
     if(piso.fp === fpMaquina){
-      assert(B.resgates >= piso.resgates, 'o motor resgatava ' + piso.resgates + ' e agora resgata ' + B.resgates
+      // O envelope pode resolver sem encurtar casos que antes eram resgates.
+      // Conte todas as saídas válidas; reduzir bloqueios nunca deve reprovar.
+      assert(B.pares-B.bloqueios.length+B.resgates >= B.pares-piso.bloqueios+piso.resgates, 'o motor resgatava ' + piso.resgates + ' e agora resgata ' + B.resgates
         + '. Se foi o LOCAL FIT que mudou (bloqueios ' + piso.bloqueios + ' → ' + B.bloqueios.length + '), regrave: ' + JSON.stringify(atual));
       if(B.resgates > piso.resgates) notas.push('o resgate SUBIU — aperte a catraca: LUMA_COPY_FIT_PISO = ' + JSON.stringify(atual));
     } else {

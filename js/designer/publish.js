@@ -16,6 +16,7 @@ let dPubLinterStats = { errorsCount:0, warningsCount:0, infosCount:0 };
 let dPubLastTrigger = null;
 let dPubDraftTimer = null;
 let dPubPublished = false;
+let dPubPublishing = false;
 
 const D_PUB_STEPS=[
   {label:'Qualidade', panels:['linter','artboards']},
@@ -852,7 +853,8 @@ function dPublishShowSuccess(count,folderName){
 }
 
 /* ── CONFIRMAR PUBLICAÇÃO ── */
-function dPublishConfirm(){
+async function dPublishConfirm(){
+  if(dPubPublishing)return;
   if(!dPublishValidateStep(0)||!dPublishValidateStep(1))return;
   const draftKey=dPublishDraftKey();
   const confirmBtn=document.querySelector('#d-publish-modal .pub-btn-confirm');
@@ -875,6 +877,7 @@ function dPublishConfirm(){
     return;
   }
   let count=0;
+  const targets=[];
   selected.forEach(abId=>{
     const ab=dArtboards.find(a=>a.id===abId);if(!ab)return;
     // Nome pode ter sido editado no card
@@ -895,7 +898,9 @@ function dPublishConfirm(){
     let tmpl=null;
     let tmplFolder=null;
     for(const f of dFolders){const t=f.templates.find(x=>x.id===tmplId);if(t){tmpl=t;tmplFolder=f;break;}}
+    const canonical=tmpl;
     if(tmpl){
+      tmpl=JSON.parse(JSON.stringify(tmpl));delete tmpl._publishPending;delete tmpl._draft;
       // Atualiza template existente, move de pasta se necessário
       tmpl.name=tmplName;
       tmpl.fmt=ab.fmt||'story';
@@ -903,14 +908,14 @@ function dPublishConfirm(){
       tmpl.layers=JSON.parse(JSON.stringify(ab.layers));
       if(tmplFolder&&tmplFolder.id!==folderId){
         tmplFolder.templates=tmplFolder.templates.filter(t=>t.id!==tmplId);
-        folder.templates.unshift(tmpl);
+        folder.templates.unshift(canonical);
       }
     }else{
       // Cria template novo
       tmpl={id:tmplId,name:tmplName,fmt:ab.fmt||'story',
         w:ab.w,h:ab.h,bg:ab.bg, // tamanho/fundo nativos → franqueado renderiza 1:1
         layers:JSON.parse(JSON.stringify(ab.layers)),publishMeta:dDefaultPublishMeta()};
-      folder.templates.unshift(tmpl);
+      folder.templates.unshift(Object.assign({},tmpl,{publishMeta:dDefaultPublishMeta()}));
     }
     // Aplica configurações compartilhadas
     if(!tmpl.publishMeta) tmpl.publishMeta=dDefaultPublishMeta();
@@ -927,10 +932,10 @@ function dPublishConfirm(){
     // Memória por prancheta — é o que impede o próximo lote de colidir tudo num id só.
     ab.tmplId=tmpl.id;
     if(_ehAtiva && typeof dActiveTmplId!=='undefined') dActiveTmplId=tmpl.id;
-    // Contrato do schema: {template_id, template_name, fmt_id, camp_id, camp_name}
-    if(typeof gTrackEvent==='function') gTrackEvent('template_publicado',{
-      template_id:tmpl.remoteId||tmpl.id||null, template_name:tmpl.name||'', fmt_id:tmpl.fmt||'',
-      camp_id:folder.campId||folder.remoteId||folder.id||null, camp_name:folder.name||''});
+    const pending=folder.templates.find(x=>x.id===tmpl.id);
+    tmpl._ownerId=(typeof gCurrentUser==='function')?gCurrentUser()?.id:null;
+    pending._publishPending=tmpl;pending._syncPending=true;pending._syncOwnerId=tmpl._ownerId;
+    targets.push(tmpl.id);
     count++;
   });
   dFolderOpen[folderId]=true;
@@ -942,6 +947,20 @@ function dPublishConfirm(){
     dPublishShowError('Não foi possível salvar a publicação. Revise o espaço disponível e tente novamente.',2,confirmBtn);
     return;
   }
+  dPubPublishing=true;
+  if(typeof _dFoldersPushTimer!=='undefined'&&_dFoldersPushTimer){clearTimeout(_dFoldersPushTimer);_dFoldersPushTimer=null;}
+  try{await _dPushFoldersNow();}catch(e){console.warn('[publish] confirmação falhou:',e);}
+  dPubPublishing=false;
+  const confirmed=targets.map(id=>{for(const f of dFolders){const t=f.templates.find(x=>x.id===id);if(t)return t;}return null;});
+  if(!confirmed.every(t=>t&&!t._syncPending&&!t._publishPending&&t._remoteUpdatedAt&&t.publishMeta?.publicado)){
+    if(confirmBtn){confirmBtn.disabled=false;confirmBtn.classList.remove('loading');dPublishUpdateFooter();}
+    const done=confirmed.filter(t=>t&&!t._syncPending&&!t._publishPending&&t._remoteUpdatedAt&&t.publishMeta?.publicado).length;
+    dPublishShowError((done?done+' de '+targets.length+' materiais confirmados. ':'Publicação não confirmada. ')+'Os rascunhos pendentes foram preservados; verifique conexão ou conflito e tente novamente.',2,confirmBtn);
+    dRenderFolders();return;
+  }
+  confirmed.forEach(t=>{if(typeof gTrackEvent==='function')gTrackEvent('template_publicado',{
+    template_id:t.remoteId,template_name:t.name,fmt_id:t.fmt,camp_id:folder.campId||folder.remoteId||folder.id,camp_name:folder.name});});
+  dRenderFolders();
   dDirty=false; // publicar persistiu tudo
   const saveIndicator=document.getElementById('d-save-indicator');
   if(saveIndicator)saveIndicator.innerHTML='<span class="d-save-published"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>Publicado</span>';
@@ -966,7 +985,9 @@ function dSetSaveState(state){
     // Sem backend, "na nuvem" é mentira — o trabalho está só neste aparelho. (O caso
     // "com backend mas o push ainda não confirmou" é tratado pelo badge de pendência.)
     const hasBk=(typeof gHasBackend==='function') && gHasBackend();
-    const savedTxt=hasBk?'Salvo na nuvem':'Salvo neste aparelho';
+    const active=(typeof dGetActiveTemplate==='function')?dGetActiveTemplate():null;
+    const pending=(dFolders||[]).some(f=>(f.templates||[]).some(t=>_dTemplateDraft(t)||t._syncPending||_dOwnDraft(t._publishPending)));
+    const savedTxt=hasBk&&!pending?'Salvo na nuvem':'Salvo neste aparelho';
     html='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><polyline points="9 15 12 18 16 13"/></svg><span>'+savedTxt+'</span>';
   }
   if(ind)ind.innerHTML=html;

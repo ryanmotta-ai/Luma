@@ -357,6 +357,7 @@ function _fArteErro(e, canal){
   if(e && e.name==='AbortError') return;         // cancelou a folha nativa — silencioso
   console.warn('Falha ao entregar a arte ('+canal+'):',e);
   if(typeof gHandleLayoutUnsafeError==='function' && gHandleLayoutUnsafeError(e)) return;
+  if(e&&e.code==='LUMA_IMAGE_UNAVAILABLE'){gToast(e.message,'error');return;}
   gToast('Não consegui preparar a arte. Tente o botão Baixar PNG.','error');
 }
 
@@ -613,20 +614,54 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
   // PRÉ-CARGA PARALELA: o loop abaixo espera imagem por imagem (await em série) — com os
   // rasters de PSD por URL (pós-Storage), o 1º render custava a SOMA dos downloads.
   // Dispara tudo junto; o loop acha no _fImgCache e o tempo vira o da imagem mais lenta.
-  try{
-    const _urls=[];
+  {
+    const _resources=[];
+    const _effectiveById=new Map(effective.filter(Boolean).map(l=>[l.id,l]));
+    const _hidden=l=>{
+      const seen=new Set();
+      while(l){
+        if(l.visible===false)return true;
+        if(!l.parentId||seen.has(l.parentId))break;
+        seen.add(l.parentId);l=_effectiveById.get(l.parentId);
+      }
+      return false;
+    };
+    const _add=(url,l,kind)=>{if(typeof url==='string'&&url)_resources.push({url,layer:l,kind});};
     for(const l of visible){
-      if(typeof l.imgUrl==='string' && l.imgUrl) _urls.push(l.imgUrl);
-      if(typeof l.mask==='string' && l.mask) _urls.push(l.mask);
+      if(_hidden(l))continue;
+      if(l.type==='image'||l.type==='frame'){
+        const v=l.imgVar&&dados&&dados[l.imgVar];
+        const uploaded=typeof v==='string'&&(/^(data:image|blob:|https?:\/\/)/.test(v));
+        _add(uploaded?v:l.imgUrl,l,'imagem');
+      }
+      _add(l.mask,l,'máscara');
       // Máscaras da composição de grupo/clipping (PSD): sem elas aqui, cada recorte volta a ser
       // um download EM SÉRIE dentro do loop — exatamente o custo que esta pré-carga existe para
       // matar. A do grupo entra pelo próprio `l.mask` acima (grupo é camada); falta a do
       // clipping editável, que mora num campo separado.
-      if(typeof l.clipOwnMask==='string' && l.clipOwnMask) _urls.push(l.clipOwnMask);
-      if(l.imgVar && dados && typeof dados[l.imgVar]==='string' && dados[l.imgVar]) _urls.push(dados[l.imgVar]);
+      _add(l.clipOwnMask,l,'máscara de recorte');
+      const base=l.clipBaseId&&_effectiveById.get(l.clipBaseId);
+      if(base){
+        _add(base.mask,base,'máscara de recorte');
+        if(base.type==='image'||base.type==='frame'){
+          const v=base.imgVar&&dados&&dados[base.imgVar];
+          _add(typeof v==='string'&&/^(data:image|blob:|https?:\/\/)/.test(v)?v:base.imgUrl,base,'imagem de recorte');
+        }
+      }
     }
-    await Promise.all(_urls.map(u=>fLoadImageDataUrl(u)));
-  }catch(e){}
+    // Prévia tolera a falha; exportação nunca pode entregar arte sem um recurso autorado.
+    // Uma tentativa nova deve sair do cache negativo, sem precisar apagar respostas.
+    if(renderOpts.purpose==='export')_resources.forEach(r=>{if(_fImgCache.get(r.url)===null)_fImgCache.delete(r.url);});
+    const loaded=await Promise.all(_resources.map(async r=>({resource:r,img:await fLoadImageDataUrl(r.url)})));
+    const failed=loaded.find(r=>!r.img);
+    if(failed&&renderOpts.purpose==='export'){
+      const r=failed.resource,l=r.layer;
+      const label=l.imgVar&&typeof gFieldLabel==='function'?gFieldLabel(l.imgVar):(l.name||l.id||'sem nome');
+      const err=new Error('Não foi possível carregar a '+r.kind+' de “'+label+'”. Tente gerar novamente ou substitua essa imagem antes de baixar.');
+      err.code='LUMA_IMAGE_UNAVAILABLE';err.layerId=l.id;err.resourceKind=r.kind;err.resourceUrl=r.url;
+      throw err;
+    }
+  }
   const _layerById=new Map(effective.filter(l=>l&&l.id).map(l=>[l.id,l]));
   const _groupById=new Map(effective.filter(l=>l&&l.type==='group'&&l.id).map(l=>[l.id,l]));
 
@@ -1568,39 +1603,28 @@ function fFrameInteligente(l, a){
 
 function fLoadImageDataUrl(dataUrl){
   if(_fImgCache.has(dataUrl)) return Promise.resolve(_fImgCache.get(dataUrl));
-  // Referência 'idb://' (imagem grande no IndexedDB) → resolve pro dataURL real antes de carregar.
-  if(typeof dataUrl==='string' && dataUrl.indexOf('idb://')===0 && typeof gResolveImgUrl==='function'){
-    const _ref=dataUrl;
-    return gResolveImgUrl(_ref).then(real=>{
-      if(!real) return null;
-      return new Promise((resolve)=>{
-        const img=new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload=()=>{ _fImgCache.set(_ref, img); resolve(img); };
-        img.onerror=()=>resolve(null);
-        img.src=real;
-      });
-    });
-  }
   return new Promise((resolve)=>{
     const img=new Image();
-    // Watchdog: imagem que nunca dispara load/error (request estagnado) segurava o
-    // await do render PRA SEMPRE — "Montando a prévia…" infinito. 20s e desiste
-    // (mesma degradação do 404: layer sai sem a imagem), com a URL no console.
     let done=false;
-    const fim=(v,motivo)=>{ if(done)return; done=true;
-      if(motivo) console.warn('[render] imagem desistiu ('+motivo+'):', String(dataUrl).slice(0,120));
-      // CACHE NEGATIVO: sem isto, cada re-render (a prévia roda a cada tecla!) re-pagava os
-      // 20s POR imagem morta — o "travada e demorada". Falha fica cacheada na sessão;
-      // ponytail: fClearImgCache (refazer/trocar material) já é o caminho de retry.
-      if(v===null) _fImgCache.set(dataUrl, null);
-      resolve(v); };
-    setTimeout(()=>fim(null,'timeout 20s'), 20000);
-    // URLs http(s) (bulk CSV): tenta CORS pra não "tingir" o canvas ao exportar
-    if(/^https?:\/\//.test(dataUrl)) img.crossOrigin='anonymous';
-    img.onload=()=>{ _fImgCache.set(dataUrl, img); fim(img); };
-    img.onerror=()=>fim(null,'erro de carregamento');
-    img.src=dataUrl;
+    const fim=(v,motivo)=>{
+      if(done)return;done=true;clearTimeout(timer);
+      img.onload=null;img.onerror=null;
+      if(motivo)console.warn('[render] imagem desistiu ('+motivo+'):',String(dataUrl).slice(0,120));
+      _fImgCache.set(dataUrl,v);resolve(v);
+    };
+    // Inclui a leitura IndexedDB: uma referência local também pode ficar indisponível.
+    const timer=setTimeout(()=>fim(null,'timeout 20s'),20000);
+    const carregar=real=>{
+      if(done)return;
+      if(!real||real==='__local__'){fim(null,'recurso indisponível');return;}
+      if(/^https?:\/\//.test(real))img.crossOrigin='anonymous';
+      img.onload=()=>fim(img);img.onerror=()=>fim(null,'erro de carregamento/CORS');
+      img.src=real;
+    };
+    if(typeof dataUrl==='string'&&dataUrl.indexOf('idb://')===0){
+      if(typeof gResolveImgUrl!=='function'){fim(null,'armazenamento local indisponível');return;}
+      gResolveImgUrl(dataUrl).then(carregar).catch(()=>fim(null,'leitura local falhou'));
+    }else carregar(dataUrl);
   });
 }
 

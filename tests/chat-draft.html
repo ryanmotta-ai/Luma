@@ -1,0 +1,77 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Luma — rascunho com fotos</title>
+<body><h1>Rascunho do chat com fotos locais</h1><ol id="results"></ol>
+<div id="f-messages"></div><div id="f-respostas"></div><input id="f-msg-box">
+<div id="f-ctx-tag"></div><div id="prog-fill"></div>
+<script>let owner='draft-a';function gCurrentUser(){return{id:owner};}function gIsAdmin(){return false;}function gFeatureCan(){return true;}</script>
+<script src="../js/00-config.js"></script><script src="../js/core/img-store.js"></script>
+<script src="../js/01-state.js"></script><script src="../js/core/toast.js"></script>
+<script src="../js/franqueado/history.js"></script><script src="../js/franqueado/chat.js"></script>
+<script>
+(async()=>{
+const failures=[];let total=0;const messages=[];
+const assert=(x,m)=>{if(!x)throw new Error(m);};
+const test=async(name,fn)=>{total++;try{await fn();document.getElementById('results').insertAdjacentHTML('beforeend','<li>OK '+gEsc(name)+'</li>');}catch(e){failures.push({name,error:e.message});document.getElementById('results').insertAdjacentHTML('beforeend','<li>FALHOU '+gEsc(name)+': '+gEsc(e.message)+'</li>');}};
+gToast=(m)=>messages.push(m);fLpRefresh=()=>{};fUpdateProg=()=>{};fAttachInputGuard=()=>{};_fGuidedBind=()=>{};_fGuidedAbrirProximo=()=>{};
+fAddBot=(html)=>document.getElementById('f-messages').insertAdjacentHTML('beforeend','<div>'+html+'</div>');
+const canvas=document.createElement('canvas');canvas.width=400;canvas.height=400;
+const cx=canvas.getContext('2d'),pixels=cx.createImageData(400,400);let seed=17;
+for(let i=0;i<pixels.data.length;i++){seed=(Math.imul(seed,1664525)+1013904223)|0;pixels.data[i]=i%4===3?255:seed>>>24;}
+cx.putImageData(pixels,0,0);const photo=canvas.toDataURL();
+const mat={id:'draft-m',name:'Oferta',layers:[],publishMeta:{publicado:true}};
+const key=()=>fUserCacheKey('luma_chat_draft');
+function reset(){owner='draft-a';fClearChatDraft();fChatNovaConversa();fState.camp={id:'draft-c',perguntas:[]};fState.material=mat;fState.fmt={id:'story'};fState.stepIdx=1;fState.done=false;fState.dados={produto:'Pizza',foto:photo};fState.extractedColors={};delete fState._pendingDraft;messages.length=0;}
+await test('foto grande é real e supera a quota de pack inline',()=>assert(photo.length*0.75>G_IMG_KEEP_MAX,'fixture não exercita foto grande'));
+await test('rascunho guarda foto após commit e conserva os bytes vivos',async()=>{
+ reset();assert(await fSaveChatDraft(),'save não concluiu');const saved=JSON.parse(localStorage.getItem(key()));
+ assert(saved.dados.foto.startsWith('idb://'),'foto ficou inline no localStorage');
+ assert(fState.dados.foto===photo,'save alterou foto viva');assert(await gResolveImgUrl(saved.dados.foto)===photo,'referência não resolve foto original');
+});
+await test('entrada desktop hidrata foto antes de oferecer e aplicar rascunho',async()=>{
+ reset();await fSaveChatDraft();fState.dados={};_fCelular=()=>false;
+ await fStartChatComMaterial(mat);assert(fState._pendingDraft.dados.foto===photo,'desktop oferece src idb bruto');
+ fApplyRecoverDraft(true);assert(fState.dados.foto===photo&&fState.dados.produto==='Pizza','desktop perdeu foto/resposta ao continuar');
+});
+await test('entrada mobile também hidrata antes de oferecer continuar',async()=>{
+ reset();await fSaveChatDraft();fState.dados={};_fCelular=()=>true;
+ await fStartChatComMaterial(mat);assert(fState._pendingDraft.dados.foto===photo,'mobile oferece src idb bruto');
+});
+await test('falha na foto mantém rascunho anterior e avisa',async()=>{
+ reset();localStorage.setItem(key(),'rascunho-anterior');const old=gIdbPut;gIdbPut=()=>Promise.resolve(false);
+ try{assert(!(await fSaveChatDraft()),'falha anunciou sucesso');assert(localStorage.getItem(key())==='rascunho-anterior','falha sobrescreveu rascunho');assert(messages.length,'falha ficou silenciosa');}
+ finally{gIdbPut=old;}
+});
+await test('quota de metadados mantém rascunho anterior',async()=>{
+ reset();localStorage.setItem(key(),'rascunho-anterior');const old=Storage.prototype.setItem;
+ Storage.prototype.setItem=function(k,v){if(k===key())throw new DOMException('quota','QuotaExceededError');return old.call(this,k,v);};
+ try{assert(!(await fSaveChatDraft()),'quota anunciou sucesso');assert(localStorage.getItem(key())==='rascunho-anterior','quota descartou save antigo');assert(messages.length,'quota ficou silenciosa');}
+ finally{Storage.prototype.setItem=old;}
+});
+await test('save atrasado não ressuscita rascunho limpo',async()=>{
+ reset();let finish;const old=gIdbPut;gIdbPut=()=>new Promise(r=>finish=r);
+ try{const pending=fSaveChatDraft();fClearChatDraft();finish(true);assert(!(await pending),'save descartado voltou');assert(localStorage.getItem(key())===null,'clear foi desfeito pelo await');}
+ finally{gIdbPut=old;}
+});
+await test('save atrasado não atravessa troca de conta',async()=>{
+ reset();const oldKey=key();let finish;const old=gIdbPut;gIdbPut=()=>new Promise(r=>finish=r);
+ try{const pending=fSaveChatDraft();owner='draft-b';finish(true);assert(!(await pending),'save atravessou conta');assert(!localStorage.getItem(oldKey)&&!localStorage.getItem(key()),'draft apareceu em uma das contas');}
+ finally{gIdbPut=old;}
+});
+await test('save mais recente vence o anterior pendente',async()=>{
+ reset();let finish;const old=gIdbPut;gIdbPut=()=>new Promise(r=>finish=r);
+ try{const pending=fSaveChatDraft();fState.dados={produto:'Oferta nova'};assert(fSaveChatDraft(),'save de texto não é imediato');finish(true);assert(!(await pending),'save velho venceu');assert(JSON.parse(localStorage.getItem(key())).dados.produto==='Oferta nova','save velho repôs foto/texto');}
+ finally{gIdbPut=old;}
+});
+await test('hidratação tardia não entra na próxima conversa',async()=>{
+ reset();localStorage.setItem(key(),JSON.stringify({campId:'draft-c',materialId:mat.id,dados:{produto:'Velho',foto:'idb://lento'}}));
+ let finish;const old=gResolveImgUrl;gResolveImgUrl=()=>new Promise(r=>finish=r);_fCelular=()=>false;
+ try{const pending=fStartChatComMaterial(mat);fChatNovaConversa();fState.material={id:'outro'};finish(photo);await pending;assert(!fState._pendingDraft,'draft velho entrou no material novo');}
+ finally{gResolveImgUrl=old;}
+});
+await test('foto ausente recupera texto e pede reenvio sem src quebrado',async()=>{
+ reset();const draft=await _fChatDraftHydrate({dados:{produto:'Pizza',foto:'idb://nao-existe'}});
+ assert(draft.dados.produto==='Pizza'&&!draft.dados.foto,'perdeu texto ou preservou referência inválida');assert(messages.length,'não avisou que foto falta');
+});
+clearTimeout(fNextTimeout);fClearChatDraft();
+window.__lumaTest={passed:total-failures.length,total,failures};document.title=(failures.length?'FALHOU':'OK')+' — Chat draft';
+})();
+</script></body></html>

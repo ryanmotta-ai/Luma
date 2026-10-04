@@ -267,7 +267,7 @@ await test('iOS 4: Botão "Respostas" abre lista no sheet e permite editar campo
   if(document.getElementById('prestart-msg')) fSkipPreStart();
   
   // Preenche dados
-  fState.dados['foto_produto'] = 'data:image/png;base64,x';
+  fState.dados['foto_produto'] = document.createElement('canvas').toDataURL('image/png');
   fConfirmarImagem('foto_produto');
   await esperaCondicao(()=>fState.stepIdx === 1);
   document.getElementById('f-msg-box').value = 'Pizza Pepperoni iOS';
@@ -322,7 +322,7 @@ await test('iOS 5: Download via folha nativa (navigator.share) no Safari iOS', a
   await fSelectMaterial('tmpl-ios-1');
   if(document.getElementById('prestart-msg')) fSkipPreStart();
   
-  fState.dados['foto_produto'] = 'data:image/png;base64,x'; fConfirmarImagem('foto_produto');
+  fState.dados['foto_produto'] = document.createElement('canvas').toDataURL('image/png'); fConfirmarImagem('foto_produto');
   await esperaCondicao(()=>fState.stepIdx === 1);
   document.getElementById('f-msg-box').value = 'Share iOS Teste'; fSend();
   await esperaCondicao(()=>fState.stepIdx === 2);
@@ -358,7 +358,7 @@ await test('iOS 6: Fallback automático de download quando o share é recusado',
   await fSelectMaterial('tmpl-ios-1');
   if(document.getElementById('prestart-msg')) fSkipPreStart();
   
-  fState.dados['foto_produto'] = 'data:image/png;base64,x'; fConfirmarImagem('foto_produto');
+  fState.dados['foto_produto'] = document.createElement('canvas').toDataURL('image/png'); fConfirmarImagem('foto_produto');
   await esperaCondicao(()=>fState.stepIdx === 1);
   document.getElementById('f-msg-box').value = 'Fallback iOS Teste'; fSend();
   await esperaCondicao(()=>fState.stepIdx === 2);
@@ -412,7 +412,7 @@ await test('iOS 8: "Começar do zero" no mobile reinicia dados limpos sem vazar 
   // 1ª arte
   fSelectCamp('camp-ios-1');
   await fSelectMaterial('tmpl-ios-1');
-  fState.dados['foto_produto'] = 'data:image/png;base64,x'; fConfirmarImagem('foto_produto');
+  fState.dados['foto_produto'] = document.createElement('canvas').toDataURL('image/png'); fConfirmarImagem('foto_produto');
   await esperaCondicao(()=>fState.stepIdx === 1);
   document.getElementById('f-msg-box').value = 'Item 1'; fSend();
   await esperaCondicao(()=>fState.stepIdx === 2);
@@ -455,7 +455,7 @@ await test('iOS 9: 10 Ciclos completos consecutivos no iPhone sem degradação',
     
     // Passo 0 (Foto)
     await esperaCondicao(()=>fState.stepIdx === 0);
-    fState.dados['foto_produto'] = 'data:image/png;base64,x';
+    fState.dados['foto_produto'] = document.createElement('canvas').toDataURL('image/png');
     fConfirmarImagem('foto_produto');
     
     // Passo 1 (Produto)

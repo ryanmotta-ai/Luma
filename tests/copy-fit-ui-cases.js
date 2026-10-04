@@ -221,6 +221,9 @@ await test('Trocar de material invalida a sugestão (a chave é da ARTE, não do
   assert(fLpBalaoSolucao(),'pré-condição: solução na arte A');
   // Arte B com a caixa do produto estreita: lá nem a versão curta cabe.
   fState.material=material('mat-b',300);   // 300 desde 26/09/2026: em 420 a versão curta cabia alargando (+50%)
+  // Esta arte tem limite autorado rígido. O envelope livre atual faria a
+  // versão curta caber, o que não exercitaria invalidação de sugestão.
+  fState.material.layers.find(l=>l.id==='produto').fitRegion={maxW:300,maxH:110};
   assert(!fLpBalaoSolucao(),'o material trocou (ainda sem render) e a solução da arte A seguiu valendo');
   await render();
   assert(_lpLayoutResult.invalid,'pré-condição: bloqueia na arte B');

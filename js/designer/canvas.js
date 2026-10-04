@@ -35,6 +35,8 @@ async function dSetFormat(fmt,btn){
       gToast('Elementos adaptados para '+fmt.toUpperCase()+' — ajuste o que precisar');
     }
   }
+  // Trocar o formato sem adaptar camadas também é uma alteração da arte.
+  dHistoryPush();
   dApplyFormat();dRenderCanvas();dRenderLayersList();dMarkUnsaved();
   if(typeof dRenderWorkspace==='function')dRenderWorkspace();
 }

@@ -4181,7 +4181,11 @@ async function fLpDesignSave(){
     }
     return true;
   }catch(e){gToast(e.message,'error');return false;}
-  finally{draft.saving=false;_fLpDesignSync();}
+  finally{
+    draft.saving=false;_fLpDesignSync();
+    // Falha mantém a edição aberta, inclusive o painel de propriedades fechado no envio.
+    if(_fLpDesignDraft===draft&&_fLpDesignActive()&&draft.selected)_fLpDesignEditor(draft.selected,{});
+  }
 }
 
 // ── Clique no canvas ──

@@ -1,0 +1,43 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Luma — gravação e publicação confirmadas</title>
+<body><h1>Estúdio: rascunho e publicação</h1><ol id="results"></ol><div id="d-save-indicator"></div><div id="d-save-indicator2"></div><div id="g-toast-container"></div>
+<div id="d-publish-modal"><button class="pub-btn-confirm"></button></div><select id="pub-folder"><option value="folder">Campanha</option></select><input id="pub-validade"><textarea id="pub-instrucoes"></textarea>
+<script src="../js/00-config.js"></script><script src="../js/designer/templates.js"></script><script src="../js/designer/layers.js"></script><script src="../js/designer/publish.js"></script>
+<script>
+let notices=[],writes=[],uploads=[],remote={},mode='',success=0,errors=0,total=0,failures=[];
+dLayers=[];dActiveABId='ab-single';dFmt='story';dCanvasBg='';dCustomFmt=null;dSelId=null;dZoomLevel=100;dTool='select';
+var gImgPersistWarned=false;dArtboards=[];
+let userId='designer-a';function gCurrentUser(){return {id:userId};}
+function gToast(s){notices.push(s);}function gIsAdmin(){return true;}function gSupabase(){return fake;}function gHasBackend(){return true;}
+function gPackImgUrl(url){return {url,dropped:false};}function gPackMask(url){return {url,dropped:false};}
+function dPersistArtboards(){return true;}function dSyncLayersToAB(){dArtboards[0].layers=JSON.parse(JSON.stringify(dLayers));}
+function dGetActiveAB(){return dArtboards[0];}function dRenderFolders(){}function dRenderPagesTray(){}function dRenderWorkspace(){}function dRenderCanvas(){}function dApplyFormat(){}function dHistoryReset(){}function dDeckRememberView(){}function dDeselect(){}
+function dPublishValidateStep(){return true;}function dPublishUpdateFooter(){}function dPublishShowError(){errors++;}function dPublishShowSuccess(){success++;}function _dPubFindTmpl(){return {tmpl:dFolders[0].templates[0]};}
+const fake={schema(){return {from(table){let op='select',payload=null,filters={};const q={select(){return q;},eq(k,v){filters[k]=v;return q;},maybeSingle(){return Promise.resolve({data:remote[filters.id]?{id:filters.id}:null,error:null});},upsert(p){op='upsert';payload=p;return q;},update(p){op='update';payload=p;return q;},insert(p){op='insert';payload=p;return q;},then(ok,bad){return Promise.resolve().then(()=>{
+if(table==='pastas')return {error:null};
+if(op==='select')return {data:null,error:null};
+writes.push({op,payload:JSON.parse(JSON.stringify(payload)),filters:{...filters}});
+if(mode==='error')return {data:null,error:{message:'offline'}};
+if(op==='update'&&remote[payload.id]?.updated_at!==filters.updated_at)return {data:[],error:null};
+if(op==='insert'&&remote[payload.id])return {data:null,error:{message:'duplicate'}};
+remote[payload.id]={...payload,updated_at:'stamp-'+writes.length,versao_atual_id:'version-'+writes.length};return {data:[remote[payload.id]],error:null};
+}).then(ok,bad);}};return q;}};},storage:{from(){return {upload(path,blob,options){uploads.push({path,options});return Promise.resolve({error:null});},getPublicUrl(path){return {data:{publicUrl:'https://assets.test/'+path}};}};}}};
+function fixture(published=false){userId='designer-a';clearTimeout(_dFoldersPushTimer);_dFoldersPushTimer=null;notices=[];writes=[];uploads=[];mode='';success=0;errors=0;remote={};
+const a=_dRowToTemplate({id:'a',nome:'A',fmt:'story',layers:[{id:'text',type:'text',content:'Original'}],updated_at:'stamp-original',publicado:published});
+const b=_dRowToTemplate({id:'b',nome:'B',fmt:'story',layers:[{id:'text',type:'text',content:'B original'}],updated_at:'stamp-original',publicado:false});
+dFolders=[{id:'folder',remoteId:'folder',name:'Campanha',templates:[a,b]}];remote.a={updated_at:'stamp-original'};remote.b={updated_at:'stamp-original'};dActiveTmplId='a';dLayers=JSON.parse(JSON.stringify(a.layers));dArtboards=[{id:'ab-single',name:'A',tmplId:'a',fmt:'story',w:1080,h:1920,layers:dLayers}];dPubSelectedABs=new Set(['ab-single']);dPubPermissoes={};dDirty=false;return a;}
+function assert(v,s){if(!v)throw Error(s);}async function test(name,fn){total++;const li=document.createElement('li');try{await fn();li.textContent='✓ '+name;}catch(e){li.textContent='✗ '+name+': '+e.message;failures.push({name,error:e.stack});}document.getElementById('results').appendChild(li);clearTimeout(_dFoldersPushTimer);_dFoldersPushTimer=null;}
+(async()=>{
+await test('Salvar B não reenvia A antigo',async()=>{fixture();dActiveTmplId='b';dLayers=[{id:'text',type:'text',content:'B novo'}];dSave({silent:true});clearTimeout(_dFoldersPushTimer);await _dPushFoldersNow();assert(writes.length===1&&writes[0].payload.id==='b','reenviou material alheio');});
+await test('CAS recusa conflito sem sobrescrever',async()=>{const t=fixture();t._syncPending=true;t.layers[0].content='Local';remote.a.updated_at='outro-aparelho';await _dPushFoldersNow();assert(t._syncPending&&t.layers[0].content==='Local'&&remote.a.updated_at==='outro-aparelho','conflito perdeu trabalho');assert(writes[0].filters.updated_at==='stamp-original','aceitou carimbo novo');});
+await test('Salvar publicado preserva snapshot público e reabre rascunho',async()=>{const t=fixture(true);dLayers[0].content='Rascunho';dSave({silent:true});clearTimeout(_dFoldersPushTimer);await _dPushFoldersNow();assert(t.layers[0].content==='Original'&&t._draft.layers[0].content==='Rascunho'&&writes.length===0,'salvar publicou');await dLoadTemplate(t,dFolders[0]);assert(dLayers[0].content==='Rascunho'&&t.layers[0].content==='Original','não reabriu rascunho');});
+await test('Outro designer não abre nem envia rascunho privado',async()=>{const t=fixture(true);dLayers[0].content='Privado A';dSave({silent:true});clearTimeout(_dFoldersPushTimer);userId='designer-b';await dLoadTemplate(t,dFolders[0]);await _dPushFoldersNow();assert(dLayers[0].content==='Original'&&writes.length===0,'rascunho A vazou para B');});
+await test('Salvar B preserva rascunho A para sua próxima sessão',async()=>{const t=fixture(true);dLayers[0].content='Rascunho A';dSave({silent:true});userId='designer-b';await dLoadTemplate(t,dFolders[0]);dLayers[0].content='Rascunho B';dSave({silent:true});userId='designer-a';await dLoadTemplate(t,dFolders[0]);assert(dLayers[0].content==='Rascunho A'&&t.layers[0].content==='Original','save B perdeu draft A');userId='designer-b';await dLoadTemplate(t,dFolders[0]);assert(dLayers[0].content==='Rascunho B','save perdeu draft B');});
+await test('Outro designer não republica pending da conta anterior',async()=>{const t=fixture(true);dLayers[0].content='Privado A';mode='error';await dPublishConfirm();writes=[];userId='designer-b';mode='';await _dPushFoldersNow();assert(writes.length===0&&t._publishPending,'publicou pending da conta A');});
+await test('Falha remota nunca anuncia publicação',async()=>{const t=fixture(true);dLayers[0].content='Novo';mode='error';await dPublishConfirm();assert(success===0&&errors===1&&t.layers[0].content==='Original'&&t._publishPending.layers[0].content==='Novo','publicação falsa/perdeu rascunho');});
+await test('Salvar rascunho cancela republicação ainda não confirmada',async()=>{const t=fixture(true);dLayers[0].content='Novo';mode='error';await dPublishConfirm();dLayers[0].content='Apenas rascunho';dSave({silent:true});clearTimeout(_dFoldersPushTimer);mode='';writes=[];await _dPushFoldersNow();assert(!t._publishPending&&t._draft.layers[0].content==='Apenas rascunho'&&writes.length===0,'save republicou versão pendente');});
+await test('Servidor sem linha confirmada não anuncia sucesso',async()=>{const t=fixture(true);remote.a.updated_at='concorrente';dLayers[0].content='Local';await dPublishConfirm();assert(!success&&errors===1&&t._publishPending&&t.layers[0].content==='Original','zero linhas foi tratado como sucesso');});
+await test('Publicação só promove snapshot após confirmação',async()=>{const t=fixture(true);dLayers[0].content='Novo';await dPublishConfirm();assert(success===1&&t.layers[0].content==='Novo'&&!t._publishPending&&t.versaoAtualId==='version-1','snapshot não confirmado');});
+await test('Upload novo nunca substitui URL de versão antiga',async()=>{fixture();const data='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aDWkAAAAASUVORK5CYII=';const a=await _dUploadDataUrl('luma-template-assets','a/text',data);const b=await _dUploadDataUrl('luma-template-assets','a/text',data);assert(a!==b&&uploads.every(x=>x.options.upsert===false),'substituiu arquivo antigo');});
+window.__lumaTest={total,passed:total-failures.length,failures};
+})().catch(e=>window.__lumaTest={total:1,passed:0,failures:[{name:'bancada',error:e.stack}]});
+</script></body></html>

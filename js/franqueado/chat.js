@@ -100,7 +100,7 @@ function _fChatBindTeclado(){
   if(box && !box._fChatFocusBound){ box._fChatFocusBound = true; box.addEventListener('focus', ()=>setTimeout(fim, 250)); }
 }
 
-function fStartChatComMaterial(material){
+async function fStartChatComMaterial(material){
   fChatNovaConversa();   // passos agendados da conversa anterior não entram nesta
   /* A escuta é neutra enquanto a largura não cruza o breakpoint; ligada também no início
      mobile, impede que um resize posterior deixe timeline e layout desktop misturados. */
@@ -125,7 +125,7 @@ function fStartChatComMaterial(material){
   // Verifica se há rascunho salvo para esta combinação de campanha e material
   let draft = null;
   try {
-    const saved = localStorage.getItem('luma_chat_draft');
+    const saved = localStorage.getItem(fUserCacheKey('luma_chat_draft'));
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed && parsed.materialId === material.id && parsed.campId === fState.camp.id) {
@@ -133,6 +133,12 @@ function fStartChatComMaterial(material){
       }
     }
   } catch(e){}
+
+  if(_fChatDraftHasRefs(draft)){
+    const gen=_fChatGen,key=fUserCacheKey('luma_chat_draft');
+    draft=await _fChatDraftHydrate(draft);
+    if(gen!==_fChatGen||key!==fUserCacheKey('luma_chat_draft'))return;
+  }
 
   if (draft && Object.keys(draft.dados).length > 0) {
     fState.stepIdx = -1;
@@ -710,7 +716,7 @@ function _fGuidedUseLastArte(h){
   const n=_fGuidedPreenchidas(), falta=_fGuidedPerguntas().length-n;
   _fGuidedDecisao(`<div class="fg-kicker">Informações reaproveitadas</div><h2>Usamos sua última arte</h2><p><strong>${n}</strong> ${n===1?'informação foi recuperada':'informações foram recuperadas'}.${falta?` Ainda ${falta===1?'falta uma decisão':'faltam '+falta+' decisões'}.`:' Já temos tudo para gerar.'}</p><div class="fg-decision-actions"><button type="button" class="fg-primary" onclick="_fGuidedAbrirProximo(0)">Continuar</button></div>`);
 }
-function _fGuidedStartComMaterial(material){
+async function _fGuidedStartComMaterial(material){
   _fGuidedNav.active=true; _fGuidedNav.currentField=null; _fGuidedNav.returnTarget=null; _fGuidedNav.mode='guided';
   _fRevisando=false;
   try{ document.body.classList.add('f-mobile-chat'); }catch(e){} // deixa resize desktop→mobile coerente
@@ -720,9 +726,14 @@ function _fGuidedStartComMaterial(material){
   try{ const c=document.getElementById('f-chat-art'); if(c)c.remove(); fAttachInputGuard(); _fGuidedBind(); }catch(e){}
   let draft=null;
   try{
-    const saved=localStorage.getItem('luma_chat_draft'), parsed=saved?JSON.parse(saved):null;
+    const saved=localStorage.getItem(fUserCacheKey('luma_chat_draft')), parsed=saved?JSON.parse(saved):null;
     if(parsed&&parsed.materialId===material.id&&parsed.campId===fState.camp.id&&Object.keys(parsed.dados||{}).length) draft=parsed;
   }catch(e){}
+  if(_fChatDraftHasRefs(draft)){
+    const gen=_fChatGen,key=fUserCacheKey('luma_chat_draft');
+    draft=await _fChatDraftHydrate(draft);
+    if(gen!==_fChatGen||key!==fUserCacheKey('luma_chat_draft'))return;
+  }
   fLpRefresh(); fUpdateProg();
   if(draft){ _fGuidedDraftDecision(draft,material); return; }
   fMaterialPreStart(material);
@@ -2367,18 +2378,18 @@ function fCidadeAtual(){
   // A franquia vinculada (core/franquia.js) é a cidade certa; o resto é palpite.
   try{ const fr = (typeof gMinhaFranquia === 'function') ? gMinhaFranquia() : null; if(fr && fr.cidade) return fr.cidade; }catch(e){}
   try{ c = (fState && fState.dados && fState.dados.cidade) || ''; }catch(e){}
-  try{ c = c || localStorage.getItem('luma_bulk_city') || localStorage.getItem(F_CIDADE_KEY) || ''; }catch(e){}
+  try{ c = c || localStorage.getItem(fUserCacheKey('luma_bulk_city')) || localStorage.getItem(fUserCacheKey(F_CIDADE_KEY)) || ''; }catch(e){}
   c = String(c || '').trim();
   // Lembra pra próxima sessão quando a cidade veio da arte — a cobertura cresce com o uso,
   // sem inventar uma tela de cadastro pra um dado que mora no Portal.
-  if(c){ try{ localStorage.setItem(F_CIDADE_KEY, c); }catch(e){} }
+  if(c){ try{ localStorage.setItem(fUserCacheKey(F_CIDADE_KEY), c); }catch(e){} }
   return c;
 }
 const _fGiriaChave = (c) => String(c||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 
 function fGiriasCache(cidade){
   try{
-    const g = JSON.parse(localStorage.getItem(F_GIRIAS_KEY) || 'null');
+    const g = JSON.parse(localStorage.getItem(fUserCacheKey(F_GIRIAS_KEY)) || 'null');
     if(!g || !Array.isArray(g.termos)) return null;
     if(_fGiriaChave(g.cidade) !== _fGiriaChave(cidade)) return null;         // outra cidade
     if(Date.now() - (g.ts||0) > F_GIRIAS_DIAS*864e5) return null;            // venceu
@@ -2397,7 +2408,7 @@ async function fGiriasDaCidade(cidade){
   const cache = fGiriasCache(cidade);
   if(cache) return cache;
   const termos = await _fGiriasPesquisar(cidade);
-  try{ localStorage.setItem(F_GIRIAS_KEY, JSON.stringify({cidade, ts:Date.now(), termos})); }catch(e){}
+  try{ localStorage.setItem(fUserCacheKey(F_GIRIAS_KEY), JSON.stringify({cidade, ts:Date.now(), termos})); }catch(e){}
   return termos;
 }
 
@@ -2456,7 +2467,7 @@ async function _fGiriasDaFranquia(fr){
   let linhas = await _fGiriasFrLer(fr);
   if(!linhas) return [];
   const minhas = linhas.filter(l => l.franquia_id === fr.id);
-  let pedido = {}; try{ pedido = JSON.parse(localStorage.getItem(F_GIRIAS_FR_PEDIDO) || '{}') || {}; }catch(e){}
+  let pedido = {}; try{ pedido = JSON.parse(localStorage.getItem(fUserCacheKey(F_GIRIAS_FR_PEDIDO)) || '{}') || {}; }catch(e){}
   if(!minhas.length && !(Date.now() - (pedido[fr.id] || 0) < F_GIRIAS_DIAS * 864e5)){
     const termos = (await _fGiriasPesquisar(fr.cidade || fr.nome)).filter(t => !_fGiriaVetada(linhas, t.termo));
     if(termos.length){
@@ -2467,7 +2478,7 @@ async function _fGiriasDaFranquia(fr){
       linhas = (await _fGiriasFrLer(fr, true)) || linhas;
     }
     // `[]` também é resposta guardada: cidade que o modelo não conhece não vira chamada por legenda.
-    pedido[fr.id] = Date.now(); try{ localStorage.setItem(F_GIRIAS_FR_PEDIDO, JSON.stringify(pedido)); }catch(e){}
+    pedido[fr.id] = Date.now(); try{ localStorage.setItem(fUserCacheKey(F_GIRIAS_FR_PEDIDO), JSON.stringify(pedido)); }catch(e){}
   }
   return linhas.filter(l => l.franquia_id === fr.id && l.status === 'aprovada' && !_fGiriaVetada(linhas, l.termo))
     .map(l => ({ termo: l.termo, significado: l.significado || '' }));
@@ -3229,7 +3240,7 @@ async function fBaixar(btn, snapId){
   }catch(e){
     console.warn('Falha ao gerar PNG:', e);
     if(typeof gHandleLayoutUnsafeError==='function'&&gHandleLayoutUnsafeError(e))return;
-    gToast('Não consegui gerar o arquivo. Tente enviar a foto de novo pelo botão de upload, ou escolha outra imagem.','error','ajuda-upload');
+    gToast(e&&e.code==='LUMA_IMAGE_UNAVAILABLE'?e.message:'Não consegui gerar o arquivo. Tente enviar a foto de novo pelo botão de upload, ou escolha outra imagem.','error','ajuda-upload');
   }finally{ fState.material=prevMat; restore(); }
 }
 /* ══ CONTROLE E CONFIANÇA — o desfazer de UMA ação do franqueado ═══════════════════════════
@@ -3332,7 +3343,7 @@ function _fSnapshotArte(){
     mensagens: (document.getElementById('f-messages')||{}).innerHTML || '',
     snapshots: Object.assign({}, _fArtSnapshots),
     captions: Object.assign({}, _fArtCaptions),
-    draft: (()=>{ try{ return localStorage.getItem('luma_chat_draft'); }catch(e){ return null; } })()
+    draft: (()=>{ try{ return localStorage.getItem(fUserCacheKey('luma_chat_draft')); }catch(e){ return null; } })()
   };
 }
 
@@ -3352,8 +3363,8 @@ function _fRestauraArte(s){
   const msgs = document.getElementById('f-messages');
   if(msgs) msgs.innerHTML = s.mensagens;
   try{
-    if(s.draft == null) localStorage.removeItem('luma_chat_draft');
-    else localStorage.setItem('luma_chat_draft', s.draft);
+    if(s.draft == null) localStorage.removeItem(fUserCacheKey('luma_chat_draft'));
+    else localStorage.setItem(fUserCacheKey('luma_chat_draft'), s.draft);
   }catch(e){}
   clearTimeout(fNextTimeout);            // o reset agendou o passo 1; ele não pode chegar depois
   try{ fUpdateProg(); }catch(e){}
@@ -3666,6 +3677,24 @@ function fMsgAutoGrow(box){
   box.classList.toggle('is-multi', !!box.value && box.scrollHeight>umaLinha+2);
 }
 
+let _fChatDraftSaveSeq=0;
+function _fChatDraftHasRefs(draft){
+  return !!(draft&&Object.values(draft.dados||{}).some(v=>typeof v==='string'&&v.startsWith('idb://')));
+}
+async function _fChatDraftHydrate(draft){
+  const gen=_fChatGen,key=fUserCacheKey('luma_chat_draft');
+  const dados=Object.assign({},draft.dados||{}),missing=[];
+  await Promise.all(Object.keys(dados).map(async k=>{
+    const ref=dados[k];
+    if(typeof ref!=='string'||!ref.startsWith('idb://'))return;
+    const real=typeof gResolveImgUrl==='function'?await gResolveImgUrl(ref):null;
+    if(real)dados[k]=real;else{delete dados[k];missing.push(k);}
+  }));
+  // Nunca deixe idb:// chegar ao <img> do chat. As respostas de texto sobrevivem.
+  if(missing.length&&gen===_fChatGen&&key===fUserCacheKey('luma_chat_draft')&&typeof gToast==='function')gToast('Uma foto do rascunho não está mais neste aparelho. Envie essa foto novamente.','error');
+  return Object.assign({},draft,{dados});
+}
+
 function fSaveChatDraft() {
   /* ⚠ GUARDA CONTRA CONTAMINAÇÃO (03/09). Quando o Luma Sheets toma emprestado o painel
      de prévia ao vivo, o `fState.dados` passa a APONTAR para a linha ativa da planilha —
@@ -3683,28 +3712,51 @@ function fSaveChatDraft() {
     try { if (typeof fBulkRenderPreview === 'function') fBulkRenderPreview(); } catch (e) {}
     return;
   }
+  const seq=++_fChatDraftSaveSeq,gen=_fChatGen,key=fUserCacheKey('luma_chat_draft');
+  const current=()=>seq===_fChatDraftSaveSeq&&gen===_fChatGen&&key===fUserCacheKey('luma_chat_draft');
+  const failed=e=>{
+    console.warn('[Luma Draft] Erro ao salvar rascunho:',e);
+    if(current()&&typeof gToast==='function')gToast('Não consegui guardar o rascunho neste aparelho. Mantenha esta tela aberta e libere espaço antes de sair.','error');
+    return false;
+  };
   try {
     if (!fState.camp || fState.done) {
-      localStorage.removeItem('luma_chat_draft');
+      try{localStorage.removeItem(key);}catch(e){return failed(e);}
       return;
     }
-    const draft = {
+    const draft = JSON.parse(JSON.stringify({
       campId: fState.camp.id,
       fmtId: fState.fmt ? fState.fmt.id : null,
       materialId: fState.material ? fState.material.id : null,
       stepIdx: fState.stepIdx,
       dados: fState.dados || {},
       extractedColors: fState.extractedColors || {}
+    }));
+    const photos=Object.keys(draft.dados).filter(k=>{
+      const v=draft.dados[k];return typeof v==='string'&&v.startsWith('data:image')&&v.length*0.75>G_IMG_KEEP_MAX;
+    });
+    const commit=()=>{
+      if(!current())return false;
+      try{localStorage.setItem(key,JSON.stringify(draft));return true;}catch(e){return failed(e);}
     };
-    localStorage.setItem('luma_chat_draft', JSON.stringify(draft));
+    if(!photos.length)return commit();
+    // Capture bytes/owner/geração antes do await: um save tardio não ressuscita
+    // o rascunho descartado nem atravessa a troca de conta ou de conversa.
+    return Promise.all(photos.map(async k=>{
+      if(typeof gIdbPut!=='function'||typeof gImgHash!=='function')throw new Error('armazenamento de fotos indisponível');
+      const photoKey='draft:'+key+':'+gImgHash(draft.dados[k]);
+      if(!(await gIdbPut(photoKey,draft.dados[k])))throw new Error('foto não foi guardada');
+      draft.dados[k]='idb://'+photoKey;
+    })).then(commit).catch(failed);
   } catch (e) {
-    console.warn('[Luma Draft] Erro ao salvar rascunho:', e);
+    return failed(e);
   }
 }
 
 function fClearChatDraft() {
+  _fChatDraftSaveSeq++;
   try {
-    localStorage.removeItem('luma_chat_draft');
+    localStorage.removeItem(fUserCacheKey('luma_chat_draft'));
   } catch (e) {}
 }
 

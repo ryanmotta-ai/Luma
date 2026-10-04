@@ -339,8 +339,8 @@ function gGradientSvg(g, id){
   const a=(g.angle!=null?g.angle:90)*Math.PI/180;
   return `<linearGradient id="${id}" x1="${(0.5-Math.cos(a)/2).toFixed(4)}" y1="${(0.5-Math.sin(a)/2).toFixed(4)}" x2="${(0.5+Math.cos(a)/2).toFixed(4)}" y2="${(0.5+Math.sin(a)/2).toFixed(4)}">${stops}</linearGradient>`;
 }
-// Empacota um imgUrl para persistência: mantém data URLs PEQUENAS (sobrevivem ao reload)
-// e descarta as grandes pra não estourar a quota → '__local__' (com aviso). (Robustez PSD/quota)
+// DataURL grande só vira referência curta após confirmação IndexedDB. Enquanto
+// pendente/indisponível, preserva bytes e deixa o caller reportar eventual quota.
 const G_IMG_KEEP_MAX = 70 * 1024; // ~70KB de bytes aproximados
 function gPackImgUrl(url){
   if(!url || typeof url!=='string' || !url.startsWith('data:')) return {url:url, dropped:false};
@@ -352,21 +352,23 @@ function gPackImgUrl(url){
   if(typeof gImgHash==='function' && typeof gIdbPut==='function' && typeof indexedDB!=='undefined'){
     try{
       const key = gImgHash(url);
-      gIdbPut(key, url); // fire-and-forget: a cópia em memória segue com o dataURL real
-      return {url:'idb://'+key, dropped:false};
+      const stored=typeof gImgStoredRef==='function'?gImgStoredRef(url):null;
+      if(stored) return {url:stored,dropped:false};
+      gIdbPut(key, url);
     }catch(e){ /* cai no fallback abaixo */ }
   }
-  return {url:'__local__', dropped:true};
+  // Enquanto o commit não chegou (ou falhou), preserve os bytes. Se a quota local
+  // não comportar o save, o caller recusa a gravação e mantém o último estado salvo.
+  return {url:url, dropped:false};
 }
 // Empacota uma MÁSCARA (dataURL alpha) para persistência. Máscaras são downscaladas no
 // import do PSD, mas máscaras pintadas à mão (mask.js) podem ser grandes. Diferente de
-// imgUrl: NÃO há placeholder '__local__' p/ máscara — se não couber, retorna url:null e o
-// caller remove o campo (camada volta sem máscara), em vez de gravar uma referência quebrada.
+// imgUrl: a máscara preserva bytes até o commit, sem perder o recorte no reload.
 const G_MASK_KEEP_MAX = 120 * 1024; // alpha PNG comprime bem; teto um pouco maior que imagem
 function gPackMask(url){
   if(!url || typeof url!=='string' || !url.startsWith('data:')) return {url:url, dropped:false};
   if(url.length * 0.75 <= G_MASK_KEEP_MAX) return {url:url, dropped:false};
-  return {url:null, dropped:true};
+  return gPackImgUrl(url);
 }
 // UUID v4 válido — sempre, em qualquer contexto. crypto.randomUUID só existe em
 // contexto seguro (https/localhost); em file:// ou IP de LAN ele é undefined, e um id
@@ -2536,7 +2538,10 @@ function _gSmartWrapCalc(text, maxW, layer) {
     }
     return rest.join('');
   };
-  words.forEach(word => {
+  // No fallback com uma palavra longa, colar preposições ao próximo
+  // token criava linhas extras antes da hifenização ("com 6" separado).
+  // As unidades de preço/medida continuam indivisíveis quando cabem.
+  _unidades.forEach(word => {
     const next = current ? current + ' ' + word : word;
     if (current && measure(next) > availableW) {
       wrapped.push(current);
