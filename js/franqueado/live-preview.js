@@ -3880,18 +3880,29 @@ let _fLpDesignOpening=false;
 let _fLpDesignUnstored={};
 function _fLpDesignOwner(){return fUserCacheKey('luma_mini_editor');}
 function _fLpDesignCacheKey(d){return d.owner+':'+encodeURIComponent(d.remoteId);}
+function _fLpDesignStatus(d){
+  const el=document.getElementById('lp-design-status');
+  if(!el||d!==_fLpDesignDraft)return;
+  const changed=JSON.stringify(d.layers)!==d.base;
+  let stored=false;
+  try{stored=JSON.stringify(JSON.parse(localStorage.getItem(_fLpDesignCacheKey(d))||'null')?.layers)===JSON.stringify(d.layers);}catch(e){}
+  const unguarded=!!d.cacheWarning||(changed&&!stored);
+  el.textContent=unguarded?'Não guardado · mantenha esta página aberta':changed?'Rascunho guardado neste navegador':'Sem alterações';
+  el.classList.toggle('lp-design-status-error',unguarded);
+}
 function _fLpDesignStore(d){
   if(!d)return false;
   const key=_fLpDesignCacheKey(d);
   try{
     const layers=JSON.stringify(d.layers);
-    if(layers===d.base){localStorage.removeItem(key);delete _fLpDesignUnstored[key];return true;}
+    if(layers===d.base){localStorage.removeItem(key);delete _fLpDesignUnstored[key];d.cacheWarning=false;_fLpDesignStatus(d);return true;}
     const value=JSON.stringify({owner:d.owner,remoteId:d.remoteId,stamp:d.stamp,base:d.base,layers:d.layers,selected:d.selected});
     // O snapshot de undo agrupa teclas; a recuperação precisa guardar TODAS as teclas.
     _fLpDesignUnstored[key]=value;
-    localStorage.setItem(key,value);delete _fLpDesignUnstored[key];d.cacheWarning=false;return true;
+    localStorage.setItem(key,value);delete _fLpDesignUnstored[key];d.cacheWarning=false;_fLpDesignStatus(d);return true;
   }catch(e){
     if(!d.cacheWarning){gToast('Não consegui guardar os ajustes neste navegador. Publique antes de fechar a página.','error');d.cacheWarning=true;}
+    _fLpDesignStatus(d);
     return false;
   }
 }
@@ -3962,6 +3973,7 @@ function _fLpDesignSync(){
     else if(b.id!=='lp-design-undo'&&b.id!=='lp-design-redo')b.disabled=false;
   });
   if(panel)panel.classList.toggle('lp-design-original',original);
+  if(active)_fLpDesignStatus(_fLpDesignDraft);
 }
 async function fLpDesignStart(){
   if(!_fLpDesignAllowed()||_fLpDesignOpening||_fLpDesignDraft) return;
@@ -4129,24 +4141,33 @@ function _fLpDesignKey(ev){
 function _fLpDesignEditor(id,ev){
   if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal) return;
   const l=_fLpDesignDraft.layers.find(x=>x.id===id&&x.type==='text');if(!l) return;
+  const host=document.getElementById('lp-design-properties');if(!host)return;
+  const scroll=host.scrollTop,draft=_fLpDesignDraft,folds=draft.panelFolds||{};
+  host.querySelectorAll('details[data-section]').forEach(el=>{folds[el.dataset.section]=el.open;});
+  draft.panelFolds=folds;
   if(document.activeElement?.closest('#lp-edit-pop')) document.activeElement.blur();
   _fLpCloseEditor();_fLpHideHover();_fLpDesignDraft.selected=id;
-  const host=document.getElementById('lp-design-properties');if(!host) return;
   const p=document.createElement('div');p.id='lp-edit-pop';p.className='lp-design-pop';host.appendChild(p);
   const texts=_fLpDesignDraft.layers.filter(x=>x.type==='text'&&x.visible!==false);
+  const label=x=>x.name||gInterpolate(x.content||'',fState.dados||{}).replace(/\{\{[^}]*\}\}/g,'').trim()||'Texto da arte';
   const fontHTML=typeof dFontOptionsHTML==='function'?dFontOptionsHTML(l.font):`<option value="'Roboto'">Roboto</option><option value="'Roboto Black'">Roboto Black</option><option value="'Roboto',bold">Roboto Bold</option>`;
-  p.innerHTML=`<div class="lp-design-panel-head"><div><h2>Propriedades</h2><p>${gEsc(fState.material.name||'Texto da arte')}</p></div>
+  p.innerHTML=`<div class="lp-design-panel-head"><div><h2>Texto</h2><p>${gEsc(label(l))}</p></div>
     <div class="lp-design-history"><button type="button" class="lp-edit-btn" id="lp-design-undo" onclick="fLpDesignUndo(false)" aria-label="Desfazer" title="Desfazer · Ctrl + Z"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m9 4-5 5 5 5M4 9h9a6 6 0 0 1 0 12"/></svg></button><button type="button" class="lp-edit-btn" id="lp-design-redo" onclick="fLpDesignUndo(true)" aria-label="Refazer" title="Refazer · Ctrl + Shift + Z"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m15 4 5 5-5 5M20 9h-9a6 6 0 0 0 0 12"/></svg></button></div></div>
-    <section class="lp-design-section" aria-label="Texto"><label class="lp-design-label" for="lp-design-layer">Texto selecionado</label><select id="lp-design-layer" class="lp-edit-input">${texts.map(x=>`<option value="${gEsc(String(x.id))}">${gEsc(x.name||String(x.content||'Texto').slice(0,60))}</option>`).join('')}</select>
+    <section class="lp-design-section" aria-label="Texto"><label class="lp-design-label" for="lp-design-layer">Texto selecionado</label><select id="lp-design-layer" class="lp-edit-input">${texts.map(x=>`<option value="${gEsc(String(x.id))}">${gEsc(label(x).slice(0,60))}</option>`).join('')}</select>
     <label class="lp-design-label" for="lp-design-content">Conteúdo</label><textarea id="lp-design-content" class="lp-edit-input" rows="3"></textarea>
-    <p class="lp-design-hint" ${/\{\{/.test(l.content||'')?'':'hidden'}>Preserve os campos <code>{{…}}</code> para usar as respostas do chat.</p></section>
-    <section class="lp-design-section" aria-label="Aparência"><h3>Aparência</h3><div class="lp-design-font-row"><label class="lp-design-label">Fonte<select id="lp-design-font" class="lp-edit-input">${fontHTML}</select></label><button type="button" id="lp-design-bold" class="lp-edit-btn" aria-label="Negrito" title="Negrito">B</button></div><div class="lp-design-props"><label class="lp-design-label">Tamanho <span>px</span><input id="lp-design-size" class="lp-edit-input" type="number" min="6" max="600" step="1"></label>
-    <label class="lp-design-label">Cor<input id="lp-design-color" class="lp-edit-input" type="color"></label>
-    <label class="lp-design-label lp-design-wide">Alinhamento<select id="lp-design-align" class="lp-edit-input"><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div><div class="lp-design-spacing"><label class="lp-design-label">Entre letras <span>px</span><input id="lp-design-letter" class="lp-edit-input" type="number" min="-20" max="100" step="0.5"></label><label class="lp-design-label">Entre linhas <span>×</span><input id="lp-design-line" class="lp-edit-input" type="number" min="0.5" max="4" step="0.05"></label></div></section>
-    <section class="lp-design-section" aria-label="Posição e caixa"><h3>Posição e caixa</h3><div class="lp-design-props">${['x','y','w','h'].map(k=>`<label class="lp-design-label">${{x:'X',y:'Y',w:'Largura',h:'Altura'}[k]} <span>px</span><input aria-label="${{x:'Posição X',y:'Posição Y',w:'Largura',h:'Altura'}[k]}" id="lp-design-${k}" class="lp-edit-input" type="number" step="1" ${k==='w'||k==='h'?'min="1"':''}></label>`).join('')}</div></section>
+    <p class="lp-design-hint" ${/\{\{/.test(l.content||'')?'':'hidden'}>Preserve os campos <code>{{…}}</code> para usar as respostas do chat.</p><p id="lp-design-status" class="lp-design-status" role="status" aria-live="polite"></p></section>
+    <section class="lp-design-section" aria-label="Aparência"><h3>Aparência</h3><div class="lp-design-font-row"><label class="lp-design-label">Fonte<select id="lp-design-font" class="lp-edit-input">${fontHTML}</select></label><label class="lp-design-label">Tamanho <span>px</span><input id="lp-design-size" class="lp-edit-input" type="number" min="6" max="600" step="1"></label></div>
+    <div class="lp-design-style-row"><button type="button" id="lp-design-bold" class="lp-edit-btn" aria-label="Negrito" title="Negrito">B</button><div class="lp-design-align-buttons" role="group" aria-label="Alinhamento do texto">${[['left','Esquerda'],['center','Centro'],['right','Direita']].map(([value,text])=>`<button type="button" class="lp-edit-btn" data-align="${value}" aria-label="${text==='Centro'?'Centralizar':'Alinhar à '+text.toLowerCase()}" aria-pressed="${(l.textAlign||'left')===value}">${text}</button>`).join('')}</div></div>
+    <select id="lp-design-align" hidden aria-label="Alinhamento"><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select>
+    <div class="lp-design-color-row"><label class="lp-design-label">Cor<input id="lp-design-color" class="lp-edit-input" type="color"></label><label class="lp-design-label">Caixa do texto<select id="lp-design-transform" class="lp-edit-input"><option value="none">Como digitado</option><option value="uppercase">MAIÚSCULAS</option><option value="lowercase">minúsculas</option></select></label></div></section>
+    <details class="lp-design-section lp-design-details" data-section="spacing" aria-label="Espaçamento"><summary>Espaçamento</summary><div class="lp-design-spacing"><label class="lp-design-label">Entre letras <span>px</span><input id="lp-design-letter" class="lp-edit-input" type="number" min="-20" max="100" step="0.5"></label><label class="lp-design-label">Entre linhas <span>×</span><input id="lp-design-line" class="lp-edit-input" type="number" min="0.5" max="4" step="0.05"></label></div></details>
+    <details class="lp-design-section lp-design-details" data-section="geometry" aria-label="Posição e caixa"><summary>Posição e caixa</summary><div class="lp-design-props">${['x','y','w','h'].map(k=>`<label class="lp-design-label">${{x:'X',y:'Y',w:'Largura',h:'Altura'}[k]} <span>px</span><input aria-label="${{x:'Posição X',y:'Posição Y',w:'Largura',h:'Altura'}[k]}" id="lp-design-${k}" class="lp-edit-input" type="number" step="1" ${k==='w'||k==='h'?'min="1"':''}></label>`).join('')}</div></details>
+    <div class="lp-design-reset-row"><button type="button" class="lp-edit-btn" id="lp-design-reset">Restaurar este texto ao original</button></div>
     <div class="lp-design-tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v18M3 12h18m-12-6 3-3 3 3m-6 12 3 3 3-3M6 9l-3 3 3 3m12-6 3 3-3 3"/></svg><p>Arraste na arte para mover.<br><span>Setas: 1 px · Shift + seta: 10 px</span></p></div>`;
   const content=p.querySelector('#lp-design-content'),size=p.querySelector('#lp-design-size'),align=p.querySelector('#lp-design-align');
   content.value=l.content||'';size.value=l.fontSize||32;align.value=l.textAlign||'left';
+  const transform=p.querySelector('#lp-design-transform');transform.value=l.textTransform||'none';
+  p.querySelectorAll('details[data-section]').forEach(el=>{el.open=!!folds[el.dataset.section];el.ontoggle=()=>{folds[el.dataset.section]=el.open;};});
   const chooser=p.querySelector('#lp-design-layer');chooser.value=String(id);chooser.onchange=()=>{const selected=texts.find(x=>String(x.id)===chooser.value);if(selected)_fLpDesignEditor(selected.id);};
   for(const key of ['x','y','w','h']) p.querySelector('#lp-design-'+key).value=Number(l[key])||0;
   const font=p.querySelector('#lp-design-font'),bold=p.querySelector('#lp-design-bold'),letter=p.querySelector('#lp-design-letter'),line=p.querySelector('#lp-design-line');
@@ -4161,33 +4182,52 @@ function _fLpDesignEditor(id,ev){
     bold.setAttribute('aria-pressed',String(layer.fontWeightOverride>=700));_fLpDesignRemember(snapshot);_fLpRender();
   };
   const color=p.querySelector('#lp-design-color'),colorCtx=document.createElement('canvas').getContext('2d');
-  colorCtx.fillStyle=l.color||getComputedStyle(p).color;color.value=colorCtx.fillStyle;
+  colorCtx.fillStyle=l.color||getComputedStyle(p).getPropertyValue('--on-accent').trim();color.value=colorCtx.fillStyle;
   let before=JSON.stringify(_fLpDesignDraft.layers),recorded=false;
   const change=event=>{
     if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal) return;
     const layer=_fLpDesignDraft.layers.find(x=>x.id===id);if(!layer) return;
-    layer.content=content.value;
-    const n=Number(size.value);if(Number.isFinite(n)&&n>=6&&n<=600) layer.fontSize=n;
-    layer.textAlign=align.value;
+    // Ler os demais inputs regravava valores antigos sobre um arrasto/undo recente.
+    const target=event?.target;
+    if(target===content)layer.content=content.value;
+    const n=Number(size.value);if(target===size&&size.value!==''&&Number.isFinite(n)&&n>=6&&n<=600) layer.fontSize=n;
+    if(target===align){layer.textAlign=align.value;p.querySelectorAll('[data-align]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.align===align.value)));}
+    if(target===transform)layer.textTransform=transform.value;
     for(const key of ['x','y','w','h']){
       const input=p.querySelector('#lp-design-'+key),v=Number(input.value);
-      if(input.value!==''&&Number.isFinite(v)&&(!['w','h'].includes(key)||v>0))layer[key]=v;
+      if(target===input&&input.value!==''&&Number.isFinite(v)&&(!['w','h'].includes(key)||v>0)){
+        layer[key]=v;if(key==='w'||key==='h')layer.textBox='box';
+      }
     }
     if(event?.target===color)layer.color=color.value;
     if(event?.target===font){layer.font=font.value;delete layer.fontWeightOverride;const fp=typeof dTextFontParts==='function'?dTextFontParts(layer.font).weight:(/bold|black/i.test(layer.font)?700:400);bold.setAttribute('aria-pressed',String(fp>=700));}
     if(event?.target===letter&&letter.value!==''&&Number.isFinite(Number(letter.value))&&Number(letter.value)>=-20&&Number(letter.value)<=100)layer.letterSpacing=Number(letter.value);
     if(event?.target===line&&line.value!==''&&Number.isFinite(Number(line.value))&&Number(line.value)>=0.5&&Number(line.value)<=4){layer.lineHeight=Number(line.value);delete layer._entrelinha;}
-    if(['lp-design-w','lp-design-h'].includes(event?.target?.id))layer.textBox='box';
     if(!recorded&&before!==JSON.stringify(_fLpDesignDraft.layers)){_fLpDesignRemember(before);recorded=true;}
     _fLpDesignStore(_fLpDesignDraft);
     _fLpRender();
+  };
+  p.querySelectorAll('[data-align]').forEach(b=>{b.onclick=()=>{
+    if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal)return;
+    before=JSON.stringify(_fLpDesignDraft.layers);recorded=false;align.value=b.dataset.align;
+    change({target:align});before=JSON.stringify(_fLpDesignDraft.layers);recorded=false;
+  };});
+  p.querySelector('#lp-design-reset').onclick=()=>{
+    if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal)return;
+    const d=_fLpDesignDraft,index=d.layers.findIndex(x=>x.id===id),original=JSON.parse(d.base).find(x=>x.id===id);
+    if(index<0||!original)return;
+    const snapshot=JSON.stringify(d.layers);
+    d.layers[index]=JSON.parse(JSON.stringify(original));_fLpDesignRemember(snapshot);
+    _fLpDesignEditor(id,{});_fLpRender();
   };
   p.querySelectorAll('input,textarea,select:not(#lp-design-layer)').forEach(input=>{
     input.onfocus=()=>{if(_fLpDesignActive()){before=JSON.stringify(_fLpDesignDraft.layers);recorded=false;}};
     input.oninput=change;input.onchange=event=>{if(!_fLpDesignActive()||_fLpDesignDraft.saving)return;change(event);before=JSON.stringify(_fLpDesignDraft.layers);recorded=false;};
   });
   _fLpDesignSync();_fLpDesignPaintSelection();
-  if(!ev)content.focus();
+  // Reabrir o painel durante undo/arrasto não deve saltar para o início das propriedades.
+  if(!ev)content.focus({preventScroll:true});
+  host.scrollTop=scroll;
 }
 async function fLpDesignSave(){
   if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal) return false;
