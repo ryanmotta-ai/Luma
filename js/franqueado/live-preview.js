@@ -3975,7 +3975,11 @@ function _fLpDesignPaintSelection(){
   const l=_lpEffectiveLayers.find(x=>x.id===_fLpDesignDraft.selected),r=l&&_fLpVisualRect(l);
   if(!r) return;
   const ctx=ov.getContext('2d'),scale=cv.width/Math.max(1,cv.getBoundingClientRect().width);
-  ctx.strokeStyle=getComputedStyle(wrap).getPropertyValue('--dm-orange-d').trim();ctx.lineWidth=2*scale;
+  const tokens=getComputedStyle(wrap);
+  // Duas tintas mantêm o contorno legível também em artes com fundo laranja.
+  ctx.strokeStyle=tokens.getPropertyValue('--on-accent').trim();ctx.lineWidth=4*scale;
+  ctx.strokeRect(r.x-3*scale,r.y-3*scale,r.w+6*scale,r.h+6*scale);
+  ctx.strokeStyle=tokens.getPropertyValue('--dm-orange-d').trim();ctx.lineWidth=2*scale;
   ctx.strokeRect(r.x-3*scale,r.y-3*scale,r.w+6*scale,r.h+6*scale);
 }
 let _fLpDesignDrag=null;
@@ -4028,15 +4032,16 @@ function _fLpDesignEditor(id,ev){
   const host=document.getElementById('lp-design-properties');if(!host) return;
   const p=document.createElement('div');p.id='lp-edit-pop';p.className='lp-design-pop';host.appendChild(p);
   const texts=_fLpDesignDraft.layers.filter(x=>x.type==='text'&&x.visible!==false);
-  p.innerHTML=`<div class="lp-edit-pop-header"><div class="lp-edit-pop-title">Mini editor</div></div>
-    <label class="lp-design-label" for="lp-design-layer">Texto selecionado</label><select id="lp-design-layer" class="lp-edit-input">${texts.map(x=>`<option value="${gEsc(String(x.id))}">${gEsc(x.name||String(x.content||'Texto').slice(0,60))}</option>`).join('')}</select>
-    <div class="lp-design-history"><button type="button" class="lp-edit-btn" id="lp-design-undo" onclick="fLpDesignUndo(false)">Desfazer</button><button type="button" class="lp-edit-btn" id="lp-design-redo" onclick="fLpDesignUndo(true)">Refazer</button></div>
-    <label class="lp-design-label" for="lp-design-content">Texto</label><textarea id="lp-design-content" class="lp-edit-input" rows="3"></textarea>
-    <p class="lp-design-hint">Mantenha os campos entre {{chaves}}. Eles usam as respostas do chat.</p>
-    <div class="lp-design-props"><label class="lp-design-label">Tamanho<input id="lp-design-size" class="lp-edit-input" type="number" min="6" max="600" step="1"></label>
-    <label class="lp-design-label">Alinhamento<select id="lp-design-align" class="lp-edit-input"><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div>
-    <div class="lp-design-props">${['x','y','w'].map(k=>`<label class="lp-design-label">${{x:'Posição X',y:'Posição Y',w:'Largura'}[k]}<input id="lp-design-${k}" class="lp-edit-input" type="number" step="1" ${k==='w'?'min="1"':''}></label>`).join('')}<label class="lp-design-label">Cor<input id="lp-design-color" class="lp-edit-input" type="color"></label></div>
-    <p class="lp-design-hint">Arraste o texto na arte. Setas movem 1 px; Shift + seta move 10 px.</p><span class="lp-edit-count">Ajustes locais · publique quando terminar</span>`;
+  p.innerHTML=`<div class="lp-design-panel-head"><div><h2>Propriedades</h2><p>${gEsc(fState.material.name||'Texto da arte')}</p></div>
+    <div class="lp-design-history"><button type="button" class="lp-edit-btn" id="lp-design-undo" onclick="fLpDesignUndo(false)" aria-label="Desfazer" title="Desfazer · Ctrl + Z"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m9 4-5 5 5 5M4 9h9a6 6 0 0 1 0 12"/></svg></button><button type="button" class="lp-edit-btn" id="lp-design-redo" onclick="fLpDesignUndo(true)" aria-label="Refazer" title="Refazer · Ctrl + Shift + Z"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m15 4 5 5-5 5M20 9h-9a6 6 0 0 0 0 12"/></svg></button></div></div>
+    <section class="lp-design-section" aria-label="Texto"><label class="lp-design-label" for="lp-design-layer">Texto selecionado</label><select id="lp-design-layer" class="lp-edit-input">${texts.map(x=>`<option value="${gEsc(String(x.id))}">${gEsc(x.name||String(x.content||'Texto').slice(0,60))}</option>`).join('')}</select>
+    <label class="lp-design-label" for="lp-design-content">Conteúdo</label><textarea id="lp-design-content" class="lp-edit-input" rows="3"></textarea>
+    <p class="lp-design-hint" ${/\{\{/.test(l.content||'')?'':'hidden'}>Preserve os campos <code>{{…}}</code> para usar as respostas do chat.</p></section>
+    <section class="lp-design-section" aria-label="Aparência"><h3>Aparência</h3><div class="lp-design-props"><label class="lp-design-label">Tamanho <span>px</span><input id="lp-design-size" class="lp-edit-input" type="number" min="6" max="600" step="1"></label>
+    <label class="lp-design-label">Cor<input id="lp-design-color" class="lp-edit-input" type="color"></label>
+    <label class="lp-design-label lp-design-wide">Alinhamento<select id="lp-design-align" class="lp-edit-input"><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div></section>
+    <section class="lp-design-section" aria-label="Posição e caixa"><h3>Posição e caixa</h3><div class="lp-design-props">${['x','y','w'].map(k=>`<label class="lp-design-label ${k==='w'?'lp-design-wide':''}">${{x:'X',y:'Y',w:'Largura'}[k]} <span>px</span><input aria-label="${{x:'Posição X',y:'Posição Y',w:'Largura'}[k]}" id="lp-design-${k}" class="lp-edit-input" type="number" step="1" ${k==='w'?'min="1"':''}></label>`).join('')}</div></section>
+    <div class="lp-design-tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v18M3 12h18m-12-6 3-3 3 3m-6 12 3 3 3-3M6 9l-3 3 3 3m12-6 3 3-3 3"/></svg><p>Arraste na arte para mover.<br><span>Setas: 1 px · Shift + seta: 10 px</span></p></div>`;
   const content=p.querySelector('#lp-design-content'),size=p.querySelector('#lp-design-size'),align=p.querySelector('#lp-design-align');
   content.value=l.content||'';size.value=l.fontSize||32;align.value=l.textAlign||'left';
   const chooser=p.querySelector('#lp-design-layer');chooser.value=String(id);chooser.onchange=()=>{const selected=texts.find(x=>String(x.id)===chooser.value);if(selected)_fLpDesignEditor(selected.id);};
