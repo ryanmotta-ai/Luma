@@ -1603,6 +1603,23 @@ body:has(#f-live-preview.lp-design-editing) #view-franqueado{transform:none;filt
 #lp-design-workspace>.lp-stage{background-color:var(--off-white);padding:32px;}
 .lp-design-editing>.lp-toolbar{min-height:48px;padding:8px 16px;border-top:1px solid var(--gray-light);box-sizing:border-box}
 #lp-design-selection{position:absolute;inset:0;pointer-events:none;z-index:30}
+#lp-design-handles{position:absolute;inset:0;pointer-events:none;z-index:31}
+#lp-design-handles button{position:absolute;width:16px;height:16px;padding:0;transform:translate(-50%,-50%);border:2px solid var(--dm-orange-d);border-radius:var(--r-sm);background:var(--on-accent);pointer-events:auto;touch-action:none}
+#lp-design-handles button::before{content:'';position:absolute;inset:-8px}
+#lp-design-handles button[data-edge=left],#lp-design-handles button[data-edge=right]{cursor:ew-resize}
+#lp-design-handles button[data-edge=top],#lp-design-handles button[data-edge=bottom]{cursor:ns-resize}
+.lp-design-font-row{display:grid;grid-template-columns:minmax(0,1fr) 36px;gap:8px;align-items:end;margin-bottom:12px}
+#lp-design-bold{height:36px;width:36px;padding:8px;justify-content:center;font-weight:900;border-radius:var(--r-sm)}
+.lp-design-spacing{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+#lp-design-properties section[aria-label="Posição e caixa"] .lp-design-props{grid-template-columns:repeat(2,minmax(0,1fr))}
+.lp-design-compare{display:flex;gap:4px;padding:4px;border:1px solid var(--gray-mid);border-radius:var(--r)}
+.lp-design-compare button{padding:4px 12px;border:1px solid transparent;background:transparent;color:var(--text-2);font-size:12px;font-weight:500;cursor:pointer}
+.lp-design-compare button:hover{background:var(--gray-light)}
+.lp-design-compare button[aria-pressed=true]{background:var(--press-bg);border-color:var(--press-border);color:var(--press-text)}
+.lp-design-original #lp-canvas{cursor:default}
+.lp-design-original #lp-design-properties{opacity:.65}
+.lp-design-original #lp-design-properties :disabled{cursor:not-allowed}
+@media(max-width:768px){.lp-design-editing>.lp-design-tools{flex-wrap:wrap}.lp-design-compare{order:3;width:100%;box-sizing:border-box;justify-content:center}.lp-design-compare button{flex:1}}
 .lp-design-editing #lp-canvas{touch-action:none;cursor:move}
 .lp-design-editing .panel-grip-handle,.lp-design-editing #f-back-campanhas,.lp-design-editing .lp-mobile-close,.lp-design-editing .lp-posted-btn,.lp-design-editing .lp-mobile-download-bar{display:none}
 body:not(.theme-light) #f-live-preview.lp-design-editing{--white:var(--d-surf);--off-white:var(--d-surf2);--gray-light:var(--d-border);--gray-mid:var(--d-border2);--text:var(--d-text);--text-2:var(--d-text2);--text-3:var(--d-text3);color:var(--d-text)}
