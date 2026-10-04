@@ -1552,3 +1552,25 @@ body.f-palco-conclusao #f-live-preview .lp-toolbar{display:none}
 #lp-design-start{width:auto;min-width:0;padding:0 10px;white-space:nowrap}
 
 .lp-design-start[hidden]{display:none}
+/* O modo ocupa a área de trabalho; a conversa continua intacta ao cancelar/publicar. */
+#f-live-preview.lp-design-editing{position:fixed!important;inset:52px 0 0!important;width:auto!important;max-width:none!important;flex-basis:auto!important;transform:none!important;z-index:1100;border:0;box-shadow:none}
+#lp-design-workspace{display:flex;flex:1;min-height:0;overflow:hidden}
+#lp-design-workspace>.lp-stage{flex:1;min-width:0}
+#lp-design-properties{width:272px;flex-shrink:0;overflow-y:auto;background:var(--white);border-left:1px solid var(--gray-mid);padding:16px}
+#lp-design-properties .lp-design-pop{position:static;width:100%;padding:0;border:0;border-radius:0;box-shadow:none;animation:none}
+#lp-design-properties .lp-edit-input{margin-bottom:12px;min-width:0}
+#lp-design-properties .lp-design-props{align-items:start}
+#lp-design-properties .lp-design-hint{font-size:12px}
+.lp-design-history{display:flex;gap:8px;margin:12px 0 16px}
+.lp-design-history .lp-edit-btn{width:auto;flex:1;justify-content:center}
+.lp-design-history button:disabled{opacity:.45;cursor:default}
+#lp-design-selection{position:absolute;inset:0;pointer-events:none;z-index:30}
+.lp-design-editing #lp-canvas{touch-action:none;cursor:move}
+.lp-design-editing .panel-grip-handle,.lp-design-editing #f-back-campanhas,.lp-design-editing .lp-mobile-close,.lp-design-editing .lp-posted-btn,.lp-design-editing .lp-mobile-download-bar{display:none}
+.lp-design-editing .lp-head .lp-title::after{content:' · Mini editor';font-weight:400;color:var(--text-3)}
+body:not(.theme-light) #lp-design-properties{background:var(--d-surf);border-color:var(--d-border)}
+@media(max-width:768px){
+  #lp-design-workspace{flex-direction:column}
+  #lp-design-properties{width:auto;max-height:40vh;flex-shrink:0;border-left:0;border-top:1px solid var(--gray-mid);padding:12px}
+  #lp-design-properties .lp-design-props{grid-template-columns:repeat(2,minmax(0,1fr))}
+}

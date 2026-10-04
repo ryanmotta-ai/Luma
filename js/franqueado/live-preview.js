@@ -2375,6 +2375,7 @@ async function fUpdateLivePreview(opts){
        cada tecla — o "piscar" — e não dizia O QUE mudou. O micro-destaque agora é da camada
        (o assentar, abaixo). */
     fLpUpdateMeta(true);
+    _fLpDesignPaintSelection();
     try{ _fLpPaintPip(); }catch(e){} // miniatura viva no celular acompanha cada resposta
 
     // A TRANSIÇÃO parte daqui, sem `await`: a prévia já está pronta e a próxima tecla não
@@ -3900,6 +3901,10 @@ function _fLpDesignSync(){
   if(save) save.textContent=_fLpDesignDraft?.saving?'Publicando…':'Salvar e publicar';
   const panel=document.getElementById('f-live-preview');
   if(panel) panel.classList.toggle('lp-design-editing',active);
+  _fLpDesignMount(active);
+  const undo=document.getElementById('lp-design-undo'),redo=document.getElementById('lp-design-redo');
+  if(undo) undo.disabled=busy||!_fLpDesignDraft?.undo?.length;
+  if(redo) redo.disabled=busy||!_fLpDesignDraft?.redo?.length;
 }
 async function fLpDesignStart(){
   if(!_fLpDesignAllowed()||_fLpDesignOpening||_fLpDesignDraft) return;
@@ -3918,9 +3923,11 @@ async function fLpDesignStart(){
     if(!_fLpDesignAllowed()||fState.material.id!==id) return;
     if(m.versaoAtualId&&m.versaoAtualId!==data.versao_atual_id) throw new Error('Este material recebeu uma nova versão. Reabra pelo catálogo antes de editar.');
     _fLpCloseEditor();if(_lpFraming) fLpCancelFraming();
-    _fLpDesignDraft={id,remoteId,stamp:data.updated_at,base:JSON.stringify(data.layers),layers:JSON.parse(JSON.stringify(data.layers)),saving:false};
+    _fLpDesignDraft={id,remoteId,stamp:data.updated_at,base:JSON.stringify(data.layers),layers:JSON.parse(JSON.stringify(data.layers)),saving:false,undo:[],redo:[],selected:null};
     _fLpSuspenderConclusao();
     _fLpDesignSync();_fLpRender();
+    const first=_fLpDesignDraft.layers.find(l=>l.type==='text'&&l.visible!==false);
+    if(first) _fLpDesignEditor(first.id);
     gToast('Clique em um texto da arte para ajustar. As mudanças serão publicadas para a rede ao salvar.');
   }catch(e){gToast(e.message||'Não foi possível iniciar a edição.','error');}
   finally{_fLpDesignOpening=false;_fLpDesignSync();}
@@ -3929,30 +3936,134 @@ function fLpDesignCancel(){
   if(_fLpDesignDraft?.saving) return;
   _fLpDesignDraft=null;_fLpCloseEditor();_fLpHideHover();_fLpDesignSync();_fLpRender();_fLpRetomarConclusao();
 }
+function _fLpDesignMount(active){
+  const panel=document.getElementById('f-live-preview'),stage=panel?.querySelector('.lp-stage');
+  if(!panel||!stage) return;
+  let row=document.getElementById('lp-design-workspace');
+  if(active&&!row){
+    row=document.createElement('div');row.id='lp-design-workspace';
+    stage.before(row);row.appendChild(stage);
+    const props=document.createElement('section');props.id='lp-design-properties';props.setAttribute('aria-label','Propriedades do texto');row.appendChild(props);
+    const cv=document.getElementById('lp-canvas');if(cv){row._tabIndex=cv.getAttribute('tabindex');cv.setAttribute('tabindex','0');}
+    requestAnimationFrame(()=>{if(_fLpDesignActive()) fLpRefit();});
+  }else if(!active&&row){
+    if(_fLpDesignDrag) _fLpDesignDrag.stop(true);
+    const cv=document.getElementById('lp-canvas');
+    if(cv){if(row._tabIndex==null) cv.removeAttribute('tabindex');else cv.setAttribute('tabindex',row._tabIndex);}
+    row.before(stage);row.remove();document.getElementById('lp-design-selection')?.remove();
+    requestAnimationFrame(()=>{if(!_fLpDesignActive()) fLpRefit();});
+  }
+}
+function _fLpDesignRemember(before){
+  const d=_fLpDesignDraft;if(!d||d.saving||before===JSON.stringify(d.layers)) return;
+  d.undo.push(before);if(d.undo.length>30) d.undo.shift();d.redo=[];_fLpDesignSync();
+}
+function fLpDesignUndo(redo){
+  if(!_fLpDesignActive()||_fLpDesignDraft.saving) return;
+  document.activeElement?.blur();
+  const d=_fLpDesignDraft,from=redo?d.redo:d.undo,to=redo?d.undo:d.redo;
+  if(!from.length) return;
+  to.push(JSON.stringify(d.layers));d.layers=JSON.parse(from.pop());
+  _fLpDesignSync();if(d.selected) _fLpDesignEditor(d.selected,{});document.getElementById('lp-canvas')?.focus({preventScroll:true});_fLpRender();
+}
+function _fLpDesignPaintSelection(){
+  const cv=document.getElementById('lp-canvas'),wrap=cv?.closest('.lp-canvas-wrap');
+  let ov=document.getElementById('lp-design-selection');
+  if(!_fLpDesignActive()||!wrap){if(ov) ov.remove();return;}
+  if(!ov){ov=document.createElement('canvas');ov.id='lp-design-selection';ov.setAttribute('aria-hidden','true');wrap.appendChild(ov);}
+  ov.width=cv.width;ov.height=cv.height;ov.style.width=cv.style.width;ov.style.height=cv.style.height;
+  const l=_lpEffectiveLayers.find(x=>x.id===_fLpDesignDraft.selected),r=l&&_fLpVisualRect(l);
+  if(!r) return;
+  const ctx=ov.getContext('2d'),scale=cv.width/Math.max(1,cv.getBoundingClientRect().width);
+  ctx.strokeStyle=getComputedStyle(wrap).getPropertyValue('--dm-orange-d').trim();ctx.lineWidth=2*scale;
+  ctx.strokeRect(r.x-3*scale,r.y-3*scale,r.w+6*scale,r.h+6*scale);
+}
+let _fLpDesignDrag=null;
+function _fLpDesignPointerDown(ev){
+  if(!_fLpDesignActive()||_fLpDesignDraft.saving||ev.button!==0) return;
+  const point=_fLpArtCoords(ev),hit=point&&_fLpLayerAt(point.x,point.y);
+  if(!hit) return;
+  const d=_fLpDesignDraft,layer=d.layers.find(l=>l.id===hit.id);if(!layer) return;
+  ev.preventDefault();ev.stopPropagation();
+  _fLpDesignEditor(layer.id,ev);
+  const cv=document.getElementById('lp-canvas');cv.focus({preventScroll:true});
+  const rect=cv.getBoundingClientRect(),kx=cv.width/rect.width,ky=cv.height/rect.height;
+  const start={x:ev.clientX,y:ev.clientY,lx:Number(layer.x)||0,ly:Number(layer.y)||0,before:JSON.stringify(d.layers)};
+  let moved=false;
+  const move=e=>{
+    if(e.pointerId!==ev.pointerId||!_fLpDesignActive()||_fLpDesignDraft!==d) return;
+    const dx=(e.clientX-start.x)*kx,dy=(e.clientY-start.y)*ky;
+    if(!moved&&Math.hypot(e.clientX-start.x,e.clientY-start.y)<3) return;
+    moved=true;const l=d.layers.find(x=>x.id===hit.id);if(!l) return;
+    l.x=Math.round(start.lx+dx);l.y=Math.round(start.ly+dy);
+    for(const key of ['x','y']){const input=document.getElementById('lp-design-'+key);if(input)input.value=l[key];}
+    _fLpRender();
+  };
+  const stop=cancel=>{
+    cv.removeEventListener('pointermove',move);cv.removeEventListener('pointerup',up);cv.removeEventListener('pointercancel',abort);
+    try{if(cv.hasPointerCapture(ev.pointerId)) cv.releasePointerCapture(ev.pointerId);}catch(e){}
+    _fLpDesignDrag=null;
+    if(cancel&&_fLpDesignDraft===d){d.layers=JSON.parse(start.before);if(_fLpDesignActive())_fLpDesignEditor(d.selected,{});_fLpRender();}
+    else if(moved&&_fLpDesignDraft===d){_fLpDesignRemember(start.before);_lpSuppressClick=true;setTimeout(()=>{_lpSuppressClick=false;},0);}
+  };
+  const up=e=>{if(e.pointerId===ev.pointerId)stop(false);},abort=()=>stop(true);
+  _fLpDesignDrag={stop};cv.setPointerCapture(ev.pointerId);
+  cv.addEventListener('pointermove',move);cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',abort);
+}
+function _fLpDesignKey(ev){
+  if(!_fLpDesignActive()||_fLpDesignDraft.saving||ev.target.closest('input,textarea,select,[contenteditable="true"]')) return;
+  if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==='z'){ev.preventDefault();ev.stopPropagation();fLpDesignUndo(ev.shiftKey);return;}
+  const delta={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[ev.key];
+  if(!delta) return;
+  const d=_fLpDesignDraft,l=d.layers.find(x=>x.id===d.selected);if(!l) return;
+  ev.preventDefault();ev.stopPropagation();const before=JSON.stringify(d.layers),step=ev.shiftKey?10:1;
+  l.x=(Number(l.x)||0)+delta[0]*step;l.y=(Number(l.y)||0)+delta[1]*step;
+  _fLpDesignRemember(before);_fLpDesignEditor(l.id,ev);document.getElementById('lp-canvas')?.focus({preventScroll:true});_fLpRender();
+}
 function _fLpDesignEditor(id,ev){
   if(!_fLpDesignActive()||_fLpDesignDraft.saving) return;
   const l=_fLpDesignDraft.layers.find(x=>x.id===id&&x.type==='text');if(!l) return;
-  const p=_fLpMakePop(ev);p.classList.add('lp-design-pop');_fLpHideHover();
-  p.innerHTML=`<div class="lp-edit-pop-header"><div class="lp-edit-pop-title">Editar texto da arte</div><button type="button" class="lp-edit-pop-close" aria-label="Fechar editor"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+  if(document.activeElement?.closest('#lp-edit-pop')) document.activeElement.blur();
+  _fLpCloseEditor();_fLpHideHover();_fLpDesignDraft.selected=id;
+  const host=document.getElementById('lp-design-properties');if(!host) return;
+  const p=document.createElement('div');p.id='lp-edit-pop';p.className='lp-design-pop';host.appendChild(p);
+  const texts=_fLpDesignDraft.layers.filter(x=>x.type==='text'&&x.visible!==false);
+  p.innerHTML=`<div class="lp-edit-pop-header"><div class="lp-edit-pop-title">Mini editor</div></div>
+    <label class="lp-design-label" for="lp-design-layer">Texto selecionado</label><select id="lp-design-layer" class="lp-edit-input">${texts.map(x=>`<option value="${gEsc(String(x.id))}">${gEsc(x.name||String(x.content||'Texto').slice(0,60))}</option>`).join('')}</select>
+    <div class="lp-design-history"><button type="button" class="lp-edit-btn" id="lp-design-undo" onclick="fLpDesignUndo(false)">Desfazer</button><button type="button" class="lp-edit-btn" id="lp-design-redo" onclick="fLpDesignUndo(true)">Refazer</button></div>
     <label class="lp-design-label" for="lp-design-content">Texto</label><textarea id="lp-design-content" class="lp-edit-input" rows="3"></textarea>
     <p class="lp-design-hint">Mantenha os campos entre {{chaves}}. Eles usam as respostas do chat.</p>
     <div class="lp-design-props"><label class="lp-design-label">Tamanho<input id="lp-design-size" class="lp-edit-input" type="number" min="6" max="600" step="1"></label>
     <label class="lp-design-label">Alinhamento<select id="lp-design-align" class="lp-edit-input"><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label></div>
-    <div class="lp-edit-row"><span class="lp-edit-count">Prévia ao vivo · ainda não publicado</span><button class="lp-edit-ok" type="button">Concluir</button></div>`;
+    <div class="lp-design-props">${['x','y','w'].map(k=>`<label class="lp-design-label">${{x:'Posição X',y:'Posição Y',w:'Largura'}[k]}<input id="lp-design-${k}" class="lp-edit-input" type="number" step="1" ${k==='w'?'min="1"':''}></label>`).join('')}<label class="lp-design-label">Cor<input id="lp-design-color" class="lp-edit-input" type="color"></label></div>
+    <p class="lp-design-hint">Arraste o texto na arte. Setas movem 1 px; Shift + seta move 10 px.</p><span class="lp-edit-count">Ajustes locais · publique quando terminar</span>`;
   const content=p.querySelector('#lp-design-content'),size=p.querySelector('#lp-design-size'),align=p.querySelector('#lp-design-align');
   content.value=l.content||'';size.value=l.fontSize||32;align.value=l.textAlign||'left';
-  const change=()=>{
+  const chooser=p.querySelector('#lp-design-layer');chooser.value=String(id);chooser.onchange=()=>{const selected=texts.find(x=>String(x.id)===chooser.value);if(selected)_fLpDesignEditor(selected.id);};
+  for(const key of ['x','y','w']) p.querySelector('#lp-design-'+key).value=Number(l[key])||0;
+  const color=p.querySelector('#lp-design-color'),colorCtx=document.createElement('canvas').getContext('2d');
+  colorCtx.fillStyle=l.color||getComputedStyle(p).color;color.value=colorCtx.fillStyle;
+  let before=JSON.stringify(_fLpDesignDraft.layers),recorded=false;
+  const change=event=>{
     if(!_fLpDesignActive()||_fLpDesignDraft.saving) return;
     const layer=_fLpDesignDraft.layers.find(x=>x.id===id);if(!layer) return;
     layer.content=content.value;
     const n=Number(size.value);if(Number.isFinite(n)&&n>=6&&n<=600) layer.fontSize=n;
-    layer.textAlign=align.value;_fLpRender();
+    layer.textAlign=align.value;
+    for(const key of ['x','y','w']){
+      const input=p.querySelector('#lp-design-'+key),v=Number(input.value);
+      if(input.value!==''&&Number.isFinite(v)&&(key!=='w'||v>0))layer[key]=v;
+    }
+    if(event?.target===color)layer.color=color.value;
+    if(!recorded&&before!==JSON.stringify(_fLpDesignDraft.layers)){_fLpDesignRemember(before);recorded=true;}
+    _fLpRender();
   };
-  content.oninput=change;size.oninput=change;align.onchange=change;
-  p.querySelector('.lp-edit-pop-close').onclick=_fLpCloseEditor;
-  p.querySelector('.lp-edit-ok').onclick=_fLpCloseEditor;
-  p.style.top=Math.max(12,Math.min(parseFloat(p.style.top)||12,window.innerHeight-p.offsetHeight-12))+'px';
-  content.focus();
+  p.querySelectorAll('input,textarea,select:not(#lp-design-layer)').forEach(input=>{
+    input.onfocus=()=>{if(_fLpDesignActive()){before=JSON.stringify(_fLpDesignDraft.layers);recorded=false;}};
+    input.oninput=change;input.onchange=event=>{if(!_fLpDesignActive()||_fLpDesignDraft.saving)return;change(event);before=JSON.stringify(_fLpDesignDraft.layers);recorded=false;};
+  });
+  _fLpDesignSync();_fLpDesignPaintSelection();
+  if(!ev)content.focus();
 }
 async function fLpDesignSave(){
   if(!_fLpDesignActive()||_fLpDesignDraft.saving) return false;
@@ -4195,6 +4306,9 @@ function _fLpBindCanvasEditing(){
   const cv=document.getElementById('lp-canvas');
   if(cv && !cv._fLpBound){
     cv._fLpBound=true;
+    cv.addEventListener('pointerdown',_fLpDesignPointerDown);
+    cv.addEventListener('touchstart',e=>{if(_fLpDesignDrag)e.stopPropagation();},{passive:true});
+    document.addEventListener('keydown',_fLpDesignKey,true);
     cv.addEventListener('click',_fLpOnCanvasClick);
     cv.addEventListener('mousemove',_fLpOnCanvasMove);
     cv.addEventListener('mouseleave',_fLpHideHover);
