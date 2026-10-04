@@ -317,3 +317,8 @@ Designer/equipe e gestão podem usar **Modo editar** na prévia do fluxo do fran
 Os campos `{{…}}` e seus modificadores precisam ser preservados. Material histórico, não publicado, pendente de sincronização ou desatualizado não pode ser republicado por esse caminho. A gravação compara `updated_at` atomicamente para recusar alterações concorrentes; erro ou nenhuma linha atualizada nunca anuncia sucesso. A RLS existente continua sendo a fronteira de autorização. Não há migration nova.
 
 Implementação: `js/franqueado/live-preview.js`; controles em `index.html` e `css/modules/live-preview.css`. Verificação: `tests/previa-designer.html` (14 casos com servidor simulado, incluindo falhas e conflitos), fluxo do franqueado (72 casos) e edição por clique no navegador. A gravação autenticada em produção precisa ser validada com uma conta real de designer.
+### Correção da abertura após o Estúdio — 03/10/2026
+
+Trocar de área preserva `dActiveTmplId` por desenho (`main.js`). Esse ID não significa trabalho não salvo e não pode bloquear o Modo editar. Só `dDirty` do mesmo material exige salvar primeiro. Após publicação confirmada, o material retido e guardado no Estúdio é recarregado pelo `dLoadTemplate` existente, evitando que um save posterior reponha o texto antigo. O botão indica quando está abrindo.
+
+Regressão específica: o cenário de material guardado e retido no Estúdio falhou antes do patch e passou depois. A bancada passou a ter 17 casos. Verificação integrada: aplicativo completo (`index.html`, CSS e módulos reais), Estúdio → Franqueado → arte pronta → Modo editar → selecionar texto → alterar → salvar, com dados e servidor simulados; `dLayers` e catálogo receberam a nova versão. Isso não valida autenticação nem gravação na rede real.

@@ -3890,7 +3890,11 @@ function _fLpDesignSync(){
   const active=_fLpDesignActive(), busy=_fLpDesignOpening||!!_fLpDesignDraft?.saving;
   const start=document.getElementById('lp-design-start');
   const tools=document.getElementById('lp-design-tools');
-  if(start){start.hidden=!_fLpDesignAllowed()||active;start.disabled=busy;}
+  if(start){
+    start.hidden=!_fLpDesignAllowed()||active;start.disabled=busy;
+    start.textContent=_fLpDesignOpening?'Abrindo edição…':'Modo editar';
+    start.setAttribute('aria-busy',String(_fLpDesignOpening));
+  }
   if(tools){tools.hidden=!active;tools.querySelectorAll('button').forEach(b=>b.disabled=busy);}
   const save=document.getElementById('lp-design-save');
   if(save) save.textContent=_fLpDesignDraft?.saving?'Publicando…':'Salvar e publicar';
@@ -3900,9 +3904,10 @@ function _fLpDesignSync(){
 async function fLpDesignStart(){
   if(!_fLpDesignAllowed()||_fLpDesignOpening||_fLpDesignDraft) return;
   const m=fState.material, id=m.id, remoteId=m.remoteId;
-  // Não concorre com o autosave do mesmo material aberto no Estúdio.
-  if((typeof dActiveTmplId!=='undefined'&&dActiveTmplId===id)||(typeof _dPushBusy!=='undefined'&&_dPushBusy)){
-    gToast('Feche este material no Estúdio e aguarde a sincronização antes de editar aqui.','error');return;
+  // Sair do Estúdio mantém dActiveTmplId por desenho (main.js). Esse ID sozinho não
+  // representa edição em andamento: só protegemos trabalho realmente não salvo.
+  if(typeof dActiveTmplId!=='undefined'&&dActiveTmplId===id&&typeof dDirty!=='undefined'&&dDirty){
+    gToast('Este material tem alterações não salvas no Estúdio. Salve-as antes de editar na prévia.','error');return;
   }
   const sb=typeof gSupabase==='function'?gSupabase():window.sb;
   if(!sb){gToast('Conecte sua conta para editar o material da rede.','error');return;}
@@ -3986,6 +3991,14 @@ async function fLpDesignSave(){
     if(fState.material?.id===draft.id) fState.material=Object.assign({},fState.material,patch);
     if(_fLpDesignDraft===draft) _fLpDesignDraft=null;
     _fLpDesignSync();_fLpRender();_fLpRetomarConclusao();gToast('Nova versão publicada para a rede.');
+    // O Estúdio permanece em memória ao trocar de área. Atualiza pelo carregador único,
+    // senão voltar e salvar ali republicaria as camadas anteriores por cima deste ajuste.
+    if(typeof dActiveTmplId!=='undefined'&&dActiveTmplId===draft.id
+       &&!(typeof dDirty!=='undefined'&&dDirty)&&typeof dLoadTemplate==='function'&&typeof dFolders!=='undefined'){
+      const folder=dFolders.find(f=>(f.templates||[]).some(t=>t.id===draft.id));
+      const template=folder&&(folder.templates||[]).find(t=>t.id===draft.id);
+      if(template){try{await dLoadTemplate(template,folder);}catch(e){console.warn('[Luma] atualizar Estúdio após publicação:',e);}}
+    }
     return true;
   }catch(e){gToast(e.message,'error');return false;}
   finally{draft.saving=false;_fLpDesignSync();}

@@ -77,13 +77,16 @@ function dExtractTemplateVars(layers){const v=new Set();(layers||[]).forEach(l=>
 <script src="../js/core/help.js"></script>
 <script>
 let admin=true, mode='ok', calls=[], notices=[], row, total=0, failures=[];
+var dActiveTmplId=null,dDirty=false;
+var studioReload=null;
+function dLoadTemplate(template,folder){studioReload={template,folder};return Promise.resolve();}
 gIsAdmin=()=>admin;
 gToast=(message)=>notices.push(message);
 function assert(ok,message){if(!ok)throw Error(message);}
 async function settled(){for(let i=0;i<100;i++){await new Promise(r=>setTimeout(r,20));if(!_lpRendering&&!_lpPendingRender)return;}throw Error('prévia não terminou: '+_lpLastErr);}
 async function test(name,fn){total++;try{await fn();document.getElementById('results').innerHTML+='<li>OK '+gEsc(name)+'</li>';}catch(e){failures.push({name,error:e.message});document.getElementById('results').innerHTML+='<li>FALHOU '+gEsc(name)+': '+gEsc(e.message)+'</li>';}}
 function fixture(){
-  _fLpDesignDraft=null;admin=true;mode='ok';calls=[];notices=[];
+  _fLpDesignDraft=null;admin=true;mode='ok';calls=[];notices=[];dActiveTmplId=null;dDirty=false;studioReload=null;
   row={id:'11111111-1111-4111-8111-111111111111',updated_at:'2026-10-03T12:00:00Z',versao_atual_id:'v1',publicado:true,
     layers:[{id:'titulo',type:'text',content:'Oferta da semana',x:100,y:100,w:800,h:120,fontSize:64,textAlign:'left',font:'Arial',visible:true},
     {id:'preco',type:'text',content:'Por {{preco}}',x:100,y:300,w:800,h:160,fontSize:96,textAlign:'left',font:'Arial',visible:true}]};
@@ -99,6 +102,9 @@ function fixture(){
 const preview=document.createElement('aside');preview.id='f-live-preview';document.querySelector('.lp-stage').before(preview);preview.appendChild(document.querySelector('.lp-stage'));
 const head=document.createElement('div');head.innerHTML='<button class="lp-edit-btn lp-design-start" id="lp-design-start" onclick="fLpDesignStart()">Modo editar</button><div id="lp-design-tools" class="lp-design-tools" hidden><span>Clique no texto para editar a arte da rede</span><button class="lp-edit-btn" onclick="fLpDesignCancel()">Cancelar</button><button class="lp-edit-ok" id="lp-design-save" onclick="fLpDesignSave()">Salvar e publicar</button></div>';document.querySelector('.lp-stage').before(head);
 (async()=>{
+await test('Material guardado no Estúdio continua editável na prévia',async()=>{fixture();dActiveTmplId=fState.material.id;await fLpDesignStart();await settled();assert(_fLpDesignActive(),'o Estúdio retido bloqueou o modo editar');});
+await test('Alteração não salva do mesmo material é preservada',async()=>{fixture();dActiveTmplId=fState.material.id;dDirty=true;await fLpDesignStart();await settled();assert(!_fLpDesignDraft,'sobrepôs trabalho não salvo');});
+await test('Publicação na prévia recarrega o material retido no Estúdio',async()=>{fixture();dActiveTmplId=fState.material.id;await fLpDesignStart();await settled();_fLpDesignDraft.layers[0].content='Oferta corrigida';assert(await fLpDesignSave(),'não publicou');assert(studioReload?.template.layers[0].content==='Oferta corrigida'&&studioReload.template.versaoAtualId==='v2','Estúdio continua com as camadas antigas');});
 await test('Franqueado não entra nem grava',async()=>{fixture();admin=false;_fLpDesignSync();await fLpDesignStart();await settled();assert(!_fLpDesignDraft,'abriu sem permissão');assert(!await fLpDesignSave()&&calls.length===0,'gravou sem permissão');assert(document.getElementById('lp-design-start').hidden,'botão exposto');});
 await test('Versão histórica não permite publicação',async()=>{fixture();fState.material._versaoAntiga=true;await fLpDesignStart();await settled();assert(!_fLpDesignDraft,'editou uma versão antiga');});
 await test('Erro de leitura não inicia edição',async()=>{fixture();mode='read-error';await fLpDesignStart();await settled();assert(!_fLpDesignDraft&&!_fLpDesignOpening,'abriu ou deixou botão travado');});
