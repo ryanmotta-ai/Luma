@@ -131,23 +131,39 @@ function conectar(url) {
     if (typeof WebSocket !== 'function') { reject(new Error('Node sem WebSocket nativo — precisa de Node 22+')); return; }
     const ws = new WebSocket(url);
     const pendentes = new Map();
+    const eventos = new Map();
     let id = 0;
     ws.addEventListener('open', () => resolve({
       enviar(metodo, params) {
         return new Promise((ok, falhou) => {
           const meu = ++id;
-          pendentes.set(meu, { ok, falhou });
+          const timer = setTimeout(() => {
+            pendentes.delete(meu);
+            falhou(new Error('CDP sem resposta em 30s: ' + metodo));
+          }, 30000);
+          pendentes.set(meu, { ok, falhou, timer });
           ws.send(JSON.stringify({ id: meu, method: metodo, params: params || {} }));
         });
+      },
+      ao(metodo, fn) {
+        const ouvintes = eventos.get(metodo) || new Set();
+        ouvintes.add(fn); eventos.set(metodo, ouvintes);
+        return () => ouvintes.delete(fn);
       },
       fechar() { try { ws.close(); } catch (e) { /* já fechado */ } }
     }));
     ws.addEventListener('error', () => reject(new Error('falha ao conectar no CDP')));
+    ws.addEventListener('close', () => {
+      pendentes.forEach(p => { clearTimeout(p.timer); p.falhou(new Error('CDP desconectado')); });
+      pendentes.clear();
+    });
     ws.addEventListener('message', ev => {
       let msg; try { msg = JSON.parse(ev.data); } catch (e) { return; }
+      if (msg.method && eventos.has(msg.method)) eventos.get(msg.method).forEach(fn => fn(msg.params || {}));
       const p = msg.id != null && pendentes.get(msg.id);
       if (!p) return;
       pendentes.delete(msg.id);
+      clearTimeout(p.timer);
       if (msg.error) p.falhou(new Error(msg.error.message || 'erro do CDP'));
       else p.ok(msg.result);
     });
@@ -156,6 +172,13 @@ function conectar(url) {
 
 /* ── 4. Rodar uma suíte ─────────────────────────────────────────────────────────────────── */
 async function rodarSuite(cdp, arquivo) {
+  const excecoes = [];
+  const remover = cdp.ao('Runtime.exceptionThrown', ev => {
+    const d = ev.exceptionDetails || {};
+    excecoes.push((d.exception && d.exception.description || d.text || 'exceção')
+      + (d.url ? ' (' + d.url + ':' + ((d.lineNumber || 0) + 1) + ')' : ''));
+  });
+  try {
   /* Modo gravação do corpus: `LUMA_RECORD=1 node scripts/run-browser-tests.js corpus` regrava
      `tests/corpus-golden.js` com a geometria e a assinatura visual DESTA máquina. Existe porque
      o golden é ancorado na pilha de fontes — ver o cabeçalho de `tests/corpus-cases.js`. */
@@ -190,7 +213,17 @@ async function rodarSuite(cdp, arquivo) {
       return parsed;
     }
   }
-  throw new Error('a suíte não publicou `window.__lumaTest` em ' + Math.round(TIMEOUT_MS / 1000) + 's');
+  let estado = '';
+  try {
+    const r = await cdp.enviar('Runtime.evaluate', {
+      expression: 'JSON.stringify({titulo:document.title,estado:document.readyState,ultimosCasos:Array.from(document.querySelectorAll("#results li")).slice(-3).map(x=>x.textContent)})',
+      returnByValue: true
+    });
+    estado = r && r.result && r.result.value || '';
+  } catch (e) { estado = e.message; }
+  throw new Error('a suíte não publicou `window.__lumaTest` em ' + Math.round(TIMEOUT_MS / 1000) + 's'
+    + '\n    estado: ' + estado + (excecoes.length ? '\n    exceções: ' + excecoes.slice(-3).join('\n    ') : ''));
+  } finally { remover(); }
 }
 
 /* ── 5. Principal ───────────────────────────────────────────────────────────────────────── */
@@ -229,6 +262,9 @@ async function rodarSuite(cdp, arquivo) {
      de socket que parece falha de CDP. Fixar em 127.0.0.1 tira essa armadilha do caminho. */
   const wsUrl = String(alvo.webSocketDebuggerUrl).replace('://localhost:', '://127.0.0.1:');
   const cdp = await conectar(wsUrl);
+  await cdp.enviar('Runtime.enable');
+  const navegador = await cdp.enviar('Browser.getVersion');
+  const relatorio = { plataforma: process.platform, navegador: navegador.product, suites: [] };
   /* ORÇAMENTO DE DESEMPENHO EM CELULAR FRACO. `LUMA_CPU_THROTTLE=4` faz o navegador executar 4×
      mais devagar — é a régua honesta para o p95 do solver na mão de quem usa o Luma no 4G, e
      não na máquina de quem escreve o código. */
@@ -243,9 +279,15 @@ async function rodarSuite(cdp, arquivo) {
   console.log('Chromium: ' + bin + '\n');
   for (const suite of suites) {
     const nome = path.basename(suite, '.html');
+    const inicioSuite = Date.now();
     let r;
     try { r = await rodarSuite(cdp, suite); }
-    catch (e) { console.log('✕ ' + nome + ' — ' + e.message); falhasTotais++; continue; }
+    catch (e) {
+      console.log('✕ ' + nome + ' — ' + e.message); falhasTotais++;
+      relatorio.suites.push({ nome, duracaoMs: Date.now() - inicioSuite, erro: e.message });
+      continue;
+    }
+    relatorio.suites.push({ nome, duracaoMs: Date.now() - inicioSuite, resultado: r });
     casosTotais += r.total || 0;
     const falhas = (r.failures || []);
     falhasTotais += falhas.length;
@@ -271,6 +313,9 @@ async function rodarSuite(cdp, arquivo) {
   try { nav.proc.kill('SIGKILL'); } catch (e) { /* já morreu */ }
   try { fs.rmSync(nav.perfil, { recursive: true, force: true }); } catch (e) { /* tmp some sozinho */ }
 
+  if (process.env.LUMA_TEST_REPORT) {
+    fs.writeFileSync(path.resolve(process.env.LUMA_TEST_REPORT), JSON.stringify({ ...relatorio, casosTotais, falhasTotais }, null, 2) + '\n');
+  }
   console.log('\n' + (falhasTotais ? 'FALHOU — ' + falhasTotais + ' problema(s)' : 'OK — ' + casosTotais + ' casos verdes'));
   process.exit(falhasTotais ? 1 : 0);
 })().catch(e => { console.error(e && e.stack || e); process.exit(1); });

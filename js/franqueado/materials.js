@@ -817,18 +817,18 @@ async function fEnsureMaterialLayers(t){
    publicação vira uma versão imutável (luma.template_versions) e a arte guarda a sua. Se o
    template mudou depois, reabrir/rebaixar monta a arte com a versão DELA — uma cópia do material
    com os layers, tamanho e permissões daquela versão; o catálogo não é tocado. Sem versão
-   gravada (arte anterior a 23/09/2026) ou se a leitura falhar, segue com o material atual,
-   como antes. Nunca lança. */
+   gravada (arte anterior a 23/09/2026), segue com o material atual. Uma versão conhecida
+   que falha ao carregar nunca é substituída silenciosamente pela publicação atual. */
 const _fVersaoCache={};
 async function fMaterialDaVersao(material, versionId){
   if(!material || !versionId || material.versaoAtualId===versionId) return material;
   const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
-  if(!sb) return material;
+  if(!sb) return null;
   try{
     if(!_fVersaoCache[versionId]){
       const {data,error}=await sb.schema('luma').from('template_versions')
         .select('layers, w, h, bg, fmt, formats, permissoes').eq('id', versionId).single();
-      if(error || !data || !Array.isArray(data.layers) || !data.layers.length) return material;
+      if(error || !data || !Array.isArray(data.layers) || !data.layers.length) return null;
       _fVersaoCache[versionId]=data;
     }
     const v=_fVersaoCache[versionId];
@@ -838,7 +838,7 @@ async function fMaterialDaVersao(material, versionId){
       versaoAtualId:versionId, _versaoAntiga:true, _needsLayersFetch:false,
       publishMeta:Object.assign({}, material.publishMeta||{}, {permissoes:(v.permissoes&&typeof v.permissoes==='object')?v.permissoes:((material.publishMeta||{}).permissoes||{})})
     });
-  }catch(e){ console.warn('[material] versão da arte não carregou — segue com a atual:', e); return material; }
+  }catch(e){ console.warn('[material] versão da arte não carregou:', e); return null; }
 }
 /* ══ AS PERGUNTAS DO CHAT — o montador ÚNICO ══════════════════════════════════════════════
    Existiam DUAS montagens de pergunta: esta (`fSelectMaterial`) e a de reabrir arte

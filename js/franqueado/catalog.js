@@ -326,7 +326,7 @@ function fRenderHist(){
       <div class="empty-icon">
         <img src="assets/illustrations/empty_filtered.png" alt="Nenhuma arte encontrada com os filtros atuais">
       </div>
-      ${emptyBody}
+      ${emptyBody}${typeof fHistMoreButton==='function'?fHistMoreButton():''}
     </div></div>`;
     _fHistRestoreSearchFocus();
     return;
@@ -368,7 +368,7 @@ function fRenderHist(){
       </div>
     </article>`;
   }).join('');
-  el.innerHTML=`<div class="f-history-shell">${pageHead}${toolbar}<div class="f-history-results"><div class="f-history-results-head"><span>${filtered.length} ${filtered.length===1?'arte':'artes'}</span><span>Mais recentes primeiro</span></div><div class="f-history-grid">${cards}</div></div></div>`;
+  el.innerHTML=`<div class="f-history-shell">${pageHead}${toolbar}<div class="f-history-results"><div class="f-history-results-head"><span>${filtered.length} ${filtered.length===1?'arte':'artes'}</span><span>Mais recentes primeiro</span></div><div class="f-history-grid">${cards}</div>${typeof fHistMoreButton==='function'?fHistMoreButton():''}</div></div>`;
   _fHistRestoreSearchFocus();
   _fHistRenderPreviews(previewRun);
 }
@@ -390,7 +390,7 @@ async function fDownloadHist(id, btn){
   const f=FMTS.find(x=>x.id===h.fmtId)||FMTS[0];
   // Carrega material original se ainda existir (pra renderer usar layers reais)
   const prevMaterial = fState.material;
-  { const _m = h.materialId ? fFindMaterialById(h.materialId) : null; if(_m) fState.material = _m; }
+  fState.material=h.materialId?fFindMaterialById(h.materialId):null;
   // O botao so reagia DEPOIS de fEnsureMaterialLayers e do download das fontes -- em 3G
   // sao ate 10s de botao mudo, e a pessoa clica de novo achando que nao pegou. O loading
   // entra AQUI, antes do primeiro await, e sai no finally (todo caminho de saida passa la).
@@ -399,6 +399,10 @@ async function fDownloadHist(id, btn){
   if(fState.material && typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(fState.material);
   // Arte feita com versão anterior do template: rebaixa/duplica com a versão DELA (materials.js).
   if(fState.material && h.templateVersionId && typeof fMaterialDaVersao==='function') fState.material = await fMaterialDaVersao(fState.material, h.templateVersionId);
+  if(h.templateVersionId&&!fState.material){
+    fState.material=prevMaterial;
+    gToast('Não consegui carregar a versão original desta arte. Verifique a conexão e tente novamente.','error');return;
+  }
   // Honestidade: se os layers do material não desceram (sem rede), o fGenPNG cairia no
   // renderer GENÉRICO e entregava arte errada com toast de sucesso. Avisa e para.
   if(fState.material && fState.material._needsLayersFetch){
@@ -451,6 +455,9 @@ async function fEditFromHist(id, btn){
     if(material._needsLayersFetch) material = null; // fetch falhou → segue pro fallback (estrutura padrão)
   }
   if(material && h.templateVersionId && typeof fMaterialDaVersao==='function') material = await fMaterialDaVersao(material, h.templateVersionId);
+  if(h.templateVersionId&&!material){
+    gToast('Não consegui carregar a versão original desta arte. Verifique a conexão e tente novamente.','error');return;
+  }
 
   if(material){
     // Carrega via fluxo de material (reconstrói perguntas das vars + permissões)
@@ -539,10 +546,14 @@ async function fConfirmDuplicate(id, fmtId){
   const f = FMTS.find(x=>x.id===fmtId) || FMTS[0];
   // Carrega material original se ainda existir
   const prevMaterial = fState.material;
-  { const _m = h.materialId ? fFindMaterialById(h.materialId) : null; if(_m) fState.material = _m; }
+  fState.material=h.materialId?fFindMaterialById(h.materialId):null;
   if(fState.material && typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(fState.material);
   // Arte feita com versão anterior do template: rebaixa/duplica com a versão DELA (materials.js).
   if(fState.material && h.templateVersionId && typeof fMaterialDaVersao==='function') fState.material = await fMaterialDaVersao(fState.material, h.templateVersionId);
+  if(h.templateVersionId&&!fState.material){
+    fState.material=prevMaterial;
+    gToast('Não consegui carregar a versão original desta arte. Verifique a conexão e tente novamente.','error');return;
+  }
   try {
     await fGenPNG(h.dados, c, f);
     fAddHist(h.dados, c, f, 'baixada'); // só registra se o PNG saiu (material ainda carregado aqui)

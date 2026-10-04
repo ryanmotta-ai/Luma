@@ -3851,8 +3851,30 @@ function _dTemplateDraft(t){
 function _dTemplateMetaSignature(t){
   return JSON.stringify([t.name,t.fmt,t.formats,t.w,t.h,t.bg,t.publishMeta]);
 }
+function _dFolderRow(f,idx){
+  const row={id:f.remoteId,nome:f.name||'(sem nome)',cor:f.color||null,camp_id:f.campId||null,
+    badge:f.badge||'',expira_dias:f.expiraDias||7,popular:!!f.popular,
+    preview_prod:f.previewProd||'',preview_de:f.previewDe||'',preview_por:f.previewPor||'',
+    perguntas:f.perguntas||[],grupos:f.grupos||['Todos os usuários'],
+    ativa:f.ativa!==false&&!f.arquivada,ordem:typeof f.ordem==='number'?f.ordem:idx,
+    agendamento:f.agendamento||null};
+  if(typeof f.destaque==='boolean')row.destaque=f.destaque;
+  if(f.cover==='')row.cover_url=null;
+  else if(typeof f.cover==='string'&&!f.cover.startsWith('data:')&&!f.cover.startsWith('idb://')&&f.cover!=='__local__')row.cover_url=f.cover;
+  return row;
+}
+function _dFolderMetaSignature(f,idx){
+  const row=_dFolderRow(f,idx);delete row.id;
+  // A capa local precisa participar mesmo antes de virar URL de Storage.
+  row.cover_url=f.cover||null;
+  return JSON.stringify(row);
+}
 function dPersistFolders(){
   let droppedImg=false;
+  (dFolders||[]).forEach((f,idx)=>{
+    if(!f.remoteId||(f._syncedFolderMeta&&f._syncedFolderMeta!==_dFolderMetaSignature(f,idx)))f._syncPending=true;
+    if(f._syncPending&&!f._syncOwnerId)f._syncOwnerId=(typeof gCurrentUser==='function')?gCurrentUser()?.id:null;
+  });
   (dFolders||[]).forEach(f=>(f.templates||[]).forEach(t=>{
     if(t._syncedMeta && t._syncedMeta!==_dTemplateMetaSignature(t))t._syncPending=true;
     if(t._syncPending&&!t._syncOwnerId)t._syncOwnerId=(typeof gCurrentUser==='function')?gCurrentUser()?.id:null;
@@ -3974,51 +3996,64 @@ async function _dPushFoldersRun(){
       const _sis=gPastaSistema(f);
       if(_sis==='modelo' && f.remoteId!==G_PASTA_MODELO_ID) continue;
       if(_sis==='rascunhos'){ if(!f.remoteId) f.remoteId=G_PASTA_RASC_ID; else if(f.remoteId!==G_PASTA_RASC_ID) continue; }
-      if(!f.remoteId) f.remoteId=_dUuid('p');
+      if(!f.remoteId){f.remoteId=_dUuid('p');f._newRemote=true;f._syncPending=true;}
+      if(f._syncPending&&f._syncOwnerId&&f._syncOwnerId!==owner)continue;
+      const folderSignature=_dFolderMetaSignature(f,idx);
+      const folderDirty=f._syncPending||!f._syncedFolderMeta||f._syncedFolderMeta!==folderSignature;
+      if(folderDirty){
+      const folderSource=JSON.parse(JSON.stringify(f));
+      // Caches antigos não possuem carimbo: só adote o servidor quando os metadados
+      // são idênticos. Aprender uma versão divergente e sobrescrevê-la seria LWW outra vez.
+      if(!f._remoteUpdatedAt&&!f._newRemote){
+        const {data:existing,error:readErr}=await sb.schema('luma').from('pastas').select('*').eq('id',f.remoteId).maybeSingle();
+        if(!stillOwner())return;
+        if(readErr){f._syncPending=true;continue;}
+        if(existing){
+          const loaded=_dRowToFolder(existing,[]);
+          if(_dFolderMetaSignature(loaded,idx)!==folderSignature||!existing.updated_at){f._syncPending=true;_confl.push(f.name||'(sem nome)');continue;}
+          f._remoteUpdatedAt=existing.updated_at;f._syncedFolderMeta=folderSignature;f._syncPending=false;
+        }else f._newRemote=true;
+      }
+      if(f._syncPending||f._newRemote||f._syncedFolderMeta!==folderSignature){
       let _capaPend=false;
-      if(typeof f.cover==='string' && f.cover.startsWith('data:')){
-        const cu=await _dUploadDataUrl('luma-covers', f.remoteId+'/cover', f.cover);
-        if(cu) f.cover=cu;
+      if(typeof folderSource.cover==='string' && folderSource.cover.startsWith('idb://')&&typeof gResolveImgUrl==='function'){
+        const resolved=await gResolveImgUrl(folderSource.cover);
+        if(!resolved){const current=dFolders.find(x=>x.id===f.id);if(current)current._syncPending=true;continue;}
+        folderSource.cover=resolved;
+      }
+      if(typeof folderSource.cover==='string' && folderSource.cover.startsWith('data:')){
+        const cu=await _dUploadDataUrl('luma-covers', f.remoteId+'/cover', folderSource.cover);
+        if(cu) folderSource.cover=cu;
         else{
-          // ⚠ Este era um erro 100% MUDO, e é o "não consigo trocar a capa": o upload falha,
-          // o cover_url é OMITIDO do upsert (linha abaixo), o upsert da PASTA dá certo,
-          // _syncPending vira false e o app ainda diz "✓ Pasta atualizada". O pull seguinte
-          // troca a capa local pela vazia do banco — a capa "não pega" e ninguém sabe por quê.
-          // Agora: pendência (badge + retry no próximo save) e a causa dita em voz alta.
+          // Não confirme metadados com a capa ainda local: o pull seguinte a perderia.
           _capaPend=true;
           console.warn('[sync] a capa de "'+(f.name||'?')+'" NÃO subiu pro Storage (bucket luma-covers) — fica só neste aparelho até um save dar certo.');
           if(typeof gToast==='function') gToast('A capa de "'+(f.name||'?')+'" não subiu pro servidor — por ora ela vale só neste aparelho.','error');
         }
       }
-      // cover_url só entra no upsert com valor DEFINITIVO: URL pronta grava; '' (capa
-      // removida pelo designer) limpa; data:/idb:///__local__ (upload pendente/só-local)
-      // OMITE a coluna — o upsert não toca coluna ausente e a capa que já está no banco
-      // sobrevive. (Antes: upload falho gravava NULL e APAGAVA a capa antiga de todos.)
-      const _rowPasta={
-        id:f.remoteId, nome:f.name||'(sem nome)', cor:f.color||null, camp_id:f.campId||null,
-        badge:f.badge||'', expira_dias:f.expiraDias||7, popular:!!f.popular,
-        preview_prod:f.previewProd||'', preview_de:f.previewDe||'', preview_por:f.previewPor||'',
-        perguntas:f.perguntas||[], grupos:f.grupos||['Todos os usuários'],
-        // Fase 2 passo 2: preserva o estado real — ativa:true fixo desfazia o arquivar,
-        // e ordem/agendamento nunca subiam (a ordenação do catálogo não sobrevivia ao ciclo).
-        ativa:(f.ativa!==false && !f.arquivada), ordem:(typeof f.ordem==='number'?f.ordem:idx),
-        agendamento:f.agendamento||null
-      };
-      // Seção da vitrine ("Ativas agora" × "Outras"). Só sobe quando a pasta a conhece: omitir
-      // não toca a coluna, e a pasta de cache antigo não rebaixa ninguém para o padrão.
-      if(typeof f.destaque==='boolean') _rowPasta.destaque=f.destaque;
-      if(f.cover==='') _rowPasta.cover_url=null;
-      else if(typeof f.cover==='string' && !f.cover.startsWith('data:') && f.cover.indexOf('idb://')!==0 && f.cover!=='__local__') _rowPasta.cover_url=f.cover;
-      // Erro no upsert da pasta (rede/RLS) era 100% silencioso: a edição de campanha vivia
-      // só no cache e o próximo pull a descartava. Agora marca pendência (badge) e loga.
+      const _rowPasta=_dFolderRow(folderSource,idx);
       if(!stillOwner())return;
-      const { error:_pErr }=await sb.schema('luma').from('pastas').upsert(_rowPasta, {onConflict:'id'});
-      // Capa que não subiu conta como pendência: sem isso o upsert bem-sucedido zerava o
-      // flag e a pasta ficava "sincronizada" com a capa só no cache local.
+      if(!dFolders.some(x=>x.id===f.id))continue;
+      if(_capaPend||(typeof folderSource.cover==='string'&&(folderSource.cover.startsWith('idb://')||folderSource.cover==='__local__'))){f._syncPending=true;continue;}
+      let folderQuery=sb.schema('luma').from('pastas');
+      folderQuery=f._remoteUpdatedAt?folderQuery.update(_rowPasta).eq('id',f.remoteId).eq('updated_at',f._remoteUpdatedAt):folderQuery.insert(_rowPasta);
+      const {data:folderRows,error:_pErr}=await folderQuery.select('id,updated_at');
+      // Confirmação vale só para o snapshot enviado, nunca para a edição feita durante o voo.
       if(!stillOwner())return;
-      f._syncPending=!!_pErr || _capaPend;
-      if(_pErr) console.warn('[sync] upsert da pasta falhou ('+(f.name||'?')+'):', _pErr.message||_pErr);
-      for(const t of (f.templates||[])){
+      const current=dFolders.find(x=>x.id===f.id);
+      if(!current)continue;
+      const confirmed=Array.isArray(folderRows)&&folderRows.find(x=>x.id===_rowPasta.id&&x.updated_at);
+      if(_pErr||!confirmed){current._syncPending=true;if(!_pErr)_confl.push(current.name||'(sem nome)');continue;}
+      const changed=_dFolderMetaSignature(current,idx)!==folderSignature;
+      if(!changed)current.cover=folderSource.cover;
+      current._remoteUpdatedAt=confirmed.updated_at;
+      current._syncedFolderMeta=_dFolderMetaSignature(folderSource,idx);
+      current._syncPending=changed;delete current._newRemote;
+      if(!changed)delete current._syncOwnerId;
+      if(changed)continue;
+      }
+      }
+      for(const t of (dFolders.find(x=>x.id===f.id)?.templates||[])){
         // Catálogo leve: template sem layers baixados (cache de sessão franqueado) —
         // upsert aqui gravaria layers:[] no banco e DESTRUIRIA o template. Nunca subir.
         if(t._publishPending&&!_dOwnDraft(t._publishPending))continue;
@@ -4151,8 +4186,9 @@ function _dRowToTemplate(t){
   return out;
 }
 function _dRowToFolder(p, templates){
-  return {
+  const out={
     id:p.id, remoteId:p.id, name:p.nome||'(sem nome)', color:p.cor||'', campId:p.camp_id||'',
+    _remoteUpdatedAt:p.updated_at||null,
     cover:p.cover_url||'', badge:p.badge||'', expiraDias:p.expira_dias||7, popular:!!p.popular,
     previewProd:p.preview_prod||'', previewDe:p.preview_de||'', previewPor:p.preview_por||'',
     perguntas:Array.isArray(p.perguntas)?p.perguntas:[],
@@ -4164,6 +4200,8 @@ function _dRowToFolder(p, templates){
     arquivada:(p.ativa===false),  // coluna `ativa` do banco: false = pasta arquivada (some da vitrine)
     destaque:(p.destaque!==false) // seção da vitrine: true = "Ativas agora", false = "Outras campanhas"
   };
+  out._syncedFolderMeta=_dFolderMetaSignature(out,typeof p.ordem==='number'?p.ordem:0);
+  return out;
 }
 // Chave de comparação de nome de pasta: sem acento, sem caixa, sem espaço duplo.
 // "Much+ Benefícios" e "much+ beneficios " são a MESMA pasta pro merge do sync.
@@ -4233,15 +4271,19 @@ async function dSyncFoldersFromBackend(){
     // O template ABERTO no editor também é preservado (mesmo sincronizado): o pull trocaria
     // o objeto e o dActiveTmplId ficaria órfão — o próximo dSave gravaria no vazio, em silêncio.
     const _openId=(typeof dActiveTmplId!=='undefined')?dActiveTmplId:null;
-    (dFolders||[]).forEach(lf=>{
+    (dFolders||[]).forEach((lf,idx)=>{
       const pend=(lf.templates||[]).filter(t=>t&&(t._syncPending||t._draft||t._drafts||t._publishPending||(_openId&&t.id===_openId)));
-      if(!pend.length) return;
+      const folderPending=lf._syncPending||(lf._syncedFolderMeta&&lf._syncedFolderMeta!==_dFolderMetaSignature(lf,idx));
+      if(!pend.length&&!folderPending) return;
       // Mesma escada do filtro de extras acima (inclusive o nome): sem o casamento por
       // nome, a semente descartada levaria com ela o template ainda não sincronizado.
       const rf=remote.find(f=>f.remoteId===lf.remoteId)
             ||remote.find(f=>f.campId&&f.campId===lf.campId)
             ||remote.find(f=>_dChaveNome(f.name)===_dChaveNome(lf.name));
       if(!rf) return; // pasta local-only já sobrevive via extras
+      // Conflito mantém o carimbo da abertura: o pull não pode legitimá-lo para
+      // o próximo UPDATE. Catálogo remoto continua sendo a origem dos templates.
+      if(folderPending){const templates=rf.templates;Object.assign(rf,lf);rf.templates=templates;rf._syncPending=true;}
       pend.forEach(pt=>{
         const i=rf.templates.findIndex(x=>x&&(x.id===pt.id||(pt.remoteId&&x.remoteId===pt.remoteId)));
         if(i>=0) rf.templates[i]=pt; else rf.templates.push(pt);

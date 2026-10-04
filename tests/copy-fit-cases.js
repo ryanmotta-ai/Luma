@@ -439,8 +439,28 @@
       textBox:'point', vAlign:'top', visible:true, opacity:100 };
     // pilha:null — idem ao 12.
     const cabe = t => { const r = gFitTextToAuthoredBox(l, t, { layers:[l, d], canvas:{ w:1080, h:1920 }, pilha:null }); return { ok:r.status === 'fits', fontSize:r.fontSize }; };
-    // Teto autorado de 510px: original bloqueia, e só o candidato com "+"
-    // cabe. O envelope livre atual resolve o original sem encurtar.
+    /* Arial no Windows e Liberation Sans no Linux têm a mesma impressão digital de LARGURA,
+       mas a tinta/altura muda a linha em que este texto cabe. 510px ficava de um lado do
+       limiar no Windows e do outro no CI. Construímos o teto entre dois controles autorados,
+       sem consultar os candidatos do Copy Fit: a troca por "+" precisa abrir espaço real.
+       Um medidor que sempre aceite/rejeite continua reprovando esta prova. */
+    const comMais = 'Pizza G + Refri + Sobremesa R$ 59,90';
+    const semMais = 'Pizza G com Refri e Sobremesa R$ 59,90';
+    const larguraMinima = texto => {
+      let min = l.w, max = 900;
+      l.fitRegion.maxW = max;
+      assert(cabe(texto).ok, 'o controle não cabe no espaço legal do Story: ' + texto);
+      while(min < max){
+        const meio = Math.floor((min + max) / 2);
+        l.fitRegion.maxW = meio;
+        if(cabe(texto).ok) max = meio; else min = meio + 1;
+      }
+      return min;
+    };
+    const limiteMais = larguraMinima(comMais), limiteSem = larguraMinima(semMais);
+    assert(limiteSem - limiteMais >= 8, 'o "+" não abriu uma margem de largura real');
+    l.fitRegion.maxW = Math.floor((limiteMais + limiteSem) / 2);
+    assert(cabe(comMais).ok && !cabe(semMais).ok, 'a caixa não distingue os controles');
     const f = 'Pizza Grande com Refrigerante e Sobremesa por R$ 59,90';
     assert(!cabe(f).ok, 'o cenário precisa começar bloqueado');
     const { sugestoes } = gCopyFitSugestoes(f, cabe, 3);
