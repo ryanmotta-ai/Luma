@@ -3367,11 +3367,11 @@ body.mode-designer:not(.d-studio-home-open) #g-help-float{
   background:color-mix(in srgb,var(--green) 11%,transparent);color:var(--green)}
 .dpi-data-health-icon svg{width:14px;height:14px}
 .dpi-data-health-copy{display:grid;gap:2px;min-width:0}
-.dpi-data-health-copy strong{font-size:11.5px;color:var(--d-text)}
-.dpi-data-health-copy small{font-size:9.5px;color:var(--d-text3)}
+.dpi-data-health-copy strong{font-size:13px;font-weight:800;letter-spacing:-.01em;color:var(--d-text)}
+.dpi-data-health-copy small{font-size:11.5px;line-height:1.35;color:var(--d-text2)}
 .dpi-data-health-actions{grid-column:1 / -1;display:flex;align-items:center;gap:6px;margin-top:2px}
-.dpi-data-health-actions button{padding:5px 8px;border:1px solid var(--d-border);border-radius:6px;background:transparent;
-  color:var(--d-text2);font:600 9.5px/1.2 'Roboto',sans-serif;cursor:pointer}
+.dpi-data-health-actions button{min-height:30px;padding:6px 11px;border:1px solid var(--d-border);border-radius:var(--r-sm);background:var(--d-dark);
+  color:var(--d-text2);font:700 12px/1.2 'Roboto',sans-serif;cursor:pointer}
 .dpi-data-health-actions button:hover{border-color:var(--d-border2);background:var(--d-surf2);color:var(--d-text)}
 .dpi-data-health-actions button:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 .dpi-data-health.has-problem{border-color:color-mix(in srgb,var(--dm-yellow) 35%,var(--d-border));background:color-mix(in srgb,var(--dm-yellow) 5%,var(--d-surf))}
@@ -4482,38 +4482,35 @@ body.theme-light #d-panel-dados .dpi-order-moves button{border-color:var(--gray-
    responde "o que esta arte usa, e falta algo?" — e o inventário inteiro é nível 2.
    A pergunta pendente fica ACIMA do resumo: ação antes de inventário (§34). */
 .fields-summary:empty{display:none}
-.fsum{display:flex;flex-direction:column;gap:7px;padding:2px 2px 8px}
-.fsum-line{margin:0;display:flex;align-items:flex-start;gap:6px;font-size:10.5px;line-height:1.45;color:var(--d-text3)}
-.fsum-line b{font-weight:700;color:var(--d-text2)}
-.fsum-line>svg{width:12px;height:12px;flex:0 0 auto;margin-top:2px;color:var(--green)}
-.fsum-line.warn>svg{color:var(--dm-orange)}
-.fsum-acts{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:2px}
-.fsum-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border:1px solid var(--d-border);
-  border-radius:8px;background:var(--d-surf2);font-size:10px;font-weight:700;color:var(--d-text2);
-  cursor:pointer;transition:border-color var(--dur-micro),color var(--dur-micro),background var(--dur-micro)}
-.fsum-btn:hover{border-color:var(--d-text3);color:var(--d-text)}
-.fsum-btn>svg{width:12px;height:12px;flex:0 0 auto}
-.fsum-btn.on{border-color:var(--dm-orange);background:rgba(255,144,0,.14);color:var(--dm-orange)}
-.fsum-link{padding:5px 2px;border:0;background:none;font-size:10px;font-weight:700;color:var(--d-text3);
-  cursor:pointer;text-decoration:underline;text-underline-offset:2px;transition:color var(--dur-micro)}
-.fsum-link:hover{color:var(--d-text)}
-/* A pergunta. É o único bloco com peso visual do painel — o resto do resumo é texto calmo. */
-.fsum-ask{display:flex;flex-direction:column;gap:6px;padding:10px 11px;margin-bottom:2px;
+/* Pé da lista "na arte": leva ao catálogo inteiro sem virar um segundo controle. */
+.field-more{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:36px;
+  margin-top:10px;padding:8px 12px;border:1px dashed var(--d-border2);border-radius:var(--r-sm);
+  background:transparent;color:var(--d-text2);font:700 12px/1.2 'Roboto',sans-serif;cursor:pointer;
+  transition:border-color var(--dur-micro),color var(--dur-micro),background var(--dur-micro)}
+.field-more:hover{border-color:var(--dm-orange);background:color-mix(in srgb,var(--dm-orange) 7%,transparent);color:var(--dm-orange-text,var(--dm-orange))}
+.field-more:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+.field-more svg{width:14px;height:14px;flex:0 0 auto}
+
+/* A PERGUNTA. Único bloco do resumo que sobrou — as linhas de status e os botões saíram
+   (repetiam o cabeçalho de saúde, layers.js §resumo). O corpo estava em 8,5–10,5px, abaixo
+   do piso de 12px do design system; subiu para 12–13px, que é o tamanho de quem responde
+   uma pergunta, não de quem lê uma nota de rodapé. */
+.fsum{display:flex;flex-direction:column;padding:0 2px 10px}
+.fsum-ask{display:flex;flex-direction:column;gap:8px;padding:12px 13px;
   border:1px solid rgba(255,144,0,.32);border-radius:10px;background:rgba(255,144,0,.075)}
-.fsum-ask-top{margin:0;font-size:8.5px;font-weight:750;letter-spacing:.06em;text-transform:uppercase;color:var(--dm-orange)}
-.fsum-ask-q{font-size:11.5px;font-weight:700;line-height:1.35;color:var(--d-text)}
-.fsum-opts{display:flex;flex-wrap:wrap;gap:5px}
-.fsum-opt{padding:5px 9px;border:1px solid var(--d-border);border-radius:8px;background:var(--d-surf);
-  font-size:10px;font-weight:700;color:var(--d-text2);cursor:pointer;
+.fsum-ask-top{margin:0;font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--dm-orange-text,var(--dm-orange))}
+.fsum-ask-q{font-size:13px;font-weight:700;line-height:1.35;color:var(--d-text)}
+.fsum-opts{display:flex;flex-wrap:wrap;gap:6px}
+.fsum-opt{min-height:30px;padding:6px 11px;border:1px solid var(--d-border);border-radius:8px;background:var(--d-surf);
+  font-size:12px;font-weight:700;color:var(--d-text2);cursor:pointer;
   transition:border-color var(--dur-micro),color var(--dur-micro),background var(--dur-micro)}
 .fsum-opt:hover{border-color:var(--d-text3);color:var(--d-text)}
-.fsum-opt.pri{border-color:var(--dm-orange);background:rgba(255,144,0,.16);color:var(--dm-orange)}
+.fsum-opt.pri{border-color:var(--dm-orange);background:rgba(255,144,0,.16);color:var(--dm-orange-text,var(--dm-orange))}
 .fsum-opt-fixo{color:var(--d-text3)}
-.fsum-ask-ver{align-self:flex-start;padding:0;border:0;background:none;font-size:9.5px;font-weight:650;
+.fsum-ask-ver{align-self:flex-start;padding:2px 0;border:0;background:none;font-size:12px;font-weight:650;
   color:var(--d-text3);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .fsum-ask-ver:hover{color:var(--d-text)}
-.fsum-opt:focus-visible,.fsum-btn:focus-visible,.fsum-link:focus-visible,.fsum-ask-ver:focus-visible{
-  outline:2px solid var(--dm-orange);outline-offset:2px}
+.fsum-opt:focus-visible,.fsum-ask-ver:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 
 /* ══ MOSTRAR CAMPOS NA ARTE (§41) — o contrato de editabilidade, visível ═══════════════
    Selo por cima de cada camada ligada. Desenhado por `::before`, o que garante que ele só
@@ -4527,4 +4524,6 @@ body.theme-light #d-panel-dados .dpi-order-moves button{border-color:var(--gray-
   font:700 10px/1.3 system-ui,sans-serif;letter-spacing:.01em;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis;pointer-events:none;
 }
-body.d-show-fields .canvas-layer[data-field-label]{outline:1.5px dashed var(--var-color,#FFB900);outline-offset:1px}
+/* O tracejado era do overlay que saiu (`d-show-fields`); passa para o que ficou, o mapa de
+   campos do canvas — a camada editável continua se anunciando enquanto o mapa está ligado. */
+body.d-field-map-visible .canvas-layer.has-field-map{outline:1.5px dashed var(--var-color,#FFB900);outline-offset:1px}

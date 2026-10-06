@@ -833,11 +833,13 @@ function dToggleLayersFilterMenu(e) {
   
   if (!isOpen) {
     menu.classList.add('open');
+    /* O listener saía do documento só quando o clique caía FORA. Escolher um filtro (clique
+       dentro) fechava o menu por outro caminho e deixava este aqui pendurado — um a mais a
+       cada abertura. Agora ele é de uso único: sempre se remove, e só fecha quando é fora. */
     const closeMenu = (evt) => {
-      if (!menu.contains(evt.target) && evt.target !== e.currentTarget) {
-        menu.classList.remove('open');
-        document.removeEventListener('click', closeMenu);
-      }
+      const dentro = menu.contains(evt.target) || evt.target === e.currentTarget;
+      document.removeEventListener('click', closeMenu);
+      if (!dentro) menu.classList.remove('open');
     };
     setTimeout(() => document.addEventListener('click', closeMenu), 0);
   }
@@ -1624,6 +1626,35 @@ function dRenderAnchorProps(l) {
     sel.value = '';
     if (details) details.style.display = 'none';
   }
+  let campo = document.getElementById('dp-fit-font-group-field');
+  if(!campo){
+    campo = document.createElement('div');
+    campo.id = 'dp-fit-font-group-field'; campo.className = 'dp-field';
+    campo.innerHTML = '<label class="dp-field-label" for="dp-fit-font-group">Mesmo tamanho de fonte</label>'
+      + '<select class="prop-input" id="dp-fit-font-group" onchange="dUpdateFitFontGroup(this.value)"></select>';
+    const tipografia = document.querySelector('#dp-sec-text .dp-sec-body');
+    (tipografia || sel.closest('.dp-sec-body')).appendChild(campo);
+  }
+  campo.hidden = l.type !== 'text' || ! _gLayoutTemCampo(l);
+  const fontes = campo.querySelector('select');
+  const textos = others.filter(x => x.type === 'text' && _gLayoutTemCampo(x));
+  fontes.innerHTML = '<option value="">Independente</option>' + textos.map(x =>
+    '<option value="' + gEsc(x.id) + '">' + gEsc(x.name || x.content || 'Texto') + '</option>').join('');
+  const par = l.fitFontGroup && textos.find(x => x.fitFontGroup === l.fitFontGroup);
+  fontes.value = par ? par.id : '';
+}
+
+/* O vínculo é dado autorado (serializado junto com a camada), nunca um carimbo de render. */
+function dUpdateFitFontGroup(id){
+  const l = dLayers.find(x => x.id === dSelId);
+  const par = dLayers.find(x => x.id === id && l && x.abId === l.abId && x.type === 'text' && _gLayoutTemCampo(x));
+  if(!l || l.type !== 'text' || !_gLayoutTemCampo(l) || (id && (!par || par.id === l.id))) return;
+  dHistoryPush();
+  if(par){
+    const grupo = par.fitFontGroup || par.id;
+    par.fitFontGroup = grupo; l.fitFontGroup = grupo;
+  }else delete l.fitFontGroup;
+  dRenderAnchorProps(l); dMarkUnsaved(); dRenderCanvas();
 }
 
 function dUpdateAnchorLayer(val) {
@@ -1805,10 +1836,17 @@ function dInsertVar(){
 ══════════════════════════════════════════════════════════════ */
 // string "{{nome}}" → HTML do contentEditable (chips atômicos, contenteditable=false).
 function dFieldTokensToChips(str){
-  return _dEsc(String(str==null?'':str)).replace(gVarRegex(),(m,n)=>{
+  /* ⚠ O TOKEN TEM DUAS PARTES: `{{preco}}` e `{{preco:inteiro}}` são coisas diferentes — o
+     segundo grupo da `gVarRegex` é o formato do preço fracionado (`:inteiro`/`:centavos`), que
+     o designer compôs. O chip guardava só o nome e o `dFieldReadContent` devolvia `{{preco}}`:
+     encostar no painel de propriedades apagava a formatação da camada de preço. */
+  return _dEsc(String(str==null?'':str)).replace(gVarRegex(),(m,n,fmt)=>{
     const v=(typeof dVars!=='undefined')&&dVars.find(x=>x.name===n);
     const lab=v?(v.label||n):n;
-    return `<span class="field-chip" contenteditable="false" data-var="${n}">${_dEsc(lab)}</span>`;
+    // O formato vive no `data-fmt` (é o que o `dFieldReadContent` devolve ao token) e no
+    // `title` — sem mudar o desenho do chip, que é o mesmo de sempre.
+    const _tit=fmt?(' — '+(fmt==='centavos'?'centavos':'parte inteira')):'';
+    return `<span class="field-chip" contenteditable="false" data-var="${_dEsc(n)}" data-fmt="${_dEsc(fmt||'')}" title="${_dEsc(lab+_tit)}">${_dEsc(lab)}</span>`;
   });
 }
 // contentEditable → string com "{{nome}}" (chips viram tokens; <br>/<div> viram \n).
@@ -1817,7 +1855,10 @@ function dFieldReadContent(el){
   el.childNodes.forEach(node=>{
     if(node.nodeType===3){ out+=node.nodeValue; }
     else if(node.nodeType===1){
-      if(node.classList && node.classList.contains('field-chip')){ out+='{{'+(node.dataset.var||'')+'}}'; }
+      if(node.classList && node.classList.contains('field-chip')){
+        const _f=node.dataset.fmt||'';
+        out+='{{'+(node.dataset.var||'')+(_f?(':'+_f):'')+'}}';
+      }
       else if(node.tagName==='BR'){ out+='\n'; }
       else if(node.tagName==='DIV'||node.tagName==='P'){ if(out&&!out.endsWith('\n'))out+='\n'; out+=dFieldReadContent(node); }
       else { out+=node.textContent||''; }
@@ -2530,7 +2571,9 @@ async function dSyncVarsFromBackend(){
   const sb = (typeof gSupabase==='function') ? gSupabase() : window.sb;
   if(!sb) return;
   try{
-    const { data, error }=await sb.schema('luma').from('variaveis').select('*').order('ordem',{ascending:true});
+    const _vis=(typeof gVisitante==='function' && gVisitante()) ? await gVisitanteCatalogo() : null;
+    const { data, error }=_vis ? { data:_vis.variaveis, error:null }
+      : await sb.schema('luma').from('variaveis').select('*').order('ordem',{ascending:true});
     if(error) return;
     if(Array.isArray(data) && data.length){
       // merge: o banco é a fonte, mas preserva (e sobe) vars locais ainda não sincronizadas
@@ -2601,7 +2644,11 @@ function dHighlightVarLayers(name){
 ══════════════════════════════════════════════════════════════ */
 let _dFieldsQuery='';
 let _dFieldsCatCollapsed={}; // {catId:true} = categoria recolhida
-let _dFieldsStatusFilter='all'; // 'all' | 'used' | 'free'
+// Começa em 'used' — o painel se chama "Campos da arte" e é isso que ele deve listar.
+// Ver o catálogo inteiro é UM clique na chipbar ('Todos'), que fica logo acima da lista;
+// era essa a divulgação progressiva do §71, que antes escondia a lista INTEIRA e deixava
+// 570px de painel vazio embaixo de três blocos de resumo.
+let _dFieldsStatusFilter='used'; // 'all' | 'used' | 'free'
 let _dFieldsOpen=null;          // name do campo com detalhe expandido (acordeão)
 let _dFieldsDup={};             // name → rótulo do outro campo (possível duplicata)
 
@@ -2668,8 +2715,6 @@ const _D_FIELD_ARROW='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
    da camada) e o inventário continua sendo o `dFieldsRender` que já existia.
    ⛔ A análise semântica NÃO roda a cada render (§64): fica em cache pela assinatura dos
    vínculos, que é o que de fato a invalida.                                                 */
-let _dFieldsExpandido=false;    // false = resumo (nível 1) · true = inventário (nível 2)
-let _dFieldsMostraNaArte=false; // overlay "Mostrar campos na arte" — só no Estúdio, nunca no export
 let _dFieldsSugCache=null;      // {chave, lista} — o parecer semântico das camadas sem vínculo
 
 // Assinatura do que muda o parecer: quais camadas existem, o que cada uma já mostra, e o
@@ -2694,17 +2739,12 @@ function dFieldsSugestoes(){
   _dFieldsSugCache={chave, lista};
   return lista;
 }
-function dFieldsToggleTodos(){ _dFieldsExpandido=!_dFieldsExpandido; dFieldsRender(); }
-/* §41 — MOSTRAR CAMPOS NA ARTE. É a visão do contrato de editabilidade: cada camada ligada
-   ganha o rótulo do campo por cima. Overlay de AUTORIA: vive numa pseudo-elemento de CSS, o
-   que garante que não existe para o gerador de PNG nem para o export SVG (motores separados,
-   que leem `dLayers`, não o DOM do Estúdio). */
-function dFieldsToggleNaArte(){
-  _dFieldsMostraNaArte=!_dFieldsMostraNaArte;
-  document.body.classList.toggle('d-show-fields', _dFieldsMostraNaArte);
-  if(typeof dRenderCanvas==='function') dRenderCanvas();
-  dFieldsRender();
-}
+/* §41 — MOSTRAR CAMPOS NA ARTE tinha DOIS motores e dois botões com o mesmo rótulo no
+   mesmo painel: este (`d-show-fields` + `::before` de CSS) e o mapa de campos do canvas
+   (`dToggleFieldMap`, canvas.js). Ficou o do canvas, que é o mais completo — mostra TODOS
+   os campos de uma camada, com o rótulo real de `dVars`. O selo da camada SELECIONADA
+   (§40) não dependia de nenhum dos dois e continua igual (canvas.js, `l.id===dSelId`).
+*/
 // Uma pergunta por vez, no topo, antes do inventário (§34). As opções SÃO os botões (§19).
 function _dFieldsPerguntaHTML(){
   const sug=dFieldsSugestoes();
@@ -2737,39 +2777,32 @@ function dFieldsManterFixo(layerId){
   dFieldsRender();
   gToast('“'+(l.name||'Camada')+'” fica fixa na arte');
 }
-// O resumo (§33): o que está pronto, o que falta, e os dois caminhos para ir mais fundo.
-function _dFieldsResumoHTML(){
-  const emUso=(dVars||[]).filter(v=>dVarUsage(v.name).length>0);
-  const dup=Object.keys(_dFieldsDup||{}).length;
-  const pergunta=_dFieldsPerguntaHTML();
-  const linha=(ok,txt)=>'<p class="fsum-line'+(ok?'':' warn')+'">'+(ok?_D_FSUM_OK:_D_FSUM_WARN)+'<span>'+txt+'</span></p>';
-  let h='<div class="fsum">'+pergunta;
-  h+=linha(true, '<b>'+emUso.length+(emUso.length===1?' campo configurado':' campos configurados')+'</b>');
-  h+=dup?linha(false, '<b>'+dup+(dup===1?' campo parecido':' campos parecidos')+'</b> com outro do catálogo')
-        :linha(true, 'Nenhum conflito');
-  h+='<div class="fsum-acts">'
-    +'<button type="button" class="fsum-btn'+(_dFieldsMostraNaArte?' on':'')+'" onclick="dFieldsToggleNaArte()">'
-      +_D_FSUM_EYE+(_dFieldsMostraNaArte?'Ocultar campos na arte':'Mostrar campos na arte')+'</button>'
-    +'<button type="button" class="fsum-link" onclick="dFieldsToggleTodos()" aria-expanded="'+(_dFieldsExpandido?'true':'false')+'">'
-      +(_dFieldsExpandido?'Recolher':'Ver todos os campos')+'</button>'
-    +'</div></div>';
-  return h;
-}
-const _D_FSUM_OK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
-const _D_FSUM_WARN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>';
-const _D_FSUM_EYE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
-/* Pinta o resumo e esconde/mostra o inventário. O inventário continua sendo o mesmo
-   `dFieldsRender` — este passe só decide se ele está na tela. */
+/* O resumo é SÓ a pergunta (§33). As duas linhas de status — "N campos configurados" e
+   "N campos parecidos" — e os botões viviam aqui TAMBÉM: o mesmo painel trazia esse bloco
+   e o cabeçalho de saúde (`#dpi-data-health`, props-panel.js) dizendo os mesmos números,
+   com dois botões "Mostrar campos na arte" que acendiam overlays DIFERENTES e dois links
+   "Ver todos os campos" com cortinas independentes sobre a mesma lista. Ficou um: o
+   cabeçalho de saúde. Aqui mora só o que ele não sabe fazer — perguntar. */
+function _dFieldsResumoHTML(){ return _dFieldsPerguntaHTML(); }
+/* Pinta a pergunta. A lista NÃO é mais escondida por esta função: quem decide o que
+   aparece no painel é `dPropSyncDataDisclosure`, cortina única. */
 function _dFieldsResumoRender(){
   const host=document.getElementById('d-fields-summary');
   if(host) host.innerHTML=_dFieldsResumoHTML();
-  const nivel2=['d-fields-toolbar','d-fields-chipbar','d-fields-hint','d-fields-list','d-fields-inventory'];
-  // Sem campo nenhum no catálogo o inventário É a tela (o estado de boas-vindas explica o
-  // conceito e oferece criar o primeiro) — esconder ali deixaria o painel vazio.
-  const esconde=!_dFieldsExpandido && (dVars||[]).length>0;
-  nivel2.forEach(id=>{ const el=document.getElementById(id); if(el) el.hidden=esconde; });
 }
 
+/* O limite que VALE no chat: a permissão da publicação (`perm.maxLen`) manda; sem ela vale o
+   `maxLen` do campo (mesma ordem de `fGetFieldType`). Imagem e campo travado não têm limite. */
+function dFieldLimiteEfetivo(v){
+  if(!v||v.type==='image')return null;
+  let perm=null;
+  try{ const t=(typeof _dPubFindTmpl==='function')?_dPubFindTmpl():null;
+    perm=(t&&t.tmpl&&t.tmpl.publishMeta&&t.tmpl.publishMeta.permissoes||{})[v.name]||null; }catch(e){}
+  if(perm&&perm.edit===false)return null;
+  if(perm&&perm.maxLen>0)return {n:Number(perm.maxLen),origem:'publicação'};
+  if(v.maxLen>0)return {n:Number(v.maxLen),origem:'campo'};
+  return null;
+}
 function dFieldCardHTML(v,i){
   const tm=gFieldTypeMeta(v.type);
   const usage=dFieldUsageLayers(v.name);
@@ -2778,6 +2811,8 @@ function dFieldCardHTML(v,i){
   const dupOf=_dFieldsDup[v.name];
   const metaParts=[_dEsc(tm.label)];
   if(v.required)metaParts.push('<b>Obrigatório</b>');
+  const lim=dFieldLimiteEfetivo(v);
+  if(lim)metaParts.push(`<span title="Limite que vale no chat (definido na ${lim.origem})">até ${lim.n} car.</span>`);
   metaParts.push(used?`<b>${usage.length} uso${usage.length>1?'s':''}</b>`:'Não usada');
   const warn=dupOf?`<span class="field-row-warn" title="Possível duplicata de “${_dEsc(dupOf)}”">${_D_FIELD_WARN}</span>`:'';
   let det='';
@@ -2882,7 +2917,7 @@ function dFieldsRender(){
   if(!items.length){
     let msg;
     if(q) msg=`Nenhum campo encontrado.<br><button class="field-create-q" onclick="dFieldCreateFromQuery()">Criar “${_dEsc(_dFieldsQuery)}”</button>`;
-    else if(_dFieldsStatusFilter==='used') msg='Nenhum campo em uso neste template ainda.';
+    else if(_dFieldsStatusFilter==='used') msg='Nenhum campo em uso nesta arte ainda.<br><button class="field-create-q" onclick="dFieldSetStatusFilter(\'all\')">Ver todos os campos</button>';
     else msg='Nenhum campo disponível — todos estão em uso.';
     el.innerHTML=`<div class="field-noresult">${msg}</div>`;
     _dFieldsResumoRender(); _dFieldsAfterRender(); return;
@@ -2908,6 +2943,14 @@ function dFieldsRender(){
       </div>
     </div>`;
   });
+  // O pé da lista é a porta para o catálogo: filtrando "na arte" sobrava um vão embaixo
+  // do último campo, e a pergunta seguinte do designer ("e os outros?") não tinha resposta
+  // à vista. Não é um segundo controle — chama o mesmo filtro da chipbar logo acima.
+  if(_dFieldsStatusFilter==='used' && counts.free>0){
+    html+='<button type="button" class="field-more" onclick="dFieldSetStatusFilter(\'all\')">'
+      +counts.free+(counts.free===1?' outro campo no catálogo':' outros campos no catálogo')
+      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>';
+  }
   el.innerHTML=html;
   _dFieldsResumoRender();
   _dFieldsAfterRender();
@@ -3657,7 +3700,7 @@ function dVarTypePopover(name, anchorEl){
   const old=document.getElementById('d-var-typepop'); if(old)old.remove();
   const pop=document.createElement('div');
   pop.id='d-var-typepop'; pop.className='var-ac';
-  pop.innerHTML=`<div style="padding:4px 8px;font-size:11px;color:var(--d-text3)">Tipo de {{${name}}}</div>
+  pop.innerHTML=`<div style="padding:4px 8px;font-size:11px;color:var(--d-text3)">Tipo de {{${_dEsc(name)}}}</div>
     <select id="d-var-typepop-sel" style="width:100%;padding:5px;font-size:12px">
       <option value="text">Texto livre</option><option value="number">Número</option>
       <option value="image">Imagem (URL)</option><option value="select">Seleção fixa</option><option value="date">Data</option>
@@ -3720,6 +3763,17 @@ function dAssetDragEnd(e){
 }
 
 /* ── SAVE / PREVIEW ── */
+/* Telemetria do Estúdio. template_salvo tem teto de 1 por template a cada 5 min: o autosave
+   roda a cada edição e, sem teto, afogaria o painel — o que interessa é "trabalhou nele hoje". */
+const _dTrackSalvoEm={};
+function _dTrackTemplate(evento, t, extra){
+  try{
+    if(typeof gTrackEvent!=='function'||!t) return;
+    const id=t.remoteId||t.id||null;
+    if(evento==='template_salvo'){ const agora=Date.now(); if(agora-(_dTrackSalvoEm[id]||0)<300000) return; _dTrackSalvoEm[id]=agora; }
+    gTrackEvent(evento, Object.assign({template_id:id, template_name:t.name||'', fmt_id:t.fmt||''}, extra||{}));
+  }catch(e){}
+}
 function dSave(options){
   const silent=!!(options&&options.silent);
   // Sincronizar layers editados de volta pro artboard ativo antes de salvar
@@ -3730,16 +3784,18 @@ function dSave(options){
     const _ab=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
     const _custom=!!(_ab && typeof DFMT_SIZES!=='undefined' && !DFMT_SIZES[_ab.fmt] && _ab.w>0 && _ab.h>0);
     dFolders.forEach(f=>f.templates.forEach(t=>{if(t.id===dActiveTmplId){
-      t.layers=JSON.parse(JSON.stringify(dLayers));
-      // Fundo do canvas acompanha o save — mudar o bg no editor não chegava na arte
-      // final (o franqueado renderiza t.bg) até uma republicação.
-      if(_ab && _ab.bg!==undefined) t.bg=_ab.bg;
-      if(_custom){ t.fmt=_ab.fmt; t.w=_ab.w; t.h=_ab.h; }
-      // PENDENTE ATÉ CONFIRMAR: marca na escrita; só o upsert bem-sucedido limpa
-      // (_dPushFoldersNow). Sem isto, um push pulado (sessão caída), uma exceção no
-      // meio do loop ou fechar a aba no debounce deixava a edição SEM flag — e o pull
-      // do próximo boot descartava o trabalho ("banco manda").
-      t._syncPending=true;
+      // Guardar uma edição não publica: o catálogo continua usando o snapshot confirmado.
+      const edit={_ownerId:(typeof gCurrentUser==='function')?gCurrentUser()?.id:null,layers:JSON.parse(JSON.stringify(dLayers)),bg:(_ab?_ab.bg:t.bg),
+        fmt:(_custom?_ab.fmt:t.fmt),w:(_custom?_ab.w:t.w),h:(_custom?_ab.h:t.h)};
+      if(t.publishMeta&&t.publishMeta.publicado){
+        t._drafts=t._drafts||{};
+        if(t._draft&&t._draft._ownerId)t._drafts[t._draft._ownerId]=t._draft;
+        if(edit._ownerId)t._drafts[edit._ownerId]=edit;
+        t._draft=edit;
+        // Um novo save de rascunho cancela a republicação anterior ainda não confirmada.
+        if(t._publishPending){delete t._publishPending;t._syncPending=false;}
+      }
+      else { Object.assign(t,edit); t._syncPending=true;t._syncOwnerId=edit._ownerId; }
     }}));
   }
   // DOC NOVO (nunca virou template): Ctrl+S/Salvar agora persiste NO BANCO, não só neste
@@ -3749,9 +3805,11 @@ function dSave(options){
   // RLS + pasta inativa). Publicar depois PROMOVE o mesmo template (dPublishConfirm acha
   // por tmpl-ab-<id> e move pra pasta escolhida). Roda a cada save até publicar (idempotente).
   else if(Array.isArray(dArtboards) && dArtboards.some(a=>a&&a.layers&&a.layers.length)){
-    let rasc=dFolders.find(f=>f.id==='f-rascunhos');
+    // Pela identidade, não pelo id local: depois do pull a pasta tem o id do banco, e procurar
+    // 'f-rascunhos' criava outra "Rascunhos" a cada sessão (eram 8 no banco em 23/09/2026).
+    let rasc=dFolders.find(f=>f.remoteId===G_PASTA_RASC_ID)||dFolders.find(f=>gPastaSistema(f)==='rascunhos');
     if(!rasc){
-      rasc={id:'f-rascunhos', name:'Rascunhos', color:'#9CA3AF', campId:'', cover:'',
+      rasc={id:'f-rascunhos', remoteId:G_PASTA_RASC_ID, name:'Rascunhos', color:'#9CA3AF', campId:'', cover:'',
             grupos:['Todos os usuários'], agendamento:null, templates:[]};
       dFolders.push(rasc);
     }
@@ -3760,12 +3818,12 @@ function dSave(options){
       if(!ab || !ab.layers || !ab.layers.length) continue;
       const tid='tmpl-ab-'+ab.id;
       let t=null; for(const f of dFolders){ const x=f.templates.find(y=>y.id===tid); if(x){t=x;break;} }
-      if(!t){ t={id:tid, publishMeta:dDefaultPublishMeta()}; rasc.templates.unshift(t); }
+      if(!t){ t={id:tid, publishMeta:dDefaultPublishMeta()}; rasc.templates.unshift(t); _dTrackTemplate('template_criado',t,{origem:'rascunho', template_name:ab.name||'Rascunho', fmt_id:ab.fmt||'story'}); }
       t.name=ab.name||'Rascunho'; t.fmt=ab.fmt||'story';
       if(ab.w>0){ t.w=ab.w; t.h=ab.h; }
       if(ab.bg!==undefined) t.bg=ab.bg;
       t.layers=JSON.parse(JSON.stringify(ab.layers));
-      t._syncPending=true; // pendente até o upsert confirmar (mesma proteção do save normal)
+      t._syncPending=true;t._syncOwnerId=(typeof gCurrentUser==='function')?gCurrentUser()?.id:null; // pendente até o upsert confirmar (mesma proteção do save normal)
     }
   }
   const hadImgWarn=gImgPersistWarned;
@@ -3776,13 +3834,51 @@ function dSave(options){
   const saveBtn=document.querySelector('.d-btn-pri[onclick="dSave()"]');
   if(saveBtn){saveBtn.classList.add('save-success');setTimeout(()=>saveBtn.classList.remove('save-success'),2000);}
   if(typeof dSetSaveState==='function')dSetSaveState('saved'); // limpa dDirty + mostra "Guardado"
+  if(dActiveTmplId) dFolders.forEach(f=>f.templates.forEach(t=>{ if(t.id===dActiveTmplId) _dTrackTemplate('template_salvo',t,{auto:silent}); }));
   if(typeof dRenderPagesTray==='function')dRenderPagesTray();
   // Não sobrescreve o aviso de imagens se ele acabou de aparecer neste save
-  if(!silent&&!(gImgPersistWarned&&!hadImgWarn))gToast('Rascunho salvo!');
+  if(!silent&&!(gImgPersistWarned&&!hadImgWarn))gToast('Rascunho salvo neste aparelho; publicar exige confirmação do servidor.');
   return true;
+}
+function _dOwnDraft(value){
+  const owner=(typeof gCurrentUser==='function')?gCurrentUser()?.id:null;
+  return !!(value&&owner&&value._ownerId===owner);
+}
+function _dTemplateDraft(t){
+  const owner=(typeof gCurrentUser==='function')?gCurrentUser()?.id:null;
+  return (owner&&t&&t._drafts&&_dOwnDraft(t._drafts[owner])&&t._drafts[owner])||(_dOwnDraft(t&&t._draft)?t._draft:null);
+}
+function _dTemplateMetaSignature(t){
+  return JSON.stringify([t.name,t.fmt,t.formats,t.w,t.h,t.bg,t.publishMeta]);
+}
+function _dFolderRow(f,idx){
+  const row={id:f.remoteId,nome:f.name||'(sem nome)',cor:f.color||null,camp_id:f.campId||null,
+    badge:f.badge||'',expira_dias:f.expiraDias||7,popular:!!f.popular,
+    preview_prod:f.previewProd||'',preview_de:f.previewDe||'',preview_por:f.previewPor||'',
+    perguntas:f.perguntas||[],grupos:f.grupos||['Todos os usuários'],
+    ativa:f.ativa!==false&&!f.arquivada,ordem:typeof f.ordem==='number'?f.ordem:idx,
+    agendamento:f.agendamento||null};
+  if(typeof f.destaque==='boolean')row.destaque=f.destaque;
+  if(f.cover==='')row.cover_url=null;
+  else if(typeof f.cover==='string'&&!f.cover.startsWith('data:')&&!f.cover.startsWith('idb://')&&f.cover!=='__local__')row.cover_url=f.cover;
+  return row;
+}
+function _dFolderMetaSignature(f,idx){
+  const row=_dFolderRow(f,idx);delete row.id;
+  // A capa local precisa participar mesmo antes de virar URL de Storage.
+  row.cover_url=f.cover||null;
+  return JSON.stringify(row);
 }
 function dPersistFolders(){
   let droppedImg=false;
+  (dFolders||[]).forEach((f,idx)=>{
+    if(!f.remoteId||(f._syncedFolderMeta&&f._syncedFolderMeta!==_dFolderMetaSignature(f,idx)))f._syncPending=true;
+    if(f._syncPending&&!f._syncOwnerId)f._syncOwnerId=(typeof gCurrentUser==='function')?gCurrentUser()?.id:null;
+  });
+  (dFolders||[]).forEach(f=>(f.templates||[]).forEach(t=>{
+    if(t._syncedMeta && t._syncedMeta!==_dTemplateMetaSignature(t))t._syncPending=true;
+    if(t._syncPending&&!t._syncOwnerId)t._syncOwnerId=(typeof gCurrentUser==='function')?gCurrentUser()?.id:null;
+  }));
   try{
     const saveable=dFolders.map(f=>({...f,templates:f.templates.map(t=>({...t,layers:t.layers.map(l=>{
       // Mantém imagens pequenas (sobrevivem ao reload); descarta grandes p/ não estourar quota.
@@ -3830,8 +3926,9 @@ async function _dUploadDataUrl(bucket, path, dataUrl){
   try{
     const blob=await (await fetch(dataUrl)).blob();
     const ext=((blob.type.split('/')[1]||'png').split('+')[0]).replace(/[^a-z0-9]/gi,'')||'png';
-    const full=path+'.'+ext;
-    const { error }=await sb.storage.from(bucket).upload(full, blob, {upsert:true, contentType:blob.type||'image/png'});
+    // Cada upload ganha URL nova: versões históricas nunca apontam para arquivo substituído.
+    const full=path+'-'+gUuid()+'.'+ext;
+    const { error }=await sb.storage.from(bucket).upload(full, blob, {upsert:false, contentType:blob.type||'image/png'});
     if(error){ console.warn('[sync] upload pro Storage falhou ('+bucket+'/'+full+'):', error.message||error); return null; }
     return sb.storage.from(bucket).getPublicUrl(full).data.publicUrl;
   }catch(e){ console.warn('[sync] upload pro Storage falhou ('+bucket+'):', e); return null; }
@@ -3870,105 +3967,153 @@ function _dUuid(p){ return gUuid(); }
 // LOCK: dois pushes ao mesmo tempo (debounce + clique no badge + flush do pagehide)
 // intercalavam upserts das mesmas linhas. Um por vez; pedido durante o voo roda ao final.
 let _dPushBusy=false, _dPushQueued=false;
+let _dPushFlight=null;
 async function _dPushFoldersNow(){
+  while(_dPushFlight)await _dPushFlight;
+  _dPushFlight=_dPushFoldersRun();
+  try{return await _dPushFlight;}finally{_dPushFlight=null;}
+}
+async function _dPushFoldersRun(){
   const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
   if(!sb || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
   if(_dPushBusy){ _dPushQueued=true; return; }
+  const owner=(typeof gCurrentUser==='function')?gCurrentUser()?.id:null;
+  const stillOwner=()=>gIsAdmin()&&((typeof gCurrentUser!=='function')||gCurrentUser()?.id===owner);
   _dPushBusy=true;
-  // AVISO DE CONFLITO (cross-device): o upsert é last-write-wins — se OUTRO device gravou
-  // o template depois do nosso último pull/push (carimbo do banco > snapshot local
-  // _remoteUpdatedAt), este push sobrescreve aquele trabalho. Continua sobrescrevendo
-  // (LWW é a regra), mas avisa o designer — a perda deixa de ser silenciosa.
-  const _confl=[]; let _stamps=null;
-  try{
-    const _ids=[]; (dFolders||[]).forEach(f=>(f.templates||[]).forEach(t=>{ if(t&&t.remoteId&&!t._needsLayersFetch) _ids.push(t.remoteId); }));
-    if(_ids.length){
-      const { data }=await sb.schema('luma').from('templates').select('id, updated_at').in('id', _ids);
-      _stamps=new Map((data||[]).map(r=>[r.id, r.updated_at]));
-    }
-  }catch(e){} // sem carimbo (rede) → só perde o aviso; o push segue normal
+  const _confl=[];
   try{
     let idx=-1;
     for(const f of (dFolders||[])){ idx++;
-      if(!f.remoteId) f.remoteId=_dUuid('p');
+      if(!stillOwner())return;
+      // O for percorre o array do INÍCIO do push; pasta excluída durante o voo (dDeleteFolder
+      // troca o dFolders) seria regravada logo depois do DELETE — ressuscitava.
+      if(!dFolders.some(x=>x.id===f.id)) continue;
+      /* Pasta de sistema: id FIXO no banco (G_PASTA_*_ID, 00-config.js) — o upsert cai sempre na
+         mesma linha. O "Modelo de exemplo" semeado neste aparelho (sem remoteId) não sobe: ele
+         é o mesmo em todo lugar, e subir cada semente é o que fabricava as 21 cópias. */
+      // Cópia com id VELHO (cache de antes do id fixo) também não sobe: reenviá-la antes do pull
+      // ressuscitaria a duplicata apagada. O pull a dobra na do banco (ver dSyncFoldersFromBackend).
+      const _sis=gPastaSistema(f);
+      if(_sis==='modelo' && f.remoteId!==G_PASTA_MODELO_ID) continue;
+      if(_sis==='rascunhos'){ if(!f.remoteId) f.remoteId=G_PASTA_RASC_ID; else if(f.remoteId!==G_PASTA_RASC_ID) continue; }
+      if(!f.remoteId){f.remoteId=_dUuid('p');f._newRemote=true;f._syncPending=true;}
+      if(f._syncPending&&f._syncOwnerId&&f._syncOwnerId!==owner)continue;
+      const folderSignature=_dFolderMetaSignature(f,idx);
+      const folderDirty=f._syncPending||!f._syncedFolderMeta||f._syncedFolderMeta!==folderSignature;
+      if(folderDirty){
+      const folderSource=JSON.parse(JSON.stringify(f));
+      // Caches antigos não possuem carimbo: só adote o servidor quando os metadados
+      // são idênticos. Aprender uma versão divergente e sobrescrevê-la seria LWW outra vez.
+      if(!f._remoteUpdatedAt&&!f._newRemote){
+        const {data:existing,error:readErr}=await sb.schema('luma').from('pastas').select('*').eq('id',f.remoteId).maybeSingle();
+        if(!stillOwner())return;
+        if(readErr){f._syncPending=true;continue;}
+        if(existing){
+          const loaded=_dRowToFolder(existing,[]);
+          if(_dFolderMetaSignature(loaded,idx)!==folderSignature||!existing.updated_at){f._syncPending=true;_confl.push(f.name||'(sem nome)');continue;}
+          f._remoteUpdatedAt=existing.updated_at;f._syncedFolderMeta=folderSignature;f._syncPending=false;
+        }else f._newRemote=true;
+      }
+      if(f._syncPending||f._newRemote||f._syncedFolderMeta!==folderSignature){
       let _capaPend=false;
-      if(typeof f.cover==='string' && f.cover.startsWith('data:')){
-        const cu=await _dUploadDataUrl('luma-covers', f.remoteId+'/cover', f.cover);
-        if(cu) f.cover=cu;
+      if(typeof folderSource.cover==='string' && folderSource.cover.startsWith('idb://')&&typeof gResolveImgUrl==='function'){
+        const resolved=await gResolveImgUrl(folderSource.cover);
+        if(!resolved){const current=dFolders.find(x=>x.id===f.id);if(current)current._syncPending=true;continue;}
+        folderSource.cover=resolved;
+      }
+      if(typeof folderSource.cover==='string' && folderSource.cover.startsWith('data:')){
+        const cu=await _dUploadDataUrl('luma-covers', f.remoteId+'/cover', folderSource.cover);
+        if(cu) folderSource.cover=cu;
         else{
-          // ⚠ Este era um erro 100% MUDO, e é o "não consigo trocar a capa": o upload falha,
-          // o cover_url é OMITIDO do upsert (linha abaixo), o upsert da PASTA dá certo,
-          // _syncPending vira false e o app ainda diz "✓ Pasta atualizada". O pull seguinte
-          // troca a capa local pela vazia do banco — a capa "não pega" e ninguém sabe por quê.
-          // Agora: pendência (badge + retry no próximo save) e a causa dita em voz alta.
+          // Não confirme metadados com a capa ainda local: o pull seguinte a perderia.
           _capaPend=true;
           console.warn('[sync] a capa de "'+(f.name||'?')+'" NÃO subiu pro Storage (bucket luma-covers) — fica só neste aparelho até um save dar certo.');
           if(typeof gToast==='function') gToast('A capa de "'+(f.name||'?')+'" não subiu pro servidor — por ora ela vale só neste aparelho.','error');
         }
       }
-      // cover_url só entra no upsert com valor DEFINITIVO: URL pronta grava; '' (capa
-      // removida pelo designer) limpa; data:/idb:///__local__ (upload pendente/só-local)
-      // OMITE a coluna — o upsert não toca coluna ausente e a capa que já está no banco
-      // sobrevive. (Antes: upload falho gravava NULL e APAGAVA a capa antiga de todos.)
-      const _rowPasta={
-        id:f.remoteId, nome:f.name||'(sem nome)', cor:f.color||null, camp_id:f.campId||null,
-        badge:f.badge||'', expira_dias:f.expiraDias||7, popular:!!f.popular,
-        preview_prod:f.previewProd||'', preview_de:f.previewDe||'', preview_por:f.previewPor||'',
-        perguntas:f.perguntas||[], grupos:f.grupos||['Todos os usuários'],
-        // Fase 2 passo 2: preserva o estado real — ativa:true fixo desfazia o arquivar,
-        // e ordem/agendamento nunca subiam (a ordenação do catálogo não sobrevivia ao ciclo).
-        ativa:(f.ativa!==false && !f.arquivada), ordem:(typeof f.ordem==='number'?f.ordem:idx),
-        agendamento:f.agendamento||null
-      };
-      if(f.cover==='') _rowPasta.cover_url=null;
-      else if(typeof f.cover==='string' && !f.cover.startsWith('data:') && f.cover.indexOf('idb://')!==0 && f.cover!=='__local__') _rowPasta.cover_url=f.cover;
-      // Erro no upsert da pasta (rede/RLS) era 100% silencioso: a edição de campanha vivia
-      // só no cache e o próximo pull a descartava. Agora marca pendência (badge) e loga.
-      const { error:_pErr }=await sb.schema('luma').from('pastas').upsert(_rowPasta, {onConflict:'id'});
-      // Capa que não subiu conta como pendência: sem isso o upsert bem-sucedido zerava o
-      // flag e a pasta ficava "sincronizada" com a capa só no cache local.
-      f._syncPending=!!_pErr || _capaPend;
-      if(_pErr) console.warn('[sync] upsert da pasta falhou ('+(f.name||'?')+'):', _pErr.message||_pErr);
-      for(const t of (f.templates||[])){
+      const _rowPasta=_dFolderRow(folderSource,idx);
+      if(!stillOwner())return;
+      if(!dFolders.some(x=>x.id===f.id))continue;
+      if(_capaPend||(typeof folderSource.cover==='string'&&(folderSource.cover.startsWith('idb://')||folderSource.cover==='__local__'))){f._syncPending=true;continue;}
+      let folderQuery=sb.schema('luma').from('pastas');
+      folderQuery=f._remoteUpdatedAt?folderQuery.update(_rowPasta).eq('id',f.remoteId).eq('updated_at',f._remoteUpdatedAt):folderQuery.insert(_rowPasta);
+      const {data:folderRows,error:_pErr}=await folderQuery.select('id,updated_at');
+      // Confirmação vale só para o snapshot enviado, nunca para a edição feita durante o voo.
+      if(!stillOwner())return;
+      const current=dFolders.find(x=>x.id===f.id);
+      if(!current)continue;
+      const confirmed=Array.isArray(folderRows)&&folderRows.find(x=>x.id===_rowPasta.id&&x.updated_at);
+      if(_pErr||!confirmed){current._syncPending=true;if(!_pErr)_confl.push(current.name||'(sem nome)');continue;}
+      const changed=_dFolderMetaSignature(current,idx)!==folderSignature;
+      if(!changed)current.cover=folderSource.cover;
+      current._remoteUpdatedAt=confirmed.updated_at;
+      current._syncedFolderMeta=_dFolderMetaSignature(folderSource,idx);
+      current._syncPending=changed;delete current._newRemote;
+      if(!changed)delete current._syncOwnerId;
+      if(changed)continue;
+      }
+      }
+      for(const t of (dFolders.find(x=>x.id===f.id)?.templates||[])){
         // Catálogo leve: template sem layers baixados (cache de sessão franqueado) —
         // upsert aqui gravaria layers:[] no banco e DESTRUIRIA o template. Nunca subir.
-        if(t._needsLayersFetch) continue;
-        if(!t.remoteId) t.remoteId=_dUuid('t');
-        await _dUploadLayerImages(t.layers, t.remoteId);
-        // Se alguma imagem/máscara AINDA está local (upload falhou: bucket/RLS/sem rede),
-        // NÃO grava no banco — base64 vira MB por linha e todo mundo re-baixa. O template
-        // fica marcado pendente (badge na topbar) e re-tenta no próximo save ou clique.
-        const localBin=(t.layers||[]).some(l=>l&&(
-          (typeof l.imgUrl==='string'&&(l.imgUrl.startsWith('data:')||l.imgUrl.indexOf('idb://')===0))||
-          (typeof l.mask==='string'&&l.mask.startsWith('data:'))
-        ));
-        if(localBin){ t._syncPending=true; continue; }
-        const pm=t.publishMeta||{};
-        const _remote=_stamps?_stamps.get(t.remoteId):null;
-        if(_remote && t._remoteUpdatedAt && new Date(_remote).getTime()>new Date(t._remoteUpdatedAt).getTime()){
-          _confl.push(t.name||'(sem nome)');
+        if(t._publishPending&&!_dOwnDraft(t._publishPending))continue;
+        if(t._syncOwnerId&&t._syncOwnerId!==owner)continue;
+        if(t._needsLayersFetch || (!t._syncPending && t.remoteId && !t._publishPending)) continue;
+        if(!t.remoteId){t.remoteId=_dUuid('t');t._newRemote=true;}
+        const localId=t.id, folderId=f.id;
+        const wasPublishing=!!t._publishPending;
+        const sentSignature=JSON.stringify(t._publishPending||{layers:t.layers,meta:_dTemplateMetaSignature(t)});
+        const source=JSON.parse(JSON.stringify(t._publishPending||t));
+        const baseline=t._remoteUpdatedAt;
+        // Não aprender um carimbo novo no envio: ele pertence à abertura da edição.
+        if(t.remoteId && !baseline && !t._newRemote){
+          const {data:existing,error:readErr}=await sb.schema('luma').from('templates').select('id').eq('id',t.remoteId).maybeSingle();
+          if(readErr||existing){t._syncPending=true;_confl.push(t.name||'(sem nome)');continue;}
+          t._newRemote=true;
         }
-        const { data:_up, error }=await sb.schema('luma').from('templates').upsert({
-          id:t.remoteId, pasta_id:f.remoteId, nome:t.name||'(sem nome)', fmt:t.fmt||'story',
-          formats:t.formats||['story','feed','wide'], layers:t.layers||[],
-          // Tamanho real do template (essencial p/ PSD 'orig', que não tem preset em DFMT_SIZES):
-          w:(t.w>0?t.w:null), h:(t.h>0?t.h:null), bg:t.bg||null,
-          publicado:!!pm.publicado, publicado_em:pm.publicadoEm?new Date(pm.publicadoEm).toISOString():null,
-          validade:pm.validade||null, instrucoes:pm.instrucoes||'', permissoes:pm.permissoes||{}
-        }, {onConflict:'id'}).select('updated_at');
-        t._syncPending=!!error; // erro de rede/RLS no upsert também conta como pendente
-        // Erro mudo custou 5 dias de sync quebrado (migration w/h/bg não aplicada, 07/2026):
-        // o badge acende mas SEM o motivo ninguém diagnostica. Sempre nomear a causa.
-        if(error) console.warn('[sync] upsert do template falhou:', t.name, '→', error.message||error);
-        // Snapshot novo: o carimbo que o NOSSO write acabou de gerar (trigger touch_updated_at).
-        // Sem isto o próximo push acusaria conflito com a própria gravação.
-        if(!error && _up && _up[0] && _up[0].updated_at) t._remoteUpdatedAt=_up[0].updated_at;
+        await _dUploadLayerImages(source.layers, t.remoteId);
+        const localBin=(source.layers||[]).some(l=>l&&(
+          (typeof l.imgUrl==='string'&&(l.imgUrl.startsWith('data:')||l.imgUrl.indexOf('idb://')===0||l.imgUrl==='__local__'))||
+          (typeof l.mask==='string'&&(l.mask.startsWith('data:')||l.mask.indexOf('idb://')===0))
+        ));
+        if(localBin){t._syncPending=true;continue;}
+        if(!stillOwner())return;
+        const pm=source.publishMeta||{};
+        const row={id:t.remoteId,pasta_id:f.remoteId,nome:source.name||'(sem nome)',fmt:source.fmt||'story',
+          formats:source.formats||['story','feed','wide'],layers:source.layers||[],
+          w:(source.w>0?source.w:null),h:(source.h>0?source.h:null),bg:source.bg||null,
+          publicado:!!pm.publicado,publicado_em:pm.publicadoEm?new Date(pm.publicadoEm).toISOString():null,
+          validade:pm.validade||null,instrucoes:pm.instrucoes||'',permissoes:pm.permissoes||{}};
+        let q=sb.schema('luma').from('templates');
+        q=baseline?q.update(row).eq('id',t.remoteId).eq('updated_at',baseline):q.insert(row);
+        const {data:up,error}=await q.select('id,updated_at,versao_atual_id');
+        // IDs são a identidade; o objeto pode ter sido trocado/excluído enquanto aguardávamos.
+        if(!stillOwner())return;
+        const currentFolder=dFolders.find(x=>x.id===folderId);
+        const current=currentFolder&&(currentFolder.templates||[]).find(x=>x.id===localId);
+        if(!current)continue;
+        const confirmed=Array.isArray(up)&&up.find(x=>x.id===row.id&&x.updated_at);
+        if(error||!confirmed){current._syncPending=true; if(!error)_confl.push(current.name||'(sem nome)');
+          console.warn('[sync] template não confirmado:',current.name,error||'conflito/sem linha');continue;}
+        current._remoteUpdatedAt=confirmed.updated_at;
+        current.versaoAtualId=confirmed.versao_atual_id||current.versaoAtualId||null;
+        const changed=sentSignature!==JSON.stringify(current._publishPending||{layers:current.layers,meta:_dTemplateMetaSignature(current)});
+        if(wasPublishing){
+          const drafts=current._drafts, draft=current._draft, pending=current._publishPending;
+          Object.assign(current,source);current._drafts=drafts;
+          if(changed){current._draft=draft;current._publishPending=pending;}
+          else {delete current._publishPending;if(_dOwnDraft(current._draft))delete current._draft;
+            if(current._drafts&&owner)delete current._drafts[owner];}
+        }else if(!changed)current.layers=source.layers;
+        current._remoteUpdatedAt=confirmed.updated_at;current.versaoAtualId=confirmed.versao_atual_id||current.versaoAtualId||null;
+        current._syncPending=changed;current._syncedMeta=_dTemplateMetaSignature(current);delete current._newRemote;
+
       }
     }
     if(_confl.length && typeof gToast==='function'){
       const nomes=_confl.slice(0,2).join('", "');
       const resto=_confl.length>2?` (e mais ${_confl.length-2})`:'';
-      gToast(`Atenção: "${nomes}"${resto} tinha alteração feita em outro dispositivo — esta gravação passou por cima. Se não foi você, reveja o template.`, 'error');
+      gToast(`Atenção: "${nomes}"${resto} tem alteração em outro dispositivo ou não pôde ser confirmado. Nada foi sobrescrito; seu rascunho foi preservado. Reabra a versão da rede antes de tentar novamente.`, 'error');
     }
     // re-salva o cache local com os remoteId/URLs recém-atribuídos (imagens já são URLs → leve)
     try{ localStorage.setItem('yngs_folders_v1', JSON.stringify(dFolders)); }catch(e){}
@@ -4015,9 +4160,12 @@ function gSyncBadgeUpdate(){
 /* ── LEITURA: carrega o catálogo (pastas + templates) do Supabase no boot ──
    Banco é a fonte; preserva pastas locais ainda não sincronizadas (merge). */
 function _dRowToTemplate(t){
-  return {
+  const out={
     id:t.id, remoteId:t.id, name:t.nome||'(sem nome)', fmt:t.fmt||'story',
     _remoteUpdatedAt:t.updated_at||null, // snapshot p/ o aviso de conflito no push (LWW)
+    // Versão publicada que estes layers representam (luma.template_versions, gravada pelo
+    // gatilho do banco). A arte do franqueado guarda este id — reabrir usa a versão dela.
+    versaoAtualId:t.versao_atual_id||null,
     formats:Array.isArray(t.formats)?t.formats:['story','feed','wide'],
     // Tamanho real vem do banco (sync leve). Templates antigos têm NULL → dLoadTemplate
     // cai no preset do fmt (comportamento atual); republicar grava o tamanho correto.
@@ -4034,10 +4182,13 @@ function _dRowToTemplate(t){
       permissoes:(t.permissoes&&typeof t.permissoes==='object')?t.permissoes:{}
     }
   };
+  out._syncedMeta=_dTemplateMetaSignature(out);
+  return out;
 }
 function _dRowToFolder(p, templates){
-  return {
+  const out={
     id:p.id, remoteId:p.id, name:p.nome||'(sem nome)', color:p.cor||'', campId:p.camp_id||'',
+    _remoteUpdatedAt:p.updated_at||null,
     cover:p.cover_url||'', badge:p.badge||'', expiraDias:p.expira_dias||7, popular:!!p.popular,
     previewProd:p.preview_prod||'', previewDe:p.preview_de||'', previewPor:p.preview_por||'',
     perguntas:Array.isArray(p.perguntas)?p.perguntas:[],
@@ -4046,8 +4197,11 @@ function _dRowToFolder(p, templates){
     // ativa/ordem/agendamento e o push re-gravava ativa:true (arquivar seria desfeito).
     ativa:(p.ativa!==false), ordem:(typeof p.ordem==='number'?p.ordem:null),
     agendamento:p.agendamento||null, templates:templates||[],
-    arquivada:(p.ativa===false)   // coluna `ativa` do banco: false = pasta arquivada (some da vitrine)
+    arquivada:(p.ativa===false),  // coluna `ativa` do banco: false = pasta arquivada (some da vitrine)
+    destaque:(p.destaque!==false) // seção da vitrine: true = "Ativas agora", false = "Outras campanhas"
   };
+  out._syncedFolderMeta=_dFolderMetaSignature(out,typeof p.ordem==='number'?p.ordem:0);
+  return out;
 }
 // Chave de comparação de nome de pasta: sem acento, sem caixa, sem espaço duplo.
 // "Much+ Benefícios" e "much+ beneficios " são a MESMA pasta pro merge do sync.
@@ -4058,17 +4212,25 @@ function _dChaveNome(n){
 async function dSyncFoldersFromBackend(){
   const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
   if(!sb) return;
+  const owner=(typeof gCurrentUser==='function')?gCurrentUser()?.id:null;
+  const stillOwner=()=>typeof gCurrentUser!=='function'||gCurrentUser()?.id===owner;
   try{
-    const { data:rp, error:e1 }=await sb.schema('luma').from('pastas').select('*').order('ordem',{ascending:true});
+    const _vis=(typeof gVisitante==='function' && gVisitante()) ? await gVisitanteCatalogo() : null;
+    if(typeof gVisitante==='function' && gVisitante() && !_vis) return;
+    const { data:rp, error:e1 }=_vis ? { data:_vis.pastas, error:null }
+      : await sb.schema('luma').from('pastas').select('*').order('ordem',{ascending:true});
+    if(!stillOwner())return;
     if(e1 || !Array.isArray(rp) || !rp.length) return; // banco vazio → mantém local (push migra)
     // Lazy Load: exclui propositalmente a coluna `layers` pesada do download em lote no boot.
     // Os layers descem sob demanda: dLoadTemplate (designer) / fEnsureMaterialLayers (franqueado).
-    const { data:rt, error:eT }=await sb.schema('luma').from('templates').select('id, pasta_id, nome, fmt, formats, w, h, bg, publicado, publicado_em, validade, instrucoes, permissoes, updated_at');
+    const { data:rt, error:eT }=_vis ? { data:_vis.templates.map(t=>{ const c=Object.assign({},t); delete c.layers; return c; }), error:null }
+      : await sb.schema('luma').from('templates').select('id, pasta_id, nome, fmt, formats, w, h, bg, publicado, publicado_em, validade, instrucoes, permissoes, updated_at, versao_atual_id');
     // Pull mudo = catálogo vazio sem explicação (mesmo incidente de 07/2026). Nomear a causa.
     // E ABORTAR: seguir o merge com rt=null montava TODA pasta com zero material — a vitrine
     // jogava o catálogo inteiro em "Em breve" (card fantasma, sem clique) e a linha 3087
     // gravava esse vazio no localStorage, destruindo o cache que ainda estava íntegro. Uma
     // falha de rede num pull não pode apagar catálogo: mantém o local e re-tenta no próximo boot.
+    if(!stillOwner())return;
     if(eT){
       console.warn('[sync] pull de templates falhou (catálogo não desceu):', eT.message||eT);
       return;
@@ -4091,8 +4253,17 @@ async function dSyncFoldersFromBackend(){
       // vincular campanha (camp_id NULL) não casava por campId, então a semente do
       // CAMPS_* sobrevivia ao lado dela — eram duas "Much+ Benefícios" na árvore, e a
       // vitrine lia a semente (capa hardcoded) em vez da pasta que o designer edita.
-      // Pasta local COM remoteId nunca cai aqui: pode ser trabalho pendente de subir.
+      // Pasta local COM remoteId não casa por nome: é tratada logo abaixo.
       if(!f.remoteId && rNomes.has(_dChaveNome(f.name))) return false;
+      // Pasta COM remoteId que o banco não tem e SEM nada pendente = foi excluída (aqui ou em
+      // outro aparelho). Mantê-la era o "a pasta sempre volta": o próximo push, que regrava
+      // todas as pastas, fazia o upsert dela de volta. Só sobrevive se ainda falta subir algo.
+      if(f.remoteId && !f._syncPending && !(f.templates||[]).some(t=>t&&t._syncPending)) return false;
+      // Pasta de sistema com id VELHO (cache de antes do id fixo): a do banco manda. Sem isto
+      // ela sobrevivia como "local" e o próximo push a recriava — desfazendo a limpeza. Os
+      // templates pendentes dela migram pelo casamento por nome logo abaixo.
+      const _sis=gPastaSistema(f);
+      if(_sis && remote.some(r=>gPastaSistema(r)===_sis)) return false;
       return true;
     });
     // Trabalho local ainda NÃO sincronizado (_syncPending) não pode ser engolido pelo
@@ -4100,22 +4271,26 @@ async function dSyncFoldersFromBackend(){
     // O template ABERTO no editor também é preservado (mesmo sincronizado): o pull trocaria
     // o objeto e o dActiveTmplId ficaria órfão — o próximo dSave gravaria no vazio, em silêncio.
     const _openId=(typeof dActiveTmplId!=='undefined')?dActiveTmplId:null;
-    (dFolders||[]).forEach(lf=>{
-      const pend=(lf.templates||[]).filter(t=>t&&(t._syncPending||(_openId&&t.id===_openId)));
-      if(!pend.length) return;
+    (dFolders||[]).forEach((lf,idx)=>{
+      const pend=(lf.templates||[]).filter(t=>t&&(t._syncPending||t._draft||t._drafts||t._publishPending||(_openId&&t.id===_openId)));
+      const folderPending=lf._syncPending||(lf._syncedFolderMeta&&lf._syncedFolderMeta!==_dFolderMetaSignature(lf,idx));
+      if(!pend.length&&!folderPending) return;
       // Mesma escada do filtro de extras acima (inclusive o nome): sem o casamento por
       // nome, a semente descartada levaria com ela o template ainda não sincronizado.
       const rf=remote.find(f=>f.remoteId===lf.remoteId)
             ||remote.find(f=>f.campId&&f.campId===lf.campId)
             ||remote.find(f=>_dChaveNome(f.name)===_dChaveNome(lf.name));
       if(!rf) return; // pasta local-only já sobrevive via extras
+      // Conflito mantém o carimbo da abertura: o pull não pode legitimá-lo para
+      // o próximo UPDATE. Catálogo remoto continua sendo a origem dos templates.
+      if(folderPending){const templates=rf.templates;Object.assign(rf,lf);rf.templates=templates;rf._syncPending=true;}
       pend.forEach(pt=>{
         const i=rf.templates.findIndex(x=>x&&(x.id===pt.id||(pt.remoteId&&x.remoteId===pt.remoteId)));
         if(i>=0) rf.templates[i]=pt; else rf.templates.push(pt);
       });
     });
-    dFolders=[...remote, ...extras];
-    try{ localStorage.setItem('yngs_folders_v1', JSON.stringify(dFolders)); }catch(e){}
+    dFolders=_vis?remote:[...remote, ...extras];  // visitante: só as campanhas liberadas, sem semente local
+    if(!_vis){ try{ localStorage.setItem('yngs_folders_v1', JSON.stringify(dFolders)); }catch(e){} }
     if(typeof dRenderFolders==='function') dRenderFolders();
     if(typeof fGetCampaigns==='function' && typeof fRenderCatalogs==='function'){
       try{ const{ativas,outras}=fGetCampaigns(); fRenderCatalogs(ativas,outras); }catch(e){}
@@ -4557,7 +4732,10 @@ function dAddShapeKind(kind, x, y, customW, customH){
   }
 
   document.addEventListener('DOMContentLoaded',function(){
-    const saved=parseInt(sessionStorage.getItem(KEY)||'0',10);
+    // sessionStorage LANÇA (não devolve null) em aba com dados de site bloqueados; sem a
+    // guarda, a exceção matava o resto deste bloco de inicialização do painel de camadas.
+    let _savedRaw='0'; try{ _savedRaw=sessionStorage.getItem(KEY)||'0'; }catch(e){}
+    const saved=parseInt(_savedRaw,10);
     if(saved>=MIN_H) _applyH(saved);
 
     const handle=document.getElementById('d-layers-resize-handle');
@@ -4585,7 +4763,7 @@ function dAddShapeKind(kind, x, y, customW, customH){
       document.body.style.cursor='';
       document.body.style.userSelect='';
       const sec=document.getElementById('d-layers-section');
-      if(sec) sessionStorage.setItem(KEY,sec.offsetHeight);
+      if(sec){ try{ sessionStorage.setItem(KEY,sec.offsetHeight); }catch(e){} }
     });
   });
 })();

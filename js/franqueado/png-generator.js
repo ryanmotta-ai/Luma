@@ -136,12 +136,83 @@ async function fRenderCanvasHelper(d,c,fmt,opts){
   return cv;
 }
 
+/* ══ ASSINATURA DA ARTE — metadado invisível em todo arquivo que sai do Luma ═════════════
+   Pedido do Ryan (30/09/2026): reconhecer uma arte do Luma que circula por aí. O PNG ganha
+   blocos de texto (tEXt/iTXt), o PDF ganha os campos de documento. Não altera um pixel.
+   ⛔ Sem dado pessoal: nada de nome, e-mail ou cidade de quem gerou — só o que identifica a
+   PEÇA (template, campanha, formato, data, versão do Luma). Sem biblioteca: PNG é só bytes. */
+let _fCrcTab=null;
+function _fCrc32(bytes){
+  if(!_fCrcTab){ _fCrcTab=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); _fCrcTab[n]=c>>>0; } }
+  let c=0xFFFFFFFF; for(let i=0;i<bytes.length;i++) c=_fCrcTab[(c^bytes[i])&0xFF]^(c>>>8);
+  return (c^0xFFFFFFFF)>>>0;
+}
+function _fPngChunk(tipo, dados){
+  const t=new TextEncoder().encode(tipo), out=new Uint8Array(12+dados.length), v=new DataView(out.buffer);
+  v.setUint32(0,dados.length); out.set(t,4); out.set(dados,8);
+  const corpo=new Uint8Array(4+dados.length); corpo.set(t,0); corpo.set(dados,4);
+  v.setUint32(8+dados.length,_fCrc32(corpo)); return out;
+}
+// iTXt = texto UTF-8 (o tEXt só aceita Latin-1): chave  flag(0) método(0) idioma  chaveTraduzida  texto
+function _fPngITxt(chave, texto){
+  const enc=new TextEncoder(), k=enc.encode(chave), tx=enc.encode(String(texto));
+  const d=new Uint8Array(k.length+5+tx.length); d.set(k,0); d.set([0,0,0,0,0],k.length); d.set(tx,k.length+5);
+  return _fPngChunk('iTXt', d);
+}
+// O que vai na assinatura. `mat`/`camp`/`fmt` são os da peça que está sendo gerada.
+function fAssinaturaDados(camp, fmt, mat){
+  const m=mat||fState.material||{};
+  const v=(document.querySelector('script[src*="png-generator.js?v="]')||{}).src||'';
+  return {
+    'Software':'Luma · Delivery Much',
+    'Luma-Template':[m.id, m.name].filter(Boolean).join(' · '),
+    'Luma-Campanha':(camp&&camp.name)||'',
+    'Luma-Formato':(fmt&&(fmt.name||fmt.id))||'',
+    'Luma-Criado':new Date().toISOString(),
+    'Luma-Versao':(v.match(/[?&]v=(\w+)/)||[])[1]||''
+  };
+}
+// Bytes de PNG → bytes de PNG assinado (blocos logo depois do IHDR). Não-PNG volta intacto.
+function fAssinarPngBytes(bytes, meta){
+  const b=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes);
+  if(b.length<33||b[1]!==0x50||b[2]!==0x4E||b[3]!==0x47) return b;
+  const fimIhdr=8+12+new DataView(b.buffer,b.byteOffset).getUint32(8);
+  const blocos=Object.entries(meta||{}).filter(([,val])=>val).map(([k,val])=>_fPngITxt(k,val));
+  const extra=blocos.reduce((n,x)=>n+x.length,0), out=new Uint8Array(b.length+extra);
+  out.set(b.subarray(0,fimIhdr),0); let o=fimIhdr; blocos.forEach(x=>{ out.set(x,o); o+=x.length; });
+  out.set(b.subarray(fimIhdr),o); return out;
+}
+async function fAssinarPngBlob(blob, meta){
+  try{ return new Blob([fAssinarPngBytes(new Uint8Array(await blob.arrayBuffer()), meta)],{type:'image/png'}); }
+  catch(e){ console.warn('[assinatura] não assinou o PNG:', e); return blob; }
+}
+function fAssinarPngDataURL(url, meta){
+  try{
+    const i=url.indexOf(','); if(!/^data:image\/png/i.test(url)||i<0) return url;
+    const bin=atob(url.slice(i+1)), u8=new Uint8Array(bin.length); for(let k=0;k<bin.length;k++) u8[k]=bin.charCodeAt(k);
+    const out=fAssinarPngBytes(u8, meta); let s=''; for(let k=0;k<out.length;k+=0x8000) s+=String.fromCharCode.apply(null,out.subarray(k,k+0x8000));
+    return 'data:image/png;base64,'+btoa(s);
+  }catch(e){ console.warn('[assinatura] não assinou o PNG:', e); return url; }
+}
+// Leitura (para reconhecer uma arte do Luma): devolve {chave: texto} dos blocos tEXt/iTXt.
+function fLerAssinaturaPng(bytes){
+  const b=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes), v=new DataView(b.buffer,b.byteOffset), dec=new TextDecoder(), r={};
+  for(let o=8;o+8<=b.length;){
+    const len=v.getUint32(o), tipo=dec.decode(b.subarray(o+4,o+8)), d=b.subarray(o+8,o+8+len);
+    if(tipo==='iTXt'||tipo==='tEXt'){ const z=d.indexOf(0); const k=dec.decode(d.subarray(0,z)); let resto=d.subarray(z+1);
+      if(tipo==='iTXt'){ resto=resto.subarray(2); for(let n=0;n<2;n++){ const zz=resto.indexOf(0); resto=resto.subarray(zz+1); } }
+      r[k]=dec.decode(resto); }
+    if(tipo==='IEND') break; o+=12+len;
+  }
+  return r;
+}
+
 // opts.scale: 1 = tamanho nativo da prancheta; ausente = o 2× padrão.
 async function fGenPNG(d,c,fmt,opts){
   const canvas = await fRenderCanvasHelper(d,c,fmt,opts);
   const a=document.createElement('a');
   a.download=fBuildFilename(c,fmt,d);
-  a.href=canvas.toDataURL('image/png');
+  a.href=fAssinarPngDataURL(canvas.toDataURL('image/png'), fAssinaturaDados(c,fmt));
   a.click();
   if(typeof window.gPlayExportSuccessSound==='function') window.gPlayExportSuccessSound();
 }
@@ -154,7 +225,8 @@ async function fGenPDF(d,c,fmt,opts){
     throw new Error('Biblioteca pdf-lib não está disponível.');
   }
   const canvas = await fRenderCanvasHelper(d,c,fmt,opts);
-  const pngDataUrl = canvas.toDataURL('image/png');
+  const _assin = fAssinaturaDados(c,fmt);
+  const pngDataUrl = fAssinarPngDataURL(canvas.toDataURL('image/png'), _assin);
   
   // Cria documento PDF
   const pdfDoc = await PDFLib.PDFDocument.create();
@@ -173,6 +245,13 @@ async function fGenPDF(d,c,fmt,opts){
     height: canvas.height
   });
   
+  // Assinatura no documento (o PNG embutido já vai assinado): Produtor, Criador, Assunto, Palavras-chave.
+  try{
+    pdfDoc.setProducer(_assin['Software']); pdfDoc.setCreator(_assin['Software']);
+    pdfDoc.setSubject([_assin['Luma-Campanha'], _assin['Luma-Template']].filter(Boolean).join(' · '));
+    pdfDoc.setKeywords(['Luma', 'Delivery Much'].concat(_assin['Luma-Versao'] ? ['v'+_assin['Luma-Versao']] : []));
+    pdfDoc.setCreationDate(new Date());
+  }catch(e){ console.warn('[assinatura] PDF sem metadado:', e); }
   // Salva o PDF
   const pdfBytes = await pdfDoc.save();
   const blob = new Blob([pdfBytes], { type: 'application/pdf' });
@@ -208,7 +287,8 @@ async function _fArtePreparar(snapId){
   try{
     const canvas=await fRenderCanvasHelper(snap.dados,snap.camp,snap.fmt);
     const fname=fBuildFilename(snap.camp,snap.fmt,snap.dados);
-    const blob=await new Promise(res=>canvas.toBlob(res,'image/png'));
+    const cru=await new Promise(res=>canvas.toBlob(res,'image/png'));
+    const blob=cru ? await fAssinarPngBlob(cru, fAssinaturaDados(snap.camp,snap.fmt,snap.material)) : null;
     const file=blob ? new File([blob],fname,{type:'image/png'}) : null;
     let podeShare=false;
     try{ podeShare=!!(file && navigator.canShare && navigator.canShare({files:[file]})); }catch(e){}
@@ -226,7 +306,15 @@ function _fArtePodeExportar(){
 }
 function _fArteBaixarArquivo(prep){
   const a=document.createElement('a'); a.download=prep.fname;
-  a.href=prep.canvas.toDataURL('image/png'); a.click();
+  /* `_fArtePreparar` JÁ produziu o Blob. Re-codificar o canvas em dataURL travava a aba por
+     centenas de ms num 2160×2700 e ainda inflava o resultado em ~33% (base64). */
+  if(prep.blob && typeof URL!=='undefined' && URL.createObjectURL){
+    const url=URL.createObjectURL(prep.blob);
+    a.href=url; a.click();
+    setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(e){} }, 60000);
+    return;
+  }
+  a.href=fAssinarPngDataURL(prep.canvas.toDataURL('image/png'), fAssinaturaDados(prep.snap.camp,prep.snap.fmt,prep.snap.material)); a.click();
 }
 // Arte que saiu do Luma deixa de ser rascunho — e vira evento de analytics.
 function _fArteEntregue(prep, evento, payload){
@@ -234,7 +322,7 @@ function _fArteEntregue(prep, evento, payload){
   if(snap.histId){ fMarkHistBaixada(snap.histId); }
   else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
   if(typeof gTrackEvent==='function'){
-    gTrackEvent(evento, Object.assign({camp_id:snap.camp.id, fmt_id:snap.fmt.id}, payload||{}));
+    gTrackEvent(evento, Object.assign({camp_id:snap.camp.id, fmt_id:snap.fmt.id, template_id:(typeof _fTplId==='function')?_fTplId(snap.material):null}, payload||{}));
   }
 }
 // window.open depois de um await pode cair no bloqueador de pop-up: se voltar nulo,
@@ -269,6 +357,7 @@ function _fArteErro(e, canal){
   if(e && e.name==='AbortError') return;         // cancelou a folha nativa — silencioso
   console.warn('Falha ao entregar a arte ('+canal+'):',e);
   if(typeof gHandleLayoutUnsafeError==='function' && gHandleLayoutUnsafeError(e)) return;
+  if(e&&e.code==='LUMA_IMAGE_UNAVAILABLE'){gToast(e.message,'error');return;}
   gToast('Não consegui preparar a arte. Tente o botão Baixar PNG.','error');
 }
 
@@ -292,13 +381,13 @@ async function fPostarInstagram(btn, snapId){
         compartilhou=true;
       }catch(e){ if(!_fArteShareRecusado(e)) throw e; }
     }
-    if(prep.cap && typeof _fCopyText==='function') _fCopyText(prep.cap);
+    if(prep.cap && typeof _fCopyText==='function'){ _fCopyText(prep.cap); if(typeof fTrackLegenda==='function') fTrackLegenda('legenda_copiada', snapId, {origem:'instagram'}); }
     if(compartilhou){
-      _fArteEntregue(prep,'arte_postada',{canal:'instagram',via:'share'});
+      _fArteEntregue(prep,'arte_compartilhada',{canal:'instagram',via:'share'});
       gToast(prep.cap ? 'Arte enviada • legenda copiada, é só colar na publicação.' : 'Arte enviada pro Instagram.');
     } else {
       _fArteBaixarArquivo(prep);
-      _fArteEntregue(prep,'arte_postada',{canal:'instagram',via:'web'});
+      _fArteEntregue(prep,'arte_compartilhada',{canal:'instagram',via:'web'});
       // O Instagram não aceita imagem por link: o app abre no feed e a arte já está
       // salva no aparelho — a pessoa escolhe ela no (+) Criar.
       _fArteAbrirDestino('instagram://app','https://www.instagram.com/','Baixei a arte e copiei a legenda. Abra o instagram.com pra publicar.');
@@ -326,6 +415,8 @@ async function fEnviarWhatsApp(btn, snapId){
       try{
         await navigator.share({files:[prep.file], text:prep.cap||undefined, title:'Delivery Much'});
         _fArteEntregue(prep,'arte_compartilhada',{canal:'whatsapp',via:'share'});
+        // A folha nativa leva a legenda junto (`text`): conta como legenda usada.
+        if(prep.cap && typeof fTrackLegenda==='function') fTrackLegenda('legenda_copiada', snapId, {origem:'whatsapp'});
         return;
       }catch(e){ if(!_fArteShareRecusado(e)) throw e; }   // recusou o share → segue pro app
     }
@@ -336,7 +427,7 @@ async function fEnviarWhatsApp(btn, snapId){
         imagemNaArea=true;
       }
     }catch(e){ /* navegador sem suporte (Firefox) ou permissão negada — segue sem drama */ }
-    if(!imagemNaArea && prep.cap && typeof _fCopyText==='function') _fCopyText(prep.cap);
+    if(!imagemNaArea && prep.cap && typeof _fCopyText==='function'){ _fCopyText(prep.cap); if(typeof fTrackLegenda==='function') fTrackLegenda('legenda_copiada', snapId, {origem:'whatsapp'}); }
     _fArteBaixarArquivo(prep);
     _fArteEntregue(prep,'arte_compartilhada',{canal:'whatsapp',via:'web'});
     // O `whatsapp://send` abre o app já numa conversa com a legenda; a imagem vai
@@ -423,6 +514,12 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
   // Fail-safe: chamadas sem escopo são tratadas como autoria. Só um consumidor que se declara
   // `franqueado` pode executar o Auto-layout temporário.
   const _renderScope=renderOpts.scope||'designer';
+  /* `resolvido`: as camadas JÁ SAÍRAM deste motor — reflow, bindings, regras, âncoras e Local
+     Fit aplicados. Quem pede é o quadro de transição da prévia (`_fLpCinema`), que só
+     interpola geometria entre dois estados prontos. Rodar a escada de novo não é idempotente:
+     `shrinkFont` encolhe outra vez, `shiftX` soma de novo e a âncora manual devolve o membro da
+     cadeia para antes do Local Fit. Aqui só se desenha, como recebido. */
+  const _jaResolvido=renderOpts.resolvido===true;
   // Garante que as fontes (Roboto + enviadas pelo usuário) estejam carregadas antes
   // de desenhar texto no canvas — senão a primeira geração sai com fonte fallback.
   if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
@@ -431,11 +528,15 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
   ctx.imageSmoothingQuality = 'high';
   // Fundo da prancheta/campanha
   const _renderMaterial=materialOverride||(typeof fState!=='undefined'?fState.material:null)||{layers,w:W,h:H,fmt:'orig'};
-  const _matBg=_renderMaterial.bg&&_renderMaterial.bg!=='transparent'?_renderMaterial.bg:null;
+  /* 'transparent' é uma ESCOLHA do designer, não ausência de escolha — logo, selo e adesivo
+     precisam do alfa. Sem esta guarda o `else` abaixo pintava o laranja da campanha por cima
+     de tudo e o franqueado baixava um PNG opaco onde tinha que haver recorte. */
+  const _bgEscolhido=_renderMaterial.bg||'';
+  const _matBg=(_bgEscolhido&&_bgEscolhido!=='transparent')?_bgEscolhido:null;
   if(_matBg){
     ctx.fillStyle=_matBg==='white'?'#ffffff':_matBg;
     ctx.fillRect(0,0,W,H);
-  }else{
+  }else if(_bgEscolhido!=='transparent'){
     const hasBackground=layers.some(l=>l.type==='shape'&&l.x===0&&l.y===0&&l.w>=W*0.9&&l.h>=H*0.9);
     if(!hasBackground){ctx.fillStyle=camp.color||'#FF9000';ctx.fillRect(0,0,W,H);}
   }
@@ -447,99 +548,120 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
   // Quando o material tem w/h reais e está sendo renderizado no próprio tamanho, tw/th==W/H → sem reflow.
   const [tw, th] = fMaterialSize(_renderMaterial);
   let geomLayers = layers;
-  if((tw !== W || th !== H) && typeof gReflowLayers === 'function'){
+  if(!_jaResolvido && (tw !== W || th !== H) && typeof gReflowLayers === 'function'){
     const fmtKey = Object.keys(fmtSizes).find(k => fmtSizes[k][0]===W && fmtSizes[k][1]===H);
     geomLayers = gReflowLayers(layers, {w:tw,h:th}, {w:W,h:H}, {fmtKey: fmtKey ? gFmtKey(fmtKey) : null});
   }
   // Aplica bindings (4.1) e regras condicionais (4.2) ANTES de filtrar visibilidade.
   const _defaults = (typeof gVarDefaults==='function') ? gVarDefaults() : null;
-  let effective = geomLayers.map(l=>{
+  let effective = _jaResolvido ? geomLayers.slice() : geomLayers.map(l=>{
     let eff = (typeof gApplyBindings==='function') ? gApplyBindings(l, dados, {defaults:_defaults}) : l;
     if(typeof gApplyRules==='function') eff = gApplyRules(eff, dados, {defaults:_defaults});
     return eff;
   });
-  // Âncoras manuais existem nos dois lados; Auto-layout inferido só existe no runtime do
-  // franqueado. Calculamos original e acomodado em CLONES independentes — o template publicado
-  // nunca recebe x/y/fonte temporários.
-  if(typeof gApplyRelativeAnchors==='function'){
-    const original=gApplyRelativeAnchors(effective,dados,_defaults,{fitText:false,canvas:{w:W,h:H},scope:_renderScope});
+  /* ══ LOCAL FIT — o runtime oficial (09/2026) ═══════════════════════════════════════════
+     A arte sai com a GEOMETRIA QUE O DESIGNER PUBLICOU. `gApplyRelativeAnchors` interpola e
+     resolve as âncoras MANUAIS do designer — nada mais: a escada que empurrava CTA, abria
+     corredor, escalava componente e escolhia composição por nota foi removida, junto com o
+     Automatic Designer inteiro.
+     O que resolve o conteúdo novo é o Local Fit: cada texto com campo tenta caber na PRÓPRIA
+     caixa (corpo autorado → quebra → encolhimento progressivo → piso de legibilidade). Coube,
+     desenha. Não coube no piso, BLOQUEIA — nunca desenha texto quebrado em silêncio. */
+  if(!_jaResolvido && typeof gApplyRelativeAnchors==='function'){
+    const original=gApplyRelativeAnchors(effective,dados,_defaults,{canvas:{w:W,h:H},scope:_renderScope});
     const disponivel=_renderScope==='franqueado'
-      &&((typeof gLayoutVivoDisponivel==='function')?gLayoutVivoDisponivel():true);
+      &&((typeof gLayoutVivoDisponivel==='function')?gLayoutVivoDisponivel():true)
+      &&typeof gLocalFitArte==='function';
     if(disponivel){
-      // A ENTRADA do solver, guardada antes de `effective` virar o resultado: o diagnóstico
-      // re-roda o motor com valores encurtados e precisa partir do mesmo ponto de partida.
-      const entradaLayout=effective;
-      const solved=gApplyRelativeAnchors(effective,dados,_defaults,{fitText:true,canvas:{w:W,h:H},scope:'franqueado'});
-      const result=(typeof gDescribeFranchiseeLayout==='function')
-        ?gDescribeFranchiseeLayout(original,solved)
-        :{status:'adapted',adapted:true,invalid:false,requiresAdaptation:true,forced:false,changes:[],invalidIds:[]};
-      /* ══ ORIGINAL FIRST (rodada de usabilidade, 09/2026) ═══════════════════════════════════
-         A regra passou a ser incondicional: **se o conteúdo cabe no layout que o designer fez,
-         nada se mexe**. Antes, o desenhado só ganhava quando o franqueado tinha DESLIGADO o
-         Auto-layout no botão da prévia — sem o botão (ele saiu da UI), a arte que já cabia
-         ainda era desenhada a partir do clone `solved`.
-         `requiresAdaptation` é `adapted || invalid`: `adapted` só é verdade quando o solver
-         MEXEU de fato (geometria ou tipografia, medido em `gDescribeFranchiseeLayout`). Então
-         `!requiresAdaptation` é exatamente "o solver não teve nada a fazer" — e nesse caso o
-         `original` é a resposta certa por definição, não uma preferência.
-         Por que trocar se os dois são equivalentes: `solved` volta carimbado (`_fit`,
-         `_layoutW`, `_tetoFonte`, `_entrelinha`) e a tolerância de comparação é de 0,5px. Meio
-         pixel não é "igual ao que o designer desenhou" — e o critério de aceite desta rodada é
-         geometria IDÊNTICA quando o conteúdo cabe. Devolvendo o `original`, a igualdade deixa
-         de depender de tolerância: é o mesmo clone que a arte publicada produz.
-         A rede de proteção não muda: `requiresAdaptation` verdadeiro → continua o `solved`. */
-      effective=result.requiresAdaptation?solved:original;
-      /* `forced` era "o franqueado pediu o original e não deu" — sem o botão, ninguém pede.
-         Fica `false` para não mentir a quem lê o resultado (telemetria e a nota da prévia). */
-      result.forced=false;
+      const lf=gLocalFitArte(original,{canvas:{w:W,h:H},dados,defaults:_defaults});
+      effective=lf.layers;
+      const result=lf.result;
       effective._layoutResult=result;
       window.gLastFranchiseeLayoutResult=result;
-      /* DIAGNÓSTICO ACIONÁVEL. Só quando a composição REPROVOU: a busca binária re-roda o solver
-         algumas vezes, e isso não pode entrar no laço da digitação. Aqui já é o caminho de
-         falha, onde o custo se paga em o franqueado saber o que fazer. */
-      if(result.invalid&&typeof gLayoutDiagnosis==='function'){
-        result.diagnostico=gLayoutDiagnosis(entradaLayout,dados,_defaults,
-          {fitText:true,canvas:{w:W,h:H},scope:'franqueado'},solved);
-      }
-      if(typeof gLayoutTelemetry==='function'){
-        if(result.meta&&typeof gLayoutFonteStatusArte==='function')
-          result.meta.fonte=gLayoutFonteStatusArte(solved);
+      if(typeof gLayoutTelemetry==='function'&&!renderOpts.soLayout){
+        if(typeof gLayoutFonteStatusArte==='function')
+          result.meta=Object.assign({},result.meta,{fonte:gLayoutFonteStatusArte(effective)});
         gLayoutTelemetry(result,{purpose:renderOpts.purpose||'preview',
           template:(_renderMaterial&&(_renderMaterial.templateId||_renderMaterial.template_id))||null,
           material:(_renderMaterial&&(_renderMaterial.id||_renderMaterial.nome))||null,
           formato:W+'x'+H});
       }
+      /* FAIL SAFE. Baixar uma arte com o texto estourado é o pior resultado possível: ela vai
+         para o Instagram e ninguém mais a corrige. Na prévia o bloqueio não interrompe — a
+         pessoa precisa VER o que não cabe para saber o que encurtar. */
       if(result.invalid&&renderOpts.purpose==='export'){
+        if(typeof gLocalFitDiagnostico==='function')
+          result.diagnostico=gLocalFitDiagnostico(effective,result,dados,
+            {canvas:{w:W,h:H},defaults:_defaults})||result.diagnostico;
         const err=new Error((result.diagnostico&&result.diagnostico.mensagem)
-          ||'A arte não tem espaço seguro para estes dados. Encurte o texto ou escolha outro material.');
-        err.code='LUMA_LAYOUT_UNSAFE';err.layoutResult=result;throw err;
+          ||'Esse texto não cabe com segurança nesta arte. Encurte o conteúdo ou escolha outro material.');
+        err.code='LUMA_CONTENT_TOO_LARGE';err.layoutResult=result;throw err;
       }
     }else{
       effective=original;
       effective._layoutResult={status:'original',adapted:false,invalid:false,
-        requiresAdaptation:false,forced:false,changes:[],invalidIds:[]};
+        requiresAdaptation:false,forced:false,changes:[],campos:[],bloqueios:[],invalidIds:[]};
     }
   }
+  /* `soLayout`: só o ENCAIXE, sem desenhar (Local Fit 2.6). O Luma Sheets mede cada linha do lote
+     antes de gerar para dizer "não cabe" — a mesma conta do render, sem pré-carregar imagem nem
+     tocar no canvas. Devolve o clone resolvido, com `_layoutResult`; a telemetria fica de fora
+     (uma linha medida não é uma arte vista). */
+  if(renderOpts.soLayout) return effective;
   // O renderer continua único: prévia e exportação recebem exatamente o mesmo clone resolvido.
   // Renderiza só layers visíveis (geometria já está no formato alvo → escala 1:1)
   const visible = effective.filter(l => l.visible !== false);
   // PRÉ-CARGA PARALELA: o loop abaixo espera imagem por imagem (await em série) — com os
   // rasters de PSD por URL (pós-Storage), o 1º render custava a SOMA dos downloads.
   // Dispara tudo junto; o loop acha no _fImgCache e o tempo vira o da imagem mais lenta.
-  try{
-    const _urls=[];
+  {
+    const _resources=[];
+    const _effectiveById=new Map(effective.filter(Boolean).map(l=>[l.id,l]));
+    const _hidden=l=>{
+      const seen=new Set();
+      while(l){
+        if(l.visible===false)return true;
+        if(!l.parentId||seen.has(l.parentId))break;
+        seen.add(l.parentId);l=_effectiveById.get(l.parentId);
+      }
+      return false;
+    };
+    const _add=(url,l,kind)=>{if(typeof url==='string'&&url)_resources.push({url,layer:l,kind});};
     for(const l of visible){
-      if(typeof l.imgUrl==='string' && l.imgUrl) _urls.push(l.imgUrl);
-      if(typeof l.mask==='string' && l.mask) _urls.push(l.mask);
+      if(_hidden(l))continue;
+      if(l.type==='image'||l.type==='frame'){
+        const v=l.imgVar&&dados&&dados[l.imgVar];
+        const uploaded=typeof v==='string'&&(/^(data:image|blob:|https?:\/\/)/.test(v));
+        _add(uploaded?v:l.imgUrl,l,'imagem');
+      }
+      _add(l.mask,l,'máscara');
       // Máscaras da composição de grupo/clipping (PSD): sem elas aqui, cada recorte volta a ser
       // um download EM SÉRIE dentro do loop — exatamente o custo que esta pré-carga existe para
       // matar. A do grupo entra pelo próprio `l.mask` acima (grupo é camada); falta a do
       // clipping editável, que mora num campo separado.
-      if(typeof l.clipOwnMask==='string' && l.clipOwnMask) _urls.push(l.clipOwnMask);
-      if(l.imgVar && dados && typeof dados[l.imgVar]==='string' && dados[l.imgVar]) _urls.push(dados[l.imgVar]);
+      _add(l.clipOwnMask,l,'máscara de recorte');
+      const base=l.clipBaseId&&_effectiveById.get(l.clipBaseId);
+      if(base){
+        _add(base.mask,base,'máscara de recorte');
+        if(base.type==='image'||base.type==='frame'){
+          const v=base.imgVar&&dados&&dados[base.imgVar];
+          _add(typeof v==='string'&&/^(data:image|blob:|https?:\/\/)/.test(v)?v:base.imgUrl,base,'imagem de recorte');
+        }
+      }
     }
-    await Promise.all(_urls.map(u=>fLoadImageDataUrl(u)));
-  }catch(e){}
+    // Prévia tolera a falha; exportação nunca pode entregar arte sem um recurso autorado.
+    // Uma tentativa nova deve sair do cache negativo, sem precisar apagar respostas.
+    if(renderOpts.purpose==='export')_resources.forEach(r=>{if(_fImgCache.get(r.url)===null)_fImgCache.delete(r.url);});
+    const loaded=await Promise.all(_resources.map(async r=>({resource:r,img:await fLoadImageDataUrl(r.url)})));
+    const failed=loaded.find(r=>!r.img);
+    if(failed&&renderOpts.purpose==='export'){
+      const r=failed.resource,l=r.layer;
+      const label=l.imgVar&&typeof gFieldLabel==='function'?gFieldLabel(l.imgVar):(l.name||l.id||'sem nome');
+      const err=new Error('Não foi possível carregar a '+r.kind+' de “'+label+'”. Tente gerar novamente ou substitua essa imagem antes de baixar.');
+      err.code='LUMA_IMAGE_UNAVAILABLE';err.layerId=l.id;err.resourceKind=r.kind;err.resourceUrl=r.url;
+      throw err;
+    }
+  }
   const _layerById=new Map(effective.filter(l=>l&&l.id).map(l=>[l.id,l]));
   const _groupById=new Map(effective.filter(l=>l&&l.type==='group'&&l.id).map(l=>[l.id,l]));
 
@@ -688,6 +810,15 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
       if(actualParent!==parentId)continue;
       if(l.type==='group')await _fRenderGroup(target,l);
       else if(l.type==='adjustment')await _fRenderAdjustment(target,l);
+      else if(_jaResolvido&&l._fxEscala>0&&l._fxEscala!==1){
+        /* Escala VISUAL do quadro de transição: o texto é desenhado com a tipografia final e
+           a camada inteira cresce ou encolhe em volta de (_fxOx,_fxOy). Interpolar o corpo
+           faria o `gFitTextLayer` re-quebrar a cada tamanho intermediário — palavra pulando
+           de linha no meio da animação. Assim a quebra é a final desde o primeiro quadro. */
+        const s=l._fxEscala, ox=+l._fxOx||0, oy=+l._fxOy||0;
+        target.save(); target.translate(ox,oy); target.scale(s,s); target.translate(-ox,-oy);
+        try{ await _fRenderLeaf(target,l); } finally { target.restore(); }
+      }
       else await _fRenderLeaf(target,l);
     }
   }
@@ -1200,32 +1331,19 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       try {
         const img = await fLoadImageDataUrl(imgSource);
         if(img && img.width){
-          const imgAR = img.width / img.height, frameAR = w / h;
-          let baseW, baseH;
-          /* LOGO NUNCA É CORTADO. O padrão da moldura é `cover` (o `else` abaixo), que é certo
-             para FOTO — enche o quadro e o corte é enquadramento. Para LOGO é destrutivo: corta
-             a marca do parceiro, que é exatamente o que ninguém pode publicar. O teste de
-             usabilidade pegou isso no passo do logo, e a regra vale no desenho, não só no aviso.
-             ⚠ Isto NÃO desrespeita a intenção do designer: `contain` só entra onde o campo é
-             semanticamente logo (`gCampoEhLogo`) E o designer não escolheu `objectFit`
-             explicitamente. Quem marcou `cover` num campo de logo de propósito continua com o
-             que marcou. Foto de produto não passa por aqui. */
-          const _ehLogoAuto = !l.objectFit && l.imgVar
-            && typeof gCampoEhLogo==='function' && gCampoEhLogo(l.imgVar);
-          if(l.objectFit === 'contain' || _ehLogoAuto){
-            if(imgAR > frameAR){ baseW = w; baseH = w/imgAR; } else { baseH = h; baseW = h*imgAR; }
-          } else { // cover
-            if(imgAR > frameAR){ baseH = h; baseW = h*imgAR; } else { baseW = w; baseH = w/imgAR; }
-          }
+          // Tamanho base (contain × cover, com a regra do logo) mora em fFrameBaseSize.
+          const { baseW, baseH } = fFrameBaseSize(l, img.width, img.height, w, h);
           // Zoom + reposição da foto dentro da moldura. Override por-arte do franqueado
           // (dados['__fit__'+var]) VENCE o do template — sem mutar a camada compartilhada
           // (a Prévia ao Vivo deixa o franqueado enquadrar a própria foto). Retrocompatível:
           // sem override, usa o enquadramento do designer, exatamente como antes.
           const _fit = (dados && l.imgVar) ? dados['__fit__'+l.imgVar] : null;
-          const sc = (_fit && _fit.scale>0) ? _fit.scale : (l.imgScale || 1);
+          if(!_fit && imgSource === varVal) fFrameAnalisa(img, imgSource);   // uma vez por imagem (cache)
+          const _pad = fFrameFitPadrao(l, dados);
+          const sc = (_fit && _fit.scale>0) ? _fit.scale : _pad.scale;
           const drawW = baseW*sc, drawH = baseH*sc;
-          const _ox = (_fit && _fit.offX!=null) ? _fit.offX : (l.imgOffsetX||0);
-          const _oy = (_fit && _fit.offY!=null) ? _fit.offY : (l.imgOffsetY||0);
+          const _ox = (_fit && _fit.offX!=null) ? _fit.offX : _pad.offX;
+          const _oy = (_fit && _fit.offY!=null) ? _fit.offY : _pad.offY;
           const posX = Math.max(0, Math.min(1, 0.5 + _ox));
           const posY = Math.max(0, Math.min(1, 0.5 + _oy));
           const drawX = x + (w - drawW)*posX;
@@ -1371,41 +1489,142 @@ function roundedRectPath(ctx, x, y, w, h, tl, tr, br, bl){
 // ao gerar múltiplos formatos ou ao ter a mesma imagem em vários layers.
 const _fImgCache = new Map();
 
+/* Motor ÚNICO do encaixe da imagem na moldura, em escala 1 (antes do zoom `__fit__`). O modo
+   enquadrar da prévia (live-preview.js) usa a MESMA conta para saber quanto a imagem pode
+   andar — se os dois divergirem, o arrasto volta a andar ao contrário do dedo no logo.
+   LOGO NUNCA É CORTADO. O padrão da moldura é `cover`, que é certo para FOTO — enche o
+   quadro e o corte é enquadramento. Para LOGO é destrutivo: corta a marca do parceiro, que é
+   exatamente o que ninguém pode publicar. O teste de usabilidade pegou isso no passo do logo,
+   e a regra vale no desenho, não só no aviso.
+   ⚠ Isto NÃO desrespeita a intenção do designer: `contain` só entra onde o campo é
+   semanticamente logo (`gCampoEhLogo`) E o designer não escolheu `objectFit` explicitamente.
+   Quem marcou `cover` num campo de logo de propósito continua com o que marcou. */
+function fFrameBaseSize(l, imgW, imgH, w, h){
+  const imgAR = imgW / imgH, frameAR = w / h;
+  const _ehLogoAuto = !l.objectFit && l.imgVar
+    && typeof gCampoEhLogo==='function' && gCampoEhLogo(l.imgVar);
+  if(l.objectFit === 'contain' || _ehLogoAuto){
+    return imgAR > frameAR ? { baseW: w, baseH: w/imgAR } : { baseW: h*imgAR, baseH: h };
+  }
+  // cover
+  return imgAR > frameAR ? { baseW: h*imgAR, baseH: h } : { baseW: w, baseH: w/imgAR };
+}
+
+/* ENQUADRAMENTO DE PARTIDA (23/09/2026). O zoom/deslocamento do designer (`imgScale`,
+   `imgOffsetX/Y`) foi ajustado para a foto de EXEMPLO dele. Herdado pela imagem que o
+   franqueado sobe, empurrava a dele para uma borda — num logo (`contain`, sobra moldura) a
+   marca nascia grudada embaixo do quadro, e o "Ajustar" abria já torto. Imagem PRÓPRIA do
+   franqueado parte do neutro (inteira, centralizada), como qualquer editor faz ao trocar a
+   imagem; a do designer segue com o enquadramento que ele deu. Um lugar só para o motor, o
+   "Ajustar" e o "Desfazer ajuste" — se divergirem, o modo enquadrar abre num e desenha noutro. */
+function fFrameFitPadrao(l, dados){
+  const v = l && l.imgVar, src = v && dados ? dados[v] : null;
+  const propria = typeof src === 'string' && src && src !== l.imgUrl;
+  if(!propria) return { scale:(l && l.imgScale) || 1, offX:(l && l.imgOffsetX) || 0, offY:(l && l.imgOffsetY) || 0 };
+  return fFrameInteligente(l, _fFrameAnalises.get(src)) || { scale:1, offX:0, offY:0 };
+}
+
+/* ENQUADRAMENTO INTELIGENTE (23/09/2026) — pedido do Ryan: quem enquadra não é o designer, é
+   o Luma, olhando a imagem. Determinístico, sem IA e sem rede: uma leitura de ~96px da imagem,
+   feita uma vez por imagem (cache) quando o motor a carrega.
+     · LOGO (encaixe `contain`): acha a MARCA — o que não é fundo (transparente, ou a cor da
+       borda) — e dá zoom até ela ocupar a moldura, centralizada. Logo que chega com 60% de
+       margem branca deixava de nascer um selinho no meio do quadro. A marca nunca é cortada:
+       o zoom é o que faz a caixa da marca CABER, não encher.
+     · FOTO (encaixe `cover`): acha onde está o ASSUNTO (contraste e cor, com leve preferência
+       pelo centro) e leva o corte até ele — o prato fora do meio não perde metade no recorte.
+       Sem zoom: aproximar é decisão de quem vê a foto.
+   Sem leitura possível (imagem de outro domínio sem CORS), fica o neutro: inteira e no centro. */
+const _fFrameAnalises = new Map();
+function fFrameAnalisa(img, src){
+  if(!img || !img.width || !src) return null;
+  if(_fFrameAnalises.has(src)) return _fFrameAnalises.get(src);
+  let a = null;
+  try{
+    const k = 96 / Math.max(img.width, img.height);
+    const W = Math.max(1, Math.round(img.width * k)), H = Math.max(1, Math.round(img.height * k));
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const cx = cv.getContext('2d', { willReadFrequently:true });
+    cx.drawImage(img, 0, 0, W, H);
+    const d = cx.getImageData(0, 0, W, H).data;
+    const px = (x, y) => (y * W + x) * 4;
+    // Fundo: com transparência na borda, o fundo é o vazio; senão, a cor mais comum da borda.
+    let transp = 0, borda = [];
+    for(let x = 0; x < W; x++){ borda.push(px(x, 0), px(x, H - 1)); }
+    for(let y = 0; y < H; y++){ borda.push(px(0, y), px(W - 1, y)); }
+    borda.forEach(i => { if(d[i + 3] < 200) transp++; });
+    const temAlfa = transp > borda.length * 0.25;
+    const med = c => { const v = borda.map(i => d[i + c]).sort((p, q) => p - q); return v[v.length >> 1]; };
+    const fundo = [med(0), med(1), med(2)];
+    const ehConteudo = i => temAlfa ? d[i + 3] > 24
+      : d[i + 3] > 24 && Math.abs(d[i] - fundo[0]) + Math.abs(d[i + 1] - fundo[1]) + Math.abs(d[i + 2] - fundo[2]) > 60;
+    let x0 = W, y0 = H, x1 = -1, y1 = -1, sw = 0, sx = 0, sy = 0;
+    const lum = i => 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    for(let y = 0; y < H; y++) for(let x = 0; x < W; x++){
+      const i = px(x, y);
+      if(!ehConteudo(i)) continue;
+      if(x < x0) x0 = x; if(x > x1) x1 = x; if(y < y0) y0 = y; if(y > y1) y1 = y;
+      // Peso do assunto: borda (contraste com o vizinho) + saturação, com leve viés ao centro.
+      const g = (x > 0 && x < W - 1 && y > 0 && y < H - 1)
+        ? Math.abs(lum(px(x + 1, y)) - lum(px(x - 1, y))) + Math.abs(lum(px(x, y + 1)) - lum(px(x, y - 1))) : 0;
+      const mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2]);
+      const sat = mx ? (mx - mn) / mx : 0;
+      const dx = (x + 0.5) / W - 0.5, dy = (y + 0.5) / H - 0.5;
+      const w = (g + 40 * sat) * Math.exp(-(dx * dx + dy * dy) / 0.18);
+      sw += w; sx += w * (x + 0.5); sy += w * (y + 0.5);
+    }
+    if(x1 >= x0) a = {
+      caixa: { x:x0 / W, y:y0 / H, w:(x1 - x0 + 1) / W, h:(y1 - y0 + 1) / H },
+      foco: sw > 0 ? { x:sx / sw / W, y:sy / sw / H } : { x:0.5, y:0.5 },
+      iw: img.width, ih: img.height
+    };
+  }catch(e){ a = null; }        // canvas "tingido" (imagem sem CORS): sem leitura, sem palpite
+  _fFrameAnalises.set(src, a);
+  return a;
+}
+/* A análise vira {scale, offX, offY} na convenção do motor: drawX = x + (w − drawW)·(0.5+offX). */
+function fFrameInteligente(l, a){
+  if(!l || !a || !(l.w > 0) || !(l.h > 0)) return null;
+  const w = l.w, h = l.h;
+  const b = fFrameBaseSize(l, a.iw, a.ih, w, h);
+  // Deslocamento que põe o ponto (fx, fy) da imagem no centro da moldura, preso ao que o motor aceita.
+  const off = (f, base, dim) => Math.abs(dim - base) < 0.5 ? 0
+    : Math.max(-0.5, Math.min(0.5, (dim / 2 - f * base) / (dim - base) - 0.5));
+  const contain = b.baseW <= w + 0.5 && b.baseH <= h + 0.5;
+  if(contain){
+    const c = a.caixa;
+    // Margem de respiro de 8% em volta da marca; teto de 3,5× (o mesmo do controle de zoom).
+    const sc = Math.max(1, Math.min(3.5, 0.92 * Math.min(w / (c.w * b.baseW), h / (c.h * b.baseH))));
+    const dw = b.baseW * sc, dh = b.baseH * sc;
+    return { scale:Math.round(sc * 100) / 100, offX:off(c.x + c.w / 2, dw, w), offY:off(c.y + c.h / 2, dh, h) };
+  }
+  return { scale:1, offX:off(a.foco.x, b.baseW, w), offY:off(a.foco.y, b.baseH, h) };
+}
+
 function fLoadImageDataUrl(dataUrl){
   if(_fImgCache.has(dataUrl)) return Promise.resolve(_fImgCache.get(dataUrl));
-  // Referência 'idb://' (imagem grande no IndexedDB) → resolve pro dataURL real antes de carregar.
-  if(typeof dataUrl==='string' && dataUrl.indexOf('idb://')===0 && typeof gResolveImgUrl==='function'){
-    const _ref=dataUrl;
-    return gResolveImgUrl(_ref).then(real=>{
-      if(!real) return null;
-      return new Promise((resolve)=>{
-        const img=new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload=()=>{ _fImgCache.set(_ref, img); resolve(img); };
-        img.onerror=()=>resolve(null);
-        img.src=real;
-      });
-    });
-  }
   return new Promise((resolve)=>{
     const img=new Image();
-    // Watchdog: imagem que nunca dispara load/error (request estagnado) segurava o
-    // await do render PRA SEMPRE — "Montando a prévia…" infinito. 20s e desiste
-    // (mesma degradação do 404: layer sai sem a imagem), com a URL no console.
     let done=false;
-    const fim=(v,motivo)=>{ if(done)return; done=true;
-      if(motivo) console.warn('[render] imagem desistiu ('+motivo+'):', String(dataUrl).slice(0,120));
-      // CACHE NEGATIVO: sem isto, cada re-render (a prévia roda a cada tecla!) re-pagava os
-      // 20s POR imagem morta — o "travada e demorada". Falha fica cacheada na sessão;
-      // ponytail: fClearImgCache (refazer/trocar material) já é o caminho de retry.
-      if(v===null) _fImgCache.set(dataUrl, null);
-      resolve(v); };
-    setTimeout(()=>fim(null,'timeout 20s'), 20000);
-    // URLs http(s) (bulk CSV): tenta CORS pra não "tingir" o canvas ao exportar
-    if(/^https?:\/\//.test(dataUrl)) img.crossOrigin='anonymous';
-    img.onload=()=>{ _fImgCache.set(dataUrl, img); fim(img); };
-    img.onerror=()=>fim(null,'erro de carregamento');
-    img.src=dataUrl;
+    const fim=(v,motivo)=>{
+      if(done)return;done=true;clearTimeout(timer);
+      img.onload=null;img.onerror=null;
+      if(motivo)console.warn('[render] imagem desistiu ('+motivo+'):',String(dataUrl).slice(0,120));
+      _fImgCache.set(dataUrl,v);resolve(v);
+    };
+    // Inclui a leitura IndexedDB: uma referência local também pode ficar indisponível.
+    const timer=setTimeout(()=>fim(null,'timeout 20s'),20000);
+    const carregar=real=>{
+      if(done)return;
+      if(!real||real==='__local__'){fim(null,'recurso indisponível');return;}
+      if(/^https?:\/\//.test(real))img.crossOrigin='anonymous';
+      img.onload=()=>fim(img);img.onerror=()=>fim(null,'erro de carregamento/CORS');
+      img.src=real;
+    };
+    if(typeof dataUrl==='string'&&dataUrl.indexOf('idb://')===0){
+      if(typeof gResolveImgUrl!=='function'){fim(null,'armazenamento local indisponível');return;}
+      gResolveImgUrl(dataUrl).then(carregar).catch(()=>fim(null,'leitura local falhou'));
+    }else carregar(dataUrl);
   });
 }
 
@@ -1459,7 +1678,7 @@ function _fBulkRevalidateRows(rows){
     const isEmpty=keys.every(k=>!dados[k].trim());
     const erros=[];
     if(!isEmpty) keys.forEach(k=>{
-      const err=typeof fValidate==='function'?fValidate(k,dados[k]):null;
+      const err=typeof fValidate==='function'?fValidate(k,dados[k],dados):null;
       if(err) erros.push(err);
     });
     return {dados,erros};
@@ -1509,7 +1728,32 @@ function _fBulkSetSaveStatus(text,state){
   el.dataset.state=state||'';
 }
 
-async function fBulkSaveDraft(){
+/* ⛔ SHEETS SEM HISTÓRICO — decisão do Ryan em 25/09/2026.
+   O rascunho (localStorage + fotos no IndexedDB) devolvia, a cada abertura, as linhas da
+   sessão anterior: alguém encheu o Sheets de linhas com a foto quebrada pelo "Dar desconto"
+   e o estrago voltava sozinho. Agora nada persiste: fechou/recarregou, começa do zero, e
+   o que já estava gravado é apagado na próxima abertura. As funções ficam (são chamadas
+   em vários pontos) e só limpam. Para voltar a ter rascunho, é reverter este commit. */
+function _fBulkPurgeDrafts(){
+  try{
+    for(let i=localStorage.length-1;i>=0;i--){
+      const k=localStorage.key(i);
+      if(!k||!(k.startsWith('luma-sheets-draft-v1:')||k.startsWith('luma-sheets-generation-v1:')))continue;
+      // As fotos do rascunho moram no IndexedDB como `idb://sheets-draft-…` — sem isto ficavam órfãs.
+      try{
+        const d=JSON.parse(localStorage.getItem(k)||'{}');
+        (d.rows||[]).forEach(r=>Object.values((r&&r.dados)||{}).forEach(v=>{
+          if(typeof v==='string'&&v.startsWith('idb://sheets-draft-')&&typeof gIdbDel==='function')gIdbDel(v.slice(6));
+        }));
+      }catch(e){}
+      localStorage.removeItem(k);
+    }
+  }catch(e){}
+}
+
+async function fBulkSaveDraft(){ _fBulkPurgeDrafts(); }
+
+async function _fBulkSaveDraftLegado(){
   if(!fState.material)return;
   const seq=++_fBulkAutosaveSeq;
   _fBulkSetSaveStatus('Salvando…','saving');
@@ -1532,6 +1776,7 @@ async function fBulkSaveDraft(){
 // No fechamento inesperado não dá tempo de esperar o IndexedDB. Texto e links ainda são
 // preservados; fotos locais já salvas pelo autosave continuam referenciadas no rascunho anterior.
 function _fBulkSaveDraftSync(){
+  return; // sem histórico (ver _fBulkPurgeDrafts)
   if(!fState.material||!_fBulkHasContent())return;
   try{
     const rows=(fBulkRows||[]).map(r=>{
@@ -1553,6 +1798,8 @@ function fBulkScheduleAutosave(){
 }
 
 async function fBulkRestoreDraft(){
+  _fBulkPurgeDrafts();
+  return false; // sem histórico (ver _fBulkPurgeDrafts)
   let draft=null;
   try{
     const raw=localStorage.getItem(_fBulkDraftKey());
@@ -1577,6 +1824,7 @@ async function fBulkRestoreDraft(){
 }
 
 function fBulkSaveGenerationState(){
+  return; // sem histórico (ver _fBulkPurgeDrafts)
   try{
     if(_fBulkGenerationState)localStorage.setItem(_fBulkGenerationKey(),JSON.stringify(_fBulkGenerationState));
     else localStorage.removeItem(_fBulkGenerationKey());
@@ -1584,6 +1832,7 @@ function fBulkSaveGenerationState(){
 }
 
 function fBulkRestoreGenerationState(){
+  _fBulkGenerationState=null; return; // sem histórico (ver _fBulkPurgeDrafts)
   try{
     const raw=localStorage.getItem(_fBulkGenerationKey());
     _fBulkGenerationState=raw?JSON.parse(raw):null;
@@ -1609,7 +1858,11 @@ async function fRenderMaterialToDataURL(dados, camp, fmt){
   const fctx=finalCv.getContext('2d');
   fctx.imageSmoothingEnabled=true;fctx.imageSmoothingQuality='high';
   fctx.drawImage(renderCv,0,0,w,h);
-  return finalCv.toDataURL('image/png');
+  const _url=fAssinarPngDataURL(finalCv.toDataURL('image/png'), fAssinaturaDados(camp,fmt));
+  /* Zerar as dimensões devolve o backing store NA HORA. O lote chama isto dezenas de vezes
+     seguidas; esperar o GC acumulava centenas de MB de textura e derrubava a aba no celular. */
+  try{ renderCv.width=renderCv.height=0; finalCv.width=finalCv.height=0; }catch(e){}
+  return _url;
 }
 
 let _fLastMaterialId = null;
@@ -1687,7 +1940,8 @@ async function fBulkOpen(opcoes){
   }
   if(!fState.material||!fState.material.layers){gToast('Escolha um material primeiro.');return;}
   
-  if (_fLastMaterialId !== fState.material.id) {
+  // Sem histórico: antes só zerava na troca de material; fechar e reabrir trazia as linhas de volta.
+  {
     fBulkRows = [];
     _fLastMaterialId = fState.material.id;
     _fBulkAudit=[];
@@ -1725,7 +1979,7 @@ async function fBulkOpen(opcoes){
     });
     linhaDaArte.erros = [];
     Object.keys(linhaDaArte.dados).forEach(v => {
-      const err = (typeof fValidate === 'function') ? fValidate(v, linhaDaArte.dados[v]) : null;
+      const err = (typeof fValidate === 'function') ? fValidate(v, linhaDaArte.dados[v], linhaDaArte.dados) : null;
       if (err) linhaDaArte.erros.push(err);
     });
     const l0 = fBulkRows && fBulkRows[0];
@@ -2176,7 +2430,7 @@ function _fBulkRowFromCampos(c){
   // Validação
   const erros = [];
   vars.forEach(v => {
-    const err = typeof fValidate === 'function' ? fValidate(v, dados[v]) : null;
+    const err = typeof fValidate === 'function' ? fValidate(v, dados[v], dados) : null;
     if (err) erros.push(err);
   });
 
@@ -2343,7 +2597,7 @@ async function fRecordedSpeechStart(){
         const type = _fMediaRecorder.mimeType || _fAudioChunks[0].type || 'audio/webm';
         const file = new File([new Blob(_fAudioChunks,{type})], 'fala.'+(type.includes('mp4')?'m4a':'webm'), {type});
         const part = await gAiFileToPart(file);
-        const text = part && await gAskAI('transcrever-audio','Transcreva este áudio em português do Brasil. Retorne somente o texto falado, sem aspas, título ou explicação.',{parts:[part],cache:false});
+        const text = part && await gAskAI('transcrever-audio','Transcreva este áudio em português do Brasil. Retorne somente o texto falado, sem aspas, título ou explicação.',{parts:[part],cache:false,json:false});   // texto corrido: com o JSON padrão o ditado voltava entre aspas/chaves
         if(text && input){ input.value = _fSpeechBase + String(text).trim(); input.dispatchEvent(new Event('input',{bubbles:true})); gToast('Transcrição adicionada.'); }
         else gToast('Não consegui entender o áudio. Tente falar mais perto do microfone.', 'error');
       }catch(e){ console.error('Audio transcription error:',e); gToast('Não consegui transcrever o áudio. Tente novamente.', 'error'); }
@@ -2446,6 +2700,10 @@ function fBulkGetReadiness(keys=fBulkVars(), formatCount=null) {
       emptyRows.push({row, index});
     } else if (row.erros && row.erros.length) {
       errorRows.push({row, index});
+    } else if (_fBulkNaoCabe(row)) {
+      /* Medido antes de gerar (Local Fit 2.6): essa oferta falharia no render. Contar como
+         "pronta" fazia o botão prometer 30 artes e entregar 28. */
+      errorRows.push({row, index, naoCabe:true});
     } else {
       readyRows.push({row, index});
     }
@@ -2500,7 +2758,9 @@ function fBulkUpdateReadiness(readiness=fBulkGetReadiness()) {
       dlBtn.classList.add('acabou-de-liberar');
       dlBtn.addEventListener('animationend', ()=>dlBtn.classList.remove('acabou-de-liberar'), {once:true});
     }
-    const label = ready ? `Gerar ${readiness.artCount} arte${readiness.artCount === 1 ? '' : 's'}` : (errors ? 'Revise para gerar' : 'Preencha uma oferta');
+    const label = ready ? `Gerar ${readiness.artCount} arte${readiness.artCount === 1 ? '' : 's'} (ZIP)` : (errors ? 'Revise para gerar' : 'Preencha uma oferta');
+    const soltasBtn = document.getElementById('f-bulk-dl-soltas-btn');
+    if (soltasBtn) soltasBtn.disabled = ready === 0;
     dlBtn.disabled = ready === 0;
     dlBtn.setAttribute('aria-disabled', ready === 0 ? 'true' : 'false');
     dlBtn.title = ready ? `${readiness.artCount} arte(s) pronta(s) para gerar` : 'Preencha e revise a planilha antes de gerar';
@@ -2542,7 +2802,91 @@ function _fBulkEstadoLinha(r, keys){
   if(!r) return 'vazia';
   const vazia = keys.every(k => !String((r.dados||{})[k] || '').trim());
   if(vazia) return 'vazia';
-  return (r.erros && r.erros.length) ? 'falta' : 'pronta';
+  if(r.erros && r.erros.length) return 'falta';
+  return _fBulkNaoCabe(r) ? 'naocabe' : 'pronta';
+}
+
+/* ══ "NÃO CABE" POR LINHA, ANTES DE GERAR (Local Fit 2.6) ═════════════════════════════════
+   O lote descobria o texto que não cabe na hora de gerar — a oferta 17 de 30 saía da lista com
+   "não consegui gerar" (e antes, no `erros.txt` do ZIP). Aqui cada linha é MEDIDA no mesmo
+   encaixe do render (`fRenderTemplateLayers` com `soLayout`, sem desenhar), com a versão do
+   Copy Fit já calculada. O resultado mora num cache por CONTEÚDO da linha — não na linha:
+   `fBulkSaveRow` troca o objeto a cada edição e levaria um campo junto. O render lê o cache
+   (síncrono); a medição roda depois, uma linha por vez, e só re-desenha se algo mudou. */
+const _fBulkFitCache = new Map();   // chave (material|formato|dados) → {campos:[{campo,rotulo}], sug}
+let _fBulkFitSeq = 0, _fBulkFitT = null, _fBulkFitCv = null;
+function _fBulkFitChave(r){
+  const m = fState.material || {}, [W,H] = fMaterialSize(m, fState.fmt);
+  const d = {};   // foto (dataURL) não muda o encaixe do texto e pesaria na chave
+  Object.keys((r && r.dados) || {}).forEach(k => { const v = r.dados[k]; d[k] = (typeof v === 'string' && v.startsWith('data:')) ? '' : v; });
+  return [m.id || m.templateId || m.template_id || '', W+'x'+H, JSON.stringify(d)].join('|');
+}
+function _fBulkNaoCabe(r){
+  try{ const m = _fBulkFitCache.get(_fBulkFitChave(r)); return (m && m.campos.length) ? m : null; }
+  catch(e){ return null; }
+}
+async function _fBulkMedirLinha(r){
+  const [W,H] = fMaterialSize(fState.material, fState.fmt);
+  if(!_fBulkFitCv){ _fBulkFitCv = document.createElement('canvas'); _fBulkFitCv.width = _fBulkFitCv.height = 1; }
+  const eff = await fRenderTemplateLayers(_fBulkFitCv.getContext('2d'), fState.material.layers, W, H, r.dados,
+    fState.camp, null, {scope:'franqueado', purpose:'preview', soLayout:true});
+  const res = eff && eff._layoutResult;
+  const campos = fLpCamposBloqueados(res, r.dados);
+  let sug = null;
+  if(campos.length && typeof gCopyFitSugestoes === 'function' && typeof gLocalFitMedidor === 'function'){
+    const c0 = campos[0].campo;
+    const bloq = res.bloqueios.find(b => gLocalFitCulpado(b, r.dados) === c0);
+    const valor = String(r.dados[c0] == null ? '' : r.dados[c0]);
+    const podeEncurtar = fCampoPodeEncurtar(c0);
+    const medir = bloq ? gLocalFitMedidor(eff, bloq, c0, r.dados, {canvas:{w:W,h:H}}) : null;
+    if(podeEncurtar && valor && medir){
+      const cabe = t => { const x = medir(t); return {ok: !!x && x.status === 'fits', fontSize: x ? x.fontSize : 0}; };
+      const g = gCopyFitSugestoes(valor, cabe, 1);
+      if(g.sugestoes.length) sug = {campo:c0, rotulo:campos[0].rotulo, valor, text:g.sugestoes[0].text,
+        removidas:(typeof _fLpRemovidasVisiveis === 'function') ? _fLpRemovidasVisiveis(g.sugestoes[0].removidas) : (g.sugestoes[0].removidas || [])};
+    }
+  }
+  return {campos, sug};
+}
+function fBulkAgendaMedicao(){
+  clearTimeout(_fBulkFitT);
+  _fBulkFitT = setTimeout(_fBulkMedirTodas, 250);
+}
+async function _fBulkMedirTodas(){
+  if(!fState.material || !fState.material.layers || typeof gLocalFitArte !== 'function' || typeof fLpCamposBloqueados !== 'function') return;
+  const seq = ++_fBulkFitSeq;
+  let mudou = false;
+  for(const r of fBulkRows.slice()){
+    if(seq !== _fBulkFitSeq) return;      // outra edição chegou: a medição nova recomeça
+    if(Object.values(r.dados || {}).every(v => !String(v || '').trim())) continue;
+    const k = _fBulkFitChave(r);
+    if(_fBulkFitCache.has(k)) continue;
+    let m = {campos:[], sug:null};
+    try{ m = await _fBulkMedirLinha(r); }catch(e){ /* sem medida, sem selo: nunca inventa um "não cabe" */ }
+    _fBulkFitCache.set(k, m);
+    if(_fBulkFitCache.size > 400) _fBulkFitCache.delete(_fBulkFitCache.keys().next().value);
+    if(m.campos.length) mudou = true;
+  }
+  if(mudou && seq === _fBulkFitSeq) fBulkRenderPreview();
+}
+/* "Trocar por «…»" na linha: mesma regra do balão da prévia — um toque, só o texto medido, com
+   Desfazer. Confere que o campo ainda tem o valor que foi medido (a pessoa pode ter digitado). */
+function fBulkAplicarEncurtar(i){
+  const r = fBulkRows[i], m = r && _fBulkNaoCabe(r), s = m && m.sug;
+  if(!s || !fCampoPodeEncurtar(s.campo)) return;
+  if(String(r.dados[s.campo] == null ? '' : r.dados[s.campo]) !== s.valor){
+    if(typeof gToast === 'function') gToast('O texto mudou. Confira a oferta e tente de novo.');
+    return;
+  }
+  const antes = r.dados[s.campo];
+  const troca = (v) => {
+    const linha = fBulkRows[i]; if(!linha || linha._rid !== r._rid) return false;
+    linha.dados[s.campo] = v; _fBulkRevalidateCol(linha, s.campo); fBulkRenderPreview(); return true;
+  };
+  if(!troca(s.text)) return;
+  try{ if(typeof gTrackEvent === 'function') gTrackEvent('copyfit_aplicado', {origem:'lote', campo:s.campo, removidas_n:s.removidas.length}); }catch(e){}
+  if(typeof gToast === 'function') gToast('Trocamos “'+s.rotulo+'” da oferta '+(i+1)+' pela versão que cabe.', null, null,
+    { acao:{ rotulo:'Desfazer', onClick:()=>troca(antes) } });
 }
 
 /* Título e detalhe da linha na lista. Heurística honesta: o primeiro campo de texto é o
@@ -2582,6 +2926,7 @@ function _fBulkRenderLista(){
        dizem isso. Três cards repetindo a palavra "vazia" era ruído no primeiro uso. */
     const selo = est==='pronta' ? '<span class="f-bulk-lpill is-ok">pronta</span>'
       : est==='vazia' ? '<span class="f-bulk-lslot-tx">toque para preencher</span>'
+      : est==='naocabe' ? '<span class="f-bulk-lpill is-gap">não cabe na arte</span>'
       : `<span class="f-bulk-lpill is-gap">${(r.erros||[]).length} a preencher</span>`;
     /* A miniatura é a ARTE, não um número: numa lista de 30 ofertas a pessoa reconhece a
        própria peça pela cara dela antes de ler qualquer palavra. Reusa os ids
@@ -2591,7 +2936,7 @@ function _fBulkRenderLista(){
     /* O nome cai para "Oferta N" quando ainda não há texto — mostrar uma linha em branco
        na lista é pior que assumir o rótulo: a pessoa não sabe onde tocar. */
     return `<button type="button" class="f-bulk-litem${i===ativa?' is-active':''} is-${est}" data-row="${i}"
-      style="--fi:${Math.min(i,9)}" onclick="fBulkAbrirFolha(${i})" aria-label="Oferta ${i+1}${est==='pronta'?', pronta':est==='vazia'?', vazia — toque para preencher':', faltam '+((r.erros||[]).length)+' campos'}">
+      style="--fi:${Math.min(i,9)}" onclick="fBulkAbrirFolha(${i})" aria-label="Oferta ${i+1}${est==='pronta'?', pronta':est==='vazia'?', vazia — toque para preencher':est==='naocabe'?', um texto não cabe na arte':', faltam '+((r.erros||[]).length)+' campos'}">
       <span class="f-bulk-lthumb" data-n="${i+1}"><canvas id="f-bulk-cv-${i}" width="${cw}" height="${ch}"></canvas></span>
       <span class="f-bulk-ltx">
         <span class="f-bulk-lnome">${gEsc(titulo) || `<i>Oferta ${i+1}</i>`}</span>
@@ -2736,7 +3081,7 @@ function _fBulkRenderFolhaCampos(forcar){
   alvo.innerHTML = ordenadas.map((k, pos) => {
     const rot = gEsc(rotuloDe(k)).replace(/"/g,'&quot;');
     const val = gEsc(r.dados[k] || '').replace(/"/g,'&quot;');
-    const erro = (r.erros||[]).some(e => e.includes(k));
+    const erro = (r.erros||[]).find(e => e.includes(k)) || null;
     if(fIsImageVar(k)){
       const tem = !!(r.dados[k]);
       /* ⚠ O botão antigo chamava `fBulkUploadCellImage(i,k)` — assinatura errada: a função
@@ -2752,6 +3097,7 @@ function _fBulkRenderFolhaCampos(forcar){
           <span class="f-bulk-ffoto-tx">${tem?'Trocar a foto':'Enviar a foto'}<small>${tem?'toque para trocar':'do seu celular'}</small></span>
           <input type="file" accept="image/*" hidden onchange="fBulkUploadCellImage(this, ${i}, '${gEsc(k)}')">
         </label>
+        ${_fBulkTemRecentes(k)?`<button type="button" class="f-bulk-ffoto-todas" onclick="fBulkFotoRecente(${i},'${gEsc(k)}',this)">Usar uma foto recente</button>`:''}
         ${tem?`<div class="f-bulk-ffoto-acoes">
           ${fBulkRows.length>1?`<button type="button" class="f-bulk-ffoto-todas" onclick="fBulkUsarFotoEmTodas(${i},'${gEsc(k)}')">Usar em todas</button>`:''}
           <button type="button" class="f-bulk-ffoto-del" onclick="fBulkLimparFoto(${i},'${gEsc(k)}')">Remover</button>
@@ -2762,11 +3108,16 @@ function _fBulkRenderFolhaCampos(forcar){
        recusa a vírgula em boa parte dos aparelhos. `inputmode="decimal"` traz o teclado de
        números sem impor o formato — o `fValidate` continua sendo quem julga o valor. */
     const numerico = /pre[çc]o|valor|de_|por_/i.test(k);
+    // Mesmo reparo da grade do desktop: erro de campo só pintava a borda ("tem-erro") sem
+    // dizer o motivo. Aqui o celular nem tem hover para um `title` — a mensagem vira legenda
+    // visível, pequena, abaixo do campo.
+    const errSeguro = erro ? gEsc(erro).replace(/"/g,'&quot;') : '';
     return `<label class="f-bulk-fcampo" style="--fi:${Math.min(pos,7)}">
       <span class="f-bulk-flabel">${rot}</span>
       <input type="text" id="f-bulk-edit-${i}-${k}" class="f-bulk-fin${erro?' tem-erro':''}" value="${val}"
-        ${numerico?'inputmode="decimal" ':''}placeholder="${rot}" aria-label="${rot}"
+        ${numerico?'inputmode="decimal" ':''}placeholder="${rot}" aria-label="${rot}${erro?': '+errSeguro:''}"${erro?' aria-invalid="true"':''}
         oninput="fBulkLiveEdit(${i})" onblur="fBulkSaveRow(${i}, true)">
+      ${erro?`<small class="f-bulk-ferro">${errSeguro}</small>`:''}
     </label>`;
   }).join('');
 
@@ -2986,6 +3337,7 @@ function _fBulkPiscarCelula(el, classe){
 function fBulkRenderPreview(){
   const wrap=document.getElementById('f-bulk-preview');if(!wrap)return;
   fBulkUpdateReadiness();
+  fBulkAgendaMedicao();   // "não cabe" por linha (Local Fit 2.6): mede depois, re-desenha só se algo mudou
   if(!fBulkRows.length){
     /* No celular o texto "adicione uma linha" era um beco sem saída: a única ação de criar
        linha morava na tabela do desktop. Agora o estado vazio carrega as duas saídas reais. */
@@ -3038,9 +3390,11 @@ function fBulkRenderPreview(){
         if (!match) return '';
       }
       const estado = _fBulkEstadoLinha(r, keys);
+      const nc = _fBulkNaoCabe(r);   // {campos, sug} — medido antes de gerar (Local Fit 2.6)
       const campos = keys.map(k => {
         const val = r.dados[k] || '';
-        const isFieldErr = r.erros.find(e => e.includes(k));
+        const isFieldErr = r.erros.find(e => e.includes(k))
+          || ((nc && nc.campos.some(c => c.campo === k)) ? 'Não cabe na arte — encurte este texto.' : '');
         const safeV = gEsc(val).replace(/"/g, '&quot;');
         const rotulo = labelFor(k);
         const rotSeguro = gEsc(rotulo).replace(/"/g,'&quot;');
@@ -3067,6 +3421,7 @@ function fBulkRenderPreview(){
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Enviar foto
                   <input type="file" accept="image/*" onchange="fBulkUploadCellImage(this, ${i}, '${k}')">
                 </label>
+                ${_fBulkTemRecentes(k)?`<button type="button" class="f-bulk-foto-btn f-bulk-foto-rec" onclick="fBulkFotoRecente(${i}, '${k}', this)" title="Usar uma foto que você já enviou">Recentes</button>`:''}
               `}
             </div>
           </div>`;
@@ -3077,10 +3432,16 @@ function fBulkRenderPreview(){
            campo, de graça. A dica só entra em oferta vazia — repetir "Produto" dentro de um
            campo que já tem título em cima é dizer a mesma coisa duas vezes. */
         const dica = (estado==='vazia') ? ` placeholder="${rotSeguro}"` : '';
-        const tit = val ? ` title="${safeV}"` : '';
+        /* ⚠ ANTES: erro de campo (fValidate) só pintava a borda vermelha (`f-bulk-cell-err`) —
+           a MENSAGEM ("Preço zerado não vai para a arte...") existia em `isFieldErr` mas nunca
+           chegava à tela. A pessoa via um quadrado vermelho sem saber o quê corrigir e só
+           descobria o motivo real abrindo o "erros.txt" do ZIP, depois de gerar o lote inteiro.
+           O `title` (tooltip) já é o padrão desta grade para mostrar o valor — em erro, ele
+           mostra a MENSAGEM em vez do valor, que é a informação que falta. */
+        const tit = isFieldErr ? ` title="${gEsc(isFieldErr).replace(/"/g,'&quot;')}"` : (val ? ` title="${safeV}"` : '');
         return `<label class="f-bulk-campo${isFieldErr?' is-falta':''}" data-span="${span}">
           <span class="f-bulk-campo-rot" title="${rotSeguro}">${gEsc(rotulo)}</span>
-          <input type="text" id="f-bulk-edit-${i}-${k}" class="f-bulk-cell${isFieldErr?' f-bulk-cell-err':''}" value="${safeV}"${dica}${tit} oninput="fBulkLiveEdit(${i})" onfocus="fBulkSetActive(${i})" onchange="_fBulkPiscarCelula(this,'is-salvo')" onblur="fBulkSaveRow(${i}, true)">
+          <input type="text" id="f-bulk-edit-${i}-${k}" class="f-bulk-cell${isFieldErr?' f-bulk-cell-err':''}" value="${safeV}"${dica}${tit}${isFieldErr?` aria-invalid="true" aria-label="${rotSeguro}: ${gEsc(isFieldErr).replace(/"/g,'&quot;')}"`:''} oninput="fBulkLiveEdit(${i})" onfocus="fBulkSetActive(${i})" onchange="_fBulkPiscarCelula(this,'is-salvo')" onblur="fBulkSaveRow(${i}, true)">
         </label>`;
       }).join('');
 
@@ -3092,9 +3453,11 @@ function fBulkRenderPreview(){
             <strong>${String(i+1).padStart(2,'0')}</strong>
             ${estado==='pronta'?`<span class="f-bulk-num-ok" role="img" aria-label="Oferta pronta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>`:''}
             ${estado==='falta'?`<span class="f-bulk-num-falta">falta algo</span>`:''}
+            ${estado==='naocabe'?`<span class="f-bulk-num-falta" title="${gEsc(fLpListaRotulos(nc.campos.map(c=>c.rotulo))+' não cabe nesta arte').replace(/"/g,'&quot;')}">não cabe</span>`:''}
             ${_fBulkIaChip(r)}
           </span>
           <span class="f-bulk-of-acoes">
+            ${estado==='naocabe'&&nc.sug?`<button type="button" class="f-bulk-rowfit" onclick="fBulkAplicarEncurtar(${i})" title="${gEsc('Trocar por: '+nc.sug.text+(nc.sug.removidas.length?' (sem '+nc.sug.removidas.join(', ')+')':'')).replace(/"/g,'&quot;')}" aria-label="${gEsc('Encurtar '+nc.sug.rotulo+' da oferta '+(i+1)+' para: '+nc.sug.text).replace(/"/g,'&quot;')}">Encurtar</button>`:''}
             <button type="button" class="f-bulk-rowact" onclick="fBulkShowCopyModal(${i})" title="Ver legendas geradas" aria-label="Legendas da oferta ${i+1}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
             <button type="button" class="f-bulk-rowact" onclick="fBulkCloneRow(${i})" title="Duplicar oferta" aria-label="Duplicar a oferta ${i+1}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
             <button type="button" class="f-bulk-rowact f-bulk-rowact--del" onclick="fBulkRemoveCard(${i})" title="Remover oferta" aria-label="Remover a oferta ${i+1}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
@@ -3268,6 +3631,15 @@ function fBulkSaveRow(i, isSilent=false, skipReadiness=false) {
       dados[k] = row.dados[k];
     }
   });
+  // "por" < "de" só dá para conferir com a linha inteira lida — a ordem das colunas não é garantida.
+  if (!isEmpty && typeof _fPrecoDePorErro === 'function') keys.forEach(k => {
+    const e = _fPrecoDePorErro(k, dados[k], dados);
+    if (e && !erros.includes(e)) {
+      erros.push(e);
+      const input = document.getElementById(`f-bulk-edit-${i}-${k}`);
+      if (input && isSilent) input.classList.add('f-bulk-cell-err');
+    }
+  });
   
   // Auto-Categorizador Rodada 2:
   if (keys.includes('categoria') && keys.includes('produto')) {
@@ -3411,13 +3783,14 @@ function fBulkCancelGen(){
   const b = document.getElementById('f-bulk-cancel-btn');
   if(b){ b.disabled = true; b.textContent = 'Cancelando…'; }
 }
-async function fBulkDownloadAll(){
+async function fBulkDownloadAll(modo){
+  const soltas = modo === 'soltas'; // cada arte vira um download próprio, sem ZIP
   if(typeof gFeatureCan==='function' && !gFeatureCan('franqueado.export.zip','execute')){
     if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback('franqueado.export.zip');
     return;
   }
   if(!fBulkRows.length){gToast('Envie uma planilha primeiro.');return;}
-  if(typeof JSZip === 'undefined'){gToast('Não consegui preparar o pacote. Recarregue a página e tente de novo.','error');return;}
+  if(!soltas && typeof JSZip === 'undefined'){gToast('Não consegui preparar o pacote. Recarregue a página e tente de novo.','error');return;}
 
   // Salva e valida todas as linhas da tabela antes do download
   fBulkSaveAllRows(true);
@@ -3432,6 +3805,7 @@ async function fBulkDownloadAll(){
   // Filtra linhas válidas que não tenham erro e que NÃO estejam completamente vazias
   const valid = fBulkRows.filter(r => {
     if (r.erros.length > 0) return false;
+    if (_fBulkNaoCabe(r)) return false;   // o texto não cabe: ficaria de fora de qualquer jeito, agora com aviso antes
     const isEmpty = keys.every(k => !r.dados[k] || !r.dados[k].trim());
     return !isEmpty;
   });
@@ -3441,17 +3815,20 @@ async function fBulkDownloadAll(){
   // Linhas com erro/vazias são puladas — o franqueado sabe ANTES, não ao abrir o ZIP.
   const _pulados = fBulkRows.filter(r => !valid.includes(r));
   const _nErro = _pulados.filter(r => r.erros && r.erros.length).length;
-  const _nVazias = _pulados.length - _nErro;
+  const _nNaoCabe = _pulados.filter(r => !(r.erros && r.erros.length) && _fBulkNaoCabe(r)).length;
+  const _nVazias = _pulados.length - _nErro - _nNaoCabe;
   const _totalArtes = valid.length * selectedFmts.length;
   let _resumo = `Vou gerar ${valid.length} arte(s)`;
   if (selectedFmts.length > 1) _resumo += ` × ${selectedFmts.length} formatos = ${_totalArtes} imagens`;
   _resumo += '.';
-  if (_nErro) _resumo += `\n• ${_nErro} linha(s) com erro serão puladas (vão pro erros.txt).`;
+  if (_nErro) _resumo += `\n• ${_nErro} linha(s) com erro ficam de fora — corrija na tabela.`;
+  if (_nNaoCabe) _resumo += `\n• ${_nNaoCabe} oferta(s) com conteúdo que não cabe na arte ficam de fora — confira os campos indicados na oferta.`;
+  if (soltas && _totalArtes > 1) _resumo += `\n\nO navegador pode perguntar se permite baixar vários arquivos — aceite.`;
   if (_nVazias) _resumo += `\n• ${_nVazias} linha(s) vazia(s) ignorada(s).`;
   if (_totalArtes > 80) _resumo += `\n\nÉ bastante coisa — pode demorar e pesar no navegador do celular.`;
   if (typeof gConfirm === 'function' && !(await gConfirm(_resumo + '\n\nGerar agora?', {okLabel:`Gerar ${_totalArtes}`}))) return;
   _fBulkCancel = false;
-  const _falhas = []; // renders que lançaram (vão pro erros.txt)
+  const _falhas = []; // renders que lançaram (avisados na tela no fim)
 
   const wrap = document.getElementById('f-bulk-progress-wrap');
   const txt = document.getElementById('f-bulk-progress-text');
@@ -3465,7 +3842,7 @@ async function fBulkDownloadAll(){
   if(cancelBtn){ cancelBtn.disabled = false; cancelBtn.textContent = 'Cancelar'; }
 
   let ok=0;
-  const zip = new JSZip();
+  const zip = soltas ? null : new JSZip();
   const c=fState.camp;
   const totalRenders = valid.length * selectedFmts.length;
   let currentRender = 0;
@@ -3491,24 +3868,34 @@ async function fBulkDownloadAll(){
       try{
         const dataUrl=await fRenderMaterialToDataURL(row.dados,c,fmt);
         const b64 = dataUrl.split(',')[1];
-        // Naming do lote: pasta por formato (só quando há +de 1) + "NN_Produto.png".
+        // Naming do lote: pasta por formato (só quando há +de 1) + "NN - Produto.png".
         // O NN (01, 02…) ordena e já garante unicidade; o Set é backstop p/ produtos
         // repetidos. Era a colisão de nomes que fazia o ZIP guardar só 1 arte.
         const seq = String(i+1).padStart(2,'0');
         const prodPart = fSanitizeNamePart(_fRowProductName(row.dados)) || 'Arte';
         const folder = selectedFmts.length>1 ? (fSanitizeNamePart(fmt.name)||fmt.id||'Formato')+'/' : '';
-        let entry = folder + seq + '_' + prodPart + '.png';
+        let entry = folder + seq + ' - ' + prodPart + '.png';
         if(usedNames.has(entry)){
           const base = entry.replace(/\.png$/i,'');
-          let n=2; while(usedNames.has(base+'_'+n+'.png')) n++;
-          entry = base+'_'+n+'.png';
+          let n=2; while(usedNames.has(base+' ('+n+').png')) n++;
+          entry = base+' ('+n+').png';
         }
         usedNames.add(entry);
-        if(b64) zip.file(entry, b64, {base64: true});
+        if(soltas){
+          // Um arquivo por arte. O respiro entre downloads é o que evita o navegador engolir
+          // os seguintes (Chrome descarta cliques de download em rajada).
+          const blob = await (await fetch(dataUrl)).blob();
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = entry.split('/').pop();
+          a.click();
+          setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+          await new Promise(res=>setTimeout(res, 350));
+        } else if(b64) zip.file(entry, b64, {base64: true});
         ok++;
       }catch(err){
         console.warn('Bulk linha '+(i+1)+' falhou',err);
-        _falhas.push({ prod: _fRowProductName(row.dados) || ('Linha '+(i+1)), motivo: (err&&err.message)||'erro ao renderizar', fmt: fmt.name });
+        _falhas.push({ prod: _fRowProductName(row.dados) || ('Linha '+(i+1)), motivo: (err&&err.message)||'erro ao renderizar', naoCabe: !!(err&&err.code==='LUMA_CONTENT_TOO_LARGE'), fmt: fmt.name });
       }
 
       await new Promise(res=>setTimeout(res, 50));
@@ -3517,71 +3904,58 @@ async function fBulkDownloadAll(){
     fState.fmt = oldFmt;
   }
   
-  // Gerador de Legendas v2 — Motor Combinatório com tom DM
-  const copyFormat = (document.getElementById('f-bulk-copy-format') || {}).value || 'feed';
+  if(!soltas){
+    // Gerador de Legendas v2 — Motor Combinatório com tom DM
+    const copyFormat = (document.getElementById('f-bulk-copy-format') || {}).value || 'feed';
+    
+    let captionsText = `========================================================\n`;
+    captionsText += `   LEGENDAS PARA POSTS — GERADAS PELO LUMA SHEETS\n`;
+    captionsText += `   Formato: ${copyFormat === 'stories' ? 'Stories (curto)' : 'Feed (completo)'}\n`;
+    captionsText += `========================================================\n\n`;
+    
+    const cleanStr = s => (typeof s === 'string' && !s.startsWith('data:') && s.length < 500) ? s : '';
   
-  let captionsText = `========================================================\n`;
-  captionsText += `   LEGENDAS PARA POSTS — GERADAS PELO LUMA SHEETS\n`;
-  captionsText += `   Formato: ${copyFormat === 'stories' ? 'Stories (curto)' : 'Feed (completo)'}\n`;
-  captionsText += `========================================================\n\n`;
-  
-  const cleanStr = s => (typeof s === 'string' && !s.startsWith('data:') && s.length < 500) ? s : '';
-
-  valid.forEach((row, idx) => {
-    const vars = Object.keys(row.dados).filter(v => !/foto|logo|imagem|img|avatar/i.test(v));
-    const nameKey = vars.find(v => /produto|titulo|nome/i.test(v)) || vars[0] || '';
-    const deKey = vars.find(v => /de|antigo/i.test(v)) || '';
-    const porKey = vars.find(v => /por|preco|preço|atual|valor/i.test(v)) || '';
-    const valKey = vars.find(v => /validade|data|condicao|condição/i.test(v)) || '';
-    const descKey = vars.find(v => /desconto|selo|off/i.test(v)) || '';
+    valid.forEach((row, idx) => {
+      const vars = Object.keys(row.dados).filter(v => !/foto|logo|imagem|img|avatar/i.test(v));
+      const nameKey = vars.find(v => /produto|titulo|nome/i.test(v)) || vars[0] || '';
+      const deKey = vars.find(v => /de|antigo/i.test(v)) || '';
+      const porKey = vars.find(v => /por|preco|preço|atual|valor/i.test(v)) || '';
+      const valKey = vars.find(v => /validade|data|condicao|condição/i.test(v)) || '';
+      const descKey = vars.find(v => /desconto|selo|off/i.test(v)) || '';
+      
+      const prod = cleanStr(row.dados[nameKey]) || ('Produto ' + (idx + 1));
+      const de = deKey ? cleanStr(row.dados[deKey]) : '';
+      const por = porKey ? cleanStr(row.dados[porKey]) : '';
+      const val = valKey ? cleanStr(row.dados[valKey]) : '';
+      const desc = descKey ? cleanStr(row.dados[descKey]) : '';
+      
+      captionsText += `--------------------------------------------------------\n`;
+      captionsText += `ITEM #${idx+1}: ${prod}\n`;
+      captionsText += `--------------------------------------------------------\n\n`;
+      
+      const copys = fBuildCopy(prod, de, por, val, desc, copyFormat);
+      
+      captionsText += `Opcao 1:\n${copys.op1}\n\n`;
+      captionsText += `Opcao 2:\n${copys.op2}\n\n`;
+      captionsText += `Opcao 3:\n${copys.op3}\n\n\n`;
+    });
     
-    const prod = cleanStr(row.dados[nameKey]) || ('Produto ' + (idx + 1));
-    const de = deKey ? cleanStr(row.dados[deKey]) : '';
-    const por = porKey ? cleanStr(row.dados[porKey]) : '';
-    const val = valKey ? cleanStr(row.dados[valKey]) : '';
-    const desc = descKey ? cleanStr(row.dados[descKey]) : '';
-    
-    captionsText += `--------------------------------------------------------\n`;
-    captionsText += `ITEM #${idx+1}: ${prod}\n`;
-    captionsText += `--------------------------------------------------------\n\n`;
-    
-    const copys = fBuildCopy(prod, de, por, val, desc, copyFormat);
-    
-    captionsText += `Opcao 1:\n${copys.op1}\n\n`;
-    captionsText += `Opcao 2:\n${copys.op2}\n\n`;
-    captionsText += `Opcao 3:\n${copys.op3}\n\n\n`;
-  });
-  
-  zip.file("legendas_posts.txt", captionsText);
-
-  // erros.txt: por que uma arte não saiu (linha pulada por erro/vazia, falha de render ou
-  // cancelamento). Sem isso, o franqueado baixava o ZIP e não sabia o que faltou.
-  if(_pulados.length || _falhas.length || _fBulkCancel){
-    let et = 'RELATORIO DO LOTE — LUMA SHEETS\n========================================\n\n';
-    if(_pulados.length){
-      et += `LINHAS NAO GERADAS (${_pulados.length}):\n`;
-      _pulados.forEach(r=>{
-        const p=_fRowProductName(r.dados)||'(sem nome)';
-        const motivo=(r.erros&&r.erros.length)?r.erros.join('; '):'linha vazia';
-        et += ` - ${p}: ${motivo}\n`;
-      });
-      et += '\n';
-    }
-    if(_falhas.length){
-      et += `FALHAS AO GERAR (${_falhas.length}):\n`;
-      _falhas.forEach(f=>{ et += ` - ${f.prod} (${f.fmt}): ${f.motivo}\n`; });
-      et += '\n';
-    }
-    if(_fBulkCancel) et += 'GERACAO CANCELADA — o ZIP tem so as artes prontas ate o cancelamento.\n';
-    zip.file('erros.txt', et);
+    zip.file("legendas_posts.txt", captionsText);
   }
 
-  try {
+  /* erros.txt SAIU (25/09, feedback da Laura): o motivo de uma arte não ter saído aparece
+     na tela, na notificação de erro do fim — ninguém abre um .txt dentro do ZIP. */
+
+  if(soltas){
+    try{ if(typeof gTrackEvent==='function') gTrackEvent('lote_baixado',{n:ok, soltas:true, formatos:selectedFmts.map(x=>x.id), falhas:_falhas.length, cancelado:!!_fBulkCancel, camp_id:c&&c.id, template_id:(typeof _fTplId==='function')?_fTplId(fState.material):null}); }catch(e){}
+    if(ok && typeof window.gPlayBatchCompleteSound==='function') window.gPlayBatchCompleteSound();
+  } else try {
     const zipBlob = await zip.generateAsync({type: "blob"});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(zipBlob);
-    a.download = `Luma_Artes_${fSanitizeNamePart(fState.material.name)||'Lote'}.zip`;
+    a.download = (fSanitizeNamePart(fState.material.name, 40)||'Artes') + ' - artes.zip';
     a.click();
+    try{ if(typeof gTrackEvent==='function') gTrackEvent('lote_baixado',{n:ok, formatos:selectedFmts.map(x=>x.id), falhas:_falhas.length, cancelado:!!_fBulkCancel, camp_id:c&&c.id, template_id:(typeof _fTplId==='function')?_fTplId(fState.material):null}); }catch(e){}
     if(typeof window.gPlayBatchCompleteSound==='function') window.gPlayBatchCompleteSound();
     setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
   } catch(err) {
@@ -3593,34 +3967,71 @@ async function fBulkDownloadAll(){
   if(wrap) wrap.style.display = 'none';
   
   const _fail=totalRenders-ok;
-  if(_fBulkCancel) gToast(`Cancelado — ${ok} arte(s) prontas no pacote.`);
-  else if(_fail>0) gToast(`${ok}/${totalRenders} geradas — ${_fail} falhou(ram). O arquivo "erros.txt" no pacote diz o que deu errado.`,'error');
-  else gToast(ok+' artes geradas e baixadas no pacote!');
+  // O que ficou de fora é dito AQUI, com nome e motivo (antes ia para um erros.txt no ZIP).
+  const _fora = _pulados.filter(r=>(r.erros&&r.erros.length)||_fBulkNaoCabe(r))
+    .map(r=>`${_fRowProductName(r.dados)||'(sem nome)'}: ${(r.erros&&r.erros[0])||'o texto não cabe na arte'}`)
+    // Texto que não coube diz isso (é o que a pessoa pode consertar); o resto segue genérico.
+    .concat(_falhas.map(f=>`${f.prod}: ${f.naoCabe?'o texto não coube na arte':'não consegui gerar'}`));
+  const _foraTxt = _fora.length ? ` Ficaram de fora — ${_fora.slice(0,3).join(' · ')}${_fora.length>3?` e mais ${_fora.length-3}`:''}.` : '';
+  const _onde = soltas ? 'baixadas' : 'no pacote';
+  if(_fBulkCancel) gToast(`Cancelado — ${ok} arte(s) ${_onde}.${_foraTxt}`, _fora.length?'error':undefined);
+  else if(_fora.length) gToast(`${ok} arte(s) ${_onde}.${_foraTxt}`,'error');
+  else gToast(`${ok} artes geradas e ${_onde}!`);
   _fBulkCancel = false;
   
   if(typeof fClearImgCache === 'function') fClearImgCache();
 }
 
-/* Sistema de nomenclatura padronizado para downloads
-   Formato: DM_<Campanha>_<Produto>_<Formato>_<YYYY-MM-DD>.png */
-function fSanitizeNamePart(s){
+/* NOME DO ARQUIVO BAIXADO (23/09/2026) \u2014 leg\u00edvel como o franqueado escreveria, porque \u00e9 o que
+   ele v\u00ea na galeria, nos Downloads e no WhatsApp:
+     "X-Tudo Duplo com Bacon - Story - Copa do Mundo.png"   (era "DM_CopaDoMundo_XTudoDuploCom\u2026
+   BaconEBatataFr_Story_2026-09-23.png": sem acento, sem espa\u00e7o, cortado no meio da palavra).
+   Acento e espa\u00e7o ficam (Windows, Mac, Android, iOS e o ZIP em UTF-8 aceitam); sai s\u00f3 o que o
+   sistema de arquivos pro\u00edbe (\ / : * ? " < > |), emoji e controle. Texto TODO EM MAI\u00daSCULA
+   vira T\u00edtulo ("X-TUDO DUPLO" \u2192 "X-Tudo Duplo") \u2014 nome de arquivo gritando \u00e9 feio; o que o
+   franqueado escreveu em caixa mista fica como est\u00e1. Corte em fronteira de palavra. Sem data:
+   a galeria j\u00e1 mostra quando o arquivo chegou. */
+const _F_NOME_MINUSC = /^(a|o|as|os|e|de|da|do|das|dos|com|em|na|no|nas|nos|para|por|ou)$/;
+function fSanitizeNamePart(s, max){
   if(!s) return '';
-  return String(s)
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')  // remove acentos
-    .replace(/[^a-zA-Z0-9\s]/g,'')                     // remove especiais
-    .split(/\s+/).filter(Boolean)
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join('')                                          // PascalCase
-    .slice(0, 28);
+  max = max || 48;
+  let t = String(s).normalize('NFC')
+    .replace(/[\p{Extended_Pictographic}\ufe0f\u200d\p{Cc}]/gu, ' ')
+    .replace(/\//g, '-').replace(/[\\:*?"<>|{}]/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+  const letras = t.replace(/[^\p{L}]/gu, '');
+  if(letras.length > 3 && letras === letras.toUpperCase()){
+    t = t.split(' ').map((w, i) => {
+      const low = w.toLowerCase();
+      if(i > 0 && _F_NOME_MINUSC.test(low)) return low;       // "com", "e", "de" no meio
+      if(/\d/.test(w) || w.length === 1) return w;             // "2L", "500ml", "G", "X" ficam
+      return low.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('-');
+    }).join(' ');
+  }
+  t = t.replace(/([!?.,])\1+/g, '$1').replace(/[!?]+$/, '');   // "OFF!!" \u2192 "OFF"
+  if(t.length > max){
+    const corte = t.slice(0, max + 1).lastIndexOf(' ');
+    t = t.slice(0, corte > max * 0.5 ? corte : max);
+    // Corte n\u00e3o termina em "com"/"de": "\u2026de costela com" vira "\u2026de costela".
+    t = t.replace(/[\s.,;:+\-\u2013]+$/u, '');
+    while(/ \S+$/.test(t) && _F_NOME_MINUSC.test(t.slice(t.lastIndexOf(' ') + 1).toLowerCase())) t = t.slice(0, t.lastIndexOf(' '));
+  }
+  t = t.replace(/[\s.,;:+\-\u2013]+$/u, '').replace(/^[\s.\-]+/, '');   // Windows recusa nome terminando em ponto/espa\u00e7o
+  return /^\p{Ll}/u.test(t) ? t.charAt(0).toUpperCase() + t.slice(1) : t;   // "combo" \u2192 "Combo"
 }
 // Nome cru do produto de uma linha: chaves conhecidas → heurística por nome da variável
 // → 1ª coluna preenchida. Vazio se não achar nada. (Sem isso, materiais com variável
 // "titulo"/"sabor" caíam todos no nome da campanha e geravam nomes idênticos.)
 function _fRowProductName(d){
   if(!d) return '';
+  /* Valor que é IMAGEM (foto enviada = data URL, cache idb://, blob:, URL do Storage ou da
+     planilha) nunca é nome. `foto_produto` casava o /produto/ abaixo e o arquivo baixado no
+     celular saía "Data image-jpeg;base64,-9j-4AAQ… - Feed - …" (23/09/2026). O teste é no VALOR,
+     não no nome do campo: lista de apelidos de campo sempre tem buraco. */
+  const texto = v => typeof v==='string' && v.trim() && !/^\s*(data:|blob:|idb:\/\/|https?:\/\/)/i.test(v);
   // Ignora chaves internas (ex.: '__fit__var' = enquadramento por-arte, que é objeto).
-  const ok = k => k.indexOf('__')!==0 && d[k] && typeof d[k]==='string' && String(d[k]).trim();
-  let p = (typeof d.produto==='string'&&d.produto) || d.categoria || d.brinde || d.oferta;
+  const ok = k => k.indexOf('__')!==0 && texto(d[k]);
+  let p = [d.produto, d.categoria, d.brinde, d.oferta].find(texto);
   if(!p){
     const k = Object.keys(d).find(k=>/produto|titulo|título|nome|item|sabor/i.test(k) && ok(k));
     if(k) p = d[k];
@@ -3628,15 +4039,15 @@ function _fRowProductName(d){
   }
   return p || '';
 }
+// Produto primeiro (é o que se procura na galeria), depois o formato (distingue Story de Feed
+// da mesma oferta), depois a campanha. Sem produto, não repete a campanha duas vezes.
 function fBuildFilename(c, fmt, d){
-  const camp = fSanitizeNamePart(c.name) || 'Campanha';
-  const prod = fSanitizeNamePart(_fRowProductName(d) || c.name) || 'Arte';
-  const fmtName = fSanitizeNamePart(fmt.name) || 'Story';
-  const now = new Date();
-  const date = now.getFullYear() + '-' +
-               String(now.getMonth()+1).padStart(2,'0') + '-' +
-               String(now.getDate()).padStart(2,'0');
-  return `DM_${camp}_${prod}_${fmtName}_${date}.png`;
+  const camp = fSanitizeNamePart(c && c.name, 32);
+  const prod = fSanitizeNamePart(_fRowProductName(d), 48);
+  const fmtName = fSanitizeNamePart(fmt && fmt.name, 16);
+  const partes = [prod || camp || 'Arte', fmtName];
+  if(prod && camp && camp.toLowerCase() !== prod.toLowerCase()) partes.push(camp);
+  return partes.filter(Boolean).join(' - ') + '.png';
 }
 
 
@@ -3753,7 +4164,12 @@ function fBulkFotoEmTodas(col){
     const rd = new FileReader();
     rd.onerror = () => gToast('Não consegui ler essa imagem. Tente outra.', 'error');
     rd.onload = e => {
-      const grava = (url) => {
+      const grava = async (url) => {
+        if(typeof fPortaoFoto === 'function'){
+          gToast('Conferindo a foto…');
+          const motivo = await fPortaoFoto(alvo, url);
+          if(motivo){ gToast(motivo, 'error'); return; }
+        }
         fBulkRows.forEach(r => { r.dados[alvo] = url; _fBulkRevalidateCol(r, alvo); });
         const n = fBulkRows.length;
         gToast(`Foto aplicada em ${n} oferta${n===1?'':'s'}`);
@@ -3901,9 +4317,25 @@ function fBulkApplyFill() {
 // Revalida UMA coluna de uma linha após uma transformação em massa: em vez de só
 // apagar o erro antigo (que deixava dado inválido "verde"), reexecuta fValidate.
 function _fBulkRevalidateCol(r, col){
-  r.erros = (r.erros||[]).filter(e => !e.includes(col));
-  const err = (typeof fValidate==='function') ? fValidate(col, r.dados[col]) : null;
-  if (err) r.erros.push(err);
+  /* Revalida a LINHA inteira, não só a coluna: a regra "por < de" cruza campos, e o filtro
+     antigo (`e.includes(col)`) procurava o id técnico dentro de mensagens que usam o RÓTULO —
+     o erro velho nunca saía. */
+  if (typeof fValidate !== 'function') return;
+  const keys = Object.keys(r.dados||{});
+  const vazia = keys.every(k => !String(r.dados[k]||'').trim());
+  r.erros = [];
+  if (!vazia) keys.forEach(k => { const e = fValidate(k, r.dados[k], r.dados); if (e) r.erros.push(e); });
+}
+
+/* Foto/logo nunca é preço: o "aplicar mesmo assim?" deixava passar, e fParsePriceNumber
+   achava dígitos na URL/dataURL — a foto virava "R$ 12,34" e sumia da arte. Aqui não há
+   o que confirmar, é bloqueio. */
+function _fBulkBloqueiaFotoEmPreco(col) {
+  if (typeof fIsImageVar === 'function' && fIsImageVar(col)) {
+    gToast('Esse campo é uma foto — desconto e arredondamento só valem para preço.', 'error');
+    return true;
+  }
+  return false;
 }
 
 async function fBulkApplyDiscountPrompt() {
@@ -3911,6 +4343,7 @@ async function fBulkApplyDiscountPrompt() {
   const col = document.getElementById('f-bulk-action-col')?.value;
   if (!col) return;
 
+  if (_fBulkBloqueiaFotoEmPreco(col)) return;
   const isPrice = /preco|valor|min|taxa|de|por/i.test(col);
   if (!isPrice && !(await gConfirm(`A coluna "${col}" não parece ser de preço. Aplicar mesmo assim?`, {okLabel:'Aplicar'}))) return;
 
@@ -3939,6 +4372,7 @@ async function fBulkApplyRounding() {
   const col = document.getElementById('f-bulk-action-col')?.value;
   if (!col) return;
 
+  if (_fBulkBloqueiaFotoEmPreco(col)) return;
   const isPrice = /preco|valor|min|taxa|de|por/i.test(col);
   if (!isPrice && !(await gConfirm(`A coluna "${col}" não parece ser de preço. Arredondar mesmo assim?`, {okLabel:'Arredondar'}))) return;
 
@@ -3985,47 +4419,87 @@ function fBulkUploadCellImage(input, i, k) {
   }
 
   fBulkCollectCurrentInputs();
-  
+
   const reader = new FileReader();
   reader.onload = function(e) {
-    const base64 = e.target.result;
-    if (typeof fResizeImageIfNeeded === 'function') {
-      fResizeImageIfNeeded(base64, 1500, (resizedUrl) => {
-        fBulkRows[i].dados[k] = resizedUrl;
-        fBulkRows[i].erros = fBulkRows[i].erros.filter(err => !err.includes(k));
-        const img = new Image();
-        img.onload = function() {
-          if (img.width < 600 || img.height < 600) {
-            gToast(`Foto de baixa resolução (${img.width}x${img.height}px) — pode sair pixelada na arte.`, 'warning');
-          }
-          fBulkRenderPreview();
-        };
-        img.onerror = function() {
-          gToast('Não consegui carregar a imagem. Verifique se o arquivo está íntegro e tente de novo.', 'error');
-        };
-        img.src = resizedUrl;
-        gToast('Foto carregada.');
-        fBulkRenderPreview();
-      });
-    } else {
-      fBulkRows[i].dados[k] = base64;
+    // Mesmo portão do chat (tamanho mínimo + não-comida). Antes o lote só avisava "baixa
+    // resolução" e não perguntava nada sobre o conteúdo — foi por aqui que o carro entrou.
+    const grava = async (url) => {
+      if (typeof fPortaoFoto === 'function') {
+        gToast('Conferindo a foto…');
+        const motivo = await fPortaoFoto(k, url);
+        if (motivo) { gToast(motivo, 'error'); return; }
+      }
+      if (!fBulkRows[i]) return; // a linha saiu enquanto a IA conferia
+      fBulkRows[i].dados[k] = url;
       fBulkRows[i].erros = fBulkRows[i].erros.filter(err => !err.includes(k));
-      const img = new Image();
-      img.onload = function() {
-        if (img.width < 600 || img.height < 600) {
-          gToast(`Foto de baixa resolução (${img.width}x${img.height}px) — pode sair pixelada na arte.`, 'warning');
-        }
-        fBulkRenderPreview();
-      };
-      img.onerror = function() {
-        gToast('Não consegui carregar a imagem. Verifique se o arquivo está íntegro e tente de novo.', 'error');
-      };
-      img.src = base64;
+      if (typeof fRecordRecentImg === 'function') fRecordRecentImg(url, k);
       gToast('Foto carregada.');
       fBulkRenderPreview();
-    }
+    };
+    if (typeof fResizeImageIfNeeded === 'function') fResizeImageIfNeeded(e.target.result, 1500, grava);
+    else grava(e.target.result);
   };
   reader.readAsDataURL(file);
+}
+
+/* ── FOTO RECENTE POR OFERTA (25/09/2026, feedback da Laura) ──
+   Além de "uma foto para todas", cada oferta pode puxar uma foto já enviada. A lista é a
+   MESMA do painel de upload do chat (`fGetRecentImgs`, upload-panel.js) — um estoque só.
+   Passa pelo portão da foto: recente antiga pode ser de antes da regra de hoje. */
+function _fBulkTemRecentes(k){
+  if (typeof gCampoEhLogo === 'function' && gCampoEhLogo(k)) return false;
+  return typeof fGetRecentImgs === 'function' && fGetRecentImgs().length > 0;
+}
+function _fBulkFecharRecentes(){
+  const p = document.getElementById('f-bulk-rec-pop');
+  if (p) p.remove();
+  document.removeEventListener('pointerdown', _fBulkRecForaClique, true);
+  document.removeEventListener('keydown', _fBulkRecEsc, true);
+}
+function _fBulkRecForaClique(e){ const p = document.getElementById('f-bulk-rec-pop'); if (p && !p.contains(e.target)) _fBulkFecharRecentes(); }
+function _fBulkRecEsc(e){ if (e.key === 'Escape') _fBulkFecharRecentes(); }
+function fBulkFotoRecente(i, k, btn){
+  _fBulkFecharRecentes();
+  const arr = (typeof fGetRecentImgs === 'function') ? fGetRecentImgs() : [];
+  if (!arr.length) { gToast('Você ainda não enviou nenhuma foto.'); return; }
+  const pop = document.createElement('div');
+  pop.id = 'f-bulk-rec-pop';
+  pop.className = 'f-bulk-rec-pop';
+  pop.setAttribute('role', 'dialog');
+  pop.setAttribute('aria-label', 'Fotos recentes');
+  pop.innerHTML = `<div class="f-bulk-rec-tit">Fotos recentes</div><div class="f-bulk-rec-grid">${
+    arr.map((x, n) => `<button type="button" class="f-bulk-rec-item" onclick="_fBulkUsarRecente(${i},'${gEsc(k)}',${n})" aria-label="Usar a foto recente ${n+1}"><img src="${gEsc(x.thumb||'')}" alt=""></button>`).join('')
+  }</div>`;
+  document.body.appendChild(pop);
+  const r = btn.getBoundingClientRect();
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  pop.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
+  pop.style.top = (r.bottom + 6 + h > innerHeight ? Math.max(8, r.top - h - 6) : r.bottom + 6) + 'px';
+  setTimeout(() => {
+    document.addEventListener('pointerdown', _fBulkRecForaClique, true);
+    document.addEventListener('keydown', _fBulkRecEsc, true);
+  }, 0);
+}
+async function _fBulkUsarRecente(i, k, n){
+  _fBulkFecharRecentes();
+  const entry = fGetRecentImgs()[n];
+  if (!entry || !fBulkRows[i]) return;
+  let url = '';
+  try { url = await Promise.resolve(typeof gResolveImgUrl === 'function' ? gResolveImgUrl(entry.ref) : entry.ref); } catch(e) {}
+  if (!url) { gToast('Não consegui carregar essa foto. Envie de novo.', 'error'); return; }
+  if (typeof fPortaoFoto === 'function') {
+    gToast('Conferindo a foto…');
+    const motivo = await fPortaoFoto(k, url);
+    if (motivo) { gToast(motivo, 'error'); return; }
+  }
+  if (!fBulkRows[i]) return;
+  fBulkCollectCurrentInputs();
+  fBulkRows[i].dados[k] = url;
+  _fBulkRevalidateCol(fBulkRows[i], k);
+  gToast('Foto aplicada.');
+  fBulkRenderPreview();
+  if (document.body.classList.contains('f-bulk-folha')) _fBulkRenderFolhaCampos(true);
 }
 
 function fBulkClearImage(i, k) {
@@ -4062,10 +4536,33 @@ function fBulkAutoCategorize(prodName) {
   return '';
 }
 
-/* ══════════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════════════════════════════════
    MOTOR DE COPY COMBINATÓRIO v3 — Tom de Voz Delivery Much
-   Simples, amigável, direto. Zero emojis. Linguagem do cotidiano.
-   ══════════════════════════════════════════════════════════════════ */
+   ------------------------------------------------------------------------------------------
+   Gera 3 legendas LOCALMENTE (zero rede, zero IA, zero configuração): o franqueado abre,
+   olha, escolhe e copia. Combina gancho + corpo + CTA sorteados de bancos curados.
+
+   As 3 leis, nesta ordem de prioridade:
+
+   1. NÃO INVENTAR. Preço, desconto e validade só aparecem quando o franqueado os informou.
+      Três mentiras reais que saíam daqui e foram fechadas: "Válido neste fim de semana" com
+      o campo de validade VAZIO; "de R$ 39,90 por R$ 39,90" anunciando desconto inexistente;
+      e "por R$ 0,00" quando o preço vinha zerado. Arte que promete o que a loja não cumpre
+      é pior que arte sem legenda.
+   2. NÃO REPETIR. As 3 opções nunca dividem gancho, corpo ou CTA — e um rastro curto em
+      localStorage impede que a arte de amanhã repita a frase de hoje.
+   3. NÃO SOAR ARTIFICIAL. Português brasileiro falado, frase curta, zero emoji. Nenhum
+      artigo ou adjetivo de gênero encosta no nome do produto: "no Pizza", "O Marmita" e
+      "Pizza fresquinho" eram erro garantido, porque o motor não sabe (nem precisa saber) o
+      gênero do que a loja vende. Os moldes são neutros por construção.
+   ══════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ── FONTE DE ALEATORIEDADE ──
+   Ponto único de sorteio. Existe para a suíte (`tests/copy-engine-cases.js`) conseguir fixar
+   a semente e comparar saídas, sem que o produto ganhe uma única configuração na tela — o
+   franqueado não escolhe nada, e é assim que tem que ser. */
+let _fCopyRandom = Math.random;
+function _fCopySetRandom(fn) { _fCopyRandom = (typeof fn === 'function') ? fn : Math.random; }
 
 const _COPY_BLOCKS = {
   // ─── GANCHOS: espelham a realidade do cliente antes de vender ───
@@ -4082,7 +4579,10 @@ const _COPY_BLOCKS = {
       'Sem fila, sem louça pra lavar, sem estresse.',
       'Você pede, a gente cuida do resto.',
       'O jantar de hoje já tem endereço: o seu.',
-      'Menos decisão, mais sabor.',
+      'Deu fome e você nem precisa levantar do sofá.',
+      'Dia corrido pede comida que chega pronta.',
+      'A gente entrega, você só abre a porta.',
+      'Hoje o jantar resolve fácil.',
     ],
     pizzas: [
       'Noite de pizza é noite de pizza. Sem discussão.',
@@ -4091,6 +4591,7 @@ const _COPY_BLOCKS = {
       'Pizza não precisa de motivo. Mas se precisasse, hoje tem.',
       'Massa fresca, borda no ponto, recheio caprichado.',
       'A rodada de pizza que junta todo mundo na mesa.',
+      'Sexta pede pizza. Terça também, pra falar a verdade.',
     ],
     lanches: [
       'Aquele burger que resolve qualquer dia ruim.',
@@ -4099,6 +4600,7 @@ const _COPY_BLOCKS = {
       'O hambúrguer do jeito que tem que ser.',
       'Vontade de lanche não avisa — mas a gente entrega.',
       'Suculento, no ponto, do primeiro ao último bocado.',
+      'Tem fome que só um burger resolve.',
     ],
     japonesa: [
       'Japa hoje? A gente entrega fresco na sua porta.',
@@ -4176,21 +4678,62 @@ const _COPY_BLOCKS = {
       'Fim de semana pede churrasco. A gente entrega.',
       'Suculenta, na brasa, sem você acender a churrasqueira.',
     ],
+    salgados: [
+      'Aquele salgado quentinho que resolve a fome da tarde.',
+      'Massa crocante por fora, recheio caprichado por dentro.',
+      'Pastel, coxinha, esfiha — escolhe o teu que a gente entrega.',
+      'Salgado bom é o que chega quentinho na sua porta.',
+      'Pra beliscar no meio da tarde sem pensar duas vezes.',
+      'Feito na hora e entregue ainda quente.',
+    ],
+    combos: [
+      'Um pedido só e a mesa inteira resolvida.',
+      'Combo é isso: menos escolha, mais comida.',
+      'Pra dividir sem ninguém ficar com vontade.',
+      'Tudo junto num pedido só. Simples assim.',
+      'A refeição completa sem precisar montar nada.',
+      'Junta a galera que o combo dá conta.',
+    ],
+    /* ─── PERGUNTAS: abertura exclusiva da aba "Engajar" ───
+       É o que separa Engajar de uma Promo com CTA trocado: a legenda abre no PRODUTO e
+       convida a responder, em vez de abrir no preço. Estes moldes aceitam {prod} — por isso
+       o gancho passa pelo interpolador (os outros bancos não têm placeholder, e para eles a
+       interpolação é no-op). Sem pergunta genérica de engajamento vazio: toda uma delas
+       leva o produto junto ou fala do momento de decidir o pedido. */
+    perguntas: [
+      'Bateu vontade de {prod}?',
+      'Que tal {prod} hoje?',
+      'Alguém aí pensando em {prod}?',
+      'Hoje é dia de {prod}?',
+      'Pode ser {prod} hoje?',
+      'Quem aí não ia querer {prod} agora?',
+      'E se o jantar de hoje fosse {prod}?',
+      'Vontade de {prod} bateu aí também?',
+      'Já sabe o que vai pedir hoje?',
+      'Tá na dúvida do que pedir?',
+      'Faz tempo que você não pede {prod}, né?',
+      'Quanto tempo desde o último {prod}?',
+    ],
   },
 
-  // ─── CORPO: apresenta produto + preço, concreto e direto ───
+  /* ─── CORPO: apresenta produto + preço, concreto e direto ───
+     ⛔ NENHUM molde encosta artigo ou adjetivo de gênero no {prod}: o motor não sabe se a
+     loja vende "a pizza" ou "o combo". Toda frase aqui funciona com os dois. */
   bodies: {
     comDesconto: [
       '{prod} saindo de {de} por {por}.',
       '{prod} — de {de} por {por}. Válido {val}.',
-      'Hoje o {prod} tá de {de} por {por}.',
+      'Hoje {prod} tá de {de} por {por}.',
       '{prod} por {por} (era {de}). Válido {val}.',
       'De {de} por {por} — {prod}.',
       '{prod}: antes {de}, agora {por}.',
-      '{prod} saindo de {de} por {por}. Você economiza {economiaReais}!',
+      '{prod} saindo de {de} por {por}. Você economiza {economiaReais}.',
       '{prod} de {de} por {por} — {economiaPct} de desconto no seu pedido.',
       'Baixou o preço: {prod} de {de} por {por}.',
-      'O {prod} tá {por} hoje (de {de}). Aproveita.',
+      '{prod} tá {por} hoje (de {de}). Aproveita.',
+      '{prod} de {de} por {por}. Economia de {economiaReais}.',
+      'Agora {prod} sai por {por}, em vez de {de}.',
+      '{prod}: de {de} caiu pra {por}.',
     ],
     semDesconto: [
       '{prod} por {por}.',
@@ -4198,30 +4741,77 @@ const _COPY_BLOCKS = {
       'Hoje tem {prod} a {por}.',
       '{prod} saindo a {por}. Válido {val}.',
       '{prod} a {por}. Sem complicação.',
-      '{por} no {prod}. Direto ao ponto.',
-      '{prod} por {por}, quentinho na sua porta.',
+      '{prod} sai por {por}. Direto ao ponto.',
+      '{prod} por {por}, e chega quente na sua porta.',
       'É {prod}? É {por}. Pedido feito.',
-      'Peça o {prod} por {por} e mate a vontade.',
+      'Peça {prod} por {por} e mate a vontade.',
+      'Tem {prod} saindo por {por}.',
+      '{prod}: {por}, e o jantar tá resolvido.',
     ],
     comPercentual: [
       '{prod} com {desconto} de desconto: sai a {por}.',
-      '{desconto} OFF no {prod}. Preço final: {por}.',
+      '{prod} com {desconto} OFF. Preço final: {por}.',
       '{prod} por {por} — {desconto} a menos que o normal.',
-      'Desconto de {desconto} no {prod}. Fica {por}.',
-      '{desconto} de desconto no {prod}, só hoje: {por}.',
+      '{prod} com {desconto} de desconto. Fica {por}.',
+      '{prod} com {desconto} de desconto, só hoje: {por}.',
       'Aproveita: {prod} com {desconto} OFF, agora {por}.',
       // Sem preço final informado — o desconto ainda aparece (antes caía no pool sem preço e sumia)
-      '{desconto} OFF no {prod}. Aproveita enquanto dura.',
+      '{prod} com {desconto} OFF. Aproveita enquanto dura.',
       '{prod} com {desconto} de desconto. Corre que acaba.',
+      '{prod} tá com {desconto} de desconto hoje.',
     ],
     // Sem preço definido: apresenta o produto sem prometer valor (o preço fica no app).
     semPreco: [
-      '{prod} fresquinho, esperando por você.',
+      'Tem {prod} saindo agora.',
       'Hoje tem {prod}. Confere o preço no app.',
       '{prod} do jeito que você gosta. Válido {val}.',
       'Bateu a vontade de {prod}? A gente entrega.',
-      '{prod} pronto pra sair. É só chamar.',
-      'O {prod} de hoje tá te esperando no app.',
+      'É só chamar que {prod} sai na hora.',
+      '{prod} tá te esperando no cardápio.',
+      'Hoje tem {prod} no cardápio.',
+      '{prod} é o pedido certo pra hoje.',
+    ],
+  },
+
+  /* ─── CORPOS CURTOS: continuação de um gancho que JÁ disse o nome do produto ───
+     Exclusivos da aba "Engajar", cujos ganchos-pergunta trazem o {prod}. Sem eles a legenda
+     saía com o nome duas vezes em duas linhas ("Bateu vontade de Pizza Calabresa? / Pizza
+     Calabresa com 20% OFF") — o eco que mais aparecia na medição. Aqui o corpo continua a
+     frase em vez de recomeçá-la, que é como a pessoa falaria. Os quatro bancos espelham os
+     de cima porque a escolha depende dos mesmos fatos (tem preço? tem desconto?). */
+  bodiesCurtos: {
+    comDesconto: [
+      'Tá saindo de {de} por {por}.',
+      'Sai por {por} — era {de}.',
+      'De {de} por {por} até acabar.',
+      'Agora sai por {por}, em vez de {de}.',
+      'Caiu de {de} pra {por}.',
+      'Hoje sai por {por}. Era {de}.',
+      'De {de} por {por}. Economia de {economiaReais}.',
+    ],
+    semDesconto: [
+      'Sai por {por}.',
+      'Tá {por} hoje.',
+      'Hoje sai a {por}.',
+      'Sai por {por}, quentinho.',
+      'Tá saindo a {por}.',
+      'São {por} e o pedido tá feito.',
+    ],
+    comPercentual: [
+      'Tá com {desconto} de desconto: sai a {por}.',
+      'Sai por {por}, com {desconto} OFF.',
+      'Com {desconto} OFF, fica {por}.',
+      'Tá com {desconto} de desconto.',
+      '{desconto} OFF enquanto dura.',
+      'Hoje tá com {desconto} OFF.',
+    ],
+    semPreco: [
+      'Tá saindo agora.',
+      'Confere o preço no app.',
+      'Tá no cardápio esperando.',
+      'É só chamar que a gente entrega.',
+      'Hoje tem, e tá saindo quente.',
+      'Tá esperando teu pedido.',
     ],
   },
 
@@ -4237,6 +4827,7 @@ const _COPY_BLOCKS = {
       'Tá no app, é só pedir.',
       'Pediu, chegou. É no app.',
       'Deixa com a gente: peça pelo delivery.',
+      'É só pedir que a gente leva.',
     ],
     engajamento: [
       'Marca aqui quem sempre pede isso com você.',
@@ -4247,6 +4838,7 @@ const _COPY_BLOCKS = {
       'Manda pro grupo da galera.',
       'Compartilha com quem ia amar.',
       'Conta aqui: com o que você pede isso?',
+      'Marca a pessoa que ia dividir isso com você.',
     ],
     // CTA de MENSAGEM (WhatsApp/status): pede resposta ali mesmo, não clique em bio.
     whatsapp: [
@@ -4255,6 +4847,7 @@ const _COPY_BLOCKS = {
       'Manda um "quero" que a gente cuida do resto.',
       'É só responder aqui pra pedir.',
       'Peça pelo app ou responde essa mensagem.',
+      'Responde aqui que a gente já separa.',
     ],
   },
 
@@ -4274,6 +4867,8 @@ const _COPY_BLOCKS = {
     mexicana: ['#comidamexicana', '#tacos', '#nachos', '#mexican', '#guacamole'],
     massas: ['#massa', '#macarrao', '#pasta', '#comidaitaliana', '#massafresca'],
     churrasco: ['#churrasco', '#carne', '#barbecue', '#espetinho', '#brasa'],
+    salgados: ['#salgados', '#pastel', '#coxinha', '#salgadinho', '#lanchedatarde'],
+    combos: ['#combo', '#promocao', '#paradividir', '#comboperfeito'],
   },
 };
 
@@ -4286,64 +4881,59 @@ function _fCopySegment(prod) {
   if (/salada|fit\b|saud[aá]vel|natural|light|vegano|vegetariano|\bbowl\b|low.?carb|proteico|integral/.test(low)) return 'saudavel';
   if (/caf[eé]|padaria|p[aã]o\b|croissant|brunch|tapioca|misto quente|torrada|cuscuz/.test(low)) return 'cafe';
   if (/taco|burrito|nachos|guacamole|quesadilla|mexican|chili|nacho/.test(low)) return 'mexicana';
-  if (/massa|macarr[aã]o|espaguete|nhoque|talharim|fettuccine|penne|ravioli|carbonara/.test(low)) return 'massas';
+  if (/massa|macarr[aã]o|espaguete|nhoque|talharim|fettuccine|penne|ravioli|carbonara|lasanha/.test(low)) return 'massas';
   if (/churrasco|espetinho|espeto|picanha|costela|parrilla|barbecue|churras|maminha|fraldinha/.test(low)) return 'churrasco';
+  // Salgados vêm ANTES do fBulkAutoCategorize de propósito: "pastel frito" bateria no
+  // /frito/ de "Porções / Entradas" e sairia com o tom de petisco de bar, não de pastelaria.
+  if (/pastel|past[eé]is|coxinha|esfiha|esfirra|empada|kibe|quibe|croquete|enroladinho|salgad/.test(low)) return 'salgados';
   const cat = fBulkAutoCategorize(String(prod || ''));
   const map = {
     'Bebidas': 'bebidas', 'Pizzas': 'pizzas', 'Lanches': 'lanches',
     'Comida Japonesa': 'japonesa', 'Sobremesas': 'sobremesas',
     'Refeições': 'refeicoes', 'Porções / Entradas': 'porcoes',
   };
-  return map[cat] || 'universal';
+  if (map[cat]) return map[cat];
+  /* SEGUNDA CHANCE — sinônimos e grafias que o categorizador do Sheets não conhece. Roda só
+     DEPOIS dele, de propósito: assim nunca rouba uma classificação que já estava certa
+     (o clássico é "calabresa", que é pizza aqui e porção ali). */
+  if (/smash|cheeseburger|artesanal/.test(low)) return 'lanches';
+  if (/combinado|uramaki|guioza|harumaki|ceviche|\bpoke\b|missoshiro/.test(low)) return 'japonesa';
+  if (/milk.?shake|torta|cheesecake|cookie|brigadeiro|a[çc]a[ií]/.test(low)) return 'sobremesas';
+  if (/feijoada|picadinho|galinhada|\bpf\b|prato do dia|caseir|quentinha/.test(low)) return 'refeicoes';
+  if (/torresmo|isca|mandioca|tirinha|aperitivo|petisco/.test(low)) return 'porcoes';
+  if (/energ[ée]tico|cerveja|chopp|heineken|brahma|skol|long neck|\bch[áa]\b/.test(low)) return 'bebidas';
+  /* Último recurso antes do genérico: "Combo Família", "Kit Casal" e afins caíam em
+     'universal'. Fica por ÚLTIMO de propósito — "Combo 20 peças" dentro de uma campanha
+     de sushi tem que sair como japonesa (regra do ctxName), não como combo. */
+  if (/\bcombo|\bkit\b|\bfam[ií]lia\b|\bcasal\b|pra dois|para dois/.test(low)) return 'combos';
+  return 'universal';
 }
 
-/* O motor v2 sorteava entre frases boas e ruins com a mesma chance. O v3 mantém os bancos,
-   mas usa uma ordem estável para que os mesmos fatos produzam a melhor combinação — e para
-   que uma regressão de copy possa ser reproduzida no teste em vez de depender de sorte. */
-function _fCopyHash(str) {
-  let h = 2166136261;
-  const s = String(str || '');
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
+/* Fisher-Yates de verdade.
+   ⚠ O embaralhamento antigo era `arr.slice().sort(() => Math.random() - 0.5)` — comparador
+   inconsistente, que NÃO produz permutação uniforme: o V8 encerra a ordenação cedo e os
+   primeiros itens do banco ficavam no topo com frequência muito maior que os do fim. Na
+   prática, as hashtags e os CTAs do começo de cada lista apareciam quase sempre e os do
+   final quase nunca — variedade que existia no banco mas não chegava no franqueado. */
+function _fShuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(_fCopyRandom() * (i + 1));
+    const t = a[i]; a[i] = a[j]; a[j] = t;
   }
-  return h >>> 0;
+  return a;
 }
 
-function _fCopyPickStable(arr, seed, n) {
-  if (!arr || !arr.length) return n ? [] : '';
-  const ranked = arr.slice().sort((a, b) => _fCopyHash(seed + '|' + a) - _fCopyHash(seed + '|' + b));
-  return n ? ranked.slice(0, Math.min(n, ranked.length)) : ranked[0];
+/* Sorteia N itens unicos de um array */
+function _fPickRandom(arr, n) {
+  if (!arr || arr.length === 0) return [];
+  return _fShuffle(arr).slice(0, Math.min(n, arr.length));
 }
 
-/* Artigo preso ao placeholder erra assim que o produto troca de gênero ("o pizza", "no
-   porção"). O produto continua podendo trazer seu próprio artigo no nome; o molde é que não
-   pode adivinhar gênero. */
-function _fCopyTplNeutro(tpl) {
-  return !/\b(?:o|a|no|na|do|da)\s+\{prod\}/i.test(String(tpl || ''));
-}
-
-function _fCopyTplTemFatos(tpl, facts) {
-  if (!facts.hasPrice && tpl.includes('{por}')) return false;
-  if (!facts.hasSavings && (tpl.includes('{de}') || tpl.includes('{economiaReais}') || tpl.includes('{economiaPct}'))) return false;
-  if (!facts.formattedVal && tpl.includes('{val}')) return false;
-  if (!facts.descClean && tpl.includes('{desconto}')) return false;
-  return _fCopyTplNeutro(tpl);
-}
-
-function _fCopyPairScore(pair, facts) {
-  const target = facts.isStory ? 72 : (facts.isWpp ? 125 : 150);
-  const max = facts.isStory ? 118 : (facts.isWpp ? 220 : 260);
-  let score = facts.segmentHook ? 28 : 0;
-  score -= Math.abs(pair.len - target) * 0.08;
-  if (pair.len > max) score -= (pair.len - max) * 2;
-  if (facts.hasPrice && pair.body.includes(facts.por)) score += 18;
-  if (facts.hasSavings && pair.body.includes(facts.de) && pair.body.includes(facts.por)) score += 16;
-  if (facts.descClean && pair.body.includes(facts.descClean)) score += 12;
-  if (facts.formattedVal && pair.body.includes(facts.formattedVal)) score += 8;
-  /* O hash só desempata; relevância e fidelidade continuam valendo mais que variedade. */
-  score += (_fCopyHash(facts.seed + '|' + pair.hook + '|' + pair.tpl) % 1000) / 10000;
-  return score;
+/* Sorteia 1 item de um array */
+function _fPick1(arr) {
+  if (!arr || arr.length === 0) return '';
+  return arr[Math.floor(_fCopyRandom() * arr.length)];
 }
 
 /* Interpola placeholders {prod}, {por}, {de}, {val}, {desconto}, {economiaReais}, {economiaPct} */
@@ -4358,169 +4948,310 @@ function _fInterpolate(template, data) {
     .replace(/\{economiaPct\}/g, data.economiaPct || '');
 }
 
+/* ── FAXINA FINAL ──
+   Rede de segurança de formatação: por mais que os moldes estejam certos, o dado do
+   franqueado chega torto (espaço sobrando, ponto que ele já digitou no fim do produto).
+   Nada sai daqui com espaço duplo, espaço antes de vírgula ou parêntese vazio. */
+function _fCopyTidy(s) {
+  return String(s == null ? '' : s)
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\(\s*\)/g, '')
+    .replace(/ +([.,!?;:])/g, '$1')
+    .replace(/([.,!?;:])\1+/g, '$1')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/* ── FICHA DE FATOS ──
+   Traduz o que o franqueado digitou para o que o motor tem PERMISSÃO de afirmar. É aqui que
+   mora a 1ª lei: cada campo vira um booleano honesto, e os moldes só recebem o que passou.
+   Antes esta decisão estava espalhada dentro do montador e cada ramo interpretava os dados
+   do seu jeito — foi de onde saíram o desconto falso e o preço zerado. */
+function _fCopyFacts(prodBruto, deBruto, porBruto, valBruto, descBruto) {
+  /* ⛔ CHAVE NENHUMA ENTRA NO MOTOR. O campo pode chegar com `{{produto}}` não substituído
+     (é a sintaxe de campo do próprio Luma) ou com chave digitada à mão. Como o interpolador
+     roda as substituições em sequência, esse texto voltava a ser interpretado: um produto
+     chamado "{por} {de}" saía da legenda como "* *", e uma validade assim virava
+     "Válido {por} {de}." na cara do cliente. Achado no fuzz (9.375 combinações). */
+  const limpa = (s) => {
+    // Só texto e número são campo. Objeto/array viravam "[object Object]" DENTRO da legenda.
+    if (typeof s === 'number') return Number.isFinite(s) ? String(s) : '';
+    if (typeof s !== 'string') return '';
+    return s.replace(/[{}]/g, '').replace(/\s+/g, ' ').trim();
+  };
+  const prod = limpa(prodBruto);
+  const val = limpa(valBruto), desc = limpa(descBruto);
+  /* O rótulo "De:"/"Por:" é da ARTE, não da frase. A máscara (chat-input.js) grava o preço
+     já rotulado porque é assim que o material da rede é desenhado; aqui ele sai, senão a
+     legenda diria "de De: R$ 98,90 por Por: R$ 39,54". O número em si não muda. */
+  const semRotulo = (s) => limpa(s).replace(/^(de|por)\s*:?\s*/i, '');
+  const de = semRotulo(deBruto), por = semRotulo(porBruto);
+
+  const numDe = fParsePriceNumber(de);
+  const numPor = fParsePriceNumber(por);
+  // "R$ 0,00" não é preço — anunciava o produto de graça.
+  const temPor = /\d/.test(String(por || '')) && numPor > 0;
+  const temDe = /\d/.test(String(de || '')) && numDe > 0;
+  // Só é desconto quando o "de" é MAIOR que o "por". Igual (ou menor) não é oferta nenhuma.
+  const temEconomia = temDe && temPor && numDe > numPor;
+
+  // Percentual: "20% off" vira "20%"; "0%" não é desconto e é descartado.
+  const mPct = /(\d{1,3})\s*%/.exec(String(desc || ''));
+  const pctNum = mPct ? parseInt(mPct[1], 10) : 0;
+  const temPct = pctNum > 0 && pctNum < 100;
+  // Desconto sem o "off" que o franqueado já digitou — os moldes trazem "OFF"/"de desconto"
+  // no texto (senão saía "20% off OFF").
+  const descTxt = temPct ? String(desc || '').trim().replace(/\s*off\.?\s*$/i, '') : '';
+
+  const diff = temEconomia ? (numDe - numPor) : 0;
+  return {
+    prod: prod,
+    de: temDe ? de : '',
+    por: temPor ? por : '',
+    val: _fFormatValidity(val),
+    desconto: descTxt,
+    temPor, temDe, temEconomia, temPct,
+    economiaReais: temEconomia ? fFormatPriceNumber(diff) : '',
+    economiaPct: temEconomia ? (Math.round((diff / numDe) * 100) + '%') : '',
+  };
+}
+
+/* Assinatura lexical de uma copy — usada só para medir se duas opções ficaram parecidas
+   demais. Ignora hashtags (que inflam a semelhança) e palavras curtas. */
+function _fCopyWords(texto) {
+  const corpo = String(texto || '').split('\n').filter(l => !/^#/.test(l.trim())).join(' ');
+  const limpo = corpo.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ');
+  return new Set(limpo.split(/\s+/).filter(w => w.length > 3));
+}
+function _fCopySimilar(a, b) {
+  const A = _fCopyWords(a), B = _fCopyWords(b);
+  if (!A.size || !B.size) return 0;
+  let inter = 0;
+  A.forEach(w => { if (B.has(w)) inter++; });
+  return inter / (new Set([...A, ...B]).size);
+}
+
+/* ── MEMÓRIA ANTI-REPETIÇÃO (entre gerações) ──
+   O dedup do `used` só vale DENTRO de uma chamada: as 3 opções saíam distintas, mas a arte
+   seguinte repetia o gancho da anterior. O franqueado gera várias artes no mesmo dia (e o
+   Sheets gera dezenas de uma vez) — repetição é a primeira coisa que ele nota. Guardamos as
+   últimas frases que ESTE navegador usou e as tiramos do sorteio. Os tetos são menores que
+   os bancos de propósito; se ainda assim esgotar, o `avail.length ? avail : pool` de sempre
+   libera tudo de volta e o motor nunca trava. */
+const F_COPY_RECENT_KEY = 'dm_copy_recent_v1';
+const _F_COPY_RECENT_CAP = { hooks: 10, bodies: 6, ctas: 5 };
+function _fCopyRecent() {
+  try {
+    const r = JSON.parse(localStorage.getItem(F_COPY_RECENT_KEY) || '{}');
+    return { hooks: r.hooks || [], bodies: r.bodies || [], ctas: r.ctas || [] };
+  } catch (e) { return { hooks: [], bodies: [], ctas: [] }; }
+}
+function _fCopyRemember(used, prev) {
+  // Quota cheia não pode derrubar a geração da legenda (mesma regra do prefs.js).
+  try {
+    const merge = (k) => {
+      const novos = [...used[k]].filter(v => v && prev[k].indexOf(v) < 0);
+      return [...new Set(novos.concat(prev[k]))].slice(0, _F_COPY_RECENT_CAP[k]);
+    };
+    localStorage.setItem(F_COPY_RECENT_KEY, JSON.stringify({
+      hooks: merge('hooks'), bodies: merge('bodies'), ctas: merge('ctas')
+    }));
+  } catch (e) { /* sem localStorage (ou cheio): o motor segue, só perde a memória */ }
+}
+
 /* Monta UMA copy completa. mode: 'promo' | 'engajar' | 'whatsapp' */
-function _fAssembleCopy(prod, de, por, val, desc, mode, segment, used, format) {
+function _fAssembleCopy(f, mode, segment, used, forceShort) {
   const B = _COPY_BLOCKS;
   const isWpp = mode === 'whatsapp';
-  const isStory = /^stor(?:y|ies)$/i.test(String(format || ''));
-  const cleanProd = String(prod || '').trim() || 'Oferta especial';
-  const cleanDe = String(de || '').trim();
-  const cleanPor = String(por || '').trim();
 
-  // Escolher body baseado nos dados disponíveis + economia calculada
-  let bodyPool;
-  const numDe = fParsePriceNumber(cleanDe);
-  const numPor = fParsePriceNumber(cleanPor);
-  const hasPrice = /\d/.test(cleanPor);   // vazio/sem dígito → sem preço real
-  const hasSavings = hasPrice && numDe > 0 && numPor > 0 && numDe > numPor;
-
-  // Validade ausente continua ausente. O motor não transforma falta de dado em urgência.
-  let formattedVal = _fFormatValidity(val);
-  formattedVal = String(formattedVal || '').replace(/^v[áa]lid[oa]\s+/i, '');
-  if (formattedVal && /^[A-ZÀ-Ü]/.test(formattedVal)) formattedVal = formattedVal.charAt(0).toLowerCase() + formattedVal.slice(1);
-  const diff = numDe - numPor;
-  const economiaReais = hasSavings ? fFormatPriceNumber(diff) : '';
-  const pct = hasSavings ? Math.round((diff / numDe) * 100) : 0;
-  const economiaPct = hasSavings ? (pct + '%') : '';
-  const descClean = String(desc || '').trim().replace(/\s*off\.?\s*$/i, '');
-
-  if (desc && /\d+\s*%/.test(desc)) {
-    bodyPool = B.bodies.comPercentual;
-    // Sem preço final, os templates que citam {por} gerariam "Preço final: ." — só os que não citam.
-    if (!hasPrice) bodyPool = bodyPool.filter(tpl => !tpl.includes('{por}'));
-    if (!bodyPool.length) bodyPool = B.bodies.semPreco;
-  } else if (!hasPrice) {
-    bodyPool = B.bodies.semPreco;                  // sem preço → não promete valor (fica no app)
-  } else if (hasSavings) {
-    bodyPool = B.bodies.comDesconto;
-  } else {
-    // "De" igual/menor que "por" não é desconto: mencionar o par criaria uma promoção falsa.
-    bodyPool = B.bodies.semDesconto;
-  }
-  const facts = { hasPrice, hasSavings, formattedVal, descClean };
-  bodyPool = bodyPool.filter(tpl => _fCopyTplTemFatos(tpl, facts));
-  if (!bodyPool.length) bodyPool = B.bodies.semPreco.filter(_fCopyTplNeutro);
-  // Dedup de CORPO entre as 3 opções (cai no pool cheio se esgotar)
-  const _availBodies = bodyPool.filter(t => !used.bodies.has(t));
-  bodyPool = _availBodies.length ? _availBodies : bodyPool;
-
-  // WhatsApp: *negrito* REAL do app nos valores que vendem (produto, preços, desconto).
-  const _b = isWpp ? (s => s ? '*' + s + '*' : s) : (s => s);
-  const data = {
-    prod: _b(cleanProd),
-    de: _b(cleanDe),
-    por: _b(cleanPor),
-    val: formattedVal,
-    desconto: _b(descClean),
-    economiaReais: _b(economiaReais),
-    economiaPct: _b(economiaPct)
+  /* ESCOLHA DO CORPO — só pela ficha de fatos (1ª lei). A ordem importa: percentual real
+     ganha do "de/por", e sem preço nenhum molde que cite valor entra na disputa.
+     `banco` decide entre o corpo que abre dizendo o produto e o corpo curto que só continua
+     a frase (quando o gancho já disse o nome). */
+  const escolherPool = (banco) => {
+    let pool;
+    if (f.temPct) {
+      pool = banco.comPercentual;
+      // Sem preço final, os moldes que citam {por} gerariam "Preço final: ." — fora.
+      if (!f.temPor) pool = pool.filter(tpl => !tpl.includes('{por}'));
+    } else if (!f.temPor) {
+      pool = banco.semPreco;                       // sem preço → não promete valor (fica no app)
+    } else if (f.temEconomia) {
+      pool = banco.comDesconto;
+    } else {
+      pool = banco.semDesconto;
+    }
+    /* Validade vazia derruba todo molde que cite {val}: "Válido ." era o que saía. O {val}
+       cruza os quatro bancos, então este filtro é separado da escolha do pool. */
+    if (!f.val) {
+      const semVal = pool.filter(tpl => !tpl.includes('{val}'));
+      if (semVal.length) pool = semVal;
+    }
+    if (!pool.length) pool = banco.semPreco;
+    // Dedup de CORPO entre as 3 opções e com as artes recentes (cai no pool cheio se esgotar)
+    const avail = pool.filter(t => !used.bodies.has(t));
+    return avail.length ? avail : pool;
   };
-  
-  // Story tem duas linhas úteis (oferta + ação); um gancho extra seria uma terceira legenda.
+
+  /* Sem *negrito* de WhatsApp: o franqueado cola a copy em qualquer lugar (Instagram, Status,
+     print) e o asterisco aparecia cru no texto. Decisão do produto: copy sai sem `*`. */
+  const data = {
+    prod: f.prod,
+    de: f.de,
+    por: f.por,
+    val: f.val,
+    desconto: f.desconto,
+    economiaReais: f.economiaReais,
+    economiaPct: f.economiaPct
+  };
+
+  /* ESCOLHA DO GANCHO. Promo e WhatsApp abrem espelhando a realidade do cliente; "Engajar"
+     abre no PRODUTO, com pergunta — é o que faz as três não serem a mesma legenda com o
+     final trocado. As perguntas entram com peso, não sozinhas, pra aba não virar um
+     interrogatório quando o franqueado gera várias artes seguidas. */
   const segHooks = B.hooks[segment] || [];
-  const allHooks = isStory && !isWpp ? [''] : segHooks.concat(B.hooks.universal);
+  let allHooks = segHooks.concat(B.hooks.universal);
+  /* Sem nome de produto (o franqueado pulou o campo) as perguntas saem de cena: elas existem
+     justamente para NOMEAR o produto, e sem ele virariam "Bateu vontade de?". */
+  if (mode === 'engajar' && f.prod) {
+    allHooks = B.hooks.perguntas.concat(B.hooks.perguntas, segHooks);
+  }
+  /* Nome do produto que já apareceu no gancho vira eco no corpo ("Pizza não precisa de
+     motivo." + "Pizza — R$ 129,00"). Tira os ganchos que repetem a 1ª palavra do produto —
+     a não ser que sobrasse nada. Os moldes com {prod} escapam de propósito: eles nomeiam o
+     produto porque QUEREM, e puxam o corpo curto que continua a frase sem repetir o nome. */
+  const primeira = (f.prod.split(/\s+/)[0] || '').toLowerCase();
+  if (primeira.length > 3) {
+    const semEco = allHooks.filter(h => h.indexOf('{prod}') >= 0 || h.toLowerCase().indexOf(primeira) < 0);
+    if (semEco.length) allHooks = semEco;
+  }
   const availHooks = allHooks.filter(h => !used.hooks.has(h));
   const hooksToUse = availHooks.length > 0 ? availHooks : allHooks;
 
-  const seed = [cleanProd, cleanDe, cleanPor, formattedVal, descClean, mode, segment, format].join('|');
-  const pairs = [];
-  hooksToUse.forEach(hook => bodyPool.forEach(tpl => {
-    const body = _fInterpolate(tpl, data).replace(/\s+([.,!?])/g, '$1').replace(/\s{2,}/g, ' ').trim();
-    const pair = { hook, tpl, body, len: hook.length + (hook ? 2 : 0) + body.length };
-    pair.score = _fCopyPairScore(pair, {
-      isStory, isWpp, hasPrice, hasSavings, formattedVal, descClean,
-      por: data.por, de: data.de, segmentHook: !!hook && segHooks.includes(hook), seed
-    });
-    pairs.push(pair);
-  }));
-  pairs.sort((a, b) => b.score - a.score);
-  const chosenPair = pairs[0];
-  const hook = chosenPair ? chosenPair.hook : '';
-  const body = chosenPair ? chosenPair.body : cleanProd;
-  const bodyTpl = chosenPair ? chosenPair.tpl : '';
+  let hookTpl = '';
+  let body = '';
+  let bodyTpl = '';
 
-  if (hook) used.hooks.add(hook);
+  if (forceShort) {
+    /* Promo é a aba de vender: busca o par (gancho + corpo) que cabe em 120 caracteres, pra
+       legenda aparecer inteira antes do "ver mais" do Instagram. Aqui o gancho nunca traz
+       {prod} (perguntas são só da "Engajar"), então só a falta de produto muda o banco. */
+    const poolBodies = escolherPool(f.prod ? B.bodies : B.bodiesCurtos);
+    const validPairs = [];
+    const allPairs = [];
+    for (const h of hooksToUse) {
+      const hText = _fInterpolate(h, data);
+      for (const bTpl of poolBodies) {
+        const bText = _fInterpolate(bTpl, data);
+        const pair = { hook: h, tpl: bTpl, body: bText, len: hText.length + 2 + bText.length };
+        allPairs.push(pair);
+        if (pair.len <= 120) validPairs.push(pair);
+      }
+    }
+    const chosen = validPairs.length ? _fPick1(validPairs) : allPairs.sort((x, y) => x.len - y.len)[0];
+    hookTpl = chosen.hook; body = chosen.body; bodyTpl = chosen.tpl;
+  } else {
+    /* O gancho vem PRIMEIRO porque ele decide o banco do corpo: se já disse o nome do
+       produto (as perguntas da "Engajar" dizem), o corpo continua a frase em vez de
+       recomeçar com o nome de novo. */
+    hookTpl = _fPick1(hooksToUse);
+    /* O corpo curto (que não recomeça dizendo o nome) serve a DOIS casos: o gancho já
+       nomeou o produto, ou não existe produto para nomear. */
+    const semNome = !f.prod || hookTpl.indexOf('{prod}') >= 0;
+    bodyTpl = _fPick1(escolherPool(semNome ? B.bodiesCurtos : B.bodies));
+    body = _fInterpolate(bodyTpl, data);
+  }
+
+  // Os ganchos de "Engajar" carregam {prod}; os demais bancos não têm placeholder (no-op).
+  const hook = _fInterpolate(hookTpl, data);
+  used.hooks.add(hookTpl);
   used.bodies.add(bodyTpl);
-  
-  // CTA sem repetir entre as opções
+
+  /* CTA sem repetir entre as opções nem com as artes recentes. A regra de compatibilidade:
+     corpo que já mandou pro app não recebe CTA que manda pro app de novo ("…tá te esperando
+     no cardápio." + "Tá no app, é só pedir.") — duas linhas dizendo a mesma coisa. */
   const _pickCta = (type) => {
-    const pool = B.ctas[type] || [];
+    let pool = B.ctas[type] || [];
+    if (/\bno app\b|no cardápio|no cardapio/i.test(body)) {
+      const semApp = pool.filter(c => !/\bapp\b/i.test(c));
+      if (semApp.length) pool = semApp;
+    }
     const avail = pool.filter(c => !used.ctas.has(c));
-    const c = _fCopyPickStable(avail.length ? avail : pool, seed + '|' + type);
+    const c = _fPick1(avail.length ? avail : pool);
     used.ctas.add(c);
     return c;
   };
 
   // Validade como linha separada (evita duplicar se já estiver no corpo)
-  const valLine = (formattedVal && !body.includes(formattedVal)) ? ('Válido ' + formattedVal + '.') : '';
+  const valLine = (f.val && body.indexOf(f.val) < 0) ? ('Válido ' + f.val + '.') : '';
 
   // WHATSAPP: mensagem, não legenda — sem hashtags (ruído no app), CTA de resposta direta.
   // Diagramação de mensagem: gancho / corpo (+validade) / CTA, blocos separados por linha vazia.
   if (isWpp) {
-    const wLines = hook ? [hook, '', body] : [body];
+    const wLines = [hook, '', body];
     if (valLine) wLines.push(valLine);
     wLines.push('', _pickCta('whatsapp'));
-    return wLines.join('\n');
+    return _fCopyTidy(wLines.join('\n'));
   }
 
   // FEED: CTA coerente com a aba — "Promo" vende (pedido), "Engajar" conversa (marca/salva/comenta).
   const cta = _pickCta(mode === 'engajar' ? 'engajamento' : 'delivery');
 
-  // Story é leitura de dois golpes: fato da oferta e ação. Hashtag e gancho virariam ruído.
-  if (isStory) {
-    const offerLine = [body, valLine].filter(Boolean).join(' ');
-    return [offerLine, cta].filter(Boolean).join('\n');
-  }
-  
-  // Hashtags: marca + até 2 do segmento + 1 local. Mais que isso vira bloco genérico.
+  // Hashtags: 2 universais + 2-3 do segmento + hashtags locais (cidade).
   /* A cidade vem do `fCidadeAtual()` (chat.js) e não mais de um input próprio do Sheets.
      Ele é o getter canônico e JÁ lia o `luma_bulk_city` que aquele input gravava — mais a
      cidade da própria arte e a chave do perfil, e ainda aprende quando a cidade aparece
      numa arte. Ou seja: o painel "Legenda e cidade" saiu (03/09) e a hashtag local NÃO
      se perdeu; ela passou a ter uma fonte só, como manda a lei do motor único. */
   const city = (typeof fCidadeAtual === 'function') ? fCidadeAtual() : '';
-  
+
   const segTags = B.hashtags[segment] || [];
-  const fallbackTags = B.hashtags.universal.filter(t => t !== '#deliverymuch');
-  const specTags = _fCopyPickStable(segTags.length ? segTags : fallbackTags, seed + '|tags', 2);
-  let allTagsList = ['#deliverymuch'].concat(specTags);
-  
+  let allTagsList = _fPickRandom(B.hashtags.universal, 2).concat(_fPickRandom(segTags, 3));
+
   if (city) {
     const cleanCity = _fSanitizeHashtagPart(city);
     if (cleanCity) {
-      allTagsList.push(`#deliverymuch${cleanCity}`);
+      allTagsList = allTagsList.concat(['#deliverymuch' + cleanCity, '#' + cleanCity, '#delivery' + cleanCity]);
     }
   }
-  
-  const uniqueTags = [...new Set(allTagsList)];
-  const tags = uniqueTags.join(' ');
-  
-  // Montar
+
+  const tags = [...new Set(allTagsList)].join(' ');
+
   const lines = [hook, '', body];
   if (valLine) lines.push(valLine);
   lines.push('', cta);
   if (tags) lines.push('', tags);
-  
-  return lines.join('\n');
+
+  return _fCopyTidy(lines.join('\n'));
 }
 
 /* Gera 3 opções de copy (substitui fGetSegmentedCaptions) */
 function fBuildCopy(prod, de, por, val, desc, format, ctxName) {
   // Segmento considera também o nome da campanha (ctx): "Combo 20 peças" sozinho é universal,
   // mas dentro de "Bora De Sushi Na Promo" é japonesa — tom certo com mais frequência.
-  const segment = _fCopySegment(String(prod||'') + ' ' + String(ctxName||''));
-  // Dedup COMPARTILHADO entre as 3 opções: gancho, corpo e CTA não repetem → 3 legendas distintas.
-  const used = { hooks: new Set(), bodies: new Set(), ctas: new Set() };
+  const segment = _fCopySegment(String(prod || '') + ' ' + String(ctxName || ''));
+  const f = _fCopyFacts(prod, de, por, val, desc);
+  // Dedup COMPARTILHADO entre as 3 opções + memória das artes recentes (ver acima).
+  const recent = _fCopyRecent();
+  const used = {
+    hooks: new Set(recent.hooks), bodies: new Set(recent.bodies), ctas: new Set(recent.ctas)
+  };
   // Cada aba tem PROPÓSITO e formato próprios (antes as 3 eram iguais e o CTA era sorteado —
   // a aba "Engajar" podia sair com CTA de delivery):
   //   promo    → legenda de feed vendedora, par gancho+corpo curto, CTA de pedido, hashtags
-  //   engajar  → legenda de feed com CTA de engajamento garantido (marca/comenta/salva), hashtags
-  //   whatsapp → MENSAGEM: *negrito* real do WhatsApp, sem hashtags, CTA de resposta direta
-  return {
-    op1: _fAssembleCopy(prod, de, por, val, desc, 'promo', segment, used, format),
-    op2: _fAssembleCopy(prod, de, por, val, desc, 'engajar', segment, used, format),
-    op3: _fAssembleCopy(prod, de, por, val, desc, 'whatsapp', segment, used, format),
-  };
+  //   engajar  → abre no produto (pergunta), CTA de engajamento garantido, hashtags
+  //   whatsapp → MENSAGEM: sem hashtags, sem asterisco, CTA de resposta direta
+  const op1 = _fAssembleCopy(f, 'promo', segment, used, true);
+  let op2 = _fAssembleCopy(f, 'engajar', segment, used, false);
+  /* Se "Engajar" saiu praticamente igual à "Promo", uma segunda tentativa resolve — os
+     blocos já usados estão no `used`, então a recomposição pega outras peças. Uma tentativa
+     só: mais que isso é gastar CPU pra ganhar decimal de diferença. */
+  if (_fCopySimilar(op1, op2) > 0.6) op2 = _fAssembleCopy(f, 'engajar', segment, used, false);
+  const op3 = _fAssembleCopy(f, 'whatsapp', segment, used, false);
+  _fCopyRemember(used, recent);
+  return { op1: op1, op2: op2, op3: op3 };
 }
 
 /* Retrocompatibilidade: mantém assinatura antiga caso algo externo chame */
@@ -4615,10 +5346,21 @@ function _fGetDayOfWeekName(dayIndex) {
 }
 
 function _fFormatValidity(val) {
+  /* ⛔ CAMPO VAZIO = SEM VALIDADE. Aqui havia um chute pelo dia da semana: sem nada digitado,
+     a legenda saía "Válido neste fim de semana" (sex/sáb/dom) ou "Válido por tempo limitado".
+     Ou seja, a arte prometia um prazo que ninguém definiu — e o franqueado publicava sem
+     perceber. Promessa que a loja não combinou é a mentira mais cara que este motor podia
+     contar; quem não digitou validade não tem validade na copy. */
   let computedVal = val ? String(val).trim() : '';
-  
   if (!computedVal) return '';
-  
+
+  // "Válido só hoje" digitado pelo franqueado entra no meio da frase ("Válido {val}.") — tirar
+  // o "válido" dele evita o "Válido válido só hoje", e a minúscula recompõe a frase.
+  computedVal = computedVal.replace(/^v[áa]lid[oa]\s+/i, '');
+  if (/^[A-ZÀ-Ü]/.test(computedVal) && !/^\d/.test(computedVal)) {
+    computedVal = computedVal.charAt(0).toLowerCase() + computedVal.slice(1);
+  }
+
   const dateRegex = /\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/;
   const match = computedVal.match(dateRegex);
   if (match) {

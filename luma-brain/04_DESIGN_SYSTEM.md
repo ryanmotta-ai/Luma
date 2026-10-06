@@ -206,6 +206,31 @@ Foco visível sempre (`:focus-visible` com outline laranja). Alvos de toque ≥4
 
 Pílula (`--r-pill`), borda fina. **Ativo = fundo `rgba(255,144,0,.12)` + borda `--dm-orange` + texto laranja**, contagem ao lado. É o padrão dos filtros do histórico do franqueado e do painel Campos (Todos / Em uso / Livres).
 
+### Estados de botão — ligado × desligado (padrão da interface inteira)
+
+**Problema que isto resolve:** o usuário não pode olhar um botão e ficar em dúvida se ele está apertado. Hoje o código marca "ligado" de 7 jeitos (`.active`, `.on`, `.sel`, `.selected`, `.is-active`, `.is-on`, `aria-pressed`), cada módulo com um desenho. A partir daqui vale **uma** regra.
+
+**Os 4 estados de um botão, e como cada um se parece:**
+
+| Estado | Aparência | Pode ser confundido com ligado? |
+|---|---|---|
+| **Desligado** (repouso) | Fundo transparente ou neutro da superfície, borda neutra (`--gray-mid` / `--d-border2`), texto/ícone neutro (`--text-2` / `--d-text2`) | — |
+| **Hover** | Só clareia/escurece o fundo neutro (ou o texto sobe para `--text`). **Nunca** fundo laranja nem borda laranja | ⛔ não pode — hover laranja faz o usuário achar que clicou |
+| **Ligado** (apertado / escolhido) | `--press-bg` (laranja 12%) **+** `--press-border` (laranja) **+** `--press-text` (laranja-texto AA). Os três juntos | — |
+| **Desabilitado** | `opacity:.5` + `cursor:not-allowed`, sem hover | — |
+
+- **Fonte de verdade = o atributo, não a classe.** Botão que liga/desliga tem `aria-pressed="true|false"` (grupo de abas: `role="tab"` + `aria-selected`). A classe de módulo (`.active`, `.on`) pode continuar existindo, mas o JS **sempre** atualiza o `aria-pressed` junto — padrão já usado em `props-panel.js:88` (`b.setAttribute('aria-pressed', String(on))`).
+- **Regra-base global:** `css/01-reset.css` pinta todo `button[aria-pressed="true"]` e `[role="tab"][aria-selected="true"]` com os tokens `--press-*` (`css/00-tokens.css`). Está dentro de `:where()` (especificidade 0), então o desenho próprio de um módulo **vence**. Quem só marcava o aria sem pintar nada herda o padrão de graça.
+- **Botão novo:** não escreva CSS de estado ligado. Ponha `aria-pressed` e pronto. Só desenhe variante se o fundo embaixo não aceitar o laranja 12% (ex.: sobre o gradiente laranja da topbar).
+- **A cor não pode ser o único sinal** (§49): o ligado muda **fundo + borda + texto**, nunca só a cor do ícone.
+- **Ação de um clique ≠ toggle.** "Salvar", "Gerar", "Excluir" não têm estado ligado — não recebem `aria-pressed`. O `:active` (o instante do clique) é só retorno tátil (escala/escurecer leve, `motion.md`), nunca a receita de ligado.
+
+**Exceções aceitas (já têm desenho próprio e seguem assim):**
+- Seletor de modos da topbar: ligado = pílula **branca com texto laranja** (o laranja 12% some no gradiente laranja).
+- Aba do catálogo do franqueado: rótulo escuro + barra laranja por `inset box-shadow`.
+
+**Migração dos 7 marcadores:** não é big bang. Ao tocar num módulo, o botão de toggle ganha `aria-pressed` sincronizado e o ligado dele passa a usar `var(--press-*)` em vez de `rgba`/hex solto. Os chips/filtros acima e a ferramenta ativa da toolbar do Estúdio (`.vt-btn.active`) já estão, na prática, nessa receita.
+
 ### Inputs / busca
 
 - Borda `--gray-mid` (claro) / `--d-border2` (escuro), `--r` ou `--r-pill`.

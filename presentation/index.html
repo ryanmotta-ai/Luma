@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Luma — Apresentação do produto</title>
+<meta name="description" content="Luma: creative automation para a rede Delivery Much. Apresentação oficial de produto.">
+<link rel="icon" href="../assets/favicon.svg">
+<!-- Tokens do próprio Luma (somente leitura). Nada daqui é carregado pelo app. -->
+<link rel="stylesheet" href="../css/00-tokens.css">
+<link rel="stylesheet" href="presentation.css?v=20260930zj">
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v11m0 0-5-5m5 5 5-5M5 20h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-bot" viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 4v4M9 13h.01M15 13h.01M9.5 16h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="3.5" r="1.3" fill="currentColor"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21a8 8 0 0 1 16 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-funnel" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8L3 5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2.5 20h19L12 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4M12 17h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-quote" viewBox="0 0 24 24"><path d="M4 11h5v8H4zM4 11c0-4 2-6 5-7M14 11h5v8h-5zM14 11c0-4 2-6 5-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-full" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<div class="stage" id="stage">
+
+<!-- ═════ 01 · CAPA ═══════════════════════════════════════════════════════════════════════ -->
+<section class="slide t-white s-capa" data-title="Capa" data-edge="#FFFFFF">
+  <div class="brand">
+    <img class="luma" src="../assets/logos/luma-h-cor.png" alt="Luma">
+    <span class="x" aria-hidden="true"></span>
+    <img class="dm" src="../assets/logos/dm-h-principal.png" alt="Delivery Much">
+  </div>
+  <div class="copy">
+    <h1 class="h-hero">Crie uma vez.<br><span class="acc">A rede inteira executa.</span></h1>
+    <p class="lead">Creative automation para a rede Delivery Much.</p>
+  </div>
+  <div class="scene" aria-hidden="true">
+    <img class="dv dv-ipad" src="assets/devices/ipad-pro-11.webp" alt="">
+    <img class="dv dv-mac" src="assets/devices/macbook-pro-14.webp" alt="">
+    <img class="dv dv-phone" src="assets/devices/iphone-18-pro.webp" alt="">
+  </div>
+  <p class="meta">Apresentação de produto · setembro de 2026</p>
+</section>
+
+<!-- ═════ 02 · O PROBLEMA ═════════════════════════════════════════════════════════════════ -->
+<section class="slide t-white s-problema" data-title="O problema" data-edge="#FFFFFF">
+  <div class="head">
+    <p class="eyebrow">O problema</p>
+    <h2 class="h1">Escalar a rede não deveria<br>escalar o retrabalho.</h2>
+  </div>
+  <div class="source">
+    <div class="cover"><img src="../assets/covers/rbp.png" alt="Capa da campanha Rangos que baixaram o preço"></div>
+    <p class="tag">1 campanha central<span>criada pela marca, uma vez</span></p>
+  </div>
+  <div class="fan" data-step="1" aria-hidden="true">
+    <svg viewBox="0 0 240 300"><g fill="none" stroke="#0A0A0A" stroke-opacity=".18" stroke-width="2">
+      <path d="M0 150 C 120 150, 120 20, 240 20"/><path d="M0 150 C 120 150, 120 90, 240 90"/><path d="M0 150 L 240 150"/><path d="M0 150 C 120 150, 120 210, 240 210"/><path d="M0 150 C 120 150, 120 280, 240 280"/></g>
+      <circle cx="0" cy="150" r="7" fill="#FF9000"/></svg>
+  </div>
+  <div class="grid" data-step="1" aria-label="Seis execuções locais da mesma campanha">
+    <div class="mini"><img src="assets/artes/lote-00.webp" alt=""></div>
+    <div class="mini"><img src="assets/artes/lote-01.webp" alt=""></div>
+    <div class="mini"><img src="assets/artes/lote-02.webp" alt=""></div>
+    <div class="mini"><img src="assets/artes/lote-03.webp" alt=""></div>
+    <div class="mini"><img src="assets/artes/lote-04.webp" alt=""></div>
+    <div class="mini"><img src="assets/artes/lote-05.webp" alt=""></div>
+  </div>
+  <div class="dims" data-step="1"><span>produto</span><span>preço</span><span>foto</span><span>oferta</span><span>cidade</span><span style="background:#0A0A0A;color:#fff;border-color:#0A0A0A">uma marca só</span></div>
+  <div class="tension" data-step="2">
+    <div class="side"><h3>Autonomia local</h3><p>Quanto mais autonomia damos à ponta,<br>maior o risco de perder padrão.</p></div>
+    <div class="bar" aria-hidden="true"></div>
+    <div class="side r"><h3>Controle de marca</h3><p>Quanto mais centralizamos,<br>maior o gargalo do marketing.</p></div>
+  </div>
+  <div class="deskfy fade" data-step="3">
+    <small>NÓS VIVEMOS ISSO</small>
+    <p class="big">Com o Deskfy,<br>cada campanha nova<br>virava <span>retrabalho.</span></p>
+    <p class="sub"><b>R$ 11,9 mil</b> por ano, e o retrabalho continuava.</p>
+  </div>
+</section>
+
+<!-- ═════ 03 · A ESCUTA ═══════════════════════════════════════════════════════════════════ -->
+<section class="slide t-white s-escuta" data-title="Quem ouvimos" data-edge="#FFFFFF">
+  <div class="head">
+    <p class="eyebrow">Antes de construir</p>
+    <h2 class="h1">Antes do Luma, a gente foi ouvir<br><span class="acc">quem sofre lá na ponta.</span></h2>
+  </div>
+  <p class="quem"><svg><use href="#i-chat"/></svg>Entrevistas com franqueados: quem usa a rede todo dia e vive a dor real da operação.</p>
+  <div class="pares">
+    <p class="cab"><b>A DOR DO DIA A DIA</b><b>O QUE O LUMA FEZ</b></p>
+    <div class="par"><span class="dor">Esperar o marketing a cada arte</span><i></i><span class="res">Arte pronta em segundos, sem depender de ninguém</span></div>
+    <div class="par"><span class="dor">Operar sozinho, sem ser designer</span><i></i><span class="res">Conversa guiada, com a marca travada</span></div>
+    <div class="par"><span class="dor">Legenda que não fala como a cidade</span><i></i><span class="res">Legenda com a gíria local de cada lugar</span></div>
+  </div>
+  <p class="foot">Cada dor virou uma decisão de produto.</p>
+</section>
+
+<!-- ═════ 04 · A TESE ═════════════════════════════════════════════════════════════════════ -->
+<section class="slide t-night s-tese" data-title="A tese" data-edge="#0A0A0A">
+  <div class="head">
+    <p class="eyebrow">A tese</p>
+    <h2 class="h-hero">Autonomia local.<br><span class="acc">Controle central.</span><br><span class="l3">Com o design no comando.</span></h2>
+  </div>
+  <div class="rail" aria-hidden="true"><i></i></div>
+  <div class="flow">
+    <div class="node on"><span class="dot"></span><h3>Estúdio</h3><p>O design nasce aqui.</p></div>
+    <div class="node on"><span class="dot"></span><h3>Publicação</h3><p>A rede inteira recebe.</p></div>
+    <div class="node on"><span class="dot"></span><h3>Franqueado</h3><p>Informa só o que quer vender.</p></div>
+    <div class="node on"><span class="dot"></span><h3>Arte pronta</h3><p>Na marca, pronta para postar.</p></div>
+  </div>
+  <div class="foot"><p class="quote">O design continua com quem entende de design.<br><em>O franqueado informa apenas o que quer vender.</em></p></div>
+</section>
+
+<!-- ═════ 05 · DUAS EXPERIÊNCIAS ══════════════════════════════════════════════════════════ -->
+<section class="slide t-light s-duas" data-title="Duas experiências" data-edge="#0A0A0A">
+  <div class="half l"></div><div class="half r dots"></div>
+  <h2 class="h1 l">Duas experiências.</h2>
+  <h2 class="h1 r">Um único produto.</h2>
+  <p class="role l"><b>ESTÚDIO</b><span>Quem cria as regras.</span></p>
+  <p class="role r"><b>FRANQUEADO</b><span>Quem transforma essas regras em comunicação local.</span></p>
+  <div class="crop is-dark" style="left:60px;top:360px;width:790px;height:468px" data-crop="0,106,3200,1894"><img src="captures/estudio-campos.webp" alt="Estúdio: template com os campos configurados"></div>
+  <div class="crop" style="left:1070px;top:360px;width:790px;height:468px" data-crop="0,106,3200,1894"><img src="captures/franqueado-chat-foto.webp" alt="Franqueado: prévia ao vivo e o chat guiado"></div>
+  <div class="spine" aria-label="O que liga os dois lados">
+    <small>O QUE LIGA OS DOIS</small><span>campos</span><span>render</span><span>regras</span><span>marca</span><span>publicação</span>
+  </div>
+  <p class="cap" style="left:60px;top:852px;color:#A7B0BF">Estúdio · o template com os 5 campos que o franqueado vai preencher</p>
+  <p class="cap" style="left:1070px;top:852px">Franqueado · a mesma arte, perguntada campo a campo</p>
+</section>
+
+<!-- ═════ 06 · O FLUXO DO DESIGNER ════════════════════════════════════════════════════════ -->
+<section class="slide t-studio s-psd" data-title="O fluxo do designer" data-edge="#14171C">
+  <div class="head" style="right:auto;width:640px">
+    <p class="eyebrow">Estúdio · a arte que já existe</p>
+    <h2 class="h1" style="font-size:70px;color:#fff">O designer não refaz a arte.</h2>
+  </div>
+  <div class="antes" data-step="1">
+    <small>ANTES · NO DESKFY</small>
+    <p>Toda arte era <b>feita duas vezes</b>: a plataforma não aceitava nem SVG.</p>
+    <p class="l2">Retrabalho gigante dos designers e um material muito difícil de manter.</p>
+  </div>
+  <div class="steps" style="top:520px">
+    <span>Arte pronta</span><i></i><span>Luma lê</span><i></i><span class="on">Designer confere</span><i></i><span>Franquia usa</span>
+  </div>
+  <div class="provas">
+    <div class="prova" data-step="2"><b>13</b><span>partes da arte original aproveitadas</span></div>
+    <div class="prova" data-step="3"><b>90%</b><span>igual ao original, e o Luma mostra onde muda</span></div>
+    <div class="prova" data-step="4"><b>3</b><span>coisas para o designer olhar. Não a arte inteira.</span></div>
+  </div>
+  <div class="crop is-dark" style="left:760px;top:200px;width:1040px;height:793px" data-crop="421,101,2358,1798"><img src="captures/estudio-psd-revisao.webp" alt="Tela real do Estúdio conferindo uma arte trazida do Photoshop"></div>
+  <p class="cap" style="left:760px;top:1008px">O Luma aproveita o que dá e aponta só o que precisa de olho humano.</p>
+</section>
+
+<!-- ═════ 07 · PUBLICAÇÃO ═════════════════════════════════════════════════════════════════ -->
+<section class="slide t-studio s-pub" data-title="Publicação" data-edge="#14171C" data-demo="pub">
+  <div class="head" style="right:auto;width:900px">
+    <p class="eyebrow">Estúdio · publicação</p>
+    <h2 class="h1" style="color:#fff;font-size:76px">O designer publica uma vez.</h2>
+  </div>
+  <div class="eq" aria-label="O que vai junto na publicação">
+    <span>arte</span><b>+</b><span>campos locais</span><b>+</b><span>permissões</span><b>+</b><span>regras</span><b>→</b>
+    <span class="go"><svg><use href="#i-send"/></svg>PUBLICAR</span>
+  </div>
+  <div class="crop is-dark" style="left:120px;top:404px;width:660px;height:589px" data-crop="683,179,1834,1637" data-flyer-from="877,672,472,840"><img src="captures/estudio-publicar-revisao.webp" alt="Revisão da publicação no Estúdio"></div>
+  <div class="light dots">
+    <div class="tag"><b>DISPONÍVEL PARA A REDE</b><span>No catálogo de cada franquia.</span></div>
+    <div class="crop" style="left:90px;top:470px;width:720px;height:536px" data-crop="656,106,2544,1894" data-flyer-to="970,846,360,639"><img src="captures/franqueado-campanha.webp" alt="A campanha aberta no catálogo do franqueado, com o material publicado"></div>
+  </div>
+  <div class="flyer" aria-hidden="true"><img src="assets/artes/psd-rangos-composto.webp" alt=""></div>
+</section>
+
+<!-- ═════ 08 · O MOMENTO AHA ══════════════════════════════════════════════════════════════ -->
+<section class="slide t-light s-aha" data-title="Uma conversa" data-edge="#FAFAFA" data-demo="chat">
+  <div class="head">
+    <p class="eyebrow">Franqueado</p>
+    <h2 class="h1">O franqueado não edita uma arte.<br><span class="acc">Ele responde uma conversa.</span></h2>
+  </div>
+  <div class="stagebox dots">
+    <div class="preview">
+      <div class="glow" aria-hidden="true"></div>
+      <div class="artcard" aria-label="Prévia ao vivo da arte">
+        <img class="a1" src="assets/artes/chat-passo-1.webp" alt="">
+        <img class="a2 is-back" src="assets/artes/chat-passo-1.webp" alt="">
+        <i class="flash"></i>
+        <span class="vivo"><i></i>Prévia ao vivo</span>
+        <span class="selo" aria-hidden="true"><svg><use href="#i-check"/></svg></span>
+      </div>
+      <svg class="fio" viewBox="0 0 1920 750" aria-hidden="true"><path class="trilha" pathLength="100" d="M852 586 C780 586 770 350 688 350"/><path class="cometa" pathLength="100" d="M852 586 C780 586 770 350 688 350"/><circle class="pouso" cx="688" cy="350" r="10"/></svg>
+      <div class="chat" aria-live="polite">
+        <div class="chat-head">
+          <span class="avatar"><svg><use href="#i-bot"/></svg></span>
+          <span class="who">Luma</span><span class="sep"></span>
+          <span class="ctx"><small>CAMPANHA</small><span>Rangos Que Baixaram O Preço · Story</span></span>
+        </div>
+        <div class="q">
+          <p class="prog"><span class="pt">0 de 5 informações</span><i><b></b></i></p>
+          <p class="kicker">Foto do produto</p>
+          <h3 class="qt">Envie a foto do produto</h3>
+          <p class="sub"></p>
+          <div class="chips"></div>
+          <div class="photo" hidden><span class="thumb"><img src="assets/fotos/hamburguer-thumb.webp" alt=""></span><span class="ok"><svg width="26" height="26"><use href="#i-check"/></svg>Foto enviada</span></div>
+        </div>
+        <div class="done">
+          <div class="badge"><i><svg><use href="#i-check"/></svg></i><h3>Sua arte está pronta</h3></div>
+          <p>Salva em Minhas artes</p>
+          <div class="cta"><svg><use href="#i-down"/></svg>Baixar PNG</div>
+          <div class="legend"><div class="lh"><small>LEGENDA PRONTA · EXEMPLO</small><span class="ia"><svg><use href="#i-bot"/></svg>FEITA POR IA</span></div><p>Tem dia que só um burger resolve.<br><mark>Smash Bacon Duplo por R$ 27,90</mark> (era R$ 34,90).<br>Só neste fim de semana. Tá no app, é só pedir.</p></div>
+        </div>
+        <div class="answer"><span class="txt ph">Escolher imagem</span><span class="btn">Continuar</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="note">Quadros gerados pelo motor de render do Luma a cada resposta</p>
+</section>
+
+<!-- ═════ 09 · A LEGENDA (IA + GÍRIA) ═════════════════════════════════════════════════════ -->
+<section class="slide t-light s-copy s-ia-leg" data-title="A legenda" data-edge="#FAFAFA">
+  <div class="head">
+    <p class="eyebrow">Franqueado · legenda pronta</p>
+    <h2 class="h1">A arte sai com a legenda pronta.<br><span class="acc">A IA escreve na língua da sua cidade.</span></h2>
+  </div>
+  <div class="giria"><small>PEDIDO DOS FRANQUEADOS NAS ENTREVISTAS</small><h3>Cada cidade, a sua gíria.</h3><p><b>Santa Maria</b><span>bah</span><span>tchê</span></p><em>A Delivery Much fala a língua de cada lugar.</em></div>
+  <div class="leg">
+    <div class="leg-head"><small>LEGENDA PRONTA</small><span class="sug ia"><svg><use href="#i-bot"/></svg>FEITA POR IA</span></div>
+    <p class="aba">EXEMPLO · PROMO · SANTA MARIA</p>
+    <div class="txt"><p><mark>Bah, tchê!</mark> Hoje o jantar é burger, e sem sair de casa.</p><p>Smash Bacon Duplo de R$ 34,90 por R$ 27,90.<br>Válido só neste fim de semana.</p><p>Pede pelo app que chega quentinho.</p><p class="tags">#santamaria #smashburger #deliverymuch</p></div>
+    <div class="acoes"><span class="outra"><svg><use href="#i-refresh"/></svg>Gerar outra sugestão</span><span class="copiar"><svg><use href="#i-copy"/></svg>Copiar legenda</span></div>
+  </div>
+</section>
+
+<!-- ═════ 10 · O MOTOR LOCAL ═════════════════════════════════════════════════════════════════ -->
+<section class="slide t-light s-copy" data-title="Motor local" data-edge="#FAFAFA" data-demo="copy">
+  <div class="head">
+    <p class="eyebrow">Franqueado · legenda de reserva</p>
+    <h2 class="h1">Se a IA falhar, o motor local assume.<br><span class="acc">Treinado com a copy da Delivery Much.</span></h2>
+  </div>
+  <p class="como">Ele junta uma frase de cada coluna, e a legenda sai pronta ao lado.</p>
+  <div class="motor" aria-label="As três peças que o motor combina">
+    <div class="reel">
+      <p class="lbl"><b>ABERTURA</b><em class="banco"></em></p>
+      <div class="win"><ol>
+        <li>A fome chegou e a gente resolve.</li>
+        <li>Tem dias que o jantar tem que ser fácil.</li>
+        <li>Blend na chapa, queijo derretendo, pão selado. Simples assim.</li>
+        <li>Tem fome que só um burger resolve.</li>
+        <li>Aquele burger que resolve qualquer dia ruim.</li>
+        <li>Cozinhar hoje? Nem pensar.</li>
+        <li>Deu fome e você nem precisa levantar do sofá.</li>
+        <li>Lanche bom não precisa de apresentação.</li>
+      </ol></div>
+    </div>
+    <i class="mais" aria-hidden="true">+</i>
+    <div class="reel">
+      <p class="lbl"><b>OFERTA</b><em class="banco"></em></p>
+      <div class="win"><ol>
+        <li>Hoje Smash Bacon Duplo tá de R$ 34,90 por R$ 27,90.</li>
+        <li>Baixou o preço: Smash Bacon Duplo de R$ 34,90 por R$ 27,90.</li>
+        <li>Smash Bacon Duplo saindo de R$ 34,90 por R$ 27,90.</li>
+        <li>Smash Bacon Duplo tá R$ 27,90 hoje (de R$ 34,90). Aproveita.</li>
+        <li>Smash Bacon Duplo de R$ 34,90 por R$ 27,90. Economia de R$ 7,00.</li>
+        <li>De R$ 34,90 por R$ 27,90 — Smash Bacon Duplo.</li>
+        <li>Smash Bacon Duplo: de R$ 34,90 caiu pra R$ 27,90.</li>
+        <li>Smash Bacon Duplo: antes R$ 34,90, agora R$ 27,90.</li>
+      </ol></div>
+    </div>
+    <i class="mais" aria-hidden="true">+</i>
+    <div class="reel">
+      <p class="lbl"><b>CHAMADA</b><em class="banco"></em></p>
+      <div class="win"><ol>
+        <li>Faz teu pedido agora.</li>
+        <li>Manda mensagem e a gente entrega.</li>
+        <li>Salva pra pedir depois.</li>
+        <li>Compartilha com quem ia amar.</li>
+        <li>Responde aqui que a gente já separa.</li>
+        <li>É só responder aqui pra pedir.</li>
+        <li>Abre o app e faz teu pedido.</li>
+        <li>Tá no app, é só pedir.</li>
+      </ol></div>
+    </div>
+  </div>
+  <p class="conta"><b class="num">2.430</b><span>legendas diferentes<br>para o mesmo lanche.</span></p>
+  <div class="leg" aria-live="polite">
+    <div class="leg-head"><small>LEGENDA PRONTA</small><span class="sug"><svg><use href="#i-pen"/></svg>MOTOR LOCAL</span></div>
+    <p class="aba"></p>
+    <div class="txt"></div>
+    <div class="acoes"><span class="outra"><svg><use href="#i-refresh"/></svg>Gerar outra sugestão</span><span class="copiar"><svg><use href="#i-copy"/></svg>Copiar legenda</span></div>
+  </div>
+</section>
+
+<!-- ═════ 11 · INTELIGÊNCIA INVISÍVEL ═════════════════════════════════════════════════════ -->
+<section class="slide t-light s-intel" data-title="Inteligência invisível" data-edge="#FAFAFA">
+  <div class="head">
+    <p class="eyebrow">Por baixo</p>
+    <h2 class="h1" style="font-size:70px">Por baixo, o Luma resolve o que não deveria<br>virar problema do franqueado.</h2>
+  </div>
+  <div class="tiles">
+    <article class="tile" data-step="1">
+      <div class="vis">
+        <div class="fits">
+          <div class="crop flat row" style="position:relative;width:100%;height:80px;border-radius:12px" data-crop="70,1216,940,212"><img src="assets/artes/localfit-curto.webp" alt=""></div>
+          <div class="crop flat row" style="position:relative;width:100%;height:80px;border-radius:12px" data-crop="70,1216,940,212"><img src="assets/artes/localfit-medio.webp" alt=""></div>
+          <div class="crop flat row" style="position:relative;width:100%;height:80px;border-radius:12px" data-crop="70,1216,940,212"><img src="assets/artes/localfit-longo.webp" alt=""></div>
+        </div>
+      </div>
+      <div class="txt"><b>LOCAL FIT</b><h3>Qualquer nome cabe.</h3><span class="chip">sem mexer no layout</span></div>
+    </article>
+    <article class="tile" data-step="2">
+      <div class="vis" style="background:#fff"><div class="crop flat" style="left:0;top:27px;width:100%;height:295px;border-radius:0" data-crop="8,704,792,585"><img src="captures/ajuda-funcionalidades-encurtar.webp" alt=""></div></div>
+      <div class="txt"><b>ENCURTAR</b><h3>Não coube? Encurta num toque.</h3><span class="chip">&lt; 1 ms · sem IA</span></div>
+    </article>
+    <article class="tile" data-step="3">
+      <div class="vis"><div class="crop flat" style="left:0;top:0;width:100%;height:350px;border-radius:0" data-crop="2200,640,960,839"><img src="captures/franqueado-respostas.webp" alt=""></div></div>
+      <div class="txt"><b>ABA RESPOSTAS</b><h3>Errou? Corrige sem recomeçar.</h3><span class="chip">um lápis em cada resposta</span></div>
+    </article>
+    <article class="tile" data-step="4">
+      <div class="vis"><div class="crop flat" style="left:0;top:0;width:100%;height:350px;border-radius:0" data-crop="2250,840,880,770"><img src="captures/franqueado-validacao-preco.webp" alt=""></div></div>
+      <div class="txt"><b>VALIDAÇÕES</b><h3>Preço errado não sai.</h3><span class="chip">antes do download</span></div>
+    </article>
+  </div>
+  <div class="foot"><p class="quote">Complexidade por baixo. <em>Simplicidade por cima.</em></p></div>
+</section>
+
+<!-- ═════ 12 · ESCALA ═════════════════════════════════════════════════════════════════════ -->
+<section class="slide t-light s-escala" data-title="Escala" data-edge="#FAFAFA" data-demo="wall">
+  <div class="head">
+    <p class="eyebrow">Escala · Luma Sheets</p>
+    <h2 class="h1">Uma arte por vez. <span class="acc">Ou dezenas.</span></h2>
+  </div>
+  <div class="crop" style="left:120px;top:330px;width:880px;height:550px" data-crop="0,0,3200,2000"><img src="captures/franqueado-sheets.webp" alt="Luma Sheets: cada linha da planilha vira uma arte"></div>
+  <p class="cap" style="left:120px;top:900px">Cada linha é uma oferta. A fila gera todas com as regras do designer.</p>
+  <svg class="arrow" viewBox="0 0 70 40" aria-hidden="true"><path d="M2 20h62M50 6l14 14-14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <p class="count num"><span class="c">0</span> artes · 4 campanhas · 2 formatos</p>
+  <div class="wall" style="columns:5;column-gap:12px;display:block">
+    <div class="a story" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-00.webp" alt=""></div>
+    <div class="a feed" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-06.webp" alt=""></div>
+    <div class="a story" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-09.webp" alt=""></div>
+    <div class="a story" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-01.webp" alt=""></div>
+    <div class="a feed" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-12.webp" alt=""></div>
+    <div class="a story" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-10.webp" alt=""></div>
+    <div class="a story" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-02.webp" alt=""></div>
+    <div class="a feed" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-07.webp" alt=""></div>
+    <div class="a story" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-03.webp" alt=""></div>
+    <div class="a feed" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-13.webp" alt=""></div>
+    <div class="a story" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-11.webp" alt=""></div>
+    <div class="a story" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-04.webp" alt=""></div>
+    <div class="a feed" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-08.webp" alt=""></div>
+    <div class="a story" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-05.webp" alt=""></div>
+    <div class="a feed" style="margin-bottom:12px;break-inside:avoid"><img src="assets/artes/lote-14.webp" alt=""></div>
+  </div>
+  <div class="foot"><p class="quote">Uma planilha vira dezenas de artes. <em>Todas com as regras do designer.</em></p></div>
+</section>
+
+<!-- ═════ 15 · SUPORTE AO VIVO ════════════════════════════════════════════════════════════ -->
+<section class="slide t-light s-suporte" data-title="Lu e suporte" data-edge="#FAFAFA">
+  <div class="head">
+    <p class="eyebrow">Ajuda · Lu + equipe DM</p>
+    <h2 class="h1">A Lu responde.<br><span class="acc">A equipe DM assume.</span></h2>
+    <p class="lead">Assistente e gente de verdade, sem sair do Luma.</p>
+  </div>
+  <ol class="pontos">
+    <li><b>01</b><div><h3>A Lu, na hora</h3><p>A assistente do Luma tira a dúvida olhando a tela da pessoa.</p></div></li>
+    <li><b>02</b><div><h3>Passa para uma pessoa</h3><p>Não sabe, é assunto sério ou pediram gente? Ela chama a equipe online.</p></div></li>
+    <li><b>03</b><div><h3>Cada conversa tem dono</h3><p>Com nome e cargo, até resolver.</p></div></li>
+  </ol>
+  <div class="telas">
+    <div class="crop a" data-crop="0,0,800,1440"><img src="captures/suporte-inicio.webp" alt="Ajuda do Luma: a equipe DM está online e responde por aqui"></div>
+    <div class="crop b" data-crop="0,0,800,1440" data-step="1"><img src="captures/suporte-conversa.webp" alt="Conversa da franqueada com a atendente da equipe DM"></div>
+  </div>
+  <p class="escopo">Escopo: dúvida de uso e erro no Luma. Aprovação de peça e pedido de arte seguem com o marketing.</p>
+</section>
+
+<!-- ═════ 14 · EM QUALQUER TELA ═══════════════════════════════════════════════════════════ -->
+<section class="slide t-white s-multi" data-title="Qualquer tela" data-edge="#FFFFFF">
+  <div class="head">
+    <p class="eyebrow">Onde o franqueado estiver</p>
+    <h2 class="h1">“Poxa, só vou conseguir<br>fazer no PC?”</h2>
+  </div>
+  <div class="resp" data-step="1"><b>Não.</b><p>No computador, no tablet, no celular.<br>E até no novo iPhone Duo, aberto.</p><small>Abre no navegador, sem instalar nada.</small></div>
+  <div class="palco" data-step="1" aria-label="O Luma no MacBook, no iPad, no iPhone Duo e no iPhone">
+    <i class="halo" aria-hidden="true"></i>
+    <img class="dv d-mac" style="--i:0" src="assets/devices/macbook-pro-14.webp" alt="Luma no MacBook">
+    <img class="dv d-ipad" style="--i:1" src="assets/devices/ipad-pro-11.webp" alt="Luma no iPad">
+    <img class="dv d-duo" style="--i:2" src="assets/devices/iphone-duo.webp" alt="Luma no iPhone Duo aberto">
+    <img class="dv d-phone" style="--i:3" src="assets/devices/iphone-18-pro.webp" alt="Luma no iPhone">
+  </div>
+  <p class="legenda" data-step="1"><span>MacBook</span><span>iPad</span><span class="novo">iPhone Duo</span><span>iPhone</span></p>
+</section>
+
+<!-- ═════ 16 · QUANTO CUSTA? ═════════════════════════════════════════════════════════════ -->
+<section class="slide t-night s-susp" data-title="Quanto custa?" data-edge="#0A0A0A">
+  <div class="head">
+    <p class="eyebrow">Dezenas de recursos, e mais IA integrada</p>
+  </div>
+  <div class="chips" data-step="1"><span style="--k:0">Arte numa conversa</span><span style="--k:1">Prévia ao vivo</span><span style="--k:2">Prévia = arquivo final</span><span style="--k:3">Local Fit: o texto sempre cabe</span><span style="--k:4">Encurtar sem mudar a oferta</span><span class="ia" style="--k:5">Encurtar com IA</span><span style="--k:6">Layout que se adapta ao texto</span><span style="--k:7">Leitura semântica da arte</span><span style="--k:8">Smart resize multi-formato</span><span class="ia" style="--k:9">Mapear camadas com IA</span><span class="ia" style="--k:10">IA sugere, humano decide</span><span style="--k:11">Importador de PSD</span><span style="--k:12">Fidelidade visual medida</span><span style="--k:13">Fontes do PSD em 4 estados</span><span style="--k:14">Importar SVG</span><span style="--k:15">Campos {{variáveis}}</span><span style="--k:16">Regras e vínculos</span><span style="--k:17">Máscaras e validação por campo</span><span class="ia" style="--k:18">Validação de foto por IA</span><span class="ia" style="--k:19">Revisão factual da peça</span><span class="ia" style="--k:20">Legendas com IA</span><span class="ia" style="--k:21">Legenda no tom local</span><span style="--k:22">Motor local de reserva</span><span class="ia" style="--k:23">Busca semântica</span><span class="ia" style="--k:24">Teste de estresse com IA</span><span style="--k:25">Auditor de layout</span><span style="--k:26">Correção automática</span><span style="--k:27">Gerar todas as peças</span><span style="--k:28">Luma Sheets</span><span style="--k:29">Lote em ZIP</span><span style="--k:30">PNG assinado</span><span style="--k:31">Instagram e WhatsApp</span><span style="--k:32">Stories ou Feed</span><span style="--k:33">Logo e foto enquadrados</span><span style="--k:34">Colar e arrastar foto</span><span style="--k:35">Temas por campanha</span><span style="--k:36">Desfazer, guias e atalhos</span><span style="--k:37">Fontes da marca</span><span style="--k:38">Publicação em 4 passos</span><span style="--k:39">Feature flags por módulo</span><span style="--k:40">3 papéis com RLS</span><span style="--k:41">Suporte ao vivo</span><span class="ia" style="--k:42">Assistente com voz</span><span style="--k:43">Vitrine de funcionalidades</span><span style="--k:44">Tutoriais animados</span><span class="ia" style="--k:45">IA integrada</span></div>
+  <p class="q" data-step="2">Quanto custa?</p>
+</section>
+
+<!-- ═════ 17 · CUSTO ZERO ═════════════════════════════════════════════════════════════════ -->
+<section class="slide t-night s-custo" data-title="Custo zero" data-edge="#0A0A0A" data-demo="zero">
+  <div class="head">
+    <p class="eyebrow">A resposta</p>
+    <h2 class="h1">Tudo isso, com IA integrada, custa:</h2>
+  </div>
+  <div class="nums">
+    <div class="num zero"><b>R$&nbsp;0</b><span class="por">por mês</span>
+      <p>de infraestrutura e de IA para os <strong>94 franqueados</strong>. A arte é feita no aparelho de cada um, não num servidor.</p></div>
+    <div class="num eco" data-step="2"><b>R$&nbsp;11,9&nbsp;mil</b><span class="por">por ano</span>
+      <p>que vamos economizar com o fim do Deskfy.</p></div>
+  </div>
+  <figure class="grade" data-step="1" aria-label="Os 94 franqueados ocupam uma pequena parte da capacidade estimada do plano gratuito">
+    <div class="topo"><span class="k">O plano gratuito aguenta<br>15 vezes a rede inteira</span><b class="x">15×<small>de folga</small></b></div>
+    <div class="dots" aria-hidden="true"><i style="--c:34;--r:5;--k:0"></i><i style="--c:7;--r:8;--k:1"></i><i style="--c:19;--r:13;--k:2"></i><i style="--c:54;--r:0;--k:3"></i><i style="--c:43;--r:15;--k:4"></i><i style="--c:23;--r:9;--k:5"></i><i style="--c:27;--r:19;--k:6"></i><i style="--c:53;--r:8;--k:7"></i><i style="--c:34;--r:0;--k:8"></i><i style="--c:27;--r:0;--k:9"></i><i style="--c:47;--r:13;--k:10"></i><i style="--c:22;--r:14;--k:11"></i><i style="--c:22;--r:6;--k:12"></i><i style="--c:42;--r:23;--k:13"></i><i style="--c:2;--r:13;--k:14"></i><i style="--c:29;--r:20;--k:15"></i><i style="--c:53;--r:5;--k:16"></i><i style="--c:16;--r:4;--k:17"></i><i style="--c:5;--r:21;--k:18"></i><i style="--c:19;--r:15;--k:19"></i><i style="--c:44;--r:8;--k:20"></i><i style="--c:55;--r:2;--k:21"></i><i style="--c:51;--r:11;--k:22"></i><i style="--c:22;--r:1;--k:23"></i><i style="--c:34;--r:24;--k:24"></i><i style="--c:1;--r:8;--k:25"></i><i style="--c:42;--r:7;--k:26"></i><i style="--c:3;--r:5;--k:27"></i><i style="--c:47;--r:15;--k:28"></i><i style="--c:36;--r:6;--k:29"></i><i style="--c:56;--r:15;--k:30"></i><i style="--c:1;--r:22;--k:31"></i><i style="--c:13;--r:17;--k:32"></i><i style="--c:57;--r:23;--k:33"></i><i style="--c:32;--r:3;--k:34"></i><i style="--c:38;--r:19;--k:35"></i><i style="--c:18;--r:1;--k:36"></i><i style="--c:8;--r:20;--k:37"></i><i style="--c:35;--r:21;--k:38"></i><i style="--c:40;--r:4;--k:39"></i><i style="--c:13;--r:6;--k:40"></i><i style="--c:39;--r:22;--k:41"></i><i style="--c:10;--r:22;--k:42"></i><i style="--c:30;--r:24;--k:43"></i><i style="--c:58;--r:21;--k:44"></i><i style="--c:10;--r:16;--k:45"></i><i style="--c:42;--r:13;--k:46"></i><i style="--c:13;--r:10;--k:47"></i><i style="--c:23;--r:20;--k:48"></i><i style="--c:26;--r:4;--k:49"></i><i style="--c:32;--r:21;--k:50"></i><i style="--c:59;--r:19;--k:51"></i><i style="--c:20;--r:20;--k:52"></i><i style="--c:29;--r:4;--k:53"></i><i style="--c:35;--r:10;--k:54"></i><i style="--c:20;--r:9;--k:55"></i><i style="--c:32;--r:1;--k:56"></i><i style="--c:40;--r:10;--k:57"></i><i style="--c:0;--r:16;--k:58"></i><i style="--c:13;--r:4;--k:59"></i><i style="--c:12;--r:20;--k:60"></i><i style="--c:44;--r:18;--k:61"></i><i style="--c:9;--r:4;--k:62"></i><i style="--c:28;--r:6;--k:63"></i><i style="--c:43;--r:0;--k:64"></i><i style="--c:28;--r:12;--k:65"></i><i style="--c:6;--r:0;--k:66"></i><i style="--c:9;--r:11;--k:67"></i><i style="--c:15;--r:12;--k:68"></i><i style="--c:47;--r:3;--k:69"></i><i style="--c:50;--r:1;--k:70"></i><i style="--c:28;--r:22;--k:71"></i><i style="--c:39;--r:14;--k:72"></i><i style="--c:19;--r:17;--k:73"></i><i style="--c:50;--r:13;--k:74"></i><i style="--c:49;--r:15;--k:75"></i><i style="--c:49;--r:9;--k:76"></i><i style="--c:26;--r:10;--k:77"></i><i style="--c:1;--r:18;--k:78"></i><i style="--c:35;--r:2;--k:79"></i><i style="--c:59;--r:17;--k:80"></i><i style="--c:15;--r:16;--k:81"></i><i style="--c:15;--r:9;--k:82"></i><i style="--c:32;--r:15;--k:83"></i><i style="--c:18;--r:7;--k:84"></i><i style="--c:1;--r:1;--k:85"></i><i style="--c:47;--r:23;--k:86"></i><i style="--c:13;--r:22;--k:87"></i><i style="--c:16;--r:6;--k:88"></i><i style="--c:58;--r:10;--k:89"></i><i style="--c:33;--r:7;--k:90"></i><i style="--c:18;--r:22;--k:91"></i><i style="--c:24;--r:24;--k:92"></i><i style="--c:35;--r:15;--k:93"></i></div>
+    <figcaption><span class="lg on"><i></i>94 franqueados: a rede inteira, ao mesmo tempo</span><span class="lg"><i></i>1.500 conexões simultâneas</span></figcaption>
+  </figure>
+  <p class="nota">GitHub Pages e Supabase no plano gratuito; IA nas cotas gratuitas de vários provedores. Para milhares de lojistas: Supabase Pro, cerca de R$ 140 por mês.</p>
+</section>
+
+<!-- ═════ 16b · A ROTA DA IA ════════════════════════════════════════════════════════════════ -->
+<section class="slide t-night s-ia" data-title="IA custo zero" data-edge="#0A0A0A" data-demo="ia">
+  <div class="head">
+    <p class="eyebrow">Inteligência artificial</p>
+    <h2 class="h1" style="color:#fff">Tá, mas com tudo isso,<br>como a IA custa zero?<br><span class="acc">A gente te explica na prática.</span></h2>
+  </div>
+  <div class="ia-map" aria-label="Cada pedido de IA vai primeiro ao modelo rápido do Google; se ele demora, cinco reservas gratuitas entram juntas; o modelo mais forte só entra no fim. Tudo na cota gratuita">
+    <svg class="ia-lns" viewBox="0 0 1920 1080" aria-hidden="true">
+      <line class="ln" data-l="F" x1="250" y1="670" x2="640" y2="670"/>
+      <line class="ln" data-l="G1" x1="640" y1="670" x2="1060" y2="470"/>
+      <line class="ln" data-l="G2" x1="640" y1="670" x2="1060" y2="880"/>
+      <line class="ln" data-l="R0" x1="640" y1="670" x2="1560" y2="470"/>
+      <line class="ln" data-l="R1" x1="640" y1="670" x2="1560" y2="570"/>
+      <line class="ln" data-l="R2" x1="640" y1="670" x2="1560" y2="670"/>
+      <line class="ln" data-l="R3" x1="640" y1="670" x2="1560" y2="770"/>
+      <line class="ln" data-l="R4" x1="640" y1="670" x2="1560" y2="870"/>
+    </svg>
+    <div class="nd fone" data-n="F" style="left:250px;top:670px">
+      <div class="tela"><i></i><i></i><i></i><span class="ok"><svg><use href="#i-check"/></svg>Legenda pronta</span></div>
+      <small>Franqueado</small>
+    </div>
+    <div class="nd luma" data-n="L" style="left:640px;top:670px"><b>Luma</b><small>escolhe a rota</small></div>
+    <div class="nd gg" data-n="G1" style="left:1060px;top:470px">
+      <svg class="anel" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="19"/></svg>
+      <div><b>Google</b><em class="md">Gemini 3.1 Flash-Lite</em><small class="tg" data-base="rápido · grátis">rápido · grátis</small></div>
+    </div>
+    <div class="nd gg caro" data-n="G2" style="left:1060px;top:880px"><div><b>Google</b><em class="md">Gemini 3.6 · 3.8 · 3.7 Flash</em><small class="tg" data-base="mais forte · só no fim">mais forte · só no fim</small></div></div>
+    <div class="nd rs" data-n="R0" style="left:1560px;top:470px"><b>NVIDIA</b><em class="md">Gemma 4 31B</em><small class="tg" data-base="grátis">grátis</small></div>
+    <div class="nd rs" data-n="R1" style="left:1560px;top:570px"><b>NVIDIA</b><em class="md">DeepSeek V4.1 Flash</em><small class="tg" data-base="grátis">grátis</small></div>
+    <div class="nd rs" data-n="R2" style="left:1560px;top:670px"><b>Ollama</b><em class="md">gpt-oss 120B</em><small class="tg" data-base="grátis">grátis</small></div>
+    <div class="nd rs" data-n="R3" style="left:1560px;top:770px"><b>Cloudflare</b><em class="md">Llama 3.3 70B</em><small class="tg" data-base="grátis">grátis</small></div>
+    <div class="nd rs" data-n="R4" style="left:1560px;top:870px"><b>OpenRouter</b><em class="md">modelo grátis do dia</em><small class="tg" data-base="grátis">grátis</small></div>
+    <p class="rs-tit">+ 5 reservas gratuitas</p>
+  </div>
+  <p class="ia-st" aria-live="polite"></p>
+  <div class="ia-nums" data-step="3">
+    <div><b>R$&nbsp;0</b><span>por mês de IA: todos os provedores<br>na cota gratuita</span></div>
+    <div><b>846</b><span>respostas de IA na semana de testes,<br>sem pagar nada</span></div>
+  </div>
+</section>
+
+<!-- ═════ 18 · BETA ═══════════════════════════════════════════════════════════════════════ -->
+<section class="slide t-orange s-beta" data-title="Beta" data-edge="#FF9000">
+  <div class="head">
+    <p class="eyebrow">Próxima etapa</p>
+    <h2 class="h-hero">A V1 está pronta.<br>Agora começa a parte mais importante.</h2>
+    <p class="lead">Ouvimos a ponta para construir. Agora a ponta usa, e a gente volta a ouvir.</p>
+  </div>
+  <div class="chain">
+    <span>Franqueados reais</span><i></i><span>Uso real</span><i></i><span>Feedback</span><i></i><span>Ajuste</span><i></i><span class="soft">Nova rodada</span>
+  </div>
+  <div class="back" aria-hidden="true"><small>E DE NOVO</small></div>
+  <div class="metrics">
+    <h3>O QUE O BETA MEDE</h3>
+    <ul>
+      <li><svg><use href="#i-user"/></svg>Primeira arte sem ajuda</li>
+      <li><svg><use href="#i-clock"/></svg>Tempo até o download</li>
+      <li><svg><use href="#i-funnel"/></svg>Início → download</li>
+      <li><svg><use href="#i-repeat"/></svg>Recorrência semanal</li>
+      <li><svg><use href="#i-chat"/></svg>Onde pedem suporte</li>
+      <li><svg><use href="#i-alert"/></svg>Problemas detectados</li>
+      <li><svg><use href="#i-quote"/></svg>Feedback qualitativo</li>
+    </ul>
+  </div>
+  <p class="foot">O beta mede produto.</p>
+</section>
+
+<!-- ═════ 19 · TESTEM AGORA ════════════════════════════════════════════════════════════════ -->
+<section class="slide t-light s-teste" data-title="Testem agora" data-edge="#FAFAFA" data-demo="visita">
+  <div class="halo" aria-hidden="true"></div>
+  <div class="fone" aria-hidden="true">
+    <video class="tela" src="captures/visitante.mp4" poster="captures/visitante-poster.webp" muted loop playsinline preload="auto"></video>
+    <img class="moldura" src="assets/devices/iphone-moldura.webp" alt="">
+  </div>
+  <div class="head">
+    <p class="eyebrow">Ao vivo</p>
+    <h2 class="h-hero">Melhor do que falar<br><span class="acc">é mostrar.</span></h2>
+    <p class="lead">Chegou a hora de vocês testarem o Luma.</p>
+  </div>
+  <div class="acao">
+    <figure class="qr">
+      <div class="qr-code" data-qr="https://ryanmotta-ai.github.io/Luma/?visitante=1" role="img" aria-label="QR code para abrir o Luma como visitante"></div>
+      <figcaption><b>Escaneie aqui</b><span>ryanmotta-ai.github.io/Luma</span></figcaption>
+    </figure>
+    <ol class="passos">
+      <li><b>1</b><span>Aponte a câmera<br>para o código</span></li>
+      <li><b>2</b><span>Entre como<br>visitante</span></li>
+      <li><b>3</b><span>Faça a sua<br>primeira arte</span></li>
+    </ol>
+  </div>
+</section>
+
+<!-- ═════ 20 · FECHAMENTO ═════════════════════════════════════════════════════════════════ -->
+<section class="slide t-night s-fim" data-title="Fechamento" data-edge="#0A0A0A">
+  <div class="mural" aria-hidden="true"><div class="col" style="--dur:68s;--atraso:-0s"><div class="trilho"><img src="assets/artes/lote-00.webp" alt=""><img src="assets/artes/lote-01.webp" alt=""><img src="assets/artes/lote-02.webp" alt=""><img src="assets/artes/lote-03.webp" alt=""><img src="assets/artes/lote-04.webp" alt=""><img src="assets/artes/lote-05.webp" alt=""><img src="assets/artes/lote-06.webp" alt=""><img src="assets/artes/lote-00.webp" alt=""><img src="assets/artes/lote-01.webp" alt=""><img src="assets/artes/lote-02.webp" alt=""><img src="assets/artes/lote-03.webp" alt=""><img src="assets/artes/lote-04.webp" alt=""><img src="assets/artes/lote-05.webp" alt=""><img src="assets/artes/lote-06.webp" alt=""></div></div><div class="col" style="--dur:80s;--atraso:-7s"><div class="trilho"><img src="assets/artes/lote-04.webp" alt=""><img src="assets/artes/lote-05.webp" alt=""><img src="assets/artes/lote-06.webp" alt=""><img src="assets/artes/lote-07.webp" alt=""><img src="assets/artes/lote-08.webp" alt=""><img src="assets/artes/lote-09.webp" alt=""><img src="assets/artes/lote-10.webp" alt=""><img src="assets/artes/lote-04.webp" alt=""><img src="assets/artes/lote-05.webp" alt=""><img src="assets/artes/lote-06.webp" alt=""><img src="assets/artes/lote-07.webp" alt=""><img src="assets/artes/lote-08.webp" alt=""><img src="assets/artes/lote-09.webp" alt=""><img src="assets/artes/lote-10.webp" alt=""></div></div><div class="col" style="--dur:60s;--atraso:-14s"><div class="trilho"><img src="assets/artes/lote-08.webp" alt=""><img src="assets/artes/lote-09.webp" alt=""><img src="assets/artes/lote-10.webp" alt=""><img src="assets/artes/lote-11.webp" alt=""><img src="assets/artes/lote-12.webp" alt=""><img src="assets/artes/lote-13.webp" alt=""><img src="assets/artes/lote-14.webp" alt=""><img src="assets/artes/lote-08.webp" alt=""><img src="assets/artes/lote-09.webp" alt=""><img src="assets/artes/lote-10.webp" alt=""><img src="assets/artes/lote-11.webp" alt=""><img src="assets/artes/lote-12.webp" alt=""><img src="assets/artes/lote-13.webp" alt=""><img src="assets/artes/lote-14.webp" alt=""></div></div><div class="col" style="--dur:74s;--atraso:-21s"><div class="trilho"><img src="assets/artes/lote-12.webp" alt=""><img src="assets/artes/lote-13.webp" alt=""><img src="assets/artes/lote-14.webp" alt=""><img src="assets/artes/chat-passo-5.webp" alt=""><img src="assets/artes/localfit-longo.webp" alt=""><img src="assets/artes/localfit-medio.webp" alt=""><img src="assets/artes/lote-00.webp" alt=""><img src="assets/artes/lote-12.webp" alt=""><img src="assets/artes/lote-13.webp" alt=""><img src="assets/artes/lote-14.webp" alt=""><img src="assets/artes/chat-passo-5.webp" alt=""><img src="assets/artes/localfit-longo.webp" alt=""><img src="assets/artes/localfit-medio.webp" alt=""><img src="assets/artes/lote-00.webp" alt=""></div></div><div class="col" style="--dur:64s;--atraso:-28s"><div class="trilho"><img src="assets/artes/localfit-longo.webp" alt=""><img src="assets/artes/localfit-medio.webp" alt=""><img src="assets/artes/lote-00.webp" alt=""><img src="assets/artes/lote-01.webp" alt=""><img src="assets/artes/lote-02.webp" alt=""><img src="assets/artes/lote-03.webp" alt=""><img src="assets/artes/lote-04.webp" alt=""><img src="assets/artes/localfit-longo.webp" alt=""><img src="assets/artes/localfit-medio.webp" alt=""><img src="assets/artes/lote-00.webp" alt=""><img src="assets/artes/lote-01.webp" alt=""><img src="assets/artes/lote-02.webp" alt=""><img src="assets/artes/lote-03.webp" alt=""><img src="assets/artes/lote-04.webp" alt=""></div></div><div class="col" style="--dur:78s;--atraso:-6s"><div class="trilho"><img src="assets/artes/lote-02.webp" alt=""><img src="assets/artes/lote-03.webp" alt=""><img src="assets/artes/lote-04.webp" alt=""><img src="assets/artes/lote-05.webp" alt=""><img src="assets/artes/lote-06.webp" alt=""><img src="assets/artes/lote-07.webp" alt=""><img src="assets/artes/lote-08.webp" alt=""><img src="assets/artes/lote-02.webp" alt=""><img src="assets/artes/lote-03.webp" alt=""><img src="assets/artes/lote-04.webp" alt=""><img src="assets/artes/lote-05.webp" alt=""><img src="assets/artes/lote-06.webp" alt=""><img src="assets/artes/lote-07.webp" alt=""><img src="assets/artes/lote-08.webp" alt=""></div></div><div class="col" style="--dur:58s;--atraso:-13s"><div class="trilho"><img src="assets/artes/lote-06.webp" alt=""><img src="assets/artes/lote-07.webp" alt=""><img src="assets/artes/lote-08.webp" alt=""><img src="assets/artes/lote-09.webp" alt=""><img src="assets/artes/lote-10.webp" alt=""><img src="assets/artes/lote-11.webp" alt=""><img src="assets/artes/lote-12.webp" alt=""><img src="assets/artes/lote-06.webp" alt=""><img src="assets/artes/lote-07.webp" alt=""><img src="assets/artes/lote-08.webp" alt=""><img src="assets/artes/lote-09.webp" alt=""><img src="assets/artes/lote-10.webp" alt=""><img src="assets/artes/lote-11.webp" alt=""><img src="assets/artes/lote-12.webp" alt=""></div></div><div class="col" style="--dur:72s;--atraso:-20s"><div class="trilho"><img src="assets/artes/lote-10.webp" alt=""><img src="assets/artes/lote-11.webp" alt=""><img src="assets/artes/lote-12.webp" alt=""><img src="assets/artes/lote-13.webp" alt=""><img src="assets/artes/lote-14.webp" alt=""><img src="assets/artes/chat-passo-5.webp" alt=""><img src="assets/artes/localfit-longo.webp" alt=""><img src="assets/artes/lote-10.webp" alt=""><img src="assets/artes/lote-11.webp" alt=""><img src="assets/artes/lote-12.webp" alt=""><img src="assets/artes/lote-13.webp" alt=""><img src="assets/artes/lote-14.webp" alt=""><img src="assets/artes/chat-passo-5.webp" alt=""><img src="assets/artes/localfit-longo.webp" alt=""></div></div><div class="col" style="--dur:66s;--atraso:-27s"><div class="trilho"><img src="assets/artes/lote-14.webp" alt=""><img src="assets/artes/chat-passo-5.webp" alt=""><img src="assets/artes/localfit-longo.webp" alt=""><img src="assets/artes/localfit-medio.webp" alt=""><img src="assets/artes/lote-00.webp" alt=""><img src="assets/artes/lote-01.webp" alt=""><img src="assets/artes/lote-02.webp" alt=""><img src="assets/artes/lote-14.webp" alt=""><img src="assets/artes/chat-passo-5.webp" alt=""><img src="assets/artes/localfit-longo.webp" alt=""><img src="assets/artes/localfit-medio.webp" alt=""><img src="assets/artes/lote-00.webp" alt=""><img src="assets/artes/lote-01.webp" alt=""><img src="assets/artes/lote-02.webp" alt=""></div></div><div class="col" style="--dur:76s;--atraso:-5s"><div class="trilho"><img src="assets/artes/lote-00.webp" alt=""><img src="assets/artes/lote-01.webp" alt=""><img src="assets/artes/lote-02.webp" alt=""><img src="assets/artes/lote-03.webp" alt=""><img src="assets/artes/lote-04.webp" alt=""><img src="assets/artes/lote-05.webp" alt=""><img src="assets/artes/lote-06.webp" alt=""><img src="assets/artes/lote-00.webp" alt=""><img src="assets/artes/lote-01.webp" alt=""><img src="assets/artes/lote-02.webp" alt=""><img src="assets/artes/lote-03.webp" alt=""><img src="assets/artes/lote-04.webp" alt=""><img src="assets/artes/lote-05.webp" alt=""><img src="assets/artes/lote-06.webp" alt=""></div></div></div>
+  <div class="veu" aria-hidden="true"></div>
+  <div class="fecho">
+    <h2 class="big">Uma marca no controle.<br><span class="acc">Uma rede com autonomia.</span></h2>
+    <p class="then" data-step="1">E um produto pronto para o mundo real.</p>
+    <div class="cta" data-step="2"><small>PRÓXIMO PASSO</small><b>Beta com a rede.</b></div>
+  </div>
+  <div class="logos">
+    <img class="luma" src="../assets/logos/luma-h-branca.png" alt="Luma">
+    <span class="x" aria-hidden="true"></span>
+    <img class="dm" src="../assets/logos/dm-h-branca.png" alt="Delivery Much">
+  </div>
+</section>
+
+
+  <div class="chrome-progress" aria-hidden="true"><i></i></div>
+  <p class="chrome-num" aria-live="polite"></p>
+</div>
+
+<div class="chrome-nav" aria-label="Navegação">
+  <button type="button" data-act="prev" aria-label="Slide anterior"><svg><use href="#i-left"/></svg></button>
+  <button type="button" data-act="next" aria-label="Próximo slide"><svg><use href="#i-right"/></svg></button>
+  <button type="button" data-act="index" aria-label="Índice dos slides (G)"><svg><use href="#i-grid"/></svg></button>
+  <button type="button" data-act="full" aria-label="Tela cheia (F)"><svg><use href="#i-full"/></svg></button>
+</div>
+
+<div class="index" role="dialog" aria-label="Índice dos slides" aria-modal="true">
+  <h2>Apresentação</h2><ol data-list="main"></ol>
+  <p class="hint">← → espaço · PgUp PgDn · Home End · F tela cheia · G índice · Esc fecha</p>
+</div>
+
+<script src="../js/core/qr.js?v=20260930zj"></script>
+<script src="presentation.js?v=20260930zj"></script>
+</body>
+</html>

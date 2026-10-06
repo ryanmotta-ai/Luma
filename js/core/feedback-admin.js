@@ -295,7 +295,12 @@
     } catch (error) {
       if (!gFeedbackAdminCurrent(ticket, userId) || sections[kind] !== state || state.request !== requestId) return;
       state.busy = false;
-      gFeedbackAdminPaint(kind, state, true);
+      /* ⛔ Falha de consulta pintava os DEMO_* como se fossem resposta de franqueado. A gestão
+         lia número inventado achando que era real — pior que tela vazia. Erro se diz erro. */
+      target.innerHTML = '<p class="g-feedback-state">Não consegui carregar estes registros agora. '
+        + 'Verifique a conexão e recarregue a página.</p>';
+      const _pulse = (kind === 'feedback') ? document.getElementById('g-fb-pulse') : null;
+      if (_pulse) _pulse.innerHTML = '';
     } finally {
       if (gFeedbackAdminCurrent(ticket, userId) && sections[kind] === state && state.request === requestId) target.setAttribute('aria-busy', 'false');
     }

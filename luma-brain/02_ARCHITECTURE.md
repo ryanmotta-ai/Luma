@@ -177,7 +177,7 @@ Postgres, três schemas, **RLS habilitado em tudo**:
 | `analytics` | `fct_eventos` + views `vw_*` de extração | INSERT autenticado em nome próprio; SELECT só `gestao` |
 
 **Princípios de arquitetura do banco:**
-- **RLS como fronteira** — `anon` sem acesso; regra por role via funções `get_user_role()` / `is_designer()` embutidas nas policies.
+- **RLS como fronteira** — `anon` sem acesso; regra por role via funções `get_user_role()` / `is_designer()` embutidas nas policies. **As duas só valem para conta ativa** (desde 23/09/2026): desativar alguém tira o poder no banco, não só a tela — a senha continua valendo no Auth, então o app deslogar não bastava.
 - **Analytics por extração**, não por dashboard: as views `analytics.vw_*` são consumidas via SQL Editor/BI, sem grant e sem módulo no front.
 - Estrutura desenhada para eventualmente **fundir com o CRM da DM**.
 - Migrations versionadas em `supabase/migrations/`; toda mudança vai no `docs/LUMA-BACKEND-CHANGELOG.md`.
@@ -255,7 +255,8 @@ Saber o que **não** existe evita a IA propor solução para camada inexistente:
 - ⛔ **Sem API intermediária.** O front fala direto com PostgREST/Storage. As duas Edge Functions são exceções pontuais (segredo/regra), não uma camada de passagem — ver §5.
 - ⛔ **Sem streaming adaptativo de vídeo.** A Academia serve MP4 progressivo por URL assinada; o modelo separa `video_path` de `video_url` pra trocar por HLS depois sem mexer no schema.
 - ⛔ **Sem multi-tenant real** no Luma hoje — todos os franqueados veem o mesmo catálogo publicado. Isolar por cidade seria uma decisão de arquitetura nova, não um dado existente.
-- ⚠ **Testes automatizados existem** (correção de 2026-09-03 — este arquivo dizia que não): `tests/*.html` rodam em Chromium real via `scripts/run-browser-tests.js`, **119 casos**, portao de CI em `.github/workflows/tests.yml`. Cobrem o **solver de Auto-layout** e o **importador de PSD** — e só eles. Interpolador, gerador de PNG, chat, catálogo e toda a UI **continuam sem cobertura**: para esses, regressão se detecta abrindo o navegador (por isso _patch cirúrgico_ segue regra).
+- ⛔ **Sem designer automático.** O Luma **não recompõe a arte de ninguém.** Quando o conteúdo do franqueado não cabe, o texto tenta caber na PRÓPRIA caixa que o designer desenhou (quebra → encolhimento progressivo → piso de legibilidade) e, se não couber, **BLOQUEIA**. Ninguém é empurrado, nada é reancorado, nenhuma composição alternativa é gerada ou pontuada. Entre 08 e 09/2026 existiu um Automatic Designer completo (Layout Grammar, Composition Graph, Layout Components, elasticidade, designer moves, Candidate Search por beam, scoring lexicográfico, adaptive scale groups, shadow validation) — ~6.400 linhas. **Foi removido**: a decisão de produto é que a geometria publicada manda. Ver `docs/LOCAL-FIT-CONTRACT.md` e `js/core/local-fit.js`. Propor "e se a busca considerasse…" é propor solução para camada que não existe mais, de propósito.
+- ⚠ **Testes automatizados existem** (correção de 2026-09-03 — este arquivo dizia que não): `tests/*.html` rodam em Chromium real via `scripts/run-browser-tests.js`, **382 casos**, portao de CI em `.github/workflows/tests.yml`. Cobrem o **encaixe do texto** (`local-fit`, `corpus`, `fuzz`), as primitivas de leitura da arte, o **importador de PSD**, o catálogo/feedback e o fluxo do chat e da prévia. Interpolador, gerador de PNG, Estúdio e toda a aparência **continuam sem cobertura**: para esses, regressão se detecta abrindo o navegador (por isso _patch cirúrgico_ segue regra).
 
 ---
 

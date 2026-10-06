@@ -22,7 +22,7 @@
  * ⚠ QUEM EDITA: só a equipe DM (`gIsAdmin`). O franqueado lê, filtra e clica
  * para cair nas artes da campanha — é a fronteira que o 07_ROADMAP §4 define.
  *
- * Depende de: 00-config.js (CAMPS_ATIVAS/CAMPS_OUTRAS), core/toast.js (gToast,
+ * Depende de: franqueado/catalog.js (fAllCampaigns; semente em 00-config.js), core/toast.js (gToast,
  * gEsc, gConfirm), core/auth.js (gIsAdmin), core/supabase.js (gTrackEvent).
  */
 
@@ -315,7 +315,10 @@ function calAtivoHoje(ev){ return calCobre(ev, calHoje()); }
 // Campanha ligada ao evento → o clique cai nas artes que já existem.
 function calCamp(ev){
   if(!ev || !ev.camp) return null;
-  const todas=[].concat(typeof CAMPS_ATIVAS!=='undefined'?CAMPS_ATIVAS:[], typeof CAMPS_OUTRAS!=='undefined'?CAMPS_OUTRAS:[]);
+  // A MESMA lista da vitrine (fAllCampaigns → pastas do banco): campanha criada no Estúdio entra
+  // aqui sem deploy. Sem o catálogo carregado, cai na semente do config.
+  const todas=(typeof fAllCampaigns==='function')?fAllCampaigns()
+    :[].concat(typeof CAMPS_ATIVAS!=='undefined'?CAMPS_ATIVAS:[], typeof CAMPS_OUTRAS!=='undefined'?CAMPS_OUTRAS:[]);
   return todas.find(c=>c.id===ev.camp) || null;
 }
 // O GATE ÚNICO de edição do módulo. Role E flag, nesta ordem — igual ao

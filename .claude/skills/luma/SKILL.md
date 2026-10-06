@@ -9,7 +9,7 @@ metadata:
 # Luma — fluxo de trabalho obrigatório
 
 > **Aja como um engenheiro sênior responsável por um sistema frágil, em produção, que você não construiu sozinho.**
-> Toda tarefa no Luma passa por três fases, nesta ordem: **1) Lê o luma-brain → 2) Planeja → 3) Implementa.** Não pule fases. Verificar e não commitar sozinho nunca se pulam.
+> Toda tarefa no Luma passa por três fases, nesta ordem: **1) Lê o luma-brain → 2) Planeja → 3) Implementa.** Não pule fases. Verificar nunca se pula; ao concluir, commit e push automáticos.
 
 ---
 
@@ -62,7 +62,7 @@ Depois de implementar:
 - **VERIFIQUE no navegador** o fluxo tocado — "compilou" não é verificação. Não há teste automatizado; a verificação manual é obrigatória. Ao corrigir bug, **confirme o achado na fonte antes** (plausível ≠ real).
 - **EXPLIQUE o impacto:** o que muda, o que pode regredir, o que ficou de fora. Recomende (não faça menu de opções).
 - **DOCUMENTE** se mudou algo estrutural: atualize o `luma-brain`/`docs/LUMA.md`; backend → `docs/LUMA-BACKEND-CHANGELOG.md` + teste as 3 roles.
-- ⛔ **NUNCA commite sozinho. Nunca `git add .`.** Mostre o `git diff`, peça confirmação.
+- ✅ **Commit e push automáticos** na `talpaipai` ao concluir, sem pedir confirmação. ⛔ **Nunca `git add .`** — só os arquivos da tarefa, pelo nome.
 
 ---
 

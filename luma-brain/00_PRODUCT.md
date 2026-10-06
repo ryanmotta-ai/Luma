@@ -105,6 +105,11 @@ Tudo acima, mais administração de usuários e leitura de analytics por extraç
 
 ## 7. Módulos
 
+> **Decisão do Ryan, 03/10/2026:** Calendário e Academia foram retirados do Luma.
+> Não aparecem na navegação nem no Controle do produto, e seus JS/CSS não são carregados.
+> Restaurar uma sessão antiga dessas áreas leva ao Franqueado. Código e dados anteriores
+> foram preservados para evitar descarte de conteúdo; não fazem parte do produto ativo.
+
 | # | Módulo | Para quem | O que faz | Status |
 |---|--------|-----------|-----------|--------|
 | 1 | **Franqueado** | Franqueado | Catálogo de campanhas → chat guiado → arte pronta (PNG/PDF), com prévia ao vivo e histórico | ✅ Em produção |

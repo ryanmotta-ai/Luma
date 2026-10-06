@@ -222,7 +222,7 @@ function dPreloadFolders(){
 
     // Faxina única: remove mocks legados já persistidos (t-mock-*) de sessões antigas —
     // sem isto o designer via os exemplos "presos" mesmo com o injetor desligado.
-    if(f.id!=='f-modelo' && f.templates.some(t=>t&&typeof t.id==='string'&&t.id.indexOf('t-mock-')===0)){
+    if(gPastaSistema(f)!=='modelo' && f.templates.some(t=>t&&typeof t.id==='string'&&t.id.indexOf('t-mock-')===0)){
       f.templates=f.templates.filter(t=>{
         const ehMock=t&&typeof t.id==='string'&&t.id.indexOf('t-mock-')===0;
         // Mock que chegou a subir pro banco: deleta lá também, senão o pull ressuscita.
@@ -387,6 +387,8 @@ function dRenderABProps(){
 }
 
 function dSetABBg(bg){
+  if(bg===dCanvasBg)return;
+  if(typeof dHistoryPush==='function')dHistoryPush();
   dCanvasBg=bg;
   if(typeof dApplyBg==='function')dApplyBg(dGetActiveAB());
   dRenderABProps();
@@ -433,10 +435,11 @@ async function dABDimUpdate(){
   if(dLayers.length>1&&typeof gReflowLayers==='function'){
     if(await gConfirm('As camadas re-ancoram no novo tamanho, sem distorcer (smart-resize).',
       {title:'Adaptar as camadas?',okLabel:'Adaptar',cancelLabel:'Manter como está'})){
-      if(typeof dHistoryPush==='function')dHistoryPush();
       dLayers=gReflowLayers(dLayers,{w:oldW,h:oldH},{w,h});
     }
   }
+  // Mesmo "Manter como está" altera o documento e precisa ser desfeito.
+  if(typeof dHistoryPush==='function')dHistoryPush();
   dCustomFmt={w,h};
   dApplyFormat();dRenderCanvas();
   dRenderABProps();
@@ -595,14 +598,6 @@ function dStudioRememberRecent(folder,tmpl){
   dStudioRecentWrite([item,...dStudioRecentRead().filter(r=>r&&r.key!==key)]);
 }
 
-function dStudioResolveRecent(item){
-  if(!item) return null;
-  const folder=dFolders.find(f=>f.id===item.folderId||(item.folderRemoteId&&f.remoteId===item.folderRemoteId));
-  if(!folder) return null;
-  const tmpl=(folder.templates||[]).find(t=>t.id===item.templateId||(item.templateRemoteId&&t.remoteId===item.templateRemoteId));
-  return tmpl?{folder:folder,tmpl:tmpl,openedAt:item.openedAt||0}:null;
-}
-
 function dStudioRelativeTime(value){
   const elapsed=Math.max(0,Date.now()-(+value||0));
   const min=Math.floor(elapsed/60000);
@@ -677,6 +672,16 @@ function dStudioHomeApplyFilters(){
   if(count) count.textContent=visible+(visible===1?' material':' materiais');
   const empty=document.getElementById('dsh-filter-empty');
   if(empty) empty.hidden=!cards.length||visible>0;
+  // A lista se REFAZ à vista quando o resultado muda de tamanho — card que some sem
+  // dizer nada some duas vezes. Só no número diferente: a cada tecla digitada seria
+  // pisca-pisca, e o filtro que não mexeu em nada não tem o que anunciar.
+  const grid=document.getElementById('dsh-all-grid');
+  if(grid && grid.dataset.visible!==String(visible)){
+    grid.dataset.visible=String(visible);
+    grid.classList.remove('is-settling');
+    void grid.offsetWidth; // reinicia a animação mesmo em filtros consecutivos
+    grid.classList.add('is-settling');
+  }
 }
 
 function dStudioHomeMaterialEntries(){
@@ -688,6 +693,9 @@ function dStudioHomeMaterialEntries(){
   })).sort((a,b)=>(b.openedAt||0)-(a.openedAt||0));
 }
 
+// O CARD DE MATERIAL — um componente só para as duas listas. "Recentes" e a biblioteca
+// mostram o MESMO material com o MESMO dado; o que muda entre elas é a densidade, e
+// densidade é CSS (.dsh-recent-card / .dsh-all-card). Duas montagens seriam duas verdades.
 function dStudioHomeMaterialCard(entry,key,options){
   const t=entry.tmpl,f=entry.folder,status=dStudioTemplateStatus(t);
   const preset=DFMT_SIZES[t.fmt]||{w:t.w||1080,h:t.h||1920};
@@ -697,24 +705,29 @@ function dStudioHomeMaterialCard(entry,key,options){
   const orientation=width>height?'landscape':(width===height?'square':'portrait');
   const displayName=String(t.name||'').trim()==='Novo projeto'?'Novo material':(t.name||'Material sem nome');
   const thumbId='dsh-thumb-'+key;
-  const thumb=blank
-    ?'<span class="dsh-blank-preview" aria-hidden="true"><span class="dsh-blank-sheet '+orientation+'"><i></i></span><span>Material em branco</span></span>'
-    :'<span class="dsh-thumb-fallback" aria-hidden="true"><span>'+gEsc(String(f.name||'L').charAt(0).toUpperCase())+'</span></span>';
+  // Enquanto não há arte para mostrar, o card mostra a FOLHA na proporção real do
+  // material e diz o que ela é. A inicial da campanha ("M" num quadrado bege) parecia
+  // defeito de carregamento; a folha é proposital e some quando a prévia real chega.
+  const thumb='<span class="dsh-thumb-ghost" aria-hidden="true"><span class="dsh-blank-sheet '+orientation+'"><i></i></span>'+
+    '<em>'+(blank?'Material em branco':width+' × '+height)+'</em></span>';
   const openedAt=Number(entry.openedAt);
   const hasOpenedAt=Number.isFinite(openedAt)&&openedAt>0;
-  const datetime=hasOpenedAt?new Date(openedAt).toISOString():'';
   const time=hasOpenedAt
-    ?'<time datetime="'+datetime+'">'+dStudioRelativeTime(openedAt)+'</time>'
-    :'<span class="dsh-card-size">'+width+' × '+height+'</span>';
-  const allClass=options&&options.all?' dsh-all-card':'';
-  const search=gEsc(displayName+' '+(f.name||'')+' '+width+' '+height);
+    ?'<time datetime="'+new Date(openedAt).toISOString()+'">'+dStudioRelativeTime(openedAt)+'</time>'
+    :'';
+  const allClass=options&&options.all?'dsh-all-card':'dsh-recent-card';
+  // O tamanho entra nas três grafias porque a pessoa digita o que ela LÊ no card
+  // ("1080 × 1350"), não os dois números soltos — buscar pelo que está escrito falhava.
+  const search=gEsc(displayName+' '+(f.name||'')+' '+width+' '+height+' '+width+'x'+height+' '+width+' × '+height);
 
-  return '<article class="dsh-material-card dsh-recent-card '+(blank?'is-blank ':'')+allClass+'" '+
+  return '<article class="dsh-material-card '+allClass+(blank?' is-blank':'')+'" '+
       'data-search="'+search+'" data-campaign="'+gEsc(f.id)+'" data-status="'+status.kind+'">'+
     '<button type="button" class="dsh-card-open" onclick="dStudioHomeOpenMaterial(\''+gEsc(f.id)+'\',\''+gEsc(t.id)+'\',this)" aria-label="Abrir '+gEsc(displayName)+'">'+
-      '<span class="dsh-thumb" id="'+thumbId+'">'+thumb+'</span>'+
-      '<span class="dsh-card-copy"><strong title="'+gEsc(displayName)+'">'+gEsc(displayName)+'</strong><span>'+gEsc(f.name)+' · '+width+' × '+height+'</span></span>'+
-      '<span class="dsh-card-meta"><span class="dsh-status '+status.kind+'"><i></i>'+status.label+'</span>'+time+'</span>'+
+      '<span class="dsh-thumb" id="'+thumbId+'">'+thumb+'<span class="dsh-card-hint" aria-hidden="true">Abrir</span></span>'+
+      '<span class="dsh-card-body">'+
+        '<span class="dsh-card-copy"><strong title="'+gEsc(displayName)+'">'+gEsc(displayName)+'</strong><span>'+gEsc(f.name)+' · '+width+' × '+height+'</span></span>'+
+        '<span class="dsh-card-meta"><span class="dsh-status '+status.kind+'"><i></i>'+status.label+'</span>'+time+'</span>'+
+      '</span>'+
     '</button>'+
     '<button type="button" class="dsh-card-menu" onclick="event.stopPropagation();dTemplateMenuOpen(event,\''+gEsc(f.id)+'\',\''+gEsc(t.id)+'\')" aria-label="Mais ações para '+gEsc(displayName)+'" title="Mais ações">'+
       '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>'+
@@ -722,13 +735,40 @@ function dStudioHomeMaterialCard(entry,key,options){
   '</article>';
 }
 
+// O rascunho local não é um material do catálogo: ele vive em dLayers/dFmt, restaurados
+// do localStorage no boot. Este objeto sintético existe só para o mesmo motor de prévia
+// (dStudioRenderThumb → dRenderTemplateToDOM) desenhar a retomada — sem inventar imagem e
+// sem duplicar estado: são as camadas que o editor já tem na mão.
+function dStudioDraftTemplate(){
+  const board=(typeof dArtboards!=='undefined'&&dArtboards&&dArtboards[0])||null;
+  const preset=DFMT_SIZES[dFmt]||{w:(board&&board.w)||1080,h:(board&&board.h)||1920};
+  return {
+    id:'draft-local',fmt:dFmt,
+    w:(board&&board.w)||preset.w,h:(board&&board.h)||preset.h,
+    bg:(typeof dCanvasBg!=='undefined'?dCanvasBg:''),layers:dLayers
+  };
+}
+
+// "Ver todos" não abre outra tela: leva o olho até a biblioteca e deixa o cursor na
+// busca, que é o que a pessoa faz em seguida. Zero estado novo.
+function dStudioHomeFocusLibrary(){
+  const lib=document.getElementById('dsh-library');
+  const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(lib) lib.scrollIntoView({behavior:reduce?'auto':'smooth',block:'start'});
+  const input=document.getElementById('dsh-search-input');
+  if(input) setTimeout(()=>input.focus(),reduce?0:280);
+}
+
 function dStudioHomeRender(){
   const home=document.getElementById('d-studio-home');
   if(!home) return;
   const selectedFolder=dFolders.find(f=>f.id===dActiveTmplFolderId)||dFolders[0]||{};
   const selected=selectedFolder.id||'';
-  const recent=dStudioRecentRead().map(dStudioResolveRecent).filter(Boolean).slice(0,4);
+  // UMA fonte de verdade para as duas listas: dStudioHomeMaterialEntries() já devolve o
+  // inventário ordenado por último aberto. "Recentes" é um RECORTE dela (o que esta
+  // máquina já abriu), não uma segunda lista montada de outro jeito.
   const all=dStudioHomeMaterialEntries();
+  const recent=all.filter(entry=>entry.openedAt>0).slice(0,4);
   const recentCards=recent.map((entry,index)=>dStudioHomeMaterialCard(entry,'recent-'+index)).join('');
   const allCards=all.map((entry,index)=>dStudioHomeMaterialCard(entry,'all-'+index,{all:true})).join('');
 
@@ -774,29 +814,91 @@ function dStudioHomeRender(){
     '<svg class="dsh-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>'+
   '</button>';
 
-  const recover=dStudioRecoveredWork?'<button type="button" class="dsh-recover" onclick="dStudioRecoverLocal()"><span class="dsh-recover-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></span><span><strong>Continuar trabalho não salvo</strong></span><svg class="dsh-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>':'';
-  const empty='<div class="dsh-empty"><span class="dsh-empty-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H10l2 2h5.5A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z"/><path d="M9 12h6M12 9v6"/></svg></span><strong>Seus materiais aparecerão aqui</strong><span>Crie um material ou importe um arquivo para começar.</span></div>';
-  const recentSection=recent.length
-    ?'<section class="dsh-recents dsh-continue" aria-labelledby="dsh-recents-title"><div class="dsh-section-heading"><div class="dsh-title-line"><h2 id="dsh-recents-title">Continue editando</h2><small class="dsh-count">'+recent.length+(recent.length===1?' material':' materiais')+'</small></div></div><div class="dsh-recent-grid">'+recentCards+'</div></section>'
+  const ARROW='<svg class="dsh-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
+
+  // HERO — a entrada. Eyebrow, promessa e nada mais: a decisão vem logo abaixo.
+  // (O eyebrow e o título desta seção eram `content:` de CSS até 2026-09-16 — texto
+  // fora do DOM não é lido por leitor de tela nem encontrado por Ctrl+F.)
+  const hero='<header class="dsh-hero">'+
+    '<span class="dsh-eyebrow"><i></i>Estúdio Luma</span>'+
+    '<h1 id="dsh-title" tabindex="-1">Crie seu próximo material.</h1>'+
+    '<p>Comece do zero ou traga uma peça do seu fluxo de design.</p>'+
+  '</header>';
+
+  // CRIAR (protagonista) + IMPORTAR (duas portas secundárias, no mesmo bloco).
+  const start='<section class="dsh-start" aria-labelledby="dsh-start-title">'+
+    '<h2 id="dsh-start-title" class="dsh-sr">Criar ou importar</h2>'+
+    '<div class="dsh-start-grid">'+
+      '<button type="button" class="dsh-create" onclick="dStudioHomeNew()">'+
+        '<span class="dsh-create-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>'+
+        '<span class="dsh-create-copy"><strong>Criar material</strong><span>Comece com uma tela limpa.</span></span>'+
+        '<span class="dsh-format-stack" aria-hidden="true"><i></i><i></i><i></i></span>'+
+        '<span class="dsh-create-go" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>'+
+      '</button>'+
+      '<div class="dsh-imports">'+
+        '<h3 class="dsh-imports-label">Importar</h3>'+
+        '<button type="button" class="dsh-import" onclick="dStudioHomeImport(\'psd\')">'+
+          '<span class="dsh-import-badge ps">Ps</span>'+
+          '<span class="dsh-import-copy"><strong>Photoshop</strong><small>PSD com camadas editáveis.</small></span>'+ARROW+
+        '</button>'+
+        '<button type="button" class="dsh-import" onclick="dStudioHomeImport(\'svg\')">'+
+          '<span class="dsh-import-badge ai">Ai</span>'+
+          '<span class="dsh-import-copy"><strong>SVG / Illustrator</strong><small>Vetores editáveis.</small></span>'+ARROW+
+        '</button>'+
+      '</div>'+
+    '</div>'+
+  '</section>';
+
+  // RETOMAR — só existe quando existe rascunho. Não é aviso: é um material com prévia
+  // REAL (as camadas restauradas) e uma ação. Sem horário porque o rascunho local não
+  // guarda um: inventar "há 12 min" seria mentir sobre o único dado que não temos.
+  const draft=dStudioRecoveredWork?dStudioDraftTemplate():null;
+  const resumeSection=draft
+    ?'<section class="dsh-resume" aria-labelledby="dsh-resume-title">'+
+      '<div class="dsh-section-heading"><div class="dsh-title-line"><h2 id="dsh-resume-title">Retomar</h2></div></div>'+
+      '<div class="dsh-resume-card">'+
+        '<span class="dsh-thumb dsh-resume-thumb" id="dsh-thumb-draft"><span class="dsh-thumb-ghost" aria-hidden="true"><span class="dsh-blank-sheet '+(draft.w>draft.h?'landscape':(draft.w===draft.h?'square':'portrait'))+'"><i></i></span></span></span>'+
+        '<span class="dsh-resume-copy"><strong>Trabalho não salvo</strong><span>Continue de onde você parou · '+draft.w+' × '+draft.h+'</span></span>'+
+        '<button type="button" class="dsh-resume-cta" onclick="dStudioRecoverLocal()">Continuar'+ARROW+'</button>'+
+      '</div>'+
+    '</section>'
     :'';
-  home.innerHTML='<div class="dsh-shell">'+
-    '<div class="dsh-intro"><header class="dsh-hero"><h1 id="dsh-title" tabindex="-1">Crie seu próximo material.</h1></header></div>'+
-    recover+recentSection+
-    '<section class="dsh-start" aria-labelledby="dsh-start-title"><div class="dsh-section-heading dsh-start-heading"><h2 id="dsh-start-title">Criar ou importar</h2>'+saveFolderBtn+'</div>'+
-    '<div class="dsh-actions">'+
-      '<button type="button" class="dsh-start-card dsh-start-create" onclick="dStudioHomeNew()"><span class="dsh-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span class="dsh-action-copy"><strong>Criar material</strong><span>Comece com uma tela limpa.</span></span><svg class="dsh-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>'+
-      '<button type="button" class="dsh-start-card" onclick="dStudioHomeImport(\'psd\')"><span class="dsh-action-icon ps"><strong>Ps</strong></span><span class="dsh-action-copy"><strong>Photoshop</strong><span>PSD com camadas editáveis.</span></span><svg class="dsh-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>'+
-      '<button type="button" class="dsh-start-card" onclick="dStudioHomeImport(\'svg\')"><span class="dsh-action-icon ai"><strong>Ai</strong></span><span class="dsh-action-copy"><strong>SVG / Illustrator</strong><span>Vetores editáveis.</span></span><svg class="dsh-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>'+
-    '</div></section>'+
-    '<section class="dsh-library" aria-labelledby="dsh-library-title"><div class="dsh-section-heading dsh-library-heading"><div class="dsh-title-line"><h2 id="dsh-library-title">Todos os materiais</h2><small class="dsh-count" id="dsh-all-visible">'+all.length+(all.length===1?' material':' materiais')+'</small></div>'+
-      '<div class="dsh-library-tools"><label class="dsh-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><span class="sr-only">Buscar materiais</span><input type="search" value="'+gEsc(dStudioHomeSearchQuery)+'" placeholder="Buscar materiais" oninput="dStudioHomeSetFilter(\'search\',this.value)"></label>'+
-      campaignFilterBtn+statusFilterBtn+'</div></div>'+
-      '<div class="dsh-all-grid" id="dsh-all-grid">'+(allCards||empty)+'</div>'+
-      '<div class="dsh-filter-empty" id="dsh-filter-empty" hidden><strong>Nenhum material encontrado</strong><span>Tente outro nome, campanha ou status.</span></div>'+
-    '</section>'+
-  '</div>';
-  const thumbTasks=recent.map((entry,index)=>({tmpl:entry.tmpl,hostId:'dsh-thumb-recent-'+index}))
-    .concat(all.map((entry,index)=>({tmpl:entry.tmpl,hostId:'dsh-thumb-all-'+index})));
+
+  // RECENTES — o recorte curto, quatro no máximo. Some quando não há nada aberto nesta
+  // máquina: bloco vazio é ruído, e a biblioteca logo abaixo já responde "cadê os meus".
+  const recentSection=recent.length
+    ?'<section class="dsh-continue" aria-labelledby="dsh-recents-title">'+
+      '<div class="dsh-section-heading">'+
+        '<div class="dsh-title-line"><h2 id="dsh-recents-title">Recentes</h2></div>'+
+        (all.length>recent.length?'<button type="button" class="dsh-link" onclick="dStudioHomeFocusLibrary()">Ver todos'+ARROW+'</button>':'')+
+      '</div>'+
+      '<div class="dsh-recent-grid">'+recentCards+'</div>'+
+    '</section>'
+    :'';
+
+  const empty='<div class="dsh-empty"><span class="dsh-empty-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H10l2 2h5.5A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z"/><path d="M9 12h6M12 9v6"/></svg></span><strong>Seus materiais aparecerão aqui</strong><span>Crie um material ou importe um arquivo para começar.</span></div>';
+
+  // BIBLIOTECA — o inventário. Aqui a densidade sobe e busca/filtros ganham a linha.
+  const library='<section class="dsh-library" id="dsh-library" aria-labelledby="dsh-library-title">'+
+    '<div class="dsh-section-heading dsh-library-heading">'+
+      '<div class="dsh-title-line"><h2 id="dsh-library-title">Todos os materiais</h2><small class="dsh-count" id="dsh-all-visible">'+all.length+(all.length===1?' material':' materiais')+'</small></div>'+
+      '<div class="dsh-library-tools">'+
+        '<label class="dsh-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>'+
+        '<span class="dsh-sr">Buscar materiais</span>'+
+        '<input type="search" id="dsh-search-input" value="'+gEsc(dStudioHomeSearchQuery)+'" placeholder="Buscar por nome, campanha ou tamanho" oninput="dStudioHomeSetFilter(\'search\',this.value)"></label>'+
+        campaignFilterBtn+statusFilterBtn+
+      '</div>'+
+    '</div>'+
+    '<div class="dsh-all-grid" id="dsh-all-grid">'+(allCards||empty)+'</div>'+
+    '<div class="dsh-filter-empty" id="dsh-filter-empty" hidden><strong>Nenhum material encontrado</strong><span>Tente outro nome, campanha ou status.</span></div>'+
+  '</section>';
+
+  home.innerHTML='<div class="dsh-shell">'+hero+start+saveFolderBtn+resumeSection+recentSection+library+'</div>';
+
+  const thumbTasks=[];
+  if(draft) thumbTasks.push({tmpl:draft,hostId:'dsh-thumb-draft'});
+  recent.forEach((entry,index)=>thumbTasks.push({tmpl:entry.tmpl,hostId:'dsh-thumb-recent-'+index}));
+  all.forEach((entry,index)=>thumbTasks.push({tmpl:entry.tmpl,hostId:'dsh-thumb-all-'+index}));
   dStudioObserveHomeThumbs(thumbTasks);
   dStudioHomeApplyFilters();
 }
@@ -939,16 +1041,34 @@ function dStudioSelectStatusFilter(val){
 }
 
 
-function dStudioRenderThumb(tmpl,hostId){
-  if(!tmpl||!Array.isArray(tmpl.layers)||!tmpl.layers.length||tmpl._needsLayersFetch||!dStudioHasMeaningfulLayers(tmpl.layers)) return;
+// O card da home mostrava a letra da campanha em vez da arte: o catálogo leve chega SEM
+// layers (`_needsLayersFetch`) e esta função desistia calada. Agora ela baixa as layers do
+// material que entrou na tela (mesma query do editor, via dEnsureTemplateLayers) e só então
+// desenha. Quem já tem layers em memória desenha no mesmo tick, sem rede.
+async function dStudioRenderThumb(tmpl,hostId){
+  if(!tmpl) return;
+  if(tmpl._needsLayersFetch){
+    const waiting=document.getElementById(hostId);
+    if(waiting) waiting.classList.add('is-loading'); // pulso enquanto a arte não chega
+    await dEnsureTemplateLayers(tmpl);
+    if(waiting) waiting.classList.remove('is-loading');
+  }
+  if(!Array.isArray(tmpl.layers)||!tmpl.layers.length||tmpl._needsLayersFetch||!dStudioHasMeaningfulLayers(tmpl.layers)) return;
   const host=document.getElementById(hostId);if(!host)return;
   const size=DFMT_SIZES[tmpl.fmt]||{w:tmpl.w||1080,h:tmpl.h||1920};
   const canvas=document.createElement('span');canvas.className='dsh-thumb-canvas';
-  canvas.style.width=size.w+'px';canvas.style.height=size.h+'px';host.innerHTML='';host.appendChild(canvas);
+  canvas.style.width=size.w+'px';canvas.style.height=size.h+'px';
+  // Tira só o que a prévia substitui. Era `innerHTML=''`, que levava junto a pista
+  // "Abrir" do hover — ela sumia exatamente nos cards que tinham arte para mostrar.
+  host.querySelectorAll('.dsh-thumb-ghost,.dsh-thumb-canvas').forEach(old=>old.remove());
+  host.appendChild(canvas);
   dRenderTemplateToDOM(canvas,tmpl);
   requestAnimationFrame(()=>{
     const scale=Math.min(host.clientWidth/size.w,host.clientHeight/size.h);
     canvas.style.transform='translate(-50%,-50%) scale('+scale+')';
+    // O CSS precisa da escala para dividir por ela: contorno e sombra da peça são
+    // desenhados no tamanho ORIGINAL da arte e encolhem junto no transform.
+    canvas.style.setProperty('--dsh-s',scale);
   });
 }
 
@@ -1007,16 +1127,6 @@ function dStudioHomeImport(kind){
   dActiveTmplFolderId=folder.id;dImportToFolder(folder.id,kind);
 }
 
-async function dStudioOpenRecent(index,card){
-  const entry=dStudioRecentRead().map(dStudioResolveRecent).filter(Boolean)[index];
-  if(!entry){gToast('Este material não está mais disponível','error');dStudioHomeRender();return;}
-  if(card){card.classList.add('is-opening');card.setAttribute('aria-busy','true');}
-  const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if(!reduce)await new Promise(resolve=>setTimeout(resolve,120));
-  await dLoadTemplate(entry.tmpl,entry.folder);
-  if(card&&document.contains(card)){card.classList.remove('is-opening');card.removeAttribute('aria-busy');}
-}
-
 function dStudioRecoverLocal(){
   dStudioRecoveredWork=false;dActiveTmplId=null;dActiveTmplFolderId=null;
   const name=document.getElementById('dt-project-name');if(name)name.textContent='Trabalho recuperado';
@@ -1026,8 +1136,14 @@ function dStudioRecoverLocal(){
 
 function dStudioHomeOpen(options){
   if(!(options&&options.initial)&&dActiveTmplId&&typeof dSave==='function'&&dSave({silent:true})===false) return;
-  dStudioHomeEnsure();dStudioHomeRender();document.body.classList.add('d-studio-home-open');
+  dStudioHomeEnsure();
+  // A classe entra ANTES do render — e não depois, como estava. O observer das prévias
+  // mede o card para saber se ele entrou na tela, e card dentro de container
+  // `display:none` mede zero: nenhum card jamais "entrava", então nenhuma prévia era
+  // desenhada. Era a segunda causa do quadro vazio, junto com a falta de layers.
+  document.body.classList.add('d-studio-home-open');
   const home=document.getElementById('d-studio-home');if(home)home.setAttribute('aria-hidden','false');
+  dStudioHomeRender();
   requestAnimationFrame(()=>{const title=document.getElementById('dsh-title');if(title)title.focus();});
 }
 
@@ -1183,18 +1299,18 @@ function dTemplateMenuOpen(ev, folderId, tmplId){
   const menu = document.createElement('div');
   menu.className = 'tmpl-context-menu';
   menu.innerHTML = `
-    <button class="tmpl-ctx-item" onclick="dRenameTemplate('${folderId}','${tmplId}')">
+    <button class="tmpl-ctx-item" onclick="dRenameTemplate('${gEscJs(folderId)}','${gEscJs(tmplId)}')">
       <span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>Renomear
     </button>
-    <button class="tmpl-ctx-item" onclick="dQuickEditValidade('${folderId}','${tmplId}')">
+    <button class="tmpl-ctx-item" onclick="dQuickEditValidade('${gEscJs(folderId)}','${gEscJs(tmplId)}')">
       <span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>Editar validade
     </button>
-    <button class="tmpl-ctx-item" onclick="dQuickEditPerms('${folderId}','${tmplId}')">
+    <button class="tmpl-ctx-item" onclick="dQuickEditPerms('${gEscJs(folderId)}','${gEscJs(tmplId)}')">
       <span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>Editar permissões
     </button>
     ${isPublished
-      ? `<button class="tmpl-ctx-item" onclick="dToggleTemplatePublish('${folderId}','${tmplId}',false)"><span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></span>Despublicar</button>`
-      : `<button class="tmpl-ctx-item" onclick="dToggleTemplatePublish('${folderId}','${tmplId}',true)"><span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M4.5 16.5c-1.5 1.25-2.5 3.5-2.5 3.5s2.25-1 3.5-2.5L18.5 4.5 19.5 5.5zm11-11l-3 3M9 12l-3 3"/></svg></span>Revisar e publicar</button>`
+      ? `<button class="tmpl-ctx-item" onclick="dToggleTemplatePublish('${gEscJs(folderId)}','${gEscJs(tmplId)}',false)"><span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></span>Despublicar</button>`
+      : `<button class="tmpl-ctx-item" onclick="dToggleTemplatePublish('${gEscJs(folderId)}','${gEscJs(tmplId)}',true)"><span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M4.5 16.5c-1.5 1.25-2.5 3.5-2.5 3.5s2.25-1 3.5-2.5L18.5 4.5 19.5 5.5zm11-11l-3 3M9 12l-3 3"/></svg></span>Revisar e publicar</button>`
     }
     <button class="tmpl-ctx-item" onclick="dDuplicateTemplate('${folderId}','${tmplId}')">
       <span class="tmpl-ctx-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>Duplicar
@@ -1231,6 +1347,7 @@ function dToggleTemplatePublish(folderId, tmplId, publicar){
   if(!t.publishMeta) t.publishMeta = dDefaultPublishMeta();
   t.publishMeta.publicado = false;
   dPersistFolders();
+  if(typeof _dTrackTemplate==='function') _dTrackTemplate('template_despublicado',t,{camp_id:f.campId||f.remoteId||f.id||null});
   dRenderFolders();
   if(document.body.classList.contains('d-studio-home-open')) dStudioHomeRender();
   document.querySelectorAll('.tmpl-context-menu').forEach(m=>m.remove());
@@ -1443,6 +1560,7 @@ async function dSaveAsConfirm(){
   dSaveAsClose();
   const conflictNote=finalName!==requested?' com nome ajustado para evitar conflito':'';
   gToast('Cópia salva como "'+finalName+'"'+conflictNote);
+  if(typeof _dTrackTemplate==='function') _dTrackTemplate('template_criado',clone,{origem:'copia'});
 }
 
 function dBindSaveAsProjectAction(){
@@ -1545,8 +1663,14 @@ function dTmplLoading(state, msg){
   }
 }
 
+/* CARIMBO DE CARREGAMENTO. O download dos layers é assíncrono: clicar no material A (lento,
+   vem do banco) e depois no B (rápido, já local) fazia a resposta de A chegar DEPOIS e
+   reescrever a prancheta do B — o designer via o material errado abrir sozinho. Quem volta
+   fora da vez desiste em silêncio, sem tocar o estado. */
+let _dLoadTmplSeq = 0;
 async function dLoadTemplate(tmpl,folder,options){
   if(!tmpl)return;
+  const _seq = ++_dLoadTmplSeq;
 
   // -- LAZY LOAD DOS LAYERS (catálogo leve: layers descem sob demanda) --
   if(tmpl._needsLayersFetch && tmpl.remoteId){
@@ -1555,6 +1679,7 @@ async function dLoadTemplate(tmpl,folder,options){
       dTmplLoading('show');
       try {
         const {data, error} = await sb.schema('luma').from('templates').select('layers').eq('id', tmpl.remoteId).single();
+        if(_seq!==_dLoadTmplSeq) return;   // o designer já abriu outro material
         if(error || !data){
           // Antes: erro engolido (catch vazio) → canvas em branco silencioso. Agora avisa
           // e ABORTA (mantém o canvas atual) em vez de fingir que carregou um template vazio.
@@ -1566,6 +1691,7 @@ async function dLoadTemplate(tmpl,folder,options){
         if(typeof dPersistFolders === 'function') dPersistFolders();
         dTmplLoading('hide');
       } catch(e) {
+        if(_seq!==_dLoadTmplSeq) return;
         dTmplLoading('error', 'Falha ao baixar o material — '+((e&&e.message)?e.message:'erro de rede.'));
         return;
       }
@@ -1576,20 +1702,30 @@ async function dLoadTemplate(tmpl,folder,options){
     }
   }
 
+  if(_seq!==_dLoadTmplSeq) return;
   dDeckRememberView();
+  // Simulação é estado da arte ANTERIOR: sem o reset, valores de teste do template velho
+  // continuavam pintados sobre o novo, e o designer via dado que não é dele.
+  if(typeof dResetSim==='function' && typeof dSimActive!=='undefined' && dSimActive) dResetSim();
   dActiveTmplId=tmpl.id;
   if(folder)dActiveTmplFolderId=folder.id; // destaca a pasta da arte ativa na grade
   else dActiveTmplFolderId=null;
-  dFmt=tmpl.fmt;
-  dSyncLyrCnt(tmpl.layers); // ids 'l-N' do template não podem colidir com os próximos ++dLyrCnt
+  const draft=(typeof _dTemplateDraft==='function')?_dTemplateDraft(tmpl):null;
+  const editing=draft?Object.assign({},tmpl,draft):tmpl;
+  dFmt=editing.fmt;
+  dSyncLyrCnt(editing.layers); // ids 'l-N' do template não podem colidir com os próximos ++dLyrCnt
   // Carrega no artboard ativo (substitui layers e formato).
   // Template 1:1 do PSD guarda w/h reais (fmt 'orig' não tem DFMT_SIZES) → usa o tamanho real.
-  const f=DFMT_SIZES[tmpl.fmt]||DFMT_SIZES.story;
-  const _w=(tmpl.w>0)?tmpl.w:f.w, _h=(tmpl.h>0)?tmpl.h:f.h;
+  const f=DFMT_SIZES[editing.fmt]||DFMT_SIZES.story;
+  const _w=(editing.w>0)?editing.w:f.w, _h=(editing.h>0)?editing.h:f.h;
   dCustomFmt=null; // limpa override ad-hoc de um "Novo arquivo" anterior; o tamanho real vem de ab.w/h abaixo
+  /* O FUNDO DA PRANCHETA vem do template. `dGetActiveAB()` reescreve `ab.bg` a partir de
+     `dCanvasBg` toda vez que roda, então atribuir em `ab` não adiantaria: a verdade é a
+     variável. Sem isto, abrir um template carregava o fundo do template ANTERIOR. */
+  dCanvasBg = editing.bg || '';
   const ab=dGetActiveAB();
-  if(ab){ab.layers=JSON.parse(JSON.stringify(tmpl.layers||[]));ab.fmt=tmpl.fmt;ab.name=tmpl.name;ab.w=_w;ab.h=_h;}
-  dLayers=JSON.parse(JSON.stringify(tmpl.layers||[]));
+  if(ab){ab.layers=JSON.parse(JSON.stringify(editing.layers||[]));ab.fmt=editing.fmt;ab.name=tmpl.name;ab.w=_w;ab.h=_h;}
+  dLayers=JSON.parse(JSON.stringify(editing.layers||[]));
   // Re-hidrata fundos grandes (idb://) → dataURL real, e re-renderiza quando prontos.
   if(typeof gHydrateLayers==='function'){
     gHydrateLayers(dLayers).then(changed=>{
@@ -1780,6 +1916,7 @@ function dOpenNewFolder(){
   document.getElementById('df-name').value='';
   dFolderSelectColor('#FF9000');
   dPopFolderCampaignSelect('');
+  document.getElementById('df-destaque').checked=true;   // pasta nova entra em "Ativas agora"
   dFolderRenderGroups(['Todos os usuários']);
   document.getElementById('df-schedule-toggle').checked=false;
   document.getElementById('df-schedule-date').value='';
@@ -1801,6 +1938,9 @@ function dEditFolder(id){
   const col=(f.color&&f.color[0]==='#')?f.color:'#FF9000';
   dFolderSelectColor(col);
   dPopFolderCampaignSelect(f.campId||'');
+  // Pasta sem `destaque` (cache de antes da coluna): mostra a seção que a vitrine usa hoje.
+  document.getElementById('df-destaque').checked=(typeof f.destaque==='boolean')?f.destaque
+    :!(typeof CAMPS_OUTRAS!=='undefined'&&CAMPS_OUTRAS.some(c=>c.id===f.campId));
   dFolderRenderGroups(f.grupos||['Todos os usuários']);
   const hasSched=!!(f.agendamento);
   document.getElementById('df-schedule-toggle').checked=hasSched;
@@ -1819,10 +1959,11 @@ function dConfirmFolder(){
   const grupos=Array.from(document.querySelectorAll('#df-groups input:checked')).map(x=>x.value);
   const schedOn=document.getElementById('df-schedule-toggle').checked;
   const agendamento=schedOn?(document.getElementById('df-schedule-date').value||null):null;
+  const destaque=!!document.getElementById('df-destaque').checked;
   if(!name){gToast('Digite um nome para a pasta');return;}
   if(dEditingFolderId){
     const f=dFolders.find(x=>x.id===dEditingFolderId);
-    if(f){ f.name=name;f.color=color;f.campId=campId;f.grupos=grupos.length?grupos:['Todos os usuários'];f.agendamento=agendamento;f.cover=dFolderDraftCover||''; }
+    if(f){ f.name=name;f.color=color;f.campId=campId;f.grupos=grupos.length?grupos:['Todos os usuários'];f.agendamento=agendamento;f.destaque=destaque;f.cover=dFolderDraftCover||''; }
     if(!dPersistFolders()){dRenderFolders();return;} // persiste antes de fechar; se falhar, mantém modal aberto
     dRenderFolders();
     dCloseFolderModal();
@@ -1832,7 +1973,7 @@ function dConfirmFolder(){
     return;
   }
   const id='f'+Date.now();
-  dFolders.push({id,name,color,campId,cover:dFolderDraftCover||'',grupos:grupos.length?grupos:['Todos os usuários'],agendamento,templates:[]});
+  dFolders.push({id,name,color,campId,destaque,cover:dFolderDraftCover||'',grupos:grupos.length?grupos:['Todos os usuários'],agendamento,templates:[]});
   dFolderOpen[id]=true;
   dRenderFolders();
   dPersistFolders();
@@ -2118,7 +2259,9 @@ function dNewDocConfirm(){
 }
 
 /* ── FORMATO / CANVAS ── */
-const DFMT_SIZES={story:{w:1080,h:1920},feed:{w:1080,h:1350},wide:{w:1200,h:628},horizontal:{w:1920,h:1080}};
+// 'post' é o id do mesmo 1200×628 no catálogo do franqueado (FMTS) — sem o alias, um template
+// legado gravado com fmt:'post' caía no fallback 'story' e abria em 1080×1920.
+const DFMT_SIZES={story:{w:1080,h:1920},feed:{w:1080,h:1350},wide:{w:1200,h:628},post:{w:1200,h:628},horizontal:{w:1920,h:1080}};
 
 /* ══════════════════════════════════════════════════════════════
    NOVO MOTOR DE IMPORTAÇÃO DE SVG (ILLUSTRATOR COMPATIBLE)
@@ -2869,17 +3012,17 @@ function dRenderTemplateToDOM(container, tmpl) {
       if(vectorD){
         const inner=document.createElement('div'); inner.style.cssText='position:absolute;inset:0;';
         const rule=typeof gVectorPathFillRule==='function'?gVectorPathFillRule(l.vectorPath):'nonzero';
-        let st=(l.strokeW>0)?' stroke="'+(l.strokeColor||'#000')+'" stroke-width="'+l.strokeW+'"':'';
+        let st=(l.strokeW>0)?' stroke="'+gSafeColor(l.strokeColor,'#000')+'" stroke-width="'+l.strokeW+'"':'';
         if(l.strokeDash&&l.strokeDash.length)st+=' stroke-dasharray="'+l.strokeDash.join(' ')+'"';
-        inner.innerHTML='<svg width="100%" height="100%" viewBox="0 0 '+l.w+' '+l.h+'" preserveAspectRatio="none" style="display:block;overflow:visible"><path d="'+vectorD+'" fill="'+(l.fill||'#FF9000')+'" fill-rule="'+rule+'"'+st+'/></svg>';
+        inner.innerHTML='<svg width="100%" height="100%" viewBox="0 0 '+l.w+' '+l.h+'" preserveAspectRatio="none" style="display:block;overflow:visible"><path d="'+vectorD+'" fill="'+gSafeColor(l.fill,'#FF9000')+'" fill-rule="'+rule+'"'+st+'/></svg>';
         el.appendChild(inner);
       } else if (pts) {
         const inner = document.createElement('div');
         inner.style.cssText = 'position:absolute;inset:0;';
         const abs = pts.map(p => [p[0] * l.w, p[1] * l.h]);
         const d = gRoundPolyD(abs, l.radius || 0);
-        const _st = (l.strokeW > 0) ? ' stroke="' + (l.strokeColor || '#000') + '" stroke-width="' + l.strokeW + '"' : '';
-        inner.innerHTML = '<svg width="100%" height="100%" viewBox="0 0 ' + l.w + ' ' + l.h + '" preserveAspectRatio="none" style="display:block;overflow:visible"><path d="' + d + '" fill="' + (l.fill || '#FF9000') + '"' + _st + '/></svg>';
+        const _st = (l.strokeW > 0) ? ' stroke="' + gSafeColor(l.strokeColor,'#000') + '" stroke-width="' + l.strokeW + '"' : '';
+        inner.innerHTML = '<svg width="100%" height="100%" viewBox="0 0 ' + l.w + ' ' + l.h + '" preserveAspectRatio="none" style="display:block;overflow:visible"><path d="' + d + '" fill="' + gSafeColor(l.fill,'#FF9000') + '"' + _st + '/></svg>';
         el.appendChild(inner);
       } else {
         el.style.background = dFxShapeBg(l);
@@ -2929,10 +3072,12 @@ function dRenderTemplateToDOM(container, tmpl) {
         // terceira cópia da mesma montagem — e seguia vulnerável depois de eu corrigir a primeira.
         textNode.innerHTML = gRichTextHtml(l.runs, _renderFs);
       } else {
+        // O rótulo é digitado pelo designer (e desce do sync) — entrava cru DEPOIS do gEsc,
+        // o que anulava o escape. Motor único para o nome visível: gFieldLabel.
         textNode.innerHTML = gEsc(l.content || '').replace(gVarRegex(), (m, n) => {
           const varName = n.trim();
-          const v = (typeof dVars !== 'undefined') && dVars.find(x => x.name === varName);
-          return v ? (v.label || varName) : varName;
+          const lab = (typeof gFieldLabel === 'function') ? gFieldLabel(varName) : varName;
+          return gEsc(lab);
         });
       }
       if (l.gradient && l.gradient.stops && l.gradient.stops.length && !(l.runs && l.runs.length)) {
@@ -2968,7 +3113,9 @@ function dRenderTemplateToDOM(container, tmpl) {
       }
       el.appendChild(textNode);
     } else if (l.type === 'frame') {
-      el.style.position = 'relative';
+      /* ⛔ `position:relative` aqui SOBRESCREVIA o `position:absolute` do cssText acima (com o
+         left/top da camada): a moldura saía do lugar e entrava no fluxo, embaralhando a
+         miniatura. O `inset:0` do inner já se ancora no `el`, que continua posicionado. */
       el.style.overflow = 'visible';
       const borderR = (l.frameShape === 'circle' ? '50%' : (l.radius || 8) + 'px');
       const inner = document.createElement('div');
@@ -3101,23 +3248,39 @@ function dRenderPageDeck(){
 // em cima de texto centralizado). Busca os layers em segundo plano — mesma query do lazy-load
 // do editor, sem o overlay de carregamento, porque isto é decoração do baralho, não uma ação
 // do usuário — e redesenha só o card que ainda está visível quando a resposta chega.
-const _dDeckFetching=new Set();
-async function dDeckPrefetchLayers(tmpl){
-  if(!tmpl||!tmpl.remoteId||!tmpl._needsLayersFetch||_dDeckFetching.has(tmpl.id))return;
+// A busca em si é o motor único do lado do Estúdio (o franqueado tem o gêmeo
+// `fEnsureMaterialLayers`): baralho de páginas e thumbs da home passam por aqui.
+// Chamadas concorrentes do mesmo material compartilham a MESMA promise — a home
+// pinta dezenas de cards e não pode baixar o mesmo JSON duas vezes.
+// Não persiste: `dPersistFolders` escreve o localStorage inteiro E empurra tudo para o
+// backend; decoração de card não dispara sync. Quem quer cache chama o persist depois.
+const _dLayersFetch={}; // remoteId → Promise em andamento
+async function dEnsureTemplateLayers(tmpl){
+  if(!tmpl||!tmpl.remoteId||!tmpl._needsLayersFetch) return false;
   const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
-  if(!sb)return; // offline ou sem backend: o card fica no nome, sem toast — ninguém pediu essa busca
-  _dDeckFetching.add(tmpl.id);
-  try{
-    const {data,error}=await sb.schema('luma').from('templates').select('layers').eq('id',tmpl.remoteId).single();
-    if(!error && data && Array.isArray(data.layers)){
-      tmpl.layers=data.layers; tmpl._needsLayersFetch=false;
-      if(typeof dPersistFolders==='function') dPersistFolders(); // próxima visita ao baralho já chega pronta
-      const deck=document.getElementById('d-page-deck');
-      const aindaVisivel=deck && Array.from(deck.children).some(c=>c.dataset.id===tmpl.id);
-      if(aindaVisivel) dRenderPageDeck(); // o usuário pode ter navegado enquanto a busca corria
-    }
-  }catch(e){ /* falha de rede: fica no nome — não é ação do usuário, não interrompe nada */ }
-  finally{ _dDeckFetching.delete(tmpl.id); }
+  if(!sb) return false; // offline ou sem backend: o card fica no fallback, sem toast — ninguém pediu essa busca
+  if(!_dLayersFetch[tmpl.remoteId]){
+    _dLayersFetch[tmpl.remoteId]=(async()=>{
+      try{
+        const {data,error}=await sb.schema('luma').from('templates').select('layers').eq('id',tmpl.remoteId).single();
+        // Só desliga a flag com layers REAIS: linha com layers null/[] (publish parcial)
+        // viraria um "carregado vazio" que nunca mais tenta de novo.
+        if(!error && data && Array.isArray(data.layers) && data.layers.length){
+          tmpl.layers=data.layers; tmpl._needsLayersFetch=false; return true;
+        }
+      }catch(e){ /* falha de rede: fica no fallback — não é ação do usuário, não interrompe nada */ }
+      finally{ delete _dLayersFetch[tmpl.remoteId]; }
+      return false;
+    })();
+  }
+  return _dLayersFetch[tmpl.remoteId];
+}
+async function dDeckPrefetchLayers(tmpl){
+  if(!(await dEnsureTemplateLayers(tmpl))) return;
+  if(typeof dPersistFolders==='function') dPersistFolders(); // próxima visita ao baralho já chega pronta
+  const deck=document.getElementById('d-page-deck');
+  const aindaVisivel=deck && Array.from(deck.children).some(c=>c.dataset.id===tmpl.id);
+  if(aindaVisivel) dRenderPageDeck(); // o usuário pode ter navegado enquanto a busca corria
 }
 function dPositionPageDeck(){
   const deck=document.getElementById('d-page-deck');

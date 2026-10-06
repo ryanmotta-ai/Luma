@@ -16,6 +16,7 @@ let dPubLinterStats = { errorsCount:0, warningsCount:0, infosCount:0 };
 let dPubLastTrigger = null;
 let dPubDraftTimer = null;
 let dPubPublished = false;
+let dPubPublishing = false;
 
 const D_PUB_STEPS=[
   {label:'Qualidade', panels:['linter','artboards']},
@@ -223,7 +224,7 @@ function dPublishClearError(){
 function dPublishValidateStep(step){
   dPublishClearError();
   if(step===0){
-    if(dPubLinterStats.errorsCount>0)return dPublishShowError('Corrija os erros críticos do checklist antes de continuar.',0,document.getElementById('d-pub-linter-issues'));
+    // O checklist de design só avisa (decisão do Ryan, 30/09/2026): o designer decide pelo bom senso.
     if(!dPubSelectedABs.size)return dPublishShowError('Selecione pelo menos um material para publicar.',0,document.getElementById('pub-ab-grid'));
     for(const id of dPubSelectedABs){
       const input=document.getElementById('pub-ab-name-'+id);
@@ -290,7 +291,7 @@ function dPublishUpdateFooter(){
   if(cancel)cancel.textContent=dPubWizardStep===0?'Fechar':'Voltar';
   if(draft)draft.hidden=false;
   if(primary){
-    primary.disabled=dPubWizardStep===0&&dPubLinterStats.errorsCount>0;
+    primary.disabled=false;   // o checklist nunca trava o avanço
     primary.innerHTML=dPubWizardStep===2
       ?'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4 20-7Z"/><path d="M22 2 11 13"/></svg><span>Publicar material</span>'
       :'<span>Continuar</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
@@ -477,7 +478,7 @@ function dPublishRefreshChecklist(){
   if(summaryEl){
     if(stats.errorsCount>0){
       summaryEl.className='pub-linter-summary error';
-      summaryEl.innerHTML=`<span class="pub-linter-main"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 17h.01"/></svg>${stats.errorsCount} erro(s) crítico(s)</span><span>Corrija os itens listados para continuar.</span>`;
+      summaryEl.innerHTML=`<span class="pub-linter-main"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 17h.01"/></svg>${stats.errorsCount} ponto(s) de atenção</span><span>Você pode publicar assim mesmo.</span>`;
     }else if(stats.warningsCount>0){
       summaryEl.className='pub-linter-summary warning';
       summaryEl.innerHTML=`<span class="pub-linter-main"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v4M12 17h.01"/></svg>${stats.warningsCount} alerta(s)</span><span>Você pode continuar, mas vale revisar o respiro e a área segura.</span>`;
@@ -488,8 +489,8 @@ function dPublishRefreshChecklist(){
   }
   const confirmBtn=document.querySelector('.pub-btn-confirm');
   if(confirmBtn){
-    confirmBtn.disabled=stats.errorsCount>0;
-    confirmBtn.title=stats.errorsCount>0?'Corrija os erros críticos no Checklist para liberar a publicação.':'';
+    confirmBtn.disabled=false;   // o checklist só avisa: nunca trava a publicação
+    confirmBtn.title='';
   }
   return stats;
 }
@@ -583,7 +584,7 @@ function dPublishRenderArtboards(){
 /* Sugestão de Auto-Metadata com IA (Fase 5, §23-§25).
    Sugere nome descritivo e tags relevantes como chips clicáveis. */
 async function dPubSuggestMetadata(abId){
-  if (!window.gAI || !window.gAI.isEnabled('metadataSuggest')) return;
+  if (!window.gAI || !(typeof window.gAI.isEnabled === 'function' && window.gAI.isEnabled('metadataSuggest'))) return;
   const ab = (typeof dArtboards !== 'undefined' && dArtboards ? dArtboards.find(a => a.id === abId) : null) || (typeof dGetActiveAB === 'function' ? dGetActiveAB() : null);
   if (!ab) return;
 
@@ -611,7 +612,9 @@ async function dPubSuggestMetadata(abId){
   let html = '<div class="pub-ai-suggestions" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;font-size:11px">';
   if (meta.suggestedName && meta.suggestedName !== ab.name) {
     const escName = gEsc(meta.suggestedName);
-    html += `<button type="button" class="pub-ai-chip pub-ai-name-chip" onclick="event.stopPropagation();dPubApplySuggestedName('${gEsc(abId)}', '${escName}')" title="Clique para adotar este nome" style="background:var(--dm-orange-bg,#fff3eb);border:1px solid var(--dm-orange-tint,#ffd2b8);color:var(--dm-orange-d,#b84000);border-radius:12px;padding:2px 8px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;font-size:11px">
+    // ⚠ gEsc NÃO protege argumento de handler inline: o parser HTML decodifica a entidade
+    // ANTES de compilar o JS, então `&#39;` volta a ser aspa e fecha a string. gEscJs é o motor.
+    html += `<button type="button" class="pub-ai-chip pub-ai-name-chip" onclick="event.stopPropagation();dPubApplySuggestedName('${gEscJs(abId)}', '${gEscJs(meta.suggestedName)}')" title="Clique para adotar este nome" style="background:var(--dm-orange-bg,#fff3eb);border:1px solid var(--dm-orange-tint,#ffd2b8);color:var(--dm-orange-d,#b84000);border-radius:12px;padding:2px 8px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;font-size:11px">
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
       <span>Nome: ${escName}</span>
     </button>`;
@@ -726,7 +729,7 @@ function dPublishRenderPerms(){
   permList.innerHTML=_dPermBar()+vars.map(v=>{
     const vDef=(dVars||[]).find(x=>x.name===v);
     const isImage=vDef?vDef.type==='image':false;
-    if(!dPubPermissoes[v]) dPubPermissoes[v]={edit:true,maxLen:isImage?0:32}; // imagem não usa maxLen de texto
+    if(!dPubPermissoes[v]) dPubPermissoes[v]={edit:true,maxLen:isImage?0:((vDef&&vDef.maxLen>0)?vDef.maxLen:32)}; // imagem não usa maxLen de texto; nasce do limite do campo
     const perm=dPubPermissoes[v];
     const label=vDef?vDef.label:v;
     return `<div class="pub-perm-row">
@@ -747,7 +750,7 @@ function dPublishRenderPerms(){
   }).join('');
 }
 function dPublishUpdatePerm(varName, key, value){
-  if(!dPubPermissoes[varName]) dPubPermissoes[varName]={edit:true,maxLen:32};
+  if(!dPubPermissoes[varName]){ const vd=(dVars||[]).find(x=>x.name===varName); dPubPermissoes[varName]={edit:true,maxLen:(vd&&vd.maxLen>0)?vd.maxLen:32}; }
   dPubPermissoes[varName][key]=value;
   if(key==='edit') dPublishRenderPerms();
   if(typeof dPublishRefreshChecklist==='function')dPublishRefreshChecklist();
@@ -850,7 +853,8 @@ function dPublishShowSuccess(count,folderName){
 }
 
 /* ── CONFIRMAR PUBLICAÇÃO ── */
-function dPublishConfirm(){
+async function dPublishConfirm(){
+  if(dPubPublishing)return;
   if(!dPublishValidateStep(0)||!dPublishValidateStep(1))return;
   const draftKey=dPublishDraftKey();
   const confirmBtn=document.querySelector('#d-publish-modal .pub-btn-confirm');
@@ -873,6 +877,7 @@ function dPublishConfirm(){
     return;
   }
   let count=0;
+  const targets=[];
   selected.forEach(abId=>{
     const ab=dArtboards.find(a=>a.id===abId);if(!ab)return;
     // Nome pode ter sido editado no card
@@ -881,13 +886,21 @@ function dPublishConfirm(){
     // ID do template: o template CARREGADO quando existe; senão um id ÚNICO por arte.
     // O antigo 'tmpl-ab-'+abId colidia (abId é sempre 'ab-single'): publicar a arte B
     // sobrescrevia silenciosamente a arte A publicada antes.
-    const _target=_dPubFindTmpl();
-    const tmplId=_target?_target.tmpl.id:('tmpl-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7));
+    /* ⚠ `_dPubFindTmpl()` responde pela prancheta ATIVA (dActiveTmplId / dGetActiveAB), então
+       dentro deste laço ele devolvia o MESMO template para todas as pranchetas selecionadas:
+       publicar 3 formatos de uma vez gravava os 3 por cima do mesmo id e só o último sobrava.
+       Agora cada prancheta lembra o template que ela publicou (`ab.tmplId`); só a prancheta
+       ativa herda o template carregado. Republicar continua atualizando, sem duplicar. */
+    const _ehAtiva=(abId===dActiveABId);
+    const _target=_ehAtiva?_dPubFindTmpl():null;
+    const tmplId=ab.tmplId||(_target?_target.tmpl.id:('tmpl-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7)));
     // Procura template existente (em qualquer pasta) para reutilizar publishMeta
     let tmpl=null;
     let tmplFolder=null;
     for(const f of dFolders){const t=f.templates.find(x=>x.id===tmplId);if(t){tmpl=t;tmplFolder=f;break;}}
+    const canonical=tmpl;
     if(tmpl){
+      tmpl=JSON.parse(JSON.stringify(tmpl));delete tmpl._publishPending;delete tmpl._draft;
       // Atualiza template existente, move de pasta se necessário
       tmpl.name=tmplName;
       tmpl.fmt=ab.fmt||'story';
@@ -895,14 +908,14 @@ function dPublishConfirm(){
       tmpl.layers=JSON.parse(JSON.stringify(ab.layers));
       if(tmplFolder&&tmplFolder.id!==folderId){
         tmplFolder.templates=tmplFolder.templates.filter(t=>t.id!==tmplId);
-        folder.templates.unshift(tmpl);
+        folder.templates.unshift(canonical);
       }
     }else{
       // Cria template novo
       tmpl={id:tmplId,name:tmplName,fmt:ab.fmt||'story',
         w:ab.w,h:ab.h,bg:ab.bg, // tamanho/fundo nativos → franqueado renderiza 1:1
         layers:JSON.parse(JSON.stringify(ab.layers)),publishMeta:dDefaultPublishMeta()};
-      folder.templates.unshift(tmpl);
+      folder.templates.unshift(Object.assign({},tmpl,{publishMeta:dDefaultPublishMeta()}));
     }
     // Aplica configurações compartilhadas
     if(!tmpl.publishMeta) tmpl.publishMeta=dDefaultPublishMeta();
@@ -916,11 +929,13 @@ function dPublishConfirm(){
       tmpl.tags = dPubPermissoes._metaTags[abId];
     }
     // Vincula a arte aberta ao template publicado: republicar atualiza ESTE template.
-    if(typeof dActiveTmplId!=='undefined') dActiveTmplId=tmpl.id;
-    // Contrato do schema: {template_id, template_name, fmt_id, camp_id, camp_name}
-    if(typeof gTrackEvent==='function') gTrackEvent('template_publicado',{
-      template_id:tmpl.remoteId||tmpl.id||null, template_name:tmpl.name||'', fmt_id:tmpl.fmt||'',
-      camp_id:folder.campId||folder.remoteId||folder.id||null, camp_name:folder.name||''});
+    // Memória por prancheta — é o que impede o próximo lote de colidir tudo num id só.
+    ab.tmplId=tmpl.id;
+    if(_ehAtiva && typeof dActiveTmplId!=='undefined') dActiveTmplId=tmpl.id;
+    const pending=folder.templates.find(x=>x.id===tmpl.id);
+    tmpl._ownerId=(typeof gCurrentUser==='function')?gCurrentUser()?.id:null;
+    pending._publishPending=tmpl;pending._syncPending=true;pending._syncOwnerId=tmpl._ownerId;
+    targets.push(tmpl.id);
     count++;
   });
   dFolderOpen[folderId]=true;
@@ -932,6 +947,20 @@ function dPublishConfirm(){
     dPublishShowError('Não foi possível salvar a publicação. Revise o espaço disponível e tente novamente.',2,confirmBtn);
     return;
   }
+  dPubPublishing=true;
+  if(typeof _dFoldersPushTimer!=='undefined'&&_dFoldersPushTimer){clearTimeout(_dFoldersPushTimer);_dFoldersPushTimer=null;}
+  try{await _dPushFoldersNow();}catch(e){console.warn('[publish] confirmação falhou:',e);}
+  dPubPublishing=false;
+  const confirmed=targets.map(id=>{for(const f of dFolders){const t=f.templates.find(x=>x.id===id);if(t)return t;}return null;});
+  if(!confirmed.every(t=>t&&!t._syncPending&&!t._publishPending&&t._remoteUpdatedAt&&t.publishMeta?.publicado)){
+    if(confirmBtn){confirmBtn.disabled=false;confirmBtn.classList.remove('loading');dPublishUpdateFooter();}
+    const done=confirmed.filter(t=>t&&!t._syncPending&&!t._publishPending&&t._remoteUpdatedAt&&t.publishMeta?.publicado).length;
+    dPublishShowError((done?done+' de '+targets.length+' materiais confirmados. ':'Publicação não confirmada. ')+'Os rascunhos pendentes foram preservados; verifique conexão ou conflito e tente novamente.',2,confirmBtn);
+    dRenderFolders();return;
+  }
+  confirmed.forEach(t=>{if(typeof gTrackEvent==='function')gTrackEvent('template_publicado',{
+    template_id:t.remoteId,template_name:t.name,fmt_id:t.fmt,camp_id:folder.campId||folder.remoteId||folder.id,camp_name:folder.name});});
+  dRenderFolders();
   dDirty=false; // publicar persistiu tudo
   const saveIndicator=document.getElementById('d-save-indicator');
   if(saveIndicator)saveIndicator.innerHTML='<span class="d-save-published"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>Publicado</span>';
@@ -956,7 +985,9 @@ function dSetSaveState(state){
     // Sem backend, "na nuvem" é mentira — o trabalho está só neste aparelho. (O caso
     // "com backend mas o push ainda não confirmou" é tratado pelo badge de pendência.)
     const hasBk=(typeof gHasBackend==='function') && gHasBackend();
-    const savedTxt=hasBk?'Salvo na nuvem':'Salvo neste aparelho';
+    const active=(typeof dGetActiveTemplate==='function')?dGetActiveTemplate():null;
+    const pending=(dFolders||[]).some(f=>(f.templates||[]).some(t=>_dTemplateDraft(t)||t._syncPending||_dOwnDraft(t._publishPending)));
+    const savedTxt=hasBk&&!pending?'Salvo na nuvem':'Salvo neste aparelho';
     html='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><polyline points="9 15 12 18 16 13"/></svg><span>'+savedTxt+'</span>';
   }
   if(ind)ind.innerHTML=html;

@@ -317,16 +317,16 @@ body:not(.theme-light) #luma-widget-fab-trigger:focus-visible {
   right:24px;
   bottom:90px;
   z-index:10000;
-  /* Dock mais largo: 540px era medida de bolha de chat, e o painel virou tela (artigos com
-     passos, conversa com sugestões, resumo). Continua flutuante — não é modal de tela cheia. */
-  width:min(760px,calc(100vw - 32px));
+  /* 400px, a medida de mensageiro (Deskfy/Intercom) — redesenho de 26/09/2026. Os 760px
+     de antes cobriam metade do app e liam como uma segunda tela, não como ajuda ao lado.
+     O `largura` do wmAncorar (help-widget.js) acompanha este número. */
+  width:min(400px,calc(100vw - 32px));
   height:min(720px,calc(100vh - 84px));
   display:flex;
   flex-direction:column;
   overflow:hidden;
   border:1px solid var(--wm-border);
-  border-top:4px solid var(--dm-orange);
-  border-radius:16px;
+  border-radius:18px;
   background:var(--wm-bg);
   color:var(--wm-text);
   box-shadow:0 22px 56px color-mix(in srgb,var(--text) 18%,transparent);
@@ -426,8 +426,6 @@ body.mode-designer #luma-widget-modal {
 
 .luma-wm-header {
   flex:none;
-  padding:18px 20px 20px;
-  border-bottom:1px solid var(--wm-border-soft);
   background:var(--wm-bg);
 }
 
@@ -437,7 +435,6 @@ body.mode-designer #luma-widget-modal {
   align-items:center;
   justify-content:space-between;
   gap:12px;
-  margin-bottom:16px;
 }
 
 .luma-wm-brand {
@@ -492,7 +489,7 @@ body:not(.theme-light) .luma-wm-logo-dark {
   place-items:center;
   flex:none;
   border:1px solid transparent;
-  border-radius:var(--r-sm);
+  border-radius:50%;
   background:transparent;
   color:var(--wm-text-3);
   cursor:pointer;
@@ -503,29 +500,6 @@ body:not(.theme-light) .luma-wm-logo-dark {
   border-color:var(--wm-border-soft);
   background:var(--wm-surface-hover);
   color:var(--wm-text);
-}
-
-.luma-wm-heading {
-  display:flex;
-  flex-direction:column;
-  gap:6px;
-}
-
-.luma-wm-greeting {
-  margin:0;
-  color:var(--wm-text);
-  font-size:22px;
-  font-weight:900;
-  line-height:1.15;
-  letter-spacing:-.025em;
-  text-wrap:balance;
-}
-
-.luma-wm-heading p {
-  margin:0;
-  color:var(--wm-text-3);
-  font-size:13px;
-  line-height:1.4;
 }
 
 .luma-wm-body {
@@ -634,104 +608,23 @@ body:not(.theme-light) .luma-wm-section-head button {
   pointer-events:none;
 }
 
-.luma-wm-search-prompt {
-  min-height:58px;
-  display:grid;
-  grid-template-columns:22px minmax(0,1fr) auto;
-  align-items:center;
-  gap:10px;
-  padding:8px 12px;
-  border:1px solid var(--wm-border);
-  border-radius:var(--r);
-  background:var(--wm-surface);
-  color:var(--wm-text-2);
-  font-size:13px;
-  text-align:left;
-  cursor:pointer;
-  transition:border-color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard),box-shadow var(--dur-micro) var(--ease-standard);
-}
-
-.luma-wm-search-prompt:hover {
-  border-color:color-mix(in srgb,var(--dm-orange) 46%,var(--wm-border));
-  background:var(--wm-surface-hover);
-  box-shadow:0 5px 16px color-mix(in srgb,var(--dm-orange-d) 8%,transparent);
-}
-
-.luma-wm-search-prompt > svg {
-  position:static;
-  color:var(--dm-red);
-  transform:none;
-}
-
-body:not(.theme-light) .luma-wm-search-prompt > svg {
-  color:var(--dm-orange);
-}
-
-.luma-wm-search-prompt > span {
-  font-weight:700;
-}
-
-.luma-wm-search-prompt > small {
-  color:var(--wm-text-3);
-  font-size:11px;
-}
-
 /* ── Início e listas ───────────────────────────────────────────────────── */
 
-.luma-wm-topic-list,
-.luma-wm-articles-list {
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
-  border:1px solid var(--wm-border-soft);
-  border-radius:var(--r);
-  background:var(--wm-surface);
-}
-
-.luma-wm-topic-item {
-  width:100%;
-  min-height:48px;
-  display:grid;
-  grid-template-columns:minmax(0,1fr) 18px;
-  align-items:center;
-  gap:10px;
-  padding:8px 12px;
-  border:0;
-  border-bottom:1px solid var(--wm-border-soft);
-  border-radius:0;
-  background:transparent;
-  color:var(--wm-text-2);
-  font-size:12.5px;
-  font-weight:600;
-  line-height:1.35;
-  text-align:left;
-  cursor:pointer;
-  transition:background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
-}
-
-.luma-wm-topic-item:last-child {
-  border-bottom:0;
-}
-
-.luma-wm-topic-item:hover {
-  background:var(--wm-surface-hover);
-  color:var(--wm-text);
-}
-
-.luma-wm-topic-item svg,
 .luma-wm-list-arrow {
   color:var(--wm-text-3);
 }
 
-.luma-wm-topic-item:hover svg,
-.luma-wm-article-card:hover .luma-wm-list-arrow,
+.luma-wm-row:hover .luma-wm-list-arrow,
+.luma-wm-col:hover .luma-wm-list-arrow,
+.luma-wm-news-mini:hover .luma-wm-list-arrow,
 .luma-wm-ask-card:hover .luma-wm-list-arrow {
   color:var(--dm-orange-d);
   transform:translateX(2px);
 }
 
-body:not(.theme-light) .luma-wm-topic-item:hover svg,
-body:not(.theme-light) .luma-wm-article-card:hover .luma-wm-list-arrow,
+body:not(.theme-light) .luma-wm-row:hover .luma-wm-list-arrow,
+body:not(.theme-light) .luma-wm-col:hover .luma-wm-list-arrow,
+body:not(.theme-light) .luma-wm-news-mini:hover .luma-wm-list-arrow,
 body:not(.theme-light) .luma-wm-ask-card:hover .luma-wm-list-arrow {
   color:var(--dm-orange);
 }
@@ -804,67 +697,6 @@ body:not(.theme-light) .luma-wm-ask-card:hover .luma-wm-list-arrow {
 
 /* ── Catálogo de ajuda ─────────────────────────────────────────────────── */
 
-.luma-wm-article-card {
-  width:100%;
-  min-height:112px;
-  display:grid;
-  grid-template-columns:minmax(0,1fr) 18px;
-  align-items:center;
-  gap:14px;
-  padding:14px 16px;
-  border:1px solid var(--wm-border-soft);
-  border-radius:var(--r);
-  background:var(--wm-surface);
-  color:var(--wm-text);
-  text-align:left;
-  cursor:pointer;
-  transition:background var(--dur-micro) var(--ease-standard);
-}
-
-.luma-wm-article-card:hover {
-  background:var(--wm-surface-hover);
-}
-
-.luma-wm-body-help .luma-wm-articles-list {
-  gap:10px;
-  overflow:visible;
-  border:0;
-  border-radius:0;
-  background:transparent;
-}
-
-.luma-wm-article-card-copy {
-  min-width:0;
-  display:flex;
-  flex-direction:column;
-  align-items:flex-start;
-  gap:6px;
-}
-
-.luma-wm-article-card strong {
-  color:var(--wm-text);
-  font-size:13px;
-  font-weight:800;
-  line-height:1.4;
-}
-
-.luma-wm-article-summary {
-  display:-webkit-box;
-  overflow:hidden;
-  color:var(--wm-text-2);
-  font-size:12px;
-  line-height:1.5;
-  -webkit-box-orient:vertical;
-  -webkit-line-clamp:2;
-}
-
-.luma-wm-article-card small {
-  margin-top:1px;
-  color:var(--wm-text-3);
-  font-size:10.5px;
-  line-height:1.4;
-}
-
 .luma-wm-no-results {
   min-height:260px;
   display:flex;
@@ -901,194 +733,6 @@ body:not(.theme-light) .luma-wm-ask-card:hover .luma-wm-list-arrow {
 
 /* ── Artigo ────────────────────────────────────────────────────────────── */
 
-.luma-wm-article-view {
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-
-.luma-wm-article-back {
-  min-height:36px;
-  align-self:flex-start;
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  margin:0 0 2px;
-  padding:0 6px 0 0;
-  border:0;
-  background:transparent;
-  color:var(--wm-text-2);
-  font-size:12px;
-  font-weight:700;
-  cursor:pointer;
-}
-
-.luma-wm-article-back:hover {
-  color:var(--dm-red);
-}
-
-body:not(.theme-light) .luma-wm-article-back:hover {
-  color:var(--dm-orange);
-}
-
-.luma-wm-article-title {
-  margin:0;
-  color:var(--wm-text);
-  font-size:20px;
-  font-weight:900;
-  line-height:1.25;
-  letter-spacing:-.02em;
-  text-wrap:balance;
-}
-
-.luma-wm-article-meta {
-  display:flex;
-  align-items:center;
-  gap:8px;
-  padding-bottom:12px;
-  border-bottom:1px solid var(--wm-border-soft);
-  color:var(--wm-text-3);
-  font-size:11px;
-}
-
-.luma-wm-article-body {
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-  color:var(--wm-text-2);
-}
-
-.luma-wm-article-lead {
-  margin:0 0 2px;
-  color:var(--wm-text-2);
-  font-size:13px;
-  font-weight:500;
-  line-height:1.55;
-}
-
-.luma-wm-article-step {
-  position:relative;
-  display:grid;
-  grid-template-columns:28px minmax(0,1fr);
-  gap:10px;
-}
-
-.luma-wm-article-step:not(:last-of-type)::after {
-  content:'';
-  position:absolute;
-  top:28px;
-  bottom:-12px;
-  left:13px;
-  width:1px;
-  background:var(--wm-border);
-}
-
-.luma-wm-article-step-marker {
-  position:relative;
-  z-index:1;
-  width:28px;
-  height:28px;
-  display:grid;
-  place-items:center;
-  border:1px solid color-mix(in srgb,var(--dm-orange) 40%,var(--wm-border));
-  border-radius:50%;
-  background:var(--wm-surface);
-  color:var(--dm-red);
-  font-size:10px;
-  font-weight:800;
-}
-
-body:not(.theme-light) .luma-wm-article-step-marker {
-  color:var(--dm-orange);
-}
-
-.luma-wm-article-step > div {
-  min-width:0;
-  padding:3px 0 8px;
-}
-
-.luma-wm-article-step-num {
-  color:var(--wm-text-3);
-  font-size:9.5px;
-  font-weight:800;
-  letter-spacing:.08em;
-  text-transform:uppercase;
-}
-
-.luma-wm-article-step-title {
-  margin-top:2px;
-  color:var(--wm-text);
-  font-size:13px;
-  font-weight:800;
-  line-height:1.35;
-}
-
-.luma-wm-article-step p {
-  margin:4px 0 0;
-  color:var(--wm-text-2);
-  font-size:12.5px;
-  line-height:1.5;
-}
-
-.luma-wm-article-box-tip {
-  display:grid;
-  grid-template-columns:28px minmax(0,1fr);
-  gap:10px;
-  padding:11px 12px;
-  border:1px solid color-mix(in srgb,var(--dm-orange) 28%,var(--wm-border));
-  border-radius:var(--r);
-  background:color-mix(in srgb,var(--dm-orange) 7%,var(--wm-surface));
-}
-
-.luma-wm-article-box-tip > span {
-  width:28px;
-  height:28px;
-  display:grid;
-  place-items:center;
-  border-radius:var(--r-sm);
-  background:color-mix(in srgb,var(--dm-orange) 13%,transparent);
-  color:var(--dm-red);
-}
-
-body:not(.theme-light) .luma-wm-article-box-tip > span {
-  color:var(--dm-orange);
-}
-
-.luma-wm-article-box-tip strong {
-  color:var(--wm-text);
-  font-size:12px;
-}
-
-.luma-wm-article-box-tip p {
-  margin:3px 0 0;
-  color:var(--wm-text-2);
-  font-size:12px;
-  line-height:1.45;
-}
-
-.luma-wm-article-feedback {
-  display:flex;
-  flex-direction:column;
-  align-items:flex-start;
-  gap:10px;
-  margin-top:4px;
-  padding:12px;
-  border:1px solid var(--wm-border-soft);
-  border-radius:var(--r);
-  background:var(--wm-surface);
-}
-
-.luma-wm-article-feedback > strong {
-  color:var(--wm-text);
-  font-size:12.5px;
-}
-
-.luma-wm-feedback-actions {
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-}
-
 /* ── Mensagens ─────────────────────────────────────────────────────────── */
 
 .luma-wm-body-messages {
@@ -1114,14 +758,9 @@ body:not(.theme-light) .luma-wm-article-box-tip > span {
   display:grid;
   place-items:center;
   margin-bottom:3px;
-  border:1px solid color-mix(in srgb,var(--dm-orange) 28%,var(--wm-border));
-  border-radius:var(--r);
-  background:color-mix(in srgb,var(--dm-orange) 9%,var(--wm-surface));
-  color:var(--dm-red);
-}
-
-body:not(.theme-light) .luma-wm-chat-empty-icon {
-  color:var(--dm-orange);
+  border-radius:16px;
+  background:var(--wm-surface-hover);
+  color:var(--wm-text);
 }
 
 .luma-wm-chat-empty-icon svg {
@@ -1164,35 +803,6 @@ body:not(.theme-light) .luma-wm-chat-empty-icon {
    O espaçador com `margin-top:auto` faz isso sem `justify-content:flex-end`, que em coluna
    com rolagem corta o começo da lista quando a conversa cresce. */
 .luma-wm-chat-messages::before { content:''; margin-top:auto }
-
-/* ── ABERTURA DA CONVERSA ──────────────────────────────────────────────────────────────────
-   Três avisos diziam a mesma coisa (tarja no topo + caixa laranja na bolha + linha no pé).
-   A primeira tentativa juntou tudo num cartão laranja — que virou o elemento mais pesado da
-   tela, acima da própria saudação: a ressalva ganhava mais destaque que a conversa.
-   Agora a ordem é a natural do chat: a saudação vem primeiro, como bolha, e a ressalva é
-   RODAPÉ dela — sem fundo, sem moldura, 11.5px. Continua sempre visível (a regra é que a
-   pessoa saiba que fala com máquina), só deixou de gritar. */
-.luma-wm-ressalva {
-  display:flex;
-  align-items:flex-start;
-  gap:7px;
-  margin:-2px 0 2px;
-  padding:0 2px;
-  max-width:62ch;
-  color:var(--wm-text-3);
-  font-size:11.5px;
-  line-height:1.5;
-}
-
-.luma-wm-ressalva strong { color:var(--wm-text-2); font-weight:700 }
-
-.luma-wm-ressalva svg {
-  flex:none;
-  width:13px;
-  height:13px;
-  margin-top:2px;
-  color:var(--dm-orange-d);
-}
 
 /* ── SUGESTÕES DE PERGUNTA ──
    Ocupam o vão entre a saudação e o campo — e, por virem dos artigos reais da base, a
@@ -1351,11 +961,16 @@ body:not(.theme-light) .luma-wm-chat-empty-icon {
 .luma-wm-tool-btn,
 .luma-wm-send-btn,
 .luma-wm-attach-remove {
+  position:relative;
   display:grid;
   place-items:center;
   border:0;
   background:transparent;
   cursor:pointer;
+}
+.luma-wm-tool-btn::after,
+.luma-wm-send-btn::after {
+  content:'';position:absolute;inset:50%;min-width:var(--tap-min);min-height:var(--tap-min);transform:translate(-50%,-50%);
 }
 
 .luma-wm-tool-btn {
@@ -1461,8 +1076,7 @@ body:not(.theme-light) .luma-wm-chat-empty-icon {
 
 /* ── Botões e navegação ────────────────────────────────────────────────── */
 
-.luma-wm-btn-primary,
-.luma-wm-btn-secondary {
+.luma-wm-btn-primary {
   min-height:40px;
   display:inline-flex;
   align-items:center;
@@ -1488,22 +1102,12 @@ body:not(.theme-light) .luma-wm-chat-empty-icon {
   transform:translateY(-1px);
 }
 
-.luma-wm-btn-secondary {
-  border:1px solid var(--wm-border);
-  background:var(--wm-surface);
-  color:var(--wm-text-2);
-}
-
-.luma-wm-btn-secondary:hover {
-  border-color:color-mix(in srgb,var(--dm-orange) 38%,var(--wm-border));
-  background:var(--wm-surface-hover);
-  color:var(--wm-text);
-}
-
 .luma-wm-nav {
   min-height:58px;
   display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
+  /* Colunas pelo número de abas (3, ou 4 com a vitrine ligada), não fixas em 3. */
+  grid-auto-columns:minmax(0,1fr);
+  grid-auto-flow:column;
   align-items:center;
   gap:5px;
   flex:none;
@@ -1551,6 +1155,1264 @@ body:not(.theme-light) .luma-wm-nav-btn.active {
   color:var(--dm-orange);
 }
 
+/* ══ REDESENHO DA AJUDA (26/09/2026, referência: Deskfy) ═══════════════════════════════════
+   Início = saudação + "Faça uma pergunta" + busca + Novidades do Luma. Ajuda = busca, "Nesta
+   tela" e coleções por intenção. Toda tela interna ganha uma barra curta (voltar · título ·
+   fechar) no lugar do cabeçalho grande, que agora é só da Início.
+   ⚠ As regras de corpo por aba usam #luma-widget-modal na frente de propósito: o bloco de
+   responsividade logo abaixo reescreve `.luma-wm-body` no celular e, com a mesma
+   especificidade, venceria por vir depois — tirando o sangrado das listas. */
+
+/* ── Cabeçalho: saudação (Início) e barra (demais telas) ─────────────────── */
+
+.luma-wm-hero {
+  padding:18px 20px 22px;
+  /* Laranja que DISSOLVE no fundo, não superfície chapada: o hero laranja cheio da home do
+     franqueado foi rejeitado (memória de 09/2026). A marca aparece como luz, não como bloco. */
+  background:linear-gradient(180deg,color-mix(in srgb,var(--dm-orange) 13%,var(--wm-bg)) 0%,color-mix(in srgb,var(--dm-orange) 5%,var(--wm-bg)) 62%,var(--wm-body) 100%);
+}
+
+.luma-wm-hero-oi {
+  margin:26px 0 3px;
+  color:var(--wm-text-2);
+  font-size:15px;
+  line-height:1.3;
+}
+
+.luma-wm-hero-title {
+  margin:0;
+  color:var(--wm-text);
+  font-size:26px;
+  font-weight:900;
+  line-height:1.12;
+  letter-spacing:-.025em;
+  text-wrap:balance;
+}
+
+.luma-wm-bar {
+  min-height:60px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:10px 12px;
+  border-bottom:1px solid var(--wm-border-soft);
+}
+
+.luma-wm-bar-gap {
+  width:40px;
+  flex:none;
+}
+
+.luma-wm-bar-title {
+  min-width:0;
+  flex:1;
+  text-align:center;
+}
+
+.luma-wm-bar.is-ident .luma-wm-bar-title {
+  padding-left:4px;
+  text-align:left;
+}
+
+.luma-wm-bar-title h2 {
+  margin:0;
+  overflow:hidden;
+  color:var(--wm-text);
+  font-size:15px;
+  font-weight:800;
+  line-height:1.25;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.luma-wm-bar-title p {
+  margin:2px 0 0;
+  overflow:hidden;
+  color:var(--wm-text-3);
+  font-size:12px;
+  line-height:1.3;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.luma-wm-bar-mark {
+  width:34px;
+  height:34px;
+  display:grid;
+  flex:none;
+  place-items:center;
+  border-radius:10px;
+  background:var(--dm-orange);
+  color:var(--on-orange);
+}
+
+.luma-wm-icon-btn {
+  width:40px;
+  height:40px;
+  display:grid;
+  flex:none;
+  place-items:center;
+  border:0;
+  border-radius:50%;
+  background:transparent;
+  color:var(--wm-text-2);
+  cursor:pointer;
+  transition:background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-icon-btn:hover {
+  background:var(--wm-surface-hover);
+  color:var(--wm-text);
+}
+
+.luma-wm-sup-avatares.mini .luma-wm-sup-av {
+  width:26px;
+  height:26px;
+  font-size:10px;
+}
+
+/* ── Corpo por aba ───────────────────────────────────────────────────────── */
+
+#luma-widget-modal .luma-wm-body-home {
+  gap:12px;
+  padding:4px 16px 20px;
+}
+
+#luma-widget-modal .luma-wm-body-help,
+#luma-widget-modal .luma-wm-body-collection,
+#luma-widget-modal .luma-wm-body-article,
+#luma-widget-modal .luma-wm-body-news,
+#luma-widget-modal .luma-wm-body-novidade {
+  gap:0;
+  padding:0;
+  background:var(--wm-bg);
+}
+
+/* ── Início ──────────────────────────────────────────────────────────────── */
+
+.luma-wm-ask {
+  width:100%;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:15px 16px;
+  border:1px solid var(--wm-border-soft);
+  border-radius:14px;
+  background:var(--wm-surface);
+  color:var(--wm-text);
+  text-align:left;
+  cursor:pointer;
+  box-shadow:0 1px 2px color-mix(in srgb,var(--text) 6%,transparent);
+  transition:border-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard);
+}
+
+.luma-wm-ask:hover {
+  border-color:color-mix(in srgb,var(--dm-orange) 45%,var(--wm-border));
+  box-shadow:0 6px 18px color-mix(in srgb,var(--text) 9%,transparent);
+}
+
+.luma-wm-ask-txt {
+  min-width:0;
+  display:flex;
+  flex:1;
+  flex-direction:column;
+  gap:2px;
+}
+
+.luma-wm-ask-txt strong {
+  font-size:15px;
+  font-weight:800;
+  line-height:1.3;
+}
+
+.luma-wm-ask-txt > span {
+  color:var(--wm-text-3);
+  font-size:13px;
+  line-height:1.4;
+}
+
+.luma-wm-ask-txt > .luma-wm-ask-online {
+  display:flex;
+  align-items:center;
+  gap:7px;
+  margin-top:6px;
+  color:var(--green-text);
+  font-size:12px;
+  font-weight:600;
+}
+
+.luma-wm-ask-go {
+  display:grid;
+  flex:none;
+  color:var(--dm-orange-d);
+  transition:transform var(--dur-fast) var(--ease-standard);
+}
+
+.luma-wm-ask:hover .luma-wm-ask-go {
+  transform:translateX(2px);
+}
+
+body:not(.theme-light) .luma-wm-ask-go {
+  color:var(--dm-orange);
+}
+
+.luma-wm-search-btn {
+  width:100%;
+  min-height:46px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:0 14px;
+  border:1px solid var(--wm-border-soft);
+  border-radius:12px;
+  background:var(--wm-surface);
+  color:var(--wm-text-3);
+  font-size:14px;
+  text-align:left;
+  cursor:pointer;
+  transition:border-color var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-search-btn:hover {
+  border-color:var(--wm-border);
+  color:var(--wm-text-2);
+}
+
+.luma-wm-body-home .luma-wm-section-head {
+  padding:10px 2px 0;
+}
+
+.luma-wm-section-title {
+  color:var(--wm-text);
+  font-size:14px;
+  font-weight:800;
+}
+
+.luma-wm-body-home .luma-wm-section-head button {
+  font-size:12.5px;
+}
+
+.luma-wm-tag {
+  padding:3px 7px;
+  border-radius:var(--r-pill);
+  background:var(--dm-orange-bg);
+  color:var(--dm-red);
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.06em;
+  line-height:1.2;
+  text-transform:uppercase;
+}
+
+body:not(.theme-light) .luma-wm-tag {
+  background:color-mix(in srgb,var(--dm-orange) 16%,transparent);
+  color:var(--dm-orange);
+}
+
+.luma-wm-news {
+  width:100%;
+  display:flex;
+  flex:none;
+  flex-direction:column;
+  overflow:hidden;
+  padding:0;
+  border:1px solid var(--wm-border-soft);
+  border-radius:14px;
+  background:var(--wm-surface);
+  color:var(--wm-text);
+  text-align:left;
+  cursor:pointer;
+  transition:border-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard);
+}
+
+.luma-wm-news:hover {
+  border-color:var(--wm-border);
+  box-shadow:0 6px 18px color-mix(in srgb,var(--text) 8%,transparent);
+}
+
+.luma-wm-news-art {
+  position:relative;
+  display:block;
+  height:150px;
+  overflow:hidden;
+}
+
+.luma-wm-news-body {
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  padding:13px 16px 16px;
+}
+
+.luma-wm-news-meta {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:0;
+  color:var(--wm-text-3);
+  font-size:12px;
+}
+
+.luma-wm-news-body strong {
+  font-size:15px;
+  font-weight:800;
+  line-height:1.3;
+}
+
+.luma-wm-news-sum {
+  color:var(--wm-text-2);
+  font-size:13px;
+  line-height:1.45;
+}
+
+.luma-wm-news-list {
+  display:flex;
+  flex:none;
+  flex-direction:column;
+  overflow:hidden;
+  border:1px solid var(--wm-border-soft);
+  border-radius:14px;
+  background:var(--wm-surface);
+}
+
+.luma-wm-body-news .luma-wm-news-list {
+  margin:16px;
+}
+
+.luma-wm-news-mini {
+  width:100%;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:12px 14px;
+  border:0;
+  border-top:1px solid var(--wm-border-soft);
+  background:transparent;
+  color:var(--wm-text);
+  text-align:left;
+  cursor:pointer;
+  transition:background var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-news-mini:first-child {
+  border-top:0;
+}
+
+.luma-wm-news-mini:hover {
+  background:var(--wm-surface-hover);
+}
+
+.luma-wm-news-ico {
+  width:40px;
+  height:40px;
+  display:grid;
+  flex:none;
+  place-items:center;
+  border-radius:10px;
+  background:color-mix(in srgb,var(--dm-orange) 12%,var(--wm-surface));
+  color:var(--dm-orange-d);
+}
+
+body:not(.theme-light) .luma-wm-news-ico {
+  color:var(--dm-orange);
+}
+
+.luma-wm-news-mini-txt {
+  min-width:0;
+  display:flex;
+  flex:1;
+  flex-direction:column;
+  gap:3px;
+}
+
+.luma-wm-news-mini-txt strong {
+  font-size:13.5px;
+  font-weight:700;
+  line-height:1.3;
+}
+
+.luma-wm-news-mini-txt small {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  color:var(--wm-text-3);
+  font-size:11.5px;
+}
+
+/* Ilustrações das novidades: fragmentos de UI. As cores são fixas da MARCA (não seguem o
+   tema) porque cada uma desenha um pedaço do app claro — tinta escura sobre o branco. */
+.luma-wm-il {
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  overflow:hidden;
+  font-family:'Roboto',sans-serif;
+}
+
+.luma-wm-il-suporte {
+  background:radial-gradient(120% 90% at 20% 10%,var(--d-surf3),var(--d-bg));
+}
+
+.luma-wm-il-pill {
+  position:absolute;
+  top:22px;
+  left:24px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:5px 10px 5px 8px;
+  border-radius:var(--r-pill);
+  background:color-mix(in srgb,var(--white) 10%,transparent);
+  color:var(--d-text);
+  font-size:11px;
+}
+
+.luma-wm-il-bub {
+  position:absolute;
+  max-width:200px;
+  padding:9px 12px;
+  border-radius:14px;
+  font-size:12px;
+  line-height:1.35;
+}
+
+.luma-wm-il-bub.eu {
+  top:20px;
+  right:22px;
+  max-width:168px;
+  border-bottom-right-radius:4px;
+  background:var(--dm-orange);
+  color:var(--on-orange);
+}
+
+.luma-wm-il-bub.eles {
+  top:78px;
+  left:24px;
+  border-bottom-left-radius:4px;
+  background:var(--white);
+  color:var(--text);
+}
+
+.luma-wm-il-bub b {
+  display:block;
+  margin-bottom:2px;
+  color:var(--text-3);
+  font-size:10.5px;
+  font-weight:600;
+}
+
+.luma-wm-il-encurtar {
+  background:linear-gradient(160deg,var(--dm-orange-bg),var(--dm-orange-tint));
+}
+
+.luma-wm-il-campo {
+  width:258px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  padding:12px 12px 10px;
+  border-radius:12px;
+  background:var(--white);
+  color:var(--text);
+  box-shadow:0 10px 26px color-mix(in srgb,var(--dm-orange-d) 22%,transparent);
+}
+
+.luma-wm-il-campo small {
+  color:var(--text-3);
+  font-size:10.5px;
+  font-weight:600;
+}
+
+.luma-wm-il-campo strong {
+  font-size:14px;
+  font-weight:800;
+  letter-spacing:-.01em;
+}
+
+.luma-wm-il-campo s {
+  color:var(--dm-red);
+  text-decoration-thickness:2px;
+}
+
+.luma-wm-il-campo-pe {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-top:4px;
+  color:var(--text-3);
+  font-size:11px;
+}
+
+.luma-wm-il-chip {
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:5px 10px;
+  border-radius:var(--r-pill);
+  background:var(--text);
+  color:var(--white);
+  font-size:11.5px;
+  font-weight:600;
+}
+
+.luma-wm-il-quebra {
+  background:linear-gradient(160deg,var(--dm-orange),var(--dm-orange-d));
+}
+
+.luma-wm-il-antes,
+.luma-wm-il-agora {
+  width:150px;
+  display:flex;
+  flex-direction:column;
+  padding:12px;
+  border-radius:12px;
+  background:var(--white);
+  color:var(--text);
+}
+
+.luma-wm-il-antes {
+  opacity:.78;
+}
+
+.luma-wm-il-antes small,
+.luma-wm-il-agora small {
+  margin-bottom:5px;
+  color:var(--text-3);
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+
+.luma-wm-il-antes b,
+.luma-wm-il-agora b {
+  font-size:13px;
+  font-weight:900;
+  line-height:1.2;
+  white-space:nowrap;
+}
+
+/* A palavra órfã é o defeito que a novidade conserta — ela ganha a cor de alerta. */
+.luma-wm-il-antes b:last-child {
+  color:var(--dm-red);
+}
+
+.luma-wm-il-foto {
+  flex-direction:column;
+  gap:12px;
+  background:radial-gradient(120% 100% at 30% 20%,var(--dm-orange-bg),var(--dm-orange-tint));
+}
+
+.luma-wm-il-moldura {
+  position:relative;
+  width:150px;
+  height:80px;
+  border:2px dashed color-mix(in srgb,var(--dm-orange-d) 60%,transparent);
+  border-radius:10px;
+  background:color-mix(in srgb,var(--white) 55%,transparent);
+}
+
+.luma-wm-il-prato {
+  position:absolute;
+  top:50%;
+  left:50%;
+  width:54px;
+  height:54px;
+  margin:-27px 0 0 -27px;
+  border-radius:50%;
+  background:radial-gradient(circle at 40% 35%,var(--dm-yellow),var(--dm-orange-d));
+  box-shadow:0 0 0 7px var(--white);
+}
+
+.luma-wm-il-moldura .h1,
+.luma-wm-il-moldura .h2,
+.luma-wm-il-moldura .h3,
+.luma-wm-il-moldura .h4 {
+  position:absolute;
+  width:10px;
+  height:10px;
+  border:2px solid var(--dm-orange-d);
+  border-radius:2px;
+  background:var(--white);
+}
+
+.luma-wm-il-moldura .h1 { top:-6px; left:-6px; }
+.luma-wm-il-moldura .h2 { top:-6px; right:-6px; }
+.luma-wm-il-moldura .h3 { bottom:-6px; left:-6px; }
+.luma-wm-il-moldura .h4 { right:-6px; bottom:-6px; }
+
+/* ── Novidade aberta ─────────────────────────────────────────────────────── */
+
+.luma-wm-novidade-art {
+  position:relative;
+  height:180px;
+  overflow:hidden;
+}
+
+.luma-wm-novidade-body {
+  padding:18px 22px 24px;
+}
+
+.luma-wm-novidade-body h3 {
+  margin:10px 0;
+  color:var(--wm-text);
+  font-size:21px;
+  font-weight:900;
+  line-height:1.2;
+  letter-spacing:-.02em;
+  text-wrap:balance;
+}
+
+.luma-wm-novidade-body > p:not(.luma-wm-news-meta) {
+  margin:0 0 12px;
+  color:var(--wm-text-2);
+  font-size:14px;
+  line-height:1.6;
+}
+
+.luma-wm-link {
+  display:flex;
+  align-items:center;
+  gap:4px;
+  margin-top:6px;
+  padding:6px 0;
+  border:0;
+  background:transparent;
+  color:var(--dm-red);
+  font-size:14px;
+  font-weight:700;
+  text-align:left;
+  cursor:pointer;
+}
+
+body:not(.theme-light) .luma-wm-link {
+  color:var(--dm-orange);
+}
+
+.luma-wm-link svg {
+  transition:transform var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-link:hover svg {
+  transform:translateX(2px);
+}
+
+/* ── EDIÇÃO da semana (27/09/2026): cabeça + itens em sequência + beta ─────
+   A cabeça reusa .luma-wm-novidade-body. Cada item é uma seção com a arte
+   encaixada (não sangrada): seis artes de 180px sangradas viravam um mural. */
+
+.luma-wm-edicao {
+  padding-bottom:12px;
+}
+
+.luma-wm-edicao > .luma-wm-novidade-body {
+  padding-bottom:8px;
+}
+
+.luma-wm-ed-item {
+  margin:0 22px;
+  padding-top:18px;
+  border-top:1px solid var(--wm-border-soft);
+}
+
+.luma-wm-ed-item .luma-wm-novidade-art {
+  height:132px;
+  border-radius:12px;
+}
+
+.luma-wm-ed-item .luma-wm-novidade-body {
+  padding:14px 0 18px;
+}
+
+.luma-wm-ed-item h4 {
+  margin:0 0 8px;
+  color:var(--wm-text);
+  font-size:16px;
+  font-weight:800;
+  line-height:1.3;
+  text-wrap:balance;
+}
+
+/* "Vocês pediram… A gente ouviu." — o pedido da rede vem ANTES do título,
+   porque é ele que explica por que a mudança existe. */
+.luma-wm-novidade-body > .luma-wm-pedido {
+  display:flex;
+  align-items:flex-start;
+  gap:8px;
+  margin:0 0 10px;
+  padding:9px 11px;
+  border-radius:10px;
+  background:color-mix(in srgb,var(--dm-orange) 9%,var(--wm-surface));
+  color:var(--wm-text-2);
+  font-size:13px;
+  line-height:1.45;
+}
+
+.luma-wm-pedido svg {
+  flex:none;
+  margin-top:1px;
+  color:var(--dm-orange-d);
+}
+
+.luma-wm-pedido b {
+  color:var(--wm-text);
+  font-weight:800;
+}
+
+body:not(.theme-light) .luma-wm-pedido svg {
+  color:var(--dm-orange);
+}
+
+.luma-wm-tag-pedido {
+  background:color-mix(in srgb,var(--dm-orange) 10%,var(--wm-surface));
+  color:var(--dm-orange-d);
+}
+
+.luma-wm-beta {
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:8px;
+  margin:6px 22px 12px;
+  padding:16px;
+  border:1px solid color-mix(in srgb,var(--dm-orange) 30%,var(--wm-border-soft));
+  border-radius:14px;
+  background:color-mix(in srgb,var(--dm-orange) 6%,var(--wm-surface));
+}
+
+.luma-wm-beta-eyebrow {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin:0;
+  color:var(--dm-red);
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+}
+
+body:not(.theme-light) .luma-wm-beta-eyebrow {
+  color:var(--dm-orange);
+}
+
+.luma-wm-beta strong {
+  color:var(--wm-text);
+  font-size:15px;
+  font-weight:800;
+  line-height:1.3;
+}
+
+.luma-wm-beta > p:not(.luma-wm-beta-eyebrow) {
+  margin:0;
+  color:var(--wm-text-2);
+  font-size:13.5px;
+  line-height:1.5;
+}
+
+.luma-wm-beta .luma-wm-btn-primary {
+  margin-top:4px;
+  font-size:13px;
+}
+
+.luma-wm-beta > .luma-wm-beta-ok {
+  display:flex;
+  align-items:center;
+  gap:7px;
+  color:var(--wm-text);
+  font-weight:700;
+}
+
+.luma-wm-beta-ok svg {
+  flex:none;
+  color:var(--green-d);
+}
+
+body:not(.theme-light) .luma-wm-beta-ok svg {
+  color:var(--green-text);
+}
+
+.luma-wm-beta small {
+  color:var(--wm-text-3);
+  font-size:11.5px;
+}
+
+/* Destaque da edição no topo da aba Ajuda: o mesmo mini da Início. */
+.luma-wm-help-news {
+  margin:12px 16px 4px;
+}
+
+.luma-wm-help-news .luma-wm-news-mini-txt small {
+  color:var(--dm-red);
+  font-weight:700;
+}
+
+body:not(.theme-light) .luma-wm-help-news .luma-wm-news-mini-txt small {
+  color:var(--dm-orange);
+}
+
+/* ── Ajuda: busca, "Nesta tela", coleções e linhas ───────────────────────── */
+
+.luma-wm-help-top {
+  padding:16px 16px 4px;
+}
+
+.luma-wm-ctx {
+  margin:12px 16px 4px;
+  padding:12px 14px 4px;
+  border-radius:14px;
+  background:color-mix(in srgb,var(--dm-orange) 9%,var(--wm-surface));
+}
+
+.luma-wm-ctx-label {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin:0 0 2px;
+  color:var(--dm-red);
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+}
+
+body:not(.theme-light) .luma-wm-ctx-label {
+  color:var(--dm-orange);
+}
+
+.luma-wm-ctx-item {
+  width:100%;
+  min-height:44px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:0;
+  border:0;
+  border-top:1px solid color-mix(in srgb,var(--dm-orange) 16%,transparent);
+  background:transparent;
+  color:var(--wm-text);
+  font-size:14px;
+  font-weight:600;
+  text-align:left;
+  cursor:pointer;
+}
+
+.luma-wm-ctx-label + .luma-wm-ctx-item {
+  border-top:0;
+}
+
+.luma-wm-ctx-item svg {
+  flex:none;
+  color:var(--wm-text-3);
+  transition:transform var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-ctx-item:hover svg {
+  color:var(--dm-orange-d);
+  transform:translateX(2px);
+}
+
+.luma-wm-count {
+  margin:0;
+  padding:14px 20px 6px;
+  color:var(--wm-text-3);
+  font-size:12px;
+}
+
+.luma-wm-rows {
+  display:flex;
+  flex-direction:column;
+  border-top:1px solid var(--wm-border-soft);
+}
+
+.luma-wm-col,
+.luma-wm-row {
+  width:100%;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:14px 20px;
+  border:0;
+  border-bottom:1px solid var(--wm-border-soft);
+  background:transparent;
+  color:var(--wm-text);
+  text-align:left;
+  cursor:pointer;
+  transition:background var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-col:hover,
+.luma-wm-row:hover {
+  background:var(--wm-surface-hover);
+}
+
+.luma-wm-col-ico {
+  width:40px;
+  height:40px;
+  display:grid;
+  flex:none;
+  place-items:center;
+  border-radius:12px;
+  background:var(--wm-surface-hover);
+  color:var(--wm-text);
+  transition:background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-col:hover .luma-wm-col-ico {
+  background:color-mix(in srgb,var(--dm-orange) 12%,var(--wm-surface));
+  color:var(--dm-orange-d);
+}
+
+.luma-wm-col-txt,
+.luma-wm-row-txt {
+  min-width:0;
+  display:flex;
+  flex:1;
+  flex-direction:column;
+  gap:2px;
+}
+
+.luma-wm-col-txt strong {
+  font-size:14.5px;
+  font-weight:700;
+  line-height:1.3;
+}
+
+.luma-wm-col-txt span {
+  color:var(--wm-text-3);
+  font-size:13px;
+  line-height:1.35;
+}
+
+.luma-wm-col-txt small {
+  margin-top:3px;
+  color:var(--wm-text-3);
+  font-size:11.5px;
+}
+
+.luma-wm-row-txt strong {
+  font-size:14px;
+  font-weight:600;
+  line-height:1.35;
+}
+
+.luma-wm-row-txt small {
+  color:var(--dm-red);
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+
+body:not(.theme-light) .luma-wm-row-txt small {
+  color:var(--dm-orange);
+}
+
+.luma-wm-help-results .luma-wm-no-results {
+  min-height:220px;
+}
+
+.luma-wm-col-head {
+  padding:16px 20px 14px;
+}
+
+.luma-wm-crumb {
+  margin:0 0 6px;
+  color:var(--wm-text-3);
+  font-size:12px;
+}
+
+.luma-wm-col-head h3 {
+  margin:0 0 4px;
+  color:var(--wm-text);
+  font-size:21px;
+  font-weight:900;
+  letter-spacing:-.02em;
+}
+
+.luma-wm-col-head p:last-child {
+  margin:0;
+  color:var(--wm-text-3);
+  font-size:13px;
+}
+
+/* ── Artigo ──────────────────────────────────────────────────────────────── */
+
+.luma-wm-article {
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  padding:20px 22px 8px;
+}
+
+.luma-wm-article-title {
+  margin:0;
+  color:var(--wm-text);
+  font-size:21px;
+  font-weight:900;
+  line-height:1.22;
+  letter-spacing:-.02em;
+  text-wrap:balance;
+}
+
+.luma-wm-article-meta {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin:0;
+  color:var(--wm-text-3);
+  font-size:12px;
+}
+
+.luma-wm-article-lead {
+  margin:6px 0 4px;
+  color:var(--wm-text-2);
+  font-size:14.5px;
+  line-height:1.55;
+}
+
+.luma-wm-steps {
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  margin:4px 0 0;
+  padding:0;
+  list-style:none;
+  counter-reset:wmpasso;
+}
+
+.luma-wm-steps li {
+  display:flex;
+  gap:12px;
+  color:var(--wm-text);
+  font-size:14px;
+  line-height:1.5;
+  counter-increment:wmpasso;
+}
+
+.luma-wm-steps li::before {
+  content:counter(wmpasso);
+  width:24px;
+  height:24px;
+  display:grid;
+  flex:none;
+  place-items:center;
+  margin-top:-1px;
+  border-radius:50%;
+  background:color-mix(in srgb,var(--dm-orange) 13%,var(--wm-surface));
+  color:var(--dm-red);
+  font-size:12px;
+  font-weight:800;
+}
+
+body:not(.theme-light) .luma-wm-steps li::before {
+  color:var(--dm-orange);
+}
+
+.luma-wm-tip {
+  display:flex;
+  gap:10px;
+  margin-top:8px;
+  padding:12px 14px;
+  border:1px solid var(--wm-border-soft);
+  border-radius:12px;
+  background:var(--wm-body);
+}
+
+.luma-wm-tip svg {
+  flex:none;
+  margin-top:1px;
+  color:var(--dm-orange-d);
+}
+
+body:not(.theme-light) .luma-wm-tip svg {
+  color:var(--dm-orange);
+}
+
+.luma-wm-tip p {
+  margin:0;
+  color:var(--wm-text-2);
+  font-size:13.5px;
+  line-height:1.5;
+}
+
+.luma-wm-article-feedback {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+  margin:16px 22px 24px;
+  padding-top:18px;
+  border-top:1px solid var(--wm-border-soft);
+  text-align:center;
+}
+
+.luma-wm-article-feedback > strong {
+  color:var(--wm-text);
+  font-size:14px;
+}
+
+.luma-wm-feedback-actions {
+  display:flex;
+  gap:10px;
+}
+
+.luma-wm-vote {
+  width:48px;
+  height:40px;
+  display:grid;
+  place-items:center;
+  border:1px solid var(--wm-border);
+  border-radius:12px;
+  background:var(--wm-surface);
+  color:var(--wm-text-2);
+  cursor:pointer;
+  transition:border-color var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-vote:hover {
+  border-color:var(--dm-orange);
+  color:var(--dm-orange-d);
+}
+
+.luma-wm-fb-more {
+  margin:4px 0 0;
+  color:var(--wm-text-3);
+  font-size:13.5px;
+}
+
+.luma-wm-fb-more button {
+  padding:0;
+  border:0;
+  background:transparent;
+  color:var(--dm-red);
+  font:inherit;
+  font-weight:700;
+  cursor:pointer;
+}
+
+body:not(.theme-light) .luma-wm-fb-more button {
+  color:var(--dm-orange);
+}
+
+/* ── Conversa: quem responde, o escopo e a tela vazia ────────────────────── */
+
+.luma-wm-chat-intro {
+  flex:none;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:5px;
+  padding:8px 16px 6px;
+  text-align:center;
+}
+
+.luma-wm-chat-intro-mark {
+  width:44px;
+  height:44px;
+  display:grid;
+  place-items:center;
+  margin-bottom:3px;
+  border-radius:14px;
+  background:var(--dm-orange);
+  color:var(--on-orange);
+}
+
+.luma-wm-chat-intro strong {
+  color:var(--wm-text);
+  font-size:14.5px;
+}
+
+.luma-wm-chat-intro > span:last-child {
+  max-width:280px;
+  color:var(--wm-text-3);
+  font-size:12.5px;
+  line-height:1.45;
+}
+
+.luma-wm-escopo {
+  flex:none;
+  margin:0;
+  padding:0 8px;
+  color:var(--wm-text-3);
+  font-size:11px;
+  line-height:1.4;
+  text-align:center;
+}
+
+.luma-wm-empty-ask {
+  min-height:44px;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  margin-top:14px;
+  padding:0 18px;
+  border:0;
+  border-radius:12px;
+  background:var(--wm-text);
+  color:var(--wm-bg);
+  font-size:14px;
+  font-weight:700;
+  cursor:pointer;
+  box-shadow:0 8px 20px color-mix(in srgb,var(--text) 18%,transparent);
+  transition:transform var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-empty-ask:hover {
+  transform:translateY(-1px);
+}
+
+.luma-wm-empty-ask svg {
+  width:16px;
+  height:16px;
+}
+
+/* ── Navegação: ícone sobre o rótulo, como o mensageiro de referência ────── */
+
+.luma-wm-nav {
+  min-height:62px;
+  padding:6px 8px;
+}
+
+.luma-wm-nav-btn {
+  position:relative;
+  min-height:48px;
+  flex-direction:column;
+  gap:4px;
+  border:0;
+  border-radius:12px;
+  font-size:11.5px;
+}
+
+.luma-wm-nav-btn svg {
+  width:20px;
+  height:20px;
+}
+
+#luma-widget-modal .luma-wm-nav-btn.active {
+  border-color:transparent;
+  background:transparent;
+  color:var(--wm-text);
+}
+
+.luma-wm-nav-btn.active svg {
+  color:var(--dm-orange-d);
+}
+
+body:not(.theme-light) .luma-wm-nav-btn.active svg {
+  color:var(--dm-orange);
+}
+
+.luma-wm-nav-btn .luma-wm-sup-navbadge {
+  position:absolute;
+  top:3px;
+  left:calc(50% + 6px);
+}
+
 /* ── Responsividade ────────────────────────────────────────────────────── */
 
 @media (max-width:480px) {
@@ -1594,38 +2456,22 @@ body:not(.theme-light) .luma-wm-nav-btn.active {
     transform:translateY(0);
   }
 
-  .luma-wm-header {
-    padding:calc(16px + env(safe-area-inset-top)) 18px 18px;
+  .luma-wm-hero {
+    padding-top:calc(16px + env(safe-area-inset-top));
+  }
+
+  .luma-wm-bar {
+    padding-top:calc(10px + env(safe-area-inset-top));
   }
 
   .luma-wm-body {
     padding:16px 18px 20px;
   }
 
-  .luma-wm-body-help {
-    gap:18px;
-  }
-
-  .luma-wm-body-help .luma-wm-articles-list {
-    gap:12px;
-  }
-
-  .luma-wm-article-card {
-    min-height:116px;
-    padding:15px 14px;
-  }
-
   .luma-wm-nav {
     padding-bottom:calc(8px + env(safe-area-inset-bottom));
   }
 
-  .luma-wm-search-prompt {
-    grid-template-columns:22px minmax(0,1fr);
-  }
-
-  .luma-wm-search-prompt small {
-    display:none;
-  }
 }
 
 @media (max-height:620px) and (min-width:481px) {
@@ -1636,17 +2482,13 @@ body:not(.theme-light) .luma-wm-nav-btn.active {
     height:auto;
   }
 
-  .luma-wm-header {
+  .luma-wm-hero {
     padding-top:10px;
     padding-bottom:12px;
   }
 
-  .luma-wm-header-top {
-    margin-bottom:8px;
-  }
-
-  .luma-wm-heading p {
-    display:none;
+  .luma-wm-hero-oi {
+    margin-top:10px;
   }
 }
 
@@ -1675,3 +2517,1089 @@ body:not(.theme-light) .luma-wm-nav-btn.active {
 @keyframes lumaWmDot{0%,60%,100%{opacity:.28;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
 @media (prefers-reduced-motion:reduce){.luma-wm-digitando span{animation:none;opacity:.5}}
 
+
+/* ── Suporte ao vivo (js/core/suporte.js + bloco "SUPORTE AO VIVO" do help-widget.js) ──
+   Pessoa de verdade do outro lado, então nada de selo "IA" aqui. O laranja do contador é a
+   MESMA mistura das iniciais do avatar da topbar (4,67:1 com branco, medido): o
+   `--dm-orange` puro com texto branco de 10–11px não passa na régua de 4,5:1. */
+#luma-widget-modal, #topbar-suporte, .fh-help { --sup-laranja: color-mix(in srgb, var(--dm-orange-d) 82%, var(--text)); }
+
+.luma-wm-sup-dot{display:inline-block;flex:none;width:8px;height:8px;border-radius:50%;background:var(--green);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--green) 22%,transparent)}
+.luma-wm-sup-status{display:flex;align-items:center;gap:7px}
+
+.luma-wm-sup-avatares{display:flex;flex:none}
+.luma-wm-sup-av{width:28px;height:28px;margin-left:-7px;display:grid;place-items:center;flex:none;overflow:hidden;
+  border:2px solid var(--wm-surface);border-radius:50%;background:var(--sup-laranja);color:var(--white);
+  font-size:10.5px;font-weight:800;line-height:1}
+.luma-wm-sup-av:first-child{margin-left:0}
+.luma-wm-sup-av.grande{width:36px;height:36px;margin:0;font-size:12px}
+.luma-wm-sup-av.foto{background:var(--wm-surface-hover)}
+.luma-wm-sup-av img{width:100%;height:100%;object-fit:cover}
+.luma-wm-sup-card .luma-wm-ask-copy span{display:flex;align-items:center;gap:6px}
+
+/* Saída da IA para uma pessoa: discreta, mas é um botão de verdade (alvo de 36px). */
+.luma-wm-sup-handoff{flex:none;align-self:flex-start;display:inline-flex;align-items:center;gap:7px;min-height:36px;padding:0 14px;
+  border:1px solid color-mix(in srgb,var(--dm-orange-d) 40%,transparent);border-radius:var(--r-pill);
+  background:transparent;color:var(--sup-laranja);font-size:13px;font-weight:600;cursor:pointer;
+  transition:background var(--dur-fast) var(--ease-out),border-color var(--dur-fast) var(--ease-out)}
+.luma-wm-sup-handoff:hover{border-color:var(--dm-orange-d);background:color-mix(in srgb,var(--dm-orange) 8%,transparent)}
+body:not(.theme-light) .luma-wm-sup-handoff{color:var(--dm-orange)}
+
+.luma-wm-sup-sys{flex:none;align-self:center;margin:2px 0;color:var(--wm-text-3);font-size:11px;text-align:center}
+/* flex:none: a lista de mensagens é coluna flex e, cheia, ESPREMIA o chip até 8px. */
+.luma-wm-sup-ctx{flex:none;align-self:flex-start;max-width:90%;margin:-4px 0 2px;padding:3px 10px;overflow:hidden;
+  border:1px dashed var(--wm-border);border-radius:var(--r-pill);background:var(--wm-surface);
+  color:var(--wm-text-3);font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+.luma-wm-sup-ctx.meu{align-self:flex-end}
+.luma-wm-sup-erro{margin:0 2px 6px;color:var(--wm-text-2);font-size:12px}
+
+.luma-wm-sup-voltar{flex:none;align-self:flex-start;display:inline-flex;align-items:center;gap:5px;min-height:32px;margin-bottom:6px;
+  padding:0 10px 0 6px;border:1px solid var(--wm-border);border-radius:var(--r-pill);background:var(--wm-surface);
+  color:var(--wm-text-2);font-size:12px;font-weight:600;cursor:pointer}
+.luma-wm-sup-voltar:hover{color:var(--wm-text);background:var(--wm-surface-hover)}
+
+.luma-wm-sup-seg{display:flex;gap:6px;margin-bottom:12px}
+.luma-wm-sup-seg button{min-height:32px;padding:0 13px;border:1px solid var(--wm-border);border-radius:var(--r-pill);
+  background:var(--wm-surface);color:var(--wm-text-2);font-size:12px;font-weight:600;cursor:pointer}
+.luma-wm-sup-seg button.on{border-color:var(--wm-text);background:var(--wm-text);color:var(--wm-bg)}
+
+.luma-wm-sup-lista{display:flex;flex-direction:column;gap:8px}
+.luma-wm-sup-linha{display:flex;align-items:flex-start;gap:11px;width:100%;padding:12px;text-align:left;cursor:pointer;
+  border:1px solid var(--wm-border-soft);border-radius:12px;background:var(--wm-surface);color:var(--wm-text);
+  transition:border-color var(--dur-fast) var(--ease-out),background var(--dur-fast) var(--ease-out)}
+.luma-wm-sup-linha:hover{border-color:var(--wm-border);background:var(--wm-surface-hover)}
+.luma-wm-sup-linha-main{display:flex;flex:1;flex-direction:column;gap:2px;min-width:0}
+.luma-wm-sup-linha-top{display:flex;justify-content:space-between;gap:8px;font-size:13px}
+.luma-wm-sup-linha-top time{flex:none;color:var(--wm-text-3);font-size:11px}
+.luma-wm-sup-linha-onde{overflow:hidden;color:var(--wm-text-3);font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+.luma-wm-sup-linha-ultima{overflow:hidden;color:var(--wm-text-2);font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+.luma-wm-sup-linha.espera .luma-wm-sup-linha-ultima{color:var(--wm-text);font-weight:500}
+.luma-wm-sup-tag{color:var(--sup-laranja);font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase}
+body:not(.theme-light) .luma-wm-sup-tag{color:var(--dm-orange)}
+
+.luma-wm-sup-badge,.luma-wm-sup-navbadge{min-width:18px;height:18px;display:inline-grid;place-items:center;flex:none;
+  padding:0 5px;border-radius:var(--r-pill);background:var(--sup-laranja);color:var(--white);
+  font-size:10.5px;font-weight:800;line-height:1}
+.luma-wm-sup-badge{align-self:center}
+
+/* ── Atendimento (26/09/2026): estado, responsável, status de quem atende ──
+   A bolinha nunca é a única pista: todo estado vem escrito ao lado (WCAG 1.4.1). */
+.luma-wm-sup-dot.ausente{background:var(--dm-orange);box-shadow:0 0 0 3px color-mix(in srgb,var(--dm-orange) 22%,transparent)}
+.luma-wm-sup-dot.off{background:transparent;border:1.5px solid var(--wm-text-3);box-shadow:none}
+
+.luma-wm-sup-st{display:inline-flex;align-items:center;flex:none;min-height:20px;padding:0 8px;border-radius:var(--r-pill);
+  border:1px solid var(--wm-border);color:var(--wm-text-2);font-size:10.5px;font-weight:700;letter-spacing:.02em;white-space:nowrap}
+.luma-wm-sup-st.st-novo{border-color:color-mix(in srgb,var(--dm-orange-d) 45%,transparent);
+  background:color-mix(in srgb,var(--dm-orange) 10%,transparent);color:var(--sup-laranja)}
+body:not(.theme-light) .luma-wm-sup-st.st-novo{color:var(--dm-orange)}
+.luma-wm-sup-st.st-aguardando_usuario{border-style:dashed;color:var(--wm-text-3)}
+.luma-wm-sup-st.st-resolvido{border-color:color-mix(in srgb,var(--green) 45%,transparent);color:var(--green-text)}
+
+.luma-wm-sup-linha-estado{display:flex;align-items:center;gap:6px;margin-top:4px;color:var(--wm-text-3);font-size:11px}
+
+/* Status de quem atende, no topo da caixa. */
+.luma-wm-sup-eu{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:10px 12px;
+  border:1px solid var(--wm-border-soft);border-radius:12px;background:var(--wm-surface)}
+.luma-wm-sup-eu-txt{display:flex;flex:1;flex-direction:column;gap:1px;min-width:0;color:var(--wm-text-3);font-size:11.5px;line-height:1.35}
+.luma-wm-sup-eu-txt strong{color:var(--wm-text);font-size:12.5px}
+.luma-wm-sup-eu button,.luma-wm-sup-acoes button,.luma-wm-sup-trava button{flex:none;min-height:32px;padding:0 13px;
+  border:1px solid var(--wm-border);border-radius:var(--r-pill);background:var(--wm-surface);color:var(--wm-text);
+  font-size:12px;font-weight:600;cursor:pointer;transition:background var(--dur-fast) var(--ease-out),border-color var(--dur-fast) var(--ease-out)}
+.luma-wm-sup-eu button:hover,.luma-wm-sup-acoes button:hover,.luma-wm-sup-trava button:hover{background:var(--wm-surface-hover)}
+.luma-wm-sup-acoes button.prim,.luma-wm-sup-trava button{border-color:var(--wm-text);background:var(--wm-text);color:var(--wm-bg)}
+.luma-wm-sup-acoes button.prim:hover,.luma-wm-sup-trava button:hover{background:var(--wm-text);opacity:.88}
+.luma-wm-sup-acoes button:disabled,.luma-wm-sup-trava button:disabled,.luma-wm-sup-repasse button:disabled{opacity:.5;cursor:default}
+
+/* Telegram da própria pessoa (mesma caixa do status, logo abaixo dele). */
+.luma-wm-sup-tg{margin-top:-4px}
+.luma-wm-sup-tg.aberto{flex-wrap:wrap}
+.luma-wm-sup-tg-form{display:flex;gap:6px;width:100%}
+.luma-wm-sup-tg-form input{flex:1;min-width:0;min-height:32px;padding:0 12px;border:1px solid var(--wm-border);
+  border-radius:var(--r-pill);background:var(--wm-bg);color:var(--wm-text);font:inherit;font-size:13px;
+  letter-spacing:.08em;text-transform:uppercase}
+.luma-wm-sup-tg-form input::placeholder{color:var(--wm-text-3);letter-spacing:.08em}
+.luma-wm-sup-tg .luma-wm-sup-erro{width:100%;margin:0}
+
+/* A barra do atendimento, acima do fio da conversa. */
+.luma-wm-sup-ticket{flex:none;display:flex;flex-direction:column;gap:8px;margin-bottom:8px;padding:10px 12px;
+  border:1px solid var(--wm-border-soft);border-radius:12px;background:var(--wm-surface)}
+.luma-wm-sup-ticket-top{display:flex;align-items:center;gap:8px;min-width:0}
+.luma-wm-sup-ticket-dono{display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden;color:var(--wm-text-2);
+  font-size:12px;font-weight:600;text-overflow:ellipsis;white-space:nowrap}
+.luma-wm-sup-ticket-dono .luma-wm-sup-av{width:22px;height:22px;margin:0;font-size:9px}
+.luma-wm-sup-acoes{display:flex;flex-wrap:wrap;gap:6px}
+
+.luma-wm-sup-repasse{display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto}
+.luma-wm-sup-repasse button{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:6px 8px;text-align:left;
+  border:1px solid transparent;border-radius:10px;background:transparent;color:var(--wm-text);cursor:pointer}
+.luma-wm-sup-repasse button:hover{border-color:var(--wm-border-soft);background:var(--wm-surface-hover)}
+.luma-wm-sup-repasse .luma-wm-sup-av{margin:0}
+.luma-wm-sup-repasse-main{display:flex;flex:1;flex-direction:column;min-width:0;font-size:12.5px}
+.luma-wm-sup-repasse-main span{overflow:hidden;color:var(--wm-text-3);font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+.luma-wm-sup-repasse-onde{display:flex;align-items:center;gap:6px;flex:none;color:var(--wm-text-3);font-size:11px}
+
+/* Conversa de outra pessoa: no lugar do campo de resposta. */
+.luma-wm-sup-trava{flex:none;display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border:1px dashed var(--wm-border);border-radius:14px;background:var(--wm-surface)}
+.luma-wm-sup-trava .luma-wm-sup-av{margin:0}
+.luma-wm-sup-trava-txt{display:flex;flex:1;flex-direction:column;gap:1px;min-width:0;color:var(--wm-text-3);font-size:11.5px;line-height:1.35}
+.luma-wm-sup-trava-txt strong{color:var(--wm-text);font-size:12.5px}
+
+/* Franqueado: quem da equipe está online, com foto, nome e cargo. */
+.luma-wm-sup-pessoas{display:flex;flex-direction:column;gap:6px;width:100%;max-width:280px;margin-top:10px}
+.luma-wm-sup-pessoa{display:flex;align-items:center;gap:10px;padding:8px 10px;text-align:left;
+  border:1px solid var(--wm-border-soft);border-radius:12px;background:var(--wm-surface)}
+.luma-wm-sup-pessoa .luma-wm-sup-av{margin:0}
+.luma-wm-sup-pessoa-txt{display:flex;flex:1;flex-direction:column;min-width:0;font-size:12.5px}
+.luma-wm-sup-pessoa-txt strong{overflow:hidden;color:var(--wm-text);text-overflow:ellipsis;white-space:nowrap}
+.luma-wm-sup-pessoa-txt span{overflow:hidden;color:var(--wm-text-3);font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+
+/* Contador fora do widget: mora no body (--sup-contador), porque o botão Ajuda da home do
+   franqueado é re-renderizado pelo catálogo e perderia um nó pendurado nele. */
+.fh-help,#topbar-suporte{position:relative}
+body.sup-tem-contador .fh-help::after,
+body.sup-tem-contador #topbar-suporte::after{content:var(--sup-contador);position:absolute;top:-6px;right:-6px;
+  min-width:18px;height:18px;display:grid;place-items:center;padding:0 5px;border-radius:var(--r-pill);
+  background:var(--sup-laranja);color:var(--white);font-size:10.5px;font-weight:800;line-height:1;
+  box-shadow:0 0 0 2px var(--white);pointer-events:none}
+/* Na barra laranja o contador inverte: disco branco, número no laranja escuro. */
+body.sup-tem-contador #topbar-suporte::after{background:var(--white);color:var(--sup-laranja);
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--dm-orange-d) 40%,transparent)}
+
+/* Botão "Conversas" da equipe na topbar — a mesma família de vidro do perfil. */
+#topbar-suporte{appearance:none;display:inline-flex;align-items:center;gap:7px;min-height:38px;margin-right:10px;
+  padding:0 14px;border:1px solid color-mix(in srgb,var(--white) 20%,transparent);border-radius:var(--r-pill);
+  background:color-mix(in srgb,var(--white) 12%,transparent);color:var(--white);font:inherit;font-size:12.5px;
+  font-weight:600;cursor:pointer;transition:background var(--dur-fast) var(--ease-out),border-color var(--dur-fast) var(--ease-out)}
+#topbar-suporte[hidden]{display:none}
+#topbar-suporte:hover{border-color:color-mix(in srgb,var(--white) 34%,transparent);background:color-mix(in srgb,var(--white) 18%,transparent)}
+#topbar-suporte:focus-visible{outline:2px solid var(--white);outline-offset:2px}
+@media (max-width:767px){ #topbar-suporte span{display:none} #topbar-suporte{padding:0 11px} }
+
+/* ══ VITRINE DE FUNCIONALIDADES · TEMPORÁRIA (27/09/2026) ══════════════════════════════════
+   A aba Funcionalidades da Ajuda (bloco VITRINE do help-widget.js). Para remover: apague daqui
+   até o fim do bloco. O palco das demos usa as cores fixas da MARCA, como as ilustrações das
+   novidades (desenha pedaços do app claro); texto e controles fora dele seguem o tema. */
+
+#luma-widget-modal .luma-wm-body-funcionalidades {
+  gap:12px;
+  padding:16px 16px 20px;
+}
+
+#luma-widget-modal .luma-wm-body-funcionalidade {
+  gap:0;
+  padding:0;
+  background:var(--wm-bg);
+}
+
+/* Quatro abas: "Funcionalidades" é o rótulo mais longo e precisa do respiro lateral. */
+.luma-wm-nav-btn[data-tab="funcionalidades"] span {
+  white-space:nowrap;
+  letter-spacing:-.01em;
+}
+
+.luma-wm-nav:has(> .luma-wm-nav-btn:nth-child(4)) .luma-wm-nav-btn {
+  padding:0 2px;
+}
+
+.luma-wm-vit-intro {
+  display:flex;
+  flex:none;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:6px;
+  padding:18px 18px 16px;
+  border:1px solid color-mix(in srgb,var(--dm-orange) 22%,var(--wm-border-soft));
+  border-radius:14px;
+  background:linear-gradient(160deg,color-mix(in srgb,var(--dm-orange) 13%,var(--wm-surface)),var(--wm-surface) 70%);
+  color:var(--wm-text);
+}
+
+.luma-wm-vit-intro-ico {
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  margin-bottom:4px;
+  border-radius:10px;
+  background:var(--dm-orange);
+  color:var(--on-orange);
+}
+
+.luma-wm-vit-intro h3 {
+  margin:0;
+  font-size:18px;
+  font-weight:900;
+  line-height:1.25;
+  letter-spacing:-.01em;
+}
+
+.luma-wm-vit-intro p {
+  margin:0 0 6px;
+  color:var(--wm-text-2);
+  font-size:13px;
+  line-height:1.45;
+}
+
+/* Ação principal (no palco e fora dele): laranja da marca com a tinta escura do par. */
+.luma-wm-vit-acao {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  min-height:36px;
+  padding:0 14px;
+  border:0;
+  border-radius:var(--r-pill);
+  background:var(--dm-orange);
+  color:var(--on-orange);
+  font-size:13px;
+  font-weight:800;
+  cursor:pointer;
+  transition:transform var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-vit-acao:hover {
+  background:color-mix(in srgb,var(--dm-orange) 88%,var(--dm-orange-d));
+}
+
+.luma-wm-vit-acao:active {
+  transform:scale(.97);
+}
+
+.luma-wm-vit-acao svg {
+  width:14px;
+  height:14px;
+}
+
+/* ── O palco ─────────────────────────────────────────────────────────────── */
+
+.luma-wm-vit-palco {
+  flex:none;
+  border-bottom:1px solid var(--wm-border-soft);
+}
+
+.luma-wm-vit-cena {
+  position:relative;
+  min-height:276px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  overflow:hidden;
+  padding:18px 16px;
+  background:linear-gradient(160deg,var(--dm-orange-bg),var(--dm-orange-tint));
+  color:var(--text);
+  font-family:'Roboto',sans-serif;
+}
+
+.luma-wm-vit-ctl {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:10px;
+  padding:12px 16px;
+  background:var(--wm-surface);
+}
+
+.luma-wm-vit-passos {
+  min-width:0;
+  display:flex;
+  flex:1 1 220px;
+  gap:4px;
+}
+
+.luma-wm-vit-passos button {
+  min-width:0;
+  min-height:34px;
+  display:inline-flex;
+  flex:1;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:0 8px;
+  border:1px solid transparent;
+  border-radius:10px;
+  background:transparent;
+  color:var(--wm-text-3);
+  font-size:12px;
+  font-weight:700;
+  white-space:nowrap;
+  cursor:pointer;
+  transition:background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-vit-passos button:hover {
+  background:var(--wm-surface-hover);
+  color:var(--wm-text);
+}
+
+.luma-wm-vit-passos b {
+  width:18px;
+  height:18px;
+  display:grid;
+  flex:none;
+  place-items:center;
+  border-radius:50%;
+  background:var(--wm-surface-hover);
+  color:var(--wm-text-2);
+  font-size:10.5px;
+}
+
+.luma-wm-vit-passos button.is-on {
+  border-color:color-mix(in srgb,var(--dm-orange) 24%,var(--wm-border-soft));
+  background:color-mix(in srgb,var(--dm-orange) 9%,var(--wm-surface));
+  color:var(--wm-text);
+}
+
+.luma-wm-vit-passos button.is-on b {
+  background:var(--dm-orange);
+  color:var(--on-orange);
+}
+
+.luma-wm-vit-chips {
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:6px;
+}
+
+.luma-wm-vit-chip {
+  min-height:32px;
+  padding:0 13px;
+  border:1px solid color-mix(in srgb,var(--dm-orange-d) 30%,transparent);
+  border-radius:var(--r-pill);
+  background:var(--white);
+  color:var(--text);
+  font-size:12.5px;
+  font-weight:700;
+  cursor:pointer;
+  transition:border-color var(--dur-micro) var(--ease-standard),background var(--dur-micro) var(--ease-standard),transform var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-vit-chip:hover {
+  border-color:var(--dm-orange-d);
+}
+
+.luma-wm-vit-chip:active {
+  transform:scale(.96);
+}
+
+.luma-wm-vit-chip.is-on {
+  border-color:var(--text);
+  background:var(--text);
+  color:var(--white);
+}
+
+/* Fora do palco o chip segue o tema. */
+.luma-wm-vit-ctl .luma-wm-vit-chip {
+  border-color:var(--wm-border);
+  background:var(--wm-bg);
+  color:var(--wm-text);
+}
+
+.luma-wm-vit-ctl .luma-wm-vit-chip.is-on {
+  border-color:var(--wm-text);
+  background:var(--wm-text);
+  color:var(--wm-bg);
+}
+
+/* O palco é sempre claro: no tema escuro o link laranja some no branco, fica o vermelho. */
+.luma-wm-vit-cena .luma-wm-link,
+body:not(.theme-light) .luma-wm-vit-cena .luma-wm-link {
+  margin:0;
+  color:var(--dm-red);
+  font-size:13px;
+}
+
+.luma-wm-vit-obs {
+  margin-left:auto;
+  color:var(--wm-text-3);
+  font-size:11.5px;
+  font-weight:600;
+}
+
+/* ── A arte de demonstração ──────────────────────────────────────────────
+   Medidas em px de tela, iguais às da caixa que o motor mede (WM_VIT_CAIXA): o título chega
+   já quebrado em linhas, então o HTML só empilha, nunca re-quebra. O tracking de .02em é o
+   mesmo que a medida aplica em fonte 900. */
+
+.luma-wm-vit-arte {
+  position:relative;
+  width:200px;
+  height:250px;
+  display:block;
+  flex:none;
+  overflow:hidden;
+  border-radius:12px;
+  background:linear-gradient(165deg,var(--dm-orange),var(--dm-orange-d));
+  color:var(--on-orange);
+  box-shadow:0 12px 28px color-mix(in srgb,var(--dm-orange-d) 30%,transparent);
+}
+
+.luma-wm-vit-arte-selo {
+  position:absolute;
+  top:16px;
+  left:16px;
+  padding:4px 9px;
+  border-radius:var(--r-pill);
+  background:var(--dm-yellow);
+  color:var(--text);
+  font-size:9.5px;
+  font-weight:900;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+
+.luma-wm-vit-arte-titulo {
+  position:absolute;
+  top:42px;
+  left:16px;
+  display:flex;
+  flex-direction:column;
+  font-weight:900;
+  line-height:1.05;
+  letter-spacing:.02em;
+  white-space:nowrap;
+}
+
+/* Não coube: a caixa desenhada fica à mostra e o texto passa dela, como passaria na arte. A
+   tinta continua escura: vermelho sobre laranja não se lê, e quem avisa é o contorno. */
+.luma-wm-vit-arte-titulo.is-estourou {
+  outline:2px dashed var(--dm-red);
+  outline-offset:3px;
+}
+
+.luma-wm-vit-arte-preco {
+  position:absolute;
+  top:124px;
+  left:16px;
+  padding:5px 10px;
+  border-radius:8px;
+  background:var(--text);
+  color:var(--white);
+  font-size:17px;
+  font-weight:900;
+}
+
+.luma-wm-vit-arte-prato {
+  position:absolute;
+  right:-20px;
+  bottom:-20px;
+  width:120px;
+  height:120px;
+  border-radius:50%;
+  background:radial-gradient(circle at 40% 35%,var(--dm-yellow),var(--dm-orange-d));
+  box-shadow:0 0 0 9px color-mix(in srgb,var(--white) 88%,transparent);
+}
+
+/* Miniatura: a MESMA arte escalada; as margens negativas devolvem o espaço que a escala tirou. */
+.luma-wm-vit-mini {
+  display:flex;
+  flex:none;
+  flex-direction:column;
+  align-items:center;
+  gap:6px;
+  animation:luma-wm-vit-pop var(--dur-base) var(--ease-spring-soft) both;
+  animation-delay:calc(var(--i, 0) * 110ms);
+}
+
+.luma-wm-vit-mini > .luma-wm-vit-arte {
+  margin:0 -108px -135px 0;
+  transform:scale(.46);
+  transform-origin:0 0;
+}
+
+.luma-wm-vit-mini small {
+  color:var(--text-2);
+  font-size:10.5px;
+  font-weight:800;
+}
+
+.luma-wm-vit-minis {
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  gap:12px;
+}
+
+@keyframes luma-wm-vit-pop {
+  from { opacity:0; transform:translateY(8px) scale(.94); }
+}
+
+@keyframes luma-wm-vit-nasce {
+  0%   { opacity:0; transform:translateY(10px) scale(.96); filter:blur(4px); }
+  100% { opacity:1; transform:none; filter:none; }
+}
+
+/* ── Demo: conversa ─────────────────────────────────────────────────────── */
+
+.luma-wm-vit-cena.is-conversa {
+  align-items:stretch;
+}
+
+.luma-wm-vit-bub {
+  max-width:240px;
+  align-self:flex-start;
+  padding:9px 13px;
+  border-radius:14px 14px 14px 4px;
+  background:var(--white);
+  color:var(--text);
+  font-size:13px;
+  font-weight:600;
+  line-height:1.35;
+  box-shadow:0 4px 12px color-mix(in srgb,var(--dm-orange-d) 12%,transparent);
+  animation:luma-wm-vit-pop var(--dur-base) var(--ease-out) both;
+}
+
+.luma-wm-vit-bub.eu {
+  align-self:flex-end;
+  border-radius:14px 14px 4px 14px;
+  background:var(--dm-orange);
+  color:var(--on-orange);
+}
+
+.luma-wm-vit-bub + .luma-wm-vit-bub {
+  animation-delay:180ms;
+}
+
+.luma-wm-vit-cena.is-conversa .luma-wm-vit-chips {
+  margin-top:4px;
+  animation:luma-wm-vit-pop var(--dur-base) var(--ease-out) 260ms both;
+}
+
+.luma-wm-vit-nasce {
+  align-self:center;
+  animation:luma-wm-vit-nasce var(--dur-slow) var(--ease-out) 120ms both;
+}
+
+.luma-wm-vit-pronta {
+  display:inline-flex;
+  align-self:center;
+  align-items:center;
+  gap:6px;
+  padding:5px 11px;
+  border-radius:var(--r-pill);
+  background:var(--white);
+  color:var(--green-d);
+  font-size:12px;
+  font-weight:800;
+  animation:luma-wm-vit-pop var(--dur-base) var(--ease-spring-soft) 480ms both;
+}
+
+/* ── Demo: texto (encaixe e Encurtar) ───────────────────────────────────── */
+
+.luma-wm-vit-campo {
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+.luma-wm-vit-campo small,
+.luma-wm-vit-exemplos small {
+  color:var(--wm-text-3);
+  font-size:11px;
+  font-weight:700;
+}
+
+.luma-wm-vit-campo input {
+  width:100%;
+  height:40px;
+  padding:0 12px;
+  border:1px solid var(--wm-border);
+  border-radius:10px;
+  background:var(--wm-bg);
+  color:var(--wm-text);
+  font:inherit;
+  font-size:14px;
+  font-weight:600;
+  transition:border-color var(--dur-micro) var(--ease-standard),box-shadow var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-vit-campo input:focus {
+  border-color:var(--dm-orange);
+  outline:none;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--dm-orange) 22%,transparent);
+}
+
+.luma-wm-vit-exemplos {
+  width:100%;
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:6px;
+}
+
+.luma-wm-vit-exemplos small {
+  margin-right:2px;
+}
+
+.luma-wm-vit-saida {
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:8px;
+}
+
+.luma-wm-vit-status {
+  display:flex;
+  align-items:flex-start;
+  gap:8px;
+  margin:0;
+  color:var(--wm-text);
+  font-size:13px;
+  font-weight:600;
+  line-height:1.4;
+}
+
+.luma-wm-vit-status svg {
+  flex:none;
+  margin-top:1px;
+}
+
+.luma-wm-vit-status.is-ok svg {
+  color:var(--green-d);
+}
+
+.luma-wm-vit-status.is-alerta svg {
+  color:var(--dm-red);
+}
+
+body:not(.theme-light) .luma-wm-vit-status.is-ok svg {
+  color:var(--green);
+}
+
+body:not(.theme-light) .luma-wm-vit-status.is-alerta svg {
+  color:var(--dm-orange);
+}
+
+.luma-wm-vit-sugs {
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.luma-wm-vit-sug {
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  padding:10px 12px;
+  border:1px solid var(--wm-border);
+  border-radius:10px;
+  background:var(--wm-bg);
+  color:var(--wm-text);
+  text-align:left;
+  cursor:pointer;
+  animation:luma-wm-vit-pop var(--dur-base) var(--ease-out) both;
+  transition:border-color var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-vit-sug:hover {
+  border-color:var(--dm-orange);
+}
+
+.luma-wm-vit-sug strong {
+  font-size:13px;
+  font-weight:800;
+  line-height:1.35;
+}
+
+.luma-wm-vit-sug small {
+  color:var(--wm-text-3);
+  font-size:11.5px;
+}
+
+.luma-wm-vit-nota {
+  margin:0;
+  color:var(--wm-text-2);
+  font-size:12.5px;
+  line-height:1.45;
+}
+
+/* ── Demo: foto e logo ──────────────────────────────────────────────────── */
+
+.luma-wm-vit-quadros {
+  display:flex;
+  gap:14px;
+}
+
+.luma-wm-vit-quadro {
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.luma-wm-vit-quadro small {
+  color:var(--text-3);
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+
+.luma-wm-vit-moldura {
+  position:relative;
+  width:132px;
+  height:100px;
+  display:block;
+  overflow:hidden;
+  border:2px dashed color-mix(in srgb,var(--dm-orange-d) 55%,transparent);
+  border-radius:10px;
+  background:color-mix(in srgb,var(--white) 72%,transparent);
+}
+
+.luma-wm-vit-logo {
+  position:absolute;
+  top:50%;
+  left:50%;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  border-radius:8px;
+  background:var(--text);
+  color:var(--white);
+  font-size:12px;
+  font-weight:900;
+  white-space:nowrap;
+  transform:translate(-50%,-50%) scale(.42);
+}
+
+.luma-wm-vit-logo i {
+  width:16px;
+  height:16px;
+  flex:none;
+  border-radius:50%;
+  background:var(--dm-yellow);
+}
+
+.luma-wm-vit-foto {
+  position:absolute;
+  top:50%;
+  left:50%;
+  width:78px;
+  height:78px;
+  border-radius:50%;
+  background:radial-gradient(circle at 40% 35%,var(--dm-yellow),var(--dm-orange-d));
+  box-shadow:0 0 0 6px var(--white);
+  transform:translate(-50%,-50%) translate(40px,30px);
+}
+
+.luma-wm-vit-quadro.is-enquadrado .luma-wm-vit-moldura {
+  border-style:solid;
+  border-color:var(--dm-orange-d);
+}
+
+.luma-wm-vit-quadro.is-enquadrado .luma-wm-vit-logo {
+  transform:translate(-50%,-50%) scale(.88);
+  animation:luma-wm-vit-logo var(--dur-slow) var(--ease-spring-soft) both;
+}
+
+.luma-wm-vit-quadro.is-enquadrado .luma-wm-vit-foto {
+  transform:translate(-50%,-50%);
+  animation:luma-wm-vit-foto var(--dur-slow) var(--ease-spring-soft) 90ms both;
+}
+
+@keyframes luma-wm-vit-logo {
+  from { transform:translate(-50%,-50%) scale(.42); }
+}
+
+@keyframes luma-wm-vit-foto {
+  from { transform:translate(-50%,-50%) translate(40px,30px); }
+}
+
+/* ── Demo: legenda ──────────────────────────────────────────────────────── */
+
+.luma-wm-vit-legenda {
+  width:100%;
+  max-width:330px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  padding:12px 14px;
+  border-radius:14px;
+  background:var(--white);
+  color:var(--text);
+  box-shadow:0 10px 26px color-mix(in srgb,var(--dm-orange-d) 18%,transparent);
+}
+
+.luma-wm-vit-legenda-topo {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-size:13px;
+}
+
+.luma-wm-vit-legenda-topo .luma-wm-vit-mini > .luma-wm-vit-arte {
+  margin:0 -140px -175px 0;
+  transform:scale(.3);
+}
+
+.luma-wm-vit-legenda-txt {
+  max-height:150px;
+  overflow-y:auto;
+  color:var(--text-2);
+  font-size:12.5px;
+  line-height:1.45;
+  animation:luma-wm-vit-pop var(--dur-base) var(--ease-out) both;
+}
+
+.luma-wm-vit-legenda-pe {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+}
+
+/* ── Demo: lote ─────────────────────────────────────────────────────────── */
+
+.luma-wm-vit-planilha,
+.luma-wm-vit-camadas {
+  width:100%;
+  max-width:300px;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  border-radius:12px;
+  background:var(--white);
+  box-shadow:0 10px 26px color-mix(in srgb,var(--dm-orange-d) 16%,transparent);
+}
+
+.luma-wm-vit-planilha-cab,
+.luma-wm-vit-planilha-lin {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 92px;
+}
+
+.luma-wm-vit-planilha-cab b,
+.luma-wm-vit-camadas > b {
+  padding:8px 12px;
+  color:var(--text-3);
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+
+.luma-wm-vit-planilha-cab {
+  background:var(--gray-light);
+}
+
+.luma-wm-vit-planilha-lin {
+  border-top:1px solid var(--gray-light);
+}
+
+.luma-wm-vit-planilha-lin input {
+  min-width:0;
+  padding:9px 12px;
+  border:0;
+  background:transparent;
+  color:var(--text);
+  font:inherit;
+  font-size:13px;
+  font-weight:600;
+}
+
+.luma-wm-vit-planilha-lin input + input {
+  border-left:1px solid var(--gray-light);
+}
+
+.luma-wm-vit-planilha-lin input:focus {
+  background:var(--dm-orange-bg);
+  outline:2px solid var(--dm-orange);
+  outline-offset:-2px;
+}
+
+/* ── Demo: template (equipe) ────────────────────────────────────────────── */
+
+.luma-wm-vit-camadas > b {
+  background:var(--gray-light);
+}
+
+.luma-wm-vit-camada {
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:9px 12px;
+  border-top:1px solid var(--gray-light);
+  color:var(--text);
+  font-size:13px;
+  font-weight:600;
+}
+
+.luma-wm-vit-camada svg {
+  flex:none;
+  color:var(--text-3);
+}
+
+.luma-wm-vit-camada > span {
+  min-width:0;
+  flex:1;
+}
+
+.luma-wm-vit-camada em {
+  display:inline-flex;
+  flex:none;
+  align-items:center;
+  gap:4px;
+  padding:3px 8px;
+  border-radius:var(--r-pill);
+  background:var(--gray-light);
+  color:var(--text-3);
+  font-size:10.5px;
+  font-style:normal;
+  font-weight:800;
+  animation:luma-wm-vit-pop var(--dur-base) var(--ease-spring-soft) both;
+}
+
+.luma-wm-vit-camada em.is-troca {
+  background:var(--dm-orange-bg);
+  color:var(--dm-red);
+}
+
+/* ── Texto da funcionalidade ────────────────────────────────────────────── */
+
+.luma-wm-vit-body {
+  padding:18px 20px 6px;
+}
+
+.luma-wm-vit-body h3 {
+  margin:0 0 8px;
+  color:var(--wm-text);
+  font-size:20px;
+  font-weight:900;
+  line-height:1.2;
+  letter-spacing:-.02em;
+  text-wrap:balance;
+}
+
+.luma-wm-vit-oque {
+  margin:0 0 14px;
+  color:var(--wm-text-2);
+  font-size:14px;
+  line-height:1.55;
+}
+
+.luma-wm-vit-par {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  margin:0 0 12px;
+}
+
+.luma-wm-vit-par > div {
+  padding:11px 12px;
+  border:1px solid var(--wm-border-soft);
+  border-radius:12px;
+  background:var(--wm-surface-hover);
+}
+
+.luma-wm-vit-par > div.is-agora {
+  border-color:color-mix(in srgb,var(--dm-orange) 24%,var(--wm-border-soft));
+  background:color-mix(in srgb,var(--dm-orange) 8%,var(--wm-surface));
+}
+
+.luma-wm-vit-par dt {
+  margin-bottom:4px;
+  color:var(--wm-text-3);
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+
+.luma-wm-vit-par .is-agora dt {
+  color:var(--dm-red);
+}
+
+body:not(.theme-light) .luma-wm-vit-par .is-agora dt {
+  color:var(--dm-orange);
+}
+
+.luma-wm-vit-par dd {
+  margin:0;
+  color:var(--wm-text-2);
+  font-size:13px;
+  line-height:1.45;
+}
+
+.luma-wm-vit-prova {
+  display:flex;
+  align-items:flex-start;
+  gap:8px;
+  margin:0 0 4px;
+  padding:10px 12px;
+  border-radius:12px;
+  background:color-mix(in srgb,var(--green) 11%,var(--wm-surface));
+  color:var(--wm-text);
+  font-size:13px;
+  font-weight:600;
+  line-height:1.45;
+}
+
+.luma-wm-vit-prova svg {
+  flex:none;
+  margin-top:2px;
+  color:var(--green-d);
+}
+
+body:not(.theme-light) .luma-wm-vit-prova svg {
+  color:var(--green);
+}
+
+/* "Próxima": quem apresenta segue o tour sem voltar para a lista. */
+.luma-wm-vit-prox {
+  width:calc(100% - 32px);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin:12px 16px 18px;
+  padding:12px 14px;
+  border:1px solid var(--wm-border-soft);
+  border-radius:14px;
+  background:var(--wm-surface);
+  color:var(--wm-text);
+  text-align:left;
+  cursor:pointer;
+  transition:border-color var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-vit-prox:hover {
+  border-color:var(--wm-border);
+}
+
+.luma-wm-vit-prox small {
+  display:block;
+  color:var(--wm-text-3);
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+
+.luma-wm-vit-prox strong {
+  font-size:14px;
+  font-weight:800;
+}
+
+.luma-wm-vit-prox svg {
+  flex:none;
+  transition:transform var(--dur-micro) var(--ease-standard);
+}
+
+.luma-wm-vit-prox:hover svg {
+  transform:translateX(2px);
+}
+
+@media (max-width:360px) {
+  .luma-wm-vit-par {
+    grid-template-columns:1fr;
+  }
+}
+/* ══ fim da VITRINE ══════════════════════════════════════════════════════════════════════ */

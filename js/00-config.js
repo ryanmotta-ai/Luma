@@ -9,24 +9,19 @@
    FRANQUEADO — dados e estado
 ══════════════════════════════════════════════════════════════ */
 const HIST_KEY='dm_artes_hist_v2';
-/* Chave do Gemini do caminho de transição (o front fala direto com o provedor
-   quando a Edge Function `ai` não responde). Trocada em 2026-08-19: a anterior
-   estava REVOGADA e devolvia 401 UNAUTHENTICATED em toda chamada — o que deixava
-   legenda, cardápio, ajuda, encurtar e transcrição falhando em silêncio, porque
-   gAskAI devolve null e cada recurso cai no fallback sem dizer o motivo.
-   ⚠ Formato: chave de API do Gemini hoje começa com 'AQ.' — não é mais 'AIza…'.
-   Verificado por chamada real ao provedor antes de entrar aqui. */
-window.LUMA_CONFIG = window.LUMA_CONFIG || { geminiApiKey: 'AQ.Ab8RN6K57nnQafJs2rkB_41z-6skw3EXjdngiUVSSZw0GmKVWg' };
-window.LUMA_GEMINI_API_KEY = window.LUMA_GEMINI_API_KEY || 'AQ.Ab8RN6K57nnQafJs2rkB_41z-6skw3EXjdngiUVSSZw0GmKVWg';
-// Modelo dos 2 agentes, em UM lugar só. 'gemini-3.6-flash' é estável e não sofre da oscilação de alta demanda do 3.8.
-window.LUMA_GEMINI_MODEL = window.LUMA_GEMINI_MODEL || 'gemini-3.6-flash';
+/* A chave do Gemini NÃO mora no front: é o secret GEMINI_API_KEY da Edge Function `ai`
+   (supabase/functions/ai). A que ficava aqui vazou e foi revogada em 23/09/2026. */
+/* Modelo da IA, em UM lugar só: o mais barato que a conta tem (medido em 23/09/2026). Os 2.5 dão
+   404 para esta conta. Se o modelo estiver sem vaga (503), a Edge Function desce sozinha pela
+   escada (MODELOS_RESERVA em supabase/functions/ai) — o front não precisa saber. */
+window.LUMA_GEMINI_MODEL = window.LUMA_GEMINI_MODEL || 'gemini-3.1-flash-lite';
 
 /* ── CAMADA DE INTELIGÊNCIA (GEMINI INTELLIGENCE LAYER) ──
    Modelos centralizados (§6) e Feature Flags individuais (§14). */
 window.AI_MODELS = window.AI_MODELS || {
-  fast: 'gemini-3.6-flash',
-  vision: 'gemini-3.6-flash',
-  reasoning: 'gemini-3.6-flash',
+  fast: 'gemini-3.1-flash-lite',
+  vision: 'gemini-3.1-flash-lite',
+  reasoning: 'gemini-3.1-flash-lite',
   embedding: 'text-embedding-004'
 };
 window.AI_FEATURES = window.AI_FEATURES || {
@@ -48,7 +43,28 @@ window.AI_FEATURES = window.AI_FEATURES || {
               carrega a identidade e o texto ao lado carrega a data e a regra.
    Campanha sem `banner` não quebra nada — quem exibe cai no tratamento
    tipográfico (trilho de cor + título). O mesmo vale se o arquivo faltar: o
-   `onerror` do <img> some com ele. Ver `calBanner` em js/calendario/calendario.js. */
+   `onerror` do <img> some com ele. Ver `calBanner` em js/calendario/calendario.js.
+
+   ⚠ Desde 23/09/2026 isto é SEMENTE, não a fonte: com as pastas do banco carregadas, a
+   vitrine é montada a partir delas (`fGetCampaigns`, catalog.js) — criar, arquivar e trocar
+   de seção é no Estúdio. Daqui só saem o `banner` (o banco não tem a coluna), a seção de uma
+   pasta ainda sem `destaque` e a lista inteira quando o banco não respondeu. */
+/* PASTAS DE SISTEMA — "Modelo de exemplo" e "Rascunhos" não são campanha. Elas nasciam com id
+   LOCAL ('f-modelo'/'f-rascunhos') em cada aparelho e o push dava a cada uma um id novo no
+   banco: eram 21 "Modelo" e 8 "Rascunhos" em 23/09/2026, e as Modelo apareciam na vitrine
+   (a exclusão comparava o id local, que o pull troca pelo do banco). Id FIXO no banco = o
+   upsert cai sempre na mesma linha. O nome é a rede para cópias antigas ainda em cache. */
+const G_PASTA_MODELO_ID='4c554d41-0000-4000-8000-00000000000a';
+const G_PASTA_RASC_ID='4c554d41-0000-4000-8000-00000000000b';
+function gPastaSistema(f){
+  if(!f) return null;
+  if(f.id==='f-modelo'||f.remoteId===G_PASTA_MODELO_ID||f.id===G_PASTA_MODELO_ID) return 'modelo';
+  if(f.id==='f-rascunhos'||f.remoteId===G_PASTA_RASC_ID||f.id===G_PASTA_RASC_ID) return 'rascunhos';
+  const n=String(f.name||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z ]/g,'').trim();
+  if(n==='modelo de exemplo') return 'modelo';
+  if(n==='rascunhos') return 'rascunhos';
+  return null;
+}
 const CAMPS_ATIVAS=[
   {id:'muchplus',name:'Much+ Benefícios',color:'#FFB900',count:4,badge:'',expiraDias:90,popular:true,theme:'muchplus',cover:'assets/covers/muchplus.png',
    previewProd:'CLUBE MUCH+',previewDe:'',previewPor:'MAIS BENEFÍCIOS',
@@ -323,8 +339,8 @@ function gGradientSvg(g, id){
   const a=(g.angle!=null?g.angle:90)*Math.PI/180;
   return `<linearGradient id="${id}" x1="${(0.5-Math.cos(a)/2).toFixed(4)}" y1="${(0.5-Math.sin(a)/2).toFixed(4)}" x2="${(0.5+Math.cos(a)/2).toFixed(4)}" y2="${(0.5+Math.sin(a)/2).toFixed(4)}">${stops}</linearGradient>`;
 }
-// Empacota um imgUrl para persistência: mantém data URLs PEQUENAS (sobrevivem ao reload)
-// e descarta as grandes pra não estourar a quota → '__local__' (com aviso). (Robustez PSD/quota)
+// DataURL grande só vira referência curta após confirmação IndexedDB. Enquanto
+// pendente/indisponível, preserva bytes e deixa o caller reportar eventual quota.
 const G_IMG_KEEP_MAX = 70 * 1024; // ~70KB de bytes aproximados
 function gPackImgUrl(url){
   if(!url || typeof url!=='string' || !url.startsWith('data:')) return {url:url, dropped:false};
@@ -336,21 +352,23 @@ function gPackImgUrl(url){
   if(typeof gImgHash==='function' && typeof gIdbPut==='function' && typeof indexedDB!=='undefined'){
     try{
       const key = gImgHash(url);
-      gIdbPut(key, url); // fire-and-forget: a cópia em memória segue com o dataURL real
-      return {url:'idb://'+key, dropped:false};
+      const stored=typeof gImgStoredRef==='function'?gImgStoredRef(url):null;
+      if(stored) return {url:stored,dropped:false};
+      gIdbPut(key, url);
     }catch(e){ /* cai no fallback abaixo */ }
   }
-  return {url:'__local__', dropped:true};
+  // Enquanto o commit não chegou (ou falhou), preserve os bytes. Se a quota local
+  // não comportar o save, o caller recusa a gravação e mantém o último estado salvo.
+  return {url:url, dropped:false};
 }
 // Empacota uma MÁSCARA (dataURL alpha) para persistência. Máscaras são downscaladas no
 // import do PSD, mas máscaras pintadas à mão (mask.js) podem ser grandes. Diferente de
-// imgUrl: NÃO há placeholder '__local__' p/ máscara — se não couber, retorna url:null e o
-// caller remove o campo (camada volta sem máscara), em vez de gravar uma referência quebrada.
+// imgUrl: a máscara preserva bytes até o commit, sem perder o recorte no reload.
 const G_MASK_KEEP_MAX = 120 * 1024; // alpha PNG comprime bem; teto um pouco maior que imagem
 function gPackMask(url){
   if(!url || typeof url!=='string' || !url.startsWith('data:')) return {url:url, dropped:false};
   if(url.length * 0.75 <= G_MASK_KEEP_MAX) return {url:url, dropped:false};
-  return {url:null, dropped:true};
+  return gPackImgUrl(url);
 }
 // UUID v4 válido — sempre, em qualquer contexto. crypto.randomUUID só existe em
 // contexto seguro (https/localhost); em file:// ou IP de LAN ele é undefined, e um id
@@ -375,7 +393,7 @@ function gInterpolate(content, dados, opts){
   opts = opts || {};
   const keep = opts.onEmpty === 'keep';
   const defaults = opts.defaults;
-  return String(content==null?'':content).replace(gVarRegex(), (m, name, format)=>{
+  return String(content==null?'':content).replace(gVarRegex(), (m, name, format, offset, str)=>{
     let v = dados ? dados[name] : undefined;
     if(v==null || v==='') v = defaults ? defaults[name] : undefined;
     if(v==null || v==='') return keep ? m : '';
@@ -388,8 +406,22 @@ function gInterpolate(content, dados, opts){
       return gSplitPrice(v).centavos;
     }
     
-    return String(v);
+    return _gSemRotuloRepetido(String(v), typeof str === 'string' ? str.slice(0, offset) : '');
   });
+}
+
+/* O TEMPLATE JÁ ESCREVE O RÓTULO. O chat rotula o preço ("De: R$ 12,90", "Por: R$ 29,90" —
+   chat-input.js, fApplyMask), mas há template que traz o rótulo no próprio texto:
+   'R$\n{{precoPor}}' e 'DE {{precoDe}}' (templates.js). Saía "R$\nPor: R$ 29,90" e
+   "DE De: R$ 12,90". Se o texto logo ANTES do campo termina em R$, DE ou POR, o valor perde o
+   que repete. Só mexe em valor com cara de preço — texto livre passa intacto. */
+function _gSemRotuloRepetido(v, antes){
+  if(!/^\s*(?:(?:de|por)\b:?\s*)?r\$/i.test(v)) return v;
+  const fim = String(antes||'').trimEnd();
+  if(/r\$$/i.test(fim)) return v.replace(/^\s*(?:(?:de|por)\b:?\s*)?r\$\s*/i, '');
+  const rot = fim.match(/(?:^|[^\p{L}])(de|por):?$/iu);
+  if(rot) return v.replace(new RegExp('^\\s*'+rot[1]+'\\b:?\\s*','i'), '');
+  return v;
 }
 
 // Separa um preço em inteiros e centavos de forma robusta
@@ -650,7 +682,11 @@ function gFieldGuessCategory(name, type){
 // A ordem dos testes importa: mídia e cupom vêm antes de preço para não serem capturados
 // pela regra ampla de valor ("logo_loja" é imagem; "cupom_desconto" é código, não R$).
 function gFieldGuessType(name){
-  const s=String(name||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  // camelCase → snake_case antes de baixar a caixa: os padrões abaixo delimitam por `_`, e
+  // sem esta quebra `logoLoja` não era reconhecido como imagem (nem `fotoProduto`, nem
+  // `dataValidade`). Mesma normalização do `gFieldSortWeight`, pelo mesmo motivo.
+  const s=String(name||'').normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/([a-z0-9])([A-Z])/g,'$1_$2').toLowerCase();
   if(!s) return 'text';
   if(/(^|_)(foto|imagem|img|logo|banner|capa|thumb|arte)($|_)/.test(s)) return 'image';
   if(/(^|_)cupom($|_)/.test(s)) return 'text'; // "MUCH10" é código, não valor monetário
@@ -1108,18 +1144,35 @@ function gCampoEhLogo(nome){
 // 4. O COMO/QUANDO: Validade da oferta -> Regras/Condições
 // 5. QUEM: Identificação da Loja/Parceiro (assinatura no rodapé)
 function gFieldSortWeight(name, type){
-  const s = String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[\s-]+/g, '_');
+  /* camelCase vira snake_case ANTES de baixar a caixa: os padr\u00f5es abaixo s\u00e3o escritos com
+     underscore (`nome_produto`, `logo_loja`) e o template batiza como quer. Sem esta quebra,
+     `nomeProduto` virava `nomeproduto`, n\u00e3o casava com nada e ca\u00eda no bloco "outros" \u2014 a
+     pergunta mais importante do fluxo ia para o FIM da fila. Mesma armadilha valia para
+     `logoLoja` e qualquer nome composto sem separador. */
+  const s = String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .toLowerCase().replace(/[\s-]+/g, '_');
   const t = type || gFieldGuessType(name);
   const isImg = t === 'image' || /(^|_)(foto|imagem|img|banner|capa|thumb|pic)($|_)/.test(s);
   const isStore = /(^|_)(logo|loja|marca|estabelecimento|restaurante|parceir|whatsapp|telefone|contato)($|_)/.test(s);
 
-  // Bloco 1: Identificação principal do produto / item
-  if(/^(produto|item|prato|combo|titulo|lanche|pizza|nome_produto|nome_item|nome)$/.test(s)) return 10;
-  if(/(sabor|opcao|tipo_)/.test(s)) return 12;
-  if(/(detalhes|descricao|subtitulo|sub_titulo|ingredientes|acompanhamento|texto_apoio|complemento)/.test(s)) return 15;
+  /* ── A ORDEM É A DE MONTAR O ANÚNCIO, NÃO A DE LER A ARTE ──
+     Até 16/09/2026 a sequência começava no nome do produto e, logo depois, na DESCRIÇÃO —
+     o franqueado escrevia um texto de apoio antes de ter dito o que estava anunciando com
+     imagem, e a foto vinha só em terceiro. Pior: o logo da loja era o penúltimo campo, então
+     o fluxo terminava num upload, depois de toda a digitação.
+     Agora os dois UPLOADS abrem o fluxo (é o trabalho pesado, e é o que define a cara da
+     peça), depois vem o que se anuncia, depois quanto custa, e a descrição fecha o bloco de
+     conteúdo — ela é enriquecimento, não identificação. Decisão do Ryan em 16/09/2026.
+     ⚠ Isto é só o padrão: `ordemManual` do designer (aba Campos) continua vencendo tudo. */
 
-  // Bloco 2: Foto do produto (exceto logos de loja/marca)
-  if(isImg && !isStore) return 20;
+  // Bloco 1: os uploads primeiro — foto do produto, depois o logo da loja
+  if(isImg && !isStore) return 10;
+  if(isImg && isStore)  return 12;   // logo_loja, logo
+
+  // Bloco 2: o que está sendo anunciado
+  if(/^(produto|item|prato|combo|titulo|lanche|pizza|nome_produto|nome_item|nome)$/.test(s)) return 20;
+  if(/(sabor|opcao|tipo_)/.test(s)) return 22;
 
   // Bloco 3: Preço original / Âncora ("De")
   if(/(preco_?de|valor_?de|preco_?original|valor_?original|preco_?antigo|preco_?cheio|\bde\b)/.test(s)) return 30;
@@ -1133,18 +1186,20 @@ function gFieldSortWeight(name, type){
   if(/(beneficio|vantagem|cashback|brinde|oferta)/.test(s)) return 54;
   if(/(pedido_?min|valor_?min)/.test(s)) return 56;
 
-  // Bloco 6: Validade, prazos e condições
+  // Bloco 6: descrição/apoio — fecha o conteúdo, depois de já existir oferta
+  if(/(detalhes|descricao|subtitulo|sub_titulo|ingredientes|acompanhamento|texto_apoio|complemento)/.test(s)) return 58;
+
+  // Bloco 7: Validade, prazos e condições
   if(/(validade|data|vencimento|periodo|prazo|dias|horario)/.test(s)) return 60;
   if(/(condicao|regra|bairros|cobertura|observacao|obs|aviso|legal)/.test(s)) return 65;
 
-  // Bloco 7: Assinatura da loja / parceiro / contato
+  // Bloco 8: o resto da assinatura da loja (o logo já saiu no bloco 1)
   if(isStore){
     if(/^(nome_loja|nome_restaurante|loja|restaurante)$/.test(s)) return 70;
-    if(isImg) return 72; // logo_loja, logo
     return 75; // whatsapp, telefone, contato
   }
 
-  // Bloco 8: Demais campos (outros)
+  // Bloco 9: Demais campos (outros)
   return 80;
 }
 
@@ -1216,6 +1271,17 @@ function gFieldSlugify(label, existingNames){
    passa disso, e o cache não pode virar vazamento de memória numa aba aberta o dia todo. */
 let _G_MEDIDA_CACHE = new Map();
 
+/* FONTE QUE CHEGA DEPOIS INVALIDA A MEDIDA. Enquanto a Roboto (ou uma fonte enviada pelo
+   designer) não terminou de carregar, `measureText` responde com as métricas do fallback do
+   sistema. Essa largura errada entrava no cache e ficava lá: a primeira pintura definia o
+   layout da sessão inteira, e a arte só voltava ao normal com F5. */
+try{
+  if(typeof document!=='undefined' && document.fonts){
+    if(document.fonts.ready && document.fonts.ready.then) document.fonts.ready.then(()=>_G_MEDIDA_CACHE.clear(), ()=>{});
+    if(document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', ()=>_G_MEDIDA_CACHE.clear());
+  }
+}catch(e){}
+
 // gCachePodar(map, teto) -- descarte PARCIAL num Map usado como cache.
 // `.clear()` no teto era mais barato de escrever e pior de usar: zerava as 4000 medidas
 // de uma vez e a proxima repintura pagava 4000 measureText seguidos -- um engasgo visivel
@@ -1260,7 +1326,8 @@ function gMeasureLayerWidth(layer, text, ctxAux) {
     let totalW = 0;
     runs.forEach(r => {
       const rFp = (typeof dTextFontParts === 'function') ? dTextFontParts(r.font) : fp;
-      ctx.font = `${ital}${rFp.weight} ${r.fontSize}px ${rFp.family}`;
+      const rPeso = r.fontWeightOverride || rFp.weight;   // mesmo faux bold do desenho
+      ctx.font = `${ital}${rPeso} ${r.fontSize}px ${rFp.family}`;
       ctx.letterSpacing = r.letterSpacing ? (r.letterSpacing) + 'px' : '0px';
       totalW += ctx.measureText(r.text || '').width;
     });
@@ -1274,7 +1341,12 @@ function gMeasureLayerWidth(layer, text, ctxAux) {
    memoizado e o caminho com runs usem exatamente a MESMA conta (duas réguas para a mesma
    pergunta é como medida e desenho divergiram no passado). */
 function _gMedirLarguraDireto(layer, text, ctx, fp, fontSize, ital) {
-  ctx.font = `${ital}${fp.weight} ${fontSize}px ${fp.family}`;
+  /* ⚠ `fontWeightOverride` é o faux bold que vem do PSD e o RENDER aplica (png-generator.js
+     §fwt, canvas.js). Medir com o peso "normal" e desenhar em 900 dava uma régua mais curta
+     que a tinta: a escada achava que cabia e o texto estourava a caixa na arte final.
+     A chave do cache já continha o override — faltava a conta usá-lo. */
+  const _peso = (layer && layer.fontWeightOverride) || fp.weight;
+  ctx.font = `${ital}${_peso} ${fontSize}px ${fp.family}`;
   ctx.letterSpacing = layer.letterSpacing ? (layer.letterSpacing) + 'px' : '0px';
   const lines = String(text || '').split('\n');
   let maxW = 0;
@@ -1348,16 +1420,41 @@ function _gLayoutVisivel(l){
   return l.opacity==null || !Number.isFinite(op) || op>0;
 }
 
+/* HIERARQUIA POR FAMÍLIA (decisão do Ryan, 25/09/2026). O piso de hierarquia impedia um texto
+   de ficar menor que QUALQUER texto menor da arte — inclusive o preço. Medido na bancada (14
+   caixas reais × 177 copies): 76% dos bloqueios eram esse piso, e o pior caso era o produto de
+   58px que só podia descer a 56px porque o preço tinha 56px. Produto menor que o preço é arte
+   de delivery comum, não inversão. Agora cada texto só se compara com a sua FAMÍLIA: preço
+   (preço, valor, de/por, desconto, cupom, R$) com preço; o resto com o resto. Título continua
+   ≥ produto. Resultado na bancada: bloqueio final (depois do Copy Fit) 18,5% → 12,0%. */
+const G_PISO_FOLGA_HIERARQUIA = 0.8;
+function _gPisoFamilia(l){
+  const sinal=String((l.name||'')+' '+(l.id||'')+' '+(l.content||''));
+  return /(pre[cç]o|valor|desconto|cupom|r\$|\{\{\s*(de|por)\s*\}\})/i.test(sinal) ? 'preco' : 'texto';
+}
 function gStampPisosHierarquia(layers, canvas){
-  const degraus=[...new Set((layers||[])
-    .filter(l => l && l.type==='text' && _gLayoutVisivel(l))
-    .map(l => Math.round(l.fontSize||24)))].sort((a,b)=>b-a);
+  const degrausPor={};
+  (layers||[]).filter(l => l && l.type==='text' && _gLayoutVisivel(l)).forEach(l => {
+    const f=_gPisoFamilia(l);
+    (degrausPor[f]=degrausPor[f]||new Set()).add(Math.round(l.fontSize||24));
+  });
+  Object.keys(degrausPor).forEach(f => { degrausPor[f]=[...degrausPor[f]].sort((a,b)=>b-a); });
   const ladoCurto=canvas&&canvas.w&&canvas.h?Math.min(canvas.w,canvas.h):0;
   (layers||[]).forEach(l => {
     if(!l || l.type!=='text' || !_gLayoutVisivel(l)) return;
     const s=Math.round(l.fontSize||24);
-    const abaixo=degraus.find(t => t < s);
+    const abaixo=(degrausPor[_gPisoFamilia(l)]||[]).find(t => t < s);
+    /* ⚠ Guardar 1/3 do SALTO até o degrau de baixo (título 60 não desce a 34 sobre sub 30)
+       foi medido em 22/09/2026 e NÃO entrou: sozinho, levou o bloqueio do corpus de 17,4% a
+       26,1% e +16 bloqueios no fuzz. Trocar arte fraca por franqueado travado é decisão de
+       produto (Ryan). Hoje a hierarquia achatada cai no aviso de "letra pequena" da prévia. */
     l._pisoFonte = (abaixo!=null) ? Math.max(abaixo, Math.round(s*0.5)) : null;
+    /* FOLGA (decisão do Ryan, 26/09/2026): no ÚLTIMO recurso antes do bloqueio — depois de
+       quebrar, encolher até o piso acima e alargar para o vazio ao lado — o texto pode descer
+       até 80% do próximo degrau da família. É o título que fica um pouco menor que o produto
+       numa copy longa, em vez de o franqueado ficar sem arte. Só o Local Fit usa (ver
+       `gFitTextToAuthoredBox`, `folgaHierarquia`); o resto do app continua com `_pisoFonte`. */
+    l._pisoFonteFolga = (abaixo!=null) ? Math.max(Math.round(abaixo*G_PISO_FOLGA_HIERARQUIA), Math.round(s*0.5)) : null;
     /* O piso de hierarquia impede INVERSÃO, mas sozinho ainda autorizava 8px numa arte de
        1080px. Isso tecnicamente cabe e visualmente falha. O segundo piso é de legibilidade:
        destaque/campo comercial não desce de 2,2% do lado curto; apoio pode chegar a 1,35%.
@@ -1798,134 +1895,123 @@ function gLayoutVivoAtivo(){
   return !gLayoutVivoOff && gLayoutVivoDisponivel();
 }
 
-/* Contrato do solver para os consumidores do franqueado. A comparação é feita entre dois
-   CLONES temporários: a composição original (com âncoras manuais) e a acomodada. Nenhum dos
-   carimbos abaixo é persistido no template do designer. */
-/* REPROVADA — a régua ÚNICA de "esta camada inviabiliza a arte".
-   Existia escrita à mão dentro do `gDescribeFranchiseeLayout` e o diagnóstico usava outra, mais
-   curta (só `_foraDaArte`/`_layoutInvalido`). O resultado: a causa MAIS COMUM de bloqueio —
-   texto que estourou a caixa restrita — declarava a arte insegura e depois não achava culpado
-   nenhum, e a busca binária do "maior conteúdo seguro" tratava esse mesmo estado como seguro e
-   prometia um limite que não cabia. Duas réguas para a mesma pergunta, o defeito de sempre. */
-function gLayoutCamadaReprovada(l){
-  if(!l)return false;
-  if(l._foraDaArte||l._layoutInvalido)return true;
-  /* `estourou` em texto FIXO não é falha criada pelo franqueado. PSDs usam bbox justo dos
-     glifos e a fonte substituta do navegador pode medir 1–3 px maior; bloquear a arte por isso
-     transformava qualquer importação real em "insegura" mesmo sem um único campo dinâmico. */
-  const encaixeRestrito=(l.textBox==='box'||l._layoutW!=null||l.vertical);
-  return !!(typeof _gLayoutTemCampo==='function'&&_gLayoutTemCampo(l)
-            &&encaixeRestrito&&l._fit&&l._fit.estourou);
-}
-
-function gDescribeFranchiseeLayout(original, solved){
-  const antes=new Map((original||[]).filter(Boolean).map(l=>[l.id,l]));
-  const changes=[];
-  const invalidIds=[];
-  const quaseIgual=(a,b)=>Math.abs((Number(a)||0)-(Number(b)||0))<0.5;
-  (solved||[]).forEach(l=>{
-    if(!l)return;
-    const o=antes.get(l.id)||{};
-    if(gLayoutCamadaReprovada(l))invalidIds.push(l.id);
-    const geometry=!quaseIgual(l.x,o.x)||!quaseIgual(l.y,o.y)
-      ||!quaseIgual(l.w,o.w)||!quaseIgual(l.h,o.h);
-    /* ⚠ O TETO DE LINHAS TAMBÉM ENCOLHE, e não passa por `_tetoFonte`: quando o texto estoura o
-       limite semântico de linhas, `gFitTextLayer` procura o maior corpo que respeita o teto e
-       devolve esse tamanho direto no `_fit`. Sem ler daqui, uma arte com o título reduzido de
-       82px para 50px era reportada como "original" — e "original" é a promessa de que saiu
-       exatamente como o designer desenhou. Achado pelo corpus (`foto-safe-zone · extremo`).
-       Importa duas vezes: o botão do franqueado ("prefiro a composição original") só pode
-       oferecer o original quando ele é MESMO possível, e a telemetria conta esses vereditos. */
-    const fitFonte=l&&l._fit&&l._fit.fontSize;
-    const typography=l._layoutW!=null||l._tetoFonte!=null||l._entrelinha!=null
-      ||(fitFonte&&Math.abs(fitFonte-(l.fontSize||24))>0.5);
-    if(geometry||typography){
-      changes.push({id:l.id,geometry,typography,
-        moved:!quaseIgual(l.x,o.x)||!quaseIgual(l.y,o.y),
-        resized:!quaseIgual(l.w,o.w)||!quaseIgual(l.h,o.h)});
-    }
-  });
-  const invalid=invalidIds.length>0;
-  const adapted=changes.length>0;
-  /* `meta` é o rastro do solver (política vencedora, nota, voltas, tempo). Sai daqui porque é
-     este objeto que a prévia, a exportação e a telemetria já carregam — não vale criar um
-     segundo canal para dizer a mesma coisa. */
-  const meta=(solved&&solved._layoutMeta)||null;
-  return {status:invalid?'unsafe':(adapted?'adapted':'original'),adapted,invalid,
-    requiresAdaptation:adapted||invalid,forced:false,changes,invalidIds,meta,diagnostico:null};
-}
-
 function gHandleLayoutUnsafeError(err){
-  if(!err||err.code!=='LUMA_LAYOUT_UNSAFE')return false;
-  /* Mensagem acionável quando o motor conseguiu diagnosticar: QUAL campo travou e até quantos
-     caracteres cabem. Sem diagnóstico, cai na frase genérica de sempre — nunca num erro técnico.
-     ⛔ `{{campo}}` e nome interno não aparecem: quem lê é o franqueado, e o rótulo é o do Dado. */
+  /* `LUMA_CONTENT_TOO_LARGE` é o código do Local Fit (o texto não coube na caixa autorada nem
+     no piso de legibilidade). `LUMA_LAYOUT_UNSAFE` era o do solver adaptativo e some com ele —
+     continua aceito porque material em cache pode ter sido montado antes do deploy. */
+  if(!err||(err.code!=='LUMA_CONTENT_TOO_LARGE'&&err.code!=='LUMA_LAYOUT_UNSAFE'))return false;
+  /* A UI DO BLOQUEIO mora no franqueado (`fCorrigirTextoLongo`, em `chat.js`): ela nomeia o
+     campo, diz o limite medido e LEVA até ele com o contador no alvo. Aqui só se delega —
+     duplicar a decisão neste arquivo criaria a segunda verdade de sempre.
+     O toast fica como rede para os contextos onde o chat não está carregado (Estúdio, lote,
+     arte reaberta fora do fluxo). ⛔ `{{campo}}` e nome interno nunca aparecem: quem lê é o
+     franqueado, e o rótulo é o do Dado. */
+  if(typeof fCorrigirTextoLongo==='function'){
+    /* `fCorrigirTextoLongo` é assíncrona (o diálogo é uma Promise). O `catch` nos dois níveis
+       existe porque uma rejeição aqui deixaria o franqueado sem NENHUM aviso — o pior fim
+       possível para o caminho de falha. */
+    try{
+      const r=fCorrigirTextoLongo(err.layoutResult||null);
+      if(r&&typeof r.catch==='function') r.catch(()=>{});
+      return true;
+    }catch(e){ /* cai no toast abaixo */ }
+  }
   const msg=(err.layoutResult&&err.layoutResult.diagnostico&&err.layoutResult.diagnostico.mensagem)
     ||'Esse texto não cabe com segurança nesta arte. Encurte o conteúdo ou escolha outro material.';
   if(typeof gToast==='function')gToast(msg,'error');
   return true;
 }
 
-/* ══ CORRENTES INFERIDAS — ler o respiro da arte em vez de pedir ao designer ══
-   `relativeAnchor` existe há tempos, mas é marcado camada a camada, à mão — e por isso a
-   cascata quase nunca entrava em ação numa arte real. Aqui as correntes saem do próprio
-   desenho: bloco alinhado logo abaixo de outro, com espaço de "mesmo grupo", vira filho dele.
+/* ══ PISO DA FONTE — até onde o Local Fit pode encolher, e nem um ponto além ══
+   Dois pisos empilhados: `_pisoFonte` (hierarquia — não inverter a ordem dos degraus que o
+   designer criou) e `_pisoLegivel` (2,2% do lado curto para destaque, 1,35% para apoio — o piso
+   que impede 8px numa arte de 1080). Somados ao teto de "metade do corpo desenhado", são o
+   fundo do poço do encolhimento progressivo. Chegou aqui e não coube: CONTENT_TOO_LARGE.
 
-   O GAP é a parte sutil. O motor posiciona por `pai.y + pai.altura MEDIDA + gap`, então usar
-   a distância visual como gap deslocaria o filho já no estado normal (a caixa do designer é
-   quase sempre maior que o texto de uma linha). A régua é a CAIXA DESENHADA: o gap sai da
-   geometria publicada (`B.y − (A.y + A.h)`), e a corrente inferida só EMPURRA, nunca puxa
-   para cima (`Math.max` com a posição original). Lê-se assim:
-     · o texto cabe na caixa que o designer deu  → nada se move, arte idêntica à publicada;
-     · o texto passa da caixa                    → o de baixo desce exatamente o excedente.
-   Escolhida por ser estável e IGUAL nos dois contextos: não depende de medir um "estado de
-   referência" nem do catálogo `dVars`, que pode estar vazio na sessão do franqueado — e
-   referência diferente entre Estúdio e franqueado seria a divergência de sempre.
+   ⚠ Exige `gStampPisosHierarquia` já carimbado (é ele que escreve `_pisoFonte`/`_pisoLegivel`).
+   ⛔ Não existe mais piso de EMERGÊNCIA: emergência era escala proporcional de componente, que
+      é movimento de composição — e composição saiu do produto. */
+function gLayoutPisoFonte(l){
+  const legivel = (l && l._pisoLegivel) || 0;
+  const abs = Math.max(8, legivel, Math.round(((l && l.fontSize) || 24) * 0.5));
+  return (l && l._pisoFonte != null) ? Math.max(l._pisoFonte, abs) : abs;
+}
 
-   Só entra quem PODE se mexer: fundo, travada, com posição travada, filha de grupo e grupo
-   ficam fora — é assim que logo e selo não são empurrados por texto, e o caminho real para
-   isso é TRAVAR a camada.
-   ⚠ `layoutRole` ('background'/'protected') é lido aqui e em `core/layout.js`, mas NENHUMA UI
-   ou importador o escreve — a varredura pró-1.0 confirmou 6 leituras e zero escritas. Fica
-   como reserva para quando existir; hoje quem protege é `locked`/`lockPosition`.
-   Âncora explícita do designer SEMPRE vence a inferida. */
-function _gCorrenteMovivel(l, cloned){
-  if(!l || l.type==='group' || !_gLayoutVisivel(l)) return false;
-  if(l.locked || l.lockPosition) return false;
-  if(l.layoutRole==='background' || l.layoutRole==='protected') return false;
-  /* ⛔ O CAMPO DE PRECO NAO E EMPURRADO (regra 03/09, complemento da regra de 19/08).
-     Desde 19/08 o preco nao ENCOLHE por motivo alheio (`_gLayoutPrecoImune`, usado na
-     escada). Faltava a outra metade: ele ainda DESCIA. Com o titulo quebrando em duas
-     linhas, a corrente inferida arrastava o preco pra baixo — nao encolhia, mas saia do
-     lugar que o designer deu pra ele.
-     Sair da corrente como FILHO nao o tira do jogo: `nos` (a lista de candidatos a PAI)
-     nao passa por aqui, entao o preco continua podendo EMPURRAR os outros. E exatamente
-     o que "predominancia" quer dizer — ele desloca, nao e deslocado.
-     Consequencia aceita: com uma saida menos na escada, os outros textos encolhem mais
-     cedo. Foi a decisao do produto, medida no corpus antes de entrar. */
-  if(_gLayoutBlocoPrecoFixo(l)) return false;
-  /* A placa do preco (a base solida atras dele) segue a mesma regra: se ela cede e ele
-     nao, o par se separa e o texto sai da base. `_placa` ja foi carimbado — a inferencia
-     de placas roda antes desta. */
-  if(l._placa && Array.isArray(cloned)){
-    const alvo = cloned.find(x => x && x.id === l._placa.alvo);
-    if(alvo && _gLayoutBlocoPrecoFixo(alvo)) return false;
-  }
-  /* ⚠ TER PAI NÃO IMOBILIZA. A regra antiga barrava toda camada com `parentId` — o que fazia
-     sentido quando grupo só nascia à mão no Estúdio. Desde a importação de PSD com grupos
-     (`psd-parse.js`), quase toda camada de arte de agência tem pai, e a regra desligava a
-     corrente inferida do template inteiro EM SILÊNCIO: o franqueado digitava um nome longo e
-     nada descia. Quem imobiliza é o GRUPO travado/protegido — resolvido por ID a cada consulta,
-     porque undo/simulação trocam os objetos por clones e uma referência guardada morreria. */
-  let paiId=l.parentId, guarda=0;
+/* ══ A FORMA É UMA PLACA? — a régua estrutural única ══
+   O padrão "card": retângulo colorido com o preço ou o título em cima. O que separa uma PLACA
+   de um painel de seção inteira não é o olho — são três condições que `_gInferirPlacas` já
+   aplicava e mais ninguém enxergava:
+     · retângulo, ou PILL claramente horizontal (círculo perto do preço é decoração, e deformá-lo
+       com a copy seria estrago, não acomodação);
+     · envolve a tinta do texto pelos QUATRO lados;
+     · no máximo 6× a área do texto — acima disso é painel, não placa.
+
+   A Layout Grammar reconhecia placa sem nenhuma das três, então ela via placas que o solver se
+   recusava a fazer crescer. Um componente `text-with-plate` prometendo uma relação que o motor
+   não honra é exatamente o que a camada de paridade existe para impedir.
+
+   ⚠ "Tem campo?" NÃO entra aqui de propósito: isso é REAÇÃO, não identidade. Uma placa com
+   texto fixo continua sendo uma placa (e a §12 a reconhece); ela só não tem por que crescer, e
+   quem responde isso é `canResizeContainer`. */
+function gLayoutFormaEhPlaca(p, pRect, tRect){
+  if(!p || !pRect || !tRect) return false;
+  const kind = p.shapeKind || 'rect';
+  const pill = kind === 'ellipse' && (pRect.w || 0) >= (pRect.h || 0) * 1.5;
+  if(kind !== 'rect' && !pill) return false;
+  if(!(tRect.x >= pRect.x - 1 && tRect.y >= pRect.y - 1
+       && tRect.x + (tRect.w || 0) <= pRect.x + (pRect.w || 0) + 1
+       && tRect.y + (tRect.h || 0) <= pRect.y + (pRect.h || 0) + 1)) return false;
+  const areaT = Math.max(1, (tRect.w || 0) * (tRect.h || 0));
+  return (pRect.w || 0) * (pRect.h || 0) <= areaT * 6;       // acima disso é painel
+}
+
+/* ══ A PLACA SEGUE O TEXTO — a conta única do "card" ══
+   Duas situações, e a diferença entre elas é o que faz a arte parecer desenhada ou remendada:
+   · a copy tem o TAMANHO DE REFERÊNCIA → preserva os quatro paddings autorados e devolve a
+     placa idêntica à desenhada (ORIGINAL FIRST);
+   · a copy mudou de tamanho → REEQUILIBRA: os lados passam a usar o maior dos dois paddings (e
+     no mínimo 0,45em na horizontal), e o eixo vertical idem. A placa abraça a palavra pelo
+     centro em vez de herdar uma folga que só fazia sentido para o texto antigo.
+   Vivia dentro de `_seguirPlacas`; a camada de ações precisa da MESMA conta, senão a placa que
+   uma ação produz não é a placa que o solve produz. */
+function gLayoutPlacaSegue(placa, tinta, fontSize){
+  if(!placa || !tinta) return null;
+  const mudouTamanho = Math.abs((tinta.w || 0) - placa.refW) > 1
+                    || Math.abs((tinta.h || 0) - placa.refH) > 1;
+  const padX = mudouTamanho ? Math.max(placa.padE, placa.padD, (fontSize || 24) * 0.45) : null;
+  const padY = mudouTamanho ? Math.max(placa.padT, placa.padB) : null;
+  const padE = mudouTamanho ? padX : placa.padE, padD = mudouTamanho ? padX : placa.padD;
+  const padT = mudouTamanho ? padY : placa.padT, padB = mudouTamanho ? padY : placa.padB;
+  return { x: tinta.x - padE, y: tinta.y - padT,
+           w: (tinta.w || 0) + padE + padD, h: (tinta.h || 0) + padT + padB,
+           padE, padT, padD, padB, reequilibrou: mudouTamanho };
+}
+
+/* ══ QUEM PODE SER PLACA — os três filtros que a inferência de placa aplica ══
+   Sobraram da leitura que a cascata fazia do desenho. Hoje servem a um uso só: decidir se uma
+   FORMA pode ser adotada como placa do texto que ela abraça (`_gInferirPlacas`, logo abaixo).
+   Fundo, decoração de prancheta inteira, camada travada e camada protegida ficam de fora. */
+function _gFormaAdotavel(l, cloned){
+  if(!l || l.type === 'group' || !_gLayoutVisivel(l)) return false;
+  /* Régua ESTREITA de propósito: declaração explícita (travar a camada) ou o contrato antigo
+     `layoutRole`. O papel COMPILADO ('protegida' por nome de logo/selo) é mais largo e NÃO
+     entra — usá-lo aqui desligaria placas legítimas. */
+  const travada = (x) => !!(x && (x.locked || x.lockPosition
+                   || x.layoutRole === 'background' || x.layoutRole === 'protected'));
+  if(travada(l)) return false;
+  /* ⚠ TER PAI NÃO IMOBILIZA — quem imobiliza é o GRUPO travado. Desde a importação de PSD com
+     grupos, quase toda camada tem pai, e barrar todas desligaria a placa do template inteiro em
+     silêncio. Resolve por ID a cada consulta: undo/simulação trocam os objetos por clones. */
+  let paiId = l.parentId || null, guarda = 0;
   while(paiId && Array.isArray(cloned) && guarda++ < 16){
-    const g=cloned.find(x=>x && x.id===paiId);
+    const g = cloned.find(y => y && y.id === paiId);
     if(!g) break;
-    if(g.locked || g.lockPosition || g.layoutRole==='background' || g.layoutRole==='protected') return false;
-    paiId=g.parentId;
+    if(travada(g)) return false;
+    paiId = g.parentId || null;
   }
   return true;
 }
+
 function _gLayoutEhFundoExplicito(l, cv){
   if(!l) return true;
   if(l.layoutRole==='background') return true;
@@ -1951,125 +2037,6 @@ function _gCorrenteEhFundo(l, cv){
   }
   return false;
 }
-function _gInferirCorrentes(cloned, opts, resolved, base){
-  const cv=(opts&&opts.canvas)||null;
-  /* O ZERO DA CORRENTE É O QUE O DESIGNER COMPÔS, não a caixa que ele desenhou.
-     A régua antiga era o pé da CAIXA (`A.y + A.h`). Parece a mesma coisa e não é: quando o
-     texto autorado já ocupa mais que a própria caixa — o caso normal de PSD, onde a caixa é o
-     bbox justo dos glifos da frase original — o filho era empurrado JÁ NO ESTADO PUBLICADO.
-     Medido: com o texto idêntico ao do designer, o bloco de baixo descia 64px e o veredito saía
-     `adapted`. Ou seja, a arte do franqueado divergia do Estúdio sem ninguém ter digitado nada.
-     Com a referência autorada (`baseVisual`), o zero passa a ser a composição publicada: texto
-     igual ao do designer → arte idêntica; texto maior → desce EXATAMENTE o excedente. */
-  const _fundoRef=(A)=>{ const b=base&&base[A.id]; return b?(b.y+b.h):((A.y||0)+(A.h||0)); };
-  const _direitaRef=(A)=>{ const b=base&&base[A.id]; return b?(b.x+b.w):((A.x||0)+(A.w||0)); };
-  const _vazio=(l)=>!!(resolved && resolved[l.id] && resolved[l.id].vazio);
-  // Candidatos a PAI: qualquer camada visível que não seja o fundo (um fundo de tela cheia
-  // "termina" no rodapé e adotaria a arte inteira). Texto que saiu VAZIO também fica fora:
-  // ele não ocupa nada na tela, e adotá-lo como pai congelaria o buraco que ele deixou.
-  const nós=cloned.filter(l=>l && _gLayoutVisivel(l) && l.type!=='group'
-                             && !_gCorrenteEhFundo(l,cv) && !_vazio(l));
-  // Faixa que sumiu entre dois blocos: campo opcional que o franqueado deixou em branco (ou
-  // que uma regra ocultou). A altura DESENHADA dela é o quanto o de baixo pode subir — e é a
-  // única exceção ao "só empurra", porque aqui não se recompõe nada: fecha-se um vão que só
-  // existe quando o conteúdo existe.
-  const _colapsoEntre=(fundoA, topoB, x1B, x2B)=>{
-    let soma=0,temCampo=false;
-    cloned.forEach(v=>{
-      if(!v || v.type==='group' || v.type!=='text') return;
-      const some = (v.visible===false) || _vazio(v);
-      if(!some) return;
-      const t=v.y||0, f=t+(v.h||0);
-      if(t < fundoA-2 || f > topoB+2) return;                 // tem que estar ENTRE os dois
-      const x1=v.x||0, x2=x1+(v.w||0);
-      const cruz=Math.min(x2,x2B)-Math.max(x1,x1B);
-      if(cruz/Math.max(1,Math.min(x2-x1, x2B-x1B)) < 0.3) return;   // mesma coluna
-      soma += (v.h||0);
-      if(_gLayoutTemCampo(v))temCampo=true;
-    });
-    return {soma,temCampo};
-  };
-  nós.forEach(B=>{
-    if(B.relativeAnchor || !_gCorrenteMovivel(B, cloned)) return;   // manual vence; imóvel não entra
-    const topoB=B.y||0, x1B=B.x||0, x2B=x1B+(B.w||0);
-    let pai=null, fundoPai=-Infinity;
-    nós.forEach(A=>{
-      if(A===B) return;
-      const fundoA=(A.y||0)+(A.h||0);   // a CAIXA desenhada, não a medida
-      if(fundoA > topoB + 2) return;                        // tem que estar ACIMA (sem sobrepor)
-      // Mesma coluna: as faixas horizontais precisam se cruzar de verdade, senão uma coluna
-      // da esquerda viraria pai de outra da direita que só encosta.
-      const x1A=A.x||0, x2A=x1A+(A.w||0);
-      const cruz=Math.min(x2A,x2B)-Math.max(x1A,x1B);
-      const menor=Math.max(1, Math.min(x2A-x1A, x2B-x1B));
-      if(cruz/menor < 0.3) return;
-      // Perto o bastante para ser o MESMO bloco. Medida na escala tipográfica da própria arte:
-      // mais de duas linhas de distância é quebra de seção, não respiro entre irmãos.
-      const respiro=topoB-fundoA;
-      const linha=Math.max(A.fontSize||0, B.fontSize||0, 16)*1.2;
-      if(respiro < -2 || respiro > linha*2) return;
-      if(fundoA > fundoPai){ fundoPai=fundoA; pai=A; }       // o vizinho imediato acima
-    });
-    if(pai){
-      // auto:true marca a corrente inferida — é ela que só empurra e nunca puxa.
-      // `colapso` é o único crédito de subida: a altura das faixas que sumiram no meio.
-      const colapso=_colapsoEntre(fundoPai, topoB, x1B, x2B);
-      B._anchorAuto={ type:'top-to-bottom', layerId:pai.id,
-                      gap: Math.round(topoB-_fundoRef(pai)-colapso.soma), auto:true,
-                      colapso:colapso.soma, _raizCampoVazio:colapso.temCampo };
-      return;
-    }
-
-    /* CORRENTE LATERAL — o mesmo raciocínio deitado.
-       Só entra quem não achou pai acima: a leitura manda de cima para baixo, e uma camada com
-       dois pais automáticos teria duas verdades. O caso real é "De R$ 149,90 por" ao lado do
-       preço: o de trás cresce e passa por cima do da frente.
-       Mais exigente que a vertical de propósito — empurrar para o lado tem menos espaço para
-       errar do que empurrar para baixo, porque a arte é mais estreita que alta:
-       · o pai tem que ser TEXTO (só texto cresce com o que o franqueado digita);
-       · sobreposição vertical forte (≥60%), não o roçar de 30% que basta na coluna;
-       · o vão até o vizinho não passa de uma linha de texto. */
-    let paiL=null, direitaPai=-Infinity;
-    const y1B=B.y||0, y2B=y1B+(B.h||0);
-    nós.forEach(A=>{
-      if(A===B || A.type!=='text') return;
-      const direitaA=(A.x||0)+(A.w||0);
-      if(direitaA > x1B + 2) return;                          // tem que estar À ESQUERDA
-      const y1A=A.y||0, y2A=y1A+(A.h||0);
-      const cruz=Math.min(y2A,y2B)-Math.max(y1A,y1B);
-      const menor=Math.max(1, Math.min(y2A-y1A, y2B-y1B));
-      if(cruz/menor < 0.6) return;                            // mesma LINHA, não só encostando
-      const respiro=x1B-direitaA;
-      const linha=Math.max(A.fontSize||0, B.fontSize||0, 16)*1.2;
-      if(respiro < -2 || respiro > linha) return;
-      if(direitaA > direitaPai){ direitaPai=direitaA; paiL=A; }
-    });
-    if(!paiL) return;
-    B._anchorAuto={ type:'left-to-right', layerId:paiL.id, gap: Math.round(x1B-_direitaRef(paiL)), auto:true };
-  });
-
-  /* Uma corrente automática só existe se nascer num CAMPO DINÂMICO. Sem esta poda, qualquer
-     sequência visual próxima — selo → textura → faixa de sangria — virava uma corrente mesmo
-     quando o franqueado não podia alterar nada nela. O resultado era geometria mudando e export
-     bloqueado em PSDs sem campos. Propaga a autorização pela árvore: um filho fixo pode acompanhar
-     um campo, e o próximo filho pode acompanhar esse fixo; componentes sem raiz dinâmica somem. */
-  /* Campo opcional vazio não pertence a `nós` (não ocupa tinta), mas autoriza a corrente que
-     fecha exatamente o seu vão. Sem essa segunda raiz, a poda acima corrigia PSDs estáticos e
-     acidentalmente desligava o comportamento de remover o espaço de um campo em branco. */
-  const ligados=new Set(nós.filter(l=>_gLayoutTemCampo(l)
-    ||(l._anchorAuto&&l._anchorAuto._raizCampoVazio)).map(l=>l.id));
-  let cresceu=true, guarda=0;
-  while(cresceu&&guarda++<Math.max(1,nós.length)){
-    cresceu=false;
-    nós.forEach(l=>{
-      if(ligados.has(l.id))return;
-      const a=l.relativeAnchor||l._anchorAuto;
-      if(a&&a.layerId&&ligados.has(a.layerId)){ligados.add(l.id);cresceu=true;}
-    });
-  }
-  nós.forEach(l=>{if(l._anchorAuto&&!ligados.has(l.id))delete l._anchorAuto;});
-}
-
 /* ══ PLACAS — a forma atrás do texto cresce junto ══
    O padrão "card": retângulo colorido com o preço ou o título em cima. A escada empurrava e
    encolhia o TEXTO, mas nunca a forma que servia de fundo pra ele — e a cor saía debaixo da
@@ -2089,13 +2056,7 @@ function _gInferirPlacas(cloned, opts, baseVisual) {
   const textos = cloned.filter(l => l && l.type === 'text' && _gLayoutVisivel(l));
   cloned.forEach((p, iP) => {
     if (!p || p.type !== 'shape' || !_gLayoutVisivel(p)) return;
-    const kind=p.shapeKind||'rect';
-    /* Pills vindas do PSD chegam como `ellipse`, não como retângulo com radius. Só aceitamos
-       a elipse claramente horizontal: um círculo perto de preço/CTA continua sendo decoração e
-       nunca é deformado pela copy. */
-    const pill=kind==='ellipse'&&(p.w||0)>=(p.h||0)*1.5;
-    if (kind !== 'rect' && !pill) return;
-    if (!_gCorrenteMovivel(p, cloned)) return;
+    if (!_gFormaAdotavel(p, cloned)) return;
     if (p.layoutRole === 'protected' || _gCorrenteEhFundo(p, cv)) return;
     const px1 = p.x || 0, py1 = p.y || 0, px2 = px1 + (p.w || 0), py2 = py1 + (p.h || 0);
     const dentro = textos.filter(t => {
@@ -2107,16 +2068,16 @@ function _gInferirPlacas(cloned, opts, baseVisual) {
          pixels além das letras. Exigir aquela caixa inteira desligava a relação mesmo quando a
          tinta estava nitidamente dentro da placa — exatamente o que separava o pill de "Dale". */
       const r=(baseVisual&&baseVisual[t.id])||{x:t.x||0,y:t.y||0,w:t.w||0,h:t.h||0};
-      return r.x >= px1 - 1 && r.y >= py1 - 1
-          && r.x + (r.w || 0) <= px2 + 1 && r.y + (r.h || 0) <= py2 + 1;
+      // A régua estrutural única (`gLayoutFormaEhPlaca`, no alto deste arquivo): forma, os
+      // quatro lados e o teto de área. Medida contra a TINTA de referência, não contra o bbox
+      // nominal do PSD — point text importado sobra dezenas de pixels além das letras.
+      return gLayoutFormaEhPlaca(p, {x:px1,y:py1,w:(p.w||0),h:(p.h||0)}, r);
     });
     if (dentro.length !== 1) return;
     const t = dentro[0];
     // Placa de texto fixo não precisa reagir: só a placa que contém um campo pode crescer.
     if(!_gLayoutTemCampo(t)) return;
     const ref=(baseVisual&&baseVisual[t.id])||{x:t.x||0,y:t.y||0,w:t.w||0,h:t.h||0};
-    const areaT = Math.max(1, (ref.w || 0) * (ref.h || 0));
-    if ((p.w || 0) * (p.h || 0) > areaT * 6) return;             // painel, não placa
     /* Quatro paddings, medidos contra a TINTA de referência. Quando a copy muda, a forma pode
        crescer OU encolher sem perder o encaixe que o designer compôs. Com o texto autorado, a
        conta devolve exatamente x/y/w/h publicados (ORIGINAL FIRST). */
@@ -2126,55 +2087,12 @@ function _gInferirPlacas(cloned, opts, baseVisual) {
   });
 }
 
-/* ══ CORREDORES E RESPIRO — o espaço que o texto PODE ocupar ══
-   Correntes respondem "quem segue quem"; não respondem "até onde este título pode crescer".
-   É por isso que um nome longo ainda atravessava um círculo de preço sem sair da prancheta.
-
-   O contrato vem da composição ORIGINAL: se título e obstáculo não se tocavam, o intervalo
-   entre eles vira respiro protegido. Quando o valor real ultrapassa esse corredor, um point
-   text ganha uma caixa transitória e pode quebrar linha. Sobreposição que já existia no desenho
-   continua intocada (texto sobre placa/foto, selo, decoração). */
+/* ══ LEITURA DO TEXTO — o que ele é, quantas linhas aceita e qual é a tinta de referência ══
+   `_gLayoutTemCampo` responde "esta camada reage ao franqueado?"; `_gLayoutMaxLinhas` dá o teto
+   editorial por papel; `_gLayoutTextoReferencia`/`_gLayoutBaseVisual` reconstroem a TINTA que o
+   desenho original ocupava. O Local Fit lê os quatro. Nenhum escreve geometria. */
 function _gLayoutTemCampo(l){
   return !!(l&&l.type==='text'&&(l.isVar||/\{\{/.test(l.content||'')));
-}
-/* Ponte para a regra do preço, que mora com o vocabulário de papéis (`core/auto-layout.js`).
-   Guarda de `typeof` porque a cascata é chamada de contextos onde aquele arquivo pode não estar
-   carregado — sem ele a escada volta a se comportar como antes da regra. */
-function _gLayoutPrecoImune(l){
-  return !!(typeof gLayoutEhPrecoDinamico==='function' && gLayoutEhPrecoDinamico(l));
-}
-/* ── O BLOCO DO PRECO NAO SAI DO LUGAR (03/09) ─────────────────────────────────────────
-   Duas imunidades diferentes, de proposito:
-   · `_gLayoutPrecoImune` (19/08) responde "pode ENCOLHER por motivo alheio?" e continua na
-     regua estreita da CATEGORIA do campo — e a que a escada usa, e ela e testada assim.
-   · esta responde "pode SER EMPURRADA?" e vale para o BLOCO inteiro.
-   A distincao nasceu medida: usando so a categoria, no padrao "De R$ 149,90 por / R$ 109,90"
-   a camada do "de" (campo de texto) continuava sendo filha de corrente. Resultado: o preco
-   ficava parado, o "de" descia 66px sozinho, o par se separava e o "de" caia em cima do
-   cupom — tres colisoes que encolher fonte nao resolve (15 voltas da escada com as mesmas
-   tres) e que terminavam moendo a arte inteira pela escala do componente.
-   Usar a MESMA regua larga nas duas imunidades tambem nao serve: o "de" parava de ceder
-   tamanho e terminava MAIOR que o cupom — hierarquia invertida, pega pelo corpus. Entao a
-   largura vale so pra posicao: o bloco fica onde o designer pos, e cede tamanho como antes.
-   O papel COMPILADO (`layoutSemantic`, em `core/auto-layout.js`) e a regua boa aqui — ele ja
-   cruzou nome, conteudo, posicao e degrau tipografico. Texto FIXO fica de fora: sem campo
-   dinamico nada nele cresce por causa do franqueado. */
-function _gLayoutBlocoPrecoFixo(l){
-  if(!l || l.type!=='text') return false;
-  const papel = l.layoutRoleManual || l.layoutSemantic;
-  if(papel==='preco' && typeof _gLayoutTemCampo==='function' && _gLayoutTemCampo(l)) return true;
-  return _gLayoutPrecoImune(l);
-}
-function _gRectIntersecao(a,b){
-  if(!a||!b)return 0;
-  const w=Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x);
-  const h=Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y);
-  return w>0&&h>0?w*h:0;
-}
-function _gRectContem(a,b,margem){
-  margem=margem||0;
-  return !!(a&&b&&b.x>=a.x-margem&&b.y>=a.y-margem
-    &&b.x+b.w<=a.x+a.w+margem&&b.y+b.h<=a.y+a.h+margem);
 }
 function _gLayoutMaxLinhas(l){
   /* O papel compilado (`layoutRole`, ver `core/auto-layout.js`) responde melhor que o nome:
@@ -2251,164 +2169,26 @@ function _gLayoutBaseVisual(cloned,defaults,ctxAux){
   });
   return out;
 }
-function _gLayoutObstaculo(o,cloned,cv,base){
-  /* "Não acompanha a corrente" e "não protege espaço" não são a mesma pergunta. Uma foto de
-     produto enorme e recortada não deve passear com o título, mas continua sendo obstáculo.
-     Só fundo/decor explícito e cobertura integral deixam de proteger a composição. */
-  if(!o||!_gLayoutVisivel(o)||o.type==='group'||_gLayoutEhFundoExplicito(o,cv))return false;
-  if(o.type==='text'||o.type==='image'||o.type==='frame')return true;
-  if(o.type!=='shape')return false;
-  if(o.locked||o.lockPosition||o.layoutRole==='protected')return true;
-  const areaCv=cv&&cv.w&&cv.h?cv.w*cv.h:0;
-  if(areaCv&&(o.w||0)*(o.h||0)>=areaCv*0.008)return true;
-  const ro=base[o.id];
-  return (cloned||[]).some(t=>t&&t.type==='text'&&_gLayoutVisivel(t)&&_gRectContem(ro,base[t.id],2));
-}
-/* SAFE ZONE — a caixa da foto podia estar "segura" com o texto em cima do rosto. Quando a
-   camada traz o assunto delimitado (`inkBox` do import de PSD ou `safeZones` autorado), é ELE
-   que protege espaço, não a moldura inteira. Sem essa informação devolve o retângulo de sempre,
-   então nada muda para o que já está publicado. */
-function _gLayoutRectSeguro(o,rect){
-  return (typeof gLayoutObstacleRect==='function')?gLayoutObstacleRect(o,rect):rect;
-}
-/* DOIS PATAMARES DE RESPIRO (2026-08-19). `fator` 1 é o respiro IDEAL — 0,8% do lado curto /
-   18% do corpo, o vão que mantém dois blocos lendo como separados mesmo quando o desenho
-   original deixou só um fio. `fator` 0.5 é o respiro APERTADO, o degrau que a escada usa antes
-   de encolher a letra: designer fecha o vão antes de reduzir o corpo, porque a hierarquia mora
-   no TAMANHO da fonte e não na margem. Abaixo da metade os blocos passam a se tocar, então o
-   piso duro de 2px continua valendo. */
-function _gLayoutRespiro(t,gap,cv,fator){
-  const f=(fator!=null&&fator>0)?fator:1;
-  const curto=cv&&cv.w&&cv.h?Math.min(cv.w,cv.h):0;
-  const min=Math.max(f<1?2:4,Math.round((t.fontSize||24)*0.18*f),curto?Math.round(curto*0.008*f):0);
-  const max=Math.max(min,Math.round((t.fontSize||24)*0.48*f),curto?Math.round(curto*0.02*f):0);
-  return Math.max(min,Math.min(max,Math.max(0,gap)));
-}
-function _gInferirCorredores(cloned,opts,resolved,base){
-  const cv=opts&&opts.canvas||null;
-  if(!cv||!cv.w||!cv.h)return [];
-  const obstaculos=cloned.filter(o=>_gLayoutObstaculo(o,cloned,cv,base));
-  const alterados=[];
-  cloned.forEach(t=>{
-    if(!_gLayoutTemCampo(t)||!_gLayoutVisivel(t)||t.vertical)return;
-    /* Rich text/split de preço tem métricas por run. Ele ainda participa da detecção e da
-       redução progressiva, mas não vira caixa de quebra automática: separar um preço entre
-       símbolo/inteiro/centavos destruiria o agrupamento semântico. */
-    if((t.runs&&t.runs.length)||/:\s*(?:inteiro|centavos)/.test(t.content||''))return;
-    const bt=base[t.id],rt=resolved[t.id];
-    if(!bt||!rt)return;
-    const atual={x:(t.x||0)+(rt.dx||0),y:(t.y||0)+(rt.dy||0),w:rt.w||0,h:rt.h||0};
-    const align=t.textAlign||'left';
-    let limiteE=0,limiteD=cv.w,achouE=false,achouD=false;
-    obstaculos.forEach(o=>{
-      if(o===t)return;
-      const bo=_gLayoutRectSeguro(o,base[o.id]);if(!bo)return;
-      // Contenção é relação intencional (texto sobre placa/foto). Sobreposição PARCIAL não dá
-      // licença infinita: o corredor preserva no máximo a intrusão que já existia no desenho.
-      const inter=_gRectIntersecao(bt,bo);
-      if(_gRectContem(bo,bt,2))return;
-      const oy=Math.min(atual.y+atual.h,bo.y+bo.h)-Math.max(atual.y,bo.y);
-      if(oy/Math.max(1,Math.min(atual.h,bo.h))<0.28)return;
-      const gapD=bo.x-(bt.x+bt.w);
-      const centroT=bt.x+bt.w/2,centroO=bo.x+bo.w/2;
-      if(centroO>centroT&&bo.x>=bt.x){
-        const penetracao=Math.max(0,-gapD);
-        const lim=bo.x+penetracao-(inter>0?0:_gLayoutRespiro(t,gapD,cv));
-        if(lim<limiteD){limiteD=lim;achouD=true;}
-      }
-      const gapE=bt.x-(bo.x+bo.w);
-      if(centroO<centroT&&bo.x+bo.w<=bt.x+bt.w){
-        const penetracao=Math.max(0,-gapE);
-        const lim=bo.x+bo.w-penetracao+(inter>0?0:_gLayoutRespiro(t,gapE,cv));
-        if(lim>limiteE){limiteE=lim;achouE=true;}
-      }
-    });
-    /* A própria PRANCHETA é um obstáculo. Point text perto da borda antes só era reduzido até o
-       piso e continuava numa linha para fora; agora ganha o mesmo corredor transitório usado para
-       selo/foto e pode quebrar. Preserva a sangria que já existia na referência, mas não deixa o
-       valor do franqueado piorá-la. */
-    const padBorda=_gLayoutRespiro(t,0,cv);
-    const overE=Math.max(0,-bt.x),overD=Math.max(0,bt.x+bt.w-cv.w);
-    const bordaE=-overE+(overE?0:padBorda),bordaD=cv.w+overD-(overD?0:padBorda);
-    if(atual.x<bordaE){limiteE=Math.max(limiteE,bordaE);achouE=true;}
-    if(atual.x+atual.w>bordaD){limiteD=Math.min(limiteD,bordaD);achouD=true;}
-    let dx=0,w=0,viola=false;
-    if(align==='right'&&achouE){
-      const direita=(t.x||0)+(t.w||0);w=direita-limiteE;dx=(t.w||0)-w;
-      viola=atual.x<limiteE;
-    }else if(align==='center'&&(achouE||achouD)){
-      const centro=(t.x||0)+(t.w||0)/2;
-      const raio=Math.min(centro-(achouE?limiteE:0),(achouD?limiteD:cv.w)-centro);
-      w=Math.max(0,raio*2);dx=((t.w||0)-w)/2;
-      viola=atual.x<(centro-w/2)||atual.x+atual.w>(centro+w/2);
-    }else if(achouD){
-      w=limiteD-(t.x||0);dx=0;viola=atual.x+atual.w>limiteD;
-    }
-    if(!viola||w<Math.max(24,(t.fontSize||24)*1.8))return;
-    t._layoutW=Math.round(w);t._layoutDx=Math.round(dx);t._layoutMaxLines=_gLayoutMaxLinhas(t);
-    alterados.push(t);
-  });
-  return alterados;
-}
-
-/**
- * Resolve e atualiza as posições (X e Y) de camadas ancoradas de forma magnética/relativa.
- * @param {object} [opts] {fitText:false, canvas:{w,h}} — com `fitText`, a altura de cada texto
- *        sai do `gFitTextLayer` (quebra + encolhimento REAIS, os mesmos do render) em vez de
- *        contar só as quebras manuais, e as correntes são inferidas do desenho. É o que faz o
- *        bloco de baixo descer o suficiente sem o designer marcar nada.
- */
+/* ══ ÂNCORAS RELATIVAS — interpola o conteúdo e resolve as âncoras MANUAIS do designer ══
+   Isto é tudo o que ele faz. Não mede encaixe, não quebra, não encolhe, não empurra ninguém por
+   causa de conteúdo: a escada de recomposição (correntes inferidas, corredores, respiro,
+   encolhimento em cascata, escala de componente, emergência, alternativas por nota) foi
+   REMOVIDA em 09/2026 junto com o Automatic Designer. O que resolve conteúdo novo é o Local Fit
+   (`js/core/local-fit.js`), e ele age só DENTRO da caixa de cada texto.
+   O laço abaixo existe porque `relativeAnchor` é intenção AUTORADA — o designer encadeou dois
+   elementos de propósito, e isso continua valendo. */
 function gApplyRelativeAnchors(layers, dados, defaults, opts) {
   if (!layers || !layers.length) return layers;
   
   const cloned = layers.map(l => ({...l}));
+  // Relação inválida não pode mover metade da cadeia antes do Local Fit recusá-la.
+  const invalidAnchors = new Set();
+  if(typeof _gLfCadeias === 'function') _gLfCadeias(cloned).cadeias.forEach(c => {
+    if(!c.valida) c.membros.forEach(l => invalidAnchors.add(l.id));
+  });
   const canvasAux = document.createElement('canvas');
   const ctxAux = canvasAux.getContext('2d');
   
-  // Com o layout vivo ligado, a medida vem do MESMO encaixe que o render usa: quebra
-  // inteligente, caixa-alta e encolhimento. Sem ele, mantém a medida antiga (só quebras
-  // manuais) — que é o comportamento que os templates de hoje conhecem.
-  const _fit = !!(opts && opts.fitText) && typeof gFitTextLayer === 'function';
-  /* POLÍTICA da escada. 'padrao' é a de sempre (quebrar → empurrar → apertar entrelinha →
-     encolher o menor degrau → escalar o componente). As outras existem para que o motor possa
-     GERAR alternativas e escolher a melhor por nota, em vez de ter um caminho único
-     (`gLayoutEscolherAlternativa`, em `core/auto-layout.js`). Elas só mudam a ORDEM e o PISO dos
-     degraus — nenhuma delas afrouxa a validação, então nenhuma pode aprovar arte insegura. */
-  const _politica = (opts && opts._politica) || 'padrao';
-  const _t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
-  const _medirFit=(l,text)=>gFitTextLayer(l,text,ctxAux,{
-    runs:(typeof gBuildVirtualRuns==='function'?gBuildVirtualRuns(l,dados,1,defaults):null)
-      ||(!_gLayoutTemCampo(l)?l.runs:null)||null
-  });
-  // O piso da hierarquia é carimbado ANTES de medir: a medida e o render têm que usar o MESMO
-  // piso, e é justamente medir com uma regra e desenhar com outra que originou este trabalho.
-  if (_fit) {
-    /* BASELINE AUTORADO — a referência do desenho para TODA camada, não só a que veio do PSD.
-       Reconstruída aqui (no clone) quando o template é antigo: é a migração dos materiais já
-       publicados, sem deploy e sem o designer reabrir nada. Ver `core/auto-layout.js` §1. */
-    if(typeof gEnsureLayoutBaseline==='function') gEnsureLayoutBaseline(cloned, ctxAux);
-    /* PAPEL SEMÂNTICO compilado — o que alimenta teto de linhas, quebra e pontuação. Só compila
-       o que ainda não tem papel: importação e vínculo já carimbam na origem, e recompilar
-       apagaria a decisão manual de quem mandou (`layoutRoleManual` vence sempre). */
-    if(typeof gCompileLayoutRoles==='function' && cloned.some(l=>l&&l.layoutSemantic==null))
-      gCompileLayoutRoles(cloned, opts&&opts.canvas);
-    gStampPisosHierarquia(cloned, opts&&opts.canvas);
-    /* Caixa de parágrafo também precisa de um teto semântico. Conter a largura não basta:
-       um título de produto podia virar doze linhas dentro da prancheta e ser aprovado como
-       "seguro". Preserva qualquer quantidade de linhas que o designer realmente publicou
-       (`layoutRefText`) e só limita o crescimento produzido pelo conteúdo do franqueado. */
-    cloned.forEach(l=>{
-      if(!_gLayoutTemCampo(l)||l.vertical||l.textBox!=='box'||l._layoutMaxLines!=null)return;
-      let maxLinhas=_gLayoutMaxLinhas(l);
-      if(l.layoutRefText&&typeof gSmartWrapText==='function'){
-        const ref=Object.assign({},l);delete ref._layoutMaxLines;
-        const autoradas=gSmartWrapText(String(l.layoutRefText),l.w||0,ref,null,null)
-          .split('\n').filter(s=>s.trim()!=='').length;
-        if(autoradas>maxLinhas)maxLinhas=autoradas;
-      }
-      l._layoutMaxLines=maxLinhas;
-    });
-  }
   const resolved = {};
   cloned.forEach(l => {
     let text = l.content || '';
@@ -2417,607 +2197,18 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
     }
     let w, h;
     if (l.type !== 'text') { w = l.w || 0; h = l.h || 0; }
-    else if (_fit) {
-      const f = _medirFit(l, text);
-      // A caixa de parágrafo tem largura FIXA por definição — quem cresce nela é a altura.
-      // Point text abraça os glifos, então a largura medida é a real.
-      w = (l.textBox === 'box'&&!l.vertical) ? (l.w || 0) : f.larguraMax;
-      h = f.altura;
-      // Guarda o encaixe resolvido: a fase seguinte (aviso/escada) lê daqui sem re-medir.
-      l._fit = f;
-      _gStampVTop(l, f.altura);
-    } else {
-      w = gMeasureLayerWidth(l, text, ctxAux);
-      h = gMeasureLayerHeight(l, text);
-    }
-    resolved[l.id] = { x: l.x || 0, y: l.y || 0, w, h, visible: _gLayoutVisivel(l),
-                       dy: _fit ? _gInkDy(l, h) : 0, dx: _fit ? _gInkDx(l, w) : 0,
-                       // Texto que não sobrou nada depois de interpolar: a corrente trata a
-                       // faixa dele como inexistente em vez de deixar um buraco na arte.
-                       vazio: _fit && l.type === 'text' && !!l._fit && l._fit.altura === 0 };
+    else { w = gMeasureLayerWidth(l, text, ctxAux); h = gMeasureLayerHeight(l, text); }
+    resolved[l.id] = { x: l.x || 0, y: l.y || 0, w, h, visible: _gLayoutVisivel(l) };
   });
 
-  /* A ARTE SEM AJUSTE — mesma geometria publicada, mesmo conteúdo do franqueado, nenhuma
-     adaptação ainda. É a referência certa para perguntar "quanto a ADAPTAÇÃO custou?".
-     Medido na bancada: comparando com a referência AUTORADA, os itens de densidade e equilíbrio
-     disparavam em 100% dos cenários — inclusive nos 43 que saíram `original`, onde nada foi
-     adaptado. Estavam medindo o conteúdo do franqueado, não o trabalho do motor, e por isso a
-     nota saturava em zero e não servia para telemetria nem para comparar candidatos. */
-  if (_fit) cloned.forEach(l => {
-    const r = resolved[l.id];
-    if (!r) return;
-    l._layoutSemAjuste = { x: r.x + (r.dx || 0), y: r.y + (r.dy || 0), w: r.w, h: r.h,
-      // Quantas linhas o texto do franqueado já usaria sem nenhuma adaptação. Sem isto, o item
-      // "linhas" cobrava do motor o tamanho do texto que a pessoa digitou.
-      linhas: (l._fit && l._fit.lines && l._fit.lines.length) || 1 };
+  // Posição PUBLICADA de cada camada: a âncora `auto` de um template antigo nunca sobe além
+  // dela (o laço abaixo muta l.y a cada iteração, então o original tem que ser guardado antes).
+  const yPub = {};
+  cloned.forEach(l => {
+    yPub[l.id] = l.y || 0;
+    // Guarda a origem antes que quebras explícitas do conteúdo resolvam a âncora.
+    if(l.relativeAnchor && l.relativeAnchor.type === 'top-to-bottom') l._localFitY = l.y || 0;
   });
-
-  /* A composição de referência precisa ser registrada ANTES de criar corredores/âncoras. É
-     ela que distingue uma sobreposição intencional (texto dentro de placa) de uma invasão
-     causada pelo valor real do franqueado. */
-  const baseVisual = _fit ? _gLayoutBaseVisual(cloned, defaults, ctxAux) : {};
-  /* A base autorada viaja NO CLONE para quem pontua a composição depois. As alternativas são
-     solves independentes: sem este carimbo, cada uma teria que remedir a referência inteira só
-     para poder ser comparada com as outras. */
-  if (_fit) cloned.forEach(l => { if (l && baseVisual[l.id]) l._layoutBase = baseVisual[l.id]; });
-
-  // Correntes inferidas do desenho (só com o layout vivo ligado).
-  if (_fit && !(opts && opts.inferir === false)) {
-    const restringidos=_gInferirCorredores(cloned,opts,resolved,baseVisual);
-    /* O corredor muda a largura disponível e pode transformar point text em duas linhas;
-       re-mede agora para a inferência vertical enxergar a altura REAL. */
-    restringidos.forEach(l=>{
-      let t=l.content||'';
-      if(l.isVar||/\{\{/.test(t))t=gInterpolate(t,dados,{defaults});
-      const f=_medirFit(l,t);
-      l._fit=f;
-      resolved[l.id].h=f.altura;
-      resolved[l.id].dy=_gInkDy(l,f.altura);
-      resolved[l.id].w=f.larguraMax;
-      resolved[l.id].dx=_gInkDx(l,f.larguraMax);
-      _gStampVTop(l,f.altura);
-    });
-    /* Placas ANTES das correntes (03/09): a corrente precisa saber quem e a placa de um
-       preco imune pra nao adotar nenhum dos dois como filho. As duas passagens sao
-       independentes — uma escreve `_anchorAuto`, a outra `_placa`, e nenhuma le o campo da
-       outra — entao a inversao nao muda mais nada. */
-    _gInferirPlacas(cloned, opts, baseVisual);
-    _gInferirCorrentes(cloned, opts, resolved, baseVisual);
-  }
-  // Posição PUBLICADA de cada camada: a corrente inferida nunca sobe além dela (o laço abaixo
-  // muta l.x/l.y a cada iteração, então o original tem que ser guardado antes).
-  const yPub = {}, xPub = {};
-  cloned.forEach(l => { yPub[l.id] = l.y || 0; xPub[l.id] = l.x || 0; });
-
-  /* ESCADA, passo 4 — encolher quando o empurrão não cabe mais na arte.
-     Achado ao medir: `gSmartWrapText` tem fallback de quebra DURA (busca binária em
-     `pushToken`), então qualquer texto cabe em qualquer caixa mais larga que um glifo — o
-     encolhimento por largura quase nunca dispara. Com o layout vivo, o risco deixa de ser
-     "encolheu até sumir" e passa a ser "empurrou para fora da prancheta", que é pior: antes
-     os blocos se sobrepunham, agora o de baixo sai da arte.
-     Aqui o laço fecha: posiciona → se a corrente estourou o pé da prancheta, reduz a fonte de
-     quem CRESCEU além da própria caixa e posiciona de novo. Poucos passos, com piso da
-     hierarquia como fundo do poço — encolher é o último recurso, não o primeiro. */
-  const _cv = (opts && opts.canvas) || null;
-  const _limite = _cv && _cv.h ? _cv.h : 0;
-  /* ORDEM DE RESOLUÇÃO: pai antes de filho. Sem isso o laço precisa repassar a lista até
-     estabilizar — O(n²) — e numa arte de 40 blocos encadeados isso sozinho passava dos 100ms
-     por tecla. Com a ordem certa, UMA passada resolve a corrente inteira.
-     A profundidade é calculada uma vez; ciclo (A→B→A) trava na guarda de visitados e cai na
-     ordem original, que é o comportamento antigo. */
-  const _profundidade = (() => {
-    const cache = {};
-    let _ciclo = false;   // o ramo que acabou de ser calculado passou por um corte de ciclo?
-    const calc = (id, vistos) => {
-      if (cache[id] != null) return cache[id];
-      if (vistos.has(id)) { _ciclo = true; return 0; }   // ciclo: para aqui
-      vistos.add(id);
-      const l = cloned.find(x => x.id === id);
-      const a = l && (l.relativeAnchor || l._anchorAuto);
-      /* ⚠ Profundidade nascida de um corte de ciclo NÃO entra no cache: o 0 do corte contamina a
-         cadeia inteira acima dele, e o valor errado seria reusado por qualquer outra corrente que
-         só passa por ali. Sem cache o ciclo custa uma recursão a mais e cai na ordem original —
-         o comportamento já documentado para este caso. */
-      const antes = _ciclo; _ciclo = false;
-      const d = (a && a.layerId && resolved[a.layerId]) ? calc(a.layerId, vistos) + 1 : 0;
-      if (!_ciclo) cache[id] = d;
-      _ciclo = antes || _ciclo;
-      return d;
-    };
-    cloned.forEach(l => calc(l.id, new Set()));
-    return cache;
-  })();
-  const _ordem = cloned.slice().sort((a, b) => (_profundidade[a.id] || 0) - (_profundidade[b.id] || 0));
-  // A ordem topológica resolve a corrente em UMA volta. A segunda é a prova de que estabilizou.
-  // A terceira só existe quando há PLACA: ela cresce depois que o texto dela se acomodou, e
-  // quem está encadeado abaixo precisa de mais uma volta para enxergar a altura nova — sem
-  // isso a placa crescia por cima do bloco de baixo. Arte sem placa não paga esse passe.
-  const _temPlaca = cloned.some(l => l && l._placa);
-  const _voltasPos = _temPlaca ? 3 : 2;
-  const _posicionar = () => {
-    let mexeu = true, n = 0;
-    while (mexeu && n < _voltasPos) {
-      mexeu = _seguirPlacas(); n++;    // placa que cresceu conta como movimento: força mais uma volta
-      _ordem.forEach(l => {
-        const anchor = l.relativeAnchor || l._anchorAuto;
-        if (!anchor || !anchor.layerId) return;
-        const parent = resolved[anchor.layerId];
-        if (!parent) return;
-        const gap = parseInt(anchor.gap, 10) || 0;
-        let newX = l.x || 0, newY = l.y || 0;
-        if (anchor.type === 'left-to-right') {
-          if (parent.visible) {
-            // Tinta com tinta também deitado: a direita da tinta do pai + respiro, convertido
-            // de volta para a esquerda da CAIXA do filho.
-            newX = parent.x + (parent.dx || 0) + parent.w + gap - (resolved[l.id].dx || 0);
-            if (anchor.auto) newX = Math.max(xPub[l.id] != null ? xPub[l.id] : newX, newX);
-          } else { newX = parent.x; }
-        } else if (anchor.type === 'top-to-bottom') {
-          if (parent.visible) {
-            // Encadeia TINTA com TINTA: base da tinta do pai + respiro, convertido de volta
-            // para o topo da CAIXA do filho (que é o que o render usa como origem).
-            newY = parent.y + (parent.dy || 0) + parent.h + gap - (resolved[l.id].dy || 0);
-            // Corrente inferida SÓ EMPURRA — com uma exceção: o `colapso`, que é a altura das
-            // faixas que sumiram no meio (campo opcional em branco). Aí o filho pode subir
-            // exatamente o vão que deixou de existir, e nada além disso.
-            if (anchor.auto) {
-              const piso = (yPub[l.id] != null ? yPub[l.id] : newY) - (anchor.colapso || 0);
-              newY = Math.max(piso, newY);
-            }
-          } else { newY = parent.y; }
-        }
-        const cur = resolved[l.id];
-        if (cur.x !== newX || cur.y !== newY) { cur.x = newX; cur.y = newY; l.x = newX; l.y = newY; mexeu = true; }
-      });
-    }
-    _seguirPlacas();
-  };
-  /* A placa acompanha a TINTA do texto (que pode ter sido empurrada, crescido ou encolhido).
-     Texto de referência → preserva os quatro paddings autorados e devolve a placa idêntica à
-     desenhada (ORIGINAL FIRST). Copy que mudou de tamanho → equilibra os lados e o eixo vertical:
-     a placa abraça a palavra pelo centro, com respiro mínimo de 0,45em nas laterais.
-     Devolve se mexeu, para o laço de posicionamento dar mais uma volta e empurrar quem está
-     encadeado abaixo dela. */
-  const _seguirPlacas = () => {
-    let mexeu = false;
-    cloned.forEach(p => {
-      if (!p || !p._placa) return;
-      const t = cloned.find(x => x.id === p._placa.alvo);
-      const rt = t && resolved[t.id];
-      if (!t || !rt) return;
-      const tintaX=(rt.x||0)+(rt.dx||0), tintaY=(rt.y||0)+(rt.dy||0);
-      const mudouTamanho=Math.abs((rt.w||0)-p._placa.refW)>1||Math.abs((rt.h||0)-p._placa.refH)>1;
-      const padX=mudouTamanho?Math.max(p._placa.padE,p._placa.padD,(t.fontSize||24)*.45):null;
-      const padY=mudouTamanho?Math.max(p._placa.padT,p._placa.padB):null;
-      const padE=mudouTamanho?padX:p._placa.padE, padD=mudouTamanho?padX:p._placa.padD;
-      const padT=mudouTamanho?padY:p._placa.padT, padB=mudouTamanho?padY:p._placa.padB;
-      const novaX=tintaX-padE, novaY=tintaY-padT;
-      const novaW=(rt.w||0)+padE+padD;
-      const novaH=(rt.h||0)+padT+padB;
-      if (p.y !== novaY || p.h !== novaH || p.x !== novaX || p.w !== novaW) {
-        p.y = novaY; p.h = novaH; p.x = novaX; p.w = novaW;
-        resolved[p.id].y = novaY; resolved[p.id].h = novaH;
-        resolved[p.id].x = novaX; resolved[p.id].w = novaW;
-        mexeu = true;
-      }
-    });
-    return mexeu;
-  };
-  const _largura = _cv && _cv.w ? _cv.w : 0;
-  /* Quem CRESCEU além da própria caixa — os únicos que a escada encolhe. Quem sangra pela
-     borda por desenho é decisão do designer (o checklist é que cobra isso), não estrago do
-     texto do franqueado.
-     Nos dois eixos: em altura vale para qualquer texto; em LARGURA só point text entra, porque
-     a caixa de parágrafo quebra a linha e nunca passa da própria largura. */
-  const _cresceuY = (l) => {
-    const b=l&&baseVisual[l.id],r=l&&resolved[l.id];
-    return !!(l&&l.type==='text'&&l._fit&&b&&r&&(r.h||0)>(b.h||0)+1);
-  };
-  const _cresceuX = (l) => l && l.type === 'text'
-                         && (l.vertical||(l.textBox !== 'box'&&l._layoutW == null)) && l._fit
-                         && baseVisual[l.id]&&resolved[l.id]
-                         && (resolved[l.id].w||0)>(baseVisual[l.id].w||0)+1;
-  /* Compara a sangria ATUAL à sangria PUBLICADA. Uma textura ou placa que já começava fora do
-     canvas é intenção do designer; só vira falha quando a adaptação piora essa saída. */
-  const _piorouBorda=(l,r)=>{
-    if(!l||!r)return false;
-    const b=baseVisual[l.id]||{x:xPub[l.id]||0,y:yPub[l.id]||0,w:l.w||0,h:l.h||0};
-    const a={x:r.x+(r.dx||0),y:r.y+(r.dy||0),w:r.w||0,h:r.h||0};
-    if(_largura){
-      if(Math.max(0,-a.x)>Math.max(0,-b.x)+2)return true;
-      if(Math.max(0,a.x+a.w-_largura)>Math.max(0,b.x+b.w-_largura)+2)return true;
-    }
-    if(_limite){
-      if(Math.max(0,-a.y)>Math.max(0,-b.y)+2)return true;
-      if(Math.max(0,a.y+a.h-_limite)>Math.max(0,b.y+b.h-_limite)+2)return true;
-    }
-    return false;
-  };
-  // Quem escapou da prancheta depois de posicionar — pelo PÉ (empurrado), pelo TOPO (texto
-  // centralizado que cresceu para os dois lados) ou pelos LADOS (point text, que não quebra
-  // linha: o nome longo do produto simplesmente sai da arte).
-  const _escapou = () => {
-    if (!_limite && !_largura) return false;
-    return cloned.some(l => {
-      if (!l || !_gLayoutVisivel(l)) return false;
-      const r = resolved[l.id];
-      if (!r) return false;
-      const encadeada = !!(l.relativeAnchor || l._anchorAuto);
-      return (encadeada||_cresceuY(l)||_cresceuX(l))&&_piorouBorda(l,r);
-    });
-  };
-  /* Colisão INTERNA é falha de composição mesmo que tudo ainda esteja dentro do canvas.
-     Compara a tinta resolvida com obstáculos relevantes e preserva as relações que já
-     existiam na arte de referência (texto sobre placa, selo, imagem de fundo etc.). */
-  const _obstaculosLayout=(_fit&&_cv)
-    ?cloned.filter(o=>_gLayoutObstaculo(o,cloned,_cv,baseVisual)):[];
-  /* A RAIZ DINÂMICA de uma camada — sobe a corrente até quem tem campo.
-     Uma camada FIXA que colide foi EMPURRADA para lá; encolhê-la não resolve nada, e nomeá-la
-     no diagnóstico mandaria o franqueado encurtar um texto que ele nem digitou. Quem responde é
-     quem cresceu lá em cima. */
-  const _raizDinamica=(l)=>{
-    let a=l,g=0;
-    while(a&&g++<16){
-      if(_gLayoutTemCampo(a))return a;
-      const an=a.relativeAnchor||a._anchorAuto;
-      a=(an&&an.layerId)?cloned.find(x=>x&&x.id===an.layerId):null;
-    }
-    return null;
-  };
-  /* Degrau do RESPIRO (2026-08-19): a escada aperta o vão mínimo entre blocos antes de encolher
-     a letra. 1 = respiro ideal (como sempre foi); 0.5 = apertado, o último estado antes de mexer
-     na tipografia. Vive aqui, no escopo do solve, e não como global: alternativa e diagnóstico
-     rodam solves aninhados, e um flag global vazaria o estado de um para o outro. */
-  let _respiroFator = 1;
-  /* ÚLTIMO RECURSO (2026-08-19). A imunidade do preço (ver `core/auto-layout.js`) não vale ao
-     custo de BLOQUEAR a arte: arte com hierarquia achatada é feia mas serve, arte bloqueada é
-     inútil — é o contrato do motor. O travamento medido não era o preço se recusando a descer,
-     era o preço servindo de PISO de hierarquia: um título que colidia com o selo parava em 56px
-     porque o preço imóvel estava em 56px, e a arte saía `unsafe`. Então, quando ninguém mais
-     pode ceder, o preço deixa de ser piso — o título passa por baixo dele e o preço continua no
-     corpo desenhado, que é o que a regra quer. */
-  let _precoNaoEhPiso = false;
-  const _colisoesInternas = () => {
-    if(!_fit||!_cv)return [];
-    const out=[];
-    cloned.forEach(t=>{
-      /* ⚠ QUALQUER TEXTO QUE A ADAPTAÇÃO MEXEU, não só os com campo. O varredor antigo só
-         olhava campos como possíveis culpados — e por isso não enxergava o caso mais comum de
-         estrago real: o CTA FIXO empurrado pela corrente para cima da foto. Medido na bancada,
-         3 artes saíram APROVADAS com o CTA sobre o assunto da imagem.
-         A guarda `deltaT<=1` logo abaixo é que mantém a precisão: quem não cresceu nem foi
-         movido continua fora da conta. */
-      if(!t||t.type!=='text'||!_gLayoutVisivel(t))return;
-      const rt=resolved[t.id],bt=baseVisual[t.id];
-      if(!rt||!bt||!rt.h||!rt.w)return;
-      const tinta={x:rt.x+(rt.dx||0),y:rt.y+(rt.dy||0),w:rt.w,h:rt.h};
-      const deltaT=Math.max(0,tinta.w-bt.w)+Math.max(0,tinta.h-bt.h)
-        +Math.abs(tinta.x-bt.x)+Math.abs(tinta.y-bt.y);
-      /* O campo que não cresceu nem foi movido é a VÍTIMA, não o culpado. Sem isto dois
-         campos dinâmicos que se tocassem faziam o preço pequeno ceder antes do título longo. */
-      if(deltaT<=1)return;
-      _obstaculosLayout.forEach(o=>{
-        if(o===t)return;
-        const bo=_gLayoutRectSeguro(o,baseVisual[o.id]),ro=resolved[o.id];
-        if(!bo||!ro)return;
-        const interBase=_gRectIntersecao(bt,bo);
-        if(_gRectContem(bo,bt,2))return;
-        const atualO=_gLayoutRectSeguro(o,{x:ro.x+(o.type==='text'?(ro.dx||0):0),
-          y:ro.y+(o.type==='text'?(ro.dy||0):0),w:ro.w,h:ro.h});
-        if(_gLayoutTemCampo(o)){
-          const deltaO=Math.max(0,atualO.w-bo.w)+Math.max(0,atualO.h-bo.h)
-            +Math.abs(atualO.x-bo.x)+Math.abs(atualO.y-bo.y);
-          if(deltaO>deltaT+1)return;
-        }
-        /* Sobreposição parcial do original é uma franquia LIMITADA, não imunidade eterna.
-           Crescer além da área que o designer publicou vira colisão. */
-        if(interBase>0){
-          const tolerancia=Math.max(2,Math.min(bt.w*bt.h,bo.w*bo.h)*0.005);
-          if(_gRectIntersecao(tinta,atualO)>interBase+tolerancia)
-            out.push({culpado:_raizDinamica(t)||t,obstaculo:o,vitima:t});
-          return;
-        }
-        const gaps=[];
-        if(bt.x+bt.w<=bo.x)gaps.push(bo.x-(bt.x+bt.w));
-        if(bo.x+bo.w<=bt.x)gaps.push(bt.x-(bo.x+bo.w));
-        if(bt.y+bt.h<=bo.y)gaps.push(bo.y-(bt.y+bt.h));
-        if(bo.y+bo.h<=bt.y)gaps.push(bt.y-(bo.y+bo.h));
-        const gapBase=gaps.length?Math.min(...gaps):0;
-        /* Campo que cresceu respeita um respiro mínimo mesmo se o original tinha um vão quase
-           nulo. Isso não redesenha o estado normal: esta checagem só roda quando `deltaT>1`. */
-        const pad=_gLayoutRespiro(t,gapBase,_cv,_respiroFator);
-        const protegido={x:atualO.x-pad,y:atualO.y-pad,w:atualO.w+pad*2,h:atualO.h+pad*2};
-        if(_gRectIntersecao(tinta,protegido)>1)out.push({culpado:_raizDinamica(t)||t,obstaculo:o,vitima:t});
-      });
-    });
-    return out;
-  };
-  let _ultimasColisoes=[];
-  let _ultimosEstouros=[];
-  /* ⛔ SÓ DANO ACIONA A ESCADA. Passar do teto de linhas não é motivo para reacomodar arte
-     nenhuma: se o texto coube sem colidir e sem sair da prancheta, a composição publicada é a
-     que vale, com quantas linhas forem. Deixar `excedeuLinhas` aqui reabria pela porta da
-     escada o mesmo encolhimento preventivo que foi tirado do `gFitTextLayer` — a arte chegava
-     pequena do mesmo jeito, agora via `_tetoFonte`. O teto de linhas segue pesando na NOTA
-     (escolha entre alternativas) e no checklist do Estúdio (aviso ao designer). */
-  const _estourosRestritos=()=>cloned.filter(l=>_gLayoutTemCampo(l)&&l._fit&&l._fit.estourou
-    &&(l.textBox==='box'||l._layoutW!=null||l.vertical));
-  const _violaComposicao=()=>{
-    _ultimasColisoes=_colisoesInternas();
-    _ultimosEstouros=_estourosRestritos();
-    return _escapou()||_ultimasColisoes.length>0||_ultimosEstouros.length>0;
-  };
-  // Re-mede SÓ quem mudou. Antes remedia todas as camadas a cada volta, e uma arte pesada
-  // custava 116ms por tecla — acima do debounce de 110ms da digitação.
-  const _remedir = (lista) => {
-    lista.forEach(l => {
-      let t = l.content || '';
-      if (l.isVar || /\{\{/.test(t)) t = gInterpolate(t, dados, { defaults });
-      const f = _medirFit(l, t);
-      l._fit = f;
-      resolved[l.id].h = f.altura;
-      resolved[l.id].dy = _gInkDy(l, f.altura);
-      _gStampVTop(l, f.altura);
-      if (l.textBox !== 'box'||l.vertical) {
-        resolved[l.id].w = f.larguraMax;
-        resolved[l.id].dx = _gInkDx(l, f.larguraMax);
-      }
-    });
-  };
-  // A base é sempre a posição PUBLICADA: reposicionar sobre o resultado anterior acumularia
-  // empurrão em cima de empurrão a cada volta do laço.
-  const _reposicionarDoZero = () => {
-    cloned.forEach(l => {
-      l.y = yPub[l.id]; resolved[l.id].y = yPub[l.id];
-      l.x = xPub[l.id]; resolved[l.id].x = xPub[l.id];
-    });
-    _posicionar();
-  };
-  if (_fit && (_limite || _largura)) {
-    _posicionar();
-    let tentativas = 0;
-    // Quando todo mundo chega ao piso da hierarquia e AINDA não cabe, a peça inteira passa a
-    // reduzir na mesma escala. Assim recupera espaço sem transformar título em texto de apoio.
-    // A política 'proporcional' começa direto por aqui: em arte com hierarquia apertada, reduzir
-    // o componente inteiro junto preserva melhor a proporção do que ceder degrau a degrau.
-    let relaxou = (_politica === 'proporcional');
-    /* Piso da entrelinha por política. 1.05 é onde as linhas começam a se tocar em fonte de
-       texto; 1.00 ainda é legível em fonte display de título, e é o degrau que a política
-       'entrelinha-livre' compra para NÃO precisar reduzir o corpo (preserva a hierarquia). */
-    const _pisoEntrelinha = (_politica === 'entrelinha-livre') ? 1.0 : 1.05;
-    // Teto de voltas: ~9 passos levam um degrau do tamanho desenhado ao piso; 32 cobrem dois
-    // degraus + a escala proporcional final. Acima disso a composição já é impossível e
-    // continuar medindo só congela a digitação sem produzir uma solução diferente.
-    while (_violaComposicao() && tentativas < 32) {
-      tentativas++;
-      // Colisão aponta o texto exato; fuga usa quem cresceu/empurrou como antes.
-      const idsColisao=new Set(_ultimasColisoes.map(c=>c.culpado.id));
-      const idsEstouro=new Set(_ultimosEstouros.map(l=>l.id));
-      /* DEGRAU 3.5 — APERTAR O RESPIRO ANTES DE ENCOLHER A LETRA.
-         O respiro mínimo é uma regra do motor, não do desenho: quando um bloco crescido chega
-         perto de outro, era ele que virava "colisão" e disparava o encolhimento. Fechar o vão
-         até a metade é o que um designer faz antes de reduzir corpo — e recupera arte que estava
-         indo encolher por 4–10px de margem. Uma vez por solve, e só se ainda houver violação
-         depois: se apertar já resolve, o laço sai daqui sem tocar na tipografia. */
-      if(_respiroFator===1){
-        _respiroFator=0.5;
-        _reposicionarDoZero();
-        if(!_violaComposicao()) break;
-        continue;
-      }
-      /* ⛔ CAMPO DE PREÇO SÓ CEDE POR CAUSA DO PRÓPRIO PREÇO (regra 19/08, `core/auto-layout.js`).
-         O preço é o argumento da peça: encolhê-lo porque o TÍTULO ficou longo troca a promessa
-         por um detalhe — medido, um preço curto saía 36% menor por causa de um título gigante.
-         Então ele entra na escada só quando ELE cresceu/estourou a própria caixa (aí encolher é
-         o que faz o "R$ 129,90" caber no selo desenhado pra ele); arrastado por colisão ou pela
-         escala do componente alheio, fica como o designer desenhou. */
-      const _cedeu = l => _cresceuY(l) || _cresceuX(l) || idsEstouro.has(l.id);
-      const culpados = cloned.filter(l => (idsColisao.has(l.id) || _cedeu(l))
-                                       && (_cedeu(l) || !_gLayoutPrecoImune(l)));
-      if (!culpados.length) break;
-
-      /* DEGRAU ANTERIOR AO ENCOLHIMENTO: apertar a ENTRELINHA.
-         Designer não sai reduzindo a letra — primeiro fecha o espaçamento, porque a hierarquia
-         mora no TAMANHO da fonte e não no respiro entre linhas. De 1.2 para 1.05 são ~12% de
-         altura recuperada com a tipografia intacta. Só vale para quem tem mais de uma linha
-         (em texto de uma linha a entrelinha não ocupa nada) e para de mexer no piso de 1.05,
-         onde as linhas começam a se tocar. */
-      /* Calculada, não tateada: a entrelinha que faria a tinta caber na caixa é
-         `altura / (fonte × linhas)`. Uma conta, um passo, uma re-medida — tatear de 0.05 em
-         0.05 custava três voltas de re-medida em toda a arte (144ms a mais numa peça pesada)
-         e chegava no mesmo lugar. Piso 1.05: abaixo disso as linhas começam a se tocar. */
-      const _entrelinhaAlvo = (l) => {
-        const fs = (l._tetoFonte != null) ? l._tetoFonte : (l.fontSize || 24);
-        const n = l._fit.lines.length;
-        const alvo = (l.h || 0) / Math.max(1, fs * n);
-        return Math.max(_pisoEntrelinha, Math.min(gLineHeightDe(l), Math.round(alvo * 1000) / 1000));
-      };
-      /* ⚠ SÓ ENTRA QUEM A CONTA REALMENTE APERTA. Um texto que virou culpado por COLISÃO sem ter
-         crescido (foi só empurrado) e cuja caixa é folgada devolve um alvo ACIMA da entrelinha
-         atual — o clamp preserva o valor, nada muda, e o `continue` abaixo repetia o mesmo estado
-         até esgotar as 32 voltas: re-medida e reposicionamento inteiros por volta, sem nunca
-         chegar ao degrau de encolher a fonte. Sem esta guarda a colisão saía não resolvida. */
-      /* A política 'sem-entrelinha' pula este degrau de propósito: em arte onde o espaçamento é
-         parte do desenho (bloco de apoio arejado, texto legal em coluna), apertar a entrelinha
-         estraga mais do que reduzir um ponto de corpo. Quem decide é a NOTA, não este arquivo. */
-      const _apertaveis = (_politica === 'sem-entrelinha') ? [] : culpados.filter(l => l._fit && l._fit.lines.length > 1
-                                            && gLineHeightDe(l) > _pisoEntrelinha + 0.01
-                                            && _entrelinhaAlvo(l) < gLineHeightDe(l) - 0.001);
-      if (_apertaveis.length) {
-        _apertaveis.forEach(l => { l._entrelinha = _entrelinhaAlvo(l); });
-        _remedir(_apertaveis);
-        _reposicionarDoZero();
-        continue;                       // só encolhe fonte quando a entrelinha já deu o que tinha
-      }
-
-      /* DEGRAU 3.7 — DEVOLVER O TRACKING QUE O MOTOR ADICIONOU (2026-08-19).
-         Fonte display (peso ≥900) não sai do PSD com tracking: é o RENDER que adiciona 2% do
-         corpo, para a caixa-alta não ficar apertada. Esse tracking é do motor, não do designer —
-         então antes de reduzir a letra (que é a hierarquia dele), a escada devolve o que ela
-         mesma somou. Recupera ~5% da largura de uma linha de título e, em caixa de parágrafo,
-         às vezes uma linha inteira: é a diferença entre "chegou como publiquei" e "chegou menor".
-         ⛔ NUNCA fica abaixo do valor AUTORADO nem entra em tracking negativo — colar glifo é
-         estrago pior que um ponto de corpo. Tracking que o designer escreveu (`letterSpacing` do
-         PSD) só é apertado até o piso 0, na mesma conta.
-         Escrito direto no `letterSpacing` do CLONE, de propósito: é a propriedade que a MEDIDA
-         (`gFitTextLayer`) e o RENDER (`fRenderTemplateLayers`) já leem — carimbo novo seria uma
-         segunda régua, que é a origem histórica dos bugs deste motor. */
-      const _corpoAtual = (l) => (l._tetoFonte != null) ? l._tetoFonte : (l.fontSize || 24);
-      /* MESMA régua de "é display?" do `gFitTextLayer` e do render, incluindo o fallback por
-         NOME quando `dTextFontParts` não está carregado (páginas de teste e qualquer contexto sem
-         o Estúdio). Uma régua paralela aqui desligaria o degrau em silêncio justamente onde a
-         medida e o desenho consideram a fonte display — o defeito clássico das duas réguas. */
-      const _ehDisplay = (l) => {
-        const fp = (typeof dTextFontParts === 'function') ? dTextFontParts(l.font)
-                 : { weight: /black|realce/i.test(l.font || '') ? 900 : 700 };
-        return (l.fontWeightOverride || fp.weight) >= 900;
-      };
-      // A MESMA conta do fit/render para o tracking efetivo — não uma paralela.
-      const _trackEfetivo = (l) => (l.letterSpacing != null) ? l.letterSpacing
-        : (_ehDisplay(l) ? Math.max(0.5, _corpoAtual(l) * 0.02) : 0);
-      /* A política `tracking-autoral` pula este degrau de propósito: devolver tracking muda a
-         QUEBRA, e em arte onde a linha reflowa pior isso custa mais corpo do que economiza. Quem
-         decide entre as duas é a NOTA (`gLayoutEscolherAlternativa`), não este arquivo. */
-      const _apertaveisTrack = (_politica === 'tracking-autoral') ? [] :
-        culpados.filter(l => l._fit && !l.vertical && !l._trackApertado && _trackEfetivo(l) > 0.01);
-      if (_apertaveisTrack.length) {
-        _apertaveisTrack.forEach(l => {
-          l.letterSpacing = Math.max(0, _trackEfetivo(l) - _corpoAtual(l) * 0.02);
-          l._trackApertado = true;      // uma vez por camada: o ganho não se repete
-        });
-        _remedir(_apertaveisTrack);
-        _reposicionarDoZero();
-        continue;
-      }
-      /* QUEM CEDE PRIMEIRO — por ORDEM, não por ritmo.
-         Antes todos caíam 8% por volta e o resultado era o avesso do desejado: o TÍTULO ia ao
-         piso enquanto o regulamento jurídico parava um degrau antes. Pesar o passo não
-         resolveu — rodando em paralelo, o maior tem mais o que ceder e chega ao fundo do mesmo
-         jeito. O tamanho que o designer deu é a declaração de importância dele, então quem
-         encolhe é o MENOR degrau que ainda tem folga, sozinho, até acabar a folga dele. O
-         título só é tocado quando o resto da arte já cedeu tudo. */
-      // Degrau normal: uma camada isolada nunca perde mais de metade do corpo desenhado.
-      const _pisoAbsDe=(l)=>Math.max(8,l._pisoLegivel||0,Math.round((l.fontSize||24)*0.5));
-      // Emergência proporcional: quando TODO o componente reduz junto, a hierarquia já está
-      // protegida pela escala comum; aí o piso correto é legibilidade, não 50% de cada layer.
-      const _pisoEmergenciaDe=(l)=>Math.max(8,l._pisoLegivel||0);
-      const _pisoDe = (l) => (l._pisoFonte != null)
-        ?Math.max(l._pisoFonte,_pisoAbsDe(l)):_pisoAbsDe(l);
-      const _atual = (l) => (l._tetoFonte != null) ? l._tetoFonte : (l.fontSize || 24);
-
-      /* Se a hierarquia inteira ficou sem folga e a composição ainda viola uma área segura,
-         o último recurso é diminuir TUDO pela mesma escala — nunca continuar reduzindo só o
-         título até ele ficar menor que o preço. O fator nasce do degrau mais reduzido e só
-         desce; nenhuma camada volta a crescer. */
-      if(relaxou){
-        /* O último degrau preserva a proporção só do COMPONENTE afetado. Reduzir toda a arte
-           fazia rodapé, título remoto e preço encolherem por uma colisão local. */
-        const ids=new Set(culpados.map(l=>l.id));
-        let expandiu=true;
-        while(expandiu){
-          expandiu=false;
-          _ultimasColisoes.forEach(c=>{
-            if(ids.has(c.culpado.id)||ids.has(c.obstaculo.id)){
-              [c.culpado.id,c.obstaculo.id].forEach(id=>{if(!ids.has(id)){ids.add(id);expandiu=true;}});
-            }
-          });
-          cloned.forEach(l=>{
-            const a=l&&(l.relativeAnchor||l._anchorAuto);
-            if(a&&a.layerId&&(ids.has(l.id)||ids.has(a.layerId))){
-              [l.id,a.layerId].forEach(id=>{if(!ids.has(id)){ids.add(id);expandiu=true;}});
-            }
-            if(l&&l._placa&&(ids.has(l.id)||ids.has(l._placa.alvo))){
-              [l.id,l._placa.alvo].forEach(id=>{if(!ids.has(id)){ids.add(id);expandiu=true;}});
-            }
-          });
-        }
-        /* Mesma régua do preço aqui: a escala comum do componente é motivo ALHEIO, então o
-           preço que não cresceu não desce com ela. O que cresceu desce junto, preservando a
-           proporção do componente — é o degrau em que o preço grande demais para a própria caixa
-           acompanha o resto em vez de ser reduzido sozinho. */
-        const textosComponente=cloned.filter(l=>l&&l.type==='text'&&_gLayoutVisivel(l)&&ids.has(l.id)
-                                              &&(_cedeu(l)||!_gLayoutPrecoImune(l)));
-        const escalaAtual=Math.min(...textosComponente.map(l=>_atual(l)/Math.max(1,l.fontSize||24)));
-        const escalaGlobal=Math.max(0.35,escalaAtual*0.92);
-        /* ⚠ A escala proporcional protege a hierarquia DENTRO do componente — todos descem
-           juntos. Mas quem está FORA dele não desce, e sem esta trava um texto do componente
-           passava por baixo de um texto menor que ficou parado: a arte saía com o produto
-           menor que o preço. Comprovado pelo corpus (`promo-preco-circulo · extremo`).
-           O piso aqui é o maior corpo ATUAL entre os que eram menores e não estão descendo. */
-        const _pisoHierExterno=(l)=>{
-          let piso=0;
-          cloned.forEach(o=>{
-            if(!o||o===l||o.type!=='text'||!_gLayoutVisivel(o)||ids.has(o.id))return;
-            if((o.fontSize||24)>=(l.fontSize||24))return;
-            // Escada travada: o preço imune deixa de ser piso (ver `_precoNaoEhPiso` acima).
-            if(_precoNaoEhPiso&&_gLayoutPrecoImune(o))return;
-            piso=Math.max(piso,_atual(o));
-          });
-          return piso;
-        };
-        const grupo=[];
-        textosComponente.forEach(l=>{
-          const alvo=Math.max(_pisoEmergenciaDe(l),_pisoHierExterno(l),Math.floor((l.fontSize||24)*escalaGlobal));
-          if(alvo<_atual(l)){l._tetoFonte=alvo;grupo.push(l);}
-        });
-        if(!grupo.length){
-          /* Ninguém pôde descer. Antes de entregar arte bloqueada, tira o preço imune do papel de
-             piso de hierarquia e dá mais uma volta — a folga que falta está exatamente ali. */
-          if(!_precoNaoEhPiso && cloned.some(l=>l&&l.type==='text'&&_gLayoutVisivel(l)&&_gLayoutPrecoImune(l))){
-            _precoNaoEhPiso=true;
-            continue;
-          }
-          break;
-        }
-        _remedir(grupo);
-        _reposicionarDoZero();
-        continue;
-      }
-      const comFolga = culpados.filter(l => Math.floor(_atual(l) * 0.92) < _atual(l)
-                                         && _atual(l) > _pisoDe(l));
-      const menor = comFolga.length
-        ? Math.min(...comFolga.map(l => Math.round(l.fontSize || 24))) : null;
-      const mexidos = [];
-      comFolga.forEach(l => {
-        if (Math.round(l.fontSize || 24) !== menor) return;   // só o degrau da vez
-        const novo = Math.max(_pisoDe(l), Math.floor(_atual(l) * 0.92));
-        if (novo < _atual(l)) { l._tetoFonte = novo; mexidos.push(l); }
-      });
-      // Todo mundo no piso da hierarquia: entra uma vez na escala global proporcional.
-      if (!mexidos.length && !relaxou) { relaxou = true; continue; }
-      if (!mexidos.length) break;   // no piso absoluto: não há mais o que ceder
-      _remedir(mexidos);
-      _reposicionarDoZero();
-    }
-    /* O QUE SOBROU FORA DA ARTE. A escada tem limite; quando ela desiste, alguém precisa
-       saber. Sem isto o `estourou` do encaixe dizia `false` numa peça com o preço 181px fora
-       da prancheta, e nenhum consumidor a jusante tinha como perceber. */
-    if (_escapou()) {
-      cloned.forEach(l => {
-        const r = resolved[l.id];
-        if (!r || !_gLayoutVisivel(l)) return;
-        if (_piorouBorda(l,r)) l._foraDaArte = true;
-      });
-    }
-    /* Se nem quebra, entrelinha e redução resolveram sem violar os pisos, o material não é
-       silenciosamente aprovado: o checklist/publicação recebe a marca de composição inválida. */
-    const restantes=_colisoesInternas();
-    restantes.forEach(c=>{ c.culpado._layoutInvalido=true; });
-    const _ms = _t0 ? ((typeof performance!=='undefined'&&performance.now)?performance.now():0) - _t0 : 0;
-    cloned._layoutMeta = { politica:_politica, tentativas:tentativas, ms:Math.round(_ms*100)/100 };
-    if(typeof gLayoutRegistraTempo==='function' && _politica==='padrao') gLayoutRegistraTempo(_ms);
-    /* ALTERNATIVAS. Só quando a escada precisou passar do empurrão — arte que resolve em
-       quebra/empurrão JÁ é a de alteração mínima, e gerar concorrentes ali seria pagar três
-       solves para reeleger a mesma vencedora. Determinístico de propósito: prévia e exportação
-       chamam o mesmo motor e têm que escolher a MESMA composição. */
-    if(_politica==='padrao' && !(opts&&opts._semAlternativas)
-       && typeof gLayoutPrecisaAlternativas==='function' && gLayoutPrecisaAlternativas(cloned)
-       && typeof gLayoutEscolherAlternativa==='function'){
-      const escolhida = gLayoutEscolherAlternativa(layers, dados, defaults, opts, cloned);
-      if(escolhida && escolhida.length) return escolhida;
-    }
-    return cloned;
-  }
 
   const maxIter = cloned.length;
   let changed = true;
@@ -3031,6 +2222,7 @@ function gApplyRelativeAnchors(layers, dados, defaults, opts) {
       // A âncora MANUAL do designer sempre vence a inferida — ele desenhou por um motivo.
       const anchor = l.relativeAnchor || l._anchorAuto;
       if (!anchor || !anchor.layerId) return;
+      if(invalidAnchors.has(l.id)) return;
       
       const parent = resolved[anchor.layerId];
       if (!parent) return;
@@ -3136,6 +2328,33 @@ function gHifenizaPt(palavra){
   return cortes;
 }
 
+/* ── A GRAMÁTICA DA QUEBRA DE LINHA (cardápio) ─────────────────────────────────────────────────
+   Custo de quebrar ANTES da palavra `j` (a linha anterior termina em words[j-1]). Positivo = feio,
+   negativo = bom lugar. As palavras podem vir coladas pelo `gSemanticUnits` ("por R$ 49,90").
+   Cada regra existe por um defeito medido nos 177 textos reais (ver `_gSmartWrapCalc`). */
+const _G_QUEBRA_ADJ = new Set(['grande','grandes','média','médias','media','medias','médio','médios','pequena','pequenas',
+  'pequeno','pequenos','gigante','gigantes','frita','fritas','frito','fritos','duplo','dupla','triplo','tripla',
+  'especial','especiais','tradicional','tradicionais','artesanal','artesanais','recheada','recheado','recheadas',
+  'lata','zero','gelado','gelada','crocante','caseiro','caseira','família','familia','kids','premium','doce','doces','salgada','salgado']);
+function _gQuebraCusto(words, j){
+  const nu = s => String(s || '').toLowerCase().replace(/^[^\p{L}\d+$%]+|[^\p{L}\d+%]+$/gu, '');
+  const a = String(words[j - 1] || ''), b = String(words[j] || '');
+  const ua = nu(a.split(' ').pop()), pb = nu(b.split(' ')[0]);
+  let c = 0;
+  if (/[:;,.!?]$/.test(a.trim())) c -= 150;                          // depois de pontuação: o lugar natural
+  if (ua === '+') c += 900;                                          // "+" pendurado: vai abrir a linha de baixo
+  else if (typeof G_CONNECTORS !== 'undefined' && G_CONNECTORS.has(ua)) c += 2500;  // "… de / Calabresa": quase proibido — só quando não há outra quebra
+  if (/^\d+$/.test(ua) && /^\p{L}/u.test(pb) && !/^(por|x|e|ou|a)$/.test(pb)) c += 700;   // "12 / fatias"
+  if (/^(de|do|da|dos|das)$/.test(pb) && /^\p{L}{3,}$/u.test(ua) && !(typeof G_CONNECTORS !== 'undefined' && G_CONNECTORS.has(ua)))
+    c += 250;                                                        // "Pizza Grande / de Calabresa"
+  if (_G_QUEBRA_ADJ.has(pb) && /^\p{L}{3,}$/u.test(ua)) c += 300;   // "Pizza / Grande", "Batata / Frita"
+  if (/^\d+([.,]\d+)?\s?(l|ml|g|kg|un)$/i.test(b.split(' ')[0]) && /^\p{L}{3,}$/u.test(ua)) c += 300;   // "Refri / 2L"
+  if (pb === '+') c -= 120;                                          // o "+" abre a linha: lista legível
+  if (/^r\$/i.test(b.trim()) || /^por\s+r\$/i.test(b.trim())) c -= 80;   // preço começando a linha
+  if (/^a\s+partir/i.test(b) || (pb === 'a' && nu(String(words[j + 1] || '').split(' ')[0]) === 'partir')) c -= 80;
+  return c;
+}
+
 const _G_SEGMENTADOR = (typeof Intl!=='undefined'&&Intl.Segmenter)
   ? new Intl.Segmenter(undefined,{granularity:'grapheme'}) : null;
 let _gCanvasWrap = null;
@@ -3155,7 +2374,7 @@ function gSmartWrapText(text, maxW, layer, dados, defaults) {
   const _chaveWrap = (typeof dTextFontParts === 'function' ? dTextFontParts(layer && layer.font).weight : '')
     + '|' + ((layer && layer.font) || '') + '|' + ((layer && layer.fontSize) || 0)
     + '|' + ((layer && layer.letterSpacing) || 0) + '|' + ((layer && layer.italic) ? 1 : 0)
-    + '|' + ((layer && layer.fontWeightOverride) || '') + '|' + Math.round(maxW || 0)
+    + '|' + ((layer && layer.fontWeightOverride) || '') + '|' + ((layer && layer.textTransform) || '') + '|' + Math.round(maxW || 0)
     + '|' + ((layer && layer.content) || '') + '|' + text;
   const _memo = _G_MEDIDA_CACHE.get('W' + _chaveWrap);
   if (_memo !== undefined) return _memo;
@@ -3185,7 +2404,12 @@ function _gSmartWrapCalc(text, maxW, layer) {
   // Medição exata da largura de cada linha usando as métricas da própria camada
   const measure = (str) => {
     // Limpa tags de template temporárias (__VAR_START_...__) para obter medição física exata de pixels no editor
-    const cleanStr = str.replace(/__VAR_START_[a-zA-Z0-9_]+__/g, '').replace(/__VAR_END__/g, '');
+    let cleanStr = str.replace(/__VAR_START_[a-zA-Z0-9_]+__/g, '').replace(/__VAR_END__/g, '');
+    /* MEDE O QUE SERÁ DESENHADO. `gFitTextLayer` aplica a caixa alta DEPOIS de quebrar, então a
+       quebra media "Pizza Portuguesa" e o render desenhava "PIZZA PORTUGUESA" — mais larga. Com a
+       quebra equilibrada (26/09) as linhas encostam no limite e estouravam na caixa alta. */
+    if(layer && layer.textTransform === 'uppercase') cleanStr = cleanStr.toUpperCase();
+    else if(layer && layer.textTransform === 'lowercase') cleanStr = cleanStr.toLowerCase();
     if(medidas.has(cleanStr))return medidas.get(cleanStr);
     const largura=gMeasureLayerWidth(layer, cleanStr, ctx);
     medidas.set(cleanStr,largura);
@@ -3208,97 +2432,75 @@ function _gSmartWrapCalc(text, maxW, layer) {
   const words = (typeof gSemanticUnits === 'function')
     ? gSemanticUnits(palavras, measure, availableW) : palavras;
 
-  let bestPartition = null;
-  let bestScore = Infinity;
-  
-  // Testa partições em N = 2 e N = 3 linhas. Acima de 12 palavras vai direto ao encaixe
-  // guloso: avaliar equilíbrio editorial de uma frase desse tamanho custa mais que desenhá-la.
-  for (let n = 2; n <= 3 && words.length <= 12; n++) {
-    if (words.length < n) continue;
-    
-    const partitions = [];
-    /* Até 8 palavras, preserva a busca exaustiva que dá a quebra editorial mais bonita.
-       Acima disso, combinações de 3 linhas crescem ao quadrado e uma entrada de 40 palavras
-       congelava a prévia por 12s. Textos longos avaliam apenas cortes próximos das frações
-       naturais (1/2 ou 1/3 + 2/3); se nenhum couber, o fallback guloso abaixo continua sendo
-       a prova final de encaixe. O resultado segue determinístico com custo limitado. */
-    if(words.length<=8){
-      const getPartitions = (arr, partsLeft, currentPart) => {
-        if (partsLeft === 1) { partitions.push(currentPart.concat([arr])); return; }
-        for (let i = 1; i <= arr.length - partsLeft + 1; i++) {
-          getPartitions(arr.slice(i), partsLeft - 1, currentPart.concat([arr.slice(0, i)]));
-        }
-      };
-      getPartitions(words, n, []);
-    }else if(n===2){
-      const meio=Math.round(words.length/2);
-      for(let c=Math.max(1,meio-2);c<=Math.min(words.length-1,meio+2);c++){
-        partitions.push([words.slice(0,c),words.slice(c)]);
-      }
-    }else{
-      const a=Math.round(words.length/3),b=Math.round(words.length*2/3);
-      for(let c1=Math.max(1,a-1);c1<=Math.min(words.length-2,a+1);c1++){
-        for(let c2=Math.max(c1+1,b-1);c2<=Math.min(words.length-1,b+1);c2++){
-          partitions.push([words.slice(0,c1),words.slice(c1,c2),words.slice(c2)]);
-        }
-      }
-    }
-    
-    // Avalia cada partição candidata
-    partitions.forEach(part => {
-      const lines = part.map(p => p.join(' '));
-      const widths = lines.map(measure);
-      
-      let overflowScore = 0;
-      let grammarScore = 0;
-      let orphanScore = 0;
-      
-      widths.forEach((w, idx) => {
-        // Penalidade severa por estourar a largura da caixa do designer
-        if (w > availableW) {
-          overflowScore += (w - availableW) * 150 + 20000;
-        }
-        
-        // Penalidade por terminar linha com preposição/conjunção (quebra gramatical feia)
-        if (idx < lines.length - 1) {
-          const lineWords = part[idx];
-          const lastWord = lineWords[lineWords.length - 1].toLowerCase().replace(/[.,!?;:]/g, '');
-          if (G_CONNECTORS.has(lastWord)) {
-            grammarScore += 350;
+  /* ══ QUEBRA EDITORIAL (26/09/2026, pedido do Ryan: "quebrar as frases da melhor forma possível";
+     forma escolhida: EQUILIBRADO) ══
+     Antes: busca exaustiva só para 2–3 linhas e até 12 palavras; o resto caía no guloso, que enche
+     cada linha até onde dá. Medido nos 177 textos reais × 3 caixas: 59% dos blocos tinham 4+ linhas
+     (guloso puro), 37% partiam o produto antes do "de" ("Pizza Grande / de Calabresa"), 10% deixavam
+     o "+" pendurado, e "Pizza Gigante 12 / fatias" separava o número do que ele conta.
+     Agora: programação dinâmica sobre os pontos de quebra (Knuth-Plass), para QUALQUER nº de linhas.
+     ⛔ O Nº DE LINHAS É O MÍNIMO (o do guloso): a quebra bonita escolhe ONDE quebrar, nunca quebra
+     mais — bloco mais alto é bloco que volta a bloquear no Local Fit.
+     Custo de cada linha = distância ao comprimento médio (equilíbrio) + a quebra que ela faz no fim
+     (`_gQuebraCusto`) — a gramática do cardápio. Palavra maior que a caixa segue para o hífen abaixo. */
+  /* Na busca, só as UNIDADES são coladas de verdade (preço, %, medida — `G_LAYOUT_UNIDADES`). A
+     preposição colada à palavra seguinte ("com X-Bacon") tirava flexibilidade e gerava LINHA A MAIS
+     ("Picanha / na chapa / para 2 / pessoas…": 7 onde cabiam 5); aqui ela é decidida pelo custo
+     (`_gQuebraCusto`: terminar linha em preposição custa caro). */
+  const _unidades = [];
+  palavras.forEach(w => {
+    const ant = _unidades.length ? _unidades[_unidades.length - 1] : null;
+    const cola = ant != null && typeof G_LAYOUT_UNIDADES !== 'undefined'
+      && G_LAYOUT_UNIDADES.some(r => r.antes.test(ant.split(' ').pop()) && r.depois.test(w))
+      && measure(ant + ' ' + w) <= availableW;
+    if (cola) _unidades[_unidades.length - 1] = ant + ' ' + w; else _unidades.push(w);
+  });
+  const _cabeTudo = _unidades.every(w => measure(w) <= availableW);
+  if (_cabeTudo) {
+    const words = _unidades;
+    // Nº mínimo de linhas: o guloso é ótimo para contar linhas.
+    let nMin = 1, acc = '';
+    words.forEach(w => { const t = acc ? acc + ' ' + w : w; if (acc && measure(t) > availableW) { nMin++; acc = w; } else acc = t; });
+    const n = words.length;
+    const larg = (i, j) => measure(words.slice(i, j).join(' '));   // largura das palavras [i, j)
+    const total = measure(words.join(' '));
+    // A melhor quebra em EXATAMENTE `nl` linhas (programação dinâmica), ou null.
+    const melhorEm = (nl) => {
+      if (nl > n) return null;
+      const alvo = total / nl;                                     // o comprimento "equilibrado"
+      const INF = Infinity, melhor = [], de = [];
+      for (let k = 0; k <= nl; k++) { melhor.push(new Array(n + 1).fill(INF)); de.push(new Array(n + 1).fill(-1)); }
+      melhor[0][0] = 0;
+      for (let k = 1; k <= nl; k++) {
+        for (let i = k - 1; i < n; i++) {
+          if (melhor[k - 1][i] === INF) continue;
+          for (let j = i + 1; j <= n - (nl - k); j++) {
+            const w = larg(i, j);
+            if (w > availableW) break;                             // mais palavras só alargam
+            const ultima = (k === nl);
+            if (ultima && j !== n) continue;
+            const d = (w - alvo) / availableW;
+            let c = d * d * 2000;   // peso 2000: medido — equilíbrio igual ao de antes (36%) com a gramática melhor
+            if (!ultima) c += _gQuebraCusto(words, j);
+            else if (j - i === 1 && !/\s/.test(words[i]) && nl > 1) c += 400;   // palavra sozinha no fim
+            const tot = melhor[k - 1][i] + c;
+            if (tot < melhor[k][j]) { melhor[k][j] = tot; de[k][j] = i; }
           }
         }
-      });
-      
-      // Penalidade por palavra órfã muito curta na última linha
-      const lastLineWords = part[part.length - 1];
-      if (lastLineWords.length === 1) {
-        const lastWord = lastLineWords[0];
-        if (lastWord.length < 4) {
-          orphanScore += 400;
-        }
       }
-      
-      // Desequilíbrio entre larguras (procura simetria visual entre as linhas)
-      const maxWLine = Math.max(...widths);
-      const minWLine = Math.min(...widths);
-      const unbalanceScore = (maxWLine - minWLine) * 2.5;
-      
-      const totalScore = overflowScore + grammarScore + orphanScore + unbalanceScore;
-      
-      if (totalScore < bestScore) {
-        bestScore = totalScore;
-        bestPartition = lines;
-      }
-    });
-    
-    // Se a melhor partição em N linhas couber 100% sem estourar os limites de pixel, para nela
-    if (bestScore < 15000) {
-      break;
-    }
-  }
-  
-  if (bestPartition && bestPartition.every(line => measure(line) <= availableW)) {
-    return bestPartition.join('\n');
+      if (melhor[nl][n] === INF) return null;
+      const linhas = [];
+      for (let k = nl, j = n; k > 0; k--) { const i = de[k][j]; linhas.unshift(words.slice(i, j).join(' ')); j = i; }
+      return { custo: melhor[nl][n], linhas };
+    };
+    const a = melhorEm(nMin);
+    /* UMA LINHA A MAIS só quando ela tira um defeito GRAVE (preposição ou "+" pendurado custam 900+):
+       "PIZZA GRANDE / + REFRI 2L POR / APENAS R$ 54,90" → "… / + REFRI 2L / POR APENAS / R$ 54,90".
+       O custo 1800 da linha extra é maior que qualquer ganho de equilíbrio ou de adjetivo — linha
+       a mais é bloco mais alto, e bloco alto é o que o Local Fit encolhe ou bloqueia. */
+    const b = (a && a.custo >= 900) ? melhorEm(nMin + 1) : null;
+    const escolha = (b && b.custo + 1800 < a.custo) ? b : a;
+    if (escolha) return escolha.linhas.join('\n');
   }
 
   const wrapped = [];
@@ -3336,7 +2538,10 @@ function _gSmartWrapCalc(text, maxW, layer) {
     }
     return rest.join('');
   };
-  words.forEach(word => {
+  // No fallback com uma palavra longa, colar preposições ao próximo
+  // token criava linhas extras antes da hifenização ("com 6" separado).
+  // As unidades de preço/medida continuam indivisíveis quando cabem.
+  _unidades.forEach(word => {
     const next = current ? current + ' ' + word : word;
     if (current && measure(next) > availableW) {
       wrapped.push(current);
@@ -3378,7 +2583,10 @@ function gSmartTitleCase(str) {
     if (idx === 0 || !G_CONNECTORS.has(wordClean)) {
       // Capitaliza a primeira letra, lidando com hifens (ex: "terça-feira" -> "Terça-feira")
       const parts = wordClean.split('-');
-      const cappedParts = parts.map(p => p ? p[0].toUpperCase() + p.slice(1) : '');
+      // A 1ª LETRA, não o 1º caractere: "<COMBO", "(PROMOÇÃO" e "\"X-BURGER" começam com
+      // símbolo, e o p[0] maiúsculo deixava a letra real em minúscula ("<combo"). Só pula
+      // SÍMBOLO: número na frente fica como está ("500ml", "2x1" não viram "500Ml", "2X1").
+      const cappedParts = parts.map(p => p ? p.replace(/^([^\p{L}\p{N}]*)(\p{L})/u, (m, a, ch) => a + ch.toUpperCase()) : '');
       return cappedParts.join('-') + punctuation;
     }
     

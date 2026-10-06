@@ -75,23 +75,29 @@ const _PST_HEART = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" s
 const _PST_SEND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>';
 const _PST_COMMENT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 01-11.9 7.6L3 21l1.9-6a8.4 8.4 0 1116.1-3.5z"/></svg>';
 const _PST_BOOKMARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>';
+/* O repost (as duas setas em laço) entrou nas ações do post do Instagram em 2025, entre o
+   comentário e o enviar. Sem contagem ao lado — pelo mesmo motivo das "128 curtidas". */
+const _PST_REPOST = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2.5 3 3-3 3"/><path d="M4 11.5v-2a4 4 0 0 1 4-4h12"/><path d="m7 21.5-3-3 3-3"/><path d="M20 12.5v2a4 4 0 0 1-4 4H4"/></svg>';
 /* A barra de abas do Instagram. Ela não é enfeite: é o que faz o olho reconhecer o app
-   antes de ler qualquer coisa. Cabe porque a conta fecha — numa tela de 282×576 sobram
-   ~90px depois do cabeçalho, da arte 4:5, das ações e das duas linhas de legenda. */
-const _PST_TAB_HOME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 10.2 12 3l9 7.2V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>';
+   antes de ler qualquer coisa.
+   ⚠ A ORDEM É A DE DEZ/2025: Início · Reels · Mensagens · Busca · Perfil. A de antes tinha a
+   aba Loja, que o app tirou em 2023 — um detalhe velho basta para o print "parecer falso".
+   O Início vem PREENCHIDO porque é a aba em que se está (é assim que o app marca a ativa). */
+const _PST_TAB_HOME = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 10.2 12 3l9 7.2V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>';
 const _PST_TAB_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>';
 const _PST_TAB_REELS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M3 8.5h18M8.5 3l3 5.5M15 3l3 5.5"/><path d="m10.8 12.4 4.2 2.4-4.2 2.4z" stroke-linejoin="round"/></svg>';
-const _PST_TAB_SHOP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M5 7h14l-1 13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/></svg>';
-const _PST_BACK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg>';
-const _PST_VIDEO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>';
-const _PST_CALL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3-8.6A2 2 0 014.1 2h3a2 2 0 012 1.7c.1 1 .4 1.9.7 2.8a2 2 0 01-.5 2.1L8.1 9.9a16 16 0 006 6l1.3-1.3a2 2 0 012.1-.4c.9.3 1.8.6 2.8.7a2 2 0 011.8 2z"/></svg>';
-/* A barra de digitar do WhatsApp tem quatro controles, e nenhum deles existia aqui: emoji
-   dentro do campo, clipe e camera do lado direito dele, e o microfone no botao verde. */
-const _PST_EMOJI = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8.6 14.2a4.2 4.2 0 0 0 6.8 0"/><circle cx="9" cy="9.8" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="9.8" r="1.1" fill="currentColor" stroke="none"/></svg>';
-const _PST_CLIP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 11.5 12.2 19.3a4.6 4.6 0 0 1-6.5-6.5l8.2-8.2a3 3 0 0 1 4.3 4.3l-8.2 8.2a1.5 1.5 0 0 1-2.1-2.1l7.4-7.4"/></svg>';
+/* ⚠ WHATSAPP DE IPHONE, NÃO DE ANDROID (23/09/2026). O chassi é um iPhone e a tela rodava o
+   WhatsApp do Android: três pontinhos verticais no topo, clipe e emoji dentro do campo,
+   microfone num círculo verde. No iPhone o topo tem só vídeo e ligação, e a barra de digitar
+   é "+", o campo com o adesivo dentro, câmera e microfone soltos. Um aparelho não roda o app
+   do outro — era o primeiro detalhe que denunciava a montagem. */
+const _PST_BACK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4.5 7.5 12l7.5 7.5"/></svg>';
+const _PST_VIDEO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="2" y="6" width="13.5" height="12" rx="3"/><path d="m15.5 10.2 5.2-3.1c.6-.3 1.3.1 1.3.7v8.4c0 .6-.7 1-1.3.7l-5.2-3.1"/></svg>';
+const _PST_CALL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3-8.6A2 2 0 014.1 2h3a2 2 0 012 1.7c.1 1 .4 1.9.7 2.8a2 2 0 01-.5 2.1L8.1 9.9a16 16 0 006 6l1.3-1.3a2 2 0 012.1-.4c.9.3 1.8.6 2.8.7a2 2 0 011.8 2z"/></svg>';
+const _PST_PLUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4.5v15M4.5 12h15"/></svg>';
+const _PST_STICKER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M20.5 12.5V7A3.5 3.5 0 0 0 17 3.5H7A3.5 3.5 0 0 0 3.5 7v10A3.5 3.5 0 0 0 7 20.5h5.5z"/><path d="M12.5 20.5V16a3.5 3.5 0 0 1 3.5-3.5h4.5"/></svg>';
 const _PST_CAM = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8.4A1.4 1.4 0 0 1 4.4 7h2.3l1.2-2h8.2l1.2 2h2.3A1.4 1.4 0 0 1 21 8.4v8.2a1.4 1.4 0 0 1-1.4 1.4H4.4A1.4 1.4 0 0 1 3 16.6z"/><circle cx="12" cy="12.4" r="3.4"/></svg>';
-const _PST_MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"/><path d="M12 18v3.5"/></svg>';
-const _PST_VDOTS = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>';
+const _PST_MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"/><path d="M12 18v3.5"/></svg>';
 const _PST_LOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4.5" y="10.5" width="15" height="10" rx="2.2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg>';
 /* ⚠ UM TIQUE, E CINZA — não os dois tiques azuis de antes. Azul no WhatsApp significa que a
    outra pessoa LEU a mensagem, e esta mensagem ainda não foi enviada: é a prévia de um envio
@@ -104,14 +110,25 @@ const _PST_CHECK = '<svg class="pst-check" viewBox="0 0 14 12" fill="none" strok
    não dizia nada (a conversa é genérica de propósito, decisão do Ryan em 11/09). */
 const _PST_PESSOA = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8.6" r="3.9"/><path d="M12 13.6c-4.2 0-7 2.3-7 4.6V21h14v-2.8c0-2.3-2.8-4.6-7-4.6z"/></svg>';
 
-// Barra de status do sistema (bateria/wifi/sinal). whiteText=true sobre fundo escuro.
+/* A HORA DO APARELHO É A HORA DE AGORA. O "21:47" fixo era o único número da moldura que não
+   correspondia a nada, e o relógio é dado que existe. A mesma hora vai na mensagem do
+   WhatsApp: ela é a prévia de um envio que acontece agora. */
+function _fPostedHora(){
+  const d = new Date();
+  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+
+/* Barra de status do sistema. whiteText=true sobre fundo escuro.
+   Os glifos estão no tamanho do iOS EM PONTOS (sinal 18×12, bateria 27×13) porque a tela
+   inteira é desenhada em pontos e reduzida junto — ver `.pst-ui` no CSS. As duas "orelhas"
+   ficam uma de cada lado da ilha, e cada uma centraliza o que tem dentro, como no iPhone. */
 function _fPostedSysbar(whiteText){
   return `<div class="pst-sysbar ${whiteText?'dark':'light'}">
-    <span class="pst-t">21:47</span>
-    <span class="pst-ic">
-      <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx=".5"/><rect x="4" y="5" width="3" height="6" rx=".5"/><rect x="8" y="3" width="3" height="8" rx=".5"/><rect x="12" y="1" width="3" height="10" rx=".5"/></svg>
-      <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M8 2.2c2 0 3.9.8 5.3 2.1l1.1-1.2A9.3 9.3 0 008 .6 9.3 9.3 0 001.6 3.1l1.1 1.2A7.6 7.6 0 018 2.2zM8 5.6c1.1 0 2.1.4 2.9 1.2l1.1-1.2A6 6 0 008 3.9 6 6 0 004 5.6l1.1 1.2A4.2 4.2 0 018 5.6zm0 3.4l1.9-2a2.6 2.6 0 00-3.8 0L8 9z"/></svg>
-      <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="17" height="8" rx="1.5" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+    <span class="pst-sys-ear"><span class="pst-t">${_fPostedHora()}</span></span>
+    <span class="pst-sys-ear pst-ic">
+      <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7.6" width="3.2" height="4.4" rx="1"/><rect x="4.9" y="5.1" width="3.2" height="6.9" rx="1"/><rect x="9.8" y="2.6" width="3.2" height="9.4" rx="1"/><rect x="14.7" y="0" width="3.2" height="12" rx="1"/></svg>
+      <svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor"><path d="M8.5 2.4c2.4 0 4.6.9 6.3 2.5.2.2.5.2.7 0l1-1c.2-.2.2-.5 0-.7A11.3 11.3 0 0 0 8.5 0 11.3 11.3 0 0 0 .5 3.2c-.2.2-.2.5 0 .7l1 1c.2.2.5.2.7 0a9 9 0 0 1 6.3-2.5z"/><path d="M8.5 6c1.4 0 2.6.5 3.6 1.4.2.2.5.2.7 0l1-1c.2-.2.2-.5 0-.7a7.7 7.7 0 0 0-10.6 0c-.2.2-.2.5 0 .7l1 1c.2.2.5.2.7 0C5.9 6.5 7.1 6 8.5 6z"/><path d="M10.9 9.3c.2-.2.2-.5 0-.7a3.4 3.4 0 0 0-4.8 0c-.2.2-.2.5 0 .7l2 2c.2.2.5.2.7 0z"/></svg>
+      <svg width="27" height="13" viewBox="0 0 27 13" fill="none"><rect x=".5" y=".5" width="23" height="12" rx="3.8" stroke="currentColor" opacity=".38"/><rect x="2" y="2" width="20" height="9" rx="2.4" fill="currentColor"/><path d="M25 4.4v4.2c.8-.3 1.4-1.1 1.4-2.1S25.8 4.7 25 4.4z" fill="currentColor" opacity=".45"/></svg>
     </span>
   </div>`;
 }
@@ -220,18 +237,22 @@ function _fPostedStory(slot){
   /* ⚠ UMA BARRA, E NÃO TRÊS. Três segmentos afirmam que a conta tem três stories no ar — é
      invenção do mesmo tipo das "128 curtidas" que saíram do Feed. Um segmento é a verdade:
      este story, tocando. E continua lendo como Instagram, que é o que a barra faz ali.
-     ⚠ O FUNDO BORRADO existe porque a peça é 9:16 (0,562) e a tela do aparelho é 0,450: a
-     arte enche a largura e sobra faixa em cima e embaixo. Preto ali é o que NENHUM celular
-     mostra — o Instagram põe uma cópia ampliada e desfocada da própria mídia. Quem preenche
-     este `div` é o `_fPostedMountArt`, com um canvas minúsculo que o CSS amplia. */
+     ⚠ O STORY É UM CARTÃO, NÃO A TELA INTEIRA (23/09/2026). A tela do iPhone é mais alta que
+     9:16, e o Instagram resolve assim: a mídia vira um cartão 9:16 de cantos arredondados logo
+     abaixo da barra de status, e a caixa "Enviar mensagem" mora EMBAIXO dele, no preto. Antes a
+     arte ia de ponta a ponta e a caixa de resposta ficava POR CIMA do pé da peça — justamente
+     onde mora a validade e o texto legal da oferta. Agora a arte aparece inteira.
+     O FUNDO BORRADO continua, dentro do cartão: é o que o app faz quando a mídia não é 9:16
+     exata. Quem preenche o `div` é o `_fPostedMountArt`. */
   return `<div class="pst-story">
-    <div class="pst-story-fundo" aria-hidden="true"></div>
-    ${slot}
-    <div class="pst-story-sombra" aria-hidden="true"></div>
-    <div class="pst-story-sombra-pe" aria-hidden="true"></div>
-    <div class="pst-story-bars"><i class="on"></i></div>
-    ${topo}
-    <div class="pst-story-bot"><div class="pst-story-input">Enviar mensagem</div>${_PST_HEART}${_PST_SEND}</div>
+    <div class="pst-story-card" title="Segure para ver a arte sem a moldura do app">
+      <div class="pst-story-fundo" aria-hidden="true"></div>
+      ${slot}
+      <div class="pst-story-sombra" aria-hidden="true"></div>
+      <div class="pst-story-bars"><i class="on"></i></div>
+      ${topo}
+    </div>
+    <div class="pst-story-bot"><div class="pst-story-input">Enviar mensagem</div><span class="pst-like">${_PST_HEART}</span>${_PST_SEND}</div>
   </div>`;
 }
 /* A legenda do Feed é a LEGENDA DE VERDADE, a mesma que o painel mostra e que o "Copiar
@@ -248,30 +269,42 @@ function _fPostedFeed(slot){
       <span class="pst-feed-id"><span class="pst-feed-user">${gEsc(p.nome)}</span>${p.cidade?`<span class="pst-feed-loc">${gEsc(p.cidade)}</span>`:''}</span>
       <span class="pst-grow"></span>${_PST_DOTS}
     </div>` : '';
-  /* A legenda vem com o handle na frente e corta na segunda linha, com "mais" — é assim que
-     o Feed mostra. O limite desconta o nome porque ele ocupa a mesma linha. */
-  /* 74 e nao 92: medido no chassi. A linha util tem 256px e cabem ~45 caracteres em 13px,
-     entao duas linhas sao ~90 — menos o nome em negrito na frente e os 7 do " … mais" no
-     fim. Com 92 a legenda quebrava para TRES linhas e comia altura da arte. */
-  const limite = Math.max(30, 74 - (p.nome ? p.nome.length + 1 : 0));
-  const c = _fPostedCapCurta(cap, limite);
-  const legenda = cap ? `<div class="pst-feed-cap">${p.nome?`<b>${gEsc(p.nome)}</b> `:''}${gEsc(c.texto)}${c.cortou?`<span class="muted"> … mais</span>`:''}</div>` : '';
+  const legenda = cap ? `<div class="pst-feed-cap">${_fPostedCapFeedHTML(cap, p)}</div>` : '';
   /* A barra de abas fecha a tela. Na bolinha de perfil vai a marca da REDE (pedido do Ryan,
      11/09) — e não o logo da loja, que já está no cabeçalho do post. Duas vezes o mesmo logo
      na mesma tela é repetição; a Delivery Much ali diz "esta é uma loja da rede", que é a
      informação que faltava. Escolhi a DM e não o Luma porque o Luma é a ferramenta que fez a
      arte, não a marca que aparece para o cliente final. */
   const abas = `<nav class="pst-feed-tabs" aria-hidden="true">
-      ${_PST_TAB_HOME}${_PST_TAB_SEARCH}${_PST_TAB_REELS}${_PST_TAB_SHOP}
+      ${_PST_TAB_HOME}${_PST_TAB_REELS}${_PST_SEND}${_PST_TAB_SEARCH}
       <span class="pst-av pst-tab-perfil pst-tab-dm" role="img" aria-label="Delivery Much"></span>
     </nav>`;
+  /* O `.pst-feed-rola` é o trecho que ROLA no app (tudo menos a barra de abas). Ele não rola
+     com a roda — rolagem dentro do mockup continua fora — mas o "mais" o desloca para a
+     legenda aberta caber, que é o que o dedo faria. */
   return `<div class="pst-feed">
-    ${head}
-    ${slot}
-    <div class="pst-feed-actions">${_PST_HEART}${_PST_COMMENT}${_PST_SEND}<span class="pst-grow"></span>${_PST_BOOKMARK}</div>
-    ${legenda}
+    <div class="pst-feed-rola">
+      ${head}
+      ${slot}
+      <div class="pst-feed-actions"><span class="pst-like">${_PST_HEART}</span><span class="pst-comentar">${_PST_COMMENT}</span>${_PST_REPOST}${_PST_SEND}<span class="pst-grow"></span><span class="pst-salvar">${_PST_BOOKMARK}</span></div>
+      ${legenda}
+      <div class="pst-feed-prox" aria-hidden="true"><span><i></i><b></b></span><em></em></div>
+    </div>
     ${abas}
   </div>`;
+}
+
+/* A legenda do Feed, montada num lugar só: o `_fPostedFeed` e o `fPostedRepintaLegenda`
+   tinham cada um a sua cópia desta conta, e o número mágico precisava mudar nas duas.
+   Vem com o nome na frente e corta na segunda linha, com "mais", que é como o Feed mostra.
+   ⚠ 100, medido na tela em pontos (402pt de largura, texto de 14pt): com o nome e o " … mais"
+   no total, 108 caracteres ainda cabiam em duas linhas e 112 quebravam para TRÊS — que comem
+   altura da arte. 100 deixa folga para legenda em caixa-alta e para a SF do Mac, um pouco
+   mais larga que a Segoe em que isto foi medido. O nome desconta porque ocupa a mesma linha. */
+function _fPostedCapFeedHTML(cap, p){
+  const limite = Math.max(40, 100 - (p.nome ? p.nome.length + 1 : 0));
+  const c = _fPostedCapCurta(cap, limite);
+  return `${p.nome?`<b>${gEsc(p.nome)}</b> `:''}${gEsc(c.texto)}${c.cortou?`<span class="muted pst-mais"> … mais</span>`:''}`;
 }
 
 /* A legenda ativa, sem depender de quem chamou. O `_fActiveCaptionText` (chat.js) pede o id
@@ -320,21 +353,17 @@ function fPostedRepintaLegenda(){
     if(!cap){ if(el) el.remove(); return; }
     if(!el){
       el = document.createElement('div'); el.className='pst-feed-cap';
-      /* ANTES DA BARRA DE ABAS. Um `appendChild` aqui punha a legenda DEPOIS das abas, e a
-         primeira troca de sugestão desmontava a tela. */
-      const abas = feed.querySelector('.pst-feed-tabs');
-      if(abas) feed.insertBefore(el, abas); else feed.appendChild(el);
+      /* LOGO DEPOIS DAS AÇÕES, antes do próximo post e da barra de abas. Um `appendChild`
+         aqui punha a legenda DEPOIS das abas, e a primeira troca de sugestão desmontava a tela. */
+      /* ⚠ `parentNode.insertBefore`: o próximo post mora dentro do `.pst-feed-rola`, não no
+         `.pst-feed` — inserir pelo feed com uma referência que não é filha dele lança erro. */
+      const depois = feed.querySelector('.pst-feed-prox') || feed.querySelector('.pst-feed-tabs');
+      if(depois) depois.parentNode.insertBefore(el, depois); else feed.appendChild(el);
     }
     /* ⚠ MESMA MONTAGEM DO `_fPostedFeed`, e não `textContent = cap`: sem isto, trocar a
        sugestão trocava a legenda curta com handle por um bloco de texto cru e comprido —
        a mesma tela com duas gramáticas, dependendo de você ter clicado ou não. */
-    const p = _fPostedPerfil();
-    /* 74 e nao 92: medido no chassi. A linha util tem 256px e cabem ~45 caracteres em 13px,
-     entao duas linhas sao ~90 — menos o nome em negrito na frente e os 7 do " … mais" no
-     fim. Com 92 a legenda quebrava para TRES linhas e comia altura da arte. */
-  const limite = Math.max(30, 74 - (p.nome ? p.nome.length + 1 : 0));
-    const c = _fPostedCapCurta(cap, limite);
-    el.innerHTML = `${p.nome?`<b>${gEsc(p.nome)}</b> `:''}${gEsc(c.texto)}${c.cortou?`<span class="muted"> … mais</span>`:''}`;
+    el.innerHTML = _fPostedCapFeedHTML(cap, _fPostedPerfil());
   });
 }
 function _fPostedWhats(slot){
@@ -344,23 +373,31 @@ function _fPostedWhats(slot){
      ⚠ A legenda é a MESMA do Feed e do painel (`_fPostedLegendaAtual`). Corta mais tarde que
      lá — o WhatsApp mostra ~3 linhas antes do "Ler mais", o Feed mostra 2. */
   const cap = _fPostedLegendaAtual();
-  const c = cap ? _fPostedCapCurta(cap, 118) : null;
-  /* A hora e o selo FECHAM A ÚLTIMA LINHA da legenda (`float:right`), que é como o app
-     desenha. Sem legenda eles voltam para dentro da imagem, na pílula escura — também como
-     o app faz quando a mensagem é só a foto. */
-  const selo = `<span class="pst-meta">21:45 ${_PST_CHECK}</span>`;
-  const legenda = c ? `<div class="pst-bub-cap">${selo}${gEsc(c.texto)}${c.cortou?`<span class="pst-wa-mais"> … Ler mais</span>`:''}</div>` : '';
+  const c = cap ? _fPostedCapCurta(cap, 150) : null;
+  const hora = _fPostedHora();
+  /* A hora e o selo FECHAM A ÚLTIMA LINHA da legenda, que é como o app desenha. ⚠ Era um
+     `float:right` posto ANTES do texto — e float no começo flutua na PRIMEIRA linha. O truque
+     do próprio app: um espaçador invisível no fim do texto reserva o lugar, e a hora vai
+     ancorada no canto de baixo. Sem legenda eles voltam para dentro da imagem, na pílula
+     escura — também como o app faz quando a mensagem é só a foto. */
+  const selo = `<span class="pst-meta">${hora} ${_PST_CHECK}</span>`;
+  const legenda = c ? `<div class="pst-bub-cap">${gEsc(c.texto)}${c.cortou?`<span class="pst-wa-mais"> … Ler mais</span>`:''}<span class="pst-meta-esp"></span>${selo}</div>` : '';
+  /* A BOLHA DE 2026. O WhatsApp de iPhone trocou a bolha com rabicho por uma de cantos bem
+     redondos, e a foto passou a encostar na borda — sem a moldura verde de 3px em volta.
+     Os botões do topo são as pílulas de vidro do iOS 26, que é o sistema de um iPhone 17.
+     "Hoje", e não "HOJE": a caixa-alta no divisor é do Android. */
   return `<div class="pst-wa">
     <div class="pst-wa-bg"></div>
-    <div class="pst-wa-head">${_PST_BACK}<span class="pst-wa-av">${_PST_PESSOA}</span><span class="pst-wa-id"><span class="pst-wa-name">Clientes</span><span class="pst-wa-status">online</span></span><span class="pst-grow"></span>${_PST_VIDEO}${_PST_CALL}${_PST_VDOTS}</div>
+    <div class="pst-wa-head"><span class="pst-glass pst-wa-voltar">${_PST_BACK}</span><span class="pst-wa-av">${_PST_PESSOA}</span><span class="pst-wa-id"><span class="pst-wa-name">Clientes</span><span class="pst-wa-status">online</span></span><span class="pst-grow"></span><span class="pst-glass pst-wa-acoes">${_PST_VIDEO}${_PST_CALL}</span></div>
     <div class="pst-wa-body">
-      <div class="pst-wa-aviso">${_PST_LOCK}<span>As mensagens são protegidas com criptografia de ponta a ponta.</span></div>
-      <div class="pst-wa-day">HOJE</div>
-      <div class="pst-bub-img${legenda?' com-cap':''}">${slot}${legenda||`<div class="pst-meta-ov">21:45 ${_PST_CHECK}</div>`}</div>
+      <div class="pst-wa-aviso">${_PST_LOCK}<span>As mensagens e ligações são protegidas com a criptografia de ponta a ponta.</span></div>
+      <div class="pst-wa-day">Hoje</div>
+      <div class="pst-bub-img${legenda?' com-cap':''}" title="Abrir a foto">${slot}${legenda||`<div class="pst-meta-ov">${hora} ${_PST_CHECK}</div>`}</div>
     </div>
     <div class="pst-wa-input">
-      <div class="pst-wa-field">${_PST_EMOJI}<span class="pst-grow">Mensagem</span>${_PST_CLIP}${_PST_CAM}</div>
-      <div class="pst-wa-send">${_PST_MIC}</div>
+      ${_PST_PLUS}
+      <div class="pst-glass pst-wa-field"><span class="pst-grow"></span>${_PST_STICKER}</div>
+      ${_PST_CAM}${_PST_MIC}
     </div>
   </div>`;
 }
@@ -379,13 +416,30 @@ function _fPostedOrder(){ return _fPostedContextsFor(fPostedContextForFormat(nul
 function _fPostedHomeBar(claro){
   return `<div class="pst-home ${claro?'dark':'light'}" aria-hidden="true"></div>`;
 }
+/* ⚠ A TELA É DESENHADA EM PONTOS DO iOS (23/09/2026). O `.pst-ui` tem 402 de largura — a
+   do iPhone 17 Pro — e o CSS o reduz inteiro para os 282px do chassi. Antes cada peça era
+   desenhada em pixel da página, "1pt = 1px": ícone de 24, avatar de 32, campo de 42. Numa
+   tela de 282px isso deixava a interface do app 1,4× maior do que é, e a arte encolhia no
+   meio de botões gigantes — o que mais fazia o celular parecer desenho. */
 function _fPostedScreenHTML(){
   const slot = '<div class="pst-artslot"></div>';
   const chrome = _postedCtx==='feed' ? _fPostedFeed(slot)
                : _postedCtx==='whatsapp' ? _fPostedWhats(slot)
                : _fPostedStory(slot);
   const claro = _postedCtx!=='feed';
-  return _fPostedSysbar(claro) + chrome + _fPostedHomeBar(claro);
+  return `<div class="pst-ui">${_fPostedSysbar(claro)}${chrome}${_fPostedHomeBar(claro)}</div>`;
+}
+
+/* O APARELHO, UMA VEZ SÓ. O modal e o palco montavam o mesmo chassi em duas strings.
+   Os botões laterais são elementos, e não sombras de um pseudo-elemento, porque no 17 Pro
+   eles têm tamanhos diferentes: Ação curto, volume longo, lateral mais longo ainda e o
+   Controle da Câmera embutido no alumínio — sombra copiada só repete o mesmo tamanho. */
+function _fPostedPhoneHTML(extra){
+  return `<div class="pst-phone${extra?' '+extra:''} pst-ctx-${_postedCtx}">`
+    + `<i class="pst-bt pst-bt-acao" title="Botão de Ação" aria-hidden="true"></i><i class="pst-bt pst-bt-vol" title="Volume +" aria-hidden="true"></i><i class="pst-bt pst-bt-vol pst-bt-vol2" title="Volume −" aria-hidden="true"></i><i class="pst-bt pst-bt-lado" title="Botão lateral" aria-hidden="true"></i><i class="pst-bt pst-bt-cam" aria-hidden="true"></i>`
+    + `<div class="pst-island"></div>`
+    + `<div class="pst-screen">${_fPostedScreenHTML()}</div>`
+    + `</div>`;
 }
 // Encaixa o canvas REAL no slot. É sempre o mesmo objeto DOM — só troca de pai, nunca
 // re-renderiza (render de arte é caro e o resultado não muda ao trocar de ambiente).
@@ -400,30 +454,39 @@ function _fPostedMountArt(scope){
      disso ganha a caixa do limite e sobra dentro dela — o app corta, e nós não: cortar aqui
      mostraria um enquadramento que o PNG baixado não tem.
      Story e WhatsApp não entram: lá o slot é a tela inteira e a bolha, que têm regra própria. */
+  const cv = _postedArt.canvas;
+  const r = (cv.width && cv.height) ? (cv.width / cv.height) : 0;
   if(_postedCtx === 'feed'){
-    const cv = _postedArt.canvas;
-    const r = (cv.width && cv.height) ? (cv.width / cv.height) : 0;
     holder.style.aspectRatio = r ? String(Math.min(1.91, Math.max(0.8, r))) : '';
   }
-  /* O FUNDO DO STORY. A peça 9:16 não enche a tela do aparelho, e o Instagram preenche a
-     sobra com a própria mídia ampliada e desfocada — nunca com preto.
+  /* NO WHATSAPP, A BOLHA TEM A PROPORÇÃO DA PEÇA. A foto encosta na borda da bolha (é o
+     desenho de 2026), então qualquer sobra dentro dela viraria tarja. O CSS usa `--pst-r`
+     para limitar a largura pela altura máxima — uma arte de Stories fica mais estreita, e
+     inteira, em vez de cortada. */
+  if(_postedCtx === 'whatsapp' && r){
+    holder.style.aspectRatio = String(r);
+    const bub = holder.closest('.pst-bub-img');
+    if(bub) bub.style.setProperty('--pst-r', String(r));
+  }
+  /* O FUNDO DO STORY E A LUZ DO PALCO saem da mesma miniatura da peça.
+     · no Stories, a mídia que não é 9:16 exata não enche o cartão, e o Instagram preenche a
+       sobra com a própria mídia ampliada e desfocada — nunca com preto;
+     · atrás do aparelho, a mesma miniatura vira a luz ambiente: as cores DA ARTE tingem o
+       palco. É a cor da peça e não a da campanha — o palco não afirma nada que a arte não diz.
      ⚠ 40px de largura de propósito: o desfoque vai comer o detalhe de qualquer jeito, então
-     desenhar em tamanho grande seria pagar caro por pixel que ninguém vê. A ampliação do CSS
-     (de 40px para ~370) já é metade do borrão; o `filter:blur` só alisa o que sobrou.
+     desenhar em tamanho grande seria pagar caro por pixel que ninguém vê.
      ⚠ `drawImage` de um canvas que já existe, sem `toDataURL`: reaproveita o render, não
      recodifica a imagem. */
-  const fundo = (scope||document).querySelector('.pst-story-fundo');
-  if(fundo){
+  (scope||document).querySelectorAll('.pst-story-fundo, .pst-ambiente').forEach(fundo=>{
     try{
-      const src = _postedArt.canvas;
       let mini = fundo.querySelector('canvas');
       if(!mini){ mini = document.createElement('canvas'); fundo.appendChild(mini); }
       const L = 40;
       mini.width = L;
-      mini.height = Math.max(1, Math.round(L * (src.height/src.width) || L));
-      mini.getContext('2d').drawImage(src, 0, 0, mini.width, mini.height);
-    }catch(e){ /* fundo é acabamento: se falhar, fica o preto de antes */ }
-  }
+      mini.height = Math.max(1, Math.round(L * (cv.height/cv.width) || L));
+      mini.getContext('2d').drawImage(cv, 0, 0, mini.width, mini.height);
+    }catch(e){ /* acabamento: se falhar, fica o fundo liso de antes */ }
+  });
 }
 // Monta o celular inteiro. Só na ABERTURA — trocar de ambiente não passa por aqui, senão o
 // chassi subiria com mola a cada swipe (ver _fPostedSwapScreen).
@@ -433,10 +496,8 @@ function _fPostedMountArt(scope){
 function _fPostedPaint(){
   const stage = document.getElementById('posted-stage');
   if(!stage || !_postedArt) return;
-  stage.innerHTML = `<div class="pst-enter"><div class="pst-tilt"><div class="pst-phone pst-ctx-${_postedCtx}">`
-    + `<div class="pst-island"></div>`
-    + `<div class="pst-screen">${_fPostedScreenHTML()}</div>`
-    + `</div></div></div>`;
+  stage.innerHTML = `<div class="pst-ambiente" aria-hidden="true"></div>`
+    + `<div class="pst-enter"><div class="pst-tilt">${_fPostedPhoneHTML()}</div></div>`;
   _fPostedMountArt(stage);
   _fPostedBindStage(stage);
 }
@@ -727,10 +788,7 @@ function _fLpSlotContexto(){
 function _fLpPintarContexto(){
   const slot = _fLpSlotContexto();
   if(!slot || !_postedArt) return;
-  slot.innerHTML = `<div class="lp-ctx-phone pst-phone pst-ctx-${_postedCtx}">`
-    + `<div class="pst-island"></div>`
-    + `<div class="pst-screen">${_fPostedScreenHTML()}</div>`
-    + `</div>`;
+  slot.innerHTML = `<div class="pst-ambiente" aria-hidden="true"></div>` + _fPostedPhoneHTML('lp-ctx-phone');
   _fPostedMountArt(slot);
 }
 
@@ -981,6 +1039,145 @@ function _fPostedKey(e){
 // Clique no fundo (fora do box) fecha — mesmo padrão do f-preview-modal.
 (function(){ const m=document.getElementById('f-posted-modal'); if(m) m.addEventListener('click', function(e){ if(e.target===this) fClosePosted(); }); })();
 
+/* ══ AS CURIOSIDADES DO APARELHO ══════════════════════════════════════════════════════════
+   Quem vê um celular na tela aperta os botões dele. Cada toque aqui faz o que o aparelho ou o
+   app de verdade fariam — e nada que eles não fariam:
+   · coração: acende (e dois toques na foto do Feed também). Não conta curtida nenhuma, pela
+     mesma regra que tirou as "128 curtidas";
+   · botão lateral: apaga e acende a tela; tocar na tela apagada acende, como no iPhone;
+   · volume: a régua do iOS aparece ao lado dos botões;
+   · botão de Ação: alterna o silencioso, e a ilha avisa — é a função de fábrica dele;
+   · Stories: SEGURAR esconde a moldura do app, que é o que o Instagram faz. A arte fica limpa;
+   · Feed: "mais" abre a legenda inteira; o balão abre os comentários — VAZIOS, porque o post
+     ainda não existe; o marcador salva;
+   · WhatsApp: a foto abre em tela cheia.
+   Nada anima sozinho: tudo é resposta a um toque (motion.md proíbe o decorativo).
+   ⚠ Delegado no `document`, UMA vez: o chassi é refeito por `innerHTML` a cada troca de
+   ambiente e mora em dois lugares (modal e palco); ouvinte preso nele morreria no repaint. */
+const _PST_SINO = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22a2.5 2.5 0 0 0 2.4-1.8H9.6A2.5 2.5 0 0 0 12 22zm7-5.2-1.6-1.9V10a5.4 5.4 0 0 0-4.2-5.3V4a1.2 1.2 0 0 0-2.4 0v.7A5.4 5.4 0 0 0 6.6 10v4.9L5 16.8a.8.8 0 0 0 .6 1.4h12.8a.8.8 0 0 0 .6-1.4z"/></svg>';
+const _PST_SINO_OFF = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22a2.5 2.5 0 0 0 2.4-1.8H9.6A2.5 2.5 0 0 0 12 22zm7-5.2-1.6-1.9V10a5.4 5.4 0 0 0-4.2-5.3V4a1.2 1.2 0 0 0-2.4 0v.7A5.4 5.4 0 0 0 6.6 10v4.9L5 16.8a.8.8 0 0 0 .6 1.4h12.8a.8.8 0 0 0 .6-1.4z"/><path d="m3.5 3.5 17 17" stroke="#000" stroke-width="4"/><path d="m3.5 3.5 17 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const _PST_PARTILHA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M7 11H5.5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1H17"/></svg>';
+const _PST_VOL_DEGRAUS = 16;          // os degraus do volume no iPhone
+let _pstVolume = 10, _pstSilencio = false, _pstVolTimer = 0, _pstIlhaTimer = 0, _pstSegura = 0;
+
+function _fPostedVolume(phone, passo){
+  _pstVolume = Math.max(0, Math.min(_PST_VOL_DEGRAUS, _pstVolume + passo));
+  const tela = phone.querySelector('.pst-screen');
+  if(!tela) return;
+  /* Criada sob demanda DENTRO da tela: a troca de ambiente refaz o `innerHTML` e ela some
+     junto, que é o certo — a régua do iOS também não sobrevive a uma troca de app. */
+  let hud = tela.querySelector('.pst-vol-hud');
+  if(!hud){ hud = document.createElement('div'); hud.className = 'pst-vol-hud'; hud.setAttribute('aria-hidden','true'); hud.innerHTML = '<i></i>'; tela.appendChild(hud); }
+  hud.style.setProperty('--pst-vol', String(_pstVolume / _PST_VOL_DEGRAUS));
+  hud.classList.add('on');
+  clearTimeout(_pstVolTimer);
+  _pstVolTimer = setTimeout(()=>hud.classList.remove('on'), 1400);
+}
+
+function _fPostedSilencio(phone){
+  _pstSilencio = !_pstSilencio;
+  const ilha = phone.querySelector('.pst-island');
+  if(!ilha) return;
+  ilha.innerHTML = `<span class="pst-ilha-msg${_pstSilencio?' mudo':''}">${_pstSilencio?_PST_SINO_OFF:_PST_SINO}<b>${_pstSilencio?'Silencioso':'Toque'}</b></span>`;
+  /* `pst-ilha-on` no aparelho apaga a barra de status: aberta, a ilha passa por cima da hora
+     e da bateria, e o iOS as esconde enquanto ela fala. */
+  ilha.classList.add('aberta'); phone.classList.add('pst-ilha-on');
+  clearTimeout(_pstIlhaTimer);
+  _pstIlhaTimer = setTimeout(()=>{ ilha.classList.remove('aberta'); phone.classList.remove('pst-ilha-on'); }, 1600);
+}
+
+/* A legenda INTEIRA, com as quebras de linha que ela tem (o Feed mostra as quebras). A
+   curta corta em palavra e junta espaços; aqui o texto vai como veio, escapado. */
+function _fPostedAbreLegenda(cap){
+  const p = _fPostedPerfil();
+  cap.innerHTML = `${p.nome?`<b>${gEsc(p.nome)}</b> `:''}${gEsc(_fPostedLegendaAtual()).replace(/\n/g,'<br>')}`;
+  const rola = cap.closest('.pst-feed-rola');
+  if(rola) rola.scrollTo({ top: rola.scrollHeight, behavior: _fPostedReducedMotion() ? 'auto' : 'smooth' });
+}
+
+/* A folha de comentários mora no `.pst-ui` (acima do Feed e da barra de abas) e fala a
+   frase do próprio app para post sem comentário — que é a verdade de um post que ainda
+   nem foi publicado. */
+function _fPostedComentarios(ui){
+  if(!ui || ui.querySelector('.pst-ig-sheet')) return;
+  const folha = document.createElement('div');
+  folha.className = 'pst-ig-sheet';
+  folha.innerHTML = `<div class="pst-ig-painel"><i class="pst-ig-alca"></i><b class="pst-ig-tit">Comentários</b>`
+    + `<div class="pst-ig-vazio"><strong>Ainda não há comentários</strong><span>Inicie a conversa.</span></div>`
+    + `<div class="pst-ig-campo">${_fPostedAvatar(_fPostedPerfil())}<span>Adicione um comentário…</span></div></div>`;
+  ui.appendChild(folha);
+}
+
+/* A foto em tela cheia leva o MESMO canvas (troca de pai, como o `_fPostedMountArt`), e ao
+   fechar ele volta para a bolha. Nada é renderizado de novo. */
+function _fPostedVisor(wa, abrir){
+  const cv = _postedArt && _postedArt.canvas;
+  let visor = wa.querySelector('.pst-wa-visor');
+  if(abrir){
+    if(visor || !cv) return;
+    visor = document.createElement('div');
+    visor.className = 'pst-wa-visor';
+    visor.innerHTML = `<div class="pst-wa-visor-topo">${_PST_BACK}<span class="pst-wa-id"><span class="pst-wa-name">Você</span><span class="pst-wa-status">hoje, ${_fPostedHora()}</span></span><span class="pst-grow"></span>${_PST_PARTILHA}</div><div class="pst-wa-visor-arte"></div>`;
+    wa.appendChild(visor);
+    visor.querySelector('.pst-wa-visor-arte').appendChild(cv);
+    return;
+  }
+  if(!visor) return;
+  const slot = wa.querySelector('.pst-bub-img .pst-artslot');
+  if(slot && cv) slot.appendChild(cv);
+  visor.remove();
+}
+
+document.addEventListener('click', e=>{
+  const t = e.target;
+  if(!t || !t.closest) return;
+  const phone = t.closest('.pst-phone');
+  if(!phone) return;
+  const em = (sel)=>t.closest(sel);
+  if(em('.pst-bt-lado')){ phone.classList.toggle('pst-tela-off'); return; }
+  if(phone.classList.contains('pst-tela-off')){ if(em('.pst-screen')) phone.classList.remove('pst-tela-off'); return; }
+  if(em('.pst-bt-vol')){ _fPostedVolume(phone, em('.pst-bt-vol2') ? -1 : 1); return; }
+  if(em('.pst-bt-acao')){ _fPostedSilencio(phone); return; }
+  const liga = em('.pst-like') || em('.pst-salvar');
+  if(liga){ liga.classList.toggle('on'); return; }
+  if(em('.pst-mais')){ _fPostedAbreLegenda(em('.pst-feed-cap')); return; }
+  if(em('.pst-comentar')){ _fPostedComentarios(em('.pst-ui')); return; }
+  /* Fecha a folha só pelo véu, e não por dentro do painel — como no app. */
+  const folha = em('.pst-ig-sheet');
+  if(folha){ if(!em('.pst-ig-painel')) folha.remove(); return; }
+  const wa = em('.pst-wa');
+  if(wa && em('.pst-wa-visor')){ _fPostedVisor(wa, false); return; }
+  if(wa && em('.pst-bub-img')){ _fPostedVisor(wa, true); return; }
+});
+
+/* Segurar o Stories. 160ms antes de esconder, para um clique rápido não piscar a moldura. */
+document.addEventListener('pointerdown', e=>{
+  const card = e.target.closest && e.target.closest('.pst-phone:not(.pst-tela-off) .pst-story-card');
+  if(!card) return;
+  const story = card.closest('.pst-story');
+  clearTimeout(_pstSegura);
+  _pstSegura = setTimeout(()=>story.classList.add('pst-segurando'), 160);
+  const solta = ()=>{
+    clearTimeout(_pstSegura);
+    story.classList.remove('pst-segurando');
+    document.removeEventListener('pointerup', solta);
+    document.removeEventListener('pointercancel', solta);
+  };
+  document.addEventListener('pointerup', solta);
+  document.addEventListener('pointercancel', solta);
+});
+document.addEventListener('dblclick', e=>{
+  const slot = e.target.closest && e.target.closest('.pst-phone .pst-feed .pst-artslot');
+  if(!slot) return;
+  const h = slot.closest('.pst-feed').querySelector('.pst-like');
+  if(h) h.classList.add('on');
+  if(_fPostedReducedMotion()) return;
+  const b = document.createElement('span');
+  b.className = 'pst-burst'; b.innerHTML = _PST_HEART;
+  slot.appendChild(b);
+  b.addEventListener('animationend', ()=>b.remove());
+});
+
 
 /* ── LIVE PREVIEW (F-01) ──
    Renderiza o template REAL publicado pelo designer no canvas #lp-canvas,
@@ -1084,7 +1281,7 @@ function _fLpGuessSegment() {
 }
 // Dimensões por formato — espelha o png-generator (cobre 'post' e 'wide', que o
 // DFMT_SIZES do designer não tem). fState.fmt.id pode ser 'post'.
-const F_LP_SIZES = {story:[1080,1920], feed:[1080,1350], wide:[1200,628], post:[1200,628]};
+const F_LP_SIZES = {story:[1080,1920], feed:[1080,1350], wide:[1200,628], post:[1200,628], horizontal:[1920,1080]};
 
 let _lpRendering = false;
 let _lpLastErr = null; // última causa do estado de erro — vira texto na tela (diagnóstico por print)
@@ -1095,7 +1292,27 @@ let _lpFraming = null;   // {layer, varName} enquanto o franqueado enquadra a fo
 let _lpOverflow = new Set(); // ids de camadas de texto com estouro no último render (avisos)
 let _lpEffectiveLayers = []; // geometria que o render realmente desenhou (reflow + layout vivo)
 let _lpLayoutResult = null;  // contrato do solver só desta prévia (não confunde com thumbs)
+/* Os dados com que ESTE render mediu (fState.dados + placeholders dos campos vazios). Anda em par
+   com `_lpLayoutResult`: quem re-mede um bloqueio (balão, "cabem até N") precisa dos mesmos. */
+let _lpDadosRender = null;
 let _lpEffectiveMaterial = null;
+/* Canvas fora da tela onde o render desenha (ver BLINDAGEM DE ABERTURA em fUpdateLivePreview).
+   UM só, reaproveitado: um 1080×1920 novo a cada tecla são ~8 MB esperando o GC, e o Safari do
+   iPhone tem teto de memória de canvas — estourou, o getContext volta null e a prévia morre. */
+let _lpBuf = null;
+let _lpMontandoTimer = 0;
+// Esqueleto da 1ª pintura de um material. Passou de 6 s, diz o porquê (rede lenta) em vez de
+// parecer travado — o watchdog de imagem (fLoadImageDataUrl) só desiste aos 20 s.
+function _fLpMontando(stage, on){
+  clearTimeout(_lpMontandoTimer);
+  if(!stage) return;
+  stage.classList.toggle('montando', on);
+  const txt = document.getElementById('lp-montando-txt');
+  if(txt) txt.textContent = 'Preparando sua arte…';
+  if(on) _lpMontandoTimer = setTimeout(() => {
+    if(txt) txt.textContent = 'Ainda carregando as imagens da arte — a conexão está lenta.';
+  }, 6000);
+}
 
 // Zoom/pan manual da prova digital (item: inspecionar a arte de perto).
 // _lpUserZoom=1 é o ajuste à tela; >1 amplia. Pan em px de tela relativo ao centro do quadro.
@@ -1142,20 +1359,891 @@ function _fLpSyncBaixar(){
 const F_LP_AUTO_LAYOUT_KEY_LEGADO = 'luma-lp-auto-layout';
 try { localStorage.removeItem(F_LP_AUTO_LAYOUT_KEY_LEGADO); } catch(e){}
 
-/* O motor continua protegendo a composição sem expor esse detalhe técnico no rodapé. */
-function _fLpSyncAutoLayoutButton(){
+/* ══ O AVISO DE BLOQUEIO — a única coisa que a prévia diz sobre o encaixe ═══════════════
+   Enquanto o texto cabe (encolhendo ou não), o rodapé fica CALADO: a arte na tela já é a
+   resposta, e narrar "layout ajustado" era pedir que o franqueado administrasse mecanismo
+   interno — o que a rodada de usabilidade de 09/2026 tirou da tela.
+
+   Quando NÃO cabe é outra história. Antes, a pessoa só descobria no download: preenchia tudo,
+   clicava em baixar e levava um toast. Agora o bloqueio aparece no momento em que acontece,
+   nomeia o campo e é CLICÁVEL — leva direto para ele, com o contador já no alvo medido.
+   ⚠ A prévia continua DESENHANDO a arte: ver o texto estourando é o que explica o aviso. */
+/* TODOS OS CAMPOS QUE NÃO CABEM, não só o primeiro (Local Fit 2.2). O aviso, o diálogo e o card
+   da entrega nomeavam `bloqueios[0]`: com dois campos estourados a pessoa encurtava um, gerava de
+   novo e descobria o outro — uma volta por campo. Cada bloqueio vira UM campo pela mesma conta de
+   sempre (`gLocalFitCulpado`), sem repetir quando duas caixas culpam o mesmo. */
+function fLpCamposBloqueados(res, dados){
+  const out=[];
+  ((res&&res.invalid&&res.bloqueios)||[]).forEach(b=>{
+    const campo=(typeof gLocalFitCulpado==='function')?gLocalFitCulpado(b,dados||{}):(b.campos||[])[0];
+    if(!campo||out.some(o=>o.campo===campo)) return;
+    out.push({campo, rotulo:(typeof gFieldLabel==='function')?gFieldLabel(campo):campo});
+  });
+  return out;
+}
+// “A”, “B” e “C” — o rótulo entre aspas, como o resto do fluxo escreve.
+function fLpListaRotulos(rotulos){
+  const n=(rotulos||[]).map(r=>'“'+r+'”');
+  return n.length>1 ? n.slice(0,-1).join(', ')+' e '+n[n.length-1] : (n[0]||'');
+}
+function _fLpSyncBloqueio(resArg){
   const nota=document.getElementById('lp-layout-nota'); if(!nota) return;
-  nota.hidden=true;
-  nota.textContent='';
+  /* O parâmetro existe para a bancada conseguir pintar um bloqueio sem re-renderizar a arte
+     inteira. No app ninguém o passa: a fonte é o resultado do último render. */
+  const res=(resArg!==undefined)?resArg:_lpLayoutResult;
+  /* O culpado sai da MESMA conta do laudo e do balão (`gLocalFitCulpado`), escolhido pelo que a
+     pessoa digitou — com `campos[0]` aqui e "o mais longo" lá, o aviso nomeava um campo e o
+     "cabem até N" media outro. */
+  const bloq0=(res&&res.invalid&&res.bloqueios&&res.bloqueios[0])||null;
+  const campo=bloq0?((typeof gLocalFitCulpado==='function')?gLocalFitCulpado(bloq0,fState.dados||{})
+                                                           :(bloq0.campos||[])[0])||null:null;
+  nota.classList.remove('is-aviso');
+  /* LETRA BEM MENOR, SEM BLOQUEIO (22/09/2026). Coube, mas a ≤75% do corpo desenhado — é
+     a arte que sai "certa" e feia. Aviso laranja, discreto e clicável: leva ao campo. Não
+     trava nada; encurtar é escolha de quem vende.
+     ⚠ Só com 20+ caracteres: num template de caixa justa, "COMBO FAMÍLIA" (13) já cai a 60%
+     — pedir para encurtar isso é pedir o impossível. Caixa justa é do Estúdio (linter 4b). */
+  if(!campo){
+    const menor=((res&&res.campos)||[])
+      .filter(c=>c&&c.status==='fits'&&c.fontSizeAutorado&&c.nomes&&c.nomes.length
+                &&fCampoPodeEncurtar(c.nomes[0])
+                &&(c.chars==null||c.chars>=20)&&c.fontSize/c.fontSizeAutorado<=0.75)
+      .sort((a,b)=>a.fontSize/a.fontSizeAutorado-b.fontSize/b.fontSizeAutorado)[0];
+    const perguntas=(fState&&fState.camp&&fState.camp.perguntas)||[];
+    const idx=menor?perguntas.findIndex(p=>p&&p.id===menor.nomes[0]):-1;
+    if(idx<0){ nota.hidden=true; _fLpNotaTexto(nota,'',''); nota.classList.remove('is-bloqueio'); _fLpLinhaCampo(nota); return; }
+    const rot=(typeof gFieldLabel==='function')?gFieldLabel(menor.nomes[0]):menor.nomes[0];
+    nota.hidden=false;
+    nota.classList.remove('is-bloqueio');
+    nota.classList.add('is-aviso');
+    _fLpNotaTexto(nota,'“'+rot+'” ficou com a letra pequena — encurtar','');
+    nota.title='O texto de “'+rot+'” coube, mas a letra diminuiu bastante. Um texto mais curto deixa a arte mais forte.';
+    nota.setAttribute('aria-label', nota.title);
+    nota.onclick=()=>{ if(typeof fEditCampo==='function') fEditCampo(idx); };
+    _fLpLinhaCampo(nota);
+    return;
+  }
+  const rotulo=(typeof gFieldLabel==='function')?gFieldLabel(campo):campo;
+  nota.hidden=false;
+  nota.classList.add('is-bloqueio');
+  /* A SOLUÇÃO TAMBÉM É DITA. O balão aparece em cima da arte sem anunciar nada; este aviso já é
+     `aria-live`, então a sugestão entra nele como texto só para leitor de tela — nada a mais
+     na barra, que continua com a mesma frase. (O balão é calculado antes deste aviso no render.) */
+  const B=_lpBalao&&_lpBalao.sug&&_lpBalao.sug[0]?_lpBalao:null;
+  const falado=B?' Sugestão para “'+((typeof gFieldLabel==='function')?gFieldLabel(B.campo):B.campo)
+                 +'”: '+B.sug[0].text+'. Botão sobre a arte.':'';
+  /* QUANTO FALTA (sem versão): medido pelo `_fLpSyncBalao` deste mesmo render, para este campo
+     e este texto. Só vale para o resultado do render — a bancada que passa `resArg` mede a UI. */
+  const F0=(!B&&resArg===undefined&&_lpBalao&&_lpBalao.falta)||null;
+  const F=(F0&&F0.campo===campo&&F0.fieldId===bloq0.fieldId
+           &&String((fState.dados||{})[campo]==null?'':fState.dados[campo])===F0.valor)?F0:null;
+  /* A frase antiga era "“Produto” não cabe — tire umas 20 letras" (Laura, 25/09: "essa copy
+     está muito ruim"): "umas" é chute e não diz o que fazer. Agora: o número exato e a ação. */
+  const podeEncurtar=fCampoPodeEncurtar(campo);
+  const conta=podeEncurtar&&F?'tem '+F.atual+' letras, cabem '+F.limite:'';
+  /* Mais de um campo: a barra diz TODOS de uma vez. O número e a saída seguem sendo do primeiro
+     (é o que o toque abre); o próximo aparece quando ele couber. */
+  const todos=fLpCamposBloqueados(res,fState.dados||{});
+  if(todos.length>1){
+    const nomes=fLpListaRotulos(todos.map(t=>t.rotulo));
+    _fLpNotaTexto(nota,nomes+' não cabem na arte · Ajustar',falado);
+    nota.title=nomes+' não cabem nesta arte nem no menor tamanho legível. Toque para ajustar um de cada vez.';
+  }else{
+    _fLpNotaTexto(nota,'“'+rotulo+'” não cabe na arte'+(conta?' ('+conta+')':'')+(podeEncurtar?' · Encurtar':' · Conferir valor'),falado);
+    nota.title='“'+rotulo+'” não cabe nesta arte nem no menor tamanho legível.'
+      +(conta?' Hoje '+conta+'.':'')+(podeEncurtar?' Toque para encurtar com IA.':' Confira o valor; se estiver correto, escolha outro material.');
+  }
+  nota.setAttribute('aria-label', nota.title+falado);
+  nota.onclick=()=>{
+    if(typeof fCorrigirTextoLongo!=='function') return;
+    /* O laudo com o LIMITE em caracteres custa ~log2(n) encaixes de uma camada. Sai daqui, no
+       clique, e não no render: a prévia repinta a cada tecla e isso não pode entrar no laço.
+       Mede com os dados DO RENDER (placeholders nos vazios) — os que o bloqueio viu.
+       Com o "quanto falta" já medido, é ele: o diálogo e o contador dizem o número da barra. */
+    let r=res;
+    if(F){
+      r=Object.assign({},res,{diagnostico:{campo, rotulo, atual:F.atual, limite:F.limite,
+        mensagem:(typeof gLocalFitMensagem==='function')?gLocalFitMensagem(rotulo,F.atual,F.limite):''}});
+    } else if(!r.diagnostico&&typeof gLocalFitDiagnostico==='function'){
+      try{
+        const mat=_lpEffectiveMaterial||fState.material;
+        const cv=(typeof fMaterialSize==='function')?fMaterialSize(mat):null;
+        r=Object.assign({},res,{diagnostico:gLocalFitDiagnostico(_lpEffectiveLayers,res,
+          _lpDadosRender||fState.dados||{},{canvas:cv?{w:cv[0],h:cv[1]}:null,campo})});
+      }catch(e){ /* sem laudo, o diálogo cai na frase sem número */ }
+    }
+    fCorrigirTextoLongo(r);
+  };
+  _fLpLinhaCampo(nota);
+}
+/* A MESMA FRASE, SOB O CAMPO (Local Fit 2.1, celular). A barra da prévia fica fora da tela no
+   celular, então quem digita um texto que não cabe só via o contador. Espelha o aviso — e só o de
+   BLOQUEIO; o de letra pequena não é urgente — e o toque faz o que o da barra faz. CSS: `.f-nao-cabe`
+   só existe no celular e some no modo "arte pronta" (o card já é o aviso). Sem `aria-live`: a barra
+   já anuncia, e dois anúncios da mesma frase seriam ruído. */
+function _fLpLinhaCampo(nota){
+  let l=document.getElementById('f-nao-cabe');
+  const ligado=!!nota&&!nota.hidden&&nota.classList.contains('is-bloqueio');
+  if(!ligado){ if(l) l.hidden=true; return; }
+  const row=document.getElementById('f-input-row'); if(!row) return;
+  if(!l){
+    l=document.createElement('button'); l.type='button'; l.id='f-nao-cabe'; l.className='f-nao-cabe';
+    row.insertAdjacentElement('afterend',l);
+  }
+  const vis=nota.querySelector('.lp-nota-vis');
+  l.hidden=false;
+  l.textContent=vis?vis.textContent:nota.textContent;
+  l.onclick=()=>{ if(typeof nota.onclick==='function') nota.onclick(); };
+}
+/* Escreve o aviso SÓ quando a frase muda. A prévia repinta a cada tecla, e reescrever o mesmo
+   texto num `aria-live` faz o leitor de tela repetir o aviso a cada letra digitada.
+   O NÚMERO NÃO FALA A CADA TECLA. "Tire umas 9 letras" muda enquanto a pessoa digita: a barra
+   acompanha na hora (parte visível, `aria-hidden`), e o leitor de tela só ouve a frase nova
+   quando a digitação para (1,5s). Frase que muda de verdade (outro campo, outro estado) fala já. */
+const F_LP_NOTA_PAUSA=1500;
+function _fLpNotaTexto(nota, visivel, falado){
+  const k=visivel+'\u0000'+falado;
+  if(nota.dataset.txt===k) return;
+  const soNumero=!!nota.dataset.txt&&nota.dataset.txt.replace(/\d+/g,'#')===k.replace(/\d+/g,'#');
+  nota.dataset.txt=k;
+  clearTimeout(nota._lpFalaT);
+  const dito=visivel+falado;
+  let vis=nota.querySelector('.lp-nota-vis'), sr=nota.querySelector('.lp-nota-sr');
+  if(!vis||!sr){
+    nota.textContent='';
+    vis=document.createElement('span'); vis.className='lp-nota-vis'; vis.setAttribute('aria-hidden','true');
+    sr=document.createElement('span'); sr.className='lp-nota-sr f-sr-only';
+    nota.append(vis,sr);
+  }
+  vis.textContent=visivel;
+  if(!soNumero){ sr.textContent=dito; return; }
+  nota._lpFalaT=setTimeout(()=>{ if(nota.dataset.txt===k) sr.textContent=dito; },F_LP_NOTA_PAUSA);
+}
+
+/* ══ O BALÃO DA SOLUÇÃO — em cima da caixa que não coube (22/09/2026) ════════════════════
+   O aviso da barra diz QUE não coube; o balão, em cima do próprio texto, É a solução: a
+   versão mais curta que cabe (a que MENOS mexeu), gerada pelo `gCopyFitSugestoes`
+   (copy-fit.js) e MEDIDA no Local Fit desta arte — "cabe" é pixel, nunca contagem de letras.
+   Um toque aplica pelo mesmo caminho da digitação (contador, prévia e rascunho de uma vez) e
+   o Desfazer cobre o arrependimento. Sem versão que caiba, não há balão: nunca corta produto
+   sozinho, e o aviso da barra continua levando ao campo. */
+let _lpBalao = null;          // {chave, fieldId, campo, sug:[...]} — o onclick passa índice, nunca o texto
+/* "Cabe?" do balão = a porta única do Local Fit (`gLocalFitMedidor`): as camadas, os dados
+   (com os placeholders dos campos vazios) e a PLACA que o render usou. Medir por fora — dados
+   crus, sem placa — sugeria versões que "cabiam" aqui e seguiam bloqueadas na arte. */
+function _fLpBalaoCabe(bloq, campo, W, H){
+  const medir=(typeof gLocalFitMedidor==='function')
+    ? gLocalFitMedidor(_lpEffectiveLayers,bloq,campo,_lpDadosRender||fState.dados||{},{canvas:{w:W,h:H}}) : null;
+  if(!medir) return null;
+  return (t)=>{ const r=medir(t); return {ok:!!r&&r.status==='fits', fontSize:r?r.fontSize:0}; };
+}
+/* A chave diz EM QUE ARTE a sugestão foi medida: material, tamanho da prancheta e, por
+   bloqueio, o conteúdo JÁ INTERPOLADO do alvo (o valor digitado e os vizinhos da mesma camada).
+   Só `campo|valor` reaproveitava a sugestão de outra arte com o mesmo texto — que lá cabia.
+   A caixa, o corpo, o piso e a placa entram também: o mesmo material republicado com outra
+   geometria (ou outro vizinho que sobe o piso de hierarquia) é outra arte para quem mede. */
+function _fLpBalaoChave(bloqs, W, H){
+  const mat=_lpEffectiveMaterial||fState.material||{};
+  const d=_lpDadosRender||fState.dados||{};
+  const defaults=(typeof gVarDefaults==='function')?gVarDefaults():null;
+  const g=(o)=>o?[o.x,o.y,o.w,o.h].map(v=>Math.round(+v||0)).join(','):'';
+  return [mat.id||mat.templateId||mat.template_id||'', W+'x'+H].concat(bloqs.map(b=>{
+    const alvo=(_lpEffectiveLayers||[]).find(l=>l&&l.id===b.fieldId);
+    return b.fieldId+'|'+gLocalFitCulpado(b,fState.dados||{})+'|'+g(alvo)+'|'+(alvo&&alvo.fontSize)
+      +'|'+b.minimumFontSize+'|'+g(b.placa)+'|'
+      +(alvo?gInterpolate(alvo.content||'',d,{onEmpty:'remove',defaults}):'');
+  })).join('\u0001');
+}
+/* QUANTO FALTA, quando nenhuma versão cabe (pedido do Ryan): "não cabe" sozinho não diz se é
+   uma palavra ou meia frase. O maior corte na palavra do texto DIGITADO que cabe, medido com a
+   régua do balão (`gLocalFitMaiorPrefixo`, a mesma busca do "cabem até N" do laudo); falta =
+   o que passa dele. Só texto: cortar o fim de um preço não é conselho. ~log2(n) medições,
+   só no bloqueio sem versão e só quando a chave muda. */
+function _fLpFalta(bloq, W, H){
+  if(typeof gLocalFitMaiorPrefixo!=='function') return null;
+  const campo=gLocalFitCulpado(bloq,fState.dados||{});
+  const valor=campo?String((fState.dados||{})[campo]==null?'':fState.dados[campo]):'';
+  if(!valor) return null;
+  if(!fCampoPodeEncurtar(campo)) return null;
+  const cabe=_fLpBalaoCabe(bloq,campo,W,H); if(!cabe) return null;
+  const limite=gLocalFitMaiorPrefixo(valor,t=>cabe(t).ok).limite;
+  if(!limite||limite>=valor.length) return null;
+  return {campo, fieldId:bloq.fieldId, valor, atual:valor.length, limite, n:valor.length-limite};
+}
+/* Telemetria do "não cabe": a chave do balão muda a cada tecla, então contar por chave faria
+   cada letra digitada virar um evento. Conta UMA vez por material+campo nesta aba — o painel
+   quer saber QUAIS campos estouram, não quantas teclas a pessoa deu. */
+const _lpNaoCabeVistos=new Set();
+function _fLpTrackNaoCabe(bloq0){
+  try{
+    if(typeof gTrackEvent!=="function"||!_lpBalao) return;
+    const tid=(typeof _fTplId==="function")?_fTplId(fState.material):null;
+    const campo=_lpBalao.campo||(bloq0&&gLocalFitCulpado(bloq0,fState.dados||{}))||null;
+    const k=tid+"|"+campo;
+    if(!campo||_lpNaoCabeVistos.has(k)) return;
+    _lpNaoCabeVistos.add(k);
+    const F=_lpBalao.falta;
+    gTrackEvent("texto_nao_cabe",{campo, template_id:tid, falta_n:F?F.n:null, tem_versao:!!_lpBalao.sug.length});
+    if(_lpBalao.sug.length) gTrackEvent("copyfit_balao_exibido",{campo, template_id:tid});
+  }catch(e){}
+}
+function _fLpBalaoTira(){ const b=document.getElementById('lp-balao'); if(b) b.remove(); }
+/* O que o franqueado lê em "sai: …": só palavra de verdade. "de"/"e"/"o" saem de carona numa
+   troca ("de 2 litros" → "2L") e, listados, soavam como se algo tivesse sido cortado. */
+function _fLpRemovidasVisiveis(lista){
+  return (lista||[]).filter(w=>String(w).replace(/[^\p{L}\d]/gu,'').length>2);
+}
+/* A troca pelo balão avisa e dá o Desfazer: o botão de desfazer do cabeçalho saiu (09/2026) e
+   o Ctrl+Z ninguém descobre. ⚠ O "Encurtar" do chat NÃO chama isto: no celular o toast cai em
+   cima do campo e do enviar (toolbar.css, `bottom:96px`), e lá o texto trocado segue na caixa. */
+function fLpAvisaTroca(campo){
+  if(typeof gToast!=='function' || typeof fDesfazer!=='function') return;
+  const r=(campo && typeof gFieldLabel==='function') ? gFieldLabel(campo) : 'o texto';
+  gToast('Trocamos “'+r+'” pela versão que cabe.', null, null, { acao:{ rotulo:'Desfazer', onClick:fDesfazer } });
+}
+function _fLpSyncBalao(){
+  const res=_lpLayoutResult;
+  const bloqs=(res&&res.invalid&&res.bloqueios)||[];
+  const stage=document.querySelector('.lp-stage'), cv=document.getElementById('lp-canvas');
+  if(!bloqs.length||!cv||!cv.width||typeof gCopyFitSugestoes!=='function'
+     ||typeof gLocalFitCulpado!=='function'){
+    _lpBalao=null; _fLpBalaoTira(); return;
+  }
+  const chave=_fLpBalaoChave(bloqs,cv.width,cv.height);
+  if(!_lpBalao||_lpBalao.chave!==chave){
+    /* O PRIMEIRO BLOQUEIO QUE TEM SOLUÇÃO. Olhar só o [0] deixava a arte sem balão quando o
+       primeiro campo não tinha versão que coubesse (ou não era texto) e o segundo tinha. */
+    _lpBalao={chave, fieldId:null, campo:null, sug:[]};
+    let perto=null;   // a versão MAIS CURTA do 1º campo sem solução — o `maisPerto` que ninguém lia
+    for(const bloq of bloqs){
+      const campo=gLocalFitCulpado(bloq,fState.dados||{});
+      const valor=campo?String((fState.dados||{})[campo]==null?'':fState.dados[campo]):'';
+      if(!valor) continue;
+      if(!fCampoPodeEncurtar(campo)) continue;
+      const cabe=_fLpBalaoCabe(bloq,campo,cv.width,cv.height); if(!cabe) continue;
+      let sug=[], gs=null;
+      try{ gs=gCopyFitSugestoes(valor,cabe,1); sug=gs.sugestoes; }catch(e){ sug=[]; }
+      if(sug.length){ _lpBalao={chave, fieldId:bloq.fieldId, campo, valor, sug}; break; }
+      if(!perto&&gs&&gs.maisPerto&&gs.maisPerto.text&&gs.maisPerto.text!==valor)
+        perto={campo, fieldId:bloq.fieldId, valor, text:gs.maisPerto.text, removidas:gs.maisPerto.removidas||[], cabe};
+    }
+    // Sem versão: o aviso da barra diz QUANTO falta. Mede aqui, na mesma chave — uma vez por texto.
+    if(!_lpBalao.sug.length){
+      _lpBalao.falta=_fLpFalta(bloqs[0],cv.width,cv.height);
+      /* O CONTADOR JÁ MOSTRA O ALVO MEDIDO, sem esperar o "Baixar" falhar. Antes o `limite` só
+         entrava depois do diálogo do bloqueio: quem digitava via 47/60 enquanto a arte já
+         estava bloqueada. É o mesmo número da barra (`_fLpFalta`). */
+      const F=_lpBalao.falta;
+      if(F&&F.limite>0&&typeof fMarcaLimiteSeguro==='function'){
+        fMarcaLimiteSeguro(F.campo,F.limite);
+        try{ if(typeof fUpdateCharCount==='function') fUpdateCharCount(); }catch(e){}
+      }
+      /* "FALTA POUCO" (Local Fit 2.3): nenhuma versão coube, mas a mais curta chegou perto — e o
+         quanto (`n` letras) é medido com a MESMA régua e a mesma busca do "cabem até N". Sem IA é
+         o único auxílio: mostra o que já foi encurtado e o que ainda sobra. */
+      if(perto&&typeof gLocalFitMaiorPrefixo==='function'){
+        try{
+          const lim=gLocalFitMaiorPrefixo(perto.text,t=>{ const r=perto.cabe(t); return !!(r&&r.ok); }).limite;
+          _lpBalao.perto={campo:perto.campo, fieldId:perto.fieldId, valor:perto.valor, text:perto.text,
+            removidas:perto.removidas, limite:lim, n:Math.max(0,perto.text.length-lim)};
+        }catch(e){}
+      }
+    }
+    _fLpTrackNaoCabe(bloqs[0]);
+  }
+  if(!stage) return;
+  // Sem versão que caiba, não há solução para mostrar: fica só o aviso da barra.
+  if(!_lpBalao.sug.length){ _fLpBalaoTira(); return; }
+  /* A arte ANIMA (mola do `.lp-canvas-wrap` no zoom, no Reajustar e no recentrar): medir a
+     posição na hora da troca pegava o card no meio do caminho. Reposiciona quando a mola
+     assenta — um listener só, preso ao próprio card (mesmo padrão do `_lpZoomBound`). */
+  const wrap=cv.closest('.lp-canvas-wrap');
+  if(wrap&&!wrap._lpBalaoBound){
+    wrap._lpBalaoBound=true;
+    wrap.addEventListener('transitionend',e=>{ if(e.propertyName==='transform'){ try{ _fLpPosBalao(); }catch(_){} } });
+  }
+  let b=document.getElementById('lp-balao');
+  if(!b||b.dataset.chave!==chave){
+    /* SÓ A SOLUÇÃO (pedido do Ryan): o balão É o botão — a versão que cabe, e um toque troca.
+       Sem título, sem fechar: some sozinho quando o texto passa a caber. O que saiu vai no
+       title/aria-label ("sem Delicioso"), para quem quiser conferir. */
+    const s=_lpBalao.sug[0];
+    const rem=_fLpRemovidasVisiveis(s.removidas);
+    const sem=rem.length?' (sem '+rem.join(', ')+')':'';
+    /* O MESMO botão, com o texto novo: recriar a cada tecla repetia a entrada (gFadeInUp) e o
+       balão piscava enquanto a pessoa digitava. Só nasce quando não havia balão. */
+    if(!b){
+      b=document.createElement('button'); b.type='button'; b.id='lp-balao'; b.className='lp-balao';
+      b.onclick=()=>{ const c=_lpBalao&&_lpBalao.campo; if(fLpBalaoAplica(0)) fLpAvisaTroca(c); };
+      stage.appendChild(b);
+    }
+    b.dataset.chave=chave;
+    b.title='Não cabe. Trocar por: '+s.text+sem;
+    b.setAttribute('aria-label',b.title);
+    b.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3l4 4-4 4"/><path d="M3 11V9a2 2 0 0 1 2-2h16"/><path d="M7 21l-4-4 4-4"/><path d="M21 13v2a2 2 0 0 1-2 2H3"/></svg><span>'+gEsc(s.text)+'</span>';
+  }
+  _fLpPosBalao();
+}
+/* Em cima da caixa, com a seta apontando para ela; sem espaço em cima, embaixo. Mora no
+   `.lp-stage` (que não recebe o zoom), então a letra do balão não escala com a arte. */
+function _fLpPosBalao(){
+  const b=document.getElementById('lp-balao'); if(!b||!_lpBalao) return;
+  const stage=document.querySelector('.lp-stage'), cv=document.getElementById('lp-canvas');
+  const alvo=(_lpEffectiveLayers||[]).find(l=>l&&l.id===_lpBalao.fieldId);
+  if(!stage||!cv||!alvo) return;
+  const sr=stage.getBoundingClientRect(), cr=cv.getBoundingClientRect();
+  const k=cr.width/(cv.width||1);
+  const x=cr.left-sr.left+(alvo.x||0)*k, y=cr.top-sr.top+(alvo.y||0)*k, w=(alvo.w||0)*k, h=(alvo.h||0)*k;
+  const bw=b.offsetWidth, bh=b.offsetHeight, gap=10;
+  const embaixo=y-bh-gap<8;
+  const left=Math.max(8,Math.min(x+w/2-bw/2, sr.width-bw-8));
+  b.style.left=left+'px';
+  b.style.top=(embaixo?y+h+gap:y-bh-gap)+'px';
+  b.classList.toggle('is-embaixo',embaixo);
+  // A seta aponta para o CENTRO da caixa mesmo quando o balão encosta na borda da mesa.
+  b.style.setProperty('--seta-x',Math.max(16,Math.min(bw-16,x+w/2-left))+'px');
+}
+/* Volta o campo pelo caminho dos DADOS (fora do chat, ou quando a pergunta já foi enviada). */
+function _fLpBalaoRestaura(campo, valor){
+  if(!fState.dados) fState.dados={};
+  if(valor==null) delete fState.dados[campo]; else fState.dados[campo]=valor;
+  try{ if(typeof fSaveChatDraft==='function') fSaveChatDraft(); }catch(e){}
+  _fLpRender();
+  try{ if(typeof fRevisaoRepinta==='function') fRevisaoRepinta(); }catch(e){}
+}
+function fLpBalaoAplica(i, origem){
+  const B=_lpBalao, s=B&&B.sug[i]; if(!s) return false;
+  const ok=_fLpBalaoAplicaCore(B,s);
+  if(ok) try{ if(typeof gTrackEvent==="function") gTrackEvent("copyfit_aplicado",{origem:origem||"balao", campo:B.campo,
+    template_id:(typeof _fTplId==="function")?_fTplId(fState.material):null, removidas_n:_fLpRemovidasVisiveis(s.removidas).length}); }catch(e){}
+  return ok;
+}
+// Desfazer da troca do Copy Fit também vira evento: é o sinal de que a versão não agradou.
+function _fLpUndoCopyFit(rotulo, campo, fn){
+  if(typeof _fUndoRegistra!=="function") return;
+  _fUndoRegistra(rotulo, ()=>{ fn(); try{ if(typeof gTrackEvent==="function") gTrackEvent("copyfit_desfeito",{campo}); }catch(e){} });
+}
+function _fLpBalaoAplicaCore(B,s){
+  if(!fCampoPodeEncurtar(B.campo)) return false;
+  /* O toque direto no balão também confere o texto medido (o `aplica` da solução já conferia):
+     entre a tecla e o render (debounce) o balão ainda é o do valor anterior, e tocar nele
+     trocava a "Mussarela" recém-digitada pela "Calabresa" velha. O render seguinte o atualiza. */
+  if(String((fState.dados||{})[B.campo]==null?'':fState.dados[B.campo])!==B.valor) return false;
+  const campo=B.campo, antes=(fState.dados||{})[campo];
+  const rotulo='Encurtar '+String((typeof gFieldLabel==='function')?gFieldLabel(campo):'texto').toLowerCase();
+  _fLpBalaoTira();
+  const box=document.getElementById('f-msg-box');
+  const naPergunta=(bx)=>bx&&!bx.disabled&&fState.camp?.perguntas?.[fState.stepIdx]?.id===campo;
+  if(naPergunta(box)){
+    // Mesmo caminho de quem digita: espelho, contador e prévia por um só lugar.
+    const antesBox=box.value;
+    box.value=s.text; box.dispatchEvent(new Event('input',{bubbles:true}));
+    /* O botão focado acabou de sair do DOM, e o foco caía no body: quem usa teclado ou leitor
+       de tela perdia o lugar. Volta para onde a pessoa estava escrevendo. */
+    try{ box.focus(); }catch(e){}
+    /* O Desfazer vale aqui também — era o caminho mais comum e saía antes de registrar. Com a
+       pergunta ainda aberta, devolve o texto à caixa (mesmo caminho da digitação); se ela já
+       foi enviada, devolve pelos dados o que estava escrito antes do toque. */
+    _fLpUndoCopyFit(rotulo, campo, ()=>{
+      const bx=document.getElementById('f-msg-box');
+      if(naPergunta(bx)){
+        bx.value=antesBox; bx.dispatchEvent(new Event('input',{bubbles:true}));
+        try{ bx.focus(); }catch(e){}
+      } else _fLpBalaoRestaura(campo, antesBox);
+    });
+    return true;
+  }
+  if(!fState.dados) fState.dados={};
+  fState.dados[campo]=s.text;
+  try{ if(typeof fSaveChatDraft==='function') fSaveChatDraft(); }catch(e){}
+  _fLpRender();
+  try{ if(typeof fRevisaoRepinta==='function') fRevisaoRepinta(); }catch(e){}
+  _fLpUndoCopyFit(rotulo, campo, ()=>_fLpBalaoRestaura(campo, antes));
+  return true;
+}
+window.addEventListener('resize',()=>{ try{ _fLpPosBalao(); }catch(e){} });
+/* A SOLUÇÃO DO BALÃO PARA QUEM NÃO VÊ O BALÃO — o diálogo do bloqueio (`fCorrigirTextoLongo`) e
+   o "Encurtar" do chat. No celular a prévia fica escondida, mas continua renderizando e medindo:
+   a versão que cabe já está aqui. Sem argumento, é a solução da PRÓPRIA prévia (o chat pergunta
+   sobre o campo que está sendo digitado). ⛔ Com `bloqueio`, só vale se ele é O MESMO que a
+   prévia mediu (mesmo material, mesma caixa estourada pelos mesmos pixels, mesmo valor): baixar
+   uma bolha antiga ou "Outro formato" é outra arte — lá a versão pode não caber.
+   @returns {{campo,text,removidas,cabe:function(string):boolean,aplica:function():boolean}|null} */
+function fLpBalaoSolucao(bloqueio){
+  const B=_lpBalao, s=B&&B.sug&&B.sug[0];
+  if(!s||!fCampoPodeEncurtar(B.campo)||_lpEffectiveMaterial!==fState.material) return null;
+  if(String((fState.dados||{})[B.campo]==null?'':fState.dados[B.campo])!==B.valor) return null;
+  const visto=((_lpLayoutResult&&_lpLayoutResult.bloqueios)||[]).find(b=>b&&b.fieldId===B.fieldId);
+  if(!visto) return null;
+  if(bloqueio){
+    const k=b=>[b.fieldId,b.requiredLines,b.maxLines,b.fontSize,b.minimumFontSize,
+                Math.round(b.overflowX||0),Math.round(b.overflowY||0)]
+      .concat(b.placa?[b.placa.x,b.placa.y,b.placa.w,b.placa.h].map(v=>Math.round(+v||0)):[]).join('|');
+    if(k(visto)!==k(bloqueio)) return null;
+  }
+  const text=s.text, campo=B.campo, cv=document.getElementById('lp-canvas');
+  return { campo, text, removidas:_fLpRemovidasVisiveis(s.removidas),
+    // A mesma régua do balão, para quem traz outra versão (a IA) conferir em pixel.
+    cabe:(t)=>{ const f=cv&&cv.width?_fLpBalaoCabe(visto,campo,cv.width,cv.height):null;
+                const r=f?f(t):null; return !!(r&&r.ok); },
+    // Aplica pelo caminho do balão (caixa ou dados, rascunho, prévia, revisão e Desfazer) — se
+    // ele ainda for a mesma sugestão: o diálogo espera a pessoa, e a prévia pode ter repintado.
+    aplica:(origem)=>{
+      if(!_lpBalao||_lpBalao.campo!==campo||!_lpBalao.sug[0]||_lpBalao.sug[0].text!==text) return false;
+      /* E o texto ainda é o que foi medido: entre a tecla e o render (debounce) o balão ainda é o
+         do valor anterior — aplicar aí trocava "Mussarela" recém-digitada pela "Calabresa" velha. */
+      if(String((fState.dados||{})[campo]==null?'':fState.dados[campo])!==_lpBalao.valor) return false;
+      return fLpBalaoAplica(0, origem||'dialogo');
+    } };
+}
+
+/* A VERSÃO QUE CHEGOU PERTO, para o "Encurtar" sem IA e sem versão que caiba (Local Fit 2.3).
+   Mesmas guardas da solução: mesma arte (material) e o texto ainda é o que foi medido.
+   @returns {{campo,text,removidas,limite,n}|null} `n` = letras que ainda passam do que cabe. */
+function fLpBalaoPerto(campo){
+  const P=_lpBalao&&_lpBalao.perto;
+  if(!P||P.campo!==campo||!fCampoPodeEncurtar(campo)||_lpEffectiveMaterial!==fState.material) return null;
+  if(String((fState.dados||{})[campo]==null?'':fState.dados[campo])!==P.valor) return null;
+  return P;
+}
+
+/* ══ PREVIEW AO VIVO — A ARTE SE MONTANDO NA FRENTE DA PESSOA (24/09/2026) ═════════════════
+   A prévia saltava do estado anterior para o novo: o texto trocava seco, a placa mudava de
+   tamanho num quadro, o preço empurrado pela quebra de linha teleportava. Agora cada commit é
+   seguido de uma TRANSIÇÃO — e ela não decide nada. O Local Fit calcula como sempre; a animação
+   só percorre o caminho visual entre o que estava na tela e o que ele devolveu.
+
+   ONDE MORA: numa camada própria (`#lp-canvas-fx`), canvas irmão por cima do #lp-canvas, como
+   o dos selos. O #lp-canvas recebe o quadro FINAL no mesmo commit síncrono de sempre — PiP,
+   cartão da conversa, hit-test e as suítes continuam lendo a verdade. A camada de cima só
+   aparece durante a transição e some quando ela acaba.
+
+   TRÊS GESTOS (`_fLpTransicaoTipo` escolhe):
+   · DISSOLVER — a camada guarda o quadro que estava na tela e desbota por cima do novo. Pixel
+     que não mudou é idêntico nos dois, então só o que mudou "troca". Roda no compositor
+     (opacidade CSS): não disputa a thread com o render da próxima tecla. É o gesto de cada
+     TECLA — nada de coreografia a cada letra, nada de gelatina.
+   · DESLIZAR — quando a GEOMETRIA mexeu: placa cresce, membro da cadeia desce, o corpo do texto
+     muda. Quadros em JS desenhados pelo MESMO motor (`fRenderTemplateLayers` com
+     `resolvido:true`), com a geometria interpolada entre os dois estados prontos. O corpo do
+     texto não é interpolado (re-quebraria a cada tamanho): sai com a tipografia final, ESCALADO
+     do tamanho que tinha até 1. Texto que trocou é cruzado sozinho, versão antiga → nova (ver
+     `_fLpCinema`). Na mudança discreta (enviar o campo, foto, opção, balão, desfazer) tudo desliza; na
+     digitação só os VIZINHOS deslizam, e só se a estrutura mudou (quebrou linha) — o texto
+     digitado fica fixo, respondendo na hora.
+   · ASSENTAR — o micro-destaque do que acabou de mudar: um clarão leve na silhueta da camada,
+     que entra e se desfaz. Depois do gesto discreto e quando a digitação PARA — nunca por tecla.
+
+   ⛔ NÃO É O AUTO-ZOOM DE VOLTA. Nenhum gesto toca no `transform` do wrap ou do canvas, nem no
+   zoom/pan da mesa: a arte inteira fica parada na mesma área, só o que mudou se move nela.
+   ⛔ Movimento reduzido, aba oculta, palco fora da tela, enquadramento de foto: nada roda.
+   Custo: dissolver = uma cópia de canvas + opacidade no compositor. Deslizar re-desenha a arte
+   por quadro, então só roda enquanto um quadro deste aparelho for barato (`_lpQuadroMs`) e cai
+   para o dissolver se um quadro passar do teto. */
+const F_LP_ASSENTA_MS=480;    // sem tecla por este tempo = parou de digitar (limiar, não duração de motion)
+const F_LP_QUADRO_TETO=50;    // quadro do deslize mais caro que isto (ms): aborta para o dissolver
+const F_LP_ASSENTA_LUZ=.09;   // força do clarão do assentar, no pico (luz somada)
+let _lpCineToken=0;      // cada transição carimba a sua vez; a seguinte cancela a anterior
+let _lpFx=null;          // #lp-canvas-fx
+let _lpFxBuf=null, _lpFxPrev=null, _lpFxNovo=null, _lpFxVelho=null;   // só durante o deslize (ver _fLpCinema)
+let _lpShown=null;       // geometria NA TELA no meio de um deslize — o "de onde" se outro commit chegar
+let _lpQuadroMs=0;       // custo médio de um quadro do deslize aqui (0 = ainda não medido)
+let _lpAssentaTimer=0;
+const _lpAssentaIds=new Set();       // camadas mexidas na rajada de digitação em curso
+let _lpPendingDiscreto=false;        // o render da fila herda "foi discreto" de quem pediu
+let _lpSigAtivo='';                  // campo ativo + vista do último commit (trocar de passo dissolve o anel)
+
+function _fLpFxMovimento(canvas){
+  try{ if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches) return false; }catch(e){}
+  if(document.hidden||!canvas||!(_fLpMotionMs('--dur-base')>0)) return false;
+  const r=canvas.getBoundingClientRect();
+  return r.width>0&&r.bottom>0&&r.right>0&&r.top<innerHeight&&r.left<innerWidth;
+}
+// Curva de motion lida do TOKEN (motion.md: nenhum easing nasce em JS) — cubic-bezier resolvido
+// por bisseção. Token ilegível vira linear, o mesmo fallback do `_fLpMotionEase`.
+const _lpCurvas={};
+function _fLpCurva(token){
+  if(_lpCurvas[token]) return _lpCurvas[token];
+  const m=/cubic-bezier\(\s*([-\d.]+)\s*,\s*([-\d.]+)\s*,\s*([-\d.]+)\s*,\s*([-\d.]+)\s*\)/.exec(_fLpMotionEase(token));
+  if(!m) return t=>t;
+  const x1=+m[1],y1=+m[2],x2=+m[3],y2=+m[4];
+  const bz=(p1,p2,s)=>3*p1*s*(1-s)*(1-s)+3*p2*s*s*(1-s)+s*s*s;
+  return _lpCurvas[token]=u=>{
+    if(u<=0) return 0; if(u>=1) return 1;
+    let lo=0,hi=1,s=u;
+    for(let i=0;i<24;i++){ const x=bz(x1,x2,s); if(Math.abs(x-u)<1e-4) break; if(x<u) lo=s; else hi=s; s=(lo+hi)/2; }
+    return bz(y1,y2,s);
+  };
+}
+// O antigo "modo demonstração" (`?demo=1`, `fDemoModo`) ligava o deslize só para a equipe.
+// Com a transição valendo para todos, o interruptor saiu — e a preferência gravada, junto.
+try{ localStorage.removeItem('luma_demo_v1'); }catch(e){}
+// O campo da pergunta ativa do chat, na geometria que está sendo desenhada (Focus Sync).
+function _fLpCamadaAtiva(layers){
+  const v=fState.camp?.perguntas?.[fState.stepIdx]?.id;
+  return v?(layers||[]).find(l=>_fLpLayerVars(l).indexOf(v)>=0)||null:null;
+}
+// O corpo que o render DESENHA: o Local Fit não mexe no `fontSize`, ele põe o teto `_tetoFonte`.
+function _fLpCorpo(l){ const f=+l.fontSize||0, t=+l._tetoFonte||0; return t>0&&t<f?t:f; }
+function _fLpDigitando(){
+  const a=document.activeElement;
+  if(!a||!/^(TEXTAREA|INPUT)$/.test(a.tagName)) return false;
+  // Chat, editor de texto pela arte e as células do Sheets (`f-bulk-edit-<linha>-<campo>`).
+  return a.id==='f-msg-box'||/^f-bulk-edit-/.test(a.id||'')||!!(a.closest&&a.closest('#lp-edit-pop'));
+}
+function _fLpCamposMudaram(a,b){
+  const out=new Set(); if(!a||!b) return out;
+  new Set(Object.keys(a).concat(Object.keys(b))).forEach(k=>{
+    if(a[k]!==b[k]) out.add(k.replace(/^__(?:fit|skipped)__/,''));
+  });
+  return out;
+}
+// Camadas que DESENHAM um dos campos mudados — pelo conteúdo, pela foto ou por um binding.
+function _fLpCamadasDosCampos(layers, campos){
+  const ids=new Set(); if(!campos||!campos.size) return ids;
+  (layers||[]).forEach(l=>{
+    if(!l||l.id==null) return;
+    const vs=_fLpLayerVars(l).concat(l.bindings?Object.values(l.bindings):[]);
+    if(vs.some(v=>campos.has(v))) ids.add(l.id);
+  });
+  return ids;
+}
+
+function _fLpFxCamada(canvas){
+  if(!canvas||!canvas.closest('.lp-canvas-wrap')) return null;
+  if(!_lpFx||!_lpFx.isConnected){
+    _lpFx=document.createElement('canvas');
+    _lpFx.id='lp-canvas-fx'; _lpFx.setAttribute('aria-hidden','true');
+    canvas.insertAdjacentElement('afterend',_lpFx);
+    _lpFx.addEventListener('transitionend',_fLpFxFimCss);
+    _lpFx.addEventListener('animationend',_fLpFxFimCss);
+  }
+  if(_lpFx.width!==canvas.width||_lpFx.height!==canvas.height){ _lpFx.width=canvas.width; _lpFx.height=canvas.height; }
+  /* A caixa de LAYOUT do canvas (já com a compressão do `max-width:100%`), não a do wrap: palco
+     mais baixo que a arte encolhe o wrap (flex + overflow:hidden) e corta o canvas — com
+     `inset:0` a camada sairia noutra proporção e a arte "encolheria" durante a transição. */
+  _fLpFxAcompanha(canvas);
+  return _lpFx;
+}
+function _fLpFxAcompanha(canvas){
+  if(_lpFx&&canvas){ _lpFx.style.width=canvas.offsetWidth+'px'; _lpFx.style.height=canvas.offsetHeight+'px'; }
+}
+// Os buffers do deslize voltam a 0×0 fora dele: o Safari do iPhone tem teto de memória de canvas.
+function _fLpFxSolta(){ [_lpFxBuf,_lpFxPrev,_lpFxNovo,_lpFxVelho].forEach(c=>{ if(c){ c.width=0; c.height=0; } }); }
+function _fLpFxVisivel(){ return !!(_lpFx&&_lpFx.style.display==='block'); }
+/* Esconder também ENCERRA a vez: sem isto, um deslize em curso (troca de material no meio, erro
+   de render) seguia desenhando escondido, recriava `_lpShown` com a geometria da arte velha e, no
+   fim, assentava uma camada de mesmo id na arte nova. Quem chama `depois()` o faz em seguida. */
+function _fLpFxEsconde(){
+  _lpShown=null;
+  _lpCineToken++;
+  _fLpFxSolta();
+  if(!_lpFx) return;
+  _lpFx._fxDepois=null;
+  _lpFx.classList.remove('assenta');
+  _lpFx.style.transition='none'; _lpFx.style.opacity='0'; _lpFx.style.display='none';
+}
+function _fLpFxFimCss(ev){
+  const fx=_lpFx;
+  if(!fx||(ev&&ev.target!==fx)||fx._fxVez!==_lpCineToken||!_fLpFxVisivel()) return;
+  const depois=fx._fxDepois;
+  _fLpFxEsconde();
+  if(depois) depois();
+}
+// Rede para o `transitionend` que não chega (aba trocada no meio, elemento re-anexado).
+function _fLpFxSeguro(ms){
+  const vez=_lpCineToken;
+  setTimeout(()=>{ if(_lpFx&&_lpFx._fxVez===vez) _fLpFxFimCss(null); }, ms+160);
+}
+function _fLpFxOpacidade(){
+  if(!_fLpFxVisivel()) return 0;
+  const o=parseFloat(getComputedStyle(_lpFx).opacity);
+  return isFinite(o)?o:0;
+}
+/* Antes de o commit sobrescrever o #lp-canvas, a camada passa a guardar EXATAMENTE o que está na
+   tela. No meio de outra transição, "o que está na tela" é a mistura das duas camadas: desenhar
+   o quadro de baixo sobre o de cima com alfa (1 − a) dá a mesma mistura em pixels. É isso que
+   deixa uma tecla nova interromper qualquer gesto sem salto. */
+function _fLpFxCaptura(canvas){
+  const a=_fLpFxOpacidade(), fx=_fLpFxCamada(canvas);
+  if(!fx) return null;
+  const c=fx.getContext('2d');
+  c.save(); c.setTransform(1,0,0,1,0,0);
+  if(a<=.001){ c.globalAlpha=1; c.clearRect(0,0,fx.width,fx.height); c.drawImage(canvas,0,0); }
+  else if(a<.999){ c.globalAlpha=1-a; c.drawImage(canvas,0,0); }
+  c.restore();
+  _lpCineToken++;                       // deslize, dissolver ou assentar em curso perde a vez
+  fx._fxVez=_lpCineToken; fx._fxDepois=null;
+  fx.classList.remove('assenta');
+  fx.style.transition='none'; fx.style.opacity='1'; fx.style.display='block';
+  void fx.offsetWidth;                  // fixa o 1 antes de a transição partir dele
+  return fx;
+}
+function _fLpFxDissolve(fx, durToken, depois){
+  const ms=_fLpMotionMs(durToken);
+  fx._fxVez=_lpCineToken; fx._fxDepois=depois||null;
+  fx.style.transition='opacity '+ms+'ms '+_fLpMotionEase('--ease-out');
+  fx.style.opacity='0';
+  _fLpFxSeguro(ms);
+}
+/* ASSENTAR. A camada vira a verdade + um clarão na silhueta do que mudou, e entra e sai por
+   `@keyframes lpFxAssenta` (CSS, compositor). Luz somada, e não a cor da marca: laranja some em
+   cima de arte laranja; clarear aparece em foto, placa escura e na própria cor da campanha. */
+function _fLpFxAssenta(canvas, ids){
+  if(!ids||!ids.size||_lpRendering||_lpPendingRender||_lpFraming||_fLpFxVisivel()||!_fLpFxMovimento(canvas)) return;
+  const camadas=(_lpEffectiveLayers||[]).filter(l=>l&&ids.has(l.id)&&l.visible!==false);
+  if(!camadas.length) return;
+  const fx=_fLpFxCamada(canvas); if(!fx) return;
+  const c=fx.getContext('2d');
+  c.save(); c.setTransform(1,0,0,1,0,0);
+  c.globalAlpha=1; c.clearRect(0,0,fx.width,fx.height); c.drawImage(canvas,0,0);
+  c.globalCompositeOperation='lighter'; c.fillStyle='white'; c.globalAlpha=F_LP_ASSENTA_LUZ;
+  const pad=Math.max(4,Math.round(fx.width*.005));
+  // Borda difusa: o clarão é luz que se espalha, não uma caixa recortada.
+  c.shadowColor='white'; c.shadowBlur=pad*4;
+  camadas.forEach(l=>{ const regra=_fLpTraceLayerPath(c,l,_fLpVisualRect(l),pad); if(regra) c.fill(regra); });
+  c.restore();
+  _lpCineToken++;
+  fx._fxVez=_lpCineToken; fx._fxDepois=null;
+  fx.style.transition='none'; fx.style.opacity='0'; fx.style.display='block';
+  void fx.offsetWidth;
+  fx.classList.add('assenta');
+  _fLpFxSeguro(_fLpMotionMs('--dur-slow'));
+}
+function _fLpAssentaAgora(){
+  if(!_lpAssentaIds.size) return;
+  // Outra transição na tela ou render a caminho: espera ela acabar em vez de atropelar.
+  if(_lpRendering||_lpPendingRender||_fLpFxVisivel()){ _lpAssentaTimer=setTimeout(_fLpAssentaAgora,F_LP_ASSENTA_MS/2); return; }
+  const ids=new Set(_lpAssentaIds); _lpAssentaIds.clear();
+  _fLpFxAssenta(document.getElementById('lp-canvas'),ids);
+}
+
+// Geometria de cada camada COMO APARECE NA TELA, por id. É o "de onde" do deslize.
+function _fLpCineSnapshot(layers){
+  const m=new Map();
+  (layers||[]).forEach(l=>{
+    if(!l||l.id==null) return;
+    const k=l._fxEscala>0?l._fxEscala:1, vr=_fLpVisualRect(l), ox=+l._fxOx||0, oy=+l._fxOy||0;
+    m.set(l.id,{l0:l,x:+l.x||0,y:+l.y||0,w:+l.w||0,h:+l.h||0,fs:_fLpCorpo(l)*k,vis:l.visible!==false,
+      op:l._fxOp!=null?l._fxOp:1,
+      vr:k===1?vr:{x:ox+(vr.x-ox)*k,y:oy+(vr.y-oy)*k,w:vr.w*k,h:vr.h*k}});
+  });
+  return m;
+}
+/* Quantas camadas MEXERAM de verdade. Sem o filtro a arte tremeria: trocar uma letra reposiciona
+   por frações de pixel, e animar isso é ruído, não informação. `fixas` não contam (ver abaixo). */
+function _fLpCineMoveu(antes, depois, W, H, fixas){
+  if(!antes) return 0;
+  const tol=Math.max(4,Math.max(W,H)*0.006);
+  let n=0;
+  (depois||[]).forEach(l=>{
+    const a=l&&antes.get(l.id); if(!a||!a.vis||l.visible===false||(fixas&&fixas.has(l.id))) return;
+    if(Math.abs((+l.x||0)-a.x)>tol||Math.abs((+l.y||0)-a.y)>tol) n++;
+    else if(l.type!=='text'&&(Math.abs((+l.w||0)-a.w)>tol||Math.abs((+l.h||0)-a.h)>tol)) n++;
+    else if(l.type==='text'&&a.fs>0&&Math.abs(_fLpCorpo(l)-a.fs)/a.fs>.02) n++;
+  });
+  return n;
+}
+function _fLpCineCorpoMudou(a, l){ return l.type==='text'&&a.fs>0&&Math.abs(_fLpCorpo(l)-a.fs)/a.fs>.02; }
+/* Pode ser cruzado num sprite à parte sem mudar o desenho? Só o que se compõe com source-over
+   puro: sem blend, máscara ou recorte, e fora de grupo que isola, desbota ou mistura (a mesma
+   régua do `_fRenderGroup`). O resto cai no fantasma de região. */
+function _fLpCineIsolavel(l, porId){
+  if(!l||l.type!=='text'||l.mask||l.clipBaseId||(l.blendMode&&l.blendMode!=='normal')) return false;
+  for(let g=porId.get(l.parentId), n=0; g&&n<32; g=porId.get(g.parentId), n++){
+    if(g.isolation===true||g.mask||(g.opacity!=null&&g.opacity<100)||(g.blendMode&&g.blendMode!=='normal')||g.shadow||g.glow) return false;
+  }
+  return true;
+}
+// Escala visual de um texto para que ele apareça com o corpo `S` na tela (png-generator, `_fxEscala`).
+// Só em texto de desenho direto: máscara/recorte/blend por software usam um offscreen que assume
+// transform de supersampling puro (`_fRenderLeaf`) e recortariam a camada.
+function _fLpCineEscala(o, S){
+  o._fxEscala=1;
+  const f=_fLpCorpo(o);
+  if(!(S>0)||!(f>0)||o.mask||o.clipBaseId||(o.blendMode&&o.blendMode!=='normal')) return;
+  const k=Math.max(.5,Math.min(2,S/f));
+  if(Math.abs(k-1)<=.002) return;
+  const vr=_fLpVisualRect(o);
+  o._fxEscala=k;
+  o._fxOx=o.textAlign==='center'?vr.x+vr.w/2:o.textAlign==='right'?vr.x+vr.w:vr.x;
+  o._fxOy=(o.vAlign==='top'||o._vTopAuto)?vr.y:vr.y+vr.h/2;
+}
+/* Um quadro: as camadas FINAIS com a geometria no ponto `e` do caminho. Forma e foto interpolam
+   x/y/w/h; texto interpola a posição e aparece com o corpo interpolado (escala visual sobre a
+   tipografia final — interpolar o corpo de verdade re-quebraria as linhas a cada tamanho).
+   `fixas` ficam no estado final desde o 1º quadro: é o texto que a pessoa está DIGITANDO — ele
+   responde na hora; só os vizinhos abrem espaço. Camada que não existia (ou estava oculta)
+   entra desbotada com `c`. */
+function _fLpCineQuadro(antes, finais, eDe, c, fixas){
+  return finais.map(l=>{
+    if(!l||l.id==null) return l;
+    // `eDe` pode ser um número ou, no deslize encadeado, o progresso próprio de cada camada.
+    const e=typeof eDe==='function'?eDe(l.id):eDe, lerp=(p,q)=>p+(q-p)*e;
+    const a=antes.get(l.id), o=Object.assign({},l);
+    const op=(!a||!a.vis)?c:(a.op<1?a.op+(1-a.op)*c:1);
+    if(op<1){ o.opacity=(l.opacity!=null?+l.opacity:100)*op; o._fxOp=op; }
+    if(!a||(fixas&&fixas.has(l.id))) return o;
+    o.x=lerp(a.x,+l.x||0); o.y=lerp(a.y,+l.y||0);
+    if(l.type!=='text'){ o.w=lerp(a.w,+l.w||0); o.h=lerp(a.h,+l.h||0); return o; }
+    _fLpCineEscala(o, lerp(a.fs,_fLpCorpo(l)));
+    return o;
+  });
+}
+// A versão ANTIGA de um texto que trocou, no mesmo ponto do caminho e com o MESMO corpo na tela
+// que a nova — as duas se transformam uma na outra em vez de uma sumir e a outra aparecer.
+function _fLpCineVelho(a, l, e, op, fixa){
+  const o=Object.assign({},a.l0);
+  o.opacity=(a.l0.opacity!=null?+a.l0.opacity:100)*op;
+  o._fxEscala=1;
+  if(fixa) return o;
+  const lerp=(p,q)=>p+(q-p)*e;
+  o.x=lerp(a.x,+l.x||0); o.y=lerp(a.y,+l.y||0);
+  _fLpCineEscala(o, lerp(a.fs,_fLpCorpo(l)));
+  return o;
+}
+/* DESLIZAR. `fx` já guarda o quadro que estava na tela (`_fLpFxCaptura`). Cada quadro é montado
+   fora da tela e sobe inteiro: um `await` de imagem no meio nunca mostra meia arte.
+   A TROCA DE CONTEÚDO tem dois caminhos:
+   · TEXTO que trocou (ou mudou de corpo) sai do quadro e é cruzado SOZINHO: a versão antiga
+     (com os dados antigos) e a nova em dois sprites transparentes, somados com `lighter` —
+     que é o crossfade de imagem exato: onde as letras coincidem não há buraco de opacidade no
+     meio da troca. O cruzamento espera o espaço abrir quando o texto CRESCE (a linha nova não
+     atropela o vizinho que ainda está descendo) e começa na hora quando ele ENCOLHE (o
+     antigo sai antes de o vizinho subir para o lugar dele). Os sprites vão por cima da arte:
+     texto quase sempre está no topo, e são ~260ms.
+   · FOTO, forma ou camada que SUMIU: um fantasma do quadro antigo, recortado na caixa antiga. */
+async function _fLpCinema(canvas, fx, antes, finais, W, H, dados, dadosAntes, mudou, fixas, durToken, depois){
+  const token=_lpCineToken;
+  const dur=_fLpMotionMs(durToken), curva=_fLpCurva('--ease-out');
+  const pad=Math.max(4,Math.round(Math.max(W,H)*.006));
+  const porId=new Map(finais.filter(l=>l&&l.id!=null).map(l=>[l.id,l]));
+  const troca=new Map(), fantasmas=[];   // troca: id → cresce?
+  antes.forEach((a,id)=>{
+    if(!a.vis) return;
+    const l=porId.get(id), some=!l||l.visible===false;
+    if(!some&&!mudou.has(id)&&!_fLpCineCorpoMudou(a,l)) return;
+    if(!some&&a.l0&&_fLpCineIsolavel(l,porId)&&_fLpCineIsolavel(a.l0,porId)){ troca.set(id,_fLpVisualRect(l).h>a.vr.h+1); return; }
+    fantasmas.push({x:a.vr.x-pad,y:a.vr.y-pad,w:a.vr.w+pad*2,h:a.vr.h+pad*2});
+  });
+  /* Buffers PRÓPRIOS deste deslize. Um deslize que perdeu a vez pode ainda estar no meio de um
+     render (fonte carregando atravessa tasks): com buffers compartilhados ele pintaria, na
+     geometria dele, dentro dos do deslize novo. Os globais só existem para o `_fLpFxEsconde`
+     soltar a memória (o Safari do iPhone tem teto de memória de canvas). */
+  const novoBuf=()=>{ const c=document.createElement('canvas'); c.width=W; c.height=H; return c; };
+  _fLpFxSolta();
+  const cBase=_lpFxBuf=novoBuf(), cPrev=_lpFxPrev=fantasmas.length?novoBuf():null;
+  const cNovo=_lpFxNovo=troca.size?novoBuf():null, cVelho=_lpFxVelho=troca.size?novoBuf():null;
+  const solta=()=>[cBase,cPrev,cNovo,cVelho].forEach(c=>{ if(c){ c.width=0; c.height=0; } });
+  if(cPrev) cPrev.getContext('2d').drawImage(fx,0,0);
+  // Sprite = só as camadas pedidas, sem fundo (o material "transparente" não pinta a cor da campanha).
+  const semFundo={bg:'transparent',w:W,h:H};
+  const bctx=cBase.getContext('2d'), fctx=fx.getContext('2d');
+  const limpa=(x)=>{ x.setTransform(1,0,0,1,0,0); x.globalAlpha=1; x.globalCompositeOperation='source-over'; x.clearRect(0,0,W,H); };
+  // Vez perdida = um commit novo capturou a tela e já decidiu o próximo gesto. Checada depois de
+  // CADA `await`: um render real em andamento não para o deslize (os buffers são dele).
+  const perdeu=()=>{ if(token===_lpCineToken) return false; solta(); return true; };
+  /* ENCADEADO: quem está mais abaixo foi empurrado por quem está acima, então sai depois — uma
+     reação em cadeia (título abre espaço → detalhes → preço e a placa dele). Camadas a menos de
+     2% da arte uma da outra andam juntas (o preço e a placa). 10% do gesto por degrau, teto de 3:
+     é coreografia, não fila. O Local Fit não muda: a ordem vertical já conta a causa. */
+  const atraso=new Map();
+  { let deg=-1, yAnt=-Infinity; const junto=Math.max(W,H)*.02;
+    finais.filter(l=>{ const a=l&&l.id!=null&&antes.get(l.id);
+        return a&&a.vis&&(Math.abs((+l.y||0)-a.y)>1||Math.abs((+l.h||0)-a.h)>1); })
+      .sort((p,q)=>antes.get(p.id).y-antes.get(q.id).y)
+      .forEach(l=>{ const y=antes.get(l.id).y; if(y-yAnt>junto){ deg++; yAnt=y; } atraso.set(l.id,Math.min(3,deg)*.1); }); }
+  const t0=performance.now();
+  for(let i=0;;i++){
+    if(perdeu()) return;
+    const agora=performance.now();
+    const t=Math.min(1,(agora-t0)/dur);
+    const eDe=(id)=>{ const d=atraso.get(id)||0; return curva(Math.max(0,Math.min(1,(t-d)/(1-d)))); };
+    const cSai=curva(Math.min(1,t/.45)), cEntra=curva(Math.max(0,Math.min(1,(t-.12)/.45)));
+    const mix=_fLpCineQuadro(antes,finais,eDe,cEntra,fixas);
+    try{
+      limpa(bctx);
+      await fRenderTemplateLayers(bctx,mix.filter(l=>!(l&&troca.has(l.id))),W,H,dados,fState.camp,_lpEffectiveMaterial,
+        {scope:'designer',purpose:'preview',resolvido:true});
+      if(perdeu()) return;
+      if(troca.size){
+        const nctx=cNovo.getContext('2d'), vctx=cVelho.getContext('2d');
+        const novos=[], velhos=[];
+        mix.forEach(l=>{
+          if(!l||!troca.has(l.id)) return;
+          const c=troca.get(l.id)?cEntra:cSai, fixa=!!(fixas&&fixas.has(l.id));
+          /* Entrada com peso: o texto novo sobe ~0,5% da arte e cresce de 98,5% até assentar; o
+             antigo sai subindo um pouco, como quem dá lugar. Sutil de propósito — sem bounce. */
+          const sobe=fixa?0:Math.max(W,H)*.005, n=Object.assign({},l,{opacity:(l.opacity!=null?+l.opacity:100)*c});
+          n.y=(+n.y||0)+sobe*(1-c);
+          if(!fixa&&(!n._fxEscala||n._fxEscala===1)){ _fLpCineEscala(n,_fLpCorpo(n)*(.985+.015*c)); }
+          novos.push(n);
+          const v=_fLpCineVelho(antes.get(l.id),porId.get(l.id),eDe(l.id),1-c,fixa);
+          v.y=(+v.y||0)-sobe*c*.6;
+          velhos.push(v);
+        });
+        limpa(nctx); limpa(vctx);
+        await fRenderTemplateLayers(nctx,novos,W,H,dados,fState.camp,semFundo,{scope:'designer',purpose:'preview',resolvido:true});
+        if(perdeu()) return;
+        await fRenderTemplateLayers(vctx,velhos,W,H,dadosAntes||dados,fState.camp,semFundo,{scope:'designer',purpose:'preview',resolvido:true});
+        if(perdeu()) return;
+        nctx.globalCompositeOperation='lighter'; nctx.drawImage(cVelho,0,0); nctx.globalCompositeOperation='source-over';
+      }
+    }catch(err){ break; }
+    fctx.save(); limpa(fctx); fctx.drawImage(cBase,0,0);
+    if(cPrev&&cSai<1){
+      fctx.save(); fctx.beginPath(); fantasmas.forEach(r=>fctx.rect(r.x,r.y,r.w,r.h)); fctx.clip();
+      fctx.globalAlpha=1-cSai; fctx.drawImage(cPrev,0,0); fctx.restore();
+    }
+    if(cNovo) fctx.drawImage(cNovo,0,0);
+    fctx.restore();
+    // O anel do campo ativo acompanha a camada — pintado DEPOIS, como no render normal.
+    const ativa=_fLpCamadaAtiva(mix);
+    if(ativa) fLpHighlightActiveField(fctx,ativa,W,H);
+    _lpShown=_fLpCineSnapshot(mix);
+    if(t>=1) break;
+    // O 1º quadro é frio (buffers recém-alocados, fonte, glifos em escala nova) e não conta: nem
+    // para o custo médio do aparelho, nem para abortar.
+    const q=performance.now()-agora;
+    if(i>0){
+      _lpQuadroMs=_lpQuadroMs?_lpQuadroMs*.6+q*.4:q;
+      if(q>F_LP_QUADRO_TETO){
+        // Aparelho não segura quadros: o que já está na tela desbota até a verdade.
+        _lpShown=null; solta(); _fLpFxDissolve(fx,'--dur-fast',depois); return;
+      }
+    }
+    // Corrida com um timeout: em aba oculta o requestAnimationFrame NÃO dispara, e o laço
+    // ficava preso com a vez travada. Com o relógio de parede o deslize termina de qualquer jeito.
+    await new Promise(r=>{ let f=false; const ok=()=>{ if(!f){ f=true; r(); } };
+      try{ requestAnimationFrame(ok); }catch(e){}
+      setTimeout(ok,120);
+    });
+  }
+  if(perdeu()) return;
+  solta();
+  // Último quadro = a verdade (mesmas camadas, mesmo motor): a camada sai sem que nada mude.
+  _fLpFxEsconde();
+  if(depois) depois();
+}
+/* Qual gesto este commit pede. Tudo o que não for mudança do MESMO material, no MESMO tamanho,
+   fora do enquadramento e com movimento liberado é troca instantânea, como sempre foi. */
+function _fLpTransicaoTipo(mesmoPalco, campos, discreto, sig){
+  if(!mesmoPalco||_lpFraming) return 'nenhuma';
+  const cv=document.getElementById('lp-canvas');
+  if(!_fLpFxMovimento(cv)) return 'nenhuma';
+  if(campos.size) return (!discreto&&_fLpDigitando())?'digitacao':'discreta';
+  if(_lpShown) return 'discreta';       // deslize congelado no meio: termina o caminho
+  return sig!==_lpSigAtivo?'passo':'nenhuma';
 }
 
 async function fUpdateLivePreview(opts){
-  opts = opts || {}; // animateField é ignorado: o canvas já reflete o estado atual
+  opts = opts || {}; // animateField marca a mudança como DISCRETA (enviar, foto) — ver _fLpTransicaoTipo
+  _fLpDesignSync();
   const canvas = document.getElementById('lp-canvas');
   if(!canvas || canvas.tagName !== 'CANVAS') return;
   // O botão depende do TEMPLATE aberto (nem todo template tem Layout vivo), então é
   // re-sincronizado a cada update — diferente do Auto-zoom, que independe do material.
-  try { _fLpSyncAutoLayoutButton(); } catch(e){}
+  try { _fLpSyncBloqueio(); } catch(e){}
   try { _fLpSyncBaixar(); } catch(e){}
   try { _fLpSyncVerComoFica(); } catch(e){}
 
@@ -1169,15 +2257,19 @@ async function fUpdateLivePreview(opts){
       ? 'conteúdo do material não baixou do servidor'
       : 'material sem camadas no servidor';
     _lpEffectiveLayers=[];_lpEffectiveMaterial=null;
+    _fLpFxEsconde();
     fLpShowEmpty(canvas);
     fLpUpdateMeta(false);
     try{ _fLpPaintPip(); }catch(e){} // sem material → a miniatura volta a ser o ícone
     return;
   }
 
-  // Render em andamento → agenda só mais um (coalesce de digitação rápida)
-  if(_lpRendering){ _lpPendingRender = true; return; }
+  // Render em andamento → agenda só mais um (coalesce de digitação rápida). O da fila herda
+  // "foi discreto": sem isto, enviar o campo no meio de um render virava gesto de digitação.
+  if(_lpRendering){ _lpPendingRender = true; if(opts.animateField) _lpPendingDiscreto = true; return; }
   _lpRendering = true;
+  const _discreto = !!opts.animateField || _lpPendingDiscreto;
+  _lpPendingDiscreto = false;
 
   const stage = document.querySelector('.lp-stage');
   if(stage) stage.classList.add('loading');
@@ -1191,53 +2283,82 @@ async function fUpdateLivePreview(opts){
     // Template 1:1 do PSD guarda w/h reais → preview no tamanho exato; senão o preset por formato.
     const W = (fState.material.w>0) ? fState.material.w : sz[0];
     const H = (fState.material.h>0) ? fState.material.h : sz[1];
-    // Arte diferente da anterior → zera o zoom/pan manual (senão a prova abre já ampliada/deslocada).
-    if (canvas.width !== W || canvas.height !== H) { _lpUserZoom = 1; _lpPanX = 0; _lpPanY = 0; }
-    canvas.width = W; canvas.height = H;
-    fLpSizeCanvas(canvas, W, H);
+    /* ══ BLINDAGEM DE ABERTURA (23/09/2026) ══
+       O canvas visível era LIMPO aqui e redesenhado camada a camada, com `await` de fonte e de
+       download de imagem no meio. Ao abrir um material, o painel entrava antes da arte: palco
+       vazio, ou só a cor de fundo, por segundos — sensação de bug. E, a cada tecla, qualquer
+       `await` que cedesse um quadro podia mostrar a arte pela metade.
+       Agora o desenho acontece em `_lpBuf`, fora da tela, e só chega ao palco inteiro, num
+       bloco síncrono (tamanho + pixels): o navegador nunca pinta o intervalo. Enquanto a arte
+       DESTE material não foi pintada nenhuma vez, o palco mostra o esqueleto no tamanho real
+       da peça; dali em diante, cada re-render segura o quadro anterior até o novo ficar pronto. */
+    const _dimensiona = () => {
+      // Arte diferente da anterior → zera o zoom/pan manual (senão a prova abre já ampliada/deslocada).
+      if (canvas.width !== W || canvas.height !== H) { _lpUserZoom = 1; _lpPanX = 0; _lpPanY = 0; }
+      canvas.width = W; canvas.height = H; // atribuir limpa o canvas — mesmo com o valor igual
+      fLpSizeCanvas(canvas, W, H);
+    };
+    // Sem isto, o palco seguraria a arte do material ANTERIOR enquanto o novo baixa.
+    if(_lpEffectiveMaterial !== fState.material){ _fLpFxEsconde(); _dimensiona(); _fLpMontando(stage, true); }
+    if(!_lpBuf) _lpBuf = document.createElement('canvas');
+    _lpBuf.width = W; _lpBuf.height = H;
 
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, W, H);
 
     // Dados preenchidos + placeholders {{var}} nos campos de texto ainda vazios
     // (e sem default do designer). dadosPreview é uma cópia — não mexe em fState.dados.
     const _defaults = (typeof gVarDefaults === 'function') ? gVarDefaults() : {};
     const dadosPreview = Object.assign({}, fState.dados || {});
     const pendentes = fLpInjectPlaceholders(fState.material.layers, dadosPreview, _defaults);
+    let _trans = 'nenhuma', _fx = null, _antes = null, _campos = null, _dadosAntes = null;
 
     {
       // Coleta overflow de texto durante ESTE render (só a prévia liga o coletor).
       window._fOverflowSink = new Set();
-      const rendered=await fRenderTemplateLayers(ctx,fState.material.layers,W,H,dadosPreview,fState.camp,null,
+      /* ⚠ QUEM RENDERIZOU É QUEM ASSINA. `fRenderTemplateLayers` tem `await` dentro (fontes,
+         imagens): trocar de material durante a espera fazia `_lpEffectiveMaterial` receber o
+         material NOVO junto com a geometria do VELHO. Quem lê esse par (o enquadramento de
+         foto, `fLpFrameVar`) passava a mexer numa camada de outra arte. */
+      const _matRender = fState.material;
+      const rendered=await fRenderTemplateLayers(_lpBuf.getContext('2d'),_fLpDesignActive()?_fLpDesignRenderLayers():_matRender.layers,W,H,dadosPreview,fState.camp,null,
         {scope:'franqueado',purpose:'preview'});
+      /* Material trocou no meio: este desenho já é passado e NEM chega ao palco — pintá-lo
+         seria mostrar a arte errada por um instante. O palco e o `_lpEffective*` continuam
+         com o par do último render aplicado; o `finally` re-agenda o do material novo. */
+      if(fState.material!==_matRender){ _lpPendingRender=true; window._fOverflowSink=null; return; }
+      /* A TRANSIÇÃO (ver "A ARTE SE MONTANDO"): escolhe o gesto e guarda o que está na tela
+         ANTES de o commit sobrescrever o #lp-canvas. */
+      const _sig = (fState.camp?.perguntas?.[fState.stepIdx]?.id || '') + '|' + _lpView;
+      const _mesmoPalco = _lpEffectiveMaterial===_matRender && canvas.width===W && canvas.height===H;
+      _campos = _mesmoPalco ? _fLpCamposMudaram(_lpDadosRender, dadosPreview) : new Set();
+      _dadosAntes = _lpDadosRender;     // o texto que SAI é desenhado com os dados de antes
+      _trans = _fLpTransicaoTipo(_mesmoPalco, _campos, _discreto, _sig);
+      if(_trans==='discreta'||_trans==='digitacao') _antes = _lpShown || _fLpCineSnapshot(_lpEffectiveLayers);
+      if(_trans!=='nenhuma') _fx = _fLpFxCaptura(canvas);
+      else if(_lpShown || !_mesmoPalco || _lpFraming) _fLpFxEsconde();
+      if(!_mesmoPalco||_lpFraming){ _lpAssentaIds.clear(); clearTimeout(_lpAssentaTimer); }
+      _lpSigAtivo = _sig;
+      // O commit: daqui ao fim do bloco não há `await`, então tamanho e pixels mudam juntos.
+      _dimensiona();
+      ctx.drawImage(_lpBuf, 0, 0);
+      _fLpMontando(stage, false);
       _lpEffectiveLayers=Array.isArray(rendered)?rendered:[];
       _lpLayoutResult=rendered&&rendered._layoutResult||null;
-      _lpEffectiveMaterial=fState.material;
+      _lpDadosRender=dadosPreview;
+      _lpEffectiveMaterial=_matRender;
       _lpOverflow = window._fOverflowSink; window._fOverflowSink = null;
-      _fLpSyncAutoLayoutButton();
+      // Balão ANTES do aviso: o aviso anuncia (aria-live) a solução que o balão acabou de medir.
+      try{ _fLpSyncBalao(); }catch(e){ console.warn('[Luma] balão do encaixe:', e); }
+      // O "Encurtar" do chat lê esta mesma medida — no celular é a única porta dela.
+      try{ if(typeof fFitSync==='function') fFitSync(); }catch(e){}
+      _fLpSyncBloqueio();
 
       // Véu sutil sobre os campos ainda não preenchidos (tom mais suave)
       fLpHighlightEmpty(ctx,_lpEffectiveLayers,pendentes,W,H);
       
-      // Focus Sync: Destaque sutil no campo correspondente à pergunta ativa do chat
-      const activeVar = fState.camp?.perguntas?.[fState.stepIdx]?.id;
-      let activeLayer = null;
-      if (activeVar) {
-        activeLayer = _lpEffectiveLayers.find(l => {
-          if (l.type === 'text' && l.content) {
-            const re = gVarRegex();
-            let match;
-            while ((match = re.exec(l.content)) !== null) {
-              if (match[1] === activeVar) return true;
-            }
-          }
-          if ((l.type === 'image' || l.type === 'frame') && l.imgVar === activeVar) return true;
-          return false;
-        });
-        if (activeLayer) {
-          fLpHighlightActiveField(ctx, activeLayer, W, H);
-        }
-      }
+      // Focus Sync: destaque sutil no campo da pergunta ativa do chat (o deslize usa o mesmo)
+      const activeLayer = _fLpCamadaAtiva(_lpEffectiveLayers);
+      if (activeLayer) fLpHighlightActiveField(ctx, activeLayer, W, H);
       // O lápis mora no MESMO objeto que o Focus Sync destaca — um por arte, nunca uma fileira.
       try{ _fLpPaintEditBadge(canvas, activeLayer); }catch(e){}
       
@@ -1250,16 +2371,47 @@ async function fUpdateLivePreview(opts){
     if(_lpView==='guides') _fLpDrawGuides(ctx, W, H);
     else if(_lpView==='env') _fLpDrawEnvironment(ctx, W, H);
 
-    // Micro-sinal de "vivo": anel que pulsa quando a prévia reflete uma resposta nova
-    const wrap = canvas.closest('.lp-canvas-wrap');
-    if(wrap){ wrap.classList.remove('updated'); void wrap.offsetWidth; wrap.classList.add('updated'); }
-
+    /* O anel laranja que pulsava no CARTÃO inteiro a cada render (`.updated`) saiu: disparava a
+       cada tecla — o "piscar" — e não dizia O QUE mudou. O micro-destaque agora é da camada
+       (o assentar, abaixo). */
     fLpUpdateMeta(true);
+    _fLpDesignPaintSelection();
     try{ _fLpPaintPip(); }catch(e){} // miniatura viva no celular acompanha cada resposta
+
+    // A TRANSIÇÃO parte daqui, sem `await`: a prévia já está pronta e a próxima tecla não
+    // espera animação nenhuma.
+    if(_fx){
+      const mudou = _fLpCamadasDosCampos(_lpEffectiveLayers, _campos);
+      if(_trans==='passo'){
+        _fLpFxDissolve(_fx, '--dur-fast');   // mudou só o campo ativo: o anel troca de lugar
+      } else {
+        /* DIGITAÇÃO: o texto digitado é `fixa` — responde na hora, sem deslizar nem escalar a
+           cada letra (a gelatina). Só se a ESTRUTURA mexeu (quebrou linha, a placa cresceu, o
+           vizinho desceu) os outros deslizam, no degrau curto. O micro-destaque espera a
+           pessoa parar (`F_LP_ASSENTA_MS`). Mudança DISCRETA: tudo desliza e assenta no fim. */
+        const digitando = _trans==='digitacao';
+        /* O que assenta fica em `_lpAssentaIds`, não num closure: se outro commit interromper o
+           gesto (no fluxo guiado a troca de passo chega aos 260ms, junto com o fim do deslize), o
+           clarão não se perde — o timer o entrega quando a tela ficar livre. */
+        mudou.forEach(id=>_lpAssentaIds.add(id));
+        clearTimeout(_lpAssentaTimer); _lpAssentaTimer = setTimeout(_fLpAssentaAgora, F_LP_ASSENTA_MS);
+        const fixas = digitando ? mudou : null;
+        const _assenta = digitando ? null : _fLpAssentaAgora;
+        const _quer = _lpView==='off' && _fLpCineMoveu(_antes, _lpEffectiveLayers, W, H, fixas) > 0;
+        // Aparelho que já foi lento ganha uma nova chance a cada deslize que pulou.
+        if(_quer && _lpQuadroMs>F_LP_QUADRO_TETO) _lpQuadroMs *= .8;
+        if(_quer && _lpQuadroMs<=F_LP_QUADRO_TETO){
+          _fLpCinema(canvas, _fx, _antes, _lpEffectiveLayers, W, H, dadosPreview, _dadosAntes, mudou, fixas,
+                     digitando ? '--dur-fast' : '--dur-slow', _assenta)   // o gesto discreto é o "momento": respira mais
+            .catch(err=>{ console.warn('[Luma] transição da prévia:', err); _fLpFxEsconde(); });
+        } else _fLpFxDissolve(_fx, digitando ? '--dur-micro' : '--dur-base', _assenta);
+      }
+    }
   } catch(e){
     console.warn('[lp] erro ao renderizar preview:', e);
     _lpLastErr = 'erro no render: ' + ((e && e.message) || e);
     _lpEffectiveLayers=[];_lpEffectiveMaterial=null;
+    _fLpFxEsconde();
     window._fOverflowSink=null;
     fLpShowEmpty(canvas);
     fLpUpdateMeta(true);
@@ -1287,6 +2439,8 @@ function fLpSizeCanvas(canvas, W, H){
         _fLpStageWidthCache = entries[0].contentRect.width;
         _fLpStageHeightCache = entries[0].contentRect.height;
       }
+      // Gaveta abrindo/fechando muda o palco sem mudar a janela: o balão acompanha a arte.
+      try{ _fLpPosBalao(); }catch(e){}
     }).observe(stage);
     _fLpStageWidthCache = stage.clientWidth;
     _fLpStageHeightCache = stage.clientHeight;
@@ -1302,6 +2456,9 @@ function fLpSizeCanvas(canvas, W, H){
   const scale = Math.min(availW / W, availH / H);
   canvas.style.width  = Math.round(W * scale) + 'px';
   canvas.style.height = Math.round(H * scale) + 'px';
+  /* A camada da transição segue o canvas: o commit re-encaixa a arte (gaveta, Sheets, janela
+     redimensionada) DEPOIS da captura — sem isto o quadro antigo ficava no tamanho velho. */
+  if(_fLpFxVisivel()) _fLpFxAcompanha(canvas);
   // Toolbar honesta: escala real da prévia (× zoom manual) + dimensões da arte final
   _lpScale = scale;
   _fLpUpdateZoomLabel();
@@ -1344,6 +2501,12 @@ function _fLpUpdateZoomLabel(){
     range.setAttribute('aria-valuetext',actual+'% da arte final');
     range.title='Zoom '+actual+'%';
   }
+  /* Presets com nome: "Tela inteira" = ajuste sem zoom nem pan; "Tamanho real" = 100% da arte
+     final. Fora dos dois (roda, pinça, −/+), nenhum fica marcado. */
+  const fitOn=_lpUserZoom===1&&!_lpPanX&&!_lpPanY, realOn=!fitOn&&Math.abs(_lpScale*_lpUserZoom-1)<.01;
+  const fitBtn=document.getElementById('lp-zoom-reset-btn'), realBtn=document.getElementById('lp-zoom-real-btn');
+  if(fitBtn){ fitBtn.classList.toggle('active',fitOn); fitBtn.setAttribute('aria-checked',String(fitOn)); }
+  if(realBtn){ realBtn.classList.toggle('active',realOn); realBtn.setAttribute('aria-checked',String(realOn)); }
   const minus=document.querySelector('[data-lp-zoom-step="-1"]');
   const plus=document.querySelector('[data-lp-zoom-step="1"]');
   if(minus)minus.disabled=_lpUserZoom<=F_LP_ZOOM_MIN+.001;
@@ -1376,6 +2539,7 @@ function _fLpApplyUserView(){
   wrap.style.transformOrigin = 'center center';
   wrap.style.transform = `translate(${_lpPanX}px, ${_lpPanY}px) scale(${_lpUserZoom})`;
   _fLpUpdateZoomLabel();
+  try{ _fLpPosBalao(); }catch(e){}
 }
 
 /* Com o Auto-zoom fora, o canvas nunca mais recebe transform próprio — a mesa inteira é quem
@@ -1471,13 +2635,21 @@ function fLpZoomStep(dir){
   _fLpZoomAround(next, r.left + r.width / 2, r.top + r.height / 2);
 }
 // Slider: o mesmo motor da roda/pinça, centrado na mesa para não fazer a arte "saltar".
+// O slider saiu da barra (redesign 09/2026); mantida sem chamador — f* não regride.
 function fLpZoomSlider(value){
   const stage=document.querySelector('.lp-stage'); if(!stage)return;
   const r=stage.getBoundingClientRect();
   _fLpZoomAround(_fLpSliderToZoom(value),r.left+r.width/2,r.top+r.height/2);
 }
-// Clicar no % recentraliza e volta ao ajuste de tela.
+// Clicar no % recentraliza e volta ao ajuste de tela. O % saiu da barra (redesign 09/2026);
+// mantida sem chamador — f* não regride.
 function fLpZoomReset(){ fLpRefit(); }
+// "Tamanho real": 100% da arte final (ajuste × zoom = 1), pelo mesmo motor da roda e do −/+.
+function fLpZoomReal(){
+  const stage=document.querySelector('.lp-stage'); if(!stage||!_lpScale)return;
+  const r=stage.getBoundingClientRect();
+  _fLpZoomAround(1/_lpScale,r.left+r.width/2,r.top+r.height/2);
+}
 
 // Liga/desliga as guias de composição (margens de segurança + terços + centro).
 // Sobreposição da prévia: 'off' | 'guides' | 'env'. Substitui o antigo liga/desliga de
@@ -1608,6 +2780,13 @@ function _fLpRoundRect(ctx, x, y, w, h, r){
 function fLpShowEmpty(canvas){
   const stage = canvas.closest('.lp-stage') || document.querySelector('.lp-stage');
   if(stage) stage.classList.add('empty');
+  _fLpMontando(stage, false); // render que falhou não pode deixar o esqueleto (nem o timer) vivo
+  /* Sem arte não há bloqueio nem solução. O balão mora no `.lp-stage` (o `.empty` só esconde o
+     `.lp-canvas-wrap`) e ficava por cima do vazio, clicável: voltar às boas-vindas ou tirar o
+     material e tocar nele escrevia a sugestão da arte anterior no `fState.dados` novo. E com
+     `_lpEffectiveMaterial` e `fState.material` ambos null, `fLpBalaoSolucao` seguia valendo. */
+  _lpLayoutResult=null; _lpDadosRender=null; _lpBalao=null; _fLpBalaoTira();
+  try{ if(typeof fFitSync==='function') fFitSync(); }catch(e){}
   const t = document.getElementById('lp-empty-title');
   const s = document.getElementById('lp-empty-sub');
   if(t && s){
@@ -1696,7 +2875,10 @@ function fLpInjectPlaceholders(layers, dadosPreview, defaults){
         }
         if(!ex){
           // 3ª Linha de Defesa: Rótulos amigáveis ou o nome puro da variável
-          ex = (vDef && vDef.label) || F_FIELD_LABELS[name] || name;
+          // ⛔ O `|| name` desenhava `precoPor` DENTRO da arte. Motor único do nome visível.
+          ex = (typeof gFieldLabel==='function')
+            ? gFieldLabel(name, (fState.camp&&fState.camp.perguntas||[]).find(p=>p&&p.id===name))
+            : ((vDef && vDef.label) || F_FIELD_LABELS[name] || 'Campo');
         }
         dadosPreview[name] = ex;
       }
@@ -2046,7 +3228,8 @@ function _fLpVisualRect(l){
   if(l.type==='text'&&l._fit&&typeof gInkRect==='function')return gInkRect(l,l._fit);
   const dx=l.type==='text'?(l._layoutDx||0):0;
   const w=l.type==='text'&&l._layoutW!=null?l._layoutW:(l.w||0);
-  return{x:(l.x||0)+dx,y:l.y||0,w,h:l.h||0};
+  const h=l.type==='text'&&l._layoutH!=null?Math.max(l.h||0,l._layoutH):(l.h||0);
+  return{x:(l.x||0)+dx,y:l.y||0,w,h};
 }
 /* `cvAlvo`: idem. Note que este teste lê `fState.material` — e isso está certo para os
    dois, porque o Sheets trabalha no MESMO material do chat; o que difere entre eles é só
@@ -2070,7 +3253,7 @@ function _fLpLayerAt(x,y,cvAlvo){
   }
   for(let i=layers.length-1;i>=0;i--){
     const l=layers[i];
-    if(!l||l.visible===false||!_fLpLayerVars(l).length) continue;
+    if(!l||l.visible===false||(_fLpDesignActive()?l.type!=='text':!_fLpLayerVars(l).length)) continue;
     const vr=_fLpVisualRect(l);
     const lx=vr.x,ly=vr.y,lw=vr.w,lh=vr.h;
     if(!(x>=lx&&x<=lx+lw&&y>=ly&&y<=ly+lh)) continue;
@@ -2106,12 +3289,18 @@ function _fLpCommit(v,val,opts){
      desta arte; sem este aviso, mudar o preço clicando na peça deixava a linha "Preço" com o
      valor velho a 200px de distância. `fRevisaoRepinta` não faz nada fora da revisão. */
   try{ if(typeof fRevisaoRepinta==='function') fRevisaoRepinta(); }catch(e){}
+  // E no chat: a caixa da pergunta aberta e a frase de contexto (ver fChatSincronizaCampo).
+  try{ if(typeof fChatSincronizaCampo==='function') fChatSincronizaCampo(v, mv); }catch(e){}
   if(antes!==undefined && String(antes)!==String(mv==null?'':mv) && typeof _fUndoRegistra==='function'){
     const rot=(typeof _fLpLabel==='function')?_fLpLabel(v):'campo';
     _fUndoRegistra('Edição de '+String(rot).toLowerCase(), ()=>{
       if(antes===''||antes==null) delete fState.dados[v]; else fState.dados[v]=antes;
       try{ if(typeof fSaveChatDraft==='function') fSaveChatDraft(); }catch(e){}
       _fLpRender();
+      // Mesma razão do commit acima: desfazer sem repintar deixava a linha da revisão com o
+      // valor que acabou de ser descartado, a 200px da arte que já voltou ao anterior.
+      try{ if(typeof fRevisaoRepinta==='function') fRevisaoRepinta(); }catch(e){}
+      try{ if(typeof fChatSincronizaCampo==='function') fChatSincronizaCampo(v, antes); }catch(e){}
     });
   }
 }
@@ -2247,7 +3436,13 @@ function _fLpImageEditor(l,v,ev){
 function _fLpUploadImage(file,v){
   const reader=new FileReader();
   reader.onload=e=>{
-    const done=(url)=>{
+    const done=async (url)=>{
+      // Mesmo portão do chat (tamanho mínimo + não-comida): "trocar imagem" era a porta dos fundos.
+      if(typeof fPortaoFoto==='function'){
+        gToast('Conferindo a foto…');
+        const motivo=await fPortaoFoto(v,url);
+        if(motivo){ gToast(motivo,'error'); return; }
+      }
       if(!fState.dados)fState.dados={};
       fState.dados[v]=url; delete fState.dados['__fit__'+v];
       try{if(typeof fSaveChatDraft==='function') fSaveChatDraft();}catch(e){}
@@ -2264,6 +3459,7 @@ function _fLpUploadImage(file,v){
       }
       _fLpCloseEditor();
     };
+    if(typeof fTrackFoto==='function') fTrackFoto(v, e.target.result, file, 'previa');
     const ehLogo=(typeof gCampoEhLogo==='function') && gCampoEhLogo(v);
     if(typeof fResizeImageIfNeeded==='function') fResizeImageIfNeeded(e.target.result,2500,done,ehLogo); else done(e.target.result);
   };
@@ -2274,18 +3470,52 @@ function _fLpUploadImage(file,v){
 let _fLpFrameDrag=null;
 let _fLpPinch=null;
 function _fLpTouchDist(e){ const a=e.touches[0], b=e.touches[1]; return Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY); }
+/* ── A IMAGEM ANDA JUNTO COM O DEDO ─────────────────────────────────────────────────────────
+   O motor desenha em `x + (w − drawW)·(0.5 + offX)`. A conta antiga (`off −= Δ/w`) só acerta
+   para FOTO em `cover` a 2×: nela `w − drawW` é negativo. LOGO é `contain` (fFrameBaseSize) e
+   sobra moldura, então `w − drawW` é POSITIVO — arrastar para baixo jogava o logo para cima e
+   ele grudava no topo, que é o "nasce bugado em cima" do teste. Dividir pela folga REAL
+   (`span`) acerta sentido e velocidade em qualquer encaixe e zoom. */
+function _fLpFrameSpan(){
+  const fr=_lpFraming;
+  if(!fr||!fr.img||typeof fFrameBaseSize!=='function') return null;
+  const l=fr.layer, w=l.w||1, h=l.h||1;
+  const b=fFrameBaseSize(l,fr.img.w,fr.img.h,w,h);
+  const f=fState.dados['__fit__'+fr.varName]||{};
+  const sc=f.scale>0?f.scale:1;
+  return {sx:w-b.baseW*sc, sy:h-b.baseH*sc};
+}
+// Offset base + deslocamento em px da ARTE → offset novo, preso ao que o motor aceita (±0.5).
+function _fLpFrameShift(ox,oy,dxArt,dyArt){
+  const l=_lpFraming.layer, sp=_fLpFrameSpan();
+  const eixo=(o,d,span,dim)=>{
+    if(span==null) return o-d/dim;       // imagem ainda sem medida: conta antiga (cover)
+    if(Math.abs(span)<0.5) return o;     // imagem do tamanho exato da moldura: não tem para onde ir
+    return o+d/span;
+  };
+  const cl=x=>Math.max(-.5,Math.min(.5,x));
+  return {offX:cl(eixo(ox,dxArt,sp&&sp.sx,l.w||1)), offY:cl(eixo(oy,dyArt,sp&&sp.sy,l.h||1))};
+}
+/* Início do arrasto. `k` (px da arte por px da tela) sai do tamanho REAL do canvas na tela,
+   não de `_lpScale`: este ignora o zoom manual da mesa, e com a mesa ampliada a foto corria
+   mais que o dedo. */
+function _fLpFrameGrab(cx,cy){
+  const cv=document.getElementById('lp-canvas');
+  const r=cv&&cv.getBoundingClientRect();
+  const k=(r&&r.width)?cv.width/r.width:1/(_lpScale||1);
+  const f=fState.dados['__fit__'+_lpFraming.varName]||{};
+  return {sx:cx,sy:cy,ox:f.offX||0,oy:f.offY||0,k};
+}
 function _fLpFrameMove(e){
   if(!_fLpFrameDrag||!_lpFraming) return;
-  const l=_lpFraming.layer, v=_lpFraming.varName;
+  const d=_fLpFrameDrag, v=_lpFraming.varName;
   const cx=(e.touches?e.touches[0].clientX:e.clientX);
   const cy=(e.touches?e.touches[0].clientY:e.clientY);
-  const dx=(cx-_fLpFrameDrag.sx)/((_lpScale||1)*(l.w||1));
-  const dy=(cy-_fLpFrameDrag.sy)/((_lpScale||1)*(l.h||1));
-  const offX=Math.max(-.5,Math.min(.5,_fLpFrameDrag.ox-dx));
-  const offY=Math.max(-.5,Math.min(.5,_fLpFrameDrag.oy-dy));
+  const o=_fLpFrameShift(d.ox,d.oy,(cx-d.sx)*d.k,(cy-d.sy)*d.k);
   const f=fState.dados['__fit__'+v]||{scale:1};
-  fState.dados['__fit__'+v]={scale:f.scale||1,offX,offY};
+  fState.dados['__fit__'+v]={scale:f.scale||1,offX:o.offX,offY:o.offY};
   _fLpRender();
+  _fLpUpdateFramingHUD();
 }
 function _fLpFrameUp(){
   _fLpFrameDrag=null;
@@ -2298,24 +3528,24 @@ function _fLpFrameKey(e){
   // era um jeito de confirmar sem querer.
   if(e.key==='Escape'){ e.preventDefault(); fLpCancelFraming(); return; }
   if(e.key==='Enter'){ e.preventDefault(); fLpStopFraming(); return; }
-  const v=_lpFraming.varName;
+  const v=_lpFraming.varName, l=_lpFraming.layer;
   const f=fState.dados['__fit__'+v]||{scale:1,offX:0,offY:0};
   let changed=false;
-  if(e.key==='ArrowLeft'){ f.offX=Math.min(.5,(f.offX||0)+0.02); changed=true; }
-  else if(e.key==='ArrowRight'){ f.offX=Math.max(-.5,(f.offX||0)-0.02); changed=true; }
-  else if(e.key==='ArrowUp'){ f.offY=Math.min(.5,(f.offY||0)+0.02); changed=true; }
-  else if(e.key==='ArrowDown'){ f.offY=Math.max(-.5,(f.offY||0)-0.02); changed=true; }
+  // Seta move a IMAGEM para o lado da seta, 2% da moldura por toque — mesma conta do arrasto.
+  const passo={ArrowLeft:[-.02*(l.w||1),0],ArrowRight:[.02*(l.w||1),0],
+    ArrowUp:[0,-.02*(l.h||1)],ArrowDown:[0,.02*(l.h||1)]}[e.key];
+  if(passo){ Object.assign(f,_fLpFrameShift(f.offX||0,f.offY||0,passo[0],passo[1])); changed=true; }
   else if(e.key==='+'||e.key==='='){
-    const sc=Math.min(3.5,(f.scale||1)+0.1);
+    const sc=Math.min(3.5,Math.round(((f.scale||1)+0.1)*100)/100);
     f.scale=sc; changed=true;
     _fLpUpdateFramingHUD();
   }
   else if(e.key==='-'||e.key==='_'){
-    const sc=Math.max(1,(f.scale||1)-0.1);
+    const sc=Math.max(1,Math.round(((f.scale||1)-0.1)*100)/100);
     f.scale=sc; changed=true;
     _fLpUpdateFramingHUD();
   }
-  if(changed){ e.preventDefault(); fState.dados['__fit__'+v]=f; _fLpRender(); }
+  if(changed){ e.preventDefault(); fState.dados['__fit__'+v]=f; _fLpRender(); _fLpUpdateFramingHUD(); }
 }
 function _fLpUpdateFramingHUD(){
   if(!_lpFraming) return;
@@ -2328,26 +3558,39 @@ function _fLpUpdateFramingHUD(){
   if(pct) pct.textContent=Math.round(sc*100)+'%';
   /* "Desfazer ajuste" só existe quando HÁ ajuste. Botão que não faz nada ensina a ignorar
      botão — e aqui ele compete por espaço com Cancelar e Aplicar, que sempre valem. */
-  const l=_lpFraming.layer||{};
-  const mexido=Math.abs(sc-(l.imgScale||1))>0.005
-    ||Math.abs((f.offX||0)-(l.imgOffsetX||0))>0.005
-    ||Math.abs((f.offY||0)-(l.imgOffsetY||0))>0.005;
+  const p=fFrameFitPadrao(_lpFraming.layer||{},fState.dados);
+  const mexido=Math.abs(sc-p.scale)>0.005
+    ||Math.abs((f.offX||0)-p.offX)>0.005
+    ||Math.abs((f.offY||0)-p.offY)>0.005;
   const btnReset=document.getElementById('lp-frame-reset');
   if(btnReset) btnReset.hidden=!mexido;
 }
 function fLpStartFraming(l,v){
   const canvas=document.getElementById('lp-canvas'); const wrap=canvas&&canvas.closest('.lp-canvas-wrap'); if(!wrap) return;
   document.getElementById('lp-frame-hud')?.remove();
-  const init=(fState.dados&&fState.dados['__fit__'+v])||{scale:(l.imgScale||1),offX:(l.imgOffsetX||0),offY:(l.imgOffsetY||0)};
+  const init=(fState.dados&&fState.dados['__fit__'+v])||fFrameFitPadrao(l,fState.dados);
   /* SNAPSHOT DO QUE EXISTIA AO ABRIR — é isto, e só isto, que o "Cancelar" devolve. O modo não
      tinha saída de descarte: "Concluir" gravava e Esc fazia a MESMA coisa que Concluir, então
      quem entrava por curiosidade saía com a foto deslocada e sem como voltar. Cancelar não
      reinicia o fluxo, não apaga o upload e não mexe em nenhum outro campo: restaura o
      `__fit__<campo>` ao valor que ele tinha neste instante. `tinha` distingue "não havia
      enquadramento" de "havia um zerado" — sem isso, cancelar deixaria um objeto onde não havia. */
-  _lpFraming={layer:l,varName:v,
-    snap:{scale:init.scale||1,offX:init.offX||0,offY:init.offY||0},
-    tinha:!!(fState.dados&&fState.dados['__fit__'+v])};
+  /* Reabrir o MESMO campo com o modo já aberto (segundo clique na arte) mantém o snapshot de
+     quando ele abriu de verdade — senão o Cancelar passaria a devolver o meio do ajuste. */
+  const jaAberto=_lpFraming&&_lpFraming.varName===v?_lpFraming:null;
+  _lpFraming={layer:l,varName:v,img:jaAberto&&jaAberto.img,
+    snap:jaAberto?jaAberto.snap:{scale:init.scale||1,offX:init.offX||0,offY:init.offY||0},
+    tinha:jaAberto?jaAberto.tinha:!!(fState.dados&&fState.dados['__fit__'+v])};
+  /* Tamanho natural da imagem, para o arrasto saber a folga real (_fLpFrameSpan). Mesma fonte
+     que o render usa; já está no cache dele, então resolve na hora. Até resolver, o arrasto
+     usa a conta antiga — nunca trava. */
+  const _src=(typeof fState.dados[v]==='string'&&/^(data:image|blob:|https?:\/\/)/.test(fState.dados[v]))
+    ?fState.dados[v]:(l.imgUrl&&l.imgUrl!=='__local__'?l.imgUrl:null);
+  if(_src&&typeof fLoadImageDataUrl==='function'){
+    fLoadImageDataUrl(_src).then(img=>{
+      if(img&&img.width&&_lpFraming&&_lpFraming.varName===v) _lpFraming.img={w:img.width,h:img.height};
+    }).catch(()=>{});
+  }
   fState.dados['__fit__'+v]={scale:init.scale||1,offX:init.offX||0,offY:init.offY||0};
   _fLpRender();
 
@@ -2379,7 +3622,9 @@ function fLpStartFraming(l,v){
         <div class="lp-crop-line v2"></div>
       </div>
     </div>
-    <div class="lp-frame-hud">
+    <div class="lp-frame-hud" id="lp-frame-hud">
+      <span class="lp-frame-hud-title">Ajustar foto</span>
+      <span class="lp-frame-hud-hint">Arraste para mover · pinça para zoom</span>
       <div class="lp-frame-hud-group">
         <button class="lp-frame-hud-btn" id="lp-frame-zoom-out" type="button" title="Diminuir zoom (-)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -2415,6 +3660,7 @@ function fLpStartFraming(l,v){
     if(slider) slider.value=sc;
     if(pctLabel) pctLabel.textContent=Math.round(sc*100)+'%';
     _fLpRender();
+    _fLpUpdateFramingHUD();
   };
 
   if(slider) slider.oninput=(e)=>updateScale(parseFloat(e.target.value));
@@ -2427,6 +3673,7 @@ function fLpStartFraming(l,v){
     const f=fState.dados['__fit__'+v]||{scale:1};
     fState.dados['__fit__'+v]={scale:f.scale||1,offX:0,offY:0};
     _fLpRender();
+    _fLpUpdateFramingHUD();
   };
   ov.querySelector('#lp-frame-reset').onclick=()=>{
     fLpResetFraming();
@@ -2455,18 +3702,19 @@ function fLpStartFraming(l,v){
   }
 
   ov.onmousedown=(e)=>{
-    if(e.target.closest('.lp-frame-hud')) return;
+    if(e.target.closest('.lp-frame-hud')||e.button!==0) return;
     e.preventDefault();
     ov.classList.add('is-dragging');
-    const f=fState.dados['__fit__'+v]||{};
-    _fLpFrameDrag={sx:e.clientX,sy:e.clientY,ox:f.offX||0,oy:f.offY||0};
+    _fLpFrameDrag=_fLpFrameGrab(e.clientX,e.clientY);
   };
 
+  /* Zoom proporcional ao giro: o passo fixo de 8% por evento fazia o trackpad (dezenas de
+     eventos pequenos por gesto) saltar de 100% a 350% num deslize. Linha (deltaMode 1) vira px. */
   ov.onwheel=(e)=>{
     e.preventDefault();
     const f=fState.dados['__fit__'+v]||{scale:1,offX:0,offY:0};
-    const delta=e.deltaY>0?-0.08:0.08;
-    updateScale((f.scale||1)+delta);
+    const dy=Math.max(-120,Math.min(120,e.deltaY*(e.deltaMode===1?33:1)));
+    updateScale((f.scale||1)*Math.exp(-dy*0.0015));
   };
 
   ov.ontouchstart=(e)=>{
@@ -2476,7 +3724,7 @@ function fLpStartFraming(l,v){
       _fLpPinch={d:_fLpTouchDist(e),sc:f.scale||1};
       _fLpFrameDrag=null;
     } else {
-      _fLpFrameDrag={sx:e.touches[0].clientX,sy:e.touches[0].clientY,ox:f.offX||0,oy:f.offY||0};
+      _fLpFrameDrag=_fLpFrameGrab(e.touches[0].clientX,e.touches[0].clientY);
     }
   };
 
@@ -2487,19 +3735,17 @@ function fLpStartFraming(l,v){
       const nd=_fLpTouchDist(e);
       updateScale(_fLpPinch.sc*(nd/(_fLpPinch.d||1)));
     } else if(_fLpFrameDrag){
-      const dx=(e.touches[0].clientX-_fLpFrameDrag.sx)/((_lpScale||1)*(l.w||1));
-      const dy=(e.touches[0].clientY-_fLpFrameDrag.sy)/((_lpScale||1)*(l.h||1));
-      const f=fState.dados['__fit__'+v]||{scale:1};
-      fState.dados['__fit__'+v]={
-        scale:f.scale||1,
-        offX:Math.max(-.5,Math.min(.5,_fLpFrameDrag.ox-dx)),
-        offY:Math.max(-.5,Math.min(.5,_fLpFrameDrag.oy-dy))
-      };
-      _fLpRender();
+      _fLpFrameMove(e);
     }
   };
 
   ov.ontouchend=(e)=>{
+    // Soltou um dedo da pinça: o que ficou continua arrastando, sem precisar tirar e pôr de novo.
+    if(e.touches.length===1&&_fLpPinch){
+      _fLpPinch=null;
+      _fLpFrameDrag=_fLpFrameGrab(e.touches[0].clientX,e.touches[0].clientY);
+      return;
+    }
     if(!e.touches.length){
       _fLpFrameDrag=null;
       _fLpPinch=null;
@@ -2510,6 +3756,19 @@ function fLpStartFraming(l,v){
   window.addEventListener('mousemove',_fLpFrameMove);
   window.addEventListener('mouseup',_fLpFrameUp);
   window.addEventListener('keydown',_fLpFrameKey);
+
+  /* CELULAR: modo próprio de tela cheia (proposta A, 23/09/2026). A barra que morava dentro
+     da arte estourava a largura (o Aplicar ficava fora da tela) e a prévia seguia com
+     cabeçalho, dicas e Baixar PNG em volta. Aqui a HUD sai da arte para o body (fica fixa,
+     fora do zoom da mesa), o body ganha `.lp-framing` (o CSS apaga o resto e escurece) e a
+     arte reencaixa no palco novo. A HUD já foi tirada da arte logo acima (irmã do palco, com estilo inline para o desktop);
+     aqui o inline sai e ela vai para o body. As ligações já foram feitas: mover o nó não as perde. */
+  if(window.matchMedia && matchMedia('(max-width:680px)').matches){
+    const hud=document.getElementById('lp-frame-hud');   // já saiu da arte (irmão do palco, acima)
+    if(hud){ hud.removeAttribute('style'); hud.querySelectorAll('.lp-frame-hud-divider').forEach(el=>el.removeAttribute('style')); document.body.appendChild(hud); }
+    document.body.classList.add('lp-framing');
+    requestAnimationFrame(()=>{ try{ fLpRefit(); }catch(e){} });
+  }
 }
 /* ── ENQUADRAR SEM CAÇAR O CLIQUE NA ARTE ────────────────────────────────────────────────
    O teste de usabilidade foi direto: ninguém descobriu que dá pra reposicionar a foto, porque
@@ -2529,7 +3788,11 @@ function fLpFrameVar(v){
   return true;
 }
 /* Ponte para o chat: no celular a prévia mora numa gaveta, então abrir o enquadramento sem
-   abrir a gaveta deixaria a pessoa mexendo numa foto que ela não vê. */
+   abrir a gaveta deixaria a pessoa mexendo numa foto que ela não vê.
+   ⚠ O botão que chama isto PRECISA de `event.stopPropagation()` (está no onclick do
+   `_fUploadPreviewHTML`): sem ele o "clicou fora da gaveta → fecha" do documento
+   (fInitMobilePreviewEvents) fechava a gaveta no MESMO toque que a abriu — o Ajustar do
+   celular não fazia nada (23/09/2026). Mesma armadilha do cartão da arte, logo acima. */
 function fAjustarFoto(v){
   try{ if(typeof _fLpAbrirGaveta==='function' && window.matchMedia && matchMedia('(max-width:680px)').matches) _fLpAbrirGaveta(); }catch(e){}
   if(!fLpFrameVar(v) && typeof gToast==='function') gToast('Esta foto não pode ser reposicionada nesta arte.');
@@ -2538,7 +3801,7 @@ function fAjustarFoto(v){
 function fLpResetFraming(){
   if(!_lpFraming) return;
   const l=_lpFraming.layer, v=_lpFraming.varName;
-  fState.dados['__fit__'+v]={scale:(l.imgScale||1),offX:(l.imgOffsetX||0),offY:(l.imgOffsetY||0)};
+  fState.dados['__fit__'+v]=fFrameFitPadrao(l,fState.dados);
   _fLpFrameDrag=null; _fLpPinch=null;
   try{if(typeof fSaveChatDraft==='function') fSaveChatDraft();}catch(e){}
   _fLpRender();
@@ -2551,12 +3814,26 @@ function fLpResetFraming(){
 function fLpCancelFraming(){
   if(!_lpFraming){ return; }
   const v=_lpFraming.varName, snap=_lpFraming.snap, tinha=_lpFraming.tinha;
+  _fLpTrackFraming('cancelar');   // antes de restaurar: depois dele "mexeu" seria sempre falso
+  _lpFraming._rastreado=true;
   if(tinha && snap) fState.dados['__fit__'+v]={scale:snap.scale,offX:snap.offX,offY:snap.offY};
   else delete fState.dados['__fit__'+v];   // não havia enquadramento → volta a não haver
   fLpStopFraming();
   if(typeof gToast==='function') gToast('Ajuste descartado');
 }
+// A mesma conta de "mudou" do Desfazer abaixo: o enquadramento atual difere do de quando abriu.
+function _fLpFramingMexeu(){
+  const fr=_lpFraming; if(!fr) return false;
+  const agora=fState.dados&&fState.dados['__fit__'+fr.varName], snap=fr.snap;
+  return !agora||!snap||Math.abs((agora.scale||1)-(snap.scale||1))>0.005
+    ||Math.abs((agora.offX||0)-(snap.offX||0))>0.005||Math.abs((agora.offY||0)-(snap.offY||0))>0.005;
+}
+function _fLpTrackFraming(acao){
+  try{ if(typeof gTrackEvent==='function'&&_lpFraming&&!_lpFraming._rastreado)
+    gTrackEvent('enquadramento_ajustado',{campo:_lpFraming.varName, acao, mexeu:_fLpFramingMexeu()}); }catch(e){}
+}
 function fLpStopFraming(){
+  _fLpTrackFraming('aplicar');
   /* APLICAR também deixa saída. Cancelar cobre "desisti enquanto mexia"; isto cobre
      "apliquei e me arrependi", que é o caso que o teste pegou. Registra no MESMO slot único
      do franqueado (`_fUndoRegistra`, chat.js) — não é um segundo histórico, e o enquadramento
@@ -2581,6 +3858,10 @@ function fLpStopFraming(){
   _fLpFrameDrag=null; _fLpPinch=null; _lpFraming=null;
   const ov=document.getElementById('lp-frame-ov'); if(ov) ov.remove();
   document.getElementById('lp-frame-hud')?.remove();
+  if(document.body.classList.contains('lp-framing')){
+    document.body.classList.remove('lp-framing');
+    requestAnimationFrame(()=>{ try{ fLpRefit(); }catch(e){} });   // palco voltou ao tamanho da gaveta
+  }
   try{if(typeof fSaveChatDraft==='function') fSaveChatDraft();}catch(e){}
   _fLpRender();
 }
@@ -2593,14 +3874,428 @@ function _fLpVarChooser(l,vars,ev){
   p.querySelectorAll('[data-v]').forEach(b=>{ b.onclick=()=>{ const v=b.getAttribute('data-v'); const perm=_fLpPerm(v); if(!perm.editable){ _fLpLockToast(v); return; } _fLpTextEditor(v,perm.maxLen,ev); }; });
 }
 
+// Ajuste rápido do template publicado. O rascunho nunca entra em fState.dados nem no histórico.
+let _fLpDesignDraft=null;
+let _fLpDesignOpening=false;
+let _fLpDesignUnstored={};
+function _fLpDesignOwner(){return fUserCacheKey('luma_mini_editor');}
+function _fLpDesignCacheKey(d){return d.owner+':'+encodeURIComponent(d.remoteId);}
+function _fLpDesignStatus(d){
+  const el=document.getElementById('lp-design-status');
+  if(!el||d!==_fLpDesignDraft)return;
+  const changed=JSON.stringify(d.layers)!==d.base;
+  let stored=false;
+  try{stored=JSON.stringify(JSON.parse(localStorage.getItem(_fLpDesignCacheKey(d))||'null')?.layers)===JSON.stringify(d.layers);}catch(e){}
+  const unguarded=!!d.cacheWarning||(changed&&!stored);
+  el.textContent=unguarded?'Não guardado · mantenha esta página aberta':changed?'Rascunho guardado neste navegador':'Sem alterações';
+  el.classList.toggle('lp-design-status-error',unguarded);
+}
+function _fLpDesignStore(d){
+  if(!d)return false;
+  const key=_fLpDesignCacheKey(d);
+  try{
+    const layers=JSON.stringify(d.layers);
+    if(layers===d.base){localStorage.removeItem(key);delete _fLpDesignUnstored[key];d.cacheWarning=false;_fLpDesignStatus(d);return true;}
+    const value=JSON.stringify({owner:d.owner,remoteId:d.remoteId,stamp:d.stamp,base:d.base,layers:d.layers,selected:d.selected});
+    // O snapshot de undo agrupa teclas; a recuperação precisa guardar TODAS as teclas.
+    _fLpDesignUnstored[key]=value;
+    localStorage.setItem(key,value);delete _fLpDesignUnstored[key];d.cacheWarning=false;_fLpDesignStatus(d);return true;
+  }catch(e){
+    if(!d.cacheWarning){gToast('Não consegui guardar os ajustes neste navegador. Publique antes de fechar a página.','error');d.cacheWarning=true;}
+    _fLpDesignStatus(d);
+    return false;
+  }
+}
+function _fLpDesignForget(d){
+  if(!d)return;
+  const key=_fLpDesignCacheKey(d);
+  try{localStorage.removeItem(key);delete _fLpDesignUnstored[key];}catch(e){gToast('Não consegui remover o rascunho deste navegador.','error');}
+}
+function _fLpDesignRead(owner,remoteId){
+  const key=_fLpDesignCacheKey({owner,remoteId});
+  try{
+    const value=JSON.parse(_fLpDesignUnstored[key]||localStorage.getItem(key)||'null');
+    if(value?.owner===owner&&value.remoteId===remoteId&&value.stamp&&typeof value.base==='string'&&Array.isArray(value.layers)&&Array.isArray(JSON.parse(value.base)))return value;
+  }catch(e){}
+  return null;
+}
+function _fLpDesignBeforeUnload(e){
+  if(_fLpDesignDraft)_fLpDesignStore(_fLpDesignDraft);
+  if(!Object.keys(_fLpDesignUnstored).length)return;
+  e.preventDefault();e.returnValue='';
+}
+window.addEventListener('beforeunload',_fLpDesignBeforeUnload);
+function _fLpDesignAllowed(){
+  const m=fState.material;
+  return !!(typeof gIsAdmin==='function'&&gIsAdmin()&&m&&m.remoteId&&m.publishMeta?.publicado&&!m._versaoAntiga&&!m._syncPending);
+}
+function _fLpDesignActive(){
+  return !!(_fLpDesignDraft&&_fLpDesignDraft.owner===_fLpDesignOwner()&&_fLpDesignAllowed()&&_fLpDesignDraft.id===fState.material.id);
+}
+function _fLpDesignRenderLayers(){
+  return _fLpDesignDraft.showOriginal?JSON.parse(_fLpDesignDraft.base):_fLpDesignDraft.layers;
+}
+function fLpDesignCompare(original){
+  if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDrag) return;
+  document.activeElement?.blur();_fLpDesignDraft.showOriginal=!!original;
+  const cv=document.getElementById('lp-canvas');if(cv)cv.style.cursor=original?'default':'move';
+  _fLpHideHover();_fLpDesignSync();_fLpRender();
+}
+function _fLpDesignSync(){
+  if(_fLpDesignDraft&&!_fLpDesignActive()){
+    _fLpDesignStore(_fLpDesignDraft);
+    _fLpDesignDraft=null; _fLpCloseEditor();
+  }
+  const active=_fLpDesignActive(), busy=_fLpDesignOpening||!!_fLpDesignDraft?.saving;
+  const start=document.getElementById('lp-design-start');
+  const tools=document.getElementById('lp-design-tools');
+  if(start){
+    start.hidden=!_fLpDesignAllowed()||active;start.disabled=busy;
+    start.textContent=_fLpDesignOpening?'Abrindo edição…':'Modo editar';
+    start.setAttribute('aria-busy',String(_fLpDesignOpening));
+  }
+  if(tools){tools.hidden=!active;tools.querySelectorAll('button').forEach(b=>b.disabled=busy);}
+  const save=document.getElementById('lp-design-save');
+  if(save) save.textContent=_fLpDesignDraft?.saving?'Publicando…':'Salvar e publicar';
+  const panel=document.getElementById('f-live-preview');
+  if(panel) panel.classList.toggle('lp-design-editing',active);
+  _fLpDesignMount(active);
+  const undo=document.getElementById('lp-design-undo'),redo=document.getElementById('lp-design-redo');
+  if(undo) undo.disabled=busy||!_fLpDesignDraft?.undo?.length;
+  if(redo) redo.disabled=busy||!_fLpDesignDraft?.redo?.length;
+  const original=active&&!!_fLpDesignDraft.showOriginal;
+  if(save)save.disabled=busy||original;
+  for(const [id,on] of [['lp-design-before',original],['lp-design-after',!original]]){
+    const b=document.getElementById(id);if(b)b.setAttribute('aria-pressed',String(on));
+  }
+  document.getElementById('lp-design-properties')?.querySelectorAll('input,textarea,select,button').forEach(b=>{
+    if(original||busy)b.disabled=true;
+    else if(b.id!=='lp-design-undo'&&b.id!=='lp-design-redo')b.disabled=false;
+  });
+  if(panel)panel.classList.toggle('lp-design-original',original);
+  if(active)_fLpDesignStatus(_fLpDesignDraft);
+}
+async function fLpDesignStart(){
+  if(!_fLpDesignAllowed()||_fLpDesignOpening||_fLpDesignDraft) return;
+  const m=fState.material, id=m.id, remoteId=m.remoteId,owner=_fLpDesignOwner();
+  // Sair do Estúdio mantém dActiveTmplId por desenho (main.js). Esse ID sozinho não
+  // representa edição em andamento: só protegemos trabalho realmente não salvo.
+  if(typeof dActiveTmplId!=='undefined'&&dActiveTmplId===id&&typeof dDirty!=='undefined'&&dDirty){
+    gToast('Este material tem alterações não salvas no Estúdio. Salve-as antes de editar na prévia.','error');return;
+  }
+  const sb=typeof gSupabase==='function'?gSupabase():window.sb;
+  if(!sb){gToast('Conecte sua conta para editar o material da rede.','error');return;}
+  _fLpDesignOpening=true;_fLpDesignSync();
+  try{
+    const {data,error}=await sb.schema('luma').from('templates').select('id,layers,updated_at,versao_atual_id,publicado').eq('id',remoteId).single();
+    if(error||!data?.publicado||!data.updated_at||!Array.isArray(data.layers)) throw new Error('Não foi possível carregar a versão publicada.');
+    if(!_fLpDesignAllowed()||fState.material.id!==id||_fLpDesignOwner()!==owner) return;
+    if(m.versaoAtualId&&m.versaoAtualId!==data.versao_atual_id) throw new Error('Este material recebeu uma nova versão. Reabra pelo catálogo antes de editar.');
+    const saved=_fLpDesignRead(owner,remoteId);
+    if(saved){
+      const conflict=saved.stamp!==data.updated_at||saved.base!==JSON.stringify(data.layers);
+      const resume=await gConfirm(conflict?'Há ajustes guardados, mas este material recebeu outra versão. Preserve este rascunho e reabra depois, ou descarte os ajustes para editar a versão atual.':'Há ajustes não publicados guardados neste navegador. Quer retomá-los?',
+        {title:conflict?'Material atualizado':'Retomar ajustes',okLabel:conflict?'Preservar rascunho':'Retomar',cancelLabel:'Voltar',altLabel:'Descartar ajustes'});
+      if(!_fLpDesignAllowed()||fState.material.id!==id||_fLpDesignOwner()!==owner)return;
+      if(resume===false||(conflict&&resume!=='alt'))return;
+      if(resume==='alt')_fLpDesignForget(saved);
+      if(resume===true&&!conflict){
+        _fLpDesignDraft={id,remoteId,owner,stamp:saved.stamp,base:saved.base,layers:saved.layers,saving:false,undo:[],redo:[],selected:saved.selected,showOriginal:false};
+      }
+    }
+    _fLpCloseEditor();if(_lpFraming) fLpCancelFraming();
+    if(!_fLpDesignDraft)_fLpDesignDraft={id,remoteId,owner,stamp:data.updated_at,base:JSON.stringify(data.layers),layers:JSON.parse(JSON.stringify(data.layers)),saving:false,undo:[],redo:[],selected:null,showOriginal:false};
+    _fLpSuspenderConclusao();
+    _fLpDesignSync();_fLpRender();
+    const first=_fLpDesignDraft.layers.find(l=>l.type==='text'&&l.visible!==false);
+    if(first) _fLpDesignEditor(_fLpDesignDraft.selected||first.id);
+    gToast('Clique em um texto da arte para ajustar. As mudanças serão publicadas para a rede ao salvar.');
+  }catch(e){gToast(e.message||'Não foi possível iniciar a edição.','error');}
+  finally{_fLpDesignOpening=false;_fLpDesignSync();}
+}
+function fLpDesignCancel(){
+  if(_fLpDesignDraft?.saving) return;
+  _fLpDesignForget(_fLpDesignDraft);
+  _fLpDesignDraft=null;_fLpCloseEditor();_fLpHideHover();_fLpDesignSync();_fLpRender();_fLpRetomarConclusao();
+}
+function _fLpDesignMount(active){
+  const panel=document.getElementById('f-live-preview'),stage=panel?.querySelector('.lp-stage');
+  if(!panel||!stage) return;
+  let row=document.getElementById('lp-design-workspace');
+  if(active&&!row){
+    row=document.createElement('div');row.id='lp-design-workspace';
+    stage.before(row);row.appendChild(stage);
+    const props=document.createElement('section');props.id='lp-design-properties';props.setAttribute('aria-label','Propriedades do texto');row.appendChild(props);
+    const cv=document.getElementById('lp-canvas');if(cv){row._tabIndex=cv.getAttribute('tabindex');cv.setAttribute('tabindex','0');}
+    requestAnimationFrame(()=>{if(_fLpDesignActive()) fLpRefit();});
+  }else if(!active&&row){
+    if(_fLpDesignDrag) _fLpDesignDrag.stop(true);
+    const cv=document.getElementById('lp-canvas');
+    if(cv){if(row._tabIndex==null) cv.removeAttribute('tabindex');else cv.setAttribute('tabindex',row._tabIndex);}
+    row.before(stage);row.remove();document.getElementById('lp-design-selection')?.remove();document.getElementById('lp-design-handles')?.remove();
+    requestAnimationFrame(()=>{if(!_fLpDesignActive()) fLpRefit();});
+  }
+}
+function _fLpDesignRemember(before){
+  const d=_fLpDesignDraft;if(!d||d.saving||before===JSON.stringify(d.layers)) return;
+  d.undo.push(before);if(d.undo.length>30) d.undo.shift();d.redo=[];_fLpDesignSync();
+  _fLpDesignStore(d);
+}
+function fLpDesignUndo(redo){
+  if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal) return;
+  document.activeElement?.blur();
+  const d=_fLpDesignDraft,from=redo?d.redo:d.undo,to=redo?d.undo:d.redo;
+  if(!from.length) return;
+  to.push(JSON.stringify(d.layers));d.layers=JSON.parse(from.pop());
+  _fLpDesignStore(d);
+  _fLpDesignSync();if(d.selected) _fLpDesignEditor(d.selected,{});document.getElementById('lp-canvas')?.focus({preventScroll:true});_fLpRender();
+}
+function _fLpDesignPaintSelection(){
+  const cv=document.getElementById('lp-canvas'),wrap=cv?.closest('.lp-canvas-wrap');
+  let ov=document.getElementById('lp-design-selection');
+  if(!_fLpDesignActive()||_fLpDesignDraft.showOriginal||!wrap){if(ov) ov.remove();document.getElementById('lp-design-handles')?.remove();return;}
+  if(!ov){ov=document.createElement('canvas');ov.id='lp-design-selection';ov.setAttribute('aria-hidden','true');wrap.appendChild(ov);}
+  ov.width=cv.width;ov.height=cv.height;ov.style.width=cv.style.width;ov.style.height=cv.style.height;
+  const l=_lpEffectiveLayers.find(x=>x.id===_fLpDesignDraft.selected),r=l&&{x:l.x||0,y:l.y||0,w:l.w||1,h:l.h||1};
+  if(!r) return;
+  const ctx=ov.getContext('2d'),scale=cv.width/Math.max(1,cv.getBoundingClientRect().width);
+  const tokens=getComputedStyle(wrap);
+  // Duas tintas mantêm o contorno legível também em artes com fundo laranja.
+  ctx.strokeStyle=tokens.getPropertyValue('--on-accent').trim();ctx.lineWidth=4*scale;
+  ctx.strokeRect(r.x-3*scale,r.y-3*scale,r.w+6*scale,r.h+6*scale);
+  ctx.strokeStyle=tokens.getPropertyValue('--dm-orange-d').trim();ctx.lineWidth=2*scale;
+  ctx.strokeRect(r.x-3*scale,r.y-3*scale,r.w+6*scale,r.h+6*scale);
+  let handles=document.getElementById('lp-design-handles');
+  if(!handles){
+    handles=document.createElement('div');handles.id='lp-design-handles';wrap.appendChild(handles);
+    for(const [edge,label] of [['left','esquerda'],['right','direita'],['top','superior'],['bottom','inferior']]){
+      const b=document.createElement('button');b.type='button';b.dataset.edge=edge;
+      b.setAttribute('aria-label','Redimensionar borda '+label);b.title='Arraste para redimensionar · setas para ajuste fino';
+      b.onpointerdown=_fLpDesignPointerDown;
+      b.onkeydown=e=>{
+        if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal)return;
+        const n=(e.shiftKey?10:1)*({ArrowLeft:-1,ArrowRight:1,ArrowUp:-1,ArrowDown:1}[e.key]||0);if(!n)return;
+        e.preventDefault();e.stopPropagation();const d=_fLpDesignDraft,layer=d.layers.find(x=>x.id===d.selected),before=JSON.stringify(d.layers);
+        if(!layer)return;_fLpDesignResize(layer,edge,n,n,layer);_fLpDesignRemember(before);_fLpDesignEditor(layer.id,e);_fLpRender();
+      };
+      handles.appendChild(b);
+    }
+  }
+  for(const b of handles.children){
+    const edge=b.dataset.edge,x=r.x+(edge==='left'?0:edge==='right'?r.w:r.w/2),y=r.y+(edge==='top'?0:edge==='bottom'?r.h:r.h/2);
+    b.style.left=100*x/cv.width+'%';b.style.top=100*y/cv.height+'%';b.disabled=!!_fLpDesignDraft.saving;
+  }
+}
+function _fLpDesignResize(l,edge,dx,dy,start){
+  const x=Number(start.x)||0,y=Number(start.y)||0,w=Number(start.w)||1,h=Number(start.h)||1;
+  if(edge==='left'||edge==='right'){l.w=Math.max(16,Math.round(w+(edge==='left'?-dx:dx)));if(edge==='left')l.x=x+w-l.w;}
+  else{l.h=Math.max(16,Math.round(h+(edge==='top'?-dy:dy)));if(edge==='top')l.y=y+h-l.h;}
+  // Point text não quebra na caixa: o gesto explícito passa a autorar um parágrafo.
+  l.textBox='box';
+}
+let _fLpDesignDrag=null;
+function _fLpDesignPointerDown(ev){
+  if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal||ev.button!==0) return;
+  const edge=ev.currentTarget?.dataset?.edge;
+  const point=_fLpArtCoords(ev),hit=edge?_lpEffectiveLayers.find(l=>l.id===_fLpDesignDraft.selected):point&&_fLpLayerAt(point.x,point.y);
+  if(!hit) return;
+  const d=_fLpDesignDraft,layer=d.layers.find(l=>l.id===hit.id);if(!layer) return;
+  ev.preventDefault();ev.stopPropagation();
+  _fLpDesignEditor(layer.id,ev);
+  const cv=document.getElementById('lp-canvas');cv.focus({preventScroll:true});
+  const rect=cv.getBoundingClientRect(),kx=cv.width/rect.width,ky=cv.height/rect.height;
+  const start={x:ev.clientX,y:ev.clientY,lx:Number(layer.x)||0,ly:Number(layer.y)||0,box:Object.assign({},layer),before:JSON.stringify(d.layers)};
+  let moved=false;
+  const move=e=>{
+    if(e.pointerId!==ev.pointerId||!_fLpDesignActive()||_fLpDesignDraft!==d) return;
+    const dx=(e.clientX-start.x)*kx,dy=(e.clientY-start.y)*ky;
+    if(!moved&&Math.hypot(e.clientX-start.x,e.clientY-start.y)<3) return;
+    moved=true;const l=d.layers.find(x=>x.id===hit.id);if(!l) return;
+    if(edge)_fLpDesignResize(l,edge,dx,dy,start.box);
+    else{l.x=Math.round(start.lx+dx);l.y=Math.round(start.ly+dy);}
+    for(const key of ['x','y','w','h']){const input=document.getElementById('lp-design-'+key);if(input)input.value=l[key];}
+    _fLpDesignStore(d);
+    _fLpRender();
+  };
+  const stop=cancel=>{
+    cv.removeEventListener('pointermove',move);cv.removeEventListener('pointerup',up);cv.removeEventListener('pointercancel',abort);
+    try{if(cv.hasPointerCapture(ev.pointerId)) cv.releasePointerCapture(ev.pointerId);}catch(e){}
+    _fLpDesignDrag=null;
+    if(cancel&&_fLpDesignDraft===d){d.layers=JSON.parse(start.before);_fLpDesignStore(d);if(_fLpDesignActive())_fLpDesignEditor(d.selected,{});_fLpRender();}
+    else if(moved&&_fLpDesignDraft===d){_fLpDesignRemember(start.before);_lpSuppressClick=true;setTimeout(()=>{_lpSuppressClick=false;},0);}
+  };
+  const up=e=>{if(e.pointerId===ev.pointerId)stop(false);},abort=()=>stop(true);
+  _fLpDesignDrag={stop};cv.setPointerCapture(ev.pointerId);
+  cv.addEventListener('pointermove',move);cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',abort);
+}
+function _fLpDesignKey(ev){
+  if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal||ev.target.closest('input,textarea,select,[contenteditable="true"],#lp-design-handles')) return;
+  if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==='z'){ev.preventDefault();ev.stopPropagation();fLpDesignUndo(ev.shiftKey);return;}
+  const delta={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[ev.key];
+  if(!delta) return;
+  const d=_fLpDesignDraft,l=d.layers.find(x=>x.id===d.selected);if(!l) return;
+  ev.preventDefault();ev.stopPropagation();const before=JSON.stringify(d.layers),step=ev.shiftKey?10:1;
+  l.x=(Number(l.x)||0)+delta[0]*step;l.y=(Number(l.y)||0)+delta[1]*step;
+  _fLpDesignRemember(before);_fLpDesignEditor(l.id,ev);document.getElementById('lp-canvas')?.focus({preventScroll:true});_fLpRender();
+}
+function _fLpDesignEditor(id,ev){
+  if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal) return;
+  const l=_fLpDesignDraft.layers.find(x=>x.id===id&&x.type==='text');if(!l) return;
+  const host=document.getElementById('lp-design-properties');if(!host)return;
+  const scroll=host.scrollTop,draft=_fLpDesignDraft,folds=draft.panelFolds||{};
+  host.querySelectorAll('details[data-section]').forEach(el=>{folds[el.dataset.section]=el.open;});
+  draft.panelFolds=folds;
+  if(document.activeElement?.closest('#lp-edit-pop')) document.activeElement.blur();
+  _fLpCloseEditor();_fLpHideHover();_fLpDesignDraft.selected=id;
+  const p=document.createElement('div');p.id='lp-edit-pop';p.className='lp-design-pop';host.appendChild(p);
+  const texts=_fLpDesignDraft.layers.filter(x=>x.type==='text'&&x.visible!==false);
+  const label=x=>x.name||gInterpolate(x.content||'',fState.dados||{}).replace(/\{\{[^}]*\}\}/g,'').trim()||'Texto da arte';
+  const fontHTML=typeof dFontOptionsHTML==='function'?dFontOptionsHTML(l.font):`<option value="'Roboto'">Roboto</option><option value="'Roboto Black'">Roboto Black</option><option value="'Roboto',bold">Roboto Bold</option>`;
+  p.innerHTML=`<div class="lp-design-panel-head"><div><h2>Texto</h2><p>${gEsc(label(l))}</p></div>
+    <div class="lp-design-history"><button type="button" class="lp-edit-btn" id="lp-design-undo" onclick="fLpDesignUndo(false)" aria-label="Desfazer" title="Desfazer · Ctrl + Z"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m9 4-5 5 5 5M4 9h9a6 6 0 0 1 0 12"/></svg></button><button type="button" class="lp-edit-btn" id="lp-design-redo" onclick="fLpDesignUndo(true)" aria-label="Refazer" title="Refazer · Ctrl + Shift + Z"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m15 4 5 5-5 5M20 9h-9a6 6 0 0 0 0 12"/></svg></button></div></div>
+    <section class="lp-design-section" aria-label="Texto"><label class="lp-design-label" for="lp-design-layer">Texto selecionado</label><select id="lp-design-layer" class="lp-edit-input">${texts.map(x=>`<option value="${gEsc(String(x.id))}">${gEsc(label(x).slice(0,60))}</option>`).join('')}</select>
+    <label class="lp-design-label" for="lp-design-content">Conteúdo</label><textarea id="lp-design-content" class="lp-edit-input" rows="3"></textarea>
+    <p class="lp-design-hint" ${/\{\{/.test(l.content||'')?'':'hidden'}>Preserve os campos <code>{{…}}</code> para usar as respostas do chat.</p><p id="lp-design-status" class="lp-design-status" role="status" aria-live="polite"></p></section>
+    <section class="lp-design-section" aria-label="Aparência"><h3>Aparência</h3><div class="lp-design-font-row"><label class="lp-design-label">Fonte<select id="lp-design-font" class="lp-edit-input">${fontHTML}</select></label><label class="lp-design-label">Tamanho <span>px</span><input id="lp-design-size" class="lp-edit-input" type="number" min="6" max="600" step="1"></label></div>
+    <div class="lp-design-style-row"><button type="button" id="lp-design-bold" class="lp-edit-btn" aria-label="Negrito" title="Negrito">B</button><div class="lp-design-align-buttons" role="group" aria-label="Alinhamento do texto">${[['left','Esquerda'],['center','Centro'],['right','Direita']].map(([value,text])=>`<button type="button" class="lp-edit-btn" data-align="${value}" aria-label="${text==='Centro'?'Centralizar':'Alinhar à '+text.toLowerCase()}" aria-pressed="${(l.textAlign||'left')===value}">${text}</button>`).join('')}</div></div>
+    <select id="lp-design-align" hidden aria-label="Alinhamento"><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select>
+    <div class="lp-design-color-row"><label class="lp-design-label">Cor<input id="lp-design-color" class="lp-edit-input" type="color"></label><label class="lp-design-label">Caixa do texto<select id="lp-design-transform" class="lp-edit-input"><option value="none">Como digitado</option><option value="uppercase">MAIÚSCULAS</option><option value="lowercase">minúsculas</option></select></label></div></section>
+    <details class="lp-design-section lp-design-details" data-section="spacing" aria-label="Espaçamento"><summary>Espaçamento</summary><div class="lp-design-spacing"><label class="lp-design-label">Entre letras <span>px</span><input id="lp-design-letter" class="lp-edit-input" type="number" min="-20" max="100" step="0.5"></label><label class="lp-design-label">Entre linhas <span>×</span><input id="lp-design-line" class="lp-edit-input" type="number" min="0.5" max="4" step="0.05"></label></div></details>
+    <details class="lp-design-section lp-design-details" data-section="geometry" aria-label="Posição e caixa"><summary>Posição e caixa</summary><div class="lp-design-props">${['x','y','w','h'].map(k=>`<label class="lp-design-label">${{x:'X',y:'Y',w:'Largura',h:'Altura'}[k]} <span>px</span><input aria-label="${{x:'Posição X',y:'Posição Y',w:'Largura',h:'Altura'}[k]}" id="lp-design-${k}" class="lp-edit-input" type="number" step="1" ${k==='w'||k==='h'?'min="1"':''}></label>`).join('')}</div></details>
+    <div class="lp-design-reset-row"><button type="button" class="lp-edit-btn" id="lp-design-reset">Restaurar este texto ao original</button></div>
+    <div class="lp-design-tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v18M3 12h18m-12-6 3-3 3 3m-6 12 3 3 3-3M6 9l-3 3 3 3m12-6 3 3-3 3"/></svg><p>Arraste na arte para mover.<br><span>Setas: 1 px · Shift + seta: 10 px</span></p></div>`;
+  const content=p.querySelector('#lp-design-content'),size=p.querySelector('#lp-design-size'),align=p.querySelector('#lp-design-align');
+  content.value=l.content||'';size.value=l.fontSize||32;align.value=l.textAlign||'left';
+  const transform=p.querySelector('#lp-design-transform');transform.value=l.textTransform||'none';
+  p.querySelectorAll('details[data-section]').forEach(el=>{el.open=!!folds[el.dataset.section];el.ontoggle=()=>{folds[el.dataset.section]=el.open;};});
+  const chooser=p.querySelector('#lp-design-layer');chooser.value=String(id);chooser.onchange=()=>{const selected=texts.find(x=>String(x.id)===chooser.value);if(selected)_fLpDesignEditor(selected.id);};
+  for(const key of ['x','y','w','h']) p.querySelector('#lp-design-'+key).value=Number(l[key])||0;
+  const font=p.querySelector('#lp-design-font'),bold=p.querySelector('#lp-design-bold'),letter=p.querySelector('#lp-design-letter'),line=p.querySelector('#lp-design-line');
+  if(!Array.from(font.options).some(o=>o.value===l.font)){const option=document.createElement('option');option.value=l.font||"'Roboto'";option.textContent=l.font||'Roboto';font.appendChild(option);}
+  font.value=l.font||"'Roboto'";letter.value=l.letterSpacing??0;line.value=typeof gLineHeightDe==='function'?gLineHeightDe(l):(l.lineHeight||1.2);
+  const weight=typeof dTextFontParts==='function'?dTextFontParts(l.font).weight:(/bold|black/i.test(l.font||'')?700:400);
+  bold.setAttribute('aria-pressed',String(Number(l.fontWeightOverride||weight)>=700));
+  bold.onclick=()=>{
+    if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal)return;
+    const d=_fLpDesignDraft,layer=d.layers.find(x=>x.id===id);if(!layer)return;
+    const snapshot=JSON.stringify(d.layers);layer.fontWeightOverride=bold.getAttribute('aria-pressed')==='true'?400:700;
+    bold.setAttribute('aria-pressed',String(layer.fontWeightOverride>=700));_fLpDesignRemember(snapshot);_fLpRender();
+  };
+  const color=p.querySelector('#lp-design-color'),colorCtx=document.createElement('canvas').getContext('2d');
+  colorCtx.fillStyle=l.color||getComputedStyle(p).getPropertyValue('--on-accent').trim();color.value=colorCtx.fillStyle;
+  let before=JSON.stringify(_fLpDesignDraft.layers),recorded=false;
+  const change=event=>{
+    if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal) return;
+    const layer=_fLpDesignDraft.layers.find(x=>x.id===id);if(!layer) return;
+    // Ler os demais inputs regravava valores antigos sobre um arrasto/undo recente.
+    const target=event?.target;
+    if(target===content)layer.content=content.value;
+    const n=Number(size.value);if(target===size&&size.value!==''&&Number.isFinite(n)&&n>=6&&n<=600) layer.fontSize=n;
+    if(target===align){layer.textAlign=align.value;p.querySelectorAll('[data-align]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.align===align.value)));}
+    if(target===transform)layer.textTransform=transform.value;
+    for(const key of ['x','y','w','h']){
+      const input=p.querySelector('#lp-design-'+key),v=Number(input.value);
+      if(target===input&&input.value!==''&&Number.isFinite(v)&&(!['w','h'].includes(key)||v>0)){
+        layer[key]=v;if(key==='w'||key==='h')layer.textBox='box';
+      }
+    }
+    if(event?.target===color)layer.color=color.value;
+    if(event?.target===font){layer.font=font.value;delete layer.fontWeightOverride;const fp=typeof dTextFontParts==='function'?dTextFontParts(layer.font).weight:(/bold|black/i.test(layer.font)?700:400);bold.setAttribute('aria-pressed',String(fp>=700));}
+    if(event?.target===letter&&letter.value!==''&&Number.isFinite(Number(letter.value))&&Number(letter.value)>=-20&&Number(letter.value)<=100)layer.letterSpacing=Number(letter.value);
+    if(event?.target===line&&line.value!==''&&Number.isFinite(Number(line.value))&&Number(line.value)>=0.5&&Number(line.value)<=4){layer.lineHeight=Number(line.value);delete layer._entrelinha;}
+    if(!recorded&&before!==JSON.stringify(_fLpDesignDraft.layers)){_fLpDesignRemember(before);recorded=true;}
+    _fLpDesignStore(_fLpDesignDraft);
+    _fLpRender();
+  };
+  p.querySelectorAll('[data-align]').forEach(b=>{b.onclick=()=>{
+    if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal)return;
+    before=JSON.stringify(_fLpDesignDraft.layers);recorded=false;align.value=b.dataset.align;
+    change({target:align});before=JSON.stringify(_fLpDesignDraft.layers);recorded=false;
+  };});
+  p.querySelector('#lp-design-reset').onclick=()=>{
+    if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal)return;
+    const d=_fLpDesignDraft,index=d.layers.findIndex(x=>x.id===id),original=JSON.parse(d.base).find(x=>x.id===id);
+    if(index<0||!original)return;
+    const snapshot=JSON.stringify(d.layers);
+    d.layers[index]=JSON.parse(JSON.stringify(original));_fLpDesignRemember(snapshot);
+    _fLpDesignEditor(id,{});_fLpRender();
+  };
+  p.querySelectorAll('input,textarea,select:not(#lp-design-layer)').forEach(input=>{
+    input.onfocus=()=>{if(_fLpDesignActive()){before=JSON.stringify(_fLpDesignDraft.layers);recorded=false;}};
+    input.oninput=change;input.onchange=event=>{if(!_fLpDesignActive()||_fLpDesignDraft.saving)return;change(event);before=JSON.stringify(_fLpDesignDraft.layers);recorded=false;};
+  });
+  _fLpDesignSync();_fLpDesignPaintSelection();
+  // Reabrir o painel durante undo/arrasto não deve saltar para o início das propriedades.
+  if(!ev)content.focus({preventScroll:true});
+  host.scrollTop=scroll;
+}
+async function fLpDesignSave(){
+  if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal) return false;
+  const draft=_fLpDesignDraft;
+  _fLpDesignStore(draft);
+  if(JSON.stringify(draft.layers)===draft.base){gToast('Nenhum ajuste para publicar.');return false;}
+  const original=JSON.parse(draft.base);
+  // Nunca grava nome/preço preenchido como texto fixo, nem remove a ligação com o chat.
+  const vars=l=>Array.from(String(l.content||'').matchAll(gVarRegex()),m=>m[1]+':'+(m[2]||'')).sort().join('|');
+  if(draft.layers.some(l=>vars(l)!==vars(original.find(x=>x.id===l.id)||{}))){
+    gToast('Mantenha os campos {{…}} originais do texto para preservar o chat.','error');return false;
+  }
+  if((typeof _dPushBusy!=='undefined'&&_dPushBusy)||(typeof _dFoldersPushTimer!=='undefined'&&_dFoldersPushTimer)){
+    gToast('Aguarde a sincronização do Estúdio e tente salvar novamente.','error');return false;
+  }
+  const sb=typeof gSupabase==='function'?gSupabase():window.sb;
+  if(!sb){gToast('Sem conexão. Seus ajustes continuam nesta prévia.','error');return false;}
+  draft.saving=true;_fLpCloseEditor();_fLpDesignSync();
+  try{
+    // UPDATE de uma única peça + comparação atômica: não sobrescreve outro designer.
+    // O gatilho existente cria template_versions e mantém artes anteriores na versão delas.
+    const {data,error}=await sb.schema('luma').from('templates').update({layers:draft.layers})
+      .eq('id',draft.remoteId).eq('updated_at',draft.stamp).eq('publicado',true)
+      .select('id,updated_at,versao_atual_id');
+    if(error) throw new Error('Não foi possível publicar. Seus ajustes continuam na prévia; tente novamente.');
+    if(!data?.length) throw new Error('O material mudou ou sua permissão foi alterada. Seus ajustes foram preservados; reabra pelo catálogo para conferir a versão atual.');
+    _fLpDesignForget(draft);
+    if(_fLpDesignOwner()!==draft.owner)return true;
+    const patch={layers:JSON.parse(JSON.stringify(draft.layers)),_remoteUpdatedAt:data[0].updated_at,versaoAtualId:data[0].versao_atual_id,_needsLayersFetch:false};
+    if(typeof dFolders!=='undefined') dFolders.forEach(f=>{f.templates=(f.templates||[]).map(t=>t.remoteId===draft.remoteId?Object.assign({},t,patch):t);});
+    // Atualiza apenas a peça no cache já empacotado, sem disparar o push de todo o catálogo.
+    try{
+      const cached=JSON.parse(localStorage.getItem('yngs_folders_v1')||'null');
+      if(Array.isArray(cached)){
+        cached.forEach(f=>{f.templates=(f.templates||[]).map(t=>t.remoteId===draft.remoteId?Object.assign({},t,patch):t);});
+        localStorage.setItem('yngs_folders_v1',JSON.stringify(cached));
+      }
+    }catch(e){}
+    if(fState.material?.id===draft.id) fState.material=Object.assign({},fState.material,patch);
+    if(_fLpDesignDraft===draft) _fLpDesignDraft=null;
+    _fLpDesignSync();_fLpRender();_fLpRetomarConclusao();gToast('Nova versão publicada para a rede.');
+    // O Estúdio permanece em memória ao trocar de área. Atualiza pelo carregador único,
+    // senão voltar e salvar ali republicaria as camadas anteriores por cima deste ajuste.
+    if(typeof dActiveTmplId!=='undefined'&&dActiveTmplId===draft.id
+       &&!(typeof dDirty!=='undefined'&&dDirty)&&typeof dLoadTemplate==='function'&&typeof dFolders!=='undefined'){
+      const folder=dFolders.find(f=>(f.templates||[]).some(t=>t.id===draft.id));
+      const template=folder&&(folder.templates||[]).find(t=>t.id===draft.id);
+      if(template){try{await dLoadTemplate(template,folder);}catch(e){console.warn('[Luma] atualizar Estúdio após publicação:',e);}}
+    }
+    return true;
+  }catch(e){gToast(e.message,'error');return false;}
+  finally{
+    draft.saving=false;_fLpDesignSync();
+    // Falha mantém a edição aberta, inclusive o painel de propriedades fechado no envio.
+    if(_fLpDesignDraft===draft&&_fLpDesignActive()&&draft.selected)_fLpDesignEditor(draft.selected,{});
+  }
+}
+
 // ── Clique no canvas ──
 function _fLpOnCanvasClick(ev){
+  if(_fLpDesignActive()&&_fLpDesignDraft.showOriginal)return;
   if(_lpFraming) return;
   if(_lpSuppressClick) return; // veio de um arrasto de pan — não abre edição de campo
   if(!fState.material||!fState.material.layers||!fState.material.layers.length) return;
   const pt=_fLpArtCoords(ev); if(!pt) return;
   const l=_fLpLayerAt(pt.x,pt.y);
   if(!l){ _fLpCloseEditor(); return; }
+  if(_fLpDesignActive()){ _fLpDesignEditor(l.id,ev); return; }
   if(l.type==='image'||l.type==='frame'){
     const perm=_fLpPerm(l.imgVar);
     if(!perm.editable){ _fLpLockToast(l.imgVar); return; }
@@ -2622,18 +4317,20 @@ function _fLpHideHoverChip(){ _fLpHideHover(); }
 
 function _fLpOnCanvasMove(ev){
   const cv=document.getElementById('lp-canvas');
+  if(_fLpDesignActive()&&_fLpDesignDraft.showOriginal){_fLpHideHover();if(cv)cv.style.cursor='default';return;}
   if(_lpFraming||!fState.material||!fState.material.layers||!fState.material.layers.length){ _fLpHideHover(); return; }
   const pt=_fLpArtCoords(ev); if(!pt){ _fLpHideHover(); return; }
   const l=_fLpLayerAt(pt.x,pt.y);
   if(!l){ _fLpHideHover(); if(cv) cv.style.cursor='default'; return; }
   
   const isImg=(l.type==='image'||l.type==='frame');
-  const v=isImg?l.imgVar:_fLpLayerVars(l)[0];
+  const design=_fLpDesignActive();
+  const v=design?'template':(isImg?l.imgVar:_fLpLayerVars(l)[0]);
   if(!v){ _fLpHideHover(); if(cv) cv.style.cursor='default'; return; }
   
-  const perm=_fLpPerm(v);
+  const perm=design?{editable:true}:_fLpPerm(v);
   const editable=!!perm.editable;
-  const label=isImg?'foto':(typeof _fLpLabel==='function'?_fLpLabel(v):v);
+  const label=design?'texto da arte':(isImg?'foto':(typeof _fLpLabel==='function'?_fLpLabel(v):v));
   if(cv) cv.style.cursor=editable?'pointer':'not-allowed';
 
   // 1. Moldura sutil contínua sobre a camada editável (Opção 1)
@@ -2782,6 +4479,9 @@ function _fLpBindCanvasEditing(){
   const cv=document.getElementById('lp-canvas');
   if(cv && !cv._fLpBound){
     cv._fLpBound=true;
+    cv.addEventListener('pointerdown',_fLpDesignPointerDown);
+    cv.addEventListener('touchstart',e=>{if(_fLpDesignDrag)e.stopPropagation();},{passive:true});
+    document.addEventListener('keydown',_fLpDesignKey,true);
     cv.addEventListener('click',_fLpOnCanvasClick);
     cv.addEventListener('mousemove',_fLpOnCanvasMove);
     cv.addEventListener('mouseleave',_fLpHideHover);

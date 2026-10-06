@@ -8,14 +8,53 @@
  */
 
 /* ── HISTÓRICO ── */
-function fGetHist(){try{return JSON.parse(localStorage.getItem(HIST_KEY)||'[]');}catch(e){return[];}}
-function fSaveHist(a){
-  let ok=true;
-  try{localStorage.setItem(HIST_KEY,JSON.stringify(a.slice(0,50)));}
-  catch(e){
-    ok=false;
-    if(typeof gToast==='function')gToast('Não consegui salvar no histórico — a memória do navegador encheu. Apague artes antigas e tente de novo.','error');
+// Cache antigo não tem dono verificável: nunca atribuí-lo à próxima conta que entrar.
+function fUserCacheKey(key, uid){
+  const u=typeof gCurrentUser==='function'?gCurrentUser():null;
+  return key+':user:'+encodeURIComponent(uid===undefined?(u&&u.id||'sem-sessao'):uid);
+}
+const _fHistRecovery=new Map(),_fHistRecoveryJobs=new Map();
+let _fHistPage={owner:null,offset:0,more:false,busy:false};
+function fGetHist(uid){
+  const key=fUserCacheKey(HIST_KEY,uid);
+  if(_fHistRecovery.has(key))return JSON.parse(JSON.stringify(_fHistRecovery.get(key)));
+  try{const a=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(a)?a:[];}catch(e){return[];}
+}
+function _fHistBackup(key,items){
+  if(typeof gIdbPut!=='function')return;
+  const bytes=JSON.stringify(items);
+  const job=(_fHistRecoveryJobs.get(key)||Promise.resolve()).catch(()=>{}).then(()=>gIdbPut('hist-recovery:'+key,bytes));
+  _fHistRecoveryJobs.set(key,job);
+  job.then(ok=>{
+    if(_fHistRecoveryJobs.get(key)!==job)return;
+    _fHistRecoveryJobs.delete(key);
+    if(ok&&items.length&&key===fUserCacheKey(HIST_KEY)&&typeof gToast==='function')gToast('Sua arte foi recuperada e guardada neste aparelho.');
+  }).catch(()=>{});
+}
+function _fStoreHist(key,items){
+  try{
+    localStorage.setItem(key,JSON.stringify(items));
+    if(_fHistRecovery.has(key)||_fHistRecoveryJobs.has(key))_fHistBackup(key,[]);
+    _fHistRecovery.delete(key);return true;
+  }catch(e){
+    // Mesmo sem quota, a arte continua acessível nesta sessão e tenta um store maior.
+    _fHistRecovery.set(key,JSON.parse(JSON.stringify(items)));_fHistBackup(key,items);return false;
   }
+}
+async function fRecoverHist(uid){
+  if(typeof gIdbGet!=='function')return;
+  const key=fUserCacheKey(HIST_KEY,uid);
+  try{
+    const raw=await gIdbGet('hist-recovery:'+key),saved=raw&&JSON.parse(raw);
+    if(!Array.isArray(saved)||!saved.length)return;
+    const byId=new Map(saved.map(h=>[h.remoteId||h.id,h]));
+    fGetHist(uid).forEach(h=>byId.set(h.remoteId||h.id,h));
+    if(_fStoreHist(key,Array.from(byId.values()).sort((a,b)=>(b.ts||0)-(a.ts||0))))_fHistBackup(key,[]);
+  }catch(e){}
+}
+function fSaveHist(a){
+  const ok=_fStoreHist(fUserCacheKey(HIST_KEY),a);
+  if(!ok&&typeof gToast==='function')gToast('A memória do navegador encheu. Sua arte continua nesta sessão; estou tentando guardar uma recuperação. Mantenha esta tela aberta.','error');
   // sync Supabase (background, por usuário). .catch: uma rejeição do push (rede/RLS) não
   // pode virar unhandledrejection — o cache local já guardou; o push re-tenta depois.
   if(typeof fPushArtesToBackend==='function'){ try{ const p=fPushArtesToBackend(); if(p&&p.catch) p.catch(()=>{}); }catch(e){} }
@@ -25,13 +64,14 @@ function fSaveHist(a){
 /* ── Sync do histórico de artes com o Supabase (luma.artes — escopo do usuário) ──
    Offline-first: localStorage é cache; o banco é a fonte por usuário (cross-device).
    Fotos no `dados` vão inline por ora (C2 sobe pro Storage). */
-function _fSbArtes(){ return (typeof gSupabase==='function')?gSupabase():window.sb; }
+function _fSbArtes(){ if(typeof gVisitante==='function' && gVisitante()) return null; return (typeof gSupabase==='function')?gSupabase():window.sb; }
 // Sobe uma foto base64 do franqueado pro bucket público luma-user-uploads → URL pública.
 async function _fUploadUserImg(uid, sub, dataUrl){
   const sb=_fSbArtes();
   if(!sb || !uid || typeof dataUrl!=='string' || !dataUrl.startsWith('data:')) return null;
   try{
     const blob=await (await fetch(dataUrl)).blob();
+    if(typeof gCurrentUser==='function'&&(!gCurrentUser()||gCurrentUser().id!==uid))return null;
     const ext=((blob.type.split('/')[1]||'png').split('+')[0]).replace(/[^a-z0-9]/gi,'')||'png';
     const path=uid+'/'+String(sub).replace(/[^a-zA-Z0-9_\/-]/g,'_')+'.'+ext;
     const { error }=await sb.storage.from('luma-user-uploads').upload(path, blob, {upsert:true, contentType:blob.type||'image/png'});
@@ -44,12 +84,9 @@ async function _fUploadUserImg(uid, sub, dataUrl){
 // têm UUID → null (linha antiga do banco também é null; o front já trata).
 function _fTemplateUuidFor(h){
   const mid=h&&h.materialId; if(!mid) return null;
-  if(typeof dFolders!=='undefined'&&Array.isArray(dFolders)){
-    for(const f of dFolders){
-      const t=(f.templates||[]).find(x=>x&&x.id===mid);
-      if(t) return t.remoteId||null;
-    }
-  }
+  // Mesmo motor do catálogo: casa por id local OU por UUID remoto (arte vinda do sync).
+  const _t=(typeof fFindMaterialById==='function')?fFindMaterialById(mid):null;
+  if(_t) return _t.remoteId||null;
   // Sem catálogo carregado: num device que só puxou do banco o id local JÁ é o UUID remoto.
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(mid))?mid:null;
 }
@@ -60,6 +97,8 @@ async function fPushArtesToBackend(){
   const sb=_fSbArtes();
   const user=(typeof gCurrentUser==='function')?gCurrentUser():null;
   if(!sb || !user || !user.id) return;
+  const cacheKey=fUserCacheKey(HIST_KEY,user.id);
+  const sameUser=()=>{const u=typeof gCurrentUser==='function'?gCurrentUser():null; return !!u&&u.id===user.id;};
   if(_fArtesPushBusy){ _fArtesPushQueued=true; return; }
   _fArtesPushBusy=true;
   /* hist/changed/_persistirSync moram AQUI, no escopo da função, e não dentro do `try`.
@@ -69,20 +108,22 @@ async function fPushArtesToBackend(){
      primeiro push da sessão, nenhuma arte voltava a subir e a interface seguia dizendo que
      a biblioteca estava no servidor. Só aparecia como rejeição engolida pelo `.catch(()=>{})`
      do fSaveHist. Pego pela suíte tests/franqueado-honestidade.html. */
-  const hist=fGetHist(); let changed=false;
+  const hist=fGetHist(user.id); let changed=false;
   // RELE o storage antes de gravar: uma arte criada/baixada DURANTE os awaits abaixo nao
   // pode ser sobrescrita pelo snapshot velho. Mescla so os campos de sync (remoteId/_synced/
   // dados com URLs) sobre a lista atual -- status/baixada recentes vencem.
   const _persistirSync = ()=>{
     if(!changed) return;
     try{
-      const cur=fGetHist();
+      const cur=fGetHist(user.id);
       const byId=new Map(hist.map(h=>[h.id,h]));
       const merged=cur.map(c=>{
         const u=byId.get(c.id);
-        return u ? Object.assign({}, c, {remoteId:u.remoteId, _synced:u._synced, dados:u.dados}) : c;
+        if(!u) return c;
+        const pending=!!c._statusPending && (!u._synced || c.tsBaixada!==u.tsBaixada);
+        return Object.assign({},c,{remoteId:u.remoteId,_synced:pending?false:u._synced,_statusPending:pending,dados:u.dados});
       });
-      localStorage.setItem(HIST_KEY, JSON.stringify(merged.slice(0,50))); // setItem direto (nao fSaveHist) p/ nao recursar
+      _fStoreHist(cacheKey,merged); // cache capturado antes dos awaits
       changed=false;
     }catch(e){}
   };
@@ -94,6 +135,7 @@ async function fPushArtesToBackend(){
   for(const h of hist){ if(!h._synced && !h.remoteId){ h.remoteId=gUuid(); changed=true; } }
   _persistirSync();
   for(const h of hist){
+    if(!sameUser()) break;
     if(h._synced) continue; // já no banco (status muda via fMarkBaixadaBackend)
     // Arte de material de DEMONSTRAÇÃO nunca sobe: no banco ela viraria linha igual à de
     // uma arte real (template_id null) e contaminaria o uso que a rede lê. Fica local, e o
@@ -105,6 +147,7 @@ async function fPushArtesToBackend(){
     for(const k in dados){
       if(typeof dados[k]==='string' && dados[k].startsWith('data:')){
         const url=await _fUploadUserImg(user.id, h.remoteId+'/'+k, dados[k]);
+        if(!sameUser()) return;
         if(url) dados[k]=url;
         else fotoPendente=true;
       }
@@ -118,7 +161,7 @@ async function fPushArtesToBackend(){
       id:h.remoteId, user_id:user.id,
       camp_id:h.campId||null, camp_name:h.campName||null, camp_color:h.campColor||null,
       fmt_id:h.fmtId||null, fmt_name:h.fmtName||null,
-      template_id:_fTemplateUuidFor(h), material_name:h.materialName||null,
+      template_id:_fTemplateUuidFor(h), template_version_id:h.templateVersionId||null, material_name:h.materialName||null,
       dados:dados, prod:h.prod||null, por:h.por||null, de:h.de||null,
       status:h.status||'rascunho', sig:h._sig||null,
       baixada_em:h.tsBaixada?new Date(h.tsBaixada).toISOString():null,
@@ -127,8 +170,8 @@ async function fPushArtesToBackend(){
     let { error }=await sb.schema('luma').from('artes').upsert(row, {onConflict:'id'});
     // FK: se o template foi apagado no banco entre gerar e sincronizar, o vínculo não pode
     // segurar a arte inteira fora do histórico cross-device — regrava sem o vínculo.
-    if(error && row.template_id){
-      row.template_id=null;
+    if(error && error.code==='23503' && (row.template_id || row.template_version_id) && sameUser()){
+      row.template_id=null; row.template_version_id=null;
       ({ error }=await sb.schema('luma').from('artes').upsert(row, {onConflict:'id'}));
     }
     if(!error){ h._synced=true; changed=true; }
@@ -144,8 +187,15 @@ async function fPushArtesToBackend(){
 }
 async function fMarkBaixadaBackend(remoteId, tsBaixada){
   const sb=_fSbArtes();
-  if(!sb || !remoteId) return;
-  try{ await sb.schema('luma').from('artes').update({ status:'baixada', baixada_em:new Date(tsBaixada||Date.now()).toISOString() }).eq('id', remoteId); }catch(e){}
+  const user=typeof gCurrentUser==='function'?gCurrentUser():null;
+  if(!sb || !remoteId || !user) return false;
+  try{
+    const {error}=await sb.schema('luma').from('artes').update({ status:'baixada', baixada_em:new Date(tsBaixada||Date.now()).toISOString() }).eq('id', remoteId).eq('user_id',user.id);
+    if(error) return false;
+    const hist=fGetHist(user.id), item=hist.find(h=>h.remoteId===remoteId);
+    if(item && item.tsBaixada===tsBaixada){delete item._statusPending; item._synced=true; _fStoreHist(fUserCacheKey(HIST_KEY,user.id),hist);}
+    return true;
+  }catch(e){return false;}
 }
 function _fRowToArte(r){
   const t=r.created_at?new Date(r.created_at).getTime():Date.now();
@@ -157,25 +207,53 @@ function _fRowToArte(r){
     // template_id (UUID) vira o materialId local: num device recém-sincronizado o id do
     // template no catálogo É o UUID do banco — "Editar" volta a achar o material de origem.
     fmtId:r.fmt_id, fmtName:r.fmt_name, materialId:r.template_id||null, materialName:r.material_name,
+    templateVersionId:r.template_version_id||null,
     dados:(r.dados&&typeof r.dados==='object')?r.dados:{},
     prod:r.prod||'', por:r.por||'', de:r.de||''
   };
 }
-async function fSyncArtesFromBackend(){
+async function fSyncArtesFromBackend(loadMore){
   const sb=_fSbArtes();
   const user=(typeof gCurrentUser==='function')?gCurrentUser():null;
   if(!sb || !user || !user.id) return;
+  if(_fHistPage.owner===user.id&&_fHistPage.busy)return;
+  const page={owner:user.id,offset:loadMore&&_fHistPage.owner===user.id?_fHistPage.offset:0,more:!!loadMore,busy:true};
+  _fHistPage=page;
   try{
-    const { data, error }=await sb.schema('luma').from('artes').select('*').order('created_at',{ascending:false}).limit(50);
-    if(error || !Array.isArray(data)) return;
+    await fRecoverHist(user.id);
+    if(!gCurrentUser()||gCurrentUser().id!==user.id)return;
+    let query=sb.schema('luma').from('artes').select('*').eq('user_id',user.id).order('created_at',{ascending:false});
+    const {data,error}=await (page.offset?query.range(page.offset,page.offset+49):query.limit(50));
+    if(error || !Array.isArray(data)){if(loadMore&&typeof gToast==='function')gToast('Não consegui carregar as artes anteriores. Tente novamente.','error');return;}
+    if(!gCurrentUser() || gCurrentUser().id!==user.id) return;
     const remote=data.map(_fRowToArte);
+    const local=fGetHist(user.id);
+    remote.forEach(r=>{const pending=local.find(h=>h.remoteId===r.remoteId&&h._statusPending); if(pending)Object.assign(r,{status:pending.status,tsBaixada:pending.tsBaixada,_statusPending:true,_synced:false});});
     const rIds=new Set(remote.map(a=>a.remoteId));
-    const extras=fGetHist().filter(h=>!h.remoteId || !rIds.has(h.remoteId)); // locais ainda não sincronizadas
-    const merged=[...extras, ...remote].sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,50);
-    try{ localStorage.setItem(HIST_KEY, JSON.stringify(merged)); }catch(e){}
+    const extras=local.filter(h=>!h.remoteId || !rIds.has(h.remoteId));
+    const merged=[...extras, ...remote].sort((a,b)=>(b.ts||0)-(a.ts||0));
+    _fStoreHist(fUserCacheKey(HIST_KEY,user.id),merged);
+    page.offset+=data.length;page.more=data.length===50;
     if(typeof fUpdateHistBadge==='function') fUpdateHistBadge();
-    if(typeof fRenderHist==='function') fRenderHist();
-  }catch(e){}
+  }catch(e){if(loadMore&&typeof gToast==='function')gToast('Não consegui carregar as artes anteriores. Tente novamente.','error');}
+  finally{
+    page.busy=false;
+    if(_fHistPage===page&&gCurrentUser()?.id===user.id&&typeof fRenderHist==='function')fRenderHist();
+  }
+}
+async function fLoadMoreHist(){
+  const prev=_fHistPage;
+  if(prev.busy||!prev.more)return;
+  const p=fSyncArtesFromBackend(true);
+  if(typeof fRenderHist==='function')fRenderHist();
+  await p;
+  if(_fHistPage.offset===prev.offset)_fHistPage.more=prev.more;
+  if(typeof fRenderHist==='function')fRenderHist();
+}
+function fHistMoreButton(){
+  const u=typeof gCurrentUser==='function'?gCurrentUser():null;
+  if(!u||_fHistPage.owner!==u.id||!_fHistPage.more)return '';
+  return '<button class="empty-cta ghost" type="button" onclick="fLoadMoreHist()"'+(_fHistPage.busy?' disabled aria-busy="true"':'')+'>'+(_fHistPage.busy?'Carregando…':'Carregar artes anteriores')+'</button>';
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -205,7 +283,9 @@ async function fClearHist(){
       return false;
     }
   }
-  try{ localStorage.removeItem(HIST_KEY); }catch(e){}
+  try{ localStorage.removeItem(fUserCacheKey(HIST_KEY,user&&user.id||'sem-sessao')); }catch(e){}
+  const key=fUserCacheKey(HIST_KEY,user&&user.id||'sem-sessao');
+  _fHistRecovery.delete(key);_fHistBackup(key,[]);_fHistPage={owner:null,offset:0,more:false,busy:false};
   if(typeof fUpdateHistBadge==='function') fUpdateHistBadge();
   if(typeof fRenderHist==='function') fRenderHist();
   return true;
@@ -218,21 +298,24 @@ function fAddHist(d,c,f,status){
   // Dedup: se já existe entrada com mesma camp+fmt+dados nos últimos 5min, atualiza em vez de duplicar
   const now = Date.now();
   // Assinatura normalizada: chaves ordenadas (não duplicar quando só a ordem muda, M15).
-  // Foto (data:) entra só pelo COMPRIMENTO — nunca o base64 inteiro: isso enchia o _sig de
-  // megabytes por entrada no localStorage, mas o tamanho já distingue fotos diferentes.
+  // Hash compacto de todos os bytes: imagens diferentes podem ter o mesmo comprimento.
   const _sigObj={};
-  Object.keys(d||{}).sort().forEach(k=>{ const v=d[k]; _sigObj[k]=(typeof v==='string'&&v.startsWith('data:'))?('img:'+v.length):v; });
-  const sig = c.id+'|'+f.id+'|'+JSON.stringify(_sigObj);
+  Object.keys(d||{}).sort().forEach(k=>{ const v=d[k]; if(typeof v==='string'&&v.startsWith('data:')){let hash=2166136261; for(let i=0;i<v.length;i++){hash^=v.charCodeAt(i);hash=Math.imul(hash,16777619);} _sigObj[k]='img:'+v.length+':'+(hash>>>0).toString(16);}else _sigObj[k]=v; });
+  // O material entra na assinatura: o Kit da campanha gera DUAS peças de mesmo formato com as
+  // mesmas respostas, e sem ele a segunda virava "a mesma arte" e sumia do histórico.
+  const _mid = fState.material && fState.material.id;
+  const sig = c.id+'|'+f.id+(_mid?'|m:'+_mid:'')+'|'+JSON.stringify(_sigObj);
   const recent = h.find(x => x._sig===sig && (now - x.id) < 5*60*1000);
   if(recent){
     // Promove status: rascunho → baixada se for o caso
     if(status === 'baixada' && recent.status !== 'baixada'){
       recent.status = 'baixada';
       recent.tsBaixada = now;
+      recent._statusPending=true;recent._synced=false;
       if(recent.remoteId && typeof fMarkBaixadaBackend==='function') fMarkBaixadaBackend(recent.remoteId, now);
     }
-    fSaveHist(h); fUpdateHistBadge();
-    return recent.id;
+    const saved=fSaveHist(h); fUpdateHistBadge();
+    return saved?recent.id:null;
   }
   const entry = {
     id: now,
@@ -244,6 +327,9 @@ function fAddHist(d,c,f,status){
     fmtId:f.id, fmtName:f.name,
     materialId: fState.material?.id || null,
     materialName: fState.material?.name || null,
+    // A versão do template com que ESTA arte foi feita: mudar o template amanhã não pode
+    // mudar a arte de ontem (reabrir/rebaixar usa esta versão — fMaterialDaVersao).
+    templateVersionId: fState.material?.versaoAtualId || null,
     _demo: !!(fState.material && fState.material._demo),
     dados:{...d},
     prod: d.produto || d.categoria || d.brinde || d.oferta || c.name,
@@ -251,8 +337,8 @@ function fAddHist(d,c,f,status){
     de: d.precoDe || ''
   };
   h.unshift(entry);
-  fSaveHist(h); fUpdateHistBadge();
-  return entry.id;
+  const saved=fSaveHist(h); fUpdateHistBadge();
+  return saved?entry.id:null;
 }
 
 // Promove uma entrada de rascunho pra baixada (chamado quando user baixa de fato)
@@ -262,6 +348,8 @@ function fMarkHistBaixada(id){
   if(item && item.status !== 'baixada'){
     item.status = 'baixada';
     item.tsBaixada = Date.now();
+    item._statusPending=true;
+    item._synced=false;
     fSaveHist(h);
     if(item.remoteId && typeof fMarkBaixadaBackend==='function') fMarkBaixadaBackend(item.remoteId, item.tsBaixada);
   }

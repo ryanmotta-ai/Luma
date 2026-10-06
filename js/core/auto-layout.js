@@ -1,30 +1,37 @@
 /* ══════════════════════════════════════════════════════════════════════════════════════════
-   AUTO-LAYOUT — a camada de JULGAMENTO
+   AUTO-LAYOUT — as primitivas de LEITURA da arte
    ------------------------------------------------------------------------------------------
-   O solver de composição mora em `00-config.js` (`gApplyRelativeAnchors`): ele mede, infere
-   correntes, abre corredores e sobe a escada quebrar → empurrar → apertar entrelinha →
-   encolher. Ele é um bom GUARDIÃO DE COLISÃO: garante que nada se atropela.
+   ⚠ O QUE ESTE ARQUIVO DEIXOU DE SER (09/2026). Ele foi, por um tempo, um AUTOMATIC DESIGNER:
+   grammar, composition graph, layout components, elasticidade, impact zones, operational
+   capability, designer moves, candidate search (beam), scoring lexicográfico, adaptive scale
+   groups, confiança e rollout — ~6.400 linhas. A decisão de produto mudou: o Luma não recompõe
+   mais a arte de ninguém. Tudo isso foi REMOVIDO, junto com a escada de recomposição que vivia
+   no `gApplyRelativeAnchors`. O histórico está no Git; o repositório não carrega o cadáver.
 
-   Este arquivo é o que faltava para ele virar um AVALIADOR DE COMPOSIÇÃO — capaz de gerar
-   algumas soluções e escolher a que preserva a intenção visual de quem desenhou:
+   O QUE RESOLVE CONTEÚDO NOVO HOJE: `js/core/local-fit.js` (`gLocalFitArte`). O texto tenta
+   caber na PRÓPRIA caixa autorada — corpo original → quebra → encolhimento progressivo → piso
+   de legibilidade — e, se não couber, BLOQUEIA. Nada se move. Ninguém é empurrado.
+
+   O QUE SOBROU AQUI são as primitivas de leitura que o Local Fit, o render, o importador de PSD
+   e o Estúdio continuam usando. Elas descrevem a arte; nenhuma delas decide composição:
 
      1. BASELINE AUTORADO   — o contrato do desenho original em TODO vínculo (não só no PSD),
-                              com migração para material antigo.
+                              com migração para material antigo. É a referência de "o que o
+                              designer desenhou" que o Local Fit lê para não medir um clone já
+                              adaptado.
      2. FONTE DETERMINÍSTICA— a mesma arte decide igual com a fonte carregada, ausente ou
                               substituída; a diferença de métrica vira calibragem, não veredito.
      3. COMPILADOR SEMÂNTICO— `layoutRole` (título/produto/preço/apoio/legal/CTA/fundo/
                               decoração/protegida) compilado sozinho, sem trabalho pro designer.
+                              Alimenta o teto de linhas e o piso de hierarquia.
      4. SAFE ZONES DE IMAGEM— rosto, produto e logo protegidos DENTRO da foto.
      5. QUEBRA SEMÂNTICA    — `R$ 29,90`, `50%`, `500 ml`, preposição órfã e CTA não se partem.
-     6. PONTUAÇÃO ESTÉTICA  — hierarquia, respiro, densidade, linhas, órfãs, alinhamento,
-                              alteração mínima e equilíbrio — não apenas "não colidiu".
-     7. ALTERNATIVAS        — 3 políticas concorrentes + a padrão; ganha a de maior nota.
-     8. DIAGNÓSTICO         — qual campo travou e o maior conteúdo seguro, em PT-BR sem jargão.
-     9. TELEMETRIA          — original/adapted/unsafe, culpado, estratégia, tempo e template.
+     6. CAMPOS DE UMA CAMADA— os `{{campos}}` que ela usa, pelo nome.
+     7. TELEMETRIA          — status, campo culpado e tempo, para saber onde o Local Fit trava
+                              em escala.
 
-   ⚠ TUDO AQUI É ADITIVO. Nenhuma função deste arquivo pode mudar a geometria de uma arte que
-   já cabia: quando o solver resolve no primeiro degrau, as alternativas nem são geradas e a
-   nota nem é calculada. O caminho feliz continua byte a byte o de antes.
+   ⚠ NENHUMA FUNÇÃO DAQUI ESCREVE GEOMETRIA. Quem escreve é o Local Fit, e só `_tetoFonte` (o
+   corpo escolhido) e a placa ligada ao próprio texto.
    ══════════════════════════════════════════════════════════════════════════════════════════ */
 
 /* ════════════════════════════════════════════════════════════════════
@@ -96,13 +103,13 @@ function gStampLayoutBaseline(l, texto, ctxAux){
   return l.layoutRef;
 }
 
-/* Tira do clone os carimbos temporários da cascata. Medir uma referência com o teto de fonte
+/* Tira do clone os carimbos temporários do encaixe. Medir uma referência com o teto de fonte
    da volta anterior já produziu baseline que "encolhia sozinho" a cada iteração. */
 function gLayoutLimpaCarimbos(l){
   const c = Object.assign({}, l);
   delete c._layoutW; delete c._layoutDx; delete c._layoutMaxLines; delete c._tetoFonte;
   delete c._entrelinha; delete c._fit; delete c._vTopAuto; delete c._foraDaArte;
-  delete c._layoutInvalido; delete c._layoutBase;
+  delete c._layoutInvalido; delete c._layoutBase; delete c._layoutH;
   return c;
 }
 
@@ -206,13 +213,6 @@ function gLayoutRefInk(l, ctxAux){
    Precisão acima de recall: na dúvida devolve 'apoio' (o papel neutro), nunca inventa
    'protegida' — carimbar proteção errada congela uma camada que deveria acompanhar o texto. */
 
-const G_LAYOUT_ROLES = ['titulo','produto','preco','apoio','legal','cta','fundo','decoracao','protegida'];
-
-function gLayoutRoleOf(l){
-  if(!l) return 'apoio';
-  return l.layoutRoleManual || l.layoutRole || 'apoio';
-}
-
 function gLayoutSemanticRole(l, ctx){
   if(!l) return 'apoio';
   if(l.layoutRoleManual) return l.layoutRoleManual;
@@ -221,7 +221,7 @@ function gLayoutSemanticRole(l, ctx){
   const texto = String(l.content || '').trim();
   const alvo = (nome + ' ' + texto).toLowerCase();
 
-  // FUNDO — a mesma régua que a cascata já usa, para não existirem duas verdades.
+  // FUNDO — a mesma régua que o resto do motor usa, para não existirem duas verdades.
   if(typeof _gLayoutEhFundoExplicito === 'function' && _gLayoutEhFundoExplicito(l, cv)) return 'fundo';
 
   if(l.type === 'group') return 'decoracao';
@@ -288,7 +288,7 @@ function gCompileLayoutRoles(layers, canvas){
        ("`layoutRole` é lido e nunca escrito"):
        · `layoutSemantic` é a classificação rica (título/produto/preço/apoio/legal/CTA/…), lida
          pela pontuação, pelo teto de linhas e pela quebra. Vocabulário novo, ninguém depende.
-       · `layoutRole` é o CONTRATO ANTIGO do runtime, com duas palavras que a cascata e o
+       · `layoutRole` é o CONTRATO ANTIGO do runtime, com duas palavras que o encaixe e o
          `core/layout.js` já leem há tempos: 'background' e 'protected'. Escrever qualquer outra
          coisa nele seria inventar valor que nenhum leitor entende.
        Campo dinâmico nunca é carimbado: 'protected'/'background' IMOBILIZAM a camada, e
@@ -315,24 +315,19 @@ function gLayoutRoleMaxLines(role){
   }
 }
 
-/* ── PREÇO SÓ CEDE POR CAUSA DO PRÓPRIO PREÇO (regra de 19/08) ───────
+/* ── QUEM É PREÇO ────────────────────────────────────────────────────
    O preço é o argumento da peça: o franqueado promete "R$ 9,99" no corpo que o designer
-   desenhou, e reduzir esse corpo porque o TÍTULO ficou longo troca a promessa por um detalhe
-   (medido: um preço curto saía 36% menor por causa de um título gigante). Então a escada só
-   aperta campo de preço quando ELE mesmo cresceu/estourou a própria caixa — aí encolher é o que
-   faz o "R$ 129,90" caber no selo desenhado pra ele. Motivo alheio (colisão de terceiros, escala
-   proporcional do componente) não toca no preço; cede o resto da arte.
+   desenhou. A regra de 19/08 existia para impedir que a escada de recomposição encolhesse o
+   preço por causa de um TÍTULO longo (medido: 36% menor por motivo alheio). Com o Local Fit ela
+   virou consequência da arquitetura, não uma exceção: cada texto encaixa SOZINHO, na própria
+   caixa, então nenhum campo cede por causa de outro — o preço menos ainda.
 
-   O que continua valendo, de propósito:
-   · a corrente ainda EMPURRA o preço — congelar a posição fazia o título crescido passar por
-     cima dele (o corpus mede isso em `de-por-lateral`);
-   · ele continua obstáculo dos outros e a placa/selo atrás dele continua crescendo;
-   · a validação de segurança não mudou.
+   O que a resposta ainda governa: o teto de linhas do preço (2) e o reconhecimento do par
+   de preço no corpus e no importador de PSD.
 
-   ⚠ Conflito assumido com a nota de hierarquia (`gScoreComposition`): como o preço para de
-   descer quando a caixa dele cabe, uma camada autorada MAIOR pode terminar menor que o preço.
-   A regra do preço vence — nas artes da marca o preço costuma ser o maior elemento. A inversão
-   continua pesando na nota, só deixou de reprovar no corpus.
+   ⚠ Consequência assumida: como cada campo encolhe isolado, uma camada autorada MAIOR pode
+   terminar menor que o preço. Nas artes da marca o preço costuma ser o maior elemento, então a
+   inversão é tolerada no corpus em vez de reprovar a arte.
 
    Quem é preço: o metadado do campo manda (`dVars[].category`/`type`, decisão de quem criou o
    campo); no runtime do franqueado, onde `dVars` não existe, vale a MESMA heurística de nome
@@ -396,7 +391,7 @@ function gLayoutObstacleRect(o, rect){
   const zonas = gLayoutSafeZones(o);
   if(!zonas.length) return base;
   /* A zona vem em coordenadas da camada AUTORADA; o `rect` pode ter sido movido/escalado pela
-     cascata. Reprojeta pela razão entre os dois para a proteção acompanhar a foto. */
+     render. Reprojeta pela razão entre os dois para a proteção acompanhar a foto. */
   const ew = (o.w || 0) || 1, eh = (o.h || 0) || 1;
   const sx = (base.w || 0) / ew, sy = (base.h || 0) / eh;
   let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
@@ -458,301 +453,18 @@ function gSemanticUnits(words, medir, disponivel){
       const junto = unidade + ' ' + b;
       if(!cabe(junto)) break;                 // não cabe colado → melhor separado que partido
       unidade = junto; i++;
-      if(casaConector && !casaPar) break;     // conector cola UMA palavra, não a frase inteira
+      if(casaConector && !casaPar){           // conector cola UMA palavra, não a frase inteira —
+        const prox = words[i+1];              // exceto quando ela abre um par: "por R$" + "999,90"
+        if(!(prox && G_LAYOUT_UNIDADES.some(r => r.antes.test(b) && r.depois.test(prox)))) break;
+      }
     }
     out.push(unidade);
   }
   return out;
 }
 
-/* Penalidade editorial de um conjunto de linhas — usada pela pontuação estética. Mede o que um
-   designer olharia: última linha com uma palavra curta, linha terminando em preposição e
-   unidade semântica partida no meio. */
-function gLayoutPenalidadeEditorial(linhas){
-  if(!Array.isArray(linhas) || linhas.length < 2) return 0;
-  let p = 0;
-  for(let i = 0; i < linhas.length; i++){
-    const palavras = String(linhas[i]||'').trim().split(/\s+/).filter(Boolean);
-    if(!palavras.length) continue;
-    const ultima = palavras[palavras.length - 1];
-    if(i < linhas.length - 1 && gLayoutColaConector(ultima)) p += 6;
-    if(i === linhas.length - 1 && palavras.length === 1 && ultima.length < 4) p += 10;
-    // Moeda/valor partido entre esta linha e a próxima.
-    if(i < linhas.length - 1){
-      const prox = String(linhas[i+1]||'').trim().split(/\s+/).filter(Boolean)[0] || '';
-      if(G_LAYOUT_UNIDADES.some(r => r.antes.test(ultima) && r.depois.test(prox))) p += 14;
-    }
-  }
-  return p;
-}
-
-/* ════════════════════════════════════════════════════════════════════
-   6. PONTUAÇÃO ESTÉTICA — comparar composições, não só aprovar
-   ════════════════════════════════════════════════════════════════════
-   "Não colidiu" é o piso, não a meta. Duas soluções podem ser igualmente válidas e uma delas
-   ser visivelmente pior: título achatado até virar subtítulo, respiro comido, texto empurrado
-   para longe do bloco a que pertence, quatro linhas onde cabiam duas.
-
-   A nota é PENALIDADE somada (menor = melhor) e cada item responde a uma pergunta de designer.
-   Os pesos são constantes nomeadas de propósito: são o que se calibra quando um caso real do
-   corpus mostrar que a escolha saiu errada. */
-
-const G_SCORE_PESOS = {
-  invalido:      1000,  // composição que o solver não conseguiu salvar domina qualquer estética
-  inversao:        90,  // título ficou menor que o preço: destrói a leitura da peça
-  hierarquia:      30,  // por unidade de log2 de desvio na razão entre dois degraus
-  reducao:         55,  // por 100% de corpo perdido (linear: 20% de redução = 11 pts)
-  /* Entrelinha fechada custa quase o mesmo que corpo perdido, e é PROPORCIONAL ao que o
-     desenho tinha. Estava a 13 (metade do deslocamento) e a conta saía invertida: fechar o
-     respiro de um bloco arejado de 1.9 para 1.05 — que descaracteriza a peça inteira — pontuava
-     6, enquanto reduzir 20% da fonte pontuava 11. A nota PREFERIA destruir a entrelinha.
-     Medido no corpus: com o peso antigo, a política que preserva o respiro não vencia nem no
-     fixture criado justamente para ela (`bloco-arejado`). */
-  entrelinha:      48,
-  deslocamento:    26,  // por 100% do lado curto de movimento acumulado
-  linhaExtra:       9,  // por linha além do que o designer publicou (×peso do papel)
-  editorial:        1,  // órfãs/conector/valor partido (a penalidade já vem em escala própria)
-  respiro:         34,  // por 100% de respiro perdido em relação ao desenho
-  densidade:       28,  // por 100% de desvio de área de tinta
-  alinhamento:      7,  // por aresta que era alinhada no desenho e deixou de ser
-  equilibrio:      18   // por 100% do lado curto de desvio do centro de massa
-};
-const G_SCORE_PESO_PAPEL = { titulo:1.6, preco:1.5, cta:1.4, produto:1.3, apoio:1, legal:0.6, decoracao:0.4 };
-
-function _gScoreRect(l){
-  if(typeof gInkRect === 'function') return gInkRect(l, l && l._fit);
-  return { x:l&&l.x||0, y:l&&l.y||0, w:l&&l.w||0, h:l&&l.h||0 };
-}
-/* DUAS REFERÊNCIAS, para DUAS perguntas diferentes — e confundi-las foi o que fez a nota medir
-   a coisa errada:
-   · `_gScoreBase` = a composição AUTORADA. Responde "este texto cresceu além do que o designer
-     desenhou?" — é a pergunta do CULPADO.
-   · `_gScoreSemAjuste` = a mesma arte com o conteúdo real e a geometria publicada, antes de
-     qualquer degrau da escada. Responde "quanto a ADAPTAÇÃO custou?" — é a pergunta da NOTA.
-   Pontuar contra a autorada cobrava do motor o tamanho do texto que o franqueado digitou: os
-   itens geométricos disparavam em 100% dos cenários, inclusive nos que saíram intocados. */
-function _gScoreBase(l){
-  return (l && l._layoutBase) || { x:l&&l.x||0, y:l&&l.y||0, w:l&&l.w||0, h:l&&l.h||0 };
-}
-function _gScoreSemAjuste(l){
-  return (l && l._layoutSemAjuste) || _gScoreBase(l);
-}
-function _gScoreFonte(l){ return (l && l._tetoFonte != null) ? l._tetoFonte : ((l && l.fontSize) || 24); }
-
-/**
- * Nota de uma composição resolvida. Recebe os clones que o solver devolveu (já com `_fit`,
- * `_layoutBase`, `_tetoFonte`, `_entrelinha` e os carimbos de falha).
- * @returns {{penal:number, total:number, itens:object}}
- */
-function gScoreComposition(layers, opts){
-  const cv = (opts && opts.canvas) || { w:1080, h:1080 };
-  const curto = Math.max(1, Math.min(cv.w || 1080, cv.h || 1080));
-  const area = Math.max(1, (cv.w||1080) * (cv.h||1080));
-  const vis = (layers||[]).filter(l => l && (typeof _gLayoutVisivel !== 'function' || _gLayoutVisivel(l)));
-  const textos = vis.filter(l => l.type === 'text' && l._fit);
-  const itens = { invalido:0, hierarquia:0, reducao:0, deslocamento:0, linhas:0, editorial:0,
-                  respiro:0, densidade:0, alinhamento:0, equilibrio:0 };
-
-  // ── VALIDADE (domina) ──
-  vis.forEach(l => { if(l._layoutInvalido || l._foraDaArte) itens.invalido += G_SCORE_PESOS.invalido; });
-
-  // ── HIERARQUIA PROPORCIONAL ──
-  // A ordem dos degraus é a declaração de importância do designer. Inverter é o pior estrago
-  // que uma automação de layout pode fazer; desviar a proporção é o estrago sutil.
-  const ordenados = textos.slice().sort((a,b) => (b.fontSize||24) - (a.fontSize||24)).slice(0, 40);
-  for(let i = 0; i < ordenados.length; i++){
-    for(let j = i + 1; j < ordenados.length; j++){
-      const a = ordenados[i], b = ordenados[j];
-      const baseA = a.fontSize||24, baseB = b.fontSize||24;
-      if(baseA <= baseB) continue;
-      const fa = _gScoreFonte(a), fb = _gScoreFonte(b);
-      if(fa < fb - 0.5){ itens.hierarquia += G_SCORE_PESOS.inversao; continue; }
-      const rBase = baseA / Math.max(1, baseB), rFim = fa / Math.max(1, fb);
-      const desvio = Math.abs(Math.log2(Math.max(0.01, rFim / rBase)));
-      itens.hierarquia += desvio * G_SCORE_PESOS.hierarquia;
-    }
-  }
-
-  // ── ALTERAÇÃO MÍNIMA (corpo perdido + deslocamento) ──
-  textos.forEach(l => {
-    const peso = G_SCORE_PESO_PAPEL[gLayoutRoleOf(l)] != null ? G_SCORE_PESO_PAPEL[gLayoutRoleOf(l)] : 1;
-    const perda = Math.max(0, 1 - _gScoreFonte(l) / Math.max(1, l.fontSize || 24));
-    itens.reducao += perda * G_SCORE_PESOS.reducao * peso;
-    const r = _gScoreRect(l), b = _gScoreSemAjuste(l);
-    const d = (Math.abs(r.x - b.x) + Math.abs(r.y - b.y)) / curto;
-    itens.deslocamento += d * G_SCORE_PESOS.deslocamento * peso;
-    /* Entrelinha fechada entra junto com o corpo perdido: as duas respondem "quanto da
-       tipografia autorada sobrou?". O que importa é a FRAÇÃO do respiro original que se perdeu —
-       de 1.2 para 1.05 é um ajuste; de 1.9 para 1.05 é outra peça. */
-    if(l._entrelinha != null){
-      const lhBase = (l.layoutRef && l.layoutRef.lineHeight) || l.lineHeight || 1.2;
-      itens.reducao += Math.max(0, (lhBase - l._entrelinha) / Math.max(0.01, lhBase))
-                       * G_SCORE_PESOS.entrelinha * peso;
-    }
-  });
-
-  // ── LINHAS E EDITORIAL ──
-  textos.forEach(l => {
-    const peso = G_SCORE_PESO_PAPEL[gLayoutRoleOf(l)] != null ? G_SCORE_PESO_PAPEL[gLayoutRoleOf(l)] : 1;
-    const linhas = (l._fit.lines && l._fit.lines.length) || 1;
-    // Linhas que o texto do franqueado já usaria SEM adaptação: cobrar dele o comprimento do
-    // que a pessoa digitou não é avaliar o motor.
-    const refLinhas = (l._layoutSemAjuste && l._layoutSemAjuste.linhas)
-      || (l.layoutRef && l.layoutRef.linhas) || 1;
-    if(linhas > refLinhas) itens.linhas += (linhas - refLinhas) * G_SCORE_PESOS.linhaExtra * peso;
-    const teto = gLayoutRoleMaxLines(gLayoutRoleOf(l));
-    if(linhas > teto) itens.linhas += (linhas - teto) * G_SCORE_PESOS.linhaExtra * peso * 2;
-    itens.editorial += gLayoutPenalidadeEditorial(l._fit.lines || []) * G_SCORE_PESOS.editorial * peso;
-  });
-
-  // ── RESPIRO ── quanto do vão original entre blocos sobreviveu.
-  // Só entre pares que NÃO se tocavam no desenho: onde já havia sobreposição intencional
-  // (texto sobre placa) não existe respiro a perder.
-  const caixas = vis.map(l => ({ l, r: _gScoreRect(l), b: _gScoreSemAjuste(l) }))
-                    .filter(o => o.r.w > 0 && o.r.h > 0).slice(0, 40);
-  let perdaRespiro = 0, paresRespiro = 0;
-  for(let i = 0; i < caixas.length; i++){
-    for(let j = i + 1; j < caixas.length; j++){
-      const A = caixas[i], B = caixas[j];
-      if(A.l.type !== 'text' && B.l.type !== 'text') continue;
-      const gapBase = _gGapEntre(A.b, B.b);
-      if(gapBase <= 0 || gapBase > curto * 0.35) continue;   // sobrepostos no desenho ou longe demais
-      const gapFim = _gGapEntre(A.r, B.r);
-      paresRespiro++;
-      if(gapFim < gapBase) perdaRespiro += (gapBase - gapFim) / Math.max(1, gapBase);
-    }
-  }
-  if(paresRespiro) itens.respiro = (perdaRespiro / paresRespiro) * G_SCORE_PESOS.respiro;
-
-  /* ── DENSIDADE ── quanto a ADAPTAÇÃO mexeu na mancha de tinta.
-     ⚠ A referência aqui é `_layoutSemAjuste` (a arte com o conteúdo real e a geometria
-     publicada), NÃO a referência autorada. Comparar com a autorada media o quanto o texto do
-     franqueado é maior que o do designer — que não é trabalho do motor e é igual para todos os
-     candidatos. Com a referência certa, arte não adaptada pontua zero. */
-  let inkFim = 0, inkSem = 0;
-  textos.forEach(l => {
-    const r = _gScoreRect(l), s = _gScoreSemAjuste(l);
-    inkFim += Math.max(0, r.w) * Math.max(0, r.h);
-    inkSem += Math.max(0, s.w) * Math.max(0, s.h);
-  });
-  if(inkSem > 0) itens.densidade = Math.abs(inkFim - inkSem) / inkSem * G_SCORE_PESOS.densidade;
-  const inkBase = inkSem;
-
-  // ── ALINHAMENTO ── arestas que compartilhavam a mesma coluna e se soltaram.
-  const arestas = (o) => {
-    const t = o.l.textAlign || 'left';
-    return { base: t === 'right' ? o.b.x + o.b.w : t === 'center' ? o.b.x + o.b.w/2 : o.b.x,
-             fim:  t === 'right' ? o.r.x + o.r.w : t === 'center' ? o.r.x + o.r.w/2 : o.r.x };
-  };
-  const soTexto = caixas.filter(o => o.l.type === 'text');
-  for(let i = 0; i < soTexto.length; i++){
-    for(let j = i + 1; j < soTexto.length; j++){
-      const a = arestas(soTexto[i]), b = arestas(soTexto[j]);
-      if(Math.abs(a.base - b.base) <= 2 && Math.abs(a.fim - b.fim) > 2) itens.alinhamento += G_SCORE_PESOS.alinhamento;
-    }
-  }
-
-  // ── EQUILÍBRIO VISUAL ── o centro de massa da tinta saiu do lugar?
-  const centro = (sel) => {
-    let mx = 0, my = 0, m = 0;
-    caixas.forEach(o => {
-      const r = sel(o); const peso = Math.max(0, r.w) * Math.max(0, r.h);
-      if(!peso) return;
-      mx += (r.x + r.w/2) * peso; my += (r.y + r.h/2) * peso; m += peso;
-    });
-    return m ? { x: mx/m, y: my/m } : null;
-  };
-  // Mesma correção da densidade: o desvio que interessa é o causado pela adaptação.
-  const cFim = centro(o => o.r), cSem = centro(o => _gScoreSemAjuste(o.l));
-  if(cFim && cSem){
-    itens.equilibrio = (Math.abs(cFim.x - cSem.x) + Math.abs(cFim.y - cSem.y)) / curto * G_SCORE_PESOS.equilibrio;
-  }
-
-  const penal = Object.keys(itens).reduce((s,k) => s + (itens[k] || 0), 0);
-  // `total` existe para leitura humana (telemetria/log): 100 é a composição intocada.
-  return { penal: Math.round(penal * 100) / 100, total: Math.round(Math.max(0, 100 - penal) * 100) / 100,
-           itens, area, densidade: inkBase ? inkFim / area : 0 };
-}
-
-// Distância entre dois retângulos (0 quando se tocam ou sobrepõem).
-function _gGapEntre(a, b){
-  if(!a || !b) return 0;
-  const dx = Math.max(0, Math.max(a.x - (b.x + b.w), b.x - (a.x + a.w)));
-  const dy = Math.max(0, Math.max(a.y - (b.y + b.h), b.y - (a.y + a.h)));
-  if(dx === 0 && dy === 0) return 0;
-  if(dx === 0) return dy;
-  if(dy === 0) return dx;
-  return Math.sqrt(dx*dx + dy*dy);
-}
-
-/* ════════════════════════════════════════════════════════════════════
-   7. ALTERNATIVAS — gerar algumas soluções e escolher por nota
-   ════════════════════════════════════════════════════════════════════
-   A escada do solver é boa, mas é UM caminho: quebrar → empurrar → apertar entrelinha →
-   encolher o menor degrau → escalar o componente. Em muita arte real outro caminho chega mais
-   perto do que o designer teria feito.
-
-   ⚠ A geração é DETERMINÍSTICA e CONDICIONAL, por dois motivos que não são negociáveis aqui:
-   · prévia e exportação chamam o mesmo motor — se a escolha dependesse de tempo/carga, a
-     prévia mentiria sobre o arquivo final, que é o defeito que este projeto mais evita;
-   · a arte que resolve no primeiro degrau (quebra/empurrão) já é a de alteração mínima; gerar
-     alternativas ali seria pagar 3 solves para reeleger o vencedor.
-   Empate: vence a PADRÃO. Ela é a que o corpus de regressão conhece. */
-
-/* `tracking-autoral` (2026-08-19): a política que NÃO devolve o tracking que o motor adicionou
-   (degrau 3.7 da escada, em `00-config.js`). Existe porque devolver tracking muda a QUEBRA, e
-   medindo com a tipografia display da marca em 18 cenários ela ajudou em 3 (preço +10%, título
-   +11%) e atrapalhou em 1 (manchete 78→71, porque a linha reflowou pior). Em vez de escolher no
-   escuro, o motor gera as duas e a NOTA decide — que é exatamente para isso que as políticas
-   existem. */
-const G_LAYOUT_POLITICAS = ['sem-entrelinha', 'entrelinha-livre', 'proporcional', 'tracking-autoral'];
-
-function gLayoutPrecisaAlternativas(cloned){
-  return (cloned||[]).some(l => l && (l._tetoFonte != null || l._entrelinha != null
-                                      || l._layoutInvalido || l._foraDaArte));
-}
-
-function gLayoutEscolherAlternativa(layers, dados, defaults, opts, padrao){
-  if(typeof gApplyRelativeAnchors !== 'function') return padrao;
-  const cvOpts = { canvas: (opts && opts.canvas) || null };
-  const cands = [{ politica: 'padrao', out: padrao, score: gScoreComposition(padrao, cvOpts) }];
-  G_LAYOUT_POLITICAS.forEach(politica => {
-    let out = null;
-    try{ out = gApplyRelativeAnchors(layers, dados, defaults, Object.assign({}, opts, { _politica: politica })); }
-    catch(e){ out = null; }                                  // política que estourar não derruba o render
-    if(!out || !out.length) return;
-    cands.push({ politica, out, score: gScoreComposition(out, cvOpts) });
-  });
-  /* MARGEM MÍNIMA PARA TROCAR. Medido na bancada: em metade das trocas o ganho era de ~1 ponto
-     numa penalidade de 150–390 — meio por cento, que move um CTA 14px por ruído de arredondamento
-     e faz a arte mudar entre versões sem ninguém ter pedido. A padrão é a composição que o corpus
-     conhece e a de alteração mínima; para destroná-la, a alternativa tem que ganhar de forma
-     VISÍVEL: 3 pontos absolutos ou 2% da penalidade, o que for maior. */
-  const _margem = Math.max(3, cands[0].score.penal * 0.02);
-  let melhor = cands[0];
-  cands.forEach(c => {
-    if(c === cands[0]) return;
-    if(c.score.penal < melhor.score.penal - (melhor === cands[0] ? _margem : 0.001)) melhor = c;
-  });
-  const msTotal = cands.reduce((s,c) => s + ((c.out._layoutMeta && c.out._layoutMeta.ms) || 0), 0);
-  melhor.out._layoutMeta = Object.assign({}, melhor.out._layoutMeta || {}, {
-    politica: melhor.politica, ms: Math.round(msTotal * 100) / 100,
-    nota: melhor.score.total, penal: melhor.score.penal, itens: melhor.score.itens,
-    candidatos: cands.map(c => ({ politica: c.politica, penal: c.score.penal }))
-  });
-  return melhor.out;
-}
-
-/* ════════════════════════════════════════════════════════════════════
-   8. DIAGNÓSTICO ACIONÁVEL — quem travou e até onde dá
-   ════════════════════════════════════════════════════════════════════
-   Bloquear a exportação com "não tem espaço seguro" deixa o franqueado sem saída: ele não sabe
-   QUAL texto encurtar nem para quanto. Aqui a resposta é construída: o campo culpado sai do
-   próprio resultado do solver, e o maior conteúdo seguro sai de uma busca binária que re-roda o
-   MESMO motor — nada de estimativa por caractere, que erraria com fonte proporcional.
-
-   Custo: até 8 solves. Roda só no caminho de FALHA (export bloqueado), nunca na digitação. */
-
+/* Os `{{campos}}` que uma camada usa. Régua única de "esta camada reage ao franqueado?" para
+   quem precisa dos NOMES (o `_gLayoutTemCampo` do 00-config só responde sim/não). */
 function gLayoutCamposDe(l){
   const out = [];
   const re = (typeof gVarRegex === 'function') ? gVarRegex()
@@ -761,124 +473,6 @@ function gLayoutCamposDe(l){
   let m;
   while((m = re.exec(String((l && l.content) || ''))) !== null) if(out.indexOf(m[1]) < 0) out.push(m[1]);
   return out;
-}
-
-function gLayoutRotuloCampo(nome){
-  // O `return nome` do fim punha o nome da variável dentro do diagnóstico que o franqueado LÊ
-  // ("A arte não tem espaço seguro para 'precoPor'") — o oposto do que o próprio bloco promete.
-  // Motor único de rótulo (00-config.js); `v.name` também era o cru travestido de label.
-  if(typeof gFieldLabel === 'function') return gFieldLabel(nome);
-  if(typeof dVars !== 'undefined' && Array.isArray(dVars)){
-    const v = dVars.find(x => x && x.name === nome);
-    if(v && v.label) return v.label;
-  }
-  return 'este campo';
-}
-
-/* O campo culpado: entre as camadas marcadas, a que mais cresceu em relação ao próprio desenho.
-   "Mais cresceu" e não "primeira da lista" porque a vítima de uma colisão também é marcada. */
-function gLayoutCulpado(solved){
-  const lista = solved || [];
-  const reprovada = (l) => typeof gLayoutCamadaReprovada === 'function'
-    ? gLayoutCamadaReprovada(l) : !!(l && (l._layoutInvalido || l._foraDaArte));
-  const marcadas = lista.filter(reprovada);
-  const cresceu = (l) => {
-    const r = _gScoreRect(l), b = _gScoreBase(l);
-    return Math.max(0, (r.w * r.h) - (b.w * b.h)) + Math.max(0, r.h - b.h) * 100;
-  };
-  const comCampo = (l) => !!(l && l.type === 'text' && gLayoutCamposDe(l).length);
-
-  // 1) O caso direto: a própria camada reprovada carrega o campo.
-  let alvo = null, pior = -1;
-  marcadas.forEach(l => { const c = comCampo(l) ? cresceu(l) : -1; if(c > pior){ pior = c; alvo = comCampo(l) ? l : alvo; } });
-  if(alvo) return alvo;
-
-  /* 2) A camada reprovada é VÍTIMA, não causa: um CTA fixo empurrado para fora da prancheta, o
-     rodapé legal atropelado, a placa que acompanhou o texto. Quem responde é o ANCESTRAL da
-     corrente — sobe pela âncora (manual ou inferida) até achar quem tem campo.
-     Sem este ramo, 11 dos 12 bloqueios do fuzzing saíam SEM diagnóstico e o franqueado levava a
-     frase genérica: "não cabe", sem dizer o que encurtar. Medido, não suposto. */
-  const porId = new Map(lista.filter(Boolean).map(l => [l.id, l]));
-  for(const m of marcadas){
-    let atual = m, guarda = 0;
-    while(atual && guarda++ < 16){
-      if(comCampo(atual)) return atual;
-      const a = atual.relativeAnchor || atual._anchorAuto;
-      atual = (a && a.layerId) ? porId.get(a.layerId)
-            : (atual._placa ? porId.get(atual._placa.alvo) : null);
-    }
-  }
-
-  /* 3) Último recurso: ninguém aponta para um campo, mas alguma coisa cresceu. O campo que mais
-     passou da própria referência é a resposta mais útil disponível — e é melhor que nenhuma. */
-  pior = 0;
-  lista.forEach(l => { if(!comCampo(l)) return; const c = cresceu(l); if(c > pior){ pior = c; alvo = l; } });
-  return alvo;
-}
-
-function _gLayoutInseguro(out){
-  // A MESMA régua do veredito (`gLayoutCamadaReprovada`, em `00-config.js`). Usar uma régua mais
-  // curta aqui fazia a busca binária aprovar um estado que a exportação bloquearia — e prometer
-  // ao franqueado um limite de caracteres que não cabe é pior que não prometer nada.
-  return (out||[]).some(l => typeof gLayoutCamadaReprovada === 'function'
-    ? gLayoutCamadaReprovada(l) : (l && (l._layoutInvalido || l._foraDaArte)));
-}
-
-/**
- * Diagnóstico do bloqueio. Devolve `null` quando não há campo identificável (arte impossível
- * por desenho, não por conteúdo) — aí a mensagem genérica continua valendo.
- * @returns {{campo,rotulo,atual,limite,mensagem}|null}
- */
-function gLayoutDiagnosis(layers, dados, defaults, opts, solved){
-  try{
-    if(typeof gApplyRelativeAnchors !== 'function') return null;
-    const alvo = gLayoutCulpado(solved || []);
-    if(!alvo) return null;
-    const campos = gLayoutCamposDe(alvo);
-    if(!campos.length) return null;
-    // Com mais de um campo na mesma camada, o culpado é o de valor mais longo.
-    const campo = campos.slice().sort((a,b) =>
-      String((dados&&dados[b])||'').length - String((dados&&dados[a])||'').length)[0];
-    const valor = String((dados && dados[campo]) != null ? dados[campo] : '');
-    const rotulo = gLayoutRotuloCampo(campo);
-    if(valor.length < 3) return { campo, rotulo, atual: valor.length, limite: 0,
-      mensagem: 'A arte não tem espaço seguro para “' + rotulo + '” neste material. Escolha outro material para este conteúdo.' };
-
-    const testa = (n) => {
-      const d = Object.assign({}, dados);
-      d[campo] = gLayoutCorta(valor, n);
-      const out = gApplyRelativeAnchors(layers, d, defaults,
-        Object.assign({}, opts, { _politica: undefined, _semAlternativas: true }));
-      return !_gLayoutInseguro(out);
-    };
-    let baixo = 1, alto = valor.length, limite = 0, voltas = 0;
-    if(testa(alto)) limite = alto;                                  // o campo não era o culpado
-    while(baixo <= alto && voltas++ < 8 && !limite){
-      const meio = Math.floor((baixo + alto) / 2);
-      if(testa(meio)){ limite = meio; baixo = meio + 1; } else alto = meio - 1;
-    }
-    // Refina para cima enquanto sobrar orçamento de voltas: o meio da busca costuma ser
-    // conservador e prometer menos caracteres do que a arte realmente aceita.
-    while(limite && voltas++ < 12 && limite < valor.length && testa(limite + 1)) limite++;
-    return { campo, rotulo, atual: valor.length, limite,
-             mensagem: gLayoutMensagem(rotulo, valor.length, limite) };
-  }catch(e){ return null; }
-}
-
-/* Corta na PALAVRA, não no caractere: um limite que parte a última palavra no meio parece bug
-   para quem lê, e o número que o franqueado vê tem que ser o número que ele consegue digitar. */
-function gLayoutCorta(s, n){
-  const t = String(s || '');
-  if(n >= t.length) return t;
-  const bruto = t.slice(0, Math.max(0, n));
-  const corte = bruto.lastIndexOf(' ');
-  return (corte > n * 0.6 ? bruto.slice(0, corte) : bruto).trim();
-}
-
-function gLayoutMensagem(rotulo, atual, limite){
-  if(!limite) return 'O texto de “' + rotulo + '” não cabe nesta arte. Escolha outro material para este conteúdo.';
-  return 'O texto de “' + rotulo + '” é longo demais para esta arte. Cabem até ' + limite
-       + ' caracteres aqui — hoje tem ' + atual + '.';
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -928,9 +522,6 @@ function gLayoutTelemetry(result, meta){
       template: meta.template || null,
       material: meta.material || null,
       formato: meta.formato || null,
-      estrategia: (result.meta && result.meta.politica) || 'padrao',
-      nota: (result.meta && result.meta.nota) != null ? result.meta.nota : null,
-      tentativas: (result.meta && result.meta.tentativas) || 0,
       ms: (result.meta && result.meta.ms) != null ? result.meta.ms : null,
       camadas_alteradas: (result.changes || []).length,
       camadas_invalidas: (result.invalidIds || []).length,

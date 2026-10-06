@@ -6,164 +6,167 @@
   let lastHelpTrigger = null;
   let widgetState = {
     isOpen: false,
-    activeTab: 'home', // 'home' | 'messages' | 'help' | 'article'
+    // 'home' | 'news' | 'novidade' | 'messages' | 'assistente' | 'help' | 'collection' | 'article'
+    // | 'funcionalidades' | 'funcionalidade' (VITRINE, temporária)
+    activeTab: 'home',
     hasActiveChat: false,
     messages: [],
     attachedFile: null,
     isListening: false,
     selectedArticleId: null,
+    selectedColId: null,
+    selectedNewsId: null,
+    articleBack: 'help',    // de onde o artigo foi aberto: é para lá que o "voltar" leva
+    newsBack: 'home',
+    vitId: null,            // VITRINE: a funcionalidade aberta na aba Funcionalidades
     // try/catch obrigatório: isto roda no CORPO do objeto, na carga do script. Em modo privado
     // (ou com storage bloqueado por política) o getItem LANÇA e o arquivo inteiro morre — o
     // widget de ajuda simplesmente não existiria na sessão.
     searchQuery: '',
     pillTimer: null,
     pillHideTimer: null,
-    pillMessageIndex: -1
+    pillMessageIndex: -1,
+    // Suporte ao vivo (js/core/suporte.js). O rascunho mora no estado porque CADA mensagem nova
+    // re-renderiza o painel — sem isto, o que a pessoa digitava sumia quando a resposta chegava.
+    supRascunho: '',
+    supOrigem: null,        // 'assistente' quando a conversa veio do "Não resolveu?" da IA
+    supFiltro: 'aguardando', // v1: aguardando|todas · com atendimento: fila|comigo|todas
+    supErro: '',
+    supEnviando: false,
+    supRepasse: false,      // equipe: a lista "passar para quem?" aberta na conversa
+    supAcaoRodando: false,  // assumir/repassar/resolver no ar (trava clique duplo)
+    supTgAberto: false,     // equipe: o campo do código do Telegram aberto na caixa
+    supTgCodigo: ''         // o que foi digitado nele (o Realtime re-renderiza a caixa)
   };
 
-  // Base de Conhecimento Completa do Luma (15 Artigos Estruturados)
-  const LUMA_ARTICLES = [
-    {
-      id: 'campanha-personalizar',
-      category: 'franqueado',
-      categoryTitle: 'USUÁRIO FRANQUEADO',
-      title: 'Como escolher e personalizar um material de campanha?',
-      meta: '⏱️ 2 min de leitura • Franqueado',
-      summary: 'Passo a passo para selecionar peças do catálogo e preencher seus dados de franquia com segurança.',
-      steps: [
-        { num: 'PASSO 1', title: 'Navegue pelo Catálogo de Campanhas', text: 'No menu lateral do Franqueado, selecione a campanha desejada (ex: Oferta em Dobro, Natal, Dia das Mães).' },
-        { num: 'PASSO 2', title: 'Escolha o Formato da Arte', text: 'Selecione o formato ideal para seu canal de divulgação: Feed (1:1), Stories (9:16) ou Banner para Impressão.' },
-        { num: 'PASSO 3', title: 'Preencha os Campos do Assistente', text: 'Informe seu cupom, validade ou oferta na barra lateral. O Luma ajustará o texto e o layout automaticamente.' }
-      ],
-      tip: 'Dica de Ouro: Você pode usar o botão de microfone no chat ou no assistente para ditar seus preços e cupons por voz!'
-    },
-    {
-      id: 'campos-regras',
-      category: 'franqueado',
-      categoryTitle: 'USUÁRIO FRANQUEADO',
-      title: 'Como preencher campos de texto, preços e cupons sem errar a marca?',
-      meta: '⏱️ 3 min de leitura • Guia Prático',
-      summary: 'Entenda como as regras de formatação automática garantem que suas artes fiquem sempre bonitas.',
-      steps: [
-        { num: 'REGRA 1', title: 'Máscara Automática de Moeda (R$)', text: 'Ao digitar valores no campo de preço, o Luma aplica a máscara R$ 00,00 automaticamente. Não precisa digitar o símbolo de moeda.' },
-        { num: 'REGRA 2', title: 'Caixa Alta Obrigatória em Cupons', text: 'Campos de cupom de desconto forçam letras maiúsculas para evitar erros de resgate pelos clientes.' },
-        { num: 'REGRA 3', title: 'Auto-Ajuste de Tamanho de Fonte', text: 'Se você digitar um texto mais longo, o motor do Luma reduz o tamanho da fonte proporcionalmente para não estouro de caixa.' }
-      ],
-      tip: 'Atenção: Respeite os limites recomendados de caracteres exibidos abaixo de cada caixa de texto.'
-    },
-    {
-      id: 'fotos-crop',
-      category: 'franqueado',
-      categoryTitle: 'USUÁRIO FRANQUEADO',
-      title: 'Como enviar fotos de produtos com o enquadramento correto?',
-      meta: '⏱️ 2 min de leitura • Imagens',
-      summary: 'Dicas para fazer upload de fotos da sua loja ou pratos mantendo a alta resolução.',
-      steps: [
-        { num: 'PASSO 1', title: 'Clique na área de foto do material', text: 'No assistente de edição, selecione a caixa de imagem do produto.' },
-        { num: 'PASSO 2', title: 'Selecione uma imagem do seu dispositivo', text: 'Envie um arquivo PNG, JPG ou WEBP de boa iluminação.' },
-        { num: 'PASSO 3', title: 'Ajuste o Crop e Enquadramento', text: 'Arraste e aplique o zoom para centralizar o produto dentro da máscara da marca.' }
-      ],
-      tip: 'Dica: Evite fotos com fundo muito poluído. Dê preferência a pratos bem iluminados.'
-    },
-    {
-      id: 'download-alta-res',
-      category: 'franqueado',
-      categoryTitle: 'USUÁRIO FRANQUEADO',
-      title: 'Como baixar a arte final em alta resolução (PNG 2× / PDF)?',
-      meta: '⏱️ 1 min de leitura • Exportação',
-      summary: 'Aprenda a baixar arquivos prontos para postar no Instagram ou enviar para a gráfica.',
-      steps: [
-        { num: 'PASSO 1', title: 'Finalize a edição dos campos', text: 'Verifique se todas as informações e preços estão corretos na prévia ao vivo.' },
-        { num: 'PASSO 2', title: 'Clique no botão Baixar Arte', text: 'Selecione a opção PNG 2× (ideal para WhatsApp e Instagram) ou PDF Vetorial (para impressão em gráfica).' }
-      ],
-      tip: 'O download leva menos de 2 segundos e é processado diretamente no seu navegador.'
-    },
-    {
-      id: 'falta-preencher-erro',
-      category: 'franqueado',
-      categoryTitle: 'USUÁRIO FRANQUEADO',
-      title: 'O que fazer se a prévia acusar "Falta preencher" um campo?',
-      meta: '⏱️ 2 min de leitura • Resolução de Problemas',
-      summary: 'Como identificar e corrigir campos obrigatórios pendentes na sua arte.',
-      steps: [
-        { num: 'PASSO 1', title: 'Localize o destaque em vermelho', text: 'O assistente do Luma grifa em vermelho os campos que a sua franquia precisa preencher obrigatoriamente.' },
-        { num: 'PASSO 2', title: 'Preencha ou desmarque a opção condicional', text: 'Se você não for colocar promoção, desmarque a caixa "Exibir Preço Promocional".' }
-      ],
-      tip: 'Assim que todos os campos obrigatórios forem preenchidos, o botão de download será liberado.'
-    },
-
-    // Designer & Admin Articles
-    {
-      id: 'estudio-criar-templates',
-      category: 'designer',
-      categoryTitle: 'ADMINISTRADOR E DESIGNER',
-      title: 'Como criar novos templates do zero no Estúdio Luma?',
-      meta: '⏱️ 4 min de leitura • Designer',
-      summary: 'Guia completo para montar artes profissionais usando a prancheta do Estúdio.',
-      steps: [
-        { num: 'PASSO 1', title: 'Acesse a aba Estúdio', text: 'Alterne o modo para Estúdio no menu superior do Luma.' },
-        { num: 'PASSO 2', title: 'Defina a Prancheta e Formato', text: 'Crie uma prancheta 1080x1080px (Feed) ou 1080x1920px (Stories).' },
-        { num: 'PASSO 3', title: 'Adicione Camadas de Texto e Imagens', text: 'Monte seu layout usando ferramentas de vetor, imagens e caixas de texto.' }
-      ],
-      tip: 'Mantenha os elementos visuais organizados em camadas nomeadas para facilitar a manutenção.'
-    },
-    {
-      id: 'variaveis-dinamicas-campos',
-      category: 'designer',
-      categoryTitle: 'ADMINISTRADOR E DESIGNER',
-      title: 'Como transformar um texto ou imagem em campo editável?',
-      meta: '⏱️ 3 min de leitura • Campos editáveis',
-      summary: 'Defina o que o franqueado poderá trocar sem alterar o layout.',
-      steps: [
-        { num: 'PASSO 1', title: 'Selecione uma camada de texto', text: 'No painel do designer, escolha a camada que deve ser editável.' },
-        { num: 'PASSO 2', title: 'Abra Campos', text: 'O Luma sugere o campo mais provável de acordo com o nome e o conteúdo da camada.' },
-        { num: 'PASSO 3', title: 'Aceite a sugestão ou crie outro', text: 'Escolha o formato da informação e confira como o franqueado verá o preenchimento.' }
-      ],
-      tip: 'Use nomes claros para a equipe, como Desconto, Validade ou Foto do produto.'
-    },
-    {
-      id: 'importar-psd-photoshop',
-      category: 'designer',
-      categoryTitle: 'ADMINISTRADOR E DESIGNER',
-      title: 'Como importar arquivos PSD do Photoshop mantendo camadas editáveis?',
-      meta: '⏱️ 3 min de leitura • Importador PSD',
-      summary: 'Aprenda a converter artes do Photoshop diretamente em templates do Luma.',
-      steps: [
-        { num: 'PASSO 1', title: 'Prepare seu arquivo no Photoshop', text: 'Organize o PSD com camadas limpas e nomeadas em RGB.' },
-        { num: 'PASSO 2', title: 'Arraste o .psd para o Luma', text: 'No Estúdio, clique em "Importar PSD" e selecione o arquivo.' },
-        { num: 'PASSO 3', title: 'Vincule as Camadas aos Campos', text: 'O parser do Luma recria os textos, fontes e imagens em HTML5 Canvas nativo.' }
-      ],
-      tip: 'Certifique-se de que as fontes utilizadas no PSD estão instaladas na biblioteca do Luma.'
-    },
-    {
-      id: 'travas-marca-restricoes',
-      category: 'designer',
-      categoryTitle: 'ADMINISTRADOR E DESIGNER',
-      title: 'Como definir regras de visibilidade condicional e travas de marca?',
-      meta: '⏱️ 4 min de leitura • Brand Guardian',
-      summary: 'Garanta a integridade visual da marca definindo limites min/max de caracteres e paletas permitidas.',
-      steps: [
-        { num: 'PASSO 1', title: 'Abra as Propriedades do Campo', text: 'Na aba Campos do Estúdio, selecione o campo que deseja restringir.' },
-        { num: 'PASSO 2', title: 'Defina o limite de caracteres', text: 'Informe a quantidade máxima de letras que o franqueado pode digitar.' },
-        { num: 'PASSO 3', title: 'Adicione Visibilidade Condicional', text: 'Configure regras como: exibir o selo "OFERTA" somente se o preço promocional for informado.' }
-      ],
-      tip: 'Travas de marca bem configuradas reduzem em 90% pedidos de revisão do marketing.'
-    },
-    {
-      id: 'publicar-template-catalogo',
-      category: 'designer',
-      categoryTitle: 'ADMINISTRADOR E DESIGNER',
-      title: 'Como publicar um template e disponibilizá-lo para os franqueados no catálogo?',
-      meta: '⏱️ 2 min de leitura • Publicação',
-      summary: 'Transforme o rascunho do designer em uma arte pronta no catálogo da rede.',
-      steps: [
-        { num: 'PASSO 1', title: 'Clique no botão Publicar Material', text: 'No canto superior direito do Estúdio, abra o modal de publicação.' },
-        { num: 'PASSO 2', title: 'Escolha a Campanha e a Pasta', text: 'Associe o material a uma campanha ativa (ex: Desconto em Dobro) e defina a ordem.' },
-        { num: 'PASSO 3', title: 'Confirme e Notifique a Rede', text: 'Ao salvar, a arte fica imediatamente visível no painel do franqueado.' }
-      ],
-      tip: 'Você pode salvar como rascunho local antes de publicar para a rede toda.'
-    }
+  /* ── A BASE DA AJUDA (redesenho de 26/09/2026, referência: Deskfy) ────────────────────────
+     Organizada pelo que a pessoa QUER FAZER (coleção), não por quem ela é: a lista antiga era
+     uma fila de 10 artigos, metade do Estúdio aparecendo para o franqueado.
+     ⛔ Cada frase aqui foi conferida no código na data acima — rótulo de botão, limite, formato.
+     A base antiga prometia coisas que não existem ("Exibir Preço Promocional", "PDF Vetorial",
+     "reduz 90% dos pedidos") e a IA repetia, porque ela se aterra nestes textos
+     (lumaWidgetKnowledge). Botão mudou de nome? O artigo muda junto.
+     ⛔ Não existe "Baixar PDF" na tela (fBaixarPDF não tem chamador) nem "publicar no Instagram"
+     (saiu de propósito em 11/09, ver chat.js). Não escreva artigo sobre nenhum dos dois.
+     `aud:'equipe'` = só equipe_dm/gestao vê (gIsAdmin). Copy estática nossa, mas passa por
+     wmEsc mesmo assim: custa nada e não depende de ninguém lembrar. */
+  const WM_COLECOES = [
+    { id: 'comece',    icon: 'play',     title: 'Comece por aqui',         desc: 'Sua primeira arte em um minuto' },
+    { id: 'preencher', icon: 'text',     title: 'Preencher a arte',        desc: 'Textos, preços e o que fazer quando não cabe' },
+    { id: 'fotos',     icon: 'image',    title: 'Fotos e logo',            desc: 'Enviar, colar, trocar e enquadrar' },
+    { id: 'entregar',  icon: 'download', title: 'Baixar e postar',         desc: 'O arquivo e a legenda do post' },
+    { id: 'lote',      icon: 'layers',   title: 'Várias artes de uma vez', desc: 'A planilha que gera dezenas de artes' },
+    { id: 'minhas',    icon: 'history',  title: 'Minhas artes',            desc: 'Continuar, baixar de novo e duplicar' },
+    { id: 'estudio',   icon: 'compass',  title: 'Estúdio',                 desc: 'Criar, preparar e publicar templates', aud: 'equipe' }
   ];
+
+  const LUMA_ARTICLES = [
+    { id: 'primeira-arte', col: 'comece', min: 1, kw: 'começar gerar criar campanha material',
+      title: 'Criar sua primeira arte',
+      summary: 'Você escolhe o material, responde algumas perguntas e baixa. Leva cerca de um minuto.',
+      steps: ['Escolha uma campanha no catálogo.', 'Toque no material que quer usar.', 'Responda as perguntas do chat: produto, preço, foto, o que aquele material pedir.', 'Confira a prévia e toque em Baixar PNG.'],
+      tip: 'Não precisa acertar de primeira: dá para voltar uma pergunta, editar qualquer campo e gerar de novo quantas vezes quiser.' },
+    { id: 'qual-formato', col: 'comece', min: 1, kw: 'formato story feed post wide tamanho medida',
+      title: 'Qual formato escolher',
+      summary: 'Escolha pelo lugar onde a arte vai aparecer.',
+      steps: ['Story (1080×1920): Stories do Instagram e status do WhatsApp.', 'Feed (1080×1350): publicação no feed do Instagram.', 'Post wide (1200×628): banners e formatos mais largos.'],
+      tip: 'Muitos materiais já vêm num formato só, pensado para aquela peça.' },
+    { id: 'marca', col: 'comece', min: 1, kw: 'marca cor fonte logo travado fixo bloqueado não muda',
+      title: 'Por que alguns itens da arte não mudam',
+      summary: 'Cores, fontes e o logo da Delivery Much vêm travados no material.',
+      steps: ['A equipe DM monta cada material e escolhe o que você pode trocar.', 'Você preenche o conteúdo: produto, preço, foto, validade.', 'O resto fica fixo para a peça sair sempre dentro da marca. Na prévia, tocar num item travado mostra "Fixo da marca".'],
+      tip: 'Precisa de uma arte que não está no catálogo? O pedido é com o marketing da sua empresa.' },
+
+    { id: 'campos', col: 'preencher', min: 2, kw: 'preço valor cupom código desconto validade data de por máscara',
+      title: 'Preencher textos, preços e cupons',
+      summary: 'O Luma formata cada tipo de campo para você. Digite do jeito mais simples.',
+      steps: ['Preço: digite só o número, como 9,90. O Luma coloca o R$ e os centavos.', 'Desconto: digite 20 e ele vira "20% off".', 'Cupom: sai em letras maiúsculas, sem espaço, com pelo menos 3 caracteres.', 'Preço "de/por": o "por" precisa ser menor que o "de", senão a oferta não existe.'],
+      tip: 'Se algo não estiver no formato certo, o Luma diz o que corrigir quando você tenta avançar.' },
+    { id: 'texto-nao-cabe', col: 'preencher', min: 1, kw: 'não cabe grande longo encurtar limite caracteres cortado estourado',
+      title: 'O texto não cabe na arte',
+      summary: 'Cada texto tem um espaço reservado na arte. Se o que você digitou for maior que ele, o Luma avisa antes de gerar.',
+      steps: ['Olhe o contador embaixo do campo: ele mostra quanto cabe naquele espaço.', 'Perto do limite, aparece o botão Encurtar. Toque para ver versões mais curtas do mesmo texto.', 'Escolha uma, ou edite do seu jeito, e siga para a próxima pergunta.'],
+      tip: 'Abreviações de cardápio ajudam muito: "c/" no lugar de "com". O Luma nunca gera a arte com o texto cortado.' },
+    { id: 'corrigir', col: 'preencher', min: 1, kw: 'voltar corrigir errei mudar resposta editar refazer apagar',
+      title: 'Corrigir uma resposta',
+      summary: 'Nada do que você respondeu se perde. Escolha o caminho mais curto.',
+      steps: ['No chat, toque em Voltar uma pergunta para refazer a anterior.', 'Na prévia, toque num texto ou na foto para editar direto nela.', 'Com a arte pronta, toque em Editar arte para rever os campos sem perder nada.', 'Quer começar do zero? Toque em Refazer. O Luma confirma antes de apagar as respostas.'] },
+
+    { id: 'enviar-foto', col: 'fotos', min: 1, kw: 'foto imagem enviar upload png jpg webp 20mb colar arrastar recente',
+      title: 'Enviar a foto do produto',
+      summary: 'PNG, JPG ou WebP, até 20 MB.',
+      steps: ['Na pergunta da foto, toque em Escolher imagem.', 'Ou cole uma imagem copiada (Ctrl+V) ou arraste o arquivo para dentro do chat.', 'As fotos que você já usou aparecem em Imagens recentes, para reaproveitar sem enviar de novo.'],
+      tip: 'Foto muito pequena (menos de 400 pixels no lado menor) é recusada, porque sairia pixelada. Quanto maior, mais nítida a arte.' },
+    { id: 'ajustar-foto', col: 'fotos', min: 1, kw: 'trocar ajustar enquadrar zoom reposicionar cortar foto',
+      title: 'Trocar ou ajustar a foto',
+      summary: 'Dá para trocar a foto ou mudar o enquadramento sem refazer a arte.',
+      steps: ['Na prévia, toque na foto.', 'Escolha Trocar foto para enviar outra, ou Reposicionar e Zoom para mudar o enquadramento.', 'No chat, o cartão da foto também tem os botões Trocar e Ajustar.'],
+      tip: 'No celular, o ajuste abre em tela cheia, com espaço para arrastar a foto com o dedo.' },
+    { id: 'logo', col: 'fotos', min: 1, kw: 'logo marca loja parceiro transparente',
+      title: 'Usar o logo da loja',
+      summary: 'O Luma enquadra o logo sozinho, sem cortar.',
+      steps: ['Na pergunta do logo, envie o arquivo da loja. PNG com fundo transparente fica melhor.', 'O Luma dá zoom até a marca ocupar a moldura, sem cortar nada.', 'Se o logo ficar pequeno ou fora do lugar, toque em Ajustar e posicione do seu jeito.'] },
+
+    { id: 'baixar', col: 'entregar', min: 1, kw: 'baixar download png arquivo salvar nome pdf imprimir',
+      title: 'Baixar a arte',
+      summary: 'Quando a arte fica pronta, ela aparece no chat com os botões de entrega.',
+      steps: ['Toque em Baixar PNG.', 'O arquivo sai com um nome fácil de achar: produto, formato e campanha.', 'A arte também fica salva em Minhas artes, para baixar de novo depois.'],
+      tip: 'Hoje a arte sai em PNG, o formato que Instagram e WhatsApp aceitam direto. Não há download em PDF.' },
+    { id: 'kit-campanha', col: 'entregar', min: 2, kw: 'kit campanha todas peças formatos story feed zip pacote pasta várias artes de uma vez',
+      title: 'Gerar todas as peças da campanha (Kit)',
+      summary: 'Com a arte pronta, o botão Gerar todas as peças (N) faz a mesma arte em cada formato da campanha, com as suas respostas. Ele só aparece quando a campanha tem 2 ou mais materiais publicados.',
+      steps: ['Com a arte pronta, toque em Gerar todas as peças.', 'Se alguma peça tiver um campo só dela, o Luma pergunta apenas esse campo.', 'A peça em que o texto não cabe fica fora do pacote, e o Luma diz o nome dela e o motivo.', 'No computador, o pacote baixa em um arquivo ZIP. No celular, abre o compartilhar, ou baixa o ZIP se não der.'],
+      tip: 'Nada é redimensionado: cada peça é o desenho do designer, e o preço sai igual em todas. Cada peça entregue fica salva em Minhas artes.' },
+    { id: 'legenda', col: 'entregar', min: 1, kw: 'legenda texto post instagram whatsapp copiar hashtag',
+      title: 'Copiar a legenda do post',
+      summary: 'Junto com a arte pronta vem uma legenda para publicar.',
+      steps: ['Embaixo da arte, procure o cartão Legenda pronta.', 'Toque em Copiar legenda e cole no Instagram ou no WhatsApp.', 'Quando houver outras opções, Gerar outra sugestão troca o texto.'],
+      tip: 'O Luma não publica por você: você baixa a arte, copia a legenda e posta pelo app de sempre.' },
+
+    { id: 'lote', col: 'lote', min: 2, kw: 'lote planilha sheets csv excel várias muitas cardápio massa',
+      title: 'Gerar várias artes de uma vez',
+      summary: 'Precisa de uma arte por produto, tipo um cardápio inteiro? O lote faz tudo de uma vez.',
+      steps: ['Com uma arte pronta, toque em Gerar em lote.', 'Preencha a planilha: cada linha vira uma arte. Dá para digitar direto, colar do Excel ou enviar o CSV Modelo.', 'Confira as artes na prévia ao lado da planilha e gere todas.'],
+      tip: 'Em "Preencher um campo de uma vez" você aplica o mesmo valor, um desconto ou o final ",90" em todas as linhas.' },
+
+    { id: 'minhas-artes', col: 'minhas', min: 1, kw: 'minhas artes histórico rascunho continuar duplicar baixar de novo',
+      title: 'Continuar ou baixar de novo',
+      summary: 'Tudo que você começa ou baixa fica salvo em Minhas artes.',
+      steps: ['Abra Minhas artes.', 'Em cada arte, use Abrir e editar para continuar de onde parou.', 'Use Baixar PNG para baixar de novo, ou Duplicar para partir dela numa arte nova.'] },
+
+    { id: 'estudio-campos', col: 'estudio', min: 2, aud: 'equipe', kw: 'campo variável editável estúdio designer',
+      title: 'Transformar um texto ou imagem em campo',
+      summary: 'Campo é o que o franqueado vai poder trocar sem mexer no layout.',
+      steps: ['Selecione a camada no Estúdio.', 'Abra Campos: o Luma sugere o campo mais provável pelo nome e pelo conteúdo da camada.', 'Aceite a sugestão ou crie outro, e confira a ordem em que o franqueado será perguntado.'],
+      tip: 'Antes de criar um campo novo, o Luma avisa se já existe um igual. Reaproveitar mantém a pergunta igual em toda a rede.' },
+    { id: 'estudio-psd', col: 'estudio', min: 2, aud: 'equipe', kw: 'psd photoshop importar camadas fidelidade',
+      title: 'Importar um PSD',
+      summary: 'O arquivo do Photoshop vira template, camada por camada.',
+      steps: ['No Estúdio, use Importar PSD e escolha o arquivo.', 'Na revisão, confira as camadas e quais viram campo.', 'Confirme e compare com o original antes de publicar.'],
+      tip: 'Se faltar alguma fonte do PSD, a revisão avisa e deixa enviar o arquivo da fonte ali mesmo.' },
+    { id: 'estudio-publicar', col: 'estudio', min: 2, aud: 'equipe', kw: 'publicar template campanha validade permissão catálogo',
+      title: 'Publicar para os franqueados',
+      summary: 'Publicar leva o template para o catálogo da rede.',
+      steps: ['Com o template pronto, toque em Publicar.', 'Escolha a campanha, o que o franqueado pode trocar e a validade.', 'Confirme: o material passa a aparecer no catálogo.'] }
+  ];
+
+  /* "Nesta tela": os 2 artigos da tela onde a pessoa está. A ordem importa: a primeira classe
+     do body que casar vence (arte pronta é mais específica que o chat). */
+  const WM_NESTA_TELA = [
+    ['mode-designer',      ['estudio-campos', 'estudio-publicar']],
+    ['f-history-mode',     ['minhas-artes', 'baixar']],
+    ['f-home-mode',        ['primeira-arte', 'qual-formato']],
+    ['f-material-browser', ['primeira-arte', 'qual-formato']],
+    ['f-bulk-folha',       ['lote', 'campos']],
+    ['f-arte-pronta',      ['baixar', 'legenda']],
+    ['mode-franqueado',    ['texto-nao-cabe', 'ajustar-foto']]
+  ];
+
+  /* ── NOVIDADES DO LUMA ────────────────────────────────────────────────────────────────────
+     O conteúdo (LUMA_NOVIDADES) e as regras da edição semanal moram em js/widgets/novidades.js
+     desde 27/09/2026. Continua no código, não numa tabela (decisão de 26/09): novidade é o que
+     acabou de ir ao ar, e isso já exige deploy. O arquivo à parte existe para o
+     `scripts/novidades.js` conseguir ler, conferir e montar o rascunho da próxima edição. */
 
   // SVGs nativos reutilizáveis (Zero emojis)
   const WIDGET_SVGS = {
@@ -180,9 +183,36 @@
     paperclip: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>',
     mic: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>',
     back: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>',
+    users: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
     trash: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
     sparkle: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 1.3 3.7L17 8l-3.7 1.3L12 13l-1.3-3.7L7 8l3.7-1.3L12 3Z"/><path d="m18 14 .8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8L18 14Z"/><path d="m5 12 .7 1.8 1.8.7-1.8.7L5 17l-.7-1.8-1.8-.7 1.8-.7L5 12Z"/></svg>'
   };
+
+  // Ícones das coleções, novidades e artigo: só o traço; wmIco monta o SVG no tamanho pedido.
+  const WM_ICO = {
+    play: '<path d="m9 18 6-6-6-6v12Z"/>',
+    text: '<path d="M4 6h16M4 12h10M4 18h13"/>',
+    image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',
+    download: '<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
+    layers: '<path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 17l9 5 9-5"/>',
+    history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',
+    compass: '<circle cx="12" cy="12" r="9"/><path d="m16 8-2.5 5.5L8 16l2.5-5.5L16 8Z"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    bulb: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.6.6 1 1.2 1 2h6c0-.8.4-1.4 1-2A6 6 0 0 0 12 3Z"/>',
+    up: '<path d="M7 10v11H4V10zM7 10l5-7c1.3 0 2 .9 2 2v3h5.2a2 2 0 0 1 2 2.3l-1.3 7A2 2 0 0 1 17 21H7"/>',
+    down: '<path d="M17 14V3h3v11zM17 14l-5 7c-1.3 0-2-.9-2-2v-3H4.8a2 2 0 0 1-2-2.3l1.3-7A2 2 0 0 1 7 3h10"/>',
+    pin: '<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/>',
+    crop: '<path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/>',
+    file: '<path d="M6 2h8l4 4v16H6Z"/><path d="M14 2v5h5M9 13h6M9 17h4"/>',
+    scissors: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/>',
+    chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+    ask: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>'
+  };
+  function wmIco(nome, tam) {
+    const t = tam || 18;
+    return `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${WM_ICO[nome] || WM_ICO.text}</svg>`;
+  }
 
   const WIDGET_PILL_MESSAGES = [
     {
@@ -221,62 +251,163 @@
       .trim();
   }
 
-  function wmArticleCategory(article) {
-    return article && article.category === 'designer' ? 'Equipe de design' : 'Franqueado';
+  // Equipe (equipe_dm/gestao) vê também a coleção do Estúdio. É só filtro de CONTEÚDO de
+  // ajuda — não é fronteira de segurança nenhuma (essa mora na RLS).
+  function wmEquipe() { return typeof gIsAdmin === 'function' && gIsAdmin(); }
+  function wmVisivel(item) { return !!item && (item.aud !== 'equipe' || wmEquipe()); }
+  function wmColecao(id) { return WM_COLECOES.find(function (c) { return c.id === id; }) || null; }
+  function wmArtigo(id) { return LUMA_ARTICLES.find(function (a) { return a.id === id; }) || null; }
+  function wmArtigosDa(colId) {
+    return LUMA_ARTICLES.filter(function (a) { return a.col === colId && wmVisivel(a); });
   }
 
-  function wmArticleMeta(article) {
-    return String((article && article.meta) || '').replace(/^⏱️\s*/, '');
+  const WM_MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  const WM_MESES_LONGOS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  // 'T12:00' de propósito: '2026-09-23' puro vira meia-noite UTC e, no Brasil, o dia 22.
+  function wmData(iso) { const d = new Date(String(iso) + 'T12:00:00'); return isNaN(d) ? null : d; }
+  function wmDataCurta(iso) { const d = wmData(iso); return d ? d.getDate() + ' ' + WM_MESES[d.getMonth()] : ''; }
+  function wmDataLonga(iso) { const d = wmData(iso); return d ? d.getDate() + ' de ' + WM_MESES_LONGOS[d.getMonth()] : ''; }
+  /* As edições que esta pessoa vê: item com `requer:'suporte'` some com o suporte desligado, e
+     a edição que ficar vazia some junto. Cópia rasa por edição: o dado de novidades.js não muda. */
+  function wmEdicoes() {
+    const todas = typeof LUMA_NOVIDADES !== 'undefined' && Array.isArray(LUMA_NOVIDADES) ? LUMA_NOVIDADES : [];
+    return todas.map(function (e) {
+      const itens = (e.itens || []).filter(function (n) { return n.requer !== 'suporte' || wmSuporte(); });
+      return itens.length ? Object.assign({}, e, { itens: itens }) : null;
+    }).filter(Boolean);
+  }
+  // "Novo" por idade (14 dias), sem guardar o que a pessoa já viu: o painel abre na Início,
+  // então um "não lido" se apagaria no mesmo instante em que aparece. Só a edição mais recente
+  // leva o selo — com uma por semana, duas "novas" ao mesmo tempo seria o selo mentindo.
+  function wmEdicaoNova(e) {
+    const ultima = wmEdicoes()[0], d = wmData(e.data);
+    return !!ultima && ultima.id === e.id && !!d && (Date.now() - d.getTime()) < 14 * 86400000;
   }
 
-  function wmRenderArticleCard(article) {
-    return `
-      <button type="button" class="luma-wm-article-card" onclick="lumaWidgetOpenArticle('${article.id}')">
-        <span class="luma-wm-article-card-copy">
-          <span class="luma-wm-eyebrow">${wmEsc(wmArticleCategory(article))}</span>
-          <strong>${wmEsc(article.title)}</strong>
-          <span class="luma-wm-article-summary">${wmEsc(article.summary)}</span>
-          <small>${wmEsc(wmArticleMeta(article))}</small>
-        </span>
+  function wmPrimeiroNome() {
+    const u = typeof gCurrentUser === 'function' ? gCurrentUser() : null;
+    // displayName cai no começo do e-mail quando o perfil não tem nome ("ryan.motta").
+    const p = String((u && u.displayName) || '').trim().split(/[\s._-]+/)[0] || '';
+    return p ? p.charAt(0).toUpperCase() + p.slice(1) : '';
+  }
+
+  function wmRenderArtRow(a, origem, comColecao) {
+    const col = comColecao ? wmColecao(a.col) : null;
+    return `<button type="button" class="luma-wm-row" onclick="lumaWidgetOpenArticle('${a.id}','${origem}')">
+        <span class="luma-wm-row-txt">${col ? `<small>${wmEsc(col.title)}</small>` : ''}<strong>${wmEsc(a.title)}</strong></span>
         <span class="luma-wm-list-arrow" aria-hidden="true">${WIDGET_SVGS.chevronRight}</span>
-      </button>
-    `;
+      </button>`;
   }
 
-  function wmHeaderCopy() {
-    if (widgetState.activeTab === 'messages') {
-      return { title: 'Assistente do Luma', detail: 'Pergunte sobre o produto — as respostas vêm da Central de Ajuda.' };
-    }
-    if (widgetState.activeTab === 'help' || widgetState.activeTab === 'article') {
-      return { title: 'Central de ajuda', detail: 'Encontre respostas rápidas sobre o seu fluxo.' };
-    }
-    return { title: 'Como podemos ajudar?', detail: 'Busque uma resposta ou pergunte ao assistente.' };
+  /* Ilustração da novidade: fragmento de UI em CSS, não imagem — zero arquivo novo, nítido em
+     qualquer tela e acompanha o tema. O texto de dentro é decoração (aria-hidden). */
+  function wmNovidadeArte(chave) {
+    const faisca = WIDGET_SVGS.sparkle.replace('width="18" height="18"', 'width="11" height="11"');
+    const artes = {
+      suporte: `<span class="luma-wm-il-pill"><i class="luma-wm-sup-dot"></i>Equipe online</span>
+        <span class="luma-wm-il-bub eu">Como troco a foto depois de gerar?</span>
+        <span class="luma-wm-il-bub eles"><b>Equipe DM</b>Toque na foto na prévia e em Trocar foto.</span>`,
+      encurtar: `<span class="luma-wm-il-campo"><small>Nome do produto</small><strong>X-Tudo Duplo <s>com Bacon Crocante</s></strong>
+        <span class="luma-wm-il-campo-pe"><span>Não cabe na arte</span><span class="luma-wm-il-chip">${faisca}Encurtar</span></span></span>`,
+      quebra: `<span class="luma-wm-il-antes"><small>Antes</small><b>X-Tudo Duplo com</b><b>bacon</b></span>
+        <span class="luma-wm-il-agora"><small>Agora</small><b>X-Tudo Duplo</b><b>com bacon</b></span>`,
+      foto: `<span class="luma-wm-il-moldura"><i class="luma-wm-il-prato"></i><i class="h1"></i><i class="h2"></i><i class="h3"></i><i class="h4"></i></span>
+        <span class="luma-wm-il-chip">${wmIco('crop', 11)}Reposicionar e Zoom</span>`
+    };
+    return artes[chave] ? `<span class="luma-wm-il luma-wm-il-${chave}" aria-hidden="true">${artes[chave]}</span>` : '';
   }
 
+  /* ── CABEÇALHO ────────────────────────────────────────────────────────────────────────────
+     Início = saudação (o "Olá! Como podemos ajudar?" do Deskfy). Toda outra tela = barra
+     curta com voltar, título e fechar — o espaço vai para o conteúdo. Na conversa, a barra
+     diz QUEM responde: assistente ou equipe, que é a informação que muda o que se escreve. */
+  function wmVoltarAlvo() {
+    const t = widgetState.activeTab;
+    if (t === 'news' || t === 'assistente') return 'home';
+    if (t === 'novidade') return widgetState.newsBack || 'home';
+    if (t === 'collection') return 'help';
+    if (t === 'funcionalidade') return 'funcionalidades';   // VITRINE
+    if (t === 'article') return widgetState.articleBack || 'help';
+    return null;
+  }
+
+  function wmAvataresOnline(tam) {
+    const lista = typeof gSupOnlinePessoas === 'function' ? gSupOnlinePessoas()
+      : G_SUP.online.map(function (n) { return { nome: n }; });
+    return `<span class="luma-wm-sup-avatares${tam ? ' ' + tam : ''}" aria-hidden="true">${lista.slice(0, 3).map(function (p) {
+      return wmSupAvatar(p, ''); }).join('')}</span>`;
+  }
+
+  function wmBarCopy() {
+    const t = widgetState.activeTab;
+    if (t === 'messages' && wmSuporte()) return wmSupHeader();
+    if (t === 'assistente' || (t === 'messages' && widgetState.hasActiveChat)) {
+      return { title: 'Assistente do Luma', ia: true,
+        detail: wmSuporte() ? 'A equipe DM também pode ajudar' : 'Responde pela Central de Ajuda' };
+    }
+    if (t === 'messages') return { title: 'Mensagens' };
+    if (t === 'news') return { title: 'Novidades' };
+    if (t === 'novidade') return { title: 'Novidades' };   // a edição da semana, não uma notícia
+    if (t === 'funcionalidades') return { title: 'Funcionalidades', detail: 'O que o Luma faz hoje' };   // VITRINE
+    if (t === 'funcionalidade') {   // VITRINE
+      const l = wmVitLista(), i = l.findIndex(function (f) { return f.id === widgetState.vitId; });
+      return { title: 'Funcionalidades', detail: i >= 0 ? (i + 1) + ' de ' + l.length : '' };
+    }
+    return { title: 'Ajuda' };
+  }
+
+  function wmHeaderHTML() {
+    const fechar = `<button type="button" class="luma-wm-close-btn" onclick="lumaWidgetClose()" aria-label="Fechar central de ajuda">${WIDGET_SVGS.close}</button>`;
+    if (widgetState.activeTab === 'home') {
+      const nome = wmPrimeiroNome();
+      return `<header class="luma-wm-header luma-wm-hero">
+          <div class="luma-wm-header-top">
+            <div class="luma-wm-brand">
+              <img src="assets/logos/luma-h-cor.png" alt="Luma" class="luma-wm-brand-logo-img luma-wm-logo-light">
+              <img src="assets/logos/luma-h-branca.png" alt="Luma" class="luma-wm-brand-logo-img luma-wm-logo-dark">
+              <span class="luma-wm-brand-divider" aria-hidden="true"></span>
+              <span class="luma-wm-brand-label">Ajuda</span>
+            </div>
+            <div class="luma-wm-header-actions">${wmSupEquipeOnline() ? wmAvataresOnline() : ''}${fechar}</div>
+          </div>
+          <p class="luma-wm-hero-oi">${nome ? 'Olá, ' + wmEsc(nome) : 'Olá!'}</p>
+          <h2 class="luma-wm-hero-title" id="luma-wm-title">Como podemos ajudar?</h2>
+        </header>`;
+    }
+    const c = wmBarCopy();
+    const alvo = wmVoltarAlvo();
+    const voltar = alvo
+      ? `<button type="button" class="luma-wm-icon-btn" onclick="lumaWidgetVoltar()" aria-label="Voltar">${WIDGET_SVGS.back}</button>`
+      : '<span class="luma-wm-bar-gap" aria-hidden="true"></span>';
+    const ident = c.ia || c.detail;
+    const marca = c.ia ? `<span class="luma-wm-bar-mark" aria-hidden="true">${WIDGET_SVGS.sparkle}</span>`
+      : c.pessoa ? `<span class="luma-wm-sup-avatares mini" aria-hidden="true">${wmSupAvatar(c.pessoa, '')}</span>`
+      : (c.online && !G_SUP.souEquipe && G_SUP.online.length ? wmAvataresOnline('mini') : '');
+    const dot = c.dot || (c.online ? 'on' : '');   // on | ausente | off
+    return `<header class="luma-wm-header luma-wm-bar${ident ? ' is-ident' : ''}">
+        ${voltar}${marca}
+        <div class="luma-wm-bar-title">
+          <h2 id="luma-wm-title">${wmEsc(c.title)}</h2>
+          ${c.detail ? `<p${dot ? ' class="luma-wm-sup-status"' : ''}>${dot ? `<i class="luma-wm-sup-dot${dot !== 'on' ? ' ' + dot : ''}" aria-hidden="true"></i>` : ''}${wmEsc(c.detail)}</p>` : ''}
+        </div>
+        ${fechar}
+      </header>`;
+  }
+
+  /* gOpenHelp/gOpenHelpTopic (help.js) abriam, fora do Estúdio, um SEGUNDO widget (#fhw) com
+     outra base de artigos — dois caminhos para a mesma ajuda. Agora todo modo cai aqui. O
+     portão do Controle do produto (global.help) que o gOpenHelp original fazia vem junto. */
   function connectLegacyDesignerHelp() {
-    const legacyOpenHelp = window.gOpenHelp;
-    const legacyOpenHelpTopic = window.gOpenHelpTopic;
-
-    if (typeof legacyOpenHelp === 'function') {
-      window.gOpenHelp = function (trigger) {
-        if (document.body.classList.contains('mode-designer')) {
-          window.lumaWidgetOpen();
-          return;
-        }
-        return legacyOpenHelp(trigger);
-      };
-    }
-
-    if (typeof legacyOpenHelpTopic === 'function') {
-      window.gOpenHelpTopic = function (topicId, trigger) {
-        if (document.body.classList.contains('mode-designer')) {
-          window.lumaWidgetOpen();
-          window.lumaWidgetSetTab('help');
-          return;
-        }
-        return legacyOpenHelpTopic(topicId, trigger);
-      };
-    }
+    const abrir = function (trigger, aba) {
+      if (typeof gFeatureCan === 'function' && !gFeatureCan('global.help', 'access')) {
+        if (typeof gFeatureBlockedFeedback === 'function') gFeatureBlockedFeedback('global.help');
+        return;
+      }
+      window.lumaWidgetOpen(trigger instanceof HTMLElement ? trigger : undefined);
+      if (aba) window.lumaWidgetSetTab(aba);
+    };
+    window.gOpenHelp = function (trigger) { abrir(trigger); };
+    window.gOpenHelpTopic = function (topicId, trigger) { abrir(trigger, 'help'); };
   }
 
   function initHelpWidget() {
@@ -302,6 +433,7 @@
 
     renderWidgetModalContent();
     connectLegacyDesignerHelp();
+    if (typeof gSupOnChange === 'function') gSupOnChange(wmSupAoMudar);
     document.addEventListener('keydown', function(event) {
       if (!widgetState.isOpen) return;
       if (event.key === 'Escape') {
@@ -426,12 +558,16 @@
       modal.style.removeProperty(prop);
     });
     const el = lastHelpTrigger;
-    if (!el || !el.isConnected || window.innerWidth < 900) return;
+    // body = aberto sem botão nenhum (gOpenHelp() sem argumento, foco solto): ancorar "no
+    // body" jogava o painel para BAIXO da tela inteira — top = altura da janela + folga.
+    if (!el || el === document.body || !el.isConnected || window.innerWidth < 900) return;
     const r = el.getBoundingClientRect();
     if (!r.width || !r.height) return;                    // botão escondido: mantém o CSS
 
     const MARGEM = 16, FOLGA = 12;
-    const largura = Math.min(760, window.innerWidth - 32);
+    // Mesma largura do CSS (#luma-widget-modal). 400px desde o redesenho de 26/09: o painel é
+    // um mensageiro (Deskfy/Intercom), não uma segunda tela — 760px cobria metade do app.
+    const largura = Math.min(400, window.innerWidth - 32);
     const direita = Math.min(
       Math.max(window.innerWidth - r.right, MARGEM),
       Math.max(MARGEM, window.innerWidth - largura - MARGEM)
@@ -498,6 +634,7 @@
 
   window.lumaWidgetClose = function () {
     widgetState.isOpen = false;
+    if (typeof gSupVendo === 'function') gSupVendo(false);
     const modal = document.getElementById('luma-widget-modal');
     const trigger = document.getElementById('luma-widget-fab-trigger');
 
@@ -520,19 +657,40 @@
   window.lumaWidgetSetTab = function (tab) {
     widgetState.activeTab = tab;
     if (tab !== 'article') widgetState.selectedArticleId = null;
+    if (tab === 'messages' && wmSuporte()) wmSupEntrar();
     renderWidgetModalContent();
+    const corpo = document.querySelector('#luma-widget-modal .luma-wm-body');
+    if (corpo) corpo.scrollTop = 0;
   };
 
+  window.lumaWidgetVoltar = function () {
+    const alvo = wmVoltarAlvo();
+    if (alvo) window.lumaWidgetSetTab(alvo);
+  };
+
+  // A ÚNICA porta de "Faça uma pergunta" (Início, Mensagens vazia, fim do artigo, novidade).
   window.lumaWidgetStartChat = function () {
+    // Equipe online → a pergunta vai direto para uma PESSOA (decisão do Ryan, 23/09/2026).
+    // Vem antes da chave da IA de propósito: com gente para atender, a IA nem entra.
+    if (wmSupEquipeOnline()) { window.lumaWidgetSetTab('messages'); return; }
     // Controle do produto: o chat de ajuda pode ser desligado sem derrubar os
     // artigos da Central — por isso a chave é filha de global.help, não a mesma.
     if (typeof gFeatureCan === 'function' && !gFeatureCan('global.help.chat', 'access')) {
+      // IA desligada mas suporte ligado: a pergunta ainda tem para onde ir — a equipe lê
+      // quando voltar. Só sem nenhum dos dois é que o botão explica o bloqueio.
+      if (wmSuporte() && !G_SUP.souEquipe) { window.lumaWidgetSetTab('messages'); return; }
       if (typeof gFeatureBlockedFeedback === 'function') gFeatureBlockedFeedback('global.help.chat');
       return;
     }
     widgetState.hasActiveChat = true;
-    widgetState.activeTab = 'messages';
+    // Com o suporte ao vivo, "Mensagens" é a conversa com PESSOAS; a IA vira a aba própria
+    // 'assistente' (acesa em "Mensagens" desde 26/09: é uma conversa, não um artigo).
+    widgetState.activeTab = wmSuporte() ? 'assistente' : 'messages';
     renderWidgetModalContent();
+    window.setTimeout(function () {
+      const campo = document.getElementById('luma-wm-input-box');
+      if (campo) campo.focus();
+    }, 0);
   };
 
   window.lumaWidgetFocusHelp = function () {
@@ -545,47 +703,106 @@
     }, 0);
   };
 
-  // Abrir Leitor Completo do Artigo
-  window.lumaWidgetOpenArticle = function (id) {
+  // `origem` diz para onde o "voltar" do artigo leva (coleção, busca, novidade…).
+  window.lumaWidgetOpenArticle = function (id, origem) {
+    if (!wmVisivel(wmArtigo(id))) return;
     widgetState.selectedArticleId = id;
-    widgetState.activeTab = 'article';
-    renderWidgetModalContent();
+    widgetState.articleBack = ['collection', 'home', 'novidade', 'help', 'funcionalidade'].indexOf(origem) >= 0 ? origem : 'help';
+    window.lumaWidgetSetTab('article');
   };
+
+  window.lumaWidgetOpenCol = function (id) {
+    if (!wmVisivel(wmColecao(id))) return;
+    widgetState.selectedColId = id;
+    window.lumaWidgetSetTab('collection');
+  };
+
+  // `id` = a edição. `item` (opcional) = o item tocado na Início: a edição abre rolada até ele.
+  window.lumaWidgetOpenNews = function (id, origem, item) {
+    widgetState.selectedNewsId = id;
+    widgetState.newsBack = ['news', 'help'].indexOf(origem) >= 0 ? origem : 'home';
+    window.lumaWidgetSetTab('novidade');
+    const corpo = document.querySelector('#luma-widget-modal .luma-wm-body');
+    const alvo = item && document.getElementById('luma-wm-ed-' + item);
+    if (corpo && alvo) corpo.scrollTop = alvo.getBoundingClientRect().top - corpo.getBoundingClientRect().top;
+  };
+
+  /* ── BETA: "Quero participar" ───────────────────────────────────────────────────────────
+     O interesse vira o evento `beta_interesse` pela fila de telemetria que já existe
+     (gTrackEvent: offline, retry, um id por envio). A equipe vê quem topou em Dados › Eventos.
+     Tabela própria não compensa: é uma lista curta, lida por gente, uma vez por beta.
+     Lembrado por conta NESTE navegador, para o botão não chamar de novo quem já disse sim.
+     Em outro aparelho a pessoa pode topar outra vez; a equipe lê nomes, a repetição não engana. */
+  const _wmBetaMem = {};
+  function wmBetaChave() {
+    const u = typeof gCurrentUser === 'function' ? gCurrentUser() : null;
+    return 'luma_beta_v1:' + ((u && u.id) || 'anon');
+  }
+  function wmBetaInscrito(id) {
+    if (_wmBetaMem[id]) return true;
+    try {
+      return (JSON.parse(localStorage.getItem(wmBetaChave()) || '[]') || []).indexOf(id) >= 0;
+    } catch (e) { return false; }
+  }
+  window.lumaWidgetBeta = function (id) {
+    const ed = wmEdicoes()[0];
+    // Só a beta da edição mais recente aceita inscrição: convite velho não abre fila nova.
+    if (!ed || !ed.beta || ed.beta.id !== id || wmBetaInscrito(id)) return;
+    if (typeof gTrackEvent !== 'function') {
+      if (typeof gToast === 'function') gToast('Não deu para registrar agora. Tente de novo em instantes.', 'error');
+      return;
+    }
+    try { gTrackEvent('beta_interesse', { beta: id, edicao: ed.id }); } catch (e) {}
+    _wmBetaMem[id] = true;
+    try {
+      const lista = JSON.parse(localStorage.getItem(wmBetaChave()) || '[]') || [];
+      lista.push(id);
+      localStorage.setItem(wmBetaChave(), JSON.stringify(lista.slice(-20)));
+    } catch (e) {}
+    if (typeof gToast === 'function') gToast('Anotado! A equipe DM vai entrar em contato.', 'success');
+    // Troca só o bloco: re-renderizar o painel inteiro jogaria a leitura de volta para o topo.
+    const bloco = document.getElementById('luma-wm-beta-' + id);
+    if (bloco) bloco.outerHTML = wmBetaHTML(ed.beta);
+  };
+
+  // Busca: toda palavra digitada precisa aparecer (título, resumo, passos, dica ou apelidos).
+  // Acerto no título sobe. Substring da frase inteira, como era, não achava "foto pequena".
+  function wmBuscar(query) {
+    const q = wmNormalize(query);
+    let termos = q.split(/[^a-z0-9%]+/).filter(function (w) { return w.length > 2; });
+    if (!termos.length && q) termos = [q];
+    return LUMA_ARTICLES.filter(wmVisivel).map(function (a) {
+      const titulo = wmNormalize(a.title + ' ' + (a.kw || ''));
+      const tudo = titulo + ' ' + wmNormalize([a.summary, (a.steps || []).join(' '), a.tip || ''].join(' '));
+      if (!termos.every(function (t) { return tudo.indexOf(t) >= 0; })) return null;
+      return { a: a, peso: termos.filter(function (t) { return titulo.indexOf(t) >= 0; }).length };
+    }).filter(Boolean).sort(function (x, y) { return y.peso - x.peso; }).map(function (r) { return r.a; });
+  }
 
   // Filtro de Busca em Tempo Real
   window.lumaWidgetFilterHelp = function (query) {
     widgetState.searchQuery = String(query || '').trim();
-    const container = document.getElementById('luma-wm-articles-list');
+    const container = document.getElementById('luma-wm-help-results');
+    const colecoes = document.getElementById('luma-wm-help-home');
     if (!container) return;
+    const buscando = !!widgetState.searchQuery;
+    if (colecoes) colecoes.hidden = buscando;
+    container.hidden = !buscando;
+    if (!buscando) { container.innerHTML = ''; return; }
 
-    const normalizedQuery = wmNormalize(query);
-    const filtered = LUMA_ARTICLES.filter(function (article) {
-      const steps = (article.steps || []).map(function (step) {
-        return (step.title || '') + ' ' + (step.text || '');
-      }).join(' ');
-      const searchable = [
-        article.title,
-        article.summary,
-        article.categoryTitle,
-        article.meta,
-        steps
-      ].join(' ');
-      return wmNormalize(searchable).indexOf(normalizedQuery) !== -1;
-    });
-
-    if (filtered.length === 0) {
+    const achados = wmBuscar(widgetState.searchQuery);
+    if (!achados.length) {
       container.innerHTML = `
         <div class="luma-wm-no-results" role="status">
           <span class="luma-wm-no-results-icon" aria-hidden="true">${WIDGET_SVGS.search}</span>
-          <strong>Nenhuma resposta para “${wmEsc(query)}”</strong>
-          <span>Tente outra palavra ou envie sua dúvida para a equipe.</span>
-          <button type="button" class="luma-wm-btn-primary" onclick="lumaWidgetStartChat()">Enviar uma pergunta</button>
-        </div>
-      `;
+          <strong>Nada encontrado para “${wmEsc(widgetState.searchQuery)}”</strong>
+          <span>Tente outra palavra, ou pergunte direto.</span>
+          ${wmPodePerguntar() ? '<button type="button" class="luma-wm-btn-primary" onclick="lumaWidgetStartChat()">Faça uma pergunta</button>' : ''}
+        </div>`;
       return;
     }
-
-    container.innerHTML = filtered.map(wmRenderArticleCard).join('');
+    container.innerHTML = `<p class="luma-wm-count" role="status">${achados.length} ${achados.length === 1 ? 'resultado' : 'resultados'}</p>`
+      + `<div class="luma-wm-rows">${achados.map(function (a) { return wmRenderArtRow(a, 'help', true); }).join('')}</div>`;
   };
 
   // Ditar por Voz (Web Speech API)
@@ -681,64 +898,56 @@
   }
 
   // Renderiza o Modal com base na aba ativa
+  const WM_ABA_DA_NAV = { home: 'home', news: 'home', novidade: 'home', messages: 'messages', assistente: 'messages', help: 'help', collection: 'help', article: 'help',
+    funcionalidades: 'funcionalidades', funcionalidade: 'funcionalidades' };   // VITRINE
+  const WM_RENDER = {
+    home: function () { return renderHomeTab(); },
+    news: function () { return renderNewsTab(); },
+    novidade: function () { return renderNovidadeTab(); },
+    messages: function () { return wmSuporte() ? renderSuporteTab() : renderMessagesTab(); },
+    assistente: function () { return renderMessagesTab(); },
+    help: function () { return renderHelpTab(); },
+    collection: function () { return renderColTab(); },
+    article: function () { return renderArticleViewTab(); },
+    funcionalidades: function () { return renderVitrineTab(); },       // VITRINE
+    funcionalidade: function () { return renderVitrineItemTab(); }     // VITRINE
+  };
+
   function renderWidgetModalContent() {
     const modal = document.getElementById('luma-widget-modal');
     if (!modal) return;
 
-    let bodyHTML = '';
-
-    if (widgetState.activeTab === 'home') {
-      bodyHTML = renderHomeTab();
-    } else if (widgetState.activeTab === 'messages') {
-      bodyHTML = renderMessagesTab();
-    } else if (widgetState.activeTab === 'help') {
-      bodyHTML = renderHelpTab();
-    } else if (widgetState.activeTab === 'article') {
-      bodyHTML = renderArticleViewTab();
-    }
-    const headerCopy = wmHeaderCopy();
+    // VITRINE: chave desligada com a aba aberta (ou lembrada) → volta para a Início.
+    if (/^funcionalidade/.test(widgetState.activeTab) && !wmVitrineLigada()) widgetState.activeTab = 'home';
+    const aba = WM_RENDER[widgetState.activeTab] ? widgetState.activeTab : 'home';
+    widgetState.activeTab = aba;
+    const bodyHTML = WM_RENDER[aba]();
+    const naNav = WM_ABA_DA_NAV[aba];
+    const navBtn = function (tab, icone, rotulo, extra) {
+      const on = naNav === tab;
+      return `<button type="button" class="luma-wm-nav-btn ${on ? 'active' : ''}" data-tab="${tab}" onclick="lumaWidgetSetTab('${tab}')" ${on ? 'aria-current="page"' : ''}>
+          ${icone}<span>${rotulo}</span>${extra || ''}
+        </button>`;
+    };
 
     modal.innerHTML = `
-      <header class="luma-wm-header">
-        <div class="luma-wm-header-top">
-          <div class="luma-wm-brand">
-            <img src="assets/logos/luma-h-cor.png" alt="Luma" class="luma-wm-brand-logo-img luma-wm-logo-light">
-            <img src="assets/logos/luma-h-branca.png" alt="Luma" class="luma-wm-brand-logo-img luma-wm-logo-dark">
-            <span class="luma-wm-brand-divider" aria-hidden="true"></span>
-            <span class="luma-wm-brand-label">Ajuda</span>
-          </div>
-          <div class="luma-wm-header-actions">
-            <button type="button" class="luma-wm-close-btn" onclick="lumaWidgetClose()" aria-label="Fechar central de ajuda">${WIDGET_SVGS.close}</button>
-          </div>
-        </div>
-        <div class="luma-wm-heading">
-          <h2 class="luma-wm-greeting" id="luma-wm-title">${wmEsc(headerCopy.title)}</h2>
-          <p>${wmEsc(headerCopy.detail)}</p>
-        </div>
-      </header>
+      ${wmHeaderHTML()}
 
-      <main class="luma-wm-body luma-wm-body-${widgetState.activeTab}">
+      <main class="luma-wm-body luma-wm-body-${aba === 'assistente' ? 'messages' : aba}">
         ${bodyHTML}
       </main>
 
       <nav class="luma-wm-nav" aria-label="Navegação da ajuda">
-        <button type="button" class="luma-wm-nav-btn ${widgetState.activeTab === 'home' ? 'active' : ''}" onclick="lumaWidgetSetTab('home')" ${widgetState.activeTab === 'home' ? 'aria-current="page"' : ''}>
-          ${WIDGET_SVGS.home}
-          <span>Início</span>
-        </button>
-        <button type="button" class="luma-wm-nav-btn ${widgetState.activeTab === 'messages' ? 'active' : ''}" onclick="lumaWidgetSetTab('messages')" ${widgetState.activeTab === 'messages' ? 'aria-current="page"' : ''}>
-          ${WIDGET_SVGS.messagesNav}
-          <span>Mensagens</span>
-        </button>
-        <button type="button" class="luma-wm-nav-btn ${widgetState.activeTab === 'help' || widgetState.activeTab === 'article' ? 'active' : ''}" onclick="lumaWidgetSetTab('help')" ${widgetState.activeTab === 'help' || widgetState.activeTab === 'article' ? 'aria-current="page"' : ''}>
-          ${WIDGET_SVGS.helpNav}
-          <span>Ajuda</span>
-        </button>
+        ${navBtn('home', WIDGET_SVGS.home, 'Início')}
+        ${navBtn('messages', WIDGET_SVGS.messagesNav, 'Mensagens', wmSupNavBadge())}
+        ${navBtn('help', WIDGET_SVGS.helpNav, 'Ajuda')}
+        ${wmVitrineLigada() ? navBtn('funcionalidades', WIDGET_SVGS.sparkle, 'Funcionalidades') : ''}
       </nav>
     `;
 
     // Re-bind attachment area if in chat tab
-    if (widgetState.activeTab === 'messages' && widgetState.hasActiveChat) {
+    const naSuporte = widgetState.activeTab === 'messages' && wmSuporte();
+    if ((wmNaIA() && widgetState.hasActiveChat) || naSuporte) {
       renderAttachmentPreview();
       const messages = modal.querySelector('.luma-wm-chat-messages');
       if (messages) messages.scrollTop = messages.scrollHeight;
@@ -746,74 +955,558 @@
     if (widgetState.activeTab === 'help' && widgetState.searchQuery) {
       window.lumaWidgetFilterHelp(widgetState.searchQuery);
     }
+    // Por ÚLTIMO: pode marcar como lida → avisar → re-render. Nada depois disto no render.
+    if (typeof gSupVendo === 'function') gSupVendo(widgetState.isOpen && naSuporte && !!G_SUP.conversaDe);
   }
 
+  // Tem para onde mandar uma pergunta? (assistente ligado, ou a equipe pelo suporte ao vivo)
+  function wmIaLigada() { return !(typeof gFeatureCan === 'function' && !gFeatureCan('global.help.chat', 'access')); }
+  function wmPodePerguntar() { return wmIaLigada() || (wmSuporte() && !G_SUP.souEquipe); }
+
+  /* ── INÍCIO ──────────────────────────────────────────────────────────────────────────────
+     Estrutura do Deskfy: UMA entrada para perguntar, a busca, e as novidades do Luma.
+     O cartão "Falar com a equipe" separado saiu: com dois botões a pessoa precisava decidir
+     entre máquina e gente sem saber quem estava lá. Agora quem decide é o estado real
+     (lumaWidgetStartChat): equipe online → pessoa; ninguém → assistente, com a saída para a
+     equipe no fim. A equipe DM continua vendo o cartão da própria caixa de conversas. */
   function renderHomeTab() {
-    return `
-      <button type="button" class="luma-wm-search luma-wm-search-prompt" onclick="lumaWidgetFocusHelp()" aria-label="Buscar na central de ajuda">
-        ${WIDGET_SVGS.search}
-        <span>Busque uma resposta</span>
-        <small>Ex.: baixar em PDF</small>
-      </button>
+    const online = wmSupEquipeOnline();
+    const suporteFranq = wmSuporte() && !G_SUP.souEquipe;
+    let sub;
+    if (online) sub = 'A equipe DM está no Luma agora e responde por aqui.';
+    else if (!wmIaLigada()) sub = 'A equipe DM responde por aqui assim que voltar.';
+    else if (suporteFranq) sub = 'O assistente responde na hora. Se não resolver, você fala com a equipe.';
+    else sub = 'O assistente responde na hora, pela Central de Ajuda.';
+    const pergunta = wmPodePerguntar() ? `<button type="button" class="luma-wm-ask" onclick="lumaWidgetStartChat()">
+        <span class="luma-wm-ask-txt">
+          <strong>Faça uma pergunta</strong>
+          <span>${wmEsc(sub)}</span>
+          ${online ? `<span class="luma-wm-ask-online"><i class="luma-wm-sup-dot" aria-hidden="true"></i>${wmEsc(wmSupNomes(G_SUP.online))} online agora</span>` : ''}
+        </span>
+        <span class="luma-wm-ask-go" aria-hidden="true">${wmIco('ask', 20)}</span>
+      </button>` : '';
 
+    // A edição da semana: o cartão (título + resumo) e os 3 primeiros itens, que abrem a
+    // edição já no item. A ordem dos itens é a curadoria: o que mais muda o dia vem primeiro.
+    const eds = wmEdicoes();
+    const ed = eds[0];
+    const novidades = !ed ? '' : `
       <div class="luma-wm-section-head">
-        <span class="luma-wm-eyebrow">Mais acessados</span>
-        <button type="button" onclick="lumaWidgetFocusHelp()">Ver todos</button>
+        <span class="luma-wm-section-title">Novidades do Luma</span>
+        ${eds.length > 1 ? `<button type="button" onclick="lumaWidgetSetTab('news')">Ver todas</button>` : ''}
       </div>
-      <div class="luma-wm-topic-list">
-        <button type="button" class="luma-wm-topic-item" onclick="lumaWidgetOpenArticle('campanha-personalizar')">
-          <span>Escolher e personalizar um material</span>
-          ${WIDGET_SVGS.chevronRight}
-        </button>
-        <button type="button" class="luma-wm-topic-item" onclick="lumaWidgetOpenArticle('campos-regras')">
-          <span>Preencher textos, pre\u00e7os e cupons</span>
-          ${WIDGET_SVGS.chevronRight}
-        </button>
-        <button type="button" class="luma-wm-topic-item" onclick="lumaWidgetOpenArticle('download-alta-res')">
-          <span>Baixar em alta resolução (PNG / PDF)</span>
-          ${WIDGET_SVGS.chevronRight}
-        </button>
-        <button type="button" class="luma-wm-topic-item" onclick="lumaWidgetOpenArticle('falta-preencher-erro')">
-          <span>Resolver campos que faltam preencher</span>
-          ${WIDGET_SVGS.chevronRight}
-        </button>
-      </div>
+      ${wmNewsCard(ed)}
+      <div class="luma-wm-news-list">${ed.itens.slice(0, 3).map(function (n) { return wmNewsMini(ed, n); }).join('')}</div>`;
 
-      <button type="button" class="luma-wm-ask-card" onclick="lumaWidgetStartChat()">
-        <span class="luma-wm-ask-icon" aria-hidden="true">${WIDGET_SVGS.chatBubble}</span>
-        <div class="luma-wm-ask-copy">
-          <strong>Não achou a resposta?</strong>
-          <span>Pergunte ao assistente do Luma.</span>
-        </div>
-        <span class="luma-wm-list-arrow" aria-hidden="true">${WIDGET_SVGS.chevronRight}</span>
+    return `
+      ${G_SUP.souEquipe ? wmSupHomeCard() : ''}
+      ${pergunta}
+      <button type="button" class="luma-wm-search-btn" onclick="lumaWidgetFocusHelp()">
+        ${WIDGET_SVGS.search}<span>Busque uma resposta</span>
       </button>
+      ${novidades}
     `;
   }
+
+  function wmNewsTag(e) { return wmEdicaoNova(e) ? '<b class="luma-wm-tag">Novo</b>' : ''; }
+  function wmEdicaoConta(e) { const n = e.itens.length; return n + (n === 1 ? ' mudança' : ' mudanças'); }
+  // Selo do item que veio de pedido da rede: é o "vocês pediram" visto de fora da edição.
+  function wmPedidoTag(n) { return n.pedido ? '<b class="luma-wm-tag luma-wm-tag-pedido">Vocês pediram</b>' : ''; }
+
+  // O cartão da EDIÇÃO na Início: a arte vem do primeiro item que tiver uma.
+  function wmNewsCard(e) {
+    const comArte = e.itens.find(function (n) { return n.arte; });
+    return `<button type="button" class="luma-wm-news" onclick="lumaWidgetOpenNews('${e.id}','home')">
+        ${comArte ? `<span class="luma-wm-news-art">${wmNovidadeArte(comArte.arte)}</span>` : ''}
+        <span class="luma-wm-news-body">
+          <span class="luma-wm-news-meta">${wmNewsTag(e)}<span><time datetime="${wmEsc(e.data)}">${wmEsc(wmDataCurta(e.data))}</time> · ${wmEdicaoConta(e)}</span></span>
+          <strong>${wmEsc(e.titulo)}</strong>
+          <span class="luma-wm-news-sum">${wmEsc(e.resumo)}</span>
+        </span>
+      </button>`;
+  }
+
+  // Um ITEM da edição (Início): abre a edição rolada até ele.
+  function wmNewsMini(e, n) {
+    const tag = wmPedidoTag(n);
+    return `<button type="button" class="luma-wm-news-mini" onclick="lumaWidgetOpenNews('${e.id}','home','${n.id}')">
+        <span class="luma-wm-news-ico" aria-hidden="true">${wmIco(n.icon, 18)}</span>
+        <span class="luma-wm-news-mini-txt"><strong>${wmEsc(n.title)}</strong>${tag ? `<small>${tag}</small>` : ''}</span>
+        <span class="luma-wm-list-arrow" aria-hidden="true">${WIDGET_SVGS.chevronRight}</span>
+      </button>`;
+  }
+
+  // "Ver todas": o histórico inteiro, uma linha por edição.
+  function renderNewsTab() {
+    return `<div class="luma-wm-news-list">${wmEdicoes().map(function (e) {
+      return `<button type="button" class="luma-wm-news-mini" onclick="lumaWidgetOpenNews('${e.id}','news')">
+          <span class="luma-wm-news-ico" aria-hidden="true">${wmIco(e.itens[0].icon, 18)}</span>
+          <span class="luma-wm-news-mini-txt"><strong>${wmEsc(e.titulo)}</strong><small>${wmNewsTag(e)}${wmEsc(wmDataCurta(e.data))} · ${wmEdicaoConta(e)}</small></span>
+          <span class="luma-wm-list-arrow" aria-hidden="true">${WIDGET_SVGS.chevronRight}</span>
+        </button>`;
+    }).join('')}</div>`;
+  }
+
+  /* Destaque da última edição no topo da aba Ajuda, enquanto ela é nova. Quem volta direto
+     para a Ajuda (o painel reabre na última aba) não passaria pela Início para ver. Passou
+     dos 14 dias, some: o histórico continua na Início. */
+  function wmEdicaoDestaque() {
+    const e = wmEdicoes()[0];
+    if (!e || !wmEdicaoNova(e)) return '';
+    return `<div class="luma-wm-news-list luma-wm-help-news">
+        <button type="button" class="luma-wm-news-mini" onclick="lumaWidgetOpenNews('${e.id}','help')">
+          <span class="luma-wm-news-ico" aria-hidden="true">${WIDGET_SVGS.sparkle}</span>
+          <span class="luma-wm-news-mini-txt"><small>Novidades da semana · ${wmEdicaoConta(e)}</small><strong>${wmEsc(e.titulo)}</strong></span>
+          <span class="luma-wm-list-arrow" aria-hidden="true">${WIDGET_SVGS.chevronRight}</span>
+        </button>
+      </div>`;
+  }
+
+  /* O convite da beta. Um botão e nada mais: sem contador de inscritos, sem curtir, sem
+     comentar. O changelog conta o que mudou; não é feed. A equipe vê, no próprio bloco, onde
+     ler as respostas. */
+  function wmBetaHTML(b) {
+    const dentro = wmBetaInscrito(b.id);
+    return `<aside class="luma-wm-beta" id="luma-wm-beta-${b.id}" aria-label="Convite para a beta">
+        <p class="luma-wm-beta-eyebrow">${WIDGET_SVGS.sparkle.replace('width="18" height="18"', 'width="13" height="13"')}Beta aberta</p>
+        <strong>${wmEsc(b.titulo)}</strong>
+        <p>${wmEsc(b.texto)}</p>
+        ${dentro
+          ? `<p class="luma-wm-beta-ok" role="status">${wmIco('check', 15)}Você está na lista. A equipe DM vai entrar em contato.</p>`
+          : `<button type="button" class="luma-wm-btn-primary" onclick="lumaWidgetBeta('${b.id}')">Quero participar</button>`}
+        ${wmEquipe() ? '<small>Equipe: quem topou aparece em Dados › Eventos, no evento “beta_interesse”.</small>' : ''}
+      </aside>`;
+  }
+
+  function wmEdicaoItem(n) {
+    const art = n.artigo ? wmArtigo(n.artigo) : null;
+    return `<section class="luma-wm-ed-item" id="luma-wm-ed-${n.id}">
+        ${n.arte ? `<div class="luma-wm-novidade-art">${wmNovidadeArte(n.arte)}</div>` : ''}
+        <div class="luma-wm-novidade-body">
+          ${n.pedido ? `<p class="luma-wm-pedido">${wmIco('chat', 15)}<span><b>Vocês pediram:</b> ${wmEsc(n.pedido)} <b>A gente ouviu.</b></span></p>` : ''}
+          <h4>${wmEsc(n.title)}</h4>
+          ${(n.body || []).map(function (p) { return `<p>${wmEsc(p)}</p>`; }).join('')}
+          ${art && wmVisivel(art) ? `<button type="button" class="luma-wm-link" onclick="lumaWidgetOpenArticle('${art.id}','novidade')">Ler: ${wmEsc(art.title)}${WIDGET_SVGS.chevronRight}</button>` : ''}
+          ${n.perguntar && wmPodePerguntar() ? `<button type="button" class="luma-wm-link" onclick="lumaWidgetStartChat()">Fazer uma pergunta${WIDGET_SVGS.chevronRight}</button>` : ''}
+        </div>
+      </section>`;
+  }
+
+  // A edição aberta: cabeça (data, título, resumo), os itens em sequência e, se houver, a beta.
+  function renderNovidadeTab() {
+    const eds = wmEdicoes();
+    const e = eds.find(function (x) { return x.id === widgetState.selectedNewsId; });
+    if (!e) return renderNewsTab();
+    return `<article class="luma-wm-novidade luma-wm-edicao">
+        <div class="luma-wm-novidade-body">
+          <p class="luma-wm-news-meta">${wmNewsTag(e)}<span>Edição de <time datetime="${wmEsc(e.data)}">${wmEsc(wmDataLonga(e.data))}</time> · ${wmEdicaoConta(e)}</span></p>
+          <h3>${wmEsc(e.titulo)}</h3>
+          <p>${wmEsc(e.resumo)}</p>
+        </div>
+        ${e.itens.map(wmEdicaoItem).join('')}
+        ${e.beta && eds[0].id === e.id ? wmBetaHTML(e.beta) : ''}
+      </article>`;
+  }
+
+  /* ══ VITRINE DE FUNCIONALIDADES · TEMPORÁRIA (27/09/2026) ════════════════════════════════
+     Para quê: no beta e nas apresentações internas o Luma precisa se mostrar sozinho. Cada item
+     diz o que é, o problema que resolve, o que muda e, quando há fonte, a prova, e traz uma
+     demonstração que se opera ali mesmo. Serve a quem apresenta e ao franqueado explorando.
+     TEMPORÁRIA DE PROPÓSITO: quando a rede estiver em escala, sai. Desligar sem deploy: chave
+     `global.help.funcionalidades` no Controle do produto. Remover de vez: este bloco inteiro,
+     as linhas marcadas "VITRINE" neste arquivo, o bloco VITRINE do help-widget.css e a chave
+     no feature-flags.js.
+     ⛔ Mesma regra dos artigos: só o que existe na tela, com o nome que está na tela. `prova`
+     só com fonte, anotada ao lado: quem trocar o número confere a fonte antes.
+     As demos de TEXTO e de LEGENDA rodam os motores DE VERDADE (gFitTextToAuthoredBox,
+     gCopyFitSugestoes, fBuildCopy): alguém da plateia pede "digita outro" e o Luma responde
+     como responderia na arte. O resto é encenado em CSS, como as ilustrações das novidades,
+     porque depende de upload, de planilha ou do Estúdio, e demo que depende de rede falha no
+     palco. ⚠ Nada aqui grava: nem fState, nem histórico, nem Supabase. É vitrine. */
+  const WM_VITRINE = [
+    { id: 'conversa', icon: 'chat', demo: 'conversa', flag: 'franqueado.chat', artigo: 'primeira-arte',
+      title: 'Arte pronta numa conversa',
+      sub: 'Responda algumas perguntas e baixe a peça.',
+      oque: 'Você escolhe o material, responde o chat (produto, preço, foto) e o Luma monta a arte pronta para postar.',
+      antes: 'Arte de promoção dependia do Canva, de alguém que soubesse design ou da fila do time central.',
+      agora: 'Qualquer franqueado faz a própria arte, sozinho e dentro da marca, sem abrir programa de design.',
+      prova: 'Cerca de um minuto do catálogo ao PNG.' },                        // fonte: artigo 'primeira-arte'
+    { id: 'cabe', icon: 'text', demo: 'texto', artigo: 'texto-nao-cabe',
+      title: 'O texto sempre cabe',
+      sub: 'Digite o que quiser: o Luma encaixa na arte.',
+      oque: 'Cada texto tem um espaço reservado na arte. O Luma quebra a linha e ajusta a letra para o que você digitou caber ali.',
+      antes: 'Nome de produto comprido estourava a arte, cortava palavra ou deixava a letra minúscula.',
+      agora: 'A arte sai inteira e legível. Se não der para caber sem ficar pequeno demais, o Luma avisa antes de baixar.',
+      prova: 'Nos testes, 100% dos textos curtos e médios couberam do jeito que o designer desenhou.' },  // fonte: 07_ROADMAP, Local Fit (18/09)
+    { id: 'encurtar', icon: 'scissors', demo: 'texto', longo: true, artigo: 'texto-nao-cabe',
+      title: 'Encurtar sem mudar a oferta',
+      sub: 'Texto grande demais? Um toque e ele cabe.',
+      oque: 'Quando o texto passa do espaço, o botão Encurtar sugere versões mais curtas que cabem na arte. Você vê o que mudou e escolhe.',
+      antes: 'Era tentativa e erro: apagar uma palavra, gerar de novo e torcer para caber.',
+      agora: 'O Luma abrevia do jeito que o delivery já escreve (c/, Refri, 2L) e mede na própria arte antes de sugerir.',
+      prova: 'Preço, números e itens do pedido nunca somem. O que você vende continua igual.' },   // fonte: copy-fit.js (GARANTIAS) + tests/copy-fit.html
+    { id: 'foto', icon: 'crop', demo: 'foto', artigo: 'logo',
+      title: 'Foto e logo no lugar certo',
+      sub: 'Envie a imagem: o Luma enquadra.',
+      oque: 'O Luma olha a imagem que você envia e decide o enquadramento de partida, para o logo da loja e para a foto do produto.',
+      antes: 'Logo pequeno perdido no espaço, produto cortado ou fora do centro, e ajuste na mão toda vez.',
+      agora: 'O logo ganha zoom até ocupar a moldura, sem cortar. A foto fica centralizada no que importa. Quer mudar? Toque na foto na prévia.',
+      prova: null },
+    { id: 'legenda', icon: 'legenda', demo: 'legenda', flag: 'franqueado.legendas', artigo: 'legenda',
+      title: 'A legenda do post vem junto',
+      sub: 'Arte e texto para publicar, no mesmo lugar.',
+      oque: 'Junto com a arte pronta vem a legenda do post, escrita com o produto e o preço que você respondeu.',
+      antes: 'Com a arte pronta, ainda faltava pensar no texto do post, nas hashtags e na mensagem do WhatsApp.',
+      agora: 'É copiar e colar no Instagram ou no WhatsApp. Não gostou? Gere outra sugestão.',
+      prova: 'Três sugestões por arte, cada uma num tom diferente.' },          // fonte: fGenCaptionSuggestions (chat.js)
+    { id: 'lote', icon: 'layers', demo: 'lote', flag: 'franqueado.sheets', artigo: 'lote',
+      title: 'Várias artes de uma vez',
+      sub: 'Uma planilha, uma arte por linha.',
+      oque: 'No computador, a partir de uma arte pronta, o lote abre uma planilha em que cada linha vira uma arte. Dá para digitar, colar do Excel ou enviar um CSV.',
+      antes: 'Dez produtos do cardápio eram dez artes, feitas uma de cada vez.',
+      agora: 'Você preenche a planilha, confere as artes na prévia ao lado e gera todas juntas.',
+      prova: null },
+    { id: 'template', icon: 'grade', demo: 'template', aud: 'equipe', artigo: 'estudio-psd',
+      title: 'O design é feito uma vez só',
+      sub: 'Um template publicado serve a rede inteira.',
+      oque: 'O time de design importa o arquivo do Photoshop, marca o que o franqueado pode trocar e publica o template no catálogo.',
+      antes: 'Cada arte passava pelo time central: fila de pedidos, retrabalho e cada cidade com uma cara.',
+      agora: 'Um template atende todas as cidades. O franqueado troca só o conteúdo; cores, fontes e o logo da marca ficam travados.',
+      prova: null }
+  ];
+  Object.assign(WM_ICO, {
+    legenda: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M7 8h10M7 12h6"/>',
+    grade: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    alerta: '<circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>',
+    cadeado: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'
+  });
+  const WM_VIT_PRODUTOS = ['X-Tudo Duplo', 'Pizza Calabresa', 'Açaí 500 ml'];
+  const WM_VIT_PRECOS = ['R$ 19,90', 'R$ 29,90', 'R$ 39,90'];
+  // Um exemplo por degrau do motor (original → quebra → letra menor → não cabe), medido na caixa abaixo.
+  const WM_VIT_TEXTOS = [['Curto', 'X-Tudo'], ['Médio', 'X-Tudo Duplo'], ['Longo', 'X-Tudo Duplo com Bacon'],
+    ['Enorme', 'Combo Família: 2 Pizzas Grandes + Refrigerante 2 Litros']];
+  const WM_VIT_CIDADES = ['Santa Maria', 'Chapecó', 'Lajeado'];
+  /* A caixa do título na arte de demonstração, em px de tela (a arte não é escalada). `autorado`
+     é o que o "designer" desenhou: é contra ele que o motor decide se o texto saiu intacto.
+     `piso`: sem as outras camadas, o motor cairia no piso genérico de 50% e o "Enorme" encolheria
+     até 15px em vez de bloquear. Na arte real quem dá o piso é a hierarquia; 20px faz esse papel. */
+  const WM_VIT_CAIXA = { w: 168, h: 70, fs: 30, piso: 20, autorado: 'X-Tudo' };
+
+  let wmVit = {};   // estado da demo aberta; zera a cada funcionalidade aberta
+  function wmVitZera(f) {
+    wmVit = { etapa: 0, produto: 0, preco: 1, leg: 0, copys: null, sug: null, nenhuma: false, antes: null,
+      texto: WM_VIT_TEXTOS[f && f.longo ? 3 : 2][1],
+      linhas: WM_VIT_PRODUTOS.map(function (p, i) { return { p: p, v: WM_VIT_PRECOS[(i + 1) % 3] }; }) };
+  }
+  function wmVitrineLigada() { return !(typeof gFeatureCan === 'function' && !gFeatureCan('global.help.funcionalidades', 'access')); }
+  // Recurso desligado no Controle do produto não aparece na vitrine: mostrar seria promessa falsa.
+  function wmVitLista() {
+    return WM_VITRINE.filter(function (f) {
+      if (!wmVisivel(f)) return false;
+      if (f.flag && typeof gFeatureCan === 'function' && !gFeatureCan(f.flag, 'access')) return false;
+      if (f.demo === 'legenda' && typeof fBuildCopy !== 'function') return false;
+      return true;
+    });
+  }
+  function wmVitAtual() { return wmVitLista().find(function (f) { return f.id === widgetState.vitId; }) || null; }
+
+  function wmVitEncaixe(texto) {
+    const c = WM_VIT_CAIXA;
+    const camada = { id: 'vit-titulo', type: 'text', textBox: 'box', x: 0, y: 0, w: c.w, h: c.h, fontSize: c.fs,
+      font: 'Roboto Black', lineHeight: 1.05, textAlign: 'left', content: c.autorado, _pisoFonte: c.piso };
+    let r = null;
+    try { r = typeof gFitTextToAuthoredBox === 'function' ? gFitTextToAuthoredBox(camada, texto, {}) : null; } catch (e) { r = null; }
+    return (r && r.lines) ? r : { status: 'fits', degrau: 'original', lines: [String(texto)], fontSize: c.fs };
+  }
+
+  // A arte de mentira: fundo, selo, título (encaixado pelo motor real), preço e prato.
+  function wmVitArte(produto, preco, r) {
+    const c = WM_VIT_CAIXA;
+    const fit = r || wmVitEncaixe(produto);
+    return `<span class="luma-wm-vit-arte" aria-hidden="true">
+        <span class="luma-wm-vit-arte-selo">Oferta da semana</span>
+        <span class="luma-wm-vit-arte-titulo${fit.status === 'overflow' ? ' is-estourou' : ''}" style="width:${c.w}px;height:${c.h}px;font-size:${fit.fontSize}px">${fit.lines.map(function (l) { return `<span>${wmEsc(l)}</span>`; }).join('')}</span>
+        <span class="luma-wm-vit-arte-preco">${wmEsc(preco)}</span>
+        <i class="luma-wm-vit-arte-prato"></i>
+      </span>`;
+  }
+  function wmVitMini(produto, preco, rotulo, i) {
+    return `<span class="luma-wm-vit-mini" style="--i:${i || 0}">${wmVitArte(produto, preco)}${rotulo ? `<small>${wmEsc(rotulo)}</small>` : ''}</span>`;
+  }
+  function wmVitPassos(rotulos) {
+    return `<div class="luma-wm-vit-passos" role="group" aria-label="Etapas da demonstração">${rotulos.map(function (r, i) {
+      const on = i === wmVit.etapa;
+      return `<button type="button" class="${on ? 'is-on' : ''}" onclick="lumaVit('etapa',${i})"${on ? ' aria-current="step"' : ''}><b>${i + 1}</b>${wmEsc(r)}</button>`;
+    }).join('')}</div>`;
+  }
+  function wmVitChips(lista, campo, atual) {
+    return `<span class="luma-wm-vit-chips">${lista.map(function (t, i) {
+      return `<button type="button" class="luma-wm-vit-chip${i === atual ? ' is-on' : ''}" onclick="lumaVit('${campo}',${i})"${i === 0 ? ' data-foco' : ''}>${wmEsc(t)}</button>`;
+    }).join('')}</span>`;
+  }
+  function wmVitCena(html, extra) { return `<div class="luma-wm-vit-cena${extra ? ' ' + extra : ''}" id="luma-wm-vit-cena">${html}</div>`; }
+  function wmVitCtl(html) { return `<div class="luma-wm-vit-ctl">${html}</div>`; }
+
+  function wmVitDemoConversa() {
+    const prod = WM_VIT_PRODUTOS[wmVit.produto], preco = WM_VIT_PRECOS[wmVit.preco];
+    let cena;
+    if (wmVit.etapa === 0) {
+      cena = `<span class="luma-wm-vit-bub">Qual produto vai na arte?</span>${wmVitChips(WM_VIT_PRODUTOS, 'produto', -1)}`;
+    } else if (wmVit.etapa === 1) {
+      cena = `<span class="luma-wm-vit-bub eu">${wmEsc(prod)}</span><span class="luma-wm-vit-bub">E o preço?</span>${wmVitChips(WM_VIT_PRECOS, 'preco', -1)}`;
+    } else {
+      cena = `<span class="luma-wm-vit-nasce">${wmVitArte(prod, preco)}</span>
+        <span class="luma-wm-vit-pronta">${wmIco('check', 13)}Sua arte está pronta</span>`;
+    }
+    return wmVitCena(cena, 'is-conversa') + wmVitCtl(wmVitPassos(['Produto', 'Preço', 'Arte pronta'])
+      + (wmVit.etapa === 2 ? `<button type="button" class="luma-wm-link" onclick="lumaVit('etapa',0)" data-foco>Fazer outra</button>` : ''));
+  }
+
+  function wmVitSaida(r) {
+    const ok = r.status === 'fits';
+    const msg = { original: 'Coube do jeito que o designer desenhou.',
+      wrap: 'Quebrou a linha para caber. A letra continua do mesmo tamanho.',
+      shrink: 'Diminuiu um pouco a letra para caber, sem ficar ilegível.' }[r.degrau]
+      || 'Não cabe sem ficar pequeno demais. Na arte de verdade, o Luma avisa antes de baixar.';
+    let html = `<p class="luma-wm-vit-status ${ok ? 'is-ok' : 'is-alerta'}">${wmIco(ok ? 'check' : 'alerta', 15)}<span>${msg}</span></p>`;
+    if (!ok && !wmVit.sug && typeof gCopyFitSugestoes === 'function') {
+      html += `<button type="button" class="luma-wm-vit-acao" onclick="lumaVit('encurtar')" data-foco>${WIDGET_SVGS.sparkle}Encurtar</button>`;
+    }
+    if (wmVit.sug && wmVit.sug.length) {
+      html += `<div class="luma-wm-vit-sugs" role="group" aria-label="Versões mais curtas">${wmVit.sug.map(function (s, i) {
+        const mudou = (s.trocas || []).map(function (t) { return t[0] + ' → ' + t[1]; })
+          .concat((s.removidas || []).map(function (w) { return 'sem ' + w; })).join(' · ') || 'Mesmo texto, mais enxuto';
+        return `<button type="button" class="luma-wm-vit-sug" onclick="lumaVit('usar',${i})"${i === 0 ? ' data-foco' : ''}><strong>${wmEsc(s.text)}</strong><small>${wmEsc(mudou)}</small></button>`;
+      }).join('')}</div>`;
+    } else if (wmVit.sug) {
+      html += `<p class="luma-wm-vit-nota">Nem encurtando coube. Aqui só tirando um item do pedido, e isso o Luma não faz por você.</p>`;
+    }
+    if (wmVit.antes != null) html += `<button type="button" class="luma-wm-link" onclick="lumaVit('desfazer')" data-foco>Desfazer</button>`;
+    return html;
+  }
+  function wmVitDemoTexto() {
+    const r = wmVitEncaixe(wmVit.texto);
+    return wmVitCena(wmVitArte(wmVit.texto, 'R$ 29,90', r))
+      + wmVitCtl(`<label class="luma-wm-vit-campo"><small>Nome do produto</small>
+          <input type="text" value="${wmEsc(wmVit.texto)}" maxlength="90" autocomplete="off" oninput="lumaVit('digitar',this.value)"></label>
+        <span class="luma-wm-vit-exemplos"><small>Exemplos</small>${WM_VIT_TEXTOS.map(function (t, i) {
+          return `<button type="button" class="luma-wm-vit-chip${t[1] === wmVit.texto ? ' is-on' : ''}" onclick="lumaVit('exemplo',${i})">${wmEsc(t[0])}</button>`;
+        }).join('')}</span>
+        <div class="luma-wm-vit-saida" id="luma-wm-vit-saida" aria-live="polite">${wmVitSaida(r)}</div>`);
+  }
+
+  function wmVitDemoFoto() {
+    const e = wmVit.etapa === 1 ? ' is-enquadrado' : '';
+    return wmVitCena(`<span class="luma-wm-vit-quadros"><span class="luma-wm-vit-quadro${e}"><small>Logo da loja</small>
+          <span class="luma-wm-vit-moldura"><span class="luma-wm-vit-logo"><i></i>Burguer do Zé</span></span></span>
+        <span class="luma-wm-vit-quadro${e}"><small>Foto do produto</small>
+          <span class="luma-wm-vit-moldura"><i class="luma-wm-vit-foto"></i></span></span></span>
+        ${wmVit.etapa === 0 ? `<button type="button" class="luma-wm-vit-acao" onclick="lumaVit('etapa',1)" data-foco>${wmIco('crop', 14)}Enquadrar</button>`
+          : `<span class="luma-wm-vit-pronta">${wmIco('check', 13)}Pronto para a arte</span>`}`)
+      + wmVitCtl(wmVitPassos(['Como chegou', 'Enquadrado']));
+  }
+
+  function wmVitDemoLegenda() {
+    const prod = WM_VIT_PRODUTOS[wmVit.produto], preco = WM_VIT_PRECOS[wmVit.preco];
+    if (!wmVit.copys) {
+      let c = null;
+      try { c = fBuildCopy(prod, '', preco, '', '', 'feed', ''); } catch (e) { c = null; }
+      wmVit.copys = c ? [c.op1, c.op2, c.op3].filter(Boolean) : [];
+    }
+    const txt = wmVit.copys[wmVit.leg % Math.max(1, wmVit.copys.length)] || '';
+    return wmVitCena(`<span class="luma-wm-vit-legenda">
+          <span class="luma-wm-vit-legenda-topo">${wmVitMini(prod, preco)}<b>Legenda pronta</b></span>
+          <span class="luma-wm-vit-legenda-txt">${wmText(txt)}</span>
+          <span class="luma-wm-vit-legenda-pe">
+            <button type="button" class="luma-wm-link" onclick="lumaVit('outra')">Gerar outra sugestão</button>
+            <button type="button" class="luma-wm-vit-acao" onclick="lumaVit('copiar')" data-foco>Copiar legenda</button>
+          </span>
+        </span>`, 'is-legenda')
+      + wmVitCtl(`<span class="luma-wm-vit-exemplos"><small>Troque o produto</small>${WM_VIT_PRODUTOS.map(function (p, i) {
+          return `<button type="button" class="luma-wm-vit-chip${i === wmVit.produto ? ' is-on' : ''}" onclick="lumaVit('produto',${i})">${wmEsc(p)}</button>`;
+        }).join('')}</span>`);
+  }
+
+  function wmVitDemoLote() {
+    const cena = wmVit.etapa === 0
+      ? `<span class="luma-wm-vit-planilha" role="group" aria-label="Planilha do lote">
+          <span class="luma-wm-vit-planilha-cab"><b>Produto</b><b>Preço</b></span>
+          ${wmVit.linhas.map(function (l, i) {
+            return `<span class="luma-wm-vit-planilha-lin"><input value="${wmEsc(l.p)}" maxlength="40" aria-label="Produto da linha ${i + 1}" oninput="lumaVit('linha',${i},'p',this.value)"><input value="${wmEsc(l.v)}" maxlength="12" aria-label="Preço da linha ${i + 1}" oninput="lumaVit('linha',${i},'v',this.value)"></span>`;
+          }).join('')}
+        </span>
+        <button type="button" class="luma-wm-vit-acao" onclick="lumaVit('etapa',1)" data-foco>Gerar ${wmVit.linhas.length} artes</button>`
+      : `<span class="luma-wm-vit-minis">${wmVit.linhas.map(function (l, i) { return wmVitMini(l.p, l.v, 'Linha ' + (i + 1), i); }).join('')}</span>`;
+    return wmVitCena(cena, 'is-lote') + wmVitCtl(wmVitPassos(['A planilha', 'As artes'])
+      + '<small class="luma-wm-vit-obs">No computador</small>');
+  }
+
+  function wmVitDemoTemplate() {
+    const camadas = [['Fundo e cores', 0, 'layers'], ['Logo Delivery Much', 0, 'image'], ['Nome do produto', 1, 'text'],
+      ['Preço', 1, 'text'], ['Foto do produto', 1, 'image']];
+    const cena = wmVit.etapa === 2
+      ? `<span class="luma-wm-vit-minis">${WM_VIT_CIDADES.map(function (c, i) { return wmVitMini(WM_VIT_PRODUTOS[i], WM_VIT_PRECOS[(i + 1) % 3], c, i); }).join('')}</span>`
+      : `<span class="luma-wm-vit-camadas"><b>${wmVit.etapa === 0 ? 'Camadas do PSD' : 'O que o franqueado troca'}</b>${camadas.map(function (c) {
+          const tag = wmVit.etapa === 0 ? '' : c[1] ? '<em class="is-troca">Franqueado troca</em>' : `<em>${wmIco('cadeado', 11)}Fixo da marca</em>`;
+          return `<span class="luma-wm-vit-camada">${wmIco(c[2], 14)}<span>${wmEsc(c[0])}</span>${tag}</span>`;
+        }).join('')}</span>`;
+    return wmVitCena(cena, 'is-template') + wmVitCtl(wmVitPassos(['O PSD', 'O que muda', 'Na rede']));
+  }
+
+  function wmVitDemo(f) {
+    const d = { conversa: wmVitDemoConversa, texto: wmVitDemoTexto, foto: wmVitDemoFoto,
+      legenda: wmVitDemoLegenda, lote: wmVitDemoLote, template: wmVitDemoTemplate }[f.demo];
+    return d ? d() : '';
+  }
+
+  /* Repinta SÓ o palco: repintar o painel inteiro a cada toque levaria a rolagem para o topo.
+     Ao digitar, nem o palco: o campo não pode ser recriado, senão perde o foco a cada letra. */
+  function wmVitPinta(soSaida) {
+    const f = wmVitAtual();
+    const palco = document.getElementById('luma-wm-vit-palco');
+    if (!f || !palco) return;
+    const tinhaFoco = palco.contains(document.activeElement);
+    if (soSaida && f.demo === 'texto') {
+      const r = wmVitEncaixe(wmVit.texto);
+      const cena = document.getElementById('luma-wm-vit-cena');
+      const saida = document.getElementById('luma-wm-vit-saida');
+      if (cena) cena.innerHTML = wmVitArte(wmVit.texto, 'R$ 29,90', r);
+      if (saida) saida.innerHTML = wmVitSaida(r);
+      palco.querySelectorAll('.luma-wm-vit-exemplos .luma-wm-vit-chip').forEach(function (b, i) {
+        b.classList.toggle('is-on', WM_VIT_TEXTOS[i][1] === wmVit.texto);
+      });
+    } else {
+      palco.innerHTML = wmVitDemo(f);
+    }
+    // O botão tocado some na repintura: o foco vai para a próxima ação, não para o <body>.
+    if (tinhaFoco && !palco.contains(document.activeElement)) {
+      const alvo = palco.querySelector('[data-foco]') || palco.querySelector('[aria-current="step"]');
+      if (alvo) alvo.focus();
+    }
+  }
+
+  window.lumaVit = function (acao, a, b, c) {
+    if (!wmVitAtual()) return;
+    let soSaida = false;
+    if (acao === 'etapa') wmVit.etapa = a;
+    else if (acao === 'produto' || acao === 'preco') {
+      wmVit[acao] = a;
+      wmVit.copys = null; wmVit.leg = 0;
+      if (widgetState.vitId === 'conversa') wmVit.etapa = acao === 'produto' ? 1 : 2;
+    }
+    else if (acao === 'digitar') { wmVit.texto = String(a || ''); wmVit.sug = null; wmVit.antes = null; soSaida = true; }
+    else if (acao === 'exemplo') { wmVit.texto = WM_VIT_TEXTOS[a][1]; wmVit.sug = null; wmVit.antes = null; }
+    else if (acao === 'encurtar') {
+      let res = null;
+      try {
+        res = gCopyFitSugestoes(wmVit.texto, function (t) {
+          const r = wmVitEncaixe(t);
+          return { ok: r.status === 'fits', fontSize: r.fontSize };
+        }, 3);
+      } catch (e) { res = null; }
+      wmVit.sug = res ? res.sugestoes : [];
+      soSaida = true;
+    }
+    else if (acao === 'usar') {
+      const s = wmVit.sug && wmVit.sug[a];
+      if (!s) return;
+      wmVit.antes = wmVit.texto; wmVit.texto = s.text; wmVit.sug = null;
+    }
+    else if (acao === 'desfazer') {
+      if (wmVit.antes == null) return;
+      wmVit.texto = wmVit.antes; wmVit.antes = null;
+    }
+    else if (acao === 'outra') wmVit.leg += 1;
+    else if (acao === 'linha') { if (wmVit.linhas[a]) wmVit.linhas[a][b] = String(c || '').trim() || ' '; return; }
+    else if (acao === 'copiar') {
+      const txt = (wmVit.copys || [])[wmVit.leg % Math.max(1, (wmVit.copys || []).length)] || '';
+      const avisa = function (ok) { if (typeof gToast === 'function') gToast(ok ? 'Legenda copiada' : 'Não deu para copiar. Selecione o texto e copie.', ok ? 'success' : 'error'); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(function () { avisa(true); }, function () { avisa(false); });
+      else avisa(false);
+      return;
+    }
+    wmVitPinta(soSaida);
+  };
+
+  // A demonstração depende da MEDIDA do texto: medir antes de a Roboto 900 carregar mediria a
+  // fonte reserva, e a memória de encaixe (_G_MEDIDA_CACHE) guardaria a medida errada.
+  window.lumaWidgetOpenVit = function (id) {
+    const f = wmVitLista().find(function (x) { return x.id === id; });
+    if (!f) return;
+    widgetState.vitId = id;
+    wmVitZera(f);
+    const abrir = function () { if (widgetState.vitId === id) window.lumaWidgetSetTab('funcionalidade'); };
+    if (document.fonts && document.fonts.load) document.fonts.load('900 30px Roboto').then(abrir, abrir);
+    else abrir();
+  };
+
+  function renderVitrineTab() {
+    const lista = wmVitLista();
+    if (!lista.length) return renderHomeTab();
+    return `<section class="luma-wm-vit-intro">
+        <span class="luma-wm-vit-intro-ico" aria-hidden="true">${WIDGET_SVGS.sparkle}</span>
+        <h3>O que o Luma faz por você</h3>
+        <p>${lista.length} funcionalidades, cada uma com uma demonstração para testar aqui mesmo.</p>
+        <button type="button" class="luma-wm-vit-acao" onclick="lumaWidgetOpenVit('${lista[0].id}')">Começar pela primeira${WIDGET_SVGS.chevronRight}</button>
+      </section>
+      <div class="luma-wm-news-list">${lista.map(function (f) {
+        return `<button type="button" class="luma-wm-news-mini" onclick="lumaWidgetOpenVit('${f.id}')">
+            <span class="luma-wm-news-ico" aria-hidden="true">${wmIco(f.icon, 18)}</span>
+            <span class="luma-wm-news-mini-txt"><strong>${wmEsc(f.title)}</strong><small>${f.aud === 'equipe' ? '<b class="luma-wm-tag">Equipe</b>' : ''}${wmEsc(f.sub)}</small></span>
+            <span class="luma-wm-list-arrow" aria-hidden="true">${WIDGET_SVGS.chevronRight}</span>
+          </button>`;
+      }).join('')}</div>`;
+  }
+
+  function renderVitrineItemTab() {
+    const lista = wmVitLista();
+    const i = lista.findIndex(function (f) { return f.id === widgetState.vitId; });
+    if (i < 0) return renderVitrineTab();
+    const f = lista[i], prox = lista[i + 1];
+    const art = f.artigo ? wmArtigo(f.artigo) : null;
+    return `<article class="luma-wm-vit">
+        <section class="luma-wm-vit-palco" id="luma-wm-vit-palco" aria-label="Demonstração">${wmVitDemo(f)}</section>
+        <div class="luma-wm-vit-body">
+          <h3>${wmEsc(f.title)}</h3>
+          <p class="luma-wm-vit-oque">${wmEsc(f.oque)}</p>
+          <dl class="luma-wm-vit-par">
+            <div><dt>Antes</dt><dd>${wmEsc(f.antes)}</dd></div>
+            <div class="is-agora"><dt>Com o Luma</dt><dd>${wmEsc(f.agora)}</dd></div>
+          </dl>
+          ${f.prova ? `<p class="luma-wm-vit-prova">${wmIco('check', 15)}<span>${wmEsc(f.prova)}</span></p>` : ''}
+          ${art && wmVisivel(art) ? `<button type="button" class="luma-wm-link" onclick="lumaWidgetOpenArticle('${art.id}','funcionalidade')">Passo a passo: ${wmEsc(art.title)}${WIDGET_SVGS.chevronRight}</button>` : ''}
+        </div>
+        ${prox ? `<button type="button" class="luma-wm-vit-prox" onclick="lumaWidgetOpenVit('${prox.id}')">
+            <span><small>Próxima</small><strong>${wmEsc(prox.title)}</strong></span>${WIDGET_SVGS.chevronRight}
+          </button>` : `<button type="button" class="luma-wm-vit-prox" onclick="lumaWidgetSetTab('funcionalidades')">
+            <span><small>Fim do tour</small><strong>Ver todas as funcionalidades</strong></span>${WIDGET_SVGS.chevronRight}
+          </button>`}
+      </article>`;
+  }
+  /* ══ fim da VITRINE ══════════════════════════════════════════════════════════════════════ */
 
   /* ── A CONVERSA ──────────────────────────────────────────────────────────────────────────
      Três avisos diziam a MESMA coisa em lugares diferentes (a tarja de escopo no topo, a
      caixa laranja dentro da primeira bolha e a linha "atendimento automático" no pé). Aviso
-     repetido não informa mais: vira ruído e a pessoa para de ler os três. Agora é UM cartão
-     de abertura, com as duas informações que de fato mudam o comportamento de quem lê —
-     "isto é máquina e pode errar" e "aprovação é com o seu marketing".
+     repetido não informa mais: vira ruído e a pessoa para de ler os três. Agora QUEM
+     responde mora na barra do topo e na apresentação do início da conversa ("é máquina e
+     pode errar"); o escopo ("aprovação é com o seu marketing") é uma linha sob o campo.
      ⛔ O seletor de modelo saiu. Escolher entre Gemini Flash e 1.5 Pro não é decisão do
      franqueado (nem informação que faça sentido para ele) — e o lever continua existindo
      para a equipe no console (`js/core/console.js`, que também escreve LUMA_GEMINI_MODEL).
-     O vão embaixo da saudação virou sugestão de pergunta, tirada dos artigos REAIS da base:
-     assim a pergunta do atalho sempre casa com material e nunca cai no "não está na Central". */
-  const WM_SUGESTOES = ['campanha-personalizar', 'download-alta-res', 'falta-preencher-erro'];
+     As sugestões de pergunta saem dos artigos REAIS da base: assim a pergunta do atalho
+     sempre casa com material e nunca cai no "não está na Central". */
+  const WM_SUGESTOES = ['texto-nao-cabe', 'ajustar-foto', 'baixar'];
 
   function renderMessagesTab() {
     if (!widgetState.hasActiveChat) {
       return `
         <div class="luma-wm-chat-empty">
           <div class="luma-wm-chat-empty-icon">${WIDGET_SVGS.chatBubble}</div>
-          <span class="luma-wm-eyebrow">Assistente do Luma</span>
-          <strong>Nenhuma pergunta ainda</strong>
-          <span>Descreva o que aconteceu e em qual tela. Pode anexar um print se ajudar.</span>
-          <button type="button" class="luma-wm-btn-primary" onclick="lumaWidgetStartChat()">
-            Fazer uma pergunta
-          </button>
+          <strong>Sem conversas ainda</strong>
+          <span>Suas conversas com o assistente ficam aqui enquanto o Luma estiver aberto.</span>
+          ${wmPodePerguntar() ? `<button type="button" class="luma-wm-empty-ask" onclick="lumaWidgetStartChat()">Faça uma pergunta${WIDGET_SVGS.helpNav}</button>` : ''}
         </div>
       `;
     }
@@ -822,7 +1515,7 @@
       <div class="luma-wm-sugestoes">
         <span class="luma-wm-sugestoes-label">Perguntas comuns</span>
         ${WM_SUGESTOES.map(id => {
-          const art = LUMA_ARTICLES.find(a => a.id === id);
+          const art = wmArtigo(id);
           if (!art) return '';
           return `<button type="button" class="luma-wm-sugestao" onclick="lumaWidgetPerguntar(this)" data-pergunta="${wmEsc(art.title)}">${wmEsc(art.title)}</button>`;
         }).join('')}
@@ -831,35 +1524,37 @@
     return `
       <div class="luma-wm-chat-active">
         <div class="luma-wm-chat-messages">
-          <div class="luma-wm-bubble bot">
-            Descreva sua dúvida e diga em qual tela ela aconteceu. Quanto mais específico, melhor eu acho a resposta.
-            <div class="luma-wm-bubble-meta">Assistente Luma · agora</div>
+          <div class="luma-wm-chat-intro">
+            <span class="luma-wm-chat-intro-mark" aria-hidden="true">${WIDGET_SVGS.sparkle}</span>
+            <strong>Lu, do time da Delivery Much</strong>
+            <span>Sou uma assistente de IA: respondo pela Central de Ajuda e pelo que vejo na sua tela. Posso errar, confira antes de agir.${wmSuporte() && !G_SUP.souEquipe ? ' Se não resolver, você fala com a equipe.' : ''}</span>
           </div>
 
-          <p class="luma-wm-ressalva">
-            ${WIDGET_SVGS.info}
-            <span><strong>Assistente automático:</strong> responde pela Central de Ajuda e pode errar — confira antes de agir. Aprovação de peça e pedido de criação são com o marketing da sua empresa.</span>
-          </p>
+          <div class="luma-wm-bubble bot">
+            Oi, eu sou a Lu, do time da Delivery Much. Conta o que aconteceu e em qual tela: quanto mais específico, melhor eu acho a resposta.
+            <div class="luma-wm-bubble-meta">Lu · agora</div>
+          </div>
 
           ${sugestoes}
 
-          ${widgetState.messages.map(m => `
+          ${widgetState.messages.map((m, i) => `
             <div class="luma-wm-bubble ${m.sender === 'user' ? 'user' : 'bot'}">
               ${m.image ? `<img src="${m.image}" class="luma-wm-bubble-img" alt="Anexo">` : ''}
               ${wmText(m.text)}
               <div class="luma-wm-bubble-meta">${m.fonte === 'ia' ? '<span class="luma-wm-ia-tag">IA</span>' : ''}${wmEsc(m.author)} · ${wmEsc(m.time)}</div>
+              ${wmLuVoto(m, i)}
             </div>
           `).join('')}
 
           ${widgetState.pensando ? `<div class="luma-wm-bubble bot luma-wm-digitando" role="status" aria-label="Assistente digitando">
             <span></span><span></span><span></span>
-          </div>` : ''}
+          </div>` : wmSupHandoff()}
         </div>
 
         <div id="luma-wm-attach-area"></div>
 
         <div class="luma-wm-chat-input-bar">
-          <textarea id="luma-wm-input-box" placeholder="Escreva sua pergunta" aria-label="Pergunta para o assistente do Luma" oninput="lumaWidgetInputCheck(this)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();lumaWidgetSendMsg();}"></textarea>
+          <textarea id="luma-wm-input-box" placeholder="Escreva sua pergunta" aria-label="Pergunta para a Lu, assistente do Luma" oninput="lumaWidgetInputCheck(this)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();lumaWidgetSendMsg();}"></textarea>
           <div class="luma-wm-chat-input-tools">
             <div class="luma-wm-input-actions">
               <button type="button" class="luma-wm-tool-btn" onclick="lumaWidgetTriggerFileSelect()" aria-label="Anexar imagem ou arquivo" title="Anexar arquivo">${WIDGET_SVGS.paperclip}</button>
@@ -868,6 +1563,7 @@
             <button type="button" class="luma-wm-send-btn" id="luma-wm-send-trigger" onclick="lumaWidgetSendMsg()" aria-label="Enviar pergunta">${WIDGET_SVGS.send}</button>
           </div>
         </div>
+        <p class="luma-wm-escopo">Aprovação de peça e pedido de arte nova: com o marketing da sua empresa.</p>
       </div>
     `;
   }
@@ -881,80 +1577,101 @@
     window.lumaWidgetSendMsg();
   };
 
+  /* ── AJUDA: busca → "Nesta tela" → coleções → artigo ─────────────────────────────────────
+     "Nesta tela" é o suporte contextual: os dois artigos da tela onde a pessoa está, antes
+     de ela ter que adivinhar em qual coleção a dúvida mora. */
+  function wmNestaTela() {
+    const cl = document.body.classList;
+    const par = WM_NESTA_TELA.find(function (p) { return cl.contains(p[0]); });
+    return par ? par[1].map(wmArtigo).filter(wmVisivel) : [];
+  }
+
   function renderHelpTab() {
+    const ctx = wmNestaTela();
+    const cols = WM_COLECOES.filter(function (c) { return wmVisivel(c) && wmArtigosDa(c.id).length; });
     return `
-      <div class="luma-wm-search">
-        <input id="luma-wm-help-search" type="search" placeholder="Busque por uma dúvida" aria-label="Buscar artigos de ajuda" value="${wmEsc(widgetState.searchQuery)}" oninput="lumaWidgetFilterHelp(this.value)">
-        ${WIDGET_SVGS.search}
+      <div class="luma-wm-help-top">
+        <div class="luma-wm-search">
+          <input id="luma-wm-help-search" type="search" placeholder="Busque uma resposta" aria-label="Buscar na central de ajuda" value="${wmEsc(widgetState.searchQuery)}" oninput="lumaWidgetFilterHelp(this.value)">
+          ${WIDGET_SVGS.search}
+        </div>
       </div>
 
-      <div class="luma-wm-section-head">
-        <span class="luma-wm-eyebrow">Guias e respostas</span>
-        <span>${LUMA_ARTICLES.length} artigos</span>
-      </div>
+      <div id="luma-wm-help-results" class="luma-wm-help-results" hidden></div>
 
-      <div id="luma-wm-articles-list" class="luma-wm-articles-list">
-        ${LUMA_ARTICLES.map(wmRenderArticleCard).join('')}
+      <div id="luma-wm-help-home">
+        ${wmEdicaoDestaque()}
+        ${ctx.length ? `<div class="luma-wm-ctx">
+          <p class="luma-wm-ctx-label">${wmIco('pin', 13)}Nesta tela</p>
+          ${ctx.map(function (a) { return `<button type="button" class="luma-wm-ctx-item" onclick="lumaWidgetOpenArticle('${a.id}','help')"><span>${wmEsc(a.title)}</span>${WIDGET_SVGS.chevronRight}</button>`; }).join('')}
+        </div>` : ''}
+        <p class="luma-wm-count">${cols.length} coleções</p>
+        <div class="luma-wm-rows">
+          ${cols.map(function (c) {
+            const n = wmArtigosDa(c.id).length;
+            return `<button type="button" class="luma-wm-col" onclick="lumaWidgetOpenCol('${c.id}')">
+                <span class="luma-wm-col-ico" aria-hidden="true">${wmIco(c.icon, 19)}</span>
+                <span class="luma-wm-col-txt"><strong>${wmEsc(c.title)}</strong><span>${wmEsc(c.desc)}</span><small>${n} ${n === 1 ? 'artigo' : 'artigos'}</small></span>
+                <span class="luma-wm-list-arrow" aria-hidden="true">${WIDGET_SVGS.chevronRight}</span>
+              </button>`;
+          }).join('')}
+        </div>
       </div>
+    `;
+  }
+
+  function renderColTab() {
+    const c = wmColecao(widgetState.selectedColId);
+    if (!wmVisivel(c)) return renderHelpTab();
+    const arts = wmArtigosDa(c.id);
+    return `
+      <div class="luma-wm-col-head">
+        <p class="luma-wm-crumb">Ajuda › ${wmEsc(c.title)}</p>
+        <h3>${wmEsc(c.title)}</h3>
+        <p>${wmEsc(c.desc)} · ${arts.length} ${arts.length === 1 ? 'artigo' : 'artigos'}</p>
+      </div>
+      <div class="luma-wm-rows">${arts.map(function (a) { return wmRenderArtRow(a, 'collection', false); }).join('')}</div>
     `;
   }
 
   function renderArticleViewTab() {
-    const article = LUMA_ARTICLES.find(a => a.id === widgetState.selectedArticleId);
-    if (!article) return renderHelpTab();
+    const article = wmArtigo(widgetState.selectedArticleId);
+    if (!wmVisivel(article)) return renderHelpTab();
+    const col = wmColecao(article.col);
 
     return `
-      <div class="luma-wm-article-view">
-        <button type="button" class="luma-wm-article-back" onclick="lumaWidgetSetTab('help')">
-          ${WIDGET_SVGS.back} Voltar aos artigos
-        </button>
-
-        <span class="luma-wm-eyebrow">${wmEsc(wmArticleCategory(article))}</span>
+      <article class="luma-wm-article">
+        ${col ? `<span class="luma-wm-eyebrow">${wmEsc(col.title)}</span>` : ''}
         <h3 class="luma-wm-article-title">${wmEsc(article.title)}</h3>
-        
-        <div class="luma-wm-article-meta">
-          <span>${wmEsc(wmArticleMeta(article))}</span>
+        <p class="luma-wm-article-meta">${wmIco('clock', 14)}${article.min || 1} min de leitura</p>
+        <p class="luma-wm-article-lead">${wmEsc(article.summary)}</p>
+        <ol class="luma-wm-steps">
+          ${(article.steps || []).map(function (s) { return `<li><span>${wmEsc(s)}</span></li>`; }).join('')}
+        </ol>
+        ${article.tip ? `<div class="luma-wm-tip">${wmIco('bulb', 18)}<p>${wmEsc(article.tip)}</p></div>` : ''}
+      </article>
+
+      <div class="luma-wm-article-feedback">
+        <strong>Isso resolveu?</strong>
+        <div class="luma-wm-feedback-actions">
+          <button type="button" class="luma-wm-vote" onclick="lumaWidgetArticleFeedback(true)" aria-label="Sim, resolveu">${wmIco('up', 18)}</button>
+          <button type="button" class="luma-wm-vote" onclick="lumaWidgetArticleFeedback(false)" aria-label="Não resolveu">${wmIco('down', 18)}</button>
         </div>
-
-        <div class="luma-wm-article-body">
-          <p class="luma-wm-article-lead">${wmEsc(article.summary)}</p>
-
-          ${article.steps.map(step => `
-            <div class="luma-wm-article-step">
-              <span class="luma-wm-article-step-marker" aria-hidden="true">${wmEsc(String(step.num).replace(/\D/g, '') || '•')}</span>
-              <div>
-                <div class="luma-wm-article-step-num">${wmEsc(step.num)}</div>
-                <div class="luma-wm-article-step-title">${wmEsc(step.title)}</div>
-                <p>${wmEsc(step.text)}</p>
-              </div>
-            </div>
-          `).join('')}
-
-          ${article.tip ? `
-            <div class="luma-wm-article-box-tip">
-              <span aria-hidden="true">${WIDGET_SVGS.sparkle}</span>
-              <div><strong>Dica do Luma</strong><p>${wmEsc(article.tip)}</p></div>
-            </div>
-          ` : ''}
-
-          <div class="luma-wm-article-feedback">
-            <strong>Esta resposta resolveu sua dúvida?</strong>
-            <div class="luma-wm-feedback-actions">
-              <button type="button" class="luma-wm-btn-secondary" onclick="lumaWidgetArticleFeedback(true)">Sim, resolveu</button>
-              <button type="button" class="luma-wm-btn-secondary" onclick="lumaWidgetArticleFeedback(false)">Ainda preciso de ajuda</button>
-            </div>
-          </div>
-        </div>
+        ${wmPodePerguntar() ? `<p class="luma-wm-fb-more">Ainda com dúvida? <button type="button" onclick="lumaWidgetStartChat()">Faça uma pergunta</button></p>` : ''}
       </div>
     `;
   }
 
+  // Mesmo evento que a Central antiga já gravava (help.js, gFhVote) — o painel de Dados
+  // continua lendo um nome só. "Não resolveu" leva para a pergunta: é onde a autoajuda acaba.
   window.lumaWidgetArticleFeedback = function (resolved) {
+    try { if (typeof gTrackEvent === 'function') gTrackEvent('ajuda_feedback', { util: !!resolved, artigo: widgetState.selectedArticleId }); } catch (e) {}
     if (resolved) {
-      if (typeof gToast === 'function') gToast('Obrigado pelo feedback');
+      if (typeof gToast === 'function') gToast('Que bom! Obrigado pelo retorno.');
       return;
     }
-    lumaWidgetStartChat();
+    if (wmPodePerguntar()) { lumaWidgetStartChat(); return; }
+    if (typeof gToast === 'function') gToast('Valeu. Vamos melhorar este artigo.');
   };
 
   window.lumaWidgetInputCheck = function (el) {
@@ -971,75 +1688,92 @@
   // pergunta (gHelpKnowledge, em core/help.js) + o artigo do próprio widget que casar.
   // Antes ia a base INTEIRA do widget no prompt — caro, diluído, e sem a Central de
   // Ajuda real nem o FAQ do Sheets, então o modelo preenchia o vazio inventando.
+  // O artigo do widget que mais casa com a pergunta. Pontua palavra por palavra (título e
+  // apelidos valem 3, o resto do texto 1) — o "alguma palavra do título aparece" de antes
+  // casava "como" com qualquer coisa. Palavra-função sai pela mesma lista da Central (help.js).
+  function wmArtigoParaPergunta(msg) {
+    const stop = typeof G_HELP_STOPWORDS !== 'undefined' ? G_HELP_STOPWORDS : [];
+    const termos = wmNormalize(msg).split(/[^a-z0-9]+/).filter(function (w) { return w.length > 2 && stop.indexOf(w) < 0; });
+    if (!termos.length) return null;
+    let melhor = null, nota = 0;
+    LUMA_ARTICLES.filter(wmVisivel).forEach(function (a) {
+      const titulo = wmNormalize(a.title + ' ' + (a.kw || ''));
+      const texto = wmNormalize([a.summary, (a.steps || []).join(' '), a.tip || ''].join(' '));
+      // Casa pela palavra inteira OU pelo radical ("baixo" acha "Baixar a arte"): gHelpTermoCasa, core/help.js.
+      const rad = typeof gHelpTermoCasa === 'function' && typeof gHelpStemSet === 'function';
+      const ts = rad ? gHelpStemSet(titulo) : null, xs = rad ? gHelpStemSet(texto) : null;
+      const casa = function (w, alvo, set) { return rad ? gHelpTermoCasa(w, alvo, set) : alvo.indexOf(w) >= 0; };
+      const n = termos.reduce(function (t, w) { return t + (casa(w, titulo, ts) ? 3 : casa(w, texto, xs) ? 1 : 0); }, 0);
+      if (n > nota) { nota = n; melhor = a; }
+    });
+    return melhor;
+  }
+  function wmArtigoTexto(a) {
+    return a.summary + '\n' + (a.steps || []).map(function (s, i) { return (i + 1) + '. ' + s; }).join('\n') + (a.tip ? '\nDica: ' + a.tip : '');
+  }
+
   function lumaWidgetKnowledge(userMessage) {
     let ctx = '';
     try { if (typeof gHelpKnowledge === 'function') ctx = gHelpKnowledge(userMessage, 4) || ''; } catch (e) {}
-    const lower = (userMessage || '').toLowerCase();
-    const art = LUMA_ARTICLES.find(a => lower.includes(a.id) || a.title.toLowerCase().split(' ').some(w => w.length > 3 && lower.includes(w)));
-    if (art) {
-      ctx += (ctx ? '\n\n' : '') + '### ' + art.title + '\n' + art.summary + ' ' +
-        art.steps.map(s => s.title + ': ' + s.text).join(' ');
-    }
+    const art = wmArtigoParaPergunta(userMessage);
+    // O artigo do widget vai PRIMEIRO: é a base conferida no código (26/09/2026).
+    if (art) ctx = '### ' + art.title + '\n' + wmArtigoTexto(art) + (ctx ? '\n\n' + ctx : '');
     return ctx;
   }
 
+  /* A LU (assistente do widget). O prompt e a persona moram no SERVIDOR (task `ajuda`,
+     supabase/functions/ai/index.ts): o front manda só a pergunta e o contexto
+     {pergunta, trechos, estado, equipeOnline} e recebe {texto, nao_sei, delegar}.
+     Devolve {text, fonte, delegar, naoSei, pergunta, estado}. */
   async function lumaWidgetGenerateAIResponse(userMessage) {
     const temIA = typeof gAskAI === 'function' && typeof gAiReady === 'function' && gAiReady();
+    const estado = (typeof gSupEstadoTela === 'function') ? gSupEstadoTela() : {};
+    const base = { pergunta: userMessage, estado: estado };
 
     // Devolve {text, fonte} — quem renderiza precisa saber a ORIGEM pra rotular a bolha.
-    // Sem isso o usuário não distingue resposta de IA de busca na base, e o widget parecia
-    // atendimento humano (era o rótulo "Suporte ao Vivo") quando nunca houve humano nenhum.
     const buscarNaBase = () => {
-      const lower = (userMessage || '').toLowerCase();
-      const matched = LUMA_ARTICLES.find(a => lower.includes(a.id) || a.title.toLowerCase().split(' ').some(w => w.length > 3 && lower.includes(w)));
-      if (matched) {
-        return { fonte: 'base',
-          text: `Sobre "${matched.title}": ${matched.summary}\n\nPassos:\n` + matched.steps.map((s, i) => `${i + 1}. ${s.title}: ${s.text}`).join('\n') };
-      }
-      return null;
+      const matched = wmArtigoParaPergunta(userMessage);
+      return matched ? { fonte: 'base', text: `Sobre "${matched.title}":
+` + wmArtigoTexto(matched) } : null;
     };
+
+    // Pediu gente: não gasta IA, vai direto para a oferta da equipe.
+    if (typeof gLuPedeHumano === 'function' && gLuPedeHumano(userMessage)) {
+      return Object.assign(base, { fonte: 'indisponivel', delegar: true,
+        text: 'Claro, vou te ligar com a equipe da Delivery Much.' });
+    }
 
     if (!temIA) {
       const daBase = buscarNaBase();
-      if (daBase) return daBase;
-      // Honestidade: NÃO existe notificação a humano nenhum aqui. O texto antigo prometia que
-      // "Ryan e Pedro foram notificados no painel" — nada no código faz isso.
-      return { fonte: 'indisponivel',
-        text: 'Não encontrei isso na Central de Ajuda, e o assistente de IA está desligado no momento.\n\nTente descrever com outras palavras ou procure direto na aba "Explorar ajuda".' };
-    }
-    
-    const material = lumaWidgetKnowledge(userMessage);
-    // Sem material que case, NÃO chama a IA: ela responderia por conta própria sobre um
-    // produto interno que não conhece. Melhor dizer que não está na Central.
-    if (!material) {
-      return { fonte: 'indisponivel',
-        text: 'Não encontrei isso na Central de Ajuda.\n\nTente descrever com outras palavras, ou abra a aba "Explorar ajuda" pra ver os temas disponíveis.' };
+      if (daBase) return Object.assign(base, daBase);
+      return Object.assign(base, { fonte: 'indisponivel', delegar: true,
+        text: 'Não encontrei isso na Central de Ajuda e a IA está desligada no momento. Procure na aba "Ajuda" ou fale com a equipe.' });
     }
 
-    const prompt = `Você é o assistente da Central de Ajuda do Luma, a ferramenta interna de criação de artes da Delivery Much. Quem pergunta é um franqueado (dono do app na cidade dele, não é designer) ou alguém do time de design.
+    const trechos = lumaWidgetKnowledge(userMessage);
+    // Gate de custo: sem trecho da Central E sem nada da tela, a IA não é chamada — a equipe é oferecida.
+    // Com estado (material, campo que não coube, erro) chama mesmo sem trecho.
+    if (!trechos && !(typeof gSupEstadoTemAssunto === 'function' && gSupEstadoTemAssunto(estado))) {
+      return Object.assign(base, { fonte: 'indisponivel', delegar: true,
+        text: 'Isso eu não encontrei na Central de Ajuda. Tente descrever com outras palavras ou fale com a equipe.' });
+    }
 
-RESPONDA APENAS COM BASE NO MATERIAL ABAIXO. Ele é a documentação real do produto.
-
-MATERIAL DA CENTRAL DE AJUDA:
-${material}
-
-PERGUNTA: "${userMessage}"
-
-REGRAS:
-1. Se a resposta NÃO estiver no material, diga exatamente: "Isso não está na Central de Ajuda." e sugira procurar na aba "Explorar ajuda". Não invente tela, botão ou caminho.
-2. Não prometa contato humano, ticket ou notificação — isso não existe aqui.
-3. Sem emoji. Português do Brasil, direto e amigável, no máximo 5 linhas.
-4. Quando o material tiver passos, responda em passos curtos.`;
-
-    const txt = await gAskAI('ajuda', prompt, { json: false });
-    if (txt && txt.trim()) return { fonte: 'ia', text: txt.trim() };
+    // O servidor espera LISTA de {titulo, texto}; o conhecimento chega como um bloco "### Título" + texto.
+    const trechosLista = String(trechos || '').split(/\n(?=### )/).map(function (t) {
+      const m = t.match(/^###\s*(.+)\n([\s\S]*)$/); return m ? { titulo: m[1].trim(), texto: m[2].trim() } : { titulo: 'Central de Ajuda', texto: t.trim() };
+    }).filter(function (t) { return t.texto; });
+    const contexto = { pergunta: userMessage, trechos: trechosLista, estado: estado,
+      equipeOnline: wmSuporte() ? G_SUP.online.slice(0, 5) : [] };
+    const bruto = await gAskAI('ajuda', userMessage, { json: true, contexto: contexto });
+    const r = (typeof gLuLerResposta === 'function') ? gLuLerResposta(bruto) : { texto: String(bruto || '').trim(), naoSei: false, delegar: false };
+    if (r.texto) return Object.assign(base, { fonte: 'ia', text: r.texto, naoSei: r.naoSei, delegar: r.delegar });
 
     // IA não respondeu → entrega o artigo cru, que é melhor que nada e não mente.
     console.warn('[Luma IA Suporte] sem resposta da IA, caindo na base');
     const daBase = buscarNaBase();
-    if (daBase) return { fonte: 'base', text: daBase.text };
-    return { fonte: 'erro',
-      text: 'Não consegui falar com o assistente de IA agora.\n\nTente de novo em instantes ou procure na aba "Explorar ajuda".' };
+    if (daBase) return Object.assign(base, { fonte: 'base', text: daBase.text });
+    return Object.assign(base, { fonte: 'erro', delegar: true,
+      text: 'Não consegui falar com a assistente agora. Tente de novo em instantes, procure na aba "Ajuda" ou fale com a equipe.' });
   }
 
   window.lumaWidgetSendMsg = async function () {
@@ -1047,6 +1781,15 @@ REGRAS:
     const msgText = input ? input.value.trim() : '';
 
     if (!msgText && !widgetState.attachedFile) return;
+
+    // Alguém da equipe entrou enquanto a pessoa estava na IA: a pergunta vai para ela, não
+    // para o modelo — pelo MESMO envio do suporte (lumaWidgetSupEnviar), com o anexo junto.
+    if (wmSupEquipeOnline()) {
+      widgetState.supRascunho = msgText;
+      window.lumaWidgetSetTab('messages');
+      window.lumaWidgetSupEnviar();
+      return;
+    }
 
     const newMsg = {
       sender: 'user',
@@ -1084,20 +1827,626 @@ REGRAS:
 
     // Rótulo pela ORIGEM — nunca "ao vivo": não há humano do outro lado.
     const AUTORES = {
-      ia:           'Assistente de IA',
+      ia:           'Lu',
       base:         'Central de Ajuda',
       indisponivel: 'Central de Ajuda',
       erro:         'Central de Ajuda'
     };
     widgetState.messages.push({
       sender: 'bot',
-      author: AUTORES[r.fonte] || 'Assistente Luma',
+      author: AUTORES[r.fonte] || 'Lu',
       fonte: r.fonte,
       text: r.text,
+      delegar: !!r.delegar,
+      naoSei: !!r.naoSei,
+      util: null,             // null = sem voto; true/false = "Ajudou" / "Não ajudou"
+      pedeGente: r.delegar === true && r.fonte === 'indisponivel',
       time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
     });
     _podarMensagens();
     renderWidgetModalContent();
+  };
+
+  /* ── SUPORTE AO VIVO ────────────────────────────────────────────────────────────────────
+     Dados, Realtime e presença moram em js/core/suporte.js (gSup*, estado em G_SUP). Aqui só
+     se desenha. Com a chave global.help.suporte desligada (ou sem backend), "Mensagens" volta
+     a ser o assistente de IA exatamente como era — nada regride.
+     ⛔ Dado de usuário (texto, nome, cidade, contexto, URL) passa SEMPRE por wmEsc/wmText. */
+  function wmSuporte() { return typeof gSupDisponivel === 'function' && gSupDisponivel(); }
+  // Franqueado com alguém da equipe online agora: é o que manda a pergunta direto para a pessoa.
+  function wmSupEquipeOnline() {
+    return wmSuporte() && !G_SUP.souEquipe && G_SUP.online.length > 0;
+  }
+  function wmNaIA() {
+    return widgetState.activeTab === 'assistente' || (widgetState.activeTab === 'messages' && !wmSuporte());
+  }
+
+  function wmSupData(iso) { const d = new Date(iso); return isNaN(d) ? null : d; }
+  function wmSupHora(iso) {
+    const d = wmSupData(iso);
+    return d ? d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+  }
+  function wmSupDiasAtras(d) {
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const dia = new Date(d); dia.setHours(0, 0, 0, 0);
+    return Math.round((hoje - dia) / 86400000);
+  }
+  function wmSupDia(iso) {
+    const d = wmSupData(iso);
+    if (!d) return '';
+    const n = wmSupDiasAtras(d);
+    return n === 0 ? 'Hoje' : n === 1 ? 'Ontem' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+  function wmSupQuando(iso) {
+    const d = wmSupData(iso);
+    if (!d) return '';
+    const n = wmSupDiasAtras(d);
+    return n === 0 ? wmSupHora(iso) : n === 1 ? 'ontem' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  }
+  function wmSupIniciais(nome) {
+    const p = String(nome || '').trim().split(/\s+/).filter(Boolean);
+    if (!p.length) return '?';
+    return (p.length > 1 ? p[0][0] + p[p.length - 1][0] : p[0].slice(0, 2)).toUpperCase();
+  }
+  function wmSupNomes(lista) {
+    if (lista.length <= 2) return lista.join(' e ');
+    return lista.slice(0, 2).join(', ') + ' e mais ' + (lista.length - 2);
+  }
+  function wmSupLinhaAberta() {
+    return G_SUP.caixa.find(function (c) { return c.franqueado_id === G_SUP.conversaDe; }) || null;
+  }
+  function wmSupEuId() {
+    const eu = typeof gCurrentUser === 'function' ? gCurrentUser() : null;
+    return eu ? eu.id : null;
+  }
+  // Avatar de uma pessoa: foto quando há, iniciais quando não. Decorativo — o nome vem ao lado.
+  function wmSupAvatar(p, tam) {
+    const foto = p && p.foto;
+    return `<span class="luma-wm-sup-av${tam ? ' ' + tam : ''}${foto ? ' foto' : ''}" aria-hidden="true">${foto ? `<img src="${wmEsc(foto)}" alt="">` : wmEsc(wmSupIniciais(p && p.nome))}</span>`;
+  }
+  const WM_SUP_ESTADOS = { novo: 'Novo', em_atendimento: 'Em atendimento', aguardando_usuario: 'Aguardando franqueado', resolvido: 'Resolvido' };
+  function wmSupChip(status) {
+    return WM_SUP_ESTADOS[status] ? `<b class="luma-wm-sup-st st-${status}">${WM_SUP_ESTADOS[status]}</b>` : '';
+  }
+  // Onde a pessoa está, em PALAVRAS: a cor da bolinha sozinha não informa (WCAG 1.4.1).
+  function wmSupOndeEsta(p, curto) {
+    if (p.status === 'disponivel') return curto ? 'Online' : 'Online agora';
+    if (p.status === 'ausente') return curto ? 'Ausente' : 'Ausente no momento';
+    return curto ? 'Fora do Luma' : 'Responde aqui quando voltar';
+  }
+  function wmSupDot(p) { return p.status === 'disponivel' ? 'on' : p.status === 'ausente' ? 'ausente' : 'off'; }
+
+  function wmSupHeader() {
+    if (G_SUP.souEquipe) {
+      if (G_SUP.conversaDe) {
+        const c = wmSupLinhaAberta();
+        return { title: (c && c.nome) || 'Franqueado', detail: (c && c.cidade) || 'Conversa com o franqueado' };
+      }
+      const n = gSupAguardando();
+      const aus = G_SUP.meuStatus === 'ausente';
+      return { title: 'Conversas', dot: aus ? 'ausente' : 'on',
+        detail: (aus ? 'Ausente' : 'Disponível') + ' · ' + (n ? n + ' pedindo resposta' : 'nada pedindo resposta') };
+    }
+    // Franqueado: com responsável, a barra diz QUEM está cuidando da conversa — foto, nome e cargo.
+    const at = G_SUP.atendimento ? G_SUP.conversa : null;
+    const dono = at && at.responsavel_id && at.status !== 'resolvido' ? gSupPessoa(at.responsavel_id) : null;
+    if (dono) return { title: dono.nome, pessoa: dono, dot: wmSupDot(dono), detail: dono.cargo + ' · ' + wmSupOndeEsta(dono) };
+    if (G_SUP.online.length) return { title: 'Equipe DM', online: true, detail: 'Online agora · ' + wmSupNomes(G_SUP.online) };
+    return { title: 'Equipe DM', detail: 'Ninguém online agora — a resposta aparece aqui assim que a equipe voltar.' };
+  }
+
+  function wmSupNavBadge() {
+    if (!wmSuporte()) return '';
+    const n = gSupContador();
+    return n > 0 ? `<b class="luma-wm-sup-navbadge"><span aria-hidden="true">${n > 9 ? '9+' : n}</span><span class="g-help-sr-only">, ${n} novas</span></b>` : '';
+  }
+  // Troca só o contador da aba: re-renderizar o painel inteiro apagaria o que se digita na IA.
+  function wmSupPintarNav() {
+    const btn = document.querySelector('#luma-widget-modal .luma-wm-nav-btn[data-tab="messages"]');
+    if (!btn) return;
+    const velho = btn.querySelector('.luma-wm-sup-navbadge');
+    if (velho) velho.remove();
+    btn.insertAdjacentHTML('beforeend', wmSupNavBadge());
+  }
+
+  // Só para a EQUIPE: a caixa de conversas. O franqueado entra pelo "Faça uma pergunta"
+  // (renderHomeTab), que já decide sozinho entre pessoa e assistente.
+  function wmSupHomeCard() {
+    if (!wmSuporte() || !G_SUP.souEquipe) return '';
+    const n = gSupAguardando();
+    return `<button type="button" class="luma-wm-ask-card luma-wm-sup-card" onclick="lumaWidgetSetTab('messages')">
+        <span class="luma-wm-ask-icon" aria-hidden="true">${WIDGET_SVGS.chatBubble}</span>
+        <div class="luma-wm-ask-copy"><strong>Conversas do suporte</strong><span>${n ? n + ' pedindo resposta' : 'Nenhuma conversa pedindo resposta'}</span></div>
+        <span class="luma-wm-list-arrow" aria-hidden="true">${WIDGET_SVGS.chevronRight}</span>
+      </button>`;
+  }
+
+  /* "Ajudou / Não ajudou" na ÚLTIMA resposta da Lu que veio de IA ou da base. Duas marcadas
+     "não ajudou" abrem a oferta da equipe (gLuOferecerEquipe) — é um `if`, não a IA decidindo. */
+  function wmLuVoto(m, i) {
+    if (m.sender !== 'bot' || (m.fonte !== 'ia' && m.fonte !== 'base')) return '';
+    if (i !== widgetState.messages.length - 1) return '';
+    if (m.util !== null && m.util !== undefined) return `<span class="luma-wm-sup-sys">${m.util ? 'Que bom que ajudou.' : 'Obrigada pelo aviso.'}</span>`;
+    return `<span class="luma-wm-sup-sys">Isso ajudou? <button type="button" class="luma-wm-link" onclick="lumaWidgetLuVoto(${i}, true)">Ajudou</button> · <button type="button" class="luma-wm-link" onclick="lumaWidgetLuVoto(${i}, false)">Não ajudou</button></span>`;
+  }
+  window.lumaWidgetLuVoto = function (i, util) {
+    const m = widgetState.messages[i];
+    if (!m || m.sender !== 'bot' || (m.util !== null && m.util !== undefined)) return;
+    m.util = !!util;
+    widgetState.luNaoUteis = util ? 0 : (widgetState.luNaoUteis || 0) + 1;
+    try { if (typeof gTrackEvent === 'function') gTrackEvent('ajuda_feedback', { util: !!util, origem: 'assistente', fonte: m.fonte }); } catch (e) {}
+    renderWidgetModalContent();
+  };
+
+  // Depois de uma resposta da Lu: a saída para uma pessoa, levando a pergunta e o estado da tela.
+  function wmSupHandoff() {
+    if (!wmSuporte() || G_SUP.souEquipe) return '';
+    const bots = widgetState.messages.filter(function (m) { return m.sender === 'bot'; });
+    if (!bots.length) return '';
+    const ultima = bots[bots.length - 1];
+    const oferta = typeof gLuOferecerEquipe === 'function' && gLuOferecerEquipe(ultima, widgetState.luNaoUteis, ultima.pedeGente);
+    if (oferta) {
+      // Presença lida AGORA (a cada render) e de novo no clique — nunca guardada.
+      const on = G_SUP.online.length > 0;
+      const primeiro = on ? G_SUP.online[0] : '';
+      return `<div class="luma-wm-bubble bot">
+          ${on ? `${wmEsc(primeiro)} está online agora. Posso chamar, e a sua pergunta já vai escrita.`
+               : 'Ninguém da equipe está online agora. Deixe sua mensagem: a equipe responde por aqui quando voltar.'}
+        </div>
+        <button type="button" class="luma-wm-sup-handoff" onclick="lumaWidgetChamarEquipe()">${on ? '<i class="luma-wm-sup-dot" aria-hidden="true"></i>Chamar ' + wmEsc(primeiro) : 'Deixar mensagem para a equipe'}</button>`;
+    }
+    return `<button type="button" class="luma-wm-sup-handoff" onclick="lumaWidgetFalarComEquipe()">${G_SUP.online.length ? '<i class="luma-wm-sup-dot" aria-hidden="true"></i>' : ''}Não resolveu? Falar com a equipe</button>
+      <span class="luma-wm-sup-sys">Sua pergunta vai escrita — é só enviar.</span>`;
+  }
+  // Reusa o handoff que já existe (rascunho + aba de mensagens). Confere a presença no clique:
+  // quem estava online pode ter saído, e a promessa muda.
+  window.lumaWidgetChamarEquipe = function () {
+    const tinha = G_SUP.online.length > 0;
+    window.lumaWidgetFalarComEquipe();
+    if (tinha && !G_SUP.online.length && typeof gToast === 'function')
+      gToast('A equipe saiu agora. Deixe sua mensagem: ela responde por aqui quando voltar.');
+  };
+
+  function wmSupEntrar() {
+    if (typeof gSupIniciar === 'function') gSupIniciar();   // idempotente; fixa quem é equipe
+    if (G_SUP.conversaDe) return;
+    if (G_SUP.souEquipe) gSupCarregarCaixa();
+    else gSupAbrirConversa();
+  }
+
+  function renderSuporteTab() {
+    return (G_SUP.souEquipe && !G_SUP.conversaDe) ? renderSupCaixa() : renderSupConversa();
+  }
+
+  /* Filtros da caixa. Com o atendimento no ar a pergunta é "de quem é a vez": a FILA (ninguém
+     assumiu) e o que está COMIGO. Sem ele, a regra da v1 (a última mensagem veio do franqueado). */
+  function wmSupFiltros() {
+    const eu = wmSupEuId();
+    if (!G_SUP.atendimento) return [
+      { id: 'aguardando', rotulo: 'Aguardando', f: function (c) { return !c.ultima_da_equipe; } },
+      { id: 'todas', rotulo: 'Todas', f: null }];
+    return [
+      { id: 'fila', rotulo: 'Fila', f: function (c) { return c.status === 'novo'; } },
+      { id: 'comigo', rotulo: 'Comigo', f: function (c) { return !!eu && c.responsavel_id === eu && c.status !== 'resolvido'; } },
+      { id: 'todas', rotulo: 'Todas', f: null }];
+  }
+  const WM_SUP_VAZIO = {
+    aguardando: ['Ninguém esperando resposta', 'Quando um franqueado escrever, a conversa aparece aqui e o Luma avisa.'],
+    fila: ['Fila vazia', 'Conversa nova, sem ninguém cuidando, aparece aqui e o Luma avisa.'],
+    comigo: ['Nada com você', 'As conversas que você assumir ou receber de um colega ficam aqui até resolver.'],
+    todas: ['Nenhuma conversa ainda', 'As conversas com os franqueados aparecem aqui.']
+  };
+
+  // Disponível (a rede vê você online e a pergunta vem direto) ou Ausente (a caixa segue chegando).
+  function wmSupEu() {
+    const aus = G_SUP.meuStatus === 'ausente';
+    return `<div class="luma-wm-sup-eu">
+        <i class="luma-wm-sup-dot${aus ? ' ausente' : ''}" aria-hidden="true"></i>
+        <span class="luma-wm-sup-eu-txt"><strong>${aus ? 'Você está ausente' : 'Você está disponível'}</strong>
+          <span>${aus ? 'A rede não vê você online. As conversas continuam chegando aqui.' : 'A rede vê você online e a pergunta chega direto para a equipe.'}</span></span>
+        <button type="button" onclick="lumaWidgetSupStatus('${aus ? 'disponivel' : 'ausente'}')">${aus ? 'Ficar disponível' : 'Ficar ausente'}</button>
+      </div>`;
+  }
+
+  // Telegram da própria pessoa: vincular (código que o bot manda no /start) e o estado.
+  function wmSupTelegram() {
+    if (typeof gSupTelegramLigado !== 'function' || !gSupTelegramLigado()) return '';
+    const t = G_SUP.telegram;
+    const off = widgetState.supAcaoRodando ? ' disabled' : '';
+    if (t.vinculado) {
+      const on = t.ate > Date.now();
+      return `<div class="luma-wm-sup-eu luma-wm-sup-tg">
+          <span class="luma-wm-sup-eu-txt"><strong>Telegram vinculado${t.nome ? ' · ' + wmEsc(t.nome) : ''}</strong>
+            <span>${on ? 'Disponível pelo Telegram até ' + wmEsc(wmSupHora(new Date(t.ate).toISOString())) + '. O franqueado vê você online.'
+              : 'As conversas chegam no grupo da equipe. Mande /disponivel ao bot para aparecer online.'}</span></span>
+          <button type="button" onclick="lumaWidgetSupTgDesvincular()"${off}>Desvincular</button>
+        </div>`;
+    }
+    if (!widgetState.supTgAberto) {
+      return `<div class="luma-wm-sup-eu luma-wm-sup-tg">
+          <span class="luma-wm-sup-eu-txt"><strong>Atender pelo Telegram</strong><span>Receba e responda as conversas sem o Luma aberto.</span></span>
+          <button type="button" onclick="lumaWidgetSupTgAbrir()">Vincular</button>
+        </div>`;
+    }
+    return `<div class="luma-wm-sup-eu luma-wm-sup-tg aberto">
+        <span class="luma-wm-sup-eu-txt"><strong>Vincular o Telegram</strong><span>No Telegram, mande /start para o bot da equipe e cole aqui o código que ele responder.</span></span>
+        <form class="luma-wm-sup-tg-form" onsubmit="event.preventDefault();lumaWidgetSupTgVincular()">
+          <input type="text" id="luma-wm-sup-tg-codigo" value="${wmEsc(widgetState.supTgCodigo)}" autocomplete="one-time-code" maxlength="12" placeholder="A3F9-1C0B" aria-label="Código que o bot do Telegram mandou" oninput="lumaWidgetSupTgDigita(this)" required>
+          <button type="submit"${off}>Vincular</button>
+        </form>
+        ${widgetState.supErro ? `<p class="luma-wm-sup-erro" role="status">${wmEsc(widgetState.supErro)}</p>` : ''}
+      </div>`;
+  }
+
+  function renderSupCaixa() {
+    const filtros = wmSupFiltros();
+    const atual = filtros.find(function (x) { return x.id === widgetState.supFiltro; }) || filtros[0];
+    const lista = atual.f ? G_SUP.caixa.filter(atual.f) : G_SUP.caixa;
+    const seg = `<div class="luma-wm-sup-seg" role="group" aria-label="Filtrar conversas">${filtros.map(function (x) {
+        const on = x === atual;
+        return `<button type="button" class="${on ? 'on' : ''}" aria-pressed="${on}" onclick="lumaWidgetSupFiltro('${x.id}')">${x.rotulo}${x.f ? ' · ' + G_SUP.caixa.filter(x.f).length : ''}</button>`;
+      }).join('')}</div>`;
+    if (!lista.length) {
+      const v = WM_SUP_VAZIO[atual.id];
+      return wmSupEu() + wmSupTelegram() + seg + `<div class="luma-wm-chat-empty">
+          <div class="luma-wm-chat-empty-icon">${WIDGET_SVGS.chatBubble}</div>
+          <strong>${v[0]}</strong>
+          <span>${v[1]}</span>
+        </div>`;
+    }
+    return wmSupEu() + wmSupTelegram() + seg + `<div class="luma-wm-sup-lista">${lista.map(renderSupLinha).join('')}</div>`;
+  }
+
+  function renderSupLinha(c) {
+    const ctx = c.ultimo_contexto || {};
+    const onde = [c.cidade, gSupContextoTexto(ctx)].filter(Boolean).join(' · ');
+    const ultimo = (c.ultima_da_equipe ? 'Equipe: ' : '') + (c.ultimo_texto || (c.ultimo_tem_anexo ? 'Imagem' : ''));
+    let estado = '';
+    if (G_SUP.atendimento && c.status) {
+      const dono = c.responsavel_id ? gSupPessoa(c.responsavel_id) : null;
+      const quem = c.status === 'resolvido' || !c.responsavel_id ? ''
+        : c.responsavel_id === wmSupEuId() ? 'com você' : 'com ' + (dono ? dono.primeiro : 'outra pessoa');
+      estado = `<span class="luma-wm-sup-linha-estado">${wmSupChip(c.status)}${quem ? `<span>${wmEsc(quem)}</span>` : ''}</span>`;
+    }
+    return `<button type="button" class="luma-wm-sup-linha${gSupPedeAcao(c) ? ' espera' : ''}" data-id="${wmEsc(c.franqueado_id)}" onclick="lumaWidgetSupAbrir(this)">
+        ${wmSupAvatar({ nome: c.nome, foto: c.avatar_url }, 'grande')}
+        <span class="luma-wm-sup-linha-main">
+          <span class="luma-wm-sup-linha-top"><strong>${wmEsc(c.nome || 'Franqueado')}</strong><time>${wmEsc(wmSupQuando(c.ultima_em))}</time></span>
+          ${onde || ctx.origem === 'assistente' ? `<span class="luma-wm-sup-linha-onde">${wmEsc(onde)}${ctx.origem === 'assistente' ? ' <b class="luma-wm-sup-tag">veio do assistente</b>' : ''}</span>` : ''}
+          <span class="luma-wm-sup-linha-ultima">${wmEsc(ultimo)}</span>
+          ${estado}
+        </span>
+        ${c.nao_lidas > 0 ? `<span class="luma-wm-sup-badge"><span aria-hidden="true">${c.nao_lidas}</span><span class="g-help-sr-only">${c.nao_lidas} não lidas</span></span>` : ''}
+      </button>`;
+  }
+
+  function wmSupBolhas() {
+    const eq = G_SUP.souEquipe;
+    const eu = typeof gCurrentUser === 'function' ? gCurrentUser() : null;
+    const meu = function (m) { return eq ? m.da_equipe : !m.da_equipe; };
+    let ultimaMinha = null;
+    G_SUP.msgs.forEach(function (m) { if (meu(m)) ultimaMinha = m.id; });
+    const franq = wmSupLinhaAberta();
+    // O histórico do atendimento entra no fio, na hora em que aconteceu. Eventos primeiro no
+    // empate: "Ana assumiu" e a primeira resposta dela nascem na mesma transação.
+    const tempo = function (iso) { const t = new Date(iso).getTime(); return isNaN(t) ? 0 : t; };
+    const itens = (G_SUP.atendimento ? G_SUP.eventos : []).map(function (e) { return { e: e, t: e.created_at }; })
+      .concat(G_SUP.msgs.map(function (m) { return { m: m, t: m.created_at }; }))
+      .sort(function (a, b) { return tempo(a.t) - tempo(b.t); });
+    let html = '', diaAnt = '', ctxAnt = '';
+    itens.forEach(function (it) {
+      const dia = wmSupDia(it.t);
+      if (dia && dia !== diaAnt) { html += `<div class="luma-wm-sup-sys">${wmEsc(dia)}</div>`; diaAnt = dia; }
+      if (it.e) {
+        const txt = wmSupEventoTexto(it.e);
+        if (txt) html += `<div class="luma-wm-sup-sys luma-wm-sup-evt">${wmEsc(txt)} · ${wmEsc(wmSupHora(it.t))}</div>`;
+        return;
+      }
+      const m = it.m;
+      const url = m.anexo_path ? gSupAnexoUrl(m.anexo_path) : '';
+      const img = !m.anexo_path ? '' : url
+        ? `<img src="${wmEsc(url)}" class="luma-wm-bubble-img" alt="Imagem enviada na conversa">`
+        : '<span class="luma-wm-sup-sys">Carregando imagem…</span>';
+      let autor;
+      if (m.da_equipe) autor = (eu && m.autor_id === eu.id) ? 'Você' : (m.autor_nome || 'Equipe') + (eq ? '' : ' · Equipe DM');
+      else autor = eq ? ((franq && franq.nome) || 'Franqueado') : 'Você';
+      // Só a equipe vê o canal: para o franqueado, a resposta é da pessoa, venha de onde vier.
+      if (eq && m.da_equipe && m.via === 'telegram') autor += ' · pelo Telegram';
+      const visto = meu(m) && m.id === ultimaMinha && m.lida_em ? ' · Visto' : '';
+      html += `<div class="luma-wm-bubble ${meu(m) ? 'user' : 'bot'}">
+          ${img}${m.texto ? wmText(m.texto) : ''}
+          <div class="luma-wm-bubble-meta">${wmEsc(autor)} · ${wmEsc(wmSupHora(m.created_at))}${visto}</div>
+        </div>`;
+      // O contexto só reaparece quando MUDA — repetido em toda bolha, vira ruído.
+      if (!m.da_equipe) {
+        const t = gSupContextoTexto(m.contexto);
+        if (t && t !== ctxAnt) html += `<span class="luma-wm-sup-ctx${meu(m) ? ' meu' : ''}">Estava em: ${wmEsc(t)}</span>`;
+        if (t) ctxAnt = t;
+      }
+    });
+    return html;
+  }
+
+  // Uma linha do histórico, contada para QUEM LÊ: a equipe vê o "de quem" e o "reabriu"; o
+  // franqueado vê quem está cuidando da conversa dele, sem os bastidores da troca.
+  function wmSupEventoTexto(e) {
+    const eq = G_SUP.souEquipe, eu = wmSupEuId();
+    const quem = eq && e.ator_id === eu ? 'Você' : (e.ator_nome || 'Alguém da equipe');
+    if (e.tipo === 'assumiu') return quem + ' assumiu o atendimento' + (eq && e.de_nome && e.de_id !== e.ator_id ? ' de ' + e.de_nome : '');
+    if (e.tipo === 'repassou') return quem + ' passou o atendimento para ' + (eq && e.para_id === eu ? 'você' : (e.para_nome || 'outra pessoa da equipe'));
+    if (e.tipo === 'resolveu') return quem + ' marcou a conversa como resolvida';
+    if (e.tipo === 'reabriu') return eq ? 'O franqueado escreveu de novo — a conversa voltou para a fila' : '';
+    return '';
+  }
+
+  // Equipe: estado, responsável e o que dá para fazer. Quem é o responsável responde, repassa e
+  // resolve; conversa de outra pessoa pede "Assumir" antes (a trava do banco garante).
+  function wmSupTicket() {
+    const c = G_SUP.conversa;
+    if (!G_SUP.atendimento || !c) return '';
+    const eu = wmSupEuId();
+    const resolvida = c.status === 'resolvido';
+    const livre = resolvida || !c.responsavel_id;
+    const meu = !resolvida && c.responsavel_id === eu;
+    const dono = c.responsavel_id ? gSupPessoa(c.responsavel_id) : null;
+    const quem = resolvida ? 'Resolvida' + (dono ? ' por ' + (c.responsavel_id === eu ? 'você' : dono.primeiro) : '')
+      : !c.responsavel_id ? 'Sem responsável' : meu ? 'Com você' : 'Com ' + (dono ? dono.primeiro : 'outra pessoa');
+    const off = widgetState.supAcaoRodando ? ' disabled' : '';
+    const botoes = [];
+    if (livre) botoes.push(`<button type="button" class="prim" onclick="lumaWidgetSupAssumir(false)"${off}>Assumir</button>`);
+    if (meu || livre) botoes.push(`<button type="button" aria-expanded="${widgetState.supRepasse}" onclick="lumaWidgetSupRepasse()"${off}>${meu ? 'Repassar' : 'Atribuir'}</button>`);
+    if (meu || (!resolvida && !c.responsavel_id)) botoes.push(`<button type="button" onclick="lumaWidgetSupResolver()"${off}>Resolver</button>`);
+    return `<div class="luma-wm-sup-ticket">
+        <div class="luma-wm-sup-ticket-top">
+          ${wmSupChip(c.status)}
+          <span class="luma-wm-sup-ticket-dono">${dono && !resolvida ? wmSupAvatar(dono, '') : ''}${wmEsc(quem)}</span>
+        </div>
+        ${botoes.length ? `<div class="luma-wm-sup-acoes">${botoes.join('')}</div>` : ''}
+        ${widgetState.supRepasse && (meu || livre) ? wmSupRepasseLista(c) : ''}
+      </div>`;
+  }
+
+  function wmSupRepasseLista(c) {
+    const eu = wmSupEuId();
+    const ordem = { disponivel: 0, ausente: 1, offline: 2 };
+    const pessoas = Object.keys(G_SUP.time).filter(function (id) { return id !== eu && id !== c.responsavel_id; })
+      .map(gSupPessoa).filter(Boolean)
+      .sort(function (a, b) { return (ordem[a.status] - ordem[b.status]) || a.nome.localeCompare(b.nome, 'pt-BR'); });
+    if (!pessoas.length) return '<p class="luma-wm-sup-sys">Ninguém mais da equipe para receber esta conversa.</p>';
+    const off = widgetState.supAcaoRodando ? ' disabled' : '';
+    return `<div class="luma-wm-sup-repasse" role="group" aria-label="Passar a conversa para">${pessoas.map(function (p) {
+        const dot = wmSupDot(p);
+        return `<button type="button" data-id="${wmEsc(p.id)}" onclick="lumaWidgetSupRepassar(this)"${off}>
+            ${wmSupAvatar(p, '')}
+            <span class="luma-wm-sup-repasse-main"><strong>${wmEsc(p.nome)}</strong><span>${wmEsc(p.cargo)}</span></span>
+            <span class="luma-wm-sup-repasse-onde"><i class="luma-wm-sup-dot${dot !== 'on' ? ' ' + dot : ''}" aria-hidden="true"></i>${wmEsc(wmSupOndeEsta(p, true) + (p.viaTelegram ? ' · Telegram' : ''))}</span>
+          </button>`;
+      }).join('')}</div>`;
+  }
+
+  // No lugar do campo de resposta, quando a conversa é de outra pessoa da equipe.
+  function wmSupTrava(c) {
+    const dono = gSupPessoa(c.responsavel_id);
+    const nome = dono ? dono.primeiro : 'Outra pessoa da equipe';
+    return `<div class="luma-wm-sup-trava">
+        ${dono ? wmSupAvatar(dono, '') : ''}
+        <span class="luma-wm-sup-trava-txt"><strong>${wmEsc(nome)} está atendendo esta conversa.</strong>
+          <span>Para responder, assuma o atendimento. Fica registrado no histórico.</span></span>
+        <button type="button" onclick="lumaWidgetSupAssumir(true)"${widgetState.supAcaoRodando ? ' disabled' : ''}>Assumir</button>
+      </div>`;
+  }
+
+  // Franqueado, antes da primeira mensagem: com quem ele vai falar (foto, nome e cargo).
+  function wmSupQuemOnline() {
+    const lista = typeof gSupOnlinePessoas === 'function' ? gSupOnlinePessoas() : [];
+    if (!lista.length) return '';
+    return `<div class="luma-wm-sup-pessoas">
+        <span class="luma-wm-eyebrow">Online agora</span>
+        ${lista.slice(0, 3).map(function (p) {
+          return `<div class="luma-wm-sup-pessoa">${wmSupAvatar(p, 'grande')}
+              <span class="luma-wm-sup-pessoa-txt"><strong>${wmEsc(p.nome)}</strong><span>${wmEsc(p.cargo)}</span></span>
+              <i class="luma-wm-sup-dot" aria-hidden="true"></i></div>`;
+        }).join('')}
+      </div>`;
+  }
+
+  function renderSupConversa() {
+    const eq = G_SUP.souEquipe;
+    const at = G_SUP.atendimento ? G_SUP.conversa : null;
+    const deOutro = eq && at && at.status !== 'resolvido' && at.responsavel_id && at.responsavel_id !== wmSupEuId();
+    let corpo;
+    if (G_SUP.carregando && !G_SUP.msgs.length) corpo = '<p class="luma-wm-sup-sys" role="status">Carregando a conversa…</p>';
+    else if (G_SUP.msgs.length) corpo = wmSupBolhas();
+    else if (eq) corpo = '<p class="luma-wm-sup-sys">Nenhuma mensagem nesta conversa.</p>';
+    else corpo = `<div class="luma-wm-chat-empty">
+        <div class="luma-wm-chat-empty-icon">${WIDGET_SVGS.users}</div>
+        <span class="luma-wm-eyebrow">Equipe DM</span>
+        <strong>Fale com uma pessoa</strong>
+        <span>Dúvidas de uso e problemas no Luma. Aprovação de peça e pedido de arte continuam com o marketing da sua empresa.</span>
+        ${wmSupQuemOnline()}
+      </div>`;
+    if (!eq && at && at.status === 'resolvido' && G_SUP.msgs.length) {
+      corpo += '<p class="luma-wm-sup-sys">Precisa de mais alguma coisa? É só escrever.</p>';
+    }
+    const pronto = widgetState.supRascunho.trim() || widgetState.attachedFile;
+    return `
+      <div class="luma-wm-chat-active luma-wm-sup">
+        ${eq ? `<button type="button" class="luma-wm-sup-voltar" onclick="lumaWidgetSupVoltar()">${WIDGET_SVGS.back}<span>Conversas</span></button>` : ''}
+        ${eq ? wmSupTicket() : ''}
+        <div class="luma-wm-chat-messages">${corpo}</div>
+        <div id="luma-wm-attach-area"></div>
+        ${widgetState.supErro ? `<p class="luma-wm-sup-erro" role="status">${wmEsc(widgetState.supErro)}</p>` : ''}
+        ${deOutro ? wmSupTrava(at) : `<div class="luma-wm-chat-input-bar">
+          <textarea id="luma-wm-input-box" placeholder="${eq ? 'Responder ao franqueado' : 'Escreva para a equipe'}" aria-label="${eq ? 'Resposta para o franqueado' : 'Mensagem para a equipe DM'}" oninput="lumaWidgetSupDigitando(this)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();lumaWidgetSupEnviar();}">${wmEsc(widgetState.supRascunho)}</textarea>
+          <div class="luma-wm-chat-input-tools">
+            <div class="luma-wm-input-actions">
+              <button type="button" class="luma-wm-tool-btn" onclick="lumaWidgetTriggerFileSelect()" aria-label="Anexar um print da tela" title="Anexar print">${WIDGET_SVGS.paperclip}</button>
+            </div>
+            <button type="button" class="luma-wm-send-btn${pronto ? ' ready' : ''}" id="luma-wm-send-trigger" onclick="lumaWidgetSupEnviar()" aria-label="Enviar mensagem"${widgetState.supEnviando ? ' disabled' : ''}>${WIDGET_SVGS.send}</button>
+          </div>
+        </div>`}
+      </div>`;
+  }
+
+  /* Re-render vindo do Realtime: guarda foco, cursor e a rolagem de quem está lendo o
+     histórico. Só desce até o fim se a pessoa JÁ estava no fim (motion.md: rolagem
+     automática é interrupção). */
+  function wmSupRerender(forcarFim) {
+    const modal = document.getElementById('luma-widget-modal');
+    if (!modal || !widgetState.isOpen) return;
+    const box = modal.querySelector('.luma-wm-sup .luma-wm-chat-messages');
+    const noFim = !box || (box.scrollHeight - box.scrollTop - box.clientHeight < 80);
+    const topo = box ? box.scrollTop : 0;
+    const corpo = modal.querySelector('.luma-wm-body');
+    const corpoTopo = corpo ? corpo.scrollTop : 0;
+    // Campo com foco: a resposta da conversa ou o código do Telegram, na caixa.
+    const ativo = document.activeElement;
+    const focoId = ativo && (ativo.id === 'luma-wm-input-box' || ativo.id === 'luma-wm-sup-tg-codigo') ? ativo.id : '';
+    const sel = focoId ? [ativo.selectionStart, ativo.selectionEnd] : null;
+    renderWidgetModalContent();
+    const box2 = modal.querySelector('.luma-wm-sup .luma-wm-chat-messages');
+    if (box2 && !noFim && !forcarFim) box2.scrollTop = topo;
+    const corpo2 = modal.querySelector('.luma-wm-body');
+    if (corpo2 && !box2) corpo2.scrollTop = corpoTopo;
+    if (focoId) {
+      const i2 = document.getElementById(focoId);
+      if (i2) { i2.focus(); try { i2.setSelectionRange(sel[0], sel[1]); } catch (e) {} }
+    }
+  }
+  function wmSupAoMudar() {
+    if (!widgetState.isOpen) return;
+    if (widgetState.activeTab === 'home' || (widgetState.activeTab === 'messages' && wmSuporte())) wmSupRerender(false);
+    else wmSupPintarNav();
+  }
+
+  window.lumaWidgetSupDigitando = function (el) {
+    widgetState.supRascunho = el.value;
+    widgetState.supErro = '';
+    window.lumaWidgetInputCheck(el);
+  };
+
+  window.lumaWidgetSupEnviar = async function () {
+    if (widgetState.supEnviando || typeof gSupEnviar !== 'function') return;
+    const input = document.getElementById('luma-wm-input-box');
+    const texto = (input ? input.value : widgetState.supRascunho).trim();
+    const anexo = widgetState.attachedFile;
+    if (!texto && !anexo) return;
+    if (anexo && !anexo.isImage) {
+      widgetState.supErro = 'No suporte, o anexo precisa ser uma imagem (PNG, JPG ou WEBP).';
+      wmSupRerender(false);
+      return;
+    }
+    widgetState.supEnviando = true;
+    const r = await gSupEnviar(texto, anexo ? anexo.dataUrl : null, widgetState.supOrigem,
+      typeof gSupEstadoTela === 'function' ? gSupEstadoTela() : null);
+    widgetState.supEnviando = false;
+    if (r.ok) {
+      // Se a pessoa seguiu digitando durante o envio, o que é novo fica no campo.
+      const atual = document.getElementById('luma-wm-input-box');
+      const agora = atual ? atual.value : '';
+      widgetState.supRascunho = agora.trim() === texto ? '' : agora;
+      widgetState.attachedFile = null;
+      widgetState.supOrigem = null;
+      widgetState.supErro = '';
+    } else {
+      widgetState.supErro = r.erro || '';
+    }
+    wmSupRerender(true);
+  };
+
+  window.lumaWidgetSupAbrir = function (btn) {
+    const id = btn && btn.dataset ? btn.dataset.id : '';
+    if (!id) return;
+    widgetState.supRascunho = ''; widgetState.supErro = ''; widgetState.attachedFile = null; widgetState.supRepasse = false;
+    gSupAbrirConversa(id);
+  };
+  window.lumaWidgetSupVoltar = function () {
+    widgetState.supRascunho = ''; widgetState.supErro = ''; widgetState.attachedFile = null; widgetState.supRepasse = false;
+    gSupFecharConversa();
+    gSupCarregarCaixa();
+  };
+  window.lumaWidgetSupFiltro = function (f) {
+    widgetState.supFiltro = ['aguardando', 'fila', 'comigo', 'todas'].indexOf(f) >= 0 ? f : 'aguardando';
+    wmSupRerender(false);
+  };
+
+  /* ── Atendimento: status de quem atende, assumir, repassar, resolver ── */
+  window.lumaWidgetSupStatus = function (s) {
+    if (typeof gSupSetStatus !== 'function') return;
+    gSupSetStatus(s);
+    if (typeof gToast === 'function') gToast(s === 'ausente' ? 'Você está ausente. As conversas continuam chegando.' : 'Você está disponível para a rede.');
+  };
+  // Uma ação por vez: o botão trava enquanto o banco responde; a recusa vira texto na conversa.
+  async function wmSupRodar(fn) {
+    if (widgetState.supAcaoRodando) return null;
+    widgetState.supAcaoRodando = true; widgetState.supErro = '';
+    wmSupRerender(false);
+    const r = await fn();
+    widgetState.supAcaoRodando = false;
+    widgetState.supErro = r && !r.ok ? (r.erro || '') : '';
+    if (r && r.ok) widgetState.supRepasse = false;
+    wmSupRerender(false);
+    return r;
+  }
+  window.lumaWidgetSupAssumir = function (forcar) {
+    if (typeof gSupAssumir === 'function') wmSupRodar(function () { return gSupAssumir(forcar); });
+  };
+  window.lumaWidgetSupResolver = async function () {
+    if (typeof gSupResolver !== 'function') return;
+    const r = await wmSupRodar(gSupResolver);
+    if (r && r.ok && typeof gToast === 'function') gToast('Conversa resolvida. Se o franqueado escrever de novo, ela volta para a fila.');
+  };
+  window.lumaWidgetSupTgAbrir = function () {
+    widgetState.supTgAberto = true; widgetState.supErro = '';
+    wmSupRerender(false);
+    const i = document.getElementById('luma-wm-sup-tg-codigo');
+    if (i) i.focus();
+  };
+  window.lumaWidgetSupTgDigita = function (el) { widgetState.supTgCodigo = el.value; widgetState.supErro = ''; };
+  window.lumaWidgetSupTgVincular = async function () {
+    if (typeof gSupTelegramVincular !== 'function') return;
+    const r = await wmSupRodar(function () { return gSupTelegramVincular(widgetState.supTgCodigo); });
+    if (!r || !r.ok) return;
+    widgetState.supTgAberto = false; widgetState.supTgCodigo = '';
+    wmSupRerender(false);
+    if (typeof gToast === 'function') gToast('Telegram vinculado. As conversas chegam no grupo da equipe.');
+  };
+  window.lumaWidgetSupTgDesvincular = async function () {
+    if (typeof gSupTelegramDesvincular !== 'function') return;
+    const r = await wmSupRodar(gSupTelegramDesvincular);
+    if (r && r.ok && typeof gToast === 'function') gToast('Telegram desvinculado. Suas respostas por lá não chegam mais ao Luma.');
+  };
+  window.lumaWidgetSupRepasse = function () {
+    widgetState.supRepasse = !widgetState.supRepasse;
+    wmSupRerender(false);
+  };
+  window.lumaWidgetSupRepassar = async function (btn) {
+    const id = btn && btn.dataset ? btn.dataset.id : '';
+    if (!id || typeof gSupRepassar !== 'function') return;
+    const p = gSupPessoa(id);
+    const r = await wmSupRodar(function () { return gSupRepassar(id); });
+    if (r && r.ok && typeof gToast === 'function') gToast('Conversa passada para ' + (p ? p.primeiro : 'a pessoa escolhida') + '.');
+  };
+
+  window.lumaWidgetFalarComEquipe = function () {
+    const ultima = widgetState.messages.slice().reverse().find(function (m) { return m.sender === 'user' && m.text; });
+    if (ultima && !widgetState.supRascunho) widgetState.supRascunho = ultima.text;
+    widgetState.supOrigem = 'assistente';
+    window.lumaWidgetSetTab('messages');
+    const input = document.getElementById('luma-wm-input-box');
+    if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+  };
+
+  // Porta de entrada do suporte: botão "Conversas" da topbar (equipe) e o "Ver" dos avisos.
+  window.lumaWidgetAbrirSuporte = function (trigger, franqueadoId) {
+    if (!wmSuporte()) { window.lumaWidgetOpen(trigger); return; }
+    if (widgetState.isOpen && widgetState.activeTab === 'messages' && !franqueadoId) { window.lumaWidgetClose(); return; }
+    widgetState.activeTab = 'messages';
+    if (typeof gSupIniciar === 'function') gSupIniciar();
+    if (G_SUP.souEquipe && franqueadoId) gSupAbrirConversa(franqueadoId);
+    else wmSupEntrar();
+    if (widgetState.isOpen) renderWidgetModalContent();
+    else window.lumaWidgetOpen(trigger);
   };
 
   // Inicializa quando o DOM estiver pronto

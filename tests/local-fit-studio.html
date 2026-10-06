@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Luma — pilha vertical e autoria</title>
+<link rel="stylesheet" href="../css/00-tokens.css">
+<link rel="stylesheet" href="../css/modules/designer.css">
+<style>
+body{margin:24px;background:var(--d-bg);color:var(--d-text);font:14px system-ui}
+main{display:flex;gap:24px;flex-wrap:wrap}aside{width:300px}canvas{width:360px;height:450px;background:var(--white)}
+button,select{font:inherit}#summary{margin:16px 0}#controls{display:flex;gap:12px;margin:16px 0}
+</style>
+<h1>Pilha vertical — motor e controles reais</h1>
+<div id="summary" role="status">Verificando…</div>
+<div id="controls">
+  <label>Conteúdo <select id="copy"><option value="curto">Curto</option><option value="longo">Longo</option><option value="impossivel">Sem espaço</option></select></label>
+  <label>Camada <select id="layer"><option value="a">Produto</option><option value="b">Detalhes</option><option value="c">Preço</option></select></label>
+  <button id="undo">Desfazer</button><button id="redo">Refazer</button>
+</div>
+<main><aside id="inspector">
+  <section id="dp-sec-text" class="dp-section dp-section-open"><h2>Tipografia</h2><div class="dp-sec-body"></div></section>
+  <section class="dp-section dp-section-open"><h2>Alinhamento</h2><div class="dp-sec-body">
+    <label for="dp-anchor-layer">Colar após camada</label><select id="dp-anchor-layer" class="prop-input" onchange="dUpdateAnchorLayer(this.value)"></select>
+    <div id="dp-anchor-details"><select id="dp-anchor-type" aria-label="Direção" class="prop-input" onchange="dUpdateAnchorType(this.value)"><option value="top-to-bottom">Abaixo</option><option value="left-to-right">À direita</option></select>
+      <label for="dp-anchor-gap">Espaçamento</label><input id="dp-anchor-gap" type="number" class="prop-input" onchange="dUpdateAnchorGap(this.value)"></div>
+  </div></section>
+</aside><canvas id="preview" width="1080" height="1350" aria-label="Arte adaptada"></canvas></main>
+<pre id="geometry"></pre>
+<script src="../js/00-config.js"></script>
+<script src="../js/core/toast.js"></script>
+<script src="../js/core/img-store.js"></script>
+<script src="../js/core/layout.js"></script>
+<script src="../js/core/auto-layout.js"></script>
+<script src="../js/core/local-fit.js"></script>
+<script src="../js/franqueado/png-generator.js"></script>
+<script src="../js/designer/templates.js"></script>
+<script src="../js/designer/layers.js"></script>
+<script src="../js/designer/undo-redo.js"></script>
+<script>
+let dHistory=[], dHistoryIdx=-1;
+dSelId='a';dFmt='feed';dCanvasBg='#fff';
+let dados={a:'Pizza',b:'Com bebida',c:'R$ 49,90'};
+const longos={a:'Pizza grande calabresa especial',b:'Com borda recheada e refrigerante',c:'R$ 49,90'};
+const curtos={...dados};
+let renderQueue=Promise.resolve();
+function dMarkUnsaved(){}
+function dRenderLayersList(){}
+function dStats(){}
+function dRenderCanvas(){
+  const layers=JSON.parse(JSON.stringify(dLayers)), valores={...dados};
+  renderQueue=renderQueue.then(()=>{
+  const cv=document.getElementById('preview');
+  cv.getContext('2d').clearRect(0,0,cv.width,cv.height);
+  return fRenderTemplateLayers(cv.getContext('2d'),layers,1080,1350,valores,{color:'#ff9000'},
+    {layers:[],w:1080,h:1350,bg:'#fff'},{scope:'franqueado',purpose:'preview'}).then(out=>{
+    document.getElementById('geometry').textContent=(out._layoutResult.invalid?'BLOQUEADO':'CABE')+'\n'+
+      out.filter(l=>l.type==='text').map(l=>l.name+': y='+l.y+', fonte='+(l._tetoFonte||l.fontSize)).join('\n');
+    return out;
+  });
+  });
+  return renderQueue;
+}
+(async()=>{
+  const failures=[];let passed=0;
+  const test=async(name,fn)=>{try{await fn();passed++;}catch(e){failures.push({name,error:e.message});}};
+  const assert=(c,m)=>{if(!c)throw Error(m);};
+  dLayers=['a','b','c'].map((id,i)=>({id,name:['Produto','Detalhes','Preço'][i],abId:'teste',type:'text',
+    content:'{{'+id+'}}',isVar:true,layoutRefText:curtos[id],font:'Arial',fontSize:i?32:48,
+    x:80,y:[80,160,222][i],w:310,h:i?40:58,lineHeight:1.2,textBox:'box',vAlign:'top',
+    color:'#222222',visible:true,opacity:100,...(i?{relativeAnchor:{layerId:i===1?'a':'b',type:'top-to-bottom',gap:22}}:{})}));
+  dLayers.push({id:'rodape',type:'shape',shapeKind:'rect',x:60,y:700,w:500,h:20,fill:'#ff9000',visible:true,opacity:100});
+  dRenderAnchorProps(dLayers[0]);dHistoryReset();
+  await test('vincular no controle real e desfazer/refazer por ID',async()=>{
+    const select=document.getElementById('dp-fit-font-group');
+    select.value='b';select.dispatchEvent(new Event('change',{bubbles:true}));await Promise.resolve();
+    assert(dLayers[0].fitFontGroup===dLayers[1].fitFontGroup,'controle não vinculou');
+    const snapshot=dHistorySnapshot();
+    dUndo();assert(!dLayers[0].fitFontGroup,'undo não removeu');
+    dRedo();assert(dLayers[0].fitFontGroup===snapshot.layers[0].fitFontGroup,'redo perdeu vínculo');
+  });
+  await test('persistência real conserva âncora e conjunto',()=>{
+    const keys=['yngs_layers_v1','yngs_fmt_v1','yngs_bg_v1','yngs_wh_v1'];
+    const backup=keys.map(k=>localStorage.getItem(k));
+    try{
+      assert(dPersistArtboards(),'persistência falhou');
+      const l=JSON.parse(localStorage.getItem('yngs_layers_v1'));
+      assert(l[0].fitFontGroup===l[1].fitFontGroup && !!l[0].fitFontGroup,'grupo perdido');
+      assert(l[2].relativeAnchor.layerId==='b','âncora perdida');
+      dLayers=l;dRenderAnchorProps(dLayers[0]);
+      assert(document.getElementById('dp-fit-font-group').value==='b','controle não restaurou');
+    }finally{keys.forEach((k,i)=>backup[i]===null?localStorage.removeItem(k):localStorage.setItem(k,backup[i]));}
+  });
+  await test('independente remove só o vínculo selecionado',()=>{
+    dUpdateFitFontGroup('');assert(!dLayers[0].fitFontGroup,'vínculo persistiu');
+    assert(!!dLayers[1].fitFontGroup,'apagou vínculo de outro');
+  });
+  await test('texto longo usa o render de produção',async()=>{
+    dados={...longos};const out=await dRenderCanvas();
+    assert(!out._layoutResult.invalid,'arte bloqueou');
+    assert(out.find(l=>l.id==='c').y>222,'preço não desceu');
+  });
+  document.getElementById('copy').onchange=async e=>{
+    dados=e.target.value==='curto'?{...curtos}:e.target.value==='longo'?{...longos}:{...longos,a:longos.a.repeat(30)};
+    await dRenderCanvas();
+  };
+  document.getElementById('layer').onchange=e=>{dSelId=e.target.value;dRenderAnchorProps(dLayers.find(l=>l.id===dSelId));};
+  document.getElementById('undo').onclick=()=>{dUndo();dRenderAnchorProps(dLayers.find(l=>l.id===dSelId));};
+  document.getElementById('redo').onclick=()=>{dRedo();dRenderAnchorProps(dLayers.find(l=>l.id===dSelId));};
+  document.getElementById('copy').value='longo';
+  document.getElementById('summary').textContent=passed+'/'+(passed+failures.length)+' verificações passaram'+(failures.length?' · '+JSON.stringify(failures):'');
+  window.__lumaTest={total:passed+failures.length,passed,failures};
+})().catch(e=>{document.getElementById('summary').textContent=e.stack;window.__lumaTest={total:1,passed:0,failures:[{name:'inicialização',error:e.message}]};});
+</script>
+</html>

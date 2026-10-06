@@ -7,6 +7,13 @@
  */
 
 let fNextTimeout = null;
+/* QUAL CONVERSA É A ATUAL. O chat anda por relógio (`fTyping` e `fNextTimeout`, ~900ms), e o
+   passo agendado disparava mesmo depois de a pessoa sair: voltar a Campanhas e abrir outra
+   dentro desse intervalo fazia o `fNextStep` rodar na campanha nova, ainda sem perguntas —
+   erro no console e chat parado. Abrir material ou trocar de campanha sobe o número; o passo
+   que foi agendado na conversa anterior vê o número mudado e não faz nada. */
+let _fChatGen = 0;
+function fChatNovaConversa(){ _fChatGen++; clearTimeout(fNextTimeout); clearTimeout(_fGuidedTimer); }
 
 // Atalhos de validade com DATAS REAIS calculadas na hora (uma sugestão estática vira
 // mentira amanhã). As frases já vêm com "Válido" → passam intactas pelo humanizador de
@@ -93,7 +100,8 @@ function _fChatBindTeclado(){
   if(box && !box._fChatFocusBound){ box._fChatFocusBound = true; box.addEventListener('focus', ()=>setTimeout(fim, 250)); }
 }
 
-function fStartChatComMaterial(material){
+async function fStartChatComMaterial(material){
+  fChatNovaConversa();   // passos agendados da conversa anterior não entram nesta
   /* A escuta é neutra enquanto a largura não cruza o breakpoint; ligada também no início
      mobile, impede que um resize posterior deixe timeline e layout desktop misturados. */
   try{ _fGuidedBind(); }catch(e){}
@@ -117,7 +125,7 @@ function fStartChatComMaterial(material){
   // Verifica se há rascunho salvo para esta combinação de campanha e material
   let draft = null;
   try {
-    const saved = localStorage.getItem('luma_chat_draft');
+    const saved = localStorage.getItem(fUserCacheKey('luma_chat_draft'));
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed && parsed.materialId === material.id && parsed.campId === fState.camp.id) {
@@ -125,6 +133,12 @@ function fStartChatComMaterial(material){
       }
     }
   } catch(e){}
+
+  if(_fChatDraftHasRefs(draft)){
+    const gen=_fChatGen,key=fUserCacheKey('luma_chat_draft');
+    draft=await _fChatDraftHydrate(draft);
+    if(gen!==_fChatGen||key!==fUserCacheKey('luma_chat_draft'))return;
+  }
 
   if (draft && Object.keys(draft.dados).length > 0) {
     fState.stepIdx = -1;
@@ -193,7 +207,7 @@ function _fChipsDeFluxo(msgs, html){
 /* Os campos que um perfil de loja sabe responder. Nomes variam por template
    (o designer batiza o campo), então cada dado tem seus apelidos conhecidos. */
 const F_LOJA_CAMPOS = {
-  logo:     ['logo_loja'],
+  logo:     ['logo_loja','logo','logotipo','logo_marca','marca'],
   nome:     ['nome_loja','nomeLoja','loja','nome_da_loja','estabelecimento'],
   whatsapp: ['whatsapp','telefone','contato'],
   cor:      ['cor','cor_marca','cor_loja']
@@ -201,10 +215,25 @@ const F_LOJA_CAMPOS = {
 // A loja tem algo a oferecer neste material? (antes só olhava o logo — nome/whatsapp/cor
 // também são redigitação, e material sem campo de logo ficava sem o atalho.)
 function _fLojaServeMaterial(){
-  return Object.keys(F_LOJA_CAMPOS).some(k=>F_LOJA_CAMPOS[k].some(_fPergExists));
+  if(Object.keys(F_LOJA_CAMPOS).some(k=>F_LOJA_CAMPOS[k].some(_fPergExists))) return true;
+  /* A lista de apelidos sempre tem buraco. `gCampoEhLogo` é o motor único da pergunta
+     "isto é um logo?" (nome + `semantic` do designer) — ele fecha o que a lista não prevê. */
+  const ps=(fState.camp&&fState.camp.perguntas)||[];
+  return typeof gCampoEhLogo==='function' && ps.some(p=>p&&gCampoEhLogo(p.id));
+}
+// Os campos de logo DESTE material — os apelidos conhecidos mais o que o motor reconhecer.
+function _fLojaCamposLogo(){
+  const ps=(fState.camp&&fState.camp.perguntas)||[];
+  const dinam=(typeof gCampoEhLogo==='function')?ps.filter(p=>p&&gCampoEhLogo(p.id)).map(p=>p.id):[];
+  return [...new Set([...F_LOJA_CAMPOS.logo, ...dinam])];
 }
 
 function fMaterialPreStart(material){
+  /* ⚠ O SLOT DE DESFAZER É DA ARTE, NÃO DA SESSÃO. `_fUndoLimpa` existia e nunca era chamado:
+     o botão continuava oferecendo "Desfazer: Refazer arte" depois de trocar de material, e
+     aceitar restaurava campanha/material/conversa ANTIGOS por cima da arte nova. */
+  try{ if(typeof _fUndoLimpa==='function') _fUndoLimpa(); }catch(e){}
+  try{ if(typeof fLpStopFraming==='function') fLpStopFraming(); }catch(e){}
   if(_fGuidedAtivo()) return _fGuidedMaterialPreStart(material);
   const lojas = (typeof fGetLojas==='function') ? fGetLojas() : [];
   const lojaOffer = _fLojaServeMaterial() && lojas.length;
@@ -219,7 +248,7 @@ function fMaterialPreStart(material){
   const _rewindIco='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>';
   let chips='';
   if(lojaOffer){
-    chips += lojas.map(l=>`<div class="qr qr-loja" role="button" tabindex="0" onclick="fPickLoja('${l.id}')">${_lojaIco}${gEsc(l.nome||'Minha loja')}</div>`).join('');
+    chips += lojas.map(l=>`<div class="qr qr-loja" role="button" tabindex="0" onclick="fPickLoja('${gEscJs(l.id)}')">${_lojaIco}${gEsc(l.nome||'Minha loja')}</div>`).join('');
   }
   if(lastArte){
     chips += `<div class="qr" role="button" tabindex="0" onclick="fUseLastArte(${lastArte.id})">${_rewindIco}Usar dados da última arte</div>`;
@@ -234,7 +263,15 @@ function fMaterialPreStart(material){
   _fSoChips('Escolha uma das opções acima');
 }
 function _fClearPreStart(){ const m=document.getElementById('prestart-msg'); if(m) m.remove(); }
-function fSkipPreStart(){ _fClearPreStart(); _fProceedMaterialStart(fState.material); }
+/* "Começar do zero" é do zero: o `fSelectMaterial` herda `fState.dados` do material/arte
+   anterior, e no guiado o cursor pulava tudo que estava resolvido — a pessoa caía na arte
+   pronta sem poder redigitar. Mesmo reset do "Começar do zero" do rascunho (`fApplyRecoverDraft`). */
+function fSkipPreStart(){
+  _fClearPreStart();
+  fState.dados={}; fState.extractedColors={};
+  try{ fClearChatDraft(); fLpRefresh(); }catch(e){}
+  _fProceedMaterialStart(fState.material);
+}
 // Aplica uma loja salva: preenche logo (e whatsapp/cor se o template os tiver) e remove
 // essas perguntas do fluxo — o franqueado não redigita o que já é da loja.
 function fPickLoja(lojaId){
@@ -254,15 +291,21 @@ function fPickLoja(lojaId){
      memória da sessão, do mesmo tipo do `_lastHistId`. Quem recarrega a página cai no
      caminho 1 do `_fPostedPerfil` (os campos da própria arte), que é o mais preciso. */
   fState._lojaId = lojaId;
-  _preenche(loja.logo,     F_LOJA_CAMPOS.logo);
+  _preenche(loja.logo,     _fLojaCamposLogo());
   _preenche(loja.nome,     F_LOJA_CAMPOS.nome);      // o nome da loja também é dado da loja
   _preenche(loja.whatsapp, F_LOJA_CAMPOS.whatsapp);
   _preenche(loja.cor,      F_LOJA_CAMPOS.cor);
   // Remove do fluxo tudo que já está respondido (pela loja agora ou pela prévia antes).
   /* No desktop guiado, campos preenchidos continuam na lista canônica: o cursor é que pula
      decisões resolvidas. Remover a pergunta faria “4 de 6 informações” virar “0 de 2”. */
-  if(!_fGuidedAtivo())
+  if(!_fGuidedAtivo()){
+    /* ⚠ GUARDA A LISTA CANÔNICA ANTES DE FILTRAR. `fRestartArt` zera `fState.dados` mas reusa
+       `fState.camp.perguntas` — sem esta cópia, refazer a arte depois de aplicar uma loja
+       deixava logo/nome/whatsapp fora do fluxo PARA SEMPRE, com os dados já apagados: a arte
+       saía sem a marca e não havia passo para preenchê-la de novo. */
+    if(!fState.camp._perguntasTodas) fState.camp._perguntasTodas=(fState.camp.perguntas||[]).slice();
     fState.camp.perguntas = (fState.camp.perguntas||[]).filter(p=>fState.dados[p.id]==null||fState.dados[p.id]==='');
+  }
   if(typeof gToast==='function') gToast(`Dados de ${loja.nome||'sua loja'} aplicados`);
   fLpRefresh();
   _fProceedMaterialStart(fState.material);
@@ -278,7 +321,8 @@ function fUseLastArte(histId){
   fState.done=false; fState.editIdx=null;
   fUpdateProg();
   fAddBot(`Peguei os dados da sua última arte de <strong>${gEsc(fState.material.name)}</strong>.`,[]);
-  setTimeout(()=>fGerarArte(),500);
+  const gen=_fChatGen;
+  setTimeout(()=>{ if(gen===_fChatGen) fGerarArte(); },500);
 }
 function _fProceedMaterialStart(material){
   if(_fGuidedAtivo()){
@@ -349,6 +393,7 @@ function fUpdateCtx(){
   fLpRefresh();
 }
 function fUpdateProg(){
+  try{ if(typeof fEspelhoSincroniza==='function') fEspelhoSincroniza(); }catch(e){}   // saiu do passo sem enviar → devolve o valor
   const tot=(fState.camp&&fState.camp.perguntas)?fState.camp.perguntas.length:0;
   /* Mobile continua contando o cursor. Desktop conta informação válida, porque draft,
      reuso e edição pela arte podem preencher campos fora da ordem. */
@@ -359,10 +404,17 @@ function fUpdateProg(){
      com selo de sistema. O elemento existe nos dois, e o CSS decide quem o vê. */
   /* Acessibilidade: a mudança de modo é visual e precisa ser DITA. O `#f-arte-status` é um
      `aria-live="polite"` que só existe para isto — anuncia uma vez, quando o modo entra. */
+  /* A ENTREGA MAIS RECENTE ESTÁ BLOQUEADA? (Local Fit 2.1) `_fBolhaMarcaBloqueio` marca o card; o
+     cabeçalho do celular e o leitor de tela liam só `done` e diziam "pronta" sobre uma arte que
+     o Baixar recusaria. O card é a fonte: uma verdade só, sem estado novo. */
+  const _cards = document.querySelectorAll('.bbl.art-ok');
+  const bloqueada = !!fState.done && _cards.length > 0 && _cards[_cards.length-1].classList.contains('is-bloqueio');
   try{
     const av=document.getElementById('f-arte-status');
     if(av){
-      const texto = fState.done ? 'Sua arte está pronta. Baixar PNG e publicar no Instagram estão disponíveis.' : '';
+      const texto = !fState.done ? ''
+        : bloqueada ? 'A arte foi gerada, mas um texto não cabe. Use o botão “Falta ajustar um texto” para corrigir.'
+        : 'Sua arte está pronta. Baixar PNG e Editar arte estão disponíveis.';
       if(av.textContent !== texto) av.textContent = texto;
     }
   }catch(e){}
@@ -370,7 +422,7 @@ function fUpdateProg(){
   if(n){
     const ativo = tot>0 && !!fState.material;
     n.hidden = !ativo;
-    n.textContent = ativo ? (fState.done ? 'pronta' : Math.min(done+1,tot)+'/'+tot) : '';
+    n.textContent = ativo ? (fState.done ? (bloqueada ? 'ajustar' : 'pronta') : Math.min(done+1,tot)+'/'+tot) : '';
   }
   _fSheetSync();
 }
@@ -404,7 +456,7 @@ function _fGuidedCampoResolvido(p){
   const v=fState.dados&&fState.dados[p.id];
   if(v==null||v==='') return false;
   const masked=fApplyMask(p.id,String(v));
-  return !fValidate(p.id,masked);
+  return !fValidate(p.id,masked,fState.dados);
 }
 function _fGuidedPreenchidas(){
   return _fGuidedPerguntas().reduce((n,p)=>n+(_fGuidedCampoResolvido(p)&&!(fState.dados&&fState.dados['__skipped__'+p.id])?1:0),0);
@@ -440,6 +492,7 @@ function _fGuidedConfigInput(p,cfg,valor){
   const box=document.getElementById('f-msg-box'), snd=document.getElementById('f-snd');
   if(!box||!snd) return;
   box.type='text'; box.disabled=false; box.value=valor||''; box.maxLength=cfg.maxLen||120;
+  box._fSelChave=null;   // passo novo: o 1º toque num preço salvo volta a selecionar (chat-input.js)
   box.removeAttribute('aria-describedby');
   snd.disabled=false; snd.dataset.label=_fGuidedNav.mode==='field-edit'?'Salvar':'Continuar';
   snd.setAttribute('aria-label',snd.dataset.label);
@@ -471,9 +524,9 @@ function _fGuidedOpcoes(p,cfg){
 }
 function _fGuidedControleHTML(p,cfg,valor,uploadId){
   if(p.isImage||cfg.type==='image'){
-    if(valor) return _fUploadPreviewHTML(p.id,valor,{jaEstava:true});
-    return `<div class="f-upload-zone fg-upload-zone" id="${uploadId}-zone" data-var="${gEsc(p.id)}" data-upload="${uploadId}" onclick="fOpenUploadPanel('${gEsc(p.id)}','${uploadId}')">
-      <input type="file" id="${uploadId}-input" accept="image/png,image/jpeg,image/webp" hidden onclick="event.stopPropagation()" onchange="fHandleImageUpload(event,'${gEsc(p.id)}','${uploadId}')">
+    if(valor) return `<div id="${uploadId}-preview">${_fUploadPreviewHTML(p.id,valor,{jaEstava:true})}</div>`;
+    return `<div class="f-upload-zone fg-upload-zone" id="${uploadId}-zone" data-var="${gEsc(p.id)}" data-upload="${uploadId}" onclick="fOpenUploadPanel('${gEscJs(p.id)}','${gEscJs(uploadId)}')">
+      <input type="file" id="${uploadId}-input" accept="image/png,image/jpeg,image/webp" hidden onclick="event.stopPropagation()" onchange="fHandleImageUpload(event,'${gEscJs(p.id)}','${gEscJs(uploadId)}')">
       <div class="f-upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
       <div class="f-upload-title">Escolher imagem</div><div class="f-upload-sub">PNG, JPG ou WebP · até 20MB</div>
     </div>`;
@@ -544,16 +597,42 @@ function _fGuidedErro(msg){
   const box=document.getElementById('f-msg-box');
   if(box){ if(msg) box.setAttribute('aria-describedby','fg-field-error'); else box.removeAttribute('aria-describedby'); }
 }
+/* pergunta_respondida — o funil "respondeu" do painel. Vai o TAMANHO e, só em texto, os 60
+   primeiros caracteres (para ver o que se escreve sem guardar a oferta inteira); imagem nunca
+   leva conteúdo: o valor dela é um dataURL de MB. */
+function fTrackResposta(p, valor, pulou){
+  try{
+    if(typeof gTrackEvent!=='function'||!p) return;
+    const cfg=fGetFieldType(p.id)||{}, img=!!(p.isImage||cfg.type==='image');
+    const v=String(valor==null?'':valor);
+    const out={camp_id:fState.camp&&fState.camp.id, template_id:(typeof _fTplId==='function')?_fTplId(fState.material):null,
+      campo:p.id, tipo:img?'image':(cfg.type||'text'), tam:img?null:v.length, pulou:!!pulou};
+    if(!img&&!pulou&&v) out.amostra=v.slice(0,60);
+    gTrackEvent('pergunta_respondida',out);
+  }catch(e){}
+}
+// foto_enviada: dimensões ORIGINAIS (lidas do arquivo, antes do redimensionamento) e o peso.
+function fTrackFoto(campo, dataUrl, file, origem){
+  try{
+    if(typeof gTrackEvent!=='function') return;
+    const im=new Image();
+    const manda=()=>{ try{ gTrackEvent('foto_enviada',{campo, w:im.naturalWidth||null, h:im.naturalHeight||null,
+      kb:file&&file.size?Math.round(file.size/1024):null, origem}); }catch(e){} };
+    im.onload=manda; im.onerror=manda; im.src=dataUrl;
+  }catch(e){}
+}
 function _fGuidedSalvar(raw){
   const idx=_fGuidedIndice(_fGuidedNav.currentField), p=_fGuidedPerguntas()[idx]; if(!p) return;
   const cfg=fGetFieldType(p.id), pulou=String(raw).toLowerCase()==='pular';
   if(pulou&&cfg.required){ _fGuidedErro('Esta informação é necessária para gerar a arte.'); return; }
   const valor=pulou?'':fApplyMask(p.id,String(raw||''));
-  const erro=pulou?null:fValidate(p.id,valor);
+  const erro=pulou?null:fValidate(p.id,valor,fState.dados);
   if(erro){ _fGuidedErro(erro); return; }
   _fGuidedErro('');
   fState.dados[p.id]=valor;
+  try{ if(typeof fEspelhoConfirma==='function') fEspelhoConfirma(); }catch(e){}
   if(pulou) fState.dados['__skipped__'+p.id]=true; else delete fState.dados['__skipped__'+p.id];
+  fTrackResposta(p, valor, pulou);
   try{ fSaveChatDraft(); }catch(e){}
   try{ fUpdateLivePreview({animateField:p.id}); }catch(e){}
   _fGuidedPintaProgresso();
@@ -637,7 +716,7 @@ function _fGuidedUseLastArte(h){
   const n=_fGuidedPreenchidas(), falta=_fGuidedPerguntas().length-n;
   _fGuidedDecisao(`<div class="fg-kicker">Informações reaproveitadas</div><h2>Usamos sua última arte</h2><p><strong>${n}</strong> ${n===1?'informação foi recuperada':'informações foram recuperadas'}.${falta?` Ainda ${falta===1?'falta uma decisão':'faltam '+falta+' decisões'}.`:' Já temos tudo para gerar.'}</p><div class="fg-decision-actions"><button type="button" class="fg-primary" onclick="_fGuidedAbrirProximo(0)">Continuar</button></div>`);
 }
-function _fGuidedStartComMaterial(material){
+async function _fGuidedStartComMaterial(material){
   _fGuidedNav.active=true; _fGuidedNav.currentField=null; _fGuidedNav.returnTarget=null; _fGuidedNav.mode='guided';
   _fRevisando=false;
   try{ document.body.classList.add('f-mobile-chat'); }catch(e){} // deixa resize desktop→mobile coerente
@@ -647,9 +726,14 @@ function _fGuidedStartComMaterial(material){
   try{ const c=document.getElementById('f-chat-art'); if(c)c.remove(); fAttachInputGuard(); _fGuidedBind(); }catch(e){}
   let draft=null;
   try{
-    const saved=localStorage.getItem('luma_chat_draft'), parsed=saved?JSON.parse(saved):null;
+    const saved=localStorage.getItem(fUserCacheKey('luma_chat_draft')), parsed=saved?JSON.parse(saved):null;
     if(parsed&&parsed.materialId===material.id&&parsed.campId===fState.camp.id&&Object.keys(parsed.dados||{}).length) draft=parsed;
   }catch(e){}
+  if(_fChatDraftHasRefs(draft)){
+    const gen=_fChatGen,key=fUserCacheKey('luma_chat_draft');
+    draft=await _fChatDraftHydrate(draft);
+    if(gen!==_fChatGen||key!==fUserCacheKey('luma_chat_draft'))return;
+  }
   fLpRefresh(); fUpdateProg();
   if(draft){ _fGuidedDraftDecision(draft,material); return; }
   fMaterialPreStart(material);
@@ -721,6 +805,7 @@ function _fSheetSync(){
   if(b) b.hidden = _fGuidedAtivo()
     ? !(_fGuidedIndice(_fGuidedNav.currentField)>0 && !fState.done && !_fRevisando && !document.body.classList.contains('f-guided-respostas'))
     : !(fState.stepIdx>0 && !fState.done && fState.editIdx===null && !_fRevisando);
+  try{ _fRespostasBadge(); }catch(e){}
   /* Arte pronta: a caixa de resposta some. Não é estética — com `fState.done` o `fSaveAdv`
      corta na primeira linha e devolve "Quer gerar outra arte?", ou seja, digitar ali não faz
      nada além de empurrar o card de entrega para fora da vista. E o painel ganha altura,
@@ -864,6 +949,8 @@ function fConcluirRevisao(){
    o preço na arte deixava a linha "Preço" com o valor velho: a mesma verdade em dois
    lugares, a 200px de distância. */
 function fRevisaoRepinta(){
+  // O número do botão "Respostas" também é essa verdade, e a edição pela arte não passa pelo `fUpdateProg`.
+  try{ _fRespostasBadge(); }catch(e){}
   if(!_fRevisando || fState.editIdx!==null) return;
   const lista=document.getElementById('f-respostas');
   if(lista && !lista.hidden) fRenderRespostas();
@@ -924,6 +1011,21 @@ function fToggleRespostas(){
   if(l) l.textContent = abrir ? 'Fechar' : 'Respostas';
 }
 
+/* Quantas perguntas já têm resposta. É a MESMA régua do `.feita` de cada linha (valor não
+   vazio), para o número do botão e o "2 de 4" do cabeçalho nunca discordarem da lista. */
+function _fRespostasFeitas(){
+  const pergs=(fState.camp&&fState.camp.perguntas)||[];
+  return pergs.reduce((n,p)=>{ const v=fState.dados?fState.dados[p.id]:null; return n+(v!=null&&v!==''?1:0); },0);
+}
+/* O número no botão "Respostas" — é o que faz ele ler como área com conteúdo, e não como
+   link de rodapé. Zero some: selo "0" é ruído, não informação. */
+function _fRespostasBadge(){
+  const n=document.getElementById('f-sheet-hist-n'); if(!n) return;
+  const k=_fRespostasFeitas();
+  n.hidden=!k;
+  n.innerHTML=k?`${k}<span class="f-sr-only"> respondidas</span>`:'';
+}
+
 function fRenderRespostas(){
   const box=document.getElementById('f-respostas'); if(!box) return;
   const pergs=(fState.camp&&fState.camp.perguntas)||[];
@@ -933,12 +1035,16 @@ function fRenderRespostas(){
     const rot=(typeof gFieldLabel==='function')?gFieldLabel(p.id,p):(p.label||p.id);
     // Foto não vira data-url na tela: vira a miniatura da própria foto + uma palavra.
     const val = p.isImage
-      ? (tem?`<img class="fr-mini" src="${gEsc(v)}" alt="">Foto enviada`:'<i>sem foto</i>')
-      : (tem?gEsc(String(v)):'<i>ainda não respondido</i>');
+      ? (tem?`<img class="fr-mini" src="${gEsc(v)}" alt="">Foto enviada`:'<i>Sem foto</i>')
+      : (tem?gEsc(String(v)):'<i>Ainda não respondido</i>');
     /* "atual" responde "onde eu estou no fluxo?". Na revisão não existe passo atual — a
-       pessoa está na lista inteira — e marcar o último campo editado seria mentir. */
-    return `<div class="fr-row${(!_fRevisando && i===fState.stepIdx)?' atual':''}">
-      <span class="fr-lbl">${gEsc(rot)}</span>
+       pessoa está na lista inteira — e marcar o último campo editado seria mentir.
+       O `.fr-mk` (check / tracejado / anel) é decorativo: o valor já diz o estado em texto.
+       A revisão tem desenho próprio e o esconde no CSS. */
+    const atual = !_fRevisando && i===fState.stepIdx;
+    return `<div class="fr-row${tem?' feita':''}${atual?' atual':''}">
+      <span class="fr-mk" aria-hidden="true">${tem?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':''}</span>
+      <span class="fr-lbl">${gEsc(rot)}${atual?'<span class="fr-agora">Agora</span>':''}</span>
       <span class="fr-val${tem?'':' vazia'}">${val}</span>
       <button type="button" class="fr-ed" onclick="fRespostaEditar(${i})" aria-label="Alterar ${gEsc(rot)}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
@@ -951,12 +1057,18 @@ function fRenderRespostas(){
      de prévia (`_fLpPaintCartao`), ela não edita campo. Prometer lá seria mandar a pessoa
      tocar numa coisa que responde outra. */
   const dica = _fCelular() ? '' : `<p class="fr-dica">Você também pode clicar direto no campo, na arte.</p>`;
+  /* Na consulta o cabeçalho diz QUANTO já foi, não só o nome da lista: "RESPOSTAS" em 11px
+     cinza era um rótulo, e ninguém lia a lista como lugar de conferir o trabalho. */
+  const feitas=_fRespostasFeitas(), total=pergs.length;
+  const topo=`<div class="fr-top"><div class="fr-top-l"><h3 class="fr-tit">Suas respostas</h3>`
+    + `<span class="fr-n">${feitas} de ${total}</span></div>`
+    + `<div class="fr-bar" aria-hidden="true"><i style="width:${total?Math.round(feitas/total*100):0}%"></i></div></div>`;
   box.innerHTML = _fRevisando
     ? `<h3 class="fr-h">O que você quer corrigir?</h3>${linhas}${dica}`
       + `<button type="button" class="art-btn pri fr-ok" onclick="fConcluirRevisao()">Concluir alterações</button>`
     : _fGuidedAtivo()
-      ? `<h3 class="fr-h">Respostas</h3>${linhas}`
-    : `<h3 class="fr-h">Respostas</h3>${linhas}`
+      ? `${topo}${linhas}`
+    : `${topo}${linhas}`
       + `<button type="button" class="fr-reset" onclick="fResetFlow()">Recomeçar esta arte</button>`;
 }
 
@@ -1050,14 +1162,40 @@ function fPerguntaTexto(p){
   return `${p.texto}<span class="perg-ctx">O preço original é ${gEsc(String(de))}.</span>`;
 }
 
+/* A PRÉVIA EDITOU UM CAMPO — o chat não pode seguir com o valor velho (23/09/2026). Caso real:
+   "90" digitado no chat, "80" corrigido na arte, e o passo seguinte dizia "O preço original é
+   90": a prévia gravou 80 nos dados, mas a CAIXA de digitar ainda tinha 90, e o Enviar gravou
+   por cima. Chamado pelo `_fLpCommit` (o funil de toda edição pela arte). Duas coisas:
+   1. campo da pergunta ABERTA → a caixa recebe o valor pelo mesmo caminho de quem digita
+      (espelho, contador, prévia), como o balão do Copy Fit já fazia;
+   2. a frase da pergunta aberta é refeita dos dados de agora (o "preço original" do contexto). */
+function fChatSincronizaCampo(campo, valor){
+  const p = ((fState.camp && fState.camp.perguntas) || [])[fState.stepIdx];
+  if(!p) return;
+  const box = document.getElementById('f-msg-box');
+  const novo = valor==null ? '' : String(valor);
+  if(p.id===campo && box && !box.disabled && box.value!==novo){
+    /* ⚠ Confirma o espelho ANTES. A edição pela arte é decisão, não digitação: sem isto o
+       `input` abaixo virava o "último valor digitado" do espelho, e sair do passo sem enviar
+       devolvia o preço de ANTES da edição (franqueado-fluxo: "o que outra ação escreveu depois
+       também não é desfeito"). Confirmado, o espelho reabre com o valor da arte como base. */
+    if(typeof fEspelhoConfirma==='function') fEspelhoConfirma();
+    box.value = novo; box.dispatchEvent(new Event('input',{bubbles:true}));
+  }
+  const frase = document.querySelector('#f-messages .msg.active-prompt .perg-frase');
+  if(frase && p.precoPar==='por') frase.innerHTML = fPerguntaTexto(p);
+}
+
 function fNextStep(){
   if(_fGuidedAtivo()){
     const atual=_fGuidedIndice(_fGuidedNav.currentField);
     _fGuidedAbrirProximo(atual>=0?atual+1:0);
     return;
   }
+  // Sem material aberto não há passo a dar (a pessoa está no catálogo). Rede da `_fChatGen`.
+  const pergs=fState.camp&&fState.camp.perguntas;
+  if(!fState.material||!Array.isArray(pergs)) return;
   fState.stepIdx++;fUpdateProg();
-  const pergs=fState.camp.perguntas;
   if(fState.stepIdx>=pergs.length){fGerarArte();return;}
   const p=pergs[fState.stepIdx];
   fLpRefresh();
@@ -1163,6 +1301,7 @@ function fNextStep(){
        Aparecia mais agora porque o "Manter" nasce em cima de uma caixa JÁ preenchida (o
        `jaTem`), então o texto velho era a regra e não a exceção. Achado pela sonda da bancada. */
     box.value = jaTem ? String(fState.dados[p.id]) : '';
+    box._fSelChave = null;   // passo novo: o 1º toque num preço salvo volta a selecionar (chat-input.js)
     try { box.setSelectionRange(box.value.length, box.value.length); } catch(e){}
     try { fUpdateCharCount(); } catch(e){}
   }
@@ -1191,6 +1330,7 @@ function _fUploadPreviewHTML(varId, url, opts){
      O aviso de logo, quando existe, entra ACIMA e traz as duas saídas que o pedido define:
      trocar o arquivo ou seguir mesmo assim. Nunca bloqueia — só informa (logo horizontal
      legítimo é comum, e reprovar por proporção seria pior que o problema). */
+  if (opts.bloqueio) opts.aviso = opts.bloqueio;
   const aviso = opts.aviso ? `<div class="f-upload-aviso" role="status">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       <span>${gEsc(opts.aviso)}</span>
@@ -1198,15 +1338,15 @@ function _fUploadPreviewHTML(varId, url, opts){
   const barra = `<div class="f-upload-confirm">
       ${aviso}
       <div class="f-upload-confirm-row">
-        <button class="f-upload-ok" onclick="fConfirmarImagem('${gEsc(varId)}')">${opts.aviso ? 'Usar mesmo assim' : (opts.jaEstava ? 'Manter esta imagem' : 'Usar esta imagem')}</button>
-        <button class="f-upload-replace" onclick="fReplaceImage('${gEsc(varId)}',this)">${opts.aviso ? 'Trocar arquivo' : 'Trocar'}</button>
+        ${opts.bloqueio ? '' : `<button class="f-upload-ok" onclick="fConfirmarImagem('${gEsc(varId)}')"${opts.conferindo?' disabled':''}>${opts.conferindo ? 'Conferindo a foto…' : (opts.aviso ? 'Usar mesmo assim' : (opts.jaEstava ? 'Manter esta imagem' : 'Usar esta imagem'))}</button>`}
+        <button class="f-upload-replace" onclick="fReplaceImage('${gEsc(varId)}',this)">${opts.bloqueio ? 'Trocar foto' : (opts.aviso ? 'Trocar arquivo' : 'Trocar')}</button>
       </div>
     </div>`;
   return `<div class="f-upload-preview f-upload-preview-pop">
       <img src="${gEsc(url)}" alt="Imagem enviada"/>
       <div class="f-upload-preview-overlay">
         <span style="display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg>${ehLogo?'Logo enviado':'Foto enviada'}</span>
-        <span style="display:inline-flex;gap:6px"><button class="f-upload-frame" onclick="fAjustarFoto('${gEsc(varId)}')" title="Reposicionar e dar zoom na imagem dentro da arte"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>Ajustar</button></span>
+        <span style="display:inline-flex;gap:6px"><button class="f-upload-frame" onclick="event.stopPropagation();fAjustarFoto('${gEscJs(varId)}')" title="Reposicionar e dar zoom na imagem dentro da arte"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>Ajustar</button></span>
       </div>
     </div>${opts.semConfirmar ? '' : barra}`;
 }
@@ -1246,7 +1386,7 @@ async function fValidarImagemSemantica(varId, url, cb){
   }
 
   // 2. Análise semântica via IA Gateway
-  if (!window.gAI || !window.gAI.isEnabled('imageValidation')) return;
+  if (!window.gAI || !(typeof window.gAI.isEnabled === 'function' && window.gAI.isEnabled('imageValidation'))) return;
 
   try {
     const match = url && url.match(/^data:([^;]+);base64,(.+)$/);
@@ -1269,6 +1409,46 @@ async function fValidarImagemSemantica(varId, url, cb){
   } catch(e) {
     console.warn('[AI ImageValidate] Falha:', e);
   }
+}
+
+/* ── PORTÃO DA FOTO DE PRODUTO — o ÚNICO, para todas as entradas (25/09/2026) ──────────────
+   Feedback da Laura: "consegui publicar um carro", "trocar imagem passa por cima do mínimo",
+   "no lote o 'não é comida' deixa ir". Cada entrada (chat, trocar imagem da prévia, célula
+   e "foto para todas" do Sheets) tinha regra própria ou nenhuma. Agora todas perguntam aqui.
+   Devolve '' (pode usar) ou o MOTIVO da recusa. Decisão do Ryan:
+   · menos de F_FOTO_MIN_LADO no lado menor → recusa (antes era só aviso de 600px);
+   · IA com confiança ALTA de que não é comida → recusa. IA em dúvida, fora do ar ou com
+     erro → passa: o portão não pode travar o franqueado por falha nossa.
+   Logo fica de fora: tem régua própria (`fValidarLogo`) e não é comida por definição. */
+const F_FOTO_MIN_LADO = 400;
+function fFotoDimensoes(url){
+  return new Promise(res=>{
+    const im=new Image();
+    im.onload=()=>res({w:im.naturalWidth||0, h:im.naturalHeight||0});
+    im.onerror=()=>res({w:0,h:0});
+    im.src=url;
+  });
+}
+async function fPortaoFoto(varId, url){
+  if(!url) return '';
+  if(typeof gCampoEhLogo==='function' && gCampoEhLogo(varId)) return '';
+  const {w,h}=await fFotoDimensoes(url);
+  if(w && h && Math.min(w,h) < F_FOTO_MIN_LADO)
+    return `Essa foto é pequena demais (${w}×${h}px). Envie uma com pelo menos ${F_FOTO_MIN_LADO}px no lado menor.`;
+  try{
+    if(!window.gAI || !(typeof window.gAI.isEnabled==='function' && window.gAI.isEnabled('imageValidation'))) return '';
+    const m=url.match(/^data:([^;]+);base64,(.+)$/);
+    if(!m) return '';
+    /* Rejeição (400 "anexos pesados demais", 502) ou IA muda: segue sem a checagem. O timeout
+       evita o "Conferindo a foto…" eterno. */
+    const res=await Promise.race([
+      Promise.resolve().then(()=>window.gAI.run('image.validate',{fieldType:'foto_produto', imagePart:{mimeType:m[1], data:m[2]}})),
+      new Promise(r=>setTimeout(()=>r(null), 20000))
+    ]);
+    if(res && res.ok && res.data && res.data.valid===false && res.data.confidence==='high')
+      return (res.data.reason ? res.data.reason+' ' : '')+'Use uma foto do produto (comida ou bebida).';
+  }catch(e){ console.warn('[portão da foto] IA falhou, liberando:', e); }
+  return '';
 }
 
 /* Confirmação do passo de imagem: é AQUI que o fluxo anda, e só por ação da pessoa. */
@@ -1295,7 +1475,8 @@ function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
   // lugar da zona de upload — pedir de novo o que já está na arte é o bug, não a feature.
   const jaTemFoto = fState.dados && fState.dados[pergunta.id];
   // `jaEstava`: a imagem não acabou de ser escolhida, ela já estava no campo → "Manter", não "Usar".
-  const zoneHtml = jaTemFoto ? _fUploadPreviewHTML(pergunta.id, fState.dados[pergunta.id], {jaEstava:true})
+  // O host com id `-preview` é o que o Trocar e o repintar acham (fReplaceImage/_fApplyImageToField).
+  const zoneHtml = jaTemFoto ? `<div id="${uploadId}-preview">${_fUploadPreviewHTML(pergunta.id, fState.dados[pergunta.id], {jaEstava:true})}</div>`
     : `<div class="f-upload-zone" id="${uploadId}-zone" data-var="${pergunta.id}" data-upload="${uploadId}" onclick="fOpenUploadPanel('${pergunta.id}','${uploadId}')">
       <!-- O input fica DENTRO da zona, que abre o painel no clique. O clique
            programático de fUploadPanelNewFile borbulhava até aqui e REABRIA o
@@ -1492,7 +1673,7 @@ function fProcessImageFile(file, varId, uploadId){
   const reader=new FileReader();
   reader.onprogress=(ev)=>{ if(_bar&&ev.lengthComputable){_bar.style.width=Math.round(ev.loaded/ev.total*70)+'%';} };
   // Falha de leitura: restaura a zona clicável (com o input) em vez de travar no skeleton.
-  reader.onerror=()=>{
+  const falhaLeitura=()=>{
     if(_fGuidedAtivo()) _fGuidedErro('Não consegui ler essa imagem. Tente outra.');
     else fShowFieldError('Não consegui ler essa imagem. Tente outra.');
     const zEl=document.getElementById(uploadId+'-zone');
@@ -1504,9 +1685,19 @@ function fProcessImageFile(file, varId, uploadId){
         <div class="f-upload-sub">PNG ou JPG, até 20MB</div>`;
     }
   };
+  reader.onerror=falhaLeitura;
   reader.onload=(e)=>{
     if(_bar)_bar.style.width='85%';
     const dataUrl=e.target.result;
+    /* Um HTML/texto salvo como .jpeg tem type image/* e lê bem, mas não decodifica — virava
+       "Foto enviada" e só quebrava no desenho. Só aceita o que o navegador consegue abrir. */
+    const teste=new Image();
+    teste.onerror=falhaLeitura;
+    teste.onload=()=>seguirComImagem(dataUrl);
+    teste.src=dataUrl;
+  };
+  const seguirComImagem=(dataUrl)=>{
+    fTrackFoto(varId, dataUrl, file, 'chat');
     // Redimensiona se for muito grande (>2500px). 2500 cobre story a 2× (2160px) sem
     // esticar a foto — 1500 antes borrava em arte grande. Ainda limita o peso do draft.
     const _ehLogo = (typeof gCampoEhLogo==='function') && gCampoEhLogo(varId);
@@ -1545,17 +1736,19 @@ function _fApplyImageToField(varId, uploadId, resizedUrl){
   } catch(colorThiefErr) { console.warn('[ColorThief] Falha ao ler imagem:', colorThiefErr); }
   // Substitui a zona de upload pela prévia da imagem escolhida
   const zone=document.getElementById(uploadId+'-zone');
-  const pintaPreview=(aviso)=>{
+  const pintaPreview=(aviso,extra)=>{
     const z=document.getElementById(uploadId+'-zone');
     const alvo=z||document.getElementById(uploadId+'-preview');
     if(!alvo) return;
     const wrap=document.createElement('div');
     wrap.id=uploadId+'-preview';
-    wrap.innerHTML=_fUploadPreviewHTML(varId, resizedUrl, {aviso});
+    wrap.innerHTML=_fUploadPreviewHTML(varId, resizedUrl, Object.assign({aviso}, extra||{}));
     alvo.replaceWith(wrap);
     const msgs=document.getElementById('f-messages'); if(msgs) msgs.scrollTop=msgs.scrollHeight;
   };
-  if(zone) pintaPreview('');
+  const _ehFotoProduto = !(typeof gCampoEhLogo==='function' && gCampoEhLogo(varId));
+  // Trocar foto: a zona já virou "-preview" no 1º upload, então `zone` é null — repinta pelo host.
+  if(zone || document.getElementById(uploadId+'-preview')) pintaPreview('', _ehFotoProduto ? {conferindo:true} : null);
   const box=document.getElementById('f-msg-box');
   if(box){box.disabled=false;}
   try { fUpdateLivePreview({animateField:varId}); } catch(e){}
@@ -1564,10 +1757,27 @@ function _fApplyImageToField(varId, uploadId, resizedUrl){
      (`fConfirmarImagem`, no botão do próprio preview): quem subiu o arquivo errado descobre
      aqui, olhando, e não três passos adiante. Campo de logo ainda passa pela validação
      determinística antes — o aviso repinta o preview com as duas saídas do pedido. */
-  if(typeof fValidarImagemSemantica==='function'){
-    fValidarImagemSemantica(varId, resizedUrl, (aviso)=>{ if(aviso) pintaPreview(aviso); });
+  /* A conferência é assíncrona (IA/heurística). Trocar a foto enquanto ela roda fazia o
+     retorno da foto ANTIGA repintar o preview — a pessoa via voltar a imagem que acabou de
+     substituir. O aviso só vale se o campo ainda estiver com a MESMA imagem. */
+  const _aindaEhAtual=()=>fState.dados && fState.dados[varId]===resizedUrl;
+  if(_ehFotoProduto && typeof fPortaoFoto==='function'){
+    /* O "Usar esta imagem" nasce DESABILITADO ("Conferindo a foto…") e só libera depois do
+       portão — antes a conferência corria em paralelo e dava para confirmar o carro antes
+       da IA responder. Recusou: o campo esvazia e só resta "Trocar foto". */
+    fPortaoFoto(varId, resizedUrl).then(motivo=>{
+      if(!_aindaEhAtual()) return;
+      if(motivo){
+        fState.dados[varId]='';
+        fSaveChatDraft();
+        try { fUpdateLivePreview(); } catch(e){}
+        pintaPreview('', {bloqueio:motivo});
+      } else pintaPreview('');
+    }).catch(()=>{ if(_aindaEhAtual()) pintaPreview(''); });   // conferência falhou: segue sem ela
+  } else if(typeof fValidarImagemSemantica==='function'){
+    fValidarImagemSemantica(varId, resizedUrl, (aviso)=>{ if(aviso && _aindaEhAtual()) pintaPreview(aviso); });
   } else if(typeof gCampoEhLogo==='function' && gCampoEhLogo(varId) && typeof fValidarLogo==='function'){
-    fValidarLogo(resizedUrl, (aviso)=>{ if(aviso) pintaPreview(aviso); });
+    fValidarLogo(resizedUrl, (aviso)=>{ if(aviso && _aindaEhAtual()) pintaPreview(aviso); });
   }
 }
 /* `preservarAlpha`: a saída sai em PNG em vez de JPEG. Existe por causa do LOGO — o JPEG NÃO
@@ -1577,15 +1787,30 @@ function _fApplyImageToField(varId, uploadId, resizedUrl){
    estragava justamente o arquivo que mais precisa da transparência.
    ⚠ Continua opcional e desligado por padrão: foto de produto em PNG pesaria muitas vezes mais
    que o JPEG a 0,88, e ela não tem transparência nenhuma a preservar. */
+/* A imagem tem pixel transparente? Amostra num canvas 64×64: um recorte com fundo vazado
+   mantém alfa 0 mesmo reduzido, e 4 mil pixels custam menos de um milissegundo. Usar o
+   tamanho cheio (6M pixels num 2500²) travaria a aba justo no passo da foto. */
+function _fImagemTemAlpha(img){
+  try{
+    const c=document.createElement('canvas'); c.width=c.height=64;
+    const x=c.getContext('2d'); x.clearRect(0,0,64,64); x.drawImage(img,0,0,64,64);
+    const d=x.getImageData(0,0,64,64).data;
+    for(let i=3;i<d.length;i+=4){ if(d[i]<250) return true; }
+  }catch(e){}
+  return false;
+}
 function fResizeImageIfNeeded(dataUrl, maxDim, cb, preservarAlpha){
-  const tipo = preservarAlpha ? 'image/png' : 'image/jpeg';
-  const paraUrl = (canvasOuRes) => preservarAlpha
-    ? canvasOuRes.toDataURL('image/png')
-    : canvasOuRes.toDataURL('image/jpeg', 0.88);
   const img=new Image();
   img.onload=()=>{
     const {width:w, height:h} = img;
     if(w <= maxDim && h <= maxDim){cb(dataUrl);return;}
+    /* O flag do chamador cobre o LOGO. Mas qualquer PNG vazado (recorte de produto, selo,
+       adesivo) acima do teto caía em JPEG e voltava com fundo PRETO chapado. Quem não tem
+       alfa continua saindo em JPEG — o peso do PNG só é pago por quem precisa dele. */
+    const _alpha = preservarAlpha || _fImagemTemAlpha(img);
+    const paraUrl = (canvasOuRes) => _alpha
+      ? canvasOuRes.toDataURL('image/png')
+      : canvasOuRes.toDataURL('image/jpeg', 0.88);
     const scale = Math.min(maxDim/w, maxDim/h);
     const cv=document.createElement('canvas');
     cv.width=Math.round(w*scale); cv.height=Math.round(h*scale);
@@ -1612,12 +1837,32 @@ function fResizeImageIfNeeded(dataUrl, maxDim, cb, preservarAlpha){
     ctx.imageSmoothingQuality='high';
     ctx.drawImage(img,0,0,cv.width,cv.height);
     cb(paraUrl(cv));
-    void tipo;
   };
   img.onerror=()=>cb(dataUrl);
   img.src=dataUrl;
 }
+/* TROCAR = escolher OUTRA imagem para ESTE campo, sem sair do lugar (23/09/2026).
+   Antes apagava a bolha e refazia a pergunta pelo fluxo linear (`stepIdx = idx-1`): com a foto
+   sendo a 1ª pergunta, o `stepIdx` virava -1 e a conversa RECOMEÇAVA do zero no celular. Agora
+   abre o mesmo painel de fotos da zona de upload (recentes, exemplos, novo arquivo); a imagem
+   nova entra por `_fApplyImageToField`, que repinta ESTE preview no lugar, e o "Usar esta
+   imagem" segue de onde estava. A atual só sai quando a nova chega — desistir mantém a foto.
+   O caminho antigo fica só para preview sem host (não deveria existir). */
 function fReplaceImage(varId, btn){
+  const host = btn && btn.closest('[id$="-preview"]');
+  if(host && typeof fOpenUploadPanel==='function'){
+    const uploadId = host.id.slice(0, -'-preview'.length);
+    // O input morava na zona de upload, que o preview substituiu — recria aqui, invisível.
+    if(!document.getElementById(uploadId+'-input')){
+      const inp = document.createElement('input');
+      inp.type = 'file'; inp.id = uploadId+'-input'; inp.hidden = true;
+      inp.accept = 'image/png,image/jpeg,image/webp';
+      inp.addEventListener('change', e=>fHandleImageUpload(e, varId, uploadId));
+      host.appendChild(inp);
+    }
+    fOpenUploadPanel(varId, uploadId);
+    return;
+  }
   // Apaga o dado atual e força nova pergunta
   delete fState.dados[varId];
   fSaveChatDraft();
@@ -1723,6 +1968,138 @@ function fMostrarConfirm(){
   const existing=document.getElementById('confirm-msg'); if(existing) existing.remove();
   fGerarArte();
 }
+/* ══════════════════════════════════════════════════════════════════════════════════════
+   O TEXTO NÃO CABE — a saída, não só o aviso
+   ══════════════════════════════════════════════════════════════════════════════════════
+   Quando o Local Fit bloqueia (o texto não cabe na caixa autorada nem no menor corpo
+   legível), o franqueado precisa de três coisas, nesta ordem: QUAL campo, QUANTO sobra e
+   COMO chegar lá. Antes era só um toast com a frase — e ele fechava sozinho em segundos,
+   deixando a pessoa de volta na mesma tela sem saber o que fazer.
+
+   Esta é a porta ÚNICA do bloqueio: o `gHandleLayoutUnsafeError` (00-config.js) delega para
+   cá quando o franqueado está carregado, e o aviso da prévia (`lp-layout-nota`) chama a mesma
+   função. Duas portas com comportamentos diferentes para o mesmo evento é o defeito de sempre.
+
+   ⛔ NUNCA reescreve a copy sozinha. Quando o Copy Fit tem uma versão que CABE (medida em pixel
+   pela prévia, a mesma do balão), ela vira a ação principal — mas a troca só acontece com o
+   toque explícito do franqueado, é uma, e tem Desfazer. Sem versão que caiba, fica como era:
+   abre o campo e mostra o alvo; encurtar é decisão (e texto) de quem vende. */
+async function fCorrigirTextoLongo(res){
+  const d = res && res.diagnostico;
+  const bloq0 = (res && res.bloqueios && res.bloqueios[0]) || null;
+  // Sem laudo, o culpado sai da MESMA conta do aviso e do balão — não do `campos[0]`.
+  const campo = (d && d.campo)
+    || (bloq0 && (typeof gLocalFitCulpado === 'function' ? gLocalFitCulpado(bloq0, fState.dados || {})
+                                                         : (bloq0.campos || [])[0])) || null;
+  const rotulo = (d && d.rotulo)
+    || (campo && typeof gFieldLabel === 'function' ? gFieldLabel(campo) : 'este texto');
+
+  const podeEncurtar = typeof fCampoPodeEncurtar === 'function' && fCampoPodeEncurtar(campo);
+
+  /* O limite MEDIDO passa a valer para o contador daquele campo: a partir daqui ele mostra
+     47/28 em vez de 47/60, que é o número que a pessoa precisa perseguir. */
+  if(podeEncurtar && d && Number.isFinite(d.limite) && d.limite > 0
+     && typeof fMarcaLimiteSeguro === 'function') fMarcaLimiteSeguro(campo, d.limite);
+
+  const perguntas = (fState.camp && fState.camp.perguntas) || [];
+  const idx = campo ? perguntas.findIndex(p => p && p.id === campo) : -1;
+
+  /* QUANTO TIRAR vem primeiro: é o número que a pessoa persegue (o mesmo da barra da prévia,
+     `_fLpFalta`, e o do contador: atual − falta = limite). */
+  const falta = (d && Number.isFinite(d.limite) && d.limite > 0 && Number.isFinite(d.atual)) ? d.atual - d.limite : 0;
+  const quanto = (d && Number.isFinite(d.limite) && d.limite > 0)
+    ? (falta > 0
+        ? 'Cabem até ' + d.limite + ' caracteres aqui — hoje tem ' + d.atual + '. Tire '
+          + (falta === 1 ? '1 letra' : falta + ' letras') + '.'
+        : 'Cabem até ' + d.limite + ' caracteres aqui — hoje tem ' + d.atual + '.')
+    : 'Ele não cabe nesta arte nem no menor tamanho legível.';
+
+  /* Sem campo editável no chat (texto fixo do designer, ou arte reaberta fora do fluxo), não
+     há para onde levar. ⛔ Aqui a mensagem do motor NÃO vale, mesmo quando ela traz o número:
+     "cabem até 28 caracteres" é um pedido que a pessoa não tem como atender nesta tela, e
+     mandar alguém encurtar o que ela não pode editar é pior que não dizer nada. A saída
+     honesta é trocar de material. */
+  if(idx < 0){
+    if(typeof gToast === 'function')
+      // Sem 'error': o gToast engole (`_gNotifErro`) parte dessas mensagens e o toque parecia morto.
+      gToast('O conteúdo de “' + rotulo + '” não cabe nesta arte. Escolha outro material para este conteúdo.');
+    return false;
+  }
+
+  /* A VERSÃO QUE CABE, se houver. Lida AGORA, antes do primeiro `await`: quem baixa troca o
+     `fState.material` pelo da bolha e o devolve no `finally` — é com ele que se confere que a
+     prévia mediu esta mesma arte (`fLpBalaoSolucao`). */
+  const sol = (podeEncurtar && bloq0 && typeof fLpBalaoSolucao === 'function') ? fLpBalaoSolucao(bloq0) : null;
+  const versao = (sol && sol.campo === campo) ? sol : null;
+  /* OS OUTROS CAMPOS QUE TAMBÉM NÃO CABEM (2.2): o diálogo resolve um por vez, mas avisa dos
+     demais já — senão a pessoa conserta este, gera de novo e descobre o próximo. */
+  const outros = (typeof fLpCamposBloqueados === 'function' ? fLpCamposBloqueados(res, fState.dados || {}) : [])
+    .filter(o => o.campo !== campo).map(o => o.rotulo);
+  const tambem = outros.length
+    ? ' Também não ' + (outros.length > 1 ? 'cabem' : 'cabe') + ': ' + fLpListaRotulos(outros) + '.' : '';
+
+  if(!podeEncurtar){
+    const ok = await gConfirm(
+      'O valor de “' + rotulo + '” não cabe nesta arte. Confira se foi preenchido corretamente. Se estiver correto, escolha outro material; não corte o valor para caber.' + tambem,
+      { title: 'Esse valor não cabe', okLabel: 'Conferir valor', cancelLabel: 'Agora não' });
+    if(!ok) return true;
+  } else if(versao){
+    const sem = versao.removidas.length ? ' (sai: ' + versao.removidas.join(', ') + ')' : '';
+    const r = await gConfirm(
+      'O texto de “' + rotulo + '” é longo demais para esta arte. Esta versão cabe: “'
+        + versao.text + '”' + sem + '.' + tambem,
+      { title: 'Esse texto não cabe', okLabel: 'Usar esta versão', altLabel: 'Editar', cancelLabel: 'Agora não' });
+    if(!r) return true;
+    if(r === true){
+      if(!versao.aplica()){
+        gToast('A arte mudou enquanto você decidia. Confira o texto e tente de novo.');
+        return true;
+      }
+      /* Continua o que foi interrompido do jeito que editar um campo continua: com a arte já
+         gerada, gera de novo (bolha nova, pronta para Baixar; é o `fGerarArte` do `fPosEdicao`,
+         sem o ramo guiado, que aqui não veio de uma edição). ⛔ O download em si NÃO é
+         refeito: a bolha que falhou guarda os dados antigos, e no celular a folha de
+         compartilhar exige o gesto que o diálogo já consumiu. */
+      const regerar = !!fState.done && !_fRevisando;
+      gToast('Trocamos “' + rotulo + '” pela versão que cabe' + (regerar ? ' — gerando a arte de novo.' : '.'),
+        null, null, { acao: { rotulo: 'Desfazer', onClick: fDesfazer } });
+      if(regerar) fGerarArte();
+      return true;
+    }
+  } else {
+    const ok = await gConfirm(
+      'O texto de “' + rotulo + '” é longo demais para esta arte. ' + quanto + tambem,
+      { title: 'Esse texto não cabe', okLabel: 'Encurtar agora', cancelLabel: 'Agora não' });
+    if(!ok) return true;
+  }
+  fEditCampo(idx);
+  /* "Encurtar" é encurtar O QUE ESTÁ ESCRITO: fora do guiado o campo abria vazio e a pessoa
+     redigitava tudo para tirar duas palavras. O `input` passa pelo caminho da digitação
+     (contador com o limite medido, prévia e o "Encurtar"). O guiado já abre preenchido. */
+  const boxEd = document.getElementById('f-msg-box');
+  const atual = fState.dados && fState.dados[campo];
+  if(!_fGuidedAtivo() && boxEd && !boxEd.disabled && !boxEd.value && typeof atual === 'string' && atual){
+    boxEd.value = atual;
+    boxEd.dispatchEvent(new Event('input', { bubbles: true }));
+    try{ boxEd.focus(); }catch(e){}
+  }
+  /* "Encurtar agora" ENCURTA: antes só abria o campo e deixava o corte com a pessoa — quem
+     tocou em "Encurtar" esperava uma versão menor (Laura, 25/09). A IA sugere; aplicar continua
+     sendo toque dela no popover. */
+  if(podeEncurtar && !versao && typeof fFitTextWithAI === 'function'){
+    /* Com a versão que chegou PERTO medida, o popover "Quase cabe" abre sem IA (e oferece "Mais
+       opções com IA" quando ela existe). Sem ela, vai direto à IA, como antes. */
+    const temPerto = typeof fLpBalaoPerto === 'function' && !!fLpBalaoPerto(campo);
+    setTimeout(()=>{
+      if(fState.camp?.perguntas?.[fState.stepIdx]?.id === campo) fFitTextWithAI(!temPerto);
+    }, 60);
+  }
+  /* O contador só repinta no próximo `input`, e a pessoa acabou de chegar aqui pelo alvo
+     novo — sem isto ela veria o limite antigo até digitar a primeira letra. */
+  try{ if(typeof fUpdateCharCount === 'function') fUpdateCharCount(); }catch(e){}
+  return true;
+}
+
 function fEditCampo(idx){
   if(_fGuidedAtivo()){
     const p=_fGuidedPerguntas()[idx]; if(!p) return;
@@ -1778,7 +2155,7 @@ function fEditCampo(idx){
   } else {
     fAddBot(`Qual é o novo valor para <strong>${gEsc(label)}</strong>?`,p.sugestoes);
     const box=document.getElementById('f-msg-box');
-    if(box){box.disabled=false;}
+    if(box){box.disabled=false; box._fSelChave=null;}
     const snd=document.getElementById('f-snd'); if(snd) snd.disabled=false;
     const mic=document.getElementById('f-chat-mic'); if(mic) mic.disabled=false;
     try { fUpdateInputPlaceholder(p.id); } catch(e){}
@@ -1813,13 +2190,37 @@ function fGenCaptionSuggestions(dados, camp, formato) {
   // Desativado: devolve lista vazia em vez de bloquear — quem chama trata o
   // vazio e a arte continua sendo gerada. A legenda é acessório, não o fluxo.
   if (typeof gFeatureCan === 'function' && !gFeatureCan('franqueado.legendas','execute')) return [];
-  const prod = dados.produto || dados.categoria || dados.brinde || dados.oferta || camp.name;
+  /* ⛔ NOME DE CAMPANHA NÃO É NOME DE PRODUTO. Aqui terminava com `|| camp.name`, e quando o
+     franqueado pulava o campo do produto a legenda saía "Hoje tem Copa Do Mundo 2026.
+     Confere o preço no app." — anunciando a pasta em vez do que está na arte. `item` entrou
+     junto porque o caminho da IA (fFetchAICaptionSuggestions) e o do Sheets
+     (fBulkShowCopyModal, /produto|titulo|nome/) já olhavam mais chaves que este.
+     Sem produto, o motor escreve sem nome nenhum — a campanha segue valendo como CONTEXTO
+     (vai em `camp.name` no último argumento), que é o uso certo dela: definir o segmento. */
+  /* `dados` é chaveado pelo NOME CRU da variável do material, e cada template batiza do seu
+     jeito (`nomeProduto`, `prato`, `PRODUTO`, `preco_de`). Procurar a chave literal só
+     funcionava nos templates que por acaso usavam o nome canônico — nos outros a legenda não
+     achava produto nenhum. `fDadosSemanticos` (materials.js) resolve pelo MESMO classificador
+     que monta as perguntas. As chaves soltas depois dele são as perguntas fixas de campanha
+     (00-config.js), que não são variáveis de template. */
+  const sem = (typeof fDadosSemanticos === 'function') ? fDadosSemanticos(dados) : {};
+  /* A ORDEM AQUI É A DA CERTEZA, da maior para a menor:
+     1. `fCampoDaPergunta` — o que o franqueado respondeu À PERGUNTA do produto. O chat já
+        decidiu qual variável é essa quando montou a pergunta (`p.papel`), então aqui não se
+        adivinha nada: template com a variável chamada `titulo` ou `produto_principal` tinha
+        o campo preenchido e a legenda ignorava, porque procurava por lista de apelidos.
+     2. `fDadosSemanticos` — o palpite pelo nome, para quando não há perguntas em mão.
+     3. as chaves fixas das campanhas do 00-config.js, que não são variáveis de template. */
+  const perg = (camp && camp.perguntas) || [];
+  const doCampo = (papel) => (typeof fCampoDaPergunta === 'function')
+    ? fCampoDaPergunta(perg, dados, papel) : '';
+  const prod = doCampo('produto') || sem.produto || dados.produto || dados.item || dados.categoria || dados.brinde || dados.oferta || '';
   // Mapeamento assertivo dos slots: preço é preço; DESCONTO vai pro slot de desconto (ativa o
   // pool comPercentual — antes virava {por} e saía "por 20% off"). Sem preço → pool semPreco.
-  const por = dados.precoPor || '';
-  const de = dados.precoDe || '';
-  const val = dados.validade || '';
-  const desc = dados.desconto || dados.detalhes || '';
+  const por = doCampo('por') || sem.por || dados.precoPor || '';
+  const de = doCampo('de') || sem.de || dados.precoDe || '';
+  const val = doCampo('validade') || sem.validade || dados.validade || '';
+  const desc = doCampo('desconto') || sem.desconto || dados.desconto || dados.detalhes || '';
 
   // Unificação com o avançado motor de copy gastronômica do Luma Sheets (fBuildCopy)
   if (typeof fBuildCopy === 'function') {
@@ -1847,11 +2248,25 @@ const _ICO_PEN = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" st
 /* Substitui a legenda do motor local pela da IA quando ela chega. Se a IA falhou (o
    `fFetchAICaptionSuggestions` devolve o fallback com `_ia:false`), não mexe em nada —
    trocar texto igual por texto igual só piscaria a tela. */
+/* Legenda no painel de Dados: gerada (local ou IA) × copiada, por onde saiu. A fonte da cópia
+   é a do conjunto que estava na tela naquela hora — é isso que mede se a IA vale o custo. */
+function fTrackLegenda(evento, canvasId, extra){
+  try{
+    if(typeof gTrackEvent!=='function') return;
+    const caps=_fArtCaptions[canvasId]||[];
+    const painel=document.querySelector(`.caption-assistant-panel[data-canvas-id="${canvasId}"]`);
+    const snap=(typeof _fArtSnapshots!=='undefined'&&_fArtSnapshots[canvasId])||{};
+    gTrackEvent(evento, Object.assign({fonte:caps._ia?'ia':'local', variacao:(painel&&painel.dataset.activeTab)||(caps[0]&&caps[0].id)||null,
+      camp_id:(snap.camp&&snap.camp.id)||(fState.camp&&fState.camp.id)||null,
+      template_id:(typeof _fTplId==='function')?_fTplId(snap.material||fState.material):null}, extra||{}));
+  }catch(e){}
+}
 function _fAplicarLegendaIA(canvasId, sug){
   if(!sug || !sug._ia || !sug.length) return;
   const painel = document.querySelector(`.caption-assistant-panel[data-canvas-id="${canvasId}"]`);
   if(!painel) return;                       // a pessoa já saiu da tela — nada a fazer
   _fArtCaptions[canvasId] = sug;
+  fTrackLegenda('legenda_gerada', canvasId, {n:sug.length});
   const aba = painel.dataset.activeTab || sug[0].id;
   const sel = sug.find(x => x.id === aba) || sug[0];
   const box = document.getElementById('caption-content-' + canvasId);
@@ -1880,7 +2295,7 @@ function _fCaptionSrcTag(suggestions){
    Conferência factual não-bloqueante entre dados da arte e legenda.
    Não julga estética. Não bloqueia download. */
 async function _fRevisarArteIA(canvasId, dados, camp, legendaPromise){
-  if (!window.gAI || !window.gAI.isEnabled('contentReview')) return;
+  if (!window.gAI || !(typeof window.gAI.isEnabled === 'function' && window.gAI.isEnabled('contentReview'))) return;
   const painel = document.querySelector(`.art-wrap:has(#${canvasId})`) || (document.getElementById(canvasId) && document.getElementById(canvasId).closest('.art-wrap'));
   if (!painel) return;
 
@@ -1929,7 +2344,8 @@ async function _fRevisarArteIA(canvasId, dados, camp, legendaPromise){
  * - Nada de inventar preço, validade ou benefício: a legenda acompanha uma arte
  *   com dados reais; texto que promete o que a peça não diz vira reclamação na loja.
  * - Uma ANGULAÇÃO por opção (vender / engajar / lista de WhatsApp) e formato certo
- *   por canal — story é curto, feed é completo, WhatsApp usa *negrito*.
+ *   por canal — story é curto, feed é completo, WhatsApp sem hashtag.
+ * - Nenhum `*`: o asterisco aparecia cru na copy colada (decisão do produto).
  * - Ancorado na cidade: é a alavanca real do franqueado (hiperlocal, 00_PRODUCT §1).
  * O motor local (fBuildCopy, via fGenCaptionSuggestions) segue sendo o fallback —
  * sem rede, sem chave ou com resposta torta, a legenda continua saindo.
@@ -1959,19 +2375,21 @@ const F_GIRIAS_MAX = 6;
 const F_CIDADE_KEY = 'dm_cidade_v1';
 function fCidadeAtual(){
   let c = '';
+  // A franquia vinculada (core/franquia.js) é a cidade certa; o resto é palpite.
+  try{ const fr = (typeof gMinhaFranquia === 'function') ? gMinhaFranquia() : null; if(fr && fr.cidade) return fr.cidade; }catch(e){}
   try{ c = (fState && fState.dados && fState.dados.cidade) || ''; }catch(e){}
-  try{ c = c || localStorage.getItem('luma_bulk_city') || localStorage.getItem(F_CIDADE_KEY) || ''; }catch(e){}
+  try{ c = c || localStorage.getItem(fUserCacheKey('luma_bulk_city')) || localStorage.getItem(fUserCacheKey(F_CIDADE_KEY)) || ''; }catch(e){}
   c = String(c || '').trim();
   // Lembra pra próxima sessão quando a cidade veio da arte — a cobertura cresce com o uso,
   // sem inventar uma tela de cadastro pra um dado que mora no Portal.
-  if(c){ try{ localStorage.setItem(F_CIDADE_KEY, c); }catch(e){} }
+  if(c){ try{ localStorage.setItem(fUserCacheKey(F_CIDADE_KEY), c); }catch(e){} }
   return c;
 }
 const _fGiriaChave = (c) => String(c||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 
 function fGiriasCache(cidade){
   try{
-    const g = JSON.parse(localStorage.getItem(F_GIRIAS_KEY) || 'null');
+    const g = JSON.parse(localStorage.getItem(fUserCacheKey(F_GIRIAS_KEY)) || 'null');
     if(!g || !Array.isArray(g.termos)) return null;
     if(_fGiriaChave(g.cidade) !== _fGiriaChave(cidade)) return null;         // outra cidade
     if(Date.now() - (g.ts||0) > F_GIRIAS_DIAS*864e5) return null;            // venceu
@@ -1983,10 +2401,20 @@ function fGiriasCache(cidade){
    também é resposta guardada: sem isso, cidade que o modelo não conhece viraria uma chamada
    nova a cada legenda, para sempre. */
 async function fGiriasDaCidade(cidade){
+  // Com franquia vinculada, a fonte é a tabela da franquia e só o APROVADO pelo franqueado vale.
+  const fr = (typeof gMinhaFranquia === 'function') ? gMinhaFranquia() : null;
+  if(fr) return _fGiriasDaFranquia(fr);
   if(!cidade) return [];
   const cache = fGiriasCache(cidade);
   if(cache) return cache;
-  if(typeof gAskAI !== 'function' || typeof gAiReady !== 'function' || !gAiReady()) return [];
+  const termos = await _fGiriasPesquisar(cidade);
+  try{ localStorage.setItem(fUserCacheKey(F_GIRIAS_KEY), JSON.stringify({cidade, ts:Date.now(), termos})); }catch(e){}
+  return termos;
+}
+
+/* A pesquisa na IA (task `girias`), sem cache: quem guarda é quem chama. */
+async function _fGiriasPesquisar(cidade){
+  if(!cidade || typeof gAskAI !== 'function' || typeof gAiReady !== 'function' || !gAiReady()) return [];
 
   const prompt = `Você conhece o modo de falar das cidades do interior do Brasil. Liste expressões REALMENTE usadas no dia a dia em ${cidade}.
 
@@ -2012,19 +2440,133 @@ Responda APENAS com JSON válido:
         && !/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(t.termo + t.significado))
       .slice(0, F_GIRIAS_MAX);
   }catch(e){ termos = []; }
-  try{ localStorage.setItem(F_GIRIAS_KEY, JSON.stringify({cidade, ts:Date.now(), termos})); }catch(e){}
   return termos;
+}
+
+/* ── Gírias por FRANQUIA (30/09/2026; reunião em .maestri/reuniao-legenda/4-sintese.md) ──
+   Tabela luma.franquia_girias. A IA só SUGERE (status `sugerida`, uma vez por franquia); o
+   franqueado marca no painel da legenda (fGiriasPainel) e só `aprovada` entra no prompt.
+   `vetada` com franquia_id nulo = veto da DM para a rede: filtra ANTES de mostrar e nunca
+   vai para o prompt. A dose (1 termo por legenda) é o sorteio em `_fGiriaUma`. */
+const F_GIRIAS_FR_PEDIDO = 'dm_girias_fr_pedido_v1';   // {franquiaId: ts} — a IA já foi consultada
+let _fGiriasFr = null;                                  // {franquiaId, linhas}
+function _fGiriasSb(){ return (typeof gSupabase === 'function') ? gSupabase() : window.sb; }
+async function _fGiriasFrLer(fr, forcar){
+  if(!forcar && _fGiriasFr && _fGiriasFr.franquiaId === fr.id) return _fGiriasFr.linhas;
+  const sb = _fGiriasSb(); if(!sb) return null;
+  try{
+    const { data, error } = await sb.schema('luma').from('franquia_girias')
+      .select('id, termo, significado, status, franquia_id').or(`franquia_id.eq.${fr.id},franquia_id.is.null`);
+    if(error) return null;
+    _fGiriasFr = { franquiaId: fr.id, linhas: data || [] };
+  }catch(e){ return null; }
+  return _fGiriasFr.linhas;
+}
+const _fGiriaVetada = (linhas, termo) => linhas.some(l => l.status === 'vetada' && _fGiriaChave(l.termo) === _fGiriaChave(termo));
+async function _fGiriasDaFranquia(fr){
+  let linhas = await _fGiriasFrLer(fr);
+  if(!linhas) return [];
+  const minhas = linhas.filter(l => l.franquia_id === fr.id);
+  let pedido = {}; try{ pedido = JSON.parse(localStorage.getItem(fUserCacheKey(F_GIRIAS_FR_PEDIDO)) || '{}') || {}; }catch(e){}
+  if(!minhas.length && !(Date.now() - (pedido[fr.id] || 0) < F_GIRIAS_DIAS * 864e5)){
+    const termos = (await _fGiriasPesquisar(fr.cidade || fr.nome)).filter(t => !_fGiriaVetada(linhas, t.termo));
+    if(termos.length){
+      try{
+        await _fGiriasSb().schema('luma').from('franquia_girias').insert(termos.map(t => ({
+          franquia_id: fr.id, termo: t.termo, significado: t.significado || null, origem: 'ia', status: 'sugerida' })));
+      }catch(e){}
+      linhas = (await _fGiriasFrLer(fr, true)) || linhas;
+    }
+    // `[]` também é resposta guardada: cidade que o modelo não conhece não vira chamada por legenda.
+    pedido[fr.id] = Date.now(); try{ localStorage.setItem(fUserCacheKey(F_GIRIAS_FR_PEDIDO), JSON.stringify(pedido)); }catch(e){}
+  }
+  return linhas.filter(l => l.franquia_id === fr.id && l.status === 'aprovada' && !_fGiriaVetada(linhas, l.termo))
+    .map(l => ({ termo: l.termo, significado: l.significado || '' }));
+}
+/* A dose, no código: UM termo sorteado por legenda (a IA nunca vê a lista inteira). */
+function _fGiriaUma(lista){ return (lista && lista.length) ? [lista[Math.floor(Math.random() * lista.length)]] : []; }
+
+/* O painel "Jeito de falar de <cidade>" embaixo da legenda: marcar = aprovar, × = não usar,
+   e um campo para o franqueado pôr uma expressão dele. Não bloqueia nada: sem marcar, a
+   legenda sai neutra. */
+async function fGiriasPainel(canvasId){
+  const fr = (typeof gMinhaFranquia === 'function') ? gMinhaFranquia() : null;
+  if(!fr) return;
+  const painel = document.querySelector(`.caption-assistant-panel[data-canvas-id="${canvasId}"]`);
+  if(!painel || painel.querySelector('.cap-girias')) return;
+  const linhas = await _fGiriasFrLer(fr);
+  if(!linhas) return;
+  const minhas = linhas.filter(l => l.franquia_id === fr.id && l.status !== 'vetada' && !_fGiriaVetada(linhas, l.termo));
+  const box = document.createElement('div');
+  box.className = 'cap-girias';
+  box.innerHTML = `<p class="cap-girias-tit">Jeito de falar de ${gEsc(fr.cidade || fr.nome)}</p>
+    <p class="cap-girias-sub">Marque o que se fala aí. A legenda usa no máximo um por vez.</p>
+    <div class="cap-girias-chips">${minhas.map(_fGiriaChipHTML).join('')}</div>
+    <form class="cap-girias-add" onsubmit="fGiriaAdicionar(event)">
+      <input type="text" maxlength="24" placeholder="Adicionar uma expressão daí" aria-label="Adicionar uma expressão da sua cidade">
+      <button type="submit">Adicionar</button>
+    </form>`;
+  painel.appendChild(box);
+  if(minhas.length && typeof gTrackEvent === 'function') gTrackEvent('giria_mostrada', { n: minhas.length });
+}
+function _fGiriaChipHTML(l){
+  return `<span class="cap-giria" data-id="${gEsc(l.id)}"><button type="button" class="cap-giria-t" aria-pressed="${l.status === 'aprovada'}" onclick="fGiriaMarcar(this)"${l.significado ? ` title="${gEsc(l.significado)}"` : ''}>${gEsc(l.termo)}</button><button type="button" class="cap-giria-x" aria-label="Não usar ${gEsc(l.termo)}" onclick="fGiriaVetar(this)">×</button></span>`;
+}
+async function _fGiriaSalvar(id, campos){
+  const { error } = await _fGiriasSb().schema('luma').from('franquia_girias').update(campos).eq('id', id);
+  if(error){ gToast('Não consegui salvar. Tente de novo.', 'error'); return false; }
+  const l = _fGiriasFr && _fGiriasFr.linhas.find(x => x.id === id); if(l) Object.assign(l, campos);
+  return true;
+}
+async function fGiriaMarcar(btn){
+  const id = btn.closest('.cap-giria').dataset.id, liga = btn.getAttribute('aria-pressed') !== 'true';
+  if(!(await _fGiriaSalvar(id, { status: liga ? 'aprovada' : 'sugerida' }))) return;
+  document.querySelectorAll(`.cap-giria[data-id="${id}"] .cap-giria-t`).forEach(b => b.setAttribute('aria-pressed', String(liga)));
+  if(typeof gTrackEvent === 'function') gTrackEvent(liga ? 'giria_aprovada' : 'giria_desmarcada', {});
+}
+async function fGiriaVetar(btn){
+  const id = btn.closest('.cap-giria').dataset.id;
+  if(!(await _fGiriaSalvar(id, { status: 'vetada' }))) return;
+  document.querySelectorAll(`.cap-giria[data-id="${id}"]`).forEach(e => e.remove());
+  if(typeof gTrackEvent === 'function') gTrackEvent('giria_vetada', {});
+}
+async function fGiriaAdicionar(ev){
+  ev.preventDefault();
+  const fr = (typeof gMinhaFranquia === 'function') ? gMinhaFranquia() : null;
+  const input = ev.target.querySelector('input'), termo = String(input.value || '').trim();
+  if(!fr || !termo) return;
+  if(termo.length > 24 || /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(termo)){ gToast('Use uma expressão curta, sem emoji.', 'error'); return; }
+  const linhas = (await _fGiriasFrLer(fr)) || [];
+  if(_fGiriaVetada(linhas, termo)){ gToast('Essa expressão não pode ser usada nas legendas.', 'error'); return; }
+  const { data, error } = await _fGiriasSb().schema('luma').from('franquia_girias')
+    .insert({ franquia_id: fr.id, termo, origem: 'franqueado', status: 'aprovada' }).select('id, termo, significado, status, franquia_id').single();
+  if(error){ gToast(/duplicate|unique/i.test(error.message || '') ? 'Essa expressão já está na lista.' : 'Não consegui salvar. Tente de novo.', 'error'); return; }
+  if(_fGiriasFr) _fGiriasFr.linhas.push(data);
+  const chips = ev.target.closest('.cap-girias').querySelector('.cap-girias-chips');
+  chips.insertAdjacentHTML('beforeend', _fGiriaChipHTML(data));
+  input.value = '';
+  if(typeof gTrackEvent === 'function') gTrackEvent('giria_adicionada', {});
 }
 
 async function fFetchAICaptionSuggestions(dados, camp, formato) {
   const fallback = fGenCaptionSuggestions(dados, camp, formato);
   fallback._ia = false;   // marca a ORIGEM: a UI rotula IA x motor local (ver painel de legenda)
 
-  const prod = dados.produto || dados.item || dados.categoria || dados.oferta || (camp && camp.name) || 'Oferta especial';
-  const de = dados.precoDe ? `R$ ${dados.precoDe}` : '';
-  const por = dados.precoPor ? `R$ ${dados.precoPor}` : (dados.preco ? `R$ ${dados.preco}` : '');
-  const val = dados.validade || '';
-  const desc = dados.desconto || dados.detalhes || '';
+  /* Mesma regra do motor local: campanha não é produto. Terminava em `camp.name ||
+     'Oferta especial'`, então o modelo recebia a MESMA string como `Produto:` e como
+     `Campanha:` e devolvia "Hoje tem Copa Do Mundo 2026". Vazio agora, e a linha `Produto:`
+     simplesmente não entra no prompt — é a convenção que os outros campos já seguem. */
+  // Mesma cadeia de certeza do motor local (ver `fGenCaptionSuggestions`): a resposta DA
+  // pergunta vence o palpite pelo nome, que vence as chaves fixas de campanha.
+  const sem = (typeof fDadosSemanticos === 'function') ? fDadosSemanticos(dados) : {};
+  const perg = (camp && camp.perguntas) || [];
+  const doCampo = (papel) => (typeof fCampoDaPergunta === 'function')
+    ? fCampoDaPergunta(perg, dados, papel) : '';
+  const prod = doCampo('produto') || sem.produto || dados.produto || dados.item || dados.categoria || dados.brinde || dados.oferta || '';
+  const de = doCampo('de') || sem.de || dados.precoDe || '';
+  const por = doCampo('por') || sem.por || dados.precoPor || dados.preco || '';
+  const val = doCampo('validade') || sem.validade || dados.validade || '';
+  const desc = doCampo('desconto') || sem.desconto || dados.desconto || dados.detalhes || '';
   const campName = (camp && camp.name) ? camp.name : 'Delivery Much';
   const cidade = dados.cidade || (typeof fState !== 'undefined' && fState.dados && fState.dados.cidade) || ''
     || (typeof fCidadeAtual === 'function' ? fCidadeAtual() : '');
@@ -2033,15 +2575,16 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
   let blocoGirias = '';
   try{
     if (typeof fGiriasDaCidade === 'function') {
-      const girias = await fGiriasDaCidade(cidade);
+      const girias = _fGiriaUma(await fGiriasDaCidade(cidade));
       if (girias && girias.length) {
         blocoGirias = girias.map(g => `"${g.termo}"${g.significado ? ` (${g.significado})` : ''}`).join(', ');
       }
     }
   }catch(e){}
 
-  // Gateway Novo e Blindado: gAI (§14, §32, §60)
-  if (window.gAI && window.gAI.isEnabled('caption')) {
+  // Gateway Novo e Blindado: gAI (§14, §32, §60). O typeof fica como rede: sem ele, um gateway
+  // antigo em cache sem `isEnabled` derrubava a legenda inteira em vez de cair no motor local.
+  if (window.gAI && typeof window.gAI.isEnabled === 'function' && window.gAI.isEnabled('caption')) {
     const res = await window.gAI.run('caption.generate', {
       produto: prod,
       precoDe: dados.precoDe || '',
@@ -2057,10 +2600,12 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
       const p = res.data.promo || res.data.caption || fallback[0].text;
       const e = res.data.engajar || fallback[1].text;
       const w = res.data.whatsapp || fallback[2].text;
+      // Modelo às vezes escorrega um *negrito* mesmo proibido: tira aqui, não confia no prompt.
+      const semAst = s => String(s).replace(/\*/g, '').replace(/[ \t]{2,}/g, ' ').trim();
       const out = [
-        { id: 'promo', label: 'Promo', text: p },
-        { id: 'engajar', label: 'Engajar', text: e },
-        { id: 'whatsapp', label: 'WhatsApp', text: w }
+        { id: 'promo', label: 'Promo', text: semAst(p) },
+        { id: 'engajar', label: 'Engajar', text: semAst(e) },
+        { id: 'whatsapp', label: 'WhatsApp', text: semAst(w) }
       ];
       if (out[1].text === out[0].text) out[1].text = fallback[1].text;
       if (out[2].text === out[0].text) out[2].text = fallback[2].text;
@@ -2078,7 +2623,7 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
   // Só entra no prompt o que EXISTE — campo vazio virava "por undefined" / "validade: Tempo limitado"
   // inventado, e o modelo repetia a invenção na legenda.
   const fatos = [
-    `Produto: ${prod}`,
+    prod ? `Produto: ${prod}` : '',
     de ? `Preço antigo: ${de}` : '',
     por ? `Preço promocional: ${por}` : '',
     desc ? `Vantagem: ${desc}` : '',
@@ -2096,7 +2641,7 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
      simplesmente não existe e a legenda sai como sempre saiu. */
   let blocoGiriasPrompt = '';
   try{
-    const girias = await fGiriasDaCidade(cidade);
+    const girias = _fGiriaUma(await fGiriasDaCidade(cidade));
     if(girias && girias.length){
       const lista = girias.map(g => `"${g.termo}"${g.significado ? ` (${g.significado})` : ''}`).join(', ');
       blocoGiriasPrompt = `\n\nJEITO DE FALAR EM ${cidade.toUpperCase()} (opcional): ${lista}.`;
@@ -2114,11 +2659,12 @@ REGRAS OBRIGATÓRIAS:
 3. As 3 opções têm ângulos DIFERENTES entre si — não reescreva a mesma frase.
 4. ${ehStory ? 'Formato STORY: no máximo 2 linhas curtas em "promo" e "engajar" (texto que caiba num story, leitura de 2 segundos).' : 'Formato FEED: "promo" e "engajar" podem ter 2 a 4 linhas.'}
 5. ${hashtags} — só em "promo" e "engajar". A opção "whatsapp" NÃO leva hashtag.
-6. "whatsapp" é mensagem pra lista de transmissão: usa *asteriscos* pra negrito e chama pra pedir no app.${blocoGiriasPrompt ? `
-7. Sobre o jeito de falar da cidade: use NO MÁXIMO UMA dessas expressões, em UMA das três opções, e só se ela couber com naturalidade na frase. Se nenhuma couber, NÃO force — gíria enfiada soa falsa e o franqueado é vizinho de quem lê. Nunca explique a expressão nem use mais de uma.` : ''}${blocoGiriasPrompt}
+6. "whatsapp" é mensagem pra lista de transmissão: chama pra pedir no app. NUNCA use asterisco (*) nem qualquer marcação de negrito/markdown, em nenhuma opção.
+7. Português do Brasil com TODA a acentuação e o "ç" corretos (família, peça, promoção, você, já). Os fatos podem ter sido digitados sem acento: corrija a grafia na legenda, mas não troque palavras, nomes próprios nem preços.${blocoGiriasPrompt ? `
+8. Sobre o jeito de falar da cidade: use NO MÁXIMO UMA dessas expressões, em UMA das três opções, e só se ela couber com naturalidade na frase. Se nenhuma couber, NÃO force — gíria enfiada soa falsa e o franqueado é vizinho de quem lê. Nunca explique a expressão nem use mais de uma.` : ''}${blocoGiriasPrompt}
 
 Responda APENAS com JSON válido:
-{"promo":"legenda que vende (foco na oferta)","engajar":"legenda que puxa comentário/marcação de amigo","whatsapp":"mensagem curta pra lista do WhatsApp com *negrito*"}`;
+{"promo":"legenda que vende (foco na oferta)","engajar":"legenda que puxa comentário/marcação de amigo","whatsapp":"mensagem curta pra lista do WhatsApp, sem asterisco"}`;
 
   const texto = await gAskAI('legenda', prompt, { json: true });
   const parsed = texto && (typeof gAiParseJson === 'function' ? gAiParseJson(texto) : null);
@@ -2126,9 +2672,9 @@ Responda APENAS com JSON válido:
 
   const limpa = (v, i) => {
     let s = (typeof v === 'string' ? v : '').trim();
-    // Cinto de segurança da regra 1: modelo às vezes escorrega um emoji. Tira em vez de
-    // devolver peça fora do padrão de marca.
-    s = s.replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}]/gu, '').replace(/[ \t]{2,}/g, ' ').trim();
+    // Cinto de segurança das regras 1 e 6: modelo às vezes escorrega um emoji ou um *negrito*.
+    // Tira em vez de devolver peça fora do padrão de marca.
+    s = s.replace(/\*/g, '').replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}]/gu, '').replace(/[ \t]{2,}/g, ' ').trim();
     return s || fallback[i].text;
   };
   const out = [
@@ -2202,6 +2748,7 @@ function fCopyCaption(canvasId) {
       copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:2px"><polyline points="20 6 9 17 4 12"/></svg> Copiado!`;
       
       gToast('Legenda copiada!');
+      fTrackLegenda('legenda_copiada', canvasId, {origem:'botao'});
       if (caps._ia && window.gAiTelemetry) {
         window.gAiTelemetry.emit('ai_suggestion_accepted', { task: 'caption.generate' });
       }
@@ -2258,6 +2805,11 @@ function _fCopyText(text){
   } else fCopyFallback(text,()=>{});
 }
 
+/* CARIMBO DA GERAÇÃO. O corpo do `fGerarArte` roda dentro de um `setTimeout` assíncrono: sem
+   este número, reiniciar (ou gerar de novo) durante a espera deixava o agendamento antigo
+   chegar depois, empurrando a arte ANTERIOR para dentro do chat já limpo e gravando histórico
+   de dados que não existem mais. Quem chega fora da vez simplesmente desiste. */
+let _fGerarSeq = 0;
 function fGerarArte(){
   if(_fGuidedAtivo()) _fGuidedPrepararConclusao();
   fState.done=true;fUpdateProg();
@@ -2277,7 +2829,9 @@ function fGerarArte(){
   const mic=document.getElementById('f-chat-mic'); if(mic) mic.disabled=false;
   const d=fState.dados,c=fState.camp;
   fAddBot('Gerando sua arte agora…',[]);
+  const _seqGer = ++_fGerarSeq;
   setTimeout(async ()=>{
+    if(_seqGer!==_fGerarSeq) return;   // reiniciou/gerou de novo enquanto esperávamos
     const prod=d.produto||d.categoria||d.brinde||d.oferta||c.name;
     const por=d.precoPor||d.desconto||'Ver no app';
     const de=d.precoDe?`De ${d.precoDe}`:'';
@@ -2303,6 +2857,7 @@ function fGerarArte(){
     const suggestions = fGenCaptionSuggestions(d, c, fState.fmt);
     suggestions._ia = false;
     _fArtCaptions[previewCanvasId] = suggestions;
+    fTrackLegenda('legenda_gerada', previewCanvasId, {n:suggestions.length});
     const _legendaIA = fFetchAICaptionSuggestions(d, c, fState.fmt);
 
     // ENTREGA FINAL, parte 2 de 3: a legenda. Card editorial (título + selo de origem +
@@ -2426,6 +2981,8 @@ function fGerarArte(){
           <span class="art-bulk-txt"><strong>Gerar em lote</strong><em>Dezenas de variações desta arte de uma vez</em></span>
           <svg class="art-bulk-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
+        <!-- Kit da campanha (materials.js): so existe com 2 ou mais pecas publicadas na pasta. -->
+        ${(typeof _fKitBtnHtml==='function')?_fKitBtnHtml(previewCanvasId):''}
       </div>
     </div>`;
     /* ⚠ Finalizar DE NOVO (voltar para a edição e concluir outra vez) gera um SEGUNDO card:
@@ -2439,7 +2996,11 @@ function fGerarArte(){
        roda ANTES disto (o `fUpdateProg` é a primeira linha do `fGerarArte`), então naquele
        momento o card ainda não estava no DOM e não havia o que sincronizar. */
     try{ if(typeof _fLpSincronizarConclusao==='function') _fLpSincronizarConclusao(); }catch(e){}
-    _legendaIA.then(sug => _fAplicarLegendaIA(previewCanvasId, sug)).catch(()=>{});
+    /* O card mais recente é a fonte do "pronta/ajustar" do cabeçalho (`fUpdateProg`): o
+       `fUpdateProg` do início do `fGerarArte` rodou quando o card VELHO ainda era o último. */
+    try{ fUpdateProg(); }catch(e){}
+    _legendaIA.then(sug => _fAplicarLegendaIA(previewCanvasId, sug)).catch(()=>{})
+      .then(() => fGiriasPainel(previewCanvasId)).catch(()=>{});
     try {
       if (typeof _fRevisarArteIA === 'function') {
         _fRevisarArteIA(previewCanvasId, d, c, _legendaIA).catch(()=>{});
@@ -2455,8 +3016,9 @@ function fGerarArte(){
           // reduzido no canvas visível — não guarda um backing nativo por bolha de resultado.
           const off = document.createElement('canvas'); off.width=mw; off.height=mh;
           const octx = off.getContext('2d');
-          await fRenderTemplateLayers(octx, fState.material.layers, mw, mh, d, c, null,
+          const rendered = await fRenderTemplateLayers(octx, fState.material.layers, mw, mh, d, c, null,
             {scope:'franqueado',purpose:'preview'});
+          _fBolhaMarcaBloqueio(w, rendered, d, mw, mh);
           await fDrawDMLogo(octx, mw, mh);
           const ctx = cv.getContext('2d');
           ctx.clearRect(0,0,cv.width,cv.height);
@@ -2485,6 +3047,52 @@ function fGerarArte(){
        lugar que comunica a persistência. A persistência em si não mudou (ver `fSaveHist`). */
   },800);
 }
+/* ══ A ENTREGA NÃO MENTE QUANDO O TEXTO NÃO CABE (Local Fit, fase 2.1) ═══════════════════
+   O card nasce "Sua arte está pronta" ANTES de a miniatura ser desenhada, e a miniatura usa o
+   mesmo Local Fit do download. Sem esta função, a arte bloqueada aparecia como pronta, com o
+   texto estourando na miniatura, e a pessoa só descobria no "Baixar" — no celular, com a prévia
+   fechada, é a única tela que ela vê. Agora o próprio cabeçalho do card vira o aviso e leva à
+   MESMA porta do bloqueio (`fCorrigirTextoLongo`), com o laudo que o download também monta.
+   Não bloqueia o Baixar: ele continua indo pelo diálogo, que é a saída completa. */
+function _fBolhaMarcaBloqueio(w, rendered, d, mw, mh){
+  try{
+    const res = rendered && rendered._layoutResult;
+    const bloqs = (res && res.invalid && res.bloqueios) || [];
+    const ok = w && w.querySelector('.bbl.art-ok');
+    if(!bloqs.length || !ok) return;
+    const nomes = fLpCamposBloqueados(res, d || {});
+    const lista = fLpListaRotulos(nomes.map(n=>n.rotulo)) || 'Um texto';
+    const tick = ok.querySelector('.art-ok-tick');
+    if(tick){
+      tick.className = 'art-ok-tick-bloq';
+      tick.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="6" x2="12" y2="13"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>';
+    }
+    const copy = ok.querySelector('.art-ok-copy');
+    if(copy){
+      const forte = document.createElement('strong'); forte.textContent = 'Falta ajustar um campo';
+      const sub = document.createElement('small'); sub.className = 'art-ok-sub';
+      const varios = nomes.length > 1;
+      sub.textContent = lista+(varios ? ' não cabem' : ' não cabe')+' na arte · Toque para ajustar';
+      copy.textContent = ''; copy.append(forte, sub);
+    }
+    const abrir = ()=>{
+      let r = res;
+      try{
+        if(!r.diagnostico && typeof gLocalFitDiagnostico === 'function')
+          r = Object.assign({}, res, {diagnostico: gLocalFitDiagnostico(rendered, res, d || {},
+            {canvas:{w:mw,h:mh}, defaults:(typeof gVarDefaults === 'function') ? gVarDefaults() : null})});
+      }catch(e){ /* sem laudo, o diálogo cai na frase sem número */ }
+      const semAcao = ()=>{ if(typeof gToast === 'function') gToast('Abra o campo que não coube e encurte o texto. Se não achar, escolha outro material.'); };
+      if(typeof fCorrigirTextoLongo !== 'function') return semAcao();
+      try{ Promise.resolve(fCorrigirTextoLongo(r)).catch(semAcao); }catch(e){ semAcao(); }   // erro dentro do diálogo não pode deixar o toque mudo
+    };
+    ok.classList.add('is-bloqueio');
+    ok.setAttribute('role','button'); ok.tabIndex = 0;
+    ok.onclick = abrir;
+    ok.onkeydown = e=>{ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); abrir(); } };
+    try{ fUpdateProg(); }catch(e){}   // cabeçalho do celular e leitor de tela seguem o card
+  }catch(e){ console.warn('Aviso de bloqueio na entrega:', e); }
+}
 async function fOutroFormato(id, snapId){
   const f=FMTS.find(x=>x.id===id);if(!f)return;
   const snap=(snapId&&_fArtSnapshots[snapId])||{dados:fState.dados,camp:fState.camp,fmt:fState.fmt,material:fState.material};
@@ -2493,9 +3101,19 @@ async function fOutroFormato(id, snapId){
   const prevFmt=fState.fmt;         // p/ reverter se a geração falhar (senão o rail fica num fmt que não saiu)
   fState.fmt=f;fRenderFmts();fUpdateCtx();
 
-  // Atualiza as sugestões de legenda para o novo formato
-  const suggestions = await fFetchAICaptionSuggestions(snap.dados, snap.camp, f);
+  /* ⚠ A ARTE NÃO ESPERA A LEGENDA — mesma regra do `fGerarArte`. Aqui havia um `await` da
+     legenda da IA ANTES de gerar, fora de qualquer `try`: se ela falhasse, a função morria
+     depois de já ter trocado o `fState.fmt`. O rail e o cabeçalho diziam "Feed", nenhum PNG
+     saía, nenhum aviso aparecia e o "reverter o formato" do `catch` lá embaixo nunca rodava —
+     o chat ficava no limbo. E ela falhava SEMPRE: `gAI.isEnabled` não existe no gateway
+     (ai-client.js), então a checagem estourava. Agora a legenda do motor local entra na hora
+     e a da IA, se vier, entra por cima (`_fAplicarLegendaIA`) — sem poder travar a geração. */
+  const suggestions = fGenCaptionSuggestions(snap.dados, snap.camp, f);
+  suggestions._ia = false;
   _fArtCaptions[snapId] = suggestions;
+  fTrackLegenda('legenda_gerada', snapId, {n:suggestions.length, outro_formato:true});
+  Promise.resolve().then(()=>fFetchAICaptionSuggestions(snap.dados, snap.camp, f))
+    .then(sug=>_fAplicarLegendaIA(snapId, sug)).catch(()=>{});
 
   // Atualiza a UI se o card correspondente estiver no DOM
   const panel = document.querySelector(`.caption-assistant-panel[data-canvas-id="${snapId}"]`);
@@ -2536,7 +3154,7 @@ async function fOutroFormato(id, snapId){
   try{
     await fGenPNG(snap.dados,snap.camp,f);
     fAddHist(snap.dados,snap.camp,f,'baixada');
-    if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt_id:f.id,tipo:'png',outro_formato:true});
+    if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt_id:f.id,template_id:(typeof _fTplId==='function')?_fTplId(snap.material):null,tipo:'png',outro_formato:true,origem:'chat'});
     snap.fmt=f; // a bolha agora "é" deste formato — o Baixar PNG dela acompanha
     gToast(`${f.name} baixado!`);
     await _fRerenderArtThumb(snapId, snap, f); // thumb acompanha a nova geometria
@@ -2589,23 +3207,40 @@ async function fBaixar(btn, snapId){
   const prevMat=fState.material;
   if(snap.material) fState.material=snap.material; // gera com o material DESTA arte
   try{
-    // Gera primeiro; só marca "baixada" se não lançar (canvas tainted, quota, etc.).
-    await fGenPNG(snap.dados,snap.camp,snap.fmt);
+    /* CELULAR: o `<a download>` com dataURL do `fGenPNG` não faz NADA no Safari do iOS
+       (arte 2× vira vários MB de base64, depois de um await) — e o toast dizia "baixada".
+       Aqui vai a folha nativa (o "Salvar imagem" dela é o único caminho de página web
+       até o Fotos); recusada, cai no download por Blob, o mesmo do Instagram/WhatsApp. */
+    let noCelular=null;   // null = desktop · 'share' · 'arquivo'
+    if(typeof _fArteEhCelular==='function'&&_fArteEhCelular()&&typeof _fArtePreparar==='function'){
+      const prep=await _fArtePreparar(snapId);
+      noCelular='arquivo';
+      if(prep.podeShare){
+        try{ await navigator.share({files:[prep.file]}); noCelular='share'; }
+        catch(e){ if(e&&e.name==='AbortError') return; }   // fechou a folha: nada saiu
+      }
+      if(noCelular==='arquivo') _fArteBaixarArquivo(prep);
+    } else {
+      // Gera primeiro; só marca "baixada" se não lançar (canvas tainted, quota, etc.).
+      await fGenPNG(snap.dados,snap.camp,snap.fmt);
+    }
     if(snap.histId){ fMarkHistBaixada(snap.histId); }
     else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
-    if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt_id:snap.fmt.id,tipo:'png'});
+    if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt_id:snap.fmt.id,template_id:(typeof _fTplId==='function')?_fTplId(snap.material):null,tipo:'png',origem:'chat',via:noCelular||'download'});
     if(typeof fFeedbackAfterDownload==='function') fFeedbackAfterDownload(snap,btn,snapId,'png');
     // Baixa a imagem e já deixa a legenda na área de transferência — 1 passo a menos pra postar.
     const cap=_fActiveCaptionText(snapId);
-    if(cap){ _fCopyText(cap); gToast('Arte baixada • legenda copiada!'); }
-    else gToast('Arte baixada!');
+    // A legenda vai DEPOIS da folha: copiar gasta o gesto e o iOS recusaria o share.
+    const onde=noCelular==='arquivo'?' em Arquivos › Downloads':'';
+    if(cap){ _fCopyText(cap); fTrackLegenda('legenda_copiada', snapId, {origem:'download'}); gToast('Arte salva'+onde+' • legenda copiada!'); }
+    else gToast(noCelular==='share'?'Arte pronta!':'Arte baixada'+onde+'!');
     if (typeof gTriggerOnboardingStep === 'function') {
       gTriggerOnboardingStep('downloadedPng');
     }
   }catch(e){
     console.warn('Falha ao gerar PNG:', e);
     if(typeof gHandleLayoutUnsafeError==='function'&&gHandleLayoutUnsafeError(e))return;
-    gToast('Não consegui gerar o arquivo. Tente enviar a foto de novo pelo botão de upload, ou escolha outra imagem.','error','ajuda-upload');
+    gToast(e&&e.code==='LUMA_IMAGE_UNAVAILABLE'?e.message:'Não consegui gerar o arquivo. Tente enviar a foto de novo pelo botão de upload, ou escolha outra imagem.','error','ajuda-upload');
   }finally{ fState.material=prevMat; restore(); }
 }
 /* ══ CONTROLE E CONFIANÇA — o desfazer de UMA ação do franqueado ═══════════════════════════
@@ -2708,7 +3343,7 @@ function _fSnapshotArte(){
     mensagens: (document.getElementById('f-messages')||{}).innerHTML || '',
     snapshots: Object.assign({}, _fArtSnapshots),
     captions: Object.assign({}, _fArtCaptions),
-    draft: (()=>{ try{ return localStorage.getItem('luma_chat_draft'); }catch(e){ return null; } })()
+    draft: (()=>{ try{ return localStorage.getItem(fUserCacheKey('luma_chat_draft')); }catch(e){ return null; } })()
   };
 }
 
@@ -2728,8 +3363,8 @@ function _fRestauraArte(s){
   const msgs = document.getElementById('f-messages');
   if(msgs) msgs.innerHTML = s.mensagens;
   try{
-    if(s.draft == null) localStorage.removeItem('luma_chat_draft');
-    else localStorage.setItem('luma_chat_draft', s.draft);
+    if(s.draft == null) localStorage.removeItem(fUserCacheKey('luma_chat_draft'));
+    else localStorage.setItem(fUserCacheKey('luma_chat_draft'), s.draft);
   }catch(e){}
   clearTimeout(fNextTimeout);            // o reset agendou o passo 1; ele não pode chegar depois
   try{ fUpdateProg(); }catch(e){}
@@ -2758,7 +3393,12 @@ async function fAskRestartArt(){
 function fRestartArt(opts){
   opts = opts || {};
   const antes = opts.silencioso ? null : _fSnapshotArte();
+  // Enquadramento aberto sobre a arte antiga: a HUD e os listeners não podem sobreviver ao reset.
+  try{ if(typeof fLpStopFraming==='function') fLpStopFraming(); }catch(e){}
   fState.stepIdx = -1;
+  // A lista de perguntas volta ao estado publicado: `fPickLoja` tinha tirado do fluxo o que a
+  // loja respondeu, e zerar `dados` sem devolver as perguntas deixaria campos órfãos.
+  if(fState.camp && fState.camp._perguntasTodas) fState.camp.perguntas = fState.camp._perguntasTodas.slice();
   fState.dados = {};
   fState.done = false;
   fState.editIdx = null;
@@ -2767,6 +3407,7 @@ function fRestartArt(opts){
   _fArtSnapshots = {};
   _fArtCaptions = {};
   try{ fClearChatDraft(); }catch(e){}   // o rascunho velho não pode sobreviver ao reset
+  _fGerarSeq++;                         // invalida geração agendada e ainda não desenhada
   const msgs = document.getElementById('f-messages');
   if(msgs) msgs.innerHTML = '';
   fUpdateProg();
@@ -2882,7 +3523,7 @@ async function fBaixarPDF(btn, snapId){
     await fGenPDF(snap.dados, snap.camp, snap.fmt);
     if(snap.histId){ fMarkHistBaixada(snap.histId); }
     else { fAddHist(snap.dados,snap.camp,snap.fmt,'baixada'); }
-    if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt_id:snap.fmt.id,tipo:'pdf'});
+    if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt_id:snap.fmt.id,template_id:(typeof _fTplId==='function')?_fTplId(snap.material):null,tipo:'pdf',origem:'chat'});
     if(typeof fFeedbackAfterDownload==='function') fFeedbackAfterDownload(snap,btn,snapId,'pdf');
     gToast('PDF baixado!');
     if (typeof gTriggerOnboardingStep === 'function') {
@@ -2906,12 +3547,12 @@ function _fUserInitials(){
     return (parts[0][0]+parts[parts.length-1][0]).toUpperCase();
   }catch(e){ return 'EU'; }
 }
-// Mesma foto do perfil (topbar/modal usam a chave __luma_user_photo_<email>).
+// Mesma foto do perfil (gUserFoto — a mesma da topbar e do painel da conta).
 // Sem foto, cai nas iniciais — é o mesmo contrato do gUpdateUserTopbar.
 function _fUserAvatarInner(){
   try{
     const u=(typeof gCurrentUser==='function')?gCurrentUser():null;
-    const photo=u&&u.email?localStorage.getItem('__luma_user_photo_'+u.email):'';
+    const photo=(typeof gUserFoto==='function')?gUserFoto(u):'';
     if(photo) return `<img src="${gEsc(photo)}" alt="${gEsc(u.displayName||'Você')}">`;
   }catch(e){}
   return _fUserInitials();
@@ -2945,9 +3586,11 @@ function fTyping(cb){
   w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div class="msg-content"><div class="bbl"><div class="typing-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div></div>`;
   msgs.querySelectorAll('.msg').forEach(m => m.classList.remove('active-prompt'));
   msgs.appendChild(w);msgs.scrollTop=msgs.scrollHeight;
+  const gen=_fChatGen;
   setTimeout(()=>{
     const t=document.getElementById('typing-el');if(t)t.remove();
     botCircles.forEach(c => c.classList.remove('thinking'));
+    if(gen!==_fChatGen) return;   // a pessoa saiu desta conversa enquanto o bot "digitava"
     cb();
   },900);
 }
@@ -2956,7 +3599,7 @@ function fQR(val, el){
   // ou curtas não devem escapar da validação só por serem clicadas)
   const id = fState.camp.perguntas[fState.stepIdx]?.id;
   const masked = id ? fApplyMask(id, val) : val;
-  const err = id ? fValidate(id, masked) : null;
+  const err = id ? fValidate(id, masked, fState.dados) : null;
   if(err){ fShowFieldError(err); return; }
   // M1.1: a sugestão transita visualmente — colapsa as outras e some suave a clicada
   if(el && el.classList){
@@ -2999,14 +3642,57 @@ function fSend(){
   // Aplica máscara e valida antes de salvar
   const id = fState.camp.perguntas[fState.stepIdx]?.id;
   const masked = id ? fApplyMask(id, v) : v;
-  const err = id ? fValidate(id, masked) : null;
+  const err = id ? fValidate(id, masked, fState.dados) : null;
   if(err){
     fShowFieldError(err);
     return;
   }
-  b.value='';
+  b.value=''; fMsgAutoGrow(b);
   fAddUser(masked);
   fSaveAdv(masked);
+}
+/* Enter envia; Shift+Enter pula linha — padrão de chat. Só em campo de TEXTO: preço,
+   desconto e código são uma linha (a máscara achataria a quebra). No celular não há Shift,
+   então o Enter do teclado segue sendo "Enviar". `isComposing`: Enter que fecha acento/IME
+   não envia. */
+function fMsgKeydown(e){
+  if(e.key!=='Enter'||e.isComposing) return;
+  if(e.shiftKey&&_fMsgAceitaQuebra()) return;          // o textarea insere a quebra sozinho
+  e.preventDefault(); fSend();
+}
+function _fMsgAceitaQuebra(){
+  let id=null;
+  try{
+    if(typeof _fGuidedAtivo==='function'&&_fGuidedAtivo()){ const p=_fGuidedPerguntas()[_fGuidedIndice(_fGuidedNav.currentField)]; id=p&&p.id; }
+    else id=fState.camp?.perguntas?.[fState.stepIdx]?.id;
+  }catch(e){}
+  return !!id && fGetFieldType(id).type==='text';
+}
+// A caixa cresce com as linhas até o teto do CSS (max-height) e volta a 1 linha ao enviar.
+function fMsgAutoGrow(box){
+  if(!box||box.tagName!=='TEXTAREA') return;
+  box.style.height='auto';
+  const umaLinha=box.clientHeight;                      // altura de repouso (rows=1)
+  if(box.value) box.style.height=box.scrollHeight+'px';
+  box.classList.toggle('is-multi', !!box.value && box.scrollHeight>umaLinha+2);
+}
+
+let _fChatDraftSaveSeq=0;
+function _fChatDraftHasRefs(draft){
+  return !!(draft&&Object.values(draft.dados||{}).some(v=>typeof v==='string'&&v.startsWith('idb://')));
+}
+async function _fChatDraftHydrate(draft){
+  const gen=_fChatGen,key=fUserCacheKey('luma_chat_draft');
+  const dados=Object.assign({},draft.dados||{}),missing=[];
+  await Promise.all(Object.keys(dados).map(async k=>{
+    const ref=dados[k];
+    if(typeof ref!=='string'||!ref.startsWith('idb://'))return;
+    const real=typeof gResolveImgUrl==='function'?await gResolveImgUrl(ref):null;
+    if(real)dados[k]=real;else{delete dados[k];missing.push(k);}
+  }));
+  // Nunca deixe idb:// chegar ao <img> do chat. As respostas de texto sobrevivem.
+  if(missing.length&&gen===_fChatGen&&key===fUserCacheKey('luma_chat_draft')&&typeof gToast==='function')gToast('Uma foto do rascunho não está mais neste aparelho. Envie essa foto novamente.','error');
+  return Object.assign({},draft,{dados});
 }
 
 function fSaveChatDraft() {
@@ -3026,28 +3712,51 @@ function fSaveChatDraft() {
     try { if (typeof fBulkRenderPreview === 'function') fBulkRenderPreview(); } catch (e) {}
     return;
   }
+  const seq=++_fChatDraftSaveSeq,gen=_fChatGen,key=fUserCacheKey('luma_chat_draft');
+  const current=()=>seq===_fChatDraftSaveSeq&&gen===_fChatGen&&key===fUserCacheKey('luma_chat_draft');
+  const failed=e=>{
+    console.warn('[Luma Draft] Erro ao salvar rascunho:',e);
+    if(current()&&typeof gToast==='function')gToast('Não consegui guardar o rascunho neste aparelho. Mantenha esta tela aberta e libere espaço antes de sair.','error');
+    return false;
+  };
   try {
     if (!fState.camp || fState.done) {
-      localStorage.removeItem('luma_chat_draft');
+      try{localStorage.removeItem(key);}catch(e){return failed(e);}
       return;
     }
-    const draft = {
+    const draft = JSON.parse(JSON.stringify({
       campId: fState.camp.id,
       fmtId: fState.fmt ? fState.fmt.id : null,
       materialId: fState.material ? fState.material.id : null,
       stepIdx: fState.stepIdx,
       dados: fState.dados || {},
       extractedColors: fState.extractedColors || {}
+    }));
+    const photos=Object.keys(draft.dados).filter(k=>{
+      const v=draft.dados[k];return typeof v==='string'&&v.startsWith('data:image')&&v.length*0.75>G_IMG_KEEP_MAX;
+    });
+    const commit=()=>{
+      if(!current())return false;
+      try{localStorage.setItem(key,JSON.stringify(draft));return true;}catch(e){return failed(e);}
     };
-    localStorage.setItem('luma_chat_draft', JSON.stringify(draft));
+    if(!photos.length)return commit();
+    // Capture bytes/owner/geração antes do await: um save tardio não ressuscita
+    // o rascunho descartado nem atravessa a troca de conta ou de conversa.
+    return Promise.all(photos.map(async k=>{
+      if(typeof gIdbPut!=='function'||typeof gImgHash!=='function')throw new Error('armazenamento de fotos indisponível');
+      const photoKey='draft:'+key+':'+gImgHash(draft.dados[k]);
+      if(!(await gIdbPut(photoKey,draft.dados[k])))throw new Error('foto não foi guardada');
+      draft.dados[k]='idb://'+photoKey;
+    })).then(commit).catch(failed);
   } catch (e) {
-    console.warn('[Luma Draft] Erro ao salvar rascunho:', e);
+    return failed(e);
   }
 }
 
 function fClearChatDraft() {
+  _fChatDraftSaveSeq++;
   try {
-    localStorage.removeItem('luma_chat_draft');
+    localStorage.removeItem(fUserCacheKey('luma_chat_draft'));
   } catch (e) {}
 }
 

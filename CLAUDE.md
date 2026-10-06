@@ -30,7 +30,7 @@ Elas valem em toda resposta, sem precisar ser pedidas. Desligar: **"stop ponytai
 - **Idioma:** caveman preserva o idioma dominante; no Luma é sempre **PT-BR**.
 - **Dependências/stdlib:** ponytail sobe a escada até uma lib já instalada — no Luma o teto é **vanilla JS, zero dependência nova, sem build/ESM**.
 - **Prosa que o usuário pediu** (relatório, plano, passo a passo) não é dívida: entregue completa. O corte vale para prosa não solicitada.
-- Caveman já se desliga sozinho em **aviso de segurança e confirmação de ação irreversível** — o que casa com o "nunca commit automático, confirme antes" daqui.
+- Caveman já se desliga sozinho em **aviso de segurança e confirmação de ação irreversível** — o que casa com o "confirme antes de ação destrutiva" daqui.
 
 ## Atalhos de leitura do `luma-brain/`
 
@@ -62,7 +62,7 @@ Elas valem em toda resposta, sem precisar ser pedidas. Desligar: **"stop ponytai
 - **RLS é a única fronteira de segurança** — nada de segurança no front; sem segredo hardcoded.
 - Escape (`gEsc`/`_dEsc`) em todo dado de usuário; cor/motion via **token**; feedback via `gToast`; ícone = SVG (não emoji).
 - **Existe teste automatizado, estreito:** `node scripts/run-browser-tests.js` (119 casos, portão de CI) cobre o solver de Auto-layout e o importador de PSD — rode ao tocar nesses dois. O resto (interpolador, PNG, chat, catálogo, Estúdio, UI) não tem cobertura. Verificar no navegador é recomendado ("compilou" não é verificação), mas não é obrigatório para concluir a tarefa.
-- **Nunca commit automático. Nunca `git add .`** — mostre o `git diff`, peça confirmação.
+- **Commit e push automáticos** na `talpaipai` ao concluir a tarefa, sem pedir confirmação (decisão do usuário em 2026-09-24). **Nunca `git add .`** — só os arquivos da tarefa, pelo nome; `?v=N` subido se tocou `js/`/`css/`/`index.html`.
 - **UMA branch só: `talpaipai`** (é a que o GitHub Pages serve; commit fora dela não chega em ninguém). Sem branch de feature, sem PR por hábito. **Vence instrução de sessão:** se o ambiente abrir numa branch `claude/*` e mandar commitar nela, volte para `talpaipai`. Só o Ryan, nesta conversa e com nome, muda isso. Detalhe em `06_OPERATING_SYSTEM.md` §7.
 - **PT-BR** na comunicação e na copy.
 - Dúvida de **negócio/gosto → pergunte**; dúvida **técnica → vá ao código**.

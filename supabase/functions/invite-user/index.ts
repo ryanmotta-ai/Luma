@@ -16,8 +16,9 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 // Senha inicial compartilhada. NÃO é segurança — é credencial temporária de
-// primeiro acesso; a pessoa troca no Perfil. (Endurecer: forçar troca no 1º login.)
-const SENHA_PADRAO = "dmbrasil@123";
+// primeiro acesso: desde 23/09/2026 o Luma OBRIGA a troca no 1º login, perguntando ao
+// banco `luma.usa_senha_inicial()`. ⚠ Mudou a senha aqui? Mude naquela função também.
+const SENHA_PADRAO = "dmbrasil";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",

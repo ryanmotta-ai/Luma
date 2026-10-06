@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Luma — Stress de Tipografia, Local Fit Extremo e Sanitização (60 Artes)</title>
+  <style>
+    :root{color-scheme:light dark;font-family:system-ui,-apple-system,sans-serif;background:#0f172a;color:#f8fafc}
+    body{max-width:1080px;margin:32px auto;padding:0 24px}
+    header{margin-bottom:24px;border-bottom:1px solid #334155;padding-bottom:16px}
+    h1{font-size:24px;font-weight:700;margin:0 0 6px;color:#f1f5f9}
+    .summary{color:#94a3b8;font-size:15px;line-height:1.5}
+    .stats-bar{display:flex;gap:16px;margin:16px 0;flex-wrap:wrap}
+    .stat-card{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:10px 16px;min-width:140px}
+    .stat-label{font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em}
+    .stat-val{font-size:20px;font-weight:700;color:#f8fafc;margin-top:2px}
+    ol{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+    .case{padding:14px 16px;border:1px solid #334155;border-radius:10px;background:#1e293b;display:flex;justify-content:space-between;align-items:center;gap:16px}
+    .case.pass{border-color:#10b981;background:linear-gradient(90deg,#064e3b15,#1e293b)}
+    .case.fail{border-color:#ef4444;background:linear-gradient(90deg,#7f1d1d25,#1e293b)}
+    .case-info{flex:1;min-width:0}
+    .case-title{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:#f1f5f9}
+    .case-meta{font-size:12px;color:#94a3b8;margin-top:4px;display:flex;gap:12px;flex-wrap:wrap}
+    .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
+    .badge-g1{background:#0284c7;color:#fff}
+    .badge-g2{background:#7c3aed;color:#fff}
+    .badge-g3{background:#d97706;color:#fff}
+    .badge-g4{background:#e11d48;color:#fff}
+    .badge-g5{background:#059669;color:#fff}
+    .badge-fit{background:#334155;color:#e2e8f0}
+    .thumb{width:80px;height:100px;object-fit:cover;border-radius:6px;border:1px solid #475569;background:#000;flex-shrink:0}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Stress de Tipografia, Local Fit Extremo e Sanitização</h1>
+    <div class="summary" id="summary">Inicializando runner de 60 artes no motor Canvas 2D com Local Fit…</div>
+    <div class="stats-bar" id="statsBar" style="display:none">
+      <div class="stat-card"><div class="stat-label">Total de Artes</div><div class="stat-val" id="statTotal">60</div></div>
+      <div class="stat-card"><div class="stat-label">Aprovadas</div><div class="stat-val" id="statPassed" style="color:#10b981">0</div></div>
+      <div class="stat-card"><div class="stat-label">Tempo Médio</div><div class="stat-val" id="statMediaMs">-</div></div>
+      <div class="stat-card"><div class="stat-label">Solver p95</div><div class="stat-val" id="statP95">-</div></div>
+    </div>
+  </header>
+
+  <ol id="results"></ol>
+
+  <!-- Dependências do ecossistema Luma -->
+  <script src="../js/00-config.js"></script>
+  <script src="../js/01-state.js"></script>
+  <script src="../js/core/toast.js"></script>
+  <script src="../js/core/layout.js"></script>
+  <script src="../js/core/auto-layout.js"></script>
+  <script src="../js/core/local-fit.js"></script>
+  <script src="../js/franqueado/materials.js"></script>
+  <script src="../js/franqueado/png-generator.js"></script>
+  <script src="../js/designer/blending.js"></script>
+  <script src="../js/designer/fonts.js"></script>
+
+  <!-- Casos de Teste -->
+  <script src="artes-tipografia-fit-cases.js"></script>
+</body>
+</html>

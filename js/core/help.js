@@ -129,10 +129,8 @@ const G_FRA_HELP_ARTS={
     {steps:['Baixe o modelo de planilha.','Preencha uma linha por produto.','Envie a planilha e confira a grade.','Toque em <b>Baixar todas</b> pra gerar o pacote.']},
     {tip:'Tem os produtos num texto? Cole direto que o Luma tenta montar a planilha sozinho.'}
   ]},
-  'ajuda-pdf':{title:'Baixar a arte em PDF',read:'1 min',blocks:[
-    {lead:'Precisa imprimir? Baixe em PDF no lugar do PNG.'},
-    {p:'Depois de gerar a arte, use <b>Baixar PDF</b> na tela final. O arquivo sai no tamanho exato da arte, pronto pra gráfica.'}
-  ]},
+  // 'ajuda-pdf' saiu em 26/09/2026: não existe "Baixar PDF" na tela (fBaixarPDF sem
+  // chamador), e este texto chega à IA pelo gHelpKnowledge — ela ensinava um botão fantasma.
   'regras-marca':{title:'Regras da marca Delivery Much',read:'1 min',blocks:[
     {lead:'Relaxa: é impossível estragar a marca no Luma.'},
     {p:'Cores, fontes e logo vêm travados no template pela gestão. Você preenche só o conteúdo — produto, preço, foto.'},
@@ -146,9 +144,9 @@ const G_FRA_HELP_ARTS={
 };
 const G_FRA_HELP_COLS=[
   {id:'comece',title:'Comece por aqui',desc:'O básico pra criar sua primeira arte',arts:['primeira-arte','qual-formato','enviar-foto','editar-arte']},
-  {id:'alem',title:'Vá além',desc:'Lote, PDF e regras da marca',arts:['gerar-varios','ajuda-pdf','regras-marca']}
+  {id:'alem',title:'Vá além',desc:'Lote e regras da marca',arts:['gerar-varios','regras-marca']}
 ];
-const G_FRA_HELP_KW={'primeira-arte':'começar gerar campanha material','qual-formato':'story feed post wide tamanho','enviar-foto':'foto imagem upload png jpg 20mb qualidade','editar-arte':'histórico minhas artes rascunho duplicar','gerar-varios':'lote planilha csv cardápio muitas','ajuda-pdf':'pdf imprimir baixar','regras-marca':'marca cor fonte logo'};
+const G_FRA_HELP_KW={'primeira-arte':'começar gerar campanha material','qual-formato':'story feed post wide tamanho','enviar-foto':'foto imagem upload png jpg 20mb qualidade','editar-arte':'histórico minhas artes rascunho duplicar','gerar-varios':'lote planilha csv cardápio muitas','regras-marca':'marca cor fonte logo'};
 
 let _fhPrev='ajuda', _fhLastCol='comece', _fhPrevOverflow='';
 
@@ -321,7 +319,6 @@ const G_HELP_KEYWORDS={
 };
 
 const G_HELP_ARTICLES=[
-  {id:'ajuda-pdf',cat:'franqueado',title:'Baixar a arte em PDF',sub:'Onde encontrar o download em PDF',keywords:['pdf','baixar','imprimir','download'],body:'Depois de gerar a arte, use Baixar PDF na tela final. Se a arte usar uma imagem por URL e a geracao falhar, confirme que a imagem esta publica.'},
   {id:'ajuda-csv',cat:'franqueado',title:'Gerar artes por planilha',sub:'CSV Modelo, envio e download em lote',keywords:['csv','planilha','lote','sheets','excel'],body:'Abra Gerar varios, baixe o CSV Modelo, preencha uma linha por produto e envie a planilha. Ao revisar a grade, use Baixar todos para gerar o ZIP.'},
   {id:'ajuda-upload',cat:'franqueado',title:'Enviar foto do produto',sub:'Formatos e limite de tamanho',keywords:['foto','imagem','upload','20mb','png','jpg'],body:'Envie imagens PNG ou JPG de ate 20 MB. Para imagens por URL, o endereco precisa ser publico para que a arte possa ser gerada.'},
 ];
@@ -347,6 +344,28 @@ const G_HELP_STOPWORDS=['que','qual','quais','como','onde','quando','porque','po
 function _gHelpNorm(s){
   // ̀-ͯ = marcas de acento soltas depois do NFD ("preço" → "preco")
   return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+}
+/* RADICAL (PT-BR, simples). "baixo", "baixei", "baixando" e "baixar" viram "baix": a busca por
+   palavra inteira não achava o artigo "Baixar a arte" para "como baixo minha arte?". Tira o
+   MAIOR sufixo que deixe ao menos 4 letras; palavra curta fica como está. Recebe texto já
+   normalizado (`_gHelpNorm`). Sem dependência, sem dicionário: é heurística, não gramática. */
+const _G_HELP_SUFIXOS=['ando','endo','indo','ados','adas','idos','idas','amos','emos','imos','aram','eram','iram','avam',
+  'ado','ada','ido','ida','ava','ei','ou','ar','er','ir','os','as','es','o','a','e','s'];
+function gHelpStem(w){
+  w=String(w||'');
+  for(const suf of _G_HELP_SUFIXOS){
+    if(w.length-suf.length>=4 && w.endsWith(suf)) return w.slice(0,-suf.length);
+  }
+  return w;
+}
+function gHelpStemSet(textoNorm){
+  const set=new Set();
+  String(textoNorm||'').split(/[^a-z0-9]+/).forEach(x=>{ if(x.length>2) set.add(gHelpStem(x)); });
+  return set;
+}
+// A palavra da pergunta aparece no alvo, inteira (como antes) ou pelo radical?
+function gHelpTermoCasa(w, alvoNorm, stemSet){
+  return alvoNorm.indexOf(w)>=0 || (w.length>3 && stemSet.has(gHelpStem(w)));
 }
 function _gHelpFlatBlocks(blocks){
   const partes=[];
@@ -391,12 +410,14 @@ function gHelpKnowledge(pergunta, max){
   const palavras=q.split(/[^a-z0-9]+/).filter(w=>w.length>2 && G_HELP_STOPWORDS.indexOf(w)<0);
   if(!palavras.length || !idx.length) return '';
   const ranked=idx.map(it=>{
-    const alvoTitulo=_gHelpNorm(it.title+' '+it.kw);
-    const alvoTexto=_gHelpNorm(it.text);
+    if(!it._n){   // normaliza e tira o radical UMA vez por item (o índice vive a sessão)
+      const t=_gHelpNorm(it.title+' '+it.kw), x=_gHelpNorm(it.text);
+      it._n={t, x, ts:gHelpStemSet(t), xs:gHelpStemSet(x)};
+    }
     let score=0;
     palavras.forEach(w=>{
-      if(alvoTitulo.indexOf(w)>=0) score+=3;   // acerto no título/keyword vale mais
-      else if(alvoTexto.indexOf(w)>=0) score+=1;
+      if(gHelpTermoCasa(w,it._n.t,it._n.ts)) score+=3;   // acerto no título/keyword vale mais
+      else if(gHelpTermoCasa(w,it._n.x,it._n.xs)) score+=1;
     });
     return {it,score};
   }).filter(r=>r.score>0).sort((a,b)=>b.score-a.score).slice(0, max||4);

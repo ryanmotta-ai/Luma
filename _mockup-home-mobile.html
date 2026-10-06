@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Home mobile — 3 propostas</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/00-tokens.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Roboto',sans-serif;background:#E4E4E4;color:var(--text);padding:32px 16px 80px}
+.wrap{display:flex;gap:40px;justify-content:center;flex-wrap:wrap}
+.opt{width:384px}
+.opt h2{font-size:18px;font-weight:900;margin-bottom:4px}
+.opt p.note{font-size:13px;line-height:1.5;color:var(--text-2);margin-bottom:14px;min-height:78px}
+.phone{width:384px;height:812px;border-radius:28px;overflow:hidden;background:var(--off-white);box-shadow:0 30px 60px rgba(15,23,42,.18),0 0 0 1px rgba(0,0,0,.08);display:flex;flex-direction:column;position:relative}
+.scroll{flex:1;overflow-y:auto;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+svg{display:block}
+
+/* topbar (igual à atual) */
+.top{height:56px;flex:none;background:linear-gradient(90deg,#FF9400,#FA8200);display:flex;align-items:center;justify-content:space-between;padding:0 14px;color:#fff}
+.logo{display:flex;align-items:center;gap:8px;font-weight:900;font-size:20px}
+.pill{background:#fff;color:var(--dm-orange-d);font-size:12px;font-weight:700;padding:6px 14px;border-radius:99px}
+.top-r{display:flex;gap:10px;align-items:center}
+.ic-btn{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.18);display:grid;place-items:center}
+.ava{width:38px;height:38px;border-radius:50%;background:#555 url(assets/covers/muchplus.png) center/cover;border:2px solid rgba(255,255,255,.7)}
+
+.px{padding-left:16px;padding-right:16px}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;margin:24px 16px 10px}
+.sec-h b{font-size:16px;font-weight:900}
+.sec-h a{font-size:13px;font-weight:700;color:var(--dm-orange-d);text-decoration:none}
+.muted{color:var(--text-3)}
+.bar{height:4px;border-radius:4px;background:var(--gray-light);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--dm-orange);border-radius:4px}
+.cover{background-size:cover;background-position:center;background-color:#2B55B5}
+
+/* ===== A ===== */
+.a-head{padding:20px 16px 0;display:flex;justify-content:space-between;align-items:flex-start}
+.a-greet{font-size:26px;font-weight:900;line-height:1.1;letter-spacing:-.5px}
+.a-sub{font-size:14px;color:var(--text-3);margin-top:4px}
+.a-mine{display:flex;align-items:center;gap:6px;border:1px solid var(--gray-mid);background:#fff;border-radius:99px;padding:8px 12px;font-size:13px;font-weight:700;flex:none}
+.badge{background:var(--dm-orange);color:#fff;font-size:11px;font-weight:900;border-radius:99px;min-width:20px;height:20px;display:grid;place-items:center;padding:0 6px}
+.a-search{margin:16px 16px 0;height:48px;border-radius:14px;background:#fff;border:1px solid var(--gray-light);box-shadow:0 2px 8px rgba(15,23,42,.05);display:flex;align-items:center;gap:10px;padding:0 14px;color:var(--text-3);font-size:14px}
+.a-search span{flex:1}
+.a-hero{margin:18px 16px 0;border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 10px 30px rgba(15,23,42,.10)}
+.a-hero .cover{height:210px;position:relative}
+.a-tag{position:absolute;top:12px;left:12px;background:rgba(10,10,10,.72);color:#fff;font-size:11px;font-weight:700;padding:5px 10px;border-radius:99px;display:flex;gap:5px;align-items:center;backdrop-filter:blur(6px)}
+.a-hb{padding:14px 16px 16px}
+.a-hb h3{font-size:20px;font-weight:900}
+.a-hb p{font-size:13px;color:var(--text-3);margin-top:3px}
+.a-cta{margin-top:12px;height:46px;border-radius:12px;background:var(--dm-orange-d);color:#fff;font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;gap:8px}
+.a-rail{display:flex;gap:10px;overflow-x:auto;padding:0 16px 4px;scrollbar-width:none}
+.a-rail::-webkit-scrollbar{display:none}
+.a-draft{flex:none;width:150px;background:#fff;border-radius:14px;border:1px solid var(--gray-light);padding:8px}
+.a-draft .cover{height:110px;border-radius:10px}
+.a-draft b{display:block;font-size:13px;margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.a-draft small{display:block;font-size:11px;color:var(--text-3);margin:2px 0 6px}
+.a-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 24px}
+.a-card{background:#fff;border-radius:14px;overflow:hidden;border:1px solid var(--gray-light)}
+.a-card .cover{aspect-ratio:1/1}
+.a-card div.t{padding:8px 10px 10px}
+.a-card b{font-size:13px;display:block}
+.a-card small{font-size:11px;color:var(--text-3)}
+
+/* ===== B ===== */
+.b-top{background:#fff;padding:22px 16px 18px;border-bottom:1px solid var(--gray-light)}
+.b-hi{font-size:14px;color:var(--text-3);font-weight:500}
+.b-q{font-size:28px;font-weight:900;line-height:1.1;letter-spacing:-.6px;margin-top:2px}
+.b-search{margin-top:14px;height:54px;border-radius:16px;background:var(--off-white);border:2px solid var(--dm-orange);display:flex;align-items:center;gap:10px;padding:0 8px 0 14px;font-size:15px;color:var(--text-3)}
+.b-search span{flex:1}
+.b-search .b-fil{flex:none;width:38px;height:38px;border-radius:11px;background:#fff;border:1px solid var(--gray-mid);display:grid;place-items:center;color:var(--text-2)}
+.b-chips{display:flex;gap:8px;margin-top:12px;overflow-x:auto;scrollbar-width:none}
+.b-chips::-webkit-scrollbar{display:none}
+.chip{flex:none;font-size:13px;font-weight:500;padding:8px 13px;border-radius:99px;background:var(--off-white);border:1px solid var(--gray-light);color:var(--text-2);display:flex;gap:6px;align-items:center}
+.chip.on{background:var(--dm-orange-bg);border-color:var(--dm-orange-tint);color:var(--dm-orange-d);font-weight:700}
+.b-quick{display:flex;gap:10px;margin:16px 16px 0}
+.b-q2{flex:1;background:#fff;border:1px solid var(--gray-light);border-radius:14px;padding:12px;display:flex;align-items:center;gap:10px}
+.b-q2 .ico{width:36px;height:36px;border-radius:10px;background:var(--dm-orange-bg);color:var(--dm-orange-d);display:grid;place-items:center;flex:none}
+.b-q2 b{font-size:14px;display:block}
+.b-q2 small{font-size:12px;color:var(--text-3)}
+.b-list{margin:0 16px;background:#fff;border-radius:16px;border:1px solid var(--gray-light);overflow:hidden}
+.b-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--gray-light)}
+.b-row:last-child{border-bottom:0}
+.b-row .cover{width:44px;height:56px;border-radius:8px;flex:none}
+.b-row .inf{flex:1;min-width:0}
+.b-row b{font-size:14px;display:block}
+.b-row small{font-size:12px;color:var(--text-3);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.b-row .go{font-size:13px;font-weight:700;color:var(--dm-orange-d)}
+.b-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 24px}
+.b-card{border-radius:16px;overflow:hidden;position:relative;aspect-ratio:4/5}
+.b-card .cover{position:absolute;inset:0}
+.b-card .shade{position:absolute;inset:auto 0 0 0;padding:28px 10px 10px;background:linear-gradient(transparent,rgba(0,0,0,.78));color:#fff}
+.b-card b{font-size:14px;display:block}
+.b-card small{font-size:11px;opacity:.85}
+.b-card .star{position:absolute;top:8px;left:8px;background:#fff;color:var(--dm-orange-d);font-size:10px;font-weight:900;padding:4px 8px;border-radius:99px}
+
+/* ===== C ===== */
+.c-head{padding:20px 16px 4px;display:flex;align-items:center;gap:12px}
+.c-head .ava2{width:48px;height:48px;border-radius:50%;background:#555 url(assets/covers/muchplus.png) center/cover;flex:none}
+.c-greet{font-size:22px;font-weight:900;letter-spacing:-.4px;line-height:1.15}
+.c-sub{font-size:13px;color:var(--text-3)}
+.c-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 16px 0}
+.tile{background:#fff;border:1px solid var(--gray-light);border-radius:18px;padding:14px;min-height:108px;display:flex;flex-direction:column;justify-content:space-between;position:relative}
+.tile .ico{width:38px;height:38px;border-radius:12px;background:var(--dm-orange-bg);color:var(--dm-orange-d);display:grid;place-items:center}
+.tile b{font-size:15px;display:block}
+.tile small{font-size:12px;color:var(--text-3)}
+.tile.main{grid-column:1/-1;min-height:0;flex-direction:row;align-items:center;gap:14px;background:var(--text);border-color:var(--text);color:#fff}
+.tile.main .ico{background:var(--dm-orange-d);color:#fff;width:48px;height:48px;border-radius:14px;flex:none}
+.tile.main small{color:#BDBDBD}
+.tile.main .arr{margin-left:auto}
+.tile .cnt{position:absolute;top:12px;right:12px}
+.c-cont{margin:0 16px;background:#fff;border:1px solid var(--gray-light);border-radius:18px;padding:12px;display:flex;gap:12px;align-items:center}
+.c-cont .cover{width:62px;height:80px;border-radius:10px;flex:none}
+.c-cont .inf{flex:1;min-width:0}
+.c-st{font-size:11px;font-weight:700;color:var(--dm-red);display:flex;align-items:center;gap:5px;letter-spacing:.3px}
+.c-st i{width:7px;height:7px;border-radius:50%;background:var(--dm-orange)}
+.c-cont b{font-size:15px;display:block;margin:3px 0 2px}
+.c-cont small{font-size:12px;color:var(--text-3);display:block;margin-bottom:8px}
+.c-btn{height:38px;padding:0 14px;border-radius:10px;background:var(--dm-orange-d);color:#fff;font-weight:700;font-size:13px;display:grid;place-items:center;flex:none}
+.c-feed{padding:0 16px 24px;display:flex;flex-direction:column;gap:12px}
+.c-item{background:#fff;border:1px solid var(--gray-light);border-radius:18px;overflow:hidden;display:flex}
+.c-item .cover{width:112px;flex:none;min-height:120px}
+.c-item .t{padding:12px 14px;display:flex;flex-direction:column;justify-content:space-between;flex:1}
+.c-item b{font-size:15px}
+.c-item small{font-size:12px;color:var(--text-3);display:block;margin-top:2px}
+.c-fmt{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.c-fmt span{font-size:10px;font-weight:700;padding:3px 7px;border-radius:6px;background:var(--gray-light);color:var(--text-2)}
+.c-link{font-size:13px;font-weight:700;color:var(--dm-orange-d);margin-top:10px;display:flex;align-items:center;gap:4px}
+.c-hot{font-size:10px;font-weight:900;color:var(--dm-red);letter-spacing:.4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ================= A ================= -->
+<section class="opt">
+  <h2>A · Destaque primeiro</h2>
+  <p class="note">A campanha da semana ganha o topo com capa grande e botão direto. Os rascunhos viram um carrossel compacto (3 cards cabem numa faixa em vez de ocupar a tela inteira). Ajuda vai para o ícone do topo.</p>
+  <div class="phone">
+    <div class="top">
+      <div class="logo"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="m3 21 12-12"/><path d="M15 3v3M13.5 4.5h3M20 8v3M18.5 9.5h3"/></svg>Luma</div>
+      <span class="pill">Franqueado</span>
+      <div class="top-r"><span class="ic-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="ava"></span></div>
+    </div>
+    <div class="scroll">
+      <div class="a-head">
+        <div><div class="a-greet">Boa tarde,<br>Ryan</div><div class="a-sub">Qual arte vamos criar hoje?</div></div>
+        <span class="a-mine"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>Minhas artes <span class="badge">17</span></span>
+      </div>
+      <div class="a-search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><span>Busque campanha, produto…</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg></div>
+      <div class="a-hero">
+        <div class="cover" style="background-image:url(assets/covers/cd.png)"><span class="a-tag"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg>Destaque da semana</span></div>
+        <div class="a-hb"><h3>Copa do Mundo 2026</h3><p>12 materiais · disponível por mais 9 dias</p>
+          <div class="a-cta">Criar arte agora <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div></div>
+      </div>
+      <div class="sec-h"><b>Continue de onde parou</b><a href="#">Ver todos</a></div>
+      <div class="a-rail">
+        <div class="a-draft"><div class="cover" style="background-image:url(assets/covers/cd.png)"></div><b>Combo família</b><small>Hoje 15:09</small><div class="bar"><i style="width:50%"></i></div></div>
+        <div class="a-draft"><div class="cover" style="background-image:url(assets/covers/cd.png)"></div><b>Copa · Story</b><small>Hoje 14:35</small><div class="bar"><i style="width:50%"></i></div></div>
+        <div class="a-draft"><div class="cover" style="background-image:url(assets/covers/cd.png)"></div><b>De R$ 9,00</b><small>Hoje 13:34</small><div class="bar"><i style="width:50%"></i></div></div>
+      </div>
+      <div class="sec-h"><b>Prontas para usar</b><a href="#">Ver todas</a></div>
+      <div class="a-grid">
+        <div class="a-card"><div class="cover" style="background-image:url(assets/covers/pt.png)"></div><div class="t"><b>Pizza Time</b><small>8 materiais</small></div></div>
+        <div class="a-card"><div class="cover" style="background-image:url(assets/covers/gb.png)"></div><div class="t"><b>Good Burger</b><small>6 materiais</small></div></div>
+        <div class="a-card"><div class="cover" style="background-image:url(assets/covers/aai.png)"></div><div class="t"><b>Açaí</b><small>5 materiais</small></div></div>
+        <div class="a-card"><div class="cover" style="background-image:url(assets/covers/rbp.png)"></div><div class="t"><b>Rodízio</b><small>4 materiais</small></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= B ================= -->
+<section class="opt">
+  <h2>B · Busca no centro</h2>
+  <p class="note">A pergunta "O que vamos divulgar?" vira o título, e a busca fica em destaque com atalhos de ocasião logo abaixo. Os rascunhos viram uma lista de uma linha cada, e as campanhas ficam em grade de capas grandes com o nome sobre a imagem.</p>
+  <div class="phone">
+    <div class="top">
+      <div class="logo"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="m3 21 12-12"/><path d="M15 3v3M13.5 4.5h3M20 8v3M18.5 9.5h3"/></svg>Luma</div>
+      <span class="pill">Franqueado</span>
+      <div class="top-r"><span class="ic-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="ava"></span></div>
+    </div>
+    <div class="scroll">
+      <div class="b-top">
+        <div class="b-hi">Boa tarde, Ryan</div>
+        <div class="b-q">O que vamos divulgar hoje?</div>
+        <div class="b-search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--dm-orange-d)" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><span>Pizza, combo, Dia dos Pais…</span><span class="b-fil"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg></span></div>
+        <div class="b-chips"><span class="chip on">Todas</span><span class="chip">Copa 2026</span><span class="chip">Promoção</span><span class="chip">Lanches</span><span class="chip">Favoritas</span></div>
+      </div>
+      <div class="b-quick">
+        <div class="b-q2"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></span><div><b>Minhas artes</b><small>17 salvas</small></div></div>
+        <div class="b-q2"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 1 1 3.6 1.9c-.9.6-1.4 1.1-1.4 2.1M12 17h.01"/></svg></span><div><b>Ajuda</b><small>Fale com a gente</small></div></div>
+      </div>
+      <div class="sec-h"><b>Continue de onde parou</b><a href="#">Ver todos</a></div>
+      <div class="b-list">
+        <div class="b-row"><div class="cover" style="background-image:url(assets/covers/cd.png)"></div><div class="inf"><b>Copa do Mundo 2026</b><small>Combo família · Story · hoje 15:09</small></div><span class="go">Continuar</span></div>
+        <div class="b-row"><div class="cover" style="background-image:url(assets/covers/cd.png)"></div><div class="inf"><b>Copa do Mundo 2026</b><small>Story · hoje 14:35</small></div><span class="go">Continuar</span></div>
+        <div class="b-row"><div class="cover" style="background-image:url(assets/covers/cd.png)"></div><div class="inf"><b>Copa do Mundo 2026</b><small>De R$ 9,00 · Story · hoje 13:34</small></div><span class="go">Continuar</span></div>
+      </div>
+      <div class="sec-h"><b>Campanhas</b><a href="#">Ver todas</a></div>
+      <div class="b-grid">
+        <div class="b-card"><div class="cover" style="background-image:url(assets/covers/cd.png)"></div><span class="star">DESTAQUE</span><div class="shade"><b>Copa 2026</b><small>12 materiais</small></div></div>
+        <div class="b-card"><div class="cover" style="background-image:url(assets/covers/pt.png)"></div><div class="shade"><b>Pizza Time</b><small>8 materiais</small></div></div>
+        <div class="b-card"><div class="cover" style="background-image:url(assets/covers/gb.png)"></div><div class="shade"><b>Good Burger</b><small>6 materiais</small></div></div>
+        <div class="b-card"><div class="cover" style="background-image:url(assets/covers/aai.png)"></div><div class="shade"><b>Açaí</b><small>5 materiais</small></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= C ================= -->
+<section class="opt">
+  <h2>C · Painel de ações</h2>
+  <p class="note">Visual de app: saudação curta com avatar e um botão escuro "Criar nova arte" que abre a busca. Só o rascunho mais recente aparece, com botão "Continuar". Abaixo, atalhos em blocos e um feed de campanhas em cards horizontais com os formatos visíveis.</p>
+  <div class="phone">
+    <div class="top">
+      <div class="logo"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="m3 21 12-12"/><path d="M15 3v3M13.5 4.5h3M20 8v3M18.5 9.5h3"/></svg>Luma</div>
+      <span class="pill">Franqueado</span>
+      <div class="top-r"><span class="ic-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="ava"></span></div>
+    </div>
+    <div class="scroll">
+      <div class="c-head"><div><div class="c-greet">Boa tarde, Ryan</div><div class="c-sub">Qual arte vamos criar hoje?</div></div></div>
+      <div class="c-tiles">
+        <div class="tile main"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><div><b>Criar nova arte</b><small>Busque campanha, produto ou ocasião</small></div><svg class="arr" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+      </div>
+      <div class="sec-h"><b>Continue de onde parou</b><a href="#">+2 rascunhos</a></div>
+      <div class="c-cont"><div class="cover" style="background-image:url(assets/covers/cd.png)"></div><div class="inf"><span class="c-st"><i></i>EM ANDAMENTO</span><b>Copa do Mundo 2026</b><small>Combo família · hoje 15:09</small><div class="bar"><i style="width:50%"></i></div></div><span class="c-btn">Continuar</span></div>
+      <div class="c-tiles">
+        <div class="tile"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></span><span class="badge cnt">17</span><div><b>Minhas artes</b><small>Baixadas e salvas</small></div></div>
+        <div class="tile"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6C19 16.5 12 21 12 21z"/></svg></span><div><b>Favoritas</b><small>3 fixadas</small></div></div>
+      </div>
+      <div class="sec-h"><b>Campanhas prontas</b><a href="#">Ver todas</a></div>
+      <div class="c-feed">
+        <div class="c-item"><div class="cover" style="background-image:url(assets/covers/cd.png)"></div><div class="t"><div><span class="c-hot">DESTAQUE DA SEMANA</span><b style="display:block">Copa do Mundo 2026</b><small>12 materiais · mais 9 dias</small><div class="c-fmt"><span>Story</span><span>Feed</span><span>Wide</span></div></div><span class="c-link">Criar arte <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div></div>
+        <div class="c-item"><div class="cover" style="background-image:url(assets/covers/pt.png)"></div><div class="t"><div><b>Pizza Time</b><small>8 materiais</small><div class="c-fmt"><span>Story</span><span>Feed</span></div></div><span class="c-link">Criar arte <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div></div>
+        <div class="c-item"><div class="cover" style="background-image:url(assets/covers/gb.png)"></div><div class="t"><div><b>Good Burger</b><small>6 materiais</small><div class="c-fmt"><span>Feed</span></div></div><span class="c-link">Criar arte <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div>
+</body>
+</html>

@@ -5,8 +5,13 @@
  * Exibe a animação completa uma vez por dia e usa uma passagem curta nos demais
  * acessos. O boot acontece por baixo: a splash só cobre trabalho real e nunca o cria.
  *
+ * A barra de progresso é REAL: quem empurra a largura é o boot (spStep), e ela nunca
+ * chega a 100% antes do spBootReady. Antes ela enchia em 700ms fixos por CSS — barra
+ * cheia com o app ainda carregando era o que convidava o clique impaciente que revelava
+ * a tela meio-montada. Por isso também não há mais como pular a splash na mão.
+ *
  * Depende de: nada (roda antes de qualquer módulo).
- * Exporta (globalmente): spDismiss — chamável manualmente de qualquer lugar.
+ * Exporta (globalmente): spDismiss, spStep, spBootReady.
  */
 (function () {
   var overlay = document.getElementById('sp-overlay');
@@ -33,19 +38,36 @@
   // Disponibiliza globalmente (chamável de qualquer módulo no futuro)
   window.spDismiss = spDismiss;
 
-  // Permite pular o carregamento com clique duplo no overlay ou ao apertar Esc
-  try {
-    window.addEventListener('DOMContentLoaded', function() {
-      if (overlay) {
-        overlay.addEventListener('dblclick', spDismiss);
-        overlay.style.cursor = 'pointer';
-        overlay.title = 'Clique duplo para pular';
-      }
-      document.addEventListener('keydown', function(ev) {
-        if (ev.key === 'Escape') spDismiss();
-      });
-    });
-  } catch (e) {}
+  // ⛔ NÃO devolva aqui o "pular com Esc / clique duplo". Ele existia e era o furo: a única
+  // forma de o app aparecer meio-montado era a splash sair antes do boot terminar, e as duas
+  // saídas manuais faziam exatamente isso a pedido de quem estava impaciente. O escape de boot
+  // travado continua existindo, mas é o teto de tempo (SP_MAX) — que deixa `g-boot` no body.
+
+  // ── Progresso REAL ────────────────────────────────────────────────────────────────────
+  // Teto de 90% enquanto o boot corre: a barra só fecha em spBootReady. Chegar a 100% com
+  // trabalho em voo é justamente a mentira que esta mudança veio desfazer.
+  var spReady = false;          // boot decidiu (login exibido OU home renderizada)
+  var barra = overlay ? overlay.querySelector('.sp-bar') : null;
+  var status = overlay ? overlay.querySelector('.sp-status') : null;
+  var SP_ETAPAS = 3;            // acesso verificado · catálogo baixado · tela montada
+  var spPasso = 0;
+  function spPinta(pct) { try { if (barra) barra.style.width = pct + '%'; } catch (e) {} }
+  // Etapa do boot concluída: avança a barra e nomeia o que está acontecendo. Depois que o
+  // boot decidiu (spReady), vira no-op — sync atrasado não faz a barra andar para trás.
+  function spStep(rotulo) {
+    try {
+      if (spReady) return;
+      spPasso = Math.min(SP_ETAPAS, spPasso + 1);
+      spPinta(Math.round((spPasso / SP_ETAPAS) * 90));
+      if (rotulo && status) status.textContent = rotulo;
+    } catch (e) { /* progresso nunca derruba o boot */ }
+  }
+  window.spStep = spStep;
+
+  // `g-boot` no body marca "o boot ainda está correndo" para quem quiser reagir. Sai em
+  // spBootReady, NÃO em spDismiss: se o teto de tempo revelar o app com trabalho em voo, a
+  // marca precisa continuar de pé — é exatamente esse o caso que ela existe para cobrir.
+  try { if (document.body) document.body.classList.add('g-boot'); } catch (e) {}
 
   try {
     // Marca completa no primeiro acesso do dia; retorno não cobra uma intro repetida.
@@ -53,12 +75,13 @@
     // Teto duro: em rede lenta / boot travado o splash NUNCA fica preso — revela de qualquer jeito.
     var SP_MAX = 8000;
     var spStart = Date.now();   // marcado no parse (script é o 1º do <body>)
-    var spReady = false;        // boot decidiu (login exibido OU home renderizada)
 
     // Sinal do boot (main.js chama quando o app está pronto pra aparecer). Assim o splash cobre a
     // checagem de sessão e o 1º render — em rede lenta não revela mais uma tela vazia/meio-carregada.
     window.spBootReady = function () {
+      spPinta(100);             // só aqui a barra fecha — o boot terminou de verdade
       spReady = true;
+      try { if (document.body) document.body.classList.remove('g-boot'); } catch (e) {}
       if (Date.now() - spStart >= SP_MIN) spDismiss(); // já passou o mínimo → revela agora
     };
 
@@ -74,6 +97,11 @@
         }, Math.max(0, 1500 - elapsed));
         // Failsafe: revela no teto mesmo sem sinal do boot (rede lenta não prende o splash).
         setTimeout(spDismiss, Math.max(SP_MIN, SP_MAX - elapsed));
+        // Boot que lança nunca chega no spBootReady. Sem esta rede, `g-boot` ficaria preso no
+        // body para sempre e o app nasceria inerte — pior do que a tela meio-montada.
+        setTimeout(function () {
+          try { if (document.body) document.body.classList.remove('g-boot'); } catch (e) {}
+        }, Math.max(SP_MIN, SP_MAX - elapsed) + 400);
       } catch (e) {
         spDismiss(); // qualquer falha → não deixa o overlay preso
       }

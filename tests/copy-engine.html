@@ -1,136 +1,33 @@
-<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Luma — contratos do motor de copy</title>
-<body><h1>Motor de copy — fidelidade e formato</h1><ol id="results"></ol>
-<div id="g-toast-container"></div>
-<script>
-/* A cidade é contexto, não entrada do motor. O dublê torna a hashtag local verificável sem
-   localStorage, perfil ou rede — o restante roda no código real de png-generator.js. */
-function fCidadeAtual(){ return 'Pato Branco'; }
-</script>
-<script src="../js/00-config.js"></script>
-<script src="../js/01-state.js"></script>
-<script src="../js/core/toast.js"></script>
-<script src="../js/franqueado/png-generator.js"></script>
-<script>
-(async()=>{
-const failures=[];let total=0;
-const assert=(x,m)=>{if(!x)throw new Error(m||'asserção falhou');};
-async function test(name,fn){total++;try{await fn();
-  document.getElementById('results').insertAdjacentHTML('beforeend','<li>OK '+gEsc(name)+'</li>');}
-  catch(e){failures.push({name,error:e.message});
-  document.getElementById('results').insertAdjacentHTML('beforeend','<li>FALHOU '+gEsc(name)+'</li>');}}
-const textos=c=>[c.op1,c.op2,c.op3];
-const emoji=/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/u;
-
-await test('Mesmos fatos geram a mesma copy: qualidade não depende de sorte',()=>{
-  const a=fBuildCopy('Pizza Família','R$ 59,90','R$ 39,90','','','feed','Festival de Pizza');
-  const b=fBuildCopy('Pizza Família','R$ 59,90','R$ 39,90','','','feed','Festival de Pizza');
-  assert(JSON.stringify(a)===JSON.stringify(b),'a seleção ainda é aleatória');
-});
-
-await test('Sem validade, o motor não inventa urgência ou fim de semana',()=>{
-  const all=textos(fBuildCopy('Pizza Família','','R$ 39,90','','','feed','Pizza')).join('\n');
-  assert(!/Válid|tempo limitado|fim de semana/i.test(all),all);
-});
-
-await test('Validade real aparece sem duplicar a palavra válido',()=>{
-  const all=textos(fBuildCopy('Pizza Família','','R$ 39,90','Válido até domingo','','feed','Pizza')).join('\n');
-  assert(/domingo/i.test(all),'a validade real sumiu');
-  assert(!/Válido\s+válido/i.test(all),'a validade foi duplicada');
-});
-
-await test('Story tem duas linhas úteis e nenhuma hashtag',()=>{
-  const c=fBuildCopy('Combo de Sushi','R$ 89,90','R$ 59,90','','','story','Festival Japonês');
-  [c.op1,c.op2].forEach(t=>{
-    const linhas=t.split('\n').filter(Boolean);
-    assert(linhas.length<=2,'story passou de duas linhas: '+t);
-    assert(!/#/.test(t),'story recebeu hashtag: '+t);
-  });
-});
-
-await test('Alias stories respeita o mesmo contrato curto',()=>{
-  const t=fBuildCopy('Açaí 500ml','','R$ 24,90','','','stories','Açaí').op1;
-  assert(t.split('\n').filter(Boolean).length<=2&&!/#/.test(t),t);
-});
-
-await test('Feed usa no máximo quatro hashtags e preserva a marca local',()=>{
-  const t=fBuildCopy('X-Bacon','','R$ 29,90','','','feed','Festival de Burger').op1;
-  const tags=t.match(/#[a-z0-9]+/gi)||[];
-  assert(tags.length>0&&tags.length<=4,'quantidade de hashtags: '+tags.length);
-  assert(tags.includes('#deliverymuch'),'faltou hashtag da marca');
-  assert(tags.includes('#deliverymuchpatobranco'),'faltou hashtag local');
-});
-
-await test('WhatsApp não leva hashtag e destaca produto e preço',()=>{
-  const t=fBuildCopy('X-Bacon','','R$ 29,90','','','feed','Burger').op3;
-  assert(!/#/.test(t),t);
-  assert(t.includes('*X-Bacon*'),'produto sem negrito real');
-  assert(t.includes('*R$ 29,90*'),'preço sem negrito real');
-});
-
-await test('Desconto real preserva exatamente preço antigo e preço novo',()=>{
-  const c=fBuildCopy('Pizza Família','R$ 59,90','R$ 39,90','','','feed','Pizza');
-  textos(c).forEach(t=>{
-    assert(t.includes('59,90')&&t.includes('39,90'),'um preço real sumiu: '+t);
-  });
-});
-
-await test('Preço antigo menor que o atual não vira desconto falso',()=>{
-  const all=textos(fBuildCopy('Pizza Família','R$ 20,00','R$ 30,00','','','feed','Pizza')).join('\n');
-  assert(!all.includes('R$ 20,00'),'o preço antigo inválido foi anunciado');
-  assert(!/economiza|desconto|antes\s+R\$ 20/i.test(all),all);
-});
-
-await test('Sem preço, nenhum valor monetário é inventado',()=>{
-  const all=textos(fBuildCopy('Marmita Executiva','','','','','feed','Almoço')).join('\n');
-  assert(!/R\$\s*\d/i.test(all),all);
-});
-
-await test('Desconto percentual sem preço final não gera frase quebrada',()=>{
-  const all=textos(fBuildCopy('Combo de Sushi','','','','20% off','feed','Festival Japonês')).join('\n');
-  assert(all.includes('20%'),'o desconto informado sumiu');
-  assert(!/Preço final:\s*\.|agora\s*\.|por\s*\./i.test(all),all);
-});
-
-await test('Produto feminino não recebe artigo masculino do molde',()=>{
-  const all=textos(fBuildCopy('Pizza Família','','R$ 39,90','','','feed','Pizza')).join('\n');
-  assert(!/\b(?:o|no|do)\s+Pizza Família/i.test(all),all);
-});
-
-await test('Campanha ajuda a reconhecer segmento quando o produto é genérico',()=>{
-  const t=fBuildCopy('Combo 20 peças','R$ 79,90','R$ 49,90','','','feed','Festival de Sushi').op1;
-  assert(/japa|temaki|hot roll|comida japonesa|frescor|fresco/i.test(t),t);
-});
-
-await test('Promo chama para pedir; Engajar chama para conversar',()=>{
-  const c=fBuildCopy('X-Bacon','','R$ 29,90','','','feed','Burger');
-  assert(/app|delivery|pedido|link|mensagem/i.test(c.op1),'CTA comercial ausente');
-  assert(/marca|salva|manda|comenta|compartilha|conta aqui/i.test(c.op2),'CTA de engajamento ausente');
-});
-
-await test('As três opções têm textos diferentes',()=>{
-  const vals=textos(fBuildCopy('X-Bacon','','R$ 29,90','','','feed','Burger'));
-  assert(new Set(vals).size===3,vals.join('\n---\n'));
-});
-
-await test('Nenhuma saída contém placeholder, pontuação órfã ou emoji',()=>{
-  const casos=[
-    fBuildCopy('Pizza Família','','R$ 39,90','','','feed','Pizza'),
-    fBuildCopy('Combo 20 peças','','','','20%','story','Festival de Sushi'),
-    fBuildCopy('Marmita Executiva','','','','','feed','Almoço')
-  ];
-  textos(casos[0]).concat(textos(casos[1]),textos(casos[2])).forEach(t=>{
-    assert(!/\{[a-z]+\}/i.test(t),'placeholder vazou: '+t);
-    assert(!/Válido\s*\.|:\s*\.|\s+[.,!?]/.test(t),'pontuação órfã: '+t);
-    assert(!emoji.test(t),'emoji vazou: '+t);
-  });
-});
-
-const amostra=fBuildCopy('Pizza Família','R$ 59,90','R$ 39,90','até domingo','','feed','Festival de Pizza');
-window.__lumaTest={total,passed:total-failures.length,failures,notas:[
-  'Promo: '+amostra.op1.replace(/\n+/g,' / '),
-  'Engajar: '+amostra.op2.replace(/\n+/g,' / '),
-  'WhatsApp: '+amostra.op3.replace(/\n+/g,' / ')
-]};
-})();
-</script></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Luma — motor de copy</title>
+  <style>
+    :root{color-scheme:light dark;font-family:system-ui,sans-serif;background:#111;color:#f5f5f5}
+    body{max-width:920px;margin:40px auto;padding:0 24px}
+    h1{font-size:24px;margin-bottom:8px}.summary{color:#aaa;margin-bottom:24px}
+    ol{list-style:none;padding:0;display:grid;gap:8px}.case{padding:12px 14px;border:1px solid #333;border-radius:10px;background:#181818}
+    .pass{border-color:#276b42}.fail{border-color:#a33;background:#2a1515}.case strong{display:block}.case small{color:#bbb;white-space:pre-wrap}
+  </style>
+</head>
+<body>
+  <h1>Motor de copy do franqueado</h1>
+  <div class="summary" id="summary">Executando no motor real do navegador…</div>
+  <ol id="results"></ol>
+  <script src="../js/00-config.js"></script>
+  <script src="../js/01-state.js"></script>
+  <!-- gEsc: o `fBuildPerguntas` escapa o rótulo ao montar a pergunta genérica. -->
+  <script src="../js/core/toast.js"></script>
+  <script src="../js/core/layout.js"></script>
+  <script src="../js/core/auto-layout.js"></script>
+  <script src="../js/franqueado/png-generator.js"></script>
+  <!-- O caminho do DADO até a legenda faz parte do contrato: `fDadosSemanticos`/`fPrecoPapel`
+       (materials.js) decidem QUAL campo do template é o produto e o preço, e `fApplyMask`
+       (chat-input.js) grava o valor já rotulado "De:"/"Por:" que a legenda tem que limpar. -->
+  <script src="../js/franqueado/materials.js"></script>
+  <script src="../js/franqueado/chat-input.js"></script>
+  <script src="copy-engine-cases.js"></script>
+</body>
+</html>

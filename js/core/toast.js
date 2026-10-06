@@ -23,9 +23,10 @@
    O toast com ação vive mais (7s): 2,8s é tempo de ler, não de decidir se quer voltar atrás. */
 function gToast(msg, type, helpTopic, opts){
   if (type === 'error') { try{ console.warn('[Luma]', msg); }catch(e){} }
+  opts = opts || {};
+  if (type === 'error' && !(opts.acao) && _gNotifErro(msg)) return;
   const container = document.getElementById('g-toast-container');
   if (!container) return;
-  opts = opts || {};
   const acao = opts.acao && opts.acao.rotulo && typeof opts.acao.onClick === 'function' ? opts.acao : null;
 
   // Daqui pra baixo só existe toast NEUTRO — não há mais ramo de erro, e com ele foram embora
@@ -67,6 +68,35 @@ function gToast(msg, type, helpTopic, opts){
       item.remove();
     }, 300); // tempo correspondente ao transition no CSS
   }, duration);
+}
+
+/* ERRO VIRA NOTIFICAÇÃO NO CANTO SUPERIOR DIREITO (25/09/2026, feedback da Laura: "o erro
+   sai muito rápido da tela"). O toast de 2,8s embaixo é tempo de ver, não de ler um motivo
+   ("ficaram de fora — X: preço 'por' maior que o 'de'"). Aqui o erro fica 10s, PARA de contar
+   com o mouse em cima e tem X. Continua NEUTRO — a decisão de 12/08 (o Luma não alarma)
+   vale: sem vermelho, sem role=alert. Máximo 3 empilhadas; a mais antiga sai. */
+function _gNotifErro(msg){
+  if (!document.body) return false;
+  let box = document.getElementById('g-notif-container');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'g-notif-container';
+    document.body.appendChild(box);
+  }
+  while (box.children.length >= 3) box.firstElementChild.remove();
+  const item = document.createElement('div');
+  item.className = 'g-notif-item';
+  item.setAttribute('role', 'status');
+  item.setAttribute('aria-live', 'polite');
+  item.innerHTML = `<svg class="g-notif-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg><span class="g-notif-txt"></span><button type="button" class="g-notif-x" aria-label="Fechar aviso"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
+  item.querySelector('.g-notif-txt').textContent = msg;   // textContent: a mensagem nunca é HTML
+  const fechar = () => { item.classList.add('hide'); setTimeout(() => item.remove(), 300); };
+  item.querySelector('.g-notif-x').onclick = fechar;
+  let restante = 10000, inicio = Date.now(), timer = setTimeout(fechar, restante);
+  item.addEventListener('mouseenter', () => { clearTimeout(timer); restante -= Date.now() - inicio; });
+  item.addEventListener('mouseleave', () => { inicio = Date.now(); timer = setTimeout(fechar, Math.max(restante, 2500)); });
+  box.appendChild(item);
+  return true;
 }
 
 // gEsc(s) — escapa HTML. Use SEMPRE que dado do usuário (resposta do chat, nome de
@@ -169,6 +199,7 @@ function _gDialog(opts){
       ${isPrompt?`<input class="g-dialog-input" type="text" value="${gEsc(opts.default||'')}" placeholder="${gEsc(opts.placeholder||'')}">`:''}
       <div class="g-dialog-acts">
         <button class="g-dialog-cancel" type="button">${gEsc(opts.cancelLabel||'Cancelar')}</button>
+        ${opts.altLabel?`<button class="g-dialog-cancel g-dialog-alt" type="button">${gEsc(opts.altLabel)}</button>`:''}
         <button class="g-dialog-ok${opts.danger?' danger':''}" type="button">${gEsc(opts.okLabel||'Confirmar')}</button>
       </div>
     </div>`;
@@ -179,16 +210,24 @@ function _gDialog(opts){
     const onCancel=()=>done(isPrompt?null:false);
     ov.querySelector('.g-dialog-ok').onclick=onOk;
     ov.querySelector('.g-dialog-cancel').onclick=onCancel;
+    // Terceira saída OPCIONAL (`altLabel`): resolve 'alt'. Quem não passa não muda em nada.
+    const alt=ov.querySelector('.g-dialog-alt'); if(alt) alt.onclick=()=>done('alt');
     ov.addEventListener('mousedown',e=>{ if(e.target===ov) onCancel(); });
     function onKey(e){
       if(e.key==='Escape'){ e.preventDefault(); onCancel(); }
-      else if(e.key==='Enter'){ e.preventDefault(); onOk(); }
+      else if(e.key==='Enter'){
+        e.preventDefault();
+        /* Enter aciona o botão FOCADO: quem chega por Tab em "Cancelar"/"Editar" e tecla Enter
+           confirmava — no diálogo `danger` isso apagava; no "não cabe", trocava o texto. */
+        const f=document.activeElement;
+        if(f&&f.tagName==='BUTTON'&&ov.contains(f)) f.click(); else onOk();
+      }
     }
     document.addEventListener('keydown',onKey,true);
     setTimeout(()=>{ if(input){input.focus();input.select();} else { const ok=ov.querySelector('.g-dialog-ok'); if(ok)ok.focus(); } },30);
   });
 }
-function gConfirm(message, opts){ opts=opts||{}; return _gDialog({prompt:false, message, title:opts.title, okLabel:opts.okLabel, cancelLabel:opts.cancelLabel, danger:opts.danger}); }
+function gConfirm(message, opts){ opts=opts||{}; return _gDialog({prompt:false, message, title:opts.title, okLabel:opts.okLabel, cancelLabel:opts.cancelLabel, altLabel:opts.altLabel, danger:opts.danger}); }
 function gPrompt(message, defaultVal, opts){ opts=opts||{}; return _gDialog({prompt:true, message, default:defaultVal||'', placeholder:opts.placeholder, title:opts.title, okLabel:opts.okLabel||'OK', cancelLabel:opts.cancelLabel}); }
 
 // C6: aviso (uma vez por sessão) de que imagens enviadas não são persistidas.

@@ -6,6 +6,271 @@
 
 ---
 
+## 2026-09-30 — Franquias da rede, escolha da própria franquia e gírias por franquia (✅ migration `20260930200000`)
+
+- `luma.franquias` ganhou `lat`/`lon` e as **41 franquias** da lista do Ryan (`codigo` = slug; a do bot de teste fica sem código e fora da lista).
+- `luma.franquias_para_escolha()` (SECURITY DEFINER): a lista para o franqueado, que pela RLS só enxerga as próprias.
+- `luma.escolher_minha_franquia(id)` (SECURITY DEFINER): vincula `auth.uid()` **uma vez** (`origem='manual'`); segunda escolha é recusada ("fale com a gestão").
+- `luma.franquia_girias`: `franquia_id` (nulo = veto da DM para a rede), `termo` ≤ 24, `origem` ia/franqueado/dm, `status` sugerida/aprovada/vetada. RLS: franqueado lê a própria + vetos da rede e escreve só a própria (nunca `origem=dm`); `is_designer()` faz tudo. Helper `luma.sou_da_franquia(id)`.
+- Testado por SQL como franqueado sem vínculo (transação desfeita): vê 41, vincula, 2ª escolha bloqueada, gíria em outra franquia bloqueada, veto da rede bloqueado, gíria na própria gravada.
+- Front: `js/core/franquia.js` (pergunta no login) e `js/franqueado/chat.js` (`_fGiriasDaFranquia`, `fGiriasPainel`, sorteio `_fGiriaUma`). Síntese da reunião em `.maestri/reuniao-legenda/4-sintese.md`.
+
+## 2026-09-30 — Assistente "Lu": persona no servidor e busca por radical (✅ função `ai` v22, v23)
+
+Reunião curta (Rafael, Juliana, Camila) → decisão do maestro: persona e regras da nova task `ajuda` (assistente da Central de Ajuda) saem do navegador para a função `ai`, como o tutor `aula` — regra de produto não pode ser reescrita no DevTools.
+
+- **`ajuda` é a 2ª task com prompt montado no servidor.** `AJUDA_SISTEMA` define a Lu (time da Delivery Much, assistente virtual assumida, direta, sem inventar regra); fonte só nos TRECHOS DA CENTRAL enviados pelo front, no ESTADO DA TELA e num resumo curado de `01_BUSINESS.md` (`AJUDA_REGRAS_REDE`, seções citadas). Saída fixa pelo `AJUDA_SCHEMA`: `{texto, nao_sei, delegar, motivo_delegar}`.
+- **`montaPromptAjuda`** monta o bloco com trechos (máx. 4, 1500 caracteres cada), estado da tela (material, campo bloqueado pelo Local Fit, erro de validação, formato) e quem da equipe está online — com estado, a Lu responde mesmo sem trecho da Central; sem trecho e sem estado, não chama IA. Teto de 9000 caracteres corta o CONTEXTO, nunca a pergunta (ela vai por último no prompt).
+- **`normalizaAjuda`** garante no servidor, não confiando no modelo: `nao_sei=true` sempre implica `delegar=true`; a frase "a equipe está online" só sobrevive na resposta se `equipeOnline` de fato tiver alguém.
+- **Delegar é código, não IA:** resposta com `delegar`/`nao_sei`, pedido explícito de gente ou 2 votos "não ajudou" oferecem "Chamar [nome]" (quem está online) ou a caixa de mensagem — decisão no front (`help-widget.js`), não no modelo.
+- **Segurança (Diego):** contexto vindo do navegador tem `"###"` e `'"""'` neutralizados antes de entrar no prompt — ninguém fecha a seção PERGUNTA nem abre um bloco falso de REGRAS pelo campo de texto.
+- **v23 (mesmo dia, `AJUDA_PROMPT_V` `2026-09-30.2`):** busca por radical no lado do front (`gHelpStem`/`gHelpTermoCasa`, `help.js` — "baixo" casa com "baixar"), artigo novo do Kit da campanha no `help-widget.js`, e a Lu passou a recusar assunto fora do Luma numa frase, sem delegar.
+- Celular (Camila): "Fechar" do modal de imagens, "Ajustar foto" e as áreas de toque da alça da gaveta/ferramentas/enviar/voltar/refazer em 44 px.
+
+Testado com chamadas reais: responde pelo trecho em passos e delega pedido de contrato. Testes: franqueado 117/117 (v22).
+
+## 2026-09-29 — IA: regra por tarefa (camada 1) e prompts mais assertivos (✅ função `ai` v21)
+
+Pesquisa do Alicerce (14 dias de `ia_chamada`): o pensamento do Gemini era ~31% da saída; a revisão da arte falhava em 400 porque levava a foto em base64 no prompt.
+
+- **Política por tarefa no servidor** (`POLITICA` em `index.ts`): teto de saída e nível de pensamento por tarefa (`thinkingConfig.thinkingLevel`, só nos modelos que aceitam; 400 com o nível repete o mesmo modelo sem ele). Resposta cortada no teto desce de degrau. Legenda com `temperature` 0.5.
+- **Rota por custo (só texto):** Flash-Lite → reservas grátis → só então 3.6/3.8/3.7 Flash. Reservas recebem o schema em uma linha (−45% de entrada nelas).
+- **Prompts** (`ai-registry.js`): legenda 1.3.0 (gancho, CTA, preço e validade dos fatos, acento com exemplos), copy.fit, content.review (só campos de texto: fim do base64 — 66 mil → 1 mil caracteres no caso com foto) e image.validate (foto × logo sem ambiguidade). −9% a −29% de entrada.
+- **Validador da legenda** (`ai-schemas.js`): hashtags da cidade garantidas em promo/engajar e retiradas do WhatsApp — regra fixa é do Luma, não do modelo.
+- Testado com chamadas reais (Flash-Lite, 3–5s): preço, validade e hashtags certos. Limitação: quando os fatos vêm digitados sem acento, o WhatsApp às vezes sai sem acento (1 de 4 amostras).
+
+## 2026-09-29 — Edge Function `ai`: prazo único e reservas em paralelo (✅ publicada como v19 em 29/09/2026)
+
+Medido antes (14 dias, 203 chamadas em `ia_chamada`): 15% em timeout de 45s, 24% em 502, reserva respondeu 4 vezes. Causa: tentativa ao Gemini sem teto (um modelo travado comia os 45s do front antes de chegar às reservas) e escada que só descia em 403/404/429/503.
+
+- **Prazo único de 38s** para a chamada inteira (abaixo dos 45s do front), que também cai quando o navegador desiste (`req.signal`).
+- **Teto por tentativa:** 15s no 1º Gemini, 10s nos seguintes, 12s por reserva — sempre limitado ao que sobra do prazo.
+- **Desce também** em 500/502/504, demora, erro de rede e resposta vazia. 400 não desce no Gemini (o pedido é que está errado) e vai direto às reservas.
+- **Disparo em paralelo (só texto):** Gemini calado por 8s, ou já falhou → as reservas fora do Google (NVIDIA, NVIDIA2, Ollama, Cloudflare, OpenRouter, em ordem) entram junto; fica a primeira resposta, a outra é abortada. Com anexo não há reserva.
+- **Prazo estourado = 504** "a IA demorou demais para responder" (antes: 502 genérico ou nada até o front desistir).
+- Front (`js/core/ai/ai-client.js`): o gateway `gAI` deixa de repetir a chamada no 502 (v=172).
+- Simulada com fetch falso (8 cenários: Gemini rápido, travado, 503 em tudo, 400, vazio, com anexo, tudo travado): todos no desfecho esperado.
+
+## 2026-09-26 — Suporte pelo Telegram (a ponte)
+
+**`20260926130000_luma_suporte_telegram`** (⏳ **escrita, NÃO aplicada** — depende da `20260926120000`; aplicar as duas em ordem e seguir "Como ligar" em `docs/SUPORTE-TELEGRAM.md`). Decisões do Ryan: Telegram, prints vão, jurídico aprovou, `/disponivel` conta como online.
+
+- Liga `pg_net` e `pg_cron`.
+- **`suporte_mensagens.via`** (`luma` | `telegram`), decidido pelo gatilho `suporte_msg_via` a partir de uma marca da transação que só a RPC da ponte põe. O cliente não escolhe.
+- Tabelas, todas com RLS e sem escrita do cliente:
+  - `suporte_telegram_contas`: vínculo pessoa ↔ Telegram + `disponivel_ate`. A pessoa lê só o próprio.
+  - `suporte_telegram_codigos`: código de vínculo, guardado como hash, 10 min.
+  - `suporte_telegram_topicos`: franqueado ↔ tópico.
+  - `suporte_telegram_saida`: fila com aluguel de 2 min.
+  - `suporte_telegram_updates`: deduplicação do webhook.
+- **Fila:** gatilhos AFTER INSERT em `suporte_mensagens` (só `via = 'luma'`, sem eco) e em `suporte_eventos` enfileiram. Não enfileira nada sem o segredo `luma_suporte_telegram_segredo` no Vault. O INSERT na fila chama a função por `pg_net`, e o `pg_cron` (`luma-suporte-telegram`, a cada minuto) repete, porque o `pg_net` não tenta de novo.
+- **RPCs da Edge Function (execute só `service_role`):** `suporte_telegram_pegar`, `_feito`, `_topico`, `_update`, `_codigo`, `_conversa`, `_acao`. A `_acao` assume a identidade do atendente vinculado **só na transação** (`request.jwt.claims`) e grava pelo caminho normal: carimbo, trava de responsável e histórico valem igual ao Luma. Responder marca as mensagens do franqueado como vistas.
+- **RPCs do Luma:** `suporte_telegram_vincular(p_codigo)` (só equipe) e `suporte_telegram_desvincular()`.
+- **`suporte_equipe()`** recriada com `telegram_ate`: é o que põe quem está disponível pelo Telegram no "online agora" do franqueado.
+- **Flag** `global.help.suporte.telegram`, semeada **desligada**.
+
+**Edge Function `suporte-telegram`** (nova, **não publicada**): `verify_jwt = false`, porta = cabeçalho `X-Telegram-Bot-Api-Secret-Token`. Segredos `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_WEBHOOK_SECRET`.
+
+**`supabase/tests/rls.sql`**: +10 casos "telegram:" — o franqueado não chama a ponte, não lê a fila nem vínculos alheios, não vincula e não forja `via`; Telegram sem vínculo é recusado; a trava vale pelo Telegram; a resposta grava como a equipe, com `via = telegram`. **Ainda não rodados.**
+
+## 2026-09-26 — Suporte: atendimento com dono, estado e histórico
+
+**`20260926120000_luma_suporte_atendimento`** (⏳ **escrita, NÃO aplicada** — a aplicação pelo agente foi bloqueada; aplicar pelo SQL Editor ou `apply_migration` e rodar `supabase/tests/rls.sql`). Em cima da conversa (que continua sendo o `franqueado_id`):
+
+- `luma.suporte_conversas` — uma linha por franqueado: `status` (`novo` · `em_atendimento` · `aguardando_usuario` · `resolvido`), `responsavel_id`, `aberta_em`, `resolvida_em`. Sem grant de escrita para ninguém: muda só pelo gatilho e pelas RPCs.
+- `luma.suporte_eventos` — histórico (`assumiu`, `repassou`, `resolveu`, `reabriu`) com ator/de/para e os primeiros nomes copiados na hora (o franqueado não lê `profiles` da equipe).
+- Gatilho `suporte_msg_estado` (BEFORE INSERT em `suporte_mensagens`, roda depois do `suporte_msg_carimbo`): cria/trava a linha do atendimento (`for update`), **recusa resposta da equipe quando outra pessoa é a responsável** (`SUPORTE_OUTRO_RESPONSAVEL`), faz a resposta assumir conversa sem dono, passa a vez, e reabre como `novo` sem dono quando o franqueado escreve depois de resolvida.
+- RPCs (SECURITY DEFINER, só `is_designer()`): `suporte_assumir(p_franqueado, p_forcar)`, `suporte_repassar(p_franqueado, p_para)`, `suporte_resolver(p_franqueado)`. Devolvem `{ok:false, erro:'outro_responsavel', responsavel_nome}` em vez de erro quando outra pessoa atende.
+- `suporte_equipe()` — o cartão da equipe ativa (id, nome, cargo = `departamento` ou "Equipe DM", `avatar_url`), para o franqueado ver quem atende. Só esses quatro campos, só da equipe.
+- View `suporte_caixa` ganha `status` e `responsavel_id` (no fim). `suporte_conversas` entra na publicação `supabase_realtime`. Backfill: conversa cuja última mensagem foi da equipe nasce `aguardando_usuario` com o autor dela como responsável; as outras, `novo`.
+
+**Front:** `js/core/suporte.js` (`gSupAssumir`, `gSupRepassar`, `gSupResolver`, `gSupSetStatus`, `gSupPessoa`, `gSupOnlinePessoas`, `gSupPedeAcao`) + widget de ajuda (barra do atendimento, trava no campo de resposta, filtros Fila/Comigo/Todas, histórico no fio, status Disponível/Ausente, cartão de quem atende). **Sem a migration no ar, o front detecta (`G_SUP.atendimento = false`) e continua exatamente como a v1.**
+
+**`supabase/tests/rls.sql`**: +14 casos "atendimento:" (franqueado não lê nem muda atendimento alheio, não chama as RPCs, não aparece em `suporte_equipe`; gestão não responde por cima da equipe; assumir forçando fica no histórico; repassar para franqueado recusa; resolvida + nova mensagem volta para a fila). **Ainda não rodados** — dependem da migration.
+
+## 2026-09-24 — Gestão lê as artes da rede (modo "Ver a rede")
+
+- Nova policy `"gestao lê artes da rede"` em `luma.artes` (migration `20260924120000_luma_artes_gestao_le_rede.sql`): `FOR SELECT USING ((select public.get_user_role()) = 'gestao')`. Só leitura, só `gestao` (decisão do Ryan); `equipe_dm` e franqueado seguem lendo apenas as próprias. INSERT/UPDATE/DELETE continuam exclusivos do dono.
+- Consumidor: `fCampRedeOpen` (`js/franqueado/catalog.js`), item "Ver a rede" no menu de 3 pontos da campanha. Nome da loja vem de `profiles.franquia/cidade` (já legível por `is_designer()`).
+- Efeito colateral bom: o "Analisar campanha" (`_fCampAnaUsoBackend`) passa a mostrar o uso real da rede para a gestão, em vez de cair no histórico local.
+
+## 2026-09-24 — Tokens e custo de IA por modelo (function `ai` v18 + RPC `luma.dados_ia_modelos`)
+
+- Function `ai` v18 devolve `tokens:{in,out}` contados pelo provedor (Gemini `usageMetadata`, com o pensamento somado à saída; reservas `usage`). O front grava em `ia_chamada` (`tokens_in`, `tokens_out`).
+- Nova RPC `luma.dados_ia_modelos(p_de, p_ate)` (migration `20260924_dados_ia_modelos.sql`): chamadas bem-sucedidas por modelo, tokens medidos e quantas vieram sem contagem. Mesma autorização do painel (`luma._dados_autoriza`); `execute` só para `authenticated`.
+- Dados → IA ganha "Custo por modelo" e a calculadora de custo; o preço por 1M tokens mora em `G_DADOS_IA_PRECO` (`js/core/dados.js`).
+
+## 2026-09-24 — Function `ai` v17: reservas NVIDIA voltam a responder
+
+As duas reservas NVIDIA davam **410 Gone**: o `meta/llama-3.3-70b-instruct` saiu do catálogo da NVIDIA em 26/08/2026, e a fila perdia duas tentativas mortas a cada pane do Gemini (vista em 24/09, 13:30 e 16:30 UTC). Agora cada chave usa um modelo diferente, conferido no catálogo vivo (`/v1/models`): `nvidia` → `google/gemma-4-31b-it`, `nvidia2` → `deepseek-ai/deepseek-v4.1-flash`. Um modelo por chave, para uma descontinuação não derrubar as duas de novo. Sem migration, `verify_jwt` mantido.
+
+## 2026-09-24 — Local Fit completo no painel de Dados (`luma.dados_localfit` v2)
+
+**`20260924100000_luma_dados_localfit_completo`** (aplicada): mesma assinatura, retorno é superconjunto do de 23/09 (`por_status`, `resolveu`, `nao_coube` seguem com as mesmas chaves). Novos blocos: `resumo` (export coube/como desenhado/ajustou/bloqueou, prévia, p50/p95/pior tempo, pessoas e templates afetados, caixas que estouraram, fonte substituída), `anterior` (mesmo recorte no período anterior de igual tamanho, para a variação em p.p.), `por_dia`, `por_material` (com nome e pasta do template), `nao_coube` com limite seguro mediano/formatos/pessoas, recortes `por_formato`/`por_dispositivo`/`por_navegador`/`por_fonte`/`por_versao`, `tempo_faixas`, `camadas_faixas`, `recuperacao` (texto_nao_cabe → copyfit_* → arte baixada na MESMA sessão `_ctx.sid`), `por_pessoa` e `recentes` (25 últimos bloqueios, para reproduzir). Front: aba **Local Fit** própria em `js/core/dados.js` (antes era um bloco dentro de Qualidade).
+
+⚠ `camadas_invalidas` do evento NÃO é geometria quebrada: é a lista de caixas que estouraram (`invalidIds` do `gLocalFitArte`). O painel lê como "caixas que estouraram".
+
+Testado: equipe (gestão/equipe DM) lê; franqueado recebe 42501 de `_dados_autoriza`; anon não entra no schema `luma`.
+
+## 2026-09-24 — Edge Function `ai`: fila de reservas quando o Gemini falha
+
+Depois da escada Gemini, tenta em ordem, no formato OpenAI (`/chat/completions`), com timeout de 20 s cada: NVIDIA (`NVIDIA_API_KEY`, depois `NVIDIA2_API_KEY`, Llama 3.3 70B) → Ollama Cloud (`OLLAMA_API_KEY`, gpt-oss 120B) → Cloudflare Workers AI (`CLOUDFLARE_API_KEY`, Llama 3.3 70B fp8-fast; account id do secret `CLOUDFLARE_ACCOUNT_ID` ou descoberto pela chave) → OpenRouter (`OPENROUTER_API_KEY`, `openrouter/free`). Secret ausente = provedor pulado. Só chamadas sem anexo descem (os modelos de reserva não leem imagem/PDF/áudio). Deploy: versão 16.
+
+---
+
+## 2026-09-23 — Ataque simulado pela API + conta desativada perde o poder no banco
+
+**O ataque.** Pergunta do Ryan: "alguém pode quebrar o Luma pelo DevTools?". O DevTools é o navegador da pessoa — o que importa é o que a anon key pública + o JWT de uma conta real conseguem pela API. Rodado como o PostgREST roda (papel `authenticated`/`anon` + `request.jwt.claims`), em transação que termina num `raise exception` proposital: nada fica gravado. ~110 tentativas: franqueado ativo contra outro franqueado (ver, alterar, apagar, forjar em 17 tabelas + Storage + RPCs), anônimo, franqueado/equipe/gestão desativados.
+
+**O que segurou** (sem mudança): anon não entra nos schemas `luma`/`analytics`; franqueado não vê rascunho, pasta arquivada, arte/perfil/conversa/feedback/evento de outro; não altera nem apaga template, pasta, flag, versão, franquia, vínculo ou asset; não se promove (`guard_profile_role`); `restaurar_versao` e as RPCs de Dados recusam. Três forjas são **neutralizadas por gatilho**, não recusadas: evento com `user_id` de outro é regravado em nome de quem mandou (`evt_forca_identidade`); mensagem "como equipe" na conversa de outro cai na própria conversa, como franqueado (`suporte_msg_carimbo`); e o texto de mensagem não é editável (grant de UPDATE só em `lida_em`). Views `analytics.vw_*` são `security_invoker`.
+
+**O que furou.** Desativar (`profiles.ativo = false`) só tirava a pessoa do APP (`auth.js` desloga no boot); a senha segue valendo no Auth e, pela API: equipe_dm desativada seguia `is_designer()` = true (despublicar/apagar os 56 templates, arquivar as 17 pastas, mexer nos 946 assets do Storage); gestão desativada seguia `get_user_role()` = 'gestao' (as 35 flags, promover qualquer conta a gestão); franqueado desativado ainda lia os templates publicados.
+
+**`20260923189000_luma_desativado_perde_poder`** (aplicada): a correção mora nas duas funções que TODAS as policies consultam — `is_designer()` exige `ativo`; `get_user_role()` devolve nulo para conta desativada (fecha tudo que é "só gestão", inclusive se reativar pelo guard). A policy de SELECT de `luma.templates` passa a pedir `is_ativo()` no ramo do franqueado, como pastas/variáveis/versões já pediam. ⚠ Gestão que se desativa por engano não se reativa sozinha: a outra conta de gestão reativa.
+
+**`supabase/tests/rls.sql`**: +8 casos (bloco "CONTA DESATIVADA"). **64 de 64 verdes** em produção depois da migration; conferido que nada ficou gravado (templates 56, publicados 8, pastas ativas 17, zero perfis desativados, zero resíduo `RLS-TESTE`/`HACK`). Linter de segurança sem aviso novo.
+
+⚠ **Segue aberto (baixo):** conta desativada ainda grava arte própria e sobe arquivo na própria pasta (`luma-user-uploads`, 8 MB por arquivo); a Edge Function `invite-user` confere `role = 'gestao'` mas não `ativo`; a `ai` aceita qualquer JWT, com limite de 20 chamadas/min por usuário **em memória** (por instância — não é teto global da cota do Gemini).
+
+---
+
+## 2026-09-23 — Suporte ao vivo (franqueado ↔ equipe DM) e foto de perfil no banco
+
+**`20260923187500_luma_profiles_avatar`** (aplicada): a foto de perfil vivia só no `localStorage` do navegador. A coluna `profiles.avatar_url` já existia desde o schema inicial (espelho do DM CRM) e nunca foi usada. A migration só acrescenta o CHECK `profiles_avatar_url_storage` (NOT VALID), que prende a URL ao Storage do projeto (`…/object/public/luma-user-uploads/…`). O arquivo vai para `luma-user-uploads/<uid>/avatar.jpeg` pelas policies de dono que já existiam. **Front:** `gUserFoto` (auth.js) é o único lugar que decide a foto de alguém; `gProfileSalvarFoto` sobe e grava; `gProfileSyncFotoLocal` sobe, no login, a foto antiga que só estava no navegador.
+
+**`20260923188000_luma_suporte_ao_vivo`** (aplicada): `luma.suporte_mensagens`. Uma tabela só: a conversa é o `franqueado_id`, e "aguardando" é derivado (a última mensagem veio do franqueado). O gatilho `suporte_msg_carimbo` grava `autor_id`, `autor_nome` (primeiro nome), `da_equipe` (= `is_designer()`) e força o franqueado a escrever só na própria conversa, nunca confiando no cliente. RLS: o franqueado lê e escreve só a própria conversa; a equipe e a gestão leem tudo e respondem; UPDATE só em `lida_em` (grant por coluna); ninguém apaga. View `luma.suporte_caixa` (security_invoker) para a caixa de entrada. A tabela entra na publicação `supabase_realtime`. **Presença:** canal privado `luma:suporte`, com policies em `realtime.messages` (só a equipe anuncia; todo logado ativo escuta). **Bucket privado `luma-suporte`** (5 MB, PNG/JPG/WEBP) para prints, na pasta `<franqueado_id>/`. Flag `global.help.suporte` (filha de `global.help`) semeada ligada. **Front:** `js/core/suporte.js` (`gSup*`) + widget de ajuda + botão "Conversas" na topbar da equipe. **Limite da v1:** o "ao vivo" só funciona com o Luma aberto dos dois lados; ainda não há aviso por e-mail ou push.
+
+**Conferido depois de aplicar:** o canal de mensagens e o canal PRIVADO de presença conectam com a sessão de gestão; `track` da equipe aparece na presença e `untrack` a tira; `suporte_caixa` responde 200; nenhum aviso novo no linter de segurança.
+
+**`supabase/tests/rls.sql`**: +15 casos (anon, franqueado A e equipe no suporte; URL externa e foto de outro no perfil). **15 de 15 verdes** em produção (transação desfeita, conferido que nada ficou gravado).
+
+⚠ **Falta testar:** a troca real de mensagens entre um franqueado e a equipe (Realtime de INSERT/UPDATE, print anexado, "Visto"). Precisa de duas contas logadas.
+
+---
+
+## 2026-09-23 — Funções de policy sem EXECUTE para anon
+
+**`20260923187000_luma_helpers_sem_anon`** (aplicada): fecha o aviso 0028 do Supabase — `is_designer`, `is_ativo` e `get_user_role` não são mais executáveis sem login. Conferido: anon recusado; franqueado logado lê pastas (17), templates publicados e flags normalmente. ⚠ O EXECUTE de `authenticated` fica: as policies dependem dele. **Segue aberto (Dashboard, ação do Ryan):** ligar a proteção contra senha vazada no Auth.
+
+---
+
+## 2026-09-23 — Observabilidade do Local Fit (`luma.dados_localfit`)
+
+**`20260923186000_luma_dados_localfit`** (aplicada): lê o evento `layout_resolvido` (já gravado pelo front desde 08/2026) e devolve a divisão por resultado (`original`/`wrapped`/`shrunk`/`overflow`, e `adapted`/`unsafe` do motor anterior), separada entre **export** (a arte que saiu) e **preview** (cada repintura — infla), a parcela de exportadas que couberam, a mediana de tempo e os materiais/campos que mais bloquearam. Primeira leitura real (90 dias): **24 de 24 exportadas couberam**, mediana 9,7 ms; o que mais estoura na prévia é o `precoPor` de um material (20×). **Front (v=130):** seção "O texto coube?" no fim da aba Qualidade do painel de Dados, carregada só quando a aba abre.
+
+---
+
+## 2026-09-23 — Audit log (`luma.audit_log`)
+
+**`20260923185000_luma_audit_log`** (aplicada): gatilho genérico `auditar` (AFTER, SECURITY DEFINER) em `pastas`, `templates`, `profiles`, `franquias` e `usuario_franquias`. Grava tabela, id, ação, **quem** (`auth.uid()`), quando e os NOMES dos campos que mudaram (sem valores; `layers` fica de fora — o conteúdo mora em `template_versions`). Ações com nome de negócio: `publicou`, `despublicou`, `arquivou`, `desarquivou`, `mudou_papel` (com antes/depois), `desativou`, `reativou`. Upsert sem mudança não registra; edição só de conteúdo (autosave) registra no máximo 1 linha a cada 10 min por pessoa+template. Lê: equipe DM e gestão. Ninguém escreve nem apaga pelo app. Testado em transação desfeita (7 casos verdes).
+
+---
+
+## 2026-09-23 — Franquias (unidades), suíte de RLS e estado das migrations
+
+**`20260923184000_luma_franquias`** (aplicada): `luma.franquias` (nome, cidade, UF, `codigo` único, status ativa/inativa; único por nome+cidade) e `luma.usuario_franquias` (N:N, `origem` manual/perfil). RLS: franqueado vê só as próprias unidades e vínculos; equipe DM vê tudo; **só a gestão escreve**. Gatilho `perfil_para_franquia` em `profiles`: quando a gestão preenche Cidade/Franquia na tela Equipe, acha ou cria a unidade e liga a pessoa (troca só o vínculo de origem `perfil`; vínculos manuais ficam). Testado em transação desfeita: 2 franqueados na mesma unidade → 1 unidade/2 vínculos; troca de cidade troca o vínculo; franqueado vê só a sua e não cria/não se vincula; equipe não cria. **Ainda não:** filtrar conteúdo por unidade (regra de negócio não decidida) e tela de cadastro de unidades (hoje via Equipe ou SQL).
+
+**`supabase/tests/rls.sql`** — suíte de RLS: anon, franqueado A/B, equipe e gestão numa transação desfeita, com casos negativos. **40 casos, todos verdes.** Rodar depois de toda migration que mexa em policy.
+
+**`supabase/MIGRATIONS.md`** — repo × banco conferido objeto a objeto: o repo é superconjunto do banco; só a Academia (2 arquivos) está no repo sem ter sido aplicada. Falta testar a reconstrução do zero num ambiente separado.
+
+---
+
+## 2026-09-23 — Versionamento de templates (`luma.template_versions`)
+
+**Problema:** publicar sobrescrevia `templates.layers` e a arte guardava só `template_id` — mudar o template hoje mudava a arte de ontem ao reabrir/rebaixar, sem rollback nem histórico.
+
+**`20260923183000_luma_template_versions`** (aplicada):
+- `luma.template_versions` imutável (sem policy de insert/update/delete; leitura para designer e conta ativa). `template_id` sem FK de propósito: excluir o template não leva a versão que uma arte antiga usa.
+- Gatilho `versionar_template` (BEFORE, SECURITY DEFINER): template **publicado** cujo conteúdo (layers, w/h, bg, fmt, formats, permissões) difere da versão atual ganha versão nova e `templates.versao_atual_id` aponta para ela. Autosave sem mudança não versiona; rascunho não versiona. É o servidor quem garante.
+- `artes.template_version_id` (FK, `on delete set null`) + índice.
+- `luma.restaurar_versao(uuid)` (INVOKER — só quem a RLS deixa editar template): rollback que vira versão NOVA.
+- Carga: as 8 publicadas ganharam a versão 1 (sem tocar `updated_at`).
+- **Testado em transação desfeita:** salvar igual → 1 versão; mudar → 2 e a atual troca; rollback → 3 com layers idênticos à 1; rascunho → 0; franqueado insere → 42501; franqueado altera → 0 linhas; franqueado lê → sim.
+
+**Front (v=129):** o template traz `versaoAtualId`; `fAddHist` grava `templateVersionId` e o push manda `template_version_id`. Baixar, editar e duplicar do histórico passam por `fMaterialDaVersao` (materials.js): se a arte foi feita com outra versão, monta uma cópia do material com os layers daquela versão — o catálogo não é tocado. Arte anterior a 23/09 (sem versão) segue com o material atual.
+
+**Ainda não tem:** tela de histórico de versões no Estúdio (o rollback existe só como RPC).
+
+---
+
+## 2026-09-23 — Campanhas saem do banco, pastas de sistema com id fixo, MIME nos buckets
+
+**`20260923180000_luma_pastas_destaque`** (aplicada): `luma.pastas.destaque boolean not null default true` — a seção da vitrine ("Ativas agora" × "Outras campanhas") deixa de ser a lista do `00-config.js`. As 8 que estavam em `CAMPS_OUTRAS` nasceram `false`. Interruptor no modal da pasta.
+
+**`20260923181000_luma_pastas_sistema_id_fixo`** (aplicada depois do front v=128 no ar): "⭐ Modelo de exemplo" e "Rascunhos" ganham id fixo (`…00000000000a` / `…00000000000b`, iguais a `G_PASTA_*_ID` no front). Os templates das cópias foram MOVIDOS para elas antes de apagar as cópias vazias (`templates.pasta_id` é `ON DELETE CASCADE`). Conferido: **templates 56 → 56, publicados 8 → 8, pastas 46 → 20**; Modelo ficou com 8 templates, Rascunhos com 9.
+
+**`20260923182000_luma_storage_mime`** (aplicada): os 5 buckets passam a ter `allowed_mime_types` (antes NULL: qualquer arquivo ia para bucket público). Imagens nos de imagem, fontes no de fontes, PNG/JPEG/PDF no de renders; SVG só na biblioteca do Estúdio. ⚠ `luma-user-uploads` segue PÚBLICO por decisão registrada (roadmap, decisão 3).
+
+---
+
+## 2026-09-23 — Modelo medido: 2.5 indisponível; padrão 3.1 Flash-Lite com escada por disponibilidade
+
+**Medido pelo site, logado como gestão:** `gemini-2.5-flash` e `gemini-2.5-flash-lite` → **404** (o Google só abre os 2.5 para quem já os usava). `gemini-3.1-flash-lite` → 503 "high demand" em todas as tentativas. `gemini-3.5-flash-lite` → 200, mas **25s** para um "olá" (fora). `gemini-3.6-flash` → 200 em 3–5s, com picos de 20s e 503. `gemini-3.8-flash` → 503 no mesmo pico. Às 14h50 (UTC) todos os Flash davam 503: a sobrecarga era do Google.
+
+**Function `ai` (versão 11):** padrão `gemini-3.1-flash-lite`; escada `3.1-flash-lite → 3.6-flash → 3.8-flash → 3.7-flash` (os três Flash têm o mesmo preço, filas separadas). Desce em 403/404/429/503. Aceita do front só nomes da escada (um 2.5 de front em cache viraria um 404 por chamada). Sem memória de "recusado": cada chamada costuma subir instância nova. O `thinkingBudget` dos 2.5 saiu junto. Front: padrão `gemini-3.1-flash-lite` (`00-config.js`, `ai.js`, `ai-client.js`).
+
+---
+
+## 2026-09-23 — Recursos do gateway LIGADOS + modelo Gemini 2.5 Flash com escada de reserva
+
+**Decisão do Ryan (roadmap, decisão 5):** `gAI.isEnabled(flag)` passa a existir (`js/core/ai/ai-client.js`) = há caminho (sessão + function) **e** a flag do `AI_FEATURES` não é `false`. Liga de uma vez: legenda por IA (`caption`), revisão da peça (`contentReview`), validação de imagem (`imageValidation`), mapeamento de PSD (`psdMapping`), sugestão de metadados (`materialEnrichment`) e casos de estresse (`stressCases`). Todos já caem no fallback local se a IA falhar.
+
+**Modelo:** padrão `gemini-2.5-flash` (front e function). Function `ai` publicada (versão 8): se o Google recusar o modelo (404/403 — os 2.5 só abrem para contas que já os usavam), desce por `gemini-2.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-3.6-flash` e lembra o recusado enquanto a instância vive. Nos 2.5 manda `thinkingBudget: 0` (o pensamento é cobrado como saída e nenhuma tarefa precisa dele). A resposta traz `modelo` (o que respondeu de fato) e o `ia_chamada` grava esse nome. Preços de 09/2026 por 1M tokens (entrada/saída): 2.5 Flash 0,30/2,50 · 2.5 Flash-Lite 0,10/0,40 · 3.1 Flash-Lite 0,25/1,50 · 3.6 Flash 0,75/3,75.
+
+---
+
+## 2026-09-23 — IA só pela Edge Function `ai` (v2); chave do Gemini saiu do front
+
+**Achado:** desde 11/09 (`eb1e98c`) o front chamava o Gemini direto, com a chave escrita em `js/00-config.js` — pública para qualquer navegador e no histórico do git. A function `ai` (v1, 08/2026) estava no ar mas nunca era chamada (`_gAiEdgeOk = false` fixo). **A chave foi revogada pelo Ryan e a nova está só no secret `GEMINI_API_KEY`.**
+
+**Function `ai` v2** (`supabase/functions/ai/index.ts`, `verify_jwt` mantido):
+- allowlist ganha `transcrever-audio` (anexo de áudio: webm/ogg/mp4/mpeg/wav/m4a/aac) e as 8 tarefas do gateway `gAI` (`caption.generate`, `copy.fit`, `content.review`, `image.validate`, `psd.map`, `metadata.suggest`, `stress.generate`, `search.expand`);
+- repassa `responseSchema` (teto 20 mil caracteres);
+- modelo padrão `gemini-3.6-flash`; só nomes `gemini-*` passam;
+- chave vai no cabeçalho `x-goog-api-key`, não na URL;
+- junta as partes de texto da resposta e ignora as de pensamento.
+
+**Front:** sem chave em lugar nenhum. `gAskAI` (`js/core/ai.js`) e `gAI.run` (`js/core/ai/ai-client.js`) usam a mesma porta, `gAiEdgeFetch`. O prompt do tutor, que estava duplicado no front para a rota direta, saiu: mora só na function. `gAI.isEnabled` (inexistente) ganhou guarda nos 5 pontos — os recursos do gateway seguem desligados (roadmap, decisão 5).
+
+⚠ **Ordem de publicação:** secret → deploy da function → push do front. Front novo com a function v1 perde o ditado e o gateway.
+
+**Publicado:** function `ai` versão 4 no Supabase (conferida igual ao repo), secret `GEMINI_API_KEY` lido — sem sessão a resposta é `401`, não mais `503`.
+
+**Rastreamento da IA + RPC `luma.dados_ia(p_de, p_ate)`** (migration `20260923170000_luma_dados_ia`, aplicada via MCP): INVOKER + `_dados_autoriza`, separada da `dados_painel` de propósito (a aba IA busca só quando abre). Lê três eventos novos do front: `ia_chamada` (uma por ida à function, em `gAiEdgeFetch`: tarefa, ok, status/erro, ms, anexos — sem prompt nem resposta), `legenda_gerada` (fonte local/IA) e `legenda_copiada` (botão, download, Instagram, WhatsApp). Devolve resumo (chamadas, taxa de erro, p50/p95), uso por tarefa, falhas, legendas geradas × usadas e o Copy Fit por IA. Testada como gestão com eventos de exemplo em transação desfeita.
+
+---
+
+## 2026-09-23 — Telemetria voltou (estava morta desde 06/09) + RLS de conta ativa + cidade/franquia
+
+**Achado:** o último evento em `analytics.fct_eventos` era de 06/09. Desde o V1 de busca/feedback o front chama `luma.registrar_evento`, mas a migration `20260906152238` nunca tinha sido aplicada (o changelog de 06/09 registra o conector bloqueado). Cada evento falhava 3× e era descartado pela fila (`gTrackEvent`). Em toda a história só 3 usuários aparecem nos eventos. O mesmo valia para `submit_feedback`/`content_requests`.
+
+**Aplicadas via MCP (arquivos do repo):**
+- `20260906152238_luma_campaign_search_feedback` — sem alteração. Testado: `registrar_evento` como franqueado grava com `user_id`/`role` corretos.
+- `20260905120000_luma_rls_with_check_e_conta_ativa` — **com correção**: o original revogava `EXECUTE` de `is_ativo()` para `authenticated`; função em policy roda com o privilégio de quem consulta, então o catálogo do franqueado quebraria. Aplicada com `GRANT EXECUTE ... TO authenticated, anon` (arquivo do repo corrigido junto). Testado: franqueado ativo lê 35 pastas/34 variáveis; com `ativo=false`, lê 0.
+- `20260923130000_luma_profiles_cidade_franquia` (nova) — `profiles.cidade`/`franquia`, nulos; `guard_profile_role` passa a travar os dois (só gestão altera).
+- `20260923124809_luma_usa_senha_inicial` e `20260923125556_luma_senha_inicial_dmbrasil` gravados no repo (aplicados mais cedo).
+
+**Ainda NÃO aplicadas (drift conhecido):** `20260731120000_luma_academia` e `20260731180000_luma_academia_conclusao` — as tabelas da Academia não existem no banco (o front roda em modo demo). Aguardando decisão.
+
+⚠ `registrar_evento` é INVOKER e chama `public.get_user_role()`: revogar o EXECUTE dessa função de `authenticated` (o advisor sugere) derruba a telemetria. Mesma lógica para `is_designer()`/`is_ativo()` nas policies.
+
+---
+
+## 2026-09-23 — Login: troca obrigatória da senha inicial e URL de recuperação
+
+**Migration aplicada (via MCP):** `luma_usa_senha_inicial`. Cria `luma.usa_senha_inicial() returns boolean` — `SECURITY DEFINER`, `search_path = ''`, responde só sobre `auth.uid()` (compara `auth.users.encrypted_password` com a senha inicial do convite via `extensions.crypt`). `EXECUTE` revogado de `public`/`anon`, concedido a `authenticated`. Testado com role `authenticated` simulada (conta na senha inicial → `true`; conta que trocou → `false`) e `anon` (sem permissão no schema).
+
+**Por quê:** a senha inicial compartilhada (`invite-user`) estava escrita no front público (`user-profile.js`). O front agora pergunta ao banco e, se `true`, leva a pessoa ao passo "defina sua senha" (`gShowNovaSenhaView('inicial')`) no login e no boot com sessão aberta. A senha saiu do front; continua só na Edge Function `invite-user` e nesta função. ⚠ Se a senha inicial do `invite-user` mudar, esta função muda junto.
+
+**Mesmo dia — senha inicial vira `dmbrasil`:** Edge Function `invite-user` v4 e migration `luma_senha_inicial_dmbrasil`. A função reconhece `dmbrasil` e a antiga `dmbrasil@123`, para que quem ainda está na antiga também seja levado a trocar.
+
+**Auth (painel, feito pelo Ryan):** Site URL passou de `http://localhost:3000` (padrão) para `https://ryanmotta-ai.github.io/Luma/`, e a Redirect URL `https://ryanmotta-ai.github.io/Luma/**` entrou na lista. Antes, todo link de e-mail (recuperação/convite) apontava para `localhost:3000` — confirmado nos `auth_logs` (`referer`). **Pendente:** SMTP próprio (Google Workspace da DM); sem ele o Supabase envia poucos e-mails/hora e só para membros da equipe do projeto.
+
+**MCP:** `.mcp.json` com escrita e todos os grupos de ferramentas, preso a `project_ref=uqrqzjafhigjuvtjqzid`.
+
+---
+
 ## 2026-09-06 — Busca de campanhas e feedback contextual V1
 
 **Migration:** `20260906152238_luma_campaign_search_feedback.sql`. **Preparada e testada localmente; ainda não aplicada no Supabase do Luma.** Em 06/09 o conector recusou até a consulta de leitura no projeto `uqrqzjafhigjuvtjqzid` (`You do not have permission to perform this action`). Não houve acesso a outro projeto nem alteração remota.
@@ -511,3 +776,8 @@ Mesmo padrão offline-first (localStorage cache + push background só designer +
   - `20260716130000_luma_updated_at.sql` — **virou NO-OP (2026-07-16)**: coluna e trigger já existiam desde o schema inicial (`touch_*_updated`). O arquivo foi reescrito pra só desfazer a duplicata caso a versão original tenha sido aplicada. **Resumo pro Pedro: só a `20260716120000` vale aplicar (e só pelo índice).**
 - [ ] **XSS (H.1)**: `gEsc()` global antes de produção (achado §11.3 do CRM).
 - [x] Gestão de usuários: ✅ Fase 1 (listar/role/ativo via RLS). ✅ **Fase 2 (2026-07-16): convite pelo app via Edge Function `invite-user`** (deployada, v1) — valida caller `gestao`, envia e-mail de convite (`auth.admin.inviteUserByEmail`), e ajusta role/nome/telefone no profile (o trigger `handle_new_user` segue criando como `franqueado`; o UPDATE autorizado define o role real). Front: botão Convidar da aba Equipe + campo telefone opcional. ⚠ Requer aplicar `20260716160000_luma_profiles_telefone.sql` (coluna `telefone`). Exclusão definitiva de auth.users continua manual (Dashboard).
+
+## 2026-09-30 — Modo visitante (`?visitante=1`, QR do deck)
+- **Migration `20260930210000_luma_visitante_catalogo.sql` (APLICADA):** coluna `luma.pastas.visitante boolean default false` + função `public.luma_visitante_catalogo()` (`SECURITY DEFINER`, `search_path=''`, EXECUTE só para `anon`/`authenticated`). Devolve somente leitura: pastas marcadas `visitante` e ativas, seus templates publicados e vigentes, `variaveis` e `fontes`. O `anon` NÃO ganhou USAGE no schema `luma` nem policy nova.
+- Campanha liberada: Copa Do Mundo 2026 (`828d73ae-94d0-4e37-a2ce-c03508ff46c1`). Para trocar: `update luma.pastas set visitante = (id = '<novo>')`.
+- Front: usuário sintético (`gEntrarVisitante`, auth.js), sem telemetria, sem histórico no banco, sem IA, suporte, flags e franquia. O visitante roda tudo no navegador.

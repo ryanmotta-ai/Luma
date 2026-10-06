@@ -167,7 +167,7 @@ _"Sempre explicar decisões"_ vale à risca — e esta base já faz isso bem:
 - **Comentário explica o PORQUÊ, não o quê.** O padrão da casa é comentar a _razão_ e a _armadilha_ ("NÃO trocar para relative: reinsere no fluxo e desloca as outras camadas"). Mantenha esse tom.
 - **Decisão de arquitetura/negócio** → registre no `luma-brain` (este conjunto) ou no `docs/LUMA-BACKEND-CHANGELOG.md`. Não deixe só na cabeça.
 - **Ao propor mudança grande ou de design:** mostre o que vai mudar e o porquê **antes** de executar.
-- **Commits explicam intenção**, em PT-BR, com o "por que". ⛔ **Nunca commit automático** — mostre o `git diff`, peça confirmação, a pessoa roda.
+- **Commits explicam intenção**, em PT-BR, com o "por que". Commit e push são **automáticos** na `talpaipai` ao concluir (decisão do usuário em 2026-09-24) — só os arquivos da tarefa, pelo nome.
 
 ---
 
@@ -178,7 +178,7 @@ _"Sempre explicar decisões"_ vale à risca — e esta base já faz isso bem:
 3. **Reutilize** os motores únicos (interpolador, render, `gEsc`, tokens). Não clone.
 4. **Escreva no idioma da casa:** prefixo certo, `let` global se compartilhado, re-render manual, escape, tokens, `gToast`.
 5. **Verifique manualmente** o fluxo tocado no navegador.
-6. **Explique** (comentário do porquê + descrição da mudança). Mostre o diff. **Não commite sozinho.**
+6. **Explique** (comentário do porquê + descrição da mudança). Commite e dê push (só os arquivos da tarefa; `?v=N` subido se tocou `js/`/`css/`/`index.html`) e mostre o diff.
 7. Mexeu em backend? **Changelog + teste das 3 roles.**
 
 ---
@@ -195,7 +195,7 @@ _"Sempre explicar decisões"_ vale à risca — e esta base já faz isso bem:
 - [ ] Verificou **no navegador** o fluxo tocado? Console limpo?
 - [ ] Comentou o **porquê** das decisões não óbvias?
 - [ ] Backend: `WITH CHECK`, changelog, 3 roles testadas?
-- [ ] Vai mostrar o `git diff` e **não** commitar sozinho?
+- [ ] Vai commitar só os arquivos da tarefa (sem `git add .`), dar push e mostrar o diff?
 
 ---
 
@@ -212,7 +212,7 @@ _"Sempre explicar decisões"_ vale à risca — e esta base já faz isso bem:
 - ❌ `innerHTML` com dado de usuário sem escape.
 - ❌ Criar arquivo/abstração "para o futuro" sem uso agora.
 - ❌ Dizer que testou sem ter aberto o navegador.
-- ❌ Commit automático / `git add .`.
+- ❌ `git add .`.
 
 ---
 

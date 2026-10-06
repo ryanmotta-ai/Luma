@@ -1,0 +1,427 @@
+-- ============================================================
+-- LUMA — Suíte de RLS (leitura, escrita, casos NEGATIVOS), 23/09/2026
+-- ============================================================
+-- Roda como cada papel real (anon, franqueado A, franqueado B, equipe_dm, gestao) dentro de UMA
+-- transação que termina em ROLLBACK: nada do que o teste escreve fica no banco. Usa contas
+-- existentes (a primeira ativa de cada papel) — não cria usuário.
+--
+-- COMO RODAR: cole no SQL Editor do Supabase (ou via MCP execute_sql). A saída é uma tabela
+-- passo | esperado | obtido | ok. Qualquer `ok = false` é falha de segurança ou regressão.
+-- Rode depois de TODA migration que mexa em policy, função de policy ou tabela nova.
+
+begin;
+
+create temp table _t (n serial, passo text, esperado text, obtido text) on commit drop;
+grant all on _t to anon, authenticated, service_role;
+grant usage, select on sequence _t_n_seq to anon, authenticated, service_role;
+
+-- As contas de teste (primeira ativa de cada papel) e uma arte do franqueado B, criada como
+-- dono do banco, para provar que A não a enxerga.
+create temp table _u on commit drop as
+select
+  (select id from public.profiles where role = 'franqueado' and coalesce(ativo, true) order by created_at limit 1) as fa,
+  (select id from public.profiles where role = 'franqueado' and coalesce(ativo, true) order by created_at offset 1 limit 1) as fb,
+  (select id from public.profiles where role = 'equipe_dm' and coalesce(ativo, true) order by created_at limit 1) as eq,
+  (select id from public.profiles where role = 'gestao' and coalesce(ativo, true) order by created_at limit 1) as ge;
+grant select on _u to anon, authenticated, service_role;
+
+insert into luma.artes (id, user_id, camp_name, dados, status)
+select '00000000-0000-4000-8000-0000000000b1', fb, 'RLS-TESTE', '{}'::jsonb, 'rascunho' from _u;
+
+-- ── ANON (sem login) ────────────────────────────────────────────────────────────────────
+set local role anon;
+select set_config('request.jwt.claims', '{"role":"anon"}', true);
+do $$ declare n int; begin
+  begin select count(*) into n from luma.pastas;      insert into _t(passo,esperado,obtido) values ('anon lê pastas','0 ou recusa',n::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('anon lê pastas','0 ou recusa','recusa'); end;
+  begin select count(*) into n from luma.templates;   insert into _t(passo,esperado,obtido) values ('anon lê templates','0 ou recusa',n::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('anon lê templates','0 ou recusa','recusa'); end;
+  begin select count(*) into n from public.profiles;  insert into _t(passo,esperado,obtido) values ('anon lê perfis','0 ou recusa',n::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('anon lê perfis','0 ou recusa','recusa'); end;
+  begin select count(*) into n from luma.artes;       insert into _t(passo,esperado,obtido) values ('anon lê artes','0 ou recusa',n::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('anon lê artes','0 ou recusa','recusa'); end;
+  begin select count(*) into n from luma.template_versions; insert into _t(passo,esperado,obtido) values ('anon lê versões','0 ou recusa',n::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('anon lê versões','0 ou recusa','recusa'); end;
+end $$;
+reset role;
+
+-- ── FRANQUEADO A ────────────────────────────────────────────────────────────────────────
+select set_config('request.jwt.claims', json_build_object('sub', fa, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare n int; u record; begin
+  select * into u from _u;
+  select count(*) into n from luma.pastas where ativa = false;
+  insert into _t(passo,esperado,obtido) values ('franqueado vê pasta arquivada','0',n::text);
+  select count(*) into n from luma.templates where publicado = false;
+  insert into _t(passo,esperado,obtido) values ('franqueado vê template rascunho','0',n::text);
+  select count(*) into n from luma.templates where publicado;
+  insert into _t(passo,esperado,obtido) values ('franqueado vê template publicado','>0',case when n>0 then '>0' else '0' end);
+
+  update luma.templates set nome = nome where publicado;
+  get diagnostics n = row_count;
+  insert into _t(passo,esperado,obtido) values ('franqueado edita template publicado (linhas)','0',n::text);
+  update luma.pastas set nome = nome;
+  get diagnostics n = row_count;
+  insert into _t(passo,esperado,obtido) values ('franqueado edita pasta (linhas)','0',n::text);
+  delete from luma.templates;
+  get diagnostics n = row_count;
+  insert into _t(passo,esperado,obtido) values ('franqueado apaga template (linhas)','0',n::text);
+  begin insert into luma.pastas (nome) values ('RLS-TESTE');
+    insert into _t(passo,esperado,obtido) values ('franqueado cria pasta','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('franqueado cria pasta','recusa','recusa'); end;
+
+  select count(*) into n from luma.artes where user_id <> u.fa;
+  insert into _t(passo,esperado,obtido) values ('franqueado A vê arte de outro','0',n::text);
+  update luma.artes set camp_name = 'invadido' where user_id = u.fb;
+  get diagnostics n = row_count;
+  insert into _t(passo,esperado,obtido) values ('franqueado A altera arte de B (linhas)','0',n::text);
+  delete from luma.artes where user_id = u.fb;
+  get diagnostics n = row_count;
+  insert into _t(passo,esperado,obtido) values ('franqueado A apaga arte de B (linhas)','0',n::text);
+  begin insert into luma.artes (user_id, dados) values (u.fb, '{}');
+    insert into _t(passo,esperado,obtido) values ('franqueado A cria arte em nome de B','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('franqueado A cria arte em nome de B','recusa','recusa'); end;
+  begin insert into luma.artes (user_id, dados) values (u.fa, '{}');
+    insert into _t(passo,esperado,obtido) values ('franqueado A cria arte própria','ok','ok');
+  exception when others then insert into _t(passo,esperado,obtido) values ('franqueado A cria arte própria','ok','recusa: '||sqlstate); end;
+
+  select count(*) into n from public.profiles where id <> u.fa;
+  insert into _t(passo,esperado,obtido) values ('franqueado lê perfil de outro','0',n::text);
+  begin update public.profiles set role = 'gestao' where id = u.fa;
+    insert into _t(passo,esperado,obtido) values ('franqueado vira gestão','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('franqueado vira gestão','recusa','recusa'); end;
+  begin update public.profiles set ativo = true, franquia = 'x' where id = u.fa;
+    insert into _t(passo,esperado,obtido) values ('franqueado muda a própria franquia','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('franqueado muda a própria franquia','recusa','recusa'); end;
+
+  begin select count(*) into n from analytics.fct_eventos;
+    insert into _t(passo,esperado,obtido) values ('franqueado lê eventos','0 ou recusa',n::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('franqueado lê eventos','0 ou recusa','recusa'); end;
+  begin perform luma.dados_painel(now() - interval '1 day', now());
+    insert into _t(passo,esperado,obtido) values ('franqueado abre painel de Dados','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('franqueado abre painel de Dados','recusa','recusa'); end;
+
+  update luma.feature_flags set enabled = enabled;
+  get diagnostics n = row_count;
+  insert into _t(passo,esperado,obtido) values ('franqueado altera feature flag (linhas)','0',n::text);
+  begin insert into luma.template_versions (template_id, versao, layers) values (gen_random_uuid(), 1, '[]');
+    insert into _t(passo,esperado,obtido) values ('franqueado cria versão de template','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('franqueado cria versão de template','recusa','recusa'); end;
+  begin perform luma.restaurar_versao((select id from luma.template_versions limit 1));
+    insert into _t(passo,esperado,obtido) values ('franqueado faz rollback de template','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('franqueado faz rollback de template','recusa','recusa'); end;
+
+  begin insert into luma.franquias (nome) values ('RLS-TESTE');
+    insert into _t(passo,esperado,obtido) values ('franqueado cria unidade','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('franqueado cria unidade','recusa','recusa'); end;
+  select count(*) into n from luma.usuario_franquias where user_id <> u.fa;
+  insert into _t(passo,esperado,obtido) values ('franqueado vê vínculo de outro com unidade','0',n::text);
+  begin insert into storage.objects (bucket_id, name, owner) values ('luma-covers', 'rls-teste/x.png', u.fa);
+    insert into _t(passo,esperado,obtido) values ('franqueado envia capa de campanha','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('franqueado envia capa de campanha','recusa','recusa'); end;
+  begin insert into storage.objects (bucket_id, name, owner) values ('luma-user-uploads', u.fb::text || '/rls-teste.png', u.fa);
+    insert into _t(passo,esperado,obtido) values ('franqueado A envia na pasta de B','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('franqueado A envia na pasta de B','recusa','recusa'); end;
+  begin insert into storage.objects (bucket_id, name, owner) values ('luma-user-uploads', u.fa::text || '/rls-teste.png', u.fa);
+    insert into _t(passo,esperado,obtido) values ('franqueado A envia na própria pasta','ok','ok');
+  exception when others then insert into _t(passo,esperado,obtido) values ('franqueado A envia na própria pasta','ok','recusa: '||sqlstate); end;
+end $$;
+reset role;
+
+-- ── EQUIPE DM ───────────────────────────────────────────────────────────────────────────
+select set_config('request.jwt.claims', json_build_object('sub', eq, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare n int; u record; begin
+  select * into u from _u;
+  select count(*) into n from luma.templates where publicado = false;
+  insert into _t(passo,esperado,obtido) values ('equipe vê rascunhos','>=0','>=0');
+  begin insert into luma.pastas (nome) values ('RLS-TESTE');
+    insert into _t(passo,esperado,obtido) values ('equipe cria pasta','ok','ok');
+  exception when others then insert into _t(passo,esperado,obtido) values ('equipe cria pasta','ok','recusa: '||sqlstate); end;
+  update luma.templates set nome = nome where publicado;
+  get diagnostics n = row_count;
+  insert into _t(passo,esperado,obtido) values ('equipe edita template','>0',case when n>0 then '>0' else '0' end);
+  select count(*) into n from luma.artes where user_id = u.fb;
+  insert into _t(passo,esperado,obtido) values ('equipe lê arte de franqueado','0',n::text);
+  begin update public.profiles set role = 'gestao' where id = u.eq;
+    insert into _t(passo,esperado,obtido) values ('equipe vira gestão','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('equipe vira gestão','recusa','recusa'); end;
+  begin perform luma.dados_painel(now() - interval '1 day', now());
+    insert into _t(passo,esperado,obtido) values ('equipe abre painel de Dados','ok','ok');
+  exception when others then insert into _t(passo,esperado,obtido) values ('equipe abre painel de Dados','ok','recusa: '||sqlstate); end;
+  update luma.feature_flags set enabled = enabled;
+  get diagnostics n = row_count;
+  insert into _t(passo,esperado,obtido) values ('equipe altera feature flag (linhas)','0',n::text);
+  begin insert into luma.franquias (nome) values ('RLS-TESTE');
+    insert into _t(passo,esperado,obtido) values ('equipe cria unidade (só gestão)','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('equipe cria unidade (só gestão)','recusa','recusa'); end;
+end $$;
+reset role;
+
+-- ── GESTÃO ──────────────────────────────────────────────────────────────────────────────
+select set_config('request.jwt.claims', json_build_object('sub', ge, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare n int; u record; begin
+  select * into u from _u;
+  begin update public.profiles set cidade = cidade, franquia = franquia where id = u.fa;
+    get diagnostics n = row_count;
+    insert into _t(passo,esperado,obtido) values ('gestão edita cidade/franquia de franqueado','1',n::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('gestão edita cidade/franquia de franqueado','1','recusa: '||sqlstate); end;
+  update luma.feature_flags set enabled = enabled;
+  get diagnostics n = row_count;
+  insert into _t(passo,esperado,obtido) values ('gestão altera feature flag','>0',case when n>0 then '>0' else '0' end);
+  select count(*) into n from public.profiles;
+  insert into _t(passo,esperado,obtido) values ('gestão lê todos os perfis','>1',case when n>1 then '>1' else n::text end);
+end $$;
+reset role;
+
+-- ── SUPORTE AO VIVO (migration 20260923188000) ──────────────────────────────────────────
+-- Semente: uma mensagem do franqueado B, gravada como dono do banco com o JWT de B — o gatilho
+-- carimba autor e lado a partir do auth.uid(), então ela nasce "de B, não da equipe".
+select set_config('request.jwt.claims', json_build_object('sub', fb, 'role', 'authenticated')::text, true) from _u;
+insert into luma.suporte_mensagens (texto) values ('RLS-TESTE de B');
+-- B pode ter uma conversa real com dono (20260926120000): zera o dono para a resposta da equipe
+-- abaixo assumir de forma previsível. Volta no rollback.
+update luma.suporte_conversas set responsavel_id = null, status = 'novo' where franqueado_id = (select fb from _u);
+
+select set_config('request.jwt.claims', '{"role":"anon"}', true);
+set local role anon;
+do $$ declare n int; begin
+  begin select count(*) into n from luma.suporte_mensagens; insert into _t(passo,esperado,obtido) values ('suporte: anon lê mensagens','0 ou recusa',n::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('suporte: anon lê mensagens','0 ou recusa','recusa'); end;
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', json_build_object('sub', fa, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare n int; u record; b boolean; fid uuid; begin
+  select * into u from _u;
+  select count(*) into n from luma.suporte_mensagens where franqueado_id = u.fb;
+  insert into _t(passo,esperado,obtido) values ('suporte: A lê a conversa de B','0',n::text);
+  select count(*) into n from luma.suporte_caixa where franqueado_id <> u.fa;
+  insert into _t(passo,esperado,obtido) values ('suporte: A vê outra linha na caixa','0',n::text);
+  begin insert into luma.suporte_mensagens (texto) values ('RLS-TESTE de A');
+    insert into _t(passo,esperado,obtido) values ('suporte: A escreve na própria conversa','ok','ok');
+  exception when others then insert into _t(passo,esperado,obtido) values ('suporte: A escreve na própria conversa','ok','recusa: '||sqlstate); end;
+  begin insert into luma.suporte_mensagens (texto, da_equipe) values ('RLS-TESTE finge equipe', true) returning da_equipe into b;
+    insert into _t(passo,esperado,obtido) values ('suporte: A grava da_equipe=true','false',b::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('suporte: A grava da_equipe=true','false','recusa'); end;
+  begin insert into luma.suporte_mensagens (franqueado_id, texto) values (u.fb, 'RLS-TESTE invade B') returning franqueado_id into fid;
+    insert into _t(passo,esperado,obtido) values ('suporte: A escreve na conversa de B','própria',case when fid = u.fa then 'própria' else 'CONSEGUIU' end);
+  exception when others then insert into _t(passo,esperado,obtido) values ('suporte: A escreve na conversa de B','própria','própria'); end;
+  begin update luma.suporte_mensagens set texto = 'editado' where franqueado_id = u.fa;
+    get diagnostics n = row_count;
+    insert into _t(passo,esperado,obtido) values ('suporte: A edita texto enviado','0 ou recusa',n::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('suporte: A edita texto enviado','0 ou recusa','recusa'); end;
+  begin delete from luma.suporte_mensagens where franqueado_id = u.fa;
+    get diagnostics n = row_count;
+    insert into _t(passo,esperado,obtido) values ('suporte: A apaga mensagem','0 ou recusa',n::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('suporte: A apaga mensagem','0 ou recusa','recusa'); end;
+  begin insert into storage.objects (bucket_id, name, owner) values ('luma-suporte', u.fb::text || '/rls-teste.png', u.fa);
+    insert into _t(passo,esperado,obtido) values ('suporte: A anexa print na conversa de B','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('suporte: A anexa print na conversa de B','recusa','recusa'); end;
+  -- Foto de perfil (migration 20260923187500): só URL do Storage do projeto.
+  begin update public.profiles set avatar_url = 'https://exemplo.com/rastreio.png' where id = u.fa;
+    insert into _t(passo,esperado,obtido) values ('foto: A grava URL externa','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('foto: A grava URL externa','recusa','recusa'); end;
+  begin update public.profiles set avatar_url = 'https://projeto.supabase.co/storage/v1/object/public/luma-user-uploads/' || u.fa || '/avatar.jpeg' where id = u.fa;
+    get diagnostics n = row_count;
+    insert into _t(passo,esperado,obtido) values ('foto: A grava a própria foto','1',n::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('foto: A grava a própria foto','1','recusa: '||sqlstate); end;
+  update public.profiles set avatar_url = 'https://projeto.supabase.co/storage/v1/object/public/luma-user-uploads/x/avatar.jpeg' where id = u.fb;
+  get diagnostics n = row_count;
+  insert into _t(passo,esperado,obtido) values ('foto: A troca a foto de B (linhas)','0',n::text);
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', json_build_object('sub', eq, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare n int; u record; b boolean; begin
+  select * into u from _u;
+  select count(*) into n from luma.suporte_mensagens where franqueado_id = u.fb;
+  insert into _t(passo,esperado,obtido) values ('suporte: equipe lê a conversa de B','>0',case when n>0 then '>0' else '0' end);
+  begin insert into luma.suporte_mensagens (franqueado_id, texto) values (u.fb, 'RLS-TESTE resposta') returning da_equipe into b;
+    insert into _t(passo,esperado,obtido) values ('suporte: equipe responde B (da_equipe)','true',b::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('suporte: equipe responde B (da_equipe)','true','recusa: '||sqlstate); end;
+  begin update luma.suporte_mensagens set lida_em = now() where franqueado_id = u.fb and not da_equipe;
+    get diagnostics n = row_count;
+    insert into _t(passo,esperado,obtido) values ('suporte: equipe marca como lida','>0',case when n>0 then '>0' else '0' end);
+  exception when others then insert into _t(passo,esperado,obtido) values ('suporte: equipe marca como lida','>0','recusa: '||sqlstate); end;
+end $$;
+reset role;
+
+-- ── ATENDIMENTO: dono, estado, histórico (migration 20260926120000) ──────────────────────
+-- A resposta da equipe acima já assumiu a conversa de B (responsável = equipe). Daqui: o
+-- franqueado não enxerga nem mexe no atendimento dos outros; a gestão não responde por cima
+-- de quem atende sem assumir; e tudo fica no histórico.
+select set_config('request.jwt.claims', json_build_object('sub', fa, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare n int; u record; j jsonb; begin
+  select * into u from _u;
+  select count(*) into n from luma.suporte_conversas where franqueado_id = u.fb;
+  insert into _t(passo,esperado,obtido) values ('atendimento: A lê o atendimento de B','0',n::text);
+  select count(*) into n from luma.suporte_eventos where franqueado_id = u.fb;
+  insert into _t(passo,esperado,obtido) values ('atendimento: A lê o histórico de B','0',n::text);
+  begin update luma.suporte_conversas set status = 'resolvido' where franqueado_id = u.fa;
+    get diagnostics n = row_count;
+    insert into _t(passo,esperado,obtido) values ('atendimento: A muda o próprio estado','0 ou recusa',n::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('atendimento: A muda o próprio estado','0 ou recusa','recusa'); end;
+  begin j := luma.suporte_assumir(u.fb, true);
+    insert into _t(passo,esperado,obtido) values ('atendimento: A assume a conversa de B','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('atendimento: A assume a conversa de B','recusa','recusa'); end;
+  select count(*) into n from luma.suporte_equipe() e where e.id in (u.fa, u.fb);
+  insert into _t(passo,esperado,obtido) values ('atendimento: franqueado aparece em suporte_equipe','0',n::text);
+  select count(*) into n from luma.suporte_equipe();
+  insert into _t(passo,esperado,obtido) values ('atendimento: A vê o cartão da equipe','>0',case when n>0 then '>0' else '0' end);
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', json_build_object('sub', ge, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare n int; u record; j jsonb; begin
+  select * into u from _u;
+  begin insert into luma.suporte_mensagens (franqueado_id, texto) values (u.fb, 'RLS-TESTE por cima');
+    insert into _t(passo,esperado,obtido) values ('atendimento: gestão responde conversa da equipe','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('atendimento: gestão responde conversa da equipe','recusa',
+    case when sqlerrm like '%SUPORTE_OUTRO_RESPONSAVEL%' then 'recusa' else 'recusa: '||sqlerrm end); end;
+  j := luma.suporte_assumir(u.fb, false);
+  insert into _t(passo,esperado,obtido) values ('atendimento: gestão assume sem forçar','false',coalesce(j->>'ok','(nulo)'));
+  j := luma.suporte_assumir(u.fb, true);
+  insert into _t(passo,esperado,obtido) values ('atendimento: gestão assume forçando','true',coalesce(j->>'ok','(nulo)'));
+  select count(*) into n from luma.suporte_eventos where franqueado_id = u.fb and tipo = 'assumiu' and ator_id = u.ge and de_id = u.eq;
+  insert into _t(passo,esperado,obtido) values ('atendimento: histórico registra "assumiu de"','1',n::text);
+  j := luma.suporte_repassar(u.fb, u.eq);
+  insert into _t(passo,esperado,obtido) values ('atendimento: gestão repassa para a equipe','true',coalesce(j->>'ok','(nulo)'));
+  j := luma.suporte_repassar(u.fb, u.fa);
+  insert into _t(passo,esperado,obtido) values ('atendimento: repassar para franqueado','false',coalesce(j->>'ok','(nulo)'));
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', json_build_object('sub', eq, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare u record; j jsonb; s text; begin
+  select * into u from _u;
+  j := luma.suporte_resolver(u.fb);
+  select status into s from luma.suporte_conversas where franqueado_id = u.fb;
+  insert into _t(passo,esperado,obtido) values ('atendimento: responsável resolve','resolvido',coalesce(s,'(nulo)'));
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', json_build_object('sub', fb, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare u record; s text; r uuid; begin
+  select * into u from _u;
+  insert into luma.suporte_mensagens (texto) values ('RLS-TESTE B volta');
+  select status, responsavel_id into s, r from luma.suporte_conversas where franqueado_id = u.fb;
+  insert into _t(passo,esperado,obtido) values ('atendimento: B escreve depois de resolvida','novo sem dono',
+    case when s = 'novo' and r is null then 'novo sem dono' else coalesce(s,'(nulo)') || ' / ' || coalesce(r::text,'sem dono') end);
+end $$;
+reset role;
+
+-- ── TELEGRAM: a ponte (migration 20260926130000) ─────────────────────────────────────────
+-- Vínculos de teste para a equipe e a gestão (ids de Telegram que não existem), como dono do banco.
+select set_config('request.jwt.claims', '', true);
+insert into luma.suporte_telegram_contas (profile_id, telegram_user_id, telegram_nome)
+select eq, 990000001, 'RLS equipe' from _u union all select ge, 990000002, 'RLS gestão' from _u;
+
+select set_config('request.jwt.claims', json_build_object('sub', fa, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare n int; u record; j jsonb; s text; begin
+  select * into u from _u;
+  begin j := luma.suporte_telegram_acao(990000001, u.fb, 'responder', 'RLS-TESTE finge Telegram');
+    insert into _t(passo,esperado,obtido) values ('telegram: franqueado chama a RPC da ponte','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('telegram: franqueado chama a RPC da ponte','recusa','recusa'); end;
+  begin select count(*) into n from luma.suporte_telegram_saida;
+    insert into _t(passo,esperado,obtido) values ('telegram: franqueado lê a fila','0 ou recusa',n::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('telegram: franqueado lê a fila','0 ou recusa','recusa'); end;
+  select count(*) into n from luma.suporte_telegram_contas;
+  insert into _t(passo,esperado,obtido) values ('telegram: franqueado vê vínculo de outro','0',n::text);
+  begin j := luma.suporte_telegram_vincular('ABCD-1234');
+    insert into _t(passo,esperado,obtido) values ('telegram: franqueado vincula conta','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('telegram: franqueado vincula conta','recusa','recusa'); end;
+  begin insert into luma.suporte_mensagens (texto, via) values ('RLS-TESTE via', 'telegram') returning via into s;
+    insert into _t(passo,esperado,obtido) values ('telegram: franqueado grava via=telegram','luma',s);
+  exception when others then insert into _t(passo,esperado,obtido) values ('telegram: franqueado grava via=telegram','luma','recusa: '||sqlstate); end;
+end $$;
+reset role;
+
+-- A Edge Function roda como service_role. B escreveu por último (conversa na fila, sem dono).
+select set_config('request.jwt.claims', '{"role":"service_role"}', true);
+set local role service_role;
+do $$ declare u record; j jsonb; begin
+  select * into u from _u;
+  j := luma.suporte_telegram_acao(990000001, u.fb, 'responder', 'RLS-TESTE pelo Telegram');
+  insert into _t(passo,esperado,obtido) values ('telegram: equipe vinculada responde','true',coalesce(j->>'ok','(nulo)'));
+  j := luma.suporte_telegram_acao(990000009, u.fb, 'responder', 'RLS-TESTE sem vínculo');
+  insert into _t(passo,esperado,obtido) values ('telegram: Telegram sem vínculo responde','nao_vinculado',coalesce(j->>'erro','(nulo)'));
+  j := luma.suporte_telegram_acao(990000002, u.fb, 'responder', 'RLS-TESTE gestão por cima');
+  insert into _t(passo,esperado,obtido) values ('telegram: gestão responde por cima (trava)','outro_responsavel',coalesce(j->>'erro','(nulo)'));
+  j := luma.suporte_telegram_acao(990000001, u.fb, 'repassar', 'NinguemRLS');
+  insert into _t(passo,esperado,obtido) values ('telegram: repassar para nome que não existe','destino_invalido',coalesce(j->>'erro','(nulo)'));
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', '', true);
+do $$ declare u record; m record; begin
+  select * into u from _u;
+  select da_equipe, autor_id, via into m from luma.suporte_mensagens
+   where franqueado_id = u.fb and texto = 'RLS-TESTE pelo Telegram';
+  insert into _t(passo,esperado,obtido) values ('telegram: resposta gravada como a equipe, via telegram','equipe/telegram',
+    case when m.da_equipe and m.autor_id = u.eq and m.via = 'telegram' then 'equipe/telegram'
+         else coalesce(m.da_equipe::text,'?') || '/' || coalesce(m.via,'?') end);
+end $$;
+
+-- ── CONTA DESATIVADA (migration 20260923189000) ─────────────────────────────────────────
+-- Desativar tirava a pessoa do APP, não do banco: a senha segue valendo no Auth. Aqui cada
+-- papel desativado tenta o que conseguia antes da correção. O claim é zerado antes do UPDATE
+-- (como dono do banco, sem auth.uid(), o guard de papel deixa passar — e tudo volta no rollback).
+select set_config('request.jwt.claims', '', true);
+update public.profiles set ativo = false where id in (select fa from _u union all select eq from _u union all select ge from _u);
+
+select set_config('request.jwt.claims', json_build_object('sub', eq, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare n int; begin
+  insert into _t(passo,esperado,obtido) values ('desativada: equipe ainda é designer?','false',public.is_designer()::text);
+  update luma.templates set publicado = publicado;
+  get diagnostics n = row_count;
+  insert into _t(passo,esperado,obtido) values ('desativada: equipe altera templates (linhas)','0',n::text);
+  update storage.objects set name = name where bucket_id = 'luma-template-assets';
+  get diagnostics n = row_count;
+  insert into _t(passo,esperado,obtido) values ('desativada: equipe mexe nos assets (linhas)','0',n::text);
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', json_build_object('sub', ge, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare n int; u record; begin
+  select * into u from _u;
+  insert into _t(passo,esperado,obtido) values ('desativada: gestão ainda tem papel?','(nulo)',coalesce(public.get_user_role(),'(nulo)'));
+  update luma.feature_flags set enabled = enabled;
+  get diagnostics n = row_count;
+  insert into _t(passo,esperado,obtido) values ('desativada: gestão mexe nas flags (linhas)','0',n::text);
+  begin update public.profiles set role = 'gestao' where id = u.fb;
+    get diagnostics n = row_count;
+    insert into _t(passo,esperado,obtido) values ('desativada: gestão promove B','0 ou recusa',n::text);
+  exception when others then insert into _t(passo,esperado,obtido) values ('desativada: gestão promove B','0 ou recusa','recusa'); end;
+  begin update public.profiles set ativo = true where id = u.ge;
+    insert into _t(passo,esperado,obtido) values ('desativada: gestão se reativa','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('desativada: gestão se reativa','recusa','recusa'); end;
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', json_build_object('sub', fa, 'role', 'authenticated')::text, true) from _u;
+set local role authenticated;
+do $$ declare n int; begin
+  select count(*) into n from luma.templates;
+  insert into _t(passo,esperado,obtido) values ('desativada: franqueado lê templates','0',n::text);
+end $$;
+reset role;
+
+select n, passo, esperado, obtido,
+       case when esperado = obtido then true
+            when esperado = '0 ou recusa' and obtido in ('0','recusa') then true
+            when esperado = '>=0' then true
+            else false end as ok
+from _t order by n;
+
+rollback;

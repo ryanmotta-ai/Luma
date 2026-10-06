@@ -1,0 +1,38 @@
+<!doctype html><meta charset="utf-8"><title>Luma — recuperação e páginas do histórico</title><ol id="results"></ol>
+<script>let owner='history-a',backend=null;function gCurrentUser(){return{id:owner};}function gSupabase(){return backend;}function gVisitante(){return false;}function gToast(){};var dFolders=[];</script>
+<script src="../js/00-config.js"></script><script src="../js/01-state.js"></script><script src="../js/franqueado/history.js"></script><script src="../js/franqueado/materials.js"></script>
+<script>
+(async()=>{
+let total=0;const failures=[],backups=new Map(),notices=[];
+gToast=m=>notices.push(m);gIdbPut=async(k,v)=>{backups.set(k,v);return true;};gIdbGet=async k=>backups.get(k)||null;
+const assert=(v,m)=>{if(!v)throw Error(m);};
+async function test(name,fn){total++;try{await fn();document.getElementById('results').insertAdjacentHTML('beforeend','<li>OK '+name+'</li>');}catch(e){failures.push({name,error:e.message});}}
+const camp={id:'camp',name:'Campanha'},fmt={id:'story'},dados={produto:'Pizza'};
+const rows=Array.from({length:75},(_,i)=>({id:'r-'+i,created_at:new Date(200000-i*1000).toISOString(),status:'rascunho',dados:{produto:'Produto '+i}}));
+function reset(){backend=null;owner='history-a';localStorage.clear();_fHistRecovery.clear();backups.clear();fState.material={id:'m'};notices.length=0;}
+await test('memória cheia não devolve sucesso e conserva recuperação da arte',async()=>{
+ reset();const native=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k===fUserCacheKey(HIST_KEY))throw new DOMException('cheio','QuotaExceededError');return native.call(this,k,v);};
+ try{assert(fAddHist(dados,camp,fmt)===null,'devolveu sucesso');assert(fGetHist().length===1,'perdeu arte na sessão');await _fHistRecoveryJobs.get(fUserCacheKey(HIST_KEY));assert(backups.size===1,'não confirmou recuperação');}
+ finally{Storage.prototype.setItem=native;}
+ _fHistRecovery.clear();assert(fGetHist().length===0,'cache de teste não zerou');await fRecoverHist(owner);assert(fGetHist()[0].dados.produto==='Pizza','reload não recupera');
+});
+await test('download repetido marca alteração pendente quando update falha',async()=>{
+ reset();fAddHist(dados,camp,fmt);let h=fGetHist();h[0]._synced=true;h[0].remoteId='remoto';fSaveHist(h);
+ backend={schema(){return{from(){return{update(){return{eq(){return this;},then(resolve){resolve({error:{message:'offline'}});}};},upsert(){return Promise.resolve({error:{message:'offline'}});}};}};}};
+ fAddHist(dados,camp,fmt,'baixada');const saved=fGetHist()[0];assert(saved._statusPending&&!saved._synced,'falha foi tratada como sincronizada');await Promise.resolve();
+});
+await test('segunda página mantém todas as 75 artes sem duplicação',async()=>{
+ reset();backend={schema(){return{from(){return{select(){return this;},eq(){return this;},order(){return this;},limit(n){return Promise.resolve({data:rows.slice(0,n)});},range(a,b){return Promise.resolve({data:rows.slice(a,b+1)});}};}};}};
+ const renders=[];fRenderHist=()=>renders.push(fHistMoreButton());
+ await fSyncArtesFromBackend();assert(fGetHist().length===50&&_fHistPage.more,'primeira página');assert(renders.length&&!renders.at(-1).includes('disabled'),'botão ficou bloqueado depois da consulta');await fLoadMoreHist();assert(fGetHist().length===75&&!_fHistPage.more,'segunda página perdeu registros');assert(new Set(fGetHist().map(h=>h.remoteId)).size===75,'duplicou');
+});
+await test('página com erro permite tentar novamente sem perder as anteriores',async()=>{
+ reset();backend={schema(){return{from(){return{select(){return this;},eq(){return this;},order(){return this;},limit(n){return Promise.resolve({data:rows.slice(0,n)});},range(){return Promise.resolve({error:{message:'offline'}});}};}};}};
+ await fSyncArtesFromBackend();await fLoadMoreHist();assert(fGetHist().length===50&&_fHistPage.more&&!_fHistPage.busy,'falha matou paginação');
+});
+await test('versão histórica indisponível nunca usa material atual',async()=>{
+ reset();const material={id:'m',versaoAtualId:'nova',layers:[{content:'Nova'}]};assert(await fMaterialDaVersao(material,'antiga')===null,'offline substituiu por nova');backend={schema(){return{from(){return{select(){return this;},eq(){return this;},single(){return Promise.resolve({error:{message:'rede'}});}};}};}};assert(await fMaterialDaVersao(material,'antiga')===null,'erro substituiu por nova');assert(await fMaterialDaVersao(material,null)===material,'legado sem versão regrediu');
+});
+window.__lumaTest={total,passed:total-failures.length,failures};
+})().catch(e=>window.__lumaTest={total:1,passed:0,failures:[{name:'bancada',error:e.stack}]});
+</script>

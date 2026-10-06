@@ -29,7 +29,7 @@
 <span id="f-char-count"></span><div id="prog-fill"></div><div id="f-ctx-tag"></div>
 <div class="lp-stage"><div class="lp-canvas-wrap"><canvas id="lp-canvas" width="1080" height="1920"></canvas></div></div>
 <div id="lp-empty"><span id="lp-empty-title"></span><span id="lp-empty-sub"></span></div>
-<span id="lp-dim"></span><span id="lp-sub"></span><span id="lp-layout-nota" hidden></span>
+<span id="lp-dim"></span><span id="lp-sub"></span><button type="button" id="lp-layout-nota" hidden></button>
 <!-- `live-preview.js` liga um listener em `#f-preview-modal` no topo do arquivo, fora de
      qualquer guarda: sem este nó o script morre na linha 56 e metade da prévia nunca inicializa.
      (Achado montando esta bancada — no app o nó existe no index.html.) -->
@@ -51,12 +51,17 @@ var sbFake={schema(){return {from(){return {
   select(){return {eq(){return {single(){return Promise.resolve({data:null});}};}};}
 };}};}};
 function gSupabase(){return sbFake;} window.sb=sbFake;
+// `dExtractTemplateVars` mora no Estúdio (designer/templates.js), que a bancada não carrega;
+// o kit usa para listar os campos de cada peça. Mesma regra: {{campo}} no texto + imgVar.
+function dExtractTemplateVars(layers){const v=new Set();(layers||[]).forEach(l=>{String(l.content||'').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g,(_,n)=>{v.add(n);return _;});if(l.imgVar)v.add(l.imgVar);});return Array.from(v);}
 </script>
 <script src="../js/00-config.js"></script>
 <script src="../js/01-state.js"></script>
 <script src="../js/core/toast.js"></script>
 <script src="../js/core/layout.js"></script>
 <script src="../js/core/auto-layout.js"></script>
+<!-- Local Fit: o kit da campanha mede cada peça antes de gerar (regra C). -->
+<script src="../js/core/local-fit.js"></script>
 <script src="../js/franqueado/prefs.js"></script>
 <script src="../js/franqueado/history.js"></script>
 <script src="../js/franqueado/materials.js"></script>
@@ -66,6 +71,8 @@ function gSupabase(){return sbFake;} window.sb=sbFake;
 <script src="../js/franqueado/live-preview.js"></script>
 <script src="../js/franqueado/png-generator.js"></script>
 <script src="../js/franqueado/feedback.js"></script>
+<script src="../js/core/suporte.js"></script>
+<script src="../js/core/help.js"></script>
 <script>
 (async()=>{
 const failures=[];let total=0;
@@ -502,6 +509,52 @@ await test('Aplicar enquadramento deixa saída; cancelar não registra desfazer'
   assert(!fUndoDisponivel(),'cancelar registrou um desfazer para uma mudança que já foi descartada');
 });
 
+/* O "nasce bugado em cima" do logo: a conta antiga do arrasto supunha foto em `cover` (sobra
+   imagem). Logo é `contain` (sobra moldura) e o sinal invertia — arrastar para baixo jogava o
+   logo para cima e ele grudava no topo. A regra: a imagem anda para o lado do dedo, 1:1. */
+await test('Arrastar o logo move a imagem para o mesmo lado do dedo (contain e cover)', async()=>{
+  reset();
+  const logo={id:'lg',type:'frame',imgVar:'logo_loja',x:0,y:0,w:200,h:200,visible:true};
+  fState.dados={logo_loja:'data:image/png;base64,x'};
+  fLpStartFraming(logo,'logo_loja');
+  _lpFraming.img={w:400,h:200};          // logo largo numa moldura quadrada: contain, sobra 100px no Y
+  let o=_fLpFrameShift(0,0,0,50);        // dedo 50px (da arte) para baixo
+  assert(o.offY>0,'arrastar para baixo mandou o logo para cima: '+JSON.stringify(o));
+  assert(Math.abs(o.offY*100-50)<1e-9,'o logo não andou junto com o dedo (esperado 50px): '+JSON.stringify(o));
+  assert(_fLpFrameShift(0,0,30,0).offX===0,'o logo andou num eixo em que ele já ocupa a moldura inteira');
+  fLpCancelFraming();
+  const foto={id:'ft',type:'frame',imgVar:'foto_produto',x:0,y:0,w:200,h:200,visible:true};
+  fState.dados={foto_produto:'data:image/png;base64,x'};
+  fLpStartFraming(foto,'foto_produto');
+  _lpFraming.img={w:400,h:200};          // foto em cover: sobra 200px de imagem no X
+  o=_fLpFrameShift(0,0,50,0);
+  const antes=(200-400)*0.5, depois=(200-400)*(0.5+o.offX);
+  assert(Math.abs((depois-antes)-50)<1e-9,'a foto não andou 50px para a direita com o dedo: '+JSON.stringify(o));
+  fLpCancelFraming();
+});
+
+/* ── LIMBO: PASSO AGENDADO DE UMA CONVERSA QUE JÁ ACABOU ────────────────────────────────────
+   Achado pela varredura de ações no celular: o chat agenda o próximo passo (~900ms); voltar a
+   Campanhas e abrir outra nesse intervalo fazia o passo rodar na campanha nova, sem perguntas —
+   `perguntas.length` de undefined, erro no console, chat parado. */
+await test('Passo agendado da conversa anterior não roda depois de trocar de conversa', async()=>{
+  reset();
+  let rodou=false;
+  fTyping(()=>{ rodou=true; });
+  fChatNovaConversa();                    // é o que abrir material / trocar de campanha fazem
+  await espera(1100);
+  assert(!rodou,'o passo agendado da conversa anterior rodou na conversa nova');
+});
+
+await test('fNextStep sem material aberto não estoura', async()=>{
+  reset();
+  fState.camp={id:'outra',name:'Outra campanha'};   // campanha recém-aberta: ainda sem perguntas
+  fState.material=null;
+  let erro=null;
+  try{ fNextStep(); }catch(e){ erro=e; }
+  assert(!erro,'fNextStep estourou sem material aberto: '+(erro&&erro.message));
+});
+
 await test('Editar pela prévia também é desfazível', async()=>{
   reset();
   fState.dados={produto:'Pizza Grande'};
@@ -640,8 +693,12 @@ await test('Sheets: o celular é recusado com aviso, o desktop passa', async()=>
    mexer no roteamento: a foto tem de cair no campo que o chat está PEDINDO (e não em outro),
    o gesto tem de ser RECUSADO COM AVISO quando nenhum passo pede foto, e o Ctrl+V de quem
    está DIGITANDO não pode ser sequestrado. */
+/* 400×400 desde 25/09/2026: o portão da foto (`fPortaoFoto`) recusa menos de 400px no lado
+   menor — a miniatura 4×4 de antes agora é recusada DE PROPÓSITO. */
 const _pngMinimo = ()=>{
-  const b64='iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAFklEQVR42mP8z8BQz0AEYBxVSF+FAAlWBAWt6bVzAAAAAElFTkSuQmCC';
+  const cv=document.createElement('canvas'); cv.width=cv.height=400;
+  const cx=cv.getContext('2d'); cx.fillStyle='#c33'; cx.fillRect(0,0,400,400);
+  const b64=cv.toDataURL('image/png').split(',')[1];
   const bin=atob(b64), arr=new Uint8Array(bin.length);
   for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
   return new File([arr],'print.png',{type:'image/png'});
@@ -704,7 +761,409 @@ await test('Colar/arrastar: a foto cai no passo que pede foto, e só nele', asyn
   }
 });
 
+/* ══ A UI DO BLOQUEIO — "não cabe" tem que ter saída ════════════════════════════════════
+   O Local Fit BLOQUEIA quando o texto não cabe nem no menor corpo legível. O que se cobra
+   aqui não é o bloqueio (isso é `tests/local-fit.html`): é o que a pessoa vê e para onde ela
+   consegue ir. Antes era um toast que sumia em segundos, e ela ficava na mesma tela. */
+
+const bloqueio=(campo,limite,atual)=>({
+  status:'overflow', invalid:true, invalidIds:['produto'], adapted:false,
+  requiresAdaptation:true, forced:false, changes:[], campos:[], meta:null,
+  bloqueios:[{status:'CONTENT_TOO_LARGE',fieldId:'produto',campos:[campo],
+              overflowX:120,overflowY:0,requiredLines:3,maxLines:3,
+              fontSize:18,minimumFontSize:18,motivo:'largura excedida em 120px'}],
+  diagnostico:{campo:campo,rotulo:'Nome do produto',atual:atual,limite:limite,
+               mensagem:'O texto de “Nome do produto” é longo demais para esta arte. Cabem até '
+                        +limite+' caracteres aqui — hoje tem '+atual+'.'}
+});
+
+await test('bloqueio: o diálogo nomeia o campo, diz o limite e LEVA até ele', async()=>{
+  reset();
+  fState.dados={produto:'Hambúrguer Artesanal Duplo com Bacon e Cheddar'};
+  fState.done=true; fState.stepIdx=3;
+  _perguntou=0; _respostaConfirm=true; _confirmOpts=null;
+  const tratou = await fCorrigirTextoLongo(bloqueio('produto',28,45));
+  assert(tratou===true,'o bloqueio não foi tratado');
+  assert(_perguntou===1,'não perguntou antes de mexer no fluxo');
+  assert(/Nome do produto/.test(_confirmOpts.msg),'o diálogo não nomeou o campo: '+_confirmOpts.msg);
+  assert(/28 caracteres/.test(_confirmOpts.msg),'o diálogo não disse o limite medido');
+  assert(/hoje tem 45/.test(_confirmOpts.msg),'o diálogo não disse o tamanho atual');
+  assert(!/\{\{|_|undefined/.test(_confirmOpts.msg),'vazou termo técnico: '+_confirmOpts.msg);
+  const idx=fState.camp.perguntas.findIndex(p=>p.id==='produto');
+  assert(fState.stepIdx===idx,'não levou para o campo culpado (ficou em '+fState.stepIdx+')');
+  assert(fState.done===false,'deixou o fluxo como "pronto" — a resposta da edição não seria salva');
+});
+
+await test('bloqueio: "Agora não" não mexe no fluxo', async()=>{
+  reset();
+  fState.dados={produto:'Hambúrguer Artesanal Duplo com Bacon e Cheddar'};
+  fState.done=true; fState.stepIdx=3;
+  _perguntou=0; _respostaConfirm=false;
+  await fCorrigirTextoLongo(bloqueio('produto',28,45));
+  assert(fState.stepIdx===3,'levou para o campo mesmo com a pessoa recusando');
+  assert(fState.done===true,'reabriu o fluxo sem permissão');
+  _respostaConfirm=true;
+});
+
+await test('bloqueio: o contador passa a mostrar o limite MEDIDO, não a permissão do designer', async()=>{
+  reset();
+  /* Material próprio: o limite medido é guardado por `materialId|campo` e SOBREVIVE entre
+     artes de propósito (quem volta para a mesma peça não perde o número). Reaproveitar o
+     `mat-1` faria este caso ler o limite que o caso anterior gravou. */
+  fState.material.id='mat-contador';
+  const box=document.getElementById('f-msg-box');
+  const counter=document.getElementById('f-char-count');
+  const idx=fState.camp.perguntas.findIndex(p=>p.id==='produto');
+  fState.stepIdx=idx; fState.done=false;
+  const permissao=fGetFieldType('produto').maxLen;
+  box.value='Hambúrguer Artesanal Duplo com Bacon e Cheddar';
+  const n=box.value.length;
+  fUpdateCharCount();
+  assert(counter.textContent===n+'/'+permissao,
+         'antes do bloqueio o contador deveria mostrar a permissão do designer, veio '+counter.textContent);
+  _respostaConfirm=true;
+  await fCorrigirTextoLongo(bloqueio('produto',28,n));
+  fUpdateCharCount();
+  assert(counter.textContent===n+'/28','o contador não adotou o limite medido: '+counter.textContent);
+  assert(counter.classList.contains('warn'),'passou do alvo e o contador não avisou');
+  /* ⛔ O limite medido NÃO corta o que a pessoa digitou: ele é estimativa por caractere
+     ("WWWW" e "iiii" têm a mesma contagem e larguras diferentes). Cortar aqui comeria copy
+     que talvez coubesse — o corte continua sendo só o do designer. */
+  box.dispatchEvent(new Event('input',{bubbles:true}));
+  assert(box.value.length===n,'o limite medido cortou o texto: sobrou '+box.value.length);
+});
+
+await test('bloqueio: sem campo editável no chat, a saída honesta é trocar de material', async()=>{
+  reset();
+  fState.done=true; fState.stepIdx=3;
+  const toastReal=window.gToast; let disse='';
+  window.gToast=(m)=>{disse=String(m||'');};
+  _perguntou=0;
+  try{
+    const tratou=await fCorrigirTextoLongo(bloqueio('campoQueNaoExiste',0,46));
+    assert(tratou===false,'disse ter resolvido um bloqueio sem saída');
+    assert(_perguntou===0,'ofereceu editar um campo que o chat não pergunta');
+    assert(/outro material/.test(disse),'não ofereceu a única saída real: '+disse);
+  }finally{ window.gToast=toastReal; }
+});
+
+await test('bloqueio: o aviso da prévia acende, nomeia o campo e é clicável', async()=>{
+  reset();
+  const nota=document.getElementById('lp-layout-nota');
+  nota.hidden=true; nota.className=''; nota.textContent='';
+  /* A prévia lê o resultado do render; aqui ele entra por parâmetro para o caso medir a UI e
+     não o motor (que já tem suíte própria). */
+  _fLpSyncBloqueio(bloqueio('produto',28,46));
+  assert(!nota.hidden,'a arte bloqueou e a prévia não disse nada');
+  assert(nota.classList.contains('is-bloqueio'),'o aviso não entrou no estado de bloqueio');
+  /* O rótulo sai do motor único (`gFieldLabel`), não do laudo: é a mesma régua do chat e da
+     lista de respostas. Nome técnico (`produto`) nunca aparece cru para quem lê. */
+  const rotulo=gFieldLabel('produto');
+  assert(nota.textContent.indexOf(rotulo)>=0,'o aviso não nomeia o campo: '+nota.textContent);
+  assert(!/\{\{|_/.test(nota.textContent),'o aviso vazou nome técnico: '+nota.textContent);
+  assert(typeof nota.onclick==='function','o aviso não leva a lugar nenhum');
+  /* E some quando a arte volta a caber — aviso que fica é aviso que ninguém lê. */
+  _fLpSyncBloqueio({status:'shrunk',invalid:false,bloqueios:[],diagnostico:null});
+  assert(nota.hidden,'o aviso continuou na tela depois de a arte caber');
+  assert(!nota.classList.contains('is-bloqueio'),'ficou com o estado de bloqueio pendurado');
+});
+
+await test('bloqueio: a entrega NÃO diz "pronta" — o cabeçalho do card vira o aviso e abre a porta única', async()=>{
+  reset();
+  /* No celular a prévia fica fechada e o card é a única tela: "Sua arte está pronta" sobre uma
+     miniatura estourada era a mentira que só o "Baixar" desmentia (Local Fit 2.1). */
+  const monta=()=>{
+    const w=document.createElement('div');
+    w.innerHTML='<div class="bbl art-ok"><span class="art-ok-tick"><svg></svg></span>'
+      +'<span class="art-ok-copy"><strong>Sua arte está pronta</strong><small class="art-ok-sub">Salva em Minhas artes</small></span></div>';
+    return w;
+  };
+  const fonte=window.fCorrigirTextoLongo; let recebeu=null;
+  window.fCorrigirTextoLongo=r=>{ recebeu=r; };
+  try{
+    const w=monta(), ok=w.querySelector('.bbl.art-ok');
+    _fBolhaMarcaBloqueio(w,{_layoutResult:bloqueio('produto',28,46)},{produto:'x'},1080,1350);
+    assert(!/pronta/.test(ok.textContent),'o card bloqueado seguiu dizendo "pronta": '+ok.textContent);
+    assert(ok.textContent.indexOf(gFieldLabel('produto'))>=0,'não nomeou o campo: '+ok.textContent);
+    assert(!ok.querySelector('.art-ok-tick'),'o tique verde continuou no card bloqueado');
+    assert(ok.classList.contains('is-bloqueio')&&ok.getAttribute('role')==='button'&&ok.tabIndex===0,'não virou um controle alcançável');
+    ok.click();
+    assert(recebeu&&recebeu.invalid,'o toque não chegou à porta única do bloqueio');
+    recebeu=null;
+    ok.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+    assert(recebeu,'Enter não abriu o bloqueio (teclado)');
+    // Caber não muda nada: o card honesto continua sendo o card de sempre.
+    const w2=monta(), ok2=w2.querySelector('.bbl.art-ok');
+    _fBolhaMarcaBloqueio(w2,{_layoutResult:{invalid:false,bloqueios:[]}},{},1080,1350);
+    assert(/Sua arte está pronta/.test(ok2.textContent)&&!ok2.classList.contains('is-bloqueio'),'mexeu no card de uma arte que coube');
+  }finally{ window.fCorrigirTextoLongo=fonte; }
+});
+
+await test('letra pequena: coube a ≤75% do corpo → aviso laranja que leva ao campo; pouco encolhido fica calado', async()=>{
+  reset();
+  const nota=document.getElementById('lp-layout-nota');
+  const idx=((fState.camp&&fState.camp.perguntas)||[]).findIndex(p=>p&&p.id==='produto');
+  assert(idx>=0,'o cenário precisa perguntar produto');
+  const campo=fs=>({invalid:false,bloqueios:[],campos:[{id:'L',nomes:['produto'],status:'fits',fontSize:fs,fontSizeAutorado:40}]});
+  const editReal=window.fEditCampo; let foi=-1; window.fEditCampo=i=>{foi=i;};
+  try{
+    _fLpSyncBloqueio(campo(28));
+    assert(!nota.hidden&&nota.classList.contains('is-aviso'),'encolheu 30% e a prévia não disse nada');
+    assert(!nota.classList.contains('is-bloqueio'),'aviso de letra pequena não é bloqueio');
+    assert(nota.textContent.indexOf(gFieldLabel('produto'))>=0,'não nomeia o campo: '+nota.textContent);
+    nota.click();
+    assert(foi===idx,'o clique não levou ao campo');
+    _fLpSyncBloqueio(campo(36));
+    assert(nota.hidden&&!nota.classList.contains('is-aviso'),'encolheu 10% e o aviso acendeu');
+  }finally{ window.fEditCampo=editReal; }
+});
+
+await test('bloqueio: a porta é ÚNICA — gHandleLayoutUnsafeError delega para a mesma UI', async()=>{
+  reset();
+  fState.dados={produto:'Hambúrguer Artesanal Duplo com Bacon e Cheddar'};
+  fState.done=true; fState.stepIdx=3;
+  _perguntou=0; _respostaConfirm=true;
+  const err=new Error('não cabe');
+  err.code='LUMA_CONTENT_TOO_LARGE'; err.layoutResult=bloqueio('produto',28,45);
+  assert(gHandleLayoutUnsafeError(err)===true,'o erro tipado não foi reconhecido');
+  await espera(30);
+  assert(_perguntou===1,'caiu no toast em vez de abrir a UI do bloqueio');
+  // Erro de outra natureza continua passando direto — este handler não é pega-tudo.
+  assert(gHandleLayoutUnsafeError(new Error('qualquer outra'))===false,
+         'engoliu um erro que não é de bloqueio');
+});
+
 window.gConfirm=_gConfirmReal;
+await test('Ajuda: a busca casa pelo radical ("baixo", "baixei", "baixando" acham "baixar")', async()=>{
+  const r=gHelpStem('baixar');
+  ['baixo','baixei','baixando','baixou','baixa'].forEach(w=>assert(gHelpStem(w)===r,'"'+w+'" virou "'+gHelpStem(w)+'", esperado "'+r+'"'));
+  assert(gHelpStem('artes')===gHelpStem('arte') && gHelpStem('arte')==='arte','plural/singular de "arte" não casam');
+  assert(gHelpStem('pdf')==='pdf' && gHelpStem('logo')==='logo','palavra curta não pode perder letra');
+  const alvo='baixar a arte quando a arte fica pronta';
+  const set=gHelpStemSet(alvo);
+  assert(gHelpTermoCasa('baixo',alvo,set) && gHelpTermoCasa('baixando',alvo,set),'"baixo"/"baixando" não acharam o texto com "baixar"');
+  assert(!gHelpTermoCasa('planilha',alvo,set),'casou palavra que não está no texto');
+});
+await test('Lu: só oferece a equipe pelos gatilhos certos e lê a resposta do servidor', async()=>{
+  const l=gLuLerResposta('{"texto":"Encurte o nome do produto.","nao_sei":false,"delegar":true}');
+  assert(l.texto==='Encurte o nome do produto.' && l.delegar===true && l.naoSei===false,'JSON do servidor mal lido');
+  const fence=gLuLerResposta('```json\n{"texto":"Oi","nao_sei":true}\n```');
+  assert(fence.texto==='Oi' && fence.naoSei===true,'JSON dentro de cerca de código não foi lido');
+  assert(gLuLerResposta('Resposta em texto puro').texto==='Resposta em texto puro','texto puro deveria passar');
+  assert(!gLuOferecerEquipe({delegar:false,naoSei:false},0,false),'ofereceu equipe sem motivo');
+  assert(gLuOferecerEquipe({delegar:true},0,false) && gLuOferecerEquipe({naoSei:true},0,false),'não ofereceu com delegar/nao_sei');
+  assert(!gLuOferecerEquipe({},1,false) && gLuOferecerEquipe({},2,false),'a oferta deveria abrir na 2ª resposta sem ajuda');
+  assert(gLuPedeHumano('quero falar com uma pessoa') && gLuPedeHumano('tem algum atendente?') && !gLuPedeHumano('como baixo a arte em PNG'),'detecção de "quero gente" errada');
+});
+await test('Lu: estado da tela traz o erro de validação e o gate de custo vê o assunto', async()=>{
+  reset();
+  fState.dados={produto:'X-Bacon',validade:'Válido 31/02/2026'};
+  const e=gSupEstadoTela();
+  assert(!gSupEstadoTemAssunto({}) && !gSupEstadoTemAssunto(null),'estado vazio não pode gastar IA');
+  assert(gSupEstadoTemAssunto({erro:'x'}) && gSupEstadoTemAssunto({campoBloqueado:'Produto'}) && gSupEstadoTemAssunto({material:'Combo'}),'estado com assunto foi ignorado');
+  assert(typeof e==='object','gSupEstadoTela deveria devolver objeto');
+  const c=gSupContexto('assistente',{campoBloqueado:'Produto',erro:'Essa data não existe'});
+  assert(c.campo_bloqueado==='Produto' && c.erro==='Essa data não existe','contexto para a equipe não leva o estado');
+});
+await test('Preço "por" maior que o "de" reprova mesmo sem ponto de milhar', async()=>{
+  assert(_fPrecoNum('R$ 1000,00')===1000,'"R$ 1000,00" não virou número');
+  assert(_fPrecoDePorErro('preco','De R$ 1000,00 Por R$ 2000,00',null),'"De 1000,00 / Por 2000,00" passou');
+  assert(!_fPrecoDePorErro('preco','De R$ 2000,00 Por R$ 1000,00',null),'par correto foi reprovado');
+});
+await test('Validade rejeita data que não existe e aceita texto livre válido', async()=>{
+  for(const v of ['00/00/0000','99/99/9999','31/02/2026']){
+    const m=fApplyMask('validade',v);
+    assert(fValidate('validade',m),'"'+v+'" foi aceito como validade ('+m+')');
+  }
+  // Texto livre nunca é recusado por vocabulário: lista de "palavras de prazo" sempre deixa um texto real de fora.
+  for(const v of ['até domingo','15/10','29/02/2028','12 de julho','enquanto durar o estoque','hoje','válido na loja do centro']){
+    const m=fApplyMask('validade',v);
+    assert(!fValidate('validade',m),'"'+v+'" foi recusado: '+fValidate('validade',m));
+  }
+});
+/* ── PREÇO QUE SUMIA OU REESCREVIA NO CELULAR (teste do time, 23/09) ─────────────────────────
+   ⚠ NO FIM DE PROPÓSITO: estes casos ligam o `fAttachInputGuard` (é nele que mora o espelho
+   da digitação), e o guarda também assume o colar da caixa — antes do caso de colar/arrastar,
+   ele o contaminaria. */
+await test('Digitar por cima de um preço que voltou preenchido não inventa valor', async()=>{
+  // "Anterior" devolve "De: R$ 30,00" na caixa; quem digitava "35" mandava "De: R$ 30,0035",
+  // que a máscara transformava em R$ 300.035,00 — e a validação aceitava.
+  for(const [id,caixa] of [['precoDe','De: R$ 30,0035'],['precoPor','Por: R$ 20,0019,90'],['precoPor','Por: R$ 20,00 19,90']]){
+    const salvo=fApplyMask(id,caixa);
+    assert(fValidate(id,salvo),'"'+caixa+'" foi aceito como preço: '+salvo);
+  }
+  // e o que é preço de verdade continua passando
+  for(const [id,v,esperado] of [['precoDe','30','De: R$ 30,00'],['precoPor','1.234,56','Por: R$ 1.234,56'],['precoPor','R$ 1.000','Por: R$ 1.000,00'],['precoDe','De 30 por 20','De R$ 30,00 Por R$ 20,00']]){
+    const m=fApplyMask(id,v);
+    assert(m===esperado && !fValidate(id,m),'"'+v+'" deveria virar '+esperado+' e virou '+m+' ('+fValidate(id,m)+')');
+  }
+});
+
+await test('Sair do passo sem enviar devolve o preço que estava lá', async()=>{
+  reset(); fAttachInputGuard();
+  fState.dados={produto:'X-Bacon',precoDe:'De: R$ 30,00'};
+  irAoPasso('precoDe');
+  const box=document.getElementById('f-msg-box');
+  box.value='4'; box.dispatchEvent(new Event('input',{bubbles:true}));   // apagou e começou a redigitar
+  assert(fState.dados.precoDe==='4','a prévia deixou de acompanhar a digitação');
+  fGoBack(); await espera(PASSO);                                          // desistiu: "Anterior"
+  assert(fState.dados.precoDe==='De: R$ 30,00','sair sem enviar deixou o preço como "'+fState.dados.precoDe+'"');
+});
+
+await test('O que foi enviado vale; o que outra ação escreveu depois também não é desfeito', async()=>{
+  reset(); fAttachInputGuard();
+  fState.dados={produto:'X-Bacon',precoDe:'De: R$ 30,00'};
+  irAoPasso('precoDe');
+  const box=document.getElementById('f-msg-box');
+  box.value='45'; box.dispatchEvent(new Event('input',{bubbles:true}));
+  fSend(); await espera(PASSO);
+  assert(fState.dados.precoDe==='De: R$ 45,00','o valor enviado não ficou: '+fState.dados.precoDe);
+  irAoPasso('precoDe');
+  box.value='5'; box.dispatchEvent(new Event('input',{bubbles:true}));
+  _fLpCommit('precoDe','De: R$ 50,00');                                    // editou pela arte
+  fGoBack(); await espera(PASSO);
+  assert(fState.dados.precoDe==='De: R$ 50,00','a edição pela arte foi desfeita ao sair do passo: '+fState.dados.precoDe);
+});
+
+await test('Editar pela arte o campo da pergunta aberta chega na caixa do chat (e o Enviar não desfaz)', async()=>{
+  // Relato do celular (23/09): "90" digitado no chat, "80" corrigido na arte, Enviar → o passo
+  // seguinte dizia "O preço original é 90". A caixa guardava o 90 e gravava por cima.
+  reset(); fAttachInputGuard();
+  fState.dados={produto:'X-Bacon',precoDe:'De: R$ 30,00'};
+  irAoPasso('precoDe');
+  const box=document.getElementById('f-msg-box');
+  box.value='90'; box.dispatchEvent(new Event('input',{bubbles:true}));
+  _fLpCommit('precoDe','80');                                              // corrigiu pela arte
+  assert(box.value===fState.dados.precoDe,'a caixa ficou "'+box.value+'" e a arte "'+fState.dados.precoDe+'"');
+  fSend(); await espera(PASSO);
+  assert(fState.dados.precoDe===fApplyMask('precoDe','80'),'o Enviar gravou por cima da edição pela arte: '+fState.dados.precoDe);
+});
+
+/* ── KIT DA CAMPANHA (materials.js) ─────────────────────────────────────────────────────────
+   Religado em 29/09. A pasta é o vínculo: as peças são os materiais publicados da campanha.
+   Os casos cobrem o que a reunião pediu: o botão só com 2+ peças, perguntar SÓ o campo próprio
+   (A), a caixa mais apertada como limite (B) e o "não cabe" por peça fora do pacote (C). */
+const KIT_CAMP={id:'camp-kit',name:'Campanha do kit',color:'#FF9000'};
+const pecaKit=(id,nome,fmt,extra,publishMeta)=>{
+  const m=material(); m.id=id; m.name=nome; m.fmt=fmt;
+  m.publishMeta=Object.assign({publicado:true},publishMeta||{});
+  (extra||[]).forEach(l=>m.layers.push(l));
+  return m;
+};
+const txtKit=(id,campo,w,h,fs)=>({id,name:id,type:'text',content:'{{'+campo+'}}',isVar:true,x:90,y:1760,w,h,
+  font:'Arial',fontSize:fs,lineHeight:1.1,textAlign:'left',textBox:'box',visible:true,opacity:100});
+function pastaKit(templates){
+  dFolders.length=0;
+  dFolders.push({id:'pasta-kit',campId:KIT_CAMP.id,name:KIT_CAMP.name,templates});
+  fState.camp=Object.assign({},KIT_CAMP,{perguntas:fBuildPerguntas(['produto','precoDe','precoPor','foto_produto'],
+    {camp:KIT_CAMP,imageVars:new Set(['foto_produto'])})});
+}
+// A foto foi pulada no chat (é o `__skipped__` que o chat grava): foto não é o assunto destes casos.
+const DADOS_KIT={produto:'Pizza Grande',precoDe:'De: R$ 49,90',precoPor:'Por: R$ 29,90','__skipped__foto_produto':true};
+
+await test('Kit: com uma peça só publicada na pasta, o botão não aparece', async()=>{
+  reset();
+  pastaKit([pecaKit('k-1','Story da Copa','story'), Object.assign(pecaKit('k-rasc','Rascunho','feed'),{publishMeta:{publicado:false}})]);
+  assert(_fKitBtnHtml('snap-a')==='','o botão do kit apareceu com uma peça publicada (a outra é rascunho)');
+  pastaKit([pecaKit('k-1','Story','story'),pecaKit('k-2','Feed','feed')]);
+  assert(/Gerar todas as peças \(2\)/.test(_fKitBtnHtml('snap-a')),'com duas peças publicadas o botão não apareceu');
+  dFolders.length=0;
+});
+
+await test('Kit A: a peça com campo próprio não é pulada — o kit pergunta só esse campo', async()=>{
+  reset();
+  const story=pecaKit('k-1','Story','story');
+  const feed=pecaKit('k-2','Feed com brinde','feed',[txtKit('brinde','brinde',900,120,40)]);
+  pastaKit([story,feed]);
+  const plano=await fKitPlano([story,feed],DADOS_KIT,fState.camp);
+  assert(plano.pecas.every(p=>!p.bloqueio),'uma peça ficou bloqueada sem motivo');
+  assert(plano.campos.length===1&&plano.campos[0].id==='brinde',
+    'o kit devia perguntar só "brinde" e perguntou: '+plano.campos.map(c=>c.id).join(', '));
+  assert(plano.campos[0].pecas.length===1&&plano.campos[0].pecas[0].nome==='Feed com brinde','o campo não diz a que peça pertence');
+  assert(fState.material.id==='mat-1','o plano deixou fState.material apontando para uma peça do kit');
+  dFolders.length=0;
+});
+
+await test('Kit B: campo pedido por duas peças usa o limite da caixa mais apertada', async()=>{
+  reset();
+  const larga=pecaKit('k-2','Feed','feed',[txtKit('oferta','oferta',900,120,40)],{permissoes:{oferta:{maxLen:30}}});
+  const estreita=pecaKit('k-3','Story','story',[txtKit('oferta','oferta',300,60,40)],{permissoes:{oferta:{maxLen:14}}});
+  pastaKit([larga,estreita]);
+  const plano=await fKitPlano([larga,estreita],DADOS_KIT,fState.camp);
+  const c=plano.campos.find(x=>x.id==='oferta');
+  assert(c,'o campo compartilhado não foi perguntado');
+  assert(c.limite===14,'o limite devia ser o da caixa mais apertada (14) e veio '+c.limite);
+  assert(c.pecas.length===2,'o campo compartilhado virou duas perguntas em vez de uma');
+  dFolders.length=0;
+});
+
+await test('Kit B no chat: o limite de um campo de texto é o da peça mais apertada da pasta', async()=>{
+  reset();
+  const larga=pecaKit('k-2','Feed','feed',[txtKit('oferta','oferta',900,120,40)],{permissoes:{oferta:{maxLen:30}}});
+  const estreita=pecaKit('k-3','Story','story',[txtKit('oferta','oferta',300,60,40)],{permissoes:{oferta:{maxLen:14}}});
+  pastaKit([larga,estreita]);
+  fState.material=larga;
+  assert(fAlvoDoCampo('oferta',fGetFieldType('oferta'))===14,'o chat do Feed mostra '+fAlvoDoCampo('oferta',fGetFieldType('oferta'))+' e o Story só aceita 14');
+  assert(fGetFieldType('oferta').maxLen===30,'o corte da digitação mudou: ele segue no limite do designer');
+  assert(fState.material===larga,'medir a outra peça trocou o material aberto');
+  dFolders.length=0;
+  assert(fAlvoDoCampo('oferta',fGetFieldType('oferta'))===30,'fora de uma pasta com várias peças o limite apertou mesmo assim');
+});
+
+await test('Kit C: a peça em que o texto não cabe fica fora do pacote, com nome e motivo', async()=>{
+  reset();
+  const cabe=pecaKit('k-1','Story','story');
+  const apertada=pecaKit('k-2','Selo pequeno','feed');
+  apertada.layers.find(l=>l.id==='produto').w=90;       // caixa onde "Pizza Grande" não cabe no piso
+  apertada.layers.find(l=>l.id==='produto').h=40;
+  pastaKit([cabe,apertada]);
+  assert((await fKitNaoCabe(cabe,_fKitFmt(cabe),DADOS_KIT,fState.camp)).length===0,'o Story acusou "não cabe" sem motivo');
+  const nc=await fKitNaoCabe(apertada,_fKitFmt(apertada),DADOS_KIT,fState.camp);
+  assert(nc.some(x=>x.campo==='produto'),'o Local Fit não acusou o produto na caixa apertada');
+  // O fluxo inteiro, pela bolha: a peça apertada é nomeada e só a outra vai para o pacote.
+  const snapId='snap-kit-c';
+  _fArtSnapshots[snapId]={dados:{...DADOS_KIT},camp:fState.camp,fmt:fState.fmt,material:cabe};
+  document.getElementById('fixture').innerHTML=_fKitBtnHtml(snapId);
+  await fKitAbrir(document.querySelector('.art-kit-btn'),snapId);
+  const box=document.getElementById('art-kit-'+snapId);
+  assert(!box.hidden&&box.querySelectorAll('[data-kit-peca]').length===2,'o painel não listou as duas peças');
+  await fKitGerar(box.querySelector('.art-kit-gerar'),snapId);
+  const st=_fKit[snapId];
+  assert(st.prontas.map(x=>x.p.nome).join()==='Story','foram para o pacote: '+st.prontas.map(x=>x.p.nome).join());
+  assert(st.fora.length===1&&st.fora[0].nome==='Selo pequeno'&&/Produto/.test(st.fora[0].motivo),
+    'a peça que não coube não foi nomeada: '+JSON.stringify(st.fora));
+  assert(/Selo pequeno/.test(box.textContent)&&/ficou de fora/.test(box.textContent),'a tela não disse qual peça ficou de fora');
+  assert(fState.material.id==='mat-1','gerar o kit deixou fState.material numa peça do kit');
+  document.getElementById('fixture').innerHTML=''; dFolders.length=0;
+});
+
+await test('Kit: duas peças de mesmo formato com as mesmas respostas viram duas artes no histórico', async()=>{
+  reset();
+  try{ localStorage.removeItem(fUserCacheKey(HIST_KEY)); }catch(e){}
+  const a=pecaKit('k-1','Feed A','feed'), b=pecaKit('k-2','Feed B','feed');
+  const fmt=FMTS.find(f=>f.id==='feed')||FMTS[0];
+  fState.material=a; const ia=fAddHist(DADOS_KIT,KIT_CAMP,fmt,'rascunho');
+  await espera(5);   // o id da arte é o carimbo em ms: no kit há um render entre uma peça e a outra
+  fState.material=b; const ib=fAddHist(DADOS_KIT,KIT_CAMP,fmt,'rascunho');
+  assert(ia!==ib,'a segunda peça foi tratada como a mesma arte e sumiu do histórico');
+  fState.material=a;
+  assert(fAddHist(DADOS_KIT,KIT_CAMP,fmt,'baixada')===ia,'a mesma peça repetida deixou de deduplicar');
+  try{ localStorage.removeItem(fUserCacheKey(HIST_KEY)); }catch(e){}
+});
+
+await test('Kit: data URL vira Blob sem fetch; entrega solta as imagens; bolha que saiu perde o kit', async()=>{
+  const b=_fKitDataUrlBlob('data:image/png;base64,iVBORw0KGgo=');
+  assert(b.type==='image/png'&&b.size===8,'o Blob local saiu errado: '+b.type+' '+b.size);
+  const st={prontas:[{url:'data:image/png;base64,AAAA',hist:'x'}],fora:[],snap:{camp:{id:'c'}}};
+  _fKitEntregue(st,'zip');
+  assert(st.prontas[0].url===null&&st.files===null,'a entrega não soltou as imagens');
+  _fKit['snap-vivo']={}; _fKit['snap-morto']={};
+  _fArtSnapshots['snap-vivo']={};
+  _fKitPoda();
+  assert(_fKit['snap-vivo']&&!_fKit['snap-morto'],'a poda não tirou só o kit da bolha que saiu');
+  delete _fKit['snap-vivo']; delete _fArtSnapshots['snap-vivo'];
+});
+
 window.__lumaTest={total,passed:total-failures.length,failures};
 })().catch(e=>window.__lumaTest={total:1,passed:0,failures:[{name:'bancada',error:e.stack}]});
 </script></body></html>

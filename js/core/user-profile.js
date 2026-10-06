@@ -81,11 +81,15 @@ function gOpenUserProfileModal() {
   if(produtoBtn) produtoBtn.style.display = gIsSuperAdmin() ? '' : 'none';
   const feedbackBtn=document.getElementById('prof-nav-feedback');
   if(feedbackBtn)feedbackBtn.style.display=gIsAdmin()?'':'none';
+  const painelBtn=document.getElementById('prof-nav-painel');
+  if(painelBtn)painelBtn.style.display=gIsAdmin()?'':'none';
 
   // Console (Luma CLI): mesmo gate do console em si (gIsAdmin = equipe_dm + gestao).
   // Gate mais estreito aqui deixaria o designer sem caminho no celular, onde não há Ctrl+`.
   const cliBtn = document.getElementById('prof-nav-console');
   if(cliBtn) cliBtn.style.display = (typeof gIsAdmin==='function' && gIsAdmin()) ? '' : 'none';
+  const gestaoLbl = document.getElementById('prof-nav-label-gestao');
+  if(gestaoLbl) gestaoLbl.style.display = (typeof gIsAdmin==='function' && gIsAdmin()) ? '' : 'none';
 
   // Modo das ferramentas do Estúdio: mesmo gate da aba Designer (gIsAdmin). Para o
   // franqueado a opção não existe — ele nunca entra no Estúdio.
@@ -101,8 +105,18 @@ function gOpenUserProfileModal() {
   // Inicializar estatísticas reais
   gProfileRenderStats(role);
 
+  // Celular: abre no índice de seções (o CSS só usa a classe abaixo de 768px)
+  gProfileShowHub();
+
   // Abrir modal
   modal.classList.add('open');
+}
+
+// Índice de seções do celular (lista agrupada). Tocar numa seção chama
+// gProfileSwitchTab, que tira a classe; o "‹" do cabeçalho devolve para cá.
+function gProfileShowHub(){
+  const box = document.querySelector('#g-profile-modal .prof-box');
+  if (box) box.classList.add('prof-hub');
 }
 
 // Fecha o Modal
@@ -124,7 +138,8 @@ function gProfileOpenCli(){
 }
 
 function gProfileSwitchTab(tabName) {
-  if(tabName==='feedback'&&!gIsAdmin())return;
+  document.querySelector('#g-profile-modal .prof-box')?.classList.remove('prof-hub');
+  if((tabName==='feedback'||tabName==='painel')&&!gIsAdmin())return;
   // Ajustar botões da navegação lateral
   document.querySelectorAll('.prof-nav-btn').forEach(btn => {
     const isActive = btn.id === `prof-nav-${tabName}`;
@@ -173,6 +188,10 @@ function gProfileSwitchTab(tabName) {
     if (title) title.textContent = 'Gestão de equipe';
     if (subtitle) subtitle.textContent = 'Convide pessoas e mantenha cada acesso no nível certo.';
     gProfileRenderEquipe();
+  } else if (tabName === 'painel') {
+    if(title)title.textContent='Dados do Luma';
+    if(subtitle)subtitle.textContent='Quem usa, o que usa e onde a rede trava.';
+    if(typeof gDadosAbrir==='function')gDadosAbrir();
   } else if (tabName === 'feedback') {
     if(title)title.textContent='Feedback dos franqueados';
     if(subtitle)subtitle.textContent='Dificuldades e conteúdos pedidos pela rede';
@@ -188,7 +207,7 @@ function gProfileSwitchTab(tabName) {
 function gProfileUpdateModalAvatars(displayName, email) {
   const sidebarAv = document.getElementById('prof-sidebar-avatar');
   const editorAv = document.getElementById('prof-avatar-editor-img');
-  let savedPhoto=null; try{ savedPhoto = localStorage.getItem('__luma_user_photo_' + email); }catch(e){}
+  const savedPhoto = gUserFoto(gCurrentUser());
 
   [sidebarAv, editorAv].forEach(el => {
     if (!el) return;
@@ -249,19 +268,11 @@ function gProfileHandleUpload(input) {
 
       // Comprime para JPEG de alta qualidade (~45KB no final)
       const base64Image = canvas.toDataURL('image/jpeg', 0.88);
-      const user = gCurrentUser();
-      const email = user ? user.email : 'ryan@deliverymuch.com.br';
-
-      // Salvar no localStorage com tratamento de exceção
-      try {
-        localStorage.setItem('__luma_user_photo_' + email, base64Image);
-      } catch (err) {}
-
-      // Atualizar visual da Topbar e do Modal instantaneamente
-      if (typeof gUpdateUserTopbar === 'function') gUpdateUserTopbar();
-      gProfileUpdateModalAvatars(user ? user.displayName : 'Ryan', email);
-      
-      if (typeof gToast === 'function') gToast('Foto de perfil atualizada!');
+      gProfileSalvarFoto(base64Image).then(function(ok){
+        if (typeof gToast !== 'function') return;
+        if (ok) gToast('Foto de perfil atualizada!');
+        else gToast('Não consegui salvar a foto. Confira sua internet e tente de novo.', 'error');
+      });
     };
     img.onerror = function() {
       if (typeof gToast === 'function') gToast('Não foi possível processar a imagem selecionada.', 'error');
@@ -269,6 +280,39 @@ function gProfileHandleUpload(input) {
     img.src = e.target.result;
   };
   reader.readAsDataURL(file);
+}
+
+/* A foto vai para o Storage (luma-user-uploads/<uid>/avatar.jpeg) e a URL para
+   profiles.avatar_url. Antes ela ficava SÓ no localStorage: sumia em outro navegador e ninguém
+   mais a via. O `?v=` troca a URL a cada envio — o arquivo tem sempre o mesmo nome, e sem isso
+   o navegador (e o CDN do Storage) seguiriam mostrando a foto antiga. */
+async function gProfileSalvarFoto(dataUrl){
+  const user = gCurrentUser();
+  const sb = (typeof gSupabase === 'function') ? gSupabase() : null;
+  if (!user || !user.id || !sb || typeof _fUploadUserImg !== 'function') return false;
+  const url = await _fUploadUserImg(user.id, 'avatar', dataUrl);
+  if (!url) return false;
+  const foto = url + '?v=' + Date.now();
+  try {
+    const { error } = await sb.from('profiles').update({ avatar_url: foto }).eq('id', user.id);
+    if (error) return false;
+  } catch (e) { return false; }
+  user.foto = foto;
+  // A cópia local era o legado; com a foto no banco ela só ocupa espaço (≈45 KB por conta).
+  try { localStorage.removeItem('__luma_user_photo_' + user.email); } catch (e) {}
+  if (typeof gUpdateUserTopbar === 'function') gUpdateUserTopbar();
+  gProfileUpdateModalAvatars(user.displayName, user.email);
+  return true;
+}
+
+/* Quem já tinha trocado a foto antes de 23/09/2026 a tem só neste navegador. No login, se o
+   banco ainda não tem foto e o navegador tem, ela sobe uma vez — ninguém precisa reenviar. */
+async function gProfileSyncFotoLocal(){
+  const user = gCurrentUser();
+  if (!user || user.foto) return;
+  let local = '';
+  try { local = localStorage.getItem('__luma_user_photo_' + user.email) || ''; } catch (e) {}
+  if (local.indexOf('data:image/') === 0) await gProfileSalvarFoto(local);
 }
 
 // Salva as alterações de dados pessoais
@@ -606,6 +650,7 @@ const _ICO_TRASH=`<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24
 // Mesmo glifo de "restaurar/refazer" usado no franqueado (chat.js fRefazer) — reaproveita a
 // linguagem visual já existente em vez de inventar um ícone novo para o mesmo conceito.
 const _ICO_RESTORE=`<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
+const _ICO_KEY=`<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 8.5-8.5"/><path d="m17 6 3 3"/><path d="m14 9 3 3"/></svg>`;
 const _ICO_CHEVRON=`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
 const _ICO_CHECK=`<svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 const _ICO_USERS=`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>`;
@@ -646,7 +691,9 @@ async function gProfileRenderEquipe(){
     <span class="prof-team-loading-copy">Carregando equipe…</span>
   </div>`;
 
-  const users=await gGetAllUsers();
+  // Cidade/Franquia: gGetAllUsers (auth.js) não lê essas colunas — a leitura extra fica aqui,
+  // em paralelo, para não mexer no motor de usuários.
+  const [users,locais]=await Promise.all([gGetAllUsers(),_gProfileLocais()]);
   const me=gCurrentUser();
   const orderedUsers=users.slice().sort((a,b)=>{
     const aMe=a.email===me.email, bMe=b.email===me.email;
@@ -661,8 +708,7 @@ async function gProfileRenderEquipe(){
   const rows=orderedUsers.map((u,idx)=>{
     const isMe=u.email===me.email;
     const displayName=String(u.displayName||u.email||'Membro');
-    let photo='';
-    try{photo=localStorage.getItem('__luma_user_photo_'+u.email)||'';}catch(e){}
+    const photo=gUserFoto(u);
     const avatarClass=photo?' has-photo':' '+_profAvatarTone(displayName);
     const avContent=photo
       ?`<img src="${gEsc(photo)}" alt="">`
@@ -709,6 +755,11 @@ async function gProfileRenderEquipe(){
     const youTag=isMe?`<span class="prof-user-you">Você</span>`:'';
     // Reativar (ativo:false→true) completa o ciclo: antes, desativar era beco sem volta
     // pela UI (só existia gSetUserAtivo(id,true) no backend, sem caminho na tela).
+    /* Link de senha: só para quem está ATIVO — o inativo não entra de jeito nenhum
+       (gLoadProfile derruba a sessão de conta desativada), então mandar link seria mentira. */
+    const senhaBtn = (!isMe && canEdit && !isInactive)
+      ? `<button type="button" class="prof-user-action prof-user-key" data-email="${gEsc(u.email)}" onclick="gProfileEnviarLinkSenha(this.dataset.email||'${gEsc(u.email)}')" aria-label="Enviar link de senha para ${gEsc(displayName)}" title="Enviar link de redefinição de senha">${_ICO_KEY}</button>`
+      : '';
     const actionBtn = (!isMe && canEdit)
       ? (isInactive
           ? `<button type="button" class="prof-user-action prof-user-restore" data-email="${gEsc(u.email)}" onclick="gProfileReactivateUser(this.dataset.email||'${gEsc(u.email)}')" aria-label="Reativar acesso de ${gEsc(displayName)}" title="Reativar acesso">${_ICO_RESTORE}</button>`
@@ -721,11 +772,12 @@ async function gProfileRenderEquipe(){
         <div class="prof-user-info">
           <div class="prof-user-name">${gEsc(displayName)}${youTag}</div>
           <div class="prof-user-email">${gEsc(u.email)}</div>
+          ${_gProfileLocalBtn(u.id,locais[u.id],displayName)}
         </div>
       </div>
       <div class="prof-user-access">${pill}${picker}</div>
       <div class="prof-user-status-cell">${status}</div>
-      <div class="prof-user-actions">${actionBtn}</div>
+      <div class="prof-user-actions">${senhaBtn}${actionBtn}</div>
     </li>`;
   }).join('');
 
@@ -817,7 +869,7 @@ function gProfileShowInviteForm(){
       <div>
         <span class="prof-team-kicker">Novo acesso</span>
         <h4 id="prof-invite-title">Criar acesso</h4>
-        <p>A conta é criada na hora com a permissão escolhida e a <strong>senha inicial <code>dmbrasil@123</code></strong>. Passe o e-mail e essa senha pra pessoa — ela troca no primeiro acesso (Perfil › Segurança).</p>
+        <p>A conta é criada na hora com a permissão escolhida e a <strong>senha inicial</strong>, que aparece quando você criar. Passe o e-mail e essa senha pra pessoa — no primeiro acesso o Luma pede que ela crie a própria.</p>
       </div>
       <button type="button" class="prof-invite-close" onclick="gProfileHideInviteForm()" aria-label="Fechar formulário de convite">${_ICO_CLOSE}</button>
     </div>
@@ -825,6 +877,8 @@ function gProfileShowInviteForm(){
       <div class="prof-field"><label class="prof-label" for="prof-inv-name">Nome completo</label><input class="prof-input" id="prof-inv-name" name="name" autocomplete="name" placeholder="Ex.: João Silva" required></div>
       <div class="prof-field"><label class="prof-label" for="prof-inv-email">E-mail</label><input class="prof-input" id="prof-inv-email" name="email" type="email" autocomplete="email" placeholder="joao@deliverymuch.com.br" required></div>
       <div class="prof-field"><label class="prof-label" for="prof-inv-tel">Telefone <span class="prof-field-optional">Opcional</span></label><input class="prof-input" id="prof-inv-tel" name="tel" type="tel" autocomplete="tel" placeholder="(48) 99999-9999"></div>
+      <div class="prof-field"><label class="prof-label" for="prof-inv-cidade">Cidade <span class="prof-field-optional">Opcional</span></label><input class="prof-input" id="prof-inv-cidade" name="cidade" maxlength="120" autocomplete="address-level2" placeholder="Ex.: Santa Maria"></div>
+      <div class="prof-field"><label class="prof-label" for="prof-inv-franquia">Franquia <span class="prof-field-optional">Opcional</span></label><input class="prof-input" id="prof-inv-franquia" name="franquia" maxlength="120" placeholder="Ex.: Delivery Much Santa Maria"></div>
       <div class="prof-field"><label class="prof-label" for="prof-inv-role">Permissão inicial</label><select class="prof-input" id="prof-inv-role" name="role">${roleOpts}</select></div>
     </div>
     <div class="prof-invite-actions">
@@ -844,21 +898,91 @@ function gProfileHideInviteForm(){
   if(trigger){trigger.setAttribute('aria-expanded','false');trigger.focus();}
 }
 
+/* ── Cidade e Franquia (profiles.cidade / profiles.franquia, text ≤120) ─────────────────
+   Só a gestão grava — o banco trava os outros; aqui só existe o caminho da tela. O painel
+   de Dados (js/core/dados.js) usa esses dois campos para filtrar e agrupar a rede. */
+async function _gProfileLocais(){
+  const sb=typeof gSupabase==='function'?gSupabase():null; if(!sb)return {};
+  try{
+    const {data,error}=await sb.from('profiles').select('id,cidade,franquia');
+    if(error||!Array.isArray(data))return {};
+    const m={}; data.forEach(p=>{m[p.id]=p;}); return m;
+  }catch(e){return {};}
+}
+function _gProfileLocalBtn(id,loc,nome){
+  loc=loc||{};
+  const txt=[loc.cidade,loc.franquia].filter(Boolean).join(' · ');
+  return `<button type="button" class="prof-user-local${txt?'':' is-empty'}" data-id="${gEsc(id)}" data-cidade="${gEsc(loc.cidade||'')}" data-franquia="${gEsc(loc.franquia||'')}"
+    onclick="gProfileEditLocal(this)" aria-label="Editar cidade e franquia de ${gEsc(nome)}" title="Editar cidade e franquia">
+    <span>${gEsc(txt||'Adicionar cidade e franquia')}</span><svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>`;
+}
+function gProfileEditLocal(btn){
+  if(!btn||!gIsSuperAdmin())return;
+  const form=document.createElement('form');
+  form.className='prof-user-local-form';
+  form.innerHTML=`<input class="prof-input" name="cidade" maxlength="120" placeholder="Cidade" aria-label="Cidade" value="${gEsc(btn.dataset.cidade)}">
+    <input class="prof-input" name="franquia" maxlength="120" placeholder="Franquia" aria-label="Franquia" value="${gEsc(btn.dataset.franquia)}">
+    <button type="submit" class="prof-btn prof-btn-primary">Salvar</button>
+    <button type="button" class="prof-btn prof-btn-secondary" data-acao="cancelar">Cancelar</button>`;
+  const cancelar=()=>{form.replaceWith(btn);btn.focus();};
+  form.querySelector('[data-acao="cancelar"]').onclick=cancelar;
+  form.onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();cancelar();}};
+  form.onsubmit=e=>{e.preventDefault();gProfileSaveLocal(btn,form);};
+  btn.replaceWith(form);
+  form.querySelector('input').focus();
+}
+async function gProfileSaveLocal(btn,form){
+  const cidade=form.cidade.value.trim().slice(0,120)||null;
+  const franquia=form.franquia.value.trim().slice(0,120)||null;
+  const salvar=form.querySelector('[type="submit"]'); if(salvar)salvar.disabled=true;
+  const res=await _gProfileGravaLocal('id',btn.dataset.id,cidade,franquia);
+  if(salvar)salvar.disabled=false;
+  if(!res.ok){gToast('Não foi possível salvar cidade e franquia: '+res.error,'error');return;}
+  const nova=document.createElement('div');
+  nova.innerHTML=_gProfileLocalBtn(btn.dataset.id,{cidade,franquia},(btn.getAttribute('aria-label')||'').replace(/^Editar cidade e franquia de /,''));
+  const novoBtn=nova.firstElementChild;
+  form.replaceWith(novoBtn); novoBtn.focus();
+  gToast('Cidade e franquia salvas');
+}
+// .select('id') devolve as linhas que o UPDATE tocou: sem isso, uma recusa da RLS volta
+// "sucesso" com zero linhas e a tela mentiria que salvou.
+async function _gProfileGravaLocal(col,val,cidade,franquia){
+  const sb=typeof gSupabase==='function'?gSupabase():null;
+  if(!sb)return {ok:false,error:'sem conexão com o servidor.'};
+  try{
+    let q=sb.from('profiles').update({cidade,franquia});
+    q=Array.isArray(val)?q.in(col,val):q.eq(col,val);
+    const {data,error}=await q.select('id');
+    if(error)return {ok:false,error:error.message};
+    if(!data||!data.length)return {ok:false,error:'o servidor não permitiu a alteração.'};
+    return {ok:true};
+  }catch(e){return {ok:false,error:String((e&&e.message)||e)};}
+}
+
 async function gProfileInviteUser(event){
   if(event)event.preventDefault();
   const name=document.getElementById('prof-inv-name')?.value.trim();
   const email=document.getElementById('prof-inv-email')?.value.trim();
   const tel=document.getElementById('prof-inv-tel')?.value.trim();
   const role=document.getElementById('prof-inv-role')?.value;
+  const cidade=(document.getElementById('prof-inv-cidade')?.value||'').trim().slice(0,120)||null;
+  const franquia=(document.getElementById('prof-inv-franquia')?.value||'').trim().slice(0,120)||null;
   const btn=document.getElementById('prof-inv-btn');
   const originalHTML=btn?btn.innerHTML:'';
   if(btn){btn.disabled=true;btn.innerHTML='<span class="prof-spinner" aria-hidden="true"></span><span>Criando acesso…</span>';}
   const res=await gInviteUser(email,name,role,tel);
   if(btn){btn.disabled=false;btn.innerHTML=originalHTML;}
   if(!res.ok){gToast('Não foi possível criar o acesso: '+res.error,'error');return;}
-  // Conta criada JÁ com a senha padrão (a dica fixa no form mostra qual; a pessoa
-  // troca no Perfil › Segurança no 1º acesso).
-  gToast('Acesso criado para '+email+' — senha inicial: '+(res.senha_padrao||'dmbrasil@123'));
+  // Conta criada JÁ com a senha inicial. Ela vem da função (servidor), nunca deste código
+  // público — quem lê o site não aprende a senha. No 1º acesso o Luma obriga a troca
+  // (`luma.usa_senha_inicial` → passo "defina sua senha").
+  gToast(res.senha_padrao ? 'Acesso criado para '+email+' — senha inicial: '+res.senha_padrao : 'Acesso criado para '+email+'.');
+  // Cidade/Franquia vão num update logo depois — a Edge Function de convite não as conhece.
+  // O profile já existe (trigger no auth.users); e-mail nas duas grafias por segurança.
+  if(cidade||franquia){
+    const loc=await _gProfileGravaLocal('email',Array.from(new Set([email,email.toLowerCase()])),cidade,franquia);
+    if(!loc.ok)gToast('Acesso criado, mas cidade e franquia não foram salvas. Edite na lista.','error');
+  }
   const form=document.getElementById('prof-invite-form'); if(form){form.hidden=true;form.innerHTML='';}
   gProfileRenderEquipe(); // o profile já existe (trigger) — aparece na lista na hora
 }
@@ -1004,6 +1128,32 @@ async function gProfileReactivateUser(email){
   if(!res.ok){gToast('Não foi possível reativar o usuário: '+res.error,'error');return;}
   gToast('Usuário reativado');
   gProfileRenderEquipe();
+}
+
+/* "Redefinir senha" sem service_role no front NÃO é trocar a senha de alguém — é DISPARAR
+   o link de redefinição para o e-mail da pessoa, que define a senha no passo que o link abre
+   (gDoNovaSenha, auth.js). Existe porque a gestão não tinha saída nenhuma para quem travava
+   no login: dependia de explicar "clica em Esqueci minha senha" por telefone.
+
+   Motor único: o MESMO gForgotPassword do "Esqueci minha senha" — não há segundo caminho de
+   recuperação, e nenhuma senha é definida no front.
+
+   ⚠ Isto é UX, não segurança: resetPasswordForEmail é público por natureza (qualquer um pede
+   link para qualquer e-mail, e o Supabase só entrega na caixa do dono). A fronteira continua
+   sendo a RLS. */
+async function gProfileEnviarLinkSenha(email){
+  const ok = await gConfirm('Enviar um link de redefinição de senha para '+email+'? A pessoa recebe o e-mail e define a nova senha ao abrir o link.', {okLabel:'Enviar link'});
+  if(!ok) return;
+  const res = await gForgotPassword(email);
+  if(!res || !res.ok){
+    // O SMTP padrão do Supabase tem teto de e-mails por hora, e a mensagem crua vem em inglês.
+    const msg = String((res && res.error) || '');
+    gToast(/rate|limit|too many|seconds/i.test(msg)
+      ? 'O Supabase segurou por excesso de e-mails. Espere alguns minutos e tente de novo.'
+      : ('Não consegui enviar o link: ' + (msg || 'erro desconhecido')), 'error');
+    return;
+  }
+  gToast('Link enviado para '+email);
 }
 
 // Fecha role picker ao clicar fora do painel

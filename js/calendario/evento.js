@@ -328,7 +328,10 @@ function calEditorHtml(){
   </footer>`;
 }
 function calCampsOpcoes(sel){
-  const todas=[].concat(typeof CAMPS_ATIVAS!=='undefined'?CAMPS_ATIVAS:[], typeof CAMPS_OUTRAS!=='undefined'?CAMPS_OUTRAS:[]);
+  // A MESMA lista da vitrine (fAllCampaigns → pastas do banco): campanha criada no Estúdio entra
+  // aqui sem deploy. Sem o catálogo carregado, cai na semente do config.
+  const todas=(typeof fAllCampaigns==='function')?fAllCampaigns()
+    :[].concat(typeof CAMPS_ATIVAS!=='undefined'?CAMPS_ATIVAS:[], typeof CAMPS_OUTRAS!=='undefined'?CAMPS_OUTRAS:[]);
   return todas.map(c=>`<option value="${gEsc(c.id)}"${sel===c.id?' selected':''}>${gEsc(c.name)}</option>`).join('');
 }
 function calEdSet(k, v){

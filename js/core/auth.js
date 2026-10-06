@@ -26,8 +26,33 @@ let gAuthState = { user: null };
 
 function _gSb(){ return (typeof gSupabase === 'function') ? gSupabase() : window.sb; }
 
+/* Erro do Supabase Auth em PT-BR, dizendo O QUE FAZER (23/09/2026). O cru ("Email rate limit
+   exceeded", "Email not confirmed") chegava em inglês na tela do franqueado. Nos logs de 18/09,
+   21 tentativas seguidas de "senha incorreta" em 25 min, de duas pessoas: quem nunca entrou não
+   sabia que a conta nasce com a senha inicial passada pela gestão. */
+function _gAuthErroPt(error, contexto) {
+  const m = String((error && (error.message || error.code)) || '');
+  if (/invalid login|invalid_credentials/i.test(m))
+    return 'E-mail ou senha incorretos. No primeiro acesso, use a senha inicial que a gestão te passou — ou toque em "Esqueci minha senha".';
+  if (/not confirmed/i.test(m)) return 'Seu e-mail ainda não foi confirmado. Fale com a gestão para liberar o acesso.';
+  if (/rate limit|too many|over_email_send_rate/i.test(m))
+    return 'Muitos pedidos em pouco tempo. Espere alguns minutos e tente de novo.';
+  const seg = m.match(/after (\d+) seconds?/i);
+  if (seg) return 'Aguarde ' + seg[1] + ' segundos para pedir outro link.';
+  if (/not authorized|not allowed/i.test(m))
+    return contexto === 'recuperar'
+      ? 'Não consegui enviar o e-mail para esse endereço. Fale com a gestão para redefinir sua senha.'
+      : 'Acesso não autorizado. Fale com a gestão.';
+  if (/banned/i.test(m)) return 'Seu acesso está bloqueado. Fale com a gestão.';
+  if (/timeout|unexpected_failure|500/i.test(m)) return 'O servidor demorou para responder. Tente de novo em instantes.';
+  if (/weak|should be at least|password.*characters/i.test(m)) return 'Senha fraca: use no mínimo 8 caracteres, misturando letras e números.';
+  if (/same.*password|different from the old/i.test(m)) return 'A nova senha precisa ser diferente da atual.';
+  return m || 'Não deu certo. Tente de novo.';
+}
+
 // Carrega a sessão atual do Supabase + o profile (role) do banco. Idempotente.
 async function gLoadProfile() {
+  const previousId=gAuthState.user&&gAuthState.user.id;
   const sb = _gSb();
   if (!sb) { gAuthState = { user: null }; return null; }
   try {
@@ -35,7 +60,7 @@ async function gLoadProfile() {
     if (!user) { gAuthState = { user: null }; return null; }
     const { data: prof, error: profErr } = await sb
       .from('profiles')
-      .select('role, nome, departamento, telefone, ativo')
+      .select('role, nome, departamento, telefone, ativo, avatar_url')
       .eq('id', user.id)
       .maybeSingle();
     // Falha ao carregar o profile (rede/RLS) rebaixava gestão→franqueado EM SILÊNCIO:
@@ -54,6 +79,14 @@ async function gLoadProfile() {
       gAuthState = { user: null };
       return null;
     }
+    /* Ainda na senha inicial compartilhada? Quem responde é o banco (`luma.usa_senha_inicial`)
+       — a senha vive só lá, nunca neste código público. Se a pergunta falhar (rede), a pessoa
+       entra: travar o login por causa disso seria pior que adiar a troca para o próximo acesso. */
+    let senhaInicial = false;
+    try {
+      const { data: si } = await sb.schema('luma').rpc('usa_senha_inicial');
+      senhaInicial = si === true;
+    } catch (e) {}
     gAuthState = { user: {
       id: user.id,
       email: user.email,
@@ -61,11 +94,22 @@ async function gLoadProfile() {
       displayName: (prof && prof.nome) || (user.email || '').split('@')[0],
       departamento: (prof && prof.departamento) || null,
       telefone: (prof && prof.telefone) || '',
+      foto: (prof && prof.avatar_url) || '',
+      senhaInicial,
     } };
     return gAuthState.user;
   } catch (e) {
     gAuthState = { user: null };
     return null;
+  } finally {
+    const currentId=gAuthState.user&&gAuthState.user.id;
+    // O cache é por conta; respostas em memória também não podem atravessar a troca.
+    if(previousId!==currentId && typeof fState!=='undefined'){
+      if(typeof fChatNovaConversa==='function')fChatNovaConversa();
+      fState={camp:null,fmt:typeof FMTS!=='undefined'?FMTS[0]:null,stepIdx:-1,dados:{},done:false,editIdx:null,tab:'catalogo',material:null,materialView:false,categoria:null};
+      if(typeof fHistSearch!=='undefined') fHistSearch='';
+      const msgs=document.getElementById('f-messages'); if(msgs)msgs.innerHTML='';
+    }
   }
 }
 
@@ -80,12 +124,7 @@ async function gLogin(email, password) {
       email: String(email).trim().toLowerCase(),
       password
     });
-    if (error) {
-      const msg = /invalid login|invalid_credentials/i.test(error.message || '')
-        ? 'E-mail ou senha incorretos.'
-        : (error.message || 'Falha no login.');
-      return { ok: false, error: msg };
-    }
+    if (error) return { ok: false, error: _gAuthErroPt(error, 'login') };
     await gLoadProfile();
     return { ok: true };
   } catch (e) {
@@ -95,13 +134,45 @@ async function gLogin(email, password) {
 
 async function gLogout() {
   const sb = _gSb();
+  /* `logout` ANTES do signOut: depois dele a RPC não tem mais sessão para assinar. Espera no
+     máximo 1,2s — sair não trava por telemetria; o que não subir fica na fila deste usuário. */
+  try { if (typeof gTrackEvent === 'function') await Promise.race([gTrackEvent('logout', {}), new Promise(r => setTimeout(r, 1200))]); } catch (e) {}
   try { if (sb) await sb.auth.signOut(); } catch (e) {}
   gAuthState = { user: null };
   location.reload();
 }
 
 function gCurrentUser() { return gAuthState.user; }
+
+/* Modo visitante (QR do deck, `?visitante=1`): sem login e sem sessão no banco. O usuário é
+   sintético (franqueado, só leitura): telemetria, histórico, IA, suporte e flags ficam desligados,
+   e o catálogo vem de UMA função pública (`luma_visitante_catalogo`) com as campanhas marcadas. */
+function gVisitante() { return !!(gAuthState.user && gAuthState.user.visitante); }
+function gVisitantePedido() { try { return new URLSearchParams(location.search).get('visitante') === '1'; } catch (e) { return false; } }
+function gEntrarVisitante() {
+  gAuthState = { user: { id: 'visitante', email: 'visitante@luma.local', role: 'franqueado',
+    displayName: 'Visitante', departamento: null, telefone: '', foto: '', senhaInicial: false, visitante: true } };
+  return gAuthState.user;
+}
+let _gVisCat = null;
+function gVisitanteCatalogo() {
+  if (!_gVisCat) {
+    const sb = _gSb();
+    _gVisCat = !sb ? Promise.resolve(null)
+      : Promise.resolve(sb.rpc('luma_visitante_catalogo')).then(r => (r && !r.error && r.data) || null).catch(() => null);
+  }
+  return _gVisCat;
+}
 function gCurrentRole() { return gAuthState.user ? gAuthState.user.role : null; }
+/* A foto de perfil de alguém — o ÚNICO lugar que decide isso (topbar, painel da conta, lista
+   da Equipe, chat do franqueado). A fonte é `profiles.avatar_url`; o localStorage
+   (`__luma_user_photo_<email>`) é só o legado de quando a foto não saía do navegador — vale
+   enquanto a foto antiga não sobe (gProfileSyncFotoLocal, no login). '' = sem foto → iniciais. */
+function gUserFoto(u){
+  if(!u) return '';
+  if(u.foto) return u.foto;
+  try{ return (u.email && localStorage.getItem('__luma_user_photo_'+u.email)) || ''; }catch(e){ return ''; }
+}
 function gIsAdmin(){ return gRoleLevel(gCurrentRole()) >= ROLE_HIERARCHY.equipe_dm; } // equipe_dm + gestao = Designer
 function gIsSuperAdmin(){ return gCurrentRole()==='gestao'; }
 function gCanManageUsers(){ return gIsSuperAdmin(); }
@@ -111,18 +182,72 @@ async function gForgotPassword(email) {
   const sb = _gSb();
   if (!sb) return { ok: false, error: 'Backend indisponível.' };
   const redirectTo = location.origin + location.pathname;
-  const { error } = await sb.auth.resetPasswordForEmail(String(email).trim().toLowerCase(), { redirectTo });
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
+  // Mesma razão do gLogin: uma rejeição (rede caiu) NÃO pode escapar — quem chama espera
+  // sempre um objeto, senão o botão fica preso em "Enviando…" e a tela não diz nada.
+  try {
+    const { error } = await sb.auth.resetPasswordForEmail(String(email).trim().toLowerCase(), { redirectTo });
+    if (error) return { ok: false, error: _gAuthErroPt(error, 'recuperar') };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: 'Não foi possível conectar. Verifique sua internet e tente de novo.' };
+  }
 }
 
 // Roda sobre a sessão de recovery materializada pelo supabase-js ao abrir o link do e-mail.
 async function gResetPassword(newPassword) {
   const sb = _gSb();
   if (!sb) return { ok: false, error: 'Backend indisponível.' };
-  const { error } = await sb.auth.updateUser({ password: newPassword });
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
+  try {
+    const { error } = await sb.auth.updateUser({ password: newPassword });
+    // A mensagem crua segue junto: o passo "nova senha" detecta sessão vencida por ela.
+    if (error) return { ok: false, error: /session|jwt|expired|token/i.test(error.message || '') ? error.message : _gAuthErroPt(error, 'senha') };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: 'Não foi possível conectar. Verifique sua internet e tente de novo.' };
+  }
+}
+
+/* ══ LINK DE E-MAIL (recuperação/convite) — o passo que faltava ═══════════════════════
+   O link do e-mail traz a sessão no hash e o supabase-js a materializa sozinho. Até aqui
+   o Luma abria a home direto: a pessoa entrava UMA vez e continuava SEM SENHA — no
+   aparelho seguinte, "E-mail ou senha incorretos" de novo. Era o beco de quem foi
+   convidado antes de 08/09/2026, quando o `invite-user` usava `inviteUserByEmail` e a
+   conta nascia sem senha nenhuma. Agora o link desemboca no passo "defina sua senha".
+
+   O hash vem de `G_AUTH_LINK_HASH` (supabase.js) porque o SDK o apaga antes deste
+   arquivo rodar. O flag em sessionStorage segura o passo através de um F5: sem ele,
+   recarregar a página pulava a definição da senha e devolvia a pessoa ao mesmo beco.
+
+   Devolve `null` (boot normal), `{tipo}` (pedir a senha) ou `{erro}` (link vencido). */
+const G_NOVA_SENHA_FLAG = '__luma_nova_senha';
+function gAuthLinkPendente() {
+  let pendente = false;
+  try { pendente = sessionStorage.getItem(G_NOVA_SENHA_FLAG) === '1'; } catch (e) {}
+  const retomada = pendente ? { tipo: 'recovery', erro: null } : null;
+  const hash = (typeof G_AUTH_LINK_HASH === 'string') ? G_AUTH_LINK_HASH.replace(/^#\/?/, '') : '';
+  if (!hash || hash.indexOf('=') < 0) return retomada;
+
+  let p;
+  try { p = new URLSearchParams(hash); } catch (e) { return retomada; }
+
+  // Link vencido ou já usado: o Supabase devolve o motivo no próprio hash, sem sessão
+  // nenhuma. Sem este ramo, clicar num link velho não fazia NADA visível na tela.
+  const erro = p.get('error_description') || p.get('error');
+  if (erro) {
+    return { tipo: null, erro: /expired|otp_expired/i.test(erro)
+      ? 'Esse link expirou. Peça um novo em "Esqueci minha senha".'
+      : 'Não consegui validar esse link. Peça um novo em "Esqueci minha senha".' };
+  }
+
+  const tipo = p.get('type');
+  if (tipo !== 'recovery' && tipo !== 'invite') return retomada;
+  try { sessionStorage.setItem(G_NOVA_SENHA_FLAG, '1'); } catch (e) {}
+  return { tipo: tipo, erro: null };
+}
+
+// A senha existe: some com o passo. Chamado só depois do updateUser dar ok.
+function gNovaSenhaResolvida() {
+  try { sessionStorage.removeItem(G_NOVA_SENHA_FLAG); } catch (e) {}
 }
 
 /* ── GESTÃO DE USUÁRIOS — Supabase (Fase 1: listar + role + ativo via RLS) ──
@@ -133,11 +258,11 @@ async function gGetAllUsers(){
   if(!sb) return [];
   try{
     const { data, error }=await sb.from('profiles')
-      .select('id,nome,email,role,departamento,ativo')
+      .select('id,nome,email,role,departamento,ativo,avatar_url')
       .order('role',{ascending:false}).order('nome',{ascending:true});
     if(error || !Array.isArray(data)) return [];
     return data.map(p=>({ id:p.id, email:p.email, displayName:p.nome||p.email, role:p.role,
-      departamento:p.departamento||null, ativo:p.ativo!==false }));
+      departamento:p.departamento||null, ativo:p.ativo!==false, foto:p.avatar_url||'' }));
   }catch(e){ return []; }
 }
 async function gSetUserRole(idOrEmail, newRole){
@@ -190,6 +315,21 @@ async function gRemoveManagedUser(idOrEmail){
 }
 
 // UI HANDLERS DO MODAL (Atrelados ao index.html)
+
+/* A senha já foi aceita: um erro daqui pra frente é de MONTAGEM do app, não de login.
+   Sem a guarda, qualquer exceção na abertura da tela deixava o botão desabilitado com
+   "Autenticando…" para sempre — a pessoa autenticada presa na porta.
+   UMA porta só: o login e a definição de senha entram no app pelo mesmo caminho. */
+async function _gEntrarNoApp() {
+  try { if(typeof gOnLoginSuccess === 'function') await gOnLoginSuccess(); }
+  catch(e){
+    console.warn('[Luma] falha ao montar o app depois do login:', e);
+    const _l = document.getElementById('g-login-screen');
+    if(_l) _l.style.display = 'none';
+    if(typeof gToast === 'function') gToast('Entrei, mas parte da tela não carregou. Recarregue a página.', 'error');
+  }
+}
+
 async function gDoLogin(e) {
   if(e) e.preventDefault();
   const btn = document.getElementById('gl-btn-login');
@@ -207,8 +347,12 @@ async function gDoLogin(e) {
   errEl.style.display = 'none';
 
   const res = await gLogin(email, pass);
-  if(res.ok) {
-    if(typeof gOnLoginSuccess === 'function') await gOnLoginSuccess();
+  if(res.ok) { try { if(typeof gTrackEvent === 'function') gTrackEvent('login_ok', {metodo:'senha'}); } catch(_) {} }
+  if(res.ok && gCurrentUser() && gCurrentUser().senhaInicial) {
+    // Entrou com a senha inicial compartilhada: primeiro cria a própria, depois entra.
+    gShowNovaSenhaView('inicial');
+  } else if(res.ok) {
+    await _gEntrarNoApp();
   } else {
     errEl.textContent = res.error;
     errEl.style.display = 'block';
@@ -266,7 +410,9 @@ async function gDoForgot(e) {
 
   const res = await gForgotPassword(email);
   if (res.ok) {
-    succEl.textContent = 'Link enviado! Verifique seu e-mail.';
+    // O Supabase responde "ok" até para e-mail sem conta (não revela quem existe): a frase
+    // não promete entrega, e o spam é onde o e-mail automático costuma cair.
+    succEl.textContent = 'Pronto! Se esse e-mail tiver acesso ao Luma, o link chega em alguns minutos. Olhe também a caixa de spam.';
     succEl.style.display = 'block';
     btn.style.display = 'none';
   } else {
@@ -280,6 +426,70 @@ async function gDoForgot(e) {
       btn.textContent = 'Enviar link de recuperação';
     }
   }
+}
+
+/* ══ PASSO 3 — DEFINIR A SENHA (chegada do link de e-mail) ════════════════════════════
+   Mão única de propósito: quem chega aqui está autenticado por um link e NÃO tem senha
+   utilizável. Oferecer "voltar ao login" seria devolver a pessoa à porta que não abre. */
+function gShowNovaSenhaView(tipo) {
+  document.getElementById('gl-step-login').style.display = 'none';
+  document.getElementById('gl-step-forgot').style.display = 'none';
+  document.getElementById('gl-step-senha').style.display = 'flex';
+  const sub = document.getElementById('gs-sub');
+  if (sub) sub.textContent = (tipo === 'invite')
+    ? 'Seu acesso está criado. Defina a senha que você vai usar daqui pra frente.'
+    : (tipo === 'inicial')
+      ? 'Você entrou com a senha inicial, que é igual para todos. Crie a sua para continuar — ela passa a valer em qualquer aparelho.'
+      : 'Escolha uma nova senha. Ela passa a valer em qualquer aparelho.';
+  const inp = document.getElementById('gs-pass');
+  if (inp) { try { inp.focus(); } catch(e){} }
+}
+
+// Recado na tela de login (link vencido, sessão que não materializou).
+function gLoginAviso(msg) {
+  const errEl = document.getElementById('gl-error');
+  if (!errEl) return;
+  errEl.textContent = msg;
+  errEl.style.display = 'block';
+}
+
+async function gDoNovaSenha(e) {
+  if(e) e.preventDefault();
+  const nova = document.getElementById('gs-pass').value;
+  const conf = document.getElementById('gs-pass2').value;
+  const errEl = document.getElementById('gs-error');
+  const btn = document.getElementById('gs-btn');
+  const falha = (msg) => { errEl.textContent = msg; errEl.style.display = 'block'; };
+  errEl.style.display = 'none';
+
+  // Mesmo piso do Perfil › Segurança (user-profile.js): uma régua só para a senha.
+  if (nova.length < 8) return falha('A senha deve ter no mínimo 8 caracteres.');
+  if (nova !== conf) return falha('As senhas não coincidem.');
+
+  btn.disabled = true;
+  btn.querySelector('.gl-btn-text').style.display = 'none';
+  btn.querySelector('.gl-spinner').style.display = 'block';
+
+  // gResetPassword é o motor único de troca de senha (o mesmo do Perfil › Segurança).
+  const res = await gResetPassword(nova);
+
+  if (res && res.ok) {
+    gNovaSenhaResolvida();
+    if (gAuthState.user) gAuthState.user.senhaInicial = false;
+    if (typeof gToast === 'function') gToast('Senha definida. Agora ela vale em qualquer aparelho.');
+    await _gEntrarNoApp();
+    return;
+  }
+
+  btn.disabled = false;
+  btn.querySelector('.gl-btn-text').style.display = 'block';
+  btn.querySelector('.gl-spinner').style.display = 'none';
+  // Sessão de recuperação vencida enquanto a pessoa digitava: o erro do Supabase é cru
+  // e em inglês. Diz o que fazer, em vez de mostrar "Auth session missing!".
+  const msg = String((res && res.error) || '');
+  falha(/session|jwt|expired|token/i.test(msg)
+    ? 'A sessão do link expirou. Peça um novo em "Esqueci minha senha".'
+    : (msg || 'Não consegui salvar a senha. Tente de novo.'));
 }
 
 /* ══ O OLHO DA SENHA — um estado só, derivado do input ═════════════════════════════════════
@@ -360,10 +570,8 @@ function gUpdateUserTopbar() {
   }
 
   if (avEl) {
-    // Safari/Firefox com storage bloqueado LANÇAM aqui (não devolvem null) — sem o try
-    // o avatar derrubava o resto do cabeçalho (nome, role) junto.
-    let savedPhoto = null;
-    try{ savedPhoto = localStorage.getItem('__luma_user_photo_' + email); }catch(e){}
+    // gUserFoto já protege o localStorage legado (Safari/Firefox com storage bloqueado LANÇAM).
+    const savedPhoto = gUserFoto(user);
     if (savedPhoto) {
       avEl.innerHTML = `<img src="${gEsc(savedPhoto)}" alt="${gEsc(displayName)}">`;
       avEl.style.background = 'transparent';

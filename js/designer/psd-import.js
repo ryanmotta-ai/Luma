@@ -1752,7 +1752,9 @@ async function dPsdMapWithAI(){
   let resp=null;
 
   // Gateway Seguro gAI (§45-§51)
-  if (window.gAI && window.gAI.isEnabled('psdMapping')) {
+  /* O typeof protege o `_dPsdAiBusy=true` acima: sem `gAI.isEnabled` (gateway antigo em cache) a
+     checagem estourava e o botão ficava preso em "Analisando a arte…"; assim cai no `mapear-psd`. */
+  if (window.gAI && (typeof window.gAI.isEnabled === 'function' && window.gAI.isEnabled('psdMapping'))) {
     const allowedFields = vars.map(v => v.name);
     const layersPayload = itens.map(o => ({
       id: String(o.i),

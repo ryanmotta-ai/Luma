@@ -28,6 +28,7 @@ Glossário de dois mundos: um mesmo nome pode significar coisas diferentes no ne
 - ⛔ **1 franqueado por cidade.** Nunca modele "vários franqueados disputando a mesma cidade".
 - ⛔ **Hierarquia é DM-central → franqueado**, não franqueado → franqueado. Não existe "franqueado que gerencia outro".
 - O franqueado **executa** marketing local; ele **não** define a marca nem cria as regras — isso é da DM central.
+- **Desde 30/09/2026 o Luma tem as franquias da rede** (`luma.franquias`, 41 unidades da lista do Ryan, com coordenada aproximada). O franqueado sem vínculo responde **uma vez**, no login, "Qual é a sua franquia?" (a localização só sugere a mais perto; ele confirma). Trocar depois é com a gestão. Primeiro uso: as **gírias por franquia** na legenda — a IA sugere, o franqueado aprova, 1 termo por legenda; a DM só veta (`luma.franquia_girias`).
 - ⚠️ Se pedirem algo "por cidade/multi-tenant" no Luma (ex.: catálogo diferente por franquia), isso **ainda não existe** — é decisão de arquitetura, não um dado que já está lá. Confirme antes de assumir.
 
 ---
@@ -86,7 +87,7 @@ permissoes: { nome_do_campo: { edit: true|false, maxLen: 32 } }
 
 **No mundo real (Delivery Much).** "Campanha" é uma ação de marketing: uma promoção, uma data comemorativa, um combo. Podem ser **nacionais** (criadas pela DM central e seguidas por todos os franqueados) ou **locais** (o franqueado, em parceria com um restaurante, cria uma promo "para além das campanhas nacionais").
 
-**No Luma.** Uma **campanha é uma _pasta_ (`folder`) que agrupa templates/materiais** de um mesmo tema. É a "gaveta" do catálogo. Cada pasta tem: `id`, `name`, `campId` (liga ao catálogo), `cover` (capa) e uma lista de `templates`. O catálogo do franqueado é **config + banco** (desde 2026-07-16): a base são as campanhas de `js/00-config.js` (`CAMPS_ATIVAS`, `CAMPS_OUTRAS`, `CAMPS_IMPLEMENTACAO` — esta última = onboarding de cidade nova), e **pastas criadas no Estúdio sem campanha correspondente entram como campanhas dinâmicas** (`fGetCampaigns`), com o id da própria pasta. A capa segue a mesma regra: **pasta existente manda** (capa vazia = removida de propósito → cor da marca); o `cover` do config é só semente de primeira carga.
+**No Luma.** Uma **campanha é uma _pasta_ (`folder`) que agrupa templates/materiais** de um mesmo tema. É a "gaveta" do catálogo. Cada pasta tem: `id`, `name`, `campId` (liga ao catálogo), `cover` (capa) e uma lista de `templates`. O catálogo do franqueado **sai das pastas do banco** (`luma.pastas`, desde 2026-09-23): **cada pasta é uma campanha** — criar, renomear, arquivar e trocar de seção ("Ativas agora" × "Outras campanhas", coluna `destaque`, interruptor no modal da pasta) é no Estúdio, sem deploy. `js/00-config.js` (`CAMPS_ATIVAS`/`CAMPS_OUTRAS`) virou **semente**: completa o que o banco não tem (o `banner` do calendário) e vale inteiro só quando as pastas não carregaram (offline/modo local). `CAMPS_IMPLEMENTACAO` (onboarding de cidade nova) segue no config. As pastas **"Modelo de exemplo" e "Rascunhos" não são campanha** (`gPastaSistema`) e têm id fixo no banco. A capa segue a mesma regra: **pasta existente manda** (capa vazia = removida de propósito → cor da marca); o `cover` do config é só semente de primeira carga.
 
 **Fluxo:** o **designer/gestão cria a campanha (pasta) e publica templates dentro dela**. O **franqueado escolhe uma campanha no catálogo → escolhe um material → gera a arte**. O franqueado **consome** campanhas; ele **não cria** campanhas no Luma.
 
@@ -116,6 +117,7 @@ permissoes: { nome_do_campo: { edit: true|false, maxLen: 32 } }
 - ⛔ **O franqueado nunca edita camadas** — ele preenche campos. Redesenhar é só do designer.
 - ⛔ **Publicar não pode destruir a arte publicada anterior.** Cada publicação vincula a um template próprio (já foi bug de colisão de ID).
 - Ao editar um template já publicado, a cópia publicada e a de edição **não compartilham a mesma referência de array de camadas** (senão editar corrompe o publicado).
+- ⛔ **O checklist de design do Estúdio não bloqueia publicação** (decisão do Ryan, 30/09/2026: "o designer sabe por bom senso"). Ele só avisa ("N ponto(s) de atenção · Você pode publicar assim mesmo"); nenhuma trava de erro crítico no passo 0 nem no botão Publicar. Detalhe em `docs/LUMA-BACKEND-CHANGELOG.md` (30/09, `58ad6e5`).
 
 ---
 
@@ -168,6 +170,8 @@ Tipos: `text`, `number`, `currency`, `date`, `image`, `select`, `color`, `boolea
 
 **Regras / invariantes:**
 - ⛔ **A arte final é da loja do franqueado, não do Luma.** Não queime a marca "Luma" no PNG (é decisão de produto — a logo foi removida do gerador).
+- ⛔ **PDF está fora de uso** (decisão do Ryan, 30/09/2026: "inútil pra gente") — sem botão no franqueado. O motor de gerar PDF continua no código; não reative sem pedido novo.
+- ⛔ **Toda arte leva assinatura invisível, sem dado pessoal** (decisão do Ryan, 30/09/2026). PNG e PDF saem com metadado (template, campanha, formato, data, versão do Luma); nunca nome, e-mail ou cidade de quem gerou. Detalhe técnico em `docs/LUMA-BACKEND-CHANGELOG.md` (30/09, `5b7091b`).
 - O histórico é **por usuário** (RLS por dono em `luma.artes`).
 - Geração em lote (CSV) existe: 1 linha = 1 arte, via PapaParse, em fila.
 
@@ -182,7 +186,7 @@ Tipos: `text`, `number`, `currency`, `date`, `image`, `select`, `color`, `boolea
 **Regras / invariantes:**
 - ⛔ **O Luma NÃO envia mensagem.** Ele _prepara_ a peça; o disparo é no CleverTap. Não modele "Luma manda push".
 - ⛔ **Much+ é programa da DM, não entidade do Luma.** Não invente tabela de fidelidade no Luma.
-- ⚠️ **Não confundir com o "CRM/Portal de Franqueados"** — é **outro produto**, outro Supabase, com comunicados/tickets/helpdesk. O Luma não tem esses módulos. (Docs daquele projeto viviam em `LUMA-BACK_CONTEXT.md`/`LUMA-REGRAS_BACKEND.md`.)
+- ⚠️ **Não confundir com o "CRM/Portal de Franqueados"** — é **outro produto**, outro Supabase, com comunicados/tickets/helpdesk. O Luma não tem esses módulos. (O **suporte ao vivo** do Luma, §10, não é esse helpdesk: é conversa sobre USO do Luma, com a equipe DM, dentro do próprio app.) (Docs daquele projeto viviam em `LUMA-BACK_CONTEXT.md`/`LUMA-REGRAS_BACKEND.md`.)
 - Dependência crítica antes de construir: **estudar os formatos que o CleverTap aceita**.
 
 ---
@@ -202,6 +206,35 @@ Tipos: `text`, `number`, `currency`, `date`, `image`, `select`, `color`, `boolea
 - ⛔ **O relatório semanal nunca é individual:** um envio por grupo, todo mundo em BCC, materiais agrupados por campanha. Nunca um e-mail por material, nunca um e-mail por pessoa.
 - ⛔ **Franqueado só recebe a seção de artes.** Seções internas (RH, quando existir) saem só para `equipe_dm`/`gestao`. A regra vive na tabela `SECOES` do script.
 - ⚠️ Isso **não** contradiz o invariante "o Luma não envia mensagem" (§9): aquilo é sobre **push/inapp para o consumidor do app**, que segue sendo do CleverTap. Comunicação operacional com a própria rede é outra coisa.
+
+**Suporte ao vivo** (desde 2026-09-23, decisão do Ryan): o franqueado conversa em tempo real com a **equipe DM** (`equipe_dm` + `gestao`) pelo widget de Ajuda. Motor em `js/core/suporte.js`, tabela `luma.suporte_mensagens`.
+- ⛔ **Quem atende é a equipe DM, no próprio Luma** — não o suporte da franqueadora nem o Portal de Franqueados.
+- ⛔ **Escopo: dúvida de uso e erro no Luma.** Aprovação de peça e pedido de arte nova **continuam com o marketing** (a copy do widget diz isso). Não transforme o chat em fila de pedidos de criação.
+- A conversa **é o franqueado**: uma por pessoa. Sobre ela existe um **atendimento** (desde 2026-09-26, decisão do Ryan; migration `20260926120000`), com estado e responsável:
+  - **Estados:** `novo` (ninguém assumiu — a fila) → `em_atendimento` (tem responsável, a vez é da equipe) ⇄ `aguardando_usuario` (a equipe respondeu) → `resolvido`. Quem muda o estado é o banco: a resposta da equipe passa a vez ao franqueado; a mensagem do franqueado devolve a vez à equipe.
+  - ⛔ **Resolvida + nova mensagem do franqueado = o mesmo atendimento reabre como `novo`, sem responsável** (volta para a fila). Não nasce um segundo atendimento, e ninguém fica esperando um colega que saiu.
+  - ⛔ **Com responsável definido, só ele responde, repassa e resolve.** Outra pessoa da equipe precisa **assumir** antes — a trava é do banco (gatilho `suporte_msg_estado`), não da tela. Responder uma conversa sem dono já assume.
+  - **Atribuição explícita:** da fila, qualquer pessoa da equipe atribui a conversa a um colega; o responsável repassa a conversa dele. Tudo fica no histórico (`luma.suporte_eventos`: assumiu, repassou, resolveu, reabriu), visível na própria conversa. O franqueado vê quem assumiu e quem recebeu; não vê o "reabriu" nem o "de quem" da troca.
+- **Quem atende aparece com foto, nome e cargo.** Cargo = `profiles.departamento` (só a gestão edita), "Equipe DM" quando vazio.
+- "Online agora" = alguém da equipe com o Luma aberto numa aba visível **e disponível**. Cada pessoa da equipe escolhe **Disponível** ou **Ausente** (na caixa de conversas, lembrado no navegador). Ausente continua recebendo a caixa, mas o franqueado não o vê online — e por isso a pergunta dele não é desviada para a pessoa.
+- ⛔ **Equipe online → a pergunta vai direto para a pessoa, sem passar pela IA** (decisão do Ryan, 23/09/2026). O card do assistente some da Início, e o que for digitado no chat da IA segue para a conversa com a equipe. Ninguém online → a IA responde, com o "Não resolveu? Falar com a equipe".
+- A gestão desliga pelo Controle do produto (`global.help.suporte`), sem deploy. Desligado, "Mensagens" volta a ser o assistente de IA.
+- ⚠️ O franqueado continua sem e-mail/push: quem fechou o app só vê a resposta ao voltar (contador + aviso).
+- **A equipe atende também pelo Telegram** (decisão do Ryan, 26/09/2026; jurídico aprovou; `docs/SUPORTE-TELEGRAM.md`). Um tópico por franqueado no supergrupo privado da equipe. A mensagem do franqueado vai **com o print**, e a resposta dada no tópico chega ao franqueado como mensagem da pessoa.
+  - ⛔ **O Telegram não é um segundo caminho de escrita.** Resposta e comandos (`/assumir`, `/resolver`, `/repassar`) passam pela mesma trava de responsável e entram no mesmo histórico. Só responde quem tem a conta **vinculada** (código do bot colado no Luma) e está **ativo** no Luma.
+  - ⛔ **`/disponivel` no Telegram conta como online para o franqueado** (8 h, ou até `/ausente`), com o mesmo efeito do Disponível no Luma: a pergunta vai direto para a equipe, sem passar pela IA.
+  - O franqueado não vê de onde veio a resposta; a equipe vê "pelo Telegram". Edição e remoção feitas no Telegram **não** chegam ao Luma (a mensagem do Luma é imutável).
+
+**Novidades do Luma** (desde 2026-09-26, na Início do widget de Ajuda): contam ao franqueado o que mudou no produto. É o canal permanente da relação com a rede no beta: mostrar que o Luma está vivo, que a rede é ouvida e o que mudou, sem virar ruído.
+- ⛔ **No máximo 1 edição por semana** (decisão do Ryan, 27/09/2026): pelo menos 7 dias entre uma edição e a seguinte. Mudou mais coisa? Entra na mesma edição ou na próxima. O CI reprova a segunda (`node scripts/novidades.js --checar`).
+- ⛔ **Curada, nunca automática.** Commit não é notícia. Só entra o que a rede sente; refator, teste, doc e correção invisível ficam de fora.
+- **Copy de benefício, na língua de quem usa**, com o nome que está na tela. Recurso desligado pelo Controle do produto não vira notícia (`requer`).
+- **"Vocês pediram, a gente ouviu"**: o item leva `pedido` só quando a mudança veio de pedido da **rede** (franqueado, beta tester). Diz o que pediram, sem nome de pessoa. Pedido interno da equipe não conta.
+- **Beta**: a edição pode levar um convite ("Estamos testando X.") com um botão, "Quero participar". Vale só enquanto a edição é a mais recente. O interesse vira o evento `beta_interesse`, e a equipe vê quem topou em **Dados › Eventos**. ⛔ Não é feed social: sem curtir, sem comentar, sem contador.
+- **Onde aparece**: a Início mostra a edição da semana (cartão + 3 itens); "Ver todas" guarda o histórico completo; a aba Ajuda destaca a edição enquanto ela é nova (14 dias).
+- A novidade mora no **código** (`LUMA_NOVIDADES`, `js/widgets/novidades.js`), não numa tabela. Novidade é o que acabou de ir ao ar, e isso já exige deploy. Só vale criar tabela editável quando alguém de fora do desenvolvimento for publicar.
+- **Rascunho**: `node scripts/novidades.js` junta os commits marcados com o trailer `Novidade:` (e `Pedido:`) desde a última edição e imprime a próxima com "✎ REVISAR" onde falta curadoria. Nada vai ao ar sozinho: alguém revisa e cola. O CI reprova "✎ REVISAR" esquecido.
+- É comunicação **sobre o Luma** para a rede. Não é comunicado da franqueadora (isso é do Portal de Franqueados) nem push/inapp para consumidor (§9).
 
 ---
 
@@ -276,3 +309,28 @@ Se uma proposta contradiz qualquer item abaixo, ela está **errada** — reveja 
 - `00_PRODUCT.md` — propósito, público, missão, o que o Luma NÃO faz.
 - `docs/LUMA.md` — documentação técnica oficial (arquitetura, código, backend, RLS).
 - `docs/LUMA-BACKEND-CHANGELOG.md` — histórico vivo de mudanças de backend.
+
+## Ajuste rápido na prévia — 03/10/2026
+
+Designer/equipe e gestão podem usar **Modo editar** na prévia do fluxo do franqueado para ajustar o conteúdo, tamanho e alinhamento dos textos, inclusive fixos. O ajuste é um rascunho separado: não altera as respostas nem o material compartilhado antes da confirmação do servidor. **Cancelar** descarta; **Salvar e publicar** atualiza somente as camadas do material publicado e aproveita o versionamento existente. Artes anteriores continuam vinculadas à versão original.
+
+Os campos `{{…}}` e seus modificadores precisam ser preservados. Material histórico, não publicado, pendente de sincronização ou desatualizado não pode ser republicado por esse caminho. A gravação compara `updated_at` atomicamente para recusar alterações concorrentes; erro ou nenhuma linha atualizada nunca anuncia sucesso. A RLS existente continua sendo a fronteira de autorização. Não há migration nova.
+
+Implementação: `js/franqueado/live-preview.js`; controles em `index.html` e `css/modules/live-preview.css`. Verificação: `tests/previa-designer.html` (14 casos com servidor simulado, incluindo falhas e conflitos), fluxo do franqueado (72 casos) e edição por clique no navegador. A gravação autenticada em produção precisa ser validada com uma conta real de designer.
+### Correção da abertura após o Estúdio — 03/10/2026
+
+Trocar de área preserva `dActiveTmplId` por desenho (`main.js`). Esse ID não significa trabalho não salvo e não pode bloquear o Modo editar. Só `dDirty` do mesmo material exige salvar primeiro. Após publicação confirmada, o material retido e guardado no Estúdio é recarregado pelo `dLoadTemplate` existente, evitando que um save posterior reponha o texto antigo. O botão indica quando está abrindo.
+
+Regressão específica: o cenário de material guardado e retido no Estúdio falhou antes do patch e passou depois. A bancada passou a ter 17 casos. Verificação integrada: aplicativo completo (`index.html`, CSS e módulos reais), Estúdio → Franqueado → arte pronta → Modo editar → selecionar texto → alterar → salvar, com dados e servidor simulados; `dLayers` e catálogo receberam a nova versão. Isso não valida autenticação nem gravação na rede real.
+
+### Mini editor de textos na prévia — 03/10/2026
+
+O Modo editar amplia a área da arte e apresenta um painel persistente de propriedades. O designer seleciona qualquer texto visível pela arte ou pela lista, arrasta para mover e ajusta posição X/Y, largura, cor, tamanho, alinhamento e conteúdo. O arrasto converte a distância da tela para as coordenadas da arte sem mover a mesa; setas deslocam 1 px, Shift + seta desloca 10 px. Desfazer/refazer mantém até 30 alterações, uma entrada por gesto de arrasto ou edição de campo. Cancelar restaura a prévia normal e descarta o rascunho. A seleção é desenhada numa camada separada e não aparece no PNG.
+
+O salvamento mantém as mesmas regras de permissão, preservação dos campos, concorrência e publicação de um único material. Não há mudança de backend. Verificação: 22 casos da bancada do editor, 72 casos do fluxo do franqueado e arrasto real no aplicativo completo pelo navegador, incluindo desfazer/refazer e salvar com atualização do catálogo e Estúdio. Os dados e a gravação dessa conferência integrada foram simulados localmente; autenticação e publicação em produção não foram exercitadas.
+
+### Caixa, tipografia e comparação — 04/10/2026
+
+O mini editor tem quatro alças para redimensionar a caixa do texto. A borda oposta fica fixa, a fonte mantém seu tamanho autorado e cada gesto cria uma entrada no histórico. A largura passa a usar parágrafo (`textBox: box`) para permitir quebra de linha. Há altura numérica e ajuste das alças pelo teclado. A tipografia reutiliza `dFontOptionsHTML` e as fontes incluídas/enviadas, com negrito (`fontWeightOverride`), entre letras (`letterSpacing`) e entre linhas (`lineHeight`), sem novo motor de render.
+
+Antes/Depois usa a mesma prévia e as mesmas respostas do chat: Antes renderiza as camadas publicadas carregadas ao abrir, Depois renderiza o rascunho. Antes bloqueia edição e publicação; voltar a Depois preserva todos os ajustes e o histórico. Não cria versão nem altera o original durante a comparação. Verificação: 27 casos do editor, 72 do fluxo e arrasto das bordas, tipografia e comparação no aplicativo completo com dados locais simulados. A gravação autenticada na rede real não foi exercitada.

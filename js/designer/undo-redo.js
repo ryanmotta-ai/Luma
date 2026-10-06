@@ -45,7 +45,17 @@ function dHistorySnapshot(){
   // Captura o snapshot das ferramentas de medição (notes, samplers, contadores, régua)
   const measurements = (typeof dMeasurementSnapshot === 'function') ? dMeasurementSnapshot() : null;
   
-  return {layers, paint, measurements};
+  // A arte inclui a prancheta: repor só camadas depois de smart-resize
+  // desenhava a geometria antiga dentro das dimensões novas.
+  const doc = typeof dFmt==='undefined' ? null : {
+    fmt:dFmt, customFmt:typeof dCustomFmt==='undefined'?null:dCustomFmt,
+    bg:typeof dCanvasBg==='undefined'?'':dCanvasBg,
+    activeABId:typeof dActiveABId==='undefined'?null:dActiveABId,
+    artboards:typeof dArtboards==='undefined'?[]:dArtboards.map(ab=>{
+      const meta={...ab};delete meta.layers;return meta;
+    })
+  };
+  return {layers, paint, measurements, document:doc&&JSON.parse(JSON.stringify(doc))};
 }
 function dHistoryCommit(){
   _dHistPending=false;
@@ -58,7 +68,8 @@ function dHistoryCommit(){
   const isSamePaint = top && top.paint === snap.paint;
   const isSameMeas = top && JSON.stringify(top.measurements) === JSON.stringify(snap.measurements);
   
-  if(top && isSamePaint && isSameLayers && isSameMeas){
+  const isSameDoc = top && JSON.stringify(top.document) === JSON.stringify(snap.document);
+  if(top && isSamePaint && isSameLayers && isSameMeas && isSameDoc){
     dUpdateUndoButtons();return;
   }
   dHistory=dHistory.slice(0,dHistoryIdx+1);
@@ -77,6 +88,9 @@ function dHistoryReset(){
     if (typeof dCountRender === 'function') dCountRender();
   }
   dPaintDirty=true;            // captura a pintura atual como baseline
+  // O commit agendado (400ms) do template ANTERIOR não pode cair na pilha recém-zerada:
+  // ele empilharia o estado velho como se fosse a primeira edição do novo material.
+  clearTimeout(_dHistDebounce); _dHistDebounce=null;
   dHistory=[dHistorySnapshot()];
   dHistoryIdx=0;
   _dHistPending=false;
@@ -104,8 +118,22 @@ function dRestoreSelection(){
 }
 function dApplyHistoryEntry(entry){
   dLayers=JSON.parse(JSON.stringify(entry.layers));
+  // Entradas antigas continuam válidas sem metadados de documento.
+  if(entry.document){
+    const doc=JSON.parse(JSON.stringify(entry.document));
+    dFmt=doc.fmt;
+    if(typeof dCustomFmt!=='undefined')dCustomFmt=doc.customFmt;
+    if(typeof dCanvasBg!=='undefined')dCanvasBg=doc.bg;
+    if(typeof dArtboards!=='undefined')dArtboards=doc.artboards.map(ab=>({...ab,layers:dLayers}));
+    if(typeof dActiveABId!=='undefined')dActiveABId=doc.activeABId;
+    if(typeof dApplyFormat==='function')dApplyFormat();
+    if(typeof dRenderABProps==='function')dRenderABProps();
+    document.querySelectorAll('.dt-fmt').forEach(b=>b.classList.toggle('active',b.dataset.fmt===dFmt));
+  }
   dRestoreSelection();
-  dApplyPaintSnapshot(entry.paint);
+  // O canvas pode ser recriado por dApplyFormat/dRenderCanvas. A pintura é aplicada
+  // depois que o chamador termina de reconstruir a prancheta; aplicar antes deixa o
+  // PNG preso ao canvas descartado.
   _dLastPaintURL=entry.paint; dPaintDirty=false;
   
   // Restaura o snapshot das ferramentas de medição (notes, samplers, contadores, régua)
@@ -137,7 +165,7 @@ function dUndo(){
   if(dHistoryIdx<=0){gToast('Nada para desfazer');return;}
   dHistoryIdx--;
   dApplyHistoryEntry(dHistory[dHistoryIdx]);
-  dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();
+  dRenderCanvas();dApplyPaintSnapshot(dHistory[dHistoryIdx].paint);dRenderLayersList();dStats();dMarkUnsaved();
   dUpdateUndoButtons();
   gToast('Desfeito');
 }
@@ -148,7 +176,7 @@ function dRedo(){
   if(dHistoryIdx>=dHistory.length-1){gToast('Nada para refazer');return;}
   dHistoryIdx++;
   dApplyHistoryEntry(dHistory[dHistoryIdx]);
-  dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();
+  dRenderCanvas();dApplyPaintSnapshot(dHistory[dHistoryIdx].paint);dRenderLayersList();dStats();dMarkUnsaved();
   dUpdateUndoButtons();
   gToast('Refeito');
 }

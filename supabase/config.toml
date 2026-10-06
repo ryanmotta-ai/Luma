@@ -385,6 +385,11 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# A ponte do suporte (docs/SUPORTE-TELEGRAM.md): o Telegram não manda JWT do Supabase, então a
+# função confere o próprio segredo (cabeçalho X-Telegram-Bot-Api-Secret-Token).
+[functions.suporte-telegram]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

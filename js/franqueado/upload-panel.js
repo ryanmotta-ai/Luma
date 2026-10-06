@@ -14,6 +14,28 @@
  * localStorage guarda só o ÍNDICE leve: a referência idb + uma thumb pequena.
  */
 
+/* ══ IMAGENS DE EXEMPLO ═══════════════════════════════════════════════════════════════
+   Três fotos boas, sempre à mão, para testar um material ou mostrar o Luma sem depender
+   da galeria de ninguém. NÃO substituem nada: entram como mais uma seção do mesmo painel,
+   acima das recentes, e o "Enviar novo arquivo" continua sendo o primeiro botão.
+
+   TROCAR UMA FOTO: ponha o arquivo em `assets/demo/` e mude o `src` aqui. Só isso.
+   ACRESCENTAR LOGO DE EXEMPLO: nova entrada com `para:'logo'` — o painel já filtra por
+   campo (o campo do logo mostra as de logo; qualquer outro, as de produto).
+
+   ⚠ O arquivo é LOCAL de propósito. Foto de outro domínio CONTAMINA o canvas (tainted) e
+   quebra o download do PNG — o franqueado só descobriria na hora de baixar a arte.
+   ⚠ Enquanto o arquivo não existir, a miniatura se remove sozinha (`fDemoImgMissing`) e a
+   seção some junto: melhor não ter a faixa do que ter uma faixa quebrada na demonstração. */
+const F_DEMO_IMGS = [
+  { id:'burger', label:'Hambúrguer', src:'assets/demo/hamburguer.jpg', para:'produto' },
+  { id:'acai',   label:'Açaí',       src:'assets/demo/acai.jpg',       para:'produto' },
+  { id:'pizza',  label:'Pizza',      src:'assets/demo/pizza.jpg',      para:'produto' }
+];
+function fDemoImgsPara(isLogo){
+  return F_DEMO_IMGS.filter(d => d && d.src && d.para === (isLogo ? 'logo' : 'produto'));
+}
+
 const F_RECENT_KEY = 'dm_recent_imgs_v1';
 const F_RECENT_CAP = 12;
 const F_RECENT_THUMB = 140;            // px da miniatura guardada (leve p/ o localStorage)
@@ -28,7 +50,7 @@ let _fUpPanelVar = null, _fUpPanelUploadId = null;
 const F_RECENT_THUMB_MAX = 80 * 1024;
 function fGetRecentImgs(){
   try{
-    const a=JSON.parse(localStorage.getItem(F_RECENT_KEY)||'[]');
+    const a=JSON.parse(localStorage.getItem(fUserCacheKey(F_RECENT_KEY))||'[]');
     if(!Array.isArray(a)) return [];
     // Descarta na LEITURA o que uma versao antiga gravou grande: sem isto a quota
     // continuaria cheia e o proximo setItem seguiria falhando. Autolimpa no 1o save.
@@ -36,7 +58,7 @@ function fGetRecentImgs(){
   }catch(e){ return []; }
 }
 function _fSaveRecentImgs(arr){
-  try{ localStorage.setItem(F_RECENT_KEY, JSON.stringify((arr||[]).slice(0,F_RECENT_CAP))); }catch(e){}
+  try{ localStorage.setItem(fUserCacheKey(F_RECENT_KEY), JSON.stringify((arr||[]).slice(0,F_RECENT_CAP))); }catch(e){}
 }
 // Gera uma miniatura pequena (dataURL) a partir de uma imagem maior — só p/ o grid.
 function _fMakeThumb(dataUrl, size, cb){
@@ -60,7 +82,8 @@ function _fMakeThumb(dataUrl, size, cb){
 async function fRecordRecentImg(resizedUrl, field){
   if(!resizedUrl || typeof resizedUrl!=='string') return;
   if(typeof gIdbPut!=='function' || typeof indexedDB==='undefined') return; // sem idb → não guarda cru
-  const key = (typeof gImgHash==='function' ? gImgHash(resizedUrl) : 'rec-'+Date.now());
+  const ownerKey=fUserCacheKey(F_RECENT_KEY);
+  const key = ownerKey+':'+(typeof gImgHash==='function' ? gImgHash(resizedUrl) : 'rec-'+Date.now());
   const ref = 'idb://'+key;
   let stored=false;
   try{ stored=await gIdbPut(key, resizedUrl); }catch(e){}
@@ -68,6 +91,7 @@ async function fRecordRecentImg(resizedUrl, field){
   _fMakeThumb(resizedUrl, F_RECENT_THUMB, (thumb)=>{
     // Miniatura ausente ou acima do teto nao vai pro localStorage. A foto continua no
     // IndexedDB e reaproveitavel: o card so aparece com o icone em vez do preview.
+    if(fUserCacheKey(F_RECENT_KEY)!==ownerKey)return;
     const th = (thumb && thumb.length<=F_RECENT_THUMB_MAX) ? thumb : '';
     let arr=fGetRecentImgs().filter(x=>x.ref!==ref);   // dedup: mesma imagem sobe pro topo
     arr.unshift({ref, thumb:th, ts:Date.now(), field:field||''});
@@ -92,12 +116,21 @@ function fRemoveRecentImg(i, ev){
 }
 
 /* ── PAINEL ── */
+/* "Isto é um campo de logo?" tem UM dono: `gCampoEhLogo` (nome + `semantic` do designer).
+   Este arquivo comparava com a string 'logo_loja' em três pontos — template que batiza o
+   campo de `logo`, `marca_parceiro` ou `logotipo` ficava sem a seção "Minhas lojas", e o
+   `_fApplyImageToField('logo_loja',…)` do final gravava num campo que nem existia na arte. */
+function _fUpEhLogo(varId){
+  return (typeof gCampoEhLogo==='function') ? !!gCampoEhLogo(varId) : (varId==='logo_loja');
+}
 function fOpenUploadPanel(varId, uploadId){
   _fUpPanelVar=varId; _fUpPanelUploadId=uploadId;
   const recents=fGetRecentImgs();
-  const lojas=(varId==='logo_loja' && typeof fGetLojas==='function') ? fGetLojas() : [];
+  const _ehLogo=_fUpEhLogo(varId);
+  const lojas=(_ehLogo && typeof fGetLojas==='function') ? fGetLojas() : [];
   // Nada guardado ainda → não faz sentido um painel vazio; vai direto pro arquivo.
-  if(!recents.length && !lojas.length){ fUploadPanelNewFile(); return; }
+  // As fotos de exemplo contam como conteúdo: com elas o painel tem o que oferecer.
+  if(!recents.length && !lojas.length && !fDemoImgsPara(_ehLogo).length){ fUploadPanelNewFile(); return; }
   let host=document.getElementById('f-upload-panel');
   if(!host){
     host=document.createElement('div'); host.id='f-upload-panel';
@@ -114,7 +147,7 @@ function fCloseUploadPanel(){
 }
 function _fRenderUploadPanel(){
   const host=document.getElementById('f-upload-panel'); if(!host) return;
-  const isLogo=_fUpPanelVar==='logo_loja';
+  const isLogo=_fUpEhLogo(_fUpPanelVar);
   const recents=fGetRecentImgs();
   const lojas=(isLogo && typeof fGetLojas==='function') ? fGetLojas() : [];
   const _icoClose='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
@@ -129,6 +162,21 @@ function _fRenderUploadPanel(){
           <span class="f-up-thumb-del" onclick="fRemoveRecentImg(${i},event)" title="Remover dos recentes" aria-label="Remover dos recentes">${_icoTrash}</span>
         </button>`).join('')}</div>`
     : `<p class="f-up-empty">Suas fotos usadas vão aparecer aqui pra reaproveitar.</p>`;
+
+  // Exemplos primeiro entre as seções (é o caminho mais rápido para ver a arte pronta),
+  // mas sempre DEPOIS do "Enviar novo arquivo": o fluxo real continua sendo o primeiro.
+  const demos = fDemoImgsPara(isLogo);
+  const _icoSpark='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/></svg>';
+  const demoBlock = demos.length ? `
+    <div class="f-up-sec f-up-demo" id="f-up-demo-sec">
+      <div class="f-up-sec-head">${_icoSpark}<span>Teste rapidamente com exemplos</span><em class="f-up-demo-tag">demo</em></div>
+      <div class="f-up-grid f-up-grid-demo">${demos.map(d=>`
+        <button type="button" class="f-up-demo-item" onclick="fPickDemoImg('${gEscJs(d.id)}')" title="Usar a foto de exemplo: ${gEsc(d.label)}">
+          <span class="f-up-demo-shot"><img src="${gEsc(d.src)}" alt="" decoding="async" onerror="fDemoImgMissing(this)"></span>
+          <span class="f-up-demo-name">${gEsc(d.label)}</span>
+        </button>`).join('')}</div>
+      <p class="f-up-demo-note">Fotos de exemplo, para testar. Use a foto real da loja antes de publicar.</p>
+    </div>` : '';
 
   const lojasBlock = isLogo ? `
     <div class="f-up-sec">
@@ -154,6 +202,7 @@ function _fRenderUploadPanel(){
           <span class="f-up-newfile-ico">${_icoUp}</span>
           <span><strong>Enviar novo arquivo</strong><small>PNG ou JPG, até 20MB</small></span>
         </button>
+        ${demoBlock}
         ${lojasBlock}
         <div class="f-up-sec">
           <div class="f-up-sec-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Imagens recentes</span></div>
@@ -168,6 +217,24 @@ function fUploadPanelNewFile(){
   const inp=_fUpPanelUploadId && document.getElementById(_fUpPanelUploadId+'-input');
   fCloseUploadPanel();
   if(inp) inp.click();
+}
+/* Aplica a foto de exemplo pelo MESMO caminho do upload (`_fApplyImageToField`): daqui
+   para frente ela é uma foto como outra qualquer — entra na prévia, no PNG e no rascunho. */
+function fPickDemoImg(id){
+  const d=F_DEMO_IMGS.find(x=>x.id===id);
+  const varId=_fUpPanelVar, uploadId=_fUpPanelUploadId;
+  fCloseUploadPanel();
+  if(!d) return;
+  if(typeof _fApplyImageToField==='function') _fApplyImageToField(varId, uploadId, d.src);
+  if(typeof gToast==='function') gToast('Foto de exemplo aplicada — troque pela real antes de publicar');
+}
+/* Arquivo ainda não colocado em assets/demo: tira a miniatura e, se não sobrar nenhuma,
+   tira a seção. Uma faixa com quadrado quebrado numa apresentação é pior que faixa nenhuma. */
+function fDemoImgMissing(img){
+  const item=img&&img.closest?img.closest('.f-up-demo-item'):null;
+  if(item) item.remove();
+  const sec=document.getElementById('f-up-demo-sec');
+  if(sec && !sec.querySelector('.f-up-demo-item')) sec.remove();
 }
 function fPickRecentImg(i){
   const arr=fGetRecentImgs(); const entry=arr[i]; if(!entry){ fCloseUploadPanel(); return; }
@@ -186,9 +253,11 @@ function fPickRecentImg(i){
 function fUploadPanelPickLoja(id){
   const loja=(typeof fGetLojas==='function') ? fGetLojas().find(l=>l.id===id) : null;
   const uploadId=_fUpPanelUploadId;
+  const _varAlvo=_fUpPanelVar||'logo_loja';   // lido ANTES do close, que zera o estado do painel
   fCloseUploadPanel();
   if(!loja || !loja.logo){ if(typeof gToast==='function') gToast('Essa loja não tem logo salvo.','error'); return; }
-  if(typeof _fApplyImageToField==='function') _fApplyImageToField('logo_loja', uploadId, loja.logo);
+  // O campo é o que o painel ABRIU, não um nome fixo: o designer batiza como quiser.
+  if(typeof _fApplyImageToField==='function') _fApplyImageToField(_varAlvo, uploadId, loja.logo);
   if(typeof gToast==='function') gToast(`Logo de ${loja.nome||'sua loja'} aplicado`);
 }
 function fUploadPanelDeleteLoja(id, ev){

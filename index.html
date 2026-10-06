@@ -25,7 +25,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,700;0,900;1,400&display=swap" rel="stylesheet">
 <!-- ══════════════════════════════════════════════════════════════════════════════
-     ?v=69 — O NÚMERO DE DEPLOY. UM SÓ, PARA TODOS OS 95 ASSETS.
+     ?v=195 — O NÚMERO DE DEPLOY. UM SÓ, PARA TODOS OS 95 ASSETS.
      ══════════════════════════════════════════════════════════════════════════════
      O GitHub Pages serve a branch default e NÃO deixa configurar cabeçalho de
      cache: a query string é a única alavanca que existe aqui. Até 02/09 o número
@@ -55,39 +55,38 @@
          não se editam — se um dia trocar uma, troque o NOME do arquivo, que é
          cache-busting de verdade e não depende de ninguém lembrar de nada.
      ══════════════════════════════════════════════════════════════════════════════ -->
-<link rel="stylesheet" href="css/03-fonts.css?v=69">
-<link rel="stylesheet" href="css/00-tokens.css?v=69">
-<link rel="stylesheet" href="css/01-reset.css?v=69">
-<link rel="stylesheet" href="css/02-animations.css?v=69">
-<link rel="stylesheet" href="css/components/splash.css?v=69">
-<link rel="stylesheet" href="css/components/topbar.css?v=69">
-<link rel="stylesheet" href="css/components/help-modal.css?v=69">
-<link rel="stylesheet" href="css/components/user-profile.css?v=69">
+<link rel="stylesheet" href="css/03-fonts.css?v=195">
+<link rel="stylesheet" href="css/00-tokens.css?v=195">
+<link rel="stylesheet" href="css/01-reset.css?v=195">
+<link rel="stylesheet" href="css/02-animations.css?v=195">
+<link rel="stylesheet" href="css/components/splash.css?v=195">
+<link rel="stylesheet" href="css/components/topbar.css?v=195">
+<link rel="stylesheet" href="css/components/help-modal.css?v=195">
+<link rel="stylesheet" href="css/components/user-profile.css?v=195">
 <!-- Depois de user-profile.css de propósito: o Controle do produto vive DENTRO
      do painel da conta e herda as variáveis --prof-* (inclusive o tema escuro). -->
-<link rel="stylesheet" href="css/components/product-control.css?v=69">
-<link rel="stylesheet" href="css/modules/feedback.css?v=69">
-<link rel="stylesheet" href="css/components/tutorial.css?v=69">
-<link rel="stylesheet" href="css/modules/franqueado.css?v=69">
-<link rel="stylesheet" href="css/modules/chat.css?v=69">
-<link rel="stylesheet" href="css/modules/live-preview.css?v=69">
-<link rel="stylesheet" href="css/modules/color-picker.css?v=69">
-<link rel="stylesheet" href="css/modules/all-tools.css?v=69">
-<link rel="stylesheet" href="css/modules/topbar.css?v=69">
-<link rel="stylesheet" href="css/modules/catalog.css?v=69">
-<link rel="stylesheet" href="css/modules/franqueado_effects.css?v=69">
-<link rel="stylesheet" href="css/modules/publish-modal.css?v=69">
-<link rel="stylesheet" href="css/modules/designer.css?v=69">
-<link rel="stylesheet" href="css/modules/layers-panel.css?v=69">
-<link rel="stylesheet" href="css/modules/toolbar.css?v=69">
-<link rel="stylesheet" href="css/components/login.css?v=69">
-<link rel="stylesheet" href="css/modules/upload-panel.css?v=69">
+<link rel="stylesheet" href="css/components/product-control.css?v=195">
+<link rel="stylesheet" href="css/components/dados.css?v=195">
+<link rel="stylesheet" href="css/modules/feedback.css?v=195">
+<link rel="stylesheet" href="css/components/tutorial.css?v=195">
+<link rel="stylesheet" href="css/modules/franqueado.css?v=195">
+<link rel="stylesheet" href="css/modules/chat.css?v=195">
+<link rel="stylesheet" href="css/modules/live-preview.css?v=195">
+<link rel="stylesheet" href="css/modules/color-picker.css?v=195">
+<link rel="stylesheet" href="css/modules/all-tools.css?v=195">
+<link rel="stylesheet" href="css/modules/topbar.css?v=195">
+<link rel="stylesheet" href="css/modules/catalog.css?v=195">
+<link rel="stylesheet" href="css/modules/franqueado_effects.css?v=195">
+<link rel="stylesheet" href="css/modules/publish-modal.css?v=195">
+<link rel="stylesheet" href="css/modules/designer.css?v=195">
+<link rel="stylesheet" href="css/modules/layers-panel.css?v=195">
+<link rel="stylesheet" href="css/modules/toolbar.css?v=195">
+<link rel="stylesheet" href="css/components/login.css?v=195">
+<link rel="stylesheet" href="css/modules/upload-panel.css?v=195">
 <!-- depois de franqueado/chat/live-preview: sobrepõe o layout das 3 colunas -->
-<link rel="stylesheet" href="css/modules/panel-dock.css?v=69">
-<link rel="stylesheet" href="css/modules/help-widget.css?v=69">
-<link rel="stylesheet" href="css/modules/console.css?v=69">
-<link rel="stylesheet" href="css/modules/academia.css?v=69">
-<link rel="stylesheet" href="css/modules/calendario.css?v=69">
+<link rel="stylesheet" href="css/modules/panel-dock.css?v=195">
+<link rel="stylesheet" href="css/modules/help-widget.css?v=195">
+<link rel="stylesheet" href="css/modules/console.css?v=195">
 </head>
 <body class="mode-franqueado theme-light">
 
@@ -124,23 +123,44 @@ body:not(.theme-light) input:-webkit-autofill:active {
         <h1>Arte de agência, pronta em um minuto.</h1>
         <p>Você escolhe a campanha e responde a Luma. A arte sai no padrão Delivery Much — sempre.</p>
       </div>
+      <!-- Desktop: 3 colunas de capas à deriva (vitrine). Celular: as colunas somem
+           (display:contents), as .gl-extra saem e sobra o leque de gl-art-1..3.
+           gl-art-1/2/3/5 são os slots do rodízio (script abaixo) — não renomear.
+           .gl-extra com loading="lazy": escondida no celular, nem baixa. -->
       <div class="gl-mosaic" aria-hidden="true">
-        <div class="gl-art gl-art-1"><img src="assets/covers/pt.png" alt=""></div>
-        <div class="gl-art gl-art-2"><img src="assets/covers/gb.png" alt=""></div>
-        <div class="gl-art gl-art-3"><img src="assets/covers/dd.png" alt=""></div>
-        <div class="gl-art gl-art-4 gl-muchplus"><span class="gl-badge">MUCH+</span><img src="assets/logos/muchplus-trim.png" alt=""></div>
-        <div class="gl-art gl-art-5"><img src="assets/covers/cc.png" alt=""></div>
+        <div class="gl-col">
+          <div class="gl-art gl-art-1"><img src="assets/covers/pt.png" alt=""></div>
+          <div class="gl-art gl-extra"><img src="assets/covers/ac.png" alt="" loading="lazy"></div>
+          <div class="gl-art gl-art-4 gl-muchplus"><span class="gl-badge">MUCH+</span><img src="assets/logos/muchplus-trim.png" alt=""></div>
+          <div class="gl-art gl-extra"><img src="assets/covers/aai.png" alt="" loading="lazy"></div>
+          <div class="gl-art gl-extra"><img src="assets/covers/bsn.png" alt="" loading="lazy"></div>
+        </div>
+        <div class="gl-col">
+          <div class="gl-art gl-extra"><img src="assets/covers/cd.png" alt="" loading="lazy"></div>
+          <div class="gl-art gl-art-2"><img src="assets/covers/gb.png" alt=""></div>
+          <div class="gl-art gl-extra"><img src="assets/covers/eg.png" alt="" loading="lazy"></div>
+          <div class="gl-art gl-extra"><img src="assets/covers/mna.png" alt="" loading="lazy"></div>
+          <div class="gl-art gl-extra"><img src="assets/covers/otp.png" alt="" loading="lazy"></div>
+        </div>
+        <div class="gl-col">
+          <div class="gl-art gl-art-3"><img src="assets/covers/dd.png" alt=""></div>
+          <div class="gl-art gl-extra"><img src="assets/covers/rbp.png" alt="" loading="lazy"></div>
+          <div class="gl-art gl-art-5"><img src="assets/covers/cc.png" alt=""></div>
+          <div class="gl-art gl-extra"><img src="assets/covers/tr25.png" alt="" loading="lazy"></div>
+          <div class="gl-art gl-extra"><img src="assets/covers/cd.png" alt="" loading="lazy"></div>
+        </div>
       </div>
       <div class="gl-brand-foot">Feito para as franquias Delivery Much</div>
     </aside>
 
     <!-- Formulário -->
     <main class="gl-form-side">
+      <img class="gl-form-logo" src="assets/logos/luma-h-cor.png" alt="Luma">
 
       <!-- Step 1: Login -->
       <form id="gl-step-login" class="gl-form" onsubmit="gDoLogin(event)" style="display:flex">
         <div>
-          <h2>Que bom te ver de novo</h2>
+          <h2>Que bom te ver de <em>novo.</em></h2>
           <p class="gl-sub">Entre com seu e-mail corporativo pra voltar a criar.</p>
         </div>
 
@@ -198,6 +218,36 @@ body:not(.theme-light) input:-webkit-autofill:active {
         </button>
 
         <a href="#" class="gl-link" onclick="gShowLoginView(); return false;">← Voltar ao login</a>
+      </form>
+
+      <!-- Step 3: Nova senha. Chegada do link de recuperação/convite: o supabase-js
+           materializa a sessão pelo hash sozinho, e até aqui isso abria a home direto —
+           a pessoa entrava uma vez e seguia SEM SENHA. Quem decide mostrar é o boot
+           (main.js), a partir do gAuthLinkPendente(). Sem link de voltar de propósito. -->
+      <form id="gl-step-senha" class="gl-form" onsubmit="gDoNovaSenha(event)" style="display:none">
+        <div>
+          <h2>Defina sua senha</h2>
+          <p class="gl-sub" id="gs-sub">Escolha uma nova senha. Ela passa a valer em qualquer aparelho.</p>
+        </div>
+
+        <label class="gl-field">
+          <span class="gl-lbl">Nova senha</span>
+          <div class="gl-in"><input id="gs-pass" type="password" required minlength="8" placeholder="mínimo 8 caracteres" autocomplete="new-password"></div>
+        </label>
+
+        <label class="gl-field">
+          <span class="gl-lbl">Repita a nova senha</span>
+          <div class="gl-in"><input id="gs-pass2" type="password" required minlength="8" placeholder="••••••••" autocomplete="new-password"></div>
+        </label>
+
+        <div id="gs-error" class="gl-msg gl-msg-err" role="alert" style="display:none"></div>
+
+        <button id="gs-btn" type="submit" class="gl-btn">
+          <span class="gl-btn-text">Salvar e entrar</span>
+          <svg class="gl-spinner" viewBox="0 0 24 24" style="display:none;animation:glSpin 1s linear infinite"><circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.25)" stroke-width="3" fill="none"/><path d="M12 2a10 10 0 0 1 10 10" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
+        </button>
+
+        <p class="gl-foot">Mínimo de 8 caracteres. Depois você troca quando quiser em Perfil › Segurança.</p>
       </form>
 
     </main>
@@ -278,6 +328,17 @@ body:not(.theme-light) input:-webkit-autofill:active {
       var img = carta && carta.querySelector('img');
       if (img) img.src = 'assets/covers/' + naMesa[k] + '.png';
     });
+
+    // Desktop: a vitrine de colunas já mostra todas as capas. O resto do sorteio vai
+    // para as .gl-extra e o rodízio não começa — ele trocaria uma carta por uma capa
+    // que já está na tela (duplicata à vista). O movimento lá é a deriva das colunas.
+    if (!(window.matchMedia && window.matchMedia('(max-width:860px)').matches)) {
+      var extras = document.querySelectorAll('#g-login-screen .gl-extra img');
+      for (var e = 0; e < extras.length; e++) {
+        extras[e].src = 'assets/covers/' + CAPAS[(SLOTS.length + e) % CAPAS.length] + '.png';
+      }
+      return;
+    }
 
     // Movimento reduzido: a mão sorteada fica, o rodízio nunca começa. Uma imagem
     // que se troca sozinha É movimento, não só enfeite.
@@ -363,7 +424,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
     <div class="sp-dm-logo" role="img" aria-label="Delivery Much"></div>
   </div>
 </div>
-<script src="js/core/splash.js?v=69"></script>
+<script src="js/core/splash.js?v=195"></script>
 
 <!-- ══ TOPBAR GLOBAL ══ -->
 <header id="global-topbar">
@@ -373,8 +434,6 @@ body:not(.theme-light) input:-webkit-autofill:active {
   <nav class="mode-tabs" aria-label="Alternar área do Luma">
     <div class="mode-tab-pill" id="mode-tab-pill"></div>
     <button class="mode-tab active" id="tab-fran" onclick="setMode('franqueado')" aria-label="Abrir área do Franqueado"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 9l2-5h14l2 5"/><path d="M5 13v7h14v-7"/><path d="M9 20v-5h6v5"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/></svg><span>Franqueado</span></button>
-    <button class="mode-tab" id="tab-calendario" data-feature="module.calendario" onclick="setMode('calendario')" aria-label="Abrir o Calendário da rede"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>Calendário</span></button>
-    <button class="mode-tab" id="tab-academia" data-feature="module.academia" onclick="setMode('academia')" aria-label="Abrir a Implementação Delivery Much"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12.5V17c0 1.7 2.7 3 6 3s6-1.3 6-3v-4.5"/></svg><span>Implementação</span></button>
     <button class="mode-tab" id="tab-design" onclick="setMode('designer')" aria-label="Abrir área do Designer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m14.5 4.5 5 5L8 21H3v-5z"/><path d="m12 7 5 5"/><path d="M3 3h7"/></svg><span>Designer</span></button>
   </nav>
   
@@ -385,6 +444,12 @@ body:not(.theme-light) input:-webkit-autofill:active {
     <div id="topbar-context-fran" style="display: flex; align-items: center;"></div>
     <div id="topbar-context-design" style="display: none; align-items: center;">
     </div>
+
+    <!-- Suporte ao vivo: só a equipe vê (js/core/suporte.js tira o hidden). O contador vem do body. -->
+    <button type="button" id="topbar-suporte" hidden onclick="if(typeof lumaWidgetAbrirSuporte==='function') lumaWidgetAbrirSuporte(this)" data-help-trigger aria-controls="luma-widget-modal" aria-expanded="false" aria-label="Conversas do suporte">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span>Conversas</span>
+    </button>
 
     <!-- Perfil de Usuário Unificado -->
     <button type="button" class="top-profile-badge" id="topbar-user-profile" onclick="if(typeof gOpenUserProfileModal === 'function') gOpenUserProfileModal()" aria-haspopup="dialog" aria-controls="g-profile-modal" title="Abrir perfil e configurações">
@@ -527,6 +592,11 @@ body:not(.theme-light) input:-webkit-autofill:active {
         </span>
         <span class="prof-brand-copy"><strong>Luma</strong><small>Conta e gestão</small></span>
       </div>
+      <!-- Celular: o painel abre no índice (lista de seções) e este X fecha dali.
+           No desktop fica escondido — o X do cabeçalho já existe ao lado do conteúdo. -->
+      <button type="button" class="prof-close prof-hub-close" onclick="gCloseUserProfileModal()" aria-label="Fechar painel da conta">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </button>
 
       <div class="prof-sidebar-user">
         <div class="prof-sidebar-av-wrap"><div class="prof-sidebar-av" id="prof-sidebar-avatar"></div></div>
@@ -549,6 +619,16 @@ body:not(.theme-light) input:-webkit-autofill:active {
         <button type="button" class="prof-nav-btn" id="prof-nav-estatisticas" onclick="gProfileSwitchTab('estatisticas')" aria-controls="prof-pane-estatisticas">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V5M16 20v-7M22 20V3"/></svg>
           <span>Atividade</span>
+        </button>
+        <!-- Dados do Luma (js/core/dados.js): o que a rede faz no app. Gate gIsAdmin (gestão
+             E equipe DM) em gOpenUserProfileModal; quem autoriza de verdade é a RPC + RLS.
+             Chave "painel" porque "dados" já é a aba de Dados pessoais. -->
+        <!-- Rótulo do grupo de gestão: só aparece no índice do celular. Mostrado por
+             gOpenUserProfileModal com o mesmo gate (gIsAdmin) das seções abaixo. -->
+        <span class="prof-nav-label prof-nav-label-gestao" id="prof-nav-label-gestao" style="display:none">Gestão</span>
+        <button type="button" class="prof-nav-btn" id="prof-nav-painel" onclick="gProfileSwitchTab('painel')" aria-controls="prof-pane-painel" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg>
+          <span>Dados</span><small class="prof-nav-tag">ADMIN</small>
         </button>
         <button type="button" class="prof-nav-btn" id="prof-nav-equipe" onclick="gProfileSwitchTab('equipe')" aria-controls="prof-pane-equipe" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>
@@ -582,6 +662,10 @@ body:not(.theme-light) input:-webkit-autofill:active {
 
     <section class="prof-content">
       <header class="prof-header">
+        <!-- Celular: volta ao índice de seções. Escondido no desktop (a lista está ao lado). -->
+        <button type="button" class="prof-back" onclick="gProfileShowHub()" aria-label="Voltar para as seções">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
         <div class="prof-title-area">
           <span class="prof-eyebrow">Conta</span>
           <h3 id="prof-modal-title">Dados Pessoais</h3>
@@ -736,6 +820,8 @@ body:not(.theme-light) input:-webkit-autofill:active {
         </div>
 
 
+        <!-- Vazia de propósito: gDadosAbrir() monta, e só busca quando a aba abre. -->
+        <div class="prof-pane" id="prof-pane-painel"></div>
         <div class="prof-pane" id="prof-pane-equipe"></div>
         <!-- Vazia de propósito: gProdRender() monta (mesmo padrão da aba Equipe). -->
         <div class="prof-pane" id="prof-pane-produto"></div>
@@ -881,12 +967,10 @@ body:not(.theme-light) input:-webkit-autofill:active {
                  distância — exatamente o que esta rodada veio tirar. -->
             <div id="f-mob-prog" aria-live="polite" hidden>—</div>
             <div id="f-head-actions" aria-label="Ações da criação">
-              <!-- A metade DESCOBRÍVEL do desfazer. O toast passa em 7s; este fica enquanto
-                   houver o que desfazer, e some quando não houver (botão morto permanente
-                   ensina a ignorar botão). Rótulo e title vêm do próprio slot, então dizem
-                   O QUE será desfeito — "Desfazer: Refazer arte", não um "Desfazer" solto. -->
-              <button id="f-undo-btn" onclick="fDesfazer()" hidden aria-label="Desfazer" title="Desfazer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg><span>Desfazer</span></button>
-              <button id="f-reset-btn" onclick="fResetFlow()" title="Recomeçar esta criação"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg><span>Recomeçar</span></button>
+              <!-- "Desfazer" e "Recomeçar" saíram desta barra (09/2026): o "Anterior" do painel e o
+                   "Refazer" do fim do fluxo já cobrem os dois, e a barra de cima é da campanha.
+                   ⚠ Os motores ficam: `fDesfazer` segue no Ctrl+Z e na ação do toast; `fResetFlow`
+                   segue existindo (f* não regride). -->
               <button id="f-bulk-head-btn" onclick="fBulkOpenFromArt()" title="Gerar artes em lote a partir de uma planilha"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>Gerar em lote</span></button>
               <!-- O botão de trocar tema claro/escuro saiu a pedido do Ryan (09/09): "só dá
                    problema e não ajuda a pessoa em nada". Era um interruptor global ao lado
@@ -919,7 +1003,9 @@ body:not(.theme-light) input:-webkit-autofill:active {
           <div id="f-respostas" hidden></div>
           <div id="f-input-row">
             <div id="f-input-wrap">
-              <input id="f-msg-box" aria-label="Digite sua resposta" enterkeyhint="send" placeholder="Digite sua resposta..." onkeydown="if(event.key==='Enter')fSend()"/>
+              <!-- textarea (e não input) para aceitar Shift+Enter = nova linha nos campos de texto;
+                   Enter segue enviando — no celular também (decisão 09/2026). -->
+              <textarea id="f-msg-box" rows="1" aria-label="Digite sua resposta" enterkeyhint="send" placeholder="Digite sua resposta..." onkeydown="fMsgKeydown(event)"></textarea>
               <span id="f-char-count" aria-hidden="true"></span>
             </div>
             <!-- O botão de ÁUDIO ("Falar", ditado por voz) saiu da barra do chat na rodada de
@@ -939,8 +1025,11 @@ body:not(.theme-light) input:-webkit-autofill:active {
             <button type="button" class="fsf-btn" id="f-sheet-back" onclick="fGoBack()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>Anterior
             </button>
+            <!-- Dois ícones e o CSS escolhe pelo `aria-expanded` (lista ↔ ✕): o rótulo já troca
+                 para "Fechar" no JS, e o ícone não pode continuar dizendo "lista" ao lado dele.
+                 `#f-sheet-hist-n` é a contagem de respondidas (`_fRespostasBadge`, chat.js). -->
             <button type="button" class="fsf-btn" id="f-sheet-hist" onclick="fToggleRespostas()" aria-expanded="false">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span id="f-sheet-hist-lbl">Respostas</span>
+              <svg class="fsf-ico-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><svg class="fsf-ico-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg><span id="f-sheet-hist-lbl">Respostas</span><span id="f-sheet-hist-n" class="fsf-n" hidden></span>
             </button>
           </div>
           </div>
@@ -977,6 +1066,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
               </div>
             </div>
             <div class="lp-head-actions">
+              <button type="button" id="lp-design-start" class="lp-edit-btn lp-design-start" hidden onclick="fLpDesignStart()">Modo editar</button>
               <!-- O selo de status ("aguardando respostas…" / "3 de 5 preenchidos" / "arte
                    pronta") saiu a pedido do Ryan (09/09): é inútil. E era mesmo redundante —
                    o chat já diz "Passo X de Y" em cada pergunta, a barra de progresso mostra
@@ -986,6 +1076,12 @@ body:not(.theme-light) input:-webkit-autofill:active {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
               </button>
             </div>
+          </div>
+          <div id="lp-design-tools" class="lp-design-tools" hidden>
+            <div class="lp-design-caption"><strong>Mini editor</strong><span>As alterações vão para a rede ao publicar.</span></div>
+            <div class="lp-design-compare" role="group" aria-label="Comparar arte"><button type="button" id="lp-design-before" aria-pressed="false" onclick="fLpDesignCompare(true)">Antes</button><button type="button" id="lp-design-after" aria-pressed="true" onclick="fLpDesignCompare(false)">Depois</button></div>
+            <button type="button" class="lp-edit-btn" onclick="fLpDesignCancel()">Cancelar</button>
+            <button type="button" class="lp-edit-ok" id="lp-design-save" onclick="fLpDesignSave()">Salvar e publicar</button>
           </div>
           <div class="lp-stage">
             <!-- ══ AS ABAS DO ESTADO FINAL ══
@@ -1012,38 +1108,46 @@ body:not(.theme-light) input:-webkit-autofill:active {
             </div>
             <div class="lp-canvas-wrap">
               <canvas class="lp-canvas" id="lp-canvas" aria-label="Prévia do template"></canvas>
+              <!-- Esqueleto da 1ª pintura de um material (`.lp-stage.montando`, _fLpMontando) -->
+              <div class="lp-montando" role="status"><span class="mini-spinner" aria-hidden="true"></span><span id="lp-montando-txt">Preparando sua arte…</span></div>
             </div>
           </div>
           <div class="lp-toolbar">
             <div class="lp-tool-left">
-              <button type="button" class="lp-tool-btn lp-fit-btn" id="lp-zoom-reset-btn" onclick="fLpRefit()" title="Voltar ao padrão e ajustar a arte à tela" aria-label="Redefinir zoom e ajustar a arte à tela">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
-                <span>Ajustar</span>
-              </button>
+              <!-- Zoom com NOME, sem número (redesign 09/2026). O franqueado não pensa em "37%":
+                   pensa em "ver a arte toda" e "conferir se o preço está legível". O slider e o %
+                   saíram (o % ainda era um segundo botão de reajuste, igual ao "Ajustar"). −/+ ficam
+                   para ajuste fino; roda e pinça seguem. Nenhum preset marcado = zoom livre. -->
+              <div class="lp-viewseg lp-fit-seg" role="radiogroup" aria-label="Enquadramento da arte">
+                <button type="button" class="lp-viewseg-btn" id="lp-zoom-reset-btn" role="radio" aria-checked="true" onclick="fLpRefit()" title="Encaixar a arte inteira na tela">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/></svg>
+                  <span>Tela inteira</span>
+                </button>
+                <!-- "Tamanho real" saiu em 25/09 (feedback da Laura): redundante com "Tela inteira" + −/+. -->
+              </div>
               <div class="lp-zoom-group" role="group" aria-label="Controles de zoom">
                 <button type="button" class="lp-zoom-step" data-lp-zoom-step="-1" onclick="fLpZoomStep(-1)" title="Diminuir zoom" aria-label="Diminuir zoom">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 </button>
-                <input type="range" class="lp-zoom-range" id="lp-zoom-range" min="0" max="1000" step="1" value="369" oninput="fLpZoomSlider(this.value)" aria-label="Nível de zoom" aria-valuetext="Ajustado à tela">
-                <button type="button" class="lp-tool-text lp-zoom-reset" id="lp-zoom" onclick="fLpZoomReset()" title="Voltar ao ajuste de tela" aria-label="Nível de zoom — clique para reajustar">—</button>
                 <button type="button" class="lp-zoom-step" data-lp-zoom-step="1" onclick="fLpZoomStep(1)" title="Aumentar zoom" aria-label="Aumentar zoom">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><line x1="12" y1="5" x2="12" y2="19"/></svg>
                 </button>
               </div>
             </div>
-            <div class="lp-tool-right">
+            <div class="lp-tool-center">
               <!-- O grupo "Auto" (chips Zoom e Layout) saiu na rodada de usabilidade de 09/2026.
-                   Eram dois controles que pediam ao franqueado entender mecanismo interno: o
-                   zoom automático mexia na arte sozinho e o "Layout vivo" expunha o solver.
-                   O sistema simplesmente protege a arte agora; quando ele precisa intervir, diz
-                   isso numa linha (o aviso discreto em `lp-layout-nota`). -->
-              <span class="lp-layout-nota" id="lp-layout-nota" role="status" aria-live="polite" hidden></span>
+                   Eram dois controles que pediam ao franqueado entender mecanismo interno.
+                   No lugar ficou UM aviso, e só quando a arte BLOQUEIA: diz qual campo não
+                   cabe e leva até ele. Enquanto o texto cabe, o centro da barra fica calado. -->
+              <button type="button" class="lp-layout-nota" id="lp-layout-nota" aria-live="polite" hidden></button>
+            </div>
+            <div class="lp-tool-right">
               <!-- "Mockups" era jargão de designer na tela de quem vende lanche. E o botão só
                    aparece quando existe um ambiente compatível com o FORMATO desta arte
                    (fPostedContextForFormat) — melhor esconder que ensinar algo falso. -->
-              <button type="button" class="lp-posted-btn" hidden onclick="fOpenPosted()" title="Ver como esta arte fica publicada" aria-label="Ver como esta arte fica publicada">
+              <button type="button" class="lp-posted-btn" hidden onclick="fOpenPosted()" title="Ver como esta arte fica publicada no celular" aria-label="Ver como esta arte fica publicada no celular">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6.75" y="2" width="10.5" height="20" rx="3"/><path d="M10.5 5.5h3"/><path d="M10.25 18.5h3.5"/></svg>
-                <span>Ver como fica</span>
+                <span>Ver no celular</span>
               </button>
             </div>
           </div>
@@ -1094,19 +1198,6 @@ body:not(.theme-light) input:-webkit-autofill:active {
     </div>
     <div class="posted-stage" id="posted-stage"></div>
   </div>
-</div>
-
-<!-- ══ VIEW ACADEMIA ══
-     Academia Delivery Much: jornada de formação do franqueado. Tudo é montado
-     por js/academia/* dentro de #ac-root (home da jornada, ambiente de aula,
-     gestão de conteúdo e certificado) — o mesmo padrão de #f-home. -->
-<div id="view-academia" class="view-container">
-  <div id="ac-root"></div>
-</div>
-
-<!-- ══ VIEW CALENDÁRIO ══ (o módulo monta tudo por JS, como a Academia) -->
-<div id="view-calendario" class="view-container">
-  <div id="cal-root"></div>
 </div>
 
 <!-- ══ VIEW DESIGNER ══ -->
@@ -2731,6 +2822,8 @@ body:not(.theme-light) input:-webkit-autofill:active {
              As chaves `copyFormat`/`city` continuam no rascunho de propósito: rascunho
              antigo tem que continuar abrindo. -->
         <button type="button" class="d-btn-sec" id="f-bulk-back-btn" onclick="fBulkClose()">Fechar</button>
+        <!-- Duas saídas, escolha na hora (Laura, 25/09): ZIP com tudo ou cada arte como um arquivo. -->
+        <button type="button" class="d-btn-sec" id="f-bulk-dl-soltas-btn" onclick="fBulkDownloadAll('soltas')" disabled title="Baixa cada arte como um arquivo separado">Uma a uma</button>
         <button type="button" class="d-btn-pri" id="f-bulk-dl-btn" onclick="fBulkDownloadAll()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg><span id="f-bulk-dl-label">Gerar artes (ZIP)</span></button>
       </div>
 
@@ -2967,6 +3060,23 @@ body:not(.theme-light) input:-webkit-autofill:active {
         <span class="modal-field-help">Organiza os materiais no catálogo do franqueado dentro da campanha correspondente.</span>
       </div>
 
+      <!-- Seção da vitrine (luma.pastas.destaque). Antes era a lista do 00-config.js em que a
+           campanha estava escrita — trocar de seção exigia deploy. -->
+      <div class="modal-field">
+        <div class="df-schedule-card">
+          <div class="df-switch-row">
+            <div class="df-switch-info">
+              <div class="df-switch-title">Destacar em "Ativas agora"</div>
+              <div class="df-switch-sub">Desligado, a campanha aparece em "Outras campanhas" na vitrine do franqueado</div>
+            </div>
+            <label class="df-switch">
+              <input type="checkbox" id="df-destaque" checked>
+              <span class="df-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
       <!-- Configurações avançadas -->
       <div class="df-adv">
         <button type="button" class="df-adv-toggle" id="df-adv-toggle" onclick="dFolderToggleAdv()">
@@ -2974,7 +3084,8 @@ body:not(.theme-light) input:-webkit-autofill:active {
           <span>Configurações avançadas e permissões</span>
         </button>
         <div class="df-adv-body" id="df-adv-body" style="display:none">
-          <div class="modal-field">
+          <!-- Grupos ainda não são aplicados na leitura/RLS. Não prometer acesso restrito. -->
+          <div class="modal-field" hidden style="display:none">
             <label class="modal-label">Segmentar por grupos de franquias</label>
             <span class="modal-field-help">Limite o acesso desta pasta apenas a grupos específicos.</span>
             <div class="df-groups" id="df-groups"></div>
@@ -3086,83 +3197,69 @@ body:not(.theme-light) input:-webkit-autofill:active {
 
 
 
-<script src="js/00-config.js?v=69"></script>
-<script src="js/core/img-store.js?v=69"></script>
-<script src="js/01-state.js?v=69"></script>
-<script src="js/core/toast.js?v=69"></script>
-<script src="js/core/sound.js?v=69"></script>
-<script src="js/core/qr.js?v=69"></script>
-<script src="js/core/layout.js?v=69"></script>
-<script src="js/core/auto-layout.js?v=69"></script>
-<script src="js/core/help.js?v=69"></script>
-<script src="js/tutorial/catalog.js?v=69"></script>
-<script src="js/tutorial/mocks.js?v=69"></script>
-<script src="js/tutorial/mocks-studio.js?v=69"></script>
-<script src="js/tutorial/catalog-studio.js?v=69"></script>
-<script src="js/tutorial/engine.js?v=69"></script>
-<script src="js/franqueado/history.js?v=69"></script>
-<script src="js/franqueado/prefs.js?v=69"></script>
-<script src="js/franqueado/catalog.js?v=69"></script>
-<script src="js/franqueado/search.js?v=69"></script>
-<script src="js/franqueado/materials.js?v=69"></script>
-<script src="js/franqueado/chat.js?v=69"></script>
-<script src="js/franqueado/live-preview.js?v=69"></script>
-<script src="js/franqueado/panel-dock.js?v=69"></script>
-<script src="js/franqueado/upload-panel.js?v=69"></script>
-<script src="js/franqueado/chat-input.js?v=69"></script>
-<!-- ACADEMIA (formação do franqueado). Ordem importa: motion.js define os helpers
-     de animação que os outros usam; academia.js define o estado que
-     aula/agente/gestao/certificado/conclusao consomem. -->
-<script src="js/academia/motion.js?v=69"></script>
-<script src="js/academia/academia.js?v=69"></script>
-<script src="js/academia/aula.js?v=69"></script>
-<script src="js/academia/agente.js?v=69"></script>
-<script src="js/academia/gestao.js?v=69"></script>
-<script src="js/academia/certificado.js?v=69"></script>
-<script src="js/academia/conclusao.js?v=69"></script>
-<!-- CALENDÁRIO (o que a rede comunica e quando). Ordem importa: conteudo.js é
-     só dado e vem primeiro; calendario.js define estado e helpers de data;
-     agenda.js e evento.js consomem. -->
-<script src="js/calendario/conteudo.js?v=69"></script>
-<script src="js/calendario/calendario.js?v=69"></script>
-<script src="js/calendario/agenda.js?v=69"></script>
-<script src="js/calendario/evento.js?v=69"></script>
-<script src="js/calendario/apresentacao.js?v=69"></script>
-<script src="js/designer/blending.js?v=69"></script>
-<script src="js/franqueado/png-generator.js?v=69"></script>
-<script src="js/designer/templates.js?v=69"></script>
-<script src="js/designer/canvas.js?v=69"></script>
-<script src="js/designer/selection.js?v=69"></script>
-<script src="js/designer/brush.js?v=69"></script>
-<script src="js/designer/eraser-tools.js?v=69"></script>
-<script src="js/designer/layers.js?v=69"></script>
-<script src="js/designer/props-panel.js?v=69"></script>
-<script src="js/designer/measurement.js?v=69"></script>
-<script src="js/designer/publish.js?v=69"></script>
-<script src="js/designer/preview.js?v=69"></script>
-<script src="js/designer/library.js?v=69"></script>
-<script src="js/designer/undo-redo.js?v=69"></script>
-<script src="js/widgets/help-widget.js?v=69"></script>
-<script src="js/designer/tools.js?v=69"></script>
-<script src="js/designer/fonts.js?v=69"></script>
-<script src="js/designer/psd-parse.js?v=69"></script>
-<script src="js/designer/psd-import.js?v=69"></script>
-<script src="js/designer/mask.js?v=69"></script>
-<script src="js/designer/tutorial-panel.js?v=69"></script>
-<script src="assets/vendor/colorthief.js"></script>
-<script src="assets/vendor/pica.js"></script>
-<script src="assets/vendor/jszip.min.js"></script>
+<script src="js/00-config.js?v=195"></script>
+<script src="js/core/img-store.js?v=195"></script>
+<script src="js/01-state.js?v=195"></script>
+<script src="js/core/toast.js?v=195"></script>
+<script src="js/core/sound.js?v=195"></script>
+<script src="js/core/qr.js?v=195"></script>
+<script src="js/core/layout.js?v=195"></script>
+<script src="js/core/auto-layout.js?v=195"></script>
+<script src="js/core/local-fit.js?v=195"></script>
+<script src="js/core/help.js?v=195"></script>
+<!-- Suporte ao vivo (gSup*): dados + Realtime. ANTES do help-widget.js, que se inscreve no gSupOnChange ao iniciar. -->
+<script src="js/core/suporte.js?v=195"></script>
+<script src="js/tutorial/catalog.js?v=195"></script>
+<script src="js/tutorial/mocks.js?v=195"></script>
+<script src="js/tutorial/mocks-studio.js?v=195"></script>
+<script src="js/tutorial/catalog-studio.js?v=195"></script>
+<script src="js/tutorial/engine.js?v=195"></script>
+<script src="js/franqueado/history.js?v=195"></script>
+<script src="js/franqueado/prefs.js?v=195"></script>
+<script src="js/franqueado/catalog.js?v=195"></script>
+<script src="js/franqueado/search.js?v=195"></script>
+<script src="js/franqueado/materials.js?v=195"></script>
+<script src="js/franqueado/chat.js?v=195"></script>
+<script src="js/core/copy-fit.js?v=195"></script>
+<script src="js/franqueado/live-preview.js?v=195"></script>
+<script src="js/franqueado/panel-dock.js?v=195"></script>
+<script src="js/franqueado/upload-panel.js?v=195"></script>
+<script src="js/franqueado/chat-input.js?v=195"></script>
+<script src="js/designer/blending.js?v=195"></script>
+<script src="js/franqueado/png-generator.js?v=195"></script>
+<script src="js/designer/templates.js?v=195"></script>
+<script src="js/designer/canvas.js?v=195"></script>
+<script src="js/designer/selection.js?v=195"></script>
+<script src="js/designer/brush.js?v=195"></script>
+<script src="js/designer/eraser-tools.js?v=195"></script>
+<script src="js/designer/layers.js?v=195"></script>
+<script src="js/designer/props-panel.js?v=195"></script>
+<script src="js/designer/measurement.js?v=195"></script>
+<script src="js/designer/publish.js?v=195"></script>
+<script src="js/designer/preview.js?v=195"></script>
+<script src="js/designer/library.js?v=195"></script>
+<script src="js/designer/undo-redo.js?v=195"></script>
+<script src="js/widgets/novidades.js?v=195"></script>
+<script src="js/widgets/help-widget.js?v=195"></script>
+<script src="js/designer/tools.js?v=195"></script>
+<script src="js/designer/fonts.js?v=195"></script>
+<script src="js/designer/psd-parse.js?v=195"></script>
+<script src="js/designer/psd-import.js?v=195"></script>
+<script src="js/designer/mask.js?v=195"></script>
+<script src="js/designer/tutorial-panel.js?v=195"></script>
+<script src="assets/vendor/colorthief.js?v=195"></script>
+<script src="assets/vendor/pica.js?v=195"></script>
+<script src="assets/vendor/jszip.min.js?v=195"></script>
 <!-- ══ pdf-lib NÃO entra no boot ══
      Medido em 02/09: o boot baixava 4.738 KB de js+css, e o pdf-lib sozinho eram
      **513 KB = 11% disso** — para uma feature atrás de flag (`franqueado.export.pdf`)
-     e para o certificado da Academia (`module.academia`, desligada no lançamento).
+     de exportação do franqueado.
      Ou seja: todo franqueado pagava meio mega no primeiro acesso por um caminho que
      a esmagadora maioria das sessões nunca toca. No 4G isso é a diferença entre o
      app abrir e a pessoa desistir.
 
-     Carregar tarde não inventa caminho de erro novo: os DOIS pontos de uso já
-     tratavam a ausência da lib antes disto (`fGenPDF` lança com mensagem própria e
-     `_acBaixarCertificado` cai para PNG). O `?v=` aqui é string dentro do
+     Carregar tarde preserva o tratamento de ausência da lib em `fGenPDF`, que
+     lança com mensagem própria. O `?v=` aqui é string dentro do
      index.html de propósito — o `sed` do número único (ver o bloco no topo) pega. -->
 <script>
   window.gPdfLibPronta = function(){
@@ -3170,7 +3267,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
     if (window.__gPdfLibCarregando) return window.__gPdfLibCarregando;
     window.__gPdfLibCarregando = new Promise(function(ok){
       var s = document.createElement('script');
-      s.src = 'assets/vendor/pdf-lib.js?v=69';
+      s.src = 'assets/vendor/pdf-lib.js?v=195';
       s.onload  = function(){ ok(!!window.PDFLib); };
       // Falha de rede não pode deixar a promessa envenenada: zera para a próxima
       // tentativa poder baixar de novo.
@@ -3180,30 +3277,38 @@ body:not(.theme-light) input:-webkit-autofill:active {
     return window.__gPdfLibCarregando;
   };
 </script>
-<script src="assets/vendor/supabase.js"></script>
-<script src="js/core/supabase-config.js?v=69"></script>
-<script src="js/core/supabase.js?v=69"></script>
+<script src="assets/vendor/supabase.js?v=195"></script>
+<script src="js/core/supabase-config.js?v=195"></script>
+<script src="js/core/supabase.js?v=195"></script>
 <!-- Camada Única de Inteligência (Gemini Intelligence Layer) -->
-<script src="js/core/ai/ai-cache.js?v=69"></script>
-<script src="js/core/ai/ai-telemetry.js?v=69"></script>
-<script src="js/core/ai/ai-schemas.js?v=69"></script>
-<script src="js/core/ai/ai-registry.js?v=69"></script>
-<script src="js/core/ai/ai-client.js?v=69"></script>
+<script src="js/core/ai/ai-cache.js?v=195"></script>
+<script src="js/core/ai/ai-telemetry.js?v=195"></script>
+<script src="js/core/ai/ai-schemas.js?v=195"></script>
+<script src="js/core/ai/ai-registry.js?v=195"></script>
+<script src="js/core/ai/ai-client.js?v=195"></script>
 <!-- Motor de IA e compatibilidade: precisa do supabase.js já carregado -->
-<script src="js/core/ai.js?v=69"></script>
-<script src="js/core/auth.js?v=69"></script>
-<script src="js/franqueado/feedback.js?v=69"></script>
+<script src="js/core/ai.js?v=195"></script>
+<script src="js/core/auth.js?v=195"></script>
+<script src="js/core/franquia.js?v=195"></script>
+<script src="js/franqueado/feedback.js?v=195"></script>
 <!-- Controle do produto — o motor de disponibilidade funcional. Vem DEPOIS de
      auth.js (usa gCurrentRole/gIsSuperAdmin) e ANTES de user-profile.js e
      main.js: gFeatureInit() roda no começo do boot e precisa estar definido. -->
-<script src="js/core/feature-flags.js?v=69"></script>
-<script src="js/core/user-profile.js?v=69"></script>
+<script src="js/core/feature-flags.js?v=195"></script>
+<script src="js/core/user-profile.js?v=195"></script>
 <!-- A TELA do Controle do produto: depende do motor acima e do painel de conta. -->
-<script src="js/core/product-control.js?v=69"></script>
+<script src="js/core/product-control.js?v=195"></script>
+<!-- Área Dados do painel da conta: só roda quando a aba abre (gProfileSwitchTab). -->
+<script src="js/core/dados.js?v=195"></script>
 <!-- Luma CLI: por último entre os core porque só usa globais já definidos
      (gIsAdmin, gHasBackend, gAskAI, dFolders…) e é o único que abre por atalho -->
-<script src="js/core/console.js?v=69"></script>
-<script src="js/main.js?v=69"></script>
+<script src="js/core/console.js?v=195"></script>
+<!-- Utilitários do Estúdio: carregavam DEPOIS do main.js, então o DOMContentLoaded do
+     bootstrap corria antes do deles. main.js é o ÚLTIMO, como o cabeçalho dele manda. -->
+<script src="js/designer/color-picker.js?v=195"></script>
+<script src="js/designer/tooltip.js?v=195"></script>
+<script src="js/designer/linter.js?v=195"></script>
+<script src="js/main.js?v=195"></script>
 
 
 
@@ -3874,9 +3979,6 @@ body:not(.theme-light) input:-webkit-autofill:active {
   </div>
 </div>
 
-<script src="js/designer/color-picker.js?v=69"></script>
-<script src="js/designer/tooltip.js?v=69"></script>
-<script src="js/designer/linter.js?v=69"></script>
   <!-- Tooltip Educativo Global -->
   <div id="d-rich-tooltip" class="d-rich-tooltip" style="display:none; opacity:0;"></div>
 </body>

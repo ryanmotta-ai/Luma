@@ -1,0 +1,155 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Luma — edição rápida na prévia</title>
+<link rel="stylesheet" href="../css/00-tokens.css">
+<link rel="stylesheet" href="../css/modules/live-preview.css">
+<style>body{font-family:Arial;margin:24px}#f-live-preview{width:560px;height:760px;display:flex;flex-direction:column;border:1px solid var(--gray-mid)}#f-live-preview .lp-stage{flex:1;min-height:0}#f-chat-col,#lp-empty,#f-preview-modal{display:none}</style>
+<body class="theme-light"><h1>Fluxo do franqueado — chat e prévia, uma verdade só</h1><ol id="results"></ol>
+
+<!-- ══════════════════════════════════════════════════════════════════════════════════════════
+     POR QUE ESTA SUÍTE EXISTE
+     ------------------------------------------------------------------------------------------
+     O teste de usabilidade com o time (09/2026) achou o defeito central da V1: chat e prévia
+     pareciam DUAS ferramentas concorrentes, e uma edição feita na prévia podia ser reescrita
+     pelo chat depois. O contrato novo é que os dois são interfaces da MESMA fonte de verdade
+     (`fState.dados`), e que **valor só muda por ação explícita de quem está criando**.
+
+     Contrato é promessa; sem teste é promessa de boca. Aqui os módulos REAIS do franqueado
+     (chat.js, chat-input.js, live-preview.js) são carregados e o fluxo é dirigido de verdade —
+     nada de mock do que está sendo testado. Cada caso é uma das sequências que o pedido lista:
+     chat→prévia→chat, prévia→chat→prévia, editar campo já respondido, voltar passo, trocar
+     formato, abrir rascunho, reabrir arte.
+     ══════════════════════════════════════════════════════════════════════════════════════════ -->
+
+<!-- Palco mínimo: os nós que o chat e a prévia procuram por id na carga e no render. -->
+<!-- `#f-chat-col` é o alvo do soltar-arquivo (`_fInitChatSoltarColar`, chat.js). No app ele
+     envolve a conversa e a barra de resposta — aqui também, senão o drop testaria um layout
+     que não existe. -->
+<div id="f-chat-col">
+<div id="f-messages"></div>
+<input id="f-msg-box"><button id="f-snd"></button><button id="f-chat-mic"></button>
+</div>
+<span id="f-char-count"></span><div id="prog-fill"></div><div id="f-ctx-tag"></div>
+<div class="lp-stage"><div class="lp-canvas-wrap"><canvas id="lp-canvas" width="1080" height="1920"></canvas></div></div>
+<div id="lp-empty"><span id="lp-empty-title"></span><span id="lp-empty-sub"></span></div>
+<span id="lp-dim"></span><span id="lp-sub"></span><button type="button" id="lp-layout-nota" hidden></button>
+<!-- `live-preview.js` liga um listener em `#f-preview-modal` no topo do arquivo, fora de
+     qualquer guarda: sem este nó o script morre na linha 56 e metade da prévia nunca inicializa.
+     (Achado montando esta bancada — no app o nó existe no index.html.) -->
+<div id="f-preview-modal"><div id="pv-title"></div><div id="pv-note"></div><div id="pv-multi"></div></div>
+<div id="g-toast-container"></div>
+<div id="f-head-actions"><button id="f-undo-btn" hidden onclick="fDesfazer()"></button></div>
+<div id="fixture"></div>
+
+<script>
+// Bancada sem rede e sem credencial. Só o que o código do franqueado consulta na carga.
+var dFolders=[], dVars=[];
+function gCurrentUser(){return {id:'11111111-1111-4111-8111-111111111111'};}
+function gIsAdmin(){return false;}
+function gFeatureCan(){return true;}
+function gTrackEvent(){}
+function gAiReady(){return false;}
+var sbFake={schema(){return {from(){return {
+  upsert(){return Promise.resolve({error:null});},
+  select(){return {eq(){return {single(){return Promise.resolve({data:null});}};}};}
+};}};}};
+function gSupabase(){return sbFake;} window.sb=sbFake;
+// `dExtractTemplateVars` mora no Estúdio (designer/templates.js), que a bancada não carrega;
+// o kit usa para listar os campos de cada peça. Mesma regra: {{campo}} no texto + imgVar.
+function dExtractTemplateVars(layers){const v=new Set();(layers||[]).forEach(l=>{String(l.content||'').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g,(_,n)=>{v.add(n);return _;});if(l.imgVar)v.add(l.imgVar);});return Array.from(v);}
+</script>
+<script src="../js/00-config.js"></script>
+<script src="../js/01-state.js"></script>
+<script src="../js/core/toast.js"></script>
+<script src="../js/core/layout.js"></script>
+<script src="../js/core/auto-layout.js"></script>
+<!-- Local Fit: o kit da campanha mede cada peça antes de gerar (regra C). -->
+<script src="../js/core/local-fit.js"></script>
+<script src="../js/franqueado/prefs.js"></script>
+<script src="../js/franqueado/history.js"></script>
+<script src="../js/franqueado/materials.js"></script>
+<script src="../js/franqueado/catalog.js"></script>
+<script src="../js/franqueado/chat.js"></script>
+<script src="../js/franqueado/chat-input.js"></script>
+<script src="../js/franqueado/live-preview.js"></script>
+<script src="../js/franqueado/png-generator.js"></script>
+<script src="../js/franqueado/feedback.js"></script>
+<script src="../js/core/suporte.js"></script>
+<script src="../js/core/help.js"></script>
+<script>
+let admin=true, mode='ok', calls=[], notices=[], row, total=0, failures=[],owner='11111111-1111-4111-8111-111111111111',resumeAnswer=true,confirmCalls=0;
+gCurrentUser=()=>({id:owner});
+gConfirm=async()=>{confirmCalls++;return resumeAnswer;};
+var dActiveTmplId=null,dDirty=false;
+var studioReload=null;
+function dLoadTemplate(template,folder){studioReload={template,folder};return Promise.resolve();}
+gIsAdmin=()=>admin;
+gToast=(message)=>notices.push(message);
+function assert(ok,message){if(!ok)throw Error(message);}
+async function settled(){for(let i=0;i<100;i++){await new Promise(r=>setTimeout(r,20));if(!_lpRendering&&!_lpPendingRender)return;}throw Error('prévia não terminou: '+_lpLastErr);}
+async function test(name,fn){total++;try{await fn();document.getElementById('results').innerHTML+='<li>OK '+gEsc(name)+'</li>';}catch(e){failures.push({name,error:e.message});document.getElementById('results').innerHTML+='<li>FALHOU '+gEsc(name)+': '+gEsc(e.message)+'</li>';}}
+function fixture(){
+  for(const key of Object.keys(localStorage))if(key.startsWith('luma_mini_editor:user:'))localStorage.removeItem(key);
+  _fLpDesignUnstored={};owner='11111111-1111-4111-8111-111111111111';resumeAnswer=true;confirmCalls=0;
+  _fLpDesignDraft=null;admin=true;mode='ok';calls=[];notices=[];dActiveTmplId=null;dDirty=false;studioReload=null;
+  row={id:'11111111-1111-4111-8111-111111111111',updated_at:'2026-10-03T12:00:00Z',versao_atual_id:'v1',publicado:true,
+    layers:[{id:'titulo',type:'text',content:'Oferta da semana',x:100,y:100,w:800,h:120,fontSize:64,textAlign:'left',font:'Arial',visible:true},
+    {id:'preco',type:'text',content:'Por {{preco}}',x:100,y:300,w:800,h:160,fontSize:96,textAlign:'left',font:'Arial',visible:true}]};
+  fState.material={id:row.id,remoteId:row.id,name:'Teste da edição rápida',w:1080,h:1920,fmt:'story',versaoAtualId:'v1',layers:JSON.parse(JSON.stringify(row.layers)),publishMeta:{publicado:true}};
+  fState.dados={preco:'29,90'};fState.camp={id:'teste',perguntas:[]};fState.done=false;fState.fmt={id:'story'};
+  dFolders=[{id:'camp',templates:[fState.material]}];
+  gSupabase=()=>({schema(){return {from(){let filters=[];return {
+    select(){return this;},eq(k,v){filters.push([k,v]);return this;},
+    single(){return Promise.resolve({data:JSON.parse(JSON.stringify(row)),error:mode==='read-error'?{message:'negado'}:null});},
+    update(payload){calls.push({payload:JSON.parse(JSON.stringify(payload)),filters});return {eq(k,v){filters.push([k,v]);return this;},select(){return Promise.resolve(mode==='error'?{error:{message:'offline'}}:{data:mode==='conflict'?[]:[{id:row.id,updated_at:'2026-10-03T12:01:00Z',versao_atual_id:'v2'}],error:null});}};}
+  };}};}});
+}
+const preview=document.createElement('aside');preview.id='f-live-preview';document.querySelector('.lp-stage').before(preview);preview.appendChild(document.querySelector('.lp-stage'));
+const head=document.createElement('div');head.innerHTML='<button class="lp-edit-btn lp-design-start" id="lp-design-start" onclick="fLpDesignStart()">Modo editar</button><div id="lp-design-tools" class="lp-design-tools" hidden><span>Clique no texto para editar a arte da rede</span><button class="lp-edit-btn" onclick="fLpDesignCancel()">Cancelar</button><button class="lp-edit-ok" id="lp-design-save" onclick="fLpDesignSave()">Salvar e publicar</button></div>';document.querySelector('.lp-stage').before(head);
+(async()=>{
+await test('Material guardado no Estúdio continua editável na prévia',async()=>{fixture();dActiveTmplId=fState.material.id;await fLpDesignStart();await settled();assert(_fLpDesignActive(),'o Estúdio retido bloqueou o modo editar');});
+await test('Alteração não salva do mesmo material é preservada',async()=>{fixture();dActiveTmplId=fState.material.id;dDirty=true;await fLpDesignStart();await settled();assert(!_fLpDesignDraft,'sobrepôs trabalho não salvo');});
+await test('Publicação na prévia recarrega o material retido no Estúdio',async()=>{fixture();dActiveTmplId=fState.material.id;await fLpDesignStart();await settled();_fLpDesignDraft.layers[0].content='Oferta corrigida';assert(await fLpDesignSave(),'não publicou');assert(studioReload?.template.layers[0].content==='Oferta corrigida'&&studioReload.template.versaoAtualId==='v2','Estúdio continua com as camadas antigas');});
+await test('Franqueado não entra nem grava',async()=>{fixture();admin=false;_fLpDesignSync();await fLpDesignStart();await settled();assert(!_fLpDesignDraft,'abriu sem permissão');assert(!await fLpDesignSave()&&calls.length===0,'gravou sem permissão');assert(document.getElementById('lp-design-start').hidden,'botão exposto');});
+await test('Versão histórica não permite publicação',async()=>{fixture();fState.material._versaoAntiga=true;await fLpDesignStart();await settled();assert(!_fLpDesignDraft,'editou uma versão antiga');});
+await test('Erro de leitura não inicia edição',async()=>{fixture();mode='read-error';await fLpDesignStart();await settled();assert(!_fLpDesignDraft&&!_fLpDesignOpening,'abriu ou deixou botão travado');});
+await test('Versão desatualizada pede reabertura',async()=>{fixture();row.versao_atual_id='v2';await fLpDesignStart();await settled();assert(!_fLpDesignDraft,'editou versão antiga do catálogo');});
+await test('Rascunho não muda template nem respostas',async()=>{fixture();await fLpDesignStart();await settled();_fLpDesignDraft.layers[0].content='Só hoje';assert(fState.material.layers[0].content==='Oferta da semana'&&fState.dados.preco==='29,90','mutou estado compartilhado');fLpDesignCancel();assert(!_fLpDesignDraft&&calls.length===0,'cancelar gravou');});
+await test('Texto fixo pode ser selecionado na arte',async()=>{fixture();await fLpDesignStart();await settled();await fUpdateLivePreview();await settled();const l=_fLpLayerAt(120,120);assert(l?.id==='titulo','texto fixo não selecionável');_fLpDesignEditor(l.id,{clientX:200,clientY:180});const inp=document.getElementById('lp-design-content');inp.value='Só hoje';inp.dispatchEvent(new Event('input'));assert(_fLpDesignDraft.layers[0].content==='Só hoje','editor não atualiza rascunho');await fUpdateLivePreview();await settled();assert(_lpEffectiveLayers.find(x=>x.id==='titulo').content==='Só hoje','render não usa rascunho');});
+await test('Tamanho e alinhamento respondem ao vivo',async()=>{fixture();await fLpDesignStart();await settled();_fLpDesignEditor('titulo');const size=document.getElementById('lp-design-size'),align=document.getElementById('lp-design-align');size.value=80;size.dispatchEvent(new Event('input'));align.value='center';align.dispatchEvent(new Event('change'));assert(_fLpDesignDraft.layers[0].fontSize===80&&_fLpDesignDraft.layers[0].textAlign==='center','propriedades não aplicadas');});
+await test('Sem mudanças não cria versão',async()=>{fixture();await fLpDesignStart();await settled();assert(!await fLpDesignSave()&&calls.length===0,'gravou sem alterações');});
+await test('Não deixa apagar um campo do chat',async()=>{fixture();await fLpDesignStart();await settled();_fLpDesignDraft.layers[1].content='Por 29,90';assert(!await fLpDesignSave()&&calls.length===0,'publicou dado de loja como fixo');});
+await test('Perda de permissão bloqueia gravação',async()=>{fixture();await fLpDesignStart();await settled();_fLpDesignDraft.layers[0].content='Hoje';admin=false;assert(!await fLpDesignSave()&&calls.length===0,'gravou após perder permissão');});
+await test('Falha de rede mantém rascunho e não anuncia sucesso',async()=>{fixture();await fLpDesignStart();await settled();_fLpDesignDraft.layers[0].content='Hoje';mode='error';assert(!await fLpDesignSave()&&_fLpDesignDraft&&!_fLpDesignDraft.saving,'rascunho perdido/travado');assert(fState.material.layers[0].content==='Oferta da semana'&&!notices.includes('Nova versão publicada para a rede.'),'anunciou publicação falsa');});
+await test('Conflito não sobrescreve versão concorrente',async()=>{fixture();await fLpDesignStart();await settled();_fLpDesignDraft.layers[0].content='Hoje';mode='conflict';assert(!await fLpDesignSave()&&_fLpDesignDraft,'conflito anunciou sucesso');assert(calls[0].filters.some(x=>x[0]==='updated_at'&&x[1]===row.updated_at),'sem proteção atômica');});
+await test('Publicação troca versão e só envia layers, preservando campos',async()=>{fixture();await fLpDesignStart();await settled();_fLpDesignDraft.layers[0].content='Só hoje';assert(await fLpDesignSave(),'publicação falhou');assert(calls.length===1&&Object.keys(calls[0].payload).join()==='layers','enviou catálogo ou metadados');assert(calls[0].payload.layers[1].content==='Por {{preco}}'&&fState.dados.preco==='29,90','fixou valor de loja');assert(fState.material.versaoAtualId==='v2'&&dFolders[0].templates[0].layers[0].content==='Só hoje'&&!_fLpDesignDraft,'estado não recebeu versão confirmada');});
+await test('Troca de material descarta rascunho sem gravação',async()=>{fixture();await fLpDesignStart();await settled();fState.material={id:'outro',layers:[]};_fLpDesignSync();assert(!_fLpDesignDraft&&calls.length===0,'rascunho vazou para outra arte');});
+fixture();await fLpDesignStart();await settled();await fUpdateLivePreview();await settled();
+await test('Mini editor fixa painel e muda posição, largura e cor sem alterar o original',async()=>{fixture();await fLpDesignStart();await settled();assert(document.getElementById('lp-design-properties').contains(document.getElementById('lp-edit-pop')),'painel não está dentro da prévia');for(const [key,value] of [['x','170'],['y','210'],['w','650'],['color','#ff0000']]){const input=document.getElementById('lp-design-'+key);input.value=value;input.dispatchEvent(new Event('input'));input.dispatchEvent(new Event('change'));}await settled();const l=_fLpDesignDraft.layers[0];assert(l.x===170&&l.y===210&&l.w===650&&l.color==='#ff0000','propriedades não aplicadas');assert(fState.material.layers[0].x===100,'alterou template antes de salvar');});
+await test('Desfazer e refazer mantêm a seleção por ID',async()=>{fixture();await fLpDesignStart();await settled();const x=document.getElementById('lp-design-x');x.focus();x.value=250;x.dispatchEvent(new Event('input'));x.dispatchEvent(new Event('change'));fLpDesignUndo(false);assert(_fLpDesignDraft.layers[0].x===100&&_fLpDesignDraft.selected==='titulo','desfazer incorreto');fLpDesignUndo(true);assert(_fLpDesignDraft.layers[0].x===250,'refazer incorreto');});
+await test('Setas movem 1 px e Shift move 10 px sem mudar resposta do chat',async()=>{fixture();await fLpDesignStart();await settled();const cv=document.getElementById('lp-canvas');cv.focus();cv.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));cv.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',shiftKey:true,bubbles:true}));assert(_fLpDesignDraft.layers[0].x===101&&_fLpDesignDraft.layers[0].y===110,'passo das setas incorreto');assert(fState.dados.preco==='29,90','seta mudou resposta');});
+await test('Cancelar mini editor restaura palco e remove seleção',async()=>{fixture();await fLpDesignStart();await settled();fLpDesignCancel();await settled();assert(!document.getElementById('lp-design-workspace')&&!document.getElementById('lp-design-selection')&&!document.getElementById('lp-edit-pop'),'restou UI de edição');assert(document.querySelector('#f-live-preview>.lp-stage'),'palco não retornou à posição original');});
+await test('Digitar habilita Desfazer sem exigir sair do campo',async()=>{fixture();await fLpDesignStart();await settled();const input=document.getElementById('lp-design-content');input.value='Só hoje';input.dispatchEvent(new Event('input'));assert(!document.getElementById('lp-design-undo').disabled,'Desfazer continua bloqueado');input.value='Só hoje na loja';input.dispatchEvent(new Event('input'));assert(_fLpDesignDraft.undo.length===1,'criou um snapshot para cada tecla');fLpDesignUndo(false);assert(_fLpDesignDraft.layers[0].content==='Oferta da semana','não desfez a digitação');});
+fixture();await fLpDesignStart();await settled();
+await test('Bordas esquerda e superior preservam o canto oposto e limitam a caixa',async()=>{fixture();await fLpDesignStart();await settled();const l=_fLpDesignDraft.layers[0],start={...l};_fLpDesignResize(l,'left',200,0,start);assert(l.x===300&&l.w===600&&l.x+l.w===900&&l.fontSize===64&&l.textBox==='box','borda esquerda deslocou canto ou fonte');_fLpDesignResize(l,'top',0,500,start);assert(l.h===16&&l.y+l.h===220,'borda superior deixou altura negativa ou mudou a base');assert(fState.material.layers[0].w===800,'resize alterou original');});
+await test('Alça pelo teclado redimensiona e permite desfazer/refazer',async()=>{fixture();await fLpDesignStart();await settled();const b=document.querySelector('#lp-design-handles [data-edge=right]');assert(b,'sem alça');b.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',shiftKey:true,bubbles:true}));assert(_fLpDesignDraft.layers[0].w===810,'alça não ampliou');fLpDesignUndo(false);assert(_fLpDesignDraft.layers[0].w===800,'não restaurou largura');fLpDesignUndo(true);assert(_fLpDesignDraft.layers[0].w===810,'não refez largura');});
+await test('Fonte, negrito e espaçamentos usam as propriedades do render',async()=>{fixture();await fLpDesignStart();await settled();for(const [id,v] of [['font',"'Roboto'"],['letter','2.5'],['line','1.6']]){const input=document.getElementById('lp-design-'+id);input.value=v;input.dispatchEvent(new Event('input'));input.dispatchEvent(new Event('change'));}document.getElementById('lp-design-bold').click();const l=_fLpDesignDraft.layers[0];assert(l.font==="'Roboto'"&&l.fontWeightOverride===700&&l.letterSpacing===2.5&&l.lineHeight===1.6,'tipografia não aplicada');assert(document.getElementById('lp-design-bold').getAttribute('aria-pressed')==='true','negrito sem estado acessível');document.getElementById('lp-design-bold').click();assert(l.fontWeightOverride===400,'não retirou negrito');assert(!fState.material.layers[0].fontWeightOverride,'mutou original');});
+await test('Antes usa original, bloqueia edição e publicação sem perder rascunho',async()=>{fixture();await fLpDesignStart();await settled();const input=document.getElementById('lp-design-content');input.value='Oferta ajustada';input.dispatchEvent(new Event('input'));const snapshot=JSON.stringify(_fLpDesignDraft.layers);fLpDesignCompare(true);await settled();await fUpdateLivePreview();await settled();assert(_lpEffectiveLayers.find(l=>l.id==='titulo').content==='Oferta da semana','Antes não mostrou original: '+JSON.stringify({effective:_lpEffectiveLayers.map(l=>l.content),source:_fLpDesignRenderLayers().map(l=>l.content),error:_lpLastErr}));assert(input.disabled&&!document.getElementById('lp-design-handles'),'Antes permite editar');assert(!await fLpDesignSave()&&calls.length===0,'Antes publicou');fLpDesignUndo(false);assert(JSON.stringify(_fLpDesignDraft.layers)===snapshot,'Antes mudou rascunho');fLpDesignCompare(false);await settled();await fUpdateLivePreview();await settled();assert(_lpEffectiveLayers.find(l=>l.id==='titulo').content==='Oferta ajustada'&&!input.disabled,'Depois não restaurou ajustes');assert(fState.dados.preco==='29,90','comparação mudou dados do chat');});
+await test('Publicar conserva dimensões, tipografia e campo do chat',async()=>{fixture();await fLpDesignStart();await settled();_fLpDesignEditor('preco',{});for(const [id,v] of [['w','500'],['h','230'],['letter','1.5'],['line','1.4']]){const input=document.getElementById('lp-design-'+id);input.value=v;input.dispatchEvent(new Event('input'));input.dispatchEvent(new Event('change'));}document.getElementById('lp-design-bold').click();assert(await fLpDesignSave(),'não publicou');const l=calls[0].payload.layers[1];assert(l.w===500&&l.h===230&&l.fontWeightOverride===700&&l.letterSpacing===1.5&&l.lineHeight===1.4&&l.content==='Por {{preco}}','publicação perdeu ajuste ou vínculo');assert(!document.getElementById('lp-design-handles'),'alças permaneceram após publicar');});
+fixture();await fLpDesignStart();await settled();
+await test('Recuperação guarda todas as teclas e retoma após reiniciar memória',async()=>{fixture();await fLpDesignStart();await settled();const input=document.getElementById('lp-design-content');input.value='Primeira';input.dispatchEvent(new Event('input'));input.value='Última edição completa';input.dispatchEvent(new Event('input'));assert(_fLpDesignDraft.undo.length===1,'não agrupou digitação');const key=_fLpDesignCacheKey(_fLpDesignDraft);assert(JSON.parse(localStorage.getItem(key)).layers[0].content==='Última edição completa','cache guardou só a primeira tecla');_fLpDesignDraft=null;await fLpDesignStart();await settled();assert(confirmCalls===1&&_fLpDesignDraft.layers[0].content==='Última edição completa'&&_fLpDesignDraft.stamp===row.updated_at,'não retomou com baseline original');fLpDesignCancel();assert(!localStorage.getItem(key),'cancelar preservou ajustes descartados');});
+await test('Rascunho é privado por conta e troca de material preserva recuperação',async()=>{fixture();await fLpDesignStart();await settled();_fLpDesignDraft.layers[0].content='Conta A';const key=_fLpDesignCacheKey(_fLpDesignDraft);fState.material={id:'outro',layers:[]};_fLpDesignSync();assert(localStorage.getItem(key),'troca de material apagou cache');fState.material=dFolders[0].templates[0];owner='conta-b';await fLpDesignStart();await settled();assert(!confirmCalls&&_fLpDesignDraft.layers[0].content==='Oferta da semana','B recebeu ajustes de A');fLpDesignCancel();owner='11111111-1111-4111-8111-111111111111';await fLpDesignStart();await settled();assert(confirmCalls===1&&_fLpDesignDraft.layers[0].content==='Conta A','A perdeu ajustes');});
+await test('Conflito ao retomar preserva rascunho e não aceita novo baseline',async()=>{fixture();await fLpDesignStart();await settled();_fLpDesignDraft.layers[0].content='Meu ajuste';_fLpDesignStore(_fLpDesignDraft);const key=_fLpDesignCacheKey(_fLpDesignDraft);_fLpDesignDraft=null;row.updated_at='2026-10-04T12:00:00Z';row.layers[0].content='Outro designer';await fLpDesignStart();await settled();assert(!_fLpDesignDraft&&JSON.parse(localStorage.getItem(key)).layers[0].content==='Meu ajuste'&&!calls.length,'rebase silencioso ou perda do rascunho');resumeAnswer='alt';await fLpDesignStart();await settled();assert(_fLpDesignDraft.layers[0].content==='Outro designer'&&!localStorage.getItem(key),'descartar não abriu versão atual');});
+await test('Voltar no diálogo mantém ajustes sem abrir ou apagar',async()=>{fixture();await fLpDesignStart();await settled();_fLpDesignDraft.layers[0].content='Guardado';_fLpDesignStore(_fLpDesignDraft);const key=_fLpDesignCacheKey(_fLpDesignDraft);_fLpDesignDraft=null;resumeAnswer=false;await fLpDesignStart();assert(!_fLpDesignDraft&&localStorage.getItem(key),'fechar diálogo descartou');});
+await test('Quota mantém recuperação em memória e avisa antes de fechar',async()=>{fixture();await fLpDesignStart();await settled();const original=Storage.prototype.setItem;try{Storage.prototype.setItem=function(key,value){if(key.startsWith('luma_mini_editor:'))throw Error('quota');return original.call(this,key,value);};const input=document.getElementById('lp-design-content');input.value='Não salvo';input.dispatchEvent(new Event('input'));input.value='Não salvo completo';input.dispatchEvent(new Event('input'));assert(notices.filter(x=>x.includes('Publique antes')).length===1,'aviso ausente/repetido');const event=new Event('beforeunload',{cancelable:true});_fLpDesignBeforeUnload(event);assert(event.defaultPrevented,'fechou sem aviso');_fLpDesignDraft=null;await fLpDesignStart();await settled();assert(_fLpDesignDraft.layers[0].content==='Não salvo completo','perdeu fallback da última tecla');}finally{Storage.prototype.setItem=original;}assert(_fLpDesignStore(_fLpDesignDraft)&&!Object.keys(_fLpDesignUnstored).length,'não recuperou após liberar espaço');});
+await test('Publicação confirmada remove recuperação; falha mantém',async()=>{fixture();await fLpDesignStart();await settled();_fLpDesignDraft.layers[0].content='Novo';const key=_fLpDesignCacheKey(_fLpDesignDraft);mode='error';assert(!await fLpDesignSave()&&localStorage.getItem(key),'falha apagou recuperação');mode='ok';assert(await fLpDesignSave()&&!localStorage.getItem(key),'publicação deixou rascunho antigo');});
+await test('Undo e redo atualizam recuperação guardada',async()=>{fixture();await fLpDesignStart();await settled();const input=document.getElementById('lp-design-content');input.value='Alterado';input.dispatchEvent(new Event('input'));const key=_fLpDesignCacheKey(_fLpDesignDraft);fLpDesignUndo(false);assert(!localStorage.getItem(key),'undo ao original mantém draft');fLpDesignUndo(true);assert(JSON.parse(localStorage.getItem(key)).layers[0].content==='Alterado','redo não persistiu');});
+await test('Botões de alinhamento e caixa alta não apagam o conteúdo autorado',async()=>{fixture();await fLpDesignStart();await settled();_fLpDesignEditor('preco',{});document.querySelector('[data-align="center"]').click();const t=document.getElementById('lp-design-transform');t.value='uppercase';t.dispatchEvent(new Event('change'));const l=_fLpDesignDraft.layers[1];assert(l.textAlign==='center'&&l.textTransform==='uppercase'&&l.content==='Por {{preco}}','alterou vínculo ou ignorou aparência');assert(document.querySelector('[data-align="center"]').getAttribute('aria-pressed')==='true','sem estado ligado');assert(await fLpDesignSave()&&calls[0].payload.layers[1].textTransform==='uppercase','publicação perdeu caixa alta');});
+await test('Restaurar atua em um texto, mantém o outro e permite desfazer',async()=>{fixture();await fLpDesignStart();await settled();_fLpDesignDraft.layers[1].content='Preço: {{preco}}';const input=document.getElementById('lp-design-content');input.value='Texto ajustado';input.dispatchEvent(new Event('input'));document.getElementById('lp-design-reset').click();assert(_fLpDesignDraft.layers[0].content==='Oferta da semana'&&_fLpDesignDraft.layers[1].content==='Preço: {{preco}}','reset alterou outro texto');fLpDesignUndo(false);assert(_fLpDesignDraft.layers[0].content==='Texto ajustado','não desfez reset');fLpDesignUndo(true);assert(_fLpDesignDraft.layers[0].content==='Oferta da semana'&&fState.dados.preco==='29,90','redo ou dados incorretos');});
+await test('Seções abertas sobrevivem à troca de seleção e ao desfazer',async()=>{fixture();await fLpDesignStart();await settled();document.querySelector('[data-section="spacing"]').open=true;document.querySelector('[data-section="geometry"]').open=true;_fLpDesignEditor('preco',{});await settled();assert(document.querySelector('[data-section="spacing"]').open&&document.querySelector('[data-section="geometry"]').open,'fechou seções na seleção');const input=document.getElementById('lp-design-content');input.value='Valor {{preco}}';input.dispatchEvent(new Event('input'));fLpDesignUndo(false);await settled();assert(document.querySelector('[data-section="spacing"]').open,'fechou seção ao desfazer');});
+await test('Mudar aparência não regrava conteúdo e posição a partir de inputs antigos',async()=>{fixture();await fLpDesignStart();await settled();const l=_fLpDesignDraft.layers[0];l.x=300;l.content='Mudança independente';const size=document.getElementById('lp-design-size');size.value=80;size.dispatchEvent(new Event('input'));assert(l.x===300&&l.content==='Mudança independente'&&l.fontSize===80,'controle sobrescreveu outra propriedade');});
+await test('Status não promete persistência quando a memória falha',async()=>{fixture();await fLpDesignStart();await settled();const original=Storage.prototype.setItem;try{Storage.prototype.setItem=()=>{throw Error('quota');};const input=document.getElementById('lp-design-content');input.value='Recuperar';input.dispatchEvent(new Event('input'));assert(document.getElementById('lp-design-status').textContent.includes('Não guardado'),'prometeu sucesso sem persistência');}finally{Storage.prototype.setItem=original;}assert(_fLpDesignStore(_fLpDesignDraft)&&document.getElementById('lp-design-status').textContent.includes('Rascunho guardado'),'não confirmou recuperação');});
+await test('Seletor identifica campo pela resposta, sem chaves técnicas',async()=>{fixture();await fLpDesignStart();await settled();const option=Array.from(document.getElementById('lp-design-layer').options).find(x=>x.value==='preco');assert(option.textContent==='Por 29,90'&&!option.textContent.includes('{{'),'nome técnico no seletor');});
+await test('Seletor de cor sem cor autorada acompanha o branco do render',async()=>{fixture();await fLpDesignStart();await settled();assert(document.getElementById('lp-design-color').value==='#ffffff','picker mostrou outra cor que a arte');});
+window.__lumaTest={total,passed:total-failures.length,failures};
+})().catch(e=>window.__lumaTest={total:1,passed:0,failures:[{name:'bancada',error:e.stack}]});
+</script></body></html>

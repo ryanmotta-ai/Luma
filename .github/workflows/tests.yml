@@ -20,17 +20,21 @@ on:
     branches: ['**']
     paths:
       - 'js/**'
+      - 'css/**'
       - 'tests/**'
       - 'scripts/run-browser-tests.js'
       - 'scripts/arquitetura.js'
+      - 'scripts/novidades.js'
       - 'index.html'
       - '.github/workflows/tests.yml'
   pull_request:
     paths:
       - 'js/**'
+      - 'css/**'
       - 'tests/**'
       - 'scripts/run-browser-tests.js'
       - 'scripts/arquitetura.js'
+      - 'scripts/novidades.js'
       - 'index.html'
   workflow_dispatch: {}
 
@@ -90,5 +94,44 @@ jobs:
       - name: Arquitetura (as leis do luma-brain como portão)
         run: node scripts/arquitetura.js
 
+      # Novidades: no máximo 1 edição a cada 7 dias e nenhum rascunho sem curadoria ("✎ REVISAR")
+      # chegando na rede. Segundos, sem navegador. Regras em js/widgets/novidades.js.
+      - name: Novidades (cadência e curadoria)
+        run: node scripts/novidades.js --checar
+
       - name: Rodar as suítes
-        run: node scripts/run-browser-tests.js
+        env:
+          LUMA_TEST_REPORT: luma-browser-tests.json
+        run: |
+          set -o pipefail
+          node scripts/run-browser-tests.js 2>&1 | tee luma-browser-tests.log
+
+      - name: Resumir resultados
+        if: always()
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          if (!fs.existsSync('luma-browser-tests.json')) process.exit(0);
+          const r = JSON.parse(fs.readFileSync('luma-browser-tests.json', 'utf8'));
+          const linhas = ['## Suítes do Luma', '', r.navegador + ' · ' + r.plataforma,
+            '', r.casosTotais + ' casos · ' + r.falhasTotais + ' problemas', ''];
+          for (const s of r.suites) {
+            const falhas = s.resultado && s.resultado.failures || [];
+            linhas.push('- ' + s.nome + ': ' + (s.erro ? s.erro :
+              s.resultado.passed + '/' + s.resultado.total));
+            falhas.forEach(f => linhas.push('  - ' + f.name + ': ' + f.error));
+          }
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, linhas.join('\n') + '\n');
+          NODE
+
+      # Resultado completo fica disponível mesmo quando uma suíte falha ou trava. Não muda
+      # nenhum limite: evita investigar um vermelho sem saber qual caso/ambiente falhou.
+      - name: Guardar diagnóstico das suítes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: luma-browser-tests
+          path: |
+            luma-browser-tests.json
+            luma-browser-tests.log
+          if-no-files-found: ignore

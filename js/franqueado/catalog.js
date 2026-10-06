@@ -64,13 +64,21 @@ function _fHistMatch(h, q){
 
    ⚠ Falha ABERTA: material não encontrado (catálogo ainda sincronizando, template apagado)
    não bloqueia nada. Travar arte válida por falta de dado seria pior que o problema. */
-function _fHistMaterial(h){
-  if(!h || !h.materialId || typeof dFolders==='undefined' || !dFolders) return null;
+/* O MATERIAL DE UM ID, UM LUGAR SÓ.
+   ⚠ `materialId` do histórico vem de DUAS origens: o id local (arte criada neste aparelho) e
+   o `template_id` do banco, que é UUID (`_fRowToArte`, history.js). Comparar só com `x.id`
+   fazia toda arte sincronizada de outro aparelho "perder" o template de origem: reabrir caía
+   no fallback sem layers e a arte voltava sem o desenho publicado. */
+function fFindMaterialById(mid){
+  if(!mid || typeof dFolders==='undefined' || !dFolders) return null;
   for(const folder of dFolders){
-    const t=(folder.templates||[]).find(x=>x.id===h.materialId);
+    const t=(folder.templates||[]).find(x=>x&&(x.id===mid||x.remoteId===mid));
     if(t) return t;
   }
   return null;
+}
+function _fHistMaterial(h){
+  return (h&&h.materialId) ? fFindMaterialById(h.materialId) : null;
 }
 function _fHistVencida(h){
   const m=_fHistMaterial(h);
@@ -168,43 +176,45 @@ async function _fHistRenderPreview(img,run){
   if(cached){ _fHistApplyPreview(img,cached); return; }
 
   try{
-    if(typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(material);
-    if(run!==_fHistPreviewRun || !img.isConnected) return;
-    if(!Array.isArray(material.layers) || !material.layers.length) return;
-
-    const fmt=FMTS.find(x=>x.id===h.fmtId)||FMTS[0];
-    const brandColor=getComputedStyle(document.documentElement).getPropertyValue('--dm-orange').trim();
-    const camp={id:h.campId,name:h.campName||'Luma',color:h.campColor||brandColor};
-    const size=(typeof fMaterialSize==='function')?fMaterialSize(material,fmt):[1080,1920];
-    const mw=size[0], mh=size[1];
-    const off=document.createElement('canvas'); off.width=mw; off.height=mh;
-    const previousMaterial=fState.material;
-    fState.material=material;
-    try{
-      await fRenderTemplateLayers(off.getContext('2d'),material.layers,mw,mh,h.dados||{},camp,null,
-        {scope:'franqueado',purpose:'preview'});
-    }finally{
-      // Se outro fluxo mudou o material durante o await, ele vence; não restauramos estado velho.
-      if(fState.material===material) fState.material=previousMaterial;
-    }
-    if(run!==_fHistPreviewRun || !img.isConnected) return;
-
-    // A biblioteca precisa de leitura visual, não de um segundo PNG gigante. Reduzimos uma
-    // vez com smoothing alto e guardamos apenas este JPEG leve durante a sessão.
-    const maxSide=720;
-    const scale=Math.min(1,maxSide/Math.max(mw,mh));
-    const thumb=document.createElement('canvas');
-    thumb.width=Math.max(1,Math.round(mw*scale));
-    thumb.height=Math.max(1,Math.round(mh*scale));
-    const ctx=thumb.getContext('2d');
-    ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
-    ctx.drawImage(off,0,0,mw,mh,0,0,thumb.width,thumb.height);
-    const url=thumb.toDataURL('image/jpeg',.86);
+    const url=await _fArteThumb(h,material,720,()=>run===_fHistPreviewRun && img.isConnected);
+    if(!url) return;
     _fHistPreviewCache.set(key,url);
     _fHistApplyPreview(img,url);
   }catch(e){
     // Material indisponível, CORS ou imagem ainda sincronizando: o fallback do card continua.
   }
+}
+// Miniatura de UMA arte pelo render oficial: "Minhas artes" e o modo rede passam por aqui.
+// `vivo()` falso entre os awaits aborta (o card saiu da tela) → null.
+async function _fArteThumb(h,material,maxSide,vivo){
+  if(typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(material);
+  if(!vivo()) return null;
+  if(!Array.isArray(material.layers) || !material.layers.length) return null;
+
+  const fmt=FMTS.find(x=>x.id===h.fmtId)||FMTS[0];
+  const brandColor=getComputedStyle(document.documentElement).getPropertyValue('--dm-orange').trim();
+  const camp={id:h.campId,name:h.campName||'Luma',color:h.campColor||brandColor};
+  const size=(typeof fMaterialSize==='function')?fMaterialSize(material,fmt):[1080,1920];
+  const mw=size[0], mh=size[1];
+  const off=document.createElement('canvas'); off.width=mw; off.height=mh;
+  /* ⛔ O material vai por PARÂMETRO (`materialOverride`), nunca emprestado ao `fState.material`.
+     O empréstimo antigo devolvia o valor anterior depois do await — e, com o catálogo aberto,
+     esse valor era `null`. Quem clicava no MESMO material durante o render (a miniatura é do
+     histórico dele) via o chat seguir normal e o `fState.material` virar `null` por baixo:
+     o "Gerar em lote" dizia "Escolha um material primeiro" com a arte pronta na tela. */
+  await fRenderTemplateLayers(off.getContext('2d'),material.layers,mw,mh,h.dados||{},camp,material,
+    {scope:'franqueado',purpose:'preview'});
+  if(!vivo()) return null;
+
+  // Leitura visual, não um segundo PNG gigante: reduz uma vez e guarda só um JPEG leve.
+  const scale=Math.min(1,maxSide/Math.max(mw,mh));
+  const thumb=document.createElement('canvas');
+  thumb.width=Math.max(1,Math.round(mw*scale));
+  thumb.height=Math.max(1,Math.round(mh*scale));
+  const ctx=thumb.getContext('2d');
+  ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+  ctx.drawImage(off,0,0,mw,mh,0,0,thumb.width,thumb.height);
+  return thumb.toDataURL('image/jpeg',.86);
 }
 function _fHistRenderPreviews(run){
   const previews=Array.from(document.querySelectorAll('.hist-preview-art[data-hist-preview]'));
@@ -316,7 +326,7 @@ function fRenderHist(){
       <div class="empty-icon">
         <img src="assets/illustrations/empty_filtered.png" alt="Nenhuma arte encontrada com os filtros atuais">
       </div>
-      ${emptyBody}
+      ${emptyBody}${typeof fHistMoreButton==='function'?fHistMoreButton():''}
     </div></div>`;
     _fHistRestoreSearchFocus();
     return;
@@ -352,13 +362,13 @@ function fRenderHist(){
           : `<div class="hist-meta"><span>${gEsc(h.campName)}</span><span class="hist-meta-sep">·</span><span>${gEsc(h.fmtName)}</span></div>`}
         <div class="hist-actions">
           <button class="hist-act-btn hist-act-main"${dis} onclick="fEditFromHist(${h.id},this)" title="Abrir e editar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>${isRascunho?'Continuar':'Editar'}</button>
-          <button class="hist-act-btn"${dis} onclick="fDuplicateInOtherFmt(${h.id})" title="Gerar em outro formato"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplicar</button>
+          <button class="hist-act-btn"${dis} onclick="fDuplicateInOtherFmt(${h.id})" title="Duplicar esta arte no mesmo formato"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplicar</button>
           <button class="hist-act-btn hist-act-download"${dis} onclick="fDownloadHist(${h.id},this)" title="${vencida?'Material fora da validade':'Baixar PNG'}" aria-label="Baixar ${gEsc(artName)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M5 21h14"/></svg></button>
         </div>
       </div>
     </article>`;
   }).join('');
-  el.innerHTML=`<div class="f-history-shell">${pageHead}${toolbar}<div class="f-history-results"><div class="f-history-results-head"><span>${filtered.length} ${filtered.length===1?'arte':'artes'}</span><span>Mais recentes primeiro</span></div><div class="f-history-grid">${cards}</div></div></div>`;
+  el.innerHTML=`<div class="f-history-shell">${pageHead}${toolbar}<div class="f-history-results"><div class="f-history-results-head"><span>${filtered.length} ${filtered.length===1?'arte':'artes'}</span><span>Mais recentes primeiro</span></div><div class="f-history-grid">${cards}</div>${typeof fHistMoreButton==='function'?fHistMoreButton():''}</div></div>`;
   _fHistRestoreSearchFocus();
   _fHistRenderPreviews(previewRun);
 }
@@ -380,18 +390,19 @@ async function fDownloadHist(id, btn){
   const f=FMTS.find(x=>x.id===h.fmtId)||FMTS[0];
   // Carrega material original se ainda existir (pra renderer usar layers reais)
   const prevMaterial = fState.material;
-  if(h.materialId && typeof dFolders !== 'undefined' && dFolders){
-    for(const folder of dFolders){
-      const t = folder.templates.find(x=>x.id===h.materialId);
-      if(t){ fState.material = t; break; }
-    }
-  }
+  fState.material=h.materialId?fFindMaterialById(h.materialId):null;
   // O botao so reagia DEPOIS de fEnsureMaterialLayers e do download das fontes -- em 3G
   // sao ate 10s de botao mudo, e a pessoa clica de novo achando que nao pegou. O loading
   // entra AQUI, antes do primeiro await, e sai no finally (todo caminho de saida passa la).
   const _restore = (typeof gBtnLoading==='function') ? gBtnLoading(btn) : (()=>{});
   try{
   if(fState.material && typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(fState.material);
+  // Arte feita com versão anterior do template: rebaixa/duplica com a versão DELA (materials.js).
+  if(fState.material && h.templateVersionId && typeof fMaterialDaVersao==='function') fState.material = await fMaterialDaVersao(fState.material, h.templateVersionId);
+  if(h.templateVersionId&&!fState.material){
+    fState.material=prevMaterial;
+    gToast('Não consegui carregar a versão original desta arte. Verifique a conexão e tente novamente.','error');return;
+  }
   // Honestidade: se os layers do material não desceram (sem rede), o fGenPNG cairia no
   // renderer GENÉRICO e entregava arte errada com toast de sucesso. Avisa e para.
   if(fState.material && fState.material._needsLayersFetch){
@@ -410,7 +421,7 @@ async function fDownloadHist(id, btn){
   }
   fMarkHistBaixada(id);
   fRenderHist();
-  if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:h.campId,fmt_id:h.fmtId,tipo:'png',origem:'historico'});
+  if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:h.campId,fmt_id:h.fmtId,template_id:(h.materialId&&typeof _fTplId==='function'&&_fTplId(fFindMaterialById(h.materialId)))||h.materialId||null,tipo:'png',origem:'historico'});
   gToast('Arte baixada!');
   } finally { _restore(); }
 }
@@ -435,18 +446,17 @@ async function fEditFromHist(id, btn){
 
   // Se o histórico tem materialId, tenta carregar o material original
   let material = null;
-  if(h.materialId && typeof dFolders !== 'undefined' && dFolders){
-    for(const folder of dFolders){
-      const t = folder.templates.find(x=>x.id===h.materialId);
-      if(t){ material = t; break; }
-    }
-  }
+  if(h.materialId) material = fFindMaterialById(h.materialId);
   // Template sincronizado do backend pode estar sem layers (lazy) — baixa antes de montar as perguntas
   if(material && typeof fEnsureMaterialLayers==='function'){
     const restoreBtn=(material._needsLayersFetch && typeof gBtnLoading==='function') ? gBtnLoading(btn,'Abrindo…') : ()=>{};
     try{ await fEnsureMaterialLayers(material); }
     finally{ restoreBtn(); }
     if(material._needsLayersFetch) material = null; // fetch falhou → segue pro fallback (estrutura padrão)
+  }
+  if(material && h.templateVersionId && typeof fMaterialDaVersao==='function') material = await fMaterialDaVersao(material, h.templateVersionId);
+  if(h.templateVersionId&&!material){
+    gToast('Não consegui carregar a versão original desta arte. Verifique a conexão e tente novamente.','error');return;
   }
 
   if(material){
@@ -519,31 +529,13 @@ async function fEditFromHist(id, btn){
   setTimeout(()=>fGerarArte(), 500);
 }
 
-// F-04: duplicar a arte em outro formato sem refazer perguntas
+/* Duplicar = a MESMA arte, no MESMO formato, sem perguntar nada (pedido de 09/2026). A barra
+   "Gerar de novo em: Story (mesmo) · Feed · Post wide" saiu: quem clica em Duplicar já decidiu.
+   Nome mantido (f* não regride). Trocar de formato continua no card da arte (fOutroFormato). */
 function fDuplicateInOtherFmt(id){
   const h = fGetHist().find(x=>x.id===id);
   if(!h) return;
-  if(_fHistBloqueiaVencida(h)){ fRenderHist(); return; }
-  const {ativas:_ca3,outras:_co3}=fGetCampaigns(); const all=[..._ca3,..._co3];
-  const c = all.find(x=>x.id===h.campId) || {id:h.campId,name:h.campName,color:h.campColor,perguntas:[]};
-  // Sugere o próximo formato (rotaciona)
-  const idx = FMTS.findIndex(f=>f.id===h.fmtId);
-  const next = FMTS[(idx + 1) % FMTS.length];
-  // Confirmação inline na aba do histórico
-  const card = document.querySelector(`.hist-card [onclick*="fDuplicateInOtherFmt(${id})"]`)?.closest('.hist-card');
-  if(card && !card.querySelector('.hist-dup-bar')){
-    const bar = document.createElement('div');
-    bar.className = 'hist-dup-bar';
-    const fmtAtual=FMTS.find(f=>f.id===h.fmtId);
-    bar.innerHTML = `<span>Gerar de novo em:</span>` +
-      // Mesmo formato = regerar a arte como está (útil após editar preço/validade pelo "Editar").
-      (fmtAtual?`<button class="hist-dup-btn" onclick="fConfirmDuplicate(${id},'${fmtAtual.id}')">${gEsc(fmtAtual.name)} (mesmo)</button>`:'') +
-      FMTS.filter(f=>f.id !== h.fmtId).map(f=>
-        `<button class="hist-dup-btn" onclick="fConfirmDuplicate(${id},'${f.id}')">${gEsc(f.name)}</button>`
-      ).join('') +
-      `<button class="hist-dup-cancel" onclick="this.parentElement.remove()">cancelar</button>`;
-    card.appendChild(bar);
-  }
+  fConfirmDuplicate(id, h.fmtId);
 }
 async function fConfirmDuplicate(id, fmtId){
   const h = fGetHist().find(x=>x.id===id);
@@ -554,13 +546,14 @@ async function fConfirmDuplicate(id, fmtId){
   const f = FMTS.find(x=>x.id===fmtId) || FMTS[0];
   // Carrega material original se ainda existir
   const prevMaterial = fState.material;
-  if(h.materialId && typeof dFolders !== 'undefined' && dFolders){
-    for(const folder of dFolders){
-      const t = folder.templates.find(x=>x.id===h.materialId);
-      if(t){ fState.material = t; break; }
-    }
-  }
+  fState.material=h.materialId?fFindMaterialById(h.materialId):null;
   if(fState.material && typeof fEnsureMaterialLayers==='function') await fEnsureMaterialLayers(fState.material);
+  // Arte feita com versão anterior do template: rebaixa/duplica com a versão DELA (materials.js).
+  if(fState.material && h.templateVersionId && typeof fMaterialDaVersao==='function') fState.material = await fMaterialDaVersao(fState.material, h.templateVersionId);
+  if(h.templateVersionId&&!fState.material){
+    fState.material=prevMaterial;
+    gToast('Não consegui carregar a versão original desta arte. Verifique a conexão e tente novamente.','error');return;
+  }
   try {
     await fGenPNG(h.dados, c, f);
     fAddHist(h.dados, c, f, 'baixada'); // só registra se o PNG saiu (material ainda carregado aqui)
@@ -572,7 +565,7 @@ async function fConfirmDuplicate(id, fmtId){
     fState.material = prevMaterial; // restaura sempre, mesmo se fGenPNG lançar
   }
   fRenderHist();
-  gToast(`Duplicada em ${f.name}!`);
+  gToast(fmtId===h.fmtId ? 'Arte duplicada!' : `Duplicada em ${f.name}!`);
 }
 
 /* ── CATÁLOGO ── */
@@ -587,6 +580,7 @@ function fEditCampFolder(folderId){
 }
 const _ICO_STATS='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V5M16 20v-7M22 20V3"/></svg>';
 const _ICO_EDIT='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+const _ICO_REDE='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>';
 const _ICO_ARCHIVE='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg>';
 // Menu do 3-pontos (só DM staff): Editar / Arquivar. Menu flutuante fixo posicionado no botão.
 function fCampAdminMenu(ev, folderId){
@@ -597,6 +591,8 @@ function fCampAdminMenu(ev, folderId){
   menu.className = 'camp-admin-menu';
   menu.innerHTML =
     `<button type="button" onclick="fCloseCampAdminMenu();fCampAnalyticsOpen('${gEscJs(folderId)}')">${_ICO_STATS}<span>Analisar campanha</span></button>`+
+    ((typeof gIsSuperAdmin==='function'&&gIsSuperAdmin())
+      ? `<button type="button" onclick="fCloseCampAdminMenu();fCampRedeOpen('${gEscJs(folderId)}')">${_ICO_REDE}<span>Ver a rede</span></button>` : '')+
     `<button type="button" onclick="fCloseCampAdminMenu();fEditCampFolder('${gEscJs(folderId)}')">${_ICO_EDIT}<span>Editar campanha</span></button>`+
     `<button type="button" onclick="fCloseCampAdminMenu();fArchiveFolder('${gEscJs(folderId)}')">${_ICO_ARCHIVE}<span>Arquivar campanha</span></button>`;
   document.body.appendChild(menu);
@@ -767,6 +763,128 @@ async function fCampAnalyticsOpen(folderId){
       <div><span>Última atividade</span><strong>${_fCampAnaData(uso.ultima)}</strong></div>
     </div>
     ${origem}`;
+}
+
+/* ══ VER A REDE (3-pontos, só gestão) ══
+   Mosaico da versão mais recente que cada loja gerou de cada material da campanha.
+   A leitura das artes alheias é liberada pela policy "gestao lê artes da rede" — sem ela a
+   RLS devolve só as próprias, e o painel diz isso em vez de parecer vazio.
+   CUSTO: não existe PNG salvo, só os dados. Cada card é redesenhado pelo render oficial
+   (`_fArteThumb`), mas só quando chega perto da tela, um por vez, em JPEG de 360px guardado
+   na sessão. Abrir o mosaico custa uma consulta; o render cresce com a rolagem, não com a rede. */
+const _F_REDE_MAX=120;
+let _fRedeRun=0, _fRedeObserver=null;
+const _fRedeCache=new Map();
+function fCampRedeClose(){
+  _fRedeRun++;
+  if(_fRedeObserver){ _fRedeObserver.disconnect(); _fRedeObserver=null; }
+  const el=document.getElementById('f-camp-rede');
+  if(el) el.remove();
+  document.removeEventListener('keydown', _fCampRedeEsc);
+}
+function _fCampRedeEsc(e){ if(e.key==='Escape'){ e.preventDefault(); fCampRedeClose(); } }
+async function fCampRedeOpen(folderId){
+  if(typeof gIsSuperAdmin!=='function' || !gIsSuperAdmin()) return; // gate de UX; RLS é a fronteira real
+  const f=_fCampAnaFolder(folderId);
+  if(!f){ gToast('Não achei essa campanha.','error'); return; }
+  fCampRedeClose();
+  const run=_fRedeRun;
+  const box=document.createElement('div');
+  box.id='f-camp-rede'; box.className='camp-ana-overlay';
+  box.setAttribute('role','dialog'); box.setAttribute('aria-modal','true');
+  box.setAttribute('aria-label','Artes da rede na campanha '+(f.name||''));
+  box.onclick=(ev)=>{ if(ev.target===box) fCampRedeClose(); };
+  box.innerHTML=`<div class="camp-ana-box camp-rede-box">
+    <div class="camp-ana-head">
+      <span class="camp-ana-dot" style="background:${gSafeColor(f.color)}"></span>
+      <div class="camp-ana-title"><span>A rede nesta campanha</span><strong>${gEsc(f.name||'Campanha')}</strong></div>
+      <span class="camp-rede-count" id="f-camp-rede-count"></span>
+      <button type="button" class="camp-ana-x" onclick="fCampRedeClose()" aria-label="Fechar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="camp-ana-body" id="f-camp-rede-body"><div class="camp-ana-loading">Consultando a rede…</div></div>
+  </div>`;
+  document.body.appendChild(box);
+  document.addEventListener('keydown', _fCampRedeEsc);
+
+  const body=document.getElementById('f-camp-rede-body');
+  const vazio=msg=>{ if(run===_fRedeRun && body) body.innerHTML=`<div class="camp-ana-empty">${gEsc(msg)}</div>`; };
+  const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
+  const ids=((f.templates)||[]).map(t=>t&&t.remoteId).filter(Boolean);
+  if(!sb){ vazio('Sem conexão com o servidor.'); return; }
+  if(!ids.length){ vazio('Nenhum material desta campanha foi publicado ainda.'); return; }
+
+  let rows=[], lojas=new Map(), cortou=false;
+  try{
+    const { data, error }=await sb.schema('luma').from('artes')
+      .select('id,user_id,template_id,fmt_id,camp_id,camp_name,camp_color,dados,created_at')
+      .in('template_id', ids).order('created_at',{ascending:false}).limit(600);
+    if(error) throw error;
+    // Uma "versão" por loja e material: a mais recente (a lista já vem do mais novo).
+    const vistos=new Set();
+    (data||[]).forEach(r=>{
+      const k=r.user_id+'|'+r.template_id;
+      if(!vistos.has(k)){ vistos.add(k); rows.push(r); }
+    });
+    cortou=rows.length>_F_REDE_MAX;
+    rows=rows.slice(0,_F_REDE_MAX);
+    const uids=[...new Set(rows.map(r=>r.user_id).filter(Boolean))];
+    if(uids.length){
+      const { data:perfis }=await sb.from('profiles').select('id,nome,franquia,cidade').in('id', uids);
+      (perfis||[]).forEach(p=>lojas.set(p.id,p));
+    }
+  }catch(e){ vazio('Não consegui consultar as artes da rede agora.'); return; }
+  if(run!==_fRedeRun) return;
+  if(!rows.length){ vazio('Nenhuma loja gerou arte desta campanha ainda.'); return; }
+
+  const nLojas=new Set(rows.map(r=>r.user_id)).size;
+  const cnt=document.getElementById('f-camp-rede-count');
+  if(cnt) cnt.textContent=`${cortou?'As '+rows.length+' mais recentes':rows.length+' arte'+(rows.length===1?'':'s')} · ${nLojas} loja${nLojas===1?'':'s'}`;
+  const byId=new Map(rows.map(r=>[String(r.id),r]));
+  body.innerHTML=`<div class="camp-rede-grid">${rows.map(r=>{
+    const p=lojas.get(r.user_id)||{};
+    const loja=p.franquia||p.nome||'Loja sem nome';
+    const mat=((f.templates)||[]).find(t=>t&&t.remoteId===r.template_id);
+    const sub=[p.cidade, mat&&mat.name].filter(Boolean).join(' · ');
+    return `<figure class="camp-rede-card">
+      <div class="camp-rede-thumb"><img alt="" data-rede-arte="${gEsc(String(r.id))}"></div>
+      <figcaption><strong>${gEsc(loja)}</strong>${sub?`<small>${gEsc(sub)}</small>`:''}</figcaption>
+    </figure>`;
+  }).join('')}</div>`;
+
+  const render=async img=>{
+    const r=byId.get(img.dataset.redeArte);
+    if(!r || run!==_fRedeRun) return;
+    const material=(typeof fFindMaterialById==='function')?fFindMaterialById(r.template_id):null;
+    const card=img.closest('.camp-rede-card');
+    if(!material){ if(card) card.classList.add('is-sem-material'); return; }
+    const key=r.id+'|'+(material.remoteId||material.id);
+    let url=_fRedeCache.get(key);
+    if(!url){
+      try{
+        url=await _fArteThumb({fmtId:r.fmt_id,campId:r.camp_id,campName:r.camp_name,campColor:r.camp_color,dados:r.dados},
+          material,360,()=>run===_fRedeRun && img.isConnected);
+      }catch(e){ url=null; }
+      if(url) _fRedeCache.set(key,url);
+    }
+    if(!url || !img.isConnected) return;
+    img.onload=()=>{ if(card) card.classList.add('is-ready'); };
+    img.src=url;
+  };
+  // Fila serial pela mesma razão do histórico: o render oficial não é reentrante.
+  let fila=Promise.resolve();
+  const enfileira=img=>{ fila=fila.then(()=>render(img)).catch(()=>{}); };
+  const imgs=Array.from(body.querySelectorAll('img[data-rede-arte]'));
+  if(typeof IntersectionObserver!=='function'){ imgs.forEach(enfileira); return; }
+  _fRedeObserver=new IntersectionObserver(entries=>{
+    entries.forEach(en=>{
+      if(!en.isIntersecting) return;
+      _fRedeObserver.unobserve(en.target);
+      enfileira(en.target);
+    });
+  },{root:body,rootMargin:'240px 0px'});
+  imgs.forEach(img=>_fRedeObserver.observe(img));
 }
 
 function _fCampMenuEsc(e){ if(e.key==='Escape') fCloseCampAdminMenu(); }
@@ -943,11 +1061,48 @@ function fCampEl(c,isRec,ghost,searching){
    TODA leitura de campanha do franqueado passa por aqui (fGetCampaigns/fResolveCamp) —
    nunca por CAMPS_* direto. Hoje devolve as constantes (comportamento idêntico ao legado);
    o flip pra luma.pastas (dFolders) muda SÓ este ponto, com CAMPS_* virando seed. */
+/* A VITRINE SAI DAS PASTAS DO BANCO (23/09/2026 — o "flip" que estava pela metade desde 07/2026).
+   Com pastas sincronizadas na memória, cada pasta É uma campanha: nome, cor, selo, perguntas,
+   ordem, seção (`destaque`) e arquivamento vêm dela, e excluir a pasta tira a campanha. O
+   CAMPS_* do 00-config.js entra só para completar o que o banco não tem (banner do calendário,
+   tema) e para a seção de pasta que ainda não trouxe `destaque`. Sem pasta sincronizada
+   (offline, modo local, primeira pintura antes do pull), vale o caminho antigo: config + pastas
+   dinâmicas. Pasta de sistema (Modelo, Rascunhos) nunca é campanha — `gPastaSistema`. */
+// Cor de campanha sem cor (pasta nova): a laranja da marca — um lugar só para os dois caminhos.
+const _F_COR_CAMP='#FF9000';
 function fGetCampaigns(){
-  // Config (CAMPS_*) é a BASE; pastas do banco sem campanha correspondente viram
-  // campanhas dinâmicas na vitrine — o MKT cria a pasta no Estúdio e ela aparece
-  // pro franqueado sem mexer em código. (Antes: só as hardcoded eram listadas, e
-  // "criar campanha" no Estúdio não refletia em lugar nenhum do franqueado.)
+  const impl=(typeof CAMPS_IMPLEMENTACAO!=='undefined')?CAMPS_IMPLEMENTACAO:[];
+  const pastas=(typeof dFolders!=='undefined'&&Array.isArray(dFolders))
+    ? dFolders.filter(f=>f&&f.remoteId&&!gPastaSistema(f)) : [];
+  if(pastas.length){
+    const conf=[...CAMPS_ATIVAS.map((c,i)=>({c,dest:true,i})), ...CAMPS_OUTRAS.map((c,i)=>({c,dest:false,i:100+i}))];
+    const porId=new Map(conf.map(x=>[x.c.id,x])), porNome=new Map(conf.map(x=>[x.c.name,x]));
+    const vistos=new Set(), lista=[];
+    pastas.forEach((f,k)=>{
+      if(f.arquivada) return;
+      const base=(f.campId&&porId.get(f.campId))||porNome.get(f.name)||null, c0=base?base.c:{};
+      // remoteId (estável pós-sync) > id local; histórico/artes gravam este id
+      const id=f.campId||(base&&c0.id)||f.remoteId||f.id;
+      if(vistos.has(id)) return;          // duas pastas da mesma campanha: a primeira (ordem) vale
+      vistos.add(id);
+      lista.push({o:(typeof f.ordem==='number'?f.ordem:0), i:base?base.i:500+k,
+        dest:(typeof f.destaque==='boolean')?f.destaque:(base?base.dest:true),
+        c:Object.assign({}, c0, {
+          id, name:f.name, color:f.color||c0.color||_F_COR_CAMP,
+          count:(f.templates||[]).length, badge:f.badge||'', theme:f.theme||c0.theme||'',
+          expiraDias:f.expiraDias||c0.expiraDias, popular:!!f.popular,
+          previewProd:f.previewProd||'', previewDe:f.previewDe||'', previewPor:f.previewPor||'',
+          // Pasta sem perguntas (criada no Estúdio) herda as da semente, se houver; senão o
+          // chat pergunta pelos campos do material, como já fazia com campanha dinâmica.
+          perguntas:(Array.isArray(f.perguntas)&&f.perguntas.length)?f.perguntas:(c0.perguntas||[])
+        })});
+    });
+    // Ordem da pasta primeiro; empate (muitas estão em 0) cai na ordem histórica do config.
+    lista.sort((a,b)=>(a.o-b.o)||(a.i-b.i));
+    return {ativas:lista.filter(x=>x.dest).map(x=>x.c), outras:lista.filter(x=>!x.dest).map(x=>x.c), impl};
+  }
+  // ── Sem pasta sincronizada: config é a BASE; pastas locais sem campanha correspondente
+  // viram campanhas dinâmicas (o caminho de antes do flip).
   const ativas=[...CAMPS_ATIVAS];
   try{
     if(typeof dFolders!=='undefined' && dFolders){
@@ -955,12 +1110,12 @@ function fGetCampaigns(){
       const ids=new Set(conhecidas.map(c=>c.id));
       const nomes=new Set(conhecidas.map(c=>c.name));
       dFolders.forEach(f=>{
-        if(!f || f.id==='f-modelo' || f.id==='f-rascunhos') return; // exemplo/rascunhos não são campanha
+        if(!f || gPastaSistema(f)) return; // exemplo/rascunhos não são campanha
         if(f.campId && ids.has(f.campId)) return;        // já listada via config
         if(nomes.has(f.name)) return;                    // mesma campanha (match por nome)
         ativas.push({
           // remoteId (estável pós-sync) > id local; histórico/artes gravam este id
-          id:f.campId||f.remoteId||f.id, name:f.name, color:f.color||'#FF9000',
+          id:f.campId||f.remoteId||f.id, name:f.name, color:f.color||_F_COR_CAMP,
           cover:'', count:(f.templates||[]).length, badge:f.badge||'',
           theme:f.theme||'', // pasta pode carregar tema próprio (ex.: Much+) — ver fApplyCampTheme
           expiraDias:f.expiraDias, popular:!!f.popular,
@@ -974,12 +1129,12 @@ function fGetCampaigns(){
   // dinâmica (id=pasta) quanto pra config cuja pasta foi arquivada. fResolveCamp/fFolderForCamp
   // continuam achando a arquivada por id, então o painel de arquivadas ainda a resolve.
   const _naoArq = (c)=>{ const ff=(typeof fFolderForCamp==='function')?fFolderForCamp(c):null; return !(ff && ff.arquivada); };
-  return {ativas:ativas.filter(_naoArq), outras:CAMPS_OUTRAS.filter(_naoArq), impl:(typeof CAMPS_IMPLEMENTACAO!=='undefined')?CAMPS_IMPLEMENTACAO:[]};
+  return {ativas:ativas.filter(_naoArq), outras:CAMPS_OUTRAS.filter(_naoArq), impl};
 }
 // Só as pastas arquivadas (pro painel admin). Resolve nome/capa pela própria pasta.
 function fGetArchivedCamps(){
   if(typeof dFolders==='undefined' || !dFolders) return [];
-  return dFolders.filter(f=>f && f.arquivada && f.id!=='f-modelo').map(f=>({
+  return dFolders.filter(f=>f && f.arquivada && !gPastaSistema(f)).map(f=>({
     id:f.campId||f.remoteId||f.id, name:f.name, color:f.color||'#FF9000', cover:f.cover||'',
     badge:f.badge||'', _folderId:f.id
   }));
@@ -1105,11 +1260,11 @@ function fFilterCamps(q){
   if(!qq){ fSearchRecord('',null,'catalog'); fRenderCatalogs(ativas,outras); return; }
   const result=fSearchCampaigns(q,[...ativas,...outras]);
   fRenderCatalogs(result.campaigns,[],{search:q,suggestions:result.suggestions});
-  fSearchRecord(q,result,'catalog');
+  try{ if(typeof fSearchRecord==='function') fSearchRecord(q,result,'catalog'); }catch(e){}
 }
 function fSelectCamp(id){
   const c=fResolveCamp(id);if(!c)return;
-  fSearchRecordOpen(c.id);
+  try{ if(typeof fSearchRecordOpen==='function') fSearchRecordOpen(c.id); }catch(e){}
   fExitHome(); // vindo da home → devolve o layout de 3 colunas antes de seguir o fluxo normal
   if(fState.camp && fState.camp.id===c.id) {
     // Reabrir a MESMA campanha (pasta ou chat ainda abertos atrás da home): o
@@ -1127,8 +1282,14 @@ function fSelectCamp(id){
   // vazam pré-preenchidas nos passos da nova (fNextStep rehidrata de fState.dados).
   if(fState.camp && fState.camp.id!==c.id){
     fState.stepIdx=-1; fState.dados={}; fState.done=false; fState.material=null;
+    if(typeof fChatNovaConversa==='function') fChatNovaConversa();   // mata o passo agendado da campanha anterior
   }
-  fState.camp=c;
+  /* ⚠ Reabrir a MESMA campanha mantém o objeto em uso. As perguntas do material aberto moram
+     nele (`fSelectMaterial` as monta ali) e a conversa continua na tela: trocar por um `c`
+     novo, sem perguntas, fazia o próximo toque no chat ("Sim, continuar", "Manter", enviar)
+     ler `perguntas.length` de undefined e morrer — o chat ficava no limbo. Achado pela
+     varredura de ações (celular: arte → Campanhas → mesma campanha → chip do rascunho). */
+  if(!fState.camp || fState.camp.id!==c.id) fState.camp=c;
   try{ localStorage.setItem('__luma_camp', c.id); }catch(e){} // F5 reabre esta campanha (gRestoreFranqueado)
   // Vindo da home (categoria ainda null): abre o rail na lista certa, não nos cards de categoria
   if(!fState.categoria){
@@ -1144,7 +1305,7 @@ function fSelectCamp(id){
 // Resultado da busca principal: entra na campanha certa e pula a etapa de escolher a pasta.
 async function fSearchOpenMaterial(campId,materialId,searchMaterialId,card){
   const c=fResolveCamp(campId);if(!c)return;
-  fSearchRecordOpen(c.id,searchMaterialId);
+  try{ if(typeof fSearchRecordOpen==='function') fSearchRecordOpen(c.id,searchMaterialId); }catch(e){}
   fExitHome();
   if(fState.camp&&fState.camp.id!==c.id){
     fState.stepIdx=-1;fState.dados={};fState.done=false;fState.material=null;
@@ -1344,6 +1505,10 @@ function _fhEmptyState(title,sub){
 function _fhFilterPanelHTML(){
   return _FH_FILTERS.map(f=>`<button type="button" class="fh-filter-opt${_fhFilter===f.id?' is-current':''}" role="menuitemradio" aria-checked="${_fhFilter===f.id}" onclick="fHomeSetFilter('${f.id}')">${gEsc(f.label)}${_fhFilter===f.id?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>':''}</button>`).join('');
 }
+// Mesmo filtro em chips (celular troca o dropdown por eles — um estado só, _fhFilter).
+function _fhChipsHTML(){
+  return _FH_FILTERS.map(f=>`<button type="button" class="fh-chip${_fhFilter===f.id?' is-on':''}" aria-pressed="${_fhFilter===f.id}" onclick="fHomeSetFilter('${f.id}')">${gEsc(f.label)}</button>`).join('');
+}
 // Painel de filtro: abre/fecha como o menu do 3-pontos (fCampAdminMenu) — fora do
 // clique/Esc fecha; listener em {once:true} porque reabre a cada toggle.
 function fHomeToggleFilter(btn,ev){
@@ -1377,6 +1542,7 @@ function fHomeSetFilter(id){
       else if(id==='todas'&&dot) dot.remove();
     }
   }
+  const chips=document.querySelector('.fh-chips'); if(chips) chips.innerHTML=_fhChipsHTML();
   const s=document.getElementById('fh-search');
   fHomeFilter(s?s.value:'');
 }
@@ -1447,8 +1613,8 @@ function _fHomeBodyHTML(query){
     ${favs.length?`<section class="fh-section"><div class="fh-sec"><span>Favoritas</span><em>${favs.length} fixada${favs.length!==1?'s':''}</em></div>
     <div class="camp-grid fh-grid">${favs.map(c=>fCampEl(c,false,!_fCampHasMats(c))).join('')}</div></section>`:''}
     ${rec?_fHomeHeroEl(rec):''}
-    ${gridProntas.length?`<section class="fh-section"><div class="fh-sec"><span>Prontas para usar</span><em>${gridProntas.length} campanha${gridProntas.length!==1?'s':''} disponíveis</em></div>
-    <div class="camp-grid fh-grid">${gridProntas.map(c=>fCampEl(c,false)).join('')}</div></section>`:''}`;
+    ${prontas.length?`<section class="fh-section${gridProntas.length?'':' fh-sec-so-rec'}"><div class="fh-sec"><span>Prontas para usar</span><em>${prontas.length} campanha${prontas.length!==1?'s':''} disponíveis</em></div>
+    <div class="camp-grid fh-grid">${rec?fCampEl(rec,true):''}${gridProntas.map(c=>fCampEl(c,false)).join('')}</div></section>`:''}`;
 }
 
 /* ── Revelação por rolagem ─────────────────────────────────────
@@ -1514,8 +1680,8 @@ function fRenderHome(opts){
         <p class="fh-sub">Qual arte vamos criar hoje?</p>
       </div>
       <div class="fh-head-actions">
-        <button class="fh-help" type="button" onclick="lumaWidgetOpen(this)" data-help-trigger aria-controls="luma-widget-modal" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 1 1 3.6 1.9c-.9.6-1.4 1.1-1.4 2.1"/><path d="M12 17h.01"/></svg><span>Ajuda</span></button>
-        <button class="fh-mine" type="button" onclick="fHomeOpenHist()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 4v5"/></svg><span>Minhas artes</span>${nHist?` <span class="fh-mine-badge">${nHist}</span>`:''}</button>
+        <button class="fh-help" type="button" onclick="lumaWidgetOpen(this)" data-help-trigger aria-controls="luma-widget-modal" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 1 1 3.6 1.9c-.9.6-1.4 1.1-1.4 2.1"/><path d="M12 17h.01"/></svg><span class="fh-act-txt"><span>Ajuda</span><small>Fale com a gente</small></span></button>
+        <button class="fh-mine" type="button" onclick="fHomeOpenHist()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 4v5"/></svg><span class="fh-act-txt"><span>Minhas artes</span><small>${nHist?nHist+(nHist!==1?' salvas':' salva'):'Nenhuma ainda'}</small></span>${nHist?` <span class="fh-mine-badge">${nHist}</span>`:''}</button>
       </div>
     </div>
     <div class="fh-search-row" role="search">
@@ -1531,6 +1697,7 @@ function fRenderHome(opts){
         </div>
       </div>
     </div>
+    <div class="fh-chips" role="group" aria-label="Filtrar vitrine">${_fhChipsHTML()}</div>
     <div id="fh-body">${_fHomeBodyHTML('')}</div>
   </div>`;
   // Tudo que roda depois do innerHTML é envolvido: um throw aqui deixava os cards em

@@ -13,7 +13,7 @@
    notch (a topbar cresceu +safe-top). Fallback vh p/ navegadores sem dvh. */
 #view-franqueado{display:flex;flex-direction:column;height:calc(100vh - 52px);height:calc(100dvh - 52px - var(--safe-top));background:var(--off-white)}
 #prog-bar{height:3px;background:var(--gray-light);flex-shrink:0}
-#prog-fill{height:100%;background:var(--dm-orange);transition:width .4s ease;width:0%}
+#prog-fill{height:100%;background:var(--dm-orange);transition:width var(--dur-slow) var(--ease-out);width:0%}
 #fran-main{display:flex;flex:1;overflow:hidden}
 
 /* LEFT */
@@ -164,16 +164,9 @@ body:not(.theme-light) .hist-thumb-real.is-preview-ready{background:var(--d-surf
 .hist-act-download{width:34px;padding:0}
 .hist-act-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 
-/* Bar de duplicar (aparece inline no card) */
-.hist-dup-bar{width:100%;display:flex;align-items:center;gap:5px;padding:8px 10px;background:var(--dm-orange-bg);border-top:1px solid var(--dm-orange-tint);font-size:11px;color:var(--dm-red);font-weight:500;flex-wrap:wrap;animation:gFadeInUp .25s cubic-bezier(.2,.9,.4,1) both}
-.hist-dup-btn{padding:4px 10px;font-size:10px;font-weight:700;border:1px solid var(--dm-orange);background:var(--white);color:var(--dm-orange-d);border-radius:var(--r-sm);cursor:pointer;font-family:'Roboto',sans-serif;transition:all .12s}
-.hist-dup-btn:hover{background:var(--dm-orange);color:var(--white)}
-.hist-dup-cancel{margin-left:auto;padding:4px 8px;font-size:10px;border:none;background:transparent;color:var(--text-3);cursor:pointer;font-family:'Roboto',sans-serif}
-.hist-dup-cancel:hover{color:var(--dm-red)}
-
 
 /* M1.3 — empty states empáticos (histórico/catálogo) */
-.empty-state{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:48px 24px;animation:gFadeInUp .35s ease-out both}
+.empty-state{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:48px 24px;animation:gFadeInUp var(--dur-base) var(--ease-out) both}
 .empty-state-sm{padding:32px 24px}
 .empty-icon{color:var(--gray-mid);opacity:.7}
 .empty-title{font-size:15px;font-weight:700;color:var(--text-2);font-family:'Roboto',sans-serif}
@@ -321,18 +314,6 @@ body:not(.theme-light).f-catalogo-aberto #f-back-campanhas{background: var(--d-s
 body:not(.theme-light) .lp-head-sep{background: var(--d-border2)}
 
 /* Botões do header do chat */
-body:not(.theme-light) #f-undo-btn,
-body:not(.theme-light) #f-reset-btn {
-  background: var(--d-surf);
-  color: var(--d-text2);
-  border-color: var(--d-border2);
-}
-body:not(.theme-light) #f-undo-btn:hover,
-body:not(.theme-light) #f-reset-btn:hover {
-  border-color: var(--dm-orange);
-  color: var(--dm-orange);
-  background: var(--d-surf2);
-}
 body:not(.theme-light) #f-bulk-head-btn {
   background: var(--d-surf);
   color: var(--dm-orange);
@@ -480,12 +461,12 @@ body:not(.theme-light) .lp-tool-btn:hover {
   color: var(--d-text);
 }
 body:not(.theme-light) .lp-zoom-step,
-body:not(.theme-light) .lp-zoom-reset,
-body:not(.theme-light) .lp-layout-nota {
+/* `:not(.is-bloqueio)` porque esta regra é MAIS específica que a do bloqueio
+   (`live-preview.css`) e apagaria o vermelho do único aviso que precisa ser visto. */
+body:not(.theme-light) .lp-layout-nota:not(.is-bloqueio) {
   color: var(--d-text3);
 }
-body:not(.theme-light) .lp-zoom-step:hover,
-body:not(.theme-light) .lp-zoom-reset:hover {
+body:not(.theme-light) .lp-zoom-step:hover {
   background: var(--d-surf);
   color: var(--d-text);
 }
@@ -588,26 +569,6 @@ body:not(.theme-light) .hist-act-btn.pri {
 }
 body:not(.theme-light) .hist-act-btn.pri:hover {
   background: var(--dm-orange-d);
-}
-body:not(.theme-light) .hist-dup-bar {
-  background: color-mix(in srgb,var(--dm-orange) 12%,transparent);
-  border-top-color: var(--d-border);
-  color: var(--dm-orange);
-}
-body:not(.theme-light) .hist-dup-btn {
-  background: var(--d-surf);
-  color: var(--dm-orange);
-  border-color: var(--dm-orange);
-}
-body:not(.theme-light) .hist-dup-btn:hover {
-  background: var(--dm-orange);
-  color: var(--white);
-}
-body:not(.theme-light) .hist-dup-cancel {
-  color: var(--d-text2);
-}
-body:not(.theme-light) .hist-dup-cancel:hover {
-  color: var(--dm-red);
 }
 
 /* Empty States */
@@ -1126,6 +1087,68 @@ body:not(.theme-light) #f-home-btn{border-color:var(--dm-orange);background:var(
   .fh-draft-th{width:68px;height:88px}
 }
 
+/* ── HOME NO CELULAR — "busca no centro" (proposta B, aprovada em 23/09/2026) ──
+   A pergunta vira o título, a busca ganha a borda da marca e os filtros saem do dropdown
+   para chips. Atalhos viram dois blocos, rascunhos viram lista de uma linha e a destacada
+   deixa o hero para abrir a grade de capas (fCampEl(rec,true) — no desktop ela fica escondida
+   na grade e o hero continua). Mesmo DOM nos dois tamanhos: a ordem troca por `order`. */
+.fh-chips,.fh-act-txt small{display:none}
+@media (min-width:769px){
+  .fh-grid .camp-card.recommended,.fh-sec-so-rec{display:none}
+}
+@media (max-width:768px){
+  .fh-head{display:contents}
+  .fh-head-copy{order:1}
+  .fh-search-row{order:2}
+  .fh-chips{order:3}
+  .fh-head-actions{order:4}
+  #fh-body{order:5}
+
+  .fh-kicker{display:none}
+  .fh-greet{font-size:14px;font-weight:500;color:var(--text-3);letter-spacing:0;line-height:1.3}
+  #f-home.fh-anim .fh-greet{animation-name:gFadeInUp}
+  .fh-sub{margin-top:2px;color:var(--text);font-size:clamp(26px,7.6vw,30px);font-weight:900;letter-spacing:-.03em;line-height:1.1}
+
+  .fh-search-row{min-height:58px;border:2px solid var(--dm-orange)}
+  .fh-search-row.is-stuck{border-color:var(--dm-orange)}
+  .fh-search-field label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .fh-search-tools{display:none}
+
+  .fh-chips{display:flex;gap:8px;margin-top:-10px;overflow-x:auto;scrollbar-width:none}
+  .fh-chips::-webkit-scrollbar{display:none}
+  .fh-chip{flex:none;min-height:40px;padding:0 15px;border:1px solid var(--gray-light);border-radius:var(--r-pill);background:var(--white);color:var(--text-2);font-family:'Roboto',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard)}
+  .fh-chip.is-on{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--text);font-weight:700}
+  .fh-chip:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+
+  .fh-head-actions{width:auto;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .fh-head-actions .fh-help,.fh-head-actions .fh-mine{min-height:64px;justify-content:flex-start;gap:10px;padding:12px;border:1px solid var(--gray-light);border-radius:14px;background:var(--white);box-shadow:none;text-align:left}
+  .fh-head-actions button svg{width:36px;height:36px;flex:none;padding:9px;border-radius:10px;background:var(--dm-orange-bg);color:var(--dm-orange-d)}
+  .fh-head-actions .fh-act-txt{min-width:0}
+  .fh-head-actions .fh-act-txt>span{font-size:14px;font-weight:700;color:var(--text)}
+  .fh-head-actions .fh-act-txt small{display:block;margin-top:1px;color:var(--text-3);font-size:12px;font-weight:400}
+  .fh-mine-badge{display:none}
+
+  .fh-cont{gap:0;background:var(--white);border:1px solid var(--gray-light);border-radius:16px;overflow:hidden}
+  .fh-cont .fh-draft{min-height:0;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;padding:10px 12px;border:0;border-bottom:1px solid var(--gray-light);border-radius:0;box-shadow:none;transform:none}
+  .fh-cont .fh-draft:last-child{border-bottom:0}
+  .fh-cont .fh-draft-th{width:44px;height:56px;padding:0;border-radius:8px;transform:none}
+  .fh-draft-th span,.fh-draft-status,.fh-draft-foot,.fh-draft-go svg{display:none}
+  .fh-draft-name{font-size:14px;font-weight:700}
+  .fh-draft-meta{margin-top:2px;font-size:12px}
+  .fh-draft-go,.fh-draft:hover .fh-draft-go{width:auto;height:auto;border:0;background:none;color:var(--dm-orange-d);font-size:13px;font-weight:700;transform:none}
+  .fh-draft-go::before{content:'Continuar'}
+
+  .fh-featured{display:none}
+  #f-home .fh-grid .camp-card{aspect-ratio:4/5;border:0;border-radius:16px}
+  #f-home .fh-grid .camp-thumb{position:absolute;inset:0;height:auto;aspect-ratio:auto !important;border-radius:0}
+  #f-home .fh-grid .camp-body{position:absolute;left:0;right:0;bottom:0;z-index:1;padding:32px 10px 10px;background:linear-gradient(transparent,rgba(10,10,10,.8))}
+  #f-home .fh-grid .camp-name{min-height:0;color:var(--white);font-size:14px;font-weight:700}
+  #f-home .fh-grid .camp-sub{color:rgba(255,255,255,.85);font-size:11px}
+  #f-home .fh-grid .camp-prev-btn{top:8px;left:8px;bottom:auto;right:auto}
+  #f-home .fh-grid .camp-card.recommended::after{content:'DESTAQUE';position:absolute;top:8px;left:8px;z-index:4;padding:4px 8px;border-radius:var(--r-pill);background:var(--white);color:var(--dm-red);font-size:10px;font-weight:900;letter-spacing:.04em}
+  #f-home .fh-grid .camp-card.recommended .camp-prev-btn{top:34px}
+}
+
 /* ══════════════════════════════════════════════════════════════
    HOME — COREOGRAFIA DE ENTRADA E MICROINTERAÇÕES (premium feel).
    Usa os tokens de motion (00-tokens) e keyframes g* (02-animations).
@@ -1227,6 +1250,48 @@ body.f-cols-enter #fran-right{animation:gFadeIn var(--dur-base) var(--ease-out) 
      existir — era o menor dos três, só ícone (34px de largura medidos) e encostado no
      "Duplicar". Errar entre baixar e duplicar cria lixo no histórico. */
   .hist-act-btn{min-height:var(--tap-min);font-size:11px}
+}
+/* Tablet em pé: um card por linha a 768px é um cartaz — duas colunas cabem folgadas. */
+@media (min-width:561px) and (max-width:768px){
+  .f-history-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+/* ── CELULAR (23/09/2026) ─────────────────────────────────────────────────────────────
+   Medido no print de 385px: "Nova arte" quebrava em duas linhas espremido pelo "Voltar para
+   Copa Do Mundo 2026"; o "Limpar" gastava uma linha só dele; e cada arte ocupava a tela
+   inteira (miniatura de 180px + bloco de info) — uma por vez, na tela cujo trabalho é ACHAR
+   a arte certa. Só CSS, mesmo HTML:
+   · o voltar vira link discreto NO TOPO e o "Nova arte" ganha a linha inteira — o
+     `display:contents` solta os dois botões da caixa de ações para o `order` valer;
+   · busca em cima; filtros + lixeira (só ícone) dividem a linha de baixo;
+   · o card vira linha: miniatura à esquerda, info e ações à direita. Duplicar e baixar
+     ficam só ícone (o texto segue no botão para leitor de tela); "Continuar/Editar", a ação
+     principal, mantém a palavra. O selo de formato sai da miniatura: a linha de meta já diz. */
+@media (max-width:560px){
+  .f-history-head{gap:14px}
+  .f-history-head-actions{display:contents}
+  .f-history-head-actions .f-history-home{order:-1;align-self:flex-start;margin:-10px 0 -6px -10px;padding:6px 10px;border-color:transparent;background:transparent}
+  body:not(.theme-light) .f-history-head-actions .f-history-home{border-color:transparent;background:transparent}
+  .f-history-new{order:1;width:100%}
+
+  .f-history-toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+  .hist-search-row{grid-column:1/-1}
+  .hist-filter-btn{padding-inline:8px}
+  .hist-clear-btn{align-self:stretch;width:var(--tap-min);padding:0;gap:0;justify-content:center;font-size:0}
+
+  .f-history-results{margin-top:22px}
+  .f-history-grid{gap:10px}
+  .hist-card{flex-direction:row}
+  .hist-thumb{flex:0 0 104px;width:104px;height:auto;padding:8px}
+  .hist-preview-art{max-height:136px}
+  .hist-thumb-fmt{display:none}
+  .hist-preview-fallback{padding:10px}
+  .hist-thumb-camp{top:10px;left:10px;font-size:8px}
+  .hist-thumb strong{font-size:13px}
+  .hist-thumb-offer{font-size:12px}
+  .hist-info{padding:12px 12px 12px 14px}
+  .hist-card-top{margin-bottom:6px}
+  .hist-actions{margin-top:12px;padding-top:10px}
+  .hist-act-btn:not(.hist-act-main){flex:0 0 var(--tap-min);width:var(--tap-min);padding:0;gap:0;font-size:0}
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1332,6 +1397,28 @@ body.f-cols-enter #fran-right{animation:gFadeIn var(--dur-base) var(--ease-out) 
 /* Rótulo de origem: o dado local NÃO representa a rede, e isso tem que estar escrito. */
 .camp-ana-src{font-size:12px;line-height:1.45;color:var(--text-3);padding:10px 12px;border-radius:10px;background:var(--off-white)}
 .camp-ana-src.is-local{background:var(--dm-orange-bg);color:var(--dm-orange-text)}
+/* Ver a rede: o mesmo overlay da análise, largo, com o mosaico no corpo rolável. */
+.camp-rede-box{width:min(1180px,100%);max-height:min(90dvh,900px)}
+.camp-rede-count{font-size:12px;font-weight:600;color:var(--text-3);white-space:nowrap}
+.camp-rede-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.camp-rede-card{margin:0;display:flex;flex-direction:column;gap:7px;min-width:0}
+.camp-rede-thumb{position:relative;aspect-ratio:4/5;border-radius:12px;overflow:hidden;background:var(--off-white);
+  border:1px solid var(--gray-light)}
+.camp-rede-thumb::before{content:"";position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);background-size:200% 100%;
+  animation:gShimmer 1.4s linear infinite}
+.camp-rede-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;
+  transition:opacity var(--dur-base) var(--ease-out)}
+.camp-rede-card.is-ready .camp-rede-thumb::before,.camp-rede-card.is-sem-material .camp-rede-thumb::before{display:none}
+.camp-rede-card.is-ready .camp-rede-thumb img{opacity:1}
+.camp-rede-card figcaption{display:grid;gap:1px;min-width:0}
+.camp-rede-card strong{font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.camp-rede-card small{font-size:11.5px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:560px){ .camp-rede-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px} }
+body:not(.theme-light) .camp-rede-thumb{background:var(--d-dark);border-color:var(--d-border)}
+body:not(.theme-light) .camp-rede-thumb::before{background-image:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent)}
+body:not(.theme-light) .camp-rede-card strong{color:var(--d-text)}
+body:not(.theme-light) .camp-rede-card small,body:not(.theme-light) .camp-rede-count{color:var(--d-text3)}
 body:not(.theme-light) .camp-ana-box{background:var(--d-surf);border-color:var(--d-border)}
 body:not(.theme-light) .camp-ana-head{border-color:var(--d-border)}
 body:not(.theme-light) .camp-ana-title strong{color:var(--d-text)}

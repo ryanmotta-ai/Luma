@@ -15,9 +15,9 @@
    O franqueado atende vários restaurantes parceiros; salvar a "loja" evita
    reenviar o mesmo logo a cada arte. É só um passo no chat (sem tela de gerência). */
 const F_LOJAS_KEY = 'dm_lojas_v1';
-function fGetLojas(){ try{ return JSON.parse(localStorage.getItem(F_LOJAS_KEY)||'[]'); }catch(e){ return []; } }
+function fGetLojas(){ try{ return JSON.parse(localStorage.getItem(fUserCacheKey(F_LOJAS_KEY))||'[]'); }catch(e){ return []; } }
 function fSaveLojas(arr){
-  try{ localStorage.setItem(F_LOJAS_KEY, JSON.stringify((arr||[]).slice(0,12))); return true; }
+  try{ localStorage.setItem(fUserCacheKey(F_LOJAS_KEY), JSON.stringify((arr||[]).slice(0,12))); return true; }
   catch(e){ if(typeof gToast==='function') gToast('Não consegui salvar a loja — a memória do navegador encheu. Apague o que não usa e tente de novo.','error'); return false; }
 }
 function fAddLoja(loja){
@@ -33,9 +33,9 @@ function fRemoveLoja(id){ fSaveLojas(fGetLojas().filter(l=>l.id!==id)); }
 
 /* ── FAVORITOS (campanhas fixadas pelo franqueado) ── */
 const F_FAVS_KEY = 'dm_favs_v1';
-function fGetFavs(){ try{ return JSON.parse(localStorage.getItem(F_FAVS_KEY)||'[]'); }catch(e){ return []; } }
+function fGetFavs(){ try{ return JSON.parse(localStorage.getItem(fUserCacheKey(F_FAVS_KEY))||'[]'); }catch(e){ return []; } }
 function fIsFav(id){ return fGetFavs().indexOf(id) >= 0; }
-function _fSaveFavs(arr){ try{ localStorage.setItem(F_FAVS_KEY, JSON.stringify(arr)); }catch(e){} }
+function _fSaveFavs(arr){ try{ localStorage.setItem(fUserCacheKey(F_FAVS_KEY), JSON.stringify(arr)); }catch(e){} }
 // Alterna o favorito e re-renderiza onde o franqueado está (home ou catálogo).
 // ev: para o clique não "vazar" pro card (que abre a campanha).
 function fToggleFav(id, ev){
@@ -53,10 +53,10 @@ function fToggleFav(id, ev){
    Um material é "novo" se foi publicado depois disso — e só marcamos "novo" para
    campanhas que o franqueado JÁ abriu antes (senão tudo seria novo no 1º acesso). */
 const F_SEEN_KEY = 'dm_seen_mats_v1';
-function fGetSeen(){ try{ return JSON.parse(localStorage.getItem(F_SEEN_KEY)||'{}'); }catch(e){ return {}; } }
+function fGetSeen(){ try{ return JSON.parse(localStorage.getItem(fUserCacheKey(F_SEEN_KEY))||'{}'); }catch(e){ return {}; } }
 function fMarkCampSeen(campId){
   if(!campId) return;
-  try{ const m=fGetSeen(); m[campId]=Date.now(); localStorage.setItem(F_SEEN_KEY, JSON.stringify(m)); }catch(e){}
+  try{ const m=fGetSeen(); m[campId]=Date.now(); localStorage.setItem(fUserCacheKey(F_SEEN_KEY), JSON.stringify(m)); }catch(e){}
 }
 function _fMatPublishedTs(t){ return (t && t.publishMeta && t.publishMeta.publicadoEm) || 0; }
 function fMaterialIsNew(m, campId){

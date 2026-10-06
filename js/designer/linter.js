@@ -22,7 +22,7 @@ let _dAiStressLoading = false;
    Gera casos realistas para o nicho de delivery e testa contra as regras
    determinísticas do motor geométrico do Luma. */
 async function _dLinterFetchAIStress(varsTeste){
-  if (_dAiStressLoading || !window.gAI || !window.gAI.isEnabled('stressCases')) return;
+  if (_dAiStressLoading || !window.gAI || !(typeof window.gAI.isEnabled === 'function' && window.gAI.isEnabled('stressCases'))) return;
   const fields = (varsTeste || []).filter(v => v && v.type !== 'image').map(v => ({
     name: v.name,
     maxLen: v.maxLen || 0
@@ -102,7 +102,9 @@ function _dLinterEstresse() {
   const exemplo = {};
   usados.forEach(vn => { exemplo[vn] = gFieldSampleValue(varsTeste.find(x => x.name === vn) || { name: vn }); });
 
-  if (!_dAiStressCases && !_dAiStressLoading && window.gAI && window.gAI.isEnabled('stressCases')) {
+  /* O `typeof` fica: de 11/09 a 23/09/2026 o `gAI.isEnabled` não existia e esta linha derrubava o
+     checklist INTEIRO do Estúdio. Com um gateway antigo em cache, ele volta a proteger. */
+  if (!_dAiStressCases && !_dAiStressLoading && window.gAI && (typeof window.gAI.isEnabled === 'function' && window.gAI.isEnabled('stressCases'))) {
     _dLinterFetchAIStress(varsTeste);
   }
 
@@ -197,7 +199,7 @@ function _dLinterEstresse() {
   // (c) nem encolhendo até o piso coube na própria caixa
   Object.values(depois).forEach(o => {
     // O checklist AVISA os dois (não coube + passou do teto de linhas): aqui é conselho para o
-    // designer antes de publicar, não portão de exportação. Quem bloqueia é `gLayoutCamadaReprovada`.
+    // designer antes de publicar, não portão de exportação. Quem bloqueia é o Local Fit.
     const _apertado=(f)=>!!(f&&(f.estourou||f.excedeuLinhas));
     if (o.l.type !== 'text' || !_apertado(o.f) || !camposDa(o.l).length) return;
     if (antes[o.l.id] && _apertado(antes[o.l.id].f)) return;   // já estourava
@@ -330,6 +332,78 @@ function dRunLinter() {
       }
     }
     
+    /* 4b. CAIXA COM ALTURA DE UMA LINHA SÓ (22/09/2026). O Local Fit quebra o texto dentro da
+       caixa e só encolhe quando as linhas lotam a altura. Caixa de 1 linha (o padrão do PSD,
+       que traz o bbox justo da frase) não tem para onde quebrar: texto maior já sai diminuindo
+       a letra. Aqui é onde se resolve de uma vez, e não em cada franqueado. Preço/desconto/
+       código ficam fora: o tamanho deles vem da máscara e a caixa é justa por desenho. */
+    if (l.type === 'text' && !l.vertical) {
+      const campo = dLayerBoundField(l);
+      const v = campo ? dVars.find(x => x.name === campo) : null;
+      const lh = (l.fontSize || 24) * ((typeof gLineHeightDe === 'function') ? gLineHeightDe(l) : (l.lineHeight || 1.2));
+      /* Desde o respiro (22/09/2026) a caixa ancorada no topo cresce sozinha até o próximo
+         objeto. Então só vale avisar quando, somando esse vazio, ainda cabe 1 linha só. */
+      /* A mesma porta do runtime (respiro + pilha do designer): a altura que o texto pode
+         ocupar de verdade, não só a caixa desenhada. */
+      let alturaUtil = l.h || 0;
+      try {
+        if (typeof gFitTextToAuthoredBox === 'function' && _ab) {
+          const r = gFitTextToAuthoredBox(l, l.layoutRefText || 'X', { layers: dLayers, canvas: { w: _ab.w, h: _ab.h } });
+          if (r) alturaUtil = Math.max(alturaUtil, r.diagnostics.alturaDisponivel || 0);
+        }
+      } catch (e) {}
+      if (v && !['price', 'discount', 'code', 'image'].includes(v.type || 'text')
+          && Math.floor(alturaUtil / Math.max(1, lh)) <= 1) {
+        issues.push({
+          type: 'info',
+          title: 'Campo com altura para 1 linha',
+          desc: `A caixa de “${v.label || campo}” só tem altura para uma linha, e não há espaço livre logo abaixo dela. Se o franqueado escrever um texto maior, a letra diminui em vez de pular para a linha de baixo. Se esse texto pode crescer, aumente a altura da caixa ou abra espaço abaixo dela.`,
+          layerId: l.id,
+          layerName: l.name
+        });
+      }
+    }
+
+    /* 4c. SUGERIR A PILHA (22/09/2026). O Local Fit faz o de baixo descer junto quando o texto
+       de cima ganha linhas. Sem âncora, o motor usa ESTE MESMO par só quando o texto bloquearia
+       (`_gLfPilhaInferida`, 23/09 — mantenha as duas réguas iguais); ancorado, vale sempre.
+       Sinal forte para não gritar demais: o de cima é campo de texto ancorado no
+       topo, o de baixo começa logo depois (até 1,5 linha), na MESMA coluna (borda esquerda ou
+       centro alinhados), e nada fica entre os dois. */
+    if (!l.relativeAnchor && l.type !== 'group' && (l.w || 0) > 0 && (l.h || 0) > 0) {
+      const mesmaAb = o => o !== l && o.visible !== false && (!l.abId || o.abId === l.abId);
+      // Preço/desconto/código não ganham linha (o tamanho vem da máscara): pilha em cima deles é ruído.
+      const cresce = a => { const f = dLayerBoundField(a), va = f && dVars.find(x => x.name === f);
+        return !!f && !(va && ['price', 'discount', 'code', 'image'].includes(va.type)); };
+      const pai = dLayers.filter(a => mesmaAb(a) && a.type === 'text' && !a.vertical && a.vAlign === 'top'
+          && cresce(a) && !(a.relativeAnchor && a.relativeAnchor.layerId === l.id))
+        .find(a => {
+          const fim = (a.y || 0) + (a.h || 0), vao = (l.y || 0) - fim;
+          if (vao < -2 || vao > (a.fontSize || 24) * 1.5) return false;
+          const esq = Math.abs((l.x || 0) - (a.x || 0)) <= 12;
+          const cen = Math.abs(((l.x || 0) + (l.w || 0) / 2) - ((a.x || 0) + (a.w || 0) / 2)) <= 12;
+          if (!esq && !cen) return false;
+          return !dLayers.some(o => mesmaAb(o) && o !== a && o.type !== 'group'
+            && (o.y || 0) >= fim - 1 && (o.y || 0) + (o.h || 0) <= (l.y || 0) + 1
+            && (o.x || 0) < (a.x || 0) + (a.w || 0) && (o.x || 0) + (o.w || 0) > (a.x || 0)
+            && !(o.x <= a.x && o.y <= a.y && o.x + o.w >= a.x + a.w));      // painel de fundo não conta
+        });
+      if (pai) {
+        const campoPai = dLayerBoundField(pai), vPai = dVars.find(x => x.name === campoPai);
+        const nomePai = (vPai && vPai.label) || pai.name || campoPai;
+        issues.push({
+          type: 'info',
+          title: `Ancorar abaixo de “${nomePai}”?`,
+          desc: `“${l.name || 'Esta camada'}” está logo abaixo de “${nomePai}”. Ancorada, ela desce junto quando o texto de “${nomePai}” ganhar linhas — em vez de o texto encolher ou bloquear. A posição de hoje não muda.`,
+          layerId: l.id,
+          layerName: l.name,
+          autoFix: 'anchorBelow',
+          autoFixParam: pai.id,
+          autoFixLabel: 'Ancorar'
+        });
+      }
+    }
+
     // 5. OTIMIZAÇÃO: Imagem Gigante
     // ⚠ Esta regra nunca disparou: testava `l.url`, mas camadas image/frame guardam a fonte em
     // `l.imgUrl` (`layers.js:382,390,408`). Regra morta desde sempre, achada na revisão pró-1.0.
@@ -433,7 +507,7 @@ function dRunLinter() {
     const fixBtn = issue.autoFix ? `
       <button class="dl-action dl-action--fix" onclick="dDadoLinterAutoFix('${layerId}', '${fixType}', '${fixParam}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14.7 6.3 3 3M5 21l3.5-.7L19 9.8a2.1 2.1 0 0 0-3-3L5.7 17.2 5 21Z"/><path d="M12 3v4M3 12h4M5.6 5.6l2.8 2.8"/></svg>
-        Corrigir
+        ${_dEsc(issue.autoFixLabel || 'Corrigir')}
       </button>` : '';
 
     return `
@@ -507,6 +581,18 @@ function dDadoLinterAutoFix(layerId, type, param) {
     // Delega ao bind único (history, render, lista, props, unsaved e toast moram lá) — o mesmo
     // motor do arrasto e do botão "Usar". Um caminho de vínculo, três portas de entrada.
     if (typeof dLayerBindField === 'function') dLayerBindField(l.id, param);
+  }
+  else if (type === 'anchorBelow') {
+    /* O `gap` é calculado para a camada ficar EXATAMENTE onde está: `gApplyRelativeAnchors`
+       põe o filho em `y do pai + gMeasureLayerHeight(pai) + gap`. Ancorar não pode mexer em
+       nada na hora — só passa a valer quando o texto de cima crescer. */
+    const pai = dLayers.find(x => x.id === param);
+    if (pai) {
+      dHistoryPush();
+      const altura = (typeof gMeasureLayerHeight === 'function') ? gMeasureLayerHeight(pai, pai.content || '') : (pai.h || 0);
+      l.relativeAnchor = { layerId: pai.id, type: 'top-to-bottom', gap: Math.round((l.y || 0) - (pai.y || 0) - altura) };
+      gToast('Ancorado — desce junto quando o texto de cima crescer.');
+    }
   }
   else if (type === 'removeRsPrefix') {
     if (l.type === 'text' && l.content) {

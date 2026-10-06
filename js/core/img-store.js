@@ -7,13 +7,15 @@
  * sumiam após o reload. Agora imagens grandes vão pro IndexedDB e o localStorage guarda
  * só uma referência curta 'idb://<chave>', que é re-hidratada no boot.
  *
- * 100% vanilla, sem dependências. Tudo tolerante a falha: IndexedDB indisponível →
- * funções viram no-op e o caller cai no fallback antigo.
+ * Sem dependências. Falha mantém os bytes no pack e permite recusar o save;
+ * nunca anuncia idb:// antes de a transação confirmar.
  */
 
 const G_IDB_NAME = 'luma-img-v1';
 const G_IDB_STORE = 'img';
 let _gIdbPromise = null;
+const _gImgStored = new Map();
+const _gImgWrites = new Map();
 
 function _gIdbOpen(){
   if(_gIdbPromise) return _gIdbPromise;
@@ -25,17 +27,23 @@ function _gIdbOpen(){
     }
   }catch(e){}
   _gIdbPromise = new Promise((resolve, reject)=>{
+    let settled=false;
+    const fail=e=>{if(settled)return;settled=true;clearTimeout(timer);reject(e);};
+    const timer=setTimeout(()=>fail(new Error('idb-timeout')),8000);
     try{
-      if(typeof indexedDB === 'undefined'){ reject(new Error('no-idb')); return; }
+      if(typeof indexedDB === 'undefined'){ fail(new Error('no-idb')); return; }
       const req = indexedDB.open(G_IDB_NAME, 1);
       req.onupgradeneeded = ()=>{
         const db = req.result;
         if(!db.objectStoreNames.contains(G_IDB_STORE)) db.createObjectStore(G_IDB_STORE);
       };
-      req.onsuccess = ()=>resolve(req.result);
-      req.onerror = ()=>reject(req.error);
-    }catch(e){ reject(e); }
-  });
+      req.onsuccess = ()=>{
+        if(settled){req.result.close();return;}
+        settled=true;clearTimeout(timer);resolve(req.result);
+      };
+      req.onerror = ()=>fail(req.error);
+    }catch(e){ fail(e); }
+  }).catch(e=>{_gIdbPromise=null;throw e;});
   return _gIdbPromise;
 }
 
@@ -58,26 +66,61 @@ function gImgHash(str){
 
 // Grava um dataURL no IndexedDB sob a chave dada. Promise<boolean>. Nunca rejeita.
 function gIdbPut(key, dataUrl){
-  return _gIdbOpen().then(db=>new Promise((resolve)=>{
+  if(_gImgStored.get(key)===dataUrl) return Promise.resolve(true);
+  if(_gImgWrites.has(key)) return _gImgWrites.get(key).then(ok=>
+    ok&&_gImgStored.get(key)!==dataUrl?gIdbPut(key,dataUrl):ok);
+  const job=_gIdbOpen().then(db=>new Promise((resolve)=>{
     try{
       const tx = db.transaction(G_IDB_STORE, 'readwrite');
       tx.objectStore(G_IDB_STORE).put(dataUrl, key);
-      tx.oncomplete = ()=>resolve(true);
-      tx.onerror = ()=>resolve(false);
-      tx.onabort = ()=>resolve(false);
+      let done=false;
+      const finish=ok=>{
+        if(done)return;done=true;clearTimeout(timer);
+        if(ok)_gImgStored.set(key,dataUrl);
+        resolve(ok);
+      };
+      const timer=setTimeout(()=>{try{tx.abort();}catch(e){}finish(false);},8000);
+      tx.oncomplete = ()=>finish(true);
+      tx.onerror = ()=>finish(false);
+      tx.onabort = ()=>finish(false);
     }catch(e){ resolve(false); }
-  })).catch(()=>false);
+  })).catch(()=>false).finally(()=>_gImgWrites.delete(key));
+  _gImgWrites.set(key,job);
+  return job;
+}
+
+// O contrato síncrono de pack só pode anunciar uma referência DEPOIS do commit.
+function gImgStoredRef(dataUrl){
+  const key=gImgHash(dataUrl);
+  return _gImgStored.get(key)===dataUrl ? 'idb://'+key : null;
+}
+
+// Callers assíncronos podem preparar o save sem trocar os dataURLs vivos das camadas.
+function gImgStoreFlush(layers){
+  const jobs=[];
+  (layers||[]).forEach(l=>{
+    ['imgUrl','mask','clipOwnMask'].forEach(prop=>{
+      const u=l&&l[prop], limit=prop==='imgUrl'?G_IMG_KEEP_MAX:G_MASK_KEEP_MAX;
+      if(typeof u==='string'&&u.startsWith('data:')&&u.length*0.75>limit)
+        jobs.push(gIdbPut(gImgHash(u),u));
+    });
+  });
+  return Promise.all(jobs).then(rs=>rs.every(Boolean));
 }
 
 // Lê um dataURL do IndexedDB. Promise<string|null>. Nunca rejeita.
 function gIdbGet(key){
   return _gIdbOpen().then(db=>new Promise((resolve)=>{
+    let timer=null;
+    const finish=v=>{clearTimeout(timer);resolve(v);};
     try{
       const tx = db.transaction(G_IDB_STORE, 'readonly');
       const r = tx.objectStore(G_IDB_STORE).get(key);
-      r.onsuccess = ()=>resolve(r.result || null);
-      r.onerror = ()=>resolve(null);
-    }catch(e){ resolve(null); }
+      timer=setTimeout(()=>finish(null),8000);
+      r.onsuccess = ()=>finish(r.result || null);
+      r.onerror = ()=>finish(null);
+      tx.onabort=()=>finish(null);
+    }catch(e){ finish(null); }
   })).catch(()=>null);
 }
 
@@ -89,7 +132,7 @@ function gIdbDel(key){
     try{
       const tx = db.transaction(G_IDB_STORE, 'readwrite');
       tx.objectStore(G_IDB_STORE).delete(key);
-      tx.oncomplete = ()=>resolve(true);
+      tx.oncomplete = ()=>{_gImgStored.delete(key);resolve(true);};
       tx.onerror = ()=>resolve(false);
       tx.onabort = ()=>resolve(false);
     }catch(e){ resolve(false); }
@@ -110,12 +153,14 @@ function gHydrateLayers(layers){
   const jobs = [];
   let changed = false;
   layers.forEach(l=>{
-    if(l && typeof l.imgUrl === 'string' && l.imgUrl.indexOf('idb://') === 0){
-      jobs.push(gIdbGet(l.imgUrl.slice(6)).then(u=>{ if(u){ l.imgUrl = u; changed = true; } }));
-    }
-    if(l && typeof l.mask === 'string' && l.mask.indexOf('idb://') === 0){
-      jobs.push(gIdbGet(l.mask.slice(6)).then(u=>{ if(u){ l.mask = u; changed = true; } }));
-    }
+    ['imgUrl','mask','clipOwnMask'].forEach(prop=>{
+      const ref=l&&l[prop];
+      if(typeof ref==='string'&&ref.indexOf('idb://')===0)
+        jobs.push(gIdbGet(ref.slice(6)).then(u=>{
+          // Undo/sync pode trocar o recurso durante a leitura: não reponha bytes antigos.
+          if(u&&l[prop]===ref){l[prop]=u;changed=true;}
+        }));
+    });
   });
   if(!jobs.length) return Promise.resolve(false);
   return Promise.all(jobs).then(()=>changed);

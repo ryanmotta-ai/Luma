@@ -22,7 +22,8 @@
       "Bash(nohup python3 -m http.server 5605 --directory .)",
       "Bash(disown)",
       "Bash(curl -sI http://localhost:5605/index.html)",
-      "Bash(pkill -f \"http.server 5605\")"
+      "Bash(pkill -f \"http.server 5605\")",
+      "mcp__supabase__execute_sql"
     ]
   },
   "enabledMcpjsonServers": [
