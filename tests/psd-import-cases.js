@@ -241,6 +241,22 @@
      antiga (x≈1283) enquanto o pixel e o caminho estão em x≈2494 — ela caía fora da arte. */
   /* Caso REAL (Deliversário V1): balão = forma girada → pixel. O pixel da forma já vem recortado
      pelo vetor; reaplicar a máscara vetorial apagava os três balões. */
+  /* Caso REAL (Copa "Bebidas"): o bbox de pixels da forma (com sombra) ia de y=1258 a 3921 e o
+     caminho de 2674 a 3918. A máscara nascia no bbox e era esticada sobre a caixa do caminho —
+     o cartão azul inteiro sumia. */
+  test('máscara é reprojetada 1:1 na caixa do item, sem esticar',async()=>{
+    const vc=document.createElement('canvas'); vc.width=200; vc.height=400;
+    vc.getContext('2d').fillRect(0,200,200,200);               // metade de BAIXO do bbox é a forma
+    const node={left:0,top:0,right:200,bottom:400};
+    const url=_dPsdComputeMask(node,null,{vecCanvas:vc, alvo:{x:0,y:200,w:200,h:200}});
+    assert(url,'a máscara não foi composta');
+    const img=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=url;});
+    const c=document.createElement('canvas'); c.width=img.width; c.height=img.height;
+    c.getContext('2d').drawImage(img,0,0);
+    const a=c.getContext('2d').getImageData(Math.floor(img.width/2),Math.floor(img.height*0.1),1,1).data[3];
+    assert(a>200,'o topo da caixa do item ficou transparente — a máscara foi esticada em vez de reprojetada ('+a+')');
+  });
+
   test('forma que vira pixel não reaplica a própria máscara vetorial',()=>{
     const k=document.createElement('canvas'); k.width=120; k.height=120; k.getContext('2d').fillRect(0,0,120,120);
     const kn=(x,y)=>({linked:true,points:[x,y,x,y,x,y]});

@@ -726,6 +726,16 @@ function _dPsdComputeMask(node, base, extra){
       for(let i=0;i<ad.length;i+=4){ ad[i]=0;ad[i+1]=0;ad[i+2]=0; } // só o alpha importa
       octx.putImageData(acc,0,0);
     }
+    /* CAIXA DO ITEM ≠ CAIXA DA CAMADA (07/10/2026): o render estica a máscara sobre l.x/y/w/h,
+       mas ela nasce no bbox de PIXELS da camada. Forma com sombra (bbox 2× maior que o caminho),
+       texto de parágrafo e texto girado têm caixa própria — a máscara saía esticada e deslocada
+       (Copa "Bebidas": o cartão azul inteiro sumia). Reprojeta 1:1 na caixa do item. */
+    const alvo=extra.alvo;
+    if(alvo && alvo.w>0 && alvo.h>0 && (alvo.x!==b.x||alvo.y!==b.y||alvo.w!==b.w||alvo.h!==b.h)){
+      const rp=document.createElement('canvas'); rp.width=Math.max(1,Math.round(alvo.w)); rp.height=Math.max(1,Math.round(alvo.h));
+      rp.getContext('2d').drawImage(out, b.x-alvo.x, b.y-alvo.y);
+      return _dPsdDownscaleMaskURL(rp, Math.max(700, Math.min(1400, Math.max(rp.width, rp.height))));
+    }
     // Resolução ADAPTATIVA: a máscara é esticada de volta pro tamanho da caixa no render, então
     // 700px basta numa caixa pequena/média — mas num fundo de 1080²+ ela era ampliada ~1,5× e a
     // borda do recorte serrilhava. Acompanha o lado maior da caixa, teto 1400 (acima disso o
@@ -2767,7 +2777,8 @@ function dPsdParseItems(psd, res, ox, oy){
        a forma girada, apagava o balão inteiro (Deliversário V1: 74% → 93%). */
     const _pn=out[i]._psdNode;
     const _vecRedundante=out[i].kind==='raster' && _pn && _pn.vectorFill && _pn.canvas;
-    const _extra={ vecCanvas: _vecRedundante?null:out[i]._vecMaskCanvas };
+    const _extra={ vecCanvas: _vecRedundante?null:out[i]._vecMaskCanvas,
+      alvo:{x:Math.round(out[i].x+ox), y:Math.round(out[i].y+oy), w:Math.round(out[i].w), h:Math.round(out[i].h)} };
     let _m=null;
     if(out[i].clippingLayer){
       const baseIdx=_clipBaseIndex(i);
