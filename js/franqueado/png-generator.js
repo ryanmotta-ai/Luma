@@ -992,16 +992,25 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     // _spread(): canvas 2D não tem spread nativo. Traçar a MESMA forma com espessura 2×spread
     // engorda a silhueta que projeta a sombra — que é o que a "propagação" do PS faz.
     const _spread=(v)=>{ if(!(v>0))return; ctx.lineWidth=v*2*_sc; ctx.strokeStyle=_fill; ctx.stroke(); };
+    /* OPACIDADE DO PREENCHIMENTO (07/10/2026): atenua só o preenchimento-base; sombra, brilho,
+       sobreposições e traço seguem inteiros, como no Photoshop ("Glow" a 0% com brilho interno
+       virava um retângulo preto). Sombra e brilho aqui desenham a forma inteira para projetar —
+       com preenchimento < 100% a forma vai para fora do quadro e só a sombra volta. */
+    const _fo=(l.fillOpacity!=null && +l.fillOpacity<1)?Math.max(0,+l.fillOpacity):1;
+    const _soSombra=()=>{ if(_fo>=1) return; const m=ctx.getTransform(), k=Math.max(0.01,Math.hypot(m.a,m.b)),
+      D=(ctx.canvas.width+ctx.canvas.height)*4/k; ctx.translate(D,0);
+      ctx.shadowOffsetX-=m.a*D; ctx.shadowOffsetY-=m.b*D; };
     const _dropFx=_fxOf('dropShadow');
-    if(_dropFx.length)_dropFx.forEach(e=>{ctx.save();_trace();const o=gFxOffset(e.distance!=null?e.distance:4,e.angle);ctx.shadowColor=e.color||'rgba(0,0,0,.5)';ctx.shadowBlur=(e.blur!=null?e.blur:6)*_sc;ctx.shadowOffsetX=o.x*_sc;ctx.shadowOffsetY=o.y*_sc;const co=e.blendMode&&typeof dBlendToComposite==='function'?dBlendToComposite(e.blendMode):null;if(co)ctx.globalCompositeOperation=co;ctx.fillStyle=_fill;ctx.fill(_fillRule);_spread(e.spread);ctx.restore();});
+    if(_dropFx.length)_dropFx.forEach(e=>{ctx.save();_trace();const o=gFxOffset(e.distance!=null?e.distance:4,e.angle);ctx.shadowColor=e.color||'rgba(0,0,0,.5)';ctx.shadowBlur=(e.blur!=null?e.blur:6)*_sc;ctx.shadowOffsetX=o.x*_sc;ctx.shadowOffsetY=o.y*_sc;const co=e.blendMode&&typeof dBlendToComposite==='function'?dBlendToComposite(e.blendMode):null;if(co)ctx.globalCompositeOperation=co;if(_fo<1){_soSombra();_trace();}ctx.fillStyle=_fill;ctx.fill(_fillRule);_spread(e.spread);ctx.restore();});
     else if(l.shadow){ ctx.save(); _trace(); const o=gFxOffset(l.shadowDist!=null?l.shadowDist:4,l.shadowAngle);
       ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)'; ctx.shadowBlur=(l.shadowBlur!=null?l.shadowBlur:6)*_sc; ctx.shadowOffsetX=o.x*_sc; ctx.shadowOffsetY=o.y*_sc;
+      if(_fo<1){ _soSombra(); _trace(); }
       ctx.fillStyle=_fill; ctx.fill(_fillRule); _spread(l.shadowSpread); ctx.restore(); }
-    if(l.glow){ ctx.save(); _trace(); ctx.shadowColor=l.glowColor||'rgba(255,255,255,.7)'; ctx.shadowBlur=(l.glowSize!=null?l.glowSize:8)*_sc; ctx.fillStyle=_fill; ctx.fill(_fillRule); _spread(l.glowSpread); ctx.restore(); }
+    if(l.glow){ ctx.save(); _trace(); ctx.shadowColor=l.glowColor||'rgba(255,255,255,.7)'; ctx.shadowBlur=(l.glowSize!=null?l.glowSize:8)*_sc; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0; if(_fo<1){ _soSombra(); _trace(); } ctx.fillStyle=_fill; ctx.fill(_fillRule); _spread(l.glowSpread); ctx.restore(); }
     // 2) fill principal (gradiente/sólido) (+ overlays por cima). Closure p/ reusar no re-fill do
     // traçado 'outside' (senão o re-fill simples apagava o gradientOverlay/overlay).
     const _paintFill=()=>{
-      _trace(); ctx.fillStyle=_fillStyle; ctx.fill(_fillRule);
+      if(_fo>0){ _trace(); ctx.save(); ctx.globalAlpha*=_fo; ctx.fillStyle=_fillStyle; ctx.fill(_fillRule); ctx.restore(); }
       const gos=_fxOf('gradientOverlay'),cos=_fxOf('colorOverlay');
       if(gos.length&&typeof gGradientCanvas==='function')gos.forEach(e=>{const g=e.gradient;if(!g||!g.stops||!g.stops.length)return;_trace();ctx.save();ctx.globalAlpha*=g.opacity!=null?g.opacity:1;const co=e.blendMode&&typeof dBlendToComposite==='function'?dBlendToComposite(e.blendMode):null;if(co)ctx.globalCompositeOperation=co;ctx.fillStyle=gGradientCanvas(ctx,g,x,y,w,h);ctx.fill(_fillRule);ctx.restore();});
       else if(l.gradientOverlay && l.gradientOverlay.stops && l.gradientOverlay.stops.length && typeof gGradientCanvas==='function'){ // gradient overlay
@@ -1022,7 +1031,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     if(l.bevel){ const o=gFxOffset(l.bevelSize!=null?l.bevelSize:4,l.bevelAngle), b=l.bevelSize!=null?l.bevelSize:4;
       _innerStroke(l.bevelHighlight||'rgba(255,255,255,.7)', b, o); _innerStroke(l.bevelShadow||'rgba(0,0,0,.5)', b, {x:-o.x,y:-o.y}); }
     // 4) traçado com alinhamento (inside/center/outside) + dash/cap/join
-    const _strokeOne=(sw,col,a,op,bm)=>{_trace();ctx.save();ctx.globalAlpha*=op!=null?op:1;const co=bm&&typeof dBlendToComposite==='function'?dBlendToComposite(bm):null;if(co)ctx.globalCompositeOperation=co;ctx.lineWidth=Math.max(1,sw*_sc)*(a==='center'?1:2);ctx.strokeStyle=col||'#000';ctx.lineJoin=l.strokeJoin||'round';ctx.lineCap=l.strokeCap||'butt';if(l.strokeDash&&l.strokeDash.length)ctx.setLineDash(l.strokeDash.map(d=>d*_sc));else ctx.setLineDash([]);if(a==='inside'){ctx.clip(_fillRule);ctx.stroke();}else ctx.stroke();ctx.restore();return a==='outside';};
+    const _strokeOne=(sw,col,a,op,bm)=>{_trace();ctx.save();ctx.globalAlpha*=op!=null?op:1;const co=bm&&typeof dBlendToComposite==='function'?dBlendToComposite(bm):null;if(co)ctx.globalCompositeOperation=co;ctx.lineWidth=Math.max(1,sw*_sc)*(a==='center'?1:2);ctx.strokeStyle=col||'#000';ctx.lineJoin=l.strokeJoin||'round';ctx.lineCap=l.strokeCap||'butt';if(l.strokeDash&&l.strokeDash.length)ctx.setLineDash(l.strokeDash.map(d=>d*_sc));else ctx.setLineDash([]);if(a==='inside'){ctx.clip(_fillRule);ctx.stroke();}else if(a==='outside'&&_fo<1){/* preenchimento atenuado: o re-preenchimento não cobre a metade interna — recorta fora da forma */ctx.rect(-1e5,-1e5,2e5,2e5);ctx.clip('evenodd');_trace();ctx.stroke();}else ctx.stroke();ctx.restore();return a==='outside'&&_fo>=1;};
     const _strokeFx=_fxOf('stroke');
     let _refill=false;
     if(_strokeFx.length){
@@ -1032,7 +1041,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       const outside=_strokeFx.filter(e=>(e.align||'outside')==='outside').slice().sort((a,b)=>(b.width||1)-(a.width||1));
       const front=_strokeFx.filter(e=>(e.align||'outside')!=='outside');
       outside.forEach(e=>{_strokeOne(e.width||1,e.color,'outside',e.opacity,e.blendMode);});
-      if(outside.length)_paintFill();
+      if(outside.length&&_fo>=1)_paintFill();
       front.forEach(e=>{_strokeOne(e.width||1,e.color,e.align||'inside',e.opacity,e.blendMode);});
     }
     else if(l.strokeW>0)_refill=_strokeOne(l.strokeW,l.strokeColor||'#000',l.strokeAlign||'inside',1,null);
@@ -1100,6 +1109,22 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     // Brilho externo (outer glow) do texto — halo atrás dos glifos. Antes só shape tinha glow no PNG.
     const _glowColor = l.glow ? (l.glowColor||'rgba(255,255,255,.7)') : null;
     const _glowBlur  = l.glow ? (l.glowSize!=null?l.glowSize:Math.max(2,(l.fontSize||24)*0.25))*_scTxt : 0;
+    /* OPACIDADE DO PREENCHIMENTO (07/10/2026) — o "Preenchimento" do Photoshop: atenua só o
+       glifo; traço, brilho e sombra seguem inteiros ("GRÁTIS" só contorno, preenchimento 0%).
+       No canvas a sombra herda o alfa do glifo, então brilho/sombra saem por um passe só de
+       efeito: o glifo é desenhado fora do quadro e a sombra volta pelo deslocamento (convertido
+       pela matriz atual — vale com rotação e escala). Com 100% nada disto roda. */
+    const _fo = (l.fillOpacity!=null && +l.fillOpacity<1) ? Math.max(0,+l.fillOpacity) : 1;
+    const _soEfeito=(txt,px,py,cor,blur,ox,oy)=>{
+      const m=ctx.getTransform(), k=Math.max(0.01,Math.hypot(m.a,m.b)), D=(ctx.canvas.width+ctx.canvas.height)*4/k;
+      ctx.save(); ctx.fillStyle='#000'; ctx.shadowColor=cor; ctx.shadowBlur=blur;
+      ctx.shadowOffsetX=ox-m.a*D; ctx.shadowOffsetY=oy-m.b*D; ctx.fillText(txt,px+D,py); ctx.restore();
+    };
+    const _pintaAtenuado=(txt,px,py)=>{
+      if(_glowColor) _soEfeito(txt,px,py,_glowColor,_glowBlur,0,0);
+      if(l.shadow) _soEfeito(txt,px,py,l.shadowColor||'rgba(0,0,0,.5)',_shBlur,_shOff.x,_shOff.y);
+      if(_fo>0){ const ga=ctx.globalAlpha; ctx.globalAlpha=ga*_fo; ctx.fillText(txt,px,py); ctx.globalAlpha=ga; }
+    };
 
     // Runs estáticos só valem para texto fixo. Se uma camada rica antiga foi vinculada depois
     // a um campo, o valor do franqueado vence os trechos do PSD que ficaram salvos nela.
@@ -1170,10 +1195,12 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
           ctx.letterSpacing=s.ls?(s.ls*_scTxt)+'px':'0px';
           ctx.fillStyle=s.color||_txtColor;
           const baselineOffset = (s.yOffset || 0) * _scTxt;
+          if(_fo<1) _pintaAtenuado(s.t, tx, baseline + baselineOffset); else {
           if(_glowColor){ ctx.save(); ctx.shadowColor=_glowColor; ctx.shadowBlur=_glowBlur; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0; ctx.fillText(s.t, tx, baseline + baselineOffset); ctx.restore(); }
           if(l.shadow){ ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)'; ctx.shadowBlur=_shBlur; ctx.shadowOffsetX=_shOff.x; ctx.shadowOffsetY=_shOff.y; }
           ctx.fillText(s.t, tx, baseline + baselineOffset);
           if(l.shadow){ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;}
+          }
           if(l.strokeW>0){ ctx.lineWidth=Math.max(1,l.strokeW*_scTxt); ctx.strokeStyle=l.strokeColor||'#000'; ctx.lineJoin='round'; ctx.strokeText(s.t, tx, baseline + baselineOffset); }
           tx+=s.ww;
         });
@@ -1240,6 +1267,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
           } else {
             ctx.letterSpacing = '0px';
           }
+          if(_fo<1) _pintaAtenuado(char, tx, cy); else {
           if(_glowColor){ ctx.save(); ctx.shadowColor=_glowColor; ctx.shadowBlur=_glowBlur; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0; ctx.fillText(char, tx, cy); ctx.restore(); }
           if(l.shadow){
             ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)';
@@ -1247,6 +1275,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
           }
           ctx.fillText(char, tx, cy);
           if(l.shadow){ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;}
+          }
           if(l.strokeW>0){
             ctx.lineWidth=Math.max(1, l.strokeW*Math.min(scaleX,scaleY));
             ctx.strokeStyle=l.strokeColor||'#000';
@@ -1354,6 +1383,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
         const _segs = _just ? _fJustifySegs(ctx, line, tx, w - innerPad*2, i === lines.length-1) : null;
         // Uma passada de pintura, reaproveitada pelo texto inteiro ou por palavra.
         const pintar = (txt, px) => {
+          if(_fo<1) _pintaAtenuado(txt, px, ty); else {
           if(_glowColor){ ctx.save(); ctx.shadowColor=_glowColor; ctx.shadowBlur=_glowBlur; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0; ctx.fillText(txt, px, ty); ctx.restore(); }
           if(l.shadow){
             ctx.shadowColor=l.shadowColor||'rgba(0,0,0,.5)';
@@ -1361,6 +1391,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
           }
           ctx.fillText(txt, px, ty);
           if(l.shadow){ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;}
+          }
           if(l.strokeW>0){
             ctx.lineWidth=Math.max(1, l.strokeW*Math.min(scaleX,scaleY));
             ctx.strokeStyle=l.strokeColor||'#000';
@@ -1427,7 +1458,10 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       || (l.gradientOverlay && l.gradientOverlay.stops && l.gradientOverlay.stops.length)
       || _fxTipo('gradientOverlay').length);
     const _temTraco = l.strokeW > 0 && !l.strokeDash;
-    const _temFxImg = _temSombra || _temGlow || _temOvl || _temTraco;
+    // Preenchimento < 100% só é dado separado quando há efeito (sem efeito o importador já o
+    // dobrou na opacidade): o conteúdo atenua, o efeito sai da silhueta cheia.
+    const _foImg = (l.fillOpacity!=null && +l.fillOpacity<1) ? Math.max(0,+l.fillOpacity) : 1;
+    const _temFxImg = _temSombra || _temGlow || _temOvl || _temTraco || _foImg<1;
     if(imgSource){
       try {
         const img = await fLoadImageDataUrl(imgSource);
@@ -1501,15 +1535,24 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
             else if(l.overlay && l.overlayColor) _ovl(gFxRgba(l.overlayColor, l.overlayOpacity!=null?l.overlayOpacity:1));
             // Contorno ANTES da sombra: no Photoshop a sombra é projetada pela camada já com o
             // traço — a silhueta do offscreen passa a incluí-lo.
+            // Silhueta CHEIA guardada antes de atenuar o conteúdo: é dela que traço e sombra saem.
+            let _silCheia=null;
+            if(_foImg<1){ _silCheia=document.createElement('canvas'); _silCheia.width=oc.width; _silCheia.height=oc.height; _silCheia.getContext('2d').drawImage(oc,0,0); }
+            const _atenua=()=>{ if(_foImg>=1) return; octx.save(); octx.setTransform(1,0,0,1,0,0);
+              octx.globalCompositeOperation='destination-in'; octx.fillStyle='rgba(0,0,0,'+_foImg+')';
+              octx.fillRect(0,0,oc.width,oc.height); octx.restore(); };
+            if(!_temTraco) _atenua();
             if(_temTraco){
               const _gira=!!(_tf.b||_tf.c); // girada: a caixa em dispositivo não é retângulo alinhado → mede o quadro todo
               const _c=_fContornoSilhueta(oc,_gira?{x:0,y:0,w:oc.width,h:oc.height}:{x:x*_tf.a+(_tf.e||0), y:y*_tf.d+(_tf.f||0), w:w*_tf.a, h:h*_tf.d},
                 l.strokeW*Math.min(scaleX,scaleY)*_tfS, l.strokeAlign||'outside', l.strokeColor||'#000');
+              _atenua(); // depois de medir a borda pela silhueta cheia, antes de pintar o traço
               if(_c){
                 octx.save(); octx.setTransform(1,0,0,1,0,0);
-                if(_c.dentro){ octx.globalCompositeOperation='source-atop'; octx.drawImage(_c.dentro,_c.x,_c.y); }
+                if(_c.dentro){ octx.globalCompositeOperation=_foImg<1?'source-over':'source-atop'; octx.drawImage(_c.dentro,_c.x,_c.y); }
                 if(_c.fora){ octx.globalCompositeOperation='destination-over'; octx.drawImage(_c.fora,_c.x,_c.y); }
                 octx.restore();
+                if(_silCheia){ const sx=_silCheia.getContext('2d'); if(_c.fora) sx.drawImage(_c.fora,_c.x,_c.y); }
               }
             }
             /* Sombra/brilho projetados pela silhueta, com knockout. `sh` recebe a silhueta COM
@@ -1517,7 +1560,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
                que é o que vai ATRÁS do conteúdo. Sem o knockout, uma silhueta chapada na cor da
                sombra apareceria sob as bordas semitransparentes do recorte. */
             const _projeta=(cor,blur,off,bm)=>{
-              const sil=_fSilhuetaSolida(oc,cor);
+              const sil=_fSilhuetaSolida(_silCheia||oc,cor);
               const sh=document.createElement('canvas'); sh.width=oc.width; sh.height=oc.height;
               const shx=sh.getContext('2d');
               shx.shadowColor=cor; shx.shadowBlur=(blur||0)*_tfS*Math.min(scaleX,scaleY);

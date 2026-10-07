@@ -687,7 +687,9 @@ function dSvgShape(l){
     const r=Math.min(l.radius||0, l.w/2, l.h/2);
     return `<rect x="${l.x}" y="${l.y}" width="${l.w}" height="${l.h}" rx="${r}" ry="${r}" ${extra}/>`;
   };
-  const fillAttr=`fill="${fill}" fill-opacity="${totalOp}"`;
+  // Opacidade do preenchimento: só o fill atenua; traço e efeitos (filtro) seguem inteiros.
+  const _foSvg=(l.fillOpacity!=null&&+l.fillOpacity<1)?Math.max(0,+l.fillOpacity):1;
+  const fillAttr=`fill="${fill}" fill-opacity="${_foSvg<1?(+totalOp*_foSvg).toFixed(3):totalOp}"`;
   // Decoração do traço (dash/cap/join) — comum a todos os alinhamentos.
   let strokeDeco='';
   if(l.strokeDash&&l.strokeDash.length) strokeDeco+=` stroke-dasharray="${l.strokeDash.join(' ')}"`;
@@ -737,6 +739,7 @@ function dSvgText(l, mctx, fillVars, dados, defaults){
   const _tc=dSvgColor(l.color||'#ffffff');
   let fill=_tc.fill, op=_tc.op;
   if(l.overlay&&l.overlayColor){ fill=dSvgColor(l.overlayColor).fill; op=(l.overlayOpacity!=null?+l.overlayOpacity:1); } // color overlay
+  if(l.fillOpacity!=null&&+l.fillOpacity<1) op*=Math.max(0,+l.fillOpacity); // preenchimento atenuado; o traço não
   // gradiente no texto: def embutido + fill=url(#id)
   let gradDef='';
   if(l.gradient&&l.gradient.stops&&l.gradient.stops.length&&typeof gGradientSvg==='function'){

@@ -235,6 +235,16 @@
     assert(L.w-2*Math.round(L.fontSize*0.08)===500,'largura útil diferente da caixa do Photoshop');
   });
 
+  /* Caso REAL (Entrega Grátis "Prancheta 3", Jovi "Lamina 4"): prancheta oculta no Photoshop não
+     entra no composto — o recorte era branco e o selo acusava 13%. */
+  test('prancheta oculta não tem nota e começa fora do import',()=>{
+    const bs=_dPsdBuildBoards([
+      {name:'Visível',artboard:{rect:{left:0,top:0,right:100,bottom:100}},children:[]},
+      {name:'Rascunho',hidden:true,artboard:{rect:{left:200,top:0,right:300,bottom:100}},children:[]}]);
+    assert(bs[0].selected && bs[0].ref===undefined,'prancheta visível perdeu a seleção ou a referência');
+    assert(!bs[1].selected && bs[1].ref===null && bs[1].oculta,'prancheta oculta entrou no import ou ganhou referência');
+  });
+
   test('prancheta fora do composto não vira nota de fidelidade',()=>{
     const doc=document.createElement('canvas'); doc.width=200; doc.height=100;
     assert(_dPsdRefCanvas(doc,0,0,100,100)!==null,'prancheta inteira dentro do documento perdeu a referência');
@@ -331,16 +341,16 @@
     assert(cap.motivos.length===0,'motivo inventado numa camada sem perda');
   });
 
-  test('fillOpacity com efeito é decidido UMA vez, no estágio, não na conversão',()=>{
-    // A mesma regra existia em dois lugares (bloco _fxUnsup e dItemToLayer) e mutava o item
-    // durante a conversão — a prévia da revisão alterava o estado que o import leria depois.
+  test('fillOpacity com efeito vira canal próprio da camada, sem pixel',()=>{
+    // Desde 07/10/2026 o motor atenua só o preenchimento e desenha os efeitos inteiros. Antes
+    // virava pixel do ag-psd — que IGNORA o preenchimento ("GRÁTIS" só contorno saía sólido).
     const comFx={n:1,name:'Placa',kind:'shape',mode:'shape',x:0,y:0,w:100,h:40,visible:true,
       opacity:100,fillOpacity:0.2,shadow:true,shadowColor:'rgba(0,0,0,.5)',fill:'#FF9000'};
     const cap=_dPsdCapItem(comFx);
-    assert(cap.raster===true,'fillOpacity + efeito deixou de exigir raster fiel');
-    assert(cap.motivos.some(m=>m.code==='fill_opacity_with_fx'),'a regra do fillOpacity perdeu o nome');
+    assert(cap.raster===false,'fillOpacity + efeito ainda força pixel');
+    assert(!cap.motivos.some(m=>m.code==='fill_opacity_with_fx'),'fillOpacity + efeito ainda avisado como perda');
     const L1=dItemToLayer(comFx);
-    assert(L1.opacity===100,'a opacidade foi dobrada num caso que o modelo não representa');
+    assert(L1.opacity===100 && L1.fillOpacity===0.2,'o preenchimento não virou canal próprio (op '+L1.opacity+', fill '+L1.fillOpacity+')');
     // Sem efeito, dobrar os dois canais num só é equivalência exata — e continua acontecendo.
     const semFx={n:2,name:'Placa',kind:'shape',mode:'shape',x:0,y:0,w:100,h:40,visible:true,
       opacity:100,fillOpacity:0.5,fill:'#FF9000'};

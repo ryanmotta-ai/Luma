@@ -1284,6 +1284,7 @@ function dPsdDetectFmt(w, h){
 // aqui não queremos forçar uma prancheta 1080×1350 a virar 'feed' (1080×1080).
 function _dPsdExactFmt(w, h){
   const _tol=2;
+  if(typeof DFMT_SIZES==='undefined') return 'orig'; // catálogo de formatos mora em templates.js
   return Object.keys(DFMT_SIZES).find(k=>Math.abs(DFMT_SIZES[k].w-w)<=_tol&&Math.abs(DFMT_SIZES[k].h-h)<=_tol)||'orig';
 }
 
@@ -1792,7 +1793,9 @@ function _dPsdCapItem(it){
   /* fillOpacity ≠ opacity: o Photoshop atenua só o preenchimento, não os efeitos. Sem efeito a
      conversão dobra os dois num canal (equivalente exato); COM efeito não é representável.
      Esta era a regra escrita duas vezes — aqui e em `dItemToLayer` — que agora tem um dono. */
-  if(it.fillOpacity!=null && it.fillOpacity<1 && _fx) _dPsdCapMarca(cap,'fill_opacity_with_fx');
+  // `fill_opacity_with_fx` deixou de ser perda em 07/10/2026: o preenchimento atenuado com os
+  // efeitos inteiros é desenhado pelo motor (fillOpacity na camada). O código fica na tabela
+  // para itens antigos.
   /* ── perdas conhecidas que o pixel também não resolve: registra, não rasteriza ── */
   if(it.fxSatin) _dPsdCapMarca(cap,'fx_satin');
   if(it.fxContour) _dPsdCapMarca(cap,'fx_contour');
@@ -2909,8 +2912,12 @@ function dItemToLayer(it){
      conversão — o que fazia a prévia da revisão (que chama `dItemToLayer`) alterar o estado
      que o import leria depois. Agora quem decide é `_dPsdCapItem` (motivo
      `fill_opacity_with_fx`), no estágio de capacidade, uma vez por camada. */
-  if(it.fillOpacity!=null && it.fillOpacity<1 && !_dPsdCapTem(it,'fill_opacity_with_fx')){
-    base.opacity=Math.round((it.opacity!=null?it.opacity:100)*it.fillOpacity);
+  if(it.fillOpacity!=null && it.fillOpacity<1){
+    /* Com efeito, o preenchimento é um canal próprio (o motor atenua o glifo/forma/pixel e
+       desenha traço, brilho e sombra inteiros) — "GRÁTIS" só contorno, preenchimento 0%. */
+    const _fx=it.shadow||it.innerShadow||it.glow||it.innerGlow||it.bevel||it.overlay||it.gradientOverlay||it.strokeW||it.layerEffects;
+    if(_fx) base.fillOpacity=it.fillOpacity;
+    else base.opacity=Math.round((it.opacity!=null?it.opacity:100)*it.fillOpacity);
   }
   if(it.mask) base.mask=it.mask;
   // Zona segura (assunto opaco da foto) — vale para moldura, imagem fiel e raster comum, então

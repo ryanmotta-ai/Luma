@@ -2265,8 +2265,12 @@ function _dPsdBuildBoards(artboards){
     const h=Math.max(1,Math.round((r.bottom||0)-(r.top||0)));
     return { name:(ab.name||('Prancheta '+(i+1))).toString().slice(0,48),
       w, h, left:Math.round(r.left||0), top:Math.round(r.top||0),
-      fmt:_dPsdExactFmt(w,h), invert:null, selected:true, layer:ab,
-      items:null, ref:undefined };
+      /* Prancheta OCULTA no Photoshop (07/10/2026): fica fora do composto do arquivo — o
+         recorte de referência saía branco e o selo dava "13%" a uma arte perfeita. Sem
+         referência não há nota. E começa fora do import: o designer a escondeu (rascunho,
+         variação descartada); a aba continua lá para quem quiser marcá-la. */
+      fmt:_dPsdExactFmt(w,h), invert:null, selected:!ab.hidden, layer:ab, oculta:!!ab.hidden,
+      items:null, ref:ab.hidden?null:undefined, vista:ab.hidden?null:undefined };
   });
 }
 // Recorta a referência de fidelidade de TODAS as pranchetas de uma vez e solta o composto
@@ -2404,7 +2408,7 @@ function _dPsdRenderBoards(){
         +' aria-label="Incluir a prancheta '+_dPsdEsc(b.name)+' no import">'
         +'<span class="psd-board-box" aria-hidden="true">'+_tick+'</span></label>'
         +'<span class="psd-board-tab-copy"><strong>'+_dPsdEsc(b.name)+'</strong>'
-        +'<small>'+b.w+' × '+b.h+'</small></span>'+_at+'</div>';
+        +'<small>'+b.w+' × '+b.h+(b.oculta?' · oculta no PS':'')+'</small></span>'+_at+'</div>';
     }).join('')
     +'</div>';
   // Popular o destino uma vez (as pastas não mudam com o modal aberto).

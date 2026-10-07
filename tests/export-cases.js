@@ -112,6 +112,30 @@
     assert(Math.abs(em90.cy-300)<6,'o giro não foi em torno do centro da caixa (cy '+em90.cy+')');
   });
 
+  /* Opacidade do preenchimento (07/10/2026): "GRÁTIS" a 0% com traço = só contorno; forma a 0%
+     com brilho interno não pode virar retângulo preto. */
+  test('preenchimento 0% desenha só o efeito, em texto e em forma',async()=>{
+    const pinta=async(layer)=>{
+      const cv=document.createElement('canvas'); cv.width=400; cv.height=200;
+      const c=cv.getContext('2d'); window.fState={material:{w:400,h:200,layers:[],bg:'transparent'}};
+      await fRenderTemplateLayers(c,[layer],400,200,{},{color:'transparent'},{layers:[layer],w:400,h:200,bg:'transparent'},{});
+      return c.getImageData(0,0,400,200).data;
+    };
+    const a=(d,x,y)=>d[(y*400+x)*4+3];
+    const forma=await pinta({id:'f',type:'shape',shapeKind:'rect',x:100,y:50,w:200,h:100,fill:'#000',visible:true,opacity:100,
+      fillOpacity:0,strokeW:6,strokeColor:'#fff',strokeAlign:'outside'});
+    assert(a(forma,200,100)===0,'o miolo da forma a 0% foi pintado ('+a(forma,200,100)+')');
+    assert(a(forma,200,47)>200,'o traço externo sumiu junto com o preenchimento');
+    const meia=await pinta({id:'f',type:'shape',shapeKind:'rect',x:100,y:50,w:200,h:100,fill:'#000',visible:true,opacity:100,
+      fillOpacity:0.5,strokeW:6,strokeColor:'#fff',strokeAlign:'outside'});
+    assert(Math.abs(a(meia,200,100)-128)<6,'preenchimento a 50% não saiu pela metade ('+a(meia,200,100)+')');
+    const txt=await pinta({id:'t',type:'text',content:'IIIII',x:0,y:0,w:400,h:200,font:'Arial',fontSize:150,color:'#000',
+      textAlign:'center',vAlign:'top',visible:true,opacity:100,fillOpacity:0,strokeW:2,strokeColor:'#f00'});
+    let cheio=0,traco=0; for(let i=0;i<txt.length;i+=4){ if(txt[i+3]>200){ if(txt[i]>200) traco++; else cheio++; } }
+    assert(traco>50,'o contorno do texto sumiu com o preenchimento a 0%');
+    assert(cheio===0,'o glifo foi pintado com preenchimento a 0% ('+cheio+' px)');
+  });
+
   test('modo nativo exporta a prancheta no tamanho real',async()=>{
     const cv=await exportar({scale:1});
     assert(cv.width===1080&&cv.height===1350,

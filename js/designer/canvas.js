@@ -1104,7 +1104,10 @@ function dFxStrokeParts(l){
 }
 // Fundo do shape: gradiente (l.gradient) ou cor sólida, com color overlay por cima.
 function dFxShapeBg(l){
-  const base = (l.gradient && l.gradient.stops && l.gradient.stops.length) ? gGradientCss(l.gradient) : (l.fill||'#FF9000');
+  // Opacidade do preenchimento: só a cor-base atenua; sobreposições e traço seguem inteiros.
+  const _fo=(l.fillOpacity!=null&&+l.fillOpacity<1)?Math.max(0,+l.fillOpacity):1;
+  const base = (l.gradient && l.gradient.stops && l.gradient.stops.length) ? gGradientCss(l.gradient)
+    : (_fo<1 ? gFxRgba(l.fill||'#FF9000',_fo) : (l.fill||'#FF9000'));
   const layers=[];
   const stack=Array.isArray(l.layerEffects)?l.layerEffects:[],gos=stack.filter(e=>e&&e.type==='gradientOverlay'),cos=stack.filter(e=>e&&e.type==='colorOverlay');
   if(gos.length)gos.forEach(e=>{const g=e.gradient?JSON.parse(JSON.stringify(e.gradient)):null;if(!g||!g.stops||!g.stops.length)return;if(g.opacity!=null&&g.opacity<1)g.stops=g.stops.map(s=>({color:s.color,pos:s.pos,opacity:(s.opacity!=null?s.opacity:1)*g.opacity}));layers.push(gGradientCss(g));});
@@ -1357,6 +1360,9 @@ function dRenderCanvas(){
       const _fs=_renderFs;
       if(l.bg){textNode.style.background=l.bgColor||'#000';textNode.style.borderRadius=Math.round(_fs*0.2)+'px';}
       if(l.strokeW>0){const sv=l.strokeW+'px '+(l.strokeColor||'#000');textNode.style.webkitTextStroke=sv;textNode.style.textStroke=sv;}
+      // Opacidade do preenchimento: o glifo atenua, o traço e a sombra não (o "GRÁTIS" só contorno).
+      if(l.fillOpacity!=null&&+l.fillOpacity<1&&!(l.gradient&&l.gradient.stops&&l.gradient.stops.length))
+        textNode.style.webkitTextFillColor=gFxRgba(l.color||'#ffffff',Math.max(0,+l.fillOpacity));
       // Sombra projetada + glow (texto). Sem blur/dist explícitos → mantém o default antigo (fs-based).
       {
         const _ts=[];
