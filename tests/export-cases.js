@@ -136,6 +136,19 @@
     assert(cheio===0,'o glifo foi pintado com preenchimento a 0% ('+cheio+' px)');
   });
 
+  /* Brilho/Contraste MODERNO (07/10/2026), medido num PSD real (+21/−10, média 127): o fundo
+     38/87/182 vira 44/99/199 no Photoshop. A fórmula legada dava 92/123/185. */
+  test('brilho/contraste moderno segue o Photoshop, não a fórmula legada',()=>{
+    const px=v=>{const id=new ImageData(1,1);id.data.set([v,v,v,255]);return id;};
+    const aj={type:'brightness/contrast',brightness:21,contrast:-10,meanValue:127,useLegacy:false};
+    [[38,44],[87,99],[182,199]].forEach(([de,ps])=>{
+      const v=fAdjustImageData(px(de),aj).data[0];
+      assert(Math.abs(v-ps)<=8,de+' deveria virar ~'+ps+' (Photoshop), virou '+v);
+    });
+    const leg=fAdjustImageData(px(38),Object.assign({},aj,{useLegacy:true})).data[0];
+    assert(leg>80,'o modo legado mudou ('+leg+') — ele continua com a fórmula antiga');
+  });
+
   test('modo nativo exporta a prancheta no tamanho real',async()=>{
     const cv=await exportar({scale:1});
     assert(cv.width===1080&&cv.height===1350,

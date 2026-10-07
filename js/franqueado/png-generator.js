@@ -477,7 +477,17 @@ function fAdjustImageData(id, adj){
   const hslToRgb=(h,s,l)=>{if(!s){const v=l*255;return[v,v,v];}const q=l<.5?l*(1+s):l+s-l*s,p=2*l-q;return[hue(p,q,h+1/3)*255,hue(p,q,h)*255,hue(p,q,h-1/3)*255];};
   const makeLut=fn=>{const out=new Uint8ClampedArray(256);for(let v=0;v<256;v++)out[v]=clamp(fn(v));return out;};
   let lutR=null,lutG=null,lutB=null;
-  if(type==='brightness/contrast'){
+  if(type==='brightness/contrast' && adj.useLegacy===false){
+    /* Brilho/Contraste MODERNO (o padrão do Photoshop desde o CS3; 07/10/2026). A fórmula
+       legada acima clareava 8× demais: medido num PSD real (+21/−10), o fundo 38/87/182 vira
+       44/99/199 no Photoshop — um ganho quase linear, não um empurrão rumo ao branco. Brilho ≈
+       mover o ponto branco (multiplica), Contraste ≈ inclinação em torno da MÉDIA da imagem
+       (`meanValue`, que o próprio arquivo grava). Aproximação: o Photoshop não publica a curva. */
+    const b=clamp(+adj.brightness||0,-150,150), c=clamp(+adj.contrast||0,-50,100);
+    const ganho=b>=0?255/Math.max(1,255-0.9*b):(255+0.9*b)/255;
+    const piv=adj.meanValue!=null?clamp(+adj.meanValue):127.5, incl=c>=0?1+c/100:1+c/200;
+    const lut=makeLut(v=>(v*ganho-piv)*incl+piv);lutR=lutG=lutB=lut;
+  }else if(type==='brightness/contrast'){
     const br=clamp(+adj.brightness||0,-100,100)/100,ct=clamp(+adj.contrast||0,-99,99)/100;
     const lut=makeLut(v=>{v=br<0?v*(1+br):v+(255-v)*br;return(v-127.5)*((1+ct)/(1-ct))+127.5;});lutR=lutG=lutB=lut;
   }else if(type==='levels'){
