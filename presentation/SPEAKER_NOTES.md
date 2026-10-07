@@ -310,11 +310,12 @@
 
 ## 20 · Fechamento — "Uma marca no controle. Uma rede com autonomia."
 
-- **Objetivo:** fechar a tese e pedir o próximo passo.
+- **Objetivo:** fechar a tese e amarrar com o problema do começo.
 - **Frase de abertura:** "Uma marca no controle. Uma rede com autonomia."
-- **Discurso:** "[deixe o mural rodar um instante: são artes reais que o Luma gerou] Uma marca no controle. Uma
-  rede com autonomia. [avança] A V1 está pronta para o mundo real. [avança] O próximo passo é o beta com a rede."
-- **Ponto principal:** o pedido é o beta.
+- **Discurso:** "[deixe o mural rodar um instante] Uma marca no controle. Uma rede com autonomia. [avança] Cada arte
+  que está rodando aqui atrás saiu do Luma. [avança] Lá no começo eu falei que escalar a rede não deveria escalar
+  o retrabalho. É isso que o Luma entrega: escalar a rede, sem escalar o retrabalho. Obrigado."
+- **Ponto principal:** a tese do slide 2 virou produto, e o mural é a prova.
 - **Transição:** abra para perguntas. Tecle **G** para o apêndice.
 
 ---
