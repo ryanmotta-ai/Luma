@@ -1293,8 +1293,15 @@ function gCachePodar(map, teto){
   for(const k of map.keys()){ map.delete(k); if(--sobra <= 0) break; }
 }
 
+/* ESCALA HORIZONTAL DA LETRA (07/10/2026) — o "Escala horizontal" do painel Caractere do
+   Photoshop: a letra condensada/esticada num eixo só, sem mudar o corpo. `textScaleX` é fração
+   (1 = 100%). Toda MEDIDA de largura multiplica por ela (quebra, encaixe, Local Fit) e todo
+   DESENHO escala no eixo x ancorado no alinhamento — a mesma régua para medir e desenhar. */
+function gTextScaleX(l){ const s=+(l&&l.textScaleX); return (s>0.05&&s<20)?s:1; }
+
 function gMeasureLayerWidth(layer, text, ctxAux) {
   if (!layer || layer.type !== 'text') return layer.w || 0;
+  const _sx = gTextScaleX(layer);
 
   // Utiliza um canvas auxiliar para medir a largura do texto com fontes aplicadas
   const canvas = ctxAux ? ctxAux.canvas : document.createElement('canvas');
@@ -1310,11 +1317,11 @@ function gMeasureLayerWidth(layer, text, ctxAux) {
     const chave = fp.weight + '|' + fp.family + '|' + fontSize + '|' + ital
       + '|' + (layer.letterSpacing || 0) + '|' + (layer.fontWeightOverride || '') + '|' + String(text || '');
     const achou = _G_MEDIDA_CACHE.get(chave);
-    if (achou !== undefined) return achou;
+    if (achou !== undefined) return achou * _sx;
     const calc = _gMedirLarguraDireto(layer, text, ctx, fp, fontSize, ital);
     gCachePodar(_G_MEDIDA_CACHE, 4000);
     _G_MEDIDA_CACHE.set(chave, calc);
-    return calc;
+    return calc * _sx;
   }
 
   ctx.font = `${ital}${fp.weight} ${fontSize}px ${fp.family}`;
@@ -1331,10 +1338,10 @@ function gMeasureLayerWidth(layer, text, ctxAux) {
       ctx.letterSpacing = r.letterSpacing ? (r.letterSpacing) + 'px' : '0px';
       totalW += ctx.measureText(r.text || '').width;
     });
-    return totalW;
+    return totalW * _sx;
   }
   
-  return _gMedirLarguraDireto(layer, text, ctx, fp, fontSize, ital);
+  return _gMedirLarguraDireto(layer, text, ctx, fp, fontSize, ital) * _sx;
 }
 
 /* A medida em si, sem cache — a linha mais larga entre as quebras. Extraída para que o caminho
@@ -1785,7 +1792,7 @@ function _gFitTextCalc(layer, texto, ctxAux, opts) {
       altura+=maxFs*gLineHeightDe(l);
       textos.push(textoLinha);
     });
-    return {largura,altura,linhas:textos.filter(s=>s.trim()!=='')};
+    return {largura:largura*gTextScaleX(l),altura,linhas:textos.filter(s=>s.trim()!=='')};
   };
   /* Vertical também usa esta régua. Antes a cascata media como texto horizontal e o render
      executava outro auto-fit, por isso o solver e o PNG discordavam justamente nas artes
@@ -1815,7 +1822,7 @@ function _gFitTextCalc(layer, texto, ctxAux, opts) {
     if(runsMedida)return medirRuns().largura;
     aplicar(); let m = 0;
     for (const ln of linhas) { const w = ctx.measureText(ln).width; if (w > m) m = w; }
-    return m;
+    return m * gTextScaleX(l);
   };
   let maxL = medir();
 
@@ -2375,7 +2382,7 @@ function gSmartWrapText(text, maxW, layer, dados, defaults) {
     + '|' + ((layer && layer.font) || '') + '|' + ((layer && layer.fontSize) || 0)
     + '|' + ((layer && layer.letterSpacing) || 0) + '|' + ((layer && layer.italic) ? 1 : 0)
     + '|' + ((layer && layer.fontWeightOverride) || '') + '|' + ((layer && layer.textTransform) || '') + '|' + Math.round(maxW || 0)
-    + '|' + ((layer && layer.content) || '') + '|' + text;
+    + '|' + ((layer && layer.content) || '') + '|' + gTextScaleX(layer) + '|' + text;
   const _memo = _G_MEDIDA_CACHE.get('W' + _chaveWrap);
   if (_memo !== undefined) return _memo;
   const _guardar = (r) => {

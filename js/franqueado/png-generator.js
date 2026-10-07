@@ -1070,6 +1070,19 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     // a um campo, o valor do franqueado vence os trechos do PSD que ficaram salvos nela.
     const runsToUse = _vRuns;
 
+    /* Escala horizontal da letra (gTextScaleX, 00-config): a quebra e o encaixe acima já
+       mediram a linha escalada; aqui o desenho escala no eixo x, ancorado no alinhamento —
+       a borda (ou o centro) do bloco fica onde o designer pôs. O ctx.save do início da
+       camada desfaz a transformação. */
+    const _tsx = (typeof gTextScaleX==='function') ? gTextScaleX(l) : 1;
+    if(_tsx!==1){
+      // Âncora = o ponto exato onde a linha começa/termina: com o respiro de 0,08em no ramo
+      // simples, sem ele no multi-estilo. Ancorar na borda escalaria o respiro e a linha andaria.
+      const _padA = (runsToUse && runsToUse.length && !l.vertical) ? 0 : Math.round(fontSize*0.08);
+      const _ax = l.textAlign==='center' ? x+w/2 : l.textAlign==='right' ? x+w-_padA : x+_padA;
+      ctx.translate(_ax,0); ctx.scale(_tsx,1); ctx.translate(-_ax,0);
+    }
+
     // ── RICH TEXT (multi-estilo) — MULTILINHA, fiel ao editor (spans + <br> no DOM):
     // divide os trechos pelas quebras '\n' do PSD, mede cada linha, aplica textTransform,
     // ancora pelo topo (vAlign) ou centraliza o bloco. O render antigo desenhava tudo

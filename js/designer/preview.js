@@ -730,7 +730,8 @@ function dSvgText(l, mctx, fillVars, dados, defaults){
   const _pesoMed=l.fontWeightOverride||weight;
   mctx.font=`${l.italic?'italic ':''}${_pesoMed} ${fontSize}px ${fp.family}`;
   try{ mctx.letterSpacing = l.letterSpacing ? (l.letterSpacing+'px') : '0px'; }catch(e){}
-  let maxW=0; lines.forEach(ln=>{const w=mctx.measureText(ln).width;if(w>maxW)maxW=w;});
+  const _tsx=(typeof gTextScaleX==='function')?gTextScaleX(l):1; // letra condensada: mede escalada
+  let maxW=0; lines.forEach(ln=>{const w=mctx.measureText(ln).width*_tsx;if(w>maxW)maxW=w;});
   const innerPad=Math.round(fontSize*0.08);
 
   const _tc=dSvgColor(l.color||'#ffffff');
@@ -920,7 +921,11 @@ async function dExportSVG(opts){
     if(fillVars&&l.type==='text'&&typeof gAllVarsEmpty==='function'&&gAllVarsEmpty(l.content,dados,defaults)) continue;
     let frag='';
     if(l.type==='shape') frag=dSvgShape(l);
-    else if(l.type==='text') frag=dSvgText(l, mctx, fillVars, dados, defaults);
+    else if(l.type==='text'){ frag=dSvgText(l, mctx, fillVars, dados, defaults);
+      // Escala horizontal da letra: o mesmo eixo x ancorado no alinhamento que o Canvas usa.
+      const _sx=(typeof gTextScaleX==='function')?gTextScaleX(l):1;
+      if(frag && _sx!==1){ const ax=l.textAlign==='center'?l.x+l.w/2:l.textAlign==='right'?l.x+l.w:l.x;
+        frag=`<g transform="translate(${ax} 0) scale(${_sx} 1) translate(${-ax} 0)">${frag}</g>`; } }
     else if(l.type==='frame'||l.type==='image'){ const r=dSvgImage(l, dados, ++cid); defs+=r.defs; frag=r.body; }
     // Efeitos (sombra projetada/interna, brilho ext/int, chanfro) via <filter>
     if(frag && (l.shadow||l.glow||l.innerShadow||l.innerGlow||l.bevel||_dSvgTracoImg(l))){ const fx=dSvgFx(l, ++cid); if(fx.attr){ defs+=fx.defs; frag=`<g${fx.attr}>${frag}</g>`; } }

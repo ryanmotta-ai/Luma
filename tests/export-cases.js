@@ -55,6 +55,27 @@
     assert(a(centro.fora,30-centro.x,16-centro.y)===0,'centro com 4px não passa de 2px por fora');
   });
 
+  /* Escala horizontal da letra (07/10/2026): o mesmo texto a 50% tem que DESENHAR com metade
+     da largura, ancorado à esquerda — a medida (gTextScaleX) e o desenho são a mesma régua. */
+  test('textScaleX desenha a letra condensada, ancorada no alinhamento',async()=>{
+    const tinta=async(sx,align)=>{
+      const cv=document.createElement('canvas'); cv.width=800; cv.height=200;
+      const c=cv.getContext('2d');
+      window.fState={material:{w:800,h:200,layers:[]}};
+      await fRenderTemplateLayers(c,[{id:'t',type:'text',content:'MMMMMMMM',x:0,y:0,w:800,h:200,font:'Arial',
+        fontSize:80,color:'#000',textAlign:align,vAlign:'top',visible:true,opacity:100,textScaleX:sx}],800,200,{},{color:'#fff'},null,{});
+      const d=c.getImageData(0,0,800,200).data; let x0=800,x1=-1;
+      for(let y=0;y<200;y++)for(let x=0;x<800;x++){ if(d[(y*800+x)*4]<100){ if(x<x0)x0=x; if(x>x1)x1=x; } /* tinta preta: o fundo da campanha pinta o quadro todo */ }
+      return {x0,x1,w:x1-x0};
+    };
+    const cheio=await tinta(1,'left'), meio=await tinta(0.5,'left');
+    assert(cheio.w>100,'o texto de referência não foi desenhado');
+    assert(Math.abs(meio.w/cheio.w-0.5)<0.06,'a 50% a tinta deveria ter metade da largura ('+(meio.w/cheio.w).toFixed(2)+')');
+    assert(Math.abs(meio.x0-cheio.x0)<4,'alinhado à esquerda, o início da linha não pode andar');
+    const dir1=await tinta(1,'right'), dir5=await tinta(0.5,'right');
+    assert(Math.abs(dir1.x1-dir5.x1)<4,'alinhado à direita, o fim da linha não pode andar');
+  });
+
   test('modo nativo exporta a prancheta no tamanho real',async()=>{
     const cv=await exportar({scale:1});
     assert(cv.width===1080&&cv.height===1350,

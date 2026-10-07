@@ -1787,7 +1787,7 @@ function _dPsdCapItem(it){
   if(it.multiStyle) _dPsdCapMarca(cap,'text_multi_style');
   if(it.textJustifyAll) _dPsdCapMarca(cap,'text_justify_all');
   if(it.textBoxApprox) _dPsdCapMarca(cap,'text_box_approx');
-  if(it.textScaleRazao) _dPsdCapMarca(cap,'text_scale_nao_unif', it.textScaleRazao+'% na horizontal');
+  // text_scale_nao_unif deixou de ser perda em 07/10/2026: a letra condensada vira `textScaleX`.
   if(it.fontSizeEstimado) _dPsdCapMarca(cap,'text_size_estimado');
   if(it.vectorMaskFailed) _dPsdCapMarca(cap,'vector_mask_failed');
   /* Fonte: quatro estados, quatro consequências diferentes de fidelidade. Registrar o estado
@@ -2376,8 +2376,8 @@ function dPsdParseItems(psd, res, ox, oy){
         /* ESCALA NÃO UNIFORME (§6): o painel Caractere do Photoshop condensa ou estica a letra
            num eixo só, e o modelo do Luma tem UM corpo de fonte — não há como representar
            `sx≠sy` sem uma transformação de texto que não existe. O corpo segue o eixo VERTICAL
-           (é ele que define a altura da letra) e o estiramento horizontal fica registrado como
-           perda conhecida, com o número. ⛔ Não se compensa mexendo em tracking: tracking
+           (é ele que define a altura da letra) e o estiramento horizontal vira `textScaleX`
+           (gTextScaleX, 00-config) — desde 07/10/2026 os três renderizadores o desenham. ⛔ Não se compensa mexendo em tracking: tracking
            afasta letras, escala horizontal DEFORMA o glifo — são coisas diferentes. */
         if(!_tm.escala.uniforme){
           it.textScaleX=+( _tm.escala.razao.toFixed(4) );
@@ -2918,6 +2918,7 @@ function dItemToLayer(it){
     if(it.textBox==='box'){ L.textBox='box'; } // paragraph → editor encaixa na caixa
     if(it.vAlign) L.vAlign=it.vAlign;           // ancoragem vertical (top) importada do PSD
     if(it.italic) L.italic=true;                // font-style itálico
+    if(it.textScaleX && Math.abs(it.textScaleX-1)>0.01) L.textScaleX=it.textScaleX; // letra condensada/esticada
     if(it.letterSpacing!=null) L.letterSpacing=it.letterSpacing;
     if(it.lineHeight) L.lineHeight=it.lineHeight;
     if(it.runs && !isVar) L.runs=it.runs;       // texto multi-estilo (não p/ variável)

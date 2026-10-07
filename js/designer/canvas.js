@@ -1367,6 +1367,13 @@ function dRenderCanvas(){
         if(l.glow){ _ts.push(`0 0 ${(l.glowSize!=null?l.glowSize:_fs*0.3)}px ${l.glowColor||'rgba(255,255,255,.7)'}`); }
         if(_ts.length) textNode.style.textShadow=_ts.join(', ');
       }
+      // Escala horizontal da letra (gTextScaleX): o bloco nasce 1/sx mais largo e é escalado a
+      // partir do canto — depois da escala ocupa a caixa, e esquerda/centro/direita caem no lugar.
+      const _tsx=(typeof gTextScaleX==='function')?gTextScaleX(l):1;
+      if(_tsx!==1){
+        textNode.style.width=(100/_tsx)+'%'; textNode.style.transformOrigin='0 0';
+        textNode.style.transform=((textNode.style.transform||'')+' scaleX('+_tsx+')').trim();
+      }
       el.appendChild(textNode);
       // Indicador de overflow — mede com o tamanho EXIBIDO (_renderFs) e o TEXTO exibido:
       // simulação usa o valor real; edição usa o mesmo valor de exemplo que aparece no canvas

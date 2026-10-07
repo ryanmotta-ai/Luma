@@ -4776,7 +4776,7 @@ let dStyleClipboard = null;
 
 // Props visuais que fazem sentido copiar entre camadas do mesmo tipo
 const _DSTYLE_COMMON = ['opacity','blendMode','shadow','shadowColor','shadowBlur','shadowDist','shadowAngle','glow','glowColor','glowSize','innerShadow','innerShadowColor','innerShadowBlur','innerShadowDist','innerShadowAngle','bevel','bevelSize','bevelAngle','bevelHighlight','bevelShadow','innerGlow','innerGlowColor','innerGlowSize','overlay','overlayColor','overlayOpacity','strokeW','strokeColor','strokeAlign','strokeDash'];
-const _DSTYLE_TEXT = ['color','font','fontSize','fontWeightOverride','italic','textTransform','letterSpacing','lineHeight','textAlign','underline','strikethrough','bg','bgColor','gradient','vAlign','textCurve'];
+const _DSTYLE_TEXT = ['color','font','fontSize','fontWeightOverride','italic','textTransform','letterSpacing','textScaleX','lineHeight','textAlign','underline','strikethrough','bg','bgColor','gradient','vAlign','textCurve'];
 const _DSTYLE_SHAPE = ['fill','gradient','radius','radii'];
 
 function dCopyStyle(){

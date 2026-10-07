@@ -142,7 +142,8 @@ function dTextFitBox(l){
   const fs=l.fontSize||24, lh=l.lineHeight||1.2;
   // Infinity: point text não quebra por largura (render usa white-space:'pre') — mede a linha inteira.
   const m=dMeasureText(dTextDisplayString(l), l.font||"'Roboto Black'", fs, Infinity, lh, l.letterSpacing);
-  const nw=Math.max(24, Math.ceil(m.width));   // 24px de piso: texto vazio não vira sliver inclicável
+  const _sx=(typeof gTextScaleX==='function')?gTextScaleX(l):1; // letra condensada ocupa menos
+  const nw=Math.max(24, Math.ceil(m.width*_sx));   // 24px de piso: texto vazio não vira sliver inclicável
   const nh=Math.max(Math.ceil(fs*lh), Math.ceil(m.height));
   if(nw===l.w && nh===l.h) return false;
   const al=l.textAlign||'left';

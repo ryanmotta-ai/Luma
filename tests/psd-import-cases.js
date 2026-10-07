@@ -189,6 +189,20 @@
   /* Caso REAL (Deskfy Capas, "COCA-COLA" em Realce): o Luma desenha o texto a 0,08em da borda
      e quebra em `w − 2×0,08em`. A caixa do Photoshop, importada crua, perdia essa largura e o
      título que cabia justo quebrava em "COCA-COL / A". */
+  /* Caso REAL (Inapp Much+, "EI, MANDOU BEM!" condensado a 88%): antes virava aviso de perda e
+     o título saía 12% mais largo. Agora é recurso do Luma: a medida e o desenho escalam o x. */
+  test('letra condensada no Photoshop vira textScaleX, medida e desenhada',()=>{
+    const L=dItemToLayer({kind:'text',mode:'text',name:'T',content:'EI, MANDOU BEM!',font:"'Roboto'",
+      fontSize:100,color:'#fff',textAlign:'left',x:0,y:0,w:900,h:110,opacity:100,include:true,textScaleX:0.88});
+    assert(L.textScaleX===0.88,'a escala horizontal não chegou na camada');
+    const larga=gMeasureLayerWidth(Object.assign({},L,{textScaleX:1}),L.content);
+    const cond=gMeasureLayerWidth(L,L.content);
+    assert(Math.abs(cond/larga-0.88)<0.01,'a medida não acompanhou a letra condensada ('+(cond/larga).toFixed(3)+')');
+    const it={n:1,name:'T',kind:'text',mode:'text',x:0,y:0,w:10,h:10,textScaleRazao:88,textScaleX:0.88};
+    _dPsdCapItem(it);
+    assert(!it.capability.motivos.some(m=>m.code==='text_scale_nao_unif'),'letra condensada ainda avisada como perda');
+  });
+
   test('caixa de texto importada ganha o respiro do Luma sem mudar a posição do texto',()=>{
     const L=dItemToLayer({kind:'text',mode:'text',name:'T',content:'COCA-COLA',font:"'Roboto'",
       fontSize:100,color:'#fff',textAlign:'left',textBox:'box',x:200,y:50,w:500,h:110,opacity:100,include:true});
