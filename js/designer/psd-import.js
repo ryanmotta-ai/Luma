@@ -494,8 +494,10 @@ function dPsdUploadFont(layerIdx, input){
     const base=file.name.replace(/\.[^.]+$/,'');
     const family=(typeof dFontUniqueFamily==='function')?dFontUniqueFamily(base):base;
     // Peso inferido do nome do arquivo — registrar "Obviously-Black.woff2" como 400
-    // fazia o navegador sintetizar o peso errado no render.
-    const weight=/black|heavy|900/i.test(base)?900:/extra\s?bold|800/i.test(base)?800:/bold|700/i.test(base)?700:/medium|500/i.test(base)?500:/light|300/i.test(base)?300:400;
+    // fazia o navegador sintetizar o peso errado no render. A tabela é a do parser
+    // (`_dPsdFontFace`): a regex própria que vivia aqui lia SemiBold como 700.
+    const _face=(typeof _dPsdFontFace==='function')?_dPsdFontFace(base):null;
+    const weight=(_face&&_face.peso!=null)?_face.peso:400;
     const f={name:base,family,dataUrl:e.target.result,weight};
     if(typeof dCustomFonts!=='undefined') dCustomFonts.push(f);
     if(typeof dFontRegister==='function') dFontRegister(f);
@@ -514,6 +516,12 @@ function dPsdUploadFont(layerIdx, input){
         // selo para de anunciar uma diferença de peso que não existe mais.
         it.fontPesoUsado=weight; it.fontPesoPedido=weight;
         if(it.capability&&it.capability.motivos) it.capability.motivos=it.capability.motivos.filter(m=>m.code.indexOf('font_')!==0);
+        // Virou imagem só por falta da fonte? Com a fonte certa, volta a ser texto editável —
+        // a menos que o próprio designer tenha escolhido imagem.
+        if(it._rasterPorFonte){
+          if(it.mode==='raster' && it.varSource!=='user') it.mode='text';
+          it._defaultMode='text'; it._rasterPorFonte=false;
+        }
       }
       // Texto rico: remapeia também os trechos (runs) que usam a mesma fonte
       if(Array.isArray(it.runs)) it.runs.forEach(run=>{ if(run._fontName===fname) run.font=mapped; });
@@ -530,7 +538,7 @@ function dPsdUpdateCount(){
   const vars=dPsdItems.filter(it=>it.include&&!it.isMaskBase&&(it.mode==='var'||it.mode==='frame')).length;
   // "Pendente" = tudo que não é a fonte exata do Photoshop. Antes o casamento por prefixo
   // contava como resolvido, e o designer não sabia que a métrica ainda estava diferente.
-  const pendingFonts=dPsdItems.filter(it=>it.include&&it.kind==='text'&&it.fontName
+  const pendingFonts=dPsdItems.filter(it=>it.include&&it.kind==='text'&&it.mode!=='raster'&&it.fontName
     &&!/roboto/i.test(it.fontName)&&(it.fontStatus||(it.fontRemapped?'exact':'missing'))!=='exact').length;
   const c=document.getElementById('d-psd-count'); if(c) c.textContent=n+' camada'+(n===1?'':'s');
   const info=document.getElementById('d-psd-sel-info'); if(info) info.textContent=n+' de '+total+' selecionadas';

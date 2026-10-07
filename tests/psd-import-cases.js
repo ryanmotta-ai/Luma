@@ -1037,6 +1037,37 @@
     assert(b.aplicados===0&&!b.ambiguidades.length,'reprocessou a camada — trocar de aba reabriria pergunta já respondida');
   });
 
+  /* ══ TEXTO FIXO SEM A FONTE → PIXEL DO PHOTOSHOP (06/10/2026) ═══════════════════════════
+     Sem a fonte, texto vivo sai em Roboto e a arte parece quebrada. Texto que não é campo vira
+     a imagem fiel do Photoshop; campo continua vivo; com a fonte presente nada muda.        */
+  const _txtFonte=(name,fonte)=>({name,left:105,top:24,right:246,bottom:70,canvas:_mkCanvas('#fff'),
+    text:{text:'PEÇA JÁ',shapeType:'box',transform:[1,0,0,1,100,20],boxBounds:{left:0,top:0,right:300,bottom:100},
+      style:{fontSize:36,font:{name:fonte}},paragraphStyle:{justification:'left'}}});
+
+  test('texto fixo com fonte ausente entra como imagem, na caixa dos pixels',()=>{
+    const it=dPsdParseItems({children:[_txtFonte('Slogan','GothamBlack')],width:1080,height:1350},72,0,0)[0];
+    assert(it.fontStatus!=='exact','pré-condição: a Gotham não deveria existir no Luma');
+    assert(it.mode==='raster'&&it._rasterPorFonte,'texto fixo sem a fonte continuou texto vivo (sairia em Roboto)');
+    const L=dItemToLayer(it);
+    assert(L.type==='image','a camada não virou imagem fiel');
+    /* A caixa autorada do parágrafo é 100,20 300×100; a tinta ocupa 105,24 141×46. Esticar a
+       imagem na caixa do parágrafo deslocava e ampliava o texto. */
+    assert(L.x===105&&L.y===24&&L.w===141&&L.h===46,
+      'a imagem saiu na caixa do parágrafo, não na dos pixels ('+[L.x,L.y,L.w,L.h].join(',')+')');
+    it.include=true;
+    const r=dPsdImportResult([{nome:'Arte',items:[it]}]);
+    assert(!r.atencoes.some(a=>a.categoria==='fonte'),
+      'avisou "fonte ausente" numa camada que desenha o pixel do Photoshop');
+  });
+
+  test('campo com fonte ausente continua texto vivo; fonte presente não vira imagem',()=>{
+    const campo=dPsdParseItems({children:[_txtFonte('@produto','GothamBlack')],width:1080,height:1350},72,0,0)[0];
+    assert(campo.mode==='var','o campo virou imagem — o franqueado não conseguiria trocar o texto');
+    const exata=dPsdParseItems({children:[_txtFonte('Slogan','ObviouslyWide-Bold')],width:1080,height:1350},72,0,0)[0];
+    assert(exata.fontStatus==='exact','pré-condição: Obviously Wide 700 é fonte da casa');
+    assert(exata.mode==='text','texto com a fonte certa foi trocado por imagem sem motivo');
+  });
+
   let passed=0;
   const falhas=[];
   for(const item of cases){

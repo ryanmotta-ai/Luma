@@ -1848,6 +1848,9 @@ function _dPsdAtencao(it, ctx){
   let pior='ok'; const relevantes=[];
   cap.motivos.forEach(m=>{
     const def=_DPSD_CAP_MOTIVOS[m.code]||{};
+    // Texto como imagem desenha o pixel do Photoshop: a fonte ausente não aparece na arte, e
+    // avisar "está em Roboto" descreveria uma perda que não existe.
+    if(def.etapa==='fonte' && it.mode==='raster') return;
     let at=def.atencao||'info';
     /* ELEVA: camada já vinculada a um campo é conteúdo por definição — quem ligou o campo
        disse que aquilo varia. Sinal que JÁ existe; não é classificação nova. */
@@ -2444,7 +2447,14 @@ function dPsdParseItems(psd, res, ox, oy){
             console.warn('[psd] caixa de parágrafo não derivável — usando bbox de glifos:', it.name);
           }
         }
-        if(node.canvas && node.canvas.width>0){ it.imgUrl=_dPsdRasterURL(node.canvas,{maxPx:_rasterCap}); } // p/ "imagem fiel"
+        if(node.canvas && node.canvas.width>0){
+          it.imgUrl=_dPsdRasterURL(node.canvas,{maxPx:_rasterCap}); // p/ "imagem fiel"
+          /* A caixa DOS PIXELS, guardada à parte: num texto de parágrafo `it.x/y/w/h` já virou a
+             caixa autorada (maior que a tinta), e a imagem fiel esticada nela saía deslocada e
+             ampliada. Texto como imagem precisa da caixa que o pixel ocupa no documento. */
+          it._pxCx={x:Math.round((node.left||0)-ox), y:Math.round((node.top||0)-oy),
+            w:Math.max(1,(node.right||0)-(node.left||0)), h:Math.max(1,(node.bottom||0)-(node.top||0))};
+        }
       } else if(node.canvas && node.canvas.width>0 && node.canvas.height>0){
         // Camada de GRADIENTE (GdFl: tem vectorFill com colorStops) → shape com gradiente editável,
         // mesmo não sendo cor sólida (senão cairia em raster).
@@ -2755,6 +2765,16 @@ function dPsdParseItems(psd, res, ox, oy){
   // Photoshop = Top-Down; Luma = Bottom-Up
   out.reverse();
 
+  /* TEXTO FIXO SEM A FONTE → PIXEL DO PHOTOSHOP (decisão do Ryan, 06/10/2026). Sem a fonte, o
+     texto vivo sai em Roboto: outro desenho, outra largura, e a arte "quebra" à primeira vista.
+     Texto que NÃO é campo ninguém vai editar no franqueado, então o pixel é a versão fiel dele.
+     Campo continua vivo (precisa trocar de conteúdo): ligar um campo põe `mode:'var'`, e
+     desligar volta a este padrão. Enviar a fonte na revisão devolve a camada a texto. */
+  out.forEach(it=>{
+    if(it.kind!=='text' || it.mode!=='text' || !it.imgUrl || !it.fontName) return;
+    if(/roboto/i.test(it.fontName) || !it.fontStatus || it.fontStatus==='exact') return;
+    it.mode='raster'; it._rasterPorFonte=true;
+  });
   // Modo PADRÃO do parser (antes da memória/usuário) — referência p/ _dPsdMemSave
   // distinguir decisão real de default e só persistir o que o usuário mudou.
   out.forEach(it=>{ it._defaultMode=it.mode; });
@@ -2838,7 +2858,7 @@ function dItemToLayer(it){
     return _dPsdApplyFx(Object.assign(base,{type:'image',imgUrl:it.imgUrl,imgVar:'',objectFit:'cover',frameShape:'rect'}), it);
   }
   if(it.kind==='text'){
-    if(it.mode==='raster' && it.imgUrl) return _dPsdApplyFx(Object.assign(base,{type:'image',imgUrl:it.imgUrl,imgVar:'',objectFit:'cover',frameShape:'rect'}), it);
+    if(it.mode==='raster' && it.imgUrl) return _dPsdApplyFx(Object.assign(base,it._pxCx||{},{type:'image',imgUrl:it.imgUrl,imgVar:'',objectFit:'cover',frameShape:'rect'}), it);
     const isVar=it.mode==='var';
     const L=Object.assign(base,{ type:'text',
       content: isVar ? '{{'+(it.varName||'variavel')+'}}' : it.content,
