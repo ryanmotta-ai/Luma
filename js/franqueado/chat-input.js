@@ -24,6 +24,8 @@ const F_FIELD_TYPES = {
   condicao:  {type:'text',     maxLen:60,  label:'condição'},
 };
 
+const F_PRECO_MAX = 400; // teto, em reais, de qualquer campo de preço (ver fValidate)
+
 /* ── LIMITE MEDIDO NA CAIXA (03/09) ──────────────────────────────────────────────────
    O `maxLen` era escolhido a dedo por NOME de campo — 32 pra produto, 40 pra oferta — e
    nao conhecia a arte. "Detalhes" de uma marmita (arroz, frango, feijao e 450g de salada)
@@ -471,6 +473,10 @@ function fValidate(id, val, dados){
     const ok = (precos.length && precos.every(t=>/^r\$\s?\d{1,3}(?:\.\d{3})*,\d{2}$/i.test(t)))
       || /qualquer|grátis|gratis|sem valor/i.test(val);
     if(!ok) return `Use um valor em R$ (ex: R$ 9,90).`;
+    // Teto de valor (decisão do Ryan, 07/10/2026): preço acima de R$ 400 não vai para a arte.
+    // Também é o que mantém o preço de 4 dígitos fora das caixas desenhadas para até 3.
+    const _valores = precos.map(t=>parseFloat(t.replace(/r\$\s?/i,'').replace(/\./g,'').replace(',','.')));
+    if(_valores.some(v=>v > F_PRECO_MAX)) return `O valor passa do limite de R$ 400,00. Confira o preço.`;
     const cruzado = _fPrecoDePorErro(id, val, dados);
     if(cruzado) return cruzado;
   }
