@@ -450,6 +450,7 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-escala .wall .a.story { aspect-ratio: 9 / 16; }
 .s-escala .wall .a.feed { aspect-ratio: 4 / 5; }
 .s-escala .wall .a img { width: 100%; height: 100%; object-fit: cover; }
+.s-escala .head .h1 { font-size: 70px; white-space: nowrap; }
 .s-escala .count { position: absolute; left: 1110px; top: 250px; font-size: 18px; font-weight: 700; letter-spacing: .08em; color: var(--ink-3); }
 .s-escala .foot { position: absolute; left: var(--pad-x); bottom: 64px; }
 

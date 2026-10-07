@@ -185,10 +185,10 @@
   - *"Resolve todos os casos?"* Não, e não dizemos que resolve. Quando nada cabe com legibilidade, o Luma
     avisa antes do download em vez de estourar a arte.
 
-## 12 · Escala — "E se a rede pedir dezenas de artes de uma vez?"
+## 12 · Escala — "E se o franqueado quiser dezenas de artes de uma vez?"
 
 - **Objetivo:** mostrar que o chat é só uma das portas do mesmo motor.
-- **Frase de abertura:** "E se a rede pedir dezenas de artes de uma vez?"
+- **Frase de abertura:** "E se o franqueado quiser dezenas de artes de uma vez?"
 - **Discurso:** "Aí entra o Luma Sheets. Cada linha é uma oferta. A fila gera todas com as regras do designer: aqui,
   seis ofertas viram seis artes num ZIP. À direita, 15 artes de 4 campanhas em 2 formatos, todas saídas do
   mesmo motor. O chat é uma interface. Por trás existe um motor de creative automation."
