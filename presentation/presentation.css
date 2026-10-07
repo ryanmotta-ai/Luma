@@ -215,21 +215,19 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-problema .grid { position: absolute; left: 780px; top: 350px; width: 1020px; display: flex; gap: 15px; }
 .s-problema .grid .mini { flex: 0 0 157px; height: 280px; border-radius: 12px; overflow: hidden; background: #eee; box-shadow: 0 10px 22px rgba(10, 10, 10, .14); transition: transform .6s var(--ease), opacity .6s var(--ease); }
 .s-problema .grid .mini img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
-.s-problema .dims { position: absolute; left: 780px; top: 656px; }
+.s-problema .dims { position: absolute; left: 780px; top: 656px; display: flex; gap: 44px; align-items: flex-end; }
 .s-problema .dims .lb { font-size: 15px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 10px; }
-.s-problema .dims .lb + .row + .lb { margin-top: 22px; }
-.s-problema .dims .row { display: flex; gap: 10px; flex-wrap: wrap; }
+.s-problema .dims .row { display: flex; gap: 10px; }
 .s-problema .dims span { font-size: 21px; font-weight: 700; padding: 9px 18px; border-radius: 999px; background: #fff; border: 1px solid var(--line); color: var(--ink-2); }
 .s-problema .dims span.fixo { background: #0A0A0A; color: #fff; border-color: #0A0A0A; }
-.s-problema .dilema { position: absolute; left: var(--pad-x); bottom: 262px; font-size: 18px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--orange-ink); }
-.s-problema .tension { position: absolute; left: var(--pad-x); right: var(--pad-x); bottom: 96px; display: grid; grid-template-columns: 1fr 220px 1fr; align-items: center; gap: 30px; }
-.s-problema .tension .side h3 { font-size: 28px; font-weight: 900; letter-spacing: -.01em; margin-bottom: 10px; }
+.s-problema .tension { position: absolute; left: var(--pad-x); right: var(--pad-x); bottom: 84px; display: grid; grid-template-columns: 1fr 96px 1fr; align-items: stretch; gap: 0; }
+.s-problema .tension .side { padding: 28px 40px; border-radius: 22px; }
+.s-problema .tension .side.a { background: var(--paper-2); box-shadow: 0 0 0 1px rgba(10, 10, 10, .07); }
+.s-problema .tension .side.r { background: #0A0A0A; color: #fff; }
+.s-problema .tension .side h3 { font-size: 30px; font-weight: 900; letter-spacing: -.01em; margin-bottom: 10px; }
 .s-problema .tension .side p { font-size: 26px; line-height: 1.38; color: var(--ink-2); }
-.s-problema .tension .side.r { text-align: right; }
-.s-problema .tension .bar { height: 8px; border-radius: 99px; background: linear-gradient(90deg, var(--orange), #0A0A0A); position: relative; }
-.s-problema .tension .bar::before, .s-problema .tension .bar::after { content: ''; position: absolute; top: 50%; width: 18px; height: 18px; border-radius: 50%; transform: translateY(-50%); }
-.s-problema .tension .bar::before { left: -6px; background: var(--orange); }
-.s-problema .tension .bar::after { right: -6px; background: #0A0A0A; }
+.s-problema .tension .side.r p { color: rgba(255, 255, 255, .78); }
+.s-problema .tension .vs { align-self: center; justify-self: center; width: 72px; height: 72px; border-radius: 50%; background: var(--orange); color: #fff; display: grid; place-items: center; font-size: 22px; font-weight: 900; letter-spacing: .06em; }
 
 /* 03 — Tese */
 .s-tese .head { top: 120px; }
