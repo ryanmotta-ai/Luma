@@ -49,9 +49,10 @@
 - **Objetivo:** deixar claro que o Luma nasceu de escuta real, não de suposição: entrevistas com franqueados.
 - **Frase de abertura:** "Antes do Luma, a gente foi ouvir quem sofre lá na ponta."
 - **Discurso:** "Antes de desenhar qualquer tela, a gente foi conversar com franqueados, com quem usa a rede todo
-  dia e vive a dor real da operação. Três dores apareceram: esperar o marketing a cada arte, operar sozinho sem ser
-  designer e uma legenda que não fala como a cidade. Cada uma virou uma decisão de produto: arte pronta em
-  segundos, conversa guiada com a marca travada e legenda com a gíria de cada lugar. A tese que vem agora saiu
+  dia e vive a dor real da operação. Três dores apareceram: esperar o marketing liberar acesso às artes (o designer
+  continua fazendo as artes), operar sozinho numa plataforma difícil, pouco acessível e sem suporte de produto, e ter
+  que criar uma legenda para o mesmo post. Cada uma virou uma decisão de produto: arte do designer pronta em
+  segundos, conversa guiada com a marca travada e legenda pronta com a gíria de cada lugar. A tese que vem agora saiu
   dessas conversas."
 - **Ponto principal:** o produto nasceu da ponta. Cada recurso responde a uma dor que alguém contou.
 - **Transição:** "Dessas conversas saiu a tese do Luma."
