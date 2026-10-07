@@ -505,22 +505,21 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-custo .nota { position: absolute; left: var(--pad-x); right: var(--pad-x); bottom: 56px; font-size: 18px; color: var(--ink-3); }
 
 /* 14 — Beta */
-.s-beta .head .h-hero { font-size: 96px; }
-.s-beta .head .lead { margin-top: 22px; font-size: 36px; font-weight: 700; color: rgba(10, 10, 10, .8); }
-.s-beta .chain { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 520px; display: flex; align-items: center; gap: 14px; }
-.s-beta .chain span { font-size: 23px; font-weight: 900; padding: 16px 24px; border-radius: 16px; background: #0A0A0A; color: #fff; white-space: nowrap; }
-.s-beta .chain span.soft { background: rgba(10, 10, 10, .1); color: #0A0A0A; }
-.s-beta .chain i { flex: 1; height: 3px; background: rgba(10, 10, 10, .35); min-width: 24px; position: relative; }
-.s-beta .chain i::after { content: ''; position: absolute; right: -2px; top: -6px; border: 7px solid transparent; border-left: 10px solid rgba(10, 10, 10, .45); }
-.s-beta .back { position: absolute; left: 642px; right: 209px; top: 610px; height: 46px; border: 3px solid rgba(10, 10, 10, .28); border-top: 0; border-radius: 0 0 24px 24px; }
-.s-beta .back::before { content: ''; position: absolute; left: -9.5px; top: -13px; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 13px solid rgba(10, 10, 10, .28); }
-.s-beta .back small { position: absolute; left: 50%; bottom: -34px; transform: translateX(-50%); font-size: 17px; font-weight: 700; letter-spacing: .1em; color: rgba(10, 10, 10, .6); white-space: nowrap; }
-.s-beta .metrics { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 740px; }
-.s-beta .metrics h3 { font-size: 18px; letter-spacing: .16em; font-weight: 900; color: rgba(10, 10, 10, .7); margin-bottom: 16px; }
-.s-beta .metrics ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; }
-.s-beta .metrics li { background: rgba(255, 255, 255, .9); border-radius: 16px; padding: 18px 18px 20px; font-size: 20px; font-weight: 700; line-height: 1.25; color: #0A0A0A; min-height: 112px; }
-.s-beta .metrics li svg { width: 26px; height: 26px; color: var(--orange-d); display: block; margin-bottom: 12px; }
-.s-beta .foot { position: absolute; right: var(--pad-x); bottom: 58px; font-size: 22px; font-weight: 900; }
+.s-beta .head .h-hero { font-size: 88px; }
+.s-beta .ciclo { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 470px; display: flex; align-items: stretch; gap: 0; }
+.s-beta .passo { flex: 1; display: flex; align-items: center; gap: 18px; padding: 26px 28px; border-radius: 20px; background: #fff; box-shadow: 0 0 0 1px rgba(10, 10, 10, .07), 0 12px 30px rgba(10, 10, 10, .06); }
+.s-beta .passo b { flex: none; width: 52px; height: 52px; border-radius: 50%; background: var(--orange); color: #fff; display: grid; place-items: center; font-size: 26px; font-weight: 900; }
+.s-beta .passo span { font-size: 26px; font-weight: 800; line-height: 1.2; letter-spacing: -.01em; }
+.s-beta .ciclo > i { flex: 0 0 44px; align-self: center; height: 3px; background: var(--ink-3); position: relative; margin: 0 6px; opacity: .5; }
+.s-beta .ciclo > i::after { content: ''; position: absolute; right: -4px; top: -6px; border: 7px solid transparent; border-left: 10px solid var(--ink-3); }
+.s-beta .denovo { position: absolute; right: 0; top: calc(100% + 16px); display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 800; color: var(--orange-ink); }
+.s-beta .denovo svg { width: 26px; height: 26px; }
+.s-beta .cab { position: absolute; left: var(--pad-x); top: 700px; font-size: 18px; letter-spacing: .16em; font-weight: 900; text-transform: uppercase; color: var(--orange-ink); }
+.s-beta .perguntas { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 744px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.s-beta .q { padding: 30px 34px; border-radius: 22px; background: #0A0A0A; color: #fff; }
+.s-beta .q svg { width: 34px; height: 34px; color: var(--orange); display: block; margin-bottom: 16px; }
+.s-beta .q h3 { font-size: 36px; font-weight: 900; letter-spacing: -.02em; margin-bottom: 10px; }
+.s-beta .q p { font-size: 22px; line-height: 1.38; color: rgba(255, 255, 255, .72); }
 
 /* 15 — Cliente zero / white label */
 .s-white .map { position: absolute; left: var(--pad-x); top: 380px; width: 900px; height: 560px; }
