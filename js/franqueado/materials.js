@@ -675,7 +675,7 @@ function fRenderMaterialCatalog(camp, container){
       if(card) card.classList.add('is-rendering'); // fetch tardou → mostra estado de render agora
       try{
         Promise.resolve(fRenderPreviewToCanvas(cv, m, {maxPx:520, camp:{color:camp.color||'#FF9000'}, dados:m._demoDados, scope:'franqueado'}))
-          .then(()=>{ if(card) card.classList.remove('is-rendering'); })
+          .then(()=>{ if(card){ card.classList.remove('is-rendering'); card.classList.add('has-preview'); } })
           .catch(()=>{ if(card){ card.classList.remove('is-rendering'); card.classList.add('has-preview-error'); } });
       }catch(e){
         if(card){ card.classList.remove('is-rendering'); card.classList.add('has-preview-error'); }
@@ -701,9 +701,13 @@ function fRenderMaterialCard(material, camp){
   // Material-demo entra rotulado: quem está na tela precisa saber que aquilo não é da rede.
   const demoTag = material._demo ? '<span class="f-mat-demo-tag">DEMONSTRAÇÃO — não é material da rede</span>' : '';
   const renderState=(material.layers&&material.layers.length)?' is-rendering':'';
+  // Quadro na proporção REAL do material: o feed é 1080×1350 (4:5) e o quadro era 1:1 — a arte
+  // ficava encaixada com faixas laterais na cor da campanha.
+  const [_mw,_mh]=(typeof fMaterialSize==='function')?fMaterialSize(material):[1080,1920];
+  const _orient=_mh>=_mw?'retrato':'paisagem';
   return `<button class="f-mat-card${renderState}" type="button" onclick="fSelectMaterial('${gEscJs(material.id)}',this)" aria-label="Personalizar ${gEsc(material.name)}, formato ${gEsc(fmtName)}">
     <div class="f-mat-preview">
-      <div class="f-mat-thumb f-mat-thumb-${material.fmt||'story'}" style="background:${gSafeColor(camp.color)}">
+      <div class="f-mat-thumb f-mat-thumb-${material.fmt||'story'} f-mat-thumb-${_orient}" style="background:${gSafeColor(camp.color)};aspect-ratio:${_mw}/${_mh}">
         ${isNew?`<div class="f-mat-new">Novo</div>`:''}
         <div class="f-mat-thumb-prod">${gEsc(camp.previewProd||camp.name)}</div>
         ${camp.previewPor?`<div class="f-mat-thumb-por">${gEsc(camp.previewPor)}</div>`:''}

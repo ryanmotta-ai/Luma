@@ -172,6 +172,11 @@ body:not(.theme-light) .cat-back-btn:hover{background:var(--d-surf2);color:var(-
 .f-mat-thumb-story{height:100%;aspect-ratio:9/16}
 .f-mat-thumb-feed{width:min(100%,320px);aspect-ratio:1/1}
 .f-mat-thumb-wide,.f-mat-thumb-post{width:100%;aspect-ratio:12/6.28}
+/* A proporção real vem inline (fRenderMaterialCard); a orientação decide qual lado manda. */
+.f-mat-thumb-retrato{height:100%;width:auto}
+.f-mat-thumb-paisagem{width:100%;height:auto}
+/* A cor da campanha é só o placeholder enquanto a arte desenha; pronta, o fundo é o neutro. */
+.f-mat-card.has-preview .f-mat-thumb{background:var(--fm-surface-soft)!important}
 .f-mat-thumb-tag{
   position:absolute;right:8px;bottom:8px;z-index:1;padding:3px 6px;border-radius:var(--r-sm);
   background:rgba(10,10,10,.52);color:var(--white);font-size:8px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
