@@ -62,7 +62,20 @@ function _dPsdHex(c){
 }
 function _dPsdTextStyle(t){
   if(!t) return {};
-  if(t.style && typeof t.style==='object') return t.style;
+  if(t.style && typeof t.style==='object'){
+    /* Estilo-base SEM corpo, com o corpo só nos trechos (Storys Template, 762dpi): sem isto a
+       camada caía em "corpo estimado" e a régua de resolução, sem corpo, aplicava res/72 —
+       os trechos saíam com 319px em vez de 30. O corpo vem do MAIOR trecho, não do mais longo:
+       a entrelinha vira múltiplo deste corpo e o render aplica `corpo maior da linha × entrelinha`
+       — referência pequena inflava a linha grande ("pode ser sua." caía uma linha inteira). */
+    const runs=t.styleRuns;
+    if(t.style.fontSize==null && t.style.size==null && Array.isArray(runs) && runs.length){
+      const pt=r=>+((r&&r.style&&(r.style.fontSize||r.style.size))||0);
+      const fs=runs.reduce((m,r)=>Math.max(m,pt(r)),0);
+      if(fs) return Object.assign({},t.style,{fontSize:fs});
+    }
+    return t.style;
+  }
   if(t.styleRuns && t.styleRuns[0] && t.styleRuns[0].style) return t.styleRuns[0].style;
   return {};
 }
@@ -943,7 +956,7 @@ function _dPsdRichRuns(t, res, h, corpo){
       // shapeType vai junto: sem ele um run de caixa de PARÁGRAFO caía no caminho "point" e podia
       // ter o tamanho real trocado pelo estimado da caixa — enquanto o tamanho da própria camada
       // (calculado com shapeType) era respeitado 1:1. Os dois lados agora usam a mesma regra.
-      const _basePt=+((t.style&&t.style.fontSize)||0), _pt=+(st.fontSize||st.size||0);
+      const _basePt=+(_dPsdTextStyle(t).fontSize||0), _pt=+(st.fontSize||st.size||0);
       const _rfs=(corpo>0 && _basePt>0 && _pt>0) ? Math.max(1,Math.round(corpo*_pt/_basePt))
         : _dPsdFontSize({style:st,transform:t.transform,shapeType:t.shapeType}, h, seg, res);
       out.push({
@@ -1487,6 +1500,31 @@ function _dPsdDetectShapeKind(canvas){
       return {kind:'rect',radius:Math.round(d*3.4)};
     }
   }catch(e){ return {kind:'rect',radius:0}; }
+}
+
+/* Pixel de cor única só vira FORMA se a silhueta for de fato a primitiva inferida. Sem esta
+   conferência, um selo de borda picotada (Storys Template) virava retângulo arredondado:
+   `_dPsdDetectShapeKind` só olha o centro e a quina. Camada com dado vetorial não passa aqui. */
+function _dPsdPixelShapeFits(node){
+  if(node.vectorMask||node.vectorOrigination) return true;
+  try{
+    const c=node.canvas, w=c.width, h=c.height; if(w<8||h<8) return true;
+    const info=_dPsdDetectShapeKind(c);
+    const k=document.createElement('canvas'); k.width=w; k.height=h; const x=k.getContext('2d');
+    x.beginPath();
+    if(info.kind==='rect'){ const r=Math.min(info.radius||0, Math.min(w,h)/2); if(x.roundRect) x.roundRect(0,0,w,h,r); else x.rect(0,0,w,h); }
+    else x.ellipse(w/2,h/2,w/2,h/2,0,0,Math.PI*2);
+    x.fill();
+    const a=c.getContext('2d').getImageData(0,0,w,h).data, b=x.getImageData(0,0,w,h).data;
+    const st=Math.max(1,Math.floor(Math.sqrt(w*h/40000)));
+    let n=0, ruim=0;
+    for(let y=0;y<h;y+=st) for(let xx=0;xx<w;xx+=st){
+      const i=(y*w+xx)*4, pa=a[i+3]>=128, pb=b[i+3]>=128;
+      if(pa||pb){ n++; if(pa!==pb) ruim++; }
+    }
+    // Tolerância: 3% da área ou a franja de antialias da borda (~1 amostra por amostra de perímetro).
+    return !n || ruim/n<0.03 || ruim<=(w+h)/st;
+  }catch(e){ return true; }
 }
 
 // Detecta ROTAÇÃO significativa da camada. O modelo do Luma não tem rotação, então uma camada
@@ -2553,7 +2591,7 @@ function dPsdParseItems(psd, res, ox, oy){
         // mas `vectorStroke.fillEnabled:false` manda NÃO pintá-la. Ignorar a flag inventava um
         // retângulo sólido por cima do fundo/textura (caso dos cards laranja deste PSD real).
         const fillDisabled=!!(node.vectorStroke&&node.vectorStroke.fillEnabled===false);
-        const solid=fillDisabled?null:(_dPsdVectorSolidColor(node)||_dPsdSolidColor(node.canvas));
+        const solid=fillDisabled?null:(_dPsdVectorSolidColor(node)||(()=>{ const s=_dPsdSolidColor(node.canvas); return s&&_dPsdPixelShapeFits(node)?s:null; })());
         // Contorno vetorial (vectorStroke) — inclui formas SÓ-CONTORNO (sem preenchimento): molduras
         // vazadas, divisores e linhas TRACEJADAS. Antes, sem fill/gradiente, essas caíam no raster e o
         // tracejado virava imagem chapada (o dash lido em _dPsdShapeStroke nem era alcançado). Agora um

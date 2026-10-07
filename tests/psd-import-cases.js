@@ -445,6 +445,28 @@
     assert(dItemToLayer(it).overlay===true,'a sobreposição não chegou na camada');
   });
 
+  test('pixel de cor única só vira forma se a silhueta for a primitiva (selo picotado)',()=>{
+    const chapa=picotado=>{const k=document.createElement('canvas');k.width=300;k.height=400;const x=k.getContext('2d');
+      x.fillStyle='#ffffff';x.fillRect(0,0,300,400);
+      if(picotado){x.globalCompositeOperation='destination-out';for(let y=20;y<400;y+=40){x.beginPath();x.arc(0,y,14,0,7);x.arc(300,y,14,0,7);x.fill();}}
+      return k;};
+    const parse=k=>dPsdParseItems({children:[{name:'base',left:0,top:0,right:300,bottom:400,canvas:k}],width:1080,height:1920},72,0,0)[0];
+    const sel=parse(chapa(true)), ret=parse(chapa(false));
+    assert(sel.kind==='raster','o selo de borda picotada virou forma '+sel.kind+'/'+sel.shapeKind+' e perdeu a borda');
+    assert(ret.kind==='shape','um retângulo chapado deixou de ser forma editável ('+ret.kind+')');
+  });
+
+  test('estilo-base sem corpo: os trechos herdam a escala certa (Storys Template, 762dpi)',()=>{
+    // O corpo está só nos trechos; sem ele no estilo-base a régua de resolução caía em res/72.
+    const t={text:'7 diárias com acompanhante\rpassagens aéreas inclusas',shapeType:'box',
+      transform:[1.1167,0,0,1.1167,187,1312],boxBounds:[0,0,381,110],bounds:{left:0,top:0,right:381,bottom:110},
+      style:{fillColor:{r:69,g:69,b:69}},paragraphStyle:{justification:'left'},
+      styleRuns:[{length:27,style:{fontSize:27,font:{name:'Roboto-Black'}}},{length:25,style:{fontSize:25,font:{name:'Roboto-Regular'}}}]};
+    const it=dPsdParseItems({children:[{name:'lista',left:187,top:1312,right:612,bottom:1435,text:t}],width:1080,height:1920},762,0,0)[0];
+    assert(it.fontSize>=25&&it.fontSize<=32,'corpo da camada fora da escala ('+it.fontSize+')');
+    assert(it.runs&&it.runs.every(r=>r.fontSize>=25&&r.fontSize<=34),'trecho com corpo multiplicado pela resolução ('+(it.runs||[]).map(r=>r.fontSize)+')');
+  });
+
   test('mesclagem sem render entra como Normal COM motivo registrado',()=>{
     // _dPsdBlendMode devolve undefined de propósito p/ um modo sem render ('dissolve'), pra o
     // selo não prometer o que sai Normal. Isso era uma perda muda.
