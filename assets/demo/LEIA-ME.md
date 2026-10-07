@@ -11,6 +11,11 @@ apresentação — sem depender da galeria de ninguém.
 | `hamburguer.jpg` | um hambúrguer |
 | `acai.jpg` | um açaí |
 | `pizza.jpg` | uma pizza |
+| `logo-loja.png` | logo neutro "SUA LOJA" (campo de logo) |
+
+A **miniatura do catálogo** também usa estas fotos: sem dados do franqueado, a prévia preenche a
+moldura de produto com a primeira foto `para:'produto'` e a do logo com a primeira `para:'logo'`
+(`fSampleDadosForLayers`, em `png-generator.js`). Sem elas, o card mostrava molduras cinza.
 
 **Enquanto o arquivo não existir, a miniatura se remove sozinha** e, sem nenhuma delas, a
 seção inteira some. Não fica quadrado quebrado na tela.

@@ -4274,14 +4274,29 @@ async function _fpvRun(canvas, tmpl, opts){
   ctx.drawImage(off,0,0);
   return true;
 }
-// Dados de amostra p/ preview: exemplo → valor padrão → [Rótulo], por campo do catálogo.
-// Campos de imagem ficam vazios → o motor desenha o placeholder de moldura (igual à arte real).
+/* Dados de amostra p/ preview (miniatura do catálogo, prévia da publicação): exemplo do campo →
+   amostra abaixo → valor padrão → [Rótulo]. A miniatura é o convite para criar a arte: com o
+   rótulo cru ela mostrava "Produto" e "R$ Preço Promo,00", e as molduras vazias em cinza.
+   Os campos principais ganham um caso real e as imagens, as fotos de exemplo (F_DEMO_IMGS).
+   Só prévia: a arte do franqueado usa os dados dele e, vazio, o valor padrão. */
+const F_AMOSTRA_PREVIEW = {
+  produto:'X-Burger Especial', detalhes:'com batata frita', precoPor:'Por: R$ 24,90',
+  precoDe:'De: R$ 32,90', cupom:'BEMVINDO10', desconto:'20'
+};
 function fSampleDadosForLayers(layers){
   const out={};
   const names=(typeof dExtractTemplateVars==='function')?dExtractTemplateVars(layers):[];
   names.forEach(n=>{
     const v=(typeof dVars!=='undefined'&&dVars)?dVars.find(x=>x.name===n):null;
-    if(v&&v.type==='image') return;
+    if(v&&v.type==='image'){
+      const ehLogo=(typeof gCampoEhLogo==='function')?gCampoEhLogo(n):/logo/i.test(n);
+      const demo=(typeof fDemoImgsPara==='function')?fDemoImgsPara(ehLogo)[0]:null;
+      // URL absoluta: o motor só aceita data:/blob:/http(s) no valor do campo de imagem.
+      if(demo) out[n]=new URL(demo.src, location.href).href;
+      return;
+    }
+    if(v&&v.example!=null&&v.example!==''){ out[n]=String(v.example); return; }
+    if(F_AMOSTRA_PREVIEW[n]){ out[n]=F_AMOSTRA_PREVIEW[n]; return; }
     out[n]=(typeof gFieldSampleValue==='function')?gFieldSampleValue(v||{name:n}):((v&&(v.label||n))||n);
   });
   return out;

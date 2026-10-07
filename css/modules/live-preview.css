@@ -1549,7 +1549,12 @@ body.f-palco-conclusao #f-live-preview .lp-toolbar{display:none}
   body.f-palco-conclusao .lp-ctx-bar{transition:none!important;animation:none!important}
 }
 
-#lp-design-start{width:auto;min-width:0;padding:0 10px;white-space:nowrap}
+/* Mesma família do botão de fechar do cabeçalho (34px, raio 10): o antigo `padding:0 10px`
+   achatava o botão numa pílula com texto preto pesado. */
+#lp-design-start{width:auto;min-width:0;height:34px;padding:0 12px;gap:6px;white-space:nowrap;
+  font-size:13px;font-weight:600;border-radius:10px;border-color:var(--gray-light,#E5E5E5);color:var(--text-2,#525252)}
+#lp-design-start svg{color:var(--dm-orange,#FF9000)}
+#lp-design-start:hover svg{color:inherit}
 
 .lp-design-start[hidden]{display:none}
 /* O modo ocupa a área de trabalho; a conversa continua intacta ao cancelar/publicar. */

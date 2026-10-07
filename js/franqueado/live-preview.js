@@ -3951,7 +3951,9 @@ function _fLpDesignSync(){
   const tools=document.getElementById('lp-design-tools');
   if(start){
     start.hidden=!_fLpDesignAllowed()||active;start.disabled=busy;
-    start.textContent=_fLpDesignOpening?'Abrindo edição…':'Modo editar';
+    // Só o rótulo: o botão também carrega o ícone de lápis.
+    const _lbl=start.querySelector('.lp-design-start-label')||start;
+    _lbl.textContent=_fLpDesignOpening?'Abrindo edição…':'Modo editar';
     start.setAttribute('aria-busy',String(_fLpDesignOpening));
   }
   if(tools){tools.hidden=!active;tools.querySelectorAll('button').forEach(b=>b.disabled=busy);}
