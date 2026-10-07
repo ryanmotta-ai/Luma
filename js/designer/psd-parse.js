@@ -106,10 +106,12 @@ function _dPsdTextScale(t){
   const a=+tr[0]||0,b=+tr[1]||0,c=+tr[2]||0,d=+tr[3]||0;
   // Magnitude de cada vetor-coluna: imune a rotação e a cisalhamento, ao contrário de |a|/|d|.
   const trX=Math.sqrt(a*a+b*b)||1, trY=Math.sqrt(c*c+d*d)||1;
-  // % do painel Caractere. `!=null` e não `||`: 0 é valor inválido, mas 100 é o default e
-  // precisa passar; e um `verticalScale:0` num arquivo torto não pode zerar o corpo.
-  const chX=(st.horizontalScale!=null&&+st.horizontalScale>0)?(+st.horizontalScale/100):1;
-  const chY=(st.verticalScale!=null&&+st.verticalScale>0)?(+st.verticalScale/100):1;
+  // Escala do painel Caractere. ⚠ O ag-psd entrega FRAÇÃO (1 = 100%, o default), não
+  // porcentagem: dividir por 100 fazia todo PSD real ter o corpo a 1% — o texto caía na
+  // estimativa pela caixa (~20% menor) ou travava no piso de 8px (número de preço sumia).
+  // `>0` e não `||`: um `verticalScale:0` num arquivo torto não pode zerar o corpo.
+  const chX=(st.horizontalScale!=null&&+st.horizontalScale>0)?+st.horizontalScale:1;
+  const chY=(st.verticalScale!=null&&+st.verticalScale>0)?+st.verticalScale:1;
   const sx=trX*chX, sy=trY*chY;
   // Rotação e cisalhamento vêm da mesma matriz — quem decide o que fazer com eles é
   // `_dPsdCapNode` (rotação → raster fiel), aqui só se mede.
@@ -149,7 +151,10 @@ function _dPsdFatorResolucao(t, node, res, sy){
   const st=_dPsdTextStyle(t);
   const corpo=+(st.fontSize||st.size||0);
   if(bb && corpo>0 && node){
-    const hTexto=Math.abs((+bb.bottom||0)-(+bb.top||0));           // text-space (pontos)
+    // ag-psd entrega cada borda como {value, units}; `+objeto` é NaN e o discriminador nunca
+    // rodava — todo documento "hi-res" levava res/72 (texto 10× maior num PSD a 762dpi).
+    const _v=b=>+((b&&b.value!=null)?b.value:b)||0;
+    const hTexto=Math.abs(_v(bb.bottom)-_v(bb.top));               // text-space (pontos)
     const hPixel=Math.abs((+node.bottom||0)-(+node.top||0));        // documento (pixels)
     if(hTexto>0.5 && hPixel>0.5){
       // Escala real text-space → documento, medida no arquivo.
@@ -1388,7 +1393,10 @@ function _dPsdFontFace(fontName){
   const bruto=String(fontName||'');
   // camelCase → espaço ("MontserratSemiBold" → "Montserrat Semi Bold") e separadores → espaço,
   // para as bordas de palavra da tabela valerem em qualquer uma das quatro grafias.
-  const legivel=bruto.replace(/([a-z0-9])([A-Z])/g,'$1 $2').replace(/[._-]+/g,' ').replace(/\s+/g,' ').trim();
+  // Sufixo de VERSÃO colado no nome ("Realce-Blackv0.006", a fonte de marca mais usada nos PSDs
+  // da casa) não é parte do estilo: grudado no "Black", escondia o peso e a família só casava
+  // por prefixo — a fonte empacotada certa aparecia como "Peso aproximado".
+  const legivel=bruto.replace(/[\s_-]*v?\d+(?:\.\d+)+$/i,'').replace(/([a-z0-9])([A-Z])/g,'$1 $2').replace(/[._-]+/g,' ').replace(/\s+/g,' ').trim();
   let peso=null;
   for(const [re,w] of _DPSD_PESOS){ if(re.test(legivel)){ peso=w; break; } }
   const italico=/\b(?:italic|oblique|it)\b/i.test(legivel);
@@ -2652,7 +2660,16 @@ function dPsdParseItems(psd, res, ox, oy){
     const gid=_grupoId(out[i]);
     let j=i-1;
     while(j>=0 && out[j].clippingLayer && _grupoId(out[j])===gid) j--;
-    if(j<0 || _grupoId(out[j])!==gid) continue; // cadeia sem base no grupo → nada a recortar
+    if(j<0 || _grupoId(out[j])!==gid){ // cadeia sem base no grupo → nada a recortar
+      /* Base que é um GRUPO (ex.: Brilho/Contraste recortado no grupo "logo") não é item da
+         lista. Um AJUSTE sem a base deixava de ser recorte e passava a valer para a arte
+         INTEIRA — o banner todo saía lavado, sem aviso. Melhor sem o ajuste, e avisado. */
+      if(out[i].kind==='adjustment' && out[i].adjustmentSupported!==false){
+        out[i].adjustmentSupported=false;
+        _dPsdCapMarca(_dPsdCapDe(out[i]),'adjust_unsupported','recortado num grupo');
+      }
+      continue;
+    }
     // A cadeia é a corrida CONTÍNUA de recortadas logo acima da base.
     const cadeia={baseIdx:j, clipped:[]};
     for(let k=j+1;k<out.length && out[k].clippingLayer && _grupoId(out[k])===gid;k++){
@@ -2885,6 +2902,13 @@ function dItemToLayer(it){
     const L=Object.assign(base,{ type:'text',
       content: isVar ? '{{'+(it.varName||'variavel')+'}}' : it.content,
       font:it.font, fontSize:it.fontSize, color:it.color, textAlign:it.textAlign, isVar:isVar });
+    /* RESPIRO DA CAIXA. O Luma desenha o texto a 0,08em da borda e quebra a linha em
+       `w − 2×0,08em` (png-generator, gFitTextLayer, Local Fit — a mesma régua). A caixa do
+       Photoshop não tem esse respiro: importada crua, o texto saía 0,08em deslocado e um preço
+       que cabia justo quebrava no meio ("COCA-COL / A", "39,9 / 9" nos PSDs reais). Alargar
+       a caixa dos dois lados devolve a posição e a largura útil do Photoshop. */
+    const _pad=Math.round((it.fontSize||0)*0.08);
+    if(_pad>0){ L.x=(L.x||0)-_pad; L.w=(L.w||0)+_pad*2; }
     _dPsdApplyFx(L, it);
     if(it.strikethrough){ L.strikethrough=true; }
     if(it.underline){ L.underline=true; }

@@ -183,6 +183,27 @@
     assert(rep.exactPct===0,'nenhum pixel é idêntico, mas o relatório disse que há');
   });
 
+  /* Caso REAL (Deskfy Entrega Grátis, "Prancheta 3" em y=1480..2830 num documento de 1930):
+     o composto do Photoshop só cobre a área do documento, e o recorte de prancheta fora dela
+     era branco puro — o selo acusava "13%" em uma arte perfeita. */
+  /* Caso REAL (Deskfy Capas, "COCA-COLA" em Realce): o Luma desenha o texto a 0,08em da borda
+     e quebra em `w − 2×0,08em`. A caixa do Photoshop, importada crua, perdia essa largura e o
+     título que cabia justo quebrava em "COCA-COL / A". */
+  test('caixa de texto importada ganha o respiro do Luma sem mudar a posição do texto',()=>{
+    const L=dItemToLayer({kind:'text',mode:'text',name:'T',content:'COCA-COLA',font:"'Roboto'",
+      fontSize:100,color:'#fff',textAlign:'left',textBox:'box',x:200,y:50,w:500,h:110,opacity:100,include:true});
+    assert(L.x===192 && L.w===516,'caixa não ganhou 0,08em de cada lado (x '+L.x+', w '+L.w+')');
+    // Largura útil do motor de quebra = w − 2×0,08em → volta a ser exatamente a do Photoshop.
+    assert(L.w-2*Math.round(L.fontSize*0.08)===500,'largura útil diferente da caixa do Photoshop');
+  });
+
+  test('prancheta fora do composto não vira nota de fidelidade',()=>{
+    const doc=document.createElement('canvas'); doc.width=200; doc.height=100;
+    assert(_dPsdRefCanvas(doc,0,0,100,100)!==null,'prancheta inteira dentro do documento perdeu a referência');
+    assert(_dPsdRefCanvas(doc,0,50,100,100)===null,'metade fora do composto ainda foi medida contra branco');
+    assert(_dPsdRefCanvas(doc,-300,0,100,100)===null,'prancheta toda fora do composto ainda foi medida');
+  });
+
   /* ── Estágio de capacidade (rodada de arquitetura 10/09) ───────────────────────────────
      A pergunta "o Luma representa esta camada?" era respondida em seis lugares, cada um
      escrevendo o seu booleano, e a revisão remontava o veredito de doze campos soltos. Estes
@@ -413,6 +434,10 @@
     // registrado. É exato — o arquivo que vai renderizar É o que o Photoshop pediu.
     assert(r('ObviouslyWideBold')==='exact',
       'família e peso coincidentes não foram reconhecidos como exatos');
+    // Caso REAL (46 PSDs da casa): o nome traz a versão colada. Sem limpar, "Blackv0" escondia
+    // o peso e a Realce empacotada virava "Peso aproximado" em toda camada de título.
+    assert(r('Realce-Blackv0.006')==='exact','sufixo de versão impediu a Realce Black de casar exata');
+    assert(_dPsdFontFace('Realce-Blackv0.006').peso===900,'peso Black perdido pelo sufixo de versão');
     // Família certa, peso DIFERENTE (Realce só existe em 900) → aproximada.
     assert(r('Realce Light')==='approximated',
       'família certa com peso diferente deveria ser aproximada, não exata: o desenho da letra difere');
@@ -445,7 +470,7 @@
      O corpo da fonte saía de uma cascata com seis números mágicos, e três fontes de escala do
      Photoshop eram lidas como uma. Estes casos travam a FÓRMULA:
          corpoPx = style.fontSize × escalaY × fatorDeResolucao
-     com escalaY = |vetor-y do transform| × verticalScale/100.                              */
+     com escalaY = |vetor-y do transform| × verticalScale (FRAÇÃO no ag-psd: 1 = 100%).       */
   test('peso da fonte sai da tabela, não de busca por substring',()=>{
     // "SemiBold" contém "bold" e "ExtraLight" contém "light": a busca por substring errava um
     // degrau em toda a faixa intermediária, que é justamente a que o designer usa.
@@ -470,18 +495,25 @@
   test('a escala do painel Caractere entra no corpo, e o eixo horizontal não se perde calado',()=>{
     // verticalScale 80% num transform identidade: o corpo é 80% do valor do painel.
     const t80={text:'X',shapeType:'point',transform:[1,0,0,1,0,0],
-      style:{fontSize:100,verticalScale:80,horizontalScale:80},paragraphStyle:{}};
+      style:{fontSize:100,verticalScale:0.8,horizontalScale:0.8},paragraphStyle:{}};
     const m80=_dPsdTextMetrics(t80,{top:0,bottom:120},72,'X');
     assert(m80.corpo===80,'a escala vertical do painel Caractere foi ignorada (corpo '+m80.corpo+')');
     assert(m80.escala.uniforme===true,'80/80 é uniforme');
     // Condensado: 85% na horizontal, 100% na vertical → corpo pelo eixo VERTICAL, e o
     // estiramento fica registrado em vez de virar tracking.
     const cond={text:'X',shapeType:'point',transform:[1,0,0,1,0,0],
-      style:{fontSize:100,horizontalScale:85},paragraphStyle:{}};
+      style:{fontSize:100,horizontalScale:0.85},paragraphStyle:{}};
     const mc=_dPsdTextMetrics(cond,{top:0,bottom:120},72,'X');
     assert(mc.corpo===100,'o corpo deve seguir o eixo vertical, não a média dos dois');
     assert(mc.escala.uniforme===false,'85×100 não foi detectado como escala não uniforme');
     assert(Math.round(mc.escala.razao*100)===85,'a razão do estiramento não foi preservada');
+    /* Caso REAL (Deskfy Reestruturação, preço "22"): o ag-psd entrega o default como 1, não
+       100. Lido como porcentagem, 50pt × 3,12 virava 1,6px e o número travava no piso de 8px. */
+    const real={text:'22',shapeType:'point',transform:[3.1163,0,0,3.1163,0,0],
+      style:{fontSize:50,horizontalScale:1,verticalScale:1},paragraphStyle:{}};
+    const mr=_dPsdTextMetrics(real,{top:1131,bottom:1244},72,'22');
+    assert(mr.corpo===156,'escala 1 (=100%) do ag-psd lida como porcentagem (corpo '+mr.corpo+', esperado 156)');
+    assert(mr.origem==='autorado','corpo do arquivo trocado por estimativa da caixa');
   });
 
   test('transform escala o corpo uma vez só, sem número mágico de DPI',()=>{
@@ -507,6 +539,16 @@
     const mh2=_dPsdTextMetrics(hi2,{left:0,top:0,right:417,bottom:120},300,'X');
     assert(mh2.corpo===100,'o corpo dobrou: a resolução foi aplicada duas vezes (veio '+mh2.corpo+')');
     assert(mh2.fatorResolucao===1,'o fator deveria ser 1 — o transform já trazia a resolução');
+    /* Caso REAL (Banner Mestre do Frango, 762dpi): o ag-psd entrega as bordas como
+       {value, units}, não número. Lidas com `+`, viravam NaN, o discriminador nunca rodava e
+       "DE FRANGO" (53,9pt × 0,301, caixa de 12px) saía com 172px em vez de 16. */
+    const pt=v=>({value:v,units:'Points'});
+    const real={text:'DE FRANGO',shapeType:'point',transform:[0.301,0,0,0.301,0,0],
+      style:{fontSize:53.8647,horizontalScale:1,verticalScale:1},
+      bounds:{left:pt(0),top:pt(-45.78),right:pt(170),bottom:pt(10.77)},paragraphStyle:{}};
+    const mr=_dPsdTextMetrics(real,{left:293,top:73,right:344,bottom:85},762,'DE FRANGO');
+    assert(mr.fatorResolucao===1,'bounds no formato real do ag-psd ignorados — res/72 aplicado às cegas');
+    assert(mr.corpo===16,'corpo do texto a 762dpi errado (veio '+mr.corpo+', esperado 16)');
   });
 
   test('o corpo do designer nunca é trocado pelo estimado da caixa',()=>{

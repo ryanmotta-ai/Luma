@@ -1108,6 +1108,12 @@ const _DPSD_VISTA_PX=800;
 function _dPsdRefCanvas(src, x, y, w, h, maxPx){
   try{
     if(!src || !src.width || !src.height || !(w>8) || !(h>8)) return null;
+    /* O composto do Photoshop só cobre a ÁREA DO DOCUMENTO. Prancheta posicionada fora dela
+       (comum em arquivo com muitas pranchetas) recortava branco puro, e o selo acusava
+       "Fidelidade 13%" e divergência em camadas perfeitas. Sem referência não há medida. */
+    const ix=Math.max(0,Math.min(src.width,(x||0)+w)-Math.max(0,x||0));
+    const iy=Math.max(0,Math.min(src.height,(y||0)+h)-Math.max(0,y||0));
+    if(ix*iy < w*h*0.98) return null;
     const scale=Math.min(1, (maxPx||_DPSD_FID_PX)/Math.max(w,h));
     const tw=Math.max(1,Math.round(w*scale)), th=Math.max(1,Math.round(h*scale));
     const c=document.createElement('canvas'); c.width=tw; c.height=th;
