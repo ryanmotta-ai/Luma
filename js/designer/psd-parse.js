@@ -518,7 +518,13 @@ function _dPsdVectorShapeBox(node, ox, oy){
       const b=d&&d.keyOriginShapeBoundingBox; if(!b)continue;
       const v=x=>(x&&x.value!=null)?+x.value:+x;
       const l=v(b.left),t=v(b.top),r=v(b.right),bt=v(b.bottom);
-      if([l,t,r,bt].every(Number.isFinite)&&r>l&&bt>t)return{x:Math.round(l-(ox||0)),y:Math.round(t-(oy||0)),w:Math.max(1,Math.round(r-l)),h:Math.max(1,Math.round(bt-t))};
+      if(![l,t,r,bt].every(Number.isFinite)||!(r>l&&bt>t)) continue;
+      /* A origem é METADADO e envelhece: camada copiada para outra prancheta (Jovi "Story 2")
+         mantém a caixa da posição antiga — a pílula caía 1.180px fora da arte. Só vale se o
+         centro dela estiver dentro do bbox real da camada; senão, quem manda é o bbox. */
+      const cx=(l+r)/2, cy=(t+bt)/2, nl=+node.left, nt=+node.top, nr=+node.right, nb=+node.bottom;
+      if([nl,nt,nr,nb].every(Number.isFinite) && nr>nl && nb>nt && (cx<nl||cx>nr||cy<nt||cy>nb)) return null;
+      return{x:Math.round(l-(ox||0)),y:Math.round(t-(oy||0)),w:Math.max(1,Math.round(r-l)),h:Math.max(1,Math.round(bt-t))};
     }
   }catch(e){}
   return null;
@@ -901,7 +907,10 @@ function _dPsdGradient(node){
   }catch(e){ return null; }
 }
 // Rich text: styleRuns do PSD → l.runs[{text,color,fontSize,font,letterSpacing}]. Só quando há >1 estilo.
-function _dPsdRichRuns(t, res, h){
+/* `corpo` (opcional): o corpo JÁ resolvido da camada pela métrica única (_dPsdTextMetrics, com o
+   nó real como régua de resolução). Com ele, cada trecho sai proporcional — mesma escala, mesmo
+   fator de resolução. Sem ele (chamada antiga), cai na estimativa por trecho. */
+function _dPsdRichRuns(t, res, h, corpo){
   try{
     const runs=Array.isArray(t.styleRuns)?t.styleRuns:null; if(!runs||runs.length<2) return null;
     // Fatia o texto CRU: r.length conta os caracteres do EngineData, onde a quebra de linha é
@@ -915,13 +924,18 @@ function _dPsdRichRuns(t, res, h){
     const out=[]; let pos=0;
     for(const r of runs){
       const len=r.length||0; const seg=full.substr(pos,len).replace(/\r\n?/g,'\n'); pos+=len; if(!seg) continue;
-      const st=r.style||{};
+      /* O trecho só traz a DIFERENÇA do estilo-base (Jovi Story 2: os dois trechos só trocam a
+         fonte). Sem herdar `t.style`, tamanho e cor sumiam: o texto saía preto e, sem os
+         bounds da camada, com o corpo ×10 num PSD a 762dpi. */
+      const st=Object.assign({},(t.style&&typeof t.style==='object')?t.style:{},r.style||{});
       const fname=(st.font&&st.font.name)||'';
       const remap=_dPsdRemapFont(fname);
       // shapeType vai junto: sem ele um run de caixa de PARÁGRAFO caía no caminho "point" e podia
       // ter o tamanho real trocado pelo estimado da caixa — enquanto o tamanho da própria camada
       // (calculado com shapeType) era respeitado 1:1. Os dois lados agora usam a mesma regra.
-      const _rfs=_dPsdFontSize({style:st,transform:t.transform,shapeType:t.shapeType}, h, seg, res);
+      const _basePt=+((t.style&&t.style.fontSize)||0), _pt=+(st.fontSize||st.size||0);
+      const _rfs=(corpo>0 && _basePt>0 && _pt>0) ? Math.max(1,Math.round(corpo*_pt/_basePt))
+        : _dPsdFontSize({style:st,transform:t.transform,shapeType:t.shapeType}, h, seg, res);
       out.push({
         text:seg,
         color:_dPsdHex(st.fillColor||st.color)||_domColor,
@@ -935,7 +949,8 @@ function _dPsdRichRuns(t, res, h){
         // Sobrescrito/subscrito POR TRECHO — é assim que "R$ 29,⁹⁰" é feito no Photoshop, e o
         // render de texto rico já consome `yOffset` (png-generator). O parser nunca o gravava,
         // então os centavos elevados voltavam para a linha do inteiro.
-        yOffset: st.baselineShift? -Math.round((+st.baselineShift)*100)/100 : 0
+        // Em pontos no arquivo: acompanha o mesmo fator pt→px do corpo do trecho.
+        yOffset: st.baselineShift? -Math.round((+st.baselineShift)*((_basePt>0&&corpo>0)?corpo/_basePt:1)*100)/100 : 0
       });
     }
     return out.length>1?out:null;
@@ -1427,9 +1442,12 @@ function _dPsdRobotoFont(fontName){
 // tamanhos distintos entre runs (indica ao usuário que o layer era estilo misto).
 function _dPsdDominantStyle(t){
   if(!t) return {style:{}, isMultiStyle:false};
-  const runs=Array.isArray(t.styleRuns)&&t.styleRuns.length?t.styleRuns:null;
+  let runs=Array.isArray(t.styleRuns)&&t.styleRuns.length?t.styleRuns:null;
   if(!runs) return {style:_dPsdTextStyle(t), isMultiStyle:false};
   const dominant=runs.reduce((best,r)=>(r.length||0)>(best.length||0)?r:best, runs[0]);
+  // Trecho = diferença sobre o estilo-base (ver _dPsdRichRuns): herda o que não sobrescreve.
+  const _base=(t.style&&typeof t.style==='object')?t.style:{};
+  runs=runs.map(r=>Object.assign({},r,{style:Object.assign({},_base,r.style||{})}));
   const colors=new Set(runs.map(r=>{const c=r.style&&(r.style.fillColor||r.style.color);
     return c?Math.round(c.r||0)+','+Math.round(c.g||0)+','+Math.round(c.b||0):null;}));
   const sizes=new Set(runs.map(r=>Math.round((r.style&&(r.style.fontSize||r.style.size))||0)));
@@ -2410,7 +2428,7 @@ function dPsdParseItems(psd, res, ox, oy){
           it.textScaleX=+( _tm.escala.razao.toFixed(4) );
           it.textScaleRazao=Math.round(_tm.escala.razao*100);
         }
-        const _runs=_dPsdRichRuns(t,res,h);
+        const _runs=_dPsdRichRuns(t,res,h,it.fontSize);
         if(_runs){
           it.runs=_runs;
           // Os runs PRESERVAM cada trecho com seu estilo — então o aviso "Estilos mistos"
@@ -2744,7 +2762,12 @@ function dPsdParseItems(psd, res, ox, oy){
   // base de clipping correta. _dPsdComputeMask multiplica os alphas, então elas se somam em
   // vez de uma sobrescrever a outra. Atribuição condicional: null não apaga o que já existe.
   for(let i=0; i<out.length; i++){
-    const _extra={ vecCanvas: out[i]._vecMaskCanvas };
+    /* Forma que virou PIXEL (girada, com efeito…): o pixel de uma camada de forma já sai do
+       Photoshop recortado pelo próprio vetor — reaplicar a máscara vetorial é redundante e, com
+       a forma girada, apagava o balão inteiro (Deliversário V1: 74% → 93%). */
+    const _pn=out[i]._psdNode;
+    const _vecRedundante=out[i].kind==='raster' && _pn && _pn.vectorFill && _pn.canvas;
+    const _extra={ vecCanvas: _vecRedundante?null:out[i]._vecMaskCanvas };
     let _m=null;
     if(out[i].clippingLayer){
       const baseIdx=_clipBaseIndex(i);

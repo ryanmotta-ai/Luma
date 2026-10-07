@@ -237,6 +237,31 @@
 
   /* Caso REAL (Entrega Grátis "Prancheta 3", Jovi "Lamina 4"): prancheta oculta no Photoshop não
      entra no composto — o recorte era branco e o selo acusava 13%. */
+  /* Caso REAL (Jovi "Story 2"): a pílula copiada de outra prancheta guarda a caixa de origem
+     antiga (x≈1283) enquanto o pixel e o caminho estão em x≈2494 — ela caía fora da arte. */
+  /* Caso REAL (Deliversário V1): balão = forma girada → pixel. O pixel da forma já vem recortado
+     pelo vetor; reaplicar a máscara vetorial apagava os três balões. */
+  test('forma que vira pixel não reaplica a própria máscara vetorial',()=>{
+    const k=document.createElement('canvas'); k.width=120; k.height=120; k.getContext('2d').fillRect(0,0,120,120);
+    const kn=(x,y)=>({linked:true,points:[x,y,x,y,x,y]});
+    const node={name:'Retângulo 1 copiar',left:0,top:0,right:120,bottom:120,canvas:k,
+      vectorFill:{type:'color',color:{r:255,g:255,b:255}},
+      vectorMask:{paths:[{open:false,knots:[kn(500,500),kn(600,500),kn(600,600),kn(500,600)]}]},
+      vectorOrigination:{keyDescriptorList:[{keyOriginBoxCorners:[{x:0,y:10},{x:100,y:0},{x:110,y:100},{x:10,y:110}]}]}};
+    const it=dPsdParseItems({width:400,height:400,children:[node]},72)[0];
+    assert(it && it.kind==='raster','a forma girada deveria ter virado pixel');
+    assert(!it.mask,'a máscara vetorial foi reaplicada sobre o pixel da própria forma');
+  });
+
+  test('caixa de origem vetorial velha não desloca a forma',()=>{
+    const vo=(l,t,r,b)=>({keyDescriptorList:[{keyOriginShapeBoundingBox:{left:{value:l},top:{value:t},right:{value:r},bottom:{value:b}}}]});
+    const velho={left:2494,top:607,right:3314,bottom:750,vectorOrigination:vo(1283,617,2148,719)};
+    assert(_dPsdVectorShapeBox(velho,2364,0)===null,'a caixa de origem da posição antiga ainda foi usada');
+    const certo={left:2494,top:607,right:3314,bottom:750,vectorOrigination:vo(2500,612,3308,745)};
+    const cx=_dPsdVectorShapeBox(certo,2364,0);
+    assert(cx && cx.x===136,'a caixa de origem coerente deixou de ser usada (x '+(cx&&cx.x)+')');
+  });
+
   test('prancheta oculta não tem nota e começa fora do import',()=>{
     const bs=_dPsdBuildBoards([
       {name:'Visível',artboard:{rect:{left:0,top:0,right:100,bottom:100}},children:[]},
@@ -640,6 +665,17 @@
     assert(_dPsdLeading(expl,250)===1.1,'entrelinha explícita não é a razão em pontos (veio '+_dPsdLeading(expl,250)+')');
     assert(_dPsdLeading(expl,60)===_dPsdLeading(expl,600),
       'a entrelinha explícita variou com o corpo em pixel — a razão em pontos é adimensional');
+  });
+
+  /* Caso REAL (Jovi Story 2, 762dpi): os trechos só trocam a fonte; cor e corpo vêm do estilo-
+     base. Sem herdar, "Mal passada:" saía preto e com o corpo ×10. */
+  test('trecho herda cor e corpo do estilo-base, proporcional à camada',()=>{
+    const t={text:'Mal passada: ficou',shapeType:'point',transform:[1,0,0,1,0,0],
+      style:{fontSize:64.6,fillColor:{r:248,g:84,b:0}},paragraphStyle:{},
+      styleRuns:[{length:13,style:{font:{name:'Roboto-Black'}}},{length:5,style:{font:{name:'Roboto-Regular'},fontSize:32.3}}]};
+    const runs=_dPsdRichRuns(t,762,77,33);
+    assert(runs && runs[0].color==='#f85400','a cor do estilo-base não foi herdada ('+(runs&&runs[0].color)+')');
+    assert(runs[0].fontSize===33 && runs[1].fontSize===17,'corpo dos trechos não ficou proporcional ao da camada ('+runs[0].fontSize+','+runs[1].fontSize+')');
   });
 
   test('centavos elevados sobrevivem: baselineShift entra por trecho, não na geometria',()=>{
