@@ -313,7 +313,7 @@
 - **Objetivo:** fechar a tese e pedir o próximo passo.
 - **Frase de abertura:** "Uma marca no controle. Uma rede com autonomia."
 - **Discurso:** "[deixe o mural rodar um instante: são artes reais que o Luma gerou] Uma marca no controle. Uma
-  rede com autonomia. [avança] E um produto pronto para o mundo real. [avança] O próximo passo é o beta com a rede."
+  rede com autonomia. [avança] A V1 está pronta para o mundo real. [avança] O próximo passo é o beta com a rede."
 - **Ponto principal:** o pedido é o beta.
 - **Transição:** abra para perguntas. Tecle **G** para o apêndice.
 
