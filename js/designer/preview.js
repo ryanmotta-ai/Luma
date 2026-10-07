@@ -925,7 +925,9 @@ async function dExportSVG(opts){
       // Escala horizontal da letra: o mesmo eixo x ancorado no alinhamento que o Canvas usa.
       const _sx=(typeof gTextScaleX==='function')?gTextScaleX(l):1;
       if(frag && _sx!==1){ const ax=l.textAlign==='center'?l.x+l.w/2:l.textAlign==='right'?l.x+l.w:l.x;
-        frag=`<g transform="translate(${ax} 0) scale(${_sx} 1) translate(${-ax} 0)">${frag}</g>`; } }
+        frag=`<g transform="translate(${ax} 0) scale(${_sx} 1) translate(${-ax} 0)">${frag}</g>`; }
+      // Texto girado: em torno do centro da caixa, como o Canvas e o editor.
+      if(frag && l.rotation) frag=`<g transform="rotate(${+l.rotation||0} ${l.x+l.w/2} ${l.y+l.h/2})">${frag}</g>`; }
     else if(l.type==='frame'||l.type==='image'){ const r=dSvgImage(l, dados, ++cid); defs+=r.defs; frag=r.body; }
     // Efeitos (sombra projetada/interna, brilho ext/int, chanfro) via <filter>
     if(frag && (l.shadow||l.glow||l.innerShadow||l.innerGlow||l.bevel||_dSvgTracoImg(l))){ const fx=dSvgFx(l, ++cid); if(fx.attr){ defs+=fx.defs; frag=`<g${fx.attr}>${frag}</g>`; } }

@@ -76,6 +76,42 @@
     assert(Math.abs(dir1.x1-dir5.x1)<4,'alinhado à direita, o fim da linha não pode andar');
   });
 
+  /* Equilíbrio de Cores e Filtro de Foto (07/10/2026): antes eram ignorados — o ajuste do PSD
+     sumia da arte. Trava o sentido de cada um (a fórmula é aproximação do Photoshop). */
+  test('equilíbrio de cores e filtro de foto mudam a cor no sentido certo',()=>{
+    const px=(r,g,b)=>{const id=new ImageData(1,1);id.data.set([r,g,b,255]);return id;};
+    const cb=fAdjustImageData(px(128,128,128),{type:'color balance',preserveLuminosity:false,
+      shadows:{},highlights:{},midtones:{cyanRed:60,magentaGreen:0,yellowBlue:-60}}).data;
+    assert(cb[0]>140 && cb[2]<116,'meios-tons +vermelho/−azul não esquentaram o cinza ('+cb[0]+','+cb[2]+')');
+    const sombra=fAdjustImageData(px(10,10,10),{type:'color balance',preserveLuminosity:false,
+      shadows:{},highlights:{},midtones:{cyanRed:60}}).data;
+    assert(sombra[0]<20,'correção de meios-tons vazou para a sombra ('+sombra[0]+')');
+    const pf=fAdjustImageData(px(128,128,128),{type:'photo filter',density:.5,preserveLuminosity:true,
+      color:{l:0.6706,a:0.252,b:0.945}}).data; // filtro de aquecimento (laranja), como no PSD real
+    assert(pf[0]>pf[2]+20,'o filtro laranja não esquentou o cinza ('+pf[0]+','+pf[2]+')');
+    const y=.299*pf[0]+.587*pf[1]+.114*pf[2];
+    assert(Math.abs(y-128)<4,'preservar luminosidade não manteve a luminância ('+y.toFixed(1)+')');
+  });
+
+  /* Texto girado (07/10/2026): 90° troca largura por altura da tinta, em torno do centro. */
+  test('texto com rotação gira em torno do centro da caixa',async()=>{
+    const tinta=async(rot)=>{
+      const cv=document.createElement('canvas'); cv.width=600; cv.height=600;
+      const c=cv.getContext('2d'); window.fState={material:{w:600,h:600,layers:[]}};
+      await fRenderTemplateLayers(c,[{id:'t',type:'text',content:'MMMMM',x:100,y:250,w:400,h:100,font:'Arial',
+        fontSize:80,color:'#000',textAlign:'center',vAlign:'top',visible:true,opacity:100,rotation:rot}],600,600,{},{color:'#fff'},null,{});
+      const d=c.getImageData(0,0,600,600).data; let x0=600,x1=-1,y0=600,y1=-1;
+      for(let y=0;y<600;y++)for(let x=0;x<600;x++){ if(d[(y*600+x)*4]<100){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; } }
+      return {w:x1-x0,h:y1-y0,cx:(x0+x1)/2,cy:(y0+y1)/2};
+    };
+    const reto=await tinta(0), em90=await tinta(90);
+    assert(reto.w>reto.h*2,'o texto de referência não saiu horizontal');
+    assert(em90.h>em90.w*2,'a 90° a tinta deveria ficar vertical ('+em90.w+'×'+em90.h+')');
+    // O centro horizontal da linha (x=300, centralizada) vai para y=300 a 90°; o deslocamento
+    // vertical da tinta (vAlign top) vira horizontal — por isso só o eixo y é exato aqui.
+    assert(Math.abs(em90.cy-300)<6,'o giro não foi em torno do centro da caixa (cy '+em90.cy+')');
+  });
+
   test('modo nativo exporta a prancheta no tamanho real',async()=>{
     const cv=await exportar({scale:1});
     assert(cv.width===1080&&cv.height===1350,

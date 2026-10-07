@@ -994,7 +994,8 @@ function dImportLayersAsArtboard(w,h,layers,name,fmtChoice,dpi){
     outW=to.w; outH=to.h; fmt=fmtChoice;
   }
   const id='ab-'+Date.now();
-  const ab={id,name:(name||'PSD').slice(0,30),x:80,y:60,w:outW,h:outH,fmt,dpi:dpi||72,layers:JSON.parse(JSON.stringify(clone))};
+  // bg 'transparent': o fundo é do próprio PSD (ver dPsdSaveArtboardTemplates).
+  const ab={id,name:(name||'PSD').slice(0,30),x:80,y:60,w:outW,h:outH,fmt,dpi:dpi||72,bg:'transparent',layers:JSON.parse(JSON.stringify(clone))};
   // CANVAS ÚNICO: substitui a prancheta (como dNewArtboardCustom) — push acumulava
   // pranchetas órfãs e dGetActiveAB (que só usa dArtboards[0]) mantinha o TAMANHO antigo.
   dArtboards=[ab]; dActiveABId=id;
@@ -1004,6 +1005,7 @@ function dImportLayersAsArtboard(w,h,layers,name,fmtChoice,dpi){
   const _preset=DFMT_SIZES[fmt];
   dCustomFmt=(_preset && _preset.w===outW && _preset.h===outH) ? null : {w:outW,h:outH};
   dLayers=JSON.parse(JSON.stringify(clone)); dFmt=fmt; dSelId=null;
+  if(typeof dCanvasBg!=='undefined') dCanvasBg='transparent'; // é dele que o salvar lê o fundo
   if(typeof dMultiSel!=='undefined') dMultiSel=[];
   if(typeof dHistoryReset==='function') dHistoryReset();
   if(typeof dRenderWorkspace==='function') dRenderWorkspace();
@@ -1082,7 +1084,9 @@ async function _dPsdRenderPreviewNow(){
   if(typeof fRenderPreviewToCanvas==='function'){
     const layers=_dPsdItemsToPreviewLayers(items);
     if(layers.length){
-      const ok=await fRenderPreviewToCanvas(canvas, {layers, w:dPsdMeta.w, h:dPsdMeta.h}, {maxPx:1100});
+      // Mesmo fundo do template importado: sem ele a prévia pintava cinza onde o PSD é
+      // transparente e o selo de fidelidade acusava divergência que a arte não tem.
+      const ok=await fRenderPreviewToCanvas(canvas, {layers, w:dPsdMeta.w, h:dPsdMeta.h, bg:'transparent'}, {maxPx:1100});
       drawn=(ok!==false);
     }
   }
@@ -2486,6 +2490,10 @@ function dPsdSaveArtboardTemplates(results, folderId, baseName){
       name:_tname.slice(0,30),
       fmt:fmt,
       w:sz.w, h:sz.h, // tamanho real do template — o gerador do franqueado renderiza 1:1 quando presente
+      /* O FUNDO É DO PSD (07/10/2026). Sem `bg`, o motor pinta a cor da campanha atrás de tudo
+         que não é uma forma de tela cheia: banner de canto arredondado (transparente no
+         Photoshop) saía com os cantos laranja no PNG do franqueado. */
+      bg:'transparent',
       layers:JSON.parse(JSON.stringify(layers)),
       publishMeta:(typeof dDefaultPublishMeta==='function')?dDefaultPublishMeta():{publicado:false,permissoes:{}}
     };

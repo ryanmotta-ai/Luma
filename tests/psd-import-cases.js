@@ -203,6 +203,30 @@
     assert(!it.capability.motivos.some(m=>m.code==='text_scale_nao_unif'),'letra condensada ainda avisada como perda');
   });
 
+  /* Caso REAL (Super banners Copa/Dale: 42 textos girados sem pixel no arquivo): antes entravam
+     retos e marcados "não preservada"; "R$ 40" girado com pixel só podia ser imagem — nunca
+     campo. Agora o Luma gira texto. */
+  test('texto girado vira texto com rotação; fixo com pixel continua imagem fiel',()=>{
+    const ang=12*Math.PI/180, c=Math.cos(ang)*2, sn=Math.sin(ang)*2;
+    const no=(nome,comPixel)=>{
+      const n={name:nome,left:100,top:100,right:300,bottom:200,
+        text:{text:'R$ 40',shapeType:'point',transform:[c,sn,-sn,c,150,180],
+          boundingBox:{left:0,top:-30,right:90,bottom:0},
+          style:{font:{name:'Roboto-Black'},fontSize:40,horizontalScale:1,verticalScale:1},paragraphStyle:{}}};
+      if(comPixel){ const k=document.createElement('canvas');k.width=200;k.height=100;k.getContext('2d').fillRect(0,0,200,100);n.canvas=k; }
+      return n;
+    };
+    const itens=dPsdParseItems({width:600,height:400,children:[no('Camada 3',false),no('Camada 4',true),no('@preco',true)]},72);
+    const vivo=itens.find(i=>i.name==='Camada 3'), fixo=itens.find(i=>i.name==='Camada 4'), campo=itens.find(i=>i.name==='@preco');
+    assert(vivo && vivo.kind==='text' && Math.abs(vivo.rotation-12)<0.1,'texto girado sem pixel não ganhou rotação (rot '+(vivo&&vivo.rotation)+')');
+    assert(Math.abs(vivo.x+vivo.w/2-200)<2 && Math.abs(vivo.y+vivo.h/2-150)<2,'a caixa sem rotação não ficou centrada na tinta');
+    assert(Math.abs(vivo.w-180)<2 && Math.abs(vivo.h-60)<2,'tamanho sem rotação errado ('+vivo.w+'×'+vivo.h+')');
+    assert(!vivo.capability.motivos.some(m=>m.code==='sem_representacao'),'texto girado ainda marcado como perdido');
+    assert(fixo.mode==='raster' && fixo._rasterPorRotacao,'texto fixo girado com pixel deixou de ser imagem fiel');
+    assert(campo.mode==='var' && campo.rotation,'campo girado não ficou texto vivo com rotação');
+    assert(dItemToLayer(campo).rotation===campo.rotation,'a rotação não chegou na camada');
+  });
+
   test('caixa de texto importada ganha o respiro do Luma sem mudar a posição do texto',()=>{
     const L=dItemToLayer({kind:'text',mode:'text',name:'T',content:'COCA-COLA',font:"'Roboto'",
       fontSize:100,color:'#fff',textAlign:'left',textBox:'box',x:200,y:50,w:500,h:110,opacity:100,include:true});

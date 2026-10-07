@@ -502,6 +502,34 @@ function fAdjustImageData(id, adj){
       else {const sat=(+adj.saturation||0)/100,vib=(+adj.vibrance||0)/100;ds=sat+vib*(1-hsl[1]);}
       hsl[0]=(hsl[0]+dh+1)%1;hsl[1]=clamp(hsl[1]+(ds>=0?(1-hsl[1])*ds:hsl[1]*ds),0,1);hsl[2]=clamp(hsl[2]+(dl>=0?(1-hsl[2])*dl:hsl[2]*dl),0,1);[r,g,b]=hslToRgb(hsl[0],hsl[1],hsl[2]);
     }else if(type==='threshold'){const y=.299*r+.587*g+.114*b,v=y>=(adj.level!=null?+adj.level:128)?255:0;r=g=b=v;
+    }else if(type==='color balance'){
+      /* Equilíbrio de Cores (07/10/2026). O Photoshop não publica a fórmula; estas são as
+         máscaras de faixa do GIMP, que a imitam: cada correção atua só na sua faixa de
+         luminosidade (sombras ‾\___, meios-tons _/‾\_, realces ___/‾), em escala 0,7. */
+      const L=rgbToHsl(r,g,b)[2], A=.25, B=.333, S=.7;
+      const ws=clamp((L-B)/-A+.5,0,1)*S, wm=clamp((L-B)/A+.5,0,1)*clamp((L+B-1)/-A+.5,0,1)*S, wh=clamp((L+B-1)/A+.5,0,1)*S;
+      const sh=adj.shadows||{}, mi=adj.midtones||{}, hi=adj.highlights||{};
+      const ch=(v,k)=>clamp(v/255+((+sh[k]||0)*ws+(+mi[k]||0)*wm+(+hi[k]||0)*wh)/100,0,1)*255;
+      r=ch(r,'cyanRed'); g=ch(g,'magentaGreen'); b=ch(b,'yellowBlue');
+      if(adj.preserveLuminosity!==false){ const h=rgbToHsl(r,g,b); [r,g,b]=hslToRgb(h[0],h[1],L); }
+    }else if(type==='photo filter'){
+      /* Filtro de Foto: a luz atravessando um filtro colorido — multiplica pela cor e mistura
+         pela densidade; "preservar luminosidade" devolve a luminância original. A cor chega em
+         Lab normalizado (ag-psd) ou RGB. */
+      if(!fAdjustImageData._pf || fAdjustImageData._pf.src!==adj){
+        const c=adj.color||{}; let fr,fg,fb;
+        if(c.l!=null){ // Lab (D50 do Photoshop ≈ D65 aqui) → sRGB
+          const Lv=c.l*100, av=c.a*127, bv=c.b*127, fy=(Lv+16)/116, fx=fy+av/500, fz=fy-bv/200;
+          const inv=t=>t>0.206893?t*t*t:(t-16/116)/7.787;
+          const X=.95047*inv(fx), Y=inv(fy), Z=1.08883*inv(fz);
+          const lin=[3.2406*X-1.5372*Y-.4986*Z, -.9689*X+1.8758*Y+.0415*Z, .0557*X-.204*Y+1.057*Z];
+          [fr,fg,fb]=lin.map(v=>clamp((v<=.0031308?12.92*v:1.055*Math.pow(v,1/2.4)-.055)*255));
+        } else { fr=+c.r||0; fg=+c.g||0; fb=+c.b||0; }
+        fAdjustImageData._pf={src:adj,fr,fg,fb,den:clamp(adj.density!=null?+adj.density:.25,0,1)};
+      }
+      const pf=fAdjustImageData._pf, y0=.299*r+.587*g+.114*b;
+      r=r+(r*pf.fr/255-r)*pf.den; g=g+(g*pf.fg/255-g)*pf.den; b=b+(b*pf.fb/255-b)*pf.den;
+      if(adj.preserveLuminosity!==false){ const dy=y0-(.299*r+.587*g+.114*b); r+=dy; g+=dy; b+=dy; }
     }else continue;
     d[i]=Math.round(clamp(r));d[i+1]=Math.round(clamp(g));d[i+2]=Math.round(clamp(b));
   }
@@ -1017,6 +1045,13 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     // não renderiza o layer — evita rótulo órfão tipo "R$" sozinho.
     if(/\{\{/.test(l.content||'') && typeof gAllVarsEmpty==='function' && gAllVarsEmpty(l.content, dados, _defaults)){
       ctx.restore(); return;
+    }
+    /* TEXTO GIRADO (07/10/2026): gira em torno do centro da caixa, como o Photoshop faz com o
+       texto do PSD — o campo do franqueado continua editável e inclinado. Quebra, encaixe e
+       Local Fit seguem na caixa sem rotação; o ctx.save do início da camada desfaz o giro. */
+    if(l.rotation){
+      const _rcx=x+w/2, _rcy=y+h/2;
+      ctx.translate(_rcx,_rcy); ctx.rotate((+l.rotation||0)*Math.PI/180); ctx.translate(-_rcx,-_rcy);
     }
     // Substitui {{var}} pelo valor real do franqueado (interpolador único — 3.1)
     let raw = gInterpolate(l.content, dados, {onEmpty:'remove', defaults:_defaults});

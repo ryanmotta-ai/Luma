@@ -1374,6 +1374,12 @@ function dRenderCanvas(){
         textNode.style.width=(100/_tsx)+'%'; textNode.style.transformOrigin='0 0';
         textNode.style.transform=((textNode.style.transform||'')+' scaleX('+_tsx+')').trim();
       }
+      // Texto girado: a camada inteira gira em torno do centro (alças junto, como num editor
+      // de design) — o mesmo eixo do Canvas da arte final e do SVG.
+      if(l.rotation){
+        el.style.transformOrigin='50% 50%';
+        el.style.transform=((el.style.transform||'')+' rotate('+(+l.rotation||0)+'deg)').trim();
+      }
       el.appendChild(textNode);
       // Indicador de overflow — mede com o tamanho EXIBIDO (_renderFs) e o TEXTO exibido:
       // simulação usa o valor real; edição usa o mesmo valor de exemplo que aparece no canvas

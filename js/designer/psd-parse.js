@@ -1462,6 +1462,20 @@ function _dPsdDetectShapeKind(canvas){
 // rotacionada, se importada como texto/shape editável, viria eixo-alinhada (torta/errada). Detectar
 // aqui permite rasterizar o pixel já rotacionado (1:1). Texto: ângulo do transform (a,b). Forma:
 // cantos da caixa de origem (keyOriginBoxCorners) fora do eixo. Threshold ~1.5° evita falso positivo.
+/* Ângulo (graus) do texto quando a matriz é rotação PURA — colunas ortogonais, sem espelho,
+   sem deformação, sem texto em curva. Fora disso, null: o pixel continua sendo a única
+   representação fiel. */
+function _dPsdTextoGiroPuro(node){
+  const t=node&&node.text, tr=t&&t.transform;
+  if(!tr||tr.length<4) return null;
+  if(t.warp && t.warp.style && t.warp.style!=='none') return null;
+  if(typeof _dPsdTextOnPath==='function' && _dPsdTextOnPath(node)) return null;
+  const a=+tr[0]||0,b=+tr[1]||0,c=+tr[2]||0,d=+tr[3]||0;
+  if(a*d-b*c<=0) return null;                                    // espelho
+  const n1=Math.hypot(a,b), n2=Math.hypot(c,d);
+  if(!n1||!n2||Math.abs(a*c+b*d)/(n1*n2)>0.02) return null;     // cisalhamento
+  return Math.round(Math.atan2(b,a)*180/Math.PI*100)/100;
+}
 function _dPsdIsRotatedLayer(node){
   try{
     const tt=node.text&&node.text.transform;
@@ -1565,6 +1579,9 @@ const _DPSD_CAP_MOTIVOS={
   pattern_fill:        {nivel:'raster',       etapa:'decode',     atencao:'info', visual:'preservado', rotulo:'Preenchimento por padrão — o Luma não tem modelo de padrão'},
   pattern_overlay:     {nivel:'raster',       etapa:'decode',     atencao:'info', visual:'preservado', rotulo:'Sobreposição de padrão — o Luma não tem modelo de padrão'},
   rotated:             {nivel:'raster',       etapa:'geometria',  atencao:'info', visual:'preservado', rotulo:'Camada rotacionada — o modelo do Luma não tem rotação'},
+  /* Texto girado SEM cisalhamento nem espelho (07/10/2026): o Luma gira texto (`l.rotation`).
+     Não força pixel — o campo do franqueado continua editável, girado como no Photoshop. */
+  text_rotated:        {nivel:'native',       etapa:'geometria',  atencao:'info', visual:'preservado', rotulo:'Texto girado — editável, com a rotação do Photoshop'},
   flipped:             {nivel:'raster',       etapa:'geometria',  atencao:'info', visual:'preservado', rotulo:'Camada espelhada ou girada 180°'},
   text_on_path:        {nivel:'raster',       etapa:'geometria',  atencao:'review', visual:'preservado', rotulo:'Texto em curva (type on path)'},
   text_warp:           {nivel:'raster',       etapa:'geometria',  atencao:'review', visual:'preservado', rotulo:'Texto deformado (warp) — a deformação está nos pixels'},
@@ -1741,7 +1758,7 @@ function _dPsdCapNode(node){
   if(node.vectorFill && node.vectorFill.type==='pattern') _dPsdCapMarca(cap,'pattern_fill');
   let po=node.effects && node.effects.patternOverlay; if(Array.isArray(po)) po=po[0];
   if(po && po.enabled!==false) _dPsdCapMarca(cap,'pattern_overlay');
-  if(_dPsdIsRotatedLayer(node)) _dPsdCapMarca(cap,'rotated');
+  if(_dPsdIsRotatedLayer(node)) _dPsdCapMarca(cap,_dPsdTextoGiroPuro(node)!=null?'text_rotated':'rotated');
   if(_dPsdIsFlippedLayer(node)) _dPsdCapMarca(cap,'flipped');
   if(_dPsdTextOnPath(node)) _dPsdCapMarca(cap,'text_on_path');
   // texto com WARP (arco/onda/bandeira/etc): a deformação faz parte dos PIXELS do node.canvas,
@@ -1902,7 +1919,7 @@ const _DPSD_ATENCAO_CATS=[
    texto:()=>'O Photoshop deformou este texto de um jeito que o Luma não reproduz como texto. '
      +'A aparência foi mantida, mas ele não pode ser editado nem virar um campo do franqueado.',
    acao:'ciente'},
-  {id:'tipografia', codes:['text_multi_style','text_box_approx','text_scale_nao_unif','text_size_estimado'],
+  {id:'tipografia', codes:['text_multi_style','text_box_approx','text_scale_nao_unif','text_size_estimado','text_rotated'],
    titulo:'A tipografia deste texto foi adaptada',
    texto:()=>'O Photoshop usa um recurso de texto que o Luma representa de forma aproximada. '
      +'Vale conferir a quebra de linha e o tamanho.',
@@ -2076,7 +2093,7 @@ function dPsdCapReport(items){
 // mas marcados como não suportados em vez de desaparecerem silenciosamente.
 const _DPSD_ADJUST_SUPPORTED=new Set([
   'brightness/contrast','levels','curves','exposure','vibrance','hue/saturation',
-  'invert','posterize','threshold'
+  'invert','posterize','threshold','color balance','photo filter'
 ]);
 function _dPsdAdjustmentInfo(adj){
   if(!adj||!adj.type)return null;
@@ -2085,7 +2102,8 @@ function _dPsdAdjustmentInfo(adj){
   // Estes algoritmos são dinâmicos e editáveis, mas o Photoshop usa curvas internas que não
   // publica para Brilho moderno/Vibração e spline própria em Curvas. Marcamos a aproximação na
   // revisão; melhor uma capacidade explícita do que vender "1:1" onde a matemática não é aberta.
-  let approximate=(type==='brightness/contrast'&&!data.useLegacy)||type==='vibrance'||(type==='curves'&&['rgb','red','green','blue'].some(k=>(data[k]||[]).length>2));
+  // Equilíbrio de Cores e Filtro de Foto (07/10/2026): fórmulas do Photoshop não publicadas.
+  let approximate=(type==='brightness/contrast'&&!data.useLegacy)||type==='vibrance'||type==='color balance'||type==='photo filter'||(type==='curves'&&['rgb','red','green','blue'].some(k=>(data[k]||[]).length>2));
   // O master de Hue/Saturation é reproduzido; faixas seletivas (reds/yellows/…) ainda não.
   if(type==='hue/saturation'){
     const ranged=['reds','yellows','greens','cyans','blues','magentas'];
@@ -2469,6 +2487,26 @@ function dPsdParseItems(psd, res, ox, oy){
           it._pxCx={x:Math.round((node.left||0)-ox), y:Math.round((node.top||0)-oy),
             w:Math.max(1,(node.right||0)-(node.left||0)), h:Math.max(1,(node.bottom||0)-(node.top||0))};
         }
+        /* TEXTO GIRADO (07/10/2026): a caixa do Luma é a caixa SEM rotação, centrada no centro
+           da tinta, e `rotation` gira em torno desse centro. O tamanho sai da caixa do motor de
+           texto (boundingBox, ou boxBounds no parágrafo) na escala do transform — o bbox de
+           pixels de um texto girado é maior que o texto. */
+        const _giro=_dPsdTextoGiroPuro(node);
+        if(_giro!=null && Math.abs(_giro)>1.5){
+          const _bb=(t.shapeType==='box'&&t.boxBounds&&t.boxBounds.length>=4)
+            ?{left:t.boxBounds[0],top:t.boxBounds[1],right:t.boxBounds[2],bottom:t.boxBounds[3]}
+            :(t.boundingBox||t.bounds);
+          const _v=x=>+((x&&x.value!=null)?x.value:x)||0;
+          const _k=_tm.fatorResolucao||1;
+          const _w=Math.abs(_v(_bb&&_bb.right)-_v(_bb&&_bb.left))*_tm.escala.trX*_k;
+          const _h=Math.abs(_v(_bb&&_bb.bottom)-_v(_bb&&_bb.top))*_tm.escala.trY*_k;
+          if(_w>1 && _h>1){
+            const _cx=((node.left||0)+(node.right||0))/2-ox, _cy=((node.top||0)+(node.bottom||0))/2-oy;
+            it.w=Math.round(_w); it.h=Math.round(_h);
+            it.x=Math.round(_cx-_w/2); it.y=Math.round(_cy-_h/2);
+            it.rotation=_giro;
+          }
+        }
       } else if(node.canvas && node.canvas.width>0 && node.canvas.height>0){
         // Camada de GRADIENTE (GdFl: tem vectorFill com colorStops) → shape com gradiente editável,
         // mesmo não sendo cor sólida (senão cairia em raster).
@@ -2802,6 +2840,12 @@ function dPsdParseItems(psd, res, ox, oy){
     if(/roboto/i.test(it.fontName) || !it.fontStatus || it.fontStatus==='exact') return;
     it.mode='raster'; it._rasterPorFonte=true;
   });
+  /* Texto GIRADO fixo com pixel: o pixel do Photoshop é a versão mais fiel, e ninguém o edita no
+     franqueado. Campo (mode 'var') segue vivo e girado; desligar o campo volta a este padrão. */
+  out.forEach(it=>{
+    if(it.kind!=='text' || it.mode!=='text' || !it.imgUrl || !it.rotation) return;
+    it.mode='raster'; it._rasterPorRotacao=true;
+  });
   /* `@fundo` — CONVENÇÃO DO DESIGNER (06/10/2026): no Photoshop ele esconde os campos, junta o
      visível numa camada (Ctrl+Alt+Shift+E), batiza de `@fundo` e a esconde. É o único fundo
      100% fiel possível: o composto do arquivo tem os campos dentro, e o pixel de cada camada
@@ -2919,6 +2963,7 @@ function dItemToLayer(it){
     if(it.vAlign) L.vAlign=it.vAlign;           // ancoragem vertical (top) importada do PSD
     if(it.italic) L.italic=true;                // font-style itálico
     if(it.textScaleX && Math.abs(it.textScaleX-1)>0.01) L.textScaleX=it.textScaleX; // letra condensada/esticada
+    if(it.rotation) L.rotation=it.rotation;     // texto girado: gira em torno do centro da caixa
     if(it.letterSpacing!=null) L.letterSpacing=it.letterSpacing;
     if(it.lineHeight) L.lineHeight=it.lineHeight;
     if(it.runs && !isVar) L.runs=it.runs;       // texto multi-estilo (não p/ variável)
