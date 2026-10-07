@@ -29,7 +29,7 @@
 | 10 | **107** ganchos (15 universais, 80 em **15** tipos de cardápio, 12 perguntas), **66** moldes de corpo (41 + 25 curtos), **25** chamadas, **76** hashtags | contagem dos arrays de `_COPY_BLOCKS` em `js/franqueado/png-generator.js` |
 | 10 | **2.430** legendas diferentes na opção Promo para o Smash Bacon Duplo em promoção, sem contar as hashtags | a mesma escolha do `_fAssembleCopy`: 22 ganchos (lanches + universais) × 13 corpos "com desconto" = 286 pares, dos quais 243 cabem em 120 caracteres; × 10 chamadas de pedido |
 | 10 | As quatro legendas da demonstração | saídas do `fBuildCopy` com sorteio fixo (`_fCopySetRandom`, semente 42), rodando o arquivo real fora do navegador: as 3 opções de uma arte e a Promo da arte seguinte |
-| 11 | O Encurtar é determinístico, **<1 ms**, sem rede e sem IA (no card: "< 1 ms · sem IA"); números nunca somem | cabeçalho de `js/core/copy-fit.js` (garantias cobradas por `tests/copy-fit.html`) |
+| 11 | O Encurtar usa IA (no card: "encurtar com IA"): o motor de regras gera as versões e a IA entra como último degrau, conferida palavra a palavra; números nunca somem | cabeçalho de `js/core/copy-fit.js` ("IA como ÚLTIMO degrau", 23/09/2026; `gCopyFitConfere`; garantias cobradas por `tests/copy-fit.html`) |
 | 12 | **15** artes · **4** campanhas · **2** formatos; **6** ofertas viram um ZIP | `assets/artes/lote-00…14.webp`, geradas pelo Luma Sheets; tela `captures/franqueado-sheets.webp` |
 | 16 | **R$ 0** por mês de infraestrutura | `luma-brain/02_ARCHITECTURE.md` (Supabase `uqrqzjafhigjuvtjqzid`, plano Free); front estático no GitHub Pages da `talpaipai`; Ryan, 27/09/2026. A IA (Gemini, cobrada por uso) fica fora da conta de infraestrutura |
 | 16 | **94** franqueados | Ryan, 27/09/2026 ("hoje temos 94 franqueados") |

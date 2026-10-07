@@ -172,16 +172,17 @@
 - **Objetivo:** mostrar a engenharia que o franqueado não vê.
 - **Frase de abertura:** "Por baixo, o Luma resolve o que não deveria virar problema do franqueado."
 - **Discurso:** "[avança] Qualquer nome cabe: curto, médio ou longo, o Local Fit quebra a linha ou reduz dentro
-  da caixa que o designer desenhou, e nada mais na arte se move. [avança] Não coube? O Encurtar sugere versões
-  curtas num toque, medidas na própria arte, em menos de um milissegundo e sem IA. Preço, números e itens nunca
+  da caixa que o designer desenhou, e nada mais na arte se move. [avança] Não coube? O Encurtar, com IA, sugere versões
+  curtas num toque, medidas na própria arte. Preço, números e itens nunca
   somem, e o franqueado escolhe. [avança] Errou? Na aba Respostas, cada resposta tem um lápis: corrige sem
   recomeçar a conversa. [avança] E preço errado não sai: "por" maior que o "de" é recusado antes do download.
   No Estúdio, erro crítico não publica."
 - **Ponto principal:** complexidade por baixo, simplicidade por cima.
 - **Transição:** "E isso não vale só para uma arte por vez."
 - **Perguntas difíceis:**
-  - *"O Encurtar é IA?"* Não. É determinístico, roda em menos de 1 ms, sem rede e sem IA. As regras geram
-    versões e o Local Fit mede em pixel quais cabem.
+  - *"O Encurtar é IA?"* Sim, com trava. Primeiro as regras do motor geram versões curtas; a IA entra como
+    último degrau, e toda versão dela passa pela mesma conferência (número, preço e item não somem, palavra
+    nova não entra) antes de aparecer. O Local Fit mede em pixel quais cabem.
   - *"Resolve todos os casos?"* Não, e não dizemos que resolve. Quando nada cabe com legibilidade, o Luma
     avisa antes do download em vez de estourar a arte.
 
