@@ -1102,6 +1102,22 @@
     assert(_dPsdFundoPlano(T).run.join()==='0','um texto fixo foi trocado pela @fundo — sumiria se o carimbo não o tivesse');
   });
 
+  test('só a área não faz de uma imagem a foto do produto',()=>{
+    const duasCores=()=>{ const c=document.createElement('canvas'); c.width=c.height=60; const x=c.getContext('2d');
+      x.fillStyle='#fc6';x.fillRect(0,0,60,60); x.fillStyle='#930';x.fillRect(10,10,25,40); return c; };
+    const no=(name)=>({name,left:200,top:300,right:800,bottom:900,canvas:duasCores()});
+    // A regra de área só dispara com o campo de foto no catálogo — é o caso real do Estúdio.
+    const tinha=(typeof dVars!=='undefined'), antes=tinha?dVars:undefined;
+    const cat=[{name:'foto_produto',label:'Foto do produto',type:'image'}];
+    if(tinha) dVars=cat; else window.dVars=cat;
+    try{
+      const [luz,foto]=dPsdParseItems({children:[no('Luz'),no('Foto do produto')],width:1080,height:1350},72,0,0)
+        .sort((a,b)=>a.name.localeCompare(b.name)).reverse();
+      assert(luz.name==='Luz'&&!luz.varName,'uma luz do tamanho de uma foto virou sugestão de foto do produto ('+luz.varName+')');
+      assert(foto.varName==='foto_produto','a camada chamada "Foto do produto" perdeu a sugestão — o nome continua sendo evidência');
+    } finally { if(tinha) dVars=antes; else delete window.dVars; }
+  });
+
   let passed=0;
   const falhas=[];
   for(const item of cases){

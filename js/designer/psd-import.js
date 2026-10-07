@@ -773,7 +773,8 @@ function dPsdUpdateCount(){
     cta.disabled=off; cta.setAttribute('aria-disabled',off?'true':'false');
   }
   const cnt=document.getElementById('d-psd-count');
-  if(cnt&&(_multi||_avanca)) cnt.textContent='';
+  // Fora do avançado o número de camadas mente: o fundo fiel junta as fixas na importação.
+  if(cnt&&(_multi||!_dPsdReviewAll)) cnt.textContent='';
   // Painel de exceções: recalcula do livro-caixa a cada mudança de estado. Não re-renderiza a
   // lista (dPsdRenderRows chama esta função — seria laço), só o seu próprio nó.
   _dPsdRenderAtencao();
@@ -1258,6 +1259,10 @@ function dPsdSmartMap(items, meta){
        regra determinística. As três primeiras já decidiram; a inferência não discute. */
     if(it.varSource==='user' || it.varSource==='ia' || it._memoryApplied || it._fixedByUser) return;
     if(it._fieldInference && it._fieldInference.source==='explicit') return;
+    // Imagem sugerida só pela área (fonte `visual`) precisa da pista do Photoshop — o objeto
+    // inteligente com foto reta. Sem ela, luz e faixa viravam "foto do produto" (ver
+    // _dPsdSuggestImgVar, mesma regra no parse).
+    if(it.kind!=='text' && r.source==='visual' && !(pistas[r.layer.id] && pistas[r.layer.id].fotoColocada)) return;
     // Semântica e compatibilidade precisam CONCORDAR (§17): campo de imagem não entra em
     // texto porque o significado parecia certo.
     const chk=_dPsdBindCheck(it, r.field);

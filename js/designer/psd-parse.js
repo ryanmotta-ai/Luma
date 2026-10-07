@@ -985,6 +985,11 @@ function _dPsdSuggestVar(name, content){
 function _dPsdSuggestImgVar(name, opts){
   if(typeof gFieldInfer==='function'){
     const inf=gFieldInfer(Object.assign({layerName:name||'',content:'',target:'imagem'},opts||{}));
+    /* Só a ÁREA não é evidência de foto de produto (06/10/2026): no PSD de campanha, luz,
+       vinheta, faixa e textura têm o tamanho de uma foto, e cada uma virava a pergunta "é a
+       foto do produto?". Nome, catálogo ou `@campo` continuam valendo. A regra é do adaptador
+       do PSD — o gFieldInfer é o mesmo do Estúdio e não muda. */
+    if(inf && inf.field && inf.source==='visual') return null;
     if(inf&&inf.field){
       return {name:inf.field.name,field:inf.field,mode:'frame',auto:inf.confidence==='high',
         explicit:!!inf.explicit,confidence:inf.confidence,source:inf.source,
