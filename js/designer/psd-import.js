@@ -98,6 +98,9 @@ function _dPsdMemSave(...listas){
 // inverter), o que deixava pilhas sem fundo nomeado/grande com z-order TROCADO (o
 // designer reordenava na mão). O toggle manual (#d-psd-invert) cobre o PSD atípico.
 function _dPsdShouldInvert(items, w, h){
+  // A `@fundo` cobre a arte inteira e mora no TOPO da pilha do Photoshop: contada aqui, pareceria
+  // o fundo de um PSD "atípico" e trocaria a ordem de tudo.
+  items=(items||[]).filter(it=>!it._psdFundo);
   if(!items||items.length<2) return false;
   const first=items[0], last=items[items.length-1];
   const bgRe=/^(background|fundo|bg|base|backdrop|plano[\s\-]*de[\s\-]*fundo)$/i;
@@ -314,14 +317,30 @@ function _dPsdRenderStep1(){
     const sub=rep.worst.length?('Maior diferença em '+rep.worst.slice(0,2).map(o=>'“'+o.name+'”').join(' e ')):'Nenhuma área com diferença relevante';
     fid='<div class="psd-s1-fid is-'+nivel+'"><strong>'+rep.pct+'%</strong><div><b>'+titulo+'</b><small>'+_dPsdEsc(sub)+'</small></div></div>';
   }
+  // O fundo pela MESMA regra da importação (_dPsdFundoPlano sobre as camadas convertidas): o
+  // resumo não pode prometer um fundo que o import não vai montar.
+  const inv=document.getElementById('d-psd-invert');
+  const ord=_dPsdFundoPrimeiro((inv&&inv.checked)?inc.slice().reverse():inc);
+  let L=[], plano={fundo:-1, run:[]};
+  try{ L=dPsdItemsToLayers(ord,false,{w:dPsdMeta.w,h:dPsdMeta.h}); plano=_dPsdFundoPlano(L); }catch(e){}
+  const folhas=i=>L[i] && L[i].type!=='group';
+  const nRun=plano.run.filter(folhas).length;
+  const temPs=plano.fundo>=0, achata=temPs || nRun>=2;
+  const noFundo=new Set(achata?plano.run:[]); if(temPs) noFundo.add(plano.fundo);
+  const porCima=L.filter((l,i)=>folhas(i) && !noFundo.has(i) && !_dPsdCampoLayer(l)).length;
   const linha=(rotulo,valor,dica)=>'<li'+(dica?(' title="'+_dPsdEsc(dica)+'"'):'')+'><span>'+rotulo+'</span><span>'+valor+'</span></li>';
   box.innerHTML=fid
     +'<ul class="psd-s1-lista">'
+    +linha('Fundo', temPs?('a camada @fundo do Photoshop · 100% fiel'+(nRun?(' · no lugar de '+nRun+' camadas'):''))
+        :(nRun>=2?(nRun+' camadas viram 1 imagem'):'camadas separadas'))
     +linha('Campos do franqueado', campos?(campos+' · você confere no próximo passo'):'nenhum ainda · próximo passo')
-    +linha('Camadas fixas', String(inc.length-campos))
+    +(porCima?linha('Fixas por cima dos campos', String(porCima),
+        'Ficam como camadas porque estão acima de um campo: no fundo, a foto ou o texto do franqueado as cobriria.'):'')
     +(porFonte?linha('Textos fixos sem a fonte', porFonte+' · iguais ao Photoshop',
         'A fonte não está no Luma. Texto fixo entra como a imagem do Photoshop; se virar campo, volta a ser texto.'):'')
     +'</ul>'
+    +(temPs?'':'<div class="psd-s1-dica"><b>Quer o fundo 100% igual ao Photoshop?</b>'
+      +'<small>No Photoshop: esconda os campos, aperte Ctrl+Alt+Shift+E, renomeie a camada nova para <code>@fundo</code> e esconda-a. O Luma usa essa camada como fundo.</small></div>')
     +'<button type="button" class="psd-s1-link" onclick="dPsdToggleAdvanced()">Ver as '+total+' camadas</button>';
 }
 // Os campos ligados, de cima para baixo na arte: é a numeração da lista E dos números na arte.
@@ -812,6 +831,78 @@ function _dPsdCloseReviewUI(){
   _dPsdAtencaoReset();
   const at=document.getElementById('d-psd-atencao'); if(at){ at.innerHTML=''; at.className='psd-atencao'; }
 }
+/* ══ FUNDO FIEL (06/10/2026) — as camadas fixas de baixo viram UMA imagem ══════════════════
+   Decisão do Ryan: o import não existe para redimensionar entre formatos, e o designer quer o
+   Estúdio com o que o franqueado troca — não com 40 camadas de textura, luz e vinheta. Então as
+   camadas FIXAS abaixo do campo mais baixo são desenhadas uma vez, pelo MESMO motor da arte
+   final, e entram como uma imagem só. A fidelidade é a de sempre (é o motor); o que muda é o
+   Estúdio leve. Com `@fundo` no PSD, o fundo é o pixel do próprio Photoshop: 1:1.
+   ⛔ Acontece só na CONFIRMAÇÃO: a revisão e o avançado continuam vendo cada camada.
+   Fica de fora do fundo (a sequência para no primeiro destes):
+   · camada que é base de recorte de alguém acima dos campos — o recorte precisa dela viva;
+   · camada de um grupo que tem campo dentro — tirar um filho mudaria a composição do grupo.  */
+const _DPSD_FUNDO_RE=/^\s*@fundo\s*$/i;
+function _dPsdCampoLayer(l){
+  return !!(l && (l.isVar || l.imgVar || (l.type==='text' && /\{\{/.test(String(l.content||'')))));
+}
+// A `@fundo` vai para o fundo da pilha: ela é o que está ATRÁS de tudo, onde quer que o designer
+// a tenha deixado no Photoshop (o carimbo do visível nasce no topo).
+function _dPsdFundoPrimeiro(list, get){
+  const f=(list||[]).findIndex(x=>{ const it=get?get(x):x; return it && it._psdFundo; });
+  if(f<=0) return list;
+  const out=list.slice(); const [x]=out.splice(f,1); out.unshift(x); return out;
+}
+// → {fundo: índice da camada `@fundo` (ou -1), run: índices das camadas fixas que viram fundo}
+function _dPsdFundoPlano(layers){
+  const L=layers||[];
+  const fundo=L.findIndex(l=>l && (l.type==='image'||l.type==='shape') && !_dPsdCampoLayer(l) && _DPSD_FUNDO_RE.test(l.name||''));
+  let k=L.findIndex(_dPsdCampoLayer); if(k<0) k=L.length;
+  const baseAcima=new Set(); L.slice(k).forEach(l=>{ if(l && l.clipBaseId) baseAcima.add(l.clipBaseId); });
+  const grupoIdx={}; L.forEach((l,i)=>{ if(l && l.type==='group') grupoIdx[l.id]=i; });
+  const run=[];
+  for(let i=0;i<k;i++){
+    const l=L[i]; if(!l || i===fundo) continue;
+    if(baseAcima.has(l.id)) break;
+    if(l.parentId && grupoIdx[l.parentId]!=null && grupoIdx[l.parentId]>=k) break;
+    /* Com `@fundo`, TEXTO fixo continua camada: o designer pode ter escondido no carimbo um texto
+       que no Luma ficou fixo, e ele sumiria. Se o carimbo já o tem, sai desenhado duas vezes no
+       mesmo lugar — o custo é invisível; o outro erro apaga conteúdo. */
+    if(fundo>=0 && (l.type==='text' || l._psdTexto)) continue;
+    run.push(i);
+  }
+  return {fundo, run};
+}
+async function _dPsdAchatarFundo(layers, w, h){
+  const plano=_dPsdFundoPlano(layers);
+  if(plano.fundo>=0){
+    const tira=new Set(plano.run.concat([plano.fundo]));
+    const f=Object.assign({}, layers[plano.fundo], {name:'Fundo (do Photoshop)', visible:true});
+    return [f].concat(layers.filter((l,i)=>!tira.has(i)));
+  }
+  if(plano.run.length<2 || typeof fRenderPreviewToCanvas!=='function') return layers;
+  try{
+    const cv=document.createElement('canvas');
+    // bg 'transparent': sem ele o motor pinta a cor da campanha onde a arte não cobre.
+    const ok=await fRenderPreviewToCanvas(cv, {layers:plano.run.map(i=>layers[i]), w, h, bg:'transparent'}, {maxPx:Math.max(w,h)});
+    if(ok===false || !cv.width) return layers;   // falhou: importa separado, como antes
+    const url=_dPsdRasterURL(cv, {maxPx:Math.max(w,h), q:0.92, lossless:true});
+    if(!url) return layers;
+    const n=plano.run.filter(i=>layers[i].type!=='group').length;
+    const bg={id:'l-psd-fundo-'+Date.now().toString(36), name:'Fundo ('+n+' camadas)', type:'image',
+      x:0, y:0, w, h, imgUrl:url, imgVar:'', objectFit:'cover', frameShape:'rect', visible:true, opacity:100};
+    const tira=new Set(plano.run);
+    return [bg].concat(layers.filter((l,i)=>!tira.has(i)));
+  }catch(e){ console.warn('[psd] fundo fiel falhou, importando as camadas separadas:', e); return layers; }
+}
+// Converte + achata + recompila os papéis (o compilador rodou com as camadas que saíram).
+async function _dPsdLayersParaImport(ordered, w, h){
+  let layers=dPsdItemsToLayers(ordered,false,{w,h});
+  const antes=layers.length;
+  layers=await _dPsdAchatarFundo(layers, w, h);
+  layers.forEach(l=>{ if(l) delete l._psdTexto; });   // marca só da importação; não vai para o template
+  if(layers.length!==antes && typeof gCompileLayoutRoles==='function') gCompileLayoutRoles(layers, {w,h});
+  return layers;
+}
 async function dPsdConfirmImport(){
   // ── multi-prancheta: importa TODAS as marcadas de uma vez, uma por template ──
   if(_dPsdBoards.length>1){
@@ -853,8 +944,10 @@ async function dPsdConfirmImport(){
   _dPsdMemSave(dPsdItems); // persiste mapeamentos para próximas importações
   // #4a — inverter z-order se a ordem do PSD vier trocada
   const inv=document.getElementById('d-psd-invert');
-  const ordered=(inv&&inv.checked)?chosen.slice().reverse():chosen;
-  let layers=dPsdItemsToLayers(ordered,false,{w:dPsdMeta.w,h:dPsdMeta.h});
+  const ordered=_dPsdFundoPrimeiro((inv&&inv.checked)?chosen.slice().reverse():chosen);
+  const cta=document.querySelector('#d-psd-modal .psd-import-cta'); if(cta) cta.disabled=true; // desenhar o fundo leva um instante
+  let layers=await _dPsdLayersParaImport(ordered, dPsdMeta.w, dPsdMeta.h);
+  if(!dPsdMeta) return;   // modal fechou enquanto o fundo era desenhado
   _dPsdSyncVarsFromLayers(layers);
   const fmtChoice=(document.getElementById('d-psd-fmt')||{}).value||'orig';
   const _w=dPsdMeta.w, _h=dPsdMeta.h, _name=dPsdMeta.name, _res=dPsdMeta.res||72;
@@ -958,6 +1051,7 @@ async function _dPsdRenderPreviewNow(){
   // Guarda o índice original de cada item — o relatório de fidelidade precisa dele p/ achar a linha.
   let ordered=dPsdItems.map((it,i)=>({it,i})).filter(o=>o.it.include && !o.it.isMaskBase);
   if(inv && inv.checked) ordered=ordered.slice().reverse();
+  ordered=_dPsdFundoPrimeiro(ordered, o=>o.it);
   const items=ordered.map(o=>o.it);
   // Caminho FIEL: converte pra layers Luma e renderiza com o motor da arte final —
   // o preview mostra exatamente o que o import vai produzir.
@@ -1861,7 +1955,7 @@ function _dPsdHitLayer(clientX, clientY){
   const cy=(clientY-rect.top)*(dPsdMeta.h/rect.height);
   const inv=document.getElementById('d-psd-invert');
   const topoPrimeiro=!!(inv && inv.checked);
-  const hit=it=>it && it.include && !it.isMaskBase
+  const hit=it=>it && it.include && !it.isMaskBase && !it._psdFundo
     && cx>=it.x && cx<=it.x+it.w && cy>=it.y && cy<=it.y+it.h;
   if(topoPrimeiro){
     for(let i=0;i<dPsdItems.length;i++) if(hit(dPsdItems[i])) return i;
@@ -2313,8 +2407,8 @@ async function _dPsdCollectBoards(onProgress){
     memAll.push(b.items); // uma gravação só, no fim
     // invert null = usuario nunca abriu esta prancheta: cai na heuristica de z-order.
     const inv=(b.invert!=null)?b.invert:_dPsdShouldInvert(b.items,b.w,b.h);
-    const ordered=inv?chosen.slice().reverse():chosen;
-    let layers=dPsdItemsToLayers(ordered,false,{w:b.w,h:b.h});
+    const ordered=_dPsdFundoPrimeiro(inv?chosen.slice().reverse():chosen);
+    let layers=await _dPsdLayersParaImport(ordered, b.w, b.h);
     _dPsdSyncVarsFromLayers(layers);
     out.push({name:b.name, fmt:(b.fmt||'orig'), layers, nativeW:b.w, nativeH:b.h});
   }

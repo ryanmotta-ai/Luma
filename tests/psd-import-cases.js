@@ -1068,6 +1068,40 @@
     assert(exata.mode==='text','texto com a fonte certa foi trocado por imagem sem motivo');
   });
 
+  /* ══ FUNDO FIEL (06/10/2026) ═══════════════════════════════════════════════════════════
+     As camadas fixas abaixo do campo mais baixo viram uma imagem na importação. A regra que
+     decide QUAIS é pura e é a mesma do resumo da revisão — por isso é ela que se guarda aqui. */
+  const _img=(id,extra)=>Object.assign({id,name:id,type:'image',x:0,y:0,w:10,h:10},extra||{});
+
+  test('fundo fiel junta só as fixas abaixo do primeiro campo',()=>{
+    const L=[_img('bg'),_img('textura'),_img('foto',{type:'frame',imgVar:'foto_produto'}),_img('selo'),
+      {id:'preco',type:'text',content:'{{precoPor}}',isVar:true}];
+    const p=_dPsdFundoPlano(L);
+    assert(p.fundo===-1,'inventou uma @fundo');
+    assert(p.run.join()==='0,1','o selo acima da foto entrou no fundo (a foto do franqueado o cobriria) ou o fundo ficou incompleto: '+p.run.join());
+  });
+
+  test('fundo fiel para na base de recorte e no grupo com campo',()=>{
+    const recorte=[_img('bg'),_img('base',{type:'shape'}),_img('foto',{type:'frame',imgVar:'foto_produto',clipBaseId:'base'})];
+    assert(_dPsdFundoPlano(recorte).run.join()==='0','a base de recorte de um campo foi achatada — o recorte perderia o alpha');
+    const grupo=[_img('bg'),_img('card',{parentId:'g'}),{id:'t',type:'text',content:'{{produto}}',isVar:true,parentId:'g'},{id:'g',type:'group'}];
+    assert(_dPsdFundoPlano(grupo).run.join()==='0','tirou um filho de um grupo que tem campo — a composição do grupo mudaria');
+  });
+
+  test('@fundo do Photoshop é fundo, não campo, e entra mesmo oculta',()=>{
+    const it=dPsdParseItems({children:[{name:'@fundo',hidden:true,left:0,top:0,right:40,bottom:40,canvas:_mkCanvas('#f60')}],
+      width:40,height:40},72,0,0)[0];
+    assert(it&&it._psdFundo,'a convenção @fundo não foi reconhecida');
+    assert(it.include&&it.visible,'a @fundo oculta ficou fora da importação');
+    assert((it.mode==='raster'||it.mode==='shape')&&!it.varName,'@fundo virou campo pela convenção @campo');
+    const L=[_img('bg'),_img('textura'),{id:'t',type:'text',content:'{{produto}}',isVar:true},_img('x',{name:'@fundo'})];
+    const p=_dPsdFundoPlano(L);
+    assert(p.fundo===3&&p.run.join()==='0,1','a @fundo não substituiu as fixas de baixo');
+    // Texto fixo NÃO entra na troca pela @fundo: o designer pode tê-lo escondido no carimbo.
+    const T=[_img('bg'),_img('slogan',{_psdTexto:true}),{id:'t',type:'text',content:'{{produto}}',isVar:true},_img('x',{name:'@fundo'})];
+    assert(_dPsdFundoPlano(T).run.join()==='0','um texto fixo foi trocado pela @fundo — sumiria se o carimbo não o tivesse');
+  });
+
   let passed=0;
   const falhas=[];
   for(const item of cases){

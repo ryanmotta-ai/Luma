@@ -2252,6 +2252,10 @@ body.theme-light .dp-dado-ex {
 .psd-s1-lista li{display:flex;justify-content:space-between;gap:12px;padding:9px 0;font-size:10.5px;color:var(--d-text2)}
 .psd-s1-lista li+li{border-top:1px solid var(--d-border)}
 .psd-s1-lista li>span:last-child{color:var(--d-text3);text-align:right}
+.psd-s1-dica{padding:11px 13px;border:1px dashed var(--d-border2);border-radius:10px}
+.psd-s1-dica b{display:block;font-size:10.5px;font-weight:700;color:var(--d-text2)}
+.psd-s1-dica small{display:block;margin-top:3px;font-size:9.5px;line-height:1.5;color:var(--d-text3)}
+.psd-s1-dica code{padding:0 4px;border-radius:4px;background:var(--d-surf2);color:var(--d-text);font-size:9.5px}
 .psd-s1-link{align-self:flex-start;padding:0;border:0;background:none;font-size:10px;font-weight:700;
   color:var(--d-text3);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .psd-s1-link:hover{color:var(--d-text)}

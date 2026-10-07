@@ -2775,6 +2775,18 @@ function dPsdParseItems(psd, res, ox, oy){
     if(/roboto/i.test(it.fontName) || !it.fontStatus || it.fontStatus==='exact') return;
     it.mode='raster'; it._rasterPorFonte=true;
   });
+  /* `@fundo` — CONVENÇÃO DO DESIGNER (06/10/2026): no Photoshop ele esconde os campos, junta o
+     visível numa camada (Ctrl+Alt+Shift+E), batiza de `@fundo` e a esconde. É o único fundo
+     100% fiel possível: o composto do arquivo tem os campos dentro, e o pixel de cada camada
+     vem sem efeito. Não é campo (o `@` da convenção de campo pegaria) e entra mesmo oculta;
+     a importação a usa no lugar das camadas fixas que ficam abaixo dos campos. */
+  out.forEach(it=>{
+    // Raster OU forma: um fundo de cor única o parser já lê como forma — e sem esta marca o
+    // `@` da convenção de campo o transformaria em moldura de foto.
+    if((it.kind!=='raster' && it.kind!=='shape') || !/^\s*@fundo\s*$/i.test(it.name||'')) return;
+    it._psdFundo=true; it.mode=(it.kind==='shape')?'shape':'raster'; it.varName=''; it._fieldInference=null;
+    it._fixedByUser=true; it.include=true; it.visible=true;
+  });
   // Modo PADRÃO do parser (antes da memória/usuário) — referência p/ _dPsdMemSave
   // distinguir decisão real de default e só persistir o que o usuário mudou.
   out.forEach(it=>{ it._defaultMode=it.mode; });
@@ -2858,7 +2870,8 @@ function dItemToLayer(it){
     return _dPsdApplyFx(Object.assign(base,{type:'image',imgUrl:it.imgUrl,imgVar:'',objectFit:'cover',frameShape:'rect'}), it);
   }
   if(it.kind==='text'){
-    if(it.mode==='raster' && it.imgUrl) return _dPsdApplyFx(Object.assign(base,it._pxCx||{},{type:'image',imgUrl:it.imgUrl,imgVar:'',objectFit:'cover',frameShape:'rect'}), it);
+    // `_psdTexto` é transitório (a importação o apaga): diz ao fundo fiel que esta imagem é um TEXTO.
+    if(it.mode==='raster' && it.imgUrl) return _dPsdApplyFx(Object.assign(base,it._pxCx||{},{type:'image',imgUrl:it.imgUrl,imgVar:'',objectFit:'cover',frameShape:'rect',_psdTexto:true}), it);
     const isVar=it.mode==='var';
     const L=Object.assign(base,{ type:'text',
       content: isVar ? '{{'+(it.varName||'variavel')+'}}' : it.content,
