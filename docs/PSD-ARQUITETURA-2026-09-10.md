@@ -1377,3 +1377,67 @@ não ganhou nenhum controle desse tipo — de propósito. O que existe e serve d
 canônico com tipo, o exemplo autorado (`v.example`, gravado no vínculo), o baseline de layout
 (`gStampLayoutBaseline`, que já roda em todo vínculo) e o papel semântico compilado
 (`gCompileLayoutRoles`, recompilado a cada vínculo).
+
+---
+
+## 16. Rodada 7 (06/10/2026) — dois passos, fundo fiel e texto fixo como pixel
+
+**Decisões do Ryan que mudam a leitura deste documento:** redimensionar entre formatos **não é
+objetivo** do import (a arte entra no tamanho do PSD; o seletor de formato foi para o avançado), e
+as camadas **fixas achatam**. Quem ler `gReflowLayers` como parte central do import está lendo o
+Luma de antes desta rodada.
+
+### 16.1 A tela: dois passos sobre a mesma revisão
+
+| Passo | Mostra | Fila de atenção |
+|---|---|---|
+| 1 · Confira a arte | fidelidade em destaque (mesmo semáforo do selo), "Ver o Photoshop" (o composto do arquivo, 800 px, sobreposto à prévia), o que vai para o Estúdio, a dica do `@fundo` | só **fidelidade** |
+| 2 · Campos do franqueado | os campos ligados, numerados de cima para baixo **igual na arte e na lista**; fonte ausente no próprio campo; dúvidas como "É um campo?" + Fixo; clicar na arte abre "Você marcou" | nenhuma — as dúvidas de significado são a própria lista |
+| Avançado | o inventário de antes, com formato, ordem e busca | as duas |
+
+Somar as duas filas era o "7 itens precisam da sua atenção" ao lado de "5 itens precisam da sua
+ajuda": a mesma pergunta contada duas vezes. **Não existe renderizador do passo:** `_dPsdStep` é
+lido por `dPsdRenderRows`/`_dPsdRenderFieldRail`/`_dPsdPend`, porque toda mudança de estado já passa
+por `dPsdRenderRows` e um render paralelo ficaria velho no primeiro clique. Os números na arte são
+desenhados em `dPsdHoverLayer` — a única função que pinta a sobreposição e que a limpa a cada hover.
+
+### 16.2 Fundo fiel (`_dPsdFundoPlano` → `_dPsdAchatarFundo`)
+
+Na **confirmação** (nunca no parse — a revisão e o avançado continuam vendo cada camada), as camadas
+fixas abaixo do campo mais baixo são desenhadas por `fRenderPreviewToCanvas` com `bg:'transparent'`
+e entram como uma imagem. A sequência para no primeiro destes: base de recorte de algo acima dos
+campos; filho de grupo que tem campo. Falhou o desenho → importa separado, como antes. O resumo do
+passo 1 usa **a mesma** `_dPsdFundoPlano`, então não promete um fundo que o import não monta.
+
+**Por que não o composto do Photoshop como fundo:** o composto do arquivo tem os campos dentro (o
+texto velho apareceria embaixo do novo), e o pixel de cada camada vem sem efeito (o ag-psd não
+renderiza efeito). A fidelidade do fundo montado pelo Luma é, portanto, a de sempre.
+
+**`@fundo`** é o caminho 1:1: o designer esconde os campos, `Ctrl+Alt+Shift+E`, batiza a camada
+nova de `@fundo` e a esconde. O parser a marca (`_psdFundo`), a tira da convenção `@campo` e a
+inclui mesmo oculta; `_dPsdShouldInvert` a ignora (ela mora no topo da pilha). Com `@fundo`,
+**texto fixo continua camada** — o designer pode tê-lo escondido no carimbo, e trocá-lo pela
+`@fundo` o apagaria; se o carimbo já o tem, sai desenhado duas vezes no mesmo lugar.
+
+### 16.3 Texto fixo sem a fonte
+
+Texto que não é campo e cuja fonte não existe no Luma entra como a imagem do Photoshop (`mode:'raster'`,
+`_rasterPorFonte`), na **caixa dos pixels** (`_pxCx`) — a imagem fiel de um texto de parágrafo era
+esticada na caixa autorada, bug latente do modo "Imagem fiel" que esta mudança teria espalhado. Ligar
+um campo devolve texto vivo; enviar a fonte também. A atenção de fonte não aparece numa camada que
+desenha pixel.
+
+### 16.4 Sugestão de foto
+
+A fonte `visual` do `gFieldInfer` (área entre 8% e 68% + campo de foto no catálogo) deixou de valer
+sozinha no PSD: em arte de campanha, luz, faixa e textura têm tamanho de foto. Só vale com a pista
+`fotoColocada` (objeto inteligente com foto reta). A regra mora no adaptador do PSD
+(`_dPsdSuggestImgVar`) e na ponte (`dPsdSmartMap`) — o `gFieldInfer` é o mesmo do Estúdio e não mudou.
+
+### 16.5 O que continua aberto
+
+1. **Pacote de referência real** — os testes desta rodada usam PSD sintético escrito pelo próprio
+   ag-psd. Sem PSD da DM, fidelidade continua sem medição em arte de verdade.
+2. **Memória no parse de PSD grande** — não medida. O pico é o `ImageData` de cada camada no parse
+   e a árvore das pranchetas retida na revisão, não o base64.
+3. **Contorno/sombra interna/relevo em imagem** — seguem declarados como perda (§11).
