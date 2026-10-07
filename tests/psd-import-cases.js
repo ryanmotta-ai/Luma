@@ -476,6 +476,9 @@
     // o peso e a Realce empacotada virava "Peso aproximado" em toda camada de título.
     assert(r('Realce-Blackv0.006')==='exact','sufixo de versão impediu a Realce Black de casar exata');
     assert(_dPsdFontFace('Realce-Blackv0.006').peso===900,'peso Black perdido pelo sufixo de versão');
+    // Ubuntu está empacotada em 400 e 700 (css/03-fonts.css): Bold é exata, não "substituída".
+    assert(r('Ubuntu-Bold')==='exact' && _dPsdFontResolve('Ubuntu-Bold').pesoUsado===700,'Ubuntu Bold empacotada não foi reconhecida');
+    assert(r('Ubuntu-Regular')==='exact','Ubuntu Regular empacotada não foi reconhecida');
     // Família certa, peso DIFERENTE (Realce só existe em 900) → aproximada.
     assert(r('Realce Light')==='approximated',
       'família certa com peso diferente deveria ser aproximada, não exata: o desenho da letra difere');

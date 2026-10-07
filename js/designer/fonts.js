@@ -18,6 +18,9 @@ const dBuiltinFonts = [
   { family:'Obviously Black',weight:900, label:'Obviously Black' },
   { family:'Nek Salma',      weight:400, label:'Nek Salma'       },
   { family:'Dirty Weather',  weight:400, label:'Dirty Weather'   },
+  // `weights`: família empacotada em mais de um peso (css/03-fonts.css). `weight` é o padrão;
+  // o importador de PSD escolhe o mais próximo e o aplica como fontWeightOverride.
+  { family:'Ubuntu',         weight:400, label:'Ubuntu', weights:[400,700] },
 ];
 
 /* ── persistência ── */

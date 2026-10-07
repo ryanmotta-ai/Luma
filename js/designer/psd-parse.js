@@ -1317,7 +1317,7 @@ function _dPsdFontResolve(fontName){
   const builtin=(typeof dBuiltinFonts!=='undefined'&&dBuiltinFonts)||[];
   const custom=(typeof dCustomFonts!=='undefined'&&dCustomFonts)||[];
   const todas=[
-    ...builtin.map(f=>({family:f.family, peso:f.weight||400})),
+    ...builtin.map(f=>({family:f.family, peso:f.weight||400, pesos:f.weights||null})),
     ...custom.map(f=>({family:f.family, peso:f.weight||400, apelido:f.name}))
   ];
   if(todas.length){
@@ -1332,9 +1332,11 @@ function _dPsdFontResolve(fontName){
     if(porFamilia){
       // Família certa. O peso bate? Sem peso declarado no nome, 400 é o que o PSD pediu.
       const pedido=face.peso!=null?face.peso:400;
-      const bate=Math.abs((porFamilia.peso||400)-pedido)<=50;
+      // Família em vários pesos empacotados: o mais próximo do pedido.
+      const pesoUsado=(porFamilia.pesos||[porFamilia.peso||400]).reduce((m,p)=>Math.abs(p-pedido)<Math.abs(m-pedido)?p:m);
+      const bate=Math.abs(pesoUsado-pedido)<=50;
       return {status:bate?'exact':'approximated', font:'custom:'+porFamilia.family, family:porFamilia.family,
-        face, pesoPedido:pedido, pesoUsado:porFamilia.peso||400};
+        face, pesoPedido:pedido, pesoUsado};
     }
     /* Prefixo é o último recurso e NUNCA é exato: "ObviouslyWideBold" bater "Obviously Wide"
        é outro arquivo de fonte, com outras métricas. Dizer "vinculada" aqui era o que fazia
@@ -2352,6 +2354,10 @@ function dPsdParseItems(psd, res, ox, oy){
         it.fontPesoUsado=_fr.pesoUsado;
         it.fontFamiliaPedida=_fr.face.familia;
         it.fontRemapped=(_fr.status==='exact'||_fr.status==='approximated');
+        // Peso empacotado diferente do padrão da família (Ubuntu Bold): o renderizador lê o peso
+        // do catálogo, então o escolhido viaja como override — o mesmo campo do faux bold.
+        if(_fr.font.indexOf('custom:')===0 && typeof dTextFontParts==='function'
+           && _fr.pesoUsado && dTextFontParts(_fr.font).weight!==_fr.pesoUsado) it.fontWeightOverride=_fr.pesoUsado;
         // fontCaps: 0=normal, 1=small-caps, 2=all-caps (PS "All Caps" character style)
         if(st.fontCaps===2) it.textTransform='uppercase';
         else if(st.fontCaps===1) it.textTransform='uppercase'; // small-caps (versaletes) ≈ maiúsculas; NUNCA lowercase (invertia a caixa)
