@@ -117,6 +117,14 @@ permissoes: { nome_do_campo: { edit: true|false, maxLen: 32 } }
 - ⛔ **O franqueado nunca edita camadas** — ele preenche campos. Redesenhar é só do designer.
 - ⛔ **Publicar não pode destruir a arte publicada anterior.** Cada publicação vincula a um template próprio (já foi bug de colisão de ID).
 - Ao editar um template já publicado, a cópia publicada e a de edição **não compartilham a mesma referência de array de camadas** (senão editar corrompe o publicado).
+- **Padrão visual dos textos dos materiais** (decisão do Ryan, 07/10/2026, aplicado nos 24 materiais publicados com texto editável — antes × depois na revisão daquele dia):
+  - Texto só em **#ff9000, #f85400, branco ou preto**. Laranja parecido (#F25C05, #E9550F) vira #f85400; cinza, creme e azul viram preto ou branco.
+  - **Contraste medido no pior trecho do fundo** (10% dos pixels mais desfavoráveis debaixo do texto, não a média): 3:1 só para texto de 30px ou mais e negrito, 4,5:1 no resto. Branco sobre #ff9000 ou sobre amarelo (1,7–2,3:1) vira preto.
+  - **Nenhum texto abaixo de 30px** na arte (≈ 11px no celular).
+  - **Preço encaixado na zona de cada material, sem competir com o nome do produto:** "De" com pouco mais da metade do "Por", preto e riscado; "Por" no tamanho que cabe "Por: R$ 399,90" na zona (cartão, círculo ou área aberta) e **nunca maior que o nome do produto** (70% quando o nome é Realce, que é condensada). O rótulo "De:"/"Por:" do valor fica — é padrão da rede (`chat-input.js`).
+  - Detalhe do produto em Roboto Bold (fonte condensada de título em corpo pequeno perde leitura); título com entrelinha 1,0 e detalhe 1,15.
+  - Sem a tag "Procure o banner" nos materiais (pedido do Ryan, 07/10). Tirar uma camada que servia de obstáculo **deixa o título e o detalhe crescerem até o corpo desenhado** — conferir a folga até o selo de baixo depois de remover qualquer camada.
+  - O formato de varejo (`{{precoPor:inteiro}}`/`:centavos`, R$ e centavos suspensos) **não** entra nos materiais: quebra a arte com "Grátis", "Qualquer valor" e "por" vazio.
 - ⛔ **O checklist de design do Estúdio não bloqueia publicação** (decisão do Ryan, 30/09/2026: "o designer sabe por bom senso"). Ele só avisa ("N ponto(s) de atenção · Você pode publicar assim mesmo"); nenhuma trava de erro crítico no passo 0 nem no botão Publicar. Detalhe em `docs/LUMA-BACKEND-CHANGELOG.md` (30/09, `58ad6e5`).
 
 ---
