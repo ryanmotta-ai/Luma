@@ -2283,6 +2283,46 @@ function _fAplicarLegendaIA(canvasId, sug){
   try{ if(typeof fPostedRepintaLegenda==='function') fPostedRepintaLegenda(); }catch(e){}
 }
 
+/* LOADING DA LEGENDA — a arte continua sem esperar a IA (ver `fGerarArte`); quem espera é só
+   a caixa da legenda. Sem isto, a legenda local aparecia, o franqueado lia/copiava, e segundos
+   depois o texto trocava sozinho debaixo dele. Mesma condição do `fFetchAICaptionSuggestions`:
+   IA desligada → nada de loading (seria esperar por nada). */
+const _LEGENDA_ESPERA_MAX = 12000;   // teto: depois disso mostra a local; a IA ainda troca se vier
+function _fLegendaIaLigada(){
+  try{
+    if (window.gAI && typeof window.gAI.isEnabled === 'function' && window.gAI.isEnabled('caption')) return true;
+    return typeof gAskAI === 'function' && typeof gAiReady === 'function' && !!gAiReady();
+  }catch(e){ return false; }
+}
+function _fLegendaEsperar(canvasId){
+  if(!_fLegendaIaLigada()) return;
+  const painel = document.querySelector(`.caption-assistant-panel[data-canvas-id="${canvasId}"]`);
+  const box = document.getElementById('caption-content-' + canvasId);
+  if(!painel || !box) return;
+  painel.classList.add('is-carregando');
+  painel.querySelectorAll('.caption-card-foot button').forEach(b => { b.disabled = true; });
+  box.setAttribute('aria-busy', 'true');
+  box.innerHTML = '<span class="caption-sk" aria-hidden="true"><span></span><span></span><span></span></span>'
+    + '<span class="caption-sk-msg">Escrevendo a legenda com IA…</span>';
+  const selo = painel.querySelector('.caption-src');
+  if(selo) selo.outerHTML = `<span class="caption-src is-ia">${_ICO_SPARK}Gerando…</span>`;
+  setTimeout(() => _fLegendaFimEspera(canvasId, true), _LEGENDA_ESPERA_MAX);
+}
+/* `pintar=false` quando a IA chegou: o `_fAplicarLegendaIA` pinta o texto dela logo em seguida. */
+function _fLegendaFimEspera(canvasId, pintar){
+  const painel = document.querySelector(`.caption-assistant-panel[data-canvas-id="${canvasId}"]`);
+  if(!painel || !painel.classList.contains('is-carregando')) return;
+  painel.classList.remove('is-carregando');
+  painel.querySelectorAll('.caption-card-foot button').forEach(b => { b.disabled = false; });
+  const box = document.getElementById('caption-content-' + canvasId);
+  if(box) box.removeAttribute('aria-busy');
+  if(!pintar) return;
+  const caps = _fArtCaptions[canvasId] || [];
+  const selo = painel.querySelector('.caption-src');
+  if(selo) selo.outerHTML = _fCaptionSrcTag(caps);
+  fSetCaption(canvasId, painel.dataset.activeTab || (caps[0] && caps[0].id));
+}
+
 function _fCaptionSrcTag(suggestions){
   const ia = !!(suggestions && suggestions._ia);
   const modelo = (typeof gAiModel === 'function') ? gAiModel() : '';
@@ -2999,7 +3039,11 @@ function fGerarArte(){
     /* O card mais recente é a fonte do "pronta/ajustar" do cabeçalho (`fUpdateProg`): o
        `fUpdateProg` do início do `fGerarArte` rodou quando o card VELHO ainda era o último. */
     try{ fUpdateProg(); }catch(e){}
-    _legendaIA.then(sug => _fAplicarLegendaIA(previewCanvasId, sug)).catch(()=>{})
+    _fLegendaEsperar(previewCanvasId);
+    _legendaIA.then(sug => {
+        _fLegendaFimEspera(previewCanvasId, !(sug && sug._ia && sug.length));
+        _fAplicarLegendaIA(previewCanvasId, sug);
+      }).catch(() => _fLegendaFimEspera(previewCanvasId, true))
       .then(() => fGiriasPainel(previewCanvasId)).catch(()=>{});
     try {
       if (typeof _fRevisarArteIA === 'function') {
@@ -3113,7 +3157,8 @@ async function fOutroFormato(id, snapId){
   _fArtCaptions[snapId] = suggestions;
   fTrackLegenda('legenda_gerada', snapId, {n:suggestions.length, outro_formato:true});
   Promise.resolve().then(()=>fFetchAICaptionSuggestions(snap.dados, snap.camp, f))
-    .then(sug=>_fAplicarLegendaIA(snapId, sug)).catch(()=>{});
+    .then(sug=>{ _fLegendaFimEspera(snapId, !(sug && sug._ia && sug.length)); _fAplicarLegendaIA(snapId, sug); })
+    .catch(()=>_fLegendaFimEspera(snapId, true));
 
   // Atualiza a UI se o card correspondente estiver no DOM
   const panel = document.querySelector(`.caption-assistant-panel[data-canvas-id="${snapId}"]`);
@@ -3124,6 +3169,7 @@ async function fOutroFormato(id, snapId){
     // Origem pode mudar entre formatos (a IA pode falhar só numa das chamadas)
     const srcOld = panel.querySelector('.caption-src');
     if (srcOld) srcOld.outerHTML = _fCaptionSrcTag(suggestions);
+    _fLegendaEsperar(snapId);
 
     // Atualiza a fileira de formatos secundários (.fmt-mini) no card correspondente
     const card = panel.closest('.art-wrap');
