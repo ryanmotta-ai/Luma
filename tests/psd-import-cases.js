@@ -1081,6 +1081,17 @@
     assert(p.run.join()==='0,1','o selo acima da foto entrou no fundo (a foto do franqueado o cobriria) ou o fundo ficou incompleto: '+p.run.join());
   });
 
+  test('fundo fiel não achata arte sem campo nem a placa de um campo',()=>{
+    // Sem campo: o designer pode ligar depois, no Estúdio — achatar deixaria nada para ligar.
+    assert(_dPsdFundoPlano([_img('bg'),_img('textura'),_img('selo')]).run.length===0,
+      'arte sem nenhum campo virou uma imagem só');
+    // A placa (forma que abraça o texto-campo) cresce com o texto no Local Fit.
+    const L=[_img('bg',{w:1080,h:1350}),_img('textura',{w:1080,h:1350}),
+      _img('card',{type:'shape',shapeKind:'rect',x:260,y:1030,w:560,h:150}),
+      {id:'preco',type:'text',content:'{{precoPor}}',isVar:true,x:340,y:1052,w:400,h:100}];
+    assert(_dPsdFundoPlano(L).run.join()==='0,1','a placa do preço foi achatada — o preço longo vazaria do card');
+  });
+
   test('fundo fiel para na base de recorte e no grupo com campo',()=>{
     const recorte=[_img('bg'),_img('base',{type:'shape'}),_img('foto',{type:'frame',imgVar:'foto_produto',clipBaseId:'base'})];
     assert(_dPsdFundoPlano(recorte).run.join()==='0','a base de recorte de um campo foi achatada — o recorte perderia o alpha');

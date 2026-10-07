@@ -2546,7 +2546,11 @@ function dPsdParseItems(psd, res, ox, oy){
         }
         else {
           it.kind='raster';
-          it.imgUrl=_dPsdRasterURL(node.canvas,{maxPx:_rasterCap});
+          // A `@fundo` é o fundo 1:1 do Photoshop: sai sem perdas, como os rasters de fidelidade
+          // (o JPEG de foto comum desmentiria o "100% fiel" que a revisão promete).
+          it.imgUrl=/^\s*@fundo\s*$/i.test(it.name||'')
+            ? _dPsdRasterURL(node.canvas,{maxPx:_fidCap,q:0.92,lossless:true})
+            : _dPsdRasterURL(node.canvas,{maxPx:_rasterCap});
           if(!it.imgUrl) return;
           // Zona segura da foto: o assunto recortado, medido enquanto os pixels ainda estão
           // na memória. Depois do import só existe a URL, e recalcular sairia caro.

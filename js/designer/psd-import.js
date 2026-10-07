@@ -857,14 +857,23 @@ function _dPsdFundoPrimeiro(list, get){
 function _dPsdFundoPlano(layers){
   const L=layers||[];
   const fundo=L.findIndex(l=>l && (l.type==='image'||l.type==='shape') && !_dPsdCampoLayer(l) && _DPSD_FUNDO_RE.test(l.name||''));
-  let k=L.findIndex(_dPsdCampoLayer); if(k<0) k=L.length;
+  const k=L.findIndex(_dPsdCampoLayer);
+  /* SEM CAMPO, NADA ACHATA. O designer pode importar para ligar os campos depois, no Estúdio — e
+     prancheta de multi-prancheta que ninguém abriu não passou pelo Smart Mapping. Achatar tudo
+     deixaria uma imagem só, sem nada para ligar. */
+  if(k<0) return {fundo, run:[]};
   const baseAcima=new Set(); L.slice(k).forEach(l=>{ if(l && l.clipBaseId) baseAcima.add(l.clipBaseId); });
   const grupoIdx={}; L.forEach((l,i)=>{ if(l && l.type==='group') grupoIdx[l.id]=i; });
+  const textosCampo=L.slice(k).filter(l=>l && l.type==='text' && _dPsdCampoLayer(l));
   const run=[];
   for(let i=0;i<k;i++){
     const l=L[i]; if(!l || i===fundo) continue;
     if(baseAcima.has(l.id)) break;
     if(l.parentId && grupoIdx[l.parentId]!=null && grupoIdx[l.parentId]>=k) break;
+    /* PLACA de um campo (a forma que abraça o texto — `gLayoutFormaEhPlaca`, a mesma régua do
+       Local Fit): ela CRESCE com o texto do franqueado. Achatada, o preço longo vazaria do card. */
+    if(l.type==='shape' && typeof gLayoutFormaEhPlaca==='function'
+       && textosCampo.some(t=>gLayoutFormaEhPlaca(l, l, t))) break;
     /* Com `@fundo`, TEXTO fixo continua camada: o designer pode ter escondido no carimbo um texto
        que no Luma ficou fixo, e ele sumiria. Se o carimbo já o tem, sai desenhado duas vezes no
        mesmo lugar — o custo é invisível; o outro erro apaga conteúdo. */
@@ -880,23 +889,36 @@ async function _dPsdAchatarFundo(layers, w, h){
     const f=Object.assign({}, layers[plano.fundo], {name:'Fundo (do Photoshop)', visible:true});
     return [f].concat(layers.filter((l,i)=>!tira.has(i)));
   }
-  if(plano.run.length<2 || typeof fRenderPreviewToCanvas!=='function') return layers;
+  if(plano.run.length<2 || typeof fRenderTemplateLayers!=='function') return layers;
+  const prevMat=(typeof fState!=='undefined')?fState.material:null;
   try{
-    const cv=document.createElement('canvas');
+    /* NA ESCALA DO DOWNLOAD, não da prévia: o franqueado baixa em 2× (F_EXPORT_SCALE_DEFAULT) e
+       a prévia (fRenderPreviewToCanvas) trava em 1× — um fundo de 1× sairia mole no PNG, logo
+       nas camadas que antes saíam nítidas (forma e texto). Mesmo teto do raster do parse (3200). */
+    const lado=Math.max(w,h), esc=Math.min(3200, 2*lado)/lado;
+    const cv=document.createElement('canvas'); cv.width=Math.round(w*esc); cv.height=Math.round(h*esc);
+    const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high'; ctx.scale(esc,esc);
+    const run=plano.run.map(i=>layers[i]);
     // bg 'transparent': sem ele o motor pinta a cor da campanha onde a arte não cobre.
-    const ok=await fRenderPreviewToCanvas(cv, {layers:plano.run.map(i=>layers[i]), w, h, bg:'transparent'}, {maxPx:Math.max(w,h)});
-    if(ok===false || !cv.width) return layers;   // falhou: importa separado, como antes
-    const url=_dPsdRasterURL(cv, {maxPx:Math.max(w,h), q:0.92, lossless:true});
-    if(!url) return layers;
+    const mat={layers:run, w, h, bg:'transparent'};
+    // O motor lê fState.material (fundo e espaço das coords) — o mesmo shim de _fpvRun.
+    if(typeof fState!=='undefined') fState.material=mat;
+    await fRenderTemplateLayers(ctx, run, w, h, {}, {color:'transparent'}, mat, {scope:'designer',purpose:'export'});
+    const url=_dPsdRasterURL(cv, {maxPx:Math.max(cv.width,cv.height), q:0.92, lossless:true});
+    if(!url) return layers;   // falhou: importa separado, como antes
     const n=plano.run.filter(i=>layers[i].type!=='group').length;
     const bg={id:'l-psd-fundo-'+Date.now().toString(36), name:'Fundo ('+n+' camadas)', type:'image',
       x:0, y:0, w, h, imgUrl:url, imgVar:'', objectFit:'cover', frameShape:'rect', visible:true, opacity:100};
     const tira=new Set(plano.run);
     return [bg].concat(layers.filter((l,i)=>!tira.has(i)));
   }catch(e){ console.warn('[psd] fundo fiel falhou, importando as camadas separadas:', e); return layers; }
+  finally{ if(typeof fState!=='undefined') fState.material=prevMat; }
 }
 // Converte + achata + recompila os papéis (o compilador rodou com as camadas que saíram).
 async function _dPsdLayersParaImport(ordered, w, h){
+  // A prévia da revisão também troca fState.material: nada de render dela no meio deste.
+  clearTimeout(_dPsdPreviewTimer);
+  if(typeof _fpvQueue!=='undefined' && _fpvQueue) await _fpvQueue.catch(()=>{});
   let layers=dPsdItemsToLayers(ordered,false,{w,h});
   const antes=layers.length;
   layers=await _dPsdAchatarFundo(layers, w, h);
