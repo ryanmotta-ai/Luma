@@ -506,10 +506,20 @@ function fAdjustImageData(id, adj){
     if(!d[i+3])continue;
     let r=d[i],g=d[i+1],b=d[i+2];
     if(lutR){r=lutR[r];g=lutG[g];b=lutB[b];
-    }else if(type==='hue/saturation'||type==='vibrance'){
+    }else if(type==='vibrance'){
+      /* Vibração (07/10/2026), medida em PSD real: o canal MAIS FORTE fica parado e os outros
+         andam em relação a ele, na proporção do quadrado da distância — c' = c − k·(máx−c)²/máx.
+         Com −13 bate o Photoshop pixel a pixel (erro 5,2 → 1,7). No positivo o PS poupa o que
+         já é saturado: k é atenuado por (1−S). A fórmula HSL anterior saturava até o cinza. */
+      const mx=Math.max(r,g,b);
+      if(mx>0){
+        const S=(mx-Math.min(r,g,b))/mx, vib=(+adj.vibrance||0)/100;
+        const k=(vib>0?vib*(1-S):vib)+(+adj.saturation||0)/100;
+        r-=k*(mx-r)*(mx-r)/mx; g-=k*(mx-g)*(mx-g)/mx; b-=k*(mx-b)*(mx-b)/mx;
+      }
+    }else if(type==='hue/saturation'){
       let hsl=rgbToHsl(r,g,b),dh=0,ds=0,dl=0;
-      if(type==='hue/saturation'){const m=adj.master||{};dh=(+m.hue||0)/360;ds=(+m.saturation||0)/100;dl=(+m.lightness||0)/100;}
-      else {const sat=(+adj.saturation||0)/100,vib=(+adj.vibrance||0)/100;ds=sat+vib*(1-hsl[1]);}
+      const m=adj.master||{};dh=(+m.hue||0)/360;ds=(+m.saturation||0)/100;dl=(+m.lightness||0)/100;
       hsl[0]=(hsl[0]+dh+1)%1;hsl[1]=clamp(hsl[1]+(ds>=0?(1-hsl[1])*ds:hsl[1]*ds),0,1);hsl[2]=clamp(hsl[2]+(dl>=0?(1-hsl[2])*dl:hsl[2]*dl),0,1);[r,g,b]=hslToRgb(hsl[0],hsl[1],hsl[2]);
     }else if(type==='threshold'){const y=.299*r+.587*g+.114*b,v=y>=(adj.level!=null?+adj.level:128)?255:0;r=g=b=v;
     }else if(type==='color balance'){

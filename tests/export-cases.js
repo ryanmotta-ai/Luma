@@ -149,6 +149,19 @@
     assert(leg>80,'o modo legado mudou ('+leg+') — ele continua com a fórmula antiga');
   });
 
+  /* Vibração (07/10/2026), medida em PSD real (cupoms_v2, −13/+1): o canal mais forte fica e
+     os outros andam até ele. A fórmula HSL antiga baixava o máximo e saturava o cinza. */
+  test('vibração segue o Photoshop: segura o canal máximo e poupa o cinza',()=>{
+    const px=(r,g,b)=>{const id=new ImageData(1,1);id.data.set([r,g,b,255]);return id;};
+    const aj={type:'vibrance',vibrance:-13,saturation:1};
+    [[[104,38,27],[104,43,34]],[[200,113,77],[199,118,87]],[[188,40,92],[188,56,98]]].forEach(([de,ps])=>{
+      const v=fAdjustImageData(px(...de),aj).data;
+      assert([0,1,2].every(k=>Math.abs(v[k]-ps[k])<=3),de+' deveria virar ~'+ps+' (Photoshop), virou '+[v[0],v[1],v[2]]);
+    });
+    const cinza=fAdjustImageData(px(220,223,233),{type:'vibrance',vibrance:80,saturation:-3}).data;
+    assert(cinza[2]<=236 && cinza[0]>=214,'vibração +80 saturou o cinza ('+[cinza[0],cinza[1],cinza[2]]+')');
+  });
+
   test('modo nativo exporta a prancheta no tamanho real',async()=>{
     const cv=await exportar({scale:1});
     assert(cv.width===1080&&cv.height===1350,
