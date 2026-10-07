@@ -20,6 +20,12 @@
 /* ── estado da revisão (só aqui; o parse mora em psd-parse.js) ── */
 let dPsdItems=[]; let dPsdMeta=null;
 let _dPsdReviewAll=false; // revisão normal mostra decisões; inventário completo é avançado
+/* PASSOS (06/10/2026): 1 = conferir a arte (fidelidade), 2 = campos do franqueado (significado).
+   Não há render paralelo: os renderizadores de sempre leem `_dPsdStep`, e toda mudança de estado
+   já passa por dPsdRenderRows — um renderizador próprio do passo ficaria velho no 1º clique. */
+let _dPsdStep=1;
+let _dPsdPick=-1;        // camada que o designer clicou na arte no passo 2 ("qual campo é este?")
+let _dPsdFidRep=null;    // última medição de fidelidade — o passo 1 mostra o número em destaque
 // Nº de camadas de ajuste (Levels/Curves/Hue…) vistas no último parse. O Luma não tem pipeline
 // de ajuste, então elas são dropadas e as cores podem diferir do PSD → vira aviso na revisão.
 let _dPsdAdjustCount=0;
@@ -132,7 +138,7 @@ function _dPsdApplyBoardToUI(){
     ?`<span class="psd-dpi-warn" title="${_dPsdErrorCount} camada(s) não puderam ser interpretadas; entraram como imagem fiel ou foram puladas.">${_warnIcon}${_dPsdErrorCount} camada(s) com falha</span>`
     :'';
   const _metaEl=document.getElementById('d-psd-meta');
-  if(_metaEl) _metaEl.innerHTML=`<strong class="psd-meta-name">${_dPsdEsc(dPsdMeta.name||'PSD')}</strong><span class="psd-meta-chip">${dPsdMeta.w} × ${dPsdMeta.h}px</span><span class="psd-meta-chip">${_nT} texto${_nT===1?'':'s'}</span><span class="psd-meta-chip">${_nS} forma${_nS===1?'':'s'}</span><span class="psd-meta-chip">${_nI} imagem${_nI===1?'':'ens'}</span>${_dpiHtml}${_adjHtml}${_errHtml}`;
+  if(_metaEl) _metaEl.innerHTML=`<strong class="psd-meta-name">${_dPsdEsc(dPsdMeta.name||'PSD')}</strong><span class="psd-meta-chip">${dPsdMeta.w} × ${dPsdMeta.h}px</span><span class="psd-meta-chip">${_nT} texto${_nT===1?'':'s'}</span><span class="psd-meta-chip">${_nS} forma${_nS===1?'':'s'}</span><span class="psd-meta-chip">${_nI} ${_nI===1?'imagem':'imagens'}</span>${_dpiHtml}${_adjHtml}${_errHtml}`;
   // Detecção de formato com tolerância ±2px (PSDs com 1079×1921 ainda mapeiam para 'story').
   // Sem match exato → 'orig': preserva o tamanho real do PSD (1:1) em vez de forçar um preset.
   // Numa prancheta já visitada, respeita o que o usuário escolheu; só na primeira
@@ -146,7 +152,8 @@ function _dPsdApplyBoardToUI(){
     inv.onchange=()=>dPsdRenderPreview();
   }
   const _sf0=document.getElementById('d-psd-search'); if(_sf0) _sf0.value='';
-  _dPsdLastHoverIdx=-1;
+  _dPsdLastHoverIdx=-1; _dPsdPick=-1;
+  dPsdCompare(false);   // a vista do Photoshop é da prancheta anterior até a nova prévia sair
   _dPsdReviewAll=false;
   _dPsdMemApply(dPsdItems);
   /* SMART MAPPING — entra DEPOIS da memória de propósito: memória é decisão aprovada e a
@@ -158,6 +165,7 @@ function _dPsdApplyBoardToUI(){
 function dPsdOpenReview(){
   const modal=document.getElementById('d-psd-modal'); if(!modal) return;
   _dPsdAtencaoReset();   // arquivo novo, diagnóstico novo: nada de "Entendi" herdado
+  _dPsdStep=1; _dPsdPick=-1; _dPsdFidRep=null;   // arquivo novo começa pela arte
   // Campo de busca (injetado dinamicamente, acima de #d-psd-rows)
   const rowsEl=document.getElementById('d-psd-rows');
   if(rowsEl&&!document.getElementById('d-psd-search')){
@@ -227,6 +235,170 @@ function dPsdDiagnostico(nome){
 function dPsdToggleAdvanced(){
   _dPsdReviewAll=!_dPsdReviewAll;
   dPsdRenderRows(String((document.getElementById('d-psd-search')||{}).value||'').trim().toLowerCase());
+}
+
+/* ══ OS DOIS PASSOS (06/10/2026) ══════════════════════════════════════════════════════════
+   1 · Conferir a arte — a arte do Luma ao lado da do Photoshop, a fidelidade em número e o
+       que vai para o Estúdio. Só a fila de FIDELIDADE aparece aqui.
+   2 · Campos do franqueado — só o que o franqueado troca, numerado igual na arte e na lista.
+       As perguntas de significado viram itens desta lista; clicar na arte marca um campo novo.
+   Por baixo é a mesma revisão de antes: mesmos dados, mesmos caminhos de vínculo
+   (dPsdBindField/dPsdAcceptCandidate/dPsdUnbindField). "Ver todas as camadas" continua sendo
+   o inventário completo, fora dos passos.                                                   */
+function dPsdStep(n){
+  if(n!==1 && n!==2) return;
+  _dPsdStep=n; _dPsdPick=-1; _dPsdReviewAll=false;
+  _dPsdDisarm(true);
+  _dPsdAtFoco=-1; _dPsdAtUltimo='';   // o realce da atenção é do passo 1
+  dPsdRenderRows();
+}
+function dPsdCta(){
+  if(_dPsdStep===1 && !_dPsdReviewAll){ dPsdStep(2); return; }
+  dPsdConfirmImport();
+}
+// Alterna a prévia entre o Luma e a imagem que o próprio Photoshop gravou no arquivo.
+// `on` explícito força o estado (false = desliga, usado ao trocar de arquivo/prancheta).
+function dPsdCompare(on){
+  const box=document.querySelector('#d-psd-modal .psd-preview-canvases');
+  const btn=document.getElementById('d-psd-cmp');
+  const v=document.getElementById('d-psd-ref-view');
+  const src=dPsdMeta&&dPsdMeta.vista;
+  if(on===undefined) on=!(box&&box.classList.contains('is-cmp'));
+  if(on && !src) on=false;
+  if(on && v){ v.width=src.width; v.height=src.height; v.getContext('2d').drawImage(src,0,0); }
+  if(box) box.classList.toggle('is-cmp',!!on);
+  if(btn){
+    btn.hidden=!src;
+    btn.setAttribute('aria-pressed',on?'true':'false');
+    btn.textContent=on?'Ver o Luma':'Ver o Photoshop';
+  }
+}
+function _dPsdRenderStep(){
+  const m=document.getElementById('d-psd-modal'); if(!m) return;
+  const adv=_dPsdReviewAll;
+  m.classList.toggle('is-adv',adv);
+  m.classList.toggle('is-step1',!adv && _dPsdStep===1);
+  m.classList.toggle('is-step2',!adv && _dPsdStep===2);
+  m.classList.toggle('is-multi',_dPsdBoards.length>1);
+  document.querySelectorAll('#d-psd-steps li').forEach(li=>{
+    const s=Number(li.dataset.step), on=(!adv && s===_dPsdStep);
+    li.classList.toggle('active',on);
+    li.classList.toggle('complete',!adv && s<_dPsdStep);
+    if(on) li.setAttribute('aria-current','step'); else li.removeAttribute('aria-current');
+  });
+  const t=document.getElementById('d-psd-title');
+  if(t) t.textContent=adv?'Todas as camadas':(_dPsdStep===1?'Confira a arte':'Campos do franqueado');
+  const k=document.getElementById('d-psd-rp-kicker'), rt=document.getElementById('d-psd-rp-title');
+  if(k) k.textContent=adv?'Avançado':(_dPsdStep===1?'Resumo':'Conteúdo');
+  if(rt) rt.textContent=adv?'Camadas e campos':(_dPsdStep===1?'O que vai para o Estúdio':'O que o franqueado troca');
+  _dPsdRenderStep1();
+  dPsdHoverLayer(-1);   // pinta (ou apaga) os números dos campos na arte
+}
+function _dPsdRenderStep1(){
+  const box=document.getElementById('d-psd-step1'); if(!box) return;
+  if(_dPsdStep!==1 || _dPsdReviewAll || !dPsdItems.length || !dPsdMeta){ box.innerHTML=''; return; }
+  const inc=dPsdItems.filter(it=>it.include && !it.isMaskBase);
+  const campos=inc.filter(it=>(it.mode==='var'||it.mode==='frame') && it.varName).length;
+  const porFonte=inc.filter(it=>it._rasterPorFonte && it.mode==='raster').length;
+  const total=dPsdItems.filter(it=>!it.isMaskBase).length;
+  const rep=_dPsdFidRep;
+  let fid;
+  if(!dPsdMeta.ref){
+    fid='<div class="psd-s1-fid is-none"><strong>—</strong><div><b>Sem comparação</b><small>O arquivo não trouxe a imagem do Photoshop para comparar.</small></div></div>';
+  } else if(!rep){
+    fid='<div class="psd-s1-fid is-none"><strong>…</strong><div><b>Comparando com o Photoshop</b><small>A medição sai quando a prévia termina.</small></div></div>';
+  } else {
+    // Mesmo semáforo do selo da prévia (_dPsdShowFidelity): a regra é uma só.
+    const nivel=(rep.pct>=95 && rep.meanErr<=4)?'ok':(rep.pct>=85?'quase':'dif');
+    const titulo={ok:'Igual ao Photoshop', quase:'Quase igual ao Photoshop', dif:'Diferente do Photoshop'}[nivel];
+    const sub=rep.worst.length?('Maior diferença em '+rep.worst.slice(0,2).map(o=>'“'+o.name+'”').join(' e ')):'Nenhuma área com diferença relevante';
+    fid='<div class="psd-s1-fid is-'+nivel+'"><strong>'+rep.pct+'%</strong><div><b>'+titulo+'</b><small>'+_dPsdEsc(sub)+'</small></div></div>';
+  }
+  const linha=(rotulo,valor,dica)=>'<li'+(dica?(' title="'+_dPsdEsc(dica)+'"'):'')+'><span>'+rotulo+'</span><span>'+valor+'</span></li>';
+  box.innerHTML=fid
+    +'<ul class="psd-s1-lista">'
+    +linha('Campos do franqueado', campos?(campos+' · você confere no próximo passo'):'nenhum ainda · próximo passo')
+    +linha('Camadas fixas', String(inc.length-campos))
+    +(porFonte?linha('Textos fixos sem a fonte', porFonte+' · iguais ao Photoshop',
+        'A fonte não está no Luma. Texto fixo entra como a imagem do Photoshop; se virar campo, volta a ser texto.'):'')
+    +'</ul>'
+    +'<button type="button" class="psd-s1-link" onclick="dPsdToggleAdvanced()">Ver as '+total+' camadas</button>';
+}
+// Os campos ligados, de cima para baixo na arte: é a numeração da lista E dos números na arte.
+function _dPsdCamposOrdem(){
+  return dPsdItems.map((it,i)=>({it,i}))
+    .filter(o=>o.it.include && !o.it.isMaskBase && (o.it.mode==='var'||o.it.mode==='frame') && o.it.varName)
+    .sort((a,b)=>(a.it.y-b.it.y)||(a.it.x-b.it.x)).map(o=>o.i);
+}
+function _dPsdAmostra(it){
+  return String((it.kind==='text'&&it.content)?it.content:(it.name||'')).replace(/\s+/g,' ').trim().slice(0,48);
+}
+function _dPsdRenderCampos(wrap){
+  const head=document.querySelector('#d-psd-modal .psd-fieldbar-copy strong');
+  const cover=document.getElementById('d-psd-fields-cover');
+  const ordem=_dPsdCamposOrdem();
+  const pend=dPsdItems.map((it,i)=>({it,i})).filter(o=>_dPsdPendingSug(o.it));
+  if(head) head.textContent=ordem.length?(ordem.length+(ordem.length===1?' campo':' campos')):'Nenhum campo ainda';
+  if(cover) cover.textContent=pend.length
+    ? (pend.length+(pend.length===1?' dúvida para responder':' dúvidas para responder'))
+    : 'Clique na arte no que o franqueado deve trocar';
+  let h='';
+  /* "Você marcou" — a camada clicada na arte. Só oferece campo compatível com o tipo dela (a
+     mesma regra do seletor da linha): a guarda de tipo aparece como ausência de opção. */
+  const pk=(_dPsdPick>=0)?dPsdItems[_dPsdPick]:null;
+  if(pk){
+    const ligado=(pk.mode==='var'||pk.mode==='frame') && pk.varName;
+    const querImg=(pk.kind!=='text');
+    const opts=(pk.kind==='adjustment'||pk.isMaskBase)?[]:_dPsdVarsList().filter(v=>querImg?(v.type==='image'):(v.type!=='image'));
+    let corpo;
+    if(ligado) corpo='<small>Já é “'+_dPsdEsc(_dPsdFieldLabel(pk.varName))+'”.</small>';
+    else if(!opts.length) corpo='<small>Nenhum campo do catálogo serve para esta camada. Crie um em “Ver todas as camadas”.</small>';
+    else corpo='<div class="psd-decision-options">'+opts.map(v=>'<button type="button" data-pick-field="'+_dPsdEsc(v.name)+'">'+_dPsdEsc(v.label||v.name)+'</button>').join('')+'</div>';
+    h+='<section class="psd-decision psd-pick"><span class="psd-decision-kicker">Você marcou</span>'
+      +'<strong class="psd-decision-layer">“'+_dPsdEsc(_dPsdAmostra(pk))+'”</strong>'+corpo
+      +'<button type="button" class="psd-pick-close" data-pick-close aria-label="Fechar">×</button></section>';
+  }
+  ordem.forEach((i,k)=>{
+    const it=dPsdItems[i];
+    const fs=it.fontStatus||(it.fontRemapped?'exact':'missing');
+    // Campo é texto VIVO: aqui a fonte ausente aparece de verdade na arte do franqueado.
+    const fonte=(it.kind==='text' && it.fontName && !/roboto/i.test(it.fontName) && fs!=='exact')
+      ? ('<label class="psd-campo-fonte">A fonte “'+_dPsdEsc(it.fontName)+'” não está no Luma · <u>Enviar</u>'
+        +'<input type="file" accept=".ttf,.otf,.woff,.woff2" hidden onchange="dPsdUploadFont('+i+',this)"></label>')
+      : '';
+    h+='<section class="psd-campo" onmouseenter="dPsdHoverLayer('+i+')" onmouseleave="dPsdHoverLayer(-1)">'
+      +'<span class="psd-campo-n" aria-hidden="true">'+(k+1)+'</span>'
+      +'<div class="psd-campo-txt"><strong>'+_dPsdEsc(_dPsdFieldLabel(it.varName))+'</strong>'
+      +'<small>“'+_dPsdEsc(_dPsdAmostra(it))+'”</small>'+fonte+'</div>'
+      +'<button type="button" class="psd-at-btn" onclick="dPsdUnbindField('+i+')">Tornar fixo</button></section>';
+  });
+  pend.forEach(o=>{
+    const it=o.it, inf=it._fieldInference||{};
+    const defs=[inf.field].concat(inf.alternatives||[]).filter(Boolean);
+    if(!defs.length && it.varName) defs.push(_dPsdFieldByName(it.varName)||{name:it.varName,label:_dPsdFieldLabel(it.varName)});
+    const unique=[]; defs.forEach(v=>{ if(v&&v.name&&!unique.some(x=>x.name===v.name)) unique.push(v); });
+    h+='<section class="psd-decision" data-psd-decision="'+o.i+'" onmouseenter="dPsdHoverLayer('+o.i+')" onmouseleave="dPsdHoverLayer(-1)">'
+      +'<span class="psd-decision-kicker">É um campo?</span>'
+      +'<strong class="psd-decision-layer">“'+_dPsdEsc(_dPsdAmostra(it))+'”</strong>'
+      +'<div class="psd-decision-options">'+unique.map(v=>'<button type="button" data-candidate="'+_dPsdEsc(v.name)+'">'+_dPsdEsc(v.label||v.name)+'</button>').join('')
+      +'<button type="button" data-fixo>Fixo</button></div>'
+      +'<small>'+(inf.reason?_dPsdEsc(inf.reason):'Escolha o significado deste conteúdo.')+'</small></section>';
+  });
+  if(!pk && !ordem.length && !pend.length)
+    h+='<p class="psd-campos-vazio">Clique na arte no que o franqueado deve trocar: o título, o preço, a foto.</p>';
+  else h+='<p class="psd-campos-dica">Faltou algum? Clique na arte para marcar.</p>';
+  wrap.innerHTML=h;
+  wrap.querySelectorAll('[data-psd-decision]').forEach(sec=>{
+    const i=Number(sec.dataset.psdDecision);
+    sec.querySelectorAll('[data-candidate]').forEach(b=>b.addEventListener('click',()=>dPsdAcceptCandidate(i,b.dataset.candidate)));
+    const fx=sec.querySelector('[data-fixo]'); if(fx) fx.addEventListener('click',()=>dPsdUnbindField(i));
+  });
+  wrap.querySelectorAll('[data-pick-field]').forEach(b=>b.addEventListener('click',()=>{
+    const i=_dPsdPick; _dPsdPick=-1;   // antes do vínculo: ele re-renderiza esta lista
+    if(!dPsdBindField(i,b.dataset.pickField)){ _dPsdPick=i; _dPsdRenderFieldRail(); }
+  }));
+  const fecha=wrap.querySelector('[data-pick-close]');
+  if(fecha) fecha.addEventListener('click',()=>{ _dPsdPick=-1; _dPsdRenderFieldRail(); });
 }
 // Converte blend mode do ag-psd (camelCase) → CSS (kebab-case); 'normal'→'' (sem propriedade)
 function _dPsdBlendModeCSS(bm){ return bm?bm.replace(/([A-Z])/g,c=>'-'+c.toLowerCase()):''; }
@@ -437,6 +609,7 @@ function dPsdRenderRows(filter){
       </span>
       ${_dPsdFieldSelHTML(it,i)}${modeSel}${varIn}</div>`;
   }).join('');
+  _dPsdRenderStep();      // passo ativo, títulos, CTA e o resumo do passo 1
   _dPsdRenderFieldRail(); // contadores da trilha vivem do mesmo estado da lista
   dPsdUpdateCount();
   if(typeof dPsdRenderPreview === 'function') dPsdRenderPreview();
@@ -555,10 +728,24 @@ function dPsdUpdateCount(){
     if(_pendSug) txt+=' · '+_pendSug+(_pendSug===1?' sugestão pendente':' sugestões pendentes');
     if(_multi) txt+=' · '+_nB+' prancheta'+(_nB===1?'':'s')+' no import';
     if(pendingFonts) txt+=' · '+pendingFonts+' fonte'+(pendingFonts===1?' pendente':'s pendentes');
+    // Nos passos, o rodapé diz o que o designer leva — o inventário técnico fica no avançado.
+    if(!_dPsdReviewAll){
+      const _dv=dPsdItems.filter(_dPsdPendingSug).length;
+      txt=(_dPsdStep===1)
+        ? 'Próximo passo: os campos que o franqueado troca'
+        : (vars+(vars===1?' campo':' campos')+' · '+(n-vars)+(n-vars===1?' camada fixa':' camadas fixas')
+          +(_dv?(' · '+_dv+(_dv===1?' dúvida':' dúvidas')):''));
+      if(_multi) txt+=' · '+_nB+' prancheta'+(_nB===1?'':'s')+' no import';
+    }
     summary.textContent=txt;
   }
   const actionLabel=document.getElementById('d-psd-action-label');
-  if(actionLabel) actionLabel.textContent=_multi?('Importar '+_nB+' prancheta'+(_nB===1?'':'s')):'Importar';
+  // Passo 1 não importa: avança. O avançado importa de onde estiver (é quem já sabe o que quer).
+  const _avanca=(_dPsdStep===1 && !_dPsdReviewAll);
+  if(actionLabel) actionLabel.textContent=_avanca?'Continuar':(_multi?('Importar '+_nB+' prancheta'+(_nB===1?'':'s')):'Importar');
+  const _back=document.getElementById('d-psd-back'), _cancel=document.getElementById('d-psd-cancel');
+  if(_back) _back.hidden=(_dPsdStep!==2 || _dPsdReviewAll);
+  if(_cancel) _cancel.hidden=!(_back && _back.hidden);
   const cta=document.querySelector('#d-psd-modal .psd-import-cta');
   if(cta){
     // Multi: o que habilita é ter prancheta marcada — a prancheta aberta pode estar
@@ -567,7 +754,7 @@ function dPsdUpdateCount(){
     cta.disabled=off; cta.setAttribute('aria-disabled',off?'true':'false');
   }
   const cnt=document.getElementById('d-psd-count');
-  if(cnt&&_multi) cnt.textContent='';
+  if(cnt&&(_multi||_avanca)) cnt.textContent='';
   // Painel de exceções: recalcula do livro-caixa a cada mudança de estado. Não re-renderiza a
   // lista (dPsdRenderRows chama esta função — seria laço), só o seu próprio nó.
   _dPsdRenderAtencao();
@@ -616,6 +803,7 @@ function _dPsdCloseReviewUI(){
   const _m=document.getElementById('d-psd-modal');
   if(_m) _m.classList.remove('psd-arming','psd-mapping');
   _dPsdShowFidelity(null);
+  dPsdCompare(false);
   const m=document.getElementById('d-psd-modal'); if(m) m.classList.remove('open');
   const cv=document.getElementById('d-psd-preview-canvas'); if(cv){ cv.width=0; cv.height=0; cv._renderId=(cv._renderId||0)+1; }
   const ov=document.getElementById('d-psd-preview-overlay'); if(ov){ ov.width=0; ov.height=0; }
@@ -797,10 +985,13 @@ async function _dPsdRenderPreviewNow(){
 const _DPSD_FID_PX=400;   // lado maior da imagem de análise
 const _DPSD_FID_TOL=16;   // 0–255: abaixo disso é ruído de anti-alias/JPEG dos nossos rasters
 // Recorta (x,y,w,h) do composto do documento e reduz p/ o tamanho de análise.
-function _dPsdRefCanvas(src, x, y, w, h){
+// `maxPx` opcional: a VISTA de comparação do passo 1 precisa de mais resolução que a medição
+// (400px fica borrado numa prévia de ~500px), mas fica num teto para não reter o composto inteiro.
+const _DPSD_VISTA_PX=800;
+function _dPsdRefCanvas(src, x, y, w, h, maxPx){
   try{
     if(!src || !src.width || !src.height || !(w>8) || !(h>8)) return null;
-    const scale=Math.min(1, _DPSD_FID_PX/Math.max(w,h));
+    const scale=Math.min(1, (maxPx||_DPSD_FID_PX)/Math.max(w,h));
     const tw=Math.max(1,Math.round(w*scale)), th=Math.max(1,Math.round(h*scale));
     const c=document.createElement('canvas'); c.width=tw; c.height=th;
     const cx=c.getContext('2d'); cx.imageSmoothingQuality='high';
@@ -866,6 +1057,7 @@ function _dPsdFidelity(rendered, ref, ordered, metaW, metaH){
 // ganham um aviso na própria linha da lista.
 function _dPsdShowFidelity(rep){
   document.querySelectorAll('#d-psd-rows .psd-fid-badge').forEach(el=>el.remove()); // medição anterior
+  _dPsdFidRep=rep||null; _dPsdRenderStep1();   // o número em destaque do passo 1
   const badge=document.querySelector('#d-psd-modal .psd-fidelity-badge');
   if(!badge) return;
   // Ausência de referência NÃO é aprovação. O selo antigo dizia "Fiel ao arquivo" quando o PSD
@@ -1082,9 +1274,12 @@ function _dPsdSemPend(){
    é essa (§81): a arte vem primeiro, o significado depois. Bloqueante fura a fila. */
 function _dPsdPend(){
   const fid=_dPsdAtPend();
-  return fid.filter(a=>a.nivel==='blocking')
-    .concat(fid.filter(a=>a.nivel!=='blocking'))
-    .concat(_dPsdSemPend());
+  const fila=fid.filter(a=>a.nivel==='blocking').concat(fid.filter(a=>a.nivel!=='blocking'));
+  /* Nos PASSOS, cada fila mora no seu: a arte no 1, o significado no 2 (onde as perguntas viram
+     a lista de campos). Somar as duas aqui era o "7 itens precisam da sua atenção" ao lado de
+     "5 itens precisam da sua ajuda" — a mesma pergunta contada duas vezes. O avançado vê tudo. */
+  if(_dPsdReviewAll) return fila.concat(_dPsdSemPend());
+  return (_dPsdStep===1) ? fila : [];
 }
 /* Cada categoria mantém o NOME DELA na tela (§22). "2 problemas encontrados" junta coisas de
    naturezas diferentes numa mensagem que não diz o que fazer com nenhuma delas. */
@@ -1293,6 +1488,30 @@ function dPsdHoverLayer(idx, bad) {
   const ctx = overlay.getContext('2d');
   ctx.clearRect(0, 0, overlay.width, overlay.height);
 
+  /* PASSO 2: o número de cada campo, na arte e na lista, é o mesmo. Desenhado AQUI porque esta
+     função limpa a sobreposição a cada movimento do mouse — em qualquer outro lugar o número
+     piscaria e sumiria no primeiro hover. */
+  if (_dPsdStep === 2 && !_dPsdReviewAll) {
+    const u = Math.min(overlay.width, overlay.height);
+    const cor = _dPsdToken('--dm-orange', '#FF9000');
+    // Proporcional à arte (a prévia mostra ~1/5 do tamanho): ~9px de raio na tela.
+    const r = Math.max(14, u * 0.04), lw = Math.max(2, u * 0.004);
+    _dPsdCamposOrdem().forEach((ci, k) => {
+      const it = dPsdItems[ci]; if (!it) return;
+      ctx.save();
+      ctx.setLineDash([lw * 3, lw * 2]); ctx.lineWidth = lw; ctx.strokeStyle = cor;
+      ctx.strokeRect(it.x, it.y, it.w, it.h);
+      ctx.setLineDash([]);
+      const cx = Math.max(r, it.x), cy = Math.max(r, it.y);
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = cor; ctx.fill();
+      ctx.fillStyle = _dPsdToken('--on-orange', '#0A0A0A'); ctx.font = '700 ' + Math.round(r * 1.1) + 'px Roboto, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(k + 1), cx, cy + r * 0.05);
+      ctx.restore();
+    });
+  }
+
   /* O realce da atenção aberta é PERSISTENTE: passar o mouse fora da arte (ou sair dela) não
      pode apagar a região que o painel está explicando naquele instante. Feito aqui, no único
      lugar que desenha o realce, e não em cada um dos cinco `dPsdHoverLayer(-1)` espalhados. */
@@ -1490,6 +1709,7 @@ function _dPsdRenderFieldRail(){
       ? '<span class="psd-ai-spin" aria-hidden="true"></span>Analisando a arte…'
       : _DPSD_AI_ICON+'Mapear com IA';
   }
+  if(!_dPsdReviewAll && _dPsdStep===2){ _dPsdRenderCampos(wrap); return; }
   if(!_dPsdReviewAll){
     if(!pend){
       wrap.innerHTML='<div class="psd-prep-ready"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg></span><div><strong>Campos preparados</strong><small>O Luma configurou o que reconheceu e manteve o restante fixo.</small></div></div>';
@@ -1868,6 +2088,16 @@ function dPsdRowClick(ev, i){
   if(dPsdBindField(i, _dPsdArmedField)) _dPsdDisarm();
 }
 function _dPsdCanvasClick(ev){
+  /* PASSO 2 sem campo "pego": clicar na arte pergunta "o que é isto?". A resposta passa pelo
+     mesmo dPsdBindField de sempre — aqui só se descobre QUAL camada o designer apontou. */
+  if(!_dPsdArmedField && _dPsdStep===2 && !_dPsdReviewAll){
+    const i=_dPsdHitLayer(ev.clientX, ev.clientY);
+    if(i<0) return;
+    _dPsdPick=i; _dPsdRenderFieldRail();
+    const card=document.querySelector('#d-psd-fields .psd-pick');
+    if(card) card.scrollIntoView({block:'nearest',behavior:'smooth'});
+    return;
+  }
   if(!_dPsdArmedField) return;
   const i=_dPsdHitLayer(ev.clientX, ev.clientY);
   if(i<0){ gToast('Clique sobre uma camada da arte'); return; }
@@ -1913,7 +2143,10 @@ function _dPsdBuildBoards(artboards){
 // 100MB e ficaria parado na memória durante toda a revisão só para ser recortado depois.
 function _dPsdBoardsPrepRefs(){
   if(!_dPsdDocCanvas) return;
-  _dPsdBoards.forEach(b=>{ if(b.ref===undefined) b.ref=_dPsdRefCanvas(_dPsdDocCanvas, b.left, b.top, b.w, b.h); });
+  _dPsdBoards.forEach(b=>{
+    if(b.ref===undefined) b.ref=_dPsdRefCanvas(_dPsdDocCanvas, b.left, b.top, b.w, b.h);
+    if(b.vista===undefined) b.vista=_dPsdRefCanvas(_dPsdDocCanvas, b.left, b.top, b.w, b.h, _DPSD_VISTA_PX);
+  });
   _dPsdDocCanvas=null;
 }
 // Preview de prancheta no seletor de artboards.
@@ -1956,6 +2189,7 @@ function _dPsdBoardLoad(b){
     b.layer=null;
   }
   if(b.ref===undefined) b.ref=_dPsdRefCanvas(_dPsdDocCanvas, b.left, b.top, b.w, b.h);
+  if(b.vista===undefined) b.vista=_dPsdRefCanvas(_dPsdDocCanvas, b.left, b.top, b.w, b.h, _DPSD_VISTA_PX);
   return b;
 }
 // Congela na prancheta ativa o que está na tela agora (formato, inversão). As decisões de
@@ -1972,7 +2206,7 @@ function dPsdBoardSelect(i){
   const b=_dPsdBoardLoad(_dPsdBoards[i]);
   dPsdItems=b.items;
   _dPsdAdjustCount=b.adjust||0; _dPsdErrorCount=b.errors||0;
-  dPsdMeta={w:b.w, h:b.h, name:b.name, res:_dPsdDocRes, ref:b.ref};
+  dPsdMeta={w:b.w, h:b.h, name:b.name, res:_dPsdDocRes, ref:b.ref, vista:b.vista};
   _dPsdRenderBoards();
   _dPsdApplyBoardToUI();
 }
@@ -2221,7 +2455,7 @@ async function dImportPSD(input){
       const b0=_dPsdBoardLoad(_dPsdBoards[0]);
       dPsdItems=b0.items;
       _dPsdAdjustCount=b0.adjust||0; _dPsdErrorCount=b0.errors||0;
-      dPsdMeta={w:b0.w, h:b0.h, name:b0.name, res:_dPsdDocRes, ref:b0.ref};
+      dPsdMeta={w:b0.w, h:b0.h, name:b0.name, res:_dPsdDocRes, ref:b0.ref, vista:b0.vista};
       _dPsdBusy(false);
       if(!dPsdItems.length) gToast('"'+b0.name+'" não tem camadas utilizáveis — veja as outras pranchetas');
       dPsdOpenReview();
@@ -2240,12 +2474,14 @@ async function dImportPSD(input){
       dPsdItems=dPsdParseItems({children:(abNode.children||[]), width:abW, height:abH}, result.res||72, abL, abT);
       dPsdMeta={w:abW, h:abH, name:baseName, res:result.res||72, worker:result.worker===true,
         // ref: recorte da prancheta no composto do doc → base do relatório de fidelidade (#17)
-        ref:_dPsdRefCanvas(result.psd.canvas, abL, abT, abW, abH)};
+        ref:_dPsdRefCanvas(result.psd.canvas, abL, abT, abW, abH),
+        vista:_dPsdRefCanvas(result.psd.canvas, abL, abT, abW, abH, _DPSD_VISTA_PX)};
     } else {
       // PSD simples sem artboards.
       dPsdItems=dPsdParseItems(result.psd, result.res||72);
       dPsdMeta={w:result.psd.width, h:result.psd.height, name:baseName, res:result.res||72, worker:result.worker===true,
-        ref:_dPsdRefCanvas(result.psd.canvas, 0, 0, result.psd.width, result.psd.height)};
+        ref:_dPsdRefCanvas(result.psd.canvas, 0, 0, result.psd.width, result.psd.height),
+        vista:_dPsdRefCanvas(result.psd.canvas, 0, 0, result.psd.width, result.psd.height, _DPSD_VISTA_PX)};
     }
     _dPsdBusy(false);
     if(!dPsdItems.length){

@@ -2208,6 +2208,73 @@ body.theme-light .dp-dado-ex {
 .psd-decision>small{grid-column:1 / -1;font-size:9px;line-height:1.35;color:var(--d-text3)}
 .psd-advanced-toggle{white-space:nowrap}
 
+/* ── OS DOIS PASSOS (06/10/2026) ── classes do modal postas por _dPsdRenderStep():
+   is-step1 / is-step2 (os passos), is-adv ("Ver todas as camadas"), is-multi (pranchetas). */
+#d-psd-modal:not(.is-adv) .psd-adv-only,
+#d-psd-modal:not(.is-adv) .psd-auto-label,
+#d-psd-modal.is-step1 .psd-fieldbar{display:none}
+#d-psd-modal:not(.is-adv):not(.is-multi) .psd-commandbar{display:none}
+#d-psd-modal .psd-footer-actions>[hidden]{display:none}
+.psd-progress-steps li>button{display:flex;align-items:center;gap:6px;padding:0;border:0;background:none;
+  color:inherit;font:inherit;cursor:pointer}
+.psd-progress-steps li>button>span{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
+  border:1px solid var(--d-border2);background:var(--d-surf2);font-size:9px;color:var(--d-text3)}
+.psd-progress-steps li.complete>button>span{border-color:color-mix(in srgb,var(--green) 30%,transparent);
+  background:color-mix(in srgb,var(--green) 11%,transparent);color:var(--green-text)}
+.psd-progress-steps li.active>button>span{border-color:var(--dm-orange);
+  background:color-mix(in srgb,var(--dm-orange) 14%,transparent);color:var(--dm-orange)}
+#d-psd-modal.is-adv .psd-progress-steps{opacity:.55}
+
+/* Comparar com o Photoshop: a imagem gravada pelo PS sobre a prévia, mesmo encaixe. */
+.psd-cmp-btn{padding:4px 9px;border:1px solid var(--d-border2);border-radius:var(--r-pill);background:var(--d-surf);
+  color:var(--d-text2);font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;
+  transition:border-color var(--dur-micro),color var(--dur-micro)}
+.psd-cmp-btn:hover,.psd-cmp-btn[aria-pressed="true"]{border-color:var(--dm-orange);color:var(--dm-orange)}
+#d-psd-ref-view{display:none}
+.psd-preview-canvases.is-cmp #d-psd-ref-view{display:block}
+.psd-preview-canvases.is-cmp #d-psd-preview-overlay{visibility:hidden}
+
+/* Passo 1 — o resumo do que vai para o Estúdio. */
+.psd-step1{display:flex;flex-direction:column;gap:12px}
+.psd-step1:empty{display:none}
+.psd-s1-fid{display:flex;align-items:center;gap:14px;padding:14px 16px;border:1px solid var(--d-border2);
+  border-radius:12px;background:var(--d-surf2)}
+.psd-s1-fid>strong{font-size:28px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;color:var(--d-text2)}
+.psd-s1-fid b{display:block;font-size:12px;font-weight:700;color:var(--d-text)}
+.psd-s1-fid small{display:block;margin-top:2px;font-size:9.5px;line-height:1.4;color:var(--d-text3)}
+.psd-s1-fid.is-ok{border-color:color-mix(in srgb,var(--green) 35%,transparent);background:color-mix(in srgb,var(--green) 8%,var(--d-surf2))}
+.psd-s1-fid.is-ok>strong{color:var(--green)}
+.psd-s1-fid.is-quase{border-color:color-mix(in srgb,var(--dm-orange) 35%,transparent);background:color-mix(in srgb,var(--dm-orange) 7%,var(--d-surf2))}
+.psd-s1-fid.is-quase>strong{color:var(--dm-orange)}
+.psd-s1-fid.is-dif{border-color:color-mix(in srgb,var(--dm-red) 40%,transparent);background:color-mix(in srgb,var(--dm-red) 7%,var(--d-surf2))}
+.psd-s1-fid.is-dif>strong{color:var(--dm-red)}
+.psd-s1-lista{margin:0;padding:4px 14px;list-style:none;border:1px solid var(--d-border);border-radius:10px;background:var(--d-surf)}
+.psd-s1-lista li{display:flex;justify-content:space-between;gap:12px;padding:9px 0;font-size:10.5px;color:var(--d-text2)}
+.psd-s1-lista li+li{border-top:1px solid var(--d-border)}
+.psd-s1-lista li>span:last-child{color:var(--d-text3);text-align:right}
+.psd-s1-link{align-self:flex-start;padding:0;border:0;background:none;font-size:10px;font-weight:700;
+  color:var(--d-text3);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.psd-s1-link:hover{color:var(--d-text)}
+
+/* Passo 2 — a lista de campos, numerada igual à arte. */
+.psd-campo{display:flex;align-items:center;gap:10px;padding:10px 11px;border:1px solid var(--d-border2);
+  border-radius:9px;background:var(--d-surf)}
+.psd-campo:hover{border-color:var(--dm-orange)}
+.psd-campo-n{width:22px;height:22px;flex:0 0 auto;display:grid;place-items:center;border-radius:50%;
+  background:var(--dm-orange);color:var(--on-orange);font-size:11px;font-weight:800}
+.psd-campo-txt{flex:1;min-width:0}
+.psd-campo-txt strong{display:block;font-size:11px;font-weight:700;color:var(--d-text)}
+.psd-campo-txt small{display:block;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9.5px;color:var(--d-text3)}
+.psd-campo-fonte{display:block;margin-top:4px;font-size:9.5px;color:var(--dm-orange);cursor:pointer}
+.psd-campo-fonte u{font-weight:700}
+.psd-pick{position:relative;border-color:var(--dm-orange)}
+.psd-pick-close{position:absolute;top:4px;right:6px;width:22px;height:22px;padding:0;border:0;border-radius:6px;
+  background:none;color:var(--d-text3);font-size:15px;line-height:1;cursor:pointer}
+.psd-pick-close:hover{color:var(--d-text)}
+.psd-campos-dica,.psd-campos-vazio{margin:2px 0 0;padding:10px;border:1px dashed var(--d-border2);border-radius:9px;
+  text-align:center;font-size:9.5px;color:var(--d-text3)}
+#d-psd-modal.is-step2 .psd-preview-canvases{cursor:pointer}
+
 /* Estado de arrasto/mira: as linhas mostram que são alvo, e a arte também. */
 #d-psd-modal.psd-mapping .psd-row{border-style:dashed}
 #d-psd-modal.psd-arming .psd-row,#d-psd-modal.psd-arming .psd-preview-canvases{cursor:copy}
