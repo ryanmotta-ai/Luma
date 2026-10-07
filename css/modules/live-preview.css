@@ -1651,3 +1651,38 @@ body:not(.theme-light) #lp-design-workspace>.lp-stage{background-color:var(--d-b
   #lp-design-properties{width:auto;max-height:42%;flex-shrink:0;border-left:0;border-top:1px solid var(--gray-mid);padding:0}
   #lp-design-properties .lp-design-props{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+/* ── Mini editor: refino visual (06/10/2026) ──
+   Mesma linguagem do painel de propriedades do Estúdio (.section-head, .prop-label,
+   .prop-input): títulos de seção em caixa-alta miúda, rótulos discretos, campos baixos com
+   foco laranja. Só aparência — nenhum id/classe que o JS ou as bancadas usam mudou. */
+.lp-design-caption{flex-direction:row;align-items:center;gap:12px}
+.lp-design-caption>div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.lp-design-caption-ico{width:32px;height:32px;border-radius:var(--r-sm);background:var(--press-bg);color:var(--dm-orange-text);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.lp-design-caption-ico svg{width:18px;height:18px}
+.lp-design-section h3,.lp-design-details summary{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);line-height:16px}
+.lp-design-details summary{display:flex;align-items:center;justify-content:space-between;list-style:none;padding:12px 0;min-height:44px}
+.lp-design-details summary::-webkit-details-marker{display:none}
+.lp-design-details summary::after{content:'';width:6px;height:6px;border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:rotate(45deg) translateY(-2px);transition:transform var(--dur-micro) var(--ease-standard);opacity:.7}
+.lp-design-details[open]>summary::after{transform:rotate(-135deg) translateY(-2px)}
+.lp-design-details[open]>summary{color:var(--text-2)}
+#lp-design-properties .lp-design-label{font-size:11px;font-weight:500;color:var(--text-3)}
+#lp-design-properties .lp-design-label>span{color:var(--text-3);opacity:.8}
+#lp-design-properties .lp-edit-input{height:32px;padding:6px 8px;font-size:12px;border-radius:var(--r-sm)}
+#lp-design-properties textarea.lp-edit-input{height:64px;padding:8px}
+#lp-design-properties .lp-edit-input:focus,#lp-design-properties .lp-edit-input:focus-visible{outline:none;border-color:var(--dm-orange);background:var(--white);box-shadow:0 0 0 3px color-mix(in srgb,var(--dm-orange) 14%,transparent)}
+#lp-design-properties input[type=color]{padding:3px;height:32px}
+.lp-design-style-row{gap:0;border:1px solid var(--gray-mid);border-radius:var(--r-sm);overflow:hidden;width:max-content;max-width:100%}
+.lp-design-style-row .lp-edit-btn,#lp-design-bold{border:0;border-radius:0;background:transparent;color:var(--text-2);height:32px;min-height:32px;transform:none}
+.lp-design-style-row .lp-edit-btn:hover{background:var(--gray-light);color:var(--text)}
+.lp-design-style-row .lp-edit-btn[aria-pressed=true]{background:var(--press-bg);color:var(--dm-orange-text)}
+.lp-design-style-row .lp-edit-btn svg{width:16px;height:16px}
+#lp-design-bold{width:36px;padding:0;font-size:13px;border-right:1px solid var(--gray-mid)}
+.lp-design-align-buttons{gap:0;flex:none}
+.lp-design-align-buttons .lp-edit-btn{flex:none;width:36px;min-height:32px;padding:0}
+.lp-design-reset-row .lp-edit-btn{border-style:dashed;color:var(--text-2);background:transparent;font-weight:500}
+.lp-design-reset-row .lp-edit-btn:hover{border-style:solid}
+.lp-design-panel-head{padding:14px 16px}
+.lp-design-panel-head p{font-size:11px}
+@media(pointer:coarse){.lp-design-style-row .lp-edit-btn,#lp-design-bold{height:44px;min-height:44px;width:44px}}
+body:not(.theme-light) #lp-design-properties .lp-edit-input:focus{background:var(--d-surf2)}
