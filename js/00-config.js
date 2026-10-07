@@ -427,7 +427,8 @@ function _gSemRotuloRepetido(v, antes){
 // Separa um preço em inteiros e centavos de forma robusta
 function gSplitPrice(v) {
   const s = String(v==null?'':v).trim();
-  const m = s.match(/(\d+)[.,](\d{2})/);
+  // Milhar antes dos centavos: "Por: R$ 1.299,90" virava inteiro "1" e centavos "29".
+  const m = s.match(/(\d{1,3}(?:\.\d{3})+|\d+)[.,](\d{2})(?!\d)/);
   if (m) {
     return { inteiro: m[1], centavos: m[2] };
   }

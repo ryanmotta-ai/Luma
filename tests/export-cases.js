@@ -162,6 +162,13 @@
     assert(cinza[2]<=236 && cinza[0]>=214,'vibração +80 saturou o cinza ('+[cinza[0],cinza[1],cinza[2]]+')');
   });
 
+  /* O fluxo do franqueado grava o preço como "Por: R$ 1.299,90"; a regex antiga pegava "1.29"
+     e a arte saía "R$ 1,29". */
+  test('preço com milhar separa inteiro e centavos certos',()=>{
+    const casos=[['Por: R$ 24,90','24','90'],['Por: R$ 1.299,90','1.299','90'],['10.000,00','10.000','00'],['1299.90','1299','90']];
+    casos.forEach(([v,i,c])=>{const s=gSplitPrice(v);assert(s.inteiro===i&&s.centavos===c,v+' → '+s.inteiro+','+s.centavos+' (esperado '+i+','+c+')');});
+  });
+
   test('modo nativo exporta a prancheta no tamanho real',async()=>{
     const cv=await exportar({scale:1});
     assert(cv.width===1080&&cv.height===1350,
