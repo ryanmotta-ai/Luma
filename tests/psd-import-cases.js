@@ -432,6 +432,19 @@
     assert(_dPsdCapPerdeFx(comoForma)===false,'avisou perda de efeito numa camada que renderiza efeito');
   });
 
+  test('imagem comum com Sobreposição de Cor leva o efeito (Carrosel b2b, 68%→94%)',()=>{
+    // O ramo de pixel solto era o único que não lia efeitos: o node.canvas não traz a
+    // sobreposição, então a camada saía com a cor crua do pixel.
+    const k=document.createElement('canvas');k.width=k.height=100;const x=k.getContext('2d');
+    const g=x.createRadialGradient(50,50,5,50,50,50);g.addColorStop(0,'#ff8000');g.addColorStop(1,'rgba(255,200,0,0)');
+    x.fillStyle=g;x.fillRect(0,0,100,100);
+    const it=dPsdParseItems({children:[{name:'Retângulo 1',left:0,top:0,right:100,bottom:100,canvas:k,
+      effects:{solidFill:[{enabled:true,blendMode:'normal',color:{r:248,g:84,b:0},opacity:1}]}}],width:1080,height:1350},72,0,0)[0];
+    assert(it&&it.kind==='raster','o pixel deixou de ser lido como imagem ('+(it&&it.kind)+')');
+    assert(it.overlay===true&&/^#f85400$/i.test(it.overlayColor),'a Sobreposição de Cor da imagem se perdeu ('+it.overlayColor+')');
+    assert(dItemToLayer(it).overlay===true,'a sobreposição não chegou na camada');
+  });
+
   test('mesclagem sem render entra como Normal COM motivo registrado',()=>{
     // _dPsdBlendMode devolve undefined de propósito p/ um modo sem render ('dissolve'), pra o
     // selo não prometer o que sai Normal. Isso era uma perda muda.

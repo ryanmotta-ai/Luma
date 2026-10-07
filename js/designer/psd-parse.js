@@ -2639,7 +2639,10 @@ function dPsdParseItems(psd, res, ox, oy){
           // Zona segura da foto: o assunto recortado, medido enquanto os pixels ainda estão
           // na memória. Depois do import só existe a URL, e recalcular sairia caro.
           it.inkBox=_dPsdInkBox(node.canvas);
-          
+          // Efeitos de camada NÃO estão no node.canvas (são vetoriais no PS). Este era o único
+          // ramo que não os lia: pixel com Sobreposição de Cor/sombra saía cru (Carrosel b2b, 68%).
+          Object.assign(it,_dPsdEffects(node));
+
           // Heurística de auto-frame para imagens raster
           const _area=(Math.max(1,w*h)/Math.max(1,(psd.width||1)*(psd.height||1)));
           const imgSug = _dPsdSuggestImgVar(it.name,{areaRatio:_area,isBackground:_area>=0.7||/^(background|fundo|bg|base)$/i.test(String(it.name||'').trim())});
