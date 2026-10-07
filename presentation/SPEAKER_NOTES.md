@@ -308,13 +308,12 @@
 - **Na tela:** o vídeo no celular mostra o caminho inteiro (entrar como visitante, escolher a campanha, foto, preços, arte pronta) e recomeça toda vez que o slide entra.
 - **Atenção:** o QR abre `https://ryanmotta-ai.github.io/Luma/?visitante=1` (modo visitante no ar desde 30/09/2026: só a campanha Copa do Mundo, nada é gravado). Teste com o seu celular antes de apresentar.
 
-## 20 · Obrigado — "Obrigado."
+## 20 · Valeu — "Valeu, galera!"
 
 - **Objetivo:** fechar com gente: quem fez o Luma, agradecendo e abrindo para perguntas.
-- **Frase de abertura:** "Obrigado."
-- **Discurso:** "[aponte a foto] Esse é o time que construiu o Luma. Lá no começo eu falei que escalar a rede não
-  deveria escalar o retrabalho. É isso que a gente entrega: uma marca no controle e uma rede com autonomia.
-  Obrigado. Bora para as perguntas?"
+- **Frase de abertura:** "Valeu, galera!"
+- **Discurso:** "[aponte a foto] Esse é o time que construiu o Luma. Uma campanha, a rede inteira, em segundos.
+  Valeu, galera! Perguntas?"
 - **Ponto principal:** o Luma tem rosto: foi feito dentro de casa, por quem conhece a rede.
 - **Transição:** abra para perguntas. Tecle **G** para o apêndice.
 
