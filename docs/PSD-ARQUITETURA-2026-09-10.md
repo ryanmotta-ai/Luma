@@ -1404,10 +1404,14 @@ desenhados em `dPsdHoverLayer` — a única função que pinta a sobreposição 
 ### 16.2 Fundo fiel (`_dPsdFundoPlano` → `_dPsdAchatarFundo`)
 
 Na **confirmação** (nunca no parse — a revisão e o avançado continuam vendo cada camada), as camadas
-fixas abaixo do campo mais baixo são desenhadas por `fRenderPreviewToCanvas` com `bg:'transparent'`
-e entram como uma imagem. A sequência para no primeiro destes: base de recorte de algo acima dos
-campos; filho de grupo que tem campo. Falhou o desenho → importa separado, como antes. O resumo do
-passo 1 usa **a mesma** `_dPsdFundoPlano`, então não promete um fundo que o import não monta.
+fixas abaixo do campo mais baixo são desenhadas por `fRenderTemplateLayers` com `bg:'transparent'`
+**na escala do download (2×, teto 3200)** — não por `fRenderPreviewToCanvas`, que trava em 1× e
+deixaria o fundo mole no PNG do franqueado. Entram como uma imagem. A sequência para no primeiro
+destes: base de recorte de algo acima dos campos; filho de grupo que tem campo; **placa de um
+campo** (`gLayoutFormaEhPlaca`, a régua do Local Fit — ela cresce com o texto). **Arte sem nenhum
+campo não achata** (o designer pode ligar depois; prancheta não aberta não passou pelo Smart
+Mapping). Falhou o desenho → importa separado, como antes. O resumo do passo 1 usa **a mesma**
+`_dPsdFundoPlano`, então não promete um fundo que o import não monta.
 
 **Por que não o composto do Photoshop como fundo:** o composto do arquivo tem os campos dentro (o
 texto velho apareceria embaixo do novo), e o pixel de cada camada vem sem efeito (o ag-psd não
