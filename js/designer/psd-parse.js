@@ -1804,7 +1804,7 @@ function _dPsdCapItem(it){
      o SVG e o DOM consomem SOMBRA, BRILHO e SOBREPOSIÇÃO em `type:'image'`/`'frame'` — então
      esses três deixaram de ser perda e saíram desta conta. Continuam de fora do raster, por
      dependerem da borda real do recorte (dilatação/erosão do alpha) e não da caixa:
-     contorno, sombra interna, brilho interno e relevo.
+     sombra interna, brilho interno e relevo (o contorno passou a sair pela silhueta, 07/10).
      Registrar só o que REALMENTE se perde é o ponto: um aviso que descreve perda inexistente
      ensina o designer a ignorar os avisos. */
   if(_DPSD_FX_SO_NATIVO.some(k=>it[k])) _dPsdCapMarca(cap,'fx_only_native',
@@ -1814,7 +1814,8 @@ function _dPsdCapItem(it){
 /* Os efeitos que NENHUM renderizador aplica em imagem/moldura, e o nome de cada um em PT-BR
    para o aviso dizer QUAL efeito se perde em vez de "os efeitos". Um lugar só: se um deles
    passar a ser suportado, sai desta lista e o aviso deixa de aparecer — sem caçar condição. */
-const _DPSD_FX_SO_NATIVO=['strokeW','innerShadow','innerGlow','bevel'];
+// Contorno saiu em 07/10/2026: os três renderizadores o desenham pela silhueta da imagem.
+const _DPSD_FX_SO_NATIVO=['innerShadow','innerGlow','bevel'];
 const _DPSD_FX_NOME={strokeW:'contorno',innerShadow:'sombra interna',innerGlow:'brilho interno',bevel:'relevo'};
 /* A camada, NO MODO ATUAL, vai perder efeito? Regra única para a revisão e para o diagnóstico.
    Os modos 'raster' e 'frame' e o veredito de raster fiel terminam todos em

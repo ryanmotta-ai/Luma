@@ -34,6 +34,27 @@
     return await fRenderCanvasHelper({},camp,fmt,opts);
   };
 
+  /* Contorno em IMAGEM (07/10/2026): texto do PSD que virou imagem fiel dependia do traço para
+     existir ("R$ 40" rosa sobre rosa com contorno branco). Sem path, o traço sai da distância
+     ao alpha. Trava a geometria: até r por fora, nada além; por dentro só dentro do recorte. */
+  test('contorno de imagem segue a silhueta, nos três alinhamentos',()=>{
+    const oc=document.createElement('canvas'); oc.width=oc.height=60;
+    const x=oc.getContext('2d'); x.fillStyle='#000'; x.fillRect(20,20,20,20);
+    const a=(c,px,py)=>c?c.getContext('2d').getImageData(px,py,1,1).data[3]:0;
+    const fora=_fContornoSilhueta(oc,{x:20,y:20,w:20,h:20},4,'outside','#fff');
+    assert(fora&&fora.fora&&!fora.dentro,'contorno por fora não gerou só a peça de fora');
+    const ox=fora.x, oy=fora.y;
+    assert(a(fora.fora,30-ox,17-oy)===255,'3px fora do recorte deveria estar coberto');
+    assert(a(fora.fora,30-ox,14-oy)===0,'6px fora do recorte já está além do traço de 4px');
+    const dentro=_fContornoSilhueta(oc,{x:20,y:20,w:20,h:20},4,'inside','#fff');
+    assert(dentro&&dentro.dentro&&!dentro.fora,'contorno por dentro não gerou só a peça de dentro');
+    assert(a(dentro.dentro,30-dentro.x,22-dentro.y)===255,'2px dentro da borda deveria estar coberto');
+    assert(a(dentro.dentro,30-dentro.x,30-dentro.y)===0,'o miolo do recorte não pode receber traço');
+    const centro=_fContornoSilhueta(oc,{x:20,y:20,w:20,h:20},4,'center','#fff');
+    assert(centro.fora&&centro.dentro,'centro precisa das duas peças, cada uma com metade');
+    assert(a(centro.fora,30-centro.x,16-centro.y)===0,'centro com 4px não passa de 2px por fora');
+  });
+
   test('modo nativo exporta a prancheta no tamanho real',async()=>{
     const cv=await exportar({scale:1});
     assert(cv.width===1080&&cv.height===1350,

@@ -596,9 +596,16 @@ function dSvgColor(c){
 function _svgFloodColor(c){ if(!c) return '#000'; const m=String(c).match(/rgba?\(([^)]+)\)/i); if(m){ const p=m[1].split(','); return 'rgb('+(+p[0])+','+(+p[1])+','+(+p[2])+')'; } return c; }
 function _svgFloodOp(c){ const m=String(c||'').match(/rgba\(([^)]+)\)/i); return (m&&m[1].split(',')[3]!=null)?(+m[1].split(',')[3]).toFixed(2):'1'; }
 // Filtro SVG de efeitos: sombra projetada + brilho externo + sombra interna. {defs, attr}.
+// Imagem/moldura não tem path: o contorno sai da silhueta (o texto do PSD que virou imagem).
+function _dSvgTracoImg(l){ return (l.type==='image'||l.type==='frame') && l.strokeW>0 && !l.strokeDash && l.strokeAlign!=='inside'; }
 function dSvgFx(l, id){
-  if(!(l.shadow||l.glow||l.innerShadow||l.innerGlow||l.bevel)) return {defs:'', attr:''};
+  if(!(l.shadow||l.glow||l.innerShadow||l.innerGlow||l.bevel||_dSvgTracoImg(l))) return {defs:'', attr:''};
   const prims=[]; const merges=[]; let inner='';
+  if(_dSvgTracoImg(l)){ const r=l.strokeAlign==='center'?l.strokeW/2:l.strokeW;
+    prims.push(`<feMorphology in="SourceAlpha" operator="dilate" radius="${r}" result="tk${id}"/>`
+      +`<feFlood flood-color="${_svgFloodColor(l.strokeColor||'#000')}" flood-opacity="${_svgFloodOp(l.strokeColor||'#000')}"/>`
+      +`<feComposite in2="tk${id}" operator="in" result="tc${id}"/>`);
+    merges.push(`<feMergeNode in="tc${id}"/>`); }
   if(l.glow){ const g=(l.glowSize!=null?l.glowSize:8)/2;
     if(l.glowSpread>0) prims.push(`<feMorphology in="SourceAlpha" operator="dilate" radius="${l.glowSpread}" result="gd${id}"/>`);
     prims.push(`<feGaussianBlur in="${l.glowSpread>0?`gd${id}`:'SourceAlpha'}" stdDeviation="${g}" result="gb${id}"/>`
@@ -916,7 +923,7 @@ async function dExportSVG(opts){
     else if(l.type==='text') frag=dSvgText(l, mctx, fillVars, dados, defaults);
     else if(l.type==='frame'||l.type==='image'){ const r=dSvgImage(l, dados, ++cid); defs+=r.defs; frag=r.body; }
     // Efeitos (sombra projetada/interna, brilho ext/int, chanfro) via <filter>
-    if(frag && (l.shadow||l.glow||l.innerShadow||l.innerGlow||l.bevel)){ const fx=dSvgFx(l, ++cid); if(fx.attr){ defs+=fx.defs; frag=`<g${fx.attr}>${frag}</g>`; } }
+    if(frag && (l.shadow||l.glow||l.innerShadow||l.innerGlow||l.bevel||_dSvgTracoImg(l))){ const fx=dSvgFx(l, ++cid); if(fx.attr){ defs+=fx.defs; frag=`<g${fx.attr}>${frag}</g>`; } }
     // máscara de camada → <mask type alpha> envolvendo o fragmento
     if(l.mask && frag){
       const mid='mk'+(++cid);

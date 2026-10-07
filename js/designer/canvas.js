@@ -1523,8 +1523,16 @@ function dRenderCanvas(){
         if (l.filterBrightness != null && l.filterBrightness !== 0) filterStr += ` brightness(${1 + (l.filterBrightness / 100)})`;
         if (l.filterContrast != null && l.filterContrast !== 0) filterStr += ` contrast(${1 + (l.filterContrast / 100)})`;
         if (l.filterSaturate != null && l.filterSaturate !== 0) filterStr += ` saturate(${1 + (l.filterSaturate / 100)})`;
+        /* Contorno pela silhueta (o Canvas da arte final calcula a borda exata). Aqui, quatro
+           drop-shadow encadeados dilatam o alpha em quadrado — aproximação de editor, mas segue
+           o recorte e mostra que o traço existe (o texto do PSD que virou imagem depende dele). */
+        if(l.strokeW>0 && !l.strokeDash && l.strokeAlign!=='inside'){
+          const r=(l.strokeAlign==='center'?l.strokeW/2:l.strokeW), c=gSafeColor(l.strokeColor,'#000');
+          filterStr+=` drop-shadow(${r}px 0 0 ${c}) drop-shadow(-${r}px 0 0 ${c}) drop-shadow(0 ${r}px 0 ${c}) drop-shadow(0 -${r}px 0 ${c})`;
+          if(!l.radius) el.style.overflow='visible';
+        }
         if (filterStr) img.style.filter = filterStr.trim();
-        
+
         el.appendChild(img);
       }else{
         el.style.cssText+=`background:rgba(255,255,255,.06);border:1px dashed rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:11px;color:rgba(255,255,255,.3);flex-direction:column;gap:4px;`;

@@ -324,16 +324,16 @@
     assert(_dPsdCapPerdeFx(it)===false,'a revisão avisaria uma perda que não existe mais');
   });
 
-  test('contorno e efeito interno em imagem continuam perda, com o nome de cada um',()=>{
-    // Estes dependem da borda REAL do recorte (dilatação/erosão do alpha), não da caixa —
-    // aproximá-los desenharia uma moldura em volta de um recorte.
+  test('efeito interno em imagem continua perda; contorno não (sai pela silhueta)',()=>{
+    // Relevo e efeitos internos dependem da erosão do alpha e não são desenhados em imagem.
+    // O contorno passou a ser (07/10): texto do PSD que virou imagem dependia dele para existir.
     const it={n:1,name:'Selo',kind:'raster',mode:'raster',x:0,y:0,w:80,h:80,visible:true,
       opacity:100,imgUrl:'data:image/png;base64,iVBORw0KGgo=',strokeW:4,strokeColor:'#000',bevel:true};
     _dPsdCapItem(it);
     const m=it.capability.motivos.find(x=>x.code==='fx_only_native');
-    assert(m,'contorno e relevo em imagem deixaram de ser registrados');
-    assert(/contorno/.test(m.detalhe)&&/relevo/.test(m.detalhe),
-      'o aviso não diz QUAL efeito se perde (detalhe: "'+m.detalhe+'")');
+    assert(m,'relevo em imagem deixou de ser registrado');
+    assert(/relevo/.test(m.detalhe)&&!/contorno/.test(m.detalhe),
+      'o aviso não descreve a perda real (detalhe: "'+m.detalhe+'")');
     assert(_dPsdCapPerdeFx(it)===true,'a revisão não avisaria a perda real');
     // A MESMA camada como forma editável renderiza contorno e relevo — não há perda a declarar.
     // `capability:null` de propósito: sem isso o Object.assign compartilha o livro-caixa do
@@ -368,8 +368,8 @@
   test('diagnóstico por camada devolve etapa e motivo de cada perda',()=>{
     const itens=[
       {n:1,name:'Limpa',kind:'shape',mode:'shape',x:0,y:0,w:10,h:10},
-      // strokeW e não glow: brilho em imagem passou a ser renderizado e deixou de ser perda.
-      {n:2,name:'Selo',kind:'raster',mode:'raster',x:0,y:0,w:10,h:10,strokeW:3,strokeColor:'#000'}
+      // relevo: brilho e contorno em imagem passaram a ser renderizados e deixaram de ser perda.
+      {n:2,name:'Selo',kind:'raster',mode:'raster',x:0,y:0,w:10,h:10,bevel:true}
     ];
     itens.forEach(_dPsdCapItem);
     const rep=dPsdCapReport(itens);

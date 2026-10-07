@@ -868,6 +868,58 @@ function _fSilhuetaSolida(oc, cor){
   sx.fillStyle=cor; sx.fillRect(0,0,s.width,s.height);
   return s;
 }
+/* CONTORNO PELA BORDA REAL do recorte (imagem/moldura). O traço de texto e de forma sai do
+   path; uma imagem não tem path — tem alpha. Texto do PSD que vira imagem fiel (rotacionado,
+   deformado) costuma depender do contorno para existir: "R$ 40" rosa sobre fundo rosa com
+   contorno branco SUMIA da arte. Distância euclidiana exata (Felzenszwalb, O(n) na caixa da
+   camada, não na arte) → anel com borda suavizada de 1px, nos três alinhamentos do Photoshop.
+   Devolve {c, x, y} em pixels de dispositivo, ou null. */
+function _fEdt1(f, n, d, v, z){
+  let k=0; v[0]=0; z[0]=-1e20; z[1]=1e20;
+  for(let q=1;q<n;q++){
+    let s=((f[q]+q*q)-(f[v[k]]+v[k]*v[k]))/(2*q-2*v[k]);
+    while(s<=z[k]){ k--; s=((f[q]+q*q)-(f[v[k]]+v[k]*v[k]))/(2*q-2*v[k]); }
+    k++; v[k]=q; z[k]=s; z[k+1]=1e20;
+  }
+  k=0;
+  for(let q=0;q<n;q++){ while(z[k+1]<q) k++; const t=q-v[k]; d[q]=t*t+f[v[k]]; }
+}
+function _fDistancia(dentro, w, h){ // dentro: Uint8Array (1 = semente). → distância em px
+  const N=Math.max(w,h), f=new Float64Array(N), d=new Float64Array(N), v=new Int32Array(N), z=new Float64Array(N+1);
+  const g=new Float64Array(w*h);
+  for(let i=0;i<w*h;i++) g[i]=dentro[i]?0:1e20;
+  for(let x=0;x<w;x++){ for(let y=0;y<h;y++) f[y]=g[y*w+x]; _fEdt1(f,h,d,v,z); for(let y=0;y<h;y++) g[y*w+x]=d[y]; }
+  for(let y=0;y<h;y++){ const o=y*w; for(let x=0;x<w;x++) f[x]=g[o+x]; _fEdt1(f,w,d,v,z); for(let x=0;x<w;x++) g[o+x]=Math.sqrt(d[x]); }
+  return g;
+}
+function _fContornoSilhueta(oc, caixa, r, align, cor){
+  if(!(r>0.25)) return null;
+  const m=Math.ceil(r)+2;
+  const x0=Math.max(0,Math.floor(caixa.x-m)), y0=Math.max(0,Math.floor(caixa.y-m));
+  const x1=Math.min(oc.width,Math.ceil(caixa.x+caixa.w+m)), y1=Math.min(oc.height,Math.ceil(caixa.y+caixa.h+m));
+  const w=x1-x0, h=y1-y0; if(w<1||h<1) return null;
+  const A=oc.getContext('2d').getImageData(x0,y0,w,h).data;
+  const n=w*h, cheio=new Uint8Array(n), vazio=new Uint8Array(n);
+  for(let i=0;i<n;i++){ if(A[i*4+3]>=128) cheio[i]=1; else vazio[i]=1; }
+  const rFora=align==='inside'?0:(align==='center'?r/2:r), rDentro=align==='outside'?0:(align==='center'?r/2:r);
+  const dFora=rFora>0?_fDistancia(cheio,w,h):null, dDentro=rDentro>0?_fDistancia(vazio,w,h):null;
+  const t=document.createElement('canvas').getContext('2d'); t.canvas.width=t.canvas.height=1;
+  t.fillStyle=cor; t.fillRect(0,0,1,1);
+  const rgb=t.getImageData(0,0,1,1).data; // a cor resolvida pelo próprio canvas (hex, rgba, nome)
+  // Duas peças: a de FORA vai atrás do conteúdo (e cobre por baixo a borda suave do recorte);
+  // a de DENTRO vai por cima, só onde há pixel. No "centro" são as duas, cada uma com r/2.
+  const peca=(alfa)=>{
+    const s=document.createElement('canvas'); s.width=w; s.height=h;
+    const sx=s.getContext('2d'), out=sx.createImageData(w,h), o=out.data;
+    for(let i=0;i<n;i++){ const a=alfa(i); if(!a) continue;
+      o[i*4]=rgb[0]; o[i*4+1]=rgb[1]; o[i*4+2]=rgb[2]; o[i*4+3]=Math.round(a*rgb[3]); }
+    sx.putImageData(out,0,0); return s;
+  };
+  const rampa=(R,d)=>Math.max(0,Math.min(1,R+0.5-d));
+  return {x:x0, y:y0,
+    fora: dFora ? peca(i=>cheio[i]?1:rampa(rFora,dFora[i])) : null,
+    dentro: dDentro ? peca(i=>cheio[i]?rampa(rDentro,dDentro[i])*(A[i*4+3]/255):0) : null};
+}
 // Renderiza um único layer aplicando dados do franqueado
 async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
   ctx.save();
@@ -1326,7 +1378,8 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
     const _temOvl = !!((l.overlay && l.overlayColor) || _fxTipo('colorOverlay').length
       || (l.gradientOverlay && l.gradientOverlay.stops && l.gradientOverlay.stops.length)
       || _fxTipo('gradientOverlay').length);
-    const _temFxImg = _temSombra || _temGlow || _temOvl;
+    const _temTraco = l.strokeW > 0 && !l.strokeDash;
+    const _temFxImg = _temSombra || _temGlow || _temOvl || _temTraco;
     if(imgSource){
       try {
         const img = await fLoadImageDataUrl(imgSource);
@@ -1398,6 +1451,19 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
             }
             if(_cos.length) _cos.forEach(e=>_ovl(e.color||'#000', e.opacity, e.blendMode));
             else if(l.overlay && l.overlayColor) _ovl(gFxRgba(l.overlayColor, l.overlayOpacity!=null?l.overlayOpacity:1));
+            // Contorno ANTES da sombra: no Photoshop a sombra é projetada pela camada já com o
+            // traço — a silhueta do offscreen passa a incluí-lo.
+            if(_temTraco){
+              const _gira=!!(_tf.b||_tf.c); // girada: a caixa em dispositivo não é retângulo alinhado → mede o quadro todo
+              const _c=_fContornoSilhueta(oc,_gira?{x:0,y:0,w:oc.width,h:oc.height}:{x:x*_tf.a+(_tf.e||0), y:y*_tf.d+(_tf.f||0), w:w*_tf.a, h:h*_tf.d},
+                l.strokeW*Math.min(scaleX,scaleY)*_tfS, l.strokeAlign||'outside', l.strokeColor||'#000');
+              if(_c){
+                octx.save(); octx.setTransform(1,0,0,1,0,0);
+                if(_c.dentro){ octx.globalCompositeOperation='source-atop'; octx.drawImage(_c.dentro,_c.x,_c.y); }
+                if(_c.fora){ octx.globalCompositeOperation='destination-over'; octx.drawImage(_c.fora,_c.x,_c.y); }
+                octx.restore();
+              }
+            }
             /* Sombra/brilho projetados pela silhueta, com knockout. `sh` recebe a silhueta COM
                sombra e depois subtrai a própria silhueta (`destination-out`): sobra só a sombra,
                que é o que vai ATRÁS do conteúdo. Sem o knockout, uma silhueta chapada na cor da
