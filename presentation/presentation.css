@@ -577,7 +577,6 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
    Cada trilho tem as mesmas 7 artes duas vezes, então andar -50% fecha o laço sem pulo. Parado fora do slide. */
 .s-fim .fecho { position: absolute; left: var(--pad-x); top: 0; bottom: 0; width: 760px; display: flex; flex-direction: column; justify-content: center; }
 .s-fim .big { margin-top: 18px; font-size: 168px; line-height: .95; font-weight: 900; letter-spacing: -.05em; color: var(--ink); }
-.s-fim .tese { margin-top: 34px; font-size: 48px; line-height: 1.1; font-weight: 900; letter-spacing: -.025em; }
 .s-fim .perg { display: inline-flex; align-self: flex-start; align-items: center; gap: 14px; margin-top: 52px; padding: 18px 28px; border-radius: 999px; background: var(--orange); color: var(--night); font-size: 28px; font-weight: 900; }
 .s-fim .perg svg { width: 30px; height: 30px; }
 .s-fim .foto { position: absolute; right: var(--pad-x); top: 96px; bottom: 96px; width: 900px; margin: 0; border-radius: 32px; overflow: hidden; box-shadow: 0 30px 80px rgba(10, 10, 10, .18); transform: rotate(1.5deg); }

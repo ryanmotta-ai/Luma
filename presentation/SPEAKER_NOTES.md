@@ -312,8 +312,8 @@
 
 - **Objetivo:** fechar com gente: quem fez o Luma, agradecendo e abrindo para perguntas.
 - **Frase de abertura:** "Valeu, galera!"
-- **Discurso:** "[aponte a foto] Esse é o time que construiu o Luma. Uma campanha, a rede inteira, em segundos.
-  Valeu, galera! Perguntas?"
+- **Discurso:** "[aponte a foto] Esse é o time que construiu o Luma. Valeu, galera!
+  Perguntas?"
 - **Ponto principal:** o Luma tem rosto: foi feito dentro de casa, por quem conhece a rede.
 - **Transição:** abra para perguntas. Tecle **G** para o apêndice.
 
