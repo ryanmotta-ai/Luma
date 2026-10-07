@@ -574,24 +574,17 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 /* 17 — Fechamento */
 /* O mural: 10 colunas de artes reais do Luma, inclinadas, subindo e descendo devagar em velocidades diferentes.
    Cada trilho tem as mesmas 7 artes duas vezes, então andar -50% fecha o laço sem pulo. Parado fora do slide. */
-.s-fim .mural { position: absolute; left: -330px; top: -520px; width: 2580px; height: 2000px; display: flex; gap: 20px; transform: rotate(-10deg); opacity: 0; transition: opacity 1.6s var(--ease); }
-.s-fim.is-active .mural { opacity: 1; }
-.s-fim .col { flex: 0 0 236px; }
-.s-fim .trilho { display: flex; flex-direction: column; gap: 20px; animation: s-fim-sobe var(--dur, 70s) linear infinite; animation-delay: var(--atraso, 0s); will-change: transform; }
-.s-fim .col:nth-child(even) .trilho { animation-direction: reverse; }
-.s-fim:not(.is-active) .trilho { animation-play-state: paused; }
-.s-fim .trilho img { width: 236px; height: auto; border-radius: 16px; }
-@keyframes s-fim-sobe { to { transform: translateY(-50%); } }
-/* Véu: escuro atrás do texto e no rodapé das logos, mais aberto nas bordas para o mural aparecer */
-.s-fim .veu { position: absolute; inset: 0; background: linear-gradient(0deg, rgba(10, 10, 10, .96) 0%, rgba(10, 10, 10, 0) 24%), radial-gradient(ellipse 72% 58% at 50% 48%, rgba(10, 10, 10, .97) 0%, rgba(10, 10, 10, .9) 55%, rgba(10, 10, 10, .62) 100%); }
-.s-fim .fecho { position: absolute; left: 0; right: 0; top: 262px; text-align: center; }
-.s-fim .big { font-size: 124px; line-height: .98; font-weight: 900; letter-spacing: -.042em; color: #fff; text-shadow: 0 6px 40px rgba(0, 0, 0, .55); }
-.s-fim .then { margin-top: 40px; font-size: 42px; font-weight: 800; letter-spacing: -.015em; color: #fff; text-shadow: 0 4px 24px rgba(0, 0, 0, .6); }
-.s-fim .eco { display: inline-block; margin-top: 56px; padding-top: 40px; border-top: 3px solid var(--orange); font-size: 58px; font-weight: 900; letter-spacing: -.03em; color: #fff; text-shadow: 0 4px 24px rgba(0, 0, 0, .6); }
-.s-fim .logos { position: absolute; left: 0; right: 0; bottom: 70px; display: flex; justify-content: center; align-items: center; gap: 30px; }
-.s-fim .logos .luma { height: 46px; }
-.s-fim .logos .x { width: 2px; height: 40px; background: rgba(255, 255, 255, .5); }
-.s-fim .logos .dm { height: 66px; }
+.s-fim .fecho { position: absolute; left: var(--pad-x); top: 0; bottom: 0; width: 760px; display: flex; flex-direction: column; justify-content: center; }
+.s-fim .big { margin-top: 18px; font-size: 168px; line-height: .95; font-weight: 900; letter-spacing: -.05em; color: var(--ink); }
+.s-fim .tese { margin-top: 34px; font-size: 48px; line-height: 1.1; font-weight: 900; letter-spacing: -.025em; }
+.s-fim .perg { display: inline-flex; align-self: flex-start; align-items: center; gap: 14px; margin-top: 52px; padding: 18px 28px; border-radius: 999px; background: var(--orange); color: var(--night); font-size: 28px; font-weight: 900; }
+.s-fim .perg svg { width: 30px; height: 30px; }
+.s-fim .foto { position: absolute; right: var(--pad-x); top: 96px; bottom: 96px; width: 900px; margin: 0; border-radius: 32px; overflow: hidden; box-shadow: 0 30px 80px rgba(10, 10, 10, .18); transform: rotate(1.5deg); }
+.s-fim .foto img { width: 100%; height: 100%; object-fit: cover; object-position: 58% 30%; }
+.s-fim .logos { position: absolute; left: var(--pad-x); bottom: 70px; display: flex; align-items: center; gap: 26px; }
+.s-fim .logos .luma { height: 40px; }
+.s-fim .logos .x { width: 2px; height: 34px; background: var(--line); }
+.s-fim .logos .dm { height: 56px; }
 
 /* 17 — Divisor do apêndice */
 .s-apx .list { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 420px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 26px; }
@@ -662,7 +655,7 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 /* Acessibilidade de movimento: sem deslizes, sem pulso, trocas instantâneas */
 @media (prefers-reduced-motion: reduce) {
   .slide, [data-step], .s-aha .q, .s-aha .done, .s-copy .win ol, .s-copy .txt, .s-escala .wall .a, .s-pub .light, .s-pub .flyer { transition: none !important; }
-  .s-tese .rail i, .s-aha .answer .caret, .s-custo .dots i, .s-intel .fits .row, .s-fim .trilho, .s-aha .fio *, .s-aha .vivo i { animation: none !important; }
+  .s-tese .rail i, .s-aha .answer .caret, .s-custo .dots i, .s-intel .fits .row, .s-aha .fio *, .s-aha .vivo i { animation: none !important; }
 }
 
 

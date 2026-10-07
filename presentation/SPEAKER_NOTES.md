@@ -308,14 +308,14 @@
 - **Na tela:** o vídeo no celular mostra o caminho inteiro (entrar como visitante, escolher a campanha, foto, preços, arte pronta) e recomeça toda vez que o slide entra.
 - **Atenção:** o QR abre `https://ryanmotta-ai.github.io/Luma/?visitante=1` (modo visitante no ar desde 30/09/2026: só a campanha Copa do Mundo, nada é gravado). Teste com o seu celular antes de apresentar.
 
-## 20 · Fechamento — "Uma marca no controle. Uma rede com autonomia."
+## 20 · Obrigado — "Obrigado."
 
-- **Objetivo:** fechar a tese e amarrar com o problema do começo.
-- **Frase de abertura:** "Uma marca no controle. Uma rede com autonomia."
-- **Discurso:** "[deixe o mural rodar um instante] Uma marca no controle. Uma rede com autonomia. [avança] Cada arte
-  que está rodando aqui atrás saiu do Luma. [avança] Lá no começo eu falei que escalar a rede não deveria escalar
-  o retrabalho. É isso que o Luma entrega: escalar a rede, sem escalar o retrabalho. Obrigado."
-- **Ponto principal:** a tese do slide 2 virou produto, e o mural é a prova.
+- **Objetivo:** fechar com gente: quem fez o Luma, agradecendo e abrindo para perguntas.
+- **Frase de abertura:** "Obrigado."
+- **Discurso:** "[aponte a foto] Esse é o time que construiu o Luma. Lá no começo eu falei que escalar a rede não
+  deveria escalar o retrabalho. É isso que a gente entrega: uma marca no controle e uma rede com autonomia.
+  Obrigado. Bora para as perguntas?"
+- **Ponto principal:** o Luma tem rosto: foi feito dentro de casa, por quem conhece a rede.
 - **Transição:** abra para perguntas. Tecle **G** para o apêndice.
 
 ---

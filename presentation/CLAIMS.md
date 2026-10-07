@@ -31,7 +31,6 @@
 | 10 | As quatro legendas da demonstração | saídas do `fBuildCopy` com sorteio fixo (`_fCopySetRandom`, semente 42), rodando o arquivo real fora do navegador: as 3 opções de uma arte e a Promo da arte seguinte |
 | 11 | O Encurtar é determinístico, **<1 ms**, sem rede e sem IA (no card: "< 1 ms · sem IA"); números nunca somem | cabeçalho de `js/core/copy-fit.js` (garantias cobradas por `tests/copy-fit.html`) |
 | 12 | **15** artes · **4** campanhas · **2** formatos; **6** ofertas viram um ZIP | `assets/artes/lote-00…14.webp`, geradas pelo Luma Sheets; tela `captures/franqueado-sheets.webp` |
-| 20 | "Cada arte deste mural saiu do Luma" | o mural usa só `assets/artes/lote-00…14.webp` (Luma Sheets), `chat-passo-5.webp` (chat) e `localfit-*.webp` (Local Fit), todas geradas pelo Luma |
 | 16 | **R$ 0** por mês de infraestrutura | `luma-brain/02_ARCHITECTURE.md` (Supabase `uqrqzjafhigjuvtjqzid`, plano Free); front estático no GitHub Pages da `talpaipai`; Ryan, 27/09/2026. A IA (Gemini, cobrada por uso) fica fora da conta de infraestrutura |
 | 16 | **94** franqueados | Ryan, 27/09/2026 ("hoje temos 94 franqueados") |
 | 16 | Capacidade estimada de **1.500** conexões simultâneas no plano gratuito; **15×** a rede inteira | análise de capacidade de 22/09/2026 (limite de ~200 req/s do PostgREST no plano Free, estimativa de 1.500 a 3.000 usuários simultâneos; usado o piso). 1.500 ÷ 94 ≈ 16, arredondado para baixo. É estimativa, não teste de carga |

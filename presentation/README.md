@@ -32,7 +32,7 @@ Funciona sem internet. Não usa Supabase, IA, upload, Telegram nem login, e não
 | deslizar no toque | avança ou volta |
 
 - **Link direto:** `#7` abre o slide 7; `#apx-c` abre o apêndice C.
-- **Demonstrações:** o 06 (publicação), o 07 (a conversa), o 08 (a legenda) e o 10 (o lote) são animados. O 13 acende a grade de pontos ao entrar e o 17 tem o mural de artes girando sozinho (os dois param com movimento reduzido).
+- **Demonstrações:** o 06 (publicação), o 07 (a conversa), o 08 (a legenda) e o 10 (o lote) são animados. O 13 acende a grade de pontos ao entrar (para com movimento reduzido).
   No 07, espere a digitação terminar antes de avançar.
 - **Qualquer tela:** o palco é 1920×1080 e escala para caber. Se a proporção não for 16:9, as faixas
   ficam na cor do slide. Testado em 1920×1080, 1440×900 e 1366×768.
