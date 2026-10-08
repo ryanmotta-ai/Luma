@@ -262,7 +262,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 85 arquivos JS (76.180 linhas, 2.980 funções) · 32 arquivos CSS (32.664 linhas) · `index.html` com 3.994 linhas e 74 `<script>`.
+**Tamanho real de hoje:** 85 arquivos JS (76.187 linhas, 2.980 funções) · 32 arquivos CSS (32.664 linhas) · `index.html` com 3.994 linhas e 74 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -325,7 +325,7 @@ LUMA CLI Console de comandos do Luma, só pra quem é da casa (equipe_dm/gestao)
 COPY FIT — encurtar a copy do franqueado SEM mudar o que se vende (22/09/2026) Quando o Local Fit bloqueia, o franqueado precisa de uma SAÍDA, não de um aviso.
 · API: gCopyFitGuarda, gCopyFitConfere, gCopyFitCandidatos, gCopyFitSugestoes
 
-**`js/core/dados.js`** · 1463 linhas
+**`js/core/dados.js`** · 1466 linhas
 Área "Dados" do painel da conta — o que a rede faz no Luma (product intelligence).
 · API: gDadosAbrir, gDadosCarregar, gDadosSetPeriodo, gDadosSetCidade, gDadosSetAba, gDadosTabsKeydown, gDadosSetMetrica, gDadosGrafMove, gDadosGrafSai, gDadosGrafFoco, gDadosGrafKey, gDadosPessoasBusca, gDadosPessoasPapel, gDadosPessoasOrdenar … (+9; 110 funções no total)
 · Estado global: _gDados
@@ -398,7 +398,7 @@ Credenciais do projeto Supabase. PREENCHA com a Project URL e a anon key. A anon
 Cria o client Supabase global `window.sb`, usado pela auth e pela camada de persistência (fase 5.1).
 · API: gSupabase, gHasBackend, gPendingDeletes, gRemoteDelete, gIsPendingDelete, gFlushPendingDeletes
 
-**`js/core/suporte.js`** · 644 linhas
+**`js/core/suporte.js`** · 647 linhas
 SUPORTE AO VIVO — franqueado ↔ equipe DM (gSup*), 23/09/2026 Dados, Realtime e presença.
 · API: gSupDisponivel, gSupOnChange, gSupPedeAcao, gSupAguardando, gSupContador, gSupContexto, gSupEstadoTela, gSupEstadoTemAssunto, gLuPedeHumano, gLuLerResposta, gLuOferecerEquipe, gSupContextoTexto, gSupIniciar, gSupCarregarCaixa … (+15; 57 funções no total)
 
@@ -672,7 +672,7 @@ tutMockCampaign, tutMockMaterial, tutMockHist — builders de HTML de mock usado
 
 ### js/widgets
 
-**`js/widgets/help-widget.js`** · 2459 linhas
+**`js/widgets/help-widget.js`** · 2460 linhas
 ── LUMA HELP WIDGET ── Ajuda contextual, artigos e mensagens com a mesma linguagem visual do Luma.
 
 **`js/widgets/novidades.js`** · 70 linhas

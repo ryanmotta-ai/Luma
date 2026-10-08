@@ -1440,14 +1440,18 @@ function fFotoDimensoes(url){
   return new Promise(res=>{
     const im=new Image();
     im.onload=()=>res({w:im.naturalWidth||0, h:im.naturalHeight||0});
-    im.onerror=()=>res({w:0,h:0});
+    im.onerror=()=>res({w:0,h:0,erro:true});
     im.src=url;
   });
 }
 async function fPortaoFoto(varId, url){
   if(!url) return '';
+  // Imagem que não decodifica (HEIC do iPhone no Chrome, arquivo danificado) não passa: no
+  // Sheets ela virava "Foto carregada." e a arte saía sem foto. Vale também para o logo.
+  // Só o ERRO de leitura recusa: SVG sem width/height abre com tamanho 0 e é logo válido.
+  const {w,h,erro}=await fFotoDimensoes(url);
+  if(erro) return 'Não consegui abrir essa imagem (HEIC ou arquivo danificado). Envie em JPG ou PNG.';
   if(typeof gCampoEhLogo==='function' && gCampoEhLogo(varId)) return '';
-  const {w,h}=await fFotoDimensoes(url);
   if(w && h && Math.min(w,h) < F_FOTO_MIN_LADO)
     return `Essa foto é pequena demais (${w}×${h}px). Envie uma com pelo menos ${F_FOTO_MIN_LADO}px no lado menor.`;
   try{

@@ -3590,7 +3590,7 @@ function fBulkRenderPreview(){
             <div class="f-bulk-campo-foto">
               ${val ? `
                 <span class="f-bulk-foto-thumb" title="Prévia da foto">
-                  <img src="${safeV}" alt="" onerror="this.src='';this.parentElement.classList.add('is-erro');gToast('Link de imagem inválido ou quebrado!','error')" onload="this.parentElement.classList.toggle('is-baixa', !!(this.naturalWidth && (this.naturalWidth < 600 || this.naturalHeight < 600)))">
+                  <img src="${safeV}" alt="" onerror="this.onerror=null;this.removeAttribute('src');this.parentElement.classList.add('is-erro');gToast('Link de imagem inválido ou quebrado!','error')" onload="this.parentElement.classList.toggle('is-baixa', !!(this.naturalWidth && (this.naturalWidth < 600 || this.naturalHeight < 600)))">
                 </span>
                 <button type="button" class="f-bulk-img-del" onclick="fBulkClearImage(${i}, '${k}')">Excluir</button>
               ` : `
@@ -3806,6 +3806,9 @@ function fBulkSaveRow(i, isSilent=false, skipReadiness=false) {
       if(isSilent) input.classList.toggle('f-bulk-cell-err', !!err);
     } else {
       dados[k] = row.dados[k];
+      // Campo sem <input> (imagem) também é conferido: sem isto, a foto obrigatória saía da
+      // lista de erros no primeiro blur e a oferta ia para o ZIP sem foto.
+      if (!isEmpty) { const e = fValidate(k, dados[k]); if (e) erros.push(e); }
     }
   });
   // "por" < "de" só dá para conferir com a linha inteira lida — a ordem das colunas não é garantida.
@@ -4093,20 +4096,8 @@ async function fBulkDownloadAll(modo){
     const cleanStr = s => (typeof s === 'string' && !s.startsWith('data:') && s.length < 500) ? s : '';
   
     valid.forEach((row, idx) => {
-      const vars = Object.keys(row.dados).filter(v => !/foto|logo|imagem|img|avatar/i.test(v));
-      const nameKey = vars.find(v => /produto|titulo|nome/i.test(v)) || vars[0] || '';
-      // Casamento exato primeiro (como o _fBulkRowFromCampos): `precoDe` também casa com /preco/
-      // e vem antes na ordem — a legenda anunciava o preço ANTIGO como preço da oferta.
-      const deKey = vars.find(v => /^(precode|de)$/i.test(v)) || vars.find(v => /de|antigo/i.test(v)) || '';
-      const porKey = vars.find(v => /^(precopor|por|preco|preço|valor)$/i.test(v)) || vars.find(v => v!==deKey && /por|preco|preço|atual|valor/i.test(v)) || '';
-      const valKey = vars.find(v => /validade|data|condicao|condição/i.test(v)) || '';
-      const descKey = vars.find(v => /desconto|selo|off/i.test(v)) || '';
-      
-      const prod = cleanStr(row.dados[nameKey]) || ('Produto ' + (idx + 1));
-      const de = deKey ? cleanStr(row.dados[deKey]) : '';
-      const por = porKey ? cleanStr(row.dados[porKey]) : '';
-      const val = valKey ? cleanStr(row.dados[valKey]) : '';
-      const desc = descKey ? cleanStr(row.dados[descKey]) : '';
+      const [p0, de, por, val, desc] = _fBulkCopyArgs(row.dados);
+      const prod = p0 || ('Produto ' + (idx + 1));
       
       captionsText += `--------------------------------------------------------\n`;
       captionsText += `ITEM #${idx+1}: ${prod}\n`;
@@ -4610,6 +4601,7 @@ function fBulkUploadCellImage(input, i, k) {
   }
 
   fBulkCollectCurrentInputs();
+  const rid = _fBulkRid(fBulkRows[i]); // o índice pode andar durante o "Conferindo a foto…"
 
   const reader = new FileReader();
   reader.onload = function(e) {
@@ -4621,9 +4613,10 @@ function fBulkUploadCellImage(input, i, k) {
         const motivo = await fPortaoFoto(k, url);
         if (motivo) { gToast(motivo, 'error'); return; }
       }
-      if (!fBulkRows[i]) return; // a linha saiu enquanto a IA conferia
-      fBulkRows[i].dados[k] = url;
-      fBulkRows[i].erros = fBulkRows[i].erros.filter(err => !err.includes(k));
+      const j = fBulkRows.findIndex(r => r && r._rid === rid);
+      if (j < 0) return; // a linha saiu enquanto a IA conferia
+      fBulkRows[j].dados[k] = url;
+      _fBulkRevalidateCol(fBulkRows[j], k);
       if (typeof fRecordRecentImg === 'function') fRecordRecentImg(url, k);
       gToast('Foto carregada.');
       fBulkRenderPreview();
@@ -4676,6 +4669,7 @@ async function _fBulkUsarRecente(i, k, n){
   _fBulkFecharRecentes();
   const entry = fGetRecentImgs()[n];
   if (!entry || !fBulkRows[i]) return;
+  const rid = _fBulkRid(fBulkRows[i]);
   let url = '';
   try { url = await Promise.resolve(typeof gResolveImgUrl === 'function' ? gResolveImgUrl(entry.ref) : entry.ref); } catch(e) {}
   if (!url) { gToast('Não consegui carregar essa foto. Envie de novo.', 'error'); return; }
@@ -4684,10 +4678,11 @@ async function _fBulkUsarRecente(i, k, n){
     const motivo = await fPortaoFoto(k, url);
     if (motivo) { gToast(motivo, 'error'); return; }
   }
-  if (!fBulkRows[i]) return;
   fBulkCollectCurrentInputs();
-  fBulkRows[i].dados[k] = url;
-  _fBulkRevalidateCol(fBulkRows[i], k);
+  const j = fBulkRows.findIndex(r => r && r._rid === rid);
+  if (j < 0) return;
+  fBulkRows[j].dados[k] = url;
+  _fBulkRevalidateCol(fBulkRows[j], k);
   gToast('Foto aplicada.');
   fBulkRenderPreview();
   if (document.body.classList.contains('f-bulk-folha')) _fBulkRenderFolhaCampos(true);
@@ -5581,23 +5576,29 @@ function _fFormatValidity(val) {
   return computedVal;
 }
 
+/* Argumentos da legenda de UMA oferta. Um motor só para o ZIP e o modal: os dois tinham regex
+   próprias e erravam diferente — `foto_produto` virava o nome, `precoDe` virava o preço da
+   oferta, e /de/ casava com `validade` ("De Até domingo… Economia de R$ 1180,10"). O preço sai
+   pelo PAPEL (fPrecoPapel), a mesma régua do chat. */
+function _fBulkCopyArgs(d){
+  d = d || {};
+  const vars = Object.keys(d).filter(v => v.indexOf('__') !== 0 && !(typeof fIsImageVar === 'function' && fIsImageVar(v)) && !/foto|logo|imagem|img|avatar/i.test(v));
+  const papel = v => (typeof fPrecoPapel === 'function') ? fPrecoPapel(v) : null;
+  const ach = re => vars.find(v => re.test(v)) || '';
+  const nameKey = vars.find(v => /^(produto|titulo|nome)$/i.test(v)) || ach(/produto|titulo|nome/i) || vars[0] || '';
+  const deKey = vars.find(v => papel(v) === 'de') || '';
+  const porKey = vars.find(v => papel(v) === 'por') || vars.find(v => papel(v) === 'unico') || '';
+  const s = k => (k && typeof d[k] === 'string' && !d[k].startsWith('data:') && d[k].length < 500) ? d[k] : '';
+  return [s(nameKey), s(deKey), s(porKey), s(ach(/validade|data|condicao|condição/i)), s(ach(/desconto|selo|off/i))];
+}
+
 function fBulkShowCopyModal(i) {
   fBulkCollectCurrentInputs();
   const row = fBulkRows[i];
   if (!row) return;
   
-  const keys = fBulkVars();
-  const nameKey = keys.find(v => /produto|titulo|nome/i.test(v)) || keys[0] || '';
-  const deKey = keys.find(v => /de|antigo/i.test(v)) || '';
-  const porKey = keys.find(v => /por|preco|preço|atual|valor/i.test(v)) || '';
-  const valKey = keys.find(v => /validade|data|condicao|condição/i.test(v)) || '';
-  const descKey = keys.find(v => /desconto|selo|off/i.test(v)) || '';
-  
-  const prod = row.dados[nameKey] || ('Produto ' + (i + 1));
-  const de = deKey ? (row.dados[deKey] || '') : '';
-  const por = porKey ? (row.dados[porKey] || '') : '';
-  const val = valKey ? (row.dados[valKey] || '') : '';
-  const desc = descKey ? (row.dados[descKey] || '') : '';
+  const [p0, de, por, val, desc] = _fBulkCopyArgs(row.dados);
+  const prod = p0 || ('Produto ' + (i + 1));
   
   const copyFormat = (document.getElementById('f-bulk-copy-format') || {}).value || 'feed';
   const copys = fBuildCopy(prod, de, por, val, desc, copyFormat);
