@@ -1142,17 +1142,27 @@ body:not(.theme-light) #f-home-btn{border-color:var(--dm-orange);background:var(
   /* Nome e contagem numa BARRA BRANCA abaixo da capa, não por cima dela: o degradê escuro sobre
      capa laranja/clara deixava o texto sem contraste (pedido do Ryan, 07/10). A capa encolhe para
      caber a barra e segue recortada no centro (background-size:cover). */
-  #f-home .fh-grid .camp-card{aspect-ratio:4/5;border:0;border-radius:16px;display:flex;flex-direction:column}
+  #f-home .fh-grid .camp-card{aspect-ratio:4/5;border:1px solid var(--gray-light);border-radius:16px;display:flex;flex-direction:column;background:var(--white)}
   #f-home .fh-grid .camp-thumb{flex:1 1 auto;min-height:0;height:auto;aspect-ratio:auto !important;border-radius:0}
-  #f-home .fh-grid .camp-body{padding:10px 12px 11px;background:var(--white)}
-  #f-home .fh-grid .camp-name{min-height:2.6em;color:var(--text);font-size:14px;font-weight:700}
-  #f-home .fh-grid .camp-sub{margin-top:2px;color:var(--text-3);font-size:11px}
+  /* Nome em cima, contagem embaixo, seta à direita dizendo "abre". Sem altura reservada para a
+     2ª linha: o vão entre nome e contagem parecia defeito. A capa (flex:1) absorve a diferença,
+     então os cards da fileira seguem do mesmo tamanho. */
+  #f-home .fh-grid .camp-body{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:10px;padding:12px 12px 13px 14px;background:var(--white)}
+  #f-home .fh-grid .camp-name{grid-column:1;min-height:0;color:var(--text);font-size:15px;font-weight:800;line-height:1.25;letter-spacing:-.01em}
+  #f-home .fh-grid .camp-sub{grid-column:1;margin-top:3px;color:var(--text-3);font-size:12px;font-weight:500}
+  #f-home .fh-grid .camp-body::after{content:'';grid-column:2;grid-row:1 / span 2;width:28px;height:28px;border-radius:50%;background:var(--dm-orange-bg)}
+  #f-home .fh-grid .camp-body::before{content:'';grid-column:2;grid-row:1 / span 2;justify-self:center;z-index:1;width:7px;height:7px;margin-left:-3px;
+    border-top:2px solid var(--dm-orange-d);border-right:2px solid var(--dm-orange-d);transform:rotate(45deg)}
+  body:not(.theme-light) #f-home .fh-grid .camp-card{border-color:var(--d-border);background:var(--d-surf)}
   body:not(.theme-light) #f-home .fh-grid .camp-body{background:var(--d-surf)}
   body:not(.theme-light) #f-home .fh-grid .camp-name{color:var(--d-text)}
   body:not(.theme-light) #f-home .fh-grid .camp-sub{color:var(--d-text2)}
-  #f-home .fh-grid .camp-prev-btn{top:8px;left:8px;bottom:auto;right:auto}
-  #f-home .fh-grid .camp-card.recommended::after{content:'DESTAQUE';position:absolute;top:8px;left:8px;z-index:4;padding:4px 8px;border-radius:var(--r-pill);background:var(--white);color:var(--dm-red);font-size:10px;font-weight:900;letter-spacing:.04em}
-  #f-home .fh-grid .camp-card.recommended .camp-prev-btn{top:34px}
+  /* Sem selo "Prévia" nem "Destaque" na vitrine do celular (pedido do Ryan, 07/10: poluíam o
+     card). ⚠ O botão era a única porta do `fOpenPreview` aqui; no desktop (fora desta media
+     query) ele segue aparecendo no hover. Abrir a campanha mostra os materiais com miniatura. */
+  #f-home .fh-grid .camp-prev-btn{display:none}
+  #f-home .fh-grid .camp-card.recommended .camp-name{color:var(--text)}
+  body:not(.theme-light) #f-home .fh-grid .camp-card.recommended .camp-name{color:var(--d-text)}
 }
 
 /* ══════════════════════════════════════════════════════════════
