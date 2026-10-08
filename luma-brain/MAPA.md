@@ -262,7 +262,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 85 arquivos JS (75.880 linhas, 2.962 funções) · 32 arquivos CSS (32.450 linhas) · `index.html` com 3.994 linhas e 74 `<script>`.
+**Tamanho real de hoje:** 85 arquivos JS (76.180 linhas, 2.980 funções) · 32 arquivos CSS (32.664 linhas) · `index.html` com 3.994 linhas e 74 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -325,9 +325,9 @@ LUMA CLI Console de comandos do Luma, só pra quem é da casa (equipe_dm/gestao)
 COPY FIT — encurtar a copy do franqueado SEM mudar o que se vende (22/09/2026) Quando o Local Fit bloqueia, o franqueado precisa de uma SAÍDA, não de um aviso.
 · API: gCopyFitGuarda, gCopyFitConfere, gCopyFitCandidatos, gCopyFitSugestoes
 
-**`js/core/dados.js`** · 1163 linhas
+**`js/core/dados.js`** · 1463 linhas
 Área "Dados" do painel da conta — o que a rede faz no Luma (product intelligence).
-· API: gDadosAbrir, gDadosCarregar, gDadosSetPeriodo, gDadosSetCidade, gDadosSetAba, gDadosTabsKeydown, gDadosPessoasBusca, gDadosPessoasPapel, gDadosPessoasOrdenar, gDadosAbrirPessoa, gDadosFecharPessoa, gDadosLfCarregar, gDadosIaCarregar, gDadosIaCalc … (+4; 92 funções no total)
+· API: gDadosAbrir, gDadosCarregar, gDadosSetPeriodo, gDadosSetCidade, gDadosSetAba, gDadosTabsKeydown, gDadosSetMetrica, gDadosGrafMove, gDadosGrafSai, gDadosGrafFoco, gDadosGrafKey, gDadosPessoasBusca, gDadosPessoasPapel, gDadosPessoasOrdenar … (+9; 110 funções no total)
 · Estado global: _gDados
 · Depende de: core/toast.js (gEsc, gToast), core/auth.js (gIsAdmin), core/supabase.js (gSupabase).
 
@@ -716,7 +716,7 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/01-reset.css` | 38 |
 | `css/02-animations.css` | 177 |
 | `css/03-fonts.css` | 60 |
-| `css/components/dados.css` | 231 |
+| `css/components/dados.css` | 445 |
 | `css/components/help-modal.css` | 719 |
 | `css/components/login.css` | 377 |
 | `css/components/product-control.css` | 450 |

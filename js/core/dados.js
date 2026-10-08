@@ -7,7 +7,10 @@
  * própria RPC; gIsAdmin() aqui é só o gate da interface (gestão e equipe DM).
  * Carrega SOB DEMANDA: nada é buscado até a aba abrir (gDadosAbrir, chamado por
  * gProfileSwitchTab('painel') em user-profile.js).
- * Gráficos em SVG/CSS puro — sem biblioteca (1ª lei).
+ * Gráficos em SVG/CSS puro — sem biblioteca (1ª lei). As formas moram juntas na seção
+ * "gráficos" (área por dia com mira, minigráfico, ritmo da semana, anel, ranking, trilho do
+ * funil, barra de status) e todas seguem a mesma gramática: laranja = magnitude, verde/
+ * amarelo/vermelho = status, texto em token de texto, todo número também acessível sem hover.
  * Depende de: core/toast.js (gEsc, gToast), core/auth.js (gIsAdmin), core/supabase.js (gSupabase).
  */
 
@@ -15,6 +18,9 @@
 let _gDados = {
   periodo: 30, cidade: '', aba: 'diag',
   data: null, erro: null, carregando: false, req: 0, intervalo: null,
+  // metrica = a série que o gráfico grande da Visão geral mostra (o KPI clicado);
+  // graf = o dado de cada gráfico de área desenhado, que o hover/teclado consulta por id.
+  metrica: 'artes', graf: {},
   sort: { col: 'ultimo_acesso', dir: -1 }, busca: '', papel: '',
   pessoa: null, pessoaData: null, pessoaErro: null,
   ev: { evento: '', user: '', offset: 0, limit: 50, data: null, erro: null, carregando: false, req: 0 },
@@ -34,7 +40,9 @@ const _G_DADOS_ICO = {
   csv: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>',
   alerta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>',
   voltar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
-  seta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>'
+  seta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>',
+  sobe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
+  desce: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>'
 };
 
 /* ── formatação ─────────────────────────────────────────────────────────────────────── */
@@ -240,6 +248,9 @@ function _gDadosRender() {
   }).join('');
   const busy = _gDados.carregando;
   pane.setAttribute('aria-busy', busy ? 'true' : 'false');
+  const vista = [_gDados.aba, _gDados.pessoa || '', _gDados.req, !!d, !!_gDados.lf.data, !!_gDados.ia.data].join('|');
+  const entra = !busy && vista !== _gDados._vista;   // anima quando o dado novo CHEGA, não no quadro esmaecido
+  if (!busy) _gDados._vista = vista;
   pane.innerHTML = `<div class="gd">
     <div class="gd-top">
       <div class="gd-chips" role="group" aria-label="Período">${chips}</div>
@@ -251,7 +262,7 @@ function _gDadosRender() {
     </div>
     ${_gDados.cidade ? `<p class="gd-nota">Mostrando pessoas de <strong>${gEsc(_gDados.cidade)}</strong>. Funil, conteúdo e buscas seguem com a rede inteira.</p>` : ''}
     <div class="gd-tabs" role="tablist" aria-label="Seções dos dados" onkeydown="gDadosTabsKeydown(event)">${tabs}</div>
-    <div class="gd-panel" id="gd-panel" role="tabpanel" aria-labelledby="gd-tab-${_gDados.aba}" tabindex="0">${_gDadosPainelHtml()}</div>
+    <div class="gd-panel${busy && d ? ' is-busy' : ''}${entra ? ' is-entra' : ''}" id="gd-panel" role="tabpanel" aria-labelledby="gd-tab-${_gDados.aba}" tabindex="0">${_gDadosPainelHtml()}</div>
   </div>`;
 }
 
@@ -266,10 +277,12 @@ function _gDadosErroHtml(msg, acao) {
 function _gDadosVazioHtml(txt) { return `<div class="gd-estado"><p>${gEsc(txt || G_DADOS_VAZIO)}</p></div>`; }
 
 function _gDadosPainelHtml() {
-  if (_gDados.carregando) return _gDadosSkeleton();
   if (_gDados.erro) return _gDadosErroHtml(_gDados.erro, 'gDadosCarregar()');
   const d = _gDados.data;
+  // Trocar o período mantém o quadro anterior esmaecido (.is-busy) em vez de piscar o
+  // esqueleto: o olho segue no mesmo lugar e os números trocam quando a resposta chega.
   if (!d) return _gDadosSkeleton();
+  _gDados.graf = {};
   switch (_gDados.aba) {
     case 'pessoas': return _gDados.pessoa ? _gDadosPessoaHtml() : _gDadosPessoasHtml();
     case 'funil': return _gDadosFunilHtml(d);
@@ -305,56 +318,328 @@ function _gDadosVar(atual, ant) {
   if (!ant) return '<span class="gd-var is-up">novo no período</span>';
   const v = Math.round((atual - ant) / ant * 100);
   const cls = v > 0 ? 'is-up' : v < 0 ? 'is-down' : '';
-  return `<span class="gd-var ${cls}">${v > 0 ? '+' : ''}${v}% vs. período anterior</span>`;
+  return `<span class="gd-var ${cls}">${v > 0 ? _G_DADOS_ICO.sobe : v < 0 ? _G_DADOS_ICO.desce : ''}${v > 0 ? '+' : ''}${v}% <span class="gd-var-ref">vs. período anterior</span></span>`;
 }
 function _gDadosKpi(rot, valor, sub, variacao) {
   return `<div class="gd-kpi"><small>${gEsc(rot)}</small><strong>${valor}</strong>${sub ? `<span class="gd-kpi-sub">${sub}</span>` : ''}${variacao || ''}</div>`;
 }
 
+/* ── gráficos (SVG + CSS, sem biblioteca) ───────────────────────────────────────────────
+   Um conjunto pequeno de formas, todas na mesma gramática: UMA cor de acento (o laranja da
+   marca) para magnitude, as cores de STATUS (verde/amarelo/vermelho) só onde a cor significa
+   bom/ruim, texto sempre em token de texto (nunca na cor da série), grade em linha fina.
+   Todo número que um gráfico mostra também existe em texto (rótulo, tabela ou CSV): o hover
+   enriquece, nunca é a única porta. O SVG estica na largura (preserveAspectRatio="none") e
+   por isso NÃO leva texto nem círculo — rótulos, ponto e tooltip são HTML posicionados em %. */
+const G_DADOS_METRICAS = [['pessoas', 'Pessoas ativas', 'pessoas'], ['sessoes', 'Sessões', 'sessões'], ['artes', 'Artes geradas', 'artes'], ['downloads', 'Downloads', 'downloads']];
+const G_DADOS_SEMANA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+function _gDadosMetrica(k) { return G_DADOS_METRICAS.find(m => m[0] === k) || G_DADOS_METRICAS[2]; }
+function gDadosSetMetrica(k) {
+  if (!G_DADOS_METRICAS.some(m => m[0] === k) || _gDados.metrica === k) return;
+  _gDados.metrica = k;
+  _gDadosRender();
+  document.querySelector(`.gd-kpi-btn[data-m="${k}"]`)?.focus();
+}
+// 'AAAA-MM-DD' → dia da semana em UTC: a chave já é o dia de Brasília, não pode passar por fuso.
+function _gDadosDow(iso) { const p = String(iso || '').split('-').map(Number); return p.length === 3 ? new Date(Date.UTC(p[0], p[1] - 1, p[2])).getUTCDay() : 0; }
+function _gDadosDiaLongo(iso) { return G_DADOS_SEMANA[_gDadosDow(iso)] + ', ' + _gDadosDiaCurto(iso); }
+// Teto "redondo" do eixo (0 · 10 · 20 · 30…) para ~4 linhas de grade; contagem nunca tem passo fracionado.
+function _gDadosEscala(max) {
+  if (!(max > 0)) return { top: 4, passo: 1 };
+  const bruto = max / 4, mag = Math.pow(10, Math.floor(Math.log10(bruto))), f = bruto / mag;
+  const passo = Math.max(1, (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * mag);
+  return { top: Math.ceil(max / passo) * passo, passo };
+}
+// Curva monotônica (Fritsch–Carlson): suaviza sem inventar pico nem afundar abaixo de zero —
+// uma Bézier ingênua "passa do ponto" entre dois dias e mostra valor que não existiu.
+function _gDadosCurva(p) {
+  const n = p.length, r = v => Math.round(v * 10) / 10;
+  if (n < 2) return '';
+  const dx = [], s = [], m = [];
+  for (let i = 0; i < n - 1; i++) { dx[i] = p[i + 1][0] - p[i][0]; s[i] = (p[i + 1][1] - p[i][1]) / dx[i]; }
+  m[0] = s[0]; m[n - 1] = s[n - 2];
+  for (let i = 1; i < n - 1; i++) m[i] = s[i - 1] * s[i] <= 0 ? 0 : (s[i - 1] + s[i]) / 2;
+  for (let i = 0; i < n - 1; i++) {
+    if (!s[i]) { m[i] = 0; m[i + 1] = 0; continue; }
+    const a = m[i] / s[i], b = m[i + 1] / s[i], h = a * a + b * b;
+    if (h > 9) { const t = 3 / Math.sqrt(h); m[i] = t * a * s[i]; m[i + 1] = t * b * s[i]; }
+  }
+  let d = `M${r(p[0][0])},${r(p[0][1])}`;
+  for (let i = 0; i < n - 1; i++) {
+    const h = dx[i] / 3;
+    d += `C${r(p[i][0] + h)},${r(p[i][1] + m[i] * h)} ${r(p[i + 1][0] - h)},${r(p[i + 1][1] - m[i + 1] * h)} ${r(p[i + 1][0])},${r(p[i + 1][1])}`;
+  }
+  return d;
+}
+
+// Minigráfico do KPI: a tendência do período, sem eixo (o número grande ao lado é o valor).
+function _gDadosSpark(vals) {
+  if (!vals || vals.length < 2) return '';
+  const max = Math.max(1, ...vals), W = 100, H = 30;
+  const l = _gDadosCurva(vals.map((v, i) => [i / (vals.length - 1) * W, H - 2 - (v || 0) / max * (H - 4)]));
+  return `<svg class="gd-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><path class="gd-spark-a" d="${l}L${W},${H}L0,${H}Z"/><path class="gd-spark-l" d="${l}" vector-effect="non-scaling-stroke"/></svg>`;
+}
+
+/* Gráfico de área por dia, com mira (crosshair) que acha o dia mais perto do ponteiro e um
+   tooltip com TODAS as métricas daquele dia. Teclado: foco + ←/→/Home/End percorrem os dias.
+   Rótulo seletivo: só o pico e o último dia ganham número fixo — o resto é eixo e tooltip. */
+function _gDadosArea(id, dias, k) {
+  const met = _gDadosMetrica(k), n = dias.length;
+  const vals = dias.map(x => +x[k] || 0), max = Math.max(...vals);
+  const { top, passo } = _gDadosEscala(max);
+  const W = 1000, H = 300;
+  const pts = vals.map((v, i) => [i / (n - 1) * W, H - v / top * H]);
+  const linha = _gDadosCurva(pts);
+  _gDados.graf[id] = { dias, k };
+  const ticks = [];
+  for (let v = 0; v <= top + 1e-9; v += passo) ticks.push(v);
+  const grade = ticks.map(v => `<line x1="0" x2="${W}" y1="${H - v / top * H}" y2="${H - v / top * H}" vector-effect="non-scaling-stroke"/>`).join('');
+  const eixoY = ticks.map(v => `<span style="top:${(1 - v / top) * 100}%">${_gDadosN(v)}</span>`).join('');
+  const nx = Math.min(n, n > 40 ? 6 : 5), xs = [];
+  for (let j = 0; j < nx; j++) xs.push(Math.round(j * (n - 1) / (nx - 1)));
+  const eixoX = Array.from(new Set(xs)).map(i => `<span style="left:${i / (n - 1) * 100}%">${gEsc(_gDadosDiaCurto(dias[i].dia))}</span>`).join('');
+  const iMax = vals.indexOf(max), pos = i => `left:${i / (n - 1) * 100}%;top:${(1 - vals[i] / top) * 100}%`;
+  // Rótulo perto da borda encosta para dentro, senão o "pico" do 1º dia sai do cartão.
+  const borda = i => i / (n - 1) < 0.08 ? ' is-e' : i / (n - 1) > 0.92 ? ' is-d' : '';
+  const marca = (i, txt, cls) => `<span class="gd-area-marca ${cls}${borda(i)}" style="${pos(i)}"><b>${_gDadosN(vals[i])}</b>${txt ? `<small>${gEsc(txt)}</small>` : ''}</span>`;
+  const marcas = (max ? `<span class="gd-area-ponto" style="${pos(iMax)}"></span>` + marca(iMax, 'pico', 'is-pico') : '') + ((n - 1 - iMax) / (n - 1) > 0.1 ? marca(n - 1, 'último dia', 'is-fim' + (vals[n - 2] > vals[n - 1] && vals[n - 1] / top > 0.2 ? ' is-baixo' : '')) : '');
+  // ↑ perto do pico, um rótulo só; e se a linha chega DE CIMA no último dia, o rótulo vai embaixo dela.
+  const resumo = `${met[1]} por dia, de ${_gDadosDiaCurto(dias[0].dia)} a ${_gDadosDiaCurto(dias[n - 1].dia)}. Pico de ${_gDadosN(max)} em ${_gDadosDiaLongo(dias[iMax].dia)}. Use as setas para percorrer os dias.`;
+  return `<div class="gd-area" data-g="${gEsc(id)}" tabindex="0" role="group" aria-label="${gEsc(resumo)}"
+      onpointermove="gDadosGrafMove(event,this)" onpointerleave="gDadosGrafSai(this)" onfocus="gDadosGrafFoco(this)" onblur="gDadosGrafSai(this)" onkeydown="gDadosGrafKey(event,this)">
+      <div class="gd-area-y" aria-hidden="true">${eixoY}</div>
+      <div class="gd-area-plot">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+          <defs><linearGradient id="gd-grad-${gEsc(id)}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".28"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>
+          <g class="gd-area-grade">${grade}</g>
+          <path class="gd-area-fill" d="${linha}L${W},${H}L0,${H}Z" fill="url(#gd-grad-${gEsc(id)})"/>
+          <path class="gd-area-linha" d="${linha}" vector-effect="non-scaling-stroke"/>
+        </svg>
+        <span class="gd-area-ponto is-fim" style="${pos(n - 1)}" aria-hidden="true"></span>
+        <span aria-hidden="true">${marcas}</span>
+        <i class="gd-area-mira" aria-hidden="true"></i><i class="gd-area-alvo" aria-hidden="true"></i>
+        <div class="gd-area-tip" aria-hidden="true"></div>
+      </div>
+      <div class="gd-area-x" aria-hidden="true">${eixoX}</div>
+      <span class="gd-sr" aria-live="polite"></span>
+    </div>`;
+}
+function _gDadosGrafIdx(el, i) {
+  const g = _gDados.graf[el.dataset.g];
+  if (!g) return;
+  const n = g.dias.length;
+  i = Math.max(0, Math.min(n - 1, i));
+  if (el.dataset.i === String(i) && el.classList.contains('is-on')) return;
+  el.dataset.i = i;
+  const x = g.dias[i], met = _gDadosMetrica(g.k);
+  const vals = g.dias.map(d => +d[g.k] || 0), top = _gDadosEscala(Math.max(...vals)).top;
+  const plot = el.querySelector('.gd-area-plot');
+  plot.style.setProperty('--x', (i / (n - 1) * 100) + '%');
+  plot.style.setProperty('--y', ((1 - vals[i] / top) * 100) + '%');
+  el.classList.add('is-on');
+  const tip = el.querySelector('.gd-area-tip');
+  tip.classList.toggle('is-esq', i / (n - 1) > 0.62);
+  // Valor na frente, rótulo atrás; a métrica do gráfico em destaque e as outras logo abaixo.
+  tip.innerHTML = `<b>${gEsc(_gDadosDiaLongo(x.dia))}</b>` + [met].concat(G_DADOS_METRICAS.filter(m => m[0] !== g.k)).map((m, j) =>
+    `<span class="${j ? '' : 'is-on'}"><strong>${_gDadosN(x[m[0]])}</strong> ${gEsc(m[2])}</span>`).join('');
+  const sr = el.querySelector('[aria-live]');
+  if (sr) sr.textContent = `${_gDadosDiaLongo(x.dia)}: ` + G_DADOS_METRICAS.map(m => _gDadosN(x[m[0]]) + ' ' + m[2]).join(', ');
+}
+function gDadosGrafMove(e, el) {
+  const g = _gDados.graf[el.dataset.g], r = el.querySelector('.gd-area-plot').getBoundingClientRect();
+  if (!g || !r.width) return;
+  _gDadosGrafIdx(el, Math.round((e.clientX - r.left) / r.width * (g.dias.length - 1)));
+}
+function gDadosGrafSai(el) { el.classList.remove('is-on'); }
+function gDadosGrafFoco(el) {
+  const g = _gDados.graf[el.dataset.g];
+  if (g) _gDadosGrafIdx(el, el.dataset.i != null ? +el.dataset.i : g.dias.length - 1);
+}
+function gDadosGrafKey(e, el) {
+  const g = _gDados.graf[el.dataset.g];
+  if (!g) return;
+  const i = el.dataset.i != null ? +el.dataset.i : g.dias.length - 1;
+  const mapa = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: g.dias.length - 1 };
+  if (!(e.key in mapa)) return;
+  e.preventDefault();
+  el.classList.remove('is-on');
+  _gDadosGrafIdx(el, mapa[e.key]);
+}
+
+/* Ritmo da semana: cada quadrado é um dia (linhas = dia da semana, colunas = semanas) e a
+   coluna da direita é a média de cada dia da semana. Escala SEQUENCIAL de um tom só (laranja
+   claro → forte), em 5 degraus; zero fica no cinza da superfície. Só a partir de 14 dias. */
+function _gDadosRitmo(dias, k) {
+  const n = dias.length, met = _gDadosMetrica(k);
+  if (n < 14) return '';
+  const vals = dias.map(x => +x[k] || 0), max = Math.max(1, ...vals);
+  const off = (_gDadosDow(dias[0].dia) + 6) % 7;     // a grade começa na segunda-feira
+  const sem = Math.ceil((off + n) / 7);
+  const ordem = [1, 2, 3, 4, 5, 6, 0];
+  const medias = ordem.map((dw, r) => {
+    const vs = [];
+    for (let w = 0; w < sem; w++) { const i = w * 7 + r - off; if (i >= 0 && i < n) vs.push(vals[i]); }
+    return vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : 0;
+  });
+  const mMax = Math.max(1, ...medias), mTop = medias.indexOf(Math.max(...medias));
+  const linhas = ordem.map((dw, r) => {
+    let cel = '';
+    for (let w = 0; w < sem; w++) {
+      const i = w * 7 + r - off;
+      if (i < 0 || i >= n) { cel += '<span class="gd-ritmo-c is-fora"></span>'; continue; }
+      const v = vals[i], nv = v ? Math.min(4, Math.ceil(v / max * 4)) : 0;
+      cel += `<span class="gd-ritmo-c is-n${nv}" data-tip="${gEsc(_gDadosDiaLongo(dias[i].dia) + ' · ' + _gDadosN(v) + ' ' + met[2])}"></span>`;
+    }
+    const med = medias[r];
+    return `<div class="gd-ritmo-l${r === mTop ? ' is-top' : ''}"><span class="gd-ritmo-d">${G_DADOS_SEMANA[dw]}</span><span class="gd-ritmo-cels" style="--sem:${sem}">${cel}</span>`
+      + `<span class="gd-ritmo-med"><i style="width:${Math.max(2, med / mMax * 100)}%"></i><b>${med.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</b></span></div>`;
+  }).join('');
+  const melhor = G_DADOS_SEMANA[ordem[mTop]];
+  return `<div class="gd-ritmo" role="img" aria-label="${gEsc(`${met[1]} por dia da semana. O dia mais forte é ${melhor}, com média de ${medias[mTop].toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ${met[2]}.`)}">
+      <div class="gd-ritmo-cab" aria-hidden="true"><span></span><span>${sem} semanas</span><span>Média do dia</span></div>${linhas}</div>
+    <p class="gd-legenda gd-ritmo-esc" aria-hidden="true"><span>Menos</span><i class="gd-ritmo-c is-n0"></i><i class="gd-ritmo-c is-n1"></i><i class="gd-ritmo-c is-n2"></i><i class="gd-ritmo-c is-n3"></i><i class="gd-ritmo-c is-n4"></i><span>Mais</span></p>`;
+}
+
+// Anel (medidor de taxa 0–100%). O SVG é quadrado e não estica: o círculo pode morar nele.
+function _gDadosAnel(frac, rot) {
+  const C = 2 * Math.PI * 52, f = frac == null || isNaN(frac) ? 0 : Math.max(0, Math.min(1, frac));
+  return `<div class="gd-anel" role="img" aria-label="${gEsc(rot + ': ' + _gDadosPct(frac))}"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="gd-anel-t" cx="60" cy="60" r="52"/>`
+    + `<circle class="gd-anel-v" cx="60" cy="60" r="52" style="--c:${C.toFixed(1)};--o:${(C * (1 - f)).toFixed(1)}"/></svg><strong aria-hidden="true">${_gDadosPct(frac)}</strong></div>`;
+}
+
+// Barra empilhada de STATUS (soma 100%) + legenda com ponto, contagem e parcela.
+// segs = [[classe, rótulo, n]]; classe é is-ok / is-morno / is-frio (verde / amarelo / vermelho).
+function _gDadosSegs(segs, rot) {
+  const t = segs.reduce((a, s) => a + (s[2] || 0), 0);
+  if (!t) return '<p class="gd-vazio">Nada neste período.</p>';
+  const desc = segs.map(s => s[1] + ' ' + _gDadosN(s[2]) + ' (' + _gDadosPct(s[2] / t) + ')').join(', ');
+  return `<div class="gd-segs" role="img" aria-label="${gEsc(rot + ': ' + desc)}">${segs.filter(s => s[2]).map(s => `<i class="${s[0]}" style="flex-grow:${s[2]}"></i>`).join('')}</div>
+    <ul class="gd-segs-leg" aria-hidden="true">${segs.map(s => `<li><i class="${s[0]}"></i><span>${gEsc(s[1])}</span><strong>${_gDadosN(s[2])}</strong><small>${_gDadosPct(s[2] / t)}</small></li>`).join('')}</ul>`;
+}
+
+/* Ranking em barras horizontais — a forma para "quem é maior" (templates, buscas, formatos).
+   o = { rot(r)→html escapado, sub(r)→texto, n(r)→número, val(r)→html (opcional), etapas(r)→[abriu,
+   gerou, baixou] (opcional: troca a barra simples pelo trilho do funil), vazio }. */
+function _gDadosRank(rows, o) {
+  if (!rows || !rows.length) return `<p class="gd-vazio">${gEsc(o.vazio || 'Nada neste período.')}</p>`;
+  const max = Math.max(1, ...rows.map(r => o.etapas ? (o.etapas(r)[0] || 0) : (o.n(r) || 0)));
+  const li = rows.map((r, i) => {
+    const sub = o.sub ? o.sub(r) : '';
+    const barra = o.etapas ? _gDadosTrilho(o.etapas(r), max) : `<span class="gd-rank-bar" aria-hidden="true"><i style="width:${Math.max(1, (o.n(r) || 0) / max * 100)}%"></i></span>`;
+    return `<li style="--i:${i}"><span class="gd-rank-rot">${o.rot(r)}${sub ? `<small>${gEsc(sub)}</small>` : ''}</span><span class="gd-rank-val">${o.val ? o.val(r) : _gDadosN(o.n(r))}</span>${barra}</li>`;
+  }).join('');
+  return `<ol class="gd-rank">${li}</ol>${o.etapas ? _G_DADOS_TRILHO_LEG : ''}`;
+}
+/* Trilho: abriu → gerou → baixou numa barra só, sobrepostas. Etapas ORDENADAS, então é a
+   escala ordinal do laranja (claro → forte), não três cores de categoria. */
+function _gDadosTrilho(et, max) {
+  const [a, g, b] = et.map(v => +v || 0), w = v => Math.max(v ? 1 : 0, v / (max || 1) * 100);
+  return `<span class="gd-trilho" role="img" aria-label="${gEsc(`Abriu ${_gDadosN(a)}, gerou ${_gDadosN(g)}, baixou ${_gDadosN(b)}`)}"><i class="is-a" style="width:${w(a)}%"></i><i class="is-g" style="width:${w(g)}%"></i><i class="is-b" style="width:${w(b)}%"></i></span>`;
+}
+const _G_DADOS_TRILHO_LEG = '<p class="gd-legenda" aria-hidden="true"><span><i class="gd-tl-a"></i>Abriu</span><span><i class="gd-tl-g"></i>Gerou arte</span><span><i class="gd-tl-b"></i>Baixou</span></p>';
+
+/* Funil em degraus: a barra de cada etapa é centralizada (o desenho afunila sozinho) e, entre
+   uma etapa e a seguinte, quantos seguiram. A maior queda ganha destaque — é ali que mexer. */
+function _gDadosFunilViz(et) {
+  if (!et.length || !et[0].n) return '<p class="gd-vazio">Ninguém abriu campanha no período.</p>';
+  const topo = et[0].n || 1, pior = _gDadosPiorQueda(et);
+  let h = '';
+  et.forEach((e, i) => {
+    if (i) {
+      const a = et[i - 1].n || 0, ehPior = pior && pior.q > 0 && pior.para === et[i].rotulo;
+      h += `<li class="gd-fx-passo${ehPior ? ' is-pior' : ''}"><span>${_G_DADOS_ICO.desce}<span>${_gDadosPct(a ? (e.n || 0) / a : null)} seguiram</span>${ehPior ? '<b>maior queda</b>' : ''}</span></li>`;
+    }
+    const w = (e.n || 0) / topo * 100;
+    h += `<li class="gd-fx-etapa" style="--i:${i}"><span class="gd-fx-rot">${gEsc(e.rotulo || e.etapa)}</span><span class="gd-fx-barra" aria-hidden="true"><i style="width:${Math.max(w, 2)}%"></i></span>`
+      + `<span class="gd-fx-n"><strong>${_gDadosN(e.n)}</strong><small>${Math.round(w)}%</small></span></li>`;
+  });
+  return `<ol class="gd-fx">${h}</ol>`;
+}
+// Duração com segundos quando importam ("1 min 14 s"): a meta da 1ª arte é 1 minuto, e
+// "1 min" escondia que ela estava 14 s acima.
+function _gDadosDurFina(s) {
+  if (s == null || isNaN(s)) return '—';
+  s = Math.round(Number(s));
+  if (s < 60 || s >= 600) return _gDadosDur(s);
+  return Math.floor(s / 60) + ' min' + (s % 60 ? ' ' + (s % 60) + ' s' : '');
+}
+
 /* ── Visão geral ────────────────────────────────────────────────────────────────────── */
+/* Leitura em três camadas: (1) os 4 números do período, cada um com a variação e a tendência
+   — e cada um é um BOTÃO que troca a série do gráfico grande; (2) o gráfico por dia daquela
+   série; (3) os porquês: conversão, tempo, tipos de download, funil, ritmo e atenção. */
 function _gDadosVisaoHtml(d) {
   if (_gDadosVazio(d)) return _gDadosVazioHtml();
-  const k = d.kpis || {}, a = k.anterior || {}, t = k.downloads_tipo || {};
-  let ativas = k.pessoas_ativas, total = k.pessoas_total, sessoes = k.sessoes, artes = k.artes_geradas, dls = k.downloads, semVar = false;
-  if (_gDados.cidade) {   // recalcula o que é somável por pessoa; variação não existe por cidade
-    const ps = _gDadosPessoas(); semVar = true;
+  const k = d.kpis || {}, a = k.anterior || {}, t = k.downloads_tipo || {}, dias = d.por_dia || [];
+  let ativas = k.pessoas_ativas, total = k.pessoas_total, sessoes = k.sessoes, artes = k.artes_geradas, dls = k.downloads, cid = false;
+  if (_gDados.cidade) {   // recalcula o que é somável por pessoa; variação e série por dia não existem por cidade
+    const ps = _gDadosPessoas(); cid = true;
     ativas = ps.filter(p => p.sessoes > 0).length; total = ps.filter(p => p.ativo).length;
     sessoes = ps.reduce((s, p) => s + (p.sessoes || 0), 0); artes = ps.reduce((s, p) => s + (p.artes || 0), 0);
     dls = ps.reduce((s, p) => s + (p.downloads || 0), 0);
   }
-  const tipos = [['PNG', t.png], ['PDF', t.pdf], ['Lote', t.lote], ['Kit', t.kit], ['Compart.', t.compartilhada]]
-    .filter(x => x[1]).map(x => x[0] + ' ' + _gDadosN(x[1])).join(' · ');
+  const met = _gDadosMetrica(_gDados.metrica);
+  const serie = key => cid ? null : dias.map(x => +x[key] || 0);
+  const tile = (key, rot, valor, atual, ant) => {
+    const on = met[0] === key;
+    return `<button type="button" class="gd-kpi gd-kpi-btn${on ? ' is-on' : ''}" data-m="${key}" aria-pressed="${on}" onclick="gDadosSetMetrica('${key}')" title="Ver ${gEsc(rot.toLowerCase())} por dia no gráfico">`
+      + `<small>${gEsc(rot)}</small><strong>${valor}</strong>${cid ? '<span class="gd-var">só desta cidade</span>' : _gDadosVar(atual, ant)}${_gDadosSpark(serie(key))}</button>`;
+  };
   const kpis = [
-    _gDadosKpi('Pessoas ativas', `${_gDadosN(ativas)} <em>/ ${_gDadosN(total)}</em>`, '', semVar ? '' : _gDadosVar(ativas, a.pessoas_ativas)),
-    _gDadosKpi('Sessões', _gDadosN(sessoes), _gDadosCidadeSub(semVar, 'Mediana de ' + _gDadosDur(k.dur_mediana_s) + ' por sessão'), semVar ? '' : _gDadosVar(sessoes, a.sessoes)),
-    _gDadosKpi('Artes geradas', _gDadosN(artes), '', semVar ? '' : _gDadosVar(artes, a.artes_geradas)),
-    _gDadosKpi('Downloads', _gDadosN(dls), _gDadosCidadeSub(semVar, tipos || 'Nenhum download'), semVar ? '' : _gDadosVar(dls, a.downloads)),
-    _gDadosKpi('Gerou → baixou', _gDadosPct(k.taxa_download), _gDadosCidadeSub(semVar, 'Das artes geradas, quantas saíram do Luma')),
-    _gDadosKpi('Até a 1ª arte', _gDadosDur(k.primeira_arte_mediana_s), _gDadosCidadeSub(semVar, 'Mediana do início da sessão à primeira arte'))
+    tile('pessoas', 'Pessoas ativas', `${_gDadosN(ativas)} <em>/ ${_gDadosN(total)}</em>`, ativas, a.pessoas_ativas),
+    tile('sessoes', 'Sessões', _gDadosN(sessoes), sessoes, a.sessoes),
+    tile('artes', 'Artes geradas', _gDadosN(artes), artes, a.artes_geradas),
+    tile('downloads', 'Downloads', _gDadosN(dls), dls, a.downloads)
   ].join('');
-  return `<div class="gd-kpis">${kpis}</div>
-    ${_gDadosSecao('Pessoas ativas por dia', 'Passe o mouse ou o foco numa barra para ver o dia.', _gDadosGrafico(d.por_dia || []))}
+
+  // gráfico grande da métrica escolhida
+  let graf;
+  if (dias.length < 2) graf = '<p class="gd-vazio">O gráfico por dia aparece a partir de 7 dias — escolha um período maior.</p>';
+  else {
+    const vs = dias.map(x => +x[met[0]] || 0), soma = vs.reduce((s, v) => s + v, 0), iMax = vs.indexOf(Math.max(...vs));
+    const media = soma / vs.length;
+    const stats = `<dl class="gd-graf-stats">`
+      + `<div><dt>Média por dia</dt><dd>${media.toLocaleString('pt-BR', { maximumFractionDigits: media < 10 ? 1 : 0 })}</dd></div>`
+      + `<div><dt>Melhor dia</dt><dd>${_gDadosN(vs[iMax])} <small>${gEsc(_gDadosDiaLongo(dias[iMax].dia))}</small></dd></div>`
+      + (met[0] === 'pessoas' ? '' : `<div><dt>Total</dt><dd>${_gDadosN(soma)}</dd></div>`) + `</dl>`;
+    const tabela = _gDadosTabela([
+      { t: 'Dia', k: x => gEsc(_gDadosDiaLongo(x.dia)) }, { t: 'Pessoas', num: 1, k: x => _gDadosN(x.pessoas) },
+      { t: 'Sessões', num: 1, k: x => _gDadosN(x.sessoes) }, { t: 'Artes', num: 1, k: x => _gDadosN(x.artes) }, { t: 'Downloads', num: 1, k: x => _gDadosN(x.downloads) }
+    ], dias.slice().reverse());
+    graf = stats + _gDadosArea('visao', dias, met[0])
+      + `<details class="gd-ver-tabela"><summary>Ver os números em tabela</summary>${tabela}</details>`;
+  }
+  const subGraf = dias.length < 2 ? '' : cid ? 'Rede inteira — a série por dia não separa cidade. Passe o mouse ou use as setas.' : 'Passe o mouse sobre o gráfico ou use as setas do teclado para ver cada dia.';
+
+  // conversão · tempo · tipos de download
+  const conv = `<div class="gd-anel-box">${_gDadosAnel(k.taxa_download, 'Gerou e baixou')}<p>${cid ? 'Rede inteira. ' : ''}Das <strong>${_gDadosN(k.artes_geradas)}</strong> artes geradas, <strong>${_gDadosN(k.downloads)}</strong> downloads saíram do Luma.</p></div>`;
+  const meta = 60, pa = k.primeira_arte_mediana_s, teto = Math.max(meta * 2, (pa || 0) * 1.15);
+  const ok = pa != null && pa <= meta;
+  const tempo = `<div class="gd-meta">
+      <p class="gd-meta-n"><strong>${gEsc(_gDadosDurFina(pa))}</strong><span class="gd-st ${pa == null ? '' : ok ? 'is-ok' : 'is-morno'}">${pa == null ? 'sem medida' : ok ? 'dentro da meta' : 'acima da meta'}</span></p>
+      <div class="gd-meta-trilho" role="img" aria-label="${gEsc('Mediana até a primeira arte: ' + _gDadosDurFina(pa) + '. Meta: 1 minuto.')}">
+        <i class="${ok ? 'is-ok' : 'is-morno'}" style="width:${pa == null ? 0 : Math.min(100, pa / teto * 100)}%"></i><b style="left:${meta / teto * 100}%"><span>meta 1 min</span></b></div>
+      <p class="gd-meta-sub">Mediana do início da sessão à 1ª arte${cid ? ' (rede inteira)' : ''}.</p>
+      <p class="gd-meta-dois"><span>Sessão típica</span><strong>${gEsc(_gDadosDur(k.dur_mediana_s))}</strong></p>
+    </div>`;
+  // Parcela sobre a soma dos tipos (compartilhar não entra em "downloads" — dividir por ele passava de 100%).
+  const tl = [['PNG', t.png], ['PDF', t.pdf], ['Compartilhada', t.compartilhada], ['Lote', t.lote], ['Kit', t.kit]].filter(x => x[1]).sort((x, y) => y[1] - x[1]);
+  const tSoma = tl.reduce((s, x) => s + x[1], 0);
+  const tipos = _gDadosRank(tl, { rot: x => `<strong>${gEsc(x[0])}</strong>`, n: x => x[1], val: x => `${_gDadosN(x[1])} <small>${_gDadosPct(x[1] / (tSoma || 1))}</small>`, vazio: 'Nenhum download no período.' });
+
+  const ritmo = cid || dias.length < 14 ? '' : _gDadosSecao('Ritmo da semana', `${met[1]} em cada dia do período. Passe o mouse num quadrado para ver o dia.`, _gDadosRitmo(dias, met[0]));
+  return `<div class="gd-kpis gd-kpis-4 gd-kpis-graf">${kpis}</div>
+    ${_gDadosSecao(met[1] + ' por dia', subGraf, graf, 'gd-card-graf')}
+    <div class="gd-tres">
+      ${_gDadosSecao('Gerou → baixou', 'A taxa que mede se a arte serviu.', conv)}
+      ${_gDadosSecao('Até a 1ª arte', 'A promessa do Luma: arte pronta em um minuto.', tempo)}
+      ${_gDadosSecao('Downloads por tipo', cid ? 'Rede inteira.' : '', tipos)}
+    </div>
     <div class="gd-duas">
       ${_gDadosSecao('Funil geral', 'Sessões que chegaram a cada etapa.', _gDadosFunilGeral((d.funil || {}).geral || []))}
       ${_gDadosSecao('Precisa de atenção', 'Tirado dos dados deste período.', _gDadosAtencao(d))}
-    </div>`;
-}
-function _gDadosCidadeSub(semVar, txt) { return gEsc(semVar ? 'Rede inteira: ' + txt : txt); }
-
-function _gDadosGrafico(dias) {
-  if (!dias.length) return '<p class="gd-vazio">Sem dias no período.</p>';
-  const max = Math.max(1, ...dias.map(x => x.pessoas || 0));
-  const n = dias.length;
-  const bars = dias.map((x, i) => {
-    const h = Math.round((x.pessoas || 0) / max * 100);
-    const lado = i < n * 0.2 ? ' is-esq' : i > n * 0.8 ? ' is-dir' : '';
-    const txt = `${_gDadosDiaCurto(x.dia)}: ${x.pessoas || 0} pessoas, ${x.sessoes || 0} sessões, ${x.artes || 0} artes, ${x.downloads || 0} downloads`;
-    return `<div class="gd-col${lado}" tabindex="0" aria-label="${gEsc(txt)}"><i style="height:${Math.max(h, x.pessoas ? 3 : 0)}%"></i>
-      <span class="gd-tip" aria-hidden="true"><b>${gEsc(_gDadosDiaCurto(x.dia))}</b>${_gDadosN(x.pessoas)} pessoas<br>${_gDadosN(x.sessoes)} sessões · ${_gDadosN(x.artes)} artes<br>${_gDadosN(x.downloads)} downloads</span></div>`;
-  }).join('');
-  const meio = dias[Math.floor((n - 1) / 2)];
-  return `<div class="gd-chart"><div class="gd-chart-y" aria-hidden="true"><span>${max}</span><span>0</span></div><div class="gd-chart-bars">${bars}</div></div>
-    <div class="gd-chart-x" aria-hidden="true"><span>${gEsc(_gDadosDiaCurto(dias[0].dia))}</span>${n > 2 ? `<span>${gEsc(_gDadosDiaCurto(meio.dia))}</span>` : ''}${n > 1 ? `<span>${gEsc(_gDadosDiaCurto(dias[n - 1].dia))}</span>` : ''}</div>`;
+    </div>
+    ${ritmo}`;
 }
 
 function _gDadosPiorQueda(et) {
@@ -369,11 +654,8 @@ function _gDadosPiorQueda(et) {
 }
 function _gDadosFunilGeral(et) {
   if (!et.length || !et[0].n) return '<p class="gd-vazio">Ninguém abriu campanha no período.</p>';
-  const topo = et[0].n || 1;
   const pior = _gDadosPiorQueda(et);
-  const linhas = et.map(e => `<li><span class="gd-funil-rot">${gEsc(e.rotulo || e.etapa)}</span>${_gDadosBarra((e.n || 0) / topo)}
-    <span class="gd-funil-n">${_gDadosN(e.n)} <small>${Math.round((e.n || 0) / topo * 100)}%</small></span></li>`).join('');
-  return `<ol class="gd-funil">${linhas}</ol>${pior && pior.q > 0 ? `<p class="gd-destaque">Maior queda: de <strong>${gEsc(pior.de)}</strong> para <strong>${gEsc(pior.para)}</strong> — ${Math.round(pior.q * 100)}% das sessões param aí.</p>` : ''}`;
+  return _gDadosFunilViz(et) + (pior && pior.q > 0 ? `<p class="gd-destaque">Maior queda: de <strong>${gEsc(pior.de)}</strong> para <strong>${gEsc(pior.para)}</strong> — ${Math.round(pior.q * 100)}% das sessões param aí.</p>` : '');
 }
 
 // "Precisa de atenção" = o topo do Diagnóstico com o que o painel já trouxe (Local Fit e IA
@@ -402,7 +684,7 @@ function _gDadosDiagPainel(d) {
     it.push({ sev: 'critico', aba: 'qualidade', t: `${_gDadosPl(erros, 'erro', 'erros')} do app no período`, s: `Mais comum: “${e0.msg || '—'}” · ${_gDadosPl(pes, 'pessoa afetada', 'pessoas afetadas')}` });
   }
   // franqueado travou
-  if (k.primeira_arte_mediana_s > 60) it.push({ sev: 'alto', aba: 'visao', t: `A 1ª arte leva ${_gDadosDur(k.primeira_arte_mediana_s)} (meta: menos de 1 minuto)`, s: 'Mediana do início da sessão à primeira arte' });
+  if (k.primeira_arte_mediana_s > 60) it.push({ sev: 'alto', aba: 'visao', t: `A 1ª arte leva ${_gDadosDurFina(k.primeira_arte_mediana_s)} (meta: menos de 1 minuto)`, s: 'Mediana do início da sessão à primeira arte' });
   const pior = _gDadosPiorQueda((d.funil || {}).geral || []);
   if (pior && pior.q >= 0.3) it.push({ sev: pior.q >= 0.5 ? 'alto' : 'atencao', aba: 'funil', t: `${_gDadosPct(pior.q)} das sessões param entre ${pior.de} e ${pior.para}`, s: 'A maior queda do funil' });
   if (k.artes_geradas >= 5 && k.taxa_download != null && k.taxa_download < 0.5) it.push({ sev: 'atencao', aba: 'funil', t: `Só ${_gDadosPct(k.taxa_download)} das artes geradas foram baixadas`, s: _gDadosPl(k.artes_geradas, 'arte gerada', 'artes geradas') + ' no período' });
@@ -450,7 +732,10 @@ function _gDadosDiagHtml(d) {
   }).join('');
   const it = _gDadosDiagItens(d);
   if (!it.length) return pend + (pend ? '' : _gDadosVazioHtml(_gDadosVazio(d) ? G_DADOS_VAZIO : 'Nada dando ruim neste período.'));
-  const kpis = G_DADOS_SEV.map(([sev, rot]) => _gDadosKpi(rot, _gDadosN(it.filter(x => x.sev === sev).length))).join('');
+  const kpis = G_DADOS_SEV.map(([sev, rot, sub]) => {
+    const n = it.filter(x => x.sev === sev).length;
+    return `<div class="gd-kpi gd-kpi-sev is-${sev}${n ? '' : ' is-zero'}"><small><span class="gd-st is-${sev}">${gEsc(rot)}</span></small><strong>${_gDadosN(n)}</strong><span class="gd-kpi-sub">${gEsc(sub)}</span></div>`;
+  }).join('');
   return `<div class="gd-kpis">${kpis}</div>${pend}` + G_DADOS_SEV.map(([sev, rot, sub]) => {
     const g = it.filter(x => x.sev === sev);
     return g.length ? _gDadosSecao(rot, sub, _gDadosDiagLista(g)) : '';
@@ -463,8 +748,12 @@ const G_DADOS_COLS_PESSOAS = [
   ['sessoes', 'Sessões', 1], ['tempo_s', 'Tempo', 1], ['artes', 'Artes', 1], ['downloads', 'Downloads', 1], ['disp', 'Aparelho']
 ];
 function _gDadosPessoasHtml() {
-  const papeis = Array.from(new Set(_gDadosPessoas().map(p => _gDadosPapel(p.role))));
-  return `<div class="gd-filtros">
+  const todas = _gDadosPessoas(), papeis = Array.from(new Set(todas.map(p => _gDadosPapel(p.role))));
+  const st = { ok: 0, morno: 0, frio: 0 };
+  todas.filter(p => p.ativo !== false).forEach(p => { st[_gDadosStatus(p.ultimo_acesso)[0]]++; });
+  const saude = _gDadosSecao('Saúde da base', 'Pelo último acesso de cada conta ativa' + (_gDados.cidade ? ' desta cidade.' : '.'),
+    _gDadosSegs([['is-ok', 'Entrou na última semana', st.ok], ['is-morno', 'Sumiu há 8 a 30 dias', st.morno], ['is-frio', 'Mais de 30 dias ou nunca', st.frio]], 'Saúde da base'));
+  return `${saude}<div class="gd-filtros">
       <input type="search" class="gd-input" placeholder="Buscar por nome" aria-label="Buscar pessoa por nome" value="${gEsc(_gDados.busca)}" oninput="gDadosPessoasBusca(this.value)">
       <select class="gd-select" aria-label="Filtrar por papel" onchange="gDadosPessoasPapel(this.value)">
         <option value="">Todos os papéis</option>${papeis.map(p => `<option${p === _gDados.papel ? ' selected' : ''}>${gEsc(p)}</option>`).join('')}
@@ -496,6 +785,9 @@ function _gDadosPessoasTabela() {
     return `<th scope="col"${num ? ' class="is-num"' : ''} aria-sort="${on ? (dir > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" class="gd-sort${on ? ' is-on' : ''}" onclick="gDadosPessoasOrdenar('${k}')">${gEsc(t)}<span aria-hidden="true">${on ? (dir > 0 ? '↑' : '↓') : ''}</span></button></th>`;
   }).join('');
   const L = G_DADOS_COLS_PESSOAS.map(c => gEsc(c[1]));
+  // Barra no fundo da célula (relativa ao maior da lista filtrada): a tabela vira ranking visual.
+  const mx = { artes: Math.max(1, ...rows.map(p => p.artes || 0)), downloads: Math.max(1, ...rows.map(p => p.downloads || 0)) };
+  const cel = (p, k) => `<span class="gd-cel-bar" style="--p:${Math.round((p[k] || 0) / mx[k] * 100)}%">${_gDadosN(p[k])}</span>`;
   const tr = rows.map(p => {
     const [st, stTxt] = _gDadosStatus(p.ultimo_acesso);
     const local = [p.cidade, p.franquia].filter(Boolean).join(' · ') || '—';
@@ -504,7 +796,7 @@ function _gDadosPessoasTabela() {
       <td data-l="${L[1]}">${gEsc(_gDadosPapel(p.role))}</td><td data-l="${L[2]}">${gEsc(local)}</td>
       <td data-l="${L[3]}" title="${gEsc(_gDadosDataHora(p.ultimo_acesso))}"><span class="gd-sr">${gEsc(stTxt)}. </span>${gEsc(_gDadosRel(p.ultimo_acesso))}</td>
       <td data-l="${L[4]}" class="is-num">${_gDadosN(p.sessoes)}</td><td data-l="${L[5]}" class="is-num">${gEsc(p.tempo_s ? _gDadosDur(p.tempo_s) : '—')}</td>
-      <td data-l="${L[6]}" class="is-num">${_gDadosN(p.artes)}</td><td data-l="${L[7]}" class="is-num">${_gDadosN(p.downloads)}</td>
+      <td data-l="${L[6]}" class="is-num">${cel(p, 'artes')}</td><td data-l="${L[7]}" class="is-num">${cel(p, 'downloads')}</td>
       <td data-l="${L[8]}">${gEsc(G_DADOS_DISP[p.disp] || p.disp || '—')}</td></tr>`;
   }).join('');
   return `<p class="gd-contagem" role="status">${rows.length} ${rows.length > 1 ? 'pessoas' : 'pessoa'}</p>
@@ -579,10 +871,16 @@ function _gDadosFunilHtml(d) {
     { t: 'Respondeu', num: 1, k: r => pc(r.respondeu, r.abriu) },
     { t: 'Gerou', num: 1, k: r => pc(r.gerou, r.abriu) },
     { t: 'Baixou', num: 1, k: r => pc(r.baixou, r.abriu) },
-    { t: 'Conversão', k: r => _gDadosBarra(r.abriu ? r.baixou / r.abriu : 0) }
+    { t: 'Abriu → baixou', k: r => `<span class="gd-conv">${_gDadosTrilho([r.abriu, r.gerou, r.baixou], r.abriu)}<small>${_gDadosPct(r.abriu ? r.baixou / r.abriu : null)}</small></span>` }
   ], pm, 'Nenhum material aberto no período.');
-  return _gDadosSecao('Funil geral', 'Sessões que chegaram a cada etapa.', _gDadosFunilGeral(f.geral || [])) +
-    _gDadosSecao('Por material', 'Os 30 mais abertos. % sobre quem abriu.', tab);
+  // Quem converte pior entre os que têm volume: é a fila de revisão do material.
+  const piores = pm.filter(r => r.abriu >= 10).slice().sort((a, b) => a.baixou / a.abriu - b.baixou / b.abriu).slice(0, 5);
+  return `<div class="gd-duas">${_gDadosSecao('Funil geral', 'Sessões que chegaram a cada etapa.', _gDadosFunilGeral(f.geral || []))}
+      ${_gDadosSecao('Quem menos converte', 'Materiais com 10+ aberturas, do pior para o melhor. A barra é a própria linha: 100% = quem abriu.', _gDadosRank(piores, {
+        rot: r => `<strong>${gEsc(r.template_name || 'Sem nome')}</strong>`, sub: r => r.camp_name || '', n: r => r.abriu,
+        val: r => `${_gDadosPct(r.baixou / r.abriu)} <small>baixou</small>`, etapas: r => [r.abriu, r.gerou, r.baixou].map(v => v / r.abriu * 100),
+        vazio: 'Nenhum material com volume suficiente no período.' }))}</div>` +
+    _gDadosSecao('Por material', 'Os 30 mais abertos. % sobre quem abriu.', tab + _G_DADOS_TRILHO_LEG);
 }
 
 /* ── Conteúdo ───────────────────────────────────────────────────────────────────────── */
@@ -600,24 +898,28 @@ function _gDadosConteudoHtml(d) {
     { t: 'Aberturas', num: 1, k: r => _gDadosN(r.abertas) }, { t: 'Artes', num: 1, k: r => _gDadosN(r.geradas) },
     { t: 'Downloads', num: 1, k: r => _gDadosN(r.baixadas) }, { t: 'Pessoas', num: 1, k: r => _gDadosN(r.pessoas) }
   ], c.campanhas, 'Nenhuma campanha aberta no período.');
-  const fmt = _gDadosTabela([
-    { t: 'Formato', k: r => gEsc(_gDadosFmt(r.fmt_id)) }, { t: 'Artes', num: 1, k: r => _gDadosN(r.geradas) }, { t: 'Downloads', num: 1, k: r => _gDadosN(r.baixadas) }
-  ], c.formatos, 'Nenhuma arte gerada no período.');
-  return _gDadosSecao('Templates', 'Publicados ou usados no período.', tpl) +
-    `<div class="gd-duas">${_gDadosSecao('Publicados e nunca usados', 'Desde sempre, não só neste período.', nunca)}${_gDadosSecao('Formatos', '', fmt)}</div>` +
-    _gDadosSecao('Campanhas', '', camp);
+  const fmtTot = (c.formatos || []).reduce((a, r) => a + (r.geradas || 0), 0);
+  const fmt = _gDadosRank((c.formatos || []).slice().sort((a, b) => (b.geradas || 0) - (a.geradas || 0)), {
+    rot: r => `<strong>${gEsc(_gDadosFmt(r.fmt_id))}</strong>`, sub: r => _gDadosN(r.baixadas) + ' downloads', n: r => r.geradas,
+    val: r => `${_gDadosN(r.geradas)} <small>${_gDadosPct(fmtTot ? r.geradas / fmtTot : null)}</small>`, vazio: 'Nenhuma arte gerada no período.' });
+  const topTpl = _gDadosRank((c.templates || []).filter(r => r.abertos).slice().sort((a, b) => (b.abertos || 0) - (a.abertos || 0)).slice(0, 8), {
+    rot: r => `<strong>${gEsc(r.nome || 'Sem nome')}</strong>`, sub: r => r.pasta || '', n: r => r.abertos,
+    val: r => `${_gDadosN(r.baixados)} <small>de ${_gDadosN(r.abertos)}</small>`, etapas: r => [r.abertos, r.gerados, r.baixados], vazio: 'Nenhum template aberto no período.' });
+  const topCamp = _gDadosRank((c.campanhas || []).slice(0, 8), {
+    rot: r => `<strong>${gEsc(r.camp_name || r.camp_id || '—')}</strong>`, sub: r => _gDadosPl(r.pessoas || 0, 'pessoa', 'pessoas'), n: r => r.abertas,
+    val: r => `${_gDadosN(r.baixadas)} <small>de ${_gDadosN(r.abertas)}</small>`, etapas: r => [r.abertas, r.geradas, r.baixadas], vazio: 'Nenhuma campanha aberta no período.' });
+  return `<div class="gd-duas">${_gDadosSecao('Templates que mais rodam', 'Os 8 mais abertos. À direita, downloads de quantas aberturas.', topTpl)}${_gDadosSecao('Campanhas', 'Aberturas, artes e downloads de cada pasta.', topCamp + `<details class="gd-ver-tabela"><summary>Ver campanhas em tabela</summary>${camp}</details>`)}</div>` +
+    `<div class="gd-duas">${_gDadosSecao('Formatos', 'Artes geradas em cada formato.', fmt)}${_gDadosSecao('Publicados e nunca usados', 'Desde sempre, não só neste período.', nunca)}</div>` +
+    _gDadosSecao('Todos os templates', 'Publicados ou usados no período.', tpl);
 }
 
 /* ── Buscas ─────────────────────────────────────────────────────────────────────────── */
 function _gDadosBuscasHtml(d) {
   const b = d.buscas || {};
-  const top = _gDadosTabela([
-    { t: 'Termo', k: r => `${gEsc(r.q || '—')}${r.sem_resultado ? ' <small class="gd-tag is-alerta">Sem resultado</small>' : ''}` },
-    { t: 'Buscas', num: 1, k: r => _gDadosN(r.n) }
-  ], b.top, 'Nenhuma busca no período.');
-  const semRes = _gDadosTabela([
-    { t: 'Termo', k: r => gEsc(r.q || '—') }, { t: 'Vezes', num: 1, k: r => _gDadosN(r.n) }, { t: 'Última', k: r => gEsc(_gDadosRel(r.ultima)) }
-  ], b.sem_resultado, 'Toda busca achou alguma coisa.');
+  const top = _gDadosRank(b.top, {
+    rot: r => `<strong>${gEsc(r.q || '—')}</strong>${r.sem_resultado ? '<small class="gd-tag is-alerta">Sem resultado</small>' : ''}`, n: r => r.n, vazio: 'Nenhuma busca no período.' });
+  const semRes = _gDadosRank(b.sem_resultado, {
+    rot: r => `<strong>${gEsc(r.q || '—')}</strong>`, sub: r => 'última ' + _gDadosRel(r.ultima).toLowerCase(), n: r => r.n, vazio: 'Toda busca achou alguma coisa.' });
   const ped = _gDadosTabela([
     { t: 'Pedido', k: r => gEsc(r.q || '—') }, { t: 'Vezes', num: 1, k: r => _gDadosN(r.n) }, { t: 'Último', k: r => gEsc(_gDadosRel(r.ultima)) }
   ], b.pedidos, 'Ninguém pediu conteúdo no período.');
@@ -736,7 +1038,7 @@ function _gDadosLfRecorte(tipo, rows) {
 function _gDadosLfFaixas(rows) {
   const tot = (rows || []).reduce((a, y) => a + (y.n || 0), 0);
   if (!tot) return '<p class="gd-vazio">Nada no período.</p>';
-  return `<ul class="gd-lista">${rows.map(y => `<li><strong>${gEsc(y.faixa)}</strong><span class="gd-faixa">${_gDadosBarra(y.n / tot)}<small>${_gDadosN(y.n)} · ${_gDadosPct(y.n / tot)}</small></span></li>`).join('')}</ul>`;
+  return _gDadosRank(rows, { rot: y => `<strong>${gEsc(y.faixa)}</strong>`, n: y => y.n, val: y => `${_gDadosN(y.n)} <small>${_gDadosPct(y.n / tot)}</small>` });
 }
 function _gDadosLfRecuperacao(rc) {
   const passos = [
@@ -758,13 +1060,13 @@ function _gDadosLfHtml() {
   if (s.carregando || !x) return _gDadosSkeleton();
   const r = x.resumo || {}, an = x.anterior || {}, st = x.por_status || [];
   if (!r.total) return _gDadosVazioHtml('Nenhuma arte montada neste período — o Local Fit registra cada resolução desde 15/08/2026.');
+  // Os 6 estados do motor viram as 3 faixas de gravidade (a mesma escala da barra, do gráfico
+  // e da legenda); o detalhe de cada estado segue escrito embaixo.
   const linhas = o => {
-    const l = st.filter(y => y.origem === o), tot = l.reduce((a, y) => a + (y.n || 0), 0);
-    return _gDadosTabela([
-      { t: 'Resultado', k: y => gEsc(G_DADOS_LF_ST[y.status] || y.status) },
-      { t: 'Vezes', num: 1, k: y => _gDadosN(y.n) },
-      { t: 'Parcela', k: y => _gDadosBarra(tot ? y.n / tot : 0) + ' ' + _gDadosPct(tot ? y.n / tot : null) }
-    ], l, 'Nada no período.');
+    const l = st.filter(y => y.origem === o), n = ks => l.filter(y => ks.indexOf(y.status) >= 0).reduce((a, y) => a + (y.n || 0), 0);
+    if (!l.length) return '<p class="gd-vazio">Nada no período.</p>';
+    return _gDadosSegs([['is-ok', 'Coube como desenhado', n(['original'])], ['is-morno', 'Ajustou', n(['wrapped', 'shrunk', 'adapted'])], ['is-frio', 'Não coube', n(['overflow', 'unsafe'])]], 'Resultado')
+      + `<p class="gd-segs-det">${l.map(y => gEsc(G_DADOS_LF_ST[y.status] || y.status) + ' <strong>' + _gDadosN(y.n) + '</strong>').join(' · ')}</p>`;
   };
   const okExp = _gDadosLfTaxa(r.export_total - r.export_bloqueou, r.export_total), okAnt = _gDadosLfTaxa(an.export_total - an.export_bloqueou, an.export_total);
   const origExp = _gDadosLfTaxa(r.export_original, r.export_total), origAnt = _gDadosLfTaxa(an.export_original, an.export_total);
@@ -861,7 +1163,7 @@ function _gDadosQualidadeHtml(d) {
     { t: 'Pessoas', num: 1, k: r => _gDadosN(r.pessoas) }, { t: 'Último', k: r => gEsc(_gDadosDataHora(r.ultimo)) }
   ], q.erros, 'Nenhum erro registrado no período.');
   const motivos = (fb.motivos || []).length
-    ? `<ul class="gd-lista">${fb.motivos.map(m => `<li><strong>${gEsc((typeof F_FEEDBACK_REASONS === 'object' && F_FEEDBACK_REASONS[m.reason]) || m.reason || 'Sem motivo')}</strong><small>${_gDadosN(m.n)}</small></li>`).join('')}</ul>` : '';
+    ? `<h5 class="gd-mini-tit">Motivos do “não gostei”</h5>` + _gDadosRank(fb.motivos, { rot: m => `<strong>${gEsc((typeof F_FEEDBACK_REASONS === 'object' && F_FEEDBACK_REASONS[m.reason]) || m.reason || 'Sem motivo')}</strong>`, n: m => m.n }) : '';
   const recentes = (fb.recentes || []).filter(r => r.comment);
   const coment = recentes.length
     ? `<ul class="gd-comentarios">${recentes.map(r => `<li><p>${gEsc(r.comment)}</p><small>${gEsc([r.nome, r.camp_name, r.rating === 'positive' ? 'Gostou' : r.rating === 'negative' ? 'Não gostou' : '', _gDadosRel(r.created_at)].filter(Boolean).join(' · '))}</small></li>`).join('')}</ul>`
@@ -875,7 +1177,7 @@ function _gDadosQualidadeHtml(d) {
     ${_gDadosSecao('Textos que não cabem', 'Por template e campo.', naoCabe)}
     ${_gDadosSecao('Erros do app', '', erros)}
     <div class="gd-duas">
-      ${_gDadosSecao('Feedback das campanhas', '', `<div class="gd-kpis gd-kpis-2">${_gDadosKpi('Positivo', _gDadosN(fb.positivo))}${_gDadosKpi('Negativo', _gDadosN(fb.negativo))}</div>${motivos}`)}
+      ${_gDadosSecao('Feedback das campanhas', '', _gDadosSegs([['is-ok', 'Gostou', fb.positivo || 0], ['is-frio', 'Não gostou', fb.negativo || 0]], 'Feedback das campanhas') + motivos)}
       ${_gDadosSecao('Comentários recentes', '', coment)}
     </div>`;
 }
@@ -938,9 +1240,7 @@ function _gDadosIaHtml() {
     { t: 'Vezes', num: 1, k: x => _gDadosN(x.n) }, { t: 'Pessoas', num: 1, k: x => _gDadosN(x.pessoas) },
     { t: 'Último', k: x => gEsc(_gDadosDataHora(x.ultimo)) }
   ], d.erros, 'Nenhuma falha de IA no período.');
-  const origens = (lg.por_origem || []).length
-    ? `<ul class="gd-lista">${lg.por_origem.map(o => `<li><strong>${gEsc(G_DADOS_IA_ORIGEM[o.origem] || o.origem)}</strong><small>${_gDadosN(o.n)}</small></li>`).join('')}</ul>`
-    : '<p class="gd-vazio">Nenhuma legenda copiada no período.</p>';
+  const origens = _gDadosRank(lg.por_origem, { rot: o => `<strong>${gEsc(G_DADOS_IA_ORIGEM[o.origem] || o.origem)}</strong>`, n: o => o.n, vazio: 'Nenhuma legenda copiada no período.' });
   return `<div class="gd-kpis">
       ${_gDadosKpi('Chamadas de IA', _gDadosN(total), gEsc(_gDadosN(r.pessoas) + ' pessoas'))}
       ${_gDadosKpi('Taxa de erro', _gDadosPct(r.taxa_erro), gEsc(_gDadosN(r.erros) + ' falhas'))}
