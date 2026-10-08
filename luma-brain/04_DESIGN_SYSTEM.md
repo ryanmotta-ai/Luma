@@ -223,7 +223,7 @@ Pílula (`--r-pill`), borda fina. **Ativo = fundo `rgba(255,144,0,.12)` + borda 
 - **Regra-base global:** `css/01-reset.css` pinta todo `button[aria-pressed="true"]` e `[role="tab"][aria-selected="true"]` com os tokens `--press-*` (`css/00-tokens.css`). Está dentro de `:where()` (especificidade 0), então o desenho próprio de um módulo **vence**. Quem só marcava o aria sem pintar nada herda o padrão de graça.
 - **Botão novo:** não escreva CSS de estado ligado. Ponha `aria-pressed` e pronto. Só desenhe variante se o fundo embaixo não aceitar o laranja 12% (ex.: sobre o gradiente laranja da topbar).
 - **A cor não pode ser o único sinal** (§49): o ligado muda **fundo + borda + texto**, nunca só a cor do ícone.
-- **Ação de um clique ≠ toggle.** "Salvar", "Gerar", "Excluir" não têm estado ligado — não recebem `aria-pressed`. O `:active` (o instante do clique) é só retorno tátil (escala/escurecer leve, `motion.md`), nunca a receita de ligado.
+- **Ação de um clique ≠ toggle.** "Salvar", "Gerar", "Excluir" não têm estado ligado — não recebem `aria-pressed`. O `:active` (o instante do clique) é só retorno tátil, nunca a receita de ligado — e é **um efeito só**, aplicado pela regra global (`--press-scale`, `motion.md` §2 "Press"). Módulo não escreve `:active{transform}`.
 
 **Exceções aceitas (já têm desenho próprio e seguem assim):**
 - Seletor de modos da topbar: ligado = pílula **branca com texto laranja** (o laranja 12% some no gradiente laranja).

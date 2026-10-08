@@ -14,10 +14,12 @@
   --glass-border: rgba(255, 144, 0, 0.18);
 }
 
-/* Entrada dos cards: usa o keyframe de mola do sistema (gPopIn + --ease-spring-soft). */
+/* Entrada dos cards: usa o keyframe de mola do sistema (gPopIn + --ease-spring-soft).
+   `backwards`, não `forwards`: fill forwards congela o transform do fim da animação e
+   matava o hover (translateY) e o press do card. O `backwards` segura o card invisível
+   durante o delay e, ao terminar, devolve o transform ao CSS normal. */
 .camp-card, .f-mat-card {
-  opacity: 0;
-  animation: gPopIn var(--dur-base) var(--ease-spring-soft) forwards;
+  animation: gPopIn var(--dur-base) var(--ease-spring-soft) backwards;
 }
 
 /* Cascata de entrada — a ÚNICA dos cards (motion.md §4: 30ms por card, teto no 6º).

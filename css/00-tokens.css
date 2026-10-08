@@ -159,6 +159,15 @@
   --press-bg: rgba(255,144,0,.12);
   --press-border: var(--dm-orange);
   --press-text: var(--dm-orange-text);         /* já faz o flip AA no tema claro */
+
+  /* ── PRESS (o instante do clique) ─────────────────────────────────────────────
+     UM efeito para todo botão: afunda rápido, volta com mola. Quem aplica é a regra
+     global de 02-animations.css — módulo NÃO escreve :active{transform}; para ajustar
+     a intensidade de uma superfície, troque só a variável (ex.: card grande). */
+  --press-scale: .96;                          /* botão, chip, ícone, aba */
+  --press-scale-card: .985;                    /* superfície grande: card, herói (.96 num card de 280px é um tranco) */
+  --press-dur: var(--dur-micro);  --press-ease: var(--ease-standard);    /* afundar */
+  --release-dur: var(--dur-fast); --release-ease: var(--ease-spring);    /* voltar */
 }
 
 /* Flip do verde-texto por tema (theme-light = claro em TODOS os módulos).

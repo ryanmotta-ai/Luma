@@ -114,7 +114,7 @@
 .user .bbl{white-space:pre-line;background:var(--dm-orange);border-bottom-right-radius:6px;color:var(--text);font-weight:600;box-shadow:0 5px 16px color-mix(in srgb,var(--dm-orange-d) 14%,transparent)}
 .bbl strong{font-weight:800}
 .qr-wrap{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
-.qr{min-height:34px;display:inline-flex;align-items:center;padding:6px 13px;font-size:11.5px;font-weight:700;cursor:pointer;border:1px solid var(--dm-orange-tint);border-radius:var(--r-pill);color:var(--dm-orange-d);background:var(--dm-orange-bg);transition:transform var(--dur-fast) var(--ease-spring),background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard);font-family:'Roboto',sans-serif;animation:gPopIn var(--dur-fast) var(--ease-spring) forwards}
+.qr{min-height:34px;display:inline-flex;align-items:center;padding:6px 13px;font-size:11.5px;font-weight:700;cursor:pointer;border:1px solid var(--dm-orange-tint);border-radius:var(--r-pill);color:var(--dm-orange-d);background:var(--dm-orange-bg);transition:transform var(--dur-fast) var(--ease-spring),background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard);font-family:'Roboto',sans-serif;animation:gPopIn var(--dur-fast) var(--ease-spring) backwards}
 .qr:nth-child(1){animation-delay:30ms}
 .qr:nth-child(2){animation-delay:65ms}
 .qr:nth-child(3){animation-delay:100ms}
@@ -528,11 +528,11 @@ textarea#f-msg-box.is-multi{border-radius:20px}
    campo, à esquerda do contador; a classe .has-fit abre espaço no padding em vez de medir
    largura em JS. Só existe no DOM quando há texto cortado e IA disponível. */
 #f-input-wrap.has-fit #f-msg-box{padding-right:132px}
-.f-fit-btn{position:absolute;right:52px;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;gap:4px;
+.f-fit-btn{position:absolute;right:52px;top:50%;translate:0 -50%;display:inline-flex;align-items:center;gap:4px;
   padding:3px 9px;border:1px solid var(--dm-orange-tint);border-radius:var(--r-pill);background:var(--dm-orange-bg);
   color:var(--dm-orange-d);font-family:'Roboto',sans-serif;font-size:10px;font-weight:800;letter-spacing:.03em;cursor:pointer;
   transition:background var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-spring)}
-.f-fit-btn:hover{background:var(--dm-orange-tint);transform:translateY(-50%) scale(1.03)}
+.f-fit-btn:hover{background:var(--dm-orange-tint);transform:scale(1.03)}
 .f-fit-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 .f-fit-btn.is-loading{opacity:.6;pointer-events:none}
 .f-fit-btn.is-loading svg{animation:gSpin 1s linear infinite}
@@ -2838,7 +2838,7 @@ body:not(.theme-light) .art-review-badge{
   /* O contador mora DENTRO do campo (absoluto): sem a folga à direita o texto corria por baixo
      dele. O "Encurtar" não cabe ali também — a barra do guiado é estreita e o texto ficava numa
      coluna de 140px —, então sobe para logo acima da barra, alinhado à direita. */
-  body.f-guided-desktop .f-fit-btn{top:auto;bottom:calc(100% + 16px);right:0;transform:none}
+  body.f-guided-desktop .f-fit-btn{top:auto;bottom:calc(100% + 16px);right:0;translate:none}
   body.f-guided-desktop .f-fit-btn:hover{transform:scale(1.03)}
   body.f-guided-desktop #f-msg-box:focus{outline:0;box-shadow:none}
   /* O foco continua visível na barra externa; o outline global no input duplicaria o contorno. */

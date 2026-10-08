@@ -1609,7 +1609,7 @@ body:has(#f-live-preview.lp-design-editing) #view-franqueado{transform:none;filt
 .lp-design-editing>.lp-toolbar{min-height:48px;padding:8px 16px;border-top:1px solid var(--gray-light);box-sizing:border-box}
 #lp-design-selection{position:absolute;inset:0;pointer-events:none;z-index:30}
 #lp-design-handles{position:absolute;inset:0;pointer-events:none;z-index:31}
-#lp-design-handles button{position:absolute;width:16px;height:16px;padding:0;transform:translate(-50%,-50%);border:2px solid var(--dm-orange-d);border-radius:var(--r-sm);background:var(--on-accent);pointer-events:auto;touch-action:none}
+#lp-design-handles button{position:absolute;width:16px;height:16px;padding:0;translate:-50% -50%;border:2px solid var(--dm-orange-d);border-radius:var(--r-sm);background:var(--on-accent);pointer-events:auto;touch-action:none}
 #lp-design-handles button::before{content:'';position:absolute;inset:-8px}
 #lp-design-handles button[data-edge=left],#lp-design-handles button[data-edge=right]{cursor:ew-resize}
 #lp-design-handles button[data-edge=top],#lp-design-handles button[data-edge=bottom]{cursor:ns-resize}

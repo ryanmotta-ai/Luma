@@ -103,13 +103,18 @@
    Opt-out por elemento: [data-no-press].                                        */
 /* Base de baixa especificidade (seletor de TAG): botões com 'transition' própria (via classe)
    a sobrescrevem — logo NÃO quebramos hovers existentes. Botões sem transição ganham a mola. */
-button, [role="button"]{ transition: transform var(--dur-fast) var(--ease-spring); }
-button:not(:disabled):not([data-no-press]):active,
-[role="button"]:not([data-no-press]):active{
-  transform: scale(.955);
-  transition-duration: var(--dur-micro);
-  transition-timing-function: var(--ease-standard);
+/* ⚠ Esta regra VENCE os :active{transform} dos módulos (especificidade 0,4,1): é de propósito,
+   é o que garante um efeito só. Valor e curva moram nos tokens --press-* / --release-*.
+   Elemento posicionado com transform (translate(-50%)) perde a posição ao afundar: posicione
+   com a propriedade `translate`, que compõe com o scale (ex.: .gl-eye, .f-fit-btn). */
+button, [role="button"]{ transition: transform var(--release-dur) var(--release-ease); }
+button:not(:disabled):not([aria-disabled="true"]):not([data-no-press]):active,
+[role="button"]:not([aria-disabled="true"]):not([data-no-press]):active{
+  transform: scale(var(--press-scale));
+  transition-duration: var(--press-dur);
+  transition-timing-function: var(--press-ease);
 }
+.fh-hero, .camp-card, .f-mat-card, .cat-card, .dsh-material-card{ --press-scale: var(--press-scale-card); }
 
 /* M1.2 — spinner minimalista para botões de ação assíncrona */
 .mini-spinner{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;vertical-align:middle;animation:gSpin .6s linear infinite}

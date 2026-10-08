@@ -51,6 +51,15 @@ Precisa animar por JS em outro módulo? Use o mesmo padrão em vez de duplicar v
   * *Efeito:* Elevação de `5px` (`translateY(-5px)`), borda destacada em laranja, e sombra suave e colorida da marca.
   * *CSS:* `transition: transform var(--dur-fast) var(--ease-spring-soft), border-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-spring-soft);`
 
+### 👆 Press (o instante do clique) — UM efeito para a interface inteira
+* **Regra única:** `css/02-animations.css` aplica `transform: scale(var(--press-scale))` em todo `button` e `[role="button"]` habilitado: afunda em `--press-dur`/`--press-ease` e volta em `--release-dur`/`--release-ease` (mola). Valores em `css/00-tokens.css`: `--press-scale: .96` (controles), `--press-scale-card: .985` (card, herói).
+* ⛔ **Módulo não escreve `:active{transform}`.** A regra global vence por especificidade — de propósito. Até 10/2026 havia 128 blocos `:active` com 16 escalas (.9 a .997); 96 deles nunca chegavam à tela. Ao tocar num módulo, **apague** o `:active{transform}` dele. Superfície que precisa de outra intensidade troca só a variável: `.meu-card{--press-scale:var(--press-scale-card)}`.
+* **Três armadilhas que quebram o press:**
+  1. **Posição por `transform`** (`translateY(-50%)` para centralizar): o press substitui o transform e o elemento pula (o olho da senha pulava 22px). Posicione com a **propriedade** `translate: 0 -50%`, que compõe com o scale.
+  2. **Animação de entrada com `fill-mode: forwards`/`both`** congela o transform: hover e press morrem. Use `backwards` (segura o `from` durante o delay e devolve o CSS normal no fim).
+  3. **`transition` do módulo sem `transform`** (ou `transition: all`): o press estala sem animar. Liste `transform var(--release-dur) var(--release-ease)` junto.
+* **Opt-out:** `data-no-press` no elemento (alça de arrasto, controle que não deve se mexer). **Ligado ≠ press:** o estado ligado é cor (`--press-bg/border/text`, `04_DESIGN_SYSTEM` §8), nunca escala.
+
 ### ⌨️ Focus
 * **Outline de Foco:**
   * *Efeito:* O outline de foco deve surgir de forma expandida para o seu estado final com uma transição suave de escala e opacidade.
