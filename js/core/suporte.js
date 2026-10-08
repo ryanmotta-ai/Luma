@@ -514,6 +514,9 @@ async function _gSupCarregarMsgs(){
   if (!t || !de) return;
   try {
     const { data, error } = await t.select('*').eq('franqueado_id', de).order('created_at', { ascending: false }).limit(200);
+    // Falha não pode parecer conversa vazia: o widget mostrava "Fale com uma pessoa" e o
+    // histórico parecia ter sumido. Com a marca, ele avisa e pede para abrir de novo.
+    G_SUP.erroMsgs = !!error;
     if (!error && Array.isArray(data) && G_SUP.conversaDe === de) {
       // O que chegou ou foi enviado ENQUANTO a busca estava no ar não pode sumir da tela —
       // é o caso da pergunta desviada da IA, enviada junto com a abertura da conversa.
@@ -521,7 +524,7 @@ async function _gSupCarregarMsgs(){
       G_SUP.msgs.forEach(function (m) { if (!novos.some(function (x) { return x.id === m.id; })) novos.push(m); });
       G_SUP.msgs = novos;
     }
-  } catch (e) {}
+  } catch (e) { G_SUP.erroMsgs = true; }
 }
 
 // O widget avisa quando a conversa está (ou deixou de estar) na tela.

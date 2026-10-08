@@ -175,6 +175,9 @@ async function gDadosCarregar() {
   _gDados.intervalo = _gDadosIntervalo();
   _gDados.ev.data = null; _gDados.ev.offset = 0;
   _gDados.ia.data = null; _gDados.lf.data = null;
+  // Invalida o que as sub-abas tinham no ar: a resposta do período ANTIGO passava no guard
+  // `req !== s.req` e a aba mostrava 30 dias com o seletor em 7 (sem recarga depois).
+  [_gDados.ia, _gDados.lf, _gDados.ev].forEach(s => { s.req++; s.carregando = false; });
   _gDados.pessoaData = null;
   _gDadosRender();
   let res;

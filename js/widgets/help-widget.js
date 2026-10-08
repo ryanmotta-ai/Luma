@@ -2256,6 +2256,7 @@
     const deOutro = eq && at && at.status !== 'resolvido' && at.responsavel_id && at.responsavel_id !== wmSupEuId();
     let corpo;
     if (G_SUP.carregando && !G_SUP.msgs.length) corpo = '<p class="luma-wm-sup-sys" role="status">Carregando a conversa…</p>';
+    else if (G_SUP.erroMsgs && !G_SUP.msgs.length) corpo = '<p class="luma-wm-sup-sys" role="alert">Não consegui carregar a conversa. Confira sua internet e abra de novo.</p>';
     else if (G_SUP.msgs.length) corpo = wmSupBolhas();
     else if (eq) corpo = '<p class="luma-wm-sup-sys">Nenhuma mensagem nesta conversa.</p>';
     else corpo = `<div class="luma-wm-chat-empty">
