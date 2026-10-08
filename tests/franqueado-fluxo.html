@@ -993,9 +993,15 @@ await test('Digitar por cima de um preço que voltou preenchido não inventa val
     assert(fValidate(id,salvo),'"'+caixa+'" foi aceito como preço: '+salvo);
   }
   // e o que é preço de verdade continua passando
-  for(const [id,v,esperado] of [['precoDe','30','De: R$ 30,00'],['precoPor','1.234,56','Por: R$ 1.234,56'],['precoPor','R$ 1.000','Por: R$ 1.000,00'],['precoDe','De 30 por 20','De R$ 30,00 Por R$ 20,00']]){
+  for(const [id,v,esperado] of [['precoDe','30','De: R$ 30,00'],['precoPor','234,56','Por: R$ 234,56'],['precoPor','R$ 100','Por: R$ 100,00'],['precoDe','De 30 por 20','De R$ 30,00 Por R$ 20,00']]){
     const m=fApplyMask(id,v);
     assert(m===esperado && !fValidate(id,m),'"'+v+'" deveria virar '+esperado+' e virou '+m+' ('+fValidate(id,m)+')');
+  }
+  // Milhar: a máscara continua lendo certo, mas o teto de R$ 400,00 (F_PRECO_MAX, 07/10/2026) recusa.
+  for(const [v,esperado] of [['1.234,56','Por: R$ 1.234,56'],['R$ 1.000','Por: R$ 1.000,00']]){
+    const m=fApplyMask('precoPor',v);
+    assert(m===esperado,'"'+v+'" deveria virar '+esperado+' e virou '+m);
+    assert(/400,00/.test(fValidate('precoPor',m)||''),'"'+m+'" passou do teto e foi aceito');
   }
 });
 

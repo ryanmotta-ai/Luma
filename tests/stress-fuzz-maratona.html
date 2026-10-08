@@ -251,8 +251,10 @@ await test('Fuzz 5: Fuzzing agressivo do parser de preços e máscaras', async()
   const casosPreco = [
     { in: 'R$ 0,00', ok: false }, // regra de negócio: preço zerado rejeita
     { in: 'Grátis', ok: true },   // item de graça aceita com palavra explícita
-    { in: '123456789', ok: true },
-    { in: '12.345,67', ok: true },
+    { in: '123456789', ok: false }, // teto de R$ 400,00 (F_PRECO_MAX, 07/10/2026)
+    { in: '12.345,67', ok: false },
+    { in: '400,00', ok: true },     // o teto em si passa
+    { in: '400,01', ok: false },
     { in: '99,99', ok: true },
     { in: '... ,,,', ok: false }, // só pontuação
     { in: 'cem reais', ok: false }, // só texto
