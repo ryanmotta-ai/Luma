@@ -137,9 +137,11 @@ async function gLogout() {
   /* `logout` ANTES do signOut: depois dele a RPC não tem mais sessão para assinar. Espera no
      máximo 1,2s — sair não trava por telemetria; o que não subir fica na fila deste usuário. */
   try { if (typeof gTrackEvent === 'function') await Promise.race([gTrackEvent('logout', {}), new Promise(r => setTimeout(r, 1200))]); } catch (e) {}
+  const _vis = gVisitante();
   try { if (sb) await sb.auth.signOut(); } catch (e) {}
   gAuthState = { user: null };
-  location.reload();
+  // Visitante: o reload mantinha `?visitante=1` e voltava como visitante — sem caminho para o login.
+  if (_vis) location.replace(location.pathname); else location.reload();
 }
 
 function gCurrentUser() { return gAuthState.user; }

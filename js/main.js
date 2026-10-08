@@ -453,8 +453,8 @@ async function gOnLoginSuccess() {
     _foldersReady=Promise.resolve();
   }
   if (typeof dSyncFontsFromBackend === 'function') dSyncFontsFromBackend();
-  if (typeof dSyncSnippetsFromBackend === 'function') dSyncSnippetsFromBackend();
-  if (typeof dSyncLibFromBackend === 'function') dSyncLibFromBackend();
+  if (!_vis && typeof dSyncSnippetsFromBackend === 'function') dSyncSnippetsFromBackend(); // visitante: RLS devolve 401
+  if (!_vis && typeof dSyncLibFromBackend === 'function') dSyncLibFromBackend();
   if (typeof fSyncArtesFromBackend === 'function') Promise.resolve(fSyncArtesFromBackend()).then(_fhRefresh).catch(()=>{});
 
   // Não segura Estúdio por uma campanha que não será restaurada.

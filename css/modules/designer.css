@@ -92,7 +92,7 @@
 /* Baralho: prévias não editáveis atrás da prancheta, sem interceptar o canvas. */
 #d-page-deck{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:1}
 #d-page-deck[hidden],#d-deck-nav[hidden]{display:none}
-.d-deck-card{position:absolute;padding:0;border:1px solid var(--d-border2);background:var(--d-surf);overflow:hidden;cursor:pointer;pointer-events:auto;transform:rotate(var(--deck-tilt));opacity:.65;filter:blur(2.5px);box-shadow:var(--glass-shadow);transition:left var(--dur-slow) var(--ease-out),top var(--dur-slow) var(--ease-out),transform var(--dur-slow) var(--ease-out),opacity var(--dur-fast) var(--ease-standard),filter var(--dur-fast) var(--ease-standard)}
+.d-deck-card{position:absolute;padding:0;border:1px solid var(--d-border2);background:var(--d-surf);overflow:hidden;cursor:pointer;pointer-events:auto;rotate:var(--deck-tilt);opacity:.65;filter:blur(2.5px);box-shadow:var(--glass-shadow);transition:left var(--dur-slow) var(--ease-out),top var(--dur-slow) var(--ease-out),rotate var(--dur-slow) var(--ease-out),transform var(--release-dur) var(--release-ease),opacity var(--dur-fast) var(--ease-standard),filter var(--dur-fast) var(--ease-standard)}
 .d-deck-card:hover,.d-deck-card:focus-visible{opacity:.9;filter:blur(0);outline:2px solid var(--dm-orange);outline-offset:3px}
 .d-deck-preview{position:relative;transform-origin:top left;pointer-events:none;text-align:left;overflow:hidden}
 .d-deck-placeholder{display:grid;place-items:center;color:var(--d-text2);font-size:48px;padding:60px;box-sizing:border-box}

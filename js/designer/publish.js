@@ -1187,6 +1187,8 @@ document.addEventListener('keydown', e => {
   const inField = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.isContentEditable;
   
   if (document.body.classList.contains('mode-designer')) {
+    // Diálogo da casa (gConfirm/gPrompt) aberto: nada vaza para o canvas — Delete apagava a camada atrás dele.
+    if (document.querySelector('.g-dialog-ov')) return;
     // Se o modo máscara estiver ativo, interceptar Enter/Escape antes de qualquer coisa
     if (typeof _dMaskState !== 'undefined' && _dMaskState) {
       if (e.key === 'Escape') {
@@ -1510,7 +1512,8 @@ document.addEventListener('keydown', e => {
     }
 
     // Mover layer com as setas
-    if (dSelId && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+    // `defaultPrevented`: a lista de camadas e as abas do painel já usaram a seta para navegar.
+    if (dSelId && !e.defaultPrevented && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
       e.preventDefault();
       const l = dLayers.find(x => x.id === dSelId); if (!l) return;
       // Entra no histórico (antes não entrava → Ctrl+Z não desfazia o movimento por setas).

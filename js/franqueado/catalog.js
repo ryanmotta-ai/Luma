@@ -381,6 +381,11 @@ function _fHistRestoreSearchFocus(){
 }
 
 async function fDownloadHist(id, btn){
+  // Baixa PNG: obedece ao Controle do Produto como o fBaixar (o guard não estava neste caminho).
+  if(typeof gFeatureCan==='function' && !gFeatureCan('franqueado.export.png','execute')){
+    if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback('franqueado.export.png');
+    return;
+  }
   const h=fGetHist().find(x=>x.id===id);if(!h)return;
   // Guarda no CLIQUE (e não só no botão desabilitado): o card pode ter sido pintado antes
   // do catálogo sincronizar, e a validade pode ter vencido com a aba aberta.
@@ -538,6 +543,11 @@ function fDuplicateInOtherFmt(id){
   fConfirmDuplicate(id, h.fmtId);
 }
 async function fConfirmDuplicate(id, fmtId){
+  // Baixa PNG: obedece ao Controle do Produto como o fBaixar (o guard não estava neste caminho).
+  if(typeof gFeatureCan==='function' && !gFeatureCan('franqueado.export.png','execute')){
+    if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback('franqueado.export.png');
+    return;
+  }
   const h = fGetHist().find(x=>x.id===id);
   if(!h) return;
   if(_fHistBloqueiaVencida(h)){ fRenderHist(); return; }
@@ -553,6 +563,12 @@ async function fConfirmDuplicate(id, fmtId){
   if(h.templateVersionId&&!fState.material){
     fState.material=prevMaterial;
     gToast('Não consegui carregar a versão original desta arte. Verifique a conexão e tente novamente.','error');return;
+  }
+  // Mesma guarda do fDownloadHist: camadas que não baixaram caíam no renderer genérico e o
+  // toast ainda dizia "Arte duplicada!".
+  if(fState.material && fState.material._needsLayersFetch){
+    fState.material=prevMaterial;
+    gToast('Não consegui carregar o material original. Verifique a conexão e tente de novo.','error');return;
   }
   try {
     await fGenPNG(h.dados, c, f);

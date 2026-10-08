@@ -3795,7 +3795,9 @@ function dSave(options){
         // Um novo save de rascunho cancela a republicação anterior ainda não confirmada.
         if(t._publishPending){delete t._publishPending;t._syncPending=false;}
       }
-      else { Object.assign(t,edit); t._syncPending=true;t._syncOwnerId=edit._ownerId; }
+      // Mesma regra do ramo publicado: salvar cancela a publicação não confirmada — senão o
+      // sync subia o snapshot ANTIGO do _publishPending e as edições sumiam (local e servidor).
+      else { delete t._publishPending; Object.assign(t,edit); t._syncPending=true;t._syncOwnerId=edit._ownerId; }
     }}));
   }
   // DOC NOVO (nunca virou template): Ctrl+S/Salvar agora persiste NO BANCO, não só neste
@@ -3869,7 +3871,7 @@ function _dFolderMetaSignature(f,idx){
   row.cover_url=f.cover||null;
   return JSON.stringify(row);
 }
-function dPersistFolders(){
+function dPersistFolders(opts){
   let droppedImg=false;
   (dFolders||[]).forEach((f,idx)=>{
     if(!f.remoteId||(f._syncedFolderMeta&&f._syncedFolderMeta!==_dFolderMetaSignature(f,idx)))f._syncPending=true;
@@ -3896,6 +3898,7 @@ function dPersistFolders(){
     if(typeof dPushFoldersToBackend==='function') dPushFoldersToBackend();
     return true;
   }catch(e){
+    if(opts&&opts.silent) return false; // faxina do boot: sem storage, o aviso aparecia na tela de login a cada boot
     if(e&&(e.name==='QuotaExceededError'||e.code===22))
       gToast('Não foi possível salvar: armazenamento cheio. Remova templates ou imagens e tente de novo.','error');
     else gToast('Erro ao salvar o template.','error');

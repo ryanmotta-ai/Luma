@@ -252,7 +252,7 @@ function dPreloadFolders(){
     });
   });
   // Faxina removeu mocks legados → persiste a limpeza (local + backend, se houver remoteId).
-  if(_dMockLimpo && typeof dPersistFolders==='function'){ try{ dPersistFolders(); }catch(e){} }
+  if(_dMockLimpo && typeof dPersistFolders==='function'){ try{ dPersistFolders({silent:true}); }catch(e){} }
   // Re-hidrata imagens grandes (fundos PSD) guardadas no IndexedDB como 'idb://...' → dataURL real,
   // depois re-renderiza pra mostrar os fundos (some o reload sem fundo). Fire-and-forget.
   if(typeof gHydrateFolders==='function'){
@@ -1268,7 +1268,11 @@ function dLoadTemplateById(folderId, tmplId){
   const f = dFolders.find(x=>x.id===folderId);
   if(!f) return;
   const t = f.templates.find(x=>x.id===tmplId);
-  if(t) dLoadTemplate(t, f);
+  if(!t) return;
+  // Como o "Voltar" e a troca de página: salva antes de trocar. Sem isto, abrir outro material
+  // pelo painel Catálogo descartava as edições não salvas, sem perguntar.
+  if(dActiveTmplId && typeof dDirty!=='undefined' && dDirty && typeof dSave==='function' && dSave({silent:true})===false) return;
+  dLoadTemplate(t, f);
 }
 // Menu de ações rápidas do template
 async function dRenameTemplate(folderId,tmplId){

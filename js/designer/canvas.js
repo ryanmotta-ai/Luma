@@ -1362,7 +1362,7 @@ function dRenderCanvas(){
       if(l.strokeW>0){const sv=l.strokeW+'px '+(l.strokeColor||'#000');textNode.style.webkitTextStroke=sv;textNode.style.textStroke=sv;}
       // Opacidade do preenchimento: o glifo atenua, o traço e a sombra não (o "GRÁTIS" só contorno).
       if(l.fillOpacity!=null&&+l.fillOpacity<1&&!(l.gradient&&l.gradient.stops&&l.gradient.stops.length))
-        textNode.style.webkitTextFillColor=gFxRgba(l.color||'#ffffff',Math.max(0,+l.fillOpacity));
+        { const _a=Math.max(0,+l.fillOpacity); textNode.style.webkitTextFillColor=l.color?gFxRgba(l.color,_a):`rgba(255,255,255,${_a})`; } // texto sem cor = branco
       // Sombra projetada + glow (texto). Sem blur/dist explícitos → mantém o default antigo (fs-based).
       {
         const _ts=[];

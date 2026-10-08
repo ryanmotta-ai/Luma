@@ -215,6 +215,12 @@ function _gDialog(opts){
     ov.addEventListener('mousedown',e=>{ if(e.target===ov) onCancel(); });
     function onKey(e){
       if(e.key==='Escape'){ e.preventDefault(); onCancel(); }
+      else if(e.key==='Tab'){
+        // Foco preso no diálogo: o Tab saía para a página e o Enter seguinte confirmava a ação.
+        e.preventDefault();
+        const fs=[...ov.querySelectorAll('button,input')]; const i=fs.indexOf(document.activeElement);
+        const n=fs[(i+(e.shiftKey?-1:1)+fs.length)%fs.length]; if(n) n.focus();
+      }
       else if(e.key==='Enter'){
         e.preventDefault();
         /* Enter aciona o botão FOCADO: quem chega por Tab em "Cancelar"/"Editar" e tecla Enter

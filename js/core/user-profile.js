@@ -318,6 +318,7 @@ async function gProfileSyncFotoLocal(){
 // Salva as alterações de dados pessoais
 async function gProfileSaveData(event) {
   if (event) event.preventDefault();
+  if (typeof gVisitante === 'function' && gVisitante()) { gToast('No modo visitante nada é salvo. Entre com a sua conta.'); return; }
 
   const nameVal = document.getElementById('prof-input-name').value.trim();
   const emailVal = document.getElementById('prof-input-email').value.trim();
@@ -346,7 +347,9 @@ async function gProfileSaveData(event) {
         gToast('Não salvou no servidor: ' + error.message, 'error');
         return;
       }
-      if (typeof gAuthState !== 'undefined' && gAuthState.user) gAuthState.user.telefone = phoneVal;
+      // O nome também: só era copiado de um sessionStorage legado que ninguém mais grava, e a
+      // topbar seguia com o nome antigo depois de "Perfil salvo com sucesso!" (só o F5 corrigia).
+      if (typeof gAuthState !== 'undefined' && gAuthState.user) { gAuthState.user.telefone = phoneVal; gAuthState.user.displayName = nameVal; }
     }
   } catch(e) {
     btn.disabled = false; btn.innerHTML = originalHTML;
@@ -484,6 +487,7 @@ function gProfileCheckPasswordStrength(password) {
 // existe por convenção de UX, mas não é verificado aqui (re-autenticar exigiria outro fluxo).
 async function gProfileChangePassword(event) {
   if (event) event.preventDefault();
+  if (typeof gVisitante === 'function' && gVisitante()) { gToast('No modo visitante não há senha. Entre com a sua conta.'); return; }
 
   const newPass = document.getElementById('prof-input-password-new').value;
   const confirmPass = document.getElementById('prof-input-password-confirm').value;

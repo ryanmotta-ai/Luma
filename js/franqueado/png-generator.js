@@ -4095,8 +4095,10 @@ async function fBulkDownloadAll(modo){
     valid.forEach((row, idx) => {
       const vars = Object.keys(row.dados).filter(v => !/foto|logo|imagem|img|avatar/i.test(v));
       const nameKey = vars.find(v => /produto|titulo|nome/i.test(v)) || vars[0] || '';
-      const deKey = vars.find(v => /de|antigo/i.test(v)) || '';
-      const porKey = vars.find(v => /por|preco|preço|atual|valor/i.test(v)) || '';
+      // Casamento exato primeiro (como o _fBulkRowFromCampos): `precoDe` também casa com /preco/
+      // e vem antes na ordem — a legenda anunciava o preço ANTIGO como preço da oferta.
+      const deKey = vars.find(v => /^(precode|de)$/i.test(v)) || vars.find(v => /de|antigo/i.test(v)) || '';
+      const porKey = vars.find(v => /^(precopor|por|preco|preço|valor)$/i.test(v)) || vars.find(v => v!==deKey && /por|preco|preço|atual|valor/i.test(v)) || '';
       const valKey = vars.find(v => /validade|data|condicao|condição/i.test(v)) || '';
       const descKey = vars.find(v => /desconto|selo|off/i.test(v)) || '';
       
@@ -4236,9 +4238,7 @@ function fBuildFilename(c, fmt, d){
    Substitui os renderizadores DOM próprios (e infiéis) dos previews
    de publicação e dos cards de material.
 ══════════════════════════════════════════════════════════════ */
-// Fila serializada: o motor lê fState.material (fundo + espaço nativo) DEPOIS de um
-// await interno (document.fonts.ready) — dois renders concorrentes trocariam o shim
-// um do outro no meio. Um por vez elimina a corrida (e o burst de CPU em grids).
+// Fila serializada: um render por vez evita o burst de CPU em grids de miniaturas.
 let _fpvQueue=Promise.resolve();
 function fRenderPreviewToCanvas(canvas, tmpl, opts){
   const job=_fpvQueue.then(()=>_fpvRun(canvas, tmpl, opts));
@@ -4259,14 +4259,13 @@ async function _fpvRun(canvas, tmpl, opts){
   octx.scale(scale,scale);
   const dados=opts.dados||fSampleDadosForLayers(tmpl.layers);
   const camp=opts.camp||{color:'#e8e8e8'};
-  // Shim do material: o motor lê fState.material p/ fundo e espaço nativo das coords.
-  const prevMat=(typeof fState!=='undefined')?fState.material:null;
+  /* ⛔ Sem "emprestar" fState.material: o motor já recebe `tmpl` como materialOverride. O
+     empréstimo devolvia o valor ANTIGO no finally — se o franqueado abrisse um material
+     enquanto a miniatura renderizava, a escolha virava null e a arte saía no renderer genérico. */
   try{
-    if(typeof fState!=='undefined') fState.material={layers:tmpl.layers, w:W, h:H, bg:tmpl.bg, fmt:tmpl.fmt};
     await fRenderTemplateLayers(octx, tmpl.layers, W, H, dados, camp, tmpl,
       {scope:opts.scope||'designer',purpose:'preview'});
   }catch(e){ console.warn('[preview] render falhou:', e); return false; }
-  finally{ if(typeof fState!=='undefined') fState.material=prevMat; }
   if(canvas._fpvId!==renderId) return false; // um render mais novo assumiu este canvas
   canvas.width=bw; canvas.height=bh;
   const ctx=canvas.getContext('2d');

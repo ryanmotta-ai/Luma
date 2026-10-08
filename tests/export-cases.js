@@ -73,7 +73,10 @@
     assert(Math.abs(meio.w/cheio.w-0.5)<0.06,'a 50% a tinta deveria ter metade da largura ('+(meio.w/cheio.w).toFixed(2)+')');
     assert(Math.abs(meio.x0-cheio.x0)<4,'alinhado à esquerda, o início da linha não pode andar');
     const dir1=await tinta(1,'right'), dir5=await tinta(0.5,'right');
-    assert(Math.abs(dir1.x1-dir5.x1)<4,'alinhado à direita, o fim da linha não pode andar');
+    // A tinta acaba antes da âncora pelo respiro do glifo, e o respiro também condensa: a 50% ele
+    // cai pela metade. Por isso a tolerância é metade do vão à direita (depende da fonte da máquina:
+    // com <4px fixo o caso falhava desde que nasceu). Âncora quebrada andaria ~300px.
+    assert(Math.abs(dir1.x1-dir5.x1)<=(800-dir1.x1)*0.5+2,'alinhado à direita, o fim da linha não pode andar ('+dir1.x1+' → '+dir5.x1+')');
   });
 
   /* Equilíbrio de Cores e Filtro de Foto (07/10/2026): antes eram ignorados — o ajuste do PSD

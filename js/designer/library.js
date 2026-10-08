@@ -404,6 +404,8 @@ function dStartInlineEdit(l,elDiv){
   ta.addEventListener('blur',dEndInlineEdit);
   ta.addEventListener('keydown',e=>{
     e.stopPropagation(); // não dispara atalhos do canvas durante a edição
+    // …menos o salvar: Ctrl+S aqui abria o "Salvar página como" do navegador e não salvava.
+    if((e.ctrlKey||e.metaKey)&&(e.key==='s'||e.key==='S')&&!e.shiftKey){e.preventDefault();dEndInlineEdit();if(typeof dSave==='function')dSave();return;}
     if(e.key==='Escape'){e.preventDefault();dEndInlineEdit(null,true);}
     else if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();dEndInlineEdit();} // Enter confirma; Shift+Enter = nova linha
   });

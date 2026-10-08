@@ -262,7 +262,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 85 arquivos JS (75.818 linhas, 2.962 funções) · 32 arquivos CSS (32.443 linhas) · `index.html` com 3.994 linhas e 74 `<script>`.
+**Tamanho real de hoje:** 85 arquivos JS (75.841 linhas, 2.962 funções) · 32 arquivos CSS (32.450 linhas) · `index.html` com 3.994 linhas e 74 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -415,19 +415,19 @@ Controladores do Modal e Configurações de Perfil do Usuário. Suporta edição
 
 ### js/franqueado
 
-**`js/franqueado/catalog.js`** · 1752 linhas
+**`js/franqueado/catalog.js`** · 1755 linhas
 Catalogo de campanhas: fRenderCatalogs, fFilterCamps, fSelectCamp, fSwitchTab, fSetHistFilter, fRenderHist, fEditFromHist, fDuplicateInOtherFmt.
 · API: fSwitchTab, fSetHistFilter, fGoToCampaigns, fFindMaterialById, fAskClearHist, fHistVoltar, fRenderHist, fDownloadHist, fEditFromHist, fDuplicateInOtherFmt, fConfirmDuplicate, fEditCampFolder, fCampAdminMenu, fCampAnalyticsClose … (+36; 87 funções no total)
 · Estado global: fHistFilter, _fHistPreviewCache, _fHistPreviewRun, _fHistPreviewObserver, _fRedeRun, _fRedeObserver, _fhFilter, _fhRevealIO, _fhRevealGen, _fhStickyBound (+2)
 · Depende de: 00-config.js, 01-state.js
 
-**`js/franqueado/chat-input.js`** · 1165 linhas
+**`js/franqueado/chat-input.js`** · 1166 linhas
 F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES define o comportamento de cada variavel do template.
 · API: fMaxLenDaCaixa, fMarcaLimiteSeguro, fLimiteSeguro, fAlvoDoCampo, fCampoPodeEncurtar, fGetFieldType, fCleanTextNumber, fApplyMask, fValidate, fShowFieldError, fEspelhoConfirma, fEspelhoSincroniza, fAttachInputGuard, fUpdateCharCount … (+5; 43 funções no total)
 · Estado global: _F_MAXLEN_MED, _fAlvoNaPasta, _fFitOpts, _fFitRun, _fFitSai, _fFitIaReprovadas, _fFitCf, quando, _fFitPerto, _fFitFora
 · Depende de: 00-config.js
 
-**`js/franqueado/chat.js`** · 3859 linhas
+**`js/franqueado/chat.js`** · 3878 linhas
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
 · API: fChatNovaConversa, fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fTrackResposta, fTrackFoto … (+70; 171 funções no total)
 · Estado global: fNextTimeout, _fChatGen, _fGuidedNav, _fGuidedTimer, _fGuidedBound, _fProntaCtxAberto, _fRevisando, _fArtSnapshots, _fArtCaptions, _fGiriasFr (+3)
@@ -734,8 +734,8 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 | `css/modules/console.css` | 244 |
 | `css/modules/designer.css` | 5433 |
 | `css/modules/feedback.css` | 199 |
-| `css/modules/franqueado.css` | 1696 |
-| `css/modules/franqueado_effects.css` | 404 |
+| `css/modules/franqueado.css` | 1700 |
+| `css/modules/franqueado_effects.css` | 407 |
 | `css/modules/help-widget.css` | 3606 |
 | `css/modules/layers-panel.css` | 4530 |
 | `css/modules/live-preview.css` | 1694 |
