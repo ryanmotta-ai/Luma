@@ -21,6 +21,9 @@
 .camp-card, .f-mat-card {
   animation: gPopIn var(--dur-base) var(--ease-spring-soft) backwards;
 }
+/* Re-render SILENCIOSO da home (favoritar, cada tecla da busca, refresh do sync) tira o
+   .fh-anim: sem isto todos os cards voltavam a opacity 0 e piscavam a cada ação. */
+#f-home:not(.fh-anim) .camp-card, #f-home:not(.fh-anim) .f-mat-card { animation: none; }
 
 /* Cascata de entrada — a ÚNICA dos cards (motion.md §4: 30ms por card, teto no 6º).
    Antes havia duas: esta e uma no catalog.css, e o 7º card entrava ANTES do 6º (260 < 300ms).

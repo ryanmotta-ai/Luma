@@ -1041,7 +1041,7 @@ function fCampEl(c,isRec,ghost,searching){
   // Campanha com tema (Much+): o card carrega o atributo e o CSS faz o convite
   // (badge magenta + shine 1x + aura no hover) ANTES do clique. Slug já sai sanitizado.
   const _tema=(typeof _fCampThemeOf==='function')?_fCampThemeOf(c):'';
-  return `<div class="camp-card ${!ghost&&fState.camp&&c.id===fState.camp.id?'selected':''} ${isRec?'recommended':''}${ghost?' ghost':''}"${_tema?` data-camp-theme="${_tema}"`:''}${ghost?' aria-disabled="true"':` role="button" tabindex="0" aria-label="Abrir campanha ${gEsc(c.name)}" onclick="fSelectCamp('${gEscJs(c.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();fSelectCamp('${gEscJs(c.id)}')}"`}>
+  return `<div class="camp-card ${!ghost&&fState.camp&&c.id===fState.camp.id?'selected':''} ${isRec?'recommended':''}${ghost?' ghost':''}"${_tema?` data-camp-theme="${_tema}"`:''}${ghost?' aria-disabled="true"':` role="button" tabindex="0" aria-label="Abrir campanha ${gEsc(c.name)}" onclick="fSelectCamp('${gEscJs(c.id)}')" onkeydown="if(event.target!==this)return;if(event.key==='Enter'||event.key===' '){event.preventDefault();fSelectCamp('${gEscJs(c.id)}')}"`}>
     ${favBtn}
     ${adminBtn}
     ${ghost?'':`<button type="button" class="camp-prev-btn" onclick="event.stopPropagation();fOpenPreview(event,'${gEscJs(c.id)}')" aria-label="Ver prévia de ${gEsc(c.name)}">PRÉVIA</button>`}
@@ -1454,7 +1454,7 @@ function _fHomeHeroEl(rec){
   const coverStyle=cover
     ?`background-color:${colorSafe};background-image:url('${coverSafe}');background-size:cover;background-position:center`
     :`background-color:${colorSafe}`;
-  const fmtNames=[...new Set(mats.map(m=>({story:'Story 9:16',feed:'Feed 1:1',wide:'Post wide',post:'Post wide'}[m.fmt]||'Material')))];
+  const fmtNames=[...new Set(mats.map(m=>({story:'Story 9:16',feed:'Feed 4:5',wide:'Post wide',post:'Post wide'}[m.fmt]||'Material')))];
   const _star='<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1.5px"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg>';
   const _temaHero=(typeof _fCampThemeOf==='function')?_fCampThemeOf(rec):''; // mesmo convite do card, no hero
   // 3-pontos do hero (só DM staff + campanha com pasta real): mesmo menu do card, mesma
@@ -1588,7 +1588,7 @@ function _fHomeBodyHTML(query){
   const embreve=pool.filter(c=>!_fCampHasMats(c));
   // Filtro de status ativo (≠ todas): vitrine vira lista única e enxuta, sem hero/rascunhos.
   if(_fhFilter==='prontas'){
-    if(!prontas.length) return _fhEmptyState('Nenhuma campanha pronta agora','Todas as campanhas do catálogo já estão prontas para usar.');
+    if(!prontas.length) return _fhEmptyState('Nenhuma campanha pronta agora','Assim que o time publicar materiais, elas aparecem aqui.');
     return `<section class="fh-section fh-results"><div class="fh-sec"><span>Prontas para usar</span><em>${prontas.length} campanha${prontas.length!==1?'s':''}</em></div>
       <div class="camp-grid fh-grid">${prontas.map(c=>fCampEl(c,false)).join('')}</div></section>`;
   }
@@ -1598,8 +1598,6 @@ function _fHomeBodyHTML(query){
     return `<section class="fh-section fh-results"><div class="fh-sec"><span>Favoritas</span><em>${favs.length} fixada${favs.length!==1?'s':''}</em></div>
       <div class="camp-grid fh-grid">${favs.map(c=>fCampEl(c,false,!_fCampHasMats(c))).join('')}</div></section>`;
   }
-  const rec=prontas.find(c=>c.popular)||prontas[0]||null;
-  const gridProntas=prontas.filter(c=>!rec||c.id!==rec.id);
   // Rascunhos mais recentes (máx 3) — atalho de retomada
   let drafts=[];
   try{ drafts=fGetHist().filter(x=>x.status==='rascunho').slice(0,3); }catch(e){}
@@ -1607,6 +1605,11 @@ function _fHomeBodyHTML(query){
   // existem no pool atual (uma campanha removida do catálogo não aparece "fantasma").
   let favs=[];
   try{ const favIds=fGetFavs(); favs=favIds.map(id=>pool.find(c=>c.id===id)).filter(Boolean); }catch(e){}
+  // Nada para mostrar (catálogo não carregou, ou nenhuma campanha com material): sem isto a
+  // home ficava em branco embaixo da busca, sem mensagem nem saída.
+  if(!prontas.length&&!drafts.length&&!favs.length) return _fhEmptyState('Nenhuma campanha pronta agora','Assim que o time publicar materiais, elas aparecem aqui.');
+  const rec=prontas.find(c=>c.popular)||prontas[0]||null;
+  const gridProntas=prontas.filter(c=>!rec||c.id!==rec.id);
   return `
     ${drafts.length?`<section class="fh-section fh-continue"><div class="fh-sec"><span>Continue de onde parou</span><em>Seus rascunhos mais recentes</em></div>
     <div class="fh-cont">${drafts.map(_fHomeDraftEl).join('')}</div></section>`:''}

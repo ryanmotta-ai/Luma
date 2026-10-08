@@ -675,7 +675,7 @@ function fRenderMaterialCatalog(camp, container){
       if(card) card.classList.add('is-rendering'); // fetch tardou → mostra estado de render agora
       try{
         Promise.resolve(fRenderPreviewToCanvas(cv, m, {maxPx:520, camp:{color:camp.color||'#FF9000'}, dados:m._demoDados, scope:'franqueado'}))
-          .then(()=>{ if(card){ card.classList.remove('is-rendering'); card.classList.add('has-preview'); } })
+          .then(ok=>{ if(card){ card.classList.remove('is-rendering'); card.classList.add(ok===false?'has-preview-error':'has-preview'); } }) // o render engole o erro e devolve false
           .catch(()=>{ if(card){ card.classList.remove('is-rendering'); card.classList.add('has-preview-error'); } });
       }catch(e){
         if(card){ card.classList.remove('is-rendering'); card.classList.add('has-preview-error'); }
@@ -696,7 +696,7 @@ function fRenderMaterialCard(material, camp){
     else validadeLabel=`<span class="f-mat-validade">válido até ${v.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</span>`;
   }
   // Mini-prévia: usa fmt do template
-  const fmtName = {story:'Story 9:16',feed:'Feed 1:1',wide:'Post wide',post:'Post wide'}[material.fmt] || 'Story';
+  const fmtName = {story:'Story 9:16',feed:'Feed 4:5',wide:'Post wide',post:'Post wide'}[material.fmt] || 'Story';
   const isNew = !material._demo && (typeof fMaterialIsNew==='function') && fMaterialIsNew(material, camp.id);
   // Material-demo entra rotulado: quem está na tela precisa saber que aquilo não é da rede.
   const demoTag = material._demo ? '<span class="f-mat-demo-tag">DEMONSTRAÇÃO — não é material da rede</span>' : '';
