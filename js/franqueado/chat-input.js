@@ -371,7 +371,8 @@ function fApplyMask(id, raw){
     // Aceita "20% off", "20%", "20", "R$ 5,00 off"
     const hasMoney = /r\$/i.test(v) || (/\d+,\d+/.test(v) && !/%/.test(v)); // "1,5%" é percentual, não R$
     if(hasMoney){
-      const m = v.replace(/\./g,',').match(/(\d+)[,]?(\d{0,2})/);
+      // Ponto seguido de 3 dígitos é milhar ("R$ 1.000"), não centavos — virava "R$ 1,00 off".
+      const m = v.replace(/\.(?=\d{3}(?!\d))/g,'').replace(/\./g,',').match(/(\d+)[,]?(\d{0,2})/);
       if(m){
         const dec = (m[2]||'00').padEnd(2,'0').slice(0,2);
         return `R$ ${m[1]},${dec} off`;

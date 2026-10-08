@@ -317,7 +317,17 @@ function fUseLastArte(histId){
   if(!h){ _fProceedMaterialStart(fState.material); return; }
   if(_fGuidedAtivo()) return _fGuidedUseLastArte(h);
   fState.dados={...fState.dados, ...h.dados};   // mesma regra do rascunho: mescla, não descarta o atual
-  fState.stepIdx=fState.camp.perguntas.length; // pula as perguntas → confirmação
+  /* Arte antiga pode ter valor que a regra de hoje recusa (preço acima do teto de 07/10):
+     em vez de gerar direto, para no primeiro campo inválido e pergunta de novo. */
+  const _perg=fState.camp.perguntas||[];
+  const _ruim=_perg.findIndex(p=>{ const v=fState.dados[p.id]; return v!=null && v!=='' && typeof v==='string' && fValidate(p.id, fApplyMask(p.id, v), fState.dados); });
+  if(_ruim>=0){
+    fState.done=false; fState.editIdx=null; fState.stepIdx=_ruim-1;
+    fAddBot(`Peguei os dados da sua última arte de <strong>${gEsc(fState.material.name)}</strong>, mas um valor precisa ser conferido.`,[]);
+    fNextStep();
+    return;
+  }
+  fState.stepIdx=_perg.length; // pula as perguntas → confirmação
   fState.done=false; fState.editIdx=null;
   fUpdateProg();
   fAddBot(`Peguei os dados da sua última arte de <strong>${gEsc(fState.material.name)}</strong>.`,[]);
@@ -1145,8 +1155,13 @@ function fManterValor(){
   if(!p) return;
   const atual = fState.dados ? fState.dados[p.id] : null;
   if(atual==null || atual==='') return;
-  fAddUser(String(atual));
-  fSaveAdv(String(atual));   // grava o MESMO valor: o fluxo anda, a resposta não muda
+  /* Mesma porta do fSend/fQR: o valor pode ter vindo CRU do espelho da digitação (rascunho
+     salvo no meio, "29,9") e sem máscara virava R$ 299,00 na arte — ou furava o teto. */
+  const v = fApplyMask(p.id, String(atual));
+  const err = fValidate(p.id, v, fState.dados);
+  if(err){ fShowFieldError(err); return; }
+  fAddUser(v);
+  fSaveAdv(v);
 }
 
 /* Texto da pergunta NA HORA DE PERGUNTAR — e não na hora de montar o material. O preço
@@ -3382,6 +3397,9 @@ function _fSnapshotArte(){
     material: fState.material,           // referência: o material é imutável nesta sessão
     fmt: fState.fmt,
     camp: fState.camp,                   // carrega as `perguntas` — o fPickLoja as filtra
+    // O fRestartArt troca o array `perguntas` DENTRO do mesmo camp: sem guardar a lista, o
+    // stepIdx restaurado apontava para outra pergunta e a resposta caía no campo errado.
+    perguntas: fState.camp ? fState.camp.perguntas : null,
     guidedNav: Object.assign({}, _fGuidedNav),
     extractedColors: Object.assign({}, fState.extractedColors || {}),
     // A CONVERSA também é estado: sem ela o chat volta vazio com a prévia cheia — as duas
@@ -3402,6 +3420,7 @@ function _fRestauraArte(s){
   fState.material = s.material;
   fState.fmt = s.fmt;
   fState.camp = s.camp;
+  if(s.camp && s.perguntas) s.camp.perguntas = s.perguntas;
   if(s.guidedNav) _fGuidedNav = Object.assign({active:false,currentField:null,returnTarget:null,mode:'guided'}, s.guidedNav);
   fState.extractedColors = s.extractedColors;
   _fArtSnapshots = s.snapshots;

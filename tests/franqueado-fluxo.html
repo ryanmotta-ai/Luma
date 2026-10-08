@@ -1005,6 +1005,14 @@ await test('Digitar por cima de um preço que voltou preenchido não inventa val
   }
 });
 
+await test('Texto todo em minúscula não perde a vírgula do meio da palavra', async()=>{
+  // gSmartTitleCase tirava pontuação de QUALQUER posição e colava a sobra no fim: "1,5l" → "15ll".
+  for(const [v,esperado] of [['coca-cola 1,5l','Coca-Cola 1,5l'],['combo r$ 29,90','Combo R$ 29,90'],['x-bacon 1.000g','X-Bacon 1.000g'],['sexta, sábado e domingo','Sexta, Sábado e Domingo']]){
+    const r=gSmartTitleCase(v);
+    assert(r===esperado,'"'+v+'" deveria virar "'+esperado+'" e virou "'+r+'"');
+  }
+});
+
 await test('Sair do passo sem enviar devolve o preço que estava lá', async()=>{
   reset(); fAttachInputGuard();
   fState.dados={produto:'X-Bacon',precoDe:'De: R$ 30,00'};

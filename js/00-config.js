@@ -2582,10 +2582,10 @@ function gSmartTitleCase(str) {
   const formatted = words.map((w, idx) => {
     if (!w) return '';
     
-    // Remove pontuação para testar o conector
-    const wordClean = w.toLowerCase().replace(/[.,!?;:]/g, '');
-    const hasPunctuation = w.length > wordClean.length;
-    const punctuation = hasPunctuation ? w.slice(wordClean.length) : '';
+    // Separa só a pontuação do FIM para testar o conector. Tirar de qualquer posição
+    // apagava a vírgula/ponto do meio e duplicava a cauda: "1,5l" → "15ll", "29,90" → "29900".
+    const punctuation = (w.match(/[.,!?;:]+$/) || [''])[0];
+    const wordClean = w.slice(0, w.length - punctuation.length).toLowerCase();
     
     // Primeira palavra sempre é capitalizada. Demais palavras respeitam conectores curtos.
     if (idx === 0 || !G_CONNECTORS.has(wordClean)) {
