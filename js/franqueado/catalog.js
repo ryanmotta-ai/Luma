@@ -597,6 +597,7 @@ function fEditCampFolder(folderId){
 const _ICO_STATS='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V5M16 20v-7M22 20V3"/></svg>';
 const _ICO_EDIT='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
 const _ICO_REDE='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>';
+const _ICO_STAR='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
 const _ICO_ARCHIVE='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg>';
 // Menu do 3-pontos (só DM staff): Editar / Arquivar. Menu flutuante fixo posicionado no botão.
 function fCampAdminMenu(ev, folderId){
@@ -610,6 +611,7 @@ function fCampAdminMenu(ev, folderId){
     ((typeof gIsSuperAdmin==='function'&&gIsSuperAdmin())
       ? `<button type="button" onclick="fCloseCampAdminMenu();fCampRedeOpen('${gEscJs(folderId)}')">${_ICO_REDE}<span>Ver a rede</span></button>` : '')+
     `<button type="button" onclick="fCloseCampAdminMenu();fEditCampFolder('${gEscJs(folderId)}')">${_ICO_EDIT}<span>Editar campanha</span></button>`+
+    `<button type="button" onclick="fCloseCampAdminMenu();fFeatureFolder('${gEscJs(folderId)}')">${_ICO_STAR}<span>Pôr em destaque</span></button>`+
     `<button type="button" onclick="fCloseCampAdminMenu();fArchiveFolder('${gEscJs(folderId)}')">${_ICO_ARCHIVE}<span>Arquivar campanha</span></button>`;
   document.body.appendChild(menu);
   if(btn){
@@ -919,6 +921,21 @@ function fArchiveFolder(folderId){
   fRestoreCatalog();
   if(document.body.classList.contains('f-home-mode') && typeof fRenderHome==='function') fRenderHome({silent:true});
   if(typeof gToast==='function') gToast(`Campanha "${f.name}" arquivada.`);
+}
+/* Campanha em DESTAQUE = a única pasta com `popular` (o hero da home e "A campanha do momento"
+   leem `popular`). O Estúdio não tinha como trocar: a semente do config deixava Much+ e Copa
+   marcadas e a primeira delas ganhava sempre. Aqui é exclusivo — marca esta, desmarca as outras
+   — e garante `destaque` (seção "Ativas agora"), senão o rail não a acha. Mesmo save do arquivar. */
+function fFeatureFolder(folderId){
+  if(typeof gIsAdmin!=='function' || !gIsAdmin()) return;
+  const f = (typeof dFolders!=='undefined' && dFolders) ? dFolders.find(x=>x.id===folderId) : null;
+  if(!f){ if(typeof gToast==='function') gToast('Não achei essa campanha.','error'); return; }
+  dFolders.forEach(x=>{ if(x && !gPastaSistema(x)) x.popular = (x===f); });
+  f.destaque = true;
+  if(typeof dPersistFolders==='function') dPersistFolders();
+  fRestoreCatalog();
+  if(document.body.classList.contains('f-home-mode') && typeof fRenderHome==='function') fRenderHome({silent:true});
+  if(typeof gToast==='function') gToast(`"${f.name}" agora é a campanha em destaque.`);
 }
 function fUnarchiveFolder(folderId){
   if(typeof gIsAdmin!=='function' || !gIsAdmin()) return;
