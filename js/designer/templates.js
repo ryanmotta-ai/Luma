@@ -1728,7 +1728,9 @@ async function dLoadTemplate(tmpl,folder,options){
      variável. Sem isto, abrir um template carregava o fundo do template ANTERIOR. */
   dCanvasBg = editing.bg || '';
   const ab=dGetActiveAB();
-  if(ab){ab.layers=JSON.parse(JSON.stringify(editing.layers||[]));ab.fmt=editing.fmt;ab.name=tmpl.name;ab.w=_w;ab.h=_h;}
+  // ab.tmplId = o que está NO CANVAS. A prancheta é reaproveitada entre aberturas; sem carimbar
+  // aqui ela guardava o id do material publicado ANTES, e republicar gravava por cima dele.
+  if(ab){ab.layers=JSON.parse(JSON.stringify(editing.layers||[]));ab.fmt=editing.fmt;ab.name=tmpl.name;ab.w=_w;ab.h=_h;ab.tmplId=tmpl.id;}
   dLayers=JSON.parse(JSON.stringify(editing.layers||[]));
   // Re-hidrata fundos grandes (idb://) → dataURL real, e re-renderiza quando prontos.
   if(typeof gHydrateLayers==='function'){

@@ -3776,6 +3776,12 @@ function _dTrackTemplate(evento, t, extra){
 }
 function dSave(options){
   const silent=!!(options&&options.silent);
+  /* SALVAR EXPLÍCITO (Ctrl+S / botão Salvar) num material PUBLICADO atualiza o publicado na rede
+     (10/2026). Antes virava rascunho só neste aparelho que nunca subia: o designer salvava, o
+     franqueado seguia com a versão velha, ele republicava — e com o id trocado nascia uma cópia.
+     Save silencioso (trocar de página/tela) e "Salvar rascunho" continuam só rascunho. */
+  const atualizaPublicado=!silent&&!(options&&options.rascunho);
+  let _subiuPublicado=false;
   // Sincronizar layers editados de volta pro artboard ativo antes de salvar
   if(typeof dSyncLayersToAB==='function')dSyncLayersToAB();
   if(dActiveTmplId){
@@ -3787,7 +3793,19 @@ function dSave(options){
       // Guardar uma edição não publica: o catálogo continua usando o snapshot confirmado.
       const edit={_ownerId:(typeof gCurrentUser==='function')?gCurrentUser()?.id:null,layers:JSON.parse(JSON.stringify(dLayers)),bg:(_ab?_ab.bg:t.bg),
         fmt:(_custom?_ab.fmt:t.fmt),w:(_custom?_ab.w:t.w),h:(_custom?_ab.h:t.h)};
-      if(t.publishMeta&&t.publishMeta.publicado){
+      if(t.publishMeta&&t.publishMeta.publicado&&atualizaPublicado){
+        // Mesmo caminho confirmado da republicação: o push só promove o snapshot quando o
+        // servidor confirma (CAS por updated_at). Até lá o rascunho guarda a edição.
+        const pend=JSON.parse(JSON.stringify(t));
+        delete pend._publishPending;delete pend._draft;delete pend._drafts;
+        Object.assign(pend,{layers:edit.layers,bg:edit.bg,fmt:edit.fmt,w:edit.w,h:edit.h,_ownerId:edit._ownerId});
+        t._drafts=t._drafts||{};
+        if(edit._ownerId)t._drafts[edit._ownerId]=edit;
+        t._draft=edit;
+        t._publishPending=pend;t._syncPending=true;t._syncOwnerId=edit._ownerId;
+        _subiuPublicado=true;
+      }
+      else if(t.publishMeta&&t.publishMeta.publicado){
         t._drafts=t._drafts||{};
         if(t._draft&&t._draft._ownerId)t._drafts[t._draft._ownerId]=t._draft;
         if(edit._ownerId)t._drafts[edit._ownerId]=edit;
@@ -3818,7 +3836,11 @@ function dSave(options){
     rasc.ativa=false; // pasta inativa: RLS esconde do franqueado; vitrine ignora (fGetCampaigns)
     for(const ab of dArtboards){
       if(!ab || !ab.layers || !ab.layers.length) continue;
-      const tid='tmpl-ab-'+ab.id;
+      /* Id PRÓPRIO por documento, guardado na prancheta. O antigo 'tmpl-ab-'+ab.id era o mesmo
+         para todo doc novo (a prancheta é sempre 'ab-single'): o 2º documento sobrescrevia o
+         rascunho do 1º. E o doc vira o material ATIVO — publicar promove ESTE, não outro. */
+      const tid=ab.tmplId||('tmpl-'+gUuid());
+      ab.tmplId=tid;dActiveTmplId=tid;dActiveTmplFolderId=rasc.id;
       let t=null; for(const f of dFolders){ const x=f.templates.find(y=>y.id===tid); if(x){t=x;break;} }
       if(!t){ t={id:tid, publishMeta:dDefaultPublishMeta()}; rasc.templates.unshift(t); _dTrackTemplate('template_criado',t,{origem:'rascunho', template_name:ab.name||'Rascunho', fmt_id:ab.fmt||'story'}); }
       t.name=ab.name||'Rascunho'; t.fmt=ab.fmt||'story';
@@ -3839,7 +3861,10 @@ function dSave(options){
   if(dActiveTmplId) dFolders.forEach(f=>f.templates.forEach(t=>{ if(t.id===dActiveTmplId) _dTrackTemplate('template_salvo',t,{auto:silent}); }));
   if(typeof dRenderPagesTray==='function')dRenderPagesTray();
   // Não sobrescreve o aviso de imagens se ele acabou de aparecer neste save
-  if(!silent&&!(gImgPersistWarned&&!hadImgWarn))gToast('Rascunho salvo neste aparelho; publicar exige confirmação do servidor.');
+  if(!silent&&!(gImgPersistWarned&&!hadImgWarn))gToast(_subiuPublicado
+    ?'Salvo. Atualizando a versão publicada na rede — se o servidor recusar, o aviso laranja aparece na barra.'
+    :(options&&options.rascunho)?'Rascunho salvo. A versão publicada não muda até você publicar.'
+    :'Salvo e enviado ao servidor. Ainda não publicado — os franqueados não veem até você publicar.');
   return true;
 }
 function _dOwnDraft(value){

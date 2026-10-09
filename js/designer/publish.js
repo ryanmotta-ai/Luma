@@ -100,7 +100,7 @@ function dPublishClearDraft(key){
 
 function dPublishSaveDraft(){
   const saved=dPublishPersistDraft(false);
-  if(typeof dSave==='function')dSave();
+  if(typeof dSave==='function')dSave({rascunho:true});   // "Salvar rascunho" nunca mexe no publicado
   else if(saved)gToast('Rascunho da publicação salvo');
 }
 
@@ -404,14 +404,12 @@ document.addEventListener('click', (e) => {
 // Template-alvo da publicação da arte atual: o template CARREGADO (dActiveTmplId),
 // com fallback pro id legado 'tmpl-ab-'+abId (artes publicadas antes do fix de
 // colisão — abId é sempre 'ab-single', então aquele id era compartilhado por tudo).
+/* O material ABERTO no canvas. ⛔ Saiu o fallback 'tmpl-ab-'+ab.id: a prancheta é sempre
+   'ab-single', então esse id era o MESMO para todo documento novo — publicar um doc novo sem
+   salvar antes sequestrava o rascunho de outro doc. O doc novo ganha id próprio no 1º Ctrl+S. */
 function _dPubFindTmpl(){
-  const ids=[];
-  if(typeof dActiveTmplId!=='undefined'&&dActiveTmplId) ids.push(dActiveTmplId);
-  const _ab=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
-  if(_ab) ids.push('tmpl-ab-'+_ab.id);
-  for(const id of ids){
-    for(const f of dFolders){ const t=f.templates.find(x=>x.id===id); if(t) return {tmpl:t, folder:f}; }
-  }
+  if(typeof dActiveTmplId==='undefined'||!dActiveTmplId) return null;
+  for(const f of dFolders){ const t=f.templates.find(x=>x.id===dActiveTmplId); if(t) return {tmpl:t, folder:f}; }
   return null;
 }
 
@@ -891,9 +889,13 @@ async function dPublishConfirm(){
        publicar 3 formatos de uma vez gravava os 3 por cima do mesmo id e só o último sobrava.
        Agora cada prancheta lembra o template que ela publicou (`ab.tmplId`); só a prancheta
        ativa herda o template carregado. Republicar continua atualizando, sem duplicar. */
+    /* ⛔ A PRANCHETA ATIVA PUBLICA O MATERIAL ABERTO, não o `ab.tmplId` lembrado. A prancheta é
+       reaproveitada ao abrir outro material, então `ab.tmplId` podia ser o material publicado
+       ANTES: abrir B e publicar gravava B por cima de A (na pasta de A) e B seguia velho —
+       o "não vai pra pasta certa" e o "ficou dois" (10/2026). */
     const _ehAtiva=(abId===dActiveABId);
     const _target=_ehAtiva?_dPubFindTmpl():null;
-    const tmplId=ab.tmplId||(_target?_target.tmpl.id:('tmpl-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7)));
+    const tmplId=(_target?_target.tmpl.id:null)||ab.tmplId||('tmpl-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7));
     // Procura template existente (em qualquer pasta) para reutilizar publishMeta
     let tmpl=null;
     let tmplFolder=null;
