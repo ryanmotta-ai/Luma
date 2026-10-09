@@ -568,6 +568,10 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
      `shrinkFont` encolhe outra vez, `shiftX` soma de novo e a âncora manual devolve o membro da
      cadeia para antes do Local Fit. Aqui só se desenha, como recebido. */
   const _jaResolvido=renderOpts.resolvido===true;
+  /* Moldura de foto VAZIA: no PNG final continua quase invisível (ninguém baixa um cinza), mas
+     na prévia do franqueado ela some e a pessoa não acha onde vai a foto. 'convite' = cinza +
+     "Use aqui sua foto…" (editor); 'liso' = só o cinza (miniatura do catálogo). */
+  const _molduraVazia=renderOpts.molduraVazia||(_renderScope==='franqueado'&&renderOpts.purpose==='preview'?'convite':null);
   // Garante que as fontes (Roboto + enviadas pelo usuário) estejam carregadas antes
   // de desenhar texto no canvas — senão a primeira geração sai com fonte fallback.
   if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
@@ -741,7 +745,7 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
       octx.imageSmoothingEnabled=true; octx.imageSmoothingQuality='high';
       // Renderiza no offscreen sem blend (source-over) — blend aplicado abaixo
       const _lNoBm=_needsSw?Object.assign({},l,{blendMode:'normal'}):l;
-      await fRenderOneLayer(octx, _lNoBm, dados, 1, 1);
+      await fRenderOneLayer(octx, _lNoBm, dados, 1, 1, _molduraVazia);
       // Com clipping dinâmico, `mask` continua como fallback do DOM legado; no Canvas usamos
       // apenas a máscara própria (layer/vector/group) para não multiplicar a borda duas vezes.
       const _ownMask=_clipBase?l.clipOwnMask:l.mask;
@@ -783,7 +787,7 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
         target.drawImage(oc,0,0); target.restore();
       }
     }else{
-      await fRenderOneLayer(target, l, dados, 1, 1);
+      await fRenderOneLayer(target, l, dados, 1, 1, _molduraVazia);
     }
   }
 
@@ -969,7 +973,7 @@ function _fContornoSilhueta(oc, caixa, r, align, cor){
     dentro: dDentro ? peca(i=>cheio[i]?rampa(rDentro,dDentro[i])*(A[i*4+3]/255):0) : null};
 }
 // Renderiza um único layer aplicando dados do franqueado
-async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
+async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY, molduraVazia){
   ctx.save();
   ctx.globalAlpha = (l.opacity != null ? l.opacity : 100) / 100;
   var _bmComp=(l.blendMode&&l.blendMode!=='normal'&&typeof dBlendToComposite==='function')
@@ -1605,6 +1609,8 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
       } catch(e){
         console.warn('Erro renderizando layer image:', e);
       }
+    } else if(molduraVazia && l.imgVar){
+      _fMolduraVaziaDesenha(ctx, l, x, y, w, h, scaleX, molduraVazia);
     } else {
       // Placeholder visual leve (não chamativo no PNG final) — mesma silhueta do conteúdo,
       // pelo motor único, para a moldura vazia ter exatamente a forma da moldura cheia.
@@ -1615,6 +1621,54 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY){
   ctx.restore();
 }
 
+/* Moldura de foto vazia na PRÉVIA: a silhueta da moldura em cinza e, no modo 'convite', uma
+   mini composição (ícone + "Use aqui sua foto do produto") centrada. Quando a foto chega, o
+   ramo de cima desenha a foto e isto não roda — o convite sai sozinho.
+   Hex aqui e não token: são pixels DA ARTE (não mudam com o tema do app), como o #FF9000 acima. */
+const F_MOLDURA_VAZIA = { liso:'#B3B3B3', convite:'#5F6368', texto:'rgba(255,255,255,.92)' };
+function _fMolduraVaziaDesenha(ctx, l, x, y, w, h, scaleX, modo){
+  const forma = fTraceLayerShape(ctx, l, x, y, w, h, scaleX);
+  ctx.save();
+  ctx.fillStyle = modo==='liso' ? F_MOLDURA_VAZIA.liso : F_MOLDURA_VAZIA.convite;
+  ctx.fill(forma);
+  if(modo!=='convite' || !(w>0 && h>0)){ ctx.restore(); return; }
+  ctx.clip(forma);
+  const lado = Math.min(w, h);
+  const ehLogo = (typeof gCampoEhLogo==='function') ? gCampoEhLogo(l.imgVar) : /logo/i.test(l.imgVar||'');
+  const rot = (typeof gFieldLabel==='function') ? String(gFieldLabel(l.imgVar)||'') : '';
+  const frase = ehLogo ? 'Use aqui o logo da sua loja'
+    : (/^foto\b/i.test(rot) ? 'Use aqui sua ' + rot.charAt(0).toLowerCase() + rot.slice(1) : 'Use aqui sua foto');
+  // Moldura pequena (o logo redondo, um selo) não comporta frase legível: só o ícone.
+  const comTexto = lado >= 220;
+  const ic = Math.max(18, Math.min(lado * (comTexto ? 0.16 : 0.34), 120));
+  const fs = Math.max(16, Math.min(lado * 0.075, 46));
+  ctx.font = '600 ' + fs + 'px Roboto, sans-serif';
+  const linhas = [];
+  if(comTexto){
+    let atual = '';
+    frase.split(' ').forEach(p=>{
+      const t = atual ? atual + ' ' + p : p;
+      if(atual && ctx.measureText(t).width > w * 0.78){ linhas.push(atual); atual = p; } else atual = t;
+    });
+    if(atual) linhas.push(atual);
+  }
+  const lh = fs * 1.2, gap = comTexto ? fs * 0.7 : 0;
+  const total = ic + gap + linhas.length * lh;
+  const cx = x + w / 2;
+  let cy = y + (h - total) / 2;
+  // Ícone de foto (quadro + sol + montanha), traçado — sem emoji, sem asset.
+  ctx.strokeStyle = F_MOLDURA_VAZIA.texto; ctx.fillStyle = F_MOLDURA_VAZIA.texto;
+  ctx.lineWidth = Math.max(1.5, ic * 0.07); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const ix = cx - ic / 2, iy = cy + ic * 0.1, iw = ic, ih = ic * 0.8;
+  roundedRect(ctx, ix, iy, iw, ih, ic * 0.14); ctx.stroke();
+  ctx.beginPath(); ctx.arc(ix + iw * 0.68, iy + ih * 0.32, ic * 0.08, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(ix + iw * 0.12, iy + ih * 0.84); ctx.lineTo(ix + iw * 0.4, iy + ih * 0.5);
+  ctx.lineTo(ix + iw * 0.62, iy + ih * 0.74); ctx.lineTo(ix + iw * 0.74, iy + ih * 0.62); ctx.lineTo(ix + iw * 0.9, iy + ih * 0.84); ctx.stroke();
+  cy += ic + gap;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  linhas.forEach((t, i)=> ctx.fillText(t, cx, cy + i * lh));
+  ctx.restore();
+}
 // Helper: desenha retângulo arredondado no canvas
 /* Justificação de uma linha: devolve [{txt,x}] com as palavras espalhadas para encostar nas
    duas margens, ou null quando não se deve (ou não se pode) justificar.
@@ -4255,7 +4309,7 @@ async function _fpvRun(canvas, tmpl, opts){
      enquanto a miniatura renderizava, a escolha virava null e a arte saía no renderer genérico. */
   try{
     await fRenderTemplateLayers(octx, tmpl.layers, W, H, dados, camp, tmpl,
-      {scope:opts.scope||'designer',purpose:'preview'});
+      {scope:opts.scope||'designer',purpose:'preview',molduraVazia:opts.molduraVazia||'liso'});
   }catch(e){ console.warn('[preview] render falhou:', e); return false; }
   if(canvas._fpvId!==renderId) return false; // um render mais novo assumiu este canvas
   canvas.width=bw; canvas.height=bh;
@@ -4264,27 +4318,35 @@ async function _fpvRun(canvas, tmpl, opts){
   ctx.drawImage(off,0,0);
   return true;
 }
-/* Dados de amostra p/ preview (miniatura do catálogo, prévia da publicação): exemplo do campo →
-   amostra abaixo → valor padrão → [Rótulo]. A miniatura é o convite para criar a arte: com o
-   rótulo cru ela mostrava "Produto" e "R$ Preço Promo,00", e as molduras vazias em cinza.
-   Os campos principais ganham um caso real e as imagens, as fotos de exemplo (F_DEMO_IMGS).
+/* Dados de amostra p/ preview (miniatura do catálogo, prévia da publicação): amostra genérica
+   do produto → exemplo do campo → amostra abaixo → valor padrão → [Rótulo].
+   ⛔ Sem foto de exemplo (saiu em 10/2026, pedido da gestão): a miniatura mostrava um lanche e
+   um logo de loja REAIS, e a pessoa lia aquilo como a arte pronta de outra loja. A moldura
+   vazia agora sai em cinza liso (`molduraVazia:'liso'`), como na prancheta do designer.
    Só prévia: a arte do franqueado usa os dados dele e, vazio, o valor padrão. */
 const F_AMOSTRA_PREVIEW = {
   produto:'X-Burger Especial', detalhes:'com batata frita', precoPor:'Por: R$ 24,90',
   precoDe:'De: R$ 32,90', cupom:'BEMVINDO10', desconto:'20'
 };
+/* O PAPEL do campo, não um caso real: "PRODUTO", "DETALHES", "descrição…" — a mesma leitura da
+   prancheta do designer. Um "X-Burger Especial" na vitrine de uma pizzaria vendia o que a loja
+   não tem. Preço fica FORA de propósito: o bloco de preço segue com o exemplo de antes.
+   Motor único da amostra genérica — a miniatura e a prévia ao vivo (fLpInjectPlaceholders) leem daqui. */
+function fAmostraGenerica(nome){
+  const s=String(nome||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\s_-]+/g,'');
+  if(/^descri/.test(s)) return 'descrição sobre o produto/combo/o que inclui/ingredientes etc...';
+  if(/^detalhe/.test(s)) return 'DETALHES';
+  if(/^(nome)?(do)?(produto|item|prato|lanche|combo|sabor|titulo)/.test(s)) return 'PRODUTO';
+  return null;
+}
 function fSampleDadosForLayers(layers){
   const out={};
   const names=(typeof dExtractTemplateVars==='function')?dExtractTemplateVars(layers):[];
   names.forEach(n=>{
     const v=(typeof dVars!=='undefined'&&dVars)?dVars.find(x=>x.name===n):null;
-    if(v&&v.type==='image'){
-      const ehLogo=(typeof gCampoEhLogo==='function')?gCampoEhLogo(n):/logo/i.test(n);
-      const demo=(typeof fDemoImgsPara==='function')?fDemoImgsPara(ehLogo)[0]:null;
-      // URL absoluta: o motor só aceita data:/blob:/http(s) no valor do campo de imagem.
-      if(demo) out[n]=new URL(demo.src, location.href).href;
-      return;
-    }
+    if(v&&v.type==='image') return;   // moldura vazia → cinza liso (ver acima)
+    const gen=fAmostraGenerica(n);
+    if(gen){ out[n]=gen; return; }
     if(v&&v.example!=null&&v.example!==''){ out[n]=String(v.example); return; }
     if(F_AMOSTRA_PREVIEW[n]){ out[n]=F_AMOSTRA_PREVIEW[n]; return; }
     out[n]=(typeof gFieldSampleValue==='function')?gFieldSampleValue(v||{name:n}):((v&&(v.label||n))||n);

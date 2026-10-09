@@ -674,7 +674,7 @@ function fRenderMaterialCatalog(camp, container){
       }
       if(card) card.classList.add('is-rendering'); // fetch tardou → mostra estado de render agora
       try{
-        Promise.resolve(fRenderPreviewToCanvas(cv, m, {maxPx:520, camp:{color:camp.color||'#FF9000'}, dados:m._demoDados, scope:'franqueado'}))
+        Promise.resolve(fRenderPreviewToCanvas(cv, m, {maxPx:520, camp:{color:camp.color||'#FF9000'}, dados:m._demoDados, scope:'franqueado', molduraVazia:'liso'}))
           .then(ok=>{ if(card){ card.classList.remove('is-rendering'); card.classList.add(ok===false?'has-preview-error':'has-preview'); } }) // o render engole o erro e devolve false
           .catch(()=>{ if(card){ card.classList.remove('is-rendering'); card.classList.add('has-preview-error'); } });
       }catch(e){
@@ -705,8 +705,13 @@ function fRenderMaterialCard(material, camp){
   // ficava encaixada com faixas laterais na cor da campanha.
   const [_mw,_mh]=(typeof fMaterialSize==='function')?fMaterialSize(material):[1080,1920];
   const _orient=_mh>=_mw?'retrato':'paisagem';
-  return `<button class="f-mat-card${renderState}" type="button" onclick="fSelectMaterial('${gEscJs(material.id)}',this)" aria-label="Personalizar ${gEsc(material.name)}, formato ${gEsc(fmtName)}">
+  // 3-pontos (só DM staff, material real): arquivar direto da vitrine. Botão dentro de botão é
+  // HTML inválido — por isso o card é div role=button, o mesmo padrão do .camp-card.
+  const _admin=!material._demo && typeof gIsAdmin==='function' && gIsAdmin();
+  const adminBtn=_admin?`<button type="button" class="camp-admin-btn f-mat-admin-btn" onclick="fMatAdminMenu(event,'${gEscJs(material.id)}')" aria-label="Ações do material" title="Ações do material"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>`:'';
+  return `<div class="f-mat-card${renderState}" role="button" tabindex="0" onclick="fSelectMaterial('${gEscJs(material.id)}',this)" onkeydown="if(event.target!==this)return;if(event.key==='Enter'||event.key===' '){event.preventDefault();fSelectMaterial('${gEscJs(material.id)}',this)}" aria-label="Personalizar ${gEsc(material.name)}, formato ${gEsc(fmtName)}">
     <div class="f-mat-preview">
+      ${adminBtn}
       <div class="f-mat-thumb f-mat-thumb-${material.fmt||'story'} f-mat-thumb-${_orient}" style="background:${gSafeColor(camp.color)};aspect-ratio:${_mw}/${_mh}">
         ${isNew?`<div class="f-mat-new">Novo</div>`:''}
         <div class="f-mat-thumb-prod">${gEsc(camp.previewProd||camp.name)}</div>
@@ -728,7 +733,47 @@ function fRenderMaterialCard(material, camp){
         ${validadeLabel}
       </div>
     </div>
-  </button>`;
+  </div>`;
+}
+/* ── ARQUIVAR MATERIAL (3-pontos, só DM staff) ──
+   Arquivar = despublicar (publishMeta.publicado=false): some da vitrine de todo mundo e fica
+   no Estúdio como rascunho, de onde volta pelo "Publicar". Mesmo caminho do
+   dToggleTemplatePublish do Estúdio — dPersistFolders salva e sobe (gated gIsAdmin lá dentro);
+   a RLS é a fronteira real. Reaproveita o menu flutuante da campanha (.camp-admin-menu). */
+function fMatAdminMenu(ev, materialId){
+  try{ ev.stopPropagation(); ev.preventDefault(); }catch(e){}
+  if(typeof fCloseCampAdminMenu==='function') fCloseCampAdminMenu();
+  const btn=ev.currentTarget;
+  const menu=document.createElement('div');
+  menu.className='camp-admin-menu';
+  menu.innerHTML=`<button type="button" onclick="fCloseCampAdminMenu();fArchiveMaterial('${gEscJs(materialId)}')">${typeof _ICO_ARCHIVE!=='undefined'?_ICO_ARCHIVE:''}<span>Arquivar material</span></button>`;
+  document.body.appendChild(menu);
+  if(btn){
+    const r=btn.getBoundingClientRect();
+    menu.style.top=(r.bottom+4)+'px';
+    menu.style.left=Math.max(8, Math.min(r.right-menu.offsetWidth, window.innerWidth-menu.offsetWidth-8))+'px';
+  }
+  setTimeout(()=>{ document.addEventListener('click', fCloseCampAdminMenu, {once:true}); document.addEventListener('keydown', _fCampMenuEsc); }, 0);
+}
+function _fMatSetPublicado(materialId, publicado){
+  if(typeof gIsAdmin!=='function' || !gIsAdmin()) return null;
+  const f=(typeof dFolders!=='undefined'&&dFolders)?dFolders.find(x=>x&&(x.templates||[]).some(t=>t.id===materialId)):null;
+  const t=f&&f.templates.find(x=>x.id===materialId);
+  if(!t){ gToast('Não achei esse material.','error'); return null; }
+  if(!t.publishMeta) t.publishMeta=(typeof dDefaultPublishMeta==='function')?dDefaultPublishMeta():{};
+  t.publishMeta.publicado=publicado;
+  if(typeof dPersistFolders==='function') dPersistFolders();
+  // Re-desenha a pasta aberta (o card sai/volta) e a vitrine por trás (a contagem muda).
+  const mv=document.getElementById('f-material-view');
+  if(fState.materialView && mv && fState.camp && fState.camp.id) fRenderMaterialCatalog(fState.camp, mv);
+  if(typeof fRestoreCatalog==='function') fRestoreCatalog();
+  return t;
+}
+function fArchiveMaterial(materialId){
+  const t=_fMatSetPublicado(materialId, false);
+  if(!t) return;
+  gToast(`Material "${t.name}" arquivado.`, null, null,
+    {acao:{rotulo:'Desfazer', onClick:()=>{ if(_fMatSetPublicado(materialId, true)) gToast('Material de volta na vitrine.'); }}});
 }
 function fCloseMaterialCatalog(){
   fState.materialView=false;

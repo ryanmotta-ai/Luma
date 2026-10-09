@@ -2817,17 +2817,12 @@ function fLpInjectPlaceholders(layers, dadosPreview, defaults){
   const orig = fState.dados || {};
   
   (layers || []).forEach(l => {
-    // Processamento de variáveis de imagem/moldura vazias: injeta a capa da campanha como fallback visual realista
+    /* Moldura vazia: só marca como pendente. A capa da campanha NÃO entra mais como "foto"
+       (saiu em 10/2026): banner de campanha dentro da moldura do produto confundia, e sem capa
+       a moldura ficava invisível. Agora o motor desenha o convite cinza ("Use aqui sua foto…"). */
     if ((l.type === 'image' || l.type === 'frame') && l.imgVar) {
-      const name = l.imgVar;
-      const val = orig[name];
-      const vazio = (val == null || val === '');
-      if (vazio) {
-        pendentes.add(l.id);
-        if (fState.camp && fState.camp.cover) {
-          dadosPreview[name] = fState.camp.cover;
-        }
-      }
+      const val = orig[l.imgVar];
+      if (val == null || val === '') pendentes.add(l.id);
     }
     
     // Processamento de variáveis de texto
@@ -2855,10 +2850,16 @@ function fLpInjectPlaceholders(layers, dadosPreview, defaults){
            ⚠ Só quando a camada é o campo INTEIRO: em "De {{de}} por", o `layoutRefText` guarda a
            frase montada ("De R$ 49,90 por") e usá-la como valor do campo produziria
            "De De R$ 49,90 por por". */
+        /* O PAPEL do campo ("PRODUTO", "DETALHES"…), não um lanche de dicionário — mesmo motor da
+           miniatura. A palavra curta cabe em qualquer caixa, então vence até o texto do designer;
+           a descrição (frase longa) só entra se o designer não compôs nada — pode não caber. */
+        const gen=(typeof fAmostraGenerica==='function')?fAmostraGenerica(name):null;
+        if(!ex && gen && !/\s/.test(gen)) ex=gen;
         if(!ex && l.layoutRefText){
           const so=new RegExp('^\\s*\\{\\{\\s*'+name+'(?::[a-zA-Z0-9_]+)?\\s*\\}\\}\\s*$');
           if(so.test(String(l.content||''))) ex=String(l.layoutRefText).trim();
         }
+        if(!ex && gen) ex=gen;
 
         if(!ex){
           // 1ª Linha de Defesa: Primeira sugestão da pergunta da campanha ativa (se disponível)

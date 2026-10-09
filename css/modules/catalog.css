@@ -292,3 +292,7 @@ body:not(.theme-light) #f-material-view .f-mat-empty-icon{color:var(--dm-orange)
   .f-mat-preview-loading span{animation:none}
 }
 /* ══ /CATÁLOGO DE MATERIAIS ══ */
+/* 3-pontos do material (materials.js: fMatAdminMenu). Herda .camp-admin-btn; aqui só a posição
+   (canto da arte, sem o favorito ao lado) e o hover do card de material. */
+.f-mat-admin-btn{top:12px;right:12px}
+.f-mat-card:hover .f-mat-admin-btn,.f-mat-card:focus-within .f-mat-admin-btn{opacity:1}
