@@ -219,15 +219,24 @@ function fUploadPanelNewFile(){
   fCloseUploadPanel();
   if(inp) inp.click();
 }
-/* Aplica a foto de exemplo pelo MESMO caminho do upload (`_fApplyImageToField`): daqui
-   para frente ela é uma foto como outra qualquer — entra na prévia, no PNG e no rascunho. */
+/* A foto de exemplo entra pelo MESMO motor do upload (`fProcessImageFile`): baixa o asset,
+   vira File e sai como data:image redimensionada — daí em diante é uma foto como outra
+   qualquer (prévia, PNG, rascunho, histórico).
+   ⛔ Antes ia o caminho cru ('assets/demo/…'): o motor da arte só aceita data:/blob:/http(s)
+   no campo de imagem, então a moldura ficava VAZIA — a foto "não dava pra usar". */
 function fPickDemoImg(id){
   const d=F_DEMO_IMGS.find(x=>x.id===id);
   const varId=_fUpPanelVar, uploadId=_fUpPanelUploadId;
   fCloseUploadPanel();
-  if(!d) return;
-  if(typeof _fApplyImageToField==='function') _fApplyImageToField(varId, uploadId, d.src);
-  if(typeof gToast==='function') gToast('Foto de exemplo aplicada — troque pela real antes de publicar');
+  if(!d || !varId) return;
+  fetch(d.src)
+    .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.blob(); })
+    .then(blob=>{
+      const nome=d.src.split('/').pop()||'exemplo.jpg';
+      fProcessImageFile(new File([blob], nome, {type:blob.type||'image/jpeg'}), varId, uploadId);
+      if(typeof gToast==='function') gToast('Foto de exemplo aplicada — troque pela real antes de publicar');
+    })
+    .catch(()=>{ if(typeof gToast==='function') gToast('Não consegui carregar a foto de exemplo. Envie uma foto sua.','error'); });
 }
 /* Arquivo ainda não colocado em assets/demo: tira a miniatura e, se não sobrar nenhuma,
    tira a seção. Uma faixa com quadrado quebrado numa apresentação é pior que faixa nenhuma. */
