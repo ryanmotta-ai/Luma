@@ -827,13 +827,19 @@ async function fFitTextWithAI(comIA){
      que o botão tem. A troca é um toque, e o rodapé diz quanto ainda passa. */
   const perto=(!cf && !comIA && typeof fLpBalaoPerto==='function') ? fLpBalaoPerto(id) : null;
   if(perto){
-    _fFitOpts=[perto.text]; _fFitSai=[perto.removidas]; _fFitCf=null; _fFitPerto=true;
+    /* CORTE MÍNIMO DE UM TOQUE (10/10/2026): quando tirar UMA palavra da versão faz caber, ela vem
+       PRIMEIRO, já pronta — antes a dica dizia "tire X" e a pessoa tinha que editar à mão. */
+    const T=perto.n>0&&perto.tire&&perto.tire.seguro?perto.tire:null;
+    const dica=perto.n>0&&perto.tire&&!T?perto.tire.palavra:null;
+    _fFitOpts=T?[T.text, perto.text]:[perto.text];
+    _fFitSai=T?[perto.removidas.concat(T.palavra), perto.removidas]:[perto.removidas];
+    _fFitCf=null; _fFitPerto=true;
     const sai=_fFitSaiVisivel(perto.removidas);
-    _fFitPop(btn, 'Quase cabe',
-      (sai.length ? 'Sai: '+sai.join(', ')+'. ' : '')
-      +(perto.n>0 ? (perto.tire ? 'Ainda passa '+perto.n+(perto.n===1?' letra':' letras')+' — use esta versão e tire “'+perto.tire+'” que cabe. '
-                                : 'Ainda passa '+perto.n+(perto.n===1?' letra':' letras')+' — use esta versão e tire mais um pouco. ') : '')
-      +'Seu texto só muda se você escolher.', podeIA);
+    _fFitPop(btn, T ? 'Cabe sem “'+T.palavra+'”' : 'Quase cabe',
+      T ? 'A 1ª cabe na arte (sai: '+_fFitSaiVisivel(_fFitSai[0]).join(', ')+'). A 2ª ainda passa '+perto.n+(perto.n===1?' letra':' letras')+'. Seu texto só muda se você escolher.'
+        : (sai.length ? 'Sai: '+sai.join(', ')+'. ' : '')
+          +(perto.n>0 ? 'Ainda passa '+perto.n+(perto.n===1?' letra':' letras')+(dica ? ' — use esta versão e tire “'+dica+'” que cabe. ' : ' — use esta versão e tire mais um pouco. ') : '')
+          +'Seu texto só muda se você escolher.', podeIA);
     return;
   }
   // Sem IA, sem espera: a versão já foi medida pela prévia. O que saiu vai no rodapé.

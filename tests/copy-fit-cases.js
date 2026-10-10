@@ -38,9 +38,12 @@
     [/^(combinados?|combos?)$/, 'combo'], [/^(pe[cç]as|p[cç]s)$/, 'pcs'], [/^(acompanhamentos?|acomp)$/, 'acomp'],
     [/^(entrega|frete)$/, 'frete'], [/^real$/, 'r']
   ];
-  const canon = w => { for(const [re, c] of CANON) if(re.test(w)) return c; return w; };
+  // Item de pedido no plural ≡ singular ("2 pizzas" ≡ "2x pizza", 10/10/2026): a quantidade é o número.
+  const sing = w => ({ 'pastéis':'pastel', 'pasteis':'pastel', 'porções':'porção', 'porcoes':'porcao' }[w]
+    || (w !== 'fritas' && ITEM.test(w) && /s$/.test(w) && !/^x-/.test(w) ? w.slice(0, -1) : w));
+  const canon = w => { for(const [re, c] of CANON) if(re.test(w)) return c; return sing(w); };
   /* "2L" / "500ml" / "2x": o número some da conta (a guarda cuida dele), a unidade fica. */
-  const semNum = w => w.replace(/^[\d.,/]+(?=\p{L})/u, '');
+  const semNum = w => /^\d+x$/i.test(w) ? '' : w.replace(/^[\d.,/]+(?=\p{L})/u, '');   // "2x" é número
   /* Estar na lista não basta: "com", "apenas" e o enfeite só podem sair NA POSIÇÃO certa. Sem
      isso a suíte aprovava "Café + leite", "Frete grátis para o centro" e "Pizza" (de "Pizza
      Especial"). Estas regras são a especificação, escritas à parte do motor. */
@@ -405,7 +408,7 @@
       ['X-Tudo com batata e refrigerante 2 litros por apenas R$ 39,90', 'X-Tudo + batata + refri 2L R$ 39,90'],
       ['X-Salada com Refrigerante Lata por apenas R$ 19,90', 'X-Salada + Refri Lata R$ 19,90'],
       ['Hamburger de picanha 200g', 'Burger de picanha 200g'], ['HAMBURGERS', 'BURGERS'],
-      ['Refrigerante de 2 litros', 'Refrigerante 2L'], ['Burger com 2 refrigerantes de 600 ml', 'Burger com 2 refris 600ml'],
+      ['Refrigerante de 2 litros', 'Refrigerante 2L'], ['Burger com 2 refrigerantes de 600 ml', 'Burger com 2x refri 600ml'],
       ['Na compra de 2 açaís de 500ml ganhe 1 de 300ml', 'Na compra de 2 açaís 500ml ganhe 1 de 300ml'],
       ['Ganhe R$ 20 de desconto', 'Ganhe R$ 20 OFF'],
       ['Pizza de Frango e Milho tamanho grande', 'Pizza de Frango e Milho tamanho G'],
@@ -728,6 +731,18 @@
     assert(textos('Aproveite o almoço').every(t => /Aproveite/.test(t)), 'tirou verbo com objeto');
     assert(!gCopyFitConfere('Pizza R$ 39,90', 'Pizza R$ 39').ok, 'aceitou cortar centavo de verdade');
     assert(gCopyFitConfere('Pizza R$ 39,00', 'Pizza R$ 39').ok, 'recusou ,00');
+  });
+
+  test('Quantidade (10/10): "2 burgers" → "2x burger"; regra da oferta e adjetivo no plural ficam', () => {
+    const tem = (f, t) => assert(textos(f).includes(t), '"' + f + '" deveria ter "' + t + '": ' + textos(f).join(' | '));
+    tem('2 Hambúrgueres + 2 refrigerantes', '2x Burger + 2x refri');
+    tem('10 coxinhas', '10x coxinha');
+    tem('3 PASTÉIS', '3X PASTEL');
+    assert(!textos('Leve 3 pizzas').some(t => /3x/i.test(t)), '"Leve 3" é a regra da oferta');
+    assert(!textos('2 pizzas grandes').some(t => /2x pizza grandes/i.test(t)), 'deixou "pizza grandes"');
+    assert(!textos('1 pizza').length, 'mexeu em quantidade 1');
+    assert(gCopyFitConfere('2 pizzas e 2 refris', '2x pizza e 2x refri').ok, 'confere recusou 2x');
+    assert(!gCopyFitConfere('2 pizzas', '3x pizza').ok, 'confere aceitou quantidade mudada');
   });
 
   test('Descritor (D6): o motor tira "cremoso/crocante" e diz o que saiu; nunca mexe no que não é da lista', () => {

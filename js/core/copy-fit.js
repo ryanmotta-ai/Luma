@@ -114,6 +114,14 @@ const _G_CF_TAM_RX = G_CF_TAMANHOS.map(([p, letra]) => [new RegExp('((?<!(?:casa
 /* Item de PEDIDO — só antes dele o "com" vira "+". "Café com leite", "Combinado com salmão",
    "Pizza doce com morango": ali o "com" é composição, e o "+" venderia duas coisas. */
 const G_CF_ITENS = 'refris?|refrigerantes?|batatas?|fritas|sucos?|burgers?|hamb[uú]rgueres|hamb[uú]rgu?ers?|pizzas?|por[cç](?:[aã]o|[oõ]es)|sobremesas?|bebidas?|guaran[aá]s?|coca-cola|cocas?|milk-?shakes?|a[cç]a[ií]s?|sorvetes?|past[eé]is|pastel|esfihas?|coxinhas?|x-\\p{L}+';
+/* Singular de ITEM de pedido (só os da lista acima — não é um lematizador). */
+function _gCfSingular(w){
+  const l = String(w).toLowerCase();
+  const irreg = { 'pastéis':'pastel', 'pasteis':'pastel', 'porções':'porção', 'porcoes':'porcao', 'hambúrgueres':'hambúrguer', 'hamburgueres':'hamburguer', 'refris':'refri' };
+  if(irreg[l]) return irreg[l];
+  if(l === 'fritas') return l;                       // "fritas" sozinho é o item ("porção de fritas")
+  return /s$/.test(l) && !/^x-/.test(l) ? l.slice(0, -1) : l;
+}
 /* Palavra de ligação: o enfeite depois dela ainda está ANTEPOSTO ("Leve um delicioso X-Tudo"). */
 const _G_CF_LIGA = /^(?:o|a|os|as|um|uma|uns|umas|de|do|da|dos|das|no|na|nos|nas|e|em|com|para|pra|seu|sua|seus|suas|\+)$/iu;
 const _gCfNu = w => String(w || '').replace(/^[^\p{L}\d]+|[^\p{L}\d]+$/gu, '');
@@ -252,6 +260,21 @@ const _G_CF_DEGRAUS = [
     G_CF_CURTAS.forEach(([p, curta]) => {
       t = t.replace(_gCfRe(p), (m, pre, w) => { const n = _gCfCaixa(w, curta); r.trocas.push([w, n]); return pre + n; });
     });
+    /* QUANTIDADE (10/10/2026): "2 burgers" → "2x burger", "3 Pizzas" → "3x Pizza". Só N ≥ 2 colado a
+       ITEM de pedido no plural, e nunca depois de leve/pague/compre (é a REGRA da oferta: "Leve 3
+       pizzas" fica) nem antes de adjetivo que concorda no plural ("2 pizzas grandes" viraria
+       "2x pizza grandes" — o degrau tamanho já dá "2 pizzas G"). */
+    // O número tem que ABRIR a quantidade: começo do trecho, depois de pontuação, "+" ou palavra de
+    // ligação ("com 2 refris"). "Top 10 pizzas" é nome — a suíte pegou.
+    t = t.replace(_gCfRx('(^|[,:;.!?+(\\n]\\s*|(?:^|' + _G_CF_L + ')(?:com|e|ou|mais|de|\\+)\\s+)(?<!(?:leve|pague|compre|ganhe)\\s+)([2-9]|\\d{2,})\\s+(' + G_CF_ITENS + ')' + _G_CF_FIM
+      + '(?!\\s+\\p{L}*s' + _G_CF_FIM + ')', 'giu'),
+      (m, pre, n, item) => {
+        const sing = _gCfSingular(item);
+        if(sing === item.toLowerCase()) return m;                 // já estava no singular: nada a ganhar
+        const alto = _gCfCaixa(item, sing);                       // "PASTÉIS" → "PASTEL" pede "3X"
+        const novo = n + (alto === alto.toUpperCase() && alto.length > 1 ? 'X ' : 'x ') + alto;
+        r.trocas.push([n + ' ' + item, novo]); return pre + novo;
+      });
     return t;
   }},
   { id:'lista', fn:(s, r) => {
@@ -418,9 +441,13 @@ function _gCfPalavras(s){
   t = t.replace(_gCfRe('reais|real'), (m, pre) => pre + 'r');
   t = t.replace(_gCfRx('(?<=^|[.!?:]\\s*)(aproveite|pe[cç]a\\s+j[aá])[!.:,]+(?=\\s|$)', 'giu'), '');
   t = t.replace(_gCfRx('(^|' + _G_CF_L + ')das\\s+(?=\\d{1,2}h)', 'giu'), (m, pre) => pre);
+  // "2x" ≡ "2" (a troca de quantidade do degrau curtas). O número é da guarda; o "x" não é palavra.
+  t = t.replace(/(^|[^\p{L}\d])(\d+)x(?=\s)/giu, '$1$2');   // "x"/"X"
   return t.replace(/\n/g, ' \n ').split(/[^\S\n]+/).filter(Boolean).map(raw => {
     const nu = _gCfNu(raw), w = nu.replace(/^[\d.,/]+(?=\p{L})/u, '');   // "2L" → "l": o número é da guarda
     let chave = /\p{L}/u.test(w) ? w.toLowerCase() : '';
+    // Item de pedido no plural ≡ singular ("2 pizzas" ≡ "2x pizza"): a quantidade é o número.
+    if(chave && _gCfRx('^(?:' + G_CF_ITENS + ')$', 'iu').test(chave)) chave = _gCfSingular(chave);
     for(const [re, c] of _G_CF_CANON) if(chave && re.test(chave)){ chave = c || _G_CF_DIA3[chave.slice(0, 3).replace('á', 'a')] || chave; break; }
     return { raw, nu, chave };
   });

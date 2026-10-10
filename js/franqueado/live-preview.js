@@ -1646,7 +1646,7 @@ function _fLpSyncBalao(){
           const lim=gLocalFitMaiorPrefixo(perto.text,t=>{ const r=perto.cabe(t); return !!(r&&r.ok); }).limite;
           const n=Math.max(0,perto.text.length-lim);
           _lpBalao.perto={campo:perto.campo, fieldId:perto.fieldId, valor:perto.valor, text:perto.text,
-            removidas:perto.removidas, limite:lim, n, tire:n>0?_fLpTireUma(perto.text,perto.cabe):null};
+            removidas:perto.removidas, limite:lim, n, tire:n>0?_fLpTireUma(perto.text,perto.cabe,perto.valor):null};
         }catch(e){}
       }
     }
@@ -1801,17 +1801,28 @@ function fLpBalaoSolucao(bloqueio){
 /* "TIRE X E CABE" (Local Fit 2.1, 10/10/2026). Em metade dos bloqueios de produção faltavam ≤6
    letras: "ainda passa 4 letras" não diz QUAL palavra tirar. Testa tirar UMA palavra de cada vez
    (só palavra com letra, ≥3; nunca número, preço nem {{campo}}) e devolve a MENOR que faz caber.
-   ⛔ É DICA, nunca troca: a pessoa decide e edita — tirar item é escolha de quem vende, então
-   aqui não passa pelo confere (o confere protege o que o Luma troca sozinho). Até 14 medições,
+   Devolve {palavra, text, seguro}. `seguro` = o corte passa no `gCopyFitConfere` contra o que a
+   pessoa DIGITOU (não some item, sabor nem número): só aí o "Quase cabe" oferece `text` como opção
+   de UM toque (10/10/2026). Sem `seguro`, continua só a dica — tirar sabor é escolha de quem vende. Até 14 medições,
    só no bloqueio sem versão e só quando a chave do balão muda. */
-function _fLpTireUma(texto, cabe){
+function _fLpTireUma(texto, cabe, digitado){
   const ws=String(texto||'').split(' ');
   const cand=ws.map((w,i)=>({w,i,nu:w.replace(/^[^\p{L}]+|[^\p{L}]+$/gu,'')}))
-    .filter(x=>x.nu.length>=3&&!/\d|\{\{|R\$/i.test(x.w))
+    /* Nunca o ITEM ("Pizza", "Burger") nem a 1ª palavra (o nome do produto): a suíte pegou
+       "Super Pizza Calabresa" virando "Calabresa Mussarela" como 1ª opção de um toque. */
+    .filter(x=>x.i>0&&x.nu.length>=3&&!/\d|\{\{|R\$/i.test(x.w)
+      &&!(typeof G_CF_ITENS==='string'&&new RegExp('^(?:'+G_CF_ITENS+')$','iu').test(x.nu)))
     .sort((a,b)=>a.nu.length-b.nu.length).slice(0,14);
   for(const x of cand){
     const t=ws.filter((_,j)=>j!==x.i).join(' ');
-    try{ const r=cabe(t); if(r&&r.ok) return x.nu; }catch(e){}
+    try{
+      const r=cabe(t);
+      if(r&&r.ok){
+        const text=typeof _gCfLimpa==='function'?_gCfLimpa(t):t;
+        const seguro=typeof gCopyFitConfere==='function'&&gCopyFitConfere(digitado||texto,text).ok;
+        return {palavra:x.nu, text, seguro};
+      }
+    }catch(e){}
   }
   return null;
 }
