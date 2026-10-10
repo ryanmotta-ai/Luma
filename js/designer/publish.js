@@ -721,13 +721,15 @@ function dPublishRenderPerms(){
     dExtractTemplateVars(dLayers).forEach(v=>allVars.add(v));
   }
   const vars=[...allVars];
+  const medido=_dPubCabeMedido(vars);
   if(!vars.length){
     permList.innerHTML='<div class="pub-empty">As pranchetas selecionadas não têm variáveis editáveis ({{nome}}).</div>';return;
   }
   permList.innerHTML=_dPermBar()+vars.map(v=>{
     const vDef=(dVars||[]).find(x=>x.name===v);
     const isImage=vDef?vDef.type==='image':false;
-    if(!dPubPermissoes[v]) dPubPermissoes[v]={edit:true,maxLen:isImage?0:((vDef&&vDef.maxLen>0)?vDef.maxLen:32)}; // imagem não usa maxLen de texto; nasce do limite do campo
+    // Imagem não usa maxLen; texto nasce do que CABE medido (3.1) e, sem medida, do limite do campo.
+    if(!dPubPermissoes[v]) dPubPermissoes[v]={edit:true,maxLen:isImage?0:(medido[v]||((vDef&&vDef.maxLen>0)?vDef.maxLen:32))};
     const perm=dPubPermissoes[v];
     const label=vDef?vDef.label:v;
     return `<div class="pub-perm-row">
@@ -744,13 +746,45 @@ function dPublishRenderPerms(){
         <input type="number" min="1" max="200" value="${perm.maxLen||32}" onchange="dPublishUpdatePerm('${v}','maxLen',parseInt(this.value)||32)" ${!perm.edit?'disabled':''}>
         <span>chars</span>
       </div>`}
+      ${(!isImage&&medido[v]&&perm.edit)?`<div class="pub-perm-key"${perm.maxLen>medido[v]?' style="color:var(--dm-orange-d)"':''}>${perm.maxLen>medido[v]?'Acima do que cabe: ':''}cabem ~${medido[v]}</div>`:''}
     </div>`;
   }).join('');
+}
+/* "CABEM ~N" (Local Fit 3.1, 10/10/2026). O limite publicado nascia em 32 digitado à mão e
+   passava por cima da caixa — o template da Copa liberou 32 num preço onde cabem ~12, e respondeu
+   por 2/3 dos bloqueios de produção. Mede cada campo de texto com a MESMA régua do franqueado
+   (`gLocalFitDiagnostico`, frase de estresse inteira, demais campos no exemplo). D1: só avisa —
+   o designer pode publicar acima; o modal mostra "Acima do que cabe". Campo de preço fica de
+   fora (tem máscara e teto próprio). Prancheta ativa só: medir todas custaria um Local Fit por
+   prancheta a cada abertura. */
+function _dPubCabeMedido(vars){
+  const out={};
+  try{
+    if(typeof gLocalFitArte!=='function'||typeof gLocalFitDiagnostico!=='function'||typeof gApplyRelativeAnchors!=='function') return out;
+    const ab=(typeof dGetActiveAB==='function')?dGetActiveAB():null;
+    const base=(typeof DFMT_SIZES!=='undefined'&&DFMT_SIZES[dFmt])||{w:1080,h:1920};
+    const cv={w:(ab&&ab.w)||base.w,h:(ab&&ab.h)||base.h};
+    const defaults=(typeof gVarDefaults==='function')?gVarDefaults():null;
+    const exemplo={};
+    vars.forEach(v=>{ exemplo[v]=gFieldSampleValue((dVars||[]).find(x=>x.name===v)||{name:v}); });
+    vars.forEach(v=>{
+      const vDef=(dVars||[]).find(x=>x.name===v);
+      if(vDef&&vDef.type&&vDef.type!=='text') return;
+      if(!dLayers.some(l=>l&&l.type==='text'&&String(l.content||'').includes('{{'+v+'}}'))) return;
+      const dados=Object.assign({},exemplo,gStressValues([v],[Object.assign({},vDef||{name:v},{maxLen:0})]));
+      const r=gLocalFitArte(gApplyRelativeAnchors(dLayers.map(l=>({...l})),dados,defaults,{canvas:cv}),{canvas:cv,dados,defaults});
+      const b=((r.result||{}).bloqueios||[]).find(x=>(typeof gLocalFitCulpado==='function'?gLocalFitCulpado(x,dados):null)===v);
+      if(!b) return;                                   // a frase inteira cabe: o limite é do designer
+      const d=gLocalFitDiagnostico(r.layers,{bloqueios:[b]},dados,{canvas:cv,defaults,campo:v});
+      if(d&&d.limite>0) out[v]=d.limite;
+    });
+  }catch(e){ console.warn('[Luma] medida do limite:',e); }
+  return out;
 }
 function dPublishUpdatePerm(varName, key, value){
   if(!dPubPermissoes[varName]){ const vd=(dVars||[]).find(x=>x.name===varName); dPubPermissoes[varName]={edit:true,maxLen:(vd&&vd.maxLen>0)?vd.maxLen:32}; }
   dPubPermissoes[varName][key]=value;
-  if(key==='edit') dPublishRenderPerms();
+  if(key==='edit'||key==='maxLen') dPublishRenderPerms();
   if(typeof dPublishRefreshChecklist==='function')dPublishRefreshChecklist();
   dPublishQueueDraft();
 }

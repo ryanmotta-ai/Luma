@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roadmap Encurtar e Local Fit</title>
+<style>
+:root{--bg:#f7f6f3;--card:#fff;--tx:#1d1b18;--mut:#6b665e;--ln:#e4e0d8;--ac:#ea5b0c;--ok:#1f8a4c;--no:#b3261e;--talk:#9a6700;--chip:#f1eee8}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#151412;--card:#1e1c1a;--tx:#ece9e3;--mut:#a39e95;--ln:#34312c;--chip:#2a2723}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:920px;margin:0 auto;padding:32px 16px 120px}
+h1{font-size:26px;margin:0 0 4px}
+h2{font-size:18px;margin:36px 0 4px}
+.sub{color:var(--mut);margin:0 0 20px}
+.fato{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin:16px 0}
+.fato div{background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:12px}
+.fato b{display:block;font-size:22px}
+.fato span{color:var(--mut);font-size:13px}
+.fase-desc{color:var(--mut);margin:0 0 12px;font-size:14px}
+.item{background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:14px 16px;margin:8px 0;border-left:4px solid var(--ln)}
+.item[data-v="sim"]{border-left-color:var(--ok)}
+.item[data-v="nao"]{border-left-color:var(--no);opacity:.65}
+.item[data-v="conversar"]{border-left-color:var(--talk)}
+.top{display:flex;gap:12px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
+.tit{font-weight:600}
+.id{color:var(--ac);font-weight:700;margin-right:6px}
+.det{color:var(--mut);font-size:14px;margin:6px 0 0}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.tag{background:var(--chip);border-radius:999px;padding:2px 9px;font-size:12px;color:var(--mut)}
+.tag.dec{color:var(--talk);font-weight:600}
+.vot{display:flex;gap:4px}
+.vot button{font:inherit;font-size:13px;border:1px solid var(--ln);background:transparent;color:var(--tx);border-radius:8px;padding:5px 10px;cursor:pointer}
+.vot button:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.vot button[aria-pressed="true"][data-v="sim"]{background:var(--ok);border-color:var(--ok);color:#fff}
+.vot button[aria-pressed="true"][data-v="nao"]{background:var(--no);border-color:var(--no);color:#fff}
+.vot button[aria-pressed="true"][data-v="conversar"]{background:var(--talk);border-color:var(--talk);color:#fff}
+.dec-card{background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:14px 16px;margin:8px 0}
+.dec-card p{margin:4px 0 10px;color:var(--mut);font-size:14px}
+.dec-card label{display:block;padding:4px 0;cursor:pointer}
+.fora li{color:var(--mut);margin:4px 0}
+code{background:var(--chip);border-radius:4px;padding:0 4px;font-size:13px}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--ln);padding:10px 16px}
+.bar div{max-width:920px;margin:0 auto;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.bar button{font:inherit;background:var(--ac);color:#fff;border:0;border-radius:8px;padding:9px 16px;cursor:pointer;font-weight:600}
+#cont{color:var(--mut);font-size:14px}
+textarea{width:100%;min-height:60px;margin-top:6px;font:inherit;font-size:14px;background:var(--bg);color:var(--tx);border:1px solid var(--ln);border-radius:8px;padding:8px}
+</style>
+</head>
+<body>
+<main>
+<h1>Roadmap: Encurtar e Local Fit</h1>
+<p class="sub">10/10/2026 · vem do brainstorm + QA (<code>docs/BRAINSTORM-LOCAL-FIT-ENCURTAR-2026-10-10.md</code>) e dos dados de produção dos últimos 45 dias. Marque cada item e responda as decisões. No fim, "Copiar decisões" e cole na conversa.</p>
+
+<div class="fato">
+  <div><b>0 de 18</b><span>versões da IA aprovadas no Encurtar</span></div>
+  <div><b>0</b><span>vezes que o balão com a versão que cabe apareceu</span></div>
+  <div><b>21 de 31</b><span>bloqueios num template só (Copa, preço "de")</span></div>
+  <div><b>≤ 6 letras</b><span>faltavam em metade dos bloqueios medidos</span></div>
+</div>
+
+<h2>Fase 0: Enxergar</h2>
+<p class="fase-desc">Sem decisão pendente. É o que permite saber se as fases seguintes funcionaram.</p>
+<div id="f0"></div>
+
+<h2>Fase 1: O Encurtar passa a entregar versão</h2>
+<p class="fase-desc">Tira a IA e o balão do zero. Depende da decisão D6.</p>
+<div id="f1"></div>
+
+<h2>Fase 2: "Quase cabe" vira solução</h2>
+<p class="fase-desc">Para a metade dos casos em que faltam poucas letras.</p>
+<div id="f2"></div>
+
+<h2>Fase 3: O template já nasce cabendo</h2>
+<p class="fase-desc">O bloqueio mais barato é o que não é publicado. Depende da D1.</p>
+<div id="f3"></div>
+
+<h2>Fase 4: Motor, guiado pelo dado da Fase 0</h2>
+<p class="fase-desc">Só depois de ~2 semanas de telemetria nova.</p>
+<div id="f4"></div>
+
+<h2>Decisões suas</h2>
+<div id="dec"></div>
+
+<h2>Fora do roadmap (o QA derrubou)</h2>
+<ul class="fora">
+  <li><b>Alargar antes de encolher:</b> muda a arte de quem hoje cabe; risco visual maior que o ganho.</li>
+  <li><b>Recalcular o balão só na pausa da digitação:</b> 20–50 ms num bloqueio raro. Não compensa.</li>
+  <li><b>Pedir 5 opções à IA:</b> a reprovação não é por tamanho. Reavaliar depois do item 0.1.</li>
+  <li><b>Reconhecer adjetivo pelo final da palavra (-ado, -ito):</b> pega "palmito", "empanado", "picante". Trocado por lista fechada.</li>
+</ul>
+
+<h2>Observação livre</h2>
+<textarea id="obs" placeholder="Algo que faltou, ordem diferente…"></textarea>
+</main>
+
+<div class="bar"><div><span id="cont"></span><button type="button" id="copiar">Copiar decisões</button></div></div>
+
+<script>
+const FASES = {
+  f0: [
+    ['0.1','Gravar o motivo de cada reprovação da IA','Hoje o evento copyfit_ia só conta quantas foram reprovadas. Com o motivo ("sumiu: cremoso"), o próximo 0/18 aparece no painel em vez de precisar de investigação.','chat-input.js · 1 linha',''],
+    ['0.2','Telemetria diz qual campo e quanto faltou','layout_resolvido grava o campo sempre vazio porque a telemetria roda antes do diagnóstico. Acrescentar campo, eixo (largura/altura) e quanto faltou em px.','png-generator.js · auto-layout.js',''],
+    ['0.3','template_id no "copyfit_aplicado" do chat','Sem ele não dá para saber em qual template a versão encurtada foi aceita.','chat-input.js · 1 linha',''],
+    ['0.4','Avisar o designer do template da Copa','O preço "de" fica numa caixa de 386×46 a 35px e responde por 15 dos 31 bloqueios. Conserto no template, não em código.','ação humana','']
+  ],
+  f1: [
+    ['1.1','A conferência aceita tirar descritor depois do produto','Lista fechada (cremoso, crocante, acebolado/a, recheado/a, suculento, quentinho…), no mesmo padrão da lista de enfeites. Produto, sabor, número, tamanho e {{campo}} continuam intocáveis. A tela mostra "Sai: cremoso" e nada troca sem toque.','copy-fit.js','D6'],
+    ['1.2','O motor sem IA também tira descritor','Mesmo critério como último degrau, aplicado só sobre a versão mais curta (sem dobrar as 64 combinações). Faz o balão aparecer sem esperar a IA.','copy-fit.js','D6'],
+    ['1.3','Um prompt só, alinhado à conferência','Hoje há dois prompts (registro de IA e caminho legado) e nenhum diz o que a conferência cobra. Unificar e pedir exatamente o que vai ser aceito.','ai-registry.js · chat-input.js','D6'],
+    ['1.4','Casos novos na suíte do Copy Fit','"Burger c/ cheddar e bacon" aprova; "Brigadeiro Gourmet", "Calabresa", "batata frita" seguem protegidos. Entra no portão de CI.','tests/copy-fit-cases.js','']
+  ],
+  f2: [
+    ['2.1','"Tire X e cabe"','Quando falta pouco, testa tirar cada palavra dispensável, passa cada tentativa pela conferência e mostra a que cabe mexendo menos: "Tire \'crocante\' e cabe". Usa a mesma régua em pixel do balão.','copy-fit.js · live-preview.js',''],
+    ['2.2','O contador mostra o alvo antes de bloquear','Hoje o "cabem até N" só aparece depois que a arte trava. Medir enquanto digita, na mesma chave do balão.','chat-input.js · live-preview.js','']
+  ],
+  f3: [
+    ['3.1','O limite publicado nasce da medida','No modal de publicação, o campo de caracteres vem com o que cabe de verdade em vez de 32, com aviso se o designer digitar acima.','publish.js','D1'],
+    ['3.2','Teste de tensão com o pior caso real','Na publicação, roda a arte com "R$ 399,99" nos preços (teto atual) e texto do tamanho do limite. Se não couber, avisa com o número. Pegaria o template da Copa antes de ir para a rede.','publish.js · linter.js','D1'],
+    ['3.3','O checklist mede com o mesmo motor do franqueado','Hoje o checklist usa uma régua mais frouxa que a do franqueado. Unificar acaba com o "passou no Estúdio, travou na loja".','linter.js','']
+  ],
+  f4: [
+    ['4.1','Cadeia inválida não bloqueia a arte inteira','Hoje uma âncora mal configurada faz todos os textos da cadeia darem "não cabe", mesmo cabendo. Degradar para o encaixe isolado: bloqueio falso é o pior tipo.','local-fit.js',''],
+    ['4.2','Preço riscado pode encolher mais','15 dos 31 bloqueios são do preço "de". Encolher por causa de si mesmo não fere a regra "preço não encolhe por outro campo", mas há o risco de legibilidade (CDC).','local-fit.js','D3'],
+    ['4.3','Abreviações da marca','"Combo", "pçs", "R$ 25,00 → R$ 25", "40 reais → R$ 40", "11h às 15h". Tom de voz: decisão sua, item por item.','copy-fit.js','D5']
+  ]
+};
+const DEC = [
+  ['D6','O Encurtar pode tirar um descritor depois do produto?','Ex.: "cheddar cremoso" → "cheddar". Sempre com "Sai: cremoso" na tela e troca só com toque. Risco: às vezes o descritor é o nome do sabor ("Calabresa Acebolada").',['Sim, com lista fechada','Sim, mas sem "acebolado/recheado" (podem ser sabor)','Não, manter como está']],
+  ['D1','Template que não cabe no próprio limite: trava ou avisa a publicação?','Recomendação: só avisar, com o número, e já vir com o limite medido.',['Só avisa (recomendado)','Trava a publicação']],
+  ['D3','O preço riscado ("de") pode encolher abaixo do mínimo de hoje?','Resolveria a maior parte dos bloqueios, mas o preço riscado precisa continuar legível.',['Sim, até um mínimo legível','Não, consertar no template','Decidir depois da Fase 0']],
+  ['D5','Abreviações da marca (Fase 4.3)','"Combo", "pçs", "R$ 25", "R$ 40", "11h–15h".',['Liberar todas','Liberar só as de preço','Decidir depois']]
+];
+const K = 'roadmap-encurtar-lf-v1';
+let st = {}; try{ st = JSON.parse(localStorage.getItem(K)) || {}; }catch(e){}
+const salva = () => { try{ localStorage.setItem(K, JSON.stringify(st)); }catch(e){} conta(); };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const VOTOS = [['sim','Aprovo'],['conversar','Conversar'],['nao','Não']];
+
+for(const [fid, itens] of Object.entries(FASES)){
+  document.getElementById(fid).innerHTML = itens.map(([id, t, d, onde, dec]) => `
+    <div class="item" data-id="${id}" data-v="${st[id]||''}">
+      <div class="top">
+        <div class="tit"><span class="id">${id}</span>${esc(t)}</div>
+        <div class="vot" role="group" aria-label="Voto no item ${id}">
+          ${VOTOS.map(([v, r]) => `<button type="button" data-v="${v}" aria-pressed="${st[id]===v}">${r}</button>`).join('')}
+        </div>
+      </div>
+      <p class="det">${esc(d)}</p>
+      <div class="tags"><span class="tag">${esc(onde)}</span>${dec ? `<span class="tag dec">depende de ${dec}</span>` : ''}</div>
+    </div>`).join('');
+}
+document.getElementById('dec').innerHTML = DEC.map(([id, q, p, ops]) => `
+  <fieldset class="dec-card" style="border:1px solid var(--ln)">
+    <legend class="tit"><span class="id">${id}</span>${esc(q)}</legend>
+    <p>${esc(p)}</p>
+    ${ops.map(o => `<label><input type="radio" name="${id}" value="${esc(o)}" ${st[id]===o?'checked':''}> ${esc(o)}</label>`).join('')}
+  </fieldset>`).join('');
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('.vot button'); if(!b) return;
+  const it = b.closest('.item'), id = it.dataset.id;
+  st[id] = st[id] === b.dataset.v ? '' : b.dataset.v;
+  it.dataset.v = st[id];
+  it.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === st[id]));
+  salva();
+});
+document.addEventListener('change', e => { if(e.target.type === 'radio'){ st[e.target.name] = e.target.value; salva(); } });
+const obs = document.getElementById('obs'); obs.value = st.obs || '';
+obs.addEventListener('input', () => { st.obs = obs.value; salva(); });
+
+function conta(){
+  const ids = Object.values(FASES).flat().map(x => x[0]);
+  const n = ids.filter(i => st[i]).length, d = DEC.filter(x => st[x[0]]).length;
+  document.getElementById('cont').textContent = n + ' de ' + ids.length + ' itens marcados · ' + d + ' de ' + DEC.length + ' decisões';
+}
+conta();
+
+document.getElementById('copiar').addEventListener('click', async () => {
+  const nome = {sim:'APROVO', conversar:'CONVERSAR', nao:'NÃO'};
+  const linhas = ['Roadmap Encurtar/Local Fit: minhas decisões'];
+  Object.values(FASES).flat().forEach(([id, t]) => linhas.push(id + ' ' + t + ': ' + (nome[st[id]] || 'sem voto')));
+  DEC.forEach(([id, q]) => linhas.push(id + ': ' + (st[id] || 'sem resposta')));
+  if(st.obs) linhas.push('Obs: ' + st.obs);
+  const txt = linhas.join('\n'), btn = document.getElementById('copiar');
+  try{ await navigator.clipboard.writeText(txt); btn.textContent = 'Copiado'; }
+  catch(e){ obs.value = txt; obs.select(); btn.textContent = 'Selecionado na caixa: copie'; }
+  setTimeout(() => btn.textContent = 'Copiar decisões', 2000);
+});
+</script>
+</body>
+</html>

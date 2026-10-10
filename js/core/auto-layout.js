@@ -507,7 +507,13 @@ function gLayoutTelemetry(result, meta){
   try{
     if(!result || typeof gTrackEvent !== 'function') return;
     meta = meta || {};
-    const chave = [meta.template||'', meta.formato||'', result.status||'', (result.diagnostico&&result.diagnostico.campo)||''].join('|');
+    /* QUAL CAMPO e QUANTO FALTOU (Local Fit 0.2). O laudo (`diagnostico`) só existe no export e
+       é calculado DEPOIS desta chamada — o `campo` saía sempre nulo. O culpado vem da mesma conta
+       do aviso e do balão (`gLocalFitCulpado`); eixo e falta, do próprio bloqueio. */
+    const b0 = (result.bloqueios || [])[0] || null;
+    const campo = (result.diagnostico && result.diagnostico.campo)
+      || (b0 && (typeof gLocalFitCulpado === 'function' ? gLocalFitCulpado(b0, meta.dados || {}) : (b0.campos || [])[0])) || null;
+    const chave = [meta.template||'', meta.formato||'', result.status||'', campo||''].join('|');
     /* A prévia re-renderiza a cada tecla. Sem esta trava, uma sessão de digitação viraria
        centenas de linhas idênticas em `fct_eventos`. Exportação sempre registra: é o momento em
        que a arte vira arquivo, e é dele que a operação precisa contar. */
@@ -525,7 +531,9 @@ function gLayoutTelemetry(result, meta){
       ms: (result.meta && result.meta.ms) != null ? result.meta.ms : null,
       camadas_alteradas: (result.changes || []).length,
       camadas_invalidas: (result.invalidIds || []).length,
-      campo: (result.diagnostico && result.diagnostico.campo) || null,
+      campo,
+      eixo: b0 ? (((b0.overflowX > 1) ? 'x' : '') + ((b0.overflowY > 1) ? 'y' : '') || 'linhas') : null,
+      falta_px: b0 ? Math.round(Math.max(b0.overflowX || 0, b0.overflowY || 0)) : null,
       limite_seguro: (result.diagnostico && result.diagnostico.limite) != null ? result.diagnostico.limite : null,
       fonte: (result.meta && result.meta.fonte) || 'desconhecida'
     });

@@ -689,16 +689,28 @@
       assert(medir(a).status === real.status, 'medidor divergiu para ' + a);
     });
   });
-  test('15t · ciclo, pai ausente e ramificação recusam movimento parcial', () => {
+  /* 4.1 (10/10/2026): cadeia inválida NÃO move nada (como sempre) e degrada para o encaixe
+     ISOLADO de cada membro — antes todos viravam overflow, mesmo cabendo: bloqueio falso. */
+  test('15t · ciclo, pai ausente e ramificação recusam movimento parcial e caem no encaixe isolado', () => {
     ['ciclo','ausente','ramo'].forEach(tipo => {
       const layers = cadeiaVertical();
       if(tipo === 'ciclo') layers[0].relativeAnchor = { layerId:'c', type:'top-to-bottom', gap:22 };
       if(tipo === 'ausente') layers[1].relativeAnchor.layerId = 'sumiu';
       if(tipo === 'ramo') layers[2].relativeAnchor.layerId = 'a';
       const lf = rodaCadeia(layers, dadosCadeia);
-      assert(lf.result.invalid, 'aceitou ' + tipo);
       assert(lf.layers.every(l => l.y === layers.find(o => o.id === l.id).y), 'moveu ' + tipo);
+      const iso = gLocalFitArte(layers.map(l => Object.assign({}, l, { relativeAnchor:null })), { canvas:CANVAS, dados:dadosCadeia, defaults:{} });
+      lf.result.campos.forEach(c => {
+        const ci = iso.result.campos.find(k => k.id === c.id);
+        assert(ci && ci.status === c.status, tipo + ': ' + c.id + ' ' + c.status + ' ≠ isolado ' + (ci && ci.status));
+      });
     });
+  });
+  test('15t2 · cadeia inválida com textos curtos não bloqueia', () => {
+    const layers = cadeiaVertical();
+    layers[2].relativeAnchor.layerId = 'a';                       // ramificação
+    const lf = rodaCadeia(layers, { a:'Pizza', b:'Borda', c:'R$ 9,90' });
+    assert(!lf.result.invalid, 'bloqueio falso: ' + JSON.stringify(lf.result.bloqueios.map(b => b.fieldId)));
   });
   test('15u · textos idênticos em regiões independentes não igualam fontes', () => {
     const a = caixa({ id:'a', content:'{{a}}', x:50, y:80, w:300, h:58, fontSize:48, layoutRefText:'Pizza' });

@@ -1644,8 +1644,9 @@ function _fLpSyncBalao(){
       if(perto&&typeof gLocalFitMaiorPrefixo==='function'){
         try{
           const lim=gLocalFitMaiorPrefixo(perto.text,t=>{ const r=perto.cabe(t); return !!(r&&r.ok); }).limite;
+          const n=Math.max(0,perto.text.length-lim);
           _lpBalao.perto={campo:perto.campo, fieldId:perto.fieldId, valor:perto.valor, text:perto.text,
-            removidas:perto.removidas, limite:lim, n:Math.max(0,perto.text.length-lim)};
+            removidas:perto.removidas, limite:lim, n, tire:n>0?_fLpTireUma(perto.text,perto.cabe):null};
         }catch(e){}
       }
     }
@@ -1797,9 +1798,27 @@ function fLpBalaoSolucao(bloqueio){
     } };
 }
 
+/* "TIRE X E CABE" (Local Fit 2.1, 10/10/2026). Em metade dos bloqueios de produção faltavam ≤6
+   letras: "ainda passa 4 letras" não diz QUAL palavra tirar. Testa tirar UMA palavra de cada vez
+   (só palavra com letra, ≥3; nunca número, preço nem {{campo}}) e devolve a MENOR que faz caber.
+   ⛔ É DICA, nunca troca: a pessoa decide e edita — tirar item é escolha de quem vende, então
+   aqui não passa pelo confere (o confere protege o que o Luma troca sozinho). Até 14 medições,
+   só no bloqueio sem versão e só quando a chave do balão muda. */
+function _fLpTireUma(texto, cabe){
+  const ws=String(texto||'').split(' ');
+  const cand=ws.map((w,i)=>({w,i,nu:w.replace(/^[^\p{L}]+|[^\p{L}]+$/gu,'')}))
+    .filter(x=>x.nu.length>=3&&!/\d|\{\{|R\$/i.test(x.w))
+    .sort((a,b)=>a.nu.length-b.nu.length).slice(0,14);
+  for(const x of cand){
+    const t=ws.filter((_,j)=>j!==x.i).join(' ');
+    try{ const r=cabe(t); if(r&&r.ok) return x.nu; }catch(e){}
+  }
+  return null;
+}
 /* A VERSÃO QUE CHEGOU PERTO, para o "Encurtar" sem IA e sem versão que caiba (Local Fit 2.3).
    Mesmas guardas da solução: mesma arte (material) e o texto ainda é o que foi medido.
-   @returns {{campo,text,removidas,limite,n}|null} `n` = letras que ainda passam do que cabe. */
+   @returns {{campo,text,removidas,limite,n,tire}|null} `n` = letras que ainda passam do que cabe;
+   `tire` = a palavra que, tirada da versão, faz caber (ou null). */
 function fLpBalaoPerto(campo){
   const P=_lpBalao&&_lpBalao.perto;
   if(!P||P.campo!==campo||!fCampoPodeEncurtar(campo)||_lpEffectiveMaterial!==fState.material) return null;

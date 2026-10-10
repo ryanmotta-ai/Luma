@@ -636,7 +636,7 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
         gLayoutTelemetry(result,{purpose:renderOpts.purpose||'preview',
           template:(_renderMaterial&&(_renderMaterial.templateId||_renderMaterial.template_id))||null,
           material:(_renderMaterial&&(_renderMaterial.id||_renderMaterial.nome))||null,
-          formato:W+'x'+H});
+          formato:W+'x'+H,dados});
       }
       /* FAIL SAFE. Baixar uma arte com o texto estourado é o pior resultado possível: ela vai
          para o Instagram e ninguém mais a corrige. Na prévia o bloqueio não interrompe — a

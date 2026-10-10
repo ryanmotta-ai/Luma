@@ -1191,6 +1191,12 @@ function _gLfResolverCadeia(cadeia, medidos, layers, canvas, ctx){
       if(!mudou) break;
     }
   }
+  /* CADEIA INVÁLIDA DEGRADA, NÃO BLOQUEIA (Local Fit 4.1, 10/10/2026). Ramificação, ciclo, pai
+     ausente, rotação ou vAlign ≠ top marcavam TODOS os membros como overflow, mesmo os que
+     cabiam sozinhos: bloqueio falso, o pior tipo, que o franqueado não tem como resolver.
+     Agora nada se move (como antes) e cada membro fica com o encaixe ISOLADO que já foi medido
+     (`m.r`, sem pilha). Quem não cabia sozinho continua bloqueado pelo próprio laudo. */
+  if(!cadeia.valida) return [];
   // Transação recusada: nenhum y é aplicado. O diagnóstico explica o limite do conjunto.
   variaveis.forEach(m => {
     const t = tentativa.find(t => t.l.id === m.l.id);

@@ -157,3 +157,21 @@ Chromium do CI (fingerprint de fonte `1317.2/1317.2/1214.6`, igual ao golden); b
 testes vermelhos em worktree; perfil instrumentado do `gLocalFitArte`; leitura do fluxo do
 franqueado e do Estúdio no código, com arquivo:linha. A produção (Supabase) não foi lida: o
 conector não estava autorizado na sessão.*
+
+---
+
+## 10. Rodada de 10/10/2026 (roadmap aprovado em `docs/roadmap-encurtar-local-fit.html`)
+
+Decisões do Ryan: **D6** descritor pós-posto sai, lista fechada · **D1** só avisa · **D3** preço
+riscado não encolhe mais: consertar no template · **D5** liberar todas as abreviações.
+
+- [x] **0.1/0.3** `copyfit_ia` grava `motivos` (curto, sem texto) e `template_id`; `copyfit_aplicado` do chat também.
+- [x] **0.2** `layout_resolvido` grava `campo` (culpado único), `eixo` e `falta_px` — antes `campo` era sempre nulo.
+- [x] **Copy Fit / D6** degrau `descritor` (lista fechada `G_CF_DESCRITORES`, "borda recheada" protegida) no motor e no confere; prompts da IA alinhados (`copy.fit` 1.2.0).
+- [x] **Copy Fit / D5** combo/pçs/acomp., entrega→frete, "40 reais"→"R$ 40", ",00" (todos ou nenhum), "das 11h", emoji separador, chamada solta. Bancada: 24/36 → **26/36** resgatados.
+- [x] **2.1** "Quase cabe" diz QUAL palavra tirar (`_fLpTireUma`).
+- [x] **1.1** modal de publicação: limite nasce do que cabe ("cabem ~N"; "Acima do que cabe" quando o designer passa).
+- [x] **1.2** checklist mede com o `gLocalFitArte` e dá o número; teste de tensão usa "R$ 399,99" (teto real), não "R$ 1.249,00".
+- [x] **3.2** cadeia inválida não bloqueia mais a arte inteira: cai no encaixe isolado.
+- [ ] Avisar o designer do template "Copa do Mundo — Oferta com preço" (`precoDe` 386×46 a 35px; 15 dos 31 bloqueios). Ação humana.
+- [ ] Linha de base: ler `copyfit_ia.motivos` e `layout_resolvido.campo` depois de ~2 semanas.

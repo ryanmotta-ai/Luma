@@ -19,6 +19,9 @@
    Alcance (ciclo 4, 14 caixas × 177 copies, em pixel): resgata 22,4% dos bloqueios; ~90% do resto
    passa de 15% de falta — ali só cortar produto resolveria, e isso ele não faz.
 
+   DESCRITOR (10/10/2026, D6): "cheddar cremoso" → "cheddar", lista fechada (`G_CF_DESCRITORES`),
+   só depois do que descreve. Fora das combinações: 2 candidatos a mais (sozinho e sobre o mais curto).
+
    IA como ÚLTIMO degrau (23/09/2026): versão que não saiu daqui (a IA do "Encurtar" do chat)
    só aparece se passa em `gCopyFitConfere` — as mesmas garantias, cobradas palavra a palavra.
 
@@ -36,7 +39,9 @@ const _G_CF_RX = {};
 function _gCfRx(src, fl){ const k = fl + '/' + src; return _G_CF_RX[k] || (_G_CF_RX[k] = new RegExp(src, fl)); }
 function _gCfRe(padrao){ return _gCfRx('(^|' + _G_CF_L + ')(' + padrao + ')' + _G_CF_FIM, 'giu'); }
 /* Os números do texto, na ordem — o que a guarda compara. */
-const _gCfNums = s => (String(s || '').match(/\d+(?:[.,]\d+)?/g) || []).join('|');
+// ",00" no fim de um valor é o mesmo número ("R$ 25,00" ≡ "R$ 25", D5 10/10/2026). Só vírgula:
+// "1.000" é milhar e fica.
+const _gCfNums = s => (String(s || '').replace(/(\d),00(?!\d)/g, '$1').match(/\d+(?:[.,]\d+)?/g) || []).join('|');
 
 /* A troca herda a CAIXA de quem foi trocado: "REFRIGERANTE" → "REFRI", "Refrigerante" →
    "Refri". A arte do franqueado em caixa alta não pode ganhar um "Refri" no meio. */
@@ -56,7 +61,12 @@ const G_CF_CURTAS = [
   ['hamb[uú]rgueres', 'burgers'], ['hamb[uú]rgu?ers', 'burgers'], ['hamb[uú]rgu?er', 'burger'],
   ['promo[cç][oõ]es', 'promos'], ['promo[cç][aã]o', 'promo'],
   // "dias úteis" fica: "todo dia úteis" seria erro de português.
-  ['todos os dias(?!\\s+[úu]teis)', 'todo dia'], ['para pedidos acima de', 'acima de']
+  ['todos os dias(?!\\s+[úu]teis)', 'todo dia'], ['para pedidos acima de', 'acima de'],
+  // Abreviações da marca (D5, decisão do Ryan em 10/10/2026: "liberar todas").
+  ['combinados', 'combos'], ['combinado', 'combo'], ['pe[cç]as', 'pçs'],
+  ['acompanhamentos', 'acomp.'], ['acompanhamento', 'acomp.'],
+  // "Entrega grátis" → "Frete grátis" (o "Taxa de" sai antes, no mesmo degrau).
+  ['entrega(?=\\s+gr[aá]tis)', 'frete']
 ];
 /* Dia da semana fica fora da lista: são 7×7 intervalos ("de segunda a domingo", "de terça-feira
    a quinta-feira") mais o plural ("quartas-feiras") — lista fechada ali teria buraco. */
@@ -69,6 +79,25 @@ const _G_CF_DIA3 = { seg:'seg', ter:'ter', qua:'qua', qui:'qui', sex:'sex', sab:
 const G_CF_ENFEITES = ['super', 'mega', 'delicios[oa]s?', 'incr[ií]ve(?:l|is)',
   'gourmet', 'maravilhos[oa]s?', 'exclusiv[oa]s?', 'imperd[ií]ve(?:l|is)', 'irresist[ií]ve(?:l|is)',
   'famos[oa]s?', 'saboros[oa]s?'];
+/* DESCRITOR PÓS-POSTO (decisão do Ryan, 10/10/2026 — D6): adjetivo que diz COMO o produto é,
+   logo DEPOIS do que ele descreve ("cheddar cremoso", "bacon crocante"). Em produção a IA
+   aprovou 0 de 18 versões porque toda versão humana tirava exatamente isso. Lista FECHADA de
+   propósito: regra por sufixo (-ado/-ito/-ante) pegava "palmito", "empanado", "picante" — que
+   são o produto. "Acebolada"/"recheada" ENTRAM (o Ryan escolheu a lista com elas): às vezes são
+   nome de sabor ("Calabresa Acebolada"), e por isso nada troca sem o toque e a tela diz
+   "Sai: acebolada". Fora de propósito: "frita" (batata frita é o item), "artesanal", "especial",
+   "gourmet", "caseiro" (nome de linha/sabor). Uma palavra só por entrada: o degrau é por palavra. */
+const G_CF_DESCRITORES = ['cremos[oa]s?', 'crocantes?', 'crocantinh[oa]s?', 'suculent[oa]s?',
+  'quentinh[oa]s?', 'fresquinh[oa]s?', 'geladinh[oa]s?', 'douradinh[oa]s?', 'derretid[oa]s?',
+  'caprichad[oa]s?', 'generos[oa]s?', 'acebolad[oa]s?', 'recheados?', 'recheadas?'];
+/* O descritor em `palavras[i]` pode sair ALI? Só DEPOIS de palavra com letra que não seja
+   ligação (o substantivo que ele descreve continua), e nunca abrindo o texto/trecho. */
+function _gCfDescritorSai(palavras, i){
+  const ant = palavras[i - 1];
+  // "Borda recheada" é OUTRO produto (o caso 6 da suíte pegou): ali "recheada" nunca sai.
+  return i > 0 && !!ant && /\p{L}/u.test(ant) && !/[:!?.,;]$/.test(ant) && !/^[cp]\/$/i.test(ant)
+    && !_G_CF_LIGA.test(_gCfNu(ant)) && !/^bordas?$/i.test(_gCfNu(ant));
+}
 /* Tamanho só vira letra DEPOIS de algo que tem tamanho — "Grande São Paulo" fica como está.
    E nem depois do item, se o que vem a seguir faz do tamanho um NOME: "Pizza Grande São Paulo"
    (pizzaria), "Esfiha Média Oriente", "Pizza Grande Família". Lista fechada de inícios de nome.
@@ -188,8 +217,15 @@ const _G_CF_DEGRAUS = [
     return t;
   }},
   { id:'curtas', fn:(s, r) => {
-    // "40 reais" FICA: trocar por "R$ 40" muda o tom que o franqueado escolheu — decisão do Ryan,
-    // pendente. Não reintroduzir sem ela.
+    /* D5 (10/10/2026): "40 reais" → "R$ 40"; "R$ 25,00" → "R$ 25" só se TODOS os valores do texto
+       terminam em ,00 ("De R$ 30,00 por R$ 25,90" fica — um com centavos e outro sem confunde);
+       "das 11h às 15h" → "11h às 15h". */
+    s = s.replace(_gCfRx('(^|' + _G_CF_L + ')(\\d+(?:,\\d{2})?)\\s+(reais|real)' + _G_CF_FIM, 'giu'),
+      (m, pre, v, w) => { r.trocas.push([v + ' ' + w, 'R$ ' + v]); return pre + 'R$ ' + v; });
+    const valores = s.match(/R\$\s*\d+(?:\.\d{3})*(?:,\d{2})?/g) || [];
+    if(valores.length && valores.every(v => /,00$/.test(v)))
+      s = s.replace(/(R\$\s*\d+(?:\.\d{3})*),00(?!\d)/g, (m, v) => { r.trocas.push([m, v]); return v; });
+    s = s.replace(_gCfRx('(^|' + _G_CF_L + ')das\\s+(?=\\d{1,2}h)', 'giu'), (m, pre) => { r.removidas.push('das'); return pre; });
     // "de desconto" → "OFF" depois de % ou de um valor em R$ ("R$ 20 de desconto" → "R$ 20 OFF").
     let t = s.replace(/(\d\s*%|R\$\s*\d+(?:[.,]\d+)?)\s*de\s+desconto/giu, (m, v) => { r.trocas.push(['de desconto', 'OFF']); return v.replace(/\s*%$/, '%') + ' OFF'; });
     // "de segunda a domingo" → "seg a dom". Cada abreviação herda a caixa do SEU dia; o "de" que
@@ -294,6 +330,14 @@ const _G_CF_DEGRAUS = [
     return s.split(/([.!?;|\n])/).map((p, k) => k % 2 ? p : sub(p)).join('');
   }},
   { id:'enfeite', fn:(s, r) => {
+    /* D5 (10/10/2026): emoji usado como separador e chamada de abertura ("Aproveite!", "Peça já!")
+       saem — é enfeite, não oferta. "Só hoje" NUNCA sai: é restrição. Emoji de tecla (1️⃣) fica:
+       carrega número (não é Extended_Pictographic). */
+    s = s.replace(/\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictographic})*️?/gu, m => { r.removidas.push(m); return ' '; });
+    // Só a chamada SOLTA, fechada por pontuação ("Aproveite!"); "Aproveite o almoço" é frase e fica.
+    // Lookbehind: "Aproveite! Peça já: X" tira as duas (a 1ª consumia o "!" que abria a 2ª).
+    s = s.replace(_gCfRx('(?<=^|[.!?:]\\s*)(aproveite|pe[cç]a\\s+j[aá])[!.:,]+\\s*(?=\\S)', 'giu'), (m, w) => { r.removidas.push(w); return ''; });
+    s = _gCfAbre(s, _gCfLimpa(s));
     // A quebra de linha vira palavra própria: "Pizza\nDeliciosa coxinha" — o enfeite que abre a
     // linha é anteposto (antes de uma "palavra" sem letra), e a quebra volta no _gCfLimpa.
     const palavras = s.replace(/\n/g, ' \n ').split(' ');
@@ -314,6 +358,22 @@ const _G_CF_DEGRAUS = [
     return _gCfAbre(s, out.join(' '));
   }}
 ];
+
+/* DESCRITOR — degrau à PARTE (fora das 64 combinações: dobraria o custo de medir). Roda só sobre
+   a base limpa e sobre o mais encurtado (todos os degraus), em `gCopyFitCandidatos`. */
+const _G_CF_DEGRAU_DESCRITOR = { id:'descritor', fn:(s, r) => {
+  const palavras = s.replace(/\n/g, ' \n ').split(' ');
+  const re = _gCfRx('^(?:' + G_CF_DESCRITORES.join('|') + ')$', 'iu');
+  const out = [];
+  palavras.forEach((w, i) => {
+    // Pontuação colada ("crocante,") passa para a palavra anterior: "bacon crocante, cheddar" → "bacon, cheddar".
+    const m = w.match(/^(\p{L}+)([,.!?;:]*)$/u);
+    if(!m || !re.test(m[1]) || !_gCfDescritorSai(palavras, i)){ out.push(w); return; }
+    r.removidas.push(m[1]);
+    if(m[2] && out.length) out[out.length - 1] += m[2];
+  });
+  return out.join(' ');
+}};
 
 /* O que NÃO pode mudar: os números, na mesma ordem; os trechos blindados ({{x}}, tag,
    entidade), idênticos e na mesma ordem; e nunca ficar mais longo. */
@@ -354,6 +414,10 @@ function _gCfPalavras(s){
   t = t.replace(_gCfRe('taxa(?=\\s+de\\s+entrega\\s+gr[aá]tis)'), (m, pre) => pre);
   G_CF_CURTAS.forEach(([p, curta]) => { t = t.replace(_gCfRe(p), (m, pre) => pre + curta); });
   t = t.replace(_gCfRe('de\\s+desconto|desconto'), (m, pre) => pre + 'off');
+  // D5: "40 reais" ≡ "R$ 40"; chamada de abertura e "das" antes de hora não contam como palavra.
+  t = t.replace(_gCfRe('reais|real'), (m, pre) => pre + 'r');
+  t = t.replace(_gCfRx('(?<=^|[.!?:]\\s*)(aproveite|pe[cç]a\\s+j[aá])[!.:,]+(?=\\s|$)', 'giu'), '');
+  t = t.replace(_gCfRx('(^|' + _G_CF_L + ')das\\s+(?=\\d{1,2}h)', 'giu'), (m, pre) => pre);
   return t.replace(/\n/g, ' \n ').split(/[^\S\n]+/).filter(Boolean).map(raw => {
     const nu = _gCfNu(raw), w = nu.replace(/^[\d.,/]+(?=\p{L})/u, '');   // "2L" → "l": o número é da guarda
     let chave = /\p{L}/u.test(w) ? w.toLowerCase() : '';
@@ -382,6 +446,7 @@ function gCopyFitConfere(original, candidato){
   if(novo) return { ok: false, motivo: 'palavra nova: ' + novo.nu };
   const item = _gCfRx('^(?:' + G_CF_ITENS + ')$', 'iu');
   const enfeite = _gCfRx('^(?:' + G_CF_ENFEITES.join('|') + ')$', 'iu');
+  const descritor = _gCfRx('^(?:' + G_CF_DESCRITORES.join('|') + ')$', 'iu');
   const raws = po.map(p => p.raw), podia = {}, total = {}, nomes = {}, falta = [], removidas = [];
   const livre = [];
   po.forEach((p, i) => {
@@ -391,6 +456,7 @@ function gCopyFitConfere(original, candidato){
     if(/^(?:com|e)$/.test(p.nu.toLowerCase())) pos = i > 0 && !/^\d+$/.test(po[i - 1].nu) && !!po[i + 1] && item.test(po[i + 1].nu);
     else if(/^(?:apenas|somente)$/i.test(p.nu)) pos = !!po[i + 1] && /^(?:r\$|\d+,\d{2})/i.test(po[i + 1].raw);
     else if(enfeite.test(p.nu)) pos = _gCfEnfeiteSai(raws, i, p.nu);
+    else if(descritor.test(p.nu)) pos = _gCfDescritorSai(raws, i);
     if(pos !== null){
       total[p.chave] = (total[p.chave] || 0) + 1; podia[p.chave] = (podia[p.chave] || 0) + (pos ? 1 : 0);
       (nomes[p.chave] = nomes[p.chave] || []).push(_gCfNu(p.raw)); return;
@@ -417,7 +483,7 @@ function gCopyFitConfere(original, candidato){
    Os pesos: limpeza 0 (espaço, "por apenas", parêntese de uma palavra: ninguém sente falta);
    unidade 1 ("500ml" é como se escreve); forma curta 2 (consagrada, mas a palavra muda);
    tamanho e lista 3 (a letra/o "+" mudam a cara da frase); enfeite 5 (sai uma palavra dita). */
-const _G_CF_PESO = { limpeza:0, unidades:1, curtas:2, tamanho:3, lista:3, barra:3, enfeite:5 };
+const _G_CF_PESO = { limpeza:0, unidades:1, curtas:2, tamanho:3, lista:3, barra:3, enfeite:5, descritor:6 };
 const _G_CF_MAX = 12;
 
 /**
@@ -459,15 +525,24 @@ function gCopyFitCandidatos(texto){
     (a.custo - b.custo) || ((a.trocas.length + a.removidas.length) - (b.trocas.length + b.removidas.length))
     || (b.text.length - a.text.length) || (a.text < b.text ? -1 : a.text > b.text ? 1 : 0);
   const porTexto = {};
-  for(let mask = 0; mask < (1 << resto.length); mask++){
-    let est = base;
-    resto.forEach((d, i) => { if(mask & (1 << i)) est = passo(d, est); });
-    if(est.text === original) continue;
+  const junta = est => {
+    if(est.text === original) return;
     const c = { text: est.text, degrau: est.degraus[est.degraus.length - 1], degraus: est.degraus,
       custo: est.degraus.reduce((a, id) => a + _G_CF_PESO[id], 0), trocas: est.trocas, removidas: est.removidas };
     const ja = porTexto[c.text];
     if(!ja || antes(c, ja) < 0) porTexto[c.text] = c;     // mesmo texto: fica o caminho mais barato
+  };
+  const tudo = (1 << resto.length) - 1;
+  let estTudo = base;
+  for(let mask = 0; mask <= tudo; mask++){
+    let est = base;
+    resto.forEach((d, i) => { if(mask & (1 << i)) est = passo(d, est); });
+    if(mask === tudo) estTudo = est;
+    junta(est);
   }
+  // O descritor sozinho (o que menos mexe além dele) e sobre o mais encurtado (o último recurso).
+  junta(passo(_G_CF_DEGRAU_DESCRITOR, base));
+  junta(passo(_G_CF_DEGRAU_DESCRITOR, estTudo));
   // Solta a blindagem (texto, trocas, removidas) e confere a guarda de novo no texto REAL —
   // o marcador tem 2 caracteres e o {{x}} tem mais, então o comprimento só se prova aqui.
   let todos = Object.values(porTexto);

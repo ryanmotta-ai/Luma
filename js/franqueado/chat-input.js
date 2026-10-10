@@ -831,7 +831,8 @@ async function fFitTextWithAI(comIA){
     const sai=_fFitSaiVisivel(perto.removidas);
     _fFitPop(btn, 'Quase cabe',
       (sai.length ? 'Sai: '+sai.join(', ')+'. ' : '')
-      +(perto.n>0 ? 'Ainda passa '+perto.n+(perto.n===1?' letra':' letras')+' — use esta versão e tire mais um pouco. ' : '')
+      +(perto.n>0 ? (perto.tire ? 'Ainda passa '+perto.n+(perto.n===1?' letra':' letras')+' — use esta versão e tire “'+perto.tire+'” que cabe. '
+                                : 'Ainda passa '+perto.n+(perto.n===1?' letra':' letras')+' — use esta versão e tire mais um pouco. ') : '')
       +'Seu texto só muda se você escolher.', podeIA);
     return;
   }
@@ -876,7 +877,7 @@ REGRAS:
 1. Mantenha TODOS os números e preços exatamente como estão, na mesma ordem.
 2. Mantenha TODOS os produtos, sabores, tamanhos e itens; não troque um produto por outro.
 3. Não invente nada: nenhuma palavra que não esteja no texto (nada de "grátis", "promo", emoji).
-4. Pode tirar: artigos e preposições, "apenas/somente" antes de preço, adjetivo de enfeite antes do produto (delicioso, super, incrível), trocar "com"/"e" por "+" entre itens, e abreviar: refrigerante→refri, hambúrguer→burger, promoção→promo, litros→L, grande/médio/pequeno→G/M/P, segunda-feira→seg, "de desconto"→OFF.
+4. Pode tirar: artigos e preposições, "apenas/somente" antes de preço, adjetivo de enfeite antes do produto (delicioso, super, incrível) e SÓ ESTES adjetivos logo depois do que descrevem: cremoso, crocante, suculento, quentinho, fresquinho, geladinho, douradinho, derretido, caprichado, generoso, acebolado, recheado (nunca "borda recheada"). Qualquer outra palavra fica (artesanal, frita, gourmet, especial, palmito, picante são o produto). Pode trocar "com" por "c/", "com"/"e" por "+" entre itens, e abreviar: refrigerante→refri, hambúrguer→burger, promoção→promo, litros→L, grande/médio/pequeno→G/M/P, segunda-feira→seg, "de desconto"→OFF.
 5. Mantenha qualquer {{campo}} e tag exatamente como estão. Se o texto está em MAIÚSCULAS, responda em MAIÚSCULAS.
 Responda apenas JSON: {"opcoes":["...","...","..."]}`;
       // cache:false — repetir o toque devolvia na hora a MESMA resposta já reprovada.
@@ -902,17 +903,23 @@ Responda apenas JSON: {"opcoes":["...","...","..."]}`;
      O teto do designer (`maxLen`) vale sempre: acima dele a guarda de digitação cortaria.
      Reprovada some calada; a conta fica em `_fFitIaReprovadas` (log/teste). */
   const regua=_fFitRegua(id);
-  const opts=[], sai=[];
+  const opts=[], sai=[], motivos=[];
   let reprovadas=0;
   brutas.map(s=>String(s||'').replace(/[\r\n\t]/g,' ').replace(/\s+/g,' ').trim()).forEach(s=>{
     if(!s || s===original || opts.includes(s)) return;
     const conf=(typeof gCopyFitConfere==='function') ? gCopyFitConfere(original, s) : {ok:false, motivo:'sem motor'};
     const cabeOk = regua ? regua(s) : (_soMaisCurto ? s.length<original.length : s.length<=alvo);
-    if(!conf.ok || s.length>cfg.maxLen || !cabeOk){ reprovadas++; return; }
+    if(!conf.ok || s.length>cfg.maxLen || !cabeOk){
+      reprovadas++;
+      // Só o motivo curto ("sumiu: cremoso", "não cabe"), nunca o texto: o 0/18 de 09/2026 só
+      // apareceu reproduzindo à mão, porque o evento contava reprovações sem dizer por quê.
+      motivos.push(!conf.ok ? conf.motivo : (s.length>cfg.maxLen ? 'passa do limite' : 'não cabe'));
+      return;
+    }
     opts.push(s); sai.push(conf.removidas||[]);
   });
   _fFitIaReprovadas=reprovadas;
-  try{ if(typeof gTrackEvent==='function') gTrackEvent('copyfit_ia',{campo:id, ok_n:opts.length, reprovadas_n:reprovadas, respondeu:brutas.length>0}); }catch(e){}
+  try{ if(typeof gTrackEvent==='function') gTrackEvent('copyfit_ia',{campo:id, template_id:(typeof _fTplId==='function')?_fTplId(fState.material):null, ok_n:opts.length, reprovadas_n:reprovadas, motivos:motivos.slice(0,5), respondeu:brutas.length>0}); }catch(e){}
   if(reprovadas) console.info('[Luma] encurtar: '+reprovadas+' opção(ões) da IA reprovada(s) na conferência');
   _fFitOpts=opts.slice(0,3); _fFitSai=sai.slice(0,3);
   _fFitCf=null;
@@ -1048,7 +1055,7 @@ function fFitApply(i){
   box.value=s;
   box._fFit=null;                      // encaixou: a tentativa antiga não vale mais
   _fFitClosePop();
-  try{ if(typeof gTrackEvent==='function') gTrackEvent('copyfit_aplicado',{origem:_fFitCf?'chat':(_fFitPerto?'perto':'ia'), campo:fState.camp?.perguntas?.[fState.stepIdx]?.id||null, removidas_n:_fFitSaiVisivel(_fFitSai[i]).length}); }catch(e){}
+  try{ if(typeof gTrackEvent==='function') gTrackEvent('copyfit_aplicado',{origem:_fFitCf?'chat':(_fFitPerto?'perto':'ia'), campo:fState.camp?.perguntas?.[fState.stepIdx]?.id||null, template_id:(typeof _fTplId==='function')?_fTplId(fState.material):null, removidas_n:_fFitSaiVisivel(_fFitSai[i]).length}); }catch(e){}
   box.dispatchEvent(new Event('input',{bubbles:true}));
   box.focus();
 }

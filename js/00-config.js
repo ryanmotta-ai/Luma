@@ -1614,7 +1614,10 @@ function gStressValues(usados, vars, opts) {
     const tipo = v.type || 'text';
     const maxLen = (v.maxLen > 0) ? v.maxLen : 0;
     if (tipo === 'image') { dados[vn] = (opts && opts.imagem) || ''; return; }
-    if (tipo === 'currency') { dados[vn] = gStressTexto('R$ 1.249,00', maxLen); return; }
+    /* O pior preço que o franqueado CONSEGUE digitar: o teto é R$ 400,00 (`F_PRECO_MAX`, decisão
+       de 07/10/2026). "R$ 1.249,00" testava um valor que a loja nunca manda e avisava o designer
+       de um estouro que não existe — e escondia o de verdade atrás do falso. */
+    if (tipo === 'currency') { dados[vn] = gStressTexto('R$ 399,99', maxLen); return; }
     if (tipo === 'number')   { dados[vn] = gStressTexto('9.999', maxLen); return; }
     if (tipo === 'boolean')  { dados[vn] = 'Sim'; return; }
     if (tipo === 'date')     { dados[vn] = '31/12/2026'; return; }

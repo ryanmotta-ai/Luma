@@ -196,7 +196,33 @@ function _dLinterEstresse() {
     });
   });
 
-  // (c) nem encolhendo até o piso coube na própria caixa
+  /* (c) nem encolhendo até o piso coube na própria caixa — com a MESMA régua do franqueado
+     (Local Fit 3.3, 10/10/2026). O `gFitTextLayer` não via respiro, pilha, placa nem piso de
+     hierarquia: passava no Estúdio e travava na loja. Com o runtime, o aviso traz o número
+     (D1: só avisa, nunca trava): "cabem ~N caracteres". Sem o runtime, a régua antiga. */
+  if (typeof gLocalFitArte === 'function') {
+    const lf = (dados) => gLocalFitArte(gApplyRelativeAnchors(dLayers.map(l => ({...l})), dados, defaults, { canvas: cv }),
+                                       { canvas: cv, dados, defaults });
+    const bloqAntes = new Set(((lf(exemplo).result || {}).bloqueios || []).map(b => b.fieldId));
+    const r = lf(estresse);
+    ((r.result || {}).bloqueios || []).forEach(b => {
+      if (bloqAntes.has(b.fieldId)) return;                       // já estourava no exemplo
+      const l = dLayers.find(x => x.id === b.fieldId);
+      if (!l || !camposDa(l).length) return;
+      const campo = (typeof gLocalFitCulpado === 'function') ? gLocalFitCulpado(b, estresse) : null;
+      const d = (campo && typeof gLocalFitDiagnostico === 'function')
+        ? gLocalFitDiagnostico(r.layers, { bloqueios: [b] }, estresse, { canvas: cv, defaults, campo }) : null;
+      const quanto = (d && d.limite > 0) ? ` Cabem ~${d.limite} caracteres em “${d.rotulo}”.` : '';
+      out.push({
+        type: 'warning',
+        title: 'O pior caso não cabe',
+        desc: `${comLimite(l)}, “${nome(l)}” não cabe na caixa nem reduzindo a fonte até o limite da hierarquia — o franqueado veria "não cabe".${quanto} Reduza o limite do campo ou aumente a caixa.`,
+        layerId: l.id,
+        layerName: l.name
+      });
+    });
+    return out;
+  }
   Object.values(depois).forEach(o => {
     // O checklist AVISA os dois (não coube + passou do teto de linhas): aqui é conselho para o
     // designer antes de publicar, não portão de exportação. Quem bloqueia é o Local Fit.

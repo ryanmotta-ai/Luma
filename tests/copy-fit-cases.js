@@ -24,7 +24,8 @@
      deixava "refrigerante" SUMIR sem cobrar que o "refri" aparecesse — um corte passava.
      Só as palavras de ligação abaixo podem sumir de qualquer lugar; "com/e/apenas/enfeite"
      só na posição certa (saiAqui). */
-  const PODE_SUMIR = /^(por|de|a|à|os|tamanho|taxa|para|pedidos)$/iu;
+  // D5: "das" antes de hora, chamada solta ("aproveite!", "peça já!") e emoji também podem sumir.
+  const PODE_SUMIR = /^(por|de|a|à|os|tamanho|taxa|para|pedidos|das|aproveite|pe[cç]a|j[aá])$/iu;
   const CANON = [
     [/^refrigerantes?$/, 'refri'], [/^refris$/, 'refri'], [/^hamb[uú]rgu?er(e?s)?$/, 'burger'], [/^burgers$/, 'burger'],
     [/^promo[cç](ão|ao|ões|oes)$/, 'promo'], [/^promos$/, 'promo'],
@@ -32,7 +33,10 @@
     [/^grandes?$/, 'g'], [/^m[eé]di[oa]s?$/, 'm'], [/^pequen[oa]s?$/, 'p'],
     [/^(seg|segundas?)(-feiras?)?$/, 'seg'], [/^(ter|ter[cç]as?)(-feiras?)?$/, 'ter'], [/^(qua|quartas?)(-feiras?)?$/, 'qua'],
     [/^(qui|quintas?)(-feiras?)?$/, 'qui'], [/^(sex|sextas?)(-feiras?)?$/, 'sex'], [/^(s[aá]b|s[aá]bados?)$/, 'sab'], [/^(dom|domingos?)$/, 'dom'],
-    [/^todos$/, 'todo'], [/^dias$/, 'dia'], [/^desconto$/, 'off'], [/^reais$/, 'r']
+    [/^todos$/, 'todo'], [/^dias$/, 'dia'], [/^desconto$/, 'off'], [/^reais$/, 'r'],
+    // D5 (10/10/2026): abreviações da marca valem a mesma palavra
+    [/^(combinados?|combos?)$/, 'combo'], [/^(pe[cç]as|p[cç]s)$/, 'pcs'], [/^(acompanhamentos?|acomp)$/, 'acomp'],
+    [/^(entrega|frete)$/, 'frete'], [/^real$/, 'r']
   ];
   const canon = w => { for(const [re, c] of CANON) if(re.test(w)) return c; return w; };
   /* "2L" / "500ml" / "2x": o número some da conta (a guarda cuida dele), a unidade fica. */
@@ -43,6 +47,8 @@
   const ITEM = /^(refris?|refrigerantes?|batatas?|fritas|sucos?|burgers?|hamb[uú]rgueres|hamb[uú]rgu?ers?|pizzas?|por[cç](?:[aã]o|[oõ]es)|sobremesas?|bebidas?|guaran[aá]s?|coca-cola|cocas?|milk-?shakes?|a[cç]a[ií]s?|sorvetes?|past[eé]is|pastel|esfihas?|coxinhas?|x-\p{L}+)$/iu;
   const ENFEITE = /^(super|mega|delicios[oa]s?|incr[ií]ve(?:l|is)|gourmet|maravilhos[oa]s?|exclusiv[oa]s?|imperd[ií]ve(?:l|is)|irresist[ií]ve(?:l|is)|famos[oa]s?|saboros[oa]s?)$/iu;
   const LIGA = /^(o|a|os|as|um|uma|uns|umas|de|do|da|dos|das|no|na|nos|nas|e|em|com|para|pra|seu|sua|seus|suas|\+)$/iu;
+  // D6 (10/10/2026): descritor pós-posto de lista fechada sai DEPOIS do que descreve.
+  const DESCRITOR = /^(cremos[oa]s?|crocantes?|crocantinh[oa]s?|suculent[oa]s?|quentinh[oa]s?|fresquinh[oa]s?|geladinh[oa]s?|douradinh[oa]s?|derretid[oa]s?|caprichad[oa]s?|generos[oa]s?|acebolad[oa]s?|recheados?|recheadas?)$/iu;
   const nu = w => String(w || '').toLowerCase().replace(/^[^\p{L}\d]+|[^\p{L}\d]+$/gu, '');
   // A quebra de linha é palavra própria: o enfeite que ABRE uma linha está anteposto.
   const brutas = s => String(s).replace(/\n/g, ' \n ').split(/[^\S\n]+/).filter(Boolean);
@@ -52,6 +58,7 @@
     if(w === 'com' || w === 'e') return !!ant && !/^\d+$/.test(nu(ant)) && ITEM.test(prox);
     if(w === 'apenas' || w === 'somente') return preco(b[i + 1]);
     if(w === 'por' && /^(apenas|somente)$/.test(prox)) return preco(b[i + 2]);
+    if(DESCRITOR.test(w)) return !!ant && /\p{L}/u.test(ant) && !/[:!?.,;]$/.test(ant) && !/^[cp]\/$/i.test(ant) && !LIGA.test(nu(ant)) && !/^bordas?$/.test(nu(ant));
     if(ENFEITE.test(w)){
       const anteposto = i === 0 || /[:!?.,;]$/.test(ant) || !/[\p{L}\d]/u.test(ant) || LIGA.test(ant);
       return anteposto && /^\p{L}/u.test(prox) && !/^(grandes?|gigantes?|fam[ií]lia|g|m|p|mercados?)$/.test(prox);
@@ -313,7 +320,7 @@
       ['Todas as quartas-feiras', 'Todas as quartas'], ['Entrega de segunda a domingo', 'Entrega seg a dom'],
       ['Aberto de terça a domingo', 'Aberto ter a dom'], ['Válida de segunda-feira a quinta-feira', 'Válida seg a qui'],
       ['DE SEGUNDA A SÁBADO: PIZZA', 'SEG A SÁB: PIZZA'], ['De segunda a sábado, almoço', 'Seg a sáb, almoço'],
-      ['Aberto todos os dias', 'Aberto todo dia'], ['Taxa de entrega grátis hoje', 'Entrega grátis hoje'],
+      ['Aberto todos os dias', 'Aberto todo dia'], ['Taxa de entrega grátis hoje', 'Frete grátis hoje'],
       ['Frete grátis para pedidos acima de R$ 50', 'Frete grátis acima de R$ 50'], ['Refri (lata) R$ 5', 'Refri lata R$ 5']
     ];
     espera.forEach(([f, t]) => assert(textos(f).includes(t), '"' + f + '" deveria ter "' + t + '": ' + textos(f).join(' | ')));
@@ -370,7 +377,7 @@
     // antes: "Pizza R$39,90 por R$29,90" → "Pizza R$39,90 R$29,90" (de/por virava dois preços soltos)
     semMexer(['Pizza R$39,90 por R$29,90', 'Pizza x2 por R$ 30', 'De R$59,90 por R$39,90'], (f, t) => / por /.test(t), 'tirou o "por" do de/por');
     const espera = [['2º burger com 50% de desconto', '2º burger com 50% OFF'], ['Ligue (11) 99999-9999 promoção', 'Ligue (11) 99999-9999 promo'],
-      ['Cupom DELIVERY10 promoção', 'Cupom DELIVERY10 promo'], ['Das 18h às 23h de segunda a sexta', 'Das 18h às 23h seg a sex'],
+      ['Cupom DELIVERY10 promoção', 'Cupom DELIVERY10 promo'], ['Das 18h às 23h de segunda a sexta', '18h às 23h seg a sex'],
       ['De Segunda A Sexta', 'Seg A Sex'], ['Açaí 1/2 litro', 'Açaí 1/2L'], ['Pizza por R$39,90', 'Pizza R$39,90']];
     espera.forEach(([f, t]) => assert(textos(f).includes(t), '"' + f + '" deveria ter "' + t + '": ' + textos(f).join(' | ')));
     ['Pizza 1.299,00', 'Combo #2 com refri', 'CEP 01234-567', '3/4 de pizza', '24h', 'Pizza 39.90 com refri']
@@ -403,14 +410,14 @@
       ['Ganhe R$ 20 de desconto', 'Ganhe R$ 20 OFF'],
       ['Pizza de Frango e Milho tamanho grande', 'Pizza de Frango e Milho tamanho G'],
       ['Marmita grande com salada', 'Marmita G com salada'], ['Marmitex tamanho médio', 'Marmitex M'],
-      ['Só hoje: entrega grátis!!!', 'Só hoje: entrega grátis!']
+      ['Só hoje: entrega grátis!!!', 'Só hoje: frete grátis!']
     ];
     espera.forEach(([f, t]) => assert(textos(f).includes(t), '"' + f + '" deveria ter "' + t + '": ' + textos(f).join(' | ')));
     // vírgula de LISTA continua travando; o "de" sem item antes fica; tamanho segue todos-ou-nenhum
     semMexer(['Combo com refri, batata e sobremesa R$ 29,90', 'Açaí com granola, banana e morango R$ 19,90'],
       (f, t) => !t.includes('+'), 'virou "+" numa lista com vírgula');
-    // "reais" → "R$" é decisão de negócio pendente: o motor não troca
-    semMexer(['Pedidos acima de 40 reais', 'Ganhe 20 reais de desconto'], (f, t) => /reais/.test(t), 'trocou "reais" por R$');
+    // D5 (10/10/2026, Ryan: "liberar todas"): "40 reais" → "R$ 40" — o motor troca.
+    assert(textos('Pedidos acima de 40 reais').includes('Pedidos acima de R$ 40'), '"40 reais" deveria virar "R$ 40"');
     semMexer(['Porções a partir de 500g', 'Frete grátis acima de 2L', 'Ganhe 1 de 300ml', 'Copo de 500ml'],
       (f, t) => / de /.test(t), 'tirou o "de" que não liga item à medida');
     semMexer(['Marmita pequena R$ 14, média R$ 17 e grande R$ 20'], (f, t) => !/\b[GMP]\b/.test(t), 'abreviou só parte dos tamanhos');
@@ -696,6 +703,45 @@
     nao('Café com leite', 'Café leite', /sumiu: com/i);                                  // "com" só sai antes de item
     nao('Frete grátis apenas para o centro', 'Frete grátis para o centro', /sumiu: apenas/i);  // restrição, não preço
     nao('Pizza Calabresa', '', /vazio/);
+    // D6 (10/10/2026): descritor pós-posto de lista fechada pode sair; o resto do D6 segue protegido.
+    sim('Hambúrguer artesanal com cheddar cremoso e bacon crocante', 'Burger artesanal c/ cheddar e bacon');
+    sim('Pizza de calabresa acebolada com refri', 'Pizza calabresa + refri');
+    nao('Pizza com borda recheada de catupiry', 'Pizza c/ borda de catupiry', /sumiu: recheada/i);   // borda recheada é produto
+    nao('Combo 2 lanches + batata frita grande', 'Combo 2 lanches + batata G', /sumiu: frita/i);   // frita é o item
+    nao('Cremoso de chocolate com refri', 'de chocolate + refri', /sumiu: cremoso/i);              // abre o texto: é nome
+    nao('Pizza com recheada', 'Pizza com', /sumiu: recheada/i);                                    // depois de ligação
+    nao('Pizza de Palmito com refri', 'Pizza + refri', /sumiu: palmito/i);                          // sufixo não é regra
+  });
+
+  test('Abreviações da marca (D5): combo/pçs/acomp., frete, R$ sem ,00 (todos ou nenhum), reais, das 11h, emoji, chamada', () => {
+    const tem = (f, t) => assert(textos(f).includes(t), '"' + f + '" deveria ter "' + t + '": ' + textos(f).join(' | '));
+    tem('Combinado de 20 peças com acompanhamento', 'Combo de 20 pçs c/ acomp.');
+    tem('Taxa de entrega grátis todos os dias', 'Frete grátis todo dia');
+    tem('Combo R$ 25,00 e refri R$ 5,00', 'Combo R$ 25 e refri R$ 5');
+    tem('Almoço das 11h às 15h', 'Almoço 11h às 15h');
+    tem('Aproveite! Peça já: X-Tudo R$ 39,90', 'X-Tudo R$ 39,90');
+    assert(textos('🍕 Pizza G 🔥').includes('Pizza G'), 'emoji separador ficou: ' + textos('🍕 Pizza G 🔥').join(' | '));
+    // todos ou nenhum: um valor com centavos trava os ",00" dos outros
+    assert(textos('De R$ 30,00 por R$ 25,90').every(t => /30,00/.test(t)), 'tirou ,00 com outro preço com centavos');
+    // "só hoje" é restrição; "aproveite" com objeto é frase; centavo de verdade é número
+    assert(textos('Só hoje! Pizza G').every(t => /Só hoje/.test(t)), 'tirou "só hoje"');
+    assert(textos('Aproveite o almoço').every(t => /Aproveite/.test(t)), 'tirou verbo com objeto');
+    assert(!gCopyFitConfere('Pizza R$ 39,90', 'Pizza R$ 39').ok, 'aceitou cortar centavo de verdade');
+    assert(gCopyFitConfere('Pizza R$ 39,00', 'Pizza R$ 39').ok, 'recusou ,00');
+  });
+
+  test('Descritor (D6): o motor tira "cremoso/crocante" e diz o que saiu; nunca mexe no que não é da lista', () => {
+    const c = gCopyFitCandidatos('Hambúrguer artesanal com cheddar cremoso e bacon crocante');
+    const d = c.find(x => x.degraus.includes('descritor'));
+    assert(d, 'nenhum candidato com o degrau descritor');
+    assert(!/cremoso|crocante/i.test(d.text) && /cheddar/.test(d.text) && /bacon/.test(d.text), 'descritor errado: ' + d.text);
+    assert(d.removidas.includes('cremoso') && d.removidas.includes('crocante'), 'não listou o que saiu');
+    assert(gCopyFitConfere('Hambúrguer artesanal com cheddar cremoso e bacon crocante', d.text).ok, 'o motor gerou o que o confere reprova');
+    ['Pizza de Palmito Empanado', 'Frango picante com batata frita', 'Brigadeiro Gourmet', 'Pão Caseiro Especial']
+      .forEach(t => assert(!gCopyFitCandidatos(t).some(x => x.degraus.includes('descritor')), 'descritor mexeu em: ' + t));
+    // Pontuação colada passa para a palavra de antes.
+    const v = gCopyFitCandidatos('Batata crocante, cheddar e bacon').find(x => x.degraus.includes('descritor'));
+    assert(v && v.text === 'Batata, cheddar e bacon', 'vírgula: ' + (v && v.text));
   });
 
   let passed = 0;

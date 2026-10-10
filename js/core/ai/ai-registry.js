@@ -58,7 +58,7 @@ ${fatos}`;
     },
 
     'copy.fit': {
-      version: '1.1.0',
+      version: '1.2.0',
       modelType: 'fast',
       featureFlag: 'copyFit',
       defaultTtl: 3600000, // 1 hora de cache por texto + restrição
@@ -73,8 +73,8 @@ ${fatos}`;
 Encurte o campo "${fieldName}": até 3 sugestões distintas, naturais em PT-BR, menores que o original e com até ${maxLen} caracteres (incluindo espaços).
 Preserve sentido, clareza, todos os produtos, sabores, tamanhos, itens e marcas. Números e preços exatos, na mesma ordem. {{campos}}, tags e entidades HTML intactos. Original em MAIÚSCULAS exige MAIÚSCULAS.
 Sem emoji, asterisco/markdown novo ou palavras novas, exceto estas trocas:
-refrigerante→refri; hambúrguer→burger; promoção→promo; litros→L; grande/médio/pequeno→G/M/P (tamanho, nunca nome); segunda-feira→seg; de desconto→OFF; com/e→+ só entre itens, não ingredientes.
-Pode tirar artigos/preposições sem mudar o sentido, apenas/somente antes de preço e enfeites antes do produto (delicioso, super, incrível), nunca parte do nome, tamanho ou restrição.
+refrigerante→refri; hambúrguer→burger; promoção→promo; litros→L; grande/médio/pequeno→G/M/P (tamanho, nunca nome); segunda-feira→seg; de desconto→OFF; com→c/; com/e→+ só entre itens, não ingredientes.
+Pode tirar artigos/preposições sem mudar o sentido, apenas/somente antes de preço, enfeites antes do produto (delicioso, super, incrível) e SÓ ESTES adjetivos logo depois do que descrevem: cremoso, crocante, suculento, quentinho, fresquinho, geladinho, douradinho, derretido, caprichado, generoso, acebolado, recheado (nunca "borda recheada"). Qualquer outra palavra fica — artesanal, frita, gourmet, especial, caseiro, palmito, picante são o produto. Nunca parte do nome, tamanho ou restrição.
 Não force 3 opções: se nenhuma cumprir tudo, suggestions vazio.
 
 ORIGINAL: ${JSON.stringify(original)}`;
