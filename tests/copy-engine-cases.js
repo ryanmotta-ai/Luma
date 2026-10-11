@@ -509,6 +509,8 @@
           assert(/Ijuí/.test(t.replace(/#\S+/g,'')),'a cidade não aparece no texto: '+t);
         });
         assert(!/#/.test(o.op3),'WhatsApp com hashtag: '+o.op3);
+        const loc=[o.op1,o.op2].map(t=>corpoDe(t).find(l=>/Ijuí/.test(l)&&!/^#/.test(l)));
+        assert(loc[0]!==loc[1],'as duas opções repetiram a frase da cidade: '+loc[0]);
       }
     }finally{window.fCidadeAtual=antes;}
   });

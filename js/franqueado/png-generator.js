@@ -5355,6 +5355,26 @@ const _COPY_BLOCKS = {
     'Código {cupom} no carrinho.',
     'Usa o cupom {cupom} e aproveita.',
   ],
+  /* ─── LOCAL: a cidade escrita no TEXTO (a busca do Insta lê a legenda, não só a hashtag) ───
+     Sempre "em {cidade}"/"de {cidade}" — nada de "no"/"na", que depende do nome da cidade. */
+  locais: [
+    'Aqui em {cidade}, é Delivery Much.',
+    'Em {cidade}, quem pede é Delivery Much.',
+    'Delivery Much, o app de delivery de {cidade}.',
+    'Feito pra quem é de {cidade}.',
+    'Pedido em {cidade}? É no Delivery Much.',
+    'Pra galera de {cidade}.',
+    'Em {cidade}, a fome se resolve no Delivery Much.',
+    'O delivery da sua cidade: {cidade}.',
+    'De {cidade} pra {cidade}, pelo Delivery Much.',
+    'Quem é de {cidade} já sabe: Delivery Much.',
+    'Em {cidade} tem Delivery Much.',
+    'Bateu a fome em {cidade}? Delivery Much.',
+    'Tá em {cidade}? Pede no Delivery Much.',
+    'Seu pedido em {cidade}, pelo Delivery Much.',
+    'Delivery Much, pertinho de você em {cidade}.',
+    'Em {cidade}, é só pedir no Delivery Much.',
+  ],
   ganchosCupom: [
     'Cupom novo na área.',
     'Tem cupom esperando você.',
@@ -5757,7 +5777,13 @@ function _fAssembleCopy(f, mode, segment, used, forceShort) {
 
   const tags = [...new Set(allTagsList)].slice(0, 9).join(' ');
   // A cidade escrita no TEXTO também conta na busca (palavra-chave, não só hashtag).
-  const localLine = city ? ('Aqui em ' + String(city).trim() + ', é Delivery Much.') : '';
+  let localLine = '';
+  if (city) {
+    const livres = B.locais.filter(l => !used.locais.has(l));
+    const tpl = _fPick1(livres.length ? livres : B.locais);
+    used.locais.add(tpl);
+    localLine = tpl.replace(/\{cidade\}/g, String(city).trim());
+  }
 
   const lines = [hook, '', body];
   if (valLine) lines.push(valLine);
@@ -5778,7 +5804,7 @@ function fBuildCopy(prod, de, por, val, desc, format, ctxName, cupom) {
   // Dedup COMPARTILHADO entre as 3 opções + memória das artes recentes (ver acima).
   const recent = _fCopyRecent();
   const used = {
-    hooks: new Set(recent.hooks), bodies: new Set(recent.bodies), ctas: new Set(recent.ctas), cupons: new Set()
+    hooks: new Set(recent.hooks), bodies: new Set(recent.bodies), ctas: new Set(recent.ctas), cupons: new Set(), locais: new Set()
   };
   // Cada aba tem PROPÓSITO e formato próprios (antes as 3 eram iguais e o CTA era sorteado —
   // a aba "Engajar" podia sair com CTA de delivery):
