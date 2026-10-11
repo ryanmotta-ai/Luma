@@ -2612,6 +2612,21 @@ async function fGiriaAdicionar(ev){
   if(typeof gTrackEvent === 'function') gTrackEvent('giria_adicionada', {});
 }
 
+/* DIAGRAMAÇÃO da legenda da IA — a mesma cara do motor local (gancho / corpo / CTA / hashtags,
+   blocos separados por linha em branco). O prompt pede; isto garante quando o modelo devolve
+   tudo num parágrafo só: hashtags do fim viram bloco próprio e cada frase vira um parágrafo.
+   Texto que já veio com linha em branco fica como está. */
+function _fCapDiagrama(s){
+  s = String(s || '').replace(/\r/g, '').replace(/\n{3,}/g, '\n\n').trim();
+  if (!s || /\n\s*\n/.test(s)) return s;
+  const m = /((?:\s*#[\p{L}\d_]+)+)\s*$/u.exec(s);
+  const tags = m ? m[1].trim().split(/\s+/).join(' ') : '';
+  const corpo = m ? s.slice(0, m.index).trim() : s;
+  const frases = corpo.split(/\n|(?<=[.!?])\s+(?=[\p{Lu}"“])/u).map(x => x.trim()).filter(Boolean);
+  return frases.concat(tags ? [tags] : []).join('\n\n');
+}
+console.assert(_fCapDiagrama('Fome? Pizza por R$ 39,90. Peça no app. #DeliveryMuch #Delivery') === 'Fome?\n\nPizza por R$ 39,90.\n\nPeça no app.\n\n#DeliveryMuch #Delivery', '_fCapDiagrama');
+
 async function fFetchAICaptionSuggestions(dados, camp, formato) {
   const fallback = fGenCaptionSuggestions(dados, camp, formato);
   fallback._ia = false;   // marca a ORIGEM: a UI rotula IA x motor local (ver painel de legenda)
@@ -2721,7 +2736,7 @@ REGRAS OBRIGATÓRIAS:
 1. NUNCA use emoji — nenhum, em nenhuma opção.
 2. NÃO invente preço, prazo, brinde, frete ou benefício que não esteja nos fatos acima. Sem preço nos fatos, escreva sem citar valor.
 3. As 3 opções têm ângulos DIFERENTES entre si — não reescreva a mesma frase.
-4. ${ehStory ? 'Formato STORY: no máximo 2 linhas curtas em "promo" e "engajar" (texto que caiba num story, leitura de 2 segundos).' : 'Formato FEED: "promo" e "engajar" podem ter 2 a 4 linhas.'}
+4. ${ehStory ? 'Formato STORY: no máximo 2 linhas curtas em "promo" e "engajar" (texto que caiba num story, leitura de 2 segundos).' : 'Formato FEED: "promo" e "engajar" podem ter 2 a 4 linhas.'} Diagramação: abertura, oferta, chamada pra pedir e hashtags em parágrafos separados por UMA linha em branco (\\n\\n no JSON) — nunca tudo num bloco só.
 5. ${hashtags} — só em "promo" e "engajar". A opção "whatsapp" NÃO leva hashtag.
 6. "whatsapp" é mensagem pra lista de transmissão: chama pra pedir no app. NUNCA use asterisco (*) nem qualquer marcação de negrito/markdown, em nenhuma opção.
 7. Português do Brasil com TODA a acentuação e o "ç" corretos (família, peça, promoção, você, já). Os fatos podem ter sido digitados sem acento: corrija a grafia na legenda, mas não troque palavras, nomes próprios nem preços.${blocoGiriasPrompt ? `
@@ -2739,7 +2754,7 @@ Responda APENAS com JSON válido:
     // Cinto de segurança das regras 1 e 6: modelo às vezes escorrega um emoji ou um *negrito*.
     // Tira em vez de devolver peça fora do padrão de marca.
     s = s.replace(/\*/g, '').replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}]/gu, '').replace(/[ \t]{2,}/g, ' ').trim();
-    return s || fallback[i].text;
+    return _fCapDiagrama(s) || fallback[i].text;
   };
   const out = [
     { id: 'promo', label: 'Promo', text: limpa(parsed.promo, 0) },
