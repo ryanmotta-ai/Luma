@@ -7,9 +7,9 @@ const LumaTooltips = {
   // SELECIONAR
   'select': { name: 'Ferramenta Seleção', group: 'Selecionar', shortcut: 'V', desc: 'Move, redimensiona e rotaciona elementos no seu design.', example: 'Use para organizar o layout e posicionar objetos livremente no canvas.' },
   'hand': { name: 'Ferramenta Mão', group: 'Navegação', shortcut: 'H', desc: 'Navegue pelo canvas de forma livre sem alterar nenhum elemento.', example: 'Dica: segure a barra de espaço a qualquer momento para ativar temporariamente.' },
-  'obj-select': { name: 'Seleção de Objeto', group: 'Selecionar', shortcut: 'Shift+V', desc: 'Encontra e seleciona objetos automaticamente na tela usando inteligência.', example: 'Ideal para isolar elementos complexos de um fundo em um único clique.' },
-  'quick-select': { name: 'Seleção Rápida', group: 'Selecionar', shortcut: 'Shift+V', desc: 'Pinte sobre uma área para selecioná-la rapidamente.', example: 'Ótimo para selecionar roupas ou partes específicas de uma imagem.' },
-  'magic-wand': { name: 'Varinha Mágica', group: 'Selecionar', shortcut: 'Shift+V', desc: 'Seleciona áreas com cores semelhantes com apenas um clique.', example: 'Perfeito para remover fundos sólidos ou selecionar céus.' },
+  'obj-select': { name: 'Seleção de Objeto', group: 'Selecionar', shortcut: 'Shift+V', desc: 'Arraste um retângulo para selecionar as camadas que ficam dentro dele.', example: 'Ideal para pegar vários elementos de uma área de uma vez.' },
+  'quick-select': { name: 'Seleção Rápida', group: 'Selecionar', shortcut: 'Shift+V', desc: 'Clique ou arraste por cima das camadas para selecioná-las.', example: 'Segure Shift para somar à seleção e Alt para tirar.' },
+  'magic-wand': { name: 'Varinha Mágica', group: 'Selecionar', shortcut: 'Shift+V', desc: 'Clique numa camada para selecionar todas as camadas de cor parecida.', example: 'Ajuste a tolerância na barra de cima para pegar mais ou menos tons.' },
 
   // TEXTO & MÍDIA
   'text-h': { name: 'Texto Horizontal', group: 'Texto', shortcut: 'T', desc: 'Adiciona blocos de texto ou parágrafos regulares no formato ocidental.', example: 'Clique para criar um título ou arraste para desenhar uma caixa de parágrafo.' },
@@ -50,7 +50,7 @@ const LumaTooltips = {
   'color-sampler': { name: 'Amostrador de Cor', group: 'Utilitários', shortcut: '', desc: 'Coloca marcadores de cor na tela para ler valores precisos.', example: 'Use para garantir que duas áreas da imagem possuam o mesmo tom de cor.' },
   'ruler': { name: 'Ferramenta Régua', group: 'Utilitários', shortcut: '', desc: 'Mede distâncias e ângulos de forma precisa no canvas.', example: 'Arraste entre dois pontos para medir, ideal para alinhar elementos fotográficos.' },
   'note': { name: 'Notas de Revisão', group: 'Utilitários', shortcut: '', desc: 'Adiciona comentários diretamente sobre o arquivo.', example: 'Use para comunicar alterações com sua equipe sem riscar o design.' },
-  'count': { name: 'Contagem', group: 'Utilitários', shortcut: '', desc: 'Adiciona números sequenciais ao clicar nos elementos.', example: 'Útil para marcar quantos objetos existem em uma imagem de laboratório ou arquitetura.' },
+  'count': { name: 'Contagem', group: 'Utilitários', shortcut: '', desc: 'Adiciona números sequenciais ao clicar nos elementos.', example: 'Útil para numerar pontos de revisão. Os números não saem na arte final.' },
 };
 
 let dTooltipTimer = null;

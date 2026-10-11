@@ -1513,15 +1513,10 @@ document.addEventListener('keydown', e => {
       }
     }
 
-    // Q - QR Code direto
-    if (e.key === 'q' || e.key === 'Q') {
-      if (typeof dDataPick === 'function') dDataPick('qr-code'); else dSetTool('qr-code');
-    }
-
     // X - Dados / Vínculo (com alternância Shift+X)
     if (e.key === 'x' || e.key === 'X') {
       if (e.shiftKey) {
-        const order = ['var-data', 'qr-code'];
+        const order = ['var-data'];   // QR Code escondido (11/10/2026)
         let idx = order.indexOf(dTool);
         if (idx === -1) idx = 0;
         let nIdx = (idx + 1) % order.length;
