@@ -10,9 +10,9 @@
 const DTUT_SECTIONS = [
   { title: 'Ferramentas de criação', open: true, items: [
     { ico:'⌖', name:'Selecionar / Mover', key:'V', desc:'Clique para selecionar um elemento e arraste para mover. Use as alças nos cantos para redimensionar. Setas movem 1px (Shift = 10px).' },
-    { ico:'T', name:'Texto', key:'T', desc:'Clique no canvas para criar um texto. Escreva {{variavel}} para criar campos que o franqueado vai preencher (ex.: {{produto}}).' },
+    { ico:'T', name:'Texto', key:'T', desc:'Clique no canvas para criar um texto. Escreva {{nome_do_campo}} para criar campos que o franqueado vai preencher (ex.: {{produto}}).' },
     { ico:'▭', name:'Retângulo / Formas', key:'R', desc:'Cria formas sólidas (fundos, faixas, caixas). No painel de camadas há também + Círculo, Estrela, Polígono e Linha.' },
-    { ico:'🖼', name:'Moldura de foto', key:'F', desc:'Área que recebe uma imagem. Vincule a uma variável de imagem (ex.: foto_produto) para o franqueado subir a foto dele. Suporta recorte cover/contain e cantos arredondados/círculo.' },
+    { ico:'🖼', name:'Moldura de foto', key:'F', desc:'Área que recebe uma imagem. Vincule a um campo de imagem (ex.: foto_produto) para o franqueado subir a foto dele. Suporta recorte cover/contain e cantos arredondados/círculo.' },
     { ico:'🌄', name:'Imagem fixa', key:'M', desc:'Insere uma imagem que NÃO muda (logo, selo). Para foto que o franqueado troca, use a Moldura.' },
   ]},
   { title: 'Pintura', open: false, items: [
@@ -22,25 +22,25 @@ const DTUT_SECTIONS = [
     { ico:'🪣', name:'Balde', key:'G', desc:'Preenche uma área com a cor atual.' },
     { ico:'🔁', name:'Carimbo (clone)', key:'S', desc:'Clona um trecho da arte. Defina a origem e pinte a cópia.' },
   ]},
-  { title: 'Variáveis & automação', open: false, items: [
-    { ico:'{}', name:'Variáveis', key:'aba Variáveis', desc:'Crie campos que o franqueado preenche: texto, número, moeda (R$), imagem, seleção, data, cor e sim/não. Defina rótulo, valor padrão, se é obrigatório e a ordem das perguntas.' },
-    { ico:'🔗', name:'Vínculos de propriedade', key:'painel Propriedades', desc:'Faça a COR de uma forma ou a VISIBILIDADE de um elemento dependerem de uma variável (ex.: mostrar um selo só quando "mostrarSelo" for Sim).' },
-    { ico:'⚙', name:'Regras condicionais', key:'painel Propriedades', desc:'“Quando [variável] estiver [vazio] → ocultar este elemento”. Ex.: esconder o badge de desconto quando não há preço “de”.' },
-    { ico:'👁', name:'Simular dados reais', key:'topo', desc:'Preencha valores de teste e veja a arte exatamente como o franqueado vai gerar — com contador de caracteres e aviso de overflow.' },
+  { title: 'Campos & automação', open: false, items: [
+    { ico:'{}', name:'Campos', key:'aba Campos', desc:'Crie campos que o franqueado preenche: texto, número, moeda (R$), imagem, seleção, data, cor e sim/não. Defina rótulo, valor padrão, se é obrigatório e a ordem das perguntas.' },
+    { ico:'🔗', name:'Vínculos de propriedade', key:'painel Propriedades', desc:'Faça a COR de uma forma ou a VISIBILIDADE de um elemento dependerem de um campo (ex.: mostrar um selo só quando "mostrarSelo" for Sim).' },
+    { ico:'⚙', name:'Regras condicionais', key:'painel Propriedades', desc:'“Quando [campo] estiver [vazio] → ocultar este elemento”. Ex.: esconder o selo de desconto quando não há preço “de”.' },
+    { ico:'👁', name:'Simular dados reais', key:'topo', desc:'Preencha valores de teste e veja a arte exatamente como o franqueado vai gerar — com contador de caracteres e aviso quando o texto não cabe.' },
   ]},
   { title: 'Organização & precisão', open: false, items: [
     { ico:'⌷', name:'Alinhar / Distribuir', key:'barra contextual', desc:'Com 1 elemento, alinha ao canvas; com 2+ selecionados (Shift+clique), alinha/distribui entre eles.' },
     { ico:'🔗', name:'Agrupar', key:'Ctrl+G', desc:'Agrupa elementos para moverem juntos. Ctrl+Shift+G desfaz o grupo.' },
-    { ico:'🧲', name:'Snap & guias', key:'topo', desc:'Linhas-guia inteligentes que “grudam” os elementos alinhados, mostrando a medida em px. Réguas ajudam no posicionamento.' },
+    { ico:'🧲', name:'Encaixe & guias', key:'topo', desc:'Linhas-guia inteligentes que “grudam” os elementos alinhados, mostrando a medida em px. Réguas ajudam no posicionamento.' },
     { ico:'↩', name:'Desfazer / Refazer', key:'Ctrl+Z / Ctrl+Shift+Z', desc:'Volta e refaz qualquer ação. Ctrl+D duplica o elemento selecionado.' },
   ]},
   { title: 'Blocos & fontes (aba Assets)', open: false, items: [
-    { ico:'🧩', name:'Blocos reutilizáveis', key:'aba Assets', desc:'Salve um conjunto de elementos como um bloco (selo de desconto, faixa “de/por”, rodapé) e reinsira em qualquer template.' },
+    { ico:'🧩', name:'Blocos reutilizáveis', key:'aba Assets', desc:'Salve um conjunto de elementos como um bloco (selo de desconto, faixa “de/por”, rodapé) e reinsira em qualquer material.' },
     { ico:'🔤', name:'Fontes da marca', key:'aba Assets', desc:'Envie suas fontes (.ttf/.otf/.woff/.woff2). Elas aparecem no seletor de fonte e são embutidas no SVG exportado.' },
   ]},
   { title: 'Finalizar', open: false, items: [
-    { ico:'🔍', name:'Preview / Exportar', key:'P', desc:'Veja a arte final e baixe em PNG (1×/2×/3×) ou JPG. Também dá pra exportar SVG (com {{variáveis}} ou já preenchido).' },
-    { ico:'🚀', name:'Publicar', key:'topo', desc:'Disponibiliza o template para os franqueados, definindo permissões (o que é editável e o limite de caracteres) e a validade.' },
+    { ico:'🔍', name:'Preview / Exportar', key:'P', desc:'Veja a arte final e baixe em PNG (1×/2×/3×) ou JPG. Também dá para exportar SVG (com {{campos}} ou já preenchido).' },
+    { ico:'🚀', name:'Publicar', key:'topo', desc:'Disponibiliza o material para os franqueados, definindo permissões (o que é editável e o limite de caracteres) e a validade.' },
   ]},
 ];
 

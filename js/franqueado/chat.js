@@ -147,7 +147,7 @@ async function fStartChatComMaterial(material){
     fUpdateProg();
     fState._pendingDraft = draft;
 
-    let recoverMsg = `Identifiquei que você tem um rascunho em andamento para a arte <strong>${gEsc(material.name)}</strong>. Deseja continuar de onde parou?`;
+    let recoverMsg = `Você tem um rascunho da arte <strong>${gEsc(material.name)}</strong>. Quer continuar de onde parou?`;
     fAddBot(recoverMsg, []);
 
     _fChipsDeFluxo(document.getElementById('f-messages'),
@@ -306,7 +306,7 @@ function fPickLoja(lojaId){
     if(!fState.camp._perguntasTodas) fState.camp._perguntasTodas=(fState.camp.perguntas||[]).slice();
     fState.camp.perguntas = (fState.camp.perguntas||[]).filter(p=>fState.dados[p.id]==null||fState.dados[p.id]==='');
   }
-  if(typeof gToast==='function') gToast(`Dados de ${loja.nome||'sua loja'} aplicados`);
+  if(typeof gToast==='function') gToast(`Dados de ${loja.nome||'sua loja'} aplicados.`);
   fLpRefresh();
   _fProceedMaterialStart(fState.material);
 }
@@ -372,13 +372,13 @@ function fSelectFmt(id){
     // Regerar arte automaticamente no novo formato
     document.getElementById('f-messages').innerHTML='';
     fState.stepIdx=fState.camp.perguntas.length;fUpdateProg();
-    fAddBot(`Trocando pra <strong>${novoFmt.name}</strong> mantendo as respostas…`,[]);
+    fAddBot(`Trocando para <strong>${gEsc(novoFmt.name)}</strong> e mantendo suas respostas…`,[]);
     setTimeout(()=>fGerarArte(),500);
     return;
   }
   if(temDados){
     // Continua de onde parou, sem zerar
-    fAddBot(`Formato alterado pra <strong>${novoFmt.name}</strong>. Mantive suas respostas.`,[]);
+    fAddBot(`Formato trocado para <strong>${gEsc(novoFmt.name)}</strong>. Mantive suas respostas.`,[]);
     return;
   }
   // Sem dados: comportamento original
@@ -423,8 +423,8 @@ function fUpdateProg(){
     const av=document.getElementById('f-arte-status');
     if(av){
       const texto = !fState.done ? ''
-        : bloqueada ? 'A arte foi gerada, mas um texto não cabe. Use o botão “Falta ajustar um texto” para corrigir.'
-        : 'Sua arte está pronta. Baixar PNG e Editar arte estão disponíveis.';
+        : bloqueada ? 'A arte foi gerada, mas um texto não cabe. Toque em “Falta ajustar um campo” para corrigir.'
+        : 'Sua arte está pronta. Você pode baixar ou editar a arte.';
       if(av.textContent !== texto) av.textContent = texto;
     }
   }catch(e){}
@@ -538,7 +538,7 @@ function _fGuidedControleHTML(p,cfg,valor,uploadId){
     return `<div class="f-upload-zone fg-upload-zone" id="${uploadId}-zone" data-var="${gEsc(p.id)}" data-upload="${uploadId}" onclick="fOpenUploadPanel('${gEscJs(p.id)}','${gEscJs(uploadId)}')">
       <input type="file" id="${uploadId}-input" accept="image/png,image/jpeg,image/webp" hidden onclick="event.stopPropagation()" onchange="fHandleImageUpload(event,'${gEscJs(p.id)}','${gEscJs(uploadId)}')">
       <div class="f-upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
-      <div class="f-upload-title">Escolher imagem</div><div class="f-upload-sub">PNG, JPG ou WebP · até 20MB</div>
+      <div class="f-upload-title">Escolher imagem</div><div class="f-upload-sub">PNG, JPG ou WebP · até 20 MB</div>
     </div>`;
   }
   if(cfg.type==='date'){
@@ -1109,7 +1109,7 @@ function fShowWelcome(){
      verdadeira nos dois layouts e não há dois textos para manter em sincronia. */
   const box=document.getElementById('f-msg-box');
   if(box){ box.disabled=true; box.placeholder=_fCelular()?'Escolha uma campanha':'Escolha uma campanha para começar'; }
-  try{ fAddBot('Oi! Eu sou a <strong>Luma</strong>. Escolha uma campanha que eu monto a arte com você — leva ~1 minutinho.',[]); }catch(e){}
+  try{ fAddBot('Oi! Eu sou a <strong>Luma</strong>. Escolha uma campanha que eu monto a arte com você — leva cerca de 1 minuto.',[]); }catch(e){}
 }
 
 
@@ -1128,11 +1128,11 @@ function fStartChat(){
   try { fAttachInputGuard(); } catch(e){}
   // F-05: mensagem inicial com contexto (quantas perguntas, tempo estimado)
   const total = fState.camp.perguntas.length;
-  fAddBot(`Oi! Vou te fazer <strong>${total} pergunta${total>1?'s':''} rápida${total>1?'s':''}</strong> sobre <strong>${gEsc(fState.camp.name)}</strong> (formato ${gEsc(fState.fmt.name)}) e gerar a arte. Leva ~1 minuto.<br>
+  fAddBot(`Oi! Vou te fazer <strong>${total} pergunta${total>1?'s':''} rápida${total>1?'s':''}</strong> sobre <strong>${gEsc(fState.camp.name)}</strong> (formato ${gEsc(fState.fmt.name)}) e gerar a arte. Leva cerca de 1 minuto.<br>
   <div style="margin-top:8px;border-top:1px dashed var(--gray-mid);padding-top:6px;display:flex;align-items:center;justify-content:space-between;gap:8px">
     <span style="font-size:11px;color:var(--text-3)">Quer pular as perguntas?</span>
     <button class="f-bulk-entrada" onclick="fBulkOpen()" style="background:var(--dm-orange-bg);border:1px solid var(--dm-orange-tint);color:var(--dm-orange-d);font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--r-pill);cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all 0.15s ease" onmouseover="this.style.background='var(--dm-orange-tint)'" onmouseout="this.style.background='var(--dm-orange-bg)'">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Gerar em Lote
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Gerar em lote
     </button>
   </div>`,[]);
   clearTimeout(fNextTimeout);
@@ -1233,7 +1233,7 @@ function fNextStep(){
     if(jaTem){ return; }
     // Desabilita input de texto
     const box=document.getElementById('f-msg-box');
-    if(box){box.disabled=true;box.placeholder='Use o botão de upload acima';}
+    if(box){box.disabled=true;box.placeholder='Envie a imagem no quadro acima';}
     const snd=document.getElementById('f-snd'); if(snd) snd.disabled=true;
     const mic=document.getElementById('f-chat-mic'); if(mic) mic.disabled=true;
     return;
@@ -1417,8 +1417,8 @@ async function fValidarImagemSemantica(varId, url, cb){
 
     if (res && res.ok && res.data && res.data.valid === false && res.data.confidence === 'high') {
       const aviso = res.data.reason || (ehLogo
-        ? 'Esta imagem parece não ser um logotipo comercial.'
-        : 'Esta imagem parece não conter um prato ou produto alimentício.');
+        ? 'Esta imagem não parece ser o logo de uma loja.'
+        : 'Esta imagem não parece mostrar comida ou bebida.');
       cb(aviso);
     }
   } catch(e) {
@@ -1485,7 +1485,7 @@ function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
   const msgs=document.getElementById('f-messages');
   const w=document.createElement('div');w.className='msg bot active-prompt';
   const uploadId='f-upload-'+Date.now();
-  const fieldHint = `<div class="field-hint"><span class="field-hint-type"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span><span class="field-hint-text">${gEsc(pergunta.label)}${_fCelular()?'':' · imagem (PNG/JPG, máx 20MB)'}</span></div>`;
+  const fieldHint = `<div class="field-hint"><span class="field-hint-type"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span><span class="field-hint-text">${gEsc(pergunta.label)}${_fCelular()?'':' · imagem (PNG, JPG ou WebP, até 20 MB)'}</span></div>`;
   let back='';
   if(canGoBack){
     back = `<div class="qr-back-wrap"><button class="qr-back" onclick="fGoBack()" title="Voltar uma pergunta"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>Voltar uma pergunta</button></div>`;
@@ -1512,8 +1512,8 @@ function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
            repetir "Toque pra enviar uma foto" aqui é a mesma frase duas vezes em 40px. No
            telefone o título vira o RÓTULO DA AÇÃO ("Escolher foto") e o sub diz de onde a
            foto pode vir — que é a dúvida real de quem toca. -->
-      <div class="f-upload-title">${_fCelular()?'Escolher foto':'Toque pra enviar uma foto'}</div>
-      <div class="f-upload-sub">recentes, lojas salvas ou novo arquivo<span class="f-upload-cola"> · ou cole com ${_F_TECLA_COLAR}, ou arraste pra cá</span></div>
+      <div class="f-upload-title">${_fCelular()?'Escolher foto':'Clique para enviar uma foto'}</div>
+      <div class="f-upload-sub">recentes, lojas salvas ou novo arquivo<span class="f-upload-cola"> · ou cole com ${_F_TECLA_COLAR}, ou arraste para cá</span></div>
     </div>`;
   w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
     <div class="bbl">${stepLabel}<span class="perg-frase">${pergunta.texto}</span>${fieldHint}</div>
@@ -1630,7 +1630,7 @@ function _fInitChatSoltarColar(){
     if(!(tipos && Array.prototype.indexOf.call(tipos,'text/uri-list') >= 0)) return;
     e.preventDefault();
     if(tipo==='drop' && typeof gToast==='function')
-      gToast('Não consigo pegar imagem direto de um site. Salve o arquivo e arraste ele, ou cole com ' + _F_TECLA_COLAR + '.');
+      gToast('Não consigo pegar imagem direto de um site. Salve a imagem no computador e arraste o arquivo, ou cole com ' + _F_TECLA_COLAR + '.');
   });
 });
 /* COLAR. Imagem primeiro (é o gesto do print de tela, o motivo do pedido); texto depois, e
@@ -1677,7 +1677,7 @@ function fProcessImageFile(file, varId, uploadId){
     return;
   }
   if(file.size > 20*1024*1024){
-    const msg=`Imagem muito grande (${(file.size/1024/1024).toFixed(1)}MB). Máximo 20MB.`;
+    const msg=`Imagem muito grande (${(file.size/1024/1024).toFixed(1).replace('.',',')} MB). Envie uma de até 20 MB.`;
     if(_fGuidedAtivo()) _fGuidedErro(msg); else fShowFieldError(msg);
     return;
   }
@@ -1700,8 +1700,8 @@ function fProcessImageFile(file, varId, uploadId){
       zEl.classList.remove('f-upload-loading');
       zEl.innerHTML=`<input type="file" id="${uploadId}-input" accept="image/png,image/jpeg,image/webp" style="display:none" onclick="event.stopPropagation()" onchange="fHandleImageUpload(event,'${varId}','${uploadId}')">
         <div class="f-upload-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
-        <div class="f-upload-title">Toque pra tentar de novo</div>
-        <div class="f-upload-sub">PNG ou JPG, até 20MB</div>`;
+        <div class="f-upload-title">Toque para tentar de novo</div>
+        <div class="f-upload-sub">PNG, JPG ou WebP · até 20 MB</div>`;
     }
   };
   reader.onerror=falhaLeitura;
@@ -2168,7 +2168,7 @@ function fEditCampo(idx){
     const editPergunta = {...p, texto: `Envie uma nova <strong>${gEsc(label.toLowerCase())}</strong>`};
     fAddBotImageUpload(stepLabel, editPergunta, false);
     const box=document.getElementById('f-msg-box');
-    if(box){box.disabled=true;box.placeholder='Use o botão de upload acima';}
+    if(box){box.disabled=true;box.placeholder='Envie a imagem no quadro acima';}
     const snd=document.getElementById('f-snd'); if(snd) snd.disabled=true;
     const mic=document.getElementById('f-chat-mic'); if(mic) mic.disabled=true;
   } else {
@@ -2347,7 +2347,7 @@ function _fCaptionSrcTag(suggestions){
   const modelo = (typeof gAiModel === 'function') ? gAiModel() : '';
   return ia
     ? `<span class="caption-src is-ia" title="Texto gerado por Inteligência Artificial${modelo ? ' (' + gEsc(modelo) + ')' : ''} — confira antes de publicar">${_ICO_SPARK}Gerado por IA</span>`
-    : `<span class="caption-src" title="Escrito pelo motor de copy do Luma (sem IA)">${_ICO_PEN}Sugestão do Luma</span>`;
+    : `<span class="caption-src" title="Escrita pelo Luma a partir dos dados da sua oferta (sem IA)">${_ICO_PEN}Sugestão do Luma</span>`;
 }
 
 /* Revisão Semântica Final da Peça (Fase 3, §37-§40).
@@ -2381,7 +2381,7 @@ async function _fRevisarArteIA(canvasId, dados, camp, legendaPromise){
   const badgeHtml = `<div class="art-review-badge" role="alert">
     <div style="display:flex;align-items:center;gap:6px;font-weight:600">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <span>Atenção aos dados da oferta:</span>
+      <span>Confira os dados da oferta:</span>
     </div>
     <ul>${items}</ul>
   </div>`;
@@ -2883,7 +2883,7 @@ function fGerarArte(){
   }
   const existing=document.getElementById('confirm-msg'); if(existing) existing.remove();
   const box=document.getElementById('f-msg-box');
-  if(box){box.disabled=false;box.placeholder='Arte gerada! Escolha um formato ou gere outra…';}
+  if(box){box.disabled=false;box.placeholder='Arte pronta. Escolha um formato ou gere outra…';}
   const snd=document.getElementById('f-snd'); if(snd) snd.disabled=false;
   const mic=document.getElementById('f-chat-mic'); if(mic) mic.disabled=false;
   const d=fState.dados,c=fState.camp;
@@ -3028,7 +3028,7 @@ function fGerarArte(){
                regua de order do celular; trocar o nome seria churn puro, sem nada em troca.
                O icone tambem mudou: a seta de voltar dizia navegacao. Agora e o lapis, o
                mesmo simbolo que abre cada campo na lista do outro lado do clique. -->
-          <button type="button" class="art-btn art-voltar" onclick="fVoltarParaEdicao()" title="Rever os campos desta arte sem perder nada do que voce ja respondeu">
+          <button type="button" class="art-btn art-voltar" onclick="fVoltarParaEdicao()" title="Rever as respostas desta arte sem perder nada do que você já preencheu">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Editar arte
           </button>
         </section>
@@ -3145,7 +3145,7 @@ function _fBolhaMarcaBloqueio(w, rendered, d, mw, mh){
           r = Object.assign({}, res, {diagnostico: gLocalFitDiagnostico(rendered, res, d || {},
             {canvas:{w:mw,h:mh}, defaults:(typeof gVarDefaults === 'function') ? gVarDefaults() : null})});
       }catch(e){ /* sem laudo, o diálogo cai na frase sem número */ }
-      const semAcao = ()=>{ if(typeof gToast === 'function') gToast('Abra o campo que não coube e encurte o texto. Se não achar, escolha outro material.'); };
+      const semAcao = ()=>{ if(typeof gToast === 'function') gToast('Abra o campo que não coube e encurte o texto. Se não der, escolha outro material.'); };
       if(typeof fCorrigirTextoLongo !== 'function') return semAcao();
       try{ Promise.resolve(fCorrigirTextoLongo(r)).catch(semAcao); }catch(e){ semAcao(); }   // erro dentro do diálogo não pode deixar o toque mudo
     };
@@ -3305,7 +3305,7 @@ async function fBaixar(btn, snapId){
   }catch(e){
     console.warn('Falha ao gerar PNG:', e);
     if(typeof gHandleLayoutUnsafeError==='function'&&gHandleLayoutUnsafeError(e))return;
-    gToast(e&&e.code==='LUMA_IMAGE_UNAVAILABLE'?e.message:'Não consegui gerar o arquivo. Tente enviar a foto de novo pelo botão de upload, ou escolha outra imagem.','error','ajuda-upload');
+    gToast(e&&e.code==='LUMA_IMAGE_UNAVAILABLE'?e.message:'Não consegui gerar a arte. Envie a foto de novo ou escolha outra imagem.','error','ajuda-upload');
   }finally{ fState.material=prevMat; restore(); }
 }
 /* ══ CONTROLE E CONFIANÇA — o desfazer de UMA ação do franqueado ═══════════════════════════
@@ -3863,7 +3863,7 @@ function fApplyRecoverDraft(confirm) {
     fState.dados = Object.assign({}, fState.dados || {}, draft.dados || {});
     fState.extractedColors = draft.extractedColors || {};
     fState.stepIdx = draft.stepIdx - 1; // fNextStep incrementa para o passo correto
-    fAddBot("Rascunho recuperado! Vamos continuar…", []);
+    fAddBot("Rascunho recuperado. Vamos continuar…", []);
     fLpRefresh();
     clearTimeout(fNextTimeout);
     fNextTimeout = setTimeout(() => fNextStep(), 900);

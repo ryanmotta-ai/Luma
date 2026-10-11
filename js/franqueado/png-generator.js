@@ -2115,7 +2115,7 @@ function fBulkAddEmptyRow() {
   const nova = fBulkCreateEmptyRow();
   fBulkRows.push(nova);
   const st = document.getElementById('f-bulk-status');
-  if(st) st.textContent = `${fBulkRows.length} linha(s) carregada(s)`;
+  if(st) st.textContent = `${fBulkRows.length} ${fBulkRows.length===1?'oferta':'ofertas'}`;
   // A linha nasce com altura/opacidade animadas (classe `is-nova` no render) e recebe o
   // cursor no primeiro campo — criar oferta e ter que caçar onde digitar eram dois passos.
   _fBulkLinhaNova = _fBulkRid(nova);
@@ -2158,7 +2158,7 @@ async function fBulkOpen(opcoes){
      as regras de toque continuam onde estão. "Por enquanto" quer dizer que a volta é apagar
      este bloco, não reescrever a tela. */
   if(typeof _fBulkEhCelular === 'function' && _fBulkEhCelular()){
-    if(typeof gToast === 'function') gToast('O Luma Sheets ainda é só no computador. Abra o Luma num monitor para produzir em lote.');
+    if(typeof gToast === 'function') gToast('Gerar em lote ainda é só no computador. Abra o Luma num computador para criar várias artes de uma vez.');
     return;
   }
   // `semearDaArte`: só o fBulkOpenFromArt manda, e só vale se a arte tem algo preenchido.
@@ -2220,7 +2220,7 @@ async function fBulkOpen(opcoes){
     else fBulkRows.unshift(linhaDaArte);
   }
   
-  document.getElementById('f-bulk-status').textContent=`${fBulkRows.length} linha(s) carregada(s)`;
+  document.getElementById('f-bulk-status').textContent=`${fBulkRows.length} ${fBulkRows.length===1?'oferta':'ofertas'}`;
   fBulkRenderPreview();
   // Reseta o bloco de IA pro estado colapsado a cada abertura (evita prompt de material antigo)
   const aiBody=document.getElementById('f-ai-prompt-body');
@@ -2246,7 +2246,7 @@ async function fBulkOpen(opcoes){
   fBulkSetActive(0);
   if(semearDaArte) gToast(restored
     ? 'Sua produção foi recuperada e esta arte entrou na primeira linha'
-    : 'Luma Sheets aberto com os dados desta arte');
+    : 'Gerar em lote aberto com os dados desta arte');
   else if(restored) gToast('Sua produção foi recuperada automaticamente');
 }
 function fBulkClose(){
@@ -2350,7 +2350,7 @@ function _fBulkSyncLiveHead(){
   const lab = document.getElementById('f-bulk-live-label');
   const cnt = document.getElementById('f-bulk-live-count');
   const chip = document.getElementById('f-bulk-live-chip');
-  if(lab) lab.textContent = n ? `A arte da linha ${i+1}` : 'Nenhuma linha ainda';
+  if(lab) lab.textContent = n ? `A arte da oferta ${i+1}` : 'Nenhuma oferta ainda';
   if(cnt) cnt.textContent = n ? `Oferta ${i+1} de ${n}` : '—';   // a tela chama de oferta, não de linha
   /* O fio de progresso no topo da folha: onde estou na fila, sem ocupar uma linha de texto.
      A largura é um token de instância (--f-bulk-fila), o desenho é todo do CSS. */
@@ -2568,15 +2568,13 @@ function _fBulkGoReview(){
 
 /* ── DÚVIDAS FREQUENTES (FAQ) do Luma Sheets ── */
 const F_BULK_FAQ = [
-  { cat:'Começar', q:'O que é o Luma Sheets?', a:'É a geração de artes em lote numa tela só: você preenche a planilha (cada linha = uma arte), vê cada uma na prévia ao lado enquanto digita, e o Luma gera todas de uma vez, prontas pra baixar num ZIP.' },
-  { cat:'Começar', q:'Como preencho a planilha?', a:'Três jeitos: (1) digite direto na tabela; (2) baixe o “CSV Modelo”, preencha no Excel e reenvie; (3) copie do Excel/Planilhas e cole pelo botão “Excel”.' },
-  { cat:'Começar', q:'“Começar com exemplos” lê meu cardápio real?', a:'Não. É uma demonstração que gera exemplos por tipo (pizza, sushi, burger) só como ponto de partida. Edite com seus produtos e preços reais antes de gerar.' },
-  { cat:'Recursos', q:'Posso ditar por voz?', a:'Sim — clique em “Falar” no painel de preencher e fale suas ofertas (ex.: “hambúrguer por 25, pizza de 50 por 39”). O assistente separa produto e preço. Precisa de Chrome/Edge e do site em https ou localhost (não funciona abrindo o arquivo direto).' },
-  { cat:'Recursos', q:'Como coloco fotos nos produtos?', a:'Na planilha, cada campo de imagem tem o botão “Foto” (envia do computador) ou um campo pra colar um link. Fotos abaixo de 600px avisam que podem sair pixeladas.' },
+  { cat:'Começar', q:'O que é o Gerar em lote?', a:'É criar várias artes numa tela só: cada oferta que você preenche vira uma arte, você vê cada uma na prévia ao lado enquanto digita, e o Luma gera todas de uma vez, prontas pra baixar num ZIP.' },
+  { cat:'Começar', q:'Como preencho a planilha?', a:'Toque em “Adicionar oferta” e digite direto nos campos de cada oferta. A arte ao lado se monta enquanto você escreve.' },
+  { cat:'Recursos', q:'Como coloco fotos nos produtos?', a:'Em cada oferta, o campo de foto tem o botão “Enviar foto” (do computador) e, se você já usou alguma, “Recentes”. Fotos com menos de 600px avisam que podem sair borradas.' },
   { cat:'Recursos', q:'Em qual formato as artes saem?', a:'No formato do material que você abriu — o mesmo que a prévia mostra ao lado da planilha. Para o mesmo lote em outro formato (Story, Feed, Post wide…), abra o material naquele formato e rode o lote de novo.' },
-  { cat:'Recursos', q:'O que são as Ações em Massa?', a:'Em “Preencher um campo de uma vez” você preenche uma coluna inteira de uma só vez, aplica desconto em % ou arredonda os preços pra final “,90” — tudo em todas as linhas ao mesmo tempo.' },
-  { cat:'Recursos', q:'O ZIP vem com as legendas?', a:'Sim — junto das imagens vem um arquivo “legendas_posts.txt” com 3 opções de copy por produto. As legendas saem no formato Feed (completo, com hashtags) e seguem o tom de voz Delivery Much e não se repetem.' },
-  { cat:'Problemas', q:'Uma arte saiu em branco ou errada. Por quê?', a:'Confira se a linha não tem campos com erro (o card mostra um aviso laranja) e se o material selecionado tem as variáveis certas. Corrija a linha e gere de novo.' },
+  { cat:'Recursos', q:'Dá pra mudar todas as ofertas de uma vez?', a:'Sim. Em “Preencher em todas” você escreve o mesmo valor em todas as ofertas, copia o que está na 1ª oferta, dá um desconto em % ou arredonda os preços para final “,90”.' },
+  { cat:'Recursos', q:'O ZIP vem com as legendas?', a:'Sim. Cada arte vem com a legenda ao lado, num arquivo de mesmo nome, e o arquivo “legendas_posts.txt” traz 3 opções de legenda por produto, com hashtags, no tom da Delivery Much e sem repetir frases.' },
+  { cat:'Problemas', q:'Uma arte saiu em branco ou errada. Por quê?', a:'Confira se a oferta não está marcada com “falta algo” ou “não cabe” e se você abriu o material certo. Corrija a oferta e gere de novo.' },
 ];
 let _fFaqKeyHandler = null;
 function fBulkToggleFaq(){
@@ -2994,7 +2992,7 @@ function fBulkUpdateReadiness(readiness=fBulkGetReadiness()) {
     if (soltasBtn) soltasBtn.disabled = ready === 0;
     dlBtn.disabled = ready === 0;
     dlBtn.setAttribute('aria-disabled', ready === 0 ? 'true' : 'false');
-    dlBtn.title = ready ? `${readiness.artCount} arte(s) pronta(s) para gerar` : 'Preencha e revise a planilha antes de gerar';
+    dlBtn.title = ready ? `${readiness.artCount} ${readiness.artCount===1?'arte pronta':'artes prontas'} para gerar` : 'Preencha e revise as ofertas antes de gerar';
     dlBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg><span id="f-bulk-dl-label">${label}</span>`;
   }
   const encTodas = document.getElementById('f-bulk-encurtar-todas');
@@ -3612,7 +3610,7 @@ function fBulkRenderPreview(){
              <span>Criar a primeira oferta</span>
            </button>
          </div>`
-      : '<div class="f-bulk-empty">Nenhuma linha na planilha. Adicione uma linha ou preencha com IA, cardápio ou Excel.</div>';
+      : '<div class="f-bulk-empty">Nenhuma oferta ainda. Toque em “Adicionar oferta” para começar.</div>';
     /* ⚠ Esvaziar a planilha TEM que apagar a coluna da esquerda junto. Sem isto a arte grande
        e a fita continuavam mostrando as linhas que acabaram de ser excluídas — a tela dizia
        "Nenhuma linha ainda" no rótulo e exibia três miniaturas de artes inexistentes ao lado.
@@ -3675,7 +3673,7 @@ function fBulkRenderPreview(){
             <div class="f-bulk-campo-foto">
               ${val ? `
                 <span class="f-bulk-foto-thumb" title="Prévia da foto">
-                  <img src="${safeV}" alt="" onerror="this.onerror=null;this.removeAttribute('src');this.parentElement.classList.add('is-erro');gToast('Link de imagem inválido ou quebrado!','error')" onload="this.parentElement.classList.toggle('is-baixa', !!(this.naturalWidth && (this.naturalWidth < 600 || this.naturalHeight < 600)))">
+                  <img src="${safeV}" alt="" onerror="this.onerror=null;this.removeAttribute('src');this.parentElement.classList.add('is-erro');gToast('Não consegui mostrar essa foto. Envie de novo.','error')" onload="this.parentElement.classList.toggle('is-baixa', !!(this.naturalWidth && (this.naturalWidth < 600 || this.naturalHeight < 600)))">
                 </span>
                 <button type="button" class="f-bulk-img-del" onclick="fBulkClearImage(${i}, '${k}')">Excluir</button>
               ` : `
@@ -4032,7 +4030,7 @@ function fBulkRemoveCard(index){
     if(i < 0) return; // esta linha já saiu num clique anterior
     fBulkRows.splice(i,1);
     const st=document.getElementById('f-bulk-status');
-    if(st)st.textContent=fBulkRows.length?`${fBulkRows.length} linha(s) carregada(s)`:'';
+    if(st)st.textContent=fBulkRows.length?`${fBulkRows.length} ${fBulkRows.length===1?'oferta':'ofertas'}`:'';
     fBulkRenderPreview();
     gToast('Oferta removida do lote');
   };
@@ -4055,7 +4053,7 @@ async function fBulkDownloadAll(modo){
     if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback('franqueado.export.zip');
     return;
   }
-  if(!fBulkRows.length){gToast('Envie uma planilha primeiro.');return;}
+  if(!fBulkRows.length){gToast('Adicione uma oferta primeiro.');return;}
   if(!soltas && typeof JSZip === 'undefined'){gToast('Não consegui preparar o pacote. Recarregue a página e tente de novo.','error');return;}
 
   // Salva e valida todas as linhas da tabela antes do download
@@ -4080,7 +4078,7 @@ async function fBulkDownloadAll(modo){
     const isEmpty = keys.every(k => !r.dados[k] || !r.dados[k].trim());
     return !isEmpty;
   });
-  if(!valid.length){gToast('Nenhuma linha preenchida ainda.','error');return;}
+  if(!valid.length){gToast('Preencha pelo menos uma oferta para gerar.','error');return;}
 
   // ── Pré-voo: resume o que VAI e o que NÃO vai sair, e confirma antes de gastar tempo.
   // Linhas com erro/vazias são puladas — o franqueado sabe ANTES, não ao abrir o ZIP.
@@ -4089,13 +4087,13 @@ async function fBulkDownloadAll(modo){
   const _nNaoCabe = _pulados.filter(r => !(r.erros && r.erros.length) && _fBulkNaoCabe(r)).length;
   const _nVazias = _pulados.length - _nErro - _nNaoCabe;
   const _totalArtes = valid.length * selectedFmts.length;
-  let _resumo = `Vou gerar ${valid.length} arte(s)`;
+  let _resumo = `Vou gerar ${valid.length} ${valid.length===1?'arte':'artes'}`;
   if (selectedFmts.length > 1) _resumo += ` × ${selectedFmts.length} formatos = ${_totalArtes} imagens`;
   _resumo += '.';
-  if (_nErro) _resumo += `\n• ${_nErro} linha(s) com erro ficam de fora — corrija na tabela.`;
-  if (_nNaoCabe) _resumo += `\n• ${_nNaoCabe} oferta(s) com conteúdo que não cabe na arte ficam de fora — confira os campos indicados na oferta.`;
+  if (_nErro) _resumo += `\n• ${_nErro===1?'1 oferta com algo a corrigir fica':_nErro+' ofertas com algo a corrigir ficam'} de fora — confira as marcadas com “falta algo”.`;
+  if (_nNaoCabe) _resumo += `\n• ${_nNaoCabe===1?'1 oferta com texto que não cabe na arte fica':_nNaoCabe+' ofertas com texto que não cabe na arte ficam'} de fora — confira as marcadas com “não cabe”.`;
   if (soltas && _totalArtes > 1) _resumo += `\n\nO navegador pode perguntar se permite baixar vários arquivos — aceite.`;
-  if (_nVazias) _resumo += `\n• ${_nVazias} linha(s) vazia(s) ignorada(s).`;
+  if (_nVazias) _resumo += `\n• ${_nVazias===1?'1 oferta vazia fica':_nVazias+' ofertas vazias ficam'} de fora.`;
   if (_totalArtes > 80) _resumo += `\n\nÉ bastante coisa — pode demorar e pesar no navegador do celular.`;
   if (typeof gConfirm === 'function' && !(await gConfirm(_resumo + '\n\nGerar agora?', {okLabel:`Gerar ${_totalArtes}`}))) return;
   _fBulkCancel = false; _fBulkArquivoDaLinha.clear();
@@ -4183,7 +4181,7 @@ async function fBulkDownloadAll(modo){
     const copyFormat = (document.getElementById('f-bulk-copy-format') || {}).value || 'feed';
     
     let captionsText = `========================================================\n`;
-    captionsText += `   LEGENDAS PARA POSTS — GERADAS PELO LUMA SHEETS\n`;
+    captionsText += `   LEGENDAS PARA POSTS — GERADAS PELO LUMA\n`;
     captionsText += `   Formato: ${copyFormat === 'stories' ? 'Stories (curto)' : 'Feed (completo)'}\n`;
     captionsText += `========================================================\n\n`;
     
@@ -4203,9 +4201,9 @@ async function fBulkDownloadAll(modo){
       const _arq = _fBulkArquivoDaLinha.get(row._rid);
       if(_arq) zip.file(_arq.replace(/\.png$/i, '.txt'), copys.op1 + '\n');
 
-      captionsText += `Opcao 1:\n${copys.op1}\n\n`;
-      captionsText += `Opcao 2:\n${copys.op2}\n\n`;
-      captionsText += `Opcao 3:\n${copys.op3}\n\n\n`;
+      captionsText += `Opção 1:\n${copys.op1}\n\n`;
+      captionsText += `Opção 2:\n${copys.op2}\n\n`;
+      captionsText += `Opção 3:\n${copys.op3}\n\n\n`;
     });
     
     zip.file("legendas_posts.txt", captionsText);
@@ -4242,8 +4240,9 @@ async function fBulkDownloadAll(modo){
     .concat(_falhas.map(f=>`${f.prod}: ${f.naoCabe?'o texto não coube na arte':'não consegui gerar'}`));
   const _foraTxt = _fora.length ? ` Ficaram de fora — ${_fora.slice(0,3).join(' · ')}${_fora.length>3?` e mais ${_fora.length-3}`:''}.` : '';
   const _onde = soltas ? 'baixadas' : 'no pacote';
-  if(_fBulkCancel) gToast(`Cancelado — ${ok} arte(s) ${_onde}.${_foraTxt}`, _fora.length?'error':undefined);
-  else if(_fora.length) gToast(`${ok} arte(s) ${_onde}.${_foraTxt}`,'error');
+  const _nArtes = `${ok} ${ok===1?'arte':'artes'}`;
+  if(_fBulkCancel) gToast(`Cancelado — ${_nArtes} ${_onde}.${_foraTxt}`, _fora.length?'error':undefined);
+  else if(_fora.length) gToast(`${_nArtes} ${_onde}.${_foraTxt}`,'error');
   else gToast(`${ok} artes geradas e ${_onde}!`);
   _fBulkCancel = false;
   
@@ -4567,7 +4566,7 @@ function fBulkApplyFill() {
   // Campo de imagem não aceita texto: o gesto certo é escolher um arquivo.
   if (typeof fIsImageVar === 'function' && fIsImageVar(col)) { fBulkFotoEmTodas(col); return; }
   if (val === undefined || val === '') {
-    gToast('Digite um valor para preencher todas as linhas', 'warning');
+    gToast('Digite o que vai em todas as ofertas', 'warning');
     return;
   }
   
@@ -4896,7 +4895,7 @@ const _COPY_BLOCKS = {
     ],
     japonesa: [
       'Japa hoje? A gente entrega fresco na sua porta.',
-      'Hot roll, temaki, combinado — escolhe o teu.',
+      'Hot roll, temaki, combinado — escolha o seu.',
       'Comida japonesa fresquinha sem sair de casa.',
       'Aquele japa que você merece.',
       'Peça na medida certa pra dividir (ou não).',
@@ -4973,7 +4972,7 @@ const _COPY_BLOCKS = {
     salgados: [
       'Aquele salgado quentinho que resolve a fome da tarde.',
       'Massa crocante por fora, recheio caprichado por dentro.',
-      'Pastel, coxinha, esfiha — escolhe o teu que a gente entrega.',
+      'Pastel, coxinha, esfiha — escolha o seu que a gente entrega.',
       'Salgado bom é o que chega quentinho na sua porta.',
       'Pra beliscar no meio da tarde sem pensar duas vezes.',
       'Feito na hora e entregue ainda quente.',
@@ -5103,7 +5102,7 @@ const _COPY_BLOCKS = {
       'Tá no cardápio esperando.',
       'É só chamar que a gente entrega.',
       'Hoje tem, e tá saindo quente.',
-      'Tá esperando teu pedido.',
+      'Tá esperando seu pedido.',
     ],
   },
 
@@ -5111,9 +5110,9 @@ const _COPY_BLOCKS = {
   ctas: {
     delivery: [
       'Peça pelo app.',
-      'Abre o app e faz teu pedido.',
+      'Abre o app e faz seu pedido.',
       'Chama no delivery.',
-      'Faz teu pedido agora.',
+      'Faz seu pedido agora.',
       'Peça pelo link na bio.',
       'Manda mensagem e a gente entrega.',
       'Tá no app, é só pedir.',
@@ -5125,7 +5124,7 @@ const _COPY_BLOCKS = {
       'Marca aqui quem sempre pede isso com você.',
       'Salva pra pedir depois.',
       'Manda pra quem tá com fome agora.',
-      'Comenta qual é o teu pedido de sempre.',
+      'Comenta qual é o seu pedido de sempre.',
       'Marca quem precisa ver isso.',
       'Manda pro grupo da galera.',
       'Compartilha com quem ia amar.',
@@ -5134,11 +5133,11 @@ const _COPY_BLOCKS = {
     ],
     // CTA de MENSAGEM (WhatsApp/status): pede resposta ali mesmo, não clique em bio.
     whatsapp: [
-      'Responde essa mensagem e a gente já anota teu pedido.',
-      'Chama a gente aqui e garante o teu.',
+      'Responde essa mensagem e a gente já anota seu pedido.',
+      'Chama a gente aqui e garante o seu.',
       'Manda um "quero" que a gente cuida do resto.',
       'É só responder aqui pra pedir.',
-      'Peça pelo app ou responde essa mensagem.',
+      'Peça pelo app ou responda esta mensagem.',
       'Responde aqui que a gente já separa.',
     ],
   },
@@ -5613,7 +5612,7 @@ function fBulkCloneRow(index) {
   
   fBulkRows.splice(index + 1, 0, cloned);
   
-  document.getElementById('f-bulk-status').textContent = `${fBulkRows.length} linha(s) carregada(s)`;
+  document.getElementById('f-bulk-status').textContent = `${fBulkRows.length} ${fBulkRows.length===1?'oferta':'ofertas'}`;
   gToast('Oferta duplicada');
   // A cópia nasce com a mesma animação da oferta nova — sem isso ela aparecia pronta e a
   // pessoa não sabia QUAL das duas linhas iguais era a nova.
@@ -5711,7 +5710,7 @@ function fBulkShowCopyModal(i) {
   
   const productInfoDiv = document.getElementById('f-copy-modal-product-info');
   if (productInfoDiv) {
-    productInfoDiv.textContent = `Gerando sugestões para: ${prod} ${por ? `(${por})` : ''}`;
+    productInfoDiv.textContent = `Legendas para ${prod}${por ? ` (${por})` : ''}`;
   }
   
   const optionsDiv = document.getElementById('f-copy-modal-options');

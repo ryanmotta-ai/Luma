@@ -547,7 +547,7 @@ function dPsdRenderRows(filter){
     const _perdeEstilo=(it.kind==='text') && (it.multiStyle || (it.runs && it.mode==='var'));
     const multiStyleBadge=_perdeEstilo
       ?`<span class="psd-multistyle" title="${it.runs?'Como campo editável, o texto assume um estilo único':'O estilo dominante será preservado'}">Estilos mistos</span>`:'';
-    const blendBadge=it.blendMode?`<span class="psd-blend" title="Modo de mesclagem: ${_dPsdEsc(it.blendMode)}">Mesclagem · ${_dPsdEsc(_dPsdBlendModeCSS(it.blendMode))}</span>`:'';
+    const blendBadge=it.blendMode?`<span class="psd-blend" title="Modo de mesclagem do Photoshop, preservado">Mesclagem · ${_dPsdEsc(typeof dBlendModeLabel==='function'?dBlendModeLabel(it.blendMode):_dPsdBlendModeCSS(it.blendMode))}</span>`:'';
     let fontWarn='';
     if(it.kind==='text'&&it.fontName&&!/roboto/i.test(it.fontName)){
       const fn=_dPsdEsc(it.fontName);
@@ -2156,7 +2156,7 @@ async function dPsdMapWithAI(){
   if(!dPsdMeta){ return; } // modal fechou durante a chamada
   if(!resp || !lista.length){
     _dPsdRenderFieldRail();
-    gToast(resp?'A IA não encontrou campo para esta arte':'⚠ A IA não respondeu — tente de novo','error');
+    gToast(resp?'A IA não encontrou campo para esta arte':'A IA não respondeu — tente de novo','error');
     return;
   }
   // ⛔ Nada do que o modelo devolve é confiável por si: índice, nome de campo e tipo passam
@@ -2510,7 +2510,7 @@ function dPsdSaveArtboardTemplates(results, folderId, baseName){
   // Abre o último template importado no editor.
   const last=folder.templates[folder.templates.length-1];
   if(last && typeof dLoadTemplate==='function') dLoadTemplate(last, folder);
-  gToast(''+results.length+' template(s) importado(s) → '+folder.name);
+  gToast(''+results.length+(results.length===1?' material importado':' materiais importados')+' em '+folder.name);
 }
 
 /* ── estado de leitura e análise do arquivo ── */

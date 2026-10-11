@@ -340,7 +340,7 @@ async function gApplyDeepLink(dl){
   // Não encontrou campanha nem material
   gClearDeepLink();
   if(typeof gToast === 'function'){
-    gToast('Campanha ou material não encontrado ou indisponível.', 'warning');
+    gToast('Esse link leva a uma campanha que não está mais no ar. Escolha outra no catálogo.', 'warning');
   }
   return false;
 }

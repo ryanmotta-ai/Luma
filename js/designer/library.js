@@ -117,7 +117,7 @@ function dLibRender(filter) {
   if (!assets.length) {
     grid.innerHTML = `<div class="lib-empty">
       <div style="color:var(--d-text); font-weight:600; font-size:13px; margin-bottom:2px;">Nenhum asset encontrado</div>
-      <span style="opacity:0.6; font-size:11px;">Faça upload de imagens e logos para turbinar seus designs e tê-los sempre à mão.</span>
+      <span style="opacity:0.6; font-size:11px;">Envie imagens e logos para tê-los sempre à mão nos seus materiais.</span>
     </div>`;
     return;
   }
@@ -130,7 +130,7 @@ function dLibRender(filter) {
     // draggable: arrastar leva o item pro ponto exato da prancheta (motor em layers.js —
     // _dArrastarElemento + o drop de canvas.js). Clicar continua criando no centro.
     return `<div class="lib-item" draggable="true" ondragstart="dLibDragStart(event,'${a.id}')" ondragend="dAssetDragEnd(event)"
-      onclick="dLibUse('${a.id}')" title="${gEsc(a.name)} — arraste pra prancheta ou clique pra inserir no centro">
+      onclick="dLibUse('${a.id}')" title="${gEsc(a.name)} — arraste para a prancheta ou clique para inserir no centro">
       ${preview}
       <span class="lib-item-name">${gEsc(a.name)}</span>
       <button class="lib-item-del" onclick="event.stopPropagation();dLibDelete('${a.id}')" title="Remover">×</button>

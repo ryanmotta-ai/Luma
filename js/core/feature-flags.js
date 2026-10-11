@@ -505,7 +505,7 @@ function _gFFDispararEvento(keys){
  */
 async function gFeatureSyncFromBackend(){
   const sb = _gFFSb();
-  if (!sb) { _gFFErroSync = 'Backend não configurado'; return { ok:false, error:_gFFErroSync }; }
+  if (!sb) { _gFFErroSync = 'Sem conexão com o servidor'; return { ok:false, error:_gFFErroSync }; }
   try {
     const { data, error } = await sb.schema('luma').from('feature_flags')
       .select('feature_key,enabled,disabled_behavior,role_overrides,motivo,updated_at');
@@ -578,7 +578,7 @@ async function gFeatureSave(key, patch){
       let msg;
       if (/permission|policy|42501|row-level/i.test(raw)) msg = 'Sem permissão para alterar (só a gestão).';
       else if (/failed to fetch|networkerror|load failed|timeout/i.test(raw)) msg = 'Sem conexão com o servidor. A alteração não foi salva — tente de novo.';
-      else if (/relation .* does not exist|schema cache|pgrst/i.test(raw)) msg = 'O Controle do produto ainda não foi criado no banco. Aplique a migration de feature flags.';
+      else if (/relation .* does not exist|schema cache|pgrst/i.test(raw)) msg = 'O Controle do produto ainda não existe no banco. Peça para a equipe técnica aplicar a migração de feature flags.';
       else msg = raw || 'Não foi possível salvar.';
       return { ok:false, error:msg };
     }

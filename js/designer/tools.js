@@ -193,7 +193,7 @@ function dAutoFitText(layerId){
     dHistoryPush();
     l.fontSize = size;
     dRenderCanvas();dMarkUnsaved();dUpdateCtxBar();
-    gToast(`Auto-fit: ${originalSize}px → ${size}px`);
+    gToast(`Fonte ajustada: ${originalSize}px → ${size}px`);
   }else{
     gToast('Texto já está ajustado');
   }

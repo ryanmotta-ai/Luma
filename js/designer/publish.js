@@ -635,7 +635,7 @@ function dPubApplySuggestedName(abId, newName){
   if (inp) {
     inp.value = newName;
     if (typeof dPublishQueueDraft === 'function') dPublishQueueDraft();
-    gToast('Nome sugerido aplicado!');
+    gToast('Nome sugerido aplicado');
     if (window.gAiTelemetry) {
       window.gAiTelemetry.emit('ai_suggestion_accepted', { task: 'metadata.suggest' });
     }
@@ -744,7 +744,7 @@ function dPublishRenderPerms(){
       ${isImage?'':`<div class="pub-perm-len">
         <label>Máx</label>
         <input type="number" min="1" max="200" value="${perm.maxLen||32}" onchange="dPublishUpdatePerm('${v}','maxLen',parseInt(this.value)||32)" ${!perm.edit?'disabled':''}>
-        <span>chars</span>
+        <span>caracteres</span>
       </div>`}
       ${(!isImage&&medido[v]&&perm.edit)?`<div class="pub-perm-key"${perm.maxLen>medido[v]?' style="color:var(--dm-orange-d)"':''}>${perm.maxLen>medido[v]?'Acima do que cabe: ':''}cabem ~${medido[v]}</div>`:''}
     </div>`;
@@ -812,7 +812,7 @@ async function dPermPresetSave(){
   let store={entries:[]}; try{const r=localStorage.getItem('_luma_perm_presets'); if(r)store=JSON.parse(r);}catch(e){}
   if(!store||!Array.isArray(store.entries)) store={entries:[]};
   store.entries.push({ id:'pp-'+Date.now(), name:nm, perms:JSON.parse(JSON.stringify(dPubPermissoes)) });
-  try{ localStorage.setItem('_luma_perm_presets', JSON.stringify(store)); }catch(e){ gToast('Não consegui salvar o preset (armazenamento cheio?)','error'); return; }
+  try{ localStorage.setItem('_luma_perm_presets', JSON.stringify(store)); }catch(e){ gToast('Não foi possível salvar o preset: armazenamento cheio.','error'); return; }
   gToast('Preset "'+nm+'" salvo');
   dPublishRenderPerms();
 }
@@ -827,7 +827,7 @@ function dPermPresetLoad(id){
 async function dPermApplyToFolder(){
   const info=(typeof _dPubFindTmpl==='function')?_dPubFindTmpl():null;
   const folder=info&&info.folder;
-  if(!folder||!Array.isArray(folder.templates)||folder.templates.length<2){ gToast('Esta campanha não tem outros materiais pra aplicar.'); return; }
+  if(!folder||!Array.isArray(folder.templates)||folder.templates.length<2){ gToast('Esta campanha não tem outros materiais para aplicar.'); return; }
   const confirmed=typeof gConfirm==='function'
     ?await gConfirm(`Aplicar estas permissões aos ${folder.templates.length} materiais da campanha?`,{title:'Aplicar à campanha inteira',okLabel:'Aplicar permissões',cancelLabel:'Cancelar'})
     :false;
@@ -1012,7 +1012,7 @@ function dSetSaveState(state){
   const s2=document.getElementById('d-save-indicator2');
   let html;
   if(state==='saving'){
-    html='<svg class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:gSpin 1s linear infinite"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg><span>Salvando...</span>';
+    html='<svg class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:gSpin 1s linear infinite"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg><span>Salvando…</span>';
   }else if(state==='unsaved'){
     dDirty=true;
     html='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--dm-orange)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span style="color:var(--dm-orange)">Não salvo</span>';
@@ -1051,7 +1051,7 @@ function dCopy(){
   if(!layers.length)return;
   dClipboard={layers};
   const n=layers.length;
-  gToast(n+' layer'+(n>1?'s':'')+' copiado'+(n>1?'s':'')+'  (Ctrl+C)');
+  gToast(n+' camada'+(n>1?'s':'')+' copiada'+(n>1?'s':'')+' (Ctrl+C)');
 }
 function dPaste(samePlace){
   if(!dClipboard || !dClipboard.layers.length)return;
@@ -1078,7 +1078,7 @@ function dPaste(samePlace){
   const l=dLayers.find(x=>x.id===dSelId);
   if(l){dShowProps(l);if(typeof dUpdateCtxBar==='function')dUpdateCtxBar();}
   const n=newIds.length;
-  gToast(n+' layer'+(n>1?'s':'')+' colado'+(n>1?'s':'')+(samePlace?' (no lugar)':''));
+  gToast(n+' camada'+(n>1?'s':'')+' colada'+(n>1?'s':'')+(samePlace?' (no lugar)':''));
 }
 
 /* ── Ctrl+V: COLAR SVG OU IMAGEM DO CLIPBOARD (Illustrator, print, navegador/Figma) ──

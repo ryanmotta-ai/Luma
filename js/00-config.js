@@ -87,7 +87,7 @@ const CAMPS_ATIVAS=[
    previewProd:'COMBO FAMÍLIA',previewDe:'',previewPor:'20% OFF',
    perguntas:[
     {id:'produto',texto:'Qual o nome do combo que vai estar em destaque?',sugestoes:['Combo Família','Combo Casal','Combo Executivo','Combo Especial']},
-    {id:'desconto',texto:'Qual o percentual de desconto? Ex: 20% off.',sugestoes:['10% off','15% off','20% off','30% off']},
+    {id:'desconto',texto:'Qual o percentual de desconto? Ex.: 20% off.',sugestoes:['10% off','15% off','20% off','30% off']},
     {id:'precoPor',texto:'Qual o preço final do combo com desconto?',sugestoes:['R$ 24,90','R$ 29,90','R$ 34,90','R$ 39,90']},
     {id:'validade',texto:'Qual é a validade da promoção?',sugestoes:['Hoje só','Esta semana','Este mês','Sem validade']},
    ]},
@@ -108,7 +108,7 @@ const CAMPS_ATIVAS=[
    previewProd:'DOBRO DE DESCONTO',previewDe:'',previewPor:'2X OFF',
    perguntas:[
     {id:'produto',texto:'Qual produto ou categoria ganha desconto em dobro?',sugestoes:['Bebidas','Sobremesas','Porções','Combos']},
-    {id:'desconto',texto:'Qual o desconto dobrado? Ex: 30% off.',sugestoes:['20% off','30% off','40% off','50% off']},
+    {id:'desconto',texto:'Qual o desconto dobrado? Ex.: 30% off.',sugestoes:['20% off','30% off','40% off','50% off']},
     {id:'validade',texto:'Qual a validade?',sugestoes:['Hoje só','Este final de semana','Esta semana','Por tempo limitado']},
    ]},
   {id:'rbp',name:'Rangos Que Baixaram O Preço',color:'#B8860B',count:3,badge:'',expiraDias:10,popular:false,cover:'assets/covers/rbp.png',banner:'assets/banners/rbp.png',
@@ -198,7 +198,7 @@ const CAMPS_IMPLEMENTACAO=[
     {id:'cidade',texto:'Em qual cidade?',sugestoes:['São Paulo','Rio de Janeiro','Curitiba','Porto Alegre']},
     {id:'oferta',texto:'Tem alguma oferta especial de abertura?',sugestoes:['Frete grátis','10% off em tudo','Brinde na compra','Sem desconto']},
    ]},
-  {id:'impl-pos',name:'Pós lançamento',color:'#C84B00',count:3,badge:'NOVO',expiraDias:365,popular:false,
+  {id:'impl-pos',name:'Pós-lançamento',color:'#C84B00',count:3,badge:'NOVO',expiraDias:365,popular:false,
    previewProd:'PÓS-LANÇAMENTO',previewDe:'',previewPor:'',
    perguntas:[
     {id:'nomeLoja',texto:'Qual é o nome da sua loja?',sugestoes:['Minha Loja','Burguer House','Pizza Express','Sushi Now']},

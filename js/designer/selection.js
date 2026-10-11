@@ -362,7 +362,7 @@ function dMagicWandAt(x, y) {
   // 2. Obter cor dominante do layer-fonte
   const sourceColor = _dMagicWandGetLayerColor(sourceLayer);
   if (!sourceColor) {
-    gToast('Camada sem cor dominante (imagem/frame)');
+    gToast('Camada sem cor dominante (imagem ou moldura)');
     return;
   }
 
@@ -394,7 +394,7 @@ function dMagicWandAt(x, y) {
 
   dRenderCanvas();
   dRenderLayersList();
-  gToast('Magic Wand: ' + matched.length + ' camada(s) selecionada(s) (cor: ' + sourceColor + ')');
+  gToast('Varinha: ' + matched.length + ' camada(s) selecionada(s) (cor: ' + sourceColor + ')');
 }
 
 /**

@@ -999,7 +999,7 @@ async function fOpenPosted(){
      honesto, a ação nem abre (o botão já deveria estar escondido; isto é o cinto). */
   const principal = fPostedContextForFormat(null);
   if(!principal){
-    if(typeof gToast==='function') gToast('Esta arte não tem um ambiente de publicação equivalente para mostrar.');
+    if(typeof gToast==='function') gToast('Ainda não temos uma simulação de post para este formato.');
     return;
   }
   _postedCtx = principal;
@@ -3301,7 +3301,7 @@ function _fLpLayerAt(x,y,cvAlvo){
   }
   return null;
 }
-function _fLpLockToast(v){ gToast('Campo fixo da marca — não editável neste material.'); }
+function _fLpLockToast(v){ gToast('Este texto é fixo da marca e não muda neste material.'); }
 
 // ── Setter + commit ──
 function _fLpCommit(v,val,opts){
@@ -3485,7 +3485,7 @@ function _fLpUploadImage(file,v){
         fValidarLogo(url,(aviso)=>{ if(aviso) gToast(aviso,'error'); });
       } else {
         const im=new Image();
-        im.onload=()=>{ if(im.naturalWidth<600||im.naturalHeight<600) gToast('Foto de baixa resolução ('+im.naturalWidth+'×'+im.naturalHeight+'px) — pode sair pixelada na arte.','error'); };
+        im.onload=()=>{ if(im.naturalWidth<600||im.naturalHeight<600) gToast('Essa foto é pequena ('+im.naturalWidth+'×'+im.naturalHeight+'px) e pode sair borrada. Se tiver uma maior, troque.','error'); };
         im.src=url;
       }
       _fLpCloseEditor();
@@ -3657,12 +3657,12 @@ function fLpStartFraming(l,v){
       <span class="lp-frame-hud-title">Ajustar foto</span>
       <span class="lp-frame-hud-hint">Arraste para mover · pinça para zoom</span>
       <div class="lp-frame-hud-group">
-        <button class="lp-frame-hud-btn" id="lp-frame-zoom-out" type="button" title="Diminuir zoom (-)">
+        <button class="lp-frame-hud-btn" id="lp-frame-zoom-out" type="button" title="Diminuir zoom (-)" aria-label="Diminuir zoom">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
         <input type="range" class="lp-frame-hud-slider" id="lp-frame-slider" min="1" max="3.5" step="0.05" value="${curScale}" title="Zoom da imagem">
         <span class="lp-frame-hud-pct" id="lp-frame-pct">${curPct}%</span>
-        <button class="lp-frame-hud-btn" id="lp-frame-zoom-in" type="button" title="Aumentar zoom (+)">
+        <button class="lp-frame-hud-btn" id="lp-frame-zoom-in" type="button" title="Aumentar zoom (+)" aria-label="Aumentar zoom">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
       </div>
@@ -3671,7 +3671,7 @@ function fLpStartFraming(l,v){
         <button class="lp-frame-hud-text-btn" id="lp-frame-center" type="button" title="Centralizar foto">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:3px"><circle cx="12" cy="12" r="7"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>Centralizar
         </button>
-        <button class="lp-frame-hud-text-btn" id="lp-frame-reset" type="button" title="Voltar ao enquadramento que o designer deu">Desfazer ajuste</button>
+        <button class="lp-frame-hud-text-btn" id="lp-frame-reset" type="button" title="Voltar ao enquadramento original do material">Desfazer ajuste</button>
       </div>
       <div class="lp-frame-hud-divider"></div>
       <button class="lp-frame-hud-cancel" id="lp-frame-cancel" type="button" title="Descartar este ajuste (Esc)">Cancelar</button>
@@ -3837,7 +3837,7 @@ function fLpResetFraming(){
   try{if(typeof fSaveChatDraft==='function') fSaveChatDraft();}catch(e){}
   _fLpRender();
   _fLpUpdateFramingHUD();
-  if(typeof gToast==='function') gToast('Enquadramento do designer restaurado');
+  if(typeof gToast==='function') gToast('Enquadramento original restaurado');
 }
 
 /* CANCELAR — devolve o snapshot de quando o modo abriu, e só ele.

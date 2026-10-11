@@ -17,7 +17,7 @@ const TUTORIALS = {
   // ════════════════════════════════════════
   'primeira-arte': {
     title: 'Como criar minha primeira arte',
-    description: 'Aprenda a gerar artes promocionais a partir das campanhas disponíveis.',
+    description: 'gerar artes promocionais a partir das campanhas disponíveis.',
     duration: 5000,
     scenes: [
       {
@@ -62,7 +62,7 @@ const TUTORIALS = {
               ${tutMockMaterial('wide', 'Hamburguer Fest — Post', false)}
             </div>
           </div>`,
-        tooltip: { text: 'Escolha o material que você quer personalizar. O designer já preparou eles.', target: '.tut-mock-mat.highlight-target', placement: 'bottom' },
+        tooltip: { text: 'Escolha o material que você quer personalizar. A equipe de design já deixou tudo pronto.', target: '.tut-mock-mat.highlight-target', placement: 'bottom' },
         after: () => {
           tutSceneTimeout(()=>tutMoveCursor('.tut-mock-mat.highlight-target', 'click'), 1500);
         },
@@ -124,7 +124,7 @@ const TUTORIALS = {
   // ════════════════════════════════════════
   'editar-arte': {
     title: 'Como editar uma arte que já fiz',
-    description: 'Reabra e modifique artes que você criou anteriormente.',
+    description: 'reabrir e mudar as artes que você já criou.',
     duration: 4500,
     scenes: [
       {
@@ -152,7 +152,7 @@ const TUTORIALS = {
                 <div style="padding:8px 18px;font-size:12px;font-weight:600;color:var(--text-3);border-radius:5px">Catálogo</div>
                 <div class="highlight-target" style="padding:8px 18px;font-size:12px;font-weight:700;color:var(--dm-orange-d);background:var(--dm-orange-bg);border-radius:5px;transition:all .3s">Minhas artes</div>
               </div>
-              <p style="font-size:12px;color:var(--text-3);text-align:center;max-width:280px">Todas suas artes ficam aqui, separadas por status.</p>
+              <p style="font-size:12px;color:var(--text-3);text-align:center;max-width:280px">Todas as suas artes ficam aqui, separadas por situação.</p>
             </div>
           </div>`,
         tooltip: { text: 'Clique na aba "Minhas artes" pra ver tudo que você já criou.', target: '.highlight-target', placement: 'bottom' },
@@ -199,7 +199,7 @@ const TUTORIALS = {
   // ════════════════════════════════════════
   'qual-formato': {
     title: 'Qual formato escolher',
-    description: 'Entenda quando usar cada formato disponível.',
+    description: 'quando usar cada formato.',
     duration: 4000,
     scenes: [
       {
@@ -299,7 +299,7 @@ const TUTORIALS = {
               </div>
               <div style="max-width:240px">
                 <h4 style="font-family:'Roboto',sans-serif;font-weight:900;font-size:24px;letter-spacing:.02em;color:var(--dm-orange-d);margin-bottom:8px">FEED 1:1</h4>
-                <p style="font-size:13px;color:var(--text-2);line-height:1.55">Quadrado, ideal pra feed do Instagram. Aparece bem mesmo no preview, antes de abrir o post.</p>
+                <p style="font-size:13px;color:var(--text-2);line-height:1.55">Quadrado, ideal pra feed do Instagram. Aparece bem até na miniatura, antes de abrir o post.</p>
               </div>
             </div>
           </div>`,
@@ -333,7 +333,7 @@ const TUTORIALS = {
   // ════════════════════════════════════════
   'regras-marca': {
     title: 'Regras da marca DM',
-    description: 'Aplique a identidade visual correta nas suas artes.',
+    description: 'aplicar a identidade visual certa nas suas artes.',
     duration: 4000,
     scenes: [
       {
@@ -346,7 +346,7 @@ const TUTORIALS = {
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
               </div>
               <h3 style="font-family:'Roboto',sans-serif;font-weight:900;font-size:28px;letter-spacing:.02em;margin-bottom:10px;animation:tutFinaleFadeUp .5s .2s both;opacity:0">A identidade DM</h3>
-              <p style="font-size:14px;color:var(--text-3);line-height:1.6;animation:tutFinaleFadeUp .5s .35s both;opacity:0">Cor, fonte e logo. Os três pilares que mantêm toda arte da DM reconhecível.</p>
+              <p style="font-size:14px;color:var(--text-3);line-height:1.6;animation:tutFinaleFadeUp .5s .35s both;opacity:0">Cor, fonte e logo. Os três pilares que deixam toda arte da Delivery Much reconhecível.</p>
             </div>
           </div>`,
         tooltip: null,

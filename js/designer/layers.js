@@ -606,7 +606,7 @@ function dLayerContextMenu(e, layerId){
   const cx=(e&&e.clientX)||120, cy=(e&&e.clientY)||120;
   const items=[];
   if(typeof dLayerIsBindable==='function' && dLayerIsBindable(l)){
-    items.push({label:'Vincular dado…', ico:_DLYR_ICO.link, fn:()=>{ const anchor={getBoundingClientRect:()=>({bottom:cy,left:cx,right:cx,top:cy,width:0,height:0})}; if(typeof dFieldBindPickerOpen==='function') dFieldBindPickerOpen({currentTarget:anchor, stopPropagation:function(){}}); }});
+    items.push({label:'Vincular campo…', ico:_DLYR_ICO.link, fn:()=>{ const anchor={getBoundingClientRect:()=>({bottom:cy,left:cx,right:cx,top:cy,width:0,height:0})}; if(typeof dFieldBindPickerOpen==='function') dFieldBindPickerOpen({currentTarget:anchor, stopPropagation:function(){}}); }});
   }
   if(l.type==='shape'||l.type==='image'){
     items.push({label:'Transformar em moldura de foto', ico:_DLYR_ICO.frame, fn:()=>dConvertLayerToFrame(layerId)});
@@ -666,7 +666,7 @@ async function dDeleteLayer(){
   dSelId=null;
   dRenderCanvas();dRenderLayersList();dStats();dMarkUnsaved();
   document.getElementById('d-no-sel').style.display='';document.getElementById('d-props-form').style.display='none';
-  gToast('Removido');
+  gToast('Camada removida');
 }
 /* ⚠ SEM CHAMADOR HOJE. Os botões "Para frente"/"Para trás" existiam no piloto
    (`docs/luma-evolution/research/origem/yungas-artes-piloto.html:8466`, chamando `dReorder(1)`
@@ -2124,7 +2124,7 @@ function dDadoApplyRecommendedLimit(varName, limit){
   const l=dLayers.find(x=>x.id===dSelId);
   if(l && typeof dRenderDadoControl==='function') dRenderDadoControl(l);
   dMarkUnsaved();
-  gToast('Limite de ' + limit + ' caracteres aplicado com sucesso');
+  gToast('Limite de ' + limit + ' caracteres aplicado');
 }
 function dLayerFieldInference(l){
   if(!l||typeof gFieldInfer!=='function')return null;
@@ -2513,7 +2513,7 @@ function dPersistVars(){
   catch(e){
     ok=false;
     if(e&&(e.name==='QuotaExceededError'||e.code===22))
-      gToast('Não foi possível salvar as variáveis: armazenamento cheio.','error');
+      gToast('Não foi possível salvar os campos: armazenamento cheio.','error');
   }
   // Sincroniza com o Supabase em background (só designer; não bloqueia a UI).
   if(typeof dPushVarsToBackend==='function') dPushVarsToBackend();
@@ -3654,7 +3654,7 @@ function dVarAcOnInput(el, onCommit){
   const matches=(dVars||[]).filter(v=>v.name.toLowerCase().includes(partial)||(v.label||'').toLowerCase().includes(partial));
   _vacItems=matches.map(v=>({name:v.name,label:v.label,type:v.type,create:false}));
   if(partial && gValidVarName(partial) && !dVars.some(v=>v.name.toLowerCase()===partial)){
-    _vacItems.push({name:partial,label:'criar variável',type:'novo',create:true});
+    _vacItems.push({name:partial,label:'criar campo',type:'novo',create:true});
   }
   if(!_vacItems.length){ dVarAcHide(); return; }
   _vacActive=0; dVarAcRender(el);
@@ -3722,7 +3722,7 @@ function dAssetsRender(){
   // Arrastar leva o asset pro ponto exato da prancheta; clicar insere no centro.
   document.getElementById('d-assets-grid').innerHTML=dAssets.map((a,i)=>`
     <div class="asset-thumb" draggable="true" ondragstart="dAssetDragStart(event,${i})" ondragend="dAssetDragEnd(event)"
-         onclick="dUseAsset(${i})" title="${_dEsc(a.name||'')} — arraste pra prancheta ou clique pra inserir no centro">
+         onclick="dUseAsset(${i})" title="${_dEsc(a.name||'')} — arraste para a prancheta ou clique para inserir no centro">
       ${_safeUrl(a.url)?`<img src="${_dEsc(_safeUrl(a.url))}" alt="${_dEsc(a.name||'')}" draggable="false">`:`<span style="font-size:26px">${_dEsc(a.emoji||'')}</span>`}
       <span class="asset-name">${_dEsc(a.name||'')}</span>
     </div>`).join('');
@@ -3925,8 +3925,8 @@ function dPersistFolders(opts){
   }catch(e){
     if(opts&&opts.silent) return false; // faxina do boot: sem storage, o aviso aparecia na tela de login a cada boot
     if(e&&(e.name==='QuotaExceededError'||e.code===22))
-      gToast('Não foi possível salvar: armazenamento cheio. Remova templates ou imagens e tente de novo.','error');
-    else gToast('Erro ao salvar o template.','error');
+      gToast('Não foi possível salvar: armazenamento cheio. Remova materiais ou imagens e tente de novo.','error');
+    else gToast('Não foi possível salvar o material — tente de novo.','error');
     return false;
   }
 }
@@ -4056,7 +4056,7 @@ async function _dPushFoldersRun(){
           // Não confirme metadados com a capa ainda local: o pull seguinte a perderia.
           _capaPend=true;
           console.warn('[sync] a capa de "'+(f.name||'?')+'" NÃO subiu pro Storage (bucket luma-covers) — fica só neste aparelho até um save dar certo.');
-          if(typeof gToast==='function') gToast('A capa de "'+(f.name||'?')+'" não subiu pro servidor — por ora ela vale só neste aparelho.','error');
+          if(typeof gToast==='function') gToast('A capa de "'+(f.name||'?')+'" não subiu para o servidor — por ora ela vale só neste aparelho.','error');
         }
       }
       const _rowPasta=_dFolderRow(folderSource,idx);
@@ -4181,7 +4181,7 @@ function gSyncBadgeUpdate(){
   el.style.display=n?'':'none';
   if(n) el.textContent='⟳ '+n+' não sincronizado'+(n>1?'s':'');
   // Avisa em voz alta quando ALGO NOVO deixou de subir (não repete a cada save)
-  if(n>_dLastPendCount) gToast(''+n+' material(is) não subiram pro servidor — os franqueados não os veem. Veja o aviso laranja na barra.','error');
+  if(n>_dLastPendCount) gToast(''+n+(n===1?' material não subiu':' materiais não subiram')+' para o servidor — os franqueados ainda não veem. Veja o aviso laranja na barra.','error');
   _dLastPendCount=n;
 }
 

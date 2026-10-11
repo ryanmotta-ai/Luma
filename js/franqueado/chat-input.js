@@ -439,7 +439,7 @@ function _fValidadeErro(val){
   if(!m) return null;
   const d = +m[1], mes = +m[2], a = m[3] ? (m[3].length === 2 ? 2000 + +m[3] : +m[3]) : 2024; // sem ano: aceita 29/02
   const dias = new Date(a, mes, 0).getDate();
-  if(mes < 1 || mes > 12 || d < 1 || a < 1 || d > dias) return 'Essa data não existe no calendário. Confira o dia e o mês (ex: 15/10).';
+  if(mes < 1 || mes > 12 || d < 1 || a < 1 || d > dias) return 'Essa data não existe no calendário. Confira o dia e o mês (ex.: 15/10).';
   return null;
 }
 
@@ -457,11 +457,11 @@ function fValidate(id, val, dados){
      Para imagem só existem dois estados: tem foto ou não tem. */
   if(typeof fIsImageVar === 'function' && fIsImageVar(id)){
     const vazio = (val == null || !String(val).trim());
-    return (vazio && cfg.required) ? `Envie a ${cfg.label}.` : null;
+    return (vazio && cfg.required) ? `Falta enviar a imagem: ${cfg.label}.` : null;
   }
   // 3.3: campo vazio só bloqueia se a variável for obrigatória (honra dVars.required).
-  if(!val || !val.trim()) return cfg.required ? `Preencha o campo de ${cfg.label}.` : null;
-  if(cfg.type!=='price' && cfg.type!=='discount' && val.length > cfg.maxLen) return `O ${cfg.label} ficou muito longo (máx ${cfg.maxLen} caracteres).`; // preço/desconto: tamanho vem da máscara, não do usuário
+  if(!val || !val.trim()) return cfg.required ? `Falta preencher: ${cfg.label}.` : null;
+  if(cfg.type!=='price' && cfg.type!=='discount' && val.length > cfg.maxLen) return `${cfg.label}: texto muito longo. Cabem até ${cfg.maxLen} caracteres.`; // preço/desconto: tamanho vem da máscara, não do usuário
   if(cfg.type === 'price'){
     /* Preço ZERADO ("0", "R$ 0", "0,00", "taxa 0"): "R$ 0" passava cru para a arte e os outros
        ouviam só "use um valor em R$", sem saber por quê. Item de graça tem palavra própria. */
@@ -473,7 +473,7 @@ function fValidate(id, val, dados){
     const precos = String(val).match(/r\$\s?[\d.,]+(?:\s+[\d.,]+)*/gi) || [];
     const ok = (precos.length && precos.every(t=>/^r\$\s?\d{1,3}(?:\.\d{3})*,\d{2}$/i.test(t)))
       || /qualquer|grátis|gratis|sem valor/i.test(val);
-    if(!ok) return `Use um valor em R$ (ex: R$ 9,90).`;
+    if(!ok) return `Use um valor em R$ (ex.: R$ 9,90).`;
     // Teto de valor (decisão do Ryan, 07/10/2026): preço acima de R$ 400 não vai para a arte.
     // Também é o que mantém o preço de 4 dígitos fora das caixas desenhadas para até 3.
     const _valores = precos.map(t=>parseFloat(t.replace(/r\$\s?/i,'').replace(/\./g,'').replace(',','.')));
@@ -483,7 +483,7 @@ function fValidate(id, val, dados){
   }
   if(cfg.type === 'discount'){
     const ok = /\d+%|r\$/i.test(val);
-    if(!ok) return `Use um percentual (ex: 20% off) ou valor em R$.`;
+    if(!ok) return `Use um percentual (ex.: 20% off) ou um valor em R$.`;
   }
   if(cfg.type === 'code' && val.length < 3) return `O código precisa ter pelo menos 3 caracteres.`;
   if(id === 'validade'){ const ev = _fValidadeErro(val); if(ev) return ev; }
@@ -1105,7 +1105,7 @@ function fFitApply(i){
 }
 
 function fSaveAdv(val){
-  if(fState.done){fTyping(()=>fAddBot('Quer gerar outra arte? Escolha uma campanha ou clique em Reiniciar.',[]));return;}
+  if(fState.done){fTyping(()=>fAddBot('Quer gerar outra arte? Escolha uma campanha ou toque em Refazer.',[]));return;}
   const pergs=fState.camp.perguntas;
   let savedField = null;
   if(fState.stepIdx<pergs.length){

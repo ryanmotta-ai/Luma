@@ -288,7 +288,7 @@ function acGestaoFormConclusao(){
           ${v.ativo?`<button type="button" class="ac-btn ac-btn-ghost ac-btn-sm" onclick="acPreviewConclusao('video')">Só o vídeo</button>`:''}
           <button type="button" class="ac-btn ac-btn-ghost ac-btn-sm" onclick="acPreviewConclusao('proxima')">Próximos passos</button>
         </div>
-        <span class="ac-form-dica">O preview usa o que já está SALVO. Salve antes de conferir uma alteração.</span>
+        <span class="ac-form-dica">A prévia mostra só o que já está salvo. Salve antes de conferir uma alteração.</span>
       </div>
       <button type="submit" class="ac-btn ac-btn-primario">Salvar experiência de conclusão</button>
     </div>
@@ -443,7 +443,7 @@ function acGestaoFormAula(a){
     <div class="ac-form-cab">
       <h2 class="ac-bloco-titulo">Aula</h2>
       <div class="ac-form-cab-acoes">
-        <button type="button" class="ac-btn ac-btn-ghost ac-btn-sm" onclick="acGestaoPreviewAula('${a.id}')">${acIco('play')} Preview</button>
+        <button type="button" class="ac-btn ac-btn-ghost ac-btn-sm" onclick="acGestaoPreviewAula('${a.id}')">${acIco('play')} Ver como franqueado</button>
         <button type="button" class="ac-g-ico ac-g-ico-perigo" onclick="acGestaoApagarAula('${a.id}')" aria-label="Excluir aula" title="Excluir aula">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M6 7l1 13h10l1-13"/></svg></button>
         <button type="button" class="ac-g-ico" onclick="acGestaoFecharEditor()" aria-label="Fechar editor">
@@ -461,7 +461,7 @@ function acGestaoFormAula(a){
       ${acGestaoUploadHTML(a)}
       ${acCampo('ac-a-vurl','Ou cole a URL de um MP4 já hospedado', `<input id="ac-a-vurl" type="url" value="${gEsc(a.video_url||'')}" placeholder="https://…/aula.mp4">`,'Use quando o vídeo já vive em outro lugar. Deixe em branco se enviou o arquivo acima.')}
       <div class="ac-form-linha">
-        ${acCampo('ac-a-dur','Duração (minutos)', `<input id="ac-a-dur" type="number" min="0" max="600" step="1" value="${a.duracao_seg?Math.round(a.duracao_seg/60):''}">`,'Preenchida automaticamente após o upload.')}
+        ${acCampo('ac-a-dur','Duração (minutos)', `<input id="ac-a-dur" type="number" min="0" max="600" step="1" value="${a.duracao_seg?Math.round(a.duracao_seg/60):''}">`,'Preenchida automaticamente depois do envio do vídeo.')}
         ${acCampo('ac-a-thumb','Thumbnail (URL)', `<input id="ac-a-thumb" type="url" value="${gEsc(a.thumb_url||'')}" placeholder="https://…">`)}
       </div>
     </fieldset>
@@ -629,7 +629,7 @@ function _acDuracaoDoArquivo(file){
  */
 async function acUploadArquivo(file, path, onProgresso){
   const sb = _acSb(); const cfg = window.LUMA_SUPABASE||{};
-  if(!sb || !cfg.url){ gToast('Backend indisponível — não consigo enviar arquivos agora','error'); return false; }
+  if(!sb || !cfg.url){ gToast('Sem conexão com o servidor — não consigo enviar arquivos agora. Recarregue a página.','error'); return false; }
   let token = '';
   try{ const { data } = await sb.auth.getSession(); token = (data&&data.session&&data.session.access_token)||''; }catch(e){}
   if(!token){ gToast('Sua sessão expirou. Recarregue a página e entre de novo.','error'); return false; }
@@ -650,9 +650,9 @@ async function acUploadArquivo(file, path, onProgresso){
       _acUp = null;
       if(xhr.status>=200 && xhr.status<300){ resolve(true); return; }
       if(xhr.status===403 || xhr.status===401){
-        gToast('Você não tem permissão para enviar arquivos da Academia','error');
+        gToast('Você não tem permissão para enviar arquivos da Academia. Fale com a gestão.','error');
       }else if(xhr.status===413){
-        gToast('Arquivo grande demais para o bucket','error');
+        gToast('Arquivo grande demais para o armazenamento. Comprima e tente de novo.','error');
       }else{
         gToast('Falha no envio ('+xhr.status+'). Tente de novo.','error');
       }
@@ -686,7 +686,7 @@ async function acGestaoRemoverVideo(aulaId){
 async function acGestaoPreviewVideo(path){
   const url = await acVideoUrl({ video_path:path });
   if(url) window.open(url,'_blank','noopener');
-  else gToast('Não consegui abrir o vídeo agora','error');
+  else gToast('Não consegui abrir o vídeo agora. Tente de novo em instantes.','error');
 }
 
 /* ── Materiais ── */
@@ -714,7 +714,7 @@ async function acGestaoEnviarMaterial(input, aulaId){
   const file = input && input.files && input.files[0];
   input.value = '';
   if(!file) return;
-  if(file.size > 25*1024*1024){ gToast('Material acima de 25 MB — prefira um link','error'); return; }
+  if(file.size > 25*1024*1024){ gToast('Material acima de 25 MB. Envie por link.','error'); return; }
   const st = document.getElementById('ac-mat-status');
   if(st) st.textContent = 'Enviando '+file.name+'…';
   const limpo = String(file.name).replace(/[^a-zA-Z0-9._-]/g,'_').slice(-80);
@@ -792,14 +792,14 @@ function _acGestaoErro(e, oque){
   console.warn('[academia/gestão] '+oque+':', msg);
   // 42501 = insufficient_privilege (RLS barrou): a mensagem crua não ajuda ninguém.
   if(/permission|denied|42501|row-level/i.test(msg)){
-    gToast('Você não tem permissão para editar o conteúdo da Academia','error');
+    gToast('Você não tem permissão para editar o conteúdo da Academia. Fale com a gestão.','error');
   }else{
     gToast('Não consegui salvar '+oque+'. Tente de novo.','error');
   }
 }
 
 async function acGestaoCriarCurso(){
-  const lu=_acLuma(); if(!lu){ gToast('Backend indisponível','error'); return; }
+  const lu=_acLuma(); if(!lu){ gToast('Sem conexão com o servidor. Recarregue a página.','error'); return; }
   try{
     const { data, error } = await lu.from('cursos').insert({
       slug: AC_SLUG_PADRAO, nome:'Formação do Franqueado',
@@ -817,7 +817,7 @@ async function acGestaoCriarCurso(){
 // Semeia a estrutura de DEMONSTRAÇÃO no banco a partir da MESMA constante que o
 // front usa em modo local — uma fonte só para o conteúdo de exemplo.
 async function acGestaoSemearDemo(btn){
-  const lu=_acLuma(); if(!lu){ gToast('Backend indisponível','error'); return; }
+  const lu=_acLuma(); if(!lu){ gToast('Sem conexão com o servidor. Recarregue a página.','error'); return; }
   const ok = await gConfirm('Criar a formação com os 6 módulos e 9 aulas de demonstração? Tudo entra como RASCUNHO para você editar antes de publicar.',
                             {title:'Começar da demonstração', okLabel:'Criar'});
   if(!ok) return;
@@ -1009,7 +1009,7 @@ async function acGestaoSalvarAula(id){
 async function acGestaoAtualizarAula(id, campos){
   const lu=_acLuma(); const a=acAula(id);
   if(!a) return false;
-  if(!lu || (acState.curso&&acState.curso._demo)){ gToast('Backend indisponível','error'); return false; }
+  if(!lu || (acState.curso&&acState.curso._demo)){ gToast('Sem conexão com o servidor. Recarregue a página.','error'); return false; }
   try{
     const { data, error } = await lu.from('curso_aulas').update(campos).eq('id', id).select().maybeSingle();
     if(error) throw error;
@@ -1082,8 +1082,8 @@ function acMostrarFaixaPreview(){
   el.id = 'ac-faixa-preview';
   el.className = 'ac-faixa-preview';
   el.setAttribute('role','status');
-  el.innerHTML = `<span>${AC_ICO.alerta} Preview da equipe — você está vendo a experiência do franqueado, inclusive rascunhos.</span>
-    <button type="button" class="ac-btn ac-btn-ghost ac-btn-sm" onclick="acSairPreview()">Sair do preview</button>`;
+  el.innerHTML = `<span>${AC_ICO.alerta} Prévia da equipe — você está vendo o que o franqueado vê, incluindo rascunhos.</span>
+    <button type="button" class="ac-btn ac-btn-ghost ac-btn-sm" onclick="acSairPreview()">Sair da prévia</button>`;
   document.body.appendChild(el);
 }
 

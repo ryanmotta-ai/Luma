@@ -165,7 +165,7 @@ function dFontUpload(input){
 async function dFontRemove(i){
   const f=dCustomFonts[i]; if(!f) return;
   const nome=f.name;
-  if(!await gConfirm('Textos que a usam voltam pra Roboto.',
+  if(!await gConfirm('Os textos que usam esta fonte voltam para a Roboto.',
     {title:`Remover a fonte “${nome}”?`,okLabel:'Remover',cancelLabel:'Cancelar',danger:true})) return;
   // Re-resolve pelo nome depois do await — o índice é posição num array que a sincronização
   // de fontes reescreve; usar o velho removeria a fonte errada.

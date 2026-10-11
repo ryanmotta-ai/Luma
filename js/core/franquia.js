@@ -105,7 +105,7 @@ async function gFranquiaIniciar(){
   const f = await _gFranquiaPerguntar(lista);
   if(!f){ try{ localStorage.setItem(G_FRANQUIA_ADIAR_KEY, String(Date.now())); }catch(e){} return; }
   const { error } = await sb.schema('luma').rpc('escolher_minha_franquia', { p_franquia: f.id });
-  if(error){ gToast(String(error.message || 'Não consegui salvar a franquia.'), 'error'); return; }
+  if(error){ gToast('Não consegui salvar a franquia. Confira sua internet e tente de novo.', 'error'); try{ console.warn('[franquia]', error.message); }catch(e){} return; }
   _gFranquia = { id: f.id, nome: f.nome, cidade: f.cidade || '', uf: f.uf || '' };
   if(typeof gTrackEvent === 'function') gTrackEvent('franquia_escolhida', { franquia: f.nome });
   gToast('Pronto: você está na franquia ' + f.nome + '.');

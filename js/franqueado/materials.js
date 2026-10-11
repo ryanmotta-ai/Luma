@@ -38,7 +38,7 @@ function fSetDemoMode(on){
   }catch(e){ return false; }
   if(typeof fRenderCatalogs==='function'){ try{ const{ativas,outras}=fGetCampaigns(); fRenderCatalogs(ativas,outras); }catch(e){} }
   if(typeof _fhRefresh==='function'){ try{ _fhRefresh(); }catch(e){} }
-  if(typeof gToast==='function') gToast(on?'Modo demonstração ARMADO — os materiais marcados como DEMONSTRAÇÃO não são reais.':'Modo demonstração desarmado.');
+  if(typeof gToast==='function') gToast(on?'Modo demonstração ligado — os materiais marcados como DEMONSTRAÇÃO não são reais.':'Modo demonstração desligado.');
   return true;
 }
 const _F_DEMO_MAT_CACHE={};
@@ -1140,7 +1140,7 @@ async function fSelectMaterial(materialId, card){
   });
   // Se o template não tem nenhuma variável editável, mostra direto a confirmação
   if(!perguntas.length){
-    perguntas.push({id:'_dummy', texto:'Este material não tem campos editáveis. Posso gerar do jeito que está?', sugestoes:['Sim, gerar agora'], maxLen:60, label:'confirmar'});
+    perguntas.push({id:'_dummy', texto:'Este material já vem pronto, sem nada para preencher. Posso gerar do jeito que está?', sugestoes:['Sim, gerar agora'], maxLen:60, label:'confirmar'});
   }
   // Aplica perguntas customizadas à campanha atual
   /* `_perguntasTodas` é a lista canônica que o `fPickLoja` guarda ANTES de filtrar, para o

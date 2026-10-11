@@ -45,9 +45,9 @@ Object.assign(TUTORIALS, {
         build: ()=>`<div class="tut-scene-content"><div class="tut-mock-upload" id="tut-ef-up">
             <div class="tut-mock-upload-icon">⬆</div>
             <div class="tut-mock-upload-title">Toque para enviar uma foto</div>
-            <div class="tut-mock-upload-sub">ou arraste a imagem aqui · PNG/JPG até 20MB</div>
+            <div class="tut-mock-upload-sub">ou arraste a imagem aqui · PNG/JPG até 20 MB</div>
           </div></div>`,
-        tooltip:{ text:'Toque na área de upload e escolha a foto do produto no seu aparelho.', target:'#tut-ef-up', placement:'bottom' },
+        tooltip:{ text:'Toque na área da foto e escolha a imagem do produto no seu aparelho.', target:'#tut-ef-up', placement:'bottom' },
         after: ()=>{ tutSceneTimeout(()=>tutMoveCursor('#tut-ef-up','click'), 1400); } },
       { id:'preview', duration:4000,
         build: ()=>`<div class="tut-scene-content"><div style="display:flex;flex-direction:column;align-items:center;gap:14px">
@@ -95,10 +95,10 @@ Object.assign(TUTORIALS, {
         tooltip:null },
       { id:'baixar', duration:4000,
         build: ()=>`<div class="tut-scene-content"><div style="display:flex;flex-direction:column;align-items:center;gap:14px">
-            ${tutChip('Baixar todos',{primary:true,highlight:true,id:'tut-gv-dl'})}
-            <p style="font-size:12px;color:var(--text-3)">Gerando 3/10... a fila roda sem travar a aba.</p>
+            ${tutChip('Gerar artes (ZIP)',{primary:true,highlight:true,id:'tut-gv-dl'})}
+            <p style="font-size:12px;color:var(--text-3)">Criando 3 de 10… dá pra continuar usando a tela.</p>
           </div></div>`,
-        tooltip:{ text:'Pronto! "Baixar todos" gera os PNGs em fila. As linhas com erro são puladas.', target:'#tut-gv-dl', placement:'bottom' } },
+        tooltip:{ text:'Pronto! "Gerar artes (ZIP)" cria todas as artes e baixa num arquivo só. Linhas com erro ficam de fora.', target:'#tut-gv-dl', placement:'bottom' } },
     ],
   },
 
@@ -217,7 +217,7 @@ Object.assign(TUTORIALS, {
               <div style="font-size:10px;color:var(--text-3);margin-top:6px">Chave gerada automaticamente: <strong style="color:var(--text-2)">precoPor</strong></div>
             </div>
           </div></div>`,
-        tooltip:{ text:'2 passos: escolha o tipo e dê um nome claro. O sistema gera a chave técnica (ex: precoPor) sozinho.', target:null, placement:'bottom' } },
+        tooltip:{ text:'2 passos: escolha o tipo e dê um nome claro. O sistema gera a chave técnica (ex.: precoPor) sozinho.', target:null, placement:'bottom' } },
       { id:'tipos', duration:4500,
         build: ()=>`<div class="tut-scene-content"><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:380px">
             ${[['🔤','texto'],['💲','preço'],['#️⃣','número'],['🖼','imagem'],['☰','lista'],['📅','data'],['🎨','cor'],['🔘','sim/não']].map((t,i)=>`<div style="display:flex;align-items:center;gap:5px;padding:6px 12px;background:#f4f4f4;border:1px solid #e4e4e4;border-radius:20px;opacity:0;animation:tutFinaleFadeUp .4s ${0.1+i*0.07}s both"><span>${t[0]}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${t[1]}</span></div>`).join('')}
@@ -396,11 +396,11 @@ Object.assign(TUTORIALS, {
 
   'smart-resize': {
     title: 'Smart Resize: um template, três formatos',
-    description: 'deixar a Luma adaptar seu template pra Story, Feed e Wide automaticamente.',
+    description: 'deixar o Luma adaptar seu template pra Story, Feed e Wide sozinho.',
     scenes: [
       { id:'intro', duration:3200, tooltip:null,
         build: ()=>_tutIntro('<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
-          'Um template, três formatos', 'Você desenha no formato nativo e a Luma gera Story, Feed e Wide sem distorcer nada.', 'linear-gradient(135deg,#0f172a,#1e293b)') },
+          'Um template, três formatos', 'Você desenha no formato nativo e o Luma gera Story, Feed e Wide sem distorcer nada.', 'linear-gradient(135deg,#0f172a,#1e293b)') },
       { id:'formatos', duration:5000,
         build: ()=>`<div class="tut-scene-content">
           <div style="display:flex;align-items:flex-end;justify-content:center;gap:18px">
@@ -465,17 +465,17 @@ Object.assign(TUTORIALS, {
                 </div>`).join('')}
             </div>
           </div></div>`,
-        tooltip:{ text:'No preview, o franqueado toca no formato desejado. A Luma gera o PNG já adaptado para aquele tamanho.', target:null, placement:'bottom' } },
+        tooltip:{ text:'Na prévia, o franqueado toca no formato desejado. O Luma gera o PNG já adaptado para aquele tamanho.', target:null, placement:'bottom' } },
     ],
   },
 
   'importar-psd': {
     title: 'Importar um PSD do Photoshop',
-    description: 'transformar um arquivo .psd em template editável na Luma.',
+    description: 'transformar um arquivo .psd em template editável no Luma.',
     scenes: [
       { id:'intro', duration:3200, tooltip:null,
         build: ()=>_tutIntro('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/>',
-          'PSD vira template', 'Traga seu layout do Photoshop direto pra Luma. Em minutos ele vira um template vivo com variáveis.', 'linear-gradient(135deg,#001b35,#31A8FF22)') },
+          'PSD vira template', 'Traga seu layout do Photoshop direto pro Luma. Em minutos ele vira um template vivo com variáveis.', 'linear-gradient(135deg,#001b35,#31A8FF22)') },
       { id:'botao', duration:4500,
         build: ()=>`<div class="tut-scene-content">${tutStudio(tutArtCanvas({w:100,h:140}), { panel: tutPanelCard('Templates',
           '<div style="display:flex;gap:6px;align-items:center;margin-top:4px">'
@@ -506,13 +506,13 @@ Object.assign(TUTORIALS, {
               </div>`).join('')}
             <div style="padding:8px 12px;font-size:10px;color:var(--text-3);opacity:0;animation:tutFinaleFadeUp .3s .55s both">+ 3 camadas ocultas por padrão</div>
           </div></div>`,
-        tooltip:{ text:'A tela de revisão lista cada camada com o modo sugerido pela Luma. Você pode ajustar antes de confirmar.', target:null, placement:'bottom' } },
+        tooltip:{ text:'A tela de revisão lista cada camada com o modo sugerido pelo Luma. Você pode ajustar antes de confirmar.', target:null, placement:'bottom' } },
       { id:'modos', duration:5000,
         build: ()=>`<div class="tut-scene-content">
           <div style="display:flex;flex-direction:column;gap:8px;width:340px">
             ${[
               ['🔤','Texto editável','O franqueado pode editar o conteúdo diretamente.','rgba(34,197,94,.12)','#15803D'],
-              ['{}','Variável','Conecta a camada a um campo de dado (ex: preço).','rgba(255,144,0,.12)','var(--dm-orange-d)'],
+              ['{}','Variável','Conecta a camada a um campo de dado (ex.: preço).','rgba(255,144,0,.12)','var(--dm-orange-d)'],
               ['🖼','Imagem fiel','Mantém o raster original sem edição.','rgba(59,130,246,.12)','#2563EB'],
               ['◼','Forma (cor)','Shape recolorável pela paleta ou por vínculo.','rgba(124,110,255,.12)','#7C6EFF'],
               ['👁','Ocultar','Remove a camada do template final.','rgba(100,116,139,.08)','var(--text-3)'],

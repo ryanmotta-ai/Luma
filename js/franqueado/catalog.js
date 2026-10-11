@@ -96,7 +96,7 @@ function _fHistVencimento(h){
 function _fHistBloqueiaVencida(h){
   if(!_fHistVencida(h)) return false;
   const quando=_fHistVencimento(h);
-  gToast('Esse material saiu do ar'+(quando?' em '+quando:'')+' — não é possível gerar essa arte de novo.','error');
+  gToast('Esse material saiu do ar'+(quando?' em '+quando:'')+' — não dá pra gerar essa arte de novo. Escolha outro material no catálogo.','error');
   return true;
 }
 /* Porteiro do "Limpar": a única confirmação da biblioteca. Usa o gConfirm da casa (danger),
@@ -492,7 +492,7 @@ async function fEditFromHist(id, btn){
     fUpdateProg();
     fLpRefresh();
     try { fAttachInputGuard(); } catch(e){}
-    fAddBot(`Reabri sua arte de <strong>${gEsc(material.name)}</strong> (${gEsc(f.name)}). Os campos editáveis foram restaurados.`, []);
+    fAddBot(`Reabri sua arte de <strong>${gEsc(material.name)}</strong> (${gEsc(f.name)}). Suas respostas foram restauradas.`, []);
     setTimeout(()=>fGerarArte(), 500);
     return;
   }
@@ -528,8 +528,8 @@ async function fEditFromHist(id, btn){
   fLpRefresh();
   try { fAttachInputGuard(); } catch(e){}
   const msg = h.materialName
-    ? `Reabri sua arte (material original "${gEsc(h.materialName)}" não está mais disponível, usando estrutura padrão).`
-    : `Reabri sua arte de <strong>${gEsc(c.name)}</strong> (${gEsc(f.name)}). Você pode editar qualquer campo ou gerar de novo direto.`;
+    ? `Reabri sua arte. O material original “${gEsc(h.materialName)}” não está mais disponível, então usei o modelo padrão da campanha.`
+    : `Reabri sua arte de <strong>${gEsc(c.name)}</strong> (${gEsc(f.name)}). Você pode mudar qualquer resposta ou gerar de novo.`;
   fAddBot(msg, []);
   setTimeout(()=>fGerarArte(), 500);
 }
@@ -767,7 +767,7 @@ async function fCampAnalyticsOpen(folderId){
   // Rótulo honesto da origem: o número local é de UM dispositivo e não representa a rede.
   const origem=uso.escopo==='backend'
     ? `<div class="camp-ana-src">Dados de todas as lojas${uso.lojas?' · '+uso.lojas+' loja'+(uso.lojas===1?'':'s'):''}</div>`
-    : `<div class="camp-ana-src is-local">Só deste dispositivo — o total da rede sai por extração SQL (o Luma não guarda esse agregado no app)</div>`;
+    : `<div class="camp-ana-src is-local">Só deste aparelho — o total da rede não fica salvo no Luma (sai por extração SQL)</div>`;
   alvo.innerHTML=`<span class="camp-ana-sec-t">Uso</span>
     <div class="camp-ana-grid">
       <div class="camp-ana-kpi"><strong>${uso.geradas}</strong><small>artes geradas</small></div>
@@ -980,7 +980,7 @@ function fRenderArchivedPanel(){
           </div>
         </div>`;
       }).join('')}</div>`
-    : `<p class="f-arch-empty">Nenhuma campanha arquivada. Ao arquivar uma campanha pelos 3-pontos, ela aparece aqui.</p>`;
+    : `<p class="f-arch-empty">Nenhuma campanha arquivada. Ao arquivar uma campanha pelo menu de três pontos, ela aparece aqui.</p>`;
   host.innerHTML=`<div class="f-arch-box" role="dialog" aria-modal="true" aria-label="Campanhas arquivadas">
     <div class="f-arch-head">
       <h2>Campanhas arquivadas${arq.length?` · ${arq.length}`:''}</h2>

@@ -169,14 +169,14 @@ function gProfileSwitchTab(tabName) {
   const subtitle = document.getElementById('prof-modal-subtitle');
 
   if (tabName === 'dados') {
-    if (title) title.textContent = 'Dados Pessoais';
-    if (subtitle) subtitle.textContent = 'Gerencie suas informações básicas de exibição.';
+    if (title) title.textContent = 'Dados pessoais';
+    if (subtitle) subtitle.textContent = 'Seu nome, sua foto e como você aparece no Luma.';
   } else if (tabName === 'seguranca') {
-    if (title) title.textContent = 'Segurança da Conta';
-    if (subtitle) subtitle.textContent = 'Altere sua senha de acesso e monitore a segurança.';
+    if (title) title.textContent = 'Segurança da conta';
+    if (subtitle) subtitle.textContent = 'Troque sua senha e encerre a sessão deste aparelho.';
   } else if (tabName === 'estatisticas') {
-    if (title) title.textContent = 'Minhas Estatísticas';
-    if (subtitle) subtitle.textContent = 'Resumo da sua atividade nesta sessão e portfólio no Luma.';
+    if (title) title.textContent = 'Atividade';
+    if (subtitle) subtitle.textContent = 'Seus materiais, as campanhas no ar e o tempo nesta sessão.';
 
     // Atualizar tempo de sessão dinamicamente ao abrir a aba
     const elapsedMinutes = Math.floor((Date.now() - gSessionStartTime) / 60000);
@@ -194,7 +194,7 @@ function gProfileSwitchTab(tabName) {
     if(typeof gDadosAbrir==='function')gDadosAbrir();
   } else if (tabName === 'feedback') {
     if(title)title.textContent='Feedback dos franqueados';
-    if(subtitle)subtitle.textContent='Dificuldades e conteúdos pedidos pela rede';
+    if(subtitle)subtitle.textContent='Dificuldades e conteúdos pedidos pela rede.';
     gProfileOpenFeedback();
   } else if (tabName === 'produto') {
     if (title) title.textContent = 'Controle do produto';
@@ -245,7 +245,7 @@ function gProfileHandleUpload(input) {
 
   // Limite generoso (15MB) para suportar fotos originais de câmera mobile/desktop
   if (file.size > 15 * 1024 * 1024) {
-    if (typeof gToast === 'function') gToast('Imagem muito grande — escolha uma foto de até 15MB.', 'error');
+    if (typeof gToast === 'function') gToast('Imagem muito grande — escolha uma foto de até 15 MB.', 'error');
     return;
   }
 
@@ -270,12 +270,12 @@ function gProfileHandleUpload(input) {
       const base64Image = canvas.toDataURL('image/jpeg', 0.88);
       gProfileSalvarFoto(base64Image).then(function(ok){
         if (typeof gToast !== 'function') return;
-        if (ok) gToast('Foto de perfil atualizada!');
+        if (ok) gToast('Foto de perfil atualizada');
         else gToast('Não consegui salvar a foto. Confira sua internet e tente de novo.', 'error');
       });
     };
     img.onerror = function() {
-      if (typeof gToast === 'function') gToast('Não foi possível processar a imagem selecionada.', 'error');
+      if (typeof gToast === 'function') gToast('Não consegui ler essa imagem. Tente outra foto em JPG ou PNG.', 'error');
     };
     img.src = e.target.result;
   };
@@ -344,7 +344,8 @@ async function gProfileSaveData(event) {
         .eq('id', me.id);
       if (error) {
         btn.disabled = false; btn.innerHTML = originalHTML;
-        gToast('Não salvou no servidor: ' + error.message, 'error');
+        gToast('Não salvou. Confira sua internet e tente de novo.', 'error');
+        try { console.warn('[perfil] salvar:', error.message); } catch (e) {}
         return;
       }
       // O nome também: só era copiado de um sessionStorage legado que ninguém mais grava, e a
@@ -353,7 +354,7 @@ async function gProfileSaveData(event) {
     }
   } catch(e) {
     btn.disabled = false; btn.innerHTML = originalHTML;
-    gToast('Não salvou no servidor. Verifique a conexão.', 'error');
+    gToast('Não salvou. Confira sua internet e tente de novo.', 'error');
     return;
   }
 
@@ -397,7 +398,7 @@ async function gProfileSaveData(event) {
     btn.disabled = false;
     btn.innerHTML = originalHTML;
 
-    if (typeof gToast === 'function') gToast('Perfil salvo com sucesso!');
+    if (typeof gToast === 'function') gToast('Perfil salvo');
     gCloseUserProfileModal();
   }, 600);
 }
@@ -471,14 +472,14 @@ function gProfileCheckPasswordStrength(password) {
     if (seg1) seg1.style.background = 'var(--green)'; // Verde
     if (seg2) seg2.style.background = 'var(--green)';
     if (seg3) seg3.style.background = 'var(--green)';
-    if (label) label.textContent = 'Senha Forte';
+    if (label) label.textContent = 'Senha forte';
   } else if (hasUpperCase || hasNumber) {
     if (seg1) seg1.style.background = '#eab308'; // Amarelo
     if (seg2) seg2.style.background = '#eab308';
-    if (label) label.textContent = 'Senha Média (adicione letras maiúsculas e números)';
+    if (label) label.textContent = 'Senha média (adicione letras maiúsculas e números)';
   } else {
     if (seg1) seg1.style.background = '#f97316'; // Laranja
-    if (label) label.textContent = 'Senha Fraca (adicione letras maiúsculas ou números)';
+    if (label) label.textContent = 'Senha fraca (adicione letras maiúsculas ou números)';
   }
 }
 
@@ -493,17 +494,17 @@ async function gProfileChangePassword(event) {
   const confirmPass = document.getElementById('prof-input-password-confirm').value;
 
   if (newPass.length < 8) {
-    if (typeof gToast === 'function') gToast('A nova senha deve ter no mínimo 8 caracteres', 'error');
+    if (typeof gToast === 'function') gToast('A nova senha precisa ter pelo menos 8 caracteres.', 'error');
     return;
   }
 
   if (newPass !== confirmPass) {
-    if (typeof gToast === 'function') gToast('As senhas não coincidem', 'error');
+    if (typeof gToast === 'function') gToast('As duas senhas estão diferentes. Digite a mesma nas duas caixas.', 'error');
     return;
   }
 
   if (typeof gResetPassword !== 'function') {
-    if (typeof gToast === 'function') gToast('Não foi possível alterar a senha agora', 'error');
+    if (typeof gToast === 'function') gToast('Não consegui trocar a senha agora. Tente de novo em instantes.', 'error');
     return;
   }
 
@@ -552,11 +553,11 @@ function gProfileRenderStats(role) {
   // 2. Nível baseado no papel e na quantidade de templates
   if (levelVal) {
     if (role === 'gestao' || role === 'superadmin') {
-      levelVal.textContent = 'Dono da Plataforma';
+      levelVal.textContent = 'Dono da plataforma';
     } else if (role === 'equipe_dm' || role === 'admin') {
-      levelVal.textContent = templateCount > 15 ? 'Diretor de Design' : 'Administrador Luma';
+      levelVal.textContent = templateCount > 15 ? 'Diretor de design' : 'Administrador do Luma';
     } else {
-      levelVal.textContent = templateCount > 5 ? 'Designer Avançado' : 'Franqueado Ativo';
+      levelVal.textContent = templateCount > 5 ? 'Franqueado Avançado' : 'Franqueado Ativo';
     }
   }
   gProfileRenderFacts();
@@ -636,7 +637,7 @@ function fToggleTheme() {
   gProfileApplyTheme(targetTheme);
   
   if (typeof gToast === 'function') {
-    gToast(targetTheme === 'light' ? '☀ Tema claro' : '🌙 Tema escuro');
+    gToast(targetTheme === 'light' ? 'Tema claro ligado' : 'Tema escuro ligado');
   }
 }
 
@@ -1115,7 +1116,7 @@ function gProfileClearEquipeFilters(){
 async function gProfileRemoveUser(email){
   // confirm() nativo → gConfirm (01_BUSINESS §10 / 03_ENGINEERING: gToast/gConfirm são os
   // únicos canais de feedback e confirmação; confirm() nativo espalhado é proibido).
-  const ok = await gConfirm('Desativar o acesso de '+email+'? Ele não conseguirá mais usar o app. (A exclusão definitiva é feita no painel do Supabase.)', {okLabel:'Desativar', danger:true});
+  const ok = await gConfirm('Desativar o acesso de '+email+'? A pessoa não consegue mais entrar no Luma. (A exclusão definitiva é feita no painel do Supabase.)', {okLabel:'Desativar', danger:true});
   if(!ok) return;
   const res=await gRemoveManagedUser(email);
   if(!res.ok){gToast('Não foi possível desativar o usuário: '+res.error,'error');return;}
@@ -1126,7 +1127,7 @@ async function gProfileRemoveUser(email){
 // Fecha o ciclo desativar↔reativar: gSetUserAtivo(id,true) já existia no backend, mas
 // não havia caminho na UI para acioná-lo — desativar era, na prática, definitivo.
 async function gProfileReactivateUser(email){
-  const ok = await gConfirm('Reativar o acesso de '+email+'? Ele volta a conseguir usar o app.', {okLabel:'Reativar'});
+  const ok = await gConfirm('Reativar o acesso de '+email+'? A pessoa volta a conseguir entrar no Luma.', {okLabel:'Reativar'});
   if(!ok) return;
   const res=await gSetUserAtivo(email, true);
   if(!res.ok){gToast('Não foi possível reativar o usuário: '+res.error,'error');return;}

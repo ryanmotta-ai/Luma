@@ -274,8 +274,8 @@ function dRunLinter() {
       if (!hasCondition) {
         issues.push({
           type: 'error',
-          title: 'Preço Riscado Órfão',
-          desc: 'Se o franqueado não oferecer desconto, o preço original continuará aparecendo na arte final. Adicione uma regra condicional para ocultar esta camada quando precoDe estiver vazio.',
+          title: 'Preço riscado sem regra',
+          desc: 'Se o franqueado não oferecer desconto, o preço original continuará aparecendo na arte final. Adicione uma regra condicional para ocultar esta camada quando o preço antigo estiver vazio.',
           layerId: l.id,
           layerName: l.name,
           autoFix: 'addHideRule',
@@ -294,8 +294,8 @@ function dRunLinter() {
         if (v && (v.type === 'currency' || v.type === 'number')) {
           issues.push({
             type: 'error',
-            title: 'Prefixo R$ Duplicado',
-            desc: `A caixa de texto contém "R$ {{${varName}}}" fixo no design, mas a variável já está configurada como formato financeiro (que injeta "R$" automaticamente). Remova o "R$" fixo da camada de texto.`,
+            title: 'Prefixo R$ duplicado',
+            desc: `A caixa de texto contém "R$ {{${varName}}}" fixo no design, mas o campo já está configurado como moeda (que insere "R$" automaticamente). Remova o "R$" fixo da camada de texto.`,
             layerId: l.id,
             layerName: l.name,
             autoFix: 'removeRsPrefix',
@@ -321,7 +321,7 @@ function dRunLinter() {
         if (isHeaderObstructed) {
           issues.push({
             type: 'warning',
-            title: 'Obstrução na Safe Zone Superior',
+            title: 'Fora da área segura (topo)',
             desc: 'Esta camada está localizada nos primeiros 250px verticais. A foto de perfil e os traços de progresso do Stories do Instagram vão cobrir este conteúdo.',
             layerId: l.id,
             layerName: l.name
@@ -330,7 +330,7 @@ function dRunLinter() {
         if (isFooterObstructed) {
           issues.push({
             type: 'warning',
-            title: 'Obstrução na Safe Zone Inferior',
+            title: 'Fora da área segura (rodapé)',
             desc: 'Esta camada está localizada nos últimos 250px verticais. A barra de digitação de Direct e o botão de compartilhar do Stories vão cobrir este conteúdo.',
             layerId: l.id,
             layerName: l.name
@@ -349,8 +349,8 @@ function dRunLinter() {
         if (isCriticalField && recommendedLimit < 35) {
           issues.push({
             type: 'warning',
-            title: 'Caixa de Texto Estreita',
-            desc: `O limite recomendado para este campo é muito curto (${recommendedLimit} car.) para nomes de produtos e validades típicos. Aumente a largura da caixa de texto ou reduza a fonte padrão para evitar que o texto encolha demais no celular do franqueado.`,
+            title: 'Caixa de texto estreita',
+            desc: `O limite recomendado para este campo é muito curto (${recommendedLimit} caracteres) para nomes de produtos e validades típicos. Aumente a largura da caixa de texto ou reduza a fonte padrão para evitar que o texto encolha demais no celular do franqueado.`,
             layerId: l.id,
             layerName: l.name
           });
@@ -441,7 +441,7 @@ function dRunLinter() {
         if (originalW > 1800 && scale > 4) {
           issues.push({
             type: 'info',
-            title: 'Imagem com Resolução Excessiva',
+            title: 'Imagem com resolução excessiva',
             desc: `A imagem tem resolução física muito grande (${originalW}px de largura) para o espaço de exibição (${Math.round(l.w)}px). Comprima a imagem para reduzir o peso da campanha.`,
             layerId: l.id,
             layerName: l.name
@@ -477,7 +477,7 @@ function dRunLinter() {
         if (v && !ehRotulo) {
           issues.push({
             type: 'warning',
-            title: 'Texto Fixo que Deveria Ser Campo',
+            title: 'Texto fixo que deveria ser campo',
             desc: `“${txt.slice(0, 40)}${txt.length > 40 ? '…' : ''}” está escrito na mão: na próxima promoção esta arte sai com o valor antigo. Ligue a camada no campo “${v.label || v.name}” — arraste o campo do painel Campos até ela, ou use o atalho aqui.`,
             layerId: l.id,
             layerName: l.name,
@@ -601,7 +601,7 @@ function dDadoLinterAutoFix(layerId, type, param) {
       when: 'empty',
       then: 'hide'
     });
-    gToast('Regra de ocultação condicional adicionada!');
+    gToast('Regra de ocultação condicional adicionada');
   } 
   else if (type === 'bindField') {
     // Delega ao bind único (history, render, lista, props, unsaved e toast moram lá) — o mesmo
@@ -624,7 +624,7 @@ function dDadoLinterAutoFix(layerId, type, param) {
     if (l.type === 'text' && l.content) {
       dHistoryPush();
       l.content = l.content.replace(new RegExp('R\\$\\s*\\{\\{\\s*' + param + '\\s*\\}\\}', 'gi'), `{{${param}}}`);
-      gToast('Prefixo R$ fixo removido do texto!');
+      gToast('Prefixo R$ fixo removido do texto');
     }
   }
   

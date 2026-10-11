@@ -13,7 +13,7 @@ const G_HELP_CATALOG=[
   {id:'qual-formato', cat:'franqueado', icon:'layout', title:'Qual formato escolher', sub:'Story, Feed ou Post wide'},
   {id:'editar-arte', cat:'franqueado', icon:'edit', title:'Editar uma arte que já fiz', sub:'Aba Minhas artes, filtros e edição'},
   {id:'enviar-foto', cat:'franqueado', icon:'image', title:'Enviar a foto do produto', sub:'Upload, trocar e dicas de qualidade'},
-  {id:'gerar-varios', cat:'franqueado', icon:'layers', title:'Gerar várias artes (CSV)', sub:'Planilha → grade → baixar todos'},
+  {id:'gerar-varios', cat:'franqueado', icon:'layers', title:'Gerar várias artes', sub:'Uma oferta por arte, todas num ZIP'},
   {id:'regras-marca', cat:'franqueado', icon:'shield', title:'Regras da marca DM', sub:'Cores, fontes e usos permitidos'},
   // Designer (Studio)
   {id:'studio-tour', cat:'designer', icon:'compass', title:'Conheça o Estúdio', sub:'Toolbar, canvas, painéis e topbar'},
@@ -69,7 +69,7 @@ const G_SUPPORT_FORM_URL = '';
 const G_SUPPORT_EMAIL = '';
 function gHelpContactSupport(){
   const url=(typeof G_SUPPORT_FORM_URL==='string')?G_SUPPORT_FORM_URL.trim():'';
-  if(!url){ if(typeof gToast==='function') gToast('Canal de suporte em configuração — em breve.'); return; }
+  if(!url){ if(typeof gToast==='function') gToast('O formulário de suporte ainda não está no ar. Por enquanto, fale com a gestão da sua rede.'); return; }
   try{ if(typeof gTrackEvent==='function') gTrackEvent('suporte_humano_click',{rota:'ajuda'}); }catch(e){}
   window.open(url, '_blank', 'noopener,noreferrer'); // nova aba, sem acesso ao opener
 }
@@ -84,7 +84,7 @@ function gHelpContactSupport(){
 // Botão "Enviar um e-mail" — usa G_SUPPORT_EMAIL. Vazio → avisa em configuração.
 function gFraHelpEmail(){
   const mail=(typeof G_SUPPORT_EMAIL==='string')?G_SUPPORT_EMAIL.trim():'';
-  if(!mail){ if(typeof gToast==='function') gToast('Canal de e-mail em configuração — em breve.'); return; }
+  if(!mail){ if(typeof gToast==='function') gToast('O e-mail de suporte ainda não está no ar. Por enquanto, fale com a gestão da sua rede.'); return; }
   try{ if(typeof gTrackEvent==='function') gTrackEvent('suporte_humano_click',{rota:'ajuda',via:'email'}); }catch(e){}
   window.location.href='mailto:'+mail+'?subject='+encodeURIComponent('Ajuda no Luma');
 }
@@ -104,7 +104,7 @@ const G_FRA_HELP_ARTS={
   'primeira-arte':{title:'Criar minha primeira arte',read:'1 min',blocks:[
     {lead:'Criar uma arte no Luma é rápido: você escolhe, responde algumas perguntas e baixa. Cerca de um minuto.'},
     {h:'Passo a passo'},
-    {steps:['Escolha uma campanha no catálogo.','Clique no material que quer usar.','Responda as perguntas do chat: produto, preço e foto.','Confira a prévia e toque em <b>Baixar PNG</b>.']},
+    {steps:['Escolha uma campanha no catálogo.','Toque no material que quer usar.','Responda as perguntas do chat: produto, preço e foto.','Confira a prévia e toque em <b>Baixar PNG</b>.']},
     {tip:'Não precisa acertar de primeira — dá pra voltar, editar qualquer campo e gerar de novo quantas vezes quiser.'}
   ]},
   'qual-formato':{title:'Qual formato escolher',read:'1 min',blocks:[
@@ -115,8 +115,8 @@ const G_FRA_HELP_ARTS={
   'enviar-foto':{title:'Enviar a foto do produto',read:'2 min',blocks:[
     {lead:'Uma boa foto muda tudo na arte final. Veja o que enviar.'},
     {h:'O que enviar'},
-    {list:['PNG ou JPG, até 20 MB.','Quanto maior a resolução, mais nítida a arte.']},
-    {p:'Fotos abaixo de 600px podem sair pixeladas — o Luma te avisa antes de gerar.'},
+    {list:['PNG, JPG ou WebP, até 20 MB.','Quanto maior a resolução, mais nítida a arte.']},
+    {p:'Foto com menos de 400 pixels no lado menor não entra, porque sairia pixelada. Nesse caso, o Luma pede outra.'},
     {tip:'Dá pra trocar a foto e <b>reenquadrar direto na prévia</b>, arrastando pra posicionar.'}
   ]},
   'editar-arte':{title:'Editar uma arte que já fiz',read:'1 min',blocks:[
@@ -126,7 +126,7 @@ const G_FRA_HELP_ARTS={
   'gerar-varios':{title:'Gerar várias artes de uma vez',read:'2 min',blocks:[
     {lead:'Precisa de muitas artes de uma vez, tipo um cardápio inteiro? O lote resolve.'},
     {h:'Como funciona'},
-    {steps:['Baixe o modelo de planilha.','Preencha uma linha por produto.','Envie a planilha e confira a grade.','Toque em <b>Baixar todas</b> pra gerar o pacote.']},
+    {steps:['Baixe o modelo de planilha.','Preencha uma linha por produto.','Envie a planilha e confira a grade.','Toque em <b>Gerar artes (ZIP)</b> pra baixar todas de uma vez.']},
     {tip:'Tem os produtos num texto? Cole direto que o Luma tenta montar a planilha sozinho.'}
   ]},
   // 'ajuda-pdf' saiu em 26/09/2026: não existe "Baixar PDF" na tela (fBaixarPDF sem
@@ -136,9 +136,9 @@ const G_FRA_HELP_ARTS={
     {p:'Cores, fontes e logo vêm travados no template pela gestão. Você preenche só o conteúdo — produto, preço, foto.'},
     {tip:'Se um campo está bloqueado, é porque a marca exige aquele padrão. É proteção, não limitação.'}
   ]},
-  'vitrine':{title:'Sua vitrine é gerida pelo banco',eyebrow:'Novidade',read:'1 min',blocks:[
-    {lead:'Sua vitrine agora é gerida direto pela gestão.'},
-    {p:'As campanhas e capas do catálogo vêm do banco. Quando o time publica uma campanha nova, ela aparece pra você automaticamente.'},
+  'vitrine':{title:'Sua vitrine se atualiza sozinha',eyebrow:'Novidade',read:'1 min',blocks:[
+    {lead:'Sua vitrine agora é montada direto pela gestão.'},
+    {p:'Quando o time publica uma campanha nova, ela aparece no seu catálogo na hora, já com capa.'},
     {p:'Você não precisa atualizar nem configurar nada — é só abrir e criar.'}
   ]}
 };
@@ -183,7 +183,7 @@ function gFhSearch(){
   if(!q){ gFhRenderCols(); return; }
   const hits=Object.keys(G_FRA_HELP_ARTS).filter(id=>id!=='vitrine' &&
     (G_FRA_HELP_ARTS[id].title+' '+(G_FRA_HELP_KW[id]||'')).toLowerCase().includes(q));
-  if(list) list.innerHTML=hits.length?hits.map(_fhRowArt).join(''):'<div class="fhw-empty">Nada encontrado. Tente “foto”, “pdf” ou “lote”.</div>';
+  if(list) list.innerHTML=hits.length?hits.map(_fhRowArt).join(''):'<div class="fhw-empty">Nada encontrado. Tente “foto”, “formato” ou “lote” — ou fale com a gente na aba Suporte.</div>';
   if(cnt) cnt.textContent=hits.length?hits.length+' '+(hits.length===1?'resultado':'resultados'):'';
 }
 function gFhOpenCol(id){
@@ -319,8 +319,8 @@ const G_HELP_KEYWORDS={
 };
 
 const G_HELP_ARTICLES=[
-  {id:'ajuda-csv',cat:'franqueado',title:'Gerar artes por planilha',sub:'CSV Modelo, envio e download em lote',keywords:['csv','planilha','lote','sheets','excel'],body:'Abra Gerar varios, baixe o CSV Modelo, preencha uma linha por produto e envie a planilha. Ao revisar a grade, use Baixar todos para gerar o ZIP.'},
-  {id:'ajuda-upload',cat:'franqueado',title:'Enviar foto do produto',sub:'Formatos e limite de tamanho',keywords:['foto','imagem','upload','20mb','png','jpg'],body:'Envie imagens PNG ou JPG de ate 20 MB. Para imagens por URL, o endereco precisa ser publico para que a arte possa ser gerada.'},
+  {id:'ajuda-csv',cat:'franqueado',title:'Gerar várias artes de uma vez',sub:'Uma oferta por arte, download em ZIP',keywords:['csv','planilha','lote','sheets','excel','varias','ofertas'],body:'No computador, com uma arte pronta, toque em Gerar em lote. Toque em “Adicionar oferta” e preencha cada uma — a arte ao lado se monta enquanto você escreve. Depois toque em Gerar artes (ZIP) para baixar todas.'},
+  {id:'ajuda-upload',cat:'franqueado',title:'Enviar foto do produto',sub:'Formatos e limite de tamanho',keywords:['foto','imagem','upload','20mb','png','jpg'],body:'Envie imagens PNG ou JPG de até 20 MB. Se usar o link de uma imagem, ele precisa abrir para qualquer pessoa, senão a arte não sai.'},
 ];
 
 /* ══ CONHECIMENTO PRA IA (aterrar a resposta na verdade do Luma) ══
@@ -497,7 +497,7 @@ function gHelpRenderContext(){
   return `<section class="g-help-context" aria-labelledby="g-help-context-title">
     <div class="g-help-context-head">
       <span id="g-help-context-title">Nesta tela</span>
-      <span>${document.body.classList.contains('mode-designer')?'Estudio':'Franqueado'}</span>
+      <span>${document.body.classList.contains('mode-designer')?'Estúdio':'Franqueado'}</span>
     </div>
     <div class="g-help-context-list">
       ${items.map(item=>`<button type="button" class="g-help-context-item" onclick="gHelpOpenItem('${item.id}')">${item.title}</button>`).join('')}
@@ -594,7 +594,7 @@ function gHelpRenderTrail(){
       <div class="g-help-trail-complete">
         <div class="g-help-trail-complete-icon">${gHelpIcon('trophy')}</div>
         <div class="g-help-trail-complete-title">Trilha concluída!</div>
-        <div class="g-help-trail-complete-sub">Você assistiu todos os ${total} tutoriais desta trilha.</div>
+        <div class="g-help-trail-complete-sub">Você assistiu a todos os ${total} tutoriais desta trilha.</div>
       </div>`;
   }
 
@@ -657,7 +657,7 @@ function gHelpRenderCatalog(query){
             <span class="g-help-tut-title">${t.title}</span>
             <span class="g-help-tut-sub">${t.sub}</span>
             <span class="g-help-tut-meta">
-              <span class="g-help-tut-dur">${typeof TUTORIALS!=='undefined'&&TUTORIALS[t.id]?gHelpTutDuration(t.id):'Guia rapido'}</span>
+              <span class="g-help-tut-dur">${typeof TUTORIALS!=='undefined'&&TUTORIALS[t.id]?gHelpTutDuration(t.id):'Guia rápido'}</span>
               ${done.includes(t.id)?`<span class="g-help-tut-done">${gHelpIcon('shield')} Visto</span>`:''}
             </span>
           </button>`).join('')}
@@ -676,7 +676,7 @@ function gHelpOpenItem(id){
   if(!wrap||!item.body)return;
   wrap.innerHTML=`<article class="g-help-topic" aria-labelledby="g-help-topic-title">
     <button type="button" class="g-help-topic-back" onclick="gHelpRenderCatalog(gHelpTopicQuery)">Voltar aos resultados</button>
-    <span class="g-help-topic-eyebrow">Guia rapido</span>
+    <span class="g-help-topic-eyebrow">Guia rápido</span>
     <h3 id="g-help-topic-title" tabindex="-1">${item.title}</h3>
     <p>${item.body}</p>
   </article>`;

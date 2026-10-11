@@ -242,5 +242,5 @@ let gImgPersistWarned=false;
 function gWarnImagesNotPersisted(){
   if(gImgPersistWarned)return;
   gImgPersistWarned=true;
-  gToast('As imagens enviadas não são salvas nesta versão — ao recarregar elas viram placeholder.', 'error');
+  gToast('Imagens arrastadas para cá ficam só nesta sessão — ao recarregar, elas somem. Para guardar, envie pela Biblioteca.', 'error');
 }

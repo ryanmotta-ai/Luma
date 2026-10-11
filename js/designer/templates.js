@@ -399,7 +399,7 @@ function dSetABBg(bg){
 async function dToggleOrientation(){
   const ab=dGetActiveAB();
   const hasContent=dLayers.length>1;
-  if(hasContent&&!await gConfirm('As camadas serão adaptadas ao novo formato (smart-resize).',
+  if(hasContent&&!await gConfirm('As camadas se ajustam ao novo formato, sem distorcer.',
     {title:'Girar a prancheta?',okLabel:'Girar',cancelLabel:'Cancelar'}))return;
   if(typeof dHistoryPush==='function')dHistoryPush();
   const oldW=ab.w,oldH=ab.h;
@@ -433,7 +433,7 @@ async function dABDimUpdate(){
   const ab=dGetActiveAB();if(ab.w===w&&ab.h===h)return;
   const oldW=ab.w,oldH=ab.h;
   if(dLayers.length>1&&typeof gReflowLayers==='function'){
-    if(await gConfirm('As camadas re-ancoram no novo tamanho, sem distorcer (smart-resize).',
+    if(await gConfirm('As camadas se ajustam ao novo tamanho, sem distorcer.',
       {title:'Adaptar as camadas?',okLabel:'Adaptar',cancelLabel:'Manter como está'})){
       dLayers=gReflowLayers(dLayers,{w:oldW,h:oldH},{w,h});
     }
@@ -1372,7 +1372,7 @@ async function dDeleteFolderFromBackend(remoteId){
 }
 async function dDeleteTemplate(folderId, tmplId){
   if(!await gConfirm('Esta ação não pode ser desfeita.',
-    {title:'Excluir este template?',okLabel:'Excluir',cancelLabel:'Cancelar',danger:true})) return;
+    {title:'Excluir este material?',okLabel:'Excluir',cancelLabel:'Cancelar',danger:true})) return;
   const f=dFolders.find(x=>x.id===folderId); if(!f) return;
   const tmpl=f.templates.find(t=>t.id===tmplId);
   if(tmpl&&tmpl.remoteId) dDeleteTemplateFromBackend(tmpl.remoteId);
@@ -1385,7 +1385,7 @@ async function dDeleteTemplate(folderId, tmplId){
   dRenderFolders();
   if(document.body.classList.contains('d-studio-home-open')) dStudioHomeRender();
   document.querySelectorAll('.tmpl-context-menu').forEach(m=>m.remove());
-  gToast('Template excluído.');
+  gToast('Material excluído.');
 }
 // Duplica um template inteiro (camadas + variáveis via layers + permissões + validade)
 // como um RASCUNHO novo na mesma pasta — o time recria campanhas quase-iguais sem
@@ -1597,16 +1597,16 @@ async function dQuickEditValidade(folderId, tmplId){
   const f=dFolders.find(x=>x.id===folderId); if(!f) return;
   const t=f.templates.find(x=>x.id===tmplId); if(!t) return;
   if(!t.publishMeta) t.publishMeta = dDefaultPublishMeta();
-  const novaData = await gPrompt('Nova data de validade (YYYY-MM-DD):', t.publishMeta.validade||'',{title:'Editar validade',placeholder:'2026-12-31',okLabel:'Salvar'});
+  const novaData = await gPrompt('Nova data de validade (ano-mês-dia):', t.publishMeta.validade||'',{title:'Editar validade',placeholder:'2026-12-31',okLabel:'Salvar'});
   if(!novaData) return;
   // Valida formato simples
   if(!/^\d{4}-\d{2}-\d{2}$/.test(novaData)){
-    gToast('Data inválida. Use YYYY-MM-DD (ex: 2026-12-31).');
+    gToast('Data inválida. Use ano-mês-dia (ex.: 2026-12-31).');
     return;
   }
   t.publishMeta.validade = novaData;
   dPersistFolders();
-  gToast('Validade atualizada!');
+  gToast('Validade atualizada');
 }
 // Centraliza os atalhos no fluxo oficial para nunca publicar sem checklist e revisao.
 async function dOpenTemplatePublishWizard(folderId,tmplId,step){
@@ -1701,7 +1701,7 @@ async function dLoadTemplate(tmpl,folder,options){
       }
     } else {
       // Sem backend configurado e sem layers locais: não há o que carregar.
-      gToast('Sem conexão com o banco — material não disponível offline.');
+      gToast('Sem conexão com o servidor — este material não está disponível offline.');
       return;
     }
   }
@@ -1765,7 +1765,7 @@ async function dLoadTemplate(tmpl,folder,options){
   dRenderPagesTray();   // sincroniza também o cadeado desta página (dSyncPageLock)
   if(folder)dStudioRememberRecent(folder,tmpl);
   dStudioHomeClose();
-  if(!(options&&options.silent)) gToast('Template "'+tmpl.name+'" carregado na prancheta ativa');
+  if(!(options&&options.silent)) gToast('Material "'+tmpl.name+'" carregado na prancheta ativa');
 }
 
 /* ══ RENOMEAR O DOCUMENTO/ARTE ATIVA (rótulo da topbar) ══
@@ -2005,19 +2005,19 @@ async function dClearFolder(id){
   const f=dFolders.find(x=>x.id===id);if(!f)return;
   const n=(f.templates||[]).length;
   if(n===0){ gToast('A pasta já está vazia'); return; }
-  if(!await gConfirm(`Os ${n} template(s) de "${f.name}" são excluídos permanentemente. A pasta continua.`,
+  if(!await gConfirm(`${n===1?'O material':'Os '+n+' materiais'} de "${f.name}" ${n===1?'será excluído':'serão excluídos'} permanentemente. A pasta continua.`,
     {title:'Esvaziar a pasta?',okLabel:'Esvaziar',cancelLabel:'Cancelar',danger:true}))return;
   (f.templates||[]).forEach(t=>{ if(t.remoteId) dDeleteTemplateFromBackend(t.remoteId); });
   f.templates=[];
   dRenderFolders();dPersistFolders();
   if(typeof fGetCampaigns==='function'&&typeof fRenderCatalogs==='function')try{const{ativas,outras}=fGetCampaigns();fRenderCatalogs(ativas,outras);}catch(e){}
-  gToast(`${n} template(s) excluído(s) da pasta "${f.name}"`);
+  gToast(`${n} material(is) excluído(s) da pasta "${f.name}"`);
 }
 async function dDeleteFolder(id){
   document.querySelectorAll('.folder-ctx-menu').forEach(m=>m.remove());
   const f=dFolders.find(x=>x.id===id);if(!f)return;
   const n=(f.templates||[]).length;
-  if(!await gConfirm(`"${f.name}"${n?` e seus ${n} template(s)`:''} some(m) daqui. Esta ação não pode ser desfeita.`,
+  if(!await gConfirm(`"${f.name}"${n?` e ${n===1?'o material dela':'os '+n+' materiais dela'} serão excluídos`:' será excluída'}. Esta ação não pode ser desfeita.`,
     {title:'Excluir a pasta?',okLabel:'Excluir',cancelLabel:'Cancelar',danger:true}))return;
   if(f.remoteId) dDeleteFolderFromBackend(f.remoteId);
   dFolders=dFolders.filter(x=>x.id!==id);
@@ -2058,7 +2058,7 @@ function dConfirmTemplate(){
   const name=document.getElementById('dt-name').value.trim();
   const folderId=document.getElementById('dt-folder').value;
   const fmt=document.getElementById('dt-fmt').value;
-  if(!name){gToast('Digite um nome para o template');return;}
+  if(!name){gToast('Digite um nome para o material');return;}
   const folder=dFolders.find(f=>f.id===folderId);
   if(!folder){gToast('Selecione uma pasta');return;}
   const id='t'+Date.now();
@@ -2070,7 +2070,7 @@ function dConfirmTemplate(){
   dLoadTemplate(newTmpl,folder);
   dPersistFolders();
   document.getElementById('d-tmpl-modal').classList.remove('open');
-  gToast('Template "'+name+'" criado em "'+folder.name+'" — comece adicionando elementos pelas ferramentas (T, R, F, M)');
+  gToast('Material "'+name+'" criado em "'+folder.name+'" — comece pelas ferramentas: T (texto), R (forma), F (moldura), M (imagem)');
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2815,7 +2815,7 @@ function dSvgBuildReviewHTML(elements, meta){
         <select class="svg-rev-mode" onchange="dSvgRevSetMode(${i}, this.value)">${modeOpts}</select>
         <div class="svg-rev-var-wrap" id="svg-rev-var-${i}" style="display:${el.mode==='variable'?'flex':'none'}">
           <span class="svg-rev-var-prefix">{{</span>
-          <input class="svg-rev-var-inp" value="${_dSvgEsc(el.varName||'')}" placeholder="nome_da_var" oninput="dSvgRevSetVar(${i}, this.value)">
+          <input class="svg-rev-var-inp" value="${_dSvgEsc(el.varName||'')}" placeholder="nome_do_campo" oninput="dSvgRevSetVar(${i}, this.value)">
           <span class="svg-rev-var-suffix">}}</span>
         </div>
       </div>`;
@@ -2836,7 +2836,7 @@ function dSvgBuildReviewHTML(elements, meta){
       <div class="svg-rev-list">${rows}</div>
       <div class="svg-rev-footer">
         <button class="svg-rev-btn cancel" onclick="dSvgRevCancel()">Cancelar</button>
-        <button class="svg-rev-btn confirm" onclick="dSvgRevConfirm()">Criar template <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-left:4px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
+        <button class="svg-rev-btn confirm" onclick="dSvgRevConfirm()">Criar material <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-left:4px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
       </div>
     </div>`;
 }
@@ -2845,7 +2845,7 @@ function dSvgBuildReviewHTML(elements, meta){
 function dSvgModesForType(type){
   if(type==='text') return [
     {value:'text',label:'Texto editável'},
-    {value:'variable',label:'Variável {{}}'},
+    {value:'variable',label:'Campo editável {{}}'},
     {value:'ignore',label:'Ignorar'},
   ];
   if(type==='image') return [
@@ -2855,10 +2855,10 @@ function dSvgModesForType(type){
   ];
   if(type==='path-complex') return [
     {value:'ignore',label:'Ignorar'},
-    {value:'shape',label:'Shape (parcial)'},
+    {value:'shape',label:'Forma (parcial)'},
   ];
   return [
-    {value:'shape',label:'Shape'},
+    {value:'shape',label:'Forma'},
     {value:'ignore',label:'Ignorar'},
   ];
 }
@@ -3349,7 +3349,7 @@ function dAddPageToCurrentFolder(afterId) {
   dLoadTemplate(newTmpl, folder);
   dRenderPagesTray();
   dPageEntranceAnim();
-  gToast('Nova página adicionada!');
+  gToast('Nova página adicionada');
 }
 
 /* ══ PÁGINAS: AÇÕES NA PRÓPRIA PRANCHETA ══
@@ -3466,7 +3466,7 @@ function dMovePageUp(ev) {
 
   dRenderPagesTray();
   dSyncPageLock();
-  gToast('Página movida para cima!');
+  gToast('Página movida para cima');
 }
 
 function dMovePageDown(ev) {
@@ -3487,7 +3487,7 @@ function dMovePageDown(ev) {
 
   dRenderPagesTray();
   dSyncPageLock();
-  gToast('Página movida para baixo!');
+  gToast('Página movida para baixo');
 }
 
 function dDuplicatePageInTray(ev, tmplId) {
@@ -3521,7 +3521,7 @@ function dDuplicatePageInTray(ev, tmplId) {
   dLoadTemplate(clone, folder);
   dRenderPagesTray();
   dPageEntranceAnim();
-  gToast('Página duplicada!');
+  gToast('Página duplicada');
 }
 
 async function dDeletePageInTray(ev, tmplId) {

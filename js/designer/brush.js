@@ -891,7 +891,7 @@ function _dDataDispatch(tool){
   if (tool === 'var-data') {
     if (typeof dSetTool === 'function') dSetTool('var-data');
     if (typeof dActivatePanel === 'function') dActivatePanel('camada');
-    gToast('Clique num texto ou imagem para vincular um dado');
+    gToast('Clique num texto ou imagem para vincular um campo');
     return;
   }
   if (typeof dSetTool === 'function') dSetTool(tool);

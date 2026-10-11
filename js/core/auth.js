@@ -116,7 +116,7 @@ async function gLoadProfile() {
 async function gLogin(email, password) {
   if (!email || !password) return { ok: false, error: 'E-mail e senha são obrigatórios.' };
   const sb = _gSb();
-  if (!sb) return { ok: false, error: 'Backend indisponível. Recarregue a página.' };
+  if (!sb) return { ok: false, error: 'Sem conexão com o servidor. Recarregue a página.' };
   // try/catch: uma rejeição (falha de rede no fetch) NÃO pode escapar — quem chama
   // (gDoLogin) espera sempre um objeto de resultado, senão o botão trava em "Autenticando…".
   try {
@@ -182,7 +182,7 @@ function gCanManageUsers(){ return gIsSuperAdmin(); }
 async function gForgotPassword(email) {
   if (!email) return { ok: false, error: 'Digite seu e-mail.' };
   const sb = _gSb();
-  if (!sb) return { ok: false, error: 'Backend indisponível.' };
+  if (!sb) return { ok: false, error: 'Sem conexão com o servidor. Recarregue a página.' };
   const redirectTo = location.origin + location.pathname;
   // Mesma razão do gLogin: uma rejeição (rede caiu) NÃO pode escapar — quem chama espera
   // sempre um objeto, senão o botão fica preso em "Enviando…" e a tela não diz nada.
@@ -198,7 +198,7 @@ async function gForgotPassword(email) {
 // Roda sobre a sessão de recovery materializada pelo supabase-js ao abrir o link do e-mail.
 async function gResetPassword(newPassword) {
   const sb = _gSb();
-  if (!sb) return { ok: false, error: 'Backend indisponível.' };
+  if (!sb) return { ok: false, error: 'Sem conexão com o servidor. Recarregue a página.' };
   try {
     const { error } = await sb.auth.updateUser({ password: newPassword });
     // A mensagem crua segue junto: o passo "nova senha" detecta sessão vencida por ela.
@@ -270,7 +270,7 @@ async function gGetAllUsers(){
 async function gSetUserRole(idOrEmail, newRole){
   if(!gCanManageUsers()) return {ok:false,error:'Sem permissão (só gestão muda permissões).'};
   if(['franqueado','equipe_dm','gestao'].indexOf(newRole)<0) return {ok:false,error:'Permissão inválida.'};
-  const sb=_gSb(); if(!sb) return {ok:false,error:'Backend indisponível.'};
+  const sb=_gSb(); if(!sb) return {ok:false,error:'Sem conexão com o servidor. Recarregue a página.'};
   try{
     const col=/@/.test(String(idOrEmail))?'email':'id';
     const { error }=await sb.from('profiles').update({role:newRole}).eq(col, idOrEmail);
@@ -280,7 +280,7 @@ async function gSetUserRole(idOrEmail, newRole){
 }
 async function gSetUserAtivo(idOrEmail, ativo){
   if(!gCanManageUsers()) return {ok:false,error:'Sem permissão (só gestão).'};
-  const sb=_gSb(); if(!sb) return {ok:false,error:'Backend indisponível.'};
+  const sb=_gSb(); if(!sb) return {ok:false,error:'Sem conexão com o servidor. Recarregue a página.'};
   try{
     const col=/@/.test(String(idOrEmail))?'email':'id';
     const { error }=await sb.from('profiles').update({ativo:!!ativo}).eq(col, idOrEmail);
@@ -292,7 +292,7 @@ async function gSetUserAtivo(idOrEmail, ativo){
 // A função valida caller gestão, envia o e-mail de convite e grava role/telefone no profile.
 async function gInviteUser(email, nome, role, telefone){
   if(!gCanManageUsers()) return {ok:false,error:'Sem permissão (só gestão convida).'};
-  const sb=_gSb(); if(!sb) return {ok:false,error:'Backend indisponível.'};
+  const sb=_gSb(); if(!sb) return {ok:false,error:'Sem conexão com o servidor. Recarregue a página.'};
   if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return {ok:false,error:'Digite um e-mail válido.'};
   if(!nome) return {ok:false,error:'Digite o nome do membro.'};
   try{
@@ -344,7 +344,7 @@ async function gDoLogin(e) {
     btn.querySelector('.gl-btn-text').style.display = 'none';
     btn.querySelector('.gl-spinner').style.display = 'block';
   } else {
-    btn.textContent = 'Autenticando...';
+    btn.textContent = 'Entrando…';
   }
   errEl.style.display = 'none';
 

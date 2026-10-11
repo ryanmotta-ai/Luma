@@ -130,11 +130,11 @@ async function acEmitirCertificado(btn){
   const c = acState.curso;
   if(!c){ return; }
   if(c._demo){
-    gToast('Esta é a formação de demonstração — o certificado é emitido na formação publicada pela equipe','error');
+    gToast('Esta é a formação de demonstração. O certificado sai na formação oficial, quando a equipe publicar.','error');
     return;
   }
   const sb = _acSb();
-  if(!sb){ gToast('Backend indisponível — não consigo emitir agora','error'); return; }
+  if(!sb){ gToast('Sem conexão com o servidor — não consigo emitir agora. Recarregue a página.','error'); return; }
   const restore = (typeof gBtnLoading==='function') ? gBtnLoading(btn,'Emitindo…') : ()=>{};
   try{
     // RPC no schema luma: a validação de conclusão acontece no servidor.
@@ -405,7 +405,7 @@ async function acBaixarCertificado(btn){
       a.download = nomeArq.replace(/\.pdf$/,'.png');
       a.href = cv.toDataURL('image/png');
       a.click();
-      gToast('Baixei em PNG — o gerador de PDF não carregou nesta sessão');
+      gToast('Baixei em PNG — o PDF não carregou agora. Recarregue a página se precisar dele.');
       return;
     }
     const pdf = await PDFLib.PDFDocument.create();

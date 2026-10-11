@@ -464,11 +464,11 @@ function pvUpdateSidebar(){
   else checks.push({ok:true,msg:dLayers.length+' camada(s) no material'});
   if(emptyFrames.length)checks.push({ok:false,msg:emptyFrames.length+' moldura(s) sem foto'});
   else if(frames.length)checks.push({ok:true,msg:'Todas as molduras com foto'});
-  if(varsInUse.length)checks.push({ok:true,msg:varsInUse.length+' variável(is) configurada(s)'});
-  else checks.push({ok:false,msg:'Nenhuma variável em uso'});
+  if(varsInUse.length)checks.push({ok:true,msg:varsInUse.length+' campo(s) configurado(s)'});
+  else checks.push({ok:false,msg:'Nenhum campo em uso'});
   const bgLayer=dLayers.find(l=>l.type==='shape'&&l.x===0&&l.y===0&&l.w>=sz.w*0.9&&l.h>=sz.h*0.9);
   if(bgLayer)checks.push({ok:true,msg:'Fundo de tela configurado'});
-  else checks.push({ok:false,msg:'Sem layer de fundo (opcional)'});
+  else checks.push({ok:false,msg:'Sem camada de fundo (opcional)'});
 
   // Icone = SVG inline com currentColor (nunca glifo/emoji: o ✓ e o ⚠ mudavam de forma e de
   // peso conforme a fonte do sistema, e o ⚠ vinha colorido em alguns aparelhos). Cor por token.
@@ -530,7 +530,7 @@ function dPreviewDownloadAll(){
     });
   }
   next();
-  gToast('Baixando todos os formatos...');
+  gToast('Baixando todos os formatos…');
 }
 
 function pvRenderToBlob(fmt, cb){

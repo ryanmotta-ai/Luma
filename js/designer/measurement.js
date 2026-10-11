@@ -252,7 +252,7 @@ async function dColorSamplerAdd(x, y){
   if(typeof dHistoryPush==='function')dHistoryPush();
   if(typeof dMarkUnsaved==='function')dMarkUnsaved();
   var hex=_dRgbaToHex(color.r, color.g, color.b);
-  gToast('Sampler #'+dColorSamplers.length+': '+hex);
+  gToast('Amostra de cor #'+dColorSamplers.length+': '+hex);
 }
 
 /**
@@ -334,7 +334,7 @@ function dColorSamplerRender(){
       e.preventDefault();
       e.stopPropagation();
       dColorSamplerRemove(i);
-      gToast('Sampler #'+(i+1)+' removido');
+      gToast('Amostra de cor #'+(i+1)+' removida');
     });
 
     frame.appendChild(el);
@@ -350,7 +350,7 @@ function dColorSamplerClear(){
     if(s.el&&s.el.parentNode) s.el.parentNode.removeChild(s.el);
   });
   dColorSamplers=[];
-  gToast('Todos os samplers removidos');
+  gToast('Todas as amostras de cor removidas');
 }
 
 

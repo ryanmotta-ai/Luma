@@ -27,7 +27,7 @@ async function dSetFormat(fmt,btn){
   if(ab){ab.fmt=fmt;ab.w=to.w;ab.h=to.h;}
   // 5.2 — Smart resize: oferece adaptar os elementos ao novo formato (re-ancora sem distorcer)
   if((from.w!==to.w||from.h!==to.h)&&dLayers.length>1&&typeof gReflowLayers==='function'){
-    if(await gConfirm('Posições e tamanhos re-ancoram no novo formato, sem distorcer (smart resize).',
+    if(await gConfirm('Posições e tamanhos se ajustam ao novo formato, sem distorcer.',
       {title:'Adaptar os elementos?',okLabel:'Adaptar',cancelLabel:'Manter como está'})){
       dHistoryPush();
       dLayers=gReflowLayers(dLayers,from,to,{fmtKey:gFmtKey(fmt)});
@@ -315,7 +315,7 @@ function dEscolherFotoDaMoldura(lReal){
       const espelho=document.getElementById('dp-imgurl');
       if(espelho) espelho.value='[arquivo local]';
       if(typeof dPropSyncImageSource==='function') dPropSyncImageSource();
-      gToast('Foto aplicada na moldura!');
+      gToast('Foto aplicada na moldura');
     };
     r.readAsDataURL(file);
   };
@@ -732,7 +732,7 @@ function dEndMarquee(e){
       const l=dLayers.find(z=>z.id===dSelId);
       if(l)dShowProps(l);
       dUpdateCtxBar();
-      gToast(hits.length+' layer'+(hits.length>1?'s':'')+' selecionado'+(hits.length>1?'s':''));
+      gToast(hits.length+' camada'+(hits.length>1?'s':'')+' selecionada'+(hits.length>1?'s':''));
     }else if(!shiftKey){
       // Nada interceptado → desseleciona (mesmo efeito de clicar no vazio)
       dSelId=null;dMultiSel=[];
@@ -909,7 +909,7 @@ function _dAdvSelFromEvent(e){
       dRenderCanvas();
       dRenderLayersList();
       gToast(e.altKey?('Varinha: '+ids.length+' fora da seleção ('+arr.length+' restam)')
-        :('✓ Varinha: '+arr.length+' layer'+(arr.length>1?'s':'')+' selecionado'+(arr.length>1?'s':'')));
+        :('✓ Varinha: '+arr.length+' camada'+(arr.length>1?'s':'')+' selecionada'+(arr.length>1?'s':'')));
     }else if(!e.shiftKey&&!e.altKey){
       dSelId=null;dMultiSel=[];
       dRenderCanvas();dRenderLayersList();
@@ -1620,7 +1620,7 @@ function dRenderCanvas(){
       }
       if(dTool==='bucket'){dBucketFillLayer(lReal);return;}
       if(dTool==='var-data'){ // Vincular campo: clicou no elemento → abre o seletor ancorado nele
-        if(typeof dLayerIsBindable==='function' && !dLayerIsBindable(l)){ gToast('Essa camada não recebe Dado (só texto/imagem)'); return; }
+        if(typeof dLayerIsBindable==='function' && !dLayerIsBindable(l)){ gToast('Só textos e imagens recebem campo — clique num deles'); return; }
         const _rect=el.getBoundingClientRect();           // captura ANTES do re-render (el fica órfão depois)
         dSelLayer(l.id);
         if(typeof dFieldBindPickerOpen==='function'){
@@ -1869,7 +1869,7 @@ function dToggleSnap(){
   dSnapEnabled=!dSnapEnabled;
   const btn=document.getElementById('dt-snap-btn');
   if(btn)btn.classList.toggle('active',dSnapEnabled);
-  gToast(dSnapEnabled?'✓ Snap ativado':'Snap desativado');
+  gToast(dSnapEnabled?'✓ Encaixe nas guias ativado':'Encaixe nas guias desativado');
   if(!dSnapEnabled)dClearGuides();
 }
 
@@ -2015,7 +2015,7 @@ function dSimFieldMarkup(vn){
   const meta=`<span class="sim-count" id="sim-count-${vn}"></span><span class="sim-overflow" id="sim-ovf-${vn}" hidden>Revisar encaixe</span>`;
   const fieldId='sim-input-'+vn;
   if(type==='image'){
-    return `<div class="sim-row"><div class="sim-label-row"><label for="${fieldId}">${gEsc(label)}</label><span class="sim-field-type">Imagem</span></div><input id="${fieldId}" type="text" inputmode="url" placeholder="Cole uma URL ou imagem em base64" value="${gEsc(cur)}" oninput="dSimVarInput('${vn}',this.value,${maxLen})"></div>`;
+    return `<div class="sim-row"><div class="sim-label-row"><label for="${fieldId}">${gEsc(label)}</label><span class="sim-field-type">Imagem</span></div><input id="${fieldId}" type="text" inputmode="url" placeholder="Cole o link de uma imagem" value="${gEsc(cur)}" oninput="dSimVarInput('${vn}',this.value,${maxLen})"></div>`;
   }
   const longText=type==='textarea'||label.toLowerCase().includes('descri')||label.toLowerCase().includes('texto');
   const control=longText
@@ -2032,7 +2032,7 @@ function dOpenSimModal(){
   dSimDraftValues=JSON.parse(JSON.stringify(dSimValues));
   const varsArr=dSimUsedVars();
   box.innerHTML=`<header class="sim-head">
-      <div><span class="sim-eyebrow">Teste antes de publicar</span><h3 id="d-sim-title">Simular dados reais</h3><p>Confira conteúdo, encaixe e adaptação sem alterar o template.</p></div>
+      <div><span class="sim-eyebrow">Teste antes de publicar</span><h3 id="d-sim-title">Simular dados reais</h3><p>Confira conteúdo, encaixe e adaptação sem alterar o material.</p></div>
       <button type="button" class="sim-close" onclick="dCloseSimModal()" aria-label="Fechar simulação"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
     </header>
     <div class="sim-workspace">
