@@ -3686,7 +3686,14 @@ function fQR(val, el){
   fAddUser(masked);
   fSaveAdv(masked);
 }
-function fSend(){
+function fSend(ev){
+  /* Botão principal em modo "Encurtar" (o texto não cabe): o CLIQUE encurta. O Enter chega aqui sem
+     evento e continua salvando — quem decide salvar assim mesmo tem por onde (o bloqueio segura a
+     exportação, não a resposta). */
+  const _snd=document.getElementById('f-snd');
+  if(ev && ev.type==='click' && _snd && _snd.classList.contains('is-encurtar') && typeof fFitTextWithAI==='function'){
+    fFitTextWithAI(); return;
+  }
   // Controle do produto: funil único do chat gerador. Bloqueia o AVANÇO; o
   // histórico e as artes já geradas continuam visíveis e baixáveis.
   if(typeof gFeatureCan==='function' && !gFeatureCan('franqueado.chat','create')){

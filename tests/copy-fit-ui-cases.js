@@ -18,6 +18,9 @@ async function test(name,fn){total++;try{await fn();
 
 const tick=(ms)=>new Promise(r=>setTimeout(r,ms||0));
 const $=(s)=>document.querySelector(s);
+/* O Encurtar mora no botão principal quando o texto não cabe (10/10/2026) e no chip quando é só
+   atalho: a suíte procura onde ele estiver — é o mesmo `_fFitBtn` da produção. */
+const encBtn=()=>_fFitBtn();
 const box=document.getElementById('f-msg-box');
 
 const LONGO='Deliciosa Pizza Calabresa', CURTO='Pizza Calabresa';
@@ -76,7 +79,7 @@ async function reset(dados, mat){
   try{ _fUndoLimpa(); }catch(e){}
   document.getElementById('g-toast-container').innerHTML='';
   document.getElementById('f-messages').innerHTML='';
-  const fb=document.getElementById('f-fit-btn'); if(fb) fb.remove();
+  _fFitSndModo(false); const fb=document.getElementById('f-fit-btn'); if(fb) fb.remove();
   try{ localStorage.removeItem('luma_chat_draft'); }catch(e){}
   fState.material=mat||material('mat-a');
   fState.fmt=FMTS.find(f=>f.id==='story')||FMTS[0];
@@ -209,11 +212,11 @@ await test('Balão medido para o texto ANTIGO não troca o texto que a pessoa ac
 await test('Estado vazio (sem material) tira balão, solução e Encurtar (regressão df5cdec)', async()=>{
   await reset({produto:''});
   naPergunta('produto'); digita(LONGO); await render();
-  assert(balao()&&document.getElementById('f-fit-btn'),'pré-condição: balão e Encurtar');
+  assert(balao()&&encBtn(),'pré-condição: balão e Encurtar');
   fState.material=null; await render();
   assert(!balao(),'sem arte e o balão ficou clicável por cima do vazio');
   assert(!fLpBalaoSolucao(),'sem arte e a solução da arte anterior seguia valendo');
-  assert(!document.getElementById('f-fit-btn'),'sem arte e o Encurtar continuou aceso');
+  assert(!encBtn(),'sem arte e o Encurtar continuou aceso');
 });
 
 await test('Trocar de material invalida a sugestão (a chave é da ARTE, não do texto)', async()=>{
@@ -306,7 +309,7 @@ await test("gConfirm: a saída 'alt' só existe com altLabel", async()=>{
 await test('Encurtar aparece SEM IA quando a prévia mediu uma versão, e aplicar tem Desfazer', async()=>{
   await reset({produto:''});
   naPergunta('produto'); digita(LONGO); await render();
-  const btn=document.getElementById('f-fit-btn'); assert(btn,'sem IA e com versão medida, o Encurtar não apareceu');
+  const btn=encBtn(); assert(btn,'sem IA e com versão medida, o Encurtar não apareceu');
   btn.click();
   const opt=$('#f-fit-pop .f-fit-opt'); assert(opt&&opt.textContent.includes(CURTO),'o popover não trouxe a versão medida');
   opt.click();
@@ -319,13 +322,13 @@ await test('Encurtar aparece SEM IA quando a prévia mediu uma versão, e aplica
 await test('Encurtar sem versão e sem IA não aparece', async()=>{
   await reset({produto:''});
   naPergunta('produto'); digita(SEM_VERSAO); await render();
-  assert(!document.getElementById('f-fit-btn'),'sem versão e sem IA, o Encurtar apareceu (não teria o que oferecer)');
+  assert(!encBtn(),'sem versão e sem IA, o Encurtar apareceu (não teria o que oferecer)');
 });
 
 await test('Popover do Encurtar não aplica a versão de um texto que já mudou (regressão df5cdec)', async()=>{
   await reset({produto:''});
   naPergunta('produto'); digita(LONGO); await render();
-  document.getElementById('f-fit-btn').click();
+  encBtn().click();
   const opt=$('#f-fit-pop .f-fit-opt'); assert(opt,'pré-condição: popover');
   digita(LONGO2);                                     // escreveu outro texto com o popover aberto
   opt.click();
@@ -336,13 +339,13 @@ await test('Popover do Encurtar não aplica a versão de um texto que já mudou 
 await test('Popover fechado não deixa o "clicou fora" armado para o próximo (regressão 2470e6b)', async()=>{
   await reset({produto:''});
   naPergunta('produto'); digita(LONGO); await render();
-  document.getElementById('f-fit-btn').click(); await tick();
+  encBtn().click(); await tick();
   assert($('#f-fit-pop'),'pré-condição: popover aberto');
   document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}));
   assert(!$('#f-fit-pop'),'Esc não fechou o popover');
   // O botão reaparece como OUTRO nó (é o que acontece depois de aplicar e voltar a não caber).
-  document.getElementById('f-fit-btn').remove(); fFitSync();
-  const novo=document.getElementById('f-fit-btn'); assert(novo,'pré-condição: botão de volta');
+  _fFitSndModo(false); const fb=document.getElementById('f-fit-btn'); if(fb) fb.remove(); fFitSync();
+  const novo=encBtn(); assert(novo,'pré-condição: botão de volta');
   novo.click(); await tick();
   assert($('#f-fit-pop'),'o popover novo fechou no mesmo clique que o abriu');
 });
@@ -416,7 +419,7 @@ await test('Motor sem versão + IA → o Encurtar aparece e um toque vai direto 
   naPergunta('produto'); digita(SEM_VERSAO); await render();
   assert(_lpLayoutResult.invalid && !_fFitCopyFit('produto'),'pré-condição: bloqueia e o motor não tem versão');
   assert(!chamou,'a IA foi chamada sem toque (por tecla/render)');
-  const btn=document.getElementById('f-fit-btn');
+  const btn=encBtn();
   assert(btn,'sem versão e com IA, o Encurtar sumiu');
   assert(/Tentar com IA/.test(btn.getAttribute('aria-label')||''),'o botão não diz que vai tentar com IA: '+btn.getAttribute('aria-label'));
   btn.click(); await tick(); await tick();
@@ -447,14 +450,14 @@ await test('IA trabalhando: etapas reais, texto intacto, e Cancelar devolve o co
     'as etapas não dizem onde está: '+lis.map(l=>l.className||'-').join(','));
   assert(/Meta: até \d+ caracteres \(hoje 25\)/.test(lis[0].textContent),'a meta medida não aparece: "'+lis[0].textContent+'"');
   assert(!pop.querySelector('.f-fit-prog'),'voltou a barra de tempo');
-  assert(document.getElementById('f-fit-btn').disabled,'o botão aceitou um segundo toque na espera');
+  assert(encBtn().disabled,'o botão aceitou um segundo toque na espera');
   assert(box.value===LONGO,'o texto mudou antes de haver versão');
   fFitSync();                                          // a prévia mede de novo no meio da espera
   assert($('#f-fit-pop .f-fit-etapas'),'a prévia medindo fechou o painel de progresso');
   const cancelar=Array.from(pop.querySelectorAll('.f-fit-acao')).find(b=>/Cancelar/.test(b.textContent));
   assert(cancelar,'a espera não tem Cancelar'); cancelar.click();
   assert(!$('#f-fit-pop') && !_fFitRun,'Cancelar não encerrou a espera');
-  assert(!document.getElementById('f-fit-btn').disabled,'depois de cancelar o botão ficou travado');
+  assert(!encBtn().disabled,'depois de cancelar o botão ficou travado');
   solta('{"opcoes":["'+CURTO+'"]}'); await p;
   assert(!$('#f-fit-pop') && box.value===LONGO,'a resposta de uma rodada cancelada apareceu');
   // Esc também cancela, e editar o texto cancela (a resposta seria de outro texto).
@@ -472,7 +475,7 @@ await test('IA não respondeu: a falha fica no painel e "Tentar de novo" chama d
   await fFitTextWithAI(true);
   const pop=$('#f-fit-pop.f-fit-pop-falha');
   assert(pop && /A IA não respondeu/.test(pop.textContent),'a falha sumiu num toast (ou nem apareceu)');
-  assert(box.value===LONGO && !document.getElementById('f-fit-btn').disabled,'a falha mexeu no texto ou travou o botão');
+  assert(box.value===LONGO && !encBtn().disabled,'a falha mexeu no texto ou travou o botão');
   Array.from(pop.querySelectorAll('.f-fit-acao')).find(b=>/Tentar de novo/.test(b.textContent)).click();
   await tick(); await tick();
   assert(chamou===2,'"Tentar de novo" não chamou a IA: '+chamou);
@@ -561,7 +564,7 @@ await test('2.3 · sem IA e sem versão: o Encurtar oferece a que chegou PERTO e
   assert(P.n>0,'a versão que "chegou perto" já cabia — o caso perdeu o sentido: '+JSON.stringify(P));
   naPergunta('produto'); box.value=PERTO; box.dispatchEvent(new Event('input',{bubbles:true})); clearTimeout(box._lpPreviewT);
   fFitSync();
-  const btn=$('#f-fit-btn'); assert(btn,'sem IA, o botão Encurtar sumiu apesar de haver versão mais curta');
+  const btn=encBtn(); assert(btn,'sem IA, o botão Encurtar sumiu apesar de haver versão mais curta');
   assert(/mais curta|falta/i.test(btn.title),'o botão promete o que não faz: "'+btn.title+'"');
   btn.click(); await tick();
   const pop=$('#f-fit-pop'); assert(pop,'o toque não abriu nada');
@@ -708,7 +711,7 @@ try{
         fMarcaLimiteSeguro(id,2);
         assert(fAlvoDoCampo(id,cfg)===cfg.maxLen,'contador adotou corte do valor');
         _fFitSync(box,id,cfg,cfg.maxLen);
-        assert(!$('#f-fit-btn'),'botão Encurtar apareceu no limite');
+        assert(!encBtn(),'botão Encurtar apareceu no limite');
         await fFitTextWithAI(true);
         assert(calls===0,'chamada direta chegou à IA');
 
@@ -721,7 +724,7 @@ try{
         assert(/outro material/.test(ov.textContent)&&!/Tire \d|Encurtar|Usar esta versão/.test(ov.textContent),'diálogo oferece corte');
         ov.querySelector('.g-dialog-ok').click(); await dialogo; await tick(100);
         clearTimeout(box._lpPreviewT);
-        assert(calls===0&&!$('#f-fit-btn')&&!$('#f-fit-pop'),'conferência acionou Copy Fit');
+        assert(calls===0&&!encBtn()&&!$('#f-fit-pop'),'conferência acionou Copy Fit');
         assert(fState.dados[id]===valor&&box.value===valor,'conferência alterou o valor');
 
         _fFitOpts=['9']; _fFitCf=null; fFitApply(0);

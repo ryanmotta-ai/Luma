@@ -2997,6 +2997,12 @@ function fBulkUpdateReadiness(readiness=fBulkGetReadiness()) {
     dlBtn.title = ready ? `${readiness.artCount} arte(s) pronta(s) para gerar` : 'Preencha e revise a planilha antes de gerar';
     dlBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg><span id="f-bulk-dl-label">${label}</span>`;
   }
+  const encTodas = document.getElementById('f-bulk-encurtar-todas');
+  if(encTodas){
+    const n = fBulkRows.filter(r => { const m = _fBulkNaoCabe(r); return m && m.sug; }).length;
+    encTodas.hidden = n < 2;                     // com 1 só, o "Trocar por" da própria oferta basta
+    encTodas.textContent = 'Encurtar ' + n + ' ofertas';
+  }
   // O selo da prévia ("pronta" / "N campos a preencher") vem da mesma apuração — sem isto ele
   // mentiria enquanto o resto da tela já sabia a verdade.
   if(typeof _fBulkSyncLiveHead==='function') _fBulkSyncLiveHead();
@@ -3118,6 +3124,31 @@ function fBulkAplicarEncurtar(i){
   try{ if(typeof gTrackEvent === 'function') gTrackEvent('copyfit_aplicado', {origem:'lote', campo:s.campo, removidas_n:s.removidas.length}); }catch(e){}
   if(typeof gToast === 'function') gToast('Trocamos “'+s.rotulo+'” da oferta '+(i+1)+' pela versão que cabe.', null, null,
     { acao:{ rotulo:'Desfazer', onClick:()=>troca(antes) } });
+}
+
+/* "ENCURTAR TODAS" (lote 1, 10/10/2026): aplica a versão que cabe em TODA oferta que tem uma, com
+   UM Desfazer. Mesmas guardas do "Trocar por" da linha (valor ainda é o medido, campo de texto).
+   Oferta sem versão segue marcada "não cabe" — o franqueado decide. */
+function fBulkEncurtarTodas(){
+  const trocas = [];
+  fBulkRows.forEach(r => {
+    const m = _fBulkNaoCabe(r), s = m && m.sug;
+    if(!s || !fCampoPodeEncurtar(s.campo)) return;
+    if(String(r.dados[s.campo] == null ? '' : r.dados[s.campo]) !== s.valor) return;
+    trocas.push({rid:r._rid, campo:s.campo, antes:r.dados[s.campo], text:s.text});
+  });
+  if(!trocas.length) return;
+  const aplica = (novo) => {
+    trocas.forEach(t => {
+      const linha = fBulkRows.find(x => x._rid === t.rid); if(!linha) return;
+      linha.dados[t.campo] = novo ? t.text : t.antes; _fBulkRevalidateCol(linha, t.campo);
+    });
+    fBulkRenderPreview();
+  };
+  aplica(true);
+  try{ if(typeof gTrackEvent === 'function') gTrackEvent('copyfit_aplicado', {origem:'lote_todas', n:trocas.length}); }catch(e){}
+  if(typeof gToast === 'function') gToast('Encurtamos '+trocas.length+' ofertas para caber na arte.', null, null,
+    { acao:{ rotulo:'Desfazer', onClick:()=>aplica(false) } });
 }
 
 /* Título e detalhe da linha na lista. Heurística honesta: o primeiro campo de texto é o
@@ -4012,6 +4043,7 @@ function fBulkRemoveCard(index){
 // Cancelamento cooperativo do lote: o botão seta a flag; o loop de geração checa entre artes
 // e para, empacotando no ZIP só o que já ficou pronto (ZIP parcial, não perde o trabalho feito).
 let _fBulkCancel = false;
+const _fBulkArquivoDaLinha = new Map();   // _rid → "01 - Pizza.png" da geração atual (a legenda vai ao lado)
 function fBulkCancelGen(){
   _fBulkCancel = true;
   const b = document.getElementById('f-bulk-cancel-btn');
@@ -4028,6 +4060,11 @@ async function fBulkDownloadAll(modo){
 
   // Salva e valida todas as linhas da tabela antes do download
   fBulkSaveAllRows(true);
+  /* Lote 2 (10/10/2026): MEDE TUDO antes do pré-voo. A medição roda 250ms depois da edição; quem
+     clicava em Gerar antes disso via a linha não medida contar como pronta e falhar no meio
+     (24/09: 7 ofertas, 5 falhas). Linha já medida sai do cache: custa só o que faltava. */
+  clearTimeout(_fBulkFitT);
+  try{ await _fBulkMedirTodas(); }catch(e){}
   
   const keys = fBulkVars();
   // O ZIP sai no formato do material aberto — o mesmo que a prévia ao lado mostra o tempo todo.
@@ -4061,7 +4098,7 @@ async function fBulkDownloadAll(modo){
   if (_nVazias) _resumo += `\n• ${_nVazias} linha(s) vazia(s) ignorada(s).`;
   if (_totalArtes > 80) _resumo += `\n\nÉ bastante coisa — pode demorar e pesar no navegador do celular.`;
   if (typeof gConfirm === 'function' && !(await gConfirm(_resumo + '\n\nGerar agora?', {okLabel:`Gerar ${_totalArtes}`}))) return;
-  _fBulkCancel = false;
+  _fBulkCancel = false; _fBulkArquivoDaLinha.clear();
   const _falhas = []; // renders que lançaram (avisados na tela no fim)
 
   const wrap = document.getElementById('f-bulk-progress-wrap');
@@ -4125,7 +4162,10 @@ async function fBulkDownloadAll(modo){
           a.click();
           setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
           await new Promise(res=>setTimeout(res, 350));
-        } else if(b64) zip.file(entry, b64, {base64: true});
+        } else if(b64){
+          zip.file(entry, b64, {base64: true});
+          if(fi === 0) _fBulkArquivoDaLinha.set(row._rid, entry);   // a legenda da linha vai ao lado desta arte
+        }
         ok++;
       }catch(err){
         console.warn('Bulk linha '+(i+1)+' falhou',err);
@@ -4158,7 +4198,11 @@ async function fBulkDownloadAll(modo){
       captionsText += `--------------------------------------------------------\n\n`;
       
       const copys = fBuildCopy(prod, de, por, val, desc, copyFormat);
-      
+      // Lote 2 (10/10/2026): a legenda também vai AO LADO da arte ("01 - Pizza.txt" junto de
+      // "01 - Pizza.png") — no celular ninguém procura o item #7 num .txt de várias opções.
+      const _arq = _fBulkArquivoDaLinha.get(row._rid);
+      if(_arq) zip.file(_arq.replace(/\.png$/i, '.txt'), copys.op1 + '\n');
+
       captionsText += `Opcao 1:\n${copys.op1}\n\n`;
       captionsText += `Opcao 2:\n${copys.op2}\n\n`;
       captionsText += `Opcao 3:\n${copys.op3}\n\n\n`;

@@ -536,6 +536,10 @@ textarea#f-msg-box.is-multi{border-radius:20px}
 .f-fit-btn:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 .f-fit-btn.is-loading{opacity:.6;pointer-events:none}
 .f-fit-btn.is-loading svg{animation:gSpin 1s linear infinite}
+/* O botão principal em modo "Encurtar" (10/10/2026): mesma cor da ação principal — é ELA agora.
+   Carregando, gira o ícone como o chip fazia. */
+#f-snd.is-loading{opacity:.7;pointer-events:none}
+#f-snd.is-loading svg{animation:gSpin 1s linear infinite}
 /* Largura FIXA: a espera e o resultado são o mesmo painel (chat-input.js: _fFitPopEl), e pela
    largura do conteúdo ele encolhia na espera e alargava quando a resposta chegava. */
 .f-fit-pop{position:absolute;right:0;bottom:calc(100% + 8px);z-index:30;width:min(360px,80vw);
@@ -2845,7 +2849,8 @@ body:not(.theme-light) .art-review-badge{
   body.f-guided-desktop #f-input-wrap #f-msg-box:focus-visible{outline:0!important}
   body.f-guided-desktop #f-input-row:focus-within{border-color:var(--dm-orange);box-shadow:0 0 0 3px var(--dm-orange-bg),var(--glass-shadow)}
   body.f-guided-desktop #f-snd{width:auto;min-width:112px;height:42px;padding:0 18px;border-radius:10px;background:var(--dm-orange);color:var(--on-orange);font-size:13px;font-weight:850}
-  body.f-guided-desktop #f-snd svg{display:none}
+  body.f-guided-desktop #f-snd:not(.is-encurtar) svg{display:none}
+  body.f-guided-desktop #f-snd.is-encurtar{display:inline-flex;align-items:center;gap:6px}
   body.f-guided-desktop #f-snd::after{content:attr(data-label)}
   body.f-guided-desktop #f-snd:hover{filter:brightness(.96);transform:translateY(-1px)}
   body.f-guided-desktop #f-snd:focus-visible{outline:2px solid var(--dm-orange);outline-offset:3px}

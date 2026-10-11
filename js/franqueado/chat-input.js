@@ -751,16 +751,28 @@ function _fFitSync(box, id, cfg, len){
   if(!(tipoTexto && (cf || perto || ((cabe || bloq) && podeIA)))){
     if(btn) btn.remove();
     wrap.classList.remove('has-fit');
+    _fFitSndModo(false);
     _fFitClosePop();
     return;
   }
-  wrap.classList.add('has-fit');   // abre espaço no padding do campo (ver chat.css)
+  /* O ENCURTAR VIRA A AÇÃO PRINCIPAL (Ryan, 10/10/2026: "o ícone encurtar está totalmente perdido
+     na UI"). Quando o texto NÃO CABE — a arte bloqueou neste campo (versão, "quase cabe" ou só a
+     IA) ou passou do alvo medido —, o botão Salvar/Continuar vira "Encurtar" e o chip some.
+     Texto que chegou no limite mas CABE continua salvando: está completo e faz sentido.
+     O Enter do teclado segue salvando (`fMsgKeydown` → `fSend()` sem evento de clique). */
+  /* "Bateu no limite": chegou no alvo medido, ou a pessoa digitou além e a guarda cortou o resto
+     (`_fFitAttempt` guarda o que ela tentou) — a frase ficou pela metade. Abaixo disso (90%) o chip
+     pequeno continua sendo só um atalho. */
+  const naoCabe = !!(cf || perto || bloq || len >= alvo || (_fFitAttempt(box,id).length > (cfg.maxLen||Infinity)));
   /* O rótulo visível segue "Encurtar" (o padding do campo é medido para ele, chat.css); o
      title/aria-label diz o que o toque faz quando só a IA pode ajudar. */
   const titulo = cf ? 'Encurtar para caber na arte'
     : perto ? 'Ver a versão mais curta e quanto ainda falta para caber'
     : bloq ? 'Tentar com IA: encurtar para caber na arte sem mudar preço nem produto'
     : 'Tentar com IA: encurtar para caber em '+alvo+' caracteres';
+  _fFitSndModo(naoCabe, titulo);
+  if(naoCabe){ if(btn) btn.remove(); wrap.classList.remove('has-fit'); return; }
+  wrap.classList.add('has-fit');   // abre espaço no padding do campo (ver chat.css)
   if(btn){ btn.title=titulo; btn.setAttribute('aria-label', titulo); return; }
   btn=document.createElement('button');
   btn.type='button'; btn.id='f-fit-btn'; btn.className='f-fit-btn';
@@ -769,6 +781,32 @@ function _fFitSync(box, id, cfg, len){
   btn.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg><span>Encurtar</span>';
   btn.onclick=(ev)=>{ ev.preventDefault(); fFitTextWithAI(); };
   wrap.appendChild(btn);
+}
+/* Liga/desliga o modo "Encurtar" no botão principal (#f-snd). Guarda o rótulo de antes
+   (Salvar/Continuar, que o guiado escreve a cada passo) e o ícone de enviar. */
+const _F_FIT_ICO_SPARK='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>';
+// Quem abre o Encurtar: o chip, ou o botão principal quando está em modo "Encurtar".
+function _fFitBtn(){
+  const snd=document.getElementById('f-snd');
+  return (snd && snd.classList.contains('is-encurtar')) ? snd : document.getElementById('f-fit-btn');
+}
+function _fFitSndModo(on, titulo){
+  const snd=document.getElementById('f-snd'); if(!snd) return;
+  if(on && titulo){ snd.title=titulo; snd.setAttribute('aria-label', titulo); }
+  if(on===snd.classList.contains('is-encurtar')) return;
+  if(on){
+    snd._fIco=snd.innerHTML; snd._fLabel=snd.dataset.label; snd._fAria=snd.getAttribute('aria-label');
+    snd._fTitle=snd.getAttribute('title');
+    snd.classList.add('is-encurtar'); snd.innerHTML=_F_FIT_ICO_SPARK;
+    snd.dataset.label='Encurtar'; snd.title=titulo||'Encurtar para caber na arte'; snd.setAttribute('aria-label', snd.title);
+  } else {
+    snd.classList.remove('is-encurtar');
+    if(snd._fIco!=null) snd.innerHTML=snd._fIco;
+    // O guiado pode ter trocado o rótulo no meio (outro passo): só restaura se ainda é o nosso.
+    if(snd.dataset.label==='Encurtar'){ if(snd._fLabel) snd.dataset.label=snd._fLabel; else delete snd.dataset.label; }
+    if(snd._fAria) snd.setAttribute('aria-label', snd._fAria);
+    if(snd._fTitle) snd.title=snd._fTitle; else snd.removeAttribute('title');
+  }
 }
 let _fFitFora = null;         // o "clicou fora" do popover aberto
 function _fFitClosePop(){
@@ -790,7 +828,7 @@ function _fFitCancela(){
 }
 function _fFitFimRodada(r){
   clearInterval(r.tick);
-  const btn=document.getElementById('f-fit-btn');
+  const btn=_fFitBtn();
   if(btn){ btn.classList.remove('is-loading'); btn.disabled=false; }
 }
 
@@ -816,7 +854,7 @@ async function fFitTextWithAI(comIA){
   if(_faltaA && _faltaA.limite>0) alvo=Math.min(alvo, _faltaA.limite);
   const _soMaisCurto = !_bloqA && original.length<=alvo;
   if(_soMaisCurto) alvo=Math.max(4, Math.floor(original.length*0.8));
-  const btn=document.getElementById('f-fit-btn');
+  const btn=_fFitBtn();
   const podeIA = (typeof window.gAI==='object' && gAI.isReady('copy.fit'))
     || (typeof gAskAI==='function' && typeof gAiReady==='function' && gAiReady());
   const cf=_fFitCopyFit(id);
@@ -1020,7 +1058,7 @@ function _fFitFalha(head, msg){
   pop.innerHTML=`<div class="f-fit-pop-head">${_F_FIT_ICO_ALERTA}<span>${gEsc(head)}</span></div><p class="f-fit-pop-msg">${gEsc(msg)}</p>`
     +'<div class="f-fit-acoes"><button type="button" class="f-fit-acao is-primaria" onclick="fFitTextWithAI(true)">Tentar de novo</button>'
     +'<button type="button" class="f-fit-acao" onclick="_fFitClosePop()">Fechar</button></div>';
-  _fFitArmaFechar(pop, document.getElementById('f-fit-btn'));
+  _fFitArmaFechar(pop, _fFitBtn());
 }
 // O que o franqueado lê em "Sai:": o mesmo filtro do balão (só palavra de verdade).
 function _fFitSaiVisivel(lista){
