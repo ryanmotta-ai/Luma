@@ -2244,10 +2244,11 @@ function fGenCaptionSuggestions(dados, camp, formato) {
   const de = doCampo('de') || sem.de || dados.precoDe || '';
   const val = doCampo('validade') || sem.validade || dados.validade || '';
   const desc = doCampo('desconto') || sem.desconto || dados.desconto || dados.detalhes || '';
+  const cupom = doCampo('cupom') || dados.cupom || dados.codigo || dados.voucher || '';
 
   // Unificação com o avançado motor de copy gastronômica do Luma Sheets (fBuildCopy)
   if (typeof fBuildCopy === 'function') {
-    const copys = fBuildCopy(prod, de, por, val, desc, formato?.id || 'feed', camp && camp.name);
+    const copys = fBuildCopy(prod, de, por, val, desc, formato?.id || 'feed', camp && camp.name, cupom);
     return [
       { id: 'promo', label: 'Promo', text: copys.op1 },
       { id: 'engajar', label: 'Engajar', text: copys.op2 },

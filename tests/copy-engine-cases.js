@@ -30,7 +30,7 @@
   const semente=(s)=>()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};
   const limpaMemoria=()=>{try{localStorage.removeItem('dm_copy_recent_v1');}catch(e){}};
   const solta=()=>{_fCopySetRandom(null);limpaMemoria();};
-  const gerar=(b)=>fBuildCopy(b.prod,b.de,b.por,b.val,b.desc,b.fmt||'feed',b.ctx);
+  const gerar=(b)=>fBuildCopy(b.prod,b.de,b.por,b.val,b.desc,b.fmt||'feed',b.ctx,b.cupom);
   const tudo=(o)=>[o.op1,o.op2,o.op3];
   const corpoDe=(t)=>String(t).split('\n').filter(l=>l.trim()&&!/^#/.test(l.trim()));
 
@@ -65,6 +65,7 @@
     // 1ª LEI — não inventar
     if(!String(b.val==null?'':b.val).trim()&&/v[áa]lido/i.test(t))out.push('INVENTOU validade');
     if(!temPorReal&&!temDeReal&&/R\$/.test(t))out.push('INVENTOU preço');
+    if(!String(b.cupom==null?'':b.cupom).replace(/[^a-z0-9]/gi,'')&&/cupom|c[óo]digo/i.test(t))out.push('INVENTOU cupom');
     const marcaDePor=/\bera\s+\*?R?\$?\s*[\d.,]|\bantes\s+\*?R?\$?\s*[\d.,]|em vez de|caiu de|caiu pra|economiza|Economia de|Baixou o preço|\bde\s+\*?R?\$?\s*[\d.,]+\*?\s+por\s/i;
     if(!temEconomia&&marcaDePor.test(t))out.push('INVENTOU desconto de/por');
     // percentual só pode aparecer se foi digitado OU se é calculado de dois preços reais
@@ -474,6 +475,27 @@
     assert(estouros===0,estouros+'/200 legendas de Promo estouraram os 120 caracteres');
   });
 
+  /* ─────────────── CUPOM ─────────────── */
+
+  test('cupom informado entra nas 3 opções, normalizado e com frase diferente em cada',()=>{
+    solta();
+    for(let i=0;i<60;i++){
+      const o=gerar(BRIEF({por:'R$ 39,90',cupom:'bem vindo10'}));
+      const linhas=tudo(o).map(t=>corpoDe(t).find(l=>/BEMVINDO10/.test(l)));
+      linhas.forEach((l,k)=>assert(l,'opção '+(k+1)+' saiu sem o cupom: '+tudo(o)[k]));
+      assert(new Set(linhas).size===3,'as 3 opções repetiram a frase do cupom: '+linhas.join(' | '));
+      tudo(o).forEach((t,k)=>violacoes(t,BRIEF({por:'R$ 39,90',cupom:'bem vindo10'}),'op'+(k+1)).forEach(v=>assert(false,v+': '+t)));
+    }
+  });
+
+  test('os bancos têm o dobro de variedade da v3 (piso por bloco)',()=>{
+    const B=_COPY_BLOCKS;
+    const piso={universal:30,perguntas:24,cupons:10,ganchosCupom:10};
+    Object.keys(piso).forEach(k=>{const n=(B.hooks[k]||B[k]).length;assert(n>=piso[k],k+' tem só '+n);});
+    [['bodies','comDesconto',26],['bodies','semDesconto',22],['bodies','comPercentual',18],['bodies','semPreco',16],
+     ['ctas','delivery',20],['ctas','engajamento',18],['ctas','whatsapp',12]].forEach(([a,b,n])=>assert(B[a][b].length>=n,a+'.'+b+' tem só '+B[a][b].length));
+  });
+
   /* ─────────────── SEGMENTAÇÃO ─────────────── */
 
   test('segmenta os produtos reais do delivery no tom certo',()=>{
@@ -581,7 +603,7 @@
 
     let n=0;const achados=[];
     for(const prod of PRODUTOS)for(const por of PRECOS)for(let r=0;r<4;r++){
-      const b={prod:prod,de:pick(DES),por:por,val:pick(VALS),desc:pick(DESCS),ctx:pick(CTXS)};
+      const b={prod:prod,de:pick(DES),por:por,val:pick(VALS),desc:pick(DESCS),ctx:pick(CTXS),cupom:pick(['','','BEMVINDO10','pizza 20','---'])};
       let o;
       try{o=gerar(b);}catch(e){achados.push('EXCEPTION '+e.message+' · '+JSON.stringify(b));continue;}
       ['op1','op2','op3'].forEach(k=>{

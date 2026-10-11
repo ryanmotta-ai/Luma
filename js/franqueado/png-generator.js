@@ -4188,14 +4188,14 @@ async function fBulkDownloadAll(modo){
     const cleanStr = s => (typeof s === 'string' && !s.startsWith('data:') && s.length < 500) ? s : '';
   
     valid.forEach((row, idx) => {
-      const [p0, de, por, val, desc] = _fBulkCopyArgs(row.dados);
+      const [p0, de, por, val, desc, cup] = _fBulkCopyArgs(row.dados);
       const prod = p0 || ('Produto ' + (idx + 1));
       
       captionsText += `--------------------------------------------------------\n`;
       captionsText += `ITEM #${idx+1}: ${prod}\n`;
       captionsText += `--------------------------------------------------------\n\n`;
       
-      const copys = fBuildCopy(prod, de, por, val, desc, copyFormat);
+      const copys = fBuildCopy(prod, de, por, val, desc, copyFormat, '', cup);
       // Lote 2 (10/10/2026): a legenda também vai AO LADO da arte ("01 - Pizza.txt" junto de
       // "01 - Pizza.png") — no celular ninguém procura o item #7 num .txt de várias opções.
       const _arq = _fBulkArquivoDaLinha.get(row._rid);
@@ -4874,6 +4874,21 @@ const _COPY_BLOCKS = {
       'Dia corrido pede comida que chega pronta.',
       'A gente entrega, você só abre a porta.',
       'Hoje o jantar resolve fácil.',
+      'Hoje a cozinha fica fechada.',
+      'Bateu a fome? A solução chega até você.',
+      'Pra quem merece um descanso da cozinha.',
+      'O sofá tá confortável demais pra levantar.',
+      'Comida boa sem sair de casa. Fácil assim.',
+      'Hoje ninguém lava louça.',
+      'Aquela vontade que não dá pra segurar.',
+      'Fome de verdade pede pedido de verdade.',
+      'Chegou a hora de matar a fome.',
+      'Semana puxada? O jantar fica com a gente.',
+      'Tem coisa melhor que comida chegando em casa?',
+      'Pausa merecida pede comida boa.',
+      'Bom pedido muda o humor do dia.',
+      'Já pensou no que vai comer hoje?',
+      'Deixa o fogão descansar hoje.',
     ],
     pizzas: [
       'Noite de pizza é noite de pizza. Sem discussão.',
@@ -4883,6 +4898,13 @@ const _COPY_BLOCKS = {
       'Massa fresca, borda no ponto, recheio caprichado.',
       'A rodada de pizza que junta todo mundo na mesa.',
       'Sexta pede pizza. Terça também, pra falar a verdade.',
+      'Uma fatia puxa a outra.',
+      'Queijo puxando já na primeira fatia.',
+      'Domingo sem pizza nem parece domingo.',
+      'Divide com a galera ou guarda a última fatia só pra você.',
+      'Forno quente, sabor de pizzaria de verdade.',
+      'A noite fica melhor com uma pizza na mesa.',
+      'Pede a de sempre ou arrisca um sabor novo?',
     ],
     lanches: [
       'Aquele burger que resolve qualquer dia ruim.',
@@ -4892,6 +4914,13 @@ const _COPY_BLOCKS = {
       'Vontade de lanche não avisa — mas a gente entrega.',
       'Suculento, no ponto, do primeiro ao último bocado.',
       'Tem fome que só um burger resolve.',
+      'Pão macio, carne suculenta, vontade resolvida.',
+      'Hoje é dia de lanche caprichado.',
+      'Aquele lanche que vale cada mordida.',
+      'Fome de verdade pede burger de verdade.',
+      'Duas mãos e um guardanapo. Só isso.',
+      'Mordida grande, sabor maior ainda.',
+      'Lanche bom é aquele que chega quentinho.',
     ],
     japonesa: [
       'Japa hoje? A gente entrega fresco na sua porta.',
@@ -4900,6 +4929,12 @@ const _COPY_BLOCKS = {
       'Aquele japa que você merece.',
       'Peça na medida certa pra dividir (ou não).',
       'Frescor de restaurante, conforto de casa.',
+      'Hashi na mão e o japa tá servido.',
+      'Noite de japa pede pedido caprichado.',
+      'Arroz no ponto, montagem caprichada.',
+      'Sushi em casa, sem reserva e sem fila.',
+      'Japa no sofá é outro nível.',
+      'Shoyu, wasabi e aquela vontade de japa.',
     ],
     bebidas: [
       'Pediu a comida e esqueceu da bebida? A gente resolve.',
@@ -4907,6 +4942,11 @@ const _COPY_BLOCKS = {
       'Não tem refeição completa sem uma bebida gelada.',
       'Aquela gelada que combina com tudo.',
       'Pra acompanhar o pedido e refrescar o dia.',
+      'Calor pede bebida gelada.',
+      'A gelada que faltava no seu pedido.',
+      'Refresca o dia sem sair de casa.',
+      'Copo cheio, gelo e pronto.',
+      'Toda comida boa merece uma bebida à altura.',
     ],
     sobremesas: [
       'Depois do jantar, aquele doce que faz o dia valer a pena.',
@@ -4914,6 +4954,11 @@ const _COPY_BLOCKS = {
       'Pra fechar a refeição com chave de ouro.',
       'Sempre tem espaço pra sobremesa.',
       'O docinho que transforma o dia comum.',
+      'Um docinho nunca fez mal a ninguém.',
+      'A vontade de doce chegou? A gente entrega.',
+      'Doce bom é doce dividido. Ou não.',
+      'Aquele mimo que você merece hoje.',
+      'Fim de refeição sem doce não conta.',
     ],
     refeicoes: [
       'Almoço pronto, na sua mesa, sem estresse.',
@@ -4922,6 +4967,12 @@ const _COPY_BLOCKS = {
       'Comida de verdade, do jeito que você gosta.',
       'Do fogão pra sua casa, quentinho.',
       'Aquele almoço que mata a saudade da comida caseira.',
+      'Comida caseira sem precisar cozinhar.',
+      'Tempero de casa, sem trabalho nenhum.',
+      'Almoço resolvido antes da fome apertar.',
+      'Prato cheio, do jeito que a fome pede.',
+      'Refeição completa, quentinha, na hora certa.',
+      'O almoço que salva o seu dia corrido.',
     ],
     porcoes: [
       'Porção pra dividir — ou não, a gente não julga.',
@@ -4929,6 +4980,11 @@ const _COPY_BLOCKS = {
       'Pra beliscar enquanto o papo rola.',
       'A porção certa pra acompanhar a rodada.',
       'Crocante por fora, do jeito que a mesa pede.',
+      'Rodada de amigos pede porção na mesa.',
+      'Pra petiscar sem pressa.',
+      'Porção pra galera toda beliscar.',
+      'Um petisco puxa o outro.',
+      'Jogo na TV e porção na mesa.',
     ],
     acai: [
       'Açaí no capricho, do jeito que você gosta.',
@@ -4936,6 +4992,11 @@ const _COPY_BLOCKS = {
       'O açaí de todo dia, sempre do mesmo jeito bom.',
       'Monta do seu jeito, com tudo que você ama.',
       'Energia gelada pra qualquer hora do dia.',
+      'Açaí gelado no calor é tudo de bom.',
+      'Pra refrescar e dar aquele gás no dia.',
+      'Do jeitinho que você monta, do jeitinho que você ama.',
+      'Açaí cremoso, gelado e do seu jeito.',
+      'A pausa gelada que o dia pedia.',
     ],
     saudavel: [
       'Comer bem sem abrir mão do sabor? Dá sim.',
@@ -4943,6 +5004,11 @@ const _COPY_BLOCKS = {
       'Aquela refeição que cuida de você sem pesar.',
       'Saudável não é sinônimo de sem graça.',
       'Fresco, colorido e cheio de sabor.',
+      'Comida leve que dá prazer de comer.',
+      'Cuidar de você também pode ser gostoso.',
+      'Equilíbrio no prato, sabor de verdade.',
+      'Leveza sem abrir mão do sabor.',
+      'O corpo agradece e o paladar também.',
     ],
     cafe: [
       'O dia começa melhor com um café da manhã de verdade.',
@@ -4950,24 +5016,41 @@ const _COPY_BLOCKS = {
       'Aquele lanche da tarde que você merece.',
       'Fresquinho da padaria, direto pra sua mesa.',
       'Pra adoçar a pausa do meio do dia.',
+      'Café da manhã sem sair da cama.',
+      'Começa o dia com a mesa cheia.',
+      'Cheirinho de café fresco chegando aí.',
+      'A pausa do café ficou mais gostosa.',
+      'Manhã boa começa com um bom café.',
     ],
     mexicana: [
       'Aquele toque picante que anima o dia.',
       'Taco, nachos, guacamole — a festa mexicana chegou.',
       'Sabor intenso, do jeito que o México ensinou.',
       'Pra quem gosta de comer com as mãos e sorrir depois.',
+      'Hoje o jantar tem tempero mexicano.',
+      'Picante na medida, sabor de sobra.',
+      'Bora de comida mexicana hoje?',
+      'Sabor marcante pra animar a noite.',
     ],
     massas: [
       'Massa fresca é conforto em forma de prato.',
       'Molho encorpado, massa no ponto certo.',
       'Aquele prato de massa que abraça no fim do dia.',
       'Simples, italiano e reconfortante.',
+      'Massa no ponto, molho de respeito.',
+      'Hoje é dia de massa, sem culpa.',
+      'Garfo girando e molho no prato.',
+      'Conforto italiano direto na sua casa.',
     ],
     churrasco: [
       'O cheiro de churrasco chegou na sua casa.',
       'Carne no ponto, do jeito que você pediu.',
       'Fim de semana pede churrasco. A gente entrega.',
       'Suculenta, na brasa, sem você acender a churrasqueira.',
+      'Churrasco sem fumaça na sua casa.',
+      'A brasa fica com a gente, o sabor fica com você.',
+      'Carne boa, ponto certo, zero trabalho.',
+      'Hoje tem churrasco, e você não precisa assar nada.',
     ],
     salgados: [
       'Aquele salgado quentinho que resolve a fome da tarde.',
@@ -4976,6 +5059,12 @@ const _COPY_BLOCKS = {
       'Salgado bom é o que chega quentinho na sua porta.',
       'Pra beliscar no meio da tarde sem pensar duas vezes.',
       'Feito na hora e entregue ainda quente.',
+      'Salgado quentinho a qualquer hora.',
+      'Lanche da tarde resolvido.',
+      'Aquele salgado que acompanha o café.',
+      'Um só nunca é suficiente.',
+      'Crocante, recheado e quentinho.',
+      'Pra matar a fome entre uma coisa e outra.',
     ],
     combos: [
       'Um pedido só e a mesa inteira resolvida.',
@@ -4984,6 +5073,12 @@ const _COPY_BLOCKS = {
       'Tudo junto num pedido só. Simples assim.',
       'A refeição completa sem precisar montar nada.',
       'Junta a galera que o combo dá conta.',
+      'Combo completo, fome resolvida.',
+      'Mais sabor num pedido só.',
+      'Pra quem quer de tudo um pouco.',
+      'Escolheu o combo, escolheu bem.',
+      'Pedido pra família toda sem complicação.',
+      'Tudo que a fome pede, junto.',
     ],
     /* ─── PERGUNTAS: abertura exclusiva da aba "Engajar" ───
        É o que separa Engajar de uma Promo com CTA trocado: a legenda abre no PRODUTO e
@@ -5004,6 +5099,18 @@ const _COPY_BLOCKS = {
       'Tá na dúvida do que pedir?',
       'Faz tempo que você não pede {prod}, né?',
       'Quanto tempo desde o último {prod}?',
+      'Que tal pedir {prod} agora?',
+      'Vai de {prod} hoje?',
+      'Alguém aí com vontade de {prod}?',
+      '{prod} hoje, quem topa?',
+      'Partiu {prod}?',
+      'Quem merece {prod} hoje?',
+      'Topa {prod} no jantar?',
+      'Já pensou em {prod} pra hoje?',
+      'Bora pedir {prod}?',
+      'Vontade de {prod} agora?',
+      'Hoje pede {prod}, né?',
+      'Quem aí pediria {prod} agora?',
     ],
   },
 
@@ -5025,6 +5132,19 @@ const _COPY_BLOCKS = {
       '{prod} de {de} por {por}. Economia de {economiaReais}.',
       'Agora {prod} sai por {por}, em vez de {de}.',
       '{prod}: de {de} caiu pra {por}.',
+      '{prod} caiu de {de} para {por}.',
+      'Preço baixou: {prod} agora por {por}, antes {de}.',
+      '{prod} com preço especial: de {de} por {por}.',
+      'Oferta do dia: {prod} de {de} por {por}.',
+      '{prod} saindo por {por}. O normal é {de}.',
+      'De {de} por {por}: {prod} com {economiaPct} a menos.',
+      '{prod} por {por}, e você ainda economiza {economiaReais}.',
+      'Promoção: {prod} de {de} por {por}.',
+      '{prod} com preço menor: {por} (era {de}).',
+      '{prod} de {de} por {por}. Válido {val}.',
+      'Desconto de {economiaReais}: {prod} sai por {por}.',
+      '{prod}: era {de}, agora {por}.',
+      '{prod} a {por} em vez de {de}.',
     ],
     semDesconto: [
       '{prod} por {por}.',
@@ -5038,6 +5158,17 @@ const _COPY_BLOCKS = {
       'Peça {prod} por {por} e mate a vontade.',
       'Tem {prod} saindo por {por}.',
       '{prod}: {por}, e o jantar tá resolvido.',
+      '{prod} a {por}. Pede que chega rapidinho.',
+      '{prod} saindo por {por} hoje.',
+      'Hoje {prod} sai a {por}.',
+      '{prod}: só {por}.',
+      '{prod} por {por}. Pedido feito, fome resolvida.',
+      'Vai de {prod}? São {por}.',
+      '{prod} tá saindo a {por}.',
+      'Pede {prod} por {por} e relaxa.',
+      '{prod} por {por}. Válido {val}.',
+      'Por {por}, {prod} chega na sua casa.',
+      '{prod} a {por}, do jeito que você gosta.',
     ],
     comPercentual: [
       '{prod} com {desconto} de desconto: sai a {por}.',
@@ -5050,6 +5181,15 @@ const _COPY_BLOCKS = {
       '{prod} com {desconto} OFF. Aproveita enquanto dura.',
       '{prod} com {desconto} de desconto. Corre que acaba.',
       '{prod} tá com {desconto} de desconto hoje.',
+      '{prod} com {desconto} de desconto. Sai por {por}.',
+      '{desconto} OFF em {prod}: fica {por}.',
+      'Desconto de {desconto} em {prod}. Agora {por}.',
+      '{prod} por {por}, com {desconto} OFF.',
+      '{prod} com {desconto} OFF. Pede agora.',
+      '{desconto} de desconto em {prod}.',
+      'Tem {desconto} OFF em {prod} esperando você.',
+      '{prod} tá com {desconto} OFF.',
+      '{prod} com {desconto} a menos no preço.',
     ],
     // Sem preço definido: apresenta o produto sem prometer valor (o preço fica no app).
     semPreco: [
@@ -5061,6 +5201,14 @@ const _COPY_BLOCKS = {
       '{prod} tá te esperando no cardápio.',
       'Hoje tem {prod} no cardápio.',
       '{prod} é o pedido certo pra hoje.',
+      'Pede {prod} e deixa o resto com a gente.',
+      '{prod} disponível hoje no cardápio.',
+      'Hoje é dia de {prod}.',
+      '{prod}: é só pedir.',
+      'Vontade de {prod}? Tem aqui.',
+      'Tem {prod} esperando seu pedido.',
+      '{prod} hoje, do jeito que você gosta.',
+      'Pede {prod} que a gente entrega rapidinho.',
     ],
   },
 
@@ -5079,6 +5227,13 @@ const _COPY_BLOCKS = {
       'Caiu de {de} pra {por}.',
       'Hoje sai por {por}. Era {de}.',
       'De {de} por {por}. Economia de {economiaReais}.',
+      'Era {de}, agora {por}.',
+      'Caiu pra {por} (era {de}).',
+      'De {de} por {por} hoje.',
+      'Agora {por}. Antes {de}.',
+      'Sai por {por} em vez de {de}.',
+      'Baixou de {de} pra {por}.',
+      'Por {por}: economia de {economiaReais}.',
     ],
     semDesconto: [
       'Sai por {por}.',
@@ -5087,6 +5242,12 @@ const _COPY_BLOCKS = {
       'Sai por {por}, quentinho.',
       'Tá saindo a {por}.',
       'São {por} e o pedido tá feito.',
+      'Só {por}.',
+      'Custa {por}.',
+      'Fica {por}, e chega quente na sua porta.',
+      '{por} e tá resolvido.',
+      'Hoje por {por}.',
+      'Pede por {por}.',
     ],
     comPercentual: [
       'Tá com {desconto} de desconto: sai a {por}.',
@@ -5095,6 +5256,12 @@ const _COPY_BLOCKS = {
       'Tá com {desconto} de desconto.',
       '{desconto} OFF enquanto dura.',
       'Hoje tá com {desconto} OFF.',
+      'Com {desconto} de desconto.',
+      'Agora com {desconto} OFF: {por}.',
+      'Tem {desconto} OFF hoje.',
+      '{desconto} de desconto, fica {por}.',
+      'Sai com {desconto} OFF.',
+      'Desconto de {desconto} no pedido.',
     ],
     semPreco: [
       'Tá saindo agora.',
@@ -5103,6 +5270,12 @@ const _COPY_BLOCKS = {
       'É só chamar que a gente entrega.',
       'Hoje tem, e tá saindo quente.',
       'Tá esperando seu pedido.',
+      'Pede que chega rapidinho.',
+      'Tá disponível agora.',
+      'É só pedir.',
+      'Chega quente na sua porta.',
+      'Tem no cardápio hoje.',
+      'Pede agora que a gente leva.',
     ],
   },
 
@@ -5119,6 +5292,16 @@ const _COPY_BLOCKS = {
       'Pediu, chegou. É no app.',
       'Deixa com a gente: peça pelo delivery.',
       'É só pedir que a gente leva.',
+      'Pede agora pelo app.',
+      'Garante o seu pelo app.',
+      'O pedido tá a um toque de distância.',
+      'Pede já e relaxa.',
+      'Corre no app e pede o seu.',
+      'Pede pelo delivery e recebe em casa.',
+      'Seu pedido está a um clique.',
+      'Abre o app e garante o seu.',
+      'Pede agora, a gente leva até você.',
+      'Link na bio pra pedir.',
     ],
     engajamento: [
       'Marca aqui quem sempre pede isso com você.',
@@ -5130,6 +5313,15 @@ const _COPY_BLOCKS = {
       'Compartilha com quem ia amar.',
       'Conta aqui: com o que você pede isso?',
       'Marca a pessoa que ia dividir isso com você.',
+      'Marca quem te deve esse pedido.',
+      'Salva esse post pra não esquecer.',
+      'Comenta "eu quero" se bateu vontade.',
+      'Manda pra quem vai pagar essa.',
+      'Marca seu parceiro de pedido.',
+      'Conta pra gente: qual o seu favorito?',
+      'Compartilha com a galera do grupo.',
+      'Marca quem nunca recusa um convite desses.',
+      'Salva e mostra pra quem divide o pedido com você.',
     ],
     // CTA de MENSAGEM (WhatsApp/status): pede resposta ali mesmo, não clique em bio.
     whatsapp: [
@@ -5139,27 +5331,61 @@ const _COPY_BLOCKS = {
       'É só responder aqui pra pedir.',
       'Peça pelo app ou responda esta mensagem.',
       'Responde aqui que a gente já separa.',
+      'Responde aqui com "quero" e pronto.',
+      'Manda um oi que a gente anota seu pedido.',
+      'Quer? É só responder essa mensagem.',
+      'Responde aqui e garante o seu.',
+      'Chama aqui que a gente entrega.',
+      'Responde com o seu pedido que a gente separa.',
     ],
   },
 
+  /* ─── CUPOM: só quando o franqueado informou o código (1ª lei — nada de cupom inventado) ───
+     `cupons` vira linha própria antes do CTA; `ganchosCupom` entram no sorteio do gancho
+     (material de cupom abre falando do cupom, não da geladeira vazia). */
+  cupons: [
+    'Use o cupom {cupom} no app.',
+    'Cupom {cupom}: é só aplicar no pedido.',
+    'Com o cupom {cupom} fica ainda melhor.',
+    'Digita {cupom} no carrinho e pronto.',
+    'Não esquece o cupom: {cupom}.',
+    'Aplica o cupom {cupom} na finalização.',
+    'Cupom {cupom} liberado pra você.',
+    'Pede com o cupom {cupom}.',
+    'Código {cupom} no carrinho.',
+    'Usa o cupom {cupom} e aproveita.',
+  ],
+  ganchosCupom: [
+    'Cupom novo na área.',
+    'Tem cupom esperando você.',
+    'Desconto com cupom? Tem sim.',
+    'Guarda esse código que ele vale ouro.',
+    'Cupom bom é cupom usado.',
+    'Seu próximo pedido ficou mais barato.',
+    'Chegou cupom pra você.',
+    'Código na mão, pedido mais em conta.',
+    'Cupom liberado. Bora usar?',
+    'Hoje o pedido sai com cupom.',
+  ],
+
   // ─── HASHTAGS por segmento ───
   hashtags: {
-    universal: ['#delivery', '#pecaagora', '#comida', '#deliverymuch', '#pediu', '#matoufome'],
-    pizzas: ['#pizza', '#noitedepizza', '#pizzadelivery', '#pizzalovers', '#pizzaria'],
-    lanches: ['#burger', '#hamburguer', '#lanche', '#smashburger', '#burgerlovers'],
-    japonesa: ['#sushi', '#comidajaponesa', '#temaki', '#japa', '#sushilovers'],
-    bebidas: ['#bebida', '#drinks', '#gelada', '#refrescante'],
-    sobremesas: ['#sobremesa', '#doce', '#sweet', '#doceria'],
-    refeicoes: ['#almoco', '#marmita', '#pratofeito', '#refeicao', '#comidacaseira'],
-    porcoes: ['#porcao', '#entrada', '#petisco', '#aperitivo'],
-    acai: ['#acai', '#acaibowl', '#acailovers', '#gelado'],
-    saudavel: ['#saudavel', '#comidasaudavel', '#fit', '#lowcarb', '#eatclean'],
-    cafe: ['#cafedamanha', '#padaria', '#cafe', '#brunch', '#lanchedatarde'],
-    mexicana: ['#comidamexicana', '#tacos', '#nachos', '#mexican', '#guacamole'],
-    massas: ['#massa', '#macarrao', '#pasta', '#comidaitaliana', '#massafresca'],
-    churrasco: ['#churrasco', '#carne', '#barbecue', '#espetinho', '#brasa'],
-    salgados: ['#salgados', '#pastel', '#coxinha', '#salgadinho', '#lanchedatarde'],
-    combos: ['#combo', '#promocao', '#paradividir', '#comboperfeito'],
+    universal: ['#delivery', '#pecaagora', '#comida', '#deliverymuch', '#pediu', '#matoufome', '#fome', '#jantar', '#pedido', '#comidaboa', '#deliveryemcasa', '#hojetem'],
+    pizzas: ['#pizza', '#noitedepizza', '#pizzadelivery', '#pizzalovers', '#pizzaria', '#pizzanoite', '#amopizza', '#pizzaquente'],
+    lanches: ['#burger', '#hamburguer', '#lanche', '#smashburger', '#burgerlovers', '#burgerdelivery', '#artesanal', '#burgertime'],
+    japonesa: ['#sushi', '#comidajaponesa', '#temaki', '#japa', '#sushilovers', '#hotroll', '#comidajaponesadelivery', '#japanesefood'],
+    bebidas: ['#bebida', '#drinks', '#gelada', '#refrescante', '#bebidagelada', '#refri', '#suco'],
+    sobremesas: ['#sobremesa', '#doce', '#sweet', '#doceria', '#docinho', '#sobremesadelivery', '#docesgourmet'],
+    refeicoes: ['#almoco', '#marmita', '#pratofeito', '#refeicao', '#comidacaseira', '#almocodelivery', '#marmitex', '#comidadeverdade'],
+    porcoes: ['#porcao', '#entrada', '#petisco', '#aperitivo', '#petiscos', '#porcaodelivery', '#happyhour'],
+    acai: ['#acai', '#acaibowl', '#acailovers', '#gelado', '#acaidelivery', '#acaigelado', '#acaidocasa'],
+    saudavel: ['#saudavel', '#comidasaudavel', '#fit', '#lowcarb', '#eatclean', '#vidasaudavel', '#comidafit', '#fitness'],
+    cafe: ['#cafedamanha', '#padaria', '#cafe', '#brunch', '#lanchedatarde', '#cafecomleite', '#paofresquinho', '#manha'],
+    mexicana: ['#comidamexicana', '#tacos', '#nachos', '#mexican', '#guacamole', '#taco', '#burrito', '#comidamexicanadelivery'],
+    massas: ['#massa', '#macarrao', '#pasta', '#comidaitaliana', '#massafresca', '#massadelivery', '#italiana', '#molho'],
+    churrasco: ['#churrasco', '#carne', '#barbecue', '#espetinho', '#brasa', '#churrasqueira', '#carnenabrasa', '#churrascodelivery'],
+    salgados: ['#salgados', '#pastel', '#coxinha', '#salgadinho', '#lanchedatarde', '#esfiha', '#salgadosdelivery', '#salgadoquentinho'],
+    combos: ['#combo', '#promocao', '#paradividir', '#comboperfeito', '#combodelivery', '#comboemfamilia', '#pedidocompleto'],
   },
 };
 
@@ -5236,7 +5462,8 @@ function _fInterpolate(template, data) {
     .replace(/\{val\}/g, data.val || '')
     .replace(/\{desconto\}/g, data.desconto || '')
     .replace(/\{economiaReais\}/g, data.economiaReais || '')
-    .replace(/\{economiaPct\}/g, data.economiaPct || '');
+    .replace(/\{economiaPct\}/g, data.economiaPct || '')
+    .replace(/\{cupom\}/g, data.cupom || '');
 }
 
 /* ── FAXINA FINAL ──
@@ -5260,7 +5487,7 @@ function _fCopyTidy(s) {
    mora a 1ª lei: cada campo vira um booleano honesto, e os moldes só recebem o que passou.
    Antes esta decisão estava espalhada dentro do montador e cada ramo interpretava os dados
    do seu jeito — foi de onde saíram o desconto falso e o preço zerado. */
-function _fCopyFacts(prodBruto, deBruto, porBruto, valBruto, descBruto) {
+function _fCopyFacts(prodBruto, deBruto, porBruto, valBruto, descBruto, cupomBruto) {
   /* ⛔ CHAVE NENHUMA ENTRA NO MOTOR. O campo pode chegar com `{{produto}}` não substituído
      (é a sintaxe de campo do próprio Luma) ou com chave digitada à mão. Como o interpolador
      roda as substituições em sequência, esse texto voltava a ser interpretado: um produto
@@ -5296,12 +5523,15 @@ function _fCopyFacts(prodBruto, deBruto, porBruto, valBruto, descBruto) {
   // no texto (senão saía "20% off OFF").
   const descTxt = temPct ? String(desc || '').trim().replace(/\s*off\.?\s*$/i, '') : '';
 
+  // Cupom: o código como o app aceita (maiúsculo, sem espaço/pontuação). Vazio = sem linha de cupom.
+  const cupom = limpa(cupomBruto).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 32);
   const diff = temEconomia ? (numDe - numPor) : 0;
   return {
     prod: prod,
     de: temDe ? de : '',
     por: temPor ? por : '',
     val: _fFormatValidity(val),
+    cupom: cupom,
     desconto: descTxt,
     temPor, temDe, temEconomia, temPct,
     economiaReais: temEconomia ? fFormatPriceNumber(diff) : '',
@@ -5395,7 +5625,8 @@ function _fAssembleCopy(f, mode, segment, used, forceShort) {
     val: f.val,
     desconto: f.desconto,
     economiaReais: f.economiaReais,
-    economiaPct: f.economiaPct
+    economiaPct: f.economiaPct,
+    cupom: f.cupom
   };
 
   /* ESCOLHA DO GANCHO. Promo e WhatsApp abrem espelhando a realidade do cliente; "Engajar"
@@ -5408,6 +5639,9 @@ function _fAssembleCopy(f, mode, segment, used, forceShort) {
      justamente para NOMEAR o produto, e sem ele virariam "Bateu vontade de?". */
   if (mode === 'engajar' && f.prod) {
     allHooks = B.hooks.perguntas.concat(B.hooks.perguntas, segHooks);
+  } else if (f.cupom) {
+    // Material de cupom abre falando do cupom (peso dobrado), sem perder o tom do segmento.
+    allHooks = B.ganchosCupom.concat(B.ganchosCupom, segHooks);
   }
   /* Nome do produto que já apareceu no gancho vira eco no corpo ("Pizza não precisa de
      motivo." + "Pizza — R$ 129,00"). Tira os ganchos que repetem a 1ª palavra do produto —
@@ -5477,12 +5711,21 @@ function _fAssembleCopy(f, mode, segment, used, forceShort) {
 
   // Validade como linha separada (evita duplicar se já estiver no corpo)
   const valLine = (f.val && body.indexOf(f.val) < 0) ? ('Válido ' + f.val + '.') : '';
+  // Cupom: linha própria, sem repetir a frase entre as 3 opções.
+  let cupomLine = '';
+  if (f.cupom) {
+    const livres = B.cupons.filter(c => !used.cupons.has(c));
+    const tpl = _fPick1(livres.length ? livres : B.cupons);
+    used.cupons.add(tpl);
+    cupomLine = _fInterpolate(tpl, data);
+  }
 
   // WHATSAPP: mensagem, não legenda — sem hashtags (ruído no app), CTA de resposta direta.
   // Diagramação de mensagem: gancho / corpo (+validade) / CTA, blocos separados por linha vazia.
   if (isWpp) {
     const wLines = [hook, '', body];
     if (valLine) wLines.push(valLine);
+    if (cupomLine) wLines.push(cupomLine);
     wLines.push('', _pickCta('whatsapp'));
     return _fCopyTidy(wLines.join('\n'));
   }
@@ -5512,6 +5755,7 @@ function _fAssembleCopy(f, mode, segment, used, forceShort) {
 
   const lines = [hook, '', body];
   if (valLine) lines.push(valLine);
+  if (cupomLine) lines.push(cupomLine);
   lines.push('', cta);
   if (tags) lines.push('', tags);
 
@@ -5519,15 +5763,15 @@ function _fAssembleCopy(f, mode, segment, used, forceShort) {
 }
 
 /* Gera 3 opções de copy (substitui fGetSegmentedCaptions) */
-function fBuildCopy(prod, de, por, val, desc, format, ctxName) {
+function fBuildCopy(prod, de, por, val, desc, format, ctxName, cupom) {
   // Segmento considera também o nome da campanha (ctx): "Combo 20 peças" sozinho é universal,
   // mas dentro de "Bora De Sushi Na Promo" é japonesa — tom certo com mais frequência.
   const segment = _fCopySegment(String(prod || '') + ' ' + String(ctxName || ''));
-  const f = _fCopyFacts(prod, de, por, val, desc);
+  const f = _fCopyFacts(prod, de, por, val, desc, cupom);
   // Dedup COMPARTILHADO entre as 3 opções + memória das artes recentes (ver acima).
   const recent = _fCopyRecent();
   const used = {
-    hooks: new Set(recent.hooks), bodies: new Set(recent.bodies), ctas: new Set(recent.ctas)
+    hooks: new Set(recent.hooks), bodies: new Set(recent.bodies), ctas: new Set(recent.ctas), cupons: new Set()
   };
   // Cada aba tem PROPÓSITO e formato próprios (antes as 3 eram iguais e o CTA era sorteado —
   // a aba "Engajar" podia sair com CTA de delivery):
@@ -5694,7 +5938,7 @@ function _fBulkCopyArgs(d){
   const deKey = vars.find(v => papel(v) === 'de') || '';
   const porKey = vars.find(v => papel(v) === 'por') || vars.find(v => papel(v) === 'unico') || '';
   const s = k => (k && typeof d[k] === 'string' && !d[k].startsWith('data:') && d[k].length < 500) ? d[k] : '';
-  return [s(nameKey), s(deKey), s(porKey), s(ach(/validade|data|condicao|condição/i)), s(ach(/desconto|selo|off/i))];
+  return [s(nameKey), s(deKey), s(porKey), s(ach(/validade|data|condicao|condição/i)), s(ach(/desconto|selo|off/i)), s(ach(/cupom|codigo|código|voucher/i))];
 }
 
 function fBulkShowCopyModal(i) {
@@ -5702,11 +5946,11 @@ function fBulkShowCopyModal(i) {
   const row = fBulkRows[i];
   if (!row) return;
   
-  const [p0, de, por, val, desc] = _fBulkCopyArgs(row.dados);
+  const [p0, de, por, val, desc, cup] = _fBulkCopyArgs(row.dados);
   const prod = p0 || ('Produto ' + (i + 1));
   
   const copyFormat = (document.getElementById('f-bulk-copy-format') || {}).value || 'feed';
-  const copys = fBuildCopy(prod, de, por, val, desc, copyFormat);
+  const copys = fBuildCopy(prod, de, por, val, desc, copyFormat, '', cup);
   
   const productInfoDiv = document.getElementById('f-copy-modal-product-info');
   if (productInfoDiv) {

@@ -1052,6 +1052,7 @@ function fBuildPerguntas(vars, opts){
       papel = 'desconto';
       texto = `Qual é o <strong>desconto</strong> da promoção?`;
     } else if(s === 'cupom' || s === 'codigo' || s === 'voucher'){
+      papel = 'cupom';
       texto = `Qual é o <strong>código do cupom</strong>?`;
     } else if(/(validade|data|vencimento|periodo)/.test(s)){
       papel = 'validade';
