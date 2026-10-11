@@ -1,0 +1,9 @@
+# Só o app vai para o Vercel: index.html, manifest.json, assets/, css/, js/.
+# O resto (docs, testes, apresentação, vídeos, backend) é do repositório, não do site.
+/*
+!/index.html
+!/manifest.json
+!/assets
+!/css
+!/js
+!/vercel.json

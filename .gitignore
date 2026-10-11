@@ -37,3 +37,4 @@ storage-backup/
 # NOTA: js/core/supabase-config.js é versionado DE PROPÓSITO — contém só a
 # Project URL e a anon/publishable key (públicas, protegidas pela RLS).
 # A chave service_role JAMAIS deve ser commitada (em nenhum arquivo).
+.vercel
