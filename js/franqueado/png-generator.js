@@ -5375,6 +5375,25 @@ const _COPY_BLOCKS = {
     'Delivery Much, pertinho de você em {cidade}.',
     'Em {cidade}, é só pedir no Delivery Much.',
   ],
+  // Sem cidade cadastrada: o mesmo papel, sem nomear lugar nenhum (nada de cidade inventada).
+  locaisSemCidade: [
+    'O delivery da sua cidade é Delivery Much.',
+    'Na sua cidade, quem pede é Delivery Much.',
+    'Delivery Much, o app de delivery da sua cidade.',
+    'Feito pra quem é daqui.',
+    'Pedido na sua cidade? É no Delivery Much.',
+    'Pra galera daqui.',
+    'Na sua cidade, a fome se resolve no Delivery Much.',
+    'Delivery Much: comida da sua cidade, na sua porta.',
+    'Daqui pra sua casa, pelo Delivery Much.',
+    'Quem é daqui já sabe: Delivery Much.',
+    'Na sua cidade tem Delivery Much.',
+    'Bateu a fome? Delivery Much, pertinho de você.',
+    'Pede no Delivery Much, o app da cidade.',
+    'Seu pedido, da sua cidade, pelo Delivery Much.',
+    'Delivery Much, pertinho de você.',
+    'Na sua cidade, é só pedir no Delivery Much.',
+  ],
   ganchosCupom: [
     'Cupom novo na área.',
     'Tem cupom esperando você.',
@@ -5777,13 +5796,11 @@ function _fAssembleCopy(f, mode, segment, used, forceShort) {
 
   const tags = [...new Set(allTagsList)].slice(0, 9).join(' ');
   // A cidade escrita no TEXTO também conta na busca (palavra-chave, não só hashtag).
-  let localLine = '';
-  if (city) {
-    const livres = B.locais.filter(l => !used.locais.has(l));
-    const tpl = _fPick1(livres.length ? livres : B.locais);
-    used.locais.add(tpl);
-    localLine = tpl.replace(/\{cidade\}/g, String(city).trim());
-  }
+  const bancoLocal = city ? B.locais : B.locaisSemCidade;
+  const livresLocal = bancoLocal.filter(l => !used.locais.has(l));
+  const tplLocal = _fPick1(livresLocal.length ? livresLocal : bancoLocal);
+  used.locais.add(tplLocal);
+  const localLine = tplLocal.replace(/\{cidade\}/g, String(city).trim());
 
   const lines = [hook, '', body];
   if (valLine) lines.push(valLine);

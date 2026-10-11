@@ -515,6 +515,21 @@
     }finally{window.fCidadeAtual=antes;}
   });
 
+  test('sem cidade cadastrada, a linha local sai do banco sem cidade e não repete entre opções',()=>{
+    solta();
+    const antes=window.fCidadeAtual;window.fCidadeAtual=()=>'';
+    try{
+      const banco=_COPY_BLOCKS.locaisSemCidade;
+      for(let i=0;i<40;i++){
+        const o=gerar(BRIEF({prod:'Pizza Calabresa',por:'R$ 39,90'}));
+        const loc=[o.op1,o.op2].map(t=>corpoDe(t).find(l=>banco.indexOf(l)>=0));
+        loc.forEach((l,k)=>assert(l,'opção '+(k+1)+' sem linha local: '+[o.op1,o.op2][k]));
+        assert(loc[0]!==loc[1],'repetiu a frase local: '+loc[0]);
+        assert(!/\{cidade\}/.test(o.op1+o.op2),'placeholder de cidade vazou');
+      }
+    }finally{window.fCidadeAtual=antes;}
+  });
+
   /* ─────────────── SEGMENTAÇÃO ─────────────── */
 
   test('segmenta os produtos reais do delivery no tom certo',()=>{
