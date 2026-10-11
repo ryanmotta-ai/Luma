@@ -5741,21 +5741,28 @@ function _fAssembleCopy(f, mode, segment, used, forceShort) {
      se perdeu; ela passou a ter uma fonte só, como manda a lei do motor único. */
   const city = (typeof fCidadeAtual === 'function') ? fCidadeAtual() : '';
 
+  /* SEO NO INSTAGRAM (11/10/2026): a busca do Insta lê a legenda e as hashtags. Mistura que
+     faz a arte ser achada por quem procura: o PRODUTO (#pizzacalabresa, só nome curto), a
+     CATEGORIA, o LOCAL (#ijui, #deliveryijui e categoria+cidade, #pizzaijui — o que o vizinho
+     digita) e a MARCA (#deliverymuch, sempre). Teto de 9: hashtag demais vira spam pro algoritmo. */
   const segTags = B.hashtags[segment] || [];
-  let allTagsList = _fPickRandom(B.hashtags.universal, 2).concat(_fPickRandom(segTags, 3));
+  const prodTag = _fSanitizeHashtagPart(f.prod);
+  let allTagsList = (prodTag.length >= 3 && prodTag.length <= 24 ? ['#' + prodTag] : [])
+    .concat(_fPickRandom(segTags, 3), ['#deliverymuch'], _fPickRandom(B.hashtags.universal.filter(t => t !== '#deliverymuch'), 1));
 
-  if (city) {
-    const cleanCity = _fSanitizeHashtagPart(city);
-    if (cleanCity) {
-      allTagsList = allTagsList.concat(['#deliverymuch' + cleanCity, '#' + cleanCity, '#delivery' + cleanCity]);
-    }
+  const cleanCity = city ? _fSanitizeHashtagPart(city) : '';
+  if (cleanCity) {
+    allTagsList = allTagsList.concat(['#' + cleanCity, '#delivery' + cleanCity, (segTags[0] || '#comida') + cleanCity]);
   }
 
-  const tags = [...new Set(allTagsList)].join(' ');
+  const tags = [...new Set(allTagsList)].slice(0, 9).join(' ');
+  // A cidade escrita no TEXTO também conta na busca (palavra-chave, não só hashtag).
+  const localLine = city ? ('Aqui em ' + String(city).trim() + ', é Delivery Much.') : '';
 
   const lines = [hook, '', body];
   if (valLine) lines.push(valLine);
   if (cupomLine) lines.push(cupomLine);
+  if (localLine) lines.push(localLine);
   lines.push('', cta);
   if (tags) lines.push('', tags);
 

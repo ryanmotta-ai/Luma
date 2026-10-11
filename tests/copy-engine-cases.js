@@ -496,6 +496,23 @@
      ['ctas','delivery',20],['ctas','engajamento',18],['ctas','whatsapp',12]].forEach(([a,b,n])=>assert(B[a][b].length>=n,a+'.'+b+' tem só '+B[a][b].length));
   });
 
+  test('SEO do Insta: hashtag do produto, da cidade e da marca, texto cita a cidade, teto de 9',()=>{
+    solta();
+    const antes=window.fCidadeAtual;window.fCidadeAtual=()=>'Ijuí';
+    try{
+      for(let i=0;i<40;i++){
+        const o=gerar(BRIEF({prod:'Pizza Calabresa',por:'R$ 39,90'}));
+        [o.op1,o.op2].forEach(t=>{
+          const tags=t.split('\n').pop().split(' ');
+          ['#pizzacalabresa','#deliverymuch','#ijui','#deliveryijui'].forEach(h=>assert(tags.indexOf(h)>=0,'faltou '+h+': '+t));
+          assert(tags.length<=9,'hashtag demais ('+tags.length+'): '+t);
+          assert(/Ijuí/.test(t.replace(/#\S+/g,'')),'a cidade não aparece no texto: '+t);
+        });
+        assert(!/#/.test(o.op3),'WhatsApp com hashtag: '+o.op3);
+      }
+    }finally{window.fCidadeAtual=antes;}
+  });
+
   /* ─────────────── SEGMENTAÇÃO ─────────────── */
 
   test('segmenta os produtos reais do delivery no tom certo',()=>{
