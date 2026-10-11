@@ -1174,7 +1174,9 @@ function fPerguntaTexto(p){
   const pDe = pergs.find(x=>x && x.precoPar==='de');
   const de = pDe && fState.dados ? fState.dados[pDe.id] : null;
   if(!de) return p.texto;   // ainda não respondeu o "de" (pulou, voltou) → pergunta sem contexto
-  return `${p.texto}<span class="perg-ctx">O preço original é ${gEsc(String(de))}.</span>`;
+  // O valor vem rotulado ("De: R$ 39,90") e a frase já diz "original": sem o rótulo, não repete.
+  const deLimpo = String(de).replace(/^\s*de\s*:?\s*/i, '');
+  return `${p.texto}<span class="perg-ctx">O preço original é ${gEsc(deLimpo)}.</span>`;
 }
 
 /* A PRÉVIA EDITOU UM CAMPO — o chat não pode seguir com o valor velho (23/09/2026). Caso real:
@@ -1496,7 +1498,7 @@ function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
   // `jaEstava`: a imagem não acabou de ser escolhida, ela já estava no campo → "Manter", não "Usar".
   // O host com id `-preview` é o que o Trocar e o repintar acham (fReplaceImage/_fApplyImageToField).
   const zoneHtml = jaTemFoto ? `<div id="${uploadId}-preview">${_fUploadPreviewHTML(pergunta.id, fState.dados[pergunta.id], {jaEstava:true})}</div>`
-    : `<div class="f-upload-zone" id="${uploadId}-zone" data-var="${pergunta.id}" data-upload="${uploadId}" onclick="fOpenUploadPanel('${pergunta.id}','${uploadId}')">
+    : `<div class="f-upload-zone" id="${uploadId}-zone" data-var="${pergunta.id}" data-upload="${uploadId}" role="button" tabindex="0" aria-label="Escolher foto" onclick="fOpenUploadPanel('${pergunta.id}','${uploadId}')" onkeydown="if((event.key==='Enter'||event.key===' ')&&event.target===this){event.preventDefault();this.click()}">
       <!-- O input fica DENTRO da zona, que abre o painel no clique. O clique
            programático de fUploadPanelNewFile borbulhava até aqui e REABRIA o
            painel que acabara de fechar — por isso o stopPropagation. -->

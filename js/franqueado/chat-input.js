@@ -510,7 +510,15 @@ function fShowFieldError(msg){
   // alarmar (gToast em core/toast.js) tirou a COR e o role=alert do erro -- nao a MENSAGEM:
   // o proprio comentario de la diz que ela deve sair como toast neutro. O tremor fica: ele
   // aponta QUAL campo; o toast diz POR QUE.
-  if(msg && typeof gToast==='function') gToast(msg);
+  /* Uma recusa por vez: cada tentativa empilhava mais um toast, e no celular quatro deles
+     cobriam o campo e a prévia (teste de estresse, 11/10/2026). O aviso novo substitui o
+     anterior deste mesmo caminho; toasts de outros assuntos ficam. */
+  if(msg && typeof gToast==='function'){
+    document.querySelectorAll('#g-toast-container .g-toast-item[data-campo-erro]').forEach(t=>t.remove());
+    gToast(msg);
+    const novo = document.querySelector('#g-toast-container .g-toast-item:last-child');
+    if(novo) novo.setAttribute('data-campo-erro','');
+  }
   const existing = document.getElementById('field-err-msg');
   if(existing) existing.remove();
 
