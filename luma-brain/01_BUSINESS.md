@@ -272,7 +272,9 @@ O ciclo de vida que amarra tudo. **Este é o mapa mental que a IA precisa ter an
 **Regras / invariantes do fluxo:**
 - ⛔ **O sentido é sempre Estúdio → catálogo → franqueado.** O franqueado é a ponta que _consome_; ele não volta para o Estúdio.
 - ⛔ **Nada aparece para o franqueado sem `publicado === true` e dentro da validade.**
-- ⛔ **Postar não é etapa do Luma** (hoje). O Luma entrega o arquivo; publicar no Instagram/status é manual.
+- **Postar no Instagram PASSA a ser etapa do Luma** (decisão do Ryan, 11/10/2026 — revoga "postar não é etapa do Luma"). Cada franqueado conecta o Instagram da Delivery Much da cidade dele e publica a arte direto, pela API oficial da Meta. Em construção: até o app da Meta ser aprovado, o caminho segue sendo o botão atual (folha de compartilhar / baixar + copiar legenda). Status/WhatsApp continuam manuais.
+  - ⛔ A publicação sai do **servidor** (Edge Function), nunca do navegador; o acesso de cada cidade fica no banco sob RLS e nunca vai ao front.
+  - Agendar posts continua **fora** do escopo até nova decisão.
 - Persistência é **offline-first**: localStorage é cache; o Supabase é a fonte compartilhada (sync no boot, push em background).
 
 ---

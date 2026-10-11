@@ -140,7 +140,7 @@ Tão importante quanto o propósito — evita expectativa errada e _scope creep_
 - **Não é um editor de design de propósito geral.** Não compete com Canva/Figma/Photoshop. O franqueado **não** desenha do zero — ele preenche templates. Liberdade criativa total é do designer, não da ponta.
 - **Não é a operação do delivery.** Não gerencia pedidos, cardápio, restaurantes, entregadores, pagamentos ou o app de delivery em si. Isso é o ecossistema da Delivery Much; o Luma cuida **só da comunicação visual**.
 - **Não é o CleverTap nem uma ferramenta de disparo.** O módulo CRM Visual (planejado) _prepara_ inapp/push compatíveis; o envio segue na plataforma de CRM.
-- **Não é uma rede social nem agendador de posts.** Ele **gera** a arte; publicar no Instagram/status é passo manual do franqueado (por ora).
+- **Não é uma rede social nem agendador de posts.** Ele **gera** a arte e, desde 11/10/2026, também **publica no Instagram** da cidade do franqueado (em construção; ver `01_BUSINESS.md` §fluxo). Agendar e status/WhatsApp seguem fora.
 - **Não gera texto/copy por IA como função central.** O foco é a **peça visual**; sugestões de conteúdo são auxiliares, não o produto.
 - **Não é multi-marca / SaaS externo.** É uma **ferramenta interna da Delivery Much** — não é vendido a terceiros.
 - **Não substitui o julgamento de marca humano.** Ele reduz o erro, mas a curadoria dos templates e das regras é do time de design.
