@@ -747,6 +747,7 @@ body.d-fielddrag .canvas-layer.d-field-nao{outline:2px solid var(--dm-red);outli
 .d-btn-pri{padding:7px 16px;background:var(--dm-orange-d);color:white;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:.3px;transition:all .15s;display:flex;align-items:center;gap:6px;font-family:'Roboto',sans-serif;box-shadow:0 2px 8px rgba(248,84,0,.3)}
 .d-btn-pri:hover{filter:brightness(.92);box-shadow:0 4px 14px rgba(248,84,0,.45);transform:translateY(-1px)}
 .d-btn-sec{padding:7px 14px;background:transparent;color:var(--d-text2);border:1px solid var(--d-border2);border-radius:5px;font-size:13px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px;font-family:'Roboto',sans-serif}
+.d-btn-sec[hidden]{display:none}  /* o display:flex acima anulava o atributo hidden ("Encurtar 0 ofertas" no lote, 11/10/2026) */
 .d-btn-sec:hover{background:var(--d-surf);color:var(--d-text)}
 
 /* MODAL */

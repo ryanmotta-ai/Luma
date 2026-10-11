@@ -29,8 +29,8 @@
    seção some junto: melhor não ter a faixa do que ter uma faixa quebrada na demonstração. */
 const F_DEMO_IMGS = [
   { id:'burger', label:'Hambúrguer', src:'assets/demo/hamburguer.jpg', para:'produto' },
-  { id:'acai',   label:'Açaí',       src:'assets/demo/acai.jpg',       para:'produto' },
-  { id:'pizza',  label:'Pizza',      src:'assets/demo/pizza.jpg',      para:'produto' },
+  // Açaí e pizza saíram em 11/10/2026: os arquivos nunca foram postos em assets/demo/ e cada
+  // abertura do painel pedia dois 404. Voltam com uma linha quando a foto existir (LEIA-ME).
   { id:'logo',   label:'Sua loja',   src:'assets/demo/logo-loja.png',  para:'logo' }
 ];
 function fDemoImgsPara(isLogo){

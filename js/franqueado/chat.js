@@ -1733,6 +1733,8 @@ function fProcessImageFile(file, varId, uploadId){
    Extraído do onload do upload para o painel de upload (imagens recentes / lojas)
    reusar EXATAMENTE o mesmo finishing — um caminho só. */
 function _fApplyImageToField(varId, uploadId, resizedUrl){
+  // Uma imagem válida resolve o erro de um envio anterior ("não é uma imagem", "muito grande").
+  if(_fGuidedAtivo()) _fGuidedErro('');
   fState.dados[varId]=resizedUrl;
   fSaveChatDraft();
   // EXTRAÇÃO DE CORES COM COLOR THIEF

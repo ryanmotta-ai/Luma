@@ -14,6 +14,10 @@ const F_FIELD_TYPES = {
   brinde:    {type:'text',     maxLen:40,  label:'brinde'},
   oferta:    {type:'text',     maxLen:40,  label:'oferta'},
   codigo:    {type:'code',     maxLen:16,  label:'código do cupom'},
+  // `cupom`/`voucher` são o mesmo código com outro nome: sem isto caíam em texto e o
+  // gSmartTitleCase virava "SUSHI2026VIP" em "Sushi2026vip" (teste de estresse, 11/10/2026).
+  cupom:     {type:'code',     maxLen:32,  label:'código do cupom'},
+  voucher:   {type:'code',     maxLen:32,  label:'código do cupom'},
   // maxLen 18 (era 14): o valor passou a sair rotulado ("De: R$ 1.234,56" tem 15).
   precoDe:   {type:'price',    maxLen:18,  label:'preço original'},
   precoPor:  {type:'price',    maxLen:18,  label:'preço promocional'},
