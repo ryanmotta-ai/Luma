@@ -2630,13 +2630,29 @@ console.assert(_fCapDiagrama('Fome? Pizza por R$ 39,90. Peça no app. #DeliveryM
 /* Trecho LOCAL do SEO no prompt da legenda. Com cidade: citar a cidade e as hashtags dela.
    Sem cidade: nunca inventar lugar — duas frases sorteadas do mesmo banco do motor local
    (`_COPY_BLOCKS.locaisSemCidade`), uma em "promo" e outra em "engajar". */
+let _fSeoFrases = [];   // as frases pedidas no ÚLTIMO prompt sem cidade — o `_fSeoGarante` confere
 function _fSeoLocal(cidadeTag){
+  _fSeoFrases = [];
   if (cidadeTag) return 'a cidade aparece uma vez no texto, de forma natural (é o que a busca do Instagram lê). Hashtags (6 a 9, todas minúsculas, sem acento): o produto em uma palavra (ex.: #pizzacalabresa), 2 da categoria (ex.: #pizza #pizzaria), a cidade, categoria+cidade (ex.: #pizza' + cidadeTag.toLowerCase() + ')';
   const banco = (typeof _COPY_BLOCKS !== 'undefined' && _COPY_BLOCKS.locaisSemCidade) || [];
   const [a, b] = (typeof _fPickRandom === 'function') ? _fPickRandom(banco, 2) : banco.slice(0, 2);
+  _fSeoFrases = [a, b];
   const frases = a ? ' A cidade não foi informada: NÃO cite nem invente cidade. Use exatamente esta frase como linha própria em "promo": "' + a + '"' + (b ? ' e esta em "engajar": "' + b + '"' : '') + '.' : ' A cidade não foi informada: NÃO cite nem invente cidade.';
   return 'o produto também aparece no texto (é o que a busca do Instagram lê).' + frases + ' Hashtags (5 a 7, todas minúsculas, sem acento, nenhuma de cidade): o produto em uma palavra (ex.: #pizzacalabresa), 2 da categoria (ex.: #pizza #pizzaria)';
 }
+/* A conferência que o prompt não garante: se a IA não usou a frase pedida (ou mexeu nela),
+   ela entra como parágrafo próprio ANTES das hashtags — mesma diagramação do motor local.
+   Compara sem acento/pontuação/caixa, para "quem e daqui ja sabe" contar como usada. */
+function _fSeoGarante(texto, frase){
+  const s = String(texto || '');
+  if (!frase || !s) return s;
+  const nu = x => x.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  if (nu(s).indexOf(nu(frase)) >= 0) return s;
+  const m = /\n*((?:\s*#[\p{L}\d_]+)+)\s*$/u.exec(s);
+  return m ? s.slice(0, m.index).trim() + '\n\n' + frase + '\n\n' + m[1].trim() : s.trim() + '\n\n' + frase;
+}
+console.assert(_fSeoGarante('Fome?\n\nPeça no app.\n\n#pizza #deliverymuch', 'Pra galera daqui.') === 'Fome?\n\nPeça no app.\n\nPra galera daqui.\n\n#pizza #deliverymuch', '_fSeoGarante');
+console.assert(_fSeoGarante('Pra galera DAQUI! Peça.', 'Pra galera daqui.') === 'Pra galera DAQUI! Peça.', '_fSeoGarante já usada');
 
 async function fFetchAICaptionSuggestions(dados, camp, formato) {
   const fallback = fGenCaptionSuggestions(dados, camp, formato);
@@ -2693,8 +2709,8 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
       // Modelo às vezes escorrega um *negrito* mesmo proibido: tira aqui, não confia no prompt.
       const semAst = s => String(s).replace(/\*/g, '').replace(/[ \t]{2,}/g, ' ').trim();
       const out = [
-        { id: 'promo', label: 'Promo', text: semAst(p) },
-        { id: 'engajar', label: 'Engajar', text: semAst(e) },
+        { id: 'promo', label: 'Promo', text: (res.data.promo || res.data.caption) ? _fSeoGarante(semAst(p), _fSeoFrases[0]) : semAst(p) },
+        { id: 'engajar', label: 'Engajar', text: res.data.engajar ? _fSeoGarante(semAst(e), _fSeoFrases[1]) : semAst(e) },
         { id: 'whatsapp', label: 'WhatsApp', text: semAst(w) }
       ];
       if (out[1].text === out[0].text) out[1].text = fallback[1].text;
@@ -2766,7 +2782,9 @@ Responda APENAS com JSON válido:
     // Cinto de segurança das regras 1 e 6: modelo às vezes escorrega um emoji ou um *negrito*.
     // Tira em vez de devolver peça fora do padrão de marca.
     s = s.replace(/\*/g, '').replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}]/gu, '').replace(/[ \t]{2,}/g, ' ').trim();
-    return _fCapDiagrama(s) || fallback[i].text;
+    if (!s) return fallback[i].text;
+    s = _fCapDiagrama(s);
+    return i < 2 ? _fSeoGarante(s, _fSeoFrases[i]) : s;
   };
   const out = [
     { id: 'promo', label: 'Promo', text: limpa(parsed.promo, 0) },
