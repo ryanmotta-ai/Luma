@@ -14,7 +14,7 @@
 
   const TASKS = {
     'caption.generate': {
-      version: '1.4.0',
+      version: '1.5.0',
       modelType: 'fast',
       featureFlag: 'caption',
       defaultTtl: 0, // legendas não devem ser repetidas em cache cego
@@ -48,7 +48,7 @@ Use os fatos: com preço, promo e whatsapp citam o "Preço por" (o "de" só como
 Sem emojis, asteriscos ou markdown.
 PT-BR com acento e ç corretos nas 3 opções, inclusive whatsapp (família, preço, até, você, não, está, olá, peça). Os fatos podem vir sem acento: "Combo familia" vira "Combo família"; não troque palavras, nomes próprios nem preços.
 Promo e engajar: ${ehStory ? 'até 2' : '2 a 4'} linhas curtas, mais as hashtags no fim.
-SEO do Instagram: o nome do produto aparece na 1ª linha e a cidade aparece uma vez no texto, de forma natural (é o que a busca do Instagram lê). Hashtags (6 a 9, todas minúsculas, sem acento): o produto em uma palavra (ex.: #pizzacalabresa), 2 da categoria (ex.: #pizza #pizzaria), a cidade, categoria+cidade (ex.: #pizza${cidadeTag.toLowerCase() || 'suacidade'}) e as fixas: ${hashtags.toLowerCase()}
+SEO do Instagram: o nome do produto aparece na 1ª linha e ${typeof _fSeoLocal === 'function' ? _fSeoLocal(cidadeTag) : 'a cidade aparece uma vez no texto, se informada (nunca invente cidade). Hashtags (6 a 9, minúsculas, sem acento): produto, categoria'} e as fixas: ${hashtags.toLowerCase()}
 Campanha é contexto, não produto.${p.girias ? '\nGírias opcionais, só se naturais: ' + p.girias : ''}
 
 FATOS:

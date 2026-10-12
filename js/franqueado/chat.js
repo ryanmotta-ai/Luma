@@ -2627,6 +2627,17 @@ function _fCapDiagrama(s){
 }
 console.assert(_fCapDiagrama('Fome? Pizza por R$ 39,90. Peça no app. #DeliveryMuch #Delivery') === 'Fome?\n\nPizza por R$ 39,90.\n\nPeça no app.\n\n#DeliveryMuch #Delivery', '_fCapDiagrama');
 
+/* Trecho LOCAL do SEO no prompt da legenda. Com cidade: citar a cidade e as hashtags dela.
+   Sem cidade: nunca inventar lugar — duas frases sorteadas do mesmo banco do motor local
+   (`_COPY_BLOCKS.locaisSemCidade`), uma em "promo" e outra em "engajar". */
+function _fSeoLocal(cidadeTag){
+  if (cidadeTag) return 'a cidade aparece uma vez no texto, de forma natural (é o que a busca do Instagram lê). Hashtags (6 a 9, todas minúsculas, sem acento): o produto em uma palavra (ex.: #pizzacalabresa), 2 da categoria (ex.: #pizza #pizzaria), a cidade, categoria+cidade (ex.: #pizza' + cidadeTag.toLowerCase() + ')';
+  const banco = (typeof _COPY_BLOCKS !== 'undefined' && _COPY_BLOCKS.locaisSemCidade) || [];
+  const [a, b] = (typeof _fPickRandom === 'function') ? _fPickRandom(banco, 2) : banco.slice(0, 2);
+  const frases = a ? ' A cidade não foi informada: NÃO cite nem invente cidade. Use exatamente esta frase como linha própria em "promo": "' + a + '"' + (b ? ' e esta em "engajar": "' + b + '"' : '') + '.' : ' A cidade não foi informada: NÃO cite nem invente cidade.';
+  return 'o produto também aparece no texto (é o que a busca do Instagram lê).' + frases + ' Hashtags (5 a 7, todas minúsculas, sem acento, nenhuma de cidade): o produto em uma palavra (ex.: #pizzacalabresa), 2 da categoria (ex.: #pizza #pizzaria)';
+}
+
 async function fFetchAICaptionSuggestions(dados, camp, formato) {
   const fallback = fGenCaptionSuggestions(dados, camp, formato);
   fallback._ia = false;   // marca a ORIGEM: a UI rotula IA x motor local (ver painel de legenda)
@@ -2738,7 +2749,7 @@ REGRAS OBRIGATÓRIAS:
 3. As 3 opções têm ângulos DIFERENTES entre si — não reescreva a mesma frase.
 4. ${ehStory ? 'Formato STORY: no máximo 2 linhas curtas em "promo" e "engajar" (texto que caiba num story, leitura de 2 segundos).' : 'Formato FEED: "promo" e "engajar" podem ter 2 a 4 linhas.'} Diagramação: abertura, oferta, chamada pra pedir e hashtags em parágrafos separados por UMA linha em branco (\\n\\n no JSON) — nunca tudo num bloco só.
 5. ${hashtags} — só em "promo" e "engajar". A opção "whatsapp" NÃO leva hashtag.
-   SEO do Instagram: o nome do produto aparece na 1ª linha e a cidade aparece uma vez no texto, de forma natural (é o que a busca do Instagram lê). Hashtags (6 a 9, todas minúsculas, sem acento): o produto em uma palavra (ex.: #pizzacalabresa), 2 da categoria (ex.: #pizza #pizzaria), a cidade, categoria+cidade (ex.: #pizza${cidadeTag.toLowerCase() || 'suacidade'}) e as fixas acima, em minúsculas.
+   SEO do Instagram: o nome do produto aparece na 1ª linha e ${_fSeoLocal(cidadeTag)} e as fixas acima, em minúsculas.
 6. "whatsapp" é mensagem pra lista de transmissão: chama pra pedir no app. NUNCA use asterisco (*) nem qualquer marcação de negrito/markdown, em nenhuma opção.
 7. Português do Brasil com TODA a acentuação e o "ç" corretos (família, peça, promoção, você, já). Os fatos podem ter sido digitados sem acento: corrija a grafia na legenda, mas não troque palavras, nomes próprios nem preços.${blocoGiriasPrompt ? `
 8. Sobre o jeito de falar da cidade: use NO MÁXIMO UMA dessas expressões, em UMA das três opções, e só se ela couber com naturalidade na frase. Se nenhuma couber, NÃO force — gíria enfiada soa falsa e o franqueado é vizinho de quem lê. Nunca explique a expressão nem use mais de uma.` : ''}${blocoGiriasPrompt}
