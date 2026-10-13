@@ -66,11 +66,11 @@ const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 13
          ══════════════════════════════════════════════════════════════ -->
     <rect width="1080" height="1350" fill="#F85400"/>
 
-    <!-- Grafismo de arcos tone-on-tone (#F62900 / #FF9000) -->
-    <g fill="none" stroke="#F62900" stroke-width="115" opacity="0.45">
+    <!-- Grafismo do sorriso Delivery Much (Se fundo é #F85400, o sorriso DEVE ser #FF9000 com opacidade dosada) -->
+    <g fill="none" stroke="#FF9000" stroke-width="115" opacity="0.45">
       <path d="M -150 1280 A 380 380 0 0 1 450 1380"/>
       <path d="M 720 1380 A 340 340 0 0 1 1200 950"/>
-      <path d="M -80 1020 A 240 240 0 0 1 280 1350" stroke-width="75" opacity="0.35"/>
+      <path d="M -80 1020 A 240 240 0 0 1 280 1350" stroke-width="75" opacity="0.30"/>
     </g>
 
     <!-- ══════════════════════════════════════════════════════════════

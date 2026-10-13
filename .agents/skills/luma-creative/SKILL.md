@@ -74,6 +74,9 @@ O Luma utiliza uma escala disciplinada de 4 níveis. O peso `Bold (700)` foi **e
    * ❌ **NUNCA use `#FF9000` sobre branco**: `#FF9000` fica totalmente sem contraste no fundo branco (reprova WCAG e fica ilegível/lavado).
 4. **Em cima de `#434343` (Cinza Grafite):**
    * ✅ Use **BRANCO (`#FFFFFF`)** ou **Amarelo `#FFB900`**.
+5. **O Sorriso da Delivery Much no Fundo (Grafismo de Marca):**
+   * **Se o fundo é `#F85400` (Laranja Ação):** O sorriso da Delivery Much no fundo **DEVE ser `#FF9000` (Laranja Solar)**. Dose a opacidade (ex.: `opacity="0.3"` a `opacity="0.5"`) para conferir profundidade luminosa e solar sem competir com os textos.
+   * **Se o fundo for `#FF9000` (Laranja Solar):** O sorriso usa **`#F85400`** com opacidade dosada.
 
 ---
 
