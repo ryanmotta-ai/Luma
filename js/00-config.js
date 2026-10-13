@@ -29,7 +29,6 @@ window.AI_FEATURES = window.AI_FEATURES || {
   caption: true,
   copyFit: true,
   contentReview: true,
-  imageValidation: true,
   psdMapping: true,
   materialEnrichment: true,
   stressCases: true

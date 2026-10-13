@@ -131,31 +131,6 @@ Legenda: ${caption}`;
       }
     },
 
-    'image.validate': {
-      version: '1.1.0',
-      modelType: 'vision',
-      featureFlag: 'imageValidation',
-      defaultTtl: 86400000, // 24 horas por hash da imagem
-      build: function(payload){
-        const p = payload || {};
-        const fieldType = p.fieldType || 'foto_produto';
-        const imagePart = p.imagePart; // { mimeType, data }
-
-        const expectation = (fieldType === 'logo_loja' || fieldType === 'logo')
-          ? 'logotipo de restaurante, símbolo comercial ou vetor de marca; foto de comida não é logo'
-          : 'foto real de comida, prato, lanche, bebida ou produto alimentício; logo ou desenho de alimento não é foto';
-
-        const prompt = `${ANTI_INJECTION_PREAMBLE}
-
-Campo "${fieldType}": ${expectation}.
-Sem julgar estética, beleza, qualidade ou iluminação.
-Retorne valid, detectedKind, reason curta em PT-BR e confidence: high só com evidência clara; na dúvida, medium/low.`;
-
-        const parts = imagePart ? [imagePart] : [];
-        return { prompt: prompt, parts: parts };
-      }
-    },
-
     'psd.map': {
       version: '1.0.0',
       modelType: 'vision',

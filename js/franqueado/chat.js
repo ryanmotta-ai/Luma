@@ -1391,52 +1391,15 @@ function fValidarLogo(url, cb){
   im.src = url;
 }
 
-/* Validação Semântica de Imagem com Assistência de IA (Fase 4, §41-§44).
-   Combina checagem local determinística com análise visual de compatibilidade.
-   Não bloqueia: o usuário sempre pode clicar em 'Usar mesmo assim'. */
-async function fValidarImagemSemantica(varId, url, cb){
-  const ehLogo = (typeof gCampoEhLogo === 'function') && gCampoEhLogo(varId);
-  // 1. Checagem determinística local (resolução, proporção)
-  if (ehLogo && typeof fValidarLogo === 'function') {
-    fValidarLogo(url, (avisoLocal) => {
-      if (avisoLocal) cb(avisoLocal);
-    });
-  }
-
-  // 2. Análise semântica via IA Gateway
-  if (!window.gAI || !(typeof window.gAI.isEnabled === 'function' && window.gAI.isEnabled('imageValidation'))) return;
-
-  try {
-    const match = url && url.match(/^data:([^;]+);base64,(.+)$/);
-    if (!match) return;
-
-    const mimeType = match[1];
-    const dataBase64 = match[2];
-
-    const res = await window.gAI.run('image.validate', {
-      fieldType: ehLogo ? 'logo' : 'foto_produto',
-      imagePart: { mimeType: mimeType, data: dataBase64 }
-    });
-
-    if (res && res.ok && res.data && res.data.valid === false && res.data.confidence === 'high') {
-      const aviso = res.data.reason || (ehLogo
-        ? 'Esta imagem não parece ser o logo de uma loja.'
-        : 'Esta imagem não parece mostrar comida ou bebida.');
-      cb(aviso);
-    }
-  } catch(e) {
-    console.warn('[AI ImageValidate] Falha:', e);
-  }
-}
-
 /* ── PORTÃO DA FOTO DE PRODUTO — o ÚNICO, para todas as entradas (25/09/2026) ──────────────
    Feedback da Laura: "consegui publicar um carro", "trocar imagem passa por cima do mínimo",
    "no lote o 'não é comida' deixa ir". Cada entrada (chat, trocar imagem da prévia, célula
    e "foto para todas" do Sheets) tinha regra própria ou nenhuma. Agora todas perguntam aqui.
    Devolve '' (pode usar) ou o MOTIVO da recusa. Decisão do Ryan:
    · menos de F_FOTO_MIN_LADO no lado menor → recusa (antes era só aviso de 600px);
-   · IA com confiança ALTA de que não é comida → recusa. IA em dúvida, fora do ar ou com
-     erro → passa: o portão não pode travar o franqueado por falha nossa.
+   · arquivo que não abre (HEIC, danificado) → recusa.
+   A IA que conferia "isto é comida?" SAIU (Ryan, 13/10/2026): o franqueado sabe o que está
+   vendendo, e a espera de até 20s + recusa por engano custavam mais do que o carro que barrava.
    Logo fica de fora: tem régua própria (`fValidarLogo`) e não é comida por definição. */
 const F_FOTO_MIN_LADO = 400;
 function fFotoDimensoes(url){
@@ -1457,19 +1420,6 @@ async function fPortaoFoto(varId, url){
   if(typeof gCampoEhLogo==='function' && gCampoEhLogo(varId)) return '';
   if(w && h && Math.min(w,h) < F_FOTO_MIN_LADO)
     return `Essa foto é pequena demais (${w}×${h}px). Envie uma com pelo menos ${F_FOTO_MIN_LADO}px no lado menor.`;
-  try{
-    if(!window.gAI || !(typeof window.gAI.isEnabled==='function' && window.gAI.isEnabled('imageValidation'))) return '';
-    const m=url.match(/^data:([^;]+);base64,(.+)$/);
-    if(!m) return '';
-    /* Rejeição (400 "anexos pesados demais", 502) ou IA muda: segue sem a checagem. O timeout
-       evita o "Conferindo a foto…" eterno. */
-    const res=await Promise.race([
-      Promise.resolve().then(()=>window.gAI.run('image.validate',{fieldType:'foto_produto', imagePart:{mimeType:m[1], data:m[2]}})),
-      new Promise(r=>setTimeout(()=>r(null), 20000))
-    ]);
-    if(res && res.ok && res.data && res.data.valid===false && res.data.confidence==='high')
-      return (res.data.reason ? res.data.reason+' ' : '')+'Use uma foto do produto (comida ou bebida).';
-  }catch(e){ console.warn('[portão da foto] IA falhou, liberando:', e); }
   return '';
 }
 
@@ -1781,14 +1731,13 @@ function _fApplyImageToField(varId, uploadId, resizedUrl){
      (`fConfirmarImagem`, no botão do próprio preview): quem subiu o arquivo errado descobre
      aqui, olhando, e não três passos adiante. Campo de logo ainda passa pela validação
      determinística antes — o aviso repinta o preview com as duas saídas do pedido. */
-  /* A conferência é assíncrona (IA/heurística). Trocar a foto enquanto ela roda fazia o
+  /* A conferência é assíncrona (leitura da imagem). Trocar a foto enquanto ela roda fazia o
      retorno da foto ANTIGA repintar o preview — a pessoa via voltar a imagem que acabou de
      substituir. O aviso só vale se o campo ainda estiver com a MESMA imagem. */
   const _aindaEhAtual=()=>fState.dados && fState.dados[varId]===resizedUrl;
   if(_ehFotoProduto && typeof fPortaoFoto==='function'){
     /* O "Usar esta imagem" nasce DESABILITADO ("Conferindo a foto…") e só libera depois do
-       portão — antes a conferência corria em paralelo e dava para confirmar o carro antes
-       da IA responder. Recusou: o campo esvazia e só resta "Trocar foto". */
+       portão (tamanho e leitura — é instantâneo). Recusou: o campo esvazia e só resta "Trocar foto". */
     fPortaoFoto(varId, resizedUrl).then(motivo=>{
       if(!_aindaEhAtual()) return;
       if(motivo){
@@ -1798,8 +1747,6 @@ function _fApplyImageToField(varId, uploadId, resizedUrl){
         pintaPreview('', {bloqueio:motivo});
       } else pintaPreview('');
     }).catch(()=>{ if(_aindaEhAtual()) pintaPreview(''); });   // conferência falhou: segue sem ela
-  } else if(typeof fValidarImagemSemantica==='function'){
-    fValidarImagemSemantica(varId, resizedUrl, (aviso)=>{ if(aviso && _aindaEhAtual()) pintaPreview(aviso); });
   } else if(typeof gCampoEhLogo==='function' && gCampoEhLogo(varId) && typeof fValidarLogo==='function'){
     fValidarLogo(resizedUrl, (aviso)=>{ if(aviso && _aindaEhAtual()) pintaPreview(aviso); });
   }

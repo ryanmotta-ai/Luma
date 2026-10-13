@@ -3472,9 +3472,8 @@ function _fLpUploadImage(file,v){
   const reader=new FileReader();
   reader.onload=e=>{
     const done=async (url)=>{
-      // Mesmo portão do chat (tamanho mínimo + não-comida): "trocar imagem" era a porta dos fundos.
+      // Mesmo portão do chat (tamanho mínimo e arquivo que abre): "trocar imagem" era a porta dos fundos.
       if(typeof fPortaoFoto==='function'){
-        gToast('Conferindo a foto…');
         const motivo=await fPortaoFoto(v,url);
         if(motivo){ gToast(motivo,'error'); return; }
       }

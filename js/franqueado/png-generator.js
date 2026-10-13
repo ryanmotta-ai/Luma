@@ -4457,7 +4457,6 @@ function fBulkFotoEmTodas(col){
     rd.onload = e => {
       const grava = async (url) => {
         if(typeof fPortaoFoto === 'function'){
-          gToast('Conferindo a foto…');
           const motivo = await fPortaoFoto(alvo, url);
           if(motivo){ gToast(motivo, 'error'); return; }
         }
@@ -4710,20 +4709,19 @@ function fBulkUploadCellImage(input, i, k) {
   }
 
   fBulkCollectCurrentInputs();
-  const rid = _fBulkRid(fBulkRows[i]); // o índice pode andar durante o "Conferindo a foto…"
+  const rid = _fBulkRid(fBulkRows[i]); // o índice pode andar enquanto a foto é conferida
 
   const reader = new FileReader();
   reader.onload = function(e) {
-    // Mesmo portão do chat (tamanho mínimo + não-comida). Antes o lote só avisava "baixa
-    // resolução" e não perguntava nada sobre o conteúdo — foi por aqui que o carro entrou.
+    // Mesmo portão do chat (tamanho mínimo e arquivo que abre). Antes o lote só avisava
+    // "baixa resolução" e deixava passar a foto que nem abria.
     const grava = async (url) => {
       if (typeof fPortaoFoto === 'function') {
-        gToast('Conferindo a foto…');
         const motivo = await fPortaoFoto(k, url);
         if (motivo) { gToast(motivo, 'error'); return; }
       }
       const j = fBulkRows.findIndex(r => r && r._rid === rid);
-      if (j < 0) return; // a linha saiu enquanto a IA conferia
+      if (j < 0) return; // a linha saiu enquanto a foto era conferida
       fBulkRows[j].dados[k] = url;
       _fBulkRevalidateCol(fBulkRows[j], k);
       if (typeof fRecordRecentImg === 'function') fRecordRecentImg(url, k);
@@ -4783,7 +4781,6 @@ async function _fBulkUsarRecente(i, k, n){
   try { url = await Promise.resolve(typeof gResolveImgUrl === 'function' ? gResolveImgUrl(entry.ref) : entry.ref); } catch(e) {}
   if (!url) { gToast('Não consegui carregar essa foto. Envie de novo.', 'error'); return; }
   if (typeof fPortaoFoto === 'function') {
-    gToast('Conferindo a foto…');
     const motivo = await fPortaoFoto(k, url);
     if (motivo) { gToast(motivo, 'error'); return; }
   }

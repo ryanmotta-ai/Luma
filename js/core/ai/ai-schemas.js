@@ -184,33 +184,6 @@
       }
     },
 
-    'image.validate': {
-      responseSchema: {
-        type: 'OBJECT',
-        properties: {
-          valid: { type: 'BOOLEAN', description: 'Se a imagem condiz com a natureza esperada do campo' },
-          confidence: { type: 'STRING', enum: ['high', 'medium', 'low'] },
-          reason: { type: 'STRING', description: 'Explicação curta e humana' },
-          detectedKind: { type: 'STRING', description: 'O que a imagem parece ser (logo, produto, prato, paisagem, print, documento)' }
-        },
-        required: ['valid', 'confidence', 'reason']
-      },
-      validate: function(data, payload){
-        if (!data || typeof data !== 'object') return { ok: false, error: 'invalid_image_response' };
-        const conf = ['high', 'medium', 'low'].includes(data.confidence) ? data.confidence : 'medium';
-        return {
-          ok: true,
-          data: {
-            valid: !!data.valid,
-            confidence: conf,
-            reason: _stripEmoji(String(data.reason || '')).slice(0, 180),
-            detectedKind: String(data.detectedKind || 'desconhecido').slice(0, 50),
-            expectedField: payload && payload.fieldType ? String(payload.fieldType) : 'imagem'
-          }
-        };
-      }
-    },
-
     'psd.map': {
       responseSchema: {
         type: 'OBJECT',
