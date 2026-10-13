@@ -18,10 +18,10 @@
   <polyline points="6,12 32,-14 48,12" fill="none" stroke="#434343" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
   <text x="0" y="85" text-anchor="middle" class="body" font-size="30" fill="#434343">Use aqui sua foto do prato</text>
 </g></g>
-<g transform="translate(900,600)">
-  <circle r="100" fill="#FFB900"/>
+<g transform="translate(735,870)">
+  <circle r="92" fill="#FFB900"/>
   <text y="-6" text-anchor="middle" class="sup" font-size="26" fill="#434343">COM</text>
-  <text y="34" text-anchor="middle" class="hero" font-size="38" fill="#434343">SOBREMESA</text>
+  <text y="34" text-anchor="middle" class="hero" font-size="34" fill="#434343">SOBREMESA</text>
 </g>
 <g id="produto">
   <text x="100" y="835" class="hero" font-size="130" fill="#FFFFFF">ALMOÇO</text>

@@ -17,7 +17,7 @@
 </g>
 <g id="preco">
 <g filter="url(#sh)"><rect x="100" y="755" width="880" height="270" rx="36" fill="#FFFFFF"/></g>
-<g id="foto_produto"><circle cx="229" cy="890" r="105" fill="#D9D9D9"/>
+<g id="foto_produto"><rect x="124" y="785" width="210" height="210" rx="36" fill="#D9D9D9"/>
 <g transform="translate(229,856) scale(0.62)" fill="none" stroke="#434343" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><rect x="-65" y="-68" width="130" height="98" rx="18"/><polyline points="-42,12 -8,-24 24,12"/><polyline points="6,12 32,-14 48,12"/><circle cx="26" cy="-38" r="8" fill="#434343" stroke="none"/></g>
 <text x="229" y="926" text-anchor="middle" class="body" font-size="24" fill="#434343">Foto do</text><text x="229" y="954" text-anchor="middle" class="body" font-size="24" fill="#434343">produto</text></g>
 <text x="380" y="827" class="body" font-size="40" fill="#434343">Burger Clássico</text>
@@ -27,7 +27,7 @@
 <text x="471" y="991" class="hero" font-size="96" fill="#F85400">R$ 24,90</text>
 <g transform="translate(886,890)"><circle r="68" fill="#FFB900"/><text y="17" text-anchor="middle" class="hero" font-size="50" fill="#434343">-24%</text></g>
 <g filter="url(#sh)"><rect x="100" y="1061" width="880" height="270" rx="36" fill="#FFFFFF"/></g>
-<g id="foto_produto"><circle cx="229" cy="1196" r="105" fill="#D9D9D9"/>
+<g id="foto_produto"><rect x="124" y="1091" width="210" height="210" rx="36" fill="#D9D9D9"/>
 <g transform="translate(229,1162) scale(0.62)" fill="none" stroke="#434343" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><rect x="-65" y="-68" width="130" height="98" rx="18"/><polyline points="-42,12 -8,-24 24,12"/><polyline points="6,12 32,-14 48,12"/><circle cx="26" cy="-38" r="8" fill="#434343" stroke="none"/></g>
 <text x="229" y="1232" text-anchor="middle" class="body" font-size="24" fill="#434343">Foto do</text><text x="229" y="1260" text-anchor="middle" class="body" font-size="24" fill="#434343">produto</text></g>
 <text x="380" y="1133" class="body" font-size="40" fill="#434343">Pizza Calabresa</text>
@@ -37,7 +37,7 @@
 <text x="471" y="1297" class="hero" font-size="96" fill="#F85400">R$ 39,90</text>
 <g transform="translate(886,1196)"><circle r="68" fill="#FFB900"/><text y="17" text-anchor="middle" class="hero" font-size="50" fill="#434343">-27%</text></g>
 <g filter="url(#sh)"><rect x="100" y="1367" width="880" height="270" rx="36" fill="#FFFFFF"/></g>
-<g id="foto_produto"><circle cx="229" cy="1502" r="105" fill="#D9D9D9"/>
+<g id="foto_produto"><rect x="124" y="1397" width="210" height="210" rx="36" fill="#D9D9D9"/>
 <g transform="translate(229,1468) scale(0.62)" fill="none" stroke="#434343" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><rect x="-65" y="-68" width="130" height="98" rx="18"/><polyline points="-42,12 -8,-24 24,12"/><polyline points="6,12 32,-14 48,12"/><circle cx="26" cy="-38" r="8" fill="#434343" stroke="none"/></g>
 <text x="229" y="1538" text-anchor="middle" class="body" font-size="24" fill="#434343">Foto do</text><text x="229" y="1566" text-anchor="middle" class="body" font-size="24" fill="#434343">produto</text></g>
 <text x="380" y="1439" class="body" font-size="40" fill="#434343">Combo Açaí</text>

@@ -162,7 +162,7 @@ Use **somente se as 4 condições forem verdadeiras**:
 Qualquer condição falsa → **arte clean: fundo liso `#F85400` ou `#FF9000`, sem pattern, sem arcos.** É uma composição completa e correta, não uma peça "faltando coisa". Composição clean é a escolha **padrão** quando o layout já está cheio.
 
 **PASSO 2 — Defina a zona e as caixas de texto**
-* **Âncora** = o maior bloco gráfico. A **zona** é a região onde os sorrisos podem ficar: **elipse** (`ellipse:cx,cy,rx,ry`) para âncora redondo/arco, **retângulo** (`rect:x,y,w,h`) para âncora retangular, ticket ou foto lateral. Faça a zona **generosa e do lado oposto ao texto**; pode passar das bordas do canvas (o pattern pode sangrar).
+* **Âncora** = o maior bloco gráfico. A **zona** é a região onde os sorrisos podem ficar: **elipse** (`ellipse:cx,cy,rx,ry`) para âncora redondo (logo de parceiro), **retângulo** (`rect:x,y,w,h`) para âncora retangular, ticket ou foto lateral. Faça a zona **generosa e do lado oposto ao texto**; pode passar das bordas do canvas (o pattern pode sangrar).
 * **Caixas de texto** (`x,y,w,h`): uma para **cada** hero, apoio, preço, CTA, logo DM e legal. O script mantém **30px** de distância delas.
 
 **PASSO 3 — Rode o script (decide a posição; a IA não deliberar)**
@@ -189,40 +189,38 @@ node scripts/pattern-ancorado.js --canvas 1080x1350 \
 * **Um pattern por peça.** Pattern + arcos tone-on-tone + selo grande + foto com sombra pesada na mesma região é ruído: máximo um grafismo de fundo.
 * **Branco nunca atrás de texto branco** e **preço, código de cupom e CTA nunca sobre pattern**: já garantido pelas caixas de texto; confira no print.
 * **Story:** o pattern pode ocupar as faixas proibidas (250px de topo/base) — são fundo, não conteúdo.
-* **Exemplos aprovados:** `referencias/referencia-cupom-foto-arco.png` (pattern só atrás do cupom, à esquerda; copy à direita limpa) e o Festival Gastronômico do refino (pattern em volta da moldura em arco; texto de baixo limpo).
+* **Exemplos aprovados:** `referencias/referencia-cupom-foto-arco.png` (pattern só atrás do cupom, à esquerda; copy à direita limpa) e o Festival Gastronômico do refino (pattern em volta da moldura; texto de baixo limpo).
 
 ### 🖼️ 3.2 Placeholder de Foto e Logo — SVG Padrão (reaproveitar, nunca recriar)
 
 Onde a foto do produto, da loja ou o logo do parceiro vai entrar, a arte mostra **sempre o mesmo placeholder**: um bloco em **cinza claro `#D9D9D9`** com **ícone e texto em cima em `#434343`**. É o padrão das artes oficiais (`referencias/referencia-cupom-foto-arco.png`, `grade-variacoes-templates.png`).
 
 * **`#D9D9D9` é a única exceção à paleta fechada** e **só vale para o slot** (foto/logo). Nunca como fundo decorativo, card, divisória ou texto. O slot é substituído pela foto real no Luma; o cinza não aparece na arte publicada.
-* **SVGs padrão em `assets/placeholders/`** — copie o `<g id="foto_produto">` (ou `id="logo_loja"`) do arquivo e altere **apenas posição e dimensão**. **Não redesenhe, não troque a cor, o raio, o ícone ou o texto**. O que pode variar por forma:
-  * **Retângulo:** largura e altura livres; `rx` fixo em `56`.
-  * **Arco:** largura livre (raio do topo = largura ÷ 2) e altura livre.
-  * **Círculo e logo da loja:** só o diâmetro.
+* **FORMA DO SLOT DE FOTO: SÓ RETÂNGULO.** A foto do produto, do prato, da loja ou do evento é **sempre um retângulo** com `rx=56`, em **qualquer largura, altura e proporção** (paisagem, retrato, quadrado, faixa larga). ⛔ **Proibido** slot de foto em **arco/cúpula/domo, círculo, elipse** ou qualquer outra forma. **Única exceção:** o **logo da loja/parceiro** continua circular (`slot-logo-loja.svg`), como nas artes oficiais.
+* **SVGs padrão em `assets/placeholders/`** — copie o `<g id="foto_produto">` (ou `id="logo_loja"`) do arquivo e altere **apenas posição e dimensão**. **Não redesenhe, não troque a cor, o raio, o ícone ou o texto**:
+  * **Retângulo:** largura e altura livres; `rx` fixo em `56` (miniaturas < 300px usam `rx=36`).
+  * **Logo da loja:** só o diâmetro (≥ 220px).
   * **Ícone e texto nunca escalam** (ficam no tamanho do arquivo, sempre centralizados no slot) — assim a legenda continua legível.
-  * **Foto sangrando nas bordas** (encostando no canvas, com curva só em um lado): pode recortar a forma do slot, mantendo **o mesmo cinza, ícone e texto**.
+  * **Retângulo que sangra pelas bordas do canvas** (encostando em um ou mais lados): os **cantos arredondados ficam só nos lados que permanecem dentro do canvas**; os lados que sangram seguem para fora (o `rx` desses cantos fica fora da arte). Mesmo cinza, ícone e texto.
 
   | Arquivo | Uso | Texto fixo |
   | :--- | :--- | :--- |
-  | `slot-foto-produto-retangulo.svg` (880×560, `rx=56`) | foto do produto/prato/fachada em bloco | "Use aqui sua foto do produto" |
-  | `slot-foto-produto-arco.svg` (600×760, topo em arco) | foto em arco/cúpula | idem |
-  | `slot-foto-produto-circulo.svg` (560×560) | foto circular | idem |
+  | `slot-foto-produto-retangulo.svg` (880×560, `rx=56`) | **toda** foto de produto/prato/fachada/evento, em qualquer proporção | "Use aqui sua foto do produto" |
   | `slot-logo-loja.svg` (220×220, círculo) | logo/foto da loja ou do parceiro | "Logo da loja" |
 
 * **Texto do slot:** `Roboto Regular 400`, **≥ 28px** (≥ 24px no logo da loja), `#434343`, centralizado abaixo do ícone. Só os textos fixos da tabela. Para foto de loja/evento use "Use aqui sua foto da loja" / "Use aqui a foto do evento" **trocando só a frase**, mantendo o mesmo SVG.
 * **Slot pequeno (< 300px, miniatura em lista/card):** mesmo cinza `#D9D9D9`, ícone reduzido a ~60% e legenda curta em 2 linhas **"Foto do" / "produto"**, Roboto 400 **≥ 24px**. Slots ≥ 300px usam o texto fixo completo.
 * **Slot que sangra pela borda do canvas:** ícone e legenda ficam **centralizados na parte visível** do slot, nunca cortados pela borda.
 * **Mantenha o `id`** (`foto_produto` / `logo_loja`): é o gancho que o Luma usa para trocar pela imagem real.
-* **Variações de forma** (retângulo, arco, círculo) valem; **variações de cor não**. Moldura/aba ao redor do slot continua com as regras de paleta (`#434343`, branco ou `#FFB900`).
+* **Variam só as proporções do retângulo; a cor, o raio e a forma não.** Moldura/aba/aro ao redor do slot segue as regras de paleta (`#434343`, branco ou `#FFB900`). O `lint-art.js` reprova slot de foto em círculo, elipse ou arco.
 * **Tamanho mínimo:** logo da loja ≥ **220px**; foto ≥ **35%** da largura do canvas (senão não dá para ler a legenda).
 * Proibido: texto branco sobre o slot cinza, ícone em outra cor, placeholder em `#434343` escuro (padrão antigo, abandonado), legenda inventada ("Slot de alta resolução…").
 
 ### 📷 3.3 Foto Real do Produto (quando a foto entrar no slot)
 
 O placeholder `#D9D9D9` (§3.2) reserva o espaço; a foto real do franqueado entra **no mesmo lugar e na mesma forma**. *(Regras abaixo ainda a validar com fotos reais: testar com ~6 fotos, recortadas e com fundo.)*
-* **Mecânica:** a `<image>` entra **dentro do `<g id="foto_produto">`**, recortada pela forma do slot (`clipPath` com o mesmo `path`/`rect`/`circle`) e com `preserveAspectRatio="xMidYMid slice"`. **Mantenha o `id`.**
-* **Foto com fundo:** preenche o slot inteiro. Sobre fundo laranja, um **aro branco de 12–24px** em volta do slot (como nos círculos das artes 04 e 06) separa a foto do fundo.
+* **Mecânica:** a `<image>` entra **dentro do `<g id="foto_produto">`**, recortada pela forma do slot (`clipPath` com o mesmo `rect` e o mesmo `rx`) e com `preserveAspectRatio="xMidYMid slice"`. **Mantenha o `id`.**
+* **Foto com fundo:** preenche o slot inteiro. Sobre fundo laranja, um **aro branco de 12–24px** (retângulo branco concêntrico com `rx = 56 + aro`) em volta do slot separa a foto do fundo.
 * **Produto recortado (PNG sem fundo):** pode **vazar** da moldura por cima (efeito *pop-out*): **15–25% do produto** passa da borda do slot, **sem cortar o sujeito**. Uma única sombra suave embaixo (`#434343`, opacidade `0.25`, `dy=20`, `stdDeviation=24`).
 * **Selo e tag nunca cobrem o sujeito:** mantenha livre o centro e o terço com o produto; o selo vai no canto, ≤ 35% da largura da foto, a ≥ 40px de qualquer texto.
 * **Sem pattern atrás do produto:** o pattern vive no halo em volta do âncora (§3.1); atrás da foto ele fica escondido de qualquer forma.
@@ -241,7 +239,7 @@ A skill organiza seus recursos nas seguintes pastas:
 │   (templates prontos já gerados: `assets/templates/` na raiz do repo; geradores em `scripts/generate-10-templates.js`)
 │   ├── logos/                        <- Logos oficiais DM (branca, laranja, símbolo)
 │   ├── placeholders/                 <- SVGs PADRÃO do slot de foto/logo (cinza #D9D9D9) — reaproveitar, §3.2
-│   ├── molduras/                     <- Molduras de foto (com aba de ícone ou domo), já no cinza #D9D9D9
+│   ├── molduras/                     <- Moldura retangular de foto com aba de ícone, já no cinza #D9D9D9
 │   ├── cards-preco/                  <- Card branco flutuante e tickets de cupom
 │   ├── selos/                        <- Badges oficiais de campanha ("Mais Vendidos", parceiros)
 │   ├── grafismos/                    <- Sorrisos oficiais DM (pattern.ai original + pattern-dm-oficial.svg) + pattern-ancorado.svg (técnica padrão da §3.1)
@@ -251,7 +249,7 @@ A skill organiza seus recursos nas seguintes pastas:
     ├── grade-variacoes-templates.png <- Grade com 6 composições reais de referência
     ├── referencia-clean-ryan.png     <- Referência autoral com foco clean
     ├── referencia-cupom-feed.png     <- Referência com voucher de cupom e selo amarelo
-    ├── referencia-cupom-foto-arco.png<- Referência com foto em arco e selo circular
+    ├── referencia-cupom-foto-arco.png<- Referência de PATTERN ancorado (cupom à esquerda). Atenção: o slot em arco dela está PROIBIDO hoje (§3.2)
     └── template-clean-feed.svg       <- SVG paramétrico oficial montado
 ```
 
@@ -290,7 +288,7 @@ Antes de escrever uma única linha de código, a IA **DEVE abrir e inspecionar v
 
 > ⚠️ **LIBERDADE COMPOSICIONAL TOTAL:**  
 > **NUNCA engesse a arte numa receita de bolo repetitiva** (tipo *"título sempre em cima, foto sempre no meio, rodapé sempre embaixo"*). A IA deve explorar composições visuais variadas e dinâmicas inspiradas no repertório de `referencias/`:
-> * Às vezes a foto do produto/loja fica no topo (em arco/domo) e o título + preço ficam na base.
+> * Às vezes a foto do produto/loja fica no topo (em retângulo, sangrando ou não) e o título + preço ficam na base.
 > * Às vezes o voucher/cupom é o protagonista central com foto de apoio.
 > * Às vezes a foto domina o centro com cards satélites e tags flutuantes.
 > * Às vezes a logo Delivery Much entra no topo e a oferta fecha a base.
@@ -313,7 +311,7 @@ Antes de escrever uma única linha de código, a IA **DEVE abrir e inspecionar v
     * Zona proibida de base: últimos `250px` (reservado para barra de resposta/compartilhar).
     * Conteúdo útil concentrado na faixa central (`y = 260` até `y = 1660`), mantendo o mesmo respiro calculado entre blocos.
 
-* **Repertório de topologias aprovadas** (modelos prontos em `assets/templates/refino/`; use como ponto de partida e varie, não copie): foto circular sangrando + preço-herói (`refino_09`, feed); **lista de ofertas em cards** com miniaturas (`refino_10`, story); **etiqueta de preço inclinada** sobre foto em arco (`refino_11`, feed); **detalhes em pílulas + preço em linha + selo preso ao preço** (`refino_12`, story); **split diagonal em dois tons** com o preço na área `#F85400` (`refino_13`, feed); além de cupom/ticket (`refino_02`), foto em arco com hero embaixo (`refino_03`), hero gigante com foto circular (`refino_04`) e foto lateral sangrando (`refino_07`). Para cada pedido, escolha a topologia pelo **objetivo** (§Fase 1) e **varie** em vez de repetir a última.
+* **Repertório de topologias aprovadas** (modelos prontos em `assets/templates/refino/`; ponto de partida para variar, não para copiar; **todos com foto em retângulo**): foto retangular sangrando à direita + preço-herói (`refino_09`, feed); **lista de ofertas em cards** com miniaturas (`refino_10`, story); **etiqueta de preço inclinada** sobre a foto (`refino_11`, feed); **foto larga + detalhes em pílulas + preço em linha com selo preso** (`refino_12`, story); **split diagonal em dois tons** com o preço na área `#F85400` (`refino_13`, feed); cupom/ticket (`refino_02`), foto retangular com hero embaixo (`refino_03`), hero gigante com foto quadrada (`refino_04`), foto lateral sangrando (`refino_07`), foto cheia no topo (`refino_05`) e foto retangular com selo (`refino_08`). Escolha a topologia pelo **objetivo** (Fase 1) e **varie as proporções do retângulo** (largo, alto, quadrado, faixa) em vez de repetir a última.
 
 ### FASE 3: Orquestração de Blocos do Inventário
 Puxe os elementos diretamente de `assets/`. **Isto é o inventário disponível, não uma ordem fixa** — use só o que a mensagem da peça pede (a ordem e a presença de cada bloco seguem a Fase 2):
@@ -393,6 +391,7 @@ Antes de finalizar a arte:
 | `DE R$` pequeno/fino e selo de desconto flutuando longe do preço (apontado pela revisão fria) | `DE` ≥ 40px branco 100% com risco de 4px; selo preso ao preço/hero (≤ 200px) |
 | Hero com tamanho "no olho" (sobra ou falta largura) | `node scripts/medir-texto.js` e usar a quebra recomendada |
 | Mistura de alinhamento (centro + esquerda) / valores de espaço e raio soltos | Um eixo por peça; tokens da §2.2; o `lint-art.js` avisa |
+| Slot de foto em arco/cúpula/círculo | **Só retângulo** (`rx=56`, qualquer proporção); logo da loja é a única exceção circular (§3.2) |
 | Selo a menos de 40px do texto de apoio | Mover o selo ou o texto até ter ≥ 40px |
 
 ---

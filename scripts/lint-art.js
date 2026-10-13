@@ -42,7 +42,7 @@ const COLETA = `(async () => {
   });
   const shapes = [...svg.querySelectorAll('rect,circle,ellipse,path')].filter(s => noDefs(s) && !s.closest('#pattern-ancorado') && !s.closest('[mask]')).map(s => {
     const cs = getComputedStyle(s);
-    return { tag: s.tagName.toLowerCase(), fill: cs.fill, fillOp: parseFloat(cs.fillOpacity), op: parseFloat(cs.opacity), box: rel(s), rx: parseFloat(s.getAttribute('rx') || 0), grupo: (s.closest('[id]') || {}).id || '' };
+    return { tag: s.tagName.toLowerCase(), fill: cs.fill, fillOp: parseFloat(cs.fillOpacity), op: parseFloat(cs.opacity), box: rel(s), rx: parseFloat(s.getAttribute('rx') || 0), grupo: (s.closest('[id]') || {}).id || '', d: s.getAttribute('d') || '' };
   });
   return JSON.stringify({ w: r0.width, h: r0.height, texts, shapes, imgs: [...svg.querySelectorAll('image')].map(rel) });
 })()`;
@@ -155,12 +155,23 @@ async function lint(svgPath, formato) {
       else if (g.dist < 40) A(`Selo a ${Math.round(g.dist)}px do texto "${t.txt}" (mín. 40).`);
     });
   });
+  // texto x slot de foto/logo: sem colisão e com ≥ 40px de ar
+  textos.filter(t => !(t.cont && t.cont.tag === 'circle')).forEach(t => slots.forEach(sl => { // texto dentro de selo (círculo) pode sobrepor a foto
+    const g = gap(t.ink, sl.box);
+    if (g.overlap) E(`"${t.txt}" invade o slot de foto/logo.`);
+    else if (g.dx < 40 && g.dy < 40 && g.dist < 40) A(`"${t.txt}" a ${Math.round(g.dist)}px do slot de foto (mín. 40).`);
+  }));
   // selo de desconto tem de estar PRESO ao preço ou ao hero (≤ 200px), nunca solto
   selos.forEach(sl => {
-    const alvos = textos.filter(t => ['preco', 'produto'].includes(t.grupo));
+    const alvos = textos.filter(t => ['preco', 'produto'].includes(t.grupo) || (t.fs >= 34 && !t.cont));
     if (!alvos.length) return;
     const dmin = Math.min(...alvos.map(t => gapCirculo(sl.box, t.ink).dist));
     if (dmin > 200) A(`Selo solto: a ${Math.round(dmin)}px do preço/hero mais próximo (máx. 200). Prenda o selo ao preço ou ao título.`);
+  });
+  // slot de FOTO só retângulo (arco/círculo/elipse proibidos); logo da loja pode ser círculo
+  d.shapes.filter(x => x.grupo === 'foto_produto').forEach(x => {
+    if ((x.tag === 'circle' || x.tag === 'ellipse') && x.box.w >= 120) E('Slot de foto em círculo/elipse: só retângulo (§3.2). Logo da loja é a única exceção circular.');
+    if (x.tag === 'path' && /[Aa]\s*[\d.]+[\s,]+[\d.]+\s+[\d.]+\s+[01][\s,]*[01]/.test(x.d) && x.box.w * x.box.h > 300 * 300) E('Slot de foto em arco/cúpula (path com arco): só retângulo (§3.2).');
   });
   const foto = slots.filter(s => s.grupo === 'foto_produto').sort((a, b) => b.box.w * b.box.h - a.box.w * a.box.h)[0];
   if (foto && foto.box.w >= 300) {
@@ -195,7 +206,8 @@ async function lint(svgPath, formato) {
   // raios: foto 56 | card 36 | botão = pílula
   d.shapes.filter(s => s.tag === 'rect' && s.rx > 0 && !(s.box.w >= W - 2) && !['foto_produto', 'logo_loja'].includes(s.grupo) || (s.tag === 'rect' && ['foto_produto'].includes(s.grupo) && s.box.w > 300)).forEach(s => {
     const pilula = Math.abs(s.rx - s.box.h / 2) < 1.5;
-    if (![56, 36].includes(Math.round(s.rx)) && !pilula) A(`Raio ${s.rx} fora dos tokens (56 foto, 36 card, pílula = h/2): bloco ${Math.round(s.box.w)}×${Math.round(s.box.h)}.`);
+    const aro = s.rx >= 68 && s.rx <= 80 && hex(s.fill) === 'FFFFFF'; // aro branco concêntrico ao slot (rx = 56 + aro)
+    if (![56, 36].includes(Math.round(s.rx)) && !pilula && !aro) A(`Raio ${s.rx} fora dos tokens (56 foto, 36 card, pílula = h/2): bloco ${Math.round(s.box.w)}×${Math.round(s.box.h)}.`);
   });
 
   // alinhamento: um eixo só entre os textos soltos

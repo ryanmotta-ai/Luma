@@ -15,9 +15,9 @@
 <g id="produto"><text x="100" y="340" class="hero" font-size="150" fill="#FFFFFF">PIZZA GRANDE</text></g>
 <text x="100" y="410" class="sup" font-size="36" fill="#FFFFFF">Massa fina e borda recheada</text>
 <g transform="translate(925,310)"><circle r="86" fill="#FFB900"/><text y="-6" text-anchor="middle" class="hero" font-size="54" fill="#434343">25%</text><text y="36" text-anchor="middle" class="hero" font-size="32" fill="#434343">OFF</text></g>
-<circle cx="900" cy="850" r="360" fill="#FFFFFF"/>
-<g id="foto_produto"><path d="M 560 850 a 340 340 0 1 0 680 0 a 340 340 0 1 0 -680 0 Z" fill="#D9D9D9"/>
-<g transform="translate(810,820)">
+<rect x="540" y="490" width="600" height="720" rx="76" fill="#FFFFFF"/>
+<g id="foto_produto"><rect x="560" y="510" width="560" height="680" rx="56" fill="#D9D9D9"/>
+<g transform="translate(840,810)">
   <rect x="-65" y="-68" width="130" height="98" rx="18" fill="none" stroke="#434343" stroke-width="7.5"/>
   <circle cx="26" cy="-38" r="8" fill="#434343"/>
   <polyline points="-42,12 -8,-24 24,12" fill="none" stroke="#434343" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>

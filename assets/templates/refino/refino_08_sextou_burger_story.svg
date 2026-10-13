@@ -16,8 +16,8 @@
   <text x="540" y="610" text-anchor="middle" class="hero" font-size="230" fill="#FFFFFF">SEXTOU</text>
   <text x="540" y="770" text-anchor="middle" class="hero" font-size="150" fill="#FFFFFF">COM BURGER</text>
 </g>
-<g id="foto_produto"><path d="M 140 1620 L 140 1280 A 400 400 0 0 1 940 1280 L 940 1620 Z" fill="#D9D9D9"/>
-<g transform="translate(540,1270)">
+<g id="foto_produto"><rect x="140" y="880" width="800" height="740" rx="56" fill="#D9D9D9"/>
+<g transform="translate(540,1210)">
   <rect x="-65" y="-68" width="130" height="98" rx="18" fill="none" stroke="#434343" stroke-width="7.5"/>
   <circle cx="26" cy="-38" r="8" fill="#434343"/>
   <polyline points="-42,12 -8,-24 24,12" fill="none" stroke="#434343" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
