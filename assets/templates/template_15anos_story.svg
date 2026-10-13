@@ -1,0 +1,243 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
+  <defs>
+    <!-- Filtros de Sombra Retrô / Cartoon -->
+    <filter id="hard-shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="12" dy="16" stdDeviation="0" flood-color="#210F0A" flood-opacity="1"/>
+    </filter>
+    <filter id="hard-shadow-sm" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="8" dy="10" stdDeviation="0" flood-color="#210F0A" flood-opacity="1"/>
+    </filter>
+    <filter id="hard-shadow-badge" x="-15%" y="-15%" width="140%" height="140%">
+      <feDropShadow dx="10" dy="12" stdDeviation="0" flood-color="#210F0A" flood-opacity="1"/>
+    </filter>
+
+    <!-- Clip path para o formato Story arredondado -->
+    <clipPath id="story-clip">
+      <rect x="0" y="0" width="1080" height="1920" rx="72" ry="72"/>
+    </clipPath>
+
+    <!-- Clip path para o slot da foto -->
+    <clipPath id="photo-clip">
+      <rect x="130" y="610" width="820" height="570" rx="44"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#story-clip)">
+    <!-- 1. FUNDO LARANJA DELIVERY MUCH -->
+    <rect width="1080" height="1920" fill="#FF4E00"/>
+
+    <!-- 2. SUNBURST (RAIOS CREME RADIANDO DO TOPO) -->
+    <!-- Centro focal dos raios: x=540, y=360 -->
+    <g fill="#FFF5E5" opacity="0.95">
+      <!-- 16 setores calculados a partir de (540, 360) -->
+      <polygon points="540,360 -400,-200 -200,-500"/>
+      <polygon points="540,360 80,-600 380,-600"/>
+      <polygon points="540,360 700,-600 1000,-600"/>
+      <polygon points="540,360 1280,-500 1480,-200"/>
+      <polygon points="540,360 1600,80 1600,380"/>
+      <polygon points="540,360 1600,580 1500,900"/>
+      <polygon points="540,360 1400,1200 1200,1500"/>
+      <polygon points="540,360 1000,1800 700,2100"/>
+      <polygon points="540,360 380,2100 80,2100"/>
+      <polygon points="540,360 -200,1900 -400,1600"/>
+      <polygon points="540,360 -600,1300 -600,950"/>
+      <polygon points="540,360 -600,600 -600,200"/>
+    </g>
+
+    <!-- ======================================================== -->
+    <!-- 3. BADGE SUPERIOR: 15 ANOS DELIVERY MUCH (Bolo comemorativo) -->
+    <!-- ======================================================== -->
+    <g id="badge-aniversario" transform="translate(540, 310)">
+      <!-- Sombra do conjunto do bolo -->
+      <g filter="url(#hard-shadow-badge)">
+        <!-- Faixas douradas saindo pelas laterais -->
+        <path d="M -160 -10 L -230 -60 L -210 20 L -150 15 Z" fill="#FFAF00" stroke="#210F0A" stroke-width="6" stroke-linejoin="round"/>
+        <path d="M 160 -10 L 230 -60 L 210 20 L 150 15 Z" fill="#FFAF00" stroke="#210F0A" stroke-width="6" stroke-linejoin="round"/>
+
+        <!-- Prato base do bolo -->
+        <ellipse cx="0" cy="120" rx="195" ry="32" fill="#FFFFFF" stroke="#210F0A" stroke-width="7"/>
+
+        <!-- Camada inferior (MUCH) -->
+        <path d="M -170 60 C -170 30, 170 30, 170 60 L 170 105 C 170 128, -170 128, -170 105 Z" 
+              fill="#FFFFFF" stroke="#210F0A" stroke-width="7" stroke-linejoin="round"/>
+        <!-- Faixa vermelha/laranja central da base -->
+        <path d="M -155 68 C -100 56, 100 56, 155 68 L 155 98 C 100 110, -100 110, -155 98 Z" 
+              fill="#FF4E00" stroke="#210F0A" stroke-width="5"/>
+        <text x="0" y="93" text-anchor="middle" font-family="'Impact', 'Arial Black', sans-serif" font-size="38" font-weight="900" fill="#FFFFFF" letter-spacing="4">
+          MUCH
+        </text>
+
+        <!-- Camada média (DELIVERY) -->
+        <path d="M -140 -5 C -140 -30, 140 -30, 140 -5 L 140 45 C 140 68, -140 68, -140 45 Z" 
+              fill="#FF5A00" stroke="#210F0A" stroke-width="7" stroke-linejoin="round"/>
+        <!-- Cobertura branca ondulada escorrendo -->
+        <path d="M -140 5 Q -105 25 -70 5 Q -35 25 0 5 Q 35 25 70 5 Q 105 25 140 5 L 140 -5 C 140 -30, -140 -30, -140 -5 Z" 
+              fill="#FFF8EE" stroke="#210F0A" stroke-width="6"/>
+        <text x="0" y="38" text-anchor="middle" font-family="'Impact', 'Arial Black', sans-serif" font-size="31" font-weight="900" fill="#FFFFFF" stroke="#210F0A" stroke-width="2" letter-spacing="3">
+          DELIVERY
+        </text>
+
+        <!-- Camada superior (Bolo menor com 15 ANOS) -->
+        <path d="M -68 -55 C -68 -72, 68 -72, 68 -55 L 68 -15 C 68 -2, -68 -2, -68 -15 Z" 
+              fill="#FF6A13" stroke="#210F0A" stroke-width="6" stroke-linejoin="round"/>
+        <rect x="-56" y="-52" width="112" height="34" rx="8" fill="#FF4E00" stroke="#210F0A" stroke-width="4"/>
+        <text x="0" y="-30" text-anchor="middle" font-family="'Impact', 'Arial Black', sans-serif" font-size="20" font-weight="900" fill="#FFFFFF" letter-spacing="1">
+          15 ANOS
+        </text>
+
+        <!-- Velas e Chamas -->
+        <!-- Vela 1 -->
+        <rect x="-24" y="-88" width="14" height="20" rx="3" fill="#FFF8EE" stroke="#210F0A" stroke-width="4"/>
+        <path d="M -17 -88 Q -10 -105 -17 -114 Q -24 -105 -17 -88" fill="#FFAF00" stroke="#210F0A" stroke-width="3"/>
+        <circle cx="-17" cy="-99" r="3" fill="#FFFFFF"/>
+        <!-- Vela 2 -->
+        <rect x="10" y="-88" width="14" height="20" rx="3" fill="#FFF8EE" stroke="#210F0A" stroke-width="4"/>
+        <path d="M 17 -88 Q 24 -105 17 -114 Q 10 -105 17 -88" fill="#FFAF00" stroke="#210F0A" stroke-width="3"/>
+        <circle cx="17" cy="-99" r="3" fill="#FFFFFF"/>
+      </g>
+    </g>
+
+    <!-- ======================================================== -->
+    <!-- 4. SLOT DE FOTO DO PRODUTO (MOLDURA CENTRAL COM SOMBRA POP) -->
+    <!-- ======================================================== -->
+    <g id="slot-foto">
+      <!-- Sombra sólida projetada -->
+      <rect x="144" y="626" width="820" height="570" rx="44" fill="#210F0A"/>
+
+      <!-- Contorno externo e fundo escuro do slot -->
+      <rect x="130" y="610" width="820" height="570" rx="44" 
+            fill="#5E5B58" stroke="#210F0A" stroke-width="9"/>
+
+      <!-- Filete dourado / creme interno para dar o acabamento premium -->
+      <rect x="142" y="622" width="796" height="546" rx="34" 
+            fill="none" stroke="#FFAF00" stroke-width="4" opacity="0.8"/>
+
+      <!-- Conteúdo do placeholder (visível para o designer/franqueado) -->
+      <g transform="translate(540, 895)">
+        <!-- Ícone elegante de imagem / foto -->
+        <g stroke="#FFFFFF" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.9">
+          <!-- Moldura do ícone -->
+          <rect x="-65" y="-70" width="130" height="95" rx="14"/>
+          <!-- Montanhas / paisagem -->
+          <polyline points="-48,0 -20,-28 15,10"/>
+          <polyline points="0,-5 25,-32 50,-2"/>
+          <!-- Sol -->
+          <circle cx="-28" cy="-38" r="9" fill="#FFFFFF"/>
+        </g>
+
+        <!-- Texto instrutivo da tag -->
+        <text x="0" y="70" text-anchor="middle" 
+              font-family="'Montserrat', 'Arial Black', sans-serif" 
+              font-size="34" font-weight="800" fill="#FFFFFF" letter-spacing="0.5">
+          Use aqui sua foto do produto
+        </text>
+      </g>
+
+      <!-- Botão circular superior direito (Trocar foto / Lápis) -->
+      <g transform="translate(875, 665)">
+        <circle cx="8" cy="10" r="62" fill="#210F0A"/>
+        <circle cx="0" cy="0" r="62" fill="#4B4846" stroke="#FFF5E5" stroke-width="7"/>
+        <!-- Mini ícone de imagem -->
+        <g stroke="#FFFFFF" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.95">
+          <rect x="-24" y="-22" width="48" height="36" rx="6"/>
+          <polyline points="-16,4 -5,-8 8,4"/>
+          <polyline points="2,-2 11,-10 20,4"/>
+          <circle cx="-10" cy="-10" r="3.5" fill="#FFFFFF"/>
+        </g>
+        <!-- Lápis de edição no canto -->
+        <circle cx="26" cy="-26" r="16" fill="#FFAF00" stroke="#210F0A" stroke-width="3"/>
+        <path d="M 22 -22 L 30 -30 L 33 -27 L 25 -19 Z" fill="#210F0A"/>
+      </g>
+
+      <!-- Adesivo / Balãozinho "15" no canto inferior direito -->
+      <g transform="translate(900, 1150) rotate(-6)" filter="url(#hard-shadow-sm)">
+        <rect x="-60" y="-45" width="120" height="90" rx="30" fill="#FFAF00" stroke="#210F0A" stroke-width="7"/>
+        <text x="0" y="24" text-anchor="middle" font-family="'Impact', 'Arial Black', sans-serif" font-size="76" font-weight="900" fill="#FFFFFF" stroke="#210F0A" stroke-width="3">
+          15
+        </text>
+        <circle cx="-32" cy="-22" r="6" fill="#FFFFFF" opacity="0.8"/>
+      </g>
+    </g>
+
+    <!-- ======================================================== -->
+    <!-- 5. CARD INFERIOR DE INFORMAÇÕES DO PRODUTO (CREME RETRÔ) -->
+    <!-- ======================================================== -->
+    <g id="card-conteudo">
+      <!-- Sombra sólida projetada do card -->
+      <rect x="124" y="1266" width="850" height="490" rx="42" fill="#210F0A"/>
+
+      <!-- Fundo Creme do card com contorno cartoon forte -->
+      <rect x="110" y="1250" width="850" height="490" rx="42" 
+            fill="#FFF8ED" stroke="#210F0A" stroke-width="9"/>
+
+      <!-- Informações do Produto (Esquerda) -->
+      <!-- Variável: {{produto}} -->
+      <text x="160" y="1375" 
+            font-family="'Impact', 'Arial Black', sans-serif" 
+            font-size="108" font-weight="900" fill="#FF4E00" letter-spacing="2">
+        PRODUTO
+      </text>
+
+      <!-- Variável: {{detalhes}} / Descrição -->
+      <text x="160" y="1440" 
+            font-family="'Montserrat', 'Arial Black', sans-serif" 
+            font-size="38" font-weight="900" fill="#210F0A" letter-spacing="1">
+        DETALHES
+      </text>
+
+      <!-- ======================================================== -->
+      <!-- 6. TAG DE PREÇO (DE / POR) INCLINADA COM FUNDO BORDÔ POP -->
+      <!-- ======================================================== -->
+      <g transform="translate(685, 1375) rotate(-3)">
+        <!-- Sombra da tag -->
+        <rect x="8" y="10" width="310" height="180" rx="28" fill="#210F0A"/>
+
+        <!-- Fundo Bordô / Vermelho Queimado -->
+        <rect x="0" y="0" width="310" height="180" rx="28" 
+              fill="#A01515" stroke="#210F0A" stroke-width="7"/>
+
+        <!-- "De: R$ 29,90" com tachado sutil -->
+        <g>
+          <text x="155" y="58" text-anchor="middle" 
+                font-family="'Montserrat', 'Arial Black', sans-serif" 
+                font-size="30" font-weight="800" fill="#FFFFFF" opacity="0.95">
+            De: R$ 29,90
+          </text>
+          <!-- Linha tachada no preço antigo -->
+          <line x1="85" y1="50" x2="225" y2="50" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+        </g>
+
+        <!-- "Por: R$ 15,00" Dourado / Amarelo Vibrante -->
+        <text x="155" y="135" text-anchor="middle" 
+              font-family="'Impact', 'Arial Black', sans-serif" 
+              font-size="58" font-weight="900" fill="#FFCC00" stroke="#210F0A" stroke-width="2" letter-spacing="1">
+          Por: R$ 15,00
+        </text>
+      </g>
+
+      <!-- Rodapé do Card: Disclaimer + Logo Delivery Much Oficial -->
+      <!-- Disclaimer Legal -->
+      <text x="160" y="1670" 
+            font-family="'Montserrat', sans-serif" 
+            font-size="20" font-weight="600" fill="#755E54">
+        *consulte a disponibilidade da promoção com a loja citada
+      </text>
+
+      <!-- Logo Oficial Delivery Much (Vetorizado na Marca) -->
+      <g transform="translate(735, 1642)">
+        <!-- Ícone DM: Sacola / Chapéu de Chef estilizado -->
+        <path d="M 12 4 C 8 4, 4 8, 4 12 C 4 16, 6 18, 9 20 L 9 27 C 9 29, 11 31, 13 31 L 27 31 C 29 31, 31 29, 31 27 L 31 20 C 34 18, 36 16, 36 12 C 36 8, 32 4, 28 4 C 26 4, 24 5, 23 7 C 22 5, 20 4, 18 4 Z" 
+              fill="#FF4E00"/>
+        <!-- Tipografia "delivery much" minúscula e encorpada -->
+        <text x="46" y="24" 
+              font-family="'Montserrat', 'Arial Black', sans-serif" 
+              font-size="25" font-weight="900" fill="#FF4E00" letter-spacing="-0.5">
+          delivery much
+        </text>
+      </g>
+    </g>
+
+    <!-- Borda externa suave do Story -->
+    <rect x="0" y="0" width="1080" height="1920" rx="72" ry="72" fill="none" stroke="#210F0A" stroke-width="6" opacity="0.15"/>
+  </g>
+</svg>

@@ -1,0 +1,296 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350">
+  <defs>
+    <!-- Importação das Fontes Oficiais da Delivery Much -->
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;0,900;1,900&amp;display=swap');
+      
+      .font-display-black {
+        font-family: 'Obviously Black', 'Roboto Black', 'Impact', sans-serif;
+        font-style: italic;
+        font-weight: 900;
+      }
+      .font-display-wide {
+        font-family: 'Obviously Wide', 'Roboto Black', sans-serif;
+        font-weight: 800;
+      }
+      .font-roboto-black {
+        font-family: 'Roboto', sans-serif;
+        font-weight: 900;
+      }
+      .font-roboto-bold {
+        font-family: 'Roboto', sans-serif;
+        font-weight: 700;
+      }
+      .font-roboto-regular {
+        font-family: 'Roboto', sans-serif;
+        font-weight: 400;
+      }
+    </style>
+
+    <!-- Gradientes Oficiais Brandbook DM -->
+    <linearGradient id="dm-bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF9000"/>
+      <stop offset="60%" stop-color="#F85400"/>
+      <stop offset="100%" stop-color="#E04600"/>
+    </linearGradient>
+
+    <linearGradient id="gold-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF0A0"/>
+      <stop offset="50%" stop-color="#FFB900"/>
+      <stop offset="100%" stop-color="#E59800"/>
+    </linearGradient>
+
+    <linearGradient id="card-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#FAFAFA"/>
+    </linearGradient>
+
+    <!-- Sombras Profissionais -->
+    <filter id="soft-shadow" x="-10%" y="-10%" width="125%" height="125%">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#0A0A0A" flood-opacity="0.18"/>
+    </filter>
+    <filter id="badge-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#731A00" flood-opacity="0.3"/>
+    </filter>
+    <filter id="floating-shadow" x="-15%" y="-15%" width="135%" height="135%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000000" flood-opacity="0.22"/>
+    </filter>
+
+    <!-- Clip Path do Canvas Feed 1080x1350 -->
+    <clipPath id="feed-canvas-clip">
+      <rect x="0" y="0" width="1080" height="1350" rx="48"/>
+    </clipPath>
+
+    <!-- Clip Path para a foto institucional central -->
+    <clipPath id="photo-frame-clip">
+      <rect x="90" y="380" width="900" height="460" rx="28"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#feed-canvas-clip)">
+    <!-- ══════════════════════════════════════════════════════════════
+         1. FUNDO INSTITUCIONAL COM ELEMENTOS GRÁFICOS DA MARCA
+         ══════════════════════════════════════════════════════════════ -->
+    <rect width="1080" height="1350" fill="url(#dm-bg-grad)"/>
+
+    <!-- Formas orgânicas e arcos da identidade Delivery Much -->
+    <g opacity="0.08" fill="#FFFFFF">
+      <circle cx="1020" cy="120" r="340"/>
+      <circle cx="1020" cy="120" r="240" fill="none" stroke="#FFFFFF" stroke-width="40"/>
+      <circle cx="60" cy="1260" r="380"/>
+      <circle cx="60" cy="1260" r="260" fill="none" stroke="#FFFFFF" stroke-width="36"/>
+    </g>
+
+    <!-- Confetes e brilhos festivos elegantes vetorizados -->
+    <g opacity="0.35">
+      <!-- Estrelas comemorativas de 4 pontas -->
+      <path d="M 120 180 Q 120 195 135 195 Q 120 195 120 210 Q 120 195 105 195 Q 120 195 120 180 Z" fill="#FFF0A0"/>
+      <path d="M 940 240 Q 940 252 952 252 Q 940 252 940 264 Q 940 252 928 252 Q 940 252 940 240 Z" fill="#FFF0A0"/>
+      <path d="M 220 320 Q 220 330 230 330 Q 220 330 220 340 Q 220 330 210 330 Q 220 330 220 320 Z" fill="#FFFFFF"/>
+      <path d="M 880 870 Q 880 882 892 882 Q 880 882 880 894 Q 880 882 868 882 Q 880 882 880 870 Z" fill="#FFF0A0"/>
+      <!-- Serpentinas e traços sutis -->
+      <circle cx="160" cy="270" r="6" fill="#FFF2E0"/>
+      <circle cx="980" cy="350" r="8" fill="#FFF2E0"/>
+      <circle cx="110" cy="880" r="7" fill="#FFF2E0"/>
+      <rect x="910" y="160" width="16" height="6" rx="3" fill="#FFFFFF" transform="rotate(25 910 160)"/>
+      <rect x="80" y="340" width="18" height="6" rx="3" fill="#FFF0A0" transform="rotate(-35 80 340)"/>
+      <rect x="970" y="910" width="16" height="6" rx="3" fill="#FFFFFF" transform="rotate(45 970 910)"/>
+    </g>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         2. CABEÇALHO INSTITUCIONAL: SELO DE ANIVERSÁRIO & CIDADE
+         ══════════════════════════════════════════════════════════════ -->
+    <!-- Tag comemorativa de topo -->
+    <g transform="translate(540, 75)" filter="url(#badge-shadow)">
+      <rect x="-185" y="0" width="370" height="42" rx="21" fill="#FFFFFF"/>
+      <!-- Mini ícone de festa / bolo -->
+      <path d="M -154 21 C -154 16, -148 13, -143 13 C -138 13, -132 16, -132 21 Z" fill="#F85400"/>
+      <rect x="-151" y="21" width="16" height="9" rx="2" fill="#FFB900"/>
+      <circle cx="-143" cy="11" r="2.5" fill="#C81818"/>
+      
+      <text x="5" y="27" text-anchor="middle" 
+            class="font-roboto-black" font-size="16" fill="#F85400" letter-spacing="2.5">
+        ANIVERSÁRIO DE FRANQUIA
+      </text>
+    </g>
+
+    <!-- Título Principal comemorativo (Uso de Obviously Black + Roboto Black) -->
+    <g transform="translate(540, 205)">
+      <!-- Variável: {{anos}} ou número comemorativo -->
+      <text x="0" y="0" text-anchor="middle" 
+            class="font-display-black" font-size="82" fill="#FFFFFF" letter-spacing="-1">
+        É FESTA NA NOSSA CIDADE!
+      </text>
+
+      <!-- Subtítulo institucional com a cidade parceira -->
+      <!-- Variável: {{subtitulo_institucional}} -->
+      <text x="0" y="58" text-anchor="middle" 
+            class="font-roboto-bold" font-size="28" fill="#FFF2E0" letter-spacing="1">
+        COMEMORANDO COM QUEM FAZ NOSSA HISTÓRIA
+      </text>
+    </g>
+
+    <!-- Badge Circular Flutuante: "X ANOS COM VOCÊ" -->
+    <!-- Variável: {{tempo_franquia}} -->
+    <g transform="translate(935, 360) rotate(12)" filter="url(#floating-shadow)">
+      <circle cx="0" cy="0" r="76" fill="url(#gold-grad)" stroke="#FFFFFF" stroke-width="6"/>
+      <circle cx="0" cy="0" r="66" fill="none" stroke="#731A00" stroke-width="2" stroke-dasharray="6 4" opacity="0.4"/>
+      <text x="0" y="-12" text-anchor="middle" 
+            class="font-display-black" font-size="44" fill="#0A0A0A" letter-spacing="-1">
+        3 ANOS
+      </text>
+      <text x="0" y="16" text-anchor="middle" 
+            class="font-roboto-black" font-size="14" fill="#0A0A0A" letter-spacing="1.5">
+        DE HISTÓRIA
+      </text>
+      <text x="0" y="34" text-anchor="middle" 
+            class="font-roboto-bold" font-size="12" fill="#731A00">
+        EM SANTA MARIA
+      </text>
+    </g>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         3. SLOT CENTRAL DE FOTO INSTITUCIONAL (EQUIPE / PARCEIROS)
+         ══════════════════════════════════════════════════════════════ -->
+    <g id="slot-foto-institucional">
+      <!-- Moldura branca grossa elegante -->
+      <rect x="80" y="370" width="920" height="480" rx="34" 
+            fill="#FFFFFF" filter="url(#soft-shadow)"/>
+
+      <!-- Área interna da imagem (Slot clipado) -->
+      <g clip-path="url(#photo-frame-clip)">
+        <!-- Fundo de placeholder fotográfico profissional -->
+        <rect x="90" y="380" width="900" height="460" fill="#2C3341"/>
+        
+        <!-- Gradiente de profundidade sobre a foto -->
+        <rect x="90" y="380" width="900" height="460" 
+              fill="linear-gradient(180deg, rgba(20,23,28,0.2) 0%, rgba(20,23,28,0.85) 100%)"/>
+
+        <!-- Ilustração vetorial interna do placeholder da foto -->
+        <g transform="translate(540, 580)">
+          <!-- Silhueta acolhedora de restaurante local / celebração -->
+          <circle cx="0" cy="-45" r="54" fill="#3D4659"/>
+          <!-- Câmera / Moldura fotográfica -->
+          <g stroke="#FFFFFF" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="-42" y="-32" width="84" height="64" rx="12"/>
+            <circle cx="0" cy="0" r="18"/>
+            <circle cx="22" cy="-18" r="4" fill="#FFFFFF"/>
+          </g>
+
+          <text x="0" y="60" text-anchor="middle" 
+                class="font-roboto-bold" font-size="24" fill="#FFFFFF" letter-spacing="0.5">
+            Foto da Equipe, Restaurante ou Prato Parceiro
+          </text>
+          <text x="0" y="90" text-anchor="middle" 
+                class="font-roboto-regular" font-size="18" fill="#A7B0BF">
+            (Slot de imagem de alta resolução do franqueado)
+          </text>
+        </g>
+      </g>
+
+      <!-- Faixa inferior dentro da foto com legenda institucional -->
+      <g transform="translate(90, 786)">
+        <rect width="900" height="54" fill="rgba(10, 10, 10, 0.72)"/>
+        <text x="32" y="34" 
+              class="font-roboto-bold" font-size="18" fill="#FFF2E0" letter-spacing="0.5">
+          ORGULHO DE SER O APP DE COMIDA DO INTERIOR DO BRASIL
+        </text>
+        <circle cx="850" cy="27" r="7" fill="#22C55E"/>
+        <text x="830" y="33" text-anchor="end" 
+              class="font-roboto-bold" font-size="15" fill="#E9EDF3">
+          100% LOCAL
+        </text>
+      </g>
+    </g>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         4. CARD DE CELEBRAÇÃO COM A REDE & CUPOM DE PRESENTE
+         ══════════════════════════════════════════════════════════════ -->
+    <g transform="translate(90, 885)" filter="url(#soft-shadow)">
+      <!-- Card Branco / Off-white principal -->
+      <rect width="900" height="280" rx="30" fill="url(#card-grad)"/>
+
+      <!-- Divisória interna elegante -->
+      <!-- Lado Esquerdo: Frase de comemoração -->
+      <g transform="translate(48, 55)">
+        <rect x="0" y="0" width="156" height="30" rx="8" fill="#FFF2E0"/>
+        <text x="78" y="20" text-anchor="middle" 
+              class="font-roboto-black" font-size="13" fill="#F85400" letter-spacing="1.2">
+          PRESENTE PRA VOCÊ
+        </text>
+
+        <text x="0" y="70" 
+              class="font-display-wide" font-size="34" fill="#0A0A0A" letter-spacing="-0.5">
+          O aniversário é nosso,
+        </text>
+        <text x="0" y="112" 
+              class="font-display-wide" font-size="34" fill="#F85400" letter-spacing="-0.5">
+          o desconto é seu!
+        </text>
+
+        <text x="0" y="152" 
+              class="font-roboto-regular" font-size="17" fill="#6B6B6B">
+          Aproveite nos seus restaurantes favoritos da cidade.
+        </text>
+      </g>
+
+      <!-- Lado Direito: Voucher / Cupom Pontilhado Promocional -->
+      <g transform="translate(520, 40)">
+        <!-- Caixa de cupom com recorte de bilhete -->
+        <rect width="335" height="195" rx="20" fill="#FFF2E0" stroke="#FFB900" stroke-width="2.5" stroke-dasharray="10 8"/>
+
+        <!-- Tag de Desconto em Destaque -->
+        <g transform="translate(167, 45)">
+          <text x="0" y="0" text-anchor="middle" 
+                class="font-roboto-bold" font-size="15" fill="#C81818" letter-spacing="2">
+            DESCONTO EXCLUSIVO
+          </text>
+          <!-- Variável: {{desconto_valor}} -->
+          <text x="0" y="52" text-anchor="middle" 
+                class="font-display-black" font-size="52" fill="#C81818" letter-spacing="-1">
+            R$ 15 OFF
+          </text>
+        </g>
+
+        <!-- Código do Cupom (Variável: {{codigo_cupom}}) -->
+        <g transform="translate(167, 150)">
+          <rect x="-125" y="-28" width="250" height="46" rx="12" fill="#0A0A0A"/>
+          <text x="0" y="3" text-anchor="middle" 
+                class="font-roboto-black" font-size="19" fill="#FFB900" letter-spacing="3">
+            NIVERDM15
+          </text>
+        </g>
+      </g>
+    </g>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         5. RODAPÉ INSTITUCIONAL COM LOGO DELIVERY MUCH
+         ══════════════════════════════════════════════════════════════ -->
+    <g transform="translate(90, 1205)">
+      <!-- Assinatura e Chamada para Download -->
+      <text x="0" y="42" 
+            class="font-roboto-bold" font-size="20" fill="#FFFFFF">
+        Peça pelos melhores restaurantes no app da sua cidade.
+      </text>
+      <text x="0" y="70" 
+            class="font-roboto-regular" font-size="15" fill="#FFE0BD">
+        *Válido para pedidos acima de R$ 40. Consulte as lojas participantes no app.
+      </text>
+
+      <!-- Logo Oficial Delivery Much (Vetorizado na Marca DM) -->
+      <g transform="translate(680, 24)">
+        <!-- Emblema da Marca (Sacola / Chapéu DM) -->
+        <path d="M 16 6 C 11 6, 6 11, 6 17 C 6 22, 9 25, 13 28 L 13 38 C 13 41, 16 44, 19 44 L 39 44 C 42 44, 45 41, 45 38 L 45 28 C 49 25, 52 22, 52 17 C 52 11, 47 6, 42 6 C 39 6, 36 7, 34 10 C 32 7, 29 6, 26 6 Z" 
+              fill="#FFFFFF"/>
+        <!-- Tipografia "delivery much" institucional -->
+        <text x="62" y="34" 
+              class="font-roboto-black" font-size="34" font-weight="900" fill="#FFFFFF" letter-spacing="-1">
+          delivery much
+        </text>
+      </g>
+    </g>
+
+    <!-- Borda externa suave para enquadramento -->
+    <rect x="0" y="0" width="1080" height="1350" rx="48" fill="none" stroke="#FFFFFF" stroke-width="4" opacity="0.2"/>
+  </g>
+</svg>
