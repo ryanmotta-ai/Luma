@@ -259,13 +259,13 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 85 arquivos JS (77.213 linhas, 3.008 funções) · 32 arquivos CSS (32.682 linhas) · `index.html` com 3.993 linhas e 74 `<script>`.
+**Tamanho real de hoje:** 85 arquivos JS (77.103 linhas, 3.007 funções) · 32 arquivos CSS (32.682 linhas) · `index.html` com 3.993 linhas e 74 `<script>`.
 
 ## JS — o que cada arquivo é
 
 ### js (raiz)
 
-**`js/00-config.js`** · 2732 linhas
+**`js/00-config.js`** · 2731 linhas
 Constantes globais imutaveis: HIST_KEY, CAMPS_ATIVAS, CAMPS_OUTRAS, FMTS. Deve ser carregado PRIMEIRO (todos os modulos dependem destas constantes).
 · API: gPastaSistema, gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss … (+52; 91 funções no total)
 · Estado global: _G_MEDIDA_CACHE, gLayoutVivoOff, _gCanvasWrap
@@ -293,10 +293,10 @@ Cache LRU em memória com TTL específico por tarefa para a Camada de IA.
 **`js/core/ai/ai-client.js`** · 295 linhas
 GATEWAY ÚNICO DE IA DO LUMA (Luma Gemini Intelligence Layer) (§3, §5).
 
-**`js/core/ai/ai-registry.js`** · 292 linhas
+**`js/core/ai/ai-registry.js`** · 267 linhas
 Registro de Tarefas, Prompts Versionados e Blindagem Anti-Injeção (§60, §61).
 
-**`js/core/ai/ai-schemas.js`** · 399 linhas
+**`js/core/ai/ai-schemas.js`** · 372 linhas
 Schemas e Validadores Determinísticos da Camada de IA. Regra §7 e §62: "GEMINI SUGERE. LUMA VALIDA. HUMANO DECIDE." Output estruturado pelo modelo NÃO significa semanticamente correto. Todo dado retornado é auditado e…
 
 **`js/core/ai/ai-telemetry.js`** · 119 linhas
@@ -424,9 +424,9 @@ F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES defi
 · Estado global: _F_MAXLEN_MED, _fAlvoNaPasta, _fFitOpts, _fFitRun, _fFitSai, _fFitIaReprovadas, _fFitCf, quando, _fFitPerto, _fFitFora
 · Depende de: 00-config.js
 
-**`js/franqueado/chat.js`** · 3973 linhas
+**`js/franqueado/chat.js`** · 3920 linhas
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
-· API: fChatNovaConversa, fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fTrackResposta, fTrackFoto … (+70; 177 funções no total)
+· API: fChatNovaConversa, fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fTrackResposta, fTrackFoto … (+69; 176 funções no total)
 · Estado global: fNextTimeout, _fChatGen, _fGuidedNav, _fGuidedTimer, _fGuidedBound, _fProntaCtxAberto, _fRevisando, _fArtSnapshots, _fArtCaptions, _fGiriasFr (+4)
 · Depende de: 00-config.js, 01-state.js, franqueado/chat-input.js
 
@@ -441,7 +441,7 @@ Historico de artes do franqueado: fGetHist, fSaveHist, fAddHist, fMarkHistBaixad
 · Estado global: _fHistPage, _fArtesPushBusy, _fArtesPushQueued
 · Depende de: 00-config.js (HIST_KEY), 01-state.js (fState)
 
-**`js/franqueado/live-preview.js`** · 4536 linhas
+**`js/franqueado/live-preview.js`** · 4535 linhas
 Preview lateral em tempo real (fUpdateLivePreview) e modal de preview multi-formato (fOpenPreview, fClosePreview, fStartFromPreview).
 · API: fOpenPreview, fStartFromPreview, fClosePreview, fPostedRepintaLegenda, fPostedSetCtx, fPostedCloseQR, fPostedOpenQR, fPostedCopyQRLink, fPostedContextForFormat, fLpTrocarContexto, fOpenPosted, fClosePosted, fLpCamposBloqueados, fLpListaRotulos … (+31; 214 funções no total)
 · Estado global: _postedArt, renderizada, _postedCtx, _pstStageBound, _pstTiltRaf, _pstQRUrl, _pstQRBusy, _lpConclusaoAtiva, _lpCardPintado, _lpConclusaoSaindo (+49)
@@ -459,7 +459,7 @@ Drag & drop das 3 colunas do workspace do franqueado (só desktop largo).
 · Estado global: _panelOrder, _panelDrag
 · Depende de: index.html (grips + #fran-main), css/modules/panel-dock.css,
 
-**`js/franqueado/png-generator.js`** · 6106 linhas
+**`js/franqueado/png-generator.js`** · 6103 linhas
 Geracao de PNG a partir dos templates: fGenPNG, fRenderTemplateLayers, fBaixar, fOutroFormato. Sistema de nomenclatura padronizado para downloads.
 · API: fLoadLogoBranca, fMaterialSize, fExportScale, fRenderCanvasHelper, fAssinaturaDados, fAssinarPngBytes, fAssinarPngBlob, fAssinarPngDataURL, fLerAssinaturaPng, fGenPNG, fGenPDF, fPostarInstagram, fEnviarWhatsApp, fDrawDMLogo … (+85; 195 funções no total)
 · Depende de: 00-config.js, 01-state.js, designer/canvas.js (dRenderCanvas)
