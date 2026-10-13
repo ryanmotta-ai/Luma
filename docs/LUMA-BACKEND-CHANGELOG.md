@@ -22,6 +22,15 @@ Modo novo em testes (`js/creative/creative.js`): um chat que compõe arte nova. 
 - **Duas idas por arte** na mesma task: o briefing (até 3 perguntas, JSON curto) e a composição. A 2ª versão reaproveita o briefing — só a composição de novo.
 - Sem migration. Sem secret novo.
 - **Deploy:** `supabase functions deploy ai` (com o Ryan). Antes do deploy, a função responde 400 "tarefa desconhecida" e o Creative cai no motor local (lê o pedido por palavras-chave) — o modo funciona, só sem IA.
+## 2026-10-13 — Storage: a pasta do template vai junto ao apagar + script de limpeza dos órfãos (sem migration)
+
+**O furo.** Apagar template ou pasta no Estúdio (`dDeleteTemplateFromBackend` / `dDeleteFolderFromBackend`) apagava a linha e deixava `luma-template-assets/<tid>/` inteira no bucket — não existia `remove()` nenhum para esse bucket. Medido em 13/10: 65 templates apagados desde julho = **670 arquivos, 140 MB órfãos**, metade do bucket (269 MB), contando no teto de 1 GB do Free. Órfão em template vivo: zero. A dupla subida por edição durante o push (a URL volta só no clone, `layers.js:4094`) existe mas é pequena — 81 camadas com 2 cópias, 28 MB, e as cópias tendem a estar presas em versões.
+
+**Front (`templates.js`, `?v=257`):** `_dApagarAssetsDosTemplates(tids)` lista a pasta no bucket e remove, **poupando o que outro template ainda usa** — duplicar/copiar camada copia a URL, não o arquivo (23 arquivos de 5 templates vivos moram em pasta alheia). O "em uso" é lido do banco (templates + versões, menos os apagados) uma vez por operação; a checagem aceita a referência crua, codificada na URL ou só pelo UUID do upload. Só roda quando `gRemoteDelete` confirmou a linha apagada (fila offline → arquivos ficam). Versão de template apagado é morta (`restaurar_versao` exige a linha), então os arquivos dela vão. Sem migration: a policy de DELETE do designer já existia (`20260618094000`).
+
+**Script `scripts/limpar-assets-orfaos.js`** (service role, rodado à mão): lista os arquivos do bucket sem referência em `templates`, `template_versions` e `biblioteca_assets`, ignora os com menos de 7 dias (`--dias=N`; rascunho em voo ainda não gravou a URL), grava `orfaos-<data>.json` e só remove com `--apagar`. Pela API do Storage de propósito: DELETE direto em `storage.objects` deixa o arquivo físico no S3. Rodar `backup-storage.js` antes.
+
+**Limite conhecido:** o guard do front baixa `layers` de todos os templates e versões a cada exclusão (~4,5 MB hoje). Se exclusão virar rotina ou as versões passarem de 1000 linhas, vira RPC no banco — acima de 1000 linhas o front aborta a limpeza por segurança e só avisa no console.
 
 ## 2026-09-30 — Franquias da rede, escolha da própria franquia e gírias por franquia (✅ migration `20260930200000`)
 

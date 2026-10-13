@@ -30,6 +30,9 @@ backup/
 storage-backup/
 *.sql.gz
 
+# Lista gerada por scripts/limpar-assets-orfaos.js (auditoria local; nunca versionar)
+orfaos-*.json
+
 # Variáveis de ambiente (nunca commitar)
 .env
 .env.local

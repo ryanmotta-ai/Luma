@@ -1362,13 +1362,57 @@ function _dSbTmpl(){ return (typeof gSupabase==='function')?gSupabase():window.s
 async function dDeleteTemplateFromBackend(remoteId){
   const sb=_dSbTmpl();
   if(!sb || !remoteId || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
-  await gRemoteDelete('templates','id',remoteId); // falhou → fila (não ressuscita no pull)
+  const ok=await gRemoteDelete('templates','id',remoteId); // falhou → fila (não ressuscita no pull)
+  if(ok) await _dApagarAssetsDosTemplates([remoteId]); // só depois que a linha sumiu de verdade
 }
-async function dDeleteFolderFromBackend(remoteId){
+async function dDeleteFolderFromBackend(remoteId, templateIds){
   const sb=_dSbTmpl();
   if(!sb || !remoteId || typeof gIsAdmin!=='function' || !gIsAdmin()) return;
-  await gRemoteDelete('templates','pasta_id',remoteId); // falhou → fila (não ressuscita no pull)
+  const ok=await gRemoteDelete('templates','pasta_id',remoteId); // falhou → fila (não ressuscita no pull)
   await gRemoteDelete('pastas','id',remoteId);
+  if(ok) await _dApagarAssetsDosTemplates(templateIds||[]);
+}
+/* ── A pasta do template no Storage vai junto (13/10/2026) ──
+   Apagar só a linha deixava `luma-template-assets/<tid>/` inteira no bucket: 65 templates
+   apagados = 670 arquivos (140 MB), metade do bucket, contando no teto de 1 GB do Free.
+   Poupa o que OUTRO template ainda usa: duplicar/copiar camada copia a URL, não o arquivo
+   (medido: 23 arquivos de 5 templates vivos moram em pasta alheia). O "em uso" vem do banco
+   (templates + versões, menos os apagados) numa leitura só por operação — alguns MB,
+   aceitável para uma ação rara da equipe. Versão de template apagado é morta
+   (`restaurar_versao` exige a linha), então os arquivos dela podem ir.
+   Fila offline: se a linha ficou na fila, os arquivos ficam — melhor um órfão que um buraco. */
+async function _dApagarAssetsDosTemplates(tids){
+  const sb=_dSbTmpl(); tids=(tids||[]).filter(Boolean);
+  if(!sb || !tids.length) return;
+  try{
+    const bucket=sb.storage.from('luma-template-assets');
+    const lista=[];
+    for(const tid of tids){
+      const {data,error}=await bucket.list(tid,{limit:1000});
+      if(error) throw error;
+      (data||[]).forEach(o=>{ if(o.id) lista.push(tid+'/'+o.name); });
+    }
+    if(!lista.length) return;
+    const dentro='('+tids.join(',')+')';
+    const [t,v]=await Promise.all([
+      sb.schema('luma').from('templates').select('layers').not('id','in',dentro),
+      sb.schema('luma').from('template_versions').select('layers').not('template_id','in',dentro)
+    ]);
+    if(t.error||v.error) throw (t.error||v.error);
+    // Teto do PostgREST é 1000 linhas: página cheia = leitura talvez incompleta → não apaga nada.
+    if((t.data||[]).length>=1000||(v.data||[]).length>=1000) throw new Error('leitura de referências incompleta (>=1000 linhas)');
+    const emUso=JSON.stringify((t.data||[]).concat(v.data||[]));
+    // Conservador: referência crua, codificada na URL ou só o UUID do upload — qualquer uma segura o arquivo.
+    const usado=p=>{
+      const u=(p.slice(p.lastIndexOf('/')+1).match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/)||[])[0];
+      return emUso.indexOf(p)>=0||emUso.indexOf(encodeURI(p))>=0||(!!u&&emUso.indexOf(u)>=0);
+    };
+    const paths=lista.filter(p=>!usado(p));
+    for(let i=0;i<paths.length;i+=100){
+      const {error}=await bucket.remove(paths.slice(i,i+100));
+      if(error) throw error;
+    }
+  }catch(e){ console.warn('[storage] assets de template apagado ficaram no bucket:', e.message||e); }
 }
 async function dDeleteTemplate(folderId, tmplId){
   if(!await gConfirm('Esta ação não pode ser desfeita.',
@@ -2019,7 +2063,7 @@ async function dDeleteFolder(id){
   const n=(f.templates||[]).length;
   if(!await gConfirm(`"${f.name}"${n?` e ${n===1?'o material dela':'os '+n+' materiais dela'} serão excluídos`:' será excluída'}. Esta ação não pode ser desfeita.`,
     {title:'Excluir a pasta?',okLabel:'Excluir',cancelLabel:'Cancelar',danger:true}))return;
-  if(f.remoteId) dDeleteFolderFromBackend(f.remoteId);
+  if(f.remoteId) dDeleteFolderFromBackend(f.remoteId, (f.templates||[]).map(t=>t.remoteId));
   dFolders=dFolders.filter(x=>x.id!==id);
   dRenderFolders();dPersistFolders();
   if(typeof fGetCampaigns==='function'&&typeof fRenderCatalogs==='function')try{const{ativas,outras}=fGetCampaigns();fRenderCatalogs(ativas,outras);}catch(e){}
