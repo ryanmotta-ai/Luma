@@ -2303,50 +2303,6 @@ function _fCaptionSrcTag(suggestions){
     : `<span class="caption-src" title="Escrita pelo Luma a partir dos dados da sua oferta (sem IA)">${_ICO_PEN}Sugestão do Luma</span>`;
 }
 
-/* Revisão Semântica Final da Peça (Fase 3, §37-§40).
-   Conferência factual não-bloqueante entre dados da arte e legenda.
-   Não julga estética. Não bloqueia download. */
-async function _fRevisarArteIA(canvasId, dados, camp, legendaPromise){
-  if (!window.gAI || !(typeof window.gAI.isEnabled === 'function' && window.gAI.isEnabled('contentReview'))) return;
-  const painel = document.querySelector(`.art-wrap:has(#${canvasId})`) || (document.getElementById(canvasId) && document.getElementById(canvasId).closest('.art-wrap'));
-  if (!painel) return;
-
-  let captionText = '';
-  try {
-    const sug = await legendaPromise;
-    if (sug && sug.length) captionText = sug[0].text || '';
-  } catch(e) {}
-
-  const res = await window.gAI.run('content.review', {
-    fields: dados,
-    campaign: (camp && camp.name) ? camp.name : '',
-    caption: captionText
-  });
-
-  if (!res || !res.ok || !res.data || !Array.isArray(res.data.issues) || res.data.issues.length === 0) {
-    return;
-  }
-
-  const old = painel.querySelector('.art-review-badge');
-  if (old) old.remove();
-
-  const items = res.data.issues.map(it => `<li>${gEsc(it.message)}</li>`).join('');
-  const badgeHtml = `<div class="art-review-badge" role="alert">
-    <div style="display:flex;align-items:center;gap:6px;font-weight:600">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <span>Confira os dados da oferta:</span>
-    </div>
-    <ul>${items}</ul>
-  </div>`;
-
-  const actionsEl = painel.querySelector('.art-actions');
-  if (actionsEl) {
-    actionsEl.insertAdjacentHTML('beforebegin', badgeHtml);
-  } else {
-    painel.insertAdjacentHTML('beforeend', badgeHtml);
-  }
-}
-
 /**
  * Agente Copywriter do Luma. Transporte e chave ficam no motor único (core/ai.js);
  * aqui vive só o PROMPT — o que a legenda tem que ser.
@@ -3094,11 +3050,6 @@ function fGerarArte(){
         _fAplicarLegendaIA(previewCanvasId, sug);
       }).catch(() => _fLegendaFimEspera(previewCanvasId, true))
       .then(() => fGiriasPainel(previewCanvasId)).catch(()=>{});
-    try {
-      if (typeof _fRevisarArteIA === 'function') {
-        _fRevisarArteIA(previewCanvasId, d, c, _legendaIA).catch(()=>{});
-      }
-    } catch(e) {}
     // Renderiza canvas thumbnail real
     if(hasMaterial){
       try {

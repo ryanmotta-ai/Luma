@@ -113,7 +113,6 @@ franqueado (o Quick Add em linguagem natural existiu e saiu em 03/09).
 |---|---|
 | Núcleo, home, estado, matrícula | `js/academia/academia.js` |
 | Ambiente de aula, player MP4, abas de aprendizado | `js/academia/aula.js` |
-| Tutor educacional (o prompt mora no **servidor**) | `js/academia/agente.js` + `supabase/functions/ai` (task `aula`) |
 | Gestão de conteúdo do curso (equipe) | `js/academia/gestao.js` |
 | Certificado (emite pela RPC, não por insert) | `js/academia/certificado.js` · `conclusao.js` |
 | Movimento/animação da Academia | `js/academia/motion.js` |

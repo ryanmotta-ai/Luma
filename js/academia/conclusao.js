@@ -471,9 +471,9 @@ function acConcEtapaProxima(palco, opts){
         <span>${(acState.matricula&&acState.matricula.video_visto_em)?'Disponível para rever':'Disponível quando quiser'}</span>
       </div>`:''}
       <div class="ac-conc-card">
-        <span class="ac-conc-card-ico">${acIco('bot')}</span>
-        <strong>Tutor e materiais</strong>
-        <span>Continuam ativos em cada aula</span>
+        <span class="ac-conc-card-ico">${acIco('cap')}</span>
+        <strong>Materiais</strong>
+        <span>Continuam disponíveis em cada aula</span>
       </div>
     </div>
 

@@ -153,11 +153,8 @@ function _gCliRoboLinhaHTML(cells) {
    Só APELIDOS `-latest`: o Google aponta o apelido pro modelo atual, então aposentar uma
    versão não quebra o Luma de novo (foi o que matou o 'gemini-1.5-flash' — ver
    js/00-config.js). A lista é atalho, não trava: o comando aceita qualquer nome válido. */
-const G_CLI_MODELOS = [
-  { id: 'gemini-flash-latest',      desc: 'padrão — rápido e barato' },
-  { id: 'gemini-flash-lite-latest', desc: 'o mais rápido; respostas mais curtas' },
-  { id: 'gemini-pro-latest',        desc: 'o mais capaz; mais lento e mais caro' }
-];
+// A lista vem do motor de IA (`G_AI_MODELOS`, core/ai.js) — a mesma que a function aceita.
+const G_CLI_MODELOS = (typeof G_AI_MODELOS !== 'undefined') ? G_AI_MODELOS : [];
 
 /* ══ REGISTRO DE COMANDOS ══
    run() devolve string (ou Promise<string>) já em HTML seguro — todo dado de fora
@@ -235,7 +232,9 @@ const G_CLI_CMDS = {
           const np = p.error ? null : (p.count || 0);
           const nt = t.error ? null : (t.count || 0);
           const ruim = (np === null || nt === null) || (np > 0 && nt === 0);
-          L.push(`${dot(ruim ? 'err' : 'ok')} banco       ${np === null ? 'pastas: ERRO ' + gEsc(p.error.message || '') : np + ' pasta(s)'} · ${nt === null ? 'templates: ERRO ' + gEsc(t.error.message || '') : nt + ' material(is)'}`);
+          // Consulta só de contagem (head) volta erro SEM mensagem: o código/HTTP é o que diz a causa.
+          const motivo = (r) => gEsc(r.error.message || r.error.code || ('HTTP ' + (r.status || '?')));
+          L.push(`${dot(ruim ? 'err' : 'ok')} banco       ${np === null ? 'pastas: ERRO ' + motivo(p) : np + ' pasta(s)'} · ${nt === null ? 'templates: ERRO ' + motivo(t) : nt + ' material(is)'}`);
           if (np > 0 && nt === 0) L.push(`  <span class="cli-err">↑ pastas no banco e ZERO materiais é a assinatura do sync quebrado (migration não aplicada).</span>`);
         } catch (e) {
           L.push(`${dot('err')} banco       falhou ao consultar: ${gEsc(String(e && e.message || e))}`);
@@ -408,25 +407,24 @@ const G_CLI_CMDS = {
         }).join('\n');
         return `modelo atual: <b>${gEsc(atual)}</b>\n\n${lista}\n\n`
           + `<span class="cli-dim">trocar: <b>modelo &lt;nome&gt;</b> · voltar ao padrão: <b>modelo padrao</b>\n`
-          + `Vale pra TODO recurso de IA do Luma (legenda, cardápio, ajuda), só neste aparelho.</span>`;
+          + `Vale pra TODO recurso de IA do Luma (legenda, encurtar, ajuda), só neste aparelho.</span>`;
       }
       if (nome === 'padrao' || nome === 'padrão') {
         try { localStorage.removeItem('luma_gemini_model'); } catch (e) {}
         _gCliInfoCache = null;
         return `de volta ao padrão: <b>${gEsc((typeof gAiModel === 'function') ? gAiModel() : '?')}</b>`;
       }
-      // Mesma regra do proxy (supabase/functions/ai): nome fora disso a function recusa,
-      // então recusar aqui evita descobrir o erro só na próxima pergunta.
-      if (!/^[a-z0-9.\-]{3,60}$/i.test(nome)) {
-        return '<span class="cli-err">nome inválido — só letras, números, ponto e hífen (3 a 60).</span>';
+      /* Só a lista: a function troca qualquer outro nome pelo padrão SEM avisar, então aceitar
+         aqui era dizer "modelo agora é X" e seguir no padrão. */
+      if (!G_CLI_MODELOS.some(m => m.id === nome)) {
+        return `<span class="cli-err">"${gEsc(nome)}" não está na lista que o servidor aceita.</span> <span class="cli-dim">Veja com: <b>modelo</b></span>`;
       }
       try { localStorage.setItem('luma_gemini_model', nome); }
       catch (e) { return '<span class="cli-err">não deu pra salvar a escolha (localStorage bloqueado).</span>'; }
-      window.LUMA_GEMINI_MODEL = nome;   // vale já nesta sessão, sem recarregar
+      /* Sem escrever em window.LUMA_GEMINI_MODEL: `gAiModel` já lê a escolha do localStorage na
+         hora, e o window sobrescrito fazia o "modelo padrao" voltar para a escolha antiga. */
       _gCliInfoCache = null;             // a caixa mostra o modelo — força redesenhar
-      const conhecido = G_CLI_MODELOS.some(m => m.id === nome);
-      return `modelo agora é <b>${gEsc(nome)}</b>.`
-        + (conhecido ? '' : `\n<span class="cli-warn">Fora da lista — se o Google não conhecer esse nome, TODA a IA do Luma passa a falhar neste aparelho. Desfaz com: <b>modelo padrao</b></span>`);
+      return `modelo agora é <b>${gEsc(nome)}</b>. <span class="cli-dim">Se ele estiver sem vaga, o servidor desce para o próximo da lista.</span>`;
     }
   },
 

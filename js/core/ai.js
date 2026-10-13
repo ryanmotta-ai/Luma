@@ -2,7 +2,7 @@
  * js/core/ai.js
  *
  * MOTOR ÚNICO de IA do front. Todo recurso de IA do Luma (legenda, encurtar
- * texto, ajuda, leitura de cardápio, casar fotos, mapear camadas do PSD) fala com o modelo POR AQUI —
+ * texto, ajuda, gírias, transcrição de áudio, console) fala com o modelo POR AQUI —
  * ninguém mais monta fetch pro Gemini na mão. Um caminho = um lugar pra trocar
  * de modelo, pôr timeout, cachear e tratar falha.
  *
@@ -33,16 +33,23 @@ function gAiReady(){
   const logado=(typeof gCurrentUser==='function') ? !!gCurrentUser() : false;
   return !!(sb && cfg.url && cfg.anonKey && logado);
 }
-// Mantida pelo nome: o tutor da Academia (agente.js) pergunta por ela. Com um caminho só,
-// "tem servidor" e "tem IA" são a mesma pergunta.
-function gAiEdgeReady(){ return gAiReady(); }
 // A escolha do time (console: comando `modelo`) vence o padrão do config. A ordem
 // importa: 00-config.js SEMPRE define window.LUMA_GEMINI_MODEL no boot, então com o
 // window na frente a troca não sobrevivia ao recarregar — voltava calada pro padrão.
+/* Os modelos que a function ACEITA (`MODELOS_RESERVA` em supabase/functions/ai). Pedir outro
+   nome não dá erro: a function troca calada pelo padrão — o console mostrava "modelo agora é
+   gemini-pro-latest" e nada mudava. Mudou lá? Mude aqui (o console lista daqui). */
+const G_AI_MODELOS = [
+  { id: 'gemini-3.1-flash-lite', desc: 'padrão — o mais rápido e barato' },
+  { id: 'gemini-3.6-flash',      desc: 'mais capaz; um pouco mais lento' },
+  { id: 'gemini-3.7-flash',      desc: 'mais capaz; um pouco mais lento' },
+  { id: 'gemini-3.8-flash',      desc: 'o mais capaz; o mais lento' }
+];
 function gAiModel(){
   try{
     const escolhido = localStorage.getItem('luma_gemini_model');
-    if(escolhido && !['gemini-1.5-flash','gemini-2.0-flash','gemini-flash-latest'].includes(escolhido)) return escolhido;
+    // Escolha antiga fora da lista (ex.: "gemini-flash-latest") seria trocada pela function.
+    if(escolhido && G_AI_MODELOS.some(m => m.id === escolhido)) return escolhido;
   }catch(e){}
   return window.LUMA_GEMINI_MODEL || 'gemini-3.1-flash-lite';
 }
@@ -50,13 +57,8 @@ function gAiModel(){
 /**
  * Pergunta ao modelo.
  * @param {string} task   uma das tarefas da allowlist da function (TASKS em supabase/functions/ai)
- * @param {string} prompt prompt completo, montado por quem chama — EXCETO na task
- *                        'aula', em que este campo é só a pergunta do estudante e
- *                        o prompt pedagógico é montado na Edge Function (ver
- *                        js/academia/agente.js: regra do tutor não pode viver no cliente).
+ * @param {string} prompt prompt completo, montado por quem chama.
  * @param {object} opts   {parts:[{mimeType,data}], json:true, cache:true, contexto:{}}
- *                        contexto: payload estruturado que só a task 'aula' usa;
- *                        vai íntegro pra function, que compõe o prompt lá.
  * @returns {Promise<string|null>} texto da resposta, ou null se a IA não respondeu
  */
 async function gAskAI(task, prompt, opts){

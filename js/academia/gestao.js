@@ -483,7 +483,7 @@ function acGestaoFormAula(a){
       <legend>Transcrição</legend>
       ${acCampo('ac-a-trans','Transcrição com marcação de tempo',
         `<textarea id="ac-a-trans" rows="5" placeholder="00:00 Abertura da aula&#10;01:20 Primeiro conceito">${gEsc(tr.map(t=>`${t.t!=null?acFmtTempo(t.t)+' ':''}${t.texto||''}`).join('\n'))}</textarea>`,
-        'Uma linha por trecho, começando com mm:ss. O franqueado clica no tempo e o vídeo vai até lá; o tutor só cita minutagem que existe aqui.')}
+        'Uma linha por trecho, começando com mm:ss. O franqueado clica no tempo e o vídeo vai até lá.')}
     </fieldset>
 
     <fieldset class="ac-form-fs">
@@ -1095,7 +1095,7 @@ function acMostrarFaixaPreview(){
 function acGestaoTurmaHTML(){
   return `<div class="ac-bloco">
     <h2 class="ac-bloco-titulo">Acompanhamento da rede</h2>
-    <p class="ac-form-dica">Progresso agregado dos franqueados nesta formação. Anotações pessoais e conversas com o tutor são privadas e não aparecem aqui.</p>
+    <p class="ac-form-dica">Progresso agregado dos franqueados nesta formação. Anotações pessoais são privadas e não aparecem aqui.</p>
     <div id="ac-turma" aria-live="polite"><div class="ac-sk ac-sk-bloco"></div></div>
   </div>`;
 }

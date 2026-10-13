@@ -24,7 +24,6 @@
   --ac-sombra-hover: 0 12px 28px color-mix(in srgb, var(--dm-orange-d) 18%, transparent);
   --ac-trilho:  var(--gray-light);
   --ac-side-w:  296px;
-  --ac-ag-w:    336px;
 
   display:flex; flex-direction:column;
   height:calc(100vh - 52px);
@@ -49,9 +48,6 @@ body.mode-academia #view-academia{
   display:flex!important;
   animation:viewEntrance var(--dur-slow) var(--ease-spring-soft) forwards;
 }
-/* Na Academia o apoio é o tutor da aula, não o widget global de ajuda. */
-body.mode-academia #g-help-float,
-body.mode-academia #luma-widget-fab-wrap{ display:none!important; }
 
 #ac-root{ flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
 
@@ -384,11 +380,11 @@ button.ac-mapa-card:focus-visible{ outline:2px solid var(--dm-orange);outline-of
 .ac-ajuda-bot .ac-i{ color:var(--dm-orange-text) }
 
 /* ══════════════════════════════════════════════════════════════
-   AMBIENTE DE AULA — 3 regiões
+   AMBIENTE DE AULA — 2 regiões (o tutor saiu em 13/10/2026)
 ══════════════════════════════════════════════════════════════ */
 .ac-aula{
   flex:1;min-height:0;display:grid;
-  grid-template-columns:var(--ac-side-w) minmax(0,1fr) var(--ac-ag-w);
+  grid-template-columns:var(--ac-side-w) minmax(0,1fr);
   overflow:hidden;
   /* ARMADILHA: #view-academia guarda o transform final do viewEntrance
      (animation-fill-mode:forwards), e transform != none cria bloco de contenção —
@@ -398,7 +394,6 @@ button.ac-mapa-card:focus-visible{ outline:2px solid var(--dm-orange);outline-of
      do transform sobreviver. */
   position:relative;
 }
-body.ac-agente-recolhido .ac-aula{ grid-template-columns:var(--ac-side-w) minmax(0,1fr) 0 }
 .ac-side-veu{ display:none;border:0;padding:0 }
 
 /* Coluna esquerda */
@@ -414,8 +409,8 @@ body.ac-agente-recolhido .ac-aula{ grid-template-columns:var(--ac-side-w) minmax
   transition:border-color var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard);
 }
 .ac-side-voltar:hover{ border-color:var(--dm-orange);color:var(--dm-orange-text) }
-.ac-side-fechar,.ac-ag-fechar{ display:none;border:0;background:transparent;color:var(--ac-txt3);cursor:pointer;padding:8px }
-.ac-side-fechar svg,.ac-ag-fechar svg{ width:18px;height:18px }
+.ac-side-fechar{ display:none;border:0;background:transparent;color:var(--ac-txt3);cursor:pointer;padding:8px }
+.ac-side-fechar svg{ width:18px;height:18px }
 .ac-side-curso{ padding:14px;border-bottom:1px solid var(--ac-border);display:flex;flex-direction:column;gap:6px }
 .ac-side-eyebrow{ font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ac-txt3) }
 .ac-side-nome{ font-size:14.5px;font-weight:800;line-height:1.25;color:var(--ac-txt) }
@@ -476,7 +471,7 @@ div.ac-side-aula{ cursor:default;opacity:.6 }
 .ac-main-topo{ display:flex;align-items:center;gap:10px;flex-wrap:wrap }
 .ac-crumb{ flex:1;min-width:0;display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--ac-txt3) }
 .ac-crumb > span:last-child{ color:var(--ac-txt2);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
-.ac-abrir-side,.ac-abrir-agente{
+.ac-abrir-side{
   display:none;align-items:center;gap:6px;padding:7px 12px;min-height:var(--tap-min);
   border:1px solid var(--ac-border2);border-radius:var(--r-pill);background:var(--ac-surf);
   color:var(--ac-txt2);font:600 12px 'Roboto',sans-serif;cursor:pointer;
@@ -738,106 +733,6 @@ body:not(.theme-light) .ac-nota-tempo{ background:color-mix(in srgb,var(--dm-ora
 .ac-festa-titulo{ display:block;font-size:20px;font-weight:900;margin-bottom:8px }
 .ac-festa-txt{ margin:0 0 20px;font-size:13.5px;line-height:1.6;color:var(--ac-txt2) }
 .ac-festa-acoes{ display:flex;flex-direction:column;gap:8px }
-
-/* ══════════════════════════════════════════════════════════════
-   AGENTE EDUCACIONAL
-══════════════════════════════════════════════════════════════ */
-.ac-agente{
-  display:flex;flex-direction:column;min-height:0;overflow:hidden;
-  background:var(--ac-surf);border-left:1px solid var(--ac-border);
-}
-body.ac-agente-recolhido .ac-agente{ display:none }
-.ac-ag-cab{
-  display:flex;align-items:center;gap:9px;flex-wrap:wrap;
-  padding:12px 14px;border-bottom:1px solid var(--ac-border);
-}
-.ac-ag-id{ display:flex;align-items:center;gap:9px;flex:1;min-width:0 }
-.ac-ag-av{
-  display:flex;align-items:center;justify-content:center;flex:none;width:34px;height:34px;
-  border-radius:var(--r-sm);background:linear-gradient(135deg,var(--dm-orange),var(--dm-orange-d));color:var(--on-accent);
-}
-.ac-ag-av .ac-i svg{ width:17px;height:17px }
-.ac-ag-txt{ min-width:0;display:flex;flex-direction:column }
-.ac-ag-txt strong{ font-size:13px;font-weight:750;color:var(--ac-txt) }
-.ac-ag-txt small{ font-size:10.5px;color:var(--ac-txt3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
-.ac-ag-recolher{
-  border:1px solid var(--ac-border2);background:transparent;color:var(--ac-txt3);
-  border-radius:var(--r-sm);padding:6px;cursor:pointer;flex:none;
-}
-.ac-ag-recolher:hover{ border-color:var(--dm-orange);color:var(--dm-orange-text) }
-.ac-ag-recolher .ac-i-chev{ transform:rotate(0) }
-/* "Reiniciar conversa" é ação secundária: linha própria abaixo da identificação,
-   alinhada à direita. Em width:100% + text-align:left ela colava no recolher e
-   parecia parte do título. */
-.ac-ag-limpar{ width:100%;font-size:11px;text-align:right;order:9;color:var(--ac-txt3) }
-.ac-ag-limpar:hover{ color:var(--dm-orange-text) }
-
-.ac-ag-corpo{ flex:1;min-height:0;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth }
-/* Bolha SEM animação por padrão: o histórico que já estava na tela não pode
-   re-animar quando o painel é redesenhado (era o efeito de "tudo pisca a cada
-   pergunta"). Só a mensagem recém-anexada leva .ac-ag-nova. */
-.ac-ag-msg{ max-width:94%;padding:10px 13px;border-radius:14px;font-size:13px;line-height:1.6 }
-@keyframes acAgNova{ from{opacity:0;transform:translateY(8px) scale(.99)} to{opacity:1;transform:none} }
-.ac-ag-nova{ animation:acAgNova var(--dur-fast) var(--ease-out) both }
-
-/* "Ir para a última mensagem" — aparece só quando a pessoa subiu no histórico.
-   Sem ele, preservar a rolagem esconderia a resposta que acabou de chegar. */
-.ac-ag-voltar{
-  position:absolute;left:50%;top:64px;z-index:5;transform:translate(-50%,-6px);
-  display:inline-flex;align-items:center;gap:6px;
-  padding:6px 12px;border-radius:var(--r-pill);
-  border:1px solid var(--ac-border2);background:var(--ac-surf);color:var(--ac-txt2);
-  font:700 11.5px 'Roboto',sans-serif;cursor:pointer;box-shadow:var(--ac-sombra);
-  opacity:0;pointer-events:none;
-  transition:opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
-}
-.ac-ag-voltar.is-visivel{ opacity:1;pointer-events:auto;transform:translate(-50%,0) }
-.ac-ag-voltar:hover{ border-color:var(--dm-orange);color:var(--dm-orange-text) }
-.ac-agente{ position:relative }
-.ac-ag-msg p{ margin:0 0 7px }
-.ac-ag-msg p:last-child{ margin-bottom:0 }
-.ac-ag-msg.is-agente{ align-self:flex-start;background:var(--ac-surf2);color:var(--ac-txt);border-bottom-left-radius:5px }
-.ac-ag-msg.is-usuario{ align-self:flex-end;background:var(--dm-orange-d);color:var(--on-accent);border-bottom-right-radius:5px }
-.ac-ag-msg.is-erro{ background:var(--off-white);border:1px solid var(--gray-mid) }
-.ac-ag-msg.is-erro .ac-i{ color:var(--text-2) }
-.ac-ag-t{
-  display:inline-block;padding:0 5px;border-radius:4px;border:0;
-  background:var(--dm-orange-bg);color:var(--dm-orange-text);
-  font:800 12px ui-monospace,monospace;cursor:pointer;
-}
-body:not(.theme-light) .ac-ag-t{ background:color-mix(in srgb,var(--dm-orange) 18%,transparent) }
-.ac-ag-dots{ display:inline-flex;gap:4px }
-.ac-ag-dots i{ width:6px;height:6px;border-radius:50%;background:var(--ac-txt3);animation:acDot 1s var(--ease-standard) infinite }
-.ac-ag-dots i:nth-child(2){ animation-delay:.15s }
-.ac-ag-dots i:nth-child(3){ animation-delay:.3s }
-@keyframes acDot{ 0%,100%{opacity:.3;transform:translateY(0)} 50%{opacity:1;transform:translateY(-3px)} }
-.ac-ag-off{ display:flex;flex-direction:column;align-items:center;gap:7px;text-align:center;padding:26px 14px;color:var(--ac-txt3) }
-.ac-ag-off strong{ font-size:13.5px;color:var(--ac-txt) }
-.ac-ag-off span{ font-size:12.5px;line-height:1.55 }
-
-.ac-ag-acoes{ display:flex;gap:6px;flex-wrap:wrap;padding:0 14px 10px }
-.ac-ag-chip{
-  padding:6px 11px;border-radius:var(--r-pill);border:1px solid var(--ac-border2);
-  background:transparent;color:var(--ac-txt2);font:600 11.5px 'Roboto',sans-serif;cursor:pointer;
-  transition:border-color var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard);
-}
-.ac-ag-chip:hover{ border-color:var(--dm-orange);color:var(--dm-orange-text);background:var(--dm-orange-bg) }
-body:not(.theme-light) .ac-ag-chip:hover{ background:color-mix(in srgb,var(--dm-orange) 12%,transparent) }
-.ac-ag-form{ display:flex;align-items:flex-end;gap:8px;padding:10px 14px;border-top:1px solid var(--ac-border) }
-.ac-ag-input{
-  flex:1;min-height:40px;max-height:120px;padding:10px 12px;resize:none;
-  border:1px solid var(--ac-border2);border-radius:var(--r);background:var(--ac-bg);color:var(--ac-txt);
-  font:400 13px 'Roboto',sans-serif;outline:none;
-}
-.ac-ag-input:focus{ border-color:var(--dm-orange);box-shadow:0 0 0 3px var(--dm-orange-bg) }
-.ac-ag-enviar{
-  flex:none;width:40px;height:40px;border-radius:var(--r);border:0;
-  background:var(--dm-orange-d);color:var(--on-accent);cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-}
-.ac-ag-enviar svg{ width:16px;height:16px }
-.ac-ag-enviar:disabled{ opacity:.5;cursor:not-allowed }
-.ac-ag-nota{ margin:0;padding:0 14px 12px;font-size:10.5px;line-height:1.5;color:var(--ac-txt3) }
 
 /* ══════════════════════════════════════════════════════════════
    GESTÃO
@@ -1194,26 +1089,8 @@ body:not(.theme-light) .ac-conc{
    Breakpoints canônicos do projeto (--bp-*): 1280 · 1024 · 768 · 480.
 ══════════════════════════════════════════════════════════════ */
 @media (max-width:1280px){
-  #view-academia{ --ac-side-w:260px; --ac-ag-w:300px }
+  #view-academia{ --ac-side-w:260px }
   .ac-home-grid{ grid-template-columns:minmax(0,1fr) 300px }
-}
-
-/* Tablet grande: o agente sai do grid e vira painel deslizante — três colunas
-   abaixo disto ficariam ilegíveis (o pedido explícito era não comprimir). */
-@media (max-width:1180px){
-  .ac-aula{ grid-template-columns:var(--ac-side-w) minmax(0,1fr) }
-  .ac-agente{
-    position:absolute;inset:0 0 0 auto;width:min(400px,88vw);z-index:9200;
-    transform:translateX(102%);box-shadow:-8px 0 30px rgba(0,0,0,.22);
-    transition:transform var(--dur-base) var(--ease-out);
-    border-left:1px solid var(--ac-border2);
-  }
-  body.ac-agente-open .ac-agente{ transform:none }
-  body.ac-agente-recolhido .ac-agente{ display:flex }
-  body.ac-agente-recolhido .ac-aula{ grid-template-columns:var(--ac-side-w) minmax(0,1fr) }
-  .ac-abrir-agente{ display:inline-flex }
-  .ac-ag-recolher{ display:none }
-  .ac-ag-fechar{ display:flex }
 }
 
 @media (max-width:1024px){
@@ -1223,7 +1100,6 @@ body:not(.theme-light) .ac-conc{
   .ac-g-editor{ position:static;max-height:none }
   /* Estrutura do curso vira drawer */
   .ac-aula{ grid-template-columns:minmax(0,1fr) }
-  body.ac-agente-recolhido .ac-aula{ grid-template-columns:minmax(0,1fr) }
   .ac-side{
     position:absolute;inset:0 auto 0 0;width:min(320px,86vw);z-index:9200;
     transform:translateX(-102%);box-shadow:8px 0 30px rgba(0,0,0,.22);
@@ -1236,7 +1112,7 @@ body:not(.theme-light) .ac-conc{
     background:rgba(10,10,10,.45);opacity:0;pointer-events:none;
     transition:opacity var(--dur-fast) var(--ease-standard);
   }
-  body.ac-side-open .ac-side-veu,body.ac-agente-open .ac-side-veu{ opacity:1;pointer-events:auto }
+  body.ac-side-open .ac-side-veu{ opacity:1;pointer-events:auto }
   .ac-side-fechar{ display:flex }
   .ac-abrir-side{ display:inline-flex }
 }
@@ -1267,7 +1143,7 @@ body:not(.theme-light) .ac-conc{
   .ac-gestao{ padding:16px 14px 56px }
   .ac-cert-hero-nums{ gap:16px }
   /* iOS dá zoom em input com fonte < 16px */
-  .ac-nota-txt,.ac-ag-input,.ac-form input,.ac-form textarea,.ac-form select,.ac-trans-busca input{ font-size:16px }
+  .ac-nota-txt,.ac-form input,.ac-form textarea,.ac-form select,.ac-trans-busca input{ font-size:16px }
   .ac-btn{ min-height:var(--tap-min) }
   .ac-nav-aula .ac-nav-lbl{ display:inline }
 }
@@ -1304,7 +1180,7 @@ body:not(.theme-light) .ac-conc{
 }
 
 /* Nenhuma tela pode rolar na horizontal (checado a 320px) */
-.ac-home,.ac-main,.ac-gestao,.ac-side,.ac-agente{ overflow-x:hidden }
+.ac-home,.ac-main,.ac-gestao,.ac-side{ overflow-x:hidden }
 
 /* ══ REDUÇÃO DE MOVIMENTO ══
    Regra: remover o MOVIMENTO, nunca a informação. Tudo que a coreografia
@@ -1316,7 +1192,7 @@ body:not(.theme-light) .ac-conc{
     transition-duration:.01ms!important;
   }
   .ac-barra > i,.ac-anel-fill,.ac-conc-anel-fill{ transition:none }
-  .ac-side,.ac-agente{ transition:none }
+  .ac-side{ transition:none }
   /* Os passos da splash não podem ficar invisíveis à espera de uma sequência
      que não vai rodar — nem depender do JS pra revelar. */
   [data-passo]{ opacity:1!important;transform:none!important }
@@ -1324,6 +1200,5 @@ body:not(.theme-light) .ac-conc{
   .ac-conc-halo{ opacity:1;transform:translateX(-50%) scale(1) }
   .ac-retomada,.ac-fimvideo{ opacity:1;transform:none }
   .ac-fimvideo .ac-fimvideo-box{ transform:none }
-  .ac-ag-corpo{ scroll-behavior:auto }
   .ac-conc-pular{ display:none }   /* sem animação, não há o que pular */
 }

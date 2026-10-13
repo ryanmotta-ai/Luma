@@ -600,18 +600,13 @@ function dPsdRenderRows(filter){
     const textPrev=it.kind==='text'&&it.content
       ?`<span class="psd-text-prev" style="color:${it.color||'#aaa'}">${_dPsdEsc(it.content.replace(/\n/g,' ').slice(0,60))}</span>`:'';
     const groupCrumb=it.group?`<span class="psd-group-crumb" title="Grupo: ${_dPsdEsc(it.group)}">${_dPsdEsc(it.group.slice(0,28))}</span>`:'';
-    // Sugestão que o parser (ou a IA) achou mas ninguém aceitou: vira um botão de um clique
-    // em vez de ficar escondida num input que o designer nem sabia que era editável.
-    // A ORIGEM aparece no rótulo: uma sugestão de IA merece mais desconfiança que um nome de
-    // camada que casou exatamente com o catálogo — e o "motivo" que a IA deu vai no title.
+    // Sugestão que o parser achou mas ninguém aceitou: vira um botão de um clique em vez de
+    // ficar escondida num input que o designer nem sabia que era editável. (O "IA sugere" saiu
+    // com o Mapear com IA, 13/10/2026.)
     let sugBadge='';
     if(_dPsdPendingSug(it)){
-      const _ia=(it.varSource==='ia');
-      const _why=_ia
-        ? (it.varWhy?('A IA leu a arte e concluiu: '+it.varWhy+'. Clique para transformar em campo editável.')
-                    :'Sugestão da IA a partir da imagem da arte — clique para transformar em campo editável')
-        : 'O Luma reconheceu este conteúdo pelo nome da camada — clique para transformar em campo editável';
-      sugBadge=`<button type="button" class="psd-sug${_ia?' psd-sug-ia':''}" onclick="dPsdAcceptSug(${i})" title="${_dPsdEsc(_why)}">${_ia?'IA sugere':'Sugerido'}: ${_dPsdEsc(_dPsdFieldLabel(it.varName))}</button>`;
+      const _why='O Luma reconheceu este conteúdo pelo nome da camada — clique para transformar em campo editável';
+      sugBadge=`<button type="button" class="psd-sug" onclick="dPsdAcceptSug(${i})" title="${_dPsdEsc(_why)}">Sugerido: ${_dPsdEsc(_dPsdFieldLabel(it.varName))}</button>`;
     }
     // `is-mapped` acende o filete da borda (o "já liguei este") e `--psd-i` dá o degrau da
     // cascata de entrada. O teto de 12 não é estético: num PSD de 40 camadas, sem teto a
@@ -1758,18 +1753,12 @@ function dPsdAcceptCandidate(i,name){
     it.mode=chk.mode;
   }else it.mode=_dPsdModeForKind(it);
   it.include=true;it.varName=name;it.varSource='user';it.varWhy='';it._fixedByUser=false;
-  if(inf.source==='ia' && window.gAiTelemetry){
-    window.gAiTelemetry.emit('ai_suggestion_accepted', { task: 'psd.map' });
-  }
   it._fieldInference={name,field:def,confidence:'high',source:'user',alternatives:[],reason:'Escolha do designer'};
   _dPsdAfterMap('“'+_dPsdFieldLabel(name)+'” definido para “'+it.name+'”');
 }
 function dPsdAcceptAllSug(){
   let n=0;
   dPsdItems.forEach(it=>{ if(_dPsdPendingSug(it)){
-    if((it.varSource==='ia'||it._fieldInference?.source==='ia') && window.gAiTelemetry){
-      window.gAiTelemetry.emit('ai_suggestion_accepted', { task: 'psd.map' });
-    }
     it.include=true;it.mode=_dPsdModeForKind(it);it.varSource='user';it.varWhy='';it._fixedByUser=false;
     it._fieldInference=Object.assign({},it._fieldInference||{},{confidence:'high',source:'user',reason:'Escolha do designer'});
     n++;
@@ -1789,8 +1778,6 @@ function _dPsdAfterMap(msg){
 }
 
 /* ── trilha de campos ── */
-// Varinha (o mesmo símbolo de IA que o resto do Luma usa). SVG e não emoji — 03_ENGINEERING §5.
-const _DPSD_AI_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8 19 13M17.8 6.2 19 5M3 21 12 12M12.2 6.2 11 5"/><circle cx="15" cy="9" r="3"/></svg>';
 // Quantas camadas SELECIONADAS estão ligadas em cada campo (chave em minúsculas: o vínculo
 // aceita o nome como o parser sugeriu, que pode diferir do catálogo na caixa).
 function _dPsdFieldCounts(){
@@ -1826,19 +1813,6 @@ function _dPsdRenderFieldRail(){
   if(sugBtn){
     sugBtn.hidden=!_dPsdReviewAll||!pend;
     sugBtn.textContent=pend?('Aplicar '+pend+(pend===1?' sugestão':' sugestões')):'';
-  }
-  // Botão de IA: só aparece se existe caminho real pra IA (gAiReady). Botão que aparece e
-  // falha é pior que botão que não existe — a regra é do próprio core/ai.js.
-  const aiBtn=document.getElementById('d-psd-ai-btn');
-  if(aiBtn){
-    const temIA=(window.gAI && window.gAI.isReady('psd.map')) || ((typeof gAiReady==='function') && gAiReady() && (typeof gAskAI==='function'));
-    aiBtn.hidden=!temIA || !vars.length || (!pend&&!_dPsdReviewAll); // IA resolve dúvida; não protagoniza estado pronto
-    aiBtn.disabled=_dPsdAiBusy;
-    // O estado "analisando" é pintado AQUI e não no handler: o handler re-renderiza a trilha,
-    // o que recria este botão — patch direto lá viraria referência órfã.
-    aiBtn.innerHTML=_dPsdAiBusy
-      ? '<span class="psd-ai-spin" aria-hidden="true"></span>Analisando a arte…'
-      : _DPSD_AI_ICON+'Mapear com IA';
   }
   if(!_dPsdReviewAll && _dPsdStep===2){ _dPsdRenderCampos(wrap); return; }
   if(!_dPsdReviewAll){
@@ -2021,177 +1995,6 @@ function _dPsdCanvasDrop(ev){
 function _dPsdScrollToRow(i){
   const row=document.querySelector('#d-psd-rows [data-psd-idx="'+i+'"]');
   if(row) row.scrollIntoView({block:'nearest',behavior:'smooth'});
-}
-
-/* ══ MAPEAR COM IA (Gemini, entrada de imagem) ══
-   Por que a IMAGEM e não só os nomes: o motor de sugestão por nome (`_dPsdSuggestVar`) só
-   acerta quando o designer nomeou a camada. Em PSD de verdade metade se chama "Camada 5" /
-   "Retângulo 2" — o nome não diz nada e o `_dPsdMemIsGeneric` inclusive proíbe usá-lo. O que
-   sobra pra decidir é o PAPEL VISUAL do elemento na peça, e isso está na arte. Então manda-se
-   a arte + a lista de camadas (tipo, conteúdo, caixa) + o catálogo real, e volta índice→campo.
-   ⛔ A IA PROPÕE, não decide: o resultado entra como sugestão pendente (o mesmo caminho do
-   parser), o designer vê "IA sugere: X" com o motivo e aceita — uma a uma ou no botão de
-   aplicar todas. Nada é aplicado calado, e camada que o designer já ligou não é tocada.
-   Motor único: passa por `gAskAI` (core/ai.js) → Edge Function `ai`, onde a chave mora. */
-let _dPsdAiBusy=false;
-// A arte que vai pro modelo. Prefere a PRÉVIA (é o que o designer está olhando e vem em até
-// 1100px, legível) e cai no composto do Photoshop (`dPsdMeta.ref`, ≤400px) quando ela não
-// renderizou. Sempre repinta sobre branco: JPEG não tem alpha, e um PNG transparente
-// direto viraria fundo PRETO — o modelo leria uma peça que não existe.
-function _dPsdArtePart(){
-  try{
-    let src=document.getElementById('d-psd-preview-canvas');
-    if(!src || !src.width || !src.height) src=(dPsdMeta&&dPsdMeta.ref)||null;
-    if(!src || !src.width || !src.height) return null;
-    const esc=Math.min(1, 900/Math.max(src.width, src.height)); // 900px basta pro papel visual
-    const cv=document.createElement('canvas');
-    cv.width=Math.max(1,Math.round(src.width*esc));
-    cv.height=Math.max(1,Math.round(src.height*esc));
-    const cx=cv.getContext('2d');
-    cx.imageSmoothingQuality='high';
-    cx.fillStyle='#fff'; cx.fillRect(0,0,cv.width,cv.height);
-    cx.drawImage(src,0,0,cv.width,cv.height);
-    const url=cv.toDataURL('image/jpeg',0.82);
-    const v=url.indexOf(',');
-    return v<0?null:{mimeType:'image/jpeg', data:url.slice(v+1)};
-  }catch(e){ return null; } // canvas contaminado por imagem de outra origem
-}
-// Prompt montado no CLIENTE de propósito: a Edge Function repassa o prompt em vez de montá-lo
-// (ver o cabeçalho de supabase/functions/ai/index.ts) — montar lá viraria prompt duplicado,
-// porque o caminho de transição com a chave do front precisa dele aqui.
-function _dPsdMapPrompt(itens){
-  const cat=_dPsdVarsList()
-    .map(v=>'- '+v.name+' ('+((v.type==='image')?'imagem':'texto')+') — '+(v.label||v.name))
-    .join('\n');
-  const tipoPt={text:'texto',shape:'forma',raster:'imagem'};
-  const cam=itens.map(o=>{
-    const it=o.it;
-    let l=o.i+' · '+(tipoPt[it.kind]||it.kind)+' · "'+String(it.name||'').slice(0,60)+'"';
-    if(it.kind==='text'&&it.content) l+=' · texto: "'+String(it.content).replace(/\s+/g,' ').slice(0,90)+'"';
-    l+=' · caixa '+Math.round(it.x)+','+Math.round(it.y)+','+Math.round(it.w)+','+Math.round(it.h);
-    return l;
-  }).join('\n');
-  // As regras 2 e 3 são domínio, não estilo: são as mesmas que o parse aprendeu na dor —
-  // rodapé que cita "R$" não é preço, e fundo NUNCA é foto do produto (isso já fez a foto
-  // do franqueado cobrir a arte inteira; ver _dPsdSuggestImgVar em psd-parse.js).
-  return 'Você recebe a IMAGEM de uma peça de marketing de delivery (a arte final montada no Photoshop) e a lista de CAMADAS que a compõem. Diga qual campo editável do catálogo corresponde a cada camada, para o mesmo layout servir a várias promoções.\n'
-    +'\nCAMPOS DO CATÁLOGO (use só estes nomes, exatamente como estão escritos):\n'+cat
-    +'\n\nCAMADAS da arte ('+(dPsdMeta?dPsdMeta.w:0)+'×'+(dPsdMeta?dPsdMeta.h:0)+'px) — índice · tipo · nome · conteúdo · caixa x,y,largura,altura:\n'+cam
-    +'\n\nREGRAS\n'
-    +'1. Campo de imagem só em camada do tipo imagem ou forma. Campo de texto só em camada do tipo texto.\n'
-    +'2. Relacione APENAS o que muda de uma promoção para outra: nome do produto, preços, validade, desconto, cupom, foto do produto, logo da loja.\n'
-    +'3. NÃO relacione texto fixo da marca, assinatura, disclaimer, rótulo curto ("de", "por", "a partir de"), selo nem elemento gráfico decorativo. O fundo da arte NUNCA é foto do produto.\n'
-    +'4. Cada camada no máximo uma vez. Se nenhum campo servir, omita a camada — omitir é melhor que errar.\n'
-    +'5. Decida pela IMAGEM: o nome da camada costuma ser genérico ("Camada 5"); o que vale é o papel visual do elemento na peça, e a caixa diz onde ele está.\n'
-    +'\nResponda APENAS JSON: {"vinculos":[{"camada":1,"campo":"produto","motivo":"título principal da oferta"}]}';
-}
-// A camada é o FUNDO da arte? `_dPsdSuggestImgVar` (psd-parse.js) já proíbe ligar fundo em
-// campo de imagem, e por bug real: a foto do franqueado cobria a arte inteira e, numa forma de
-// cor sólida, a cor sumia. A regra vale igual pra IA — e o prompt não serve de guarda: pedir
-// "não faça" ao modelo é sugestão, não garantia. Vale só pro mapeamento AUTOMÁTICO; se o
-// designer arrastar um campo de foto pro fundo, é decisão dele e passa.
-// Dois sinais, como no `_dPsdShouldInvert`: o nome, ou cobrir quase toda a prancheta.
-function _dPsdLooksBackground(it){
-  if(!it) return false;
-  if(/^(background|fundo|bg|base|backdrop|plano[\s\-]*de[\s\-]*fundo)$/i.test(String(it.name||'').trim())) return true;
-  if(!dPsdMeta) return false;
-  const area=Math.max(1, dPsdMeta.w*dPsdMeta.h);
-  return ((it.w*it.h)/area) >= 0.7;
-}
-async function dPsdMapWithAI(){
-  if(_dPsdAiBusy) return;
-  const itens=dPsdItems.map((it,i)=>({it,i})).filter(o=>o.it.include && !o.it.isMaskBase);
-  if(!itens.length){ gToast('Selecione ao menos uma camada','error'); return; }
-  const vars=_dPsdVarsList();
-  if(!vars.length){ gToast('Crie campos no catálogo antes de mapear com IA','error'); return; }
-  const part=_dPsdArtePart();
-  if(!part){ gToast('Não foi possível preparar a imagem da arte','error'); return; }
-  _dPsdAiBusy=true; _dPsdRenderFieldRail();
-  let lista=[];
-  let resp=null;
-
-  // Gateway Seguro gAI (§45-§51)
-  /* O typeof protege o `_dPsdAiBusy=true` acima: sem `gAI.isEnabled` (gateway antigo em cache) a
-     checagem estourava e o botão ficava preso em "Analisando a arte…"; assim cai no `mapear-psd`. */
-  if (window.gAI && (typeof window.gAI.isEnabled === 'function' && window.gAI.isEnabled('psdMapping'))) {
-    const allowedFields = vars.map(v => v.name);
-    const layersPayload = itens.map(o => ({
-      id: String(o.i),
-      type: o.it.kind,
-      name: o.it.name || '',
-      content: o.it.content || '',
-      x: Math.round(o.it.x),
-      y: Math.round(o.it.y),
-      w: Math.round(o.it.w),
-      h: Math.round(o.it.h)
-    }));
-
-    const res = await window.gAI.run('psd.map', {
-      allowedFields: allowedFields,
-      layers: layersPayload,
-      imagePart: part
-    });
-
-    if (res && res.ok && res.data && Array.isArray(res.data.mappings)) {
-      resp = res.data;
-      lista = res.data.mappings.map(m => ({
-        camada: Number(m.layerId),
-        campo: m.suggestedField,
-        motivo: m.reason
-      }));
-    }
-  } else if (typeof gAskAI === 'function') {
-    try{
-      resp=await gAskAI('mapear-psd', _dPsdMapPrompt(itens), {parts:[part], json:true, cache:false});
-      const parsed=resp && (typeof gAiParseJson==='function'?gAiParseJson(resp):null);
-      lista=(parsed && Array.isArray(parsed.vinculos))?parsed.vinculos:[];
-    }catch(e){ console.warn('[psd] mapeamento por IA falhou:', e); }
-  } else {
-    _dPsdAiBusy=false; _dPsdRenderFieldRail();
-    gToast('IA não disponível nesta sessão','error');
-    return;
-  }
-
-  _dPsdAiBusy=false;
-  if(!dPsdMeta){ return; } // modal fechou durante a chamada
-  if(!resp || !lista.length){
-    _dPsdRenderFieldRail();
-    gToast(resp?'A IA não encontrou campo para esta arte':'A IA não respondeu — tente de novo','error');
-    return;
-  }
-  // ⛔ Nada do que o modelo devolve é confiável por si: índice, nome de campo e tipo passam
-  // pela MESMA guarda do arrasto (_dPsdBindCheck). O que não passa é descartado em silêncio.
-  const vistos=new Set();
-  let n=0, fora=0;
-  lista.forEach(o=>{
-    const i=Number(o&&o.camada);
-    if(!Number.isInteger(i) || i<0 || i>=dPsdItems.length){ fora++; return; }
-    if(vistos.has(i)) return;                       // regra 4: uma camada, um campo
-    const it=dPsdItems[i];
-    if(!it.include || it.isMaskBase){ fora++; return; }
-    // Camada que o designer JÁ ligou não é tocada: sobrescrever a decisão dele seria
-    // trabalho perdido sem aviso. A IA só preenche o que está vazio.
-    if(it.mode==='var' || it.mode==='frame') return;
-    const v=_dPsdFieldByName(o&&o.campo);
-    if(!_dPsdBindCheck(it, v).ok){ fora++; return; }
-    // Fundo virando moldura de foto é o erro que estraga a arte inteira — e o tipo é legal
-    // (forma aceita campo de imagem), então a guarda de tipo não pega. Aqui pega.
-    if(v.type==='image' && _dPsdLooksBackground(it)){ fora++; return; }
-    vistos.add(i);
-    it.varName=v.name; it.varSource='ia';
-    it.varWhy=String((o&&o.motivo)||'').replace(/\s+/g,' ').slice(0,140);
-    it._fieldInference={name:v.name,field:v,confidence:'medium',source:'ia',alternatives:[],reason:it.varWhy||'Sugestão pela leitura visual da arte'};
-    n++; // o MODO fica como está: vira sugestão pendente, o designer é quem aplica
-  });
-  if(!n){
-    _dPsdRenderFieldRail();
-    gToast('A IA não trouxe vínculo novo — o que ela sugeriu já estava ligado ou não encaixou');
-    return;
-  }
-  _dPsdAfterMap('IA sugeriu '+n+(n===1?' vínculo':' vínculos')+'. Revise e aplique.');
-  gToast('IA sugeriu '+n+(n===1?' vínculo':' vínculos')+' — revise e clique em Aplicar'
-    +(fora?(' · '+fora+' descartado'+(fora===1?'':'s')):''));
-  if(fora) console.warn('[psd] mapeamento por IA: '+fora+' sugestão(ões) descartada(s) por índice/campo/tipo inválido');
 }
 
 /* ── pegar e clicar (o mesmo mapeamento sem arrastar) ── */

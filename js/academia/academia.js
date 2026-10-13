@@ -4,7 +4,7 @@
  * ACADEMIA DELIVERY MUCH — núcleo do módulo de formação do franqueado.
  * Aqui moram: estado, camada de dados (Supabase + cache local), roteamento
  * interno e a HOME DA JORNADA. O ambiente de aula vive em aula.js, o agente em
- * agente.js, a gestão em gestao.js e o certificado em certificado.js.
+ * a gestão em gestao.js e o certificado em certificado.js.
  *
  * NOME: o módulo é a "Academia"; a jornada dentro dele é a "Formação do
  * Franqueado". ⚠ NÃO chamar de "Implementação": esse nome já é a categoria de
@@ -89,7 +89,7 @@ const AC_CURSO_DEMO = {
       aulas:[
         { id:'demo-a1', titulo:'Bem-vindo à Delivery Much', ordem:0, publicado:true, obrigatoria:true, duracao_seg:420,
           objetivo:'Entender o que esperar da formação e como ela acompanha a sua implementação.',
-          resumo:'Conteúdo de demonstração. Apresenta a estrutura da jornada: módulos, aulas, materiais, anotações e o agente educacional.',
+          resumo:'Conteúdo de demonstração. Apresenta a estrutura da jornada: módulos, aulas, materiais, e anotações.',
           descricao:'Abertura da formação.', conteudo_versao:1,
           materiais:[{id:'d1',tipo:'checklist',titulo:'Checklist de primeiros passos (exemplo)',url:''}],
           transcricao:[], atividade:{} },
@@ -856,8 +856,7 @@ function acHomeRecentes(r){
 function acHomeAjuda(){
   return `<section class="ac-bloco ac-lado-bloco ac-ajuda" data-ac-entra>
     <h2 class="ac-bloco-titulo">Onde pedir ajuda</h2>
-    <p class="ac-ajuda-txt">Dentro de cada aula, o agente educacional responde dúvidas sobre aquele conteúdo. Para decisões oficiais da rede, fale com a equipe Delivery Much.</p>
-    <div class="ac-ajuda-bot">${acIco('bot')} <span>Agente educacional disponível nas aulas</span></div>
+    <p class="ac-ajuda-txt">Ficou com dúvida sobre uma aula? Use a central de ajuda (o botão de interrogação) ou fale com a equipe Delivery Much, que responde pelas decisões oficiais da rede.</p>
   </section>`;
 }
 

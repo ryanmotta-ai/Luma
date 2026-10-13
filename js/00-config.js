@@ -28,8 +28,6 @@ window.AI_FEATURES = window.AI_FEATURES || {
   semanticSearch: true,
   caption: true,
   copyFit: true,
-  contentReview: true,
-  psdMapping: true,
   materialEnrichment: true,
   stressCases: true
 };

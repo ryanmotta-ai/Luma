@@ -2,7 +2,7 @@
  * js/academia/aula.js
  *
  * ACADEMIA — AMBIENTE DE AULA. O núcleo do módulo: três regiões no desktop
- * (estrutura do curso · aula · agente educacional), player MP4 com retomada e
+ * (estrutura do curso · aula), player MP4 com retomada e
  * as ferramentas de aprendizado em abas.
  *
  * DECISÃO DE PLAYER: `<video controls>` NATIVO + o que o nativo não dá.
@@ -55,7 +55,6 @@ function acRenderAula(root, opts){
       <button type="button" class="ac-side-veu" id="ac-side-veu" aria-label="Fechar estrutura do curso" onclick="acFecharPaineis()"></button>
       <nav class="ac-side" id="ac-aula-side" aria-label="Estrutura da formação"></nav>
       <main class="ac-main" id="ac-aula-main"></main>
-      <aside class="ac-agente" id="ac-agente" aria-label="Agente educacional"></aside>
     </div>`;
   }
   acRenderSidebar();
@@ -69,8 +68,7 @@ function acRenderAula(root, opts){
     _acAulaMontada = aula.id;
   }
   else acRenderAbas(aula);
-  if(typeof acRenderAgente==='function') acRenderAgente(aula);
-  acAplicarAgenteRecolhido();
+  acAplicarVelocidade();
 }
 
 function acAulaBloqueada(aula){
@@ -220,9 +218,6 @@ function acRenderAulaMain(aula){
         <span aria-hidden="true">/</span>
         <span>${gEsc(mod&&mod.nome||'')}</span>
       </nav>
-      <button type="button" class="ac-abrir-agente" onclick="acAbrirAgente()" aria-label="Abrir o agente educacional">
-        ${acIco('bot')}<span>Tirar dúvida</span>
-      </button>
     </div>
 
     <header class="ac-aula-cab">
@@ -1112,29 +1107,12 @@ function acAbrirSide(){
   document.body.classList.add('ac-side-open');
   const b = document.querySelector('#ac-aula-side .ac-side-fechar'); if(b){ try{b.focus();}catch(e){} }
 }
-function acAbrirAgente(){
-  document.body.classList.add('ac-agente-open');
-  document.body.classList.remove('ac-agente-recolhido');
-  _acLembrarAgente(false);
-  const t = document.getElementById('ac-agente-input'); if(t){ try{t.focus();}catch(e){} }
-}
 function acFecharPaineis(){
-  document.body.classList.remove('ac-side-open','ac-agente-open');
+  document.body.classList.remove('ac-side-open');
 }
-function acRecolherAgente(){
-  const rec = !document.body.classList.contains('ac-agente-recolhido');
-  document.body.classList.toggle('ac-agente-recolhido', rec);
-  document.body.classList.remove('ac-agente-open');
-  _acLembrarAgente(rec);
-}
-// Aberto/fechado é preferência por usuário, guardada localmente (não é dado de negócio).
-function _acLembrarAgente(recolhido){
-  try{ localStorage.setItem('yngs_ac_agente_recolhido_'+(_acUid()||'anon'), recolhido?'1':'0'); }catch(e){}
-}
-function acAplicarAgenteRecolhido(){
-  let rec = false;
-  try{ rec = localStorage.getItem('yngs_ac_agente_recolhido_'+(_acUid()||'anon'))==='1'; }catch(e){}
-  document.body.classList.toggle('ac-agente-recolhido', rec);
+/* O tutor da aula (agente educacional) saiu em 13/10/2026, a pedido do Ryan: a aula é vídeo,
+   transcrição e materiais. Daqui só sobrou a velocidade do player, que é preferência local. */
+function acAplicarVelocidade(){
   try{
     const v = Number(localStorage.getItem('yngs_ac_velocidade'))||1;
     const sel = document.getElementById('ac-vel-sel');
@@ -1145,7 +1123,7 @@ function acAplicarAgenteRecolhido(){
 // Esc fecha os drawers (sem sequestrar o Esc de modais: só age se algum estiver aberto)
 document.addEventListener('keydown', (e)=>{
   if(e.key!=='Escape') return;
-  if(document.body.classList.contains('ac-side-open') || document.body.classList.contains('ac-agente-open')){
+  if(document.body.classList.contains('ac-side-open')){
     e.preventDefault(); acFecharPaineis();
   }
 }, false);
