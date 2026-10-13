@@ -86,7 +86,8 @@ async function lint(svgPath, formato) {
   const d = JSON.parse(await avaliarNaPagina(html, W, H, COLETA));
   const bgShape = d.shapes.find(s => s.box.w >= W - 2 && s.box.h >= H - 2);
   const bg = bgShape ? hex(bgShape.fill) : 'FFFFFF';
-  const blocos = d.shapes.filter(s => !(s.box.w >= W - 2 && s.box.h >= H - 2) && hex(s.fill) && s.fill !== 'none' && s.box.w > 30 && s.box.h > 30);
+  // camadas de fundo (ocupam > 40% do canvas, ex.: split diagonal) não são contêineres de texto
+  const blocos = d.shapes.filter(s => !(s.box.w >= W - 2 && s.box.h >= H - 2) && s.box.w * s.box.h < W * H * 0.4 && hex(s.fill) && s.fill !== 'none' && s.box.w > 30 && s.box.h > 30);
 
   // contêiner de cada texto: menor bloco preenchido que contém o centro
   d.texts.forEach(t => {
@@ -123,6 +124,7 @@ async function lint(svgPath, formato) {
   for (let i = 0; i < textos.length; i++) for (let j = i + 1; j < textos.length; j++) {
     const a = textos[i], b = textos[j];
     if (a.cont && a.cont === b.cont) continue;
+    if (a.grupo === 'preco' && b.grupo === 'preco') continue; // lockup DE → POR → valor é uma unidade (§2.1)
     const g = gap(a.ink, b.ink);
     if (g.overlap) { E(`Colisão: "${a.txt}" × "${b.txt}".`); continue; }
     const hero = a.fs >= 80 || b.fs >= 80;
@@ -153,8 +155,15 @@ async function lint(svgPath, formato) {
       else if (g.dist < 40) A(`Selo a ${Math.round(g.dist)}px do texto "${t.txt}" (mín. 40).`);
     });
   });
+  // selo de desconto tem de estar PRESO ao preço ou ao hero (≤ 200px), nunca solto
+  selos.forEach(sl => {
+    const alvos = textos.filter(t => ['preco', 'produto'].includes(t.grupo));
+    if (!alvos.length) return;
+    const dmin = Math.min(...alvos.map(t => gapCirculo(sl.box, t.ink).dist));
+    if (dmin > 200) A(`Selo solto: a ${Math.round(dmin)}px do preço/hero mais próximo (máx. 200). Prenda o selo ao preço ou ao título.`);
+  });
   const foto = slots.filter(s => s.grupo === 'foto_produto').sort((a, b) => b.box.w * b.box.h - a.box.w * a.box.h)[0];
-  if (foto) {
+  if (foto && foto.box.w >= 300) {
     const util = story ? 1400 : H - 200;
     const lim = story ? 0.5 : 0.55;
     if (foto.box.w > W * 0.6) { if (foto.box.h / util > lim + 0.12) A(`Foto ocupa ${Math.round(foto.box.h / util * 100)}% da altura útil (máx. ~${lim * 100}%).`); }

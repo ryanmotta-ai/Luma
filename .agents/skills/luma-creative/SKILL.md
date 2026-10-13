@@ -68,7 +68,12 @@ O Luma utiliza uma escala disciplinada de 4 níveis. O peso `Bold (700)` foi **e
 * **Entrelinha:** **0,92–0,96 × font-size** (baseline a baseline). Mais solto que isso desfaz o bloco; mais apertado colide acentos com a linha de cima.
 * **`letter-spacing`:** hero `0.5px`; apoio (Roboto 400) `1px`–`1.2px`.
 * **Quebra por sentido**, nunca no meio de uma expressão ("PIZZA EM / DOBRO" ✖ → "PIZZA / EM DOBRO" ✔).
-* **Preço (lockup fixo):** `DE R$ 28,00` riscado (apoio, ≥32px) → `POR` (apoio) → **`R$ 22,90` em Realce ≥96px** (o "R$" e os centavos no mesmo tamanho do número). O preço é o 2º maior elemento da peça.
+* **Preço (lockup fixo, a especialidade da marca):** `DE R$ 28,00` → `POR` → **`R$ 22,90`**.
+  * **`DE`:** Roboto 400 **≥ 40px**, **branco 100%** (ou `#434343` sobre card branco), **risco de 4px** na altura do meio das letras. Pequeno ou fino demais some no celular.
+  * **`POR`:** Roboto 400, 34–38px, `letter-spacing` 1.2px, **na mesma linha de base do valor** (à esquerda dele) ou logo acima.
+  * **Valor:** Realce **≥ 96px** (alvo 120–170); "R$" e centavos no mesmo tamanho do número. É o 2º maior elemento da peça, depois do hero.
+  * **Selo de desconto preso ao preço ou ao título:** o selo amarelo (`25% OFF`, `-22%`) fica **colado ao lockup do preço ou ao hero** (≤ 200px), nunca solto no meio da arte. O `lint-art.js` avisa ("Selo solto").
+  * O lockup é **uma unidade**: os vãos internos (24–48px) não seguem a regra de 60px entre blocos.
 
 ### 📐 2.2 Sistema de Proporções (tokens: nada de valor solto)
 | Token | Valores permitidos |
@@ -114,7 +119,7 @@ O Luma utiliza uma escala disciplinada de 4 níveis. O peso `Bold (700)` foi **e
 2. **Em cima de `#FF9000` (Laranja Solar):**
    * ✅ Use **BRANCO (`#FFFFFF`)** para textos e logos.
    * ✅ Use elementos e detalhes em **Laranja `#F85400`** para gerar profundidade e destaque.
-   * ⚠️ **Branco sobre `#FF9000` tem contraste baixo (~2,3:1):** compense com **tamanho**. Hero e preço **≥ 110px** (feed) / **≥ 120px** (story); apoio **≥ 36px** e só em Regular (400) — nunca Light (300) abaixo de 30px. **Prefira fundo `#F85400`** quando a peça tiver 3+ blocos de texto ou texto pequeno; reserve `#FF9000` para peças **limpas**: poucas palavras, hero grande.
+   * ⚠️ **Branco sobre `#FF9000` tem contraste baixo (~2,3:1):** compense com **tamanho**. Hero e preço **≥ 110px** (feed) / **≥ 120px** (story); apoio **≥ 36px** e só em Regular (400) — nunca Light (300) abaixo de 30px. **Prefira fundo `#F85400`** quando a peça tiver 3+ blocos de texto ou texto pequeno; reserve `#FF9000` para peças **limpas**: poucas palavras, hero grande. **`DE`, `POR` e o valor em branco ficam sobre `#F85400` (ou card branco)**, nunca direto sobre `#FF9000`: em peça `#FF9000` mova o preço para uma área `#F85400` (ex.: split diagonal, topologia 5 do repertório) ou para um card.
 3. **Em cima de BRANCO (`#FFFFFF`):**
    * ✅ **SEMPRE use Laranja `#F85400`** para preços, botões e tipografia de destaque.
    * ❌ **NUNCA use `#FF9000` sobre branco**: `#FF9000` fica totalmente sem contraste no fundo branco (reprova WCAG e fica ilegível/lavado).
@@ -206,6 +211,8 @@ Onde a foto do produto, da loja ou o logo do parceiro vai entrar, a arte mostra 
   | `slot-logo-loja.svg` (220×220, círculo) | logo/foto da loja ou do parceiro | "Logo da loja" |
 
 * **Texto do slot:** `Roboto Regular 400`, **≥ 28px** (≥ 24px no logo da loja), `#434343`, centralizado abaixo do ícone. Só os textos fixos da tabela. Para foto de loja/evento use "Use aqui sua foto da loja" / "Use aqui a foto do evento" **trocando só a frase**, mantendo o mesmo SVG.
+* **Slot pequeno (< 300px, miniatura em lista/card):** mesmo cinza `#D9D9D9`, ícone reduzido a ~60% e legenda curta em 2 linhas **"Foto do" / "produto"**, Roboto 400 **≥ 24px**. Slots ≥ 300px usam o texto fixo completo.
+* **Slot que sangra pela borda do canvas:** ícone e legenda ficam **centralizados na parte visível** do slot, nunca cortados pela borda.
 * **Mantenha o `id`** (`foto_produto` / `logo_loja`): é o gancho que o Luma usa para trocar pela imagem real.
 * **Variações de forma** (retângulo, arco, círculo) valem; **variações de cor não**. Moldura/aba ao redor do slot continua com as regras de paleta (`#434343`, branco ou `#FFB900`).
 * **Tamanho mínimo:** logo da loja ≥ **220px**; foto ≥ **35%** da largura do canvas (senão não dá para ler a legenda).
@@ -306,6 +313,8 @@ Antes de escrever uma única linha de código, a IA **DEVE abrir e inspecionar v
     * Zona proibida de base: últimos `250px` (reservado para barra de resposta/compartilhar).
     * Conteúdo útil concentrado na faixa central (`y = 260` até `y = 1660`), mantendo o mesmo respiro calculado entre blocos.
 
+* **Repertório de topologias aprovadas** (modelos prontos em `assets/templates/refino/`; use como ponto de partida e varie, não copie): foto circular sangrando + preço-herói (`refino_09`, feed); **lista de ofertas em cards** com miniaturas (`refino_10`, story); **etiqueta de preço inclinada** sobre foto em arco (`refino_11`, feed); **detalhes em pílulas + preço em linha + selo preso ao preço** (`refino_12`, story); **split diagonal em dois tons** com o preço na área `#F85400` (`refino_13`, feed); além de cupom/ticket (`refino_02`), foto em arco com hero embaixo (`refino_03`), hero gigante com foto circular (`refino_04`) e foto lateral sangrando (`refino_07`). Para cada pedido, escolha a topologia pelo **objetivo** (§Fase 1) e **varie** em vez de repetir a última.
+
 ### FASE 3: Orquestração de Blocos do Inventário
 Puxe os elementos diretamente de `assets/`. **Isto é o inventário disponível, não uma ordem fixa** — use só o que a mensagem da peça pede (a ordem e a presença de cada bloco seguem a Fase 2):
 * **Fundo:** cor sólida `#F85400` ou `#FF9000`. Pattern oficial **só se o procedimento da §3.1 mandar** (opcional, ancorado, nunca folha inteira); caso contrário, fundo liso.
@@ -334,7 +343,7 @@ Gerar o código não encerra a tarefa. A IA **DEVE tirar o print da arte e olhar
    ```bash
    node scripts/lint-art.js arte.svg            # --story / --feed se o formato não for detectável
    ```
-   Ele mede o SVG no navegador (caixas reais) e confere: paleta, fontes, `font-size` ≥ 22, margens e zona útil do story, colisões e vãos, estouro de texto no card, contraste por fundo, botão/tag amarelo, selo perto de texto (≥ 40px), foto (área e `#D9D9D9`), pattern desfocado, tokens de raio e eixo de alinhamento. **Erros: corrija e rode de novo até zerar. Avisos: corrija, ou justifique em uma linha** (ex.: "sangria intencional").
+   Ele mede o SVG no navegador (caixas reais) e confere: paleta, fontes, `font-size` ≥ 22, margens e zona útil do story, colisões e vãos, estouro de texto no card, contraste por fundo, botão/tag amarelo, selo perto de texto (≥ 40px) e selo solto longe do preço (> 200px), foto (área e `#D9D9D9`), pattern desfocado, tokens de raio e eixo de alinhamento. **Erros: corrija e rode de novo até zerar. Avisos: corrija, ou justifique em uma linha** (ex.: "sangria intencional").
 4. **Auditar os Pilares Visuais:**
    * **Cores Oficiais & Subtons:** As cores usadas são estritamente as 5 oficiais? Zero subtons inventados?
    * **Contraste Correto:** Sobre `#F85400` é branco? Sobre branco está `#F85400` (e nunca `#FF9000`)?
@@ -381,6 +390,7 @@ Antes de finalizar a arte:
 | Selo com texto longo | Máx. 2 linhas curtas; texto ≥ 22px |
 | Pattern como folha cobrindo a arte inteira / branco atrás de texto branco | Pattern opcional, com sorrisos inteiros e nítidos escolhidos por `scripts/pattern-ancorado.js`; na dúvida, arte clean (§3.1) |
 | Botão/tag amarelo com texto preto sobre `#FF9000`; pattern desfocado/esmaecido | Botão `#F85400` + texto branco (ou branco + `#F85400` sobre `#F85400`); pattern nítido, só com opacidade (§3 item 5 e §3.1) |
+| `DE R$` pequeno/fino e selo de desconto flutuando longe do preço (apontado pela revisão fria) | `DE` ≥ 40px branco 100% com risco de 4px; selo preso ao preço/hero (≤ 200px) |
 | Hero com tamanho "no olho" (sobra ou falta largura) | `node scripts/medir-texto.js` e usar a quebra recomendada |
 | Mistura de alinhamento (centro + esquerda) / valores de espaço e raio soltos | Um eixo por peça; tokens da §2.2; o `lint-art.js` avisa |
 | Selo a menos de 40px do texto de apoio | Mover o selo ou o texto até ter ≥ 40px |
