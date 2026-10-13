@@ -248,7 +248,8 @@ function _gLfTetoPilha(layer, camada, opts){
 
    As regras (e cada uma existe porque sem ela a caixa atravessa o que não devia):
      · só texto ancorado no TOPO (`vAlign:'top'`) — é o único que cresce só para baixo;
-       centralizado ou ancorado embaixo cresceria para cima também. Vertical também não;
+       centralizado ou ancorado embaixo cresceria para cima também. Vertical também não.
+       Exceção: texto de APOIO centralizado (ver o corpo da função);
      · "próximo objeto" = qualquer camada visível que comece abaixo do fim da caixa e cruze
        a mesma faixa horizontal. NÃO contam: o fundo/painel que CONTÉM a caixa, a placa do
        próprio texto, e o que já está ao lado (começa antes do fim da caixa);
@@ -258,7 +259,13 @@ function _gLfTetoPilha(layer, camada, opts){
        o que tem embaixo, a única resposta segura é a caixa desenhada. */
 function _gLfEspacoAbaixo(layer, camada, opts){
   if(!opts || !Array.isArray(opts.layers) || !opts.canvas || !opts.canvas.h) return 0;
-  if(camada.vertical || camada.vAlign !== 'top') return 0;
+  /* TEXTO DE APOIO CENTRALIZADO TAMBÉM CRESCE (13/10/2026). "Detalhes" e "descrição" são o campo
+     em que o franqueado escreve de verdade ("hambúrguer G com batata, repolho e…"), e a caixa do
+     PSD é justa numa linha. Centralizado, ele cresceria para cima também — mas quando passa da
+     caixa o render já ancora no topo (`_gStampVTop`), então o crescimento é só para baixo, igual
+     ao do texto de topo. Título, produto e preço seguem a regra antiga: só com `vAlign:'top'`. */
+  const apoio = layer.layoutSemantic === 'apoio' && camada.vAlign !== 'bottom';
+  if(camada.vertical || (camada.vAlign !== 'top' && !apoio)) return 0;
   // Membro de pilha não reserva respiro: o vazio abaixo da pilha é do TOPO (ver a pilha).
   if(_gLfEhMembro(layer)) return 0;
   const bw = camada.w || 0, bh = camada.h || 0;

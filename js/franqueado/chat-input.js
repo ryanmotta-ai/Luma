@@ -29,6 +29,7 @@ const F_FIELD_TYPES = {
 };
 
 const F_PRECO_MAX = 400; // teto, em reais, de qualquer campo de preço (ver fValidate)
+const F_TEXTO_TETO = 120; // teto de digitação de qualquer campo de texto livre (ver fGetFieldType)
 
 /* ── LIMITE MEDIDO NA CAIXA (03/09) ──────────────────────────────────────────────────
    O `maxLen` era escolhido a dedo por NOME de campo — 32 pra produto, 40 pra oferta — e
@@ -117,6 +118,13 @@ function fMarcaLimiteSeguro(id, limite){
   if(!id || !Number.isFinite(limite) || limite < 0) return;
   _F_LIMITE_SEGURO.set(_fLsChave(id), Math.round(limite));
 }
+// Esquece os limites medidos do material aberto (a arte voltou a caber — ver `_fLpSyncBalao`).
+function fLimpaLimiteSeguro(){
+  const pre = _fLsChave('');
+  let mudou = false;
+  _F_LIMITE_SEGURO.forEach((v, k) => { if(k.indexOf(pre) === 0){ _F_LIMITE_SEGURO.delete(k); mudou = true; } });
+  if(mudou){ try{ fUpdateCharCount(); }catch(e){} }
+}
 function fLimiteSeguro(id){
   if(!id) return 0;
   const v = _F_LIMITE_SEGURO.get(_fLsChave(id));
@@ -199,6 +207,13 @@ function fGetFieldType(id){
       maxLen = Math.max(maxLen, fMaxLenDaCaixa(id));
     }
   }
+
+  /* TEXTO LIVRE NÃO É CORTADO PELA CONTAGEM (13/10/2026). "Vou conseguir colocar 24 letras num
+     campo de detalhes?" — o corte duro vinha do `maxLen` publicado (que desde 10/10 nasce do que
+     cabe na caixa SEM encolher) e do padrão 32. Quem decide se cabe é o Local Fit, em pixel, com
+     quebra, encolhimento e o espaço livre da arte; quando não cabe, o Encurtar oferece a versão
+     que cabe. A contagem só segura o absurdo (colar um parágrafo). Preço/código seguem na máscara. */
+  if(type === 'text') maxLen = Math.max(maxLen, F_TEXTO_TETO);
 
   // `fallback.label` é o próprio `id` quando o campo não está no F_FIELD_TYPES — e esse rótulo
   // vai para a `field-hint` embaixo da pergunta, à vista do franqueado. Motor único decide.
@@ -658,6 +673,12 @@ function fUpdateCharCount(){
   /* Depois de a arte bloquear, o número que vale é o MEDIDO naquela caixa — não a permissão
      do designer. Mostrar 47/60 quando só cabem 28 é o contador mentindo no pior momento. */
   const alvo = fAlvoDoCampo(id, cfg);
+  /* Sem limite medido, "15/120" prometeria 120 letras que a caixa talvez não comporte — e o
+     "24/24" assustava. O contador só fala quando tem algo verdadeiro a dizer: a arte mediu um
+     limite (alvo < teto) ou a pessoa chegou perto do teto de digitação. */
+  if(alvo >= cfg.maxLen && len < cfg.maxLen * 0.8){
+    counter.textContent=''; counter.classList.remove('warn'); _fFitSync(box, id, cfg, len); return;
+  }
   counter.textContent = `${len}/${alvo}`;
 
   const isWarn = len >= alvo * 0.90;
@@ -694,6 +715,19 @@ let _fFitPerto = false;    // `_fFitOpts[0]` é a versão que só chegou PERTO (
 function _fFitCopyFit(id){
   const s = (typeof fLpBalaoSolucao==='function') ? fLpBalaoSolucao() : null;
   return (s && s.campo===id) ? s : null;
+}
+/* A prévia já mediu ESTE material? Sem isso (outra tela, prévia não montada) não há veredito. */
+function _fFitTemVeredito(){
+  try{ return !!fState.material && _lpEffectiveMaterial===fState.material; }catch(e){ return false; }
+}
+/* IA no ar PARA o Encurtar: a flag `copyFit` manda. O atalho por `gAiReady()` ignorava a flag —
+   desligá-la na gestão não escondia o botão. */
+function _fFitPodeIA(){
+  if(typeof window.gAI==='object' && window.gAI){
+    if(typeof gAI.isEnabled==='function' && !gAI.isEnabled('copyFit')) return false;
+    if(gAI.isReady('copy.fit')) return true;
+  }
+  return typeof gAskAI==='function' && typeof gAiReady==='function' && gAiReady();
 }
 /* O bloqueio que a prévia mediu para ESTE campo — existe mesmo quando o motor não achou versão
    (aí `fLpBalaoSolucao` é null). É ele que liga o "Tentar com IA" e dá a régua em pixel. */
@@ -749,11 +783,17 @@ function _fFitSync(box, id, cfg, len){
      Agora nasce em 90% do alvo, ANTES de bloquear: mesmo limiar do contador (`fUpdateCharCount`),
      "Tentar com IA: encurtar para caber em N caracteres" já cobria esse caso na label — só
      faltava a porta abrir antes do estouro. */
+  /* UM GATILHO SÓ (13/10/2026): o veredito do Local Fit. Com a prévia medindo este material, o
+     Encurtar aparece quando a arte BLOQUEOU neste campo e some quando cabe — nada de "90% de um
+     número de caracteres", que acendia com a arte cabendo folgada (e, com o limite publicado
+     nascendo da medida sem encolher, virava o botão principal em "Encurtar" em texto que cabia).
+     A contagem só vale como rede SEM prévia medindo (o caso da Vanessa, 24/09) e quando a
+     digitação bateu no teto e cortou de verdade. */
   const alvo = fAlvoDoCampo(id, cfg);
-  const cabe = (len>=cfg.maxLen && _fFitAttempt(box,id).length>cfg.maxLen)
-            || len >= alvo*0.9;
-  const podeIA = (typeof window.gAI==='object' && gAI.isReady('copy.fit'))
-    || (typeof gAskAI==='function' && typeof gAiReady==='function' && gAiReady());
+  const medindo = _fFitTemVeredito();
+  const cortou = len>=cfg.maxLen && _fFitAttempt(box,id).length>cfg.maxLen;
+  const cabe = cortou || (!medindo && len >= alvo*0.9);
+  const podeIA = _fFitPodeIA();
   const cf = id ? _fFitCopyFit(id) : null;
   // Sem versão do motor, mas a arte bloqueou NESTE campo: com IA, o botão fica (antes sumia).
   const bloq = !cf && podeIA && id ? _fFitBloqueio(id) : null;
@@ -775,7 +815,7 @@ function _fFitSync(box, id, cfg, len){
   /* "Bateu no limite": chegou no alvo medido, ou a pessoa digitou além e a guarda cortou o resto
      (`_fFitAttempt` guarda o que ela tentou) — a frase ficou pela metade. Abaixo disso (90%) o chip
      pequeno continua sendo só um atalho. */
-  const naoCabe = !!(cf || perto || bloq || len >= alvo || (_fFitAttempt(box,id).length > (cfg.maxLen||Infinity)));
+  const naoCabe = !!(cf || perto || bloq || cortou || (!medindo && len >= alvo));
   /* O rótulo visível segue "Encurtar" (o padding do campo é medido para ele, chat.css); o
      title/aria-label diz o que o toque faz quando só a IA pode ajudar. */
   const titulo = cf ? 'Encurtar para caber na arte'
@@ -867,8 +907,7 @@ async function fFitTextWithAI(comIA){
   const _soMaisCurto = !_bloqA && original.length<=alvo;
   if(_soMaisCurto) alvo=Math.max(4, Math.floor(original.length*0.8));
   const btn=_fFitBtn();
-  const podeIA = (typeof window.gAI==='object' && gAI.isReady('copy.fit'))
-    || (typeof gAskAI==='function' && typeof gAiReady==='function' && gAiReady());
+  const podeIA = _fFitPodeIA();
   const cf=_fFitCopyFit(id);
   _fFitClosePop();
   _fFitPerto=false;
@@ -916,7 +955,9 @@ async function fFitTextWithAI(comIA){
         original: original,
         maxLen: alvo,
         fieldName: cfg.label
-      }, {callerController: run.ctrl});
+      /* `comIA` é toque explícito ("Mais opções", "Tentar de novo"): o cache de 1h devolvia as
+         MESMAS opções que a conferência acabou de reprovar, e o "de novo" falhava igual. */
+      }, {callerController: run.ctrl, cache: comIA ? false : undefined});
       if(res.ok && res.data && Array.isArray(res.data.suggestions)){
         brutas = res.data.suggestions.map(s => s.text);
       }
@@ -1072,6 +1113,45 @@ function _fFitFalha(head, msg){
     +'<button type="button" class="f-fit-acao" onclick="_fFitClosePop()">Fechar</button></div>';
   _fFitArmaFechar(pop, _fFitBtn());
 }
+/* ENTER COM A ARTE BLOQUEADA (13/10/2026). O clique no botão principal em modo "Encurtar" já
+   encurtava, mas o Enter aceitava calado o texto que não cabe: a pergunta mudava, o Encurtar
+   sumia e o bloqueio só voltava no Baixar — a intervenção chegava na hora errada. Agora o 1º
+   Enter de um texto que a prévia mediu como bloqueado abre o Encurtar ali mesmo; o 2º Enter do
+   MESMO texto (ou "Enviar assim") salva. Ninguém fica preso, e a IA continua só por toque.
+   Devolve true quando segurou o envio. */
+function fFitSegurarEnvio(){
+  const box=document.getElementById('f-msg-box'); if(!box || box.disabled || _fFitRun) return false;
+  const id=fState.camp?.perguntas?.[fState.stepIdx]?.id;
+  if(!id || fState.done || !fCampoPodeEncurtar(id) || !_fFitTemVeredito()) return false;
+  const texto=box.value.trim();
+  if(!texto || box._fFitAvisou===texto) return false;
+  // A medida é DESTE texto? Entre a tecla e o render há debounce: sem medida nova, não segura.
+  let medido='';
+  try{ medido=String((_lpDadosRender||{})[id]==null?'':_lpDadosRender[id]).trim(); }catch(e){}
+  const bloq=_fFitBloqueio(id);
+  if(!bloq || medido!==texto) return false;
+  box._fFitAvisou=texto;
+  const cf=_fFitCopyFit(id), perto=(!cf && typeof fLpBalaoPerto==='function') ? fLpBalaoPerto(id) : null;
+  if(cf || perto){
+    fFitTextWithAI();                  // sem IA: cf/perto montam o painel na hora, sem espera
+    const foot=document.querySelector('#f-fit-pop .f-fit-pop-foot');
+    if(foot) foot.textContent+=' Para manter o seu texto, aperte Enter de novo.';
+    return true;
+  }
+  const cv=document.getElementById('lp-canvas');
+  const F=(cv && cv.width && typeof _fLpFalta==='function') ? _fLpFalta(bloq, cv.width, cv.height) : null;
+  const rot=(typeof gFieldLabel==='function') ? gFieldLabel(id) : 'O texto';
+  const pop=_fFitPopEl();
+  pop.className='f-fit-pop f-fit-pop-falha';
+  pop.setAttribute('role','status'); pop.setAttribute('aria-live','polite');
+  pop.innerHTML=`<div class="f-fit-pop-head">${_F_FIT_ICO_ALERTA}<span>${gEsc('“'+rot+'” não cabe na arte')}</span></div>`
+    +`<p class="f-fit-pop-msg">${gEsc((F && F.limite>0 ? 'Cabem até '+F.limite+' letras; hoje são '+texto.length+'. ' : '')+'Encurte o texto ou envie assim mesmo — a arte só sai quando couber.')}</p>`
+    +'<div class="f-fit-acoes">'
+    +(_fFitPodeIA() ? '<button type="button" class="f-fit-acao is-primaria" onclick="fFitTextWithAI(true)">Encurtar com IA</button>' : '')
+    +'<button type="button" class="f-fit-acao" onclick="_fFitClosePop();fSend()">Enviar assim</button></div>';
+  _fFitArmaFechar(pop, _fFitBtn());
+  return true;
+}
 // O que o franqueado lê em "Sai:": o mesmo filtro do balão (só palavra de verdade).
 function _fFitSaiVisivel(lista){
   return (typeof _fLpRemovidasVisiveis==='function') ? _fLpRemovidasVisiveis(lista) : (lista||[]);
@@ -1108,9 +1188,22 @@ function fFitApply(i){
     else if(typeof gToast==='function') gToast('O texto mudou. Toque em Encurtar de novo para ver a versão que cabe.');
     return;
   }
+  const antes=box.value, campo=fState.camp?.perguntas?.[fState.stepIdx]?.id;
   box.value=s;
   box._fFit=null;                      // encaixou: a tentativa antiga não vale mais
   _fFitClosePop();
+  /* A versão da IA (ou o "quase cabe") também se desfaz: atribuir `value` mata o Ctrl+Z nativo,
+     e o texto original da pessoa se perdia no toque. Mesmo slot e mesmo toast do balão. */
+  if(typeof _fLpUndoCopyFit==='function'){
+    _fLpUndoCopyFit('Encurtar texto', campo, ()=>{
+      const bx=document.getElementById('f-msg-box');
+      if(bx && !bx.disabled && fState.camp?.perguntas?.[fState.stepIdx]?.id===campo){
+        bx.value=antes; bx.dispatchEvent(new Event('input',{bubbles:true})); try{ bx.focus(); }catch(e){}
+      }
+    });
+    // "Trocamos pela versão que cabe" seria mentira no "quase cabe": lá o toast não sai.
+    if(!_fFitPerto && typeof fLpAvisaTroca==='function') fLpAvisaTroca(campo);
+  }
   try{ if(typeof gTrackEvent==='function') gTrackEvent('copyfit_aplicado',{origem:_fFitCf?'chat':(_fFitPerto?'perto':'ia'), campo:fState.camp?.perguntas?.[fState.stepIdx]?.id||null, template_id:(typeof _fTplId==='function')?_fTplId(fState.material):null, removidas_n:_fFitSaiVisivel(_fFitSai[i]).length}); }catch(e){}
   box.dispatchEvent(new Event('input',{bubbles:true}));
   box.focus();

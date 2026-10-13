@@ -663,6 +663,7 @@ function _fGuidedAvancar(){
 }
 function _fGuidedEnviarTexto(){
   const box=document.getElementById('f-msg-box'); if(!box) return;
+  if(typeof fFitSegurarEnvio==='function' && fFitSegurarEnvio()) return;   // arte bloqueada: Encurtar antes
   _fGuidedSalvar(box.value.trim());
 }
 function _fGuidedEscolher(valor){ _fGuidedSalvar(valor); }
@@ -2295,7 +2296,7 @@ function _fAplicarLegendaIA(canvasId, sug){
   const sel = sug.find(x => x.id === aba) || sug[0];
   const box = document.getElementById('caption-content-' + canvasId);
   if(box){
-    box.innerHTML = gEsc(sel.text).replace(/\n/g, '<br>');
+    box.innerHTML = _fLegendaHTML(sel.text);
     box.classList.remove('is-trocando'); void box.offsetWidth; box.classList.add('is-trocando');
   }
   const selo = painel.querySelector('.caption-src');
@@ -2612,6 +2613,30 @@ async function fGiriaAdicionar(ev){
   if(typeof gTrackEvent === 'function') gTrackEvent('giria_adicionada', {});
 }
 
+/* A legenda como PARÁGRAFOS, não como `<br>` em série. A linha vazia virava um <br> de altura
+   cheia, a caixa estourava a altura máxima e as hashtags sumiam num scroll interno de 4px —
+   era a "bagunça" que a rede via (13/10/2026). Bloco só de hashtags ganha tom apagado. */
+function _fLegendaHTML(texto){
+  return String(texto || '').split(/\n\s*\n/).map(b => b.trim()).filter(Boolean).map(b =>
+    `<p${/^#\S+(\s+#\S+)*$/.test(b) ? ' class="cap-tags"' : ''}>${gEsc(b).replace(/\n/g, '<br>')}</p>`
+  ).join('');
+}
+
+/* UMA diagramação e UM jogo de hashtags, venha a legenda de onde vier (13/10/2026). O caminho
+   do gateway (`gAI`) não passava pelo `_fCapDiagrama` — a IA devolvia um bloco só, com 6 a 9
+   hashtags no estilo dela, e a mesma arte trocava de cara quando a IA chegava. Aqui: diagrama,
+   tira as hashtags da IA e põe as do motor local (`tags`: a última linha da legenda local). */
+function _fCapPadroniza(s, tags){
+  const sem = _fCapDiagrama(String(s || '').replace(/\*/g, '').replace(/[ \t]{2,}/g, ' ').trim())
+    .replace(/(^|\s)#[\p{L}\d_]+/gu, '$1');
+  const corpo = (typeof _fCopyTidy === 'function') ? _fCopyTidy(sem) : sem.replace(/\n{3,}/g, '\n\n').trim();
+  return tags ? corpo + '\n\n' + tags : corpo;
+}
+function _fCapTagsLocais(fallback){
+  const ult = String((fallback && fallback[0] && fallback[0].text) || '').trim().split('\n').pop() || '';
+  return /^#\S+(\s+#\S+)*$/.test(ult.trim()) ? ult.trim() : '';
+}
+
 /* DIAGRAMAÇÃO da legenda da IA — a mesma cara do motor local (gancho / corpo / CTA / hashtags,
    blocos separados por linha em branco). O prompt pede; isto garante quando o modelo devolve
    tudo num parágrafo só: hashtags do fim viram bloco próprio e cada frase vira um parágrafo.
@@ -2693,8 +2718,10 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
   if (window.gAI && typeof window.gAI.isEnabled === 'function' && window.gAI.isEnabled('caption')) {
     const res = await window.gAI.run('caption.generate', {
       produto: prod,
-      precoDe: dados.precoDe || '',
-      precoPor: dados.precoPor || dados.preco || '',
+      /* Os preços JÁ resolvidos acima (`de`/`por`): mandava `dados.precoDe` cru, e em template
+         cuja variável tem outro nome a IA escrevia sem preço enquanto a arte mostrava o preço. */
+      precoDe: de,
+      precoPor: por,
       desconto: desc,
       validade: val,
       campanha: campName,
@@ -2708,10 +2735,11 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
       const w = res.data.whatsapp || fallback[2].text;
       // Modelo às vezes escorrega um *negrito* mesmo proibido: tira aqui, não confia no prompt.
       const semAst = s => String(s).replace(/\*/g, '').replace(/[ \t]{2,}/g, ' ').trim();
+      const tags = _fCapTagsLocais(fallback);
       const out = [
-        { id: 'promo', label: 'Promo', text: (res.data.promo || res.data.caption) ? _fSeoGarante(semAst(p), _fSeoFrases[0]) : semAst(p) },
-        { id: 'engajar', label: 'Engajar', text: res.data.engajar ? _fSeoGarante(semAst(e), _fSeoFrases[1]) : semAst(e) },
-        { id: 'whatsapp', label: 'WhatsApp', text: semAst(w) }
+        { id: 'promo', label: 'Promo', text: (res.data.promo || res.data.caption) ? _fSeoGarante(_fCapPadroniza(p, tags), _fSeoFrases[0]) : semAst(p) },
+        { id: 'engajar', label: 'Engajar', text: res.data.engajar ? _fSeoGarante(_fCapPadroniza(e, tags), _fSeoFrases[1]) : semAst(e) },
+        { id: 'whatsapp', label: 'WhatsApp', text: res.data.whatsapp ? _fCapPadroniza(w, '') : semAst(w) }
       ];
       if (out[1].text === out[0].text) out[1].text = fallback[1].text;
       if (out[2].text === out[0].text) out[2].text = fallback[2].text;
@@ -2783,7 +2811,7 @@ Responda APENAS com JSON válido:
     // Tira em vez de devolver peça fora do padrão de marca.
     s = s.replace(/\*/g, '').replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}]/gu, '').replace(/[ \t]{2,}/g, ' ').trim();
     if (!s) return fallback[i].text;
-    s = _fCapDiagrama(s);
+    s = _fCapPadroniza(s, i < 2 ? _fCapTagsLocais(fallback) : '');
     return i < 2 ? _fSeoGarante(s, _fSeoFrases[i]) : s;
   };
   const out = [
@@ -2815,7 +2843,12 @@ function fSetCaption(canvasId, tabId) {
   const selected = caps.find(c => c.id === tabId) || caps[0];
   if (!selected) return;
   container.dataset.activeTab = selected.id;
-  box.innerHTML = gEsc(selected.text).replace(/\n/g, '<br>');
+  box.innerHTML = _fLegendaHTML(selected.text);
+  /* A 3ª sugestão é MENSAGEM de WhatsApp ("Responde aqui…"), não legenda de feed. Sem dizer
+     isso, o ciclo a oferecia como legenda e ela ia parar no Instagram. */
+  const sub = container.querySelector('.caption-card-sub');
+  if (sub) sub.textContent = selected.id === 'whatsapp'
+    ? 'Mensagem para enviar no WhatsApp.' : 'Copie e publique junto com a arte.';
   box.classList.remove('is-swapping');
   void box.offsetWidth;
   box.classList.add('is-swapping');
@@ -2983,7 +3016,7 @@ function fGerarArte(){
         ${_fCaptionSrcTag(suggestions)}
       </header>
       <div class="caption-content-box" id="caption-content-${previewCanvasId}">
-        ${gEsc(suggestions[0].text).replace(/\n/g, '<br>')}
+        ${_fLegendaHTML(suggestions[0].text)}
       </div>
       <footer class="caption-card-foot">
         ${temAlt ? `<button type="button" class="caption-alt-btn" onclick="fCycleCaption('${previewCanvasId}')" title="Trocar por outra sugestão de legenda">
@@ -3738,8 +3771,8 @@ function fQR(val, el){
 }
 function fSend(ev){
   /* Botão principal em modo "Encurtar" (o texto não cabe): o CLIQUE encurta. O Enter chega aqui sem
-     evento e continua salvando — quem decide salvar assim mesmo tem por onde (o bloqueio segura a
-     exportação, não a resposta). */
+     evento: o 1º abre o Encurtar uma vez (`fFitSegurarEnvio`), o 2º salva — quem decide salvar
+     assim mesmo tem por onde (o bloqueio segura a exportação, não a resposta). */
   const _snd=document.getElementById('f-snd');
   if(ev && ev.type==='click' && _snd && _snd.classList.contains('is-encurtar') && typeof fFitTextWithAI==='function'){
     fFitTextWithAI(); return;
@@ -3765,6 +3798,7 @@ function fSend(ev){
      No celular é o caso provável, não o raro: o teclado já está aberto e os chips são o alvo
      menor. A guarda aqui (e não no `fSaveAdv`) evita a bolha órfã — `fAddUser` vem depois. */
   if(fState.stepIdx < 0){ fShowFieldError('Escolha uma das opções acima para começar.'); return; }
+  if(typeof fFitSegurarEnvio==='function' && fFitSegurarEnvio()) return;   // arte bloqueada: Encurtar antes
   // Aplica máscara e valida antes de salvar
   const id = fState.camp.perguntas[fState.stepIdx]?.id;
   const masked = id ? fApplyMask(id, v) : v;

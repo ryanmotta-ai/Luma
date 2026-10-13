@@ -54,6 +54,9 @@
     if(/ [.,!?;:]/.test(t))out.push('espaço antes de pontuação');
     if(/off\s+off/i.test(t))out.push('OFF duplicado');
     if(/%\s*%/.test(t))out.push('% duplicado');
+    // Tratamento único: a marca fala "você". "Teu pedido" ao lado de "Peça pelo app" é ruído.
+    if(/\b(teu|tua|teus|tuas)\b/i.test(t))out.push('"tu" misturado com "você"');
+    if((t.match(/#\w+/g)||[]).length>6)out.push('mais de 6 hashtags');
     if(/v[áa]lid[oa]\s+v[áa]lid[oa]/i.test(t))out.push('"Válido válido"');
     if(/R\$(?!\s*\*?\s*\d)/.test(t))out.push('R$ sem número');
     if(/R\$\s*\*?0,00/.test(t))out.push('preço zerado exibido');
@@ -672,6 +675,44 @@
     }
     assert(achados.length===0,achados.length+' problemas em '+n+' copies:\n    '+achados.slice(0,8).join('\n    '));
     window.__copyFuzzN=(window.__copyFuzzN||0)+n;
+  });
+
+  /* ─────────────── LEGIBILIDADE (revisão de 13/10/2026) ─────────────── */
+
+  test('hashtag do produto é o nome curto, não a frase inteira',()=>{
+    assert(_fCopyProdTag('X-Burguer G com batata')==='#xburguer','veio '+_fCopyProdTag('X-Burguer G com batata'));
+    assert(_fCopyProdTag('Pizza Calabresa')==='#pizzacalabresa','veio '+_fCopyProdTag('Pizza Calabresa'));
+    assert(_fCopyProdTag('açaí 500ml com 3 adicionais')==='#acai','veio '+_fCopyProdTag('açaí 500ml com 3 adicionais'));
+    assert(_fCopyProdTag('Combo família 2 pizzas + refri 2L')==='#combofamilia','veio '+_fCopyProdTag('Combo família 2 pizzas + refri 2L'));
+  });
+
+  test('pontuação final do produto não entra no meio da frase',()=>{
+    for(let i=0;i<30;i++){
+      solta();
+      const o=gerar(BRIEF({prod:'açaí 500ml com 3 adicionais.',por:'R$ 19,90'}));
+      tudo(o).forEach(t=>assert(!/adicionais\.\s*[a-z?]|adicionais\.\?/i.test(t),'pontuação do produto vazou: '+t));
+    }
+  });
+
+  test('preço sem máscara sai no formato da casa',()=>{
+    solta();
+    const o=gerar(BRIEF({prod:'Açaí 500ml',por:'19,9'}));
+    tudo(o).forEach(t=>assert(!/19,9(?!0)/.test(t),'preço cru: '+t));
+  });
+
+  test('acompanhamento depois do "+" não decide o segmento',()=>{
+    for(let i=0;i<10;i++){
+      solta();
+      const o=gerar(BRIEF({prod:'2 pizzas grandes + refri 2L',por:'R$ 89,90'}));
+      assert(!/#bebida|#gelada|gelad/i.test(o.op1),'o refri puxou o tom de bebida: '+o.op1);
+    }
+  });
+
+  test('açaí não "chega quente"',()=>{
+    for(let i=0;i<40;i++){
+      solta();
+      tudo(gerar(BRIEF({prod:'Açaí 500ml',por:'R$ 19,90'}))).forEach(t=>assert(!/quent/i.test(t),'açaí quente: '+t));
+    }
   });
 
   /* ─────────────── EXECUÇÃO ─────────────── */

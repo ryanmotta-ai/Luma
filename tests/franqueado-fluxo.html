@@ -794,6 +794,58 @@ await test('bloqueio: o diálogo nomeia o campo, diz o limite e LEVA até ele', 
   assert(fState.done===false,'deixou o fluxo como "pronto" — a resposta da edição não seria salva');
 });
 
+/* ══ ENCURTAR NA HORA CERTA (13/10/2026) — o gatilho é o veredito do Local Fit ══════════ */
+/* IA "no ar" de mentira (nenhuma chamada sai) + o `#f-input-wrap` onde o botão e o painel moram. */
+const _iaFalsa=()=>{
+  const antes=window.gAI; window.gAI={isReady:()=>true,isEnabled:()=>true,run:async()=>({ok:false})};
+  const wrap=document.createElement('div'); wrap.id='f-input-wrap'; document.body.appendChild(wrap);
+  return ()=>{ window.gAI=antes; wrap.remove(); try{_fFitSndModo(false);}catch(e){} };
+};
+const _encurtarAceso=()=>!!document.getElementById('f-fit-btn')
+  || !!(document.getElementById('f-snd') && document.getElementById('f-snd').classList.contains('is-encurtar'));
+
+await test('Encurtar: com a prévia medindo, acende só quando a arte BLOQUEIA o campo', async()=>{
+  reset();
+  const volta=_iaFalsa();
+  try{
+    const box=document.getElementById('f-msg-box');
+    fState.stepIdx=fState.camp.perguntas.findIndex(p=>p.id==='produto'); fState.done=false;
+    const texto='Hambúrguer Artesanal Duplo com Bacon';
+    box.value=texto; fState.dados={produto:texto};
+    // A contagem passou do limite medido antes (90%+), mas a arte, medida agora, CABE.
+    fMarcaLimiteSeguro('produto', texto.length);
+    _lpEffectiveMaterial=fState.material; _lpLayoutResult={invalid:false,bloqueios:[]}; _lpDadosRender={produto:texto};
+    fUpdateCharCount();
+    assert(!_encurtarAceso(),'o Encurtar acendeu pela contagem com a arte cabendo');
+    _lpLayoutResult=bloqueio('produto',20,texto.length);
+    fFitSync();
+    assert(_encurtarAceso(),'a arte bloqueou neste campo e o Encurtar não acendeu');
+    _lpLayoutResult={invalid:false,bloqueios:[]};
+    fFitSync();
+    assert(!_encurtarAceso(),'voltou a caber e o Encurtar seguiu aceso');
+  }finally{ volta(); _lpEffectiveMaterial=null; _lpLayoutResult=null; _lpDadosRender=null; try{_fFitClosePop();}catch(e){} }
+});
+
+await test('Encurtar: Enter com a arte bloqueada oferece o Encurtar uma vez; o 2º Enter envia assim', async()=>{
+  reset();
+  const volta=_iaFalsa();
+  try{
+    const box=document.getElementById('f-msg-box');
+    fState.stepIdx=fState.camp.perguntas.findIndex(p=>p.id==='produto'); fState.done=false;
+    const texto='Hambúrguer Artesanal Duplo com Bacon e Cheddar';
+    box.value=texto; fState.dados={produto:texto};
+    _lpEffectiveMaterial=fState.material; _lpLayoutResult=bloqueio('produto',28,texto.length); _lpDadosRender={produto:texto};
+    assert(fFitSegurarEnvio()===true,'o envio do texto bloqueado não foi segurado');
+    const pop=document.getElementById('f-fit-pop');
+    assert(pop && /não cabe/.test(pop.textContent),'o painel não disse que não cabe');
+    assert(/Enviar assim/.test(pop.textContent),'sem a saída "Enviar assim" a pessoa fica presa');
+    assert(box.value===texto,'segurar o envio mexeu no texto');
+    assert(fFitSegurarEnvio()===false,'o 2º envio do MESMO texto foi segurado de novo');
+    box.value=texto+' G';
+    assert(fFitSegurarEnvio()===false,'segurou com a medida de OUTRO texto (antes do render novo)');
+  }finally{ volta(); _lpEffectiveMaterial=null; _lpLayoutResult=null; _lpDadosRender=null; try{_fFitClosePop();}catch(e){} }
+});
+
 await test('bloqueio: "Agora não" não mexe no fluxo', async()=>{
   reset();
   fState.dados={produto:'Hambúrguer Artesanal Duplo com Bacon e Cheddar'};
@@ -805,7 +857,7 @@ await test('bloqueio: "Agora não" não mexe no fluxo', async()=>{
   _respostaConfirm=true;
 });
 
-await test('bloqueio: o contador passa a mostrar o limite MEDIDO, não a permissão do designer', async()=>{
+await test('bloqueio: o contador só aparece com o limite MEDIDO (antes, a arte decide)', async()=>{
   reset();
   /* Material próprio: o limite medido é guardado por `materialId|campo` e SOBREVIVE entre
      artes de propósito (quem volta para a mesma peça não perde o número). Reaproveitar o
@@ -815,12 +867,13 @@ await test('bloqueio: o contador passa a mostrar o limite MEDIDO, não a permiss
   const counter=document.getElementById('f-char-count');
   const idx=fState.camp.perguntas.findIndex(p=>p.id==='produto');
   fState.stepIdx=idx; fState.done=false;
-  const permissao=fGetFieldType('produto').maxLen;
   box.value='Hambúrguer Artesanal Duplo com Bacon e Cheddar';
   const n=box.value.length;
   fUpdateCharCount();
-  assert(counter.textContent===n+'/'+permissao,
-         'antes do bloqueio o contador deveria mostrar a permissão do designer, veio '+counter.textContent);
+  /* 13/10/2026: "47/120" prometeria 120 letras que a caixa talvez não comporte. Longe do teto
+     de digitação e sem bloqueio medido, o contador fica calado — quem decide é o Local Fit. */
+  assert(counter.textContent==='',
+         'antes do bloqueio o contador não deveria prometer número nenhum, veio '+counter.textContent);
   _respostaConfirm=true;
   await fCorrigirTextoLongo(bloqueio('produto',28,n));
   fUpdateCharCount();
@@ -1098,7 +1151,7 @@ await test('Kit A: a peça com campo próprio não é pulada — o kit pergunta 
   dFolders.length=0;
 });
 
-await test('Kit B: campo pedido por duas peças usa o limite da caixa mais apertada', async()=>{
+await test('Kit B: campo pedido por duas peças vira UMA pergunta, sem corte pela contagem do designer', async()=>{
   reset();
   const larga=pecaKit('k-2','Feed','feed',[txtKit('oferta','oferta',900,120,40)],{permissoes:{oferta:{maxLen:30}}});
   const estreita=pecaKit('k-3','Story','story',[txtKit('oferta','oferta',300,60,40)],{permissoes:{oferta:{maxLen:14}}});
@@ -1106,22 +1159,27 @@ await test('Kit B: campo pedido por duas peças usa o limite da caixa mais apert
   const plano=await fKitPlano([larga,estreita],DADOS_KIT,fState.camp);
   const c=plano.campos.find(x=>x.id==='oferta');
   assert(c,'o campo compartilhado não foi perguntado');
-  assert(c.limite===14,'o limite devia ser o da caixa mais apertada (14) e veio '+c.limite);
+  /* 13/10/2026: texto livre não é cortado pela permissão (era o "24 letras num campo de
+     detalhes"). Cada peça é julgada pelo Local Fit em pixel — a que não couber sai do pacote
+     com nome e motivo (Kit C). */
+  assert(c.limite===F_TEXTO_TETO,'o teto de digitação devia ser o do texto livre ('+F_TEXTO_TETO+') e veio '+c.limite);
   assert(c.pecas.length===2,'o campo compartilhado virou duas perguntas em vez de uma');
   dFolders.length=0;
 });
 
-await test('Kit B no chat: o limite de um campo de texto é o da peça mais apertada da pasta', async()=>{
+await test('Kit B no chat: o limite MEDIDO de um campo de texto é o da peça mais apertada da pasta', async()=>{
   reset();
   const larga=pecaKit('k-2','Feed','feed',[txtKit('oferta','oferta',900,120,40)],{permissoes:{oferta:{maxLen:30}}});
   const estreita=pecaKit('k-3','Story','story',[txtKit('oferta','oferta',300,60,40)],{permissoes:{oferta:{maxLen:14}}});
   pastaKit([larga,estreita]);
+  // O Story bloqueou e mediu "cabem 14": o chat do Feed, na mesma pasta, já mostra esse alvo.
+  fState.material=estreita; fMarcaLimiteSeguro('oferta',14);
   fState.material=larga;
   assert(fAlvoDoCampo('oferta',fGetFieldType('oferta'))===14,'o chat do Feed mostra '+fAlvoDoCampo('oferta',fGetFieldType('oferta'))+' e o Story só aceita 14');
-  assert(fGetFieldType('oferta').maxLen===30,'o corte da digitação mudou: ele segue no limite do designer');
+  assert(fGetFieldType('oferta').maxLen===F_TEXTO_TETO,'o corte da digitação devia ser o teto do texto livre');
   assert(fState.material===larga,'medir a outra peça trocou o material aberto');
   dFolders.length=0;
-  assert(fAlvoDoCampo('oferta',fGetFieldType('oferta'))===30,'fora de uma pasta com várias peças o limite apertou mesmo assim');
+  assert(fAlvoDoCampo('oferta',fGetFieldType('oferta'))===F_TEXTO_TETO,'fora de uma pasta com várias peças o limite apertou mesmo assim');
 });
 
 await test('Kit C: a peça em que o texto não cabe fica fora do pacote, com nome e motivo', async()=>{

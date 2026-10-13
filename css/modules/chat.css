@@ -1818,13 +1818,17 @@ body:not(.theme-light) .f-bulk-tool-action{
   line-height: 1.72;
   letter-spacing: .005em;
   color: var(--text-2);
-  max-height: 168px;
+  max-height: 320px;
   overflow-y: auto;
   overflow-wrap: break-word;
   font-family: inherit;
   box-shadow: 0 1px 3px rgba(0,0,0,.03);
 }
 
+/* Parágrafos (`_fLegendaHTML`): respiro de meia linha em vez da linha vazia inteira. */
+.caption-content-box p { margin: 0 0 8px }
+.caption-content-box p:last-child { margin-bottom: 0 }
+.caption-content-box .cap-tags { color: var(--text-3); font-size: 12.5px }
 .caption-content-box::-webkit-scrollbar { width: 4px }
 .caption-content-box::-webkit-scrollbar-thumb { background: var(--gray-mid); border-radius: 4px }
 /* Troca de sugestão: o texto muda: sem um sinal de movimento parece que nada aconteceu. */
@@ -1912,6 +1916,7 @@ body:not(.theme-light) .caption-content-box {
   background: var(--d-surf); border-color: var(--d-border); border-left-color: var(--dm-orange);
   color: var(--d-text); box-shadow: none;
 }
+body:not(.theme-light) .caption-content-box .cap-tags { color: var(--d-text3) }
 body:not(.theme-light) .caption-alt-btn { color: var(--d-text2) }
 body:not(.theme-light) .caption-alt-btn:hover { background: var(--d-surf2); color: var(--dm-orange) }
 body:not(.theme-light) .caption-copy-btn { background: var(--d-surf2); color: var(--dm-orange); border-color: var(--d-border2) }

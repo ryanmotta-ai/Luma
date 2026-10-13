@@ -179,6 +179,12 @@ Conservadora, e **nada além do texto alvo se move**.
 | 5 | parar no piso normal | o laço termina em `fs === piso` | — |
 | 6 | declarar overflow | status `overflow` com diagnóstico | `piso` |
 
+> **Texto de APOIO (13/10/2026).** Camada com `layoutSemantic: 'apoio'` (detalhes, descrição,
+> ingredientes) tem piso de **40%** do corpo autorado (os outros papéis seguem em 50%; o piso
+> legível e o de hierarquia continuam valendo) e **cresce para baixo mesmo centralizada** —
+> só `vAlign: 'bottom'` fica de fora. O render já ancora no topo quando o texto passa da caixa
+> (`_gStampVTop`), então o crescimento é sempre para baixo. Casos 15h2/15h3.
+
 > **Por que 1–3 são um passo só de execução.** `gFitTextLayer` no corpo autorado JÁ chama
 > `gSmartWrapText` quando a camada é caixa de parágrafo. Transformar isso em três chamadas
 > seria criar uma segunda quebra — exatamente o que o contrato proíbe. Eles se distinguem no
@@ -706,6 +712,9 @@ Sem versão que caiba, nenhuma porta inventa: fica o fluxo do §15.
 | **Balão na prévia** (desktop) | `_fLpSyncBalao` · `fLpBalaoSolucao` (`live-preview.js`) | Em cima da caixa bloqueada; o balão É o botão. Percorre os bloqueios e mostra o 1º que tem solução; o que saiu vai no title ("sem Delicioso"); anunciado no `aria-live` da barra |
 | **Diálogo "Esse texto não cabe"** ao gerar, baixar ou trocar de formato — também no celular | `fCorrigirTextoLongo` (`chat.js`) | `gConfirm` com "Usar esta versão" / "Editar" / "Agora não" (3ª saída = `altLabel`, opcional, em `toast.js`). Usar gera a arte de novo; "Editar" e "Encurtar agora" abrem o campo com o texto atual |
 | **"Encurtar" do chat**, sem IA | `fFitTextWithAI` (`chat-input.js`) | Aparece quando o Copy Fit tem versão que cabe; a IA vira "Mais opções com IA" e também passa pela régua em pixel. Versão de um texto que já mudou não aplica |
+| **Gatilho único do Encurtar** (13/10/2026) | `_fFitSync` (`chat-input.js`) | Com a prévia medindo o material, o Encurtar (chip ou botão principal) acende **só** quando o Local Fit bloqueou o campo e apaga quando cabe. A contagem (90% do alvo) é rede apenas sem prévia medindo, ou quando a digitação bateu no teto. Toda versão aplicada (Copy Fit, "quase cabe" ou IA) entra no Desfazer |
+| **Enter com a arte bloqueada** (13/10/2026) | `fFitSegurarEnvio` (`chat-input.js`) | O 1º Enter de um texto que a prévia mediu como bloqueado abre o Encurtar ali mesmo (sem chamar IA); o 2º Enter do mesmo texto, ou "Enviar assim", salva |
+| **Teto de digitação do texto livre** (13/10/2026) | `fGetFieldType` (`chat-input.js`, `F_TEXTO_TETO = 120`) | Campo de texto não é mais cortado pelo `maxLen` publicado. Quem decide se cabe é o encaixe; o contador só aparece com limite medido ou perto do teto |
 
 **Uma medida, um culpado.** Balão, diálogo e Encurtar medem com `gLocalFitMedidor` (`local-fit.js`):
 os mesmos dados e a mesma placa da prévia, caminho único do runtime (caso 15g). Aviso, balão e laudo

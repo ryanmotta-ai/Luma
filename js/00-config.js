@@ -1944,7 +1944,11 @@ function gHandleLayoutUnsafeError(err){
       é movimento de composição — e composição saiu do produto. */
 function gLayoutPisoFonte(l){
   const legivel = (l && l._pisoLegivel) || 0;
-  const abs = Math.max(8, legivel, Math.round(((l && l.fontSize) || 24) * 0.5));
+  /* Texto de APOIO (detalhes, descrição, ingredientes) desce até 40% do corpo desenhado; o resto
+     segue em 50%. É o campo de frase longa, e 50% o travava em 2 linhas de ~15 letras. O piso
+     legível (`_pisoLegivel`, 15px numa arte de 1080) e a hierarquia (`_pisoFonte`) seguem valendo. */
+  const fracao = (l && l.layoutSemantic === 'apoio') ? 0.4 : 0.5;
+  const abs = Math.max(8, legivel, Math.round(((l && l.fontSize) || 24) * fracao));
   return (l && l._pisoFonte != null) ? Math.max(l._pisoFonte, abs) : abs;
 }
 

@@ -1451,7 +1451,7 @@ function _fLpSyncBloqueio(resArg){
   }else{
     _fLpNotaTexto(nota,'“'+rotulo+'” não cabe na arte'+(conta?' ('+conta+')':'')+(podeEncurtar?' · Encurtar':' · Conferir valor'),falado);
     nota.title='“'+rotulo+'” não cabe nesta arte nem no menor tamanho legível.'
-      +(conta?' Hoje '+conta+'.':'')+(podeEncurtar?' Toque para encurtar com IA.':' Confira o valor; se estiver correto, escolha outro material.');
+      +(conta?' Hoje '+conta+'.':'')+(podeEncurtar?(typeof _fFitPodeIA==='function'&&_fFitPodeIA()?' Toque para encurtar com IA.':' Toque para ver o que encurtar.'):' Confira o valor; se estiver correto, escolha outro material.');
   }
   nota.setAttribute('aria-label', nota.title+falado);
   nota.onclick=()=>{
@@ -1607,6 +1607,10 @@ function _fLpSyncBalao(){
   const stage=document.querySelector('.lp-stage'), cv=document.getElementById('lp-canvas');
   if(!bloqs.length||!cv||!cv.width||typeof gCopyFitSugestoes!=='function'
      ||typeof gLocalFitCulpado!=='function'){
+    /* A arte voltou a caber: o "cabem até N" medido no bloqueio deixa de ser verdade (o texto
+       mudou, ou outro campo liberou espaço). Sem limpar, o contador seguia em "30/24" e o
+       Encurtar acendia por um número velho. Bloqueou de novo, o render mede de novo. */
+    if(res&&!res.invalid&&cv&&typeof fLimpaLimiteSeguro==='function') fLimpaLimiteSeguro();
     _lpBalao=null; _fLpBalaoTira(); return;
   }
   const chave=_fLpBalaoChave(bloqs,cv.width,cv.height);

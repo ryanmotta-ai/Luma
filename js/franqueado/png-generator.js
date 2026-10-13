@@ -2638,10 +2638,14 @@ function _fBulkRowFromCampos(c){
   const nameKey = textVars.find(v => /^(produto|titulo|nome)$/i.test(v)) || textVars.find(v => /produto|titulo|nome/i.test(v)) || textVars[0];
   if (nameKey) dados[nameKey] = c.nome || '';
 
-  const deKey = textVars.find(v => /^(precode|de)$/i.test(v)) || textVars.find(v => /de|antigo/i.test(v));
+  /* Mesmo classificador do Sheets (`fPrecoPapel`): o `/de|antigo/` casava com "vali-DE",
+     "DE-sconto" e "DE-scrição", e o preço antigo do cardápio ia parar na validade. */
+  const _papel = v => (typeof fPrecoPapel === 'function') ? fPrecoPapel(v) : null;
+  const deKey = textVars.find(v => /^(precode|de)$/i.test(v)) || textVars.find(v => _papel(v) === 'de');
   if (deKey) dados[deKey] = c.precoDe ? fApplyMask(deKey, c.precoDe) : '';
 
-  const porKey = textVars.find(v => /^(precopor|por|preco|preço|valor)$/i.test(v)) || textVars.find(v => /por|preco|preço|atual|valor/i.test(v));
+  const porKey = textVars.find(v => /^(precopor|por|preco|preço|valor)$/i.test(v)) || textVars.find(v => v !== deKey && _papel(v) && _papel(v) !== 'de')
+    || textVars.find(v => v !== deKey && /por|preco|preço|atual|valor/i.test(v));
   if (porKey) dados[porKey] = c.precoPor ? fApplyMask(porKey, c.precoPor) : '';
 
   const valKey = textVars.find(v => /validade|data|condicao|condição/i.test(v));
@@ -5409,22 +5413,26 @@ const _COPY_BLOCKS = {
 
   // ─── HASHTAGS por segmento ───
   hashtags: {
-    universal: ['#delivery', '#pecaagora', '#comida', '#deliverymuch', '#pediu', '#matoufome', '#fome', '#jantar', '#pedido', '#comidaboa', '#deliveryemcasa', '#hojetem'],
-    pizzas: ['#pizza', '#noitedepizza', '#pizzadelivery', '#pizzalovers', '#pizzaria', '#pizzanoite', '#amopizza', '#pizzaquente'],
-    lanches: ['#burger', '#hamburguer', '#lanche', '#smashburger', '#burgerlovers', '#burgerdelivery', '#artesanal', '#burgertime'],
-    japonesa: ['#sushi', '#comidajaponesa', '#temaki', '#japa', '#sushilovers', '#hotroll', '#comidajaponesadelivery', '#japanesefood'],
-    bebidas: ['#bebida', '#drinks', '#gelada', '#refrescante', '#bebidagelada', '#refri', '#suco'],
-    sobremesas: ['#sobremesa', '#doce', '#sweet', '#doceria', '#docinho', '#sobremesadelivery', '#docesgourmet'],
-    refeicoes: ['#almoco', '#marmita', '#pratofeito', '#refeicao', '#comidacaseira', '#almocodelivery', '#marmitex', '#comidadeverdade'],
-    porcoes: ['#porcao', '#entrada', '#petisco', '#aperitivo', '#petiscos', '#porcaodelivery', '#happyhour'],
-    acai: ['#acai', '#acaibowl', '#acailovers', '#gelado', '#acaidelivery', '#acaigelado', '#acaidocasa'],
-    saudavel: ['#saudavel', '#comidasaudavel', '#fit', '#lowcarb', '#eatclean', '#vidasaudavel', '#comidafit', '#fitness'],
-    cafe: ['#cafedamanha', '#padaria', '#cafe', '#brunch', '#lanchedatarde', '#cafecomleite', '#paofresquinho', '#manha'],
-    mexicana: ['#comidamexicana', '#tacos', '#nachos', '#mexican', '#guacamole', '#taco', '#burrito', '#comidamexicanadelivery'],
-    massas: ['#massa', '#macarrao', '#pasta', '#comidaitaliana', '#massafresca', '#massadelivery', '#italiana', '#molho'],
-    churrasco: ['#churrasco', '#carne', '#barbecue', '#espetinho', '#brasa', '#churrasqueira', '#carnenabrasa', '#churrascodelivery'],
-    salgados: ['#salgados', '#pastel', '#coxinha', '#salgadinho', '#lanchedatarde', '#esfiha', '#salgadosdelivery', '#salgadoquentinho'],
-    combos: ['#combo', '#promocao', '#paradividir', '#comboperfeito', '#combodelivery', '#comboemfamilia', '#pedidocompleto'],
+    /* Só o que o vizinho digita na busca, em português e VERDADEIRO para qualquer produto do
+       segmento (13/10/2026). Saíram os estrangeirismos (#burgerlovers, #sweet, #japanesefood) e
+       as que afirmavam o que a loja talvez não venda (#smashburger e #artesanal num X-Burguer,
+       #marmita num prato, #jantar num açaí da tarde). */
+    universal: ['#delivery', '#comida', '#fome', '#pedido', '#comidaboa', '#deliveryemcasa'],
+    pizzas: ['#pizza', '#pizzaria', '#pizzadelivery', '#noitedepizza', '#amopizza'],
+    lanches: ['#hamburguer', '#lanche', '#burger', '#burgerdelivery', '#lanchonete'],
+    japonesa: ['#sushi', '#comidajaponesa', '#japa', '#temaki', '#hotroll'],
+    bebidas: ['#bebida', '#bebidagelada', '#gelada', '#refrescante'],
+    sobremesas: ['#sobremesa', '#doce', '#doceria', '#docinho', '#sobremesadelivery'],
+    refeicoes: ['#almoco', '#refeicao', '#comidacaseira', '#almocodelivery', '#comidadeverdade'],
+    porcoes: ['#porcao', '#petisco', '#petiscos', '#aperitivo', '#porcaodelivery'],
+    acai: ['#acai', '#acaidelivery', '#acaigelado', '#acaibowl'],
+    saudavel: ['#saudavel', '#comidasaudavel', '#vidasaudavel', '#comidafit'],
+    cafe: ['#cafedamanha', '#padaria', '#cafe', '#lanchedatarde', '#paofresquinho'],
+    mexicana: ['#comidamexicana', '#tacos', '#nachos', '#burrito'],
+    massas: ['#massa', '#macarrao', '#comidaitaliana', '#massadelivery'],
+    churrasco: ['#churrasco', '#carne', '#espetinho', '#churrascodelivery'],
+    salgados: ['#salgados', '#pastel', '#coxinha', '#salgadinho', '#esfiha'],
+    combos: ['#combo', '#promocao', '#paradividir', '#combodelivery'],
   },
 };
 
@@ -5518,6 +5526,8 @@ function _fCopyTidy(s) {
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n[ \t]+/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
+    // Linha começa com maiúscula: o produto digitado em minúscula abria a frase ("açaí 500ml a…").
+    .replace(/(^|\n)([a-zà-ÿ])/g, (m, a, b) => a + b.toUpperCase())
     .trim();
 }
 
@@ -5538,16 +5548,23 @@ function _fCopyFacts(prodBruto, deBruto, porBruto, valBruto, descBruto, cupomBru
     if (typeof s !== 'string') return '';
     return s.replace(/[{}]/g, '').replace(/\s+/g, ' ').trim();
   };
-  const prod = limpa(prodBruto);
+  /* Pontuação final é do franqueado, não da frase: "3 adicionais." virava "adicionais. por"
+     e "adicionais.?" dentro das perguntas. */
+  const prod = limpa(prodBruto).replace(/[\s.!?;:,]+$/, '');
   const val = limpa(valBruto), desc = limpa(descBruto);
   /* O rótulo "De:"/"Por:" é da ARTE, não da frase. A máscara (chat-input.js) grava o preço
      já rotulado porque é assim que o material da rede é desenhado; aqui ele sai, senão a
      legenda diria "de De: R$ 98,90 por Por: R$ 39,54". O número em si não muda. */
   const semRotulo = (s) => limpa(s).replace(/^(de|por)\s*:?\s*/i, '');
-  const de = semRotulo(deBruto), por = semRotulo(porBruto);
+  const deCru = semRotulo(deBruto), porCru = semRotulo(porBruto);
 
-  const numDe = fParsePriceNumber(de);
-  const numPor = fParsePriceNumber(por);
+  const numDe = fParsePriceNumber(deCru);
+  const numPor = fParsePriceNumber(porCru);
+  /* Preço que é SÓ número ("19,9", "R$29.9" — o Sheets não tem máscara) sai no formato da
+     casa, "R$ 19,90". Texto com palavra ("2 por R$ 30") fica como veio: o parse juntaria os
+     dígitos num número que ninguém escreveu. */
+  const soPreco = (s, n) => (n > 0 && /^(r\$\s*)?\d[\d.,]*$/i.test(s)) ? fFormatPriceNumber(n) : s;
+  const de = soPreco(deCru, numDe), por = soPreco(porCru, numPor);
   // "R$ 0,00" não é preço — anunciava o produto de graça.
   const temPor = /\d/.test(String(por || '')) && numPor > 0;
   const temDe = /\d/.test(String(de || '')) && numDe > 0;
@@ -5622,6 +5639,19 @@ function _fCopyRemember(used, prev) {
 }
 
 /* Monta UMA copy completa. mode: 'promo' | 'engajar' | 'whatsapp' */
+/* "Pode ser X hoje? / Hoje sai por…" — o eco mais visível depois do nome do produto. */
+function _fCopyHoje(t) { return /\bhoje\b/i.test(t); }
+
+/* Hashtag do PRODUTO pelo nome curto: o que vem antes de "com"/"+"/"e", sem tamanho (G, 500ml)
+   nem número, até 2 palavras. "X-Burguer G com batata" → #xburguer (era #xburguergcombatata);
+   "açaí 500ml com 3 adicionais" → #acai. Grande demais ou vazio: sem hashtag de produto. */
+function _fCopyProdTag(prod) {
+  const nucleo = String(prod || '').split(/\s+(?:com|c\/|e|\+)\s+|\+/i)[0];
+  const palavras = nucleo.split(/\s+/).filter(w => w.length > 1 && !/\d/.test(w)).slice(0, 2);
+  const tag = _fSanitizeHashtagPart(palavras.join(''));
+  return (tag.length >= 3 && tag.length <= 20) ? '#' + tag : '';
+}
+
 function _fAssembleCopy(f, mode, segment, used, forceShort) {
   const B = _COPY_BLOCKS;
   const isWpp = mode === 'whatsapp';
@@ -5650,6 +5680,13 @@ function _fAssembleCopy(f, mode, segment, used, forceShort) {
       if (semVal.length) pool = semVal;
     }
     if (!pool.length) pool = banco.semPreco;
+    /* COERÊNCIA (13/10/2026), sempre com rede (se o filtro esvaziar, volta o banco cheio):
+       · açaí, bebida e sobremesa não "chegam quentes na sua porta";
+       · produto que já tem "com" ("X-Burguer G com batata") não recebe "{prod} com preço
+         especial" — saía "com batata com preço especial". */
+    const filtra = (fn) => { const p = pool.filter(fn); if (p.length) pool = p; };
+    if (/^(acai|bebidas|sobremesas)$/.test(segment)) filtra(t => !/quent/i.test(t));
+    if (/\bcom\b/i.test(f.prod)) filtra(t => !/\{prod\} com\b/.test(t));
     // Dedup de CORPO entre as 3 opções e com as artes recentes (cai no pool cheio se esgotar)
     const avail = pool.filter(t => !used.bodies.has(t));
     return avail.length ? avail : pool;
@@ -5711,7 +5748,8 @@ function _fAssembleCopy(f, mode, segment, used, forceShort) {
         const bText = _fInterpolate(bTpl, data);
         const pair = { hook: h, tpl: bTpl, body: bText, len: hText.length + 2 + bText.length };
         allPairs.push(pair);
-        if (pair.len <= 120) validPairs.push(pair);
+        // "Hoje" no gancho E no corpo é eco; sai só dos sorteáveis — `allPairs` segue de rede.
+        if (pair.len <= 120 && !(_fCopyHoje(h) && _fCopyHoje(bTpl))) validPairs.push(pair);
       }
     }
     const chosen = validPairs.length ? _fPick1(validPairs) : allPairs.sort((x, y) => x.len - y.len)[0];
@@ -5724,7 +5762,9 @@ function _fAssembleCopy(f, mode, segment, used, forceShort) {
     /* O corpo curto (que não recomeça dizendo o nome) serve a DOIS casos: o gancho já
        nomeou o produto, ou não existe produto para nomear. */
     const semNome = !f.prod || hookTpl.indexOf('{prod}') >= 0;
-    bodyTpl = _fPick1(escolherPool(semNome ? B.bodiesCurtos : B.bodies));
+    const poolCorpo = escolherPool(semNome ? B.bodiesCurtos : B.bodies);
+    const semHoje = _fCopyHoje(hookTpl) ? poolCorpo.filter(t => !_fCopyHoje(t)) : poolCorpo;
+    bodyTpl = _fPick1(semHoje.length ? semHoje : poolCorpo);
     body = _fInterpolate(bodyTpl, data);
   }
 
@@ -5784,17 +5824,17 @@ function _fAssembleCopy(f, mode, segment, used, forceShort) {
      faz a arte ser achada por quem procura: o PRODUTO (#pizzacalabresa, só nome curto), a
      CATEGORIA, o LOCAL (#ijui, #deliveryijui e categoria+cidade, #pizzaijui — o que o vizinho
      digita) e a MARCA (#deliverymuch, sempre). Teto de 9: hashtag demais vira spam pro algoritmo. */
+  /* 13/10/2026: teto 6 (era 9). Nove hashtags quebravam em três linhas e liam como spam; a
+     combinação categoria+cidade (#pizzasantacruzdosul) ninguém digita. Fica o essencial do SEO:
+     produto (nome curto), 2 da categoria, marca, cidade e delivery+cidade. */
   const segTags = B.hashtags[segment] || [];
-  const prodTag = _fSanitizeHashtagPart(f.prod);
-  let allTagsList = (prodTag.length >= 3 && prodTag.length <= 24 ? ['#' + prodTag] : [])
-    .concat(_fPickRandom(segTags, 3), ['#deliverymuch'], _fPickRandom(B.hashtags.universal.filter(t => t !== '#deliverymuch'), 1));
-
+  const prodTag = _fCopyProdTag(f.prod);
   const cleanCity = city ? _fSanitizeHashtagPart(city) : '';
-  if (cleanCity) {
-    allTagsList = allTagsList.concat(['#' + cleanCity, '#delivery' + cleanCity, (segTags[0] || '#comida') + cleanCity]);
-  }
+  const allTagsList = (prodTag ? [prodTag] : [])
+    .concat(_fPickRandom(segTags, 2), ['#deliverymuch'],
+      cleanCity ? ['#' + cleanCity, '#delivery' + cleanCity] : _fPickRandom(B.hashtags.universal, 1));
 
-  const tags = [...new Set(allTagsList)].slice(0, 9).join(' ');
+  const tags = [...new Set(allTagsList)].slice(0, 6).join(' ');
   // A cidade escrita no TEXTO também conta na busca (palavra-chave, não só hashtag).
   const bancoLocal = city ? B.locais : B.locaisSemCidade;
   const livresLocal = bancoLocal.filter(l => !used.locais.has(l));
@@ -5816,7 +5856,9 @@ function _fAssembleCopy(f, mode, segment, used, forceShort) {
 function fBuildCopy(prod, de, por, val, desc, format, ctxName, cupom) {
   // Segmento considera também o nome da campanha (ctx): "Combo 20 peças" sozinho é universal,
   // mas dentro de "Bora De Sushi Na Promo" é japonesa — tom certo com mais frequência.
-  const segment = _fCopySegment(String(prod || '') + ' ' + String(ctxName || ''));
+  /* Só o que vem ANTES do "+" define o segmento: em "Combo 2 pizzas + refri 2L" o refri é
+     acompanhamento, e o categorizador (que testa bebida antes de pizza) dava gancho de bebida. */
+  const segment = _fCopySegment(String(prod || '').split('+')[0] + ' ' + String(ctxName || ''));
   const f = _fCopyFacts(prod, de, por, val, desc, cupom);
   // Dedup COMPARTILHADO entre as 3 opções + memória das artes recentes (ver acima).
   const recent = _fCopyRecent();

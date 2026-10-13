@@ -502,6 +502,26 @@
     assert(box.alturaLivre === 0, 'caixa centralizada cresceu: +' + box.alturaLivre);
   });
 
+  test('15h2 · texto de APOIO centralizado cresce para baixo (13/10/2026: "detalhes" de frase longa)', () => {
+    const d = Object.assign({}, detalhes, { vAlign:'middle', layoutSemantic:'apoio' });
+    const box = gAuthoredTextBox(d, { layers:[d], canvas:STORY });
+    assert(box.alturaLivre > 0, 'o apoio centralizado não enxergou o vazio abaixo');
+    const embaixo = Object.assign({}, d, { vAlign:'bottom' });
+    assert(gAuthoredTextBox(embaixo, { layers:[embaixo], canvas:STORY }).alturaLivre === 0,
+      'apoio ancorado EMBAIXO cresceu — ele cresceria para cima');
+    const r = gFitTextToAuthoredBox(Object.assign({}, d, { content:'{{detalhes}}', isVar:true }),
+      'Hambúrguer G com batata, repolho, cebola roxa e molho da casa', { layers:[d], canvas:STORY });
+    assert(r.status === 'fits', 'frase realista de 60 letras no apoio deveria caber: ' + r.diagnostics.motivo);
+  });
+
+  test('15h3 · piso do APOIO é 40% do corpo; o dos outros papéis segue 50%', () => {
+    const base = { type:'text', fontSize:100 };
+    assert(gLayoutPisoFonte(Object.assign({ layoutSemantic:'apoio' }, base)) === 40, 'piso do apoio');
+    assert(gLayoutPisoFonte(Object.assign({ layoutSemantic:'titulo' }, base)) === 50, 'piso do título mudou');
+    assert(gLayoutPisoFonte(Object.assign({ layoutSemantic:'apoio', _pisoLegivel:45 }, base)) === 45,
+      'o piso legível deixou de valer para o apoio');
+  });
+
   test('15i · o painel que CONTÉM a caixa não é obstáculo; a safe zone do Story é o teto', () => {
     const painel = { id:'painel', type:'shape', x:0, y:900, w:1080, h:1020, fill:'#05c', visible:true, opacity:100 };
     const p = produto();

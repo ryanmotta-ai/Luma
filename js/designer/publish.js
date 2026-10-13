@@ -741,7 +741,7 @@ function dPublishRenderPerms(){
         <input type="checkbox" ${perm.edit?'checked':''} onchange="dPublishUpdatePerm('${v}','edit',this.checked)">
         <span>Editável</span>
       </label>
-      ${isImage?'':`<div class="pub-perm-len">
+      ${isImage?'':`<div class="pub-perm-len" title="Vale para preço, desconto e código. Em texto livre o franqueado digita até ${typeof F_TEXTO_TETO!=='undefined'?F_TEXTO_TETO:120} letras e o encaixe da arte decide se cabe.">
         <label>Máx</label>
         <input type="number" min="1" max="200" value="${perm.maxLen||32}" onchange="dPublishUpdatePerm('${v}','maxLen',parseInt(this.value)||32)" ${!perm.edit?'disabled':''}>
         <span>caracteres</span>
