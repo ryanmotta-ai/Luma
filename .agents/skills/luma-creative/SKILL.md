@@ -119,14 +119,25 @@ Antes de escrever uma única linha de código, a IA **DEVE abrir e inspecionar v
 * **Liberdade Composicional Guiada:** **Não engesse o design em topologias fixas ou caixas fechadas.** A IA deve se inspirar organicamente no repertório das imagens para criar composições novas, equilibradas e naturais, variando o arranjo dos blocos conforme o objetivo do briefing.
 * **Análise da Intenção:** Identifique se a nova peça pede foco em foto grande, destaque de preço, cupom agressivo, evento municipal ou mensagem institucional, e componha a cena inspirada no feeling das referências.
 
-### FASE 2: Grade & Zonas Seguras (Safe Zones)
+### FASE 2: Grade, Zonas Seguras & Regra dos 3 Polos (Respiro Calculado)
+* **A Regra Sagrada dos 3 Polos Verticais:**
+  Todo template no Luma se organiza obrigatoriamente em 3 polos funcionais bem definidos:
+  1. **Polo 1 (Topo / Cabeçalho):** Categoria + Título Hero (`Realce Black`) + Card Flutuante (Preço, Data ou Voucher de Cupom).
+  2. **Polo 2 (Centro / Miolo):** Container principal da foto (loja, produto, festival) em `#434343` + badges sobrepostos.
+  3. **Polo 3 (Base / Rodapé):** Logo Delivery Much branca + Chamada do app + Disclaimer legal em `Roboto Light`.
+* **Respiro Inter-Polos Obrigatório (Nunca cole os polos!):**
+  * **O Polo do Meio (Foto/Loja) NUNCA pode encostar nem sufocar os outros dois polos.** A distância deve ser calculada matematicamente a cada template:
+  * **Vão Superior (Polo 1 → Polo 2):** Mínimo de `70px` a `130px` de ar livre entre a base do cabeçalho/card e o topo da moldura/aba.
+  * **Vão Inferior (Polo 2 → Polo 3):** Mínimo de `80px` a `120px` de ar livre entre a base da moldura e os elementos do rodapé.
+  * A altura do container de foto deve ser calibrada para garantir que esses respiros existam, sem empurrar a moldura contra o cabeçalho nem esmagar a logo no rodapé.
 * **Feed (1080×1350 - Proporção 4:5):**
   * Margem lateral mínima: `100px` a `120px` (o layout nunca vaza nas bordas).
-  * Margem superior/inferior: `70px` a `90px` (rodapé aerado com a logo DM e textos legais).
+  * Margem superior: `70px` a `90px`.
+  * Margem inferior do rodapé: `100px` a `130px` de respiro até a borda inferior do canvas.
 * **Story (1080×1920 - Proporção 9:16):**
   * Zona proibida de topo: primeiros `250px` (reservado para header do Instagram).
   * Zona proibida de base: últimos `250px` (reservado para barra de resposta/compartilhar).
-  * Conteúdo útil concentrado na faixa central (`y = 260` até `y = 1660`).
+  * Conteúdo útil concentrado na faixa central (`y = 260` até `y = 1660`), mantendo a mesma separação arejada entre os 3 polos.
 
 ### FASE 3: Orquestração de Blocos do Inventário
 Puxe os elementos diretamente de `assets/`:

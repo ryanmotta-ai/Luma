@@ -66,7 +66,7 @@ const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 13
          ══════════════════════════════════════════════════════════════ -->
     <rect width="1080" height="1350" fill="#F85400"/>
 
-    <!-- Grafismo do sorriso Delivery Much (Se fundo é #F85400, o sorriso DEVE ser #FF9000 com opacidade dosada) -->
+    <!-- Grafismo do sorriso Delivery Much (#FF9000 sobre #F85400 com opacidade dosada) -->
     <g fill="none" stroke="#FF9000" stroke-width="115" opacity="0.45">
       <path d="M -150 1280 A 380 380 0 0 1 450 1380"/>
       <path d="M 720 1380 A 340 340 0 0 1 1200 950"/>
@@ -74,141 +74,137 @@ const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 13
     </g>
 
     <!-- ══════════════════════════════════════════════════════════════
-         2. CABEÇALHO DO EVENTO (MANCHETE HERO EM REALCE BLACK)
+         POLO 1: TOPO / CABEÇALHO (y = 70 a 285)
+         Respiro calculado até o Polo 2: ~125px de ar livre!
          ══════════════════════════════════════════════════════════════ -->
-    <g transform="translate(110, 80)">
+    <g transform="translate(110, 70)">
       <!-- Micro-tag de Categoria em Roboto Medium -->
       <g transform="translate(0, 0)">
-        <rect x="0" y="0" width="170" height="28" rx="8" fill="rgba(255, 255, 255, 0.22)"/>
-        <text x="85" y="19" text-anchor="middle" 
-              class="font-support" font-size="12" fill="#FFFFFF">
+        <rect x="0" y="0" width="160" height="26" rx="8" fill="rgba(255, 255, 255, 0.22)"/>
+        <text x="80" y="18" text-anchor="middle" 
+              class="font-support" font-size="11" fill="#FFFFFF">
           EVENTO NA CIDADE
         </text>
       </g>
 
       <!-- Título Hero do Evento em Realce Black (Nível 1) -->
       <!-- Variável: {{evento_titulo}} -->
-      <text x="0" y="102" 
-            class="font-hero" font-size="88" fill="#FFFFFF">
+      <text x="0" y="96" 
+            class="font-hero" font-size="82" fill="#FFFFFF">
         FESTIVAL
       </text>
-      <text x="0" y="180" 
-            class="font-hero" font-size="88" fill="#FFFFFF">
+      <text x="0" y="170" 
+            class="font-hero" font-size="82" fill="#FFFFFF">
         GASTRONÔMICO
       </text>
 
-      <!-- Subtítulo de Apoio em Caixa Normal (Reflexão: não gritar em caixa alta) -->
+      <!-- Subtítulo em Caixa Mista com respiro generoso -->
       <!-- Variável: {{evento_subtitulo}} -->
-      <text x="0" y="228" 
-            class="font-support" font-size="22" fill="#FFFFFF" opacity="0.95">
+      <text x="0" y="214" 
+            class="font-support" font-size="21" fill="#FFFFFF" opacity="0.95">
         O melhor da nossa cidade reunido
       </text>
     </g>
 
-    <!-- ══════════════════════════════════════════════════════════════
-         3. CARD FLUTUANTE DE DATA (BRANCO + #F85400 PARA CONTRASTE IDEAL)
-         ══════════════════════════════════════════════════════════════ -->
-    <g transform="translate(680, 80)" filter="url(#soft-card-shadow)">
-      <rect x="0" y="0" width="290" height="215" rx="34" fill="#FFFFFF"/>
+    <!-- CARD FLUTUANTE DE DATA (TOP-RIGHT EM BRANCO + #F85400) -->
+    <!-- Fim em y = 265, deixando mais de 100px de respiro até o topo da moldura -->
+    <g transform="translate(690, 70)" filter="url(#soft-card-shadow)">
+      <rect x="0" y="0" width="280" height="195" rx="30" fill="#FFFFFF"/>
 
-      <!-- Mês e Dias (No branco usa #F85400, pois #FF9000 fica sem contraste) -->
-      <g transform="translate(145, 66)">
+      <g transform="translate(140, 58)">
         <text x="0" y="0" text-anchor="middle" 
               class="font-support" font-size="14" fill="#434343">
           De Outubro
         </text>
         <!-- Variável: {{evento_dias}} -->
-        <text x="0" y="60" text-anchor="middle" 
-              class="font-hero" font-size="64" fill="#F85400">
+        <text x="0" y="56" text-anchor="middle" 
+              class="font-hero" font-size="58" fill="#F85400">
           15 A 18
         </text>
       </g>
 
-      <!-- Linha divisória sutil -->
-      <line x1="35" y1="152" x2="255" y2="152" stroke="#F0F0F0" stroke-width="2"/>
+      <line x1="30" y1="138" x2="250" y2="138" stroke="#F0F0F0" stroke-width="2"/>
 
-      <!-- Local do Evento em Roboto Medium (#434343) -->
-      <!-- Variável: {{evento_local}} -->
-      <text x="145" y="186" text-anchor="middle" 
-            class="font-support" font-size="15" fill="#434343">
+      <text x="140" y="170" text-anchor="middle" 
+            class="font-support" font-size="14" fill="#434343">
         Praça Central
       </text>
     </g>
 
     <!-- ══════════════════════════════════════════════════════════════
-         4. SLOT DA FOTO DO EVENTO (MOLDURA OFICIAL CINZA #434343)
+         POLO 2: CENTRO / MIOLO (MOLDURA DA FOTO)
+         Início do corpo em y = 430, término em y = 1050 (Altura: 620px)
+         Distância do Polo 1: 145px livre do título e 165px livre do card!
+         Distância do Polo 3 (Rodapé): 110px livre!
          ══════════════════════════════════════════════════════════════ -->
     <g id="slot-foto-container">
       <!-- Shape unificado no cinza neutro oficial da marca (#434343) -->
       <g fill="#434343">
-        <circle cx="860" cy="385" r="92"/>
-        <rect x="110" y="380" width="860" height="740" rx="54"/>
+        <!-- Aba de ícone com topo em y = 350 (85px de respiro livre até o card de data) -->
+        <circle cx="860" cy="430" r="80"/>
+        <rect x="110" y="430" width="860" height="620" rx="48"/>
       </g>
 
       <!-- Ícone de foto dentro da aba superior direita -->
-      <g transform="translate(860, 380)">
-        <rect x="-34" y="-26" width="68" height="52" rx="10" 
-              fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-        <polyline points="-22,14 -4,-6 14,14" 
-              fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-        <polyline points="4,14 18,2 26,14" 
-              fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="14" cy="-10" r="5" fill="#FFFFFF"/>
+      <g transform="translate(860, 420)">
+        <rect x="-30" y="-23" width="60" height="46" rx="8" 
+              fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        <polyline points="-19,12 -3,-5 12,12" 
+              fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        <polyline points="3,12 15,1 23,12" 
+              fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="12" cy="-9" r="4.5" fill="#FFFFFF"/>
       </g>
 
-      <!-- Placeholder central instrutivo em Roboto Regular -->
-      <!-- Slot: {{foto_evento}} -->
-      <g transform="translate(540, 750)">
-        <rect x="-65" y="-68" width="130" height="98" rx="18" 
-              fill="none" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
-        <polyline points="-42,12 -8,-24 24,12" 
-              fill="none" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
-        <polyline points="6,12 32,-14 48,12" 
-              fill="none" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="24" cy="-34" r="8" fill="#FFFFFF"/>
+      <!-- Placeholder central instrutivo -->
+      <g transform="translate(540, 740)">
+        <rect x="-60" y="-62" width="120" height="90" rx="16" 
+              fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+        <polyline points="-38,11 -7,-22 22,11" 
+              fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+        <polyline points="5,11 29,-13 44,11" 
+              fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="22" cy="-31" r="7.5" fill="#FFFFFF"/>
 
-        <text x="0" y="84" text-anchor="middle" 
-              class="font-body" font-size="34" fill="#FFFFFF">
+        <text x="0" y="76" text-anchor="middle" 
+              class="font-body" font-size="32" fill="#FFFFFF">
           Foto do festival, praça ou pratos do evento
         </text>
-        <text x="0" y="118" text-anchor="middle" 
-              class="font-legal" font-size="20" fill="#FFFFFF" opacity="0.75">
+        <text x="0" y="108" text-anchor="middle" 
+              class="font-legal" font-size="19" fill="#FFFFFF" opacity="0.75">
           (Slot de alta resolução — substituível no Luma)
         </text>
       </g>
 
-      <!-- ══════════════════════════════════════════════════════════════
-           5. BADGES OFICIAIS FLUTUANTES (ENTRADA GRATUITA & PARCEIRO)
-           ══════════════════════════════════════════════════════════════ -->
-      <!-- Selo Esquerdo: ENTRADA FRANCA -->
-      <g transform="translate(125, 335)" filter="url(#badge-shadow)">
-        <rect x="0" y="0" width="260" height="72" rx="20" fill="#FFFFFF"/>
-        <rect x="4" y="4" width="252" height="64" rx="16" fill="#F85400"/>
+      <!-- Selo Esquerdo: ENTRADA FRANCA (y = 395, com 110px de folga do subtítulo) -->
+      <g transform="translate(125, 395)" filter="url(#badge-shadow)">
+        <rect x="0" y="0" width="250" height="68" rx="18" fill="#FFFFFF"/>
+        <rect x="4" y="4" width="242" height="60" rx="14" fill="#F85400"/>
         
-        <text x="130" y="31" text-anchor="middle" 
-              class="font-hero" font-size="22" fill="#FFFFFF">
+        <text x="125" y="29" text-anchor="middle" 
+              class="font-hero" font-size="20" fill="#FFFFFF">
           ENTRADA FRANCA
         </text>
-        <text x="130" y="50" text-anchor="middle" 
+        <text x="125" y="47" text-anchor="middle" 
               class="font-support" font-size="11" fill="#FFFFFF" opacity="0.9">
           Shows e Gastronomia
         </text>
       </g>
 
-      <!-- Selo Direito Sobreposto: Badge do Parceiro (#434343 + #FFB900 + #FFFFFF) -->
-      <g transform="translate(860, 990)" filter="url(#badge-shadow)">
-        <circle cx="0" cy="0" r="76" fill="#FFFFFF"/>
-        <circle cx="0" cy="0" r="70" fill="#434343"/>
-        <circle cx="0" cy="0" r="62" fill="none" stroke="#FFB900" stroke-width="2" stroke-dasharray="6 4"/>
+      <!-- Selo Direito: Badge do Parceiro (Finaliza em y = 1046, perfeitamente embutido na base da moldura) -->
+      <g transform="translate(860, 970)" filter="url(#badge-shadow)">
+        <circle cx="0" cy="0" r="74" fill="#FFFFFF"/>
+        <circle cx="0" cy="0" r="68" fill="#434343"/>
+        <circle cx="0" cy="0" r="60" fill="none" stroke="#FFB900" stroke-width="2" stroke-dasharray="6 4"/>
         <text x="0" y="-8" text-anchor="middle" 
-              class="font-hero" font-size="20" fill="#FFFFFF">
+              class="font-hero" font-size="19" fill="#FFFFFF">
           PIZZAS
         </text>
-        <text x="0" y="16" text-anchor="middle" 
+        <text x="0" y="15" text-anchor="middle" 
               class="font-hero" font-size="15" fill="#FFB900">
           BORCELLE
         </text>
-        <text x="0" y="34" text-anchor="middle" 
+        <text x="0" y="32" text-anchor="middle" 
               class="font-support" font-size="9" fill="#FFFFFF" opacity="0.9">
           Presença confirmada
         </text>
@@ -216,14 +212,14 @@ const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 13
     </g>
 
     <!-- ══════════════════════════════════════════════════════════════
-         6. RODAPÉ: LOGO DELIVERY MUCH + TEXTO BRANCO SOBRE LARANJA #F85400
-         (Regra Rígida: Em cima do #F85400 SEMPRE use BRANCO, NUNCA preto!)
+         POLO 3: BASE / RODAPÉ (y = 1160)
+         110px de respiro livre após a moldura da foto!
          ══════════════════════════════════════════════════════════════ -->
     <g transform="translate(110, 1160)">
       <!-- Logo Oficial Delivery Much Branca -->
       <image href="${dataUriLogo}" x="0" y="0" width="210" height="62" preserveAspectRatio="xMidYMid meet" />
 
-      <!-- Chamada In-App + Legal Disclaimer em BRANCO (#FFFFFF) e Caixa Normal -->
+      <!-- Chamada In-App + Legal Disclaimer em BRANCO (#FFFFFF) -->
       <g transform="translate(860, 22)">
         <text x="0" y="0" text-anchor="end" 
               class="font-support" font-size="18" fill="#FFFFFF">
@@ -240,4 +236,4 @@ const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 13
 
 fs.writeFileSync('assets/templates/template_evento_cidade.svg', svgContent);
 fs.writeFileSync('C:/Users/ryan/.gemini/antigravity/brain/6fabf459-9048-47b5-be2b-b983c8e9970b/template_evento_cidade.svg', svgContent);
-console.log('Template de evento ajustado com sucesso com as cores oficiais e regras de contraste!');
+console.log('Template de evento ajustado com sucesso com a regra dos 3 polos e respiros calculados!');
