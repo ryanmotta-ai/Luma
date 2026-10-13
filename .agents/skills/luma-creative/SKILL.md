@@ -82,11 +82,14 @@ A skill organiza seus recursos nas seguintes pastas:
 
 Ao receber um pedido de nova arte ou template, a IA executa este fluxo em sequência:
 
-### FASE 1: Análise do Briefing & Arquétipo
-Identifique o **Herói** da composição antes de posicionar elementos:
-* **Foco no Preço / Oferta:** O Card Branco de Preço ganha escala prioritária no topo ou lateral.
-* **Foco no Produto / Apetite Appeal:** A moldura central de foto ocupa 60%+ da área útil.
-* **Foco Institucional:** Título e mensagem local dominam o campo visual; preço é rodapé ou cupom.
+### FASE 1: Análise do Briefing & Seleção de Topologia
+Identifique o objetivo da peça e selecione obrigatoriamente uma das **6 Topologias Oficiais** documentadas em `referencias/CATALOGO_LAYOUTS.md` (ver `grade-variacoes-templates.png`):
+1. **Topologia 1 (Header Alto / Foto Base 60%):** Logo topo + pílula produto à esquerda + preço DE/POR à direita + foto inferior.
+2. **Topologia 2 (Foto Topo 55% / Rodapé Angulado):** Foto na metade superior + rodapé laranja geométrico com selo e preço.
+3. **Topologia 3 (Moldura Flutuante Central):** Fundo laranja contínuo com arcos + moldura recortada flutuante + badges nas quinas.
+4. **Topologia 4 (Super-Hero Foto 70%):** Foto ocupa 70% da peça + faixa inferior compacta de oferta com logo circular do parceiro.
+5. **Topologia 5 (App Showcase / In-App Mockup):** Título outline vazado ("GRÁTIS") + smartphone 3D + badge de restaurante e motinha.
+6. **Topologia 6 (Cupomzão Promocional / Voucher):** Voucher pontilhado com raios de explosão + "XX% OFF NO SEU PEDIDO".
 
 ### FASE 2: Grade & Zonas Seguras (Safe Zones)
 * **Feed (1080×1350 - Proporção 4:5):**
