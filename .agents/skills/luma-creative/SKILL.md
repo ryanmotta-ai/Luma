@@ -104,9 +104,41 @@ O Luma utiliza uma escala disciplinada de 4 níveis. O peso `Bold (700)` foi **e
    * **Fundo `#F85400` → pattern `#FF9000`.** Obrigatório.
    * **Fundo `#FF9000` → pattern `#F85400`.** Obrigatório (e vice-versa: o pattern nunca usa a mesma cor do fundo, nem outra cor).
    * **Opção extra: pattern em BRANCO (`#FFFFFF`)** sobre qualquer um dos dois fundos, **sempre com `opacity` entre `0.40` e `0.50`**. Nunca branco opaco nem fora dessa faixa.
-   * Dose a opacidade do pattern laranja (ex.: `0.3` a `0.5`) para dar profundidade sem competir com os textos.
    * **Um pattern por peça:** escolha a versão laranja invertida **ou** a branca; não misture as duas.
-   * Vale para `pattern-dm-oficial.svg`, arcos tone-on-tone e qualquer grafismo de fundo.
+   * Vale para `pattern-dm-oficial.svg`, arcos tone-on-tone e qualquer grafismo de fundo. Detalhes na §3.1.
+
+### 🌀 3.1 Regras do Pattern Oficial (`assets/grafismos/pattern-dm-oficial.svg`)
+
+O pattern é o **sorriso da DM repetido**: textura de marca, nunca protagonista. Ele dá energia ao fundo e **sai de cena onde o texto precisa ser lido**.
+
+1. **Só o arquivo oficial.** Use `pattern-dm-oficial.svg` (viewBox 1920×1080, `fill="currentColor"`, ~49 formas). Nunca redesenhar, recortar formas à mão, girar para "novo desenho" nem inventar variações. Cor vem de `color=` no `<g>` que o envolve.
+2. **Cor e opacidade** (inversão da §3 item 8):
+   | Fundo | Pattern | Opacidade |
+   | :--- | :--- | :--- |
+   | `#F85400` | `#FF9000` | `0.30`–`0.50` |
+   | `#FF9000` | `#F85400` | `0.30`–`0.45` |
+   | `#F85400` ou `#FF9000` | `#FFFFFF` | `0.40`–`0.50` |
+3. **Escala e posição.** O arquivo é paisagem (1920×1080): no feed use `scale ≈ 1.4`, no story `scale ≈ 1.8`, e deslocamento negativo para sangrar além das bordas (ex.: feed `translate(-700,-60) scale(1.4)`, story `translate(-1200,0) scale(1.8)`). O pattern **sempre sangra** pelas bordas; nunca aparece como um bloco com limites visíveis. Escala menor que 1.2 deixa o sorriso miúdo e "papel de parede"; evite.
+4. **Nunca branco atrás de texto branco.** Branco a 40–50% sobre laranja vira salmão claro e o texto branco perde contraste (~1,9:1). Regra dura: **pattern branco só em zonas sem texto**; atrás de hero, apoio, logo e legal ele precisa ser apagado pela máscara de foco (item 5).
+5. **Máscara de foco (desfoque de leitura).** Onde há texto, o pattern **some em degradê** em vez de brigar com as letras. Use `mask` com `linearGradient` (só luminância; não cria cor nova) e aplique ao `<g>` do pattern:
+   ```svg
+   <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+     <stop offset="0.45" stop-color="#FFFFFF" stop-opacity="1"/>   <!-- pattern visível acima -->
+     <stop offset="0.55" stop-color="#FFFFFF" stop-opacity="0"/>   <!-- pattern apagado abaixo, onde está o texto -->
+   </linearGradient>
+   <mask id="foco"><rect width="1080" height="1350" fill="url(#fade)"/></mask>
+   <rect width="1080" height="1350" fill="#F85400"/>
+   <g mask="url(#foco)"><g color="#FFFFFF" opacity="0.4" transform="translate(-700,-60) scale(1.4)">…conteúdo do pattern…</g></g>
+   ```
+   * **Sem cinzas no degradê:** a máscara usa **só `#FFFFFF` variando `stop-opacity`** (1 = visível, 0 = apagado). ❌ Nunca `stop-color="#000"`, `#666` etc.: é hex fora da paleta e o comando de auditoria da Fase 5 reprova. O mesmo vale para `mask`/`clipPath` de recortes (use `clipPath` com `path` em vez de `mask` com preto).
+   * Posicione a transição **na faixa de respiro entre blocos** (entre a foto e o hero), nunca no meio de uma palavra. Ajuste `offset` à geometria da peça.
+   * Degradê suave (≥ 100px de transição). Corte seco parece erro.
+   * A máscara vale também no pattern laranja: se ele passa por trás do hero/preço e reduz a leitura, apague-o ali. Padrão alto contraste (laranja sobre laranja) pode ficar inteiro; padrão branco **sempre** mascarado.
+   * Quando a peça é dominada por texto (hero grande + muitas linhas), prefira o pattern só no **topo e nos cantos**, deixando a zona do texto limpa e o foco na mensagem.
+6. **Zona de respiro do foco:** o pattern nunca passa atrás de **preço, código de cupom ou CTA** com opacidade cheia. Esses três elementos ficam sobre card branco ou sobre fundo liso/apagado.
+7. **Evite formas cortadas no ponto do fade.** Se um sorriso é atravessado pelo degradê e fica "meio apagado" em uma posição estranha, mude `translate`/`scale` ou o `offset` até a transição cair entre as formas. Olhe isso no print da Fase 5.
+8. **Não empilhar:** pattern + arcos tone-on-tone + selo grande + foto com sombra pesada na mesma região é ruído. Pattern é o **fundo**; no máximo mais um grafismo secundário.
+9. **Story:** o pattern pode ocupar as zonas proibidas (250px topo/base) — é fundo, não conteúdo. Mas a máscara de foco ainda protege a faixa de texto.
 
 ---
 
@@ -232,7 +264,7 @@ Gerar o código não encerra a tarefa. A IA **DEVE tirar o print da arte e olhar
 ### FASE 6: Auto-Revisão Pré-Entrega (Checklist Final)
 Antes de finalizar a arte:
 1. [ ] **Paleta Fechada:** Somente as 5 cores oficiais (`#434343`, `#F62900`, `#FFB900`, `#F85400`, `#FF9000`) + `#FFFFFF`? Zero subtons?
-2. [ ] **Contraste de Marca:** Em cima do `#F85400` está branco? Em cima do branco está `#F85400` (nunca `#FF9000`)? Em cima de `#FF9000` está branco e `#F85400`? Pattern invertido em relação ao fundo (ou branco com opacidade 0,40–0,50)?
+2. [ ] **Contraste de Marca:** Em cima do `#F85400` está branco? Em cima do branco está `#F85400` (nunca `#FF9000`)? Em cima de `#FF9000` está branco e `#F85400`? Pattern invertido em relação ao fundo (ou branco com opacidade 0,40–0,50), **com máscara de foco apagando-o atrás do texto** (§3.1)?
 3. [ ] **Caixa Alta Consciente:** Manchete em uppercase, mas corpo/apoio/disclaimer em caixa normal?
 4. [ ] **Tipografia Estrita:** Manchete em `Realce Black` (900)? Subtítulo/apoio em `Roboto Medium` (500)? Corpo em `Roboto Regular` (400)? Legal em `Roboto Light` (300)? (**Zero** `Bold` 700).
 5. [ ] **Fidelidade:** 100% dos blocos vieram do inventário `assets/`?
@@ -258,6 +290,8 @@ Antes de finalizar a arte:
 | Topo do story vazio e conteúdo concentrado embaixo | Distribuir blocos pela faixa `y=260…1660` |
 | Foto-slot gigante + tudo mais miúdo | Foto ≤ 55%; sobra área para hero/preço |
 | Selo com texto longo | Máx. 2 linhas curtas; texto ≥ 22px |
+| Pattern branco atrás de texto branco (refino 03, 1ª rodada) | Máscara de foco: pattern apagado em degradê na zona do texto (§3.1) |
+| Selo a menos de 40px do texto de apoio | Mover o selo ou o texto até ter ≥ 40px |
 
 ---
 
