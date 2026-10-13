@@ -137,24 +137,19 @@ quando chega no navegador de quem usa** — "commitei" não é "chegou".*
 ⚠ **Correção de 2026-09-03.** Este parágrafo dizia "o Luma não tem testes automatizados nem runner". **Tem** — e o código vence o doc:
 
 ```
-node scripts/run-browser-tests.js         # 119 casos, verdes em 2026-09-03
+node scripts/run-browser-tests.js         # 425 casos em 9 suítes (enxugada em 2026-10-13)
 ```
 
 As suítes são `tests/*.html` rodando em **Chromium de verdade** (métrica de fonte e Canvas 2D só existem no navegador; testar isso com mock mediria o mock). O runner fala DevTools Protocol direto com o WebSocket nativo do Node 22 — **zero dependência, nenhum `npm install`, nada entra no `index.html`**, ou seja não fere a 1ª lei. `.github/workflows/tests.yml` roda a cada push e PR que toque `js/**`: **é portão, reprova o commit.**
 
-| Suíte | Cobre | Casos |
-|---|---|---|
-| `tests/auto-layout.html` | invariantes do solver | 34 |
-| `tests/corpus.html` | composições reais + golden de geometria | 18 |
-| `tests/fuzz.html` | exceção, `NaN`, laço que não converge | 63 |
-| `tests/psd-import.html` | importador de PSD | 4 |
+A lista das 9 suítes, o que cada uma protege e o critério do corte de 13/10 estão em `luma-brain/MAPA.md` (seção Verificação).
 
 **O que NÃO tem cobertura:** interpolador, gerador de PNG, chat, catálogo, Estúdio, toda a UI. **Suíte verde não é verificação do que você tocou** — se mexeu em qualquer coisa fora do solver e do PSD, o navegador segue obrigatório. A regra real:
 
 - **Verificação manual após cada fase é obrigatória.** Abra o navegador e exercite o fluxo tocado (não só "compilou"). Roteiro mínimo: franqueado gera arte ponta a ponta; designer edita → publica → aparece no catálogo; troca de tema claro/escuro; console sem erro novo.
 - **Revisão adversarial** para mudanças de risco: procurar o cenário de falha concreto, não só ler o diff. (Foi assim que a caça a bugs desta base encontrou colisão de ID na publicação, `count` não declarado, clone de simulação, etc.)
 - **Arquitetura é portão, não prosa (12/09).** `node scripts/arquitetura.js` transforma esta página em teste: seis regras que **reprovam** (sem ESM/npm, sem `require`, sem `alert`/`confirm`/`prompt`, função global declarada uma vez só, todo `<script>` do index existe, um número de deploy só) e quatro **catracas** sobre a dívida que já existe (`localStorage` sem guarda, hex solto, prefixo do subdomínio, arquivo órfão): o número fica em `scripts/arquitetura-baseline.json` e **só pode descer**. Foi ele que achou `dABToolAttach` declarada duas vezes no mesmo arquivo — a ferramenta de prancheta funcionava por sorte de ordem — e a feature PWA desligada por inteiro. É o papel que o ArchUnit tem no mundo Java; aqui é Node puro, porque a 1ª lei não admite dependência.
-- **Carga é orçamento, não impressão (12/09).** `tests/carga.html` roda o lote do franqueado (50 artes) e o importador em volume (300 camadas) no motor real e **reprova** quando o custo por arte/camada estoura o teto. Os tetos têm ~10× de folga de propósito: existem para pegar regressão de ordem de grandeza, não para cravar milissegundo. Limitações assumidas no cabeçalho da suíte — entre elas, que um O(n²) barato continua invisível.
+- **Carga saiu da suíte (13/10).** `tests/carga.html` (orçamento de tempo por arte e por camada) foi cortada no enxugamento; está no histórico do git se um dia voltar a fazer falta.
 - **Dívida que sobra:** _smoke test_ do interpolador. **Se for adicionar teste, respeite as 3 leis:** zero dependência, sem build — um HTML de asserts que roda no navegador, não Jest/npm.
 - ⛔ **Não invente que "os testes passaram".** Se não rodou, diga que não rodou. Se um passo foi pulado, diga.
 

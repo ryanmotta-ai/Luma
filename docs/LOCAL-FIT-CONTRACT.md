@@ -376,7 +376,7 @@ casarem. **Não aplicada** — é primitiva da outra frente.
 > A diferença entre os dois é de método, não de motor: uma arte com quatro campos vira overflow
 > se um único deles não couber.
 
-`node scripts/run-browser-tests.js _local-fit-bancada` (com `LUMA_VERBOSE=1`).
+`node scripts/run-browser-tests.js _local-fit-bancada` (com `LUMA_VERBOSE=1`) — a bancada saiu da pasta `tests/` em 13/10/2026; está no histórico do git.
 48 campos = 6 materiais reais de `tests/corpus/` × cenários × campos dinâmicos.
 **Nenhuma escrita em produção, nenhuma camada tocada.**
 

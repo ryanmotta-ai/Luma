@@ -1,4 +1,4 @@
-name: Regressão (arquitetura · Auto-layout · PSD · corpus · fuzzing)
+name: Regressão (arquitetura · Local Fit · PSD · corpus · legenda · chat)
 
 # Roda as suítes de `tests/` num Chromium headless a cada push e a cada PR.
 #

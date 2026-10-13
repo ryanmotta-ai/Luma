@@ -195,44 +195,41 @@ bancada que mede a distância entre o que o Estúdio mostra e o que o franqueado
 
 ---
 
-## Verificação — o Luma TEM teste automatizado
+## Verificação — o Luma TEM teste automatizado (enxuto)
 
-⚠️ **O `CLAUDE.md`, o `03_ENGINEERING` §7 e o `06_OPERATING_SYSTEM` §4 dizem que este projeto
-não tem teste nem runner. Isso deixou de ser verdade.** Rodado em 2026-09-08: **239 casos
-verdes**. Os docs são de antes da suíte existir.
+**425 casos em 9 suítes** (13/10/2026). Eram 1.053 em 29: o Ryan pediu para ficar só o necessário.
+O critério do corte: **fica o que protege um motor que o produto usa todo dia e que já quebrou;
+sai volume gerado, cobertura repetida, estresse e bancada exploratória** (estão no histórico do
+git, commit "test: enxuga a suíte").
 
 ```
 node scripts/run-browser-tests.js              # todas as suítes
-node scripts/run-browser-tests.js auto-layout  # filtra por nome
+node scripts/run-browser-tests.js local-fit    # filtra por nome
 CHROMIUM_PATH=/caminho/chrome node scripts/run-browser-tests.js
 ```
 
-| Suíte | Cobre | Casos |
+| Suíte | Protege | Casos |
 |---|---|---|
-| `tests/local-fit.html` | **o comportamento do produto**: a escada (original → wrap → shrink → piso), caixa 2D, `maxLines`, palavra longa, caixa alta, fonte display, preço/unidade, campo vazio, placa local, **terceiros nunca mudam**, determinismo, **prévia = exportação** e o portão de que nenhum símbolo do Automatic Designer voltou | 37 |
-| `tests/auto-layout.html` | as primitivas de leitura (baseline autorado, deriva de fonte, papel semântico, safe zone, quebra semântica) + os invariantes do que sobrou das âncoras | 14 |
-| `tests/corpus.html` | 6 pranchetas reais × 4 níveis de copy (curto/médio/longo/extremo) + golden de geometria e imagem + **ORIGINAL FIRST** (conteúdo que cabe → geometria idêntica ao desenho publicado) + a distribuição de quanto o Local Fit resolve sozinho | 30 |
-| `tests/fuzz.html` | exceção, `NaN`, laço que não converge, bloqueio sem diagnóstico, terceiros movidos | 63 |
-| `tests/psd-import.html` | regressão do importador de PSD (geometria de texto, alpha, raster, selo de fidelidade) | 10 |
-| `tests/export.html` | contrato de saída: dimensões e escala do que o franqueado baixa | 3 |
-| `tests/search-feedback.html` | busca do catálogo, feedback (convite pós-download + carência) e eventos offline | 34 |
-| `tests/franqueado-honestidade.html` | material-demo vs. material real, validade real, estados vazios/erro do catálogo + **rótulo nunca cru**, ordem semântica das perguntas, par de preço | 36 |
-| `tests/franqueado-fluxo.html` | **chat e prévia como uma verdade só** + **controle e confiança**: refazer confirma e desfaz, snapshot completo, enquadramento, contexto por formato, carência do feedback, entrega enxuta + **a UI do bloqueio** (o diálogo nomeia o campo e leva até ele, o contador adota o limite medido sem cortar o texto, o aviso da prévia acende e apaga, porta única) | 42 |
-| `tests/_bancada.html` | bancada de sondagem do encaixe (exploração, não é portão) | — |
-| `tests/_local-fit-bancada.html` | bancada do Local Fit: corpus por campo, grade de stress e benchmark (não é portão) | — |
-| `tests/_paridade-render.html` | bancada: distância entre a saída do Estúdio e a do franqueado | — |
+| `tests/local-fit.html` | **o encaixe do texto** (`gLocalFitArte`): a escada original → quebra → encolhe → piso, caixa que cresce para o vazio, preço, terceiros nunca mudam, prévia = exportação | 100 |
+| `tests/corpus.html` | 6 pranchetas reais × 4 tamanhos de texto + golden de geometria + **original first** | 30 |
+| `tests/auto-layout.html` | a leitura da arte: baseline autorado, papel semântico, safe zone | 14 |
+| `tests/psd-import.html` | o importador de PSD (geometria de texto, alpha, raster, fidelidade) | 92 |
+| `tests/copy-engine.html` | a legenda: **nunca inventa preço/desconto/validade**, não repete, hashtags enxutas | 50 |
+| `tests/copy-fit.html` | o Encurtar: a versão curta **nunca tira preço, produto ou sabor** | 40 |
+| `tests/franqueado-fluxo.html` | o chat e a prévia como uma verdade só, o bloqueio "não cabe", o Encurtar na hora certa, a versão Story | 66 |
+| `tests/export.html` | o que o franqueado baixa: dimensões e escala do PNG | 28 |
+| `tests/account-isolation.html` | uma conta nunca vê o cache/rascunho de outra no mesmo aparelho | 5 |
+| `tests/_paridade-render.html` | ferramenta (não é portão): distância entre a saída do Estúdio e a do franqueado | — |
 
 **Como respeita a 1ª lei:** o runner fala DevTools Protocol direto, com o WebSocket nativo do
 Node 22 e o Chromium que já existe na máquina. Zero dependência, nenhum `npm install`, nada
 disso entra no `index.html`. `.github/workflows/tests.yml` roda a cada push e PR que toque
 `js/**` — **é portão de CI, reprova o commit.**
 
-**O que a suíte cobre e o que não cobre:** ela cobre o **encaixe do texto** (Local Fit, corpus e
-fuzz), as primitivas de leitura da arte, o importador de PSD, a busca/feedback do catálogo e —
-desde 09/2026 — o **fluxo de respostas do chat e da prévia** (`franqueado-fluxo`) e o **catálogo
-de rótulos** (`franqueado-honestidade`). Ela **não** cobre o interpolador, o gerador de PNG, o
-Estúdio nem a aparência de nada — CSS, layout de coluna, cor e
-motion continuam sendo verificação no navegador. Suíte verde não substitui abrir o fluxo tocado.
+**O que NÃO tem cobertura:** interpolador, gerador de PNG por dentro, catálogo, Estúdio, Sheets e
+a aparência de tudo (CSS, cor, motion). Suíte verde não substitui abrir o fluxo tocado.
+**Antes de criar suíte nova, pergunte:** isto protege um motor único que já quebrou? Se não, não
+entra — caso novo vai numa das 9 acima.
 
 ⚠️ **Uma classe de bug que a suíte NÃO pega e o navegador pega em 1 segundo:** colisão de
 `const`/`let` no escopo global. Sem módulos (1ª lei), dois arquivos que declaram o mesmo nome
