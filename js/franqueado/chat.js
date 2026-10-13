@@ -3123,7 +3123,7 @@ function fGerarArte(){
           <span class="art-bulk-txt"><strong>Gerar em lote</strong><em>Dezenas de variações desta arte de uma vez</em></span>
           <svg class="art-bulk-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
-        <!-- Kit da campanha (materials.js): so existe com 2 ou mais pecas publicadas na pasta. -->
+        <!-- Versao Story (materials.js): so existe quando a pasta tem a mesma arte no outro formato. -->
         ${(typeof _fKitBtnHtml==='function')?_fKitBtnHtml(previewCanvasId):''}
       </div>
     </div>`;

@@ -134,9 +134,9 @@ function fLimiteSeguro(id){
 function fAlvoDoCampo(id, cfg){
   const seguro = fCampoPodeEncurtar(id, cfg) ? fLimiteSeguro(id) : 0;
   let alvo = seguro ? Math.min(seguro, cfg.maxLen) : cfg.maxLen;
-  /* KIT DA CAMPANHA (materials.js): campo de texto que outra peça da MESMA pasta também usa
-     mostra o limite da caixa mais apertada entre elas. Sem isso o Feed aceitava o texto e o
-     Story, gerado junto no kit, travava depois. Só o alvo aperta; o corte segue no `maxLen`. */
+  /* VERSÃO STORY (materials.js, `fKitPar`): o campo que a versão no outro formato também usa
+     mostra o limite da caixa mais apertada entre as duas. Sem isso o Feed aceitava o texto e o
+     Story, gerado em seguida, travava. Só o alvo aperta; o corte segue no `maxLen`. */
   if(!_fAlvoNaPasta && fCampoPodeEncurtar(id, cfg)){
     const outro = _fAlvoNasOutrasPecas(id);
     if(outro && outro < alvo) alvo = outro;
@@ -146,12 +146,12 @@ function fAlvoDoCampo(id, cfg){
 let _fAlvoNaPasta = false;   // trava de reentrada: medir outra peça chama fAlvoDoCampo de novo
 function _fAlvoNasOutrasPecas(id){
   const atual = (typeof fState !== 'undefined' && fState) ? fState.material : null;
-  if(!atual || typeof fKitPecas !== 'function') return 0;
+  if(!atual || typeof fKitPar !== 'function') return 0;
   const marca = new RegExp('\\{\\{\\s*' + String(id).replace(/[^\w]/g,'') + '\\b');
   let min = 0;
   _fAlvoNaPasta = true;
   try{
-    fKitPecas(fState.camp).forEach(m => {
+    [fKitPar(atual, fState.camp)].forEach(m => {
       if(!m || m === atual || (m.id && m.id === atual.id) || !Array.isArray(m.layers)) return;
       if(!m.layers.some(l => l && marca.test(l.content || ''))) return;
       fState.material = m;

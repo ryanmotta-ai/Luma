@@ -126,20 +126,21 @@ function fCampDiasRestantes(campId){ return fDiasRestantes(fCampValidade(campId)
 // material, porque chat, prévia, histórico e PNG usam — e nem toda página carrega o png-generator.
 function _fTplId(m){ return (m&&(m.remoteId||m.id))||null; }
 
-/* ══ KIT DA CAMPANHA — uma conversa, todas as peças da pasta ══════════════════════════════
-   Religado em 29/09/2026 (reunião técnica, aprovado pelo Ryan): o botão tinha ficado órfão no
-   `b29dbd8`. O VÍNCULO É A PASTA — as peças são os materiais publicados e válidos da mesma
-   campanha (`fRealMaterialsForCamp`); não existe campo de "par" no publishMeta. Com uma peça só
-   o botão não aparece: seria o Baixar PNG com outro nome.
-   Nada é redimensionado: cada peça é desenho do designer, só as respostas são as mesmas — e
-   por isso o preço sai igual em todas. Três regras que o kit antigo não tinha:
-   A) peça com campo próprio sem resposta → pergunta SÓ esse campo (antes: pulava a peça calado);
-   B) campo pedido por mais de uma peça → o limite é o da caixa mais apertada entre elas
-      (`fAlvoDoCampo` medido em cada material, a mesma régua do chat — lista nova não);
-   C) cada peça passa pelo Local Fit ANTES de gerar; a que não cabe fica fora do pacote, com nome.
+/* ══ VERSÃO STORY — a mesma arte no outro formato (13/10/2026) ═══════════════════════════════
+   O "Gerar todas as peças" (29/09) gerava a PASTA inteira, com lista de peças, caixas de marcar e
+   pacote ZIP. Não era a intenção (Ryan, 13/10): o botão é para gerar O MESMO template que a pessoa
+   acabou de fazer, só que no formato Story. Sem versão Story na pasta, o botão não existe.
+   O VÍNCULO: não há campo de "par" no publishMeta — Feed e Story são materiais irmãos na mesma
+   pasta. O par é achado pelo NOME-BASE (o nome sem "Story/Feed/Post/9:16…": "Oferta — Feed" e
+   "Oferta — Story"); se a pasta tem exatamente UMA peça de cada formato, elas são o par mesmo com
+   nomes diferentes. Ambíguo (duas candidatas) → sem botão: gerar a peça errada é pior que nada.
+   Quem está NO Story ganha o espelho: "Gerar versão Feed".
+   Nada é redimensionado: a versão é desenho do designer, só as respostas são as mesmas. Antes de
+   gerar: o campo que só a versão pede é perguntado (A) e o Local Fit mede a peça (C) — se não
+   couber, diz qual campo e leva para a edição.
    ⚠ `fGetFieldType`, `fApplyMask`, `fAlvoDoCampo` e o render leem `fState.material`: toda conta
-   de uma peça roda dentro de `_fKitComMaterial`, que devolve o material de antes. */
-const _fKit={};   // snapId da bolha → {snap, plano, prontas, fora, files}
+   da outra peça roda dentro de `_fKitComMaterial`, que devolve o material de antes. */
+const _fKit={};   // snapId da bolha → {snap, par, plano, prontas, fora, files}
 // Tipos que o kit sabe perguntar numa linha. Foto, data e cor têm passo próprio no chat.
 const _F_KIT_TIPOS=new Set(['text','price','discount','code','select','boolean']);
 
@@ -152,19 +153,55 @@ function _fKitFmt(m){
   const mapa={story:'story',feed:'feed',wide:'post',post:'post'};
   return FMTS.find(f=>f.id===(mapa[m&&m.fmt]||(m&&m.fmt)))||fState.fmt||FMTS[0];
 }
+function _fKitEhStory(m){
+  if(!m) return false;
+  if(m.fmt) return m.fmt==='story';
+  return m.w>0 && m.h/m.w>1.6;
+}
+// O nome sem as palavras de formato: "Oferta com preço — Story (9:16)" → "oferta com preco".
+function _fKitBase(nome){
+  return String(nome||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/\d+\s*[x×:]\s*\d+/g,' ')
+    .replace(/\b(stories|story|storie|feed|post|posts|reels?|quadrado|vertical|horizontal|formato|versao)\b/g,' ')
+    .replace(/[^a-z0-9]+/g,' ').trim();
+}
+/* A versão da peça `m` no OUTRO formato (Story ↔ Feed), na mesma pasta — ou null. */
+function fKitPar(m, camp){
+  if(!m || !camp) return null;
+  const querStory=!_fKitEhStory(m);
+  const pecas=fKitPecas(camp).filter(x=>x && x!==m && x.id!==m.id);
+  const outros=pecas.filter(x=>_fKitEhStory(x)===querStory);
+  if(!outros.length) return null;
+  const b=_fKitBase(m.name);
+  const porNome=b ? outros.filter(x=>_fKitBase(x.name)===b) : [];
+  if(porNome.length===1) return porNome[0];
+  if(porNome.length>1) return null;
+  const mesmoFormato=pecas.filter(x=>_fKitEhStory(x)!==querStory);
+  return (outros.length===1 && mesmoFormato.length===0) ? outros[0] : null;
+}
+function _fKitSnap(snapId){
+  return (typeof _fArtSnapshots!=='undefined'&&_fArtSnapshots[snapId])
+    ||{dados:fState.dados,camp:fState.camp,fmt:fState.fmt,material:fState.material};
+}
+const _F_KIT_ICO={
+  story:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>',
+  feed:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/></svg>'
+};
 function _fKitBtnHtml(snapId){
   try{
-    const n=fKitPecas(fState.camp).length;
-    if(n<2) return '';
-    return `<button type="button" class="art-bulk-btn art-kit-btn" aria-expanded="false" onclick="fKitAbrir(this,'${gEscJs(snapId)}')" title="Gerar todas as peças desta campanha com as mesmas respostas">
-      <span class="art-bulk-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
-      <span class="art-bulk-txt"><strong>Gerar todas as peças (${n})</strong><em>As mesmas respostas em cada formato desta campanha</em></span>
+    const snap=_fKitSnap(snapId);
+    const par=fKitPar(snap.material||fState.material, snap.camp||fState.camp);
+    if(!par) return '';
+    const fmt=_fKitFmt(par);
+    return `<button type="button" class="art-bulk-btn art-kit-btn" aria-expanded="false" onclick="fKitAbrir(this,'${gEscJs(snapId)}')" title="Gerar esta mesma arte no formato ${gEsc(fmt.name)}, com as mesmas respostas">
+      <span class="art-bulk-ico">${_F_KIT_ICO[fmt.id==='story'?'story':'feed']}</span>
+      <span class="art-bulk-txt"><strong>Gerar versão ${gEsc(fmt.name)}</strong><em>A mesma arte, com as mesmas respostas, em ${gEsc(fmt.dim||fmt.name)}</em></span>
       <svg class="art-bulk-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
     </button><div class="art-kit" id="art-kit-${gEsc(snapId)}" hidden></div>`;
   }catch(e){ return ''; }
 }
 
-/* O plano do kit: o que cada peça ainda precisa (A) e o limite de cada campo que falta (B).
+/* O plano: o que cada peça ainda precisa (A) e o limite de cada campo que falta.
    Campo fixo da marca (`edit:false`) já sai do `fBuildPerguntas` — o mesmo montador do chat. */
 async function fKitPlano(mats, dados, camp){
   dados=dados||{};
@@ -185,7 +222,7 @@ async function fKitPlano(mats, dados, camp){
         const cfg=fGetFieldType(p.id);
         const tipo=(p.isImage||cfg.type==='image')?'image':cfg.type;
         if(!_F_KIT_TIPOS.has(tipo)){
-          if(cfg.required) peca.bloqueio=(tipo==='image'?'precisa de uma foto própria':'tem uma pergunta própria')+' — abra esta peça para gerar';
+          if(cfg.required) peca.bloqueio=(tipo==='image'?'precisa de uma foto própria':'tem uma pergunta própria')+' — abra esta peça no catálogo para gerar';
           return;
         }
         const lim=(typeof fAlvoDoCampo==='function')?fAlvoDoCampo(p.id,cfg):cfg.maxLen;
@@ -195,7 +232,7 @@ async function fKitPlano(mats, dados, camp){
              options:(tipo==='boolean'&&!(cfg.options&&cfg.options.length))?['Sim','Não']:(cfg.options||[])};
           campos.set(p.id,c);
         }
-        if(lim && (!c.limite || lim<c.limite)) c.limite=lim;   // B: a caixa mais apertada manda
+        if(lim && (!c.limite || lim<c.limite)) c.limite=lim;
         c.required=c.required||!!cfg.required;
         c.pecas.push(peca);
         peca.faltam.push(p.id);
@@ -218,24 +255,19 @@ async function fKitNaoCabe(m, fmt, dados, camp){
   }finally{ fState.material=prev; }
 }
 
+// Só os campos que a versão pede e esta arte não pediu. Sem nenhum, nem formulário existe.
 function _fKitFormHtml(snapId, plano){
-  const pecas=plano.pecas.map((p,i)=>`<label class="art-kit-peca${p.bloqueio?' is-off':''}">
-      <input type="checkbox" data-kit-peca="${i}" ${p.bloqueio?'disabled':'checked'}>
-      <span><strong>${gEsc(p.nome)}</strong><small>${gEsc(p.fmt.name)}${p.bloqueio?' · '+gEsc(p.bloqueio):''}</small></span>
-    </label>`).join('');
+  const fmt=plano.pecas[0].fmt;
+  const n=plano.campos.length;
   const campos=plano.campos.map(c=>{
-    const onde='Vai em: '+c.pecas.map(p=>p.nome).join(', ');
     const ctrl=(c.tipo==='select'||c.tipo==='boolean')
       ? `<select data-kit-campo="${gEsc(c.id)}"><option value="">Escolha…</option>${c.options.map(o=>`<option>${gEsc(o)}</option>`).join('')}</select>`
       : `<input type="text" data-kit-campo="${gEsc(c.id)}" maxlength="${Number(c.limite)||120}" autocomplete="off">`;
     return `<label class="art-kit-campo"><span>${gEsc(c.label)}${c.required?'':' <em>(opcional)</em>'}</span>${ctrl}
-      <small>${gEsc(onde)}${c.tipo==='text'&&c.limite?' · até '+Number(c.limite)+' caracteres':''}</small>
       <small class="art-kit-erro" role="alert"></small></label>`;
   }).join('');
-  const n=plano.campos.length;
-  return `<div class="art-kit-lista" role="group" aria-label="Peças da campanha">${pecas}</div>
-    ${n?`<p class="art-kit-sub">${n===1?'Uma peça pede uma informação a mais:':'Algumas peças pedem '+n+' informações a mais:'}</p>${campos}`:''}
-    <button type="button" class="art-btn pri art-kit-gerar" onclick="fKitGerar(this,'${gEscJs(snapId)}')">Gerar peças</button>
+  return `<p class="art-kit-sub">${n===1?'O '+gEsc(fmt.name)+' tem um campo que esta arte não tem:':'O '+gEsc(fmt.name)+' tem '+n+' campos que esta arte não tem:'}</p>${campos}
+    <button type="button" class="art-btn pri art-kit-gerar" onclick="fKitGerar(this,'${gEscJs(snapId)}')">Gerar ${gEsc(fmt.name)}</button>
     <div class="art-kit-status" role="status" aria-live="polite"></div>`;
 }
 
@@ -243,15 +275,24 @@ async function fKitAbrir(btn, snapId){
   _fKitPoda();
   const box=document.getElementById('art-kit-'+snapId); if(!box) return;
   if(!box.hidden){ box.hidden=true; btn.setAttribute('aria-expanded','false'); return; }
-  const snap=(typeof _fArtSnapshots!=='undefined'&&_fArtSnapshots[snapId])
-    ||{dados:fState.dados,camp:fState.camp,fmt:fState.fmt,material:fState.material};
-  const mats=fKitPecas(snap.camp);
-  if(mats.length<2){ gToast('Esta campanha tem uma peça só.'); return; }
+  const snap=_fKitSnap(snapId);
+  const par=fKitPar(snap.material||fState.material, snap.camp);
+  if(!par){ gToast('Esta arte não tem versão em outro formato.'); return; }
   box.hidden=false; btn.setAttribute('aria-expanded','true');
-  box.innerHTML='<div class="art-kit-status" role="status">Conferindo as peças desta campanha…</div>';
-  const plano=await fKitPlano(mats, snap.dados, snap.camp);
-  _fKit[snapId]={snap, plano};
-  box.innerHTML=_fKitFormHtml(snapId, plano);
+  /* Já gerada nesta bolha: mostra de novo o resultado em vez de refazer. */
+  const ja=_fKit[snapId];
+  if(ja && ja.par===par && ja.html){ box.innerHTML=ja.html; return; }
+  box.innerHTML=`<div class="art-kit-status" role="status">Preparando a versão ${gEsc(_fKitFmt(par).name)}…</div>`;
+  const plano=await fKitPlano([par], snap.dados, snap.camp);
+  _fKit[snapId]={snap, par, plano};
+  const peca=plano.pecas[0];
+  if(peca.bloqueio){
+    box.innerHTML=`<p class="art-kit-fora">A versão ${gEsc(peca.fmt.name)} ${gEsc(peca.bloqueio)}.</p>`;
+    return;
+  }
+  if(plano.campos.length){ box.innerHTML=_fKitFormHtml(snapId, plano); return; }
+  box.innerHTML='<div class="art-kit-status" role="status" aria-live="polite"></div>';
+  await fKitGerar(null, snapId);
 }
 
 async function fKitGerar(btn, snapId){
@@ -261,129 +302,92 @@ async function fKitGerar(btn, snapId){
     if(typeof gFeatureBlockedFeedback==='function') gFeatureBlockedFeedback('franqueado.export.png');
     return;
   }
-  const escolhidas=st.plano.pecas.filter((p,i)=>{ const cb=box.querySelector(`[data-kit-peca="${i}"]`); return cb&&cb.checked&&!p.bloqueio; });
-  if(!escolhidas.length){ gToast('Marque ao menos uma peça.'); return; }
+  const p=st.plano.pecas[0];
   const dados={...st.snap.dados};
   let erro=false;
-  // A: cada resposta passa pela máscara e pela validação do chat, no material de quem pediu.
+  // A: cada resposta passa pela máscara e pela validação do chat, no material da versão.
   box.querySelectorAll('[data-kit-campo]').forEach(inp=>{
     const c=st.plano.campos.find(x=>x.id===inp.dataset.kitCampo); if(!c) return;
-    const donos=c.pecas.filter(p=>escolhidas.includes(p));
     const msgEl=inp.closest('.art-kit-campo').querySelector('.art-kit-erro');
     let msg='';
     const bruto=String(inp.value||'').trim();
-    if(donos.length){
-      if(!bruto){ if(c.required) msg='Responda para gerar '+donos.map(p=>p.nome).join(', ')+'.'; }
-      else _fKitComMaterial(donos[0].m, ()=>{
-        const v=fApplyMask(c.id,bruto);
-        msg=fValidate(c.id,v,dados)||'';
-        if(!msg) dados[c.id]=v;
-      });
-    }
+    if(!bruto){ if(c.required) msg='Responda para gerar o '+p.fmt.name+'.'; }
+    else _fKitComMaterial(p.m, ()=>{
+      const v=fApplyMask(c.id,bruto);
+      msg=fValidate(c.id,v,dados)||'';
+      if(!msg) dados[c.id]=v;
+    });
     if(msgEl) msgEl.textContent=msg;
     inp.toggleAttribute('aria-invalid', !!msg);
     if(msg) erro=true;
   });
-  if(erro){ gToast('Falta responder uma informação das peças.','error'); return; }
+  if(erro) return;
 
   const status=box.querySelector('.art-kit-status');
-  const restore=(typeof gBtnLoading==='function')?gBtnLoading(btn,'Gerando…'):()=>{};
-  const prontas=[], fora=[];
+  if(status) status.textContent='Gerando a versão '+p.fmt.name+'…';
+  const restore=(btn&&typeof gBtnLoading==='function')?gBtnLoading(btn,'Gerando…'):()=>{};
   const prevMat=fState.material, prevFmt=fState.fmt;
+  st.prontas=[]; st.fora=[]; st.files=null;
   try{
-    for(let i=0;i<escolhidas.length;i++){
-      const p=escolhidas[i];
-      if(status) status.textContent=`Gerando peça ${i+1} de ${escolhidas.length}…`;
-      try{
-        const nc=await fKitNaoCabe(p.m, p.fmt, dados, st.snap.camp);   // C
-        if(nc.length){ fora.push({nome:p.nome, motivo:'o texto de '+fLpListaRotulos(nc.map(x=>x.rotulo))+' não cabe'}); continue; }
-        fState.material=p.m; fState.fmt=p.fmt;
-        const url=await fRenderMaterialToDataURL(dados, st.snap.camp, p.fmt);
-        /* A peça que a pessoa acabou de fazer já está no histórico (`snap.histId`). Com um campo
-           a mais respondido no kit, a assinatura mudaria e ela entraria DUAS vezes. */
-        const mesma=st.snap.histId && st.snap.material && p.m.id===st.snap.material.id;
-        prontas.push({p, url, hist:mesma?st.snap.histId:fAddHist(dados, st.snap.camp, p.fmt, 'rascunho')});
-      }catch(e){
-        console.warn('[kit] peça falhou:', e);
-        fora.push({nome:p.nome, motivo:(e&&e.code==='LUMA_CONTENT_TOO_LARGE')?'o texto não cabe':'não consegui gerar'});
-      }finally{ fState.material=prevMat; fState.fmt=prevFmt; }
+    const nc=await fKitNaoCabe(p.m, p.fmt, dados, st.snap.camp);   // C
+    if(nc.length){
+      st.fora.push({nome:p.nome, motivo:'o texto de '+fLpListaRotulos(nc.map(x=>x.rotulo))+' não cabe'});
+    } else {
+      fState.material=p.m; fState.fmt=p.fmt;
+      const url=await fRenderMaterialToDataURL(dados, st.snap.camp, p.fmt);
+      st.prontas.push({p, url, hist:fAddHist(dados, st.snap.camp, p.fmt, 'rascunho')});
     }
-  }finally{ restore(); if(typeof fClearImgCache==='function') fClearImgCache(); }
-  st.prontas=prontas; st.fora=fora; st.files=null;
-  let nomes=_fKitNomesArquivo(prontas);
-  /* Celular: a folha nativa exige gesto NOVO — depois de gerar várias peças o gesto do clique
-     já expirou e o WebKit recusaria. Por isso o share vira um segundo toque, "Salvar".
-     Uma peça que não vira arquivo sai do pacote, nomeada; as outras seguem. */
-  const celular=(typeof _fArteEhCelular==='function')&&_fArteEhCelular();
-  if(prontas.length&&celular&&navigator.canShare){
-    const r=await Promise.allSettled(prontas.map(async(x,i)=>new File([_fKitDataUrlBlob(x.url)], nomes[i]+'.png', {type:'image/png'})));
-    const files=[];
-    for(let i=r.length-1;i>=0;i--){
-      if(r[i].status==='fulfilled'){ files.unshift(r[i].value); continue; }
-      console.warn('[kit] arquivo falhou:', r[i].reason);
-      fora.push({nome:prontas[i].p.nome, motivo:'não consegui preparar o arquivo'});
-      prontas.splice(i,1); nomes.splice(i,1);
-    }
-    try{ if(files.length&&navigator.canShare({files})) st.files=files; }catch(e){ st.files=null; }
+  }catch(e){
+    console.warn('[versão] falhou:', e);
+    st.fora.push({nome:p.nome, motivo:(e&&e.code==='LUMA_CONTENT_TOO_LARGE')?'o texto não cabe':'não consegui gerar'});
+  }finally{
+    fState.material=prevMat; fState.fmt=prevFmt;
+    restore(); if(typeof fClearImgCache==='function') fClearImgCache();
   }
-  const foraHtml=fora.length?`<ul class="art-kit-fora">${fora.map(f=>`<li><strong>${gEsc(f.nome)}</strong> ficou de fora: ${gEsc(f.motivo)}.</li>`).join('')}</ul>`:'';
-  if(!prontas.length){
-    if(status) status.innerHTML=foraHtml;
-    gToast('Nenhuma peça pôde ser gerada. Veja o motivo de cada uma.','error');
+  if(st.fora.length){
+    const f=st.fora[0];
+    box.innerHTML=`<p class="art-kit-fora">No ${gEsc(p.fmt.name)}, ${gEsc(f.motivo)}.</p>`
+      +(/não cabe/.test(f.motivo)?`<p class="art-kit-sub">O espaço do ${gEsc(p.fmt.name)} é outro. Encurte essa resposta e gere de novo.</p>
+        <button type="button" class="art-btn art-kit-gerar" onclick="fVoltarParaEdicao()">Editar arte</button>`:'');
     return;
   }
-  const resumo=`<p class="art-kit-ok">${prontas.length===1?'1 peça pronta':prontas.length+' peças prontas'}.</p>`;
-  if(st.files){
-    if(status) status.innerHTML=resumo+foraHtml+`<button type="button" class="art-btn pri art-kit-salvar" onclick="fKitSalvar(this,'${gEscJs(snapId)}')">Salvar ${prontas.length===1?'a arte':'as '+prontas.length+' artes'}</button>`;
-    return;
-  }
-  if(status) status.innerHTML=resumo+foraHtml;
-  await _fKitZip(st, nomes);
+  const x=st.prontas[0];
+  box.innerHTML=`<div class="art-kit-pronto">
+      <img class="art-kit-thumb is-${p.fmt.id==='story'?'story':'feed'}" src="${x.url}" alt="${gEsc('Prévia da versão '+p.fmt.name)}">
+      <div class="art-kit-pronto-txt">
+        <p class="art-kit-ok">${gEsc(p.fmt.name)} pronto</p>
+        <small>${gEsc(p.fmt.dim||'')} · mesmas respostas desta arte</small>
+        <button type="button" class="art-btn pri art-kit-salvar" onclick="fKitSalvar(this,'${gEscJs(snapId)}')">Baixar ${gEsc(p.fmt.name)}</button>
+      </div>
+    </div>`;
+  st.html=box.innerHTML;
 }
 function _fKitDataUrlBlob(url){
   const i=url.indexOf(','), bin=atob(url.slice(i+1)), u8=new Uint8Array(bin.length);
   for(let k=0;k<bin.length;k++) u8[k]=bin.charCodeAt(k);
   return new Blob([u8], {type:(/^data:([^;,]+)/.exec(url)||[])[1]||'image/png'});
 }
-function _fKitNomesArquivo(prontas){
-  const usados=new Set();
-  return prontas.map((x,i)=>{
-    const base=(typeof fSanitizeNamePart==='function'&&fSanitizeNamePart(x.p.nome))||('Peça '+(i+1));
-    let nome=base, n=2;
-    while(usados.has(nome.toLowerCase())) nome=base+' ('+(n++)+')';   // duas peças de mesmo nome não se sobrescrevem
-    usados.add(nome.toLowerCase());
-    return nome;
-  });
-}
-async function _fKitZip(st, nomes){
-  if(typeof JSZip==='undefined'){ gToast('Não consegui preparar o pacote agora. Recarregue a página e tente de novo.','error'); return; }
-  try{
-    const zip=new JSZip();
-    st.prontas.forEach((x,i)=>zip.file(nomes[i]+'.png', x.url.split(',')[1], {base64:true}));
-    const blob=await zip.generateAsync({type:'blob'});
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);
-    a.download=((typeof fSanitizeNamePart==='function'&&fSanitizeNamePart(st.snap.camp.name,40))||'Campanha')+' - peças.zip';
-    a.click();
-    setTimeout(()=>URL.revokeObjectURL(a.href),5000);
-    _fKitEntregue(st,'zip');
-  }catch(e){ console.error('[kit] zip:', e); gToast('Não consegui montar o pacote. Tente de novo.','error'); }
-}
+/* Baixar: o toque É o gesto novo que a folha nativa do celular exige. Sem folha (desktop, ou
+   o celular recusou), cai no download direto do PNG. */
 async function fKitSalvar(btn, snapId){
-  const st=_fKit[snapId]; if(!st||!st.files) return;
-  try{ await navigator.share({files:st.files}); _fKitEntregue(st,'share'); btn.remove(); }
-  catch(e){
-    if(e&&e.name==='AbortError') return;        // fechou a folha: nada saiu
-    await _fKitZip(st, st.files.map(f=>f.name.replace(/\.png$/,'')));
+  const st=_fKit[snapId], x=st&&st.prontas&&st.prontas[0];
+  if(!x||!x.url){ gToast('Gere a versão de novo para baixar.'); return; }
+  const nome=((typeof fSanitizeNamePart==='function'&&fSanitizeNamePart(st.snap.camp&&st.snap.camp.name,40))||'Arte')
+    +' - '+x.p.fmt.name+'.png';
+  const celular=(typeof _fArteEhCelular==='function')&&_fArteEhCelular();
+  if(celular&&navigator.canShare){
+    try{
+      const file=new File([_fKitDataUrlBlob(x.url)], nome, {type:'image/png'});
+      if(navigator.canShare({files:[file]})){ await navigator.share({files:[file]}); _fKitEntregue(st,'share'); return; }
+    }catch(e){ if(e&&e.name==='AbortError') return; }   // fechou a folha: nada saiu
   }
+  const a=document.createElement('a'); a.href=x.url; a.download=nome; a.click();
+  _fKitEntregue(st,'download');
 }
 function _fKitEntregue(st, via){
   st.prontas.forEach(x=>{ try{ fMarkHistBaixada(x.hist); }catch(e){} });
   try{ if(typeof gTrackEvent==='function') gTrackEvent('kit_baixado',{n:st.prontas.length, fora:st.fora.length, camp_id:st.snap.camp.id, via}); }catch(_){}
-  const n=st.prontas.length;
-  gToast((n===1?'Arte salva':n+' artes salvas')+' em Minhas artes'+(st.fora.length?' · '+st.fora.length+(st.fora.length===1?' ficou':' ficaram')+' de fora':'')+'.');
-  // Entregue: solta as imagens (MB de data URL). "Gerar peças" refaz tudo a partir de snap+plano.
-  st.prontas.forEach(x=>{ x.url=null; }); st.files=null;
+  gToast('Versão salva em Minhas artes.');
 }
 /* A bolha saiu (conversa reiniciada → `_fArtSnapshots` zerado): o kit dela não tem mais dono. */
 function _fKitPoda(){

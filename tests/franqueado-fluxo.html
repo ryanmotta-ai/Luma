@@ -1128,13 +1128,32 @@ function pastaKit(templates){
 // A foto foi pulada no chat (é o `__skipped__` que o chat grava): foto não é o assunto destes casos.
 const DADOS_KIT={produto:'Pizza Grande',precoDe:'De: R$ 49,90',precoPor:'Por: R$ 29,90','__skipped__foto_produto':true};
 
-await test('Kit: com uma peça só publicada na pasta, o botão não aparece', async()=>{
+/* 13/10/2026: o kit virou "Gerar versão Story" — a MESMA arte no outro formato, não a pasta. */
+await test('Versão Story: o botão só existe quando a pasta tem esta arte no outro formato', async()=>{
   reset();
-  pastaKit([pecaKit('k-1','Story da Copa','story'), Object.assign(pecaKit('k-rasc','Rascunho','feed'),{publishMeta:{publicado:false}})]);
-  assert(_fKitBtnHtml('snap-a')==='','o botão do kit apareceu com uma peça publicada (a outra é rascunho)');
-  pastaKit([pecaKit('k-1','Story','story'),pecaKit('k-2','Feed','feed')]);
-  assert(/Gerar todas as peças \(2\)/.test(_fKitBtnHtml('snap-a')),'com duas peças publicadas o botão não apareceu');
-  dFolders.length=0;
+  // Só um rascunho no outro formato: não há versão publicada → sem botão.
+  const feed=pecaKit('k-1','Oferta — Feed','feed');
+  pastaKit([feed, Object.assign(pecaKit('k-rasc','Oferta — Story','story'),{publishMeta:{publicado:false}})]);
+  fState.material=feed;
+  assert(_fKitBtnHtml('snap-a')==='','o botão apareceu sem versão Story publicada');
+  // O par é achado pelo nome-base, mesmo com outras peças Story na pasta.
+  const story=pecaKit('k-2','Oferta (Story 9:16)','story'), outra=pecaKit('k-3','Cupom — Story','story');
+  pastaKit([feed, story, outra]);
+  assert(fKitPar(feed,fState.camp)===story,'não achou a versão Story pelo nome');
+  const html=_fKitBtnHtml('snap-a');
+  assert(/Gerar versão Story/.test(html)&&!/todas as peças/.test(html),'o rótulo não diz que gera a versão Story: '+html);
+  // Quem está no Story ganha o espelho.
+  fState.material=story;
+  assert(/Gerar versão Feed/.test(_fKitBtnHtml('snap-a')),'no Story o botão devia oferecer a versão Feed');
+  // Nomes diferentes, mas exatamente uma peça de cada formato: elas são o par.
+  const f2=pecaKit('k-4','Promo da semana','feed'), s2=pecaKit('k-5','Arte vertical da promo','story');
+  pastaKit([f2,s2]);
+  assert(fKitPar(f2,fState.camp)===s2,'uma peça de cada formato não virou par');
+  // Ambíguo (duas Story sem nome que case): sem botão — gerar a peça errada é pior que nada.
+  pastaKit([f2,s2,pecaKit('k-6','Outra arte','story')]);
+  fState.material=f2;
+  assert(_fKitBtnHtml('snap-a')==='','com duas candidatas o botão escolheu uma no chute');
+  dFolders.length=0; fState.material=material();
 });
 
 await test('Kit A: a peça com campo próprio não é pulada — o kit pergunta só esse campo', async()=>{
@@ -1182,30 +1201,33 @@ await test('Kit B no chat: o limite MEDIDO de um campo de texto é o da peça ma
   assert(fAlvoDoCampo('oferta',fGetFieldType('oferta'))===F_TEXTO_TETO,'fora de uma pasta com várias peças o limite apertou mesmo assim');
 });
 
-await test('Kit C: a peça em que o texto não cabe fica fora do pacote, com nome e motivo', async()=>{
+await test('Versão Story C: um toque gera e mostra a miniatura; se não cabe, diz o campo e leva à edição', async()=>{
   reset();
-  const cabe=pecaKit('k-1','Story','story');
-  const apertada=pecaKit('k-2','Selo pequeno','feed');
-  apertada.layers.find(l=>l.id==='produto').w=90;       // caixa onde "Pizza Grande" não cabe no piso
-  apertada.layers.find(l=>l.id==='produto').h=40;
-  pastaKit([cabe,apertada]);
-  assert((await fKitNaoCabe(cabe,_fKitFmt(cabe),DADOS_KIT,fState.camp)).length===0,'o Story acusou "não cabe" sem motivo');
-  const nc=await fKitNaoCabe(apertada,_fKitFmt(apertada),DADOS_KIT,fState.camp);
-  assert(nc.some(x=>x.campo==='produto'),'o Local Fit não acusou o produto na caixa apertada');
-  // O fluxo inteiro, pela bolha: a peça apertada é nomeada e só a outra vai para o pacote.
+  const atual=fState.material;                     // a arte que a pessoa acabou de fazer (mat-1, Story)
+  atual.name='Oferta — Story'; atual.fmt='story';
+  const feed=pecaKit('k-2','Oferta — Feed','feed');
+  pastaKit([atual,feed]);
+  dFolders[0].templates.forEach(m=>{ m.publishMeta=Object.assign({publicado:true},m.publishMeta||{}); m.publishMeta.publicado=true; });
   const snapId='snap-kit-c';
-  _fArtSnapshots[snapId]={dados:{...DADOS_KIT},camp:fState.camp,fmt:fState.fmt,material:cabe};
+  _fArtSnapshots[snapId]={dados:{...DADOS_KIT},camp:fState.camp,fmt:fState.fmt,material:atual};
   document.getElementById('fixture').innerHTML=_fKitBtnHtml(snapId);
-  await fKitAbrir(document.querySelector('.art-kit-btn'),snapId);
+  const btn=document.querySelector('.art-kit-btn');
+  assert(btn&&/Gerar versão Feed/.test(btn.textContent),'o botão da versão não apareceu');
+  await fKitAbrir(btn,snapId);
   const box=document.getElementById('art-kit-'+snapId);
-  assert(!box.hidden&&box.querySelectorAll('[data-kit-peca]').length===2,'o painel não listou as duas peças');
-  await fKitGerar(box.querySelector('.art-kit-gerar'),snapId);
-  const st=_fKit[snapId];
-  assert(st.prontas.map(x=>x.p.nome).join()==='Story','foram para o pacote: '+st.prontas.map(x=>x.p.nome).join());
-  assert(st.fora.length===1&&st.fora[0].nome==='Selo pequeno'&&/Produto/.test(st.fora[0].motivo),
-    'a peça que não coube não foi nomeada: '+JSON.stringify(st.fora));
-  assert(/Selo pequeno/.test(box.textContent)&&/ficou de fora/.test(box.textContent),'a tela não disse qual peça ficou de fora');
-  assert(fState.material.id==='mat-1','gerar o kit deixou fState.material numa peça do kit');
+  assert(!box.querySelector('input[type=checkbox]'),'voltou a lista de peças com caixas de marcar');
+  assert(box.querySelector('.art-kit-thumb')&&/Feed pronto/.test(box.textContent)&&/Baixar Feed/.test(box.textContent),
+    'sem campo a mais, um toque devia gerar e mostrar a miniatura com o Baixar: '+box.textContent);
+  assert(_fKit[snapId].prontas.length===1,'não gerou exatamente a versão');
+  assert(fState.material===atual,'gerar a versão deixou fState.material na outra peça');
+  // Agora a versão não comporta o texto: o Local Fit nomeia o campo e a saída é editar.
+  feed.layers.find(l=>l.id==='produto').w=90;
+  feed.layers.find(l=>l.id==='produto').h=40;
+  assert((await fKitNaoCabe(feed,_fKitFmt(feed),DADOS_KIT,fState.camp)).some(x=>x.campo==='produto'),'o Local Fit não acusou o produto');
+  delete _fKit[snapId]; box.hidden=true;
+  await fKitAbrir(btn,snapId);
+  assert(/não cabe/.test(box.textContent)&&/Produto/.test(box.textContent),'não disse qual campo não cabe: '+box.textContent);
+  assert(/Editar arte/.test(box.textContent),'sem saída para editar a resposta');
   document.getElementById('fixture').innerHTML=''; dFolders.length=0;
 });
 
@@ -1223,12 +1245,9 @@ await test('Kit: duas peças de mesmo formato com as mesmas respostas viram duas
   try{ localStorage.removeItem(fUserCacheKey(HIST_KEY)); }catch(e){}
 });
 
-await test('Kit: data URL vira Blob sem fetch; entrega solta as imagens; bolha que saiu perde o kit', async()=>{
+await test('Versão: data URL vira Blob sem fetch; bolha que saiu perde a versão', async()=>{
   const b=_fKitDataUrlBlob('data:image/png;base64,iVBORw0KGgo=');
   assert(b.type==='image/png'&&b.size===8,'o Blob local saiu errado: '+b.type+' '+b.size);
-  const st={prontas:[{url:'data:image/png;base64,AAAA',hist:'x'}],fora:[],snap:{camp:{id:'c'}}};
-  _fKitEntregue(st,'zip');
-  assert(st.prontas[0].url===null&&st.files===null,'a entrega não soltou as imagens');
   _fKit['snap-vivo']={}; _fKit['snap-morto']={};
   _fArtSnapshots['snap-vivo']={};
   _fKitPoda();
