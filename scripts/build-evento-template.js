@@ -76,11 +76,11 @@ const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 13
     <!-- ══════════════════════════════════════════════════════════════
          2. CABEÇALHO DO EVENTO (MANCHETE HERO + APOIO ROBOTO MEDIUM)
          ══════════════════════════════════════════════════════════════ -->
-    <g transform="translate(120, 140)">
+    <g transform="translate(110, 80)">
       <!-- Micro-tag de Categoria em Roboto Medium -->
-      <g transform="translate(0, -32)">
-        <rect x="0" y="0" width="190" height="28" rx="8" fill="rgba(255, 255, 255, 0.22)"/>
-        <text x="95" y="19" text-anchor="middle" 
+      <g transform="translate(0, 0)">
+        <rect x="0" y="0" width="180" height="28" rx="8" fill="rgba(255, 255, 255, 0.22)"/>
+        <text x="90" y="19" text-anchor="middle" 
               class="font-support" font-size="12" fill="#FFFFFF">
           EVENTO NA CIDADE
         </text>
@@ -88,19 +88,19 @@ const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 13
 
       <!-- Título Hero do Evento em Realce Black (Nível 1) -->
       <!-- Variável: {{evento_titulo}} -->
-      <text x="0" y="52" 
-            class="font-hero" font-size="94" fill="#FFFFFF">
+      <text x="0" y="102" 
+            class="font-hero" font-size="88" fill="#FFFFFF">
         FESTIVAL
       </text>
-      <text x="0" y="132" 
-            class="font-hero" font-size="94" fill="#FFFFFF">
+      <text x="0" y="180" 
+            class="font-hero" font-size="88" fill="#FFFFFF">
         GASTRONÔMICO
       </text>
 
       <!-- Subtítulo de Conexão Local em Roboto Medium (Nível 2) -->
       <!-- Variável: {{evento_subtitulo}} -->
-      <text x="0" y="180" 
-            class="font-support" font-size="28" fill="#FFF2E0">
+      <text x="0" y="228" 
+            class="font-support" font-size="22" fill="#FFF2E0">
         O MELHOR DA NOSSA CIDADE REUNIDO
       </text>
     </g>
@@ -109,28 +109,28 @@ const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 13
          3. CARD FLUTUANTE DE DATA & LOCAL (TOP-RIGHT EM BRANCO)
          ══════════════════════════════════════════════════════════════ -->
     <g transform="translate(680, 80)" filter="url(#soft-card-shadow)">
-      <rect x="0" y="0" width="280" height="225" rx="34" fill="#FFFFFF"/>
+      <rect x="0" y="0" width="290" height="215" rx="34" fill="#FFFFFF"/>
 
       <!-- Mês e Dias em Destaque (Realce Black + Roboto Medium) -->
-      <g transform="translate(140, 75)">
+      <g transform="translate(145, 70)">
         <text x="0" y="0" text-anchor="middle" 
-              class="font-support" font-size="16" fill="#0A0A0A">
+              class="font-support" font-size="15" fill="#0A0A0A">
           DE OUTUBRO
         </text>
         <!-- Variável: {{evento_dias}} -->
-        <text x="0" y="60" text-anchor="middle" 
+        <text x="0" y="58" text-anchor="middle" 
               class="font-hero" font-size="62" fill="#FF4D00">
           15 A 18
         </text>
       </g>
 
       <!-- Linha divisória sutil -->
-      <line x1="35" y1="160" x2="245" y2="160" stroke="#E6E6E6" stroke-width="2"/>
+      <line x1="35" y1="152" x2="255" y2="152" stroke="#EAEAEA" stroke-width="2"/>
 
       <!-- Local do Evento (Roboto Medium) -->
       <!-- Variável: {{evento_local}} -->
-      <text x="140" y="195" text-anchor="middle" 
-            class="font-support" font-size="16" fill="#0A0A0A">
+      <text x="145" y="186" text-anchor="middle" 
+            class="font-support" font-size="15" fill="#0A0A0A">
         PRAÇA CENTRAL
       </text>
     </g>
@@ -141,12 +141,12 @@ const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 13
     <g id="slot-foto-container">
       <!-- Shape unificado cinza (#5A5D61) com aba circular de ícone -->
       <g fill="#5A5D61">
-        <circle cx="860" cy="505" r="92"/>
-        <rect x="110" y="500" width="860" height="620" rx="54"/>
+        <circle cx="860" cy="385" r="92"/>
+        <rect x="110" y="380" width="860" height="740" rx="54"/>
       </g>
 
       <!-- Ícone de foto dentro da aba superior direita -->
-      <g transform="translate(860, 500)">
+      <g transform="translate(860, 380)">
         <rect x="-34" y="-26" width="68" height="52" rx="10" 
               fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
         <polyline points="-22,14 -4,-6 14,14" 
@@ -158,7 +158,7 @@ const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 13
 
       <!-- Placeholder central instrutivo em Roboto Regular (Nível 3) -->
       <!-- Slot: {{foto_evento}} -->
-      <g transform="translate(540, 810)">
+      <g transform="translate(540, 750)">
         <rect x="-65" y="-68" width="130" height="98" rx="18" 
               fill="none" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
         <polyline points="-42,12 -8,-24 24,12" 
@@ -180,23 +180,23 @@ const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 13
       <!-- ══════════════════════════════════════════════════════════════
            5. BADGES OFICIAIS FLUTUANTES (ENTRADA GRATUITA & PARCEIRO)
            ══════════════════════════════════════════════════════════════ -->
-      <!-- Selo Esquerdo: ENTRADA GRATUITA / ABERTO AO PÚBLICO -->
-      <g transform="translate(125, 455)" filter="url(#badge-shadow)">
-        <rect x="0" y="0" width="270" height="74" rx="20" fill="#FFFFFF"/>
-        <rect x="4" y="4" width="262" height="66" rx="16" fill="#FF4D00"/>
+      <!-- Selo Esquerdo: ENTRADA FRANCA -->
+      <g transform="translate(125, 335)" filter="url(#badge-shadow)">
+        <rect x="0" y="0" width="260" height="72" rx="20" fill="#FFFFFF"/>
+        <rect x="4" y="4" width="252" height="64" rx="16" fill="#FF4D00"/>
         
-        <text x="135" y="32" text-anchor="middle" 
+        <text x="130" y="31" text-anchor="middle" 
               class="font-hero" font-size="22" fill="#FFFFFF">
           ENTRADA FRANCA
         </text>
-        <text x="135" y="52" text-anchor="middle" 
-              class="font-support" font-size="12" fill="#FFF2E0">
+        <text x="130" y="50" text-anchor="middle" 
+              class="font-support" font-size="11" fill="#FFF2E0">
           SHOWS E GASTRONOMIA
         </text>
       </g>
 
       <!-- Selo Direito Sobreposto: Badge do Restaurante Anfitrião -->
-      <g transform="translate(930, 1080)" filter="url(#badge-shadow)">
+      <g transform="translate(860, 990)" filter="url(#badge-shadow)">
         <circle cx="0" cy="0" r="76" fill="#FFFFFF"/>
         <circle cx="0" cy="0" r="70" fill="#3D1E14"/>
         <circle cx="0" cy="0" r="62" fill="none" stroke="#FFB900" stroke-width="2" stroke-dasharray="6 4" opacity="0.6"/>
@@ -218,18 +218,18 @@ const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 13
     <!-- ══════════════════════════════════════════════════════════════
          6. RODAPÉ: LOGO DELIVERY MUCH (BRANCA) + LEGAL (ROBOTO LIGHT)
          ══════════════════════════════════════════════════════════════ -->
-    <g transform="translate(120, 1225)">
+    <g transform="translate(110, 1160)">
       <!-- Logo Oficial Delivery Much (assets/logos/dm-h-branca.png) -->
-      <image href="${dataUriLogo}" x="0" y="0" width="215" height="63" preserveAspectRatio="xMidYMid meet" />
+      <image href="${dataUriLogo}" x="0" y="0" width="210" height="62" preserveAspectRatio="xMidYMid meet" />
 
       <!-- Chamada In-App + Legal Disclaimer em Roboto Light (Nível 4) -->
-      <g transform="translate(840, 24)">
+      <g transform="translate(860, 22)">
         <text x="0" y="0" text-anchor="end" 
-              class="font-support" font-size="17" fill="#0A0A0A">
+              class="font-support" font-size="18" fill="#0A0A0A">
           Peça nos restaurantes do evento pelo app
         </text>
         <text x="0" y="24" text-anchor="end" 
-              class="font-legal" font-size="13" fill="#0A0A0A">
+              class="font-legal" font-size="14" fill="#0A0A0A">
           *Consulte horários e programação completa no aplicativo.
         </text>
       </g>
@@ -239,4 +239,4 @@ const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 13
 
 fs.writeFileSync('assets/templates/template_evento_cidade.svg', svgContent);
 fs.writeFileSync('C:/Users/ryan/.gemini/antigravity/brain/6fabf459-9048-47b5-be2b-b983c8e9970b/template_evento_cidade.svg', svgContent);
-console.log('Template de evento gerado com sucesso!');
+console.log('Template de evento ajustado com sucesso!');

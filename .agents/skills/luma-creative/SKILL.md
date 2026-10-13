@@ -66,33 +66,38 @@ A skill organiza seus recursos nas seguintes pastas:
 ├── SKILL.md                          <- Este manual de regras
 ├── assets/                           <- INVENTÁRIO EXCLUSIVO (Zero criação livre)
 │   ├── logos/                        <- Logos oficiais DM (branca, laranja, símbolo)
-│   ├── molduras/                     <- Moldura com aba de ícone embutida
-│   ├── cards-preco/                  <- Card branco flutuante (top-right ou bottom)
-│   ├── selos/                        <- Badges oficiais de campanha ("Mais Vendidos", etc.)
+│   ├── molduras/                     <- Molduras de foto (com aba de ícone ou domo)
+│   ├── cards-preco/                  <- Card branco flutuante e tickets de cupom
+│   ├── selos/                        <- Badges oficiais de campanha ("Mais Vendidos", parceiros)
 │   ├── grafismos/                    <- Arcos concêntricos tone-on-tone de fundo
 │   └── fontes/                       <- Arquivos de fonte da marca (Realce Black, Roboto)
 └── referencias/                      <- REPERTÓRIO VISUAL (Inspeção visual multimodal)
     ├── grade-variacoes-templates.png <- Grade com 6 composições reais de referência
     ├── referencia-clean-ryan.png     <- Referência autoral com foco clean
+    ├── referencia-cupom-feed.png     <- Referência com voucher de cupom e selo amarelo
+    ├── referencia-cupom-foto-arco.png<- Referência com foto em arco e selo circular
     └── template-clean-feed.svg       <- SVG paramétrico oficial montado
 ```
 
+Utilitários de suporte na raiz do repositório:
+* `scripts/capture-art.js`: Renderizador headless (Edge/CDP zero-dep) que converte o SVG gerado em PNG de alta resolução nas proporções exatas (1080×1350 ou 1080×1920) para inspeção visual da IA.
+
 ---
 
-## 5. Pipeline Obrigatório de Composição (5 Fases)
+## 5. Pipeline Obrigatório de Composição (6 Fases)
 
-Ao receber um pedido de nova arte ou template, a IA executa este fluxo em sequência:
+Ao receber um pedido de nova arte ou template, a IA executa este fluxo em sequência obrigatória:
 
-### FASE 1: Inspeção Visual das Referências (Visão Multimodal Obrigatória)
+### FASE 1: Inspeção Visual das Referências (Visão Multimodal Inicial)
 Antes de escrever uma única linha de código, a IA **DEVE abrir e inspecionar visualmente os PNGs em `referencias/`**:
 * **Sensibilidade Estética e Respiro:** Olhe os PNGs para absorver como o Ryan distribui o peso visual, o contraste entre espaços cheios e vazados, e a hierarquia entre foto, selo e tipografia.
 * **Liberdade Composicional Guiada:** **Não engesse o design em topologias fixas ou caixas fechadas.** A IA deve se inspirar organicamente no repertório das imagens para criar composições novas, equilibradas e naturais, variando o arranjo dos blocos conforme o objetivo do briefing.
-* **Análise da Intenção:** Identifique se a nova peça pede foco em foto grande, destaque de preço, cupom agressivo ou mensagem institucional, e componha a cena inspirada no feeling das referências.
+* **Análise da Intenção:** Identifique se a nova peça pede foco em foto grande, destaque de preço, cupom agressivo, evento municipal ou mensagem institucional, e componha a cena inspirada no feeling das referências.
 
 ### FASE 2: Grade & Zonas Seguras (Safe Zones)
 * **Feed (1080×1350 - Proporção 4:5):**
   * Margem lateral mínima: `100px` a `120px` (o layout nunca vaza nas bordas).
-  * Margem superior/inferior: `70px` a `90px`.
+  * Margem superior/inferior: `70px` a `90px` (rodapé aerado com a logo DM e textos legais).
 * **Story (1080×1920 - Proporção 9:16):**
   * Zona proibida de topo: primeiros `250px` (reservado para header do Instagram).
   * Zona proibida de base: últimos `250px` (reservado para barra de resposta/compartilhar).
@@ -101,25 +106,36 @@ Antes de escrever uma única linha de código, a IA **DEVE abrir e inspecionar v
 ### FASE 3: Orquestração de Blocos do Inventário
 Puxe os elementos diretamente de `assets/`:
 1. Fundo com arcos geométricos *tone-on-tone* de `assets/grafismos/`.
-2. Moldura com aba superior integrada de `assets/molduras/`.
-3. Card flutuante de preço de `assets/cards-preco/`.
+2. Moldura com aba superior ou arco de `assets/molduras/`.
+3. Card flutuante de preço ou voucher de cupom de `assets/cards-preco/`.
 4. Selo de campanha sobreposto de `assets/selos/`.
 5. Logo oficial horizontal branca no rodapé de `assets/logos/`.
 
 ### FASE 4: Teste de Estresse de Texto (Contrato do Luma)
 Certifique-se de que o layout suporta preenchimento real do franqueado:
-* Variável `{{produto}}` curta (*"PIZZA"*) ou longa (*"COMBO BURGER ARTESANAL"*).
+* Variável `{{produto}}` curta (*"PIZZA"*) ou longa (*"FESTIVAL GASTRONÔMICO"*).
 * A tipografia display deve ter quebra de linha inteligente ou espaçamento reservado para não colidir com o selo ou o card de preço.
-* Tags obrigatórias: `{{produto}}`, `{{detalhes}}`, `{{preco}}` e slot `foto_produto`.
+* Tags obrigatórias quando aplicável: `{{produto}}`, `{{detalhes}}`, `{{preco}}` e slot `foto_produto`.
 
-### FASE 5: Auto-Revisão Pré-Entrega (Checklist de Qualidade)
-Antes de emitir o SVG final, confira os 5 pontos:
-1. [ ] **Alinhamento:** Os títulos e a logo compartilham a mesma âncora esquerda (`x="120"`)?
-2. [ ] **Tipografia:** Manchete está em `Realce Black`? Subtítulo em `Roboto Medium`? Disclaimer em `Roboto Light`? (Zero `Bold`).
+### FASE 5: Captura de Print & Auditoria Visual Multimodal (Respiro, Margens e Harmonia)
+Gerar o código não encerra a tarefa. A IA **DEVE tirar o print da arte e olhar com os próprios olhos**:
+1. **Renderizar o PNG:** Execute `node scripts/capture-art.js <arquivo.svg> <saida.png>`.
+2. **Olhar a Imagem:** Abra o PNG resultante com a ferramenta de visão multimodal (`view_file`).
+3. **Auditar os 3 Pilares Visuais:**
+   * **Respiro (Whitespace & Aeramento):** Os blocos têm ar para respirar? Elementos flutuantes (badges, cards de data/preço, tags de apoio) estão colidindo com títulos ou sufocando o slot de foto? O rodapé tem folga confortável antes da borda inferior?
+   * **Margens & Sangria:** As margens de segurança laterais (100–120px) foram mantidas limpas? Nenhuma letra ou badge está prensado contra o limite do canvas?
+   * **Harmonia & Peso Visual:** O centro de gravidade da arte está equilibrado? O olhar do usuário percorre a peça naturalmente: Título de impacto (Hero) → Detalhe/Card → Foto/Atração → Rodapé com logo e app?
+4. **Refinamento Iterativo Obrigatório:** Se a IA identificar qualquer aperto, colisão, texto truncado ou desequilíbrio na inspeção do print, deve ajustar as coordenadas no código SVG e rodar o print novamente até alcançar harmonia cirúrgica.
+
+### FASE 6: Auto-Revisão Pré-Entrega (Checklist Final)
+Antes de finalizar a arte:
+1. [ ] **Alinhamento:** Títulos e logo compartilham âncoras coerentes com a grade?
+2. [ ] **Tipografia Estrita:** Manchete em `Realce Black` (900)? Subtítulo/apoio em `Roboto Medium` (500)? Corpo em `Roboto Regular` (400)? Legal em `Roboto Light` (300)? (**Zero** `Bold` 700).
 3. [ ] **Fidelidade:** 100% dos blocos vieram do inventário `assets/`?
-4. [ ] **Base64:** A logo e a fonte `Realce Black` estão embutidas no código para abrir em qualquer software?
-5. [ ] **Whitespace:** A arte respira com elegância, sem elementos colados nas extremidades?
+4. [ ] **Autonomia do SVG:** Logo e fontes embutidas em base64 no `<style>`?
+5. [ ] **Print Aprovado:** A arte passou pela auditoria multimodal da FASE 5 sem colisões?
 
 ---
 
-Ao seguir rigorosamente este manual, todo template gerado possui consistência matemática, visual impecável e prontidão total para publicação no catálogo do Luma.
+Ao seguir rigorosamente este manual com a etapa de print e auditoria visual, todo template gerado possui consistência matemática, visual impecável e prontidão total para publicação no catálogo do Luma.
+
