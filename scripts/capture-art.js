@@ -182,6 +182,41 @@ async function capturarArte(svgPath, outPngPath) {
   }
 }
 
+/**
+ * Abre um HTML no navegador headless e devolve o resultado (JSON) de uma expressão JS avaliada na página.
+ * Usado por lint-art.js e medir-texto.js. `expr` pode usar await (ex.: document.fonts.ready).
+ */
+async function avaliarNaPagina(html, w, h, expr) {
+  const bin = acharChromium();
+  if (!bin) throw new Error('Navegador não encontrado.');
+  const nav = await subirNavegador(bin, w, h);
+  try {
+    let alvo;
+    for (let i = 0; i < 50 && !alvo; i++) {
+      try {
+        const lista = await getJson(nav.porta, '/json/list');
+        alvo = (lista || []).find(t => t.type === 'page' && t.webSocketDebuggerUrl);
+      } catch (e) {}
+      if (!alvo) await esperar(100);
+    }
+    if (!alvo) throw new Error('Nenhuma aba disponível no CDP.');
+    const cdp = await conectar(String(alvo.webSocketDebuggerUrl).replace('://localhost:', '://127.0.0.1:'));
+    await cdp.enviar('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: false });
+    const tmp = path.join(nav.perfil, 'avaliar.html');
+    fs.writeFileSync(tmp, html);
+    await cdp.enviar('Page.enable');
+    await cdp.enviar('Page.navigate', { url: 'file:///' + tmp.replace(/\\/g, '/') });
+    await esperar(500);
+    const r = await cdp.enviar('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
+    cdp.fechar();
+    if (r.exceptionDetails) throw new Error('Erro na página: ' + (r.exceptionDetails.exception && r.exceptionDetails.exception.description || r.exceptionDetails.text));
+    return r.result.value;
+  } finally {
+    try { nav.proc.kill('SIGKILL'); } catch (e) {}
+    try { fs.rmSync(nav.perfil, { recursive: true, force: true }); } catch (e) {}
+  }
+}
+
 if (require.main === module) {
   const args = process.argv.slice(2);
   if (!args[0]) {
@@ -194,4 +229,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { capturarArte };
+module.exports = { capturarArte, avaliarNaPagina };

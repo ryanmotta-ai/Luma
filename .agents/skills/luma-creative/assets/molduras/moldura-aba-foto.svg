@@ -1,27 +1,27 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 680" width="860" height="680">
-  <g fill="#5A5D61">
+  <g fill="#D9D9D9">
     <circle cx="750" cy="5" r="92"/>
     <rect x="0" y="0" width="860" height="680" rx="54"/>
   </g>
   <g transform="translate(750, 0)">
     <rect x="-34" y="-26" width="68" height="52" rx="10" 
-          fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+          fill="none" stroke="#434343" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
     <polyline points="-22,14 -4,-6 14,14" 
-              fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+              fill="none" stroke="#434343" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
     <polyline points="4,14 18,2 26,14" 
-              fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="14" cy="-10" r="5" fill="#FFFFFF"/>
+              fill="none" stroke="#434343" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="14" cy="-10" r="5" fill="#434343"/>
   </g>
   <g transform="translate(430, 310)">
     <rect x="-65" y="-68" width="130" height="98" rx="18" 
-          fill="none" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+          fill="none" stroke="#434343" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
     <polyline points="-42,12 -8,-24 24,12" 
-          fill="none" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+          fill="none" stroke="#434343" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
     <polyline points="6,12 32,-14 48,12" 
-          fill="none" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="24" cy="-34" r="8" fill="#FFFFFF"/>
+          fill="none" stroke="#434343" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="24" cy="-34" r="8" fill="#434343"/>
     <text x="0" y="84" text-anchor="middle" 
-          font-family="'Roboto', sans-serif" font-size="36" font-weight="400" fill="#FFFFFF">
+          font-family="'Roboto', sans-serif" font-size="36" font-weight="400" fill="#434343">
       Use aqui sua foto do produto
     </text>
   </g>
