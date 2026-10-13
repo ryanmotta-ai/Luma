@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 750" width="1080" height="750">
+  <!-- Moldura de foto com topo em arco/cúpula suave descendo até o rodapé -->
+  <g fill="#D5D9DE">
+    <!-- Arco superior suave (cx: 540, r: 580) sangrando na base -->
+    <path d="M 0 350 Q 540 -80 1080 350 L 1080 750 L 0 750 Z"/>
+  </g>
+  <!-- Placeholder e texto instrutivo -->
+  <g transform="translate(540, 480)">
+    <rect x="-65" y="-68" width="130" height="98" rx="18" 
+          fill="none" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <polyline points="-42,12 -8,-24 24,12" 
+              fill="none" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <polyline points="6,12 32,-14 48,12" 
+              fill="none" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="24" cy="-34" r="8" fill="#FFFFFF"/>
+    <text x="0" y="84" text-anchor="middle" 
+          font-family="'Roboto', sans-serif" font-size="34" font-weight="400" fill="#FFFFFF">
+      Use aqui sua foto do produto
+    </text>
+  </g>
+</svg>
