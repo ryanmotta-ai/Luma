@@ -623,6 +623,8 @@ Revisão por elemento → template rascunho. Suíte: `tests/svg-import.html`.
 
 ### Luma Creative (`js/creative/creative.js`, prefixo `cr*`) — em TESTES, só gestão (14/10/2026)
 
+> **Frente única (decisão do Ryan, 14/10/2026):** a skill `luma-creative` do Claude foi descontinuada e removida do repositório (com os scripts dela: `embutir-arte`, `capture-art`, `lint-art`, `medir-texto`, `pattern-ancorado`, `gerar-30-capas`, `capture-all`, `scaffold-skill`, `convert-ai-pattern-to-svg`). O Luma Creative do app é a única frente: regras, inventário (`assets/creative/`) e referências (`assets/templates/refino/`) vivem aqui. O histórico da skill fica no git (até o commit anterior a esta remoção).
+
 Aba ao lado do Estúdio com a tag **Testes**. Visível e utilizável só por `role='gestao'` (nem a `equipe_dm`) e pela flag `module.creative`: `_gCreativeRole` + `gModeAllowed` em `main.js`, e de novo **no servidor** (toda task `arte.*` da função `ai` devolve 403 a quem não é gestão). Interface clara e minimalista (`--cr-*` em `00-tokens.css`).
 
 **Arquitetura: a IA dirige e julga; o código desenha.**
