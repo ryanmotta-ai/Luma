@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-10-14 — Gíria na legenda: coluna `exemplo` em `luma.franquia_girias` (✅ migration `20261014180000`)
+
+- **Coluna nova `exemplo text`** (opcional, ≤ 160 caracteres): a frase de delivery que a pesquisa de gírias (task `girias`) devolve usando a expressão. É a rede de segurança da legenda (`_fGiriaGarante` em `js/franqueado/chat.js`): se a IA não usa a gíria aprovada — ou o provedor cai e a legenda sai do motor local — a frase entra pronta no "engajar".
+- Antes o exemplo morava só no `localStorage` do aparelho que fez a pesquisa: em outro aparelho a gíria aprovada ficava sem rede de segurança.
+- RLS inalterada (quem grava a gíria grava o exemplo). Sem secret, sem mudança na função `ai`.
+- Testado em produção com um franqueado de teste temporário (apagado no fim) vinculado à franquia "Teste Estresse (bot)": pesquisa real gravou 6 sugestões com exemplo, aprovação pela RLS do franqueado, legenda com a gíria aprovada.
+
 ## 2026-10-14 — Dados do catálogo: visitante só no Deliversário e nomes corrigidos (✅ aplicado direto, sem migration)
 
 - **Modo visitante:** `luma.pastas.visitante` agora é `true` só em "Aniversário Delivery Much" (era só na Copa do Mundo 2026, que está inativa — a RPC `luma_visitante_catalogo` devolvia catálogo vazio). O visitante vê os 4 materiais publicados do Deliversário 15.

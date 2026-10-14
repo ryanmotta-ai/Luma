@@ -2234,7 +2234,10 @@ function fTrackLegenda(evento, canvasId, extra){
   }catch(e){}
 }
 function _fAplicarLegendaIA(canvasId, sug){
-  if(!sug || !sug._ia || !sug.length) return;
+  /* Também a do motor local QUANDO ela ganhou a gíria (a IA falhou, mas a expressão aprovada e o
+     exemplo já estavam guardados): sem isto a gíria sumia justo quando o provedor caía. O selo
+     continua dizendo "motor local" — `_fCaptionSrcTag` lê o `_ia`. */
+  if(!sug || !(sug._ia || sug._giria) || !sug.length) return;
   const painel = document.querySelector(`.caption-assistant-panel[data-canvas-id="${canvasId}"]`);
   if(!painel) return;                       // a pessoa já saiu da tela — nada a fazer
   _fArtCaptions[canvasId] = sug;
@@ -2340,7 +2343,9 @@ const F_GIRIAS_MAX = 6;
    Vazio agora é só uma semana; depois pergunta de novo. */
 const F_GIRIAS_VAZIO_DIAS = 7;
 /* O exemplo de uso que a pesquisa devolve ("Bah, a fome bateu? Pede no app."), por termo.
-   É a rede de segurança da legenda: se a IA não usou a expressão, a frase entra pronta. */
+   É a rede de segurança da legenda: se a IA não usou a expressão, a frase entra pronta.
+   Com franquia, a fonte é a coluna `exemplo` de `luma.franquia_girias` (vale em qualquer
+   aparelho); este cache serve à cidade sem franquia e às linhas gravadas antes da coluna. */
 const F_GIRIAS_EX_KEY = 'dm_girias_ex_v1';
 
 /* A cidade do franqueado NÃO é entidade do Luma (01_BUSINESS §1) — ela aparece de raspão em
@@ -2406,6 +2411,7 @@ REGRAS:
 2. Tem que caber numa legenda de delivery: comida, fome, pedido, promoção.
 3. No máximo ${F_GIRIAS_MAX} expressões, da mais conhecida para a menos.
 4. Devolva a lista vazia só se você não souber nem de que região é a cidade.
+5. O exemplo é a fala de um vizinho, simples e direta: sem emoji e sem "imperdível", "incrível" ou jargão de propaganda.
 
 Responda APENAS com JSON válido:
 {"termos":[{"termo":"a expressão","significado":"o que quer dizer, em até 4 palavras","exemplo":"frase curta de delivery (até 90 caracteres) usando a expressão"}]}`;
@@ -2460,7 +2466,7 @@ async function _fGiriasFrLer(fr, forcar){
   const sb = _fGiriasSb(); if(!sb) return null;
   try{
     const { data, error } = await sb.schema('luma').from('franquia_girias')
-      .select('id, termo, significado, status, franquia_id').or(`franquia_id.eq.${fr.id},franquia_id.is.null`);
+      .select('id, termo, significado, exemplo, status, franquia_id').or(`franquia_id.eq.${fr.id},franquia_id.is.null`);
     if(error) return null;
     _fGiriasFr = { franquiaId: fr.id, linhas: data || [] };
   }catch(e){ return null; }
@@ -2479,7 +2485,7 @@ async function _fGiriasDaFranquia(fr){
     if(termos.length){
       try{
         await _fGiriasSb().schema('luma').from('franquia_girias').insert(termos.map(t => ({
-          franquia_id: fr.id, termo: t.termo, significado: t.significado || null, origem: 'ia', status: 'sugerida' })));
+          franquia_id: fr.id, termo: t.termo, significado: t.significado || null, exemplo: t.exemplo || null, origem: 'ia', status: 'sugerida' })));
       }catch(e){}
       linhas = (await _fGiriasFrLer(fr, true)) || linhas;
     }
@@ -2487,7 +2493,7 @@ async function _fGiriasDaFranquia(fr){
     pedido[fr.id] = Date.now(); try{ localStorage.setItem(fUserCacheKey(F_GIRIAS_FR_PEDIDO), JSON.stringify(pedido)); }catch(e){}
   }
   return linhas.filter(l => l.franquia_id === fr.id && l.status === 'aprovada' && !_fGiriaVetada(linhas, l.termo))
-    .map(l => ({ termo: l.termo, significado: l.significado || '', exemplo: _fGiriaExemplo(l.termo) }));
+    .map(l => ({ termo: l.termo, significado: l.significado || '', exemplo: l.exemplo || _fGiriaExemplo(l.termo) }));
 }
 /* A dose, no código: UM termo sorteado por legenda (a IA nunca vê a lista inteira). */
 function _fGiriaUma(lista){ return (lista && lista.length) ? [lista[Math.floor(Math.random() * lista.length)]] : []; }
@@ -2510,7 +2516,7 @@ function _fGiriaGarante(out, g){
   const usou = out.slice(0, 2).some(o => _fGiriaNaFrase(o.text, g.termo));
   if(!usou && g.exemplo) out[1].text = _fSeoGarante(out[1].text, g.exemplo);
   out._giria = (usou || g.exemplo) ? g.termo : '';
-  if(out._giria && typeof gTrackEvent === 'function') gTrackEvent('giria_usada', { garantida: !usou });
+  if(out._giria && typeof gTrackEvent === 'function') gTrackEvent('giria_usada', { garantida: !usou, fonte: out._ia ? 'ia' : 'local' });
   return out;
 }
 
@@ -2567,7 +2573,7 @@ async function fGiriaAdicionar(ev){
   const linhas = (await _fGiriasFrLer(fr)) || [];
   if(_fGiriaVetada(linhas, termo)){ gToast('Essa expressão não pode ser usada nas legendas.', 'error'); return; }
   const { data, error } = await _fGiriasSb().schema('luma').from('franquia_girias')
-    .insert({ franquia_id: fr.id, termo, origem: 'franqueado', status: 'aprovada' }).select('id, termo, significado, status, franquia_id').single();
+    .insert({ franquia_id: fr.id, termo, origem: 'franqueado', status: 'aprovada' }).select('id, termo, significado, exemplo, status, franquia_id').single();
   if(error){ gToast(/duplicate|unique/i.test(error.message || '') ? 'Essa expressão já está na lista.' : 'Não consegui salvar. Tente de novo.', 'error'); return; }
   if(_fGiriasFr) _fGiriasFr.linhas.push(data);
   const chips = ev.target.closest('.cap-girias').querySelector('.cap-girias-chips');
@@ -2704,10 +2710,10 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
       out._ia = true;
       return _fGiriaGarante(out, giria);
     }
-    return fallback;
+    return _fGiriaGarante(fallback, giria);
   }
 
-  if (typeof gAskAI !== 'function' || !gAiReady()) return fallback;
+  if (typeof gAskAI !== 'function' || !gAiReady()) return _fGiriaGarante(fallback, giria);
 
   const cidadeTag = cidade.replace(/[^a-zA-Z0-9]/g, '');
   const ehStory = fmtId === 'story';
@@ -2749,7 +2755,7 @@ Responda APENAS com JSON válido:
 
   const texto = await gAskAI('legenda', prompt, { json: true });
   const parsed = texto && (typeof gAiParseJson === 'function' ? gAiParseJson(texto) : null);
-  if (!parsed) return fallback;
+  if (!parsed) return _fGiriaGarante(fallback, giria);
 
   const limpa = (v, i) => {
     let s = (typeof v === 'string' ? v : '').trim();
