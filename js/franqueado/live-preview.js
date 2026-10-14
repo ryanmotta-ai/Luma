@@ -4011,6 +4011,19 @@ function _fLpDesignSync(){
   if(panel)panel.classList.toggle('lp-design-original',original);
   if(active)_fLpDesignStatus(_fLpDesignDraft);
 }
+// Põe a peça numa versão do banco em todo lugar que a guarda: Estúdio em memória, cache já
+// empacotado (sem disparar o push do catálogo inteiro) e o material aberto na prévia.
+function _fLpDesignAdotarVersao(remoteId,id,patch){
+  if(typeof dFolders!=='undefined') dFolders.forEach(f=>{f.templates=(f.templates||[]).map(t=>t.remoteId===remoteId?Object.assign({},t,patch):t);});
+  try{
+    const cached=JSON.parse(localStorage.getItem('yngs_folders_v1')||'null');
+    if(Array.isArray(cached)){
+      cached.forEach(f=>{f.templates=(f.templates||[]).map(t=>t.remoteId===remoteId?Object.assign({},t,patch):t);});
+      localStorage.setItem('yngs_folders_v1',JSON.stringify(cached));
+    }
+  }catch(e){}
+  if(fState.material?.id===id) fState.material=Object.assign({},fState.material,patch);
+}
 async function fLpDesignStart(){
   if(!_fLpDesignAllowed()||_fLpDesignOpening||_fLpDesignDraft) return;
   const m=fState.material, id=m.id, remoteId=m.remoteId,owner=_fLpDesignOwner();
@@ -4026,7 +4039,11 @@ async function fLpDesignStart(){
     const {data,error}=await sb.schema('luma').from('templates').select('id,layers,updated_at,versao_atual_id,publicado').eq('id',remoteId).single();
     if(error||!data?.publicado||!data.updated_at||!Array.isArray(data.layers)) throw new Error('Não foi possível carregar a versão publicada.');
     if(!_fLpDesignAllowed()||fState.material.id!==id||_fLpDesignOwner()!==owner) return;
-    if(m.versaoAtualId&&m.versaoAtualId!==data.versao_atual_id) throw new Error('Este material recebeu uma nova versão. Reabra pelo catálogo antes de editar.');
+    /* Versão do catálogo local ≠ versão no banco: antes travava com "Reabra pelo catálogo", mas
+       reabrir lia o MESMO cache e o erro voltava — o material ficava sem edição. A edição já
+       parte do que veio do banco (data.layers), então basta trazer a peça para essa versão. */
+    if(m.versaoAtualId&&m.versaoAtualId!==data.versao_atual_id)
+      _fLpDesignAdotarVersao(remoteId,id,{layers:JSON.parse(JSON.stringify(data.layers)),_remoteUpdatedAt:data.updated_at,versaoAtualId:data.versao_atual_id,_needsLayersFetch:false});
     const saved=_fLpDesignRead(owner,remoteId);
     if(saved){
       const conflict=saved.stamp!==data.updated_at||saved.base!==JSON.stringify(data.layers);
@@ -4292,17 +4309,7 @@ async function fLpDesignSave(){
     if(!data?.length) throw new Error('O material mudou ou sua permissão foi alterada. Seus ajustes foram preservados; reabra pelo catálogo para conferir a versão atual.');
     _fLpDesignForget(draft);
     if(_fLpDesignOwner()!==draft.owner)return true;
-    const patch={layers:JSON.parse(JSON.stringify(draft.layers)),_remoteUpdatedAt:data[0].updated_at,versaoAtualId:data[0].versao_atual_id,_needsLayersFetch:false};
-    if(typeof dFolders!=='undefined') dFolders.forEach(f=>{f.templates=(f.templates||[]).map(t=>t.remoteId===draft.remoteId?Object.assign({},t,patch):t);});
-    // Atualiza apenas a peça no cache já empacotado, sem disparar o push de todo o catálogo.
-    try{
-      const cached=JSON.parse(localStorage.getItem('yngs_folders_v1')||'null');
-      if(Array.isArray(cached)){
-        cached.forEach(f=>{f.templates=(f.templates||[]).map(t=>t.remoteId===draft.remoteId?Object.assign({},t,patch):t);});
-        localStorage.setItem('yngs_folders_v1',JSON.stringify(cached));
-      }
-    }catch(e){}
-    if(fState.material?.id===draft.id) fState.material=Object.assign({},fState.material,patch);
+    _fLpDesignAdotarVersao(draft.remoteId,draft.id,{layers:JSON.parse(JSON.stringify(draft.layers)),_remoteUpdatedAt:data[0].updated_at,versaoAtualId:data[0].versao_atual_id,_needsLayersFetch:false});
     if(_fLpDesignDraft===draft) _fLpDesignDraft=null;
     _fLpDesignSync();_fLpRender();_fLpRetomarConclusao();gToast('Nova versão publicada para a rede.');
     // O Estúdio permanece em memória ao trocar de área. Atualiza pelo carregador único,

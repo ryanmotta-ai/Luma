@@ -662,33 +662,33 @@ function fRenderMaterialCatalog(camp, container){
   `;
   // Thumbs FIÉIS: renderiza a arte real de cada material (mesmo motor do PNG) por cima
   // do placeholder colorido — que permanece como fallback se o render falhar.
-  if(typeof fRenderPreviewToCanvas==='function'){
-    validMat.forEach(async m=>{
-      // Catálogo leve: material chega sem layers (_needsLayersFetch). Sem buscar aqui,
-      // o thumb nunca renderiza e o card fica só com a cor — a pessoa não vê qual material é.
-      if(typeof fEnsureMaterialLayers==='function'){ try{ await fEnsureMaterialLayers(m); }catch(e){} }
-      const cv=document.getElementById('f-mat-cv-'+m.id);
-      if(!cv) return;
-      const card=cv.closest('.f-mat-card');
-      // Layers não desceram (rede/publish parcial): o card ficava girando o spinner PRA SEMPRE,
-      // dizendo "estou montando" sobre algo que nunca vem. Estado de erro honesto e para.
-      if(!(m.layers&&m.layers.length)){
-        if(card){ card.classList.remove('is-rendering'); card.classList.add('has-preview-error'); }
-        return;
-      }
-      if(card) card.classList.add('is-rendering'); // fetch tardou → mostra estado de render agora
-      try{
-        Promise.resolve(fRenderPreviewToCanvas(cv, m, {maxPx:520, camp:{color:camp.color||'#FF9000'}, dados:m._demoDados, scope:'franqueado', molduraVazia:'liso'}))
-          .then(ok=>{ if(card){ card.classList.remove('is-rendering'); card.classList.add(ok===false?'has-preview-error':'has-preview'); } }) // o render engole o erro e devolve false
-          .catch(()=>{ if(card){ card.classList.remove('is-rendering'); card.classList.add('has-preview-error'); } });
-      }catch(e){
-        if(card){ card.classList.remove('is-rendering'); card.classList.add('has-preview-error'); }
-      }
-    });
-  }
+  validMat.forEach(m=>fRenderMatThumb(m, 'f-mat-cv-'+m.id, camp.color));
   // Só marca a campanha como "vista" DEPOIS de renderar os cards (fRenderMaterialCard lê o
   // seen anterior p/ decidir a tag "novo"); assim o badge some só na próxima abertura.
   if(typeof fMarkCampSeen==='function') fMarkCampSeen(camp.id);
+}
+/* Thumb FIEL de um card de material (.f-mat-card com <canvas id=cvId>). Um caminho só para a
+   pasta da campanha e para os resultados da busca da home — a busca desenhava só o placeholder
+   colorido e o franqueado via 13 quadrados laranja sem saber qual arte era qual.
+   Devolve true quando a arte real foi desenhada. */
+async function fRenderMatThumb(m, cvId, color){
+  if(typeof fRenderPreviewToCanvas!=='function') return false;
+  // Catálogo leve: material chega sem layers (_needsLayersFetch). Sem buscar aqui,
+  // o thumb nunca renderiza e o card fica só com a cor — a pessoa não vê qual material é.
+  if(typeof fEnsureMaterialLayers==='function'){ try{ await fEnsureMaterialLayers(m); }catch(e){} }
+  const cv=document.getElementById(cvId);
+  if(!cv) return false;
+  const card=cv.closest('.f-mat-card');
+  const fim=ok=>{ if(card){ card.classList.remove('is-rendering'); card.classList.add(ok?'has-preview':'has-preview-error'); } return ok; };
+  // Layers não desceram (rede/publish parcial): o card ficava girando o spinner PRA SEMPRE,
+  // dizendo "estou montando" sobre algo que nunca vem. Estado de erro honesto e para.
+  if(!(m.layers&&m.layers.length)) return fim(false);
+  if(card) card.classList.add('is-rendering'); // fetch tardou → mostra estado de render agora
+  try{
+    // o render engole o erro e devolve false
+    const ok=await fRenderPreviewToCanvas(cv, m, {maxPx:520, camp:{color:color||'#FF9000'}, dados:m._demoDados, scope:'franqueado', molduraVazia:'liso'});
+    return fim(ok!==false);
+  }catch(e){ return fim(false); }
 }
 function fRenderMaterialCard(material, camp){
   const validade = material.publishMeta && material.publishMeta.validade;
@@ -750,7 +750,8 @@ function fMatAdminMenu(ev, materialId){
   const btn=ev.currentTarget;
   const menu=document.createElement('div');
   menu.className='camp-admin-menu';
-  menu.innerHTML=`<button type="button" onclick="fCloseCampAdminMenu();fArchiveMaterial('${gEscJs(materialId)}')">${typeof _ICO_ARCHIVE!=='undefined'?_ICO_ARCHIVE:''}<span>Arquivar material</span></button>`;
+  menu.innerHTML=`<button type="button" onclick="fCloseCampAdminMenu();fRenameMaterial('${gEscJs(materialId)}')">${typeof _ICO_EDIT!=='undefined'?_ICO_EDIT:''}<span>Renomear material</span></button>`+
+    `<button type="button" onclick="fCloseCampAdminMenu();fArchiveMaterial('${gEscJs(materialId)}')">${typeof _ICO_ARCHIVE!=='undefined'?_ICO_ARCHIVE:''}<span>Arquivar material</span></button>`;
   document.body.appendChild(menu);
   if(btn){
     const r=btn.getBoundingClientRect();
@@ -772,6 +773,18 @@ function _fMatSetPublicado(materialId, publicado){
   if(fState.materialView && mv && fState.camp && fState.camp.id) fRenderMaterialCatalog(fState.camp, mv);
   if(typeof fRestoreCatalog==='function') fRestoreCatalog();
   return t;
+}
+/* Renomear pela vitrine: o mesmo dRenameTemplate do Estúdio (nome único na pasta, persiste e
+   sobe pelo dPersistFolders). Antes só dava pelo Estúdio — o admin navegando o catálogo via o
+   nome errado e não tinha onde mexer. */
+async function fRenameMaterial(materialId){
+  if(typeof gIsAdmin!=='function' || !gIsAdmin() || typeof dRenameTemplate!=='function') return;
+  const f=(typeof dFolders!=='undefined'&&dFolders)?dFolders.find(x=>x&&(x.templates||[]).some(t=>t.id===materialId)):null;
+  if(!f){ gToast('Não achei esse material.','error'); return; }
+  await dRenameTemplate(f.id, materialId);
+  const mv=document.getElementById('f-material-view');
+  if(fState.materialView && mv && fState.camp && fState.camp.id) fRenderMaterialCatalog(fState.camp, mv);
+  if(typeof fRestoreCatalog==='function') fRestoreCatalog();
 }
 function fArchiveMaterial(materialId){
   const t=_fMatSetPublicado(materialId, false);

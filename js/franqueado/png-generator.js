@@ -5835,7 +5835,14 @@ function _fAssembleCopy(f, mode, segment, used, forceShort) {
 
   const tags = [...new Set(allTagsList)].slice(0, 6).join(' ');
   // A cidade escrita no TEXTO também conta na busca (palavra-chave, não só hashtag).
-  const bancoLocal = city ? B.locais : B.locaisSemCidade;
+  let bancoLocal = city ? B.locais : B.locaisSemCidade;
+  /* A MARCA UMA VEZ SÓ: a maioria das linhas locais assina "Delivery Much", e quando o produto,
+     o desconto ou o cupom já trazem o nome ("Aniversário Delivery Much") a legenda repetia a
+     marca duas vezes. Já dita, a linha local vem das que só falam do lugar. */
+  if (/delivery\s*much/i.test([hook, body, cupomLine].join(' '))) {
+    const semMarca = bancoLocal.filter(l => !/delivery much/i.test(l));
+    if (semMarca.length) bancoLocal = semMarca;
+  }
   const livresLocal = bancoLocal.filter(l => !used.locais.has(l));
   const tplLocal = _fPick1(livresLocal.length ? livresLocal : bancoLocal);
   used.locais.add(tplLocal);

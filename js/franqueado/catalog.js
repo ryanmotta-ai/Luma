@@ -1353,15 +1353,30 @@ async function fSearchOpenMaterial(campId,materialId,searchMaterialId,card){
   if(typeof gTrackEvent==='function')gTrackEvent('campanha_aberta',{camp_id:c.id,camp_name:c.name||''});
   await fSelectMaterial(materialId,card);
 }
+/* Cards da busca que esperam a arte real (fRenderMatThumb). O canvas já desenhado é guardado e
+   reaproveitado: a busca re-renderiza a cada tecla, e redesenhar 13 artes por letra travava. */
+let _fhThumbFila=[];
+const _fhThumbCache=new Map();
+function _fhThumbKey(m){ return m.id+'|'+(m.versaoAtualId||m._remoteUpdatedAt||''); }
+function _fhRenderSearchThumbs(){
+  const fila=_fhThumbFila; _fhThumbFila=[];
+  fila.forEach(({m,c})=>{
+    const id='fh-cv-'+m.id, cv=document.getElementById(id); if(!cv) return;
+    const pronto=_fhThumbCache.get(_fhThumbKey(m));
+    if(pronto){ pronto.id=id; cv.replaceWith(pronto); pronto.closest('.f-mat-card')?.classList.add('has-preview'); return; }
+    fRenderMatThumb(m, id, c.color).then(ok=>{ const el=document.getElementById(id); if(ok&&el) _fhThumbCache.set(_fhThumbKey(m), el); });
+  });
+}
 function _fHomeSearchMaterialEl(entry){
   const m=entry.material,c=entry.campaign;
+  if(typeof fRenderMatThumb==='function') _fhThumbFila.push({m,c});
   const fmtId=['story','feed','wide','post'].includes(m.fmt)?m.fmt:'story';
   const fmt={story:'Story',feed:'Feed',wide:'Post',post:'Post'}[fmtId];
   const searchMaterialId=m.remoteId||m.id;
   return `<button class="f-mat-card" type="button" onclick="fSearchOpenMaterial('${gEscJs(c.id)}','${gEscJs(m.id)}','${gEscJs(searchMaterialId)}',this)" aria-label="Personalizar ${gEsc(m.name)}, da campanha ${gEsc(c.name)}">
     <div class="f-mat-preview"><div class="f-mat-thumb f-mat-thumb-${fmtId}" style="background:${gSafeColor(c.color)}">
-      <div class="f-mat-thumb-prod">${gEsc(c.previewProd||c.name)}</div><div class="f-mat-thumb-logo" aria-hidden="true"></div><div class="f-mat-thumb-tag">${gEsc(fmt)}</div>
-    </div></div><div class="f-mat-info"><div class="f-mat-info-main"><div class="f-mat-name">${gEsc(m.name)}</div><div class="f-mat-action" aria-hidden="true">Personalizar</div></div>
+      <div class="f-mat-thumb-prod">${gEsc(c.previewProd||c.name)}</div><div class="f-mat-thumb-logo" aria-hidden="true"></div><canvas class="f-mat-cv" id="fh-cv-${gEsc(m.id)}" aria-hidden="true"></canvas><div class="f-mat-thumb-tag">${gEsc(fmt)}</div>
+    </div><div class="f-mat-preview-loading" aria-hidden="true"><span></span></div></div><div class="f-mat-info"><div class="f-mat-info-main"><div class="f-mat-name">${gEsc(m.name)}</div><div class="f-mat-action" aria-hidden="true">Personalizar</div></div>
     <div class="f-mat-meta"><span class="f-mat-fmt">${gEsc(fmt)}</span><span class="f-mat-validade">${gEsc(c.name)}</span></div></div></button>`;
 }
 
@@ -1750,6 +1765,7 @@ function fHomeFilter(q){
   const home=document.getElementById('f-home');
   if(home) home.classList.remove('fh-anim');
   body.innerHTML=_fHomeBodyHTML(q);
+  _fhRenderSearchThumbs();
   try{ _fhSetupReveal(); }catch(e){ body.querySelectorAll(':scope>*').forEach(b=>b.classList.add('in')); }
 
   // Aprimoramento semântico com gAI (§16, §17, §21, §64)
@@ -1768,6 +1784,7 @@ function fHomeFilter(q){
         const curBody = document.getElementById('fh-body');
         if(curBody) {
           curBody.innerHTML = _fHomeBodyHTML(trimmed);
+          _fhRenderSearchThumbs();
           try{ _fhSetupReveal(); }catch(e){ curBody.querySelectorAll(':scope>*').forEach(b=>b.classList.add('in')); }
         }
       });
