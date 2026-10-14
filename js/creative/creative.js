@@ -5,7 +5,7 @@
  * Um chat que compõe arte nova. A IA (task `arte.compor`) NÃO desenha: devolve a composição em
  * JSON — qual das 5 diagramações aprovadas da skill luma-creative, a copy e os dados (preço,
  * cupom, anos). Quem desenha é crCompor, com os blocos oficiais da skill e já no contrato do
- * importador de SVG (data-luma / data-campo / g#foto_produto): "Abrir no Estúdio" vira template
+ * importador de SVG (data-luma / data-campo / g#foto_produto): a arte já nasce pronta para virar template
  * sem retrabalho. Sem IA, crLerPedido lê o pedido (palavras-chave, preço, código, anos) e o
  * mesmo motor compõe. A legenda do post sai junto (fFetchAICaptionSuggestions, chat.js).
  *
@@ -681,7 +681,6 @@ const _crEl = id => document.getElementById(id);
 const CR_ICO = {
   faisca: '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/></svg>',
   baixar: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>',
-  estudio: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m14.5 4.5 5 5L8 21H3v-5z"/></svg>',
   editar: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4"/><path d="M9 12h6M12 9v6"/></svg>',
   refazer: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>',
   copiar: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>',
@@ -1043,7 +1042,6 @@ function _crResultado(fio, v){
   el.className = 'cr-resultado';
   const nome = 'Arte ' + CR_COMPOSICOES[v.spec.composicao].toLowerCase() + ' (' + v.spec.formato + ')';
   const origem = x => x.editada ? 'Editada por você · Testes' : (x.ia ? 'Composta pela IA' : 'Composta pelo motor local') + ' · Testes';
-  const admin = typeof gIsAdmin === 'function' && gIsAdmin();
   el.innerHTML =
     '<div class="cr-arte-col"><div class="cr-arte" style="aspect-ratio:' + v.w + '/' + v.h + '"><img alt="' + gEsc(nome) + '" src="' + v.url + '"></div>'
     + '<span class="cr-selo-ia">' + origem(v) + '</span></div>'
@@ -1056,7 +1054,6 @@ function _crResultado(fio, v){
     + '<button type="button" class="cr-btn cr-prim" data-acao="png">' + CR_ICO.baixar + 'Baixar PNG</button>'
     + '<button type="button" class="cr-btn" data-acao="editar">' + CR_ICO.editar + 'Editar</button>'
     + '<button type="button" class="cr-btn" data-acao="refazer">' + CR_ICO.refazer + 'Gerar outra versão</button>'
-    + (admin ? '<button type="button" class="cr-btn" data-acao="estudio">' + CR_ICO.estudio + 'Abrir no Estúdio</button>' : '')
     + '</div></div>';
   let atual = v;
   const img = el.querySelector('.cr-arte img'), ltxt = el.querySelector('.cr-leg-txt');
@@ -1084,7 +1081,6 @@ function _crResultado(fio, v){
     }
     if(b.dataset.acao === 'png') return crBaixarPNG(atual, b);
     if(b.dataset.acao === 'editar') return crEditar(el, fio, atual);
-    if(b.dataset.acao === 'estudio') return crAbrirNoEstudio(atual);
     if(b.dataset.acao === 'refazer') return crEnviar(null, fio);
   });
   return el;
@@ -1317,11 +1313,4 @@ function crBaixarPNG(v, btn){
   };
   im.onerror = () => { if(btn) btn.disabled = false; gToast('Não foi possível gerar o PNG', 'error'); };
   im.src = v.url;
-}
-// O importador de SVG do Estúdio lê o contrato (data-campo, foto_produto) e abre a revisão
-async function crAbrirNoEstudio(v){
-  if(typeof setMode !== 'function' || typeof dSvgHandleFile !== 'function') return gToast('Estúdio indisponível agora', 'error');
-  setMode('designer');
-  if(!document.body.classList.contains('mode-designer')) return;
-  await dSvgHandleFile(v.svg, 'luma-creative-' + v.spec.composicao + '-' + v.spec.formato + '.svg');
 }
