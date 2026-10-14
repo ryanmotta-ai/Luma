@@ -2,20 +2,20 @@
   <!-- Bilhete / Ticket oficial de cupom Delivery Much -->
   <defs>
     <filter id="ticket-shadow" x="-10%" y="-10%" width="125%" height="130%">
-      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#802000" flood-opacity="0.3"/>
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#434343" flood-opacity="0.25"/>
     </filter>
   </defs>
 
   <g filter="url(#ticket-shadow)">
-    <!-- Borda externa suave laranja queimado do bilhete -->
+    <!-- Borda externa do bilhete (#FF9000: separa o ticket do fundo #F85400) -->
     <path d="M 30 0 L 650 0 C 665 0 680 15 680 30 C 655 55 655 85 680 110 C 655 135 655 165 680 190 C 655 215 655 240 680 250 L 30 250 C 15 250 0 235 0 220 C 25 195 25 165 0 140 C 25 115 25 85 0 60 C 25 35 25 15 0 0 Z" 
-          fill="#FF7A00"/>
+          fill="#FF9000"/>
 
     <!-- Corpo do ticket branco com recorte serrilhado -->
     <g transform="translate(14, 12)">
-      <!-- Aba esquerda laranja com a palavra CUPOM -->
+      <!-- Aba esquerda com a palavra CUPOM (#F62900, faixa lateral de cupom — §3 item 7) -->
       <path d="M 0 0 L 130 0 L 130 226 L 0 226 C -8 200 -8 170 0 145 C -8 120 -8 90 0 65 C -8 40 -8 20 0 0 Z" 
-            fill="#FF4D00"/>
+            fill="#F62900"/>
       <text x="-113" y="82" transform="rotate(-90)" text-anchor="middle" 
             font-family="'Realce', 'Impact', sans-serif" font-size="36" font-weight="900" fill="#FFFFFF" letter-spacing="3">
         CUPOM
@@ -28,7 +28,7 @@
       <!-- Código do Cupom (Variável: {{codigo_cupom}}) -->
       <g transform="translate(385, 120)">
         <text x="0" y="0" text-anchor="middle" 
-              font-family="'Realce', 'Impact', sans-serif" font-size="44" font-weight="900" font-style="italic" fill="#FF4D00" letter-spacing="1">
+              font-family="'Realce', 'Impact', sans-serif" font-size="44" font-weight="900" fill="#F85400" letter-spacing="1">
           NOMEDOUCUPOM
         </text>
         <line x1="-190" y1="20" x2="190" y2="20" stroke="#FFB900" stroke-width="3" stroke-linecap="round"/>

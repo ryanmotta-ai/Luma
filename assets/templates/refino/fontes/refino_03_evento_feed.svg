@@ -29,8 +29,8 @@
   <text x="100" y="968" class="hero" font-size="172" fill="#FFFFFF">GASTRONÔMICO</text>
 </g>
 <text x="100" y="1044" class="body" font-size="40" fill="#FFFFFF">Os pratos do festival, direto pelo app</text>
-<rect x="100" y="1104" width="360" height="96" rx="48" fill="#FFFFFF" filter="url(#shs)"/>
-<text x="280" y="1172" text-anchor="middle" class="hero" font-size="56" fill="#F85400">VER NO APP</text>
-<text x="100" y="1270" class="legal" font-size="26" fill="#FFFFFF">Consulte os restaurantes participantes.</text>
-<image href="asset:logos/dm-h-branca.png" x="720" y="1126" width="260" height="52"/>
+<rect x="100" y="1080" width="360" height="96" rx="48" fill="#FFFFFF" filter="url(#shs)"/>
+<text x="280" y="1148" text-anchor="middle" class="hero" font-size="56" fill="#F85400">VER NO APP</text>
+<text x="100" y="1245" class="legal" font-size="26" fill="#FFFFFF">Consulte os restaurantes participantes.</text>
+<image href="asset:logos/dm-h-branca.png" x="720" y="1102" width="260" height="52"/>
 </svg>

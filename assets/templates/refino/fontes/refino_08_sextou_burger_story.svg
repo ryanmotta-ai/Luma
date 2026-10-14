@@ -11,7 +11,6 @@
 <filter id="shs" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#434343" flood-opacity="0.2"/></filter>
 </defs>
 <rect width="1080" height="1920" fill="#F85400"/>
-<g id="pattern-ancorado" color="#FF9000" fill="currentColor" opacity="0.5" transform="translate(-2340,-740) scale(3) matrix(1 0 0 -1 0 1080)"><g transform="matrix(1 0 0 1 1161.3643 307.7339)"><path d="M 0 0 C 5.072 -53.327, -56.515 -86.656, -98.249 -53.327 C -112.595 -41.879, -117.232 -29.851, -121.145 -13.042 L -97.669 -9.274 C -95.061 -19.853, -92.742 -27.533, -83.178 -34.923 C -58.109 -54.631, -21.157 -34.923, -23.62 -2.898 L -24.055 2.753 L -0.58 6.521 Z" fill-rule="evenodd"/></g><g transform="matrix(1 0 0 1 841.6246 147.9541)"><path d="M 0 0 C 0.483 87.084, 105.53 130.963, 167.607 70.253 C 188.947 49.399, 194.489 29.189, 198.079 1.362 L 159.493 -0.908 C 156.997 16.627, 154.498 29.428, 140.232 42.94 C 102.892 78.902, 39.911 53.043, 38.679 0.84 L 38.461 -8.372 L -0.125 -10.642 Z" fill-rule="evenodd"/></g></g>
 <image href="asset:logos/dm-h-branca.png" x="400" y="290" width="280" height="56"/>
 <g id="produto">
   <text x="540" y="590" text-anchor="middle" class="hero" font-size="250" fill="#FFFFFF">SEXTOU</text>
@@ -25,7 +24,7 @@
   <polyline points="6,12 32,-14 48,12" fill="none" stroke="#434343" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
   <text x="0" y="85" text-anchor="middle" class="body" font-size="32" fill="#434343">Use aqui sua foto do produto</text>
 </g></g>
-<g transform="translate(920,940)" filter="url(#shs)">
+<g transform="translate(880,940)" filter="url(#shs)">
   <circle r="100" fill="#FFB900"/>
   <text y="-6" text-anchor="middle" class="hero" font-size="54" fill="#434343">SÓ</text>
   <text y="46" text-anchor="middle" class="hero" font-size="54" fill="#434343">HOJE</text>
@@ -37,6 +36,6 @@
     <text x="540" y="1420" text-anchor="middle" class="hero" font-size="150" fill="#F85400"><tspan font-size="82" dy="-53">R$</tspan><tspan dy="53" dx="6">29</tspan><tspan font-size="82" dy="-53">,90</tspan></text>
   </g>
 </g>
-<rect x="330" y="1510" width="420" height="110" rx="55" fill="#FFFFFF" filter="url(#shs)"/>
-<text x="540" y="1586" text-anchor="middle" class="hero" font-size="64" fill="#F85400">PEDIR AGORA</text>
+<rect x="330" y="1510" width="420" height="110" rx="55" fill="none" stroke="#FFFFFF" stroke-width="4"/>
+<text x="540" y="1586" text-anchor="middle" class="hero" font-size="64" fill="#FFFFFF">PEDIR AGORA</text>
 </svg>

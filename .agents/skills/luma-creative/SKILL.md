@@ -115,7 +115,7 @@ Hero sempre em Realce maiúsculo deixa as peças iguais. As referências da marc
 | :--- | :--- | :--- | :--- |
 | **A. Frase mista** | Mesma linha, mesmo tamanho (64–80px): trecho de conversa em **Roboto Light Itálica (300i)** + palavra-chave em **Roboto Black (900)**. Minúsculas. | Chamada de conversa acima do valor: cupom, convite, benefício. | *pega este* **cupom** / *pra você* **economizar!** (`refino_02`) |
 | **B. Minúscula + vazado** | Palavra 1 em **Roboto Black minúscula** (200–260px, `letter-spacing` −1 a −3); palavra 2 em **Realce maiúsculo vazado**: `fill="none" stroke="#FFFFFF" stroke-width="5–8"`, ≥ 140px (alvo 300–380), na largura útil. | Benefício de 2 palavras que é o ponto focal: frete, novidade. | **entrega** / GRÁTIS vazado (`refino_04`) |
-| **C. Lockup de valor** | Número gigante em Realce (300–380px) + `R$` ou `%` a ~36% do número alinhado ao topo + coluna à direita: `OFF` (Realce) sobre o complemento em **Roboto Black** maiúsculo (44–56px, 2 linhas). | Cupom/desconto em que o valor é o ponto focal. | R$ **15** OFF / NO SEU PEDIDO (`refino_02`) |
+| **C. Lockup de valor** | Número gigante em Realce (300–380px) + `R$` ou `%` a ~36% do número alinhado ao topo + coluna à direita em **uma família só**: `OFF` em **Roboto Black** (~150px) sobre o complemento em Roboto Black maiúsculo (56px, 2 linhas), base da coluna na linha de base do número. | Cupom/desconto em que o valor é o ponto focal. | R$ **15** OFF / NO SEU PEDIDO (`refino_02`) |
 | **D. Rótulo de produto** | Nome do produto em **Realce maiúsculo #434343** (40–48px) dentro do card branco, acima do preço riscado. | Cards de lista e card de preço com nome. | BURGER CLÁSSICO (`refino_10`) |
 
 * A receita C e o rótulo D convivem com A ou B (são lockups de informação, não de expressão). A + B na mesma peça, não.
@@ -206,8 +206,9 @@ node scripts/pattern-ancorado.js --canvas 1080x1350 \
 * **Saiu "SEM PATTERN"** (menos de 2 sorrisos): faça **arte clean**. Não force: não amplie a zona por cima do texto nem reduza as caixas de texto.
 * Âncora opaco cobre sorrisos; `--anchor` evita contar os que ficariam escondidos.
 * **Em massa, não farelo:** `--scale` feed **`2.4`–`3.0`**, story **`2.6`–`3.2`** (padrão do script: `2.6`). Nas referências cada arco tem 450–500px; na escala antiga (`1.4`–`1.8`) eles saíam com ~170px e viravam lascas espalhadas (ver `referencias/antirreferencias/`). O lint avisa abaixo de `2.2`.
-* **Onde a massa fica bem** (escolha a zona assim): (1) **faixa inferior do story** (`y` 1640–2300: a zona proibida de conteúdo vira moldura, como em `referencia-cupom-feed.png`) — `refino_02`, `refino_04`, `refino_08`; (2) **canto** livre de texto; (3) saindo de trás do âncora pelas laterais. **Nunca no vão entre dois blocos** (título ↔ foto): um toco de arco ali parece sobra de máscara.
+* **Onde a massa fica bem** (escolha a zona assim): (1) **faixa inferior do story** (`y` 1640–2300: a zona proibida de conteúdo vira moldura, como em `referencia-cupom-feed.png`) — `refino_02`; (2) **canto** livre de texto; (3) saindo de trás do âncora pelas laterais. **Nunca no vão entre dois blocos** (título ↔ foto): um toco de arco ali parece sobra de máscara.
 * **Um arco solto num canto também é farelo:** se o script devolve sorrisos que aparecem só como lasca na borda, ou a zona livre é uma faixa < 300px, faça **arte clean** (foi o caso de `refino_01` e `refino_03`).
+* **Não carimbe:** a mesma zona dá o mesmo par de arcos em toda story. Use o pattern onde a referência usa (cupom, campanha) e deixe as outras clean; quatro stories com o mesmo arco parecem template (revisão de 10/2026).
 * Nunca desenhar, recortar nem editar formas do pattern; só o script escolhe quais aparecem.
 
 **Cor e opacidade** (inversão da §3 item 9):
@@ -303,7 +304,7 @@ A skill organiza seus recursos nas seguintes pastas:
 ```
 
 **Ativos previstos (ainda não estão no repo — NÃO invente nem desenhe equivalentes; use só depois de subirem):** mockup de celular com o app, moto/entregador, chapéu de chef (símbolo), ícones de app e setas, raio, sticker "mais vendidos" com foto, mais selos de campanha, **logo DM vetorial** (o PNG atual tem 298px) e fotos reais de franqueado. Enquanto faltarem: peça sem eles; se o briefing exige o ativo, **avise o usuário**.
-⚠️ `cards-preco/ticket-cupom.svg` usa cores fora da paleta (`#FF7A00`, `#FF4D00`, sombra `#802000`): **não copie**. O ticket certo (aba `#F62900`, borda `#FF9000`, sombra do preset) está em `assets/templates/refino/fontes/refino_02_cupom_story.svg`.
+O ticket oficial (`cards-preco/ticket-cupom.svg`, silhueta ondulada da referência) foi passado para a paleta em 10/2026: borda `#FF9000`, aba `#F62900`, sombra do preset, código sem itálico. Escale o `<g>` inteiro (ex.: `scale(1.2941)` → 880px); uso pronto em `refino/fontes/refino_02_cupom_story.svg`.
 
 Utilitários de suporte na raiz do repositório:
 * `scripts/pattern-ancorado.js`: posiciona o pattern oficial escolhendo **sorrisos inteiros fora do texto** (§3.1, passo 3). Sem saída = arte clean.
@@ -365,7 +366,7 @@ Antes de escrever uma única linha de código, a IA **DEVE abrir e inspecionar v
     * Conteúdo útil concentrado na faixa central (`y = 260` até `y = 1660`), mantendo o mesmo respiro calculado entre blocos.
 
 * **Repertório de topologias aprovadas** (modelos prontos em `assets/templates/refino/`; ponto de partida para variar, não para copiar; **todos com foto em retângulo**).
-  * **Padrão 1.3 — copie a topologia E o acabamento** (fonte legível em `refino/fontes/`, revisados lado a lado com as referências): oferta com card de preço preso à foto e selo na quina (`refino_01`, feed); **cupom** com frase mista, lockup de valor e ticket (`refino_02`, story); **evento** com foto sangrando no topo e selo de data (`refino_03`, feed); **entrega grátis** com minúscula + vazado (`refino_04`, story); hero de 2 tamanhos + card preso + arcos em massa na base (`refino_08`, story); **lista de ofertas** com rótulo de produto e CTA (`refino_10`, story).
+  * **Padrão 1.3 — copie a topologia E o acabamento** (fonte legível em `refino/fontes/`, revisados lado a lado com as referências): oferta com card de preço preso à foto e selo na quina (`refino_01`, feed); **cupom** com frase mista, lockup de valor, ticket oficial e arcos na base (`refino_02`, story); **evento** com foto sangrando no topo e selo de data (`refino_03`, feed); **entrega grátis** com minúscula + vazado (`refino_04`, story); hero de 2 tamanhos + card preso + CTA em contorno (`refino_08`, story); **lista de ofertas** com rótulo de produto e CTA (`refino_10`, story).
   * **Pré-1.3 — copie só a topologia**, o acabamento é antigo (preço com centavos grandes, logo pequeno, pattern em escala de farelo): foto sangrando à direita + preço-herói (`refino_09`), etiqueta de preço inclinada (`refino_11`), foto larga + pílulas + preço em linha (`refino_12`), split diagonal em dois tons (`refino_13`), foto cheia no topo (`refino_05`), parceiro novo com logo da loja (`refino_06`), foto lateral sangrando (`refino_07`).
   * Escolha a topologia pelo **objetivo** (Fase 1) e **varie as proporções do retângulo** (largo, alto, quadrado, faixa) em vez de repetir a última.
 
@@ -467,7 +468,8 @@ Antes de finalizar a arte:
 | Selo "25% OFF" com DE 28,00 → POR 22,90 (é 18%) | Conferir a conta de todo desconto |
 | Logo DM com `width=230` e 17% de margem transparente (marca real ~190px) | PNG recortado; `width` 240–300 |
 | Todo hero em Realce maiúsculo, peças iguais | Uma receita da §2.4 por peça (frase mista, minúscula + vazado, lockup de valor) |
-| Ticket de `cards-preco/ticket-cupom.svg` (cores fora da paleta) | Ticket do `refino_02` (aba `#F62900`, borda `#FF9000`) |
+| Ticket redesenhado à mão (canhoto reto, um entalhe só) | Ticket oficial de `cards-preco/` (ondulado, já na paleta), escalado |
+| Mesmo par de arcos carimbado em todas as stories | Pattern só onde a referência usa; o resto clean (§3.1) |
 | CTA branco do mesmo peso do card de preço, disputando o olhar | CTA em contorno branco (`fill="none" stroke="#FFFFFF"`) quando o preço é o ponto focal |
 | Julgar a arte só com o cinza do placeholder | Print com `--foto` (Fase 5) |
 
