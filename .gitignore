@@ -41,6 +41,7 @@ migracao-storage-*.json
 # Variáveis de ambiente (nunca commitar)
 .env
 .env.local
+.env.bak*
 
 # NOTA: js/core/supabase-config.js é versionado DE PROPÓSITO — contém só a
 # Project URL e a anon/publishable key (públicas, protegidas pela RLS).
