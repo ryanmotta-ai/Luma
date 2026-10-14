@@ -306,8 +306,8 @@
   circule pela sala e ajude quem travar]"
 - **Ponto principal:** o produto se prova sozinho, na mão de quem nunca viu.
 - **Transição:** "Agora que vocês viram com os próprios olhos..."
-- **Na tela:** o vídeo no celular mostra o caminho inteiro (entrar como visitante, escolher a campanha, foto, preços, arte pronta) e recomeça toda vez que o slide entra.
-- **Atenção:** o QR abre `https://ryanmotta-ai.github.io/Luma/?visitante=1` (modo visitante no ar desde 30/09/2026: só a campanha Copa do Mundo, nada é gravado). Teste com o seu celular antes de apresentar.
+- **Na tela:** o vídeo no celular mostra o caminho inteiro (entrar como visitante, abrir o Aniversário Delivery Much, escolher o Deliversário 15 — Sol (Story), foto, logo, produto, preços, arte pronta) e recomeça toda vez que o slide entra.
+- **Atenção:** o QR abre `https://ryanmotta-ai.github.io/Luma/?visitante=1` (modo visitante no ar desde 30/09/2026; desde 14/10 mostra só a campanha Aniversário Delivery Much, com os 4 materiais do Deliversário 15; nada é gravado). Teste com o seu celular antes de apresentar.
 
 ## 20 · Valeu — "Valeu, galera!"
 

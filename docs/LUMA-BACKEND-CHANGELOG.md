@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-14 — Dados do catálogo: visitante só no Deliversário e nomes corrigidos (✅ aplicado direto, sem migration)
+
+- **Modo visitante:** `luma.pastas.visitante` agora é `true` só em "Aniversário Delivery Much" (era só na Copa do Mundo 2026, que está inativa — a RPC `luma_visitante_catalogo` devolvia catálogo vazio). O visitante vê os 4 materiais publicados do Deliversário 15.
+- **Nomes:** "Entrega grátis — Cupom com foto" (Aqui Tem Cupons, feed e story) → "Aqui tem cupons — Cupom com foto"; "Feed | De/Por — Story" → "Much+ — Oferta de/por", movido para a pasta "Much+ Benefícios" (`muchplus`); 4 rascunhos com Feed/Story trocado no nome corrigidos.
+- **Despublicados:** "Novo projeto" (Promo Turbinada, sem texto) e "Prancheta" (Rascunhos).
+
 ## 2026-10-14 — Luma Creative: juiz de visão `arte.criticar` (⏳ deploy da função `ai` pendente, junto com o anterior)
 
 - **Task nova `arte.criticar`** (`POLITICA` `{max: 4096, pensar: "LOW", temp: 0.3}`): recebe como anexos os prints das 3 opções (JPEG 432 px) mais até 2 artes aprovadas da marca como régua, e devolve notas 0–5 por critério (foco, hierarquia, respiro, contraste, acabamento), um "porquê" curto e até 2 ajustes de uma lista fechada (`heroiMaior`, `heroiMenor`, `fotoMaior`, `fotoMenor`, `semApoio`, `semSelo`). Quem aplica o ajuste e confere de novo é o front.

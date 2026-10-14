@@ -1664,7 +1664,7 @@ function _fHomeBodyHTML(query){
     ${favs.length?`<section class="fh-section"><div class="fh-sec"><span>Favoritas</span><em>${favs.length} fixada${favs.length!==1?'s':''}</em></div>
     <div class="camp-grid fh-grid">${favs.map(c=>fCampEl(c,false,!_fCampHasMats(c))).join('')}</div></section>`:''}
     ${rec?_fHomeHeroEl(rec):''}
-    ${prontas.length?`<section class="fh-section${gridProntas.length?'':' fh-sec-so-rec'}"><div class="fh-sec"><span>Prontas para usar</span><em>${prontas.length} campanha${prontas.length!==1?'s':''} disponíveis</em></div>
+    ${prontas.length?`<section class="fh-section${gridProntas.length?'':' fh-sec-so-rec'}"><div class="fh-sec"><span>Prontas para usar</span><em>${prontas.length} ${prontas.length!==1?'campanhas disponíveis':'campanha disponível'}</em></div>
     <div class="camp-grid fh-grid">${rec?fCampEl(rec,true):''}${gridProntas.map(c=>fCampEl(c,false)).join('')}</div></section>`:''}`;
 }
 
