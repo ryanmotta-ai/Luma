@@ -74,7 +74,7 @@
   de esconder o "de") foram feitas no próprio Estúdio.
 - **Fotos de produto:** quatro fotos do Unsplash (licença Unsplash), baixadas com autorização para a demo.
 - **Persona:** "Carla", franqueada de demonstração.
-- **Conversa do suporte (slide 13):** a interface é a do widget de Ajuda, capturada na cópia local; a conversa entre
+- **Conversa do suporte (slide 11):** a interface é a do widget de Ajuda, capturada na cópia local; a conversa entre
   a Carla e a atendente Ana Costa (as duas fictícias) foi montada para a demonstração.
 - **Calendário:** desligado na captura, porque não é V1.
 
@@ -87,7 +87,7 @@ Tudo abaixo estava em `Luma Apresentação do Produto (standalone).html` e ficou
 | "Import do Photoshop 1:1", "Camadas preservadas 1:1", "Importa 1:1" | Promete fidelidade total. O importador mede e mostra onde aproxima (slide 06, apêndice C). |
 | "Tecnologia rara de converter PSD no navegador (3ª no mundo)" | Sem fonte verificável. |
 | Assinatura de R$ 39,90/mês, "meta inicial 75% da base (64 de 96)", "+R$ 39.305/ano", cenário de R$ 89,90 | Cobrança do franqueado não é assunto deste deck, e os números não foram validados. |
-| "Só o corte do Deskfy paga a iniciativa" | Comparação que não entra. O valor em si (R$ 11,9 mil/ano) voltou no slide 16 por decisão do Ryan em 27/09. |
+| "Só o corte do Deskfy paga a iniciativa" | Comparação que não entra. O valor em si (R$ 11,9 mil/ano) voltou no slide 14 por decisão do Ryan em 27/09. |
 | Slide "Tração (Deskfy)", "96 franquias num único mês", "70 no Deskfy" | Métrica de outra ferramenta, sem fonte no Luma. |
 | "Feito por duas pessoas, fora do orçamento" | Não é argumento de produto. |
 | "Se os criadores se afastarem, estagiários assumem a frente sem drama" | Promessa sobre pessoas, não sobre o sistema. A manutenção é tratada pelas leis de arquitetura e pelo CI (apêndices A e E). |
@@ -96,10 +96,10 @@ Também ficaram de fora, por regra do brief (não apareciam no deck antigo): "ze
 "100% de fidelidade" e Calendário, Academia ou CRM apresentados como V1. Os três aparecem só no apêndice J,
 com o estado real de cada um.
 
-- **Escuta dos franqueados (slide 03):** as entrevistas com franqueados e as três dores (esperar o marketing liberar acesso às artes, operar sozinho numa plataforma difícil e sem suporte de produto, criar legenda para o mesmo post) vêm do relato do Ryan (30/09/2026); a gíria local foi pedido explícito nas entrevistas. Sem número de entrevistados: não há fonte no repositório.
+- **Escuta dos franqueados (slide 02):** as entrevistas com franqueados e as três dores (esperar o marketing liberar acesso às artes, operar sozinho numa plataforma difícil e sem suporte de produto, criar legenda para o mesmo post) vêm do relato do Ryan (30/09/2026); a gíria local foi pedido explícito nas entrevistas. Sem número de entrevistados: não há fonte no repositório.
 
-- **Deskfy (slides 02 e 06):** "cada campanha nova virava retrabalho", "toda arte feita duas vezes porque a plataforma não aceitava nem SVG", "retrabalho gigante dos designers" e "manutenção do material muito problemática" vêm do relato do Ryan (30/09/2026). Em público, o foco é o fluxo, não os recursos do fornecedor.
+- **Deskfy (slides 02 e 04):** "cada campanha nova virava retrabalho", "toda arte feita duas vezes porque a plataforma não aceitava nem SVG", "retrabalho gigante dos designers" e "manutenção do material muito problemática" vêm do relato do Ryan (30/09/2026). Em público, o foco é o fluxo, não os recursos do fornecedor.
 
-- **Recursos do slide 15 (46 chips):** levantados no código em 30/09/2026 (arquivos entre parênteses no levantamento): chat gerador, prévia ao vivo e paridade prévia = arquivo final (`tests/_paridade-render.html`), Local Fit e Copy Fit (`js/core/local-fit.js`, `copy-fit.js`), auto-layout e smart resize (`auto-layout.js`, `layout.js`), importador de PSD com fidelidade medida e mapeamento por IA (`psd-import.js`), campos/regras/máscaras (`00-config.js`, `chat-input.js`), validação de foto e revisão factual por IA (`chat.js`), legendas com gíria local, busca semântica, teste de estresse (`linter.js`), lote por planilha e ZIP (`png-generator.js`), PNG assinado, publicação em 4 passos (`publish.js`), feature flags e papéis (`feature-flags.js`, `auth.js`), suporte ao vivo, assistente com voz e tutoriais. Fora de propósito: PDF (desligado), Calendário, Academia, Telegram e CRM Visual (pós-V1).
+- **Recursos do slide 13 (46 chips):** levantados no código em 30/09/2026 (arquivos entre parênteses no levantamento): chat gerador, prévia ao vivo e paridade prévia = arquivo final (`tests/_paridade-render.html`), Local Fit e Copy Fit (`js/core/local-fit.js`, `copy-fit.js`), auto-layout e smart resize (`auto-layout.js`, `layout.js`), importador de PSD com fidelidade medida e mapeamento por IA (`psd-import.js`), campos/regras/máscaras (`00-config.js`, `chat-input.js`), validação de foto e revisão factual por IA (`chat.js`), legendas com gíria local, busca semântica, teste de estresse (`linter.js`), lote por planilha e ZIP (`png-generator.js`), PNG assinado, publicação em 4 passos (`publish.js`), feature flags e papéis (`feature-flags.js`, `auth.js`), suporte ao vivo, assistente com voz e tutoriais. Fora de propósito: PDF (desligado), Calendário, Academia, Telegram e CRM Visual (pós-V1).
 
-- **Qualquer tela (slide 14):** telas reais do app. Computador, tablet e celular são as capturas da capa (molduras oficiais da Apple); o iPhone Duo é a home da franqueada capturada a 669×915 @3x em 30/09/2026 (tela interna aberta, 2007×2853 px) e composta na moldura oficial "iPhone Duo - Star White - Inner Open Portrait" do Apple Design Resources (iPhone Duo anunciado em 09/09/2026). Luma Sheets é só no computador.
+- **Qualquer tela (slide 12):** telas reais do app. Computador, tablet e celular são as capturas da capa (molduras oficiais da Apple); o iPhone Duo é a home da franqueada capturada a 669×915 @3x em 30/09/2026 (tela interna aberta, 2007×2853 px) e composta na moldura oficial "iPhone Duo - Star White - Inner Open Portrait" do Apple Design Resources (iPhone Duo anunciado em 09/09/2026). Luma Sheets é só no computador.

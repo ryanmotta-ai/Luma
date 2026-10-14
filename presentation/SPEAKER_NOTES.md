@@ -1,6 +1,6 @@
 # Luma — notas do apresentador
 
-> Fica fora da tela. Os 17 slides principais cabem em 16–19 minutos (1 min por slide; o 07 e o 08 pedem um pouco mais).
+> Fica fora da tela. Os 18 slides principais cabem em 15–18 minutos (1 min por slide; o 06 e o 07 pedem um pouco mais).
 > O apêndice (A–L) é para perguntas: tecle **G** para o índice e pule direto para a letra.
 > Toda afirmação com número tem fonte em [`CLAIMS.md`](CLAIMS.md). Se um número não está lá, não fale.
 
@@ -11,7 +11,7 @@
    feitos a partir das capas de campanha do próprio repositório, e as fotos dos produtos são do Unsplash.
    A franqueada "Carla" é uma persona de demonstração.
 2. O CI está **vermelho** hoje (27/09). Diga antes que perguntem: é o mecanismo funcionando (apêndice E).
-3. Os números de custo (slide 16) têm fonte no `CLAIMS.md`: R$ 0 e os 94 franqueados vêm da arquitetura e do Ryan;
+3. Os números de custo (slide 14) têm fonte no `CLAIMS.md`: R$ 0 e os 94 franqueados vêm da arquitetura e do Ryan;
    a economia de R$ 11,9 mil/ano é o valor do Deskfy informado pelo Ryan; a folga de 15× é estimativa, não teste de carga.
 
 ---
@@ -30,68 +30,37 @@
     na resolução nativa de cada aparelho. As molduras dos aparelhos são as oficiais da Apple.
     As campanhas da vitrine foram importadas de PSD e publicadas pelo fluxo normal do Estúdio.
 
-## 02 · O problema — "Escalar a rede não deveria escalar o retrabalho."
+## 02 · O problema — "Toda campanha nova virava retrabalho."
 
-- **Objetivo:** nomear a dor. Criar a campanha não é o problema. O problema é executá-la dezenas de vezes.
-- **Frase de abertura:** "Toda rede de franquia vive a mesma tensão."
-- **Discurso:** "Uma campanha central vira execuções locais: muda o produto, o preço, a foto, a oferta, a cidade.
-  A marca é uma só. Essas seis artes são da mesma campanha. [avança] E aqui mora a tensão: quanto mais
-  autonomia damos à ponta, maior o risco de perder padrão. Quanto mais centralizamos, maior o gargalo do marketing. [avança] E a gente sabe como isso dói porque viveu: com o Deskfy, cada campanha
-  nova virava retrabalho. Eram R$ 11,9 mil por ano, e o retrabalho continuava."
-- **Ponto principal:** hoje cada variação local é retrabalho de alguém, e a gente sentiu isso na pele.
-- **Transição:** "Esse problema a gente não inventou. Antes de construir, foi ouvir quem vive isso."
+- **Objetivo:** nomear a dor em um fôlego só, com as três dores que os franqueados contaram nas entrevistas.
+- **Frase de abertura:** "Antes do Luma, toda campanha nova virava retrabalho."
+- **Discurso:** "A gente conversou com franqueados antes de construir. Três dores apareceram: o franqueado esperava o
+  marketing liberar a arte; o designer fazia cada arte duas vezes, porque o Deskfy não aceitava nem SVG; e a legenda
+  era um trabalho à parte. Só o Deskfy custava R$ 11,9 mil por ano, e o retrabalho continuava."
+- **Ponto principal:** cada variação local era retrabalho de alguém, e a gente sentiu isso na pele.
+- **Transição:** "Então a gente inverteu a lógica."
 - **Perguntas difíceis:**
-  - *"Quantas variações a rede produz por mês?"* Não vou chutar. O beta mede recorrência semanal e o
-    funil até o download, e é daí que sai esse número.
+  - *"Quantos franqueados entrevistaram?"* Levar o número real da rodada. O repositório não tem esse dado; sem ele,
+    dizer só que foram conversas com franqueados da rede.
+  - *"Quantas variações a rede produz por mês?"* Não vou chutar. O beta mede recorrência semanal e o funil até o
+    download, e é daí que sai esse número.
 
-## 03 · Quem ouvimos — "Antes do Luma, a gente foi ouvir quem sofre lá na ponta."
+## 03 · A solução — "O designer cria uma vez. O franqueado só diz o que quer vender."
 
-- **Objetivo:** deixar claro que o Luma nasceu de escuta real, não de suposição: entrevistas com franqueados.
-- **Frase de abertura:** "Antes do Luma, a gente foi ouvir quem sofre lá na ponta."
-- **Discurso:** "Antes de desenhar qualquer tela, a gente foi conversar com franqueados, com quem usa a rede todo
-  dia e vive a dor real da operação. Três dores apareceram: esperar o marketing liberar acesso às artes (o designer
-  continua fazendo as artes), operar sozinho numa plataforma difícil, pouco acessível e sem suporte de produto, e ter
-  que criar uma legenda para o mesmo post. Cada uma virou uma decisão de produto: arte do designer pronta em
-  segundos, conversa guiada com a marca travada e legenda pronta com a gíria de cada lugar. A tese que vem agora saiu
-  dessas conversas."
-- **Ponto principal:** o produto nasceu da ponta. Cada recurso responde a uma dor que alguém contou.
-- **Transição:** "Dessas conversas saiu a tese do Luma."
-- **Perguntas difíceis:**
-  - *"Quantos franqueados entrevistaram?"* Levar o número real da rodada (quantos, de quais regiões). O repositório
-    não tem esse dado, então o Ryan precisa confirmar antes da apresentação. Sem o número, dizer só que foram
-    conversas com franqueados da rede.
-  - *"Essas dores são citações deles?"* São os temas que apareceram nas conversas, resumidos pela equipe. A gíria
-    local foi pedido explícito.
-
-## 04 · A tese — "Autonomia local. Controle central. Com o design no comando."
-
-- **Objetivo:** fixar a frase que resume o produto.
-- **Frase de abertura:** "Autonomia local. Controle central. Com o design no comando."
-- **Discurso:** "O fluxo tem quatro passos. No Estúdio, o designer transforma a campanha em regras. Na publicação,
-  um material fica disponível para a rede inteira. O franqueado informa só o que quer vender: produto, preço, foto.
-  E sai a arte pronta, dentro da marca. O design continua com quem entende de design. O franqueado informa
-  apenas o que quer vender."
-- **Ponto principal:** o design é a origem de tudo: a rede só executa o que o designer decidiu. Ninguém faz o trabalho do outro.
-- **Transição:** "Na prática, isso vira duas experiências dentro de um produto só."
-- **Perguntas difíceis:**
-  - *"E se o franqueado quiser mudar a cor ou o layout?"* Ele mexe no que o designer liberou na publicação
-    (os campos e as permissões). O resto fica com o designer, e esse é o ponto.
-
-## 05 · Duas experiências — "Duas experiências. Um único produto."
-
-- **Objetivo:** mostrar os dois lados e o que os liga.
-- **Frase de abertura:** "Duas experiências. Um único produto."
-- **Discurso:** "À esquerda, o Estúdio: um editor profissional, escuro, feito para quem desenha. À direita, o
-  franqueado: claro, uma pergunta por vez. O que liga os dois não é um arquivo exportado: são os mesmos
-  campos, o mesmo motor de render, as mesmas regras e a mesma marca. O que o designer vê na simulação é o
-  que o franqueado baixa."
-- **Ponto principal:** um motor, dois públicos.
+- **Objetivo:** fixar a tese e mostrar os dois lados numa tela só.
+- **Frase de abertura:** "O designer cria uma vez. O franqueado só diz o que quer vender."
+- **Discurso:** "À esquerda, o Estúdio: o designer monta a arte e as regras. Publica uma vez e a rede inteira recebe.
+  À direita, o franqueado: responde produto, preço e foto, uma pergunta por vez, e sai a arte pronta, dentro da marca.
+  O que o designer vê é o que o franqueado baixa."
+- **Ponto principal:** o design fica com quem entende de design; a ponta só informa o que é local.
 - **Transição:** "Começo pelo lado do designer."
 - **Perguntas difíceis:**
-  - *"Por que não duas ferramentas?"* Porque o valor está na ponte: publicou, apareceu para a rede, sem
-    exportar nada e sem ninguém refazer a arte.
+  - *"E se o franqueado quiser mudar a cor ou o layout?"* Ele mexe só no que o designer liberou na publicação
+    (os campos e as permissões). O resto fica com o designer, e esse é o ponto.
+  - *"Por que não duas ferramentas?"* Porque o valor está na ponte: publicou, apareceu para a rede, sem exportar
+    nada e sem ninguém refazer a arte.
 
-## 06 · O fluxo do designer — "O designer não refaz a arte."
+## 04 · O fluxo do designer — "O designer não refaz a arte."
 
 - **Objetivo:** o designer aproveita o PSD que já tem, e o Luma é honesto sobre o que conseguiu preservar.
 - **Frase de abertura:** "O designer não refaz a arte."
@@ -108,7 +77,7 @@
   - *"E PSD com efeito complexo?"* Cada camada recebe um nível (nativo, nativo com perda, raster fiel ou não
     suportado) com o motivo escrito. Nada some em silêncio. Detalhe no apêndice C, com 73 casos de regressão.
 
-## 07 · Publicação — "O designer publica uma vez."
+## 05 · Publicação — "O designer publica uma vez."
 
 - **Objetivo:** publicar uma vez = a rede inteira recebe.
 - **Frase de abertura:** "O designer publica uma vez."
@@ -121,7 +90,7 @@
   - *"E quando a campanha acaba?"* A validade vai na publicação. O material fica visível no catálogo
     enquanto estiver dentro dela (está escrito na própria tela de revisão).
 
-## 08 · Uma conversa — "O franqueado não edita uma arte. Ele responde uma conversa."
+## 06 · Uma conversa — "O franqueado não edita uma arte. Ele responde uma conversa."
 
 - **Objetivo:** o momento "aha". A arte se monta enquanto o franqueado responde.
 - **Frase de abertura:** "O franqueado não edita uma arte. Ele responde uma conversa."
@@ -133,10 +102,10 @@
 - **Transição:** "E repara na legenda: ela também saiu pronta."
 - **Perguntas difíceis:**
   - *"Funciona no celular?"* Sim. Há uma suíte de estresse que roda o fluxo inteiro numa tela de iPhone.
-  - *"E se ele digitar um nome enorme ou errar o preço?"* Está no slide 11.
+  - *"E se ele digitar um nome enorme ou errar o preço?"* Está no slide 09.
   - *"A legenda é IA?"* É o próximo slide.
 
-## 09 · A legenda — "A arte sai com a legenda, feita por IA. E ela fala a língua da sua cidade."
+## 07 · A legenda — "A arte sai com a legenda, feita por IA. E ela fala a língua da sua cidade."
 
 - **Objetivo:** mostrar que a legenda sai pronta, escrita por IA, e com a gíria de cada lugar.
 - **Frase de abertura:** "A arte sai com a legenda, feita por IA. E ela fala a língua da sua cidade."
@@ -151,7 +120,7 @@
   - *"E se sair uma legenda errada?"* Preço, desconto e validade só aparecem se o franqueado informou. E é
     sugestão: ele copia, pede outra ou ajusta antes de publicar.
 
-## 10 · O motor local — "Se a IA falhar, o motor local assume."
+## 08 · O motor local — "Se a IA falhar, o motor local assume."
 
 - **Objetivo:** mostrar que a legenda nunca fica de fora e que anos de copy viraram um ativo do produto.
 - **Frase de abertura:** "Se a IA falhar, o motor local assume."
@@ -167,7 +136,7 @@
   - *"Esse motor é IA?"* Não: roda no navegador, sem rede, combinando frases que a gente escreveu. No Luma
     Sheets, cada arte do lote sai com legenda do motor.
 
-## 11 · Inteligência invisível — "Por baixo, o Luma resolve o que não deveria virar problema do franqueado."
+## 09 · Inteligência invisível — "Por baixo, o Luma resolve o que não deveria virar problema do franqueado."
 
 - **Objetivo:** mostrar a engenharia que o franqueado não vê.
 - **Frase de abertura:** "Por baixo, o Luma resolve o que não deveria virar problema do franqueado."
@@ -186,7 +155,7 @@
   - *"Resolve todos os casos?"* Não, e não dizemos que resolve. Quando nada cabe com legibilidade, o Luma
     avisa antes do download em vez de estourar a arte.
 
-## 12 · Escala — "E se o franqueado quiser dezenas de artes de uma vez?"
+## 10 · Escala — "E se o franqueado quiser dezenas de artes de uma vez?"
 
 - **Objetivo:** mostrar que o chat é só uma das portas do mesmo motor.
 - **Frase de abertura:** "E se o franqueado quiser dezenas de artes de uma vez?"
@@ -199,7 +168,7 @@
   - *"Essas 15 artes são da rede?"* Não, são artes de demonstração geradas pelo motor a partir de templates
     de demonstração. O motor é o mesmo que a rede vai usar.
 
-## 13 · Lu e suporte — "A Lu responde. A equipe DM assume."
+## 11 · Lu e suporte — "A Lu responde. A equipe DM assume."
 
 - **Objetivo:** mostrar que o franqueado nunca fica sem resposta: primeiro a assistente, depois uma pessoa.
 - **Frase de abertura:** "A Lu responde. A equipe DM assume."
@@ -222,7 +191,7 @@
   - *"Essa conversa é real?"* A tela é a do produto; a conversa foi montada para a demonstração, com a Carla
     e uma atendente fictícia.
 
-## 14 · Qualquer tela — "Poxa, só vou conseguir fazer no PC?"
+## 12 · Qualquer tela — "Poxa, só vou conseguir fazer no PC?"
 
 - **Objetivo:** matar a objeção de que o Luma é coisa de computador. O franqueado usa no aparelho que tiver na mão.
 - **Frase de abertura:** "A primeira coisa que o franqueado pergunta: poxa, só vou conseguir fazer no PC?"
@@ -236,7 +205,7 @@
     por planilha) é só no computador: no celular ele avisa e pede para abrir no computador.
   - *"Precisa baixar app?"* Não. Abre no navegador, e dá para adicionar à tela inicial como app.
 
-## 15 · Quanto custa? — "Tudo isso, e mais IA integrada. Quanto custa?"
+## 13 · Quanto custa? — "Tudo isso, e mais IA integrada. Quanto custa?"
 
 - **Objetivo:** criar a pausa antes do número: a plateia soma tudo o que viu e se pergunta o preço.
 - **Frase de abertura:** "Dezenas de recursos, e mais IA integrada. Quanto custa?"
@@ -245,7 +214,7 @@
 - **Ponto principal:** suspense. A resposta é o próximo slide.
 - **Transição:** "A resposta é curta."
 
-## 16 · Custo zero — "Tudo isso, com IA integrada, custa: R$ 0."
+## 14 · Custo zero — "Tudo isso, com IA integrada, custa: R$ 0."
 
 - **Objetivo:** mostrar que a rede inteira roda sem custo de infraestrutura e que o Luma ainda economiza.
 - **Frase de abertura:** "Tudo isso, com IA integrada, custa: R$ 0."
@@ -266,7 +235,7 @@
     do plano gratuito), não teste de carga. Usamos o piso: 1.500.
   - *"Quando a economia do Deskfy entra?"* Quando a rede estiver no Luma e o contrato do Deskfy acabar.
 
-## 17 · IA custo zero — "Tá, mas com tudo isso, como a IA custa zero? A gente te explica na prática."
+## 15 · IA custo zero — "Tá, mas com tudo isso, como a IA custa zero? A gente te explica na prática."
 
 - **Objetivo:** mostrar, com a animação, que a IA do Luma é barata e nunca deixa o franqueado sem resposta.
 - **Frase de abertura:** "Tá, mas com tudo isso, como a IA custa zero? A gente te explica na prática."
@@ -283,7 +252,7 @@
     Cada tarefa tem teto de resposta, o que faz a cota render.
   - *"E se o Google cair?"* As reservas respondem sozinhas; é para isso que elas existem.
 
-## 18 · Beta — "A V1 está pronta. Agora começa a parte mais importante."
+## 16 · Beta — "A V1 está pronta. Agora começa a parte mais importante."
 
 - **Objetivo:** pedir o beta com a rede e dizer o que ele mede.
 - **Frase de abertura:** "A V1 está pronta. Agora começa a parte mais importante: colocar o Luma na mão da rede."
@@ -297,7 +266,7 @@
     para definir juntos.
   - *"O franqueado vai pagar?"* Não é o que este beta discute.
 
-## 19 · Testem agora — "Melhor do que falar é mostrar."
+## 17 · Testem agora — "Melhor do que falar é mostrar."
 
 - **Objetivo:** tirar a plateia da cadeira: cada um faz uma arte no próprio celular, ao vivo.
 - **Frase de abertura:** "Melhor do que falar é mostrar. Chegou a hora de vocês testarem o Luma."
@@ -309,7 +278,7 @@
 - **Na tela:** o vídeo no celular mostra o caminho inteiro (entrar como visitante, abrir o Aniversário Delivery Much, escolher o Deliversário 15 — Sol (Story), foto, logo, produto, preços, arte pronta) e recomeça toda vez que o slide entra.
 - **Atenção:** o QR abre `https://luma-deliverymuch.vercel.app/?visitante=1` (a URL nova, no Vercel) (modo visitante no ar desde 30/09/2026; desde 14/10 mostra só a campanha Aniversário Delivery Much, com os 4 materiais do Deliversário 15; nada é gravado). Teste com o seu celular antes de apresentar.
 
-## 20 · Valeu — "Valeu, galera!"
+## 18 · Valeu — "Valeu, galera!"
 
 - **Objetivo:** fechar com gente: quem fez o Luma, agradecendo e abrindo para perguntas.
 - **Frase de abertura:** "Valeu, galera!"
@@ -336,7 +305,7 @@
 | **K · White label** | "O que falta para outra rede?" O que existe e o que faltaria. |
 | **L · Fluxo anterior × Luma** | "E a ferramenta que usamos hoje?" Comparação de fluxo, nunca de fornecedor. |
 
-**Sobre a ferramenta atual (Deskfy):** decisão do Ryan (30/09): o Deskfy é nomeado nos slides 2, 6 e 16 pela
+**Sobre a ferramenta atual (Deskfy):** decisão do Ryan (30/09): o Deskfy é nomeado nos slides 02, 04 e 14 pela
 dor que a rede viveu (retrabalho, arte feita duas vezes, sem SVG, manutenção difícil). Nos slides de mercado
 (19) ele aparece só como "uma ferramenta do setor". Não compare recursos nem preço em público. A diferença está no fluxo: no Luma o franqueado responde perguntas e o
 design fica protegido, e o roadmap é nosso, guiado pelo que a rede pede.

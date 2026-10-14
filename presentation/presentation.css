@@ -205,45 +205,8 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-capa .dv-phone { left: 1268px; top: 636px; width: 272px; z-index: 3; filter: drop-shadow(0 30px 60px rgba(10, 10, 10, .28)); }
 
 /* 02 — Problema */
-.s-problema .source { position: absolute; left: var(--pad-x); top: 376px; width: 380px; }
-.s-problema .source .cover { width: 380px; height: 228px; border-radius: 18px; overflow: hidden; box-shadow: 0 24px 60px rgba(10, 10, 10, .18); }
-.s-problema .source .cover img { width: 100%; height: 100%; object-fit: cover; }
-.s-problema .source .tag { margin-top: 18px; font-size: 22px; font-weight: 700; }
-.s-problema .source .tag span { display: block; font-weight: 400; color: var(--ink-3); font-size: 19px; margin-top: 4px; }
-.s-problema .fan { position: absolute; left: 520px; top: 340px; width: 240px; height: 300px; }
-.s-problema .fan svg { width: 100%; height: 100%; overflow: visible; }
-.s-problema .grid { position: absolute; left: 780px; top: 350px; width: 1020px; display: flex; gap: 15px; }
-.s-problema .grid .mini { flex: 0 0 157px; height: 280px; border-radius: 12px; overflow: hidden; background: #eee; box-shadow: 0 10px 22px rgba(10, 10, 10, .14); transition: transform .6s var(--ease), opacity .6s var(--ease); }
-.s-problema .grid .mini img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
-.s-problema .dims { position: absolute; left: 780px; top: 656px; display: flex; gap: 44px; align-items: flex-end; }
-.s-problema .dims .lb { font-size: 15px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 10px; }
-.s-problema .dims .row { display: flex; gap: 10px; }
-.s-problema .dims span { font-size: 21px; font-weight: 700; padding: 9px 18px; border-radius: 999px; background: #fff; border: 1px solid var(--line); color: var(--ink-2); }
-.s-problema .dims span.fixo { background: #0A0A0A; color: #fff; border-color: #0A0A0A; }
-.s-problema .tension { position: absolute; left: var(--pad-x); right: var(--pad-x); bottom: 84px; display: grid; grid-template-columns: 1fr 96px 1fr; align-items: stretch; gap: 0; }
-.s-problema .tension .side { padding: 28px 40px; border-radius: 22px; }
-.s-problema .tension .side.a { background: var(--paper-2); box-shadow: 0 0 0 1px rgba(10, 10, 10, .07); }
-.s-problema .tension .side.r { background: #0A0A0A; color: #fff; }
-.s-problema .tension .side h3 { font-size: 30px; font-weight: 900; letter-spacing: -.01em; margin-bottom: 10px; }
-.s-problema .tension .side p { font-size: 26px; line-height: 1.38; color: var(--ink-2); }
-.s-problema .tension .side.r p { color: rgba(255, 255, 255, .78); }
-.s-problema .tension .vs { align-self: center; justify-self: center; width: 72px; height: 72px; border-radius: 50%; background: var(--orange); color: #fff; display: grid; place-items: center; font-size: 22px; font-weight: 900; letter-spacing: .06em; }
 
 /* 03 — Tese */
-.s-tese .head { top: 120px; }
-.s-tese .h-hero { font-size: 118px; }
-.s-tese .h-hero .l3 { color: #fff; }
-.s-tese .flow { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 640px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; }
-.s-tese .node { position: relative; padding-top: 58px; }
-.s-tese .node .dot { position: absolute; left: 0; top: 0; width: 34px; height: 34px; border-radius: 50%; border: 3px solid rgba(255, 255, 255, .28); background: var(--night); }
-.s-tese .node.on .dot { border-color: var(--orange); background: var(--orange); box-shadow: 0 0 0 10px rgba(255, 144, 0, .16); }
-.s-tese .node h3 { font-size: 30px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
-.s-tese .node p { margin-top: 10px; font-size: 23px; color: #A7B0BF; line-height: 1.4; max-width: 330px; }
-.s-tese .rail { position: absolute; left: var(--pad-x); right: calc(var(--pad-x) + 60px); top: 656px; height: 3px; background: rgba(255, 255, 255, .14); overflow: hidden; }
-.s-tese .rail i { position: absolute; left: -30%; top: 0; width: 30%; height: 100%; background: linear-gradient(90deg, transparent, var(--orange), transparent); animation: rail 3.2s var(--ease-standard, ease) infinite; }
-@keyframes rail { to { left: 100%; } }
-.s-tese .foot { position: absolute; left: var(--pad-x); bottom: 92px; }
-.s-tese .foot .quote { font-size: 40px; font-weight: 700; }
 
 /* 04 — Duas experiências */
 .s-duas .half { position: absolute; top: 0; bottom: 0; width: 50%; }
@@ -655,7 +618,7 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 /* Acessibilidade de movimento: sem deslizes, sem pulso, trocas instantâneas */
 @media (prefers-reduced-motion: reduce) {
   .slide, [data-step], .s-aha .q, .s-aha .done, .s-copy .win ol, .s-copy .txt, .s-escala .wall .a, .s-pub .light, .s-pub .flyer { transition: none !important; }
-  .s-tese .rail i, .s-aha .answer .caret, .s-custo .dots i, .s-intel .fits .row, .s-aha .fio *, .s-aha .vivo i { animation: none !important; }
+  .s-aha .answer .caret, .s-custo .dots i, .s-intel .fits .row, .s-aha .fio *, .s-aha .vivo i { animation: none !important; }
 }
 
 
@@ -742,25 +705,6 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-ia .rs .md { font-size: 14px; }
 
 /* 03 — A escuta (entrevistas com franqueados → dores → decisões de produto) */
-.s-escuta .quem { position: absolute; left: var(--pad-x); top: 376px; display: flex; align-items: center; gap: 16px; font-size: 28px; line-height: 1.3; color: var(--ink-2); max-width: 1500px; }
-.s-escuta .quem svg { flex: none; width: 34px; height: 34px; color: var(--orange-ink); }
-.s-escuta .pares { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 480px; display: flex; flex-direction: column; gap: 18px; }
-.s-escuta .cab { display: grid; grid-template-columns: 1fr 80px 1fr; }
-.s-escuta .cab b { font-size: 15px; letter-spacing: .16em; font-weight: 900; color: var(--orange-ink); }
-.s-escuta .cab b:last-child { grid-column: 3; }
-.s-escuta .par { display: grid; grid-template-columns: 1fr 80px 1fr; align-items: center; }
-.s-escuta .par span { padding: 26px 32px; border-radius: 18px; font-size: 32px; line-height: 1.2; font-weight: 800; letter-spacing: -.015em; }
-.s-escuta .dor { background: var(--paper-2); color: var(--ink); box-shadow: 0 0 0 1px rgba(10, 10, 10, .07); }
-.s-escuta .res { background: #0A0A0A; color: #fff; }
-.s-escuta .par i { position: relative; height: 3px; background: var(--orange); margin: 0 10px; }
-.s-escuta .par i::after { content: ''; position: absolute; right: -2px; top: -7px; border-left: 14px solid var(--orange); border-top: 8px solid transparent; border-bottom: 8px solid transparent; }
-.s-escuta .foot { position: absolute; left: var(--pad-x); bottom: 70px; font-size: 38px; font-weight: 900; letter-spacing: -.02em; color: var(--orange-d); }
-.s-problema .deskfy { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 330px; bottom: 72px; border-radius: 28px; background: #0A0A0A; color: #fff; padding: 56px 80px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 30px 80px rgba(10, 10, 10, .25); }
-.s-problema .deskfy small { font-size: 18px; letter-spacing: .18em; font-weight: 900; color: var(--orange); }
-.s-problema .deskfy .big { margin-top: 20px; font-size: 100px; line-height: 1.02; font-weight: 900; letter-spacing: -.035em; }
-.s-problema .deskfy .big span { color: var(--orange); }
-.s-problema .deskfy .sub { margin-top: 30px; font-size: 38px; color: rgba(255, 255, 255, .78); }
-.s-problema .deskfy .sub b { color: #fff; font-weight: 900; }
 .s-psd .antes { position: absolute; left: var(--pad-x); top: 300px; width: 600px; padding: 20px 26px; border-radius: 16px; background: rgba(255, 144, 0, .1); border: 1px solid rgba(255, 144, 0, .45); }
 .s-psd .antes small { font-size: 14px; letter-spacing: .16em; font-weight: 900; color: var(--orange); }
 .s-psd .antes p { margin-top: 8px; font-size: 26px; line-height: 1.25; font-weight: 700; color: #fff; }
@@ -880,3 +824,17 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-teste .passos li { position: relative; display: flex; align-items: center; gap: 22px; }
 .s-teste .passos b { flex: none; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: var(--orange); color: #0A0A0A; font-size: 26px; font-weight: 900; box-shadow: 0 0 0 8px var(--paper-2); }
 .s-teste .passos span { font-size: 28px; line-height: 1.2; font-weight: 800; color: var(--ink); }
+
+/* 02 · O problema — três dores numeradas e o custo do Deskfy numa faixa só */
+.s-dor .dores { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 470px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; list-style: none; margin: 0; padding: 0; }
+.s-dor .dores li { padding: 52px 48px 60px; border-radius: 24px; background: var(--paper-2); box-shadow: 0 0 0 1px rgba(10, 10, 10, .07); }
+.s-dor .dores b { display: block; font-size: 22px; font-weight: 900; letter-spacing: .12em; color: var(--orange-ink); }
+.s-dor .dores span { display: block; margin-top: 18px; font-size: 42px; line-height: 1.15; font-weight: 800; letter-spacing: -.02em; color: var(--ink); }
+.s-dor .custo { position: absolute; left: var(--pad-x); right: var(--pad-x); bottom: 120px; display: flex; align-items: baseline; gap: 36px; padding: 40px 56px; border-radius: 24px; background: #0A0A0A; color: #fff; }
+.s-dor .custo small { font-size: 18px; letter-spacing: .18em; font-weight: 900; color: var(--orange); }
+.s-dor .custo p { font-size: 48px; font-weight: 800; letter-spacing: -.02em; color: rgba(255, 255, 255, .8); }
+.s-dor .custo b { color: #fff; font-weight: 900; }
+/* 03 · A solução — o título vira a tese em duas linhas; telas descem um pouco */
+.s-duas .h1 { font-size: 64px; line-height: 1.04; }
+.s-duas .h1 .acc { color: var(--orange-ink); }
+.s-duas .role { top: 260px; }
