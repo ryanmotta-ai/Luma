@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" data-luma="1" viewBox="0 0 1920 1080" width="1920" height="1080"><defs><style>
+@font-face{font-family:'Realce';src:url('asset:fontes/realce-black.woff2') format('woff2');font-weight:900;}
+@font-face{font-family:'Roboto';src:url('asset:fontes/Roboto-Regular.woff2') format('woff2');font-weight:400;}
+@font-face{font-family:'Roboto';src:url('asset:fontes/Roboto-Light.woff2') format('woff2');font-weight:300;}
+@font-face{font-family:'Roboto';src:url('asset:fontes/Roboto-Medium.woff2') format('woff2');font-weight:500;}
+@font-face{font-family:'Roboto';src:url('asset:fontes/Roboto-Black.woff2') format('woff2');font-weight:900;}
+.hero{font-family:'Realce',sans-serif;font-weight:900;letter-spacing:0.5px}
+.body{font-family:'Roboto',sans-serif;font-weight:400}
+.media{font-family:'Roboto',sans-serif;font-weight:500;letter-spacing:0.5px}
+.legal{font-family:'Roboto',sans-serif;font-weight:300;letter-spacing:0.3px}
+.forte{font-family:'Roboto',sans-serif;font-weight:900}
+</style>
+<filter id="sh" x="-10%" y="-10%" width="125%" height="135%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#434343" flood-opacity="0.25"/></filter>
+<filter id="shs" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#434343" flood-opacity="0.35"/></filter>
+</defs>
+<!-- Template de Apresentações 2026 (skill §3.5): fundo com o mapa à direita; logo da Delivery Much.
+     Composição (§4.2): eixo à esquerda (x=120), título + 3 indicadores em grupos com respiro; o mapa
+     é o "foco de imagem" e os pins brancos marcam cidades do interior citadas na reportagem. -->
+<image href="asset:slides/fundo-mapa-brasil.jpg" x="0" y="0" width="1920" height="1080" preserveAspectRatio="xMidYMid slice"/>
+<image href="asset:logos/dm-h-branca.png" x="120" y="96" width="260" height="52"/>
+<!-- título -->
+<text x="120" y="250" class="media" font-size="30" fill="#FFFFFF" letter-spacing="2">MERCADO · OUTUBRO DE 2026</text>
+<text class="body" font-size="82" fill="#FFFFFF"><tspan x="116" y="350">A concorrência</tspan><tspan x="116" y="446">chegou ao interior</tspan></text>
+<!-- indicadores: número em Realce (assinatura DM) + o que significa -->
+<g filter="url(#sh)">
+  <rect x="120" y="540" width="700" height="132" rx="36" fill="#FFFFFF"/>
+  <rect x="120" y="696" width="700" height="132" rx="36" fill="#FFFFFF"/>
+  <rect x="120" y="852" width="700" height="132" rx="36" fill="#FFFFFF"/>
+</g>
+<text x="164" y="634" class="hero" font-size="80" fill="#F85400">1.500</text>
+<text x="400" y="598" class="forte" font-size="32" fill="#434343">cidades com iFood</text>
+<text x="400" y="642" class="body" font-size="26" fill="#434343">líder nacional, inclusive no interior</text>
+<text x="164" y="790" class="hero" font-size="80" fill="#F85400">21</text>
+<text x="400" y="754" class="forte" font-size="32" fill="#434343">cidades novas da Keeta</text>
+<text x="400" y="798" class="body" font-size="26" fill="#434343">até o fim do ano, foco no interior</text>
+<text x="164" y="946" class="hero" font-size="80" fill="#F85400">0%</text>
+<text x="400" y="910" class="forte" font-size="32" fill="#434343">de comissão na 99Food</text>
+<text x="400" y="954" class="body" font-size="26" fill="#434343">por até 2 anos, para atrair lojas</text>
+<!-- pins nas cidades do interior da expansão da Keeta (Passo Fundo/RS, Araçatuba/SP, Patos de Minas e Gov. Valadares/MG) -->
+<g filter="url(#shs)">
+  <image href="asset:slides/icone-pin.png" x="1370" y="822" width="45" height="60"/>
+  <image href="asset:slides/icone-pin.png" x="1440" y="618" width="45" height="60"/>
+  <image href="asset:slides/icone-pin.png" x="1560" y="548" width="45" height="60"/>
+  <image href="asset:slides/icone-pin.png" x="1680" y="560" width="45" height="60"/>
+</g>
+<text x="120" y="1040" class="legal" font-size="22" fill="#FFFFFF">Fontes: Exame (iFood e plano da Keeta) · Tribuna do Sertão, 06/10/2026 (Keeta: 21 cidades) · Sisfood (taxas da 99Food)</text>
+</svg>
