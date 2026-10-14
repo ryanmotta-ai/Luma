@@ -183,8 +183,11 @@ abrir o `index.html` local e passar por: login, catálogo, gerar e baixar uma ar
    (a claim "R$ 0 de infra, plano Free" deixa de valer — o novo é Pro).
 2. Secrets do GitHub (Settings → Secrets → Actions): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
    `SUPABASE_DB_URL` com os valores do novo. Depois rodar o workflow de backup à mão para conferir.
-3. Commit e push na `talpaipai` (com `?v=` subido, porque toca `js/`).
-4. Todo mundo faz login de novo: o JWT é por projeto. A senha é a mesma.
+3. Repetir o `node scripts/migrar-storage.js --pular=orfaos-2026-10-14.json` na hora da virada: o
+   antigo continua vivo (durante a primeira cópia, em 14/10, entraram 3 fotos novas em
+   `luma-user-uploads`) e a repetição só sobe o que falta.
+4. Commit e push na `talpaipai` (com `?v=` subido, porque toca `js/`).
+5. Todo mundo faz login de novo: o JWT é por projeto. A senha é a mesma.
 
 ## 11. Se der ruim
 
