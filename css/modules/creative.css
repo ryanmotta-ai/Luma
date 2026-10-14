@@ -28,6 +28,15 @@ body.mode-creative #view-creative{ display:flex!important; opacity:1; transform:
 @keyframes crBrilho{ from{ background-position:100% 0 } to{ background-position:-50% 0 } }
 @keyframes crPulso{ 0%{ box-shadow:0 0 0 0 color-mix(in srgb,var(--dm-orange-d) 45%,transparent) } 100%{ box-shadow:0 0 0 7px transparent } }
 
+/* Much+ ligado: a tela inteira troca de marca. Mesma regra do tema de campanha (00-tokens.css):
+   fundo de superfície = magenta ESCURO (branco sobre o claro dá só 4,03:1; sobre o escuro, 5,98:1) */
+#view-creative.cr-much{ --dm-orange:var(--muchplus-magenta-d); --dm-orange-d:var(--muchplus-magenta-d); --dm-orange-text:var(--muchplus-magenta-d); --on-orange:var(--white);
+  --cr-acento-bg:rgba(248,0,110,.08); --cr-acento-ln:rgba(248,0,110,.34); --press-bg:rgba(248,0,110,.10); --press-border:var(--muchplus-magenta-d) }
+body:not(.theme-light) #view-creative.cr-much{ --dm-orange-text:var(--muchplus-magenta-l); --cr-acento-bg:rgba(248,0,110,.16); --cr-acento-ln:rgba(255,61,146,.46) }
+::view-transition-old(root),::view-transition-new(root){ animation-duration:var(--dur-slow); animation-timing-function:var(--ease-out) }
+/* "Ver postado" aberto pelo Creative: o QR sobe a arte para um bucket público — fica fora daqui */
+#f-posted-modal.cr-postado .posted-phone-btn{ display:none }
+
 /* Aba "Creative" com a tag Testes */
 .cr-tag-testes{
   display:inline-flex; align-items:center; height:16px; padding:0 6px; border-radius:var(--r-pill); font-style:normal;
@@ -230,9 +239,34 @@ body.cr-ocupado .cr-fio{ opacity:1 }
 .cr-op:nth-child(3){ animation-delay:160ms }
 .cr-op-arte{ position:relative; display:block; width:100%; border-radius:8px; overflow:hidden; background:var(--cr-surf2);
   box-shadow:0 0 0 1px var(--cr-line); transition:box-shadow var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-spring-soft) }
-.cr-op-arte img{ display:block; width:100%; height:100%; object-fit:contain; filter:blur(16px); transform:scale(1.04); opacity:.5;
-  transition:filter var(--dur-celebration) var(--ease-out),transform var(--dur-celebration) var(--ease-out),opacity var(--dur-slow) var(--ease-out) }
-.cr-nitida .cr-op-arte img{ filter:none; transform:none; opacity:1 }
+.cr-op-arte img{ display:block; width:100%; height:100%; object-fit:contain; opacity:0; transition:opacity var(--dur-base) var(--ease-out) }
+.cr-nitida .cr-op-arte img{ opacity:1 }
+/* A arte se montando: o SVG vive num shadow root por cima da <img> até o último bloco assentar */
+.cr-mont{ position:absolute; inset:0; z-index:1; pointer-events:none }
+.cr-mont-rot{ position:absolute; z-index:3; left:8px; bottom:8px; max-width:calc(100% - 16px); padding:4px 9px; border-radius:var(--r-pill); background:rgba(10,10,10,.72); color:#fff;
+  font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:opacity var(--dur-base) var(--ease-out) }
+.cr-mont-rot:empty{ display:none }
+.cr-mont-rot.cr-some{ opacity:0 }
+/* Nota do juiz: anel que enche até a nota (de 5); no hover da opção, o boletim das 5 réguas sobe sobre a arte */
+.cr-medidor{ margin-left:auto; display:inline-flex; align-items:center; gap:6px; font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace; font-variant-numeric:tabular-nums; color:var(--cr-text2) }
+.cr-medidor svg{ width:22px; height:22px; transform:rotate(-90deg) }
+.cr-med-fundo{ fill:none; stroke:var(--cr-surf3); stroke-width:3 }
+.cr-med-arco{ fill:none; stroke:var(--green); stroke-width:3; stroke-linecap:round; stroke-dasharray:100; stroke-dashoffset:100; transition:stroke-dashoffset calc(var(--dur-celebration) * 1.4) var(--ease-out) }
+.cr-medidor.media .cr-med-arco{ stroke:var(--dm-orange) }
+.cr-medidor.baixa .cr-med-arco{ stroke:var(--dm-red) }
+.cr-medidor.pronto .cr-med-arco{ stroke-dashoffset:calc(100 * (1 - var(--n))) }
+.cr-op-det{ position:absolute; z-index:4; left:0; right:0; bottom:0; display:flex; flex-direction:column; gap:6px; padding:36px 12px 12px; color:#fff; font:500 11.5px/1.3 'Roboto',sans-serif;
+  background:linear-gradient(180deg,transparent,rgba(10,10,10,.88) 40%); opacity:0; transform:translateY(10px); pointer-events:none;
+  transition:opacity var(--dur-fast) var(--ease-out),transform var(--dur-base) var(--ease-out) }
+.cr-op:hover .cr-op-det,.cr-op:focus-visible .cr-op-det{ opacity:1; transform:none }
+.cr-det-tit{ display:flex; justify-content:space-between; font-size:12px; font-weight:700 }
+.cr-det-tit em{ font-style:normal; font-weight:600; font-variant-numeric:tabular-nums; opacity:.85 }
+.cr-det-linha{ display:grid; grid-template-columns:78px minmax(0,1fr) 26px; align-items:center; gap:8px }
+.cr-det-linha i{ position:relative; display:block; height:4px; border-radius:2px; overflow:hidden; background:rgba(255,255,255,.22) }
+.cr-det-linha i::after{ content:''; position:absolute; inset:0; border-radius:inherit; background:var(--dm-orange); transform-origin:0 50%; transform:scaleX(0); transition:transform var(--dur-slow) var(--ease-out) }
+.cr-op:hover .cr-det-linha i::after,.cr-op:focus-visible .cr-det-linha i::after{ transform:scaleX(var(--v)) }
+.cr-det-linha u{ text-decoration:none; text-align:right; font-variant-numeric:tabular-nums; opacity:.85 }
+.cr-op-det small{ margin-top:2px; font-size:11.5px; line-height:1.4; opacity:.8 }
 .cr-op:hover .cr-op-arte{ transform:translateY(-2px); box-shadow:0 0 0 1px var(--cr-line2),var(--cr-sh2) }
 .cr-op.on .cr-op-arte{ box-shadow:0 0 0 2px var(--dm-orange),0 12px 32px color-mix(in srgb,var(--dm-orange-d) 22%,transparent) }
 .cr-op-ok{ position:absolute; top:8px; right:8px; width:22px; height:22px; display:grid; place-items:center; border-radius:50%; background:var(--dm-orange); color:var(--on-orange);
@@ -442,6 +476,7 @@ body.cr-ocupado .cr-enviar::after{ content:''; position:absolute; inset:-4px; bo
   .cr-verbo,.cr-agora .cr-passo-tit,.cr-dest{ color:var(--dm-orange-text); background:none }
   .cr-agora .cr-passo-tit{ color:var(--cr-text2) }
   body.cr-ocupado .cr-caixa{ border-color:var(--dm-orange) }
+  .cr-med-arco,.cr-op-det,.cr-det-linha i::after,.cr-mont-rot{ transition:none }
   .cr-op-arte img,.cr-ed,.cr-pergunta,.cr-q-seta,.cr-boas,.cr-trab-corpo,.cr-menu,.cr-conversa,.cr-op-ok,.cr-solta > div{ transition:none }
   .cr-conversando .cr-boas{ display:none }
 }

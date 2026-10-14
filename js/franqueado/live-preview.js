@@ -324,6 +324,7 @@ function _fPostedCardAtual(){
 
 function _fPostedLegendaAtual(){
   try{
+    if(typeof _crLegendaVer==='string' && _crLegendaVer) return _crLegendaVer;   // Luma Creative: a legenda da arte em ver postado
     const paineis = document.querySelectorAll('.caption-assistant-panel[data-canvas-id]');
     if(!paineis.length) return '';
     /* ⛔ NÃO É `querySelector` (o PRIMEIRO do documento). Era, e por isso o mockup e o painel
