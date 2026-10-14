@@ -29,56 +29,53 @@
 
 ## 2. O que falta ANTES da virada (pode ser hoje, sem pressa)
 
-### 2.1 Edge Functions — ⬜ Você, depois ⬜ Eu
+### 2.0 Testado por fora em 14/10, 15h30 (sem login) — ✅ Eu
 
-Só duas funções rodam no antigo: `ai` e `invite-user`. Para eu subir as duas no novo, preciso que a
-CLI do Supabase esteja logada com uma conta que esteja na org nova. O token que está salvo na sua
-máquina hoje é inválido.
+Entrei no novo como a **sua** conta (sessão emitida pela API administrativa, sem senha) e passou tudo:
+login válido, perfil lido com RLS (`gestao`), `is_designer()` responde, policies do Storage funcionam
+(capas e assets listam; o anexo privado do suporte aparece para a equipe), uma capa pública serve do
+Storage novo com os mesmos bytes do antigo e já com cache de 1 ano. As opções públicas de Auth dos dois
+projetos são idênticas. **Único bloqueio para o app:** no novo, o schema `luma` ainda **não está exposto**
+na Data API (`PGRST106`). Entra no item 2.1.
 
-1. ⬜ **Você** — abra o PowerShell na pasta do projeto e cole:
-   ```powershell
-   supabase login
-   ```
-   Abre o navegador; entre com a conta que tem acesso à org "DM - Inovação e IA"; volte ao terminal
-   e confirme que apareceu "Finished supabase login". Me avise: **"login feito"**.
-   - Alternativa sem terminal: no Claude Code, digite `/mcp`, escolha `supabase-novo`, habilite e
-     autentique; depois reinicie a sessão. Aí eu subo pelas ferramentas do MCP.
-2. ⬜ **Eu** — subo `ai` e `invite-user` no novo (as duas com `verify_jwt` ligado, igual ao antigo).
-   Aviso: o `ai` do repositório está à frente do que roda no antigo (tem as tarefas do Luma Creative
-   que o Ryan commitou hoje); o novo sobe com a versão do repositório, que é a fonte.
+### 2.1 Uma ação sua que destrava todo o resto — ⬜ Você
 
-### 2.2 Secrets das Edge Functions — ⬜ Você
+Em vez de `supabase login` + 7 telas do Dashboard + caçar valores de secret, **um token de acesso
+pessoal** do Supabase me deixa fazer tudo pela API de gerenciamento (ler os secrets do antigo com valor,
+gravar no novo, subir as functions, expor o `luma`, copiar a configuração de Auth e pegar a chave pública).
 
-No Dashboard do **novo**: **Edge Functions → Secrets** (ou "Manage secrets") → Add new secret.
+1. ⬜ **Você** — abra https://supabase.com/dashboard/account/tokens com a conta que está **nas duas orgs**
+   (a do Ryan, onde vive o antigo, e a "DM - Inovação e IA"). Generate new token, nome `migracao-luma`.
+2. ⬜ **Você** — cole no `.env`, numa linha nova: `SUPABASE_ACCESS_TOKEN=sbp_...`. Me avise: **"token no env"**.
+   O token é pessoal e poderoso: fica só no `.env` (ignorado pelo git) e você o apaga na página de tokens
+   quando a migração acabar.
 
-- ⬜ `GEMINI_API_KEY` — **obrigatório**. Sem ele a IA (legenda, encurtar, ajuda, PSD) devolve erro 503.
-- ⬜ Opcionais, só se você tiver os valores (são as reservas do `ai`; sem elas o provedor é pulado):
-  `NVIDIA_API_KEY`, `NVIDIA2_API_KEY`, `OLLAMA_API_KEY`, `CLOUDFLARE_API_KEY`, `CLOUDFLARE_ACCOUNT_ID`, `OPENROUTER_API_KEY`.
-- Onde pegar os valores: o Dashboard do **antigo** (Edge Functions → Secrets) mostra só os **nomes**, não
-  os valores. Quem os criou (Ryan) tem; ou pega de novo no painel de cada provedor (Google AI Studio,
-  NVIDIA, Ollama, Cloudflare, OpenRouter).
-- `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` **não** precisa criar: a plataforma injeta.
+Se preferir não criar o token, o caminho antigo continua valendo: `supabase login` no PowerShell (conta da
+org nova) para as functions, e os itens abaixo você faz no Dashboard do novo, comparando com o antigo:
+Data API → Exposed schemas (`public, graphql_public, luma`); Authentication → URL Configuration (Site URL e
+Redirect URLs iguais, inclusive a da Vercel `luma-deliverymuch.vercel.app` se estiver lá); Authentication →
+Providers → Email (Confirm email, senha mínima); Authentication → Emails (SMTP e templates); Storage →
+Settings (limite global ≥ 15 MB); Edge Functions → Secrets (`GEMINI_API_KEY` obrigatório + reservas
+`NVIDIA_API_KEY`, `NVIDIA2_API_KEY`, `OLLAMA_API_KEY`, `CLOUDFLARE_API_KEY`, `CLOUDFLARE_ACCOUNT_ID`,
+`OPENROUTER_API_KEY`, cujos valores o Dashboard do antigo **não** mostra); Project Settings → API Keys
+(me mandar a Publishable key `sb_publishable_...`).
 
-### 2.3 Configurações do Dashboard do novo — ⬜ Você
+### 2.2 Com o token na mão — ⬜ Eu
 
-Nada disto tem SQL; é clique. Abra o antigo e o novo lado a lado e deixe igual.
+1. ⬜ Copio os secrets das functions do antigo para o novo (os que existirem lá; `SUPABASE_*` a plataforma injeta).
+2. ⬜ Subo `ai` e `invite-user` no novo (`verify_jwt` ligado, igual ao antigo). Só essas duas rodam no
+   antigo. O `ai` do repositório está à frente do que roda lá (tarefas do Luma Creative que o Ryan
+   commitou hoje) e é o que sobe.
+3. ⬜ Exponho o schema `luma` na Data API do novo (igual ao antigo: `public, graphql_public, luma`).
+4. ⬜ Copio a configuração de Auth do antigo (Site URL, Redirect URLs, senha mínima, confirmação de
+   e-mail, SMTP, templates) e o limite global do Storage.
+5. ⬜ Pego a Publishable key do novo e preparo o `supabase-config.js` para o teste local (item 2.5).
+6. ⬜ Te mostro, item a item, o que ficou igual e o que não dá para copiar pela API.
 
-1. ⬜ **Project Settings → Data API (ou "API") → Exposed schemas:** tem que ter `public`, `graphql_public`
-   e **`luma`**. Sem `luma` o Luma inteiro quebra. Não adicione `analytics`, `auth`, `storage` nem `vault`.
-2. ⬜ **Authentication → URL Configuration:** Site URL e a lista de Redirect URLs **iguais às do antigo**
-   (copie a lista inteira: GitHub Pages `https://ryanmotta-ai.github.io/Luma/` e, se estiver lá, a URL da
-   Vercel `luma-deliverymuch.vercel.app`).
-3. ⬜ **Authentication → Sign In / Providers → Email:** compare com o antigo "Confirm email", "Secure email
-   change", "Minimum password length" e deixe igual.
-4. ⬜ **Authentication → Emails:** se o antigo tiver SMTP próprio ("Custom SMTP") e templates editados
-   (convite, redefinição de senha), copie. Sem SMTP próprio, o remetente padrão do Supabase tem limite
-   baixo de e-mails por hora.
-5. ⬜ **Storage → Settings → Global file size limit:** 15 MB ou mais (o maior limite por bucket é o
-   `luma-renders`, 15 MB). O padrão de 50 MB serve.
-6. ⬜ **Organização → Billing → Spend cap:** decidir. Ligado, bloqueia quando passar da cota do Pro;
-   desligado, cobra o excedente.
-7. ⬜ **Project Settings → API Keys:** copie a **Publishable key** (`sb_publishable_...`) e me mande. É a
-   chave pública que vai no front (é pública por design; a `sb_secret`/service_role **nunca** sai do `.env`).
+### 2.3 Decisão que é só sua — ⬜ Você
+
+- ⬜ **Organização "DM - Inovação e IA" → Billing → Spend cap:** ligado, bloqueia quando passar da cota do
+  Pro; desligado, cobra o excedente. É dinheiro; eu não mexo.
 
 ### 2.4 Limpeza antes de tirar a foto final — ⬜ Você
 
@@ -89,7 +86,7 @@ Nada disto tem SQL; é clique. Abra o antigo e o novo lado a lado e deixe igual.
 
 ### 2.5 Teste local, sem commit — ⬜ Eu, depois ⬜ Você
 
-1. ⬜ **Eu** — com a Publishable key do item 2.3.7, aponto `js/core/supabase-config.js` para o novo (só na sua
+1. ⬜ **Eu** — com a Publishable key do novo, aponto `js/core/supabase-config.js` para o novo (só na sua
    máquina, sem commit) e subo um servidor local; te passo o link `http://localhost:8080`.
 2. ⬜ **Você** — abre o link e passa por: login com o seu usuário (mesma senha de sempre) · catálogo abre ·
    gera e baixa uma arte · Estúdio publica um material de teste e exclui · suporte abre. Me diz o que
@@ -115,11 +112,11 @@ não dá para "atualizar por cima"; no dia, o banco do novo é zerado e refeito 
    comentários dos workflows, `docs/SUPORTE-TELEGRAM.md`, `presentation/CLAIMS.md`), entrada no
    `docs/LUMA-BACKEND-CHANGELOG.md`, `?v=` subido. Push. O GitHub Pages (e a Vercel, se estiver ligada ao
    repositório) publica sozinho.
-4. ⬜ **Você** — **secrets do GitHub** (repositório `ryanmotta-ai/Luma` → Settings → Secrets and variables →
-   Actions), com os valores do **novo**: `SUPABASE_URL` (`https://xqsazcazsjxajmtmirzd.supabase.co`),
-   `SUPABASE_SERVICE_ROLE_KEY` (a `sb_secret` do novo, a mesma do `.env`) e `SUPABASE_DB_URL` (a string
-   Session pooler do novo, a mesma do `.env`). Depois: Actions → workflow **Backup** → "Run workflow" e
-   conferir que ficou verde.
+4. ⬜ **Eu** — **secrets do GitHub** do repositório `ryanmotta-ai/Luma` com os valores do novo
+   (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, os mesmos do `.env`). O `gh` da sua
+   máquina está logado como `pedromoraes-DM` e consegue gravar secrets (testei com um secret de mentira,
+   criado e apagado). Depois disparo o workflow **Backup** à mão e confiro que ficou verde.
+   (O `SUPABASE_DB_URL` foi atualizado hoje às 14h06, então o backup do antigo segue funcionando até lá.)
 5. ⬜ **Você** — avisa a equipe: **"pode voltar; faça login de novo"**. A senha é a mesma; só a sessão cai,
    porque o token é por projeto. Quem estiver com a página aberta precisa recarregar.
 6. ⬜ **Você + Eu** — fumaça em produção: login, catálogo, gerar uma arte, IA (uma legenda), Estúdio abre.
@@ -132,9 +129,8 @@ não dá para "atualizar por cima"; no dia, o banco do novo é zerado e refeito 
 
 ## 4. Depois da virada
 
-- ⬜ **Você** — se você **resetou a senha do banco antigo** hoje para preencher o `.env`, o backup diário do
-  antigo falhou desde então. Depois da virada ele passa a mirar o novo (item 3.4), então não precisa
-  consertar nada; só saiba.
+- ⬜ **Você** — apagar o token `migracao-luma` em https://supabase.com/dashboard/account/tokens e tirar a
+  linha `SUPABASE_ACCESS_TOKEN` do `.env`.
 - ⬜ **Você** — deixar o antigo vivo por **30 dias**; depois **pausar** (Dashboard do antigo → Project Settings →
   General → Pause project). **Não apagar.**
 - ⬜ **Eu** — patch do thumb do catálogo (miniatura gerada no publicar; `templates.thumb_url` já existe).
