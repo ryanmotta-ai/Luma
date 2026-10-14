@@ -3288,7 +3288,9 @@ function _fLpLayerAt(x,y,cvAlvo){
   }
   for(let i=layers.length-1;i>=0;i--){
     const l=layers[i];
-    if(!l||l.visible===false||(_fLpDesignActive()?l.type!=='text':!_fLpLayerVars(l).length)) continue;
+    if(!l||l.visible===false||(_fLpDesignActive()?(l.type==='group'||l.locked):!_fLpLayerVars(l).length)) continue;
+    // Filho de grupo escondido/travado não aparece nem pode ser pego pela arte.
+    if(_fLpDesignActive()&&l.parentId!=null){let p=l,n=0,off=false;while(p&&p.parentId!=null&&n++<20){p=layers.find(x=>x.id===p.parentId);if(p&&(p.visible===false||p.locked)){off=true;break;}}if(off)continue;}
     const vr=_fLpVisualRect(l);
     const lx=vr.x,ly=vr.y,lw=vr.w,lh=vr.h;
     if(!(x>=lx&&x<=lx+lw&&y>=ly&&y<=ly+lh)) continue;
@@ -3917,11 +3919,13 @@ function _fLpDesignCacheKey(d){return d.owner+':'+encodeURIComponent(d.remoteId)
 function _fLpDesignStatus(d){
   const el=document.getElementById('lp-design-status');
   if(!el||d!==_fLpDesignDraft)return;
-  const changed=JSON.stringify(d.layers)!==d.base;
+  const n=_fLpDesignChanges(d),changed=n>0;
   let stored=false;
   try{stored=JSON.stringify(JSON.parse(localStorage.getItem(_fLpDesignCacheKey(d))||'null')?.layers)===JSON.stringify(d.layers);}catch(e){}
   const unguarded=!!d.cacheWarning||(changed&&!stored);
-  el.textContent=unguarded?'Não guardado · mantenha esta página aberta':changed?'Rascunho guardado neste navegador':'Sem alterações';
+  const when=d.publishedAt?'Publicado às '+d.publishedAt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';
+  const qtd=n+' '+(n>1?'camadas alteradas':'camada alterada');
+  el.textContent=d.uploading?'Enviando imagem…':unguarded?qtd+' · não guardado, mantenha esta página aberta':changed?qtd+' · rascunho guardado neste navegador':(when||'Sem alterações');
   el.classList.toggle('lp-design-status-error',unguarded);
 }
 function _fLpDesignStore(d){
@@ -3980,7 +3984,7 @@ function _fLpDesignSync(){
     _fLpDesignStore(_fLpDesignDraft);
     _fLpDesignDraft=null; _fLpCloseEditor();
   }
-  const active=_fLpDesignActive(), busy=_fLpDesignOpening||!!_fLpDesignDraft?.saving;
+  const active=_fLpDesignActive(), busy=_fLpDesignOpening||!!_fLpDesignDraft?.saving||!!_fLpDesignDraft?.uploading;
   const start=document.getElementById('lp-design-start');
   const tools=document.getElementById('lp-design-tools');
   if(start){
@@ -3992,7 +3996,8 @@ function _fLpDesignSync(){
   }
   if(tools){tools.hidden=!active;tools.querySelectorAll('button').forEach(b=>b.disabled=busy);}
   const save=document.getElementById('lp-design-save');
-  if(save) save.textContent=_fLpDesignDraft?.saving?'Publicando…':'Salvar e publicar';
+  const pending=active?_fLpDesignChanges(_fLpDesignDraft):0;
+  if(save) save.textContent=_fLpDesignDraft?.saving?'Publicando…':pending?'Publicar ('+pending+')':'Publicado';
   const panel=document.getElementById('f-live-preview');
   if(panel) panel.classList.toggle('lp-design-editing',active);
   _fLpDesignMount(active);
@@ -4000,13 +4005,14 @@ function _fLpDesignSync(){
   if(undo) undo.disabled=busy||!_fLpDesignDraft?.undo?.length;
   if(redo) redo.disabled=busy||!_fLpDesignDraft?.redo?.length;
   const original=active&&!!_fLpDesignDraft.showOriginal;
-  if(save)save.disabled=busy||original;
+  if(save)save.disabled=busy||original||!pending;
   for(const [id,on] of [['lp-design-before',original],['lp-design-after',!original]]){
     const b=document.getElementById(id);if(b)b.setAttribute('aria-pressed',String(on));
   }
   document.getElementById('lp-design-properties')?.querySelectorAll('input,textarea,select,button').forEach(b=>{
     if(original||busy)b.disabled=true;
-    else if(b.id!=='lp-design-undo'&&b.id!=='lp-design-redo')b.disabled=false;
+    // data-off: desabilitado por regra (campo do chat), não pelo estado do editor.
+    else if(b.id!=='lp-design-undo'&&b.id!=='lp-design-redo'&&!b.dataset.off)b.disabled=false;
   });
   if(panel)panel.classList.toggle('lp-design-original',original);
   if(active)_fLpDesignStatus(_fLpDesignDraft);
@@ -4061,8 +4067,9 @@ async function fLpDesignStart(){
     _fLpSuspenderConclusao();
     _fLpDesignSync();_fLpRender();
     const first=_fLpDesignDraft.layers.find(l=>l.type==='text'&&l.visible!==false);
-    if(first) _fLpDesignEditor(_fLpDesignDraft.selected||first.id);
-    gToast('Clique em um texto da arte para ajustar. As mudanças serão publicadas para a rede ao salvar.');
+    const keep=_fLpDesignDraft.layers.some(l=>l.id===_fLpDesignDraft.selected)?_fLpDesignDraft.selected:null;
+    _fLpDesignEditor(keep??first?.id??null);
+    gToast('Clique em qualquer elemento da arte para ajustar. Publique quando quiser — o editor continua aberto.');
   }catch(e){gToast(e.message||'Não foi possível iniciar a edição.','error');}
   finally{_fLpDesignOpening=false;_fLpDesignSync();}
 }
@@ -4101,217 +4108,530 @@ function fLpDesignUndo(redo){
   if(!from.length) return;
   to.push(JSON.stringify(d.layers));d.layers=JSON.parse(from.pop());
   _fLpDesignStore(d);
-  _fLpDesignSync();if(d.selected) _fLpDesignEditor(d.selected,{});document.getElementById('lp-canvas')?.focus({preventScroll:true});_fLpRender();
+  _fLpDesignSync();_fLpDesignEditor(d.layers.some(x=>x.id===d.selected)?d.selected:null,{});document.getElementById('lp-canvas')?.focus({preventScroll:true});_fLpRender();
 }
+/* ── MINI EDITOR COMPLETO (14/10/2026) ──
+   Até aqui o Modo editar só alcançava TEXTO: forma, imagem, moldura e grupo eram intocáveis
+   e qualquer ajuste fora do texto exigia voltar ao Estúdio. Agora toda camada visível é
+   selecionável pela arte ou pela lista. As propriedades são as que o motor de render
+   (fRenderOneLayer) já lê — nenhuma propriedade nova nasce aqui, só ganha controle.
+   ⛔ Regra que não muda: camada que carrega campo do chat ({{…}} ou foto do franqueado)
+   não pode sumir, nem ser escondida — o chat continuaria perguntando algo que a arte não mostra. */
+const _LP_DESIGN_TIPO={text:'Texto',shape:'Forma',image:'Imagem',frame:'Moldura',group:'Grupo'};
+const _LP_DESIGN_ICO={
+  text:'<path d="M5 6V4h14v2M12 4v16M9 20h6"/>',
+  shape:'<rect x="4" y="4" width="16" height="16" rx="3"/>',
+  image:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
+  frame:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
+  group:'<path d="M3 7h7l2 2h9v10H3z"/>',
+  eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff:'<path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7a9.6 9.6 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+  lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  unlock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.8-1.2"/>',
+  dup:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
+  up:'<path d="M12 19V5M5 12l7-7 7 7"/>',
+  down:'<path d="M12 5v14M5 12l7 7 7-7"/>',
+  trash:'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  aLeft:'<path d="M4 3v18M8 7h10v4H8zM8 14h6v4H8z"/>',
+  aHc:'<path d="M12 3v18M6 7h12v4H6zM8 14h8v4H8z"/>',
+  aRight:'<path d="M20 3v18M6 7h10v4H6zM10 14h6v4h-6z"/>',
+  aTop:'<path d="M3 4h18M7 8h4v10H7zM14 8h4v6h-4z"/>',
+  aVc:'<path d="M3 12h18M7 6h4v12H7zM14 8h4v8h-4z"/>',
+  aBottom:'<path d="M3 20h18M7 6h4v10H7zM14 10h4v6h-4z"/>',
+  upload:'<path d="M12 16V4M7 9l5-5 5 5M4 16v4h16v-4"/>'
+};
+function _fLpDesignSvg(k){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${_LP_DESIGN_ICO[k]||''}</svg>`;}
+// Os campos do chat que a camada carrega — a mesma assinatura que a publicação confere.
+function _fLpDesignVarsOf(l){
+  if(!l)return '';
+  const out=Array.from(String(l.content||'').matchAll(gVarRegex()),m=>m[1]+':'+(m[2]||''));
+  if(l.imgVar)out.push('img:'+l.imgVar);
+  return out.sort().join('|');
+}
+function _fLpDesignDesc(layers,id){
+  const ids=new Set([id]),out=[];let grew=true;
+  while(grew){grew=false;for(const l of layers)if(l&&l.parentId!=null&&ids.has(l.parentId)&&!ids.has(l.id)){ids.add(l.id);out.push(l);grew=true;}}
+  return out;
+}
+function _fLpDesignIsField(layers,l){
+  return !!l&&(!!_fLpDesignVarsOf(l)||(l.type==='group'&&_fLpDesignDesc(layers,l.id).some(x=>!!_fLpDesignVarsOf(x))));
+}
+// Grupo não tem caixa própria confiável: a caixa é a união das folhas.
+function _fLpDesignBox(layers,l){
+  const own={x:+l.x||0,y:+l.y||0,w:+l.w||1,h:+l.h||1};
+  if(l.type!=='group')return own;
+  const kids=_fLpDesignDesc(layers,l.id).filter(x=>x.type!=='group');
+  if(!kids.length)return own;
+  let x1=Infinity,y1=Infinity,x2=-Infinity,y2=-Infinity;
+  for(const k of kids){x1=Math.min(x1,+k.x||0);y1=Math.min(y1,+k.y||0);x2=Math.max(x2,(+k.x||0)+(+k.w||0));y2=Math.max(y2,(+k.y||0)+(+k.h||0));}
+  return {x:x1,y:y1,w:x2-x1,h:y2-y1};
+}
+function _fLpDesignMoveBy(layers,l,dx,dy){
+  for(const x of [l,..._fLpDesignDesc(layers,l.id)]){x.x=Math.round((+x.x||0)+dx);x.y=Math.round((+x.y||0)+dy);}
+}
+function _fLpDesignName(l){
+  if(!l)return '';
+  return l.name||(l.type==='text'?gInterpolate(l.content||'',fState.dados||{}).replace(/\{\{[^}]*\}\}/g,'').trim():'')||_LP_DESIGN_TIPO[l.type]||'Camada';
+}
+// Cor de qualquer forma CSS → {hex,a}. O canvas normaliza: '#rrggbb' opaco, 'rgba(…)' com alpha.
+function _fLpDesignColor(str,fb){
+  const c=_fLpDesignColor._ctx||(_fLpDesignColor._ctx=document.createElement('canvas').getContext('2d'));
+  c.fillStyle='#000';c.fillStyle=str||fb||'#000';
+  const s=String(c.fillStyle),m=s.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/);
+  if(!m)return {hex:s,a:1};
+  return {hex:'#'+[m[1],m[2],m[3]].map(n=>(+n).toString(16).padStart(2,'0')).join(''),a:m[4]!=null?+m[4]:1};
+}
+// Trocar a cor da sombra no seletor (só hex) não pode apagar a transparência autorada.
+function _fLpDesignKeepAlpha(old,hex){
+  const a=_fLpDesignColor(old,'rgba(0,0,0,.5)').a;
+  if(a>=1)return hex;
+  const n=parseInt(hex.slice(1),16);
+  return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`;
+}
+// Quantas camadas diferem da versão publicada (criadas, apagadas ou alteradas).
+function _fLpDesignChanges(d){
+  if(!d)return 0;
+  if(d._baseFor!==d.base){d._baseMap=new Map(JSON.parse(d.base).map(l=>[String(l.id),JSON.stringify(l)]));d._baseFor=d.base;}
+  const base=d._baseMap,seen=new Set();let n=0;
+  for(const l of d.layers){const k=String(l.id);seen.add(k);if(base.get(k)!==JSON.stringify(l))n++;}
+  for(const k of base.keys())if(!seen.has(k))n++;
+  return n;
+}
+let _fLpDesignGuides=[];
 function _fLpDesignPaintSelection(){
   const cv=document.getElementById('lp-canvas'),wrap=cv?.closest('.lp-canvas-wrap');
   let ov=document.getElementById('lp-design-selection');
   if(!_fLpDesignActive()||_fLpDesignDraft.showOriginal||!wrap){if(ov) ov.remove();document.getElementById('lp-design-handles')?.remove();return;}
   if(!ov){ov=document.createElement('canvas');ov.id='lp-design-selection';ov.setAttribute('aria-hidden','true');wrap.appendChild(ov);}
   ov.width=cv.width;ov.height=cv.height;ov.style.width=cv.style.width;ov.style.height=cv.style.height;
-  const l=_lpEffectiveLayers.find(x=>x.id===_fLpDesignDraft.selected),r=l&&{x:l.x||0,y:l.y||0,w:l.w||1,h:l.h||1};
-  if(!r) return;
+  const sel=_lpEffectiveLayers.find(x=>x.id===_fLpDesignDraft.selected),r=sel&&_fLpDesignBox(_lpEffectiveLayers,sel);
   const ctx=ov.getContext('2d'),scale=cv.width/Math.max(1,cv.getBoundingClientRect().width);
   const tokens=getComputedStyle(wrap);
+  // Guias de alinhamento do arrasto: só existem enquanto o gesto dura.
+  if(_fLpDesignGuides.length){
+    ctx.save();ctx.strokeStyle=tokens.getPropertyValue('--dm-orange').trim();ctx.lineWidth=1.5*scale;ctx.setLineDash([6*scale,4*scale]);
+    for(const g of _fLpDesignGuides){ctx.beginPath();if(g.axis==='x'){ctx.moveTo(g.at,0);ctx.lineTo(g.at,cv.height);}else{ctx.moveTo(0,g.at);ctx.lineTo(cv.width,g.at);}ctx.stroke();}
+    ctx.restore();
+  }
+  let handles=document.getElementById('lp-design-handles');
+  // Grupo e camada travada não redimensionam pela alça: grupo não tem caixa própria.
+  if(!r||sel.type==='group'||sel.locked){handles?.remove();handles=null;}
+  if(!r) return;
   // Duas tintas mantêm o contorno legível também em artes com fundo laranja.
   ctx.strokeStyle=tokens.getPropertyValue('--on-accent').trim();ctx.lineWidth=4*scale;
   ctx.strokeRect(r.x-3*scale,r.y-3*scale,r.w+6*scale,r.h+6*scale);
   ctx.strokeStyle=tokens.getPropertyValue('--dm-orange-d').trim();ctx.lineWidth=2*scale;
+  if(sel.type==='group'||sel.locked)ctx.setLineDash([6*scale,4*scale]);
   ctx.strokeRect(r.x-3*scale,r.y-3*scale,r.w+6*scale,r.h+6*scale);
-  let handles=document.getElementById('lp-design-handles');
+  if(sel.type==='group'||sel.locked) return;
   if(!handles){
     handles=document.createElement('div');handles.id='lp-design-handles';wrap.appendChild(handles);
-    for(const [edge,label] of [['left','esquerda'],['right','direita'],['top','superior'],['bottom','inferior']]){
+    for(const [edge,label] of [['left','borda esquerda'],['right','borda direita'],['top','borda superior'],['bottom','borda inferior'],['top-left','canto superior esquerdo'],['top-right','canto superior direito'],['bottom-left','canto inferior esquerdo'],['bottom-right','canto inferior direito']]){
       const b=document.createElement('button');b.type='button';b.dataset.edge=edge;
-      b.setAttribute('aria-label','Redimensionar borda '+label);b.title='Arraste para redimensionar · setas para ajuste fino';
+      b.setAttribute('aria-label','Redimensionar '+label);b.title=edge.includes('-')?'Arraste para redimensionar · Shift troca a proporção':'Arraste para redimensionar · setas para ajuste fino';
       b.onpointerdown=_fLpDesignPointerDown;
       b.onkeydown=e=>{
         if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal)return;
         const n=(e.shiftKey?10:1)*({ArrowLeft:-1,ArrowRight:1,ArrowUp:-1,ArrowDown:1}[e.key]||0);if(!n)return;
         e.preventDefault();e.stopPropagation();const d=_fLpDesignDraft,layer=d.layers.find(x=>x.id===d.selected),before=JSON.stringify(d.layers);
-        if(!layer)return;_fLpDesignResize(layer,edge,n,n,layer);_fLpDesignRemember(before);_fLpDesignEditor(layer.id,e);_fLpRender();
+        if(!layer)return;_fLpDesignResize(layer,edge,n,n,Object.assign({},layer),false);_fLpDesignRemember(before);_fLpDesignEditor(layer.id,e);_fLpRender();
       };
       handles.appendChild(b);
     }
   }
   for(const b of handles.children){
-    const edge=b.dataset.edge,x=r.x+(edge==='left'?0:edge==='right'?r.w:r.w/2),y=r.y+(edge==='top'?0:edge==='bottom'?r.h:r.h/2);
+    const edge=b.dataset.edge,x=r.x+(edge.includes('left')?0:edge.includes('right')?r.w:r.w/2),y=r.y+(edge.includes('top')?0:edge.includes('bottom')?r.h:r.h/2);
     b.style.left=100*x/cv.width+'%';b.style.top=100*y/cv.height+'%';b.disabled=!!_fLpDesignDraft.saving;
   }
 }
-function _fLpDesignResize(l,edge,dx,dy,start){
+// `keep` = manter a proporção. Imagem e moldura mantêm por padrão no canto (foto não deforma);
+// Shift inverte, como nos editores de mercado.
+function _fLpDesignResize(l,edge,dx,dy,start,keep){
   const x=Number(start.x)||0,y=Number(start.y)||0,w=Number(start.w)||1,h=Number(start.h)||1;
-  if(edge==='left'||edge==='right'){l.w=Math.max(16,Math.round(w+(edge==='left'?-dx:dx)));if(edge==='left')l.x=x+w-l.w;}
-  else{l.h=Math.max(16,Math.round(h+(edge==='top'?-dy:dy)));if(edge==='top')l.y=y+h-l.h;}
+  const L=edge.includes('left'),R=edge.includes('right'),T=edge.includes('top'),B=edge.includes('bottom');
+  let nw=w,nh=h;
+  if(L||R)nw=Math.max(16,Math.round(w+(L?-dx:dx)));
+  if(T||B)nh=Math.max(16,Math.round(h+(T?-dy:dy)));
+  if(keep&&(L||R)&&(T||B)){const k=Math.max(nw/w,nh/h);nw=Math.max(16,Math.round(w*k));nh=Math.max(16,Math.round(h*k));}
+  l.w=nw;l.h=nh;l.x=L?x+w-nw:x;l.y=T?y+h-nh:y;
   // Point text não quebra na caixa: o gesto explícito passa a autorar um parágrafo.
-  l.textBox='box';
+  if(l.type==='text')l.textBox='box';
+}
+// Ímã do arrasto: bordas e centros da arte e das outras camadas, a 6 px de TELA.
+function _fLpDesignSnap(d,id,box,cv,off){
+  if(off)return {dx:0,dy:0,guides:[]};
+  const W=cv.width,H=cv.height,tol=6*W/Math.max(1,cv.getBoundingClientRect().width);
+  const skip=new Set([id,..._fLpDesignDesc(d.layers,id).map(x=>x.id)]);
+  const xs=[0,W/2,W],ys=[0,H/2,H];
+  for(const o of d.layers){
+    if(!o||skip.has(o.id)||o.visible===false||o.type==='group')continue;
+    const b={x:+o.x||0,y:+o.y||0,w:+o.w||0,h:+o.h||0};
+    if(b.w>=W*.98&&b.h>=H*.98)continue; // o fundo só repetiria as bordas da arte
+    xs.push(b.x,b.x+b.w/2,b.x+b.w);ys.push(b.y,b.y+b.h/2,b.y+b.h);
+  }
+  const best=(cands,edges)=>{let r=null;for(const e of edges)for(const c of cands){const delta=c-e;if(Math.abs(delta)<=tol&&(!r||Math.abs(delta)<Math.abs(r.delta)))r={delta,at:c};}return r;};
+  const bx=best(xs,[box.x,box.x+box.w/2,box.x+box.w]),by=best(ys,[box.y,box.y+box.h/2,box.y+box.h]);
+  return {dx:bx?bx.delta:0,dy:by?by.delta:0,guides:[...(bx?[{axis:'x',at:bx.at}]:[]),...(by?[{axis:'y',at:by.at}]:[])]};
 }
 let _fLpDesignDrag=null;
 function _fLpDesignPointerDown(ev){
   if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal||ev.button!==0) return;
-  const edge=ev.currentTarget?.dataset?.edge;
-  const point=_fLpArtCoords(ev),hit=edge?_lpEffectiveLayers.find(l=>l.id===_fLpDesignDraft.selected):point&&_fLpLayerAt(point.x,point.y);
+  const edge=ev.currentTarget?.dataset?.edge,d=_fLpDesignDraft;
+  const point=_fLpArtCoords(ev),hit=edge?{id:d.selected}:point&&_fLpLayerAt(point.x,point.y);
   if(!hit) return;
-  const d=_fLpDesignDraft,layer=d.layers.find(l=>l.id===hit.id);if(!layer) return;
+  const layer=d.layers.find(l=>l.id===hit.id);if(!layer) return;
   ev.preventDefault();ev.stopPropagation();
   _fLpDesignEditor(layer.id,ev);
   const cv=document.getElementById('lp-canvas');cv.focus({preventScroll:true});
   const rect=cv.getBoundingClientRect(),kx=cv.width/rect.width,ky=cv.height/rect.height;
-  const start={x:ev.clientX,y:ev.clientY,lx:Number(layer.x)||0,ly:Number(layer.y)||0,box:Object.assign({},layer),before:JSON.stringify(d.layers)};
+  const moving=[layer,..._fLpDesignDesc(d.layers,layer.id)];
+  const start={x:ev.clientX,y:ev.clientY,pos:new Map(moving.map(l=>[l.id,{x:+l.x||0,y:+l.y||0}])),box:Object.assign({},layer),gbox:_fLpDesignBox(d.layers,layer),before:JSON.stringify(d.layers)};
+  const keepDefault=layer.type==='image'||layer.type==='frame';
   let moved=false;
   const move=e=>{
     if(e.pointerId!==ev.pointerId||!_fLpDesignActive()||_fLpDesignDraft!==d) return;
     const dx=(e.clientX-start.x)*kx,dy=(e.clientY-start.y)*ky;
     if(!moved&&Math.hypot(e.clientX-start.x,e.clientY-start.y)<3) return;
     moved=true;const l=d.layers.find(x=>x.id===hit.id);if(!l) return;
-    if(edge)_fLpDesignResize(l,edge,dx,dy,start.box);
-    else{l.x=Math.round(start.lx+dx);l.y=Math.round(start.ly+dy);}
-    for(const key of ['x','y','w','h']){const input=document.getElementById('lp-design-'+key);if(input)input.value=l[key];}
+    if(edge)_fLpDesignResize(l,edge,dx,dy,start.box,keepDefault!==e.shiftKey);
+    else{
+      // Alt solta o ímã para o ajuste livre.
+      const g=start.gbox,snap=_fLpDesignSnap(d,l.id,{x:g.x+dx,y:g.y+dy,w:g.w,h:g.h},cv,e.altKey);
+      _fLpDesignGuides=snap.guides;
+      for(const x of [l,..._fLpDesignDesc(d.layers,l.id)]){const p=start.pos.get(x.id);if(p){x.x=Math.round(p.x+dx+snap.dx);x.y=Math.round(p.y+dy+snap.dy);}}
+    }
+    const b=_fLpDesignBox(d.layers,l);
+    for(const key of ['x','y','w','h']){const input=document.getElementById('lp-design-'+key);if(input)input.value=Math.round(key==='x'||key==='y'?b[key]:l[key]);}
     _fLpDesignStore(d);
     _fLpRender();
   };
   const stop=cancel=>{
     cv.removeEventListener('pointermove',move);cv.removeEventListener('pointerup',up);cv.removeEventListener('pointercancel',abort);
     try{if(cv.hasPointerCapture(ev.pointerId)) cv.releasePointerCapture(ev.pointerId);}catch(e){}
-    _fLpDesignDrag=null;
+    _fLpDesignDrag=null;const hadGuides=_fLpDesignGuides.length;_fLpDesignGuides=[];
     if(cancel&&_fLpDesignDraft===d){d.layers=JSON.parse(start.before);_fLpDesignStore(d);if(_fLpDesignActive())_fLpDesignEditor(d.selected,{});_fLpRender();}
-    else if(moved&&_fLpDesignDraft===d){_fLpDesignRemember(start.before);_lpSuppressClick=true;setTimeout(()=>{_lpSuppressClick=false;},0);}
+    else if(moved&&_fLpDesignDraft===d){_fLpDesignRemember(start.before);_lpSuppressClick=true;setTimeout(()=>{_lpSuppressClick=false;},0);if(hadGuides)_fLpDesignPaintSelection();}
   };
   const up=e=>{if(e.pointerId===ev.pointerId)stop(false);},abort=()=>stop(true);
   _fLpDesignDrag={stop};cv.setPointerCapture(ev.pointerId);
   cv.addEventListener('pointermove',move);cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',abort);
 }
 function _fLpDesignKey(ev){
-  if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal||ev.target.closest('input,textarea,select,[contenteditable="true"],#lp-design-handles')) return;
-  if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==='z'){ev.preventDefault();ev.stopPropagation();fLpDesignUndo(ev.shiftKey);return;}
+  if(!_fLpDesignActive()||_fLpDesignDraft.saving) return;
+  if(ev.target.closest&&ev.target.closest('.g-dialog,[role="dialog"],[role="alertdialog"]')) return;
+  const mod=ev.ctrlKey||ev.metaKey,k=(ev.key||'').toLowerCase();
+  // Ctrl+S publica de qualquer ponto do editor, inclusive com o cursor num campo.
+  if(mod&&k==='s'){ev.preventDefault();ev.stopPropagation();if(!_fLpDesignDraft.showOriginal)fLpDesignSave();return;}
+  if(_fLpDesignDraft.showOriginal||ev.target.closest('input,textarea,select,[contenteditable="true"],#lp-design-handles')) return;
+  if(mod&&(k==='z'||k==='y')){ev.preventDefault();ev.stopPropagation();fLpDesignUndo(k==='y'||ev.shiftKey);return;}
+  const act=mod&&k==='d'?'duplicate':(!mod&&(k==='delete'||k==='backspace'))?'delete':(!mod&&ev.key===']')?'up':(!mod&&ev.key==='[')?'down':null;
+  if(act){ev.preventDefault();ev.stopPropagation();fLpDesignLayerAct(act);return;}
   const delta={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[ev.key];
   if(!delta) return;
-  const d=_fLpDesignDraft,l=d.layers.find(x=>x.id===d.selected);if(!l) return;
+  const d=_fLpDesignDraft,l=d.layers.find(x=>x.id===d.selected);if(!l||l.locked) return;
   ev.preventDefault();ev.stopPropagation();const before=JSON.stringify(d.layers),step=ev.shiftKey?10:1;
-  l.x=(Number(l.x)||0)+delta[0]*step;l.y=(Number(l.y)||0)+delta[1]*step;
+  _fLpDesignMoveBy(d.layers,l,delta[0]*step,delta[1]*step);
   _fLpDesignRemember(before);_fLpDesignEditor(l.id,ev);document.getElementById('lp-canvas')?.focus({preventScroll:true});_fLpRender();
+}
+function _fLpDesignCanEdit(){return _fLpDesignActive()&&!_fLpDesignDraft.saving&&!_fLpDesignDraft.showOriginal;}
+// Ações de camada: lista, botões e atalhos passam todos por aqui.
+function fLpDesignLayerAct(act,id){
+  if(!_fLpDesignCanEdit())return;
+  const d=_fLpDesignDraft;id=id==null?d.selected:id;
+  const l=d.layers.find(x=>String(x.id)===String(id));if(!l)return;
+  const before=JSON.stringify(d.layers);let sel=l.id;
+  if(act==='visible'){
+    if(l.visible!==false&&_fLpDesignIsField(d.layers,l)){gToast('Esta camada mostra uma resposta do chat e precisa ficar visível.','error');return;}
+    l.visible=l.visible===false;
+  }else if(act==='lock'){
+    l.locked=!l.locked;if(!l.locked)delete l.locked;
+  }else if(act==='delete'){
+    if(_fLpDesignIsField(d.layers,l)){gToast('Esta camada mostra uma resposta do chat e não pode ser excluída.','error');return;}
+    const gone=new Set([l.id,..._fLpDesignDesc(d.layers,l.id).map(x=>x.id)]);
+    if(d.layers.some(x=>!gone.has(x.id)&&gone.has(x.clipBaseId))){gToast('Outra camada usa esta como recorte. Ajuste esse recorte no Estúdio.','error');return;}
+    const i=d.layers.indexOf(l);d.layers=d.layers.filter(x=>!gone.has(x.id));
+    const next=d.layers[Math.min(i,d.layers.length-1)];sel=next?next.id:null;
+    gToast('Camada excluída. Ctrl + Z desfaz.');
+  }else if(act==='duplicate'){
+    if(l.type==='group'){gToast('Para duplicar um grupo inteiro, use o Estúdio.');return;}
+    const c=JSON.parse(JSON.stringify(l));c.id=gUuid();c.name=_fLpDesignName(l)+' (cópia)';c.x=(+l.x||0)+24;c.y=(+l.y||0)+24;delete c.locked;
+    d.layers.splice(d.layers.indexOf(l)+1,0,c);sel=c.id;
+  }else if(act==='up'||act==='down'){
+    // Ordem só entre irmãos: o render percorre os filhos de cada grupo na ordem do array.
+    const sib=d.layers.filter(x=>(x.parentId??null)===(l.parentId??null)),i=sib.indexOf(l),j=act==='up'?i+1:i-1;
+    if(j<0||j>=sib.length)return;
+    const a=d.layers.indexOf(l),b=d.layers.indexOf(sib[j]);d.layers[a]=sib[j];d.layers[b]=l;
+  }else return;
+  _fLpDesignRemember(before);
+  if(sel!=null)_fLpDesignEditor(sel,{});else{d.selected=null;_fLpDesignEditor(null,{});}
+  _fLpRender();
+}
+function fLpDesignAlign(where){
+  if(!_fLpDesignCanEdit())return;
+  const d=_fLpDesignDraft,l=d.layers.find(x=>x.id===d.selected),cv=document.getElementById('lp-canvas');if(!l||!cv)return;
+  const b=_fLpDesignBox(d.layers,l),W=cv.width,H=cv.height,before=JSON.stringify(d.layers);
+  const dx=where==='left'?-b.x:where==='hcenter'?(W-b.w)/2-b.x:where==='right'?W-b.w-b.x:0;
+  const dy=where==='top'?-b.y:where==='vcenter'?(H-b.h)/2-b.y:where==='bottom'?H-b.h-b.y:0;
+  _fLpDesignMoveBy(d.layers,l,dx,dy);_fLpDesignRemember(before);_fLpDesignEditor(l.id,{});_fLpRender();
+}
+// Troca a imagem FIXA (logo, selo, ilustração). Sobe na hora para o Storage: guardar o
+// arquivo no rascunho estouraria o localStorage. O caminho leva UUID — nunca sobrescreve
+// a imagem de uma versão anterior.
+async function fLpDesignReplaceImage(input){
+  const file=input.files&&input.files[0];input.value='';
+  if(!file||!_fLpDesignCanEdit())return;
+  if(!/^image\/(png|jpe?g|webp|svg\+xml|gif)$/.test(file.type)){gToast('Escolha uma imagem PNG, JPG, WebP ou SVG.','error');return;}
+  if(file.size>8*1024*1024){gToast('Imagem acima de 8 MB. Reduza o arquivo e tente de novo.','error');return;}
+  if(typeof _dUploadDataUrl!=='function'){gToast('O envio de imagem não está disponível agora.','error');return;}
+  const d=_fLpDesignDraft,id=d.selected;
+  d.uploading=true;_fLpDesignSync();
+  try{
+    const dataUrl=await new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=()=>no(r.error);r.readAsDataURL(file);});
+    const url=await _dUploadDataUrl('luma-template-assets',d.remoteId+'/'+id,dataUrl);
+    if(!url)throw new Error('upload');
+    const layer=d.layers.find(x=>x.id===id);
+    if(_fLpDesignDraft!==d||!layer)return;
+    const before=JSON.stringify(d.layers);layer.imgUrl=url;_fLpDesignRemember(before);
+    gToast('Imagem trocada. Publique para levar à rede.');
+  }catch(e){gToast('Não consegui enviar a imagem. Confira a conexão e tente de novo.','error');}
+  finally{
+    d.uploading=false;_fLpDesignSync();
+    if(_fLpDesignDraft===d&&_fLpDesignActive()){_fLpDesignEditor(d.selected,{});_fLpRender();}
+  }
+}
+// Propriedades com efeito colateral. O resto grava `layer[chave]=valor` direto.
+const _LP_DESIGN_SET={
+  font:(l,v)=>{l.font=v;delete l.fontWeightOverride;},
+  lineHeight:(l,v)=>{l.lineHeight=v;delete l._entrelinha;},
+  w:(l,v)=>{l.w=v;if(l.type==='text')l.textBox='box';},
+  h:(l,v)=>{l.h=v;if(l.type==='text')l.textBox='box';},
+  x:(l,v,d)=>{l.type==='group'?_fLpDesignMoveBy(d.layers,l,v-_fLpDesignBox(d.layers,l).x,0):(l.x=v);},
+  y:(l,v,d)=>{l.type==='group'?_fLpDesignMoveBy(d.layers,l,0,v-_fLpDesignBox(d.layers,l).y):(l.y=v);},
+  // Cor sólida escolhida substitui o gradiente — senão o seletor mudaria e a arte não.
+  fill:(l,v)=>{l.fill=v;delete l.gradient;},
+  radius:(l,v)=>{l.radius=v;delete l.radii;},
+  shadowColor:(l,v)=>{l.shadowColor=_fLpDesignKeepAlpha(l.shadowColor,v);},
+  strokeColor:(l,v)=>{l.strokeColor=v;if(!(+l.strokeW>0))l.strokeW=2;}
+};
+function _fLpDesignNum(k,label,unit,min,max,step,v){
+  return `<label class="lp-design-label">${label}${unit?` <span>${unit}</span>`:''}<input id="lp-design-${k}" data-k="${k}" class="lp-edit-input" type="number" min="${min}" max="${max}" step="${step}" value="${gEsc(String(v))}"></label>`;
+}
+function _fLpDesignRange(k,label,min,max,v,unit){
+  return `<label class="lp-design-label lp-design-range">${label} <span><input data-k="${k}" class="lp-design-range-num" type="number" min="${min}" max="${max}" step="1" value="${gEsc(String(v))}" aria-label="${label}${unit?' em '+unit:''}"></span><input id="lp-design-${k}" data-k="${k}" type="range" min="${min}" max="${max}" step="1" value="${gEsc(String(v))}"></label>`;
+}
+function _fLpDesignColorField(k,label,v,swatches){
+  return `<div class="lp-design-color-field"><label class="lp-design-label">${label}<input id="lp-design-${k}" data-k="${k}" class="lp-edit-input" type="color" value="${gEsc(_fLpDesignColor(v).hex)}"></label>${swatches?`<div class="lp-design-swatches" role="group" aria-label="Cores desta arte">${swatches.map(c=>`<button type="button" class="lp-design-swatch" data-swatch="${k}" data-color="${gEsc(c)}" style="--sw:${gEsc(c)}" aria-label="Usar ${gEsc(c)}" title="${gEsc(c)}"></button>`).join('')}</div>`:''}</div>`;
+}
+function _fLpDesignToggle(k,label,on,inner){
+  return `<button type="button" class="lp-edit-btn" data-tog="${k}" aria-pressed="${!!on}" aria-label="${label}" title="${label}">${inner}</button>`;
+}
+// As cores que a arte já usa: manter a paleta da marca é mais rápido do que redigitar hex.
+function _fLpDesignPalette(layers){
+  const out=[];
+  for(const l of layers){for(const c of [l.fill,l.color,l.strokeW>0?l.strokeColor:null]){if(!c||typeof c!=='string')continue;const h=_fLpDesignColor(c).hex;if(/^#[0-9a-f]{6}$/.test(h)&&!out.includes(h))out.push(h);if(out.length>=10)return out;}}
+  return out;
+}
+function _fLpDesignLayersHTML(d){
+  const rows=[],kids=new Map();
+  for(const l of d.layers){const p=l.parentId!=null&&d.layers.some(x=>x.id===l.parentId&&x.type==='group')?l.parentId:null;if(!kids.has(p))kids.set(p,[]);kids.get(p).push(l);}
+  const walk=(parent,depth)=>{
+    for(const l of (kids.get(parent)||[]).slice().reverse()){
+      const field=_fLpDesignIsField(d.layers,l),hidden=l.visible===false,sel=l.id===d.selected,id=gEsc(String(l.id));
+      rows.push(`<li class="lp-design-layer-row${sel?' is-selected':''}${hidden?' is-hidden':''}" style="--depth:${Math.min(depth,6)}">
+        <button type="button" class="lp-design-layer-pick" data-pick="${id}" aria-current="${sel}">${_fLpDesignSvg(l.type)}<span>${gEsc(_fLpDesignName(l).slice(0,48))}</span>${field?'<em>campo</em>':''}</button>
+        <button type="button" class="lp-design-layer-ico" data-eye="${id}" aria-pressed="${!hidden}" aria-label="${hidden?'Mostrar':'Esconder'} camada" title="${field&&!hidden?'Campo do chat: sempre visível':hidden?'Mostrar':'Esconder'}"${field&&!hidden?' data-off="1" disabled':''}>${_fLpDesignSvg(hidden?'eyeOff':'eye')}</button>
+        <button type="button" class="lp-design-layer-ico" data-lock="${id}" aria-pressed="${!!l.locked}" aria-label="${l.locked?'Destravar':'Travar'} camada" title="${l.locked?'Destravar':'Travar: a arte não seleciona nem arrasta'}">${_fLpDesignSvg(l.locked?'lock':'unlock')}</button></li>`);
+      if(l.type==='group')walk(l.id,depth+1);
+    }
+  };
+  walk(null,0);
+  return rows.join('');
 }
 function _fLpDesignEditor(id,ev){
   if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal) return;
-  const l=_fLpDesignDraft.layers.find(x=>x.id===id&&x.type==='text');if(!l) return;
+  const d=_fLpDesignDraft,l=id==null?null:d.layers.find(x=>x.id===id);
+  if(id!=null&&!l) return;
   const host=document.getElementById('lp-design-properties');if(!host)return;
-  const scroll=host.scrollTop,draft=_fLpDesignDraft,folds=draft.panelFolds||{};
+  const oldList=host.querySelector('.lp-design-layers'),listScroll=oldList?oldList.scrollTop:0;
+  const scroll=host.scrollTop,folds=d.panelFolds||{};
   host.querySelectorAll('details[data-section]').forEach(el=>{folds[el.dataset.section]=el.open;});
-  draft.panelFolds=folds;
+  d.panelFolds=folds;
   if(document.activeElement?.closest('#lp-edit-pop')) document.activeElement.blur();
-  _fLpCloseEditor();_fLpHideHover();_fLpDesignDraft.selected=id;
+  _fLpCloseEditor();_fLpHideHover();d.selected=l?l.id:null;
   const p=document.createElement('div');p.id='lp-edit-pop';p.className='lp-design-pop';host.appendChild(p);
-  const texts=_fLpDesignDraft.layers.filter(x=>x.type==='text'&&x.visible!==false);
-  const label=x=>x.name||gInterpolate(x.content||'',fState.dados||{}).replace(/\{\{[^}]*\}\}/g,'').trim()||'Texto da arte';
-  const fontHTML=typeof dFontOptionsHTML==='function'?dFontOptionsHTML(l.font):`<option value="'Roboto'">Roboto</option><option value="'Roboto Black'">Roboto Black</option><option value="'Roboto',bold">Roboto Bold</option>`;
-  p.innerHTML=`<div class="lp-design-panel-head"><div><h2>Texto</h2><p>${gEsc(label(l))}</p></div>
-    <div class="lp-design-history"><button type="button" class="lp-edit-btn" id="lp-design-undo" onclick="fLpDesignUndo(false)" aria-label="Desfazer" title="Desfazer · Ctrl + Z"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m9 4-5 5 5 5M4 9h9a6 6 0 0 1 0 12"/></svg></button><button type="button" class="lp-edit-btn" id="lp-design-redo" onclick="fLpDesignUndo(true)" aria-label="Refazer" title="Refazer · Ctrl + Shift + Z"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m15 4 5 5-5 5M20 9h-9a6 6 0 0 0 0 12"/></svg></button></div></div>
-    <section class="lp-design-section" aria-label="Texto"><label class="lp-design-label" for="lp-design-layer">Texto selecionado</label><select id="lp-design-layer" class="lp-edit-input">${texts.map(x=>`<option value="${gEsc(String(x.id))}">${gEsc(label(x).slice(0,60))}</option>`).join('')}</select>
-    <label class="lp-design-label" for="lp-design-content">Conteúdo</label><textarea id="lp-design-content" class="lp-edit-input" rows="3"></textarea>
-    <p class="lp-design-hint" ${/\{\{/.test(l.content||'')?'':'hidden'}>Preserve os campos <code>{{…}}</code> para usar as respostas do chat.</p><p id="lp-design-status" class="lp-design-status" role="status" aria-live="polite"></p></section>
-    <section class="lp-design-section" aria-label="Aparência"><h3>Aparência</h3><div class="lp-design-font-row"><label class="lp-design-label">Fonte<select id="lp-design-font" class="lp-edit-input">${fontHTML}</select></label><label class="lp-design-label">Tamanho <span>px</span><input id="lp-design-size" class="lp-edit-input" type="number" min="6" max="600" step="1"></label></div>
-    <div class="lp-design-style-row"><button type="button" id="lp-design-bold" class="lp-edit-btn" aria-label="Negrito" title="Negrito">B</button><div class="lp-design-align-buttons" role="group" aria-label="Alinhamento do texto">${[['left','Esquerda','M4 6h16M4 12h10M4 18h14'],['center','Centro','M4 6h16M7 12h10M5 18h14'],['right','Direita','M4 6h16M10 12h10M6 18h14']].map(([value,text,path])=>`<button type="button" class="lp-edit-btn" data-align="${value}" aria-label="${text==='Centro'?'Centralizar':'Alinhar à '+text.toLowerCase()}" title="${text==='Centro'?'Centralizar':'Alinhar à '+text.toLowerCase()}" aria-pressed="${(l.textAlign||'left')===value}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="${path}"/></svg></button>`).join('')}</div></div>
-    <select id="lp-design-align" hidden aria-label="Alinhamento"><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select>
-    <div class="lp-design-color-row"><label class="lp-design-label">Cor<input id="lp-design-color" class="lp-edit-input" type="color"></label><label class="lp-design-label">Caixa do texto<select id="lp-design-transform" class="lp-edit-input"><option value="none">Como digitado</option><option value="uppercase">MAIÚSCULAS</option><option value="lowercase">minúsculas</option></select></label></div></section>
-    <details class="lp-design-section lp-design-details" data-section="spacing" aria-label="Espaçamento"><summary>Espaçamento</summary><div class="lp-design-spacing"><label class="lp-design-label">Entre letras <span>px</span><input id="lp-design-letter" class="lp-edit-input" type="number" min="-20" max="100" step="0.5"></label><label class="lp-design-label">Entre linhas <span>×</span><input id="lp-design-line" class="lp-edit-input" type="number" min="0.5" max="4" step="0.05"></label></div></details>
-    <details class="lp-design-section lp-design-details" data-section="geometry" aria-label="Posição e caixa"><summary>Posição e caixa</summary><div class="lp-design-props">${['x','y','w','h'].map(k=>`<label class="lp-design-label">${{x:'X',y:'Y',w:'Largura',h:'Altura'}[k]} <span>px</span><input aria-label="${{x:'Posição X',y:'Posição Y',w:'Largura',h:'Altura'}[k]}" id="lp-design-${k}" class="lp-edit-input" type="number" step="1" ${k==='w'||k==='h'?'min="1"':''}></label>`).join('')}</div></details>
-    <div class="lp-design-reset-row"><button type="button" class="lp-edit-btn" id="lp-design-reset">Restaurar este texto ao original</button></div>
-    <div class="lp-design-tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v18M3 12h18m-12-6 3-3 3 3m-6 12 3 3 3-3M6 9l-3 3 3 3m12-6 3 3-3 3"/></svg><p>Arraste na arte para mover.<br><span>Setas: 1 px · Shift + seta: 10 px</span></p></div>`;
-  const content=p.querySelector('#lp-design-content'),size=p.querySelector('#lp-design-size'),align=p.querySelector('#lp-design-align');
-  content.value=l.content||'';size.value=l.fontSize||32;align.value=l.textAlign||'left';
-  const transform=p.querySelector('#lp-design-transform');transform.value=l.textTransform||'none';
-  p.querySelectorAll('details[data-section]').forEach(el=>{el.open=!!folds[el.dataset.section];el.ontoggle=()=>{folds[el.dataset.section]=el.open;};});
-  const chooser=p.querySelector('#lp-design-layer');chooser.value=String(id);chooser.onchange=()=>{const selected=texts.find(x=>String(x.id)===chooser.value);if(selected)_fLpDesignEditor(selected.id);};
-  for(const key of ['x','y','w','h']) p.querySelector('#lp-design-'+key).value=Number(l[key])||0;
-  const font=p.querySelector('#lp-design-font'),bold=p.querySelector('#lp-design-bold'),letter=p.querySelector('#lp-design-letter'),line=p.querySelector('#lp-design-line');
-  if(!Array.from(font.options).some(o=>o.value===l.font)){const option=document.createElement('option');option.value=l.font||"'Roboto'";option.textContent=l.font||'Roboto';font.appendChild(option);}
-  font.value=l.font||"'Roboto'";letter.value=l.letterSpacing??0;line.value=typeof gLineHeightDe==='function'?gLineHeightDe(l):(l.lineHeight||1.2);
-  const weight=typeof dTextFontParts==='function'?dTextFontParts(l.font).weight:(/bold|black/i.test(l.font||'')?700:400);
-  bold.setAttribute('aria-pressed',String(Number(l.fontWeightOverride||weight)>=700));
-  bold.onclick=()=>{
-    if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal)return;
-    const d=_fLpDesignDraft,layer=d.layers.find(x=>x.id===id);if(!layer)return;
-    const snapshot=JSON.stringify(d.layers);layer.fontWeightOverride=bold.getAttribute('aria-pressed')==='true'?400:700;
-    bold.setAttribute('aria-pressed',String(layer.fontWeightOverride>=700));_fLpDesignRemember(snapshot);_fLpRender();
-  };
-  const color=p.querySelector('#lp-design-color'),colorCtx=document.createElement('canvas').getContext('2d');
-  colorCtx.fillStyle=l.color||getComputedStyle(p).getPropertyValue('--on-accent').trim();color.value=colorCtx.fillStyle;
-  let before=JSON.stringify(_fLpDesignDraft.layers),recorded=false;
-  const change=event=>{
-    if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal) return;
-    const layer=_fLpDesignDraft.layers.find(x=>x.id===id);if(!layer) return;
-    // Ler os demais inputs regravava valores antigos sobre um arrasto/undo recente.
-    const target=event?.target;
-    if(target===content)layer.content=content.value;
-    const n=Number(size.value);if(target===size&&size.value!==''&&Number.isFinite(n)&&n>=6&&n<=600) layer.fontSize=n;
-    if(target===align){layer.textAlign=align.value;p.querySelectorAll('[data-align]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.align===align.value)));}
-    if(target===transform)layer.textTransform=transform.value;
-    for(const key of ['x','y','w','h']){
-      const input=p.querySelector('#lp-design-'+key),v=Number(input.value);
-      if(target===input&&input.value!==''&&Number.isFinite(v)&&(!['w','h'].includes(key)||v>0)){
-        layer[key]=v;if(key==='w'||key==='h')layer.textBox='box';
-      }
+  const t=l&&l.type,field=l&&_fLpDesignIsField(d.layers,l),palette=_fLpDesignPalette(d.layers);
+  const original=l&&JSON.parse(d.base).find(x=>x.id===l.id);
+  const kind=l&&(l.shapeKind||l.frameShape||'rect'),rounded=l&&(t==='shape'||t==='frame'||t==='image')&&!['circle','ellipse','path','line'].includes(kind);
+  const shadowBlock=l&&t!=='group'?`<div class="lp-design-check-row">${_fLpDesignToggle('shadow','Sombra',l.shadow,'Sombra')}</div>
+      <div class="lp-design-spacing" ${l.shadow?'':'hidden'}>${_fLpDesignColorField('shadowColor','Cor da sombra',l.shadowColor||'rgba(0,0,0,.5)')}${_fLpDesignNum('shadowBlur','Desfoque','px',0,200,1,l.shadowBlur??6)}${_fLpDesignNum('shadowDist','Distância','px',0,200,1,l.shadowDist??4)}${_fLpDesignNum('shadowAngle','Ângulo','°',-360,360,5,l.shadowAngle??135)}</div>`:'';
+  let body='';
+  if(!l){
+    body=`<p class="lp-design-empty">Clique em qualquer elemento da arte ou escolha uma camada acima.</p>`;
+  }else{
+    const align=[['left','Alinhar à esquerda da arte','aLeft'],['hcenter','Centralizar na horizontal','aHc'],['right','Alinhar à direita da arte','aRight'],['top','Alinhar ao topo da arte','aTop'],['vcenter','Centralizar na vertical','aVc'],['bottom','Alinhar à base da arte','aBottom']];
+    body+=`<section class="lp-design-section" aria-label="Arranjo"><div class="lp-design-actions">
+      <button type="button" class="lp-edit-btn" data-act="duplicate" title="Duplicar · Ctrl + D"${t==='group'?' data-off="1" disabled':''}>${_fLpDesignSvg('dup')}<span>Duplicar</span></button>
+      <button type="button" class="lp-edit-btn" data-act="up" title="Trazer para frente · ]">${_fLpDesignSvg('up')}<span>Frente</span></button>
+      <button type="button" class="lp-edit-btn" data-act="down" title="Enviar para trás · [">${_fLpDesignSvg('down')}<span>Trás</span></button>
+      <button type="button" class="lp-edit-btn lp-design-danger" data-act="delete" title="${field?'Campo do chat: não pode ser excluído':'Excluir · Delete'}"${field?' data-off="1" disabled':''}>${_fLpDesignSvg('trash')}<span>Excluir</span></button></div>
+      <div class="lp-design-align-art" role="group" aria-label="Alinhar na arte">${align.map(([w,txt,ico])=>`<button type="button" class="lp-edit-btn" data-art-align="${w}" aria-label="${txt}" title="${txt}">${_fLpDesignSvg(ico)}</button>`).join('')}</div></section>`;
+    if(t==='text'){
+      const fontHTML=typeof dFontOptionsHTML==='function'?dFontOptionsHTML(l.font):`<option value="'Roboto'">Roboto</option><option value="'Roboto Black'">Roboto Black</option><option value="'Roboto',bold">Roboto Bold</option>`;
+      const weight=typeof dTextFontParts==='function'?dTextFontParts(l.font).weight:(/bold|black/i.test(l.font||'')?700:400);
+      body+=`<section class="lp-design-section" aria-label="Texto"><label class="lp-design-label" for="lp-design-content">Conteúdo</label><textarea id="lp-design-content" data-k="content" class="lp-edit-input" rows="3"></textarea>
+      <p class="lp-design-hint" ${/\{\{/.test(l.content||'')?'':'hidden'}>Preserve os campos <code>{{…}}</code> para usar as respostas do chat.</p></section>
+      <section class="lp-design-section" aria-label="Aparência"><h3>Aparência</h3><div class="lp-design-font-row"><label class="lp-design-label">Fonte<select id="lp-design-font" data-k="font" class="lp-edit-input">${fontHTML}</select></label>${_fLpDesignNum('fontSize','Tamanho','px',6,600,1,l.fontSize||32)}</div>
+      <div class="lp-design-style-row"><button type="button" id="lp-design-bold" class="lp-edit-btn" aria-label="Negrito" title="Negrito" aria-pressed="${Number(l.fontWeightOverride||weight)>=700}">B</button>${_fLpDesignToggle('italic','Itálico',l.italic,'<i>I</i>')}${_fLpDesignToggle('underline','Sublinhado',l.underline,'<u>U</u>')}${_fLpDesignToggle('strikethrough','Riscado',l.strikethrough,'<s>S</s>')}<div class="lp-design-align-buttons" role="group" aria-label="Alinhamento do texto">${[['left','Esquerda','M4 6h16M4 12h10M4 18h14'],['center','Centro','M4 6h16M7 12h10M5 18h14'],['right','Direita','M4 6h16M10 12h10M6 18h14']].map(([value,text,path])=>`<button type="button" class="lp-edit-btn" data-align="${value}" aria-label="${text==='Centro'?'Centralizar':'Alinhar à '+text.toLowerCase()}" title="${text==='Centro'?'Centralizar':'Alinhar à '+text.toLowerCase()}" aria-pressed="${(l.textAlign||'left')===value}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="${path}"/></svg></button>`).join('')}</div></div>
+      <div class="lp-design-color-row">${_fLpDesignColorField('color','Cor',l.color||'#ffffff',palette)}<label class="lp-design-label">Caixa do texto<select id="lp-design-textTransform" data-k="textTransform" class="lp-edit-input"><option value="none">Como digitado</option><option value="uppercase">MAIÚSCULAS</option><option value="lowercase">minúsculas</option></select></label></div></section>
+      <details class="lp-design-section lp-design-details" data-section="spacing" aria-label="Espaçamento"><summary>Espaçamento</summary><div class="lp-design-spacing">${_fLpDesignNum('letterSpacing','Entre letras','px',-20,100,0.5,l.letterSpacing??0)}${_fLpDesignNum('lineHeight','Entre linhas','×',0.5,4,0.05,typeof gLineHeightDe==='function'?gLineHeightDe(l):(l.lineHeight||1.2))}</div></details>
+      <details class="lp-design-section lp-design-details" data-section="effects" aria-label="Contorno, sombra e fundo"><summary>Contorno, sombra e fundo</summary>
+      <div class="lp-design-spacing">${_fLpDesignNum('strokeW','Contorno','px',0,60,0.5,l.strokeW||0)}${_fLpDesignColorField('strokeColor','Cor do contorno',l.strokeColor||'#000000')}</div>
+      ${shadowBlock}<div class="lp-design-check-row">${_fLpDesignToggle('bg','Fundo atrás do texto',l.bg,'Fundo')}</div><div class="lp-design-spacing" ${l.bg?'':'hidden'}>${_fLpDesignColorField('bgColor','Cor do fundo',l.bgColor||'#000000')}</div></details>`;
+    }else if(t==='shape'){
+      const grad=!!(l.gradient&&l.gradient.stops&&l.gradient.stops.length);
+      body+=`<section class="lp-design-section" aria-label="Preenchimento"><h3>Preenchimento</h3>${_fLpDesignColorField('fill','Cor',l.fill||'#FF9000',palette)}
+      <p class="lp-design-hint" ${grad?'':'hidden'}>Esta forma usa gradiente. Escolher uma cor sólida substitui o gradiente.</p>
+      ${rounded?`<div class="lp-design-spacing">${_fLpDesignNum('radius','Cantos','px',0,2000,1,l.radius||0)}</div>`:''}</section>
+      <details class="lp-design-section lp-design-details" data-section="effects" aria-label="Contorno e sombra"><summary>Contorno e sombra</summary>
+      <div class="lp-design-spacing">${_fLpDesignNum('strokeW','Contorno','px',0,200,0.5,l.strokeW||0)}${_fLpDesignColorField('strokeColor','Cor do contorno',l.strokeColor||'#000000')}</div>${shadowBlock}</details>`;
+    }else if(t==='image'||t==='frame'){
+      const slot=!!l.imgVar;
+      body+=`<section class="lp-design-section" aria-label="Imagem"><h3>Imagem</h3>
+      ${slot?`<p class="lp-design-hint">Espaço da foto enviada pelo franqueado (<strong>${gEsc(typeof gFieldLabel==='function'?gFieldLabel(l.imgVar):l.imgVar)}</strong>). Ajuste posição, tamanho e acabamento.</p>`
+        :`<label class="lp-edit-btn lp-design-upload">${_fLpDesignSvg('upload')}<span>${d.uploading?'Enviando imagem…':'Trocar imagem'}</span><input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif" onchange="fLpDesignReplaceImage(this)" hidden></label>`}
+      <div class="lp-design-spacing"><label class="lp-design-label">Encaixe<select id="lp-design-objectFit" data-k="objectFit" class="lp-edit-input"><option value="cover">Preencher (corta)</option><option value="contain">Caber inteira</option></select></label>${rounded?_fLpDesignNum('radius','Cantos','px',0,2000,1,l.radius||0):''}</div></section>
+      <details class="lp-design-section lp-design-details" data-section="adjust" aria-label="Ajustes de cor"><summary>Ajustes de cor</summary>
+      ${_fLpDesignRange('filterBrightness','Brilho',-100,100,l.filterBrightness||0)}${_fLpDesignRange('filterContrast','Contraste',-100,100,l.filterContrast||0)}${_fLpDesignRange('filterSaturate','Saturação',-100,100,l.filterSaturate||0)}</details>
+      <details class="lp-design-section lp-design-details" data-section="effects" aria-label="Sombra"><summary>Sombra</summary>${shadowBlock}</details>`;
+    }else if(t==='group'){
+      body+=`<p class="lp-design-empty">Mover, alinhar, esconder ou mudar a opacidade vale para o grupo inteiro. Para ajustar uma peça dele, escolha-a na lista.</p>`;
     }
-    if(event?.target===color)layer.color=color.value;
-    if(event?.target===font){layer.font=font.value;delete layer.fontWeightOverride;const fp=typeof dTextFontParts==='function'?dTextFontParts(layer.font).weight:(/bold|black/i.test(layer.font)?700:400);bold.setAttribute('aria-pressed',String(fp>=700));}
-    if(event?.target===letter&&letter.value!==''&&Number.isFinite(Number(letter.value))&&Number(letter.value)>=-20&&Number(letter.value)<=100)layer.letterSpacing=Number(letter.value);
-    if(event?.target===line&&line.value!==''&&Number.isFinite(Number(line.value))&&Number(line.value)>=0.5&&Number(line.value)<=4){layer.lineHeight=Number(line.value);delete layer._entrelinha;}
-    if(!recorded&&before!==JSON.stringify(_fLpDesignDraft.layers)){_fLpDesignRemember(before);recorded=true;}
-    _fLpDesignStore(_fLpDesignDraft);
-    _fLpRender();
-  };
-  p.querySelectorAll('[data-align]').forEach(b=>{b.onclick=()=>{
-    if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal)return;
-    before=JSON.stringify(_fLpDesignDraft.layers);recorded=false;align.value=b.dataset.align;
-    change({target:align});before=JSON.stringify(_fLpDesignDraft.layers);recorded=false;
-  };});
-  p.querySelector('#lp-design-reset').onclick=()=>{
-    if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal)return;
-    const d=_fLpDesignDraft,index=d.layers.findIndex(x=>x.id===id),original=JSON.parse(d.base).find(x=>x.id===id);
-    if(index<0||!original)return;
-    const snapshot=JSON.stringify(d.layers);
-    d.layers[index]=JSON.parse(JSON.stringify(original));_fLpDesignRemember(snapshot);
-    _fLpDesignEditor(id,{});_fLpRender();
-  };
-  p.querySelectorAll('input,textarea,select:not(#lp-design-layer)').forEach(input=>{
-    input.onfocus=()=>{if(_fLpDesignActive()){before=JSON.stringify(_fLpDesignDraft.layers);recorded=false;}};
-    input.oninput=change;input.onchange=event=>{if(!_fLpDesignActive()||_fLpDesignDraft.saving)return;change(event);before=JSON.stringify(_fLpDesignDraft.layers);recorded=false;};
-  });
+    const rotatable=t==='text'||(t==='shape'&&kind==='line');
+    body+=`<section class="lp-design-section" aria-label="Camada"><h3>Camada</h3>${_fLpDesignRange('opacity','Opacidade',0,100,l.opacity??100,'%')}
+      ${rotatable?`<div class="lp-design-spacing">${_fLpDesignNum('rotation','Rotação','°',-360,360,1,l.rotation||0)}</div>`:''}</section>
+      <details class="lp-design-section lp-design-details" data-section="geometry" aria-label="Posição e caixa"><summary>Posição e caixa</summary><div class="lp-design-props">${(t==='group'?['x','y']:['x','y','w','h']).map(k=>`<label class="lp-design-label">${{x:'X',y:'Y',w:'Largura',h:'Altura'}[k]} <span>px</span><input aria-label="${{x:'Posição X',y:'Posição Y',w:'Largura',h:'Altura'}[k]}" id="lp-design-${k}" data-k="${k}" class="lp-edit-input" type="number" step="1" ${k==='w'||k==='h'?'min="1"':''} value="${Math.round(_fLpDesignBox(d.layers,l)[k])}"></label>`).join('')}</div></details>
+      ${original?`<div class="lp-design-reset-row"><button type="button" class="lp-edit-btn" id="lp-design-reset">Restaurar esta camada ao original</button></div>`:''}`;
+  }
+  const n=d.layers.length;
+  p.innerHTML=`<div class="lp-design-panel-head"><div><h2>${l?gEsc(_LP_DESIGN_TIPO[t]||'Camada'):'Nenhuma seleção'}</h2><p>${l?gEsc(_fLpDesignName(l)):'Escolha um elemento'}</p></div>
+    <div class="lp-design-history"><button type="button" class="lp-edit-btn" id="lp-design-undo" onclick="fLpDesignUndo(false)" aria-label="Desfazer" title="Desfazer · Ctrl + Z"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m9 4-5 5 5 5M4 9h9a6 6 0 0 1 0 12"/></svg></button><button type="button" class="lp-edit-btn" id="lp-design-redo" onclick="fLpDesignUndo(true)" aria-label="Refazer" title="Refazer · Ctrl + Shift + Z"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m15 4 5 5-5 5M20 9h-9a6 6 0 0 0 0 12"/></svg></button></div></div>
+    <details class="lp-design-section lp-design-details" data-section="layers" aria-label="Camadas"><summary>Camadas <span class="lp-design-count">${n}</span></summary><ul class="lp-design-layers">${_fLpDesignLayersHTML(d)}</ul></details>
+    ${body}
+    <div class="lp-design-tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v18M3 12h18m-12-6 3-3 3 3m-6 12 3 3 3-3M6 9l-3 3 3 3m12-6 3 3-3 3"/></svg><p>Arraste na arte para mover · Alt solta o ímã.<br><span>Setas: 1 px · Shift: 10 px · Ctrl + D duplica · Delete exclui · Ctrl + S publica</span></p></div>`;
+  // Lista de camadas aberta por padrão: é o mapa da arte.
+  p.querySelectorAll('details[data-section]').forEach(el=>{el.open=folds[el.dataset.section]??(el.dataset.section==='layers');el.ontoggle=()=>{folds[el.dataset.section]=el.open;};});
+  const list=p.querySelector('.lp-design-layers');if(list)list.scrollTop=listScroll;
+  p.querySelectorAll('[data-pick]').forEach(b=>{b.onclick=()=>{const x=d.layers.find(y=>String(y.id)===b.dataset.pick);if(x)_fLpDesignEditor(x.id,{});_fLpRender();};});
+  p.querySelectorAll('[data-eye]').forEach(b=>{b.onclick=()=>fLpDesignLayerAct('visible',b.dataset.eye);});
+  p.querySelectorAll('[data-lock]').forEach(b=>{b.onclick=()=>fLpDesignLayerAct('lock',b.dataset.lock);});
+  p.querySelectorAll('[data-act]').forEach(b=>{b.onclick=()=>fLpDesignLayerAct(b.dataset.act);});
+  p.querySelectorAll('[data-art-align]').forEach(b=>{b.onclick=()=>fLpDesignAlign(b.dataset.artAlign);});
+  if(l){
+    const content=p.querySelector('#lp-design-content');if(content)content.value=l.content||'';
+    for(const [k,v] of [['textTransform',l.textTransform||'none'],['objectFit',l.objectFit||'cover']]){const s=p.querySelector('#lp-design-'+k);if(s)s.value=v;}
+    const font=p.querySelector('#lp-design-font');
+    if(font){if(!Array.from(font.options).some(o=>o.value===l.font)){const option=document.createElement('option');option.value=l.font||"'Roboto'";option.textContent=l.font||'Roboto';font.appendChild(option);}font.value=l.font||"'Roboto'";}
+    const bold=p.querySelector('#lp-design-bold');
+    const press=fn=>()=>{if(!_fLpDesignCanEdit())return;const layer=d.layers.find(x=>x.id===l.id);if(!layer)return;const snapshot=JSON.stringify(d.layers);fn(layer);_fLpDesignRemember(snapshot);_fLpDesignEditor(layer.id,{});_fLpRender();};
+    if(bold)bold.onclick=press(layer=>{layer.fontWeightOverride=bold.getAttribute('aria-pressed')==='true'?400:700;});
+    p.querySelectorAll('[data-tog]').forEach(b=>{b.onclick=press(layer=>{
+      const k=b.dataset.tog;layer[k]=!layer[k];
+      // Sombra nova nasce com valores explícitos: o painel mostra exatamente o que o render desenha.
+      if(k==='shadow'&&layer.shadow&&layer.shadowBlur==null&&layer.shadowDist==null&&layer.shadowAngle==null)Object.assign(layer,{shadowBlur:6,shadowDist:4,shadowAngle:135,shadowColor:layer.shadowColor||'rgba(0,0,0,.5)'});
+      if(!layer[k]&&!(original&&k in original))delete layer[k];
+    });});
+    p.querySelectorAll('[data-align]').forEach(b=>{b.onclick=press(layer=>{layer.textAlign=b.dataset.align;});});
+    p.querySelectorAll('[data-swatch]').forEach(b=>{b.onclick=press(layer=>{const k=b.dataset.swatch,set=_LP_DESIGN_SET[k];set?set(layer,b.dataset.color,d):(layer[k]=b.dataset.color);});});
+    const reset=p.querySelector('#lp-design-reset');
+    if(reset)reset.onclick=press(layer=>{const i=d.layers.indexOf(layer);d.layers[i]=JSON.parse(JSON.stringify(original));});
+    let before=JSON.stringify(d.layers),recorded=false;
+    const change=event=>{
+      if(!_fLpDesignCanEdit()) return;
+      const layer=d.layers.find(x=>x.id===l.id),target=event.target,k=target.dataset.k;if(!layer||!k) return;
+      // Só a propriedade do controle tocado: reler os demais regravava valores antigos sobre um arrasto/undo recente.
+      let v=target.value;
+      if(target.type==='number'||target.type==='range'){
+        if(v==='')return;v=Number(v);
+        if(!Number.isFinite(v)||(target.min!==''&&v<+target.min)||(target.max!==''&&v>+target.max))return;
+        if((k==='w'||k==='h')&&v<=0)return;
+      }
+      const set=_LP_DESIGN_SET[k];set?set(layer,v,d):(layer[k]=v);
+      // Faixa e número da mesma propriedade andam juntos.
+      p.querySelectorAll(`[data-k="${k}"]`).forEach(o=>{if(o!==target)o.value=target.value;});
+      if(k==='strokeColor'){const sw=p.querySelector('#lp-design-strokeW');if(sw)sw.value=layer.strokeW;}
+      if(!recorded&&before!==JSON.stringify(d.layers)){_fLpDesignRemember(before);recorded=true;}
+      _fLpDesignStore(d);_fLpDesignSync();
+      _fLpRender();
+    };
+    p.querySelectorAll('[data-k]').forEach(input=>{
+      input.onfocus=()=>{if(_fLpDesignActive()){before=JSON.stringify(d.layers);recorded=false;}};
+      input.oninput=change;input.onchange=event=>{if(!_fLpDesignCanEdit())return;change(event);before=JSON.stringify(d.layers);recorded=false;};
+    });
+  }
   _fLpDesignSync();_fLpDesignPaintSelection();
   // Reabrir o painel durante undo/arrasto não deve saltar para o início das propriedades.
-  if(!ev)content.focus({preventScroll:true});
+  if(!ev)p.querySelector('#lp-design-content')?.focus({preventScroll:true});
   host.scrollTop=scroll;
 }
+// Sair: sem alterações, sai direto; com alterações, nunca descarta em silêncio.
+async function fLpDesignExit(){
+  if(!_fLpDesignActive()||_fLpDesignDraft.saving)return;
+  const d=_fLpDesignDraft,n=_fLpDesignChanges(d);
+  if(!n){fLpDesignCancel();return;}
+  const r=await gConfirm(`Há ${n} ${n>1?'camadas alteradas':'camada alterada'} sem publicar.`,{title:'Sair do mini editor',okLabel:'Publicar e sair',altLabel:'Descartar alterações',cancelLabel:'Continuar editando'});
+  if(_fLpDesignDraft!==d)return;
+  if(r==='alt')fLpDesignCancel();
+  else if(r===true&&await fLpDesignSave()&&_fLpDesignDraft===d&&!_fLpDesignChanges(d))fLpDesignCancel();
+}
 async function fLpDesignSave(){
-  if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal) return false;
+  if(!_fLpDesignActive()||_fLpDesignDraft.saving||_fLpDesignDraft.showOriginal||_fLpDesignDraft.uploading) return false;
   const draft=_fLpDesignDraft;
   _fLpDesignStore(draft);
-  if(JSON.stringify(draft.layers)===draft.base){gToast('Nenhum ajuste para publicar.');return false;}
-  const original=JSON.parse(draft.base);
-  // Nunca grava nome/preço preenchido como texto fixo, nem remove a ligação com o chat.
-  const vars=l=>Array.from(String(l.content||'').matchAll(gVarRegex()),m=>m[1]+':'+(m[2]||'')).sort().join('|');
-  if(draft.layers.some(l=>vars(l)!==vars(original.find(x=>x.id===l.id)||{}))){
-    gToast('Mantenha os campos {{…}} originais do texto para preservar o chat.','error');return false;
-  }
+  if(!_fLpDesignChanges(draft)){gToast('Nenhum ajuste para publicar.');return false;}
+  // Nunca grava nome/preço preenchido como texto fixo, nem remove a ligação com o chat:
+  // toda camada original com campo continua lá, com os mesmos campos; cópia só repete campo que já existe.
+  const fieldsOk=base=>{
+    const known=new Set(base.flatMap(l=>_fLpDesignVarsOf(l).split('|').filter(Boolean)));
+    return base.every(o=>!_fLpDesignVarsOf(o)||_fLpDesignVarsOf(draft.layers.find(x=>x.id===o.id))===_fLpDesignVarsOf(o))
+      &&draft.layers.every(l=>{const o=base.find(x=>x.id===l.id);return o?_fLpDesignVarsOf(l)===_fLpDesignVarsOf(o):_fLpDesignVarsOf(l).split('|').filter(Boolean).every(v=>known.has(v));});
+  };
+  if(!fieldsOk(JSON.parse(draft.base))){gToast('Mantenha os campos {{…}} e as fotos do chat nas camadas originais.','error');return false;}
   if((typeof _dPushBusy!=='undefined'&&_dPushBusy)||(typeof _dFoldersPushTimer!=='undefined'&&_dFoldersPushTimer)){
     gToast('Aguarde a sincronização do Estúdio e tente salvar novamente.','error');return false;
   }
   const sb=typeof gSupabase==='function'?gSupabase():window.sb;
   if(!sb){gToast('Sem conexão. Seus ajustes continuam nesta prévia.','error');return false;}
-  draft.saving=true;_fLpCloseEditor();_fLpDesignSync();
+  draft.saving=true;_fLpDesignSync();
+  const sent=JSON.stringify(draft.layers);
+  // UPDATE de uma única peça + comparação atômica: não sobrescreve outro designer.
+  // O gatilho existente cria template_versions e mantém artes anteriores na versão delas.
+  const push=stamp=>sb.schema('luma').from('templates').update({layers:JSON.parse(sent)})
+    .eq('id',draft.remoteId).eq('updated_at',stamp).eq('publicado',true).select('id,updated_at,versao_atual_id');
   try{
-    // UPDATE de uma única peça + comparação atômica: não sobrescreve outro designer.
-    // O gatilho existente cria template_versions e mantém artes anteriores na versão delas.
-    const {data,error}=await sb.schema('luma').from('templates').update({layers:draft.layers})
-      .eq('id',draft.remoteId).eq('updated_at',draft.stamp).eq('publicado',true)
-      .select('id,updated_at,versao_atual_id');
+    let {data,error}=await push(draft.stamp);
     if(error) throw new Error('Não foi possível publicar. Seus ajustes continuam na prévia; tente novamente.');
-    if(!data?.length) throw new Error('O material mudou ou sua permissão foi alterada. Seus ajustes foram preservados; reabra pelo catálogo para conferir a versão atual.');
-    _fLpDesignForget(draft);
-    if(_fLpDesignOwner()!==draft.owner)return true;
-    _fLpDesignAdotarVersao(draft.remoteId,draft.id,{layers:JSON.parse(JSON.stringify(draft.layers)),_remoteUpdatedAt:data[0].updated_at,versaoAtualId:data[0].versao_atual_id,_needsLayersFetch:false});
-    if(_fLpDesignDraft===draft) _fLpDesignDraft=null;
-    _fLpDesignSync();_fLpRender();_fLpRetomarConclusao();gToast('Nova versão publicada para a rede.');
+    if(!data?.length){
+      // Carimbo velho. Se o conteúdo no banco é o MESMO de onde partimos (só o updated_at
+      // andou), não há o que perder: publica de novo sobre o carimbo atual sem incomodar ninguém.
+      const cur=await sb.schema('luma').from('templates').select('layers,updated_at,publicado').eq('id',draft.remoteId).single();
+      if(cur.error||!cur.data?.publicado)throw new Error('O material mudou ou sua permissão foi alterada. Seus ajustes foram preservados; reabra pelo catálogo para conferir a versão atual.');
+      if(JSON.stringify(cur.data.layers)!==draft.base){
+        draft.saving=false;_fLpDesignSync();
+        const ok=await gConfirm('Outra pessoa publicou uma versão deste material enquanto você editava. Publicar a sua substitui a dela por inteiro.',{title:'Material atualizado',okLabel:'Publicar a minha versão',cancelLabel:'Manter meu rascunho',danger:true});
+        if(!ok||_fLpDesignDraft!==draft||!_fLpDesignActive())return false;
+        if(!fieldsOk(cur.data.layers)){gToast('A versão nova mudou os campos do chat. Reabra pelo catálogo para editar a partir dela.','error');return false;}
+        draft.saving=true;_fLpDesignSync();
+      }
+      ({data,error}=await push(cur.data.updated_at));
+      if(error||!data?.length)throw new Error('O material mudou de novo durante a publicação. Seus ajustes foram preservados; tente outra vez.');
+    }
+    if(_fLpDesignOwner()!==draft.owner){_fLpDesignForget(draft);return true;}
+    _fLpDesignAdotarVersao(draft.remoteId,draft.id,{layers:JSON.parse(sent),_remoteUpdatedAt:data[0].updated_at,versaoAtualId:data[0].versao_atual_id,_needsLayersFetch:false});
+    // Publicar não fecha o editor: a versão publicada vira a nova base e o trabalho continua.
+    // O histórico de desfazer fica — desfazer depois de publicar só gera um novo rascunho.
+    draft.base=sent;draft.stamp=data[0].updated_at;draft.publishedAt=new Date();
+    _fLpDesignStore(draft);
+    gToast('Nova versão publicada para a rede.');
     // O Estúdio permanece em memória ao trocar de área. Atualiza pelo carregador único,
     // senão voltar e salvar ali republicaria as camadas anteriores por cima deste ajuste.
     if(typeof dActiveTmplId!=='undefined'&&dActiveTmplId===draft.id
@@ -4324,8 +4644,7 @@ async function fLpDesignSave(){
   }catch(e){gToast(e.message,'error');return false;}
   finally{
     draft.saving=false;_fLpDesignSync();
-    // Falha mantém a edição aberta, inclusive o painel de propriedades fechado no envio.
-    if(_fLpDesignDraft===draft&&_fLpDesignActive()&&draft.selected)_fLpDesignEditor(draft.selected,{});
+    if(_fLpDesignDraft===draft&&_fLpDesignActive()){_fLpDesignEditor(draft.selected,{});_fLpRender();}
   }
 }
 
