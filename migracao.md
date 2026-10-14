@@ -54,9 +54,7 @@ que ainda segura os secrets (2.2.1).
 
 ### 2.3 Três coisas suas, sem ordem — ⬜ Você
 
-1. ⬜ **Expor o schema `luma`** no novo (30 segundos, e destrava o teste): Dashboard do novo → **Project
-   Settings → Data API → Exposed schemas** → acrescente `luma` (fica `public, graphql_public, luma`). Salvar.
-   Sem isso o app abre e morre no catálogo (`PGRST106`).
+1. ✅ **Schema `luma` exposto** no novo (14/10, 16h15; conferido pela API como o seu usuário).
 2. ⬜ **Token de acesso pessoal** da conta nova: https://supabase.com/dashboard/account/tokens → Generate new
    token, nome `migracao-luma` → cole no `.env` numa linha nova `SUPABASE_ACCESS_TOKEN=sbp_...`. Com ele eu
    copio a configuração de Auth (URLs, senha mínima, e-mails) e, se a conta vir o antigo, os secrets. Fica
@@ -104,9 +102,11 @@ Settings (limite global ≥ 15 MB); Edge Functions → Secrets (`GEMINI_API_KEY`
 1. ✅ **Eu** — servidor local no ar: **http://localhost:8080** (`node migracao/servir.js`). Ele serve o
    repositório e, só nessa porta, troca o `supabase-config.js` pela cópia que aponta para o novo. O arquivo
    versionado não muda. Caiu? Me avise que eu subo de novo.
-2. ⬜ **Você** — **depois do 2.3.1** (expor o `luma`), abre o link e passa por: login com o seu usuário
-   (mesma senha de sempre) · catálogo abre · gera e baixa uma arte · IA numa legenda (só funciona depois
-   dos secrets) · Estúdio publica um material de teste e exclui · suporte abre. Me diz o que falhou.
+2. ✅ **Você** — 14/10, 16h28: login com a senha de sempre, catálogo, **2 artes geradas com foto** (2 uploads
+   em `luma-user-uploads`) e **1 feedback de campanha**, tudo gravado no projeto **novo** e nada no antigo.
+   Conferido no banco dos dois.
+   ⬜ Falta passar por: **Estúdio** (publicar um material de teste e excluir) e **suporte** (abrir a
+   conversa). A IA (legenda, encurtar) só depois dos secrets.
 3. O que você publicar de teste no novo some sozinho na virada (o banco do novo é zerado e refeito).
 
 ---
