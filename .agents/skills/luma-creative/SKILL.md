@@ -3,7 +3,7 @@ name: luma-creative
 description: "Diretriz definitiva para geração e composição de templates de arte da Delivery Much no Luma. Use SEMPRE que for solicitado para criar, diagramar, sugerir ou compor novas artes, templates de feed (1080x1350), stories (1080x1920) ou variações criativas para o catálogo. Aplica o princípio de Design Atômico Estrito: NUNCA desenha vetores do zero, apenas orquestra ativos e blocos oficiais das bibliotecas sob regras rígidas de grid, contraste WCAG, hierarquia de 4 níveis de tipografia, tamanhos mínimos legíveis no celular e auditoria visual obrigatória do print. Responda e escreva a copy sempre em PT-BR."
 metadata:
   author: luma-design-team
-  version: "1.2.0"
+  version: "1.3.0"
 ---
 
 # Luma Creative — Diretriz de Composição de Artes e Templates
@@ -17,7 +17,7 @@ metadata:
 
 A consistência de marca da Delivery Much em mais de 100 cidades depende de **previsibilidade absoluta**:
 1. **Ativos Fechados:** Logos, selos, molduras e grafismos vêm **exclusivamente** da biblioteca oficial da skill.
-2. **SVG Autônomo e Paramétrico:** Todo SVG gerado deve embutir a fonte oficial e os logos em base64, garantindo renderização idêntica em qualquer sistema, além de conter as tags do Luma (`{{produto}}`, `{{preco}}`, `foto_produto`).
+2. **SVG Autônomo e Paramétrico:** Todo SVG publicado embute fontes e logos em base64 (renderização idêntica em qualquer sistema) e contém as tags do Luma (`{{produto}}`, `{{preco}}`, `foto_produto`). **Escreva a arte legível**, apontando os arquivos como `asset:<caminho em assets/>` (ex.: `href="asset:logos/dm-h-branca.png"`, `url('asset:fontes/Roboto-Black.woff2')`), guarde essa fonte em `assets/templates/refino/fontes/` e feche com `node scripts/embutir-arte.js <fonte.svg> <saida.svg>`. Nunca cole base64 à mão.
 3. **Consistência acima de Invenção:** Menos é mais. O design da DM é limpo, assertivo, solar e funcional (Retail Moderno).
 
 ---
@@ -29,11 +29,12 @@ O Luma utiliza uma escala disciplinada de 4 níveis. O peso `Bold (700)` foi **e
 | Nível | Família & Peso | Função no Design | Exemplos Obrigatórios |
 | :--- | :--- | :--- | :--- |
 | **1. Impacto / Hero** | **`Realce Black` (900)** | A voz expressiva e proprietária da Delivery Much | Título principal (`{{produto}}`), Preço promocional (`R$ 22,90`), Destaques centrais de selos (*"VENDIDOS"*, *"25% OFF"*). |
-| **2. Apoio & Âncoras** | **`Roboto Medium` (500)** | Leitura técnica, limpa e sofisticada | Subtítulos (`DETALHES`), Preço anterior riscado (*R$ 28,00*), código de cupom (`NIVERDM`), labels com tracking expandido (`letter-spacing: 1px`). |
+| **2. Apoio & Âncoras** | **`Roboto Medium` (500)** ou Regular (400) com tracking | Leitura técnica, limpa e sofisticada | Subtítulos (`DETALHES`), Preço anterior riscado (*R$ 28,00*), código de cupom (`NIVERDM`), labels com tracking expandido (`letter-spacing: 1px`). |
 | **3. Corpo & Instrução** | **`Roboto Regular` (400)** | Clareza e funcionalidade | Descrição do produto, texto guia do slot (*"Use aqui sua foto do produto"*). |
 | **4. Legal & Respiro** | **`Roboto Light` (300)** | Discrição e elegância máxima | Disclaimers em rodapé (*"Consulte os restaurantes participantes"*, regras de cupom). |
 
-> ⚠️ **Embutimento Obrigatório:** Todo SVG gerado deve conter a fonte `Realce Black` (`realce-black.woff2`) **e cada peso de Roboto realmente usado** (300 / 400 / 500) embutidos em base64 no `<style>` via `@font-face`. **Proibido `@import` de Google Fonts**: dentro de SVG renderizado como imagem ou offline ele não carrega e o texto cai em Arial (já aconteceu nos prints dos templates 01–10). Arquivos em `assets/fontes/`.
+> ⚠️ **Embutimento Obrigatório:** Todo SVG gerado deve conter a fonte `Realce Black` (`realce-black.woff2`) **e cada peso de Roboto realmente usado** embutidos via `@font-face` (o `embutir-arte.js` faz isso a partir de `asset:`). **Proibido `@import` de Google Fonts**: dentro de SVG renderizado como imagem ou offline ele não carrega e o texto cai em Arial (já aconteceu nos prints dos templates 01–10). Use os **`.woff2` de `assets/fontes/`** (recortados para o latim do PT-BR, ~14 KB cada): `Roboto-Light`, `Roboto-LightItalic`, `Roboto-Regular`, `Roboto-Medium`, `Roboto-Black`. Os `.ttf` antigos (170 KB) deixam a arte 6× mais pesada. Declare a itálica com `font-style:italic` e a Black com `font-weight:900`.
+> Um `Roboto Black (900)` existe **só para as receitas da §2.4**; ele não é o Bold 700 eliminado (continua proibido).
 
 ### 📏 Tamanhos Mínimos (canvas de 1080px de largura — o post é visto no celular)
 > Texto pequeno é o erro nº 1 das artes geradas. Na tela do celular a arte encolhe ~3×: o que tem 14px no canvas vira ilegível.
@@ -70,8 +71,13 @@ O Luma utiliza uma escala disciplinada de 4 níveis. O peso `Bold (700)` foi **e
 * **Quebra por sentido**, nunca no meio de uma expressão ("PIZZA EM / DOBRO" ✖ → "PIZZA / EM DOBRO" ✔).
 * **Preço (lockup fixo, a especialidade da marca):** `DE R$ 28,00` → `POR` → **`R$ 22,90`**.
   * **`DE`:** Roboto 400 **≥ 40px**, **branco 100%** (ou `#434343` sobre card branco), **risco de 4px** na altura do meio das letras. Pequeno ou fino demais some no celular.
-  * **`POR`:** Roboto 400, 34–38px, `letter-spacing` 1.2px, **na mesma linha de base do valor** (à esquerda dele) ou logo acima.
-  * **Valor:** Realce **≥ 96px** (alvo 120–170); "R$" e centavos no mesmo tamanho do número. É o 2º maior elemento da peça, depois do hero.
+  * **`POR`:** Roboto 400, 34–38px, `letter-spacing` 1.2px, **empilhado logo acima do "R$"** (card largo) ou **na altura do "R$" suspenso**, à esquerda dele (card de lista). Nunca solto na linha de base, longe do valor.
+  * **Valor = assinatura da marca:** número em Realce **≥ 96px** (alvo 120–170); **"R$", vírgula e centavos a 55% do número e suspensos 35%** (como `R$22,90` das referências). É a mesma proporção que o Luma desenha em `{{preco:inteiro}}`/`{{preco:centavos}}` (`gBuildVirtualRuns`, `js/00-config.js`), então a arte bate com o app. Para número de 168px:
+    ```svg
+    <text x="146" y="1134" class="hero" font-size="168" fill="#F85400"><tspan font-size="92" dy="-59">R$</tspan><tspan dy="59" dx="6">22</tspan><tspan font-size="92" dy="-59">,90</tspan></text>
+    ```
+    (`font-size` dos pequenos = 0,55 × N; `dy` = ∓0,35 × N). O `lint-art.js` avisa preço com centavos no tamanho do número. É o 2º maior elemento da peça, depois do hero.
+  * **Desconto confere com a conta:** o `%` do selo é `(DE − POR) ÷ DE`, arredondado para baixo. Selo "25% OFF" em DE 28,00 → POR 22,90 (18%) é peça mentindo.
   * **Selo de desconto preso ao preço ou ao título:** o selo amarelo (`25% OFF`, `-22%`) fica **colado ao lockup do preço ou ao hero** (≤ 200px), nunca solto no meio da arte. O `lint-art.js` avisa ("Selo solto").
   * O lockup é **uma unidade**: os vãos internos (24–48px) não seguem a regra de 60px entre blocos.
 
@@ -84,6 +90,12 @@ O Luma utiliza uma escala disciplinada de 4 níveis. O peso `Bold (700)` foi **e
 | **Linha/divisória** | `stroke #434343` com `opacity 0.25`, `stroke-width 3` |
 
 * **Um eixo de alinhamento por peça:** todos os textos soltos à **esquerda (x=100)** ou todos **centralizados (x=540)**. Misturar os dois é o erro mais comum de "arte amadora". Textos dentro de um card seguem o eixo do card.
+* **Sobreposição intencional (é o que dá coesão às referências):** blocos soltos a 60px uns dos outros parecem template de sistema; nas artes oficiais, peças se **prendem à borda da foto**. Lista fechada do que pode sobrepor o slot de foto:
+  1. **Card de preço** invadindo a borda inferior ou lateral da foto: marque o grupo com `data-sobrepoe="foto"`. Limite: **≤ 25% da área da foto** e **nunca o miolo** (o terço central, onde está o sujeito). O lint mede os dois.
+  2. **Selo** na quina da foto (já permitido; ≤ 35% da largura da foto).
+  3. **Logo da loja** (círculo) metade sobre a borda da foto.
+  * **Uma camada por vez:** cada bloco sobrepõe só a foto. Selo em cima da foto **e** do card ao mesmo tempo empilha três camadas e vira bagunça (apontado na revisão de 10/2026).
+  * Fora dessa lista, a regra de respiro (60px+) continua valendo.
 * **Uma inclinação por peça (opcional):** no máximo **um** elemento (selo, ticket de cupom ou tag) com `rotate` entre **-6° e -10°** para dar energia. Nunca o hero, o preço, texto corrido ou a foto.
 * **Ritmo:** repita os mesmos vãos entre blocos equivalentes (se hero→foto é 80, foto→card também é 80).
 
@@ -93,6 +105,24 @@ O Luma utiliza uma escala disciplinada de 4 níveis. O peso `Bold (700)` foi **e
 * **Hero ≤ 4 palavras**, apoio ≤ 1 frase (~38 caracteres/linha), legal ≤ 2 linhas.
 * **CTA em imperativo curto**: `PEDIR`, `PEDIR AGORA`, `APROVEITAR`. Sem emoji. Valores sempre `R$ 22,90` (vírgula).
 * **Não invente preço, regra, prazo ou condição** do franqueado: se a peça precisa e o briefing não deu, **pergunte** (negócio não se assume). Texto de exemplo nas artes-modelo usa valores fictícios claros.
+* **Copy não se contradiz:** "ENTRADA FRANCA" (evento presencial) + "peça pelo app" (delivery) na mesma peça confunde. Uma mensagem só (Fase 1).
+
+### 🎚️ 2.4 Receitas Tipográficas (contraste de peso e caixa — o que tira a arte do "template")
+
+Hero sempre em Realce maiúsculo deixa as peças iguais. As referências da marca **misturam peso e caixa**; isso entra por **receitas fechadas**, não por mistura livre. **No máximo uma receita expressiva por peça**; o resto segue a escala da §2.
+
+| Receita | Como é | Quando usar | Exemplo |
+| :--- | :--- | :--- | :--- |
+| **A. Frase mista** | Mesma linha, mesmo tamanho (64–80px): trecho de conversa em **Roboto Light Itálica (300i)** + palavra-chave em **Roboto Black (900)**. Minúsculas. | Chamada de conversa acima do valor: cupom, convite, benefício. | *pega este* **cupom** / *pra você* **economizar!** (`refino_02`) |
+| **B. Minúscula + vazado** | Palavra 1 em **Roboto Black minúscula** (200–260px, `letter-spacing` −1 a −3); palavra 2 em **Realce maiúsculo vazado**: `fill="none" stroke="#FFFFFF" stroke-width="5–8"`, ≥ 140px (alvo 300–380), na largura útil. | Benefício de 2 palavras que é o ponto focal: frete, novidade. | **entrega** / GRÁTIS vazado (`refino_04`) |
+| **C. Lockup de valor** | Número gigante em Realce (300–380px) + `R$` ou `%` a ~36% do número alinhado ao topo + coluna à direita: `OFF` (Realce) sobre o complemento em **Roboto Black** maiúsculo (44–56px, 2 linhas). | Cupom/desconto em que o valor é o ponto focal. | R$ **15** OFF / NO SEU PEDIDO (`refino_02`) |
+| **D. Rótulo de produto** | Nome do produto em **Realce maiúsculo #434343** (40–48px) dentro do card branco, acima do preço riscado. | Cards de lista e card de preço com nome. | BURGER CLÁSSICO (`refino_10`) |
+
+* A receita C e o rótulo D convivem com A ou B (são lockups de informação, não de expressão). A + B na mesma peça, não.
+* **Itálico só na Light 300** (nunca Black itálica, nunca Realce itálica): o `lint-art.js` dá ERRO. Itálico nunca em preço, código de cupom nem texto legal.
+* **Vazado:** uma palavra por peça, ≥ 140px, sempre branco sobre `#F85400`/`#FF9000`; nunca em preço, nunca sobre foto ou pattern (o contorno some). O lint avisa abaixo de 140px e mais de um vazado.
+* **Minúscula** é voz de conversa da marca: Black minúscula ou Light Itálica. O Realce continua maiúsculo.
+* **Medir antes de compor:** a largura de cada trecho sai do navegador (mesma técnica do `medir-texto.js`), não do olho. Na receita B, cada palavra ocupa a largura útil (~870px).
 
 
 ---
@@ -156,7 +186,7 @@ O pattern é o **sorriso da DM repetido**: textura de marca, nunca protagonista 
 Use **somente se as 4 condições forem verdadeiras**:
 1. Existe um **bloco-âncora** gráfico grande: foto/moldura, ticket de cupom, logo de parceiro em círculo ou selo grande (≥ 30% da largura do canvas).
 2. O texto (hero, apoio, preço, CTA, logo DM, legal) fica em **zona separada** do âncora.
-3. Sobra **ar ao redor do âncora**: o script do passo 3 encontra **pelo menos 3 sorrisos inteiros** fora de qualquer texto.
+3. Sobra **ar ao redor do âncora**: o script do passo 3 encontra **pelo menos 2 sorrisos inteiros** (com metade ou mais da forma dentro do canvas) fora de qualquer texto.
 4. A peça **não é dominada por texto** (hero 2+ linhas + preço + card + muito apoio) nem tem foto cobrindo mais de ~60% do canvas.
 
 Qualquer condição falsa → **arte clean: fundo liso `#F85400` ou `#FF9000`, sem pattern, sem arcos.** É uma composição completa e correta, não uma peça "faltando coisa". Composição clean é a escolha **padrão** quando o layout já está cheio.
@@ -170,12 +200,14 @@ Qualquer condição falsa → **arte clean: fundo liso `#F85400` ou `#FF9000`, s
 node scripts/pattern-ancorado.js --canvas 1080x1350 \
   --zone ellipse:540,365,600,400 --anchor 240,90,600,550 \
   --text 185,742,710,235 --text 180,1020,720,40 --text 410,1112,260,77 \
-  --scale 1.4 --color "#FFFFFF" --opacity 0.4
+  --scale 2.6 --color "#FFFFFF" --opacity 0.4
 ```
 * O script escolhe **só sorrisos inteiros** do arquivo oficial cujo centro está na zona e que **não encostam em nenhum texto**, testa o deslocamento (`translate`) e imprime o `<g>` pronto. Cole-o **logo depois do fundo liso**, antes do conteúdo.
-* **Saiu "SEM PATTERN"** (menos de 3 sorrisos): faça **arte clean**. Não force: não amplie a zona por cima do texto nem reduza as caixas de texto.
+* **Saiu "SEM PATTERN"** (menos de 2 sorrisos): faça **arte clean**. Não force: não amplie a zona por cima do texto nem reduza as caixas de texto.
 * Âncora opaco cobre sorrisos; `--anchor` evita contar os que ficariam escondidos.
-* `--scale`: feed `1.4`, story `1.8` (aceitável `1.4`–`1.8`). Menor que `1.2` vira papel de parede.
+* **Em massa, não farelo:** `--scale` feed **`2.4`–`3.0`**, story **`2.6`–`3.2`** (padrão do script: `2.6`). Nas referências cada arco tem 450–500px; na escala antiga (`1.4`–`1.8`) eles saíam com ~170px e viravam lascas espalhadas (ver `referencias/antirreferencias/`). O lint avisa abaixo de `2.2`.
+* **Onde a massa fica bem** (escolha a zona assim): (1) **faixa inferior do story** (`y` 1640–2300: a zona proibida de conteúdo vira moldura, como em `referencia-cupom-feed.png`) — `refino_02`, `refino_04`, `refino_08`; (2) **canto** livre de texto; (3) saindo de trás do âncora pelas laterais. **Nunca no vão entre dois blocos** (título ↔ foto): um toco de arco ali parece sobra de máscara.
+* **Um arco solto num canto também é farelo:** se o script devolve sorrisos que aparecem só como lasca na borda, ou a zona livre é uma faixa < 300px, faça **arte clean** (foi o caso de `refino_01` e `refino_03`).
 * Nunca desenhar, recortar nem editar formas do pattern; só o script escolhe quais aparecem.
 
 **Cor e opacidade** (inversão da §3 item 9):
@@ -218,7 +250,22 @@ Onde a foto do produto, da loja ou o logo do parceiro vai entrar, a arte mostra 
 
 ### 📷 3.3 Foto Real do Produto (quando a foto entrar no slot)
 
-O placeholder `#D9D9D9` (§3.2) reserva o espaço; a foto real do franqueado entra **no mesmo lugar e na mesma forma**. *(Regras abaixo ainda a validar com fotos reais: testar com ~6 fotos, recortadas e com fundo.)*
+O placeholder `#D9D9D9` (§3.2) reserva o espaço; a foto real do franqueado entra **no mesmo lugar e na mesma forma**. **A arte publicada nunca mostra o cinza**: julgar só o placeholder esconde o peso e a cor reais da peça. Por isso a Fase 5 tira o print também com foto (`capture-art.js --foto`).
+
+**Fotos de teste (`assets/fotos-teste/`, Unsplash License — uso livre):** escolhidas para estressar a arte, não para enfeitar.
+
+| Arquivo | Estressa | Origem (Unsplash) |
+| :--- | :--- | :--- |
+| `pizza-quente.jpg` | foto em tom laranja que pode sumir no fundo da marca | `photo-1513104890138-7c749659a591` |
+| `pizza-topo.jpg` | vista de cima, muito detalhe | `photo-1565299624946-b28f40a0ae38` |
+| `burger-escuro.jpg` | fundo escuro, sujeito ao centro | `photo-1571091718767-18b5b1457add` |
+| `salada-clara.jpg` | fundo claro, quase branco | `photo-1546069901-ba9599a7e63c` |
+| `salada-recortada.webp` | produto **sem fundo** (testa o pop-out) | recorte da anterior |
+| `sushi.jpg` | composição horizontal longa | `photo-1579871494447-9811cf80d66c` |
+| `doce.jpg` | retrato, sobremesa | `photo-1565958011703-44f9829ba187` |
+| `restaurante.jpg` | slot de **loja/evento** | `photo-1517248135467-4c7edcad34c4` |
+
+Rode a peça com **a foto que mais combina e a que mais ameaça** (ex.: pizza laranja sobre fundo `#F85400`).
 * **Mecânica:** a `<image>` entra **dentro do `<g id="foto_produto">`**, recortada pela forma do slot (`clipPath` com o mesmo `rect` e o mesmo `rx`) e com `preserveAspectRatio="xMidYMid slice"`. **Mantenha o `id`.**
 * **Foto com fundo:** preenche o slot inteiro. Sobre fundo laranja, um **aro branco de 12–24px** (retângulo branco concêntrico com `rx = 56 + aro`) em volta do slot separa a foto do fundo.
 * **Produto recortado (PNG sem fundo):** pode **vazar** da moldura por cima (efeito *pop-out*): **15–25% do produto** passa da borda do slot, **sem cortar o sujeito**. Uma única sombra suave embaixo (`#434343`, opacidade `0.25`, `dy=20`, `stdDeviation=24`).
@@ -236,30 +283,34 @@ A skill organiza seus recursos nas seguintes pastas:
 .agents/skills/luma-creative/
 ├── SKILL.md                          <- Este manual de regras
 ├── assets/                           <- INVENTÁRIO EXCLUSIVO (Zero criação livre)
-│   (templates prontos já gerados: `assets/templates/` na raiz do repo; geradores em `scripts/generate-10-templates.js`)
-│   ├── logos/                        <- Logos oficiais DM (branca, laranja, símbolo)
+│   (artes-modelo: `assets/templates/refino/` na raiz do repo — o SVG publicado, a fonte legível em `fontes/` e o print em `prints/`)
+│   ├── logos/                        <- Logos oficiais DM (branca, laranja, símbolo), SEM margem transparente: width = largura da marca. PNG de 298px: até ~300px fica nítido
+│   ├── fotos-teste/                  <- Fotos de produto/loja para o print com foto (§3.3, Fase 5)
 │   ├── placeholders/                 <- SVGs PADRÃO do slot de foto/logo (cinza #D9D9D9) — reaproveitar, §3.2
 │   ├── molduras/                     <- Moldura retangular de foto com aba de ícone, já no cinza #D9D9D9
 │   ├── cards-preco/                  <- Card branco flutuante e tickets de cupom
 │   ├── selos/                        <- Badges oficiais de campanha ("Mais Vendidos", parceiros)
 │   ├── grafismos/                    <- Sorrisos oficiais DM (pattern.ai original + pattern-dm-oficial.svg) + pattern-ancorado.svg (técnica padrão da §3.1)
-│   └── fontes/                       <- Realce Black (otf + woff2), Roboto Regular 400 e Light 300. (Roboto Medium 500 ainda NÃO está no repo — ver Fase 3)
+│   └── fontes/                       <- Realce Black (otf + woff2) e Roboto em woff2 recortado (~14 KB): Light 300, Light Itálica 300i, Regular 400, Medium 500, Black 900. Os .ttf 400/300 são legado
 └── referencias/                      <- REPERTÓRIO VISUAL (Inspeção visual multimodal)
     ├── paleta-oficial-dm.png         <- Amostra visual exata das 5 cores oficiais da marca
     ├── grade-variacoes-templates.png <- Grade com 6 composições reais de referência
     ├── referencia-clean-ryan.png     <- Referência autoral com foco clean
     ├── referencia-cupom-feed.png     <- Referência com voucher de cupom e selo amarelo
     ├── referencia-cupom-foto-arco.png<- Referência de PATTERN ancorado (cupom à esquerda). Atenção: o slot em arco dela está PROIBIDO hoje (§3.2)
-    └── template-clean-feed.svg       <- SVG paramétrico oficial montado
+    ├── template-clean-feed.svg       <- SVG paramétrico oficial montado
+    └── antirreferencias/             <- Prints REPROVADOS, com o erro no nome do arquivo. Olhe na Fase 1: é o que não fazer
 ```
 
-**Ativos previstos (ainda não estão no repo — NÃO invente nem desenhe equivalentes; use só depois de subirem):** mockup de celular com o app, moto/entregador, chapéu de chef (símbolo), ícones de app e setas, mais selos de campanha, `Roboto-Medium.ttf` (500) e fotos de produto de teste (recortadas e com fundo). Enquanto faltarem: peça sem eles; se o briefing exige o ativo, **avise o usuário**.
+**Ativos previstos (ainda não estão no repo — NÃO invente nem desenhe equivalentes; use só depois de subirem):** mockup de celular com o app, moto/entregador, chapéu de chef (símbolo), ícones de app e setas, raio, sticker "mais vendidos" com foto, mais selos de campanha, **logo DM vetorial** (o PNG atual tem 298px) e fotos reais de franqueado. Enquanto faltarem: peça sem eles; se o briefing exige o ativo, **avise o usuário**.
+⚠️ `cards-preco/ticket-cupom.svg` usa cores fora da paleta (`#FF7A00`, `#FF4D00`, sombra `#802000`): **não copie**. O ticket certo (aba `#F62900`, borda `#FF9000`, sombra do preset) está em `assets/templates/refino/fontes/refino_02_cupom_story.svg`.
 
 Utilitários de suporte na raiz do repositório:
 * `scripts/pattern-ancorado.js`: posiciona o pattern oficial escolhendo **sorrisos inteiros fora do texto** (§3.1, passo 3). Sem saída = arte clean.
-* `scripts/lint-art.js`: **linter obrigatório da Fase 5** — mede o SVG no navegador e confere paleta, fontes, tamanhos, margens, colisões, vãos, contraste por fundo, botões/tags, selos, foto, pattern nítido, raios e alinhamento. Sai com código 1 se houver ERRO.
+* `scripts/lint-art.js`: **linter obrigatório da Fase 5** — mede o SVG no navegador e confere paleta, fontes, tamanhos, margens, colisões, vãos, contraste por fundo, botões/tags, selos, foto, pattern nítido e em massa, centavos sobrescritos, sobreposição intencional, faixa vazia, logo, receitas tipográficas, raios e alinhamento. Sai com código 1 se houver ERRO.
 * `scripts/medir-texto.js`: mede o hero em Realce de verdade e recomenda quebra e `font-size` (Fase 4).
-* `scripts/capture-art.js`: Renderizador headless (Edge/CDP zero-dep) que converte o SVG gerado em PNG de alta resolução nas proporções exatas (1080×1350 ou 1080×1920) para inspeção visual da IA.
+* `scripts/capture-art.js`: Renderizador headless (Edge/Chromium via CDP, zero-dep) que converte o SVG em PNG nas proporções exatas (1080×1350 ou 1080×1920). **`--foto <arquivo>`** troca o placeholder (`<g id="foto_produto…">`) pela foto, recortada no mesmo retângulo e raio. Acha sozinho o Chromium do container (`/opt/pw-browsers`); fora dele, `CHROMIUM_PATH=…`.
+* `scripts/embutir-arte.js`: fecha a arte — troca cada `asset:<caminho>` pelo arquivo em base64 (§1).
 
 ---
 
@@ -271,6 +322,8 @@ Ao receber um pedido de nova arte ou template, a IA executa este fluxo em sequê
 Antes de escrever uma única linha de código, a IA **DEVE abrir e inspecionar visualmente os PNGs em `referencias/`**:
 * **Sensibilidade Estética e Respiro:** Olhe os PNGs para absorver como o Ryan distribui o peso visual, o contraste entre espaços cheios e vazados, e a hierarquia entre foto, selo e tipografia.
 * **Paleta Oficial em `referencias/paleta-oficial-dm.png`:** Fixe as 5 cores oficiais na mente. Proibido subtons intermediários.
+* **Antirreferências em `referencias/antirreferencias/`:** abra também. O nome de cada arquivo diz o erro (pattern farelo, blocos soltos, preço plano). Se a sua peça lembrar uma delas, recomece a composição.
+* **Escolha a receita tipográfica (§2.4)** junto com o ponto focal: a peça é de conversa (A), de benefício em 2 palavras (B), de valor (C) ou de produto (D/escala padrão)?
 * **Liberdade Composicional Guiada:** **Não engesse o design em topologias fixas ou caixas fechadas.** A IA deve se inspirar organicamente no repertório das imagens para criar composições novas, equilibradas e naturais, variando o arranjo dos blocos conforme o objetivo do briefing.
 * **Análise da Intenção:** Identifique se a nova peça pede foco em foto grande, destaque de preço, cupom agressivo, evento municipal ou mensagem institucional, e componha a cena inspirada no feeling das referências.
 * **Briefing em 3 linhas (escreva antes de desenhar):** (1) **Uma única mensagem** da peça; (2) **o ponto focal** — o que o olho vê primeiro (hero, preço, cupom ou foto; só **um**); (3) **a ação** (pedir pelo app, usar cupom, conhecer parceiro). Se faltar algo, pergunte; dúvida de negócio não se inventa.
@@ -311,7 +364,10 @@ Antes de escrever uma única linha de código, a IA **DEVE abrir e inspecionar v
     * Zona proibida de base: últimos `250px` (reservado para barra de resposta/compartilhar).
     * Conteúdo útil concentrado na faixa central (`y = 260` até `y = 1660`), mantendo o mesmo respiro calculado entre blocos.
 
-* **Repertório de topologias aprovadas** (modelos prontos em `assets/templates/refino/`; ponto de partida para variar, não para copiar; **todos com foto em retângulo**): foto retangular sangrando à direita + preço-herói (`refino_09`, feed); **lista de ofertas em cards** com miniaturas (`refino_10`, story); **etiqueta de preço inclinada** sobre a foto (`refino_11`, feed); **foto larga + detalhes em pílulas + preço em linha com selo preso** (`refino_12`, story); **split diagonal em dois tons** com o preço na área `#F85400` (`refino_13`, feed); cupom/ticket (`refino_02`), foto retangular com hero embaixo (`refino_03`), hero gigante com foto quadrada (`refino_04`), foto lateral sangrando (`refino_07`), foto cheia no topo (`refino_05`) e foto retangular com selo (`refino_08`). Escolha a topologia pelo **objetivo** (Fase 1) e **varie as proporções do retângulo** (largo, alto, quadrado, faixa) em vez de repetir a última.
+* **Repertório de topologias aprovadas** (modelos prontos em `assets/templates/refino/`; ponto de partida para variar, não para copiar; **todos com foto em retângulo**).
+  * **Padrão 1.3 — copie a topologia E o acabamento** (fonte legível em `refino/fontes/`, revisados lado a lado com as referências): oferta com card de preço preso à foto e selo na quina (`refino_01`, feed); **cupom** com frase mista, lockup de valor e ticket (`refino_02`, story); **evento** com foto sangrando no topo e selo de data (`refino_03`, feed); **entrega grátis** com minúscula + vazado (`refino_04`, story); hero de 2 tamanhos + card preso + arcos em massa na base (`refino_08`, story); **lista de ofertas** com rótulo de produto e CTA (`refino_10`, story).
+  * **Pré-1.3 — copie só a topologia**, o acabamento é antigo (preço com centavos grandes, logo pequeno, pattern em escala de farelo): foto sangrando à direita + preço-herói (`refino_09`), etiqueta de preço inclinada (`refino_11`), foto larga + pílulas + preço em linha (`refino_12`), split diagonal em dois tons (`refino_13`), foto cheia no topo (`refino_05`), parceiro novo com logo da loja (`refino_06`), foto lateral sangrando (`refino_07`).
+  * Escolha a topologia pelo **objetivo** (Fase 1) e **varie as proporções do retângulo** (largo, alto, quadrado, faixa) em vez de repetir a última.
 
 ### FASE 3: Orquestração de Blocos do Inventário
 Puxe os elementos diretamente de `assets/`. **Isto é o inventário disponível, não uma ordem fixa** — use só o que a mensagem da peça pede (a ordem e a presença de cada bloco seguem a Fase 2):
@@ -319,8 +375,8 @@ Puxe os elementos diretamente de `assets/`. **Isto é o inventário disponível,
 * **Slot de foto/logo:** `assets/placeholders/` (§3.2), cinza `#D9D9D9`. Moldura/aba decorativa de `assets/molduras/` ao redor, quando houver.
 * **Card de preço / voucher:** `assets/cards-preco/` em `#FFFFFF` (ou `#FFB900` no voucher).
 * **Selo de campanha:** `assets/selos/`.
-* **Logo:** `assets/logos/` — branca sobre laranja/grafite, laranja sobre branco; largura **mín. 200px**, sempre com ≥ 40px de ar ao redor. Nunca esticar, recolorir ou colocar sobre foto sem fundo sólido.
-* **Fonte faltando:** se a peça precisa de Roboto Medium (500) e o arquivo não existe em `assets/fontes/`, **não finja**: avise o usuário e use Regular (400) com `letter-spacing` maior — nunca `font-weight: 500` sintetizado nem `Bold`.
+* **Logo:** `assets/logos/` — branca sobre laranja/grafite, laranja sobre branco; largura **240–300px** (o PNG não tem margem: `width` = largura real da marca; a altura é `width ÷ 4,97`), sempre com ≥ 40px de ar ao redor. Nunca esticar, recolorir ou colocar sobre foto sem fundo sólido.
+* **Fonte faltando:** use só os pesos que existem em `assets/fontes/` (§2). Se a peça pedir um que não existe, **não finja**: avise o usuário — nunca `font-weight` sintetizado pelo navegador nem `Bold`.
 
 ### FASE 4: Teste de Estresse de Texto & Caixa Alta Consciente
 Certifique-se de que o layout suporta preenchimento real do franqueado:
@@ -334,14 +390,20 @@ Certifique-se de que o layout suporta preenchimento real do franqueado:
 
 ### FASE 5: Captura de Print & Auditoria Visual Multimodal (Respiro, Margens e Harmonia)
 Gerar o código não encerra a tarefa. A IA **DEVE tirar o print da arte e olhar com os próprios olhos**:
-1. **Renderizar o PNG:** Execute `node scripts/capture-art.js <arquivo.svg> <saida.png>`.
-2. **Olhar a Imagem:** Abra o PNG resultante com a ferramenta de leitura de imagem (`Read` no caminho do PNG).
+0. **Fechar a arte:** `node scripts/embutir-arte.js fontes/arte.svg arte.svg` (o lint dá ERRO se sobrar `asset:`).
+1. **Renderizar DOIS prints** — o placeholder e a peça como vai ao ar:
+   ```bash
+   node scripts/capture-art.js arte.svg arte.png
+   node scripts/capture-art.js arte.svg arte-foto.png --foto .agents/skills/luma-creative/assets/fotos-teste/pizza-quente.jpg
+   ```
+   Peça com várias miniaturas: os ids `foto_produto_1`, `_2`… recebem todos a foto. Junte os dois lado a lado para olhar de uma vez.
+2. **Olhar a Imagem:** Abra os PNGs com a ferramenta de leitura de imagem (`Read`). **O print com foto decide**: é nele que se vê se a foto some no fundo, se o selo cobre o sujeito e se o card sobreposto pesa.
    **Teste do celular:** imagine o PNG em ~360px de largura. O hero, o preço e o ponto focal ainda se leem de relance? Se não, aumente.
 3. **Linter automático (rode ANTES de olhar o print; ERRO bloqueia a entrega):**
    ```bash
    node scripts/lint-art.js arte.svg            # --story / --feed se o formato não for detectável
    ```
-   Ele mede o SVG no navegador (caixas reais) e confere: paleta, fontes, `font-size` ≥ 22, margens e zona útil do story, colisões e vãos, estouro de texto no card, contraste por fundo, botão/tag amarelo, selo perto de texto (≥ 40px) e selo solto longe do preço (> 200px), foto (área e `#D9D9D9`), pattern desfocado, tokens de raio e eixo de alinhamento. **Erros: corrija e rode de novo até zerar. Avisos: corrija, ou justifique em uma linha** (ex.: "sangria intencional").
+   Ele mede o SVG no navegador (caixas reais) e confere: paleta, fontes, `font-size` ≥ 22, margens e zona útil do story, colisões e vãos, estouro de texto no card, contraste por fundo, botão/tag amarelo, selo perto de texto (≥ 40px) e selo solto longe do preço (> 200px), foto (área e `#D9D9D9`), pattern desfocado ou em escala de farelo, centavos sobrescritos, sobreposição `data-sobrepoe` (≤ 25% da foto, fora do miolo), faixa vazia > 200px, largura do logo, receitas tipográficas (itálico só Light, vazado ≥ 140px), tokens de raio e eixo de alinhamento. **Erros: corrija e rode de novo até zerar. Avisos: corrija, ou justifique em uma linha** (ex.: "sangria intencional").
 4. **Auditar os Pilares Visuais:**
    * **Cores Oficiais & Subtons:** As cores usadas são estritamente as 5 oficiais? Zero subtons inventados?
    * **Contraste Correto:** Sobre `#F85400` é branco? Sobre branco está `#F85400` (e nunca `#FF9000`)?
@@ -351,7 +413,10 @@ Gerar o código não encerra a tarefa. A IA **DEVE tirar o print da arte e olhar
    * **Pattern (§3.1):** ele cobre só uma zona em volta do âncora, a copy está sobre cor lisa e nenhum sorriso passa atrás de texto, preço, cupom ou CTA? Há pattern onde o layout não tinha âncora nem ar (nesse caso, remova: clean é melhor)?
    * **Harmonia & Peso Visual:** O centro de gravidade da arte está equilibrado? O olhar do usuário percorre a peça naturalmente: Título de impacto (Hero) → Detalhe/Card → Foto/Atração → Rodapé com logo e app?
 5. **Refinamento Iterativo Obrigatório:** Se a IA identificar qualquer aperto, colisão, texto truncado, contraste errado ou desequilíbrio na inspeção do print, deve ajustar as coordenadas no código SVG e rodar o print novamente até alcançar harmonia cirúrgica. **Mínimo de 2 rodadas de print** em peça nova (a 1ª quase nunca está boa); registre o que mudou entre elas.
-6. **Revisão por outro olhar (peça nova):** o autor tende a aprovar a própria arte. Depois do lint e das 2 rodadas, chame um **subagente revisor** (ferramenta `Agent`) dando **só o caminho do PNG e a lista de pilares**, sem a sua opinião: *"Revise este PNG de arte da Delivery Much (1080 de largura). Dê nota 0–5 para: ponto focal, hierarquia, respiro, contraste, marca/paleta, acabamento; liste os 3 piores problemas com coordenadas aproximadas."* **Qualquer nota < 4 → corrija e revise de novo.** Não use para ajuste pequeno.
+6. **Revisão comparativa (peça nova):** o autor tende a aprovar a própria arte, e **nota sem régua aprova o mediano**. Depois do lint e das 2 rodadas, chame um **subagente revisor** (ferramenta `Agent`) dando **o PNG com foto + as referências de `referencias/`**, sem a sua opinião:
+   > *"Você é diretor de arte sênior da Delivery Much. Abra [PNG] e as referências [grade-variacoes-templates.png, referencia-cupom-feed.png, …]. Contexto fixo que não se critica: [paleta fechada, slot retangular, Realce, piso de 24px do legal, zonas vazias do story]. Para a arte: (1) notas 0–5 para ponto focal, hierarquia, respiro, contraste, marca/paleta, acabamento; (2) **o que a referência tem que esta não tem?** — até 3 itens com coordenada e correção; (3) o que some a ~360px de largura. Termine com APROVADA (todas ≥ 4) ou REFAZER. Seja exigente."*
+   * Dê o "contexto fixo" sempre: sem ele, o revisor gasta os 3 itens criticando regra da marca.
+   * **Verifique cada achado na fonte antes de corrigir** (achado plausível ≠ real) e confira a conta de todo desconto. **Qualquer nota < 4 → corrija e revise de novo**, com um revisor novo (o antigo ancora no próprio parecer). Não use para ajuste pequeno.
 7. **Auditar a fonte:** o texto no PNG está em Realce/Roboto de verdade, ou caiu em Arial/Times? Hero com aparência "larga e genérica" = fallback → a fonte não foi embutida.
 
 ### FASE 6: Auto-Revisão Pré-Entrega (Checklist Final)
@@ -359,7 +424,9 @@ Antes de finalizar a arte:
 1. [ ] **Paleta Fechada:** Somente as 5 cores oficiais (`#434343`, `#F62900`, `#FFB900`, `#F85400`, `#FF9000`) + `#FFFFFF`, e `#D9D9D9` **apenas** no slot de foto/logo? Zero subtons?
 2. [ ] **Contraste de Marca:** Em cima do `#F85400` está branco? Em cima do branco está `#F85400` (nunca `#FF9000`)? Em cima de `#FF9000` está branco e `#F85400`? Pattern (se houver) invertido em relação ao fundo (ou branco 0,40–0,50), **sorrisos inteiros e nítidos (sem desfoque), escolhidos pelo `scripts/pattern-ancorado.js` fora do texto** (§3.1)? Sem pattern também vale.
 3. [ ] **Caixa Alta Consciente:** Manchete em uppercase, mas corpo/apoio/disclaimer em caixa normal?
-4. [ ] **Tipografia Estrita:** Manchete em `Realce Black` (900)? Subtítulo/apoio em `Roboto Medium` (500)? Corpo em `Roboto Regular` (400)? Legal em `Roboto Light` (300)? (**Zero** `Bold` 700).
+4. [ ] **Tipografia Estrita:** Manchete em `Realce Black` (900)? Subtítulo/apoio em `Roboto Medium` (500) ou Regular? Corpo em `Roboto Regular` (400)? Legal em `Roboto Light` (300)? Roboto Black e Light Itálica **só dentro de uma receita da §2.4** (no máximo uma expressiva por peça)? (**Zero** `Bold` 700.)
+4b. [ ] **Preço-assinatura:** `R$`, vírgula e centavos a 55% e suspensos? `POR` preso ao valor? `%` do selo bate com DE → POR?
+4c. [ ] **Coesão:** o card ou o selo prende na borda da foto (§2.2) em vez de flutuar? Uma camada por vez?
 5. [ ] **Fidelidade:** 100% dos blocos vieram do inventário `assets/`?
 6. [ ] **Autonomia do SVG:** Logo e fontes embutidas em base64 no `<style>`?
 7. [ ] **Print Aprovado:** A arte passou pela auditoria multimodal da FASE 5 sem colisões e com respiro impecável?
@@ -368,7 +435,7 @@ Antes de finalizar a arte:
 10. [ ] **Canvas cheio:** retângulo sem cantos arredondados; sem `@import`; foto ≤ ~55% da altura útil?
 11. [ ] **Copy PT-BR:** acentuação correta, hero ≤ 4 palavras, sem texto de instrução ("Slot de alta resolução…") vazando para a arte final — só o slot `foto_produto` fica.
 12. [ ] **Tokens:** vãos em `24/40/60/80/120`, raios `56/36/pílula`, um eixo de alinhamento, no máximo uma inclinação, sombra do preset?
-13. [ ] **Revisão fria (peça nova):** nenhuma nota < 4 do subagente revisor?
+13. [ ] **Revisão comparativa (peça nova):** nenhuma nota < 4 do subagente revisor, com o print **com foto** ao lado das referências?
 
 ---
 
@@ -393,6 +460,16 @@ Antes de finalizar a arte:
 | Mistura de alinhamento (centro + esquerda) / valores de espaço e raio soltos | Um eixo por peça; tokens da §2.2; o `lint-art.js` avisa |
 | Slot de foto em arco/cúpula/círculo | **Só retângulo** (`rx=56`, qualquer proporção); logo da loja é a única exceção circular (§3.2) |
 | Selo a menos de 40px do texto de apoio | Mover o selo ou o texto até ter ≥ 40px |
+| Preço `R$ 22,90` com tudo do mesmo tamanho; `POR` solto na linha de base | Lockup-assinatura: `R$`/`,90` a 55% suspensos, `POR` preso ao `R$` (§2.1) |
+| Pattern em escala 1.4–1.8: lascas de arco espalhadas, toco no vão entre título e foto | Escala 2.4–3.2, em massa na faixa inferior do story ou num canto; senão, clean (§3.1) |
+| Card de preço, foto e selo soltos a 60px uns dos outros ("template de sistema") | Card preso à borda da foto com `data-sobrepoe`, selo na quina (§2.2) |
+| Selo em cima da foto **e** do card (três camadas) | Selo só sobre a foto ou só no card |
+| Selo "25% OFF" com DE 28,00 → POR 22,90 (é 18%) | Conferir a conta de todo desconto |
+| Logo DM com `width=230` e 17% de margem transparente (marca real ~190px) | PNG recortado; `width` 240–300 |
+| Todo hero em Realce maiúsculo, peças iguais | Uma receita da §2.4 por peça (frase mista, minúscula + vazado, lockup de valor) |
+| Ticket de `cards-preco/ticket-cupom.svg` (cores fora da paleta) | Ticket do `refino_02` (aba `#F62900`, borda `#FF9000`) |
+| CTA branco do mesmo peso do card de preço, disputando o olhar | CTA em contorno branco (`fill="none" stroke="#FFFFFF"`) quando o preço é o ponto focal |
+| Julgar a arte só com o cinza do placeholder | Print com `--foto` (Fase 5) |
 
 ---
 

@@ -9,4 +9,4 @@ A skill mora em **`.agents/skills/luma-creative/`** — fonte única, compartilh
 
 **Antes de qualquer coisa, leia `.agents/skills/luma-creative/SKILL.md` inteiro e siga-o.** Todo caminho relativo citado lá (`assets/`, `referencias/`) parte de `.agents/skills/luma-creative/`; os `scripts/` ficam na raiz do repositório.
 
-No container Linux, o `capture-art.js` e o `lint-art.js` não acham o Chromium sozinhos: rode com `CHROMIUM_PATH=/opt/pw-browsers/chromium`.
+O `capture-art.js` e o `lint-art.js` acham sozinhos o Chromium do container (`/opt/pw-browsers`); em outra máquina, `CHROMIUM_PATH=<caminho do navegador>`.

@@ -6,7 +6,12 @@
  * Zero dependências externas (usa WebSocket nativo do Node 22 e Chromium/Edge local).
  * 
  * Uso:
- *   node scripts/capture-art.js <caminho-svg> [caminho-png-saida]
+ *   node scripts/capture-art.js <caminho-svg> [caminho-png-saida] [--foto <jpg|png|webp>]
+ *
+ * --foto: troca o placeholder cinza (<g id="foto_produto…">) pela foto, recortada pelo mesmo
+ * retângulo e raio do slot. A arte publicada nunca tem o cinza: julgar só o placeholder esconde
+ * o peso e a cor reais da peça. Foto com transparência (png/webp recortado) entra inteira, sem
+ * recorte nem fundo. Fotos de teste: .agents/skills/luma-creative/assets/fotos-teste/.
  */
 
 const fs = require('fs');
@@ -32,6 +37,8 @@ function acharChromium() {
       if (p && fs.existsSync(p)) candidatos.push(p);
     }
   } else {
+    // Container do Claude Code na web: o Chromium do Playwright não fica no PATH.
+    candidatos.push(path.join(process.env.PLAYWRIGHT_BROWSERS_PATH || '/opt/pw-browsers', 'chromium'));
     for (const nome of ['chromium', 'chromium-browser', 'google-chrome']) {
       try { candidatos.push(execSync('command -v ' + nome, { encoding: 'utf8' }).trim()); } catch (e) {}
     }
@@ -117,7 +124,44 @@ function conectar(url) {
   });
 }
 
-async function capturarArte(svgPath, outPngPath) {
+// Troca cada <g id="foto_produto…"> pela foto, no retângulo (x, y, w, h, rx) do 1º <rect> do grupo.
+function trocarFoto(svg, fotoPath) {
+  const ext = path.extname(fotoPath).slice(1).toLowerCase();
+  const mime = ext === 'jpg' ? 'jpeg' : ext;
+  const recortada = mime === 'png' || mime === 'webp';
+  const uri = 'data:image/' + mime + ';base64,' + fs.readFileSync(fotoPath).toString('base64');
+  let n = 0, out = '', i = 0;
+  const abre = /<g\b[^>]*\bid="foto_produto[^"]*"[^>]*>/g;
+  let m;
+  while ((m = abre.exec(svg))) {
+    // acha o </g> que fecha ESTE grupo (o placeholder tem <g> aninhado para o ícone)
+    let prof = 1, j = m.index + m[0].length;
+    const tag = /<g\b[^>]*?(\/?)>|<\/g>/g;
+    tag.lastIndex = j;
+    let t;
+    while (prof && (t = tag.exec(svg))) {
+      if (t[0] === '</g>') prof--; else if (!t[1]) prof++;
+      j = tag.lastIndex;
+    }
+    const corpo = svg.slice(m.index, j);
+    const r = /<rect\b[^>]*>/.exec(corpo);
+    if (!r) continue;
+    const at = k => { const v = new RegExp('\\b' + k + '="([^"]*)"').exec(r[0]); return v ? v[1] : '0'; };
+    const [x, y, w, h, rx] = ['x', 'y', 'width', 'height', 'rx'].map(at);
+    const id = 'fotoTeste' + (++n);
+    const img = recortada
+      ? `<image href="${uri}" x="${x}" y="${y}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet"/>`
+      : `<clipPath id="${id}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}"/></clipPath>` +
+        `<image href="${uri}" x="${x}" y="${y}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${id})"/>`;
+    out += svg.slice(i, m.index) + m[0] + img + '</g>';
+    i = j;
+    abre.lastIndex = j;
+  }
+  if (!n) throw new Error('--foto: o SVG não tem <g id="foto_produto…"> com <rect>.');
+  return out + svg.slice(i);
+}
+
+async function capturarArte(svgPath, outPngPath, fotoPath) {
   const bin = acharChromium();
   if (!bin) throw new Error('Navegador não encontrado.');
 
@@ -134,6 +178,11 @@ async function capturarArte(svgPath, outPngPath) {
 
   const outPath = outPngPath ? path.resolve(outPngPath) : svgAbs.replace(/\.svg$/i, '.png');
   const nav = await subirNavegador(bin, w, h);
+  let svgSrc = svgAbs;
+  if (fotoPath) {
+    svgSrc = path.join(nav.perfil, 'com-foto.svg');
+    fs.writeFileSync(svgSrc, trocarFoto(svgRaw, path.resolve(fotoPath)));
+  }
 
   try {
     let alvo;
@@ -158,7 +207,7 @@ async function capturarArte(svgPath, outPngPath) {
     });
 
     const tempHtml = path.join(nav.perfil, 'render.html');
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>* { margin: 0; padding: 0; } html, body { width: ${w}px; height: ${h}px; overflow: hidden; background: #000; } img { width: ${w}px; height: ${h}px; display: block; }</style></head><body><img src="file:///${svgAbs.replace(/\\/g, '/')}" /></body></html>`;
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>* { margin: 0; padding: 0; } html, body { width: ${w}px; height: ${h}px; overflow: hidden; background: #000; } img { width: ${w}px; height: ${h}px; display: block; }</style></head><body><img src="file:///${svgSrc.replace(/\\/g, '/')}" /></body></html>`;
     fs.writeFileSync(tempHtml, html);
 
     await cdp.enviar('Page.enable');
@@ -219,11 +268,13 @@ async function avaliarNaPagina(html, w, h, expr) {
 
 if (require.main === module) {
   const args = process.argv.slice(2);
+  const k = args.indexOf('--foto');
+  const foto = k >= 0 ? args.splice(k, 2)[1] : null;
   if (!args[0]) {
-    console.log('Uso: node scripts/capture-art.js <caminho-svg> [caminho-png-saida]');
+    console.log('Uso: node scripts/capture-art.js <caminho-svg> [caminho-png-saida] [--foto <jpg|png|webp>]');
     process.exit(1);
   }
-  capturarArte(args[0], args[1]).catch(err => {
+  capturarArte(args[0], args[1], foto).catch(err => {
     console.error('Erro na captura:', err.message);
     process.exit(1);
   });

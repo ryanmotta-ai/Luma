@@ -4,7 +4,8 @@
  *
  * Linter das artes da skill luma-creative (Fase 5). Mede o SVG de verdade no navegador headless
  * (caixas reais dos textos e blocos) e confere as regras do SKILL.md: paleta, fontes, tamanhos,
- * margens, colisões, vãos, contraste por fundo, botões/tags, selos, foto, pattern nítido, raios e alinhamento.
+ * margens, colisões, vãos, contraste por fundo, botões/tags, selos, foto, pattern nítido e em escala de massa,
+ * centavos sobrescritos, sobreposição intencional (data-sobrepoe), faixa vazia, logo, raios e alinhamento.
  * Zero dependências (reusa o Edge/Chromium de scripts/capture-art.js).
  *
  * Uso:   node scripts/lint-art.js <arte.svg> [--story|--feed]
@@ -38,15 +39,23 @@ const COLETA = `(async () => {
     const base = box.y + asc;
     const girado = /rotate|matrix\\(0/.test((t.getAttribute('transform') || '') + (t.parentElement.getAttribute('transform') || ''));
     const ink = girado ? box : { x: box.x, y: base - m.actualBoundingBoxAscent, w: box.w, h: m.actualBoundingBoxAscent + m.actualBoundingBoxDescent };
-    return { txt: t.textContent.trim(), fs, weight: cs.fontWeight, family: cs.fontFamily, fill: cs.fill, op: parseFloat(cs.opacity) * parseFloat(cs.fillOpacity || 1), anchor: t.getAttribute('text-anchor') || 'start', ink, box, girado, grupo: (t.closest('[id]') || {}).id || '' };
+    const runs = [t, ...t.querySelectorAll('tspan')].filter(s => s === t ? !t.children.length : s.textContent.trim()).map(s => getComputedStyle(s));
+    const tspans = [...t.querySelectorAll('tspan')].filter(s => s.textContent.trim()).map(s => parseFloat(getComputedStyle(s).fontSize));
+    const italicoPesado = runs.some(r => r.fontStyle === 'italic' && r.fontWeight !== '300');
+    const vazado = cs.fill === 'none' && cs.stroke !== 'none';
+    return { txt: t.textContent.trim(), fs, tspans, weight: cs.fontWeight, family: cs.fontFamily, fill: cs.fill, op: parseFloat(cs.opacity) * parseFloat(cs.fillOpacity || 1), anchor: t.getAttribute('text-anchor') || 'start', ink, box, girado, grupo: (t.closest('[id]') || {}).id || '', sobrepoe: !!t.closest('[data-sobrepoe]'), italicoPesado, vazado };
   });
   const shapes = [...svg.querySelectorAll('rect,circle,ellipse,path')].filter(s => noDefs(s) && !s.closest('#pattern-ancorado') && !s.closest('[mask]')).map(s => {
     const cs = getComputedStyle(s);
-    return { tag: s.tagName.toLowerCase(), fill: cs.fill, fillOp: parseFloat(cs.fillOpacity), op: parseFloat(cs.opacity), box: rel(s), rx: parseFloat(s.getAttribute('rx') || 0), grupo: (s.closest('[id]') || {}).id || '', d: s.getAttribute('d') || '' };
+    return { tag: s.tagName.toLowerCase(), fill: cs.fill, fillOp: parseFloat(cs.fillOpacity), op: parseFloat(cs.opacity), box: rel(s), rx: parseFloat(s.getAttribute('rx') || 0), grupo: (s.closest('[id]') || {}).id || '', d: s.getAttribute('d') || '', sobrepoe: !!s.closest('[data-sobrepoe]') };
   });
-  return JSON.stringify({ w: r0.width, h: r0.height, texts, shapes, imgs: [...svg.querySelectorAll('image')].map(rel) });
+  const imgs = [...svg.querySelectorAll('image')].filter(noDefs).map(i => ({ box: rel(i), grupo: (i.closest('[id]') || {}).id || '' }));
+  const sobre = [...svg.querySelectorAll('[data-sobrepoe]')].map(rel);
+  return JSON.stringify({ w: r0.width, h: r0.height, texts, shapes, imgs, sobre });
 })()`;
 
+// slot de foto pode repetir com sufixo (foto_produto_1, _2… numa lista de ofertas): id duplicado é SVG inválido
+const ehFoto = g => /^foto_produto/.test(g), ehSlot = g => /^(foto_produto|logo_loja)/.test(g);
 const inside = (a, b, pad = 0) => a.x >= b.x - pad && a.y >= b.y - pad && a.x + a.w <= b.x + b.w + pad && a.y + a.h <= b.y + b.h + pad;
 const contem = (c, a) => { const cx = a.x + a.w / 2, cy = a.y + a.h / 2; return cx >= c.x && cx <= c.x + c.w && cy >= c.y && cy <= c.y + c.h; };
 const gapCirculo = (c, r) => {
@@ -80,6 +89,9 @@ async function lint(svgPath, formato) {
   if (/feGaussianBlur/.test(raw.replace(/<filter id="sh"[\s\S]*?<\/filter>/, '')) || /pattern-ancorado[^>]*(mask|filter)=/.test(raw)) E('Pattern desfocado/mascarado: o pattern é sempre nítido (§3.1).');
   if (/<mask|<linearGradient/.test(raw)) A('mask/linearGradient no SVG: confira que não é degradê sobre o pattern (§3.1) e que não usa cor fora da paleta.');
   if (!/Realce/.test(raw) || !/@font-face/.test(raw)) A('Fonte Realce/Roboto não embutida via @font-face.');
+  if (/asset:/.test(raw)) E('Ainda há `asset:` no SVG: feche a arte com `node scripts/embutir-arte.js`.');
+  const esc = /id="pattern-ancorado"[^>]*scale\(([\d.]+)\)/.exec(raw);
+  if (esc && +esc[1] < 2.2) A(`Pattern em escala ${esc[1]}: sorriso pequeno vira farelo. Use 2.4–3.0 (feed) / 2.6–3.2 (story), em massa num canto ou faixa (§3.1).`);
 
   // ── medições no navegador ──
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>*{margin:0;padding:0}body{background:#fff}svg{display:block}</style></head><body>${raw}</body></html>`;
@@ -97,13 +109,21 @@ async function lint(svgPath, formato) {
     t.cor = hex(t.fill);
   });
 
-  d.texts.filter(t => t.txt).forEach(t => { if (t.fs < 22) E(`"${t.txt}": font-size ${t.fs}px < 22px.`); });
-  const textos = d.texts.filter(t => t.txt && !['foto_produto', 'logo_loja'].includes(t.grupo)); // legenda do slot não conta nas demais regras
+  d.texts.filter(t => t.txt).forEach(t => { const m = Math.min(t.fs, ...t.tspans); if (m < 22) E(`"${t.txt}": font-size ${m}px < 22px.`); });
+  const textos = d.texts.filter(t => t.txt && !ehSlot(t.grupo)); // legenda do slot não conta nas demais regras
+  // receitas tipográficas (§2.4): itálico só na Light 300; vazado só em palavra de impacto, uma por peça
+  textos.filter(t => t.italicoPesado).forEach(t => E(`"${t.txt}": itálico fora da Light 300 (só "Roboto Light Itálica" é permitido).`));
+  const vazados = textos.filter(t => t.vazado);
+  vazados.filter(t => t.fs < 140).forEach(t => A(`"${t.txt}" vazado em ${t.fs}px: contorno só se lê bem a partir de 140px.`));
+  if (vazados.length > 1) A(`${vazados.length} textos vazados: use no máximo uma palavra vazada por peça.`);
   const heroes = textos.filter(t => t.family.includes('Realce') && t.fs >= 80);
   const grupoProd = textos.filter(t => t.grupo === 'produto');
   if (grupoProd.length && Math.max(...grupoProd.map(t => t.fs)) < 80) E('Hero ({{produto}}) abaixo de 80px.');
   const preco = textos.filter(t => t.grupo === 'preco');
   if (preco.length && Math.max(...preco.map(t => t.fs)) < 96) E('Preço abaixo de 96px.');
+  // lockup da marca: R$ e ,90 a 55% do número, suspensos (mesma proporção do gBuildVirtualRuns do Luma)
+  preco.filter(t => t.fs >= 96 && /\d,\d{2}/.test(t.txt) && !t.tspans.some(f => f <= t.fs * 0.7))
+    .forEach(t => A(`Preço "${t.txt}" com centavos no tamanho do número: use R$ e ,90 a 55% e suspensos (§2.1).`));
   const maior = Math.max(...textos.map(t => t.fs), 0);
   const apoio = textos.filter(t => t.fs >= 28 && t.fs <= 60 && t.cont === null).map(t => t.fs).sort((a, b) => a - b);
   if (apoio.length && maior / apoio[Math.floor(apoio.length / 2)] < 2.5) A(`Hierarquia fraca: maior texto ${maior}px vs apoio ~${apoio[Math.floor(apoio.length / 2)]}px (< 2,5×).`);
@@ -145,18 +165,18 @@ async function lint(svgPath, formato) {
 
   // selos: círculos amarelos
   const selos = blocos.filter(b => b.tag === 'circle' && hex(b.fill) === 'FFB900');
-  const slots = blocos.filter(b => b.grupo === 'foto_produto' || b.grupo === 'logo_loja');
+  const slots = blocos.filter(b => ehSlot(b.grupo));
   textos.forEach(t => {
     selos.forEach(s => {
       if (t.cont === s) return;
-      if (['foto_produto', 'logo_loja'].includes(t.grupo)) return; // legenda do slot
+      if (ehSlot(t.grupo)) return; // legenda do slot
       const g = gapCirculo(s.box, t.ink);
       if (g.overlap) E(`Selo cobre texto "${t.txt}".`);
       else if (g.dist < 40) A(`Selo a ${Math.round(g.dist)}px do texto "${t.txt}" (mín. 40).`);
     });
   });
   // texto x slot de foto/logo: sem colisão e com ≥ 40px de ar
-  textos.filter(t => !(t.cont && t.cont.tag === 'circle')).forEach(t => slots.forEach(sl => { // texto dentro de selo (círculo) pode sobrepor a foto
+  textos.filter(t => !(t.cont && t.cont.tag === 'circle') && !t.sobrepoe).forEach(t => slots.forEach(sl => { // texto em selo ou em bloco data-sobrepoe pode sobrepor a foto
     const g = gap(t.ink, sl.box);
     if (g.overlap) E(`"${t.txt}" invade o slot de foto/logo.`);
     else if (g.dx < 40 && g.dy < 40 && g.dist < 40) A(`"${t.txt}" a ${Math.round(g.dist)}px do slot de foto (mín. 40).`);
@@ -169,11 +189,11 @@ async function lint(svgPath, formato) {
     if (dmin > 200) A(`Selo solto: a ${Math.round(dmin)}px do preço/hero mais próximo (máx. 200). Prenda o selo ao preço ou ao título.`);
   });
   // slot de FOTO só retângulo (arco/círculo/elipse proibidos); logo da loja pode ser círculo
-  d.shapes.filter(x => x.grupo === 'foto_produto').forEach(x => {
+  d.shapes.filter(x => ehFoto(x.grupo)).forEach(x => {
     if ((x.tag === 'circle' || x.tag === 'ellipse') && x.box.w >= 120) E('Slot de foto em círculo/elipse: só retângulo (§3.2). Logo da loja é a única exceção circular.');
     if (x.tag === 'path' && /[Aa]\s*[\d.]+[\s,]+[\d.]+\s+[\d.]+\s+[01][\s,]*[01]/.test(x.d) && x.box.w * x.box.h > 300 * 300) E('Slot de foto em arco/cúpula (path com arco): só retângulo (§3.2).');
   });
-  const foto = slots.filter(s => s.grupo === 'foto_produto').sort((a, b) => b.box.w * b.box.h - a.box.w * a.box.h)[0];
+  const foto = slots.filter(s => ehFoto(s.grupo)).sort((a, b) => b.box.w * b.box.h - a.box.w * a.box.h)[0];
   if (foto && foto.box.w >= 300) {
     const util = story ? 1400 : H - 200;
     const lim = story ? 0.5 : 0.55;
@@ -184,6 +204,15 @@ async function lint(svgPath, formato) {
     if (hex(foto.fill) !== 'D9D9D9') E('Slot de foto não está em #D9D9D9 (use assets/placeholders/).');
   }
   slots.forEach(s => { if (hex(s.fill) !== 'D9D9D9') E(`Slot "${s.grupo}" fora do padrão #D9D9D9.`); });
+  // sobreposição intencional (§2.2): invade a borda da foto, nunca o miolo nem mais de 25% dela
+  if (foto) d.sobre.forEach(b => {
+    const f = foto.box;
+    const ix = Math.max(0, Math.min(b.x + b.w, f.x + f.w) - Math.max(b.x, f.x)), iy = Math.max(0, Math.min(b.y + b.h, f.y + f.h) - Math.max(b.y, f.y));
+    if (!ix || !iy) return A('Bloco data-sobrepoe não encosta na foto: tire o atributo ou prenda o bloco na borda dela.');
+    if (ix * iy > f.w * f.h * 0.25) E(`Bloco sobreposto cobre ${Math.round(ix * iy / (f.w * f.h) * 100)}% da foto (máx. 25%).`);
+    const cx = f.x + f.w / 2, cy = f.y + f.h / 2, mw = f.w / 6, mh = f.h / 6;
+    if (b.x < cx + mw && b.x + b.w > cx - mw && b.y < cy + mh && b.y + b.h > cy - mh) E('Bloco sobreposto cobre o miolo da foto (o sujeito).');
+  });
 
   // contraste por fundo
   textos.forEach(t => {
@@ -204,10 +233,26 @@ async function lint(svgPath, formato) {
   });
 
   // raios: foto 56 | card 36 | botão = pílula
-  d.shapes.filter(s => s.tag === 'rect' && s.rx > 0 && !(s.box.w >= W - 2) && !['foto_produto', 'logo_loja'].includes(s.grupo) || (s.tag === 'rect' && ['foto_produto'].includes(s.grupo) && s.box.w > 300)).forEach(s => {
+  d.shapes.filter(s => s.tag === 'rect' && s.rx > 0 && !(s.box.w >= W - 2) && !ehSlot(s.grupo) || (s.tag === 'rect' && ehFoto(s.grupo) && s.box.w > 300)).forEach(s => {
     const pilula = Math.abs(s.rx - s.box.h / 2) < 1.5;
     const aro = s.rx >= 68 && s.rx <= 80 && hex(s.fill) === 'FFFFFF'; // aro branco concêntrico ao slot (rx = 56 + aro)
     if (![56, 36].includes(Math.round(s.rx)) && !pilula && !aro) A(`Raio ${s.rx} fora dos tokens (56 foto, 36 card, pílula = h/2): bloco ${Math.round(s.box.w)}×${Math.round(s.box.h)}.`);
+  });
+
+  // faixa vazia: o conteúdo ocupa a área útil inteira. Conta todo bloco preenchido (inclusive foto e
+  // camada de split > 40% do canvas), menos o fundo e o pattern.
+  const [y0, y1] = story ? [260, 1660] : [70, H - 70];
+  const cheios = d.shapes.filter(s => !(s.box.w >= W - 2 && s.box.h >= H - 2) && s.fill !== 'none' && hex(s.fill));
+  const faixas = [...textos.map(t => t.ink), ...cheios.map(b => b.box), ...d.imgs.map(i => i.box)]
+    .map(b => [Math.max(y0, b.y), Math.min(y1, b.y + b.h)]).filter(([a, b]) => b > a).sort((a, b) => a[0] - b[0]);
+  let cur = y0, vao = 0, vaoEm = 0;
+  faixas.forEach(([a, b]) => { if (a - cur > vao) { vao = a - cur; vaoEm = cur; } cur = Math.max(cur, b); });
+  if (y1 - cur > vao) { vao = y1 - cur; vaoEm = cur; }
+  if (vao > 200) A(`Faixa vazia de ${Math.round(vao)}px (y ${Math.round(vaoEm)}–${Math.round(vaoEm + vao)}): distribua os blocos pela área útil.`);
+
+  // logo DM horizontal (proporção ~5:1): legível no celular
+  d.imgs.filter(i => i.box.w / i.box.h > 3.5 && !ehSlot(i.grupo)).forEach(i => {
+    if (i.box.w < 230) A(`Logo DM com ${Math.round(i.box.w)}px de largura: use 240–300 (o PNG já vem sem margem).`);
   });
 
   // alinhamento: um eixo só entre os textos soltos

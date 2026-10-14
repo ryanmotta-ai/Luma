@@ -9,13 +9,13 @@
  *
  * Uso (CLI) — imprime o <g> pronto para colar no SVG, entre o fundo liso e o conteúdo:
  *   node scripts/pattern-ancorado.js --canvas 1080x1350 --zone ellipse:540,365,430,290 \
- *        --text 100,742,880,330 --text 410,1112,260,77 --scale 1.4 --color "#FF9000" --opacity 0.45
+ *        --text 100,742,880,330 --text 410,1112,260,77 --scale 2.6 --color "#FF9000" --opacity 0.45
  *
  *   --zone  ellipse:cx,cy,rx,ry   ou   rect:x,y,w,h      (onde os CENTROS dos sorrisos podem ficar; pode passar da borda)
  *   --text  x,y,w,h               (repetível: cada caixa de texto/preço/CTA/logo; a ferramenta afasta o pattern 30px)
  *   --anchor x,y,w,h              (caixa do bloco-âncora: sorrisos totalmente escondidos atrás dele não contam)
- *   --scale feed ~1.4 | story ~1.8   --color "#FF9000"|"#F85400"|"#FFFFFF"   --opacity 0.30..0.50
- *   --min   mínimo de sorrisos desejado (padrão 3; se não houver, imprime aviso e NADA => faça arte clean)
+ *   --scale feed 2.4–3.0 | story 2.6–3.2 (padrão 2.6: poucos arcos GRANDES; 1.4–1.8 vira farelo)   --color "#FF9000"|"#F85400"|"#FFFFFF"   --opacity 0.30..0.50
+ *   --min   mínimo de sorrisos (padrão 2: na escala de massa, 2 arcos grandes já fazem a moldura; se não houver, imprime aviso e NADA => faça arte clean)
  */
 const fs = require('fs');
 const path = require('path');
@@ -49,7 +49,7 @@ function dentroDaZona(z, cx, cy) {
   return cx >= z.x && cx <= z.x + z.w && cy >= z.y && cy <= z.y + z.h;
 }
 
-function posicionar({ w, h, zone, texts = [], anchor = null, scale = 1.4, color = '#FF9000', opacity = 0.45, min = 3, pad = 30 }) {
+function posicionar({ w, h, zone, texts = [], anchor = null, scale = 2.6, color = '#FF9000', opacity = 0.45, min = 2, pad = 30 }) {
   const sorrisos = lerSorrisos();
   const caixas = texts.map(t => ({ x0: t.x - pad, y0: t.y - pad, x1: t.x + t.w + pad, y1: t.y + t.h + pad }));
   const minTx = Math.min(0, w - 1920 * scale), minTy = Math.min(0, h - 1080 * scale);
@@ -60,6 +60,9 @@ function posicionar({ w, h, zone, texts = [], anchor = null, scale = 1.4, color 
       for (const s of sorrisos) {
         const b = { x0: tx + s.x0 * scale, y0: ty + s.y0 * scale, x1: tx + s.x1 * scale, y1: ty + s.y1 * scale };
         if (!inter(b, { x0: 0, y0: 0, x1: w, y1: h })) continue;
+        // lasca na borda não é sorriso: precisa de metade da caixa dentro do canvas (senão vira farelo)
+        const vis = (Math.min(b.x1, w) - Math.max(b.x0, 0)) * (Math.min(b.y1, h) - Math.max(b.y0, 0));
+        if (vis < (b.x1 - b.x0) * (b.y1 - b.y0) * 0.5) continue;
         if (!dentroDaZona(zone, (b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2)) continue;
         if (caixas.some(c => inter(b, c))) continue;
         if (anchor && b.x0 >= anchor.x && b.x1 <= anchor.x + anchor.w && b.y0 >= anchor.y && b.y1 <= anchor.y + anchor.h) continue; // escondido atrás do âncora
@@ -92,7 +95,7 @@ if (require.main === module) {
   const zone = zt === 'ellipse' ? { type: 'ellipse', cx: n[0], cy: n[1], rx: n[2], ry: n[3] } : { type: 'rect', x: n[0], y: n[1], w: n[2], h: n[3] };
   const texts = arg('text', true).map(t => { const [x, y, ww, hh] = t.split(',').map(Number); return { x, y, w: ww, h: hh }; });
   const an = arg('anchor'); const anchor = an ? (([x, y, ww, hh]) => ({ x, y, w: ww, h: hh }))(an.split(',').map(Number)) : null;
-  const r = posicionar({ w, h, zone, texts, anchor, scale: Number(arg('scale') || 1.4), color: arg('color') || '#FF9000', opacity: Number(arg('opacity') || 0.45), min: Number(arg('min') || 3) });
+  const r = posicionar({ w, h, zone, texts, anchor, scale: Number(arg('scale') || 2.6), color: arg('color') || '#FF9000', opacity: Number(arg('opacity') || 0.45), min: Number(arg('min') || 2) });
   if (!r.ok) { console.error(`SEM PATTERN: só ${r.n} sorriso(s) inteiros cabem na zona fora do texto. Faça arte clean (§3.1).`); process.exit(2); }
   console.error(`${r.n} sorrisos | translate(${r.tx},${r.ty})`);
   console.log(r.svg);

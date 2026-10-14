@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920"><defs><style>
+@font-face{font-family:'Realce';src:url('asset:fontes/realce-black.woff2') format('woff2');font-weight:900;}
+@font-face{font-family:'Roboto';src:url('asset:fontes/Roboto-Regular.woff2') format('woff2');font-weight:400;}
+@font-face{font-family:'Roboto';src:url('asset:fontes/Roboto-Light.woff2') format('woff2');font-weight:300;}
+@font-face{font-family:'Roboto';src:url('asset:fontes/Roboto-LightItalic.woff2') format('woff2');font-weight:300;font-style:italic;}
+@font-face{font-family:'Roboto';src:url('asset:fontes/Roboto-Black.woff2') format('woff2');font-weight:900;}
+.hero{font-family:'Realce',sans-serif;font-weight:900;letter-spacing:0.5px}
+.sup{font-family:'Roboto',sans-serif;font-weight:400;letter-spacing:1.2px}
+.body{font-family:'Roboto',sans-serif;font-weight:400}
+.legal{font-family:'Roboto',sans-serif;font-weight:300;letter-spacing:0.3px}
+.leve{font-family:'Roboto',sans-serif;font-weight:300;font-style:italic}
+.forte{font-family:'Roboto',sans-serif;font-weight:900}
+</style>
+<filter id="sh" x="-10%" y="-10%" width="125%" height="135%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#434343" flood-opacity="0.25"/></filter>
+<clipPath id="tk"><path d="M36 0 H844 A36 36 0 0 1 880 36 V136 A44 44 0 0 0 880 224 V324 A36 36 0 0 1 844 360 H36 A36 36 0 0 1 0 324 V224 A44 44 0 0 0 0 136 V36 A36 36 0 0 1 36 0 Z"/></clipPath>
+</defs>
+<rect width="1080" height="1920" fill="#F85400"/>
+<g id="pattern-ancorado" color="#FF9000" fill="currentColor" opacity="0.5" transform="translate(-2580,-720) scale(3) matrix(1 0 0 -1 0 1080)"><g transform="matrix(1 0 0 1 1161.3643 307.7339)"><path d="M 0 0 C 5.072 -53.327, -56.515 -86.656, -98.249 -53.327 C -112.595 -41.879, -117.232 -29.851, -121.145 -13.042 L -97.669 -9.274 C -95.061 -19.853, -92.742 -27.533, -83.178 -34.923 C -58.109 -54.631, -21.157 -34.923, -23.62 -2.898 L -24.055 2.753 L -0.58 6.521 Z" fill-rule="evenodd"/></g><g transform="matrix(1 0 0 1 841.6246 147.9541)"><path d="M 0 0 C 0.483 87.084, 105.53 130.963, 167.607 70.253 C 188.947 49.399, 194.489 29.189, 198.079 1.362 L 159.493 -0.908 C 156.997 16.627, 154.498 29.428, 140.232 42.94 C 102.892 78.902, 39.911 53.043, 38.679 0.84 L 38.461 -8.372 L -0.125 -10.642 Z" fill-rule="evenodd"/></g></g>
+<image href="asset:logos/dm-h-branca.png" x="390" y="290" width="300" height="60"/>
+<text x="540" y="500" text-anchor="middle" font-size="76" fill="#FFFFFF"><tspan class="leve">pega este </tspan><tspan class="forte">cupom</tspan></text>
+<text x="540" y="604" text-anchor="middle" font-size="76" fill="#FFFFFF"><tspan class="leve">pra você </tspan><tspan class="forte">economizar!</tspan></text>
+<g id="produto">
+  <text x="240" y="805" class="hero" font-size="130" fill="#FFFFFF">R$</text>
+  <text x="362" y="970" class="hero" font-size="360" fill="#FFFFFF">15</text>
+  <text x="651" y="820" class="hero" font-size="130" fill="#FFFFFF">OFF</text>
+  <text x="651" y="900" class="forte" font-size="50" fill="#FFFFFF">NO SEU</text>
+  <text x="651" y="960" class="forte" font-size="50" fill="#FFFFFF">PEDIDO</text>
+</g>
+<g transform="translate(100,1090)" filter="url(#sh)">
+  <g clip-path="url(#tk)">
+    <rect width="880" height="360" fill="#FFFFFF"/>
+    <rect width="150" height="360" fill="#F62900"/>
+  </g>
+</g>
+<path transform="translate(100,1090)" d="M36 0 H844 A36 36 0 0 1 880 36 V136 A44 44 0 0 0 880 224 V324 A36 36 0 0 1 844 360 H36 A36 36 0 0 1 0 324 V224 A44 44 0 0 0 0 136 V36 A36 36 0 0 1 36 0 Z" fill="none" stroke="#FF9000" stroke-width="14"/>
+<text transform="translate(222,1270) rotate(-90)" text-anchor="middle" class="hero" font-size="70" fill="#FFFFFF">CUPOM</text>
+<g id="detalhes">
+  <text x="270" y="1200" class="sup" font-size="34" fill="#434343">USE O CÓDIGO</text>
+  <text x="270" y="1312" class="hero" font-size="116" fill="#F85400">QUEROPIZZA</text>
+  <line x1="270" y1="1342" x2="930" y2="1342" stroke="#434343" stroke-opacity="0.25" stroke-width="3"/>
+  <text x="270" y="1396" class="body" font-size="32" fill="#434343">Válido nas pizzarias participantes</text>
+</g>
+<text x="540" y="1530" text-anchor="middle" class="legal" font-size="26" fill="#FFFFFF">Válido para pedidos acima de R$ 40. Consulte as regras no app.</text>
+</svg>
