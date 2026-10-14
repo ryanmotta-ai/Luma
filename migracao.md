@@ -38,17 +38,34 @@ Storage novo com os mesmos bytes do antigo e já com cache de 1 ano. As opções
 projetos são idênticas. **Único bloqueio para o app:** no novo, o schema `luma` ainda **não está exposto**
 na Data API (`PGRST106`). Entra no item 2.1.
 
-### 2.1 Uma ação sua que destrava todo o resto — ⬜ Você
+### 2.1 Acesso ao projeto novo — ⬜ Você (é o que trava tudo agora)
 
-Em vez de `supabase login` + 7 telas do Dashboard + caçar valores de secret, **um token de acesso
-pessoal** do Supabase me deixa fazer tudo pela API de gerenciamento (ler os secrets do antigo com valor,
-gravar no novo, subir as functions, expor o `luma`, copiar a configuração de Auth e pegar a chave pública).
+✅ `supabase login` feito em 14/10 com `pedro.moraes@deliverymuch.com.br`. **Mas essa conta só enxerga a
+sua org pessoal** ("pedro.moraes@deliverymuch.com.br's Org", onde vive o projeto antigo "LUMA MVP"). O
+projeto novo não aparece na lista e qualquer comando nele devolve `403 Your account does not have the
+necessary privileges`. Ou seja: a conta não é membro da org "DM - Inovação e IA".
 
-1. ⬜ **Você** — abra https://supabase.com/dashboard/account/tokens com a conta que está **nas duas orgs**
-   (a do Ryan, onde vive o antigo, e a "DM - Inovação e IA"). Generate new token, nome `migracao-luma`.
+Resolve de um destes dois jeitos:
+
+- ⬜ Se **outra pessoa** criou o projeto novo (TI, gestor): ela entra no Dashboard → org "DM - Inovação e
+  IA" → **Team → Invite** e convida `pedro.moraes@deliverymuch.com.br` como **Owner** ou **Admin**
+  (Developer não mexe em Auth nem na Data API). Você aceita o convite pelo e-mail. Não precisa logar de novo.
+- ⬜ Se **você** criou o projeto com **outro e-mail**: no PowerShell, `supabase logout` e depois
+  `supabase login` com esse e-mail.
+
+Depois disso, **um token de acesso pessoal** me deixa fazer o resto pela API de gerenciamento (ler os
+secrets do antigo com valor e gravar no novo sem que os valores passem por mim, subir as functions, expor o
+`luma`, copiar a configuração de Auth, pegar a chave pública):
+
+1. ⬜ **Você** — https://supabase.com/dashboard/account/tokens, com a conta que agora vê **as duas orgs**.
+   Generate new token, nome `migracao-luma`.
 2. ⬜ **Você** — cole no `.env`, numa linha nova: `SUPABASE_ACCESS_TOKEN=sbp_...`. Me avise: **"token no env"**.
    O token é pessoal e poderoso: fica só no `.env` (ignorado pelo git) e você o apaga na página de tokens
    quando a migração acabar.
+
+Secrets que existem no antigo (conferido pela CLI, só os nomes): `GEMINI_API_KEY`, `NVIDIA_API_KEY`,
+`NVIDIA2_API_KEY`, `OLLAMA_API_KEY`, `OPENROUTER_API_KEY`, `CLOUDFLARE_API_KEY`. Não há
+`CLOUDFLARE_ACCOUNT_ID` (o `ai` descobre sozinho). Os `SUPABASE_*` a plataforma injeta.
 
 Se preferir não criar o token, o caminho antigo continua valendo: `supabase login` no PowerShell (conta da
 org nova) para as functions, e os itens abaixo você faz no Dashboard do novo, comparando com o antigo:
