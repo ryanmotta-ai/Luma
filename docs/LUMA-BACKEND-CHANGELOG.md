@@ -12,6 +12,16 @@
 - **Nomes:** "Entrega grátis — Cupom com foto" (Aqui Tem Cupons, feed e story) → "Aqui tem cupons — Cupom com foto"; "Feed | De/Por — Story" → "Much+ — Oferta de/por", movido para a pasta "Much+ Benefícios" (`muchplus`); 4 rascunhos com Feed/Story trocado no nome corrigidos.
 - **Despublicados:** "Novo projeto" (Promo Turbinada, sem texto) e "Prancheta" (Rascunhos).
 
+## 2026-10-14 — Storage: cache de um ano nos assets imutáveis (sem migration)
+
+**O número.** Ciclo de outubro com 7 usuários ativos: **5,9 GB de Cached Egress (118% do Free)** e 4,2 GB de egress comum (84%). O bucket `luma-template-assets` tem 269 MB — foi servido ~22 vezes no mês. Causa: o Storage grava `max-age=3600` por padrão, então cada celular descartava as camadas depois de 1 hora e rebaixava tudo na próxima abertura. O CDN não evita isso: ele entrega mais rápido, mas a entrega continua contando (é exatamente o "cached").
+
+**Front (`layers.js`, `?v=260`):** `_dUploadDataUrl` passa `cacheControl:'31536000'`. É seguro porque o caminho leva UUID (`<tid>/<layer>-<uuid>.<ext>`), o arquivo nunca é substituído — vale para `luma-template-assets` e `luma-covers`. Os uploads por `upsert` em caminho fixo (`biblioteca/`, `luma-user-uploads`, `luma-suporte`) ficam no padrão: cache longo ali mostraria arquivo velho depois de uma troca.
+
+**Arquivos existentes:** só o upload novo ganha o cabeçalho. Os ~530 que sobram depois da limpeza dos órfãos seguem em 1 hora até receberem o `cacheControl` no `metadata` de `storage.objects` (SQL no Dashboard, testado num arquivo antes, verificando o cabeçalho `Cache-Control` da URL pública) ou serem reenviados. O CDN pode servir o cabeçalho antigo por um tempo até a borda expirar.
+
+**O que isto não resolve:** o catálogo renderiza o template inteiro para pintar um thumb de 520 px (`materials.js`, `fRenderPreviewToCanvas`) — a primeira abertura de cada campanha em cada aparelho continua baixando todas as camadas. O cache corta a repetição; o thumb salvo no publicar (coluna `templates.thumb_url`, já existe e está vazia) corta o tamanho. Segundo passo do plano.
+
 ## 2026-10-14 — Luma Creative: juiz de visão `arte.criticar` (⏳ deploy da função `ai` pendente, junto com o anterior)
 
 - **Task nova `arte.criticar`** (`POLITICA` `{max: 4096, pensar: "LOW", temp: 0.3}`): recebe como anexos os prints das 3 opções (JPEG 432 px) mais até 2 artes aprovadas da marca como régua, e devolve notas 0–5 por critério (foco, hierarquia, respiro, contraste, acabamento), um "porquê" curto e até 2 ajustes de uma lista fechada (`heroiMaior`, `heroiMenor`, `fotoMaior`, `fotoMenor`, `semApoio`, `semSelo`). Quem aplica o ajuste e confere de novo é o front.

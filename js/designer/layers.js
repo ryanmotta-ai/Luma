@@ -3956,7 +3956,11 @@ async function _dUploadDataUrl(bucket, path, dataUrl){
     const ext=((blob.type.split('/')[1]||'png').split('+')[0]).replace(/[^a-z0-9]/gi,'')||'png';
     // Cada upload ganha URL nova: versões históricas nunca apontam para arquivo substituído.
     const full=path+'-'+gUuid()+'.'+ext;
-    const { error }=await sb.storage.from(bucket).upload(full, blob, {upsert:false, contentType:blob.type||'image/png'});
+    /* Cache de UM ANO no navegador (14/10/2026). O caminho leva UUID, então o arquivo nunca muda:
+       cachear forte é seguro. Sem isto o Storage mandava max-age=3600 e cada celular rebaixava
+       todas as camadas a cada hora — 7 usuários baixaram o bucket inteiro ~22x num mês (5,9 GB de
+       Cached Egress, 118% do Free). Vale para template-assets e covers, os dois imutáveis. */
+    const { error }=await sb.storage.from(bucket).upload(full, blob, {upsert:false, contentType:blob.type||'image/png', cacheControl:'31536000'});
     if(error){ console.warn('[sync] upload pro Storage falhou ('+bucket+'/'+full+'):', error.message||error); return null; }
     return sb.storage.from(bucket).getPublicUrl(full).data.publicUrl;
   }catch(e){ console.warn('[sync] upload pro Storage falhou ('+bucket+'):', e); return null; }
