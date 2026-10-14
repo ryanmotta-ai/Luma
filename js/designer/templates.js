@@ -2599,7 +2599,11 @@ function _dSvgSlot(g, id, m){
   const n=v=>parseFloat(f.getAttribute(v)||0)||0, tag=f.tagName.toLowerCase();
   const rx=n('rx')||n('r'), ry=n('ry')||n('r');
   const cx=tag==='rect' ? _dSvgCaixa(n('x'), n('y'), n('width'), n('height'), mm) : _dSvgCaixa(n('cx')-rx, n('cy')-ry, rx*2, ry*2, mm);
+  // Foto já posta no slot (Luma Creative: a pessoa enviou a foto do produto/local) vira a imagem
+  // da moldura — o campo continua {{foto_produto}}, o franqueado troca.
+  const im=g.querySelector('image'), src=im ? (im.getAttribute('href')||im.getAttribute('xlink:href')||'') : '';
   return {_id:'svg-'+Math.random().toString(36).slice(2), name:id, svgTag:tag, detectedType:'frame', mode:'frame',
+    imgUrl:/^data:image\//.test(src) ? src : '',
     x:cx.x, y:cx.y, w:cx.w, h:cx.h, imgVar:id, frameShape:tag==='rect'?'rect':'circle',
     radius:tag==='rect'?Math.round(n('rx')*Math.sqrt(mm[0]*mm[0]+mm[1]*mm[1])):0, opacity:100};
 }

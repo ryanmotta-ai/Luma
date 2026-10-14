@@ -213,6 +213,40 @@
     assert(!c[0].ok && /#00FF00/.test(c[0].t), 'cor estranha passou: '+c[0].t);
   });
 
+  caso('Luma Creative: bloco movido no editor chega ao Estúdio na posição nova (o importador lê o transform)', async()=>{
+    await crFontesProntas();
+    const r=crCompor({composicao:'oferta', titulo:'Pizza calabresa', precoPor:'22,90'});
+    const antes=(await importar(await crEmbutir(r.svg))).layers.find(l=>String(l.content).indexOf('{{precoPor')>=0);
+    const movido=r.svg.replace('<g data-bloco="preco">','<g data-bloco="preco" data-dx="40" data-dy="-100" transform="translate(40,-100)">');
+    const depois=(await importar(await crEmbutir(movido))).layers.find(l=>String(l.content).indexOf('{{precoPor')>=0);
+    assert(antes && depois, 'campo precoPor sumiu');
+    assert(Math.abs(depois.x-antes.x-40)<=1.5 && Math.abs(depois.y-antes.y+100)<=1.5, 'deslocou '+(depois.x-antes.x)+','+(depois.y-antes.y)+' (esperado 40,-100)');
+  });
+
+  caso('Luma Creative: a foto enviada entra no slot e vira a imagem da moldura no Estúdio', async()=>{
+    await crFontesProntas();
+    const png='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    const r=crCompor({composicao:'evento', titulo:'Festival', foto:png});
+    assert(/clip-path="url\(#crfoto\)"/.test(r.svg), 'foto não entrou no slot');
+    const {layers}=await importar(await crEmbutir(r.svg));
+    const f=layers.filter(l=>l.type==='frame' && l.imgVar==='foto_produto');
+    assert(f.length===1 && f[0].imgUrl===png, 'moldura sem a foto: '+f.length+' '+String(f[0]&&f[0].imgUrl).slice(0,30));
+    assert(!layers.some(l=>l.type==='image' && l.imgUrl===png), 'a foto entrou também como imagem solta');
+  });
+
+  caso('Luma Creative: o briefing local pergunta o que falta e as respostas entram na arte', async()=>{
+    const br=crBriefingLocal({pedido:'Oferta de pizza calabresa', fmt:'feed'});
+    const t=crPerguntasFinais(br, {foto:null}).map(q=>q.titulo).join(',');
+    assert(t==='Formato,Preço,Foto', 'perguntas: '+t);
+    assert(!crBriefingLocal({pedido:'Story: oferta de pizza de R$ 28 por R$ 22,90', fmt:'feed'}).perguntas.length, 'perguntou o que o pedido já dizia');
+    const sp=crNormaliza(crAplicaRespostas({composicao:'oferta'}, [{campo:'precoPor', resposta:'de 28 por 22,9'}, {campo:'formato', valor:'story'}]));
+    assert(sp.precoDe==='28,00' && sp.precoPor==='22,90' && sp.formato==='story', 'respostas: '+[sp.precoDe, sp.precoPor, sp.formato]);
+    const ev=crNormaliza(crAplicaRespostas({composicao:'evento'}, [{campo:'data', resposta:'10 a 20 de outubro'}]));
+    assert(ev.selo.join(' ')==='10 A 20 OUTUBRO', 'selo da data: '+ev.selo.join(' '));
+    const cp=crNormaliza(crAplicaRespostas({composicao:'cupom'}, [{campo:'cupomValor', resposta:'R$ 15'}, {campo:'cupomCodigo', resposta:'quero pizza'}]));
+    assert(cp.cupomValor==='15' && cp.cupomCodigo==='QUEROPIZZA', 'cupom: '+cp.cupomValor+' '+cp.cupomCodigo);
+  });
+
   let passed=0; const falhas=[];
   for(const item of cases){
     const li=document.createElement('li'); li.className='case';

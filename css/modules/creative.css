@@ -4,7 +4,8 @@
  * Luma Creative (js/creative/creative.js) — modo em testes, só gestão.
  * Visual próprio: grafite QUENTE com brilho laranja (nem o claro do Franqueado, nem o frio do
  * Estúdio). Tokens --cr-* em 00-tokens.css. Motion de terminal: glifo girando, verbo com brilho,
- * passos ⏺/⎿, texto digitado, arte do desfoque ao nítido. Tudo some com prefers-reduced-motion.
+ * passos ⏺/⎿, perguntas do briefing, texto digitado, arte do desfoque ao nítido, editor na hora.
+ * Tudo some com prefers-reduced-motion.
  */
 
 /* ── Entrada do modo: a view revela em círculo a partir da aba ── */
@@ -116,18 +117,8 @@ body.mode-creative .mode-tab.active{ color:var(--white) }
 .cr-nitida .cr-arte img{ filter:none; transform:none; opacity:1 }
 .cr-selo-ia{ padding:4px 9px; border-radius:var(--r-pill); background:var(--cr-surf2); color:var(--cr-text2); font-size:11px; font-weight:600 }
 .cr-lado{ min-width:0; display:flex; flex-direction:column; gap:16px }
+.cr-lado[hidden]{ display:none }
 .cr-lado h4{ margin:0 0 8px; font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--cr-text2) }
-.cr-confere{ list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px }
-.cr-confere li{ display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:10px; background:var(--cr-surf2); font-size:12.5px; line-height:1.3; opacity:0; transform:translateY(6px) }
-.cr-confere svg{ flex:none; color:var(--green) }
-.cr-confere .cr-aviso-item svg{ color:var(--dm-yellow) }
-.cr-nitida .cr-confere li{ animation:crSobe var(--dur-base) var(--ease-out) forwards }
-.cr-nitida .cr-confere li:nth-child(1){ animation-delay:120ms }
-.cr-nitida .cr-confere li:nth-child(2){ animation-delay:210ms }
-.cr-nitida .cr-confere li:nth-child(3){ animation-delay:300ms }
-.cr-nitida .cr-confere li:nth-child(4){ animation-delay:390ms }
-.cr-campos{ display:flex; flex-wrap:wrap; gap:6px }
-.cr-campo{ padding:4px 9px; border-radius:var(--r-pill); border:1px dashed rgba(255,185,0,.45); color:var(--dm-yellow); font:500 12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace }
 .cr-leg{ display:flex; flex-direction:column; gap:8px; align-items:flex-start }
 .cr-leg-abas{ display:flex; gap:4px; padding:3px; border-radius:var(--r-pill); background:var(--cr-surf2) }
 .cr-leg-abas button{ height:26px; padding:0 12px; border:0; border-radius:var(--r-pill); background:none; color:var(--cr-text2); font:600 12px/1 'Roboto',sans-serif; cursor:pointer; transition:background var(--dur-fast),color var(--dur-fast) }
@@ -146,6 +137,66 @@ body.mode-creative .mode-tab.active{ color:var(--white) }
 .cr-prim{ background:linear-gradient(135deg,var(--dm-orange-d),var(--dm-orange)); border-color:transparent; color:var(--white) }
 .cr-prim:hover{ background:linear-gradient(135deg,var(--dm-orange-d),var(--dm-orange)); box-shadow:0 6px 20px var(--cr-glow) }
 #view-creative button:focus-visible,#view-creative textarea:focus-visible{ outline:2px solid var(--dm-orange); outline-offset:2px }
+
+/* ── Foto anexada ao pedido ── */
+.cr-anexo{ display:flex; align-items:center; gap:8px; align-self:flex-start; padding:4px 6px 4px 4px; border-radius:12px; background:var(--cr-surf); border:1px solid var(--cr-line); color:var(--cr-text2); font-size:12px; animation:crSobe var(--dur-base) var(--ease-out) both }
+.cr-anexo[hidden]{ display:none }
+.cr-anexo img{ width:36px; height:36px; border-radius:8px; object-fit:cover }
+.cr-anexo span{ max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.cr-anexo button{ width:22px; height:22px; display:grid; place-items:center; border:0; border-radius:50%; background:var(--cr-surf2); color:var(--cr-text2); cursor:pointer }
+.cr-anexo button:hover{ color:var(--cr-text) }
+.cr-clipe{ flex:none; width:34px; height:34px; align-self:center; margin-left:-8px; display:grid; place-items:center; border:0; border-radius:10px; background:none; color:var(--cr-text2); cursor:pointer; transition:color var(--dur-fast),background var(--dur-fast) }
+.cr-clipe:hover{ color:var(--dm-orange); background:var(--cr-surf2) }
+.cr-bolha-foto{ display:block; max-width:220px; max-height:220px; border-radius:14px; object-fit:cover; border:1px solid var(--cr-line) }
+
+/* ── Pergunta do briefing (jeito Claude Code: lista numerada, ❯ na escolhida) ── */
+.cr-pergunta{ padding:14px 14px 10px; border-radius:16px; background:var(--cr-surf); border:1px solid rgba(255,144,0,.4); box-shadow:0 0 0 4px rgba(248,84,0,.07); outline:none; transition:opacity var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-out) }
+.cr-pergunta.cr-some{ opacity:0; transform:translateY(-6px) }
+.cr-q-troca .cr-q-txt,.cr-q-troca .cr-q-ops{ animation:crSobe var(--dur-base) var(--ease-out) both }
+.cr-q-troca .cr-q-ops{ animation-delay:40ms }
+.cr-q-topo{ display:flex; align-items:center; justify-content:space-between; gap:8px }
+.cr-q-chip{ display:inline-flex; align-items:center; height:22px; padding:0 9px; border-radius:var(--r-pill); background:var(--cr-surf2); color:var(--dm-yellow); font:700 11px/1 'Roboto',sans-serif; letter-spacing:.06em; text-transform:uppercase }
+.cr-q-prog{ color:var(--cr-text2); font:500 11.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace }
+.cr-q-txt{ margin:10px 0 8px; font-size:15px; font-weight:600; line-height:1.4; color:var(--cr-text) }
+.cr-q-ops{ list-style:none; margin:0; padding:0; display:grid; gap:2px; font:400 13.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace }
+.cr-q-op{ display:flex; align-items:baseline; gap:8px; padding:7px 10px; border-radius:10px; color:var(--cr-text2); cursor:pointer; transition:background var(--dur-fast),color var(--dur-fast) }
+.cr-q-op:hover{ background:var(--cr-surf2); color:var(--cr-text) }
+.cr-q-op.on{ background:var(--cr-surf2); color:var(--dm-orange) }
+.cr-q-seta{ width:1ch; opacity:0; transition:opacity var(--dur-fast),transform var(--dur-fast) var(--ease-out); transform:translateX(-3px) }
+.cr-q-op.on .cr-q-seta{ opacity:1; transform:none }
+.cr-q-n{ color:inherit; opacity:.8 }
+.cr-q-rot{ display:flex; flex-direction:column; gap:1px; font-family:'Roboto',sans-serif; font-size:14px }
+.cr-q-rot svg{ vertical-align:-3px }
+.cr-q-rot small{ font-size:12px; color:var(--cr-text2) }
+.cr-q-op.on .cr-q-rot{ color:var(--cr-text) }
+.cr-q-op input{ flex:1; min-width:0; padding:4px 0; border:0; border-bottom:1px dashed var(--cr-line); background:none; color:var(--cr-text); font:400 14px/1.4 'Roboto',sans-serif; outline:none }
+/* O anel global de foco (01-reset, !important) sai SÓ aqui: a pergunta é um widget composto e o
+   foco já aparece na opção marcada (fundo + ❯) e no sublinhado laranja do campo "Outro". */
+#view-creative .cr-q-op input,#view-creative .cr-q-op input:focus,#view-creative .cr-q-op input:focus-visible{ outline:none!important; box-shadow:none; border-radius:0 }
+.cr-q-op input:focus{ border-bottom-color:var(--dm-orange) }
+/* o foco da pergunta é mostrado pela opção marcada (❯), não por um anel na caixa inteira */
+#view-creative .cr-pergunta:focus,#view-creative .cr-pergunta:focus-visible{ outline:none!important; border-radius:16px }
+.cr-q-l{ display:inline-flex; align-items:center; gap:7px }
+.cr-q-op input::placeholder{ color:var(--cr-text2) }
+.cr-q-foto .cr-q-op[data-tipo="upload"]{ margin-bottom:4px; padding:16px 12px; border:1px dashed rgba(255,185,0,.45); background:rgba(255,185,0,.04) }
+.cr-q-rodape{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:8px; padding-top:8px; border-top:1px solid var(--cr-line); color:var(--cr-text2); font:400 11.5px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace }
+.cr-q-pular{ border:0; background:none; color:var(--cr-text2); font:600 12px/1 'Roboto',sans-serif; cursor:pointer; padding:6px 8px; border-radius:8px }
+.cr-q-pular:hover{ color:var(--cr-text); background:var(--cr-surf2) }
+
+/* ── Editor na hora ── */
+.cr-resultado.cr-editando{ grid-template-columns:minmax(0,1fr) }
+.cr-editando .cr-arte-col{ align-items:stretch; gap:12px }
+.cr-ed-barra{ display:flex; flex-wrap:wrap; align-items:center; gap:6px }
+.cr-ed-btn{ width:34px; height:34px; display:grid; place-items:center; border:1px solid var(--cr-line); border-radius:10px; background:var(--cr-surf2); color:var(--cr-text); cursor:pointer; transition:background var(--dur-fast),transform var(--dur-fast) var(--ease-spring),opacity var(--dur-fast) }
+.cr-ed-btn:hover:not(:disabled){ background:var(--cr-surf3) }
+.cr-ed-btn:active:not(:disabled){ transform:scale(.94) }
+.cr-ed-btn:disabled{ opacity:.35; cursor:default }
+.cr-ed-sep{ width:1px; height:20px; background:var(--cr-line); margin:0 2px }
+.cr-ed-dica{ color:var(--cr-text2); font-size:12px; margin-left:6px }
+.cr-ed-fim{ display:flex; gap:6px; margin-left:auto }
+/* Altura útil = tela − topbar − compositor fixo − barra do editor: a arte inteira fica à vista */
+.cr-ed-palco{ width:min(100%, calc((100dvh - 52px - 330px) * var(--cr-ar, .8))); margin:0 auto; user-select:none; -webkit-user-select:none; animation:crSobe var(--dur-base) var(--ease-out) both }
+.cr-resultado{ scroll-margin-top:12px }
 
 /* ── Compositor (fixo embaixo) ── */
 .cr-compositor{ position:absolute; left:0; right:0; bottom:0; padding:14px max(16px,env(safe-area-inset-right,0px)) calc(16px + var(--safe-bottom,0px)) max(16px,env(safe-area-inset-left,0px)); background:linear-gradient(180deg,transparent,var(--cr-bg) 34%) }
@@ -169,12 +220,14 @@ body.cr-ocupado .cr-enviar{ opacity:.45; cursor:progress }
 @media (max-width:760px){
   .cr-resultado{ grid-template-columns:minmax(0,1fr); margin-left:0 }
   .cr-arte-col{ max-width:320px; margin:0 auto; width:100% }
-  .cr-confere{ grid-template-columns:minmax(0,1fr) }
   .cr-formato{ display:none }
+  .cr-ed-dica{ display:none }
+  .cr-q-rodape > span{ display:none }
 }
 @media (prefers-reduced-motion:reduce){
   #view-creative.cr-revelando,#view-creative.cr-itens .cr-cab,#view-creative.cr-itens .cr-conversa > *,
-  .cr-entra,.cr-passo,.cr-passo-res,.cr-resultado,.cr-nitida .cr-confere li{ animation:none; opacity:1; transform:none }
+  .cr-entra,.cr-passo,.cr-passo-res,.cr-resultado,.cr-anexo,.cr-ed-palco,.cr-q-troca .cr-q-txt,.cr-q-troca .cr-q-ops{ animation:none; opacity:1; transform:none }
+  .cr-pergunta,.cr-q-seta{ transition:none }
   .cr-verbo,.cr-cursor,.cr-agora .cr-bola{ animation:none }
   .cr-verbo{ color:var(--dm-orange); background:none }
   .cr-arte img{ transition:none }

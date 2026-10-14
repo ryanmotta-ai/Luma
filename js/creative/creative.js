@@ -10,7 +10,9 @@
  * mesmo motor compõe. A legenda do post sai junto (fFetchAICaptionSuggestions, chat.js).
  *
  * Motor:  crCompor(spec) → {svg, campos, estouros}  ·  crEmbutir(svg) → SVG autônomo (base64)
- * Chat:   crEntrar (transição da aba) · crEnviar (pedido → passos → arte + legenda)
+ * Chat:   crEntrar (transição da aba) · crEnviar (pedido → briefing com perguntas → passos → arte + legenda)
+ * Editor: crEditar — mexe no SVG na hora (arrastar blocos, texto, tamanho); salvar = nova versão
+ * Foto:   anexo no pedido ou resposta à pergunta; entra recortada no slot foto_produto
  * Assets: assets/creative/ (fontes woff2 e logo recortado, cópia da skill — .agents/ não é servido)
  */
 
@@ -130,8 +132,15 @@ function crLogo(x, y, story){
   const w = story ? 300 : 260, h = story ? 60 : 52;
   return { svg: '<image href="asset:logos/dm-h-branca.png" x="' + _r(x) + '" y="' + _r(y) + '" width="' + w + '" height="' + h + '"/>', w, h };
 }
-function crFoto(x, y, w, h, rx, legenda){
-  let s = '<g id="foto_produto"><rect x="' + _r(x) + '" y="' + _r(y) + '" width="' + _r(w) + '" height="' + _r(h) + '" rx="' + rx + '" fill="#D9D9D9"/>';
+// Slot da foto (contrato: g#foto_produto vira moldura). Com a foto que a pessoa enviou, ela entra
+// recortada no slot (cover); sem foto, o placeholder oficial da skill.
+function crFoto(x, y, w, h, rx, legenda, foto){
+  const caixa = 'x="' + _r(x) + '" y="' + _r(y) + '" width="' + _r(w) + '" height="' + _r(h) + '" rx="' + rx + '"';
+  let s = '<g id="foto_produto"><rect ' + caixa + ' fill="#D9D9D9"/>';
+  if(foto){
+    return s + '<clipPath id="crfoto"><rect ' + caixa + '/></clipPath><image href="' + foto + '" x="' + _r(x) + '" y="' + _r(y) + '" width="' + _r(w) + '" height="' + _r(h)
+      + '" preserveAspectRatio="xMidYMid slice" clip-path="url(#crfoto)"/></g>';
+  }
   if(h >= 240){
     const cx = Math.max(x, 0) + Math.min(w, CR_W) / 2, cy = y + h / 2 - 20;
     s += '<g transform="translate(' + _r(Math.min(cx, CR_W / 2)) + ',' + _r(cy) + ')">'
@@ -150,11 +159,12 @@ function crSelo(cx, cy, r, linhas){
   let s = '<g transform="translate(' + _r(cx) + ',' + _r(cy) + ')" filter="url(#shs)"><circle r="' + r + '" fill="#FFB900"/>';
   if(l.length === 1){
     const z = crCabe(l[0], 'hero', r * 0.8, r * 1.5, 0);
-    s += crTexto(0, z * 0.36, 'hero', z, '#434343', l[0], ' text-anchor="middle"');
+    s += crTexto(0, z * 0.36, 'hero', z, '#434343', l[0], ' text-anchor="middle" data-larg="' + _r(r * 1.5) + '"');
   }else{
     const z1 = crCabe(l[0], 'hero', r * 0.72, r * 1.55, 0), z2 = crCabe(l[1], 'hero', r * 0.58, r * 1.4, 0);
     const alt = z1 * 0.73 + r * 0.14 + z2 * 0.73, b1 = -alt / 2 + z1 * 0.73, b2 = b1 + r * 0.14 + z2 * 0.73;
-    s += crTexto(0, b1, 'hero', z1, '#434343', l[0], ' text-anchor="middle"') + crTexto(0, b2, 'hero', z2, '#434343', l[1], ' text-anchor="middle"');
+    const lg = ' text-anchor="middle" data-larg="' + _r(r * 1.5) + '"';
+    s += crTexto(0, b1, 'hero', z1, '#434343', l[0], lg) + crTexto(0, b2, 'hero', z2, '#434343', l[1], lg);
   }
   return s + '</g>';
 }
@@ -211,38 +221,42 @@ function crPreco(x, y, por, larg){
 ══════════════════════════════════════════════════════════════ */
 function crArea(fmt){ return fmt === 'story' ? { H: 1920, top: 290, base: 1640, story: true } : { H: 1350, top: 80, base: 1250, story: false }; }
 
+// Bloco = o que o editor (crEditar) move junto. Ganha transform ao arrastar; o importador lê a matriz.
+const crBloco = (nome, svg) => svg ? '<g data-bloco="' + nome + '">' + svg + '</g>' : '';
+
 const CR_MONTA = {
   // refino_01: logo · herói · apoio · foto · selo · card de preço sobreposto · botão vazado · legal
   oferta(sp, a, est){
     const out = [], lg = crLogo(CR_M, a.top, a.story);
-    out.push(lg.svg);
+    out.push(crBloco('logo', lg.svg));
     const h = crQuebra(sp.titulo, 'hero', a.story ? 170 : 151, CR_L, 96, est);
     const ys = h.linhas.map((l, i) => a.top + lg.h + 58 + h.size * 0.73 + i * h.size * 0.94);
     let y = ys[ys.length - 1];
-    out.push('<g id="produto">' + crHeroi(CR_M, ys, h.size, '#FFFFFF', h.linhas, ' data-campo="produto"') + '</g>');
-    if(sp.apoio){ y += 68; out.push(crTexto(CR_M, y, 'body', crCabe(sp.apoio, 'body', 40, sp.selo.length ? 660 : CR_L, 30, est), '#FFFFFF', sp.apoio)); }
+    let tit = '<g id="produto">' + crHeroi(CR_M, ys, h.size, '#FFFFFF', h.linhas, ' data-campo="produto"') + '</g>';
+    if(sp.apoio){ y += 68; tit += crTexto(CR_M, y, 'body', crCabe(sp.apoio, 'body', 40, sp.selo.length ? 660 : CR_L, 30, est), '#FFFFFF', sp.apoio); }
+    out.push(crBloco('titulo', tit));
     const temPreco = !!sp.precoPor, cardH = sp.precoDe ? 310 : 250;
     const cardBot = a.base - 70, cardTop = cardBot - cardH;
     const fotoTop = y + 62, fotoBot = temPreco ? cardTop + 80 : cardBot - 96 - 40;
-    out.push(crFoto(CR_M, fotoTop, CR_L, Math.max(200, fotoBot - fotoTop), 56, sp.fotoLegenda));
-    out.push(crSelo(880, fotoTop + 22, 100, sp.selo));
+    out.push(crBloco('foto', crFoto(CR_M, fotoTop, CR_L, Math.max(200, fotoBot - fotoTop), 56, sp.fotoLegenda, sp.foto)));
+    out.push(crBloco('selo', crSelo(880, fotoTop + 22, 100, sp.selo)));
     if(temPreco){
       let p = '<g data-sobrepoe="foto"><rect x="' + CR_M + '" y="' + _r(cardTop) + '" width="470" height="' + cardH + '" rx="36" fill="#FFFFFF" filter="url(#sh)"/><g id="preco">';
       let py = cardTop;
       if(sp.precoDe){ p += crTexto(148, py + 64, 'body', 40, '#434343', 'DE R$ ' + sp.precoDe, ' text-decoration="line-through" data-campo="precoDe"'); py += 58; }
       p += crTexto(150, py + 64, 'sup', 38, '#434343', 'POR') + crPreco(146, py + 206, sp.precoPor, 374) + '</g></g>';
-      out.push(p);
-      out.push(crBotao(980, cardBot - 96, sp.cta, false, true).svg);
+      out.push(crBloco('preco', p));
+      out.push(crBloco('botao', crBotao(980, cardBot - 96, sp.cta, false, true).svg));
     }else{
-      out.push(crBotao(CR_M, cardBot - 96, sp.cta, true).svg);
+      out.push(crBloco('botao', crBotao(CR_M, cardBot - 96, sp.cta, true).svg));
     }
-    out.push(crLegal(CR_M, a.base, sp.legal, '', est));
+    out.push(crBloco('legal', crLegal(CR_M, a.base, sp.legal, '', est)));
     return out;
   },
 
   // refino_02: pattern · logo central · chamada leve/forte · valor gigante · ticket com código · legal
   cupom(sp, a, est){
-    const pedacos = [], k = a.story ? 1 : 0.9;
+    const out = [], k = a.story ? 1 : 0.9;
     const lg = crLogo(0, 0, a.story);
     const zc = Math.min(76 * k, ...sp.chamada.map(l => Math.floor(76 * k * CR_L / Math.max(1, crMedeMista(l, 76 * k)))));
     // valor: "R$" + número + OFF / NO SEU / PEDIDO (lockup medido)
@@ -256,26 +270,28 @@ const CR_MONTA = {
     const gaps = [95 * k, 96 * k, 120 * k, 116 * k];
     const total = alturas.logo + gaps[0] + alturas.chamada + gaps[1] + alturas.lockup + gaps[2] + alturas.ticket + (sp.legal ? gaps[3] : 0);
     let y = a.top + Math.max(0, (a.base - a.top - total) / 2);
-    pedacos.push(crLogo((CR_W - lg.w) / 2, y, a.story).svg);
+    out.push(crBloco('logo', crLogo((CR_W - lg.w) / 2, y, a.story).svg));
     y += lg.h + gaps[0] + zc * 0.75;
-    sp.chamada.forEach((l, i) => { pedacos.push(crMista(CR_W / 2, y, zc, '#FFFFFF', l, 'middle')); if(i < sp.chamada.length - 1) y += zc * 1.37; });
+    let ch = '';
+    sp.chamada.forEach((l, i) => { ch += crMista(CR_W / 2, y, zc, '#FFFFFF', l, 'middle'); if(i < sp.chamada.length - 1) y += zc * 1.37; });
+    out.push(crBloco('chamada', ch));
     y += gaps[1] + zn * 0.73;
     const x0 = (CR_W - (wR + g1 + wN + g2 + wO)) / 2, xn = x0 + wR + g1, xo = xn + wN + g2;
     let lk = '<g id="produto">';
     if(!pct) lk += crTexto(x0, y - zn * 0.458, 'hero', 130 * k, '#FFFFFF', 'R$');
     lk += crTexto(xn, y, 'hero', zn, '#FFFFFF', num, ' data-campo="desconto_valor"')
       + crTexto(xo, y - 152 * k, 'forte', 150 * k, '#FFFFFF', 'OFF') + crTexto(xo, y - 65 * k, 'forte', 56 * k, '#FFFFFF', 'NO SEU') + crTexto(xo, y, 'forte', 56 * k, '#FFFFFF', 'PEDIDO') + '</g>';
-    pedacos.push(lk);
+    out.push(crBloco('valor', lk));
     y += gaps[2];
     const tx = (CR_W - 880 * k) / 2, cx = tx + 222 * k, cl = 568 * k;
-    pedacos.push(crTicket(tx, y, k));
-    pedacos.push('<g id="detalhes">' + crTexto(cx, y + 82 * k, 'sup', 34 * k, '#434343', sp.cupomRotulo)
-      + crTexto(cx, y + 194 * k, 'hero', crCabe(sp.cupomCodigo, 'hero', 116 * k, cl, 60, est), '#F85400', sp.cupomCodigo, ' data-campo="codigo_cupom"')
+    out.push(crBloco('cupom', crTicket(tx, y, k)
+      + '<g id="detalhes">' + crTexto(cx, y + 82 * k, 'sup', 34 * k, '#434343', sp.cupomRotulo)
+      + crTexto(cx, y + 194 * k, 'hero', crCabe(sp.cupomCodigo, 'hero', 116 * k, cl, 60, est), '#F85400', sp.cupomCodigo, ' data-campo="codigo_cupom" data-larg="' + _r(cl) + '"')
       + '<line x1="' + _r(cx) + '" y1="' + _r(y + 222 * k) + '" x2="' + _r(cx + cl) + '" y2="' + _r(y + 222 * k) + '" stroke="#FFB900" stroke-width="3" stroke-linecap="round"/>'
-      + (sp.apoio ? crTexto(cx, y + 272 * k, 'body', crCabe(sp.apoio, 'body', 32 * k, cl, 24, est), '#434343', sp.apoio) : '') + '</g>');
+      + (sp.apoio ? crTexto(cx, y + 272 * k, 'body', crCabe(sp.apoio, 'body', 32 * k, cl, 24, est), '#434343', sp.apoio, ' data-larg="' + _r(cl) + '"') : '') + '</g>'));
     y += 324 * k + gaps[3];
-    pedacos.push(crLegal(CR_W / 2, y, sp.legal, 'middle', est));
-    return pedacos;
+    out.push(crBloco('legal', crLegal(CR_W / 2, y, sp.legal, 'middle', est)));
+    return out;
   },
 
   // refino_03: foto sangrando no topo · selo de data · herói em 2 linhas · apoio · botão cheio · logo no rodapé
@@ -286,40 +302,40 @@ const CR_MONTA = {
     const ultima = sp.apoio ? apoioY - 76 : ctaTop - 60;
     const primeira = ultima - (h.linhas.length - 1) * h.size * 0.94;
     const fotoBot = primeira - h.size * 0.73 - 60;
-    out.push(crFoto(-60, -60, 1200, fotoBot + 60, 56, sp.fotoLegenda || 'Use aqui a foto do evento'));
+    out.push(crBloco('foto', crFoto(-60, -60, 1200, fotoBot + 60, 56, sp.fotoLegenda || 'Use aqui a foto do evento', sp.foto)));
     // Selo na borda da foto; se o herói chega embaixo dele, sobe para dentro da foto (não cobre texto)
     const largH = Math.max(...h.linhas.map(l => crMede(l, 'hero', h.size)));
-    out.push(crSelo(850, CR_M + largH + 30 > 850 - 120 ? fotoBot - 64 : fotoBot, 120, sp.selo));
-    out.push('<g id="produto">' + crHeroi(CR_M, h.linhas.map((l, i) => primeira + i * h.size * 0.94), h.size, '#FFFFFF', h.linhas, ' data-campo="titulo"') + '</g>');
-    if(sp.apoio) out.push(crTexto(CR_M, apoioY, 'body', crCabe(sp.apoio, 'body', 40, CR_L, 30, est), '#FFFFFF', sp.apoio));
+    out.push(crBloco('selo', crSelo(850, CR_M + largH + 30 > 850 - 120 ? fotoBot - 64 : fotoBot, 120, sp.selo)));
+    out.push(crBloco('titulo', '<g id="produto">' + crHeroi(CR_M, h.linhas.map((l, i) => primeira + i * h.size * 0.94), h.size, '#FFFFFF', h.linhas, ' data-campo="titulo"') + '</g>'));
+    if(sp.apoio) out.push(crBloco('apoio', crTexto(CR_M, apoioY, 'body', crCabe(sp.apoio, 'body', 40, CR_L, 30, est), '#FFFFFF', sp.apoio)));
     const b = crBotao(CR_M, ctaTop, sp.cta, true);
-    out.push(b.svg);
+    out.push(crBloco('botao', b.svg));
     const lg = crLogo(0, 0, false);
-    if(CR_M + b.w + 40 < 980 - lg.w) out.push(crLogo(980 - lg.w, ctaTop + 22, false).svg);
-    out.push(crLegal(CR_M, a.base, sp.legal, '', est));
+    if(CR_M + b.w + 40 < 980 - lg.w) out.push(crBloco('logo', crLogo(980 - lg.w, ctaTop + 22, false).svg));
+    out.push(crBloco('legal', crLegal(CR_M, a.base, sp.legal, '', est)));
     return out;
   },
 
   // refino_04: logo · palavra minúscula forte · herói vazado · apoio · foto · selo · botão cheio
   destaque(sp, a, est){
     const out = [], lg = crLogo(CR_M, a.top, a.story);
-    out.push(lg.svg);
+    out.push(crBloco('logo', lg.svg));
     const z1 = crCabe(sp.palavra, 'forte', a.story ? 250 : 190, CR_L, 90, est);
     const z2 = crCabe(sp.titulo, 'hero', a.story ? 380 : 290, CR_L, 120, est);
     let y = a.top + lg.h + 50 + z1 * 0.76;
     const b1 = y;
     y += z1 * 0.24 + 80 * (a.story ? 1 : 0.6) + z2 * 0.73;
-    out.push('<g id="produto">' + crTexto(CR_M, b1, 'forte', z1, '#FFFFFF', sp.palavra, ' letter-spacing="-3"')
-      + crTexto(CR_M, y, 'hero', z2, 'none', sp.titulo, ' stroke="#FFFFFF" stroke-width="7" stroke-linejoin="round" data-campo="titulo"') + '</g>');
-    if(sp.apoio){ y += 78; out.push(crTexto(CR_M, y, 'body', crCabe(sp.apoio, 'body', 42, CR_L, 30, est), '#FFFFFF', sp.apoio)); }
+    out.push(crBloco('titulo', '<g id="produto">' + crTexto(CR_M, b1, 'forte', z1, '#FFFFFF', sp.palavra, ' letter-spacing="-3"')
+      + crTexto(CR_M, y, 'hero', z2, 'none', sp.titulo, ' stroke="#FFFFFF" stroke-width="7" stroke-linejoin="round" data-campo="titulo"') + '</g>'));
+    if(sp.apoio){ y += 78; out.push(crBloco('apoio', crTexto(CR_M, y, 'body', crCabe(sp.apoio, 'body', 42, CR_L, 30, est), '#FFFFFF', sp.apoio))); }
     const ctaTop = sp.legal ? a.base - 70 - 96 : a.base - 76;
     const fotoTop = y + 72, fotoBot = ctaTop - 40;
     if(fotoBot - fotoTop >= 200){
-      out.push(crFoto(CR_M, fotoTop, CR_L, fotoBot - fotoTop, 56, sp.fotoLegenda));
-      out.push(crSelo(880, fotoTop + 15, 100, sp.selo));
+      out.push(crBloco('foto', crFoto(CR_M, fotoTop, CR_L, fotoBot - fotoTop, 56, sp.fotoLegenda, sp.foto)));
+      out.push(crBloco('selo', crSelo(880, fotoTop + 15, 100, sp.selo)));
     }
-    out.push(crBotao(CR_M, ctaTop, sp.cta, true).svg);
-    out.push(crLegal(CR_M, a.base, sp.legal, '', est));
+    out.push(crBloco('botao', crBotao(CR_M, ctaTop, sp.cta, true).svg));
+    out.push(crBloco('legal', crLegal(CR_M, a.base, sp.legal, '', est)));
     return out;
   },
 
@@ -335,28 +351,30 @@ const CR_MONTA = {
     const zc = Math.min(66, ...sp.chamada.map(l => Math.floor(66 * CR_L / Math.max(1, crMedeMista(l, 66)))));
     const total = lg.h + (sp.topo ? 38 + 70 : 0) + 35 + 450 * 0.73 + 104 + (sp.chamada.length - 1) * 80 + 78 + 324 + (sp.legal ? 136 : 0);
     let y = a.top + Math.max(0, (a.base + 20 - a.top - total) / 2);
-    out.push(crLogo(CR_M, y, a.story).svg);
+    out.push(crBloco('logo', crLogo(CR_M, y, a.story).svg));
     y += lg.h;
     if(sp.topo){
       y += 38;
-      out.push('<rect x="' + CR_M + '" y="' + _r(y) + '" width="' + pw + '" height="70" rx="35" fill="#FFFFFF"/>' + crTexto(CR_M + pw / 2, y + 49, 'hero', zt, '#F85400', sp.topo, ' text-anchor="middle"'));
+      out.push(crBloco('tag', '<rect x="' + CR_M + '" y="' + _r(y) + '" width="' + pw + '" height="70" rx="35" fill="#FFFFFF"/>' + crTexto(CR_M + pw / 2, y + 49, 'hero', zt, '#F85400', sp.topo, ' text-anchor="middle"')));
       y += 70;
     }
     const B = y + 35 + 450 * 0.73, xb = CR_M + wN + 24;
-    out.push('<g id="produto">' + crTexto(CR_M, B, 'hero', zn, '#FFFFFF', sp.anos, ' data-campo="anos"')
-      + crTexto(xb, B - 222, 'forte', 144, '#FFFFFF', anoTxt) + crTexto(xb, B - 111, 'forte', 86, '#FFFFFF', 'NA SUA') + crTexto(xb, B, 'forte', 86, '#FFFFFF', 'CIDADE') + '</g>');
+    out.push(crBloco('anos', '<g id="produto">' + crTexto(CR_M, B, 'hero', zn, '#FFFFFF', sp.anos, ' data-campo="anos"')
+      + crTexto(xb, B - 222, 'forte', 144, '#FFFFFF', anoTxt) + crTexto(xb, B - 111, 'forte', 86, '#FFFFFF', 'NA SUA') + crTexto(xb, B, 'forte', 86, '#FFFFFF', 'CIDADE') + '</g>'));
     y = B + 104;
-    sp.chamada.forEach((l, i) => { out.push(crMista(CR_M, y, zc, '#FFFFFF', l)); if(i < sp.chamada.length - 1) y += 80; });
+    let ch = '';
+    sp.chamada.forEach((l, i) => { ch += crMista(CR_M, y, zc, '#FFFFFF', l); if(i < sp.chamada.length - 1) y += 80; });
+    out.push(crBloco('chamada', ch));
     const ty = y + 78, cx = CR_M + 222, cl = 568;
-    out.push(crTicket(CR_M, ty, 1));
     const valor = /%$/.test(sp.cupomValor) ? sp.cupomValor + ' OFF' : 'R$ ' + sp.cupomValor + ' OFF';
     const wc = crMede('CÓDIGO', 'sup', 30);
-    out.push('<g id="detalhes">' + crTexto(cx, ty + 82, 'sup', 34, '#434343', sp.cupomRotulo)
-      + crTexto(cx, ty + 180, 'hero', crCabe(valor, 'hero', 104, cl, 60, est), '#F85400', valor, ' data-campo="desconto_valor"')
+    out.push(crBloco('cupom', crTicket(CR_M, ty, 1)
+      + '<g id="detalhes">' + crTexto(cx, ty + 82, 'sup', 34, '#434343', sp.cupomRotulo)
+      + crTexto(cx, ty + 180, 'hero', crCabe(valor, 'hero', 104, cl, 60, est), '#F85400', valor, ' data-campo="desconto_valor" data-larg="' + cl + '"')
       + '<line x1="' + cx + '" y1="' + _r(ty + 206) + '" x2="' + (cx + cl) + '" y2="' + _r(ty + 206) + '" stroke="#FFB900" stroke-width="3" stroke-linecap="round"/>'
       + crTexto(cx, ty + 266, 'sup', 30, '#434343', 'CÓDIGO')
-      + crTexto(cx + wc + 18, ty + 266, 'forte', crCabe(sp.cupomCodigo, 'forte', 50, cl - wc - 18, 30, est), '#434343', sp.cupomCodigo, ' data-campo="codigo_cupom"') + '</g>');
-    out.push(crLegal(CR_M, ty + 324 + 116, sp.legal, '', est));
+      + crTexto(cx + wc + 18, ty + 266, 'forte', crCabe(sp.cupomCodigo, 'forte', 50, cl - wc - 18, 30, est), '#434343', sp.cupomCodigo, ' data-campo="codigo_cupom" data-larg="' + _r(cl - wc - 18) + '"') + '</g>'));
+    out.push(crBloco('legal', crLegal(CR_M, ty + 324 + 116, sp.legal, '', est)));
     return out;
   }
 };
@@ -393,6 +411,7 @@ function crNormaliza(bruto){
     cta: up(txt(s.cta, 14)),
     legal: txt(s.legal, 90),
     fotoLegenda: txt(s.fotoLegenda, 34),
+    foto: /^data:image\/(png|jpeg|webp);base64,/.test(s.foto || '') ? s.foto : '',
     chamada: (Array.isArray(s.chamada) ? s.chamada : []).map(l => txt(l, 32)).filter(Boolean).slice(0, 2)
   };
   const P = {
@@ -476,7 +495,8 @@ function crLerPedido(texto, fmt){
     else if(semMin.length) sp.precoPor = fmtR(semMin[0]);
     if(pct) sp.selo = [pct[1] + '%', 'OFF'];
     const prod = /(?:oferta|promo(?:ção|cao)?|arte|post)?\s*(?:de|do|da)?\s*([^:,.\d$]{3,40})/i.exec(t.replace(/^(arte|post|feed|story)\s+(de|do|da|para)?\s*/i, ''));
-    if(prod) sp.titulo = prod[1].replace(/\b(oferta|promo(ção|cao)?|arte|post|feed|story|de|do|da|por|com)\b/gi, ' ').trim();
+    if(prod) sp.titulo = prod[1].split(/\s+(?:para|pra|pro|no|na|neste|nesse|nessa|hoje|amanh[ãa]|esse|este|essa|desta|dessa|com)\b/i)[0]
+      .replace(/\b(oferta|promo(ção|cao)?|arte|post|feed|story|de|do|da|por)\b/gi, ' ').replace(/\s{2,}/g, ' ').trim();
   }
   if(sp.composicao === 'cupom' || sp.composicao === 'aniversario'){
     if(pct) sp.cupomValor = pct[1] + '%'; else if(semMin.length) sp.cupomValor = semMin[0].split(',')[0];
@@ -495,14 +515,104 @@ function crLerPedido(texto, fmt){
 }
 
 /* ══════════════════════════════════════════════════════════════
+   BRIEFING — antes de compor, pergunta só o que muda a arte (como o Claude Code faz)
+══════════════════════════════════════════════════════════════ */
+const CR_COM_FOTO = { oferta: true, evento: true, destaque: true };
+const _crReal = v => /,/.test(v) ? v.replace(/,(\d)$/, ',$10') : v + ',00';
+const _crAspas = s => String(s || '').replace(/"""/g, '"');
+
+// Sem IA: as perguntas saem do que crLerPedido NÃO achou no pedido. `campo` diz onde a resposta entra.
+function crBriefingLocal(fio){
+  const sp = crLerPedido(fio.pedido, fio.fmt), c = sp.composicao, q = [];
+  if(!/\b(stor(y|ies)|feed)\b/i.test(fio.pedido)){
+    const ops = [{ rotulo: 'Feed', desc: '1080 × 1350, post no perfil', valor: 'feed' }, { rotulo: 'Story', desc: '1080 × 1920, tela cheia', valor: 'story' }];
+    q.push({ titulo: 'Formato', pergunta: 'Onde a arte vai ser postada?', campo: 'formato', livre: false, opcoes: fio.fmt === 'story' ? ops.reverse() : ops });
+  }
+  if(c === 'oferta' && !sp.precoPor) q.push({ titulo: 'Preço', pergunta: 'Qual o preço que vai na arte?', campo: 'precoPor', dica: 'Ex.: 22,90 — ou "de 28,00 por 22,90"', opcoes: [{ rotulo: 'Sem preço na arte', valor: '' }] });
+  if((c === 'cupom' || c === 'aniversario') && !sp.cupomValor) q.push({ titulo: 'Desconto', pergunta: 'Qual o valor do desconto?', campo: 'cupomValor', dica: 'Ex.: 15 ou 20%', opcoes: [{ rotulo: 'R$ 10' }, { rotulo: 'R$ 15' }, { rotulo: '20%' }] });
+  if((c === 'cupom' || c === 'aniversario') && !sp.cupomCodigo) q.push({ titulo: 'Código', pergunta: 'Qual o código do cupom?', campo: 'cupomCodigo', dica: 'Ex.: QUEROPIZZA', opcoes: [{ rotulo: 'Deixar para o franqueado preencher', valor: '' }] });
+  if(c === 'aniversario' && !sp.anos) q.push({ titulo: 'Anos', pergunta: 'Quantos anos a franquia faz na cidade?', campo: 'anos', opcoes: [{ rotulo: '1' }, { rotulo: '2' }, { rotulo: '3' }, { rotulo: '5' }] });
+  if(c === 'evento' && !(sp.selo && sp.selo.length)) q.push({ titulo: 'Data', pergunta: 'Quando é o evento?', campo: 'data', dica: 'Ex.: 10 a 20 de outubro', opcoes: [{ rotulo: 'Sem data na arte', valor: '' }] });
+  return { resumo: 'Entendi: ' + CR_COMPOSICOES[c].toLowerCase() + '.', composicao: c, perguntas: q.slice(0, 3) };
+}
+function crPromptBriefing(fio){
+  return [
+    'Você é o diretor de arte da Delivery Much (app de delivery de cidades do interior do Brasil). A gestão pediu uma arte para redes sociais.',
+    'ANTES de compor, faça o briefing: entenda o pedido e pergunte SÓ o que muda a arte e o pedido não responde.',
+    '', 'PEDIDO: """' + _crAspas(fio.pedido).slice(0, 1200) + '"""',
+    'FORMATO MARCADO NA TELA: ' + fio.fmt + '. FOTO ENVIADA: ' + (fio.foto ? 'sim' : 'não') + '.',
+    '', 'DIAGRAMAÇÕES: oferta (produto + preço + foto), cupom (valor + código), evento (foto do local + data), destaque (benefício curto, ex. entrega grátis), aniversario (anos da franquia + presente).',
+    '', 'REGRAS DAS PERGUNTAS:',
+    '- No máximo 3. Se o pedido já basta, "perguntas": [].',
+    '- Bons alvos: dado que vai impresso na arte e faltou (preço, valor e código do cupom, data do evento, anos da franquia, pedido mínimo), o foco da peça, o tom da chamada, feed ou story quando o pedido não diz.',
+    '- NUNCA pergunte o que o pedido já diz. NUNCA pergunte de cor, fonte ou layout (é regra da marca). NÃO pergunte de foto (o Luma pergunta à parte).',
+    '- titulo: até 12 caracteres ("Preço", "Formato"). pergunta: frase curta terminada em "?". opcoes: 2 a 4 respostas prováveis e curtas (até 40 caracteres); a pessoa também pode digitar outra.',
+    '- NUNCA invente dado como opção (preço, código, data): para esses, ofereça só saídas como "Sem preço na arte" ou "Deixar para o franqueado preencher" — a pessoa digita o valor.',
+    '- resumo: 1 frase do que você entendeu (tipo de arte, ponto focal, ação).',
+    '', 'Responda SÓ o JSON:',
+    '{"resumo":"","composicao":"oferta|cupom|evento|destaque|aniversario","perguntas":[{"titulo":"","pergunta":"","opcoes":["",""]}]}'
+  ].join('\n');
+}
+async function crPedirBriefing(fio){
+  if(typeof gAskAI !== 'function' || typeof gAiReady !== 'function' || !gAiReady()) return null;
+  const j = (typeof gAiParseJson === 'function') ? gAiParseJson(await gAskAI('arte.compor', crPromptBriefing(fio), { json: true, cache: false })) : null;
+  if(!j || typeof j !== 'object' || !CR_COMPOSICOES[j.composicao]) return null;
+  const t = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
+  const perguntas = (Array.isArray(j.perguntas) ? j.perguntas : []).map(p => ({
+    titulo: t(p && p.titulo, 14) || 'Pergunta', pergunta: t(p && p.pergunta, 140),
+    opcoes: (Array.isArray(p && p.opcoes) ? p.opcoes : []).map(o => t(o, 48)).filter(Boolean).slice(0, 4).map(o => ({ rotulo: o }))
+  })).filter(p => p.pergunta).slice(0, 3);
+  return { resumo: t(j.resumo, 220), composicao: j.composicao, perguntas };
+}
+// + a pergunta da foto quando a diagramação leva foto e a pessoa ainda não mandou
+function crPerguntasFinais(br, fio){
+  const q = br.perguntas.slice(0, 3);
+  if(CR_COM_FOTO[br.composicao] && !fio.foto){
+    q.push({ tipo: 'foto', titulo: 'Foto', livre: false,
+      pergunta: br.composicao === 'evento' ? 'Tem uma foto do local ou do evento?' : 'Tem a foto do produto?',
+      opcoes: [{ rotulo: 'Deixar o espaço da foto', desc: 'o franqueado coloca a foto dele depois' }] });
+  }
+  return q;
+}
+// Respostas com `campo` entram direto na composição (determinístico, por cima do que a IA devolveu)
+function crAplicaRespostas(sp, resp){
+  const o = Object.assign({}, sp);
+  (resp || []).forEach(r => {
+    if(r.pulou || !r.campo) return;
+    const v = String(r.valor != null ? r.valor : (r.resposta || '')).trim();
+    if(r.campo === 'formato') o.formato = v.toLowerCase() === 'story' ? 'story' : 'feed';
+    else if(r.campo === 'precoPor'){
+      const n = (v.match(/\d+(?:[.,]\d{1,2})?/g) || []).map(x => x.replace('.', ','));
+      if(n.length >= 2){ const d = n.slice(0, 2).sort((a, b) => parseFloat(b.replace(',', '.')) - parseFloat(a.replace(',', '.'))); o.precoDe = _crReal(d[0]); o.precoPor = _crReal(d[1]); }
+      else if(n.length){ o.precoPor = _crReal(n[0]); o.precoDe = ''; }
+      else { o.precoPor = ''; o.precoDe = ''; }
+    }
+    else if(r.campo === 'cupomValor'){ const m = /(\d{1,3})\s*(%)?/.exec(v); if(m) o.cupomValor = m[1] + (m[2] || ''); }
+    else if(r.campo === 'cupomCodigo') o.cupomCodigo = v.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    else if(r.campo === 'anos'){ const m = /\d{1,2}/.exec(v); if(m) o.anos = m[0]; }
+    else if(r.campo === 'data'){
+      const d = /(\d{1,2})\s*(?:a|até)\s*(\d{1,2})\s*de\s*([a-zç]+)/i.exec(v), d1 = /(\d{1,2})\s*de\s*([a-zç]+)/i.exec(v);
+      o.selo = d ? [d[1] + ' A ' + d[2], d[3]] : d1 ? [d1[1], d1[2]] : v ? v.split(/\s+/).slice(0, 2) : [];
+    }
+  });
+  return o;
+}
+function _crBriefingTexto(fio){
+  return (fio.briefing || []).filter(r => !r.pulou && !r.foto && r.resposta).map(r => '- ' + r.pergunta + ' → ' + r.resposta).join('\n');
+}
+
+/* ══════════════════════════════════════════════════════════════
    IA — task `arte.compor` (só gestão também no servidor)
 ══════════════════════════════════════════════════════════════ */
-function crPrompt(pedido, fmt, evitar){
+function crPrompt(fio, evitar){
+  const br = _crBriefingTexto(fio);
   return [
     'Você é o diretor de arte da Delivery Much (app de delivery de cidades do interior do Brasil). A gestão pediu uma arte para redes sociais.',
     'Você NÃO desenha: escolhe a diagramação e escreve a copy. O código desenha com os blocos oficiais da marca.',
-    '', 'PEDIDO: """' + String(pedido).slice(0, 1200) + '"""',
-    'FORMATO ESCOLHIDO NA TELA: ' + fmt + ' (se o pedido disser outro formato, siga o pedido).',
+    '', 'PEDIDO: """' + _crAspas(fio.pedido).slice(0, 1200) + '"""',
+    br ? 'BRIEFING (respostas da pessoa — valem mais que o pedido):\n' + _crAspas(br).slice(0, 800) : '',
+    'FORMATO: ' + fio.fmt + ' (se o pedido ou o briefing disserem outro, siga eles).',
+    fio.foto ? 'FOTO: a pessoa enviou a foto. Use uma diagramação COM foto (oferta, evento ou destaque).' : '',
     evitar ? 'VARIAÇÃO: já saiu a diagramação "' + evitar + '". Escolha OUTRA diagramação que sirva ao pedido, ou a mesma com outra copy se só ela servir.' : '',
     '', 'DIAGRAMAÇÕES (escolha 1 em "composicao"):',
     '- "oferta": produto + foto + selo + card de preço de/por. Para produto com preço.',
@@ -512,7 +622,7 @@ function crPrompt(pedido, fmt, evitar){
     '- "aniversario": número de anos gigante + ANOS NA SUA CIDADE + chamada + ticket do presente. Aniversário da franquia.',
     '', 'REGRAS DA COPY:',
     '- PT-BR, tom próximo e direto. Sem emoji, sem hashtag, sem aspas.',
-    '- NUNCA invente preço, desconto, código, data ou número de anos que o pedido não deu: campo sem informação = "".',
+    '- NUNCA invente preço, desconto, código, data ou número de anos que o pedido e o briefing não deram: campo sem informação = "".',
     '- titulo: o herói, até 22 caracteres, sem ponto final (oferta = nome do produto; evento = nome do evento; destaque = a palavra vazada, ex. "GRÁTIS").',
     '- palavra: só no destaque, 1 palavra minúscula (ex. "entrega").',
     '- chamada: 2 linhas curtas (até 22 caracteres cada), frase leve com 1 palavra forte entre *asteriscos*: "pega este *cupom*", "pra você *economizar!*".',
@@ -523,14 +633,14 @@ function crPrompt(pedido, fmt, evitar){
     '- precoDe/precoPor: número com vírgula ("28,00"). cupomValor: só o número ("15") ou com % ("20%"). anos: só o número.',
     '- topo: tag curta do aniversário (ex. "BORA COMEMORAR!").',
     '- fundo: "pattern" pede o grafismo da marca ao fundo (bom sem foto); senão "liso".',
-    '- resumo: 1 frase para a gestão dizendo o que você entendeu: tipo de arte, ponto focal e ação. Ex.: "Entendi: aniversário, ponto focal no número de anos, ação = usar o cupom."',
+    '- resumo: 1 frase para a gestão dizendo o que você fez: diagramação, ponto focal e ação.',
     '', 'Responda SÓ o JSON:',
     '{"resumo":"","composicao":"","formato":"feed|story","fundo":"liso|pattern","topo":"","chamada":["",""],"titulo":"","palavra":"","apoio":"","selo":[],"precoDe":"","precoPor":"","cupomValor":"","cupomCodigo":"","cupomRotulo":"","anos":"","cta":"","legal":""}'
   ].filter(l => l !== '').join('\n');
 }
-async function crPedirComposicao(pedido, fmt, evitar){
+async function crPedirComposicao(fio, evitar){
   if(typeof gAskAI !== 'function' || typeof gAiReady !== 'function' || !gAiReady()) return null;
-  const txt = await gAskAI('arte.compor', crPrompt(pedido, fmt, evitar), { json: true, cache: false });
+  const txt = await gAskAI('arte.compor', crPrompt(fio, evitar), { json: true, cache: false });
   const j = (typeof gAiParseJson === 'function') ? gAiParseJson(txt) : null;
   return (j && typeof j === 'object' && CR_COMPOSICOES[j.composicao]) ? j : null;
 }
@@ -550,9 +660,9 @@ function crLegenda(sp){
 }
 
 /* ══════════════════════════════════════════════════════════════
-   CHAT — visual próprio e motion de terminal (spinner, passos, digitação)
+   CHAT — visual próprio e motion de terminal (spinner, passos, perguntas, digitação)
 ══════════════════════════════════════════════════════════════ */
-const crState = { fmt: 'feed', rodando: null, saudou: false, fios: [] };
+const crState = { fmt: 'feed', rodando: null, saudou: false, fios: [], anexo: null, aoFoto: null };
 const CR_GLIFOS = ['·', '✢', '✳', '✶', '✻', '✽', '✻', '✶', '✳', '✢'];
 const CR_VERBOS = ['Compondo', 'Diagramando', 'Medindo', 'Equilibrando', 'Alinhando', 'Contrastando', 'Lapidando', 'Ajustando o kerning', 'Escolhendo o herói'];
 const CR_EXEMPLOS = {
@@ -563,17 +673,23 @@ const CR_EXEMPLOS = {
   destaque: 'Entrega grátis hoje em pedidos acima de R$ 40',
   story: 'Story: cupom QUEROPIZZA de R$ 15'
 };
+const CR_NOME_BLOCO = { logo: 'Logo', titulo: 'Título', foto: 'Foto', selo: 'Selo', preco: 'Preço', botao: 'Botão', legal: 'Letra miúda',
+  chamada: 'Chamada', valor: 'Valor', cupom: 'Cupom', apoio: 'Apoio', tag: 'Tag', anos: 'Anos' };
 const _crReduz = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const _crEsp = ms => new Promise(r => setTimeout(r, _crReduz() ? 0 : ms));
 const _crEl = id => document.getElementById(id);
 const CR_ICO = {
   faisca: '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/></svg>',
-  ok: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>',
-  alerta: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M12 8v5M12 16.5h.01"/><circle cx="12" cy="12" r="9"/></svg>',
   baixar: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>',
   estudio: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m14.5 4.5 5 5L8 21H3v-5z"/></svg>',
+  editar: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4"/><path d="M9 12h6M12 9v6"/></svg>',
   refazer: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>',
-  copiar: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>'
+  copiar: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>',
+  foto: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="m21 16-5-5-8 8"/></svg>',
+  desfazer: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>',
+  lixo: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+  menos: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14"/></svg>',
+  mais: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg>'
 };
 
 // Entrada no modo: revela a view em círculo a partir da aba (o resto é CSS)
@@ -599,7 +715,7 @@ function crSaudar(){
   const conv = _crEl('cr-conversa');
   if(!conv) return;
   const m = _crMsgIA(conv);
-  _crDigita(m.querySelector('.cr-bolha'), 'O que vamos criar hoje? Descreva a arte — objetivo, produto, preço, cupom, formato — e eu componho uma peça nova com as regras da marca, já com a legenda do post.');
+  _crDigita(m.querySelector('.cr-bolha'), 'O que vamos criar hoje? Conte o objetivo da arte — se tiver a foto do produto ou do local, anexe. Eu pergunto o que faltar, componho com as regras da marca e entrego com a legenda do post.');
 }
 function _crMsgIA(conv){
   const m = document.createElement('div');
@@ -634,14 +750,14 @@ function _crStatus(host){
   el.innerHTML = '<span class="cr-glifo" aria-hidden="true">✻</span><span class="cr-verbo">Compondo…</span><span class="cr-tempo">(0s · esc para interromper)</span>';
   host.appendChild(el);
   const g = el.querySelector('.cr-glifo'), v = el.querySelector('.cr-verbo'), tm = el.querySelector('.cr-tempo');
-  const t0 = Date.now(); let f = 0, k = 0;
+  const t0 = Date.now(); let f = 0, k = 0, parado = false;
   const giro = setInterval(() => { g.textContent = CR_GLIFOS[f++ % CR_GLIFOS.length]; }, 120);
   const relogio = setInterval(() => { tm.textContent = '(' + Math.floor((Date.now() - t0) / 1000) + 's · esc para interromper)'; }, 1000);
   const troca = setInterval(() => {
     v.classList.add('cr-sai');
     setTimeout(() => { v.textContent = CR_VERBOS[++k % CR_VERBOS.length] + '…'; v.classList.remove('cr-sai'); }, 180);
   }, 2600);
-  return { parar(){ clearInterval(giro); clearInterval(relogio); clearInterval(troca); el.classList.add('cr-some'); setTimeout(() => el.remove(), 260); } };
+  return { parar(){ if(parado) return; parado = true; clearInterval(giro); clearInterval(relogio); clearInterval(troca); el.classList.add('cr-some'); setTimeout(() => el.remove(), 260); } };
 }
 // Passo no formato de chamada de ferramenta: ⏺ título · ⎿ resultado
 function _crPasso(lista, titulo){
@@ -661,6 +777,124 @@ function _crPasso(lista, titulo){
     }
   };
 }
+
+/* Pergunta do briefing no jeito do Claude Code: opções numeradas, ↑↓ + Enter, atalho 1–N,
+   "Outra resposta" digitável e Pular. Uma por vez. Resolve com as respostas, ou null se interrompido. */
+function _crPerguntar(corpo, perguntas, run){
+  return new Promise(resolve => {
+    const box = document.createElement('div');
+    box.className = 'cr-pergunta cr-entra'; box.tabIndex = -1;
+    corpo.appendChild(box);
+    const resp = []; let i = 0, sel = 0, encerrou = false;
+    const fecha = val => {
+      if(encerrou) return; encerrou = true; run.cancelar = null; crState.aoFoto = null;
+      box.classList.add('cr-some'); setTimeout(() => box.remove(), 240); resolve(val);
+    };
+    run.cancelar = () => fecha(null);
+    const itens = () => [...box.querySelectorAll('.cr-q-op')];
+    const responde = r => {
+      const q = perguntas[i];
+      resp.push(Object.assign({ titulo: q.titulo, pergunta: q.pergunta, campo: q.campo || '' }, r));
+      if(++i < perguntas.length) desenha(); else fecha(resp);
+    };
+    const recebeFoto = file => crFotoLer(file).then(u => responde({ resposta: 'foto enviada', foto: u }))
+      .catch(() => gToast('Não consegui ler essa imagem', 'error'));
+    const escolherArquivo = () => {
+      const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+      inp.onchange = () => { if(inp.files && inp.files[0]) recebeFoto(inp.files[0]); };
+      inp.click();
+    };
+    const marca = k => {
+      const its = itens(); if(!its.length) return;
+      sel = (k + its.length) % its.length;
+      its.forEach((li, j) => { li.classList.toggle('on', j === sel); li.setAttribute('aria-selected', j === sel ? 'true' : 'false'); });
+      const inp = its[sel].querySelector('input');
+      if(inp) inp.focus({ preventScroll: true }); else box.focus({ preventScroll: true });
+    };
+    const escolhe = k => {
+      const li = itens()[k]; if(!li) return;
+      if(li.dataset.tipo === 'outro'){
+        const v = li.querySelector('input').value.trim();
+        return v ? responde({ resposta: v, valor: v }) : marca(k);
+      }
+      if(li.dataset.tipo === 'upload') return escolherArquivo();
+      const o = perguntas[i].opcoes[+li.dataset.k];
+      responde({ resposta: o.rotulo, valor: o.valor != null ? o.valor : o.rotulo });
+    };
+    const op = (tipo, k, rot, desc, n) => '<li class="cr-q-op" role="option" data-tipo="' + tipo + '" data-k="' + k + '"><span class="cr-q-seta" aria-hidden="true">❯</span><span class="cr-q-n">' + n + '.</span><span class="cr-q-rot">' + rot + (desc ? '<small>' + gEsc(desc) + '</small>' : '') + '</span></li>';
+    function desenha(){
+      const q = perguntas[i];
+      crState.aoFoto = q.tipo === 'foto' ? recebeFoto : null;
+      let ops = '', n = 0;
+      if(q.tipo === 'foto') ops += op('upload', '', '<span class="cr-q-l">' + CR_ICO.foto + 'Enviar a foto</span>', 'arraste aqui, cole ou escolha o arquivo', ++n);
+      q.opcoes.forEach((o, k) => { ops += op('opcao', k, gEsc(o.rotulo), o.desc, ++n); });
+      if(q.livre !== false) ops += '<li class="cr-q-op" role="option" data-tipo="outro"><span class="cr-q-seta" aria-hidden="true">❯</span><span class="cr-q-n">' + (++n) + '.</span><input type="text" maxlength="80" placeholder="' + gEsc(q.dica || 'Outra resposta…') + '" aria-label="Outra resposta"></li>';
+      box.innerHTML = '<div class="cr-q-topo"><span class="cr-q-chip">' + gEsc(q.titulo) + '</span>' + (perguntas.length > 1 ? '<span class="cr-q-prog">' + (i + 1) + ' de ' + perguntas.length + '</span>' : '') + '</div>'
+        + '<p class="cr-q-txt">' + gEsc(q.pergunta) + '</p><ol class="cr-q-ops" role="listbox" aria-label="' + gEsc(q.pergunta) + '">' + ops + '</ol>'
+        + '<div class="cr-q-rodape"><span>↑↓ navega · Enter escolhe · 1–' + n + ' atalho · Esc interrompe</span><button type="button" class="cr-q-pular">Pular</button></div>';
+      box.classList.toggle('cr-q-foto', q.tipo === 'foto');
+      box.classList.remove('cr-q-troca'); void box.offsetWidth; box.classList.add('cr-q-troca');
+      marca(0); _crRola();
+    }
+    box.addEventListener('keydown', e => {
+      const emInput = e.target.tagName === 'INPUT';
+      if(e.key === 'ArrowDown'){ e.preventDefault(); marca(sel + 1); }
+      else if(e.key === 'ArrowUp'){ e.preventDefault(); marca(sel - 1); }
+      else if(e.key === 'Enter'){ e.preventDefault(); escolhe(sel); }
+      else if(!emInput && /^[1-9]$/.test(e.key) && +e.key <= itens().length){ e.preventDefault(); marca(+e.key - 1); escolhe(+e.key - 1); }
+    });
+    box.addEventListener('click', e => {
+      if(e.target.closest('.cr-q-pular')) return responde({ resposta: 'pulou', pulou: true });
+      const li = e.target.closest('.cr-q-op'); if(!li) return;
+      const k = itens().indexOf(li);
+      if(li.dataset.tipo === 'outro') return marca(k);
+      escolhe(k);
+    });
+    desenha();
+  });
+}
+
+/* ── Foto: anexo no pedido (clipe, colar, arrastar) ou resposta à pergunta ── */
+// Reduz para 1600 px no lado maior (JPEG): a foto vai embutida no SVG e no template.
+async function crFotoLer(file){
+  if(!file || !/^image\//.test(file.type)) throw new Error('não é imagem');
+  const url = URL.createObjectURL(file);
+  try{
+    const im = new Image(); im.src = url; await im.decode();
+    const k = Math.min(1, 1600 / Math.max(im.naturalWidth, im.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.round(im.naturalWidth * k); c.height = Math.round(im.naturalHeight * k);
+    c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.86);
+  }finally{ URL.revokeObjectURL(url); }
+}
+function crAnexar(file){
+  if(crState.aoFoto) return crState.aoFoto(file);
+  crFotoLer(file).then(u => { crState.anexo = u; _crMostraAnexo(file.name || 'foto'); })
+    .catch(() => gToast('Não consegui ler essa imagem', 'error'));
+}
+function crEscolherFoto(){
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = () => { if(inp.files && inp.files[0]) crAnexar(inp.files[0]); };
+  inp.click();
+}
+function crTirarAnexo(){ crState.anexo = null; _crMostraAnexo(''); }
+function _crMostraAnexo(nome){
+  const a = _crEl('cr-anexo'); if(!a) return;
+  a.hidden = !crState.anexo;
+  if(crState.anexo){ a.querySelector('img').src = crState.anexo; a.querySelector('span').textContent = nome; }
+}
+function crColar(e){
+  const f = [...((e.clipboardData && e.clipboardData.files) || [])].find(x => /^image\//.test(x.type));
+  if(f){ e.preventDefault(); crAnexar(f); }
+}
+document.addEventListener('dragover', e => { if(document.body.classList.contains('mode-creative')) e.preventDefault(); });
+document.addEventListener('drop', e => {
+  if(!document.body.classList.contains('mode-creative')) return;
+  e.preventDefault();
+  const f = [...((e.dataTransfer && e.dataTransfer.files) || [])].find(x => /^image\//.test(x.type));
+  if(f) crAnexar(f);
+});
 
 function crUsarExemplo(chave){
   const i = _crEl('cr-pedido');
@@ -683,7 +917,8 @@ function crTecla(e){
   if(e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); crEnviar(); }
 }
 document.addEventListener('keydown', e => {
-  if(e.key === 'Escape' && crState.rodando && document.body.classList.contains('mode-creative')) crState.rodando.parado = true;
+  const r = crState.rodando;
+  if(e.key === 'Escape' && r && document.body.classList.contains('mode-creative')){ r.parado = true; if(r.cancelar) r.cancelar(); }
 });
 
 function crEnviar(e, repetir){
@@ -692,61 +927,86 @@ function crEnviar(e, repetir){
   const inp = _crEl('cr-pedido'), conv = _crEl('cr-conversa');
   const pedido = repetir ? repetir.pedido : String((inp && inp.value) || '').trim();
   if(!pedido || !conv) return;
+  let fio = repetir;
   if(!repetir){
-    inp.value = ''; crAutoAltura(inp);
+    fio = { pedido, fmt: crState.fmt, foto: crState.anexo, briefing: null, versoes: [] };
+    crState.fios.push(fio);
+    inp.value = ''; crAutoAltura(inp); crTirarAnexo();
     const m = document.createElement('div');
     m.className = 'cr-msg cr-eu cr-entra';
-    const ini = (typeof gCurrentUser === 'function' && gCurrentUser() && (gCurrentUser().nome || gCurrentUser().email || '')) || '';
-    m.innerHTML = '<div class="cr-ava" aria-hidden="true">' + gEsc((ini.trim()[0] || 'G').toUpperCase()) + '</div><div class="cr-corpo"><div class="cr-bolha">' + gEsc(pedido) + '</div></div>';
+    const u = (typeof gCurrentUser === 'function' && gCurrentUser()) || {};
+    const ini = String(u.nome || u.email || 'G').trim()[0] || 'G';
+    m.innerHTML = '<div class="cr-ava" aria-hidden="true">' + gEsc(ini.toUpperCase()) + '</div><div class="cr-corpo">'
+      + (fio.foto ? '<img class="cr-bolha-foto" alt="Foto enviada" src="' + fio.foto + '">' : '')
+      + '<div class="cr-bolha">' + gEsc(pedido) + '</div></div>';
     conv.appendChild(m);
   }
-  const fio = repetir || { pedido, fmt: crState.fmt, versoes: [] };
-  if(!repetir) crState.fios.push(fio);
   crGerar(fio, conv);
 }
 
 async function crGerar(fio, conv){
-  const run = { parado: false };
+  const run = { parado: false, cancelar: null };
   crState.rodando = run;
   document.body.classList.add('cr-ocupado');
-  const msg = _crMsgIA(conv), corpo = msg.querySelector('.cr-corpo'), bolha = msg.querySelector('.cr-bolha');
-  bolha.remove();
+  const msg = _crMsgIA(conv), corpo = msg.querySelector('.cr-corpo');
+  msg.querySelector('.cr-bolha').remove();
   const lista = document.createElement('ul'); lista.className = 'cr-passos';
   corpo.appendChild(lista);
-  const status = _crStatus(corpo);
+  let status = _crStatus(corpo);
+  const aviso = txt => { const b = document.createElement('div'); b.className = 'cr-bolha cr-interrompido'; b.textContent = txt; corpo.appendChild(b); _crRola(); };
   const parou = () => {
     if(!run.parado) return false;
-    status.parar();
-    const b = document.createElement('div'); b.className = 'cr-bolha cr-interrompido'; b.textContent = 'Interrompido. Ajuste o pedido e mande de novo.';
-    corpo.appendChild(b);
+    status.parar(); aviso('Interrompido. Ajuste o pedido e mande de novo.');
     return true;
   };
   try{
     const evitar = fio.versoes.length ? fio.versoes[fio.versoes.length - 1].spec.composicao : '';
-    let p = _crPasso(lista, 'Entendendo o pedido');
+    let p;
+    // 1) Briefing: só na primeira vez (a 2ª versão reaproveita as respostas)
+    if(!fio.briefing){
+      p = _crPasso(lista, 'Entendendo o pedido');
+      let br = null;
+      try{ br = await crPedirBriefing(fio); }catch(err){ br = null; }
+      if(!br) br = crBriefingLocal(fio);
+      if(parou()) return;
+      p.feito(br.resumo || CR_COMPOSICOES[br.composicao]);
+      const perguntas = crPerguntasFinais(br, fio);
+      fio.briefing = [];
+      if(perguntas.length){
+        status.parar();
+        const resp = await _crPerguntar(corpo, perguntas, run);
+        if(!resp || run.parado){ fio.briefing = null; aviso('Interrompido. Ajuste o pedido e mande de novo.'); return; }
+        fio.briefing = resp;
+        resp.forEach(r => { if(r.foto) fio.foto = r.foto; if(r.campo === 'formato' && !r.pulou) fio.fmt = r.valor === 'story' ? 'story' : 'feed'; });
+        const ditas = resp.filter(r => !r.pulou).map(r => r.titulo + ': ' + r.resposta);
+        _crPasso(lista, 'Briefing').feito(ditas.length ? ditas.join(' · ') : 'sem respostas — sigo com o padrão das artes aprovadas');
+        status = _crStatus(corpo);
+      }
+    }
+
+    // 2) Composição (IA → JSON; sem IA, a leitura local do pedido + briefing)
+    p = _crPasso(lista, 'Escolhendo composição e receita tipográfica');
     let bruto = null, viaIA = false;
-    try{ bruto = await crPedirComposicao(fio.pedido, fio.fmt, evitar); viaIA = !!bruto; }catch(err){ bruto = null; }
+    try{ bruto = await crPedirComposicao(fio, evitar); viaIA = !!bruto; }catch(err){ bruto = null; }
     if(!bruto){
       bruto = crLerPedido(fio.pedido, fio.fmt);
       if(evitar && bruto.composicao === evitar) bruto.fundo = bruto.fundo === 'pattern' ? 'liso' : 'pattern';
     }
+    bruto = crAplicaRespostas(bruto, fio.briefing);
+    if(fio.foto) bruto.foto = fio.foto;
     if(parou()) return;
     const sp0 = crNormaliza(bruto);
-    p.feito(CR_COMPOSICOES[sp0.composicao].toLowerCase() + ' · ' + sp0.formato + (viaIA ? ' · IA' : ' · motor local'));
+    p.feito('"' + sp0.composicao + '" · ' + sp0.formato + ' · ' + CR_RECEITA[sp0.composicao] + (viaIA ? ' · IA' : ' · motor local'));
 
-    p = _crPasso(lista, 'Escolhendo composição e receita tipográfica');
-    await _crEsp(240);
-    p.feito('"' + sp0.composicao + '" · ' + CR_RECEITA[sp0.composicao]);
-
+    // 3) Montagem + legenda em paralelo
     p = _crPasso(lista, 'Compondo a arte com os blocos da marca');
     await crFontesProntas();
     const r = crCompor(bruto);
-    // A legenda sai em paralelo com a montagem: chega junto com a arte.
     const legProm = crLegenda(r.spec);
     const svgFinal = await crEmbutir(r.svg);
     if(parou()) return;
-    const camadas = (r.svg.match(/<(text|rect|image|circle|line|path)\b/g) || []).length;
-    p.feito(camadas + ' elementos · ' + r.campos.length + ' campos para o franqueado');
+    const blocos = (r.svg.match(/data-bloco=/g) || []).length;
+    p.feito(blocos + ' blocos' + (fio.foto ? (CR_COM_FOTO[r.spec.composicao] ? ' · com a sua foto' : ' · esta diagramação não leva foto') : ''));
 
     p = _crPasso(lista, 'Conferindo paleta, tamanhos e contraste');
     const conf = crConfere(r);
@@ -756,47 +1016,47 @@ async function crGerar(fio, conv){
     p = _crPasso(lista, 'Escrevendo a legenda do post');
     const leg = await legProm;
     if(parou()) return;
-    p.feito(leg.length ? leg.length + ' opções · ' + (leg._ia ? 'IA' : 'motor local') : 'sem legenda agora', !leg.length);
+    p.feito(leg.length ? leg.length + ' opções' : 'sem legenda agora', !leg.length);
 
     status.parar();
-    const versao = { ia: viaIA, svg: svgFinal, spec: r.spec, campos: r.campos, conf, leg, w: r.w, h: r.h, url: URL.createObjectURL(new Blob([svgFinal], { type: 'image/svg+xml' })) };
+    const versao = { ia: viaIA, svg: svgFinal, spec: r.spec, leg, w: r.w, h: r.h, url: URL.createObjectURL(new Blob([svgFinal], { type: 'image/svg+xml' })) };
     fio.versoes.push(versao);
     const fala = document.createElement('div'); fala.className = 'cr-bolha';
     corpo.appendChild(fala);
-    await _crDigita(fala, r.spec.resumo || ('Pronto: ' + CR_COMPOSICOES[r.spec.composicao].toLowerCase() + ' em ' + r.spec.formato + '.'));
+    await _crDigita(fala, (viaIA && r.spec.resumo) || ('Pronto: ' + CR_COMPOSICOES[r.spec.composicao].toLowerCase() + ' em ' + r.spec.formato + '. Se quiser, edite a arte aqui mesmo.'));
     conv.appendChild(_crResultado(fio, versao));
     _crRola();
-    if(typeof gTrackEvent === 'function') try{ gTrackEvent('creative_arte', { composicao: r.spec.composicao, formato: r.spec.formato, ia: viaIA, versao: fio.versoes.length }); }catch(err){}
+    if(typeof gTrackEvent === 'function') try{ gTrackEvent('creative_arte', { composicao: r.spec.composicao, formato: r.spec.formato, ia: viaIA, foto: !!fio.foto, versao: fio.versoes.length }); }catch(err){}
   }catch(err){
     console.error('[creative]', err);
     status.parar();
-    const b = document.createElement('div'); b.className = 'cr-bolha cr-interrompido';
-    b.textContent = 'Não consegui compor a arte agora (' + ((err && err.message) || 'erro') + '). Tente de novo.';
-    corpo.appendChild(b);
+    aviso('Não consegui compor a arte agora (' + ((err && err.message) || 'erro') + '). Tente de novo.');
   }finally{
     if(crState.rodando === run) crState.rodando = null;
     document.body.classList.remove('cr-ocupado');
   }
 }
 
+// A entrega: arte, legenda, versões e ações — sem bastidor (conferência e campos ficam nos passos)
 function _crResultado(fio, v){
   const el = document.createElement('div');
   el.className = 'cr-resultado';
   const nome = 'Arte ' + CR_COMPOSICOES[v.spec.composicao].toLowerCase() + ' (' + v.spec.formato + ')';
+  const origem = x => x.editada ? 'Editada por você · Testes' : (x.ia ? 'Composta pela IA' : 'Composta pelo motor local') + ' · Testes';
+  const admin = typeof gIsAdmin === 'function' && gIsAdmin();
   el.innerHTML =
     '<div class="cr-arte-col"><div class="cr-arte" style="aspect-ratio:' + v.w + '/' + v.h + '"><img alt="' + gEsc(nome) + '" src="' + v.url + '"></div>'
-    + '<span class="cr-selo-ia">' + (v.ia ? 'Composta pela IA' : 'Composta pelo motor local') + ' · Testes</span></div>'
+    + '<span class="cr-selo-ia">' + origem(v) + '</span></div>'
     + '<div class="cr-lado">'
-    + '<section><h4>Conferência da marca</h4><ul class="cr-confere">' + v.conf.map(c => '<li class="' + (c.ok ? '' : 'cr-aviso-item') + '">' + (c.ok ? CR_ICO.ok : CR_ICO.alerta) + '<span>' + gEsc(c.t) + '</span></li>').join('') + '</ul></section>'
-    + '<section><h4>Campos para o franqueado</h4><div class="cr-campos">' + v.campos.map(c => '<span class="cr-campo">{{' + gEsc(c) + '}}</span>').join('') + '</div></section>'
     + (v.leg.length ? '<section><h4>Legenda do post</h4><div class="cr-leg"><div class="cr-leg-abas" role="tablist">'
       + v.leg.map((l, i) => '<button type="button" role="tab" class="' + (i ? '' : 'on') + '" aria-selected="' + (i ? 'false' : 'true') + '" data-i="' + i + '">' + gEsc(l.label) + '</button>').join('')
       + '</div><p class="cr-leg-txt"></p><button type="button" class="cr-btn cr-btn-mini cr-leg-copiar">' + CR_ICO.copiar + 'Copiar legenda</button></div></section>' : '')
-    + (fio.versoes.length > 1 ? '<div class="cr-versoes"><span>Versões</span>' + fio.versoes.map((x, i) => '<button type="button" class="' + (x === v ? 'on' : '') + '" data-i="' + i + '" aria-label="Versão ' + (i + 1) + '"><img alt="" src="' + x.url + '"></button>').join('') + '</div>' : '')
+    + (fio.versoes.length > 1 ? '<div class="cr-versoes"><span>Versões</span>' + fio.versoes.map((x, i) => '<button type="button" class="' + (x === v ? 'on' : '') + '" data-i="' + i + '" aria-label="Versão ' + (i + 1) + (x.editada ? ' (editada)' : '') + '"><img alt="" src="' + x.url + '"></button>').join('') + '</div>' : '')
     + '<div class="cr-acoes">'
     + '<button type="button" class="cr-btn cr-prim" data-acao="png">' + CR_ICO.baixar + 'Baixar PNG</button>'
-    + '<button type="button" class="cr-btn" data-acao="estudio">' + CR_ICO.estudio + 'Abrir no Estúdio</button>'
+    + '<button type="button" class="cr-btn" data-acao="editar">' + CR_ICO.editar + 'Editar</button>'
     + '<button type="button" class="cr-btn" data-acao="refazer">' + CR_ICO.refazer + 'Gerar outra versão</button>'
+    + (admin ? '<button type="button" class="cr-btn" data-acao="estudio">' + CR_ICO.estudio + 'Abrir no Estúdio</button>' : '')
     + '</div></div>';
   let atual = v;
   const img = el.querySelector('.cr-arte img'), ltxt = el.querySelector('.cr-leg-txt');
@@ -808,24 +1068,229 @@ function _crResultado(fio, v){
   };
   mostraLeg(0);
   img.addEventListener('load', () => el.classList.add('cr-nitida'), { once: true });
+  img.addEventListener('dblclick', () => crEditar(el, fio, atual));
   el.addEventListener('click', ev => {
     const b = ev.target.closest('button');
-    if(!b) return;
+    if(!b || b.closest('.cr-ed-barra')) return;
     if(b.closest('.cr-leg-abas')) return mostraLeg(+b.dataset.i);
     if(b.classList.contains('cr-leg-copiar')) return crCopiar(ltxt.textContent);
     if(b.closest('.cr-versoes')){
       atual = fio.versoes[+b.dataset.i] || atual;
       img.src = atual.url;
-      el.querySelector('.cr-selo-ia').textContent = (atual.ia ? 'Composta pela IA' : 'Composta pelo motor local') + ' · Testes';
       el.querySelector('.cr-arte').style.aspectRatio = atual.w + '/' + atual.h;
+      el.querySelector('.cr-selo-ia').textContent = origem(atual);
       el.querySelectorAll('.cr-versoes button').forEach(x => x.classList.toggle('on', x === b));
       return mostraLeg(+ltxt.dataset.i || 0);
     }
     if(b.dataset.acao === 'png') return crBaixarPNG(atual, b);
+    if(b.dataset.acao === 'editar') return crEditar(el, fio, atual);
     if(b.dataset.acao === 'estudio') return crAbrirNoEstudio(atual);
     if(b.dataset.acao === 'refazer') return crEnviar(null, fio);
   });
   return el;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EDITOR NA HORA — o SVG da arte vivo num shadow root (o <style> dele não vaza pro app).
+   Arrasta bloco (guias na margem de 100 px e no centro), setas ajustam, duplo clique edita
+   texto, tamanho e remover, Ctrl+Z. Salvar = nova versão (o importador lê os transforms).
+══════════════════════════════════════════════════════════════ */
+const CR_ED_CSS = ':host{display:block;position:relative;overflow:hidden;border-radius:10px;outline:none;box-shadow:0 18px 50px rgba(0,0,0,.45);touch-action:none}'
+  + ':host(:focus-visible){box-shadow:0 0 0 2px var(--dm-orange),0 18px 50px rgba(0,0,0,.45)}'
+  + 'svg{display:block;width:100%;height:auto;user-select:none;-webkit-user-select:none}'
+  + '[data-bloco]{cursor:grab}'
+  + 'svg .hero{font-family:"LC Realce","Realce",sans-serif}svg .sup,svg .body,svg .legal,svg .leve,svg .forte{font-family:"LC Roboto","Roboto",sans-serif}'
+  + '.sel{position:absolute;pointer-events:none;border:1.5px solid var(--dm-yellow);border-radius:4px;box-shadow:0 0 0 1px rgba(0,0,0,.35)}'
+  + '.sel::after{content:attr(data-nome);position:absolute;left:3px;top:3px;padding:2px 7px;border-radius:5px;background:var(--dm-yellow);color:var(--grafite);font:700 11px/1.4 Roboto,sans-serif;white-space:nowrap}'
+  + '.guia{position:absolute;top:0;bottom:0;width:0;border-left:1px dashed var(--dm-yellow);pointer-events:none}'
+  + '.ed-txt{position:absolute;z-index:2;max-width:calc(100% - 12px);padding:6px 8px;border-radius:8px;border:1.5px solid var(--dm-orange);background:var(--cr-surf);color:var(--cr-text);font:500 15px/1.4 Roboto,sans-serif;resize:none;outline:none;box-shadow:0 10px 30px rgba(0,0,0,.5)}'
+  + '[hidden]{display:none!important}';
+const _crNS = 'http://www.w3.org/2000/svg';
+
+function crEditar(card, fio, v){
+  if(card.classList.contains('cr-editando')) return;
+  card.classList.add('cr-editando');
+  const col = card.querySelector('.cr-arte-col'), lado = card.querySelector('.cr-lado');
+  lado.hidden = true;
+  const btn = (acao, ico, rot) => '<button type="button" class="cr-ed-btn" data-ed="' + acao + '" title="' + rot + '" aria-label="' + rot + '">' + ico + '</button>';
+  col.innerHTML = '<div class="cr-ed-barra" role="toolbar" aria-label="Edição da arte">'
+    + btn('desfazer', CR_ICO.desfazer, 'Desfazer (Ctrl+Z)') + '<span class="cr-ed-sep"></span>'
+    + btn('menor', CR_ICO.menos, 'Diminuir o bloco') + btn('maior', CR_ICO.mais, 'Aumentar o bloco') + btn('remover', CR_ICO.lixo, 'Remover o bloco (Delete)')
+    + '<span class="cr-ed-dica">Arraste para mover · duplo clique edita o texto · setas ajustam</span>'
+    + '<span class="cr-ed-fim"><button type="button" class="cr-btn cr-btn-mini" data-ed="cancelar">Cancelar</button><button type="button" class="cr-btn cr-btn-mini cr-prim" data-ed="salvar">Salvar versão</button></span></div>'
+    + '<div class="cr-ed-palco" tabindex="0" aria-label="Arte em edição" style="--cr-ar:' + (v.w / v.h) + '"></div>';
+  const host = col.querySelector('.cr-ed-palco'), barra = col.querySelector('.cr-ed-barra');
+  const raiz = host.attachShadow({ mode: 'open' });
+  const st = document.createElement('style'); st.textContent = CR_ED_CSS; raiz.appendChild(st);
+  const svg = document.importNode(new DOMParser().parseFromString(v.svg, 'image/svg+xml').documentElement, true);
+  raiz.appendChild(svg);
+  const caixa = document.createElement('div'); caixa.className = 'sel'; caixa.hidden = true; raiz.appendChild(caixa);
+  const guia = document.createElement('div'); guia.className = 'guia'; guia.hidden = true; raiz.appendChild(guia);
+  const W = v.w, hist = [];
+  let atual = null;
+  const r1 = n => Math.round(n * 10) / 10;
+  const escala = () => W / svg.getBoundingClientRect().width;
+  const guarda = () => { hist.push(svg.innerHTML); if(hist.length > 30) hist.shift(); };
+  const estado = g => ({ dx: +g.dataset.dx || 0, dy: +g.dataset.dy || 0, s: +g.dataset.s || 1 });
+  function aplica(g, e){
+    g.dataset.dx = r1(e.dx); g.dataset.dy = r1(e.dy); g.dataset.s = Math.round(e.s * 1000) / 1000;
+    let t = 'translate(' + r1(e.dx) + ',' + r1(e.dy) + ')';
+    if(Math.abs(e.s - 1) > 0.001){
+      if(!g.dataset.cx){ const b = g.getBBox(); g.dataset.cx = r1(b.x + b.width / 2); g.dataset.cy = r1(b.y + b.height / 2); }
+      t += ' translate(' + g.dataset.cx + ',' + g.dataset.cy + ') scale(' + g.dataset.s + ') translate(' + (-g.dataset.cx) + ',' + (-g.dataset.cy) + ')';
+    }
+    g.setAttribute('transform', t);
+    mostraSel();
+  }
+  function mostraSel(){
+    const ok = !!(atual && atual.isConnected);
+    caixa.hidden = !ok;
+    barra.querySelectorAll('[data-ed="menor"],[data-ed="maior"],[data-ed="remover"]').forEach(b => { b.disabled = !ok; });
+    barra.querySelector('[data-ed="desfazer"]').disabled = !hist.length;
+    if(!ok) return;
+    const hr = host.getBoundingClientRect(), r = atual.getBoundingClientRect();
+    Object.assign(caixa.style, { left: (r.left - hr.left) + 'px', top: (r.top - hr.top) + 'px', width: r.width + 'px', height: r.height + 'px' });
+    caixa.dataset.nome = CR_NOME_BLOCO[atual.dataset.bloco] || 'Bloco';
+  }
+  const seleciona = g => { atual = g || null; mostraSel(); };
+  const desfaz = () => { if(!hist.length) return; svg.innerHTML = hist.pop(); seleciona(null); };
+  const escalaBloco = f => { if(!atual) return; guarda(); const e = estado(atual); e.s = Math.min(2.5, Math.max(0.4, e.s * f)); aplica(atual, e); };
+  const remove = () => { if(!atual) return; guarda(); atual.remove(); seleciona(null); };
+
+  raiz.addEventListener('pointerdown', e => {
+    if(e.button !== 0 || e.target.closest('.ed-txt')) return;
+    const g = e.target.closest ? e.target.closest('[data-bloco]') : null;
+    seleciona(g); host.focus({ preventScroll: true });
+    if(!g) return;
+    e.preventDefault();
+    const e0 = estado(g), x0 = e.clientX, y0 = e.clientY, k = escala(), antes = svg.innerHTML;
+    const hr = host.getBoundingClientRect(), sr = svg.getBoundingClientRect(), r0 = g.getBoundingClientRect();
+    const L0 = (r0.left - sr.left) * k, Lw = r0.width * k;
+    let mexeu = false;
+    const move = ev => {
+      if(!mexeu && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 3) return;
+      // Captura só quando vira arrasto: capturar no pointerdown mandava o dblclick pro host
+      // (fora do shadow root) e o duplo clique no texto nunca chegava
+      if(!mexeu) try{ host.setPointerCapture(e.pointerId); }catch(err){}
+      mexeu = true;
+      let dx = (ev.clientX - x0) * k, dy = (ev.clientY - y0) * k, gx = null;
+      // guias: margem esquerda (100), centro (540) e margem direita (980) — Alt solta o ímã
+      if(!ev.altKey) for(const [alvo, borda] of [[CR_M, L0 + dx], [W / 2, L0 + dx + Lw / 2], [W - CR_M, L0 + dx + Lw]]){
+        if(Math.abs(borda - alvo) < 8){ dx += alvo - borda; gx = alvo; break; }
+      }
+      aplica(g, { dx: e0.dx + dx, dy: e0.dy + dy, s: e0.s });
+      guia.hidden = gx == null;
+      if(gx != null) guia.style.left = (sr.left - hr.left + gx / k) + 'px';
+    };
+    const solta = () => {
+      host.removeEventListener('pointermove', move); host.removeEventListener('pointerup', solta); host.removeEventListener('pointercancel', solta);
+      guia.hidden = true;
+      if(mexeu){ hist.push(antes); if(hist.length > 30) hist.shift(); mostraSel(); }
+    };
+    host.addEventListener('pointermove', move); host.addEventListener('pointerup', solta); host.addEventListener('pointercancel', solta);
+  });
+  raiz.addEventListener('dblclick', e => {
+    const t = e.target.closest ? e.target.closest('text') : null;
+    if(t && t.closest('[data-bloco]')) editaTexto(t);
+  });
+  host.addEventListener('keydown', e => {
+    const alvo = e.composedPath()[0];
+    if(alvo && alvo.tagName === 'TEXTAREA') return;
+    if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z'){ e.preventDefault(); return desfaz(); }
+    if(!atual) return;
+    const p = e.shiftKey ? 10 : 2;
+    const mv = { ArrowLeft: [-p, 0], ArrowRight: [p, 0], ArrowUp: [0, -p], ArrowDown: [0, p] }[e.key];
+    if(mv){ e.preventDefault(); guarda(); const s = estado(atual); aplica(atual, { dx: s.dx + mv[0], dy: s.dy + mv[1], s: s.s }); }
+    else if(e.key === 'Delete' || e.key === 'Backspace'){ e.preventDefault(); remove(); }
+    else if(e.key === 'Enter'){ const t = atual.querySelector('text'); if(t){ e.preventDefault(); editaTexto(t); } }
+    else if(e.key === 'Escape'){ e.stopPropagation(); seleciona(null); }
+  });
+
+  // Texto: simples, várias linhas (um <tspan y> por linha), frase leve/forte (*forte*) ou preço-assinatura
+  function editaTexto(t){
+    const filhos = [...t.children];
+    const tipo = t.getAttribute('data-campo') === 'precoPor' ? 'preco'
+      : filhos.some(c => c.hasAttribute('y')) ? 'linhas'
+      : filhos.some(c => c.classList.contains('forte') || c.classList.contains('leve')) ? 'mista'
+      : filhos.length ? '' : 'simples';
+    if(!tipo) return gToast('Este texto não se edita aqui', 'info');
+    const val = tipo === 'linhas' ? filhos.map(c => c.textContent).join('\n')
+      : tipo === 'mista' ? filhos.map(c => c.classList.contains('forte') ? '*' + c.textContent + '*' : c.textContent).join('')
+      : tipo === 'preco' ? t.textContent.replace(/^R\$\s*/, '') : t.textContent;
+    const hr = host.getBoundingClientRect(), r = t.getBoundingClientRect();
+    const ta = document.createElement('textarea');
+    ta.className = 'ed-txt'; ta.value = val; ta.rows = tipo === 'linhas' ? Math.max(2, val.split('\n').length) : 1;
+    ta.setAttribute('aria-label', 'Editar texto');
+    if(tipo === 'mista') ta.title = 'A palavra entre *asteriscos* fica em destaque';
+    Object.assign(ta.style, { left: Math.max(6, r.left - hr.left - 6) + 'px', top: Math.max(6, r.top - hr.top - 6) + 'px', width: Math.max(180, r.width + 12) + 'px' });
+    raiz.appendChild(ta); ta.focus(); ta.select();
+    let feito = false;
+    const fecha = ok => {
+      if(feito) return; feito = true;
+      const nv = ta.value; ta.remove(); host.focus({ preventScroll: true });
+      if(ok && nv.trim() && nv !== val){ guarda(); aplicaTexto(t, tipo, nv); mostraSel(); }
+    };
+    ta.addEventListener('keydown', ev => {
+      ev.stopPropagation();
+      if(ev.key === 'Escape'){ ev.preventDefault(); fecha(false); }
+      else if(ev.key === 'Enter' && !(ev.shiftKey && tipo === 'linhas')){ ev.preventDefault(); fecha(true); }
+    });
+    ta.addEventListener('blur', () => fecha(true));
+  }
+  function aplicaTexto(t, tipo, nv){
+    const up = s => t.classList.contains('hero') ? s.toLocaleUpperCase('pt-BR') : s;
+    const span = (txt, attrs) => { const s = document.createElementNS(_crNS, 'tspan'); Object.keys(attrs || {}).forEach(a => s.setAttribute(a, attrs[a])); s.textContent = txt; return s; };
+    if(tipo === 'preco'){
+      const novo = new DOMParser().parseFromString('<svg xmlns="' + _crNS + '">' + crPreco(+t.getAttribute('x'), +t.getAttribute('y'), nv.replace(/[^\d,]/g, '') || '0', 374) + '</svg>', 'image/svg+xml').documentElement.firstElementChild;
+      t.replaceWith(document.importNode(novo, true));
+      return;
+    }
+    if(tipo === 'simples') t.textContent = up(nv.replace(/\s*\n+\s*/g, ' '));
+    else if(tipo === 'linhas'){
+      const ls = nv.split('\n').map(s => s.trim()).filter(Boolean).slice(0, 3);
+      const ts = [...t.children], x = ts[0].getAttribute('x'), y0 = +ts[0].getAttribute('y');
+      const passo = ts[1] ? +ts[1].getAttribute('y') - y0 : (parseFloat(t.getAttribute('font-size')) || 100) * 0.94;
+      t.textContent = '';
+      ls.forEach((l, i) => t.appendChild(span(up(l), { x, y: Math.round(y0 + i * passo) })));
+    }else if(tipo === 'mista'){
+      t.textContent = '';
+      crTrechos(nv.replace(/\s*\n+\s*/g, ' ')).forEach(r => t.appendChild(span(r.t, { class: r.cls })));
+    }
+    // Não deixa o texto novo passar do espaço dele: encolhe o corpo (mínimo 22 px, regra da marca)
+    if(t.getAttribute('transform')) return;
+    const anc = t.getAttribute('text-anchor'), x = +t.getAttribute('x') || +((t.children[0] || t).getAttribute('x')) || 0;
+    const lim = +t.getAttribute('data-larg') || (anc === 'middle' ? CR_L : W - CR_M - x);
+    const w = t.getBBox().width;
+    if(w > lim){
+      const k = lim / w;
+      [t, ...t.querySelectorAll('[font-size]')].forEach(n => { const f = parseFloat(n.getAttribute('font-size')); if(f) n.setAttribute('font-size', Math.max(22, Math.floor(f * k))); });
+    }
+  }
+
+  const fechar = nova => {
+    const novo = _crResultado(fio, nova || v);
+    card.replaceWith(novo);
+    if(nova) gToast('Versão salva', 'success');
+  };
+  barra.addEventListener('click', e => {
+    const b = e.target.closest('[data-ed]'); if(!b) return;
+    const a = b.dataset.ed;
+    if(a === 'desfazer') desfaz();
+    else if(a === 'menor') escalaBloco(1 / 1.08);
+    else if(a === 'maior') escalaBloco(1.08);
+    else if(a === 'remover') remove();
+    else if(a === 'cancelar') fechar(null);
+    else if(a === 'salvar'){
+      if(!hist.length) return fechar(null);
+      const xml = new XMLSerializer().serializeToString(svg);
+      const nova = Object.assign({}, v, { svg: xml, editada: true, url: URL.createObjectURL(new Blob([xml], { type: 'image/svg+xml' })) });
+      fio.versoes.push(nova);
+      fechar(nova);
+    }
+  });
+  window.addEventListener('resize', mostraSel, { passive: true });
+  mostraSel();
+  requestAnimationFrame(() => { host.focus({ preventScroll: true }); card.scrollIntoView({ block: 'start', behavior: _crReduz() ? 'auto' : 'smooth' }); });
 }
 
 function crCopiar(txt){
