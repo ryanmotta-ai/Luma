@@ -60,22 +60,21 @@
   - *"Por que não duas ferramentas?"* Porque o valor está na ponte: publicou, apareceu para a rede, sem exportar
     nada e sem ninguém refazer a arte.
 
-## 04 · O fluxo do designer — "O designer não refaz a arte."
+## 04 · Material novo — "Material novo entra 4x mais rápido."
 
-- **Objetivo:** o designer aproveita o PSD que já tem, e o Luma é honesto sobre o que conseguiu preservar.
-- **Frase de abertura:** "O designer não refaz a arte."
-- **Discurso:** "Antes, no Deskfy, toda arte tinha que ser feita duas vezes, porque a plataforma não aceitava nem SVG. Era retrabalho gigante dos designers, e manter o material era muito problemático. [avança] Agora o designer traz o PSD do dia a dia. O Luma importa e, em vez de dizer que ficou perfeito, mostra uma
-  revisão honesta. [avança] As 13 camadas do arquivo viram template, com 5 campos já preparados. [avança] A
-  fidelidade visual é medida e mostrada: aqui, 90%, e a diferença é uma fonte do Photoshop que não existe no
-  Luma. [avança] O designer confere 3 pontos, não 13 camadas. As camadas nomeadas com @campo já chegam como
-  campos."
-- **Ponto principal:** fidelidade medida e mostrada, revisão por exceção.
-- **Transição:** "Revisado, o template vai para a publicação."
+- **Objetivo:** mostrar para qualquer pessoa, técnica ou não, que colocar um material novo no Luma ficou 4x mais rápido que no Deskfy.
+- **Frase de abertura:** "Material novo entra no Luma 4x mais rápido."
+- **Discurso:** "No Deskfy, o designer fazia a arte no Photoshop e depois tinha que refazer tudo do zero dentro da
+  plataforma, que não aceitava nem SVG. [avança] No Luma, ele envia o arquivo que já tem. [avança] O Luma monta a
+  arte sozinho, aponta só o que precisa de olho humano, e o designer confere e publica. Resultado: o material novo
+  chega na rede 4x mais rápido."
+- **Ponto principal:** a porta de entrada de material novo deixou de ser gargalo.
+- **Transição:** "Conferido, o material vai para a publicação."
 - **Perguntas difíceis:**
-  - *"O import é 1:1?"* Não prometemos 1:1. O importador mede o visual e a editabilidade separados e diz
-    onde aproximou. Nesta arte, a tela mostra fidelidade visual de 90%, e a causa principal é a fonte que faltou.
-  - *"E PSD com efeito complexo?"* Cada camada recebe um nível (nativo, nativo com perda, raster fiel ou não
-    suportado) com o motivo escrito. Nada some em silêncio. Detalhe no apêndice C, com 73 casos de regressão.
+  - *"4x medido como?"* Comparação do tempo do designer para colocar um material novo no ar, no Deskfy e no Luma
+    (Ryan, 14/10/2026). Tenha o exemplo de um material real em mãos.
+  - *"Fica igual ao Photoshop?"* Quase sempre. Quando algo não dá para trazer igual (uma fonte que não existe no
+    Luma, por exemplo), o Luma avisa e mostra onde. Nada some em silêncio. Detalhe técnico no apêndice C.
 
 ## 05 · Publicação — "O designer publica uma vez."
 
