@@ -19,7 +19,7 @@
 
   const TASKS = {
     'caption.generate': {
-      version: '1.5.0',
+      version: '1.6.0',
       modelType: 'fast',
       featureFlag: 'caption',
       defaultTtl: 0, // legendas não devem ser repetidas em cache cego
@@ -55,7 +55,7 @@ Sem emojis, asteriscos ou markdown.
 PT-BR com acento e ç corretos nas 3 opções, inclusive whatsapp (família, preço, até, você, não, está, olá, peça). Os fatos podem vir sem acento: "Combo familia" vira "Combo família"; não troque palavras, nomes próprios nem preços.
 Promo e engajar: ${ehStory ? 'até 2' : '2 a 4'} linhas curtas, mais as hashtags no fim.
 SEO do Instagram: o nome do produto aparece na 1ª linha e ${typeof _fSeoLocal === 'function' ? _fSeoLocal(cidadeTag) : 'a cidade aparece uma vez no texto, se informada (nunca invente cidade). Hashtags (6 a 9, minúsculas, sem acento): produto, categoria'} e as fixas: ${hashtags.toLowerCase()}
-Campanha é contexto, não produto.${p.girias ? '\nGírias opcionais, só se naturais: ' + p.girias : ''}
+Campanha é contexto, não produto.${p.girias ? '\n' + p.girias : ''}
 
 FATOS:
 ${fatos}`;

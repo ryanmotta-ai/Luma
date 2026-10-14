@@ -2335,6 +2335,13 @@ function _fCaptionSrcTag(suggestions){
 const F_GIRIAS_KEY = 'dm_girias_v1';
 const F_GIRIAS_DIAS = 180;
 const F_GIRIAS_MAX = 6;
+/* Lista VAZIA guardada valia os mesmos 180 dias: cidade pequena que o modelo não reconheceu
+   numa tarde ficava meio ano sem gíria nenhuma — era o "a gíria não funciona" (14/10/2026).
+   Vazio agora é só uma semana; depois pergunta de novo. */
+const F_GIRIAS_VAZIO_DIAS = 7;
+/* O exemplo de uso que a pesquisa devolve ("Bah, a fome bateu? Pede no app."), por termo.
+   É a rede de segurança da legenda: se a IA não usou a expressão, a frase entra pronta. */
+const F_GIRIAS_EX_KEY = 'dm_girias_ex_v1';
 
 /* A cidade do franqueado NÃO é entidade do Luma (01_BUSINESS §1) — ela aparece de raspão em
    dois lugares que já existem. Aqui é só a leitura, na ordem do mais específico: o campo da
@@ -2360,7 +2367,8 @@ function fGiriasCache(cidade){
     const g = JSON.parse(localStorage.getItem(fUserCacheKey(F_GIRIAS_KEY)) || 'null');
     if(!g || !Array.isArray(g.termos)) return null;
     if(_fGiriaChave(g.cidade) !== _fGiriaChave(cidade)) return null;         // outra cidade
-    if(Date.now() - (g.ts||0) > F_GIRIAS_DIAS*864e5) return null;            // venceu
+    const dias = g.termos.length ? F_GIRIAS_DIAS : F_GIRIAS_VAZIO_DIAS;
+    if(Date.now() - (g.ts||0) > dias*864e5) return null;                     // venceu
     return g.termos;
   }catch(e){ return null; }
 }
@@ -2375,40 +2383,68 @@ async function fGiriasDaCidade(cidade){
   if(!cidade) return [];
   const cache = fGiriasCache(cidade);
   if(cache) return cache;
-  const termos = await _fGiriasPesquisar(cidade);
+  const termos = await _fGiriasPesquisar(cidade, '');
+  if(!termos) return [];   // a IA falhou: não guarda nada, tenta de novo na próxima legenda
   try{ localStorage.setItem(fUserCacheKey(F_GIRIAS_KEY), JSON.stringify({cidade, ts:Date.now(), termos})); }catch(e){}
   return termos;
 }
 
-/* A pesquisa na IA (task `girias`), sem cache: quem guarda é quem chama. */
-async function _fGiriasPesquisar(cidade){
-  if(!cidade || typeof gAskAI !== 'function' || typeof gAiReady !== 'function' || !gAiReady()) return [];
+/* A pesquisa na IA (task `girias`), sem cache: quem guarda é quem chama. Devolve `null` quando a
+   IA FALHOU (sem resposta, JSON quebrado) e `[]` quando respondeu que não há nada — antes os dois
+   eram `[]`, e um 503 do provedor numa tarde virava "esta cidade não tem gíria" guardado.
+   ⚠ Pedia só o que fosse "da cidade" e mandava devolver vazio na dúvida — para cidade pequena do
+   interior o modelo não conhece nada específico e a resposta era sempre []. Agora vale a REGIÃO
+   ou o ESTADO quando a cidade não tem expressão própria (o "bah" gaúcho serve em Veranópolis). */
+async function _fGiriasPesquisar(cidade, uf){
+  if(!cidade || typeof gAskAI !== 'function' || typeof gAiReady !== 'function' || !gAiReady()) return null;
+  const lugar = cidade + (uf ? '/' + uf : '');
 
-  const prompt = `Você conhece o modo de falar das cidades do interior do Brasil. Liste expressões REALMENTE usadas no dia a dia em ${cidade}.
+  const prompt = `Você conhece o jeito de falar das cidades do interior do Brasil. Liste expressões populares usadas no dia a dia em ${lugar}: da própria cidade ou, se ela não tiver nada específico, da região ou do estado dela (por exemplo, o "bah" e o "tri" gaúchos, o "uai" mineiro, o "oxe" nordestino).
 
 REGRAS:
-1. Só entra expressão que você tem certeza de que é usada nessa cidade ou na região dela. Na dúvida, devolva MENOS — lista curta e certa vale mais que lista longa e inventada.
-2. Nada de gíria nacional genérica que se fala no Brasil inteiro, nada de palavrão e nada que possa soar pejorativo ou debochado com quem mora lá.
-3. Só serve o que caberia numa legenda sobre comida, pedido ou promoção.
-4. No máximo ${F_GIRIAS_MAX} expressões.
-5. Se você não conhece nada específico dessa cidade, devolva a lista vazia — é resposta certa.
+1. Só expressão que um morador de lá reconhece e usa de verdade. Nada de gíria de internet, nada de palavrão e nada que soe pejorativo ou debochado com quem mora lá.
+2. Tem que caber numa legenda de delivery: comida, fome, pedido, promoção.
+3. No máximo ${F_GIRIAS_MAX} expressões, da mais conhecida para a menos.
+4. Devolva a lista vazia só se você não souber nem de que região é a cidade.
 
 Responda APENAS com JSON válido:
-{"termos":[{"termo":"a expressão","significado":"o que quer dizer, em 4 palavras","exemplo":"frase curta de delivery usando a expressão"}]}`;
+{"termos":[{"termo":"a expressão","significado":"o que quer dizer, em até 4 palavras","exemplo":"frase curta de delivery (até 90 caracteres) usando a expressão"}]}`;
 
+  const emoji = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u;
   let termos = [];
   try{
     const txt = await gAskAI('girias', prompt, { json:true });
     const parsed = txt && (typeof gAiParseJson==='function' ? gAiParseJson(txt) : null);
-    termos = (parsed && Array.isArray(parsed.termos) ? parsed.termos : [])
-      .map(t => ({ termo:String((t&&t.termo)||'').trim(), significado:String((t&&t.significado)||'').trim() }))
+    if(!parsed || !Array.isArray(parsed.termos)) return null;
+    termos = parsed.termos
+      .map(t => ({ termo:String((t&&t.termo)||'').trim(), significado:String((t&&t.significado)||'').trim(),
+        exemplo:String((t&&t.exemplo)||'').replace(/\s+/g,' ').trim() }))
       // Filtro de formato, não de conteúdo: expressão é curta. Frase inteira aqui é o modelo
       // devolvendo outra coisa — e emoji nunca entra em nada desta base.
-      .filter(t => t.termo && t.termo.length <= 24
-        && !/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(t.termo + t.significado))
+      .filter(t => t.termo && t.termo.length <= 24 && !emoji.test(t.termo + t.significado))
       .slice(0, F_GIRIAS_MAX);
-  }catch(e){ termos = []; }
+  }catch(e){ return null; }
+  // O exemplo só vale se usa a própria expressão, é curto e sem emoji — senão a rede de
+  // segurança colaria na legenda uma frase que não tem a gíria.
+  termos.forEach(t => { if(!(t.exemplo && t.exemplo.length <= 120 && !emoji.test(t.exemplo) && _fGiriaNaFrase(t.exemplo, t.termo))) t.exemplo = ''; });
+  _fGiriaExemplosGuarda(termos);
   return termos;
+}
+const _fGiriaNorm = (x) => String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+/* "A expressão aparece nesta frase?" — sem acento, caixa nem pontuação ("Bah!" conta como "bah"). */
+function _fGiriaNaFrase(frase, termo){
+  const t = _fGiriaNorm(termo);
+  return !!t && (' ' + _fGiriaNorm(frase) + ' ').indexOf(' ' + t + ' ') >= 0;
+}
+function _fGiriaExemplosGuarda(termos){
+  try{
+    const m = JSON.parse(localStorage.getItem(fUserCacheKey(F_GIRIAS_EX_KEY)) || '{}') || {};
+    termos.forEach(t => { if(t.exemplo) m[_fGiriaChave(t.termo)] = t.exemplo; });
+    localStorage.setItem(fUserCacheKey(F_GIRIAS_EX_KEY), JSON.stringify(m));
+  }catch(e){}
+}
+function _fGiriaExemplo(termo){
+  try{ return (JSON.parse(localStorage.getItem(fUserCacheKey(F_GIRIAS_EX_KEY)) || '{}') || {})[_fGiriaChave(termo)] || ''; }catch(e){ return ''; }
 }
 
 /* ── Gírias por FRANQUIA (30/09/2026; reunião em .maestri/reuniao-legenda/4-sintese.md) ──
@@ -2436,8 +2472,10 @@ async function _fGiriasDaFranquia(fr){
   if(!linhas) return [];
   const minhas = linhas.filter(l => l.franquia_id === fr.id);
   let pedido = {}; try{ pedido = JSON.parse(localStorage.getItem(fUserCacheKey(F_GIRIAS_FR_PEDIDO)) || '{}') || {}; }catch(e){}
-  if(!minhas.length && !(Date.now() - (pedido[fr.id] || 0) < F_GIRIAS_DIAS * 864e5)){
-    const termos = (await _fGiriasPesquisar(fr.cidade || fr.nome)).filter(t => !_fGiriaVetada(linhas, t.termo));
+  if(!minhas.length && !(Date.now() - (pedido[fr.id] || 0) < F_GIRIAS_VAZIO_DIAS * 864e5)){
+    const achou = await _fGiriasPesquisar(fr.cidade || fr.nome, fr.uf || '');
+    if(!achou) return [];   // a IA falhou: não marca como consultada, tenta na próxima legenda
+    const termos = achou.filter(t => !_fGiriaVetada(linhas, t.termo));
     if(termos.length){
       try{
         await _fGiriasSb().schema('luma').from('franquia_girias').insert(termos.map(t => ({
@@ -2449,10 +2487,32 @@ async function _fGiriasDaFranquia(fr){
     pedido[fr.id] = Date.now(); try{ localStorage.setItem(fUserCacheKey(F_GIRIAS_FR_PEDIDO), JSON.stringify(pedido)); }catch(e){}
   }
   return linhas.filter(l => l.franquia_id === fr.id && l.status === 'aprovada' && !_fGiriaVetada(linhas, l.termo))
-    .map(l => ({ termo: l.termo, significado: l.significado || '' }));
+    .map(l => ({ termo: l.termo, significado: l.significado || '', exemplo: _fGiriaExemplo(l.termo) }));
 }
 /* A dose, no código: UM termo sorteado por legenda (a IA nunca vê a lista inteira). */
 function _fGiriaUma(lista){ return (lista && lista.length) ? [lista[Math.floor(Math.random() * lista.length)]] : []; }
+/* A regra da gíria no prompt da legenda — a MESMA frase nos dois caminhos de IA (gateway
+   `caption.generate` e `gAskAI('legenda')`). Era "Gírias opcionais, só se naturais" no fim do
+   prompt, e o modelo simplesmente ignorava: a gíria nunca aparecia. Agora é obrigatória em UMA
+   opção (a dose de 1 termo por legenda segue: um termo, uma opção). */
+function _fGiriaRegra(g){
+  if(!g || !g.termo) return '';
+  const limpo = (v, n) => String(v || '').replace(/["\n\r]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
+  const termo = limpo(g.termo, 24), sig = limpo(g.significado, 40), ex = limpo(g.exemplo, 120);
+  return `JEITO DE FALAR DA CIDADE (obrigatório): use a expressão "${termo}"${sig ? ` (quer dizer: ${sig})` : ''} UMA vez, em UMA só das opções, "promo" ou "engajar" (nunca no "whatsapp"), encaixada com naturalidade numa frase sobre a fome ou o pedido${ex ? `, no estilo de: "${ex}"` : ''}. Escreva a expressão como ela é, sem aspas, sem explicar o significado e sem usar nenhuma outra gíria.`;
+}
+/* A conferência: a IA nem sempre obedece. Se nenhuma opção usou a expressão e há exemplo
+   pronto da pesquisa, a frase entra como parágrafo próprio no "engajar" (antes das hashtags,
+   pelo mesmo `_fSeoGarante` da frase de SEO). Sem exemplo (termo digitado pelo franqueado),
+   fica como a IA escreveu. */
+function _fGiriaGarante(out, g){
+  if(!g || !g.termo || !Array.isArray(out) || out.length < 2) return out;
+  const usou = out.slice(0, 2).some(o => _fGiriaNaFrase(o.text, g.termo));
+  if(!usou && g.exemplo) out[1].text = _fSeoGarante(out[1].text, g.exemplo);
+  out._giria = (usou || g.exemplo) ? g.termo : '';
+  if(out._giria && typeof gTrackEvent === 'function') gTrackEvent('giria_usada', { garantida: !usou });
+  return out;
+}
 
 /* O painel "Jeito de falar de <cidade>" embaixo da legenda: marcar = aprovar, × = não usar,
    e um campo para o franqueado pôr uma expressão dele. Não bloqueia nada: sem marcar, a
@@ -2606,15 +2666,10 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
     || (typeof fCidadeAtual === 'function' ? fCidadeAtual() : '');
   const fmtId = (formato && formato.id) || (typeof fState !== 'undefined' && fState.fmt && fState.fmt.id) || 'feed';
 
-  let blocoGirias = '';
-  try{
-    if (typeof fGiriasDaCidade === 'function') {
-      const girias = _fGiriaUma(await fGiriasDaCidade(cidade));
-      if (girias && girias.length) {
-        blocoGirias = girias.map(g => `"${g.termo}"${g.significado ? ` (${g.significado})` : ''}`).join(', ');
-      }
-    }
-  }catch(e){}
+  // UM termo sorteado para esta legenda, o mesmo nos dois caminhos e na conferência.
+  let giria = null;
+  try{ giria = _fGiriaUma(await fGiriasDaCidade(cidade))[0] || null; }catch(e){}
+  const blocoGirias = _fGiriaRegra(giria);
 
   // Gateway Novo e Blindado: gAI (§14, §32, §60). O typeof fica como rede: sem ele, um gateway
   // antigo em cache sem `isEnabled` derrubava a legenda inteira em vez de cair no motor local.
@@ -2647,7 +2702,7 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
       if (out[1].text === out[0].text) out[1].text = fallback[1].text;
       if (out[2].text === out[0].text) out[2].text = fallback[2].text;
       out._ia = true;
-      return out;
+      return _fGiriaGarante(out, giria);
     }
     return fallback;
   }
@@ -2673,18 +2728,6 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
     ? `Termine com hashtags: #${cidadeTag} #Delivery${cidadeTag} #DeliveryMuch`
     : `Termine com hashtags: #DeliveryMuch #Delivery`;
 
-  /* O tempero local. Pesquisado uma vez por cidade (fGiriasDaCidade) e guardado; daqui em
-     diante é leitura de localStorage. Sem cidade, sem IA ou sem lista confiável, o bloco
-     simplesmente não existe e a legenda sai como sempre saiu. */
-  let blocoGiriasPrompt = '';
-  try{
-    const girias = _fGiriaUma(await fGiriasDaCidade(cidade));
-    if(girias && girias.length){
-      const lista = girias.map(g => `"${g.termo}"${g.significado ? ` (${g.significado})` : ''}`).join(', ');
-      blocoGiriasPrompt = `\n\nJEITO DE FALAR EM ${cidade.toUpperCase()} (opcional): ${lista}.`;
-    }
-  }catch(e){}
-
   const prompt = `Você escreve legendas para o Delivery Much, o app de delivery das cidades do interior do Brasil. Quem publica é o franqueado da cidade — dono do app ali, vizinho do cliente. Tom: simples, amigável, direto e próximo; português do Brasil; frase curta; nada de jargão de agência nem de "imperdível/incrível".
 
 FATOS DA PEÇA (a legenda acompanha uma arte com estes dados):
@@ -2698,8 +2741,8 @@ REGRAS OBRIGATÓRIAS:
 5. ${hashtags} — só em "promo" e "engajar". A opção "whatsapp" NÃO leva hashtag.
    SEO do Instagram: o nome do produto aparece na 1ª linha e ${_fSeoLocal(cidadeTag)} e as fixas acima, em minúsculas.
 6. "whatsapp" é mensagem pra lista de transmissão: chama pra pedir no app. NUNCA use asterisco (*) nem qualquer marcação de negrito/markdown, em nenhuma opção.
-7. Português do Brasil com TODA a acentuação e o "ç" corretos (família, peça, promoção, você, já). Os fatos podem ter sido digitados sem acento: corrija a grafia na legenda, mas não troque palavras, nomes próprios nem preços.${blocoGiriasPrompt ? `
-8. Sobre o jeito de falar da cidade: use NO MÁXIMO UMA dessas expressões, em UMA das três opções, e só se ela couber com naturalidade na frase. Se nenhuma couber, NÃO force — gíria enfiada soa falsa e o franqueado é vizinho de quem lê. Nunca explique a expressão nem use mais de uma.` : ''}${blocoGiriasPrompt}
+7. Português do Brasil com TODA a acentuação e o "ç" corretos (família, peça, promoção, você, já). Os fatos podem ter sido digitados sem acento: corrija a grafia na legenda, mas não troque palavras, nomes próprios nem preços.${blocoGirias ? `
+8. ${blocoGirias}` : ''}
 
 Responda APENAS com JSON válido:
 {"promo":"legenda que vende (foco na oferta)","engajar":"legenda que puxa comentário/marcação de amigo","whatsapp":"mensagem curta pra lista do WhatsApp, sem asterisco"}`;
@@ -2726,7 +2769,7 @@ Responda APENAS com JSON válido:
   if (out[1].text === out[0].text) out[1].text = fallback[1].text;
   if (out[2].text === out[0].text) out[2].text = fallback[2].text;
   out._ia = true;
-  return out;
+  return _fGiriaGarante(out, giria);
 }
 
 /**
