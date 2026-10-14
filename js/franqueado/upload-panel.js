@@ -170,8 +170,11 @@ function fCloseUploadPanel(){
 function _fRenderUploadPanel(){
   const host=document.getElementById('f-upload-panel'); if(!host) return;
   const isLogo=_fUpEhLogo(_fUpPanelVar);
-  const recents=fGetRecentImgs();
-  const lojas=(isLogo && typeof fGetLojas==='function') ? fGetLojas() : [];
+  // Visitante: sem "recentes" nem "minhas lojas" — são do usuário, e ele não tem conta. Só os exemplos
+  // e o arquivo dele. (Seção vazia dizendo "salve uma loja…" prometia o que a visita não guarda.)
+  const _vis=(typeof gVisitante==='function' && gVisitante());
+  const recents=_vis ? [] : fGetRecentImgs();
+  const lojas=(!_vis && isLogo && typeof fGetLojas==='function') ? fGetLojas() : [];
   const _icoClose='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
   const _icoUp='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
   const _icoStore='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M3 9h18"/></svg>';
@@ -200,7 +203,7 @@ function _fRenderUploadPanel(){
       <p class="f-up-demo-note">Fotos de exemplo, para testar. Use a foto real da loja antes de publicar.</p>
     </div>` : '';
 
-  const lojasBlock = isLogo ? `
+  const lojasBlock = (isLogo && !_vis) ? `
     <div class="f-up-sec">
       <div class="f-up-sec-head">${_icoStore}<span>Minhas lojas</span></div>
       ${lojas.length
@@ -226,10 +229,10 @@ function _fRenderUploadPanel(){
         </button>
         ${demoBlock}
         ${lojasBlock}
-        <div class="f-up-sec">
+        ${_vis ? '' : `        <div class="f-up-sec">
           <div class="f-up-sec-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Imagens recentes</span></div>
           ${recentGrid}
-        </div>
+        </div>`}
       </div>
     </div>`;
 }

@@ -1697,3 +1697,15 @@ body:not(.theme-light) .fh-hero[data-camp-theme="muchplus"] .fh-hero-eyebrow{col
 /* shine do badge: barra branca CHAPADA varre UMA vez ao renderizar (sem loop, sem gradiente) */
 .camp-card[data-camp-theme="muchplus"] .camp-badge::after,.fh-hero[data-camp-theme="muchplus"] .fh-hero-badge::after{content:'';position:absolute;top:0;bottom:0;left:0;width:38%;background:color-mix(in srgb,var(--white) 50%,transparent);transform:translateX(-130%) skewX(-18deg);animation:fBadgeShine .9s var(--ease-standard) .8s 1 both}
 @keyframes fBadgeShine{to{transform:translateX(340%) skewX(-18deg)}}
+
+/* ── Visitante (QR do deck): faixa de aviso na home + estado de erro do catálogo ── */
+.fh-vis{display:flex;align-items:center;gap:10px;margin:0 0 16px;padding:11px 12px 11px 14px;border:1px solid var(--dm-orange-tint);border-radius:14px;background:var(--dm-orange-bg);color:var(--text-2);font-size:13px;line-height:1.4}
+.fh-vis svg{flex:none;color:var(--dm-orange-d)}
+.fh-vis span{flex:1;min-width:0}
+.fh-vis strong{color:var(--text);font-weight:900}
+.fh-vis button{flex:none;min-height:36px;padding:0 14px;border:0;border-radius:var(--r-pill);background:var(--dm-orange);color:var(--white);font:inherit;font-size:12px;font-weight:900;cursor:pointer}
+.fh-vis button:hover{background:var(--dm-orange-d)}
+.fh-vis button:focus-visible,.fh-vis-retry:focus-visible{outline:2px solid var(--dm-orange);outline-offset:3px}
+.fh-vis-retry{margin-top:10px;min-height:44px;padding:0 22px;border:0;border-radius:var(--r-pill);background:var(--dm-orange);color:var(--white);font:inherit;font-size:14px;font-weight:900;cursor:pointer}
+body:not(.theme-light) .fh-vis{background:color-mix(in srgb,var(--dm-orange) 12%,var(--d-surf2));border-color:color-mix(in srgb,var(--dm-orange) 35%,transparent);color:var(--d-text2)}
+body:not(.theme-light) .fh-vis strong{color:var(--d-text)}

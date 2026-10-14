@@ -40,7 +40,8 @@ const G_SUP = {
 };
 
 function _gSupSb(){ return (typeof gSupabase === 'function') ? gSupabase() : null; }
-function _gSupEu(){ return (typeof gCurrentUser === 'function') ? gCurrentUser() : null; }
+// Visitante não tem conta para a equipe responder: sem suporte ao vivo (nem presença, nem caixa).
+function _gSupEu(){ return (typeof gCurrentUser === 'function' && !(typeof gVisitante === 'function' && gVisitante())) ? gCurrentUser() : null; }
 function _gSupTab(){ const sb = _gSupSb(); return sb ? sb.schema('luma').from('suporte_mensagens') : null; }
 
 // Backend no ar, sessão aberta e a chave do Controle do produto ligada.

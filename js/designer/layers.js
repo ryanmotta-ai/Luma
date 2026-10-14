@@ -2572,6 +2572,7 @@ async function dSyncVarsFromBackend(){
   if(!sb) return;
   try{
     const _vis=(typeof gVisitante==='function' && gVisitante()) ? await gVisitanteCatalogo() : null;
+    if(typeof gVisitante==='function' && gVisitante() && !_vis) return; // catálogo do visitante falhou: sem sessão, a consulta normal só daria 401
     const { data, error }=_vis ? { data:_vis.variaveis, error:null }
       : await sb.schema('luma').from('variaveis').select('*').order('ordem',{ascending:true});
     if(error) return;
@@ -4255,7 +4256,8 @@ async function dSyncFoldersFromBackend(){
     if(e1 || !Array.isArray(rp) || !rp.length) return; // banco vazio → mantém local (push migra)
     // Lazy Load: exclui propositalmente a coluna `layers` pesada do download em lote no boot.
     // Os layers descem sob demanda: dLoadTemplate (designer) / fEnsureMaterialLayers (franqueado).
-    const { data:rt, error:eT }=_vis ? { data:_vis.templates.map(t=>{ const c=Object.assign({},t); delete c.layers; return c; }), error:null }
+    const { data:rt, error:eT }=_vis ? { data:_vis.templates.map(t=>{ const c=Object.assign({},t); delete c.layers; return c; })
+      .sort((a,b)=>(a.fmt==='story'?0:1)-(b.fmt==='story'?0:1)), error:null } // RPC sem ORDER BY: Story primeiro (o caminho do deck), resto estável
       : await sb.schema('luma').from('templates').select('id, pasta_id, nome, fmt, formats, w, h, bg, publicado, publicado_em, validade, instrucoes, permissoes, updated_at, versao_atual_id');
     // Pull mudo = catálogo vazio sem explicação (mesmo incidente de 07/2026). Nomear a causa.
     // E ABORTAR: seguir o merge com rt=null montava TODA pasta com zero material — a vitrine

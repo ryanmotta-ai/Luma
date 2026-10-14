@@ -88,6 +88,7 @@ async function dSyncFontsFromBackend(){
   const sb=_gSbFont(); if(!sb) return;
   try{
     const _vis=(typeof gVisitante==='function' && gVisitante()) ? await gVisitanteCatalogo() : null;
+    if(typeof gVisitante==='function' && gVisitante() && !_vis) return; // idem dSyncVarsFromBackend
     const { data, error }=_vis ? { data:_vis.fontes, error:null } : await sb.schema('luma').from('fontes').select('*');
     if(error || !Array.isArray(data) || !data.length) return;
     const have=new Set(dCustomFonts.map(f=>f.family&&f.family.toLowerCase()));

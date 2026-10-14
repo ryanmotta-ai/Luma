@@ -1547,8 +1547,21 @@ const _FH_FILTERS=[
   {id:'prontas',label:'Prontas para usar'},
   {id:'favoritas',label:'Favoritas'}
 ];
-function _fhEmptyState(title,sub){
-  return `<div class="fh-empty"><span class="fh-empty-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></span><strong>${title}</strong><span>${sub}</span></div>`;
+function _fhEmptyState(title,sub,extra){
+  return `<div class="fh-empty"><span class="fh-empty-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></span><strong>${title}</strong><span>${sub}</span>${extra||''}</div>`;
+}
+/* Vitrine vazia. Para o visitante vazio quase sempre é REDE (o catálogo dele vem de uma chamada
+   pública): "o time ainda não publicou" faria a visita achar que o produto está vazio. */
+function _fhVazio(){
+  if(typeof gVisitante==='function' && gVisitante())
+    return _fhEmptyState('Não consegui carregar o catálogo','Confira a internet e tente de novo.','<button type="button" class="fh-vis-retry" onclick="fVisitanteRecarrega(this)">Tentar de novo</button>');
+  return _fhEmptyState('Nenhuma campanha pronta agora','Assim que o time publicar materiais, elas aparecem aqui.');
+}
+async function fVisitanteRecarrega(btn){
+  const volta=(typeof gBtnLoading==='function')?gBtnLoading(btn,'Carregando…'):null;
+  try{ await gVisitanteResync(); }
+  catch(e){}
+  finally{ if(volta) volta(); }
 }
 function _fhFilterPanelHTML(){
   return _FH_FILTERS.map(f=>`<button type="button" class="fh-filter-opt${_fhFilter===f.id?' is-current':''}" role="menuitemradio" aria-checked="${_fhFilter===f.id}" onclick="fHomeSetFilter('${f.id}')">${gEsc(f.label)}${_fhFilter===f.id?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>':''}</button>`).join('');
@@ -1636,7 +1649,7 @@ function _fHomeBodyHTML(query){
   const embreve=pool.filter(c=>!_fCampHasMats(c));
   // Filtro de status ativo (≠ todas): vitrine vira lista única e enxuta, sem hero/rascunhos.
   if(_fhFilter==='prontas'){
-    if(!prontas.length) return _fhEmptyState('Nenhuma campanha pronta agora','Assim que o time publicar materiais, elas aparecem aqui.');
+    if(!prontas.length) return _fhVazio();
     return `<section class="fh-section fh-results"><div class="fh-sec"><span>Prontas para usar</span><em>${prontas.length} campanha${prontas.length!==1?'s':''}</em></div>
       <div class="camp-grid fh-grid">${prontas.map(c=>fCampEl(c,false)).join('')}</div></section>`;
   }
@@ -1655,7 +1668,7 @@ function _fHomeBodyHTML(query){
   try{ const favIds=fGetFavs(); favs=favIds.map(id=>pool.find(c=>c.id===id)).filter(Boolean); }catch(e){}
   // Nada para mostrar (catálogo não carregou, ou nenhuma campanha com material): sem isto a
   // home ficava em branco embaixo da busca, sem mensagem nem saída.
-  if(!prontas.length&&!drafts.length&&!favs.length) return _fhEmptyState('Nenhuma campanha pronta agora','Assim que o time publicar materiais, elas aparecem aqui.');
+  if(!prontas.length&&!drafts.length&&!favs.length) return _fhVazio();
   const rec=prontas.find(c=>c.popular)||prontas[0]||null;
   const gridProntas=prontas.filter(c=>!rec||c.id!==rec.id);
   return `
@@ -1731,10 +1744,15 @@ function fRenderHome(opts){
         <p class="fh-sub">Qual arte vamos criar hoje?</p>
       </div>
       <div class="fh-head-actions">
-        <button class="fh-help" type="button" onclick="lumaWidgetOpen(this)" data-help-trigger aria-controls="luma-widget-modal" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 1 1 3.6 1.9c-.9.6-1.4 1.1-1.4 2.1"/><path d="M12 17h.01"/></svg><span class="fh-act-txt"><span>Ajuda</span><small>Fale com a gente</small></span></button>
+        <button class="fh-help" type="button" onclick="lumaWidgetOpen(this)" data-help-trigger aria-controls="luma-widget-modal" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 1 1 3.6 1.9c-.9.6-1.4 1.1-1.4 2.1"/><path d="M12 17h.01"/></svg><span class="fh-act-txt"><span>Ajuda</span><small>${(typeof gVisitante==='function'&&gVisitante())?'Dicas e novidades':'Fale com a gente'}</small></span></button>
         <button class="fh-mine" type="button" onclick="fHomeOpenHist()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 4v5"/></svg><span class="fh-act-txt"><span>Minhas artes</span><small>${nHist?nHist+(nHist!==1?' salvas':' salva'):'Nenhuma ainda'}</small></span>${nHist?` <span class="fh-mine-badge">${nHist}</span>`:''}</button>
       </div>
     </div>
+    ${(typeof gVisitante==='function'&&gVisitante())?`<div class="fh-vis" role="note">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+      <span><strong>Você está explorando o Luma.</strong> Monte uma arte e baixe — nada fica salvo.</span>
+      <button type="button" onclick="gLogout()">Entrar</button>
+    </div>`:''}
     <div class="fh-search-row" role="search">
       <span class="fh-search-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
       <div class="fh-search-field"><label for="fh-search">O que você quer divulgar?</label><input id="fh-search" type="search" autocomplete="off" maxlength="240" placeholder="Busque uma campanha, produto ou ocasião…" oninput="if(!event.isComposing)fHomeFilter(this.value)" oncompositionend="fHomeFilter(this.value)"/></div>

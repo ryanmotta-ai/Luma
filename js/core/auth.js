@@ -141,7 +141,7 @@ async function gLogout() {
   try { if (sb) await sb.auth.signOut(); } catch (e) {}
   gAuthState = { user: null };
   // Visitante: o reload mantinha `?visitante=1` e voltava como visitante — sem caminho para o login.
-  if (_vis) location.replace(location.pathname); else location.reload();
+  if (_vis) { try { sessionStorage.removeItem('__luma_vis_sess'); } catch (e) {} location.replace(location.pathname); } else location.reload();
 }
 
 function gCurrentUser() { return gAuthState.user; }
@@ -151,7 +151,20 @@ function gCurrentUser() { return gAuthState.user; }
    e o catálogo vem de UMA função pública (`luma_visitante_catalogo`) com as campanhas marcadas. */
 function gVisitante() { return !!(gAuthState.user && gAuthState.user.visitante); }
 function gVisitantePedido() { try { return new URLSearchParams(location.search).get('visitante') === '1'; } catch (e) { return false; } }
+/* O visitante tem UM id para todo mundo, e o histórico/recentes/feedback ficam no localStorage
+   sob esse id. Num tablet de estande, o visitante seguinte veria as artes do anterior. Aba nova
+   = visita nova: limpa o rastro do anterior. O sessionStorage sobrevive ao F5 (a visita em curso
+   não perde a arte) e zera ao fechar a aba. */
+function _gVisitanteNovaVisita() {
+  try {
+    if (sessionStorage.getItem('__luma_vis_sess')) return;
+    sessionStorage.setItem('__luma_vis_sess', '1');
+    Object.keys(localStorage).filter(k => /:user:visitante$|^luma_feedback|^luma_onboarding_franqueado$|^dm_copy_recent_v1$|^__luma_camp$/.test(k))
+      .forEach(k => localStorage.removeItem(k));
+  } catch (e) {}
+}
 function gEntrarVisitante() {
+  _gVisitanteNovaVisita();
   gAuthState = { user: { id: 'visitante', email: 'visitante@luma.local', role: 'franqueado',
     displayName: 'Visitante', departamento: null, telefone: '', foto: '', senhaInicial: false, visitante: true } };
   return gAuthState.user;
@@ -162,9 +175,21 @@ function gVisitanteCatalogo() {
     const sb = _gSb();
     _gVisCat = !sb ? Promise.resolve(null)
       : Promise.resolve(sb.rpc('luma_visitante_catalogo')).then(r => (r && !r.error && r.data) || null).catch(() => null);
+    // Falha de rede NÃO fica em cache: sem isto o Wi-Fi do estande que caiu uma vez deixava o
+    // catálogo vazio até recarregar a página. Volta a tentar no próximo pedido.
+    _gVisCat.then(v => { if (!v) _gVisCat = null; });
   }
   return _gVisCat;
 }
+// Refaz o que o boot puxa pela chamada pública (campos, pastas/materiais, fontes). Um só lugar para o
+// "Tentar de novo" da vitrine e para a volta da rede.
+function gVisitanteResync() {
+  return Promise.all(['dSyncVarsFromBackend', 'dSyncFoldersFromBackend', 'dSyncFontsFromBackend']
+    .map(n => typeof window[n] === 'function' ? Promise.resolve(window[n]()).catch(() => {}) : null))
+    .then(() => { if (typeof fHomeRefreshIfIdle === 'function') fHomeRefreshIfIdle(); });
+}
+// A rede voltou: o catálogo se refaz sozinho, sem a visita precisar achar um botão.
+window.addEventListener('online', () => { if (gVisitante()) gVisitanteResync(); });
 function gCurrentRole() { return gAuthState.user ? gAuthState.user.role : null; }
 /* A foto de perfil de alguém — o ÚNICO lugar que decide isso (topbar, painel da conta, lista
    da Equipe, chat do franqueado). A fonte é `profiles.avatar_url`; o localStorage
@@ -557,7 +582,7 @@ function gUpdateUserTopbar() {
 
   if (roleEl) {
     const labels = { gestao:'GESTÃO', equipe_dm:'EQUIPE DM', franqueado:'FRANQUEADO' };
-    roleEl.textContent = labels[role] || String(role||'').toUpperCase();
+    roleEl.textContent = (user && user.visitante) ? 'VISITANTE' : (labels[role] || String(role||'').toUpperCase());
     // Cores sempre do brandbook (tokens de 00-tokens.css) — nada de hex solto.
     if (role === 'gestao') {
       roleEl.style.background = 'var(--dm-red)';

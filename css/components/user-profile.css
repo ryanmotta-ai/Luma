@@ -1222,3 +1222,20 @@ body:not(.theme-light) .prof-role-picker-opt-equipe_dm .prof-role-picker-opt-ico
   .prof-fact{padding:12px;gap:6px}
   .prof-fact-value{font-size:22px}
 }
+
+/* ── Modo visitante (QR do deck): só o cartão e o botão "Entrar". Sem seções, sem painel de conteúdo. ── */
+.prof-vis-card{margin:4px 0 18px;padding:16px;border:1px solid var(--dm-orange-tint);border-radius:14px;background:var(--dm-orange-bg);color:var(--text-2);font-size:13px;line-height:1.5}
+.prof-vis-card strong{display:block;margin-bottom:6px;color:var(--text);font-size:15px;font-weight:900}
+.prof-vis-card p{margin:0 0 8px}
+.prof-vis-card p:last-child{margin:0}
+.prof-box.prof-is-visitante .prof-nav,
+.prof-box.prof-is-visitante .prof-nav-label,
+.prof-box.prof-is-visitante .prof-content{display:none!important}
+.prof-box.prof-is-visitante .prof-logout-btn{background:var(--dm-orange);border-color:var(--dm-orange);color:var(--white);font-weight:900;justify-content:center}
+.prof-box.prof-is-visitante .prof-logout-btn:hover{background:var(--dm-orange-d);border-color:var(--dm-orange-d)}
+@media (min-width:769px){
+  .prof-box.prof-is-visitante{width:min(440px,calc(100vw - 32px));height:auto;min-height:0}
+  .prof-box.prof-is-visitante .prof-sidebar{width:100%;flex:1 1 auto;flex-basis:auto;border-right:0}
+}
+body:not(.theme-light) .prof-vis-card{background:color-mix(in srgb,var(--dm-orange) 12%,var(--d-surf2));border-color:color-mix(in srgb,var(--dm-orange) 35%,transparent);color:var(--d-text2)}
+body:not(.theme-light) .prof-vis-card strong{color:var(--d-text)}

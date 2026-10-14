@@ -67,6 +67,16 @@ function gOpenUserProfileModal() {
     else{sidebarRole.style.background='rgba(255,144,0,.15)';sidebarRole.style.color='var(--dm-orange-d)';sidebarRole.textContent='FRANQUEADO';}
   }
 
+  // Visitante (QR do deck): sem seções (não há perfil, senha nem atividade a mostrar) — um cartão
+  // que explica o modo e o botão vira "Entrar". O gate é visual; sem sessão, a RLS já nega tudo.
+  const _vis = !!(user && user.visitante);
+  document.querySelector('#g-profile-modal .prof-box')?.classList.toggle('prof-is-visitante', _vis);
+  const _visCard = document.getElementById('prof-vis-card'); if (_visCard) _visCard.hidden = !_vis;
+  const _brandSub = document.querySelector('#g-profile-modal .prof-brand-copy small');
+  if (_brandSub) _brandSub.textContent = _vis ? 'Modo visitante' : 'Conta e gestão';
+  const _outTxt = document.getElementById('prof-logout-txt'); if (_outTxt) _outTxt.textContent = _vis ? 'Entrar com minha conta' : 'Sair da conta';
+  if (_vis && sidebarRole) sidebarRole.textContent = 'VISITANTE';
+
   // Resetar abas
   gProfileSwitchTab('dados');
 

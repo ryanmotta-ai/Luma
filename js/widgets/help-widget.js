@@ -939,7 +939,7 @@
 
       <nav class="luma-wm-nav" aria-label="Navegação da ajuda">
         ${navBtn('home', WIDGET_SVGS.home, 'Início')}
-        ${navBtn('messages', WIDGET_SVGS.messagesNav, 'Mensagens', wmSupNavBadge())}
+        ${wmVisitante() ? '' : navBtn('messages', WIDGET_SVGS.messagesNav, 'Mensagens', wmSupNavBadge())}
         ${navBtn('help', WIDGET_SVGS.helpNav, 'Ajuda')}
         ${wmVitrineLigada() ? navBtn('funcionalidades', WIDGET_SVGS.sparkle, 'Funcionalidades') : ''}
       </nav>
@@ -960,7 +960,9 @@
   }
 
   // Tem para onde mandar uma pergunta? (assistente ligado, ou a equipe pelo suporte ao vivo)
-  function wmIaLigada() { return !(typeof gFeatureCan === 'function' && !gFeatureCan('global.help.chat', 'access')); }
+  // Visitante não tem sessão: o assistente (Edge Function) e a equipe recusam. Fica a busca de artigos.
+  function wmVisitante() { return typeof gVisitante === 'function' && gVisitante(); }
+  function wmIaLigada() { return !wmVisitante() && !(typeof gFeatureCan === 'function' && !gFeatureCan('global.help.chat', 'access')); }
   function wmPodePerguntar() { return wmIaLigada() || (wmSuporte() && !G_SUP.souEquipe); }
 
   /* ── INÍCIO ──────────────────────────────────────────────────────────────────────────────

@@ -17,7 +17,8 @@ const _fFeedbackSending = new Map();
 
 function _fFeedbackUid(){
   const user = typeof gCurrentUser === 'function' ? gCurrentUser() : null;
-  return user && user.id ? String(user.id) : '';
+  // Visitante não tem sessão: o envio é recusado em silêncio e a resposta se perdia.
+  return user && user.id && !user.visitante ? String(user.id) : '';
 }
 function _fFeedbackRead(uid){
   let saved;
@@ -243,6 +244,7 @@ function _fFeedbackCooldownGrava(dados){
 /* Exportada com nome próprio porque é ela que o teste exercita: a regra de frequência é a
    parte que mais dá errado em silêncio (perguntar demais é o defeito que estamos consertando). */
 function fFeedbackPodeConvidar(campId, agora){
+  if (!_fFeedbackUid()) return false;                    // sem conta (visitante) não há a quem gravar
   agora = agora || Date.now();
   if (_fFeedbackConviteNaSessao) return false;           // um por sessão, sempre
   const c = _fFeedbackCooldownLe();

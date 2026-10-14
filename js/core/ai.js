@@ -30,7 +30,9 @@ function gAiReady(){
   if(_gAiEdgeOk===true) return true;
   const sb=(typeof gSupabase==='function')?gSupabase():window.sb;
   const cfg=window.LUMA_SUPABASE||{};
-  const logado=(typeof gCurrentUser==='function') ? !!gCurrentUser() : false;
+  // Visitante é "logado" só no front: sem sessão a function recusa (401). Dizer que a IA está de pé
+  // acendia botões que não respondiam.
+  const logado=(typeof gCurrentUser==='function') ? (!!gCurrentUser() && !(typeof gVisitante==='function' && gVisitante())) : false;
   return !!(sb && cfg.url && cfg.anonKey && logado);
 }
 // A escolha do time (console: comando `modelo`) vence o padrão do config. A ordem

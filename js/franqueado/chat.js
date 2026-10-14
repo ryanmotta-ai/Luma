@@ -1466,7 +1466,7 @@ function fAddBotImageUpload(stepLabel, pergunta, canGoBack){
            telefone o título vira o RÓTULO DA AÇÃO ("Escolher foto") e o sub diz de onde a
            foto pode vir — que é a dúvida real de quem toca. -->
       <div class="f-upload-title">${_fCelular()?'Escolher foto':'Clique para enviar uma foto'}</div>
-      <div class="f-upload-sub">recentes, lojas salvas ou novo arquivo<span class="f-upload-cola"> · ou cole com ${_F_TECLA_COLAR}, ou arraste para cá</span></div>
+      <div class="f-upload-sub">${(typeof gVisitante==='function'&&gVisitante())?'fotos de exemplo ou novo arquivo':'recentes, lojas salvas ou novo arquivo'}<span class="f-upload-cola"> · ou cole com ${_F_TECLA_COLAR}, ou arraste para cá</span></div>
     </div>`;
   w.innerHTML=`<div class="av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg></div><div>
     <div class="bbl">${stepLabel}<span class="perg-frase">${pergunta.texto}</span>${fieldHint}</div>
