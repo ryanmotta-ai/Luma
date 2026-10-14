@@ -28,6 +28,7 @@ A ponte entre designer e franqueado é o **sistema de campos** (`{{produto}}`, `
 |---|--------|---------|--------|
 | 1 | **Franqueado** — catálogo + chat gerador de artes | `f*` | ✅ Produção (com backend) |
 | 2 | **Designer/Estúdio** — editor visual de templates | `d*` | ✅ Funcional, em refino contínuo |
+| 2b | **Luma Creative** — chat que compõe arte nova com IA (só gestão) | `cr*` | 🧪 Testes (14/10/2026) |
 | 3 | **CRM Visual** — inapp/push para CleverTap | — | 💡 Ideia validada, nada implementado. Dependência: estudar formatos aceitos pelo CleverTap antes |
 
 ---
@@ -115,6 +116,7 @@ ou `index.html` mudam, então ele não depende de ninguém lembrar de rodar o sc
 | `tut*` | Tutorial engine | `js/tutorial/*.js` |
 | `pv*` | Preview engine | `js/designer/preview.js` |
 | `sp*` | Splash | `js/core/splash.js` |
+| `cr*` | Luma Creative (testes, só gestão) | `js/creative/creative.js` |
 | `_x*` (underscore) | Helper interno do arquivo | qualquer |
 
 ### Prefixos de IDs HTML
@@ -616,6 +618,19 @@ O SVG é **montado invisível no documento** (numa shadow root, para o `<style>`
 - **Contrato com a skill luma-creative** (`<svg data-luma>`): campo é só `<text data-campo="nome">` (sem contrato, vale o palpite antigo pela caixa alta); `<g id="foto_produto[_N]|logo_loja">` vira moldura com o raio do slot e o placeholder de dentro não entra; `<image>` solta é arte fixa (antes o logo virava a moldura da foto); preço com `R$` e `,90` em trechos menores vira `R${{campo:inteiro}},{{campo:centavos}}`.
 
 Revisão por elemento → template rascunho. Suíte: `tests/svg-import.html`.
+
+### Luma Creative (`js/creative/creative.js`, prefixo `cr*`) — em TESTES, só gestão (14/10/2026)
+
+Aba ao lado do Estúdio com a tag **Testes**. Visível e utilizável só por `role='gestao'` (nem a `equipe_dm`) e pela flag `module.creative`: `_gCreativeRole` + `gModeAllowed` em `main.js`, e de novo **no servidor** (task `arte.compor` da função `ai` devolve 403 a quem não é gestão).
+
+- **Quem desenha é o código, não a IA.** A IA devolve só a composição em JSON (`crPrompt`): uma das 5 diagramações aprovadas da skill luma-creative — `oferta` (refino_01), `cupom` (02), `evento` (03), `destaque` (04, palavra vazada), `aniversario` (14) — mais copy, selo, preço, cupom, anos. `crCompor` monta o SVG com os blocos oficiais (logo, foto, selo, card de preço-assinatura, ticket, pattern ancorado, botão), mede cada texto no canvas com as MESMAS fontes que vão embutidas e reduz o corpo até caber em 880 px (abaixo do mínimo, marca estouro). Feed 1080×1350 e story 1080×1920.
+- **Já sai no contrato do importador:** `data-luma`, `data-campo` (produto, precoDe, precoPor, titulo, anos, desconto_valor, codigo_cupom), `g#foto_produto`; herói de 2 linhas é UM `<text>` com um `<tspan y>` por linha (vira um campo de várias linhas). "Abrir no Estúdio" = `setMode('designer')` + `dSvgHandleFile`.
+- **Sem IA** (função fora, sem sessão, 403), `crLerPedido` lê o pedido (palavras-chave, R$, %, código em maiúsculas, anos, pedido mínimo) e o mesmo motor compõe. Nunca inventa preço: sem preço, a oferta sai sem card.
+- **Legenda junto:** `crLegenda` chama `fFetchAICaptionSuggestions` (o motor do chat) em paralelo com a montagem; as 3 opções aparecem no cartão com "Copiar".
+- **Conferência da marca** (`crConfere`) é sobre o SVG que saiu: paleta oficial, nenhum texto < 22 px, nada estourou a margem, fontes embutidas.
+- **Assets** em `assets/creative/` (cópia da skill — sem `.nojekyll` o Pages não serve `.agents/`); `crEmbutir` troca `asset:` por base64 (SVG como imagem não carrega nada de fora).
+- **Motion de terminal:** status `✻ Compondo… (4s · esc para interromper)` com glifo girando e verbo com brilho; passos `⏺`/`⎿` com tempo; resposta digitada com cursor; arte do desfoque ao nítido; conferência marcada em sequência. Entrada do modo: revelação em círculo a partir da aba e topbar escurecendo (`--cr-*` em `00-tokens.css`). Tudo respeita `prefers-reduced-motion`. Esc interrompe.
+- Suíte: 4 casos em `tests/svg-import.html` (as 5 composições × 2 formatos entram no importador com os campos certos).
 
 ### Smart Resize multi-formato (`js/core/layout.js`)
 

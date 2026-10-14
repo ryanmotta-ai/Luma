@@ -91,6 +91,9 @@ async function subirNavegador(bin) {
        handshake com origem (proteção contra página web falar com o próprio DevTools). Sem esta
        flag a conexão morre em 403 — e a mensagem não diz o motivo. */
     '--remote-allow-origins=*',
+    // As suítes abrem por file://: o Luma Creative embute fontes/logo com fetch() relativo, que o
+    // Chrome bloqueia entre arquivos locais sem esta flag (no app, servido por http, nada muda).
+    '--allow-file-access-from-files',
     '--remote-debugging-port=0', '--user-data-dir=' + perfil, 'about:blank'
   ], { stdio: ['ignore', 'ignore', 'pipe'] });
   let erro = '';

@@ -153,6 +153,66 @@
     assert(window.__svgExec===0, 'código do arquivo executou: '+window.__svgExec);
   });
 
+  /* ── Luma Creative (js/creative/creative.js): o que o motor compõe tem de entrar no Estúdio
+     como template — campos certos, foto como moldura, nada fora da arte. ── */
+  const CR_CASOS={
+    oferta:{titulo:'Pizza calabresa',precoDe:'28,00',precoPor:'22,90',selo:['18%','OFF']},
+    cupom:{cupomValor:'15',cupomCodigo:'QUEROPIZZA',legal:'Válido para pedidos acima de R$ 40.'},
+    evento:{titulo:'Festival gastronômico',selo:['10 A 20','OUTUBRO']},
+    destaque:{palavra:'entrega',titulo:'grátis',selo:['SÓ','HOJE']},
+    aniversario:{anos:'3',cupomValor:'15',cupomCodigo:'NIVERDM15'}
+  };
+  const CR_CAMPOS={oferta:['produto','precoDe','precoPor'],cupom:['desconto_valor','codigo_cupom'],evento:['titulo'],destaque:['titulo'],aniversario:['anos','desconto_valor','codigo_cupom']};
+  const CR_FOTO={oferta:true,cupom:false,evento:true,destaque:true,aniversario:false};
+  const campoNa=(L,c)=>L.some(l=>l.type==='text' && l.isVar && String(l.content).indexOf('{{'+c)>=0);
+
+  caso('Luma Creative: as 5 composições (feed e story) entram no importador com os campos do contrato', async()=>{
+    await crFontesProntas();
+    for(const comp of Object.keys(CR_CASOS)) for(const formato of ['feed','story']){
+      const r=crCompor(Object.assign({composicao:comp, formato}, CR_CASOS[comp]));
+      assert(!r.estouros.length, comp+'/'+formato+': texto estourou '+r.estouros.join(', '));
+      assert(crConfere(r).every(c=>c.ok), comp+'/'+formato+': conferência da marca falhou');
+      const {layers}=await importar(await crEmbutir(r.svg));
+      CR_CAMPOS[comp].forEach(c=>assert(campoNa(layers,c), comp+'/'+formato+': campo {{'+c+'}} não chegou ao Estúdio'));
+      const fotos=layers.filter(l=>l.type==='frame' && l.imgVar==='foto_produto').length;
+      assert(fotos===(CR_FOTO[comp]?1:0), comp+'/'+formato+': '+fotos+' molduras de foto');
+      // A margem de 100 px o motor já mede (estouros, acima). Aqui: nenhuma caixa de texto do
+      // Estúdio sai da arte (a caixa inclui traço e o respiro do texto de várias linhas).
+      const fora=layers.filter(l=>l.type==='text' && !l.rotation && (l.x<0 || l.x+l.w>CR_W || l.y<0 || l.y+l.h>r.h));
+      assert(!fora.length, comp+'/'+formato+': texto fora da arte: '+fora.map(l=>l.content+' x='+Math.round(l.x)+' w='+Math.round(l.w)).join(' · '));
+    }
+  });
+
+  caso('Luma Creative: herói de 2 linhas vira UM campo de várias linhas (nunca a 2ª linha fixa)', async()=>{
+    await crFontesProntas();
+    const r=crCompor({composicao:'oferta', titulo:'Combo burger artesanal duplo', precoPor:'39,90'});
+    const {layers}=await importar(await crEmbutir(r.svg));
+    const p=layers.filter(l=>l.type==='text' && String(l.content).indexOf('{{produto}}')>=0);
+    assert(p.length===1, 'esperava 1 campo produto, veio '+p.length);
+    assert(/\n/.test(p[0].layoutRefText||''), 'campo sem as 2 linhas de exemplo: '+JSON.stringify(p[0].layoutRefText));
+    assert(!layers.some(l=>l.type==='text' && !l.isVar && /ARTESANAL/.test(l.content)), 'a 2ª linha virou texto fixo');
+  });
+
+  caso('Luma Creative: leitura local do pedido não inventa preço; com preço, de/por saem na ordem', async()=>{
+    const sem=crNormaliza(crLerPedido('Arte da pizza margherita para o feed'));
+    assert(sem.composicao==='oferta' && !sem.precoPor && !sem.precoDe, 'inventou preço: '+JSON.stringify([sem.precoDe,sem.precoPor]));
+    assert(crCompor(sem).svg.indexOf('data-campo="precoPor"')<0, 'card de preço sem preço');
+    const com=crNormaliza(crLerPedido('Oferta de pizza calabresa: de R$ 28 por R$ 22,9, 18% off'));
+    assert(com.precoDe==='28,00' && com.precoPor==='22,90', 'de/por: '+com.precoDe+' / '+com.precoPor);
+    assert(com.selo.join(' ')==='18% OFF', 'selo: '+com.selo.join(' '));
+    const cup=crNormaliza(crLerPedido('Cupom QUEROPIZZA de R$ 15 para pedidos acima de R$ 40'));
+    assert(cup.composicao==='cupom' && cup.cupomCodigo==='QUEROPIZZA' && cup.cupomValor==='15', 'cupom: '+JSON.stringify(cup));
+    assert(/acima de R\$ 40/.test(cup.legal), 'pedido mínimo fora da letra miúda');
+  });
+
+  caso('Luma Creative: a conferência acusa cor fora da paleta (não é carimbo)', async()=>{
+    await crFontesProntas();
+    const r=crCompor({composicao:'cupom'});
+    r.svg=r.svg.replace('</svg>','<rect width="10" height="10" fill="#00FF00"/></svg>');
+    const c=crConfere(r);
+    assert(!c[0].ok && /#00FF00/.test(c[0].t), 'cor estranha passou: '+c[0].t);
+  });
+
   let passed=0; const falhas=[];
   for(const item of cases){
     const li=document.createElement('li'); li.className='case';

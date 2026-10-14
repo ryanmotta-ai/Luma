@@ -6,6 +6,15 @@
 
 ---
 
+## 2026-10-14 — Luma Creative: task `arte.compor` só para a gestão (⏳ deploy da função `ai` pendente)
+
+Modo novo em testes (`js/creative/creative.js`): um chat que compõe arte nova. A IA não desenha — devolve a **composição em JSON** (uma das 5 diagramações aprovadas da skill luma-creative + copy, preço, cupom, anos); o front monta o SVG com os blocos oficiais, já no contrato do importador.
+
+- **Task nova `arte.compor`** em `TASKS`, com `POLITICA` `{max: 4096, pensar: "LOW", temp: 0.8}` (temperatura alta de propósito: "Gerar outra versão" precisa sair diferente). Prompt montado no front, como as demais.
+- **Trava de perfil no servidor:** para `arte.compor`, a função chama `get_user_role()` com o JWT de quem chama (helper SECURITY DEFINER já liberado para `authenticated` em `20260923187000`) e devolve **403** a quem não é `gestao` — nem a `equipe_dm` passa. O front esconde a aba (`main.js`, `_gCreativeRole` + flag `module.creative`), mas a fronteira é aqui.
+- Sem migration. Sem secret novo.
+- **Deploy:** `supabase functions deploy ai` (com o Ryan). Antes do deploy, a função responde 400 "tarefa desconhecida" e o Creative cai no motor local (lê o pedido por palavras-chave) — o modo funciona, só sem IA.
+
 ## 2026-09-30 — Franquias da rede, escolha da própria franquia e gírias por franquia (✅ migration `20260930200000`)
 
 - `luma.franquias` ganhou `lat`/`lon` e as **41 franquias** da lista do Ryan (`codigo` = slug; a do bot de teste fica sem código e fora da lista).

@@ -43,8 +43,10 @@ const json = (body: unknown, status = 200) =>
 // por cidade, o resultado fica no localStorage e entra no prompt da legenda como tempero.
 // `transcrever-audio` = ditado do campo de texto (png-generator.js): anexo de áudio do navegador.
 // As com ponto são as tarefas do gateway gAI (js/core/ai/ai-registry.js) — mandam `responseSchema`.
+// `arte.compor` = Luma Creative (js/creative/creative.js), modo em TESTES: devolve a composição da
+// arte em JSON (diagramação + copy); quem desenha é o front. SÓ a gestão (checado abaixo, passo 2).
 const TASKS = ["legenda", "encurtar", "ajuda", "cardapio", "casar-fotos", "cli", "aula", "mapear-psd", "girias",
-  "transcrever-audio",
+  "transcrever-audio", "arte.compor",
   "caption.generate", "copy.fit", "content.review", "image.validate", "psd.map", "metadata.suggest",
   "stress.generate", "search.expand"];
 
@@ -91,6 +93,9 @@ const POLITICA: Record<string, { max: number; pensar: Pensar; temp?: number }> =
   "mapear-psd": { max: 16384, pensar: "LOW" },
   "psd.map": { max: 16384, pensar: "LOW" },
   "aula": { max: 8192, pensar: null },
+  // Composição: JSON curto (~600 tokens), mas a escolha da diagramação pede algum raciocínio.
+  // temp 0.8: "Gerar outra versão" precisa sair diferente.
+  "arte.compor": { max: 4096, pensar: "LOW", temp: 0.8 },
 };
 const POLITICA_PADRAO = { max: 8192, pensar: "LOW" as Pensar };
 // Quem aceita thinkingConfig.thinkingLevel, e com quais níveis — tabela "Thinking levels" de
@@ -416,6 +421,13 @@ Deno.serve(async (req) => {
     let querJson = body?.json !== false; // padrão: resposta em JSON (todas as tarefas de hoje)
 
     if (!TASKS.includes(task)) return json({ error: "tarefa desconhecida" }, 400);
+
+    // Luma Creative está em testes: só a gestão. O front esconde a aba, mas a fronteira é aqui —
+    // get_user_role() é o mesmo helper SECURITY DEFINER das policies (lê profiles.role do JWT).
+    if (task === "arte.compor") {
+      const { data: papel } = await caller.rpc("get_user_role");
+      if (papel !== "gestao") return json({ error: "Luma Creative é só para a gestão" }, 403);
+    }
 
     // Task "aula": o front manda PERGUNTA + CONTEXTO; o prompt é montado aqui.
     // (As outras tasks seguem recebendo o prompt pronto — ver nota do topo.)

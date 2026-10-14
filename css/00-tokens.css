@@ -90,6 +90,18 @@
      pontos do selection.js; e cor de chrome de UI, entao nasce aqui como qualquer outra. */
   --d-sel: #5B9BE0;
   --d-sel-fill: rgba(91, 155, 224, .14);
+  /* Luma Creative (css/modules/creative.css): grafite QUENTE com brilho laranja — nem o claro do
+     Franqueado, nem o frio do Estúdio. Mesma escada do --d-* (fundo → 3 superfícies), matiz ~25°. */
+  --cr-bg: #16110E;
+  --cr-topbar: #1E1712;
+  --cr-surf: #211914;
+  --cr-surf2: #2B211A;
+  --cr-surf3: #352920;
+  --cr-line: rgba(255, 176, 110, .14);
+  --cr-text: #F6EEE7;
+  --cr-text2: #BCA999;
+  --cr-glow: rgba(248, 84, 0, .30);
+  --grafite: #434343;
   --var-color: #FFB900;
   --var-bg: rgba(255, 185, 0, .12);
 
