@@ -15,7 +15,7 @@
  */
 
 /* ══ IMAGENS DE EXEMPLO ═══════════════════════════════════════════════════════════════
-   Três fotos boas, sempre à mão, para testar um material ou mostrar o Luma sem depender
+   Fotos boas e logos fictícios, sempre à mão, para testar um material ou mostrar o Luma sem depender
    da galeria de ninguém. NÃO substituem nada: entram como mais uma seção do mesmo painel,
    acima das recentes, e o "Enviar novo arquivo" continua sendo o primeiro botão.
 
@@ -28,10 +28,31 @@
    ⚠ Enquanto o arquivo não existir, a miniatura se remove sozinha (`fDemoImgMissing`) e a
    seção some junto: melhor não ter a faixa do que ter uma faixa quebrada na demonstração. */
 const F_DEMO_IMGS = [
-  { id:'burger', label:'Hambúrguer', src:'assets/demo/hamburguer.jpg', para:'produto' },
-  // Açaí e pizza saíram em 11/10/2026: os arquivos nunca foram postos em assets/demo/ e cada
-  // abertura do painel pedia dois 404. Voltam com uma linha quando a foto existir (LEIA-ME).
-  { id:'logo',   label:'Sua loja',   src:'assets/demo/logo-loja.png',  para:'logo' }
+  // O 1º de cada tipo é o que a miniatura do catálogo usa (fSampleDadosForLayers): não reordene à toa.
+  { id:'burger',   label:'Hambúrguer',       src:'assets/demo/hamburguer.jpg',       para:'produto' },
+  { id:'burger2',  label:'Burger clássico',  src:'assets/demo/burger-classico.jpg',  para:'produto' },
+  { id:'burger3',  label:'Burger e batata',  src:'assets/demo/burger-batata.jpg',    para:'produto' },
+  { id:'pizza',    label:'Pizza',            src:'assets/demo/pizza.jpg',            para:'produto' },
+  { id:'fritas',   label:'Batata frita',     src:'assets/demo/batata-frita.jpg',     para:'produto' },
+  { id:'hotdog',   label:'Cachorro-quente',  src:'assets/demo/cachorro-quente.jpg',  para:'produto' },
+  { id:'sanduiche',label:'Sanduíche',        src:'assets/demo/sanduiche.jpg',        para:'produto' },
+  { id:'sushi',    label:'Sushi',            src:'assets/demo/sushi.jpg',            para:'produto' },
+  { id:'churrasco',label:'Churrasco',        src:'assets/demo/churrasco.jpg',        para:'produto' },
+  { id:'prato',    label:'Bife com fritas',  src:'assets/demo/prato.jpg',            para:'produto' },
+  { id:'bowl',     label:'Bowl',             src:'assets/demo/bowl.jpg',             para:'produto' },
+  { id:'donuts',   label:'Donuts',           src:'assets/demo/donuts.jpg',           para:'produto' },
+  { id:'bolo',     label:'Bolo',             src:'assets/demo/bolo.jpg',             para:'produto' },
+  { id:'sorvete',  label:'Sorvete',          src:'assets/demo/sorvete.jpg',          para:'produto' },
+  { id:'picole',   label:'Picolé',           src:'assets/demo/picole.jpg',           para:'produto' },
+  { id:'shake',    label:'Milkshake',        src:'assets/demo/milkshake.jpg',        para:'produto' },
+  { id:'bebida',   label:'Bebida gelada',    src:'assets/demo/bebida.jpg',           para:'produto' },
+  { id:'logo',     label:'Sua loja',         src:'assets/demo/logo-loja.png',        para:'logo' },
+  { id:'logo-bc',  label:'Burger Club',      src:'assets/demo/logo-burger-club.png', para:'logo' },
+  { id:'logo-pz',  label:'Pizzaria Nonna',   src:'assets/demo/logo-pizzaria-nonna.png', para:'logo' },
+  { id:'logo-ac',  label:'Açaí Tropical',    src:'assets/demo/logo-acai-tropical.png',  para:'logo' },
+  { id:'logo-sk',  label:'Sushi Kai',        src:'assets/demo/logo-sushi-kai.png',   para:'logo' },
+  { id:'logo-cf',  label:'Café do Bairro',   src:'assets/demo/logo-cafe-do-bairro.png', para:'logo' },
+  { id:'logo-dv',  label:'Doce Vida',        src:'assets/demo/logo-doce-vida.png',   para:'logo' }
 ];
 function fDemoImgsPara(isLogo){
   return F_DEMO_IMGS.filter(d => d && d.src && d.para === (isLogo ? 'logo' : 'produto'));
