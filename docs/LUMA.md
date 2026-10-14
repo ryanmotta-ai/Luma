@@ -608,7 +608,14 @@ Duas lições medidas na época continuam valendo, porque as duas são sobre MED
 
 ### Import SVG (`templates.js`)
 
-DOMParser puro. Suporta text/tspan, rect, circle/ellipse, image, path (bbox aproximada), transforms afins com pilha de matrizes, CSS por prioridade (inline > classe > atributo > herança), fontes Illustrator mapeadas. Revisão por elemento → template rascunho. ⚠ Grupos achatados em 1 nível.
+O SVG é **montado invisível no documento** (numa shadow root, para o `<style>` do arquivo não vazar; `script`/`on*`/`javascript:` saem antes) e o **navegador** responde: `getComputedStyle` resolve classe, herança e `currentColor`; `getBBox` mede o texto com a fonte real. Antes o parser recalculava tudo à mão e estimava a largura do texto em 0,55×corpo por letra (medido em 10/2026: artes da skill entravam com 9–31% dos pixels errados; depois, 0,3–1,2%).
+
+- **Texto:** cada `<tspan>` vira um TRECHO (`runs`: fonte, peso, itálico por trecho, `dy`→`yOffset`); Realce e as fontes embutidas viram `custom:<família>` (via `dBuiltinFonts`); Roboto leva o peso (`'Roboto',300`). Estilo único usa `vAlign:'top'` com a subida da tinta medida — a linha de base cai onde estava no SVG. `text-decoration: line-through` → `strikethrough`; `fill:none`+`stroke` → texto vazado; giro → `rotation` em torno do centro.
+- **Formas:** `path`/`line` viram **vetor editável** (`shapeKind:'path'` + `vectorPath`, M L H V C S Q T Z); `fill:none` vira transparente (antes pintava de preto); contorno → `strokeW`/`strokeColor`/`strokeAlign:'center'`; `feDropShadow` → sombra do Luma.
+- **Imagem:** grupo com `clip-path`/`mask` e caminho com arco viram **uma imagem** desenhada pelo navegador (texto de dentro segue texto); `<clipPath>` fora de `<defs>` e o filtro do grupo pai entram junto.
+- **Contrato com a skill luma-creative** (`<svg data-luma>`): campo é só `<text data-campo="nome">` (sem contrato, vale o palpite antigo pela caixa alta); `<g id="foto_produto[_N]|logo_loja">` vira moldura com o raio do slot e o placeholder de dentro não entra; `<image>` solta é arte fixa (antes o logo virava a moldura da foto); preço com `R$` e `,90` em trechos menores vira `R${{campo:inteiro}},{{campo:centavos}}`.
+
+Revisão por elemento → template rascunho. Suíte: `tests/svg-import.html`.
 
 ### Smart Resize multi-formato (`js/core/layout.js`)
 

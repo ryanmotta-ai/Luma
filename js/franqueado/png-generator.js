@@ -1192,12 +1192,14 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY, molduraVazia){
         const ms=segs.map(r=>{
           const fp=(typeof dTextFontParts==='function')?dTextFontParts(r.font):{family:"'Roboto',sans-serif",weight:700};
           const fs=Math.round((r.fontSize||l.fontSize||24)*_scTxt*fitRatio);
-          ctx.font=`${_ital}${fp.weight} ${fs}px ${fp.family}`;
+          // Itálico POR TRECHO (frase mista "*pega este* **cupom**", importada do SVG); o da camada vale para todos.
+          const _itR=r.italic?'italic ':_ital;
+          ctx.font=`${_itR}${fp.weight} ${fs}px ${fp.family}`;
           ctx.letterSpacing=r.letterSpacing?(r.letterSpacing*_scTxt*fitRatio)+'px':'0px';
           const t=_xf(r.text||'');
           const ww=ctx.measureText(t).width;
           wsum+=ww; if(fs>maxFs)maxFs=fs;
-          return {t,fp,fs,ww,ls:(r.letterSpacing||0)*fitRatio,color:r.color,
+          return {t,fp,fs,ww,it:_itR,ls:(r.letterSpacing||0)*fitRatio,color:r.color,
             yOffset:(r.yOffset||0)*fitRatio};
         });
         return {ms,wsum,maxFs};
@@ -1215,7 +1217,7 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY, molduraVazia){
         let tx = l.textAlign==='center'? x+w/2-li.wsum/2 : l.textAlign==='right'? x+w-li.wsum : x;
         const _lineX0=tx; // início da linha (p/ sublinhado/tachado)
         li.ms.forEach(s=>{
-          ctx.font=`${_ital}${s.fp.weight} ${s.fs}px ${s.fp.family}`;
+          ctx.font=`${s.it}${s.fp.weight} ${s.fs}px ${s.fp.family}`;
           ctx.letterSpacing=s.ls?(s.ls*_scTxt)+'px':'0px';
           ctx.fillStyle=s.color||_txtColor;
           const baselineOffset = (s.yOffset || 0) * _scTxt;

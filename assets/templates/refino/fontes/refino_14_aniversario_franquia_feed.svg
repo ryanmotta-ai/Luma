@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350"><defs><style>
+<svg xmlns="http://www.w3.org/2000/svg" data-luma="1" viewBox="0 0 1080 1350" width="1080" height="1350"><defs><style>
 @font-face{font-family:'Realce';src:url('asset:fontes/realce-black.woff2') format('woff2');font-weight:900;}
 @font-face{font-family:'Roboto';src:url('asset:fontes/Roboto-Regular.woff2') format('woff2');font-weight:400;}
 @font-face{font-family:'Roboto';src:url('asset:fontes/Roboto-Light.woff2') format('woff2');font-weight:300;}
@@ -20,7 +20,7 @@
 <text x="265" y="219" text-anchor="middle" class="hero" font-size="40" fill="#F85400">BORA COMEMORAR!</text>
 <!-- {{anos}}: o número cresce para a esquerda→direita a partir de x=100; com 2 dígitos ("10") o lockup vai até x≈845 -->
 <g id="produto">
-  <text x="100" y="604" class="hero" font-size="450" fill="#FFFFFF">3</text>
+  <text x="100" y="604" class="hero" font-size="450" fill="#FFFFFF" data-campo="anos">3</text>
   <text x="318" y="382" class="forte" font-size="144" fill="#FFFFFF">ANOS</text>
   <text x="318" y="493" class="forte" font-size="86" fill="#FFFFFF">NA SUA</text>
   <text x="318" y="604" class="forte" font-size="86" fill="#FFFFFF">CIDADE</text>
@@ -40,9 +40,10 @@
 <!-- {{desconto_valor}} · {{codigo_cupom}} -->
 <g id="detalhes">
   <text x="322" y="948" class="sup" font-size="34" fill="#434343">SEU PRESENTE</text>
-  <text x="322" y="1046" class="hero" font-size="104" fill="#F85400">R$ 15 OFF</text>
+  <text x="322" y="1046" class="hero" font-size="104" fill="#F85400" data-campo="desconto_valor">R$ 15 OFF</text>
   <line x1="322" y1="1072" x2="890" y2="1072" stroke="#FFB900" stroke-width="3" stroke-linecap="round"/>
-  <text x="322" y="1132" font-size="50" fill="#434343"><tspan class="sup" font-size="30" fill="#434343">CÓDIGO </tspan><tspan class="forte" font-size="50" fill="#434343">NIVERDM15</tspan></text>
+  <text x="322" y="1132" class="sup" font-size="30" fill="#434343">CÓDIGO</text>
+  <text x="446" y="1132" class="forte" font-size="50" fill="#434343" data-campo="codigo_cupom">NIVERDM15</text>
 </g>
 <text x="100" y="1270" class="legal" font-size="26" fill="#FFFFFF">Válido para pedidos acima de R$ 40. Consulte as regras no app.</text>
 </svg>

@@ -70,7 +70,7 @@ O Luma utiliza uma escala disciplinada de 4 níveis. O peso `Bold (700)` foi **e
 * **`letter-spacing`:** hero `0.5px`; apoio (Roboto 400) `1px`–`1.2px`.
 * **Quebra por sentido**, nunca no meio de uma expressão ("PIZZA EM / DOBRO" ✖ → "PIZZA / EM DOBRO" ✔).
 * **Preço (lockup fixo, a especialidade da marca):** `DE R$ 28,00` → `POR` → **`R$ 22,90`**.
-  * **`DE`:** Roboto 400 **≥ 40px**, **branco 100%** (ou `#434343` sobre card branco), **risco de 4px** na altura do meio das letras. Pequeno ou fino demais some no celular.
+  * **`DE`:** Roboto 400 **≥ 40px**, **branco 100%** (ou `#434343` sobre card branco), **riscado com `text-decoration="line-through"` no próprio `<text>`** (não uma `<line>` solta: o risco tem de acompanhar o valor que o franqueado digitar; é o `strikethrough` do Luma). Pequeno ou fino demais some no celular.
   * **`POR`:** Roboto 400, 34–38px, `letter-spacing` 1.2px, **empilhado logo acima do "R$"** (card largo) ou **na altura do "R$" suspenso**, à esquerda dele (card de lista). Nunca solto na linha de base, longe do valor.
   * **Valor = assinatura da marca:** número em Realce **≥ 96px** (alvo 120–170); **"R$", vírgula e centavos a 55% do número e suspensos 35%** (como `R$22,90` das referências). É a mesma proporção que o Luma desenha em `{{preco:inteiro}}`/`{{preco:centavos}}` (`gBuildVirtualRuns`, `js/00-config.js`), então a arte bate com o app. Para número de 168px:
     ```svg
@@ -276,6 +276,25 @@ Rode a peça com **a foto que mais combina e a que mais ameaça** (ex.: pizza la
 
 ---
 
+## 4.1 Contrato com o Luma (a arte vira TEMPLATE)
+
+A arte só serve ao franqueado quando entra no Estúdio como template editável, pelo **importador de SVG** (`js/designer/templates.js`, suíte `tests/svg-import.html`). Ele segue este contrato — sem ele, a arte entra no modo antigo, que adivinha campos pela caixa alta (medido em 10/2026: o logo virava a moldura da foto e "ANOS", "PEDIR" e "CUPOM" viravam campos).
+
+| Na arte | Vira no Luma |
+| :--- | :--- |
+| `<svg … data-luma="1">` | liga o contrato (obrigatório) |
+| `<text data-campo="produto">PIZZA CALABRESA</text>` | campo `{{produto}}`, com o texto da arte como exemplo. **Sem `data-campo`, o texto é fixo** |
+| preço com `R$` e `,90` em `<tspan>` menores + `data-campo="precoPor"` | `R${{precoPor:inteiro}},{{precoPor:centavos}}` (o franqueado digita UM preço) |
+| `<g id="foto_produto">` (ou `foto_produto_1`…, `logo_loja`) com o `<rect>`/`<circle>` do slot | moldura de foto com o raio do slot; ícone e legenda do placeholder não entram |
+| `<image>` fora do slot (logo DM) | imagem fixa |
+| `<tspan>` com peso/itálico/tamanho próprios | trechos do texto (frase mista preservada) |
+| `<path>`, `<line>` | vetor editável |
+| `<g clip-path>` (ticket), caminho com arco | uma imagem (o texto de dentro segue editável) |
+| `text-decoration="line-through"` | `strikethrough` |
+
+* **Nomes de campo canônicos do Luma:** `produto`, `precoDe`, `precoPor`, `detalhes`, `desconto`, `foto_produto`, `logo_loja`; para cupom, `desconto_valor` e `codigo_cupom`. Rótulo fixo ("CÓDIGO", "POR", "OFF") fica num `<text>` à parte, **sem** `data-campo` — dentro do campo ele seria substituído pelo valor.
+* **Verificar a importação:** os 7 modelos 1.3 entram com 0,3–1,2% de pixels diferentes do original (medido no motor do franqueado). Mudou a construção de um bloco (ticket, selo, lockup)? Rode `node scripts/run-browser-tests.js svg-import`.
+
 ## 4. Estrutura de Arquivos da Skill
 
 A skill organiza seus recursos nas seguintes pastas:
@@ -387,7 +406,7 @@ Certifique-se de que o layout suporta preenchimento real do franqueado:
 * Prefira **menos texto**: hero ≤ 4 palavras, apoio ≤ 1 frase, legal ≤ 2 linhas. Se a copy não cabe, corte a copy, não o tamanho da fonte.
 * A tipografia display deve ter quebra de linha inteligente ou espaçamento reservado para não colidir com o selo ou o card de preço.
 * **Reflexão de Caixa Alta:** Somente manchete hero e vouchers em uppercase; descrições, chamadas de app e rodapés em caixa normal.
-* Tags obrigatórias quando aplicável: `{{produto}}`, `{{detalhes}}`, `{{preco}}` e slot `foto_produto`.
+* Campos: marque com `data-campo` (§4.1) — `produto`, `precoDe`, `precoPor`, `detalhes`, slot `foto_produto`; numa lista, `produto_1`, `precoPor_1`, `foto_produto_1`…
 
 ### FASE 5: Captura de Print & Auditoria Visual Multimodal (Respiro, Margens e Harmonia)
 Gerar o código não encerra a tarefa. A IA **DEVE tirar o print da arte e olhar com os próprios olhos**:
@@ -456,7 +475,7 @@ Antes de finalizar a arte:
 | Selo com texto longo | Máx. 2 linhas curtas; texto ≥ 22px |
 | Pattern como folha cobrindo a arte inteira / branco atrás de texto branco | Pattern opcional, com sorrisos inteiros e nítidos escolhidos por `scripts/pattern-ancorado.js`; na dúvida, arte clean (§3.1) |
 | Botão/tag amarelo com texto preto sobre `#FF9000`; pattern desfocado/esmaecido | Botão `#F85400` + texto branco (ou branco + `#F85400` sobre `#F85400`); pattern nítido, só com opacidade (§3 item 5 e §3.1) |
-| `DE R$` pequeno/fino e selo de desconto flutuando longe do preço (apontado pela revisão fria) | `DE` ≥ 40px branco 100% com risco de 4px; selo preso ao preço/hero (≤ 200px) |
+| `DE R$` pequeno/fino e selo de desconto flutuando longe do preço (apontado pela revisão fria) | `DE` ≥ 40px branco 100% com `text-decoration="line-through"`; selo preso ao preço/hero (≤ 200px) |
 | Hero com tamanho "no olho" (sobra ou falta largura) | `node scripts/medir-texto.js` e usar a quebra recomendada |
 | Mistura de alinhamento (centro + esquerda) / valores de espaço e raio soltos | Um eixo por peça; tokens da §2.2; o `lint-art.js` avisa |
 | Slot de foto em arco/cúpula/círculo | **Só retângulo** (`rx=56`, qualquer proporção); logo da loja é a única exceção circular (§3.2) |

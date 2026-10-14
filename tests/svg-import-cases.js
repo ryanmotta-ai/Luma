@@ -1,0 +1,175 @@
+/* Importador de SVG (js/designer/templates.js, dSvg*) — o contrato com a skill luma-creative e o
+   mapeamento para camadas do Luma. Roda o fluxo de verdade (dSvgHandleFile monta o SVG no
+   documento e o navegador mede); só o modal de revisão é trocado por "aceitar o padrão".
+   Medido em 10/2026: sem estas regras, as artes da skill entravam com 9–31% dos pixels errados,
+   o logo virava a moldura da foto e "ANOS", "PEDIR", "CUPOM" viravam campos. */
+(async function(){
+  const results=document.getElementById('results'), summary=document.getElementById('summary');
+  const assert=(cond,msg)=>{ if(!cond) throw new Error(msg); };
+  const SVG=(corpo,attrs)=>`<svg xmlns="http://www.w3.org/2000/svg" ${attrs==null?'data-luma="1"':attrs} viewBox="0 0 1080 1350" width="1080" height="1350">${corpo}</svg>`;
+  const ESTILO=`<style>.hero{font-family:'Realce',sans-serif;font-weight:900}.leve{font-family:'Roboto',sans-serif;font-weight:300;font-style:italic}.forte{font-family:'Roboto',sans-serif;font-weight:900}.body{font-family:'Roboto',sans-serif;font-weight:400}</style>`;
+
+  async function importar(svg){
+    let els=[], tmpl=null;
+    dFolders=[{id:'t',name:'teste',templates:[]}]; dImportTargetFolderId='t';
+    window.dRenderFolders=()=>{}; window.dPersistFolders=()=>{}; window.dLoadTemplate=t=>{ tmpl=t; }; window.gToast=()=>{};
+    window.dSvgShowReviewModal=(e,meta)=>{ els=e; dSvgCreateTemplate(e,meta,meta.fmt); };
+    await dSvgHandleFile(svg,'caso.svg');
+    return {els, layers:tmpl?tmpl.layers:[]};
+  }
+  const texto=(L,c)=>L.find(l=>l.type==='text'&&(l.content===c||l.layoutRefText===c||(l.runs&&l.runs.map(r=>r.text).join('')===c)));
+
+  const cases=[];
+  const caso=(name,fn)=>cases.push({name,fn});
+
+  caso('slot foto_produto vira MOLDURA com o raio do retângulo; o placeholder de dentro não entra', async()=>{
+    const {layers}=await importar(SVG(`<g id="foto_produto"><rect x="100" y="430" width="880" height="520" rx="56" fill="#D9D9D9"/><text x="540" y="700" text-anchor="middle" font-size="32">Use aqui sua foto do produto</text></g>`));
+    assert(layers.length===1, 'esperava 1 camada, veio '+layers.length);
+    const f=layers[0];
+    assert(f.type==='frame' && f.imgVar==='foto_produto', 'não virou moldura foto_produto: '+f.type+' '+f.imgVar);
+    assert(f.x===100 && f.y===430 && f.w===880 && f.h===520 && f.radius===56, 'geometria '+[f.x,f.y,f.w,f.h,f.radius]);
+  });
+
+  caso('<image> solta no contrato é arte FIXA (o logo não vira moldura)', async()=>{
+    const png='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    const {layers}=await importar(SVG(`<image href="${png}" x="100" y="80" width="260" height="52"/>`));
+    assert(layers[0].type==='image' && !layers[0].imgVar, 'logo virou '+layers[0].type+' {{'+layers[0].imgVar+'}}');
+  });
+
+  caso('no contrato, campo é só quem tem data-campo — caixa alta continua texto fixo', async()=>{
+    const {layers}=await importar(SVG(ESTILO+`<text x="100" y="300" class="hero" font-size="150" fill="#FFFFFF" data-campo="produto">PIZZA</text><text x="100" y="500" class="hero" font-size="80" fill="#FFFFFF">ANOS</text>`));
+    const p=layers.find(l=>l.content==='{{produto}}'), a=layers.find(l=>l.content==='ANOS');
+    assert(p && p.isVar && p.layoutRefText==='PIZZA', 'campo produto ausente ou sem texto de exemplo');
+    assert(a && !a.isVar, '"ANOS" virou campo');
+  });
+
+  caso('preço-assinatura (R$ e ,90 pequenos) vira o split {{campo:inteiro}}/{{campo:centavos}}', async()=>{
+    const {layers}=await importar(SVG(ESTILO+`<text x="146" y="1134" class="hero" font-size="168" fill="#F85400" data-campo="precoPor"><tspan font-size="92" dy="-59">R$</tspan><tspan dy="59" dx="6">22</tspan><tspan font-size="92" dy="-59">,90</tspan></text>`));
+    const t=layers[0];
+    assert(t.content==='R${{precoPor:inteiro}},{{precoPor:centavos}}', 'conteúdo '+t.content);
+    assert(t.fontSize===168 && t.font==='custom:Realce', 'fonte '+t.font+' '+t.fontSize);
+  });
+
+  caso('Realce vira custom:Realce; peso e itálico viram trechos (frase mista)', async()=>{
+    const {layers}=await importar(SVG(ESTILO+`<text x="100" y="700" font-size="66" fill="#FFFFFF"><tspan class="leve">o presente é </tspan><tspan class="forte">seu!</tspan></text>`));
+    const t=layers[0];
+    assert(Array.isArray(t.runs) && t.runs.length===2, 'esperava 2 trechos');
+    assert(t.runs[0].italic===true && t.runs[0].font==="'Roboto',300", 'trecho leve: '+JSON.stringify(t.runs[0]));
+    assert(!t.runs[1].italic && t.runs[1].font==="'Roboto',900", 'trecho forte: '+JSON.stringify(t.runs[1]));
+    assert(t.runs[0].text==='o presente é ' && t.runs[1].text==='seu!', 'texto dos trechos');
+  });
+
+  caso('texto girado (rotate -90) guarda o ângulo e gira em torno do centro', async()=>{
+    const {layers}=await importar(SVG(ESTILO+`<text transform="translate(226,1028) rotate(-90)" text-anchor="middle" class="hero" font-size="66" fill="#FFFFFF">CUPOM</text>`));
+    const t=layers[0];
+    assert(t.rotation===-90, 'rotation '+t.rotation);
+    const cx=t.x+t.w/2, cy=t.y+t.h/2;
+    assert(Math.abs(cy-1028)<60 && cx<226 && cx>150, 'centro fora do lugar: '+cx+','+cy);
+  });
+
+  caso('fill:none + stroke vira contorno (pílula do CTA e texto vazado), nunca preto', async()=>{
+    const {layers}=await importar(SVG(ESTILO+`<rect x="692" y="1084" width="288" height="96" rx="48" fill="none" stroke="#FFFFFF" stroke-width="4"/><text x="100" y="985" class="hero" font-size="380" fill="none" stroke="#FFFFFF" stroke-width="7">GRÁTIS</text>`));
+    const r=layers.find(l=>l.type==='shape'), t=layers.find(l=>l.type==='text');
+    assert(r.fill==='transparent' && r.strokeW===4 && r.strokeColor==='#FFFFFF' && r.strokeAlign==='center', 'pílula: '+JSON.stringify(r));
+    assert(t.color==='transparent' && t.strokeW===7 && t.strokeColor==='#FFFFFF', 'vazado: '+t.color+' '+t.strokeW);
+  });
+
+  caso('caminho vira vetor editável (vectorPath válido); caminho com arco vira imagem', async()=>{
+    const {layers}=await importar(SVG(`<path d="M 30 0 L 650 0 C 665 0 680 15 680 30 L 680 250 L 0 250 Z" fill="#FF9000"/><path d="M 100 600 A 50 50 0 0 1 200 600 Z" fill="#F85400"/>`));
+    const v=layers.find(l=>l.type==='shape'), im=layers.find(l=>l.type==='image');
+    assert(v && v.shapeKind==='path' && gVectorPathValid(v.vectorPath) && v.fill==='#FF9000', 'vetor inválido');
+    assert(v.x===0 && v.y===0 && v.w===680 && v.h===250, 'caixa do vetor '+[v.x,v.y,v.w,v.h]);
+    assert(im && /^data:image\/png/.test(im.imgUrl), 'arco não virou imagem');
+  });
+
+  caso('grupo com clip-path vira UMA imagem; o texto de dentro continua texto', async()=>{
+    const {layers}=await importar(SVG(ESTILO+`<clipPath id="c"><rect x="100" y="100" width="300" height="200" rx="40"/></clipPath><g clip-path="url(#c)"><rect x="0" y="0" width="600" height="600" fill="#FFFFFF"/><rect x="0" y="0" width="180" height="600" fill="#F62900"/><text x="200" y="220" class="body" font-size="40" fill="#434343">CÓDIGO</text></g>`));
+    const im=layers.filter(l=>l.type==='image'), t=layers.filter(l=>l.type==='text');
+    assert(im.length===1 && /^data:image\/png/.test(im[0].imgUrl), 'esperava 1 imagem');
+    assert(Math.abs(im[0].x-100)<=1 && Math.abs(im[0].w-300)<=2 && Math.abs(im[0].h-200)<=2, 'recorte não aplicado: '+[im[0].x,im[0].y,im[0].w,im[0].h]);
+    assert(t.length===1 && t[0].content==='CÓDIGO', 'texto do grupo sumiu');
+  });
+
+  caso('<line> vira traço vetorial; text-decoration line-through vira strikethrough', async()=>{
+    const {layers}=await importar(SVG(ESTILO+`<line x1="322" y1="1072" x2="890" y2="1072" stroke="#FFB900" stroke-width="3"/><text x="148" y="934" class="body" font-size="40" fill="#434343" text-decoration="line-through" data-campo="precoDe">DE R$ 28,00</text>`));
+    const l=layers.find(x=>x.type==='shape'), t=layers.find(x=>x.type==='text');
+    assert(l && l.vectorPath && l.strokeColor==='#FFB900' && l.strokeW===3 && l.w===568, 'linha: '+JSON.stringify(l&&{w:l.w,s:l.strokeW}));
+    assert(t.strikethrough===true && t.content==='{{precoDe}}', 'risco do preço: '+t.strikethrough+' '+t.content);
+  });
+
+  caso('feDropShadow vira a sombra do Luma (90° = para baixo)', async()=>{
+    const {layers}=await importar(SVG(`<defs><filter id="sh"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#434343" flood-opacity="0.25"/></filter></defs><rect x="100" y="870" width="470" height="310" rx="36" fill="#FFFFFF" filter="url(#sh)"/>`));
+    const r=layers[0];
+    assert(r.shadow===true && r.shadowDist===12 && r.shadowAngle===90 && r.shadowBlur===32, 'sombra '+JSON.stringify({d:r.shadowDist,a:r.shadowAngle,b:r.shadowBlur}));
+    assert(/rgba\(67, ?67, ?67, ?0?\.25\)/.test(r.shadowColor), 'cor da sombra '+r.shadowColor);
+  });
+
+  caso('texto de estilo único: a linha de base do Luma cai na do SVG (vAlign top + subida da tinta)', async()=>{
+    const {layers}=await importar(SVG(ESTILO+`<text x="100" y="300" class="hero" font-size="151" fill="#FFFFFF">PIZZA</text>`));
+    const t=layers[0];
+    assert(t.vAlign==='top', 'vAlign '+t.vAlign);
+    const c=document.createElement('canvas').getContext('2d'); const fp=dTextFontParts(t.font);
+    c.font=`${fp.weight} ${t.fontSize}px ${fp.family}`;
+    const base=t.y+c.measureText('PIZZA').actualBoundingBoxAscent;
+    assert(Math.abs(base-300)<=1.5, 'linha de base em '+base.toFixed(1)+' (esperado 300)');
+    assert(Math.abs(t.x-(100-151*0.08))<=1.5, 'x com o respiro de 0,08em: '+t.x);
+  });
+
+  caso('SEM contrato (SVG do Illustrator): comportamento antigo preservado, "DE R$" é precoDe', async()=>{
+    const png='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    const {layers}=await importar(SVG(`<text x="100" y="300" font-size="80" fill="#000000">PIZZA GRANDE</text><text x="100" y="500" font-size="40" fill="#000000">DE R$ 28,00</text><image href="${png}" id="foto" x="0" y="600" width="400" height="400"/>`, ''));
+    const p=layers.find(l=>/PIZZA|\{\{/.test(l.content||'')&&l.fontSize===80), d=layers.find(l=>l.fontSize===40), f=layers.find(l=>l.type==='frame');
+    assert(p && p.isVar, 'caixa alta deixou de ser campo no modo antigo');
+    assert(d && d.content==='{{precoDe}}', 'DE R$ virou '+(d&&d.content));
+    assert(f && f.imgVar==='foto_produto', 'imagem do Illustrator deixou de ser moldura');
+  });
+
+  caso('modal de revisão monta com os tipos novos (moldura e imagem)', async()=>{
+    const {els}=await importar(SVG(`<g id="foto_produto"><rect x="0" y="0" width="400" height="300" rx="56" fill="#D9D9D9"/></g><path d="M 0 0 A 10 10 0 0 1 20 0 Z" fill="#F85400"/>`));
+    const html=dSvgBuildReviewHTML(els,{w:1080,h:1350,fmt:'feed',fileName:'caso.svg'});
+    assert(/Moldura \(foto\)/.test(html) && /Imagem fixa/.test(html), 'opções novas ausentes no modal');
+    assert(!/>\?</.test(html), 'tipo sem ícone no modal');
+  });
+
+  caso('editor (DOM) desenha o itálico do trecho — mesmo motor de texto rico', async()=>{
+    const html=gRichTextHtml([{text:'o presente é ',font:"'Roboto',300",fontSize:66,color:'#FFFFFF',italic:true},{text:'seu!',font:"'Roboto',900",fontSize:66,color:'#FFFFFF'}],66);
+    const spans=html.split('</span>');
+    assert(/font-style:italic/.test(spans[0]) && !/font-style:italic/.test(spans[1]), 'itálico por trecho: '+html);
+  });
+
+  caso('Illustrator: posição no <tspan> e preenchimento com gradiente (vira imagem, não some)', async()=>{
+    const {layers}=await importar(SVG(`<defs><linearGradient id="g"><stop offset="0" stop-color="#F85400"/><stop offset="1" stop-color="#FF9000"/></linearGradient></defs><rect x="0" y="0" width="1080" height="400" fill="url(#g)"/><text transform="matrix(1 0 0 1 100 600)" font-family="Roboto" font-size="60" fill="#FFFFFF"><tspan x="0" y="0">Sabor de casa</tspan></text>`, ''));
+    const im=layers.find(l=>l.type==='image'), t=layers.find(l=>l.type==='text');
+    assert(im && im.w===1080 && im.h===400, 'gradiente não virou imagem: '+JSON.stringify(im&&[im.x,im.y,im.w,im.h]));
+    const c=document.createElement('canvas').getContext('2d'); const fp=dTextFontParts(t.font); c.font=`${fp.weight} ${t.fontSize}px ${fp.family}`;
+    const base=t.y+c.measureText('Sabor de casa').actualBoundingBoxAscent;
+    assert(Math.abs(base-600)<=1.5, 'linha de base em '+base.toFixed(1)+' (esperado 600)');
+  });
+
+  caso('arquivo de fora: script e on* não executam ao montar', async()=>{
+    window.__svgExec=0;
+    await importar(SVG(`<script>window.__svgExec=1</script><rect x="0" y="0" width="10" height="10" fill="#FFFFFF" onload="window.__svgExec=2"/><image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==" onload="window.__svgExec=3" x="0" y="0" width="1" height="1"/>`));
+    await new Promise(r=>setTimeout(r,200));
+    assert(window.__svgExec===0, 'código do arquivo executou: '+window.__svgExec);
+  });
+
+  let passed=0; const falhas=[];
+  for(const item of cases){
+    const li=document.createElement('li'); li.className='case';
+    try{
+      await item.fn(); passed++; li.classList.add('pass');
+      li.innerHTML='<strong>✓ '+item.name+'</strong>';
+    }catch(error){
+      li.classList.add('fail');
+      li.innerHTML='<strong>✕ '+item.name+'</strong><small>'+String(error&&error.message||error).replace(/</g,'&lt;')+'</small>';
+      console.error('[svg-import]', item.name, error);
+      falhas.push({name:item.name, error:String(error&&error.message||error)});
+    }
+    results.appendChild(li);
+  }
+  const failed=cases.length-passed;
+  summary.textContent=passed+'/'+cases.length+' cenários passaram'+(failed?' · '+failed+' falharam':' · contrato do importador mantido');
+  document.title=(failed?'FALHOU':'OK')+' — Importador de SVG ('+passed+'/'+cases.length+')';
+  // Contrato do runner (scripts/run-browser-tests.js)
+  window.__lumaTest={passed:passed, total:cases.length, failures:falhas};
+})();

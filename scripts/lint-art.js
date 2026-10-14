@@ -90,6 +90,9 @@ async function lint(svgPath, formato) {
   if (/<mask|<linearGradient/.test(raw)) A('mask/linearGradient no SVG: confira que não é degradê sobre o pattern (§3.1) e que não usa cor fora da paleta.');
   if (!/Realce/.test(raw) || !/@font-face/.test(raw)) A('Fonte Realce/Roboto não embutida via @font-face.');
   if (/asset:/.test(raw)) E('Ainda há `asset:` no SVG: feche a arte com `node scripts/embutir-arte.js`.');
+  // contrato com o importador do Estúdio (§4.1): sem ele a arte entra adivinhando campos
+  if (!/<svg[^>]*\bdata-luma=/.test(raw)) A('Sem `data-luma` no <svg>: no Estúdio a arte entra no modo antigo (campos pela caixa alta, logo vira moldura). Ver §4.1.');
+  else if (!/data-campo=/.test(raw) && !/id="foto_produto/.test(raw)) A('Contrato sem nenhum campo (`data-campo`) nem slot `foto_produto`: o template sai 100% fixo.');
   const esc = /id="pattern-ancorado"[^>]*scale\(([\d.]+)\)/.exec(raw);
   if (esc && +esc[1] < 2.2) A(`Pattern em escala ${esc[1]}: sorriso pequeno vira farelo. Use 2.4–3.0 (feed) / 2.6–3.2 (story), em massa num canto ou faixa (§3.1).`);
 

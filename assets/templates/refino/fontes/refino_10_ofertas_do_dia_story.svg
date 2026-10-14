@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920"><defs><style>
+<svg xmlns="http://www.w3.org/2000/svg" data-luma="1" viewBox="0 0 1080 1920" width="1080" height="1920"><defs><style>
 @font-face{font-family:'Realce';src:url('asset:fontes/realce-black.woff2') format('woff2');font-weight:900;}
 @font-face{font-family:'Roboto';src:url('asset:fontes/Roboto-Regular.woff2') format('woff2');font-weight:400;}
 @font-face{font-family:'Roboto';src:url('asset:fontes/Roboto-Light.woff2') format('woff2');font-weight:300;}
@@ -20,31 +20,28 @@
 <g id="foto_produto_1"><rect x="136" y="656" width="188" height="188" rx="36" fill="#D9D9D9"/>
 <g transform="translate(230,716) scale(0.58)" fill="none" stroke="#434343" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><rect x="-65" y="-68" width="130" height="98" rx="18"/><polyline points="-42,12 -8,-24 24,12"/><polyline points="6,12 32,-14 48,12"/><circle cx="26" cy="-38" r="8" fill="#434343" stroke="none"/></g>
 <text x="230" y="786" text-anchor="middle" class="body" font-size="24" fill="#434343">Foto do</text><text x="230" y="814" text-anchor="middle" class="body" font-size="24" fill="#434343">produto</text></g>
-<text x="370" y="690" class="hero" font-size="46" fill="#434343">BURGER CLÁSSICO</text>
-<text x="370" y="736" class="body" font-size="34" fill="#434343">DE R$ 32,90</text>
-<line x1="368" y1="725" x2="556" y2="725" stroke="#434343" stroke-width="3"/>
+<text x="370" y="690" class="hero" font-size="46" fill="#434343" data-campo="produto_1">BURGER CLÁSSICO</text>
+<text x="370" y="736" class="body" font-size="34" fill="#434343" text-decoration="line-through" data-campo="precoDe_1">DE R$ 32,90</text>
 <text x="370" y="802" class="sup" font-size="34" fill="#434343">POR</text>
-<text x="452" y="844" class="hero" font-size="120" fill="#F85400"><tspan font-size="66" dy="-42">R$</tspan><tspan dy="42" dx="4">24</tspan><tspan font-size="66" dy="-42">,90</tspan></text>
+<text x="452" y="844" class="hero" font-size="120" fill="#F85400" data-campo="precoPor_1"><tspan font-size="66" dy="-42">R$</tspan><tspan dy="42" dx="4">24</tspan><tspan font-size="66" dy="-42">,90</tspan></text>
 <g transform="translate(878,750)" filter="url(#shs)"><circle r="62" fill="#434343"/><text y="6" text-anchor="middle" class="hero" font-size="44" fill="#FFB900">24%</text><text y="38" text-anchor="middle" class="hero" font-size="28" fill="#FFB900">OFF</text></g>
 <rect x="100" y="920" width="880" height="260" rx="36" fill="#FFFFFF" filter="url(#sh)"/>
 <g id="foto_produto_2"><rect x="136" y="956" width="188" height="188" rx="36" fill="#D9D9D9"/>
 <g transform="translate(230,1016) scale(0.58)" fill="none" stroke="#434343" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><rect x="-65" y="-68" width="130" height="98" rx="18"/><polyline points="-42,12 -8,-24 24,12"/><polyline points="6,12 32,-14 48,12"/><circle cx="26" cy="-38" r="8" fill="#434343" stroke="none"/></g>
 <text x="230" y="1086" text-anchor="middle" class="body" font-size="24" fill="#434343">Foto do</text><text x="230" y="1114" text-anchor="middle" class="body" font-size="24" fill="#434343">produto</text></g>
-<text x="370" y="990" class="hero" font-size="46" fill="#434343">PIZZA CALABRESA</text>
-<text x="370" y="1036" class="body" font-size="34" fill="#434343">DE R$ 54,90</text>
-<line x1="368" y1="1025" x2="556" y2="1025" stroke="#434343" stroke-width="3"/>
+<text x="370" y="990" class="hero" font-size="46" fill="#434343" data-campo="produto_2">PIZZA CALABRESA</text>
+<text x="370" y="1036" class="body" font-size="34" fill="#434343" text-decoration="line-through" data-campo="precoDe_2">DE R$ 54,90</text>
 <text x="370" y="1102" class="sup" font-size="34" fill="#434343">POR</text>
-<text x="452" y="1144" class="hero" font-size="120" fill="#F85400"><tspan font-size="66" dy="-42">R$</tspan><tspan dy="42" dx="4">39</tspan><tspan font-size="66" dy="-42">,90</tspan></text>
+<text x="452" y="1144" class="hero" font-size="120" fill="#F85400" data-campo="precoPor_2"><tspan font-size="66" dy="-42">R$</tspan><tspan dy="42" dx="4">39</tspan><tspan font-size="66" dy="-42">,90</tspan></text>
 <g transform="translate(878,1050)" filter="url(#shs)"><circle r="62" fill="#434343"/><text y="6" text-anchor="middle" class="hero" font-size="44" fill="#FFB900">27%</text><text y="38" text-anchor="middle" class="hero" font-size="28" fill="#FFB900">OFF</text></g>
 <rect x="100" y="1220" width="880" height="260" rx="36" fill="#FFFFFF" filter="url(#sh)"/>
 <g id="foto_produto_3"><rect x="136" y="1256" width="188" height="188" rx="36" fill="#D9D9D9"/>
 <g transform="translate(230,1316) scale(0.58)" fill="none" stroke="#434343" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><rect x="-65" y="-68" width="130" height="98" rx="18"/><polyline points="-42,12 -8,-24 24,12"/><polyline points="6,12 32,-14 48,12"/><circle cx="26" cy="-38" r="8" fill="#434343" stroke="none"/></g>
 <text x="230" y="1386" text-anchor="middle" class="body" font-size="24" fill="#434343">Foto do</text><text x="230" y="1414" text-anchor="middle" class="body" font-size="24" fill="#434343">produto</text></g>
-<text x="370" y="1290" class="hero" font-size="46" fill="#434343">COMBO AÇAÍ</text>
-<text x="370" y="1336" class="body" font-size="34" fill="#434343">DE R$ 28,00</text>
-<line x1="368" y1="1325" x2="556" y2="1325" stroke="#434343" stroke-width="3"/>
+<text x="370" y="1290" class="hero" font-size="46" fill="#434343" data-campo="produto_3">COMBO AÇAÍ</text>
+<text x="370" y="1336" class="body" font-size="34" fill="#434343" text-decoration="line-through" data-campo="precoDe_3">DE R$ 28,00</text>
 <text x="370" y="1402" class="sup" font-size="34" fill="#434343">POR</text>
-<text x="452" y="1444" class="hero" font-size="120" fill="#F85400"><tspan font-size="66" dy="-42">R$</tspan><tspan dy="42" dx="4">19</tspan><tspan font-size="66" dy="-42">,90</tspan></text>
+<text x="452" y="1444" class="hero" font-size="120" fill="#F85400" data-campo="precoPor_3"><tspan font-size="66" dy="-42">R$</tspan><tspan dy="42" dx="4">19</tspan><tspan font-size="66" dy="-42">,90</tspan></text>
 <g transform="translate(878,1350)" filter="url(#shs)"><circle r="62" fill="#434343"/><text y="6" text-anchor="middle" class="hero" font-size="44" fill="#FFB900">29%</text><text y="38" text-anchor="middle" class="hero" font-size="28" fill="#FFB900">OFF</text></g>
 </g>
 <rect x="350" y="1530" width="380" height="100" rx="50" fill="#FFFFFF" filter="url(#shs)"/>

@@ -1528,7 +1528,7 @@ function gRichTextHtml(runs, fsBase, escala, extra){
     const ls = _gCssNum(r.letterSpacing, 0);
     const mais = extra ? (extra(r) || '') : '';
     return `<span style="color:${_gCssCor(r.color)};font-size:${fs}px;font-family:${_gCssFam(fp.family)};`
-         + `font-weight:${_gCssNum(fp.weight, 400)};${ls ? 'letter-spacing:' + ls + 'px;' : ''}${mais}">`
+         + `font-weight:${_gCssNum(fp.weight, 400)};${r.italic ? 'font-style:italic;' : ''}${ls ? 'letter-spacing:' + ls + 'px;' : ''}${mais}">`
          + `${gEsc(r.text || '').replace(/\n/g, '<br>')}</span>`;
   }).join('');
 }

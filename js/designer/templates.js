@@ -2417,19 +2417,22 @@ function _dSvgProp(el, name, cssStyles) {
 }
 
 // Mapeia fontes do Illustrator usando dicionário estático e base de fontes customizadas do Luma
-function dSvgMapFont(fontFamily) {
+function dSvgMapFont(fontFamily, fontWeight) {
   if (!fontFamily) return "'Roboto'";
   const cleanFamily = fontFamily.replace(/['"]/g, '').split(',')[0].trim();
   const lowerFamily = cleanFamily.toLowerCase();
+  const peso = parseInt(fontWeight, 10) || 400;
 
-  // 1. Verifica no banco de fontes registradas do Luma (dCustomFonts)
-  if (typeof dCustomFonts !== 'undefined' && Array.isArray(dCustomFonts)) {
-    const matched = dCustomFonts.find(cf => cf.family.toLowerCase() === lowerFamily || cf.name.toLowerCase() === lowerFamily);
-    if (matched) return `'${matched.family}'`;
-  }
+  // 1. Fontes do Luma: as enviadas (dCustomFonts) e as embutidas da marca (dBuiltinFonts:
+  //    Realce, Obviously…). Antes só as enviadas eram vistas e a Realce caía em Roboto.
+  const _acha = lista => (typeof lista !== 'undefined' && Array.isArray(lista))
+    ? lista.find(cf => cf.family.toLowerCase() === lowerFamily || String(cf.name||'').toLowerCase() === lowerFamily) : null;
+  const custom = _acha(typeof dCustomFonts !== 'undefined' ? dCustomFonts : null)
+              || _acha(typeof dBuiltinFonts !== 'undefined' ? dBuiltinFonts : null);
+  if (custom) return 'custom:' + custom.family;
 
-  // 2. Fallbacks e mapeamento para fontes padrões
-  if (lowerFamily === 'roboto' || lowerFamily === 'sans-serif') return "'Roboto'";
+  // 2. Roboto com o PESO do arquivo ("'Roboto',300" — formato lido por dTextFontParts)
+  if (lowerFamily === 'roboto' || lowerFamily === 'sans-serif') return peso === 400 ? "'Roboto'" : `'Roboto',${peso}`;
   if (lowerFamily === 'roboto black' || lowerFamily === 'roboto-black') return "'Roboto Black'";
   if (/black|heavy|display|900/.test(lowerFamily)) return "'Roboto Black'";
   if (/bold|700/.test(lowerFamily)) return "'Roboto',bold";
@@ -2437,11 +2440,222 @@ function dSvgMapFont(fontFamily) {
   // 3. Permite preservar fontes conhecidas da web para o navegador resolver
   const commonWebFonts = ['montserrat', 'lato', 'poppins', 'open sans', 'inter', 'helvetica', 'arial', 'times new roman', 'georgia'];
   if (commonWebFonts.some(f => lowerFamily.includes(f))) {
-    const suffix = /bold|700/.test(lowerFamily) ? ',bold' : '';
+    const suffix = (/bold|700/.test(lowerFamily) || peso >= 700) ? ',bold' : '';
     return `'${cleanFamily}'${suffix}`;
   }
 
-  return "'Roboto'";
+  return peso === 400 ? "'Roboto'" : `'Roboto',${peso}`;
+}
+/* ── Leitura pelo NAVEGADOR ───────────────────────────────────────────────────────────────
+   O parser recalculava à mão a cascata de CSS, a herança e a LARGURA do texto (0,55×corpo por
+   letra): fonte de classe sumia, peso e itálico eram ignorados, o texto cortava, `fill:none`
+   virava preto e caminho com mais de um trecho era jogado fora. Medido em 10/2026 nas artes da
+   skill luma-creative: 9–31% dos pixels errados e o template quebrado (o logo virava a moldura
+   da foto). Agora o SVG é MONTADO invisível (numa shadow root: o <style> do arquivo não vaza
+   para o app) e o navegador responde: `getComputedStyle` resolve classe, herança e
+   currentColor; `getBBox` mede o texto com a fonte de verdade. */
+
+// O arquivo é de fora: tira o que executa antes de montar (script, foreignObject, on*, javascript:).
+function _dSvgSanitizar(svgEl){
+  svgEl.querySelectorAll('script,foreignObject').forEach(n=>n.remove());
+  [svgEl, ...svgEl.querySelectorAll('*')].forEach(n=>{
+    [...n.attributes].forEach(a=>{
+      if(/^on/i.test(a.name) || (/href$/i.test(a.name) && /^\s*javascript:/i.test(a.value))) n.removeAttribute(a.name);
+    });
+  });
+}
+
+// Fora da tela e visível para o motor de layout (display:none não mede).
+function _dSvgMontar(svgEl){
+  const host=document.createElement('div');
+  host.setAttribute('aria-hidden','true');
+  host.style.cssText='position:fixed;left:-100000px;top:0;visibility:hidden;pointer-events:none;';
+  const raiz=host.attachShadow ? host.attachShadow({mode:'open'}) : host;
+  const vivo=document.importNode(svgEl,true);
+  raiz.appendChild(vivo); document.body.appendChild(host);
+  return {svg:vivo, remover:()=>host.remove()};
+}
+
+// Espera as fontes que o arquivo pede (e as da marca, com que o template final desenha).
+async function _dSvgFontesProntas(svg){
+  const pedidos=new Set(['900 40px Realce']);
+  svg.querySelectorAll('text,tspan').forEach(t=>{
+    const cs=getComputedStyle(t);
+    pedidos.add(`${cs.fontStyle} ${cs.fontWeight} 40px ${cs.fontFamily}`);
+  });
+  const carga=[...pedidos].map(f=>document.fonts.load(f).catch(()=>null));
+  await Promise.race([Promise.all(carga), new Promise(r=>setTimeout(r,3000))]);
+}
+
+// rgb()/rgba()/#hex → {hex,a}; 'none' e transparente → null.
+function _dSvgCor(v){
+  const s=String(v||'').trim();
+  if(/^#[0-9a-f]{6}$/i.test(s)) return {hex:s.toUpperCase(), a:1};
+  const m=/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+%?))?/.exec(s);
+  if(!m) return null;
+  let a=m[4]==null?1:parseFloat(m[4]); if(/%$/.test(m[4]||'')) a/=100;
+  if(!(a>0)) return null;
+  return {hex:'#'+[m[1],m[2],m[3]].map(n=>(+n).toString(16).padStart(2,'0')).join('').toUpperCase(), a};
+}
+
+// opacity não é herdada: o grupo multiplica a dos filhos.
+function _dSvgOpacidade(el){
+  let o=1;
+  for(let n=el; n && n.tagName && n.tagName.toLowerCase()!=='svg'; n=n.parentElement){
+    const v=parseFloat(getComputedStyle(n).opacity); if(isFinite(v)) o*=v;
+  }
+  return o;
+}
+
+// Caixa local → caixa do Luma. Com giro, o Luma gira a camada em torno do CENTRO da caixa:
+// basta levar o centro pela matriz e guardar o ângulo à parte.
+function _dSvgCaixa(x, y, w, h, m){
+  const giro=Math.atan2(m[1], m[0])*180/Math.PI;
+  if(Math.abs(giro)<0.5) return Object.assign(_dSvgApplyMatrixToBBox(x, y, w, h, m), {rotation:0});
+  const s=Math.sqrt(m[0]*m[0]+m[1]*m[1]), cx=x+w/2, cy=y+h/2;
+  const gx=m[0]*cx+m[2]*cy+m[4], gy=m[1]*cx+m[3]*cy+m[5], W=w*s, H=h*s;
+  return {x:Math.round(gx-W/2), y:Math.round(gy-H/2), w:Math.max(1,Math.round(W)), h:Math.max(1,Math.round(H)), rotation:Math.round(giro*10)/10};
+}
+
+// filter="url(#id)" com <feDropShadow> → sombra do Luma (ângulo 90 = para baixo, ver gFxOffset).
+function _dSvgSombra(el){
+  const raiz=el.closest('svg');
+  for(let n=el; n && n!==raiz && n.getAttribute; n=n.parentElement){
+    const id=((n.getAttribute('filter')||'').match(/url\(#([^)]+)\)/)||[])[1];
+    if(!id) continue;
+    const ds=raiz && raiz.querySelector('[id="'+id.replace(/"/g,'')+'"] feDropShadow');
+    if(!ds) return null;
+    const dx=+ds.getAttribute('dx')||0, dy=+ds.getAttribute('dy')||0, sd=+ds.getAttribute('stdDeviation')||0;
+    const c=_dSvgCor(ds.getAttribute('flood-color')||'#000000')||{hex:'#000000'};
+    const a=parseFloat(ds.getAttribute('flood-opacity')||'1');
+    return {shadow:true, shadowColor:(typeof gFxRgba==='function')?gFxRgba(c.hex, isFinite(a)?a:1):c.hex,
+      shadowBlur:Math.round(sd*2), shadowDist:Math.round(Math.hypot(dx,dy)), shadowAngle:Math.round(Math.atan2(dy,-dx)*180/Math.PI)};
+  }
+  return null;
+}
+
+// Preenchimento e contorno computados → campos do Luma. fill:none vira transparente (o canvas
+// ignora 'none' e pintava de preto); o contorno do SVG é centrado na borda.
+function _dSvgPintura(el, sc){
+  const cs=getComputedStyle(el), f=_dSvgCor(cs.fill), st=_dSvgCor(cs.stroke), sw=parseFloat(cs.strokeWidth)||0;
+  const extra={};
+  const fo=parseFloat(cs.fillOpacity), fa=(f?f.a:1)*(isFinite(fo)?fo:1);
+  if(f && fa<1) extra.fillOpacity=Math.round(fa*1000)/1000;
+  if(st && sw>0 && cs.stroke!=='none'){ extra.strokeColor=st.hex; extra.strokeW=Math.round(sw*sc*10)/10; extra.strokeAlign='center'; }
+  const sh=_dSvgSombra(el); if(sh) Object.assign(extra, sh);
+  return {fill:f?f.hex:'transparent', extra};
+}
+
+// d do SVG → vectorPath do Luma (nós Bézier normalizados na caixa, ver gTraceVectorPath).
+// M L H V C S Q T Z, absolutos e relativos. Arco (A) devolve null: o caminho vira imagem.
+function _dSvgVetor(d, m, regra){
+  const tk=String(d||'').match(/[a-zA-Z]|[-+]?(?:\d*\.\d+|\d+\.?)(?:e[-+]?\d+)?/gi)||[];
+  const paths=[]; let cur=null, x=0, y=0, sx=0, sy=0, lc=null, lq=null, cmd=null, i=0, fechou=false, ok=true;
+  const num=()=>{ const v=parseFloat(tk[i++]); if(!isFinite(v)) ok=false; return v; };
+  const novo=(px,py)=>{ cur={closed:false, knots:[{in:[px,py],anchor:[px,py],out:[px,py]}]}; paths.push(cur); fechou=false; };
+  const cub=(a,b,c,e,px,py)=>{ const k=cur.knots; k[k.length-1].out=[a,b]; k.push({in:[c,e],anchor:[px,py],out:[px,py]}); };
+  while(i<tk.length && ok){
+    if(/^[a-z]$/i.test(tk[i])) cmd=tk[i++]; else if(!cmd) return null;
+    const rel=cmd===cmd.toLowerCase(), C=cmd.toUpperCase(), ox=rel?x:0, oy=rel?y:0;
+    if(C==='M'){ x=ox+num(); y=oy+num(); sx=x; sy=y; novo(x,y); cmd=rel?'l':'L'; lc=lq=null; continue; }
+    if(C==='Z'){ if(cur){ cur.closed=true; fechou=true; } x=sx; y=sy; lc=lq=null; continue; }
+    if(!cur||fechou) novo(x,y);
+    if(C==='L'){ const px=ox+num(), py=oy+num(); cub(x,y,px,py,px,py); x=px; y=py; lc=lq=null; }
+    else if(C==='H'){ const px=ox+num(); cub(x,y,px,y,px,y); x=px; lc=lq=null; }
+    else if(C==='V'){ const py=oy+num(); cub(x,y,x,py,x,py); y=py; lc=lq=null; }
+    else if(C==='C'||C==='S'){
+      const a=C==='S'?(lc?2*x-lc[0]:x):ox+num(), b=C==='S'?(lc?2*y-lc[1]:y):oy+num();
+      const c=ox+num(), e=oy+num(), px=ox+num(), py=oy+num();
+      cub(a,b,c,e,px,py); lc=[c,e]; lq=null; x=px; y=py;
+    }
+    else if(C==='Q'||C==='T'){
+      const qx=C==='T'?(lq?2*x-lq[0]:x):ox+num(), qy=C==='T'?(lq?2*y-lq[1]:y):oy+num(), px=ox+num(), py=oy+num();
+      cub(x+2/3*(qx-x), y+2/3*(qy-y), px+2/3*(qx-px), py+2/3*(qy-py), px, py); lq=[qx,qy]; lc=null; x=px; y=py;
+    }
+    else return null;
+  }
+  const vivos=paths.filter(p=>p.knots.length>=2);
+  if(!ok || !vivos.length) return null;
+  // fechado com volta explícita ao início: o último nó É o primeiro
+  vivos.forEach(p=>{
+    const k=p.knots, f=k[0], u=k[k.length-1];
+    if(p.closed && k.length>2 && Math.abs(u.anchor[0]-f.anchor[0])<1e-6 && Math.abs(u.anchor[1]-f.anchor[1])<1e-6){ f.in=u.in; k.pop(); }
+  });
+  const T=pt=>[m[0]*pt[0]+m[2]*pt[1]+m[4], m[1]*pt[0]+m[3]*pt[1]+m[5]];
+  let x0=Infinity, y0=Infinity, x1=-Infinity, y1=-Infinity;
+  vivos.forEach(p=>p.knots.forEach(k=>['in','anchor','out'].forEach(c=>{
+    k[c]=T(k[c]); x0=Math.min(x0,k[c][0]); y0=Math.min(y0,k[c][1]); x1=Math.max(x1,k[c][0]); y1=Math.max(y1,k[c][1]);
+  })));
+  const w=Math.max(1,x1-x0), h=Math.max(1,y1-y0), r=v=>Math.round(v*1e5)/1e5;
+  vivos.forEach(p=>p.knots.forEach(k=>['in','anchor','out'].forEach(c=>{ k[c]=[r((k[c][0]-x0)/w), r((k[c][1]-y0)/h)]; })));
+  return {vector:{fillRule:regra==='evenodd'?'evenodd':'nonzero', paths:vivos}, box:{x:Math.round(x0), y:Math.round(y0), w:Math.max(1,Math.round(w)), h:Math.max(1,Math.round(h))}};
+}
+
+// <g id="foto_produto…|logo_loja"> (contrato da skill luma-creative): a forma do slot vira a
+// MOLDURA de foto do Luma; ícone e legenda do placeholder ficam de fora.
+function _dSvgSlot(g, id, m){
+  const f=g.querySelector('rect,circle,ellipse'); if(!f) return null;
+  const mm=_dSvgMultiplyMatrices(m, _dSvgParseTransform(f.getAttribute('transform')));
+  const n=v=>parseFloat(f.getAttribute(v)||0)||0, tag=f.tagName.toLowerCase();
+  const rx=n('rx')||n('r'), ry=n('ry')||n('r');
+  const cx=tag==='rect' ? _dSvgCaixa(n('x'), n('y'), n('width'), n('height'), mm) : _dSvgCaixa(n('cx')-rx, n('cy')-ry, rx*2, ry*2, mm);
+  return {_id:'svg-'+Math.random().toString(36).slice(2), name:id, svgTag:tag, detectedType:'frame', mode:'frame',
+    x:cx.x, y:cx.y, w:cx.w, h:cx.h, imgVar:id, frameShape:tag==='rect'?'rect':'circle',
+    radius:tag==='rect'?Math.round(n('rx')*Math.sqrt(mm[0]*mm[0]+mm[1]*mm[1])):0, opacity:100};
+}
+
+// Grupo com recorte (clip-path/mask) ou caminho com arco: o Luma não tem equivalente 1:1, então
+// vira UMA imagem com a aparência exata (quem desenha é o navegador). Texto de dentro não entra:
+// continua camada de texto editável.
+async function _dSvgRasterizar(elements, svg, W, H){
+  // recursos referenciados por url(#id): o Illustrator e a skill também os declaram fora de <defs>
+  const defs=[...svg.querySelectorAll('defs,style,clipPath,mask,filter,linearGradient,radialGradient,pattern,symbol,marker')]
+    .filter(d=>!d.parentElement || !d.parentElement.closest('defs,clipPath,mask,filter,pattern,symbol,marker'))
+    .map(d=>new XMLSerializer().serializeToString(d)).join('');
+  for(const el of elements){
+    if(!el._raster) continue;
+    try{
+      const no=el._raster.cloneNode(true);
+      if(no.querySelectorAll) no.querySelectorAll('text').forEach(t=>t.remove());
+      // sombra/filtro de um grupo de FORA também pertence ao desenho (o ticket leva a sombra no pai)
+      let corpo=`<g transform="matrix(${el._matriz.join(' ')})">${new XMLSerializer().serializeToString(no)}</g>`;
+      for(let a=el._raster.parentElement; a && a.tagName && a.tagName.toLowerCase()!=='svg'; a=a.parentElement){
+        const f=a.getAttribute('filter'); if(f) corpo=`<g filter="${f.replace(/"/g,'')}">${corpo}</g>`;
+      }
+      const xml=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${defs}${corpo}</svg>`;
+      const img=new Image(); img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(xml); await img.decode();
+      const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+      const cx=cv.getContext('2d'); cx.drawImage(img,0,0,W,H);
+      const px=cx.getImageData(0,0,W,H).data; let x0=W, y0=H, x1=-1, y1=-1;
+      for(let yy=0; yy<H; yy++) for(let xx=0; xx<W; xx++){
+        if(px[(yy*W+xx)*4+3]>8){ if(xx<x0)x0=xx; if(xx>x1)x1=xx; if(yy<y0)y0=yy; if(yy>y1)y1=yy; }
+      }
+      if(x1<0){ el.mode='ignore'; }
+      else{
+        const w=x1-x0+1, h=y1-y0+1, out=document.createElement('canvas'); out.width=w; out.height=h;
+        out.getContext('2d').drawImage(cv, x0, y0, w, h, 0, 0, w, h);
+        Object.assign(el, {x:x0, y:y0, w, h, imgUrl:out.toDataURL('image/png')});
+      }
+    }catch(e){ el.mode='ignore'; el._warning='Não foi possível converter em imagem'; }
+    delete el._raster; delete el._matriz;
+  }
+}
+
+// Preenchimento por gradiente/padrão (fill:url(#…)): o Luma não lê o gradiente do SVG — vira imagem.
+function _dSvgComoImagem(el, name){
+  if(!/^url\(/.test(getComputedStyle(el).fill||'')) return null;
+  return {_id:'svg-'+Math.random().toString(36).slice(2), name, svgTag:el.tagName.toLowerCase(), detectedType:'raster', mode:'image',
+    x:0, y:0, w:1, h:1, imgUrl:'', opacity:100, _raster:el};
+}
+
+// Escala os campos que não passam pela caixa (traço, tracking, sombra, trechos).
+function _dSvgEscalaExtra(ex, s){
+  const o=JSON.parse(JSON.stringify(ex||{}));
+  if(s===1) return o;
+  const r=v=>Math.round(v*s*100)/100;
+  ['strokeW','letterSpacing','shadowDist','shadowBlur'].forEach(k=>{ if(typeof o[k]==='number') o[k]=r(o[k]); });
+  (o.runs||[]).forEach(t=>['fontSize','yOffset','letterSpacing'].forEach(k=>{ if(typeof t[k]==='number') t[k]=r(t[k]); }));
+  return o;
 }
 
 // Lê o arquivo selecionado e inicia a importação
@@ -2460,7 +2674,8 @@ function dSvgImport(){
 }
 
 // Processa o arquivo SVG cru
-function dSvgHandleFile(svgText, fileName){
+async function dSvgHandleFile(svgText, fileName){
+  let montado=null;
   try{
     const doc=new DOMParser().parseFromString(svgText,'image/svg+xml');
     if(doc.querySelector('parsererror')){ gToast('Erro ao ler o SVG — verifique o arquivo','error'); return; }
@@ -2484,18 +2699,24 @@ function dSvgHandleFile(svgText, fileName){
       docH=(_hA.indexOf('%')<0?parseFloat(_hA):0)||1920;
     }
 
-    const elements=dSvgExtractElements(svgEl, docW, docH, cssStyles);
+    // Lido pelo navegador (ver _dSvgMontar): estilo computado e texto medido com a fonte real.
+    _dSvgSanitizar(svgEl);
+    montado=_dSvgMontar(svgEl);
+    await _dSvgFontesProntas(montado.svg);
+    const elements=dSvgExtractElements(montado.svg, docW, docH, cssStyles);
+    await _dSvgRasterizar(elements, montado.svg, docW, docH);
+    montado.remover(); montado=null;
     if(!elements.length){ gToast('Nenhum elemento reconhecido no SVG','error'); return; }
     const fmt=(typeof dPsdDetectFmt==='function')?dPsdDetectFmt(docW,docH):'story';
     dSvgShowReviewModal(elements, {w:docW, h:docH, fmt, fileName});
   }catch(e){ console.error('[svg] erro ao parsear:',e); gToast('Não foi possível processar o SVG','error'); }
+  finally{ if(montado) montado.remover(); }
 }
-
 // Extrai recursivamente os elementos do SVG aplicando a pilha de transformações afins (DFS)
 function dSvgExtractElements(svgEl, docW, docH, cssStyles){
   const elements=[];
   let idCounter=0;
-  const RECOG=['rect','circle','ellipse','text','image','path'];
+  const RECOG=['rect','circle','ellipse','text','image','path','line'];
 
   // Determinar matriz de transformação inicial para o viewBox (corrige deslocamento de origem)
   let viewBoxMatrix = [1, 0, 0, 1, 0, 0];
@@ -2521,7 +2742,7 @@ function dSvgExtractElements(svgEl, docW, docH, cssStyles){
   }
 
   // Travessia profunda recursiva (DFS)
-  function traverse(node, accumulatedMatrix, groupPath) {
+  function traverse(node, accumulatedMatrix, groupPath, soTexto) {
     const tag = node.tagName ? node.tagName.toLowerCase() : '';
     if (!tag) return;
 
@@ -2533,13 +2754,26 @@ function dSvgExtractElements(svgEl, docW, docH, cssStyles){
     if (tag === 'g') {
       const gName = dSvgGetName(node) || ('grupo_' + (++idCounter));
       const newPath = groupPath ? groupPath + '/' + gName : gName;
+      const gid = node.getAttribute('id') || '';
+      // Slot de foto/logo (contrato da skill): vira moldura; o placeholder de dentro não entra.
+      if (!soTexto && /^(foto_produto(_\d+)?|logo_loja)$/i.test(gid)) {
+        const fr = _dSvgSlot(node, gid, newMatrix);
+        if (fr) { fr.groupName = groupPath || ''; elements.push(fr); return; }
+      }
+      // Grupo recortado (clip-path/mask): o desenho vira UMA imagem; os textos seguem editáveis.
+      if (!soTexto && (node.hasAttribute('clip-path') || node.hasAttribute('mask'))) {
+        elements.push({ _id:'svg-'+Math.random().toString(36).slice(2), name:gName, svgTag:'g', detectedType:'raster', mode:'image',
+          x:0, y:0, w:1, h:1, imgUrl:'', opacity:100, groupName:groupPath||'', _raster:node, _matriz:accumulatedMatrix });
+        soTexto = true;
+      }
       Array.from(node.children).forEach(child => {
-        traverse(child, newMatrix, newPath);
+        traverse(child, newMatrix, newPath, soTexto);
       });
-    } else if (RECOG.includes(tag)) {
+    } else if (RECOG.includes(tag) && (!soTexto || tag === 'text')) {
       const name = dSvgGetName(node) || (tag + '_' + (++idCounter));
       const el = dSvgParseElement(node, name, docW, docH, newMatrix, cssStyles);
       if (el) {
+        if (el._raster && !el._matriz) el._matriz = accumulatedMatrix; // o nó leva a própria transform
         el.groupName = groupPath || '';
         elements.push(el);
       }
@@ -2566,160 +2800,152 @@ function dSvgParseElement(el, name, docW, docH, matrix, cssStyles){
   if(tag==='circle'||tag==='ellipse') return dSvgParseCircle(el, name, docW, docH, matrix, cssStyles);
   if(tag==='image') return dSvgParseImage(el, name, docW, docH, matrix, cssStyles);
   if(tag==='path') return dSvgParsePath(el, name, docW, docH, matrix, cssStyles);
+  if(tag==='line') return dSvgParseLine(el, name, docW, docH, matrix, cssStyles);
   return null;
 }
 
 // Analisa elementos de texto, concatenando <tspan> e calculando tamanho/baseline transformados
 function dSvgParseText(el, name, docW, docH, matrix, cssStyles){
-  const tspans = el.querySelectorAll('tspan');
-  let content = '';
-  
-  if (tspans.length > 0) {
-    const lines = [];
-    let currentLine = '';
-    let lastY = null;
-    tspans.forEach(tspan => {
-      const txt = tspan.textContent.trim();
-      if (!txt) return;
-      // Distingue quebra de linha se a variação no Y for maior que 5 pixels
-      const ty = parseFloat(tspan.getAttribute('y') || _dSvgProp(tspan, 'y', cssStyles) || 0);
-      if (lastY !== null && Math.abs(ty - lastY) > 5) {
-        lines.push(currentLine);
-        currentLine = txt;
-      } else {
-        currentLine = currentLine ? currentLine + ' ' + txt : txt;
-      }
-      lastY = ty;
+  const cs=getComputedStyle(el);
+  const contrato=!!el.closest('svg[data-luma]');
+  const campo=(el.getAttribute('data-campo')||'').trim();
+  const sY=Math.sqrt(matrix[2]*matrix[2]+matrix[3]*matrix[3])||1;
+  const estilo=c=>({font:dSvgMapFont(c.fontFamily, c.fontWeight), fs:parseFloat(c.fontSize)||16,
+    cor:_dSvgCor(c.fill), traco:_dSvgCor(c.stroke), tracoW:parseFloat(c.strokeWidth)||0,
+    italic:c.fontStyle==='italic'||c.fontStyle==='oblique', ls:parseFloat(c.letterSpacing)||0});
+  const tsp=[...el.querySelectorAll('tspan')];
+  // Illustrator: uma LINHA por <tspan> com y próprio → texto de várias linhas, estilo único.
+  // Sem isso, cada <tspan> é um TRECHO (peso, itálico, tamanho e dy próprios).
+  const multilinha=tsp.filter(t=>t.hasAttribute('y')).length>1;
+  const runs=[]; let dy=0;
+  if(!multilinha){
+    el.childNodes.forEach(n=>{
+      const ehT=n.nodeType===1 && n.tagName.toLowerCase()==='tspan';
+      if(n.nodeType!==3 && !ehT) return;
+      if(ehT) dy+=parseFloat(n.getAttribute('dy')||0)||0;
+      const t=(n.textContent||'').replace(/\s+/g,' ');
+      if(!t) return;
+      const e=estilo(ehT?getComputedStyle(n):cs), u=runs[runs.length-1];
+      const igual=u && u.font===e.font && u.fs===e.fs && u.italic===e.italic && u.ls===e.ls && u.dy===dy
+        && (u.cor&&u.cor.hex)===(e.cor&&e.cor.hex);
+      if(igual) u.text+=t; else runs.push(Object.assign(e,{text:t, dy}));
     });
-    if (currentLine) lines.push(currentLine);
-    content = lines.join('\n');
-  } else {
-    content = (el.textContent || '').trim();
+    if(runs.length){ runs[0].text=runs[0].text.replace(/^\s+/,''); runs[runs.length-1].text=runs[runs.length-1].text.replace(/\s+$/,''); }
   }
+  const content=multilinha ? tsp.map(t=>t.textContent.trim()).filter(Boolean).join('\n') : runs.map(r=>r.text).join('');
+  if(!content.trim()) return null;
+  const varios=runs.length>1;
+  const dom=runs.length ? runs.reduce((a,b)=>b.fs>a.fs?b:a) : estilo(cs);
+  // Preço-assinatura (R$ e ,90 pequenos e suspensos): vira o split do Luma, que o motor desenha
+  // na mesma proporção (gBuildVirtualRuns) — e o franqueado digita UM preço.
+  const preco=runs.length===3 && /^R\$$/.test(runs[0].text.trim()) && /^\d[\d.]*$/.test(runs[1].text.trim()) && /^[.,]\d{2}$/.test(runs[2].text.trim());
+  const base=preco ? runs[1] : dom;
+  // Campo: no contrato (svg[data-luma]) só quem tem data-campo — o palpite pela caixa alta
+  // transformava "ANOS", "PEDIR" e "CUPOM" em campos. Fora do contrato, o palpite de sempre.
+  const isVarHint=/^\{\{.+\}\}$/.test(content) || /^[A-ZÀ-Ý0-9\s$.,!?-]{2,}$/.test(content);
+  const ehCampo=contrato ? !!campo : isVarHint;
+  const ricos=preco || (varios && !ehCampo); // desenhado pelo ramo multi-estilo do motor
 
-  const tx = parseFloat(_dSvgProp(el, 'x', cssStyles) || 0);
-  const ty = parseFloat(_dSvgProp(el, 'y', cssStyles) || 0);
-  const fontSize = parseFloat(_dSvgProp(el, 'font-size', cssStyles) || 48) || 48;
-  const fontFamily = _dSvgProp(el, 'font-family', cssStyles) || 'Roboto';
-  const fill = _dSvgProp(el, 'fill', cssStyles) || '#000000';
-  const textAnchor = _dSvgProp(el, 'text-anchor', cssStyles) || 'start';
-  const alignMap = { start: 'left', middle: 'center', end: 'right' };
-
-  // Extrai o fator de escala vertical e horizontal da matriz afim
-  const scaleX = Math.sqrt(matrix[0] * matrix[0] + matrix[1] * matrix[1]);
-  const scaleY = Math.sqrt(matrix[2] * matrix[2] + matrix[3] * matrix[3]);
-  const finalFontSize = Math.round(fontSize * scaleY);
-
-  // Estimar dimensões da caixa de texto no espaço local
-  const longestLine = content.split('\n').reduce((max, line) => Math.max(max, line.length), 0);
-  const estimatedW = Math.max(40, longestLine * fontSize * 0.55);
-  const estimatedH = fontSize * 1.35 * (content.split('\n').length || 1);
-
-  // Ajuste do ponto de ancoragem horizontal (text-anchor)
-  let localXOffset = 0;
-  if (textAnchor === 'middle') localXOffset = -estimatedW / 2;
-  else if (textAnchor === 'end') localXOffset = -estimatedW;
-
-  const localX = tx + localXOffset;
-  const localY = ty - fontSize; // Sobem o y do baseline para o topo do bloco de texto
-
-  const bbox = _dSvgApplyMatrixToBBox(localX, localY, estimatedW, estimatedH, matrix);
-  const isVarHint = /^\{\{.+\}\}$/.test(content) || /^[A-ZÀ-Ý0-9\s$.,!?-]{2,}$/.test(content);
-
+  // Geometria em unidades locais; getBBox mede com a fonte real (todos os trechos)
+  // Illustrator põe a posição no <tspan> (<text transform><tspan x="0" y="0">), não no <text>
+  const _yT=el.getAttribute('y') || (tsp.find(t=>t.hasAttribute('y'))||el).getAttribute('y');
+  const bb=el.getBBox(), B=parseFloat(_yT||0)||0;
+  let lx, ly, lw, lh;
+  if(multilinha){ const pad=base.fs*0.08; lx=bb.x-pad; lw=bb.width+pad*2+2; ly=bb.y; lh=bb.height; }
+  else if(ricos){
+    // ramo multi-estilo: linha de base = topo + 0,9×maior corpo (0,8 + meia entrelinha de 1,2)
+    lx=bb.x; lw=bb.width+2; ly=B-base.fs*0.9; lh=base.fs*1.2;
+  } else {
+    // estilo único com vAlign 'top': linha de base = topo + subida da TINTA (a régua do motor)
+    let sobe=base.fs*0.72;
+    try{
+      const fp=(typeof dTextFontParts==='function')?dTextFontParts(base.font):{family:"'Roboto', sans-serif", weight:400};
+      const c=document.createElement('canvas').getContext('2d');
+      c.font=`${base.italic?'italic ':''}${fp.weight} ${base.fs}px ${fp.family}`;
+      const mm=c.measureText(content.split('\n')[0]); if(mm.actualBoundingBoxAscent) sobe=mm.actualBoundingBoxAscent;
+    }catch(e){}
+    const pad=base.fs*0.08; // o motor desenha a 0,08em da borda (mesma régua do import de PSD)
+    lx=bb.x-pad; lw=bb.width+pad*2+2; ly=B-sobe; lh=base.fs*1.2;
+  }
+  const cx=_dSvgCaixa(lx, ly, lw, lh, matrix);
+  const extra={letterSpacing:Math.round(base.ls*sY*100)/100};
+  if(!multilinha && !ricos) extra.vAlign='top';
+  if(base.italic && !ricos) extra.italic=true;
+  if(cx.rotation) extra.rotation=cx.rotation;
+  // risco que pertence ao texto (acompanha o preço que o franqueado digitar)
+  if(/line-through/.test(cs.textDecorationLine||cs.textDecoration||'')) extra.strikethrough=true;
+  if(!base.cor && base.traco && base.tracoW>0){ extra.strokeColor=base.traco.hex; extra.strokeW=Math.round(base.tracoW*sY*10)/10; }
+  if(ricos && !preco) extra.runs=runs.map(r=>{
+    const o={text:r.text, font:r.font, fontSize:Math.round(r.fs*sY), color:r.cor?r.cor.hex:'transparent',
+      letterSpacing:Math.round(r.ls*sY*100)/100, yOffset:Math.round(r.dy*sY*100)/100};
+    if(r.italic) o.italic=true;
+    return o;
+  });
   return {
     _id: 'svg-' + Math.random().toString(36).slice(2),
-    name, svgTag: 'text', detectedType: 'text',
-    mode: isVarHint ? 'variable' : 'text',
-    varName: dSvgSuggestVarName(content, name),
-    content,
-    x: bbox.x,
-    y: bbox.y,
-    w: bbox.w,
-    h: bbox.h,
-    fontSize: finalFontSize,
-    font: dSvgMapFont(fontFamily),
-    color: fill,
-    textAlign: alignMap[textAnchor] || 'left',
-    opacity: Math.round((parseFloat(_dSvgProp(el, 'opacity', cssStyles) || 1) || 1) * 100),
+    name, svgTag:'text', detectedType:'text',
+    mode: ehCampo ? 'variable' : 'text',
+    varName: campo || dSvgSuggestVarName(content, name),
+    content, precoSplit:preco,
+    x:cx.x, y:cx.y, w:cx.w, h:cx.h,
+    fontSize: Math.round(base.fs*sY),
+    font: base.font,
+    color: base.cor ? base.cor.hex : 'transparent',
+    textAlign: {start:'left', middle:'center', end:'right'}[cs.textAnchor] || 'left',
+    opacity: Math.round(_dSvgOpacidade(el)*100),
+    extra,
   };
 }
-
 // Analisa retângulos
 function dSvgParseRect(el, name, docW, docH, matrix, cssStyles){
-  const rx = parseFloat(_dSvgProp(el, 'x', cssStyles) || 0);
-  const ry = parseFloat(_dSvgProp(el, 'y', cssStyles) || 0);
-  const rw = parseFloat(_dSvgProp(el, 'width', cssStyles) || 100);
-  const rh = parseFloat(_dSvgProp(el, 'height', cssStyles) || 100);
-
-  const bbox = _dSvgApplyMatrixToBBox(rx, ry, rw, rh, matrix);
-
-  let rxVal = parseFloat(_dSvgProp(el, 'rx', cssStyles) || 0);
-  const scaleX = Math.sqrt(matrix[0] * matrix[0] + matrix[1] * matrix[1]);
-  rxVal = Math.round(rxVal * scaleX);
-
+  const _img=_dSvgComoImagem(el, name); if(_img) return _img;
+  const n=v=>parseFloat(el.getAttribute(v)||0)||0, sc=Math.sqrt(matrix[0]*matrix[0]+matrix[1]*matrix[1]);
+  const cx=_dSvgCaixa(n('x'), n('y'), n('width'), n('height'), matrix), p=_dSvgPintura(el, sc);
+  if(cx.rotation) p.extra.rotation=cx.rotation;
   return {
     _id: 'svg-' + Math.random().toString(36).slice(2),
     name, svgTag: 'rect', detectedType: 'shape', mode: 'shape',
-    x: bbox.x,
-    y: bbox.y,
-    w: bbox.w,
-    h: bbox.h,
-    fill: _dSvgProp(el, 'fill', cssStyles) || '#FF9000',
-    radius: rxVal,
-    opacity: Math.round((parseFloat(_dSvgProp(el, 'opacity', cssStyles) || 1) || 1) * 100),
+    x:cx.x, y:cx.y, w:cx.w, h:cx.h,
+    fill: p.fill,
+    radius: Math.round(n('rx')*sc),
+    opacity: Math.round(_dSvgOpacidade(el)*100),
+    extra: p.extra,
   };
 }
-
 // Analisa círculos e elipses preservando as propriedades nativas
 function dSvgParseCircle(el, name, docW, docH, matrix, cssStyles){
-  const tag = el.tagName.toLowerCase();
-  const cx = parseFloat(_dSvgProp(el, 'cx', cssStyles) || 0);
-  const cy = parseFloat(_dSvgProp(el, 'cy', cssStyles) || 0);
-  const r = parseFloat(_dSvgProp(el, 'r', cssStyles) || _dSvgProp(el, 'rx', cssStyles) || 50) || 50;
-
-  const rx = parseFloat(_dSvgProp(el, 'rx', cssStyles) || r);
-  const ry = parseFloat(_dSvgProp(el, 'ry', cssStyles) || r);
-
-  const bbox = _dSvgApplyMatrixToBBox(cx - rx, cy - ry, rx * 2, ry * 2, matrix);
-
+  const _img=_dSvgComoImagem(el, name); if(_img) return _img;
+  const tag=el.tagName.toLowerCase(), n=v=>parseFloat(el.getAttribute(v)||0)||0;
+  const r=n('r'), rx=n('rx')||r, ry=n('ry')||r, sc=Math.sqrt(matrix[0]*matrix[0]+matrix[1]*matrix[1]);
+  const cx=_dSvgCaixa(n('cx')-rx, n('cy')-ry, rx*2, ry*2, matrix), p=_dSvgPintura(el, sc);
   return {
     _id: 'svg-' + Math.random().toString(36).slice(2),
     name, svgTag: tag, detectedType: 'shape', mode: 'shape',
-    x: bbox.x,
-    y: bbox.y,
-    w: bbox.w,
-    h: bbox.h,
-    fill: _dSvgProp(el, 'fill', cssStyles) || '#FF9000',
+    x:cx.x, y:cx.y, w:cx.w, h:cx.h,
+    fill: p.fill,
     radius: tag === 'circle' ? 999 : 0,
-    opacity: Math.round((parseFloat(_dSvgProp(el, 'opacity', cssStyles) || 1) || 1) * 100),
+    opacity: Math.round(_dSvgOpacidade(el)*100),
+    extra: p.extra,
   };
 }
-
 // Analisa imagens fixas ou embutidas em base64
 function dSvgParseImage(el, name, docW, docH, matrix, cssStyles){
   const href = el.getAttribute('href') || el.getAttribute('xlink:href') || '';
-  const isBase64 = href.startsWith('data:image');
-
-  const ix = parseFloat(_dSvgProp(el, 'x', cssStyles) || 0);
-  const iy = parseFloat(_dSvgProp(el, 'y', cssStyles) || 0);
-  const iw = parseFloat(_dSvgProp(el, 'width', cssStyles) || 300);
-  const ih = parseFloat(_dSvgProp(el, 'height', cssStyles) || 300);
-
-  const bbox = _dSvgApplyMatrixToBBox(ix, iy, iw, ih, matrix);
-
+  const n=v=>parseFloat(el.getAttribute(v)||0)||0;
+  const cx=_dSvgCaixa(n('x'), n('y'), n('width')||300, n('height')||300, matrix);
+  // No contrato a foto do franqueado mora no slot (id foto_produto…); <image> solta é arte
+  // fixa — o logo da marca virava moldura e a foto do franqueado o substituía.
+  const contrato=!!el.closest('svg[data-luma]');
   return {
     _id: 'svg-' + Math.random().toString(36).slice(2),
-    name, svgTag: 'image', detectedType: 'image', mode: 'frame',
-    x: bbox.x,
-    y: bbox.y,
-    w: bbox.w,
-    h: bbox.h,
-    imgUrl: isBase64 ? href : '',
-    imgVar: dSvgSuggestImgVar(name),
-    opacity: Math.round((parseFloat(_dSvgProp(el, 'opacity', cssStyles) || 1) || 1) * 100),
+    name, svgTag: 'image', detectedType: 'image', mode: contrato ? 'image' : 'frame',
+    x:cx.x, y:cx.y, w:cx.w, h:cx.h,
+    imgUrl: href.startsWith('data:image') ? href : '',
+    imgVar: contrato ? '' : dSvgSuggestImgVar(name),
+    opacity: Math.round(_dSvgOpacidade(el)*100),
+    extra: cx.rotation ? {rotation:cx.rotation} : {},
   };
 }
-
 // Helper para bounding box aproximado de caminhos complexos
 function _dSvgPathBBox(d){
   const nums=(String(d||'').match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)||[]).map(parseFloat).filter(n=>isFinite(n));
@@ -2735,36 +2961,31 @@ function _dSvgPathBBox(d){
 }
 
 // Analisa caminhos vetoriais fechados ou abertos
-function dSvgParsePath(el, name, docW, docH, matrix, cssStyles){
-  const d = el.getAttribute('d') || '';
-  let x = 0, y = 0, w = 100, h = 100;
-  const bb = _dSvgPathBBox(d);
-  if (bb) { x = bb.x; y = bb.y; w = bb.w; h = bb.h; }
-
-  const bbox = _dSvgApplyMatrixToBBox(x, y, w, h, matrix);
-  const fill = _dSvgProp(el, 'fill', cssStyles);
-  const isComplex = d.split(/[Mm]/).length > 3;
-
-  return {
-    _id: 'svg-' + Math.random().toString(36).slice(2),
-    name, svgTag: 'path',
-    detectedType: isComplex ? 'path-complex' : 'shape',
-    mode: isComplex ? 'ignore' : 'shape',
-    x: bbox.x,
-    y: bbox.y,
-    w: bbox.w,
-    h: bbox.h,
-    fill: fill || '#000000',
-    radius: 0,
-    opacity: Math.round((parseFloat(_dSvgProp(el, 'opacity', cssStyles) || 1) || 1) * 100),
-    _warning: isComplex ? 'Path vetorial complexo — fidelidade parcial como shape' : null,
-  };
+// <line> (divisória, fio do cupom) → traço vetorial aberto; antes era ignorado e sumia.
+function dSvgParseLine(el, name, docW, docH, matrix, cssStyles){
+  const n=v=>parseFloat(el.getAttribute(v)||0)||0;
+  const v=_dSvgVetor(`M ${n('x1')} ${n('y1')} L ${n('x2')} ${n('y2')}`, matrix, 'nonzero');
+  const p=_dSvgPintura(el, Math.sqrt(matrix[0]*matrix[0]+matrix[1]*matrix[1]));
+  if(!v || !p.extra.strokeW) return null;
+  return {_id:'svg-'+Math.random().toString(36).slice(2), name, svgTag:'path', detectedType:'shape', mode:'shape',
+    x:v.box.x, y:v.box.y, w:v.box.w, h:v.box.h, fill:'transparent', radius:0, opacity:Math.round(_dSvgOpacidade(el)*100),
+    extra:Object.assign(p.extra, {shapeKind:'path', vectorPath:v.vector, strokeCap:getComputedStyle(el).strokeLinecap||'butt'})};
 }
 
+function dSvgParsePath(el, name, docW, docH, matrix, cssStyles){
+  const _img=_dSvgComoImagem(el, name); if(_img) return _img;
+  const v=_dSvgVetor(el.getAttribute('d'), matrix, getComputedStyle(el).fillRule);
+  const base={_id:'svg-'+Math.random().toString(36).slice(2), name, svgTag:'path', opacity:Math.round(_dSvgOpacidade(el)*100)};
+  // Arco (A) não tem nó Bézier direto: o caminho vira imagem (ver _dSvgRasterizar).
+  if(!v) return Object.assign(base, {detectedType:'raster', mode:'image', x:0, y:0, w:1, h:1, imgUrl:'', _raster:el});
+  const p=_dSvgPintura(el, Math.sqrt(matrix[0]*matrix[0]+matrix[1]*matrix[1]));
+  return Object.assign(base, {detectedType:'shape', mode:'shape', x:v.box.x, y:v.box.y, w:v.box.w, h:v.box.h,
+    fill:p.fill, radius:0, extra:Object.assign(p.extra, {shapeKind:'path', vectorPath:v.vector})});
+}
 function dSvgSuggestVarName(content, name){
   const lower=((content||'')+' '+(name||'')).toLowerCase();
-  if(/preco|preço|price|por|r\$/.test(lower)) return 'precoPor';
   if(/\bde\b|from|original/.test(lower)) return 'precoDe';
+  if(/preco|preço|price|por|r\$/.test(lower)) return 'precoPor';
   if(/produto|product|nome/.test(lower)) return 'produto';
   if(/validade|valid|data/.test(lower)) return 'validade';
   if(/detalhe|descri/.test(lower)) return 'detalhes';
@@ -2799,7 +3020,7 @@ function dSvgBuildReviewHTML(elements, meta){
     const modeOpts=dSvgModesForType(el.detectedType).map(m=>
       `<option value="${m.value}" ${el.mode===m.value?'selected':''}>${m.label}</option>`).join('');
     const warning=el._warning?`<div class="svg-rev-warn" style="display:inline-flex;align-items:center;gap:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>${_dSvgEsc(el._warning)}</div>`:'';
-    const typeIcon={text:'T',shape:'□',image:'⊞','path-complex':'~'}[el.detectedType]||'?';
+    const typeIcon={text:'T',shape:'□',image:'⊞',frame:'⊡',raster:'▦','path-complex':'~'}[el.detectedType]||'?';
     const previewTxt=el.detectedType==='text'
       ? `<span class="svg-rev-preview-text">"${_dSvgEsc((el.content||'').substring(0,30))}"</span>` : '';
     const groupTag=el.groupName?`<span class="svg-rev-group" style="display:inline-flex;align-items:center;gap:3px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>${_dSvgEsc(el.groupName)}</span>`:'';
@@ -2850,6 +3071,14 @@ function dSvgModesForType(type){
   ];
   if(type==='image') return [
     {value:'frame',label:'Moldura (foto)'},
+    {value:'image',label:'Imagem fixa'},
+    {value:'ignore',label:'Ignorar'},
+  ];
+  if(type==='frame') return [
+    {value:'frame',label:'Moldura (foto)'},
+    {value:'ignore',label:'Ignorar'},
+  ];
+  if(type==='raster') return [
     {value:'image',label:'Imagem fixa'},
     {value:'ignore',label:'Ignorar'},
   ];
@@ -2918,12 +3147,18 @@ function dSvgCreateTemplate(elements, meta, fmt){
       const varName=el.varName||'variavel';
       const scaledFontSize = Math.max(10, Math.round((el.fontSize || 48) * uScale));
 
-      layers.push(Object.assign(base,{
+      const L=Object.assign(base,{
         type:'text', x:scaledX, y:scaledY, w:scaledW, h:scaledH,
-        content:isVar?('{{'+varName+'}}'):el.content,
+        // preço-assinatura: o split do Luma desenha R$ e centavos pequenos e suspensos
+        content:isVar?(el.precoSplit?('R${{'+varName+':inteiro}},{{'+varName+':centavos}}'):('{{'+varName+'}}')):el.content,
         font:el.font||"'Roboto'", fontSize:scaledFontSize,
         color:el.color||'#000000', textAlign:el.textAlign||'left', isVar:isVar,
-      }));
+      });
+      if(el.extra) Object.assign(L, _dSvgEscalaExtra(el.extra, uScale));
+      if(isVar) delete L.runs; // trecho é de texto fixo (mesma regra do import de PSD)
+      // texto de exemplo do campo: referência do Auto-layout (mesma régua do PSD)
+      if(isVar && el.content && typeof gStampLayoutBaseline==='function') gStampLayoutBaseline(L, el.content);
+      layers.push(L);
     }else if(el.mode==='shape'){
       // Corrige bug de perda do shapeKind (círculos viravam retângulos)
       const shapeKind = (el.svgTag === 'circle' || el.svgTag === 'ellipse') ? el.svgTag : 'rect';
@@ -2932,16 +3167,17 @@ function dSvgCreateTemplate(elements, meta, fmt){
       layers.push(Object.assign(base,{
         type:'shape', shapeKind:shapeKind, x:scaledX, y:scaledY, w:scaledW, h:scaledH,
         fill:el.fill||'#FF9000', radius:scaledRadius
-      }));
+      }, _dSvgEscalaExtra(el.extra, uScale)));
     }else if(el.mode==='frame'){
       layers.push(Object.assign(base,{
         type:'frame', x:scaledX, y:scaledY, w:scaledW, h:scaledH,
-        imgUrl:el.imgUrl||'', imgVar:el.imgVar||'foto_produto', objectFit:'cover', frameShape:'rect'
-      }));
+        imgUrl:el.imgUrl||'', imgVar:el.imgVar||'foto_produto', objectFit:'cover', frameShape:el.frameShape||'rect',
+        radius:Math.round((el.radius||0)*uScale)
+      }, _dSvgEscalaExtra(el.extra, uScale)));
     }else if(el.mode==='image'){
       layers.push(Object.assign(base,{
         type:'image', x:scaledX, y:scaledY, w:scaledW, h:scaledH, imgUrl:el.imgUrl||''
-      }));
+      }, _dSvgEscalaExtra(el.extra, uScale)));
     }
   });
 

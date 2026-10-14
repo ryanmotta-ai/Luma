@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920"><defs><style>
+<svg xmlns="http://www.w3.org/2000/svg" data-luma="1" viewBox="0 0 1080 1920" width="1080" height="1920"><defs><style>
 @font-face{font-family:'Realce';src:url('asset:fontes/realce-black.woff2') format('woff2');font-weight:900;}
 @font-face{font-family:'Roboto';src:url('asset:fontes/Roboto-Regular.woff2') format('woff2');font-weight:400;}
 @font-face{font-family:'Roboto';src:url('asset:fontes/Roboto-Light.woff2') format('woff2');font-weight:300;}
@@ -32,8 +32,8 @@
 <g data-sobrepoe="foto">
   <rect x="230" y="1205" width="620" height="250" rx="36" fill="#FFFFFF" filter="url(#sh)"/>
   <g id="preco">
-    <text x="540" y="1268" text-anchor="middle" class="sup" font-size="38" fill="#434343">COMBO DA SEXTA</text>
-    <text x="540" y="1420" text-anchor="middle" class="hero" font-size="150" fill="#F85400"><tspan font-size="82" dy="-53">R$</tspan><tspan dy="53" dx="6">29</tspan><tspan font-size="82" dy="-53">,90</tspan></text>
+    <text x="540" y="1268" text-anchor="middle" class="sup" font-size="38" fill="#434343" data-campo="produto">COMBO DA SEXTA</text>
+    <text x="540" y="1420" text-anchor="middle" class="hero" font-size="150" fill="#F85400" data-campo="precoPor"><tspan font-size="82" dy="-53">R$</tspan><tspan dy="53" dx="6">29</tspan><tspan font-size="82" dy="-53">,90</tspan></text>
   </g>
 </g>
 <rect x="330" y="1510" width="420" height="110" rx="55" fill="none" stroke="#FFFFFF" stroke-width="4"/>
