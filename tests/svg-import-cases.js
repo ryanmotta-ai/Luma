@@ -214,6 +214,28 @@
     Object.entries(ditos).forEach(([t,f])=>assert(_crFormatoDito(t)===f, '"'+t+'" → '+_crFormatoDito(t)+' (esperado '+f+')'));
   });
 
+  caso('Luma Creative: a IA designer posiciona caixas e o Luma desenha — composição boa passa e entra no importador; bloco faltando, margem e grafismo atrás do texto reprovam', async()=>{
+    await crFontesProntas();
+    const sp=crNormaliza(Object.assign({objetivo:'cupom', formato:'story'}, CR_CASOS.cupom));
+    const bom={ideia:'Valor gigante à esquerda, ticket embaixo', fundo:'#F85400',
+      blocos:[{bloco:'logo',x:100,y:290,w:260,h:52},{bloco:'chamada',x:100,y:430,w:880,h:190},{bloco:'valor',x:100,y:760,w:880,h:330},
+        {bloco:'cupom',x:100,y:1220,w:880,h:324},{bloco:'legal',x:100,y:1630,w:880,h:30}], grafismos:[{asset:'explosao',x:820,y:-60,w:420,rot:10}]};
+    const r=crDesenhar(sp, bom, 0), av=crAvaliar(r);
+    assert(!av.erros.length, 'composição boa reprovou: '+av.erros.join('; '));
+    assert(r.nomeReceita===bom.ideia && /asset:decor\/explosao\.png/.test(r.svg), 'ideia ou grafismo não entrou');
+    assert(crConfere(r).every(c=>c.ok), 'conferência da marca falhou');
+    const {layers}=await importar(await crEmbutir(r.svg));
+    ['desconto_valor','codigo_cupom'].forEach(c=>assert(campoNa(layers,c), 'campo {{'+c+'}} não chegou ao Estúdio'));
+    const falta=crAvaliar(crDesenhar(sp, {blocos:bom.blocos.filter(b=>b.bloco!=='cupom')}, 0)).erros;
+    assert(falta.some(e=>/Faltou o bloco cupom/.test(e)), 'bloco faltando passou: '+falta.join('; '));
+    const margem=crAvaliar(crDesenhar(sp, {blocos:bom.blocos.map(b=>b.bloco==='valor'?Object.assign({},b,{x:20}):b)}, 0)).erros;
+    assert(margem.some(e=>/margem/.test(e)), 'fora da margem passou');
+    const atras=crAvaliar(crDesenhar(sp, Object.assign({}, bom, {grafismos:[{asset:'sorriso-arco',x:200,y:700,w:600}]}), 0)).erros;
+    assert(atras.some(e=>/Grafismo atrás/.test(e)), 'grafismo atrás do texto passou');
+    const pr=crPromptDesenho(sp, 2, ['ideia velha']);
+    assert(/explosao/.test(pr) && /100–140/.test(pr) && /ideia velha/.test(pr) && /"composicoes"/.test(pr), 'prompt sem inventário, respiro ou ideias a evitar');
+  });
+
   caso('Luma Creative: sem foto, nenhuma diagramação usa o slot; com foto, a foto vira a moldura no Estúdio', async()=>{
     await crFontesProntas();
     crEscolher3(crCandidatos(Object.assign({objetivo:'oferta'}, CR_CASOS.oferta))).forEach(r=>assert(r.svg.indexOf('foto_produto')<0, r.receita+' usou slot sem foto'));

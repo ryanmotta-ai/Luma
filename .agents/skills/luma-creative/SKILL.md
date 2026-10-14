@@ -487,6 +487,8 @@ Utilitários de suporte na raiz do repositório:
 
 **Autoteste antes do print:** (a) tape a referência — a peça se sustenta sozinha? (b) há um vão entre grupos ≥ 100 px no story? (c) o conteúdo usa de 290 a 1650? (d) algo sangra pela borda? (e) dá para descrever a composição sem dizer "centralizado"? Dois "não" = recomponha.
 
+**No Luma Creative (app)** a mesma regra vale: a IA devolve a ideia e uma caixa por bloco, mais grafismos do inventário (`crDesenhos`/`crPromptDesenho` em `js/creative/creative.js`); o Luma desenha os blocos oficiais nas caixas e confere. Mudou um princípio aqui? Mude o prompt de lá.
+
 Exemplo de referência: `refino_15_cupom_much_story` — eixo à esquerda, "10" de 470 px, `+` sangrando no canto de cima, ticket sangrando no de baixo, grupos separados por 100–120 px.
 
 ---
