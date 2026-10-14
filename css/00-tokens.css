@@ -90,8 +90,10 @@
      pontos do selection.js; e cor de chrome de UI, entao nasce aqui como qualquer outra. */
   --d-sel: #5B9BE0;
   --d-sel-fill: rgba(91, 155, 224, .14);
-  /* Luma Creative (css/modules/creative.css): claro e minimalista — papel quente, superfícies
-     brancas e o laranja da marca como único acento. Escada: fundo → superfície → 2 tons de apoio. */
+  /* Luma Creative (css/modules/creative.css): papel quente + o laranja da marca como único
+     acento. Escada: fundo → superfície → 2 tons de apoio. No tema escuro o bloco logo depois de
+     `body.theme-light` (abaixo) remapeia TUDO para a escada --d-* do Estúdio — o Creative segue o
+     tema do usuário como o resto do Luma, em vez de ser uma ilha clara. */
   --cr-bg: #FAF9F7;
   --cr-surf: #FFFFFF;
   --cr-surf2: #F3F1EE;
@@ -99,9 +101,13 @@
   --cr-line: rgba(67, 67, 67, .10);
   --cr-line2: rgba(67, 67, 67, .18);
   --cr-text: #1F1F1F;
-  --cr-text2: #6B6B6B;
-  --cr-text3: #8A8A8A;
+  --cr-text2: #5F5F5F;
+  --cr-text3: #767676;
   --cr-acento-bg: rgba(248, 84, 0, .08);
+  --cr-acento-ln: rgba(248, 84, 0, .34);
+  --cr-vidro: rgba(250, 249, 247, .78);
+  --cr-sh1: 0 1px 2px rgba(67, 67, 67, .05), 0 8px 24px rgba(67, 67, 67, .07);
+  --cr-sh2: 0 1px 2px rgba(67, 67, 67, .05), 0 18px 48px rgba(67, 67, 67, .11);
   --grafite: #434343;
   --var-color: #FFB900;
   --var-bg: rgba(255, 185, 0, .12);
@@ -190,6 +196,24 @@ body.theme-light { --green-text: #15803D; }
    5.35:1 sobre branco e 5.12:1 sobre off-white (medido). Mantém a leitura de marca. */
 body.theme-light { --dm-orange-text: #BF3F00; }
 body.theme-light { --dm-red-text: var(--dm-red); }
+
+/* Luma Creative no tema escuro: mesma escada azul-cinza do Estúdio (--d-*), medida lá. */
+body:not(.theme-light){
+  --cr-bg: var(--d-bg);
+  --cr-surf: var(--d-surf);
+  --cr-surf2: var(--d-surf2);
+  --cr-surf3: var(--d-surf3);
+  --cr-line: var(--d-border);
+  --cr-line2: var(--d-border2);
+  --cr-text: var(--d-text);
+  --cr-text2: var(--d-text2);
+  --cr-text3: var(--d-text3);
+  --cr-acento-bg: rgba(255, 144, 0, .12);
+  --cr-acento-ln: rgba(255, 144, 0, .40);
+  --cr-vidro: rgba(20, 23, 28, .74);
+  --cr-sh1: 0 1px 2px rgba(0, 0, 0, .30), 0 8px 24px rgba(0, 0, 0, .26);
+  --cr-sh2: 0 1px 2px rgba(0, 0, 0, .30), 0 18px 48px rgba(0, 0, 0, .38);
+}
 
 /* ══ LOGOS LUMA ══
    branca (Ativo 1) → fundos laranja/coloridos/escuros

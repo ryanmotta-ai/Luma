@@ -300,6 +300,16 @@ Fluido: `grid-template-columns: repeat(auto-fill, minmax(clamp(...), 1fr))` + `g
 
 ---
 
+## 12. Luma Creative (modo em testes, só gestão)
+
+Conversa de agente (Claude Code / Codex) vestida com a gramática do Luma — `css/modules/creative.css`, tokens `--cr-*` em `00-tokens.css`.
+
+- **Segue o tema do usuário.** `--cr-*` nasce claro (papel quente `#FAF9F7`) e `body:not(.theme-light)` remapeia para a escada `--d-*` do Estúdio. Nada de ilha clara dentro do app escuro.
+- **Mesma receita do resto:** CTA = `--dm-orange` + `--on-orange` (§8); texto laranja = `--dm-orange-text`; hover **neutro**; ligado = fundo/borda/texto laranja + `aria-pressed` (pílula Much+); aperto = regra global (o módulo não escreve `:active{transform}`; o card de opção troca só `--press-scale`).
+- **⚠ Não use `--press-text` em módulo novo.** Ele é declarado em `:root` e resolve lá o `--dm-orange-text` — que só vira `#BF3F00` dentro de `body.theme-light`. Resultado: no claro continua `#FF9000` (≈2,3:1). Use `--dm-orange-text` direto.
+- **Motion funcional** (`motion.md` §4): boas-vindas que recolhem em altura real quando o 1º pedido sai; esqueleto com a proporção do formato no lugar exato da entrega; etapas num trilho (ponto + cotovelo em CSS — `⏺`/`⎿` viram emoji/somem em fontes); "Trabalhou por Xs" recolhível; borda do campo girando (`@property --cr-ang`) e botão que vira **parar** enquanto roda; véu "Solte a foto aqui".
+- **O texto vence o compositor:** "story" escrito no pedido ganha do formato marcado no menu; o menu/`Much+` só valem quando o texto não diz nada.
+
 ## Ver também
 
 - `css/00-tokens.css` — a fonte da verdade dos tokens.

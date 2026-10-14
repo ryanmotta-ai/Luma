@@ -160,6 +160,10 @@ que a Academia consolidou, cada um resolvendo um problema medido no navegador:
 | **Anexar só o que é novo** | Re-renderizar uma lista re-anima tudo. No chat, só a bolha nova recebe a classe de entrada. |
 | **Transição da prévia ao vivo** (09/2026) | A arte "pulava" a cada resposta. Três gestos numa camada por cima do `#lp-canvas` (`#lp-canvas-fx`), que continua com o quadro final: **dissolver** a cada tecla (opacidade no compositor), **deslizar** quando a geometria mexe (placa, cadeia, corpo do texto — quadros pelo mesmo motor, com `resolvido:true`), **assentar** (clarão curto na silhueta do que mudou) quando a digitação para. A animação não decide layout: só percorre o caminho entre dois estados que o Local Fit já calculou. Nada toca em `transform` — não é o Auto-zoom de volta. Detalhe em `live-preview.js`, bloco "A ARTE SE MONTANDO". |
 
+| **Esqueleto com a forma do destino** (10/2026) | A entrega do Creative aparecia do nada depois de segundos de etapas. O esqueleto nasce no passo "Diagramando", com a casca e o `aspect-ratio` do formato, e a arte entra **no mesmo lugar** (`replaceWith`). |
+| **Resumo recolhível do trabalho** (10/2026) | A lista de etapas competia com a arte. Depois da entrega vira "Trabalhou por 14 s · 6 etapas" e recolhe por `grid-template-rows: 1fr → 0fr` (altura real, sem medir em JS); um clique reabre. |
+| **Estado ocupado visível no controle** (10/2026) | Só o `Esc` interrompia — ninguém descobria. Enquanto roda, o campo ganha borda em arco girando (`@property`) e enviar vira **parar**, com o mesmo botão no mesmo lugar. |
+
 ⚠️ **Rolagem automática é interrupção, não ajuda.** Só desça até o fim se a pessoa
 já estava no fim; se ela subiu para reler, preserve a posição e ofereça um botão de
 volta (`acAgenteRolar`).

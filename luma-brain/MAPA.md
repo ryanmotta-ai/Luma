@@ -259,7 +259,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 85 arquivos JS (79.824 linhas, 3.121 funções) · 33 arquivos CSS (32.892 linhas) · `index.html` com 4.029 linhas e 75 `<script>`.
+**Tamanho real de hoje:** 85 arquivos JS (79.979 linhas, 3.132 funções) · 33 arquivos CSS (33.098 linhas) · `index.html` com 4.052 linhas e 75 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -702,16 +702,16 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 
 ### js/creative
 
-**`js/creative/creative.js`** · 2731 linhas
+**`js/creative/creative.js`** · 2886 linhas
 Luma Creative — modo em TESTES, só a gestão (trava em main.js e na Edge Function `ai`).
-· API: crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crX, crTexto, crMista, crHeroi, crLogo, crFoto, crSelo, crBotaoMede … (+57; 92 funções no total)
-· Estado global: _crFontesProm, _crCtx, _crMesa
+· API: crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crX, crTexto, crMista, crHeroi, crLogo, crFoto, crSelo, crBotaoMede … (+61; 103 funções no total)
+· Estado global: _crFontesProm, _crCtx, _crMesa, _crArrasto
 
 ## CSS — onde mora cada folha
 
 | Arquivo | Linhas |
 |---|---|
-| `css/00-tokens.css` | 298 |
+| `css/00-tokens.css` | 322 |
 | `css/01-reset.css` | 38 |
 | `css/02-animations.css` | 177 |
 | `css/03-fonts.css` | 60 |
@@ -731,7 +731,7 @@ Luma Creative — modo em TESTES, só a gestão (trava em main.js e na Edge Func
 | `css/modules/chat.css` | 3979 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
-| `css/modules/creative.css` | 266 |
+| `css/modules/creative.css` | 448 |
 | `css/modules/designer.css` | 5424 |
 | `css/modules/feedback.css` | 199 |
 | `css/modules/franqueado.css` | 1712 |

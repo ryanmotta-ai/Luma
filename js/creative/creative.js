@@ -1855,8 +1855,10 @@ function crLegenda(sp){
 /* ══════════════════════════════════════════════════════════════
    CHAT — visual próprio e motion de terminal (spinner, passos, perguntas, digitação)
 ══════════════════════════════════════════════════════════════ */
-const crState = { rodando: null, saudou: false, fios: [], anexo: null, aoFoto: null };
-const CR_GLIFOS = ['·', '✢', '✳', '✶', '✻', '✽', '✻', '✶', '✳', '✢'];
+// fmt/much = o que o compositor mostra (null = automático: o formato sai do texto do pedido)
+const crState = { rodando: null, fios: [], anexo: null, aoFoto: null, fmt: null, much: false };
+// ︎ força a apresentação de TEXTO: sem ele o macOS/iOS troca ✳ e ✴ por emoji colorido
+const CR_GLIFOS = ['·', '✢', '✳︎', '✶', '✻', '✽', '✻', '✶', '✳︎', '✢'];
 const CR_VERBOS = ['Compondo', 'Diagramando', 'Medindo', 'Equilibrando', 'Alinhando', 'Contrastando', 'Lapidando', 'Ajustando o kerning', 'Escolhendo o herói'];
 const CR_NOME_BLOCO = { logo: 'Logo', titulo: 'Título', foto: 'Foto', selo: 'Selo', preco: 'Preço', botao: 'Botão', legal: 'Letra miúda',
   chamada: 'Chamada', valor: 'Valor', cupom: 'Cupom', apoio: 'Apoio', tag: 'Tag', anos: 'Anos', decor: 'Grafismo', redes: 'Redes', itens: 'Itens', mockup: 'Mockup' };
@@ -1900,25 +1902,24 @@ function crEntrar(aba){
   };
   v.addEventListener('animationend', solta);
   if(_crReduz()) v.classList.remove('cr-revelando', 'cr-itens');
-  if(!crState.saudou){ crState.saudou = true; crSaudar(); }
   setTimeout(() => { const i = _crEl('cr-pedido'); if(i && window.innerWidth > 760) i.focus({ preventScroll: true }); }, 380);
   crFontesProntas().catch(() => {});
-}
-function crSaudar(){
-  const conv = _crEl('cr-conversa');
-  if(!conv) return;
-  const m = _crMsgIA(conv);
-  _crDigita(m.querySelector('.cr-bolha'), 'O que vamos criar hoje? Conte o objetivo da arte e anexe a foto do produto ou do local, se tiver. Eu pergunto o que faltar e entrego 3 opções com a legenda do post.');
 }
 function _crMsgIA(conv){
   const m = document.createElement('div');
   m.className = 'cr-msg cr-entra';
   m.innerHTML = '<div class="cr-ava cr-ava-ia" aria-hidden="true">' + CR_ICO.faisca + '</div><div class="cr-corpo"><div class="cr-bolha"></div></div>';
   conv.appendChild(m);
-  _crRola();
+  _crRola(true);
   return m;
 }
-function _crRola(){ const p = _crEl('cr-palco'); if(p) requestAnimationFrame(() => p.scrollTo({ top: p.scrollHeight, behavior: _crReduz() ? 'auto' : 'smooth' })); }
+// Rolagem automática é interrupção, não ajuda (motion.md §4): só desce se a pessoa já estava no fim.
+// Quem subiu para reler a diagramação não é arrastado de volta a cada passo novo.
+function _crRola(forca){
+  const p = _crEl('cr-palco'); if(!p) return;
+  const noFim = p.scrollHeight - p.scrollTop - p.clientHeight < 140;
+  if(forca || noFim) requestAnimationFrame(() => p.scrollTo({ top: p.scrollHeight, behavior: _crReduz() ? 'auto' : 'smooth' }));
+}
 // Texto chegando como digitado, com cursor (pula a animação com reduced-motion)
 function _crDigita(el, texto){
   return new Promise(res => {
@@ -1940,12 +1941,12 @@ function _crDigita(el, texto){
 function _crStatus(host){
   const el = document.createElement('div');
   el.className = 'cr-status';
-  el.innerHTML = '<span class="cr-glifo" aria-hidden="true">✻</span><span class="cr-verbo">Compondo…</span><span class="cr-tempo">(0s · esc para interromper)</span>';
+  el.innerHTML = '<span class="cr-glifo" aria-hidden="true">✻︎</span><span class="cr-verbo">Compondo…</span><span class="cr-tempo">0s</span><span class="cr-esc"><kbd>esc</kbd> interrompe</span>';
   host.appendChild(el);
   const g = el.querySelector('.cr-glifo'), v = el.querySelector('.cr-verbo'), tm = el.querySelector('.cr-tempo');
   const t0 = Date.now(); let f = 0, k = 0, parado = false;
   const giro = setInterval(() => { g.textContent = CR_GLIFOS[f++ % CR_GLIFOS.length]; }, 120);
-  const relogio = setInterval(() => { tm.textContent = '(' + Math.floor((Date.now() - t0) / 1000) + 's · esc para interromper)'; }, 1000);
+  const relogio = setInterval(() => { tm.textContent = Math.floor((Date.now() - t0) / 1000) + 's'; }, 1000);
   const troca = setInterval(() => {
     v.classList.add('cr-sai');
     setTimeout(() => { v.textContent = CR_VERBOS[++k % CR_VERBOS.length] + '…'; v.classList.remove('cr-sai'); }, 180);
@@ -1956,7 +1957,7 @@ function _crStatus(host){
 function _crPasso(lista, titulo){
   const li = document.createElement('li');
   li.className = 'cr-passo cr-agora';
-  li.innerHTML = '<div class="cr-passo-cab"><span class="cr-bola" aria-hidden="true">⏺</span><span class="cr-passo-tit"></span><small class="cr-passo-t"></small></div><div class="cr-passo-res" hidden><span aria-hidden="true">⎿</span><span class="cr-passo-txt"></span></div>';
+  li.innerHTML = '<div class="cr-passo-cab"><span class="cr-bola" aria-hidden="true"></span><span class="cr-passo-tit"></span><small class="cr-passo-t"></small></div><div class="cr-passo-res" hidden><span class="cr-elo" aria-hidden="true"></span><span class="cr-passo-txt"></span></div>';
   li.querySelector('.cr-passo-tit').textContent = titulo;
   lista.appendChild(li);
   const t0 = Date.now();
@@ -2022,9 +2023,9 @@ function _crPerguntar(corpo, perguntas, run){
       if(q.tipo === 'foto') ops += op('upload', '', '<span class="cr-q-l">' + CR_ICO.foto + 'Enviar a foto</span>', 'arraste aqui, cole ou escolha o arquivo', ++n);
       q.opcoes.forEach((o, k) => { ops += op('opcao', k, gEsc(o.rotulo), o.desc, ++n); });
       if(q.livre !== false) ops += '<li class="cr-q-op" role="option" data-tipo="outro"><span class="cr-q-seta" aria-hidden="true">❯</span><span class="cr-q-n">' + (++n) + '.</span><input type="text" maxlength="80" placeholder="' + gEsc(q.dica || 'Outra resposta…') + '" aria-label="Outra resposta"></li>';
-      box.innerHTML = '<div class="cr-q-topo"><span class="cr-q-chip">' + gEsc(q.titulo) + '</span>' + (perguntas.length > 1 ? '<span class="cr-q-prog">' + (i + 1) + ' de ' + perguntas.length + '</span>' : '') + '</div>'
+      box.innerHTML = '<div class="cr-q-topo"><span class="cr-q-chip">' + gEsc(q.titulo) + '</span>' + (perguntas.length > 1 ? '<span class="cr-q-prog" aria-label="Pergunta ' + (i + 1) + ' de ' + perguntas.length + '">' + perguntas.map((_, k) => '<i class="' + (k < i ? 'feita' : k === i ? 'agora' : '') + '"></i>').join('') + '</span>' : '') + '</div>'
         + '<p class="cr-q-txt">' + gEsc(q.pergunta) + '</p><ol class="cr-q-ops" role="listbox" aria-label="' + gEsc(q.pergunta) + '">' + ops + '</ol>'
-        + '<div class="cr-q-rodape"><span>↑↓ navega · Enter escolhe · 1–' + n + ' atalho · Esc interrompe</span><button type="button" class="cr-q-pular">Pular</button></div>';
+        + '<div class="cr-q-rodape"><span><kbd>↑</kbd><kbd>↓</kbd> navega <kbd>↵</kbd> escolhe <kbd>1</kbd>–<kbd>' + n + '</kbd> atalho <kbd>esc</kbd> interrompe</span><button type="button" class="cr-q-pular">Pular</button></div>';
       box.classList.toggle('cr-q-foto', q.tipo === 'foto');
       box.classList.remove('cr-q-troca'); void box.offsetWidth; box.classList.add('cr-q-troca');
       marca(0); _crRola();
@@ -2081,40 +2082,149 @@ function crColar(e){
   const f = [...((e.clipboardData && e.clipboardData.files) || [])].find(x => /^image\//.test(x.type));
   if(f){ e.preventDefault(); crAnexar(f); }
 }
-document.addEventListener('dragover', e => { if(document.body.classList.contains('mode-creative')) e.preventDefault(); });
+// Arrastar foto: a tela ganha o véu "Solte a foto aqui" (o dragleave dispara a cada filho cruzado,
+// por isso o contador em vez de um liga/desliga)
+let _crArrasto = 0;
+const _crSolta = on => { const v = _crEl('view-creative'); if(v) v.classList.toggle('cr-arrastando', on); };
+const _crNoCreative = () => document.body.classList.contains('mode-creative');
+const _crTemArquivo = e => !!(e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files'));
+document.addEventListener('dragenter', e => { if(_crNoCreative() && _crTemArquivo(e)){ _crArrasto++; _crSolta(true); } });
+document.addEventListener('dragleave', e => { if(_crNoCreative() && _crTemArquivo(e) && --_crArrasto <= 0){ _crArrasto = 0; _crSolta(false); } });
+document.addEventListener('dragover', e => { if(_crNoCreative()) e.preventDefault(); });
 document.addEventListener('drop', e => {
-  if(!document.body.classList.contains('mode-creative')) return;
-  e.preventDefault();
+  if(!_crNoCreative()) return;
+  e.preventDefault(); _crArrasto = 0; _crSolta(false);
   const f = [...((e.dataTransfer && e.dataTransfer.files) || [])].find(x => /^image\//.test(x.type));
   if(f) crAnexar(f);
 });
 
-function crAutoAltura(el){ el.style.height = 'auto'; el.style.height = Math.min(160, el.scrollHeight) + 'px'; }
+function crAutoAltura(el){ el.style.height = 'auto'; el.style.height = Math.min(160, el.scrollHeight) + 'px'; _crPodeEnviar(); }
+// Enter só envia com texto — e só quando NÃO está rodando (parar é o botão, nunca a tecla de enviar)
 function crTecla(e){
-  if(e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); crEnviar(); }
+  if(e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); if(!crState.rodando) crEnviar(); }
+}
+// O botão de enviar só acende quando há o que enviar (ou quando é "parar")
+function _crPodeEnviar(){
+  const i = _crEl('cr-pedido'), b = document.querySelector('#view-creative .cr-enviar');
+  if(b) b.classList.toggle('cr-pronto', !!(i && i.value.trim()));
+}
+// "ocupado" liga o fio de progresso, a borda giratória do campo e transforma enviar em parar
+function _crOcupado(on){
+  document.body.classList.toggle('cr-ocupado', on);
+  const b = document.querySelector('#view-creative .cr-enviar');
+  if(b) b.setAttribute('aria-label', on ? 'Interromper' : 'Gerar arte');
+}
+function crParar(){
+  const r = crState.rodando;
+  if(r){ r.parado = true; if(r.cancelar) r.cancelar(); }
 }
 document.addEventListener('keydown', e => {
-  const r = crState.rodando;
-  if(e.key === 'Escape' && r && document.body.classList.contains('mode-creative')){ r.parado = true; if(r.cancelar) r.cancelar(); }
+  if(e.key === 'Escape' && crState.rodando && _crNoCreative()) crParar();
 });
+
+/* ── Compositor: formato (menu), Much+ (liga/desliga) e "ideias de partida" ── */
+function _crRotuloFmt(){
+  const f = CR_FORMATOS[crState.fmt];
+  const r = _crEl('cr-fmt-rot'); if(r) r.textContent = f ? f.nome : 'Formato: automático';
+  const b = _crEl('cr-fmt-btn'); if(b) b.classList.toggle('cr-pill-on', !!f);
+}
+function _crMenuFmt(abrir){
+  const m = _crEl('cr-fmt-menu'), b = _crEl('cr-fmt-btn'); if(!m || !b) return;
+  if(abrir === undefined) abrir = m.hidden;
+  if(abrir && !m.children.length){
+    m.innerHTML = [['', 'Automático', 'Eu leio o formato do seu pedido']].concat(Object.keys(CR_FORMATOS).map(k => [k, CR_FORMATOS[k].nome, CR_FORMATOS[k].desc]))
+      .map((o, i) => '<li role="option" tabindex="-1" data-fmt="' + o[0] + '" style="--i:' + i + '"><b>' + gEsc(o[1]) + '</b><small>' + gEsc(o[2]) + '</small></li>').join('');
+  }
+  if(abrir){
+    [...m.children].forEach(li => li.setAttribute('aria-selected', String(li.dataset.fmt === (crState.fmt || ''))));
+    m.hidden = false; void m.offsetWidth; m.classList.add('aberto');
+    const li = m.querySelector('[aria-selected="true"]') || m.firstElementChild; if(li) li.focus({ preventScroll: true });
+  }else{
+    m.classList.remove('aberto');
+    setTimeout(() => { if(!m.classList.contains('aberto')) m.hidden = true; }, _crReduz() ? 0 : 160);
+  }
+  b.setAttribute('aria-expanded', String(abrir));
+}
+function crEscolheFormato(k){
+  crState.fmt = CR_FORMATOS[k] ? k : null;
+  _crRotuloFmt(); _crMenuFmt(false);
+  const b = _crEl('cr-fmt-btn'); if(b) b.focus({ preventScroll: true });
+}
+function crLigaMuch(on){
+  crState.much = on === undefined ? !crState.much : !!on;
+  const b = _crEl('cr-much'); if(b) b.setAttribute('aria-pressed', String(crState.much));
+}
+// Ponto de partida: preenche o pedido, ajusta formato/marca e deixa o texto selecionado
+// (digitar substitui; Enter roda como está). Nada dispara sozinho.
+function crIdeia(btn){
+  const i = _crEl('cr-pedido'); if(!i || crState.rodando) return;
+  i.value = btn.dataset.ideia || '';
+  crState.fmt = CR_FORMATOS[btn.dataset.fmt] && btn.dataset.fmt !== 'feed' ? btn.dataset.fmt : null;
+  _crRotuloFmt(); crLigaMuch(btn.dataset.marca === 'much');
+  crAutoAltura(i); i.focus(); i.select();
+}
+document.addEventListener('click', e => {
+  if(!_crNoCreative()) return;
+  const ideia = e.target.closest('.cr-ideia'); if(ideia) return crIdeia(ideia);
+  if(e.target.closest('#cr-fmt-btn')) return _crMenuFmt();
+  const op = e.target.closest('#cr-fmt-menu [data-fmt]'); if(op) return crEscolheFormato(op.dataset.fmt);
+  if(e.target.closest('#cr-much')) return crLigaMuch();
+  if(!e.target.closest('.cr-menu-host')) _crMenuFmt(false);
+});
+document.addEventListener('keydown', e => {
+  const m = _crEl('cr-fmt-menu'); if(!m || m.hidden || !_crNoCreative()) return;
+  const li = [...m.children], k = li.indexOf(document.activeElement);
+  if(e.key === 'ArrowDown'){ e.preventDefault(); li[(k + 1) % li.length].focus(); }
+  else if(e.key === 'ArrowUp'){ e.preventDefault(); li[(k - 1 + li.length) % li.length].focus(); }
+  else if(e.key === 'Enter' || e.key === ' '){ if(k >= 0){ e.preventDefault(); crEscolheFormato(li[k].dataset.fmt); } }
+  else if(e.key === 'Escape' || e.key === 'Tab'){ _crMenuFmt(false); if(e.key === 'Escape'){ e.stopPropagation(); const b = _crEl('cr-fmt-btn'); if(b) b.focus({ preventScroll: true }); } }
+}, true);
+// Barra do topo ganha a linha (e o vidro) só quando há conteúdo passando por baixo dela
+(function(){
+  const p = _crEl('cr-palco'); if(!p) return;
+  p.addEventListener('scroll', () => { const v = _crEl('view-creative'); if(v) v.classList.toggle('cr-rolou', p.scrollTop > 8); }, { passive: true });
+})();
 
 function crEnviar(e){
   if(e && e.preventDefault) e.preventDefault();
-  if(crState.rodando) return;
+  // o botão vira "parar" durante a geração; Enter nunca chega aqui nesse estado (crTecla)
+  if(crState.rodando){ if(e && e.type === 'submit') crParar(); return; }
   const inp = _crEl('cr-pedido'), conv = _crEl('cr-conversa');
   const pedido = String((inp && inp.value) || '').trim();
   if(!pedido || !conv) return;
+  _crMenuFmt(false);
   // Imagem anexada com "referência / nessa pegada / parecido" é REFERÊNCIA para o designer, não a foto da arte
   const ehRef = !!crState.anexo && /refer[eê]ncia|pegada|parecid|inspira|nesse estilo|nesse jeito/i.test(pedido);
-  const fio = { pedido, fmt: _crFormatoDito(pedido) || 'feed', marca: _crMarcaDita(pedido) ? 'much' : 'dm', foto: ehRef ? null : crState.anexo, ref: ehRef ? crState.anexo : null, briefing: null, conteudo: null, legenda: null, mostradas: [], viaIA: false };
+  // O que a pessoa ESCREVEU vence o compositor: "story" no texto ganha do formato marcado no menu
+  const fio = { pedido, fmt: _crFormatoDito(pedido) || crState.fmt || 'feed', marca: _crMarcaDita(pedido) || crState.much ? 'much' : 'dm', foto: ehRef ? null : crState.anexo, ref: ehRef ? crState.anexo : null, briefing: null, conteudo: null, legenda: null, mostradas: [], viaIA: false };
   crState.fios.push(fio);
   inp.value = ''; crAutoAltura(inp); crTirarAnexo();
+  // A tela de boas-vindas recolhe (altura real, não some de repente) e "Nova arte" acende
+  const v = _crEl('view-creative'); if(v) v.classList.add('cr-conversando');
+  const nova = _crEl('cr-nova'); if(nova) nova.disabled = false;
   const m = document.createElement('div');
   m.className = 'cr-msg cr-eu cr-entra';
   m.innerHTML = '<div class="cr-corpo">' + (/^data:/.test(fio.foto || '') || fio.ref ? '<img class="cr-bolha-foto" alt="' + (fio.ref ? 'Referência enviada' : 'Foto enviada') + '" src="' + (fio.foto || fio.ref) + '">' : '')
     + '<div class="cr-bolha">' + gEsc(pedido) + '</div></div>';
   conv.appendChild(m);
+  _crRola(true);
   crGerar(fio, conv);
+}
+// Recomeça do zero: o que está na tela só existe na memória desta sessão, então confirma antes
+async function crNova(){
+  const conv = _crEl('cr-conversa'); if(!conv || !crState.fios.length) return;
+  const ok = await gConfirm('Começar uma arte nova? As opções desta conversa saem da tela.', { title: 'Nova arte', okLabel: 'Começar de novo', cancelLabel: 'Continuar aqui' });
+  if(!ok) return;
+  crParar();
+  crState.rodando = null; _crOcupado(false);
+  conv.classList.add('cr-saindo');
+  await _crEsp(220);
+  conv.innerHTML = ''; conv.classList.remove('cr-saindo');
+  crState.fios = []; crState.fmt = null; crTirarAnexo(); crLigaMuch(false); _crRotuloFmt();
+  const v = _crEl('view-creative'); if(v) v.classList.remove('cr-conversando', 'cr-rolou');
+  const nova = _crEl('cr-nova'); if(nova) nova.disabled = true;
+  const p = _crEl('cr-palco'); if(p) p.scrollTo({ top: 0 });
+  const i = _crEl('cr-pedido'); if(i) i.focus({ preventScroll: true });
 }
 function crOutrasOpcoes(fio){
   if(crState.rodando) return;
@@ -2124,9 +2234,11 @@ function crOutrasOpcoes(fio){
 async function crGerar(fio, conv, outras){
   const run = { parado: false, cancelar: null };
   crState.rodando = run;
-  document.body.classList.add('cr-ocupado');
-  const msg = _crMsgIA(conv), corpo = msg.querySelector('.cr-corpo');
+  _crOcupado(true);
+  const msg = _crMsgIA(conv), corpo = msg.querySelector('.cr-corpo'), t0 = Date.now();
   msg.querySelector('.cr-bolha').remove();
+  msg.classList.add('cr-pensando');
+  let esq = null;   // esqueleto das opções: ocupa o lugar exato da entrega enquanto o motor diagrama
   const lista = document.createElement('ul'); lista.className = 'cr-passos';
   corpo.appendChild(lista);
   let status = _crStatus(corpo);
@@ -2181,6 +2293,7 @@ async function crGerar(fio, conv, outras){
 
     // 3) Diagramação: todas as famílias que servem, conferidas pelas regras da marca
     p = _crPasso(lista, outras ? 'Diagramando outros caminhos' : 'Diagramando as opções');
+    esq = _crEsqueleto(fio.fmt); msg.after(esq); _crRola();
     await crFontesProntas();
     // Cada rodada de "Outras opções" muda as proporções: família que volta não volta idêntica
     fio.rodada = (fio.rodada || 0) + (outras ? 1 : 0);
@@ -2240,10 +2353,17 @@ async function crGerar(fio, conv, outras){
     const fala = document.createElement('div'); fala.className = 'cr-bolha';
     corpo.appendChild(fala);
     const f = CR_FORMATOS[opcoes[0].spec.formato];
-    await _crDigita(fala, outras ? 'Mais ' + opcoes.length + ' caminhos, de famílias diferentes das anteriores.'
-      : ((fio.viaIA && opcoes[0].spec.resumo) ? opcoes[0].spec.resumo + ' ' : '') + 'Separei ' + opcoes.length + ' opções em ' + f.nome.toLowerCase() + ': escolha uma, ajuste no editor se quiser e baixe.');
-    conv.appendChild(_crEntrega(fio, opcoes));
-    _crRola();
+    if(run.parado) return;
+    await _crDigita(fala, outras ? 'Mais ' + opcoes.length + (opcoes.length > 1 ? ' caminhos, de famílias diferentes' : ' caminho, de família diferente') + ' das anteriores.'
+      : ((fio.viaIA && opcoes[0].spec.resumo) ? opcoes[0].spec.resumo + ' ' : '') + 'Separei ' + opcoes.length + (opcoes.length > 1 ? ' opções' : ' opção') + ' em ' + f.nome.toLowerCase() + ': escolha uma, ajuste no editor se quiser e baixe.');
+    if(run.parado) return;
+    const ent = _crEntrega(fio, opcoes);
+    // a pessoa estava no fim? então a entrega (o destino) sobe até o topo da tela dela
+    const seguia = (() => { const pl = _crEl('cr-palco'); return !pl || pl.scrollHeight - pl.scrollTop - pl.clientHeight < 200; })();
+    if(esq && esq.isConnected) esq.replaceWith(ent); else conv.appendChild(ent);
+    esq = null;
+    _crResumo(corpo, lista, t0);
+    if(seguia) requestAnimationFrame(() => ent.scrollIntoView({ block: 'start', behavior: _crReduz() ? 'auto' : 'smooth' }));
     if(typeof gTrackEvent === 'function') try{ gTrackEvent('creative_arte', { objetivo: opcoes[0].spec.objetivo, formato: opcoes[0].spec.formato, marca: opcoes[0].spec.marca, ia: fio.viaIA, juiz: !!juiz, foto: !!fio.foto, ref: !!fio.ref,
       receitas: opcoes.map(o => o.receita).join(','), designer: Object.assign({}, crMetricas), notas: juiz ? opcoes.map(o => o.juiz ? +o.juiz.nota.toFixed(1) : null).join(',') : '' }); }catch(err){}
   }catch(err){
@@ -2251,9 +2371,36 @@ async function crGerar(fio, conv, outras){
     status.parar();
     aviso('Não consegui compor a arte agora (' + ((err && err.message) || 'erro') + '). Tente de novo.');
   }finally{
-    if(crState.rodando === run) crState.rodando = null;
-    document.body.classList.remove('cr-ocupado');
+    if(esq) esq.remove();
+    msg.classList.remove('cr-pensando');
+    if(crState.rodando === run){ crState.rodando = null; _crOcupado(false); }
   }
+}
+
+// Esqueleto da entrega: a mesma casca e a mesma proporção do formato, para a arte "revelar" no lugar
+function _crEsqueleto(fmt){
+  const f = CR_FORMATOS[fmt] || CR_FORMATOS.feed, w = f.w || CR_W, h = f.h;
+  const el = document.createElement('section');
+  el.className = 'cr-entrega cr-esq'; el.setAttribute('aria-hidden', 'true');
+  el.innerHTML = '<header class="cr-ent-cab"><div><span class="cr-esq-l" style="width:132px;height:22px"></span><span class="cr-esq-l" style="width:210px;margin-top:10px"></span></div></header>'
+    + '<div class="cr-ops' + (w > h * 1.2 ? ' cr-ops-deitadas' : '') + '">'
+    + [0, 1, 2].map(i => '<div class="cr-op" style="--i:' + i + '"><span class="cr-op-arte cr-esq-arte" style="aspect-ratio:' + w + '/' + h + '"></span><span class="cr-esq-l" style="width:' + (96 + i * 18) + 'px"></span></div>').join('') + '</div>';
+  return el;
+}
+// Depois da entrega, as etapas viram uma linha ("Trabalhou por 14 s · 6 etapas") que abre a lista:
+// a diagramação é o assunto, o making-of fica a um clique
+function _crResumo(corpo, lista, t0){
+  if(!lista || !lista.isConnected || !lista.children.length) return;
+  const s = Math.max(1, Math.round((Date.now() - t0) / 1000)), n = lista.children.length;
+  const w = document.createElement('div');
+  w.className = 'cr-trab aberto';
+  w.innerHTML = '<button type="button" class="cr-trab-cab" aria-expanded="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span>Trabalhou por ' + s + ' s · ' + n + (n > 1 ? ' etapas' : ' etapa') + '</span></button><div class="cr-trab-corpo"><div class="cr-trab-in"></div></div>';
+  lista.replaceWith(w);
+  w.querySelector('.cr-trab-in').appendChild(lista);
+  const b = w.querySelector('.cr-trab-cab');
+  b.addEventListener('click', () => b.setAttribute('aria-expanded', String(w.classList.toggle('aberto'))));
+  // recolhe depois de a pessoa ver o último passo fechar: a altura anima até 0, não "pula"
+  setTimeout(() => { w.classList.remove('aberto'); b.setAttribute('aria-expanded', 'false'); }, _crReduz() ? 0 : 900);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2274,11 +2421,11 @@ function _crEntrega(fio, ops){
   const f = CR_FORMATOS[ops[0].spec.formato];
   let sel = 0;
   const rotulo = (o, i) => '<span class="cr-op-rot"><b>' + (i + 1) + '</b><span>' + gEsc(o.nomeReceita) + '</span>' + (o.editada ? '<em>editada</em>' : '') + '</span>';
-  el.innerHTML = '<header class="cr-ent-cab"><div><h3>Sua arte</h3><p>' + ops.length + ' opções · ' + gEsc(f.nome) + ' ' + gEsc(f.desc.split(',')[0]) + '</p></div>'
-    + '<span class="cr-ent-selo">' + (ops[0].juiz ? 'Revisada pela IA' : 'Conferida nas regras da marca') + ' · Testes</span></header>'
+  el.innerHTML = '<header class="cr-ent-cab"><div><h3>Sua arte</h3><p>' + ops.length + (ops.length > 1 ? ' opções' : ' opção') + ' · ' + gEsc(f.nome) + ' ' + gEsc(f.desc.split(',')[0]) + '</p></div>'
+    + '<span class="cr-ent-selo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>' + (ops[0].juiz ? 'Revisada pela IA' : 'Conferida nas regras da marca') + '</span></header>'
     + '<div class="cr-ops' + (ops[0].w > ops[0].h * 1.2 ? ' cr-ops-deitadas' : '') + '" role="radiogroup" aria-label="Opções de arte">'
     + ops.map((o, i) => '<button type="button" class="cr-op' + (i ? '' : ' on') + '" role="radio" aria-checked="' + (i ? 'false' : 'true') + '" data-i="' + i + '">'
-      + '<span class="cr-op-arte"' + (CR_FORMATOS[o.spec.formato].laminas ? ' data-laminas="' + CR_FORMATOS[o.spec.formato].laminas + '"' : '') + ' style="aspect-ratio:' + o.w + '/' + o.h + '"><img alt="Opção ' + (i + 1) + ': ' + gEsc(o.nomeReceita) + '" src="' + o.url + '"></span>'
+      + '<span class="cr-op-arte"' + (CR_FORMATOS[o.spec.formato].laminas ? ' data-laminas="' + CR_FORMATOS[o.spec.formato].laminas + '"' : '') + ' style="aspect-ratio:' + o.w + '/' + o.h + '"><img alt="Opção ' + (i + 1) + ': ' + gEsc(o.nomeReceita) + '" src="' + o.url + '"><span class="cr-op-ok" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>'
       + rotulo(o, i) + (o.juiz && o.juiz.porque ? '<span class="cr-op-pq">' + gEsc(o.juiz.porque) + '</span>' : '') + '</button>').join('')
     + '</div>'
     + '<div class="cr-acoes">'
@@ -2315,7 +2462,7 @@ function _crEntrega(fio, ops){
     if(b.dataset.acao === 'png'){ crAprende(ops[sel], 'baixou'); return crBaixarPNG(ops[sel], b); }
     if(b.dataset.acao === 'editar') return abre(sel);
     if(b.dataset.acao === 'outras') return crOutrasOpcoes(fio);
-    if(b.dataset.acao === 'copiar') return crCopiar(fio.legenda);
+    if(b.dataset.acao === 'copiar') return crCopiar(fio.legenda, b);
   });
   return el;
 }
@@ -2688,8 +2835,16 @@ function crEditar(op, aoSalvar){
   requestAnimationFrame(() => host.focus({ preventScroll: true }));
 }
 
-function crCopiar(txt){
-  const ok = () => gToast('Legenda copiada', 'success');
+// Retorno no próprio botão: troca o rótulo por "Copiado" com o check e devolve depois
+function _crOk(btn, rot){
+  if(!btn || btn.classList.contains('cr-ok')) return;
+  const html = btn.innerHTML;
+  btn.classList.add('cr-ok');
+  btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>' + rot;
+  setTimeout(() => { btn.classList.remove('cr-ok'); btn.innerHTML = html; }, 1700);
+}
+function crCopiar(txt, btn){
+  const ok = () => { _crOk(btn, 'Copiado'); gToast('Legenda copiada', 'success'); };
   if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(ok, () => gToast('Não foi possível copiar', 'error'));
   else gToast('Não foi possível copiar', 'error');
 }
@@ -2708,7 +2863,7 @@ function crBaixarPNG(v, btn){
         setTimeout(() => { document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }, i * 400);
       }, 'image/png');
     }
-    setTimeout(() => { if(btn) btn.disabled = false; gToast(nl + ' lâminas baixadas', 'success'); }, nl * 400);
+    setTimeout(() => { if(btn) btn.disabled = false; _crOk(btn, 'Baixado'); gToast(nl + ' lâminas baixadas', 'success'); }, nl * 400);
   };
   else im.onload = () => {
     const k = CR_FORMATOS[v.spec.formato].png || 1;     // banner do app e capa saem @2x (skill §3.5)
@@ -2722,7 +2877,7 @@ function crBaixarPNG(v, btn){
       a.download = 'luma-creative-' + v.spec.objetivo + '-' + v.receita + '-' + v.spec.formato + '.png';
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-      gToast('PNG baixado', 'success');
+      _crOk(btn, 'Baixado'); gToast('PNG baixado', 'success');
     }, 'image/png');
   };
   im.onerror = () => { if(btn) btn.disabled = false; gToast('Não foi possível gerar o PNG', 'error'); };

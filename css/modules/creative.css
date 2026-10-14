@@ -2,22 +2,31 @@
  * css/modules/creative.css
  *
  * Luma Creative (js/creative/creative.js) — modo em testes, só gestão.
- * Claro e minimalista: papel quente, superfícies brancas, uma cor de acento (o laranja da marca)
- * e o motion de terminal do chat (glifo, passos ⏺/⎿, perguntas numeradas, texto digitado).
- * Tokens --cr-* em 00-tokens.css. Tudo some com prefers-reduced-motion.
+ * Conversa de agente no jeito Claude Code / Codex (etapas como chamadas de ferramenta, pergunta
+ * com atalhos, "trabalhou por Xs", compositor com parar), vestida com a gramática do Luma:
+ * superfícies --cr-* (claro e escuro, 00-tokens.css), laranja como único acento, hover NEUTRO,
+ * ligado = --press-*, aperto de botão = a regra global (nenhum :active{transform} aqui),
+ * motion só por token. Tudo some com prefers-reduced-motion (no fim do arquivo).
  */
 
 /* ── Entrada do modo: revela em círculo a partir da aba ── */
 body.mode-creative #view-creative{ display:flex!important; opacity:1; transform:none; filter:none }
 #view-creative.cr-revelando{ animation:crRevela var(--dur-celebration) var(--ease-out) both }
 @keyframes crRevela{ from{ clip-path:circle(0 at var(--cr-ox,70%) 0) } to{ clip-path:circle(200% at var(--cr-ox,70%) 0) } }
-#view-creative.cr-itens .cr-cab,
-#view-creative.cr-itens .cr-conversa > *{ animation:crSobe var(--dur-celebration) var(--ease-out) both }
-#view-creative.cr-itens .cr-cab{ animation-delay:60ms }
-#view-creative.cr-itens .cr-conversa > *:nth-child(1){ animation-delay:140ms }
-#view-creative.cr-itens .cr-conversa > *:nth-child(n+2){ animation-delay:200ms }
+/* fill-mode `backwards` (não `both`): `both` congelaria o transform e mataria hover e aperto (motion.md §2) */
+#view-creative.cr-itens .cr-barra{ animation:crDesce var(--dur-slow) var(--ease-out) 80ms backwards }
+#view-creative.cr-itens .cr-compositor-in{ animation:crSobe var(--dur-slow) var(--ease-out) 260ms backwards }
+#view-creative.cr-itens .cr-boas [data-i]{ animation:crSobe var(--dur-slow) var(--ease-out) calc(140ms + var(--i,0) * 55ms) backwards }
+#view-creative.cr-itens .cr-boas .cr-boas-marca{ animation:crPop var(--dur-celebration) var(--ease-spring) 120ms backwards }
+#view-creative.cr-itens .cr-boas .cr-boas-tit span[data-i]{ animation:crPalavra var(--dur-celebration) var(--ease-out) calc(200ms + var(--i,0) * 90ms) backwards }
 @keyframes crSobe{ from{ opacity:0; transform:translateY(12px) } to{ opacity:1; transform:none } }
+@keyframes crDesce{ from{ opacity:0; transform:translateY(-8px) } to{ opacity:1; transform:none } }
 @keyframes crSurge{ from{ opacity:0; transform:scale(.985) } to{ opacity:1; transform:none } }
+@keyframes crPop{ from{ opacity:0; transform:scale(.5) rotate(-12deg) } to{ opacity:1; transform:none } }
+@keyframes crPalavra{ from{ opacity:0; transform:translateY(.45em); filter:blur(6px) } to{ opacity:1; transform:none; filter:none } }
+@keyframes crPisca{ 50%{ opacity:0 } }
+@keyframes crBrilho{ from{ background-position:100% 0 } to{ background-position:-50% 0 } }
+@keyframes crPulso{ 0%{ box-shadow:0 0 0 0 color-mix(in srgb,var(--dm-orange-d) 45%,transparent) } 100%{ box-shadow:0 0 0 7px transparent } }
 
 /* Aba "Creative" com a tag Testes */
 .cr-tag-testes{
@@ -28,81 +37,166 @@ body.mode-creative #view-creative{ display:flex!important; opacity:1; transform:
 
 /* ── View ── */
 #view-creative{
-  position:relative; flex-direction:column;
+  --cr-barra-h:48px; --cr-gut:max(16px,env(safe-area-inset-left,0px));
+  position:relative; flex-direction:column; overflow:hidden;
   height:calc(100vh - 52px); height:calc(100dvh - 52px - var(--safe-top));
   background:var(--cr-bg); color:var(--cr-text); font-family:'Roboto',sans-serif;
 }
-.cr-palco{ flex:1; min-height:0; overflow-y:auto; scrollbar-color:var(--cr-line2) transparent }
-.cr-coluna{ max-width:820px; margin:0 auto; padding:40px max(16px,env(safe-area-inset-right,0px)) 180px max(16px,env(safe-area-inset-left,0px)) }
-.cr-cab{ display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:32px }
-.cr-cab h1{ margin:0; font:900 clamp(30px,5vw,44px)/.9 'Realce','Roboto',sans-serif; letter-spacing:.5px; text-transform:uppercase; color:var(--cr-text) }
-.cr-cab h1 span{ color:var(--dm-orange-d) }
-.cr-cab p{ margin:10px 0 0; color:var(--cr-text2); font-size:14px; max-width:54ch; line-height:1.55 }
-.cr-aviso{ display:flex; align-items:center; gap:7px; color:var(--cr-text3); font-size:12px }
+/* Brilho de marca no topo: parado em repouso, respira enquanto a IA trabalha */
+#view-creative::before{ content:''; position:absolute; inset:0 0 auto 0; height:380px; z-index:0; pointer-events:none;
+  background:radial-gradient(60% 100% at 50% 0,var(--cr-acento-bg),transparent 72%); opacity:.9 }
+body.cr-ocupado #view-creative::before{ animation:crGlow 2.6s var(--ease-standard) infinite alternate }
+@keyframes crGlow{ from{ opacity:.55 } to{ opacity:1 } }
+#view-creative kbd{ display:inline-block; min-width:18px; padding:2px 5px; border-radius:5px; border:1px solid var(--cr-line2); border-bottom-width:2px;
+  background:var(--cr-surf2); color:var(--cr-text2); font:600 10.5px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; text-align:center; vertical-align:1px }
+
+/* Fio de progresso sob a barra: a IA está trabalhando */
+.cr-fio{ position:absolute; z-index:7; left:0; right:0; top:var(--cr-barra-h); height:2px; overflow:hidden; opacity:0; pointer-events:none; transition:opacity var(--dur-base) var(--ease-out) }
+.cr-fio::before{ content:''; position:absolute; inset:0 auto 0 0; width:38%;
+  background:linear-gradient(90deg,transparent,var(--dm-orange),var(--dm-yellow),transparent); animation:crFio 1.5s var(--ease-standard) infinite }
+body.cr-ocupado .cr-fio{ opacity:1 }
+@keyframes crFio{ from{ transform:translateX(-100%) } to{ transform:translateX(265%) } }
+
+/* Barra: transparente em cima; ganha vidro e linha quando há conteúdo passando por baixo */
+.cr-barra{ position:absolute; z-index:6; top:0; left:0; right:0; height:var(--cr-barra-h); display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:0 max(16px,calc((100% - 880px) / 2 + 16px)); border-bottom:1px solid transparent;
+  transition:background var(--dur-base) var(--ease-standard),border-color var(--dur-base) var(--ease-standard),backdrop-filter var(--dur-base) }
+.cr-rolou .cr-barra{ background:var(--cr-vidro); border-bottom-color:var(--cr-line); -webkit-backdrop-filter:blur(14px) saturate(1.3); backdrop-filter:blur(14px) saturate(1.3) }
+.cr-barra-id{ display:flex; align-items:center; gap:8px; min-width:0 }
+.cr-barra-id b{ font:900 14px/1 'Roboto',sans-serif; letter-spacing:.02em; color:var(--cr-text) }
+.cr-marca{ width:24px; height:24px; display:grid; place-items:center; border-radius:8px; background:var(--dm-orange); color:var(--on-orange) }
+.cr-barra-fim{ display:flex; align-items:center; gap:10px }
+.cr-aviso{ display:inline-flex; align-items:center; gap:6px; color:var(--cr-text3); font-size:12px }
+
+/* ── Palco ── */
+.cr-palco{ position:relative; z-index:1; flex:1; min-height:0; overflow-y:auto; scrollbar-color:var(--cr-line2) transparent; overscroll-behavior:contain }
+.cr-coluna{ min-height:100%; display:flex; flex-direction:column; max-width:880px; margin:0 auto;
+  padding:calc(var(--cr-barra-h) + 28px) max(16px,env(safe-area-inset-right,0px)) 210px var(--cr-gut) }
+
+/* ── Boas-vindas: aparecem sem conversa e recolhem (altura real) quando o primeiro pedido sai ── */
+.cr-boas{ display:grid; grid-template-rows:1fr; margin:auto 0; transition:grid-template-rows var(--dur-slow) var(--ease-out),opacity var(--dur-base) var(--ease-out),margin var(--dur-slow) var(--ease-out) }
+.cr-conversando .cr-boas{ grid-template-rows:0fr; opacity:0; margin:0; visibility:hidden;
+  transition:grid-template-rows var(--dur-slow) var(--ease-out),opacity var(--dur-base) var(--ease-out),margin var(--dur-slow) var(--ease-out),visibility 0s linear var(--dur-slow) }
+/* padding + margem negativa (somam zero): o overflow cortaria a aura da marca, a sombra e o lift dos cartões */
+.cr-boas-in{ min-height:0; overflow:hidden; padding:24px; margin:-24px; display:flex; flex-direction:column; align-items:flex-start; gap:16px }
+.cr-boas-marca{ position:relative; isolation:isolate; width:52px; height:52px; display:grid; place-items:center; border-radius:16px; color:var(--on-orange);
+  box-shadow:0 10px 28px color-mix(in srgb,var(--dm-orange-d) 26%,transparent) }
+.cr-boas-marca::before{ content:''; position:absolute; inset:0; z-index:-1; border-radius:inherit; background:var(--dm-orange) }
+.cr-boas-marca::after{ content:''; position:absolute; inset:-3px; z-index:-2; border-radius:19px; filter:blur(5px); opacity:.55;
+  background:conic-gradient(from 0deg,var(--dm-orange-d),var(--dm-yellow),var(--dm-orange-d)); animation:gAuraRotate 6s linear infinite }
+.cr-boas-tit{ margin:0; font:900 clamp(32px,5.4vw,52px)/.96 'Realce','Roboto',sans-serif; letter-spacing:.5px; text-transform:uppercase; color:var(--cr-text); text-wrap:balance }
+.cr-boas-tit span{ display:inline-block }
+/* "hoje?" recebe UM brilho depois de entrar (e fica laranja chapado): atenção sem ficar piscando */
+.cr-dest{ background:linear-gradient(100deg,var(--dm-orange-d) 38%,var(--dm-yellow) 50%,var(--dm-orange-d) 62%) 100% 0/260% 100%;
+  -webkit-background-clip:text; background-clip:text; color:transparent; animation:crBrilho 1.7s var(--ease-out) 900ms 1 both }
+.cr-boas-sub{ margin:0; max-width:58ch; text-wrap:pretty; font-size:15px; line-height:1.6; color:var(--cr-text2) }
+.cr-ideias{ width:100%; display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:10px; margin-top:6px }
+.cr-ideia{ display:flex; align-items:flex-start; gap:12px; min-width:0; padding:12px 14px; text-align:left; cursor:pointer; color:inherit;
+  border:1px solid var(--cr-line); border-radius:var(--r); background:var(--cr-surf);
+  transition:transform var(--dur-fast) var(--ease-spring-soft),border-color var(--dur-fast) var(--ease-standard),background var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard) }
+.cr-ideia:hover{ transform:translateY(-2px); border-color:var(--cr-line2); background:var(--cr-surf2); box-shadow:var(--cr-sh1) }
+.cr-ideia-ico{ flex:none; width:34px; height:34px; display:grid; place-items:center; border-radius:9px; background:var(--cr-surf2); color:var(--cr-text2);
+  transition:background var(--dur-fast),color var(--dur-fast),transform var(--dur-base) var(--ease-spring) }
+.cr-ideia:hover .cr-ideia-ico{ background:var(--cr-acento-bg); color:var(--dm-orange-text); transform:rotate(-6deg) scale(1.06) }
+.cr-ideia-txt{ min-width:0; display:flex; flex-direction:column; gap:3px }
+.cr-ideia-txt b{ font-size:13.5px; font-weight:700; color:var(--cr-text) }
+.cr-ideia-txt span{ font-size:12.5px; line-height:1.4; color:var(--cr-text2); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden }
 
 /* ── Conversa ── */
-.cr-conversa{ display:flex; flex-direction:column; gap:22px }
+.cr-conversa{ display:flex; flex-direction:column; gap:24px; transition:opacity var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-out) }
+.cr-conversa.cr-saindo{ opacity:0; transform:translateY(-6px) }
 .cr-msg{ display:flex; gap:12px; align-items:flex-start }
 .cr-msg.cr-eu{ justify-content:flex-end }
-.cr-entra{ animation:crSobe var(--dur-slow) var(--ease-out) both }
-.cr-corpo{ min-width:0; max-width:min(640px,100%); display:flex; flex-direction:column; gap:12px }
-.cr-eu .cr-corpo{ align-items:flex-end; max-width:min(520px,85%) }
-.cr-ava{ flex:none; width:28px; height:28px; border-radius:50%; display:grid; place-items:center; background:var(--dm-orange-d); color:var(--white) }
-.cr-ava svg{ width:13px; height:13px }
+.cr-entra{ animation:crSobe var(--dur-slow) var(--ease-out) backwards }
+.cr-eu.cr-entra{ animation-name:crEntraEu; animation-timing-function:var(--ease-spring-soft) }
+@keyframes crEntraEu{ from{ opacity:0; transform:translateY(18px) scale(.97) } to{ opacity:1; transform:none } }
+.cr-corpo{ min-width:0; max-width:min(680px,100%); display:flex; flex-direction:column; gap:12px }
+.cr-eu .cr-corpo{ align-items:flex-end; max-width:min(540px,86%) }
+/* Avatar da IA: a mesma aura giratória do bot do chat do franqueado, ligada só enquanto trabalha */
+.cr-ava{ position:relative; isolation:isolate; flex:none; width:28px; height:28px; border-radius:9px; display:grid; place-items:center; color:var(--on-orange) }
+.cr-ava::before{ content:''; position:absolute; inset:0; z-index:-1; border-radius:inherit; background:var(--dm-orange) }
+.cr-ava::after{ content:''; position:absolute; inset:-3px; z-index:-2; border-radius:12px; filter:blur(4px); opacity:0; transition:opacity var(--dur-base) var(--ease-standard);
+  background:conic-gradient(from 0deg,var(--dm-orange-d),var(--dm-yellow),var(--dm-orange-d)) }
+.cr-pensando .cr-ava::after{ opacity:.75; animation:gAuraRotate 3.6s linear infinite }
+.cr-ava svg{ width:14px; height:14px }
 .cr-bolha{ font-size:15px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; color:var(--cr-text) }
-.cr-eu .cr-bolha{ padding:10px 14px; border-radius:16px 16px 4px 16px; background:var(--cr-surf2) }
+.cr-eu .cr-bolha{ padding:10px 14px; border-radius:14px 14px 4px 14px; background:var(--cr-surf2); border:1px solid var(--cr-line) }
 .cr-interrompido{ color:var(--cr-text2); font-size:14px }
-.cr-bolha-foto{ display:block; max-width:200px; max-height:200px; border-radius:12px; object-fit:cover; border:1px solid var(--cr-line) }
+.cr-bolha-foto{ display:block; max-width:200px; max-height:200px; border-radius:var(--r); object-fit:cover; border:1px solid var(--cr-line) }
 .cr-cursor{ display:inline-block; width:.5em; height:1.05em; margin-left:1px; vertical-align:-.15em; background:var(--dm-orange-d); animation:crPisca 1s steps(1) infinite }
-@keyframes crPisca{ 50%{ opacity:0 } }
 
-/* Status de terminal: ✻ Compondo… (4s · esc para interromper) */
+/* Status de terminal: ✻ Compondo… 4s            esc interrompe */
 .cr-status{ display:flex; align-items:baseline; gap:8px; font:400 13px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; transition:opacity var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-out) }
 .cr-status.cr-some{ opacity:0; transform:translateY(-4px) }
-.cr-glifo{ width:1ch; color:var(--dm-orange-d); text-align:center }
+.cr-glifo{ width:1ch; color:var(--dm-orange-text); text-align:center }
 .cr-verbo{
-  background:linear-gradient(90deg,var(--dm-orange-d) 0%,var(--dm-orange-d) 40%,var(--dm-yellow) 50%,var(--dm-orange-d) 60%,var(--dm-orange-d) 100%);
+  background:linear-gradient(90deg,var(--dm-orange-text) 0%,var(--dm-orange-text) 40%,var(--dm-yellow) 50%,var(--dm-orange-text) 60%,var(--dm-orange-text) 100%);
   background-size:300% 100%; -webkit-background-clip:text; background-clip:text; color:transparent;
   animation:crBrilho 2.2s linear infinite; transition:opacity var(--dur-fast),transform var(--dur-fast) var(--ease-out);
 }
 .cr-verbo.cr-sai{ opacity:0; transform:translateY(-3px) }
-@keyframes crBrilho{ from{ background-position:100% 0 } to{ background-position:-50% 0 } }
 .cr-tempo{ color:var(--cr-text3); font-variant-numeric:tabular-nums }
+.cr-esc{ margin-left:auto; display:inline-flex; align-items:center; gap:6px; color:var(--cr-text3); font:400 11.5px/1 'Roboto',sans-serif }
 
-/* Passos como chamadas de ferramenta: ⏺ título / ⎿ resultado */
-.cr-passos{ list-style:none; margin:0; padding:0; display:grid; gap:8px; font:400 13px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace }
-.cr-passo{ animation:crSobe var(--dur-base) var(--ease-out) both }
+/* Etapas como chamadas de ferramenta, num trilho: ● título / └ resultado */
+.cr-passos{ list-style:none; margin:0; padding:0; display:grid; font:400 13px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace }
+.cr-passo{ position:relative; padding:0 0 10px 22px; animation:crSobe var(--dur-base) var(--ease-out) backwards }
+.cr-passo::before{ content:''; position:absolute; left:4px; top:17px; bottom:-1px; width:1px; background:var(--cr-line2) }
+.cr-passo:last-child{ padding-bottom:2px }
+.cr-passo:last-child::before{ display:none }
 .cr-passo-cab{ display:flex; align-items:baseline; gap:8px; color:var(--cr-text) }
-.cr-bola{ flex:none; font-size:10px; color:var(--cr-text3); transition:color var(--dur-fast) }
-.cr-agora .cr-bola{ color:var(--dm-orange-d); animation:crPisca 900ms steps(1) infinite }
-.cr-feito .cr-bola{ color:var(--green-text) }
-.cr-erro .cr-bola{ color:var(--dm-orange) }
-.cr-agora .cr-passo-tit{ color:var(--cr-text2) }
+.cr-bola{ position:absolute; left:0; top:5px; width:9px; height:9px; border-radius:50%; background:var(--cr-surf3); box-shadow:0 0 0 3px var(--cr-bg); transition:background var(--dur-fast) }
+.cr-agora .cr-bola{ background:var(--dm-orange-d); animation:crPulso 1.3s var(--ease-out) infinite }
+.cr-feito .cr-bola{ background:var(--green); animation:crPop var(--dur-base) var(--ease-spring) }
+.cr-erro .cr-bola{ background:var(--dm-orange) }
+.cr-passo-tit{ transition:color var(--dur-fast) }
+.cr-agora .cr-passo-tit{
+  background:linear-gradient(90deg,var(--cr-text2) 35%,var(--cr-text) 50%,var(--cr-text2) 65%); background-size:300% 100%;
+  -webkit-background-clip:text; background-clip:text; color:transparent; animation:crBrilho 1.9s linear infinite }
 .cr-passo-t{ margin-left:auto; color:var(--cr-text3); font-size:11.5px; font-variant-numeric:tabular-nums; white-space:nowrap }
-.cr-passo-res{ display:flex; gap:8px; padding-left:4px; color:var(--cr-text2); animation:crSobe var(--dur-base) var(--ease-out) both }
+.cr-passo-res{ display:flex; gap:8px; padding:3px 0 0 1px; color:var(--cr-text2); font-size:12.5px; animation:crSobe var(--dur-base) var(--ease-out) backwards }
 .cr-passo-res[hidden]{ display:none }
+.cr-elo{ flex:none; width:10px; height:10px; margin-top:-4px; border-left:1.5px solid var(--cr-line2); border-bottom:1.5px solid var(--cr-line2); border-bottom-left-radius:5px }
 .cr-passo-txt{ min-width:0; overflow-wrap:anywhere }
 
+/* "Trabalhou por 14 s · 6 etapas": a lista recolhe depois da entrega e abre com um clique */
+.cr-trab-cab{ display:inline-flex; align-items:center; gap:6px; height:28px; padding:0 10px 0 6px; border:0; border-radius:var(--r-pill); background:none; color:var(--cr-text2); font:500 12.5px/1 'Roboto',sans-serif; cursor:pointer;
+  transition:background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard),transform var(--release-dur) var(--release-ease) }
+.cr-trab-cab:hover{ background:var(--cr-surf2); color:var(--cr-text) }
+.cr-trab-cab svg{ transition:transform var(--dur-base) var(--ease-spring) }
+.cr-trab.aberto .cr-trab-cab svg{ transform:rotate(90deg) }
+.cr-trab-corpo{ display:grid; grid-template-rows:0fr; visibility:hidden; transition:grid-template-rows var(--dur-base) var(--ease-out),visibility 0s linear var(--dur-base) }
+.cr-trab.aberto .cr-trab-corpo{ grid-template-rows:1fr; visibility:visible; transition-delay:0s }
+.cr-trab-in{ min-height:0; overflow:hidden; padding:10px 0 0 4px }
+
 /* ── Pergunta do briefing (jeito Claude Code: lista numerada, ❯ na escolhida) ── */
-.cr-pergunta{ padding:16px 16px 10px; border-radius:14px; background:var(--cr-surf); border:1px solid var(--cr-line); box-shadow:0 1px 2px rgba(67,67,67,.04),0 8px 24px rgba(67,67,67,.06); outline:none; transition:opacity var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-out) }
+.cr-pergunta{ padding:16px 16px 10px; border-radius:14px; background:var(--cr-surf); border:1px solid var(--cr-line); box-shadow:var(--cr-sh1); outline:none;
+  transition:opacity var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-out),border-color var(--dur-base) var(--ease-standard),box-shadow var(--dur-base) var(--ease-standard) }
+/* a pergunta captura o teclado: o contorno acende para dizer "é aqui que você responde" */
+.cr-pergunta:focus-within{ border-color:var(--cr-acento-ln); box-shadow:var(--cr-sh1),0 0 0 4px var(--cr-acento-bg) }
 #view-creative .cr-pergunta:focus,#view-creative .cr-pergunta:focus-visible{ outline:none!important; border-radius:14px }
 .cr-pergunta.cr-some{ opacity:0; transform:translateY(-6px) }
-.cr-q-troca .cr-q-txt,.cr-q-troca .cr-q-ops{ animation:crSobe var(--dur-base) var(--ease-out) both }
+.cr-q-troca .cr-q-txt,.cr-q-troca .cr-q-ops{ animation:crSobe var(--dur-base) var(--ease-out) backwards }
 .cr-q-troca .cr-q-ops{ animation-delay:40ms }
 .cr-q-topo{ display:flex; align-items:center; justify-content:space-between; gap:8px }
-.cr-q-chip{ color:var(--dm-orange-d); font:700 11px/1 'Roboto',sans-serif; letter-spacing:.08em; text-transform:uppercase }
-.cr-q-prog{ color:var(--cr-text3); font:400 11.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace }
+.cr-q-chip{ color:var(--dm-orange-text); font:700 11px/1 'Roboto',sans-serif; letter-spacing:.08em; text-transform:uppercase }
+.cr-q-prog{ display:flex; gap:4px; align-items:center }
+.cr-q-prog i{ display:block; width:14px; height:3px; border-radius:2px; background:var(--cr-line2); transition:width var(--dur-base) var(--ease-spring-soft),background var(--dur-base) }
+.cr-q-prog i.feita{ background:var(--dm-orange-d) }
+.cr-q-prog i.agora{ width:24px; background:var(--dm-orange-d) }
 .cr-q-txt{ margin:8px 0 10px; font-size:16px; font-weight:600; line-height:1.4; color:var(--cr-text) }
 .cr-q-ops{ list-style:none; margin:0; padding:0; display:grid; gap:2px; font:400 13.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace }
-.cr-q-op{ display:flex; align-items:baseline; gap:8px; padding:8px 10px; border-radius:10px; color:var(--cr-text2); cursor:pointer; transition:background var(--dur-fast),color var(--dur-fast) }
+.cr-q-op{ display:flex; align-items:baseline; gap:8px; padding:8px 10px; border-radius:var(--r); color:var(--cr-text2); cursor:pointer; transition:background var(--dur-fast),color var(--dur-fast) }
 .cr-q-op:hover{ background:var(--cr-surf2) }
-.cr-q-op.on{ background:var(--cr-acento-bg); color:var(--dm-orange-d) }
-.cr-q-seta{ width:1ch; opacity:0; transform:translateX(-3px); transition:opacity var(--dur-fast),transform var(--dur-fast) var(--ease-out) }
+.cr-q-op.on{ background:var(--cr-acento-bg); color:var(--dm-orange-text) }
+.cr-q-seta{ width:1ch; opacity:0; transform:translateX(-4px); transition:opacity var(--dur-fast),transform var(--dur-fast) var(--ease-out) }
 .cr-q-op.on .cr-q-seta{ opacity:1; transform:none }
+.cr-q-n{ min-width:2ch; color:var(--cr-text3); font-variant-numeric:tabular-nums }
+.cr-q-op.on .cr-q-n{ color:inherit }
 .cr-q-rot{ display:flex; flex-direction:column; gap:1px; font-family:'Roboto',sans-serif; font-size:14.5px; color:var(--cr-text) }
 .cr-q-rot small{ font-size:12.5px; color:var(--cr-text2) }
 .cr-q-l{ display:inline-flex; align-items:center; gap:7px }
-.cr-q-op input{ flex:1; min-width:0; padding:3px 0; border:0; border-bottom:1px solid var(--cr-line2); background:none; color:var(--cr-text); font:400 14.5px/1.4 'Roboto',sans-serif }
+.cr-q-op input{ flex:1; min-width:0; padding:3px 0; border:0; border-bottom:1px solid var(--cr-line2); background:none; color:var(--cr-text); font:400 14.5px/1.4 'Roboto',sans-serif; transition:border-color var(--dur-fast) }
 /* O anel global de foco (01-reset, !important) sai SÓ aqui: a pergunta é um widget composto e o
    foco já aparece na opção marcada (fundo + ❯) e no sublinhado laranja do campo "Outro". */
 #view-creative .cr-q-op input,#view-creative .cr-q-op input:focus,#view-creative .cr-q-op input:focus-visible{ outline:none!important; box-shadow:none; border-radius:0 }
@@ -110,17 +204,20 @@ body.mode-creative #view-creative{ display:flex!important; opacity:1; transform:
 .cr-q-op input::placeholder{ color:var(--cr-text3) }
 .cr-q-foto .cr-q-op[data-tipo="upload"]{ margin-bottom:4px; padding:18px 12px; border:1px dashed var(--cr-line2); background:var(--cr-surf2) }
 .cr-q-foto .cr-q-op[data-tipo="upload"].on{ border-color:var(--dm-orange-d); background:var(--cr-acento-bg) }
-.cr-q-rodape{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; padding-top:8px; border-top:1px solid var(--cr-line); color:var(--cr-text3); font:400 11.5px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace }
-.cr-q-pular{ border:0; background:none; color:var(--cr-text2); font:600 12px/1 'Roboto',sans-serif; cursor:pointer; padding:6px 8px; border-radius:8px }
+.cr-q-rodape{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; padding-top:8px; border-top:1px solid var(--cr-line); color:var(--cr-text3); font:400 11.5px/1.4 'Roboto',sans-serif }
+.cr-q-rodape kbd{ margin:0 2px }
+.cr-q-pular{ border:0; background:none; color:var(--cr-text2); font:600 12px/1 'Roboto',sans-serif; cursor:pointer; padding:6px 8px; border-radius:8px;
+  transition:background var(--dur-fast),color var(--dur-fast),transform var(--release-dur) var(--release-ease) }
 .cr-q-pular:hover{ color:var(--cr-text); background:var(--cr-surf2) }
 
 /* ── Entrega: 3 opções + ações + legenda ── */
-.cr-entrega{ display:flex; flex-direction:column; gap:20px; padding:24px; border-radius:18px; background:var(--cr-surf); border:1px solid var(--cr-line);
-  box-shadow:0 1px 2px rgba(67,67,67,.04),0 16px 48px rgba(67,67,67,.08); animation:crSobe var(--dur-slow) var(--ease-out) both; scroll-margin-top:16px }
+.cr-entrega{ display:flex; flex-direction:column; gap:20px; padding:clamp(16px,3vw,24px); border-radius:16px; background:var(--cr-surf); border:1px solid var(--cr-line);
+  box-shadow:var(--cr-sh2); animation:crSobe var(--dur-slow) var(--ease-out) backwards; scroll-margin-top:calc(var(--cr-barra-h) + 12px) }
 .cr-ent-cab{ display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap }
 .cr-ent-cab h3{ margin:0; font:900 22px/1 'Realce','Roboto',sans-serif; letter-spacing:.4px; text-transform:uppercase; color:var(--cr-text) }
 .cr-ent-cab p{ margin:6px 0 0; font-size:13px; color:var(--cr-text2) }
-.cr-ent-selo{ font-size:12px; color:var(--cr-text3) }
+.cr-ent-selo{ display:inline-flex; align-items:center; gap:6px; height:26px; padding:0 10px; border-radius:var(--r-pill); background:var(--cr-surf2); color:var(--cr-text2); font-size:12px; font-weight:600 }
+.cr-ent-selo svg{ color:var(--green-text) }
 .cr-ops{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; align-items:start }
 /* Formatos deitados (banner, email, capa, slide): uma opção por linha, na largura toda */
 #view-creative .cr-ops-deitadas{ grid-template-columns:minmax(0,1fr) }
@@ -128,69 +225,139 @@ body.mode-creative #view-creative{ display:flex!important; opacity:1; transform:
 #view-creative .cr-op-arte[data-laminas="3"]::after{ content:''; position:absolute; inset:0; pointer-events:none;
   background:linear-gradient(90deg, transparent calc(33.333% - 1px), rgba(255,255,255,.75) calc(33.333% - 1px), rgba(255,255,255,.75) calc(33.333% + 1px), transparent calc(33.333% + 1px),
     transparent calc(66.666% - 1px), rgba(255,255,255,.75) calc(66.666% - 1px), rgba(255,255,255,.75) calc(66.666% + 1px), transparent calc(66.666% + 1px)) }
-.cr-op{ display:flex; flex-direction:column; gap:10px; padding:0; border:0; background:none; text-align:left; cursor:pointer; color:inherit; animation:crSobe var(--dur-slow) var(--ease-out) both }
+.cr-op{ --press-scale:var(--press-scale-card); display:flex; flex-direction:column; gap:10px; padding:0; border:0; background:none; text-align:left; cursor:pointer; color:inherit; animation:crSobe var(--dur-slow) var(--ease-out) backwards }
 .cr-op:nth-child(2){ animation-delay:80ms }
 .cr-op:nth-child(3){ animation-delay:160ms }
-.cr-op-arte{ position:relative; display:block; width:100%; max-height:430px; border-radius:8px; overflow:hidden; background:var(--cr-surf2);
+.cr-op-arte{ position:relative; display:block; width:100%; border-radius:8px; overflow:hidden; background:var(--cr-surf2);
   box-shadow:0 0 0 1px var(--cr-line); transition:box-shadow var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-spring-soft) }
 .cr-op-arte img{ display:block; width:100%; height:100%; object-fit:contain; filter:blur(16px); transform:scale(1.04); opacity:.5;
   transition:filter var(--dur-celebration) var(--ease-out),transform var(--dur-celebration) var(--ease-out),opacity var(--dur-slow) var(--ease-out) }
 .cr-nitida .cr-op-arte img{ filter:none; transform:none; opacity:1 }
-.cr-op:hover .cr-op-arte{ transform:translateY(-2px); box-shadow:0 0 0 1px var(--cr-line2),0 10px 28px rgba(67,67,67,.14) }
-.cr-op.on .cr-op-arte{ box-shadow:0 0 0 2px var(--dm-orange-d),0 12px 32px rgba(248,84,0,.18) }
+.cr-op:hover .cr-op-arte{ transform:translateY(-2px); box-shadow:0 0 0 1px var(--cr-line2),var(--cr-sh2) }
+.cr-op.on .cr-op-arte{ box-shadow:0 0 0 2px var(--dm-orange),0 12px 32px color-mix(in srgb,var(--dm-orange-d) 22%,transparent) }
+.cr-op-ok{ position:absolute; top:8px; right:8px; width:22px; height:22px; display:grid; place-items:center; border-radius:50%; background:var(--dm-orange); color:var(--on-orange);
+  box-shadow:0 2px 8px rgba(0,0,0,.25); transform:scale(0); transition:transform var(--dur-base) var(--ease-spring) }
+.cr-op.on .cr-op-ok{ transform:scale(1) }
 #view-creative .cr-op:focus-visible{ outline:none!important }
-#view-creative .cr-op:focus-visible .cr-op-arte{ box-shadow:0 0 0 2px var(--dm-orange-d),0 0 0 5px var(--cr-acento-bg) }
+#view-creative .cr-op:focus-visible .cr-op-arte{ box-shadow:0 0 0 2px var(--dm-orange),0 0 0 5px var(--cr-acento-bg) }
 .cr-op-rot{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--cr-text) }
 .cr-op-rot b{ display:grid; place-items:center; width:20px; height:20px; border-radius:50%; background:var(--cr-surf2); color:var(--cr-text2); font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace; transition:background var(--dur-fast),color var(--dur-fast) }
-.cr-op.on .cr-op-rot b{ background:var(--dm-orange-d); color:var(--white) }
-.cr-op-rot em{ font-style:normal; font-size:11px; font-weight:600; color:var(--dm-orange-d) }
+.cr-op.on .cr-op-rot b{ background:var(--dm-orange); color:var(--on-orange) }
+.cr-op-rot em{ font-style:normal; font-size:11px; font-weight:600; color:var(--dm-orange-text) }
 .cr-op-pq{ margin-top:-4px; font-size:12.5px; line-height:1.45; color:var(--cr-text2) }
+
+/* Esqueleto: a casca e a proporção da entrega, brilhando até a arte ficar pronta */
+.cr-esq{ pointer-events:none }
+.cr-esq-l,.cr-esq-arte{ display:block; height:12px; border-radius:6px;
+  background:linear-gradient(90deg,var(--cr-surf2) 25%,var(--cr-surf3) 50%,var(--cr-surf2) 75%); background-size:200% 100%; animation:gShimmer 1.5s linear infinite }
+.cr-esq-arte{ height:auto; border-radius:8px; box-shadow:0 0 0 1px var(--cr-line) }
+.cr-esq .cr-op:nth-child(2) .cr-esq-arte{ animation-delay:.18s }
+.cr-esq .cr-op:nth-child(3) .cr-esq-arte{ animation-delay:.36s }
+
+/* ── Botões ── */
 .cr-acoes{ display:flex; flex-wrap:wrap; gap:8px }
-.cr-btn{ display:inline-flex; align-items:center; gap:8px; height:40px; padding:0 16px; border-radius:var(--r-pill); border:1px solid var(--cr-line2); background:var(--cr-surf); color:var(--cr-text);
-  font:600 13.5px/1 'Roboto',sans-serif; cursor:pointer; transition:transform var(--dur-fast) var(--ease-spring),background var(--dur-fast),border-color var(--dur-fast),box-shadow var(--dur-fast) }
+.cr-btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; height:38px; padding:0 16px; border-radius:var(--r-pill); border:1px solid var(--cr-line2); background:var(--cr-surf); color:var(--cr-text);
+  font:600 13.5px/1 'Roboto',sans-serif; cursor:pointer; white-space:nowrap;
+  transition:transform var(--release-dur) var(--release-ease),background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard),filter var(--dur-fast) }
 .cr-btn:hover{ background:var(--cr-surf2) }
-.cr-btn:active{ transform:scale(.97) }
-.cr-btn:disabled{ opacity:.45; cursor:default }
-.cr-btn.on{ border-color:var(--dm-orange-d); color:var(--dm-orange-d); background:var(--cr-acento-bg) }
-.cr-btn-mini{ height:32px; padding:0 12px; font-size:12.5px }
-.cr-btn-leve{ border-color:transparent; color:var(--cr-text2) }
-.cr-btn-leve:hover{ color:var(--cr-text) }
-.cr-prim{ background:var(--dm-orange-d); border-color:var(--dm-orange-d); color:var(--white) }
-.cr-prim:hover{ background:var(--dm-orange-d); box-shadow:0 6px 18px rgba(248,84,0,.28) }
-#view-creative button:focus-visible,#view-creative textarea:focus-visible{ outline:2px solid var(--dm-orange-d); outline-offset:2px }
+.cr-btn:disabled{ opacity:.5; cursor:default }
+.cr-btn.on{ border-color:var(--press-border); color:var(--dm-orange-text); background:var(--press-bg) }
+.cr-btn-mini{ height:30px; padding:0 12px; font-size:12.5px; gap:6px }
+.cr-btn-leve{ border-color:transparent; background:transparent; color:var(--cr-text2) }
+.cr-btn-leve:hover{ background:var(--cr-surf2); color:var(--cr-text) }
+/* CTA: laranja vivo + tinta quase-preta (8,7:1 — decisão do Ryan, 04_DESIGN_SYSTEM §8) */
+.cr-prim{ background:var(--dm-orange); border-color:var(--dm-orange); color:var(--on-orange) }
+.cr-prim:hover:not(:disabled){ background:var(--dm-orange); filter:brightness(1.05); box-shadow:0 6px 18px color-mix(in srgb,var(--dm-orange-d) 30%,transparent) }
+/* retorno de "feito" no próprio botão (Copiado / Baixado) */
+.cr-btn.cr-ok,.cr-btn.cr-ok:hover{ background:color-mix(in srgb,var(--green) 14%,transparent); border-color:color-mix(in srgb,var(--green) 45%,transparent); color:var(--green-text); filter:none; box-shadow:none; animation:crPop var(--dur-base) var(--ease-spring) }
+#view-creative button:focus-visible,#view-creative textarea:focus-visible{ outline:2px solid var(--dm-orange)!important; outline-offset:2px }
+
 /* Legenda: uma só, diagramada como o post vai sair */
-.cr-leg{ border-top:1px solid var(--cr-line); padding-top:18px }
+.cr-leg{ padding:16px 18px; border-radius:var(--r); background:var(--cr-bg); border:1px solid var(--cr-line) }
 .cr-leg-cab{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px }
-.cr-leg-cab h4{ margin:0; font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--cr-text2) }
+.cr-leg-cab h4{ margin:0; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--cr-text3) }
 .cr-leg-corpo{ max-width:62ch; font-size:15px; line-height:1.65; color:var(--cr-text) }
 .cr-leg-corpo p{ margin:0 0 12px }
 .cr-leg-corpo p:last-child{ margin-bottom:0 }
 .cr-leg-tags{ display:flex; flex-wrap:wrap; gap:6px }
-.cr-leg-tags span{ padding:3px 9px; border-radius:var(--r-pill); background:var(--cr-acento-bg); color:var(--dm-orange-d); font-size:13px; font-weight:500 }
+.cr-leg-tags span{ padding:3px 9px; border-radius:var(--r-pill); background:var(--cr-acento-bg); color:var(--dm-orange-text); font-size:13px; font-weight:500 }
 
-/* ── Compositor (fixo embaixo) ── */
-.cr-compositor{ position:absolute; left:0; right:0; bottom:0; padding:12px max(16px,env(safe-area-inset-right,0px)) calc(14px + var(--safe-bottom,0px)) max(16px,env(safe-area-inset-left,0px)); background:linear-gradient(180deg,transparent,var(--cr-bg) 30%) }
-.cr-compositor-in{ max-width:820px; margin:0 auto; display:flex; flex-direction:column; gap:8px }
-.cr-anexo{ display:flex; align-items:center; gap:8px; align-self:flex-start; padding:4px 6px 4px 4px; border-radius:12px; background:var(--cr-surf); border:1px solid var(--cr-line); color:var(--cr-text2); font-size:12px; animation:crSobe var(--dur-base) var(--ease-out) both }
+/* ── Compositor (fixo embaixo): campo + formato + Much+ + enviar/parar ── */
+.cr-compositor{ position:absolute; z-index:5; left:0; right:0; bottom:0; padding:28px max(16px,env(safe-area-inset-right,0px)) calc(12px + var(--safe-bottom,0px)) var(--cr-gut);
+  background:linear-gradient(180deg,transparent,var(--cr-bg) 42%); pointer-events:none }
+.cr-compositor-in{ pointer-events:auto; max-width:880px; margin:0 auto; display:flex; flex-direction:column; gap:8px }
+.cr-anexo{ display:flex; align-items:center; gap:8px; align-self:flex-start; padding:4px 6px 4px 4px; border-radius:var(--r); background:var(--cr-surf); border:1px solid var(--cr-line); color:var(--cr-text2); font-size:12px; box-shadow:var(--cr-sh1); animation:crEntraEu var(--dur-base) var(--ease-spring-soft) backwards }
 .cr-anexo[hidden]{ display:none }
 .cr-anexo img{ width:36px; height:36px; border-radius:8px; object-fit:cover }
 .cr-anexo span{ max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
-.cr-anexo button{ width:22px; height:22px; display:grid; place-items:center; border:0; border-radius:50%; background:var(--cr-surf2); color:var(--cr-text2); cursor:pointer }
-.cr-caixa{ display:flex; align-items:flex-end; gap:8px; padding:8px 8px 8px 10px; border-radius:16px; background:var(--cr-surf); border:1px solid var(--cr-line2);
-  box-shadow:0 1px 2px rgba(67,67,67,.04),0 8px 28px rgba(67,67,67,.08); transition:box-shadow var(--dur-base) var(--ease-out),border-color var(--dur-base) }
-.cr-caixa:focus-within{ border-color:var(--dm-orange-d); box-shadow:0 0 0 4px var(--cr-acento-bg),0 8px 28px rgba(67,67,67,.08) }
-.cr-clipe{ flex:none; width:36px; height:36px; display:grid; place-items:center; border:0; border-radius:10px; background:none; color:var(--cr-text2); cursor:pointer; transition:color var(--dur-fast),background var(--dur-fast) }
-.cr-clipe:hover{ color:var(--dm-orange-d); background:var(--cr-surf2) }
-.cr-caixa textarea{ flex:1; min-width:0; resize:none; max-height:160px; padding:8px 0; border:0; background:none; color:var(--cr-text); font:400 15px/1.45 'Roboto',sans-serif; outline:none }
-#view-creative .cr-caixa textarea,#view-creative .cr-caixa textarea:focus,#view-creative .cr-caixa textarea:focus-visible{ outline:none; border:0; border-radius:0; box-shadow:none }
+.cr-anexo button{ width:22px; height:22px; display:grid; place-items:center; border:0; border-radius:50%; background:var(--cr-surf2); color:var(--cr-text2); cursor:pointer; transition:background var(--dur-fast),color var(--dur-fast),transform var(--release-dur) var(--release-ease) }
+.cr-anexo button:hover{ background:var(--cr-surf3); color:var(--cr-text) }
+@property --cr-ang{ syntax:'<angle>'; initial-value:0deg; inherits:false }
+.cr-caixa{ display:flex; flex-direction:column; gap:2px; padding:12px 10px 8px 14px; border-radius:18px; background:var(--cr-surf); border:1px solid var(--cr-line2);
+  box-shadow:var(--cr-sh1); transition:box-shadow var(--dur-base) var(--ease-out),border-color var(--dur-base) var(--ease-standard) }
+.cr-caixa:focus-within{ border-color:var(--cr-acento-ln); box-shadow:0 0 0 4px var(--cr-acento-bg),var(--cr-sh1) }
+/* Trabalhando: a borda do campo vira um arco de laranja girando (conic + @property; sem suporte, fica o contorno fixo) */
+body.cr-ocupado .cr-caixa{ border-color:transparent;
+  background:linear-gradient(var(--cr-surf),var(--cr-surf)) padding-box,conic-gradient(from var(--cr-ang),var(--dm-orange-d),var(--dm-yellow) 18%,var(--cr-line2) 42%,var(--cr-line2) 70%,var(--dm-orange-d)) border-box;
+  animation:crGiraBorda 2.4s linear infinite }
+@keyframes crGiraBorda{ to{ --cr-ang:360deg } }
+.cr-caixa textarea{ width:100%; resize:none; max-height:160px; padding:4px 2px 6px; border:0; background:none; color:var(--cr-text); font:400 15px/1.5 'Roboto',sans-serif; outline:none }
+#view-creative .cr-caixa textarea,#view-creative .cr-caixa textarea:focus,#view-creative .cr-caixa textarea:focus-visible{ outline:none!important; border:0; border-radius:0; box-shadow:none }
 .cr-caixa textarea::placeholder{ color:var(--cr-text3) }
-.cr-enviar{ flex:none; width:36px; height:36px; border-radius:11px; border:0; background:var(--dm-orange-d); color:var(--white); display:grid; place-items:center; cursor:pointer; transition:transform var(--dur-fast) var(--ease-spring),opacity var(--dur-fast) }
-.cr-enviar:hover{ transform:translateY(-1px) }
-body.cr-ocupado .cr-enviar{ opacity:.4; cursor:progress }
-.cr-nota{ font-size:11.5px; color:var(--cr-text3); text-align:center }
+.cr-caixa-base{ display:flex; align-items:center; gap:6px; min-width:0 }
+.cr-clipe{ flex:none; width:32px; height:32px; display:grid; place-items:center; border:0; border-radius:var(--r); background:none; color:var(--cr-text2); cursor:pointer; transition:color var(--dur-fast),background var(--dur-fast),transform var(--release-dur) var(--release-ease) }
+.cr-clipe:hover{ color:var(--cr-text); background:var(--cr-surf2) }
+.cr-pills{ display:flex; align-items:center; gap:6px; min-width:0; flex-wrap:wrap }
+.cr-pill{ display:inline-flex; align-items:center; gap:6px; height:30px; padding:0 10px; border:1px solid var(--cr-line2); border-radius:var(--r-pill); background:transparent; color:var(--cr-text2);
+  font:600 12.5px/1 'Roboto',sans-serif; cursor:pointer; white-space:nowrap;
+  transition:transform var(--release-dur) var(--release-ease),background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard) }
+.cr-pill:hover{ background:var(--cr-surf2); color:var(--cr-text) }
+.cr-pill[aria-expanded="true"]{ background:var(--cr-surf2); color:var(--cr-text) }
+.cr-pill svg:last-child:not(:first-child){ transition:transform var(--dur-base) var(--ease-spring) }
+.cr-pill[aria-expanded="true"] svg:last-child{ transform:rotate(180deg) }
+.cr-pill-on,.cr-pill[aria-pressed="true"]{ background:var(--press-bg); border-color:var(--press-border); color:var(--dm-orange-text) }
+.cr-dica{ margin-left:auto; flex:none; color:var(--cr-text3); font-size:12px; white-space:nowrap }
+.cr-enviar{ position:relative; flex:none; width:34px; height:34px; display:grid; place-items:center; border:0; border-radius:var(--r); background:var(--cr-surf3); color:var(--cr-text3); cursor:default;
+  transition:transform var(--release-dur) var(--release-ease),background var(--dur-base) var(--ease-standard),color var(--dur-base) var(--ease-standard),box-shadow var(--dur-base) var(--ease-standard) }
+.cr-enviar.cr-pronto,body.cr-ocupado .cr-enviar{ background:var(--dm-orange); color:var(--on-orange); cursor:pointer; box-shadow:0 4px 14px color-mix(in srgb,var(--dm-orange-d) 30%,transparent) }
+.cr-enviar.cr-pronto:hover,body.cr-ocupado .cr-enviar:hover{ filter:brightness(1.05) }
+.cr-enviar span{ grid-area:1/1; display:grid; place-items:center; transition:opacity var(--dur-fast),transform var(--dur-base) var(--ease-spring) }
+.cr-enviar-para{ opacity:0; transform:scale(.4) }
+body.cr-ocupado .cr-enviar-seta{ opacity:0; transform:translateY(-8px) scale(.6) }
+body.cr-ocupado .cr-enviar-para{ opacity:1; transform:none }
+body.cr-ocupado .cr-enviar::after{ content:''; position:absolute; inset:-4px; border-radius:50%; border:2px solid transparent; border-top-color:var(--dm-orange); animation:gSpin 1s linear infinite }
+.cr-nota{ display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:4px; font-size:11.5px; color:var(--cr-text3); text-align:center }
+
+/* Menu de formato (abre para cima, a partir do botão) */
+.cr-menu-host{ position:relative }
+.cr-menu{ position:absolute; z-index:10; left:0; bottom:calc(100% + 8px); width:min(300px,calc(100vw - 32px)); max-height:min(360px,50vh); overflow-y:auto; margin:0; padding:6px; list-style:none;
+  background:var(--cr-surf); border:1px solid var(--cr-line2); border-radius:14px; box-shadow:var(--cr-sh2); outline:none;
+  transform-origin:bottom left; opacity:0; transform:translateY(8px) scale(.96);
+  transition:opacity var(--dur-fast) var(--ease-out),transform var(--dur-base) var(--ease-spring-soft) }
+.cr-menu.aberto{ opacity:1; transform:none }
+.cr-menu li{ display:flex; flex-direction:column; gap:1px; padding:8px 10px; border-radius:9px; cursor:pointer; transition:background var(--dur-micro) var(--ease-standard) }
+.cr-menu.aberto li{ animation:crSobe var(--dur-base) var(--ease-out) backwards; animation-delay:calc(var(--i,0) * 16ms) }
+.cr-menu li b{ font-size:13px; font-weight:600; color:var(--cr-text) }
+.cr-menu li small{ font-size:12px; color:var(--cr-text3) }
+.cr-menu li:hover{ background:var(--cr-surf2) }
+.cr-menu li[aria-selected="true"]{ background:var(--press-bg) }
+.cr-menu li[aria-selected="true"] b{ color:var(--dm-orange-text) }
+#view-creative .cr-menu li:focus-visible{ outline:none!important; background:var(--cr-surf2); box-shadow:inset 0 0 0 1.5px var(--dm-orange) }
+
+/* Véu de arrastar foto */
+.cr-solta{ position:absolute; z-index:30; inset:0; display:grid; place-items:center; padding:16px; opacity:0; pointer-events:none;
+  background:color-mix(in srgb,var(--cr-bg) 80%,transparent); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); transition:opacity var(--dur-fast) var(--ease-standard) }
+.cr-arrastando .cr-solta{ opacity:1 }
+.cr-solta > div{ display:flex; flex-direction:column; align-items:center; gap:6px; padding:40px clamp(24px,8vw,72px); border:2px dashed var(--cr-acento-ln); border-radius:20px; background:var(--cr-surf);
+  color:var(--dm-orange-text); text-align:center; box-shadow:var(--cr-sh2); transform:scale(.95); transition:transform var(--dur-base) var(--ease-spring) }
+.cr-arrastando .cr-solta > div{ transform:none }
+.cr-arrastando .cr-solta svg{ animation:crFlutua 1.4s var(--ease-standard) infinite alternate }
+@keyframes crFlutua{ to{ transform:translateY(-6px) } }
+.cr-solta b{ margin-top:4px; font-size:16px; color:var(--cr-text) }
+.cr-solta span{ font-size:13px; color:var(--cr-text2) }
 
 /* ══ EDITOR (tela própria, sobre a view) ══ */
-.cr-ed{ position:absolute; inset:0; z-index:20; display:flex; flex-direction:column; background:var(--cr-bg); opacity:0; transform:scale(.99);
+.cr-ed{ position:absolute; inset:0; z-index:40; display:flex; flex-direction:column; background:var(--cr-bg); opacity:0; transform:scale(.99);
   transition:opacity var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-out) }
 .cr-ed.aberto{ opacity:1; transform:none }
 .cr-ed-topo{ display:flex; align-items:center; gap:16px; height:60px; padding:0 20px; flex:none; border-bottom:1px solid var(--cr-line); background:var(--cr-surf) }
@@ -199,23 +366,26 @@ body.cr-ocupado .cr-enviar{ opacity:.4; cursor:progress }
 .cr-ed-tit span{ font-size:12px; color:var(--cr-text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
 .cr-ed-hist{ display:flex; gap:4px; margin-left:8px }
 .cr-ed-fim{ display:flex; gap:8px; margin-left:auto }
-.cr-ed-ico{ width:34px; height:34px; display:grid; place-items:center; border:1px solid transparent; border-radius:9px; background:none; color:var(--cr-text2); cursor:pointer; transition:background var(--dur-fast),color var(--dur-fast),border-color var(--dur-fast) }
+.cr-ed-ico{ width:34px; height:34px; display:grid; place-items:center; border:1px solid transparent; border-radius:9px; background:none; color:var(--cr-text2); cursor:pointer;
+  transition:background var(--dur-fast),color var(--dur-fast),border-color var(--dur-fast),transform var(--release-dur) var(--release-ease) }
 .cr-ed-ico:hover:not(:disabled){ background:var(--cr-surf2); color:var(--cr-text) }
 .cr-ed-ico:disabled{ opacity:.35; cursor:default }
 .cr-ed-corpo{ flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 320px }
 .cr-ed-mesa{ min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:28px;
-  background-image:radial-gradient(circle,var(--cr-line) 1px,transparent 1px); background-size:20px 20px }
-.cr-ed-palco{ width:min(100%, calc((100dvh - 52px - 60px - 120px) * var(--cr-ar, .8))); user-select:none; -webkit-user-select:none; animation:crSurge var(--dur-slow) var(--ease-out) both }
+  background-image:radial-gradient(circle,var(--cr-line2) 1px,transparent 1px); background-size:20px 20px }
+.cr-ed-palco{ width:min(100%, calc((100dvh - 52px - 60px - 120px) * var(--cr-ar, .8))); user-select:none; -webkit-user-select:none; animation:crSurge var(--dur-slow) var(--ease-out) backwards }
 .cr-ed-dica{ margin:0; font-size:12px; color:var(--cr-text3); text-align:center }
 .cr-ed-painel{ min-height:0; overflow-y:auto; border-left:1px solid var(--cr-line); background:var(--cr-surf); padding:6px 0 24px }
+.cr-ed.aberto .cr-ed-painel{ animation:crPainel var(--dur-slow) var(--ease-out) backwards }
+@keyframes crPainel{ from{ opacity:0; transform:translateX(24px) } to{ opacity:1; transform:none } }
 .cr-ed-sec{ padding:14px 18px; border-bottom:1px solid var(--cr-line) }
 .cr-ed-sec:last-child{ border-bottom:0 }
 .cr-ed-sec h4{ margin:0 0 10px; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--cr-text3) }
 .cr-ed-camadas{ list-style:none; margin:0; padding:0; display:grid; gap:1px }
-.cr-ed-camadas li{ display:flex; align-items:center; border-radius:8px; transition:background var(--dur-fast) }
+.cr-ed-camadas li{ display:flex; align-items:center; border-radius:8px; transition:background var(--dur-fast),box-shadow var(--dur-fast) }
 .cr-ed-camadas li:hover{ background:var(--cr-surf2) }
-.cr-ed-camadas li.on{ background:var(--cr-acento-bg) }
-.cr-ed-camadas li.on .cr-ed-cam{ color:var(--dm-orange-d); font-weight:600 }
+.cr-ed-camadas li.on{ background:var(--cr-acento-bg); box-shadow:inset 2px 0 0 var(--dm-orange-d) }
+.cr-ed-camadas li.on .cr-ed-cam{ color:var(--dm-orange-text); font-weight:600 }
 .cr-ed-camadas li.oculto .cr-ed-cam{ color:var(--cr-text3) }
 .cr-ed-cam{ flex:1; min-width:0; height:32px; padding:0 10px; border:0; background:none; text-align:left; color:var(--cr-text); font:400 13.5px/1 'Roboto',sans-serif; cursor:pointer }
 .cr-ed-olho{ width:30px; height:30px; display:grid; place-items:center; border:0; border-radius:7px; background:none; color:var(--cr-text3); cursor:pointer; opacity:0; transition:opacity var(--dur-fast),color var(--dur-fast) }
@@ -231,7 +401,7 @@ body.cr-ocupado .cr-enviar{ opacity:.4; cursor:progress }
 .cr-ed-campo label small{ font-weight:400; font-size:11.5px; color:var(--cr-text3) }
 .cr-ed-campo textarea{ width:100%; resize:none; overflow:hidden; padding:9px 11px; border-radius:9px; border:1px solid var(--cr-line2); background:var(--cr-bg); color:var(--cr-text);
   font:400 14.5px/1.45 'Roboto',sans-serif; transition:border-color var(--dur-fast),box-shadow var(--dur-fast),background var(--dur-fast) }
-#view-creative .cr-ed-campo textarea:focus,#view-creative .cr-ed-campo textarea:focus-visible{ outline:none!important; border-color:var(--dm-orange-d); background:var(--cr-surf); box-shadow:0 0 0 3px var(--cr-acento-bg) }
+#view-creative .cr-ed-campo textarea:focus,#view-creative .cr-ed-campo textarea:focus-visible{ outline:none!important; border-color:var(--dm-orange); background:var(--cr-surf); box-shadow:0 0 0 3px var(--cr-acento-bg) }
 .cr-ed-faixa{ display:grid; grid-template-columns:62px minmax(0,1fr) 56px; align-items:center; gap:10px; font-size:12.5px; color:var(--cr-text2) }
 .cr-ed-faixa output{ text-align:right; font-variant-numeric:tabular-nums; color:var(--cr-text) }
 .cr-ed-faixa input[type=range]{ width:100%; accent-color:var(--dm-orange-d) }
@@ -239,11 +409,11 @@ body.cr-ocupado .cr-enviar{ opacity:.4; cursor:progress }
 .cr-ed-linha:first-child{ margin-top:0 }
 .cr-ed-rot{ width:62px; font-size:12.5px; color:var(--cr-text2) }
 .cr-ed-cores{ display:flex; gap:10px }
-.cr-ed-cor{ width:34px; height:34px; border-radius:50%; border:0; background:var(--c); box-shadow:0 0 0 1px var(--cr-line2); cursor:pointer; transition:box-shadow var(--dur-fast),transform var(--dur-fast) var(--ease-spring) }
-.cr-ed-cor:hover{ transform:scale(1.06) }
-.cr-ed-cor.on{ box-shadow:0 0 0 2px var(--cr-surf),0 0 0 4px var(--dm-orange-d) }
+.cr-ed-cor{ width:34px; height:34px; border-radius:50%; border:0; background:var(--c); box-shadow:0 0 0 1px var(--cr-line2); cursor:pointer; transition:box-shadow var(--dur-fast),transform var(--release-dur) var(--release-ease) }
+.cr-ed-cor:hover{ box-shadow:0 0 0 1px var(--cr-line2),0 0 0 4px var(--cr-surf3) }
+.cr-ed-cor.on{ box-shadow:0 0 0 2px var(--cr-surf),0 0 0 4px var(--dm-orange) }
 .cr-ed-nota{ margin:10px 0 0; font-size:12px; line-height:1.5; color:var(--cr-text3) }
-.cr-ed-alerta{ margin:0; font-size:12px; color:var(--dm-orange-d) }
+.cr-ed-alerta{ margin:0; font-size:12px; color:var(--dm-orange-text) }
 .cr-ed-alerta[hidden]{ display:none }
 .cr-ed-vazio{ margin:0; padding:14px 18px; font-size:13px; line-height:1.55; color:var(--cr-text2) }
 
@@ -256,10 +426,22 @@ body.cr-ocupado .cr-enviar{ opacity:.4; cursor:progress }
   .cr-ed-dica,.cr-ed-tit span{ display:none }
   .cr-q-rodape > span{ display:none }
 }
+@media (max-width:680px){
+  .cr-aviso,.cr-dica,.cr-nota,.cr-esc{ display:none }
+  .cr-ideias{ grid-template-columns:minmax(0,1fr) }
+  .cr-ops-deitadas{ gap:12px }
+  .cr-passo-t{ display:none }
+}
+
+/* ── Movimento reduzido: remove o MOVIMENTO, nunca a informação (motion.md §3) ── */
 @media (prefers-reduced-motion:reduce){
-  #view-creative.cr-revelando,#view-creative.cr-itens .cr-cab,#view-creative.cr-itens .cr-conversa > *,
-  .cr-entra,.cr-passo,.cr-passo-res,.cr-entrega,.cr-op,.cr-anexo,.cr-ed-palco,.cr-q-troca .cr-q-txt,.cr-q-troca .cr-q-ops{ animation:none; opacity:1; transform:none }
-  .cr-verbo,.cr-cursor,.cr-agora .cr-bola{ animation:none }
-  .cr-verbo{ color:var(--dm-orange-d); background:none }
-  .cr-op-arte img,.cr-ed,.cr-pergunta,.cr-q-seta{ transition:none }
+  #view-creative.cr-revelando,#view-creative.cr-itens .cr-barra,#view-creative.cr-itens .cr-compositor-in,#view-creative.cr-itens .cr-boas [data-i],#view-creative.cr-itens .cr-boas .cr-boas-tit span[data-i],
+  .cr-entra,.cr-passo,.cr-passo-res,.cr-entrega,.cr-op,.cr-anexo,.cr-ed-palco,.cr-ed.aberto .cr-ed-painel,.cr-q-troca .cr-q-txt,.cr-q-troca .cr-q-ops,.cr-menu.aberto li,.cr-feito .cr-bola,.cr-btn.cr-ok{ animation:none; opacity:1; transform:none; filter:none }
+  .cr-verbo,.cr-cursor,.cr-agora .cr-bola,.cr-agora .cr-passo-tit,.cr-fio::before,.cr-boas-marca::after,.cr-pensando .cr-ava::after,.cr-dest,
+  body.cr-ocupado #view-creative::before,body.cr-ocupado .cr-caixa,body.cr-ocupado .cr-enviar::after,.cr-esq-l,.cr-esq-arte,.cr-arrastando .cr-solta svg{ animation:none }
+  .cr-verbo,.cr-agora .cr-passo-tit,.cr-dest{ color:var(--dm-orange-text); background:none }
+  .cr-agora .cr-passo-tit{ color:var(--cr-text2) }
+  body.cr-ocupado .cr-caixa{ border-color:var(--dm-orange) }
+  .cr-op-arte img,.cr-ed,.cr-pergunta,.cr-q-seta,.cr-boas,.cr-trab-corpo,.cr-menu,.cr-conversa,.cr-op-ok,.cr-solta > div{ transition:none }
+  .cr-conversando .cr-boas{ display:none }
 }

@@ -168,6 +168,8 @@ Estas não são hipóteses — são coisas que aconteceram trabalhando no Luma. 
 8. **A tela que o usuário vê pode não ser a que o arquivo descreve.** No painel Campos (08/2026), `layers.js` renderiza os cartões e `props-panel.js` os **reescreve depois** (`dPropEnhanceDataRows` + MutationObserver): tira `tabindex`, troca o `role`, injeta o botão "Usar". Meia proposta de redesign atacou problemas que essa camada já tinha resolvido, e os testes deram **falso-verde** porque mediram o DOM antes do passe. Reflexo novo: ao mexer em UI, **abra a tela e confira o DOM final** (`grep` da classe em `js/` E em `css/`, e um print) antes de afirmar o que está lá — e desconfie quando um arquivo de CSS com `#id` existir em paralelo (`layers-panel.css` vence `designer.css` por especificidade).
 9. **Asserção de classe não é asserção de aparência.** O realce do alvo de drop tinha a classe certa e a **cor errada**: uma regra mais específica (`body.d-fielddrag .canvas-layer`) sobrepunha o laranja/vermelho, e os dois estados ficavam idênticos justamente durante o arrasto. Onde a cor É a informação, meça o **estilo computado no estado real**, não a presença da classe.
 
+10. **Token que referencia token resolve ONDE FOI DECLARADO.** `--press-text: var(--dm-orange-text)` em `:root` pega o `--dm-orange-text` do `:root` (laranja vivo) e nunca vê o `#BF3F00` que `body.theme-light` define — o comentário "já faz o flip AA" era falso. Achado ao redesenhar o Creative (10/2026), medindo a cor no navegador em vez de confiar no comentário. Para flip por tema, declare o token derivado no mesmo escopo do flip (ou use o token-base direto). Pendência global: `--press-text` ainda não flipa — afeta todo `aria-pressed` no claro.
+
 ---
 
 ## 11. Anti-comportamentos (o que nunca fazer)
