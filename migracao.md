@@ -38,34 +38,37 @@ Storage novo com os mesmos bytes do antigo e já com cache de 1 ano. As opções
 projetos são idênticas. **Único bloqueio para o app:** no novo, o schema `luma` ainda **não está exposto**
 na Data API (`PGRST106`). Entra no item 2.1.
 
-### 2.1 Acesso ao projeto novo — ⬜ Você (é o que trava tudo agora)
+### 2.1 Acesso ao projeto novo — ✅ resolvido em 14/10, 16h
 
-✅ `supabase login` feito em 14/10 com `pedro.moraes@deliverymuch.com.br`. **Mas essa conta só enxerga a
-sua org pessoal** ("pedro.moraes@deliverymuch.com.br's Org", onde vive o projeto antigo "LUMA MVP"). O
-projeto novo não aparece na lista e qualquer comando nele devolve `403 Your account does not have the
-necessary privileges`. Ou seja: a conta não é membro da org "DM - Inovação e IA".
+Você tem **duas contas** no Supabase: `pedro.moraes@deliverymuch.com.br` (org pessoal, onde vive o projeto
+**antigo** "LUMA MVP") e a conta que criou o projeto **novo** (org "DM - Inovação e IA"). A CLI está logada
+na segunda. Com isso já subiu o que dependia dela (2.2). Uma conta não enxerga o projeto da outra, e é isso
+que ainda segura os secrets (2.2.1).
 
-Resolve de um destes dois jeitos:
+### 2.2 Feito com a conta nova — ✅ Eu
 
-- ⬜ Se **outra pessoa** criou o projeto novo (TI, gestor): ela entra no Dashboard → org "DM - Inovação e
-  IA" → **Team → Invite** e convida `pedro.moraes@deliverymuch.com.br` como **Owner** ou **Admin**
-  (Developer não mexe em Auth nem na Data API). Você aceita o convite pelo e-mail. Não precisa logar de novo.
-- ⬜ Se **você** criou o projeto com **outro e-mail**: no PowerShell, `supabase logout` e depois
-  `supabase login` com esse e-mail.
+1. ✅ `ai` e `invite-user` no ar no novo, versão 1, `verify_jwt` ligado (igual ao antigo).
+2. ✅ Chave pública do novo pega pela CLI (`sb_publishable_t0xB…`, pública por design). Já está na cópia
+   `migracao/supabase-config-novo.js`, fora do git, que o servidor de teste usa (2.5).
+3. ✅ Secrets do novo: só os `SUPABASE_*` que a plataforma injeta. **Falta os seis do `ai`** (abaixo).
 
-Depois disso, **um token de acesso pessoal** me deixa fazer o resto pela API de gerenciamento (ler os
-secrets do antigo com valor e gravar no novo sem que os valores passem por mim, subir as functions, expor o
-`luma`, copiar a configuração de Auth, pegar a chave pública):
+### 2.3 Três coisas suas, sem ordem — ⬜ Você
 
-1. ⬜ **Você** — https://supabase.com/dashboard/account/tokens, com a conta que agora vê **as duas orgs**.
-   Generate new token, nome `migracao-luma`.
-2. ⬜ **Você** — cole no `.env`, numa linha nova: `SUPABASE_ACCESS_TOKEN=sbp_...`. Me avise: **"token no env"**.
-   O token é pessoal e poderoso: fica só no `.env` (ignorado pelo git) e você o apaga na página de tokens
-   quando a migração acabar.
-
-Secrets que existem no antigo (conferido pela CLI, só os nomes): `GEMINI_API_KEY`, `NVIDIA_API_KEY`,
-`NVIDIA2_API_KEY`, `OLLAMA_API_KEY`, `OPENROUTER_API_KEY`, `CLOUDFLARE_API_KEY`. Não há
-`CLOUDFLARE_ACCOUNT_ID` (o `ai` descobre sozinho). Os `SUPABASE_*` a plataforma injeta.
+1. ⬜ **Expor o schema `luma`** no novo (30 segundos, e destrava o teste): Dashboard do novo → **Project
+   Settings → Data API → Exposed schemas** → acrescente `luma` (fica `public, graphql_public, luma`). Salvar.
+   Sem isso o app abre e morre no catálogo (`PGRST106`).
+2. ⬜ **Token de acesso pessoal** da conta nova: https://supabase.com/dashboard/account/tokens → Generate new
+   token, nome `migracao-luma` → cole no `.env` numa linha nova `SUPABASE_ACCESS_TOKEN=sbp_...`. Com ele eu
+   copio a configuração de Auth (URLs, senha mínima, e-mails) e, se a conta vir o antigo, os secrets. Fica
+   só no `.env` (ignorado pelo git); apague o token quando a migração acabar.
+3. ⬜ **Dar à conta nova acesso ao projeto antigo**, para eu copiar os seis secrets do `ai` sem os valores
+   passarem por mim: no Dashboard **logado como `pedro.moraes@deliverymuch.com.br`** → org pessoal →
+   **Team → Invite** → e-mail da conta nova, papel **Owner** → aceite o convite no e-mail. Me diga qual é
+   esse e-mail.
+   - Sem isso, o plano B é você mesmo criar os secrets no Dashboard do novo (Edge Functions → Secrets) com
+     os valores que tiver: `GEMINI_API_KEY` (obrigatório), `NVIDIA_API_KEY`, `NVIDIA2_API_KEY`,
+     `OLLAMA_API_KEY`, `OPENROUTER_API_KEY`, `CLOUDFLARE_API_KEY` (os seis que existem no antigo; não há
+     `CLOUDFLARE_ACCOUNT_ID`, o `ai` descobre sozinho). O Dashboard do antigo mostra só os nomes.
 
 Se preferir não criar o token, o caminho antigo continua valendo: `supabase login` no PowerShell (conta da
 org nova) para as functions, e os itens abaixo você faz no Dashboard do novo, comparando com o antigo:
@@ -77,19 +80,14 @@ Settings (limite global ≥ 15 MB); Edge Functions → Secrets (`GEMINI_API_KEY`
 `OPENROUTER_API_KEY`, cujos valores o Dashboard do antigo **não** mostra); Project Settings → API Keys
 (me mandar a Publishable key `sb_publishable_...`).
 
-### 2.2 Com o token na mão — ⬜ Eu
+### 2.4 Com o token (e o acesso ao antigo) na mão — ⬜ Eu
 
-1. ⬜ Copio os secrets das functions do antigo para o novo (os que existirem lá; `SUPABASE_*` a plataforma injeta).
-2. ⬜ Subo `ai` e `invite-user` no novo (`verify_jwt` ligado, igual ao antigo). Só essas duas rodam no
-   antigo. O `ai` do repositório está à frente do que roda lá (tarefas do Luma Creative que o Ryan
-   commitou hoje) e é o que sobe.
-3. ⬜ Exponho o schema `luma` na Data API do novo (igual ao antigo: `public, graphql_public, luma`).
-4. ⬜ Copio a configuração de Auth do antigo (Site URL, Redirect URLs, senha mínima, confirmação de
-   e-mail, SMTP, templates) e o limite global do Storage.
-5. ⬜ Pego a Publishable key do novo e preparo o `supabase-config.js` para o teste local (item 2.5).
-6. ⬜ Te mostro, item a item, o que ficou igual e o que não dá para copiar pela API.
+1. ⬜ Copio os seis secrets do `ai` do antigo para o novo (pipeline direto, valor nenhum impresso).
+2. ⬜ Copio a configuração de Auth do antigo (Site URL, Redirect URLs, senha mínima, confirmação de e-mail,
+   SMTP, templates) e confiro o limite global do Storage. Te mostro o que ficou igual e o que a API não copia.
+3. ⬜ Se você não tiver feito o 2.3.1, exponho o `luma` pela API.
 
-### 2.3 Decisão que é só sua — ⬜ Você
+### 2.3b Decisão que é só sua — ⬜ Você
 
 - ⬜ **Organização "DM - Inovação e IA" → Billing → Spend cap:** ligado, bloqueia quando passar da cota do
   Pro; desligado, cobra o excedente. É dinheiro; eu não mexo.
@@ -103,13 +101,13 @@ Settings (limite global ≥ 15 MB); Edge Functions → Secrets (`GEMINI_API_KEY`
 
 ### 2.5 Teste local, sem commit — ⬜ Eu, depois ⬜ Você
 
-1. ⬜ **Eu** — com a Publishable key do novo, aponto `js/core/supabase-config.js` para o novo (só na sua
-   máquina, sem commit) e subo um servidor local; te passo o link `http://localhost:8080`.
-2. ⬜ **Você** — abre o link e passa por: login com o seu usuário (mesma senha de sempre) · catálogo abre ·
-   gera e baixa uma arte · Estúdio publica um material de teste e exclui · suporte abre. Me diz o que
-   falhou, se falhar.
-3. ⬜ **Eu** — desfaço a troca do `supabase-config.js` (`git checkout`). O que você publicou de teste no novo
-   some sozinho na virada (o banco do novo é zerado e refeito).
+1. ✅ **Eu** — servidor local no ar: **http://localhost:8080** (`node migracao/servir.js`). Ele serve o
+   repositório e, só nessa porta, troca o `supabase-config.js` pela cópia que aponta para o novo. O arquivo
+   versionado não muda. Caiu? Me avise que eu subo de novo.
+2. ⬜ **Você** — **depois do 2.3.1** (expor o `luma`), abre o link e passa por: login com o seu usuário
+   (mesma senha de sempre) · catálogo abre · gera e baixa uma arte · IA numa legenda (só funciona depois
+   dos secrets) · Estúdio publica um material de teste e exclui · suporte abre. Me diz o que falhou.
+3. O que você publicar de teste no novo some sozinho na virada (o banco do novo é zerado e refeito).
 
 ---
 
