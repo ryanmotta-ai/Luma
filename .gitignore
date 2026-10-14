@@ -33,6 +33,11 @@ storage-backup/
 # Lista gerada por scripts/limpar-assets-orfaos.js (auditoria local; nunca versionar)
 orfaos-*.json
 
+# Migração de projeto (10/2026): dumps do banco (têm hash de senha dos usuários) e relatórios.
+# Só a pasta da raiz — scripts/migracao/ (os SQL do roteiro) é versionada.
+/migracao/
+migracao-storage-*.json
+
 # Variáveis de ambiente (nunca commitar)
 .env
 .env.local
