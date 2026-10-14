@@ -7,7 +7,7 @@ HTML, CSS e JavaScript puros, sem build e sem dependência. Fica isolado do app:
 
 ## Abrir
 
-- **Publicado:** <https://ryanmotta-ai.github.io/Luma/presentation/> (GitHub Pages da `talpaipai`).
+- **Publicado:** <https://luma-deliverymuch.vercel.app/presentation/> (Vercel, deploy da `talpaipai`; o GitHub Pages também segue servindo).
 - **Local:** sirva a **raiz do repositório** e abra `/presentation/`:
 
   ```bash
