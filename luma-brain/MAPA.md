@@ -196,7 +196,7 @@ bancada que mede a distância entre o que o Estúdio mostra e o que o franqueado
 
 ## Verificação — o Luma TEM teste automatizado (enxuto)
 
-**449 casos em 10 suítes** (14/10/2026: entrou `svg-import`, já com os 7 casos do Luma Creative). Em 13/10 eram 425 em 9, depois de um corte de 1.053 em 29: o Ryan pediu para ficar só o necessário.
+**450 casos em 10 suítes** (14/10/2026: entrou `svg-import`, já com os 8 casos do Luma Creative). Em 13/10 eram 425 em 9, depois de um corte de 1.053 em 29: o Ryan pediu para ficar só o necessário.
 O critério do corte: **fica o que protege um motor que o produto usa todo dia e que já quebrou;
 sai volume gerado, cobertura repetida, estresse e bancada exploratória** (estão no histórico do
 git, commit "test: enxuga a suíte").
@@ -213,7 +213,7 @@ CHROMIUM_PATH=/caminho/chrome node scripts/run-browser-tests.js
 | `tests/corpus.html` | 6 pranchetas reais × 4 tamanhos de texto + golden de geometria + **original first** | 30 |
 | `tests/auto-layout.html` | a leitura da arte: baseline autorado, papel semântico, safe zone | 14 |
 | `tests/psd-import.html` | o importador de PSD (geometria de texto, alpha, raster, fidelidade) | 92 |
-| `tests/svg-import.html` | o importador de SVG e o **contrato com a skill luma-creative** (`data-luma`, `data-campo`, slot `foto_produto`), trechos com peso/itálico, preço-assinatura, vetor, recorte, gradiente, sanitização; e o **Luma Creative** (5 composições entrando como template, bloco movido no editor, foto no slot, briefing local) | 24 |
+| `tests/svg-import.html` | o importador de SVG e o **contrato com a skill luma-creative** (`data-luma`, `data-campo`, slot `foto_produto`), trechos com peso/itálico, preço-assinatura, vetor, recorte, gradiente, sanitização; e o **Luma Creative** (toda diagramação aprovada do motor entrando limpa, conferência geométrica reprovando colisão/margem/texto pequeno, foto no slot, briefing) | 25 |
 | `tests/copy-engine.html` | a legenda: **nunca inventa preço/desconto/validade**, não repete, hashtags enxutas | 50 |
 | `tests/copy-fit.html` | o Encurtar: a versão curta **nunca tira preço, produto ou sabor** | 40 |
 | `tests/franqueado-fluxo.html` | o chat e a prévia como uma verdade só, o bloqueio "não cabe", o Encurtar na hora certa, a versão Story | 66 |
@@ -259,7 +259,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 85 arquivos JS (77.863 linhas, 3.050 funções) · 33 arquivos CSS (32.783 linhas) · `index.html` com 4.034 linhas e 75 `<script>`.
+**Tamanho real de hoje:** 85 arquivos JS (78.435 linhas, 3.067 funções) · 33 arquivos CSS (32.808 linhas) · `index.html` com 4.022 linhas e 75 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -702,16 +702,16 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 
 ### js/creative
 
-**`js/creative/creative.js`** · 1317 linhas
+**`js/creative/creative.js`** · 1889 linhas
 Luma Creative — modo em TESTES, só a gestão (trava em main.js e na Edge Function `ai`).
-· API: crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crX, crTexto, crMista, crHeroi, crLogo, crFoto, crSelo, crBotao … (+34; 58 funções no total)
-· Estado global: _crFontesProm, _crCtx
+· API: crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crX, crTexto, crMista, crHeroi, crLogo, crFoto, crSelo, crBotaoMede … (+45; 75 funções no total)
+· Estado global: _crFontesProm, _crCtx, _crMesa
 
 ## CSS — onde mora cada folha
 
 | Arquivo | Linhas |
 |---|---|
-| `css/00-tokens.css` | 297 |
+| `css/00-tokens.css` | 298 |
 | `css/01-reset.css` | 38 |
 | `css/02-animations.css` | 177 |
 | `css/03-fonts.css` | 60 |
@@ -731,7 +731,7 @@ Luma Creative — modo em TESTES, só a gestão (trava em main.js e na Edge Func
 | `css/modules/chat.css` | 3979 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
-| `css/modules/creative.css` | 236 |
+| `css/modules/creative.css` | 260 |
 | `css/modules/designer.css` | 5424 |
 | `css/modules/feedback.css` | 199 |
 | `css/modules/franqueado.css` | 1700 |

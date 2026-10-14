@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-10-14 — Luma Creative: juiz de visão `arte.criticar` (⏳ deploy da função `ai` pendente, junto com o anterior)
+
+- **Task nova `arte.criticar`** (`POLITICA` `{max: 4096, pensar: "LOW", temp: 0.3}`): recebe como anexos os prints das 3 opções (JPEG 432 px) mais até 2 artes aprovadas da marca como régua, e devolve notas 0–5 por critério (foco, hierarquia, respiro, contraste, acabamento), um "porquê" curto e até 2 ajustes de uma lista fechada (`heroiMaior`, `heroiMenor`, `fotoMaior`, `fotoMenor`, `semApoio`, `semSelo`). Quem aplica o ajuste e confere de novo é o front.
+- **A trava de gestão agora vale para toda task `arte.*`** (`task.startsWith("arte.")` → `get_user_role()` → 403).
+- `arte.compor` mudou de papel: a IA não escolhe mais a diagramação; devolve o objetivo e a copy (o motor do front diagrama e mostra 3 opções). Continuam 2 idas (briefing e copy) + 1 do juiz = **3 chamadas por arte**; "Outras opções" não chama a IA de copy de novo, só o juiz.
+- Sem migration, sem secret. Antes do deploy, o modo funciona com o motor local e sem juiz (ordem pela nota do motor).
+
 ## 2026-10-14 — Luma Creative: task `arte.compor` só para a gestão (⏳ deploy da função `ai` pendente)
 
 Modo novo em testes (`js/creative/creative.js`): um chat que compõe arte nova. A IA não desenha — devolve a **composição em JSON** (uma das 5 diagramações aprovadas da skill luma-creative + copy, preço, cupom, anos); o front monta o SVG com os blocos oficiais, já no contrato do importador.

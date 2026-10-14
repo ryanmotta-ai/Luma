@@ -153,39 +153,71 @@
     assert(window.__svgExec===0, 'código do arquivo executou: '+window.__svgExec);
   });
 
-  /* ── Luma Creative (js/creative/creative.js): o que o motor compõe tem de entrar no Estúdio
-     como template — campos certos, foto como moldura, nada fora da arte. ── */
+  /* ── Luma Creative (js/creative/creative.js): o motor de diagramações. Toda opção APROVADA pela
+     conferência geométrica tem de ser arte limpa (paleta, nada estourado) e entrar no importador
+     com os campos certos — e a conferência tem de reprovar o que a skill reprova. ── */
+  const PNG='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
   const CR_CASOS={
-    oferta:{titulo:'Pizza calabresa',precoDe:'28,00',precoPor:'22,90',selo:['18%','OFF']},
+    oferta:{titulo:'Pizza calabresa',apoio:'Tradicional, direto pelo app',precoDe:'28,00',precoPor:'22,90',selo:['18%','OFF']},
     cupom:{cupomValor:'15',cupomCodigo:'QUEROPIZZA',legal:'Válido para pedidos acima de R$ 40.'},
-    evento:{titulo:'Festival gastronômico',selo:['10 A 20','OUTUBRO']},
-    destaque:{palavra:'entrega',titulo:'grátis',selo:['SÓ','HOJE']},
+    evento:{titulo:'Festival gastronômico',apoio:'Os pratos do festival no app',selo:['10 A 20','OUTUBRO']},
+    beneficio:{palavra:'entrega',titulo:'grátis',apoio:'em pedidos acima de R$ 40',selo:['SÓ','HOJE']},
     aniversario:{anos:'3',cupomValor:'15',cupomCodigo:'NIVERDM15'}
   };
-  const CR_CAMPOS={oferta:['produto','precoDe','precoPor'],cupom:['desconto_valor','codigo_cupom'],evento:['titulo'],destaque:['titulo'],aniversario:['anos','desconto_valor','codigo_cupom']};
-  const CR_FOTO={oferta:true,cupom:false,evento:true,destaque:true,aniversario:false};
   const campoNa=(L,c)=>L.some(l=>l.type==='text' && l.isVar && String(l.content).indexOf('{{'+c)>=0);
 
-  caso('Luma Creative: as 5 composições (feed e story) entram no importador com os campos do contrato', async()=>{
+  caso('Luma Creative: toda diagramação aprovada (objetivos × feed/story × com/sem foto) é arte limpa e entra no importador', async()=>{
     await crFontesProntas();
-    for(const comp of Object.keys(CR_CASOS)) for(const formato of ['feed','story']){
-      const r=crCompor(Object.assign({composicao:comp, formato}, CR_CASOS[comp]));
-      assert(!r.estouros.length, comp+'/'+formato+': texto estourou '+r.estouros.join(', '));
-      assert(crConfere(r).every(c=>c.ok), comp+'/'+formato+': conferência da marca falhou');
-      const {layers}=await importar(await crEmbutir(r.svg));
-      CR_CAMPOS[comp].forEach(c=>assert(campoNa(layers,c), comp+'/'+formato+': campo {{'+c+'}} não chegou ao Estúdio'));
-      const fotos=layers.filter(l=>l.type==='frame' && l.imgVar==='foto_produto').length;
-      assert(fotos===(CR_FOTO[comp]?1:0), comp+'/'+formato+': '+fotos+' molduras de foto');
-      // A margem de 100 px o motor já mede (estouros, acima). Aqui: nenhuma caixa de texto do
-      // Estúdio sai da arte (a caixa inclui traço e o respiro do texto de várias linhas).
-      const fora=layers.filter(l=>l.type==='text' && !l.rotation && (l.x<0 || l.x+l.w>CR_W || l.y<0 || l.y+l.h>r.h));
-      assert(!fora.length, comp+'/'+formato+': texto fora da arte: '+fora.map(l=>l.content+' x='+Math.round(l.x)+' w='+Math.round(l.w)).join(' · '));
+    let aprovadas=0;
+    for(const obj of Object.keys(CR_CASOS)) for(const formato of ['feed','story']) for(const foto of ['',PNG]){
+      const cands=crCandidatos(Object.assign({objetivo:obj, formato, foto}, CR_CASOS[obj]));
+      const tres=crEscolher3(cands);
+      assert(tres.length>=1, obj+'/'+formato+(foto?'/foto':'')+': nenhuma diagramação aprovada — '+cands.map(c=>c.receita+': '+c.avaliacao.erros.join('; ')).join(' | '));
+      if(obj==='oferta') assert(tres.length===3, 'oferta/'+formato+(foto?'/foto':'')+': esperava 3 opções, veio '+tres.length);
+      assert(new Set(tres.map(r=>r.receita+r.fundo)).size===tres.length, 'opções repetidas');
+      for(const r of tres){
+        const rot=obj+'/'+formato+(foto?'/foto':'')+'/'+r.receita;
+        assert(!r.estouros.length, rot+': texto estourou '+r.estouros.join(', '));
+        assert(crConfere(r).every(c=>c.ok), rot+': conferência da marca falhou');
+        assert(!/Use aqui sua foto/.test(r.svg), rot+': placeholder cinza na arte final');
+        const {layers}=await importar(await crEmbutir(r.svg));
+        r.campos.filter(c=>c!=='foto_produto').forEach(c=>assert(campoNa(layers,c), rot+': campo {{'+c+'}} não chegou ao Estúdio'));
+        assert(layers.filter(l=>l.type==='frame' && l.imgVar==='foto_produto').length===(r.campos.indexOf('foto_produto')>=0?1:0), rot+': moldura da foto');
+        const fora=layers.filter(l=>l.type==='text' && !l.rotation && (l.x<0 || l.x+l.w>CR_W || l.y<0 || l.y+l.h>r.h));
+        assert(!fora.length, rot+': texto fora da arte: '+fora.map(l=>l.content).join(' · '));
+        aprovadas++;
+      }
     }
+    assert(aprovadas>=40, 'poucas opções aprovadas: '+aprovadas);
+  });
+
+  caso('Luma Creative: sem foto, nenhuma diagramação usa o slot; com foto, a foto vira a moldura no Estúdio', async()=>{
+    await crFontesProntas();
+    crEscolher3(crCandidatos(Object.assign({objetivo:'oferta'}, CR_CASOS.oferta))).forEach(r=>assert(r.svg.indexOf('foto_produto')<0, r.receita+' usou slot sem foto'));
+    const r=crCompor({objetivo:'evento', titulo:'Festival', foto:PNG});
+    assert(/clip-path="url\(#crfoto\)"/.test(r.svg), 'foto não entrou no slot');
+    const {layers}=await importar(await crEmbutir(r.svg));
+    const f=layers.filter(l=>l.type==='frame' && l.imgVar==='foto_produto');
+    assert(f.length===1 && f[0].imgUrl===PNG, 'moldura sem a foto');
+    assert(!layers.some(l=>l.type==='image' && l.imgUrl===PNG), 'a foto entrou também como imagem solta');
+  });
+
+  caso('Luma Creative: a conferência reprova colisão, margem e texto pequeno; o vão herói→apoio de 40 px passa', async()=>{
+    await crFontesProntas();
+    const r=crCompor(Object.assign({objetivo:'oferta'}, CR_CASOS.oferta));
+    assert(!crAvaliar(r).erros.length, 'a melhor opção não passou: '+crAvaliar(r).erros.join('; '));
+    const colide=Object.assign({}, r, {svg:r.svg.replace('<g data-bloco="apoio">','<g data-bloco="apoio" transform="translate(0,-60)">')});
+    assert(crAvaliar(colide).erros.some(e=>/Colisão/.test(e)), 'colisão passou');
+    const margem=Object.assign({}, r, {svg:r.svg.replace('<g data-bloco="logo">','<g data-bloco="logo" transform="translate(-60,0)">')});
+    assert(crAvaliar(margem).erros.some(e=>/margem/.test(e)), 'margem passou');
+    const mini=Object.assign({}, r, {svg:r.svg.replace('</svg>','<g data-bloco="nota"><text x="300" y="700" font-size="14">x</text></g></svg>')});
+    assert(crAvaliar(mini).erros.some(e=>/22 px/.test(e)), 'texto de 14 px passou');
   });
 
   caso('Luma Creative: herói de 2 linhas vira UM campo de várias linhas (nunca a 2ª linha fixa)', async()=>{
     await crFontesProntas();
-    const r=crCompor({composicao:'oferta', titulo:'Combo burger artesanal duplo', precoPor:'39,90'});
+    const sp=crNormaliza({objetivo:'oferta', titulo:'Combo burger artesanal duplo', precoPor:'39,90', foto:PNG});
+    const r=crMontar(sp, CR_RECEITAS.find(x=>x.id==='cardPreso'), '#F85400');
     const {layers}=await importar(await crEmbutir(r.svg));
     const p=layers.filter(l=>l.type==='text' && String(l.content).indexOf('{{produto}}')>=0);
     assert(p.length===1, 'esperava 1 campo produto, veio '+p.length);
@@ -195,19 +227,19 @@
 
   caso('Luma Creative: leitura local do pedido não inventa preço; com preço, de/por saem na ordem', async()=>{
     const sem=crNormaliza(crLerPedido('Arte da pizza margherita para o feed'));
-    assert(sem.composicao==='oferta' && !sem.precoPor && !sem.precoDe, 'inventou preço: '+JSON.stringify([sem.precoDe,sem.precoPor]));
-    assert(crCompor(sem).svg.indexOf('data-campo="precoPor"')<0, 'card de preço sem preço');
+    assert(sem.objetivo==='oferta' && !sem.precoPor && !sem.precoDe, 'inventou preço: '+JSON.stringify([sem.precoDe,sem.precoPor]));
+    assert(crCompor(sem).svg.indexOf('data-campo="precoPor"')<0, 'preço sem preço');
     const com=crNormaliza(crLerPedido('Oferta de pizza calabresa: de R$ 28 por R$ 22,9, 18% off'));
     assert(com.precoDe==='28,00' && com.precoPor==='22,90', 'de/por: '+com.precoDe+' / '+com.precoPor);
     assert(com.selo.join(' ')==='18% OFF', 'selo: '+com.selo.join(' '));
     const cup=crNormaliza(crLerPedido('Cupom QUEROPIZZA de R$ 15 para pedidos acima de R$ 40'));
-    assert(cup.composicao==='cupom' && cup.cupomCodigo==='QUEROPIZZA' && cup.cupomValor==='15', 'cupom: '+JSON.stringify(cup));
+    assert(cup.objetivo==='cupom' && cup.cupomCodigo==='QUEROPIZZA' && cup.cupomValor==='15', 'cupom: '+JSON.stringify(cup));
     assert(/acima de R\$ 40/.test(cup.legal), 'pedido mínimo fora da letra miúda');
   });
 
-  caso('Luma Creative: a conferência acusa cor fora da paleta (não é carimbo)', async()=>{
+  caso('Luma Creative: a conferência da marca acusa cor fora da paleta (não é carimbo)', async()=>{
     await crFontesProntas();
-    const r=crCompor({composicao:'cupom'});
+    const r=crCompor({objetivo:'cupom'});
     r.svg=r.svg.replace('</svg>','<rect width="10" height="10" fill="#00FF00"/></svg>');
     const c=crConfere(r);
     assert(!c[0].ok && /#00FF00/.test(c[0].t), 'cor estranha passou: '+c[0].t);
@@ -215,7 +247,7 @@
 
   caso('Luma Creative: bloco movido no editor chega ao Estúdio na posição nova (o importador lê o transform)', async()=>{
     await crFontesProntas();
-    const r=crCompor({composicao:'oferta', titulo:'Pizza calabresa', precoPor:'22,90'});
+    const r=crCompor({objetivo:'oferta', titulo:'Pizza calabresa', precoPor:'22,90'});
     const antes=(await importar(await crEmbutir(r.svg))).layers.find(l=>String(l.content).indexOf('{{precoPor')>=0);
     const movido=r.svg.replace('<g data-bloco="preco">','<g data-bloco="preco" data-dx="40" data-dy="-100" transform="translate(40,-100)">');
     const depois=(await importar(await crEmbutir(movido))).layers.find(l=>String(l.content).indexOf('{{precoPor')>=0);
@@ -223,27 +255,19 @@
     assert(Math.abs(depois.x-antes.x-40)<=1.5 && Math.abs(depois.y-antes.y+100)<=1.5, 'deslocou '+(depois.x-antes.x)+','+(depois.y-antes.y)+' (esperado 40,-100)');
   });
 
-  caso('Luma Creative: a foto enviada entra no slot e vira a imagem da moldura no Estúdio', async()=>{
-    await crFontesProntas();
-    const png='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
-    const r=crCompor({composicao:'evento', titulo:'Festival', foto:png});
-    assert(/clip-path="url\(#crfoto\)"/.test(r.svg), 'foto não entrou no slot');
-    const {layers}=await importar(await crEmbutir(r.svg));
-    const f=layers.filter(l=>l.type==='frame' && l.imgVar==='foto_produto');
-    assert(f.length===1 && f[0].imgUrl===png, 'moldura sem a foto: '+f.length+' '+String(f[0]&&f[0].imgUrl).slice(0,30));
-    assert(!layers.some(l=>l.type==='image' && l.imgUrl===png), 'a foto entrou também como imagem solta');
-  });
-
-  caso('Luma Creative: o briefing local pergunta o que falta e as respostas entram na arte', async()=>{
-    const br=crBriefingLocal({pedido:'Oferta de pizza calabresa', fmt:'feed'});
-    const t=crPerguntasFinais(br, {foto:null}).map(q=>q.titulo).join(',');
+  caso('Luma Creative: o briefing pergunta formato e o que falta, e as respostas entram na arte', async()=>{
+    const fio={pedido:'Oferta de pizza calabresa', fmt:'feed', foto:null};
+    const t=crPerguntasFinais(crBriefingLocal(fio), fio).map(q=>q.titulo).join(',');
     assert(t==='Formato,Preço,Foto', 'perguntas: '+t);
-    assert(!crBriefingLocal({pedido:'Story: oferta de pizza de R$ 28 por R$ 22,90', fmt:'feed'}).perguntas.length, 'perguntou o que o pedido já dizia');
-    const sp=crNormaliza(crAplicaRespostas({composicao:'oferta'}, [{campo:'precoPor', resposta:'de 28 por 22,9'}, {campo:'formato', valor:'story'}]));
+    const f=crPerguntasFinais(crBriefingLocal(fio), fio)[0];
+    assert(f.opcoes.map(o=>o.valor).join(',')===Object.keys(CR_FORMATOS).join(','), 'opções de formato fora do cadastro');
+    const dito={pedido:'Story: oferta de pizza de R$ 28 por R$ 22,90', fmt:'feed', foto:PNG};
+    assert(!crPerguntasFinais(crBriefingLocal(dito), dito).length, 'perguntou o que o pedido já dizia');
+    const sp=crNormaliza(crAplicaRespostas({objetivo:'oferta'}, [{campo:'precoPor', resposta:'de 28 por 22,9'}, {campo:'formato', valor:'story'}]));
     assert(sp.precoDe==='28,00' && sp.precoPor==='22,90' && sp.formato==='story', 'respostas: '+[sp.precoDe, sp.precoPor, sp.formato]);
-    const ev=crNormaliza(crAplicaRespostas({composicao:'evento'}, [{campo:'data', resposta:'10 a 20 de outubro'}]));
+    const ev=crNormaliza(crAplicaRespostas({objetivo:'evento'}, [{campo:'data', resposta:'10 a 20 de outubro'}]));
     assert(ev.selo.join(' ')==='10 A 20 OUTUBRO', 'selo da data: '+ev.selo.join(' '));
-    const cp=crNormaliza(crAplicaRespostas({composicao:'cupom'}, [{campo:'cupomValor', resposta:'R$ 15'}, {campo:'cupomCodigo', resposta:'quero pizza'}]));
+    const cp=crNormaliza(crAplicaRespostas({objetivo:'cupom'}, [{campo:'cupomValor', resposta:'R$ 15'}, {campo:'cupomCodigo', resposta:'quero pizza'}]));
     assert(cp.cupomValor==='15' && cp.cupomCodigo==='QUEROPIZZA', 'cupom: '+cp.cupomValor+' '+cp.cupomCodigo);
   });
 
