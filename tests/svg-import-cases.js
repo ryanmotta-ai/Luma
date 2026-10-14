@@ -193,10 +193,10 @@
 
   caso('Luma Creative: formatos de canal (inapp, banner, email, capa, slide) — toda opção aprovada é arte limpa, do tamanho do formato, e entra no importador', async()=>{
     await crFontesProntas();
-    for(const formato of ['inapp','banner','emailTopo','emailRodape','capa','slide']) for(const obj of Object.keys(CR_CASOS)) for(const foto of ['',PNG]){
+    for(const formato of ['inapp','banner','emailTopo','emailRodape','capa','slide','carrossel']) for(const obj of Object.keys(CR_CASOS)) for(const foto of ['',PNG]){
       const f=CR_FORMATOS[formato], rot0=formato+'/'+obj+(foto?'/foto':'');
       const cands=crCandidatos(Object.assign({objetivo:obj, formato, foto}, CR_CASOS[obj])), tres=crEscolher3(cands);
-      assert(tres.length>=(f.fixo?1:2), rot0+': '+tres.length+' opção(ões) — '+cands.map(c=>c.receita+': '+c.avaliacao.erros.join('; ')).join(' | '));
+      assert(tres.length>=(f.fixo||f.laminas?1:2), rot0+': '+tres.length+' opção(ões) — '+cands.map(c=>c.receita+': '+c.avaliacao.erros.join('; ')).join(' | '));
       for(const r of tres){
         const rot=rot0+'/'+r.receita;
         assert(r.w===(f.w||1080) && r.h===f.h && r.svg.indexOf('viewBox="0 0 '+r.w+' '+r.h+'"')>0, rot+': tamanho '+r.w+'×'+r.h);
@@ -210,7 +210,7 @@
       }
     }
     const ditos={'Banner do app da promo turbinada':'banner','pop-up inapp do much+':'inapp','cabeçalho de email do burger fest':'emailTopo',
-      'rodapé do email':'emailRodape','capa da pasta do Deskfy':'capa','slide de apresentação':'slide','story do festival':'story'};
+      'rodapé do email':'emailRodape','capa da pasta do Deskfy':'capa','slide de apresentação':'slide','story do festival':'story','carrossel do festival':'carrossel'};
     Object.entries(ditos).forEach(([t,f])=>assert(_crFormatoDito(t)===f, '"'+t+'" → '+_crFormatoDito(t)+' (esperado '+f+')'));
   });
 

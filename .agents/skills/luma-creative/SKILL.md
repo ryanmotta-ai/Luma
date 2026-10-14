@@ -385,8 +385,12 @@ Peça **fixa** da marca; muda só o grafismo da esquerda:
 * **Última = ação:** mockup do app (`mockups/smartphone-moldura.png` + a tela) com o chamado ("Seu par tá no app").
 * Fundo único em todas as lâminas (`#F85400` com fachos `#FF9000`), para a emenda não aparecer.
 
-### 🖥️ Slide 16:9 (1920×1080) — sem referência ainda
-Até o Ryan subir decks, use a régua da capa (§3.4) ampliada: **capa** = hero-sticker centrado em Realce 140–200 px + logo DM branco no rodapé central (≈ 300 px); **conteúdo** = título à esquerda (Realce 96–120 px, `x = 120`) e foto ou mockup na metade direita sangrando; um ponto focal por slide, no máximo 30 palavras. Avise o usuário que o formato ainda não tem referência aprovada.
+### 🖥️ Slide 16:9 (1920×1080) — Template de Apresentações 2026 (`assets/slides/`)
+O template oficial de apresentação (48 slides, extraído do `.pptx` em 10/2026). **Atenção: ele assina "Você Pede"** (logo `slides/logo-voce-pede*.png`) — slide segue o template, peça de post segue a DM.
+* **Fundos (use inteiros, não redesenhe):** `fundo-arco-laranja.jpg` (capa: degradê com arco solar), `fundo-arco-laranja-2.jpg` (destaque), `fundo-branco-arco.jpg` (conteúdo: branco com o arco laranja recortando à direita), `fundo-mapa-brasil.jpg` (expansão/indicadores).
+* **Tipografia do template:** **Roboto**, título em caixa normal ("Título de uma linha"), não Realce. Capa: título branco ~130 px em `x = 200`, subtítulo branco ~56 px; conteúdo: título laranja ~100 px, subtítulo laranja Medium ~44 px, corpo grafite ~38 px.
+* **Layouts-base:** capa (logo branco no alto à esquerda + título + subtítulo sobre o arco), lista (tópicos com fio branco embaixo de cada um), **título em pílula branca** centrada (texto laranja), conteúdo no branco (logo colorido no canto), **mockup** (painel laranja à esquerda com o notebook `mockup-notebook.png` — a foto entra na tela, 127–974 × 32–560 do PNG de 1100×651 — e o texto no branco), **3 cards brancos** arredondados com número, fio laranja e texto.
+* **Inventário de slide:** ícones brancos (`icone-*`), emojis 3D (`emoji-*`), **adesivos das áreas** (`area-financeiro`, `area-marketing`, `area-tech`…), celular e notebook.
 
 ### 🧩 Biblioteca nova (10/2026, extraída dos PSDs e `.ai` do Drive "Luma Creative")
 * `assets/stickers/` — **ilustrações da marca** com contorno creme e traço marrom (balão 15 amarelo/laranja, cachorro de bexiga, chimarrão, maionese, mouse, planetário, xis, logo antiga, `R$` e `%` em amarelo/laranja). São **acento**: no máximo 2 por peça, inclinados, nunca atrás de texto. Os de aniversário (balão 15, selo 15 anos) são da campanha de 15 anos.
@@ -457,7 +461,7 @@ A skill organiza seus recursos nas seguintes pastas:
     └── antirreferencias/             <- Prints REPROVADOS, com o erro no nome do arquivo. Olhe na Fase 1: é o que não fazer
 ```
 
-**Ativos previstos (ainda não estão no repo — NÃO invente nem desenhe equivalentes; use só depois de subirem):** moto/entregador, raio, mais selos de campanha, fonte Ubuntu (much+), referências de slide 16:9, **logo DM vetorial** (o PNG atual tem 298px) e fotos reais de franqueado. Enquanto faltarem: peça sem eles; se o briefing exige o ativo, **avise o usuário**.
+**Ativos previstos (ainda não estão no repo — NÃO invente nem desenhe equivalentes; use só depois de subirem):** moto/entregador, raio, mais selos de campanha, fonte Ubuntu (much+), **logo DM vetorial** (o PNG atual tem 298px) e fotos reais de franqueado. Enquanto faltarem: peça sem eles; se o briefing exige o ativo, **avise o usuário**.
 O ticket oficial (`cards-preco/ticket-cupom.svg`, silhueta ondulada da referência) foi passado para a paleta em 10/2026: borda `#FF9000`, aba `#F62900`, sombra do preset, código sem itálico. Escale o `<g>` inteiro (ex.: `scale(1.2941)` → 880px); uso pronto em `refino/fontes/refino_02_cupom_story.svg`.
 
 Utilitários de suporte na raiz do repositório:

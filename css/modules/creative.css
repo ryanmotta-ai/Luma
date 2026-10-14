@@ -124,6 +124,10 @@ body.mode-creative #view-creative{ display:flex!important; opacity:1; transform:
 .cr-ops{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; align-items:start }
 /* Formatos deitados (banner, email, capa, slide): uma opção por linha, na largura toda */
 #view-creative .cr-ops-deitadas{ grid-template-columns:minmax(0,1fr) }
+/* Carrossel: as divisas entre as lâminas (onde o PNG é cortado) marcadas na prévia */
+#view-creative .cr-op-arte[data-laminas="3"]::after{ content:''; position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(90deg, transparent calc(33.333% - 1px), rgba(255,255,255,.75) calc(33.333% - 1px), rgba(255,255,255,.75) calc(33.333% + 1px), transparent calc(33.333% + 1px),
+    transparent calc(66.666% - 1px), rgba(255,255,255,.75) calc(66.666% - 1px), rgba(255,255,255,.75) calc(66.666% + 1px), transparent calc(66.666% + 1px)) }
 .cr-op{ display:flex; flex-direction:column; gap:10px; padding:0; border:0; background:none; text-align:left; cursor:pointer; color:inherit; animation:crSobe var(--dur-slow) var(--ease-out) both }
 .cr-op:nth-child(2){ animation-delay:80ms }
 .cr-op:nth-child(3){ animation-delay:160ms }

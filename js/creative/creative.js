@@ -245,13 +245,16 @@ const CR_FORMATOS = {
   emailTopo:   { nome: 'Cabeçalho de email', desc: '1080 × 300, topo do email', h: 300, m: 40, seguroTopo: 20, seguroBase: 280, piso: 28, heroi: 56, heroiMax: 92, preco: 64, deitado: true, social: false },
   emailRodape: { nome: 'Rodapé de email', desc: '1080 × 121, assinatura do email', h: 121, m: 40, seguroTopo: 8, seguroBase: 113, piso: 26, heroi: 0, preco: 0, deitado: true, social: false, fixo: true },
   capa:    { nome: 'Capa Deskfy', desc: '750 × 400, capa de pasta', w: 750, h: 400, m: 50, seguroTopo: 20, seguroBase: 385, piso: 20, heroi: 48, heroiMax: 80, preco: 56, png: 2, deitado: true, social: false },
-  slide:   { nome: 'Slide', desc: '1920 × 1080, apresentação', w: 1920, h: 1080, m: 120, seguroTopo: 60, seguroBase: 1020, piso: 28, heroi: 110, heroiMax: 190, preco: 120, deitado: true, social: false }
+  // Carrossel: 3 lâminas de 1080×1350 numa cena só (3240 de largura), cortada em 3 PNGs. Texto
+  // respeita a margem de CADA lâmina (nunca atravessa a divisa); grafismo atravessa e amarra as lâminas.
+  carrossel: { nome: 'Carrossel', desc: '3 lâminas de 1080 × 1350, post', w: 3240, h: 1350, m: 100, seguroTopo: 60, seguroBase: 1290, laminas: 3, deitado: true, heroi: 80, heroiMax: 300, preco: 96 },
+  slide:   { nome: 'Slide', desc: '1920 × 1080, apresentação', w: 1920, h: 1080, m: 120, seguroTopo: 60, seguroBase: 1020, piso: 28, heroi: 60, heroiMax: 140, preco: 96, deitado: true, social: false }
 };
 function crArea(fmt){
   const k = CR_FORMATOS[fmt] ? fmt : 'feed', f = CR_FORMATOS[k];
   return { fmt: k, W: f.w || CR_W, H: f.h, M: f.m || CR_M, top: f.top, base: f.base, fim: f.fim, seguroTopo: f.seguroTopo, seguroBase: f.seguroBase,
     story: f.h === 1920, deitado: !!f.deitado, piso: f.piso || 22, heroiMin: f.heroi == null ? 80 : f.heroi, heroiMax: f.heroiMax || 0,
-    precoMin: f.preco == null ? 96 : f.preco, card: f.card || null, p: {} };
+    precoMin: f.preco == null ? 96 : f.preco, card: f.card || null, laminas: f.laminas || 0, p: {} };
 }
 
 // Bloco = o que o editor (crEditar) move junto. Ganha transform ao arrastar; o importador lê a matriz.
@@ -655,6 +658,118 @@ const CR_LOCKUPS = {
     return out;
   },
 
+  // Carrossel (ref. Dia do Solteiro): lâmina 1 = capa (logo + título gigante + seta para o lado),
+  // 2 = conteúdo (itens em cards, ou a foto), 3 = ação (preço/valor/cupom + botão + logo). O sorriso
+  // atravessa a divisa 1→2 por baixo e amarra as lâminas.
+  carrossel(sp, a, est, fundo){
+    const L = 1080, M = a.M, larg = L - 2 * M, ch = crChave(sp), out = [];
+    const decorSvg = (id, x, y, w, rot) => { const d = CR_DECOR[id]; if(!_crDoInv(id, sp)) return ''; const h = Math.round(w * d.h / d.w);
+      return crBloco('decor', '<image href="asset:inv/' + id + '.png" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"' + (rot ? ' transform="rotate(' + rot + ' ' + _r(x + w / 2) + ' ' + _r(y + h / 2) + ')"' : '') + '/>'); };
+    out.push(decorSvg('sorriso-arco', 660, 1010, 860, 0), decorSvg('seta-rabisco', 120, 1110, 300, -8));
+    // lâmina 1
+    out.push(crBloco('logo', crLogo(M, 90, false).svg));
+    const q = _crHeroiCaixa(ch.titulo || sp.titulo, larg, 560, 300);
+    if(q.size < a.heroiMin) est.push(ch.titulo);
+    out.push(crBloco('titulo', '<g id="produto">' + crHeroi(M, q.linhas.map((l, k) => 360 + q.size * 0.73 + k * q.size * 0.94), q.size, '#FFFFFF', q.linhas, ' data-campo="' + (sp.objetivo === 'oferta' ? 'produto' : 'titulo') + '"') + '</g>'));
+    // lâmina 2
+    const x2 = L + M;
+    if(sp.itens.length){
+      if(sp.apoio) out.push(crBloco('apoio', crTexto(x2, 170, 'body', crCabe(sp.apoio, 'body', 48, larg, 32, est), '#FFFFFF', sp.apoio)));
+      out.push(crBloco('itens', crItens(x2, 280, larg, 660, sp.itens, est)));
+    }else if(sp.foto){
+      out.push(crBloco('foto', crFoto(L + M, 120, larg, 780, 56, '', sp.foto)));
+      if(sp.apoio) out.push(crBloco('apoio', crTexto(x2, 990, 'body', crCabe(sp.apoio, 'body', 48, larg, 32, est), '#FFFFFF', sp.apoio)));
+    }else if(sp.chamada.length){
+      const zc = Math.floor(Math.min(96, ...sp.chamada.map(l => larg * 90 / Math.max(1, crMedeMista(l, 90)))));
+      out.push(crBloco('chamada', sp.chamada.map((l, k) => crMista(x2, 420 + zc * 0.75 + k * zc * 1.3, zc, '#FFFFFF', l)).join('')));
+    }else if(sp.apoio){
+      const qa = _crHeroiCaixa(sp.apoio.toLocaleUpperCase('pt-BR'), larg, 520, 150);
+      out.push(crBloco('chamada', crHeroi(x2, qa.linhas.map((l, k) => 320 + qa.size * 0.73 + k * qa.size * 0.94), qa.size, '#FFFFFF', qa.linhas)));
+    }else return null;
+    // lâmina 3
+    const x3 = 2 * L + M;
+    let y3 = 200;
+    if(sp.precoPor){
+      const pm = crPrecoMede(sp.precoPor, larg, 230), de = sp.precoDe ? 61 : 0;
+      let pr = '<g id="preco">' + (sp.precoDe ? crTexto(x3, y3 + 29, 'body', 40, '#FFFFFF', 'DE R$ ' + sp.precoDe, ' text-decoration="line-through" data-campo="precoDe"') : '');
+      pr += crTexto(x3 + 2, y3 + de + 26, 'sup', 36, '#FFFFFF', 'POR') + crPreco(x3, y3 + de + 44 + pm.big * 0.73, sp.precoPor, larg, '#FFFFFF', pm.big) + '</g>';
+      out.push(crBloco('preco', pr)); y3 += de + 44 + pm.big * 0.73 + 120;
+    }else if(sp.cupomCodigo && (sp.objetivo === 'cupom' || sp.objetivo === 'aniversario')){
+      const zv = 150, val = ch.valor ? ch.valor.txt : (sp.cupomValor ? 'R$ ' + sp.cupomValor + ' OFF' : '');
+      if(val){ const z = crCabe(val, 'hero', zv, larg, 96, est); out.push(crBloco('valor', crTexto(x3, y3 + z * 0.73, 'hero', z, '#FFFFFF', val, ' data-campo="desconto_valor"'))); y3 += z * 0.73 + 100; }
+      out.push(crBloco('cupom', crTicket(x3, y3, 1) + '<g id="detalhes">' + crTexto(x3 + 222, y3 + 82, 'sup', 34, '#434343', sp.cupomRotulo)
+        + crTexto(x3 + 222, y3 + 194, 'hero', crCabe(sp.cupomCodigo, 'hero', 116, 568, 48, est), '#F85400', sp.cupomCodigo, ' data-campo="codigo_cupom" data-larg="568"') + '</g>'));
+      y3 += 324 + 100;
+    }else if(ch.selo.length){
+      out.push(crBloco('selo', crSelo(x3 + 150, y3 + 150, 150, ch.selo))); y3 += 300 + 100;
+    }
+    const cta = sp.cta || 'PEÇA NO APP';
+    out.push(crBloco('botao', crBotao(x3, Math.max(y3, 760), cta, fundo === '#FF9000' ? 'laranja' : 'cheio').svg));
+    if(sp.legal) out.push(crBloco('legal', crTexto(x3, 1140, 'legal', crCabe(sp.legal, 'legal', 26, larg, 22, est), '#FFFFFF', sp.legal)));
+    out.push(crBloco('logo', crLogo(x3, 1200, false).svg));
+    return out.filter(Boolean);
+  },
+
+  /* ── Slide (Template de Apresentações 2026, assets/creative/slides/): fundos do template, Roboto,
+     logo do template. Capa · destaque em pílula · conteúdo no branco com arco · mockup · cards ── */
+  slide(sp, a, est, fundo, v){
+    // o template escreve título em caixa normal ("Título de uma linha"), não em maiúsculas
+    const W = a.W, H = a.H, M = 200, out = [], ch = crChave(sp), t0 = String(ch.titulo || sp.titulo).toLocaleLowerCase('pt-BR'), tit = t0.charAt(0).toLocaleUpperCase('pt-BR') + t0.slice(1);
+    const bg = f => '<image href="asset:slides/' + f + '.jpg" x="0" y="0" width="' + W + '" height="' + H + '" preserveAspectRatio="xMidYMid slice"/>';
+    const logoB = (x, y, w) => crBloco('logo', '<image href="asset:slides/logo-voce-pede-branco.png" x="' + _r(x) + '" y="' + _r(y) + '" width="' + w + '" height="' + _r(w * 257 / 600) + '"/>');
+    const logoC = (x, y, w) => crBloco('logo', '<image href="asset:slides/logo-voce-pede.png" x="' + _r(x) + '" y="' + _r(y) + '" width="' + w + '" height="' + _r(w * 400 / 355) + '"/>');
+    const titulo = (x, y, w, h, max, cor, anc) => {
+      // o título do template é Roboto (não Realce): 1–2 linhas equilibradas, o maior corpo que cabe
+      const ls = _crLinhas(tit, 'body', crMede(tit, 'body', max) > w ? 2 : 1), zz = Math.floor(Math.min(max, h / (0.73 + (ls.length - 1) * 1.15), w * 100 / Math.max(...ls.map(l => crMede(l, 'body', 100)))));
+      return { h: zz * 0.73 + (ls.length - 1) * zz * 1.15, svg: crBloco('titulo', '<g id="produto"><text x="' + _r(x) + '" y="' + _r(y + zz * 0.73) + '" class="body" font-size="' + zz + '" fill="' + cor + '"' + (anc || '') + ' data-campo="' + (sp.objetivo === 'oferta' ? 'produto' : 'titulo') + '">'
+        + ls.map((l, k) => '<tspan x="' + _r(x) + '" y="' + _r(y + zz * 0.73 + k * zz * 1.15) + '">' + crX(l) + '</tspan>').join('') + '</text></g>'), z: zz < a.heroiMin ? est.push(tit) : 0 };
+    };
+    const corpo = (x, y, w, cor) => {
+      let yy = y, s = '';
+      if(sp.apoio){ const z = crCabe(sp.apoio, 'media', 44, w, a.piso, est); s += crTexto(x, yy + z * 0.75, 'media', z, cor, sp.apoio); yy += z + 36; }
+      sp.itens.forEach(t => { const z = crCabe(t, 'body', 38, w - 40, a.piso, est); s += '<circle cx="' + _r(x + 8) + '" cy="' + _r(yy + z * 0.45) + '" r="7" fill="' + cor + '"/>' + crTexto(x + 36, yy + z * 0.75, 'body', z, '#434343', t); yy += z + 30; });
+      return s ? crBloco('apoio', s) : '';
+    };
+    if(v.tipo === 'capa'){
+      out.push(bg('fundo-arco-laranja'), logoB(M, 170, 300));
+      const t = titulo(M, 430, 1150, 330, 140, '#FFFFFF');
+      out.push(t.svg);
+      if(sp.apoio) out.push(crBloco('apoio', crTexto(M, 430 + t.h + 60 + 48, 'body', crCabe(sp.apoio, 'body', 60, 1150, a.piso, est), '#FFFFFF', sp.apoio)));
+    }else if(v.tipo === 'destaque'){
+      out.push(bg('fundo-arco-laranja-2'));
+      const t0 = _crLinhas(tit, 'body', 1), z = Math.floor(Math.min(110, 1260 * 100 / crMede(t0[0], 'body', 100)));
+      if(z < a.heroiMin) est.push(tit);
+      out.push(crBloco('titulo', '<rect x="240" y="440" width="1440" height="200" rx="48" fill="#FFFFFF" filter="url(#sh)"/><g id="produto">' + crTexto(960, 540 + z * 0.36, 'body', z, '#F85400', tit, ' text-anchor="middle" data-campo="titulo" data-larg="1260"') + '</g>'));
+      out.push(logoB(960 - 100, 880, 200));
+    }else if(v.tipo === 'conteudo'){
+      if(!sp.apoio && !sp.itens.length) return null;
+      out.push(bg('fundo-branco-arco'), logoC(120, 80, 110));
+      const t = titulo(M, 300, 820, 260, 110, '#F85400');
+      out.push(t.svg, corpo(M, 300 + t.h + 70, 820, '#F85400'));
+    }else if(v.tipo === 'mockup'){
+      if(!sp.foto) return null;
+      // notebook do template; a foto entra na tela (127–974 × 32–560 do PNG de 1100×651)
+      const nx = 120, ny = 260, nw = 1000, k = nw / 1100;
+      out.push('<rect width="1060" height="' + H + '" fill="#F85400"/>', '<rect x="1060" width="' + (W - 1060) + '" height="' + H + '" fill="#FFFFFF"/>', logoB(120, 80, 200),
+        crBloco('foto', crFoto(nx + 127 * k, ny + 32 * k, (974 - 127) * k, (560 - 32) * k, 0, '', sp.foto)),
+        crBloco('mockup', '<image href="asset:slides/mockup-notebook.png" x="' + nx + '" y="' + ny + '" width="' + nw + '" height="' + _r(651 * k) + '"/>'));
+      const t = titulo(1200, 320, 600, 260, 100, '#F85400');
+      out.push(t.svg, corpo(1200, 320 + t.h + 60, 600, '#F85400'));
+    }else if(v.tipo === 'cards'){
+      if(sp.itens.length < 2) return null;
+      out.push(bg('fundo-branco-arco'), logoC(120, 80, 110));
+      const t = titulo(M, 250, 1500, 130, 90, '#F85400');
+      out.push(t.svg);
+      const n = sp.itens.length, gap = 40, cw = (W - 2 * M - gap * (n - 1)) / n, cy = 250 + t.h + 80, chh = 1000 - cy;
+      out.push(crBloco('itens', sp.itens.map((it, i) => { const cx = M + i * (cw + gap);
+        const ls = _crLinhas(it, 'media', crMede(it, 'media', 50) > cw - 80 ? 2 : 1), zz = Math.min(50, Math.floor((cw - 80) * 100 / Math.max(...ls.map(l => crMede(l, 'media', 100)))));
+        return '<rect x="' + _r(cx) + '" y="' + _r(cy) + '" width="' + _r(cw) + '" height="' + _r(chh) + '" rx="36" fill="#FFFFFF" filter="url(#sh)"/>'
+          + crTexto(cx + 40, cy + 110, 'hero', 72, '#F85400', String(i + 1)) + '<line x1="' + _r(cx + 40) + '" y1="' + _r(cy + 150) + '" x2="' + _r(cx + cw - 40) + '" y2="' + _r(cy + 150) + '" stroke="#F85400" stroke-width="3"/>'
+          + ls.map((l, j) => crTexto(cx + 40, cy + 220 + j * zz * 1.2, 'media', zz, '#F85400', l)).join(''); }).join('')));
+    }
+    return out;
+  },
+
   // Rodapé de email (peça fixa da marca): sorriso amarelo · redes + @deliverymuchbrasil · ícone do app
   rodape(sp, a, est, fundo){
     const ic = 29, z = 30, txt = 'deliverymuchbrasil', w = ic * 2 + 4 + 14 + crMede(txt, 'media', z), x0 = (a.W - w) / 2, my = a.H / 2;
@@ -689,6 +804,15 @@ function crPilula(cx, cy, txt, cls, z, fundo, cor, rx){
   const w = _r(crMede(txt, cls, z) + z * 1.6), h = _r(z * 1.75);
   return { w, h, svg: '<rect x="' + _r(cx - w / 2) + '" y="' + _r(cy - h / 2) + '" width="' + w + '" height="' + h + '" rx="' + _r(rx) + '" fill="' + fundo + '"/>'
     + crTexto(cx, cy + z * 0.36, cls, z, cor, txt, ' text-anchor="middle"') };
+}
+// Lista de itens em cards brancos (carrossel): número em Realce + frase, empilhados na caixa
+function crItens(x, y, w, h, itens, est){
+  const n = itens.length, gap = 28, ch = Math.min(170, (h - gap * (n - 1)) / n);
+  return itens.map((t, i) => {
+    const yy = y + i * (ch + gap), z = crCabe(t, 'forte', Math.min(46, ch * 0.34), w - 170, 26, est), zn = Math.min(84, ch * 0.62);
+    return '<rect x="' + _r(x) + '" y="' + _r(yy) + '" width="' + _r(w) + '" height="' + _r(ch) + '" rx="36" fill="#FFFFFF" filter="url(#shs)"/>'
+      + crTexto(x + 48, yy + ch / 2 + zn * 0.36, 'hero', zn, '#F85400', String(i + 1)) + crTexto(x + 130, yy + ch / 2 + z * 0.36, 'forte', z, '#434343', t, ' data-larg="' + _r(w - 170) + '"');
+  }).join('');
 }
 // Inapp: o botão largo da base (824×125, skill §3.5), texto minúsculo de ação
 function crBotaoLargo(sp, fundo){
@@ -740,15 +864,22 @@ const CR_RECEITAS = [
   { id: 'aniversario', nome: 'Número de anos', foto: null, peso: { aniversario: 10 }, lockup: 'aniversario' },
   { id: 'aniversarioPattern', nome: 'Anos com grafismo', foto: null, peso: { aniversario: 8 }, padrao: true, lockup: 'aniversario', formatos: ['story', 'inapp'] },
   // Formatos deitados (§3.5): servem a qualquer objetivo — o cadastro do formato decide
-  { id: 'capaSticker', nome: 'Adesivo inclinado', foto: null, peso: _crTodos(10), lockup: 'sticker', variante: { inclinar: true }, formatos: ['capa', 'slide'], fundos: ['#F85400', '#FFB900'] },
-  { id: 'capaReta', nome: 'Adesivo reto', foto: null, peso: _crTodos(7), lockup: 'sticker', formatos: ['capa', 'slide'] },
-  { id: 'capaFoto', nome: 'Foto ao lado', foto: true, peso: _crTodos(9), lockup: 'metade', variante: { lado: 'dir' }, formatos: ['capa', 'slide'] },
+  { id: 'capaSticker', nome: 'Adesivo inclinado', foto: null, peso: _crTodos(10), lockup: 'sticker', variante: { inclinar: true }, formatos: ['capa'], fundos: ['#F85400', '#FFB900'] },
+  { id: 'capaReta', nome: 'Adesivo reto', foto: null, peso: _crTodos(7), lockup: 'sticker', formatos: ['capa'] },
+  { id: 'capaFoto', nome: 'Foto ao lado', foto: true, peso: _crTodos(9), lockup: 'metade', variante: { lado: 'dir' }, formatos: ['capa'] },
+  // Slide: layouts do Template de Apresentações 2026
+  { id: 'slideCapa', nome: 'Capa do template', foto: null, peso: _crTodos(9), lockup: 'slide', variante: { tipo: 'capa' }, formatos: ['slide'] },
+  { id: 'slideConteudo', nome: 'Conteúdo no branco', foto: null, peso: _crTodos(10), lockup: 'slide', variante: { tipo: 'conteudo' }, formatos: ['slide'] },
+  { id: 'slideCards', nome: 'Cards de tópicos', foto: null, peso: _crTodos(10), lockup: 'slide', variante: { tipo: 'cards' }, formatos: ['slide'] },
+  { id: 'slideMockup', nome: 'Notebook com a foto', foto: true, peso: _crTodos(10), lockup: 'slide', variante: { tipo: 'mockup' }, formatos: ['slide'] },
+  { id: 'slideDestaque', nome: 'Título em destaque', foto: null, peso: _crTodos(7), lockup: 'slide', variante: { tipo: 'destaque' }, formatos: ['slide'] },
   { id: 'emailMarca', nome: 'Marca e chamada', foto: null, peso: _crTodos(10), lockup: 'emailMarca', formatos: ['emailTopo'] },
   { id: 'emailFaixa', nome: 'Faixa com logo', foto: null, peso: _crTodos(7), lockup: 'emailFaixa', formatos: ['emailTopo'] },
   { id: 'emailFoto', nome: 'Foto ao lado', foto: true, peso: _crTodos(9), lockup: 'metade', variante: { lado: 'esq' }, formatos: ['emailTopo'] },
   { id: 'bannerSplit', nome: 'Dois tons', foto: null, peso: _crTodos(10), lockup: 'bannerSplit', formatos: ['banner'] },
   { id: 'bannerSelo', nome: 'Selo de valor', foto: null, peso: _crTodos(8), lockup: 'bannerSelo', formatos: ['banner'] },
   { id: 'bannerFoto', nome: 'Foto em cartão', foto: true, peso: _crTodos(9), lockup: 'bannerFoto', formatos: ['banner'] },
+  { id: 'carrosselTres', nome: 'Capa, conteúdo e ação', foto: null, peso: _crTodos(9), lockup: 'carrossel', formatos: ['carrossel'] },
   { id: 'rodape', nome: 'Rodapé da marca', foto: null, peso: _crTodos(10), lockup: 'rodape', formatos: ['emailRodape'], fundos: ['#F85400', '#FF9000'] }
 ];
 // Objetivo → receitas que servem (fotos e dados do conteúdo decidem o resto)
@@ -800,7 +931,8 @@ function crNormaliza(bruto){
     legal: txt(s.legal, 90),
     foto: /^data:image\/(png|jpeg|webp);base64,/.test(s.foto || '') ? s.foto : '',
     marca: s.marca === 'much' ? 'much' : 'dm',
-    chamada: (Array.isArray(s.chamada) ? s.chamada : []).map(l => txt(l, 32)).filter(Boolean).slice(0, 2)
+    chamada: (Array.isArray(s.chamada) ? s.chamada : []).map(l => txt(l, 32)).filter(Boolean).slice(0, 2),
+    itens: (Array.isArray(s.itens) ? s.itens : []).map(l => txt(l, 40)).filter(Boolean).slice(0, 4).map(l => l.charAt(0).toLocaleUpperCase('pt-BR') + l.slice(1))
   };
   const P = {
     oferta:      { titulo: 'OFERTA DO DIA', apoio: 'Direto pelo app', cta: 'PEDIR' },
@@ -917,7 +1049,11 @@ function crAvaliar(r){
     if(ix > 8 && iy > 8) erros.push('Grafismo atrás de ' + q.nome);
   }));
   solidos.forEach(b => {
-    if(b.x < a.M - 6 || b.x + b.w > a.W - a.M + 6) erros.push(b.nome + ' fora da margem lateral');
+    if(a.laminas){
+      // carrossel: a margem é a da LÂMINA — texto atravessando a divisa sai cortado em dois posts
+      const lam = Math.floor((b.x + b.w / 2) / 1080), x0 = b.x - lam * 1080;
+      if(x0 < a.M - 6 || x0 + b.w > 1080 - a.M + 6) erros.push(b.nome + ' fora da margem da lâmina ' + (lam + 1));
+    }else if(b.x < a.M - 6 || b.x + b.w > a.W - a.M + 6) erros.push(b.nome + ' fora da margem lateral');
     if(b.y < a.seguroTopo - 2 || b.y + b.h > a.seguroBase + 2) erros.push(b.nome + ' fora da zona útil');
     if(b.menorFonte && b.menorFonte < a.piso) erros.push(b.nome + ' com texto < ' + a.piso + ' px');
   });
@@ -926,7 +1062,7 @@ function crAvaliar(r){
     const p = bs[i], q = bs[j];
     const ix = Math.min(p.x + p.w, q.x + q.w) - Math.max(p.x, q.x), iy = Math.min(p.y + p.h, q.y + q.h) - Math.max(p.y, q.y);
     const comFoto = p.nome === 'foto' || q.nome === 'foto', outro = p.nome === 'foto' ? q : p;
-    if(comFoto && (outro.nome === 'selo' || (outro.nome === 'preco' && outro.sobre) || (outro.nome === 'botao' && a.fmt === 'inapp'))) continue;
+    if(comFoto && (outro.nome === 'selo' || (outro.nome === 'preco' && outro.sobre) || (outro.nome === 'botao' && a.fmt === 'inapp') || outro.nome === 'mockup')) continue;   // a moldura do mockup abraça a foto
     if(ix > 0 && iy > 0) erros.push('Colisão: ' + p.nome + ' × ' + q.nome);
     else if(ix > 0 && iy > -24 && !(p.nome === 'titulo' || q.nome === 'titulo')) avisos.push('Vão curto: ' + p.nome + ' × ' + q.nome);
   }
@@ -940,7 +1076,7 @@ function crAvaliar(r){
   const tit = bs.find(b => b.nome === 'titulo' || b.nome === 'valor' || b.nome === 'anos'), ap = bs.find(b => b.nome === 'apoio');
   const heroi = tit ? tit.maiorFonte : 0;
   if(tit && heroi < (r.fundo === '#FF9000' && !a.deitado ? 110 : a.heroiMin)) erros.push('Herói pequeno (' + heroi + ' px)');
-  if(tit && ap && heroi < ap.maiorFonte * 2.5) avisos.push('Herói menos de 2,5× o apoio');
+  if(tit && ap && heroi < ap.maiorFonte * 2.5 && a.fmt !== 'slide') avisos.push('Herói menos de 2,5× o apoio');   // slide: escala de apresentação
   const pr = bs.find(b => b.nome === 'preco');
   if(pr && pr.maiorFonte < a.precoMin) erros.push('Preço pequeno (' + pr.maiorFonte + ' px)');
   if(r.fundo === '#FF9000' && !a.deitado && (sp.legal || (pr && !pr.sobre) || (ap && ap.maiorFonte < 36))) erros.push('Fundo #FF9000 com preço, legal ou apoio pequeno direto (contraste)');
@@ -948,6 +1084,16 @@ function crAvaliar(r){
   return { erros, avisos, blocos: bs, heroi, preco: pr ? pr.maiorFonte : 0, fracFoto, maiorVazio };
 }
 // Nota 0–100: curadoria da família + escala do herói/preço + foto na faixa certa + respiro
+// Aprende com a escolha: o que a pessoa baixa ou edita ganha peso (neste navegador) — família da
+// receita, ou "designer" para as composições da IA. Teto de +10 na nota.
+const CR_PREF_CHAVE = 'luma_creative_pref';
+function _crPref(){ try{ return JSON.parse(localStorage.getItem(CR_PREF_CHAVE) || '{}') || {}; }catch(e){ return {}; } }
+function crAprende(r, como){
+  const k = r.desenho ? 'designer' : r.receita, p = _crPref();
+  p[k] = Math.min(20, (p[k] || 0) + (como === 'editou' ? 1 : 2));
+  try{ localStorage.setItem(CR_PREF_CHAVE, JSON.stringify(p)); }catch(e){}
+  if(typeof gTrackEvent === 'function') try{ gTrackEvent('creative_escolha', { como, receita: k, ideia: r.desenho ? r.nomeReceita : '', formato: r.spec.formato, objetivo: r.spec.objetivo, marca: r.spec.marca, juiz: r.juiz ? +r.juiz.nota.toFixed(1) : null }); }catch(e){}
+}
 function crNota(r, av){
   const a = crArea(r.spec.formato), rec = CR_RECEITAS.find(x => x.id === r.receita) || {};
   const lim = (v, a0, a1) => Math.max(0, Math.min(1, (v - a0) / (a1 - a0)));
@@ -958,6 +1104,7 @@ function crNota(r, av){
   if(av.fracFoto) n += Math.max(0, 1 - Math.abs(av.fracFoto - 0.45) / 0.2) * 8;
   n -= Math.min(24, Math.max(0, av.maiorVazio - 140) / 10);
   n -= av.avisos.length * 4;
+  n += Math.min(10, _crPref()[r.desenho ? 'designer' : r.receita] || 0);
   return Math.round(Math.max(0, Math.min(100, n)));
 }
 
@@ -1035,9 +1182,34 @@ const CR_DECOR = {   // gerado de .agents/skills/luma-creative/assets (cópia le
   'celular-app': { w: 390, h: 700, max: 520, marca: 'todas', tipo: 'mockup', desc: "celular com a tela do app — \"peça pelo app\"" },
   'celular-moldura': { w: 410, h: 700, max: 520, marca: 'todas', tipo: 'mockup', desc: "moldura de celular vazia" },
   'icone-instagram': { w: 29, h: 29, max: 40, marca: 'todas', tipo: 'acento', desc: "ícone do Instagram" },
+  // Template de Apresentações 2026 (só em slide)
+  'icone-pin': { w: 315, h: 420, max: 300, marca: 'slide', tipo: 'icone', desc: 'ícone branco de localização' },
+  'icone-pessoa': { w: 157, h: 420, max: 204, marca: 'slide', tipo: 'icone', desc: 'ícone branco de pessoa' },
+  'icone-foguete': { w: 160, h: 160, max: 208, marca: 'slide', tipo: 'icone', desc: 'ícone branco de foguete (lançamento, crescimento)' },
+  'icone-engrenagens': { w: 198, h: 158, max: 257, marca: 'slide', tipo: 'icone', desc: 'ícone branco de engrenagens (operação)' },
+  'icone-grafico': { w: 160, h: 140, max: 208, marca: 'slide', tipo: 'icone', desc: 'ícone branco de gráfico (resultado)' },
+  'icone-prancheta': { w: 121, h: 160, max: 157, marca: 'slide', tipo: 'icone', desc: 'ícone branco de prancheta (lista, tarefas)' },
+  'emoji-casa': { w: 153, h: 158, max: 198, marca: 'slide', tipo: 'icone', desc: 'emoji 3D de casa' },
+  'emoji-presente': { w: 160, h: 160, max: 208, marca: 'slide', tipo: 'icone', desc: 'emoji 3D de presente' },
+  'emoji-estrelas': { w: 160, h: 153, max: 208, marca: 'slide', tipo: 'icone', desc: 'emoji 3D com olhos de estrela' },
+  'emoji-coracao': { w: 150, h: 150, max: 195, marca: 'slide', tipo: 'icone', desc: 'emoji 3D de coração laranja' },
+  'emoji-festa': { w: 160, h: 160, max: 208, marca: 'slide', tipo: 'icone', desc: 'emoji 3D de festa' },
+  'emoji-foguete': { w: 158, h: 151, max: 205, marca: 'slide', tipo: 'icone', desc: 'emoji 3D de foguete' },
+  'area-financeiro': { w: 420, h: 284, max: 460, marca: 'slide', tipo: 'sticker', desc: 'adesivo da área financeiro (time interno)' },
+  'area-juridico': { w: 420, h: 285, max: 460, marca: 'slide', tipo: 'sticker', desc: 'adesivo da área juridico (time interno)' },
+  'area-infraestrutura': { w: 420, h: 219, max: 460, marca: 'slide', tipo: 'sticker', desc: 'adesivo da área infraestrutura (time interno)' },
+  'area-implementacao': { w: 420, h: 205, max: 460, marca: 'slide', tipo: 'sticker', desc: 'adesivo da área implementacao (time interno)' },
+  'area-novos-negocios': { w: 420, h: 408, max: 460, marca: 'slide', tipo: 'sticker', desc: 'adesivo da área novos negocios (time interno)' },
+  'area-marketing': { w: 420, h: 257, max: 460, marca: 'slide', tipo: 'sticker', desc: 'adesivo da área marketing (time interno)' },
+  'area-departamento-pessoal': { w: 420, h: 294, max: 460, marca: 'slide', tipo: 'sticker', desc: 'adesivo da área departamento pessoal (time interno)' },
+  'area-operacoes': { w: 420, h: 253, max: 460, marca: 'slide', tipo: 'sticker', desc: 'adesivo da área operacoes (time interno)' },
+  'area-pessoas': { w: 420, h: 246, max: 460, marca: 'slide', tipo: 'sticker', desc: 'adesivo da área pessoas (time interno)' },
+  'area-expansao': { w: 420, h: 266, max: 460, marca: 'slide', tipo: 'sticker', desc: 'adesivo da área expansao (time interno)' },
+  'area-tech': { w: 420, h: 358, max: 460, marca: 'slide', tipo: 'sticker', desc: 'adesivo da área tech (time interno)' },
   'icone-tiktok': { w: 29, h: 29, max: 40, marca: 'todas', tipo: 'acento', desc: "ícone do TikTok" }
 };
-const _crDoInv = (id, sp) => !!CR_DECOR[id] && (CR_DECOR[id].marca === 'todas' || CR_DECOR[id].marca === ((sp && sp.marca) || 'dm'));
+const _crDoInv = (id, sp) => !!CR_DECOR[id] && (CR_DECOR[id].marca === 'slide' ? !!sp && sp.formato === 'slide'
+  : CR_DECOR[id].marca === 'todas' || CR_DECOR[id].marca === ((sp && sp.marca) || 'dm'));
 // O conteúdo da peça em blocos (o que a IA posiciona) — só os que têm conteúdo
 function crConteudoBlocos(sp){
   const b = { logo: 'logo branco Delivery Much' };
@@ -1054,6 +1226,7 @@ function crConteudoBlocos(sp){
   if(sp.cta) b.cta = sp.cta;
   if(sp.legal) b.legal = sp.legal;
   if(sp.foto) b.foto = 'foto enviada pela pessoa';
+  if(sp.itens.length && (sp.formato === 'carrossel' || sp.formato === 'slide')) b.itens = sp.itens.join(' / ');
   return b;
 }
 // Quebra equilibrada em n linhas (minimiza a linha mais larga)
@@ -1149,6 +1322,8 @@ function crDesenhar(sp, comp, i){
     }else if(t === 'legal'){
       const z = crCabe(sp.legal, 'legal', 28, w, Math.max(22, a.piso), est);
       pecas.push(crBloco('legal', crTexto(ax, y + z * 0.72, 'legal', z, '#FFFFFF', sp.legal, anc)));
+    }else if(t === 'itens'){
+      pecas.push(crBloco('itens', crItens(x, y, w, h, sp.itens, est)));
     }else if(t === 'foto'){
       const sangra = x <= 0 || y <= 0 || x + w >= W || y + h >= H;
       pecas.unshift(crBloco('foto', crFoto(x, y, w, h, sangra ? 0 : 56, '', sp.foto)));
@@ -1166,7 +1341,7 @@ function crDesenhar(sp, comp, i){
   const ideia = String(comp.ideia || '').trim().slice(0, 90) || 'Composição livre';
   return { svg, spec: sp, receita: 'designer' + (i || 0), nomeReceita: ideia, fundo: _crMarca(fundo, sp), p: {}, campos, estouros: est, faltas, w: W, h: H, desenho: comp };
 }
-function crPromptDesenho(sp, n, evitar, consertar){
+function crPromptDesenho(sp, n, evitar, consertar, img){
   const a = crArea(sp.formato), f = CR_FORMATOS[sp.formato], tem = crConteudoBlocos(sp);
   const zona = a.fmt === 'inapp' ? '140 a 1600 (de 1693 a 1818 fica o botão largo do inapp, fixo — não posicione cta)' : a.seguroTopo + ' a ' + a.seguroBase;
   const alturas = {
@@ -1174,14 +1349,17 @@ function crPromptDesenho(sp, n, evitar, consertar){
     tag: 'pílula branca h 70, w ≥ 330', chamada: 'frase leve/forte, h ≈ corpo×(0,95 + 1,3 por linha a mais), corpo 56–84', apoio: 'h ≈ 0,92×corpo, corpo 32–56',
     preco: 'h ≈ 0,73×valor + 44 (+61 se tiver DE), valor ≥ ' + a.precoMin, valor: 'número gigante + coluna OFF: h = 0,73×número, número 220–520, w ≈ 1,9×h',
     cupom: 'ticket oficial 880×324 em escala (w/h = 2,72), w 600–880', selo: 'círculo amarelo: w = h, 180–300', cta: 'pílula h 96, w ≥ 320 (estilo cheio ou contorno)',
-    legal: 'h 30, letra miúda', foto: 'retângulo; pode sangrar pelas bordas (x/y negativos ou passando do canvas); 35–55% da altura'
+    legal: 'h 30, letra miúda', itens: 'cards brancos empilhados (um por item), h ≈ 150 por item + 28 de vão', foto: 'retângulo; pode sangrar pelas bordas (x/y negativos ou passando do canvas); 35–55% da altura'
   };
   return [
     'Você é designer gráfico sênior da Delivery Much (app de delivery do interior do Brasil). Componha a arte como um DESIGNER, não como um sistema.',
     'Você NÃO desenha nem cria imagem ou asset: posiciona os BLOCOS oficiais (o Luma desenha cada um dentro da caixa que você der) e pode usar GRAFISMOS do inventário.',
+    img && (img.regua || img.ref) ? 'IMAGENS: ' + (img.regua ? 'as ' + img.regua + ' primeiras são a RÉGUA — peças aprovadas da marca: aprenda a linguagem (escala, respiro, acabamento, uso dos assets), NÃO copie a planta' : '')
+      + (img.ref ? (img.regua ? '; a última' : 'a imagem') + ' é a REFERÊNCIA que a pessoa mandou — siga a pegada dela (composição, energia), dentro das regras da marca' : '') + '.' : '',
     sp.marca === 'much' ? 'SUB-MARCA MUCH+ (assinatura de cupons): o Luma repinta a peça em rosa #E52676 + amarelo #FFB900 e usa o logo much+ — pense na linguagem das peças much+ (o "+" amarelo, tickets much+ inclinados rompendo a borda, estrelas).' : '',
     'PEÇA: ' + CR_OBJETIVOS[sp.objetivo] + '. FORMATO: ' + f.nome + ' — canvas ' + a.W + '×' + a.H + '.',
-    'ZONA DO TEXTO (y): ' + zona + '. Margem lateral dos blocos: ' + a.M + ' px (x ≥ ' + a.M + ' e x+w ≤ ' + (a.W - a.M) + '). Grafismos e foto podem sangrar pelas bordas e entrar fora da zona.',
+    a.laminas ? 'CARROSSEL: ' + a.laminas + ' lâminas de 1080×1350 lado a lado (divisas em x = 1080 e 2160). Cada bloco de texto fica INTEIRO dentro de uma lâmina, com margem de ' + a.M + ' px das bordas DELA (nunca atravessa a divisa). Lâmina 1 = capa (logo + título), 2 = conteúdo (itens/apoio/foto), 3 = ação (preço, valor ou cupom + cta + legal). Grafismos atravessando a divisa amarram as lâminas e convidam a arrastar.' : '',
+    'ZONA DO TEXTO (y): ' + zona + '. Margem lateral dos blocos: ' + a.M + ' px' + (a.laminas ? ' de cada lâmina' : ' (x ≥ ' + a.M + ' e x+w ≤ ' + (a.W - a.M) + ')') + '. Grafismos e foto podem sangrar pelas bordas e entrar fora da zona.',
     '', 'BLOCOS (use TODOS, cada um uma vez):', ...Object.keys(tem).map(k => '- ' + k + ': ' + JSON.stringify(tem[k]) + ' — ' + alturas[k]),
     '', 'INVENTÁRIO (grafismos, stickers, cupons e mockups oficiais; 0 a 4 por peça, sempre atrás do texto e nunca cobrindo texto; use pela intenção, não por enfeite):',
     ...Object.keys(CR_DECOR).filter(k => _crDoInv(k, sp)).map(k => '- ' + k + ' [' + CR_DECOR[k].tipo + '] (' + CR_DECOR[k].w + '×' + CR_DECOR[k].h + ', largura até ' + CR_DECOR[k].max + '): ' + CR_DECOR[k].desc),
@@ -1199,18 +1377,42 @@ function crPromptDesenho(sp, n, evitar, consertar){
     '', 'Responda SÓ o JSON, ' + n + ' composição(ões): {"composicoes":[{"ideia":"1 frase de até 80 caracteres descrevendo a composição","fundo":"#F85400","blocos":[{"bloco":"titulo","x":0,"y":0,"w":0,"h":0,"alinhar":"esq|centro|dir"}],"grafismos":[{"asset":"","x":0,"y":0,"w":0,"rot":0}]}]}'
   ].filter(l => l !== '').join('\n');
 }
+// O juiz (diretor de arte) achou a composição da IA fraca: ela refaz com a crítica, uma vez. Só troca se passar.
+async function crRefazerDesenhos(lista){
+  if(!lista.length) return [];
+  const sp = lista[0].r.spec;
+  const regua = await crRegua(sp).catch(() => []), parts = regua.map(d => ({ mimeType: 'image/jpeg', data: d }));
+  const consertar = lista.map(x => ({ desenho: x.r.desenho, erros: ['diretor de arte: ' + x.critica] }));
+  const j = (typeof gAiParseJson === 'function') ? gAiParseJson(await gAskAI('arte.compor', crPromptDesenho(sp, lista.length, [], consertar, { regua: regua.length, ref: 0 }), { json: true, cache: false, parts })) : null;
+  const comps = j && Array.isArray(j.composicoes) ? j.composicoes : [];
+  return lista.map((x, i) => {
+    if(!comps[i]) return x.r;
+    const novo = crDesenhar(sp, comps[i], 10 + i); novo.avaliacao = crAvaliar(novo);
+    if(novo.avaliacao.erros.length) return x.r;
+    novo.nota = crNota(novo, novo.avaliacao); novo.refeito = x.critica; crMetricas.refeitas++;
+    return novo;
+  });
+}
 // A IA compõe n opções; as que reprovam voltam 1 vez com os erros. → [r aprovadas, com nota]
-async function crDesenhos(sp, n, evitar){
+// Métricas do designer (por sessão, e no gTrackEvent): quantas pedidas, aprovadas de 1ª, salvas na correção, refeitas pelo juiz
+const crMetricas = { pedidas: 0, primeira: 0, corrigidas: 0, refeitas: 0 };
+async function crDesenhos(sp, n, evitar, refPessoa){
   if(CR_FORMATOS[sp.formato].fixo || typeof gAskAI !== 'function' || typeof gAiReady !== 'function' || !gAiReady()) return [];
+  // O designer VÊ: a régua do formato (linguagem, escala, acabamento) e a referência que a pessoa mandou
+  const regua = await crRegua(sp).catch(() => []), m = /^data:(image\/[a-z]+);base64,(.+)$/.exec(refPessoa || ''), ref = m ? [m[2]] : [];
+  const parts = regua.map(d => ({ mimeType: 'image/jpeg', data: d })).concat(m ? [{ mimeType: m[1], data: m[2] }] : []);
   const pede = async (qtd, consertar) => {
-    const j = (typeof gAiParseJson === 'function') ? gAiParseJson(await gAskAI('arte.compor', crPromptDesenho(sp, qtd, evitar, consertar), { json: true, cache: false })) : null;
+    const j = (typeof gAiParseJson === 'function') ? gAiParseJson(await gAskAI('arte.compor', crPromptDesenho(sp, qtd, evitar, consertar, { regua: regua.length, ref: ref.length }), { json: true, cache: false, parts })) : null;
     return j && Array.isArray(j.composicoes) ? j.composicoes.slice(0, qtd) : [];
   };
   const monta = (comps, base) => comps.map((c, i) => { const r = crDesenhar(sp, c || {}, base + i); r.avaliacao = crAvaliar(r); return r; });
   let rs = monta(await pede(n), 0);
+  crMetricas.pedidas += rs.length;
   const ruins = rs.filter(r => r.avaliacao.erros.length);
+  crMetricas.primeira += rs.length - ruins.length;
   if(ruins.length){
     const novos = monta(await pede(ruins.length, ruins.map(r => ({ desenho: r.desenho, erros: r.avaliacao.erros.slice(0, 6) }))), n);
+    crMetricas.corrigidas += novos.filter(r => !r.avaliacao.erros.length).length;
     rs = rs.filter(r => !r.avaliacao.erros.length).concat(novos);
   }
   return rs.filter(r => !r.avaliacao.erros.length).map(r => { r.nota = crNota(r, r.avaliacao); return r; });
@@ -1246,7 +1448,7 @@ const CR_REGUA = {            // as referências que o Ryan subir entram aqui (p
 const CR_REGUA_FMT = {
   inapp: ['inapp-festival-do-xis.jpg', 'inapp-much-mandou-bem.jpg'], banner: ['banner-promo-turbinada-30.jpg', 'banner-mais-vendidos.jpg'],
   emailTopo: ['cabecalho-burger-fest.jpg', 'cabecalho-dm-produto-700.jpg'], emailRodape: ['rodape-padrao-sorriso.jpg'],
-  capa: ['capa-promo-turbinada.jpg', 'capa-cupons-exclusivos.jpg'], slide: ['capa-promo-turbinada.jpg']
+  capa: ['capa-promo-turbinada.jpg', 'capa-cupons-exclusivos.jpg'], slide: ['slide-capa.jpg', 'slide-conteudo.jpg'], carrossel: ['carrossel-dia-do-solteiro.jpg']
 };
 const CR_AJUSTES = {
   heroiMaior: { p: { kh: 1.12 } }, heroiMenor: { p: { kh: 1 / 1.12 } },
@@ -1280,15 +1482,21 @@ function crPromptJuiz(sp, nRef, n){
     'Teste do celular: a ~360 px de largura, o herói, o preço e o ponto focal se leem de relance?',
     'porque: 1 frase de até 70 caracteres com o ponto forte da opção, para mostrar à pessoa (ex.: "Preço é o ponto focal e a foto ganha espaço").',
     'ajustes: até 2 desta lista fechada, só se fizerem diferença real: heroiMaior, heroiMenor, fotoMaior, fotoMenor, semApoio, semSelo.',
-    'Responda SÓ o JSON: {"opcoes":[{"notas":{"foco":0,"hierarquia":0,"respiro":0,"contraste":0,"acabamento":0},"porque":"","ajustes":[]}]}'
+    'critica: a mudança de composição mais importante, concreta e com posição (ex.: "o botão cola no preço: desça o botão 80 px e suba o título"; "tudo empilhado no meio: espalhe pela altura e ancore o valor à esquerda"). "" se a opção já está no nível da régua.',
+    'Respiro e composição pesam: tudo agrupado no meio, vãos curtos e iguais entre grupos ou faixas vazias grandes no topo/base = respiro ≤ 2.',
+    'Responda SÓ o JSON: {"opcoes":[{"notas":{"foco":0,"hierarquia":0,"respiro":0,"contraste":0,"acabamento":0},"porque":"","critica":"","ajustes":[]}]}'
   ].join('\n');
 }
 // → [{nota, porque, ajustes}] na ordem das opções, ou null (sem IA, falha, resposta torta)
+// A régua da peça (2 artes aprovadas, JPEG 432 px): much+ > formato de canal > objetivo. Juiz e designer usam a mesma.
+async function crRegua(sp){
+  const fmt = sp.marca === 'much' ? ['much-beneficios-story.jpg', 'much-mandou-bem-inapp.jpg'] : CR_REGUA_FMT[sp.formato];
+  const regua = (fmt || CR_REGUA[sp.objetivo] || []).slice(0, 2), pasta = fmt ? CR_BASE + 'regua/' : _crRaiz() + 'assets/templates/refino/prints/';
+  return (await Promise.all(regua.map(f => _crJpeg(pasta + f, 432).catch(() => null)))).filter(Boolean);
+}
 async function crJulgar(tres){
   if(!tres.length || typeof gAskAI !== 'function' || typeof gAiReady !== 'function' || !gAiReady()) return null;
-  const sp = tres[0].spec, fmt = sp.marca === 'much' ? ['much-beneficios-story.jpg', 'much-mandou-bem-inapp.jpg'] : CR_REGUA_FMT[sp.formato];
-  const regua = (fmt || CR_REGUA[sp.objetivo] || []).slice(0, 2), pasta = fmt ? CR_BASE + 'regua/' : _crRaiz() + 'assets/templates/refino/prints/';
-  const refs = (await Promise.all(regua.map(f => _crJpeg(pasta + f, 432).catch(() => null)))).filter(Boolean);
+  const sp = tres[0].spec, refs = await crRegua(sp);
   const ops = await Promise.all(tres.map(crArteJpeg));
   const parts = refs.concat(ops).map(d => ({ mimeType: 'image/jpeg', data: d }));
   const j = (typeof gAiParseJson === 'function') ? gAiParseJson(await gAskAI('arte.criticar', crPromptJuiz(sp, refs.length, tres.length), { json: true, cache: false, parts })) : null;
@@ -1298,7 +1506,8 @@ async function crJulgar(tres){
     const o = lista[i] || {}, nt = o.notas || {};
     const vals = ['foco', 'hierarquia', 'respiro', 'contraste', 'acabamento'].map(k => Math.max(0, Math.min(5, +nt[k] || 0)));
     return { nota: vals.reduce((a, b) => a + b, 0) / vals.length, piores: Math.min(...vals),
-      porque: String(o.porque || '').trim().slice(0, 90), ajustes: (Array.isArray(o.ajustes) ? o.ajustes : []).filter(x => CR_AJUSTES[x]).slice(0, 2) };
+      porque: String(o.porque || '').trim().slice(0, 90), critica: String(o.critica || '').trim().slice(0, 200),
+      ajustes: (Array.isArray(o.ajustes) ? o.ajustes : []).filter(x => CR_AJUSTES[x]).slice(0, 2) };
   });
 }
 // Uma rodada de refino: aplica os ajustes do juiz e só fica com o resultado se passar na conferência
@@ -1320,7 +1529,7 @@ function _crAsset(rel){
   if(!_crAssetCache.has(rel)){
     _crAssetCache.set(rel, fetch(CR_BASE + rel).then(r => { if(!r.ok) throw new Error('asset ' + rel); return r.blob(); })
       .then(b => new Promise((ok, erro) => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.onerror = erro; fr.readAsDataURL(b); }))
-      .then(u => u.replace(/^data:[^;,]*/, 'data:' + (/\.woff2$/.test(rel) ? 'font/woff2' : 'image/png')))
+      .then(u => u.replace(/^data:[^;,]*/, 'data:' + (/\.woff2$/.test(rel) ? 'font/woff2' : /\.jpe?g$/.test(rel) ? 'image/jpeg' : 'image/png')))
       .catch(e => { _crAssetCache.delete(rel); throw e; }));
   }
   return _crAssetCache.get(rel);
@@ -1340,7 +1549,7 @@ async function crEmbutir(svg){
 // A ordem importa: "rodapé de email" antes de "email"; "capa" antes de "feed".
 const CR_FORMATO_DITO = [
   ['emailRodape', /\b(rodape|footer)\b/], ['emailTopo', /\b(cabecalho|header|e-?mail|newsletter)\b/],
-  ['inapp', /\b(in-?app|pop-?up)\b/], ['banner', /\b(super ?)?banners?\b/], ['capa', /\b(capas?|deskfy|pasta)\b/],
+  ['carrossel', /\b(carross?el|carrocel|laminas?)\b/], ['inapp', /\b(in-?app|pop-?up)\b/], ['banner', /\b(super ?)?banners?\b/], ['capa', /\b(capas?|deskfy|pasta)\b/],
   ['slide', /\b(slides?|apresentacao|deck)\b/], ['story', /\b(story|stories)\b/], ['feed', /\bfeed\b/]
 ];
 function _crFormatoDito(t){
@@ -1379,6 +1588,9 @@ function crLerPedido(texto, fmt){
     if(codigo) sp.cupomCodigo = codigo;
   }
   if(anos && sp.objetivo === 'aniversario') sp.anos = anos[1];
+  // Lista no pedido (linhas, "•", "-" ou ";") vira os itens da lâmina do meio do carrossel
+  const itens = (t.indexOf(':') > 0 ? t.slice(t.indexOf(':') + 1) : t).split(/\n|;|•|\s-\s/).map(x => x.replace(/^[\s\-–*\d.)]+/, '').trim()).filter(x => x.length > 2 && x.length <= 60);
+  if(itens.length >= 2) sp.itens = itens.slice(0, 4);
   if(sp.objetivo === 'beneficio' && /frete/.test(n)) sp.palavra = 'frete';
   if(sp.objetivo === 'evento'){
     const ev = /(festival|feira|semana|show|rod[ií]zio)((?:\s+(?!na\b|no\b|em\b|de\b|da\b|do\b|dia\b)[\wÀ-ú]+){0,2})/i.exec(t);
@@ -1508,9 +1720,10 @@ function crPrompt(fio){
     '- legal: 1 linha de letra miúda quando houver condição (pedido mínimo, validade); senão "".',
     '- precoDe/precoPor: número com vírgula ("28,00"). cupomValor: só o número ("15") ou com % ("20%"). anos: só o número.',
     '- topo: tag curta do aniversário (ex. "BORA COMEMORAR!").',
+    '- itens: SÓ no carrossel e no slide — 3 ou 4 frases curtas (até 40 caracteres): no carrossel, o conteúdo da lâmina do meio; no slide, os tópicos; nos outros formatos [].',
     '- resumo: 1 frase para a gestão: a mensagem, o ponto focal e a ação.',
     '', 'Responda SÓ o JSON:',
-    '{"resumo":"","objetivo":"","topo":"","chamada":["",""],"titulo":"","palavra":"","apoio":"","selo":[],"precoDe":"","precoPor":"","cupomValor":"","cupomCodigo":"","cupomRotulo":"","anos":"","cta":"","legal":""}'
+    '{"resumo":"","objetivo":"","topo":"","chamada":["",""],"titulo":"","palavra":"","apoio":"","selo":[],"precoDe":"","precoPor":"","cupomValor":"","cupomCodigo":"","cupomRotulo":"","anos":"","cta":"","legal":"","itens":[]}'
   ].filter(l => l !== '').join('\n');
 }
 async function crPedirComposicao(fio){
@@ -1543,7 +1756,7 @@ const crState = { rodando: null, saudou: false, fios: [], anexo: null, aoFoto: n
 const CR_GLIFOS = ['·', '✢', '✳', '✶', '✻', '✽', '✻', '✶', '✳', '✢'];
 const CR_VERBOS = ['Compondo', 'Diagramando', 'Medindo', 'Equilibrando', 'Alinhando', 'Contrastando', 'Lapidando', 'Ajustando o kerning', 'Escolhendo o herói'];
 const CR_NOME_BLOCO = { logo: 'Logo', titulo: 'Título', foto: 'Foto', selo: 'Selo', preco: 'Preço', botao: 'Botão', legal: 'Letra miúda',
-  chamada: 'Chamada', valor: 'Valor', cupom: 'Cupom', apoio: 'Apoio', tag: 'Tag', anos: 'Anos', decor: 'Grafismo', redes: 'Redes' };
+  chamada: 'Chamada', valor: 'Valor', cupom: 'Cupom', apoio: 'Apoio', tag: 'Tag', anos: 'Anos', decor: 'Grafismo', redes: 'Redes', itens: 'Itens', mockup: 'Mockup' };
 const _crReduz = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const _crEsp = ms => new Promise(r => setTimeout(r, _crReduz() ? 0 : ms));
 const _crEl = id => document.getElementById(id);
@@ -1788,12 +2001,14 @@ function crEnviar(e){
   const inp = _crEl('cr-pedido'), conv = _crEl('cr-conversa');
   const pedido = String((inp && inp.value) || '').trim();
   if(!pedido || !conv) return;
-  const fio = { pedido, fmt: _crFormatoDito(pedido) || 'feed', marca: _crMarcaDita(pedido) ? 'much' : 'dm', foto: crState.anexo, briefing: null, conteudo: null, legenda: null, mostradas: [], viaIA: false };
+  // Imagem anexada com "referência / nessa pegada / parecido" é REFERÊNCIA para o designer, não a foto da arte
+  const ehRef = !!crState.anexo && /refer[eê]ncia|pegada|parecid|inspira|nesse estilo|nesse jeito/i.test(pedido);
+  const fio = { pedido, fmt: _crFormatoDito(pedido) || 'feed', marca: _crMarcaDita(pedido) ? 'much' : 'dm', foto: ehRef ? null : crState.anexo, ref: ehRef ? crState.anexo : null, briefing: null, conteudo: null, legenda: null, mostradas: [], viaIA: false };
   crState.fios.push(fio);
   inp.value = ''; crAutoAltura(inp); crTirarAnexo();
   const m = document.createElement('div');
   m.className = 'cr-msg cr-eu cr-entra';
-  m.innerHTML = '<div class="cr-corpo">' + (fio.foto ? '<img class="cr-bolha-foto" alt="Foto enviada" src="' + fio.foto + '">' : '')
+  m.innerHTML = '<div class="cr-corpo">' + (fio.foto || fio.ref ? '<img class="cr-bolha-foto" alt="' + (fio.ref ? 'Referência enviada' : 'Foto enviada') + '" src="' + (fio.foto || fio.ref) + '">' : '')
     + '<div class="cr-bolha">' + gEsc(pedido) + '</div></div>';
   conv.appendChild(m);
   crGerar(fio, conv);
@@ -1869,7 +2084,7 @@ async function crGerar(fio, conv, outras){
     let ia = [];
     if(!CR_FORMATOS[fio.fmt].fixo && typeof gAiReady === 'function' && gAiReady()){
       p = _crPasso(lista, 'Compondo como designer');
-      try{ ia = await crDesenhos(crNormaliza(fio.conteudo), 2, fio.ideias || []); }catch(err){ ia = []; }
+      try{ ia = await crDesenhos(crNormaliza(fio.conteudo), 2, fio.ideias || [], fio.ref); }catch(err){ ia = []; }
       if(parou()) return;
       fio.ideias = (fio.ideias || []).concat(ia.map(r => r.nomeReceita));
       p.feito(ia.length ? ia.map(r => r.nomeReceita).join(' · ') : 'sem composição aprovada agora — sigo com o motor', !ia.length);
@@ -1883,7 +2098,18 @@ async function crGerar(fio, conv, outras){
     try{ juiz = await crJulgar(tres); }catch(err){ juiz = null; }
     if(parou()) return;
     if(juiz){
-      tres = tres.map((r, i) => { const n = crRefinar(r, juiz[i].ajustes); n.juiz = juiz[i]; return n; }).sort((u, v) => v.juiz.nota - u.juiz.nota);
+      tres = tres.map((r, i) => { const n = crRefinar(r, juiz[i].ajustes); n.juiz = juiz[i]; return n; });
+      // Composição da IA abaixo da régua: o designer refaz com a crítica do juiz (1 rodada)
+      const fracas = tres.map((r, i) => ({ r, i, critica: r.juiz.critica })).filter(x => x.r.desenho && x.critica && (x.r.juiz.nota < 4 || x.r.juiz.piores < 3));
+      if(fracas.length){
+        const p2 = _crPasso(lista, 'Refazendo com a crítica do diretor de arte');
+        let novas = [];
+        try{ novas = await crRefazerDesenhos(fracas); }catch(err){ novas = fracas.map(x => x.r); }
+        if(parou()) return;
+        novas.forEach((n, k) => { const x = fracas[k]; if(n !== x.r){ n.juiz = Object.assign({}, x.r.juiz, { porque: x.r.juiz.porque }); tres[x.i] = n; } });
+        p2.feito(fracas.map(x => '“' + x.critica + '”').join(' · ').slice(0, 220));
+      }
+      tres.sort((u, v) => v.juiz.nota - u.juiz.nota);
       const aj = tres.filter(r => r.ajustado).length;
       p.feito('notas ' + tres.map(r => r.juiz.nota.toFixed(1).replace('.', ',')).join(' · ') + (aj ? ' · ' + aj + (aj > 1 ? ' ajustes aplicados' : ' ajuste aplicado') : ''));
     }else p.feito('sem IA agora — ordem pela nota do motor');
@@ -1911,7 +2137,8 @@ async function crGerar(fio, conv, outras){
       : ((fio.viaIA && opcoes[0].spec.resumo) ? opcoes[0].spec.resumo + ' ' : '') + 'Separei ' + opcoes.length + ' opções em ' + f.nome.toLowerCase() + ': escolha uma, ajuste no editor se quiser e baixe.');
     conv.appendChild(_crEntrega(fio, opcoes));
     _crRola();
-    if(typeof gTrackEvent === 'function') try{ gTrackEvent('creative_arte', { objetivo: opcoes[0].spec.objetivo, formato: opcoes[0].spec.formato, ia: fio.viaIA, juiz: !!juiz, foto: !!fio.foto, receitas: opcoes.map(o => o.receita).join(',') }); }catch(err){}
+    if(typeof gTrackEvent === 'function') try{ gTrackEvent('creative_arte', { objetivo: opcoes[0].spec.objetivo, formato: opcoes[0].spec.formato, marca: opcoes[0].spec.marca, ia: fio.viaIA, juiz: !!juiz, foto: !!fio.foto, ref: !!fio.ref,
+      receitas: opcoes.map(o => o.receita).join(','), designer: Object.assign({}, crMetricas), notas: juiz ? opcoes.map(o => o.juiz ? +o.juiz.nota.toFixed(1) : null).join(',') : '' }); }catch(err){}
   }catch(err){
     console.error('[creative]', err);
     status.parar();
@@ -1944,7 +2171,7 @@ function _crEntrega(fio, ops){
     + '<span class="cr-ent-selo">' + (ops[0].juiz ? 'Revisada pela IA' : 'Conferida nas regras da marca') + ' · Testes</span></header>'
     + '<div class="cr-ops' + (ops[0].w > ops[0].h * 1.2 ? ' cr-ops-deitadas' : '') + '" role="radiogroup" aria-label="Opções de arte">'
     + ops.map((o, i) => '<button type="button" class="cr-op' + (i ? '' : ' on') + '" role="radio" aria-checked="' + (i ? 'false' : 'true') + '" data-i="' + i + '">'
-      + '<span class="cr-op-arte" style="aspect-ratio:' + o.w + '/' + o.h + '"><img alt="Opção ' + (i + 1) + ': ' + gEsc(o.nomeReceita) + '" src="' + o.url + '"></span>'
+      + '<span class="cr-op-arte"' + (CR_FORMATOS[o.spec.formato].laminas ? ' data-laminas="' + CR_FORMATOS[o.spec.formato].laminas + '"' : '') + ' style="aspect-ratio:' + o.w + '/' + o.h + '"><img alt="Opção ' + (i + 1) + ': ' + gEsc(o.nomeReceita) + '" src="' + o.url + '"></span>'
       + rotulo(o, i) + (o.juiz && o.juiz.porque ? '<span class="cr-op-pq">' + gEsc(o.juiz.porque) + '</span>' : '') + '</button>').join('')
     + '</div>'
     + '<div class="cr-acoes">'
@@ -1968,6 +2195,7 @@ function _crEntrega(fio, ops){
     escolhe(i);
     crEditar(ops[i], nova => {
       Object.assign(ops[i], nova, { editada: true });
+      crAprende(ops[i], 'editou');
       const b = botoes()[i];
       b.querySelector('img').src = ops[i].url;
       b.querySelector('.cr-op-rot').outerHTML = rotulo(ops[i], i);
@@ -1977,7 +2205,7 @@ function _crEntrega(fio, ops){
   el.addEventListener('click', ev => {
     const b = ev.target.closest('button'); if(!b) return;
     if(b.classList.contains('cr-op')) return escolhe(+b.dataset.i);
-    if(b.dataset.acao === 'png') return crBaixarPNG(ops[sel], b);
+    if(b.dataset.acao === 'png'){ crAprende(ops[sel], 'baixou'); return crBaixarPNG(ops[sel], b); }
     if(b.dataset.acao === 'editar') return abre(sel);
     if(b.dataset.acao === 'outras') return crOutrasOpcoes(fio);
     if(b.dataset.acao === 'copiar') return crCopiar(fio.legenda);
@@ -2360,8 +2588,22 @@ function crCopiar(txt){
 }
 function crBaixarPNG(v, btn){
   if(btn) btn.disabled = true;
-  const im = new Image();
-  im.onload = () => {
+  const im = new Image(), nl = CR_FORMATOS[v.spec.formato].laminas;
+  if(nl) im.onload = () => {
+    // carrossel: um PNG por lâmina (1080×1350), na ordem
+    const base = 'luma-creative-' + v.spec.objetivo + '-carrossel-';
+    for(let i = 0; i < nl; i++){
+      const c = document.createElement('canvas'); c.width = 1080; c.height = v.h;
+      c.getContext('2d').drawImage(im, -i * 1080, 0, v.w, v.h);
+      c.toBlob(b => {
+        if(!b) return;
+        const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = base + (i + 1) + '.png';
+        setTimeout(() => { document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }, i * 400);
+      }, 'image/png');
+    }
+    setTimeout(() => { if(btn) btn.disabled = false; gToast(nl + ' lâminas baixadas', 'success'); }, nl * 400);
+  };
+  else im.onload = () => {
     const k = CR_FORMATOS[v.spec.formato].png || 1;     // banner do app e capa saem @2x (skill §3.5)
     const c = document.createElement('canvas'); c.width = v.w * k; c.height = v.h * k;
     c.getContext('2d').drawImage(im, 0, 0, v.w * k, v.h * k);
