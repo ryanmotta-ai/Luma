@@ -96,6 +96,11 @@ async function lint(svgPath, formato) {
   // ── medições no navegador ──
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>*{margin:0;padding:0}body{background:#fff}svg{display:block}</style></head><body>${raw}</body></html>`;
   const d = JSON.parse(await avaliarNaPagina(html, W, H, COLETA));
+  // a arte vai ao ar como IMAGEM (<img>, export PNG): ali só XML válido renderiza. O HTML acima tolera
+  // tag sem fechar e o resto do lint passaria com a peça saindo preta.
+  const xmlErro = await avaliarNaPagina('<!DOCTYPE html><html><body></body></html>', 50, 50,
+    `(() => { const e = new DOMParser().parseFromString(${JSON.stringify(raw)}, 'image/svg+xml').querySelector('parsererror'); return e ? e.textContent.slice(0, 160) : ''; })()`);
+  if (xmlErro) E('SVG malformado (XML inválido — como imagem não renderiza): ' + xmlErro.replace(/\s+/g, ' '));
   const bgShape = d.shapes.find(s => s.box.w >= W - 2 && s.box.h >= H - 2);
   const bg = bgShape ? hex(bgShape.fill) : 'FFFFFF';
   // camadas de fundo (ocupam > 40% do canvas, ex.: split diagonal) não são contêineres de texto

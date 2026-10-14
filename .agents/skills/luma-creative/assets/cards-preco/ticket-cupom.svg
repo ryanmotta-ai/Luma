@@ -6,24 +6,22 @@
     </filter>
   </defs>
 
+  <defs><clipPath id="ticket-forma"><path d="M 30 0 L 650 0 C 665 0 680 15 680 30 C 655 55 655 85 680 110 C 655 135 655 165 680 190 C 655 215 655 240 680 250 L 30 250 C 15 250 0 235 0 220 C 25 195 25 165 0 140 C 25 115 25 85 0 60 C 25 35 25 15 0 0 Z"/></clipPath></defs>
   <g filter="url(#ticket-shadow)">
-    <!-- Borda externa do bilhete (#FF9000: separa o ticket do fundo #F85400) -->
-    <path d="M 30 0 L 650 0 C 665 0 680 15 680 30 C 655 55 655 85 680 110 C 655 135 655 165 680 190 C 655 215 655 240 680 250 L 30 250 C 15 250 0 235 0 220 C 25 195 25 165 0 140 C 25 115 25 85 0 60 C 25 35 25 15 0 0 Z" 
-          fill="#FF9000"/>
-
-    <!-- Corpo do ticket branco com recorte serrilhado -->
-    <g transform="translate(14, 12)">
+    <!-- Tudo recortado pela silhueta; a moldura #FF9000 é redesenhada por cima como traço de 28 (14 visíveis).
+         Assim a borda tem a mesma espessura nas ondas dos DOIS lados — a aba desenhada à parte vazava
+         pela moldura no lado esquerdo e deixava "dentes" laranja (revisão de 10/2026). -->
+    <g clip-path="url(#ticket-forma)">
+      <rect width="680" height="250" fill="#FFFFFF"/>
       <!-- Aba esquerda com a palavra CUPOM (#F62900, faixa lateral de cupom — §3 item 7) -->
-      <path d="M 0 0 L 130 0 L 130 226 L 0 226 C -8 200 -8 170 0 145 C -8 120 -8 90 0 65 C -8 40 -8 20 0 0 Z" 
-            fill="#F62900"/>
+      <rect width="144" height="250" fill="#F62900"/>
+      <path d="M 30 0 L 650 0 C 665 0 680 15 680 30 C 655 55 655 85 680 110 C 655 135 655 165 680 190 C 655 215 655 240 680 250 L 30 250 C 15 250 0 235 0 220 C 25 195 25 165 0 140 C 25 115 25 85 0 60 C 25 35 25 15 0 0 Z" fill="none" stroke="#FF9000" stroke-width="28"/>
+    </g>
+    <g transform="translate(14, 12)">
       <text x="-113" y="82" transform="rotate(-90)" text-anchor="middle" 
             font-family="'Realce', 'Impact', sans-serif" font-size="36" font-weight="900" fill="#FFFFFF" letter-spacing="3">
         CUPOM
       </text>
-
-      <!-- Área branca para o código do cupom -->
-      <path d="M 130 0 L 620 0 C 632 0 642 10 642 22 C 620 45 620 75 642 98 C 620 121 620 151 642 174 C 620 197 620 220 642 226 L 130 226 Z" 
-            fill="#FFFFFF"/>
 
       <!-- Código do Cupom (Variável: {{codigo_cupom}}) -->
       <g transform="translate(385, 120)">

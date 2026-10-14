@@ -366,7 +366,7 @@ Antes de escrever uma única linha de código, a IA **DEVE abrir e inspecionar v
     * Conteúdo útil concentrado na faixa central (`y = 260` até `y = 1660`), mantendo o mesmo respiro calculado entre blocos.
 
 * **Repertório de topologias aprovadas** (modelos prontos em `assets/templates/refino/`; ponto de partida para variar, não para copiar; **todos com foto em retângulo**).
-  * **Padrão 1.3 — copie a topologia E o acabamento** (fonte legível em `refino/fontes/`, revisados lado a lado com as referências): oferta com card de preço preso à foto e selo na quina (`refino_01`, feed); **cupom** com frase mista, lockup de valor, ticket oficial e arcos na base (`refino_02`, story); **evento** com foto sangrando no topo e selo de data (`refino_03`, feed); **entrega grátis** com minúscula + vazado (`refino_04`, story); hero de 2 tamanhos + card preso + CTA em contorno (`refino_08`, story); **lista de ofertas** com rótulo de produto e CTA (`refino_10`, story).
+  * **Padrão 1.3 — copie a topologia E o acabamento** (fonte legível em `refino/fontes/`, revisados lado a lado com as referências): oferta com card de preço preso à foto e selo na quina (`refino_01`, feed); **cupom** com frase mista, lockup de valor, ticket oficial e arcos na base (`refino_02`, story); **evento** com foto sangrando no topo e selo de data (`refino_03`, feed); **entrega grátis** com minúscula + vazado (`refino_04`, story); hero de 2 tamanhos + card preso + CTA em contorno (`refino_08`, story); **lista de ofertas** com rótulo de produto e CTA (`refino_10`, story); **aniversário da franquia** com lockup de anos (`{{anos}}`, 1–2 dígitos: por isso alinhado à esquerda), frase mista e ticket com o valor do presente em destaque (`refino_14`, feed).
   * **Pré-1.3 — copie só a topologia**, o acabamento é antigo (preço com centavos grandes, logo pequeno, pattern em escala de farelo): foto sangrando à direita + preço-herói (`refino_09`), etiqueta de preço inclinada (`refino_11`), foto larga + pílulas + preço em linha (`refino_12`), split diagonal em dois tons (`refino_13`), foto cheia no topo (`refino_05`), parceiro novo com logo da loja (`refino_06`), foto lateral sangrando (`refino_07`).
   * Escolha a topologia pelo **objetivo** (Fase 1) e **varie as proporções do retângulo** (largo, alto, quadrado, faixa) em vez de repetir a última.
 
@@ -472,6 +472,8 @@ Antes de finalizar a arte:
 | Mesmo par de arcos carimbado em todas as stories | Pattern só onde a referência usa; o resto clean (§3.1) |
 | CTA branco do mesmo peso do card de preço, disputando o olhar | CTA em contorno branco (`fill="none" stroke="#FFFFFF"`) quando o preço é o ponto focal |
 | Julgar a arte só com o cinza do placeholder | Print com `--foto` (Fase 5) |
+| SVG com tag sem fechar: o lint (HTML tolerante) passava e a imagem saía preta | O lint agora valida o XML; erro bloqueia |
+| Campo variável testado só com o valor curto (`3` anos) | Testar o maior valor real (`10`): o lockup tem de caber sem mudar a composição |
 
 ---
 

@@ -26,12 +26,13 @@
   <text x="611" y="905" class="forte" font-size="56" fill="#FFFFFF">NO SEU</text>
   <text x="611" y="970" class="forte" font-size="56" fill="#FFFFFF">PEDIDO</text>
 </g>
-<!-- ticket = assets/cards-preco/ticket-cupom.svg (680×250) em escala 1,2941 → 880×324 -->
+<!-- ticket = assets/cards-preco/ticket-cupom.svg (680×250) em escala 1.2941 -->
+<clipPath id="tkf"><path d="M 30 0 L 650 0 C 665 0 680 15 680 30 C 655 55 655 85 680 110 C 655 135 655 165 680 190 C 655 215 655 240 680 250 L 30 250 C 15 250 0 235 0 220 C 25 195 25 165 0 140 C 25 115 25 85 0 60 C 25 35 25 15 0 0 Z"/></clipPath>
 <g transform="translate(100,1090) scale(1.2941)" filter="url(#sh)">
-  <path d="M 30 0 L 650 0 C 665 0 680 15 680 30 C 655 55 655 85 680 110 C 655 135 655 165 680 190 C 655 215 655 240 680 250 L 30 250 C 15 250 0 235 0 220 C 25 195 25 165 0 140 C 25 115 25 85 0 60 C 25 35 25 15 0 0 Z" fill="#FF9000"/>
-  <g transform="translate(14,12)">
-    <path d="M 0 0 L 130 0 L 130 226 L 0 226 C -8 200 -8 170 0 145 C -8 120 -8 90 0 65 C -8 40 -8 20 0 0 Z" fill="#F62900"/>
-    <path d="M 130 0 L 620 0 C 632 0 642 10 642 22 C 620 45 620 75 642 98 C 620 121 620 151 642 174 C 620 197 620 220 642 226 L 130 226 Z" fill="#FFFFFF"/>
+  <g clip-path="url(#tkf)">
+    <rect width="680" height="250" fill="#FFFFFF"/>
+    <rect width="144" height="250" fill="#F62900"/>
+    <path d="M 30 0 L 650 0 C 665 0 680 15 680 30 C 655 55 655 85 680 110 C 655 135 655 165 680 190 C 655 215 655 240 680 250 L 30 250 C 15 250 0 235 0 220 C 25 195 25 165 0 140 C 25 115 25 85 0 60 C 25 35 25 15 0 0 Z" fill="none" stroke="#FF9000" stroke-width="28"/>
   </g>
 </g>
 <text transform="translate(226,1252) rotate(-90)" text-anchor="middle" class="hero" font-size="66" fill="#FFFFFF">CUPOM</text>
