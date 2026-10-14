@@ -89,7 +89,7 @@ O Luma utiliza uma escala disciplinada de 4 níveis. O peso `Bold (700)` foi **e
 | **Sombra** (único preset) | Card/ticket: `feDropShadow dy=12 stdDeviation=16 flood-color=#434343 flood-opacity=0.25`. Selo/badge: `dy=6 stdDeviation=10 opacity=0.2`. Nenhuma outra. |
 | **Linha/divisória** | `stroke #434343` com `opacity 0.25`, `stroke-width 3` |
 
-* **Um eixo de alinhamento por peça:** todos os textos soltos à **esquerda (x=100)** ou todos **centralizados (x=540)**. Misturar os dois é o erro mais comum de "arte amadora". Textos dentro de um card seguem o eixo do card.
+* **Um eixo de alinhamento por peça:** todos os textos soltos à **esquerda (x=100)** — o padrão, que abre espaço para grafismo à direita (§4.2) — ou todos **centralizados (x=540)**, quando a peça é uma ideia só. Misturar os dois é o erro mais comum de "arte amadora". Textos dentro de um card seguem o eixo do card.
 * **Sobreposição intencional (é o que dá coesão às referências):** blocos soltos a 60px uns dos outros parecem template de sistema; nas artes oficiais, peças se **prendem à borda da foto**. Lista fechada do que pode sobrepor o slot de foto:
   1. **Card de preço** invadindo a borda inferior ou lateral da foto: marque o grupo com `data-sobrepoe="foto"`. Limite: **≤ 25% da área da foto** e **nunca o miolo** (o terço central, onde está o sujeito). O lint mede os dois.
   2. **Selo** na quina da foto (já permitido; ≤ 35% da largura da foto).
@@ -469,6 +469,28 @@ Utilitários de suporte na raiz do repositório:
 
 ---
 
+## 4.2 Pense como Designer Gráfico (a regra que vale mais que as receitas)
+
+> O papel da IA é o de **designer gráfico**: ela **não cria assets** (§1), mas **compõe com liberdade** usando o inventário e as regras. Receita, topologia e referência são **vocabulário, não molde**. Peça que é cópia da referência com outra copy reprova, mesmo passando no lint.
+
+**O vício a evitar (apontado pelo Ryan em 10/2026):** empilhar tudo centralizado no meio do canvas — logo, frase, valor, card, botão um embaixo do outro, colados, com faixas vazias em cima e embaixo. É o "layout de sistema": correto, sem ar, sem ideia.
+
+**Como um designer compõe:**
+1. **Ocupe a faixa útil inteira.** No story, o primeiro bloco começa em ~290 e o último termina em ~1650; no feed, de ~80 a ~1270. O conteúdo não "boia" no centro: ele **distribui o peso pela altura toda**.
+2. **Proximidade (Gestalt) com dois tempos de respiro:** dentro de um grupo (título + apoio, valor + "OFF", texto + botão do mesmo assunto) **24–48 px**; **entre grupos, 100–140 px** no story (80–120 no feed). Se todos os vãos são iguais e curtos, não há grupos — há uma lista.
+3. **Assimetria por padrão.** Prefira **eixo à esquerda (x = 100)** e deixe o lado direito para o **grafismo que sangra** (o `+`, ticket, sticker, foto). Centralizado é escolha consciente para peça de uma ideia só (capa, selo), não o padrão.
+4. **Um elemento em escala dramática.** O ponto focal ganha um tamanho que surpreende (um número de 450–520 px num story, uma palavra ocupando a largura útil); o resto encolhe para dar contraste. Hierarquia é **diferença de tamanho**, não quantidade de destaques.
+5. **Peso nos cantos, ar no meio da leitura.** Grafismos e assets decorativos vão para as **bordas e cantos, sangrando** para fora do canvas (podem entrar nas zonas de 250 px do story — lá só não entra texto). Isso abre o centro e dá movimento.
+6. **Vazio intencional:** toda peça tem **pelo menos uma área grande de respiro** (≥ 15% do canvas) que não é sobra, é decisão — ela faz o ponto focal respirar.
+7. **Menos caixas.** Card, pílula e moldura só quando agrupam algo que se perderia solto. Texto direto no fundo (com contraste) costuma ser mais elegante que texto dentro de card dentro de fundo.
+8. **Varie a cada peça.** Antes de compor, escolha **uma ideia de composição** e escreva em 1 frase (ex.: "número gigante ancorado à esquerda, ticket sangrando no canto de baixo, `+` no alto à direita"). Se for igual à da última peça ou à da referência, troque.
+
+**Autoteste antes do print:** (a) tape a referência — a peça se sustenta sozinha? (b) há um vão entre grupos ≥ 100 px no story? (c) o conteúdo usa de 290 a 1650? (d) algo sangra pela borda? (e) dá para descrever a composição sem dizer "centralizado"? Dois "não" = recomponha.
+
+Exemplo de referência: `refino_15_cupom_much_story` — eixo à esquerda, "10" de 470 px, `+` sangrando no canto de cima, ticket sangrando no de baixo, grupos separados por 100–120 px.
+
+---
+
 ## 5. Pipeline Obrigatório de Composição (6 Fases)
 
 Ao receber um pedido de nova arte ou template, a IA executa este fluxo em sequência obrigatória:
@@ -479,7 +501,7 @@ Antes de escrever uma única linha de código, a IA **DEVE abrir e inspecionar v
 * **Paleta Oficial em `referencias/paleta-oficial-dm.png`:** Fixe as 5 cores oficiais na mente. Proibido subtons intermediários.
 * **Antirreferências em `referencias/antirreferencias/`:** abra também. O nome de cada arquivo diz o erro (pattern farelo, blocos soltos, preço plano). Se a sua peça lembrar uma delas, recomece a composição.
 * **Escolha a receita tipográfica (§2.4)** junto com o ponto focal: a peça é de conversa (A), de benefício em 2 palavras (B), de valor (C) ou de produto (D/escala padrão)?
-* **Liberdade Composicional Guiada:** **Não engesse o design em topologias fixas ou caixas fechadas.** A IA deve se inspirar organicamente no repertório das imagens para criar composições novas, equilibradas e naturais, variando o arranjo dos blocos conforme o objetivo do briefing.
+* **Referência é vocabulário, não molde (§4.2):** das referências tire **linguagem** — cores da campanha, como o asset é usado, escala, acabamento —, **nunca a planta** (a posição dos blocos). A composição é sua, pensada para esta mensagem.
 * **Análise da Intenção:** Identifique se a nova peça pede foco em foto grande, destaque de preço, cupom agressivo, evento municipal ou mensagem institucional, e componha a cena inspirada no feeling das referências.
 * **Briefing em 3 linhas (escreva antes de desenhar):** (1) **Uma única mensagem** da peça; (2) **o ponto focal** — o que o olho vê primeiro (hero, preço, cupom ou foto; só **um**); (3) **a ação** (pedir pelo app, usar cupom, conhecer parceiro). Se faltar algo, pergunte; dúvida de negócio não se inventa.
 * **Escala das referências (calibre a mão):** nas artes reais da DM o hero e o preço são **enormes** (o "R$22,90" ocupa ~1/4 da largura; "entrega GRÁTIS" ocupa metade da altura útil), a logo é legível (~200–260px de largura) e há **poucos** elementos grandes, não muitos pequenos. Arte com muitos itens miúdos está errada.
@@ -526,8 +548,8 @@ Antes de escrever uma única linha de código, a IA **DEVE abrir e inspecionar v
     * Logo Delivery Much branca (`dm-h-branca.png`) centralizada na horizontal (`x = 288`, `width = 174px`), ancorada na base (`y = 336`).
 
 * **Repertório de topologias aprovadas** (modelos prontos em `assets/templates/refino/`; ponto de partida para variar, não para copiar; **todos com foto em retângulo**).
-  * **Padrão 1.3 — copie a topologia E o acabamento** (fonte legível em `refino/fontes/`, revisados lado a lado com as referências): oferta com card de preço preso à foto e selo na quina (`refino_01`, feed); **cupom** com frase mista, lockup de valor, ticket oficial e arcos na base (`refino_02`, story); **evento** com foto sangrando no topo e selo de data (`refino_03`, feed); **entrega grátis** com minúscula + vazado (`refino_04`, story); hero de 2 tamanhos + card preso + CTA em contorno (`refino_08`, story); **lista de ofertas** com rótulo de produto e CTA (`refino_10`, story); **aniversário da franquia** com lockup de anos (`{{anos}}`, 1–2 dígitos: por isso alinhado à esquerda), frase mista e ticket com o valor do presente em destaque (`refino_14`, feed).
-  * **Pré-1.3 — copie só a topologia**, o acabamento é antigo (preço com centavos grandes, logo pequeno, pattern em escala de farelo): foto sangrando à direita + preço-herói (`refino_09`), etiqueta de preço inclinada (`refino_11`), foto larga + pílulas + preço em linha (`refino_12`), split diagonal em dois tons (`refino_13`), foto cheia no topo (`refino_05`), parceiro novo com logo da loja (`refino_06`), foto lateral sangrando (`refino_07`).
+  * **Padrão 1.3 — estude o acabamento (não a planta: §4.2)** (fonte legível em `refino/fontes/`, revisados lado a lado com as referências): oferta com card de preço preso à foto e selo na quina (`refino_01`, feed); **cupom** com frase mista, lockup de valor, ticket oficial e arcos na base (`refino_02`, story); **evento** com foto sangrando no topo e selo de data (`refino_03`, feed); **entrega grátis** com minúscula + vazado (`refino_04`, story); hero de 2 tamanhos + card preso + CTA em contorno (`refino_08`, story); **lista de ofertas** com rótulo de produto e CTA (`refino_10`, story); **aniversário da franquia** com lockup de anos (`{{anos}}`, 1–2 dígitos: por isso alinhado à esquerda), frase mista e ticket com o valor do presente em destaque (`refino_14`, feed).
+  * **Pré-1.3 — ideias de topologia para variar**, o acabamento é antigo (preço com centavos grandes, logo pequeno, pattern em escala de farelo): foto sangrando à direita + preço-herói (`refino_09`), etiqueta de preço inclinada (`refino_11`), foto larga + pílulas + preço em linha (`refino_12`), split diagonal em dois tons (`refino_13`), foto cheia no topo (`refino_05`), parceiro novo com logo da loja (`refino_06`), foto lateral sangrando (`refino_07`).
   * Escolha a topologia pelo **objetivo** (Fase 1) e **varie as proporções do retângulo** (largo, alto, quadrado, faixa) em vez de repetir a última.
 
 ### FASE 3: Orquestração de Blocos do Inventário
@@ -632,6 +654,8 @@ Antes de finalizar a arte:
 | Mesmo par de arcos carimbado em todas as stories | Pattern só onde a referência usa; o resto clean (§3.1) |
 | CTA branco do mesmo peso do card de preço, disputando o olhar | CTA em contorno branco (`fill="none" stroke="#FFFFFF"`) quando o preço é o ponto focal |
 | Julgar a arte só com o cinza do placeholder | Print com `--foto` (Fase 5) |
+| Tudo empilhado e centralizado no meio, vãos curtos e iguais, faixas vazias em cima e embaixo (much+ 1ª versão, 10/2026) | §4.2: faixa útil inteira, vãos de 24–48 dentro do grupo e 100–140 entre grupos, eixo à esquerda, grafismo sangrando nos cantos |
+| Peça que é a referência com outra copy | Referência é vocabulário (§4.2): escreva a ideia de composição em 1 frase antes e troque se repetir |
 | SVG com tag sem fechar: o lint (HTML tolerante) passava e a imagem saía preta | O lint agora valida o XML; erro bloqueia |
 | Campo variável testado só com o valor curto (`3` anos) | Testar o maior valor real (`10`): o lockup tem de caber sem mudar a composição |
 
