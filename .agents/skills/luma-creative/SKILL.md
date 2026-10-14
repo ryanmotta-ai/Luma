@@ -397,6 +397,8 @@ Até o Ryan subir decks, use a régua da capa (§3.4) ampliada: **capa** = hero-
 * `assets/mockups/` — moldura de smartphone e tela do app (para "peça pelo app").
 * `assets/recortes/` — fotos **sem fundo** (hambúrguer, batata, cafés, refrigerante, pipoca, claquete) para testar composições com produto recortado; na peça real a foto é a do franqueado.
 * **Sub-marca much+** (assinatura de cupons): as peças dela usam **rosa `#E52676`** + amarelo `#FFB900`, fonte Ubuntu e o `+` como grafismo. **Rosa e Ubuntu são só da much+** — nunca em peça Delivery Much. Ubuntu não está em `assets/fontes/`: em peça much+, use Realce/Roboto e avise.
+  * Linguagem much+ (refs. `story-much-plus-beneficios`, `inapp-much-*`): fundo rosa com **brilho branco radial** atrás do ponto focal (só opacidade), card branco com **borda amarela** (`stroke #FFB900` 6 px), tickets `cupons/cupom-much-plus.png` **inclinados rompendo a borda** do card, estrelas amarelas e botão **amarelo com texto rosa**. Logo much+ + DM brancos direto no fundo (pílula translúcida lava o logo).
+  * Lint: `node scripts/lint-art.js arte.svg --story --much` (admite o rosa e o botão amarelo). Modelo pronto: `refino_15_cupom_much_story` (cupom de até R$ 10, 5 por mês).
 * Os PSDs também usam **Roboto Bold** (700) em textos corridos: é legado das peças manuais; a regra da §2 (sem Bold) continua valendo para o que a IA compõe.
 
 ---

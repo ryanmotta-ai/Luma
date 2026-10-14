@@ -8,14 +8,16 @@
  * centavos sobrescritos, sobreposição intencional (data-sobrepoe), faixa vazia, logo, raios e alinhamento.
  * Zero dependências (reusa o Edge/Chromium de scripts/capture-art.js).
  *
- * Uso:   node scripts/lint-art.js <arte.svg> [--story|--feed]
+ * Uso:   node scripts/lint-art.js <arte.svg> [--story|--feed] [--much]
+ *        --much: peça da sub-marca much+ (skill §3.5) — admite o rosa #E52676 e o botão amarelo das referências dela
  * Saída: lista de ERROS (bloqueiam) e AVISOS. Código de saída 1 se houver erro.
  */
 const fs = require('fs');
 const path = require('path');
 const { avaliarNaPagina } = require('./capture-art.js');
 
-const PALETA = ['434343', 'F62900', 'FFB900', 'F85400', 'FF9000', 'FFFFFF', 'D9D9D9'];
+const MUCH = process.argv.includes('--much');
+const PALETA = ['434343', 'F62900', 'FFB900', 'F85400', 'FF9000', 'FFFFFF', 'D9D9D9'].concat(MUCH ? ['E52676'] : []);
 const hex = rgb => {
   const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(rgb || '');
   return m ? [m[1], m[2], m[3]].map(n => Number(n).toString(16).padStart(2, '0')).join('').toUpperCase() : null;
@@ -236,7 +238,7 @@ async function lint(svgPath, formato) {
   });
 
   // botões/tags amarelos (pílula/retângulo curto); selo é círculo
-  blocos.filter(b => b.tag === 'rect' && hex(b.fill) === 'FFB900' && b.box.h <= 110).forEach(b => {
+  if (!MUCH) blocos.filter(b => b.tag === 'rect' && hex(b.fill) === 'FFB900' && b.box.h <= 110).forEach(b => {
     if (textos.some(t => t.cont === b)) E('Botão/tag amarelo: use #F85400 + branco sobre #FF9000, branco + #F85400 sobre #F85400 (amarelo só em selo/voucher).');
   });
 
