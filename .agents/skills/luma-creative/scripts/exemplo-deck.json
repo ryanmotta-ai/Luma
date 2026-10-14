@@ -4,7 +4,7 @@
   { "tipo": "imagem", "arquivo": "slides/area-expansao.png", "x": 1250, "y": 110, "w": 330, "h": 221, "rotacao": -6 },
   { "tipo": "texto", "x": 120, "y": 236, "w": 900, "h": 40, "texto": "MERCADO · OUTUBRO DE 2026", "tamanho": 28, "peso": "medium", "cor": "#F85400" },
   { "tipo": "texto", "x": 116, "y": 288, "w": 1000, "h": 240, "texto": "O interior virou\ncampo de disputa", "tamanho": 96, "cor": "#434343" },
-  { "tipo": "texto", "x": 104, "y": 548, "w": 440, "h": 400, "texto": "21", "tamanho": 340, "peso": "black", "cor": "#F85400" },
+  { "tipo": "texto", "x": 120, "y": 548, "w": 440, "h": 400, "texto": "21", "tamanho": 340, "peso": "black", "cor": "#F85400" },
   { "tipo": "texto", "x": 560, "y": 690, "w": 440, "h": 110, "texto": "cidades novas da Keeta\naté o fim do ano", "tamanho": 40, "peso": "medium", "cor": "#434343" },
   { "tipo": "texto", "x": 560, "y": 806, "w": 440, "h": 44, "texto": "foco em cidades médias do interior", "tamanho": 28, "peso": "light", "cor": "#434343" },
   { "tipo": "texto", "x": 1120, "y": 470, "w": 440, "h": 120, "texto": "1.500", "tamanho": 96, "peso": "black", "cor": "#F85400" },

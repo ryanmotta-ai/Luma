@@ -3,7 +3,7 @@ name: luma-creative
 description: "Diretriz definitiva para geração e composição de artes e templates da Delivery Much (e da sub-marca much+) no Luma. Use SEMPRE que for solicitado para criar, diagramar, sugerir ou compor artes: feed (1080x1350), story (1080x1920), inapp (1080x1920), banner do app (764x204), cabeçalho e rodapé de email (1080x300 / 1080x121), carrossel (3 lâminas), slides 16:9 (Template de Apresentações 2026, entregues SEMPRE em .pptx editável), capas de materiais/Deskfy (750x400) ou variações para o catálogo. A IA compõe como designer gráfico (respiro, assimetria, escala dramática) mas NUNCA desenha vetores nem cria assets: orquestra o inventário oficial sob regras de grid, contraste, tipografia em 4 níveis, tamanhos mínimos e auditoria visual obrigatória do print. Sem foto, deixa o espaço da foto (placeholder) para o franqueado. Copy sempre em PT-BR."
 metadata:
   author: luma-design-team
-  version: "1.7.0"
+  version: "1.8.0"
 ---
 
 # Luma Creative — Diretriz de Composição de Artes e Templates
@@ -396,16 +396,26 @@ O template oficial de apresentação (48 slides, extraído do `.pptx` em 10/2026
 
 #### 📦 Entrega de slide = SEMPRE `.pptx` editável (decisão do Ryan, 14/10/2026)
 Pediu slide (ou apresentação, deck, lâmina 16:9), a entrega é um **`.pptx`** — nunca só SVG/PNG. O PNG serve apenas para você conferir.
-* **Gerador:** `python3 .agents/skills/luma-creative/scripts/slide_pptx.py deck.json saida.pptx` (requer `python-pptx`; ferramenta da skill, não do app). Exemplo completo: `scripts/exemplo-deck.json` (capa + slide de indicadores com mapa).
+* **Gerador:** `python3 .agents/skills/luma-creative/scripts/slide_pptx.py deck.json saida.pptx --previa` (requer `python-pptx`, Pillow e fontTools; ferramenta da skill, não do app). Exemplo completo: `scripts/exemplo-deck.json`. O deck sai **leve** (~1,5 MB): só os slides pedidos e os layouts que eles usam.
 * **Fonte:** o deck parte **sempre** de `assets/slides/template-apresentacoes-2026.pptx`, que é o template inteiro **com todos os slides de exemplo — não apague nem limpe nenhum**: eles são o repertório de layouts. O script copia o que for pedido e o deck de saída sai só com os slides novos; o template não muda.
 * **Quem compõe é você (decisão do Ryan, 14/10/2026).** Os exemplos do template **não são molde para copiar**: são repertório de estilo e de medidas. Cada slide é composto do zero, como designer (§4.2: âncora forte, assimetria, respiro, escala dramática, um foco por slide), usando **só os assets de `slides/`** (fundos, ícones, emojis, adesivos das áreas, mockups, sorriso-arco) e as **regras da marca** (paleta, Roboto, logo DM, contraste, mínimos). Nunca desenhe asset novo.
-* **Modo padrão: `"livre": [elementos]`.** Monta um slide em branco com `imagem` (caminho relativo a `assets/`, aceita `rotacao` em graus), `card` (retângulo arredondado, `raio` em px; com `raio: 0` e `h: 4` vira fio) e `texto` (`tamanho` em px, `peso` regular/medium/black/light, `alinhar` esq/centro/dir), tudo em px do canvas 1920×1080. Exemplo composto assim: `scripts/exemplo-deck.json` ("O interior virou campo de disputa": fundo branco com arco, número gigante como âncora à esquerda, coluna de apoio à direita alinhada à base do número, adesivo "Expansão" inclinado sobre a borda do arco).
+* **Modo padrão: `"livre": [elementos]`.** Tudo em px do canvas 1920×1080 (lista completa no cabeçalho do script):
+  * `texto`: `tamanho` em px, `peso` regular/medium/black/light, `cor`, `alinhar` esq/centro/dir.
+  * `imagem`: caminho relativo a `assets/`. Recorta para cobrir a caixa sem distorcer (`ajuste: conter` para caber inteira). Aceita `recorte: "circulo"` para foto redonda, `rotacao` em graus, `sombra` (preset de selo) e `sangria: true` quando sai da margem de propósito.
+  * `card`: `forma` ret/pilula/circulo, `raio`, `sombra: true` (o preset único da marca: dy 12, blur 16, #434343 a 25%). Com `raio: 0` e `h: 4`, vira fio.
+  * `grafico`: **nativo e editável**, com `grafico` coluna/barra/linha/pizza, `categorias`, `series` e `formato` dos rótulos. Sai nas cores da marca, Roboto, rótulos no topo, sem grade e sem título interno (o título é texto do slide). Ponha num card branco com sombra.
+  * `tabela`: `linhas` (a 1ª é o cabeçalho, laranja com texto branco), corpo branco com fio #D9D9D9, `colunas` com larguras em px.
+* **Exemplo composto assim:** `scripts/exemplo-deck.json`, "O interior virou campo de disputa". Fundo branco com arco, número gigante como âncora à esquerda, coluna de apoio à direita alinhada à base do número, adesivo "Expansão" inclinado sobre a borda do arco.
 * **`"base": N` só quando o usuário pedir o layout do template.** Duplica o exemplo N e troca os textos com `"trocar"` (lista = uma troca por ocorrência; `"mais"` sobrepõe elementos livres).
 * **Fundo: escolha pelo espaço livre.** `fundo-branco-arco.jpg` deixa a área branca de x 0–1650 (na base, o arco sobe a partir de x ≈ 780, y ≈ 960). `fundo-arco-laranja*.jpg` e `fundo-mapa-brasil.jpg` levam texto branco; o mapa ocupa x > 1150.
 * **Logo:** o script troca sozinho as logos "Você Pede" do template pelas da **Delivery Much**: a branca da capa vira `dm-h-branca` e o selo do canto vira `dm-simbolo`.
 * **Tipografia no pptx:** Roboto (Regular, Light, Medium e Black, embutidas no template). **Realce não existe no pptx**, então número de destaque vai em Roboto Black `#F85400`.
 * **Respeite o limite de cada caixa:** "Título de uma linha" é uma linha só (~20 caracteres na capa); "até duas/três linhas" idem. Texto longo quebra e invade o subtítulo, então encurte a copy em vez de diminuir a fonte.
-* **Conferência obrigatória (Fase 5):** `soffice --headless --convert-to pdf saida.pptx` e `pdftoppm -r 50 -png saida.pdf pg`. Olhe cada PNG. Antes, instale a Roboto para o LibreOffice medir certo: converta `assets/fontes/Roboto-*.woff2` para `.ttf` em `~/.fonts/` com fontTools, nomeando a família "Roboto", "Roboto Medium", "Roboto Light" e "Roboto Black", e rode `fc-cache -f`. Sem isso, a fonte substituta é mais larga e a quebra engana. O script avisa `ATENÇÃO … sobrou texto de exemplo` ("Colocar…", "Lorem", "XX", "Nome"): slide com sobra não sai.
+* **Conferência automática (Fase 5):** depois de salvar, o script confere cada slide livre medindo o texto com a Roboto de verdade (quebra igual à do PowerPoint). Acusa:
+  * **ERRO:** texto fora da zona útil (x 120–1800, y 90–1000; legal até 1050), texto encostando em texto, texto vazando do card, corpo abaixo de 20 px, cor fora da paleta fechada, contraste ilegível (medido contra o fundo real atrás do texto) e texto de exemplo que sobrou;
+  * **aviso:** texto que quebrou em mais linhas do que você escreveu, corpo abaixo de 28 px, contraste baixo em texto pequeno, texto sobre imagem ou gráfico, elemento passando da margem sem `sangria` e slide sem logo DM.
+
+  Com ERRO, o script sai com código 1, e **slide com ERRO não é entregue**: corrija e rode de novo. Aviso pede julgamento. Com `--previa`, instala a Roboto no LibreOffice (se faltar) e gera `saida-N.png`. **Olhe cada PNG** como designer antes de entregar: a conferência pega regra, não pega composição sem graça.
 * **Mapa dos exemplos do template** (repertório para consulta; para `base` só quando pedido):
 
 | Nº | Para quê | Textos a trocar |
