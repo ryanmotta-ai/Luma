@@ -137,7 +137,7 @@ quando chega no navegador de quem usa** — "commitei" não é "chegou".*
 ⚠ **Correção de 2026-09-03.** Este parágrafo dizia "o Luma não tem testes automatizados nem runner". **Tem** — e o código vence o doc:
 
 ```
-node scripts/run-browser-tests.js         # 452 casos em 10 suítes (svg-import entrou em 2026-10-14)
+node scripts/run-browser-tests.js         # 453 casos em 10 suítes (svg-import entrou em 2026-10-14)
 ```
 
 As suítes são `tests/*.html` rodando em **Chromium de verdade** (métrica de fonte e Canvas 2D só existem no navegador; testar isso com mock mediria o mock). O runner fala DevTools Protocol direto com o WebSocket nativo do Node 22 — **zero dependência, nenhum `npm install`, nada entra no `index.html`**, ou seja não fere a 1ª lei. `.github/workflows/tests.yml` roda a cada push e PR que toque `js/**`: **é portão, reprova o commit.**

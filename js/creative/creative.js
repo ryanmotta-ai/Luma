@@ -760,6 +760,14 @@ const CR_SERVE = { oferta: ['cardPreso', 'fotoTopo', 'fotoBase', 'duplo', 'centr
 // Completa o que faltou com o padrão das artes aprovadas. Nada aqui inventa preço: sem precoPor,
 // não há bloco de preço. Cupom/anos/código têm exemplo claro (o editor troca).
 const CR_LEGADO = { destaque: 'beneficio', institucional: 'evento' };
+/* Sub-marca much+ (skill §3.5): a peça nasce na paleta DM e é repintada na das referências much+ —
+   laranja → rosa #E52676, solar → amarelo #FFB900, logo much+. Só a much+ usa o rosa. */
+const _crMarcaDita = t => /much\s*(\+|mais)|muchmais/i.test(String(t || ''));
+const CR_MUCH = { '#F85400': '#E52676', '#FF9000': '#FFB900', '#F62900': '#E52676' };
+function _crMarca(svg, sp){
+  if(!sp || sp.marca !== 'much') return svg;
+  return svg.replace(/#(F85400|FF9000|F62900)\b/gi, m => CR_MUCH[m.toUpperCase()]).replace(/asset:logos\/dm-h-branca\.png/g, 'asset:logos/much-plus-branco.png');
+}
 function crNormaliza(bruto){
   const s = Object.assign({}, bruto || {});
   // Corta na palavra, nunca no meio dela ("ARTESANAL DUP")
@@ -791,6 +799,7 @@ function crNormaliza(bruto){
     cta: up(txt(s.cta, 14)),
     legal: txt(s.legal, 90),
     foto: /^data:image\/(png|jpeg|webp);base64,/.test(s.foto || '') ? s.foto : '',
+    marca: s.marca === 'much' ? 'much' : 'dm',
     chamada: (Array.isArray(s.chamada) ? s.chamada : []).map(l => txt(l, 32)).filter(Boolean).slice(0, 2)
   };
   const P = {
@@ -826,15 +835,16 @@ function crMontar(sp, receita, fundo, p){
   if(!pecas) return null;
   if(a.fmt === 'inapp') pecas.push(crBotaoLargo(sp, cor));
   // Pattern na regra de inversão (§3 item 9) e ancorado no rodapé; no feed sobe 570 (1920 − 1350)
-  const padrao = receita.padrao && a.story ? CR_PATTERN.replace('#FF9000', cor === '#FF9000' ? '#F85400' : '#FF9000').replace('{Y}', String(-720 - (1920 - a.H))) + '\n' : '';
+  const padrao = receita.padrao && a.story && sp.marca !== 'much' ? CR_PATTERN.replace('#FF9000', cor === '#FF9000' ? '#F85400' : '#FF9000').replace('{Y}', String(-720 - (1920 - a.H))) + '\n' : '';
   // Banner do app: o fundo é o card arredondado; em volta, transparente (o app põe o próprio fundo)
   const fundoSvg = a.card ? '<rect data-fundo="1" x="' + a.card[0] + '" y="' + a.card[1] + '" width="' + a.card[2] + '" height="' + a.card[3] + '" rx="' + a.card[4] + '" fill="' + cor + '"/>'
     : '<rect data-fundo="1" width="' + a.W + '" height="' + a.H + '" fill="' + cor + '"/>';
-  const svg = '<svg xmlns="http://www.w3.org/2000/svg" data-luma="1" viewBox="0 0 ' + a.W + ' ' + a.H + '" width="' + a.W + '" height="' + a.H + '">'
+  let svg = '<svg xmlns="http://www.w3.org/2000/svg" data-luma="1" viewBox="0 0 ' + a.W + ' ' + a.H + '" width="' + a.W + '" height="' + a.H + '">'
     + crDefs() + fundoSvg + '\n' + padrao + pecas.filter(Boolean).join('\n') + '\n</svg>';
+  svg = _crMarca(svg, sp);
   const campos = [...new Set((svg.match(/data-campo="([^"]+)"/g) || []).map(m => m.slice(12, -1)))];
   if(/id="foto_produto"/.test(svg)) campos.push('foto_produto');
-  return { svg, spec: sp, receita: receita.id, nomeReceita: receita.nome, fundo: cor, p: a.p, campos, estouros: est, w: a.W, h: a.H };
+  return { svg, spec: sp, receita: receita.id, nomeReceita: receita.nome, fundo: _crMarca(cor, sp), p: a.p, campos, estouros: est, w: a.W, h: a.H };
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -960,7 +970,7 @@ function crCandidatos(bruto, p){
     const rec = CR_RECEITAS.find(x => x.id === id);
     if(!rec || (rec.foto === true && !sp.foto) || (rec.foto === false && sp.foto) || (rec.serve && !rec.serve(sp))
       || (rec.formatos && rec.formatos.indexOf(sp.formato) < 0)) return;
-    (rec.fundos || ['#F85400']).forEach(cor => {
+    (sp.marca === 'much' ? ['#F85400'] : (rec.fundos || ['#F85400'])).forEach(cor => {
       const r = crMontar(sp, rec, cor, p);
       if(!r) return;
       const av = crAvaliar(r);
@@ -992,14 +1002,42 @@ function crCompor(bruto, p){
    piso) e crAvaliar confere as regras da marca. O que reprova volta para a IA uma vez, com os
    erros, para ela corrigir. Sem IA (ou se nada passar), o motor de receitas segue sozinho.
 ══════════════════════════════════════════════════════════════ */
-// Grafismos que a IA pode usar (assets/creative/decor/, cópia da skill): proporção e largura nítida
-const CR_DECOR = {
-  'sorriso-arco':    { w: 600, h: 509, max: 1000, desc: 'arco do sorriso DM em laranja solar — grande, sangrando num canto (só sobre #F85400)' },
-  'explosao':        { w: 340, h: 340, max: 520,  desc: 'explosão amarela de raios — atrás de um selo ou sangrando numa borda' },
-  'estrela-amarela': { w: 165, h: 192, max: 200,  desc: 'estrela amarela de 4 pontas — acento perto do ponto focal' },
-  'estrela-branca':  { w: 59,  h: 58,  max: 90,   desc: 'estrela branca pequena — acento' },
-  'seta-rabisco':    { w: 275, h: 88,  max: 380,  desc: 'seta rabiscada branca — aponta para a ação' }
+// O INVENTÁRIO que a IA designer pode usar — a biblioteca da skill inteira (assets/creative/inv/,
+// cópia leve). `max` = largura máxima nítida na arte; `marca` = dm | much | todas (filtra pela peça).
+const CR_DECOR = {   // gerado de .agents/skills/luma-creative/assets (cópia leve em assets/creative/inv/)
+  'sorriso-arco': { w: 700, h: 593, max: 979, marca: 'dm', tipo: 'grafismo', desc: "arco do sorriso DM laranja solar — grande, sangrando num canto (sobre fundo #F85400)" },
+  'explosao': { w: 340, h: 340, max: 475, marca: 'todas', tipo: 'grafismo', desc: "explosão amarela de raios — atrás de selo/valor ou sangrando numa borda" },
+  'respingo': { w: 318, h: 307, max: 445, marca: 'dm', tipo: 'grafismo', desc: "respingo amarelo de molho — atrás de logo ou produto" },
+  'pattern-macarrao': { w: 700, h: 669, max: 900, marca: 'dm', tipo: 'grafismo', desc: "arcos amarelos soltos (textura) — num canto, nunca atrás de texto" },
+  'estrela-amarela': { w: 165, h: 192, max: 200, marca: 'todas', tipo: 'acento', desc: "estrela amarela de 4 pontas — perto do ponto focal" },
+  'estrela-branca': { w: 59, h: 58, max: 82, marca: 'todas', tipo: 'acento', desc: "estrela branca pequena" },
+  'seta-rabisco': { w: 275, h: 88, max: 380, marca: 'todas', tipo: 'acento', desc: "seta rabiscada branca — aponta para a ação ou para o lado (carrossel)" },
+  'mais-amarelo': { w: 600, h: 594, max: 420, marca: 'much', tipo: 'grafismo', desc: "+ amarelo com brilhos rosa — símbolo much+, sangrando num canto" },
+  'mais-rosa': { w: 600, h: 594, max: 420, marca: 'much', tipo: 'grafismo', desc: "+ rosa com brilhos — símbolo much+ (sobre fundo claro/amarelo)" },
+  'selo-off': { w: 80, h: 59, max: 112, marca: 'dm', tipo: 'sticker', desc: "selo serrilhado amarelo \"off\"" },
+  'tag-numero-1': { w: 72, h: 72, max: 100, marca: 'dm', tipo: 'sticker', desc: "etiqueta \"#1\"" },
+  'faixa-se-renda': { w: 144, h: 51, max: 201, marca: 'dm', tipo: 'sticker', desc: "faixa amarela \"SE RENDA!\"" },
+  'sticker-xis': { w: 600, h: 253, max: 420, marca: 'dm', tipo: 'sticker', desc: "ilustração de xis (sanduíche) com contorno creme" },
+  'sticker-maionese': { w: 486, h: 600, max: 380, marca: 'dm', tipo: 'sticker', desc: "ilustração de sachê de maionese" },
+  'sticker-chimarrao': { w: 383, h: 600, max: 380, marca: 'dm', tipo: 'sticker', desc: "ilustração de chimarrão" },
+  'sticker-mouse': { w: 405, h: 600, max: 380, marca: 'dm', tipo: 'sticker', desc: "ilustração de mouse (mascote)" },
+  'sticker-cachorro-bexiga': { w: 600, h: 559, max: 420, marca: 'dm', tipo: 'sticker', desc: "cachorro de bexiga laranja — festa/aniversário" },
+  'sticker-balao-15': { w: 522, h: 600, max: 420, marca: 'dm', tipo: 'sticker', desc: "balão \"15\" laranja — só aniversário de 15 anos" },
+  'sticker-planetario': { w: 600, h: 312, max: 420, marca: 'dm', tipo: 'sticker', desc: "lettering \"PLANETÁRIO\" — campanha" },
+  'sticker-real': { w: 182, h: 196, max: 254, marca: 'todas', tipo: 'sticker', desc: "\"R$\" amarelo inflado — perto de preço/desconto" },
+  'sticker-porcento': { w: 136, h: 162, max: 190, marca: 'todas', tipo: 'sticker', desc: "\"%\" amarelo inflado — perto de desconto" },
+  'selo-15-anos': { w: 600, h: 284, max: 420, marca: 'dm', tipo: 'sticker', desc: "selo \"15 anos Delivery Much\" laranja — só aniversário de 15 anos" },
+  'cupom-laranja': { w: 600, h: 280, max: 520, marca: 'dm', tipo: 'cupom', desc: "ticket laranja vazio com aba \"CUPOM\", inclinado — decorativo" },
+  'ingresso-laranja': { w: 240, h: 156, max: 336, marca: 'dm', tipo: 'cupom', desc: "ingresso laranja — evento" },
+  'cupom-much': { w: 600, h: 540, max: 420, marca: 'much', tipo: 'cupom', desc: "ticket much+ (borda amarela) — inclinado, rompendo a borda" },
+  'cupom-rosa': { w: 600, h: 314, max: 520, marca: 'much', tipo: 'cupom', desc: "ticket rosa vazio — much+" },
+  'icone-app-much': { w: 400, h: 400, max: 260, marca: 'much', tipo: 'logo', desc: "ícone do app much+ (quadrado rosa)" },
+  'celular-app': { w: 390, h: 700, max: 520, marca: 'todas', tipo: 'mockup', desc: "celular com a tela do app — \"peça pelo app\"" },
+  'celular-moldura': { w: 410, h: 700, max: 520, marca: 'todas', tipo: 'mockup', desc: "moldura de celular vazia" },
+  'icone-instagram': { w: 29, h: 29, max: 40, marca: 'todas', tipo: 'acento', desc: "ícone do Instagram" },
+  'icone-tiktok': { w: 29, h: 29, max: 40, marca: 'todas', tipo: 'acento', desc: "ícone do TikTok" }
 };
+const _crDoInv = (id, sp) => !!CR_DECOR[id] && (CR_DECOR[id].marca === 'todas' || CR_DECOR[id].marca === ((sp && sp.marca) || 'dm'));
 // O conteúdo da peça em blocos (o que a IA posiciona) — só os que têm conteúdo
 function crConteudoBlocos(sp){
   const b = { logo: 'logo branco Delivery Much' };
@@ -1043,14 +1081,14 @@ function _crHeroiCaixa(txt, w, h, max){
 function crDesenhar(sp, comp, i){
   const a = crArea(sp.formato); a.p = {};
   const est = [], faltas = [], W = a.W, H = a.H;
-  const fundo = ['#F85400', '#FF9000'].indexOf(comp.fundo) >= 0 ? comp.fundo : '#F85400';
+  const fundo = sp.marca !== 'much' && comp.fundo === '#FF9000' ? '#FF9000' : '#F85400';
   const tem = crConteudoBlocos(sp), n = v => Math.round(+v || 0);
   const campo = sp.objetivo === 'oferta' ? 'produto' : 'titulo';
   const pecas = [], decor = [], vistos = new Set();
-  (Array.isArray(comp.grafismos) ? comp.grafismos : []).slice(0, 4).forEach(g => {
-    const d = CR_DECOR[g && g.asset]; if(!d) return;
+  (Array.isArray(comp.grafismos) ? comp.grafismos : []).slice(0, 5).forEach(g => {
+    const d = _crDoInv(g && g.asset, sp) && CR_DECOR[g.asset]; if(!d) return;
     const w = Math.max(20, Math.min(d.max, n(g.w) || d.w)), h = Math.round(w * d.h / d.w), x = n(g.x), y = n(g.y), rot = Math.max(-45, Math.min(45, n(g.rot)));
-    decor.push(crBloco('decor', '<image href="asset:decor/' + g.asset + '.png" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"'
+    decor.push(crBloco('decor', '<image href="asset:inv/' + g.asset + '.png" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"'
       + (rot ? ' transform="rotate(' + rot + ' ' + _r(x + w / 2) + ' ' + _r(y + h / 2) + ')"' : '') + '/>'));
   });
   (Array.isArray(comp.blocos) ? comp.blocos : []).forEach(b => {
@@ -1119,13 +1157,14 @@ function crDesenhar(sp, comp, i){
   // todo bloco com conteúdo tem de entrar (o logo e a foto também)
   Object.keys(tem).forEach(k => { if(!vistos.has(k) && !(k === 'cta' && a.fmt === 'inapp')) faltas.push(k); });
   if(a.fmt === 'inapp') pecas.push(crBotaoLargo(sp, fundo));
-  const svg = '<svg xmlns="http://www.w3.org/2000/svg" data-luma="1" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '">'
+  let svg = '<svg xmlns="http://www.w3.org/2000/svg" data-luma="1" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '">'
     + crDefs() + (a.card ? '<rect data-fundo="1" x="' + a.card[0] + '" y="' + a.card[1] + '" width="' + a.card[2] + '" height="' + a.card[3] + '" rx="' + a.card[4] + '" fill="' + fundo + '"/>'
       : '<rect data-fundo="1" width="' + W + '" height="' + H + '" fill="' + fundo + '"/>') + '\n' + decor.concat(pecas).join('\n') + '\n</svg>';
+  svg = _crMarca(svg, sp);
   const campos = [...new Set((svg.match(/data-campo="([^"]+)"/g) || []).map(m => m.slice(12, -1)))];
   if(/id="foto_produto"/.test(svg)) campos.push('foto_produto');
   const ideia = String(comp.ideia || '').trim().slice(0, 90) || 'Composição livre';
-  return { svg, spec: sp, receita: 'designer' + (i || 0), nomeReceita: ideia, fundo, p: {}, campos, estouros: est, faltas, w: W, h: H, desenho: comp };
+  return { svg, spec: sp, receita: 'designer' + (i || 0), nomeReceita: ideia, fundo: _crMarca(fundo, sp), p: {}, campos, estouros: est, faltas, w: W, h: H, desenho: comp };
 }
 function crPromptDesenho(sp, n, evitar, consertar){
   const a = crArea(sp.formato), f = CR_FORMATOS[sp.formato], tem = crConteudoBlocos(sp);
@@ -1140,10 +1179,12 @@ function crPromptDesenho(sp, n, evitar, consertar){
   return [
     'Você é designer gráfico sênior da Delivery Much (app de delivery do interior do Brasil). Componha a arte como um DESIGNER, não como um sistema.',
     'Você NÃO desenha nem cria imagem ou asset: posiciona os BLOCOS oficiais (o Luma desenha cada um dentro da caixa que você der) e pode usar GRAFISMOS do inventário.',
+    sp.marca === 'much' ? 'SUB-MARCA MUCH+ (assinatura de cupons): o Luma repinta a peça em rosa #E52676 + amarelo #FFB900 e usa o logo much+ — pense na linguagem das peças much+ (o "+" amarelo, tickets much+ inclinados rompendo a borda, estrelas).' : '',
     'PEÇA: ' + CR_OBJETIVOS[sp.objetivo] + '. FORMATO: ' + f.nome + ' — canvas ' + a.W + '×' + a.H + '.',
     'ZONA DO TEXTO (y): ' + zona + '. Margem lateral dos blocos: ' + a.M + ' px (x ≥ ' + a.M + ' e x+w ≤ ' + (a.W - a.M) + '). Grafismos e foto podem sangrar pelas bordas e entrar fora da zona.',
     '', 'BLOCOS (use TODOS, cada um uma vez):', ...Object.keys(tem).map(k => '- ' + k + ': ' + JSON.stringify(tem[k]) + ' — ' + alturas[k]),
-    '', 'GRAFISMOS (opcionais, 0 a 3; sempre atrás do texto, nunca cobrindo texto):', ...Object.keys(CR_DECOR).map(k => '- ' + k + ' (' + CR_DECOR[k].w + '×' + CR_DECOR[k].h + ', largura até ' + CR_DECOR[k].max + '): ' + CR_DECOR[k].desc),
+    '', 'INVENTÁRIO (grafismos, stickers, cupons e mockups oficiais; 0 a 4 por peça, sempre atrás do texto e nunca cobrindo texto; use pela intenção, não por enfeite):',
+    ...Object.keys(CR_DECOR).filter(k => _crDoInv(k, sp)).map(k => '- ' + k + ' [' + CR_DECOR[k].tipo + '] (' + CR_DECOR[k].w + '×' + CR_DECOR[k].h + ', largura até ' + CR_DECOR[k].max + '): ' + CR_DECOR[k].desc),
     '', 'COMO UM DESIGNER COMPÕE (skill luma-creative §4.2):',
     '- Use a zona inteira: o 1º bloco perto do topo da zona, o último perto do fim. Nada de tudo empilhado no meio.',
     '- Proximidade: dentro de um grupo (título+apoio, valor+cupom, cta+legal) 24–48 px; ENTRE grupos ' + (a.story ? '100–140' : a.deitado ? '24–60' : '80–120') + ' px.',
@@ -1178,7 +1219,8 @@ async function crDesenhos(sp, n, evitar){
 /* Conferência leve da marca, sobre o SVG que saiu (não sobre a intenção) */
 function crConfere(r){
   const cores = (r.svg.replace(/href="data:[^"]*"/g, '').match(/#[0-9A-Fa-f]{6}\b/g) || []).map(c => c.toUpperCase());
-  const fora = [...new Set(cores.filter(c => CR_PALETA.indexOf(c) < 0))];
+  const pal = r.spec.marca === 'much' ? CR_PALETA.concat(['#E52676']) : CR_PALETA;
+  const fora = [...new Set(cores.filter(c => pal.indexOf(c) < 0))];
   const tams = (r.svg.match(/font-size="(\d+)"/g) || []).map(m => +m.slice(11, -1));
   const menor = Math.min(...tams), piso = crArea(r.spec.formato).piso;
   return [
@@ -1244,7 +1286,7 @@ function crPromptJuiz(sp, nRef, n){
 // → [{nota, porque, ajustes}] na ordem das opções, ou null (sem IA, falha, resposta torta)
 async function crJulgar(tres){
   if(!tres.length || typeof gAskAI !== 'function' || typeof gAiReady !== 'function' || !gAiReady()) return null;
-  const sp = tres[0].spec, fmt = CR_REGUA_FMT[sp.formato];
+  const sp = tres[0].spec, fmt = sp.marca === 'much' ? ['much-beneficios-story.jpg', 'much-mandou-bem-inapp.jpg'] : CR_REGUA_FMT[sp.formato];
   const regua = (fmt || CR_REGUA[sp.objetivo] || []).slice(0, 2), pasta = fmt ? CR_BASE + 'regua/' : _crRaiz() + 'assets/templates/refino/prints/';
   const refs = (await Promise.all(regua.map(f => _crJpeg(pasta + f, 432).catch(() => null)))).filter(Boolean);
   const ops = await Promise.all(tres.map(crArteJpeg));
@@ -1308,7 +1350,7 @@ function _crFormatoDito(t){
 }
 function crLerPedido(texto, fmt){
   const t = String(texto || ''), n = t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-  const sp = { formato: _crFormatoDito(t) || fmt || 'feed' };
+  const sp = { formato: _crFormatoDito(t) || fmt || 'feed', marca: _crMarcaDita(t) ? 'much' : 'dm' };
   sp.objetivo = /anivers/.test(n) ? 'aniversario'
     : /cupom|codigo/.test(n) ? 'cupom'
     : /(entrega|frete)\s+gratis|gratis/.test(n) ? 'beneficio'
@@ -1746,7 +1788,7 @@ function crEnviar(e){
   const inp = _crEl('cr-pedido'), conv = _crEl('cr-conversa');
   const pedido = String((inp && inp.value) || '').trim();
   if(!pedido || !conv) return;
-  const fio = { pedido, fmt: _crFormatoDito(pedido) || 'feed', foto: crState.anexo, briefing: null, conteudo: null, legenda: null, mostradas: [], viaIA: false };
+  const fio = { pedido, fmt: _crFormatoDito(pedido) || 'feed', marca: _crMarcaDita(pedido) ? 'much' : 'dm', foto: crState.anexo, briefing: null, conteudo: null, legenda: null, mostradas: [], viaIA: false };
   crState.fios.push(fio);
   inp.value = ''; crAutoAltura(inp); crTirarAnexo();
   const m = document.createElement('div');
@@ -1805,6 +1847,7 @@ async function crGerar(fio, conv, outras){
       if(!bruto) bruto = crLerPedido(fio.pedido, fio.fmt);
       bruto = crAplicaRespostas(bruto, fio.briefing);
       bruto.formato = fio.fmt;
+      bruto.marca = fio.marca;
       bruto.foto = fio.foto || '';
       if(parou()) return;
       fio.conteudo = bruto;
@@ -2095,7 +2138,7 @@ function crEditar(op, aoSalvar){
   function painel(){
     if(!atual){
       const fundo = svg.querySelector('[data-fundo]'), cor = (fundo && fundo.getAttribute('fill') || '').toUpperCase();
-      props.innerHTML = _sec('Fundo', '<div class="cr-ed-cores">' + ['#F85400', '#FF9000'].map(c => '<button type="button" class="cr-ed-cor' + (c === cor ? ' on' : '') + '" data-cor="' + c + '" style="--c:' + c + '" aria-label="Fundo ' + c + '"></button>').join('')
+      props.innerHTML = _sec('Fundo', '<div class="cr-ed-cores">' + (op.spec.marca === 'much' ? ['#E52676', '#FFB900'] : ['#F85400', '#FF9000']).map(c => '<button type="button" class="cr-ed-cor' + (c === cor ? ' on' : '') + '" data-cor="' + c + '" style="--c:' + c + '" aria-label="Fundo ' + c + '"></button>').join('')
         + '</div><p class="cr-ed-nota">#FF9000 só em peça limpa: pouco texto e título grande (contraste).</p>')
         + '<p class="cr-ed-vazio">Clique num elemento da arte (ou nas camadas) para editar.</p>';
       return;

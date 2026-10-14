@@ -222,7 +222,7 @@
         {bloco:'cupom',x:100,y:1220,w:880,h:324},{bloco:'legal',x:100,y:1630,w:880,h:30}], grafismos:[{asset:'explosao',x:820,y:-60,w:420,rot:10}]};
     const r=crDesenhar(sp, bom, 0), av=crAvaliar(r);
     assert(!av.erros.length, 'composição boa reprovou: '+av.erros.join('; '));
-    assert(r.nomeReceita===bom.ideia && /asset:decor\/explosao\.png/.test(r.svg), 'ideia ou grafismo não entrou');
+    assert(r.nomeReceita===bom.ideia && /asset:inv\/explosao\.png/.test(r.svg), 'ideia ou grafismo não entrou');
     assert(crConfere(r).every(c=>c.ok), 'conferência da marca falhou');
     const {layers}=await importar(await crEmbutir(r.svg));
     ['desconto_valor','codigo_cupom'].forEach(c=>assert(campoNa(layers,c), 'campo {{'+c+'}} não chegou ao Estúdio'));
@@ -234,6 +234,20 @@
     assert(atras.some(e=>/Grafismo atrás/.test(e)), 'grafismo atrás do texto passou');
     const pr=crPromptDesenho(sp, 2, ['ideia velha']);
     assert(/explosao/.test(pr) && /100–140/.test(pr) && /ideia velha/.test(pr) && /"composicoes"/.test(pr), 'prompt sem inventário, respiro ou ideias a evitar');
+  });
+
+  caso('Luma Creative: peça much+ sai na paleta das referências (rosa + amarelo, logo much+) e sem os grafismos da DM', async()=>{
+    await crFontesProntas();
+    assert(crLerPedido('cupom do much+ de R$ 10').marca==='much' && crLerPedido('cupom de R$ 10').marca==='dm', 'marca não lida do pedido');
+    const b=Object.assign({objetivo:'cupom', formato:'story', marca:'much'}, CR_CASOS.cupom), tres=crEscolher3(crCandidatos(b));
+    assert(tres.length>=1, 'nenhuma opção much+');
+    tres.forEach(r=>{
+      assert(/#E52676/.test(r.svg) && !/#F85400|#FF9000/i.test(r.svg), r.receita+': ainda tem laranja DM');
+      assert(/much-plus-branco/.test(r.svg) && !/dm-h-branca/.test(r.svg) && !/pattern-ancorado/.test(r.svg), r.receita+': logo ou pattern da DM');
+      assert(crConfere(r).every(c=>c.ok), r.receita+': conferência da marca reprovou o rosa');
+    });
+    const d=crDesenhar(crNormaliza(b), {blocos:[{bloco:'valor',x:100,y:700,w:880,h:330}], grafismos:[{asset:'sorriso-arco',x:0,y:0,w:300},{asset:'mais-amarelo',x:800,y:100,w:300}]}, 0);
+    assert(!/inv\/sorriso-arco/.test(d.svg) && /inv\/mais-amarelo/.test(d.svg), 'inventário não filtrou pela marca');
   });
 
   caso('Luma Creative: sem foto, nenhuma diagramação usa o slot; com foto, a foto vira a moldura no Estúdio', async()=>{
