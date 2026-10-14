@@ -716,8 +716,9 @@ const CR_LOCKUPS = {
     // o template escreve título em caixa normal ("Título de uma linha"), não em maiúsculas
     const W = a.W, H = a.H, M = 200, out = [], ch = crChave(sp), t0 = String(ch.titulo || sp.titulo).toLocaleLowerCase('pt-BR'), tit = t0.charAt(0).toLocaleUpperCase('pt-BR') + t0.slice(1);
     const bg = f => '<image href="asset:slides/' + f + '.jpg" x="0" y="0" width="' + W + '" height="' + H + '" preserveAspectRatio="xMidYMid slice"/>';
-    const logoB = (x, y, w) => crBloco('logo', '<image href="asset:slides/logo-voce-pede-branco.png" x="' + _r(x) + '" y="' + _r(y) + '" width="' + w + '" height="' + _r(w * 257 / 600) + '"/>');
-    const logoC = (x, y, w) => crBloco('logo', '<image href="asset:slides/logo-voce-pede.png" x="' + _r(x) + '" y="' + _r(y) + '" width="' + w + '" height="' + _r(w * 400 / 355) + '"/>');
+    // logo da Delivery Much (decisão do Ryan, 14/10): branco sobre laranja, laranja sobre o branco
+    const logoB = (x, y, w) => crBloco('logo', '<image href="asset:logos/dm-h-branca.png" x="' + _r(x) + '" y="' + _r(y) + '" width="' + w + '" height="' + _r(w / 4.97) + '"/>');
+    const logoC = (x, y, w) => crBloco('logo', '<image href="asset:logos/dm-h-laranja.png" x="' + _r(x) + '" y="' + _r(y) + '" width="' + w + '" height="' + _r(w * 61 / 298) + '"/>');
     const titulo = (x, y, w, h, max, cor, anc) => {
       // o título do template é Roboto (não Realce): 1–2 linhas equilibradas, o maior corpo que cabe
       const ls = _crLinhas(tit, 'body', crMede(tit, 'body', max) > w ? 2 : 1), zz = Math.floor(Math.min(max, h / (0.73 + (ls.length - 1) * 1.15), w * 100 / Math.max(...ls.map(l => crMede(l, 'body', 100)))));
@@ -731,7 +732,7 @@ const CR_LOCKUPS = {
       return s ? crBloco('apoio', s) : '';
     };
     if(v.tipo === 'capa'){
-      out.push(bg('fundo-arco-laranja'), logoB(M, 170, 300));
+      out.push(bg('fundo-arco-laranja'), logoB(M, 190, 300));
       const t = titulo(M, 430, 1150, 330, 140, '#FFFFFF');
       out.push(t.svg);
       if(sp.apoio) out.push(crBloco('apoio', crTexto(M, 430 + t.h + 60 + 48, 'body', crCabe(sp.apoio, 'body', 60, 1150, a.piso, est), '#FFFFFF', sp.apoio)));
@@ -740,24 +741,24 @@ const CR_LOCKUPS = {
       const t0 = _crLinhas(tit, 'body', 1), z = Math.floor(Math.min(110, 1260 * 100 / crMede(t0[0], 'body', 100)));
       if(z < a.heroiMin) est.push(tit);
       out.push(crBloco('titulo', '<rect x="240" y="440" width="1440" height="200" rx="48" fill="#FFFFFF" filter="url(#sh)"/><g id="produto">' + crTexto(960, 540 + z * 0.36, 'body', z, '#F85400', tit, ' text-anchor="middle" data-campo="titulo" data-larg="1260"') + '</g>'));
-      out.push(logoB(960 - 100, 880, 200));
+      out.push(logoB(960 - 140, 900, 280));
     }else if(v.tipo === 'conteudo'){
       if(!sp.apoio && !sp.itens.length) return null;
-      out.push(bg('fundo-branco-arco'), logoC(120, 80, 110));
+      out.push(bg('fundo-branco-arco'), logoC(M, 110, 280));
       const t = titulo(M, 300, 820, 260, 110, '#F85400');
       out.push(t.svg, corpo(M, 300 + t.h + 70, 820, '#F85400'));
     }else if(v.tipo === 'mockup'){
       if(!sp.foto) return null;
       // notebook do template; a foto entra na tela (127–974 × 32–560 do PNG de 1100×651)
       const nx = 120, ny = 260, nw = 1000, k = nw / 1100;
-      out.push('<rect width="1060" height="' + H + '" fill="#F85400"/>', '<rect x="1060" width="' + (W - 1060) + '" height="' + H + '" fill="#FFFFFF"/>', logoB(120, 80, 200),
+      out.push('<rect width="1060" height="' + H + '" fill="#F85400"/>', '<rect x="1060" width="' + (W - 1060) + '" height="' + H + '" fill="#FFFFFF"/>', logoB(120, 100, 260),
         crBloco('foto', crFoto(nx + 127 * k, ny + 32 * k, (974 - 127) * k, (560 - 32) * k, 0, '', sp.foto)),
         crBloco('mockup', '<image href="asset:slides/mockup-notebook.png" x="' + nx + '" y="' + ny + '" width="' + nw + '" height="' + _r(651 * k) + '"/>'));
       const t = titulo(1200, 320, 600, 260, 100, '#F85400');
       out.push(t.svg, corpo(1200, 320 + t.h + 60, 600, '#F85400'));
     }else if(v.tipo === 'cards'){
       if(sp.itens.length < 2) return null;
-      out.push(bg('fundo-branco-arco'), logoC(120, 80, 110));
+      out.push(bg('fundo-branco-arco'), logoC(M, 110, 280));
       const t = titulo(M, 250, 1500, 130, 90, '#F85400');
       out.push(t.svg);
       const n = sp.itens.length, gap = 40, cw = (W - 2 * M - gap * (n - 1)) / n, cy = 250 + t.h + 80, chh = 1000 - cy;
@@ -1125,6 +1126,13 @@ function crCandidatos(bruto, p){
       lista.push(r);
     });
   });
+  // Editorial (§4.2 sem IA): 3 composições de designer nos formatos altos — vêm antes das receitas antigas
+  if(['feed', 'story', 'inapp'].indexOf(sp.formato) >= 0) [1, 2, 3].forEach(v => {
+    const comp = crEditorial(sp, v); if(!comp) return;
+    const r = crDesenhar(sp, comp, 20 + v); r.receita = 'editorial' + v; r.avaliacao = crAvaliar(r);
+    r.nota = r.avaliacao.erros.length ? 0 : crNota(r, r.avaliacao) + 14;
+    lista.push(r);
+  });
   return lista.sort((u, v) => v.nota - u.nota);
 }
 // As 3 melhores APROVADAS, de famílias diferentes; `evitar` = famílias já mostradas
@@ -1416,6 +1424,94 @@ async function crDesenhos(sp, n, evitar, refPessoa){
     rs = rs.filter(r => !r.avaliacao.erros.length).concat(novos);
   }
   return rs.filter(r => !r.avaliacao.erros.length).map(r => { r.nota = crNota(r, r.avaliacao); return r; });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EDITORIAL — o motor compondo como designer (skill §4.2), sem IA: monta as caixas dos blocos
+   com a faixa útil inteira, grupos com respiro (perto dentro, longe entre), eixo à esquerda,
+   um ponto focal em escala dramática e grafismo sangrando nos cantos livres. Sai no mesmo
+   formato da IA designer ({ideia, blocos, grafismos}) e é desenhado por crDesenhar.
+   3 variações: âncora (foco à esquerda), contrapeso (foco à direita), apoio no alto.
+══════════════════════════════════════════════════════════════ */
+function crEditorial(sp, v){
+  const a = crArea(sp.formato), tem = crConteudoBlocos(sp), M = a.M, L = a.W - 2 * M;
+  const ini = a.fmt === 'feed' ? 90 : a.fmt === 'inapp' ? 150 : 290, fim = a.fmt === 'feed' ? 1265 : a.fmt === 'inapp' ? 1590 : 1650;
+  // o ponto focal: preço > anos do aniversário > valor do cupom > título
+  const focal = tem.preco ? 'preco' : sp.objetivo === 'aniversario' ? 'titulo' : tem.valor ? 'valor' : 'titulo', dir = v === 2;
+  const box = (bloco, w, h, extra) => Object.assign({ bloco, x: M, w, h, alinhar: 'esq' }, extra || {});
+  // alturas reais: o texto é medido como o crDesenhar vai desenhar
+  const hTit = (txt, w, max) => { const q = _crHeroiCaixa(txt, w, max * 2, max); return Math.ceil(q.size * (0.73 + 0.94 * (q.linhas.length - 1))); };
+  const G = [];   // grupos (cada um: lista de caixas empilhadas, vão interno 36)
+  G.push([box('logo', 260, 52)]);
+  const intro = [];
+  if(tem.tag) intro.push(box('tag', 400, 70));
+  if(tem.chamada) intro.push(box('chamada', L, Math.ceil(72 * (0.95 + 1.3 * (sp.chamada.length - 1)))));
+  if(tem.titulo && focal !== 'titulo') intro.push(box('titulo', L, hTit(tem.titulo, L, a.story ? 150 : 130)));
+  if(tem.apoio && focal !== 'titulo') intro.push(box('apoio', L, 48));
+  if(intro.length) G.push(intro);
+  // o ponto focal, em escala dramática (encolhe se faltar altura)
+  const focalBox = k => {
+    if(focal === 'preco'){ const big = Math.round((a.story ? 280 : 230) * k), w = tem.selo ? L - 320 : L; return [box('preco', w, Math.ceil((sp.precoDe ? 61 : 0) + 44 + 0.73 * big), dir ? { x: M + L - w, alinhar: 'dir' } : null)].concat(tem.selo ? [box('selo', 290, 290, { x: dir ? M : M + L - 290, lado: true })] : []); }
+    if(focal === 'valor') return [box('valor', L, Math.ceil(0.73 * Math.round((a.story ? 440 : 360) * k)), dir ? { alinhar: 'dir' } : null)];
+    const tb = [box('titulo', L, hTit(tem.titulo, L, Math.round((a.story ? 230 : 190) * k)), dir ? { alinhar: 'dir' } : null)];
+    return tem.apoio ? tb.concat([box('apoio', L, 48, dir ? { alinhar: 'dir' } : null)]) : tb;
+  };
+  const sup = [];
+  if(tem.valor && focal !== 'valor') sup.push(box('valor', L, Math.ceil(0.73 * (a.story ? 220 : 180))));
+  if(tem.cupom) sup.push(box('cupom', 880, 324));
+  if(tem.selo && focal !== 'preco') sup.push(box('selo', 300, 300, { x: dir ? M : M + L - 300 }));
+  if(tem.foto) sup.push(box('foto', L, 0, { flex: true }));
+  const acao = [];
+  if(tem.cta && a.fmt !== 'inapp') acao.push(box('cta', 360, 96));
+  if(tem.legal) acao.push(box('legal', L, 30));
+  // ordem dos grupos por variação; mede e distribui pela faixa inteira
+  // o foco cresce até encher a faixa (com no mínimo 110 de respiro entre grupos); o que sobrar vira respiro
+  for(const k of [1.8, 1.6, 1.45, 1.3, 1.15, 1, 0.9, 0.8, 0.7, 0.62]){
+    const F = focalBox(k), ordem = v === 3 ? [G[0], ...(sup.length ? [sup] : []), ...G.slice(1), F, ...(acao.length ? [acao] : [])]
+      : [...G, F, ...(sup.length ? [sup] : []), ...(acao.length ? [acao] : [])];
+    const altura = g => g.filter(b => !b.lado).reduce((s, b) => s + b.h, 0) + 36 * (g.filter(b => !b.lado).length - 1);
+    const fixo = ordem.reduce((s, g) => s + (g.some(b => b.flex) ? 0 : altura(g)), 0), nv = ordem.length - 1;
+    const fotoG = ordem.find(g => g.some(b => b.flex));
+    let livre = (fim - ini) - fixo - nv * 110;
+    if(fotoG){ const f = fotoG.find(b => b.flex); f.h = Math.min(a.story ? 620 : 420, Math.max(0, livre)); if(f.h < 300) continue; livre -= f.h + 36 * (fotoG.length - 1); }
+    if(livre < 0) continue;
+    const vao = 110 + Math.min(a.story ? 150 : 110, livre / Math.max(1, nv));
+    let y = ini;
+    const blocos = [];
+    ordem.forEach((g, gi) => {
+      // a ação ancora na base da faixa: o respiro que sobra fica entre o conteúdo e o botão
+      if(gi === ordem.length - 1 && g === acao) y = Math.max(y, fim - altura(g));
+      let yy = y;
+      g.forEach(b => {
+        if(b.lado){ blocos.push(Object.assign({}, b, { y: Math.round(y + Math.max(0, (altura(g) - b.h) / 2)) })); return; }
+        blocos.push(Object.assign({}, b, { y: Math.round(yy) })); yy += b.h + 36;
+      });
+      y = yy - 36 + vao;
+    });
+    // grafismo nos cantos livres: alto à direita (o logo fica à esquerda) e/ou base do lado oposto ao foco
+    const much = sp.marca === 'much', g = [];
+    const canto = much ? 'mais-amarelo' : (v === 2 ? 'explosao' : 'sorriso-arco');
+    if(a.story || a.fmt === 'inapp') g.push({ asset: canto, x: v === 2 ? -160 : 700, y: v === 2 ? 1690 : -210, w: much ? 420 : 560, rot: v === 2 ? 0 : 12 });
+    else g.push({ asset: canto, x: 800, y: -190, w: much ? 300 : 380, rot: 10 });
+    if(much && tem.cupom) g.push({ asset: 'cupom-much', x: 820, y: (blocos.find(b => b.bloco === 'cupom') || {}).y - 60 || 1200, w: 300, rot: -14 });
+    // o maior vão entre grupos (≥ 320) não fica "sobrando": ganha um grafismo grande sangrando pela borda
+    // oposta ao eixo — como o designer usaria o vazio, sem passar atrás de texto
+    const ord = blocos.slice().sort((p, q) => p.y - q.y);
+    let vazio = null;
+    for(let i = 1; i < ord.length; i++){
+      const topo = Math.max(...ord.slice(0, i).map(b => b.y + b.h)), d = ord[i].y - topo;
+      if(d >= 320 && (!vazio || d > vazio.d)) vazio = { d, y: topo };
+    }
+    if(vazio){
+      const id = much ? 'mais-amarelo' : (v === 3 ? 'sorriso-arco' : 'explosao'), D = CR_DECOR[id];
+      const h = vazio.d - 90, w = Math.min(D.max, Math.round(h * D.w / D.h));
+      const ox = v === 2 ? -Math.round(w * 0.35) : a.W - Math.round(w * 0.65);
+      g.push({ asset: id, x: ox, y: Math.round(vazio.y + 45), w, rot: v === 2 ? -8 : 8 });
+    }
+    const nomes = { 1: 'Âncora à esquerda: ' + (focal === 'titulo' ? 'título' : focal) + ' gigante e grupos com respiro', 2: 'Contrapeso: ' + (focal === 'titulo' ? 'título' : focal) + ' à direita, grafismo na base', 3: 'Apoio no alto, ' + (focal === 'titulo' ? 'título' : focal) + ' gigante no meio' };
+    return { ideia: nomes[v], fundo: '#F85400', blocos: blocos.map(b => ({ bloco: b.bloco, x: b.x, y: b.y, w: b.w, h: b.h, alinhar: b.alinhar })), grafismos: g };
+  }
+  return null;
 }
 
 /* Conferência leve da marca, sobre o SVG que saiu (não sobre a intenção) */
@@ -2067,7 +2163,7 @@ async function crGerar(fio, conv, outras){
       if(parou()) return;
       fio.conteudo = bruto;
       const sp0 = crNormaliza(bruto);
-      p.feito([sp0.palavra, sp0.titulo].filter(Boolean).join(' ') + (sp0.precoPor ? ' · R$ ' + sp0.precoPor : '') + (fio.viaIA ? ' · IA' : ' · motor local'));
+      p.feito([sp0.palavra, sp0.titulo].filter(Boolean).join(' ') + (sp0.precoPor ? ' · R$ ' + sp0.precoPor : '') + (fio.viaIA ? ' · IA' : ' · IA indisponível agora: motor local (sem designer nem juiz)'));
       // a legenda corre em paralelo e chega junto — só para post (inapp, banner, email, capa e slide não têm)
       fio.legProm = CR_FORMATOS[sp0.formato].social === false ? Promise.resolve([]) : crLegenda(sp0);
     }
