@@ -139,7 +139,7 @@ function crLogo(x, y, story){
 function crFoto(x, y, w, h, rx, legenda, foto){
   const caixa = 'x="' + _r(x) + '" y="' + _r(y) + '" width="' + _r(w) + '" height="' + _r(h) + '" rx="' + rx + '"';
   let s = '<g id="foto_produto"><rect ' + caixa + ' fill="#D9D9D9"/>';
-  if(foto){
+  if(foto && foto !== 'slot'){
     return s + '<clipPath id="crfoto"><rect ' + caixa + '/></clipPath><image href="' + foto + '" x="' + _r(x) + '" y="' + _r(y) + '" width="' + _r(w) + '" height="' + _r(h)
       + '" preserveAspectRatio="xMidYMid slice" clip-path="url(#crfoto)"/></g>';
   }
@@ -930,7 +930,8 @@ function crNormaliza(bruto){
     anos: txt(s.anos, 2).replace(/\D/g, ''),
     cta: up(txt(s.cta, 14)),
     legal: txt(s.legal, 90),
-    foto: /^data:image\/(png|jpeg|webp);base64,/.test(s.foto || '') ? s.foto : '',
+    // 'slot' = sem foto agora, mas com o espaço (placeholder cinza do contrato g#foto_produto)
+    foto: s.foto === 'slot' || /^data:image\/(png|jpeg|webp);base64,/.test(s.foto || '') ? s.foto : '',
     marca: s.marca === 'much' ? 'much' : 'dm',
     chamada: (Array.isArray(s.chamada) ? s.chamada : []).map(l => txt(l, 32)).filter(Boolean).slice(0, 2),
     itens: (Array.isArray(s.itens) ? s.itens : []).map(l => txt(l, 40)).filter(Boolean).slice(0, 4).map(l => l.charAt(0).toLocaleUpperCase('pt-BR') + l.slice(1))
@@ -1233,7 +1234,7 @@ function crConteudoBlocos(sp){
   if(sp.selo.length && sp.objetivo !== 'cupom') b.selo = sp.selo.join(' ');
   if(sp.cta) b.cta = sp.cta;
   if(sp.legal) b.legal = sp.legal;
-  if(sp.foto) b.foto = 'foto enviada pela pessoa';
+  if(sp.foto) b.foto = sp.foto === 'slot' ? 'ESPAÇO da foto (placeholder cinza que o franqueado preenche): dê a ele tamanho de foto de verdade' : 'foto enviada pela pessoa';
   if(sp.itens.length && (sp.formato === 'carrossel' || sp.formato === 'slide')) b.itens = sp.itens.join(' / ');
   return b;
 }
@@ -1466,16 +1467,19 @@ function crEditorial(sp, v){
   if(tem.legal) acao.push(box('legal', L, 30));
   // ordem dos grupos por variação; mede e distribui pela faixa inteira
   // o foco cresce até encher a faixa (com no mínimo 110 de respiro entre grupos); o que sobrar vira respiro
-  for(const k of [1.8, 1.6, 1.45, 1.3, 1.15, 1, 0.9, 0.8, 0.7, 0.62]){
+  // tenta com 110 de respiro entre grupos; se o conteúdo não couber, aceita 80 (piso da §4.2)
+  for(const vmin of [110, 80]) for(const k of [1.8, 1.6, 1.45, 1.3, 1.15, 1, 0.9, 0.8, 0.7, 0.62]){
     const F = focalBox(k), ordem = v === 3 ? [G[0], ...(sup.length ? [sup] : []), ...G.slice(1), F, ...(acao.length ? [acao] : [])]
       : [...G, F, ...(sup.length ? [sup] : []), ...(acao.length ? [acao] : [])];
     const altura = g => g.filter(b => !b.lado).reduce((s, b) => s + b.h, 0) + 36 * (g.filter(b => !b.lado).length - 1);
-    const fixo = ordem.reduce((s, g) => s + (g.some(b => b.flex) ? 0 : altura(g)), 0), nv = ordem.length - 1;
-    const fotoG = ordem.find(g => g.some(b => b.flex));
-    let livre = (fim - ini) - fixo - nv * 110;
-    if(fotoG){ const f = fotoG.find(b => b.flex); f.h = Math.min(a.story ? 620 : 420, Math.max(0, livre)); if(f.h < 300) continue; livre -= f.h + 36 * (fotoG.length - 1); }
+    // a foto (elástica) entra com altura 0 na conta; o que sobrar dá a altura dela
+    const fotoG = ordem.find(g => g.some(b => b.flex)), f = fotoG && fotoG.find(b => b.flex);
+    if(f) f.h = 0;
+    const fixo = ordem.reduce((s, g) => s + altura(g), 0), nv = ordem.length - 1;
+    let livre = (fim - ini) - fixo - nv * vmin;
+    if(f){ f.h = Math.min(a.story ? 700 : 460, Math.max(0, livre)); if(f.h < (a.story ? 480 : 360)) continue; livre -= f.h; }   // foto de verdade, não uma faixa
     if(livre < 0) continue;
-    const vao = 110 + Math.min(a.story ? 150 : 110, livre / Math.max(1, nv));
+    const vao = vmin + Math.min(a.story ? 150 : 110, livre / Math.max(1, nv));
     let y = ini;
     const blocos = [];
     ordem.forEach((g, gi) => {
@@ -1758,9 +1762,12 @@ function crPerguntasFinais(br, fio){
   if(!f && CR_FORMATOS[fio.fmt].fixo) return [];          // rodapé de email: peça fixa da marca
   const q = (f ? [f] : []).concat(br.perguntas.slice(0, f ? 2 : 3));
   if(CR_COM_FOTO[br.objetivo] && !fio.foto){
+    // Sem foto agora, o padrão é DEIXAR O ESPAÇO (placeholder cinza): a arte vira template e o
+    // franqueado põe a foto dele. "Só tipografia" é escolha explícita.
     q.push({ tipo: 'foto', titulo: 'Foto', livre: false,
       pergunta: br.objetivo === 'evento' ? 'Tem uma foto do local ou do evento?' : 'Tem a foto do produto?',
-      opcoes: [{ rotulo: 'Sem foto', desc: 'a arte fica só com tipografia' }] });
+      opcoes: [{ rotulo: 'Deixar o espaço da foto', desc: 'placeholder para o franqueado colocar a foto dele', valor: 'slot' },
+        { rotulo: 'Sem foto', desc: 'a arte fica só com tipografia', valor: 'nada' }] });
   }
   return q;
 }
@@ -1802,7 +1809,7 @@ function crPrompt(fio){
     '', 'PEDIDO: """' + _crAspas(fio.pedido).slice(0, 1200) + '"""',
     br ? 'BRIEFING (respostas da pessoa — valem mais que o pedido):\n' + _crAspas(br).slice(0, 800) : '',
     'FORMATO: ' + (CR_FORMATOS[fio.fmt] || CR_FORMATOS.feed).nome + ' (' + (CR_FORMATOS[fio.fmt] || CR_FORMATOS.feed).desc + ')'
-      + (CR_FORMATOS[fio.fmt] && CR_FORMATOS[fio.fmt].deitado ? ' — peça deitada e pequena: titulo de até 3 palavras, apoio curto ou vazio, sem legal.' : '') + '. ' + (fio.foto ? 'Há foto do produto/local.' : 'Sem foto: a arte é só tipografia — a copy precisa segurar a peça sozinha.'),
+      + (CR_FORMATOS[fio.fmt] && CR_FORMATOS[fio.fmt].deitado ? ' — peça deitada e pequena: titulo de até 3 palavras, apoio curto ou vazio, sem legal.' : '') + '. ' + (fio.foto === 'slot' ? 'Vai ter foto (o espaço fica reservado para o franqueado).' : fio.foto ? 'Há foto do produto/local.' : 'Sem foto: a arte é só tipografia — a copy precisa segurar a peça sozinha.'),
     '', 'OBJETIVOS (escolha 1 em "objetivo"): oferta (produto com preço), cupom (valor + código), evento (data especial, festival, novo parceiro), beneficio (benefício curto: entrega grátis, frete), aniversario (anos da franquia).',
     '', 'REGRAS DA COPY (skill luma-creative):',
     '- PT-BR, tom próximo e direto da Delivery Much. Sem emoji, sem hashtag, sem aspas.',
@@ -2104,7 +2111,7 @@ function crEnviar(e){
   inp.value = ''; crAutoAltura(inp); crTirarAnexo();
   const m = document.createElement('div');
   m.className = 'cr-msg cr-eu cr-entra';
-  m.innerHTML = '<div class="cr-corpo">' + (fio.foto || fio.ref ? '<img class="cr-bolha-foto" alt="' + (fio.ref ? 'Referência enviada' : 'Foto enviada') + '" src="' + (fio.foto || fio.ref) + '">' : '')
+  m.innerHTML = '<div class="cr-corpo">' + (/^data:/.test(fio.foto || '') || fio.ref ? '<img class="cr-bolha-foto" alt="' + (fio.ref ? 'Referência enviada' : 'Foto enviada') + '" src="' + (fio.foto || fio.ref) + '">' : '')
     + '<div class="cr-bolha">' + gEsc(pedido) + '</div></div>';
   conv.appendChild(m);
   crGerar(fio, conv);
@@ -2146,7 +2153,11 @@ async function crGerar(fio, conv, outras){
         const resp = await _crPerguntar(corpo, perguntas, run);
         if(!resp || run.parado){ fio.briefing = null; aviso('Interrompido. Ajuste o pedido e mande de novo.'); return; }
         fio.briefing = resp;
-        resp.forEach(r => { if(r.foto) fio.foto = r.foto; if(r.campo === 'formato' && !r.pulou && CR_FORMATOS[r.valor]) fio.fmt = r.valor; });
+        resp.forEach(r => {
+          if(r.foto) fio.foto = r.foto;
+          else if(r.titulo === 'Foto' && (r.pulou || r.valor === 'slot')) fio.foto = 'slot';   // pulou = fica o espaço
+          if(r.campo === 'formato' && !r.pulou && CR_FORMATOS[r.valor]) fio.fmt = r.valor;
+        });
         const ditas = resp.filter(r => !r.pulou).map(r => r.titulo + ': ' + r.resposta);
         _crPasso(lista, 'Briefing').feito(ditas.length ? ditas.join(' · ') : 'sem respostas — sigo com o padrão das artes aprovadas');
         status = _crStatus(corpo);

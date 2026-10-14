@@ -250,6 +250,19 @@
     assert(!/inv\/sorriso-arco/.test(d.svg) && /inv\/mais-amarelo/.test(d.svg), 'inventário não filtrou pela marca');
   });
 
+  caso('Luma Creative: "deixar o espaço da foto" (slot) põe o placeholder cinza nas composições de foto e vira moldura no Estúdio', async()=>{
+    await crFontesProntas();
+    const tres=crEscolher3(crCandidatos(Object.assign({objetivo:'oferta', formato:'story', foto:'slot'}, CR_CASOS.oferta)));
+    assert(tres.length===3, 'esperava 3 opções com o espaço da foto, veio '+tres.length);
+    for(const r of tres){
+      assert(/id="foto_produto"/.test(r.svg) && /Use aqui sua foto/.test(r.svg) && !/clip-path="url\(#crfoto\)"/.test(r.svg), r.receita+': sem o placeholder (ou com foto fantasma)');
+      const {layers}=await importar(await crEmbutir(r.svg));
+      assert(layers.filter(l=>l.type==='frame' && l.imgVar==='foto_produto').length===1, r.receita+': o espaço não virou moldura');
+    }
+    const q=crPerguntasFinais({objetivo:'oferta', perguntas:[]}, {pedido:'Story: pizza por R$ 22,90', fmt:'story', foto:null}).find(x=>x.tipo==='foto');
+    assert(q && q.opcoes[0].valor==='slot', 'a 1ª opção da pergunta da foto não é deixar o espaço');
+  });
+
   caso('Luma Creative: sem foto, nenhuma diagramação usa o slot; com foto, a foto vira a moldura no Estúdio', async()=>{
     await crFontesProntas();
     crEscolher3(crCandidatos(Object.assign({objetivo:'oferta'}, CR_CASOS.oferta))).forEach(r=>assert(r.svg.indexOf('foto_produto')<0, r.receita+' usou slot sem foto'));
