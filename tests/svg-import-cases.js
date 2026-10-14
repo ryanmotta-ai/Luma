@@ -10,12 +10,12 @@
   const ESTILO=`<style>.hero{font-family:'Realce',sans-serif;font-weight:900}.leve{font-family:'Roboto',sans-serif;font-weight:300;font-style:italic}.forte{font-family:'Roboto',sans-serif;font-weight:900}.body{font-family:'Roboto',sans-serif;font-weight:400}</style>`;
 
   async function importar(svg){
-    let els=[], tmpl=null;
+    let els=[], tmpl=null, fmt='';
     dFolders=[{id:'t',name:'teste',templates:[]}]; dImportTargetFolderId='t';
     window.dRenderFolders=()=>{}; window.dPersistFolders=()=>{}; window.dLoadTemplate=t=>{ tmpl=t; }; window.gToast=()=>{};
-    window.dSvgShowReviewModal=(e,meta)=>{ els=e; dSvgCreateTemplate(e,meta,meta.fmt); };
+    window.dSvgShowReviewModal=(e,meta)=>{ els=e; fmt=meta.fmt; dSvgCreateTemplate(e,meta,meta.fmt); };
     await dSvgHandleFile(svg,'caso.svg');
-    return {els, layers:tmpl?tmpl.layers:[]};
+    return {els, layers:tmpl?tmpl.layers:[], tela:DFMT_SIZES[fmt]||{w:1080,h:1920}};
   }
   const texto=(L,c)=>L.find(l=>l.type==='text'&&(l.content===c||l.layoutRefText===c||(l.runs&&l.runs.map(r=>r.text).join('')===c)));
 
@@ -189,6 +189,29 @@
       }
     }
     assert(aprovadas>=40, 'poucas opções aprovadas: '+aprovadas);
+  });
+
+  caso('Luma Creative: formatos de canal (inapp, banner, email, capa, slide) — toda opção aprovada é arte limpa, do tamanho do formato, e entra no importador', async()=>{
+    await crFontesProntas();
+    for(const formato of ['inapp','banner','emailTopo','emailRodape','capa','slide']) for(const obj of Object.keys(CR_CASOS)) for(const foto of ['',PNG]){
+      const f=CR_FORMATOS[formato], rot0=formato+'/'+obj+(foto?'/foto':'');
+      const cands=crCandidatos(Object.assign({objetivo:obj, formato, foto}, CR_CASOS[obj])), tres=crEscolher3(cands);
+      assert(tres.length>=(f.fixo?1:2), rot0+': '+tres.length+' opção(ões) — '+cands.map(c=>c.receita+': '+c.avaliacao.erros.join('; ')).join(' | '));
+      for(const r of tres){
+        const rot=rot0+'/'+r.receita;
+        assert(r.w===(f.w||1080) && r.h===f.h && r.svg.indexOf('viewBox="0 0 '+r.w+' '+r.h+'"')>0, rot+': tamanho '+r.w+'×'+r.h);
+        assert(!r.estouros.length && crConfere(r).every(c=>c.ok), rot+': conferência da marca falhou');
+        if(formato==='inapp') assert(/rx="62"/.test(r.svg), rot+': sem o botão largo do inapp');
+        const {layers, tela}=await importar(await crEmbutir(r.svg));
+        r.campos.filter(c=>c!=='foto_produto').forEach(c=>assert(campoNa(layers,c), rot+': campo {{'+c+'}} não chegou ao Estúdio'));
+        // o Estúdio encaixa a arte na tela do formato dele (escala + centro): o texto tem de caber nela
+        const fora=layers.filter(l=>l.type==='text' && !l.rotation && (l.x<-1 || l.x+l.w>tela.w+1 || l.y<-1 || l.y+l.h>tela.h+1));
+        assert(!fora.length, rot+': texto fora da arte: '+fora.map(l=>l.content+' @'+[l.x,l.y,l.w,l.h].map(Math.round)).join(' · '));
+      }
+    }
+    const ditos={'Banner do app da promo turbinada':'banner','pop-up inapp do much+':'inapp','cabeçalho de email do burger fest':'emailTopo',
+      'rodapé do email':'emailRodape','capa da pasta do Deskfy':'capa','slide de apresentação':'slide','story do festival':'story'};
+    Object.entries(ditos).forEach(([t,f])=>assert(_crFormatoDito(t)===f, '"'+t+'" → '+_crFormatoDito(t)+' (esperado '+f+')'));
   });
 
   caso('Luma Creative: sem foto, nenhuma diagramação usa o slot; com foto, a foto vira a moldura no Estúdio', async()=>{
