@@ -8,8 +8,11 @@
 //   NOVO_SUPABASE_URL / NOVO_SUPABASE_SERVICE_ROLE_KEY  → projeto NOVO (destino)
 // Flags:
 //   --dry-run                 só lista, conta e grava o relatório; não cria bucket nem sobe arquivo
-//   --pular=orfaos-<data>.json  lista do scripts/limpar-assets-orfaos.js: os órfãos de
-//                             luma-template-assets ficam para trás (o novo já nasce limpo)
+//   --pular=orfaos-<data>.json  órfãos de luma-template-assets que ficam para trás (o novo já nasce
+//                             limpo). Aceita `orfaos: [{path}]` (saída do limpar-assets-orfaos.js)
+//                             e/ou `pastas: ["<tid>", ...]` (pastas inteiras de template apagado —
+//                             foi o formato usado em 14/10/2026, porque o limpar-assets-orfaos.js
+//                             não roda no antigo: a service_role não tem USAGE no schema luma)
 //   --bucket=luma-covers      migra só esse bucket (para repetir um que falhou)
 // Idempotente: arquivo que já existe no destino com o mesmo tamanho é pulado — pode rodar de novo.
 // Cache: arquivo imutável (termina em -<uuid>.<ext>, em luma-template-assets e luma-covers) sobe
@@ -113,10 +116,12 @@ async function copiar(bucket, a) {
 
 async function main() {
   const pular = new Set();
+  const pularPastas = new Set();
   if (PULAR) {
     const j = JSON.parse(fs.readFileSync(PULAR, 'utf8'));
     (j.orfaos || []).forEach((o) => pular.add('luma-template-assets/' + o.path));
-    console.log(`Pulando ${pular.size} órfão(s) listados em ${PULAR}.`);
+    (j.pastas || []).forEach((p) => pularPastas.add(p));
+    console.log(`Pulando ${pular.size} órfão(s) e ${pularPastas.size} pasta(s) de template apagado listados em ${PULAR}.`);
   }
   const { data: buckets, error } = await antigo.storage.listBuckets();
   if (error) { console.error('Erro listando buckets do antigo:', error.message); process.exit(1); }
@@ -132,7 +137,7 @@ async function main() {
     const destino = new Map();
     if (estadoBucket === 'já existia') (await listAll(novo, b.name)).forEach((d) => destino.set(d.path, d.size));
     const fila = origem.filter((a) => {
-      if (pular.has(b.name + '/' + a.path)) { pulados++; return false; }
+      if (pular.has(b.name + '/' + a.path) || (b.name === 'luma-template-assets' && pularPastas.has(a.path.split('/')[0]))) { pulados++; return false; }
       if (destino.get(a.path) === a.size) { iguais++; return false; }
       return true;
     });

@@ -96,14 +96,22 @@ a publicação do Realtime; no fim imprime a conferência — `event trigger ens
 ## 4. Arquivos do Storage
 
 ```powershell
-node scripts/limpar-assets-orfaos.js                        # só lista; gera orfaos-<data>.json (lê o antigo)
-node scripts/migrar-storage.js --dry-run --pular=orfaos-<data>.json
-node scripts/migrar-storage.js --pular=orfaos-<data>.json   # copia (uns 20 min); pode repetir
+node scripts/migrar-storage.js --dry-run --pular=orfaos-2026-10-14.json
+node scripts/migrar-storage.js --pular=orfaos-2026-10-14.json   # copia (uns 20 min); pode repetir
 ```
 
 Cria os 6 buckets com a mesma configuração, copia tudo menos os órfãos, e os arquivos imutáveis
 sobem com cache de 1 ano. Se algum falhar, o relatório `migracao-storage-<data>.json` lista; rodar
 de novo copia só o que falta.
+
+O `orfaos-2026-10-14.json` (ignorado pelo git) **não** veio do `limpar-assets-orfaos.js`: esse script
+falha no antigo com `permission denied for schema luma` — a `service_role` nunca ganhou `USAGE` no
+schema `luma` (só `authenticated` tem; a RLS continua sendo a fronteira). A lista foi tirada por SQL
+no antigo, com critério mais conservador que o do script: **pasta inteira `<tid>/` de template
+apagado**, em que nenhum arquivo é citado por `templates`, `template_versions` ou
+`biblioteca_assets` (pelo caminho ou pelo UUID do nome) e nenhum tem menos de 7 dias — 70 pastas,
+776 arquivos, 147 MB. Os 99 arquivos sem uso em pastas de template vivo (camada trocada) e as 4
+pastas de template apagado com arquivo ainda citado (template duplicado) **vão junto**.
 
 ## 5. URLs dentro dos dados
 
@@ -127,13 +135,21 @@ objetos de `luma-template-assets` (novo = antigo − órfãos pulados).
 
 ```powershell
 supabase login
-supabase functions deploy --project-ref xqsazcazsjxajmtmirzd
-supabase secrets set --project-ref xqsazcazsjxajmtmirzd GEMINI_API_KEY=... CLOUDFLARE_ACCOUNT_ID=... TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=... TELEGRAM_WEBHOOK_SECRET=...
+supabase functions deploy ai --project-ref xqsazcazsjxajmtmirzd
+supabase functions deploy invite-user --project-ref xqsazcazsjxajmtmirzd
+supabase secrets set --project-ref xqsazcazsjxajmtmirzd GEMINI_API_KEY=... NVIDIA_API_KEY=... NVIDIA2_API_KEY=... OLLAMA_API_KEY=... CLOUDFLARE_API_KEY=... CLOUDFLARE_ACCOUNT_ID=... OPENROUTER_API_KEY=...
 ```
 
-`SUPABASE_URL`, `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` as functions recebem sozinhas.
-O `config.toml` já diz que `suporte-telegram` roda com `verify_jwt = false`. Se o bot do Telegram
-estiver em uso, registrar o webhook na URL nova (`docs/SUPORTE-TELEGRAM.md`).
+O que o antigo tem no ar (conferido em 14/10): **só `ai` (v23, de 30/09) e `invite-user` (v13)**, as
+duas com `verify_jwt = true`. `suporte-telegram` nunca foi publicada nem a migration dela aplicada —
+não entra (quando entrar, é com `verify_jwt = false`, webhook e secrets `TELEGRAM_*`, ver
+`docs/SUPORTE-TELEGRAM.md`). O `ai/index.ts` do repositório está **à frente** do que roda no antigo:
+tem as tarefas `arte.compor`/`arte.criticar` do Luma Creative (commit 6cceba8, 14/10), que o v23
+não tem — o novo sobe com o do repositório, que é a fonte. Secrets: só `GEMINI_API_KEY` é
+obrigatório; os outros seis são as reservas do `ai` (secret ausente = provedor pulado). O Dashboard
+do antigo mostra os **nomes** dos secrets, não os valores — os valores vêm de quem os criou ou dos
+painéis dos provedores. `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` as
+functions recebem sozinhas.
 
 ## 8. Só no Dashboard do novo (não tem SQL)
 
