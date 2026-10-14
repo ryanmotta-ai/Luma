@@ -1,9 +1,9 @@
 ---
 name: luma-creative
-description: "Diretriz definitiva para geração e composição de artes e templates da Delivery Much (e da sub-marca much+) no Luma. Use SEMPRE que for solicitado para criar, diagramar, sugerir ou compor artes: feed (1080x1350), story (1080x1920), inapp (1080x1920), banner do app (764x204), cabeçalho e rodapé de email (1080x300 / 1080x121), carrossel (3 lâminas), slides 16:9 (Template de Apresentações 2026), capas de materiais/Deskfy (750x400) ou variações para o catálogo. A IA compõe como designer gráfico (respiro, assimetria, escala dramática) mas NUNCA desenha vetores nem cria assets: orquestra o inventário oficial sob regras de grid, contraste, tipografia em 4 níveis, tamanhos mínimos e auditoria visual obrigatória do print. Sem foto, deixa o espaço da foto (placeholder) para o franqueado. Copy sempre em PT-BR."
+description: "Diretriz definitiva para geração e composição de artes e templates da Delivery Much (e da sub-marca much+) no Luma. Use SEMPRE que for solicitado para criar, diagramar, sugerir ou compor artes: feed (1080x1350), story (1080x1920), inapp (1080x1920), banner do app (764x204), cabeçalho e rodapé de email (1080x300 / 1080x121), carrossel (3 lâminas), slides 16:9 (Template de Apresentações 2026, entregues SEMPRE em .pptx editável), capas de materiais/Deskfy (750x400) ou variações para o catálogo. A IA compõe como designer gráfico (respiro, assimetria, escala dramática) mas NUNCA desenha vetores nem cria assets: orquestra o inventário oficial sob regras de grid, contraste, tipografia em 4 níveis, tamanhos mínimos e auditoria visual obrigatória do print. Sem foto, deixa o espaço da foto (placeholder) para o franqueado. Copy sempre em PT-BR."
 metadata:
   author: luma-design-team
-  version: "1.6.0"
+  version: "1.7.0"
 ---
 
 # Luma Creative — Diretriz de Composição de Artes e Templates
@@ -394,6 +394,40 @@ O template oficial de apresentação (48 slides, extraído do `.pptx` em 10/2026
 * **Layouts-base:** capa (logo branco no alto à esquerda + título + subtítulo sobre o arco), lista (tópicos com fio branco embaixo de cada um), **título em pílula branca** centrada (texto laranja), conteúdo no branco (logo colorido no canto), **mockup** (painel laranja à esquerda com o notebook `mockup-notebook.png` — a foto entra na tela, 127–974 × 32–560 do PNG de 1100×651 — e o texto no branco), **3 cards brancos** arredondados com número, fio laranja e texto.
 * **Inventário de slide:** ícones brancos (`icone-*`), emojis 3D (`emoji-*`), **adesivos das áreas** (`area-financeiro`, `area-marketing`, `area-tech`…), celular e notebook.
 
+#### 📦 Entrega de slide = SEMPRE `.pptx` editável (decisão do Ryan, 14/10/2026)
+Pediu slide (ou apresentação, deck, lâmina 16:9), a entrega é um **`.pptx`** — nunca só SVG/PNG. O PNG serve apenas para você conferir.
+* **Gerador:** `python3 .agents/skills/luma-creative/scripts/slide_pptx.py deck.json saida.pptx` (requer `python-pptx`; ferramenta da skill, não do app). Exemplo completo: `scripts/exemplo-deck.json` (capa + slide de indicadores com mapa).
+* **Fonte:** o deck parte **sempre** de `assets/slides/template-apresentacoes-2026.pptx`, que é o template inteiro **com todos os slides de exemplo — não apague nem limpe nenhum**: eles são o repertório de layouts. O script copia o que for pedido e o deck de saída sai só com os slides novos; o template não muda.
+* **Dois modos por slide:**
+  * `"base": N` duplica o exemplo N (fundo, formas, grupos, imagens) e `"trocar"` substitui os textos por trecho (`{"Título de uma linha": "…"}`). Use uma lista para ocorrências repetidas (`{"Colocar o texto aqui": ["a", "b", "c"]}`) e `"mais": [elementos]` para sobrepor elementos livres. **É o modo preferido**, o mais fiel ao template.
+  * `"livre": [elementos]` monta um slide em branco com `imagem` (caminho relativo a `assets/`), `card` (retângulo arredondado, `raio` em px) e `texto` (`tamanho` em px, `peso` regular/medium/black/light, `alinhar` esq/centro/dir), tudo em px do canvas 1920×1080. Use quando nenhum exemplo serve, com as mesmas regras da §4.2.
+* **Logo:** o script troca sozinho as logos "Você Pede" do template pelas da **Delivery Much**: a branca da capa vira `dm-h-branca` e o selo do canto vira `dm-simbolo`.
+* **Tipografia no pptx:** Roboto (Regular, Light, Medium e Black, embutidas no template). **Realce não existe no pptx**, então número de destaque vai em Roboto Black `#F85400`.
+* **Respeite o limite de cada caixa:** "Título de uma linha" é uma linha só (~20 caracteres na capa); "até duas/três linhas" idem. Texto longo quebra e invade o subtítulo, então encurte a copy em vez de diminuir a fonte.
+* **Conferência obrigatória (Fase 5):** `soffice --headless --convert-to pdf saida.pptx` e `pdftoppm -r 50 -png saida.pdf pg`. Olhe cada PNG. O LibreOffice renderiza com fonte substituta, então deixe folga na largura. O script avisa `ATENÇÃO … sobrou texto de exemplo` ("Colocar…", "Lorem", "XX", "Nome"): slide com sobra não sai.
+* **Mapa dos exemplos do template** (escolha o `base` por aqui):
+
+| Nº | Para quê | Textos a trocar |
+|---|---|---|
+| 1–3 | Instruções do template (não usar) | — |
+| 4 / 5 | **Capa** laranja com arco (título de 1 / 2 linhas) | "Título de uma linha" / "Colocar título de duas linhas", "Subtítulo de uma linha" |
+| 6 / 7 | Lista de tópicos com fio branco | "Título", "Colocar o texto aqui" (lista) |
+| 8 | **Título em pílula** branca (abertura de seção) | "Colocar o título aqui" |
+| 9–13, 16, 17, 21, 22 | Abertura de área ("Colocar Área") com título/subtítulo | "Colocar Área", "Título de uma linha", "Subtítulo de uma linha" |
+| 11, 14, 18, 19, 23 | **Conteúdo** no branco: título até 2 linhas + parágrafo | "Título com até duas linhas", "Lorem ipsum…", "Subtítulo de uma linha" |
+| 15, 20 | Conteúdo com imagem/destaque | "Colocar título com até duas linhas" / "Título em destaque" |
+| 24 | Duas colunas | "Título", "Lorem ipsum…" |
+| 25, 26 | **Indicadores do mês** (receita, MoM/YoY) | "Indicadores do Mês", "Receita Bruta", "R$ XX", "MoM: X% / YoY: X%" |
+| 27 | **Indicadores com mapa do Brasil** (3 cards) | "Indicadores do Mês", "XX", "Cidades Ativas"… |
+| 28–30 | Implementação do mês (safra, treinamento, cidades) | "Implementação do Mês", "R$XX", "Cidade", "Estado"… |
+| 31, 32 | Só título | "Título de uma linha" |
+| 33–37 | **Texto + imagem** (título até 3 linhas) | "Título com no máximo três linhas", "Lorem ipsum…" |
+| 38 | Título + tópicos com imagens | "Título", "Subtítulo", "• Colocar o texto aqui" |
+| 39 | Grade de "X" | "X" (lista) |
+| 40–44 | Pessoas: time, cargos, aniversariantes, tempo de casa | "Nome", "Cargo", "XX/XX", "X anos" (listas) |
+| 45 | Encerramento ("Avalie nossa RG") | — |
+| 46, 47 | Catálogo de stickers das áreas e mockups (fonte de recorte, não é slide de entrega) | — |
+
 ### 🧩 Biblioteca nova (10/2026, extraída dos PSDs e `.ai` do Drive "Luma Creative")
 * `assets/stickers/` — **ilustrações da marca** com contorno creme e traço marrom (balão 15 amarelo/laranja, cachorro de bexiga, chimarrão, maionese, mouse, planetário, xis, logo antiga, `R$` e `%` em amarelo/laranja). São **acento**: no máximo 2 por peça, inclinados, nunca atrás de texto. Os de aniversário (balão 15, selo 15 anos) são da campanha de 15 anos.
 * `assets/elementos/` — `+` amarelo/rosa com brilhos, estrelas (amarela e branca), sorriso-arco, explosão, respingo, seta-rabisco, selo OFF, faixa "SE RENDA!", tag #1, ícones de TikTok/Instagram.
@@ -449,7 +483,7 @@ A skill organiza seus recursos nas seguintes pastas:
 │   ├── cupons/                       <- Tickets prontos (laranja, rosa, much+, ingresso)
 │   ├── mockups/                      <- Smartphone (moldura + tela do app)
 │   ├── recortes/                     <- Fotos de produto sem fundo, para testar composições
-│   ├── slides/                       <- Template de Apresentações 2026: fundos, notebook, celular, ícones, emojis 3D, adesivos das áreas (§3.5)
+│   ├── slides/                       <- Template de Apresentações 2026: o .pptx inteiro (com todos os exemplos, base do gerador) + fundos, notebook, celular, ícones, emojis 3D, adesivos das áreas (§3.5)
 │   └── fontes/                       <- Realce Black (otf + woff2) e Roboto em woff2 recortado (~14 KB): Light 300, Light Itálica 300i, Regular 400, Medium 500, Black 900. Os .ttf 400/300 são legado
 └── referencias/                      <- REPERTÓRIO VISUAL (Inspeção visual multimodal)
     ├── paleta-oficial-dm.png         <- Amostra visual exata das 5 cores oficiais da marca
@@ -473,6 +507,7 @@ Utilitários de suporte na raiz do repositório:
 * `scripts/medir-texto.js`: mede o hero em Realce de verdade e recomenda quebra e `font-size` (Fase 4).
 * `scripts/capture-art.js`: Renderizador headless (Edge/Chromium via CDP, zero-dep) que converte o SVG em PNG nas proporções exatas (1080×1350 ou 1080×1920). **`--foto <arquivo>`** troca o placeholder (`<g id="foto_produto…">`) pela foto, recortada no mesmo retângulo e raio. Acha sozinho o Chromium do container (`/opt/pw-browsers`); fora dele, `CHROMIUM_PATH=…`.
 * `scripts/embutir-arte.js`: fecha a arte — troca cada `asset:<caminho>` pelo arquivo em base64 (§1).
+* `.agents/skills/luma-creative/scripts/slide_pptx.py`: **gerador de slides em `.pptx`** a partir do Template de Apresentações 2026 (§3.5, "Entrega de slide"). Python + `python-pptx`, só da skill.
 
 ---
 
