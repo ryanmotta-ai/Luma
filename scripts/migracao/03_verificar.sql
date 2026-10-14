@@ -31,11 +31,12 @@ union all select 'migrations registradas', count(*)::text from supabase_migratio
 union all select 'grants anon em luma.*', coalesce(string_agg(distinct table_name||':'||privilege_type, ', '), '(nenhum)') from information_schema.role_table_grants where grantee='anon' and table_schema='luma'
 union all select 'grants authenticated em luma.* (tabelas)', count(distinct table_name)::text from information_schema.role_table_grants where grantee='authenticated' and table_schema='luma'
 union all select 'rls desligado em alguma tabela', coalesce(string_agg(schemaname||'.'||tablename, ', '), '(nenhuma)') from pg_tables where schemaname in ('luma','analytics','public') and not rowsecurity
-union all select 'linhas com host antigo (templates+versions+artes+pastas+biblioteca+profiles)',
-  ((select count(*) from luma.templates where layers::text like '%uqrqzjafhigjuvtjqzid%')
+union all select 'linhas com host antigo (templates+versions+artes+pastas+biblioteca+profiles+fontes)',
+  ((select count(*) from luma.templates where layers::text like '%uqrqzjafhigjuvtjqzid%' or thumb_url like '%uqrqzjafhigjuvtjqzid%')
   +(select count(*) from luma.template_versions where layers::text like '%uqrqzjafhigjuvtjqzid%')
-  +(select count(*) from luma.artes where dados::text like '%uqrqzjafhigjuvtjqzid%' or sig like '%uqrqzjafhigjuvtjqzid%')
+  +(select count(*) from luma.artes where dados::text like '%uqrqzjafhigjuvtjqzid%' or sig like '%uqrqzjafhigjuvtjqzid%' or thumb_url like '%uqrqzjafhigjuvtjqzid%')
   +(select count(*) from luma.pastas where cover_url like '%uqrqzjafhigjuvtjqzid%')
+  +(select count(*) from luma.fontes where arquivo_url like '%uqrqzjafhigjuvtjqzid%')
   +(select count(*) from luma.biblioteca_assets where url like '%uqrqzjafhigjuvtjqzid%')
   +(select count(*) from public.profiles where avatar_url like '%uqrqzjafhigjuvtjqzid%'))::text
 order by 1;

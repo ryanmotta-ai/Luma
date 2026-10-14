@@ -58,6 +58,9 @@ select 'templates.layers' as coluna, count(*) from luma.templates where layers::
 union all select 'template_versions.layers', count(*) from luma.template_versions where layers::text like '%uqrqzjafhigjuvtjqzid%'
 union all select 'artes.dados', count(*) from luma.artes where dados::text like '%uqrqzjafhigjuvtjqzid%'
 union all select 'artes.sig', count(*) from luma.artes where sig like '%uqrqzjafhigjuvtjqzid%'
+union all select 'artes.thumb_url', count(*) from luma.artes where thumb_url like '%uqrqzjafhigjuvtjqzid%'
+union all select 'templates.thumb_url', count(*) from luma.templates where thumb_url like '%uqrqzjafhigjuvtjqzid%'
+union all select 'fontes.arquivo_url', count(*) from luma.fontes where arquivo_url like '%uqrqzjafhigjuvtjqzid%'
 union all select 'biblioteca_assets.url', count(*) from luma.biblioteca_assets where url like '%uqrqzjafhigjuvtjqzid%'
 union all select 'pastas.cover_url', count(*) from luma.pastas where cover_url like '%uqrqzjafhigjuvtjqzid%'
 union all select 'profiles.avatar_url', count(*) from public.profiles where avatar_url like '%uqrqzjafhigjuvtjqzid%';
