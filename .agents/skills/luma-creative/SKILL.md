@@ -1,9 +1,9 @@
 ---
 name: luma-creative
-description: "Diretriz definitiva para geração e composição de templates de arte da Delivery Much no Luma. Use SEMPRE que for solicitado para criar, diagramar, sugerir ou compor novas artes, templates de feed (1080x1350), stories (1080x1920), inapp (1080x1920), banner do app (764x204), cabeçalho e rodapé de email (1080x300 / 1080x121), carrossel, slides 16:9, capas de materiais e pastas / Deskfy (750x400) ou variações criativas para o catálogo. Aplica o princípio de Design Atômico Estrito: NUNCA desenha vetores do zero, apenas orquestra ativos e blocos oficiais das bibliotecas sob regras rígidas de grid, contraste WCAG, hierarquia de 4 níveis de tipografia, tamanhos mínimos legíveis no celular e auditoria visual obrigatória do print. Responda e escreva a copy sempre em PT-BR."
+description: "Diretriz definitiva para geração e composição de artes e templates da Delivery Much (e da sub-marca much+) no Luma. Use SEMPRE que for solicitado para criar, diagramar, sugerir ou compor artes: feed (1080x1350), story (1080x1920), inapp (1080x1920), banner do app (764x204), cabeçalho e rodapé de email (1080x300 / 1080x121), carrossel (3 lâminas), slides 16:9 (Template de Apresentações 2026), capas de materiais/Deskfy (750x400) ou variações para o catálogo. A IA compõe como designer gráfico (respiro, assimetria, escala dramática) mas NUNCA desenha vetores nem cria assets: orquestra o inventário oficial sob regras de grid, contraste, tipografia em 4 níveis, tamanhos mínimos e auditoria visual obrigatória do print. Sem foto, deixa o espaço da foto (placeholder) para o franqueado. Copy sempre em PT-BR."
 metadata:
   author: luma-design-team
-  version: "1.5.0"
+  version: "1.6.0"
 ---
 
 # Luma Creative — Diretriz de Composição de Artes e Templates
@@ -226,6 +226,8 @@ node scripts/pattern-ancorado.js --canvas 1080x1350 \
 
 ### 🖼️ 3.2 Placeholder de Foto e Logo — SVG Padrão (reaproveitar, nunca recriar)
 
+> **Sem foto ≠ sem espaço de foto (decisão do Ryan, 14/10/2026).** A arte vira TEMPLATE: o franqueado coloca a foto dele depois. Se o objetivo combina com foto (oferta, evento, benefício) e o pedido não trouxe foto, a arte **leva o placeholder** (espaço com tamanho de foto de verdade: ≥ 480 px de altura no story, ≥ 360 no feed). Arte **só tipográfica** é exceção, quando o pedido disser "sem foto". Cupom e aniversário seguem sem foto.
+
 Onde a foto do produto, da loja ou o logo do parceiro vai entrar, a arte mostra **sempre o mesmo placeholder**: um bloco em **cinza claro `#D9D9D9`** com **ícone e texto em cima em `#434343`**. É o padrão das artes oficiais (`referencias/referencia-cupom-foto-arco.png`, `grade-variacoes-templates.png`).
 
 * **`#D9D9D9` é a única exceção à paleta fechada** e **só vale para o slot** (foto/logo). Nunca como fundo decorativo, card, divisória ou texto. O slot é substituído pela foto real no Luma; o cinza não aparece na arte publicada.
@@ -402,7 +404,7 @@ O template oficial de apresentação (48 slides, extraído do `.pptx` em 10/2026
 * `assets/recortes/` — fotos **sem fundo** (hambúrguer, batata, cafés, refrigerante, pipoca, claquete) para testar composições com produto recortado; na peça real a foto é a do franqueado.
 * **Sub-marca much+** (assinatura de cupons): as peças dela usam **rosa `#E52676`** + amarelo `#FFB900`, fonte Ubuntu e o `+` como grafismo. **Rosa e Ubuntu são só da much+** — nunca em peça Delivery Much. Ubuntu não está em `assets/fontes/`: em peça much+, use Realce/Roboto e avise.
   * Linguagem much+ (refs. `story-much-plus-beneficios`, `inapp-much-*`): fundo rosa com **brilho branco radial** atrás do ponto focal (só opacidade), card branco com **borda amarela** (`stroke #FFB900` 6 px), tickets `cupons/cupom-much-plus.png` **inclinados rompendo a borda** do card, estrelas amarelas e botão **amarelo com texto rosa**. Logo much+ + DM brancos direto no fundo (pílula translúcida lava o logo).
-  * Lint: `node scripts/lint-art.js arte.svg --story --much` (admite o rosa e o botão amarelo). Modelo pronto: `refino_15_cupom_much_story` (cupom de até R$ 10, 5 por mês).
+  * Lint: `node scripts/lint-art.js arte.svg --story --much` (admite o rosa e o botão amarelo). Modelo pronto: `refino_15_cupom_much_story` (cupom de até R$ 10, 5 por mês — eixo à esquerda, "10" gigante, `+` e ticket sangrando nos cantos, sem card).
 * Os PSDs também usam **Roboto Bold** (700) em textos corridos: é legado das peças manuais; a regra da §2 (sem Bold) continua valendo para o que a IA compõe.
 
 ---
@@ -447,6 +449,7 @@ A skill organiza seus recursos nas seguintes pastas:
 │   ├── cupons/                       <- Tickets prontos (laranja, rosa, much+, ingresso)
 │   ├── mockups/                      <- Smartphone (moldura + tela do app)
 │   ├── recortes/                     <- Fotos de produto sem fundo, para testar composições
+│   ├── slides/                       <- Template de Apresentações 2026: fundos, notebook, celular, ícones, emojis 3D, adesivos das áreas (§3.5)
 │   └── fontes/                       <- Realce Black (otf + woff2) e Roboto em woff2 recortado (~14 KB): Light 300, Light Itálica 300i, Regular 400, Medium 500, Black 900. Os .ttf 400/300 são legado
 └── referencias/                      <- REPERTÓRIO VISUAL (Inspeção visual multimodal)
     ├── paleta-oficial-dm.png         <- Amostra visual exata das 5 cores oficiais da marca
@@ -489,6 +492,13 @@ Utilitários de suporte na raiz do repositório:
 7. **Menos caixas.** Card, pílula e moldura só quando agrupam algo que se perderia solto. Texto direto no fundo (com contraste) costuma ser mais elegante que texto dentro de card dentro de fundo.
 8. **Varie a cada peça.** Antes de compor, escolha **uma ideia de composição** e escreva em 1 frase (ex.: "número gigante ancorado à esquerda, ticket sangrando no canto de baixo, `+` no alto à direita"). Se for igual à da última peça ou à da referência, troque.
 
+**O que o motor do Luma aprendeu na prática (10/2026), valha também à mão:**
+* **Título longo trava a escala pela largura:** "FESTIVAL GASTRONÔMICO" não passa de ~140 px em 880 de largura útil, por mais altura que sobre. Se o ponto focal é o título, **encurte a copy** (≤ 2 palavras por linha) ou mude o foco para o preço, o valor ou o selo.
+* **A ação ancora na base da faixa** (botão + legal perto de 1650 no story / 1265 no feed); o respiro que sobra fica **entre o conteúdo e a ação**, não espalhado em faixas mortas.
+* **Vão grande (≥ 320 px) não fica vazio:** vira um grafismo grande sangrando pela borda oposta ao eixo — nunca atrás de texto.
+* **Conteúdo demais para o respiro:** aceite 80 px entre grupos como piso; abaixo disso, **corte copy** (apoio ou legal), não o respiro.
+* **Foto com tamanho de foto:** se o espaço da foto não chega a 480 px (story) / 360 px (feed), a composição está errada para esta peça — use uma topologia em que a foto é protagonista (foto no topo sangrando, card de preço preso à foto).
+
 **Autoteste antes do print:** (a) tape a referência — a peça se sustenta sozinha? (b) há um vão entre grupos ≥ 100 px no story? (c) o conteúdo usa de 290 a 1650? (d) algo sangra pela borda? (e) dá para descrever a composição sem dizer "centralizado"? Dois "não" = recomponha.
 
 **No Luma Creative (app)** a mesma regra vale: a IA devolve a ideia e uma caixa por bloco, mais grafismos do inventário (`crDesenhos`/`crPromptDesenho` em `js/creative/creative.js`); o Luma desenha os blocos oficiais nas caixas e confere. Mudou um princípio aqui? Mude o prompt de lá.
@@ -509,7 +519,7 @@ Antes de escrever uma única linha de código, a IA **DEVE abrir e inspecionar v
 * **Escolha a receita tipográfica (§2.4)** junto com o ponto focal: a peça é de conversa (A), de benefício em 2 palavras (B), de valor (C) ou de produto (D/escala padrão)?
 * **Referência é vocabulário, não molde (§4.2):** das referências tire **linguagem** — cores da campanha, como o asset é usado, escala, acabamento —, **nunca a planta** (a posição dos blocos). A composição é sua, pensada para esta mensagem.
 * **Análise da Intenção:** Identifique se a nova peça pede foco em foto grande, destaque de preço, cupom agressivo, evento municipal ou mensagem institucional, e componha a cena inspirada no feeling das referências.
-* **Briefing em 3 linhas (escreva antes de desenhar):** (1) **Uma única mensagem** da peça; (2) **o ponto focal** — o que o olho vê primeiro (hero, preço, cupom ou foto; só **um**); (3) **a ação** (pedir pelo app, usar cupom, conhecer parceiro). Se faltar algo, pergunte; dúvida de negócio não se inventa.
+* **Briefing em 3 linhas (escreva antes de desenhar):** (1) **Uma única mensagem** da peça; (2) **o ponto focal** — o que o olho vê primeiro (hero, preço, cupom ou foto; só **um**); (3) **a ação** (pedir pelo app, usar cupom, conhecer parceiro). Se faltar algo, pergunte; dúvida de negócio não se inventa. **Foto:** se o objetivo combina com foto e ela não veio, pergunte "tem a foto? enviar / **deixar o espaço** (padrão) / sem foto". Imagem anexada com "referência", "nessa pegada" ou "parecido" é **referência de composição**, não a foto da arte.
 * **Escala das referências (calibre a mão):** nas artes reais da DM o hero e o preço são **enormes** (o "R$22,90" ocupa ~1/4 da largura; "entrega GRÁTIS" ocupa metade da altura útil), a logo é legível (~200–260px de largura) e há **poucos** elementos grandes, não muitos pequenos. Arte com muitos itens miúdos está errada.
 * **Pontos focais por objetivo (referência, não receita):**
   | Objetivo | Ponto focal | Apoio |
@@ -605,6 +615,7 @@ Gerar o código não encerra a tarefa. A IA **DEVE tirar o print da arte e olhar
 6. **Revisão comparativa (peça nova):** o autor tende a aprovar a própria arte, e **nota sem régua aprova o mediano**. Depois do lint e das 2 rodadas, chame um **subagente revisor** (ferramenta `Agent`) dando **o PNG com foto + as referências de `referencias/`**, sem a sua opinião:
    > *"Você é diretor de arte sênior da Delivery Much. Abra [PNG] e as referências [grade-variacoes-templates.png, referencia-cupom-feed.png, …]. Contexto fixo que não se critica: [paleta fechada, slot retangular, Realce, piso de 24px do legal, zonas vazias do story]. Para a arte: (1) notas 0–5 para ponto focal, hierarquia, respiro, contraste, marca/paleta, acabamento; (2) **o que a referência tem que esta não tem?** — até 3 itens com coordenada e correção; (3) o que some a ~360px de largura. Termine com APROVADA (todas ≥ 4) ou REFAZER. Seja exigente."*
    * Dê o "contexto fixo" sempre: sem ele, o revisor gasta os 3 itens criticando regra da marca.
+   * **Ciclo designer ↔ crítico (o mesmo do Luma):** a crítica do revisor volta como **instrução concreta com posição** ("o botão cola no preço: desça 80 px"); você recompõe e um revisor **novo** avalia. Respiro e composição pesam: tudo agrupado no meio, vãos curtos e iguais ou faixas vazias grandes = respiro ≤ 2.
    * **Verifique cada achado na fonte antes de corrigir** (achado plausível ≠ real) e confira a conta de todo desconto. **Qualquer nota < 4 → corrija e revise de novo**, com um revisor novo (o antigo ancora no próprio parecer). Não use para ajuste pequeno.
 7. **Auditar a fonte:** o texto no PNG está em Realce/Roboto de verdade, ou caiu em Arial/Times? Hero com aparência "larga e genérica" = fallback → a fonte não foi embutida.
 
