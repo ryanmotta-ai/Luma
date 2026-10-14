@@ -1,0 +1,64 @@
+# 20260508_inapp_sem-nome_2.psd (1103, 2000)
+- [artboard] 'Inapp | 1' vis=False bbox=(-1157, 0, -77, 1920)
+  - [pixel] 'Camada 1' vis=True bbox=(0, 0, 0, 0)
+  - [shape] 'base' vis=True bbox=(-1236, -91, 2, 2063)
+  - [pixel] 'base copiar' vis=False bbox=(-1244, -61, -10, 2091)
+  - [shape] 'base' vis=True bbox=(-1028, 1693, -204, 1818)
+  - [type] 'ver meu pedido' vis=True bbox=(-816, 1730, -418, 1785) texto='ver meu pedido' fonte='Roboto-Black' tam=70.04082
+  - [shape] 'Retângulo 1' vis=True bbox=(-1020, 403, -211, 797)
+  - [type] 'EI, MANDOU BEM!' vis=True bbox=(-1002, 141, -227, 280) texto='EI, MANDOU BEM!' fonte='Realce-Blackv0.006' tam=70.04082
+  - [shape] 'Retângulo 3' vis=True bbox=(-1023, 1519, -208, 1645)
+  - [type] 'com ' vis=True bbox=(-967, 1565, -844, 1605) texto='com ' fonte='Ubuntu-Bold' tam=70.04082
+  - [type] 'você economiza' vis=True bbox=(-553, 1550, -327, 1575) texto='você economiza' fonte='Roboto-Black' tam=52.89857
+  - [pixel] 'muito mais!' vis=True bbox=(-439, 1403, 1068, 1654)
+  - [group] 'Quadro Transparente' vis=True bbox=(0, 0, 0, 0)
+    - [type] 'em cupom exclusivo' vis=False bbox=(-557, 920, -326, 1031) texto='em cupom / exclusivo' fonte='Realce-Blackv0.006' tam=52.89857
+    - [type] 'em cupom exclusivo' vis=True bbox=(-968, 1258, -677, 1289) texto='em cupom exclusivo' fonte='Roboto-Medium' tam=52.89857
+  - [group] 'Quadro Branco' vis=True bbox=(0, 0, 0, 0)
+    - [shape] 'Retângulo 6' vis=True bbox=(-1025, 862, -209, 1423)
+    - [type] 'pediu com descontão' vis=True bbox=(-957, 930, -277, 1002) texto='pediu com descontão' fonte='Realce-Blackv0.006' tam=163.55315
+    - [type] 'em cupom exclusivo ' vis=True bbox=(-961, 1254, -279, 1321) texto='em cupom exclusivo ' fonte='Realce-Blackv0.006' tam=163.55315
+    - [type] 'R$ 40' vis=True bbox=(-654, 1039, -289, 1216) texto='R$ 40' fonte='Realce-Blackv0.006' tam=163.55315
+    - [type] 'e ainda' vis=True bbox=(-954, 1056, -728, 1115) texto='e ainda' fonte='Realce-Blackv0.006' tam=163.55315
+    - [type] 'sobrou' vis=True bbox=(-954, 1132, -730, 1193) texto='sobrou' fonte='Realce-Blackv0.006' tam=163.55315
+  - [group] '+ do much+' vis=True bbox=(0, 0, 0, 0)
+    - [pixel] '+ copiar' vis=True bbox=(-370, 648, -226, 790)
+    - [pixel] '+ copiar 2' vis=True bbox=(-392, 747, -359, 780)
+    - [pixel] '+ copiar 3' vis=True bbox=(-255, 795, -211, 838)
+  - [group] 'Hamburguer' vis=True bbox=(0, 0, 0, 0)
+    - [smartobject] 'Cheese burger isolated on transparent background copiar' vis=True bbox=(-691, 288, -212, 635)
+    - [pixel] 'Camada 4' vis=True bbox=(-808, 256, -395, 817)
+    - [smartobject] 'Cheese burger isolated on transparent background' vis=True bbox=(-1101, 314, -448, 796)
+  - [smartobject] 'Objeto Inteligente de Vetor' vis=True bbox=(-822, 1548, -618, 1606)
+  - [smartobject] 'estrela   copiar 9' vis=True bbox=(-1048, 968, -989, 1026)
+  - [smartobject] 'estrela   copiar 10' vis=True bbox=(-242, 1267, -183, 1326)
+  - [shape] 'Retângulo 7' vis=True bbox=(-957, 1380, -278, 1459)
+  - [type] 'pra usar como quiser.' vis=True bbox=(-827, 1402, -410, 1442) texto='pra usar como quiser.' fonte='Roboto-Black' tam=163.55315
+- [artboard] 'Prancheta 1' vis=True bbox=(0, 1112, 1, 1113)
+- [artboard] 'Inapp | 2' vis=True bbox=(23, 0, 1103, 1920)
+  - [pixel] 'Camada 2' vis=True bbox=(0, 0, 0, 0)
+  - [pixel] 'Preenchimento de Cor 1' vis=False bbox=(-1157, 0, 1971, 1920)
+  - [shape] 'Retângulo 4 copiar 2' vis=True bbox=(148, 452, 980, 861)
+  - [type] 'oiiii, ' vis=True bbox=(151, 140, 413, 291) texto='oiiii, ' fonte='Realce-Blackv0.006' tam=52.89857
+  - [type] 'assinante ' vis=True bbox=(148, 310, 616, 401) texto='assinante ' fonte='Ubuntu-Bold' tam=52.89857
+  - [type] 'bom demais   ' vis=True bbox=(235, 533, 822, 641) texto='bom demais  /  / ' fonte='Realce-Blackv0.006' tam=52.89857
+  - [type] ' comer bem   ' vis=True bbox=(421, 688, 890, 780) texto=' comer bem  /  / ' fonte='Realce-Blackv0.006' tam=52.89857
+  - [type] '  sem ver o saldo sofrer, né? ' vis=True bbox=(157, 900, 975, 982) texto=' /  sem ver o saldo sofrer, né? / ' fonte='Realce-Blackv0.006' tam=52.89857
+  - [shape] 'base copiar 2' vis=True bbox=(152, 1693, 976, 1818)
+  - [type] 'ver rangos' vis=True bbox=(426, 1742, 700, 1785) texto='ver rangos' fonte='Roboto-Black' tam=70.04082
+  - [shape] 'Retângulo 4' vis=True bbox=(130, 1020, 988, 1477)
+  - [shape] 'Retângulo 4 copiar' vis=True bbox=(560, 772, 1068, 1740)
+  - [pixel] 'Objeto Inteligente de Vetor' vis=True bbox=(560, 1112, 956, 1482)
+  - [smartobject] 'estrela   copiar 5' vis=True bbox=(124, 716, 183, 774)
+  - [smartobject] 'estrela   copiar 7' vis=False bbox=(105, 1384, 171, 1450)
+  - [smartobject] 'estrela   copiar 6' vis=True bbox=(946, 522, 1005, 581)
+  - [smartobject] 'estrela   copiar 8' vis=False bbox=(948, 1155, 1014, 1220)
+  - [type] 'e pode ir  se acostumando:' vis=True bbox=(196, 1090, 500, 1213) texto='e pode ir  / se acostumando:' fonte='Realce-Blackv0.006' tam=52.89857
+  - [smartobject] 'Objeto Inteligente de Vetor' vis=True bbox=(666, 306, 1017, 405)
+  - [shape] 'Retângulo 5' vis=True bbox=(200, 1355, 507, 1405)
+  - [type] 'todo mês tem  ' vis=True bbox=(199, 1282, 503, 1339) texto='todo mês tem  / ' fonte='Realce-Blackv0.006' tam=45.65843
+  - [type] ' cupons exclusivos' vis=True bbox=(221, 1365, 485, 1396) texto=' / cupons exclusivos' fonte='Roboto-Medium' tam=45.65843
+  - [type] 'te esperando no app ' vis=True bbox=(225, 1534, 892, 1601) texto='te esperando no app / ' fonte='Realce-Blackv0.006' tam=41.26432
+  - [pixel] '+ copiar 5' vis=True bbox=(253, 676, 356, 782)
+  - [pixel] '+ copiar 5' vis=True bbox=(355, 672, 388, 706)
+- [type] 'Lorem Ipsum' vis=True bbox=(156, 1988, 221, 2000) texto='Lorem Ipsum' fonte='MyriadPro-Regular' tam=12.0

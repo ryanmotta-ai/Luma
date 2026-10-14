@@ -1,0 +1,21 @@
+# 20260513_social_feed-trend-gen-z.psd (1080, 1350)
+- [artboard] 'Prancheta 2' vis=True bbox=(0, 0, 1080, 1350)
+  - [shape] 'Retângulo 1 copiar' vis=True bbox=(536, -5, 1081, 1355)
+  - [shape] 'Linha 2' vis=True bbox=(537, -2, 544, 1356)
+  - [shape] 'Retângulo 2' vis=True bbox=(412, 64, 658, 128)
+  - [type] 'Marketing  da geração z copiar' vis=True bbox=(708, 236, 948, 329) texto='Marketing /  da geração z' fonte='Roboto-Bold' tam=37.0
+  - [type] 'Marketing  dos millenials ' vis=True bbox=(134, 236, 395, 320) texto='Marketing /  dos millenials ' fonte='Roboto-Bold' tam=45.83332
+  - [type] '✨com much+✨  é +1000 de aura slk, só vantagem! simplesmente cin' vis=True bbox=(592, 908, 1026, 1194) texto='✨com much+✨ /  / é +1000 de aura / slk, só vantagem! / simplesmente cinema / o mais mídia / pagando pouco e vivendo muit' fonte='AppleColorEmoji' tam=37.0
+  - [type] '   ideal para quem quer aproveitar melhor cada pedido, unindo c' vis=True bbox=(37, 1170, 460, 1215) texto=' /  /  / ideal para quem quer aproveitar melhor cada pedido, / unindo conveniência, praticidade e custo-benefício. / ' fonte='Roboto-Bold' tam=37.5782
+  - [type] '  5 cupons de desconto de até R$ 10;  cupom exclusivo para usar' vis=True bbox=(38, 1031, 378, 1128) texto=' /  / 5 cupons de desconto de até R$ 10;  / cupom exclusivo para usar como quiser; / economia de até R$ 600 no ano; / as' fonte='Roboto-Bold' tam=34.75209
+  - [type] 'much+ é uma assinatura de  cupons pensada para quem quer comer ' vis=True bbox=(37, 921, 501, 993) texto='much+ é uma assinatura de  / cupons pensada para quem quer comer bem  / com mais vantagens, praticidade e economia no di' fonte='Roboto-Bold' tam=35.27156
+  - [smartobject] 'Arte 54' vis=True bbox=(61, 483, 501, 727)
+  - [smartobject] 'Arte 55' vis=False bbox=(608, 485, 1049, 734)
+  - [pixel] 'Camada 2' vis=True bbox=(516, 416, 1120, 839)
+  - [smartobject] 'cupom 1 copiar' vis=False bbox=(630, 493, 1013, 729)
+  - [smartobject] 'Arte 48' vis=True bbox=(448, 78, 623, 112)
+  - [type] '😮\u200d💨🔥' vis=True bbox=(626, 455, 708, 509) texto='😮\u200d💨🔥' fonte='AppleColorEmoji' tam=37.0
+  - [type] '🍕' vis=False bbox=(973, 693, 1032, 759) texto='🍕' fonte='AppleColorEmoji' tam=37.0
+  - [smartobject] 'Arte 55' vis=True bbox=(618, 504, 1041, 748)
+  - [type] '🤍' vis=True bbox=(979, 733, 1023, 778) texto='🤍' fonte='AppleColorEmoji' tam=37.0
+  - [type] '🫶 ' vis=True bbox=(920, 745, 972, 782) texto='🫶 ' fonte='AppleColorEmoji' tam=37.0

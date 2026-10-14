@@ -1,0 +1,34 @@
+# Much+ | Renovação.psd (1080, 1920)
+- [artboard] 'Much+' vis=True bbox=(0, 0, 1080, 1920)
+  - [shape] 'base' vis=True bbox=(-36, -33, 1099, 1942)
+  - [pixel] 'Camada 42' vis=True bbox=(-1659, -28, 2185, 3282)
+  - [pixel] 'Camada 41' vis=True bbox=(-220, 137, 1300, 1645)
+  - [shape] 'base' vis=True bbox=(129, 1719, 953, 1844)
+  - [type] 'conhecer agora' vis=True bbox=(340, 1756, 740, 1811) texto='conhecer agora' fonte='Roboto-Black' tam=70.04082
+  - [shape] 'BASE' vis=True bbox=(116, 500, 966, 1630)
+  - [type] 'DESC0NTOS' vis=True bbox=(183, 124, 899, 264) texto='DESC0NTOS' fonte='Realce-Blackv0.006' tam=113.35009
+  - [type] 'DA SUA cidade' vis=True bbox=(181, 291, 781, 382) texto='DA SUA cidade' fonte='Realce-Blackv0.006' tam=113.35009
+  - [smartobject] 'Objeto Inteligente de Vetor' vis=True bbox=(191, 1246, 456, 1529)
+  - [group] 'TÍTULO' vis=True bbox=(0, 0, 0, 0)
+    - [pixel] 'DESCONTOS EM LOJAS DA SUA CIDADE' vis=False bbox=(166, 142, 919, 351)
+  - [group] 'head' vis=False bbox=(0, 0, 0, 0)
+    - [shape] 'base' vis=True bbox=(259, 561, 822, 656)
+    - [type] '30 dias   ' vis=True bbox=(267, 674, 818, 837) texto='30 dias  /  / ' fonte='Realce-Blackv0.006' tam=99.38721
+    - [type] 'de much+ grátis! ' vis=True bbox=(274, 855, 793, 924) texto='de much+ grátis! / ' fonte='Roboto-Black' tam=70.04082
+    - [type] 'você ganhou ' vis=True bbox=(388, 585, 691, 638) texto='você ganhou ' fonte='Roboto-Black' tam=70.04082
+  - [pixel] 'Camada 39' vis=True bbox=(0, 0, 0, 0)
+  - [shape] 'Retângulo 1' vis=True bbox=(212, 597, 884, 764)
+  - [type] 'agora sua assinatura  também libera' vis=True bbox=(368, 640, 727, 716) texto='agora sua assinatura  / também libera' fonte='Roboto-Regular' tam=53.48465
+  - [shape] 'BASE 1' vis=True bbox=(480, 1284, 870, 1497)
+  - [type] 'em diversos estabelecimentos da sua cidade' vis=True bbox=(539, 1328, 841, 1451) texto='em diversos / estabelecimentos / da sua cidade' fonte='Roboto-Medium' tam=53.48465
+  - [smartobject] 'cupom 1 copiar' vis=True bbox=(1003, -49, 1223, 136)
+  - [smartobject] 'cupom 1 copiar 4' vis=True bbox=(862, 1003, 1139, 1247)
+  - [smartobject] 'cupom 1 copiar 2' vis=True bbox=(-70, 333, 84, 449)
+  - [smartobject] 'cupom 1 copiar 3' vis=True bbox=(-65, 1471, 174, 1652)
+  - [type] 'descontos' vis=True bbox=(208, 852, 878, 983) texto='descontos' fonte='Realce-Blackv0.006' tam=113.35009
+  - [type] 'para consumo local' vis=True bbox=(209, 1020, 728, 1078) texto='para consumo local' fonte='Roboto-Bold' tam=113.35009
+  - [shape] 'Linha 1' vis=True bbox=(205, 1162, 868, 1169)
+  - [smartobject] 'Arte 68' vis=True bbox=(767, 1006, 840, 1077)
+  - [pixel] 'Camada 43' vis=True bbox=(744, 222, 954, 415)
+  - [smartobject] 'Arte 68 copiar' vis=True bbox=(783, 247, 921, 382)
+  - [smartobject] 'Arte 74' vis=True bbox=(780, 1255, 907, 1347)

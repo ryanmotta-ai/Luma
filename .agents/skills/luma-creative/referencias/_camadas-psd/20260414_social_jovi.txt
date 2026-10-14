@@ -1,0 +1,67 @@
+# 20260414_social_jovi.psd (4301, 1920)
+- [artboard] 'Prancheta 1' vis=True bbox=(0, 0, 1080, 1920)
+  - [pixel] 'Camada 1' vis=True bbox=(0, 0, 0, 0)
+  - [solidcolorfill] 'Preenchimento de Cor 1' vis=True bbox=(0, 0, 4301, 1920)
+  - [smartobject] 'Abstract summer sunburst paper creating a dynamic spiral design. vector graphic for websites and creative projects abstract energy illustration vector art hypnotic swirl radial texture backgroud.' vis=False bbox=(-1863, -242, 2943, 2162)
+  - [smartobject] 'Abstract red  and white retro with sunburst pattern colorful design. Vintage sunrays illustration swirl line. sun beam vector banner design and comic burst gradient concept pattern. ' vis=True bbox=(-1934, -95, 2990, 2367)
+  - [type] 'HOJE É O DIA MUNDIAL' vis=True bbox=(171, 187, 888, 283) texto='HOJE É O DIA MUNDIAL' fonte='Realce-Blackv0.006' tam=121.0
+  - [pixel] 'Camada 14' vis=True bbox=(234, 234, 826, 347)
+  - [type] 'DO CAFÉ' vis=True bbox=(269, 277, 793, 444) texto='DO CAFÉ' fonte='Realce-Blackv0.006' tam=121.0
+  - [shape] 'Retângulo 1' vis=True bbox=(107, 884, 621, 998)
+  - [pixel] 'Camada 4' vis=True bbox=(536, 829, 680, 1039)
+  - [smartobject] 'sorriso' vis=True bbox=(582, 842, 993, 1130)
+  - [pixel] 'Camada 3' vis=True bbox=(601, 1022, 990, 1158)
+  - [shape] 'Retângulo 1 copiar 4' vis=True bbox=(462, 1458, 971, 1565)
+  - [pixel] 'Camada 6' vis=True bbox=(407, 1407, 558, 1602)
+  - [shape] 'Retângulo 1 copiar 3' vis=True bbox=(387, 1455, 971, 1570)
+  - [pixel] 'Camada 8' vis=True bbox=(360, 1412, 486, 1602)
+  - [pixel] 'Camada 12' vis=True bbox=(803, 1427, 926, 1608)
+  - [pixel] 'Camada 7' vis=True bbox=(675, 1387, 1133, 1638)
+  - [smartobject] 'sorriso' vis=True bbox=(126, 1276, 456, 1645)
+  - [pixel] 'Camada 5' vis=True bbox=(368, 1297, 579, 1436)
+  - [shape] 'Retângulo 1 copiar' vis=True bbox=(107, 1277, 719, 1392)
+  - [shape] 'Retângulo 1 copiar 2' vis=True bbox=(359, 1073, 971, 1188)
+  - [type] 'cada gole é uma confissão. ' vis=True bbox=(193, 571, 887, 626) texto='cada gole é uma confissão. / ' fonte='Roboto-Light' tam=121.0
+  - [type] 'Quem é você hoje?' vis=True bbox=(299, 652, 781, 707) texto='Quem é você hoje?' fonte='Roboto-Bold' tam=121.0
+  - [smartobject] 'Arte 48' vis=True bbox=(362, 1773, 674, 1832)
+  - [pixel] 'Camada 9' vis=True bbox=(122, 859, 249, 1034)
+  - [smartobject] 'Gemini_Generated_Image_2p4irr2p4irr2p4i' vis=True bbox=(-109, 798, 412, 1082)
+  - [pixel] 'Camada 10' vis=True bbox=(813, 1050, 947, 1221)
+  - [smartobject] 'Gemini_Generated_Image_27mj2v27mj2v27mj' vis=True bbox=(669, 1000, 1147, 1261)
+  - [pixel] 'Camada 11' vis=True bbox=(155, 1247, 271, 1419)
+  - [smartobject] 'Gemini_Generated_Image_vqlqtbvqlqtbvqlq (1)' vis=True bbox=(-76, 1200, 395, 1457)
+  - [type] 'Um tanque de guerra  em forma de gente.' vis=True bbox=(275, 914, 500, 966) texto='Um tanque de guerra /  em forma de gente.' fonte='Roboto-Bold' tam=95.79662
+  - [type] 'Um adulto que ainda  precisa de um carinho.' vis=True bbox=(500, 1104, 744, 1157) texto='Um adulto que ainda /  precisa de um carinho.' fonte='Roboto-Bold' tam=101.01428
+  - [type] 'Minha vida tá um caos,  mas meu look tá on.' vis=True bbox=(326, 1309, 572, 1357) texto='Minha vida tá um caos, /  mas meu look tá on.' fonte='Roboto-Bold' tam=101.01428
+  - [type] 'Um abraço quentinho  com gosto de "eu mereço". ' vis=True bbox=(513, 1492, 775, 1540) texto='Um abraço quentinho /  com gosto de "eu mereço". / ' fonte='Roboto-Bold' tam=115.8664
+  - [type] 'Café Espresso' vis=True bbox=(52, 846, 176, 971) texto='Café Espresso' fonte='Roboto-Black' tam=20.0
+  - [type] 'Café Gelado' vis=True bbox=(59, 1227, 167, 1338) texto='Café Gelado' fonte='Roboto-Black' tam=20.0
+  - [type] 'cAFÉ COM LEITE' vis=True bbox=(861, 1039, 995, 1143) texto='cAFÉ COM LEITE' fonte='Roboto-Black' tam=20.0
+  - [type] 'CAPPUCINO' vis=True bbox=(882, 1422, 990, 1496) texto='CAPPUCINO' fonte='Roboto-Black' tam=20.0
+- [artboard] 'Prancheta 2' vis=True bbox=(1193, 0, 2273, 1920)
+  - [solidcolorfill] 'Preenchimento de Cor 2' vis=True bbox=(0, 0, 4301, 1920)
+  - [solidcolorfill] 'Preenchimento de Cor 2 copiar' vis=True bbox=(0, 0, 4301, 1920)
+  - [type] 'Não Importa ' vis=True bbox=(1447, 258, 2039, 398) texto='Não Importa ' fonte='Realce-Blackv0.006' tam=121.0
+  - [pixel] 'Camada 13' vis=True bbox=(1398, 326, 2049, 460)
+  - [type] 'SUA RESPOSTA' vis=True bbox=(1425, 366, 2029, 492) texto='SUA RESPOSTA' fonte='Realce-Blackv0.006' tam=121.0
+  - [smartobject] 'Arte 48 copiar' vis=True bbox=(1574, 85, 1886, 144)
+  - [smartobject] 'Ativo 1@4x copiar' vis=True bbox=(1376, 1346, 2088, 1647)
+  - [pixel] 'Ativo 1@4x' vis=True bbox=(1369, 1314, 2090, 1651)
+  - [type] 'a gente sabe que  existe um consenso: ' vis=True bbox=(1480, 620, 1955, 724) texto='a gente sabe que  / existe um consenso: / ' fonte='Roboto-Regular' tam=121.0
+  - [smartobject] 'Pra evitar o caos, acabamos  de liberar um cupom no Canal! ' vis=True bbox=(1385, 1034, 2056, 1196)
+  - [type] 'Sem café, o sistema operacional da humanidade entra em erro.  ' vis=True bbox=(1363, 822, 2078, 918) texto='Sem café, o sistema operacional / da humanidade entra em erro.  / ' fonte='Roboto-Bold' tam=121.0
+  - [smartobject] 'Cupom' vis=True bbox=(1598, 1421, 1948, 1540)
+  - [type] '🔒' vis=True bbox=(1718, 1386, 1838, 1559) texto='🔒' fonte='AppleColorEmoji' tam=121.0
+- [artboard] 'Prancheta 3' vis=True bbox=(2400, 0, 3480, 1080)
+  - [solidcolorfill] 'Preenchimento de Cor 3' vis=True bbox=(0, 0, 4301, 1920)
+  - [smartobject] 'Abstract red  and white retro with sunburst pattern colorful design. Vintage sunrays illustration swirl line. sun beam vector banner design and comic burst gradient concept pattern. ' vis=True bbox=(1028, -152, 4828, 1749)
+  - [type] 'HOJE É O DIA MUNDIAL copiar' vis=True bbox=(2648, 123, 3247, 203) texto='HOJE É O DIA MUNDIAL' fonte='Realce-Blackv0.006' tam=121.0
+  - [pixel] 'Camada 14 copiar' vis=True bbox=(2701, 162, 3195, 256)
+  - [type] 'DO CAFÉ copiar' vis=True bbox=(2729, 198, 3167, 338) texto='DO CAFÉ' fonte='Realce-Blackv0.006' tam=121.0
+  - [smartobject] 'Ativo 1@4x copiar 2' vis=True bbox=(2650, 617, 3241, 893)
+  - [pixel] 'Ativo 1@4x copiar 2' vis=True bbox=(2661, 623, 3220, 884)
+  - [type] 'Cupom para você garantir aquele cafezinho ( ou acompanhamento) ' vis=True bbox=(2624, 446, 3257, 524) texto='Cupom para você garantir aquele cafezinho / ( ou acompanhamento) na paz. / ' fonte='Roboto-Black' tam=121.0
+  - [type] 'R$10 0FF' vis=True bbox=(2856, 672, 3055, 741) texto='R$10 0FF' fonte='Realce-Blackv0.006' tam=121.0
+  - [smartobject] 'Arte 48 copiar 2' vis=True bbox=(2799, 963, 3079, 1016)
+  - [shape] 'Linha 1' vis=True bbox=(2812, 728, 3128, 762)
+  - [type] 'CAFEZIN' vis=True bbox=(2870, 758, 3069, 827) texto='CAFEZIN' fonte='Realce-Blackv0.006' tam=121.0

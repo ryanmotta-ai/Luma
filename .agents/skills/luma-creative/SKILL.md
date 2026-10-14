@@ -1,9 +1,9 @@
 ---
 name: luma-creative
-description: "Diretriz definitiva para geração e composição de templates de arte da Delivery Much no Luma. Use SEMPRE que for solicitado para criar, diagramar, sugerir ou compor novas artes, templates de feed (1080x1350), stories (1080x1920), capas de materiais e pastas (750x400) ou variações criativas para o catálogo. Aplica o princípio de Design Atômico Estrito: NUNCA desenha vetores do zero, apenas orquestra ativos e blocos oficiais das bibliotecas sob regras rígidas de grid, contraste WCAG, hierarquia de 4 níveis de tipografia, tamanhos mínimos legíveis no celular e auditoria visual obrigatória do print. Responda e escreva a copy sempre em PT-BR."
+description: "Diretriz definitiva para geração e composição de templates de arte da Delivery Much no Luma. Use SEMPRE que for solicitado para criar, diagramar, sugerir ou compor novas artes, templates de feed (1080x1350), stories (1080x1920), inapp (1080x1920), banner do app (764x204), cabeçalho e rodapé de email (1080x300 / 1080x121), carrossel, slides 16:9, capas de materiais e pastas / Deskfy (750x400) ou variações criativas para o catálogo. Aplica o princípio de Design Atômico Estrito: NUNCA desenha vetores do zero, apenas orquestra ativos e blocos oficiais das bibliotecas sob regras rígidas de grid, contraste WCAG, hierarquia de 4 níveis de tipografia, tamanhos mínimos legíveis no celular e auditoria visual obrigatória do print. Responda e escreva a copy sempre em PT-BR."
 metadata:
   author: luma-design-team
-  version: "1.4.0"
+  version: "1.5.0"
 ---
 
 # Luma Creative — Diretriz de Composição de Artes e Templates
@@ -333,6 +333,74 @@ O elemento protagonista da capa é um **bloco tipo adesivo (sticker)**, inclinad
 
 ---
 
+## 3.5 Formatos de Canal (inapp, banner do app, email, carrossel, slide)
+
+> Medidas tiradas das camadas reais dos PSDs do Ryan (`referencias/_camadas-psd/*.txt`: nome, caixa `x0,y0,x1,y1`, fonte e corpo de cada camada). **Abra a pasta de referência do formato na Fase 1** — é a régua do canal. Tudo o que vale para feed/story (paleta, escala, receitas, respiro, contrato §4.1) vale aqui; abaixo está só o que muda.
+
+| Formato | Canvas (@1x) | Exporte | Margem lateral | Zona útil (y) | Piso de texto | Referências |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Inapp** (pop-up de tela cheia no app) | 1080 × 1920 | 1080 × 1920 | **130** | 120 … 1820 | 30 px | `referencias/inapp/` |
+| **Banner do app** (carrossel da home) | 764 × 204 | **@2x 1528 × 408** | 23 até o card | card 9 … 184 | 20 px | `referencias/banner-app/` |
+| **Cabeçalho de email** | 1080 × 300 (ou 249) | 1080 × 300 | 60 | 30 … 270 | 28 px | `referencias/email/cabecalho-*` |
+| **Rodapé de email** | 1080 × 121 | 1080 × 121 | 60 | 16 … 105 | 26 px | `referencias/email/rodape-*` |
+| **Carrossel** (lâminas do post) | 1080 × 1350 cada | uma PNG por lâmina | 100 | igual ao feed | 22 px | `referencias/carrossel/` |
+| **Capa Deskfy / pastas do Luma** | 750 × 400 | @2x 1500 × 800 | 50–60 | §3.4 | 20 px | `referencias/capas-luma/` |
+| **Slide** (apresentação 16:9) | 1920 × 1080 | 1920 × 1080 | 120 | 100 … 980 | 28 px | ainda sem referência (peça ao Ryan) |
+
+> O piso sobe ou desce com o quanto a peça encolhe na tela: o email abre a ~600 px (0,55×), então 28 px no canvas viram ~16 px; o banner aparece a ~360 px (0,47×) e 20 px viram ~9 px — por isso o banner tem **poucas palavras e enormes**.
+
+### 📱 Inapp (1080×1920) — `referencias/inapp/`
+É o pop-up que abre **dentro do app**: não há barra do Instagram, então a faixa útil vai de 120 a 1820 (o story reserva 250 em cima e embaixo; o inapp não).
+* **Topologia das referências (de cima para baixo):** título em Realce no topo (`y ≈ 140`, 1–2 linhas, ~150–190 px) → bloco de informação no meio (preço-assinatura, cupom em **caixa tracejada** `rx 36` com etiqueta inclinada "É SÓ USAR O CUPOM", ou card branco com o benefício) → **botão largo** na base → foto do produto **recortada e sangrando** pela base ou pela lateral, com o selo circular da loja metade sobre ela.
+* **Botão largo (a assinatura do inapp):** pílula **824 × 125** (`rx 62`), centrada (`x = 129`), base em `y ≈ 1818` (≈ 100 px da borda). Texto **minúsculo** de ação em Roboto Black ~70 px: *ver meu pedido*, *fazer mercado*, *conhecer agora*, *experimentar agora*. Na paleta DM: pílula branca com texto `#F85400` sobre `#F85400`; pílula `#F85400` com texto branco sobre `#FF9000`.
+  * ⚠️ Nas referências o botão aparece **verde `#00C000`** (mercado VIP, dog pitbull) e **amarelo `#FFB900`** com texto branco nas peças much+. É cor de campanha, fora da paleta fechada: **não use sem o Ryan pedir** (decisão pendente).
+* **Fundo:** cor chapada com **raios/fachos tom-sobre-tom** (`#FF9000` sobre `#F85400`, opacidade), ou foto texturizada da campanha. Sem pattern de sorriso espalhado.
+* **Cupom:** código em Realce branco dentro da caixa tracejada (`stroke-dasharray` ≈ 18 12, `stroke-width` 4, `#FFB900` ou branco).
+* **Preço:** o lockup-assinatura da §2.1 funciona igual (`POR` empilhado sobre `R$`, valor ~200 px). Preço DE em faixa amarela inclinada (`#FFB900`, texto `#F62900`/`#434343` riscado) é o acabamento das referências.
+
+### 🏷️ Banner do app (764×204, exporte @2x) — `referencias/banner-app/`
+* **Card arredondado com transparência em volta:** o card visível ocupa `x 23…753`, `y 9…184` (730 × 175, `rx ≈ 30`); o resto do canvas é transparente (o app põe o banner sobre o próprio fundo). A **foto pode passar da borda do card** para cima e para baixo (o sanduíche "pula" para fora) — é o que dá volume.
+* **Três zonas, da esquerda para a direita:** (1) **marca da campanha** sobre a cor quente: título-sticker em Realce com contorno branco grosso (como as capas, §3.4) ou o lockup da campanha; (2) **foto recortada** no centro, maior que o card; (3) **valor** na zona de contraste: `ATÉ / 30% / OFF` em Realce, número com ~45% da altura do card, `#F85400` com contorno branco.
+* **Duas cores, divisão vertical ou diagonal** (~48% / 52%). Laranja `#FF9000`/`#F85400` + cor de contraste da campanha (na Promo "Loco de Boa" é o verde `#236B4B` — de campanha, mesma ressalva do inapp).
+* **No máximo 6 palavras no banner inteiro.** Nada de apoio, legal ou CTA: o banner inteiro é o botão.
+* Variante **faixa de vitrine** (`banner-mais-vendidos`, `banner-ofertas-favoritas`, `banner-promo-turbinada-foto`): título-sticker à esquerda, fotos dos pratos à direita, selo `%` circular amarelo. É a mesma família das capas de pasta (mesmos nomes de campanha).
+
+### ✉️ Cabeçalho de email (1080×300) — `referencias/email/`
+* **Dividido ao meio (540 | 540):** à esquerda, cor sólida `#F85400` com o **logo** centrado (logo da campanha, ou `logos/dm-vertical-branca.png` em ~160 px de altura) sobre um respingo/grafismo amarelo (`elementos/respingo-molho.png`); à direita, a **foto** em cover. Opcional: uma faixa amarela `#FFB900` no terço de cima da metade direita com a palavra da campanha em Realce **curvada** (o "HUUUMMMM"), e um ou dois stickers pequenos (`elementos/selo-off.png`, `tag-numero-1.png`).
+* Variante antiga **700×299**: logo DM vertical branco à esquerda (`x ≈ 120`), produto/foto sangrando à direita sobre um arco amarelo.
+* **Pouco texto:** o email já tem o texto em HTML embaixo; o cabeçalho é marca + apetite. Título opcional ≤ 3 palavras, ≥ 60 px.
+* Versão mais baixa (**1080×249**): mesma divisão, a faixa amarela some.
+
+### ✉️ Rodapé de email (1080×121) — `referencias/email/rodape-*`
+Peça **fixa** da marca; muda só o grafismo da esquerda:
+* Fundo `#F85400` de ponta a ponta.
+* **Esquerda:** arco do sorriso `#FFB900` grosso, cortado pela borda de cima (`elementos/sorriso-arco.png`, centro em `x ≈ 180`) **ou** o logo da campanha (`x 60…232`, centrado na vertical).
+* **Centro:** ícones `elementos/icone-tiktok.png` + `icone-instagram.png` (29 px, 4 px de vão) + **`deliverymuchbrasil`** em Roboto branco ~30 px, o conjunto centrado em `x = 540`.
+* **Direita:** quadrado arredondado 89 × 89 (`x 939…1028`, `rx 14`), `#FF9000` com contorno branco de 3 px, com o logo DM vertical branco dentro (`logos/dm-vertical-branca.png`, ~45 px de altura).
+
+### 🎞️ Carrossel (N × 1080×1350) — `referencias/carrossel/`
+* **As lâminas são um painel contínuo:** no PSD, as 3 pranchetas lado a lado formam uma cena só. Elementos **atravessam a divisa** entre uma lâmina e a próxima (o ingresso inclinado, a seta), o que convida a arrastar. Monte a cena com largura `N × 1080` e corte em N PNGs.
+* **Lâmina 1 = capa:** logo DM pequeno no topo central (`logos/dm-h-branca.png`, ~170 px), hero gigante em Realce com contorno/sombra, objeto 3D recortado (pipoca, claquete, produto) e a **seta-rabisco** (`elementos/seta-rabisco.png`) no canto inferior direito apontando para o lado.
+* **Lâminas do meio = conteúdo:** lista de cards brancos pílula (`rx` grande, 4 por lâmina) com foto circular à esquerda, título em Roboto Black `#F85400` e legenda Roboto Light — uma ideia por card.
+* **Última = ação:** mockup do app (`mockups/smartphone-moldura.png` + a tela) com o chamado ("Seu par tá no app").
+* Fundo único em todas as lâminas (`#F85400` com fachos `#FF9000`), para a emenda não aparecer.
+
+### 🖥️ Slide 16:9 (1920×1080) — sem referência ainda
+Até o Ryan subir decks, use a régua da capa (§3.4) ampliada: **capa** = hero-sticker centrado em Realce 140–200 px + logo DM branco no rodapé central (≈ 300 px); **conteúdo** = título à esquerda (Realce 96–120 px, `x = 120`) e foto ou mockup na metade direita sangrando; um ponto focal por slide, no máximo 30 palavras. Avise o usuário que o formato ainda não tem referência aprovada.
+
+### 🧩 Biblioteca nova (10/2026, extraída dos PSDs e `.ai` do Drive "Luma Creative")
+* `assets/stickers/` — **ilustrações da marca** com contorno creme e traço marrom (balão 15 amarelo/laranja, cachorro de bexiga, chimarrão, maionese, mouse, planetário, xis, logo antiga, `R$` e `%` em amarelo/laranja). São **acento**: no máximo 2 por peça, inclinados, nunca atrás de texto. Os de aniversário (balão 15, selo 15 anos) são da campanha de 15 anos.
+* `assets/elementos/` — `+` amarelo/rosa com brilhos, estrelas (amarela e branca), sorriso-arco, explosão, respingo, seta-rabisco, selo OFF, faixa "SE RENDA!", tag #1, ícones de TikTok/Instagram.
+* `assets/cupons/` — tickets prontos: laranja vazio (com aba "CUPOM"), rosa vazio, much+, laranja inclinado, faixa amarela, ingresso.
+* `assets/logos/` (novos) — `much-plus-branco.png`, `much-plus-icone-app.png`, `dm-vertical-branca.png`, `dm-simbolo-branco.png`, `selo-15-anos-dm*.png`.
+* `assets/grafismos/` (novos) — `pattern-macarrao-amarelo.png` (arcos soltos, fundo de peça amarela) e `pattern-circular-burger.png` (anel de palavras, campanha Burger Fest).
+* `assets/mockups/` — moldura de smartphone e tela do app (para "peça pelo app").
+* `assets/recortes/` — fotos **sem fundo** (hambúrguer, batata, cafés, refrigerante, pipoca, claquete) para testar composições com produto recortado; na peça real a foto é a do franqueado.
+* **Sub-marca much+** (assinatura de cupons): as peças dela usam **rosa `#E52676`** + amarelo `#FFB900`, fonte Ubuntu e o `+` como grafismo. **Rosa e Ubuntu são só da much+** — nunca em peça Delivery Much. Ubuntu não está em `assets/fontes/`: em peça much+, use Realce/Roboto e avise.
+* Os PSDs também usam **Roboto Bold** (700) em textos corridos: é legado das peças manuais; a regra da §2 (sem Bold) continua valendo para o que a IA compõe.
+
+---
+
 ## 4.1 Contrato com o Luma (a arte vira TEMPLATE)
 
 A arte só serve ao franqueado quando entra no Estúdio como template editável, pelo **importador de SVG** (`js/designer/templates.js`, suíte `tests/svg-import.html`). Ele segue este contrato — sem ele, a arte entra no modo antigo, que adivinha campos pela caixa alta (medido em 10/2026: o logo virava a moldura da foto e "ANOS", "PEDIR" e "CUPOM" viravam campos).
@@ -367,7 +435,12 @@ A skill organiza seus recursos nas seguintes pastas:
 │   ├── molduras/                     <- Moldura retangular de foto com aba de ícone, já no cinza #D9D9D9
 │   ├── cards-preco/                  <- Card branco flutuante e tickets de cupom
 │   ├── selos/                        <- Badges oficiais de campanha ("Mais Vendidos", parceiros)
-│   ├── grafismos/                    <- Sorrisos oficiais DM (pattern.ai original + pattern-dm-oficial.svg) + pattern-ancorado.svg (técnica padrão da §3.1)
+│   ├── grafismos/                    <- Sorrisos oficiais DM (pattern.ai original + pattern-dm-oficial.svg) + pattern-ancorado.svg (técnica padrão da §3.1) + patterns de campanha (§3.5)
+│   ├── stickers/                     <- Ilustrações da marca com contorno creme (§3.5): acento, máx. 2 por peça
+│   ├── elementos/                    <- +, estrelas, sorriso-arco, explosão, respingo, seta, selos, ícones de rede social
+│   ├── cupons/                       <- Tickets prontos (laranja, rosa, much+, ingresso)
+│   ├── mockups/                      <- Smartphone (moldura + tela do app)
+│   ├── recortes/                     <- Fotos de produto sem fundo, para testar composições
 │   └── fontes/                       <- Realce Black (otf + woff2) e Roboto em woff2 recortado (~14 KB): Light 300, Light Itálica 300i, Regular 400, Medium 500, Black 900. Os .ttf 400/300 são legado
 └── referencias/                      <- REPERTÓRIO VISUAL (Inspeção visual multimodal)
     ├── paleta-oficial-dm.png         <- Amostra visual exata das 5 cores oficiais da marca
@@ -377,10 +450,12 @@ A skill organiza seus recursos nas seguintes pastas:
     ├── referencia-cupom-foto-arco.png<- Referência de PATTERN ancorado (cupom à esquerda). Atenção: o slot em arco dela está PROIBIDO hoje (§3.2)
     ├── template-clean-feed.svg       <- SVG paramétrico oficial montado
     ├── capas-luma/                   <- 26 referências oficiais de Capas de Materiais/Pastas (750x400 / 1500x800 @2x) + template-capa-luma.svg
+    ├── inapp/  banner-app/  email/  carrossel/  feed/  story/   <- Peças reais por canal (§3.5), em 1x
+    ├── _camadas-psd/                 <- Árvore de camadas de cada PSD (posição, fonte e corpo): as medidas da §3.5 saem daqui
     └── antirreferencias/             <- Prints REPROVADOS, com o erro no nome do arquivo. Olhe na Fase 1: é o que não fazer
 ```
 
-**Ativos previstos (ainda não estão no repo — NÃO invente nem desenhe equivalentes; use só depois de subirem):** mockup de celular com o app, moto/entregador, chapéu de chef (símbolo), ícones de app e setas, raio, sticker "mais vendidos" com foto, mais selos de campanha, **logo DM vetorial** (o PNG atual tem 298px) e fotos reais de franqueado. Enquanto faltarem: peça sem eles; se o briefing exige o ativo, **avise o usuário**.
+**Ativos previstos (ainda não estão no repo — NÃO invente nem desenhe equivalentes; use só depois de subirem):** moto/entregador, raio, mais selos de campanha, fonte Ubuntu (much+), referências de slide 16:9, **logo DM vetorial** (o PNG atual tem 298px) e fotos reais de franqueado. Enquanto faltarem: peça sem eles; se o briefing exige o ativo, **avise o usuário**.
 O ticket oficial (`cards-preco/ticket-cupom.svg`, silhueta ondulada da referência) foi passado para a paleta em 10/2026: borda `#FF9000`, aba `#F62900`, sombra do preset, código sem itálico. Escale o `<g>` inteiro (ex.: `scale(1.2941)` → 880px); uso pronto em `refino/fontes/refino_02_cupom_story.svg`.
 
 Utilitários de suporte na raiz do repositório:
