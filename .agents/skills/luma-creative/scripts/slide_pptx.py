@@ -9,7 +9,8 @@ que traz os layouts, os fundos e as fontes Roboto embutidas. Cada slide do deck 
                  ("trocar": {"texto do exemplo": "texto novo"} — lista = uma troca por ocorrência);
                  "mais": [elementos] sobrepõe elementos livres ao slide-base;
   • "livre"    → slide em branco montado com elementos posicionados em px de um canvas 1920×1080
-                 (mesmas coordenadas do SVG de conferência): imagem, texto, card.
+                 (mesmas coordenadas do SVG de conferência): imagem, texto, card (raio 0 + h 4 = fio).
+                 "rotacao" em graus vale para imagem e card.
 
 O deck de saída tem só os slides pedidos (os exemplos continuam no template, para consulta).
 As logos "Você Pede" do template viram logos da Delivery Much (LOGOS_VP).
@@ -145,12 +146,14 @@ def livre(prs, elementos, s=None):
     for e in elementos:
         x, y, w, h = (Emu(int(e.get(k, 0) * PX)) for k in ('x', 'y', 'w', 'h'))
         if e['tipo'] == 'imagem':
-            s.shapes.add_picture(os.path.join(ASSETS, e['arquivo']), x, y, w, h)
+            im = s.shapes.add_picture(os.path.join(ASSETS, e['arquivo']), x, y, w, h)
+            im.rotation = e.get('rotacao', 0)
         elif e['tipo'] == 'card':
             c = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, w, h)
             c.adjustments[0] = min(0.5, e.get('raio', 36) / max(1, min(e['w'], e['h'])))
             c.fill.solid(); c.fill.fore_color.rgb = _rgb(e.get('cor', '#FFFFFF')); c.line.fill.background()
             c.shadow.inherit = False
+            c.rotation = e.get('rotacao', 0)
         elif e['tipo'] == 'texto':
             tb = s.shapes.add_textbox(x, y, w, h)
             tf = tb.text_frame; tf.word_wrap = True; tf.vertical_anchor = MSO_ANCHOR.TOP

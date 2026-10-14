@@ -1,27 +1,16 @@
-{ "slides": [
-  { "base": 4, "trocar": { "Título de uma linha": "Interior em disputa",
-                           "Subtítulo de uma linha": "Mercado · outubro de 2026" } },
-  { "livre": [
-    { "tipo": "imagem", "arquivo": "slides/fundo-mapa-brasil.jpg", "x": 0, "y": 0, "w": 1920, "h": 1080 },
-    { "tipo": "imagem", "arquivo": "logos/dm-h-branca.png", "x": 120, "y": 96, "w": 260, "h": 52 },
-    { "tipo": "texto", "x": 120, "y": 220, "w": 900, "h": 40, "texto": "MERCADO · OUTUBRO DE 2026", "tamanho": 30, "peso": "medium" },
-    { "tipo": "texto", "x": 116, "y": 270, "w": 1000, "h": 200, "texto": "A concorrência\nchegou ao interior", "tamanho": 82 },
-    { "tipo": "card", "x": 120, "y": 540, "w": 700, "h": 132, "raio": 36 },
-    { "tipo": "card", "x": 120, "y": 696, "w": 700, "h": 132, "raio": 36 },
-    { "tipo": "card", "x": 120, "y": 852, "w": 700, "h": 132, "raio": 36 },
-    { "tipo": "texto", "x": 160, "y": 556, "w": 230, "h": 100, "texto": "1.500", "tamanho": 72, "peso": "black", "cor": "#F85400" },
-    { "tipo": "texto", "x": 400, "y": 566, "w": 400, "h": 90, "texto": "cidades com iFood", "tamanho": 32, "peso": "black", "cor": "#434343" },
-    { "tipo": "texto", "x": 400, "y": 616, "w": 410, "h": 40, "texto": "líder nacional, inclusive no interior", "tamanho": 24, "cor": "#434343" },
-    { "tipo": "texto", "x": 160, "y": 712, "w": 230, "h": 100, "texto": "21", "tamanho": 72, "peso": "black", "cor": "#F85400" },
-    { "tipo": "texto", "x": 400, "y": 722, "w": 400, "h": 90, "texto": "cidades novas da Keeta", "tamanho": 32, "peso": "black", "cor": "#434343" },
-    { "tipo": "texto", "x": 400, "y": 772, "w": 410, "h": 40, "texto": "até o fim do ano, foco no interior", "tamanho": 24, "cor": "#434343" },
-    { "tipo": "texto", "x": 160, "y": 868, "w": 230, "h": 100, "texto": "0%", "tamanho": 72, "peso": "black", "cor": "#F85400" },
-    { "tipo": "texto", "x": 400, "y": 878, "w": 400, "h": 90, "texto": "de comissão na 99Food", "tamanho": 32, "peso": "black", "cor": "#434343" },
-    { "tipo": "texto", "x": 400, "y": 928, "w": 410, "h": 40, "texto": "por até 2 anos, para atrair lojas", "tamanho": 24, "cor": "#434343" },
-    { "tipo": "imagem", "arquivo": "slides/icone-pin.png", "x": 1370, "y": 822, "w": 45, "h": 60 },
-    { "tipo": "imagem", "arquivo": "slides/icone-pin.png", "x": 1440, "y": 618, "w": 45, "h": 60 },
-    { "tipo": "imagem", "arquivo": "slides/icone-pin.png", "x": 1560, "y": 548, "w": 45, "h": 60 },
-    { "tipo": "imagem", "arquivo": "slides/icone-pin.png", "x": 1680, "y": 560, "w": 45, "h": 60 },
-    { "tipo": "texto", "x": 120, "y": 1016, "w": 1700, "h": 34, "texto": "Fontes: Exame (iFood e plano da Keeta) · Tribuna do Sertão, 06/10/2026 (Keeta: 21 cidades) · Sisfood (taxas da 99Food)", "tamanho": 22, "peso": "light" }
-  ] }
-] }
+{ "slides": [ { "livre": [
+  { "tipo": "imagem", "arquivo": "slides/fundo-branco-arco.jpg", "x": 0, "y": 0, "w": 1920, "h": 1080 },
+  { "tipo": "imagem", "arquivo": "logos/dm-h-laranja.png", "x": 120, "y": 96, "w": 240, "h": 49 },
+  { "tipo": "imagem", "arquivo": "slides/area-expansao.png", "x": 1250, "y": 110, "w": 330, "h": 221, "rotacao": -6 },
+  { "tipo": "texto", "x": 120, "y": 236, "w": 900, "h": 40, "texto": "MERCADO · OUTUBRO DE 2026", "tamanho": 28, "peso": "medium", "cor": "#F85400" },
+  { "tipo": "texto", "x": 116, "y": 288, "w": 1000, "h": 240, "texto": "O interior virou\ncampo de disputa", "tamanho": 96, "cor": "#434343" },
+  { "tipo": "texto", "x": 104, "y": 548, "w": 440, "h": 400, "texto": "21", "tamanho": 340, "peso": "black", "cor": "#F85400" },
+  { "tipo": "texto", "x": 560, "y": 690, "w": 440, "h": 110, "texto": "cidades novas da Keeta\naté o fim do ano", "tamanho": 40, "peso": "medium", "cor": "#434343" },
+  { "tipo": "texto", "x": 560, "y": 806, "w": 440, "h": 44, "texto": "foco em cidades médias do interior", "tamanho": 28, "peso": "light", "cor": "#434343" },
+  { "tipo": "texto", "x": 1120, "y": 470, "w": 440, "h": 120, "texto": "1.500", "tamanho": 96, "peso": "black", "cor": "#F85400" },
+  { "tipo": "texto", "x": 1120, "y": 590, "w": 440, "h": 44, "texto": "cidades já atendidas pelo iFood", "tamanho": 30, "cor": "#434343" },
+  { "tipo": "card", "x": 1120, "y": 664, "w": 120, "h": 4, "raio": 0, "cor": "#F85400" },
+  { "tipo": "texto", "x": 1120, "y": 700, "w": 440, "h": 120, "texto": "0%", "tamanho": 96, "peso": "black", "cor": "#F85400" },
+  { "tipo": "texto", "x": 1120, "y": 820, "w": 440, "h": 80, "texto": "de comissão na 99Food\npor até 2 anos", "tamanho": 30, "cor": "#434343" },
+  { "tipo": "texto", "x": 120, "y": 990, "w": 620, "h": 60, "texto": "Fontes: Exame · Tribuna do Sertão, 06/10/2026 · Sisfood", "tamanho": 20, "peso": "light", "cor": "#434343" }
+] } ] }
