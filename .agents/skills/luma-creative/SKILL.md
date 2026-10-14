@@ -1,9 +1,9 @@
 ---
 name: luma-creative
-description: "Diretriz definitiva para geração e composição de templates de arte da Delivery Much no Luma. Use SEMPRE que for solicitado para criar, diagramar, sugerir ou compor novas artes, templates de feed (1080x1350), stories (1080x1920) ou variações criativas para o catálogo. Aplica o princípio de Design Atômico Estrito: NUNCA desenha vetores do zero, apenas orquestra ativos e blocos oficiais das bibliotecas sob regras rígidas de grid, contraste WCAG, hierarquia de 4 níveis de tipografia, tamanhos mínimos legíveis no celular e auditoria visual obrigatória do print. Responda e escreva a copy sempre em PT-BR."
+description: "Diretriz definitiva para geração e composição de templates de arte da Delivery Much no Luma. Use SEMPRE que for solicitado para criar, diagramar, sugerir ou compor novas artes, templates de feed (1080x1350), stories (1080x1920), capas de materiais e pastas (750x400) ou variações criativas para o catálogo. Aplica o princípio de Design Atômico Estrito: NUNCA desenha vetores do zero, apenas orquestra ativos e blocos oficiais das bibliotecas sob regras rígidas de grid, contraste WCAG, hierarquia de 4 níveis de tipografia, tamanhos mínimos legíveis no celular e auditoria visual obrigatória do print. Responda e escreva a copy sempre em PT-BR."
 metadata:
   author: luma-design-team
-  version: "1.3.0"
+  version: "1.4.0"
 ---
 
 # Luma Creative — Diretriz de Composição de Artes e Templates
@@ -36,19 +36,19 @@ O Luma utiliza uma escala disciplinada de 4 níveis. O peso `Bold (700)` foi **e
 > ⚠️ **Embutimento Obrigatório:** Todo SVG gerado deve conter a fonte `Realce Black` (`realce-black.woff2`) **e cada peso de Roboto realmente usado** embutidos via `@font-face` (o `embutir-arte.js` faz isso a partir de `asset:`). **Proibido `@import` de Google Fonts**: dentro de SVG renderizado como imagem ou offline ele não carrega e o texto cai em Arial (já aconteceu nos prints dos templates 01–10). Use os **`.woff2` de `assets/fontes/`** (recortados para o latim do PT-BR, ~14 KB cada): `Roboto-Light`, `Roboto-LightItalic`, `Roboto-Regular`, `Roboto-Medium`, `Roboto-Black`. Os `.ttf` antigos (170 KB) deixam a arte 6× mais pesada. Declare a itálica com `font-style:italic` e a Black com `font-weight:900`.
 > Um `Roboto Black (900)` existe **só para as receitas da §2.4**; ele não é o Bold 700 eliminado (continua proibido).
 
-### 📏 Tamanhos Mínimos (canvas de 1080px de largura — o post é visto no celular)
+### 📏 Tamanhos Mínimos (canvas de 1080px e 750px — legibilidade no celular e nas capas)
 > Texto pequeno é o erro nº 1 das artes geradas. Na tela do celular a arte encolhe ~3×: o que tem 14px no canvas vira ilegível.
 
-| Nível | Feed 1080×1350 | Story 1080×1920 | Piso absoluto |
-| :--- | :--- | :--- | :--- |
-| **1. Hero (`{{produto}}`)** | 96–150px | 110–170px | **80px** |
-| **1. Preço promocional** | 110–170px | 120–190px | **96px** (o maior número da peça depois do hero) |
-| **2. Apoio / cupom / preço riscado** | 34–48px | 38–52px | **32px** |
-| **3. Corpo** | 30–38px | 32–42px | **28px** |
-| **4. Legal** | 24–28px | 26–30px | **24px** |
-| **Texto dentro de selo/badge** | — | — | **22px** (nunca menos; se não cabe, o selo cresce ou o texto encurta) |
+| Nível | Feed 1080×1350 | Story 1080×1920 | Capa 750×400 (Materiais) | Piso absoluto |
+| :--- | :--- | :--- | :--- | :--- |
+| **1. Hero (`{{produto}}` / Campanha)** | 96–150px | 110–170px | 56–80px | **56px** (capa) / **80px** (post) |
+| **1. Preço promocional** | 110–170px | 120–190px | — (raro em capas) | **96px** |
+| **2. Apoio / cupom / badge / tag** | 34–48px | 38–52px | 26–34px | **26px** |
+| **3. Corpo / Pré-título ("aqui tem", "bora")** | 30–38px | 32–42px | 20–26px | **20px** (capa) / **28px** (post) |
+| **4. Legal** | 24–28px | 26–30px | — | **24px** |
+| **Texto dentro de selo/badge** | — | — | 20–24px | **20px** (capa) / **22px** (post) |
 
-* **Nenhum `font-size` abaixo de 22px** em nenhum lugar da arte (exceção: nenhuma).
+* **Nenhum `font-size` abaixo de 20px (capa) ou 22px (posts)** em nenhum lugar da arte.
 * **Hierarquia mínima:** o hero é pelo menos **2,5× maior** que o apoio. Se hero e apoio parecem do mesmo tamanho, a arte falhou.
 * **Máximo 3 tamanhos de texto visíveis** por peça (hero, apoio, legal), mais o preço. Mais que isso vira ruído.
 * **Largura do hero: MEÇA, não estime.** Rode `node scripts/medir-texto.js "TEXTO DO HERO" --largura 880` (largura útil = `1080 − 2×margem`). Ele mede o Realce Black real e devolve o maior `font-size` que cabe em 1, 2 e 3 linhas, com a quebra balanceada e a recomendação. Use o que ele recomendar; se nenhuma quebra chega a 80px, **encurte a copy** (≤ 4 palavras), não baixe o piso.
@@ -276,6 +276,63 @@ Rode a peça com **a foto que mais combina e a que mais ameaça** (ex.: pizza la
 
 ---
 
+## 3.4 Anatomia de Capas para Materiais e Pastas do Luma (750×400)
+
+As **Capas de Materiais e Pastas** identificam campanhas, categorias de cardápio e grupos de templates dentro do ecossistema do Luma e Deskfy. Elas possuem uma linguagem visual proprietária, concisa e de alto impacto imediato (Retail Moderno).
+
+### 📐 1. Proporções, Canvas e Resolução
+* **Resolução Base:** **`750 × 400 px`** (Proporção ~15:8 / 1.875:1).
+* **Exportação @2x:** `1500 × 800 px` (para visualização nítida em telas Retina).
+* **Canvas sem cantos arredondados:** `viewBox="0 0 750 400"` com `<rect width="750" height="400"/>` preenchido de ponta a ponta.
+
+### 🎨 2. Paletas Temáticas por Categoria / Campanha
+A cor de fundo sólida define a atmosfera da capa (sempre chapada ou com grafismo centralizado sutil, **zero pattern espalhado/farelo**):
+| Cor de Fundo | Hex | Uso Obrigatório |
+| :--- | :--- | :--- |
+| **Laranja Oficial DM** | `#F85400` | Institucional, campanhas gerais, cupons, combos e marcas próprias. |
+| **Amarelo Oficial DM** | `#FFB900` | Maratonas, ofertas especiais, "Baixaram o Preço", "Promo Turbinada". |
+| **Verde Entrega Grátis** | `#00B32C` ou `#00C22B` | **Exclusivo** para campanhas e pastas de **Entrega Grátis**. |
+| **Roxo Açaí** | `#73109E` | Categorias e temas específicos (ex.: Açaí). |
+| **Grafite Premium** | `#1C1C1C` ou `#2B2B2B` | Eventos gastronômicos noturnos ou Black Friday. |
+
+### 🏷️ 3. Composição do Lockup Central (O Adesivo / Sticker Retail)
+O elemento protagonista da capa é um **bloco tipo adesivo (sticker)**, inclinado com energia e sombra suave:
+1. **Posicionamento & Tilt:**
+   * Centralizado horizontalmente (`x = 375`).
+   * Posicionado no terço médio/superior (`y ≈ 165–185px`), deixando respiro generoso para a logo no rodapé.
+   * **Inclinação (Tilt):** Rotação dinâmica de **`-6°` a `-10°`** (o ângulo padrão áureo é **`-8°`**).
+2. **Efeito Adesivo no Título Hero:**
+   * Texto principal em **`Realce Black` (900)**, caixa alta (`text-transform: uppercase`), `56px` a `80px`.
+   * **Borda Adesiva Branca Grossa:** `stroke="#FFFFFF" stroke-width="16..20" stroke-linejoin="round" paint-order="stroke fill"` sobre preenchimento laranja `#F85400` (ou preenchimento branco com traçado laranja sobre fundo contrastante).
+3. **Tags de Apoio (Pré-título & Complemento):**
+   * **Pré-título superior:** Retângulo pílula ou bloco arredondado (`rx="6..8"`) com fundo tom-sobre-tom (ex.: `#F62900` sobre fundo `#F85400`) ou branco, com texto em `Roboto Medium` (20–24px) (*"AQUI TEM"*, *"BORA"*, *"LOJAS"*, *"RANGOS QUE"*).
+   * **Complemento inferior:** Card retangular branco com cantos arredondados (`rx="8..12"`), encaixado na base do texto hero, com texto em `Realce Black` ou `Roboto Medium` em laranja (`#F85400`) (22–32px) (*"FAVORITAS"*, *"COM DESCONTO"*, *"EXCLUSIVOS"*, *"NO APP"*, *"O PREÇO"*, *"ATÉ R$ 25"*).
+4. **Adereços Complementares (Opcionais):**
+   * Selo circular de `%` em amarelo (`#FFB900`).
+   * Moeda de `$` amarela.
+   * Ticket de cupom destacável saindo da quina do texto.
+   * Recorte sem fundo de motoboy ou item temático ao lado do título.
+5. **Sombra Suave do Adesivo:**
+   * `<feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#434343" flood-opacity="0.25"/>`.
+
+### 🏷️ 4. Assinatura Inferior (Logo Delivery Much)
+* **Logo Horizontal Branca (`dm-h-branca.png`):**
+  * Centralizada rigorosamente na horizontal (`x = 288`, `width = 174px`, `height = 35px`).
+  * Ancorada no rodapé (`y = 336`), garantindo **30–40px de margem livre** até a borda inferior da capa.
+  * Sempre 100% branca sobre o fundo vibrante.
+
+### 🛡️ 5. Zonas de Segurança (Safe Zones 750×400)
+* Margem lateral mínima: `50px` a `60px` em cada lado.
+* Margem de topo: `35px` a `45px`.
+* Margem de base abaixo da logo: `30px` a `40px`.
+* Vão livre entre o sticker central e a logo DM: **mínimo de 35px a 50px**.
+
+### 📁 6. Referências e Templates Prontos
+* **Repositório de capas reais:** [`referencias/capas-luma/`](referencias/capas-luma/) (26 arquivos entre referências de campanhas reais e PSD de camadas).
+* **Modelo SVG limpo:** [`referencias/capas-luma/template-capa-luma.svg`](referencias/capas-luma/template-capa-luma.svg) e seu print de validação [`referencias/capas-luma/template-capa-luma.png`](referencias/capas-luma/template-capa-luma.png).
+
+---
+
 ## 4.1 Contrato com o Luma (a arte vira TEMPLATE)
 
 A arte só serve ao franqueado quando entra no Estúdio como template editável, pelo **importador de SVG** (`js/designer/templates.js`, suíte `tests/svg-import.html`). Ele segue este contrato — sem ele, a arte entra no modo antigo, que adivinha campos pela caixa alta (medido em 10/2026: o logo virava a moldura da foto e "ANOS", "PEDIR" e "CUPOM" viravam campos).
@@ -319,6 +376,7 @@ A skill organiza seus recursos nas seguintes pastas:
     ├── referencia-cupom-feed.png     <- Referência com voucher de cupom e selo amarelo
     ├── referencia-cupom-foto-arco.png<- Referência de PATTERN ancorado (cupom à esquerda). Atenção: o slot em arco dela está PROIBIDO hoje (§3.2)
     ├── template-clean-feed.svg       <- SVG paramétrico oficial montado
+    ├── capas-luma/                   <- 26 referências oficiais de Capas de Materiais/Pastas (750x400 / 1500x800 @2x) + template-capa-luma.svg
     └── antirreferencias/             <- Prints REPROVADOS, com o erro no nome do arquivo. Olhe na Fase 1: é o que não fazer
 ```
 
@@ -373,7 +431,7 @@ Antes de escrever uma única linha de código, a IA **DEVE abrir e inspecionar v
   3. **Zero Colisão:** O card de preço ou data **nunca** cola na moldura da foto; a chamada de apoio **nunca** encosta no título ou no rodapé.
   4. **Números de corte (a auditoria da Fase 5 reprova abaixo disso):** vão mínimo de **60px** entre quaisquer dois blocos independentes; **40px** entre hero e sua linha de apoio; selo sobreposto pode invadir a foto, mas **não** pode cobrir o sujeito do produto nem passar de **35%** da largura da foto; nenhum texto a menos de **100px** da borda lateral nem **70px** da borda de topo/base.
   5. **Foto é protagonista, mas não ocupa tudo:** foto de **largura cheia**: no máximo **~55%** da altura útil no feed e **~50%** no story; foto **lateral** (menos de 60% da largura): no máximo **50% da área** do canvas. O resto é hero, preço e respiro. Slot de foto gigante com título miúdo é erro.
-  6. **Canvas sem cantos arredondados:** a arte final é **retângulo cheio** 1080×1350 / 1080×1920. ❌ Nunca `clipPath` com `rx` no canvas (gera cantos vazios/transparentes no PNG publicado). Arredondado vale só para blocos internos.
+  6. **Canvas sem cantos arredondados:** a arte final é **retângulo cheio** 1080×1350 / 1080×1920 / 750×400. ❌ Nunca `clipPath` com `rx` no canvas (gera cantos vazios/transparentes no PNG publicado). Arredondado vale só para blocos internos.
   7. **Story — aproveite a faixa útil:** as zonas proibidas (250px topo/base) ficam **só com fundo/grafismo**; todo texto e selo dentro de `y = 260…1660`. Não deixe o conteúdo "boiando" no meio com 400px de laranja vazio no topo: distribua os blocos pela faixa inteira.
 * **Margens Globais de Segurança (Safe Zones):**
   * **Feed (1080×1350 - Proporção 4:5):**
@@ -383,6 +441,12 @@ Antes de escrever uma única linha de código, a IA **DEVE abrir e inspecionar v
     * Zona proibida de topo: primeiros `250px` (reservado para header do Instagram).
     * Zona proibida de base: últimos `250px` (reservado para barra de resposta/compartilhar).
     * Conteúdo útil concentrado na faixa central (`y = 260` até `y = 1660`), mantendo o mesmo respiro calculado entre blocos.
+  * **Capa de Material / Pastas do Luma (750×400 - Proporção ~15:8):**
+    * Margens laterais mínimas: `50px` a `60px` em cada lado.
+    * Margem superior de respiro: `35px` a `45px`.
+    * Margem inferior de respiro abaixo da logo: `30px` a `40px`.
+    * Respiro livre entre sticker central e a logo DM: `35px` a `50px`.
+    * Logo Delivery Much branca (`dm-h-branca.png`) centralizada na horizontal (`x = 288`, `width = 174px`), ancorada na base (`y = 336`).
 
 * **Repertório de topologias aprovadas** (modelos prontos em `assets/templates/refino/`; ponto de partida para variar, não para copiar; **todos com foto em retângulo**).
   * **Padrão 1.3 — copie a topologia E o acabamento** (fonte legível em `refino/fontes/`, revisados lado a lado com as referências): oferta com card de preço preso à foto e selo na quina (`refino_01`, feed); **cupom** com frase mista, lockup de valor, ticket oficial e arcos na base (`refino_02`, story); **evento** com foto sangrando no topo e selo de data (`refino_03`, feed); **entrega grátis** com minúscula + vazado (`refino_04`, story); hero de 2 tamanhos + card preso + CTA em contorno (`refino_08`, story); **lista de ofertas** com rótulo de produto e CTA (`refino_10`, story); **aniversário da franquia** com lockup de anos (`{{anos}}`, 1–2 dígitos: por isso alinhado à esquerda), frase mista e ticket com o valor do presente em destaque (`refino_14`, feed).
