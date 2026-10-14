@@ -171,6 +171,17 @@ abrir o `index.html` local e passar por: login, catálogo, gerar e baixar uma ar
 
 ## 10. Virada
 
+**O ensaio de 14/10 (passos 1 a 6) passou inteiro**: restore em transação única sem erro, 01/02/03
+limpos, e o `03_verificar.sql` do novo bate com a linha de base do antigo em todas as linhas, menos
+as esperadas (host antigo 0; `luma-template-assets` 425 = 1.201 − 776) e as que cresceram no antigo
+entre a linha de base e o dump (artes, eventos, versões, 1 migration que o Ryan aplicou às 17:01 UTC).
+Ou seja: **o antigo continua vivo e muda**, e o `data.sql` é COPY puro — repetir o restore por cima
+duplicaria linha. Por isso a virada **refaz a parte do banco do zero**, com a equipe parada:
+
+0. Avisar: ninguém publica, gera arte nem convida usuário até o fim (uns 15 min).
+0. Zerar o novo: `docker run --rm -i -v "${PWD}\scripts\migracao:/s" postgres:17 psql --variable ON_ERROR_STOP=1 --file /s/00_limpar_novo.sql --dbname $env:NOVO_DB_URL`
+   (apaga só banco e usuários do novo; Storage e policies ficam). Depois repetir os passos **1, 2,
+   3, 5 e 6** (dump, restore, 01, 02, 03) — mesmos comandos, mesma ordem.
 1. `js/core/supabase-config.js` com url e anon key do novo; `.mcp.json` (o `supabase-novo` vira
    `supabase`); `.env.example`, `supabase/README.md`, `supabase/MIGRATIONS.md`,
    `luma-brain/02_ARCHITECTURE.md`, cabeçalhos dos scripts; entrada no `docs/LUMA-BACKEND-CHANGELOG.md`.
