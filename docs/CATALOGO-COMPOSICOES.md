@@ -4,9 +4,9 @@
 > Miniatura: o 1º pedido do banco de cada composição (texto médio, Delivery Much), montado pela busca do próprio motor.
 > Galeria completa (todas as variações do banco, com a nota): `tests/_galeria-composicoes.html`.
 
-**10 composições** · feed 6 · story 4
+**20 composições** · feed 9 · story 8 · carrossel 2 · inapp 1
 
-Clones (menor distância de planta entre duas composições do mesmo formato, no mesmo pedido; limite 0,15): feed 0,23 (pratoDoDiaLado × fotoQuadradaPreco) · story 0,71 (fotoCapaStory × vitrineCentral)
+Clones (menor distância de planta entre duas composições do mesmo formato, no mesmo pedido; limite 0,15): feed 0,17 (blocoCentral × chuvaTipografica) · story 0,29 (vitrineCentral × comboStory)
 
 ## A · Prato e oferta do dia
 
@@ -22,3 +22,18 @@ Clones (menor distância de planta entre duas composições do mesmo formato, no
 | <img src="catalogo/vitrineCentral.jpg" width="110" alt=""> | **Vitrine central**<br>`vitrineCentral` | Produto com foto no story, em vitrine simétrica: título, foto e preço num eixo só. | story | oferta, evento, beneficio | `foto do franqueado` `logos/dm-h-branca.png` |
 | <img src="catalogo/precoVertical.jpg" width="110" alt=""> | **Preço gigante no story**<br>`precoVertical` | Oferta sem foto no story: o preço ocupa a tela, o nome em cima, o botão embaixo. | story | oferta | `inv/sorriso-arco.png` `logos/dm-h-branca.png` |
 | <img src="catalogo/listaStory.jpg" width="110" alt=""> | **Lista de ofertas no story**<br>`listaStory` | Ofertas do dia (ou de várias lojas) no story: 2 a 4 itens grandes, fáceis de ler no celular. | story | oferta, parceiro | `inv/estrela-amarela.png` `logos/dm-h-branca.png` |
+| <img src="catalogo/comboStory.jpg" width="110" alt=""> | **Foto no meio e faixa do preço**<br>`comboStory` | Combo ou prato com foto no story: a foto atravessa a tela no meio e o preço vem numa faixa amarela logo abaixo. | story | oferta | `foto do franqueado` `logos/dm-h-branca.png` |
+| <img src="catalogo/ofertasCarrossel.jpg" width="110" alt=""> | **Carrossel de ofertas**<br>`ofertasCarrossel` | Ofertas do dia em carrossel: capa, a lista com o preço de cada item e o convite para pedir no app. | carrossel | oferta, parceiro, evento | `inv/seta-rabisco.png` `logos/dm-h-branca.png` `inv/celular-app.png` |
+| <img src="catalogo/produtoCarrossel.jpg" width="110" alt=""> | **Carrossel com a foto na divisa**<br>`produtoCarrossel` | Produto com foto e preço em carrossel: título na capa, preço na 2ª e a foto atravessando as duas; a 3ª chama para o app. | carrossel | oferta | `foto do franqueado` `inv/seta-rabisco.png` `logos/dm-h-branca.png` `inv/celular-app.png` |
+| <img src="catalogo/comboInapp.jpg" width="110" alt=""> | **Pop-up da oferta**<br>`comboInapp` | Oferta com foto no pop-up do app: foto, nome e preço num eixo, o botão largo embaixo. | inapp | oferta | `foto do franqueado` `logos/dm-h-branca.png` |
+
+## B · Horário e ocasião
+
+| Miniatura | Composição | Uso | Formato | Objetivos | Assets |
+|---|---|---|---|---|---|
+| <img src="catalogo/happyHour.jpg" width="110" alt=""> | **Dois tons com selo grande**<br>`happyHour` | Happy hour, sextou ou fim de semana sem foto: o texto de um lado e o selo da oferta (e o horário) na coluna do outro tom. | feed | oferta, evento | `logos/dm-h-branca.png` |
+| <img src="catalogo/sextouSticker.jpg" width="110" alt=""> | **Adesivo na diagonal**<br>`sextouSticker` | Sextou, fim de semana ou dia de jogo: o título como adesivo girado e o selo grande, numa leitura em diagonal. | feed | oferta, evento | `inv/explosao.png` `logos/dm-h-branca.png` |
+| <img src="catalogo/chuvaTipografica.jpg" width="110" alt=""> | **Tipográfica à direita**<br>`chuvaTipografica` | Frase de ocasião sem foto ("Chove, a gente leva", "Bateu a fome?"): o título em bloco alinhado à direita, com respiro. | feed | evento, aviso, oferta, prospeccao | `inv/pattern-macarrao.png` `logos/dm-h-branca.png` |
+| <img src="catalogo/sextouStory.jpg" width="110" alt=""> | **Placa amarela girada**<br>`sextouStory` | Sextou, fim de semana, happy hour ou jogo no story: o título numa placa amarela girada no meio da tela. | story | oferta, evento | `inv/explosao.png` `inv/estrela-amarela.png` `logos/dm-h-branca.png` |
+| <img src="catalogo/madrugadaStory.jpg" width="110" alt=""> | **Céu de estrelas**<br>`madrugadaStory` | Madrugada, janta ou noite especial no story: o título grande e estrelas espalhadas nos vãos, como um céu. | story | evento, oferta | `inv/estrela-amarela.png` `inv/estrela-branca.png` `logos/dm-h-branca.png` |
+| <img src="catalogo/domingoDoce.jpg" width="110" alt=""> | **Cartão branco**<br>`domingoDoce` | Domingo, data especial ou janta com foto no story: a foto e o texto num cartão branco no meio da tela, como um cardápio. | story | evento, oferta | `foto do franqueado` `inv/sorriso-arco.png` `logos/dm-h-branca.png` |

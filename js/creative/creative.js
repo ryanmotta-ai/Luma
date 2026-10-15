@@ -1639,7 +1639,9 @@ function crNotaDesign(geo, ctx){
   const zw = z.x1 - z.x0, zh = z.y1 - z.y0;
   const todos = geo.blocos.filter(b => b.w > 0 && b.h > 0);
   // carrossel: cada lâmina é um post — equilíbrio, vazio, eixos e margens por lâmina, e a média
-  const porLamina = k => todos.filter(b => Math.floor((b.x + b.w / 2) / L) === k).map(b => Object.assign({}, b, { x: b.x - k * L }));
+  // (o bloco que atravessa a divisa — a foto, um grafismo — aparece nos dois posts: entra recortado em cada lâmina)
+  const porLamina = k => n === 1 ? todos : todos.filter(b => b.x < (k + 1) * L && b.x + b.w > k * L && (b.nome === 'foto' || b.nome === 'decor' || Math.floor((b.x + b.w / 2) / L) === k))
+    .map(b => { const x0 = Math.max(b.x, k * L - (b.x < k * L ? 40 : 0)), x1 = Math.min(b.x + b.w, (k + 1) * L + (b.x + b.w > (k + 1) * L ? 40 : 0)); return Object.assign({}, b, { x: x0 - k * L, w: x1 - x0 }); });
   const textos = geo.textos.filter(t => t.bloco && t.bloco !== 'decor' && t.bloco !== 'foto');   // o placeholder da foto não é texto da arte
   // com contorno grosso, o texto se lê pelo par mais fraco entre texto→contorno e contorno→fundo
   const corDe = t => t.contorno ? Math.max(crContraste(t.cor, t.fundo), Math.min(crContraste(t.cor, t.contorno), crContraste(t.contorno, t.fundo))) : crContraste(t.cor, t.fundo);
@@ -1686,7 +1688,8 @@ function crNotaDesign(geo, ctx){
     const vazio = 1 - oc / grade.length;
     const sProp = a.deitado ? 1 - _crLim(Math.abs(vazio - 0.45), 0.2, 0.45) : 1 - _crLim(vazio < 0.3 ? 0.3 - vazio : vazio > 0.66 ? vazio - 0.66 : 0, 0, 0.25);
     // maior faixa horizontal vazia (o conteúdo "boiando" ou um buraco no meio)
-    const ys = cheios.map(b => [Math.max(z.y0, b.y), Math.min(z.y1, b.y + b.h)]).filter(v => v[1] > v[0]).sort((u, v) => u[0] - v[0]);
+    // (um grafismo grande no vão não deixa a faixa vazia — a ocupação acima continua só com conteúdo)
+    const ys = cheios.concat(bs.filter(b => b.nome === 'decor' && b.w >= 120)).map(b => [Math.max(z.y0, b.y), Math.min(z.y1, b.y + b.h)]).filter(v => v[1] > v[0]).sort((u, v) => u[0] - v[0]);
     let cur = z.y0, faixa = 0;
     ys.forEach(([y0, y1]) => { faixa = Math.max(faixa, y0 - cur); cur = Math.max(cur, y1); });
     faixa = Math.max(faixa, z.y1 - cur);
@@ -1729,9 +1732,10 @@ function crNotaDesign(geo, ctx){
       const p = _CR_PAPEL[b.nome]; if(!p) return;
       let corpo = b.maiorFonte;
       if(p !== 'heroi'){ const ts = textos.filter(t => t.bloco === b.nome); if(ts.length) corpo = ts.reduce((q, t) => (t.txt.length > q.txt.length ? t : q)).corpo; }
-      if(corpo) papel.push({ p, corpo });
+      if(corpo) papel.push({ p, corpo, lam: Math.floor((b.x + b.w / 2) / L) });
     });
-    const vals = papel.map(x => x.corpo).sort((u, v) => v - u);
+    papel.sort((u, v) => v.corpo - u.corpo);
+    const vals = papel.map(x => x.corpo);
     if(!vals.length) partes.escala = 0.5;
     else {
       const niveis = [];
@@ -1744,11 +1748,13 @@ function crNotaDesign(geo, ctx){
       }
       const heroi = vals[0], seg = vals[1] || 0;
       // dois heróis do mesmo tamanho brigam (título e preço quase iguais): um tem de mandar
-      const sD = !seg ? 1 : _crLim(heroi / seg, 1.04, 1.35);
+      // (no carrossel, heróis em lâminas diferentes não brigam: cada lâmina é um post)
+      const sD = !seg || papel[0].lam !== papel[1].lam ? 1 : _crLim(heroi / seg, 1.04, 1.35);
       // foco: o herói tem de OCUPAR a peça (tinta do maior herói sobre a zona útil) e vir cedo na
       // leitura — herói miúdo num canvas vazio, ou o valor do cupom depois do ticket, é hierarquia fraca
       const hb = todos.filter(b => _CR_PAPEL[b.nome] === 'heroi').sort((p, q) => q.maiorFonte - p.maiorFonte)[0];
-      const share = hb ? hb.w * hb.h / (zw * zh * n) : 0, sF = _crLim(share, a.deitado ? 0.06 : 0.03, a.deitado ? 0.2 : 0.09);
+      // (carrossel: cada lâmina é um post — o herói se mede contra a lâmina dele, com a régua do feed)
+      const share = hb ? hb.w * hb.h / (zw * zh) : 0, sF = _crLim(share, a.deitado && !a.laminas ? 0.06 : 0.03, a.deitado && !a.laminas ? 0.2 : 0.09);
       const leitura = todos.filter(b => _CR_PAPEL[b.nome] || ['cupom', 'botao', 'selo'].indexOf(b.nome) >= 0).sort((p, q) => p.y - q.y || p.x - q.x);
       const ih = leitura.findIndex(b => _CR_PAPEL[b.nome] === 'heroi'), sO = ih <= 1 ? 1 : ih === 2 ? 0.75 : 0.45;
       // quebra de linha: título, apoio ou letra miúda terminando em artigo/preposição, ou uma palavrinha
@@ -1779,13 +1785,14 @@ function crNotaDesign(geo, ctx){
 
   // 6) Respiro lateral e foto: margens simétricas; fração e posição da foto
   partes.respiro = media(bs => {
-    const fr = bs.filter(b => b.nome !== 'decor' && !sangra(b));
+    const fr = bs.filter(b => b.nome !== 'decor' && !sangra(b)), f = bs.find(b => b.nome === 'foto');
+    // foto ocupando um lado inteiro (sangrando pela lateral): a assimetria das margens é a composição
+    const lado = f && sangra(f) && (f.x <= 2 || f.x + f.w >= L - 2) && f.w < L * 0.8 && f.h > a.H * 0.6;
     let sM = 1;
-    if(fr.length){
+    if(fr.length && !lado){
       const mL = Math.min(...fr.map(b => b.x)) - (a.card ? a.card[0] : 0), mR = (a.card ? a.card[0] + a.card[2] : L) - Math.max(...fr.map(b => b.x + b.w));
       sM = 1 - _crLim(Math.abs(mL - mR), 16, 16 + 0.22 * L);
     }
-    const f = bs.find(b => b.nome === 'foto');
     if(!f) return sM;
     const x0 = Math.max(0, f.x), y0 = Math.max(0, f.y), x1 = Math.min(L, f.x + f.w), y1 = Math.min(a.H, f.y + f.h);
     const frac = Math.max(0, x1 - x0) * Math.max(0, y1 - y0) / (L * a.H), [lo, hi] = a.deitado ? [0.2, 0.55] : [0.24, 0.5];
@@ -2193,7 +2200,7 @@ function crLogoLoja(x, y, d){
 // 'ranking' (números grandes + nome, sem card) e 'linhas' (nome + preço com fio entre as linhas)
 function crLista(x, y, w, h, itens, estilo, tom, est, piso){
   if(estilo === 'cards' || !estilo) return crItens(x, y, w, h, itens, est);
-  const n = itens.length, gap = estilo === 'linhas' ? 0 : 24, ch = Math.min(estilo === 'ranking' ? 190 : 160, (h - gap * (n - 1)) / n);
+  const n = itens.length, gap = estilo === 'linhas' ? 0 : 24, ch = Math.min(estilo === 'ranking' ? 190 : 230, (h - gap * (n - 1)) / n);
   return itens.map((t, i) => {
     const it = _crItemPreco(t), yy = y + i * (ch + gap);
     if(estilo === 'ranking'){
