@@ -60,14 +60,14 @@ body.cr-ocupado #view-creative::before{ animation:crGlow 2.6s var(--ease-standar
   background:var(--cr-surf2); color:var(--cr-text2); font:600 10.5px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; text-align:center; vertical-align:1px }
 
 /* Fio de progresso sob a barra: a IA está trabalhando */
-.cr-fio{ position:absolute; z-index:7; left:0; right:0; top:var(--cr-barra-h); height:2px; overflow:hidden; opacity:0; pointer-events:none; transition:opacity var(--dur-base) var(--ease-out) }
+.cr-fio{ position:absolute; z-index:7; left:var(--cr-side-w,0px); right:0; top:var(--cr-barra-h); height:2px; overflow:hidden; opacity:0; pointer-events:none; transition:opacity var(--dur-base) var(--ease-out) }
 .cr-fio::before{ content:''; position:absolute; inset:0 auto 0 0; width:38%;
   background:linear-gradient(90deg,transparent,var(--dm-orange),var(--dm-yellow),transparent); animation:crFio 1.5s var(--ease-standard) infinite }
 body.cr-ocupado .cr-fio{ opacity:1 }
 @keyframes crFio{ from{ transform:translateX(-100%) } to{ transform:translateX(265%) } }
 
 /* Barra: transparente em cima; ganha vidro e linha quando há conteúdo passando por baixo */
-.cr-barra{ position:absolute; z-index:6; top:0; left:0; right:0; height:var(--cr-barra-h); display:flex; align-items:center; justify-content:space-between; gap:12px;
+.cr-barra{ position:absolute; z-index:6; top:0; left:var(--cr-side-w,0px); right:0; height:var(--cr-barra-h); display:flex; align-items:center; justify-content:space-between; gap:12px;
   padding:0 max(16px,calc((100% - 880px) / 2 + 16px)); border-bottom:1px solid transparent;
   transition:background var(--dur-base) var(--ease-standard),border-color var(--dur-base) var(--ease-standard),backdrop-filter var(--dur-base) }
 .cr-rolou .cr-barra{ background:var(--cr-vidro); border-bottom-color:var(--cr-line); -webkit-backdrop-filter:blur(14px) saturate(1.3); backdrop-filter:blur(14px) saturate(1.3) }
@@ -474,6 +474,44 @@ body.cr-ocupado .cr-enviar.cr-resp .cr-enviar-para{ opacity:0; transform:scale(.
 .cr-gaveta-cab span{ font-size:12px; color:var(--cr-text3) }
 .cr-gaveta-cab .cr-ed-ico{ position:absolute; top:12px; right:12px }
 .cr-gaveta-lista{ flex:1; min-height:0; overflow-y:auto; padding:10px }
+.cr-gaveta-topo{ display:flex; flex-direction:column; gap:8px; padding:12px 12px 0 }
+.cr-gaveta-topo:not(:has(:is(.cr-nova-b,.cr-sess-busca):not([hidden]):not(:disabled))){ display:none }
+.cr-nova-b{ width:100%; justify-content:flex-start; height:36px; padding:0 12px; font-size:13px }
+.cr-nova-b:disabled{ display:none }
+.cr-sess-busca{ width:100%; height:34px; padding:0 12px; border:1px solid var(--cr-line2); border-radius:var(--r); background:var(--cr-bg); color:var(--cr-text); font:400 13px/1 'Roboto',sans-serif }
+.cr-sess-busca::placeholder{ color:var(--cr-text3) }
+.cr-sess-grp{ margin:12px 8px 4px; font:700 11px/1 'Roboto',sans-serif; letter-spacing:.08em; text-transform:uppercase; color:var(--cr-text3) }
+.cr-sess-grp:first-child{ margin-top:2px }
+.cr-gaveta-pe{ display:flex; flex-direction:column; gap:2px; padding:8px 10px 12px; border-top:1px solid var(--cr-line) }
+.cr-lat-conta{ display:flex; align-items:center; gap:10px; width:100%; height:36px; padding:0 8px; border:0; border-radius:var(--r); background:none; color:var(--cr-text2); font:600 13px/1 'Roboto',sans-serif; cursor:pointer; text-align:left; transition:background var(--dur-fast),color var(--dur-fast) }
+.cr-lat-conta:hover{ background:var(--cr-surf3); color:var(--cr-text) }
+.cr-lat-uso{ padding:2px 8px 0 34px; font-size:11.5px; color:var(--cr-text3) }
+.cr-lat-btn{ display:none; flex:none; width:32px; height:32px; place-items:center; margin-right:2px; border:0; border-radius:var(--r); background:none; color:var(--cr-text2); cursor:pointer; transition:background var(--dur-fast),color var(--dur-fast) }
+.cr-lat-btn:hover{ background:var(--cr-surf2); color:var(--cr-text) }
+.cr-gaveta .i-pan{ display:none }
+@property --cr-side-w{ syntax:'<length>'; inherits:true; initial-value:0px }
+/* Painel lateral FIXO e recolhível (Claude Code / Codex): em tela larga a gaveta vira coluna; a largura é uma variável que anima barra, fio e palco juntos */
+@media (min-width:1000px){
+  #view-creative{ --cr-side-w:0px; padding-left:var(--cr-side-w); transition:--cr-side-w var(--dur-slow) var(--ease-out) }
+  #view-creative.cr-lat-on{ --cr-side-w:272px }
+  .cr-gaveta{ z-index:7; width:272px; background:var(--cr-surf2); box-shadow:none; transition:transform var(--dur-slow) var(--ease-out),visibility 0s linear var(--dur-slow) }
+  .cr-gaveta.aberta{ transition-delay:0s }
+  .cr-gaveta-cab{ flex-direction:row; align-items:center; justify-content:space-between; gap:8px; padding:12px 12px 12px 16px; border-bottom:0 }
+  .cr-gaveta-cab span{ display:none }
+  .cr-gaveta-cab .cr-ed-ico{ position:static }
+  .cr-gaveta .i-x{ display:none }
+  .cr-gaveta .i-pan{ display:block }
+  .cr-veu{ display:none!important }
+  .cr-lat-btn{ display:inline-grid }
+  .cr-lat-on .cr-lat-btn{ display:none }
+  #cr-sess-btn{ display:none }
+  .cr-lat-on #cr-nova{ display:none }
+  .cr-sess-li:hover{ background:var(--cr-surf3) }
+  .cr-sess img,.cr-sess-sem{ width:34px; height:44px; border-radius:6px }
+  .cr-sess{ gap:10px; padding-right:36px }
+  .cr-sess-txt b{ font-size:13px }
+}
+
 .cr-gaveta-lista ul{ list-style:none; margin:0; padding:0; display:grid; gap:2px }
 .cr-gaveta.aberta .cr-sess-li{ animation:crSobe var(--dur-base) var(--ease-out) backwards }
 .cr-sess-li{ position:relative; border-radius:var(--r); transition:background var(--dur-fast) }
@@ -656,7 +694,7 @@ body.cr-ocupado .cr-enviar.cr-resp .cr-enviar-para{ opacity:0; transform:scale(.
   .cr-agora .cr-passo-tit{ color:var(--cr-text2) }
   body.cr-ocupado .cr-caixa{ border-color:var(--dm-orange) }
   .cr-ed-flut{ animation:none; transition:none }
-  .cr-gaveta,.cr-veu,.cr-uso-pop,.cr-uso-arco{ transition:none }
+  #view-creative,.cr-gaveta,.cr-veu,.cr-uso-pop,.cr-uso-arco{ transition:none }
   .cr-conex-veu,.cr-conex{ transition:none }
   .cr-cx-msg{ animation:none }
   .cr-limite.bate,.cr-q-nao,.cr-faixa,.cr-faixa-it.novo,.cr-limite,.cr-uso-barra i,.cr-gaveta.aberta .cr-sess-li,.cr-entrega.cr-acha{ animation:none }

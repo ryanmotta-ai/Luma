@@ -2985,7 +2985,7 @@ function crEntrar(aba){
   if(_crReduz()) v.classList.remove('cr-revelando', 'cr-itens');
   setTimeout(() => { const i = _crEl('cr-pedido'); if(i && window.innerWidth > 760) i.focus({ preventScroll: true }); }, 380);
   crFontesProntas().catch(() => {});
-  _crRotuloModelo(); crUsoCarrega(); crSessIndice(); crConexoesRetorno();
+  _crRotuloModelo(); crUsoCarrega(); crSessIndice(); crConexoesRetorno(); _crLatInit();
 }
 function _crMsgIA(conv){
   const m = document.createElement('div');
@@ -3332,18 +3332,19 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('keydown', e => {
   if(!_crNoCreative()) return;
+  if((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && String(e.key).toLowerCase() === 'b'){ e.preventDefault(); return crGaveta(); }
   if(e.key === 'Escape'){
     const cx = _crEl('cr-conex');
     if(cx && !cx.hidden){ e.stopPropagation(); return crConexoes(false); }
     const g = _crEl('cr-gaveta');
-    if(g && g.classList.contains('aberta')){ e.stopPropagation(); return crGaveta(false); }
+    if(g && g.classList.contains('aberta') && !_crDock()){ e.stopPropagation(); return crGaveta(false); }
     const pop = _crEl('cr-uso-pop');
     if(pop && !pop.hidden){ e.stopPropagation(); return crUsoPop(false); }
   }
   if(e.key === 'Tab'){   // modal e gaveta prendem o foco (aria-modal sem isso deixa o Tab fugir para a barra global)
     const cx = _crEl('cr-conex'), g = _crEl('cr-gaveta'), ed = document.querySelector('#view-creative .cr-ed.aberto');
     const po = document.querySelector('#f-posted-modal.cr-postado.open .posted-box');
-    const cont = po || (cx && !cx.hidden ? cx : (g && g.classList.contains('aberta') ? g : ed));
+    const cont = po || (cx && !cx.hidden ? cx : (g && g.classList.contains('aberta') && !_crDock() ? g : ed));
     if(cont){
       const f = [...cont.querySelectorAll('button:not([disabled]),input:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')].filter(x => x.offsetParent !== null);
       if(f.length){
@@ -3489,6 +3490,7 @@ function crUsoPinta(){
     }
   }
   const pop = _crEl('cr-uso-pop'); if(pop && !pop.hidden) pop.innerHTML = crUsoPopHtml();
+  const su = _crEl('cr-side-uso'); if(su) su.textContent = lim == null ? u + (u === 1 ? ' arte hoje' : ' artes hoje') : u + ' de ' + lim + ' artes hoje';
   _crPlaceholder(); _crPodeEnviar();
 }
 function crUsoPopHtml(){
@@ -3564,27 +3566,56 @@ function crSessPinta(){
   const idx = crSess.indice;
   if(n){ n.textContent = idx.length; n.hidden = !idx.length; }
   if(sub) sub.textContent = idx.length ? idx.length + (idx.length > 1 ? ' sessões guardadas neste aparelho' : ' sessão guardada neste aparelho') : 'suas artes ficam guardadas aqui';
-  if(lista) lista.innerHTML = idx.length ? '<ul>' + idx.map(x => '<li class="cr-sess-li' + (x.id === crSess.id ? ' on' : '') + '"><button type="button" class="cr-sess" data-id="' + gEsc(x.id) + '">'
+  const busca = _crEl('cr-sess-busca'); if(busca) busca.hidden = idx.length < 6;
+  const dia = t => new Date(t).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }), hj = _crDia(), ont = dia(Date.now() - 864e5);
+  const grupo = x => { const d = dia(x.atualizada); return d === hj ? 'Hoje' : d === ont ? 'Ontem' : 'Anteriores'; };
+  const item = x => '<li class="cr-sess-li' + (x.id === crSess.id ? ' on' : '') + '"><button type="button" class="cr-sess" data-id="' + gEsc(x.id) + '">'
       + (x.thumb ? '<img src="' + gEsc(x.thumb) + '" alt="">' : '<span class="cr-sess-sem"></span>')
       + '<span class="cr-sess-txt"><b>' + gEsc(x.titulo) + '</b><small>' + gEsc((CR_FORMATOS[x.fmt] || { nome: 'Arte' }).nome) + (x.much ? ' · Much+' : '') + ' · ' + x.n + (x.n > 1 ? ' artes' : ' arte') + ' · ' + _crQuando(x.atualizada) + '</small></span></button>'
-      + '<button type="button" class="cr-sess-del" data-del="' + gEsc(x.id) + '" aria-label="Apagar a sessão ' + gEsc(x.titulo) + '" title="Apagar">' + CR_ICO.lixo + '</button></li>').join('') + '</ul>'
+      + '<button type="button" class="cr-sess-del" data-del="' + gEsc(x.id) + '" aria-label="Apagar a sessão ' + gEsc(x.titulo) + '" title="Apagar">' + CR_ICO.lixo + '</button></li>';
+  if(lista){
+    const gs = ['Hoje', 'Ontem', 'Anteriores'].map(g => [g, idx.filter(x => grupo(x) === g)]).filter(([, l]) => l.length);
+    lista.innerHTML = idx.length ? gs.map(([g, l]) => '<h5 class="cr-sess-grp">' + g + '</h5><ul>' + l.map(item).join('') + '</ul>').join('')
     : '<p class="cr-gaveta-vazio">Nada por aqui ainda. Cada conversa que entregar uma arte fica guardada para você retomar, comparar e baixar de novo.</p>';
+    _crSessFiltra();
+  }
   if(ret){
     const x = idx.find(y => y.id !== crSess.id);
     ret.hidden = !x;
     if(x) ret.querySelector('span').textContent = 'Retomar “' + (x.titulo.length > 38 ? x.titulo.slice(0, 37) + '…' : x.titulo) + '” · ' + _crQuando(x.atualizada);
   }
 }
-function crGaveta(abrir){
-  const g = _crEl('cr-gaveta'), v = _crEl('cr-veu'), b = _crEl('cr-sess-btn'); if(!g) return;
+// Painel lateral: em tela larga (>=1000px) é uma coluna FIXA e recolhível (a escolha fica guardada, Ctrl+B alterna);
+// abaixo disso é a gaveta de antes, por cima da conversa, com véu.
+const _crDock = () => window.matchMedia('(min-width:1000px)').matches;
+const _crNovaHab = on => document.querySelectorAll('#view-creative .cr-nova-b, #cr-nova').forEach(b => { b.disabled = !on; });
+function crGaveta(abrir, semGuardar){
+  const g = _crEl('cr-gaveta'), v = _crEl('cr-veu'), view = _crEl('view-creative'); if(!g) return;
   if(abrir === undefined) abrir = !g.classList.contains('aberta');
+  const dock = _crDock(), btn = _crEl(dock ? 'cr-lat-btn' : 'cr-sess-btn');
   if(abrir) crSessIndice();
   g.classList.toggle('aberta', abrir); g.setAttribute('aria-hidden', String(!abrir)); g.toggleAttribute('inert', !abrir);
-  if(v){ v.hidden = false; void v.offsetWidth; v.classList.toggle('aberto', abrir); if(!abrir) setTimeout(() => { if(!v.classList.contains('aberto')) v.hidden = true; }, _crReduz() ? 0 : 260); }
-  if(b) b.setAttribute('aria-expanded', String(abrir));
-  if(abrir){ const p = g.querySelector('.cr-sess, .cr-ed-ico'); if(p) setTimeout(() => p.focus({ preventScroll: true }), 60); }
-  else if(b && document.activeElement && g.contains(document.activeElement)) b.focus({ preventScroll: true });
+  if(view) view.classList.toggle('cr-lat-on', abrir);
+  document.querySelectorAll('#cr-sess-btn, #cr-lat-btn').forEach(b => b.setAttribute('aria-expanded', String(abrir)));
+  if(dock){
+    if(!semGuardar) try{ localStorage.setItem('cr:lat', abrir ? '1' : '0'); }catch(e){}
+  }else if(v){ v.hidden = false; void v.offsetWidth; v.classList.toggle('aberto', abrir); if(!abrir) setTimeout(() => { if(!v.classList.contains('aberto')) v.hidden = true; }, _crReduz() ? 0 : 260); }
+  if(abrir && !dock){ const p = g.querySelector('.cr-sess, .cr-ed-ico'); if(p) setTimeout(() => p.focus({ preventScroll: true }), 60); }
+  else if(!abrir && btn && document.activeElement && g.contains(document.activeElement)) btn.focus({ preventScroll: true });
 }
+// Entrar na aba / cruzar o breakpoint: em tela larga o painel abre como a pessoa deixou (padrão: aberto)
+function _crLatInit(){
+  let on = false;
+  if(_crDock()){ try{ on = localStorage.getItem('cr:lat') !== '0'; }catch(e){ on = true; } }
+  crGaveta(on, true);
+}
+window.matchMedia('(min-width:1000px)').addEventListener('change', () => { if(_crNoCreative()) _crLatInit(); });
+function _crSessFiltra(){
+  const q = ((_crEl('cr-sess-busca') || {}).value || '').trim().toLowerCase(), l = _crEl('cr-gaveta-lista'); if(!l) return;
+  l.querySelectorAll('.cr-sess-li').forEach(li => { li.hidden = !!q && !li.textContent.toLowerCase().includes(q); });
+  l.querySelectorAll('.cr-sess-grp').forEach(h => { const ul = h.nextElementSibling; h.hidden = !ul || !ul.querySelector('.cr-sess-li:not([hidden])'); });
+}
+document.addEventListener('input', e => { if(e.target.id === 'cr-sess-busca') _crSessFiltra(); });
 async function _crLimpaConversa(){
   const conv = _crEl('cr-conversa'); if(!conv) return;
   conv.classList.add('cr-saindo'); await _crEsp(220);
@@ -3598,13 +3629,14 @@ function _crBolhaEu(fio){
   return m;
 }
 const _crFalaPronta = ops => 'Separei ' + ops.length + (ops.length > 1 ? ' opções' : ' opção') + ' em ' + CR_FORMATOS[ops[0].spec.formato].nome.toLowerCase() + ': escolha uma, ajuste no editor se quiser e baixe.';
+const _crFechaOverlay = () => { if(!_crDock()) crGaveta(false); };   // o painel fixo não fecha ao abrir uma sessão
 async function crSessAbre(id){
   if(crState.rodando) return gToast('Interrompa a geração atual antes de trocar de sessão');
-  if(id === crSess.id) return crGaveta(false);
+  if(id === crSess.id) return _crFechaOverlay();
   await crSessSalva(true);
   let rec = null; try{ rec = JSON.parse(await gIdbGet(_crSessChave(id))); }catch(e){}
   if(!rec || !Array.isArray(rec.fios)) return gToast('Não consegui abrir essa sessão', 'error');
-  crGaveta(false);
+  _crFechaOverlay();
   await _crLimpaConversa();
   crSess.id = rec.id; crSess.criada = rec.criada || Date.now();
   crState.fios = rec.fios.map(f => {
@@ -3623,7 +3655,7 @@ async function crSessAbre(id){
   });
   crState.fmt = CR_FORMATOS[rec.fmtMenu] ? rec.fmtMenu : null; _crRotuloFmt(); crLigaMuch(!!rec.much);
   const v = _crEl('view-creative'); if(v) v.classList.add('cr-conversando');
-  const nova = _crEl('cr-nova'); if(nova) nova.disabled = false;
+  _crNovaHab(true);
   crSessPinta(); crFaixaPinta();
   const pl = _crEl('cr-palco'); if(pl) pl.scrollTo({ top: pl.scrollHeight });
 }
@@ -3808,7 +3840,7 @@ function crEnviar(e){
   inp.value = ''; crAutoAltura(inp); crTirarAnexo();
   // A tela de boas-vindas recolhe (altura real, não some de repente) e "Nova arte" acende
   const v = _crEl('view-creative'); if(v) v.classList.add('cr-conversando');
-  const nova = _crEl('cr-nova'); if(nova) nova.disabled = false;
+  _crNovaHab(true);
   conv.appendChild(_crBolhaEu(fio));
   _crRola(true);
   crGerar(fio, conv);
@@ -3822,7 +3854,7 @@ async function crNova(){
   await _crLimpaConversa();
   crState.fios = []; crState.fmt = null; crSess.id = null; crSess.criada = 0; crTirarAnexo(); crLigaMuch(false); _crRotuloFmt();
   const v = _crEl('view-creative'); if(v) v.classList.remove('cr-conversando', 'cr-rolou');
-  const nova = _crEl('cr-nova'); if(nova) nova.disabled = true;
+  _crNovaHab(false);
   const p = _crEl('cr-palco'); if(p) p.scrollTo({ top: 0 });
   const i = _crEl('cr-pedido'); if(i) i.focus({ preventScroll: true });
   crFaixaPinta(); crSessPinta();

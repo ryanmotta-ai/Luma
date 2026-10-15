@@ -261,7 +261,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 88 arquivos JS (83.569 linhas, 3.255 funções) · 33 arquivos CSS (33.371 linhas) · `index.html` com 4.084 linhas e 78 `<script>`.
+**Tamanho real de hoje:** 88 arquivos JS (83.601 linhas, 3.257 funções) · 33 arquivos CSS (33.409 linhas) · `index.html` com 4.092 linhas e 78 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -714,9 +714,9 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 As composições do dia a dia do franqueado (frente 4, 15/10/2026) — desenhadas uma a uma, cada uma especialista de UM formato (nada de "serve a todos" com adaptação).
 · API: crComposicao
 
-**`js/creative/creative.js`** · 4682 linhas
+**`js/creative/creative.js`** · 4714 linhas
 Luma Creative — modo em TESTES, só a gestão (trava em main.js e na Edge Function `ai`).
-· API: crTema, crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crLockup, crTextoLinhas, crTextoMulti, crX, crTexto, crMista, crHeroi … (+97; 182 funções no total)
+· API: crTema, crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crLockup, crTextoLinhas, crTextoMulti, crX, crTexto, crMista, crHeroi … (+97; 184 funções no total)
 · Estado global: _crFontesProm, _crCtx, _crMesa, _crPesosCuradoria, _crArrasto, _crSessTimer, _crLegendaVer
 
 **`js/creative/curadoria.js`** · 224 linhas
@@ -748,7 +748,7 @@ CURADORIA do Luma Creative (frente 5, 15/10/2026) — só a gestão.
 | `css/modules/chat.css` | 3979 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
-| `css/modules/creative.css` | 720 |
+| `css/modules/creative.css` | 758 |
 | `css/modules/designer.css` | 5424 |
 | `css/modules/feedback.css` | 199 |
 | `css/modules/franqueado.css` | 1712 |
