@@ -157,3 +157,25 @@ document.addEventListener('click', e => {
     crCopy(box._fio, document.getElementById('cr-conversa'), ac.dataset.cpa);
   }
 });
+
+/* Legenda do post da arte (crLegenda, em creative.js): uma legenda no tom do branding book, só com o que a ARTE diz.
+   Devolve [{ text }] com _ia=true; null/[] faz o crLegenda cair no gerador do Franqueado. */
+async function crLegendaMarca(sp){
+  const dados = [
+    ['Tipo de peça', (typeof CR_OBJETIVOS !== 'undefined' && CR_OBJETIVOS[sp.objetivo]) || sp.objetivo], ['Título da arte', [sp.palavra, sp.titulo].filter(Boolean).join(' ')], ['Apoio', sp.apoio],
+    ['Preço DE', sp.precoDe && 'R$ ' + sp.precoDe], ['Preço POR', sp.precoPor && 'R$ ' + sp.precoPor],
+    ['Desconto do cupom', sp.cupomValor && (/%$/.test(sp.cupomValor) ? sp.cupomValor + ' OFF' : 'R$ ' + sp.cupomValor + ' OFF')], ['Código do cupom', sp.cupomCodigo],
+    ['Anos da franquia', sp.anos], ['Loja', sp.loja], ['Horário', sp.horario], ['Selos', (sp.selo || []).join(' · ')]
+  ].filter(([, v]) => v).map(([k, v]) => '- ' + k + ': ' + v).join('\n');
+  const prompt = [
+    'Você é copywriter sênior da Delivery Much. Escreva a LEGENDA do post (Instagram/WhatsApp) que acompanha esta arte, SEGUINDO O BRANDING BOOK abaixo.',
+    '', '=== BRANDING BOOK DA DELIVERY MUCH ===', CR_BRANDING, '=== FIM DO BRANDING BOOK ===', '', CR_COPY_OFICIO,
+    '', 'O QUE A ARTE DIZ (use SÓ isto; nenhum dado novo):', dados,
+    '', 'Público: quem segue o perfil da franquia na cidade (cliente final), a menos que a peça seja sobre a franquia. Legenda curta (3 a 6 linhas, a primeira linha prende), uma chamada para agir, até 5 hashtags com #deliverymuch.',
+    'Responda SÓ o JSON: {"legenda":"o texto pronto, com quebras de linha como \\n"}'
+  ].join('\n');
+  const j = gAiParseJson(await _crAsk('arte.compor', prompt, { json: true, cache: false }));
+  const t = j && typeof j.legenda === 'string' ? j.legenda.trim().slice(0, 2200) : '';
+  if(!t) return null;
+  const r = [{ text: t }]; r._ia = true; return r;
+}

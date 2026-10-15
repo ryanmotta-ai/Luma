@@ -2927,7 +2927,8 @@ function crLegenda(sp){
     const fim = sp.objetivo === 'aviso' ? 'Qualquer dúvida, fale com a gente pelo app.' : 'É só pedir pelo app da Delivery Much.';
     return Promise.resolve([{ text: [corpo, extra, fim, tags].filter(Boolean).join('\n\n') }]);
   }
-  if(typeof fFetchAICaptionSuggestions !== 'function') return Promise.resolve([]);
+  // Com IA, a legenda nasce do BRANDING BOOK (copy.js); sem IA ou se falhar, segue o gerador do Franqueado
+  const doFranq = () => typeof fFetchAICaptionSuggestions === 'function' ? fFetchAICaptionSuggestions(dadosFranq, { name: nomeFranq }, { id: sp.formato }).catch(() => []) : [];
   const valor = sp.cupomValor ? (/%$/.test(sp.cupomValor) ? sp.cupomValor + ' OFF' : 'R$ ' + sp.cupomValor + ' OFF') : '';
   const dados = {
     produto: (sp.objetivo === 'oferta' || sp.objetivo === 'evento') ? sp.titulo : '',
@@ -2937,7 +2938,9 @@ function crLegenda(sp){
     cupom: sp.objetivo === 'cupom' || sp.objetivo === 'aniversario' ? sp.cupomCodigo : ''
   };
   const nome = sp.objetivo === 'aniversario' ? 'Aniversário de ' + sp.anos + ' anos da franquia' : 'Delivery Much';
-  return fFetchAICaptionSuggestions(dados, { name: nome }, { id: sp.formato }).catch(() => []);
+  var dadosFranq = dados, nomeFranq = nome;
+  if(typeof crLegendaMarca === 'function' && _crIaPronta()) return crLegendaMarca(sp).then(r => (r && r.length) ? r : doFranq()).catch(() => doFranq());
+  return doFranq();
 }
 
 /* ══════════════════════════════════════════════════════════════

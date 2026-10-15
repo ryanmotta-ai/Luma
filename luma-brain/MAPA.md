@@ -261,7 +261,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 90 arquivos JS (83.921 linhas, 3.262 funções) · 33 arquivos CSS (33.417 linhas) · `index.html` com 4.094 linhas e 80 `<script>`.
+**Tamanho real de hoje:** 90 arquivos JS (83.946 linhas, 3.263 funções) · 33 arquivos CSS (33.417 linhas) · `index.html` com 4.094 linhas e 80 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -717,11 +717,11 @@ BRANDING BOOK da Delivery Much — a "skill" que a IA do Luma Creative LÊ antes
 As composições do dia a dia do franqueado (frente 4, 15/10/2026) — desenhadas uma a uma, cada uma especialista de UM formato (nada de "serve a todos" com adaptação).
 · API: crComposicao
 
-**`js/creative/copy.js`** · 160 linhas
+**`js/creative/copy.js`** · 182 linhas
 LUMA CREATIVE — modo COPY (15/10/2026) Quando o pedido é um TEXTO ("quero uma copy", "uma legenda", "um roteiro", "mensagem de whatsapp"…) e não uma arte, o chat vira o de um copywriter:
-· API: crPromptCopyBriefing, crPromptCopyTexto, crCopy
+· API: crPromptCopyBriefing, crPromptCopyTexto, crCopy, crLegendaMarca
 
-**`js/creative/creative.js`** · 4731 linhas
+**`js/creative/creative.js`** · 4734 linhas
 Luma Creative — modo em TESTES, só a gestão (trava em main.js e na Edge Function `ai`).
 · API: crTema, crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crLockup, crTextoLinhas, crTextoMulti, crX, crTexto, crMista, crHeroi … (+97; 186 funções no total)
 · Estado global: _crFontesProm, _crCtx, _crMesa, _crPesosCuradoria, _crArrasto, _crSessTimer, _crLegendaVer
