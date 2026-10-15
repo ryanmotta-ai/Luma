@@ -755,3 +755,11 @@ body.cr-ocupado .cr-enviar.cr-resp .cr-enviar-para{ opacity:0; transform:scale(.
 .cr-cur button:focus-visible,.cr-cur select:focus-visible{ outline:2px solid var(--cr-foco); outline-offset:2px }
 @media (max-width:680px){ .cr-cur-cab{ flex-direction:column } .cr-cur-acoes{ justify-content:flex-start } .cr-cur-pag{ margin-left:0 } .cr-cur-ops{ grid-template-columns:repeat(2,minmax(0,1fr)) } }
 @media (prefers-reduced-motion:reduce){ .cr-cur{ animation:none } }
+
+/* ── Modo copy: versões do texto ── */
+.cr-copy{ display:flex; flex-direction:column; gap:12px; margin-top:4px }
+.cr-copy-card{ padding:14px 16px 16px; border-radius:14px; background:var(--cr-surf); border:1px solid var(--cr-line); box-shadow:var(--cr-sh1) }
+.cr-copy-card header{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px }
+.cr-copy-card header b{ font:700 13px/1.2 'Roboto',sans-serif; color:var(--cr-text2) }
+.cr-copy-txt{ margin:0; font:400 15px/1.6 'Roboto',sans-serif; color:var(--cr-text); white-space:pre-wrap; overflow-wrap:anywhere }
+.cr-copy-dica{ margin:0; font-size:12.5px; line-height:1.5; color:var(--cr-text3) }

@@ -156,7 +156,10 @@ async function gProvChama(task, prompt, opts){
   if(def.tipo === 'gemini'){
     url = base + '/models/' + encodeURIComponent(cfg.modelo) + ':generateContent';
     body = { contents: [{ role: 'user', parts: [{ text: prompt }].concat(parts.map(p => ({ inlineData: { mimeType: p.mimeType || 'image/jpeg', data: p.data } }))) }],
-      generationConfig: Object.assign({ temperature: pol.temp, maxOutputTokens: pol.max }, querJson ? { responseMimeType: 'application/json' } : {}) };
+      generationConfig: Object.assign({ temperature: pol.temp, maxOutputTokens: pol.max }, querJson ? { responseMimeType: 'application/json' } : {},
+        // Gemini 3.x pensa por padrão no nível ALTO e o pensamento conta no teto de saída: a copy levava 21 s e o JSON do designer vinha cortado.
+        // A Edge Function manda LOW nessas tarefas (tabela "Thinking levels" do Google); aqui também. 3.x Flash-Lite não aceita o parâmetro.
+        /^gemini-3[\w.]*-(flash|pro)(-preview.*)?$/.test(cfg.modelo) ? { thinkingConfig: { thinkingLevel: 'LOW' } } : {}) };
   }else{
     url = base + '/chat/completions';
     const content = parts.length ? [{ type: 'text', text: prompt }].concat(parts.map(p => ({ type: 'image_url', image_url: { url: 'data:' + (p.mimeType || 'image/jpeg') + ';base64,' + p.data } }))) : prompt;
@@ -168,8 +171,13 @@ async function gProvChama(task, prompt, opts){
     let r = await envia();
     // Nem todo modelo aceita response_format: repete UMA vez sem ele (o parser do Creative tolera JSON embrulhado)
     if(r.status === 400 && body.response_format){ delete body.response_format; r = await envia(); }
+    // Modelo que recusa o nível de pensamento (400): repete uma vez sem ele
+    if(r.status === 400 && body.generationConfig && body.generationConfig.thinkingConfig){ delete body.generationConfig.thinkingConfig; r = await envia(); }
+    // Fila cheia do lado de lá (500/503): uma segunda tentativa curta resolve boa parte
+    if(r.status === 503 || r.status === 500){ await new Promise(ok => setTimeout(ok, 1800)); r = await envia(); }
     if(!r.ok){ gProvUltimoErro = _gProvErro(r.status, await r.text().catch(() => '')); return null; }
     const j = await r.json();
+    if(def.tipo === 'gemini' && j.candidates && j.candidates[0] && j.candidates[0].finishReason === 'MAX_TOKENS'){ gProvUltimoErro = 'A resposta do modelo foi cortada no limite de saída (ele pensou demais). Tente outro modelo.'; return null; }
     const txt = def.tipo === 'gemini'
       ? ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).map(p => p.text || '').join('')
       : ((j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '');

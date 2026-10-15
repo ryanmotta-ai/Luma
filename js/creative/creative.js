@@ -2422,6 +2422,12 @@ async function crRefazerDesenhos(lista){
     return novo;
   });
 }
+// Por que a IA não entregou: o motor segue, mas a tela diz o motivo (conta própria mostra o erro do provedor) em vez de fingir que "não há IA"
+function _crPorqueSemIA(pedidas0, o){
+  if(pedidas0 != null && crMetricas.pedidas > pedidas0) return 'a IA respondeu, mas nenhuma composição passou nas regras da marca — sigo com o motor';
+  const why = crState.provRun && typeof gProvUltimoErro === 'string' && gProvUltimoErro ? gProvUltimoErro : (_crIaPronta() ? 'a IA devolveu uma resposta que não consegui ler' : 'sem IA conectada');
+  return why + (o === 'revisar' ? ' — ordem pela nota do motor' : ' — sigo com o motor');
+}
 // A IA compõe n opções; as que reprovam voltam 1 vez com os erros. → [r aprovadas, com nota]
 // Métricas do designer (por sessão, e no gTrackEvent): quantas pedidas, aprovadas de 1ª, salvas na correção, refeitas pelo juiz
 const crMetricas = { pedidas: 0, primeira: 0, corrigidas: 0, refeitas: 0 };
@@ -2431,7 +2437,10 @@ async function crDesenhos(sp, n, evitar, refPessoa){
   const regua = await crRegua(sp).catch(() => []), m = /^data:(image\/[a-z]+);base64,(.+)$/.exec(refPessoa || ''), ref = m ? [m[2]] : [];
   const parts = regua.map(d => ({ mimeType: 'image/jpeg', data: d })).concat(m ? [{ mimeType: m[1], data: m[2] }] : []);
   const pede = async (qtd, consertar) => {
-    const j = (typeof gAiParseJson === 'function') ? gAiParseJson(await _crAsk('arte.compor', crPromptDesenho(sp, qtd, evitar, consertar, { regua: regua.length, ref: ref.length }), { json: true, cache: false, parts })) : null;
+    let txt = await _crAsk('arte.compor', crPromptDesenho(sp, qtd, evitar, consertar, { regua: regua.length, ref: ref.length }), { json: true, cache: false, parts });
+    // Modelo/provedor que não lê imagem (ou recusou o anexo): refaz uma vez só com o texto, em vez de largar a IA
+    if(txt == null && parts.length) txt = await _crAsk('arte.compor', crPromptDesenho(sp, qtd, evitar, consertar, { regua: 0, ref: 0 }), { json: true, cache: false, parts: [] });
+    const j = (typeof gAiParseJson === 'function') ? gAiParseJson(txt) : null;
     return j && Array.isArray(j.composicoes) ? j.composicoes.slice(0, qtd) : [];
   };
   const monta = (comps, base) => comps.map((c, i) => { const r = crDesenhar(sp, c || {}, base + i); r.avaliacao = crAvaliar(r); return r; });
@@ -3848,6 +3857,8 @@ function crEnviar(e){
   _crNovaHab(true);
   conv.appendChild(_crBolhaEu(fio));
   _crRola(true);
+  // Pedido de TEXTO (copy, legenda, roteiro…) vai para o copywriter (js/creative/copy.js), não para o diagramador
+  if(typeof crEhCopy === 'function' && crEhCopy(pedido)){ fio.copy = {}; return crCopy(fio, conv); }
   crGerar(fio, conv);
 }
 // Recomeça do zero: a conversa atual já fica guardada como sessão (dá para reabrir em "Sessões"), então não precisa confirmar
@@ -3963,12 +3974,13 @@ async function crGerar(fio, conv, outras){
     let ia = [];
     if(!CR_FORMATOS[fio.fmt].fixo && _crIaPronta()){
       p = _crPasso(lista, 'Compondo como designer');
-      try{ ia = await crDesenhos(crNormaliza(fio.conteudo), 2, fio.ideias || [], fio.ref); }catch(err){ ia = []; }
+      const pedidas0 = crMetricas.pedidas;
+      try{ ia = await crDesenhos(crNormaliza(fio.conteudo), 3, fio.ideias || [], fio.ref); }catch(err){ ia = []; }
       if(parou()) return;
       fio.ideias = (fio.ideias || []).concat(ia.map(r => r.nomeReceita));
-      p.feito(ia.length ? ia.map(r => r.nomeReceita).join(' · ') : 'sem composição aprovada agora — sigo com o motor', !ia.length);
+      p.feito(ia.length ? ia.map(r => r.nomeReceita).join(' · ') : _crPorqueSemIA(pedidas0, 'compor'), !ia.length);
     }
-    let tres = ia.slice(0, 2).concat(crEscolher3(cands, fio.mostradas.concat(fio.assinaturas || []))).slice(0, 3);
+    let tres = ia.slice(0, 3).concat(crEscolher3(cands, fio.mostradas.concat(fio.assinaturas || []))).slice(0, 3);
     if(!tres.length) throw new Error('nenhuma diagramação passou nas regras da marca');
 
     // 4) Juiz: os prints lado a lado com a régua, 1 rodada de ajuste
@@ -3991,7 +4003,7 @@ async function crGerar(fio, conv, outras){
       tres.sort((u, v) => v.juiz.nota - u.juiz.nota);
       const aj = tres.filter(r => r.ajustado).length;
       p.feito('notas ' + tres.map(r => r.juiz.nota.toFixed(1).replace('.', ',')).join(' · ') + (aj ? ' · ' + aj + (aj > 1 ? ' ajustes aplicados' : ' ajuste aplicado') : ''));
-    }else p.feito('sem IA agora — ordem pela nota do motor');
+    }else p.feito(_crPorqueSemIA(null, 'revisar'));
     fio.mostradas.push(...tres.map(r => r.receita));
     fio.assinaturas = (fio.assinaturas || []).concat(tres.map(r => r.design && r.design.sinais ? r.design.sinais.txt : '').filter(Boolean));
     const opcoes = await Promise.all(tres.map(async r => {
