@@ -31,6 +31,8 @@ const CR_W = 1080;
 const CR_M = 100;                       // margem lateral da skill
 const CR_L = CR_W - 2 * CR_M;           // largura útil (880)
 const CR_PALETA = ['#F85400', '#FF9000', '#FFB900', '#FFFFFF', '#434343', '#D9D9D9', '#F62900'];
+// As cores da marca pelo nome (o código do motor fala CR_C.laranja, não o hex solto); rosa é só da much+
+const CR_C = { laranja: '#F85400', solar: '#FF9000', amarelo: '#FFB900', branco: '#FFFFFF', grafite: '#434343', cinza: '#D9D9D9', vermelho: '#F62900', rosa: '#E52676' };
 const CR_FONTES = [
   ['Realce', 'realce-black.woff2', 900, 'normal'],
   ['Roboto', 'Roboto-Regular.woff2', 400, 'normal'],
@@ -54,8 +56,28 @@ const CR_OBJETIVOS = {
   cupom:       'Cupom',
   evento:      'Evento na cidade',
   beneficio:   'Benefício (entrega grátis, frete)',
-  aniversario: 'Aniversário da franquia'
+  aniversario: 'Aniversário da franquia',
+  // 15/10 (frente 4): usos do dia a dia que não cabiam nos cinco de cima
+  aviso:       'Aviso e operação (horário especial, feriado, pausa)',
+  parceiro:    'Parceiro (nova loja, destaque, mais vendidos)',
+  prospeccao:  'Prospecção e comunidade (seja parceiro, entregador, baixe o app)'
 };
+// O TEMA do pedido (happy hour, chuva, feriado, entregador…): só escolhe as composições especialistas
+// daquele uso — nunca vira dado na arte. Lido do pedido, do título e do apoio.
+const CR_TEMAS = {
+  happy: /happy|chopp|cerveja|drinks?\b/, sextou: /sextou|sexta/, domingo: /domingo/, janta: /\bjanta|jantar/, madrugada: /madrugada|ate as [1-5]h|24h/,
+  fds: /fim de semana|sabado|fds/, chuva: /chuv|chove|frio/, maes: /\bmaes?\b|dia das maes/, pais: /\bdia dos pais\b/, namorados: /namorad|a dois/,
+  criancas: /criancas?\b/, natal: /natal|ceia/, junina: /junin|arraia|quentao|pamonha/, jogo: /\bjogo\b|copa|torc|apito/, cidade: /parabens,? [a-z]|anos d[ae] [a-z]|aniversario da cidade|nossa cidade/,
+  black: /black/, feriado: /feriado/, horario: /horario/, pausa: /pausa|suspens|fechad/, entregando: /entregando|abertos?\b/, avisoImp: /aviso|importante|comunicado/,
+  primeira: /primeira compra|bem.?vindo/, frete: /frete|entrega gratis/, cashback: /cashback|clube|much\s*(\+|mais)/, inauguracao: /inaugur/, maisvendidos: /mais vendid|mais pedid|ranking|\btop \d/,
+  lojista: /lojista|loja da semana|destaque da semana/, novo: /novo parceiro|chegou no app|chegou/, entregador: /entregador|motoboy|renda extra/,
+  sejaParceiro: /seja parceiro|venda (mais )?pelo app|cadastre sua loja|sua loja/, baixe: /baix[ae]r? o app|baixe|instal/, pecaApp: /pec[ao] no app|peca pelo app/, obrigado: /obrigad|agradec|gratid/,
+  ofertas: /ofertas/, doisPorUm: /2\s*(por|x)\s*1/, aPartir: /a partir de/, executivo: /executivo|almoco|marmita|prato do dia/, combo: /combo|familia/
+};
+function crTema(t){
+  const n = String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return Object.keys(CR_TEMAS).filter(k => CR_TEMAS[k].test(n));
+}
 // Ticket oficial (assets/cards-preco/ticket-cupom.svg da skill, 680×250).
 const CR_TICKET_D = 'M 30 0 L 650 0 C 665 0 680 15 680 30 C 655 55 655 85 680 110 C 655 135 655 165 680 190 C 655 215 655 240 680 250 L 30 250 C 15 250 0 235 0 220 C 25 195 25 165 0 140 C 25 115 25 85 0 60 C 25 35 25 15 0 0 Z';
 // Pattern ancorado oficial em escala de massa (refino_02): dois arcos do símbolo, metade visível.
@@ -212,7 +234,8 @@ function crLockup(txt, o){
     zs = zs.map(z => Math.floor(z));
     let g = _crAlt(ls, zs[0], cls, zs);
     if(o.alt && g.h > o.alt){ const k = o.alt / g.h; zs = zs.map(z => Math.floor(z * k)); g = _crAlt(ls, zs[0], cls, zs); }
-    const zMin = Math.min(...zs), zMed = zs.reduce((a, b) => a + b, 0) / zs.length, fr = ls.map((l, i) => ws[i] * zs[i] / o.larg);
+    // a regularidade se mede contra a linha mais larga (quando a altura ou o teto mandam, nenhuma chega à largura)
+    const zMin = Math.min(...zs), zMed = zs.reduce((a, b) => a + b, 0) / zs.length, lw = ls.map((l, i) => ws[i] * zs[i]), fr = lw.map(w => w / Math.max(...lw));
     const rag = ls.length > 1 ? fr.reduce((s, x) => s + (1 - x) * (1 - x), 0) / ls.length : 0;
     let s = Math.sqrt(zMin * zMed) * (1 - 0.6 * rag) * (1 - 0.05 * (ls.length - 1));
     if(ls.length > 1 && fr[fr.length - 1] < 0.42 && !o.iguala) s *= 0.86;                 // órfã
@@ -294,29 +317,31 @@ function crFoto(x, y, w, h, rx, legenda, foto){
       + '" preserveAspectRatio="xMidYMid slice" clip-path="url(#crfoto)"/></g>';
   }
   if(h >= 240){
-    const cx = Math.max(x, 0) + Math.min(w, CR_W) / 2, cy = y + h / 2 - 20;
-    s += '<g transform="translate(' + _r(Math.min(cx, CR_W / 2)) + ',' + _r(cy) + ')">'
+    // no centro da parte VISÍVEL da foto (a que sangra pela direita não leva o ícone para cima do texto)
+    const x1 = x < CR_W ? Math.min(x + w, CR_W) : x + w, cx = (Math.max(x, 0) + x1) / 2, cy = Math.max(y, 0) / 2 + (y + h) / 2 - 20;
+    const rot = legenda || 'Use aqui sua foto do produto', fz = Math.max(20, Math.min(32, 32 * (x1 - Math.max(x, 0) - 48) / crMede(rot, 'body', 32)));
+    s += '<g transform="translate(' + _r(cx) + ',' + _r(cy) + ')">'
       + '<rect x="-65" y="-68" width="130" height="98" rx="18" fill="none" stroke="#434343" stroke-width="7.5"/>'
       + '<circle cx="26" cy="-38" r="8" fill="#434343"/>'
       + '<polyline points="-42,12 -8,-24 24,12" fill="none" stroke="#434343" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>'
       + '<polyline points="6,12 32,-14 48,12" fill="none" stroke="#434343" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>'
-      + '<text x="0" y="85" text-anchor="middle" class="body" font-size="32" fill="#434343">' + crX(legenda || 'Use aqui sua foto do produto') + '</text></g>';
+      + '<text x="0" y="85" text-anchor="middle" class="body" font-size="' + _r(fz) + '" fill="#434343">' + crX(rot) + '</text></g>';
   }
   return s + '</g>';
 }
 // Selo circular amarelo (1 ou 2 linhas em Realce grafite)
-function crSelo(cx, cy, r, linhas){
-  const l = (linhas || []).filter(Boolean).slice(0, 2);
+function crSelo(cx, cy, r, linhas, fundo, cor){
+  const l = (linhas || []).filter(Boolean).slice(0, 2), tx = cor || CR_C.grafite;
   if(!l.length) return '';
-  let s = '<g transform="translate(' + _r(cx) + ',' + _r(cy) + ')" filter="url(#shs)"><circle r="' + r + '" fill="#FFB900"/>';
+  let s = '<g transform="translate(' + _r(cx) + ',' + _r(cy) + ')" filter="url(#shs)"><circle r="' + r + '" fill="' + (fundo || CR_C.amarelo) + '"/>';
   if(l.length === 1){
     const z = crCabe(l[0], 'hero', r * 0.8, r * 1.5, 0);
-    s += crTexto(0, z * 0.36, 'hero', z, '#434343', l[0], ' text-anchor="middle" data-larg="' + _r(r * 1.5) + '"');
+    s += crTexto(0, z * 0.36, 'hero', z, tx, l[0], ' text-anchor="middle" data-larg="' + _r(r * 1.5) + '"');
   }else{
     const z1 = crCabe(l[0], 'hero', r * 0.72, r * 1.55, 0), z2 = crCabe(l[1], 'hero', r * 0.58, r * 1.4, 0);
     const alt = z1 * 0.73 + r * 0.14 + z2 * 0.73, b1 = -alt / 2 + z1 * 0.73, b2 = b1 + r * 0.14 + z2 * 0.73;
     const lg = ' text-anchor="middle" data-larg="' + _r(r * 1.5) + '"';
-    s += crTexto(0, b1, 'hero', z1, '#434343', l[0], lg) + crTexto(0, b2, 'hero', z2, '#434343', l[1], lg);
+    s += crTexto(0, b1, 'hero', z1, tx, l[0], lg) + crTexto(0, b2, 'hero', z2, tx, l[1], lg);
   }
   return s + '</g>';
 }
@@ -560,13 +585,17 @@ const CR_BLOCOS = {
 // kv (busca, 1–1,5) abre os vãos mínimos entre grupos; nunca fecha abaixo do token (60 no feed, 80 no story)
 function _crVao(antes, depois, a){
   if(antes.nome === 'titulo' && (depois.nome === 'apoio' || depois.nome === 'preco')) return { v: 40, fixo: true };
+  if(antes.nome === 'tag' && depois.nome === 'titulo') return { v: 32, fixo: true };   // a tag é do grupo do título
   return { v: Math.max(Math.round((a.story ? 80 : 60) * Math.max(1, Math.min(1.5, a.p.kv || 1))), depois.folgaAntes || 0), fixo: false };
 }
 function crPilha(cfg){
   return (sp, a, est, fundo) => {
     const centro = ((a.p && a.p.eixo) || cfg.eixo) === 'centro';   // a busca pode trocar o eixo (busca.eixo)
     const c = { sp, a, est, fundo, centro, X: centro ? CR_W / 2 : CR_M, anc: centro ? ' text-anchor="middle"' : '' };
-    const defs = typeof cfg.blocos === 'function' ? cfg.blocos(sp, a.p || {}) : cfg.blocos;
+    let defs = typeof cfg.blocos === 'function' ? cfg.blocos(sp, a.p || {}) : cfg.blocos;
+    // a tag que o pedido deu ("PRATO DO DIA", "A PARTIR DE") vai logo acima do herói: receita nenhuma a perde
+    const ih = defs.findIndex(d => d.t === 'heroi');
+    if(sp.topo && ih >= 0 && !defs.some(d => d.t === 'tag') && crConteudoBlocos(sp).tag) defs = defs.slice(0, ih).concat([{ t: 'tag' }], defs.slice(ih));
     const bs = [];
     for(const d of defs){
       const b = CR_BLOCOS[d.t](d, c);
@@ -967,6 +996,8 @@ function crChave(sp){
   if(sp.objetivo === 'beneficio') return Object.assign(base, { titulo: [sp.palavra, sp.titulo].filter(Boolean).join(' ').toLocaleUpperCase('pt-BR') });
   if(sp.objetivo === 'aniversario') return Object.assign(base, { pre: sp.topo, titulo: sp.anos + (sp.anos === '1' ? ' ANO' : ' ANOS'), comp: 'NA SUA CIDADE',
     valor: off ? { txt: off } : null, selo: [sp.anos, sp.anos === '1' ? 'ANO' : 'ANOS'] });
+  if(sp.objetivo === 'aviso') return Object.assign(base, { pre: sp.selo.join(' ') || sp.topo, comp: sp.horario || sp.apoio });
+  if(sp.objetivo === 'parceiro' || sp.objetivo === 'prospeccao') return Object.assign(base, { pre: sp.topo });
   return Object.assign(base, { pre: sp.selo.join(' ') });    // evento: a data vira o pré-título
 }
 // Pílula de texto centrada em (cx, cy)
@@ -1056,7 +1087,10 @@ const CR_RECEITAS = [
 const CR_SERVE = { oferta: ['cardPreso', 'fotoTopo', 'fotoBase', 'duplo', 'centro', 'precoHeroi', 'tipoCentro', 'tipoDuplo'],
   evento: ['fotoTopo', 'fotoBase', 'duplo', 'centro', 'cardPreso', 'tipoCentro', 'tipoDuplo'],
   beneficio: ['vazado', 'fotoTopo', 'fotoBase', 'centro', 'tipoCentro'],
-  cupom: ['valor', 'valorInclinado'], aniversario: ['aniversario', 'aniversarioPattern'] };
+  cupom: ['valor', 'valorInclinado'], aniversario: ['aniversario', 'aniversarioPattern'],
+  // os objetivos novos começam com as famílias tipográficas e de foto; as composições especialistas
+  // da frente 4 (composicoes.js) se acrescentam aqui ao carregar
+  aviso: ['tipoCentro', 'tipoDuplo', 'fotoTopo', 'fotoBase', 'centro'], parceiro: ['fotoTopo', 'centro', 'tipoCentro', 'tipoDuplo'], prospeccao: ['tipoCentro', 'tipoDuplo', 'fotoTopo', 'fotoBase', 'centro'] };
 
 // Completa o que faltou com o padrão das artes aprovadas. Nada aqui inventa preço: sem precoPor,
 // não há bloco de preço. Cupom/anos/código têm exemplo claro (o editor troca).
@@ -1106,14 +1140,22 @@ function crNormaliza(bruto){
     foto: s.foto === 'slot' || /^data:image\/(png|jpeg|webp);base64,/.test(s.foto || '') ? s.foto : '',
     marca: s.marca === 'much' ? 'much' : 'dm',
     chamada: (Array.isArray(s.chamada) ? s.chamada : []).map(l => txt(l, 32)).filter(Boolean).slice(0, 2),
-    itens: (Array.isArray(s.itens) ? s.itens : []).map(l => txt(l, 40)).filter(Boolean).slice(0, 4).map(l => l.charAt(0).toLocaleUpperCase('pt-BR') + l.slice(1))
+    itens: (Array.isArray(s.itens) ? s.itens : []).map(l => txt(l, 40)).filter(Boolean).slice(0, 4).map(l => l.charAt(0).toLocaleUpperCase('pt-BR') + l.slice(1)),
+    // frente 4: nome da loja parceira (como a pessoa escreveu) e horário ("11H ÀS 22H") — só o que o pedido deu
+    loja: txt(s.loja, 28),
+    horario: up(txt(s.horario, 20)),
+    tema: Array.isArray(s.tema) ? s.tema.slice() : crTema([s.pedido, s.titulo, s.apoio, s.topo, s.palavra].filter(Boolean).join(' '))
   };
   const P = {
     oferta:      { titulo: 'OFERTA DO DIA', apoio: 'Direto pelo app', cta: 'PEDIR' },
     cupom:       { chamada: ['pega este *cupom*', 'pra você *economizar!*'], cupomRotulo: 'USE O CÓDIGO', cupomCodigo: 'SEUCODIGO', cupomValor: '10' },
     evento:      { titulo: 'FESTIVAL', apoio: 'Direto pelo app', cta: 'VER NO APP' },
     beneficio:   { palavra: 'entrega', titulo: 'GRÁTIS', apoio: 'em pedidos pelo app', cta: 'PEÇA AGORA' },
-    aniversario: { topo: 'BORA COMEMORAR!', anos: '3', chamada: ['o aniversário é *nosso,*', 'o presente é *seu!*'], cupomRotulo: 'SEU PRESENTE', cupomCodigo: 'NIVERDM', cupomValor: '15' }
+    aniversario: { topo: 'BORA COMEMORAR!', anos: '3', chamada: ['o aniversário é *nosso,*', 'o presente é *seu!*'], cupomRotulo: 'SEU PRESENTE', cupomCodigo: 'NIVERDM', cupomValor: '15' },
+    // copy genérica (não é dado): aviso não tem botão de pedir; o nome da loja nunca é inventado
+    aviso:       { titulo: 'AVISO', apoio: 'Fique de olho no app' },
+    parceiro:    { titulo: 'NOVIDADE NO APP', apoio: 'Conheça o cardápio no app', cta: 'PEDIR AGORA' },
+    prospeccao:  { titulo: 'PEÇA NO APP', apoio: 'Tudo da sua cidade num app só', cta: 'SAIBA MAIS' }
   }[obj];
   Object.keys(P).forEach(k => { if(!out[k] || (Array.isArray(out[k]) && !out[k].length)) out[k] = P[k]; });
   if(out.precoDe && !out.precoPor){ out.precoPor = out.precoDe; out.precoDe = ''; }
@@ -1128,6 +1170,16 @@ function crMontar(sp, receita, fundo, p){
   // Inapp: o botão largo da base é do formato (§3.5) — a pilha não desenha outro
   const spP = a.fmt === 'inapp' ? Object.assign({}, sp, { cta: '' }) : sp;
   let pecas = null;
+  // Composições da frente 4 (js/creative/composicoes.js): a receita devolve as CAIXAS dos blocos
+  // (e as zonas e grafismos) e quem desenha é o crDesenhar — o mesmo renderizador da IA designer
+  if(receita.comp){
+    const sc = receita.lista ? Object.assign({}, sp, { listar: true }) : sp;
+    const c = receita.comp(sc, a, a.p, est);
+    if(!c) return null;
+    const r = crDesenhar(sc, Object.assign({ fundo: cor }, c), 0);
+    r.receita = receita.id; r.nomeReceita = receita.nome; r.p = a.p; r.desenho = null; r.estouros = r.estouros.concat(est);
+    return r;
+  }
   if(receita.lockup) pecas = CR_LOCKUPS[receita.lockup](spP, a, est, cor, receita.variante || {});
   else if(!sp.foto){
     // Sem foto, a tipografia é a arte: herói e preço crescem até a pilha encher (teto 1,45×) — o
@@ -1572,7 +1624,7 @@ function crContraste(c1, c2){
   const a = L(c1), b = L(c2);
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
-const _CR_PAR_MARCA = { '#FFFFFF#FF9000': 1, '#F85400#FFB900': 1, '#E52676#FFB900': 1 };
+const _CR_PAR_MARCA = { [CR_C.branco + CR_C.solar]: 1, [CR_C.laranja + CR_C.amarelo]: 1, [CR_C.rosa + CR_C.amarelo]: 1 };
 const _crLim = (v, a, b) => Math.max(0, Math.min(1, (v - a) / (b - a)));
 const _CR_PAPEL = { titulo: 'heroi', valor: 'heroi', anos: 'heroi', preco: 'heroi', apoio: 'apoio', chamada: 'apoio', itens: 'apoio', legal: 'legal' };
 const _CR_GRUPO = { logo: 'marca', tag: 'intro', chamada: 'intro', titulo: 'msg', apoio: 'msg', anos: 'msg', preco: 'oferta', valor: 'oferta', selo: 'oferta', cupom: 'oferta',
@@ -1719,7 +1771,7 @@ function crNotaDesign(geo, ctx){
       let v = r >= alvo ? 1 : r >= 3 ? 0.85 : 0.7 * _crLim(r, 1.4, alvo);
       // pares de display aprovados da marca (branco no #FF9000 com herói ≥ 110; laranja/rosa no amarelo,
       // como a Promo Turbinada): valem, mas não são o melhor par
-      if(r < 3 && t.corpo >= Math.max(40, a.heroiMin) && _CR_PAR_MARCA[t.cor + t.fundo] && (t.fundo !== '#FF9000' || t.corpo >= 110)) v = Math.max(v, 0.75);
+      if(r < 3 && t.corpo >= Math.max(40, a.heroiMin) && _CR_PAR_MARCA[t.cor + t.fundo] && (t.fundo !== CR_C.solar || t.corpo >= 110)) v = Math.max(v, 0.75);
       s += v * w; p += w;
     });
     partes.contraste = p ? s / p : 1;
@@ -1780,6 +1832,30 @@ function _crSinais(bs, z, L, a, eixoDe){
 }
 const CR_SINAIS = ['peso', 'altura', 'eixo', 'foto', 'pos', 'escala'];
 const crDistAssinatura = (a, b) => CR_SINAIS.reduce((d, k) => d + (a[k] !== b[k] ? 1 : 0), 0);
+/* Planta da arte: grade 6×8 com o que domina cada célula — F foto, H herói (título, valor, preço),
+   T texto, A ação e marca, L lista, Z placa de cor, · vazio. A assinatura diz o JEITO da peça; a planta
+   diz o DESENHO: duas composições com a mesma planta para o mesmo conteúdo são clones. */
+const _CR_PLANTA = { foto: 'F', mockup: 'F', titulo: 'H', valor: 'H', anos: 'H', preco: 'H', itens: 'L', botao: 'A', logo: 'A', logoLoja: 'A', decor: '' };
+function crPlanta(r){
+  const geo = crGeometria(r.svg), C = 6, L = 8, cw = geo.W / C, ch = geo.H / L, out = [];
+  const zonas = [...r.svg.matchAll(/<rect data-zona="1" x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)"/g)]
+    .map(m => ({ nome: 'zona', x: +m[1], y: +m[2], w: +m[3], h: +m[4] }));
+  const pecas = zonas.concat(geo.blocos);
+  for(let j = 0; j < L; j++) for(let i = 0; i < C; i++){
+    const x0 = i * cw, y0 = j * ch;
+    let rot = '·', melhor = 0.12;   // a célula é do que cobre mais dela (o de cima ganha o empate)
+    pecas.forEach(b => {
+      const k = _CR_PLANTA[b.nome] !== undefined ? _CR_PLANTA[b.nome] : b.nome === 'zona' ? 'Z' : 'T';
+      if(!k) return;
+      const a = Math.max(0, Math.min(x0 + cw, b.x + b.w) - Math.max(x0, b.x)) * Math.max(0, Math.min(y0 + ch, b.y + b.h) - Math.max(y0, b.y)) / (cw * ch);
+      if(a >= melhor){ melhor = a; rot = k; }
+    });
+    out.push(rot);
+  }
+  return out.join('');
+}
+// Distância entre plantas: a fração de células diferentes (0 = o mesmo desenho)
+const crDistPlanta = (a, b) => { let d = 0; for(let i = 0; i < a.length; i++) if(a[i] !== b[i]) d++; return d / a.length; };
 
 // Aprende com a escolha: o que a pessoa baixa ou edita ganha peso (neste navegador) — família da
 // receita, ou "designer" para as composições da IA. NÃO entra na nota de design (que é pura): só
@@ -1828,7 +1904,7 @@ function _crReceitasDe(sp){
   ids.forEach(id => {
     const rec = CR_RECEITAS.find(x => x.id === id);
     if(!rec || (rec.foto === true && !sp.foto) || (rec.foto === false && sp.foto) || (rec.serve && !rec.serve(sp))
-      || (rec.formatos && rec.formatos.indexOf(sp.formato) < 0)) return;
+      || (rec.formatos && rec.formatos.indexOf(sp.formato) < 0) || (rec.objetivos && rec.objetivos.indexOf(sp.objetivo) < 0)) return;
     out.push(rec);
   });
   if(['feed', 'story', 'inapp'].indexOf(sp.formato) >= 0) out.push(CR_EDITORIAL);
@@ -1843,7 +1919,7 @@ function _crEspaco(rec, sp){
     cont.kh = [0.86, 1.3]; cont.kv = [1, 1.5]; disc.dist = ['centro', 'ancora', 'espalha']; disc.lockup = [false, true];
     padrao.kh = 1; padrao.kv = 1; padrao.dist = 'centro'; padrao.lockup = false;
     if(sp.foto){ cont.kf = [0.8, 1.25]; padrao.kf = 1; } else { cont.kt = [1, 1.5]; padrao.kt = 0; }
-  }else{ cont.kh = [0.86, 1.2]; padrao.kh = 1; }
+  }else if(!rec.comp){ cont.kh = [0.86, 1.2]; padrao.kh = 1; }
   const b = rec.busca || {};
   Object.keys(b).forEach(k => {
     if(b[k].length === 2 && typeof b[k][0] === 'number' && typeof b[k][1] === 'number') cont[k] = b[k];
@@ -1914,7 +1990,7 @@ function* _crBuscaReceita(sp, rec, rng, memo, cota){
 }
 // A busca inteira: as receitas que servem, cada uma com a sua cota. `fora` recebe tudo o que foi avaliado.
 function* _crBusca(sp, opts, fora){
-  const recs = _crReceitasDe(sp), memo = new Map();
+  const recs = _crReceitasDe(sp).filter(r => !(opts && opts.receitas) || opts.receitas.indexOf(r.id) >= 0), memo = new Map();
   const rng = _crRng(_crHash(JSON.stringify(sp) + '|' + ((opts && opts.rodada) || 0)));
   const cota = Math.max(10, Math.floor(((opts && opts.avaliacoes) || CR_BUSCA_ORCAMENTO) / Math.max(1, recs.length)));
   for(const rec of recs){
@@ -2056,7 +2132,9 @@ function crConteudoBlocos(sp){
   const tit = sp.objetivo === 'beneficio' ? [sp.palavra, sp.titulo].filter(Boolean).join(' ').toLocaleUpperCase('pt-BR')
     : sp.objetivo === 'aniversario' ? sp.anos + (sp.anos === '1' ? ' ANO' : ' ANOS') : sp.objetivo === 'cupom' ? '' : sp.titulo;
   if(tit) b.titulo = tit;
-  if(sp.topo && sp.objetivo === 'aniversario') b.tag = sp.topo;
+  if(sp.topo && (sp.objetivo === 'aniversario' || sp.objetivo === 'oferta' || sp.objetivo === 'parceiro' || sp.objetivo === 'aviso' || sp.objetivo === 'prospeccao' || sp.objetivo === 'evento')) b.tag = sp.topo;
+  if(sp.horario) b.horario = sp.horario;
+  if(sp.loja && crNormalizaTexto(sp.loja) !== crNormalizaTexto(tit)) b.loja = sp.loja;
   if(sp.chamada.length && (sp.objetivo === 'cupom' || sp.objetivo === 'aniversario')) b.chamada = sp.chamada.join(' / ');
   if(sp.apoio) b.apoio = sp.apoio;
   if(sp.precoPor) b.preco = (sp.precoDe ? 'DE R$ ' + sp.precoDe + ' ' : '') + 'POR R$ ' + sp.precoPor;
@@ -2066,9 +2144,10 @@ function crConteudoBlocos(sp){
   if(sp.cta) b.cta = sp.cta;
   if(sp.legal) b.legal = sp.legal;
   if(sp.foto) b.foto = sp.foto === 'slot' ? 'ESPAÇO da foto (placeholder cinza que o franqueado preenche): dê a ele tamanho de foto de verdade' : 'foto enviada pela pessoa';
-  if(sp.itens.length && (sp.formato === 'carrossel' || sp.formato === 'slide')) b.itens = sp.itens.join(' / ');
+  if(sp.itens.length && (sp.formato === 'carrossel' || sp.formato === 'slide' || sp.listar)) b.itens = sp.itens.join(' / ');
   return b;
 }
+const crNormalizaTexto = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
 // Quebra equilibrada em n linhas (minimiza a linha mais larga)
 function _crLinhas(txt, cls, n){
   const p = _crPalavras(txt);
@@ -2092,6 +2171,48 @@ function _crHeroiCaixa(txt, w, h, max){
   }
   return best;
 }
+// Tom de uma área da arte: no fundo escuro (laranja, solar, vermelho, rosa) o texto é branco; no
+// claro (placa branca, faixa amarela) o herói e o preço vão em laranja e o texto miúdo em grafite.
+const _CR_ESCURO = { [CR_C.laranja]: 1, [CR_C.solar]: 1, [CR_C.vermelho]: 1, [CR_C.rosa]: 1 };
+const _CR_ZONA_COR = { branco: CR_C.branco, amarelo: CR_C.amarelo, laranja: CR_C.laranja, solar: CR_C.solar, vermelho: CR_C.vermelho };
+function _crTom(cor, fundoArte){
+  const c = String(cor || '').toUpperCase(), esc = !!_CR_ESCURO[c];
+  return { escuro: esc, cor: c, heroi: esc ? CR_C.branco : CR_C.laranja, texto: esc ? CR_C.branco : CR_C.grafite, logo: esc ? 'dm-h-branca' : 'dm-h-laranja',
+    botao: esc ? (c === CR_C.solar || fundoArte === CR_C.solar ? 'laranja' : 'cheio') : 'laranja', tagFundo: esc ? CR_C.branco : CR_C.laranja, tagTexto: esc ? CR_C.laranja : CR_C.branco,
+    seloFundo: c === CR_C.amarelo ? CR_C.laranja : CR_C.amarelo, seloTexto: c === CR_C.amarelo ? CR_C.branco : CR_C.grafite };
+}
+// Linha de lista: "Burger clássico R$ 24,90" → { nome, preco: '24,90' }
+const _crItemPreco = t => { const m = /^(.*?)\s*(?:[-–:]\s*)?R\$\s*(\d+(?:[.,]\d{1,2})?)\s*$/i.exec(String(t || '')); return m ? { nome: m[1].trim(), preco: _crReal(m[2].replace('.', ',')) } : { nome: String(t || ''), preco: '' }; };
+// Slot do logo da loja (contrato: g#logo_loja vira moldura no Estúdio): círculo branco + aviso
+function crLogoLoja(x, y, d){
+  const r = d / 2, cx = x + r, cy = y + r;
+  return '<g id="logo_loja"><rect x="' + _r(x) + '" y="' + _r(y) + '" width="' + _r(d) + '" height="' + _r(d) + '" rx="' + _r(r) + '" fill="' + CR_C.branco + '" filter="url(#shs)"/>'
+    + (d >= 160 ? '<text x="' + _r(cx) + '" y="' + _r(cy + 10) + '" text-anchor="middle" class="body" font-size="' + _r(Math.max(24, d * 0.09)) + '" fill="' + CR_C.grafite + '">Logo da loja</text>' : '') + '</g>';
+}
+// Lista de itens, em 4 estilos: 'cards' (os do carrossel), 'precos' (cards brancos com nome + preço),
+// 'ranking' (números grandes + nome, sem card) e 'linhas' (nome + preço com fio entre as linhas)
+function crLista(x, y, w, h, itens, estilo, tom, est, piso){
+  if(estilo === 'cards' || !estilo) return crItens(x, y, w, h, itens, est);
+  const n = itens.length, gap = estilo === 'linhas' ? 0 : 24, ch = Math.min(estilo === 'ranking' ? 190 : 160, (h - gap * (n - 1)) / n);
+  return itens.map((t, i) => {
+    const it = _crItemPreco(t), yy = y + i * (ch + gap);
+    if(estilo === 'ranking'){
+      const zn = Math.min(150, ch * 0.9), xn = x + crMede('0', 'hero', zn) * 1.15 + 24, z = crCabe(it.nome, 'forte', Math.min(52, ch * 0.36), w - (xn - x), piso, est);
+      return crTexto(x, yy + ch / 2 + zn * 0.36, 'hero', zn, tom.escuro ? CR_C.amarelo : CR_C.laranja, String(i + 1)) + crTexto(xn, yy + ch / 2 + z * 0.36, 'forte', z, tom.texto, it.nome, ' data-larg="' + _r(w - (xn - x)) + '"');
+    }
+    if(estilo === 'linhas'){
+      const wp = it.preco ? crPrecoMede(it.preco, w * 0.42, Math.min(96, ch * 0.62)) : null, z = crCabe(it.nome, 'forte', Math.min(46, ch * 0.34), w - (wp ? wp.w + 40 : 0), piso, est);
+      return (i ? '<line x1="' + _r(x) + '" y1="' + _r(yy) + '" x2="' + _r(x + w) + '" y2="' + _r(yy) + '" stroke="' + tom.texto + '" stroke-width="2" opacity="0.5"/>' : '')
+        + crTexto(x, yy + ch / 2 + z * 0.36, 'forte', z, tom.texto, it.nome) + (wp ? crPreco(x + w - wp.w, yy + ch / 2 + wp.big * 0.36, it.preco, w * 0.42, tom.heroi, wp.big).replace(' data-campo="precoPor"', '') : '');
+    }
+    // 'precos': card branco, número à esquerda, nome, preço à direita em laranja
+    const pad = Math.min(44, ch * 0.25), wp = it.preco ? crPrecoMede(it.preco, w * 0.36, Math.min(100, ch * 0.55)) : null;
+    const zn = Math.min(96, ch * 0.55), xn = x + pad + crMede(String(i + 1), 'hero', zn) + 24, ln = w - (xn - x) - pad - (wp ? wp.w + 24 : 0), z = crCabe(it.nome, 'forte', Math.min(60, ch * 0.3), ln, piso, est);
+    return '<rect x="' + _r(x) + '" y="' + _r(yy) + '" width="' + _r(w) + '" height="' + _r(ch) + '" rx="32" fill="' + CR_C.branco + '" filter="url(#shs)"/>'
+      + crTexto(x + pad, yy + ch / 2 + zn * 0.36, 'hero', zn, CR_C.laranja, String(i + 1)) + crTexto(xn, yy + ch / 2 + z * 0.36, 'forte', z, CR_C.grafite, it.nome, ' data-larg="' + _r(ln) + '"')
+      + (wp ? crPreco(x + w - pad - wp.w, yy + ch / 2 + wp.big * 0.36, it.preco, w * 0.36, CR_C.laranja, wp.big).replace(' data-campo="precoPor"', '') : '');
+  }).join('');
+}
 function crDesenhar(sp, comp, i){
   const a = crArea(sp.formato); a.p = {};
   const est = [], faltas = [], W = a.W, H = a.H;
@@ -2099,80 +2220,126 @@ function crDesenhar(sp, comp, i){
   const tem = crConteudoBlocos(sp), n = v => Math.round(+v || 0);
   const campo = sp.objetivo === 'oferta' ? 'produto' : 'titulo';
   const pecas = [], decor = [], vistos = new Set();
+  // Zonas: placas e faixas de cor por trás dos blocos (não são blocos: podem sangrar). O tom de cada
+  // bloco sai da zona debaixo do centro dele — texto nunca fica branco numa placa branca.
+  const zonas = (Array.isArray(comp.zonas) ? comp.zonas : []).map(z => Object.assign({}, z, { cor: _CR_ZONA_COR[z.cor] || String(z.cor || CR_C.branco).toUpperCase() }));
+  const zonaSvg = zonas.map(z => '<rect data-zona="1" x="' + n(z.x) + '" y="' + n(z.y) + '" width="' + n(z.w) + '" height="' + n(z.h) + '" rx="' + n(z.rx) + '" fill="' + z.cor + '"'
+    + (z.rot ? ' transform="rotate(' + z.rot + ' ' + _r(z.x + z.w / 2) + ' ' + _r(z.y + z.h / 2) + ')"' : '') + (z.sombra ? ' filter="url(#sh)"' : '') + '/>').join('\n');
+  const tomEm = (cx, cy) => { let c = fundo; zonas.forEach(z => { if(cx >= z.x && cx <= z.x + z.w && cy >= z.y && cy <= z.y + z.h) c = z.cor; }); return _crTom(c, fundo); };
   (Array.isArray(comp.grafismos) ? comp.grafismos : []).slice(0, 5).forEach(g => {
     const d = _crDoInv(g && g.asset, sp) && CR_DECOR[g.asset]; if(!d) return;
     const w = Math.max(20, Math.min(d.max, n(g.w) || d.w)), h = Math.round(w * d.h / d.w), x = n(g.x), y = n(g.y), rot = Math.max(-45, Math.min(45, n(g.rot)));
     decor.push(crBloco('decor', '<image href="asset:inv/' + g.asset + '.png" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"'
       + (rot ? ' transform="rotate(' + rot + ' ' + _r(x + w / 2) + ' ' + _r(y + h / 2) + ')"' : '') + '/>'));
   });
+  // blocos que não são conteúdo, só moldura da composição (slot do logo da loja, mockup do inventário)
+  const EXTRA = { logoLoja: 1, mockup: 1 };
   (Array.isArray(comp.blocos) ? comp.blocos : []).forEach(b => {
     const t = b && b.bloco;
-    if(!tem[t] || vistos.has(t)) return;
+    if((!tem[t] && !EXTRA[t]) || vistos.has(t)) return;
     vistos.add(t);
     const x = n(b.x), y = n(b.y), w = Math.max(40, n(b.w)), h = Math.max(20, n(b.h));
     const al = b.alinhar === 'centro' || b.alinhar === 'dir' ? b.alinhar : 'esq';
     const ax = al === 'centro' ? x + w / 2 : al === 'dir' ? x + w : x, anc = al === 'centro' ? ' text-anchor="middle"' : al === 'dir' ? ' text-anchor="end"' : '';
-    const lg = ' data-larg="' + w + '"';
+    const lg = ' data-larg="' + w + '"', tom = b.tom ? _crTom(_CR_ZONA_COR[b.tom] || b.tom, fundo) : tomEm(x + w / 2, y + h / 2);
+    const gira = s => b.rot ? '<g transform="rotate(' + n(b.rot) + ' ' + _r(x + w / 2) + ' ' + _r(y + h / 2) + ')">' + s + '</g>' : s;
     if(t === 'logo'){
-      const lw = Math.min(300, w, h * 4.97), lh = lw / 4.97, lx = al === 'centro' ? x + (w - lw) / 2 : al === 'dir' ? x + w - lw : x;
-      pecas.push(crBloco('logo', '<image href="asset:logos/dm-h-branca.png" x="' + _r(lx) + '" y="' + y + '" width="' + _r(lw) + '" height="' + _r(lh) + '"/>'));
+      const lw = Math.min(b.max || 300, w, h * 4.97), lh = lw / 4.97, lx = al === 'centro' ? x + (w - lw) / 2 : al === 'dir' ? x + w - lw : x;
+      pecas.push(crBloco('logo', '<image href="asset:logos/' + tom.logo + '.png" x="' + _r(lx) + '" y="' + y + '" width="' + _r(lw) + '" height="' + _r(lh) + '"/>'));
     }else if(t === 'titulo'){
-      const q = _crHeroiCaixa(tem.titulo, w, h, a.deitado ? a.heroiMax : 560);
-      if(q.size < a.heroiMin) est.push(tem.titulo);
-      pecas.push(crBloco('titulo', '<g id="produto">' + crHeroi(ax, q.linhas.map((l, k) => y + _crAlt(q.linhas, q.size).ys[k]), q.size, '#FFFFFF', q.linhas, anc + ' data-campo="' + campo + '"') + '</g>'));
+      // a composição pode pedir o lockup (corpo máximo, linhas, igualar larguras) e o adesivo (contorno + giro)
+      const fill = b.contorno ? CR_C.laranja : (b.cor || tom.heroi), cont = b.contorno ? ' stroke="' + CR_C.branco + '" stroke-width="' + _r((b.max || 120) * 0.22) + '" stroke-linejoin="round" paint-order="stroke fill"' : '';
+      if(b.max){
+        const q = crLockup(tem.titulo, { larg: w, alt: h, max: b.max, min: a.heroiMin, linhas: b.linhas || 3, iguala: !!b.iguala, varia: b.varia || 1.35 });
+        if(q.zMin < a.heroiMin) est.push(tem.titulo);
+        const zs = q.zs.some(z => z !== q.zs[0]) ? q.zs : null, y0 = y + Math.max(0, (b.valinhar === 'base' ? h - q.h : b.valinhar === 'centro' ? (h - q.h) / 2 : 0));
+        pecas.push(crBloco('titulo', gira('<g id="produto">' + crHeroi(ax, q.ys.map(v => y0 + v), q.size, fill, q.linhas, anc + cont + ' data-campo="' + campo + '"', zs) + '</g>')));
+      }else{
+        const q = _crHeroiCaixa(tem.titulo, w, h, a.deitado ? a.heroiMax : 560);
+        if(q.size < a.heroiMin) est.push(tem.titulo);
+        pecas.push(crBloco('titulo', gira('<g id="produto">' + crHeroi(ax, q.linhas.map((l, k) => y + _crAlt(q.linhas, q.size).ys[k]), q.size, fill, q.linhas, anc + cont + ' data-campo="' + campo + '"') + '</g>')));
+      }
     }else if(t === 'tag'){
-      const z = 40, tw = Math.max(330, _r(crMede(sp.topo, 'hero', z) + 64)), tx = al === 'centro' ? x + (w - tw) / 2 : al === 'dir' ? x + w - tw : x;
-      pecas.push(crBloco('tag', '<rect x="' + _r(tx) + '" y="' + y + '" width="' + tw + '" height="70" rx="35" fill="#FFFFFF"/>' + crTexto(tx + tw / 2, y + 49, 'hero', z, '#F85400', sp.topo, ' text-anchor="middle"')));
+      const z = b.max || 40, tw = Math.max(b.max ? 0 : 330, _r(crMede(sp.topo, 'hero', z) + z * 1.6)), th = _r(z * 1.75), tx = al === 'centro' ? x + (w - tw) / 2 : al === 'dir' ? x + w - tw : x;
+      pecas.push(crBloco('tag', gira('<rect x="' + _r(tx) + '" y="' + y + '" width="' + tw + '" height="' + th + '" rx="' + _r(th / 2) + '" fill="' + tom.tagFundo + '"/>' + crTexto(tx + tw / 2, y + th / 2 + z * 0.36, 'hero', z, tom.tagTexto, sp.topo, ' text-anchor="middle"'))));
     }else if(t === 'apoio'){
       // 1 linha no corpo que a caixa pede; 2 linhas sem órfã quando ficam ≥ 10% maiores E cabem na caixa
-      const z0 = crCabe(sp.apoio, 'body', Math.min(56, h / 0.92), w, 0), z1 = Math.max(z0, a.piso), q2 = crTextoLinhas(sp.apoio, 'body', Math.min(48, h / 2.17), w, Math.max(28, a.piso), null);
+      const z0 = crCabe(sp.apoio, 'body', Math.min(b.max || 56, h / 0.92), w, 0), z1 = Math.max(z0, a.piso), q2 = crTextoLinhas(sp.apoio, 'body', Math.min(b.max || 48, h / 2.17), w, Math.max(28, a.piso), null);
       const q = q2.linhas.length > 1 && q2.z > z1 * 1.1 && q2.h <= h + 6 ? q2 : { linhas: [sp.apoio], z: z1, ys: _crAlt([sp.apoio], z1, 'body').ys };
       if(q !== q2 && z0 < a.piso) est.push(sp.apoio);
-      pecas.push(crBloco('apoio', crTextoMulti(ax, y, 'body', q, '#FFFFFF', anc + lg)));
+      pecas.push(crBloco('apoio', crTextoMulti(ax, y, 'body', q, b.cor || tom.texto, anc + lg)));
     }else if(t === 'chamada'){
-      const ls = sp.chamada, zc = Math.floor(Math.min(84, h / (0.95 + (ls.length - 1) * 1.3), ...ls.map(l => w * 80 / Math.max(1, crMedeMista(l, 80)))));
+      const ls = sp.chamada, zc = Math.floor(Math.min(b.max || 84, h / (0.95 + (ls.length - 1) * 1.3), ...ls.map(l => w * 80 / Math.max(1, crMedeMista(l, 80)))));
       if(zc < a.piso) est.push(ls.join(' '));
-      pecas.push(crBloco('chamada', ls.map((l, k) => crMista(ax, y + zc * 0.75 + k * zc * 1.3, zc, '#FFFFFF', l, al === 'centro' ? 'middle' : al === 'dir' ? 'end' : '')).join('')));
+      pecas.push(crBloco('chamada', ls.map((l, k) => crMista(ax, y + zc * 0.75 + k * zc * 1.3, zc, tom.texto, l, al === 'centro' ? 'middle' : al === 'dir' ? 'end' : '')).join('')));
     }else if(t === 'preco'){
-      const de = sp.precoDe ? 61 : 0, pm = crPrecoMede(sp.precoPor, w, Math.min(280, (h - de - 44) / 0.73));
-      const x0 = al === 'centro' ? x + (w - pm.w) / 2 : al === 'dir' ? x + w - pm.w : x, top = y + de + 44;
-      let s = '<g id="preco">';
-      if(sp.precoDe) s += crTexto(al === 'centro' ? x + w / 2 : al === 'dir' ? x + w : x, y + 29, 'body', 40, '#FFFFFF', 'DE R$ ' + sp.precoDe, ' text-decoration="line-through" data-campo="precoDe"' + anc);
-      s += crTexto(x0 + 2, top - 18, 'sup', 36, '#FFFFFF', 'POR') + crPreco(x0, top + pm.big * 0.73, sp.precoPor, w, '#FFFFFF', pm.big) + '</g>';
-      pecas.push(crBloco('preco', s));
+      // placa branca (b.placa): o preço vira o card da marca — POR em grafite, número em laranja
+      const placa = b.placa === 'branco', pad = placa ? 44 : 0, iw = w - 2 * pad, de = sp.precoDe ? 61 : 0;
+      const pm = crPrecoMede(sp.precoPor, iw, Math.min(b.max || 280, (h - 2 * pad - de - 44) / 0.73));
+      const ti = placa ? _crTom(CR_C.branco) : tom, x0 = al === 'centro' ? x + (w - pm.w) / 2 : al === 'dir' ? x + w - pad - pm.w : x + pad, top = y + pad + de + 44;
+      const hx = al === 'centro' ? x + w / 2 : al === 'dir' ? x + w - pad : x + pad;
+      let s = placa ? '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + _r(2 * pad + de + 44 + pm.big * 0.73 + 8) + '" rx="40" fill="' + CR_C.branco + '" filter="url(#sh)"/>' : '';
+      s += '<g id="preco">';
+      if(sp.precoDe) s += crTexto(hx, y + pad + 29, 'body', 40, ti.texto, 'DE R$ ' + sp.precoDe, ' text-decoration="line-through" data-campo="precoDe"' + anc);
+      const pre = b.prefixo != null ? b.prefixo : 'POR';
+      s += (pre ? crTexto(x0 + 2, top - 18, 'sup', 36, ti.texto, pre) : '') + crPreco(x0, top + pm.big * 0.73, sp.precoPor, iw, placa ? CR_C.laranja : tom.heroi, pm.big) + '</g>';
+      // b.sobre: o card de preço pode prender na borda da foto (a lista fechada da §2.2)
+      pecas.push(crBloco('preco', gira(b.sobre ? '<g data-sobrepoe="foto">' + s + '</g>' : s)));
     }else if(t === 'valor'){
       // receita C: R$ a 36% alinhado ao topo · número · coluna OFF / NO SEU / PEDIDO na linha de base
-      const pct = /%$/.test(sp.cupomValor), num = sp.cupomValor;
-      let zn = Math.min(560, h / 0.73);
+      const pct = /%$/.test(sp.cupomValor), num = sp.cupomValor, cv = tom.heroi;
+      let zn = Math.min(b.max || 560, h / 0.73);
       const larg = z => (pct ? 0 : crMede('R$', 'hero', z * 0.36) + z * 0.06) + crMede(num, 'hero', z) + z * 0.1 + Math.max(crMede('OFF', 'forte', z * 0.417), crMede('PEDIDO', 'forte', z * 0.156));
       if(larg(zn) > w) zn = Math.floor(zn * w / larg(zn));
       const B = y + zn * 0.73, tw = larg(zn), x0 = al === 'centro' ? x + (w - tw) / 2 : al === 'dir' ? x + w - tw : x;
       const xn = x0 + (pct ? 0 : crMede('R$', 'hero', zn * 0.36) + zn * 0.06), xo = xn + crMede(num, 'hero', zn) + zn * 0.1;
-      pecas.push(crBloco('valor', '<g id="produto">' + (pct ? '' : crTexto(x0, B - zn * 0.458, 'hero', zn * 0.36, '#FFFFFF', 'R$'))
-        + crTexto(xn, B, 'hero', zn, '#FFFFFF', num, ' data-campo="desconto_valor"') + crTexto(xo, B - zn * 0.422, 'forte', zn * 0.417, '#FFFFFF', 'OFF')
-        + crTexto(xo, B - zn * 0.18, 'forte', zn * 0.156, '#FFFFFF', 'NO SEU') + crTexto(xo, B, 'forte', zn * 0.156, '#FFFFFF', 'PEDIDO') + '</g>'));
+      pecas.push(crBloco('valor', '<g id="produto">' + (pct ? '' : crTexto(x0, B - zn * 0.458, 'hero', zn * 0.36, cv, 'R$'))
+        + crTexto(xn, B, 'hero', zn, cv, num, ' data-campo="desconto_valor"') + crTexto(xo, B - zn * 0.422, 'forte', zn * 0.417, cv, 'OFF')
+        + crTexto(xo, B - zn * 0.18, 'forte', zn * 0.156, cv, 'NO SEU') + crTexto(xo, B, 'forte', zn * 0.156, cv, 'PEDIDO') + '</g>'));
     }else if(t === 'cupom'){
-      const k = Math.min(1.1, w / 880, h / 324), tx = al === 'centro' ? x + (w - 880 * k) / 2 : al === 'dir' ? x + w - 880 * k : x, cx = tx + 222 * k, cl = 568 * k;
-      pecas.push(crBloco('cupom', crTicket(tx, y, k) + '<g id="detalhes">' + crTexto(cx, y + 82 * k, 'sup', Math.max(a.piso, 34 * k), '#434343', sp.cupomRotulo)
+      const k = Math.min(b.max || 1.1, w / 880, h / 324), tx = al === 'centro' ? x + (w - 880 * k) / 2 : al === 'dir' ? x + w - 880 * k : x, cx = tx + 222 * k, cl = 568 * k;
+      pecas.push(crBloco('cupom', gira(crTicket(tx, y, k) + '<g id="detalhes">' + crTexto(cx, y + 82 * k, 'sup', Math.max(a.piso, 34 * k), '#434343', sp.cupomRotulo)
         + crTexto(cx, y + 194 * k, 'hero', crCabe(sp.cupomCodigo, 'hero', 116 * k, cl, 48, est), '#F85400', sp.cupomCodigo, ' data-campo="codigo_cupom" data-larg="' + _r(cl) + '"')
-        + '<line x1="' + _r(cx) + '" y1="' + _r(y + 222 * k) + '" x2="' + _r(cx + cl) + '" y2="' + _r(y + 222 * k) + '" stroke="#FFB900" stroke-width="3" stroke-linecap="round"/></g>'));
+        + '<line x1="' + _r(cx) + '" y1="' + _r(y + 222 * k) + '" x2="' + _r(cx + cl) + '" y2="' + _r(y + 222 * k) + '" stroke="#FFB900" stroke-width="3" stroke-linecap="round"/></g>')));
     }else if(t === 'selo'){
-      const r = Math.max(90, Math.min(170, Math.min(w, h) / 2));
-      pecas.push(crBloco('selo', crSelo(x + w / 2, y + h / 2, r, sp.selo)));
+      const l = sp.selo.slice(0, 2);
+      if(b.estilo === 'data'){
+        // data tipográfica: o número em Realce gigante e o mês em Roboto Black embaixo (sem círculo)
+        const z1 = crCabe(l[0], 'hero', Math.min(b.max || 300, h * 0.62 / 0.73), w, 0), z2 = l[1] ? crCabe(l[1], 'forte', Math.max(a.piso, Math.min(z1 * 0.32, 90)), w, a.piso, est) : 0;
+        const B1 = y + z1 * 0.73, B2 = B1 + (z2 ? z2 * 1.15 : 0);
+        pecas.push(crBloco('selo', crTexto(ax, B1, 'hero', z1, b.cor || tom.heroi, l[0], anc) + (z2 ? crTexto(ax, B2, 'forte', z2, tom.texto, l[1], anc) : '')));
+      }else{
+        const r = Math.max(70, Math.min(b.max || 170, Math.min(w, h) / 2)), cx = al === 'centro' ? x + w / 2 : al === 'dir' ? x + w - r : x + r;
+        pecas.push(crBloco('selo', crSelo(cx, y + h / 2, r, l, tom.seloFundo, tom.seloTexto)));
+      }
+    }else if(t === 'horario'){
+      const q = crLockup(sp.horario, { larg: w, alt: h, max: b.max || 160, min: a.heroiMin * 0.7, linhas: 2 });
+      pecas.push(crBloco('horario', crHeroi(ax, q.ys.map(v => y + v), q.size, b.cor || tom.heroi, q.linhas, anc + ' data-campo="horario"')));
+    }else if(t === 'loja'){
+      const z = crCabe(sp.loja, 'forte', Math.min(b.max || 64, h / 0.75), w, a.piso, est);
+      pecas.push(crBloco('loja', crTexto(ax, y + z * 0.74, 'forte', z, tom.texto, sp.loja, anc + ' data-campo="loja"')));
     }else if(t === 'cta'){
       if(a.fmt === 'inapp') return;                    // o botão do inapp é o largo da base (crMontar)
-      const est2 = fundo === '#FF9000' ? 'laranja' : (b.estilo === 'contorno' ? 'contorno' : 'cheio');
+      const est2 = b.estilo === 'contorno' && tom.escuro ? 'contorno' : tom.botao;
       pecas.push(crBloco('botao', crBotao(ax, y, sp.cta, est2, al === 'centro' ? 'centro' : al === 'dir' ? 'dir' : '').svg));
     }else if(t === 'legal'){
       const pl = Math.max(22, a.piso), z0 = crCabe(sp.legal, 'legal', 28, w, 0), z1 = Math.max(z0, pl), q2 = crTextoLinhas(sp.legal, 'legal', 28, w, pl, null);
       const q = q2.linhas.length > 1 && q2.z > z1 * 1.08 && q2.h <= h + 6 ? q2 : { linhas: [sp.legal], z: z1, ys: _crAlt([sp.legal], z1, 'legal').ys };
       if(q !== q2 && z0 < pl) est.push(sp.legal);
-      pecas.push(crBloco('legal', crTextoMulti(ax, y, 'legal', q, '#FFFFFF', anc)));
+      pecas.push(crBloco('legal', crTextoMulti(ax, y, 'legal', q, tom.texto, anc)));
     }else if(t === 'itens'){
-      pecas.push(crBloco('itens', crItens(x, y, w, h, sp.itens, est)));
+      pecas.push(crBloco('itens', crLista(x, y, w, h, sp.itens, b.estilo, tom, est, a.piso)));
     }else if(t === 'foto'){
       const sangra = x <= 0 || y <= 0 || x + w >= W || y + h >= H;
-      pecas.unshift(crBloco('foto', crFoto(x, y, w, h, sangra ? 0 : 56, '', sp.foto)));
+      pecas.unshift(crBloco('foto', crFoto(x, y, w, h, b.rx != null ? b.rx : sangra ? 0 : 56, '', sp.foto)));
+    }else if(t === 'logoLoja'){
+      const d = Math.min(w, h), lx = al === 'centro' ? x + (w - d) / 2 : al === 'dir' ? x + w - d : x;
+      pecas.push(crBloco('logoLoja', crLogoLoja(lx, y, d)));
+    }else if(t === 'mockup'){
+      const id = b.asset || 'celular-app', dd = _crDoInv(id, sp) && CR_DECOR[id];
+      if(!dd) return;
+      const mw = Math.min(w, h * dd.w / dd.h, dd.max), mh = mw * dd.h / dd.w, mx = al === 'centro' ? x + (w - mw) / 2 : al === 'dir' ? x + w - mw : x;
+      pecas.push(crBloco('mockup', gira('<image href="asset:inv/' + id + '.png" x="' + _r(mx) + '" y="' + _r(y) + '" width="' + _r(mw) + '" height="' + _r(mh) + '"/>')));
     }
   });
   // todo bloco com conteúdo tem de entrar (o logo e a foto também)
@@ -2180,7 +2347,7 @@ function crDesenhar(sp, comp, i){
   if(a.fmt === 'inapp') pecas.push(crBotaoLargo(sp, fundo));
   let svg = '<svg xmlns="http://www.w3.org/2000/svg" data-luma="1" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '">'
     + crDefs() + (a.card ? '<rect data-fundo="1" x="' + a.card[0] + '" y="' + a.card[1] + '" width="' + a.card[2] + '" height="' + a.card[3] + '" rx="' + a.card[4] + '" fill="' + fundo + '"/>'
-      : '<rect data-fundo="1" width="' + W + '" height="' + H + '" fill="' + fundo + '"/>') + '\n' + decor.concat(pecas).join('\n') + '\n</svg>';
+      : '<rect data-fundo="1" width="' + W + '" height="' + H + '" fill="' + fundo + '"/>') + '\n' + (zonaSvg ? zonaSvg + '\n' : '') + decor.concat(pecas).join('\n') + '\n</svg>';
   svg = _crMarca(svg, sp);
   const campos = [...new Set((svg.match(/data-campo="([^"]+)"/g) || []).map(m => m.slice(12, -1)))];
   if(/id="foto_produto"/.test(svg)) campos.push('foto_produto');
@@ -2502,10 +2669,13 @@ function _crFormatoDito(t){
 function crLerPedido(texto, fmt){
   const t = String(texto || ''), n = t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   const sp = { formato: _crFormatoDito(t) || fmt || 'feed', marca: _crMarcaDita(t) ? 'much' : 'dm' };
-  sp.objetivo = /anivers/.test(n) ? 'aniversario'
+  sp.objetivo = /anivers/.test(n) && !/cidade/.test(n) ? 'aniversario'
+    : /seja (parceiro|entregador)|entregador|baix[ae]r? o app|baixe|pec[ao] no app|obrigad|agradec|cadastre sua loja/.test(n) ? 'prospeccao'
+    : /\baviso|feriado|horario (especial|de|do)|pausa|estamos entregando|entregando normal|fechad|comunicado/.test(n) ? 'aviso'
+    : /novo parceiro|lojista|inaugur|mais vendid|mais pedid|chegou no app|loja da semana|varias lojas|das lojas/.test(n) ? 'parceiro'
     : /cupom|codigo/.test(n) ? 'cupom'
-    : /(entrega|frete)\s+gratis|gratis/.test(n) ? 'beneficio'
-    : /evento|festival|feira|show|semana d|rodizio/.test(n) ? 'evento' : 'oferta';
+    : /(entrega|frete)\s+gratis|gratis|cashback/.test(n) ? 'beneficio'
+    : /evento|festival|feira|show|semana d|rodizio|chuv|chove|domingo|madrugada|fim de semana|dia d[ao]s|natal|junin|arrai|\bjogo\b|copa|cidade/.test(n) ? 'evento' : 'oferta';
   const reais = [...t.matchAll(/R\$\s*(\d+(?:[.,]\d{1,2})?)/gi)].map(m => m[1].replace('.', ','));
   const fmtR = v => /,/.test(v) ? v.replace(/,(\d)$/, ',$10') : v + ',00';
   const minimo = /(?:m[ií]nimo|acima)\s+(?:de\s+)?R\$\s*(\d+)/i.exec(t);
@@ -2520,10 +2690,16 @@ function crLerPedido(texto, fmt){
     if(pct) sp.selo = [pct[1] + '%', 'OFF'];
     // o nome do produto, sem as palavras do formato ("banner do app", "cabeçalho de email"…) nem o "R" de "R$"
     const FMT = 'arte|post|feed|story|stories|banner|super ?banner|in-?app|pop-?up|cabe[çc]alho|rodap[ée]|e-?mail|capa|pasta|deskfy|slide|apresenta[çc][ãa]o|app';
-    const limpo = t.replace(new RegExp('^((' + FMT + ')(?=\\s|$)\\s*((de|do|da|para|no|na)\\s+)?)+', 'i'), '');
+    // "Story: pizza…" — o formato no começo sai junto com os dois-pontos
+    let limpo = t.replace(new RegExp('^((' + FMT + ')(?=[\\s:]|$)[:\\s]*((de|do|da|para|no|na)\\s+)?)+', 'i'), '');
+    // "prato do dia", "oferta do dia"… é a tag do alto (o que o pedido disse), não parte do nome
+    const tagDia = /\b(prato|oferta|promo(?:ção|cao)?|almo[çc]o|sugest[ãa]o) do dia\b/i.exec(limpo);
+    if(tagDia){ sp.topo = sp.topo || tagDia[0].toLocaleUpperCase('pt-BR'); limpo = limpo.replace(tagDia[0], ' ').replace(/^[\s:]+/, ''); }
     const prod = /(?:oferta|promo(?:ção|cao)?|arte|post)?\s*(?:de|do|da)?\s*([^:,.\d$]{3,40})/i.exec(limpo);
+    // "de/do/da/por" só saem das pontas: "pizza de calabresa" fica inteira
     if(prod) sp.titulo = prod[1].split(/\s+(?:para|pra|pro|no|na|neste|nesse|nessa|hoje|amanh[ãa]|esse|este|essa|desta|dessa|com)\b/i)[0]
-      .replace(new RegExp('(^|\\s)(oferta|promo(ção|cao)?|de|do|da|por|' + FMT + ')(?=\\s|$)', 'gi'), ' ').replace(/\s+R$/i, '').replace(/\s{2,}/g, ' ').trim();
+      .replace(new RegExp('(^|\\s)(oferta|promo(ção|cao)?|' + FMT + ')(?=\\s|$)', 'gi'), ' ').replace(/\s+R$/i, '')
+      .replace(/^\s*((de|do|da|por)\s+)+/i, '').replace(/(\s+(de|do|da|por))+\s*$/i, '').replace(/\s{2,}/g, ' ').trim();
   }
   if(sp.objetivo === 'cupom' || sp.objetivo === 'aniversario'){
     if(pct) sp.cupomValor = pct[1] + '%'; else if(semMin.length) sp.cupomValor = semMin[0].split(',')[0];
@@ -2534,12 +2710,40 @@ function crLerPedido(texto, fmt){
   const itens = (t.indexOf(':') > 0 ? t.slice(t.indexOf(':') + 1) : t).split(/\n|;|•|\s-\s/).map(x => x.replace(/^[\s\-–*\d.)]+/, '').trim()).filter(x => x.length > 2 && x.length <= 60);
   if(itens.length >= 2) sp.itens = itens.slice(0, 4);
   if(sp.objetivo === 'beneficio' && /frete/.test(n)) sp.palavra = 'frete';
-  if(sp.objetivo === 'evento'){
-    const ev = /(festival|feira|semana|show|rod[ií]zio)((?:\s+(?!na\b|no\b|em\b|de\b|da\b|do\b|dia\b)[\wÀ-ú]+){0,2})/i.exec(t);
-    if(ev) sp.titulo = ev[1] + ev[2];
-    const data = /(\d{1,2})\s*(?:a|até)\s*(\d{1,2})\s*de\s*([a-zç]+)/i.exec(t);
-    if(data) sp.selo = [data[1] + ' A ' + data[2], data[3]];
+  // Horário que o pedido deu ("das 11h às 22h") — vira o bloco de horário, nunca é inventado
+  const hr = /(\d{1,2})\s*h(\d{2})?\s*(?:às|as|até|ate|a|-)\s*(\d{1,2})\s*h(\d{2})?/i.exec(t);
+  if(hr) sp.horario = hr[1] + 'H' + (hr[2] || '') + ' ÀS ' + hr[3] + 'H' + (hr[4] || '');
+  // "Rótulo: o resto" — nos usos de texto (aviso, parceiro, prospecção, evento) o rótulo é o herói
+  const dois = t.indexOf(':') > 0 ? [t.slice(0, t.indexOf(':')).trim(), t.slice(t.indexOf(':') + 1).trim()] : null;
+  const FMTW = /^(story|stories|feed|post|arte|banner|inapp|pop-?up|capa|slide|carross?el|e-?mail|cabe[çc]alho)$/i;
+  const frase = x => x.split(/\s+(?:por causa|porque|pois|que)\b|[.!?;]/i)[0].trim();
+  if(sp.objetivo === 'aviso' || sp.objetivo === 'prospeccao' || (sp.objetivo === 'evento' && !/festival|feira|semana|show|rod[ií]zio/i.test(t))){
+    const generico = dois && /^(aviso|agradecimento|comunicado|recado|novidade)$/i.test(dois[0]);
+    const tit = dois && !FMTW.test(dois[0]) && !generico ? dois[0] : frase(dois ? dois[1] : t);
+    sp.titulo = tit.replace(/[,.]\s*$/, '');
+    const resto = dois && !generico && !FMTW.test(dois[0]) ? dois[1] : '';
+    if(resto && !/R\$/.test(resto)) sp.apoio = resto.charAt(0).toLocaleUpperCase('pt-BR') + resto.slice(1);
   }
+  if(sp.objetivo === 'parceiro'){
+    const rot = dois ? dois[0] : '';
+    if(/parceiro|lojista|inaugur|destaque|semana/i.test(rot)) sp.topo = rot.replace(/:$/, '');
+    if(dois && /mais vendid|mais pedid|ofertas/i.test(rot)){ sp.titulo = rot; }
+    else {
+      const base = dois ? dois[1] : t.replace(/^.*?\b(inaugura[çc][ãa]o|novo parceiro)\s+(d[aoe]s?\s+)?/i, '');
+      const loja = base.split(/,|\s+(?:chegou|já|agora|no app|na cidade|dia)\b/i)[0].replace(/^(d[aoe]s?)\s+/i, '').trim();
+      if(loja && loja.length <= 28){ sp.loja = loja; sp.titulo = loja; }
+      if(/inaugur/i.test(t)) sp.topo = 'INAUGURAÇÃO';
+    }
+    if(dois && /mais vendid|mais pedid|ofertas/i.test(rot)) sp.itens = dois[1].split(/,|;|\n|\s+e\s+/).map(x => x.trim()).filter(x => x.length > 2).slice(0, 4);
+  }
+  if(sp.objetivo === 'evento' || sp.objetivo === 'aviso' || sp.objetivo === 'parceiro'){
+    const ev = /(festival|feira|semana|show|rod[ií]zio)((?:\s+(?!na\b|no\b|em\b|de\b|da\b|do\b|dia\b)[\wÀ-ú]+){0,2})/i.exec(t);
+    if(ev && sp.objetivo === 'evento') sp.titulo = ev[1] + ev[2];
+    const data = /(\d{1,2})\s*(?:a|até)\s*(\d{1,2})\s*de\s*([a-zç]+)/i.exec(t), d1 = /\b(?:dia\s+)?(\d{1,2})\s+de\s+([a-zç]{3,})/i.exec(t);
+    if(data) sp.selo = [data[1] + ' A ' + data[2], data[3]];
+    else if(d1 && !/anos/i.test(d1[2])) sp.selo = [d1[1], d1[2]];
+  }
+  if(sp.objetivo === 'prospeccao') sp.cta = /entregador/i.test(t) ? 'CADASTRAR' : /parceiro|loja/i.test(t) ? 'QUERO VENDER' : /baix/i.test(t) ? 'BAIXAR' : '';
   sp.resumo = 'Entendi: ' + CR_OBJETIVOS[sp.objetivo].toLowerCase() + '.';
   return sp;
 }
@@ -2547,7 +2751,7 @@ function crLerPedido(texto, fmt){
 /* ══════════════════════════════════════════════════════════════
    BRIEFING — antes de compor, pergunta só o que muda a arte (como o Claude Code faz)
 ══════════════════════════════════════════════════════════════ */
-const CR_COM_FOTO = { oferta: true, evento: true, beneficio: true };
+const CR_COM_FOTO = { oferta: true, evento: true, beneficio: true, parceiro: true };
 const _crReal = v => /,/.test(v) ? v.replace(/,(\d)$/, ',$10') : v + ',00';
 const _crAspas = s => String(s || '').replace(/"""/g, '"');
 
@@ -2565,6 +2769,10 @@ function crBriefingLocal(fio){
   if((c === 'cupom' || c === 'aniversario') && !sp.cupomCodigo) q.push({ titulo: 'Código', pergunta: 'Qual o código do cupom?', campo: 'cupomCodigo', dica: 'Ex.: QUEROPIZZA', opcoes: [] });
   if(c === 'aniversario' && !sp.anos) q.push({ titulo: 'Anos', pergunta: 'Quantos anos a franquia faz na cidade?', campo: 'anos', opcoes: [{ rotulo: '1' }, { rotulo: '2' }, { rotulo: '3' }, { rotulo: '5' }] });
   if(c === 'evento' && !(sp.selo && sp.selo.length)) q.push({ titulo: 'Data', pergunta: 'Quando é o evento?', campo: 'data', dica: 'Ex.: 10 a 20 de outubro', opcoes: [{ rotulo: 'Sem data na arte', valor: '' }] });
+  const tm = crTema(fio.pedido);
+  if(c === 'aviso' && !sp.horario && (tm.indexOf('horario') >= 0 || tm.indexOf('feriado') >= 0)) q.push({ titulo: 'Horário', pergunta: 'Qual o horário de funcionamento?', campo: 'horario', dica: 'Ex.: das 11h às 22h', opcoes: [{ rotulo: 'Sem horário na arte', valor: '' }] });
+  if(c === 'aviso' && !(sp.selo && sp.selo.length) && tm.indexOf('feriado') >= 0) q.push({ titulo: 'Data', pergunta: 'Qual a data do feriado?', campo: 'data', dica: 'Ex.: 15 de novembro', opcoes: [{ rotulo: 'Sem data na arte', valor: '' }] });
+  if(c === 'parceiro' && !sp.loja && !(sp.itens && sp.itens.length)) q.push({ titulo: 'Loja', pergunta: 'Qual o nome da loja parceira?', campo: 'loja', dica: 'Ex.: Pizzaria Nonna', opcoes: [{ rotulo: 'Deixar para o franqueado preencher', valor: '' }] });
   return { resumo: sp.resumo, objetivo: c, perguntas: q.slice(0, 3) };
 }
 function crPromptBriefing(fio){
@@ -2573,16 +2781,16 @@ function crPromptBriefing(fio){
     'ANTES de compor, faça o briefing: entenda o pedido e pergunte SÓ o que muda a arte e o pedido não responde.',
     '', 'PEDIDO: """' + _crAspas(fio.pedido).slice(0, 1200) + '"""',
     'FORMATO MARCADO NA TELA: ' + fio.fmt + '. FOTO ENVIADA: ' + (fio.foto ? 'sim' : 'não') + '.',
-    '', 'OBJETIVOS: oferta (produto + preço), cupom (valor + código), evento (data especial na cidade), beneficio (benefício curto, ex. entrega grátis), aniversario (anos da franquia + presente).',
+    '', 'OBJETIVOS: oferta (produto + preço), cupom (valor + código), evento (data especial na cidade), beneficio (benefício curto, ex. entrega grátis), aniversario (anos da franquia + presente), aviso (horário especial, feriado, pausa, "estamos entregando"), parceiro (loja nova, lojista da semana, mais vendidos, inauguração), prospeccao (seja parceiro, seja entregador, baixe o app, agradecimento).',
     '', 'REGRAS DAS PERGUNTAS:',
     '- No máximo 3. Se o pedido já basta, "perguntas": [].',
-    '- Bons alvos: dado que vai impresso na arte e faltou (preço, valor e código do cupom, data do evento, anos da franquia, pedido mínimo), o foco da peça, o tom da chamada.',
+    '- Bons alvos: dado que vai impresso na arte e faltou (preço, valor e código do cupom, data do evento, anos da franquia, pedido mínimo, horário do aviso, nome da loja parceira), o foco da peça, o tom da chamada.',
     '- NUNCA pergunte o que o pedido já diz. NUNCA pergunte de cor, fonte ou layout (é regra da marca). NÃO pergunte de foto nem de formato (o Luma pergunta à parte).',
     '- titulo: até 12 caracteres ("Preço", "Formato"). pergunta: frase curta terminada em "?". opcoes: 2 a 4 respostas prováveis e curtas (até 40 caracteres); a pessoa também pode digitar outra.',
     '- NUNCA invente dado como opção (preço, código, data): para esses, ofereça só saídas como "Sem preço na arte" ou "Deixar para o franqueado preencher" — a pessoa digita o valor.',
     '- resumo: 1 frase do que você entendeu (tipo de arte, ponto focal, ação).',
     '', 'Responda SÓ o JSON:',
-    '{"resumo":"","objetivo":"oferta|cupom|evento|beneficio|aniversario","perguntas":[{"titulo":"","pergunta":"","opcoes":["",""]}]}'
+    '{"resumo":"","objetivo":"oferta|cupom|evento|beneficio|aniversario|aviso|parceiro|prospeccao","perguntas":[{"titulo":"","pergunta":"","opcoes":["",""]}]}'
   ].join('\n');
 }
 async function crPedirBriefing(fio){
@@ -2629,6 +2837,8 @@ function crAplicaRespostas(sp, resp){
     else if(r.campo === 'cupomValor'){ const m = /(\d{1,3})\s*(%)?/.exec(v); if(m) o.cupomValor = m[1] + (m[2] || ''); }
     else if(r.campo === 'cupomCodigo') o.cupomCodigo = v.toUpperCase().replace(/[^A-Z0-9]/g, '');
     else if(r.campo === 'anos'){ const m = /\d{1,2}/.exec(v); if(m) o.anos = m[0]; }
+    else if(r.campo === 'horario'){ const m = /(\d{1,2})\s*h?(\d{2})?\s*(?:às|as|até|ate|a|-)\s*(\d{1,2})\s*h?(\d{2})?/i.exec(v); o.horario = m ? m[1] + 'H' + (m[2] || '') + ' ÀS ' + m[3] + 'H' + (m[4] || '') : ''; }
+    else if(r.campo === 'loja'){ o.loja = v.slice(0, 28); if(v && (!o.titulo || /NOVIDADE NO APP/i.test(o.titulo))) o.titulo = v; }
     else if(r.campo === 'data'){
       const d = /(\d{1,2})\s*(?:a|até)\s*(\d{1,2})\s*de\s*([a-zç]+)/i.exec(v), d1 = /(\d{1,2})\s*de\s*([a-zç]+)/i.exec(v);
       o.selo = d ? [d[1] + ' A ' + d[2], d[3]] : d1 ? [d1[1], d1[2]] : v ? v.split(/\s+/).slice(0, 2) : [];
@@ -2652,7 +2862,7 @@ function crPrompt(fio){
     br ? 'BRIEFING (respostas da pessoa — valem mais que o pedido):\n' + _crAspas(br).slice(0, 800) : '',
     'FORMATO: ' + (CR_FORMATOS[fio.fmt] || CR_FORMATOS.feed).nome + ' (' + (CR_FORMATOS[fio.fmt] || CR_FORMATOS.feed).desc + ')'
       + (CR_FORMATOS[fio.fmt] && CR_FORMATOS[fio.fmt].deitado ? ' — peça deitada e pequena: titulo de até 3 palavras, apoio curto ou vazio, sem legal.' : '') + '. ' + (fio.foto === 'slot' ? 'Vai ter foto (o espaço fica reservado para o franqueado).' : fio.foto ? 'Há foto do produto/local.' : 'Sem foto: a arte é só tipografia — a copy precisa segurar a peça sozinha.'),
-    '', 'OBJETIVOS (escolha 1 em "objetivo"): oferta (produto com preço), cupom (valor + código), evento (data especial, festival, novo parceiro), beneficio (benefício curto: entrega grátis, frete), aniversario (anos da franquia).',
+    '', 'OBJETIVOS (escolha 1 em "objetivo"): oferta (produto com preço), cupom (valor + código), evento (data especial, festival, data comemorativa), beneficio (benefício curto: entrega grátis, frete, cashback), aniversario (anos da franquia), aviso (horário especial, feriado, pausa, estamos entregando), parceiro (loja nova, lojista da semana, mais vendidos, inauguração), prospeccao (seja parceiro, seja entregador, baixe o app, peça no app, agradecimento).',
     '', 'REGRAS DA COPY (skill luma-creative):',
     '- PT-BR, tom próximo e direto da Delivery Much. Sem emoji, sem hashtag, sem aspas.',
     '- NUNCA invente preço, desconto, código, data ou número de anos que o pedido e o briefing não deram: campo sem informação = "".',
@@ -2664,11 +2874,13 @@ function crPrompt(fio){
     '- cta: imperativo curto em maiúsculas, até 12 caracteres (PEDIR, PEDIR AGORA, VER NO APP).',
     '- legal: 1 linha de letra miúda quando houver condição (pedido mínimo, validade); senão "".',
     '- precoDe/precoPor: número com vírgula ("28,00"). cupomValor: só o número ("15") ou com % ("20%"). anos: só o número.',
-    '- topo: tag curta do aniversário (ex. "BORA COMEMORAR!").',
-    '- itens: SÓ no carrossel e no slide — 3 ou 4 frases curtas (até 40 caracteres): no carrossel, o conteúdo da lâmina do meio; no slide, os tópicos; nos outros formatos [].',
+    '- topo: tag curta (até 24 caracteres): aniversário ("BORA COMEMORAR!"), parceiro ("NOVO PARCEIRO", "LOJISTA DA SEMANA"), oferta ("PRATO DO DIA", "A PARTIR DE"); "" se não fizer falta.',
+    '- loja: SÓ no parceiro, o nome da loja exatamente como o pedido escreveu; NUNCA invente nome de loja ("" se o pedido não deu).',
+    '- horario: o horário que o pedido deu, no formato "11H ÀS 22H"; NUNCA invente ("" se não houver).',
+    '- itens: 3 ou 4 frases curtas (até 40 caracteres): no carrossel, o conteúdo da lâmina do meio; no slide, os tópicos; numa LISTA de ofertas ("Burger clássico R$ 24,90"), de lojas ou de mais vendidos, os itens da lista — só com o que o pedido deu; senão [].',
     '- resumo: 1 frase para a gestão: a mensagem, o ponto focal e a ação.',
     '', 'Responda SÓ o JSON:',
-    '{"resumo":"","objetivo":"","topo":"","chamada":["",""],"titulo":"","palavra":"","apoio":"","selo":[],"precoDe":"","precoPor":"","cupomValor":"","cupomCodigo":"","cupomRotulo":"","anos":"","cta":"","legal":"","itens":[]}'
+    '{"resumo":"","objetivo":"","topo":"","chamada":["",""],"titulo":"","palavra":"","apoio":"","selo":[],"precoDe":"","precoPor":"","cupomValor":"","cupomCodigo":"","cupomRotulo":"","anos":"","cta":"","legal":"","itens":[],"loja":"","horario":""}'
   ].filter(l => l !== '').join('\n');
 }
 async function crPedirComposicao(fio){
@@ -2681,6 +2893,15 @@ async function crPedirComposicao(fio){
 }
 // Legenda do post: o motor do chat do franqueado (regras de preço, hashtag e SEO já moram lá)
 function crLegenda(sp){
+  const cap = t => t ? t.charAt(0).toLocaleUpperCase('pt-BR') + t.slice(1).toLocaleLowerCase('pt-BR') : '';
+  if(sp.objetivo === 'aviso' || sp.objetivo === 'parceiro' || sp.objetivo === 'prospeccao'){
+    // legenda local e curta, só com o que a arte diz (nenhum dado novo)
+    const tags = { aviso: '#deliverymuch #aviso', parceiro: '#deliverymuch #novidadenoapp', prospeccao: '#deliverymuch' }[sp.objetivo];
+    const corpo = sp.objetivo === 'parceiro' ? 'Tem novidade no app: ' + (sp.loja || cap(sp.titulo)) + '!' : cap(sp.titulo) + '.';
+    const extra = [sp.apoio, sp.horario ? 'Horário: ' + sp.horario.toLocaleLowerCase('pt-BR') + '.' : ''].filter(Boolean).join(' ');
+    const fim = sp.objetivo === 'aviso' ? 'Qualquer dúvida, fale com a gente pelo app.' : 'É só pedir pelo app da Delivery Much.';
+    return Promise.resolve([{ text: [corpo, extra, fim, tags].filter(Boolean).join('\n\n') }]);
+  }
   if(typeof fFetchAICaptionSuggestions !== 'function') return Promise.resolve([]);
   const valor = sp.cupomValor ? (/%$/.test(sp.cupomValor) ? sp.cupomValor + ' OFF' : 'R$ ' + sp.cupomValor + ' OFF') : '';
   const dados = {

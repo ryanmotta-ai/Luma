@@ -6,7 +6,7 @@
    data são os que o pedido diz — campo vazio é campo que o pedido não deu.
    Quem usa: tests/svg-import-cases.js (portão), tests/_galeria-composicoes.html (ferramenta) e a
    curadoria da gestão (carregada sob demanda). crBancoCasos() expande pedido × formato × texto × foto
-   × much+ em casos prontos para crCandidatos. */
+   × much+ em casos prontos para crCandidatos; crBancoPedido() monta um caso só. */
 const CR_BANCO = [
   // A — prato e oferta do dia
   { id: 'a01', grupo: 'A', objetivo: 'oferta', formatos: ['feed', 'story'], much: false, pedido: 'Prato do dia: feijoada completa por R$ 24,90',
@@ -116,11 +116,17 @@ function crBancoCasos(filtro, foto){
     if(f.formatos && f.formatos.indexOf(formato) < 0) return;
     (f.textos || [0, 1, 2, 3]).forEach(k => (f.fotos || [false, true]).forEach(comFoto => (f.much || [false, true]).forEach(much => {
       if(much && !p.much) return;
-      const sp = Object.assign({}, p, { formato, foto: comFoto ? (foto || 'slot') : '', marca: much ? 'much' : 'dm' });
-      sp.titulo = p.t[k] || ''; sp.apoio = Array.isArray(p.a) ? (p.a[k] || p.a[p.a.length - 1]) : (p.a || '');
-      delete sp.t; delete sp.a; delete sp.formatos; delete sp.much;
-      out.push({ id: p.id + '/' + formato + '/' + TX[k] + (comFoto ? '/foto' : '') + (much ? '/much' : ''), pedido: p, sp });
+      out.push({ id: p.id + '/' + formato + '/' + TX[k] + (comFoto ? '/foto' : '') + (much ? '/much' : ''), pedido: p, sp: crBancoPedido(p, k, formato, comFoto ? (foto || 'slot') : '', much ? 'much' : 'dm') });
     })));
   }));
   return out;
+}
+// Um pedido do banco pronto para crCandidatos: p (o pedido ou o id), k = tamanho do texto (0–3)
+function crBancoPedido(p, k, formato, foto, marca){
+  const ped = typeof p === 'string' ? CR_BANCO.find(x => x.id === p) : p;
+  if(!ped) return null;
+  const sp = Object.assign({}, ped, { formato, foto: foto || '', marca: marca || 'dm' });
+  sp.titulo = ped.t[k] || ''; sp.apoio = Array.isArray(ped.a) ? (ped.a[k] || ped.a[ped.a.length - 1]) : (ped.a || '');
+  delete sp.t; delete sp.a; delete sp.formatos; delete sp.much;
+  return sp;
 }

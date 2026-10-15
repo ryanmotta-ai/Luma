@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Luma Creative — galeria das composições</title>
+  <link rel="stylesheet" href="../css/03-fonts.css">
+  <style>
+    /* FERRAMENTA (fora do portão): todas as composições da frente 4 × as variações do banco de casos
+       (texto curto/médio/longo/extremo × com/sem foto × much+), com a nota de design de cada uma,
+       para o Ryan revisar. Filtros: ?lote=1 · ?ids=pratoDoDiaLado,faixaPreco · ?formato=story · ?caso=a01
+       · ?texto=0,2 · ?marca=much · ?larg=2 (miniaturas maiores).
+       ?catalogo=1 é o modo do scripts/catalogo-composicoes.js: uma miniatura por composição (JPEG) e as
+       linhas de golden de cada uma, em window.__catalogo — sem a grade. */
+    :root{color-scheme:light;font-family:system-ui,sans-serif;background:#f4f2ef;color:#222}
+    body{margin:0;padding:24px}
+    h1{font-size:22px;margin:0 0 4px}.resumo{color:#555;margin:0 0 20px;font-size:14px}
+    .comp{background:#fff;border-radius:14px;padding:16px 18px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+    .comp h2{font-size:16px;margin:0}.comp p{margin:4px 0 10px;color:#555;font-size:13px}
+    .stat{font-size:12px;color:#333;margin-bottom:10px}.stat b{font-weight:700}
+    .grade{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start}
+    .v{width:var(--w,150px)}.v .a{background:#ddd;border-radius:4px;overflow:hidden}
+    .v small{display:block;font-size:11px;line-height:1.3;color:#444;margin-top:3px}
+    .v small b{font-size:13px}.ruim small b{color:#c00}.erro .a{outline:3px solid #c00}
+    .recusa{font-size:11px;color:#888;width:var(--w,150px);padding:8px;border:1px dashed #bbb;border-radius:4px}
+  </style>
+</head>
+<body>
+  <h1>Galeria das composições</h1>
+  <p class="resumo" id="resumo">Montando…</p>
+  <div id="out"></div>
+  <script src="../js/00-config.js"></script>
+  <script src="../js/core/toast.js"></script>
+  <script src="../js/creative/creative.js"></script>
+  <script src="../js/creative/composicoes.js"></script>
+  <script src="creative-banco.js"></script>
+  <script>
+  (async function(){
+    const q = new URLSearchParams(location.search), out = document.getElementById('out');
+    await crFontesProntas();
+    // a foto de verdade (assets/demo), para a revisão ver a arte como o franqueado vê
+    const foto = await fetch('../assets/demo/prato.jpg').then(r => r.blob()).then(b => new Promise(ok => { const f = new FileReader(); f.onload = () => ok(f.result); f.readAsDataURL(b); })).catch(() => 'slot');
+    const CSS = 'svg{display:block;width:100%;height:auto}svg .hero{font-family:"LC Realce"}svg .sup,svg .body,svg .legal,svg .leve,svg .forte,svg .media{font-family:"LC Roboto"}';
+    const desenha = (el, svg) => {
+      const raiz = el.attachShadow({ mode: 'open' }), st = document.createElement('style');
+      st.textContent = CSS; raiz.appendChild(st);
+      const d = document.createElement('div'); d.innerHTML = svg.replace(/<style>[\s\S]*?<\/style>/, '').replace(/asset:/g, CR_BASE); raiz.appendChild(d);
+    };
+    let lista = CR_COMPOSICOES.slice();
+    if(q.get('lote')){ const k = +q.get('lote'); lista = lista.slice((k - 1) * 10, k * 10); }
+    if(q.get('ids')) lista = lista.filter(c => q.get('ids').split(',').indexOf(c.id) >= 0);
+    if(q.get('formato')) lista = lista.filter(c => c.formato === q.get('formato'));
+    if(q.get('catalogo')){ await catalogo(lista, foto); return; }
+    const total = { variacoes: 0, servidas: 0, aprovadas: 0, acima80: 0, soma: 0, erros: 0, comps: [] };
+    for(const c of lista){
+      const f = CR_FORMATOS[c.formato], larg = (+q.get('larg') || 1) * (f.w > f.h ? 260 : f.h > 1500 ? 120 : 150);
+      const sec = document.createElement('section'); sec.className = 'comp';
+      sec.innerHTML = '<h2>' + gEsc(c.id) + ' · ' + gEsc(c.nome) + ' <small>(' + gEsc(c.formato) + ' · grupo ' + gEsc(c.grupo) + ' · ' + gEsc(c.objetivos.join(', ')) + ')</small></h2><p>' + gEsc(c.uso) + '</p><div class="stat"></div><div class="grade"></div>';
+      out.appendChild(sec);
+      const grade = sec.querySelector('.grade'), st = { servidas: 0, aprovadas: 0, acima80: 0, soma: 0, erros: [], recusas: 0 };
+      const fotos = c.foto === true ? [true] : c.foto === false ? [false] : [false, true];
+      for(const id of (c.casos || []).filter(x => !q.get('caso') || q.get('caso').split(',').indexOf(x) >= 0)){
+        const ped = CR_BANCO.find(p => p.id === id);
+        if(!ped) continue;
+        for(const k of (q.get('texto') ? q.get('texto').split(',').map(Number) : [0, 1, 2, 3])) for(const comFoto of fotos) for(const marca of (q.get('marca') ? [q.get('marca')] : ['dm', 'much'])){
+          const sp = crBancoPedido(ped, k, c.formato, comFoto ? foto : '', marca);
+          total.variacoes++;
+          const rot = ['curto', 'médio', 'longo', 'extremo'][k] + (comFoto ? ' · foto' : '') + (marca === 'much' ? ' · much+' : '');
+          const norm = crNormaliza(sp);
+          if(!_crReceitasDe(norm).some(r => r.id === c.id)){ st.recusas++; const d = document.createElement('div'); d.className = 'recusa'; d.style.setProperty('--w', larg + 'px'); d.textContent = id + ' · ' + rot + ': recusa (fora do limite/uso)'; grade.appendChild(d); continue; }
+          st.servidas++;
+          const cands = crCandidatos(sp, { receitas: [c.id] }), ok = cands.filter(r => !r.avaliacao.erros.length), r = ok[0] || cands[0];
+          const v = document.createElement('div'); v.className = 'v'; v.style.setProperty('--w', larg + 'px');
+          const art = document.createElement('div'); art.className = 'a'; v.appendChild(art);
+          if(r) desenha(art, r.svg);
+          const dom = r && ok[0] ? crAvaliarDom(r).erros : [];
+          if(ok[0] && !dom.length){ st.aprovadas++; st.soma += r.nota; if(r.nota >= 80) st.acima80++; else v.classList.add('ruim'); }
+          else { v.classList.add('erro'); st.erros.push(id + ' ' + rot + ': ' + (r ? (dom.length ? dom : r.avaliacao.erros).slice(0, 2).join('; ') : 'não montou')); }
+          v.insertAdjacentHTML('beforeend', '<small><b>' + (r && ok[0] ? r.nota : '—') + '</b> ' + gEsc(id + ' · ' + rot) + (r && r.design ? '<br>' + gEsc(r.design.porque) : '') + '</small>');
+          grade.appendChild(v);
+          await new Promise(res => setTimeout(res, 0));
+        }
+      }
+      const media = st.aprovadas ? (st.soma / st.aprovadas).toFixed(1) : '—';
+      sec.querySelector('.stat').innerHTML = '<b>' + st.aprovadas + '/' + st.servidas + '</b> aprovadas · <b>' + st.acima80 + '</b> com nota ≥ 80 · média <b>' + media + '</b> · ' + st.recusas + ' recusas'
+        + (st.erros.length ? '<br><span style="color:#c00">' + st.erros.slice(0, 6).map(gEsc).join('<br>') + '</span>' : '');
+      total.servidas += st.servidas; total.aprovadas += st.aprovadas; total.acima80 += st.acima80; total.soma += st.soma; total.erros += st.erros.length;
+      total.comps.push({ id: c.id, formato: c.formato, servidas: st.servidas, aprovadas: st.aprovadas, acima80: st.acima80, media: +media || 0, erros: st.erros.slice(0, 4), recusas: st.recusas });
+    }
+    document.getElementById('resumo').textContent = lista.length + ' composições · ' + total.servidas + ' variações servidas de ' + total.variacoes + ' · ' + total.aprovadas + ' aprovadas · '
+      + total.acima80 + ' com nota ≥ 80 (' + (total.servidas ? Math.round(100 * total.acima80 / total.servidas) : 0) + '%) · média ' + (total.aprovadas ? (total.soma / total.aprovadas).toFixed(1) : '—');
+    window.__galeria = total; window.__pronto = 1;
+  })();
+
+  /* Modo catálogo: a miniatura de cada composição (o 1º caso dela, texto médio, DM), as linhas de golden
+     (1º caso curto e longo em DM, 2º caso médio em much+; com e sem foto quando ela aceita os dois) e os
+     clones: dentro do formato, a menor distância de planta (crPlanta) entre duas composições que servem
+     o mesmo pedido — abaixo de 0,15 é a mesma peça com outro nome. */
+  async function catalogo(lista, foto){
+    const artes = new Map(), out = [], clones = [];
+    const arte = (c, caso, k, comFoto, marca) => {
+      const ch = [c.id, caso, k, comFoto, marca].join('|');
+      if(!artes.has(ch)){
+        const sp = crBancoPedido(caso, k, c.formato, comFoto ? 'slot' : '', marca), serve = sp && _crReceitasDe(crNormaliza(sp)).some(x => x.id === c.id);
+        artes.set(ch, serve ? (crCandidatos(sp, { receitas: [c.id] }).filter(r => !r.avaliacao.erros.length)[0] || null) : null);
+      }
+      return artes.get(ch);
+    };
+    const jpeg = async (svg, w, h) => {
+      const url = URL.createObjectURL(new Blob([await crEmbutir(svg)], { type: 'image/svg+xml' })), img = new Image();
+      await new Promise(ok => { img.onload = ok; img.onerror = ok; img.src = url; });
+      const L = 240, cv = document.createElement('canvas'); cv.width = L; cv.height = Math.round(L * h / w);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(url);
+      return cv.toDataURL('image/jpeg', 0.8);
+    };
+    const linhasDe = c => {
+      const f = c.foto === true ? [true, true, true] : c.foto === false ? [false, false, false] : [false, true, true];
+      return [[c.casos[0], 0, f[0], 'dm'], [c.casos[0], 2, f[1], 'dm'], [c.casos[1] || c.casos[0], 1, f[2], 'much']];
+    };
+    for(const c of lista){
+      const golden = linhasDe(c).map(([caso, k, comFoto, marca]) => { const r = arte(c, caso, k, comFoto, marca); return r ? { receita: c.id, formato: c.formato, caso, texto: k, foto: comFoto, marca, nota: r.nota } : null; }).filter(Boolean);
+      // a miniatura: com a foto de verdade quando a composição é de foto
+      const sp = crBancoPedido(c.casos[0], 1, c.formato, c.foto === true ? foto : '', 'dm');
+      const r = crCandidatos(sp, { receitas: [c.id] }).filter(x => !x.avaliacao.erros.length)[0];
+      const assets = r ? [...new Set((r.svg.match(/asset:(inv|logos)\/[\w.-]+/g) || []).map(m => m.slice(6)))] : [];
+      out.push({ id: c.id, nome: c.nome, uso: c.uso, grupo: c.grupo, formato: c.formato, objetivos: c.objetivos, foto: c.foto,
+        assets, nota: r ? r.nota : 0, jpeg: r ? await jpeg(r.svg, r.w, r.h) : '', golden });
+      document.getElementById('resumo').textContent = 'Catálogo: ' + out.length + '/' + lista.length;
+      await new Promise(res => setTimeout(res, 0));
+    }
+    // clones: cada par do mesmo formato, nos pedidos do golden dos dois
+    for(let i = 0; i < lista.length; i++) for(let j = i + 1; j < lista.length; j++){
+      const a = lista[i], b = lista[j];
+      if(a.formato !== b.formato) continue;
+      let min = null;
+      linhasDe(a).concat(linhasDe(b)).forEach(([caso, k, comFoto, marca]) => {
+        const ra = arte(a, caso, k, comFoto, marca), rb = ra && arte(b, caso, k, comFoto, marca);
+        if(!rb) return;
+        const d = crDistPlanta(crPlanta(ra), crPlanta(rb));
+        if(!min || d < min.d) min = { d: Math.round(d * 100) / 100, caso: caso + '/' + k + (comFoto ? '/foto' : '') + '/' + marca };
+      });
+      if(min) clones.push({ formato: a.formato, a: a.id, b: b.id, d: min.d, caso: min.caso });
+      await new Promise(res => setTimeout(res, 0));
+    }
+    window.__catalogo = { comps: out, clones: clones.sort((x, y) => x.d - y.d) }; window.__pronto = 1;
+  }
+  </script>
+</body>
+</html>

@@ -443,6 +443,26 @@
     assert(p.length===1, 'o preço não virou UM campo no Estúdio: '+layers.map(l=>l.content).join(' | '));
   });
 
+  /* ── Composições e golden (frente 4; a curadoria da frente 5 escreve no mesmo arquivo) ── */
+  caso('Luma Creative: golden — toda arte aprovada volta sem erro da marca, com a nota da aprovação (− tolerância), e cada composição entra no importador', async()=>{
+    await crFontesProntas();
+    CR_COMPOSICOES.forEach(c=>assert(CR_GOLDEN.some(g=>g.receita===c.id), 'composição sem golden: '+c.id+' (rode node scripts/catalogo-composicoes.js)'));
+    const caiu=[], importada=new Set();
+    for(const g of CR_GOLDEN){
+      const rot=g.receita+'/'+g.caso+'/'+g.texto+(g.foto?'/foto':'')+'/'+g.marca;
+      const r=crCandidatos(crBancoPedido(g.caso, g.texto, g.formato, g.foto?'slot':'', g.marca), {receitas:[g.receita]}).filter(x=>!x.avaliacao.erros.length)[0];
+      if(!r){ caiu.push(rot+': não monta mais sem erro'); continue; }
+      if(r.nota < g.nota-CR_GOLDEN_TOL) caiu.push(rot+': nota '+g.nota+' → '+r.nota+' ('+r.design.porque+')');
+      if(importada.has(g.receita)) continue;
+      importada.add(g.receita);
+      assert(!r.estouros.length && crConfere(r).every(c=>c.ok), rot+': conferência da marca falhou');
+      const {layers}=await importar(await crEmbutir(r.svg));
+      r.campos.filter(c=>c!=='foto_produto').forEach(c=>assert(campoNa(layers,c), rot+': campo {{'+c+'}} não chegou ao Estúdio'));
+      assert(layers.filter(l=>l.type==='frame' && l.imgVar==='foto_produto').length===(r.campos.indexOf('foto_produto')>=0?1:0), rot+': moldura da foto');
+    }
+    assert(!caiu.length, caiu.length+' arte(s) do golden pioraram: '+caiu.slice(0,6).join(' · '));
+  });
+
   let passed=0; const falhas=[];
   for(const item of cases){
     const li=document.createElement('li'); li.className='case';

@@ -230,7 +230,9 @@ async function rodarSuite(cdp, arquivo) {
 }
 
 /* ── 5. Principal ───────────────────────────────────────────────────────────────────────── */
-(async function () {
+// As peças de 1 a 3 servem a outras ferramentas (scripts/catalogo-composicoes.js): sem rodar as suítes ao importar.
+module.exports = { acharChromium, subirNavegador, conectar, getJson, esperar };
+if (require.main === module) (async function () {
   const filtro = process.argv[2] || '';
   const suites = fs.readdirSync(path.join(RAIZ, 'tests'))
     .filter(f => f.endsWith('.html'))
