@@ -2875,10 +2875,12 @@ function _crPerguntar(corpo, perguntas, run){
     function desenha(){
       const q = perguntas[i];
       crState.aoFoto = q.tipo === 'foto' ? recebeFoto : null;
-      crState.aoTexto = q.tipo === 'foto' ? null : v => {   // o campo grande também responde: texto livre vira a resposta; senão procura a opção pelo começo do rótulo
+      crState.perguntaLivre = q.livre !== false;
+      crState.aoTexto = v => {   // o campo grande também responde: texto livre vira a resposta; senão procura a opção pelo começo do rótulo
         if(q.livre !== false) return responde({ resposta: v, valor: v });
         const k = q.opcoes.findIndex(o => String(o.rotulo).toLowerCase().startsWith(v.toLowerCase()));
-        if(k >= 0){ marca(k); escolhe(k); } else box.focus();
+        if(k >= 0){ marca(k); escolhe(k); return; }
+        box.focus(); box.classList.remove('cr-q-nao'); void box.offsetWidth; box.classList.add('cr-q-nao');   // não entendi: balança e devolve o foco às opções
       };
       let ops = '', n = 0;
       if(q.tipo === 'foto') ops += op('upload', '', '<span class="cr-q-l">' + CR_ICO.foto + 'Enviar a foto</span>', 'arraste aqui, cole ou escolha o arquivo', ++n);
@@ -2975,7 +2977,7 @@ function _crResponde(){
 }
 function _crPlaceholder(){
   const ta = _crEl('cr-pedido'); if(!ta) return;
-  ta.placeholder = crState.aoTexto ? 'Responda aqui ou escolha acima…' : _crSemTudo() ? 'Limite de hoje atingido — renova à meia-noite' : 'Descreva a arte: o que é, preço, cupom, data…';
+  ta.placeholder = crState.aoTexto ? (crState.perguntaLivre ? 'Responda aqui ou escolha acima…' : 'Escolha acima (↑↓ e Enter), anexe a foto ou clique em Pular') : _crSemTudo() ? 'Limite de hoje atingido — renova à meia-noite' : 'Descreva a arte: o que é, preço, cupom, data…';
 }
 function crTecla(e){
   if(e.key === 'Enter' && !e.shiftKey && !e.isComposing){
@@ -3233,7 +3235,7 @@ function crUsoPinta(){
   b.style.setProperty('--u', f.toFixed(3));
   b.classList.toggle('perto', lim != null && f >= 0.8 && !crUsoSemSaldo());
   b.classList.toggle('cheio', _crSemTudo());
-  b.setAttribute('aria-label', lim == null ? 'Uso de hoje: ' + u + ' artes' : 'Uso de hoje: ' + u + ' de ' + lim + ' artes');
+  b.setAttribute('aria-label', lim == null ? 'Uso de hoje: ' + u + (u === 1 ? ' arte' : ' artes') : 'Uso de hoje: ' + u + ' de ' + lim + ' artes');
   const av = _crEl('cr-limite'), msg = crUsoMsg();
   if(av){
     av.hidden = !msg; av.textContent = msg; av.classList.toggle('cheio', _crSemTudo());
@@ -3252,7 +3254,7 @@ function crUsoPopHtml(){
   return '<b class="cr-uso-tit">Uso de hoje</b>'
     + '<div class="cr-uso-num"><span>' + u + '</span>' + (lim != null ? ' de ' + lim + ' artes' : ' ' + (u === 1 ? 'arte gerada' : 'artes geradas')) + '</div>'
     + (lim != null ? '<div class="cr-uso-barra' + (resta <= 0 ? ' cheia' : '') + '" style="--u:' + Math.min(1, u / lim).toFixed(3) + '"><i></i></div><p>' + (resta > 0 ? 'Restam ' + resta + '.' : 'Limite de hoje atingido. Renova à meia-noite (Brasília); as artes de hoje seguem em Sessões.') + '</p>' : '<p>Sem limite para a sua conta.</p>')
-    + '<p class="cr-uso-reg">O modelo Rápido gasta 1 arte; os outros gastam 2. “Outras opções” conta como uma arte nova. O dia renova à meia-noite (Brasília).</p>'
+    + '<p class="cr-uso-reg">O modelo Rápido gasta 1 arte; os outros gastam 2. “Outras opções” conta como uma arte nova.' + (lim != null && resta <= 0 ? '' : ' O dia renova à meia-noite (Brasília).') + '</p>'
     + '';
 }
 function crUsoPop(abrir){
@@ -3410,7 +3412,7 @@ function crFaixaPinta(){
     };
     l.appendChild(b);
   });
-  l.scrollLeft = l.scrollWidth;
+  l.style.scrollBehavior = 'auto'; l.scrollLeft = l.scrollWidth; l.style.scrollBehavior = '';   // o smooth do CSS cancelava a atribuição
 }
 
 document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') crSessSalva(true); });
@@ -3458,7 +3460,9 @@ function crConexoesPinta(){
     return '<section class="cr-cx-card nao"><header><span class="cr-cx-tile">AG</span><b>' + gEsc(n.nome) + '</b><span class="cr-cx-badge off">Não suportado</span></header><p class="cr-cx-desc">' + gEsc(n.motivo) + '</p>'
       + '<div class="cr-cx-acoes"><button type="button" class="cr-btn cr-btn-mini" data-cx="form" data-id="' + n.alternativa + '">Usar a chave do Google AI Studio</button></div></section>';
   }).join('');
+  const tinha = el.contains(document.activeElement);
   el.innerHTML = Object.keys(G_PROVEDORES).map(_crCxCard).join('') + nao;
+  if(tinha){ const p = el.querySelector('input,button:not([disabled])'); if(p) p.focus({ preventScroll: true }); }   // re-render não derruba o foco no body
   Object.keys(G_PROVEDORES).forEach(id => { if(gProvConectado(id)) _crCxModelosLista(id); });
 }
 // Lista de modelos do provedor entra no datalist sem redesenhar o cartão (não perde o que a pessoa digita)
@@ -3552,7 +3556,7 @@ function crEnviar(e){
   const pedido = String((inp && inp.value) || '').trim();
   if(!pedido || !conv) return;
   _crMenuFmt(false); _crMenuModelo(false);
-  if(crUsoSemSaldo()) return gToast(crUsoMsg(), 'error');
+  if(crUsoSemSaldo()){ const av = _crEl('cr-limite'); if(av){ av.classList.remove('bate'); void av.offsetWidth; av.classList.add('bate'); } return; }   // o aviso já está na tela: pulsa em vez de repetir em toast
   // Imagem anexada com "referência / nessa pegada / parecido" é REFERÊNCIA para o designer, não a foto da arte
   const ehRef = !!crState.anexo && /refer[eê]ncia|pegada|parecid|inspira|nesse estilo|nesse jeito/i.test(pedido);
   // O que a pessoa ESCREVEU vence o compositor: "story" no texto ganha do formato marcado no menu
@@ -3733,7 +3737,7 @@ async function crGerar(fio, conv, outras){
     if(parou()) return;
     await _crDigita(fala, outras ? 'Mais ' + opcoes.length + (opcoes.length > 1 ? ' caminhos, de famílias diferentes' : ' caminho, de família diferente') + ' das anteriores.'
       : ((fio.viaIA && opcoes[0].spec.resumo) ? opcoes[0].spec.resumo + ' ' : '') + 'Separei ' + opcoes.length + (opcoes.length > 1 ? ' opções' : ' opção') + ' em ' + f.nome.toLowerCase() + ': escolha uma, ajuste no editor se quiser e baixe.');
-    if(parou()) return;
+    // (Esc aqui não descarta mais: a arte já existe e o saldo já foi gasto — entrega)
     const ent = _crEntrega(fio, opcoes);
     // a pessoa estava no fim? então a entrega (o destino) sobe até o topo da tela dela
     const seguia = (() => { const pl = _crEl('cr-palco'); return !pl || pl.scrollHeight - pl.scrollTop - pl.clientHeight < 200; })();
@@ -3747,7 +3751,7 @@ async function crGerar(fio, conv, outras){
     if(seguia) requestAnimationFrame(() => {
       // Entrega alta (story em notebook): começa nas ARTES — o cabeçalho "Sua arte" cede o espaço, para o nome da opção e as ações caberem no primeiro quadro
       const p = _crEl('cr-palco'), ops = ent.querySelector('.cr-ops'), ac = ent.querySelector('.cr-acoes');
-      const cabe = p && ac && ac.getBoundingClientRect().bottom - ent.getBoundingClientRect().top + 24 <= p.clientHeight - 48;
+      const cabe = p && ops && ac && ops.getBoundingClientRect().bottom + 20 + ac.offsetHeight - ent.getBoundingClientRect().top + 24 <= p.clientHeight - 48;   // (as ações são sticky: o bottom delas mente, mede-se pelo fim das artes)
       (cabe || !ops ? ent : ops).scrollIntoView({ block: 'start', behavior: _crReduz() ? 'auto' : 'smooth' });
     });
     if(typeof gTrackEvent === 'function') try{ gTrackEvent('creative_arte', { objetivo: opcoes[0].spec.objetivo, formato: opcoes[0].spec.formato, marca: opcoes[0].spec.marca, ia: fio.viaIA, juiz: !!juiz, foto: !!fio.foto, ref: !!fio.ref, modelo: prov ? 'conta:' + prov.id : modelo, custo: prov ? 0 : crCusto(modelo),
@@ -4145,7 +4149,10 @@ function crEditar(op, aoSalvar){
   /* ── Painel de propriedades ── */
   const _sec = (titulo, html) => '<section class="cr-ed-sec"><h4>' + titulo + '</h4>' + html + '</section>';
   function painel(){
-    requestAnimationFrame(() => { if(document.activeElement === document.body && ed.isConnected) host.focus({ preventScroll: true }); });   // redesenhar o painel não pode derrubar o foco (Esc deixaria de funcionar)
+    requestAnimationFrame(() => {
+      props.querySelectorAll('textarea').forEach(t => { t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; });   // texto longo não nasce cortado
+      if(document.activeElement === document.body && ed.isConnected) host.focus({ preventScroll: true });
+    });   // redesenhar o painel não pode derrubar o foco (Esc deixaria de funcionar)
     if(!atual){
       const fundo = svg.querySelector('[data-fundo]'), cor = (fundo && fundo.getAttribute('fill') || '').toUpperCase();
       props.innerHTML = _sec('Fundo', '<div class="cr-ed-cores">' + (op.spec.marca === 'much' ? ['#E52676', '#FFB900'] : ['#F85400', '#FF9000']).map(c => '<button type="button" class="cr-ed-cor' + (c === cor ? ' on' : '') + '" data-cor="' + c + '" style="--c:' + c + '" aria-label="Fundo ' + c + '"></button>').join('')
@@ -4420,7 +4427,7 @@ function crBaixarPNG(v, btn){
       if(!b) return gToast('Não foi possível gerar o PNG', 'error');
       const a = document.createElement('a');
       a.href = URL.createObjectURL(b);
-      a.download = 'luma-creative-' + v.spec.objetivo + '-' + v.receita + '-' + v.spec.formato + '.png';
+      a.download = 'luma-creative-' + v.spec.objetivo + '-' + String(v.nomeReceita || v.receita).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) + '-' + v.spec.formato + '.png';
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 4000);
       _crOk(btn, 'Baixado'); gToast('PNG baixado', 'success');

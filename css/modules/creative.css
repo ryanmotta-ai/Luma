@@ -435,6 +435,9 @@ body.cr-ocupado .cr-enviar.cr-resp .cr-enviar-para{ opacity:0; transform:scale(.
 .cr-sess-n[hidden]{ display:none }
 .cr-limite{ align-self:center; padding:7px 14px; border-radius:var(--r-pill); background:var(--cr-acento-bg); color:var(--dm-orange-text); font-size:12.5px; font-weight:600; animation:crSobe var(--dur-base) var(--ease-out) backwards }
 .cr-limite[hidden]{ display:none }
+.cr-limite.bate{ animation:crPop var(--dur-base) var(--ease-spring) }
+.cr-q-nao{ animation:crNao var(--dur-base) var(--ease-out) }
+@keyframes crNao{ 20%{ transform:translateX(-5px) } 50%{ transform:translateX(4px) } 80%{ transform:translateX(-2px) } }
 .cr-limite-ac{ margin-left:10px; padding:0; border:0; background:none; color:inherit; font:700 12.5px/1 'Roboto',sans-serif; text-decoration:underline; text-underline-offset:3px; cursor:pointer }
 .cr-limite.cheio{ background:color-mix(in srgb,var(--dm-red) 12%,transparent); color:var(--dm-red-text) }
 .cr-custo{ font-style:normal; font-size:11px; font-weight:700; padding:2px 5px; border-radius:var(--r-pill); background:var(--cr-surf3); color:var(--cr-text2); font-variant-numeric:tabular-nums }
@@ -656,7 +659,7 @@ body.cr-ocupado .cr-enviar.cr-resp .cr-enviar-para{ opacity:0; transform:scale(.
   .cr-gaveta,.cr-veu,.cr-uso-pop,.cr-uso-arco{ transition:none }
   .cr-conex-veu,.cr-conex{ transition:none }
   .cr-cx-msg{ animation:none }
-  .cr-faixa,.cr-faixa-it.novo,.cr-limite,.cr-uso-barra i,.cr-gaveta.aberta .cr-sess-li,.cr-entrega.cr-acha{ animation:none }
+  .cr-limite.bate,.cr-q-nao,.cr-faixa,.cr-faixa-it.novo,.cr-limite,.cr-uso-barra i,.cr-gaveta.aberta .cr-sess-li,.cr-entrega.cr-acha{ animation:none }
   .cr-med-arco,.cr-op-det,.cr-det-linha i::after,.cr-mont-rot{ transition:none }
   .cr-op-arte img,.cr-ed,.cr-pergunta,.cr-q-seta,.cr-boas,.cr-trab-corpo,.cr-menu,.cr-conversa,.cr-op-ok,.cr-solta > div{ transition:none }
   .cr-conversando .cr-boas{ display:none }
