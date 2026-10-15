@@ -3513,7 +3513,7 @@ function crUsoPop(abrir){
 const crSess = { id: null, criada: 0, indice: [] };
 const _crSessChave = id => 'cr:' + _crUid() + ':s:' + id, _crIdxChave = () => 'cr:' + _crUid() + ':idx';
 async function _crIdxLe(){ try{ const raw = await gIdbGet(_crIdxChave()); const v = raw ? JSON.parse(raw) : []; return Array.isArray(v) ? v : []; }catch(e){ return []; } }
-async function crSessIndice(){ crSess.indice = (await _crIdxLe()).sort((a, b) => b.atualizada - a.atualizada); crSessPinta(); return crSess.indice; }
+async function crSessIndice(){ crSess.indice = (await _crIdxLe()).sort((a, b) => b.atualizada - a.atualizada); crSessPinta(); _crLatAuto(); return crSess.indice; }
 const _crSerOp = o => {
   let spec = {}; try{ spec = JSON.parse(JSON.stringify(o.spec, (k, v) => (typeof v === 'string' && v.length > 2000) ? '' : v)); }catch(e){}
   return { receita: o.receita, nomeReceita: o.nomeReceita, w: o.w, h: o.h, svgFinal: o.svgFinal, juiz: o.juiz || null, editada: !!o.editada, desenho: !!o.desenho, spec };
@@ -3550,7 +3550,7 @@ async function _crSessGrava(){
     const idx = (await _crIdxLe()).filter(x => x.id !== meta.id); idx.push(meta); idx.sort((a, b) => b.atualizada - a.atualizada);
     idx.splice(CR_SESS_MAX).forEach(velho => gIdbDel(_crSessChave(velho.id)));
     await gIdbPut(_crIdxChave(), JSON.stringify(idx));
-    crSess.indice = idx; crSessPinta(); return true;
+    crSess.indice = idx; crSessPinta(); _crLatAuto(); return true;
   }catch(e){ console.warn('[creative] a sessão não foi salva', e); return false; }
 }
 function _crQuando(t){
@@ -3604,10 +3604,15 @@ function crGaveta(abrir, semGuardar){
   else if(!abrir && btn && document.activeElement && g.contains(document.activeElement)) btn.focus({ preventScroll: true });
 }
 // Entrar na aba / cruzar o breakpoint: em tela larga o painel abre como a pessoa deixou (padrão: aberto)
+// Sem escolha guardada o painel nasce RECOLHIDO e abre sozinho quando existe a primeira sessão (_crLatAuto)
+const _crLatPref = () => { try{ return localStorage.getItem('cr:lat'); }catch(e){ return null; } };
 function _crLatInit(){
-  let on = false;
-  if(_crDock()){ try{ on = localStorage.getItem('cr:lat') !== '0'; }catch(e){ on = true; } }
-  crGaveta(on, true);
+  crGaveta(_crDock() && _crLatPref() === '1', true);
+  _crLatAuto();
+}
+function _crLatAuto(){
+  const g = _crEl('cr-gaveta');
+  if(g && _crDock() && _crLatPref() === null && crSess.indice.length && !g.classList.contains('aberta')) crGaveta(true, true);
 }
 window.matchMedia('(min-width:1000px)').addEventListener('change', () => { if(_crNoCreative()) _crLatInit(); });
 function _crSessFiltra(){
