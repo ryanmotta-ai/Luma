@@ -131,6 +131,8 @@ body.cr-ocupado .cr-fio{ opacity:1 }
 .cr-ava svg{ width:14px; height:14px }
 .cr-bolha{ font-size:15px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; color:var(--cr-text) }
 .cr-eu .cr-bolha{ padding:10px 14px; border-radius:14px 14px 4px 14px; background:var(--cr-surf2); border:1px solid var(--cr-line) }
+.cr-erro{ color:var(--dm-red-text) }
+.cr-erro .cr-aviso-ac{ color:var(--cr-text) }
 .cr-interrompido{ display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; color:var(--cr-text2); font-size:14px }
 .cr-bolha-foto{ display:block; max-width:200px; max-height:200px; border-radius:var(--r); object-fit:cover; border:1px solid var(--cr-line) }
 .cr-cursor{ display:inline-block; width:.5em; height:1.05em; margin-left:1px; vertical-align:-.15em; background:var(--dm-orange-d); animation:crPisca 1s steps(1) infinite }
@@ -258,8 +260,8 @@ body.cr-ocupado .cr-fio{ opacity:1 }
 .cr-medidor.media .cr-med-arco{ stroke:var(--dm-orange) }
 .cr-medidor.baixa .cr-med-arco{ stroke:var(--dm-red) }
 .cr-medidor.pronto .cr-med-arco{ stroke-dashoffset:calc(100 * (1 - var(--n))) }
-.cr-op-det{ position:absolute; z-index:4; left:0; right:0; bottom:0; display:flex; flex-direction:column; gap:6px; padding:36px 12px 12px; color:#fff; font:500 11.5px/1.3 'Roboto',sans-serif;
-  background:linear-gradient(180deg,transparent,rgba(10,10,10,.88) 40%); opacity:0; transform:translateY(10px); pointer-events:none;
+.cr-op-det{ position:absolute; z-index:4; left:0; right:0; bottom:0; display:flex; flex-direction:column; gap:6px; padding:44px 12px 12px; color:#fff; font:500 11.5px/1.3 'Roboto',sans-serif;
+  background:linear-gradient(180deg,transparent,rgba(10,10,10,.94) 34%); -webkit-backdrop-filter:blur(5px); backdrop-filter:blur(5px); opacity:0; transform:translateY(10px); pointer-events:none;
   transition:opacity var(--dur-fast) var(--ease-out),transform var(--dur-base) var(--ease-out) }
 .cr-op:hover .cr-op-det,.cr-op:focus-visible .cr-op-det{ opacity:1; transform:none }
 .cr-det-tit{ display:flex; justify-content:space-between; font-size:12px; font-weight:700 }
@@ -301,6 +303,7 @@ body.cr-ocupado .cr-fio{ opacity:1 }
 .cr-btn:hover{ background:var(--cr-surf2) }
 .cr-btn:disabled{ opacity:.5; cursor:default }
 .cr-btn.on{ border-color:var(--press-border); color:var(--dm-orange-text); background:var(--press-bg) }
+#cr-nova:disabled{ display:none }   /* sem conversa não há o que reiniciar: o botão apagado no hero parecia quebrado */
 .cr-btn-mini{ height:30px; padding:0 12px; font-size:12.5px; gap:6px }
 .cr-btn-leve{ border-color:transparent; background:transparent; color:var(--cr-text2) }
 .cr-btn-leve:hover{ background:var(--cr-surf2); color:var(--cr-text) }
@@ -309,7 +312,7 @@ body.cr-ocupado .cr-fio{ opacity:1 }
 .cr-prim:hover:not(:disabled){ background:var(--dm-orange); filter:brightness(1.05); box-shadow:0 6px 18px color-mix(in srgb,var(--dm-orange-d) 30%,transparent) }
 /* retorno de "feito" no próprio botão (Copiado / Baixado) */
 .cr-btn.cr-ok,.cr-btn.cr-ok:hover{ background:color-mix(in srgb,var(--green) 14%,transparent); border-color:color-mix(in srgb,var(--green) 45%,transparent); color:var(--green-text); filter:none; box-shadow:none; animation:crPop var(--dur-base) var(--ease-spring) }
-#view-creative button:focus-visible,#view-creative textarea:focus-visible{ outline:2px solid var(--dm-orange)!important; outline-offset:2px }
+#view-creative button:focus-visible,#view-creative textarea:focus-visible{ outline:2px solid var(--cr-foco)!important; outline-offset:2px }
 
 /* Legenda: uma só, diagramada como o post vai sair */
 .cr-leg{ padding:16px 18px; border-radius:var(--r); background:var(--cr-bg); border:1px solid var(--cr-line) }
@@ -364,7 +367,7 @@ body.cr-ocupado .cr-caixa{ border-color:transparent;
 .cr-enviar-para{ opacity:0; transform:scale(.4) }
 body.cr-ocupado .cr-enviar-seta{ opacity:0; transform:translateY(-8px) scale(.6) }
 body.cr-ocupado .cr-enviar-para{ opacity:1; transform:none }
-body.cr-ocupado .cr-enviar::after{ content:''; position:absolute; inset:-4px; border-radius:50%; border:2px solid transparent; border-top-color:var(--dm-orange); animation:gSpin 1s linear infinite }
+body.cr-ocupado .cr-enviar::after{ content:''; position:absolute; inset:-3px; border-radius:calc(var(--r) + 3px); border:2px solid transparent; border-top-color:var(--dm-orange); animation:gSpin 1s linear infinite }
 .cr-nota{ display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:4px; font-size:11.5px; color:var(--cr-text3); text-align:center }
 
 /* Menu de formato (abre para cima, a partir do botão) */
@@ -431,12 +434,15 @@ body.cr-ocupado .cr-enviar::after{ content:''; position:absolute; inset:-4px; bo
 .cr-menu li[aria-selected="true"] b em{ color:inherit; opacity:.8 }
 
 /* ── "Desta sessão": miniaturas das artes entregues ── */
-.cr-faixa{ display:flex; align-items:center; gap:10px; align-self:flex-start; max-width:100%; padding:6px 8px 6px 12px; border-radius:var(--r-pill); background:var(--cr-vidro); border:1px solid var(--cr-line); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); animation:crSobe var(--dur-base) var(--ease-out) backwards }
+/* Fica ABAIXO do campo, no lugar da dica de teclado (que some quando já há conversa): o dock encolhe ~66px, que a entrega em story precisa */
+.cr-faixa{ order:5; display:flex; align-items:center; gap:10px; align-self:flex-start; max-width:100%; padding:0 2px; animation:crSobe var(--dur-base) var(--ease-out) backwards }
+.cr-nota{ order:6 }
+.cr-conversando .cr-nota{ display:none }
 .cr-faixa[hidden]{ display:none }
 .cr-faixa-rot{ flex:none; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--cr-text3) }
 .cr-faixa-lista{ display:flex; gap:6px; min-width:0; overflow-x:auto; scrollbar-width:none; scroll-behavior:smooth }
 .cr-faixa-lista::-webkit-scrollbar{ display:none }
-.cr-faixa-it{ flex:none; height:34px; padding:0; border:0; border-radius:7px; overflow:hidden; background:var(--cr-surf2); cursor:pointer; box-shadow:0 0 0 1px var(--cr-line2);
+.cr-faixa-it{ flex:none; height:30px; padding:0; border:0; border-radius:7px; overflow:hidden; background:var(--cr-surf2); cursor:pointer; box-shadow:0 0 0 1px var(--cr-line2);
   transition:transform var(--release-dur) var(--release-ease),box-shadow var(--dur-fast) var(--ease-standard) }
 .cr-faixa-it:hover{ box-shadow:0 0 0 2px var(--dm-orange) }
 .cr-faixa-it img{ display:block; height:100%; width:auto; max-width:96px; object-fit:contain }

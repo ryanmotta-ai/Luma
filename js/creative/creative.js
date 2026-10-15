@@ -2836,7 +2836,7 @@ function _crPerguntar(corpo, perguntas, run){
     corpo.appendChild(box);
     const resp = []; let i = 0, sel = 0, encerrou = false;
     const fecha = val => {
-      if(encerrou) return; encerrou = true; run.cancelar = null; crState.aoFoto = null;
+      if(encerrou) return; encerrou = true; run.cancelar = null; crState.aoFoto = null; crState.aoTexto = null;
       box.classList.add('cr-some'); setTimeout(() => box.remove(), 240); resolve(val);
     };
     run.cancelar = () => fecha(null);
@@ -2874,13 +2874,18 @@ function _crPerguntar(corpo, perguntas, run){
     function desenha(){
       const q = perguntas[i];
       crState.aoFoto = q.tipo === 'foto' ? recebeFoto : null;
+      crState.aoTexto = q.tipo === 'foto' ? null : v => {   // o campo grande também responde: texto livre vira a resposta; senão procura a opção pelo começo do rótulo
+        if(q.livre !== false) return responde({ resposta: v, valor: v });
+        const k = q.opcoes.findIndex(o => String(o.rotulo).toLowerCase().startsWith(v.toLowerCase()));
+        if(k >= 0){ marca(k); escolhe(k); } else box.focus();
+      };
       let ops = '', n = 0;
       if(q.tipo === 'foto') ops += op('upload', '', '<span class="cr-q-l">' + CR_ICO.foto + 'Enviar a foto</span>', 'arraste aqui, cole ou escolha o arquivo', ++n);
       q.opcoes.forEach((o, k) => { ops += op('opcao', k, gEsc(o.rotulo), o.desc, ++n); });
       if(q.livre !== false) ops += '<li class="cr-q-op" role="option" data-tipo="outro"><span class="cr-q-seta" aria-hidden="true">❯</span><span class="cr-q-n">' + (++n) + '.</span><input type="text" maxlength="80" placeholder="' + gEsc(q.dica || 'Outra resposta…') + '" aria-label="Outra resposta"></li>';
       box.innerHTML = '<div class="cr-q-topo"><span class="cr-q-chip">' + gEsc(q.titulo) + '</span>' + (perguntas.length > 1 ? '<span class="cr-q-prog" aria-label="Pergunta ' + (i + 1) + ' de ' + perguntas.length + '">' + perguntas.map((_, k) => '<i class="' + (k < i ? 'feita' : k === i ? 'agora' : '') + '"></i>').join('') + '</span>' : '') + '</div>'
         + '<p class="cr-q-txt">' + gEsc(q.pergunta) + '</p><ol class="cr-q-ops' + (q.opcoes.length > 5 ? ' cr-q-2' : '') + '" role="listbox" aria-label="' + gEsc(q.pergunta) + '">' + ops + '</ol>'
-        + '<div class="cr-q-rodape"><span><kbd>↑</kbd><kbd>↓</kbd> navega <kbd>↵</kbd> escolhe <kbd>1</kbd>–<kbd>' + n + '</kbd> atalho <kbd>esc</kbd> interrompe</span><button type="button" class="cr-q-pular">Pular</button></div>';
+        + '<div class="cr-q-rodape"><span><kbd>↑</kbd><kbd>↓</kbd> navega <kbd>↵</kbd> escolhe ' + (q.livre === false ? '<kbd>1</kbd>–<kbd>' + n + '</kbd> atalho ' : 'digite para responder ') + '<kbd>esc</kbd> interrompe</span><button type="button" class="cr-q-pular">Pular</button></div>';
       box.classList.toggle('cr-q-foto', q.tipo === 'foto');
       box.classList.remove('cr-q-troca'); void box.offsetWidth; box.classList.add('cr-q-troca');
       marca(0); _crRolaPergunta(box);
@@ -2890,6 +2895,10 @@ function _crPerguntar(corpo, perguntas, run){
       if(e.key === 'ArrowDown'){ e.preventDefault(); marca(sel + 1); }
       else if(e.key === 'ArrowUp'){ e.preventDefault(); marca(sel - 1); }
       else if(e.key === 'Enter'){ e.preventDefault(); escolhe(sel); }
+      else if(!emInput && perguntas[i].livre !== false && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey){
+        // pergunta de dado (preço, cupom…): digitar vai para o campo livre — "22,90" nunca vira atalho da opção 2
+        const k = itens().findIndex(li => li.dataset.tipo === 'outro'); if(k >= 0) marca(k);
+      }
       else if(!emInput && /^[1-9]$/.test(e.key) && +e.key <= itens().length){ e.preventDefault(); marca(+e.key - 1); escolhe(+e.key - 1); }
     });
     box.addEventListener('click', e => {
@@ -2956,7 +2965,12 @@ document.addEventListener('drop', e => {
 function crAutoAltura(el){ el.style.height = 'auto'; el.style.height = Math.min(160, el.scrollHeight) + 'px'; _crPodeEnviar(); }
 // Enter só envia com texto — e só quando NÃO está rodando (parar é o botão, nunca a tecla de enviar)
 function crTecla(e){
-  if(e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); if(!crState.rodando) crEnviar(); }
+  if(e.key === 'Enter' && !e.shiftKey && !e.isComposing){
+    e.preventDefault();
+    if(!crState.rodando) return crEnviar();
+    const v = e.target.value.trim();
+    if(v && crState.aoTexto){ e.target.value = ''; crAutoAltura(e.target); _crPodeEnviar(); crState.aoTexto(v); }
+  }
 }
 // O botão de enviar só acende quando há o que enviar (ou quando é "parar")
 function _crPodeEnviar(){
@@ -3066,8 +3080,8 @@ document.addEventListener('keydown', e => {
     if(pop && !pop.hidden){ e.stopPropagation(); return crUsoPop(false); }
   }
   if(e.key === 'Tab'){   // modal e gaveta prendem o foco (aria-modal sem isso deixa o Tab fugir para a barra global)
-    const cx = _crEl('cr-conex'), g = _crEl('cr-gaveta');
-    const cont = cx && !cx.hidden ? cx : (g && g.classList.contains('aberta') ? g : null);
+    const cx = _crEl('cr-conex'), g = _crEl('cr-gaveta'), ed = document.querySelector('#view-creative .cr-ed.aberto');
+    const cont = cx && !cx.hidden ? cx : (g && g.classList.contains('aberta') ? g : ed);
     if(cont){
       const f = [...cont.querySelectorAll('button:not([disabled]),input:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')].filter(x => x.offsetParent !== null);
       if(f.length){
@@ -3204,15 +3218,16 @@ function crUsoPinta(){
   const av = _crEl('cr-limite'), msg = crUsoMsg();
   if(av){ av.hidden = !msg; av.textContent = msg; av.classList.toggle('cheio', lim != null && resta < crCusto(CR_MODELO_RAPIDO)); }
   const pop = _crEl('cr-uso-pop'); if(pop && !pop.hidden) pop.innerHTML = crUsoPopHtml();
+  const ta = _crEl('cr-pedido'); if(ta) ta.placeholder = crUsoSemSaldo() ? 'Limite de hoje atingido — renova à meia-noite' : 'Descreva a arte: o que é, preço, cupom, data…';
   _crPodeEnviar();
 }
 function crUsoPopHtml(){
   const lim = (crUso.ilimitado || crUso.limite == null) ? null : crUso.limite, u = crUso.usado, resta = _crUsoResta();
   return '<b class="cr-uso-tit">Uso de hoje</b>'
     + '<div class="cr-uso-num"><span>' + u + '</span>' + (lim != null ? ' de ' + lim + ' artes' : ' ' + (u === 1 ? 'arte gerada' : 'artes geradas')) + '</div>'
-    + (lim != null ? '<div class="cr-uso-barra' + (resta <= 0 ? ' cheia' : '') + '" style="--u:' + Math.min(1, u / lim).toFixed(3) + '"><i></i></div><p>' + (resta > 0 ? 'Restam ' + resta + '.' : 'Limite de hoje atingido.') + '</p>' : '<p>Sem limite para a sua conta.</p>')
+    + (lim != null ? '<div class="cr-uso-barra' + (resta <= 0 ? ' cheia' : '') + '" style="--u:' + Math.min(1, u / lim).toFixed(3) + '"><i></i></div><p>' + (resta > 0 ? 'Restam ' + resta + '.' : 'Limite de hoje atingido. Renova à meia-noite (Brasília); as artes de hoje seguem em Sessões.') + '</p>' : '<p>Sem limite para a sua conta.</p>')
     + '<p class="cr-uso-reg">O modelo Rápido gasta 1 arte; os outros gastam 2. “Outras opções” conta como uma arte nova. O dia renova à meia-noite (Brasília).</p>'
-    + (crUso.origem === 'local' ? '<p class="cr-uso-aviso">Contagem deste aparelho: o limite do servidor ainda não está ligado.</p>' : '');
+    + '';
 }
 function crUsoPop(abrir){
   const pop = _crEl('cr-uso-pop'), b = _crEl('cr-uso'); if(!pop || !b) return;
@@ -3559,8 +3574,8 @@ async function crGerar(fio, conv, outras){
   corpo.appendChild(lista);
   let status = _crStatus(corpo);
   // acao: botão de saída ("Editar pedido" devolve o texto ao campo; "Tentar de novo" roda o mesmo pedido) — aviso sem saída é beco
-  const aviso = (txt, acao) => {
-    const b = document.createElement('div'); b.className = 'cr-bolha cr-interrompido'; b.textContent = txt;
+  const aviso = (txt, acao, erro) => {
+    const b = document.createElement('div'); b.className = 'cr-bolha cr-interrompido' + (erro ? ' cr-erro' : ''); b.textContent = txt;
     if(acao){ const bt = document.createElement('button'); bt.type = 'button'; bt.className = 'cr-btn cr-btn-mini cr-aviso-ac'; bt.textContent = acao.rotulo; bt.onclick = () => { bt.disabled = true; acao.fn(); }; b.appendChild(bt); }
     corpo.appendChild(b); _crRola();
   };
@@ -3626,7 +3641,8 @@ async function crGerar(fio, conv, outras){
     // 3) Diagramação: a busca (frente 2) percorre as famílias que servem e os parâmetros de cada
     // uma, em fatias (a tela não congela), e fica com o que tem a melhor nota de design
     p = _crPasso(lista, outras ? 'Buscando outros caminhos' : 'Buscando a melhor composição');
-    esq = _crEsqueleto(fio.fmt); msg.after(esq); _crRola();
+    esq = _crEsqueleto(fio.fmt); msg.after(esq);
+    msg.scrollIntoView({ block: 'start', behavior: _crReduz() ? 'auto' : 'smooth' });   // o esqueleto é alto: o que fica à vista é o progresso (msg), não o fim da página
     await crFontesProntas();
     // Cada rodada de "Outras opções" muda a semente e exclui as assinaturas já mostradas
     fio.rodada = (fio.rodada || 0) + (outras ? 1 : 0);
@@ -3708,7 +3724,9 @@ async function crGerar(fio, conv, outras){
   }catch(err){
     console.error('[creative]', err);
     status.parar();
-    aviso('Não consegui compor a arte agora.', { rotulo: 'Tentar de novo', fn: () => { if(!crState.rodando) crGerar(fio, conv, outras); } });
+    const marca = /regras da marca/i.test((err && err.message) || '');
+    aviso(marca ? 'Esse pedido não encaixou nas regras da marca. Mude o formato ou o texto e tente de novo.' : 'Não consegui compor a arte agora.',
+      marca ? editarPedido : { rotulo: 'Tentar de novo', fn: () => { if(!crState.rodando) crGerar(fio, conv, outras); } }, true);
   }finally{
     if(consumiu && !entregou) crUsoEstorna();
     crState.modeloRun = null; crState.provRun = null;
@@ -3973,7 +3991,7 @@ function crEditar(op, aoSalvar){
     + '<i aria-hidden="true"></i>' + bt('ocultar', CR_ICO.olho, 'Ocultar') + bt('remover', CR_ICO.lixo, 'Remover (Delete)');
   mesa.appendChild(flut);
   const W = op.w, H = op.h, M = crArea(op.spec.formato).M, hist = [], fut = [];
-  let atual = null, enquadrar = false, mexeu = false;
+  let atual = null, enquadrar = false, mexeu = false, descarta = false;
   const r1 = n => Math.round(n * 10) / 10;
   const escala = () => W / svg.getBoundingClientRect().width;
   const blocos = () => [...svg.querySelectorAll(':scope > [data-bloco]')];
@@ -4239,6 +4257,7 @@ function crEditar(op, aoSalvar){
     if(k === 'y' || e.shiftKey) refaz(); else desfaz();
   });
   host.addEventListener('keydown', e => {
+    if(e.key === 'Escape' && !atual){ e.stopPropagation(); return acao('cancelar'); }
     if(!atual) return;
     const p = e.shiftKey ? 10 : 2;
     const mv = { ArrowLeft: [-p, 0], ArrowRight: [p, 0], ArrowUp: [0, -p], ArrowDown: [0, p] }[e.key];
@@ -4252,7 +4271,10 @@ function crEditar(op, aoSalvar){
     const g = atual;
     if(a === 'desfazer') return desfaz();
     if(a === 'refazer') return refaz();
-    if(a === 'cancelar') return fechar(null);
+    if(a === 'cancelar'){
+      if(mexeu && !descarta){ descarta = true; setTimeout(() => { descarta = false; }, 4000); return gToast('Você mexeu na arte. Cancele de novo para descartar, ou toque em Salvar.'); }
+      return fechar(null);
+    }
     if(a === 'salvar'){
       if(!mexeu) return fechar(null);
       const xml = new XMLSerializer().serializeToString(svg);

@@ -103,6 +103,7 @@
   --cr-text: #1F1F1F;
   --cr-text2: #5F5F5F;
   --cr-text3: #686868;
+  --cr-foco: var(--dm-orange-d);
   --cr-acento-bg: rgba(248, 84, 0, .08);
   --cr-acento-ln: rgba(248, 84, 0, .34);
   --cr-vidro: rgba(250, 249, 247, .78);
@@ -207,7 +208,8 @@ body:not(.theme-light){
   --cr-line2: var(--d-border2);
   --cr-text: var(--d-text);
   --cr-text2: var(--d-text2);
-  --cr-text3: var(--d-text3);
+  --cr-text3: color-mix(in srgb,var(--d-text3) 88%,#fff);
+  --cr-foco: var(--dm-orange);
   --cr-acento-bg: rgba(255, 144, 0, .12);
   --cr-acento-ln: rgba(255, 144, 0, .40);
   --cr-vidro: rgba(20, 23, 28, .74);
