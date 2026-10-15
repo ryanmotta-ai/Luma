@@ -21,7 +21,6 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,
 textarea:focus-visible,[tabindex]:focus-visible,[contenteditable]:focus-visible{
   outline:2px solid var(--dm-orange,#FF9000)!important;
   outline-offset:2px;
-  border-radius:inherit;
 }
 
 /* ══ ESTADO LIGADO — padrão global ══
