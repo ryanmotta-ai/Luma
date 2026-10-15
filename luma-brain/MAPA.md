@@ -261,7 +261,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 91 arquivos JS (84.180 linhas, 3.270 funções) · 33 arquivos CSS (33.417 linhas) · `index.html` com 4.095 linhas e 81 `<script>`.
+**Tamanho real de hoje:** 92 arquivos JS (84.476 linhas, 3.272 funções) · 33 arquivos CSS (33.412 linhas) · `index.html` com 4.096 linhas e 82 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -721,10 +721,10 @@ As composições do dia a dia do franqueado (frente 4, 15/10/2026) — desenhada
 LUMA CREATIVE — modo COPY (15/10/2026) Quando o pedido é um TEXTO ("quero uma copy", "uma legenda", "um roteiro", "mensagem de whatsapp"…) e não uma arte, o chat vira o de um copywriter:
 · API: crPromptCopyBriefing, crPromptCopyTexto, crCopy, crLegendaMarca
 
-**`js/creative/creative.js`** · 4747 linhas
+**`js/creative/creative.js`** · 4745 linhas
 Luma Creative — modo em TESTES, só a gestão (trava em main.js e na Edge Function `ai`).
 · API: crTema, crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crLockup, crTextoLinhas, crTextoMulti, crX, crTexto, crMista, crHeroi … (+97; 186 funções no total)
-· Estado global: _crFontesProm, _crCtx, _crMesa, _crPesosCuradoria, _crArrasto, _crSessTimer, _crLegendaVer
+· Estado global: _crFontesProm, _crCtx, _crMesa, _crPesosCuradoria, _crArrasto, _crSessTimer, _crMkAuto, _crLegendaVer
 
 **`js/creative/curadoria.js`** · 224 linhas
 CURADORIA do Luma Creative (frente 5, 15/10/2026) — só a gestão.
@@ -734,6 +734,10 @@ CURADORIA do Luma Creative (frente 5, 15/10/2026) — só a gestão.
 **`js/creative/harness.js`** · 193 linhas
 LUMA CREATIVE — HARNESS DO CHAT (15/10/2026) Antes, toda mensagem virava um pedido novo de arte:
 · API: crUltimaEntrega, crContexto, crPromptRoteador, crRotearLocal, crLimpaMudancas, crDespachar
+
+**`js/creative/making-of.js`** · 298 linhas
+MAKING-OF da arte (frente 6, 15/10/2026) — a arte final se fazendo na frente da pessoa, como se alguém a montasse no editor:
+· API: crMakingOf
 
 ## CSS — onde mora cada folha
 
@@ -759,7 +763,7 @@ LUMA CREATIVE — HARNESS DO CHAT (15/10/2026) Antes, toda mensagem virava um pe
 | `css/modules/chat.css` | 3979 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
-| `css/modules/creative.css` | 766 |
+| `css/modules/creative.css` | 761 |
 | `css/modules/designer.css` | 5424 |
 | `css/modules/feedback.css` | 199 |
 | `css/modules/franqueado.css` | 1712 |
@@ -815,50 +819,51 @@ A ordem **é** a arquitetura: sem ESM, um arquivo depende de o anterior já ter 
 35. js/creative/branding.js
 36. js/creative/copy.js
 37. js/creative/harness.js
-38. js/designer/canvas.js
-39. js/designer/selection.js
-40. js/designer/brush.js
-41. js/designer/eraser-tools.js
-42. js/designer/layers.js
-43. js/designer/props-panel.js
-44. js/designer/measurement.js
-45. js/designer/publish.js
-46. js/designer/preview.js
-47. js/designer/library.js
-48. js/designer/undo-redo.js
-49. js/widgets/novidades.js
-50. js/widgets/help-widget.js
-51. js/designer/tools.js
-52. js/designer/fonts.js
-53. js/designer/psd-parse.js
-54. js/designer/psd-import.js
-55. js/designer/mask.js
-56. js/designer/tutorial-panel.js
-57. assets/vendor/colorthief.js
-58. assets/vendor/pica.js
-59. assets/vendor/jszip.min.js
-60. assets/vendor/supabase.js
-61. js/core/supabase-config.js
-62. js/core/supabase.js
-63. js/core/ai/ai-cache.js
-64. js/core/ai/ai-telemetry.js
-65. js/core/ai/ai-schemas.js
-66. js/core/ai/ai-registry.js
-67. js/core/ai/ai-client.js
-68. js/core/ai.js
-69. js/core/ai/ai-provedores.js
-70. js/core/auth.js
-71. js/core/franquia.js
-72. js/franqueado/feedback.js
-73. js/core/feature-flags.js
-74. js/core/user-profile.js
-75. js/core/product-control.js
-76. js/core/dados.js
-77. js/core/console.js
-78. js/designer/color-picker.js
-79. js/designer/tooltip.js
-80. js/designer/linter.js
-81. js/main.js
+38. js/creative/making-of.js
+39. js/designer/canvas.js
+40. js/designer/selection.js
+41. js/designer/brush.js
+42. js/designer/eraser-tools.js
+43. js/designer/layers.js
+44. js/designer/props-panel.js
+45. js/designer/measurement.js
+46. js/designer/publish.js
+47. js/designer/preview.js
+48. js/designer/library.js
+49. js/designer/undo-redo.js
+50. js/widgets/novidades.js
+51. js/widgets/help-widget.js
+52. js/designer/tools.js
+53. js/designer/fonts.js
+54. js/designer/psd-parse.js
+55. js/designer/psd-import.js
+56. js/designer/mask.js
+57. js/designer/tutorial-panel.js
+58. assets/vendor/colorthief.js
+59. assets/vendor/pica.js
+60. assets/vendor/jszip.min.js
+61. assets/vendor/supabase.js
+62. js/core/supabase-config.js
+63. js/core/supabase.js
+64. js/core/ai/ai-cache.js
+65. js/core/ai/ai-telemetry.js
+66. js/core/ai/ai-schemas.js
+67. js/core/ai/ai-registry.js
+68. js/core/ai/ai-client.js
+69. js/core/ai.js
+70. js/core/ai/ai-provedores.js
+71. js/core/auth.js
+72. js/core/franquia.js
+73. js/franqueado/feedback.js
+74. js/core/feature-flags.js
+75. js/core/user-profile.js
+76. js/core/product-control.js
+77. js/core/dados.js
+78. js/core/console.js
+79. js/designer/color-picker.js
+80. js/designer/tooltip.js
+81. js/designer/linter.js
+82. js/main.js
 ```
 
 <!-- AUTO-FIM -->

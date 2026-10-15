@@ -2977,7 +2977,9 @@ const CR_ICO = {
   alCentro: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v18"/><rect x="5" y="6" width="14" height="4" rx="1"/><rect x="8" y="14" width="8" height="4" rx="1"/></svg>',
   alDir: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 3v18"/><rect x="4" y="6" width="12" height="4" rx="1"/><rect x="9" y="14" width="7" height="4" rx="1"/></svg>',
   frente: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="currentColor" fill-opacity=".18"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg>',
-  tras: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="12" height="12" rx="2"/><path d="M20 8v10a2 2 0 0 1-2 2H8"/></svg>'
+  tras: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="12" height="12" rx="2"/><path d="M20 8v10a2 2 0 0 1-2 2H8"/></svg>',
+  tocar: '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.8v14.4a.8.8 0 0 0 1.2.7l11.3-7.2a.8.8 0 0 0 0-1.4L8.2 4.1a.8.8 0 0 0-1.2.7z"/></svg>',
+  pular: '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 5.2v13.6a.8.8 0 0 0 1.2.7l9.6-6.8a.8.8 0 0 0 0-1.4L5.2 4.5a.8.8 0 0 0-1.2.7z"/><rect x="16.5" y="4.5" width="3" height="15" rx="1"/></svg>'
 };
 
 // Entrada no modo: revela a view em círculo a partir da aba (o resto é CSS)
@@ -3667,7 +3669,7 @@ async function crSessAbre(id){
     f.entregas.forEach((ops, k) => {
       const m = _crMsgIA(conv); m.classList.remove('cr-entra');
       m.querySelector('.cr-bolha').textContent = k ? 'Mais caminhos para este pedido.' : _crFalaPronta(ops);
-      const ent = _crEntrega(f, ops); conv.appendChild(ent); _crMontar(ent, ops, true);
+      const ent = _crEntrega(f, ops); conv.appendChild(ent); _crMostra(ent, false);
     });
   });
   crState.fmt = CR_FORMATOS[rec.fmtMenu] ? rec.fmtMenu : null; _crRotuloFmt(); crLigaMuch(!!rec.much);
@@ -4052,7 +4054,7 @@ async function crGerar(fio, conv, outras){
     esq = null;
     (fio.entregas = fio.entregas || []).push(opcoes);
     entregou = true; crUsoConfirma();
-    _crMontar(ent, opcoes);
+    _crMostra(ent, true);
     _crResumo(corpo, lista, t0);
     crFaixaPinta(); crSessSalva();
     if(seguia) requestAnimationFrame(() => {
@@ -4130,13 +4132,14 @@ function _crEntrega(fio, ops){
     + '<span class="cr-ent-selo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>' + (ops[0].juiz ? 'Revisada pela IA' : 'Conferida nas regras da marca') + '</span></header>'
     + '<div class="cr-ops' + (ops[0].w > ops[0].h * 1.2 ? ' cr-ops-deitadas' : '') + '" style="--ar:' + (ops[0].w / ops[0].h).toFixed(4) + '" role="radiogroup" aria-label="Opções de arte">'
     + ops.map((o, i) => '<button type="button" class="cr-op' + (i ? '' : ' on') + '" role="radio" aria-checked="' + (i ? 'false' : 'true') + '" data-i="' + i + '">'
-      + '<span class="cr-op-arte"' + (CR_FORMATOS[o.spec.formato].laminas ? ' data-laminas="' + CR_FORMATOS[o.spec.formato].laminas + '"' : '') + ' style="aspect-ratio:' + o.w + '/' + o.h + '"><img alt="Opção ' + (i + 1) + ': ' + gEsc(o.nomeReceita) + '" src="' + o.url + '"><span class="cr-mont" aria-hidden="true"></span><span class="cr-mont-rot" aria-hidden="true"></span>' + _crDetalheNota(o) + '<span class="cr-op-ok" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>'
+      + '<span class="cr-op-arte"' + (CR_FORMATOS[o.spec.formato].laminas ? ' data-laminas="' + CR_FORMATOS[o.spec.formato].laminas + '"' : '') + ' style="aspect-ratio:' + o.w + '/' + o.h + '"><img alt="Opção ' + (i + 1) + ': ' + gEsc(o.nomeReceita) + '" src="' + o.url + '">' + _crDetalheNota(o) + '<span class="cr-op-ok" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>'
       + rotulo(o, i) + (o.juiz && o.juiz.porque ? '<span class="cr-op-pq">' + gEsc(o.juiz.porque) + '</span>' : '') + '</button>').join('')
     + '</div>'
     + '<div class="cr-acoes">'
     + '<button type="button" class="cr-btn cr-prim" data-acao="png">' + CR_ICO.baixar + 'Baixar PNG</button>'
     + '<button type="button" class="cr-btn" data-acao="editar">' + CR_ICO.editar + 'Editar</button>'
     + (postavel ? '<button type="button" class="cr-btn" data-acao="postado">' + CR_ICO.celular + 'Ver postado</button>' : '')
+    + (typeof crMakingOf === 'function' && !_crReduz() ? '<button type="button" class="cr-btn cr-btn-leve" data-acao="making">' + CR_ICO.tocar + 'Ver sendo feita</button>' : '')
     + '<button type="button" class="cr-btn cr-btn-leve" data-acao="outras">' + CR_ICO.refazer + 'Outras opções</button>'
     + '</div>'
     + (fio.legenda ? '<div class="cr-leg"><div class="cr-leg-cab"><h4>Legenda do post</h4><button type="button" class="cr-btn cr-btn-mini" data-acao="copiar">' + CR_ICO.copiar + 'Copiar</button></div>'
@@ -4149,7 +4152,7 @@ function _crEntrega(fio, ops){
   };
   botoes().forEach((b, i) => {
     const img = b.querySelector('img');
-    // a montagem (_crMontar) decide quando a arte aparece; sem ela, aparece ao carregar
+    // a arte aparece ao carregar — a não ser que o making-of esteja desenhando por cima (ele a mostra no fim)
     img.addEventListener('load', () => { if(!b.dataset.mont) b.classList.add('cr-nitida'); }, { once: true });
     b.addEventListener('dblclick', () => abre(i));
   });
@@ -4164,17 +4167,40 @@ function _crEntrega(fio, ops){
       crFaixaPinta(); crSessSalva();
     });
   };
+  // O making-of (js/creative/making-of.js) desenha a opção i por cima da <img>, que só reaparece no fim — o
+  // arquivo baixado é sempre ela. Enquanto desenha, "Ver sendo feita" vira "Pular" (e Esc ou clicar na arte pulam).
+  let mk = null;
+  const verFeita = i => {
+    if(typeof crMakingOf !== 'function' || _crReduz()) return false;
+    if(mk) mk.h.pular();
+    const b = botoes()[i], arte = b && b.querySelector('.cr-op-arte');
+    if(!arte || !ops[i].svgFinal) return false;
+    const h = crMakingOf(arte, ops[i].svgFinal, { css: CR_MONT_CSS, nomes: CR_NOME_BLOCO, autor: 'Luma', botao: false });
+    if(!h.ativo) return false;
+    const eu = mk = { i, h }, bt = el.querySelector('[data-acao="making"]');
+    b.dataset.mont = '1'; b.classList.remove('cr-nitida');
+    if(bt) bt.innerHTML = CR_ICO.pular + 'Pular';
+    const esc = e => { if(e.key === 'Escape') h.pular(); };
+    document.addEventListener('keydown', esc);
+    h.pronto.then(() => {
+      document.removeEventListener('keydown', esc);
+      delete b.dataset.mont; b.classList.add('cr-nitida');
+      if(mk === eu){ mk = null; if(bt) bt.innerHTML = CR_ICO.tocar + 'Ver sendo feita'; }
+    });
+    return true;
+  };
   el.addEventListener('keydown', e => { if(/^[1-3]$/.test(e.key) && e.target.closest('.cr-ops')) escolhe(Math.min(ops.length, +e.key) - 1); });
   el.addEventListener('click', ev => {
     const b = ev.target.closest('button'); if(!b) return;
-    if(b.classList.contains('cr-op')) return escolhe(+b.dataset.i);
+    if(b.classList.contains('cr-op')) return mk && mk.i === +b.dataset.i ? mk.h.pular() : escolhe(+b.dataset.i);
+    if(b.dataset.acao === 'making') return mk ? mk.h.pular() : verFeita(sel);
     if(b.dataset.acao === 'png'){ crAprende(ops[sel], 'baixou'); return crBaixarPNG(ops[sel], b); }
     if(b.dataset.acao === 'editar') return abre(sel);
     if(b.dataset.acao === 'postado') return crVerPostado(ops[sel], fio);
     if(b.dataset.acao === 'outras') return crOutrasOpcoes(fio);
     if(b.dataset.acao === 'copiar') return crCopiar(fio.legenda, b);
   });
-  el._ops = ops;
+  el._ops = ops; el._verFeita = verFeita;
   return el;
 }
 
@@ -4211,42 +4237,14 @@ function _crContaNotas(el){
   });
 }
 
-/* ── A arte se montando: o SVG da opção entra num shadow root (o <style> dele não vaza pro app) e
-   os blocos nomeados (logo, título, foto, preço…) entram um a um, na ordem em que o motor os
-   empilhou. Quando o último assenta, a <img> real assume por cima — o que fica na tela é sempre o
-   arquivo que se baixa. Movimento reduzido: a arte aparece pronta. ── */
-const CR_MONT_CSS = 'svg{display:block;width:100%;height:auto}'
-  + 'svg .hero{font-family:"LC Realce","Realce",sans-serif}svg .sup,svg .body,svg .legal,svg .leve,svg .forte{font-family:"LC Roboto","Roboto",sans-serif}'
-  + '[data-bloco]{transform-box:fill-box;transform-origin:center;animation:ent var(--dur-slow) var(--ease-out) backwards;animation-delay:calc(var(--k) * var(--dur-micro) + var(--d))}'
-  + '@keyframes ent{from{opacity:0;translate:0 28px;scale:.94}to{opacity:1;translate:0 0;scale:1}}';
-function _crMontar(el, ops, restaurado){
-  el.querySelectorAll('.cr-op').forEach((b, i) => {
-    const o = ops[i], host = b.querySelector('.cr-mont'), rot = b.querySelector('.cr-mont-rot');
-    b.dataset.mont = '1';
-    const direto = () => { b.classList.add('cr-nitida'); if(host) host.remove(); if(rot) rot.remove(); };
-    if(!o || !host || !o.svgFinal || o.editada || restaurado || _crReduz()) return direto();
-    let svg;
-    try{
-      const doc = new DOMParser().parseFromString(o.svgFinal, 'image/svg+xml');
-      if(doc.querySelector('parsererror')) throw new Error('svg');
-      svg = document.importNode(doc.documentElement, true);
-    }catch(err){ return direto(); }
-    const blocos = [...svg.querySelectorAll(':scope > [data-bloco]')];
-    if(!blocos.length) return direto();
-    const micro = _crDur('--dur-micro'), atraso = i * micro * 1.3;
-    host.style.setProperty('--d', atraso + 'ms');
-    blocos.forEach((g, k) => g.style.setProperty('--k', Math.min(k, 8)));
-    const raiz = host.attachShadow({ mode: 'open' }), st = document.createElement('style');
-    st.textContent = CR_MONT_CSS; raiz.append(st, svg);
-    b.classList.add('cr-montando');
-    blocos.forEach((g, k) => setTimeout(() => { if(rot) rot.textContent = 'Colocando · ' + (CR_NOME_BLOCO[g.dataset.bloco] || 'Bloco'); }, atraso + Math.min(k, 8) * micro));
-    const fim = atraso + Math.min(blocos.length - 1, 8) * micro + _crDur('--dur-slow') + 60;
-    setTimeout(() => {
-      b.classList.remove('cr-montando'); b.classList.add('cr-nitida');
-      if(rot){ rot.classList.add('cr-some'); setTimeout(() => rot.remove(), _crDur('--dur-base') + 40); }
-      setTimeout(() => host.remove(), _crDur('--dur-slow') + 60);
-    }, fim);
-  });
+/* ── A entrega aparece: as artes surgem prontas (ao carregar a <img>) e as notas contam. Na 1ª entrega da
+   página, a opção escolhida se desenha sozinha — o making-of (js/creative/making-of.js) — enquanto as
+   outras já estão lá; depois, só pelo botão "Ver sendo feita". Sessão reaberta: tudo pronto, sem making-of. ── */
+// As fontes do app dentro do shadow root do making-of (o @font-face embutido no SVG não vale lá dentro)
+const CR_MONT_CSS = 'svg .hero{font-family:"LC Realce","Realce",sans-serif}svg .sup,svg .body,svg .legal,svg .leve,svg .forte{font-family:"LC Roboto","Roboto",sans-serif}';
+let _crMkAuto = true;
+function _crMostra(el, auto){
+  if(auto && _crMkAuto && el._verFeita && el._verFeita(0)) _crMkAuto = false;
   _crContaNotas(el);
 }
 

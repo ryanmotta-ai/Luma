@@ -248,12 +248,7 @@ body.cr-ocupado .cr-fio{ opacity:1 }
   box-shadow:0 0 0 1px var(--cr-line); transition:box-shadow var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-spring-soft) }
 .cr-op-arte img{ display:block; width:100%; height:100%; object-fit:contain; opacity:0; transition:opacity var(--dur-base) var(--ease-out) }
 .cr-nitida .cr-op-arte img{ opacity:1 }
-/* A arte se montando: o SVG vive num shadow root por cima da <img> até o último bloco assentar */
-.cr-mont{ position:absolute; inset:0; z-index:1; pointer-events:none }
-.cr-mont-rot{ position:absolute; z-index:3; left:8px; bottom:8px; max-width:calc(100% - 16px); padding:4px 9px; border-radius:var(--r-pill); background:rgba(10,10,10,.72); color:#fff;
-  font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:opacity var(--dur-base) var(--ease-out) }
-.cr-mont-rot:empty{ display:none }
-.cr-mont-rot.cr-some{ opacity:0 }
+/* O making-of (js/creative/making-of.js) desenha por cima da <img> num shadow root próprio — o estilo mora lá */
 /* Nota do juiz: anel que enche até a nota (de 5); no hover da opção, o boletim das 5 réguas sobe sobre a arte */
 .cr-medidor{ margin-left:auto; display:inline-flex; align-items:center; gap:6px; font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace; font-variant-numeric:tabular-nums; color:var(--cr-text2) }
 .cr-med-de{ margin-left:-4px; font-size:10.5px; font-weight:500; color:var(--cr-text3) }
@@ -698,7 +693,7 @@ body.cr-ocupado .cr-enviar.cr-resp .cr-enviar-para{ opacity:0; transform:scale(.
   .cr-conex-veu,.cr-conex{ transition:none }
   .cr-cx-msg{ animation:none }
   .cr-limite.bate,.cr-q-nao,.cr-faixa,.cr-faixa-it.novo,.cr-limite,.cr-uso-barra i,.cr-gaveta.aberta .cr-sess-li,.cr-entrega.cr-acha{ animation:none }
-  .cr-med-arco,.cr-op-det,.cr-det-linha i::after,.cr-mont-rot{ transition:none }
+  .cr-med-arco,.cr-op-det,.cr-det-linha i::after{ transition:none }
   .cr-op-arte img,.cr-ed,.cr-pergunta,.cr-q-seta,.cr-boas,.cr-trab-corpo,.cr-menu,.cr-conversa,.cr-op-ok,.cr-solta > div{ transition:none }
   .cr-conversando .cr-boas{ display:none }
 }
