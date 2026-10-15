@@ -6,6 +6,18 @@
 
 ---
 
+## 2026-10-15 — Combos Coca (4 artes novas) + ajustes das artes de preço (✅ dados, sem migration)
+
+Só **dados** em `luma.templates`, por SQL no projeto `uqrqzjafhigjuvtjqzid`; cada gravação travada por `md5` do conteúdo (só grava se bater com o que foi validado no motor real do Luma).
+
+- **Pasta "Combos Coca"** (já existia, `camp_id='cc'`): 4 templates novos, **publicados**. Os 2 rascunhos antigos (`Oferta com foto`, `Oferta no app`) ficaram como estavam.
+  - **"Só oferta boa"** (feed `a41dd3b1-8380-4fdf-9e57-ec998c6e7dbc` · story `9c52070f-76ac-4325-bfdd-9a3e484745d5`): recriação da arte vermelha enviada pelo Ryan (logo no topo, produto à esquerda, preço-assinatura em Roboto Black, banner "SÓ OFERTA BOA!", foto com raio, logo com aro, faixa "detalhes da promoção"). Campos: `produto`, `precoDe`, `precoPor`, `detalhes`, `foto_produto`, `logo_loja`.
+  - **"Oferta com preço"** (feed `9251d0d9-d198-4fdb-8bee-a4e2780f03c2` · story `07786916-08d8-4321-aef9-123fd2b3868f`): a composição das artes de preço (caixa De/Por, selo, descrição, validade) na paleta Coca.
+  - O banner, o logo e o padrão de arcos são as imagens do rascunho antigo (Storage da pasta `2316d289…`): **não apague aquele rascunho sem antes mover essas imagens**.
+- **Story do Rangos** criado (`840b4821-1148-42e3-a336-1d068ae1cc5b`), publicado.
+- **Preço de 3 dígitos bloqueia** em todas as artes de preço (a caixa do número cabe até R$ 99,90; de R$ 100,00 em diante o Local Fit bloqueia a exportação). **Validade do Almoço** em branco.
+- Rollback das artes de preço: tabela da entrada de baixo. Os templates novos nascem na versão 1 (para desfazer, apague a linha).
+
 ## 2026-10-15 — Artes de preço no padrão da referência (✅ dados, sem migration)
 
 Só **dados** em `luma.templates` (layers + permissões), aplicados por SQL no projeto `uqrqzjafhigjuvtjqzid`. Nenhuma tabela, policy ou função mudou.
