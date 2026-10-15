@@ -4,9 +4,9 @@
 > Miniatura: o 1º pedido do banco de cada composição (texto médio, Delivery Much), montado pela busca do próprio motor.
 > Galeria completa (todas as variações do banco, com a nota): `tests/_galeria-composicoes.html`.
 
-**30 composições** · feed 12 · story 12 · carrossel 3 · inapp 2 · banner 1
+**40 composições** · feed 16 · story 15 · carrossel 5 · inapp 2 · banner 1 · capa 1
 
-Clones (menor distância de planta entre duas composições do mesmo formato, no mesmo pedido; limite 0,15): feed 0,17 (blocoCentral × chuvaTipografica) · story 0,29 (vitrineCentral × comboStory)
+Clones (menor distância de planta entre duas composições do mesmo formato, no mesmo pedido; limite 0,15): carrossel 0,16 (ofertasCarrossel × cardapioCarrossel) · feed 0,17 (blocoCentral × chuvaTipografica) · story 0,21 (domingoDoce × polaroideLoja)
 
 ## A · Prato e oferta do dia
 
@@ -52,8 +52,23 @@ Clones (menor distância de planta entre duas composições do mesmo formato, no
 | <img src="catalogo/beneficioCelular.jpg" width="110" alt=""> | **Benefício com o celular**<br>`beneficioCelular` | Benefício ou convite que acontece no app (frete, cashback, baixe o app) no feed: o título grande e o celular do app. | feed | beneficio, prospeccao | `logos/dm-h-branca.png` `inv/celular-app.png` |
 | <img src="catalogo/bannerTexto.jpg" width="110" alt=""> | **Banner tipográfico**<br>`bannerTexto` | Banner da home do app para recado sem valor (frete, aviso, novidade, baixe o app): título e apoio, com o selo à direita. | banner | beneficio, evento, aviso, prospeccao, parceiro, oferta | — |
 
+## D · Parceiros
+
+| Miniatura | Composição | Uso | Formato | Objetivos | Assets |
+|---|---|---|---|---|---|
+| <img src="catalogo/novoParceiro.jpg" width="110" alt=""> | **Logo da loja em destaque**<br>`novoParceiro` | Novo parceiro, inauguração ou lojista da semana no feed: o nome da loja e o espaço grande do logo dela. | feed | parceiro | `inv/sorriso-arco.png` `logos/dm-h-branca.png` |
+| <img src="catalogo/perfilLoja.jpg" width="110" alt=""> | **Perfil da loja**<br>`perfilLoja` | Novo parceiro ou loja em destaque no story, com cara de perfil do app: a capa no alto e o logo da loja preso nela. | story | parceiro | `logos/dm-h-branca.png` |
+| <img src="catalogo/polaroideLoja.jpg" width="110" alt=""> | **Polaroide da loja**<br>`polaroideLoja` | Lojista da semana, parceiro novo ou um momento especial com foto no story: a foto numa moldura de polaroide com o nome embaixo. | story | parceiro, evento | `foto do franqueado` `logos/dm-h-branca.png` |
+| <img src="catalogo/maisVendidos.jpg" width="110" alt=""> | **Ranking ao lado do título**<br>`maisVendidos` | Mais vendidos, top da semana ou os favoritos da cidade no feed: o título de um lado e o ranking numerado do outro. | feed | parceiro, oferta, evento | `logos/dm-h-branca.png` |
+| <img src="catalogo/rankingCarrossel.jpg" width="110" alt=""> | **Carrossel do ranking**<br>`rankingCarrossel` | Mais vendidos ou top da semana em carrossel: a capa, o ranking numa placa branca e o convite para pedir. | carrossel | parceiro, oferta, evento | `inv/estrela-amarela.png` `inv/sorriso-arco.png` `logos/dm-h-branca.png` |
+| <img src="catalogo/capaParceiro.jpg" width="110" alt=""> | **Capa com o logo da loja**<br>`capaParceiro` | Capa da pasta do Deskfy (parceiro, campanha, data): o título à esquerda e o logo da loja ou o selo à direita. | capa | parceiro, evento, prospeccao, aviso, oferta | `logos/dm-h-laranja.png` |
+
 ## E · Datas e cidade
 
 | Miniatura | Composição | Uso | Formato | Objetivos | Assets |
 |---|---|---|---|---|---|
 | <img src="catalogo/blackFriday.jpg" width="110" alt=""> | **Manchete de Black Friday**<br>`blackFriday` | Black Friday (ou outra data de desconto grande) no story: a chamada como manchete, o valor gigante e o ticket. | story | cupom | `inv/explosao.png` `inv/estrela-amarela.png` `logos/dm-h-branca.png` |
+| <img src="catalogo/dataGigante.jpg" width="110" alt=""> | **A data em destaque**<br>`dataGigante` | Data comemorativa no feed (Dia das Mães, Natal, inauguração): o dia e o mês gigantes, o nome da data embaixo. | feed | evento, parceiro | `inv/estrela-amarela.png` `logos/dm-h-branca.png` |
+| <img src="catalogo/anosCidade.jpg" width="110" alt=""> | **Anos no círculo**<br>`anosCidade` | Aniversário da cidade (ou da loja) no feed: os anos gigantes num círculo branco, o parabéns em cima. | feed | evento | `inv/sorriso-arco.png` `inv/explosao.png` `logos/dm-h-branca.png` |
+| <img src="catalogo/calendarioStory.jpg" width="110" alt=""> | **Folha do calendário**<br>`calendarioStory` | Data comemorativa, feriado ou inauguração no story: a data numa folha de calendário e o nome dela grande embaixo. | story | evento, aviso, parceiro | `inv/estrela-amarela.png` `logos/dm-h-branca.png` |
+| <img src="catalogo/cardapioCarrossel.jpg" width="110" alt=""> | **Carrossel do cardápio**<br>`cardapioCarrossel` | Festa junina, cardápio especial ou combos da data em carrossel: a capa, o cardápio em linhas e o convite. | carrossel | evento, oferta, parceiro | `inv/seta-rabisco.png` `inv/pattern-macarrao.png` `logos/dm-h-branca.png` |

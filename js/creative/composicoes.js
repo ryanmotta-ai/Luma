@@ -29,7 +29,7 @@ function _ccTitulo(sp, a, w, max, o){
 const _ccApoio = (sp, w, max) => sp.apoio ? { bloco: 'apoio', w, h: Math.ceil(crTextoLinhas(sp.apoio, 'body', max || 44, w, 32).h) + 6, max: max || 44 } : null;
 const _ccLegal = (sp, w) => sp.legal ? { bloco: 'legal', w, h: Math.ceil(crTextoLinhas(sp.legal, 'legal', 28, w, 22).h) + 6 } : null;
 const _ccTag = (sp, z) => sp.topo ? { bloco: 'tag', w: Math.max((z || 40) * 1.6 + crMede(sp.topo, 'hero', z || 40), 0), h: Math.round((z || 40) * 1.75), max: z || 40 } : null;
-const _ccCta = (sp, a) => sp.cta && a.fmt !== 'inapp' && a.fmt !== 'banner' ? { bloco: 'cta', w: crBotaoMede(sp.cta), h: 96 } : null;
+const _ccCta = (sp, a) => sp.cta && ['inapp', 'banner', 'capa'].indexOf(a.fmt) < 0 ? { bloco: 'cta', w: crBotaoMede(sp.cta), h: 96 } : null;
 const _ccLogo = a => ({ bloco: 'logo', w: a.story ? 300 : 260, h: a.story ? 60 : 52 });
 // Preço: altura para um corpo pedido (big) e largura; com placa (card branco) soma o respiro do card
 function _ccPreco(sp, w, big, placa){
@@ -96,7 +96,7 @@ function crComposicao(def){
       if(def.tema && !def.tema.some(t => (sp.tema || []).indexOf(t) >= 0)) return false;
       if(Object.keys(lim).some(k => String(sp[k] || '').length > lim[k])) return false;
       const tem = crConteudoBlocos(def.lista ? Object.assign({}, sp, { listar: true }) : sp);
-      if(Object.keys(tem).some(k => !aceita.has(k) && !(k === 'cta' && (def.formato === 'inapp' || def.formato === 'banner')))) return false;
+      if(Object.keys(tem).some(k => !aceita.has(k) && !(k === 'cta' && ['inapp', 'banner', 'capa'].indexOf(def.formato) >= 0))) return false;
       return !def.serve || def.serve(sp);
     }
   });
@@ -864,3 +864,237 @@ crComposicao({ id: 'bannerTexto', nome: 'Banner tipográfico', grupo: 'C', forma
     return { ideia: 'Título e apoio à esquerda, selo à direita', blocos: _ccBlocos(bs) };
   } });
 
+/* ══════════════════════════════════════════════════════════════
+   LOTE 4 — D · parceiros · E · datas e cidade
+══════════════════════════════════════════════════════════════ */
+// O nome da loja (quando é diferente do título) e o espaço do logo da loja (moldura que o Estúdio troca)
+const _ccLoja = (sp, w, max) => sp.loja && crNormalizaTexto(sp.loja) !== crNormalizaTexto(crConteudoBlocos(sp).titulo || '') ? { bloco: 'loja', w, h: Math.round((max || 56) * 1.05), max: max || 56 } : null;
+const _ccLogoLoja = d => ({ bloco: 'logoLoja', w: d, h: d });
+// A data em tipografia (o número gigante e o mês embaixo): o selo no estilo 'data'
+const _ccData = (sp, w, z) => sp.selo.length ? { bloco: 'selo', estilo: 'data', w, h: Math.round(z * 0.73 + (sp.selo[1] ? Math.min(z * 0.32, 90) * 1.15 + 10 : 6)), max: z } : null;
+
+// F13 · Feed · o parceiro novo: o texto numa coluna e, do outro lado, o espaço redondo do logo da loja
+// (a moldura que o franqueado troca no Estúdio) — a loja é a imagem da peça.
+crComposicao({ id: 'novoParceiro', nome: 'Logo da loja em destaque', grupo: 'D', formato: 'feed', objetivos: ['parceiro'], foto: false,
+  uso: 'Novo parceiro, inauguração ou lojista da semana no feed: o nome da loja e o espaço grande do logo dela.',
+  aceita: ['tag', 'titulo', 'apoio', 'loja', 'selo', 'cta', 'legal'], textos: { titulo: 32, apoio: 60, legal: 110 }, casos: ['d01', 'd02', 'd04'],
+  serve: sp => !sp.itens.length,
+  busca: { d: [340, 420], kh: [0.95, 1.5], dist: ['espalha', 'centro'] },
+  comp(sp, a, p){
+    const d = Math.round(p.d), W = a.W - 2 * a.M - d - 48;
+    const T = _ccTitulo(sp, a, W, Math.round(170 * p.kh), { linhas: 4, iguala: true, alt: Math.round((a.fim - a.top) * 0.4) });
+    if(!T) return null;
+    const col = _ccPilha([{ b: _ccLogo(a), grupo: 'marca' }, { b: _ccTag(sp, 36), vao: 64, grupo: 'msg' }, { b: T, vao: 28, grupo: 'msg' }, { b: _ccLoja(sp, W, 52), vao: 20, grupo: 'msg' },
+      { b: _ccApoio(sp, W, 42), vao: 24, grupo: 'msg' }, { b: _ccCta(sp, a), vao: 64, grupo: 'acao', ancora: true }, { b: _ccLegal(sp, a.W - 2 * a.M), vao: 32, grupo: 'acao' }], a.M, a.top, a.fim, p.dist);
+    if(!col) return null;
+    const t = col.find(b => b.bloco === 'titulo'), lx = a.W - a.M - d, ly = Math.round(t.y + t.h / 2 - d / 2);
+    const bs = col.concat([Object.assign(_ccLogoLoja(d), { x: lx, y: Math.max(a.top + 80, ly) })]);
+    // o selo (a data da inauguração, o destaque) logo abaixo do logo da loja, centrado nele
+    const S = _ccSelo(sp, 100), yl = Math.max(a.top + 80, ly);
+    if(S){ bs.push(Object.assign(S, { x: Math.round(lx + d / 2 - S.w / 2), y: yl + d + 32 })); if(S.y + S.h > a.fim || bs.some(o => o !== S && o.x < S.x + S.w + 16 && o.x + o.w + 16 > S.x && o.y < S.y + S.h + 16 && o.y + o.h + 16 > S.y)) return null; }
+    const much = sp.marca === 'much', gr = [_ccCanto(bs, a, sp, much ? 'estrela-amarela' : 'sorriso-arco', 'bd', much ? 190 : 520, 0)].filter(Boolean);
+    return { ideia: 'O nome da loja e o espaço grande do logo dela', blocos: _ccBlocos(bs), grafismos: gr };
+  } });
+
+// S12 · Story · o perfil da loja: a capa (uma placa solar) no alto e o logo redondo da loja preso na
+// borda dela, como no app; o nome, o apoio e o botão embaixo, no eixo central. (Com foto, a polaroide.)
+crComposicao({ id: 'perfilLoja', nome: 'Perfil da loja', grupo: 'D', formato: 'story', objetivos: ['parceiro'], foto: false,
+  uso: 'Novo parceiro ou loja em destaque no story, com cara de perfil do app: a capa no alto e o logo da loja preso nela.',
+  aceita: ['tag', 'titulo', 'apoio', 'loja', 'selo', 'cta', 'legal'], textos: { titulo: 30, apoio: 60, legal: 110 }, casos: ['d01', 'd02', 'd04'],
+  serve: sp => !sp.itens.length,
+  busca: { ch: [400, 600], d: [220, 290], kh: [0.9, 1.3] },
+  comp(sp, a, p){
+    const W = a.W - 2 * a.M, X = a.W / 2, ch = Math.round(p.ch), d = Math.round(p.d);
+    const T = _ccTitulo(sp, a, W, Math.round(170 * p.kh), { linhas: 3, iguala: true, alt: Math.round((a.fim - a.top) * 0.24) });
+    if(!T) return null;
+    const yl = ch - Math.round(d / 2), S = _ccSelo(sp, 100);
+    const col = _ccPilha([{ b: _ccTag(sp, 40), grupo: 'msg' }, { b: T, vao: 28, grupo: 'msg' }, { b: _ccLoja(sp, W, 52), vao: 20, grupo: 'msg' }, { b: _ccApoio(sp, W, 44), vao: 24, grupo: 'msg' },
+      { b: S, vao: 48, grupo: 'oferta' }, { b: _ccCta(sp, a), vao: 64, grupo: 'acao' }, { b: _ccLegal(sp, W), vao: 32, grupo: 'acao' }, { b: _ccLogo(a), vao: 48, grupo: 'acao' }], X, yl + d + 48, a.fim, 'espalha', 'centro');
+    if(!col) return null;
+    col.forEach(b => { if(b.bloco === 'apoio' || b.bloco === 'legal' || b.bloco === 'loja') _ccCentra(b, a.M, W); });
+    const bs = col.concat([Object.assign(_ccLogoLoja(d), { x: Math.round(X - d / 2), y: yl, alinhar: 'centro' })]);
+    return { ideia: 'Capa no alto e o logo da loja preso nela, como o perfil do app', zonas: [{ x: -20, y: -20, w: a.W + 40, h: ch + 20, cor: sp.marca === 'much' ? 'branco' : 'solar' }], blocos: _ccBlocos(bs) };
+  } });
+
+// S13 · Story · a foto revelada: uma moldura branca (polaroide) com a foto e o nome da loja escrito
+// embaixo dela, em laranja; a tag no alto, o apoio e o botão embaixo.
+crComposicao({ id: 'polaroideLoja', nome: 'Polaroide da loja', grupo: 'D', formato: 'story', objetivos: ['parceiro', 'evento'], foto: true,
+  uso: 'Lojista da semana, parceiro novo ou um momento especial com foto no story: a foto numa moldura de polaroide com o nome embaixo.',
+  aceita: ['tag', 'titulo', 'apoio', 'loja', 'selo', 'cta', 'legal', 'foto'], textos: { titulo: 26, apoio: 60, legal: 110 }, casos: ['d02', 'd01', 'e01'],
+  serve: sp => !sp.itens.length,
+  busca: { fh: [460, 660], kh: [0.9, 1.45] },
+  comp(sp, a, p){
+    const W = a.W - 2 * a.M, X = a.W / 2, m = 36, pw = W + 40, px = a.M - 20, iw = pw - 2 * m, fh = Math.round(p.fh);
+    const T = _ccTitulo(sp, a, iw - 40, Math.round(150 * p.kh), { linhas: 2, iguala: true, alt: 250 });
+    if(!T) return null;
+    const ph = m + fh + 28 + T.h + 40;
+    const col = _ccPilha([{ b: _ccTag(sp, 40), grupo: 'msg' }, { b: { bloco: '_polaroide', w: pw, h: ph }, vao: 48, grupo: 'img' }, { b: _ccLoja(sp, W, 52), vao: 40, grupo: 'msg2' },
+      { b: _ccApoio(sp, W, 44), vao: 24, grupo: 'msg2' }, { b: _ccCta(sp, a), vao: 56, grupo: 'acao' }, { b: _ccLegal(sp, W), vao: 32, grupo: 'acao' }, { b: _ccLogo(a), vao: 40, grupo: 'acao' }], X, a.top, a.fim, 'espalha', 'centro');
+    if(!col) return null;
+    const pi = col.findIndex(b => b.bloco === '_polaroide'), po = col[pi];
+    col.splice(pi, 1, { bloco: 'foto', x: px + m, y: po.y + m, w: iw, h: fh, rx: 8 }, Object.assign({}, T, { x: px + m + 20, y: po.y + m + fh + 28, w: iw - 40, alinhar: 'centro' }));
+    col.forEach(b => { if(b.bloco === 'apoio' || b.bloco === 'legal' || b.bloco === 'loja') _ccCentra(b, a.M, W); });
+    const S = _ccSelo(sp, 105); if(S) col.push(Object.assign(S, { x: a.W - a.M - S.w, y: po.y - 40 }));
+    return { ideia: 'A foto numa moldura de polaroide com o nome embaixo', zonas: [{ x: px, y: po.y, w: pw, h: ph, cor: 'branco', rx: 12, sombra: true }], blocos: _ccBlocos(col) };
+  } });
+
+// F14 · Feed · o ranking dividido: o título na metade esquerda, em bloco, e a lista numerada (números
+// grandes, sem card) na metade direita; o botão fecha embaixo do título.
+crComposicao({ id: 'maisVendidos', nome: 'Ranking ao lado do título', grupo: 'D', formato: 'feed', objetivos: ['parceiro', 'oferta', 'evento'], foto: false, lista: true,
+  uso: 'Mais vendidos, top da semana ou os favoritos da cidade no feed: o título de um lado e o ranking numerado do outro.',
+  aceita: ['tag', 'titulo', 'apoio', 'itens', 'cta', 'legal'], textos: { titulo: 32, apoio: 48, legal: 110 }, casos: ['d03', 'd05', 'e03'],
+  serve: sp => sp.itens.length >= 2 && sp.itens.length <= 4,
+  busca: { kh: [0.9, 1.3], xs: [0.44, 0.52] },
+  comp(sp, a, p){
+    const xs = Math.round(a.W * p.xs), W1 = xs - a.M - 40, W2 = a.W - a.M - xs - 10;
+    const T = _ccTitulo(sp, a, W1, Math.round(160 * p.kh), { linhas: 4, iguala: true, alt: Math.round((a.fim - a.top) * 0.5) });
+    if(!T) return null;
+    const col = _ccPilha([{ b: _ccLogo(a), grupo: 'marca' }, { b: _ccTag(sp, 34), vao: 64, grupo: 'msg' }, { b: T, vao: 28, grupo: 'msg' }, { b: _ccApoio(sp, W1, 40), vao: 24, grupo: 'msg' },
+      { b: _ccCta(sp, a), vao: 64, grupo: 'acao', ancora: true }, { b: _ccLegal(sp, W1), vao: 32, grupo: 'acao' }], a.M, a.top, a.fim, 'espalha');
+    if(!col) return null;
+    const n = sp.itens.length, lh = Math.min(a.fim - a.top - 120, 190 * n + 24 * (n - 1));
+    const bs = col.concat([{ bloco: 'itens', x: xs + 10, y: Math.round(a.top + (a.fim - a.top - lh) / 2), w: W2, h: lh, estilo: 'ranking' }]);
+    const gr = [_ccSolta(bs, sp, 'tag-numero-1', xs - 60, Math.round(a.top + (a.fim - a.top - lh) / 2) - 80, 100, -8)].filter(Boolean);
+    // a coluna do ranking é branca: número laranja e nome grafite (no solar, o número amarelo some)
+    return { ideia: 'O título de um lado, o ranking numerado do outro', zonas: [{ x: xs - 20, y: -20, w: a.W - xs + 40, h: a.H + 40, cor: 'branco' }], blocos: _ccBlocos(bs), grafismos: gr };
+  } });
+
+// C2 · Carrossel · o pódio: capa com o título; a 2ª é o ranking numerado grande numa placa branca;
+// a 3ª fecha com o botão, a marca e a estrela.
+crComposicao({ id: 'rankingCarrossel', nome: 'Carrossel do ranking', grupo: 'D', formato: 'carrossel', objetivos: ['parceiro', 'oferta', 'evento'], foto: false, lista: true,
+  uso: 'Mais vendidos ou top da semana em carrossel: a capa, o ranking numa placa branca e o convite para pedir.',
+  aceita: ['tag', 'titulo', 'apoio', 'itens', 'cta', 'legal'], textos: { titulo: 32, apoio: 60, legal: 110 }, casos: ['d03', 'd05', 'e03'],
+  serve: sp => sp.itens.length >= 2 && sp.itens.length <= 4,
+  busca: { kh: [1, 1.6] },
+  comp(sp, a, p){
+    const L = 1080, M = a.M, W = L - 2 * M, [top, fim] = _ccFaixa(a);
+    const T = _ccTitulo(sp, a, W, Math.round(260 * p.kh), { linhas: 3, iguala: true, alt: Math.round((fim - top) * 0.6) });
+    if(!T) return null;
+    // a capa: a marca no alto e o título no centro da lâmina (título curto encostado num canto desequilibra)
+    const capa = _ccPilha([{ b: _ccTag(sp, 40), grupo: 'msg' }, { b: T, vao: 28, grupo: 'msg' }, { b: _ccApoio(sp, W, 44), vao: 28, grupo: 'msg' }], L / 2, top + 90, fim, 'centro', 'centro');
+    if(!capa) return null;
+    capa.push(Object.assign(_ccLogo(a), { x: (L - 260) / 2, y: top, alinhar: 'centro' }));
+    capa.forEach(b => { if(b.bloco === 'apoio') _ccCentra(b, M, W); });
+    const n = sp.itens.length, lh = Math.min(fim - top - 120, 190 * n + 24 * (n - 1)), py = Math.round(top + (fim - top - lh) / 2);
+    const lista = { bloco: 'itens', x: L + M + 40, y: py, w: W - 80, h: lh, estilo: 'ranking', placa: true };
+    const ult = _ccPilha([{ b: _ccCta(sp, a), grupo: 'acao' }, { b: _ccLegal(sp, W), vao: 40, grupo: 'acao' }], 2 * L + L / 2, top + 120, fim - 200, 'centro', 'centro');
+    if(!ult) return null;
+    ult.forEach(b => { if(b.bloco === 'legal') _ccCentra(b, 2 * L + M, W); });
+    const bs = capa.concat([lista], ult), much = sp.marca === 'much';
+    const gr = [_ccSolta(bs, sp, 'estrela-amarela', 3 * L - M - 200, top + 40, 200, 0), _ccSolta(bs, sp, much ? 'mais-amarelo' : 'sorriso-arco', 2 * L + 300, a.H - 420, much ? 400 : 700, 0)].filter(Boolean);
+    return { ideia: 'Capa, o ranking numa placa branca, o convite na 3ª', blocos: _ccBlocos(bs), grafismos: gr };
+  } });
+
+// K1 · Capa (pasta do Deskfy) · o recado à esquerda e, à direita, o logo da loja (parceiro) ou o selo;
+// uma faixa amarela na base amarra a capa.
+crComposicao({ id: 'capaParceiro', nome: 'Capa com o logo da loja', grupo: 'D', formato: 'capa', objetivos: ['parceiro', 'evento', 'prospeccao', 'aviso', 'oferta'], foto: false,
+  uso: 'Capa da pasta do Deskfy (parceiro, campanha, data): o título à esquerda e o logo da loja ou o selo à direita.',
+  aceita: ['tag', 'titulo', 'apoio', 'loja', 'selo'], textos: { titulo: 26, apoio: 40 }, casos: ['d01', 'e05', 'x02'],
+  serve: sp => !sp.precoPor && !sp.itens.length,
+  busca: { kh: [0.85, 1] },
+  comp(sp, a, p){
+    const parc = sp.objetivo === 'parceiro', d = 230, W = a.W - 2 * a.M - (parc || sp.selo.length ? d + 40 : 0), bh = 70;
+    // a altura do título é o que sobra da faixa útil depois da tag, da loja e do apoio
+    const G = _ccTag(sp, 26), LJ = _ccLoja(sp, W, 32), alt = (a.H - bh - 30) - (a.seguroTopo + 30) - (G ? G.h + 16 : 0) - (LJ ? LJ.h + 12 : 0) - (sp.apoio ? 46 : 0);
+    const T = _ccTitulo(sp, a, W, Math.round(a.heroiMax * p.kh), { linhas: 3, iguala: true, alt });
+    if(!T) return null;
+    const col = _ccPilha([{ b: G, grupo: 'msg' }, { b: T, vao: 16, grupo: 'msg' }, { b: LJ, vao: 12, grupo: 'msg' }, { b: sp.apoio ? { bloco: 'apoio', w: W, h: 34, max: 28 } : null, vao: 12, grupo: 'msg' }], a.M, a.seguroTopo + 30, a.H - bh - 30, 'centro');
+    if(!col) return null;
+    const bs = col.concat([{ bloco: 'logo', x: a.M, y: a.H - bh + 14, w: 210, h: 42, max: 210 }]), yc = Math.round((a.H - bh) / 2 - d / 2);
+    if(parc) bs.push(Object.assign(_ccLogoLoja(d), { x: a.W - a.M - d, y: yc }));
+    else if(sp.selo.length) bs.push({ bloco: 'selo', x: a.W - a.M - d, y: yc, w: d, h: d, max: d / 2 });
+    return { ideia: 'Título à esquerda, logo da loja ou selo à direita, faixa amarela na base', zonas: [{ x: -20, y: a.H - bh, w: a.W + 40, h: bh + 20, cor: 'amarelo' }], blocos: _ccBlocos(bs) };
+  } });
+
+// F15 · Feed · a data é o herói: o dia gigante e o mês embaixo, em tipografia, no alto à esquerda; o
+// título da data, o apoio e o botão seguem no mesmo eixo; o grafismo sangra no canto oposto.
+crComposicao({ id: 'dataGigante', nome: 'A data em destaque', grupo: 'E', formato: 'feed', objetivos: ['evento', 'parceiro'], foto: false, tema: ['maes', 'pais', 'namorados', 'natal', 'criancas', 'cidade', 'junina', 'inauguracao', 'feriado'],
+  uso: 'Data comemorativa no feed (Dia das Mães, Natal, inauguração): o dia e o mês gigantes, o nome da data embaixo.',
+  aceita: ['tag', 'titulo', 'apoio', 'selo', 'cta', 'legal', 'loja'], textos: { titulo: 32, apoio: 60, legal: 110 }, casos: ['e01', 'e07', 'd04'],
+  serve: sp => sp.selo.length > 0 && /^\d{1,2}$/.test(sp.selo[0]),
+  busca: { kd: [320, 440], kh: [0.9, 1.5] },
+  comp(sp, a, p){
+    const W = a.W - 2 * a.M, D = _ccData(sp, W * 0.6, Math.round(p.kd));
+    const T = _ccTitulo(sp, a, W, Math.round(150 * p.kh), { linhas: 3, iguala: true, alt: Math.round((a.fim - a.top) * 0.32) });
+    if(!T || !D) return null;
+    // leitura em diagonal: a data gigante no alto à direita, o nome da data e a ação embaixo à esquerda
+    const baixo = _ccPilha([{ b: _ccTag(sp, 34), grupo: 'msg' }, { b: T, vao: 24, grupo: 'msg' }, { b: _ccLoja(sp, W, 48), vao: 16, grupo: 'msg' },
+      { b: _ccApoio(sp, W, 40), vao: 24, grupo: 'msg' }, { b: _ccCta(sp, a), vao: 56, grupo: 'acao' }, { b: _ccLegal(sp, W), vao: 32, grupo: 'acao' }], a.M, a.top, a.fim, 'base');
+    if(!baixo) return null;
+    const lg = Object.assign(_ccLogo(a), { x: a.M, y: a.top }), y0 = a.top + 90, y1 = baixo[0].y - 48;
+    if(y1 - y0 < D.h) return null;
+    const bs = baixo.concat([lg, Object.assign(D, { x: a.W - a.M - D.w, y: Math.round(y0 + (y1 - y0 - D.h) / 2), alinhar: 'dir' })]);
+    const much = sp.marca === 'much', gr = [_ccCanto(bs, a, sp, much ? 'mais-amarelo' : 'explosao', 'te', much ? 300 : 340, -10), _ccCanto(bs, a, sp, 'estrela-amarela', 'bd', 190, 0)].filter(Boolean);
+    return { ideia: 'A data gigante no alto à direita, o nome da data embaixo à esquerda', blocos: _ccBlocos(bs), grafismos: gr };
+  } });
+
+// F16 · Feed · aniversário da cidade (ou da loja): o número de anos gigante no centro, dentro de um
+// círculo branco; o "parabéns" em cima, o apoio embaixo, grafismos nos cantos.
+crComposicao({ id: 'anosCidade', nome: 'Anos no círculo', grupo: 'E', formato: 'feed', objetivos: ['evento'], foto: false, tema: ['cidade', 'inauguracao'],
+  uso: 'Aniversário da cidade (ou da loja) no feed: os anos gigantes num círculo branco, o parabéns em cima.',
+  aceita: ['tag', 'titulo', 'apoio', 'selo', 'cta', 'legal'], textos: { titulo: 30, apoio: 60, legal: 110 }, casos: ['e05'],
+  serve: sp => sp.selo.length > 0 && /^\d{1,3}$/.test(sp.selo[0]),
+  busca: { dc: [420, 520], kh: [0.8, 1.1] },
+  comp(sp, a, p){
+    const W = a.W - 2 * a.M, X = a.W / 2, dc = Math.round(p.dc);
+    const T = _ccTitulo(sp, a, W, Math.round(120 * p.kh), { linhas: 2, iguala: true, alt: 240 });
+    if(!T) return null;
+    const D = { bloco: 'selo', estilo: 'data', w: dc - 80, h: Math.round(dc * 0.62), max: Math.round(dc * 0.5), cor: CR_C.laranja };
+    const col = _ccPilha([{ b: _ccLogo(a), grupo: 'marca' }, { b: _ccTag(sp, 34), vao: 48, grupo: 'msg' }, { b: T, vao: 24, grupo: 'msg' }, { b: { bloco: '_circ', w: dc, h: dc }, vao: 48, grupo: 'data' },
+      { b: _ccApoio(sp, W, 42), vao: 48, grupo: 'msg2' }, { b: _ccCta(sp, a), vao: 48, grupo: 'acao' }, { b: _ccLegal(sp, W), vao: 32, grupo: 'acao' }], X, a.top, a.fim, 'espalha', 'centro');
+    if(!col) return null;
+    const ci = col.findIndex(b => b.bloco === '_circ'), c = col[ci];
+    col.splice(ci, 1, Object.assign(D, { x: X - D.w / 2, y: c.y + Math.round((dc - D.h) / 2) + 10, alinhar: 'centro', tom: 'branco' }));
+    col.forEach(b => { if(b.bloco === 'apoio' || b.bloco === 'legal') _ccCentra(b, a.M, W); });
+    const much = sp.marca === 'much', gr = [_ccCanto(col, a, sp, much ? 'mais-amarelo' : 'sorriso-arco', 'be', much ? 360 : 560, 0), _ccCanto(col, a, sp, 'explosao', 'td', 300, 10)].filter(Boolean);
+    return { ideia: 'Os anos gigantes num círculo branco, o parabéns em cima', zonas: [{ x: X - dc / 2, y: c.y, w: dc, h: dc, cor: 'branco', rx: dc / 2, sombra: true }], blocos: _ccBlocos(col), grafismos: gr };
+  } });
+
+// S14 · Story · a folha do calendário: um cartão branco no alto com o dia em laranja e o mês em
+// grafite; o nome da data gigante embaixo, no laranja, o apoio e o botão.
+crComposicao({ id: 'calendarioStory', nome: 'Folha do calendário', grupo: 'E', formato: 'story', objetivos: ['evento', 'aviso', 'parceiro'], foto: false, tema: ['maes', 'pais', 'namorados', 'natal', 'criancas', 'feriado', 'junina', 'inauguracao', 'cidade', 'horario'],
+  uso: 'Data comemorativa, feriado ou inauguração no story: a data numa folha de calendário e o nome dela grande embaixo.',
+  aceita: ['tag', 'titulo', 'apoio', 'selo', 'cta', 'legal', 'loja', 'horario'], textos: { titulo: 32, apoio: 60, legal: 110 }, casos: ['e07', 'e02', 'f01'],
+  serve: sp => sp.selo.length > 0 && /^\d{1,2}$/.test(sp.selo[0]),
+  busca: { cw: [420, 540], kh: [1, 1.6] },
+  comp(sp, a, p){
+    const W = a.W - 2 * a.M, X = a.W / 2, cw = Math.round(p.cw), ch = Math.round(cw * 1.02);
+    const T = _ccTitulo(sp, a, W, Math.round(200 * p.kh), { linhas: 3, iguala: true, alt: Math.round((a.fim - a.top) * 0.32) });
+    if(!T) return null;
+    const H = sp.horario ? { bloco: 'horario', w: W, h: 130, max: 100 } : null;
+    const col = _ccPilha([{ b: _ccLogo(a), grupo: 'marca' }, { b: { bloco: '_folha', w: cw, h: ch }, vao: 56, grupo: 'data' }, { b: _ccTag(sp, 36), vao: 56, grupo: 'msg' }, { b: T, vao: 28, grupo: 'msg' },
+      { b: H, vao: 24, grupo: 'msg' }, { b: _ccLoja(sp, W, 48), vao: 16, grupo: 'msg' }, { b: _ccApoio(sp, W, 44), vao: 24, grupo: 'msg' }, { b: _ccCta(sp, a), vao: 56, grupo: 'acao' }, { b: _ccLegal(sp, W), vao: 32, grupo: 'acao' }], X, a.top, a.fim, _ccCta(sp, a) ? 'espalha' : 'centro', 'centro');
+    if(!col) return null;
+    const fi = col.findIndex(b => b.bloco === '_folha'), f = col[fi], aba = 70;
+    col.splice(fi, 1, { bloco: 'selo', estilo: 'data', x: f.x + 30, y: f.y + aba + 26, w: cw - 60, h: ch - aba - 52, max: Math.round((ch - aba) * 0.62), alinhar: 'centro', tom: 'branco' });
+    col.forEach(b => { if(b.bloco === 'apoio' || b.bloco === 'legal' || b.bloco === 'horario' || b.bloco === 'loja') _ccCentra(b, a.M, W); });
+    const gr = [_ccCanto(col, a, sp, 'estrela-amarela', 'td', 190, 0)].filter(Boolean);
+    return { ideia: 'A data numa folha de calendário, o nome grande embaixo', zonas: [{ x: f.x, y: f.y, w: cw, h: ch, cor: 'branco', rx: 36, sombra: true }, { x: f.x, y: f.y, w: cw, h: aba, cor: 'vermelho', rx: 36 }, { x: f.x, y: f.y + aba - 36, w: cw, h: 36, cor: 'vermelho' }], blocos: _ccBlocos(col), grafismos: gr };
+  } });
+
+// C3 · Carrossel · a festa em três atos: capa com o título gigante e a seta; a 2ª é o cardápio em
+// linhas (nome e preço com fio entre elas) numa placa amarela; a 3ª fecha com o apoio, o botão e a marca.
+crComposicao({ id: 'cardapioCarrossel', nome: 'Carrossel do cardápio', grupo: 'E', formato: 'carrossel', objetivos: ['evento', 'oferta', 'parceiro'], foto: false, lista: true,
+  uso: 'Festa junina, cardápio especial ou combos da data em carrossel: a capa, o cardápio em linhas e o convite.',
+  aceita: ['tag', 'titulo', 'apoio', 'itens', 'cta', 'legal', 'selo'], textos: { titulo: 32, apoio: 60, legal: 110 }, casos: ['e03', 'a07', 'd05'],
+  serve: sp => sp.itens.length >= 2,
+  busca: { kh: [1, 1.6], lh: [130, 170] },
+  comp(sp, a, p){
+    const L = 1080, M = a.M, W = L - 2 * M, [top, fim] = _ccFaixa(a);
+    const T = _ccTitulo(sp, a, W, Math.round(280 * p.kh), { linhas: 3, iguala: true, alt: Math.round((fim - top) * 0.6) });
+    if(!T) return null;
+    // capa: o título no alto, à esquerda, e o selo (a data, o destaque) embaixo à direita — a seta chama para o lado
+    const S = _ccSelo(sp, 130);
+    const capa = _ccPilha([{ b: _ccLogo(a), grupo: 'marca' }, { b: _ccTag(sp, 40), vao: 64, grupo: 'msg' }, { b: T, vao: 28, grupo: 'msg' }], M, top, fim - 160, 'topo');
+    if(!capa) return null;
+    if(S){ capa.push(Object.assign(S, { x: L - M - S.w, y: fim - S.h })); if(_ccFim(capa.slice(0, -1)) + 40 > S.y) return null; }
+    const n = sp.itens.length, lh = Math.min(fim - top - 120, Math.round(p.lh) * n), py = Math.round(top + (fim - top - lh) / 2);
+    const lista = { bloco: 'itens', x: L + M + 40, y: py, w: W - 80, h: lh, estilo: 'linhas', placa: 'amarelo' };
+    // 3ª: o convite no terço de cima, centralizado; a textura assenta embaixo
+    const ult = _ccPilha([{ b: _ccApoio(sp, W, 52), grupo: 'msg' }, { b: _ccCta(sp, a), vao: 64, grupo: 'acao' }, { b: _ccLegal(sp, W), vao: 40, grupo: 'acao' }], 2 * L + L / 2, top + 80, fim, 'topo', 'centro');
+    if(!ult) return null;
+    ult.forEach(b => { if(b.bloco === 'apoio' || b.bloco === 'legal') _ccCentra(b, 2 * L + M, W); });
+    const bs = capa.concat([lista], ult), much = sp.marca === 'much';
+    const gr = [_ccSolta(bs, sp, 'seta-rabisco', M, fim - 110, 300, -6), _ccSolta(bs, sp, much ? 'mais-amarelo' : 'pattern-macarrao', 3 * L - 620, a.H - 560, much ? 420 : 640, 0)].filter(Boolean);
+    return { ideia: 'Capa, o cardápio em linhas numa placa amarela, o convite na 3ª', blocos: _ccBlocos(bs), grafismos: gr };
+  } });

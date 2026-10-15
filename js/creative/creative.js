@@ -1844,7 +1844,8 @@ const crDistAssinatura = (a, b) => CR_SINAIS.reduce((d, k) => d + (a[k] !== b[k]
    diz o DESENHO: duas composições com a mesma planta para o mesmo conteúdo são clones. */
 const _CR_PLANTA = { foto: 'F', mockup: 'F', titulo: 'H', valor: 'H', anos: 'H', preco: 'H', itens: 'L', botao: 'A', logo: 'A', logoLoja: 'A', decor: '' };
 function crPlanta(r){
-  const geo = crGeometria(r.svg), C = 6, L = 8, cw = geo.W / C, ch = geo.H / L, out = [];
+  // (carrossel: 6 colunas POR lâmina — cada lâmina é um post)
+  const f = CR_FORMATOS[r.spec && r.spec.formato] || {}, geo = crGeometria(r.svg), C = 6 * (f.laminas || 1), L = 8, cw = geo.W / C, ch = geo.H / L, out = [];
   const zonas = [...r.svg.matchAll(/<rect data-zona="1" x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)"/g)]
     .map(m => ({ nome: 'zona', x: +m[1], y: +m[2], w: +m[3], h: +m[4] }));
   const pecas = zonas.concat(geo.blocos);
@@ -2335,7 +2336,9 @@ function crDesenhar(sp, comp, i){
       if(q !== q2 && z0 < pl) est.push(sp.legal);
       pecas.push(crBloco('legal', crTextoMulti(ax, y, 'legal', q, tom.texto, anc)));
     }else if(t === 'itens'){
-      pecas.push(crBloco('itens', crLista(x, y, w, h, sp.itens, b.estilo, tom, est, a.piso)));
+      // b.placa: a lista mora num card branco que é do bloco (move junto no editor), 40 px de respiro em volta
+      const pc = b.placa ? _CR_ZONA_COR[b.placa] || CR_C.branco : '', pl = pc ? '<rect x="' + (x - 40) + '" y="' + (y - 40) + '" width="' + (w + 80) + '" height="' + (h + 80) + '" rx="40" fill="' + pc + '" filter="url(#sh)"/>' : '';
+      pecas.push(crBloco('itens', pl + crLista(x, y, w, h, sp.itens, b.estilo, pc ? _crTom(pc) : tom, est, a.piso)));
     }else if(t === 'foto'){
       const sangra = x <= 0 || y <= 0 || x + w >= W || y + h >= H;
       pecas.unshift(crBloco('foto', crFoto(x, y, w, h, b.rx != null ? b.rx : sangra ? 0 : 56, '', sp.foto)));
@@ -2350,9 +2353,9 @@ function crDesenhar(sp, comp, i){
     }
   });
   // todo bloco com conteúdo tem de entrar (o logo e a foto também)
-  // (no inapp o botão é o largo do formato; no banner do app a peça inteira é o toque — não há botão)
+  // (no inapp o botão é o largo do formato; no banner do app a peça inteira é o toque e a capa de pasta não tem botão)
   // (o banner mora na home do próprio app: como nas receitas de banner, o logo não é obrigatório)
-  Object.keys(tem).forEach(k => { if(!vistos.has(k) && !(k === 'cta' && (a.fmt === 'inapp' || a.fmt === 'banner')) && !(k === 'logo' && a.fmt === 'banner')) faltas.push(k); });
+  Object.keys(tem).forEach(k => { if(!vistos.has(k) && !(k === 'cta' && (a.fmt === 'inapp' || a.fmt === 'banner' || a.fmt === 'capa')) && !(k === 'logo' && a.fmt === 'banner')) faltas.push(k); });
   if(a.fmt === 'inapp') pecas.push(crBotaoLargo(sp, fundo));
   let svg = '<svg xmlns="http://www.w3.org/2000/svg" data-luma="1" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '">'
     + crDefs() + (a.card ? '<rect data-fundo="1" x="' + a.card[0] + '" y="' + a.card[1] + '" width="' + a.card[2] + '" height="' + a.card[3] + '" rx="' + a.card[4] + '" fill="' + fundo + '"/>'
