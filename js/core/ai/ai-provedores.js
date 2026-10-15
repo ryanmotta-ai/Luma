@@ -6,16 +6,22 @@
  * cota diária do Creative (o custo é da conta dela). Hoje só o Creative pede isso (`gAskAI(…,
  * {provedor:true})` → `gProvChama`); o resto do Luma segue pela function.
  *
- * ⛔ ANTIGRAVITY NÃO É PROVEDOR AQUI (decisão de 15/10/2026, depois de pesquisar). O Google proíbe usar
- * o login do Antigravity/Gemini CLI em software de terceiros (OpenCode, OpenClaw, Claude Code…) e
- * há contas suspensas por isso nos fóruns oficiais — fazer o Luma pedir esse login seria expor a
- * pessoa a perder a conta dela. O caminho oficial para Gemini é a chave do Google AI Studio
- * (provedor `google`). `G_PROV_NAO_SUPORTADOS` existe para a tela explicar isso, não para esconder.
+ * CODEX E ANTIGRAVITY — "por sua conta e risco", SEMPRE via 9router (decisão do Ryan, 15/10/2026, depois de
+ * ler o código do 9router, MIT). O login dessas assinaturas NÃO acontece no Luma: o 9router faz o OAuth no
+ * painel dele e se apresenta ao provedor com a identidade do cliente oficial (Codex CLI / Antigravity) — o que
+ * um navegador nem consegue (User-Agent é cabeçalho proibido; os backends não liberam CORS) e que o Luma não
+ * faz nem repassa pelo servidor dele. Aqui o Luma só fala com o 9router da pessoa. Os provedores NÃO licenciam
+ * esse uso (o próprio 9router marca como "Risk Notice"): o Google proíbe o login do Antigravity em apps de
+ * terceiros e há contas suspensas; a conta pode ser restringida ou banida. Por isso a conexão exige o aceite
+ * explícito do risco (`ciente`) e a tela repete o aviso.
  *
  * Provedores (todos chamados do navegador, então precisam de CORS):
  *   · openrouter — "Entrar com OpenRouter" (OAuth PKCE oficial: devolve uma chave da própria pessoa) ou chave colada.
  *   · google     — chave do Google AI Studio (API nativa do Gemini).
- *   · 9router    — roteador local (http://localhost:20128/v1) ou o seu em um servidor; URL editável.
+ *   · 9router    — roteador local (http://localhost:20128/v1) ou o seu em um servidor; URL editável. O /v1 dele
+ *                  libera CORS (`*`), mas `Access-Control-Allow-Headers: *` NÃO cobre `Authorization` (regra do
+ *                  navegador): a chave vai por `x-api-key`, que ele também aceita. Sem "exigir chave" (padrão local) nem precisa.
+ *   · codex / antigravity — o mesmo 9router, filtrado pelo prefixo do modelo (`cx/`, `ag/`). Ver acima.
  *   · opencode   — OpenCode Zen. ⚠ Em 10/2026 o preflight (OPTIONS) deles devolve 404 e o navegador
  *                  bloqueia; o teste de conexão (`gProvTesta`) mostra isso em vez de fingir que funciona.
  *
@@ -32,14 +38,20 @@ const G_PROVEDORES = {
     desc: 'Centenas de modelos com uma conta só. A entrada é pelo site do OpenRouter — o Luma nunca vê a sua senha.' },
   google: { nome: 'Google AI Studio (Gemini)', tipo: 'gemini', base: 'https://generativelanguage.googleapis.com/v1beta', chaveUrl: 'https://aistudio.google.com/apikey',
     desc: 'O caminho oficial do Google para usar o Gemini. Crie uma chave grátis no AI Studio e cole aqui.' },
-  '9router': { nome: '9router', tipo: 'openai', base: 'http://localhost:20128/v1', baseEditavel: true, chaveOpcional: true,
-    desc: 'Seu roteador de IA. Local (porta 20128) ou em um servidor seu — informe o endereço. Tem que estar ligado e liberar o navegador (CORS).' },
+  '9router': { nome: '9router', tipo: 'openai', base: 'http://localhost:20128/v1', baseEditavel: true, chaveOpcional: true, chaveHeader: 'x-api-key',
+    desc: 'Seu roteador de IA. Local (porta 20128) ou em um servidor seu — informe o endereço. Tem que estar ligado. Se ele exigir chave, cole-a (vai por x-api-key, que o navegador deixa passar).' },
+  codex: { nome: 'OpenAI Codex (assinatura ChatGPT)', tipo: 'openai', base: 'http://localhost:20128/v1', baseEditavel: true, chaveOpcional: true, chaveHeader: 'x-api-key', via: '9router', prefixo: 'cx/', risco: true,
+    desc: 'Usa a sua assinatura do ChatGPT (Plus ou superior) por meio do 9router. O login é feito no painel do 9router, não aqui.',
+    aviso: 'A OpenAI não licencia o uso da assinatura por roteadores de terceiros: o 9router se apresenta a ela como o Codex CLI. A sua conta pode ser restringida ou suspensa.' },
+  antigravity: { nome: 'Antigravity (assinatura Google)', tipo: 'openai', base: 'http://localhost:20128/v1', baseEditavel: true, chaveOpcional: true, chaveHeader: 'x-api-key', via: '9router', prefixo: 'ag/', risco: true,
+    desc: 'Usa a sua assinatura do Google (Antigravity) por meio do 9router. O login é feito no painel do 9router, não aqui.',
+    aviso: 'O Google proíbe o login do Antigravity em ferramentas de terceiros e há contas suspensas por isso. A sua conta Google/Antigravity pode ser restringida ou suspensa.' },
   opencode: { nome: 'OpenCode Zen', tipo: 'openai', base: 'https://opencode.ai/zen/v1', baseEditavel: true, chaveUrl: 'https://opencode.ai/zen',
     desc: 'Modelos do OpenCode Zen com a sua chave. Atenção: o serviço pode bloquear chamadas direto do navegador — o teste de conexão diz.' }
 };
-const G_PROV_NAO_SUPORTADOS = {
-  antigravity: { nome: 'Antigravity (Google)', motivo: 'O Google não permite usar o login do Antigravity em apps de terceiros, e contas já foram suspensas por isso. Use a chave do Google AI Studio, que é o caminho oficial.', alternativa: 'google' }
-};
+// Nada fica "não suportado" hoje (Codex e Antigravity entram via 9router, com aviso). A estrutura fica para a tela
+// poder explicar de novo o que um dia não puder existir, em vez de esconder.
+const G_PROV_NAO_SUPORTADOS = {};
 // Mesmos tetos da Edge Function (supabase/functions/ai POLITICA) para as tarefas do Creative; o teto de saída
 // é folgado porque nos modelos que "pensam" ele inclui o raciocínio.
 const G_PROV_POLITICA = { 'arte.compor': { max: 6000, temp: 0.8 }, 'arte.criticar': { max: 6000, temp: 0.3 } };
@@ -72,7 +84,8 @@ function gProvConectado(id){ const c = gProvConfig(id), d = G_PROVEDORES[id]; re
 function gProvConecta(id, cfg, usa){
   const def = G_PROVEDORES[id]; if(!def || !_gProvUid()) return false;
   const est = gProvEstado(), ant = est.p[id] || {};
-  est.p[id] = { key: String(cfg.key != null ? cfg.key : ant.key || '').trim(), base: String((def.baseEditavel && cfg.base) || ant.base || def.base).trim().replace(/\/+$/, ''), modelo: String(cfg.modelo != null ? cfg.modelo : ant.modelo || '').trim() };
+  if(def.risco && !(cfg.ciente || ant.ciente)) return false;   // provedor "por sua conta e risco": sem o aceite explícito não conecta
+  est.p[id] = { ciente: def.risco ? (cfg.ciente || ant.ciente || Date.now()) : undefined, key: String(cfg.key != null ? cfg.key : ant.key || '').trim(), base: String((def.baseEditavel && cfg.base) || ant.base || def.base).trim().replace(/\/+$/, ''), modelo: String(cfg.modelo != null ? cfg.modelo : ant.modelo || '').trim() };
   if(usa) est.ativo = id;
   return _gProvSalva(est);
 }
@@ -100,7 +113,10 @@ const _gProvRedeMsg = (def, e) => (e && e.name === 'AbortError') ? 'O provedor d
 function _gProvHeaders(def, cfg){
   const h = { 'Content-Type': 'application/json' };
   if(def.tipo === 'gemini'){ if(cfg.key) h['x-goog-api-key'] = cfg.key; }
-  else{ if(cfg.key) h.Authorization = 'Bearer ' + cfg.key; if(def.oauth) { h['HTTP-Referer'] = location.origin; h['X-Title'] = 'Luma'; } }
+  else{
+    if(cfg.key){ if(def.chaveHeader) h[def.chaveHeader] = cfg.key; else h.Authorization = 'Bearer ' + cfg.key; }
+    if(def.oauth){ h['HTTP-Referer'] = location.origin; h['X-Title'] = 'Luma'; }
+  }
   return h;
 }
 
@@ -114,7 +130,12 @@ async function gProvModelos(id, cfgTeste){
     if(!r.ok){ gProvUltimoErro = _gProvErro(r.status, await r.text().catch(() => '')); return null; }
     const j = await r.json();
     if(def.tipo === 'gemini') return (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent')).map(m => ({ id: String(m.name).replace(/^models\//, '') }));
-    return (j.data || j.models || []).map(m => ({ id: String(m.id || m.name || '') })).filter(m => m.id);
+    let lista = (j.data || j.models || []).map(m => ({ id: String(m.id || m.name || '') })).filter(m => m.id);
+    if(def.prefixo){
+      lista = lista.filter(m => m.id.indexOf(def.prefixo) === 0);
+      if(!lista.length){ gProvUltimoErro = 'O 9router respondeu, mas não tem modelos ' + def.prefixo + '…: abra o painel dele, entre em Providers e conecte ' + def.nome.split(' (')[0] + '.'; return null; }
+    }
+    return lista;
   }catch(e){ gProvUltimoErro = _gProvRedeMsg(def, e); return null; }
 }
 /* Teste de conexão = conseguir listar os modelos. Devolve {ok, modelos, motivo}. */

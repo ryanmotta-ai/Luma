@@ -259,7 +259,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 86 arquivos JS (80.796 linhas, 3.192 funções) · 33 arquivos CSS (33.273 linhas) · `index.html` com 4.081 linhas e 76 `<script>`.
+**Tamanho real de hoje:** 86 arquivos JS (80.822 linhas, 3.192 funções) · 33 arquivos CSS (33.282 linhas) · `index.html` com 4.081 linhas e 76 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -293,7 +293,7 @@ Cache LRU em memória com TTL específico por tarefa para a Camada de IA.
 **`js/core/ai/ai-client.js`** · 295 linhas
 GATEWAY ÚNICO DE IA DO LUMA (Luma Gemini Intelligence Layer) (§3, §5).
 
-**`js/core/ai/ai-provedores.js`** · 202 linhas
+**`js/core/ai/ai-provedores.js`** · 223 linhas
 CONTAS DE IA PRÓPRIAS — a pessoa liga a conta dela e as chamadas vão DIRETO do navegador ao provedor.
 · API: gProvEstado, gProvAtivo, gProvConfig, gProvConectado, gProvConecta, gProvDesconecta, gProvUsa, gProvModelos, gProvTesta, gProvChama, gProvOpenRouterEntrar, gProvRetornoOAuth
 · Estado global: gProvUltimoErro
@@ -708,7 +708,7 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 
 ### js/creative
 
-**`js/creative/creative.js`** · 3489 linhas
+**`js/creative/creative.js`** · 3494 linhas
 Luma Creative — modo em TESTES, só a gestão (trava em main.js e na Edge Function `ai`).
 · API: crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crX, crTexto, crMista, crHeroi, crLogo, crFoto, crSelo, crBotaoMede … (+84; 146 funções no total)
 · Estado global: _crFontesProm, _crCtx, _crMesa, _crArrasto, _crSessTimer, _crLegendaVer
@@ -737,7 +737,7 @@ Luma Creative — modo em TESTES, só a gestão (trava em main.js e na Edge Func
 | `css/modules/chat.css` | 3979 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
-| `css/modules/creative.css` | 623 |
+| `css/modules/creative.css` | 632 |
 | `css/modules/designer.css` | 5424 |
 | `css/modules/feedback.css` | 199 |
 | `css/modules/franqueado.css` | 1712 |

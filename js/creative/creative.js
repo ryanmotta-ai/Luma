@@ -2516,11 +2516,14 @@ document.addEventListener('visibilitychange', () => { if(document.visibilityStat
    Antigravity aparece como "não suportado" de propósito: o Google proíbe esse login em apps de terceiros.
 ══════════════════════════════════════════════════════════════ */
 const crConex = { form: null, estado: {}, modelos: {} };
-const _crCxLetra = id => ({ openrouter: 'OR', google: 'G', '9router': '9R', opencode: 'OC' }[id] || id.slice(0, 2).toUpperCase());
+const _crCxLetra = id => ({ openrouter: 'OR', google: 'G', '9router': '9R', opencode: 'OC', codex: 'CX', antigravity: 'AG' }[id] || id.slice(0, 2).toUpperCase());
 function _crCxCard(id){
   const d = G_PROVEDORES[id], on = gProvConectado(id), cfg = gProvConfig(id) || {}, est = gProvEstado(), ativo = est.ativo === id && !!gProvAtivo(), st = crConex.estado[id] || {};
-  const badge = ativo ? '<span class="cr-cx-badge em-uso">Em uso</span>' : on ? '<span class="cr-cx-badge">Conectado</span>' : '<span class="cr-cx-badge off">Não conectado</span>';
+  const badge = ativo ? '<span class="cr-cx-badge em-uso">Em uso</span>' : on ? '<span class="cr-cx-badge">Conectado</span>' : d.risco ? '<span class="cr-cx-badge risco">Por sua conta e risco</span>' : '<span class="cr-cx-badge off">Não conectado</span>';
   let corpo = '<p class="cr-cx-desc">' + gEsc(d.desc) + '</p>';
+  // Provedor "por sua conta e risco" (Codex, Antigravity): o aviso fica à vista antes de conectar e depois
+  if(d.risco) corpo += '<div class="cr-cx-risco" role="note"><b>Risco para a sua conta</b><p>' + gEsc(d.aviso) + '</p>'
+    + (on ? '' : '<ol><li>Instale e abra o 9router: <code>npm install -g 9router</code> e depois <code>9router</code> (abre em localhost:20128).</li><li>No painel dele, em <b>Providers</b>, conecte ' + gEsc(d.nome.split(' (')[0]) + ' — o login acontece lá, não no Luma.</li><li>Volte aqui, aceite o risco e conecte.</li></ol>') + '</div>';
   if(on){
     corpo += '<div class="cr-cx-campo"><label for="cx-mod-' + id + '">Modelo</label><input id="cx-mod-' + id + '" data-cx-modelo="' + id + '" list="cx-dl-' + id + '" value="' + gEsc(cfg.modelo || '') + '" placeholder="Escolha ou digite o id do modelo" autocomplete="off" spellcheck="false"><datalist id="cx-dl-' + id + '"></datalist></div>'
       + '<p class="cr-cx-mini">' + (cfg.key ? 'Chave ' + gEsc(gProvMascara(cfg.key)) + ' · ' : '') + gEsc((cfg.base || d.base).replace(/^https?:\/\//, '')) + '</p>'
@@ -2531,7 +2534,8 @@ function _crCxCard(id){
   }else if(crConex.form === id){
     corpo += '<div class="cr-cx-form">'
       + (d.baseEditavel ? '<div class="cr-cx-campo"><label for="cx-base-' + id + '">Endereço</label><input id="cx-base-' + id + '" value="' + gEsc(d.base) + '" autocomplete="off" spellcheck="false"></div>' : '')
-      + '<div class="cr-cx-campo"><label for="cx-key-' + id + '">Chave' + (d.chaveOpcional ? ' <small>(opcional)</small>' : '') + '</label><input id="cx-key-' + id + '" type="password" autocomplete="off" spellcheck="false" placeholder="Cole a chave aqui"></div>'
+      + '<div class="cr-cx-campo"><label for="cx-key-' + id + '">Chave' + (d.chaveOpcional ? ' <small>(opcional' + (d.via ? ' — só se o 9router exigir' : '') + ')</small>' : '') + '</label><input id="cx-key-' + id + '" type="password" autocomplete="off" spellcheck="false" placeholder="Cole a chave aqui"></div>'
+      + (d.risco ? '<label class="cr-cx-ciente"><input type="checkbox" id="cx-ciente-' + id + '"> <span>Entendo o risco para a minha conta e quero usar mesmo assim.</span></label>' : '')
       + '<div class="cr-cx-acoes"><button type="button" class="cr-btn cr-btn-mini cr-prim" data-cx="conectar" data-id="' + id + '">' + CR_ICO.plug + 'Conectar e testar</button>'
       + '<button type="button" class="cr-btn cr-btn-mini cr-btn-leve" data-cx="cancelar">Cancelar</button>'
       + (d.chaveUrl ? '<a class="cr-cx-link" href="' + gEsc(d.chaveUrl) + '" target="_blank" rel="noopener noreferrer">Criar uma chave</a>' : '') + '</div></div>';
@@ -2586,8 +2590,9 @@ async function _crCxAcao(a, id, btn){
   if(a === 'testar' || a === 'conectar'){
     const novo = a === 'conectar', key = novo ? ((_crEl('cx-key-' + id) || {}).value || '').trim() : undefined, base = novo ? ((_crEl('cx-base-' + id) || {}).value || '').trim() : undefined;
     if(novo && !key && !G_PROVEDORES[id].chaveOpcional){ crConex.estado[id] = { msg: 'Cole a chave para conectar.', tipo: 'erro' }; return crConexoesPinta(); }
+    if(novo && G_PROVEDORES[id].risco && !(_crEl('cx-ciente-' + id) || {}).checked){ crConex.estado[id] = { msg: 'Marque que você entende o risco para a sua conta antes de conectar.', tipo: 'erro' }; return crConexoesPinta(); }
     if(btn){ btn.disabled = true; btn.classList.add('cr-carrega'); }
-    const cfg = novo ? { key, base: G_PROVEDORES[id].baseEditavel && base ? base.replace(/\/+$/, '') : G_PROVEDORES[id].base } : gProvConfig(id);
+    const cfg = novo ? { key, ciente: !!G_PROVEDORES[id].risco, base: G_PROVEDORES[id].baseEditavel && base ? base.replace(/\/+$/, '') : G_PROVEDORES[id].base } : gProvConfig(id);
     const r = await gProvTesta(id, cfg);
     if(!r.ok){ crConex.estado[id] = { msg: r.motivo, tipo: 'erro' }; return crConexoesPinta(); }
     crConex.modelos[id] = r.modelos;

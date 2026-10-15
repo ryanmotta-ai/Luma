@@ -478,7 +478,7 @@ body.cr-ocupado .cr-enviar::after{ content:''; position:absolute; inset:-4px; bo
   opacity:0; transition:opacity var(--dur-base) var(--ease-standard) }
 .cr-conex-veu[hidden]{ display:none }
 .cr-conex-veu.aberto{ opacity:1 }
-.cr-conex{ width:min(680px,100%); max-height:min(760px,100%); display:flex; flex-direction:column; border-radius:18px; background:var(--cr-surf); border:1px solid var(--cr-line2); box-shadow:var(--cr-sh2);
+.cr-conex{ width:min(680px,100%); max-height:min(760px,calc(100dvh - 52px - var(--safe-top) - 32px)); display:flex; flex-direction:column; border-radius:18px; background:var(--cr-surf); border:1px solid var(--cr-line2); box-shadow:var(--cr-sh2);
   transform:translateY(14px) scale(.98); transition:transform var(--dur-slow) var(--ease-spring-soft) }
 .cr-conex-veu.aberto .cr-conex{ transform:none }
 .cr-conex-cab{ position:relative; display:flex; flex-direction:column; gap:3px; padding:20px 56px 14px 22px; border-bottom:1px solid var(--cr-line) }
@@ -497,6 +497,15 @@ body.cr-ocupado .cr-enviar::after{ content:''; position:absolute; inset:-4px; bo
 .cr-cx-badge{ margin-left:auto; padding:3px 9px; border-radius:var(--r-pill); background:color-mix(in srgb,var(--green) 14%,transparent); color:var(--green-text); font-size:11.5px; font-weight:700 }
 .cr-cx-badge.off{ background:var(--cr-surf3); color:var(--cr-text3) }
 .cr-cx-badge.em-uso{ background:var(--dm-orange); color:var(--on-orange) }
+.cr-cx-card:has(.cr-cx-risco){ border-color:color-mix(in srgb,var(--dm-red) 28%,var(--cr-line)) }
+.cr-cx-badge.risco{ background:color-mix(in srgb,var(--dm-red) 12%,transparent); color:var(--dm-red-text) }
+.cr-cx-risco{ padding:11px 13px; border-radius:9px; background:color-mix(in srgb,var(--dm-red) 8%,transparent); border:1px solid color-mix(in srgb,var(--dm-red) 22%,transparent); font-size:12.5px; line-height:1.55; color:var(--cr-text2) }
+.cr-cx-risco > b{ display:block; margin-bottom:3px; font-size:12px; letter-spacing:.04em; text-transform:uppercase; color:var(--dm-red-text) }
+.cr-cx-risco p{ margin:0 }
+.cr-cx-risco ol{ margin:8px 0 0; padding-left:18px; display:grid; gap:4px }
+.cr-cx-risco code{ padding:1px 5px; border-radius:5px; background:var(--cr-surf3); color:var(--cr-text); font:500 12px ui-monospace,SFMono-Regular,Menlo,monospace }
+.cr-cx-ciente{ display:flex; align-items:flex-start; gap:9px; font-size:13px; line-height:1.45; color:var(--cr-text); cursor:pointer }
+.cr-cx-ciente input{ flex:none; width:16px; height:16px; margin-top:1px; accent-color:var(--dm-red) }
 .cr-cx-desc{ margin:0; font-size:13px; line-height:1.55; color:var(--cr-text2) }
 .cr-cx-mini{ margin:0; font:400 12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--cr-text3); overflow-wrap:anywhere }
 .cr-cx-acoes{ display:flex; flex-wrap:wrap; align-items:center; gap:8px }
