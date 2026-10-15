@@ -4,9 +4,9 @@
  * MAKING-OF da arte (frente 6, 15/10/2026) — a arte final se fazendo na frente da pessoa, como se
  * alguém a montasse no editor: um cursor simulado PEGA cada bloco na beirada e ARRASTA até o lugar,
  * CLICA no texto e DIGITA o conteúdo real (letra a letra, com o cursor de texto), e REDIMENSIONA o
- * título pela alça do canto. A mão é de gente: curvas de Bézier, easeInOutCubic, micro-tremor de 8–13
- * Hz, e o gerador tem semente fixa (a mesma arte se faz sempre do mesmo jeito). 6–8 s, botão "Pular";
- * com movimento reduzido não há making-of (a arte já está pronta embaixo).
+ * título pela alça do canto. O movimento é calmo e sem tremor: curvas de Bézier discretas e easing
+ * senoidal, e o gerador tem semente fixa (a mesma arte se faz sempre do mesmo jeito). 6–10 s (padrão 9),
+ * botão "Pular"; com movimento reduzido não há making-of (a arte já está pronta embaixo).
  * Só transform e opacity se animam, tudo pré-calculado em Web Animations (sem laço de rAF). A digitação
  * não mexe no texto (o kerning fica intacto): um clipPath por linha abre em degraus, letra a letra.
  * A camada fica POR CIMA do container e sai no fim: o que a pessoa baixa continua sendo o arquivo (a
@@ -16,7 +16,7 @@
  *   crMakingOf(container, svgFinal, opcoes) → { ativo, pronto: Promise<'fim'|'pulou'|'direto'>, pular() }
  *     container   elemento posicionado (relative) do tamanho da arte; a camada entra nele
  *     svgFinal    o SVG da arte, com os blocos no 1º nível como <g data-bloco="nome">
- *     opcoes      duracao (ms, 6000–8000; padrão 7000) · semente (número) · css (regras extras para o
+ *     opcoes      duracao (ms, 6000–10000; padrão 9000) · semente (número) · css (regras extras para o
  *                 shadow root — as fontes do app, já que @font-face não vale lá dentro) · nomes
  *                 ({ bloco: 'Rótulo' } da caixa de seleção) · autor (etiqueta do cursor) ·
  *                 redimensiona (o bloco que ganha a alça; padrão 'titulo') ·
@@ -45,7 +45,7 @@ function _crMkSorte(s){
   let a = s >>> 0;
   return () => { a = (a + 0x6D2B79F5) >>> 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
-const _crMkSuave = u => u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;   // easeInOutCubic: arranca e assenta como a mão
+const _crMkSuave = u => (1 - Math.cos(Math.PI * u)) / 2;   // easeInOutSine: arranca e assenta sem tranco (pico de velocidade 1,57× a média)
 const _crMkBez = (p0, c1, c2, p1, u) => { const v = 1 - u; return v * v * v * p0 + 3 * v * v * u * c1 + 3 * v * u * u * c2 + u * u * u * p1; };
 // Token de motion lido do CSS (nunca número solto — motion.md §1)
 const _crMkTok = (t, pad) => { const v = getComputedStyle(document.documentElement).getPropertyValue(t).trim(); return v ? (/ms$|^\d/.test(v) ? parseFloat(v) || pad : v) : pad; };
@@ -129,7 +129,7 @@ function crMakingOf(container, svgFinal, opcoes){
   }));
 
   /* ── 2. Linha do tempo: entra (4%) · cada bloco no seu compasso até 86% · sai (até 95%) · respira ── */
-  const T = Math.max(6000, Math.min(8000, +op.duracao || 7000));
+  const T = Math.max(6000, Math.min(10000, +op.duracao || 9000));
   const dEnt = _crMkTok('--dur-slow', 420), dSel = _crMkTok('--dur-fast', 180), dSai = _crMkTok('--dur-base', 260);
   const eOut = _crMkTok('--ease-out', 'ease-out'), eIn = _crMkTok('--ease-in', 'ease-in');
   const sorte = _crMkSorte(op.semente == null ? 20261015 : op.semente);
@@ -139,10 +139,10 @@ function crMakingOf(container, svgFinal, opcoes){
   const u = (B - A) / blocos.reduce((s, b) => s + peso(b), 0);
   const ent = { x: W * 1.08, y: H * 0.92 }, sai = { x: W * 1.1, y: H * 1.06 };
   const trechos = [], apertos = [];
-  // Um trecho por movimento: Bézier cúbica com a curva da mão (controles deslocados para um lado; curvo 0 = reto)
+  // Um trecho por movimento: Bézier cúbica com uma curva leve, sempre para o mesmo lado (curvo 0 = reto)
   const trecho = (p0, p1, t0, dur, curvo) => {
     const dx = p1.x - p0.x, dy = p1.y - p0.y, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
-    const curva = L * (0.08 + 0.16 * sorte()) * (sorte() < 0.78 ? 1 : -1) * curvo;
+    const curva = L * (0.05 + 0.07 * sorte()) * curvo;
     return { p0, p1, t0, dur, c1: { x: p0.x + dx * 0.25 + nx * curva, y: p0.y + dy * 0.25 + ny * curva }, c2: { x: p0.x + dx * 0.78 + nx * curva * 0.45, y: p0.y + dy * 0.78 + ny * curva * 0.45 } };
   };
   let t = A, cp = ent;
@@ -175,8 +175,6 @@ function crMakingOf(container, svgFinal, opcoes){
     b.tSai = t + 0.12 * u;
   });
   anda(sai, Math.max(0.04 * T, Math.min(0.09 * T, 0.97 * T - t)), 1);
-  // Micro-tremor: duas senoides de fase sorteada na faixa do tremor fisiológico (8–13 Hz), sub-pixel
-  const amp = Math.max(0.35, W * 0.0018), f = [8 + 2 * sorte(), 12 + sorte(), 9 + 2 * sorte(), 13 + sorte()], fi = [0, 0, 0, 0].map(() => sorte() * 6.283);
   const ondeEsta = tt => {
     let p = ent;
     for(const tr of trechos){
@@ -184,8 +182,7 @@ function crMakingOf(container, svgFinal, opcoes){
       const v = _crMkSuave(Math.min(1, (tt - tr.t0) / tr.dur));
       p = { x: _crMkBez(tr.p0.x, tr.c1.x, tr.c2.x, tr.p1.x, v), y: _crMkBez(tr.p0.y, tr.c1.y, tr.c2.y, tr.p1.y, v) };
     }
-    const r = tt / 1000 * 6.283;
-    return { x: p.x + amp * (Math.sin(f[0] * r + fi[0]) + 0.5 * Math.sin(f[1] * r + fi[1])), y: p.y + amp * (Math.sin(f[2] * r + fi[2]) + 0.5 * Math.sin(f[3] * r + fi[3])) };
+    return p;
   };
 
   /* ── 3. Animações ── */
@@ -211,7 +208,7 @@ function crMakingOf(container, svgFinal, opcoes){
     ani(sel, quadrosDe([[0, { opacity: 0 }], [b.tSel - 20, { opacity: 0 }], [b.tSel + dSel, { opacity: 1 }], [b.tSai, { opacity: 1 }], [b.tSai + dSel, { opacity: 0 }], [T, { opacity: 0 }]]), { duration: T, fill: 'both' });
 
     if(b.tipo === 'arrasta'){
-      // o bloco anda colado no cursor (tremor junto) e assenta exatamente no lugar quando ele solta
+      // o bloco anda colado no cursor e assenta exatamente no lugar quando ele solta
       const [tg, tr] = b.arrasto, fim = ondeEsta(tr), desl = tt => { const p = ondeEsta(tt); return { x: p.x - fim.x, y: p.y - fim.y }; };
       ani(b.g, [{ opacity: 0 }, { opacity: 1 }], { duration: dSel, delay: tg - 40, easing: eOut, fill: 'both' });
       ani(b.g, amostra(tg, tr, tt => { const d = desl(tt); return { translate: (d.x / uPx).toFixed(2) + 'px ' + (d.y / uPx).toFixed(2) + 'px' }; }), { duration: tr - tg, delay: tg, fill: 'both' });

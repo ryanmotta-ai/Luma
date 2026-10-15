@@ -232,9 +232,9 @@ body.cr-ocupado .cr-fio{ opacity:1 }
 .cr-ent-cab p{ margin:6px 0 0; font-size:13px; color:var(--cr-text2) }
 .cr-ent-selo{ display:inline-flex; align-items:center; gap:6px; height:26px; padding:0 10px; border-radius:var(--r-pill); background:var(--cr-surf2); color:var(--cr-text2); font-size:12px; font-weight:600 }
 .cr-ent-selo svg{ color:var(--green-text) }
-.cr-ops{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; align-items:start }
+.cr-ops{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; align-items:start }
 /* Tela baixa + arte alta (story): as colunas estreitam para a arte, o nome e as ações caberem no primeiro quadro */
-@media (min-width:681px){ .cr-ops:not(.cr-ops-deitadas){ grid-template-columns:repeat(3,minmax(0,calc(max(320px,100dvh - 430px) * var(--ar,.8)))); justify-content:center } }
+@media (min-width:681px){ .cr-ops:not(.cr-ops-deitadas){ grid-template-columns:repeat(2,minmax(0,calc(max(320px,100dvh - 430px) * var(--ar,.8)))); justify-content:center } }
 /* Formatos deitados (banner, email, capa, slide): uma opção por linha, na largura toda */
 #view-creative .cr-ops-deitadas{ grid-template-columns:minmax(0,1fr) }
 /* Carrossel: as divisas entre as lâminas (onde o PNG é cortado) marcadas na prévia */
@@ -650,7 +650,7 @@ body.cr-ocupado .cr-enviar.cr-resp .cr-enviar-para{ opacity:0; transform:scale(.
 .cr-ed-vazio{ margin:0; padding:14px 18px; font-size:13px; line-height:1.55; color:var(--cr-text2) }
 
 @media (max-width:860px){
-  .cr-ops{ grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px }
+  .cr-ops{ grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px }
   .cr-op-pq{ display:none }
   .cr-ed-corpo{ grid-template-columns:minmax(0,1fr) }
   .cr-ed-painel{ max-height:44vh; border-left:0; border-top:1px solid var(--cr-line) }

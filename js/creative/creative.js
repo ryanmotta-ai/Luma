@@ -15,7 +15,7 @@
  * Designer: crDesenhos (task `arte.compor`) — a IA compõe como designer (skill §4.2): ideia + caixas
  *         dos blocos + grafismos do inventário; crDesenhar encaixa os blocos oficiais e crAvaliar confere
  * Juiz:   crJulgar (task `arte.criticar`) — a IA olha os prints com a régua e aponta ajustes
- * Chat:   crEntrar (transição da aba) · crEnviar (pedido → briefing → copy → 3 opções + legenda)
+ * Chat:   crEntrar (transição da aba) · crEnviar (pedido → briefing → copy → CR_OPCOES opções + legenda)
  * Editor: crEditar — tela com painel (camadas, texto ao vivo, tamanho, alinhar, ordem, foto, fundo)
  * Foto:   anexo no pedido ou resposta à pergunta; sem foto a arte é tipográfica (a IA não gera imagem)
  * Formatos: CR_FORMATOS — feed, story, inapp (pilha) e os deitados banner do app, cabeçalho/rodapé
@@ -2045,6 +2045,9 @@ const _crDomOk = c => (c._domOk != null ? c._domOk : (c._domOk = !crAvaliarDom(c
 // As 3 finalistas: aprovadas, de famílias diferentes e com assinaturas de design diferentes (≥ 2
 // sinais de distância; relaxa para 1 e depois para 0 só se faltar opção). `evitar` = famílias ou
 // assinaturas já mostradas ("Outras opções"). O DOM confere cada uma antes de entrar.
+// Quantas opções a entrega mostra (decisão do Ryan, 15/10: 2, desenhadas ao mesmo tempo). O motor segue
+// escolhendo 3 (crEscolher3) — a curadoria e a bancada votam e medem as 3; a entrega mostra as primeiras.
+const CR_OPCOES = 2;
 function crEscolher3(cands, evitar){
   const ok = _crOrdena(cands.filter(c => !c.avaliacao.erros.length)), fora = new Set(evitar || []), out = [];
   const ass = c => (c.design && c.design.sinais) || { txt: '' };
@@ -2882,7 +2885,7 @@ function crPrompt(fio){
   const br = _crBriefingTexto(fio);
   return [
     'Você é o redator e diretor de arte da Delivery Much (app de delivery de cidades do interior do Brasil). A gestão pediu uma arte (post, inapp, banner do app, email, capa ou slide).',
-    'Você NÃO desenha nem escolhe layout: entende a mensagem e escreve a copy. O motor do Luma diagrama com os blocos oficiais e mostra 3 opções.',
+    'Você NÃO desenha nem escolhe layout: entende a mensagem e escreve a copy. O motor do Luma diagrama com os blocos oficiais e mostra ' + CR_OPCOES + ' opções.',
     '', 'PEDIDO: """' + _crAspas(fio.pedido).slice(0, 1200) + '"""',
     br ? 'BRIEFING (respostas da pessoa — valem mais que o pedido):\n' + _crAspas(br).slice(0, 800) : '',
     'FORMATO: ' + (CR_FORMATOS[fio.fmt] || CR_FORMATOS.feed).nome + ' (' + (CR_FORMATOS[fio.fmt] || CR_FORMATOS.feed).desc + ')'
@@ -3980,7 +3983,7 @@ async function crGerar(fio, conv, outras){
     if(parou()) return;
     const cands = busca.cands;
     p.feito(busca.avaliacoes + ' composições avaliadas em ' + busca.ms + ' ms · ' + cands.filter(c => !c.avaliacao.erros.length).length + ' aprovadas nas regras da marca');
-    // A IA compõe como designer (skill §4.2): 2 composições próprias; o motor completa a 3ª
+    // A IA compõe como designer (skill §4.2): CR_OPCOES composições próprias; o motor completa o que faltar
     let ia = [];
     // Modificar: se a opção de base era composição da IA, o MESMO desenho é redesenhado com o conteúdo novo (mesma composição, outro tema/texto)
     if(modifica && fio.base && fio.base.desenho && typeof fio.base.desenho === 'object'){
@@ -3989,7 +3992,7 @@ async function crGerar(fio, conv, outras){
     if(!modifica && !CR_FORMATOS[fio.fmt].fixo && _crIaPronta()){
       p = _crPasso(lista, 'Compondo como designer');
       const pedidas0 = crMetricas.pedidas;
-      try{ ia = await crDesenhos(crNormaliza(fio.conteudo), 3, fio.ideias || [], fio.ref); }catch(err){ ia = []; }
+      try{ ia = await crDesenhos(crNormaliza(fio.conteudo), CR_OPCOES, fio.ideias || [], fio.ref); }catch(err){ ia = []; }
       if(parou()) return;
       fio.ideias = (fio.ideias || []).concat(ia.map(r => r.nomeReceita));
       p.feito(ia.length ? ia.map(r => r.nomeReceita).join(' · ') : _crPorqueSemIA(pedidas0, 'compor'), !ia.length);
@@ -3998,7 +4001,7 @@ async function crGerar(fio, conv, outras){
     const baseRec = modifica && fio.base ? fio.base.receita : null;
     const igual = modifica && !ia.length && baseRec ? cands.find(c => c.receita === baseRec && !c.avaliacao.erros.length) : null;
     const fixas = ia.concat(igual ? [igual] : []);
-    let tres = fixas.concat(crEscolher3(cands, fio.mostradas.concat(fio.assinaturas || [])).filter(c => !fixas.includes(c) && c.receita !== baseRec)).slice(0, 3);
+    let tres = fixas.concat(crEscolher3(cands, fio.mostradas.concat(fio.assinaturas || [])).filter(c => !fixas.includes(c) && c.receita !== baseRec)).slice(0, CR_OPCOES);
     if(!tres.length) throw new Error('nenhuma diagramação passou nas regras da marca');
 
     // 4) Juiz: os prints lado a lado com a régua, 1 rodada de ajuste
@@ -4044,7 +4047,7 @@ async function crGerar(fio, conv, outras){
     corpo.appendChild(fala);
     const f = CR_FORMATOS[opcoes[0].spec.formato];
     if(parou()) return;
-    await _crDigita(fala, modifica ? 'Ajustei a arte de cima (' + (fio.resumoMud || 'mudança pedida') + '). A primeira opção mantém a composição que você tinha escolhido; as outras são variações.' : (outras && fio.entregas && fio.entregas.length) ? 'Mais ' + opcoes.length + (opcoes.length > 1 ? ' caminhos, de famílias diferentes' : ' caminho, de família diferente') + ' das anteriores.'
+    await _crDigita(fala, modifica ? 'Ajustei a arte de cima (' + (fio.resumoMud || 'mudança pedida') + '). A primeira opção mantém a composição que você tinha escolhido; ' + (opcoes.length > 2 ? 'as outras são variações.' : 'a outra é uma variação.') : (outras && fio.entregas && fio.entregas.length) ? 'Mais ' + opcoes.length + (opcoes.length > 1 ? ' caminhos, de famílias diferentes' : ' caminho, de família diferente') + ' das anteriores.'
       : ((fio.viaIA && opcoes[0].spec.resumo) ? opcoes[0].spec.resumo + ' ' : '') + 'Separei ' + opcoes.length + (opcoes.length > 1 ? ' opções' : ' opção') + ' em ' + f.nome.toLowerCase() + ': escolha uma, ajuste no editor se quiser e baixe.');
     // (Esc aqui não descarta mais: a arte já existe e o saldo já foi gasto — entrega)
     const ent = _crEntrega(fio, opcoes);
@@ -4089,7 +4092,7 @@ function _crEsqueleto(fmt){
   el.className = 'cr-entrega cr-esq'; el.setAttribute('aria-hidden', 'true');
   el.innerHTML = '<header class="cr-ent-cab"><div><span class="cr-esq-l" style="width:132px;height:22px"></span><span class="cr-esq-l" style="width:210px;margin-top:10px"></span></div></header>'
     + '<div class="cr-ops' + (w > h * 1.2 ? ' cr-ops-deitadas' : '') + '" style="--ar:' + (w / h).toFixed(4) + '">'
-    + [0, 1, 2].map(i => '<div class="cr-op" style="--i:' + i + '"><span class="cr-op-arte cr-esq-arte" style="aspect-ratio:' + w + '/' + h + '"></span><span class="cr-esq-l" style="width:' + (96 + i * 18) + 'px"></span></div>').join('') + '</div>';
+    + Array.from({ length: CR_OPCOES }, (_, i) => '<div class="cr-op" style="--i:' + i + '"><span class="cr-op-arte cr-esq-arte" style="aspect-ratio:' + w + '/' + h + '"></span><span class="cr-esq-l" style="width:' + (96 + i * 18) + 'px"></span></div>').join('') + '</div>';
   return el;
 }
 // Depois da entrega, as etapas viram uma linha ("Trabalhou por 14 s · 6 etapas") que abre a lista:
@@ -4109,7 +4112,7 @@ function _crResumo(corpo, lista, t0){
 }
 
 /* ══════════════════════════════════════════════════════════════
-   ENTREGA — as 3 opções lado a lado, a escolhida em destaque, uma legenda diagramada e as ações.
+   ENTREGA — as CR_OPCOES opções lado a lado, a escolhida em destaque, uma legenda diagramada e as ações.
 ══════════════════════════════════════════════════════════════ */
 // Legenda em parágrafos; a linha só de hashtags vira etiquetas discretas
 function _crLegendaHtml(txt){
@@ -4167,24 +4170,30 @@ function _crEntrega(fio, ops){
       crFaixaPinta(); crSessSalva();
     });
   };
-  // O making-of (js/creative/making-of.js) desenha a opção i por cima da <img>, que só reaparece no fim — o
-  // arquivo baixado é sempre ela. Enquanto desenha, "Ver sendo feita" vira "Pular" (e Esc ou clicar na arte pulam).
+  // O making-of (js/creative/making-of.js) desenha TODAS as opções ao mesmo tempo, cada uma por cima da sua
+  // <img>, que só reaparece no fim — o arquivo baixado é sempre ela. Enquanto desenha, "Ver sendo feita" vira
+  // "Pular" (e Esc ou clicar numa arte pulam todas).
   let mk = null;
-  const verFeita = i => {
+  const pula = () => { if(mk) mk.forEach(h => h.pular()); };
+  const verFeita = () => {
     if(typeof crMakingOf !== 'function' || _crReduz()) return false;
-    if(mk) mk.h.pular();
-    const b = botoes()[i], arte = b && b.querySelector('.cr-op-arte');
-    if(!arte || !ops[i].svgFinal) return false;
-    const h = crMakingOf(arte, ops[i].svgFinal, { css: CR_MONT_CSS, nomes: CR_NOME_BLOCO, autor: 'Luma', botao: false });
-    if(!h.ativo) return false;
-    const eu = mk = { i, h }, bt = el.querySelector('[data-acao="making"]');
-    b.dataset.mont = '1'; b.classList.remove('cr-nitida');
+    pula();
+    const tocam = botoes().map((b, i) => {
+      const arte = b.querySelector('.cr-op-arte');
+      if(!arte || !ops[i].svgFinal) return null;
+      const h = crMakingOf(arte, ops[i].svgFinal, { css: CR_MONT_CSS, nomes: CR_NOME_BLOCO, autor: 'Luma', botao: false, semente: 20261015 + i });
+      if(!h.ativo) return null;
+      b.dataset.mont = '1'; b.classList.remove('cr-nitida');
+      h.pronto.then(() => { delete b.dataset.mont; b.classList.add('cr-nitida'); });
+      return h;
+    }).filter(Boolean);
+    if(!tocam.length) return false;
+    const eu = mk = tocam, bt = el.querySelector('[data-acao="making"]');
     if(bt) bt.innerHTML = CR_ICO.pular + 'Pular';
-    const esc = e => { if(e.key === 'Escape') h.pular(); };
+    const esc = e => { if(e.key === 'Escape') pula(); };
     document.addEventListener('keydown', esc);
-    h.pronto.then(() => {
+    Promise.all(tocam.map(h => h.pronto)).then(() => {
       document.removeEventListener('keydown', esc);
-      delete b.dataset.mont; b.classList.add('cr-nitida');
       if(mk === eu){ mk = null; if(bt) bt.innerHTML = CR_ICO.tocar + 'Ver sendo feita'; }
     });
     return true;
@@ -4192,8 +4201,8 @@ function _crEntrega(fio, ops){
   el.addEventListener('keydown', e => { if(/^[1-3]$/.test(e.key) && e.target.closest('.cr-ops')) escolhe(Math.min(ops.length, +e.key) - 1); });
   el.addEventListener('click', ev => {
     const b = ev.target.closest('button'); if(!b) return;
-    if(b.classList.contains('cr-op')) return mk && mk.i === +b.dataset.i ? mk.h.pular() : escolhe(+b.dataset.i);
-    if(b.dataset.acao === 'making') return mk ? mk.h.pular() : verFeita(sel);
+    if(b.classList.contains('cr-op')) return mk ? pula() : escolhe(+b.dataset.i);
+    if(b.dataset.acao === 'making') return mk ? pula() : verFeita();
     if(b.dataset.acao === 'png'){ crAprende(ops[sel], 'baixou'); return crBaixarPNG(ops[sel], b); }
     if(b.dataset.acao === 'editar') return abre(sel);
     if(b.dataset.acao === 'postado') return crVerPostado(ops[sel], fio);
@@ -4238,13 +4247,13 @@ function _crContaNotas(el){
 }
 
 /* ── A entrega aparece: as artes surgem prontas (ao carregar a <img>) e as notas contam. Na 1ª entrega da
-   página, a opção escolhida se desenha sozinha — o making-of (js/creative/making-of.js) — enquanto as
-   outras já estão lá; depois, só pelo botão "Ver sendo feita". Sessão reaberta: tudo pronto, sem making-of. ── */
+   página, as opções se desenham sozinhas, todas ao mesmo tempo — o making-of (js/creative/making-of.js);
+   depois, só pelo botão "Ver sendo feita". Sessão reaberta: tudo pronto, sem making-of. ── */
 // As fontes do app dentro do shadow root do making-of (o @font-face embutido no SVG não vale lá dentro)
 const CR_MONT_CSS = 'svg .hero{font-family:"LC Realce","Realce",sans-serif}svg .sup,svg .body,svg .legal,svg .leve,svg .forte{font-family:"LC Roboto","Roboto",sans-serif}';
 let _crMkAuto = true;
 function _crMostra(el, auto){
-  if(auto && _crMkAuto && el._verFeita && el._verFeita(0)) _crMkAuto = false;
+  if(auto && _crMkAuto && el._verFeita && el._verFeita()) _crMkAuto = false;
   _crContaNotas(el);
 }
 
