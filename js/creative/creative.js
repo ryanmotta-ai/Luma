@@ -2553,7 +2553,7 @@ const _crAspas = s => String(s || '').replace(/"""/g, '"');
 
 // O formato é sempre perguntado pelo Luma (opções = o cadastro CR_FORMATOS), salvo se o pedido já diz
 function _crPerguntaFormato(fio){
-  if(_crFormatoDito(fio.pedido)) return null;
+  if(_crFormatoDito(fio.pedido) || fio.fmtMenu) return null;   // formato dito no texto OU já escolhido no menu: não pergunta de novo
   return { titulo: 'Formato', pergunta: 'Onde a arte vai ser postada?', campo: 'formato', livre: false,
     opcoes: Object.keys(CR_FORMATOS).map(f => ({ rotulo: CR_FORMATOS[f].nome, desc: CR_FORMATOS[f].desc, valor: f })) };
 }
@@ -2760,6 +2760,16 @@ function _crMsgIA(conv){
 }
 // Rolagem automática é interrupção, não ajuda (motion.md §4): só desce se a pessoa já estava no fim.
 // Quem subiu para reler a diagramação não é arrastado de volta a cada passo novo.
+// Pergunta nova: o fundo dela fica à vista, mas o TOPO nunca passa para baixo da barra (a de formato tem 9 opções)
+function _crRolaPergunta(box){
+  const p = _crEl('cr-palco'); if(!p || !box) return;
+  requestAnimationFrame(() => {
+    const barra = (_crEl('view-creative') && parseFloat(getComputedStyle(_crEl('view-creative')).getPropertyValue('--cr-barra-h'))) || 48;
+    const topo = box.getBoundingClientRect().top - p.getBoundingClientRect().top - barra - 12;
+    const alvo = Math.min(p.scrollHeight - p.clientHeight, p.scrollTop + topo);
+    p.scrollTo({ top: Math.max(0, alvo), behavior: _crReduz() ? 'auto' : 'smooth' });
+  });
+}
 function _crRola(forca){
   const p = _crEl('cr-palco'); if(!p) return;
   const noFim = p.scrollHeight - p.scrollTop - p.clientHeight < 140;
@@ -2869,11 +2879,11 @@ function _crPerguntar(corpo, perguntas, run){
       q.opcoes.forEach((o, k) => { ops += op('opcao', k, gEsc(o.rotulo), o.desc, ++n); });
       if(q.livre !== false) ops += '<li class="cr-q-op" role="option" data-tipo="outro"><span class="cr-q-seta" aria-hidden="true">❯</span><span class="cr-q-n">' + (++n) + '.</span><input type="text" maxlength="80" placeholder="' + gEsc(q.dica || 'Outra resposta…') + '" aria-label="Outra resposta"></li>';
       box.innerHTML = '<div class="cr-q-topo"><span class="cr-q-chip">' + gEsc(q.titulo) + '</span>' + (perguntas.length > 1 ? '<span class="cr-q-prog" aria-label="Pergunta ' + (i + 1) + ' de ' + perguntas.length + '">' + perguntas.map((_, k) => '<i class="' + (k < i ? 'feita' : k === i ? 'agora' : '') + '"></i>').join('') + '</span>' : '') + '</div>'
-        + '<p class="cr-q-txt">' + gEsc(q.pergunta) + '</p><ol class="cr-q-ops" role="listbox" aria-label="' + gEsc(q.pergunta) + '">' + ops + '</ol>'
+        + '<p class="cr-q-txt">' + gEsc(q.pergunta) + '</p><ol class="cr-q-ops' + (q.opcoes.length > 5 ? ' cr-q-2' : '') + '" role="listbox" aria-label="' + gEsc(q.pergunta) + '">' + ops + '</ol>'
         + '<div class="cr-q-rodape"><span><kbd>↑</kbd><kbd>↓</kbd> navega <kbd>↵</kbd> escolhe <kbd>1</kbd>–<kbd>' + n + '</kbd> atalho <kbd>esc</kbd> interrompe</span><button type="button" class="cr-q-pular">Pular</button></div>';
       box.classList.toggle('cr-q-foto', q.tipo === 'foto');
       box.classList.remove('cr-q-troca'); void box.offsetWidth; box.classList.add('cr-q-troca');
-      marca(0); _crRola();
+      marca(0); _crRolaPergunta(box);
     }
     box.addEventListener('keydown', e => {
       const emInput = e.target.tagName === 'INPUT';
@@ -2951,7 +2961,7 @@ function crTecla(e){
 // O botão de enviar só acende quando há o que enviar (ou quando é "parar")
 function _crPodeEnviar(){
   const i = _crEl('cr-pedido'), b = document.querySelector('#view-creative .cr-enviar');
-  if(b) b.classList.toggle('cr-pronto', !!(i && i.value.trim()));
+  if(b){ const ok = !!(i && i.value.trim()) && !crUsoSemSaldo(); b.classList.toggle('cr-pronto', ok); b.setAttribute('aria-disabled', String(!ok && !crState.rodando)); }
 }
 // "ocupado" liga o fio de progresso, a borda giratória do campo e transforma enviar em parar
 function _crOcupado(on){
@@ -3027,7 +3037,7 @@ function crLigaMuch(on){
 function crIdeia(btn){
   const i = _crEl('cr-pedido'); if(!i || crState.rodando) return;
   i.value = btn.dataset.ideia || '';
-  crState.fmt = CR_FORMATOS[btn.dataset.fmt] && btn.dataset.fmt !== 'feed' ? btn.dataset.fmt : null;
+  crState.fmt = CR_FORMATOS[btn.dataset.fmt] ? btn.dataset.fmt : null;
   _crRotuloFmt(); crLigaMuch(btn.dataset.marca === 'much');
   crAutoAltura(i); i.focus(); i.select();
 }
@@ -3054,6 +3064,18 @@ document.addEventListener('keydown', e => {
     if(g && g.classList.contains('aberta')){ e.stopPropagation(); return crGaveta(false); }
     const pop = _crEl('cr-uso-pop');
     if(pop && !pop.hidden){ e.stopPropagation(); return crUsoPop(false); }
+  }
+  if(e.key === 'Tab'){   // modal e gaveta prendem o foco (aria-modal sem isso deixa o Tab fugir para a barra global)
+    const cx = _crEl('cr-conex'), g = _crEl('cr-gaveta');
+    const cont = cx && !cx.hidden ? cx : (g && g.classList.contains('aberta') ? g : null);
+    if(cont){
+      const f = [...cont.querySelectorAll('button:not([disabled]),input:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')].filter(x => x.offsetParent !== null);
+      if(f.length){
+        const i = f.indexOf(document.activeElement), fim = e.shiftKey ? 0 : f.length - 1;
+        if(i === -1 || i === fim){ e.preventDefault(); f[e.shiftKey ? f.length - 1 : 0].focus(); }
+      }
+      return;
+    }
   }
   const m = document.querySelector('#view-creative .cr-menu.aberto'); if(!m) return;
   const li = [...m.children], k = li.indexOf(document.activeElement);
@@ -3182,6 +3204,7 @@ function crUsoPinta(){
   const av = _crEl('cr-limite'), msg = crUsoMsg();
   if(av){ av.hidden = !msg; av.textContent = msg; av.classList.toggle('cheio', lim != null && resta < crCusto(CR_MODELO_RAPIDO)); }
   const pop = _crEl('cr-uso-pop'); if(pop && !pop.hidden) pop.innerHTML = crUsoPopHtml();
+  _crPodeEnviar();
 }
 function crUsoPopHtml(){
   const lim = (crUso.ilimitado || crUso.limite == null) ? null : crUso.limite, u = crUso.usado, resta = _crUsoResta();
@@ -3488,11 +3511,11 @@ function crEnviar(e){
   const pedido = String((inp && inp.value) || '').trim();
   if(!pedido || !conv) return;
   _crMenuFmt(false); _crMenuModelo(false);
-  if(crUsoSemSaldo()){ crUsoPop(true); return gToast(crUsoMsg(), 'error'); }
+  if(crUsoSemSaldo()) return gToast(crUsoMsg(), 'error');
   // Imagem anexada com "referência / nessa pegada / parecido" é REFERÊNCIA para o designer, não a foto da arte
   const ehRef = !!crState.anexo && /refer[eê]ncia|pegada|parecid|inspira|nesse estilo|nesse jeito/i.test(pedido);
   // O que a pessoa ESCREVEU vence o compositor: "story" no texto ganha do formato marcado no menu
-  const fio = { pedido, fmt: _crFormatoDito(pedido) || crState.fmt || 'feed', marca: _crMarcaDita(pedido) || crState.much ? 'much' : 'dm', foto: ehRef ? null : crState.anexo, ref: ehRef ? crState.anexo : null, briefing: null, conteudo: null, legenda: null, mostradas: [], viaIA: false };
+  const fio = { pedido, fmt: _crFormatoDito(pedido) || crState.fmt || 'feed', fmtMenu: crState.fmt, marca: _crMarcaDita(pedido) || crState.much ? 'much' : 'dm', foto: ehRef ? null : crState.anexo, ref: ehRef ? crState.anexo : null, briefing: null, conteudo: null, legenda: null, mostradas: [], viaIA: false };
   crState.fios.push(fio);
   if(!crSess.id){ crSess.id = gUuid(); crSess.criada = Date.now(); }
   inp.value = ''; crAutoAltura(inp); crTirarAnexo();
@@ -3535,10 +3558,16 @@ async function crGerar(fio, conv, outras){
   const lista = document.createElement('ul'); lista.className = 'cr-passos';
   corpo.appendChild(lista);
   let status = _crStatus(corpo);
-  const aviso = txt => { const b = document.createElement('div'); b.className = 'cr-bolha cr-interrompido'; b.textContent = txt; corpo.appendChild(b); _crRola(); };
+  // acao: botão de saída ("Editar pedido" devolve o texto ao campo; "Tentar de novo" roda o mesmo pedido) — aviso sem saída é beco
+  const aviso = (txt, acao) => {
+    const b = document.createElement('div'); b.className = 'cr-bolha cr-interrompido'; b.textContent = txt;
+    if(acao){ const bt = document.createElement('button'); bt.type = 'button'; bt.className = 'cr-btn cr-btn-mini cr-aviso-ac'; bt.textContent = acao.rotulo; bt.onclick = () => { bt.disabled = true; acao.fn(); }; b.appendChild(bt); }
+    corpo.appendChild(b); _crRola();
+  };
+  const editarPedido = { rotulo: 'Editar pedido', fn: () => { const i = _crEl('cr-pedido'); if(i && !i.value.trim()){ i.value = fio.pedido; crAutoAltura(i); _crPodeEnviar(); } if(i) i.focus(); } };
   const parou = () => {
     if(!run.parado) return false;
-    status.parar(); aviso('Interrompido. Ajuste o pedido e mande de novo.');
+    status.parar(); aviso('Interrompido.', editarPedido);
     return true;
   };
   try{
@@ -3566,7 +3595,7 @@ async function crGerar(fio, conv, outras){
       if(perguntas.length){
         status.parar();
         const resp = await _crPerguntar(corpo, perguntas, run);
-        if(!resp || run.parado){ fio.briefing = null; aviso('Interrompido. Ajuste o pedido e mande de novo.'); return; }
+        if(!resp || run.parado){ fio.briefing = null; aviso('Interrompido.', editarPedido); return; }
         fio.briefing = resp;
         resp.forEach(r => {
           if(r.foto) fio.foto = r.foto;
@@ -3679,7 +3708,7 @@ async function crGerar(fio, conv, outras){
   }catch(err){
     console.error('[creative]', err);
     status.parar();
-    aviso('Não consegui compor a arte agora (' + ((err && err.message) || 'erro') + '). Tente de novo.');
+    aviso('Não consegui compor a arte agora.', { rotulo: 'Tentar de novo', fn: () => { if(!crState.rodando) crGerar(fio, conv, outras); } });
   }finally{
     if(consumiu && !entregou) crUsoEstorna();
     crState.modeloRun = null; crState.provRun = null;
@@ -3794,7 +3823,7 @@ function _crMedidor(o){
   if(!o.juiz || o.editada) return '';   // editou: a nota era da diagramação original
   const n = o.juiz.nota;
   return '<span class="cr-medidor ' + (n >= 4 ? 'alta' : n >= 3 ? 'media' : 'baixa') + '" role="img" aria-label="Nota da revisão: ' + _crNota(n) + ' de 5" style="--n:' + (n / 5).toFixed(3) + '" data-nota="' + n + '">'
-    + '<svg viewBox="0 0 24 24" aria-hidden="true"><circle class="cr-med-fundo" cx="12" cy="12" r="9.5"/><circle class="cr-med-arco" cx="12" cy="12" r="9.5" pathLength="100"/></svg><span class="cr-med-n">' + _crNota(0) + '</span></span>';
+    + '<svg viewBox="0 0 24 24" aria-hidden="true"><circle class="cr-med-fundo" cx="12" cy="12" r="9.5"/><circle class="cr-med-arco" cx="12" cy="12" r="9.5" pathLength="100"/></svg><span class="cr-med-n">' + _crNota(0) + '</span><span class="cr-med-de" aria-hidden="true">/5</span></span>';
 }
 function _crDetalheNota(o){
   if(!o.juiz || !o.juiz.notas) return '';

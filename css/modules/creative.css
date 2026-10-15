@@ -30,7 +30,7 @@ body.mode-creative #view-creative{ display:flex!important; opacity:1; transform:
 
 /* Much+ ligado: a tela inteira troca de marca. Mesma regra do tema de campanha (00-tokens.css):
    fundo de superfície = magenta ESCURO (branco sobre o claro dá só 4,03:1; sobre o escuro, 5,98:1) */
-#view-creative.cr-much{ --dm-orange:var(--muchplus-magenta-d); --dm-orange-d:var(--muchplus-magenta-d); --dm-orange-text:var(--muchplus-magenta-d); --on-orange:var(--white);
+#view-creative.cr-much{ --cr-aura2:var(--muchplus-magenta-l); --dm-orange:var(--muchplus-magenta-d); --dm-orange-d:var(--muchplus-magenta-d); --dm-orange-text:var(--muchplus-magenta-d); --on-orange:var(--white);
   --cr-acento-bg:rgba(248,0,110,.08); --cr-acento-ln:rgba(248,0,110,.34); --press-bg:rgba(248,0,110,.10); --press-border:var(--muchplus-magenta-d) }
 body:not(.theme-light) #view-creative.cr-much{ --dm-orange-text:var(--muchplus-magenta-l); --cr-acento-bg:rgba(248,0,110,.16); --cr-acento-ln:rgba(255,61,146,.46) }
 ::view-transition-old(root),::view-transition-new(root){ animation-duration:var(--dur-slow); animation-timing-function:var(--ease-out) }
@@ -78,9 +78,10 @@ body.cr-ocupado .cr-fio{ opacity:1 }
 .cr-aviso{ display:inline-flex; align-items:center; gap:6px; color:var(--cr-text3); font-size:12px }
 
 /* ── Palco ── */
-.cr-palco{ position:relative; z-index:1; flex:1; min-height:0; overflow-y:auto; scrollbar-color:var(--cr-line2) transparent; overscroll-behavior:contain }
+.cr-palco{ position:relative; z-index:1; flex:1; min-height:0; overflow-y:auto; scrollbar-color:var(--cr-line2) transparent; overscroll-behavior:contain; scroll-padding:calc(var(--cr-barra-h) + 12px) 0 16px;
+  -webkit-mask-image:linear-gradient(180deg,transparent calc(var(--cr-barra-h) - 2px),#000 calc(var(--cr-barra-h) + 8px)); mask-image:linear-gradient(180deg,transparent calc(var(--cr-barra-h) - 2px),#000 calc(var(--cr-barra-h) + 8px)) }
 .cr-coluna{ min-height:100%; display:flex; flex-direction:column; max-width:880px; margin:0 auto;
-  padding:calc(var(--cr-barra-h) + 28px) max(16px,env(safe-area-inset-right,0px)) 210px var(--cr-gut) }
+  padding:calc(var(--cr-barra-h) + 28px) max(16px,env(safe-area-inset-right,0px)) 28px var(--cr-gut) }
 
 /* ── Boas-vindas: aparecem sem conversa e recolhem (altura real) quando o primeiro pedido sai ── */
 .cr-boas{ display:grid; grid-template-rows:1fr; margin:auto 0; transition:grid-template-rows var(--dur-slow) var(--ease-out),opacity var(--dur-base) var(--ease-out),margin var(--dur-slow) var(--ease-out) }
@@ -92,7 +93,7 @@ body.cr-ocupado .cr-fio{ opacity:1 }
   box-shadow:0 10px 28px color-mix(in srgb,var(--dm-orange-d) 26%,transparent) }
 .cr-boas-marca::before{ content:''; position:absolute; inset:0; z-index:-1; border-radius:inherit; background:var(--dm-orange) }
 .cr-boas-marca::after{ content:''; position:absolute; inset:-3px; z-index:-2; border-radius:19px; filter:blur(5px); opacity:.55;
-  background:conic-gradient(from 0deg,var(--dm-orange-d),var(--dm-yellow),var(--dm-orange-d)); animation:gAuraRotate 6s linear infinite }
+  background:conic-gradient(from 0deg,var(--dm-orange-d),var(--cr-aura2,var(--dm-yellow)),var(--dm-orange-d)); animation:gAuraRotate 6s linear infinite }
 .cr-boas-tit{ margin:0; font:900 clamp(32px,5.4vw,52px)/.96 'Realce','Roboto',sans-serif; letter-spacing:.5px; text-transform:uppercase; color:var(--cr-text); text-wrap:balance }
 .cr-boas-tit span{ display:inline-block }
 /* "hoje?" recebe UM brilho depois de entrar (e fica laranja chapado): atenção sem ficar piscando */
@@ -130,7 +131,7 @@ body.cr-ocupado .cr-fio{ opacity:1 }
 .cr-ava svg{ width:14px; height:14px }
 .cr-bolha{ font-size:15px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; color:var(--cr-text) }
 .cr-eu .cr-bolha{ padding:10px 14px; border-radius:14px 14px 4px 14px; background:var(--cr-surf2); border:1px solid var(--cr-line) }
-.cr-interrompido{ color:var(--cr-text2); font-size:14px }
+.cr-interrompido{ display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; color:var(--cr-text2); font-size:14px }
 .cr-bolha-foto{ display:block; max-width:200px; max-height:200px; border-radius:var(--r); object-fit:cover; border:1px solid var(--cr-line) }
 .cr-cursor{ display:inline-block; width:.5em; height:1.05em; margin-left:1px; vertical-align:-.15em; background:var(--dm-orange-d); animation:crPisca 1s steps(1) infinite }
 
@@ -195,6 +196,7 @@ body.cr-ocupado .cr-fio{ opacity:1 }
 .cr-q-prog i.agora{ width:24px; background:var(--dm-orange-d) }
 .cr-q-txt{ margin:8px 0 10px; font-size:16px; font-weight:600; line-height:1.4; color:var(--cr-text) }
 .cr-q-ops{ list-style:none; margin:0; padding:0; display:grid; gap:2px; font:400 13.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace }
+.cr-q-2{ grid-template-columns:repeat(2,minmax(0,1fr)) }
 .cr-q-op{ display:flex; align-items:baseline; gap:8px; padding:8px 10px; border-radius:var(--r); color:var(--cr-text2); cursor:pointer; transition:background var(--dur-fast),color var(--dur-fast) }
 .cr-q-op:hover{ background:var(--cr-surf2) }
 .cr-q-op.on{ background:var(--cr-acento-bg); color:var(--dm-orange-text) }
@@ -249,6 +251,7 @@ body.cr-ocupado .cr-fio{ opacity:1 }
 .cr-mont-rot.cr-some{ opacity:0 }
 /* Nota do juiz: anel que enche até a nota (de 5); no hover da opção, o boletim das 5 réguas sobe sobre a arte */
 .cr-medidor{ margin-left:auto; display:inline-flex; align-items:center; gap:6px; font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace; font-variant-numeric:tabular-nums; color:var(--cr-text2) }
+.cr-med-de{ margin-left:-4px; font-size:10.5px; font-weight:500; color:var(--cr-text3) }
 .cr-medidor svg{ width:22px; height:22px; transform:rotate(-90deg) }
 .cr-med-fundo{ fill:none; stroke:var(--cr-surf3); stroke-width:3 }
 .cr-med-arco{ fill:none; stroke:var(--green); stroke-width:3; stroke-linecap:round; stroke-dasharray:100; stroke-dashoffset:100; transition:stroke-dashoffset calc(var(--dur-celebration) * 1.4) var(--ease-out) }
@@ -290,6 +293,8 @@ body.cr-ocupado .cr-fio{ opacity:1 }
 
 /* ── Botões ── */
 .cr-acoes{ display:flex; flex-wrap:wrap; gap:8px }
+/* Em tela baixa a fileira de ações acompanha a rolagem até o fim da entrega (a arte em story é alta e empurrava o Baixar PNG para baixo da dobra) */
+@media (min-width:681px){ .cr-entrega .cr-acoes{ position:sticky; bottom:0; z-index:2; padding:10px 0; margin:-10px 0; background:var(--cr-surf); box-shadow:0 -10px 12px 0 var(--cr-surf) } }
 .cr-btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; height:38px; padding:0 16px; border-radius:var(--r-pill); border:1px solid var(--cr-line2); background:var(--cr-surf); color:var(--cr-text);
   font:600 13.5px/1 'Roboto',sans-serif; cursor:pointer; white-space:nowrap;
   transition:transform var(--release-dur) var(--release-ease),background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard),filter var(--dur-fast) }
@@ -317,9 +322,9 @@ body.cr-ocupado .cr-fio{ opacity:1 }
 .cr-leg-tags span{ padding:3px 9px; border-radius:var(--r-pill); background:var(--cr-acento-bg); color:var(--dm-orange-text); font-size:13px; font-weight:500 }
 
 /* ── Compositor (fixo embaixo): campo + formato + Much+ + enviar/parar ── */
-.cr-compositor{ position:absolute; z-index:5; left:0; right:0; bottom:0; padding:28px max(16px,env(safe-area-inset-right,0px)) calc(12px + var(--safe-bottom,0px)) var(--cr-gut);
-  background:linear-gradient(180deg,transparent,var(--cr-bg) 42%); pointer-events:none }
-.cr-compositor-in{ pointer-events:auto; max-width:880px; margin:0 auto; display:flex; flex-direction:column; gap:8px }
+.cr-compositor{ position:relative; z-index:5; flex:none; padding:4px max(16px,env(safe-area-inset-right,0px)) calc(12px + var(--safe-bottom,0px)) var(--cr-gut); background:var(--cr-bg) }
+.cr-compositor::before{ content:''; position:absolute; left:0; right:0; bottom:100%; height:28px; background:linear-gradient(180deg,transparent,var(--cr-bg)); pointer-events:none }
+.cr-compositor-in{ max-width:848px; margin:0 auto; display:flex; flex-direction:column; gap:8px }
 .cr-anexo{ display:flex; align-items:center; gap:8px; align-self:flex-start; padding:4px 6px 4px 4px; border-radius:var(--r); background:var(--cr-surf); border:1px solid var(--cr-line); color:var(--cr-text2); font-size:12px; box-shadow:var(--cr-sh1); animation:crEntraEu var(--dur-base) var(--ease-spring-soft) backwards }
 .cr-anexo[hidden]{ display:none }
 .cr-anexo img{ width:36px; height:36px; border-radius:8px; object-fit:cover }
@@ -434,7 +439,7 @@ body.cr-ocupado .cr-enviar::after{ content:''; position:absolute; inset:-4px; bo
 .cr-faixa-it{ flex:none; height:34px; padding:0; border:0; border-radius:7px; overflow:hidden; background:var(--cr-surf2); cursor:pointer; box-shadow:0 0 0 1px var(--cr-line2);
   transition:transform var(--release-dur) var(--release-ease),box-shadow var(--dur-fast) var(--ease-standard) }
 .cr-faixa-it:hover{ box-shadow:0 0 0 2px var(--dm-orange) }
-.cr-faixa-it img{ display:block; height:100%; width:auto; max-width:60px; object-fit:cover }
+.cr-faixa-it img{ display:block; height:100%; width:auto; max-width:96px; object-fit:contain }
 .cr-faixa-it.novo{ animation:crPop var(--dur-base) var(--ease-spring) backwards }
 .cr-entrega.cr-acha{ animation:crAcha var(--dur-celebration) var(--ease-out) }
 @keyframes crAcha{ 0%{ box-shadow:var(--cr-sh2),0 0 0 0 color-mix(in srgb,var(--dm-orange) 55%,transparent) } 100%{ box-shadow:var(--cr-sh2),0 0 0 14px transparent } }
@@ -463,6 +468,7 @@ body.cr-ocupado .cr-enviar::after{ content:''; position:absolute; inset:-4px; bo
 .cr-sess-txt small{ font-size:11.5px; color:var(--cr-text3) }
 .cr-sess-del{ position:absolute; top:50%; right:8px; translate:0 -50%; width:30px; height:30px; display:grid; place-items:center; border:0; border-radius:8px; background:none; color:var(--cr-text3); cursor:pointer; opacity:0; transition:opacity var(--dur-fast),color var(--dur-fast),background var(--dur-fast) }
 .cr-sess-li:hover .cr-sess-del,.cr-sess-del:focus-visible{ opacity:1 }
+@media (hover:none){ .cr-sess-del{ opacity:1 } }
 .cr-sess-del:hover{ background:var(--cr-surf3); color:var(--dm-red-text) }
 .cr-gaveta-vazio{ margin:0; padding:24px 16px; font-size:13px; line-height:1.6; color:var(--cr-text2) }
 .cr-retomar{ display:inline-flex; align-items:center; gap:8px; max-width:100%; height:32px; padding:0 14px 0 10px; border:1px solid var(--cr-line2); border-radius:var(--r-pill); background:var(--cr-surf); color:var(--cr-text2); font:600 12.5px/1 'Roboto',sans-serif; cursor:pointer;
@@ -528,7 +534,7 @@ body.cr-ocupado .cr-enviar::after{ content:''; position:absolute; inset:-4px; bo
 .cr-ed.aberto{ opacity:1; transform:none }
 .cr-ed-topo{ display:flex; align-items:center; gap:16px; height:60px; padding:0 20px; flex:none; border-bottom:1px solid var(--cr-line); background:var(--cr-surf) }
 .cr-ed-tit{ display:flex; flex-direction:column; gap:2px; min-width:0 }
-.cr-ed-tit b{ font-size:15px; color:var(--cr-text) }
+.cr-ed-tit b{ font-size:15px; color:var(--cr-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
 .cr-ed-tit span{ font-size:12px; color:var(--cr-text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
 .cr-ed-hist{ display:flex; gap:4px; margin-left:8px }
 .cr-ed-fim{ display:flex; gap:8px; margin-left:auto }
@@ -609,6 +615,13 @@ body.cr-ocupado .cr-enviar::after{ content:''; position:absolute; inset:-4px; bo
   .cr-ideias{ grid-template-columns:minmax(0,1fr) }
   .cr-ops-deitadas{ gap:12px }
   .cr-passo-t{ display:none }
+  .cr-q-2{ grid-template-columns:minmax(0,1fr) }
+  .cr-pill .cr-custo{ display:none }
+  .cr-uso-host{ position:static }
+  .cr-uso-pop{ left:16px; right:16px; width:auto; top:calc(100% + 6px) }
+  .cr-limite{ border-radius:14px; text-align:center }
+  .cr-acoes{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)) }
+  .cr-acoes .cr-btn:first-child{ grid-column:1/-1 }
   /* 3 opções lado a lado: número + nota na 1ª linha, o nome da composição embaixo (em 3 colunas de ~100px ele não cabe ao lado) */
   .cr-ops:not(.cr-ops-deitadas) .cr-op-rot{ flex-wrap:wrap; row-gap:4px; font-size:12px; line-height:1.25 }
   .cr-ops:not(.cr-ops-deitadas) .cr-op-rot > span:not(.cr-medidor){ order:3; flex:1 0 100%; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden }
@@ -620,6 +633,7 @@ body.cr-ocupado .cr-enviar::after{ content:''; position:absolute; inset:-4px; bo
   .cr-entra,.cr-passo,.cr-passo-res,.cr-entrega,.cr-op,.cr-anexo,.cr-ed-palco,.cr-ed.aberto .cr-ed-painel,.cr-q-troca .cr-q-txt,.cr-q-troca .cr-q-ops,.cr-menu.aberto li,.cr-feito .cr-bola,.cr-btn.cr-ok{ animation:none; opacity:1; transform:none; filter:none }
   .cr-verbo,.cr-cursor,.cr-agora .cr-bola,.cr-agora .cr-passo-tit,.cr-fio::before,.cr-boas-marca::after,.cr-pensando .cr-ava::after,.cr-dest,
   body.cr-ocupado #view-creative::before,body.cr-ocupado .cr-caixa,body.cr-ocupado .cr-enviar::after,.cr-esq-l,.cr-esq-arte,.cr-arrastando .cr-solta svg{ animation:none }
+  body.cr-ocupado .cr-enviar::after{ display:none }
   .cr-verbo,.cr-agora .cr-passo-tit,.cr-dest{ color:var(--dm-orange-text); background:none }
   .cr-agora .cr-passo-tit{ color:var(--cr-text2) }
   body.cr-ocupado .cr-caixa{ border-color:var(--dm-orange) }
@@ -631,4 +645,11 @@ body.cr-ocupado .cr-enviar::after{ content:''; position:absolute; inset:-4px; bo
   .cr-med-arco,.cr-op-det,.cr-det-linha i::after,.cr-mont-rot{ transition:none }
   .cr-op-arte img,.cr-ed,.cr-pergunta,.cr-q-seta,.cr-boas,.cr-trab-corpo,.cr-menu,.cr-conversa,.cr-op-ok,.cr-solta > div{ transition:none }
   .cr-conversando .cr-boas{ display:none }
+}
+
+/* Toque: alvo mínimo de 40px (Apple/Google pedem 44; 40 cabe na barra sem inchar o composer) */
+@media (pointer:coarse),(max-width:680px){
+  #view-creative .cr-pill,#view-creative .cr-btn,#view-creative .cr-btn-mini,#view-creative .cr-barra .cr-uso-host > button{ min-height:40px }
+  #view-creative .cr-clipe,#view-creative .cr-enviar{ width:40px; height:40px }
+  #view-creative .cr-q-pular,#view-creative .cr-trab-cab{ min-height:40px }
 }
