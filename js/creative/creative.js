@@ -2771,7 +2771,7 @@ function _crRolaPergunta(box){
   });
 }
 function _crRola(forca){
-  const p = _crEl('cr-palco'); if(!p) return;
+  const p = _crEl('cr-palco'); if(!p || p.querySelector('.cr-esq')) return;   // com o esqueleto na tela o progresso fica à vista; quem rola é o fim da geração
   const noFim = p.scrollHeight - p.scrollTop - p.clientHeight < 140;
   if(forca || noFim) requestAnimationFrame(() => p.scrollTo({ top: p.scrollHeight, behavior: _crReduz() ? 'auto' : 'smooth' }));
 }
@@ -2818,7 +2818,7 @@ function _crPasso(lista, titulo){
   const t0 = Date.now();
   _crRola();
   return {
-    ativo: () => li.classList.contains('cr-agora'),
+    li, ativo: () => li.classList.contains('cr-agora'),
     feito(res, erro){
       li.classList.remove('cr-agora'); li.classList.add(erro ? 'cr-erro' : 'cr-feito');
       const s = (Date.now() - t0) / 1000;
@@ -2886,7 +2886,7 @@ function _crPerguntar(corpo, perguntas, run){
       if(q.livre !== false) ops += '<li class="cr-q-op" role="option" data-tipo="outro"><span class="cr-q-seta" aria-hidden="true">❯</span><span class="cr-q-n">' + (++n) + '.</span><input type="text" maxlength="80" placeholder="' + gEsc(q.dica || 'Outra resposta…') + '" aria-label="Outra resposta"></li>';
       box.innerHTML = '<div class="cr-q-topo"><span class="cr-q-chip">' + gEsc(q.titulo) + '</span>' + (perguntas.length > 1 ? '<span class="cr-q-prog" aria-label="Pergunta ' + (i + 1) + ' de ' + perguntas.length + '">' + perguntas.map((_, k) => '<i class="' + (k < i ? 'feita' : k === i ? 'agora' : '') + '"></i>').join('') + '</span>' : '') + '</div>'
         + '<p class="cr-q-txt">' + gEsc(q.pergunta) + '</p><ol class="cr-q-ops' + (q.opcoes.length > 5 ? ' cr-q-2' : '') + '" role="listbox" aria-label="' + gEsc(q.pergunta) + '">' + ops + '</ol>'
-        + '<div class="cr-q-rodape"><span><kbd>↑</kbd><kbd>↓</kbd> navega <kbd>↵</kbd> escolhe ' + (q.livre === false ? '<kbd>1</kbd>–<kbd>' + n + '</kbd> atalho ' : 'digite para responder ') + '<kbd>esc</kbd> interrompe</span><button type="button" class="cr-q-pular">Pular</button></div>';
+        + '<div class="cr-q-rodape"><span><kbd>↑</kbd><kbd>↓</kbd> navega <kbd>↵</kbd> escolhe ' + (q.livre === false ? '<kbd>1</kbd>–<kbd>' + n + '</kbd> atalho ' : '· digite para responder ') + '<kbd>esc</kbd> interrompe</span><button type="button" class="cr-q-pular">Pular</button></div>';
       tDesenha = Date.now(); _crPlaceholder();
       box.classList.toggle('cr-q-foto', q.tipo === 'foto');
       box.classList.remove('cr-q-troca'); void box.offsetWidth; box.classList.add('cr-q-troca');
@@ -3221,7 +3221,7 @@ function crUsoMsg(modelo){
   if(_crPropria() || crUso.ilimitado || crUso.limite == null) return '';
   const resta = _crUsoResta(), id = modelo || crModelo();
   if(resta < crCusto(CR_MODELO_RAPIDO)) return 'Você usou as ' + crUso.limite + ' artes de hoje. O limite renova à meia-noite.';
-  if(resta < crCusto(id)) return 'Restam ' + resta + ' arte' + (resta > 1 ? 's' : '') + ' hoje — o modelo ' + _crNomeModelo(id) + ' gasta ' + crCusto(id) + '. Troque para o Rápido.';
+  if(resta < crCusto(id)) return (resta > 1 ? 'Restam ' + resta + ' artes' : 'Resta 1 arte') + ' hoje — o modelo ' + _crNomeModelo(id) + ' gasta ' + crCusto(id) + '. Troque para o Rápido.';
   if(resta <= 3) return resta === 1 ? 'Resta 1 arte hoje.' : 'Restam ' + resta + ' artes hoje.';
   return '';
 }
@@ -3603,7 +3603,7 @@ async function crGerar(fio, conv, outras){
   // acao: botão de saída ("Editar pedido" devolve o texto ao campo; "Tentar de novo" roda o mesmo pedido) — aviso sem saída é beco
   const aviso = (txt, acao, erro) => {
     const b = document.createElement('div'); b.className = 'cr-bolha cr-interrompido' + (erro ? ' cr-erro' : ''); b.textContent = txt;
-    if(acao){ const bt = document.createElement('button'); bt.type = 'button'; bt.className = 'cr-btn cr-btn-mini cr-aviso-ac'; bt.textContent = acao.rotulo; bt.onclick = () => { bt.disabled = true; acao.fn(); }; b.appendChild(bt); }
+    if(acao){ const bt = document.createElement('button'); bt.type = 'button'; bt.className = 'cr-btn cr-btn-mini cr-aviso-ac'; bt.textContent = acao.rotulo; bt.onclick = () => { bt.disabled = true; if(erro) b.remove(); acao.fn(); }; b.appendChild(bt); }
     corpo.appendChild(b); _crRola();
   };
   const editarPedido = { rotulo: 'Editar pedido', fn: () => { const i = _crEl('cr-pedido'); if(i && !i.value.trim()){ i.value = fio.pedido; crAutoAltura(i); _crPodeEnviar(); } if(i) i.focus(); } };
@@ -3659,7 +3659,7 @@ async function crGerar(fio, conv, outras){
       if(parou()) return;
       fio.conteudo = bruto;
       const sp0 = crNormaliza(bruto);
-      p.feito([sp0.palavra, sp0.titulo].filter(Boolean).join(' ') + (sp0.precoPor ? ' · R$ ' + sp0.precoPor : '') + (fio.viaIA ? ' · IA' : ' · IA indisponível agora: motor local (sem designer nem juiz)' + (prov && typeof gProvUltimoErro === 'string' && gProvUltimoErro ? ' — ' + gProvUltimoErro : '')));
+      p.feito([sp0.palavra, sp0.titulo].filter(Boolean).join(' ') + (sp0.precoPor ? ' · R$ ' + sp0.precoPor : '') + (fio.viaIA ? ' · IA' : ' · motor local' + (prov && typeof gProvUltimoErro === 'string' && gProvUltimoErro ? ' — ' + gProvUltimoErro : '')));
       // a legenda corre em paralelo e chega junto — só para post (inapp, banner, email, capa e slide não têm)
       fio.legProm = CR_FORMATOS[sp0.formato].social === false ? Promise.resolve([]) : crLegenda(sp0);
     }
@@ -3730,10 +3730,10 @@ async function crGerar(fio, conv, outras){
     const fala = document.createElement('div'); fala.className = 'cr-bolha';
     corpo.appendChild(fala);
     const f = CR_FORMATOS[opcoes[0].spec.formato];
-    if(run.parado) return;
+    if(parou()) return;
     await _crDigita(fala, outras ? 'Mais ' + opcoes.length + (opcoes.length > 1 ? ' caminhos, de famílias diferentes' : ' caminho, de família diferente') + ' das anteriores.'
       : ((fio.viaIA && opcoes[0].spec.resumo) ? opcoes[0].spec.resumo + ' ' : '') + 'Separei ' + opcoes.length + (opcoes.length > 1 ? ' opções' : ' opção') + ' em ' + f.nome.toLowerCase() + ': escolha uma, ajuste no editor se quiser e baixe.');
-    if(run.parado) return;
+    if(parou()) return;
     const ent = _crEntrega(fio, opcoes);
     // a pessoa estava no fim? então a entrega (o destino) sobe até o topo da tela dela
     const seguia = (() => { const pl = _crEl('cr-palco'); return !pl || pl.scrollHeight - pl.scrollTop - pl.clientHeight < 200; })();
@@ -3746,7 +3746,8 @@ async function crGerar(fio, conv, outras){
     crFaixaPinta(); crSessSalva();
     if(seguia) requestAnimationFrame(() => {
       // Entrega alta (story em notebook): começa nas ARTES — o cabeçalho "Sua arte" cede o espaço, para o nome da opção e as ações caberem no primeiro quadro
-      const p = _crEl('cr-palco'), ops = ent.querySelector('.cr-ops'), cabe = p && ent.getBoundingClientRect().height + 80 <= p.clientHeight;
+      const p = _crEl('cr-palco'), ops = ent.querySelector('.cr-ops'), ac = ent.querySelector('.cr-acoes');
+      const cabe = p && ac && ac.getBoundingClientRect().bottom - ent.getBoundingClientRect().top + 24 <= p.clientHeight - 48;
       (cabe || !ops ? ent : ops).scrollIntoView({ block: 'start', behavior: _crReduz() ? 'auto' : 'smooth' });
     });
     if(typeof gTrackEvent === 'function') try{ gTrackEvent('creative_arte', { objetivo: opcoes[0].spec.objetivo, formato: opcoes[0].spec.formato, marca: opcoes[0].spec.marca, ia: fio.viaIA, juiz: !!juiz, foto: !!fio.foto, ref: !!fio.ref, modelo: prov ? 'conta:' + prov.id : modelo, custo: prov ? 0 : crCusto(modelo),
@@ -3754,7 +3755,7 @@ async function crGerar(fio, conv, outras){
   }catch(err){
     console.error('[creative]', err);
     status.parar();
-    if(p && p.ativo && p.ativo()) p.feito('falhou aqui', true);
+    if(p && p.ativo && p.ativo()){ p.feito('falhou aqui', true); p.li.classList.add('cr-falhou'); }
     const marca = /regras da marca/i.test((err && err.message) || '');
     aviso(marca ? 'Esse pedido não encaixou nas regras da marca. Mude o formato ou o texto e tente de novo.' : 'Não consegui compor a arte agora.',
       marca ? editarPedido : { rotulo: 'Tentar de novo', fn: () => { if(!crState.rodando) crGerar(fio, conv, outras || !!fio.conteudo); } }, true);   // com a copy pronta não pergunta tudo de novo
@@ -3811,7 +3812,7 @@ function _crEntrega(fio, ops){
   el.dataset.pedido = String(fio.pedido || '').slice(0, 80);
   const f = CR_FORMATOS[ops[0].spec.formato];
   let sel = 0;
-  const rotulo = (o, i) => '<span class="cr-op-rot"><b>' + (i + 1) + '</b><span>' + gEsc(o.nomeReceita) + '</span>' + (o.editada ? '<em>editada</em>' : '') + _crMedidor(o) + '</span>';
+  const rotulo = (o, i) => '<span class="cr-op-rot"><b>' + (i + 1) + '</b><span title="' + gEsc(o.nomeReceita) + '">' + gEsc(o.nomeReceita) + '</span>' + (o.editada ? '<em>editada</em>' : '') + _crMedidor(o) + '</span>';
   const postavel = typeof fOpenPosted === 'function' && CR_FORMATOS[ops[0].spec.formato].social !== false && !!fPostedContextForFormat({ material: { w: ops[0].w, h: ops[0].h } });
   el.innerHTML = '<header class="cr-ent-cab"><div><h3>Sua arte</h3><p>' + ops.length + (ops.length > 1 ? ' opções' : ' opção') + ' · ' + gEsc(f.nome) + ' ' + gEsc(f.desc.split(',')[0]) + '</p></div>'
     + '<span class="cr-ent-selo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>' + (ops[0].juiz ? 'Revisada pela IA' : 'Conferida nas regras da marca') + '</span></header>'
@@ -3996,6 +3997,7 @@ const CR_NOME_CAMPO = { produto: 'Título', titulo: 'Título', precoPor: 'Preço
 function crEditar(op, aoSalvar){
   const view = _crEl('view-creative');
   if(!view || view.querySelector('.cr-ed')) return;
+  const origem = document.activeElement;   // o foco volta para quem abriu o editor
   const ed = document.createElement('div');
   ed.className = 'cr-ed'; ed.setAttribute('role', 'dialog'); ed.setAttribute('aria-label', 'Editar arte');
   const bt = (acao, ico, rot, extra) => '<button type="button" class="cr-ed-ico" data-ed="' + acao + '" title="' + rot + '" aria-label="' + rot + '"' + (extra || '') + '>' + ico + '</button>';
@@ -4143,6 +4145,7 @@ function crEditar(op, aoSalvar){
   /* ── Painel de propriedades ── */
   const _sec = (titulo, html) => '<section class="cr-ed-sec"><h4>' + titulo + '</h4>' + html + '</section>';
   function painel(){
+    requestAnimationFrame(() => { if(document.activeElement === document.body && ed.isConnected) host.focus({ preventScroll: true }); });   // redesenhar o painel não pode derrubar o foco (Esc deixaria de funcionar)
     if(!atual){
       const fundo = svg.querySelector('[data-fundo]'), cor = (fundo && fundo.getAttribute('fill') || '').toUpperCase();
       props.innerHTML = _sec('Fundo', '<div class="cr-ed-cores">' + (op.spec.marca === 'much' ? ['#E52676', '#FFB900'] : ['#F85400', '#FF9000']).map(c => '<button type="button" class="cr-ed-cor' + (c === cor ? ' on' : '') + '" data-cor="' + c + '" style="--c:' + c + '" aria-label="Fundo ' + c + '"></button>').join('')
@@ -4308,7 +4311,7 @@ function crEditar(op, aoSalvar){
     if(a === 'cancelar'){
       if(mexeu && !descarta){
         descarta = true;
-        const bt = b || host.querySelector('[data-ed="cancelar"]'); const txt = bt && bt.textContent;
+        const bt = b || ed.querySelector('[data-ed="cancelar"]'); const txt = bt && bt.textContent;
         if(bt) bt.textContent = 'Descartar alterações?';
         setTimeout(() => { descarta = false; if(bt && txt) bt.textContent = txt; }, 4000); return;
       }
@@ -4370,6 +4373,7 @@ function crEditar(op, aoSalvar){
     window.removeEventListener('resize', reposiciona);
     ed.classList.remove('aberto');
     setTimeout(() => ed.remove(), _crReduz() ? 0 : 220);
+    if(origem && origem.isConnected && origem.focus) origem.focus({ preventScroll: true });
     if(nova){ aoSalvar(nova); gToast('Alterações salvas', 'success'); }
   }
   botoesHist();

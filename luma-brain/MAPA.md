@@ -259,7 +259,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 86 arquivos JS (81.756 linhas, 3.222 funções) · 33 arquivos CSS (33.321 linhas) · `index.html` com 4.081 linhas e 76 `<script>`.
+**Tamanho real de hoje:** 86 arquivos JS (81.760 linhas, 3.222 funções) · 33 arquivos CSS (33.324 linhas) · `index.html` com 4.081 linhas e 76 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -708,7 +708,7 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 
 ### js/creative
 
-**`js/creative/creative.js`** · 4428 linhas
+**`js/creative/creative.js`** · 4432 linhas
 Luma Creative — modo em TESTES, só a gestão (trava em main.js e na Edge Function `ai`).
 · API: crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crLockup, crTextoLinhas, crTextoMulti, crX, crTexto, crMista, crHeroi, crLogo … (+93; 176 funções no total)
 · Estado global: _crFontesProm, _crCtx, _crMesa, _crPesosCuradoria, _crArrasto, _crSessTimer, _crLegendaVer
@@ -737,7 +737,7 @@ Luma Creative — modo em TESTES, só a gestão (trava em main.js e na Edge Func
 | `css/modules/chat.css` | 3979 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
-| `css/modules/creative.css` | 670 |
+| `css/modules/creative.css` | 673 |
 | `css/modules/designer.css` | 5424 |
 | `css/modules/feedback.css` | 199 |
 | `css/modules/franqueado.css` | 1712 |

@@ -131,8 +131,9 @@ body.cr-ocupado .cr-fio{ opacity:1 }
 .cr-ava svg{ width:14px; height:14px }
 .cr-bolha{ font-size:15px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; color:var(--cr-text) }
 .cr-eu .cr-bolha{ padding:10px 14px; border-radius:14px 14px 4px 14px; background:var(--cr-surf2); border:1px solid var(--cr-line) }
-.cr-erro{ color:var(--dm-red-text) }
-.cr-erro .cr-aviso-ac{ color:var(--cr-text) }
+.cr-bolha.cr-erro{ color:var(--dm-red-text) }
+.cr-bolha.cr-erro .cr-aviso-ac{ color:var(--cr-text) }
+.cr-falhou .cr-bola{ background:var(--dm-red) }
 .cr-interrompido{ display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; color:var(--cr-text2); font-size:14px }
 .cr-bolha-foto{ display:block; max-width:200px; max-height:200px; border-radius:var(--r); object-fit:cover; border:1px solid var(--cr-line) }
 .cr-cursor{ display:inline-block; width:.5em; height:1.05em; margin-left:1px; vertical-align:-.15em; background:var(--dm-orange-d); animation:crPisca 1s steps(1) infinite }
@@ -182,7 +183,7 @@ body.cr-ocupado .cr-fio{ opacity:1 }
 .cr-trab-in{ min-height:0; overflow:hidden; padding:10px 0 0 4px }
 
 /* ── Pergunta do briefing (jeito Claude Code: lista numerada, ❯ na escolhida) ── */
-.cr-pergunta{ padding:16px 16px 10px; border-radius:14px; background:var(--cr-surf); border:1px solid var(--cr-line); box-shadow:var(--cr-sh1); outline:none;
+.cr-pergunta{ width:min(100%,540px); padding:16px 16px 10px; border-radius:14px; background:var(--cr-surf); border:1px solid var(--cr-line); box-shadow:var(--cr-sh1); outline:none;
   transition:opacity var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-out),border-color var(--dur-base) var(--ease-standard),box-shadow var(--dur-base) var(--ease-standard) }
 /* a pergunta captura o teclado: o contorno acende para dizer "é aqui que você responde" */
 .cr-pergunta:focus-within{ border-color:var(--cr-acento-ln); box-shadow:var(--cr-sh1),0 0 0 4px var(--cr-acento-bg) }
@@ -281,7 +282,7 @@ body.cr-ocupado .cr-fio{ opacity:1 }
 .cr-op.on .cr-op-ok{ transform:scale(1) }
 #view-creative .cr-op:focus-visible{ outline:none!important }
 #view-creative .cr-op:focus-visible .cr-op-arte{ box-shadow:0 0 0 2px var(--dm-orange),0 0 0 5px var(--cr-acento-bg) }
-.cr-op-rot{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--cr-text) }
+.cr-op-rot{ min-height:2.7em; display:flex; align-items:flex-start; gap:8px; font-size:13px; font-weight:600; color:var(--cr-text) }
 .cr-op-rot > span:not(.cr-medidor){ flex:1; min-width:0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden }
 .cr-op-rot b{ flex:none; display:grid; place-items:center; width:20px; height:20px; border-radius:50%; background:var(--cr-surf2); color:var(--cr-text2); font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace; transition:background var(--dur-fast),color var(--dur-fast) }
 .cr-op.on .cr-op-rot b{ background:var(--dm-orange); color:var(--on-orange) }
@@ -438,8 +439,8 @@ body.cr-ocupado .cr-enviar.cr-resp .cr-enviar-para{ opacity:0; transform:scale(.
 .cr-limite.cheio{ background:color-mix(in srgb,var(--dm-red) 12%,transparent); color:var(--dm-red-text) }
 .cr-custo{ font-style:normal; font-size:11px; font-weight:700; padding:2px 5px; border-radius:var(--r-pill); background:var(--cr-surf3); color:var(--cr-text2); font-variant-numeric:tabular-nums }
 .cr-pill-on .cr-custo{ background:var(--cr-acento-bg); color:var(--dm-orange-text) }
-.cr-menu li b em{ margin-left:6px; font-style:normal; font-size:11px; font-weight:600; color:var(--cr-text3) }
-.cr-menu li[aria-selected="true"] b em{ color:inherit; opacity:.8 }
+.cr-menu li b em{ margin-left:6px; font-style:normal; font-size:11px; font-weight:600; color:var(--cr-text2) }
+.cr-menu li[aria-selected="true"] b em{ color:inherit }
 
 /* ── "Desta sessão": miniaturas das artes entregues ── */
 /* Fica ABAIXO do campo, no lugar da dica de teclado (que some quando já há conversa): o dock encolhe ~66px, que a entrega em story precisa */
@@ -450,7 +451,7 @@ body.cr-ocupado .cr-enviar.cr-resp .cr-enviar-para{ opacity:0; transform:scale(.
 .cr-faixa-rot{ flex:none; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--cr-text3) }
 .cr-faixa-lista{ display:flex; gap:6px; min-width:0; overflow-x:auto; scrollbar-width:none; scroll-behavior:smooth }
 .cr-faixa-lista::-webkit-scrollbar{ display:none }
-.cr-faixa-it{ flex:none; height:30px; padding:0; border:0; border-radius:7px; overflow:hidden; background:var(--cr-surf2); cursor:pointer; box-shadow:0 0 0 1px var(--cr-line2);
+.cr-faixa-it{ flex:none; height:38px; padding:0; border:0; border-radius:7px; overflow:hidden; background:var(--cr-surf2); cursor:pointer; box-shadow:0 0 0 1px var(--cr-line2);
   transition:transform var(--release-dur) var(--release-ease),box-shadow var(--dur-fast) var(--ease-standard) }
 .cr-faixa-it:hover{ box-shadow:0 0 0 2px var(--dm-orange) }
 .cr-faixa-it img{ display:block; height:100%; width:auto; max-width:96px; object-fit:contain }
@@ -667,3 +668,5 @@ body.cr-ocupado .cr-enviar.cr-resp .cr-enviar-para{ opacity:0; transform:scale(.
   #view-creative .cr-clipe,#view-creative .cr-enviar{ width:40px; height:40px }
   #view-creative .cr-q-pular,#view-creative .cr-trab-cab{ min-height:40px }
 }
+
+#view-creative ::selection{ background:color-mix(in srgb,var(--dm-orange) 26%,transparent); color:inherit }
