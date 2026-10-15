@@ -13,6 +13,8 @@
 
    Uso:  node scripts/catalogo-composicoes.js
          node scripts/catalogo-composicoes.js --golden=pratoDoDiaLado,faixaPreco
+         node scripts/catalogo-composicoes.js --curadoria=luma-curadoria-2026-10-15.json
+           (as artes aprovadas na curadoria da gestão entram no golden, sem repetir linha)
    ══════════════════════════════════════════════════════════════════════════════════════════ */
 const fs = require('fs');
 const path = require('path');
@@ -53,7 +55,7 @@ async function lerCatalogo() {
   }
 }
 
-function escreveGolden(comps, regravar) {
+function escreveGolden(comps, regravar, extra) {
   const arq = path.join(RAIZ, 'tests', 'creative-golden.js'), txt = fs.readFileSync(arq, 'utf8');
   const [antes, resto] = txt.split('// <golden>\n'), [miolo, depois] = resto.split('// </golden>');
   const linhas = miolo.split('\n').filter(l => l.trim().startsWith('{'));
@@ -64,6 +66,10 @@ function escreveGolden(comps, regravar) {
     if (tem.has(c.id) && regravar.indexOf(c.id) < 0) return;
     c.golden.forEach(g => { fica.push('  ' + JSON.stringify(g) + ','); novas++; });
   });
+  // a curadoria: cada arte aprovada vira uma linha (a mesma arte não entra duas vezes)
+  const chave = g => [g.receita, g.formato, g.caso, g.texto, g.foto, g.marca].join('|');
+  const ja = new Set(fica.map(l => { try { return chave(JSON.parse(l.trim().replace(/,$/, ''))); } catch (e) { return ''; } }));
+  (extra || []).forEach(g => { if (ja.has(chave(g))) return; ja.add(chave(g)); fica.push('  ' + JSON.stringify(g) + ','); novas++; });
   fs.writeFileSync(arq, antes + '// <golden>\n' + fica.join('\n') + (fica.length ? '\n' : '') + '// </golden>' + depois);
   return novas;
 }
@@ -100,9 +106,11 @@ function escreveCatalogo(cat) {
 (async function () {
   const arg = process.argv.find(a => a.startsWith('--golden='));
   const regravar = arg ? arg.slice(9).split(',').filter(Boolean) : [];
+  const cur = process.argv.find(a => a.startsWith('--curadoria='));
+  const extra = cur ? (JSON.parse(fs.readFileSync(path.resolve(cur.slice(12)), 'utf8')).golden || []) : [];
   const cat = await lerCatalogo();
   escreveCatalogo(cat);
-  const novas = escreveGolden(cat.comps, regravar);
+  const novas = escreveGolden(cat.comps, regravar, extra);
   console.log(cat.comps.length + ' composições no catálogo · ' + novas + ' linha(s) de golden escritas');
   const clones = cat.clones.filter(k => k.d < LIMITE_CLONE);
   cat.clones.slice(0, 5).forEach(k => console.log('  planta ' + k.d.toFixed(2) + '  ' + k.a + ' × ' + k.b + ' (' + k.formato + ', ' + k.caso + ')'));

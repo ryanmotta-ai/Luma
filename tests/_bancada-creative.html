@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Luma Creative — bancada do motor</title>
+  <link rel="stylesheet" href="../css/03-fonts.css">
+  <style>
+    /* FERRAMENTA (fora do portão — o runner pula arquivo com "_"): roda o banco de pedidos inteiro
+       (tests/creative-banco.js) pela busca de verdade e mede o motor — nota das 3 opções, quantas
+       passam de 80, tempo da busca, erro de marca pelo DOM, assinatura repetida —, por formato e
+       por grupo. Filtros: ?formato=story · ?grupo=A · ?limite=200 (os primeiros N casos).
+       ?antes=caminho.json compara com uma rodada anterior salva (o "Baixar rodada" desta página). */
+    :root{color-scheme:light;font-family:system-ui,sans-serif;background:#f4f2ef;color:#222}
+    body{margin:0;padding:24px;max-width:1100px}
+    h1{font-size:22px;margin:0 0 4px}.resumo{color:#555;margin:0 0 16px;font-size:14px}
+    table{border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;font-size:13px;font-variant-numeric:tabular-nums;margin-bottom:18px}
+    th,td{padding:6px 12px;text-align:right;border-bottom:1px solid #eee}th:first-child,td:first-child{text-align:left}
+    th{background:#faf9f7;font-weight:600}.ruim{color:#c00}.bom{color:#167a3a}
+    button{padding:6px 12px;border-radius:8px;border:1px solid #ccc;background:#fff;cursor:pointer}
+  </style>
+</head>
+<body>
+  <h1>Bancada do motor</h1>
+  <p class="resumo" id="resumo">Rodando o banco…</p>
+  <div id="out"></div>
+  <script src="../js/00-config.js"></script>
+  <script src="../js/core/toast.js"></script>
+  <script src="../js/creative/creative.js"></script>
+  <script src="../js/creative/composicoes.js"></script>
+  <script src="creative-banco.js"></script>
+  <script>
+  (async function(){
+    const q = new URLSearchParams(location.search), out = document.getElementById('out'), resumo = document.getElementById('resumo');
+    await crFontesProntas();
+    let casos = crBancoCasos(q.get('formato') ? { formatos: [q.get('formato')] } : {}).filter(c => !q.get('grupo') || c.pedido.grupo === q.get('grupo'));
+    if(+q.get('limite')) casos = casos.slice(0, +q.get('limite'));
+    const antes = q.get('antes') ? await fetch(q.get('antes')).then(r => r.json()).catch(() => null) : null;
+    const rodada = {}, tempos = [], agrega = {};
+    const soma = (k, x) => { const a = agrega[k] = agrega[k] || { n: 0, m3: 0, m1: 0, a80: 0, n3: 0, sem: 0, dom: 0, rep: 0, d3: 0, piores: 0 }; Object.keys(x).forEach(c => { a[c] += x[c]; }); };
+    for(let i = 0; i < casos.length; i++){
+      const c = casos[i], t0 = performance.now();
+      let tres = [];
+      try{ tres = crEscolher3((await crBuscar(c.sp)).cands); }catch(e){ tres = []; }
+      const ms = performance.now() - t0; tempos.push(ms);
+      const notas = tres.map(r => r.nota), m3 = notas.length ? notas.reduce((a, b) => a + b, 0) / notas.length : 0, m1 = notas.length ? Math.max(...notas) : 0;
+      const dom = tres.filter(r => crAvaliarDom(r).erros.length).length, rep = new Set(tres.map(r => r.design.sinais.txt)).size < tres.length ? 1 : 0;
+      rodada[c.id] = notas;
+      const ant = antes && antes[c.id] && antes[c.id].length ? antes[c.id].reduce((a, b) => a + b, 0) / antes[c.id].length : null;
+      const x = { n: 1, m3, m1, a80: notas.filter(v => v >= 80).length, n3: notas.length, sem: notas.length ? 0 : 1, dom, rep, d3: ant == null ? 0 : m3 - ant, piores: ant != null && m3 < ant - 2 ? 1 : 0 };
+      soma('total', x); soma('formato · ' + c.sp.formato, x); soma('grupo · ' + c.pedido.grupo, x);
+      if(i % 20 === 0) resumo.textContent = 'Rodando o banco… ' + (i + 1) + '/' + casos.length;
+    }
+    tempos.sort((a, b) => a - b);
+    const pc = p => Math.round(tempos[Math.min(tempos.length - 1, Math.floor(p * tempos.length))] || 0);
+    resumo.textContent = casos.length + ' casos · busca p50 ' + pc(0.5) + ' ms, p95 ' + pc(0.95) + ' ms, máx. ' + Math.round(tempos[tempos.length - 1] || 0) + ' ms' + (antes ? ' · comparado com a rodada anterior' : '');
+    const f1 = v => v.toFixed(1);
+    out.innerHTML = '<table><thead><tr><th></th><th>casos</th><th>média das 3</th><th>melhor das 3</th><th>≥ 80</th><th>sem opção</th><th>erro DOM</th><th>assinatura repetida</th>' + (antes ? '<th>Δ média das 3</th><th>pioraram > 2</th>' : '') + '</tr></thead><tbody>'
+      + Object.keys(agrega).map(k => { const a = agrega[k]; return '<tr><td>' + gEsc(k) + '</td><td>' + a.n + '</td><td>' + f1(a.m3 / a.n) + '</td><td>' + f1(a.m1 / a.n) + '</td><td>' + Math.round(100 * a.a80 / Math.max(1, a.n3)) + '%</td><td' + (a.sem ? ' class="ruim"' : '') + '>' + a.sem + '</td><td' + (a.dom ? ' class="ruim"' : '') + '>' + a.dom + '</td><td>' + a.rep + '</td>'
+        + (antes ? '<td class="' + (a.d3 >= 0 ? 'bom' : 'ruim') + '">' + (a.d3 >= 0 ? '+' : '') + f1(a.d3 / a.n) + '</td><td>' + a.piores + '</td>' : '') + '</tr>'; }).join('') + '</tbody></table>'
+      + '<button type="button" id="baixa">Baixar rodada (JSON)</button>';
+    document.getElementById('baixa').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(rodada)], { type: 'application/json' })); a.download = 'bancada-creative.json'; a.click(); };
+    window.__bancada = { agrega, rodada, tempos: { p50: pc(0.5), p95: pc(0.95) } }; window.__pronto = 1;
+  })();
+  </script>
+</body>
+</html>

@@ -463,6 +463,27 @@
     assert(!caiu.length, caiu.length+' arte(s) do golden pioraram: '+caiu.slice(0,6).join(' · '));
   });
 
+  /* ── Curadoria (frente 5): os votos viram pesos sugeridos e golden, sem IA ── */
+  caso('Luma Creative: curadoria — os votos sugerem pesos de forma determinística, puxando a parte que separa aprovadas de reprovadas, e o JSON leva o golden', async()=>{
+    const p=(o)=>Object.assign({equilibrio:.85,vazio:.85,eixos:.9,escala:.85,contraste:.95,respiro:.9}, o);
+    const v=(i, voto, partes, motivos)=>({chave:'k'+i, caso:'a01', formato:'feed', texto:i%4, foto:false, marca:'dm', objetivo:'oferta', receita:'cardPreso', familia:'cardPreso', nota:80, partes, voto, motivos:motivos||[]});
+    // as aprovadas têm o vazio bom e a escala pior; as reprovadas, o contrário — a nota de hoje erra a ordem
+    const votos=[v(1,1,p({vazio:.95,escala:.7})), v(2,1,p({vazio:.93,escala:.72})), v(3,1,p({vazio:.94,escala:.71})),
+      v(4,-1,p({vazio:.75,escala:.99}),['vazio']), v(5,-1,p({vazio:.76,escala:.98}),['vazio']), v(6,-1,p({vazio:.74,escala:.99}))];
+    const a=crCuradoriaPesos(votos), b=crCuradoriaPesos(votos.slice().reverse());
+    assert(a && JSON.stringify(a)===JSON.stringify(b), 'pesos não determinísticos');
+    assert(a.pesos.vazio>1 && a.pesos.vazio>=a.pesos.escala, 'o vazio não ganhou peso: '+JSON.stringify(a.pesos));
+    assert(a.acerto.depois>a.acerto.antes, 'o acerto não melhorou: '+JSON.stringify(a.acerto));
+    assert(crCuradoriaPesos(votos.slice(0,3))===null, 'sugeriu pesos sem reprovadas');
+    const j=crCuradoriaExporta(votos);
+    assert(j.versao===1 && j.votos.length===6 && j.golden.length===3 && j.pesosSugeridos, 'JSON incompleto');
+    j.golden.forEach(g=>['receita','formato','caso','texto','foto','marca','nota'].forEach(k=>assert(k in g, 'golden sem '+k)));
+    // os pesos aplicados mexem na nota (e voltar a null devolve a do código)
+    const antes=crNotaPesos('oferta','feed').vazio; _crPesosCuradoria={vazio:2};
+    const depois=crNotaPesos('oferta','feed').vazio; _crPesosCuradoria=null;
+    assert(Math.abs(depois-2*antes)<1e-9 && crNotaPesos('oferta','feed').vazio===antes, 'os pesos da curadoria não entram na nota');
+  });
+
   let passed=0; const falhas=[];
   for(const item of cases){
     const li=document.createElement('li'); li.className='case';

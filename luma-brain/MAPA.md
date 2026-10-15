@@ -196,7 +196,7 @@ bancada que mede a distância entre o que o Estúdio mostra e o que o franqueado
 
 ## Verificação — o Luma TEM teste automatizado (enxuto)
 
-**461 casos em 10 suítes** (14/10/2026: entrou `svg-import`, já com os 12 casos do Luma Creative — formatos de canal, IA designer, much+ e espaço da foto; 15/10: +2 da nota de design — geometria sem DOM × DOM ≤ 3 px no banco de casos `tests/creative-banco.js`, nota pura e determinística; +2 da busca — determinismo, diversidade, fatias e orçamento; +2 da tipografia — quebra, acento, apoio sem órfã, kerning, preço-assinatura; +1 do golden das composições — `tests/creative-golden.js`). Em 13/10 eram 425 em 9, depois de um corte de 1.053 em 29: o Ryan pediu para ficar só o necessário.
+**462 casos em 10 suítes** (14/10/2026: entrou `svg-import`, já com os 12 casos do Luma Creative — formatos de canal, IA designer, much+ e espaço da foto; 15/10: +2 da nota de design — geometria sem DOM × DOM ≤ 3 px no banco de casos `tests/creative-banco.js`, nota pura e determinística; +2 da busca — determinismo, diversidade, fatias e orçamento; +2 da tipografia — quebra, acento, apoio sem órfã, kerning, preço-assinatura; +1 do golden das composições — `tests/creative-golden.js`; +1 da curadoria — votos → pesos e golden). Em 13/10 eram 425 em 9, depois de um corte de 1.053 em 29: o Ryan pediu para ficar só o necessário.
 O critério do corte: **fica o que protege um motor que o produto usa todo dia e que já quebrou;
 sai volume gerado, cobertura repetida, estresse e bancada exploratória** (estão no histórico do
 git, commit "test: enxuga a suíte").
@@ -213,13 +213,14 @@ CHROMIUM_PATH=/caminho/chrome node scripts/run-browser-tests.js
 | `tests/corpus.html` | 6 pranchetas reais × 4 tamanhos de texto + golden de geometria + **original first** | 30 |
 | `tests/auto-layout.html` | a leitura da arte: baseline autorado, papel semântico, safe zone | 14 |
 | `tests/psd-import.html` | o importador de PSD (geometria de texto, alpha, raster, fidelidade) | 92 |
-| `tests/svg-import.html` | o importador de SVG e o **contrato com a skill luma-creative** (`data-luma`, `data-campo`, slot `foto_produto`), trechos com peso/itálico, preço-assinatura, vetor, recorte, gradiente, sanitização; e o **Luma Creative** (toda diagramação aprovada do motor entrando limpa, conferência geométrica reprovando colisão/margem/texto pequeno, foto no slot, briefing, formatos de canal: inapp, banner, email, capa, slide, IA designer, much+, espaço da foto; **nota de design**, **busca** e **tipografia** sobre o banco de casos `tests/creative-banco.js`; o **golden** das composições — `tests/creative-golden.js`) | 36 |
+| `tests/svg-import.html` | o importador de SVG e o **contrato com a skill luma-creative** (`data-luma`, `data-campo`, slot `foto_produto`), trechos com peso/itálico, preço-assinatura, vetor, recorte, gradiente, sanitização; e o **Luma Creative** (toda diagramação aprovada do motor entrando limpa, conferência geométrica reprovando colisão/margem/texto pequeno, foto no slot, briefing, formatos de canal: inapp, banner, email, capa, slide, IA designer, much+, espaço da foto; **nota de design**, **busca** e **tipografia** sobre o banco de casos `tests/creative-banco.js`; o **golden** das composições — `tests/creative-golden.js`; a **curadoria** — votos → pesos sugeridos e golden) | 37 |
 | `tests/copy-engine.html` | a legenda: **nunca inventa preço/desconto/validade**, não repete, hashtags enxutas | 50 |
 | `tests/copy-fit.html` | o Encurtar: a versão curta **nunca tira preço, produto ou sabor** | 40 |
 | `tests/franqueado-fluxo.html` | o chat e a prévia como uma verdade só, o bloqueio "não cabe", o Encurtar na hora certa, a versão Story | 66 |
 | `tests/export.html` | o que o franqueado baixa: dimensões e escala do PNG | 28 |
 | `tests/account-isolation.html` | uma conta nunca vê o cache/rascunho de outra no mesmo aparelho | 5 |
 | `tests/_paridade-render.html` | ferramenta (não é portão): distância entre a saída do Estúdio e a do franqueado | — |
+| `tests/_bancada-creative.html` | ferramenta (não é portão): o banco de pedidos inteiro pela busca de verdade — nota das 3 opções, ≥ 80, tempo, erro de marca pelo DOM, por formato e grupo; `?antes=` compara com uma rodada salva | — |
 | `tests/_galeria-composicoes.html` | ferramenta (não é portão): as composições do Luma Creative em todas as variações do banco, com a nota; `?catalogo=1` alimenta `node scripts/catalogo-composicoes.js` (gera `docs/CATALOGO-COMPOSICOES.md`, as miniaturas e o golden das composições novas, e confere clones) | — |
 
 **Como respeita a 1ª lei:** o runner fala DevTools Protocol direto, com o WebSocket nativo do
@@ -260,7 +261,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 87 arquivos JS (83.345 linhas, 3.237 funções) · 33 arquivos CSS (33.327 linhas) · `index.html` com 4.082 linhas e 77 `<script>`.
+**Tamanho real de hoje:** 88 arquivos JS (83.569 linhas, 3.255 funções) · 33 arquivos CSS (33.371 linhas) · `index.html` com 4.084 linhas e 78 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -718,6 +719,11 @@ Luma Creative — modo em TESTES, só a gestão (trava em main.js e na Edge Func
 · API: crTema, crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crLockup, crTextoLinhas, crTextoMulti, crX, crTexto, crMista, crHeroi … (+97; 182 funções no total)
 · Estado global: _crFontesProm, _crCtx, _crMesa, _crPesosCuradoria, _crArrasto, _crSessTimer, _crLegendaVer
 
+**`js/creative/curadoria.js`** · 224 linhas
+CURADORIA do Luma Creative (frente 5, 15/10/2026) — só a gestão.
+· API: crCuradoriaNota, crCuradoriaPesos, crCuradoriaExporta, crCuradoria, crCuradoriaFecha
+· Estado global: _crCur
+
 ## CSS — onde mora cada folha
 
 | Arquivo | Linhas |
@@ -742,7 +748,7 @@ Luma Creative — modo em TESTES, só a gestão (trava em main.js e na Edge Func
 | `css/modules/chat.css` | 3979 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
-| `css/modules/creative.css` | 676 |
+| `css/modules/creative.css` | 720 |
 | `css/modules/designer.css` | 5424 |
 | `css/modules/feedback.css` | 199 |
 | `css/modules/franqueado.css` | 1712 |
@@ -794,50 +800,51 @@ A ordem **é** a arquitetura: sem ESM, um arquivo depende de o anterior já ter 
 31. js/designer/templates.js
 32. js/creative/creative.js
 33. js/creative/composicoes.js
-34. js/designer/canvas.js
-35. js/designer/selection.js
-36. js/designer/brush.js
-37. js/designer/eraser-tools.js
-38. js/designer/layers.js
-39. js/designer/props-panel.js
-40. js/designer/measurement.js
-41. js/designer/publish.js
-42. js/designer/preview.js
-43. js/designer/library.js
-44. js/designer/undo-redo.js
-45. js/widgets/novidades.js
-46. js/widgets/help-widget.js
-47. js/designer/tools.js
-48. js/designer/fonts.js
-49. js/designer/psd-parse.js
-50. js/designer/psd-import.js
-51. js/designer/mask.js
-52. js/designer/tutorial-panel.js
-53. assets/vendor/colorthief.js
-54. assets/vendor/pica.js
-55. assets/vendor/jszip.min.js
-56. assets/vendor/supabase.js
-57. js/core/supabase-config.js
-58. js/core/supabase.js
-59. js/core/ai/ai-cache.js
-60. js/core/ai/ai-telemetry.js
-61. js/core/ai/ai-schemas.js
-62. js/core/ai/ai-registry.js
-63. js/core/ai/ai-client.js
-64. js/core/ai.js
-65. js/core/ai/ai-provedores.js
-66. js/core/auth.js
-67. js/core/franquia.js
-68. js/franqueado/feedback.js
-69. js/core/feature-flags.js
-70. js/core/user-profile.js
-71. js/core/product-control.js
-72. js/core/dados.js
-73. js/core/console.js
-74. js/designer/color-picker.js
-75. js/designer/tooltip.js
-76. js/designer/linter.js
-77. js/main.js
+34. js/creative/curadoria.js
+35. js/designer/canvas.js
+36. js/designer/selection.js
+37. js/designer/brush.js
+38. js/designer/eraser-tools.js
+39. js/designer/layers.js
+40. js/designer/props-panel.js
+41. js/designer/measurement.js
+42. js/designer/publish.js
+43. js/designer/preview.js
+44. js/designer/library.js
+45. js/designer/undo-redo.js
+46. js/widgets/novidades.js
+47. js/widgets/help-widget.js
+48. js/designer/tools.js
+49. js/designer/fonts.js
+50. js/designer/psd-parse.js
+51. js/designer/psd-import.js
+52. js/designer/mask.js
+53. js/designer/tutorial-panel.js
+54. assets/vendor/colorthief.js
+55. assets/vendor/pica.js
+56. assets/vendor/jszip.min.js
+57. assets/vendor/supabase.js
+58. js/core/supabase-config.js
+59. js/core/supabase.js
+60. js/core/ai/ai-cache.js
+61. js/core/ai/ai-telemetry.js
+62. js/core/ai/ai-schemas.js
+63. js/core/ai/ai-registry.js
+64. js/core/ai/ai-client.js
+65. js/core/ai.js
+66. js/core/ai/ai-provedores.js
+67. js/core/auth.js
+68. js/core/franquia.js
+69. js/franqueado/feedback.js
+70. js/core/feature-flags.js
+71. js/core/user-profile.js
+72. js/core/product-control.js
+73. js/core/dados.js
+74. js/core/console.js
+75. js/designer/color-picker.js
+76. js/designer/tooltip.js
+77. js/designer/linter.js
+78. js/main.js
 ```
 
 <!-- AUTO-FIM -->
