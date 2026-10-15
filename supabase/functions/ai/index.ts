@@ -418,7 +418,7 @@ Deno.serve(async (req) => {
     // Pedido do front vale só se for um degrau da escada: um nome fora dela (o 2.5 de um front em
     // cache, um palpite no console) custaria um 404 em toda chamada antes de cair na reserva.
     const pedido = String(body?.model ?? "");
-    const modelo = MODELO_OK.test(pedido) && MODELOS_RESERVA.includes(pedido) ? pedido : MODELO_PADRAO;
+    let modelo = MODELO_OK.test(pedido) && MODELOS_RESERVA.includes(pedido) ? pedido : MODELO_PADRAO;
     let schema = (body?.responseSchema && typeof body.responseSchema === "object") ? body.responseSchema : null;
     if (schema && JSON.stringify(schema).length > MAX_SCHEMA) return json({ error: "schema grande demais" }, 400);
     let querJson = body?.json !== false; // padrão: resposta em JSON (todas as tarefas de hoje)
@@ -427,9 +427,21 @@ Deno.serve(async (req) => {
 
     // Luma Creative está em testes: só a gestão. O front esconde a aba, mas a fronteira é aqui —
     // get_user_role() é o mesmo helper SECURITY DEFINER das policies (lê profiles.role do JWT).
+    // Com o secret CREATIVE_FRANQUEADO=1 (ligar SÓ depois de aplicar a migration 20261014200000),
+    // equipe_dm e franqueado também entram — o franqueado dentro da JANELA de uma geração já contada
+    // por luma_creative_consumir e com o modelo que ela registrou (o limite diário mora no banco).
     if (task.startsWith("arte.")) {
       const { data: papel } = await caller.rpc("get_user_role");
-      if (papel !== "gestao") return json({ error: "Luma Creative é só para a gestão" }, 403);
+      const aberto = Deno.env.get("CREATIVE_FRANQUEADO") === "1";
+      if (papel === "gestao" || (aberto && papel === "equipe_dm")) {
+        // sem limite
+      } else if (aberto && papel === "franqueado") {
+        const { data: j } = await caller.rpc("luma_creative_janela");
+        if (!j?.ok) return json({ error: "limite diário do Luma Creative atingido ou geração não iniciada" }, 403);
+        if (typeof j.modelo === "string" && MODELOS_RESERVA.includes(j.modelo)) modelo = j.modelo;
+      } else {
+        return json({ error: "Luma Creative é só para a gestão" }, 403);
+      }
     }
 
     // Task "aula": o front manda PERGUNTA + CONTEXTO; o prompt é montado aqui.

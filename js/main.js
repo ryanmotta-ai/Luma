@@ -37,7 +37,10 @@ const G_MODE_FEATURE = { franqueado:'module.franqueado', designer:'module.design
 
 // Luma Creative (js/creative/creative.js) está em TESTES: só a gestão — nem a equipe_dm.
 // A Edge Function `ai` repete esta trava na task `arte.compor` (o front é só navegação).
-function _gCreativeRole(){ return typeof gCurrentRole==='function' && gCurrentRole()==='gestao'; }
+// Quem abre o modo. Para o franqueado usar (com o limite diário): aplicar a migration 20261014200000,
+// criar o secret CREATIVE_FRANQUEADO=1 na function `ai` e só então incluir 'franqueado' aqui.
+const G_CREATIVE_ROLES = ['gestao'];
+function _gCreativeRole(){ return typeof gCurrentRole==='function' && G_CREATIVE_ROLES.includes(gCurrentRole()); }
 
 // Um modo só abre se a role permite E a flag permite.
 function gModeAllowed(m){

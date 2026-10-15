@@ -1392,7 +1392,7 @@ async function crRefazerDesenhos(lista){
   const sp = lista[0].r.spec;
   const regua = await crRegua(sp).catch(() => []), parts = regua.map(d => ({ mimeType: 'image/jpeg', data: d }));
   const consertar = lista.map(x => ({ desenho: x.r.desenho, erros: ['diretor de arte: ' + x.critica] }));
-  const j = (typeof gAiParseJson === 'function') ? gAiParseJson(await gAskAI('arte.compor', crPromptDesenho(sp, lista.length, [], consertar, { regua: regua.length, ref: 0 }), { json: true, cache: false, parts })) : null;
+  const j = (typeof gAiParseJson === 'function') ? gAiParseJson(await _crAsk('arte.compor', crPromptDesenho(sp, lista.length, [], consertar, { regua: regua.length, ref: 0 }), { json: true, cache: false, parts })) : null;
   const comps = j && Array.isArray(j.composicoes) ? j.composicoes : [];
   return lista.map((x, i) => {
     if(!comps[i]) return x.r;
@@ -1411,7 +1411,7 @@ async function crDesenhos(sp, n, evitar, refPessoa){
   const regua = await crRegua(sp).catch(() => []), m = /^data:(image\/[a-z]+);base64,(.+)$/.exec(refPessoa || ''), ref = m ? [m[2]] : [];
   const parts = regua.map(d => ({ mimeType: 'image/jpeg', data: d })).concat(m ? [{ mimeType: m[1], data: m[2] }] : []);
   const pede = async (qtd, consertar) => {
-    const j = (typeof gAiParseJson === 'function') ? gAiParseJson(await gAskAI('arte.compor', crPromptDesenho(sp, qtd, evitar, consertar, { regua: regua.length, ref: ref.length }), { json: true, cache: false, parts })) : null;
+    const j = (typeof gAiParseJson === 'function') ? gAiParseJson(await _crAsk('arte.compor', crPromptDesenho(sp, qtd, evitar, consertar, { regua: regua.length, ref: ref.length }), { json: true, cache: false, parts })) : null;
     return j && Array.isArray(j.composicoes) ? j.composicoes.slice(0, qtd) : [];
   };
   const monta = (comps, base) => comps.map((c, i) => { const r = crDesenhar(sp, c || {}, base + i); r.avaliacao = crAvaliar(r); return r; });
@@ -1599,7 +1599,7 @@ async function crJulgar(tres){
   const sp = tres[0].spec, refs = await crRegua(sp);
   const ops = await Promise.all(tres.map(crArteJpeg));
   const parts = refs.concat(ops).map(d => ({ mimeType: 'image/jpeg', data: d }));
-  const j = (typeof gAiParseJson === 'function') ? gAiParseJson(await gAskAI('arte.criticar', crPromptJuiz(sp, refs.length, tres.length), { json: true, cache: false, parts })) : null;
+  const j = (typeof gAiParseJson === 'function') ? gAiParseJson(await _crAsk('arte.criticar', crPromptJuiz(sp, refs.length, tres.length), { json: true, cache: false, parts })) : null;
   const lista = j && Array.isArray(j.opcoes) ? j.opcoes : null;
   if(!lista || lista.length < tres.length) return null;
   return tres.map((r, i) => {
@@ -1746,7 +1746,7 @@ function crPromptBriefing(fio){
 }
 async function crPedirBriefing(fio){
   if(typeof gAskAI !== 'function' || typeof gAiReady !== 'function' || !gAiReady()) return null;
-  const j = (typeof gAiParseJson === 'function') ? gAiParseJson(await gAskAI('arte.compor', crPromptBriefing(fio), { json: true, cache: false })) : null;
+  const j = (typeof gAiParseJson === 'function') ? gAiParseJson(await _crAsk('arte.compor', crPromptBriefing(fio), { json: true, cache: false })) : null;
   const obj = j && (CR_LEGADO[j.objetivo] || j.objetivo);
   if(!j || typeof j !== 'object' || !CR_OBJETIVOS[obj]) return null;
   const t = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
@@ -1832,7 +1832,7 @@ function crPrompt(fio){
 }
 async function crPedirComposicao(fio){
   if(typeof gAskAI !== 'function' || typeof gAiReady !== 'function' || !gAiReady()) return null;
-  const txt = await gAskAI('arte.compor', crPrompt(fio), { json: true, cache: false });
+  const txt = await _crAsk('arte.compor', crPrompt(fio), { json: true, cache: false });
   const j = (typeof gAiParseJson === 'function') ? gAiParseJson(txt) : null;
   if(!j || typeof j !== 'object') return null;
   j.objetivo = CR_LEGADO[j.objetivo] || j.objetivo;
@@ -1906,6 +1906,7 @@ function crEntrar(aba){
   if(_crReduz()) v.classList.remove('cr-revelando', 'cr-itens');
   setTimeout(() => { const i = _crEl('cr-pedido'); if(i && window.innerWidth > 760) i.focus({ preventScroll: true }); }, 380);
   crFontesProntas().catch(() => {});
+  _crRotuloModelo(); crUsoCarrega(); crSessIndice();
 }
 function _crMsgIA(conv){
   const m = document.createElement('div');
@@ -2130,15 +2131,13 @@ function _crRotuloFmt(){
   const r = _crEl('cr-fmt-rot'); if(r) r.textContent = f ? f.nome : 'Formato: automático';
   const b = _crEl('cr-fmt-btn'); if(b) b.classList.toggle('cr-pill-on', !!f);
 }
-function _crMenuFmt(abrir){
-  const m = _crEl('cr-fmt-menu'), b = _crEl('cr-fmt-btn'); if(!m || !b) return;
+// Menus do compositor (formato e modelo): abrem para cima, setas/Enter/Esc, um aberto por vez
+function _crMenu(m, b, abrir, atual){
+  if(!m || !b) return;
   if(abrir === undefined) abrir = m.hidden;
-  if(abrir && !m.children.length){
-    m.innerHTML = [['', 'Automático', 'Eu leio o formato do seu pedido']].concat(Object.keys(CR_FORMATOS).map(k => [k, CR_FORMATOS[k].nome, CR_FORMATOS[k].desc]))
-      .map((o, i) => '<li role="option" tabindex="-1" data-fmt="' + o[0] + '" style="--i:' + i + '"><b>' + gEsc(o[1]) + '</b><small>' + gEsc(o[2]) + '</small></li>').join('');
-  }
   if(abrir){
-    [...m.children].forEach(li => li.setAttribute('aria-selected', String(li.dataset.fmt === (crState.fmt || ''))));
+    document.querySelectorAll('#view-creative .cr-menu.aberto').forEach(o => { if(o !== m) _crMenu(o, _crEl(o.id.replace('-menu', '-btn')), false); });
+    [...m.children].forEach(li => li.setAttribute('aria-selected', String(li.dataset.v === atual)));
     m.hidden = false; void m.offsetWidth; m.classList.add('aberto');
     const li = m.querySelector('[aria-selected="true"]') || m.firstElementChild; if(li) li.focus({ preventScroll: true });
   }else{
@@ -2146,6 +2145,19 @@ function _crMenuFmt(abrir){
     setTimeout(() => { if(!m.classList.contains('aberto')) m.hidden = true; }, _crReduz() ? 0 : 160);
   }
   b.setAttribute('aria-expanded', String(abrir));
+}
+function _crMenuFmt(abrir){
+  const m = _crEl('cr-fmt-menu'); if(!m) return;
+  if(!m.children.length){
+    m.innerHTML = [['', 'Automático', 'Eu leio o formato do seu pedido']].concat(Object.keys(CR_FORMATOS).map(k => [k, CR_FORMATOS[k].nome, CR_FORMATOS[k].desc]))
+      .map((o, i) => '<li role="option" tabindex="-1" data-v="' + o[0] + '" style="--i:' + i + '"><b>' + gEsc(o[1]) + '</b><small>' + gEsc(o[2]) + '</small></li>').join('');
+  }
+  _crMenu(m, _crEl('cr-fmt-btn'), abrir, crState.fmt || '');
+}
+function _crMenuModelo(abrir){
+  const m = _crEl('cr-modelo-menu'); if(!m) return;
+  m.innerHTML = crModelosOferta().map((o, i) => '<li role="option" tabindex="-1" data-v="' + gEsc(o.id) + '" style="--i:' + i + '"><b>' + gEsc(o.rot) + ' <em>gasta ' + o.custo + '</em></b><small>' + gEsc(o.desc) + '</small></li>').join('');
+  _crMenu(m, _crEl('cr-modelo-btn'), abrir, crModelo());
 }
 function crEscolheFormato(k){
   crState.fmt = CR_FORMATOS[k] ? k : null;
@@ -2177,17 +2189,35 @@ document.addEventListener('click', e => {
   if(!_crNoCreative()) return;
   const ideia = e.target.closest('.cr-ideia'); if(ideia) return crIdeia(ideia);
   if(e.target.closest('#cr-fmt-btn')) return _crMenuFmt();
-  const op = e.target.closest('#cr-fmt-menu [data-fmt]'); if(op) return crEscolheFormato(op.dataset.fmt);
+  if(e.target.closest('#cr-modelo-btn')) return _crMenuModelo();
+  const f = e.target.closest('#cr-fmt-menu [data-v]'); if(f) return crEscolheFormato(f.dataset.v);
+  const md = e.target.closest('#cr-modelo-menu [data-v]'); if(md) return crEscolheModelo(md.dataset.v);
   if(e.target.closest('#cr-much')) return crLigaMuch();
-  if(!e.target.closest('.cr-menu-host')) _crMenuFmt(false);
+  if(e.target.closest('#cr-uso')) return crUsoPop();
+  const del = e.target.closest('.cr-sess-del'); if(del) return crSessApaga(del.dataset.del);
+  const ab = e.target.closest('.cr-sess'); if(ab) return crSessAbre(ab.dataset.id);
+  if(!e.target.closest('.cr-menu-host')){ _crMenuFmt(false); _crMenuModelo(false); }
+  if(!e.target.closest('.cr-uso-host')) crUsoPop(false);
 });
 document.addEventListener('keydown', e => {
-  const m = _crEl('cr-fmt-menu'); if(!m || m.hidden || !_crNoCreative()) return;
+  if(!_crNoCreative()) return;
+  if(e.key === 'Escape'){
+    const g = _crEl('cr-gaveta');
+    if(g && g.classList.contains('aberta')){ e.stopPropagation(); return crGaveta(false); }
+    const pop = _crEl('cr-uso-pop');
+    if(pop && !pop.hidden){ e.stopPropagation(); return crUsoPop(false); }
+  }
+  const m = document.querySelector('#view-creative .cr-menu.aberto'); if(!m) return;
   const li = [...m.children], k = li.indexOf(document.activeElement);
+  const escolhe = v => m.id === 'cr-fmt-menu' ? crEscolheFormato(v) : crEscolheModelo(v);
   if(e.key === 'ArrowDown'){ e.preventDefault(); li[(k + 1) % li.length].focus(); }
   else if(e.key === 'ArrowUp'){ e.preventDefault(); li[(k - 1 + li.length) % li.length].focus(); }
-  else if(e.key === 'Enter' || e.key === ' '){ if(k >= 0){ e.preventDefault(); crEscolheFormato(li[k].dataset.fmt); } }
-  else if(e.key === 'Escape' || e.key === 'Tab'){ _crMenuFmt(false); if(e.key === 'Escape'){ e.stopPropagation(); const b = _crEl('cr-fmt-btn'); if(b) b.focus({ preventScroll: true }); } }
+  else if(e.key === 'Enter' || e.key === ' '){ if(k >= 0){ e.preventDefault(); escolhe(li[k].dataset.v); } }
+  else if(e.key === 'Escape' || e.key === 'Tab'){
+    const b = _crEl(m.id.replace('-menu', '-btn'));
+    _crMenu(m, b, false);
+    if(e.key === 'Escape'){ e.stopPropagation(); if(b) b.focus({ preventScroll: true }); }
+  }
 }, true);
 // Barra do topo ganha a linha (e o vidro) só quando há conteúdo passando por baixo dela
 (function(){
@@ -2195,6 +2225,277 @@ document.addEventListener('keydown', e => {
   p.addEventListener('scroll', () => { const v = _crEl('view-creative'); if(v) v.classList.toggle('cr-rolou', p.scrollTop > 8); }, { passive: true });
 })();
 
+/* ══════════════════════════════════════════════════════════════
+   USO DO DIA, MODELO E SESSÕES
+   · Limite diário por franqueado + contador: a regra e o teto assumido moram na migration
+     20261014200000 e no changelog do backend. Aqui é a ponta do front: consome ANTES de gerar,
+     estorna o que não chegou à entrega e, enquanto a migration não estiver aplicada, conta
+     LOCALMENTE (por aparelho) — o popover do contador avisa qual dos dois está valendo.
+   · Modelo: "Rápido" gasta 1 arte; os demais gastam 2. O franqueado vê Rápido/Capaz; a equipe vê a lista toda.
+   · Sessões: cada conversa é guardada no IndexedDB (uma chave por usuário) e reabre com opções,
+     legenda e edições.
+══════════════════════════════════════════════════════════════ */
+const CR_MODELO_RAPIDO = 'gemini-3.1-flash-lite', CR_MODELO_CAPAZ = 'gemini-3.6-flash';
+const CR_LIMITE_PADRAO = 20, CR_SESS_MAX = 20;
+const _crUid = () => { try{ const u = gCurrentUser(); return (u && u.id) || 'anon'; }catch(e){ return 'anon'; } };
+const _crAdmin = () => typeof gIsAdmin === 'function' && gIsAdmin();
+const crCusto = id => id === CR_MODELO_RAPIDO ? 1 : 2;
+const _crNomeModelo = id => id === CR_MODELO_RAPIDO ? 'Rápido' : id === CR_MODELO_CAPAZ ? 'Capaz' : String(id).replace(/^gemini-/, '').replace('-flash', ' Flash').replace('-lite', '-Lite');
+function crModelosOferta(){
+  const todos = typeof G_AI_MODELOS !== 'undefined' ? G_AI_MODELOS : [];
+  const ids = _crAdmin() && todos.length ? todos.map(m => m.id) : [CR_MODELO_RAPIDO, CR_MODELO_CAPAZ];
+  const desc = { [CR_MODELO_RAPIDO]: 'O mais veloz e barato — bom para a maioria das artes', [CR_MODELO_CAPAZ]: 'Pensa mais antes de diagramar; um pouco mais lento' };
+  return ids.map(id => ({ id, rot: _crNomeModelo(id), custo: crCusto(id), desc: desc[id] || (todos.find(m => m.id === id) || {}).desc || '' }));
+}
+function crModelo(){
+  let id = ''; try{ id = localStorage.getItem('luma_creative_modelo:' + _crUid()) || ''; }catch(e){}
+  return crModelosOferta().some(m => m.id === id) ? id : CR_MODELO_RAPIDO;
+}
+// Toda chamada de IA do Creative usa o modelo FIXADO no início da geração (mexer no menu no meio não muda o custo)
+const _crAsk = (task, prompt, opts) => gAskAI(task, prompt, Object.assign({}, opts, { model: crState.modeloRun || crModelo() }));
+function _crRotuloModelo(){
+  const id = crModelo(), r = _crEl('cr-modelo-rot'), c = _crEl('cr-modelo-custo'), b = _crEl('cr-modelo-btn');
+  if(r) r.textContent = _crNomeModelo(id);
+  if(c) c.textContent = '−' + crCusto(id);
+  if(b) b.classList.toggle('cr-pill-on', crCusto(id) > 1);
+}
+function crEscolheModelo(id){
+  if(!crModelosOferta().some(m => m.id === id)) return;
+  try{ localStorage.setItem('luma_creative_modelo:' + _crUid(), id); }catch(e){}
+  _crRotuloModelo(); _crMenuModelo(false); crUsoPinta();
+  const b = _crEl('cr-modelo-btn'); if(b) b.focus({ preventScroll: true });
+}
+
+/* ── Contador ── */
+const crUso = { usado: 0, limite: null, ilimitado: true, origem: 'local', pendente: 0 };
+const _crDia = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+const _crUsoChave = () => 'luma_creative_uso:' + _crUid() + ':' + _crDia();
+function _crUsoLocalLe(){ try{ return +(JSON.parse(localStorage.getItem(_crUsoChave()) || '{}').usado) || 0; }catch(e){ return 0; } }
+function _crUsoLocalGrava(n){ try{ localStorage.setItem(_crUsoChave(), JSON.stringify({ usado: Math.max(0, n) })); }catch(e){} }
+async function _crRpc(nome, args){
+  const sb = typeof gSupabase === 'function' ? gSupabase() : window.sb;
+  if(!sb || typeof sb.rpc !== 'function') return null;
+  try{ const r = await sb.rpc(nome, args); return r && !r.error ? r.data : null; }catch(e){ return null; }
+}
+async function crUsoCarrega(){
+  const d = await _crRpc('luma_creative_uso');
+  if(d && d.ok) Object.assign(crUso, { usado: d.usado, limite: d.limite, ilimitado: !!d.ilimitado, origem: 'servidor' });
+  else{ const adm = _crAdmin(); Object.assign(crUso, { usado: _crUsoLocalLe(), ilimitado: adm, limite: adm ? null : CR_LIMITE_PADRAO, origem: 'local' }); }
+  crUsoPinta();
+}
+// Consome ANTES de gastar IA. Devolve {ok} (ou {ok:false} quando o limite do dia não deixa)
+async function crUsoConsome(modelo){
+  const custo = crCusto(modelo), d = await _crRpc('luma_creative_consumir', { p_modelo: modelo });
+  if(d && typeof d.ok === 'boolean'){
+    Object.assign(crUso, { usado: d.usado, limite: d.limite, ilimitado: d.limite == null, origem: 'servidor' });
+    if(d.ok) crUso.pendente = custo;
+    crUsoPinta(); return { ok: d.ok };
+  }
+  const usado = _crUsoLocalLe();
+  if(!crUso.ilimitado && crUso.limite != null && usado + custo > crUso.limite){ crUso.usado = usado; crUsoPinta(); return { ok: false }; }
+  _crUsoLocalGrava(usado + custo); Object.assign(crUso, { usado: usado + custo, pendente: custo, origem: 'local' }); crUsoPinta();
+  return { ok: true };
+}
+async function crUsoEstorna(){
+  const c = crUso.pendente; if(!c) return;
+  crUso.pendente = 0;
+  const d = crUso.origem === 'servidor' ? await _crRpc('luma_creative_estornar') : null;
+  if(d && d.ok) crUso.usado = d.usado;
+  else{ crUso.usado = Math.max(0, crUso.usado - c); if(crUso.origem === 'local') _crUsoLocalGrava(crUso.usado); }
+  crUsoPinta();
+}
+function crUsoConfirma(){ if(crUso.pendente && crUso.origem === 'servidor') _crRpc('luma_creative_confirmar'); crUso.pendente = 0; }
+const _crUsoResta = () => (crUso.ilimitado || crUso.limite == null) ? Infinity : crUso.limite - crUso.usado;
+const crUsoSemSaldo = () => _crUsoResta() < crCusto(crModelo());
+// O aviso do dia, uma verdade só (banner acima do campo, toast ao tentar enviar e recusa dentro da geração)
+function crUsoMsg(modelo){
+  if(crUso.ilimitado || crUso.limite == null) return '';
+  const resta = _crUsoResta(), id = modelo || crModelo();
+  if(resta < crCusto(CR_MODELO_RAPIDO)) return 'Você usou as ' + crUso.limite + ' artes de hoje. O limite renova à meia-noite.';
+  if(resta < crCusto(id)) return 'Restam ' + resta + ' arte' + (resta > 1 ? 's' : '') + ' hoje — o modelo ' + _crNomeModelo(id) + ' gasta ' + crCusto(id) + '. Troque para o Rápido.';
+  if(resta <= 3) return resta === 1 ? 'Resta 1 arte hoje.' : 'Restam ' + resta + ' artes hoje.';
+  return '';
+}
+function crUsoPinta(){
+  const n = _crEl('cr-uso-n'), b = _crEl('cr-uso'); if(!n || !b) return;
+  const lim = (crUso.ilimitado || crUso.limite == null) ? null : crUso.limite, u = crUso.usado, resta = _crUsoResta();
+  n.textContent = lim == null ? u + ' hoje' : u + '/' + lim;
+  const f = lim == null ? Math.min(1, u / 40) : Math.min(1, u / lim);   // sem limite o anel só mostra movimento
+  b.style.setProperty('--u', f.toFixed(3));
+  b.classList.toggle('perto', lim != null && f >= 0.8 && !crUsoSemSaldo());
+  b.classList.toggle('cheio', lim != null && crUsoSemSaldo());
+  b.setAttribute('aria-label', lim == null ? 'Uso de hoje: ' + u + ' artes' : 'Uso de hoje: ' + u + ' de ' + lim + ' artes');
+  const av = _crEl('cr-limite'), msg = crUsoMsg();
+  if(av){ av.hidden = !msg; av.textContent = msg; av.classList.toggle('cheio', lim != null && resta < crCusto(CR_MODELO_RAPIDO)); }
+  const pop = _crEl('cr-uso-pop'); if(pop && !pop.hidden) pop.innerHTML = crUsoPopHtml();
+}
+function crUsoPopHtml(){
+  const lim = (crUso.ilimitado || crUso.limite == null) ? null : crUso.limite, u = crUso.usado, resta = _crUsoResta();
+  return '<b class="cr-uso-tit">Uso de hoje</b>'
+    + '<div class="cr-uso-num"><span>' + u + '</span>' + (lim != null ? ' de ' + lim + ' artes' : ' ' + (u === 1 ? 'arte gerada' : 'artes geradas')) + '</div>'
+    + (lim != null ? '<div class="cr-uso-barra' + (resta <= 0 ? ' cheia' : '') + '" style="--u:' + Math.min(1, u / lim).toFixed(3) + '"><i></i></div><p>' + (resta > 0 ? 'Restam ' + resta + '.' : 'Limite de hoje atingido.') + '</p>' : '<p>Sem limite para a sua conta.</p>')
+    + '<p class="cr-uso-reg">O modelo Rápido gasta 1 arte; os outros gastam 2. “Outras opções” conta como uma arte nova. O dia renova à meia-noite (Brasília).</p>'
+    + (crUso.origem === 'local' ? '<p class="cr-uso-aviso">Contagem deste aparelho: o limite do servidor ainda não está ligado.</p>' : '');
+}
+function crUsoPop(abrir){
+  const pop = _crEl('cr-uso-pop'), b = _crEl('cr-uso'); if(!pop || !b) return;
+  if(abrir === undefined) abrir = pop.hidden;
+  if(abrir){ pop.innerHTML = crUsoPopHtml(); pop.hidden = false; void pop.offsetWidth; pop.classList.add('aberto'); }
+  else{ pop.classList.remove('aberto'); setTimeout(() => { if(!pop.classList.contains('aberto')) pop.hidden = true; }, _crReduz() ? 0 : 160); }
+  b.setAttribute('aria-expanded', String(abrir));
+}
+
+/* ── Sessões ── */
+const crSess = { id: null, criada: 0, indice: [] };
+const _crSessChave = id => 'cr:' + _crUid() + ':s:' + id, _crIdxChave = () => 'cr:' + _crUid() + ':idx';
+async function _crIdxLe(){ try{ const raw = await gIdbGet(_crIdxChave()); const v = raw ? JSON.parse(raw) : []; return Array.isArray(v) ? v : []; }catch(e){ return []; } }
+async function crSessIndice(){ crSess.indice = (await _crIdxLe()).sort((a, b) => b.atualizada - a.atualizada); crSessPinta(); return crSess.indice; }
+const _crSerOp = o => {
+  let spec = {}; try{ spec = JSON.parse(JSON.stringify(o.spec, (k, v) => (typeof v === 'string' && v.length > 2000) ? '' : v)); }catch(e){}
+  return { receita: o.receita, nomeReceita: o.nomeReceita, w: o.w, h: o.h, svgFinal: o.svgFinal, juiz: o.juiz || null, editada: !!o.editada, desenho: !!o.desenho, spec };
+};
+const _crSerFio = f => ({ pedido: f.pedido, fmt: f.fmt, marca: f.marca, foto: f.foto, ref: f.ref, briefing: f.briefing, conteudo: f.conteudo, legenda: f.legenda,
+  mostradas: f.mostradas, ideias: f.ideias, rodada: f.rodada, viaIA: f.viaIA, entregas: (f.entregas || []).map(e => e.map(_crSerOp)) });
+function _crThumb(op){
+  return new Promise(res => {
+    const im = new Image();
+    im.onload = () => {
+      const k = Math.min(120 / op.w, 150 / op.h), c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(op.w * k)); c.height = Math.max(1, Math.round(op.h * k));
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', 0.72));
+    };
+    im.onerror = () => res(''); im.src = op.url;
+  });
+}
+let _crSessTimer = 0;
+// Salva depois de uma pausa (várias edições seguidas viram uma gravação só); `ja` grava na hora
+function crSessSalva(ja){
+  clearTimeout(_crSessTimer);
+  if(!crSess.id || !crState.fios.some(f => f.entregas && f.entregas.length)) return Promise.resolve(false);
+  return new Promise(res => { _crSessTimer = setTimeout(async () => res(await _crSessGrava()), ja ? 0 : 600); });
+}
+async function _crSessGrava(){
+  try{
+    const fios = crState.fios.filter(f => f.entregas && f.entregas.length);
+    if(!fios.length || !crSess.id) return false;
+    const rec = { id: crSess.id, criada: crSess.criada, fios: fios.map(_crSerFio), fmtMenu: crState.fmt, much: crState.much };
+    const ult = fios[fios.length - 1], op = ult.entregas[ult.entregas.length - 1][0];
+    const meta = { id: crSess.id, titulo: String(fios[0].pedido).slice(0, 60), criada: crSess.criada, atualizada: Date.now(),
+      n: fios.reduce((a, f) => a + f.entregas.length, 0), fmt: ult.fmt, much: ult.marca === 'much', thumb: await _crThumb(op) };
+    if(!(await gIdbPut(_crSessChave(rec.id), JSON.stringify(rec)))) return false;
+    const idx = (await _crIdxLe()).filter(x => x.id !== meta.id); idx.push(meta); idx.sort((a, b) => b.atualizada - a.atualizada);
+    idx.splice(CR_SESS_MAX).forEach(velho => gIdbDel(_crSessChave(velho.id)));
+    await gIdbPut(_crIdxChave(), JSON.stringify(idx));
+    crSess.indice = idx; crSessPinta(); return true;
+  }catch(e){ console.warn('[creative] a sessão não foi salva', e); return false; }
+}
+function _crQuando(t){
+  const m = Math.round((Date.now() - t) / 60000);
+  if(m < 1) return 'agora';
+  if(m < 60) return 'há ' + m + ' min';
+  if(m < 60 * 24 && _crDia() === new Date(t).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })) return 'há ' + Math.round(m / 60) + ' h';
+  if(m < 60 * 48) return 'ontem';
+  return new Date(t).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+function crSessPinta(){
+  const lista = _crEl('cr-gaveta-lista'), n = _crEl('cr-sess-n'), sub = _crEl('cr-gaveta-sub'), ret = _crEl('cr-retomar');
+  const idx = crSess.indice;
+  if(n){ n.textContent = idx.length; n.hidden = !idx.length; }
+  if(sub) sub.textContent = idx.length ? idx.length + (idx.length > 1 ? ' sessões guardadas neste aparelho' : ' sessão guardada neste aparelho') : 'suas artes ficam guardadas aqui';
+  if(lista) lista.innerHTML = idx.length ? '<ul>' + idx.map(x => '<li class="cr-sess-li' + (x.id === crSess.id ? ' on' : '') + '"><button type="button" class="cr-sess" data-id="' + gEsc(x.id) + '">'
+      + (x.thumb ? '<img src="' + gEsc(x.thumb) + '" alt="">' : '<span class="cr-sess-sem"></span>')
+      + '<span class="cr-sess-txt"><b>' + gEsc(x.titulo) + '</b><small>' + gEsc((CR_FORMATOS[x.fmt] || { nome: 'Arte' }).nome) + (x.much ? ' · Much+' : '') + ' · ' + x.n + (x.n > 1 ? ' artes' : ' arte') + ' · ' + _crQuando(x.atualizada) + '</small></span></button>'
+      + '<button type="button" class="cr-sess-del" data-del="' + gEsc(x.id) + '" aria-label="Apagar a sessão ' + gEsc(x.titulo) + '" title="Apagar">' + CR_ICO.lixo + '</button></li>').join('') + '</ul>'
+    : '<p class="cr-gaveta-vazio">Nada por aqui ainda. Cada conversa que entregar uma arte fica guardada para você retomar, comparar e baixar de novo.</p>';
+  if(ret){
+    const x = idx.find(y => y.id !== crSess.id);
+    ret.hidden = !x;
+    if(x) ret.querySelector('span').textContent = 'Retomar “' + (x.titulo.length > 38 ? x.titulo.slice(0, 37) + '…' : x.titulo) + '” · ' + _crQuando(x.atualizada);
+  }
+}
+function crGaveta(abrir){
+  const g = _crEl('cr-gaveta'), v = _crEl('cr-veu'), b = _crEl('cr-sess-btn'); if(!g) return;
+  if(abrir === undefined) abrir = !g.classList.contains('aberta');
+  if(abrir) crSessIndice();
+  g.classList.toggle('aberta', abrir); g.setAttribute('aria-hidden', String(!abrir)); g.toggleAttribute('inert', !abrir);
+  if(v){ v.hidden = false; void v.offsetWidth; v.classList.toggle('aberto', abrir); if(!abrir) setTimeout(() => { if(!v.classList.contains('aberto')) v.hidden = true; }, _crReduz() ? 0 : 260); }
+  if(b) b.setAttribute('aria-expanded', String(abrir));
+  if(abrir){ const p = g.querySelector('.cr-sess, .cr-ed-ico'); if(p) setTimeout(() => p.focus({ preventScroll: true }), 60); }
+  else if(b && document.activeElement && g.contains(document.activeElement)) b.focus({ preventScroll: true });
+}
+async function _crLimpaConversa(){
+  const conv = _crEl('cr-conversa'); if(!conv) return;
+  conv.classList.add('cr-saindo'); await _crEsp(220);
+  conv.innerHTML = ''; conv.classList.remove('cr-saindo');
+}
+function _crBolhaEu(fio){
+  const m = document.createElement('div');
+  m.className = 'cr-msg cr-eu cr-entra';
+  m.innerHTML = '<div class="cr-corpo">' + (/^data:/.test(fio.foto || '') || fio.ref ? '<img class="cr-bolha-foto" alt="' + (fio.ref ? 'Referência enviada' : 'Foto enviada') + '" src="' + (fio.foto || fio.ref) + '">' : '')
+    + '<div class="cr-bolha">' + gEsc(fio.pedido) + '</div></div>';
+  return m;
+}
+const _crFalaPronta = ops => 'Separei ' + ops.length + (ops.length > 1 ? ' opções' : ' opção') + ' em ' + CR_FORMATOS[ops[0].spec.formato].nome.toLowerCase() + ': escolha uma, ajuste no editor se quiser e baixe.';
+async function crSessAbre(id){
+  if(crState.rodando) return gToast('Interrompa a geração atual antes de trocar de sessão');
+  if(id === crSess.id) return crGaveta(false);
+  await crSessSalva(true);
+  let rec = null; try{ rec = JSON.parse(await gIdbGet(_crSessChave(id))); }catch(e){}
+  if(!rec || !Array.isArray(rec.fios)) return gToast('Não consegui abrir essa sessão', 'error');
+  crGaveta(false);
+  await _crLimpaConversa();
+  crSess.id = rec.id; crSess.criada = rec.criada || Date.now();
+  crState.fios = rec.fios.map(f => {
+    f.mostradas = f.mostradas || [];
+    f.entregas = (f.entregas || []).map(e => e.map(o => { o.url = URL.createObjectURL(new Blob([o.svgFinal], { type: 'image/svg+xml' })); return o; }));
+    return f;
+  });
+  const conv = _crEl('cr-conversa');
+  crState.fios.forEach(f => {
+    const eu = _crBolhaEu(f); eu.classList.remove('cr-entra'); conv.appendChild(eu);
+    f.entregas.forEach((ops, k) => {
+      const m = _crMsgIA(conv); m.classList.remove('cr-entra');
+      m.querySelector('.cr-bolha').textContent = k ? 'Mais caminhos para este pedido.' : _crFalaPronta(ops);
+      const ent = _crEntrega(f, ops); conv.appendChild(ent); _crMontar(ent, ops, true);
+    });
+  });
+  crState.fmt = CR_FORMATOS[rec.fmtMenu] ? rec.fmtMenu : null; _crRotuloFmt(); crLigaMuch(!!rec.much);
+  const v = _crEl('view-creative'); if(v) v.classList.add('cr-conversando');
+  const nova = _crEl('cr-nova'); if(nova) nova.disabled = false;
+  crSessPinta(); crFaixaPinta();
+  const pl = _crEl('cr-palco'); if(pl) pl.scrollTo({ top: pl.scrollHeight });
+}
+async function crSessApaga(id){
+  const x = crSess.indice.find(y => y.id === id); if(!x) return;
+  if(!(await gConfirm('Apagar a sessão “' + x.titulo + '”? As opções e a legenda dela saem deste aparelho.', { title: 'Apagar sessão', okLabel: 'Apagar', cancelLabel: 'Manter', danger: true }))) return;
+  await gIdbDel(_crSessChave(id));
+  await gIdbPut(_crIdxChave(), JSON.stringify((await _crIdxLe()).filter(y => y.id !== id)));
+  if(id === crSess.id){ crSess.id = null; crSess.criada = 0; }   // a conversa na tela segue; só deixa de ser guardada
+  await crSessIndice();
+}
+function crRetomaUltima(){ const x = crSess.indice.find(y => y.id !== crSess.id); if(x) crSessAbre(x.id); }
+
+/* ── "Desta sessão": uma miniatura por arte entregue (a opção escolhida), clique leva até ela ── */
+function crFaixaPinta(){
+  const f = _crEl('cr-faixa'), l = _crEl('cr-faixa-lista'), conv = _crEl('cr-conversa'); if(!f || !l || !conv) return;
+  const ents = [...conv.querySelectorAll('.cr-entrega:not(.cr-esq)')], antes = l.children.length;
+  f.hidden = !ents.length; l.innerHTML = '';
+  ents.forEach((e, i) => {
+    const im0 = e.querySelector('.cr-op.on img') || e.querySelector('.cr-op img'); if(!im0) return;
+    const b = document.createElement('button'), im = document.createElement('img');
+    b.type = 'button'; b.className = 'cr-faixa-it' + (i >= antes ? ' novo' : '');
+    b.title = e.dataset.pedido || 'Arte ' + (i + 1); b.setAttribute('aria-label', 'Ir para a arte ' + (i + 1) + ': ' + b.title);
+    im.alt = ''; im.src = im0.src; b.appendChild(im);
+    b.onclick = () => {
+      e.scrollIntoView({ block: 'start', behavior: _crReduz() ? 'auto' : 'smooth' });
+      e.classList.remove('cr-acha'); void e.offsetWidth; e.classList.add('cr-acha');
+    };
+    l.appendChild(b);
+  });
+  l.scrollLeft = l.scrollWidth;
+}
+
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') crSessSalva(true); });
 function crEnviar(e){
   if(e && e.preventDefault) e.preventDefault();
   // o botão vira "parar" durante a geração; Enter nunca chega aqui nesse estado (crTecla)
@@ -2202,39 +2503,36 @@ function crEnviar(e){
   const inp = _crEl('cr-pedido'), conv = _crEl('cr-conversa');
   const pedido = String((inp && inp.value) || '').trim();
   if(!pedido || !conv) return;
-  _crMenuFmt(false);
+  _crMenuFmt(false); _crMenuModelo(false);
+  if(crUsoSemSaldo()){ crUsoPop(true); return gToast(crUsoMsg(), 'error'); }
   // Imagem anexada com "referência / nessa pegada / parecido" é REFERÊNCIA para o designer, não a foto da arte
   const ehRef = !!crState.anexo && /refer[eê]ncia|pegada|parecid|inspira|nesse estilo|nesse jeito/i.test(pedido);
   // O que a pessoa ESCREVEU vence o compositor: "story" no texto ganha do formato marcado no menu
   const fio = { pedido, fmt: _crFormatoDito(pedido) || crState.fmt || 'feed', marca: _crMarcaDita(pedido) || crState.much ? 'much' : 'dm', foto: ehRef ? null : crState.anexo, ref: ehRef ? crState.anexo : null, briefing: null, conteudo: null, legenda: null, mostradas: [], viaIA: false };
   crState.fios.push(fio);
+  if(!crSess.id){ crSess.id = gUuid(); crSess.criada = Date.now(); }
   inp.value = ''; crAutoAltura(inp); crTirarAnexo();
   // A tela de boas-vindas recolhe (altura real, não some de repente) e "Nova arte" acende
   const v = _crEl('view-creative'); if(v) v.classList.add('cr-conversando');
   const nova = _crEl('cr-nova'); if(nova) nova.disabled = false;
-  const m = document.createElement('div');
-  m.className = 'cr-msg cr-eu cr-entra';
-  m.innerHTML = '<div class="cr-corpo">' + (/^data:/.test(fio.foto || '') || fio.ref ? '<img class="cr-bolha-foto" alt="' + (fio.ref ? 'Referência enviada' : 'Foto enviada') + '" src="' + (fio.foto || fio.ref) + '">' : '')
-    + '<div class="cr-bolha">' + gEsc(pedido) + '</div></div>';
-  conv.appendChild(m);
+  conv.appendChild(_crBolhaEu(fio));
   _crRola(true);
   crGerar(fio, conv);
 }
-// Recomeça do zero: o que está na tela só existe na memória desta sessão, então confirma antes
+// Recomeça do zero: a conversa atual já fica guardada como sessão (dá para reabrir em "Sessões"), então não precisa confirmar
 async function crNova(){
   const conv = _crEl('cr-conversa'); if(!conv || !crState.fios.length) return;
-  const ok = await gConfirm('Começar uma arte nova? As opções desta conversa saem da tela.', { title: 'Nova arte', okLabel: 'Começar de novo', cancelLabel: 'Continuar aqui' });
-  if(!ok) return;
   crParar();
   crState.rodando = null; _crOcupado(false);
-  conv.classList.add('cr-saindo');
-  await _crEsp(220);
-  conv.innerHTML = ''; conv.classList.remove('cr-saindo');
-  crState.fios = []; crState.fmt = null; crTirarAnexo(); crLigaMuch(false); _crRotuloFmt();
+  const guardou = await crSessSalva(true);
+  await _crLimpaConversa();
+  crState.fios = []; crState.fmt = null; crSess.id = null; crSess.criada = 0; crTirarAnexo(); crLigaMuch(false); _crRotuloFmt();
   const v = _crEl('view-creative'); if(v) v.classList.remove('cr-conversando', 'cr-rolou');
   const nova = _crEl('cr-nova'); if(nova) nova.disabled = true;
   const p = _crEl('cr-palco'); if(p) p.scrollTo({ top: 0 });
   const i = _crEl('cr-pedido'); if(i) i.focus({ preventScroll: true });
+  crFaixaPinta(); crSessPinta();
+  if(guardou) gToast('Sessão guardada');
 }
 function crOutrasOpcoes(fio){
   if(crState.rodando) return;
@@ -2249,6 +2547,7 @@ async function crGerar(fio, conv, outras){
   msg.querySelector('.cr-bolha').remove();
   msg.classList.add('cr-pensando');
   let esq = null;   // esqueleto das opções: ocupa o lugar exato da entrega enquanto o motor diagrama
+  let consumiu = false, entregou = false;
   const lista = document.createElement('ul'); lista.className = 'cr-passos';
   corpo.appendChild(lista);
   let status = _crStatus(corpo);
@@ -2259,6 +2558,15 @@ async function crGerar(fio, conv, outras){
     return true;
   };
   try{
+    // Uso do dia: conta ANTES de gastar IA; o que não chegar à entrega é estornado no finally
+    const modelo = crModelo(), uso = await crUsoConsome(modelo);
+    if(!uso.ok){
+      status.parar();
+      aviso(crUsoMsg(modelo) || 'Não foi possível contar esta arte agora. Tente de novo.');
+      return;
+    }
+    consumiu = true; crState.modeloRun = modelo;
+    if(parou()) return;
     let p;
     if(!outras){
       // 1) Briefing: entende o pedido e pergunta só o que muda a arte
@@ -2372,16 +2680,21 @@ async function crGerar(fio, conv, outras){
     const seguia = (() => { const pl = _crEl('cr-palco'); return !pl || pl.scrollHeight - pl.scrollTop - pl.clientHeight < 200; })();
     if(esq && esq.isConnected) esq.replaceWith(ent); else conv.appendChild(ent);
     esq = null;
+    (fio.entregas = fio.entregas || []).push(opcoes);
+    entregou = true; crUsoConfirma();
     _crMontar(ent, opcoes);
     _crResumo(corpo, lista, t0);
+    crFaixaPinta(); crSessSalva();
     if(seguia) requestAnimationFrame(() => ent.scrollIntoView({ block: 'start', behavior: _crReduz() ? 'auto' : 'smooth' }));
-    if(typeof gTrackEvent === 'function') try{ gTrackEvent('creative_arte', { objetivo: opcoes[0].spec.objetivo, formato: opcoes[0].spec.formato, marca: opcoes[0].spec.marca, ia: fio.viaIA, juiz: !!juiz, foto: !!fio.foto, ref: !!fio.ref,
+    if(typeof gTrackEvent === 'function') try{ gTrackEvent('creative_arte', { objetivo: opcoes[0].spec.objetivo, formato: opcoes[0].spec.formato, marca: opcoes[0].spec.marca, ia: fio.viaIA, juiz: !!juiz, foto: !!fio.foto, ref: !!fio.ref, modelo, custo: crCusto(modelo),
       receitas: opcoes.map(o => o.receita).join(','), designer: Object.assign({}, crMetricas), notas: juiz ? opcoes.map(o => o.juiz ? +o.juiz.nota.toFixed(1) : null).join(',') : '' }); }catch(err){}
   }catch(err){
     console.error('[creative]', err);
     status.parar();
     aviso('Não consegui compor a arte agora (' + ((err && err.message) || 'erro') + '). Tente de novo.');
   }finally{
+    if(consumiu && !entregou) crUsoEstorna();
+    crState.modeloRun = null;
     if(esq) esq.remove();
     msg.classList.remove('cr-pensando');
     if(crState.rodando === run){ crState.rodando = null; _crOcupado(false); }
@@ -2429,6 +2742,7 @@ function _crEntrega(fio, ops){
   const el = document.createElement('section');
   el.className = 'cr-entrega';
   el.setAttribute('aria-label', 'Arte pronta');
+  el.dataset.pedido = String(fio.pedido || '').slice(0, 80);
   const f = CR_FORMATOS[ops[0].spec.formato];
   let sel = 0;
   const rotulo = (o, i) => '<span class="cr-op-rot"><b>' + (i + 1) + '</b><span>' + gEsc(o.nomeReceita) + '</span>' + (o.editada ? '<em>editada</em>' : '') + _crMedidor(o) + '</span>';
@@ -2452,6 +2766,7 @@ function _crEntrega(fio, ops){
   const escolhe = i => {
     sel = i;
     botoes().forEach((b, j) => { b.classList.toggle('on', j === i); b.setAttribute('aria-checked', j === i ? 'true' : 'false'); });
+    if(el.isConnected) crFaixaPinta();
   };
   botoes().forEach((b, i) => {
     const img = b.querySelector('img');
@@ -2467,6 +2782,7 @@ function _crEntrega(fio, ops){
       const b = botoes()[i];
       b.querySelector('img').src = ops[i].url;
       b.querySelector('.cr-op-rot').outerHTML = rotulo(ops[i], i);
+      crFaixaPinta(); crSessSalva();
     });
   };
   el.addEventListener('keydown', e => { if(/^[1-3]$/.test(e.key) && e.target.closest('.cr-ops')) escolhe(Math.min(ops.length, +e.key) - 1); });
@@ -2524,12 +2840,12 @@ const CR_MONT_CSS = 'svg{display:block;width:100%;height:auto}'
   + 'svg .hero{font-family:"LC Realce","Realce",sans-serif}svg .sup,svg .body,svg .legal,svg .leve,svg .forte{font-family:"LC Roboto","Roboto",sans-serif}'
   + '[data-bloco]{transform-box:fill-box;transform-origin:center;animation:ent var(--dur-slow) var(--ease-out) backwards;animation-delay:calc(var(--k) * var(--dur-micro) + var(--d))}'
   + '@keyframes ent{from{opacity:0;translate:0 28px;scale:.94}to{opacity:1;translate:0 0;scale:1}}';
-function _crMontar(el, ops){
+function _crMontar(el, ops, restaurado){
   el.querySelectorAll('.cr-op').forEach((b, i) => {
     const o = ops[i], host = b.querySelector('.cr-mont'), rot = b.querySelector('.cr-mont-rot');
     b.dataset.mont = '1';
     const direto = () => { b.classList.add('cr-nitida'); if(host) host.remove(); if(rot) rot.remove(); };
-    if(!o || !host || !o.svgFinal || o.editada || _crReduz()) return direto();
+    if(!o || !host || !o.svgFinal || o.editada || restaurado || _crReduz()) return direto();
     let svg;
     try{
       const doc = new DOMParser().parseFromString(o.svgFinal, 'image/svg+xml');
@@ -2630,6 +2946,15 @@ function crEditar(op, aoSalvar){
   raiz.appendChild(svg);
   const mk = cls => { const d = document.createElement('div'); d.className = cls; d.hidden = true; raiz.appendChild(d); return d; };
   const caixa = mk('sel'), paira = mk('paira'), guiaV = mk('guia v'), guiaH = mk('guia h');
+  /* Barra flutuante sobre o bloco selecionado (como no Figma): as ações que mais se repetem sem
+     ir ao painel. Os botões são os mesmos do painel (data-ed → acao()), então nada se duplica. */
+  const mesa = ed.querySelector('.cr-ed-mesa'), flut = document.createElement('div');
+  flut.className = 'cr-ed-flut'; flut.hidden = true; flut.setAttribute('role', 'toolbar'); flut.setAttribute('aria-label', 'Ações do bloco');
+  flut.innerHTML = bt('alEsq', CR_ICO.alEsq, 'Na margem esquerda') + bt('alCentro', CR_ICO.alCentro, 'No centro') + bt('alDir', CR_ICO.alDir, 'Na margem direita')
+    + '<i aria-hidden="true"></i>' + bt('menos', CR_ICO.menos, 'Diminuir o bloco') + bt('mais', CR_ICO.mais, 'Aumentar o bloco')
+    + '<i aria-hidden="true"></i>' + bt('frente', CR_ICO.frente, 'Trazer para a frente') + bt('tras', CR_ICO.tras, 'Enviar para trás')
+    + '<i aria-hidden="true"></i>' + bt('ocultar', CR_ICO.olho, 'Ocultar') + bt('remover', CR_ICO.lixo, 'Remover (Delete)');
+  mesa.appendChild(flut);
   const W = op.w, H = op.h, M = crArea(op.spec.formato).M, hist = [], fut = [];
   let atual = null, enquadrar = false, mexeu = false;
   const r1 = n => Math.round(n * 10) / 10;
@@ -2662,6 +2987,18 @@ function crEditar(op, aoSalvar){
   function marca(){
     const topo = poe(caixa, atual);
     if(atual){ caixa.dataset.nome = nomeBloco(atual); caixa.classList.toggle('dentro', topo < 24); }
+    flutua();
+  }
+  // Acima do bloco (centrada, presa à mesa); sem espaço em cima, desce para baixo dele
+  function flutua(){
+    if(!atual || caixa.hidden){ flut.hidden = true; return; }
+    const sr = caixa.getBoundingClientRect(), mr = mesa.getBoundingClientRect();
+    flut.hidden = false;
+    const w = flut.offsetWidth, h = flut.offsetHeight;
+    let x = sr.left + sr.width / 2 - w / 2 - mr.left, y = sr.top - mr.top - h - 32;   // 32: passa por cima da etiqueta com o nome do bloco
+    if(y < 8) y = sr.bottom - mr.top + 12;
+    x = Math.max(8, Math.min(mr.width - w - 8, x)); y = Math.max(8, Math.min(mr.height - h - 8, y));
+    flut.style.translate = Math.round(x) + 'px ' + Math.round(y) + 'px';
   }
   function seleciona(g){ atual = g || null; if(atual !== null) paira.hidden = true; marca(); painel(); camadas(); }
   function tudo(){ marca(); painel(); camadas(); }
@@ -2844,7 +3181,7 @@ function crEditar(op, aoSalvar){
     let andou = false;
     const move = ev => {
       if(!andou && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 3) return;
-      if(!andou) try{ host.setPointerCapture(e.pointerId); }catch(err){}
+      if(!andou){ try{ host.setPointerCapture(e.pointerId); }catch(err){} ed.classList.add('cr-mexendo'); }
       andou = true;
       let dx = (ev.clientX - x0) * k, dy = (ev.clientY - y0) * k;
       if(foto){ poeFoto(foto, f0.z, f0.px + dx, f0.py + dy); return; }
@@ -2860,7 +3197,7 @@ function crEditar(op, aoSalvar){
     };
     const solta = () => {
       host.removeEventListener('pointermove', move); host.removeEventListener('pointerup', solta); host.removeEventListener('pointercancel', solta);
-      guiaV.hidden = guiaH.hidden = true;
+      guiaV.hidden = guiaH.hidden = true; ed.classList.remove('cr-mexendo');
       if(andou){ hist.push(antes); if(hist.length > 60) hist.shift(); fut.length = 0; mexeu = true; botoesHist(); marca(); }
     };
     host.addEventListener('pointermove', move); host.addEventListener('pointerup', solta); host.addEventListener('pointercancel', solta);
@@ -2926,6 +3263,11 @@ function crEditar(op, aoSalvar){
       e.dx += a === 'alEsq' ? M - L : a === 'alDir' ? (W - M) - (L + Lw) : W / 2 - (L + Lw / 2);
       return aplica(g, e);
     }
+    if(a === 'menos' || a === 'mais'){
+      guarda();
+      const e = estado(g); e.s = Math.max(0.4, Math.min(2.5, e.s + (a === 'mais' ? 0.08 : -0.08)));
+      aplica(g, e); return painel();
+    }
     if(a === 'enquadrar'){ enquadrar = !enquadrar; host.classList.toggle('enquadrar', enquadrar); return painel(); }
     if(a === 'trocarFoto'){
       const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
@@ -2939,7 +3281,10 @@ function crEditar(op, aoSalvar){
   }
   ed.addEventListener('click', e => {
     const b = e.target.closest('[data-ed],[data-cor]');
-    if(b && !b.disabled) acao(b.dataset.ed, b);
+    if(b && !b.disabled){
+      acao(b.dataset.ed, b);
+      if(b.closest('.cr-ed-flut')) host.focus({ preventScroll: true });   // Delete/setas seguem valendo no bloco
+    }
   });
   const reposiciona = () => marca();
   window.addEventListener('resize', reposiciona, { passive: true });

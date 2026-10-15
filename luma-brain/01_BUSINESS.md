@@ -315,6 +315,10 @@ Se uma proposta contradiz qualquer item abaixo, ela está **errada** — reveja 
 
 ---
 
+## Luma Creative — uso e limite (decisão do Ryan, 14/10/2026)
+
+O Creative (hoje só gestão, em testes) gasta IA a cada arte, então tem **cota diária**: **20 artes por dia por franqueado**; gestão e equipe_dm **sem limite** (o uso deles só é contado). "Arte" = uma geração completa, inclusive "Outras opções". O modelo **Rápido** gasta 1; **Capaz** (e os outros) gastam 2. O dia vira à meia-noite de Brasília. O franqueado escolhe entre Rápido e Capaz; a equipe vê a lista toda. Geração que não entrega (erro ou "parar") **é devolvida**. A regra mora no banco (`luma_creative_limite`) — mudar o 20 é uma função, não um deploy de front. Detalhe técnico e o que falta para ligar para o franqueado: `docs/LUMA-BACKEND-CHANGELOG.md` (14/10/2026).
+
 ## Ver também
 
 - `00_PRODUCT.md` — propósito, público, missão, o que o Luma NÃO faz.

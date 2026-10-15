@@ -259,7 +259,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 85 arquivos JS (79.979 linhas, 3.132 funções) · 33 arquivos CSS (33.098 linhas) · `index.html` com 4.052 linhas e 75 `<script>`.
+**Tamanho real de hoje:** 85 arquivos JS (80.451 linhas, 3.168 funções) · 33 arquivos CSS (33.229 linhas) · `index.html` com 4.072 linhas e 75 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -274,14 +274,14 @@ Constantes globais imutaveis: HIST_KEY, CAMPS_ATIVAS, CAMPS_OUTRAS, FMTS. Deve s
 Estado global do franqueado: fState. Deve ser carregado apos 00-config.js.
 · Estado global: fState
 
-**`js/main.js`** · 539 linhas
+**`js/main.js`** · 542 linhas
 Bootstrap: setMode (troca entre franqueado/designer/creative) e chamadas de inicializacao. Deve ser carregado por ULTIMO (apos todos os modulos).
 · API: dUpdateTabPill, gModeAllowed, gFirstAllowedMode, gTrackPagina, gGoHome, setMode, gRestoreMode, gApplyModeAccess, gParseDeepLink, gSaveDeepLink, gClearDeepLink, gApplyDeepLink, gOnLoginSuccess
 · Estado global: _gPaginaAbertaEm
 
 ### js/core
 
-**`js/core/ai.js`** · 185 linhas
+**`js/core/ai.js`** · 189 linhas
 MOTOR ÚNICO de IA do front. Todo recurso de IA do Luma (legenda, encurtar texto, ajuda, gírias, transcrição de áudio, console) fala com o modelo POR AQUI — ninguém mais monta fetch pro Gemini na mão. Um caminho = um lugar pra…
 · API: gAiReady, gAiModel, gAskAI, gAiEdgeFetch, gAiParseJson, gAiFileToPart
 · Estado global: _gAiEdgeOk
@@ -441,7 +441,7 @@ Historico de artes do franqueado: fGetHist, fSaveHist, fAddHist, fMarkHistBaixad
 · Estado global: _fHistPage, _fArtesPushBusy, _fArtesPushQueued
 · Depende de: 00-config.js (HIST_KEY), 01-state.js (fState)
 
-**`js/franqueado/live-preview.js`** · 4861 linhas
+**`js/franqueado/live-preview.js`** · 4862 linhas
 Preview lateral em tempo real (fUpdateLivePreview) e modal de preview multi-formato (fOpenPreview, fClosePreview, fStartFromPreview).
 · API: fOpenPreview, fStartFromPreview, fClosePreview, fPostedRepintaLegenda, fPostedSetCtx, fPostedCloseQR, fPostedOpenQR, fPostedCopyQRLink, fPostedContextForFormat, fLpTrocarContexto, fOpenPosted, fClosePosted, fLpCamposBloqueados, fLpListaRotulos … (+35; 237 funções no total)
 · Estado global: _postedArt, renderizada, _postedCtx, _pstStageBound, _pstTiltRaf, _pstQRUrl, _pstQRBusy, _lpConclusaoAtiva, _lpCardPintado, _lpConclusaoSaindo (+50)
@@ -702,10 +702,10 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 
 ### js/creative
 
-**`js/creative/creative.js`** · 2886 linhas
+**`js/creative/creative.js`** · 3350 linhas
 Luma Creative — modo em TESTES, só a gestão (trava em main.js e na Edge Function `ai`).
-· API: crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crX, crTexto, crMista, crHeroi, crLogo, crFoto, crSelo, crBotaoMede … (+61; 103 funções no total)
-· Estado global: _crFontesProm, _crCtx, _crMesa, _crArrasto
+· API: crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crX, crTexto, crMista, crHeroi, crLogo, crFoto, crSelo, crBotaoMede … (+81; 139 funções no total)
+· Estado global: _crFontesProm, _crCtx, _crMesa, _crArrasto, _crSessTimer, _crLegendaVer
 
 ## CSS — onde mora cada folha
 
@@ -731,7 +731,7 @@ Luma Creative — modo em TESTES, só a gestão (trava em main.js e na Edge Func
 | `css/modules/chat.css` | 3979 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
-| `css/modules/creative.css` | 448 |
+| `css/modules/creative.css` | 579 |
 | `css/modules/designer.css` | 5424 |
 | `css/modules/feedback.css` | 199 |
 | `css/modules/franqueado.css` | 1712 |

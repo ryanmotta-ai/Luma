@@ -6,6 +6,17 @@
 
 ---
 
+## 2026-10-14 — Luma Creative: limite diário e contador de uso (⚠ migration `20261014200000` PREPARADA, **NÃO APLICADA**)
+
+- **Por que não aplicada:** o conector do Supabase estava sem autorização na sessão que escreveu isto. Nada foi executado nem testado contra o banco — rodar primeiro numa branch/projeto de teste e passar pelas **3 roles**.
+- **Regra (Ryan, 14/10):** 20 artes/dia por franqueado; gestão e equipe_dm sem limite (o uso é só contado). "Arte" = uma geração completa (inclui "Outras opções"). Modelo Rápido (`gemini-3.1-flash-lite`) gasta 1, qualquer outro gasta 2. O dia vira à meia-noite de Brasília.
+- **Tabela `luma.creative_uso`** (`user_id`, `dia`, `usado`, `pendente`, `modelo`, `janela_ate`). RLS: cada um lê a própria linha, a gestão lê todas; **nenhuma policy de escrita** — só as RPCs.
+- **RPCs em `public` (SECURITY DEFINER, `search_path` vazio, só `authenticated`):** `luma_creative_uso()` (estado de hoje) · `luma_creative_consumir(p_modelo)` (custo sai do MODELO, nunca do cliente; recusa com `motivo:'limite'`; abre janela de 4 min) · `luma_creative_confirmar()` · `luma_creative_estornar()` (só devolve o `pendente`) · `luma_creative_janela()` (para a Edge Function). O limite mora em `luma_creative_limite(papel)`: mudar o 20 é mudar essa função.
+- **Edge Function `ai` (patch no repositório, NÃO deployado):** `arte.*` continua só para `gestao`. Com o secret `CREATIVE_FRANQUEADO=1`, abre também para `equipe_dm` e `franqueado` — este só dentro da janela de uma geração contada e **com o modelo registrado nela** (o cliente não consegue declarar Rápido e chamar Capaz).
+- **Teto assumido:** é freio de custo, não contabilidade à prova de adulteração: quem chama `consumir` uma vez ainda tem 4 minutos de chamadas, limitadas pelo rate-limit de 20/min da function.
+- **Front (`creative.js`):** sem a migration, o contador cai para uma contagem LOCAL por aparelho (`localStorage`) e o popover do contador avisa; com ela, o servidor manda. O acesso do franqueado ao modo segue fechado por `G_CREATIVE_ROLES` (`main.js`) até alguém ligar.
+- **Para ligar o franqueado (3 passos, nesta ordem):** aplicar a migration → deployar a function e criar o secret `CREATIVE_FRANQUEADO=1` → incluir `'franqueado'` em `G_CREATIVE_ROLES` e subir o `?v=N`.
+
 ## 2026-10-14 — Gíria na legenda: coluna `exemplo` em `luma.franquia_girias` (✅ migration `20261014180000`)
 
 - **Coluna nova `exemplo text`** (opcional, ≤ 160 caracteres): a frase de delivery que a pesquisa de gírias (task `girias`) devolve usando a expressão. É a rede de segurança da legenda (`_fGiriaGarante` em `js/franqueado/chat.js`): se a IA não usa a gíria aprovada — ou o provedor cai e a legenda sai do motor local — a frase entra pronta no "engajar".

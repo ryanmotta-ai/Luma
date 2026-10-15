@@ -60,7 +60,9 @@ function gAiModel(){
  * Pergunta ao modelo.
  * @param {string} task   uma das tarefas da allowlist da function (TASKS em supabase/functions/ai)
  * @param {string} prompt prompt completo, montado por quem chama.
- * @param {object} opts   {parts:[{mimeType,data}], json:true, cache:true, contexto:{}}
+ * @param {object} opts   {parts:[{mimeType,data}], json:true, cache:true, contexto:{}, model:'<id de G_AI_MODELOS>'}
+ *                        `model` vale SÓ para esta chamada (o Luma Creative escolhe por geração, sem mexer
+ *                        na escolha global do time); id fora da lista é ignorado e vale o padrão.
  * @returns {Promise<string|null>} texto da resposta, ou null se a IA não respondeu
  */
 async function gAskAI(task, prompt, opts){
@@ -72,10 +74,11 @@ async function gAskAI(task, prompt, opts){
   // Com contexto (tutor) o cache fica FORA: a mesma pergunta em aulas/momentos
   // diferentes tem respostas diferentes — cachear devolveria a aula errada.
   const podeCachear = opts.cache!==false && !parts.length && !contexto && typeof gImgHash==='function';
-  const chaveCache = podeCachear ? gImgHash(task+'|'+gAiModel()+'|'+prompt) : '';
+  const modeloPedido = (opts.model && G_AI_MODELOS.some(m => m.id === opts.model)) ? opts.model : '';
+  const chaveCache = podeCachear ? gImgHash(task+'|'+(modeloPedido||gAiModel())+'|'+prompt) : '';
   if(chaveCache && _gAiCache.has(chaveCache)) return _gAiCache.get(chaveCache);
 
-  const texto = await _gAiViaEdge(task, prompt, parts, querJson, contexto);
+  const texto = await _gAiViaEdge(task, prompt, parts, querJson, contexto, modeloPedido);
   if(texto!=null && chaveCache){
     if(typeof gCachePodar==='function') gCachePodar(_gAiCache, 200); else if(_gAiCache.size>200) _gAiCache.clear();   // teto de sessão, descarte parcial
     _gAiCache.set(chaveCache, texto);
@@ -136,12 +139,13 @@ function _gAiTrackChamada(body, t0, status, erro, modelo, tokens){
   }catch(e){}
 }
 
-async function _gAiViaEdge(task, prompt, parts, querJson, contexto){
+async function _gAiViaEdge(task, prompt, parts, querJson, contexto, modelo){
   const ctrl=new AbortController();
   const t=setTimeout(()=>ctrl.abort(), G_AI_TIMEOUT_MS);
   try{
     const body={task,prompt,parts,json:querJson};
     if(contexto) body.contexto=contexto;
+    if(modelo) body.model=modelo;   // gAiEdgeFetch põe o padrão ANTES do body: o pedido da chamada vence
     const res=await gAiEdgeFetch(body, ctrl.signal);
     if(!res) return null;
     const data=await res.json().catch(()=>null);
