@@ -343,6 +343,38 @@
     assert(cp.cupomValor==='15' && cp.cupomCodigo==='QUEROPIZZA', 'cupom: '+cp.cupomValor+' '+cp.cupomCodigo);
   });
 
+  /* ── Nota de design (frente 1): a geometria sem DOM é a régua da busca, e o DOM a confere ── */
+  caso('Luma Creative: a geometria sem DOM bate com a medida pelo DOM (≤ 3 px) em todo o banco de casos', async()=>{
+    await crFontesProntas();
+    let n=0, pior=0, onde='';
+    // banco inteiro × curto e extremo × com/sem foto (os formatos de cada pedido): toda opção aprovada
+    for(const c of crBancoCasos({textos:[0,3], much:[false]})){
+      for(const r of crEscolher3(crCandidatos(c.sp))){
+        const g=crGeometria(r.svg).blocos, d=_crMede(r.svg);
+        assert(g.length===d.length, c.id+'/'+r.receita+': '+g.length+' blocos sem DOM, '+d.length+' no DOM');
+        g.forEach((b,i)=>{ const q=d[i], dd=Math.max(Math.abs(b.x-q.x), Math.abs(b.y-q.y), Math.abs(b.x+b.w-q.x-q.w), Math.abs(b.y+b.h-q.y-q.h)); n++;
+          if(dd>pior){ pior=dd; onde=c.id+'/'+r.receita+'/'+b.nome; } });
+      }
+    }
+    assert(n>3000, 'poucos blocos medidos: '+n);
+    assert(pior<=3, 'divergiu '+pior.toFixed(2)+' px em '+onde);
+  });
+
+  caso('Luma Creative: a nota de design é pura e determinística, tem as 6 partes, diz o porquê e erro da marca zera', async()=>{
+    await crFontesProntas();
+    const r=crCompor(Object.assign({objetivo:'oferta', formato:'feed'}, CR_CASOS.oferta)), geo=crGeometria(r.svg), ctx={formato:'feed', objetivo:'oferta', fundo:r.fundo};
+    const a=crNotaDesign(geo, ctx), b=crNotaDesign(crGeometria(r.svg), ctx);
+    assert(JSON.stringify(a)===JSON.stringify(b), 'mesma geometria, notas diferentes');
+    assert(a.total>=0 && a.total<=100 && a.total===r.nota, 'total '+a.total+' (r.nota '+r.nota+')');
+    assert(CR_NOTA_PARTES.every(k=>a.partes[k]>=0 && a.partes[k]<=1), 'parte fora de 0–1: '+JSON.stringify(a.partes));
+    assert(typeof a.porque==='string' && a.porque.length>8, 'sem porquê');
+    assert(crNotaDesign(geo, Object.assign({erros:1}, ctx)).total===0, 'erro da marca não zerou');
+    // a geometria lê o transform do bloco (o editor arrasta assim): nulo não muda; descer o botão abre um buraco e a nota cai
+    const mexe=dy=>crNotaDesign(crGeometria(r.svg.replace(/<g data-bloco="(botao|legal)">/g, '<g data-bloco="$1" transform="translate(0,'+dy+')">')), ctx).total;
+    assert(mexe(0)===a.total, 'transform nulo mudou a nota');
+    const pesos=crNotaPesos('aviso','story'); assert(pesos.contraste>CR_NOTA_PESOS.padrao.contraste && pesos.vazio>CR_NOTA_PESOS.padrao.vazio, 'pesos por objetivo/formato não entraram');
+  });
+
   let passed=0; const falhas=[];
   for(const item of cases){
     const li=document.createElement('li'); li.className='case';

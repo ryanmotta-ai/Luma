@@ -982,8 +982,266 @@ function crMontar(sp, receita, fundo, p){
 }
 
 /* ══════════════════════════════════════════════════════════════
-   CONFERÊNCIA GEOMÉTRICA (o lint-art.js da skill, no navegador): o SVG é montado invisível com
-   as fontes reais e as caixas dos blocos são medidas. ERRO reprova a diagramação; AVISO tira nota.
+   GEOMETRIA SEM DOM — a caixa de cada bloco lida do SVG que o PRÓPRIO motor emitiu. A gramática é
+   nossa e é fechada (rect, circle, ellipse, line, polyline, path, image, text/tspan e g com
+   transform), então dá para ler sem montar nada na página: o texto é medido no canvas com as
+   fontes reais, como a pilha já mede. É o que deixa a conferência e a nota rodarem milhares de
+   vezes por segundo na busca. A medida pelo DOM (_crMede, mais abaixo) virou a VERIFICAÇÃO: as
+   finalistas passam por ela, e a suíte prova que as duas não divergem mais que 3 px.
+   Caixa de TEXTO = caixa de tinta de cada trecho (nó de texto) com a fonte DELE: largura pelo
+   avanço (com o letter-spacing da classe), altura pela tinta dos glifos. Texto girado conta pela
+   caixa da fonte girada (o olho vê o bloco inteiro, não a tinta de cada letra).
+══════════════════════════════════════════════════════════════ */
+const _crMet = new Map();
+function _crMetrica(txt, fonte, ls){
+  const k = fonte + '|' + ls + '|' + txt;
+  let m = _crMet.get(k);
+  if(!m){
+    if(!_crCtx) _crCtx = document.createElement('canvas').getContext('2d');
+    _crCtx.font = fonte;
+    const t = _crCtx.measureText(txt);
+    m = { w: t.width + ls * [...txt].length, a: t.actualBoundingBoxAscent, d: t.actualBoundingBoxDescent, fa: t.fontBoundingBoxAscent, fd: t.fontBoundingBoxDescent,
+      l: t.actualBoundingBoxLeft, r: t.actualBoundingBoxRight };
+    if(_crMet.size > 30000) _crMet.clear();
+    _crMet.set(k, m);
+  }
+  return m;
+}
+// letter-spacing que a CLASSE declara no <style> da arte (crDefs) vence o atributo; as outras herdam o atributo
+const _CR_LS_CLASSE = { hero: 1, sup: 1, legal: 1, media: 1 };
+const _crFonteCls = (cls, size) => { const e = CR_ESTILO[cls]; return e ? (e.it ? 'italic ' : '') + e.peso + ' ' + size + 'px "LC ' + e.fam + '"' : '400 ' + size + 'px serif'; };
+const _crMul = (m, n) => [m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1], m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3], m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5]];
+function _crTransf(s){
+  let m = [1, 0, 0, 1, 0, 0];
+  String(s || '').replace(/(matrix|translate|scale|rotate)\s*\(([^)]*)\)/g, (x, f, a) => {
+    const v = a.split(/[\s,]+/).filter(Boolean).map(Number);
+    let n;
+    if(f === 'matrix') n = v.length === 6 ? v : [1, 0, 0, 1, 0, 0];
+    else if(f === 'translate') n = [1, 0, 0, 1, v[0] || 0, v[1] || 0];
+    else if(f === 'scale') n = [v[0], 0, 0, v[1] == null ? v[0] : v[1], 0, 0];
+    else {
+      const r = (v[0] || 0) * Math.PI / 180, c = Math.cos(r), sn = Math.sin(r);
+      n = [c, sn, -sn, c, 0, 0];
+      if(v.length > 2) n = _crMul(_crMul([1, 0, 0, 1, v[1], v[2]], n), [1, 0, 0, 1, -v[1], -v[2]]);
+    }
+    m = _crMul(m, n);
+    return x;
+  });
+  return m;
+}
+// Caixa alinhada aos eixos de um retângulo local depois do transform (é o que o getBoundingClientRect faz)
+function _crCaixaM(m, x0, y0, x1, y1){
+  let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
+  [[x0, y0], [x1, y0], [x0, y1], [x1, y1]].forEach(([x, y]) => {
+    const px = m[0] * x + m[2] * y + m[4], py = m[1] * x + m[3] * y + m[5];
+    if(px < a) a = px; if(py < b) b = py; if(px > c) c = px; if(py > d) d = py;
+  });
+  return { x0: a, y0: b, x1: c, y1: d };
+}
+// Caixa justa de um path (curvas pelos extremos de verdade, arcos amostrados)
+function _crPathCaixa(d){
+  const tk = String(d || '').match(/[a-zA-Z]|-?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/g) || [];
+  let i = 0, cmd = '', x = 0, y = 0, sx = 0, sy = 0, qx = 0, qy = 0, x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const pt = (px, py) => { if(px < x0) x0 = px; if(py < y0) y0 = py; if(px > x1) x1 = px; if(py > y1) y1 = py; };
+  const num = () => +tk[i++];
+  const ext3 = (p0, p1, p2, p3) => {   // raízes de B'(t) = 0 num eixo
+    const a = -p0 + 3 * p1 - 3 * p2 + p3, b = 2 * (p0 - 2 * p1 + p2), c = p1 - p0, ts = [];
+    if(Math.abs(a) < 1e-9){ if(Math.abs(b) > 1e-9) ts.push(-c / b); }
+    else { const disc = b * b - 4 * a * c; if(disc >= 0){ const q = Math.sqrt(disc); ts.push((-b + q) / (2 * a), (-b - q) / (2 * a)); } }
+    return ts.filter(t => t > 0 && t < 1);
+  };
+  const cub = (ax, ay, bx, by, cx, cy, dx, dy) => {
+    pt(dx, dy);
+    const B = (t, p0, p1, p2, p3) => { const u = 1 - t; return u * u * u * p0 + 3 * u * u * t * p1 + 3 * u * t * t * p2 + t * t * t * p3; };
+    ext3(ax, bx, cx, dx).concat(ext3(ay, by, cy, dy)).forEach(t => pt(B(t, ax, bx, cx, dx), B(t, ay, by, cy, dy)));
+  };
+  const quad = (ax, ay, bx, by, cx, cy) => cub(ax, ay, ax + 2 / 3 * (bx - ax), ay + 2 / 3 * (by - ay), cx + 2 / 3 * (bx - cx), cy + 2 / 3 * (by - cy), cx, cy);
+  const arco = (rx, ry, rot, fa, fs, ex, ey) => {
+    pt(ex, ey);
+    if(!rx || !ry) return;
+    const f = rot * Math.PI / 180, cf = Math.cos(f), sf = Math.sin(f);
+    const dx2 = (x - ex) / 2, dy2 = (y - ey) / 2, x1p = cf * dx2 + sf * dy2, y1p = -sf * dx2 + cf * dy2;
+    rx = Math.abs(rx); ry = Math.abs(ry);
+    const lam = x1p * x1p / (rx * rx) + y1p * y1p / (ry * ry);
+    if(lam > 1){ rx *= Math.sqrt(lam); ry *= Math.sqrt(lam); }
+    const sg = fa === fs ? -1 : 1, nume = rx * rx * ry * ry - rx * rx * y1p * y1p - ry * ry * x1p * x1p;
+    const co = sg * Math.sqrt(Math.max(0, nume / (rx * rx * y1p * y1p + ry * ry * x1p * x1p)));
+    const cxp = co * rx * y1p / ry, cyp = -co * ry * x1p / rx, cx = cf * cxp - sf * cyp + (x + ex) / 2, cy = sf * cxp + cf * cyp + (y + ey) / 2;
+    const ang = (ux, uy, vx, vy) => Math.atan2(ux * vy - uy * vx, ux * vx + uy * vy);
+    const t1 = ang(1, 0, (x1p - cxp) / rx, (y1p - cyp) / ry);
+    let dt = ang((x1p - cxp) / rx, (y1p - cyp) / ry, (-x1p - cxp) / rx, (-y1p - cyp) / ry);
+    if(!fs && dt > 0) dt -= 2 * Math.PI; else if(fs && dt < 0) dt += 2 * Math.PI;
+    for(let k = 1; k < 32; k++){ const t = t1 + dt * k / 32; pt(cx + rx * Math.cos(t) * cf - ry * Math.sin(t) * sf, cy + rx * Math.cos(t) * sf + ry * Math.sin(t) * cf); }
+  };
+  while(i < tk.length){
+    if(/[a-zA-Z]/.test(tk[i])) cmd = tk[i++];
+    const rel = cmd === cmd.toLowerCase(), C = cmd.toUpperCase(), ox = rel ? x : 0, oy = rel ? y : 0;
+    if(C === 'Z'){ x = sx; y = sy; continue; }
+    if(C === 'M'){ x = ox + num(); y = oy + num(); sx = x; sy = y; pt(x, y); cmd = rel ? 'l' : 'L'; qx = x; qy = y; }
+    else if(C === 'L'){ x = ox + num(); y = oy + num(); pt(x, y); qx = x; qy = y; }
+    else if(C === 'H'){ x = ox + num(); pt(x, y); qx = x; qy = y; }
+    else if(C === 'V'){ y = oy + num(); pt(x, y); qx = x; qy = y; }
+    else if(C === 'C'){ const a = ox + num(), b = oy + num(), c = ox + num(), e = oy + num(), g = ox + num(), h = oy + num(); cub(x, y, a, b, c, e, g, h); qx = c; qy = e; x = g; y = h; }
+    else if(C === 'S'){ const a = 2 * x - qx, b = 2 * y - qy, c = ox + num(), e = oy + num(), g = ox + num(), h = oy + num(); cub(x, y, a, b, c, e, g, h); qx = c; qy = e; x = g; y = h; }
+    else if(C === 'Q'){ const a = ox + num(), b = oy + num(), g = ox + num(), h = oy + num(); quad(x, y, a, b, g, h); qx = a; qy = b; x = g; y = h; }
+    else if(C === 'T'){ const a = 2 * x - qx, b = 2 * y - qy, g = ox + num(), h = oy + num(); quad(x, y, a, b, g, h); qx = a; qy = b; x = g; y = h; }
+    else if(C === 'A'){ const rx = num(), ry = num(), rot = num(), fa = num(), fs = num(), g = ox + num(), h = oy + num(); arco(rx, ry, rot, fa, fs, g, h); x = g; y = h; qx = x; qy = y; }
+    else i++;
+  }
+  return x0 === Infinity ? null : { x0, y0, x1, y1 };
+}
+const _crDesEnt = s => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+function _crAttrs(s){ const o = {}; s.replace(/([\w:-]+)\s*=\s*"([^"]*)"/g, (m, k, v) => { o[k] = v; return ''; }); return o; }
+const _CR_FORA = { defs: 1, clipPath: 1, mask: 1, style: 1, filter: 1, linearGradient: 1, radialGradient: 1, pattern: 1, symbol: 1, title: 1, desc: 1 };
+const _crNums = s => String(s || '').split(/[\s,]+/).filter(Boolean).map(Number);
+
+// → { W, H, blocos: [{nome, x, y, w, h, maiorFonte, menorFonte, sobre}], textos: [{bloco, x0, y0, x1, y1, corpo, cls, cor, fundo, txt}] }
+function crGeometria(svg){
+  const vb = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(svg) || [];
+  const W = +vb[1] || CR_W, H = +vb[2] || 1350;
+  const blocos = [], textos = [], formas = [];
+  const pilha = [{ tag: '#', m: [1, 0, 0, 1, 0, 0], fora: false, bloco: null, fill: '#000000', stroke: 'none', op: 1, rot: false, cls: '', fs: 16, ls: 0, anc: 'start' }];
+  let tx = null, ordem = 0;
+  const re = /<!--[\s\S]*?-->|<(\/?)([\w:-]+)((?:\s+[\w:-]+\s*=\s*"[^"]*")*)\s*(\/?)>|([^<]+)/g;
+  const caixa = (fr, b) => { if(b && fr.bloco && !fr.fora) fr.bloco.cx.push(b); };
+  const solido = (fr, at, b) => {
+    const f = at.fill || fr.fill, op = fr.op * (at.opacity != null ? +at.opacity : 1) * (at['fill-opacity'] != null ? +at['fill-opacity'] : 1);
+    if(b && !fr.fora && /^#[0-9a-f]{6}$/i.test(f) && op >= 0.9) formas.push({ b, cor: f.toUpperCase(), ordem: ordem++ });
+  };
+  const fechaChunk = () => {
+    if(!tx || !tx.chunk) return;
+    const c = tx.chunk, w = tx.pen - c.x, k = c.anc === 'middle' ? w / 2 : c.anc === 'end' ? w : 0;
+    c.runs.forEach(r => { r.x0 -= k; r.x1 -= k; });
+    tx.chunk = null;
+  };
+  const novoChunk = (x, anc) => { fechaChunk(); tx.pen = x; tx.chunk = { x, anc, runs: [] }; };
+  let mt;
+  while((mt = re.exec(svg))){
+    const fr = pilha[pilha.length - 1];
+    if(mt[5] != null){
+      if(!tx || fr.fora) continue;
+      const s = _crDesEnt(mt[5].replace(/[\r\n\t]+/g, ' ').replace(/ {2,}/g, ' '));
+      if(!s) continue;
+      if(!tx.chunk) novoChunk(tx.pen, fr.anc);
+      const ls = _CR_LS_CLASSE[fr.cls] ? CR_ESTILO[fr.cls].ls : fr.ls, fonte = _crFonteCls(fr.cls, fr.fs), met = _crMetrica(s, fonte, ls);
+      // dx/dy pendentes: os do elemento mais de dentro valem; a lista de dx é por caractere
+      let dx = 0;
+      for(let k = pilha.length - 1; k > 0; k--){
+        const q = pilha[k];
+        if(q.dxs && q.dxs.length){ const usa = q.dxs.splice(0, [...s].length); tx.pen += usa[0]; dx = usa.slice(1).reduce((u, v) => u + v, 0); break; }
+        if(q.tag === 'text') break;
+      }
+      for(let k = pilha.length - 1; k > 0; k--){
+        const q = pilha[k];
+        if(q.dy != null){ tx.base += q.dy; q.dy = null; break; }
+        if(q.tag === 'text') break;
+      }
+      // a caixa vai do avanço; quando a tinta do glifo passa dele (o "A" final do Realce em corpo
+      // grande), o navegador estende a caixa até a tinta + 2 px — a medida segue o navegador
+      const run = { x0: tx.pen - (met.l > 0 ? met.l + 2 : 0), x1: Math.max(tx.pen + met.w + dx, met.r > met.w ? tx.pen + dx + met.r + 2 : 0), base: tx.base, met, size: fr.fs, cls: fr.cls, cor: fr.fill === 'none' ? fr.stroke : fr.fill, txt: s, m: fr.m,
+        // contorno grosso (o "adesivo": herói laranja com borda branca) separa o texto do fundo
+        contorno: fr.fill !== 'none' && /^#[0-9a-f]{6}$/i.test(fr.stroke) && fr.sw >= fr.fs * 0.1 ? fr.stroke.toUpperCase() : null };
+      tx.pen += met.w + dx;
+      if(s.trim()) { tx.runs.push(run); tx.chunk.runs.push(run); }
+      continue;
+    }
+    if(!mt[2]) continue;
+    const tag = mt[2];
+    if(mt[1] === '/'){
+      const sai = pilha.pop();
+      if(tag === 'text' && tx && sai.tag === 'text'){
+        fechaChunk();
+        if(tx.runs.length && !sai.fora){
+          let b;
+          if(sai.rot){
+            // texto girado: a caixa da FONTE do <text> inteiro (união local dos trechos), girada — é o
+            // que o navegador devolve (girar cada linha separada dá uma caixa menor que a dele)
+            const x0 = Math.min(...tx.runs.map(r => r.x0)), x1 = Math.max(...tx.runs.map(r => r.x1));
+            const y0 = Math.min(...tx.runs.map(r => r.base - Math.max(r.met.fa, r.met.a))), y1 = Math.max(...tx.runs.map(r => r.base + Math.max(r.met.fd, r.met.d)));
+            b = _crCaixaM(tx.runs[0].m, x0, y0, x1, y1);
+          }else{
+            let u = null;
+            tx.runs.forEach(r => { const c = _crCaixaM(r.m, r.x0, r.base - r.met.a, r.x1, r.base + r.met.d); u = u ? { x0: Math.min(u.x0, c.x0), y0: Math.min(u.y0, c.y0), x1: Math.max(u.x1, c.x1), y1: Math.max(u.y1, c.y1) } : c; });
+            b = u;
+          }
+          caixa(sai, b);
+          const maior = tx.runs.reduce((p, r) => (r.size * r.txt.length > p.size * p.txt.length ? r : p), tx.runs[0]);
+          textos.push({ bloco: sai.bloco ? sai.bloco.nome : '', x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1, corpo: Math.max(...tx.runs.map(r => r.size)),
+            cls: maior.cls, cor: String(maior.cor || '').toUpperCase(), contorno: maior.contorno, txt: tx.runs.map(r => r.txt).join(''), ordem: ordem++, fundo: null });
+        }
+        tx = null;
+      }
+      if(sai.blocoAqui){
+        const bl = sai.blocoAqui;
+        const c = bl.foto || (bl.cx.length ? bl.cx.reduce((u, q) => ({ x0: Math.min(u.x0, q.x0), y0: Math.min(u.y0, q.y0), x1: Math.max(u.x1, q.x1), y1: Math.max(u.y1, q.y1) })) : { x0: 0, y0: 0, x1: 0, y1: 0 });
+        blocos.push({ nome: bl.nome, x: c.x0, y: c.y0, w: c.x1 - c.x0, h: c.y1 - c.y0, sobre: bl.sobre, maiorFonte: Math.max(0, ...bl.fs), menorFonte: bl.fs.length ? Math.min(...bl.fs) : 0 });
+      }
+      continue;
+    }
+    const at = _crAttrs(mt[3] || ''), auto = mt[4] === '/';
+    const nf = { tag, m: at.transform ? _crMul(fr.m, _crTransf(at.transform)) : fr.m, fora: fr.fora || !!_CR_FORA[tag], bloco: fr.bloco,
+      fill: at.fill || fr.fill, stroke: at.stroke || fr.stroke, sw: at['stroke-width'] != null ? parseFloat(at['stroke-width']) || 0 : (fr.sw || 0), op: fr.op * (at.opacity != null && tag === 'g' ? +at.opacity : 1),
+      rot: fr.rot || /rotate|matrix/.test(at.transform || ''), cls: at.class || fr.cls, fs: at['font-size'] != null ? +at['font-size'] : fr.fs,
+      ls: at['letter-spacing'] != null ? parseFloat(at['letter-spacing']) || 0 : fr.ls, anc: at['text-anchor'] || fr.anc, fotoG: at.id === 'foto_produto' };
+    if(tag === 'g' && at['data-bloco'] != null && pilha.length === 2 && pilha[1].tag === 'svg'){
+      nf.bloco = nf.blocoAqui = { nome: at['data-bloco'], cx: [], fs: [], sobre: false, foto: null };
+    }
+    if(nf.bloco && !nf.fora){
+      if(at['data-sobrepoe'] != null) nf.bloco.sobre = true;
+      if(at['font-size'] != null) nf.bloco.fs.push(parseFloat(at['font-size']) || 0);
+    }
+    if(!nf.fora){
+      let b = null;
+      if(tag === 'rect'){
+        const x = +at.x || 0, y = +at.y || 0, w = +at.width || 0, h = +at.height || 0;
+        if(w > 0 && h > 0) b = _crCaixaM(nf.m, x, y, x + w, y + h);
+        if(b && fr.fotoG && nf.bloco && nf.bloco.nome === 'foto' && !nf.bloco.foto) nf.bloco.foto = b;
+        solido(fr, at, b);
+      }else if(tag === 'circle' || tag === 'ellipse'){
+        const cx = +at.cx || 0, cy = +at.cy || 0, rx = +(at.r || at.rx) || 0, ry = +(at.r || at.ry) || 0;
+        if(rx > 0 && ry > 0){ b = _crCaixaM(nf.m, cx - rx, cy - ry, cx + rx, cy + ry); solido(fr, at, b); }
+      }else if(tag === 'line'){
+        b = _crCaixaM(nf.m, Math.min(+at.x1 || 0, +at.x2 || 0), Math.min(+at.y1 || 0, +at.y2 || 0), Math.max(+at.x1 || 0, +at.x2 || 0), Math.max(+at.y1 || 0, +at.y2 || 0));
+      }else if(tag === 'polyline' || tag === 'polygon'){
+        const v = _crNums(at.points), xs = v.filter((n, k) => !(k % 2)), ys = v.filter((n, k) => k % 2);
+        if(xs.length) b = _crCaixaM(nf.m, Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys));
+      }else if(tag === 'path'){
+        const p = _crPathCaixa(at.d);
+        if(p){ b = _crCaixaM(nf.m, p.x0, p.y0, p.x1, p.y1); solido(fr, at, b); }
+      }else if(tag === 'image'){
+        const x = +at.x || 0, y = +at.y || 0, w = +at.width || 0, h = +at.height || 0;
+        if(w > 0 && h > 0) b = _crCaixaM(nf.m, x, y, x + w, y + h);
+      }else if(tag === 'text'){
+        tx = { runs: [], chunk: null, pen: _crNums(at.x)[0] || 0, base: _crNums(at.y)[0] || 0 };
+        if(at.dx != null) nf.dxs = _crNums(at.dx);
+        if(at.dy != null) nf.dy = _crNums(at.dy)[0] || 0;
+      }else if(tag === 'tspan' && tx){
+        if(at.y != null) tx.base = _crNums(at.y)[0] || 0;
+        if(at.x != null) novoChunk(_crNums(at.x)[0] || 0, nf.anc);
+        if(at.dx != null) nf.dxs = _crNums(at.dx);
+        if(at.dy != null) nf.dy = _crNums(at.dy)[0] || 0;
+      }
+      if(b && tag !== 'text' && tag !== 'tspan') caixa(nf, b);
+    }
+    if(!auto) pilha.push(nf);
+    else if(nf.blocoAqui) blocos.push({ nome: nf.blocoAqui.nome, x: 0, y: 0, w: 0, h: 0, sobre: false, maiorFonte: 0, menorFonte: 0 });
+    else if(tag === 'text') tx = null;
+  }
+  // fundo de cada texto: a forma sólida mais de cima, desenhada antes dele, sob o centro do texto
+  const fundoArte = (formas[0] && formas[0].cor) || '#F85400';
+  textos.forEach(t => {
+    const px = (t.x0 + t.x1) / 2, py = (t.y0 + t.y1) / 2;
+    let f = null;
+    for(let k = formas.length - 1; k >= 0; k--){ const q = formas[k]; if(q.ordem < t.ordem && px >= q.b.x0 && px <= q.b.x1 && py >= q.b.y0 && py <= q.b.y1){ f = q.cor; break; } }
+    t.fundo = f || fundoArte;
+  });
+  return { W, H, blocos, textos };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CONFERÊNCIA GEOMÉTRICA (o lint-art.js da skill): ERRO reprova a diagramação; AVISO é dica.
+   As regras rodam sobre a geometria sem DOM (crAvaliar, a da busca) e sobre a medida pelo DOM
+   (crAvaliarDom, a verificação final): é a MESMA função de regras, com as duas réguas.
 ══════════════════════════════════════════════════════════════ */
 let _crMesa = null;
 function _crMede(svgTxt){
@@ -1002,14 +1260,22 @@ function _crMede(svgTxt){
   const r0 = svg.getBoundingClientRect();
   const rel = r => ({ x0: r.left - r0.left, y0: r.top - r0.top, x1: r.right - r0.left, y1: r.bottom - r0.top });
   if(!_crCtx) _crCtx = document.createElement('canvas').getContext('2d');
-  // Caixa de TINTA do texto (como o lint-art.js): a caixa do navegador é a da fonte (sobra acima
-  // das maiúsculas e abaixo da linha) e acusaria colisão onde o olho vê 40 px de ar.
-  const tinta = (el, txt, fs) => {
-    const cs = getComputedStyle(el), r = rel(el.getBoundingClientRect());
-    _crCtx.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + fs + 'px ' + cs.fontFamily;
-    const m = _crCtx.measureText(txt);
-    const topo = r.y0 + Math.max(0, m.fontBoundingBoxAscent - m.actualBoundingBoxAscent);
-    return { x0: r.x0, x1: r.x1, y0: topo, y1: Math.min(r.y1, topo + m.actualBoundingBoxAscent + m.actualBoundingBoxDescent) };
+  // Caixa de TINTA do texto, trecho a trecho (cada nó de texto com a fonte do elemento dele): a caixa
+  // do navegador é a da fonte (sobra acima das maiúsculas e abaixo da linha) e acusaria colisão onde
+  // o olho vê 40 px de ar. Antes media o <text> inteiro no maior corpo e com a fonte do <text> — o
+  // "R$" do preço contava no tamanho do número e a chamada leve/forte era medida em serifa.
+  const tintas = t => {
+    const cx = [], w = document.createTreeWalker(t, NodeFilter.SHOW_TEXT);
+    for(let n = w.nextNode(); n; n = w.nextNode()){
+      const s = n.nodeValue.replace(/[\r\n\t]+/g, ' ').replace(/ {2,}/g, ' ');
+      if(!s.trim()) continue;
+      const el = n.parentNode, cs = getComputedStyle(el), r = rel(el.getBoundingClientRect()), fs = parseFloat(cs.fontSize) || 16;
+      _crCtx.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + fs + 'px ' + cs.fontFamily;
+      // a caixa do navegador começa na tinta quando o acento passa da altura da fonte (É, Á do Realce)
+      const m = _crCtx.measureText(s), topo = r.y0 + Math.max(0, m.fontBoundingBoxAscent - m.actualBoundingBoxAscent);
+      cx.push({ x0: r.x0, x1: r.x1, y0: topo, y1: topo + m.actualBoundingBoxAscent + m.actualBoundingBoxDescent });
+    }
+    return cx;
   };
   const caixaDe = g => {
     const cx = [];
@@ -1017,10 +1283,9 @@ function _crMede(svgTxt){
       if(!el.closest('clipPath,defs,mask')) cx.push(rel(el.getBoundingClientRect()));
     });
     g.querySelectorAll('text').forEach(t => {
-      if(t.closest('[transform*="rotate"]') || /rotate/.test(t.getAttribute('transform') || '')){ cx.push(rel(t.getBoundingClientRect())); return; }
-      const fs = Math.max(...[t, ...t.querySelectorAll('tspan')].map(n => parseFloat(getComputedStyle(n).fontSize) || 0));
-      const linhas = [...t.children].filter(c => c.hasAttribute('y'));
-      (linhas.length ? linhas : [t]).forEach(l => cx.push(tinta(l, l.textContent, fs)));
+      if(t.closest('clipPath,defs,mask')) return;
+      if(t.closest('[transform*="rotate"],[transform*="matrix"]')){ cx.push(rel(t.getBoundingClientRect())); return; }
+      cx.push(...tintas(t));
     });
     if(!cx.length) return { x: 0, y: 0, w: 0, h: 0 };
     const x0 = Math.min(...cx.map(c => c.x0)), y0 = Math.min(...cx.map(c => c.y0)), x1 = Math.max(...cx.map(c => c.x1)), y1 = Math.max(...cx.map(c => c.y1));
@@ -1030,16 +1295,17 @@ function _crMede(svgTxt){
     // a foto conta pelo retângulo do slot (a imagem dentro pode ser maior que o recorte)
     const fr = g.dataset.bloco === 'foto' && g.querySelector('#foto_produto > rect');
     const c = fr ? (r => ({ x: r.x0, y: r.y0, w: r.x1 - r.x0, h: r.y1 - r.y0 }))(rel(fr.getBoundingClientRect())) : caixaDe(g);
-    const fs = [...g.querySelectorAll('[font-size]')].map(t => parseFloat(t.getAttribute('font-size')) || 0);
+    const fs = [...g.querySelectorAll('[font-size]')].filter(t => !t.closest('clipPath,defs,mask')).map(t => parseFloat(t.getAttribute('font-size')) || 0);
     return Object.assign(c, { nome: g.dataset.bloco, sobre: !!g.querySelector('[data-sobrepoe]'), maiorFonte: Math.max(0, ...fs), menorFonte: fs.length ? Math.min(...fs) : 0 });
   });
   svg.remove();
   return blocos;
 }
-function crAvaliar(r){
+// As regras da marca sobre uma lista de blocos (de qualquer das duas réguas)
+function _crRegras(r, todos){
   const a = crArea(r.spec.formato), sp = r.spec, erros = [], avisos = [];
   // grafismo (decor) é fundo: pode sangrar e passar atrás do texto — fica fora da conferência
-  const todos = _crMede(r.svg), bs = todos.filter(b => b.nome !== 'decor');
+  const bs = todos.filter(b => b.nome !== 'decor');
   const foto = bs.find(b => b.nome === 'foto');
   const solidos = bs.filter(b => b.nome !== 'foto');
   r.estouros.forEach(t => erros.push('Texto longo demais: ' + t));
@@ -1085,9 +1351,230 @@ function crAvaliar(r){
   const fracFoto = foto && !a.deitado ? Math.min(foto.h, a.fim - a.top) / (a.fim - a.top) : 0;
   return { erros, avisos, blocos: bs, heroi, preco: pr ? pr.maiorFonte : 0, fracFoto, maiorVazio };
 }
-// Nota 0–100: curadoria da família + escala do herói/preço + foto na faixa certa + respiro
+// A da busca (sem DOM): a geometria fica junto, para a nota não ler o SVG duas vezes
+function crAvaliar(r){
+  const geo = crGeometria(r.svg), av = _crRegras(r, geo.blocos);
+  av.geo = geo;
+  return av;
+}
+// A da verificação final (as finalistas): o navegador mede de verdade
+function crAvaliarDom(r){ return _crRegras(r, _crMede(r.svg)); }
+
+/* ══════════════════════════════════════════════════════════════
+   NOTA DE DESIGN — função pura e determinística sobre a geometria (sem DOM, sem IA). Seis partes de
+   0 a 1, pesadas por objetivo e formato (CR_NOTA_PESOS, um objeto editável — a curadoria do Ryan
+   ajusta os mesmos números). Regra da marca não entra aqui como "pontinho a menos": erro de
+   crAvaliar zera a nota antes de qualquer conta.
+══════════════════════════════════════════════════════════════ */
+const CR_NOTA_PARTES = ['equilibrio', 'vazio', 'eixos', 'escala', 'contraste', 'respiro'];
+const CR_NOTA_PESOS = {
+  padrao:   { equilibrio: 1.1, vazio: 1.3, eixos: 0.8, escala: 1.4, contraste: 0.6, respiro: 0.8 },
+  objetivo: {
+    oferta: { escala: 1.2 }, cupom: { escala: 1.15, eixos: 0.85 }, evento: { vazio: 1.1 }, beneficio: { escala: 1.1 },
+    aniversario: { escala: 1.1, eixos: 0.9 }, aviso: { contraste: 1.3, eixos: 1.1 }, parceiro: { equilibrio: 1.1 }, prospeccao: { eixos: 1.1 }
+  },
+  formato:  {
+    feed: {}, story: { vazio: 1.15 }, inapp: { vazio: 1.1 }, carrossel: { equilibrio: 0.8, vazio: 0.9 },
+    banner: { vazio: 0.5, equilibrio: 0.8, eixos: 0.8 }, emailTopo: { vazio: 0.6, eixos: 0.8 }, emailRodape: { vazio: 0.4 }, capa: { vazio: 0.7 }, slide: { escala: 0.8 }
+  }
+};
+let _crPesosCuradoria = null;   // pesos ajustados pelos votos da curadoria (frente 5); null = os do código
+function crNotaPesos(objetivo, formato){
+  const base = Object.assign({}, CR_NOTA_PESOS.padrao), o = CR_NOTA_PESOS.objetivo[objetivo] || {}, f = CR_NOTA_PESOS.formato[formato] || {}, c = _crPesosCuradoria || {};
+  CR_NOTA_PARTES.forEach(k => { base[k] *= (o[k] || 1) * (f[k] || 1) * (c[k] || 1); });
+  return base;
+}
+const CR_NOTA_FRASES = {
+  equilibrio: ['peso bem distribuído', 'peso desequilibrado na peça'], vazio: ['respiro com ritmo', 'vazio mal distribuído'],
+  eixos: ['tudo num eixo só', 'alinhamentos demais'], escala: ['hierarquia clara', 'hierarquia tipográfica fraca'],
+  contraste: ['leitura com contraste', 'contraste baixo em algum texto'], respiro: ['margens e foto na medida', 'margens ou foto fora da medida']
+};
+// Contraste WCAG entre duas cores #RRGGBB
+function crContraste(c1, c2){
+  const L = h => { const v = [1, 3, 5].map(i => parseInt(String(h).slice(i, i + 2), 16) / 255).map(c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+  if(!/^#[0-9A-F]{6}$/i.test(c1) || !/^#[0-9A-F]{6}$/i.test(c2)) return 4.5;
+  const a = L(c1), b = L(c2);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+const _CR_PAR_MARCA = { '#FFFFFF#FF9000': 1, '#F85400#FFB900': 1, '#E52676#FFB900': 1 };
+const _crLim = (v, a, b) => Math.max(0, Math.min(1, (v - a) / (b - a)));
+const _CR_PAPEL = { titulo: 'heroi', valor: 'heroi', anos: 'heroi', preco: 'heroi', apoio: 'apoio', chamada: 'apoio', itens: 'apoio', legal: 'legal' };
+const _CR_GRUPO = { logo: 'marca', tag: 'intro', chamada: 'intro', titulo: 'msg', apoio: 'msg', anos: 'msg', preco: 'oferta', valor: 'oferta', selo: 'oferta', cupom: 'oferta',
+  foto: 'imagem', mockup: 'imagem', botao: 'acao', legal: 'acao', itens: 'conteudo' };
+
+// geo = crGeometria(svg) · ctx = { formato, objetivo, fundo, erros } → { total, partes, porque }
+function crNotaDesign(geo, ctx){
+  const c = ctx || {}, a = crArea(c.formato), partes = {};
+  if(c.erros){ CR_NOTA_PARTES.forEach(k => { partes[k] = 0; }); return { total: 0, partes, porque: 'Reprovada nas regras da marca' }; }
+  const L = a.laminas ? 1080 : a.W, n = a.laminas || 1;
+  const z = { x0: a.card ? a.card[0] : a.M, x1: a.card ? a.card[0] + a.card[2] : L - a.M, y0: a.seguroTopo, y1: a.seguroBase };
+  const zw = z.x1 - z.x0, zh = z.y1 - z.y0;
+  const todos = geo.blocos.filter(b => b.w > 0 && b.h > 0);
+  // carrossel: cada lâmina é um post — equilíbrio, vazio, eixos e margens por lâmina, e a média
+  const porLamina = k => todos.filter(b => Math.floor((b.x + b.w / 2) / L) === k).map(b => Object.assign({}, b, { x: b.x - k * L }));
+  const textos = geo.textos.filter(t => t.bloco && t.bloco !== 'decor' && t.bloco !== 'foto');   // o placeholder da foto não é texto da arte
+  // com contorno grosso, o texto se lê pelo par mais fraco entre texto→contorno e contorno→fundo
+  const corDe = t => t.contorno ? Math.max(crContraste(t.cor, t.fundo), Math.min(crContraste(t.cor, t.contorno), crContraste(t.contorno, t.fundo))) : crContraste(t.cor, t.fundo);
+  const cfBloco = nome => { const ts = textos.filter(t => t.bloco === nome); if(!ts.length) return 0.8; const t = ts.reduce((p, q) => ((q.x1 - q.x0) * (q.y1 - q.y0) > (p.x1 - p.x0) * (p.y1 - p.y0) ? q : p)); return Math.max(0.2, Math.min(1, (corDe(t) - 1) / 3)); };
+  const sangra = b => b.x < -2 || b.y < -2 || b.x + b.w > L + 2 || b.y + b.h > a.H + 2;
+  const media = f => { let s = 0; for(let k = 0; k < n; k++) s += f(porLamina(k)); return s / n; };
+
+  // 1) Equilíbrio: centro de massa (área × corpo × contraste) contra o centro da zona útil
+  const eixoDe = bs => {
+    const al = bs.filter(b => b.nome !== 'decor' && !sangra(b) && b.w < zw * 0.9);
+    let e = 0, d = 0, cc = 0;
+    al.forEach(b => { const l = Math.abs(b.x - z.x0) <= 6, r = Math.abs(b.x + b.w - z.x1) <= 6, m = Math.abs(b.x + b.w / 2 - (z.x0 + z.x1) / 2) <= 6; if(m) cc++; else if(l) e++; else if(r) d++; });
+    return cc > e && cc > d ? 'centro' : d > e ? 'dir' : 'esq';
+  };
+  partes.equilibrio = media(bs => {
+    let mx = 0, my = 0, mt = 0;
+    bs.forEach(b => {
+      const x0 = Math.max(0, b.x), y0 = Math.max(0, b.y), x1 = Math.min(L, b.x + b.w), y1 = Math.min(a.H, b.y + b.h);
+      if(x1 <= x0 || y1 <= y0) return;
+      const f = b.nome === 'foto' ? 1.1 : b.nome === 'decor' ? 0.3 : b.nome === 'logo' ? 0.7 : b.maiorFonte ? Math.sqrt(Math.max(0.4, Math.min(2.5, b.maiorFonte / 80))) : 0.6;
+      const k = (x1 - x0) * (y1 - y0) * f * (b.nome === 'foto' ? 0.9 : b.nome === 'decor' ? 0.6 : cfBloco(b.nome));
+      mx += k * (x0 + x1) / 2; my += k * (y0 + y1) / 2; mt += k;
+    });
+    if(!mt) return 0;
+    const dy = (my / mt - (z.y0 + z.y1) / 2) / (zh / 2), dx = (mx / mt - (z.x0 + z.x1) / 2) / (zw / 2), eixo = eixoDe(bs);
+    const sv = 1 - _crLim(Math.abs(dy + 0.04), 0.1, 0.55);
+    // assimetria intencional: com eixo à esquerda o peso pode morar na metade esquerda (e vice-versa)
+    const [lo, hi] = eixo === 'esq' ? [-0.5, 0.12] : eixo === 'dir' ? [-0.12, 0.5] : [-0.12, 0.12];
+    const sh = 1 - _crLim(dx < lo ? lo - dx : dx > hi ? dx - hi : 0, 0, 0.4);
+    return a.deitado && !a.laminas ? 0.35 * sv + 0.65 * sh : 0.6 * sv + 0.4 * sh;
+  });
+
+  // 2) Vazio e ritmo: proporção de vazio, maior faixa contínua vazia e proximidade dos grupos
+  partes.vazio = media(bs => {
+    const cheios = bs.filter(b => b.nome !== 'decor');
+    // área ocupada (união aproximada por grade de 20 px dentro da zona)
+    const passo = 20, cols = Math.ceil(zw / passo), lins = Math.ceil(zh / passo), grade = new Uint8Array(cols * lins);
+    cheios.forEach(b => {
+      const c0 = Math.max(0, Math.floor((b.x - z.x0) / passo)), c1 = Math.min(cols, Math.ceil((b.x + b.w - z.x0) / passo));
+      const l0 = Math.max(0, Math.floor((b.y - z.y0) / passo)), l1 = Math.min(lins, Math.ceil((b.y + b.h - z.y0) / passo));
+      for(let l = l0; l < l1; l++) for(let cc = c0; cc < c1; cc++) grade[l * cols + cc] = 1;
+    });
+    let oc = 0; grade.forEach(v => { oc += v; });
+    const vazio = 1 - oc / grade.length;
+    const sProp = a.deitado ? 1 - _crLim(Math.abs(vazio - 0.45), 0.2, 0.45) : 1 - _crLim(vazio < 0.3 ? 0.3 - vazio : vazio > 0.66 ? vazio - 0.66 : 0, 0, 0.25);
+    // maior faixa horizontal vazia (o conteúdo "boiando" ou um buraco no meio)
+    const ys = cheios.map(b => [Math.max(z.y0, b.y), Math.min(z.y1, b.y + b.h)]).filter(v => v[1] > v[0]).sort((u, v) => u[0] - v[0]);
+    let cur = z.y0, faixa = 0;
+    ys.forEach(([y0, y1]) => { faixa = Math.max(faixa, y0 - cur); cur = Math.max(cur, y1); });
+    faixa = Math.max(faixa, z.y1 - cur);
+    const sFaixa = a.deitado ? 1 : 1 - _crLim(faixa / zh, 0.12, 0.28);
+    // proximidade: o vão DENTRO de um grupo é menor que o vão ENTRE grupos
+    const seq = cheios.filter(b => b.nome !== 'foto' || !sangra(b)).slice().sort((p, q) => p.y - q.y);
+    const intra = [], entre = [];
+    for(let k = 1; k < seq.length; k++){
+      const p = seq[k - 1], q = seq[k], gap = q.y - (p.y + p.h);
+      if(gap < 0 || Math.min(p.x + p.w, q.x + q.w) - Math.max(p.x, q.x) < -40) continue;   // lado a lado ou sobrepostos: não é ritmo vertical
+      ((_CR_GRUPO[p.nome] || p.nome) === (_CR_GRUPO[q.nome] || q.nome) ? intra : entre).push(gap);
+    }
+    let sProx = 1;
+    if(intra.length && entre.length){ let ok = 0, t = 0; intra.forEach(i => entre.forEach(e => { t++; if(i < e * 0.85) ok++; })); sProx = ok / t; }
+    if(entre.length > 1){ const mn = Math.min(...entre), mx = Math.max(...entre); if(mx > mn * 3.2 && !a.deitado) sProx *= 0.85; }
+    return 0.3 * sProp + 0.4 * sFaixa + 0.3 * sProx;
+  });
+
+  // 3) Eixos de alinhamento: quantas bordas esquerdas, centros e direitas distintas (6 px)
+  partes.eixos = media(bs => {
+    const al = bs.filter(b => b.nome !== 'decor' && !sangra(b));
+    if(al.length < 2) return 1;
+    const cands = [];
+    al.forEach(b => [['e', b.x], ['c', b.x + b.w / 2], ['d', b.x + b.w]].forEach(([t, v]) => cands.push({ t, v })));
+    const cobre = (e, b) => Math.abs((e.t === 'e' ? b.x : e.t === 'c' ? b.x + b.w / 2 : b.x + b.w) - e.v) <= 6;
+    let resto = al.slice(), nx = 0, dom = 0;
+    while(resto.length){
+      let melhor = null, mq = -1;
+      cands.forEach(e => { const q = resto.filter(b => cobre(e, b)).length; if(q > mq){ mq = q; melhor = e; } });
+      if(!nx) dom = mq / al.length;
+      resto = resto.filter(b => !cobre(melhor, b)); nx++;
+    }
+    return Math.min(1, 1 - Math.max(0, nx - 1) * 0.2 + (dom >= 0.7 ? 0.15 : 0));
+  });
+
+  // 4) Escala tipográfica: níveis (3 é o ideal), razão entre níveis (1,5–3×) e herói dominante
+  {
+    const papel = [];
+    todos.forEach(b => {
+      const p = _CR_PAPEL[b.nome]; if(!p) return;
+      let corpo = b.maiorFonte;
+      if(p !== 'heroi'){ const ts = textos.filter(t => t.bloco === b.nome); if(ts.length) corpo = ts.reduce((q, t) => (t.txt.length > q.txt.length ? t : q)).corpo; }
+      if(corpo) papel.push({ p, corpo });
+    });
+    const vals = papel.map(x => x.corpo).sort((u, v) => v - u);
+    if(!vals.length) partes.escala = 0.5;
+    else {
+      const niveis = [];
+      vals.forEach(v => { if(!niveis.length || niveis[niveis.length - 1] / v > 1.2) niveis.push(v); });
+      const sN = [0.45, 0.45, 0.8, 1, 0.85, 0.65, 0.5][Math.min(6, niveis.length)];
+      let sR = 1;
+      if(niveis.length > 1){
+        const rs = niveis.slice(1).map((v, k) => niveis[k] / v);
+        sR = rs.reduce((s, r) => s + (r < 1.5 ? 0.25 + 0.75 * _crLim(r, 1.2, 1.5) : r <= 3.4 ? 1 : 1 - 0.45 * _crLim(r, 3.4, 6)), 0) / rs.length;
+      }
+      const heroi = vals[0], seg = vals[1] || 0;
+      // dois heróis do mesmo tamanho brigam (título e preço quase iguais): um tem de mandar
+      const sD = !seg ? 1 : _crLim(heroi / seg, 1.04, 1.35);
+      // foco: o herói tem de OCUPAR a peça (tinta do maior herói sobre a zona útil) e vir cedo na
+      // leitura — herói miúdo num canvas vazio, ou o valor do cupom depois do ticket, é hierarquia fraca
+      const hb = todos.filter(b => _CR_PAPEL[b.nome] === 'heroi').sort((p, q) => q.maiorFonte - p.maiorFonte)[0];
+      const share = hb ? hb.w * hb.h / (zw * zh * n) : 0, sF = _crLim(share, a.deitado ? 0.06 : 0.03, a.deitado ? 0.2 : 0.09);
+      const leitura = todos.filter(b => _CR_PAPEL[b.nome] || ['cupom', 'botao', 'selo'].indexOf(b.nome) >= 0).sort((p, q) => p.y - q.y || p.x - q.x);
+      const ih = leitura.findIndex(b => _CR_PAPEL[b.nome] === 'heroi'), sO = ih <= 1 ? 1 : ih === 2 ? 0.75 : 0.45;
+      partes.escala = 0.15 * sN + 0.2 * sR + 0.2 * sD + 0.3 * sF + 0.15 * sO;
+    }
+  }
+
+  // 5) Contraste: WCAG de cada texto contra o fundo sólido dele (as regras do #FF9000 continuam como erro)
+  {
+    let s = 0, p = 0;
+    textos.forEach(t => {
+      const area = Math.max(1, (t.x1 - t.x0) * (t.y1 - t.y0)), w = Math.sqrt(area), r = corDe(t), alvo = t.corpo >= 40 ? 3 : 4.5;
+      let v = r >= alvo ? 1 : r >= 3 ? 0.85 : 0.7 * _crLim(r, 1.4, alvo);
+      // pares de display aprovados da marca (branco no #FF9000 com herói ≥ 110; laranja/rosa no amarelo,
+      // como a Promo Turbinada): valem, mas não são o melhor par
+      if(r < 3 && t.corpo >= Math.max(40, a.heroiMin) && _CR_PAR_MARCA[t.cor + t.fundo] && (t.fundo !== '#FF9000' || t.corpo >= 110)) v = Math.max(v, 0.75);
+      s += v * w; p += w;
+    });
+    partes.contraste = p ? s / p : 1;
+  }
+
+  // 6) Respiro lateral e foto: margens simétricas; fração e posição da foto
+  partes.respiro = media(bs => {
+    const fr = bs.filter(b => b.nome !== 'decor' && !sangra(b));
+    let sM = 1;
+    if(fr.length){
+      const mL = Math.min(...fr.map(b => b.x)) - (a.card ? a.card[0] : 0), mR = (a.card ? a.card[0] + a.card[2] : L) - Math.max(...fr.map(b => b.x + b.w));
+      sM = 1 - _crLim(Math.abs(mL - mR), 16, 16 + 0.22 * L);
+    }
+    const f = bs.find(b => b.nome === 'foto');
+    if(!f) return sM;
+    const x0 = Math.max(0, f.x), y0 = Math.max(0, f.y), x1 = Math.min(L, f.x + f.w), y1 = Math.min(a.H, f.y + f.h);
+    const frac = Math.max(0, x1 - x0) * Math.max(0, y1 - y0) / (L * a.H), [lo, hi] = a.deitado ? [0.2, 0.55] : [0.24, 0.5];
+    const sF = 1 - _crLim(frac < lo ? lo - frac : frac > hi ? frac - hi : 0, 0, 0.18);
+    const dentro = f.x >= a.M - 6 && f.x + f.w <= L - a.M + 6, borda = sangra(f) || f.x <= 2 || f.x + f.w >= L - 2 || f.y <= 2 || f.y + f.h >= a.H - 2;
+    return 0.5 * sM + 0.5 * sF * (dentro || borda ? 1 : 0.6);
+  });
+
+  const pesos = crNotaPesos(c.objetivo, a.fmt);
+  let soma = 0, pt = 0;
+  CR_NOTA_PARTES.forEach(k => { partes[k] = Math.round(Math.max(0, Math.min(1, partes[k])) * 1000) / 1000; soma += pesos[k] * partes[k]; pt += pesos[k]; });
+  // o elo mais fraco pesa: uma peça é tão boa quanto o pior defeito dela (média alta com um buraco
+  // no meio não é arte boa) — a média cai até 30% conforme a pior parte relevante
+  const piorRel = Math.min(...CR_NOTA_PARTES.filter(k => pesos[k] >= 0.7).map(k => partes[k]));
+  const total = Math.round(100 * (soma / pt) * (0.7 + 0.3 * piorRel));
+  const ord = CR_NOTA_PARTES.slice().sort((u, v) => partes[v] * pesos[v] - partes[u] * pesos[u] || CR_NOTA_PARTES.indexOf(u) - CR_NOTA_PARTES.indexOf(v));
+  const pior = CR_NOTA_PARTES.slice().sort((u, v) => partes[u] - partes[v] || CR_NOTA_PARTES.indexOf(u) - CR_NOTA_PARTES.indexOf(v))[0];
+  const frase = CR_NOTA_FRASES[ord[0]][0] + (ord[1] && partes[ord[1]] >= 0.85 ? ' e ' + CR_NOTA_FRASES[ord[1]][0] : '');
+  const porque = frase.charAt(0).toUpperCase() + frase.slice(1) + (partes[pior] < 0.7 ? '; ' + CR_NOTA_FRASES[pior][1] : '');
+  return { total, partes, porque };
+}
+
 // Aprende com a escolha: o que a pessoa baixa ou edita ganha peso (neste navegador) — família da
-// receita, ou "designer" para as composições da IA. Teto de +10 na nota.
+// receita, ou "designer" para as composições da IA. NÃO entra na nota de design (que é pura): só
+// desempata a ordem das candidatas, com teto de +5.
 const CR_PREF_CHAVE = 'luma_creative_pref';
 function _crPref(){ try{ return JSON.parse(localStorage.getItem(CR_PREF_CHAVE) || '{}') || {}; }catch(e){ return {}; } }
 function crAprende(r, como){
@@ -1096,19 +1583,14 @@ function crAprende(r, como){
   try{ localStorage.setItem(CR_PREF_CHAVE, JSON.stringify(p)); }catch(e){}
   if(typeof gTrackEvent === 'function') try{ gTrackEvent('creative_escolha', { como, receita: k, ideia: r.desenho ? r.nomeReceita : '', formato: r.spec.formato, objetivo: r.spec.objetivo, marca: r.spec.marca, juiz: r.juiz ? +r.juiz.nota.toFixed(1) : null }); }catch(e){}
 }
+// A nota de uma diagramação já avaliada: a de design (0 com erro). Guarda o boletim em r.design.
 function crNota(r, av){
-  const a = crArea(r.spec.formato), rec = CR_RECEITAS.find(x => x.id === r.receita) || {};
-  const lim = (v, a0, a1) => Math.max(0, Math.min(1, (v - a0) / (a1 - a0)));
-  let n = 50 + (r.desenho ? 20 : (rec.peso && rec.peso[r.spec.objetivo] || 0) * 2);   // composição da IA designer vale como família de peso 10
-  if(a.deitado){ if(a.heroiMax) n += lim(av.heroi, a.heroiMin, a.heroiMax) * 14; }
-  else n += lim(av.heroi, 90, a.story ? 200 : 170) * 14;
-  if(r.spec.precoPor && !a.deitado) n += lim(av.preco, 110, a.story ? 200 : 180) * 8;
-  if(av.fracFoto) n += Math.max(0, 1 - Math.abs(av.fracFoto - 0.45) / 0.2) * 8;
-  n -= Math.min(24, Math.max(0, av.maiorVazio - 140) / 10);
-  n -= av.avisos.length * 4;
-  n += Math.min(10, _crPref()[r.desenho ? 'designer' : r.receita] || 0);
-  return Math.round(Math.max(0, Math.min(100, n)));
+  const d = crNotaDesign(av.geo || crGeometria(r.svg), { formato: r.spec.formato, objetivo: r.spec.objetivo, fundo: r.fundo, erros: av.erros.length });
+  r.design = d;
+  return d.total;
 }
+// Ordem das candidatas: a nota manda; a preferência aprendida só desempata (até +5)
+const _crOrdem = r => r.nota + Math.min(5, (_crPref()[r.desenho && !/^editorial/.test(r.receita) ? 'designer' : r.receita] || 0) / 2);
 
 /* Todas as diagramações que servem ao conteúdo, montadas, conferidas e com nota (melhor primeiro) */
 function crCandidatos(bruto, p){
@@ -1123,18 +1605,18 @@ function crCandidatos(bruto, p){
       const r = crMontar(sp, rec, cor, p);
       if(!r) return;
       const av = crAvaliar(r);
-      r.avaliacao = av; r.nota = av.erros.length ? 0 : crNota(r, av);
+      r.avaliacao = av; r.nota = crNota(r, av);
       lista.push(r);
     });
   });
-  // Editorial (§4.2 sem IA): 3 composições de designer nos formatos altos — vêm antes das receitas antigas
+  // Editorial (§4.2 sem IA): 3 composições de designer nos formatos altos — a nota de design decide se elas vêm antes
   if(['feed', 'story', 'inapp'].indexOf(sp.formato) >= 0) [1, 2, 3].forEach(v => {
     const comp = crEditorial(sp, v); if(!comp) return;
     const r = crDesenhar(sp, comp, 20 + v); r.receita = 'editorial' + v; r.avaliacao = crAvaliar(r);
-    r.nota = r.avaliacao.erros.length ? 0 : crNota(r, r.avaliacao) + 14;
+    r.nota = crNota(r, r.avaliacao);
     lista.push(r);
   });
-  return lista.sort((u, v) => v.nota - u.nota);
+  return lista.sort((u, v) => _crOrdem(v) - _crOrdem(u));
 }
 // As 3 melhores APROVADAS, de famílias diferentes; `evitar` = famílias já mostradas
 function crEscolher3(cands, evitar){
