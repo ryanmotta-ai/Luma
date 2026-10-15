@@ -261,7 +261,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 89 arquivos JS (83.784 linhas, 3.262 funções) · 33 arquivos CSS (33.417 linhas) · `index.html` com 4.093 linhas e 79 `<script>`.
+**Tamanho real de hoje:** 90 arquivos JS (83.921 linhas, 3.262 funções) · 33 arquivos CSS (33.417 linhas) · `index.html` com 4.094 linhas e 80 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -710,11 +710,14 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 
 ### js/creative
 
+**`js/creative/branding.js`** · 135 linhas
+BRANDING BOOK da Delivery Much — a "skill" que a IA do Luma Creative LÊ antes de escrever texto.
+
 **`js/creative/composicoes.js`** · 1335 linhas
 As composições do dia a dia do franqueado (frente 4, 15/10/2026) — desenhadas uma a uma, cada uma especialista de UM formato (nada de "serve a todos" com adaptação).
 · API: crComposicao
 
-**`js/creative/copy.js`** · 158 linhas
+**`js/creative/copy.js`** · 160 linhas
 LUMA CREATIVE — modo COPY (15/10/2026) Quando o pedido é um TEXTO ("quero uma copy", "uma legenda", "um roteiro", "mensagem de whatsapp"…) e não uma arte, o chat vira o de um copywriter:
 · API: crPromptCopyBriefing, crPromptCopyTexto, crCopy
 
@@ -805,51 +808,52 @@ A ordem **é** a arquitetura: sem ESM, um arquivo depende de o anterior já ter 
 32. js/creative/creative.js
 33. js/creative/composicoes.js
 34. js/creative/curadoria.js
-35. js/creative/copy.js
-36. js/designer/canvas.js
-37. js/designer/selection.js
-38. js/designer/brush.js
-39. js/designer/eraser-tools.js
-40. js/designer/layers.js
-41. js/designer/props-panel.js
-42. js/designer/measurement.js
-43. js/designer/publish.js
-44. js/designer/preview.js
-45. js/designer/library.js
-46. js/designer/undo-redo.js
-47. js/widgets/novidades.js
-48. js/widgets/help-widget.js
-49. js/designer/tools.js
-50. js/designer/fonts.js
-51. js/designer/psd-parse.js
-52. js/designer/psd-import.js
-53. js/designer/mask.js
-54. js/designer/tutorial-panel.js
-55. assets/vendor/colorthief.js
-56. assets/vendor/pica.js
-57. assets/vendor/jszip.min.js
-58. assets/vendor/supabase.js
-59. js/core/supabase-config.js
-60. js/core/supabase.js
-61. js/core/ai/ai-cache.js
-62. js/core/ai/ai-telemetry.js
-63. js/core/ai/ai-schemas.js
-64. js/core/ai/ai-registry.js
-65. js/core/ai/ai-client.js
-66. js/core/ai.js
-67. js/core/ai/ai-provedores.js
-68. js/core/auth.js
-69. js/core/franquia.js
-70. js/franqueado/feedback.js
-71. js/core/feature-flags.js
-72. js/core/user-profile.js
-73. js/core/product-control.js
-74. js/core/dados.js
-75. js/core/console.js
-76. js/designer/color-picker.js
-77. js/designer/tooltip.js
-78. js/designer/linter.js
-79. js/main.js
+35. js/creative/branding.js
+36. js/creative/copy.js
+37. js/designer/canvas.js
+38. js/designer/selection.js
+39. js/designer/brush.js
+40. js/designer/eraser-tools.js
+41. js/designer/layers.js
+42. js/designer/props-panel.js
+43. js/designer/measurement.js
+44. js/designer/publish.js
+45. js/designer/preview.js
+46. js/designer/library.js
+47. js/designer/undo-redo.js
+48. js/widgets/novidades.js
+49. js/widgets/help-widget.js
+50. js/designer/tools.js
+51. js/designer/fonts.js
+52. js/designer/psd-parse.js
+53. js/designer/psd-import.js
+54. js/designer/mask.js
+55. js/designer/tutorial-panel.js
+56. assets/vendor/colorthief.js
+57. assets/vendor/pica.js
+58. assets/vendor/jszip.min.js
+59. assets/vendor/supabase.js
+60. js/core/supabase-config.js
+61. js/core/supabase.js
+62. js/core/ai/ai-cache.js
+63. js/core/ai/ai-telemetry.js
+64. js/core/ai/ai-schemas.js
+65. js/core/ai/ai-registry.js
+66. js/core/ai/ai-client.js
+67. js/core/ai.js
+68. js/core/ai/ai-provedores.js
+69. js/core/auth.js
+70. js/core/franquia.js
+71. js/franqueado/feedback.js
+72. js/core/feature-flags.js
+73. js/core/user-profile.js
+74. js/core/product-control.js
+75. js/core/dados.js
+76. js/core/console.js
+77. js/designer/color-picker.js
+78. js/designer/tooltip.js
+79. js/designer/linter.js
+80. js/main.js
 ```
 
 <!-- AUTO-FIM -->

@@ -15,12 +15,14 @@ const CR_COPY_ARTE = /\b(arte|artes|banner|story|stories|feed|capa|slide|carross
 // "/copy …" força; senão: pede texto E não fala de peça visual
 const crEhCopy = pedido => /^\s*(\/copy\b|copy\s*:)/i.test(pedido) || (CR_COPY_GATILHO.test(pedido) && !CR_COPY_ARTE.test(pedido));
 
-const CR_COPY_VOZ = [
-  'VOZ DA DELIVERY MUCH: app de delivery de cidades do interior do Brasil. Tom próximo, caloroso e direto, como um vizinho que indica o que é bom — nunca corporativo, nunca "imperdível", "incrível" ou "revolucionário". Português do Brasil, frases curtas, verbos de ação, vocabulário de quem pede comida (fome, jantar, domingo, pedir).',
-  'Fale de benefício concreto (a cidade inteira no app, entrega rápida, cupom, cashback Much+), para o dono do comércio que decide rápido e para o cliente com fome.',
-  'NÃO invente preço, desconto, cupom, prazo, endereço, telefone nem nome de loja que o pedido não trouxe. Se faltar o dado, escreva sem ele ou deixe [entre colchetes] para a pessoa preencher.',
-  'Emoji: no máximo 1–2, só em post social e WhatsApp; nenhum em e-mail formal. Hashtags só em Instagram (até 5, com #deliverymuch).',
-  'Termine com chamada clara para agir (ex.: "Pede no app da Delivery Much").'
+// O BRANDING BOOK inteiro (js/creative/branding.js) vai no prompt como a skill de marca; estas são só as regras de OFÍCIO que o livro não cobre
+const CR_COPY_OFICIO = [
+  'REGRAS DE OFÍCIO (valem junto do guia de marca):',
+  '- O guia de marca fala sobretudo com LEADS DE FRANQUIA (Paulo e Lucas). Se o público do briefing for cliente final ou lojista parceiro, mantenha a mesma voz (simples, amigável, direta, "a gente"), os 3 valores e a persona Cássio, mas NÃO use as abordagens de Paulo/Lucas, que são só para lead de franquia.',
+  '- NÃO invente preço, desconto, cupom, prazo, faturamento, endereço, telefone nem nome de loja que o pedido não trouxe. Se faltar o dado, escreva sem ele ou deixe [entre colchetes] para a pessoa preencher.',
+  '- Emoji: no máximo 1–2, só em post social e WhatsApp; nenhum em e-mail formal. Hashtags só em Instagram (até 5, com #deliverymuch).',
+  '- Termine com chamada clara para agir (ex.: "Pede no app da Delivery Much" / "Fale com a gente").',
+  '- Antes de responder, confira mentalmente o CHECKLIST do guia; só entregue o que passa.'
 ].join('\n');
 
 const CR_COPY_AJUSTES = {
@@ -31,16 +33,16 @@ const CR_COPY_AJUSTES = {
 
 function crPromptCopyBriefing(pedido){
   return [
-    'Você é copywriter sênior da Delivery Much (app de delivery de cidades do interior). A gestão pediu um TEXTO. Antes de escrever, faça o briefing: pergunte SÓ o que muda o texto e o pedido não responde.',
+    'Você é copywriter sênior da Delivery Much (app de delivery de cidades do interior). A gestão pediu um TEXTO. Antes de escrever, faça o briefing: pergunte SÓ o que muda o texto e o pedido não responde.', '', '=== BRANDING BOOK DA DELIVERY MUCH ===', CR_BRANDING, '=== FIM DO BRANDING BOOK ===',
     '', 'PEDIDO: """' + _crAspas(pedido).slice(0, 1200) + '"""',
-    '', 'Regras: no máximo 3 perguntas, curtas, cada uma com 3 ou 4 opções de resposta (até 48 caracteres). Típicas: canal (Instagram, WhatsApp, e-mail, anúncio, roteiro de vídeo), objetivo (vender, avisar, engajar, recrutar), tom (próximo, divertido, direto), público. Se o pedido já diz o canal/objetivo/tom, NÃO pergunte.',
+    '', 'Regras: no máximo 3 perguntas, curtas, cada uma com 3 ou 4 opções de resposta (até 48 caracteres). Típicas: canal (Instagram, WhatsApp, e-mail, anúncio, roteiro de vídeo), PÚBLICO (cliente final, lojista parceiro, lead de franquia — Paulo ou Lucas), objetivo (vender, avisar, engajar, recrutar). O tom é o da marca (guia abaixo), não pergunte tom. Se o pedido já diz o canal/objetivo/tom, NÃO pergunte.',
     'Responda SÓ o JSON: {"resumo":"1 frase do que entendi","perguntas":[{"titulo":"até 14 caracteres","pergunta":"...","opcoes":["...","..."]}]}'
   ].join('\n');
 }
 function crPromptCopyTexto(fio, ajuste){
   const brief = (fio.copy.brief || []).filter(r => !r.pulou).map(r => '- ' + r.titulo + ': ' + r.resposta).join('\n');
   return [
-    'Você é copywriter sênior da Delivery Much. Escreva o texto pedido.', '', CR_COPY_VOZ,
+    'Você é copywriter sênior da Delivery Much. Escreva o texto pedido SEGUINDO O BRANDING BOOK abaixo (é a skill de marca: voz, persona Cássio, valores, checklist).', '', '=== BRANDING BOOK DA DELIVERY MUCH ===', CR_BRANDING, '=== FIM DO BRANDING BOOK ===', '', CR_COPY_OFICIO,
     '', 'PEDIDO: """' + _crAspas(fio.pedido).slice(0, 1200) + '"""',
     brief ? '\nBRIEFING (respostas da gestão):\n' + brief : '',
     fio.copy.versoes && fio.copy.versoes.length ? '\nVERSÕES ANTERIORES (não repita):\n' + fio.copy.versoes.map(v => '"' + v.texto.slice(0, 220) + '"').join('\n') : '',
