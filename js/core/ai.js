@@ -63,10 +63,14 @@ function gAiModel(){
  * @param {object} opts   {parts:[{mimeType,data}], json:true, cache:true, contexto:{}, model:'<id de G_AI_MODELOS>'}
  *                        `model` vale SÓ para esta chamada (o Luma Creative escolhe por geração, sem mexer
  *                        na escolha global do time); id fora da lista é ignorado e vale o padrão.
+ *                        `provedor:true` usa a conta de IA própria da pessoa (gProvChama), não a function.
  * @returns {Promise<string|null>} texto da resposta, ou null se a IA não respondeu
  */
 async function gAskAI(task, prompt, opts){
   opts = opts || {};
+  // Conta de IA PRÓPRIA da pessoa (ai/ai-provedores.js): vai direto do navegador ao provedor, sem a function.
+  // Só entra quando quem chama pede (`provedor:true`) — nenhum recurso antigo muda de caminho.
+  if(opts.provedor && typeof gProvChama==='function') return gProvChama(task, prompt, opts);
   const parts = Array.isArray(opts.parts) ? opts.parts : [];
   const querJson = opts.json!==false;
   const contexto = (opts.contexto && typeof opts.contexto==='object') ? opts.contexto : null;

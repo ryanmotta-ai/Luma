@@ -471,6 +471,48 @@ body.cr-ocupado .cr-enviar::after{ content:''; position:absolute; inset:-4px; bo
 .cr-retomar[hidden]{ display:none }
 .cr-retomar span{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 
+/* ── Minhas contas de IA ── */
+.cr-menu-sep{ margin-top:4px; padding-top:10px!important; border-top:1px solid var(--cr-line); border-radius:0 0 9px 9px!important }
+.cr-pill.cr-propria .cr-custo{ background:var(--cr-acento-bg); color:var(--dm-orange-text) }
+.cr-conex-veu{ position:absolute; z-index:38; inset:0; display:grid; place-items:center; padding:16px; background:color-mix(in srgb,var(--cr-bg) 62%,transparent); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+  opacity:0; transition:opacity var(--dur-base) var(--ease-standard) }
+.cr-conex-veu[hidden]{ display:none }
+.cr-conex-veu.aberto{ opacity:1 }
+.cr-conex{ width:min(680px,100%); max-height:min(760px,100%); display:flex; flex-direction:column; border-radius:18px; background:var(--cr-surf); border:1px solid var(--cr-line2); box-shadow:var(--cr-sh2);
+  transform:translateY(14px) scale(.98); transition:transform var(--dur-slow) var(--ease-spring-soft) }
+.cr-conex-veu.aberto .cr-conex{ transform:none }
+.cr-conex-cab{ position:relative; display:flex; flex-direction:column; gap:3px; padding:20px 56px 14px 22px; border-bottom:1px solid var(--cr-line) }
+.cr-conex-cab b{ font:900 20px/1 'Realce','Roboto',sans-serif; letter-spacing:.4px; text-transform:uppercase }
+.cr-conex-cab span{ font-size:13px; color:var(--cr-text2) }
+.cr-conex-cab .cr-ed-ico{ position:absolute; top:14px; right:14px }
+.cr-conex-corpo{ flex:1; min-height:0; overflow-y:auto; display:grid; gap:10px; padding:16px 22px }
+.cr-conex-nota{ padding:12px 22px 16px; border-top:1px solid var(--cr-line); font-size:12px; line-height:1.55; color:var(--cr-text3) }
+.cr-cx-card{ display:flex; flex-direction:column; gap:10px; padding:14px 16px; border-radius:var(--r); border:1px solid var(--cr-line); background:var(--cr-bg); transition:border-color var(--dur-base),box-shadow var(--dur-base),background var(--dur-base) }
+.cr-cx-card.ativo{ border-color:var(--cr-acento-ln); background:var(--cr-acento-bg) }
+.cr-cx-card.nao{ border-style:dashed; background:transparent }
+.cr-cx-card header{ display:flex; align-items:center; gap:10px }
+.cr-cx-card header b{ font-size:14.5px; color:var(--cr-text) }
+.cr-cx-tile{ flex:none; width:30px; height:30px; display:grid; place-items:center; border-radius:9px; background:var(--cr-surf3); color:var(--cr-text2); font:800 11px/1 'Roboto',sans-serif; letter-spacing:.02em }
+.cr-cx-card.ativo .cr-cx-tile{ background:var(--dm-orange); color:var(--on-orange) }
+.cr-cx-badge{ margin-left:auto; padding:3px 9px; border-radius:var(--r-pill); background:color-mix(in srgb,var(--green) 14%,transparent); color:var(--green-text); font-size:11.5px; font-weight:700 }
+.cr-cx-badge.off{ background:var(--cr-surf3); color:var(--cr-text3) }
+.cr-cx-badge.em-uso{ background:var(--dm-orange); color:var(--on-orange) }
+.cr-cx-desc{ margin:0; font-size:13px; line-height:1.55; color:var(--cr-text2) }
+.cr-cx-mini{ margin:0; font:400 12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--cr-text3); overflow-wrap:anywhere }
+.cr-cx-acoes{ display:flex; flex-wrap:wrap; align-items:center; gap:8px }
+.cr-cx-link{ font-size:12.5px; font-weight:600; color:var(--dm-orange-text); text-decoration:none }
+.cr-cx-link:hover{ text-decoration:underline }
+.cr-cx-form{ display:grid; gap:10px }
+.cr-cx-campo{ display:flex; flex-direction:column; gap:5px }
+.cr-cx-campo label{ font-size:12px; font-weight:700; letter-spacing:.04em; color:var(--cr-text2) }
+.cr-cx-campo label small{ font-weight:400; color:var(--cr-text3) }
+.cr-cx-campo input{ width:100%; padding:9px 11px; border-radius:9px; border:1px solid var(--cr-line2); background:var(--cr-surf); color:var(--cr-text); font:400 14px/1.4 'Roboto',sans-serif; transition:border-color var(--dur-fast),box-shadow var(--dur-fast) }
+#view-creative .cr-cx-campo input:focus,#view-creative .cr-cx-campo input:focus-visible{ outline:none!important; border-color:var(--dm-orange); box-shadow:0 0 0 3px var(--cr-acento-bg) }
+.cr-cx-msg{ margin:0; padding:8px 11px; border-radius:9px; font-size:12.5px; line-height:1.5; background:var(--cr-surf2); color:var(--cr-text2); animation:crSobe var(--dur-base) var(--ease-out) backwards }
+.cr-cx-msg.ok{ background:color-mix(in srgb,var(--green) 12%,transparent); color:var(--green-text) }
+.cr-cx-msg.erro{ background:color-mix(in srgb,var(--dm-red) 10%,transparent); color:var(--dm-red-text) }
+.cr-btn.cr-carrega{ opacity:.7; cursor:progress }
+
 /* ══ EDITOR (tela própria, sobre a view) ══ */
 .cr-ed{ position:absolute; inset:0; z-index:40; display:flex; flex-direction:column; background:var(--cr-bg); opacity:0; transform:scale(.99);
   transition:opacity var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-out) }
@@ -571,6 +613,8 @@ body.cr-ocupado .cr-enviar::after{ content:''; position:absolute; inset:-4px; bo
   body.cr-ocupado .cr-caixa{ border-color:var(--dm-orange) }
   .cr-ed-flut{ animation:none; transition:none }
   .cr-gaveta,.cr-veu,.cr-uso-pop,.cr-uso-arco{ transition:none }
+  .cr-conex-veu,.cr-conex{ transition:none }
+  .cr-cx-msg{ animation:none }
   .cr-faixa,.cr-faixa-it.novo,.cr-limite,.cr-uso-barra i,.cr-gaveta.aberta .cr-sess-li,.cr-entrega.cr-acha{ animation:none }
   .cr-med-arco,.cr-op-det,.cr-det-linha i::after,.cr-mont-rot{ transition:none }
   .cr-op-arte img,.cr-ed,.cr-pergunta,.cr-q-seta,.cr-boas,.cr-trab-corpo,.cr-menu,.cr-conversa,.cr-op-ok,.cr-solta > div{ transition:none }

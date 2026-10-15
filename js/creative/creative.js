@@ -1406,7 +1406,7 @@ async function crRefazerDesenhos(lista){
 // Métricas do designer (por sessão, e no gTrackEvent): quantas pedidas, aprovadas de 1ª, salvas na correção, refeitas pelo juiz
 const crMetricas = { pedidas: 0, primeira: 0, corrigidas: 0, refeitas: 0 };
 async function crDesenhos(sp, n, evitar, refPessoa){
-  if(CR_FORMATOS[sp.formato].fixo || typeof gAskAI !== 'function' || typeof gAiReady !== 'function' || !gAiReady()) return [];
+  if(CR_FORMATOS[sp.formato].fixo || typeof gAskAI !== 'function' || !_crIaPronta()) return [];
   // O designer VÊ: a régua do formato (linguagem, escala, acabamento) e a referência que a pessoa mandou
   const regua = await crRegua(sp).catch(() => []), m = /^data:(image\/[a-z]+);base64,(.+)$/.exec(refPessoa || ''), ref = m ? [m[2]] : [];
   const parts = regua.map(d => ({ mimeType: 'image/jpeg', data: d })).concat(m ? [{ mimeType: m[1], data: m[2] }] : []);
@@ -1595,7 +1595,7 @@ async function crRegua(sp){
   return (await Promise.all(regua.map(f => _crJpeg(pasta + f, 432).catch(() => null)))).filter(Boolean);
 }
 async function crJulgar(tres){
-  if(!tres.length || typeof gAskAI !== 'function' || typeof gAiReady !== 'function' || !gAiReady()) return null;
+  if(!tres.length || typeof gAskAI !== 'function' || !_crIaPronta()) return null;
   const sp = tres[0].spec, refs = await crRegua(sp);
   const ops = await Promise.all(tres.map(crArteJpeg));
   const parts = refs.concat(ops).map(d => ({ mimeType: 'image/jpeg', data: d }));
@@ -1745,7 +1745,7 @@ function crPromptBriefing(fio){
   ].join('\n');
 }
 async function crPedirBriefing(fio){
-  if(typeof gAskAI !== 'function' || typeof gAiReady !== 'function' || !gAiReady()) return null;
+  if(typeof gAskAI !== 'function' || !_crIaPronta()) return null;
   const j = (typeof gAiParseJson === 'function') ? gAiParseJson(await _crAsk('arte.compor', crPromptBriefing(fio), { json: true, cache: false })) : null;
   const obj = j && (CR_LEGADO[j.objetivo] || j.objetivo);
   if(!j || typeof j !== 'object' || !CR_OBJETIVOS[obj]) return null;
@@ -1831,7 +1831,7 @@ function crPrompt(fio){
   ].filter(l => l !== '').join('\n');
 }
 async function crPedirComposicao(fio){
-  if(typeof gAskAI !== 'function' || typeof gAiReady !== 'function' || !gAiReady()) return null;
+  if(typeof gAskAI !== 'function' || !_crIaPronta()) return null;
   const txt = await _crAsk('arte.compor', crPrompt(fio), { json: true, cache: false });
   const j = (typeof gAiParseJson === 'function') ? gAiParseJson(txt) : null;
   if(!j || typeof j !== 'object') return null;
@@ -1881,6 +1881,7 @@ const CR_ICO = {
   olho: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
   olhoFechado: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.9 10.9 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.1M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7a10.6 10.6 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>',
   celular: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6.75" y="2" width="10.5" height="20" rx="3"/><path d="M10.5 5.5h3"/></svg>',
+  plug: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0zM12 17v4"/></svg>',
   mover: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg>',
   alEsq: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 3v18"/><rect x="8" y="6" width="12" height="4" rx="1"/><rect x="8" y="14" width="7" height="4" rx="1"/></svg>',
   alCentro: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v18"/><rect x="5" y="6" width="14" height="4" rx="1"/><rect x="8" y="14" width="8" height="4" rx="1"/></svg>',
@@ -1906,7 +1907,7 @@ function crEntrar(aba){
   if(_crReduz()) v.classList.remove('cr-revelando', 'cr-itens');
   setTimeout(() => { const i = _crEl('cr-pedido'); if(i && window.innerWidth > 760) i.focus({ preventScroll: true }); }, 380);
   crFontesProntas().catch(() => {});
-  _crRotuloModelo(); crUsoCarrega(); crSessIndice();
+  _crRotuloModelo(); crUsoCarrega(); crSessIndice(); crConexoesRetorno();
 }
 function _crMsgIA(conv){
   const m = document.createElement('div');
@@ -2156,8 +2157,12 @@ function _crMenuFmt(abrir){
 }
 function _crMenuModelo(abrir){
   const m = _crEl('cr-modelo-menu'); if(!m) return;
-  m.innerHTML = crModelosOferta().map((o, i) => '<li role="option" tabindex="-1" data-v="' + gEsc(o.id) + '" style="--i:' + i + '"><b>' + gEsc(o.rot) + ' <em>gasta ' + o.custo + '</em></b><small>' + gEsc(o.desc) + '</small></li>').join('');
-  _crMenu(m, _crEl('cr-modelo-btn'), abrir, crModelo());
+  const at = typeof gProvAtivo === 'function' ? gProvAtivo() : null, itens = [];
+  if(at) itens.push({ v: '__prov', rot: at.nome, extra: 'sua conta', desc: at.modelo + ' · não gasta do seu limite' });
+  crModelosOferta().forEach(o => itens.push({ v: o.id, rot: o.rot, extra: 'gasta ' + o.custo, desc: o.desc }));
+  itens.push({ v: '__conectar', rot: 'Minhas contas de IA…', extra: '', desc: 'OpenRouter, Google AI Studio, 9router, OpenCode', sep: true });
+  m.innerHTML = itens.map((o, i) => '<li role="option" tabindex="-1" data-v="' + gEsc(o.v) + '" style="--i:' + i + '"' + (o.sep ? ' class="cr-menu-sep"' : '') + '><b>' + gEsc(o.rot) + (o.extra ? ' <em>' + gEsc(o.extra) + '</em>' : '') + '</b><small>' + gEsc(o.desc) + '</small></li>').join('');
+  _crMenu(m, _crEl('cr-modelo-btn'), abrir, at ? '__prov' : crModelo());
 }
 function crEscolheFormato(k){
   crState.fmt = CR_FORMATOS[k] ? k : null;
@@ -2202,6 +2207,8 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   if(!_crNoCreative()) return;
   if(e.key === 'Escape'){
+    const cx = _crEl('cr-conex');
+    if(cx && !cx.hidden){ e.stopPropagation(); return crConexoes(false); }
     const g = _crEl('cr-gaveta');
     if(g && g.classList.contains('aberta')){ e.stopPropagation(); return crGaveta(false); }
     const pop = _crEl('cr-uso-pop');
@@ -2252,15 +2259,20 @@ function crModelo(){
   return crModelosOferta().some(m => m.id === id) ? id : CR_MODELO_RAPIDO;
 }
 // Toda chamada de IA do Creative usa o modelo FIXADO no início da geração (mexer no menu no meio não muda o custo)
-const _crAsk = (task, prompt, opts) => gAskAI(task, prompt, Object.assign({}, opts, { model: crState.modeloRun || crModelo() }));
+const _crAsk = (task, prompt, opts) => gAskAI(task, prompt, Object.assign({}, opts, crState.provRun ? { provedor: true } : { model: crState.modeloRun || crModelo() }));
+const _crIaPronta = () => !!(typeof gProvAtivo === 'function' && gProvAtivo()) || (typeof gAiReady === 'function' && gAiReady());
 function _crRotuloModelo(){
+  const at = typeof gProvAtivo === 'function' ? gProvAtivo() : null;
   const id = crModelo(), r = _crEl('cr-modelo-rot'), c = _crEl('cr-modelo-custo'), b = _crEl('cr-modelo-btn');
-  if(r) r.textContent = _crNomeModelo(id);
-  if(c) c.textContent = '−' + crCusto(id);
-  if(b) b.classList.toggle('cr-pill-on', crCusto(id) > 1);
+  if(r) r.textContent = at ? at.def.nome.split(' ')[0] + ' · ' + String(at.modelo).split('/').pop().slice(0, 22) : _crNomeModelo(id);
+  if(c) c.textContent = at ? 'sua conta' : '−' + crCusto(id);
+  if(b){ b.classList.toggle('cr-pill-on', !!at || crCusto(id) > 1); b.classList.toggle('cr-propria', !!at); }
 }
 function crEscolheModelo(id){
+  if(id === '__conectar'){ _crMenuModelo(false); return crConexoes(true); }
+  if(id === '__prov'){ _crMenuModelo(false); return; }   // já é a conta em uso
   if(!crModelosOferta().some(m => m.id === id)) return;
+  if(typeof gProvUsa === 'function') gProvUsa(null);      // escolher um modelo do Luma desliga a conta própria
   try{ localStorage.setItem('luma_creative_modelo:' + _crUid(), id); }catch(e){}
   _crRotuloModelo(); _crMenuModelo(false); crUsoPinta();
   const b = _crEl('cr-modelo-btn'); if(b) b.focus({ preventScroll: true });
@@ -2306,10 +2318,11 @@ async function crUsoEstorna(){
 }
 function crUsoConfirma(){ if(crUso.pendente && crUso.origem === 'servidor') _crRpc('luma_creative_confirmar'); crUso.pendente = 0; }
 const _crUsoResta = () => (crUso.ilimitado || crUso.limite == null) ? Infinity : crUso.limite - crUso.usado;
-const crUsoSemSaldo = () => _crUsoResta() < crCusto(crModelo());
+const _crPropria = () => !!(typeof gProvAtivo === 'function' && gProvAtivo());
+const crUsoSemSaldo = () => !_crPropria() && _crUsoResta() < crCusto(crModelo());
 // O aviso do dia, uma verdade só (banner acima do campo, toast ao tentar enviar e recusa dentro da geração)
 function crUsoMsg(modelo){
-  if(crUso.ilimitado || crUso.limite == null) return '';
+  if(_crPropria() || crUso.ilimitado || crUso.limite == null) return '';
   const resta = _crUsoResta(), id = modelo || crModelo();
   if(resta < crCusto(CR_MODELO_RAPIDO)) return 'Você usou as ' + crUso.limite + ' artes de hoje. O limite renova à meia-noite.';
   if(resta < crCusto(id)) return 'Restam ' + resta + ' arte' + (resta > 1 ? 's' : '') + ' hoje — o modelo ' + _crNomeModelo(id) + ' gasta ' + crCusto(id) + '. Troque para o Rápido.';
@@ -2496,6 +2509,131 @@ function crFaixaPinta(){
 }
 
 document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') crSessSalva(true); });
+/* ══════════════════════════════════════════════════════════════
+   MINHAS CONTAS DE IA — modal. A pessoa liga a conta dela (OpenRouter, Google AI Studio, 9router,
+   OpenCode Zen) e as gerações passam a sair por ali: o custo é dela e não conta no limite do dia.
+   O motor (chamada, chave, OAuth) mora em core/ai/ai-provedores.js; aqui é só a tela.
+   Antigravity aparece como "não suportado" de propósito: o Google proíbe esse login em apps de terceiros.
+══════════════════════════════════════════════════════════════ */
+const crConex = { form: null, estado: {}, modelos: {} };
+const _crCxLetra = id => ({ openrouter: 'OR', google: 'G', '9router': '9R', opencode: 'OC' }[id] || id.slice(0, 2).toUpperCase());
+function _crCxCard(id){
+  const d = G_PROVEDORES[id], on = gProvConectado(id), cfg = gProvConfig(id) || {}, est = gProvEstado(), ativo = est.ativo === id && !!gProvAtivo(), st = crConex.estado[id] || {};
+  const badge = ativo ? '<span class="cr-cx-badge em-uso">Em uso</span>' : on ? '<span class="cr-cx-badge">Conectado</span>' : '<span class="cr-cx-badge off">Não conectado</span>';
+  let corpo = '<p class="cr-cx-desc">' + gEsc(d.desc) + '</p>';
+  if(on){
+    corpo += '<div class="cr-cx-campo"><label for="cx-mod-' + id + '">Modelo</label><input id="cx-mod-' + id + '" data-cx-modelo="' + id + '" list="cx-dl-' + id + '" value="' + gEsc(cfg.modelo || '') + '" placeholder="Escolha ou digite o id do modelo" autocomplete="off" spellcheck="false"><datalist id="cx-dl-' + id + '"></datalist></div>'
+      + '<p class="cr-cx-mini">' + (cfg.key ? 'Chave ' + gEsc(gProvMascara(cfg.key)) + ' · ' : '') + gEsc((cfg.base || d.base).replace(/^https?:\/\//, '')) + '</p>'
+      + '<div class="cr-cx-acoes">' + (ativo ? '<button type="button" class="cr-btn cr-btn-mini" data-cx="naousar" data-id="' + id + '">Parar de usar</button>'
+          : '<button type="button" class="cr-btn cr-btn-mini cr-prim" data-cx="usar" data-id="' + id + '"' + (cfg.modelo ? '' : ' disabled title="Escolha um modelo primeiro"') + '>Usar esta conta</button>')
+      + '<button type="button" class="cr-btn cr-btn-mini" data-cx="testar" data-id="' + id + '">Testar conexão</button>'
+      + '<button type="button" class="cr-btn cr-btn-mini cr-btn-leve" data-cx="desconectar" data-id="' + id + '">Desconectar</button></div>';
+  }else if(crConex.form === id){
+    corpo += '<div class="cr-cx-form">'
+      + (d.baseEditavel ? '<div class="cr-cx-campo"><label for="cx-base-' + id + '">Endereço</label><input id="cx-base-' + id + '" value="' + gEsc(d.base) + '" autocomplete="off" spellcheck="false"></div>' : '')
+      + '<div class="cr-cx-campo"><label for="cx-key-' + id + '">Chave' + (d.chaveOpcional ? ' <small>(opcional)</small>' : '') + '</label><input id="cx-key-' + id + '" type="password" autocomplete="off" spellcheck="false" placeholder="Cole a chave aqui"></div>'
+      + '<div class="cr-cx-acoes"><button type="button" class="cr-btn cr-btn-mini cr-prim" data-cx="conectar" data-id="' + id + '">' + CR_ICO.plug + 'Conectar e testar</button>'
+      + '<button type="button" class="cr-btn cr-btn-mini cr-btn-leve" data-cx="cancelar">Cancelar</button>'
+      + (d.chaveUrl ? '<a class="cr-cx-link" href="' + gEsc(d.chaveUrl) + '" target="_blank" rel="noopener noreferrer">Criar uma chave</a>' : '') + '</div></div>';
+  }else{
+    corpo += '<div class="cr-cx-acoes">' + (d.oauth ? '<button type="button" class="cr-btn cr-btn-mini cr-prim" data-cx="oauth" data-id="' + id + '">Entrar com ' + gEsc(d.nome) + '</button>' : '')
+      + '<button type="button" class="cr-btn cr-btn-mini' + (d.oauth ? '' : ' cr-prim') + '" data-cx="form" data-id="' + id + '">' + (d.oauth ? 'Colar uma chave' : 'Conectar') + '</button></div>';
+  }
+  if(st.msg) corpo += '<p class="cr-cx-msg ' + (st.tipo || '') + '" role="status">' + gEsc(st.msg) + '</p>';
+  return '<section class="cr-cx-card' + (ativo ? ' ativo' : '') + '" id="cx-card-' + id + '"><header><span class="cr-cx-tile">' + _crCxLetra(id) + '</span><b>' + gEsc(d.nome) + '</b>' + badge + '</header>' + corpo + '</section>';
+}
+function crConexoesPinta(){
+  const el = _crEl('cr-conex-corpo'); if(!el) return;
+  const nao = Object.keys(G_PROV_NAO_SUPORTADOS).map(id => {
+    const n = G_PROV_NAO_SUPORTADOS[id];
+    return '<section class="cr-cx-card nao"><header><span class="cr-cx-tile">AG</span><b>' + gEsc(n.nome) + '</b><span class="cr-cx-badge off">Não suportado</span></header><p class="cr-cx-desc">' + gEsc(n.motivo) + '</p>'
+      + '<div class="cr-cx-acoes"><button type="button" class="cr-btn cr-btn-mini" data-cx="form" data-id="' + n.alternativa + '">Usar a chave do Google AI Studio</button></div></section>';
+  }).join('');
+  el.innerHTML = Object.keys(G_PROVEDORES).map(_crCxCard).join('') + nao;
+  Object.keys(G_PROVEDORES).forEach(id => { if(gProvConectado(id)) _crCxModelosLista(id); });
+}
+// Lista de modelos do provedor entra no datalist sem redesenhar o cartão (não perde o que a pessoa digita)
+async function _crCxModelosLista(id){
+  if(!crConex.modelos[id]) crConex.modelos[id] = await gProvModelos(id) || [];
+  const dl = _crEl('cx-dl-' + id); if(!dl) return;
+  dl.innerHTML = crConex.modelos[id].slice(0, 400).map(m => '<option value="' + gEsc(m.id) + '"></option>').join('');
+}
+function crConexoes(abrir){
+  const m = _crEl('cr-conex'); if(!m) return;
+  if(abrir === undefined) abrir = m.hidden;
+  if(abrir){
+    crConex.form = null; crConex.estado = {}; crConexoesPinta();
+    m.hidden = false; void m.offsetWidth; m.classList.add('aberto');
+    setTimeout(() => { const p = m.querySelector('button:not([disabled]), input'); if(p) p.focus({ preventScroll: true }); }, 80);
+  }else{
+    m.classList.remove('aberto'); setTimeout(() => { if(!m.classList.contains('aberto')) m.hidden = true; }, _crReduz() ? 0 : 220);
+    _crRotuloModelo(); crUsoPinta();
+    const b = _crEl('cr-modelo-btn'); if(b) b.focus({ preventScroll: true });
+  }
+}
+// Depois de mexer em conta, a pílula e o contador refletem o que está valendo
+const _crCxAtualiza = () => { crConexoesPinta(); _crRotuloModelo(); crUsoPinta(); };
+async function _crCxAcao(a, id, btn){
+  if(a === 'oauth') return gProvOpenRouterEntrar();
+  if(a === 'form'){ crConex.form = id; crConex.estado[id] = {}; crConexoesPinta(); const c = _crEl('cx-card-' + id); if(c){ c.scrollIntoView({ block: 'nearest', behavior: _crReduz() ? 'auto' : 'smooth' }); const i = c.querySelector('input'); if(i) i.focus({ preventScroll: true }); } return; }
+  if(a === 'cancelar'){ crConex.form = null; return crConexoesPinta(); }
+  if(a === 'usar'){ gProvUsa(id); return _crCxAtualiza(); }
+  if(a === 'naousar'){ gProvUsa(null); return _crCxAtualiza(); }
+  if(a === 'desconectar'){
+    if(!(await gConfirm('Remover a conta ' + G_PROVEDORES[id].nome + ' deste navegador? A chave é apagada daqui; no provedor ela continua existindo.', { title: 'Desconectar', okLabel: 'Desconectar', cancelLabel: 'Manter', danger: true }))) return;
+    gProvDesconecta(id); delete crConex.modelos[id]; crConex.estado[id] = {}; return _crCxAtualiza();
+  }
+  if(a === 'testar' || a === 'conectar'){
+    const novo = a === 'conectar', key = novo ? ((_crEl('cx-key-' + id) || {}).value || '').trim() : undefined, base = novo ? ((_crEl('cx-base-' + id) || {}).value || '').trim() : undefined;
+    if(novo && !key && !G_PROVEDORES[id].chaveOpcional){ crConex.estado[id] = { msg: 'Cole a chave para conectar.', tipo: 'erro' }; return crConexoesPinta(); }
+    if(btn){ btn.disabled = true; btn.classList.add('cr-carrega'); }
+    const cfg = novo ? { key, base: G_PROVEDORES[id].baseEditavel && base ? base.replace(/\/+$/, '') : G_PROVEDORES[id].base } : gProvConfig(id);
+    const r = await gProvTesta(id, cfg);
+    if(!r.ok){ crConex.estado[id] = { msg: r.motivo, tipo: 'erro' }; return crConexoesPinta(); }
+    crConex.modelos[id] = r.modelos;
+    if(novo){
+      // Modelo de partida: um "flash"/"lite" (barato e rápido); senão o primeiro da lista. A pessoa troca no cartão.
+      const ids = r.modelos.map(m => m.id), padrao = ids.find(x => /gemini.*flash/i.test(x)) || ids.find(x => /flash|lite|mini|haiku/i.test(x)) || ids[0] || '';
+      gProvConecta(id, Object.assign({}, cfg, { modelo: padrao }), true); crConex.form = null;
+      crConex.estado[id] = { msg: 'Conectado. ' + r.modelos.length + ' modelos disponíveis — confira o modelo escolhido.', tipo: 'ok' };
+    }else crConex.estado[id] = { msg: 'Conexão ok · ' + r.modelos.length + ' modelos.', tipo: 'ok' };
+    return _crCxAtualiza();
+  }
+}
+document.addEventListener('click', e => {
+  if(!_crNoCreative()) return;
+  const b = e.target.closest('[data-cx]'); if(b){ e.preventDefault(); return _crCxAcao(b.dataset.cx, b.dataset.id, b); }
+  if(e.target.id === 'cr-conex') crConexoes(false);   // clique no véu (fora do cartão)
+});
+document.addEventListener('change', e => {
+  const i = e.target.closest && e.target.closest('[data-cx-modelo]'); if(!i) return;
+  const v = i.value.trim(); if(!v) return;
+  gProvConecta(i.dataset.cxModelo, { modelo: v }); _crRotuloModelo();
+  const c = _crEl('cx-card-' + i.dataset.cxModelo); if(c){ const u = c.querySelector('[data-cx="usar"]'); if(u) u.disabled = false; }
+});
+// Voltou do "Entrar com OpenRouter"? A troca do código acontece no boot (gProvRetorno); aqui abre a tela
+function crConexoesRetorno(){
+  Promise.resolve(typeof gProvRetorno !== 'undefined' ? gProvRetorno : false).then(() => {
+    let abrir = '', erro = '';
+    try{ abrir = sessionStorage.getItem('luma_abrir_conexoes') || ''; erro = sessionStorage.getItem('luma_or_erro') || ''; sessionStorage.removeItem('luma_abrir_conexoes'); sessionStorage.removeItem('luma_or_erro'); }catch(e){}
+    if(erro) gToast('A entrada pelo OpenRouter não completou. Tente de novo ou cole uma chave.', 'error');
+    if(abrir){
+      gProvEstado();   // adota a chave que veio do OpenRouter para este usuário
+      crConexoes(true);
+      if(gProvConectado('openrouter') && !(gProvConfig('openrouter') || {}).modelo) _crCxPadraoOpenRouter();
+    }
+  });
+}
+async function _crCxPadraoOpenRouter(){
+  const r = await gProvTesta('openrouter');
+  if(!r.ok){ crConex.estado.openrouter = { msg: r.motivo, tipo: 'erro' }; return crConexoesPinta(); }
+  crConex.modelos.openrouter = r.modelos;
+  const ids = r.modelos.map(m => m.id), padrao = ids.find(x => /gemini.*flash/i.test(x)) || ids.find(x => /flash|mini|haiku/i.test(x)) || ids[0] || '';
+  gProvConecta('openrouter', { modelo: padrao }, true);
+  crConex.estado.openrouter = { msg: 'Conectado pelo OpenRouter. Confira o modelo escolhido.', tipo: 'ok' };
+  _crCxAtualiza();
+}
+
 function crEnviar(e){
   if(e && e.preventDefault) e.preventDefault();
   // o botão vira "parar" durante a geração; Enter nunca chega aqui nesse estado (crTecla)
@@ -2559,13 +2697,14 @@ async function crGerar(fio, conv, outras){
   };
   try{
     // Uso do dia: conta ANTES de gastar IA; o que não chegar à entrega é estornado no finally
-    const modelo = crModelo(), uso = await crUsoConsome(modelo);
+    const prov = typeof gProvAtivo === 'function' ? gProvAtivo() : null;   // conta própria: o custo é dela, não conta no limite
+    const modelo = prov ? 'conta:' + prov.id + ':' + prov.modelo : crModelo(), uso = prov ? { ok: true } : await crUsoConsome(modelo);
     if(!uso.ok){
       status.parar();
       aviso(crUsoMsg(modelo) || 'Não foi possível contar esta arte agora. Tente de novo.');
       return;
     }
-    consumiu = true; crState.modeloRun = modelo;
+    consumiu = !prov; crState.modeloRun = prov ? null : modelo; crState.provRun = prov;
     if(parou()) return;
     let p;
     if(!outras){
@@ -2604,7 +2743,7 @@ async function crGerar(fio, conv, outras){
       if(parou()) return;
       fio.conteudo = bruto;
       const sp0 = crNormaliza(bruto);
-      p.feito([sp0.palavra, sp0.titulo].filter(Boolean).join(' ') + (sp0.precoPor ? ' · R$ ' + sp0.precoPor : '') + (fio.viaIA ? ' · IA' : ' · IA indisponível agora: motor local (sem designer nem juiz)'));
+      p.feito([sp0.palavra, sp0.titulo].filter(Boolean).join(' ') + (sp0.precoPor ? ' · R$ ' + sp0.precoPor : '') + (fio.viaIA ? ' · IA' : ' · IA indisponível agora: motor local (sem designer nem juiz)' + (prov && typeof gProvUltimoErro === 'string' && gProvUltimoErro ? ' — ' + gProvUltimoErro : '')));
       // a legenda corre em paralelo e chega junto — só para post (inapp, banner, email, capa e slide não têm)
       fio.legProm = CR_FORMATOS[sp0.formato].social === false ? Promise.resolve([]) : crLegenda(sp0);
     }
@@ -2620,7 +2759,7 @@ async function crGerar(fio, conv, outras){
     p.feito(cands.length + ' diagramações testadas · ' + cands.filter(c => !c.avaliacao.erros.length).length + ' aprovadas nas regras da marca');
     // A IA compõe como designer (skill §4.2): 2 composições próprias; o motor completa a 3ª
     let ia = [];
-    if(!CR_FORMATOS[fio.fmt].fixo && typeof gAiReady === 'function' && gAiReady()){
+    if(!CR_FORMATOS[fio.fmt].fixo && _crIaPronta()){
       p = _crPasso(lista, 'Compondo como designer');
       try{ ia = await crDesenhos(crNormaliza(fio.conteudo), 2, fio.ideias || [], fio.ref); }catch(err){ ia = []; }
       if(parou()) return;
@@ -2686,7 +2825,7 @@ async function crGerar(fio, conv, outras){
     _crResumo(corpo, lista, t0);
     crFaixaPinta(); crSessSalva();
     if(seguia) requestAnimationFrame(() => ent.scrollIntoView({ block: 'start', behavior: _crReduz() ? 'auto' : 'smooth' }));
-    if(typeof gTrackEvent === 'function') try{ gTrackEvent('creative_arte', { objetivo: opcoes[0].spec.objetivo, formato: opcoes[0].spec.formato, marca: opcoes[0].spec.marca, ia: fio.viaIA, juiz: !!juiz, foto: !!fio.foto, ref: !!fio.ref, modelo, custo: crCusto(modelo),
+    if(typeof gTrackEvent === 'function') try{ gTrackEvent('creative_arte', { objetivo: opcoes[0].spec.objetivo, formato: opcoes[0].spec.formato, marca: opcoes[0].spec.marca, ia: fio.viaIA, juiz: !!juiz, foto: !!fio.foto, ref: !!fio.ref, modelo: prov ? 'conta:' + prov.id : modelo, custo: prov ? 0 : crCusto(modelo),
       receitas: opcoes.map(o => o.receita).join(','), designer: Object.assign({}, crMetricas), notas: juiz ? opcoes.map(o => o.juiz ? +o.juiz.nota.toFixed(1) : null).join(',') : '' }); }catch(err){}
   }catch(err){
     console.error('[creative]', err);
@@ -2694,7 +2833,7 @@ async function crGerar(fio, conv, outras){
     aviso('Não consegui compor a arte agora (' + ((err && err.message) || 'erro') + '). Tente de novo.');
   }finally{
     if(consumiu && !entregou) crUsoEstorna();
-    crState.modeloRun = null;
+    crState.modeloRun = null; crState.provRun = null;
     if(esq) esq.remove();
     msg.classList.remove('cr-pensando');
     if(crState.rodando === run){ crState.rodando = null; _crOcupado(false); }
