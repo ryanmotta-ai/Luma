@@ -404,6 +404,45 @@
     assert(crEscolher3(res.cands)[0].nota>=fab[0].nota, 'a busca ficou abaixo do ponto de fábrica');
   });
 
+  /* ── Tipografia de agência (frente 3) ── */
+  caso('Luma Creative: tipografia — nada se separa do que cola (R$, artigo, preposição), apoio longo quebra sem órfã, acento ganha entrelinha e a caixa é a tinta', async()=>{
+    await crFontesProntas();
+    assert(_crPalavras('É JOGO').length===1 && _crPalavras('A DOIS').length===1, 'artigo/verbo curto separado: '+_crPalavras('É JOGO').join('|'));
+    assert(_crPalavras('POR R$ 22,90 HOJE').indexOf('POR R$ 22,90')>=0, '"POR R$ 22,90" quebrável: '+_crPalavras('POR R$ 22,90 HOJE').join('|'));
+    assert(_crPalavras('AÇAÍ 500 ML 2 POR 1').indexOf('500 ML')>=0 && _crPalavras('AÇAÍ 500 ML 2 POR 1').indexOf('2 POR 1')>=0, 'número e unidade separados');
+    for(const t of ['MUDOU O HORÁRIO DO ATENDIMENTO','FESTIVAL GASTRONÔMICO DA CIDADE','SEXTOU COM BURGER E BATATA','PIZZA CALABRESA COM BORDA'])
+      for(const iguala of [false,true]){
+        const q=crLockup(t, {larg:880, max:160, min:80, linhas:3, iguala});
+        q.linhas.slice(0,-1).forEach(l=>assert(!_CR_COLA.test(l.split(' ').pop()), t+': linha termina em "'+l.split(' ').pop()+'"'));
+        q.larguras.forEach(w=>assert(w<=881, t+': linha mais larga que a caixa ('+Math.round(w)+')'));
+        if(iguala && q.linhas.length>1) assert(Math.max(...q.zs)/Math.min(...q.zs)<=1.36, t+': variação de corpo acima do limite');
+      }
+    // acento: a linha de baixo com É/Ã ganha respiro (nunca encosta na de cima) e a altura conta a tinta
+    const com=_crAlt(['FESTIVAL','GASTRONÔMICO'], 150), sem=_crAlt(['FESTIVAL','GASTRONOMICO'], 150);
+    assert(com.ys[1]-com.ys[0] >= sem.ys[1]-sem.ys[0], 'acento não ganhou entrelinha');
+    const asc=_crMetrica('É JOGO', _crFonteCls('hero',200), CR_ESTILO.hero.ls).a;
+    assert(Math.abs(_crAlt(['É JOGO'], 200).asc-asc)<0.5, 'a caixa não começa na tinta do acento');
+    // apoio longo: 2 linhas, sem palavra sozinha na 2ª, corpo maior que a versão encolhida em 1 linha
+    const ap='Os parceiros participantes abrem das 11h às 22h no feriado', q2=crTextoLinhas(ap, 'body', 44, 880, 32);
+    assert(q2.linhas.length===2 && /\s/.test(q2.linhas[1]) && q2.z>crCabe(ap,'body',44,880,0), 'apoio longo: '+JSON.stringify(q2.linhas)+' '+q2.z);
+    // o kerning do Realce entra na medida E no desenho (dx), e o importador lê o texto inteiro
+    assert(crMede('FY','hero',200) < crMede('F','hero',200)+crMede('Y','hero',200), 'par FY sem ajuste');
+    assert(/dx="/.test(crTexto(100,500,'hero',200,'#FFFFFF','FY PT')), 'kerning não chegou ao SVG');
+  });
+
+  caso('Luma Creative: preço-assinatura — R$ e centavos com o topo na altura do número, corpo estável entre 11 e 88, e o Estúdio lê um preço só', async()=>{
+    await crFontesProntas();
+    const svg=z=>'<svg xmlns="http://www.w3.org/2000/svg" data-luma="1" viewBox="0 0 1080 1350" width="1080" height="1350">'+crDefs()+'<g data-bloco="preco"><g id="preco">'+crPreco(100, 600, z, 880, '#FFFFFF', 220)+'</g></g></svg>';
+    const t=crGeometria(svg('22,90')).textos[0];
+    assert(t, 'preço sem texto na geometria');
+    const g=_crPrecoGeo(220, Math.round(220*0.55)), topoNum=600-_crMetrica('22',_crFonteCls('hero',220),CR_ESTILO.hero.ls).a, topoR=600-g.dy-_crMetrica('R',_crFonteCls('hero',121),CR_ESTILO.hero.ls).a;
+    assert(Math.abs(topoNum-topoR)<=2, 'R$ fora da altura das maiúsculas: '+Math.round(topoNum)+' × '+Math.round(topoR));
+    assert(crPrecoMede('11,90', 300, 220).big===crPrecoMede('88,90', 300, 220).big, 'algarismos instáveis: 11 e 88 com corpos diferentes');
+    const {layers}=await importar(await crEmbutir(svg('22,90')));
+    const p=layers.filter(l=>l.type==='text' && String(l.content).indexOf('{{precoPor')>=0);
+    assert(p.length===1, 'o preço não virou UM campo no Estúdio: '+layers.map(l=>l.content).join(' | '));
+  });
+
   let passed=0; const falhas=[];
   for(const item of cases){
     const li=document.createElement('li'); li.className='case';

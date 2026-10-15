@@ -75,12 +75,19 @@ function crFontesProntas(){
   }
   return _crFontesProm;
 }
+const _crMedeMemo = new Map();
 function crMede(txt, cls, size){
+  const s = String(txt || ''), k = cls + '|' + size + '|' + s;
+  let w = _crMedeMemo.get(k);
+  if(w != null) return w;
   const e = CR_ESTILO[cls];
   if(!_crCtx) _crCtx = document.createElement('canvas').getContext('2d');
   _crCtx.font = (e.it ? 'italic ' : '') + e.peso + ' ' + size + 'px "LC ' + e.fam + '"';
-  const s = String(txt || '');
-  return _crCtx.measureText(s).width + e.ls * [...s].length;
+  // o Realce leva os pares de CR_KERN (o SVG desenha com o mesmo dx — medida e desenho batem)
+  w = _crCtx.measureText(s).width + e.ls * [...s].length + (cls === 'hero' ? _crKernSoma(s) * size : 0);
+  if(_crMedeMemo.size > 30000) _crMedeMemo.clear();
+  _crMedeMemo.set(k, w);
+  return w;
 }
 // Maior corpo (≤ max) em que o texto cabe em `larg`. Abaixo de `min` não desce: marca estouro.
 function crCabe(txt, cls, max, larg, min, estouros){
@@ -92,7 +99,7 @@ function crCabe(txt, cls, max, larg, min, estouros){
 // Herói em 1 ou 2 linhas: 1 linha se couber com ≥ 80% do corpo; senão 2 linhas equilibradas.
 function crQuebra(txt, cls, max, larg, min, estouros){
   const um = crCabe(txt, cls, max, larg, 0);
-  const pal = String(txt).split(/\s+/).filter(Boolean);
+  const pal = _crPalavras(txt);
   if(um >= max * 0.8 || pal.length < 2) return { linhas: [txt], size: Math.max(um, min || 0) };
   let melhor = null;
   for(let i = 1; i < pal.length; i++){
@@ -112,12 +119,153 @@ function crTrechos(linha){
 function crMedeMista(linha, size){ return crTrechos(linha).reduce((a, r) => a + crMede(r.t, r.cls, size), 0); }
 
 /* ══════════════════════════════════════════════════════════════
+   TIPOGRAFIA DE AGÊNCIA — o que separa "texto posto" de "título desenhado":
+   · unidades que não se quebram (_crPalavras): "R$ 22,90", "2 POR 1", "500 ML", artigo e preposição
+     colados na palavra seguinte ("É JOGO", "A DOIS", "DA CIDADE") — nunca linha terminando em "DE";
+   · quebra equilibrada (crLockup, Knuth–Plass simplificado até 4 linhas, sem hifenizar) e, no lockup,
+     corpo por linha para igualar as larguras (variação limitada);
+   · entrelinha pela TINTA (_crAlt): o acento do Realce (É, Ã) sobe 0,11 em acima das maiúsculas e o
+     Ç desce — a linha de baixo ganha o respiro que precisa e a caixa do bloco é a tinta de verdade;
+   · alinhamento óptico (_crOptico): o recuo do 1º glifo em corpo grande é compensado (até 5 px, dentro
+     da tolerância da régua da margem); aspas e parêntese de abertura penduram;
+   · pares de letras do Realce que abrem buraco em corpo grande (CR_KERN, medidos por área entre os
+     glifos a 200 px; o Realce já traz AV/AT/LT/YA — a tabela só fecha o que sobrou).
+══════════════════════════════════════════════════════════════ */
+// em do Realce; É/Ê herdam o E. Medido: espaço médio entre as tintas linha a linha contra HH/HI/NN.
+const CR_KERN = { FY: -0.025, FT: -0.024, PT: -0.022, LJ: -0.02, FV: -0.017, PY: -0.016, EY: -0.014, ET: -0.013,
+  TY: -0.011, TT: -0.011, YT: -0.011, PV: -0.009, FW: -0.007, EV: -0.006, LT: -0.005 };
+const _crKernPar = (a, b) => CR_KERN[(a === 'É' || a === 'Ê' ? 'E' : a) + b] || 0;
+function _crKernSoma(s){ let k = 0; for(let i = 1; i < s.length; i++) k += _crKernPar(s[i - 1], s[i]); return k; }
+// atributo dx com o ajuste por par (só no Realce; '' quando não há par)
+function _crKernDx(s, z){
+  const ch = [...String(s || '')], v = ch.map((c, i) => i ? Math.round(_crKernPar(ch[i - 1], c) * z * 10) / 10 : 0);
+  return v.some(x => x) ? ' dx="' + v.join(' ') + '"' : '';
+}
+// Palavras que não ficam sozinhas no fim da linha (vão com a seguinte)
+const _CR_COLA = /^(a|o|e|as|os|um|uma|de|da|do|das|dos|em|no|na|nos|nas|por|pra|pro|com|sem|ao|aos|à|às|é|que|se|só|ou|nem|r\$|até)$/i;
+function _crPalavras(txt){
+  const ws = String(txt || '').split(/\s+/).filter(Boolean), out = [];
+  for(let i = 0; i < ws.length; i++){
+    let u = ws[i];
+    // cola para frente: palavra de função, "R$", número antes de unidade ou palavra curta ("500 ML", "2 POR 1", "10 A 20")
+    while(i + 1 < ws.length){
+      const ult = u.split(' ').pop(), prox = ws[i + 1];
+      if(_CR_COLA.test(ult) || (/^\d+[.,]?\d*$/.test(ult) && [...prox].length <= 3)) u += ' ' + ws[++i];
+      else break;
+    }
+    out.push(u);
+  }
+  // a última unidade não fica sozinha se for palavra de função ("SEXTOU COM")
+  if(out.length > 1 && _CR_COLA.test(out[out.length - 1])) out.splice(-2, 2, out[out.length - 2] + ' ' + out[out.length - 1]);
+  return out;
+}
+const _crFonteDe = (cls, z) => _crFonteCls(cls, z);
+// Altura de tinta de linhas de UM corpo (ou de corpos por linha, zs): baselines relativas ao topo da
+// tinta e a altura total. Entrelinha base 0,94 em (a das artes aprovadas); cresce quando o acento da
+// linha de baixo ou a descendente da de cima pediriam encostar (respiro mínimo de 0,1 em).
+const _crAltMemo = new Map();
+function _crAlt(linhas, z, cls, zs){
+  const c = cls || 'hero', k = c + '|' + z + '|' + (zs ? zs.join(',') : '') + '|' + linhas.join('\n');
+  let r = _crAltMemo.get(k);
+  if(r) return r;
+  const ls = _CR_LS_CLASSE[c] ? CR_ESTILO[c].ls : 0, Z = i => (zs ? zs[i] : z);
+  const m = linhas.map((l, i) => _crMetrica(l, _crFonteDe(c, Z(i)), ls));
+  const passo = c === 'hero' ? 0.94 : 1.25, cap = c === 'hero' ? 0.72 : 0.71;
+  const ys = [m[0].a];
+  for(let i = 1; i < linhas.length; i++){
+    const base = cap * Z(i) + (passo - cap) * (Z(i - 1) + Z(i)) / 2;   // = passo × z quando o corpo é igual
+    ys.push(ys[i - 1] + Math.max(base, m[i - 1].d + 0.1 * Math.min(Z(i - 1), Z(i)) + m[i].a));
+  }
+  r = { ys, h: ys[ys.length - 1] + m[m.length - 1].d, asc: m[0].a };
+  if(_crAltMemo.size > 4000) _crAltMemo.clear();
+  _crAltMemo.set(k, r);
+  return r;
+}
+// Alinhamento óptico: o deslocamento do x da linha para a TINTA encostar no eixo (texto grande,
+// alinhado à esquerda ou à direita). Limitado a 5 px: a régua da margem tem tolerância de 6.
+function _crOptico(l, z, al, cls){
+  const c = cls || 'hero';
+  if(z < 80 || al === 'middle' || !l) return 0;
+  const ls = _CR_LS_CLASSE[c] ? CR_ESTILO[c].ls : 0, f = _crFonteDe(c, z), ch = [...l];
+  if(al === 'end'){ const u = _crMetrica(ch[ch.length - 1], f, ls); return Math.min(5, Math.max(0, u.w - u.r)); }
+  let d = Math.max(-5, Math.min(0, _crMetrica(ch[0], f, ls).l));                   // recuo do 1º glifo
+  if(/^["“«(]/.test(l)) d = Math.max(-6, d - _crMetrica(ch[0], f, ls).w);           // pontuação pendurada
+  return d;
+}
+/* Lockup de título: a melhor quebra em até `linhas` linhas (sem hifenizar, sem separar o que cola) e,
+   com `iguala`, um corpo por linha para as larguras baterem (variação máxima `varia`). Custo: o corpo
+   que a leitura enxerga (média geométrica entre o menor e o médio), a irregularidade das larguras,
+   a última linha curta (órfã), palavra solta numa linha e cada linha a mais.
+   o = { cls, larg, alt, max, min, linhas, iguala, varia } → { linhas, zs, size, h, ys, larguras } */
+function crLockup(txt, o){
+  const cls = o.cls || 'hero', tk = _crPalavras(txt), N = Math.max(1, Math.min(o.linhas || 3, tk.length));
+  const wU = l => crMede(l, cls, 100) / 100;
+  let melhor = null;
+  const avalia = ls => {
+    const ws = ls.map(wU);
+    let zs;
+    if(o.iguala && ls.length > 1){
+      // a linha mais longa manda (até o teto do herói); as curtas crescem até igualar, com variação limitada
+      zs = ws.map(w => o.larg / w);
+      const zMin = Math.min(o.max, ...zs); zs = zs.map(z => Math.min(z, zMin * (o.varia || 1.3)));
+    }else{ const z = Math.min(o.max, o.larg / Math.max(...ws)); zs = ws.map(() => z); }
+    zs = zs.map(z => Math.floor(z));
+    let g = _crAlt(ls, zs[0], cls, zs);
+    if(o.alt && g.h > o.alt){ const k = o.alt / g.h; zs = zs.map(z => Math.floor(z * k)); g = _crAlt(ls, zs[0], cls, zs); }
+    const zMin = Math.min(...zs), zMed = zs.reduce((a, b) => a + b, 0) / zs.length, fr = ls.map((l, i) => ws[i] * zs[i] / o.larg);
+    const rag = ls.length > 1 ? fr.reduce((s, x) => s + (1 - x) * (1 - x), 0) / ls.length : 0;
+    let s = Math.sqrt(zMin * zMed) * (1 - 0.6 * rag) * (1 - 0.05 * (ls.length - 1));
+    if(ls.length > 1 && fr[fr.length - 1] < 0.42 && !o.iguala) s *= 0.86;                 // órfã
+    if(ls.length > 1 && ls.some(l => [...l].length <= 3)) s *= 0.88;                       // palavra solta
+    if(zMin < (o.min || 0)) s *= 0.5;                                                      // abaixo do piso: último recurso
+    if(!melhor || s > melhor.s + 1e-6) melhor = { s, linhas: ls, zs, size: Math.max(...zs), zMin, h: g.h, ys: g.ys, larguras: ws.map((w, i) => w * zs[i]) };
+  };
+  const quebra = (ini, k, acc) => {
+    if(k === 1){ avalia(acc.concat([tk.slice(ini).join(' ')])); return; }
+    for(let i = ini + 1; i <= tk.length - k + 1; i++) quebra(i, k - 1, acc.concat([tk.slice(ini, i).join(' ')]));
+  };
+  for(let n = 1; n <= N; n++) quebra(0, n, []);
+  return melhor;
+}
+// Apoio e letra miúda: 1 linha enquanto o corpo fica ≥ 85% do ideal; senão 2 linhas equilibradas,
+// sem órfã (a 2ª linha nunca é uma palavra só, nem menor que 35% da 1ª). → { linhas, z, h, ys }
+function crTextoLinhas(txt, cls, max, larg, min, est){
+  const z1 = crCabe(txt, cls, max, larg, 0);
+  const um = () => { const z = Math.max(z1, min || 0); if(min && z1 < min && est) est.push(txt); const g = _crAlt([txt], z, cls); return { linhas: [txt], z, h: g.h, ys: g.ys }; };
+  if(z1 >= max * 0.85) return um();
+  const tk = _crPalavras(txt);
+  if(tk.length < 3) return um();
+  let b = null;
+  for(let i = 1; i <= tk.length - 2; i++){
+    const l = [tk.slice(0, i).join(' '), tk.slice(i).join(' ')], w = l.map(x => crMede(x, cls, 100));
+    if(w[1] < w[0] * 0.35) continue;
+    const z = Math.min(max, Math.floor(100 * larg / Math.max(...w)));
+    if(!b || z > b.z || (z === b.z && Math.abs(w[0] - w[1]) < Math.abs(b.w[0] - b.w[1]))) b = { l, z, w };
+  }
+  if(!b || b.z < z1 * 1.12 || b.z < (min || 0)) return um();
+  const g = _crAlt(b.l, b.z, cls);
+  return { linhas: b.l, z: b.z, h: g.h, ys: g.ys };
+}
+// Texto de 1 ou 2 linhas (apoio, letra miúda) num <text> só: o importador lê como UM campo
+function crTextoMulti(x, y0, cls, q, fill, extra){
+  if(q.linhas.length === 1) return crTexto(x, y0 + q.ys[0], cls, q.z, fill, q.linhas[0], extra);
+  return '<text x="' + _r(x) + '" y="' + _r(y0 + q.ys[0]) + '" class="' + cls + '" font-size="' + _r(q.z) + '" fill="' + fill + '"' + (extra || '') + '>'
+    + q.linhas.map((l, i) => '<tspan x="' + _r(x) + '" y="' + _r(y0 + q.ys[i]) + '">' + crX(l) + '</tspan>').join('') + '</text>';
+}
+
+/* ══════════════════════════════════════════════════════════════
    BLOCOS — os mesmos da skill (refino_01…14), em SVG do contrato
 ══════════════════════════════════════════════════════════════ */
 function crX(s){ return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 const _r = n => Math.round(n);
 function crTexto(x, y, cls, size, fill, txt, extra){
-  return '<text x="' + _r(x) + '" y="' + _r(y) + '" class="' + cls + '" font-size="' + _r(size) + '" fill="' + fill + '"' + (extra || '') + '>' + crX(txt) + '</text>';
+  let k = '';
+  if(cls === 'hero' && !/\bdx="/.test(extra || '') && !/rotate/.test(extra || '')){
+    k = _crKernDx(txt, _r(size));
+    const an = /text-anchor="(middle|end)"/.exec(extra || '');
+    x += _crOptico(String(txt || ''), size, an ? an[1] : 'start');
+  }
+  return '<text x="' + _r(x) + '" y="' + _r(y) + '" class="' + cls + '" font-size="' + _r(size) + '" fill="' + fill + '"' + (extra || '') + k + '>' + crX(txt) + '</text>';
 }
 function crMista(x, y, size, fill, linha, anchor){
   return '<text x="' + _r(x) + '" y="' + _r(y) + '"' + (anchor ? ' text-anchor="' + anchor + '"' : '') + ' font-size="' + _r(size) + '" fill="' + fill + '">'
@@ -125,10 +273,12 @@ function crMista(x, y, size, fill, linha, anchor){
 }
 // Herói de 1 ou 2 linhas num <text> só (uma linha por <tspan> com y próprio): o importador
 // lê como UM campo de várias linhas — nunca a 2ª linha solta como texto fixo.
-function crHeroi(x, ys, size, fill, linhas, extra){
-  if(linhas.length === 1) return crTexto(x, ys[0], 'hero', size, fill, linhas[0], extra);
-  return '<text x="' + _r(x) + '" y="' + _r(ys[0]) + '" class="hero" font-size="' + _r(size) + '" fill="' + fill + '"' + (extra || '') + '>'
-    + linhas.map((l, i) => '<tspan x="' + _r(x) + '" y="' + _r(ys[i]) + '">' + crX(l) + '</tspan>').join('') + '</text>';
+// zs = corpo por linha (lockup que iguala as larguras); cada linha leva o kerning e o alinhamento óptico dela
+function crHeroi(x, ys, size, fill, linhas, extra, zs){
+  if(linhas.length === 1 && !zs) return crTexto(x, ys[0], 'hero', size, fill, linhas[0], extra);
+  const an = /text-anchor="(middle|end)"/.exec(extra || ''), al = an ? an[1] : 'start', Z = i => (zs ? zs[i] : size);
+  return '<text x="' + _r(x) + '" y="' + _r(ys[0]) + '" class="hero" font-size="' + _r(zs ? Math.max(...zs) : size) + '" fill="' + fill + '"' + (extra || '') + '>'
+    + linhas.map((l, i) => '<tspan x="' + _r(x + _crOptico(l, Z(i), al)) + '" y="' + _r(ys[i]) + '"' + (zs ? ' font-size="' + _r(zs[i]) + '"' : '') + _crKernDx(l, _r(Z(i))) + '>' + crX(l) + '</tspan>').join('') + '</text>';
 }
 function crLogo(x, y, story){
   const w = story ? 300 : 260, h = story ? 60 : 52;
@@ -196,8 +346,8 @@ function crTicket(x, y, k){
 }
 function crLegal(x, y, txt, anchor, est){
   if(!txt) return '';
-  const z = crCabe(txt, 'legal', 26, CR_L, 22, est);
-  return crTexto(x, y, 'legal', z, '#FFFFFF', txt, anchor ? ' text-anchor="' + anchor + '"' : '');
+  const q = crTextoLinhas(txt, 'legal', 26, CR_L, 22, est);
+  return crTextoMulti(x, y - q.ys[0], 'legal', q, '#FFFFFF', anchor ? ' text-anchor="' + anchor + '"' : '');
 }
 function crDefs(){
   const ff = CR_FONTES.map(([fam, arq, peso, estilo]) => "@font-face{font-family:'" + fam + "';src:url('asset:fontes/" + arq + "') format('woff2');font-weight:" + peso + ';' + (estilo === 'italic' ? 'font-style:italic;' : '') + '}').join('\n');
@@ -214,21 +364,30 @@ function crDefs(){
 }
 // Preço-assinatura (§2.1): R$ e centavos a 55% do número e suspensos 35%. crPrecoMede devolve o
 // corpo que cabe em `larg` e a largura real (para centralizar).
+// Os vãos e a suspensão do preço-assinatura, a partir das alturas de maiúscula MEDIDAS no Realce:
+// "R$" e centavos (55% do número, regra da marca) com o topo da tinta na altura do topo do número.
+function _crPrecoGeo(big, sm){
+  const cap = z => _crMetrica('0', _crFonteCls('hero', z), CR_ESTILO.hero.ls).a;
+  return { dy: Math.max(0, _r(cap(big) - cap(sm))), gR: Math.max(4, _r(big * 0.035)), gC: Math.max(2, _r(big * 0.015)) };
+}
+// Preço-assinatura (§2.1): R$ e centavos a 55% do número, topo alinhado ao do número. Algarismos
+// ESTÁVEIS: o corpo é decidido pela largura tabular ("11,90" e "88,90" saem do mesmo tamanho — o "1"
+// e o "7" do Realce são mais estreitos e fariam o preço pular de corpo). `w` é a largura real (centralizar).
 function crPrecoMede(por, larg, big0){
   const m = /^(\d+)(?:,(\d{2}))?$/.exec(String(por).replace(/\s/g, ''));
   const int = m ? m[1] : String(por), cent = m ? ',' + (m[2] || '00') : '';
   let big = big0 || 168, sm = Math.round(big * 0.55);
-  const larguraEm = (b, s) => crMede('R$', 'hero', s) + 6 + crMede(int, 'hero', b) + crMede(cent, 'hero', s);
-  let w = larguraEm(big, sm);
-  if(w > larg){ const k = larg / w; big = Math.floor(big * k); sm = Math.floor(sm * k); w = larguraEm(big, sm); }
-  return { int, cent, big, sm, w };
+  const tab = (t, z) => Math.max(crMede(t, 'hero', z), /^\d+$/.test(t) ? t.length * crMede('0', 'hero', z) : 0);
+  const larguraEm = (b, s, f) => { const g = _crPrecoGeo(b, s); return crMede('R$', 'hero', s) + g.gR + f(int, b) + g.gC + crMede(cent, 'hero', s); };
+  let w = larguraEm(big, sm, tab);
+  if(w > larg){ const k = larg / w; big = Math.floor(big * k); sm = Math.floor(sm * k); }
+  return { int, cent, big, sm, w: larguraEm(big, sm, (t, z) => crMede(t, 'hero', z)) };
 }
 function crPreco(x, y, por, larg, fill, big0){
-  const { int, cent, big, sm } = crPrecoMede(por, larg, big0);
-  const dy = _r(big * 0.351);
+  const { int, cent, big, sm } = crPrecoMede(por, larg, big0), g = _crPrecoGeo(big, sm);
   return '<text x="' + _r(x) + '" y="' + _r(y) + '" class="hero" font-size="' + big + '" data-campo="precoPor" fill="' + (fill || '#F85400') + '">'
-    + '<tspan font-size="' + sm + '" dy="-' + dy + '">R$</tspan><tspan dy="' + dy + '" dx="6">' + crX(int) + '</tspan>'
-    + (cent ? '<tspan font-size="' + sm + '" dy="-' + dy + '">' + crX(cent) + '</tspan>' : '') + '</text>';
+    + '<tspan font-size="' + sm + '" dy="-' + g.dy + '">R$</tspan><tspan dy="' + g.dy + '" dx="' + g.gR + '">' + crX(int) + '</tspan>'
+    + (cent ? '<tspan font-size="' + sm + '" dy="-' + g.dy + '" dx="' + g.gC + '">' + crX(cent) + '</tspan>' : '') + '</text>';
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -292,23 +451,29 @@ const CR_BLOCOS = {
       } };
     }
     const max = (a.story ? 170 : 151) * kh;
-    const pal = sp.titulo.split(/\s+/);
+    const pal = _crPalavras(sp.titulo);   // "A DOIS", "É JOGO" não se separam
     if(estilo === 'duplo'){
       if(pal.length < 2) return null;
       const l1 = pal[0], l2 = pal.slice(1).join(' ');
       const s2 = crCabe(l2, 'hero', max, CR_L, 80, est), s1 = Math.min(crCabe(l1, 'hero', max * 1.6, CR_L, 0), Math.round(s2 * 1.28));
       if(s1 < s2 * 1.15) return null;   // sem contraste de tamanho, não é "duplo" — outra diagramação cobre
-      return { nome: 'titulo', heroi: s1, h: s1 * 0.73 + s2 * 0.94, desenha: y => crBloco('titulo', '<g id="produto">'
-        + crTexto(c.X, y + s1 * 0.73, 'hero', s1, '#FFFFFF', l1, c.anc) + crTexto(c.X, y + s1 * 0.73 + s2 * 0.94, 'hero', s2, '#FFFFFF', l2, c.anc + campo) + '</g>') };
+      // UM <text> com as duas linhas (o importador lê um campo só); entrelinha pela tinta
+      const g = _crAlt([l1, l2], s1, 'hero', [s1, s2]);
+      return { nome: 'titulo', heroi: s1, h: g.h, desenha: y => crBloco('titulo', '<g id="produto">'
+        + crHeroi(c.X, g.ys.map(v => y + v), s1, '#FFFFFF', [l1, l2], c.anc + campo, [s1, s2]) + '</g>') };
     }
-    const q = crQuebra(sp.titulo, 'hero', max, b.larg || CR_L, 80, est), n = q.linhas.length;
-    return { nome: 'titulo', heroi: q.size, h: q.size * 0.73 + (n - 1) * q.size * 0.94, desenha: y => crBloco('titulo', '<g id="produto">'
-      + crHeroi(c.X, q.linhas.map((l, i) => y + q.size * 0.73 + i * q.size * 0.94), q.size, '#FFFFFF', q.linhas, c.anc + campo) + '</g>') };
+    // Realce: lockup de 1 a 3 linhas (quebra equilibrada); a busca pode pedir o corpo por linha (a.p.lockup)
+    const q = crLockup(sp.titulo, { larg: b.larg || CR_L, max, min: 80, linhas: 3, iguala: !!a.p.lockup, varia: 1.35 });
+    if(q.zMin < 80) est.push(sp.titulo);
+    const zs = q.zs.some(z => z !== q.zs[0]) ? q.zs : null;
+    return { nome: 'titulo', heroi: q.size, h: q.h, desenha: y => crBloco('titulo', '<g id="produto">'
+      + crHeroi(c.X, q.ys.map(v => y + v), q.size, '#FFFFFF', q.linhas, c.anc + campo, zs) + '</g>') };
   },
   apoio(b, c){
     if(!c.sp.apoio) return null;
-    const z = crCabe(c.sp.apoio, 'body', c.a.story ? 42 : 40, b.larg || CR_L, 32, c.est);
-    return { nome: 'apoio', apoio: z, h: z * 0.92, desenha: y => crBloco('apoio', crTexto(c.X, y + z * 0.72, 'body', z, '#FFFFFF', c.sp.apoio, c.anc)) };
+    // 1 linha enquanto o corpo fica perto do ideal; texto longo quebra em 2 linhas sem órfã (não encolhe até sumir)
+    const q = crTextoLinhas(c.sp.apoio, 'body', c.a.story ? 42 : 40, b.larg || CR_L, 32, c.est);
+    return { nome: 'apoio', apoio: q.z, h: q.h, desenha: y => crBloco('apoio', crTextoMulti(c.X, y, 'body', q, '#FFFFFF', c.anc)) };
   },
   chamada(b, c){
     const ls = c.sp.chamada; if(!ls.length) return null;
@@ -351,8 +516,8 @@ const CR_BLOCOS = {
   },
   legal(b, c){
     if(!c.sp.legal) return null;
-    const z = crCabe(c.sp.legal, 'legal', c.a.story ? 28 : 26, CR_L, 24, c.est);
-    return { nome: 'legal', h: z * 0.92, desenha: y => crBloco('legal', crTexto(c.X, y + z * 0.72, 'legal', z, '#FFFFFF', c.sp.legal, c.anc)) };
+    const q = crTextoLinhas(c.sp.legal, 'legal', c.a.story ? 28 : 26, CR_L, 24, c.est);
+    return { nome: 'legal', h: q.h, desenha: y => crBloco('legal', crTextoMulti(c.X, y, 'legal', q, '#FFFFFF', c.anc)) };
   },
   // Foto: único bloco elástico. sangra 'topo'|'base' (largura cheia, passa da borda); selo preso na
   // quina; card de preço branco preso à borda de baixo (§2.2, data-sobrepoe), com o botão em contorno ao lado.
@@ -530,14 +695,14 @@ const CR_LOCKUPS = {
   sticker(sp, a, est, fundo, v){
     const k = a.W / 750, oy = (a.H - 400 * k) / 2, ch = crChave(sp), anc = ' text-anchor="middle"';
     const q = crQuebra(ch.titulo, 'hero', a.heroiMax * (a.p.kh || 1), 560 * k, a.heroiMin, est), z = q.size, n = q.linhas.length;
-    const hh = z * 0.73 + (n - 1) * z * 0.94, vao = 14 * k;
+    const hh = _crAlt(q.linhas, z).h, vao = 14 * k;
     const [pf, pc] = fundo === '#FFB900' ? ['#F85400', '#FFFFFF'] : ['#FFFFFF', '#F85400'];
     let g = '';
     if(ch.pre){
       const zp = crCabe(ch.pre, 'media', 22 * k, 420 * k, a.piso, est), pl = crPilula(0, -hh / 2 - vao - zp * 0.875, ch.pre, 'media', zp, pf, pc, 8 * k);
       g += pl.svg;
     }
-    g += crHeroi(0, q.linhas.map((l, i) => -hh / 2 + z * 0.73 + i * z * 0.94), z, '#F85400', q.linhas,
+    g += crHeroi(0, q.linhas.map((l, i) => -hh / 2 + _crAlt(q.linhas, z).ys[i]), z, '#F85400', q.linhas,
       anc + ' stroke="#FFFFFF" stroke-width="' + _r(z * 0.26) + '" stroke-linejoin="round" paint-order="stroke fill" data-campo="' + ch.campo + '"');
     const comp = ch.valor ? (ch.valor.preco ? 'POR R$ ' + ch.valor.preco : ch.valor.txt) : ch.comp;
     if(comp){
@@ -559,7 +724,7 @@ const CR_LOCKUPS = {
     const x0 = (esq ? meio : 0) + a.M, larg = meio - 2 * a.M, cx = x0 + larg / 2, anc = ' text-anchor="middle"';
     const lw = Math.min(300, _r(larg * 0.45)), lh = lw / 4.97;
     const q = crQuebra(ch.titulo, 'hero', a.heroiMax * (a.p.kh || 1), larg, a.heroiMin, est), z = q.size, n = q.linhas.length;
-    const hh = z * 0.73 + (n - 1) * z * 0.94;
+    const hh = _crAlt(q.linhas, z).h;
     let pm = null, zc = 0;
     if(ch.valor && ch.valor.preco) pm = crPrecoMede(ch.valor.preco, larg, _r(a.heroiMax * 1.05));
     else if(ch.valor || (ch.comp && crMede(ch.comp, 'media', a.piso) <= larg)) zc = crCabe(ch.valor ? ch.valor.txt : ch.comp, ch.valor ? 'hero' : 'media', ch.valor ? z * 0.6 : Math.max(a.piso, z * 0.38), larg, a.piso, est);
@@ -571,7 +736,7 @@ const CR_LOCKUPS = {
     const out = [crBloco('foto', crFoto(esq ? 0 : meio, 0, meio, a.H, 0, '', sp.foto)),
       crBloco('logo', '<image href="asset:logos/dm-h-branca.png" x="' + _r(cx - lw / 2) + '" y="' + _r(y) + '" width="' + lw + '" height="' + _r(lh) + '"/>')];
     y += lh + vao;
-    out.push(crBloco('titulo', '<g id="produto">' + crHeroi(cx, q.linhas.map((l, i) => y + z * 0.73 + i * z * 0.94), z, '#FFFFFF', q.linhas, anc + ' data-campo="' + ch.campo + '"') + '</g>'));
+    out.push(crBloco('titulo', '<g id="produto">' + crHeroi(cx, q.linhas.map((l, i) => y + _crAlt(q.linhas, z).ys[i]), z, '#FFFFFF', q.linhas, anc + ' data-campo="' + ch.campo + '"') + '</g>'));
     y += hh + vao;
     if(pm) out.push(crBloco('preco', '<g id="preco">' + crPreco(cx - pm.w / 2, y + pm.big * 0.73, ch.valor.preco, larg, '#FFFFFF', pm.big) + '</g>'));
     else if(zc) out.push(crBloco(ch.valor ? 'valor' : 'apoio', crTexto(cx, y + zc * 0.75, ch.valor ? 'hero' : 'media', zc, '#FFFFFF', ch.valor ? ch.valor.txt : ch.comp, anc)));
@@ -587,14 +752,14 @@ const CR_LOCKUPS = {
     const um = sp.foto && crCabe(ch.titulo, 'hero', 76 * (a.p.kh || 1), larg, 0);
     if(sp.foto && um < a.heroiMin) return null;
     const q = sp.foto ? { linhas: [ch.titulo], size: um } : crQuebra(ch.titulo, 'hero', a.heroiMax * (a.p.kh || 1), larg, a.heroiMin, est), z = q.size, n = q.linhas.length;
-    const hh = z * 0.73 + (n - 1) * z * 0.94;
+    const hh = _crAlt(q.linhas, z).h;
     let comp = !sp.foto && (ch.valor ? (ch.valor.preco ? 'POR R$ ' + ch.valor.preco : ch.valor.txt) : ch.comp);
     if(comp && crMede(comp, 'media', a.piso) > larg) comp = '';      // apoio longo não cabe na metade: fica só o herói
     const zc = comp ? crCabe(comp, 'media', 34, larg, a.piso, est) : 0, total = hh + (zc ? 22 + zc * 0.75 : 0);
     const y = (faixa - total) / 2;
     const out = ['<rect x="' + meio + '" y="0" width="' + meio + '" height="' + faixa + '" fill="#FFB900"/>',
       crBloco('logo', '<image href="asset:logos/dm-h-branca.png" x="' + _r((meio - lw) / 2) + '" y="' + _r((a.H - lh) / 2) + '" width="' + lw + '" height="' + _r(lh) + '"/>'),
-      crBloco('titulo', '<g id="produto">' + crHeroi(cx, q.linhas.map((l, i) => y + z * 0.73 + i * z * 0.94), z, '#F85400', q.linhas, anc + ' data-campo="' + ch.campo + '"') + '</g>')];
+      crBloco('titulo', '<g id="produto">' + crHeroi(cx, q.linhas.map((l, i) => y + _crAlt(q.linhas, z).ys[i]), z, '#F85400', q.linhas, anc + ' data-campo="' + ch.campo + '"') + '</g>')];
     if(zc) out.push(crBloco('apoio', crTexto(cx, y + hh + 22 + zc * 0.75, 'media', zc, '#434343', comp, anc)));
     if(sp.foto) out.push(crBloco('foto', crFoto(meio, faixa, meio, a.H - faixa, 0, '', sp.foto)));
     return out;
@@ -604,14 +769,14 @@ const CR_LOCKUPS = {
   emailFaixa(sp, a, est){
     const ch = crChave(sp), lw = 260, lh = lw / 4.97, xd = a.W - a.M - 20, larg = a.W - 2 * a.M - lw - 120, anc = ' text-anchor="end"';
     const q = crQuebra(ch.titulo, 'hero', a.heroiMax * (a.p.kh || 1), larg, a.heroiMin, est), z = q.size, n = q.linhas.length;
-    const hh = z * 0.73 + (n - 1) * z * 0.94;
+    const hh = _crAlt(q.linhas, z).h;
     const comp = ch.valor ? (ch.valor.preco ? 'POR R$ ' + ch.valor.preco : ch.valor.txt) : ch.comp;
     const zc = comp ? crCabe(comp, ch.valor ? 'hero' : 'media', ch.valor ? 48 : 34, larg, a.piso, est) : 0;
     const total = hh + (zc ? 24 + zc * 0.75 : 0);
     if(total > a.seguroBase - a.seguroTopo) return null;
     const y = (a.H - total) / 2;
     const out = [crBloco('logo', '<image href="asset:logos/dm-h-branca.png" x="' + (a.M + 20) + '" y="' + _r((a.H - lh) / 2) + '" width="' + lw + '" height="' + _r(lh) + '"/>'),
-      crBloco('titulo', '<g id="produto">' + crHeroi(xd, q.linhas.map((l, i) => y + z * 0.73 + i * z * 0.94), z, '#FFFFFF', q.linhas, anc + ' data-campo="' + ch.campo + '"') + '</g>')];
+      crBloco('titulo', '<g id="produto">' + crHeroi(xd, q.linhas.map((l, i) => y + _crAlt(q.linhas, z).ys[i]), z, '#FFFFFF', q.linhas, anc + ' data-campo="' + ch.campo + '"') + '</g>')];
     if(zc) out.push(crBloco(ch.valor ? 'valor' : 'apoio', crTexto(xd, y + hh + 24 + zc * 0.75, ch.valor ? 'hero' : 'media', zc, '#FFFFFF', comp, anc)));
     return out;
   },
@@ -624,10 +789,10 @@ const CR_LOCKUPS = {
     if(!valor) return null;
     const corte = sp.foto ? 330 : 420, fx = 316, fw = 200, z0 = cx0 + 28;
     const q = crQuebra(ch.titulo, 'hero', a.heroiMax * (a.p.kh || 1), corte - z0 - 24, a.heroiMin, est), z = q.size, n = q.linhas.length;
-    const hh = z * 0.73 + (n - 1) * z * 0.94, x1 = sp.foto ? fx + fw : corte, zl = cx0 + cw - x1 - 44, xm = x1 + 18 + zl / 2;
+    const hh = _crAlt(q.linhas, z).h, x1 = sp.foto ? fx + fw : corte, zl = cx0 + cw - x1 - 44, xm = x1 + 18 + zl / 2;
     const out = ['<clipPath id="crcard"><rect x="' + cx0 + '" y="' + cy0 + '" width="' + cw + '" height="' + chh + '" rx="' + a.card[4] + '"/></clipPath>'
       + '<rect x="' + corte + '" y="' + cy0 + '" width="' + (cx0 + cw - corte) + '" height="' + chh + '" fill="#FFB900" clip-path="url(#crcard)"/>',
-      crBloco('titulo', '<g id="produto">' + crHeroi(z0, q.linhas.map((l, i) => cy - hh / 2 + z * 0.73 + i * z * 0.94), z, '#FFFFFF', q.linhas, ' data-campo="' + ch.campo + '"') + '</g>')];
+      crBloco('titulo', '<g id="produto">' + crHeroi(z0, q.linhas.map((l, i) => cy - hh / 2 + _crAlt(q.linhas, z).ys[i]), z, '#FFFFFF', q.linhas, ' data-campo="' + ch.campo + '"') + '</g>')];
     if(sp.foto) out.push(crBloco('foto', crFoto(fx, 0, fw, a.H, 24, '', sp.foto)));
     if(valor.preco){
       const pm = crPrecoMede(valor.preco, zl, 76);
@@ -645,8 +810,8 @@ const CR_LOCKUPS = {
     if(!ch.selo.length) return null;
     const r = 70, sx = cx0 + cw - 28 - r, z0 = cx0 + 32;
     const q = crQuebra(ch.titulo, 'hero', a.heroiMax * (a.p.kh || 1), sx - r - 32 - z0, a.heroiMin, est), z = q.size, n = q.linhas.length;
-    const hh = z * 0.73 + (n - 1) * z * 0.94;
-    return [crBloco('titulo', '<g id="produto">' + crHeroi(z0, q.linhas.map((l, i) => cy - hh / 2 + z * 0.73 + i * z * 0.94), z, '#FFFFFF', q.linhas, ' data-campo="' + ch.campo + '"') + '</g>'),
+    const hh = _crAlt(q.linhas, z).h;
+    return [crBloco('titulo', '<g id="produto">' + crHeroi(z0, q.linhas.map((l, i) => cy - hh / 2 + _crAlt(q.linhas, z).ys[i]), z, '#FFFFFF', q.linhas, ' data-campo="' + ch.campo + '"') + '</g>'),
       crBloco('selo', crSelo(sx, cy, r, ch.selo))];
   },
 
@@ -655,8 +820,8 @@ const CR_LOCKUPS = {
     if(!sp.foto) return null;
     const ch = crChave(sp), [cx0, cy0, cw, chh] = a.card, cy = cy0 + chh / 2, fx = 400, z0 = cx0 + 32;
     const q = crQuebra(ch.titulo, 'hero', a.heroiMax * (a.p.kh || 1), fx - 28 - z0, a.heroiMin, est), z = q.size, n = q.linhas.length;
-    const hh = z * 0.73 + (n - 1) * z * 0.94;
-    const out = [crBloco('titulo', '<g id="produto">' + crHeroi(z0, q.linhas.map((l, i) => cy - hh / 2 + z * 0.73 + i * z * 0.94), z, '#FFFFFF', q.linhas, ' data-campo="' + ch.campo + '"') + '</g>'),
+    const hh = _crAlt(q.linhas, z).h;
+    const out = [crBloco('titulo', '<g id="produto">' + crHeroi(z0, q.linhas.map((l, i) => cy - hh / 2 + _crAlt(q.linhas, z).ys[i]), z, '#FFFFFF', q.linhas, ' data-campo="' + ch.campo + '"') + '</g>'),
       crBloco('foto', crFoto(fx, cy0, cx0 + cw - fx, chh, a.card[4], '', sp.foto))];
     if(ch.selo.length) out.push(crBloco('selo', crSelo(cx0 + cw - 62, cy0 + 58, 50, ch.selo)));
     return out;
@@ -674,7 +839,7 @@ const CR_LOCKUPS = {
     out.push(crBloco('logo', crLogo(M, 90, false).svg));
     const q = _crHeroiCaixa(ch.titulo || sp.titulo, larg, 560, 300);
     if(q.size < a.heroiMin) est.push(ch.titulo);
-    out.push(crBloco('titulo', '<g id="produto">' + crHeroi(M, q.linhas.map((l, k) => 360 + q.size * 0.73 + k * q.size * 0.94), q.size, '#FFFFFF', q.linhas, ' data-campo="' + (sp.objetivo === 'oferta' ? 'produto' : 'titulo') + '"') + '</g>'));
+    out.push(crBloco('titulo', '<g id="produto">' + crHeroi(M, q.linhas.map((l, k) => 360 + _crAlt(q.linhas, q.size).ys[k]), q.size, '#FFFFFF', q.linhas, ' data-campo="' + (sp.objetivo === 'oferta' ? 'produto' : 'titulo') + '"') + '</g>'));
     // lâmina 2
     const x2 = L + M;
     if(sp.itens.length){
@@ -688,7 +853,7 @@ const CR_LOCKUPS = {
       out.push(crBloco('chamada', sp.chamada.map((l, k) => crMista(x2, 420 + zc * 0.75 + k * zc * 1.3, zc, '#FFFFFF', l)).join('')));
     }else if(sp.apoio){
       const qa = _crHeroiCaixa(sp.apoio.toLocaleUpperCase('pt-BR'), larg, 520, 150);
-      out.push(crBloco('chamada', crHeroi(x2, qa.linhas.map((l, k) => 320 + qa.size * 0.73 + k * qa.size * 0.94), qa.size, '#FFFFFF', qa.linhas)));
+      out.push(crBloco('chamada', crHeroi(x2, qa.linhas.map((l, k) => 320 + _crAlt(qa.linhas, qa.size).ys[k]), qa.size, '#FFFFFF', qa.linhas)));
     }else return null;
     // lâmina 3
     const x3 = 2 * L + M;
@@ -911,7 +1076,10 @@ function crNormaliza(bruto){
     const t = String(v == null ? '' : v).replace(/[\r\n]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
     if(t.length <= n) return t;
     const c = t.slice(0, n + 1), i = c.lastIndexOf(' ');
-    return (i > n * 0.5 ? c.slice(0, i) : t.slice(0, n)).trim();
+    let r = (i > n * 0.5 ? c.slice(0, i) : t.slice(0, n)).trim();
+    // nunca termina pendurado em artigo ou preposição ("DOMINGO DOCE COM SOBREMESA EM")
+    while(/\s/.test(r) && _CR_COLA.test(r.split(/\s+/).pop())) r = r.replace(/\s+\S+$/, '');
+    return r;
   };
   const up = v => v.toLocaleUpperCase('pt-BR');
   let obj = s.objetivo || s.composicao;
@@ -1121,7 +1289,7 @@ function crGeometria(svg){
     c.runs.forEach(r => { r.x0 -= k; r.x1 -= k; });
     tx.chunk = null;
   };
-  const novoChunk = (x, anc) => { fechaChunk(); tx.pen = x; tx.chunk = { x, anc, runs: [] }; };
+  const novoChunk = (x, anc) => { fechaChunk(); tx.pen = x; tx.chunk = { x, anc, runs: [] }; tx.chunks.push(tx.chunk); };
   let mt;
   while((mt = re.exec(svg))){
     const fr = pilha[pilha.length - 1];
@@ -1174,7 +1342,8 @@ function crGeometria(svg){
           caixa(sai, b);
           const maior = tx.runs.reduce((p, r) => (r.size * r.txt.length > p.size * p.txt.length ? r : p), tx.runs[0]);
           textos.push({ bloco: sai.bloco ? sai.bloco.nome : '', x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1, corpo: Math.max(...tx.runs.map(r => r.size)),
-            cls: maior.cls, cor: String(maior.cor || '').toUpperCase(), contorno: maior.contorno, txt: tx.runs.map(r => r.txt).join(''), ordem: ordem++, fundo: null });
+            cls: maior.cls, cor: String(maior.cor || '').toUpperCase(), contorno: maior.contorno, txt: tx.runs.map(r => r.txt).join(''), ordem: ordem++, fundo: null,
+            linhas: tx.chunks.map(c => c.runs.map(r => r.txt).join('').trim()).filter(Boolean) });
         }
         tx = null;
       }
@@ -1219,7 +1388,7 @@ function crGeometria(svg){
         const x = +at.x || 0, y = +at.y || 0, w = +at.width || 0, h = +at.height || 0;
         if(w > 0 && h > 0) b = _crCaixaM(nf.m, x, y, x + w, y + h);
       }else if(tag === 'text'){
-        tx = { runs: [], chunk: null, pen: _crNums(at.x)[0] || 0, base: _crNums(at.y)[0] || 0 };
+        tx = { runs: [], chunk: null, chunks: [], pen: _crNums(at.x)[0] || 0, base: _crNums(at.y)[0] || 0 };
         if(at.dx != null) nf.dxs = _crNums(at.dx);
         if(at.dy != null) nf.dy = _crNums(at.dy)[0] || 0;
       }else if(tag === 'tspan' && tx){
@@ -1530,7 +1699,15 @@ function crNotaDesign(geo, ctx){
       const share = hb ? hb.w * hb.h / (zw * zh * n) : 0, sF = _crLim(share, a.deitado ? 0.06 : 0.03, a.deitado ? 0.2 : 0.09);
       const leitura = todos.filter(b => _CR_PAPEL[b.nome] || ['cupom', 'botao', 'selo'].indexOf(b.nome) >= 0).sort((p, q) => p.y - q.y || p.x - q.x);
       const ih = leitura.findIndex(b => _CR_PAPEL[b.nome] === 'heroi'), sO = ih <= 1 ? 1 : ih === 2 ? 0.75 : 0.45;
-      partes.escala = 0.15 * sN + 0.2 * sR + 0.2 * sD + 0.3 * sF + 0.15 * sO;
+      // quebra de linha: título, apoio ou letra miúda terminando em artigo/preposição, ou uma palavrinha
+      // sozinha na última linha, é erro de diagramador — cada uma tira 20% da escala
+      let ruins = 0;
+      textos.forEach(t => {
+        if(!_CR_PAPEL[t.bloco] || !t.linhas || t.linhas.length < 2) return;
+        t.linhas.slice(0, -1).forEach(l => { if(_CR_COLA.test(l.split(/\s+/).pop())) ruins++; });
+        const u = t.linhas[t.linhas.length - 1]; if(!/\s/.test(u) && [...u].length <= 3) ruins++;
+      });
+      partes.escala = (0.15 * sN + 0.2 * sR + 0.2 * sD + 0.3 * sF + 0.15 * sO) * Math.max(0.4, 1 - 0.2 * ruins);
     }
   }
 
@@ -1663,8 +1840,8 @@ function _crEspaco(rec, sp){
   const cont = {}, disc = {}, padrao = {};
   if(rec.editorial){ cont.kfoco = [0.9, 1.8]; disc.v = [1, 2, 3]; disc.vmin = [110, 80]; padrao.kfoco = 1.8; padrao.vmin = 0; }
   else if(rec.pilha){
-    cont.kh = [0.86, 1.3]; cont.kv = [1, 1.5]; disc.dist = ['centro', 'ancora', 'espalha'];
-    padrao.kh = 1; padrao.kv = 1; padrao.dist = 'centro';
+    cont.kh = [0.86, 1.3]; cont.kv = [1, 1.5]; disc.dist = ['centro', 'ancora', 'espalha']; disc.lockup = [false, true];
+    padrao.kh = 1; padrao.kv = 1; padrao.dist = 'centro'; padrao.lockup = false;
     if(sp.foto){ cont.kf = [0.8, 1.25]; padrao.kf = 1; } else { cont.kt = [1, 1.5]; padrao.kt = 0; }
   }else{ cont.kh = [0.86, 1.2]; padrao.kh = 1; }
   const b = rec.busca || {};
@@ -1894,7 +2071,7 @@ function crConteudoBlocos(sp){
 }
 // Quebra equilibrada em n linhas (minimiza a linha mais larga)
 function _crLinhas(txt, cls, n){
-  const p = String(txt).split(/\s+/).filter(Boolean);
+  const p = _crPalavras(txt);
   if(n <= 1 || p.length < 2) return [p.join(' ')];
   let melhor = null;
   const tenta = (resto, k, acc) => {
@@ -1909,8 +2086,9 @@ function _crHeroiCaixa(txt, w, h, max){
   let best = null;
   for(let n = 1; n <= 3; n++){
     const l = _crLinhas(txt, 'hero', n);
-    const s = Math.min(max, h / (0.73 + (l.length - 1) * 0.94), w * 100 / Math.max(...l.map(x => crMede(x, 'hero', 100))));
-    if(!best || s > best.size * 1.04) best = { linhas: l, size: Math.floor(s) };
+    let s = Math.floor(Math.min(max, h / (0.73 + (l.length - 1) * 0.94), w * 100 / Math.max(...l.map(x => crMede(x, 'hero', 100)))));
+    const ht = _crAlt(l, s).h; if(ht > h) s = Math.floor(s * h / ht);   // acento e Ç contam na altura
+    if(!best || s > best.size * 1.04) best = { linhas: l, size: s };
   }
   return best;
 }
@@ -1941,13 +2119,16 @@ function crDesenhar(sp, comp, i){
     }else if(t === 'titulo'){
       const q = _crHeroiCaixa(tem.titulo, w, h, a.deitado ? a.heroiMax : 560);
       if(q.size < a.heroiMin) est.push(tem.titulo);
-      pecas.push(crBloco('titulo', '<g id="produto">' + crHeroi(ax, q.linhas.map((l, k) => y + q.size * 0.73 + k * q.size * 0.94), q.size, '#FFFFFF', q.linhas, anc + ' data-campo="' + campo + '"') + '</g>'));
+      pecas.push(crBloco('titulo', '<g id="produto">' + crHeroi(ax, q.linhas.map((l, k) => y + _crAlt(q.linhas, q.size).ys[k]), q.size, '#FFFFFF', q.linhas, anc + ' data-campo="' + campo + '"') + '</g>'));
     }else if(t === 'tag'){
       const z = 40, tw = Math.max(330, _r(crMede(sp.topo, 'hero', z) + 64)), tx = al === 'centro' ? x + (w - tw) / 2 : al === 'dir' ? x + w - tw : x;
       pecas.push(crBloco('tag', '<rect x="' + _r(tx) + '" y="' + y + '" width="' + tw + '" height="70" rx="35" fill="#FFFFFF"/>' + crTexto(tx + tw / 2, y + 49, 'hero', z, '#F85400', sp.topo, ' text-anchor="middle"')));
     }else if(t === 'apoio'){
-      const z = crCabe(sp.apoio, 'body', Math.min(56, h / 0.92), w, a.piso, est);
-      pecas.push(crBloco('apoio', crTexto(ax, y + z * 0.72, 'body', z, '#FFFFFF', sp.apoio, anc + lg)));
+      // 1 linha no corpo que a caixa pede; 2 linhas sem órfã quando ficam ≥ 10% maiores E cabem na caixa
+      const z0 = crCabe(sp.apoio, 'body', Math.min(56, h / 0.92), w, 0), z1 = Math.max(z0, a.piso), q2 = crTextoLinhas(sp.apoio, 'body', Math.min(48, h / 2.17), w, Math.max(28, a.piso), null);
+      const q = q2.linhas.length > 1 && q2.z > z1 * 1.1 && q2.h <= h + 6 ? q2 : { linhas: [sp.apoio], z: z1, ys: _crAlt([sp.apoio], z1, 'body').ys };
+      if(q !== q2 && z0 < a.piso) est.push(sp.apoio);
+      pecas.push(crBloco('apoio', crTextoMulti(ax, y, 'body', q, '#FFFFFF', anc + lg)));
     }else if(t === 'chamada'){
       const ls = sp.chamada, zc = Math.floor(Math.min(84, h / (0.95 + (ls.length - 1) * 1.3), ...ls.map(l => w * 80 / Math.max(1, crMedeMista(l, 80)))));
       if(zc < a.piso) est.push(ls.join(' '));
@@ -1983,8 +2164,10 @@ function crDesenhar(sp, comp, i){
       const est2 = fundo === '#FF9000' ? 'laranja' : (b.estilo === 'contorno' ? 'contorno' : 'cheio');
       pecas.push(crBloco('botao', crBotao(ax, y, sp.cta, est2, al === 'centro' ? 'centro' : al === 'dir' ? 'dir' : '').svg));
     }else if(t === 'legal'){
-      const z = crCabe(sp.legal, 'legal', 28, w, Math.max(22, a.piso), est);
-      pecas.push(crBloco('legal', crTexto(ax, y + z * 0.72, 'legal', z, '#FFFFFF', sp.legal, anc)));
+      const pl = Math.max(22, a.piso), z0 = crCabe(sp.legal, 'legal', 28, w, 0), z1 = Math.max(z0, pl), q2 = crTextoLinhas(sp.legal, 'legal', 28, w, pl, null);
+      const q = q2.linhas.length > 1 && q2.z > z1 * 1.08 && q2.h <= h + 6 ? q2 : { linhas: [sp.legal], z: z1, ys: _crAlt([sp.legal], z1, 'legal').ys };
+      if(q !== q2 && z0 < pl) est.push(sp.legal);
+      pecas.push(crBloco('legal', crTextoMulti(ax, y, 'legal', q, '#FFFFFF', anc)));
     }else if(t === 'itens'){
       pecas.push(crBloco('itens', crItens(x, y, w, h, sp.itens, est)));
     }else if(t === 'foto'){
@@ -2102,14 +2285,16 @@ function crEditorial(sp, v, p){
   if(tem.tag) intro.push(box('tag', 400, 70));
   if(tem.chamada) intro.push(box('chamada', L, Math.ceil(72 * (0.95 + 1.3 * (sp.chamada.length - 1)))));
   if(tem.titulo && focal !== 'titulo') intro.push(box('titulo', L, hTit(tem.titulo, L, a.story ? 150 : 130)));
-  if(tem.apoio && focal !== 'titulo') intro.push(box('apoio', L, 48));
+  // apoio e letra miúda com a altura de verdade (1 ou 2 linhas, crTextoLinhas)
+  const hApoio = tem.apoio ? Math.ceil(crTextoLinhas(sp.apoio, 'body', 44, L, 32).h) + 4 : 0, hLegal = tem.legal ? Math.ceil(crTextoLinhas(sp.legal, 'legal', 28, L, 24).h) + 4 : 0;
+  if(tem.apoio && focal !== 'titulo') intro.push(box('apoio', L, hApoio));
   if(intro.length) G.push(intro);
   // o ponto focal, em escala dramática (encolhe se faltar altura)
   const focalBox = k => {
     if(focal === 'preco'){ const big = Math.round((a.story ? 280 : 230) * k), w = tem.selo ? L - 320 : L; return [box('preco', w, Math.ceil((sp.precoDe ? 61 : 0) + 44 + 0.73 * big), dir ? { x: M + L - w, alinhar: 'dir' } : null)].concat(tem.selo ? [box('selo', 290, 290, { x: dir ? M : M + L - 290, lado: true })] : []); }
     if(focal === 'valor') return [box('valor', L, Math.ceil(0.73 * Math.round((a.story ? 440 : 360) * k)), dir ? { alinhar: 'dir' } : null)];
     const tb = [box('titulo', L, hTit(tem.titulo, L, Math.round((a.story ? 230 : 190) * k)), dir ? { alinhar: 'dir' } : null)];
-    return tem.apoio ? tb.concat([box('apoio', L, 48, dir ? { alinhar: 'dir' } : null)]) : tb;
+    return tem.apoio ? tb.concat([box('apoio', L, hApoio, dir ? { alinhar: 'dir' } : null)]) : tb;
   };
   const sup = [];
   if(tem.valor && focal !== 'valor') sup.push(box('valor', L, Math.ceil(0.73 * (a.story ? 220 : 180))));
@@ -2118,7 +2303,7 @@ function crEditorial(sp, v, p){
   if(tem.foto) sup.push(box('foto', L, 0, { flex: true }));
   const acao = [];
   if(tem.cta && a.fmt !== 'inapp') acao.push(box('cta', 360, 96));
-  if(tem.legal) acao.push(box('legal', L, 30));
+  if(tem.legal) acao.push(box('legal', L, hLegal));
   // ordem dos grupos por variação; mede e distribui pela faixa inteira
   // o foco cresce até encher a faixa (com no mínimo 110 de respiro entre grupos); o que sobrar vira respiro
   // tenta com 110 de respiro entre grupos; se o conteúdo não couber, aceita 80 (piso da §4.2)
