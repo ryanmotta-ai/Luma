@@ -261,7 +261,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 91 arquivos JS (84.152 linhas, 3.269 funções) · 33 arquivos CSS (33.417 linhas) · `index.html` com 4.095 linhas e 81 `<script>`.
+**Tamanho real de hoje:** 91 arquivos JS (84.180 linhas, 3.270 funções) · 33 arquivos CSS (33.417 linhas) · `index.html` com 4.095 linhas e 81 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -301,7 +301,7 @@ CONTAS DE IA PRÓPRIAS — a pessoa liga a conta dela e as chamadas vão DIRETO 
 · Estado global: gProvUltimoErro
 · Depende de: core/auth.js (gCurrentUser), core/toast.js (gToast).
 
-**`js/core/ai/ai-registry.js`** · 192 linhas
+**`js/core/ai/ai-registry.js`** · 194 linhas
 Registro de Tarefas, Prompts Versionados e Blindagem Anti-Injeção (§60, §61).
 
 **`js/core/ai/ai-schemas.js`** · 275 linhas
@@ -432,9 +432,9 @@ F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES defi
 · Estado global: _F_MAXLEN_MED, _fAlvoNaPasta, _fFitOpts, _fFitRun, _fFitSai, _fFitIaReprovadas, _fFitCf, quando, _fFitPerto, _fFitFora
 · Depende de: 00-config.js
 
-**`js/franqueado/chat.js`** · 3920 linhas
+**`js/franqueado/chat.js`** · 3939 linhas
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
-· API: fChatNovaConversa, fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fTrackResposta, fTrackFoto … (+69; 180 funções no total)
+· API: fChatNovaConversa, fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fTrackResposta, fTrackFoto … (+69; 181 funções no total)
 · Estado global: fNextTimeout, _fChatGen, _fGuidedNav, _fGuidedTimer, _fGuidedBound, _fProntaCtxAberto, _fRevisando, _fArtSnapshots, _fArtCaptions, _fGiriasFr (+4)
 · Depende de: 00-config.js, 01-state.js, franqueado/chat-input.js
 
@@ -710,14 +710,14 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 
 ### js/creative
 
-**`js/creative/branding.js`** · 135 linhas
+**`js/creative/branding.js`** · 141 linhas
 BRANDING BOOK da Delivery Much — a "skill" que a IA do Luma Creative LÊ antes de escrever texto.
 
 **`js/creative/composicoes.js`** · 1335 linhas
 As composições do dia a dia do franqueado (frente 4, 15/10/2026) — desenhadas uma a uma, cada uma especialista de UM formato (nada de "serve a todos" com adaptação).
 · API: crComposicao
 
-**`js/creative/copy.js`** · 182 linhas
+**`js/creative/copy.js`** · 183 linhas
 LUMA CREATIVE — modo COPY (15/10/2026) Quando o pedido é um TEXTO ("quero uma copy", "uma legenda", "um roteiro", "mensagem de whatsapp"…) e não uma arte, o chat vira o de um copywriter:
 · API: crPromptCopyBriefing, crPromptCopyTexto, crCopy, crLegendaMarca
 

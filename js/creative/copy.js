@@ -162,6 +162,7 @@ document.addEventListener('click', e => {
    Devolve [{ text }] com _ia=true; null/[] faz o crLegenda cair no gerador do Franqueado. */
 async function crLegendaMarca(sp){
   const dados = [
+    ['Pedido da gestão (contexto)', sp.pedido && String(sp.pedido).slice(0, 300)], ['Resumo', sp.resumo], ['Tema da arte', sp.marca === 'much' ? 'Much+ (programa de cashback da marca, cor magenta)' : 'Delivery Much (laranja)'], ['Formato', sp.formato],
     ['Tipo de peça', (typeof CR_OBJETIVOS !== 'undefined' && CR_OBJETIVOS[sp.objetivo]) || sp.objetivo], ['Título da arte', [sp.palavra, sp.titulo].filter(Boolean).join(' ')], ['Apoio', sp.apoio],
     ['Preço DE', sp.precoDe && 'R$ ' + sp.precoDe], ['Preço POR', sp.precoPor && 'R$ ' + sp.precoPor],
     ['Desconto do cupom', sp.cupomValor && (/%$/.test(sp.cupomValor) ? sp.cupomValor + ' OFF' : 'R$ ' + sp.cupomValor + ' OFF')], ['Código do cupom', sp.cupomCodigo],
@@ -170,8 +171,8 @@ async function crLegendaMarca(sp){
   const prompt = [
     'Você é copywriter sênior da Delivery Much. Escreva a LEGENDA do post (Instagram/WhatsApp) que acompanha esta arte, SEGUINDO O BRANDING BOOK abaixo.',
     '', '=== BRANDING BOOK DA DELIVERY MUCH ===', CR_BRANDING, '=== FIM DO BRANDING BOOK ===', '', CR_COPY_OFICIO,
-    '', 'O QUE A ARTE DIZ (use SÓ isto; nenhum dado novo):', dados,
-    '', 'Público: quem segue o perfil da franquia na cidade (cliente final), a menos que a peça seja sobre a franquia. Legenda curta (3 a 6 linhas, a primeira linha prende), uma chamada para agir, até 5 hashtags com #deliverymuch.',
+    '', 'O QUE A ARTE DIZ (use SÓ isto; nenhum dado novo — os nomes à esquerda são rótulos, não os copie para o texto):', dados,
+    '', 'Público: quem segue o perfil da franquia na cidade (cliente final), a menos que a peça seja sobre a franquia. Legenda curta (3 a 6 linhas): primeira linha que prende, o benefício para quem pede, uma chamada para agir, até 5 hashtags com #deliverymuch. Fale do que a arte mostra, com frases naturais; releia: nenhuma frase pode terminar solta ou sem sentido.',
     'Responda SÓ o JSON: {"legenda":"o texto pronto, com quebras de linha como \\n"}'
   ].join('\n');
   const j = gAiParseJson(await _crAsk('arte.compor', prompt, { json: true, cache: false }));

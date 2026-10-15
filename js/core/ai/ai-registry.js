@@ -19,7 +19,7 @@
 
   const TASKS = {
     'caption.generate': {
-      version: '1.6.0',
+      version: '1.7.0',
       modelType: 'fast',
       featureFlag: 'caption',
       defaultTtl: 0, // legendas não devem ser repetidas em cache cego
@@ -28,8 +28,8 @@
         const fatos = [
           p.produto ? `Produto: ${p.produto}` : '',
           // O preço já chega como "R$ 39,90" (ou "De: R$ 39,90"): prefixar "R$" dava "R$ De: R$".
-          p.precoDe ? `Preço de: ${_preco(p.precoDe)}` : '',
-          p.precoPor ? `Preço por: ${_preco(p.precoPor)}` : '',
+          p.precoDe ? `Preço antigo (só para comparar): ${_preco(p.precoDe)}` : '',
+          p.precoPor ? `Preço final (o que o cliente paga): ${_preco(p.precoPor)}` : '',
           p.desconto ? `Vantagem: ${p.desconto}` : '',
           p.validade ? `Validade: ${p.validade}` : '',
           p.campanha ? `Campanha: ${p.campanha}` : '',
@@ -50,15 +50,17 @@ Gancho na primeira linha e CTA para pedir pelo app em todas. Abordagens e frases
 promo: vender a oferta.
 engajar: puxar comentário ou marcação de amigos com uma pergunta natural.
 whatsapp: convite curto para lista de transmissão, sem hashtags, com a mesma ortografia cuidada das outras (acentos inclusos, nada de escrita de chat).
-Use os fatos: com preço, promo e whatsapp citam o "Preço por" (o "de" só como comparação); com validade, cite-a. Não invente preços, prazos, cupons, fretes, brindes ou vantagens; sem preço nos fatos, nenhum valor numérico.
+Use os fatos: com preço, promo e whatsapp citam o PREÇO FINAL em reais, dito de forma natural (ex.: "por R$ 8,00"); o preço antigo só como comparação; com validade, cite-a. NUNCA copie os nomes dos campos dos fatos ("Produto", "Preço final", "Vantagem"…) para o texto: escreva frases que um vizinho diria, sem repetir o produto duas vezes na mesma frase. Não invente preços, prazos, cupons, fretes, brindes ou vantagens; sem preço nos fatos, nenhum valor numérico.
 Sem emojis, asteriscos ou markdown.
 PT-BR com acento e ç corretos nas 3 opções, inclusive whatsapp (família, preço, até, você, não, está, olá, peça). Os fatos podem vir sem acento: "Combo familia" vira "Combo família"; não troque palavras, nomes próprios nem preços.
 Promo e engajar: ${ehStory ? 'até 2' : '2 a 4'} linhas curtas, mais as hashtags no fim.
 SEO do Instagram: o nome do produto aparece na 1ª linha e ${typeof _fSeoLocal === 'function' ? _fSeoLocal(cidadeTag) : 'a cidade aparece uma vez no texto, se informada (nunca invente cidade). Hashtags (6 a 9, minúsculas, sem acento): produto, categoria'} e as fixas: ${hashtags.toLowerCase()}
 Campanha é contexto, não produto.${p.girias ? '\n' + p.girias : ''}
 
+${typeof CR_BRANDING_VOZ === 'string' ? CR_BRANDING_VOZ + '\n\n' : ''}A legenda ACOMPANHA uma arte: fale do que a arte mostra (os campos abaixo são o que está escrito nela) em vez de repetir uma lista de itens; uma frase de abertura que prenda, o benefício para quem pede, a chamada para pedir pelo app. Releia antes de responder: nenhuma frase pode terminar solta ou sem sentido.
+
 FATOS:
-${fatos}`;
+${fatos}${p.campos ? '\n\nO QUE ESTÁ ESCRITO NA ARTE (campos preenchidos; os nomes são rótulos do formulário, não os copie):\n' + p.campos : ''}${p.material ? '\nMaterial: ' + p.material : ''}`;
 
         return { prompt: prompt, parts: [] };
       }

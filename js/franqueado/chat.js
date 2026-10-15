@@ -2599,7 +2599,24 @@ function _fCapPadroniza(s, tags){
   const sem = _fCapDiagrama(String(s || '').replace(/\*/g, '').replace(/[ \t]{2,}/g, ' ').trim())
     .replace(/(^|\s)#[\p{L}\d_]+/gu, '$1');
   const corpo = (typeof _fCopyTidy === 'function') ? _fCopyTidy(sem) : sem.replace(/\n{3,}/g, '\n\n').trim();
-  return tags ? corpo + '\n\n' + tags : corpo;
+  // Eco do nome do campo do prompt ("... por 8,00 reais, preço por."): o modelo copia o rótulo e a frase fica sem sentido
+  const semEco = corpo.replace(/[,;:]?\s*pre[cç]o\s+(?:final|por|de|antigo|promocional)\s*[.!]?(?=\s*(?:\n|$))/gi, '.').replace(/\.{2,}/g, '.').replace(/\s+\./g, '.');
+  return tags ? semEco + '\n\n' + tags : semEco;
+}
+// O que está ESCRITO na arte, com o nome de cada campo (a legenda precisa do contexto, não só de produto e preço)
+function _fCamposDaArte(dados, perguntas){
+  const nome = id => (typeof gFieldLabel === 'function' ? gFieldLabel(id) : id);
+  const ids = (Array.isArray(perguntas) && perguntas.length ? perguntas.map(p => p && p.id) : Object.keys(dados || {})).filter(Boolean);
+  const out = [];
+  ids.forEach(id => {
+    if(/^__/.test(id)) return;
+    const v = dados && dados[id];
+    if(typeof v !== 'string') return;
+    const t = v.trim();
+    if(!t || t === 'Pular' || /^data:/.test(t) || (dados && dados['__skipped__' + id])) return;
+    out.push('- ' + String(nome(id)).slice(0, 40) + ': ' + t.slice(0, 120));
+  });
+  return out.slice(0, 12).join('\n');
 }
 function _fCapTagsLocais(fallback){
   const ult = String((fallback && fallback[0] && fallback[0].text) || '').trim().split('\n').pop() || '';
@@ -2691,7 +2708,9 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
       campanha: campName,
       cidade: cidade,
       formato: fmtId,
-      girias: blocoGirias
+      girias: blocoGirias,
+      campos: _fCamposDaArte(dados, perg),
+      material: (typeof fState !== 'undefined' && fState.material && (fState.material.name || fState.material.nome)) || ''
     });
     if (res && res.ok && res.data) {
       const p = res.data.promo || res.data.caption || fallback[0].text;

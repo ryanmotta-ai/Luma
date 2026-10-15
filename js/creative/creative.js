@@ -3924,7 +3924,7 @@ async function crGerar(fio, conv, outras){
     consumiu = !prov; crState.modeloRun = prov ? null : modelo; crState.provRun = prov;
     if(parou()) return;
     const modifica = fio.modo === 'modificar';   // harness: altera a arte de cima — conteúdo já pronto, sem briefing nem copy
-    if(modifica){ fio.legenda = null; fio.legProm = CR_FORMATOS[fio.fmt].social === false ? Promise.resolve([]) : crLegenda(crNormaliza(fio.conteudo)); }
+    if(modifica){ fio.legenda = null; fio.legProm = CR_FORMATOS[fio.fmt].social === false ? Promise.resolve([]) : crLegenda(Object.assign(crNormaliza(fio.conteudo), { pedido: fio.pedido })); }
     if(!outras && !modifica){
       // 1) Briefing: entende o pedido e pergunta só o que muda a arte
       p = _crPasso(lista, 'Entendendo o pedido');
@@ -3963,7 +3963,7 @@ async function crGerar(fio, conv, outras){
       const sp0 = crNormaliza(bruto);
       p.feito([sp0.palavra, sp0.titulo].filter(Boolean).join(' ') + (sp0.precoPor ? ' · R$ ' + sp0.precoPor : '') + (fio.viaIA ? ' · IA' : ' · motor local' + (prov && typeof gProvUltimoErro === 'string' && gProvUltimoErro ? ' — ' + gProvUltimoErro : '')));
       // a legenda corre em paralelo e chega junto — só para post (inapp, banner, email, capa e slide não têm)
-      fio.legProm = CR_FORMATOS[sp0.formato].social === false ? Promise.resolve([]) : crLegenda(sp0);
+      fio.legProm = CR_FORMATOS[sp0.formato].social === false ? Promise.resolve([]) : crLegenda(Object.assign(sp0, { pedido: fio.pedido }));
     }
 
     // 3) Diagramação: a busca (frente 2) percorre as famílias que servem e os parâmetros de cada

@@ -132,3 +132,9 @@ Use pelo menos um para fundamentar qualquer mensagem:
 - [ ] CTA claro — sabe o que fazer depois de ler?
 - [ ] Se para Paulo: não menciona faturamento sem dado concreto?
 - [ ] Se para Lucas: não questiona experiência ou maturidade dele?`;
+
+// Versão CURTA da voz (para tarefas baratas e frequentes, como a legenda do Franqueado): mesma fonte, sem personas de lead.
+const CR_BRANDING_VOZ = `TOM DE VOZ DA MARCA (guia oficial da Delivery Much): simples, amigável e direta. Fale como um vizinho do interior que conhece a cidade — use "a gente" ou "nós", frases curtas, linguagem do dia a dia — e nunca como uma empresa tentando vender. Conecte ao cotidiano de quem lê (fome, família, comodidade, comércio local).
+EVITE: jargão corporativo; "imperdível", "incrível", "revolucionário"; promessa vaga; tom frio, distante ou de ostentação; metáfora abstrata.
+VALORES (apoie-se em pelo menos um): empreendedorismo local (o comércio da cidade vende mais), inovação acessível (tecnologia que a cidade ainda não tinha), relacionamento (a gente guia pela mão e está por perto). Persona da marca: Cássio, do interior, "trabalhe muito, cresça e continue humilde" — convida, não empurra.
+Exemplo de voz certa: "Pedir comida não deveria ser complicado, mas ainda é a realidade de muitas cidades. Se onde você mora também é assim, a boa notícia é que o app da sua cidade chegou."`;
