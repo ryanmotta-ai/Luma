@@ -261,7 +261,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 92 arquivos JS (84.482 linhas, 3.272 funções) · 33 arquivos CSS (33.412 linhas) · `index.html` com 4.096 linhas e 82 `<script>`.
+**Tamanho real de hoje:** 92 arquivos JS (84.736 linhas, 3.279 funções) · 33 arquivos CSS (33.414 linhas) · `index.html` com 4.096 linhas e 82 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -721,10 +721,10 @@ As composições do dia a dia do franqueado (frente 4, 15/10/2026) — desenhada
 LUMA CREATIVE — modo COPY (15/10/2026) Quando o pedido é um TEXTO ("quero uma copy", "uma legenda", "um roteiro", "mensagem de whatsapp"…) e não uma arte, o chat vira o de um copywriter:
 · API: crPromptCopyBriefing, crPromptCopyTexto, crCopy, crLegendaMarca
 
-**`js/creative/creative.js`** · 4754 linhas
+**`js/creative/creative.js`** · 4755 linhas
 Luma Creative — modo em TESTES, só a gestão (trava em main.js e na Edge Function `ai`).
-· API: crTema, crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crLockup, crTextoLinhas, crTextoMulti, crX, crTexto, crMista, crHeroi … (+97; 186 funções no total)
-· Estado global: _crFontesProm, _crCtx, _crMesa, _crPesosCuradoria, _crArrasto, _crSessTimer, _crMkAuto, _crLegendaVer
+· API: crTema, crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crLockup, crTextoLinhas, crTextoMulti, crX, crTexto, crMista, crHeroi … (+97; 187 funções no total)
+· Estado global: _crFontesProm, _crCtx, _crMesa, _crPesosCuradoria, _crArrasto, _crSessTimer, _crLegendaVer
 
 **`js/creative/curadoria.js`** · 224 linhas
 CURADORIA do Luma Creative (frente 5, 15/10/2026) — só a gestão.
@@ -735,9 +735,9 @@ CURADORIA do Luma Creative (frente 5, 15/10/2026) — só a gestão.
 LUMA CREATIVE — HARNESS DO CHAT (15/10/2026) Antes, toda mensagem virava um pedido novo de arte:
 · API: crUltimaEntrega, crContexto, crPromptRoteador, crRotearLocal, crLimpaMudancas, crDespachar
 
-**`js/creative/making-of.js`** · 295 linhas
-MAKING-OF da arte (frente 6, 15/10/2026) — a arte final se fazendo na frente da pessoa, como se alguém a montasse no editor:
-· API: crMakingOf
+**`js/creative/making-of.js`** · 548 linhas
+MAKING-OF da arte (frente 6, 15/10/2026; microações em 15/10, pedido do Ryan) — a arte se fazendo na frente da pessoa como num editor de verdade, em duas fases que continuam uma na outra:
+· API: crMakingOfPrancheta, crMakingOf
 
 ## CSS — onde mora cada folha
 
@@ -763,7 +763,7 @@ MAKING-OF da arte (frente 6, 15/10/2026) — a arte final se fazendo na frente d
 | `css/modules/chat.css` | 3979 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
-| `css/modules/creative.css` | 761 |
+| `css/modules/creative.css` | 763 |
 | `css/modules/designer.css` | 5424 |
 | `css/modules/feedback.css` | 199 |
 | `css/modules/franqueado.css` | 1712 |

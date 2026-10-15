@@ -2980,9 +2980,7 @@ const CR_ICO = {
   alCentro: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v18"/><rect x="5" y="6" width="14" height="4" rx="1"/><rect x="8" y="14" width="8" height="4" rx="1"/></svg>',
   alDir: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 3v18"/><rect x="4" y="6" width="12" height="4" rx="1"/><rect x="9" y="14" width="7" height="4" rx="1"/></svg>',
   frente: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="currentColor" fill-opacity=".18"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg>',
-  tras: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="12" height="12" rx="2"/><path d="M20 8v10a2 2 0 0 1-2 2H8"/></svg>',
-  tocar: '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.8v14.4a.8.8 0 0 0 1.2.7l11.3-7.2a.8.8 0 0 0 0-1.4L8.2 4.1a.8.8 0 0 0-1.2.7z"/></svg>',
-  pular: '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 5.2v13.6a.8.8 0 0 0 1.2.7l9.6-6.8a.8.8 0 0 0 0-1.4L5.2 4.5a.8.8 0 0 0-1.2.7z"/><rect x="16.5" y="4.5" width="3" height="15" rx="1"/></svg>'
+  tras: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="12" height="12" rx="2"/><path d="M20 8v10a2 2 0 0 1-2 2H8"/></svg>'
 };
 
 // Entrada no modo: revela a view em círculo a partir da aba (o resto é CSS)
@@ -3975,6 +3973,8 @@ async function crGerar(fio, conv, outras){
     // uma, em fatias (a tela não congela), e fica com o que tem a melhor nota de design
     p = _crPasso(lista, modifica ? 'Aplicando a mudança na arte' : outras ? 'Buscando outros caminhos' : 'Buscando a melhor composição');
     esq = _crEsqueleto(fio.fmt); msg.after(esq);
+    // enquanto a arte carrega, as opções do esqueleto já viram pranchetas: o making-of começa aqui
+    if(typeof crMakingOfPrancheta === 'function') esq._mk = [...esq.querySelectorAll('.cr-op-arte')].map(a => crMakingOfPrancheta(a, _crMkOpcoes(fio.fmt, (fio.conteudo && fio.conteudo.marca) || fio.marca)));
     msg.scrollIntoView({ block: 'start', behavior: _crReduz() ? 'auto' : 'smooth' });   // o esqueleto é alto: o que fica à vista é o progresso (msg), não o fim da página
     await crFontesProntas();
     // Cada rodada de "Outras opções" muda a semente e exclui as assinaturas já mostradas
@@ -4053,11 +4053,13 @@ async function crGerar(fio, conv, outras){
     const ent = _crEntrega(fio, opcoes);
     // a pessoa estava no fim? então a entrega (o destino) sobe até o topo da tela dela
     const seguia = (() => { const pl = _crEl('cr-palco'); return !pl || pl.scrollHeight - pl.scrollTop - pl.clientHeight < 200; })();
+    const de = esq && esq._mk ? esq._mk.map(h => h.estado()) : true;   // onde a prancheta de cada opção parou
+    if(esq && esq._mk) esq._mk.forEach(h => h.parar());
     if(esq && esq.isConnected) esq.replaceWith(ent); else conv.appendChild(ent);
     esq = null;
     (fio.entregas = fio.entregas || []).push(opcoes);
     entregou = true; crUsoConfirma();
-    _crMostra(ent, true);
+    _crMostra(ent, de);
     _crResumo(corpo, lista, t0);
     crFaixaPinta(); crSessSalva();
     if(seguia) requestAnimationFrame(() => {
@@ -4079,7 +4081,7 @@ async function crGerar(fio, conv, outras){
   }finally{
     if(consumiu && !entregou) crUsoEstorna();
     crState.modeloRun = null; crState.provRun = null;
-    if(esq) esq.remove();
+    if(esq){ (esq._mk || []).forEach(h => h.parar()); esq.remove(); }
     msg.classList.remove('cr-pensando');
     if(crState.rodando === run){ crState.rodando = null; _crOcupado(false); }
   }
@@ -4142,7 +4144,6 @@ function _crEntrega(fio, ops){
     + '<button type="button" class="cr-btn cr-prim" data-acao="png">' + CR_ICO.baixar + 'Baixar PNG</button>'
     + '<button type="button" class="cr-btn" data-acao="editar">' + CR_ICO.editar + 'Editar</button>'
     + (postavel ? '<button type="button" class="cr-btn" data-acao="postado">' + CR_ICO.celular + 'Ver postado</button>' : '')
-    + (typeof crMakingOf === 'function' && !_crReduz() ? '<button type="button" class="cr-btn cr-btn-leve" data-acao="making">' + CR_ICO.tocar + 'Ver sendo feita</button>' : '')
     + '<button type="button" class="cr-btn cr-btn-leve" data-acao="outras">' + CR_ICO.refazer + 'Outras opções</button>'
     + '</div>'
     + (fio.legenda ? '<div class="cr-leg"><div class="cr-leg-cab"><h4>Legenda do post</h4><button type="button" class="cr-btn cr-btn-mini" data-acao="copiar">' + CR_ICO.copiar + 'Copiar</button></div>'
@@ -4170,46 +4171,39 @@ function _crEntrega(fio, ops){
       crFaixaPinta(); crSessSalva();
     });
   };
-  // O making-of (js/creative/making-of.js) desenha TODAS as opções ao mesmo tempo, cada uma por cima da sua
-  // <img>, que só reaparece no fim — o arquivo baixado é sempre ela. Enquanto desenha, "Ver sendo feita" vira
-  // "Pular" (e Esc ou clicar numa arte pulam todas).
+  // O making-of (js/creative/making-of.js) faz TODAS as opções ao mesmo tempo, cada uma por cima da sua
+  // <img>, continuando a prancheta que o esqueleto começou (de[i]); a <img> só reaparece no fim — o arquivo
+  // baixado é sempre ela. Não é player: sem botão; clicar numa arte ou Esc pulam todas.
   let mk = null;
   const pula = () => { if(mk) mk.forEach(h => h.pular()); };
-  const verFeita = () => {
+  const faz = de => {
     if(typeof crMakingOf !== 'function' || _crReduz()) return false;
-    pula();
     const tocam = botoes().map((b, i) => {
       const arte = b.querySelector('.cr-op-arte');
       if(!arte || !ops[i].svgFinal) return null;
-      const h = crMakingOf(arte, ops[i].svgFinal, { css: CR_MONT_CSS, nomes: CR_NOME_BLOCO, autor: 'Luma', botao: false, semente: 20261015 + i });
+      const h = crMakingOf(arte, ops[i].svgFinal, Object.assign(_crMkOpcoes(ops[i].spec.formato, ops[i].spec.marca), { de: de && de[i], semente: 20261015 + i }));
       if(!h.ativo) return null;
       b.dataset.mont = '1'; b.classList.remove('cr-nitida');
       h.pronto.then(() => { delete b.dataset.mont; b.classList.add('cr-nitida'); });
       return h;
     }).filter(Boolean);
     if(!tocam.length) return false;
-    const eu = mk = tocam, bt = el.querySelector('[data-acao="making"]');
-    if(bt) bt.innerHTML = CR_ICO.pular + 'Pular';
-    const esc = e => { if(e.key === 'Escape') pula(); };
+    const eu = mk = tocam, esc = e => { if(e.key === 'Escape') pula(); };
     document.addEventListener('keydown', esc);
-    Promise.all(tocam.map(h => h.pronto)).then(() => {
-      document.removeEventListener('keydown', esc);
-      if(mk === eu){ mk = null; if(bt) bt.innerHTML = CR_ICO.tocar + 'Ver sendo feita'; }
-    });
+    Promise.all(tocam.map(h => h.pronto)).then(() => { document.removeEventListener('keydown', esc); if(mk === eu) mk = null; });
     return true;
   };
   el.addEventListener('keydown', e => { if(/^[1-3]$/.test(e.key) && e.target.closest('.cr-ops')) escolhe(Math.min(ops.length, +e.key) - 1); });
   el.addEventListener('click', ev => {
     const b = ev.target.closest('button'); if(!b) return;
     if(b.classList.contains('cr-op')) return mk ? pula() : escolhe(+b.dataset.i);
-    if(b.dataset.acao === 'making') return mk ? pula() : verFeita();
     if(b.dataset.acao === 'png'){ crAprende(ops[sel], 'baixou'); return crBaixarPNG(ops[sel], b); }
     if(b.dataset.acao === 'editar') return abre(sel);
     if(b.dataset.acao === 'postado') return crVerPostado(ops[sel], fio);
     if(b.dataset.acao === 'outras') return crOutrasOpcoes(fio);
     if(b.dataset.acao === 'copiar') return crCopiar(fio.legenda, b);
   });
-  el._ops = ops; el._verFeita = verFeita;
+  el._ops = ops; el._faz = faz;
   return el;
 }
 
@@ -4246,14 +4240,21 @@ function _crContaNotas(el){
   });
 }
 
-/* ── A entrega aparece: as artes surgem prontas (ao carregar a <img>) e as notas contam. Na 1ª entrega da
-   página, as opções se desenham sozinhas, todas ao mesmo tempo — o making-of (js/creative/making-of.js);
-   depois, só pelo botão "Ver sendo feita". Sessão reaberta: tudo pronto, sem making-of. ── */
+/* ── A entrega aparece: em toda geração ao vivo as opções se fazem sozinhas, todas ao mesmo tempo, continuando a
+   prancheta que o esqueleto começou enquanto a arte carregava (de = o estado de cada uma). Sessão reaberta:
+   tudo pronto, sem making-of (a <img> aparece ao carregar). As notas contam nos dois casos. ── */
 // As fontes do app dentro do shadow root do making-of (o @font-face embutido no SVG não vale lá dentro)
 const CR_MONT_CSS = 'svg .hero{font-family:"LC Realce","Realce",sans-serif}svg .sup,svg .body,svg .legal,svg .leve,svg .forte{font-family:"LC Roboto","Roboto",sans-serif}';
-let _crMkAuto = true;
-function _crMostra(el, auto){
-  if(auto && _crMkAuto && el._verFeita && el._verFeita()) _crMkAuto = false;
+// Blocos que entram pela Biblioteca mesmo tendo texto dentro (o rótulo da foto, o @ das redes…)
+const CR_MK_IMAGENS = ['logo', 'logoLoja', 'foto', 'mockup', 'decor', 'redes'];
+// O que o making-of precisa saber do formato e da marca: a cor do fundo e as margens (as guias da prancheta)
+function _crMkOpcoes(fmt, marca){
+  const a = crArea(fmt);
+  return { css: CR_MONT_CSS, nomes: CR_NOME_BLOCO, autor: 'Luma', imagens: CR_MK_IMAGENS, fundo: marca === 'much' ? CR_C.rosa : CR_C.laranja,
+    guias: { x: [a.M / a.W, 1 - a.M / a.W], y: [(a.top || a.seguroTopo || a.M) / a.H, (a.base || a.seguroBase || a.H - a.M) / a.H] } };
+}
+function _crMostra(el, de){
+  if(de && el._faz && el._faz(Array.isArray(de) ? de : null)) el.classList.add('cr-segue');
   _crContaNotas(el);
 }
 
