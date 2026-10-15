@@ -25,11 +25,12 @@ O Luma é a ferramenta interna de creative automation da Delivery Much: franquea
 - Tipografia: `crMede`, `crCabe`, `crQuebra`, `crTrechos`, `crPreco`, `crPrecoMede`, `crHeroiCaixa`; fontes `LC Realce` e `LC Roboto` (`crFontesProntas`).
 - `crAprende` / `_crPref`: aprendizado fraco por receita (teto +10, `localStorage`).
 - Testes: `node scripts/run-browser-tests.js` (454 casos; os do Creative estão em `tests/svg-import.html`). A suíte é portão de CI.
+- **Material do repositório.** Assets autorizados para compor: o inventário `CR_DECOR` (`assets/creative/inv/`, 54 itens: grafismos, stickers, cupons, selos, ícones, mockup de celular), os logos (`assets/creative/logos/`, `assets/logos/`) e os elementos. **Referência de estilo** (para estudar, não para colar): `assets/templates/refino/` (15 SVGs aprovados, por formato e objetivo), `assets/templates/*.svg` (6 templates), `assets/creative/regua/` (14 referências reais por formato), `assets/campanhas/`, `assets/banners/`, `assets/covers/`.
 - Leia primeiro: `luma-brain/MAPA.md`, `06_OPERATING_SYSTEM.md`, `03_ENGINEERING.md`, `docs/LUMA.md` (seção Luma Creative).
 
 **VETOS DO RYAN. Não construa e não proponha de novo:** mapa de atenção; cor/foto "inteligente" (extração de paleta, recorte, sombra); grafismo gerado proceduralmente; recomposição automática de um formato em outro; exportar story animado em vídeo; mockup com perspectiva.
 
-**Tarefa.** Entregue as cinco frentes abaixo, nesta ordem, **um commit por frente**. Antes de cada uma, escreva um plano de no máximo 15 linhas e siga. Só pare para perguntar se for dúvida de **gosto ou de negócio**.
+**Tarefa.** Entregue as seis frentes abaixo, nesta ordem, **um commit por frente**. Antes de cada uma, escreva um plano de no máximo 15 linhas e siga. Só pare para perguntar se for dúvida de **gosto ou de negócio**.
 
 **1. Nota de design de verdade** (substitui `crNota`)
 Uma função pura e determinística que recebe a geometria dos blocos e devolve `{ total: 0–100, partes: {…}, porque: "frase curta em PT-BR" }`. Partes, cada uma de 0 a 1, com pesos declarativos por objetivo e formato (um objeto editável, não `if` espalhado):
@@ -57,12 +58,45 @@ Cada receita vira uma **gramática com parâmetros**: escala do herói, da foto 
 - **Preço bem desenhado:** "R$" pequeno alinhado à altura das maiúsculas, inteiro grande, centavos sobrescritos alinhados; algarismos estáveis.
 - Ajuste fino de pares de letras que ficam feios em corpo grande, na fonte de display.
 
-**4. Curadoria do Ryan e regressão**
+**4. Cinquenta novas composições, desenhadas por você**
+Você, a IA que está executando este prompt (e não uma IA em tempo de execução), **autora 50 composições novas**, muito boas e detalhadas, para o dia a dia do franqueado. Elas viram receitas determinísticas do motor, construídas com os assets do repositório e medidas pela nota (frente 1), ajustadas pela busca (frente 2) e escritas com a tipografia (frente 3). O motor continua sem IA na hora de gerar.
+
+*Material.* Componha só com os assets autorizados do contexto. Você pode **promover ao inventário** um asset que já exista no repositório (ex.: `assets/logos/`, `assets/grafismos/`), registrando-o como o `CR_DECOR` registra (largura, altura, `max` nítido, marca, tipo, descrição). **Nunca desenhe nem gere asset novo.** Antes de desenhar, **abra, renderize e meça** as referências de estilo (`assets/templates/refino/`, `assets/creative/regua/`): ritmo, escala, uso de cor, onde entra o grafismo, quanto o título domina.
+
+*Cobertura: usos reais do franqueado* (≥ 3 composições por grupo, no total 50):
+- **A. Prato e oferta do dia:** prato do dia, almoço executivo, combo família, 2 por 1, preço em destaque, "a partir de", lista de 3–4 ofertas.
+- **B. Horário e ocasião:** happy hour, sextou, domingo doce, janta, madrugada, fim de semana, "chove, a gente leva".
+- **C. Cupom e entrada:** cupom da semana, primeira compra, frete grátis, pedido mínimo, cashback e clube Much+.
+- **D. Parceiros:** novo parceiro, lojista da semana, mais vendidos, inauguração, ofertas do dia de várias lojas.
+- **E. Datas e cidade:** datas comemorativas (mães, pais, namorados, crianças, Natal…), festa junina, Copa e jogo do time, aniversário da cidade, Black Friday.
+- **F. Operação e aviso:** horário especial e feriado, "estamos entregando", pausa temporária, aviso importante.
+- **G. Prospecção e comunidade:** seja parceiro (lojista), seja entregador, baixe o app (com o `celular-app`), "peça no app", agradecimento.
+
+*Formatos.* O franqueado vive de rede social. Distribuição sugerida: **feed 18, story 18, carrossel 6** e **8 entre inapp, banner, e-mail e capa** (≥ 1 de cada). Justifique qualquer desvio maior que ±2. Cada composição pertence a **um** formato (especialista); nada de "serve a todos" com adaptação automática.
+
+*Cada composição sai completa ("super detalhada"):*
+- Registro em `CR_RECEITAS`/`CR_LOCKUPS` com `id`, nome em PT-BR, **`uso`** (uma frase: quando o franqueado usa), objetivo, formato, `serve(sp)` (com/sem foto, com preço, com lista, tamanho do texto), pesos e fundos.
+- **Gramática:** blocos e ordem, eixo, hierarquia (corpo por nível), vãos, margens, **onde entra cada asset e por quê**, e os parâmetros que a busca pode variar, com limites.
+- **Variantes** declaradas, com assinaturas de design distintas quando fizer sentido.
+- **Texto:** limite de caracteres por campo e o que acontece com texto longo (quebra, encolhe até o piso, ou `serve` recusa).
+- `data-campo` coerentes com o contrato do importador, para a arte poder virar template.
+- Uma linha no **catálogo** `docs/CATALOGO-COMPOSICOES.md`, **gerado por script** a partir do registro (nome, uso, formato, assets, miniatura), nunca escrito à mão.
+
+*Novos objetivos.* Se um uso não cabe em oferta, cupom, evento, benefício ou aniversário (aviso, parceiro, prospecção…), acrescente-o a `CR_OBJETIVOS`, `CR_SERVE`, `crLerPedido` (palavras do pedido), `crBriefingLocal` (perguntas), `crNormaliza`, `crPromptBriefing` e à legenda, **sem quebrar o que existe e sem inventar dado** (preço, desconto, validade, nome de loja).
+
+*Barra de qualidade.*
+- Você tem que **ver** cada uma: renderize com o Chromium que já existe no ambiente (Playwright), em 4 tamanhos de texto × com e sem foto × much+, compare com as referências e **descarte e refaça** até ficar no nível das aprovadas. São **50 aprovadas**, não 50 tentadas.
+- Zero erro de `crAvaliar` em **todas** as variações do banco de casos; nota nova ≥ 80 em ≥ 90% delas.
+- **Sem clones:** a assinatura de design de cada composição fica a uma distância mínima das outras do mesmo formato.
+- Uma **galeria** `tests/_galeria-composicoes.html` (ferramenta, fora do portão) com todas as composições × variações para o Ryan revisar, e as 50 entram como golden na regressão.
+- Entregue em **lotes de ~10**, um commit por lote, cada um com a galeria e as notas atualizadas.
+
+**5. Curadoria do Ryan e regressão**
 - Um **banco de casos**: ≥ 40 pedidos reais × formatos × texto curto/médio/longo/extremo × com e sem foto × much+.
 - Uma tela só da gestão: grade de artes, 👍/👎 e motivos (peso mal distribuído, tipografia, vazio, hierarquia, contraste…). Os votos ajustam os pesos da nota (otimização simples, sem IA) e podem ser exportados em JSON.
 - As artes aprovadas viram **golden**: o teste reprova se a nota de uma delas cair mais de N pontos ou se aparecer qualquer erro. Os casos de motor entram numa suíte existente; se for bancada exploratória, nasce como ferramenta (`_nome`), fora do portão.
 
-**5. Making-of com mouse simulado** (a mágica para o franqueado)
+**6. Making-of com mouse simulado** (a mágica para o franqueado)
 Um componente `crMakingOf(container, svgFinal, opcoes)` que mostra um cursor desenhando a arte pronta: pega cada bloco, arrasta até o lugar, solta, clica no texto e **digita** o conteúdo real, redimensiona o título com alças como no editor. Movimento de mão humana (curva de Bézier, aceleração e desaceleração, micro-tremor, semente fixa).
 - 6–8 s no total, botão "Pular", **`prefers-reduced-motion` mostra a arte pronta**. Só `transform` e `opacity`.
 - Botão "▶ Ver sendo feita" na entrega; toca sozinho na primeira entrega da sessão.
@@ -73,6 +107,7 @@ Um componente `crMakingOf(container, svgFinal, opcoes)` que mostra um cursor des
 
 **Qualidade (critérios de aceite).**
 - Suíte verde: `node scripts/run-browser-tests.js` (hoje 454). Verifique também no navegador, abrindo o Creative e gerando artes de verdade; "compilou" não vale.
+- **50 composições novas aprovadas** (frente 4), cobrindo os 7 grupos de uso, com o catálogo gerado e a galeria revisável.
 - **Nota nova vs. motor atual**, no banco de casos: média ≥ +8 pontos, nenhum caso pior que −2, **zero erro de marca** nas 3 finalistas, as 3 com assinaturas distintas, busca ≤ 400 ms.
 - Geometria sem DOM e medida pelo DOM divergem ≤ 3 px.
 - Vanilla JS, **sem build, sem ES Modules, sem dependência nova**. Funções globais com prefixo `cr*`, sem renomear nada existente. `gEsc` em todo dado de usuário, cor e motion por token, ícone em SVG, feedback por `gToast`. PT-BR.
