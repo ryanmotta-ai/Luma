@@ -349,7 +349,7 @@
     let n=0, pior=0, onde='';
     // banco inteiro × curto e extremo × com/sem foto (os formatos de cada pedido): toda opção aprovada
     for(const c of crBancoCasos({textos:[0,3], much:[false]})){
-      for(const r of crEscolher3(crCandidatos(c.sp))){
+      for(const r of crEscolher3(crCandidatos(c.sp, {avaliacoes:120}))){
         const g=crGeometria(r.svg).blocos, d=_crMede(r.svg);
         assert(g.length===d.length, c.id+'/'+r.receita+': '+g.length+' blocos sem DOM, '+d.length+' no DOM');
         g.forEach((b,i)=>{ const q=d[i], dd=Math.max(Math.abs(b.x-q.x), Math.abs(b.y-q.y), Math.abs(b.x+b.w-q.x-q.w), Math.abs(b.y+b.h-q.y-q.h)); n++;
@@ -373,6 +373,35 @@
     const mexe=dy=>crNotaDesign(crGeometria(r.svg.replace(/<g data-bloco="(botao|legal)">/g, '<g data-bloco="$1" transform="translate(0,'+dy+')">')), ctx).total;
     assert(mexe(0)===a.total, 'transform nulo mudou a nota');
     const pesos=crNotaPesos('aviso','story'); assert(pesos.contraste>CR_NOTA_PESOS.padrao.contraste && pesos.vazio>CR_NOTA_PESOS.padrao.vazio, 'pesos por objetivo/formato não entraram');
+  });
+
+  /* ── Busca de composições (frente 2) ── */
+  caso('Luma Creative: a busca é determinística, nunca devolve arte com erro da marca e as 3 finalistas têm famílias e assinaturas diferentes', async()=>{
+    await crFontesProntas();
+    const b=Object.assign({objetivo:'oferta', formato:'feed', foto:PNG}, CR_CASOS.oferta);
+    const x=crEscolher3(crCandidatos(b)), y=crEscolher3(crCandidatos(b));
+    assert(x.length===3, 'esperava 3 finalistas, veio '+x.length);
+    assert(x.map(r=>r.receita+JSON.stringify(r.params)+r.svg.length).join()===y.map(r=>r.receita+JSON.stringify(r.params)+r.svg.length).join(), 'mesma entrada, busca diferente');
+    assert(new Set(x.map(r=>r.receita)).size===3, 'família repetida: '+x.map(r=>r.receita));
+    for(let i=0;i<3;i++) for(let j=i+1;j<3;j++) assert(crDistAssinatura(x[i].design.sinais, x[j].design.sinais)>=1, 'assinaturas iguais: '+x[i].design.sinais.txt);
+    x.forEach(r=>{ assert(!r.avaliacao.erros.length && !crAvaliarDom(r).erros.length, r.receita+': erro da marca'); assert(r.params, r.receita+': sem os parâmetros da busca'); });
+    // "Outras opções": as assinaturas já mostradas ficam de fora quando há alternativa
+    const cands=crCandidatos(b, {rodada:1}), outras=crEscolher3(cands, x.map(r=>r.receita).concat(x.map(r=>r.design.sinais.txt)));
+    assert(outras.length>=1 && outras.every(r=>x.every(o=>o.design.sinais.txt!==r.design.sinais.txt)), 'Outras opções repetiu assinatura');
+  });
+
+  caso('Luma Creative: a busca roda em fatias (a tela não congela), fica no orçamento e acha nota pelo menos tão boa quanto o ponto de fábrica', async()=>{
+    await crFontesProntas();
+    const b=Object.assign({objetivo:'oferta', formato:'story', foto:PNG}, CR_CASOS.oferta);
+    let cedeu=0; setTimeout(()=>{ cedeu=1; }, 0);
+    const t0=performance.now(), res=await crBuscar(b), ms=performance.now()-t0;
+    assert(cedeu, 'a busca não cedeu a vez ao navegador');
+    assert(res.avaliacoes>20 && res.avaliacoes<=CR_BUSCA_ORCAMENTO+20, 'avaliações fora do orçamento: '+res.avaliacoes);
+    assert(ms<CR_BUSCA_TETO_MS+200, 'busca demorou '+Math.round(ms)+' ms');
+    // o ponto de fábrica (o motor de antes) está entre as avaliadas: a melhor da busca nunca fica abaixo dele
+    const fab=res.cands.filter(r=>r.familia==='cardPreso' && r.params.kh===1 && r.params.kf===1 && r.params.kv===1 && r.params.dist==='centro' && r.params.card==='esq' && r.params.selo==='td');
+    assert(fab.length===1, 'ponto de fábrica do cardPreso não avaliado');
+    assert(crEscolher3(res.cands)[0].nota>=fab[0].nota, 'a busca ficou abaixo do ponto de fábrica');
   });
 
   let passed=0; const falhas=[];

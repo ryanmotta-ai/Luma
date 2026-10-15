@@ -196,7 +196,7 @@ bancada que mede a distância entre o que o Estúdio mostra e o que o franqueado
 
 ## Verificação — o Luma TEM teste automatizado (enxuto)
 
-**456 casos em 10 suítes** (14/10/2026: entrou `svg-import`, já com os 12 casos do Luma Creative — formatos de canal, IA designer, much+ e espaço da foto; 15/10: +2 da nota de design — geometria sem DOM × DOM ≤ 3 px no banco de casos `tests/creative-banco.js`, nota pura e determinística). Em 13/10 eram 425 em 9, depois de um corte de 1.053 em 29: o Ryan pediu para ficar só o necessário.
+**458 casos em 10 suítes** (14/10/2026: entrou `svg-import`, já com os 12 casos do Luma Creative — formatos de canal, IA designer, much+ e espaço da foto; 15/10: +2 da nota de design — geometria sem DOM × DOM ≤ 3 px no banco de casos `tests/creative-banco.js`, nota pura e determinística; +2 da busca — determinismo, diversidade, fatias e orçamento). Em 13/10 eram 425 em 9, depois de um corte de 1.053 em 29: o Ryan pediu para ficar só o necessário.
 O critério do corte: **fica o que protege um motor que o produto usa todo dia e que já quebrou;
 sai volume gerado, cobertura repetida, estresse e bancada exploratória** (estão no histórico do
 git, commit "test: enxuga a suíte").
@@ -213,7 +213,7 @@ CHROMIUM_PATH=/caminho/chrome node scripts/run-browser-tests.js
 | `tests/corpus.html` | 6 pranchetas reais × 4 tamanhos de texto + golden de geometria + **original first** | 30 |
 | `tests/auto-layout.html` | a leitura da arte: baseline autorado, papel semântico, safe zone | 14 |
 | `tests/psd-import.html` | o importador de PSD (geometria de texto, alpha, raster, fidelidade) | 92 |
-| `tests/svg-import.html` | o importador de SVG e o **contrato com a skill luma-creative** (`data-luma`, `data-campo`, slot `foto_produto`), trechos com peso/itálico, preço-assinatura, vetor, recorte, gradiente, sanitização; e o **Luma Creative** (toda diagramação aprovada do motor entrando limpa, conferência geométrica reprovando colisão/margem/texto pequeno, foto no slot, briefing, formatos de canal: inapp, banner, email, capa, slide, IA designer, much+, espaço da foto; **nota de design** sobre o banco de casos `tests/creative-banco.js`) | 31 |
+| `tests/svg-import.html` | o importador de SVG e o **contrato com a skill luma-creative** (`data-luma`, `data-campo`, slot `foto_produto`), trechos com peso/itálico, preço-assinatura, vetor, recorte, gradiente, sanitização; e o **Luma Creative** (toda diagramação aprovada do motor entrando limpa, conferência geométrica reprovando colisão/margem/texto pequeno, foto no slot, briefing, formatos de canal: inapp, banner, email, capa, slide, IA designer, much+, espaço da foto; **nota de design** e **busca** sobre o banco de casos `tests/creative-banco.js`) | 33 |
 | `tests/copy-engine.html` | a legenda: **nunca inventa preço/desconto/validade**, não repete, hashtags enxutas | 50 |
 | `tests/copy-fit.html` | o Encurtar: a versão curta **nunca tira preço, produto ou sabor** | 40 |
 | `tests/franqueado-fluxo.html` | o chat e a prévia como uma verdade só, o bloqueio "não cabe", o Encurtar na hora certa, a versão Story | 66 |
@@ -259,7 +259,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 86 arquivos JS (81.304 linhas, 3.203 funções) · 33 arquivos CSS (33.282 linhas) · `index.html` com 4.081 linhas e 76 `<script>`.
+**Tamanho real de hoje:** 86 arquivos JS (81.481 linhas, 3.210 funções) · 33 arquivos CSS (33.282 linhas) · `index.html` com 4.081 linhas e 76 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -708,9 +708,9 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 
 ### js/creative
 
-**`js/creative/creative.js`** · 3976 linhas
+**`js/creative/creative.js`** · 4153 linhas
 Luma Creative — modo em TESTES, só a gestão (trava em main.js e na Edge Function `ai`).
-· API: crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crX, crTexto, crMista, crHeroi, crLogo, crFoto, crSelo, crBotaoMede … (+89; 157 funções no total)
+· API: crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crX, crTexto, crMista, crHeroi, crLogo, crFoto, crSelo, crBotaoMede … (+90; 164 funções no total)
 · Estado global: _crFontesProm, _crCtx, _crMesa, _crPesosCuradoria, _crArrasto, _crSessTimer, _crLegendaVer
 
 ## CSS — onde mora cada folha

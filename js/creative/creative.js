@@ -392,15 +392,16 @@ const CR_BLOCOS = {
   }
 };
 
+// kv (busca, 1–1,5) abre os vãos mínimos entre grupos; nunca fecha abaixo do token (60 no feed, 80 no story)
 function _crVao(antes, depois, a){
   if(antes.nome === 'titulo' && (depois.nome === 'apoio' || depois.nome === 'preco')) return { v: 40, fixo: true };
-  return { v: Math.max(a.story ? 80 : 60, depois.folgaAntes || 0), fixo: false };
+  return { v: Math.max(Math.round((a.story ? 80 : 60) * Math.max(1, Math.min(1.5, a.p.kv || 1))), depois.folgaAntes || 0), fixo: false };
 }
 function crPilha(cfg){
   return (sp, a, est, fundo) => {
-    const centro = cfg.eixo === 'centro';
+    const centro = ((a.p && a.p.eixo) || cfg.eixo) === 'centro';   // a busca pode trocar o eixo (busca.eixo)
     const c = { sp, a, est, fundo, centro, X: centro ? CR_W / 2 : CR_M, anc: centro ? ' text-anchor="middle"' : '' };
-    const defs = typeof cfg.blocos === 'function' ? cfg.blocos(sp) : cfg.blocos;
+    const defs = typeof cfg.blocos === 'function' ? cfg.blocos(sp, a.p || {}) : cfg.blocos;
     const bs = [];
     for(const d of defs){
       const b = CR_BLOCOS[d.t](d, c);
@@ -416,12 +417,15 @@ function crPilha(cfg){
     if(foto){ if(livre < foto.min) return null; hf = Math.min(foto.max, livre); livre -= hf; }
     else if(livre < 0) return null;
     // Sobra vai para os vãos (até 120 no feed; no story até 200 — §FASE 2: distribuir pela faixa
-    // inteira) com ritmo igual, e o resto centraliza — nunca "boia" num canto
-    const soltos = vaos.filter(v => !v.fixo), teto = a.story ? 200 : 120;
+    // inteira) com ritmo igual, e o resto centraliza — nunca "boia" num canto. A busca escolhe a
+    // distribuição (a.p.dist): 'centro' (padrão), 'ancora' (o que sobra fica antes do último grupo:
+    // a ação ancora na base) ou 'espalha' (sem teto: a faixa útil inteira, ritmo igual).
+    const dist = a.p.dist || 'centro', soltos = vaos.filter(v => !v.fixo), teto = dist === 'espalha' ? Infinity : (a.story ? 200 : 120) * Math.max(1, Math.min(1.5, a.p.kv || 1));
     while(livre > 0.5 && soltos.some(v => v.v < teto)){
       const cabe = soltos.filter(v => v.v < teto), d = Math.min(livre / cabe.length, ...cabe.map(v => teto - v.v));
       cabe.forEach(v => { v.v += d; }); livre -= d * cabe.length;
     }
+    if(dist === 'ancora' && livre > 0.5 && soltos.length > 1){ soltos[soltos.length - 1].v += livre; livre = 0; }
     let y = ini + (bs[0].sangra === 'topo' || bs[bs.length - 1].sangra === 'base' ? 0 : livre / 2);
     if(bs[0].sangra === 'topo' && livre > 0) vaos[0].v += livre;          // foto no topo: a folga fica logo abaixo dela
     else if(bs[bs.length - 1].sangra === 'base' && livre > 0) y += livre;  // foto na base: o texto desce até ela
@@ -832,32 +836,32 @@ function crBotaoLargo(sp, fundo){
 const _crSemFoto = sp => !sp.foto;
 function _crTodos(n){ const o = {}; Object.keys(CR_OBJETIVOS).forEach(k => { o[k] = n; }); return o; }
 const CR_RECEITAS = [
-  { id: 'cardPreso', nome: 'Card preso à foto', foto: true, peso: { oferta: 10, evento: 4 },
-    pilha: { eixo: 'esq', blocos: sp => [{ t: 'logo' }, { t: 'heroi', exige: true }, { t: 'apoio', larg: sp.selo.length ? 660 : CR_L },
-      { t: 'foto', exige: true, selo: 'td', card: 'esq' }].concat(sp.precoPor ? [] : [{ t: 'cta' }]).concat([{ t: 'legal' }]) } },
+  { id: 'cardPreso', nome: 'Card preso à foto', foto: true, peso: { oferta: 10, evento: 4 }, busca: { card: ['esq', 'dir'], selo: ['td', 'te'] },
+    pilha: { eixo: 'esq', blocos: (sp, p) => [{ t: 'logo' }, { t: 'heroi', exige: true }, { t: 'apoio', larg: sp.selo.length ? 660 : CR_L },
+      { t: 'foto', exige: true, selo: p.selo || 'td', card: p.card || 'esq' }].concat(sp.precoPor ? [] : [{ t: 'cta' }]).concat([{ t: 'legal' }]) } },
   { id: 'fotoTopo', nome: 'Foto no topo', foto: true, peso: { evento: 10, oferta: 7, beneficio: 6 },
-    pilha: { eixo: 'esq', blocos: sp => [{ t: 'foto', exige: true, sangra: 'topo', selo: 'bd' },
+    pilha: { eixo: 'esq', blocos: (sp, p) => [{ t: 'foto', exige: true, sangra: 'topo', selo: 'bd' },
       { t: 'heroi', exige: true, estilo: sp.objetivo === 'beneficio' ? 'vazado' : 'realce' },
       sp.precoPor ? { t: 'preco' } : { t: 'apoio' }, { t: 'rodape' }, { t: 'legal' }] } },
-  { id: 'fotoBase', nome: 'Foto na base', foto: true, peso: { oferta: 7, evento: 7, beneficio: 5 },
+  { id: 'fotoBase', nome: 'Foto na base', foto: true, peso: { oferta: 7, evento: 7, beneficio: 5 }, busca: { eixo: ['esq', 'centro'] },
     pilha: { eixo: 'esq', blocos: sp => [{ t: 'logo' }, { t: 'heroi', exige: true, estilo: sp.objetivo === 'beneficio' ? 'vazado' : 'realce' },
       sp.precoPor ? { t: 'preco' } : { t: 'apoio' }, { t: 'cta' }, { t: 'legal' }, { t: 'foto', exige: true, sangra: 'base', selo: 'td' }] } },
-  { id: 'duplo', nome: 'Título em dois tamanhos', foto: true, peso: { oferta: 8, evento: 6 },
-    pilha: { eixo: 'esq', blocos: sp => [{ t: 'logo' }, { t: 'heroi', exige: true, estilo: 'duplo' }, { t: 'foto', exige: true, selo: 'te', card: 'dir' }]
+  { id: 'duplo', nome: 'Título em dois tamanhos', foto: true, peso: { oferta: 8, evento: 6 }, busca: { card: ['dir', 'esq'], selo: ['te', 'td'] },
+    pilha: { eixo: 'esq', blocos: (sp, p) => [{ t: 'logo' }, { t: 'heroi', exige: true, estilo: 'duplo' }, { t: 'foto', exige: true, selo: p.selo || 'te', card: p.card || 'dir' }]
       .concat(sp.precoPor ? [] : [{ t: 'cta' }]).concat([{ t: 'legal' }]) } },
   { id: 'centro', nome: 'Centralizada', foto: true, peso: { oferta: 5, evento: 6, beneficio: 6 },
     pilha: { eixo: 'centro', blocos: sp => [{ t: 'logo' }, { t: 'heroi', exige: true, estilo: sp.objetivo === 'beneficio' ? 'vazado' : 'realce', k: sp.objetivo === 'beneficio' ? 0.72 : 1 },
       { t: 'foto', exige: true, selo: 'td' }, sp.precoPor ? { t: 'preco', k: 0.85 } : { t: 'apoio' }, { t: 'cta' }, { t: 'legal' }] } },
   // Sem foto: a tipografia é a arte (a entrega é o PNG final — nada de cinza "Use aqui sua foto")
-  { id: 'precoHeroi', nome: 'Preço em destaque', foto: false, peso: { oferta: 10 }, serve: sp => !!sp.precoPor,
+  { id: 'precoHeroi', nome: 'Preço em destaque', foto: false, peso: { oferta: 10 }, serve: sp => !!sp.precoPor, busca: { eixo: ['esq', 'centro'] },
     pilha: { eixo: 'esq', blocos: [{ t: 'logo' }, { t: 'heroi', exige: true }, { t: 'apoio' }, { t: 'preco', exige: true, k: 1.15 }, { t: 'cta' }, { t: 'legal' }] } },
-  { id: 'tipoCentro', nome: 'Tipográfica centralizada', foto: false, peso: { oferta: 6, evento: 8, beneficio: 7 }, fundos: ['#F85400', '#FF9000'],
+  { id: 'tipoCentro', nome: 'Tipográfica centralizada', foto: false, peso: { oferta: 6, evento: 8, beneficio: 7 }, fundos: ['#F85400', '#FF9000'], busca: { eixo: ['centro', 'esq'] },
     pilha: { eixo: 'centro', blocos: sp => [{ t: 'logo' }, { t: 'heroi', exige: true, k: 1.12, estilo: sp.objetivo === 'beneficio' ? 'vazado' : 'realce' },
       { t: 'apoio' }, sp.precoPor ? { t: 'preco' } : { t: 'selo' }, { t: 'cta' }, { t: 'legal' }] } },
   { id: 'tipoDuplo', nome: 'Título gigante', foto: false, peso: { oferta: 7, evento: 9 },
     pilha: { eixo: 'esq', blocos: sp => [{ t: 'heroi', exige: true, estilo: 'duplo', k: 1.15 }, { t: 'apoio' },
       sp.precoPor ? { t: 'preco' } : { t: 'selo' }, { t: 'rodape' }, { t: 'legal' }] } },
-  { id: 'vazado', nome: 'Palavra vazada', foto: null, peso: { beneficio: 10 }, serve: sp => !!sp.palavra, fundos: ['#F85400', '#FF9000'],
+  { id: 'vazado', nome: 'Palavra vazada', foto: null, peso: { beneficio: 10 }, serve: sp => !!sp.palavra, fundos: ['#F85400', '#FF9000'], busca: { eixo: ['esq', 'centro'] },
     pilha: { eixo: 'esq', blocos: sp => [{ t: 'logo' }, { t: 'heroi', exige: true, estilo: 'vazado', k: sp.foto ? 0.78 : 1.1 }, { t: 'apoio' },
       { t: 'foto', selo: 'td' }, { t: 'cta' }, { t: 'legal' }] } },
   { id: 'valor', nome: 'Valor do cupom', foto: null, peso: { cupom: 10 }, padrao: true, lockup: 'valor' },
@@ -959,8 +963,9 @@ function crMontar(sp, receita, fundo, p){
   if(receita.lockup) pecas = CR_LOCKUPS[receita.lockup](spP, a, est, cor, receita.variante || {});
   else if(!sp.foto){
     // Sem foto, a tipografia é a arte: herói e preço crescem até a pilha encher (teto 1,45×) — o
-    // conteúdo não "boia" no meio com faixas laranja vazias em cima e embaixo
-    for(const kt of [1.45, 1.35, 1.25, 1.15, 1.05, 1]){
+    // conteúdo não "boia" no meio com faixas laranja vazias em cima e embaixo. Com a busca, o kt
+    // vem dela (uma tentativa só: não coube, a busca tenta outro valor).
+    for(const kt of (p && p.kt ? [p.kt] : [1.45, 1.35, 1.25, 1.15, 1.05, 1])){
       est.length = 0; a.p = Object.assign({}, p || {}, { kt });
       pecas = crPilha(receita.pilha)(spP, a, est, cor);
       if(pecas && !est.length) break;
@@ -1000,8 +1005,10 @@ function _crMetrica(txt, fonte, ls){
     if(!_crCtx) _crCtx = document.createElement('canvas').getContext('2d');
     _crCtx.font = fonte;
     const t = _crCtx.measureText(txt);
-    m = { w: t.width + ls * [...txt].length, a: t.actualBoundingBoxAscent, d: t.actualBoundingBoxDescent, fa: t.fontBoundingBoxAscent, fd: t.fontBoundingBoxDescent,
-      l: t.actualBoundingBoxLeft, r: t.actualBoundingBoxRight };
+    const n = [...txt].length;
+    // a tinta da direita anda com o letter-spacing dos n−1 glifos de antes (negativo puxa, positivo empurra)
+    m = { w: t.width + ls * n, a: t.actualBoundingBoxAscent, d: t.actualBoundingBoxDescent, fa: t.fontBoundingBoxAscent, fd: t.fontBoundingBoxDescent,
+      l: t.actualBoundingBoxLeft, r: t.actualBoundingBoxRight + ls * Math.max(0, n - 1) };
     if(_crMet.size > 30000) _crMet.clear();
     _crMet.set(k, m);
   }
@@ -1569,8 +1576,33 @@ function crNotaDesign(geo, ctx){
   const pior = CR_NOTA_PARTES.slice().sort((u, v) => partes[u] - partes[v] || CR_NOTA_PARTES.indexOf(u) - CR_NOTA_PARTES.indexOf(v))[0];
   const frase = CR_NOTA_FRASES[ord[0]][0] + (ord[1] && partes[ord[1]] >= 0.85 ? ' e ' + CR_NOTA_FRASES[ord[1]][0] : '');
   const porque = frase.charAt(0).toUpperCase() + frase.slice(1) + (partes[pior] < 0.7 ? '; ' + CR_NOTA_FRASES[pior][1] : '');
-  return { total, partes, porque };
+  return { total, partes, porque, sinais: _crSinais(porLamina(0), z, L, a, eixoDe) };
 }
+// A assinatura de design de uma peça (o que o olho percebe primeiro): de que lado mora o peso, em
+// que altura, o eixo, o tamanho e o lugar da foto, a escala do herói. A busca usa para que as 3
+// finalistas sejam diferentes de verdade — não a mesma planta com outro nome de receita.
+function _crSinais(bs, z, L, a, eixoDe){
+  let mx = 0, my = 0, mt = 0;
+  bs.forEach(b => {
+    const x0 = Math.max(0, b.x), y0 = Math.max(0, b.y), x1 = Math.min(L, b.x + b.w), y1 = Math.min(a.H, b.y + b.h);
+    if(x1 <= x0 || y1 <= y0 || b.nome === 'decor') return;
+    const k = (x1 - x0) * (y1 - y0) * (b.nome === 'foto' ? 1 : b.maiorFonte ? Math.sqrt(Math.max(0.4, Math.min(2.5, b.maiorFonte / 80))) : 0.6);
+    mx += k * (x0 + x1) / 2; my += k * (y0 + y1) / 2; mt += k;
+  });
+  const dx = mt ? (mx / mt - (z.x0 + z.x1) / 2) / ((z.x1 - z.x0) / 2) : 0, dy = mt ? (my / mt - (z.y0 + z.y1) / 2) / ((z.y1 - z.y0) / 2) : 0;
+  const f = bs.find(b => b.nome === 'foto'), h = bs.filter(b => _CR_PAPEL[b.nome] === 'heroi').sort((p, q) => q.maiorFonte - p.maiorFonte)[0];
+  const frac = f ? Math.max(0, Math.min(L, f.x + f.w) - Math.max(0, f.x)) * Math.max(0, Math.min(a.H, f.y + f.h) - Math.max(0, f.y)) / (L * a.H) : 0;
+  const share = h ? h.w * h.h / ((z.x1 - z.x0) * (z.y1 - z.y0)) : 0, fy = f ? (f.y + f.h / 2) / a.H : 0, fx = f ? (f.x + f.w / 2) / L : 0;
+  const s = {
+    peso: dx < -0.15 ? 'esq' : dx > 0.15 ? 'dir' : 'centro', altura: dy < -0.12 ? 'alto' : dy > 0.12 ? 'baixo' : 'meio', eixo: eixoDe(bs),
+    foto: !f ? '-' : frac < 0.22 ? 'p' : frac < 0.38 ? 'm' : 'g', pos: !f ? '-' : (f.w < L * 0.62 && Math.abs(fx - 0.5) > 0.12) ? 'lado' : fy < 0.4 ? 'topo' : fy > 0.6 ? 'base' : 'meio',
+    escala: share < 0.05 ? 's' : share < 0.1 ? 'm' : 'g'
+  };
+  s.txt = [s.peso, s.altura, s.eixo, s.foto, s.pos, s.escala].join('|');
+  return s;
+}
+const CR_SINAIS = ['peso', 'altura', 'eixo', 'foto', 'pos', 'escala'];
+const crDistAssinatura = (a, b) => CR_SINAIS.reduce((d, k) => d + (a[k] !== b[k] ? 1 : 0), 0);
 
 // Aprende com a escolha: o que a pessoa baixa ou edita ganha peso (neste navegador) — família da
 // receita, ou "designer" para as composições da IA. NÃO entra na nota de design (que é pura): só
@@ -1592,39 +1624,179 @@ function crNota(r, av){
 // Ordem das candidatas: a nota manda; a preferência aprendida só desempata (até +5)
 const _crOrdem = r => r.nota + Math.min(5, (_crPref()[r.desenho && !/^editorial/.test(r.receita) ? 'designer' : r.receita] || 0) / 2);
 
-/* Todas as diagramações que servem ao conteúdo, montadas, conferidas e com nota (melhor primeiro) */
-function crCandidatos(bruto, p){
-  const sp = crNormaliza(bruto), lista = [], deitado = !!CR_FORMATOS[sp.formato].deitado;
-  // Formato deitado: as composições do próprio formato; alto: as que servem ao objetivo
+/* ══════════════════════════════════════════════════════════════
+   BUSCA DE COMPOSIÇÕES — cada receita é uma gramática com parâmetros: escala do herói (kh), da foto
+   (kf) e do texto sem foto (kt), vãos (kv), distribuição do vazio (dist), lado do card e do selo,
+   fundo e as variantes que a receita declara (`busca`). Dentro de cada receita que serve àquele
+   formato e àquele conteúdo, o motor procura os valores que dão a melhor nota de design: grade
+   grossa amostrada com semente determinística (hash do conteúdo + rodada) e refino local,
+   coordenada a coordenada. Tudo passa por crAvaliar (sem DOM): a busca nunca devolve arte que viola
+   a marca. O ponto "de fábrica" de cada receita (o que o motor antigo faria) entra sempre, então a
+   busca só melhora. As 3 finalistas são de famílias diferentes E de assinaturas diferentes, e o DOM
+   confere cada uma antes de entrar.
+══════════════════════════════════════════════════════════════ */
+const CR_BUSCA_ORCAMENTO = 640;       // avaliações por pedido (determinístico; ~0,3 ms cada)
+const CR_BUSCA_TETO_MS = 1500;        // segurança em máquina lenta: para e fica com o melhor achado
+const CR_EDITORIAL = { id: 'editorial', nome: 'Editorial', editorial: true };
+function _crHash(s){ let h = 2166136261; for(let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function _crRng(seed){
+  let a = seed >>> 0;
+  return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+// As receitas que servem a este conteúdo neste formato. Receita de um formato nunca vaza para outro.
+function _crReceitasDe(sp){
+  const deitado = !!CR_FORMATOS[sp.formato].deitado;
   const ids = deitado ? CR_RECEITAS.filter(x => x.formatos && x.formatos.indexOf(sp.formato) >= 0).map(x => x.id) : (CR_SERVE[sp.objetivo] || []);
+  const out = [];
   ids.forEach(id => {
     const rec = CR_RECEITAS.find(x => x.id === id);
     if(!rec || (rec.foto === true && !sp.foto) || (rec.foto === false && sp.foto) || (rec.serve && !rec.serve(sp))
       || (rec.formatos && rec.formatos.indexOf(sp.formato) < 0)) return;
-    (sp.marca === 'much' ? ['#F85400'] : (rec.fundos || ['#F85400'])).forEach(cor => {
-      const r = crMontar(sp, rec, cor, p);
-      if(!r) return;
-      const av = crAvaliar(r);
-      r.avaliacao = av; r.nota = crNota(r, av);
-      lista.push(r);
-    });
+    out.push(rec);
   });
-  // Editorial (§4.2 sem IA): 3 composições de designer nos formatos altos — a nota de design decide se elas vêm antes
-  if(['feed', 'story', 'inapp'].indexOf(sp.formato) >= 0) [1, 2, 3].forEach(v => {
-    const comp = crEditorial(sp, v); if(!comp) return;
-    const r = crDesenhar(sp, comp, 20 + v); r.receita = 'editorial' + v; r.avaliacao = crAvaliar(r);
-    r.nota = crNota(r, r.avaliacao);
-    lista.push(r);
-  });
-  return lista.sort((u, v) => _crOrdem(v) - _crOrdem(u));
+  if(['feed', 'story', 'inapp'].indexOf(sp.formato) >= 0) out.push(CR_EDITORIAL);
+  return out;
 }
-// As 3 melhores APROVADAS, de famílias diferentes; `evitar` = famílias já mostradas
+// O espaço de busca da receita: contínuos [mín, máx] e discretos [opções]. `busca` na receita
+// acrescenta ou troca (ex.: card: ['esq', 'dir']). `padrao` = o ponto de fábrica (o motor antigo).
+function _crEspaco(rec, sp){
+  const cont = {}, disc = {}, padrao = {};
+  if(rec.editorial){ cont.kfoco = [0.9, 1.8]; disc.v = [1, 2, 3]; disc.vmin = [110, 80]; padrao.kfoco = 1.8; padrao.vmin = 0; }
+  else if(rec.pilha){
+    cont.kh = [0.86, 1.3]; cont.kv = [1, 1.5]; disc.dist = ['centro', 'ancora', 'espalha'];
+    padrao.kh = 1; padrao.kv = 1; padrao.dist = 'centro';
+    if(sp.foto){ cont.kf = [0.8, 1.25]; padrao.kf = 1; } else { cont.kt = [1, 1.5]; padrao.kt = 0; }
+  }else{ cont.kh = [0.86, 1.2]; padrao.kh = 1; }
+  const b = rec.busca || {};
+  Object.keys(b).forEach(k => {
+    if(b[k].length === 2 && typeof b[k][0] === 'number' && typeof b[k][1] === 'number') cont[k] = b[k];
+    else { disc[k] = b[k]; }
+    if(padrao[k] == null) padrao[k] = Array.isArray(b[k]) && typeof b[k][0] !== 'number' ? b[k][0] : (b[k][0] + b[k][1]) / 2;
+  });
+  disc.fundo = sp.marca === 'much' ? ['#F85400'] : (rec.fundos || ['#F85400']);
+  return { cont, disc, padrao };
+}
+// Uma avaliação: monta, confere sem DOM e dá a nota. Arte idêntica (mesmo SVG) é avaliada uma vez só.
+function _crAvaliaUma(sp, rec, p, memo){
+  let r;
+  if(rec.editorial){
+    const comp = crEditorial(sp, p.v, p.kfoco || p.vmin ? p : null);
+    if(!comp) return null;
+    r = crDesenhar(sp, comp, 20 + p.v); r.receita = 'editorial' + p.v;
+  }else r = crMontar(sp, rec, p.fundo, p);
+  if(!r) return null;
+  const k = _crHash(r.svg) + ':' + r.svg.length;
+  if(memo.has(k)) return memo.get(k);
+  r.avaliacao = crAvaliar(r); r.nota = crNota(r, r.avaliacao); r.params = p; r.familia = rec.id;
+  memo.set(k, r);
+  return r;
+}
+// Busca dentro de UMA receita (gerador: cede a vez depois de cada avaliação, para rodar em fatias)
+function* _crBuscaReceita(sp, rec, rng, memo, cota){
+  const { cont, disc, padrao } = _crEspaco(rec, sp), ck = Object.keys(cont), dk = Object.keys(disc);
+  let gastou = 0;
+  const ok = r => r && !r.avaliacao.erros.length;
+  const avalia = p => { gastou++; return _crAvaliaUma(sp, rec, p, memo); };
+  // 1) o ponto de fábrica de cada combinação discreta "de família" (fundo, variante) — garante o piso
+  const combos = [{}];
+  dk.forEach(k => { const vs = disc[k]; const novos = []; combos.forEach(c => vs.forEach(v => novos.push(Object.assign({}, c, { [k]: v })))); combos.splice(0, combos.length, ...novos); });
+  const fabrica = combos.filter(c => dk.every(k => k === 'fundo' || k === 'v' || c[k] === padrao[k])).map(c => {
+    const p = Object.assign({}, c); ck.forEach(k => { p[k] = padrao[k]; });
+    if(rec.editorial){ delete p.kfoco; delete p.vmin; }
+    else if(p.kt === 0) delete p.kt;
+    return p;
+  });
+  const vistos = [];
+  for(const p of fabrica){ vistos.push(avalia(p)); yield; }
+  // 2) grade grossa: 3 níveis por contínuo × as combinações discretas, amostrada pela semente
+  const niv = k => { const [lo, hi] = cont[k]; return [lo, (lo + hi) / 2, hi]; };
+  let grade = combos.map(c => Object.assign({}, c));
+  ck.forEach(k => { const novos = []; grade.forEach(g => niv(k).forEach(v => novos.push(Object.assign({}, g, { [k]: v })))); grade = novos; });
+  for(let i = grade.length - 1; i > 0; i--){ const j = Math.floor(rng() * (i + 1)); const t = grade[i]; grade[i] = grade[j]; grade[j] = t; }
+  const nGrade = Math.min(grade.length, Math.max(4, Math.floor(cota * 0.55) - fabrica.length));
+  for(let i = 0; i < nGrade; i++){ vistos.push(avalia(grade[i])); yield; }
+  // 3) refino local nos melhores (de assinaturas diferentes): passo de 1/4 e depois 1/8 da faixa
+  const bons = vistos.filter(ok).sort((u, v) => v.nota - u.nota), sementes = [];
+  bons.forEach(r => { if(sementes.length < 3 && sementes.every(s => crDistAssinatura(s.design.sinais, r.design.sinais) > 0)) sementes.push(r); });
+  for(const s0 of sementes){
+    let cur = s0;
+    for(const passo of [0.25, 0.125]){
+      for(const k of ck){
+        for(const dir of [-1, 1]){
+          if(gastou >= cota) return;
+          const [lo, hi] = cont[k], base = cur.params[k] == null ? padrao[k] || (lo + hi) / 2 : cur.params[k];
+          const v = Math.max(lo, Math.min(hi, Math.round((base + dir * passo * (hi - lo)) * 1000) / 1000));
+          if(v === base) continue;
+          const r = avalia(Object.assign({}, cur.params, { [k]: v }));
+          yield;
+          if(ok(r) && r.nota > cur.nota) cur = r;
+        }
+      }
+    }
+  }
+}
+// A busca inteira: as receitas que servem, cada uma com a sua cota. `fora` recebe tudo o que foi avaliado.
+function* _crBusca(sp, opts, fora){
+  const recs = _crReceitasDe(sp), memo = new Map();
+  const rng = _crRng(_crHash(JSON.stringify(sp) + '|' + ((opts && opts.rodada) || 0)));
+  const cota = Math.max(10, Math.floor(((opts && opts.avaliacoes) || CR_BUSCA_ORCAMENTO) / Math.max(1, recs.length)));
+  for(const rec of recs){
+    yield* _crBuscaReceita(sp, rec, rng, memo, cota);
+    fora.length = 0; memo.forEach(r => fora.push(r));
+  }
+  fora.length = 0; memo.forEach(r => fora.push(r));
+}
+const _crOrdena = l => l.sort((u, v) => _crOrdem(v) - _crOrdem(u) || (u.familia < v.familia ? -1 : u.familia > v.familia ? 1 : 0));
+/* Todas as composições avaliadas (síncrono — a suíte e o crCompor usam), melhor primeiro.
+   `opts` = { rodada, avaliacoes }. */
+function crCandidatos(bruto, opts){
+  const sp = crNormaliza(bruto), todas = [], it = _crBusca(sp, opts || {}, todas);
+  while(!it.next().done);
+  return _crOrdena(todas);
+}
+/* A mesma busca em fatias de ~10 ms (nunca congela a tela): devolve { cands, avaliacoes, ms }. */
+function crBuscar(bruto, opts){
+  const o = opts || {}, sp = crNormaliza(bruto), todas = [], it = _crBusca(sp, o, todas), t0 = performance.now();
+  let n = 0;
+  const canal = typeof MessageChannel === 'function' ? new MessageChannel() : null;
+  return new Promise(ok => {
+    const fim = () => ok({ cands: _crOrdena(todas.slice()), avaliacoes: n, ms: Math.round(performance.now() - t0) });
+    const fatia = () => {
+      const ini = performance.now();
+      while(performance.now() - ini < 10){
+        if(it.next().done) return fim();
+        n++;
+        if(o.parar && o.parar()) return fim();
+        if(performance.now() - t0 > (o.teto || CR_BUSCA_TETO_MS)){ it.return(); return fim(); }
+      }
+      if(canal) canal.port2.postMessage(0); else setTimeout(fatia, 0);
+    };
+    if(canal) canal.port1.onmessage = fatia;
+    fatia();
+  });
+}
+// A conferência pelo DOM (verificação final), uma vez por candidata
+const _crDomOk = c => (c._domOk != null ? c._domOk : (c._domOk = !crAvaliarDom(c).erros.length));
+// As 3 finalistas: aprovadas, de famílias diferentes e com assinaturas de design diferentes (≥ 2
+// sinais de distância; relaxa para 1 e depois para 0 só se faltar opção). `evitar` = famílias ou
+// assinaturas já mostradas ("Outras opções"). O DOM confere cada uma antes de entrar.
 function crEscolher3(cands, evitar){
-  const ok = cands.filter(c => !c.avaliacao.erros.length), fora = new Set(evitar || []), out = [], vistas = new Set();
-  [ok.filter(c => !fora.has(c.receita)), ok].forEach(grupo => grupo.forEach(c => {
-    if(out.length < 3 && !vistas.has(c.receita) && out.indexOf(c) < 0){ out.push(c); vistas.add(c.receita); }
-  }));
-  ok.forEach(c => { if(out.length < 3 && out.indexOf(c) < 0) out.push(c); });
+  const ok = _crOrdena(cands.filter(c => !c.avaliacao.erros.length)), fora = new Set(evitar || []), out = [];
+  const ass = c => (c.design && c.design.sinais) || { txt: '' };
+  // respeita: 2 = nem família nem assinatura já mostradas; 1 = família pode voltar, assinatura nunca
+  // ("Outras opções" não repete planta: se não houver 3 novas, mostra menos)
+  const passos = [[2, 2], [1, 2], [2, 1], [1, 1], [0, 1]];
+  for(const [dmin, respeita] of passos){
+    for(const c of ok){
+      if(out.length >= 3) break;
+      if(out.indexOf(c) >= 0 || out.some(o => o.receita === c.receita && o.fundo === c.fundo)) continue;
+      if(dmin && out.some(o => o.receita === c.receita)) continue;
+      if((respeita >= 2 && fora.has(c.receita)) || fora.has(ass(c).txt)) continue;
+      if(out.some(o => crDistAssinatura(ass(o), ass(c)) < dmin)) continue;
+      if(!_crDomOk(c)) continue;
+      out.push(c);
+    }
+  }
   return out;
 }
 // Compatível com o uso antigo: a melhor diagramação aprovada (ou a melhor que existir)
@@ -1916,7 +2088,7 @@ async function crDesenhos(sp, n, evitar, refPessoa){
    formato da IA designer ({ideia, blocos, grafismos}) e é desenhado por crDesenhar.
    3 variações: âncora (foco à esquerda), contrapeso (foco à direita), apoio no alto.
 ══════════════════════════════════════════════════════════════ */
-function crEditorial(sp, v){
+function crEditorial(sp, v, p){
   const a = crArea(sp.formato), tem = crConteudoBlocos(sp), M = a.M, L = a.W - 2 * M;
   const ini = a.fmt === 'feed' ? 90 : a.fmt === 'inapp' ? 150 : 290, fim = a.fmt === 'feed' ? 1265 : a.fmt === 'inapp' ? 1590 : 1650;
   // o ponto focal: preço > anos do aniversário > valor do cupom > título
@@ -1950,7 +2122,9 @@ function crEditorial(sp, v){
   // ordem dos grupos por variação; mede e distribui pela faixa inteira
   // o foco cresce até encher a faixa (com no mínimo 110 de respiro entre grupos); o que sobrar vira respiro
   // tenta com 110 de respiro entre grupos; se o conteúdo não couber, aceita 80 (piso da §4.2)
-  for(const vmin of [110, 80]) for(const k of [1.8, 1.6, 1.45, 1.3, 1.15, 1, 0.9, 0.8, 0.7, 0.62]){
+  // a busca pode limitar a escala do foco (p.kfoco) e escolher o respiro mínimo entre grupos (p.vmin)
+  const ks = [1.8, 1.6, 1.45, 1.3, 1.15, 1, 0.9, 0.8, 0.7, 0.62].filter(k => !p || !p.kfoco || k <= p.kfoco + 1e-9);
+  for(const vmin of (p && p.vmin ? [p.vmin] : [110, 80])) for(const k of ks){
     const F = focalBox(k), ordem = v === 3 ? [G[0], ...(sup.length ? [sup] : []), ...G.slice(1), F, ...(acao.length ? [acao] : [])]
       : [...G, F, ...(sup.length ? [sup] : []), ...(acao.length ? [acao] : [])];
     const altura = g => g.filter(b => !b.lado).reduce((s, b) => s + b.h, 0) + 36 * (g.filter(b => !b.lado).length - 1);
@@ -2850,7 +3024,7 @@ const _crSerOp = o => {
   return { receita: o.receita, nomeReceita: o.nomeReceita, w: o.w, h: o.h, svgFinal: o.svgFinal, juiz: o.juiz || null, editada: !!o.editada, desenho: !!o.desenho, spec };
 };
 const _crSerFio = f => ({ pedido: f.pedido, fmt: f.fmt, marca: f.marca, foto: f.foto, ref: f.ref, briefing: f.briefing, conteudo: f.conteudo, legenda: f.legenda,
-  mostradas: f.mostradas, ideias: f.ideias, rodada: f.rodada, viaIA: f.viaIA, entregas: (f.entregas || []).map(e => e.map(_crSerOp)) });
+  mostradas: f.mostradas, assinaturas: f.assinaturas, ideias: f.ideias, rodada: f.rodada, viaIA: f.viaIA, entregas: (f.entregas || []).map(e => e.map(_crSerOp)) });
 function _crThumb(op){
   return new Promise(res => {
     const im = new Image();
@@ -3235,15 +3409,17 @@ async function crGerar(fio, conv, outras){
       fio.legProm = CR_FORMATOS[sp0.formato].social === false ? Promise.resolve([]) : crLegenda(sp0);
     }
 
-    // 3) Diagramação: todas as famílias que servem, conferidas pelas regras da marca
-    p = _crPasso(lista, outras ? 'Diagramando outros caminhos' : 'Diagramando as opções');
+    // 3) Diagramação: a busca (frente 2) percorre as famílias que servem e os parâmetros de cada
+    // uma, em fatias (a tela não congela), e fica com o que tem a melhor nota de design
+    p = _crPasso(lista, outras ? 'Buscando outros caminhos' : 'Buscando a melhor composição');
     esq = _crEsqueleto(fio.fmt); msg.after(esq); _crRola();
     await crFontesProntas();
-    // Cada rodada de "Outras opções" muda as proporções: família que volta não volta idêntica
+    // Cada rodada de "Outras opções" muda a semente e exclui as assinaturas já mostradas
     fio.rodada = (fio.rodada || 0) + (outras ? 1 : 0);
-    const variacao = [null, { kh: 1.12, kf: 0.88 }, { kh: 0.92, kf: 1.12 }][fio.rodada % 3];
-    const cands = crCandidatos(fio.conteudo, variacao);
-    p.feito(cands.length + ' diagramações testadas · ' + cands.filter(c => !c.avaliacao.erros.length).length + ' aprovadas nas regras da marca');
+    const busca = await crBuscar(fio.conteudo, { rodada: fio.rodada, parar: () => run.parado });
+    if(parou()) return;
+    const cands = busca.cands;
+    p.feito(busca.avaliacoes + ' composições avaliadas em ' + busca.ms + ' ms · ' + cands.filter(c => !c.avaliacao.erros.length).length + ' aprovadas nas regras da marca');
     // A IA compõe como designer (skill §4.2): 2 composições próprias; o motor completa a 3ª
     let ia = [];
     if(!CR_FORMATOS[fio.fmt].fixo && _crIaPronta()){
@@ -3253,7 +3429,7 @@ async function crGerar(fio, conv, outras){
       fio.ideias = (fio.ideias || []).concat(ia.map(r => r.nomeReceita));
       p.feito(ia.length ? ia.map(r => r.nomeReceita).join(' · ') : 'sem composição aprovada agora — sigo com o motor', !ia.length);
     }
-    let tres = ia.slice(0, 2).concat(crEscolher3(cands, fio.mostradas)).slice(0, 3);
+    let tres = ia.slice(0, 2).concat(crEscolher3(cands, fio.mostradas.concat(fio.assinaturas || []))).slice(0, 3);
     if(!tres.length) throw new Error('nenhuma diagramação passou nas regras da marca');
 
     // 4) Juiz: os prints lado a lado com a régua, 1 rodada de ajuste
@@ -3278,6 +3454,7 @@ async function crGerar(fio, conv, outras){
       p.feito('notas ' + tres.map(r => r.juiz.nota.toFixed(1).replace('.', ',')).join(' · ') + (aj ? ' · ' + aj + (aj > 1 ? ' ajustes aplicados' : ' ajuste aplicado') : ''));
     }else p.feito('sem IA agora — ordem pela nota do motor');
     fio.mostradas.push(...tres.map(r => r.receita));
+    fio.assinaturas = (fio.assinaturas || []).concat(tres.map(r => r.design && r.design.sinais ? r.design.sinais.txt : '').filter(Boolean));
     const opcoes = await Promise.all(tres.map(async r => {
       r.svgFinal = await crEmbutir(r.svg);
       r.url = URL.createObjectURL(new Blob([r.svgFinal], { type: 'image/svg+xml' }));
