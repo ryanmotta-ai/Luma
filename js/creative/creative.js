@@ -2350,7 +2350,9 @@ function crDesenhar(sp, comp, i){
     }
   });
   // todo bloco com conteúdo tem de entrar (o logo e a foto também)
-  Object.keys(tem).forEach(k => { if(!vistos.has(k) && !(k === 'cta' && a.fmt === 'inapp')) faltas.push(k); });
+  // (no inapp o botão é o largo do formato; no banner do app a peça inteira é o toque — não há botão)
+  // (o banner mora na home do próprio app: como nas receitas de banner, o logo não é obrigatório)
+  Object.keys(tem).forEach(k => { if(!vistos.has(k) && !(k === 'cta' && (a.fmt === 'inapp' || a.fmt === 'banner')) && !(k === 'logo' && a.fmt === 'banner')) faltas.push(k); });
   if(a.fmt === 'inapp') pecas.push(crBotaoLargo(sp, fundo));
   let svg = '<svg xmlns="http://www.w3.org/2000/svg" data-luma="1" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '">'
     + crDefs() + (a.card ? '<rect data-fundo="1" x="' + a.card[0] + '" y="' + a.card[1] + '" width="' + a.card[2] + '" height="' + a.card[3] + '" rx="' + a.card[4] + '" fill="' + fundo + '"/>'

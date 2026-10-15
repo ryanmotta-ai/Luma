@@ -4,7 +4,7 @@
 > Miniatura: o 1º pedido do banco de cada composição (texto médio, Delivery Much), montado pela busca do próprio motor.
 > Galeria completa (todas as variações do banco, com a nota): `tests/_galeria-composicoes.html`.
 
-**20 composições** · feed 9 · story 8 · carrossel 2 · inapp 1
+**30 composições** · feed 12 · story 12 · carrossel 3 · inapp 2 · banner 1
 
 Clones (menor distância de planta entre duas composições do mesmo formato, no mesmo pedido; limite 0,15): feed 0,17 (blocoCentral × chuvaTipografica) · story 0,29 (vitrineCentral × comboStory)
 
@@ -37,3 +37,23 @@ Clones (menor distância de planta entre duas composições do mesmo formato, no
 | <img src="catalogo/sextouStory.jpg" width="110" alt=""> | **Placa amarela girada**<br>`sextouStory` | Sextou, fim de semana, happy hour ou jogo no story: o título numa placa amarela girada no meio da tela. | story | oferta, evento | `inv/explosao.png` `inv/estrela-amarela.png` `logos/dm-h-branca.png` |
 | <img src="catalogo/madrugadaStory.jpg" width="110" alt=""> | **Céu de estrelas**<br>`madrugadaStory` | Madrugada, janta ou noite especial no story: o título grande e estrelas espalhadas nos vãos, como um céu. | story | evento, oferta | `inv/estrela-amarela.png` `inv/estrela-branca.png` `logos/dm-h-branca.png` |
 | <img src="catalogo/domingoDoce.jpg" width="110" alt=""> | **Cartão branco**<br>`domingoDoce` | Domingo, data especial ou janta com foto no story: a foto e o texto num cartão branco no meio da tela, como um cardápio. | story | evento, oferta | `foto do franqueado` `inv/sorriso-arco.png` `logos/dm-h-branca.png` |
+
+## C · Cupom e entrada
+
+| Miniatura | Composição | Uso | Formato | Objetivos | Assets |
+|---|---|---|---|---|---|
+| <img src="catalogo/cupomFaixa.jpg" width="110" alt=""> | **Cupom na placa amarela**<br>`cupomFaixa` | Cupom da semana ou de primeira compra no feed: o valor gigante em cima e o ticket numa placa amarela embaixo. | feed | cupom | `inv/explosao.png` `logos/dm-h-branca.png` |
+| <img src="catalogo/cupomCartao.jpg" width="110" alt=""> | **Valor no cartão branco**<br>`cupomCartao` | Cupom no story: a chamada e o valor num cartão branco e o ticket inclinado logo abaixo. | story | cupom | `inv/sorriso-arco.png` `logos/dm-h-branca.png` |
+| <img src="catalogo/cupomCarrossel.jpg" width="110" alt=""> | **Carrossel do cupom**<br>`cupomCarrossel` | Cupom em carrossel: o valor na capa, o código na 2ª lâmina e o app na 3ª. | carrossel | cupom | `inv/seta-rabisco.png` `inv/celular-app.png` `logos/dm-h-branca.png` |
+| <img src="catalogo/cupomInapp.jpg" width="110" alt=""> | **Pop-up do cupom**<br>`cupomInapp` | Cupom no pop-up do app: o valor numa placa amarela no alto e o ticket logo abaixo; o botão largo usa o cupom. | inapp | cupom | `logos/dm-h-laranja.png` |
+| <img src="catalogo/freteFita.jpg" width="110" alt=""> | **Fita branca inclinada**<br>`freteFita` | Frete grátis, entrega grátis ou cashback no feed: o benefício numa fita branca inclinada de ponta a ponta. | feed | beneficio | `logos/dm-h-branca.png` |
+| <img src="catalogo/fitasStory.jpg" width="110" alt=""> | **Fitas cruzadas**<br>`fitasStory` | Frete grátis, entrega grátis ou cashback no story: o benefício e o apoio em duas fitas cruzadas. | story | beneficio | `logos/dm-h-branca.png` |
+| <img src="catalogo/clubeMuch.jpg" width="110" alt=""> | **Clube much+**<br>`clubeMuch` | Benefício do much+ no story (cashback, frete, clube): o ícone do app, o benefício grande e o "+" da marca nos cantos. | story | beneficio, prospeccao | `inv/mais-amarelo.png` `inv/icone-app-much.png` `logos/much-plus-branco.png` |
+| <img src="catalogo/beneficioCelular.jpg" width="110" alt=""> | **Benefício com o celular**<br>`beneficioCelular` | Benefício ou convite que acontece no app (frete, cashback, baixe o app) no feed: o título grande e o celular do app. | feed | beneficio, prospeccao | `logos/dm-h-branca.png` `inv/celular-app.png` |
+| <img src="catalogo/bannerTexto.jpg" width="110" alt=""> | **Banner tipográfico**<br>`bannerTexto` | Banner da home do app para recado sem valor (frete, aviso, novidade, baixe o app): título e apoio, com o selo à direita. | banner | beneficio, evento, aviso, prospeccao, parceiro, oferta | — |
+
+## E · Datas e cidade
+
+| Miniatura | Composição | Uso | Formato | Objetivos | Assets |
+|---|---|---|---|---|---|
+| <img src="catalogo/blackFriday.jpg" width="110" alt=""> | **Manchete de Black Friday**<br>`blackFriday` | Black Friday (ou outra data de desconto grande) no story: a chamada como manchete, o valor gigante e o ticket. | story | cupom | `inv/explosao.png` `inv/estrela-amarela.png` `logos/dm-h-branca.png` |

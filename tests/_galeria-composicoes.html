@@ -121,8 +121,9 @@
     for(const c of lista){
       const golden = linhasDe(c).map(([caso, k, comFoto, marca]) => { const r = arte(c, caso, k, comFoto, marca); return r ? { receita: c.id, formato: c.formato, caso, texto: k, foto: comFoto, marca, nota: r.nota } : null; }).filter(Boolean);
       // a miniatura: com a foto de verdade quando a composição é de foto
-      const sp = crBancoPedido(c.casos[0], 1, c.formato, c.foto === true ? foto : '', 'dm');
-      const r = crCandidatos(sp, { receitas: [c.id] }).filter(x => !x.avaliacao.erros.length)[0];
+      // (a composição só da much+ cai no much+)
+      const mini = m => crCandidatos(crBancoPedido(c.casos[0], 1, c.formato, c.foto === true ? foto : '', m), { receitas: [c.id] }).filter(x => !x.avaliacao.erros.length)[0];
+      const r = mini('dm') || mini('much');
       const assets = r ? [...new Set((r.svg.match(/asset:(inv|logos)\/[\w.-]+/g) || []).map(m => m.slice(6)))] : [];
       out.push({ id: c.id, nome: c.nome, uso: c.uso, grupo: c.grupo, formato: c.formato, objetivos: c.objetivos, foto: c.foto,
         assets, nota: r ? r.nota : 0, jpeg: r ? await jpeg(r.svg, r.w, r.h) : '', golden });

@@ -29,7 +29,7 @@ function _ccTitulo(sp, a, w, max, o){
 const _ccApoio = (sp, w, max) => sp.apoio ? { bloco: 'apoio', w, h: Math.ceil(crTextoLinhas(sp.apoio, 'body', max || 44, w, 32).h) + 6, max: max || 44 } : null;
 const _ccLegal = (sp, w) => sp.legal ? { bloco: 'legal', w, h: Math.ceil(crTextoLinhas(sp.legal, 'legal', 28, w, 22).h) + 6 } : null;
 const _ccTag = (sp, z) => sp.topo ? { bloco: 'tag', w: Math.max((z || 40) * 1.6 + crMede(sp.topo, 'hero', z || 40), 0), h: Math.round((z || 40) * 1.75), max: z || 40 } : null;
-const _ccCta = (sp, a) => sp.cta && a.fmt !== 'inapp' ? { bloco: 'cta', w: crBotaoMede(sp.cta), h: 96 } : null;
+const _ccCta = (sp, a) => sp.cta && a.fmt !== 'inapp' && a.fmt !== 'banner' ? { bloco: 'cta', w: crBotaoMede(sp.cta), h: 96 } : null;
 const _ccLogo = a => ({ bloco: 'logo', w: a.story ? 300 : 260, h: a.story ? 60 : 52 });
 // Preço: altura para um corpo pedido (big) e largura; com placa (card branco) soma o respiro do card
 function _ccPreco(sp, w, big, placa){
@@ -96,7 +96,7 @@ function crComposicao(def){
       if(def.tema && !def.tema.some(t => (sp.tema || []).indexOf(t) >= 0)) return false;
       if(Object.keys(lim).some(k => String(sp[k] || '').length > lim[k])) return false;
       const tem = crConteudoBlocos(def.lista ? Object.assign({}, sp, { listar: true }) : sp);
-      if(Object.keys(tem).some(k => !aceita.has(k) && !(k === 'cta' && def.formato === 'inapp'))) return false;
+      if(Object.keys(tem).some(k => !aceita.has(k) && !(k === 'cta' && (def.formato === 'inapp' || def.formato === 'banner')))) return false;
       return !def.serve || def.serve(sp);
     }
   });
@@ -630,5 +630,237 @@ crComposicao({ id: 'domingoDoce', nome: 'Cartão branco', grupo: 'B', formato: '
     if(S) bs.push(Object.assign(S, { x: a.W - a.M - S.w, y: card.y - Math.round(S.h * 0.45) }));
     const much = sp.marca === 'much', gr = [_ccCanto(bs, a, sp, much ? 'mais-amarelo' : 'sorriso-arco', 'bd', much ? 340 : 560, 0)].filter(Boolean);
     return { ideia: 'Tudo num cartão branco no meio da tela', zonas: [{ x: cx, y: card.y, w: cw, h: ch, cor: 'branco', rx: 48, sombra: true }], blocos: _ccBlocos(bs), grafismos: gr };
+  } });
+
+/* ══════════════════════════════════════════════════════════════
+   LOTE 3 — C · cupom e entrada (e a Black Friday, do grupo E)
+══════════════════════════════════════════════════════════════ */
+// Valor do cupom (número + a coluna OFF / NO SEU / PEDIDO): o corpo que cabe na largura — a mesma conta do crDesenhar
+function _ccValor(sp, w, max){
+  if(!sp.cupomValor) return null;
+  const pct = /%$/.test(sp.cupomValor), num = sp.cupomValor;
+  const larg = z => (pct ? 0 : crMede('R$', 'hero', z * 0.36) + z * 0.06) + crMede(num, 'hero', z) + z * 0.1 + Math.max(crMede('OFF', 'forte', z * 0.417), crMede('PEDIDO', 'forte', z * 0.156));
+  const z = larg(max) > w ? Math.floor(max * w / larg(max)) : max;
+  return { bloco: 'valor', w, h: Math.ceil(z * 0.73) + 4, max: z, larg: Math.ceil(larg(z)) };
+}
+// O ticket oficial (880 × 324 em escala k) e a chamada mista (leve/forte) na régua do crDesenhar
+const _ccCupom = (sp, k) => sp.cupomCodigo ? { bloco: 'cupom', w: Math.round(880 * k), h: Math.round(324 * k), max: k } : null;
+function _ccChamada(sp, w, max){
+  const ls = sp.chamada;
+  if(!ls.length) return null;
+  const zc = Math.floor(Math.min(max, ...ls.map(l => w * 80 / Math.max(1, crMedeMista(l, 80)))));
+  return { bloco: 'chamada', w, h: Math.ceil(zc * (0.95 + (ls.length - 1) * 1.3)) + 6, max: zc };
+}
+// Centraliza uma caixa (de largura medida `larg`) dentro da coluna — valor e preço medem menos que a caixa
+const _ccCentra = (b, x, w) => { if(b){ b.x = x; b.w = w; } return b; };
+// Quanto a tinta de uma caixa girada passa da caixa (na vertical e na horizontal)
+const _ccGiro = (b, rot) => { const r = Math.abs(rot || 0) * Math.PI / 180; return { v: Math.ceil(b.w * Math.sin(r) / 2), h: Math.ceil(b.h * Math.sin(r) / 2) }; };
+
+// F10 · Feed · o valor gigante no alto, sobre o laranja; embaixo, uma placa amarela sangrando com o
+// ticket inclinado dentro dela e a letra miúda — o cupom "entregue" numa bandeja.
+crComposicao({ id: 'cupomFaixa', nome: 'Cupom na placa amarela', grupo: 'C', formato: 'feed', objetivos: ['cupom'], foto: false,
+  uso: 'Cupom da semana ou de primeira compra no feed: o valor gigante em cima e o ticket numa placa amarela embaixo.',
+  aceita: ['valor', 'cupom', 'chamada', 'cta', 'legal'], textos: { legal: 110 }, casos: ['c01', 'c02', 'x03'],
+  serve: sp => !!sp.cupomCodigo,
+  busca: { kv: [300, 440], fy: [0.5, 0.6], rot: [-4, 0] },
+  comp(sp, a, p){
+    const W = a.W - 2 * a.M, fy = Math.round(a.H * p.fy), V = _ccValor(sp, W, Math.round(p.kv));
+    const topo = _ccPilha([{ b: _ccLogo(a), grupo: 'marca' }, { b: _ccChamada(sp, W, 72), vao: 56, grupo: 'msg' }, { b: V, vao: 36, grupo: 'oferta' }], a.M, a.top, fy - 56, 'espalha');
+    if(!topo) return null;
+    const k = Math.min(0.95, W / 880), CU = Object.assign(_ccCupom(sp, k), { rot: Math.round(p.rot) });
+    const placa = _ccPilha([{ b: CU, grupo: 'oferta' }, { b: _ccCta(sp, a), vao: 48, grupo: 'acao' }, { b: _ccLegal(sp, W), vao: 36, grupo: 'acao' }], a.W / 2, fy + 64, a.fim, 'centro', 'centro');
+    if(!placa) return null;
+    placa.forEach(b => { if(b.bloco === 'legal') _ccCentra(b, a.M, W); });
+    const bs = topo.concat(placa), much = sp.marca === 'much';
+    const gr = [_ccCanto(bs, a, sp, much ? 'mais-amarelo' : 'explosao', 'td', much ? 300 : 340, 10)].filter(Boolean);
+    return { ideia: 'Valor gigante no laranja, ticket na placa amarela', zonas: [{ x: -20, y: fy, w: a.W + 40, h: a.H - fy + 20, cor: 'amarelo' }], blocos: _ccBlocos(bs), grafismos: gr };
+  } });
+
+// S9 · Story · um cartão branco no alto guarda a chamada e o valor em laranja (o maior contraste da
+// marca); o ticket inclinado sai do cartão, sobre o laranja, e a letra miúda fecha.
+crComposicao({ id: 'cupomCartao', nome: 'Valor no cartão branco', grupo: 'C', formato: 'story', objetivos: ['cupom'], foto: false,
+  uso: 'Cupom no story: a chamada e o valor num cartão branco e o ticket inclinado logo abaixo.',
+  aceita: ['valor', 'cupom', 'chamada', 'cta', 'legal'], textos: { legal: 110 }, casos: ['c02', 'c06', 'c01'],
+  serve: sp => !!sp.cupomCodigo,
+  busca: { kv: [300, 460], rot: [-8, -4], pad: [56, 88] },
+  comp(sp, a, p){
+    const pad = Math.round(p.pad), cw = a.W - 2 * a.M + 40, cx = a.M - 20, W = cw - 2 * pad, X = a.W / 2;
+    const CH = _ccChamada(sp, W, 76), V = _ccValor(sp, W, Math.round(p.kv));
+    const hc = (CH ? CH.h + 40 : 0) + V.h, ch = hc + 2 * pad;
+    const CU = Object.assign(_ccCupom(sp, 0.95), { rot: Math.round(p.rot) }), g = _ccGiro(CU, CU.rot);
+    const col = _ccPilha([{ b: _ccLogo(a), grupo: 'marca' }, { b: { bloco: '_cartao', w: cw, h: ch }, vao: 56, grupo: 'msg' },
+      { b: CU, vao: 64 + g.v, grupo: 'oferta' }, { b: _ccCta(sp, a), vao: 56 + g.v, grupo: 'acao' }, { b: _ccLegal(sp, a.W - 2 * a.M), vao: 40 + (_ccCta(sp, a) ? 0 : g.v), grupo: 'acao' }], X, a.top + g.v, a.fim - g.v, 'espalha', 'centro');
+    if(!col) return null;
+    const ci = col.findIndex(b => b.bloco === '_cartao'), card = col[ci];
+    const den = _ccPilha([{ b: CH, grupo: 'msg' }, { b: V, vao: 40, grupo: 'oferta' }], X, card.y + pad, card.y + ch - pad, 'centro', 'centro');
+    if(!den) return null;
+    den.forEach(b => _ccCentra(b, cx + pad, W));
+    col.splice(ci, 1);
+    col.forEach(b => { if(b.bloco === 'legal') _ccCentra(b, a.M, a.W - 2 * a.M); });
+    const bs = col.concat(den), much = sp.marca === 'much';
+    const gr = [_ccCanto(bs, a, sp, much ? 'mais-amarelo' : 'sorriso-arco', 'bd', much ? 340 : 520, 0)].filter(Boolean);
+    return { ideia: 'Chamada e valor num cartão branco, ticket inclinado embaixo', zonas: [{ x: cx, y: card.y, w: cw, h: ch, cor: 'branco', rx: 48, sombra: true }], blocos: _ccBlocos(bs), grafismos: gr };
+  } });
+
+// S15 · Story · Black Friday sem preto (a paleta manda): a chamada vira manchete à esquerda, o valor
+// gigante no mesmo eixo, o ticket inclinado para o outro lado e a explosão sangrando no canto.
+crComposicao({ id: 'blackFriday', nome: 'Manchete de Black Friday', grupo: 'E', formato: 'story', objetivos: ['cupom'], foto: false, tema: ['black'],
+  uso: 'Black Friday (ou outra data de desconto grande) no story: a chamada como manchete, o valor gigante e o ticket.',
+  aceita: ['valor', 'cupom', 'chamada', 'cta', 'legal'], textos: { legal: 110 }, casos: ['e06'],
+  serve: sp => !!sp.cupomCodigo && sp.chamada.length > 0,
+  busca: { kc: [100, 140], kv: [300, 440], rot: [3, 7] },
+  comp(sp, a, p){
+    const W = a.W - 2 * a.M, CH = _ccChamada(sp, W, Math.round(p.kc)), V = _ccValor(sp, W, Math.round(p.kv));
+    const CU = Object.assign(_ccCupom(sp, 0.9), { rot: Math.round(p.rot) }), g = _ccGiro(CU, CU.rot);
+    const col = _ccPilha([{ b: _ccLogo(a), grupo: 'marca' }, { b: CH, vao: 64, grupo: 'msg' }, { b: V, vao: 40, grupo: 'msg' },
+      { b: CU, vao: 72 + g.v, grupo: 'oferta' }, { b: _ccCta(sp, a), vao: 56 + g.v, grupo: 'acao' }, { b: _ccLegal(sp, W), vao: 40 + (_ccCta(sp, a) ? 0 : g.v), grupo: 'acao' }], a.M, a.top, a.fim, 'espalha');
+    if(!col) return null;
+    col.forEach(b => { if(b.bloco === 'cupom') b.x += g.h + 8; });   // a tinta girada não passa da margem
+    const much = sp.marca === 'much', gr = [_ccCanto(col, a, sp, much ? 'mais-amarelo' : 'explosao', 'td', much ? 420 : 470, 12), _ccCanto(col, a, sp, 'estrela-amarela', 'be', 190, 0)].filter(Boolean);
+    return { ideia: 'Chamada como manchete, valor gigante, ticket inclinado', blocos: _ccBlocos(col), grafismos: gr };
+  } });
+
+// C6 · Carrossel · capa com a chamada e o valor gigante; a 2ª é o ticket grande com a letra miúda; a 3ª
+// fecha com o celular do app e a marca.
+crComposicao({ id: 'cupomCarrossel', nome: 'Carrossel do cupom', grupo: 'C', formato: 'carrossel', objetivos: ['cupom'], foto: false,
+  uso: 'Cupom em carrossel: o valor na capa, o código na 2ª lâmina e o app na 3ª.',
+  aceita: ['valor', 'cupom', 'chamada', 'cta', 'legal'], textos: { legal: 110 }, casos: ['c01', 'c02', 'x03'],
+  serve: sp => !!sp.cupomCodigo,
+  busca: { kv: [320, 460], rot: [-6, -2], cel: [440, 520] },
+  comp(sp, a, p){
+    const L = 1080, M = a.M, W = L - 2 * M, [top, fim] = _ccFaixa(a);
+    const capa = _ccPilha([{ b: _ccChamada(sp, W, 84), grupo: 'msg' }, { b: _ccValor(sp, W, Math.round(p.kv)), vao: 56, grupo: 'oferta' }], M, top, fim - 140, 'centro');
+    if(!capa) return null;
+    const meio = _ccPilha([{ b: Object.assign(_ccCupom(sp, 1), { rot: Math.round(p.rot) }), grupo: 'oferta' }, { b: _ccLegal(sp, W), vao: 72, grupo: 'acao' }], L + L / 2, top, fim, 'centro', 'centro');
+    if(!meio) return null;
+    meio.forEach(b => { if(b.bloco === 'legal') _ccCentra(b, L + M, W); });
+    const cw = Math.round(p.cel), C = _ccCta(sp, a);
+    const ult = _ccPilha([{ b: { bloco: 'mockup', w: cw, h: Math.round(cw * 700 / 390) }, grupo: 'img' }, { b: C, vao: 56, grupo: 'acao' }, { b: Object.assign(_ccLogo(a), { w: 260 }), vao: 56, grupo: 'marca' }], 2 * L + L / 2, top, fim, 'centro', 'centro');
+    if(!ult) return null;
+    const bs = capa.concat(meio, ult), gr = [_ccSolta(bs, sp, 'seta-rabisco', L - M - 300, fim - 110, 300, -6)].filter(Boolean);
+    return { ideia: 'Valor na capa, o código na 2ª, o app e a marca na 3ª', blocos: _ccBlocos(bs), grafismos: gr };
+  } });
+
+// I2 · Inapp · uma placa amarela sangra no alto com a marca, a chamada e o valor em laranja (o par de
+// display da marca); o ticket inclinado fica no laranja e o botão largo do inapp fecha.
+crComposicao({ id: 'cupomInapp', nome: 'Pop-up do cupom', grupo: 'C', formato: 'inapp', objetivos: ['cupom'], foto: false,
+  uso: 'Cupom no pop-up do app: o valor numa placa amarela no alto e o ticket logo abaixo; o botão largo usa o cupom.',
+  aceita: ['valor', 'cupom', 'chamada', 'legal'], textos: { legal: 110 }, casos: ['c02', 'x03', 'c01'],
+  serve: sp => !!sp.cupomCodigo,
+  busca: { kv: [280, 420], fy: [0.42, 0.52], rot: [-5, -2] },
+  comp(sp, a, p){
+    const W = a.W - 2 * a.M, X = a.W / 2, fy = Math.round(a.H * p.fy);
+    const topo = _ccPilha([{ b: _ccLogo(a), grupo: 'marca' }, { b: _ccChamada(sp, W, 76), vao: 64, grupo: 'msg' }, { b: _ccValor(sp, W, Math.round(p.kv)), vao: 40, grupo: 'oferta' }], X, a.top, fy - 60, 'espalha', 'centro');
+    if(!topo) return null;
+    topo.forEach(b => _ccCentra(b, a.M, W));
+    const baixo = _ccPilha([{ b: Object.assign(_ccCupom(sp, 0.95), { rot: Math.round(p.rot) }), grupo: 'oferta' }, { b: _ccLegal(sp, W), vao: 48, grupo: 'acao' }], X, fy + 72, a.fim, 'centro', 'centro');
+    if(!baixo) return null;
+    baixo.forEach(b => { if(b.bloco === 'legal') _ccCentra(b, a.M, W); });
+    return { ideia: 'Valor na placa amarela do alto, ticket no laranja', zonas: [{ x: -20, y: -20, w: a.W + 40, h: fy + 20, cor: 'amarelo' }], blocos: _ccBlocos(topo.concat(baixo)) };
+  } });
+
+// F11 · Feed · uma fita branca inclinada atravessa a peça de ponta a ponta com o benefício em laranja;
+// o apoio e o botão ficam embaixo, o selo no alto, no canto oposto ao logo.
+crComposicao({ id: 'freteFita', nome: 'Fita branca inclinada', grupo: 'C', formato: 'feed', objetivos: ['beneficio'], foto: false,
+  uso: 'Frete grátis, entrega grátis ou cashback no feed: o benefício numa fita branca inclinada de ponta a ponta.',
+  aceita: ['titulo', 'apoio', 'selo', 'cta', 'legal'], textos: { titulo: 32, apoio: 60, legal: 110 }, casos: ['c03', 'c04', 'c05'],
+  busca: { kh: [0.9, 1.35], rot: [-7, -3], fy: [0.36, 0.5] },
+  comp(sp, a, p){
+    const W = a.W - 2 * a.M, rot = Math.round(p.rot), S = _ccSelo(sp, 110);
+    const T = _ccTitulo(sp, a, W - 40, Math.round(190 * p.kh), { linhas: 2, iguala: true, alt: Math.round((a.fim - a.top) * 0.36) });
+    if(!T) return null;
+    const pad = 48, fh = T.h + 2 * pad, fol = Math.ceil(Math.abs(Math.sin(rot * Math.PI / 180)) * a.W / 2);
+    const yf = Math.round(a.top + (a.fim - a.top) * p.fy - fh / 2);
+    const cima = [Object.assign(_ccLogo(a), { x: a.M, y: a.top })];
+    if(S) cima.push(Object.assign(S, { x: a.W - a.M - S.w, y: a.top }));
+    if(yf - fol < a.top + Math.max(60, S ? S.h : 0) + 24) return null;
+    const baixo = _ccPilha([{ b: _ccApoio(sp, W, 44), grupo: 'msg' }, { b: _ccCta(sp, a), vao: 64, grupo: 'acao' }, { b: _ccLegal(sp, W), vao: 32, grupo: 'acao' }], a.M, yf + fh + fol + 40, a.fim, 'espalha');
+    if(!baixo) return null;
+    const bs = cima.concat(baixo, [Object.assign({}, T, { x: a.M + 20, y: yf + pad, w: W - 40, rot, alinhar: 'centro' })]);
+    return { ideia: 'O benefício numa fita branca inclinada de ponta a ponta', zonas: [{ x: -80, y: yf, w: a.W + 160, h: fh, cor: 'branco', rot }], blocos: _ccBlocos(bs) };
+  } });
+
+// S10 · Story · duas fitas cruzadas: a branca com o benefício e a amarela com o apoio, inclinadas para
+// lados opostos no meio da tela; a marca em cima, o botão embaixo.
+crComposicao({ id: 'fitasStory', nome: 'Fitas cruzadas', grupo: 'C', formato: 'story', objetivos: ['beneficio'], foto: false,
+  uso: 'Frete grátis, entrega grátis ou cashback no story: o benefício e o apoio em duas fitas cruzadas.',
+  aceita: ['titulo', 'apoio', 'selo', 'cta', 'legal'], textos: { titulo: 32, apoio: 50, legal: 110 }, casos: ['c03', 'c04', 'c05'],
+  serve: sp => !!sp.apoio,
+  busca: { kh: [0.95, 1.4], rot: [-7, -4], gap: [10, 50] },
+  comp(sp, a, p){
+    const W = a.W - 2 * a.M, X = a.W / 2, r1 = Math.round(p.rot), r2 = -r1 + 1;
+    const T = _ccTitulo(sp, a, W - 40, Math.round(200 * p.kh), { linhas: 3, iguala: true, alt: Math.round((a.fim - a.top) * 0.3) });
+    if(!T) return null;
+    const A = _ccApoio(sp, W - 40, 46), pad = 48, f1 = T.h + 2 * pad, f2 = A.h + 2 * 36, fol = Math.ceil(Math.abs(Math.sin(r1 * Math.PI / 180)) * a.W / 2);
+    const S = _ccSelo(sp, 110), C = _ccCta(sp, a), LG = _ccLegal(sp, W);
+    const bloco = f1 + fol + Math.round(p.gap) + f2;
+    const col = _ccPilha([{ b: _ccLogo(a), grupo: 'marca' }, { b: S, vao: 48, grupo: 'marca' }, { b: { bloco: '_fitas', w: W, h: bloco }, vao: 48 + fol, grupo: 'msg' }, { b: C, vao: 64 + fol, grupo: 'acao' }, { b: LG, vao: 32, grupo: 'acao' }], X, a.top, a.fim, 'espalha', 'centro');
+    if(!col) return null;
+    const fi = col.findIndex(b => b.bloco === '_fitas'), fb = col[fi], y1 = fb.y, y2 = fb.y + f1 + fol + Math.round(p.gap);
+    col.splice(fi, 1, Object.assign({}, T, { x: a.M + 20, y: y1 + pad, w: W - 40, rot: r1, alinhar: 'centro' }), Object.assign(A, { x: a.M + 20, y: y2 + 36, w: W - 40, rot: r2, alinhar: 'centro' }));
+    col.forEach(b => { if(b.bloco === 'legal') _ccCentra(b, a.M, W); });
+    return { ideia: 'Benefício e apoio em duas fitas cruzadas', zonas: [{ x: -80, y: y1, w: a.W + 160, h: f1, cor: 'branco', rot: r1 }, { x: -80, y: y2, w: a.W + 160, h: f2, cor: 'amarelo', rot: r2 }], blocos: _ccBlocos(col) };
+  } });
+
+// S11 · Story · o clube much+: o ícone do app no alto, o benefício grande no eixo central e o "+"
+// amarelo sangrando nos cantos. Só much+ (o inventário é da sub-marca).
+crComposicao({ id: 'clubeMuch', nome: 'Clube much+', grupo: 'C', formato: 'story', objetivos: ['beneficio', 'prospeccao'], foto: false,
+  uso: 'Benefício do much+ no story (cashback, frete, clube): o ícone do app, o benefício grande e o "+" da marca nos cantos.',
+  aceita: ['titulo', 'apoio', 'selo', 'cta', 'legal'], textos: { titulo: 34, apoio: 60, legal: 110 }, casos: ['c05', 'c03', 'c04'],
+  serve: sp => sp.marca === 'much',
+  busca: { kh: [0.9, 1.35], ic: [220, 300] },
+  comp(sp, a, p){
+    const W = a.W - 2 * a.M, X = a.W / 2, ic = Math.round(p.ic);
+    const T = _ccTitulo(sp, a, W, Math.round(200 * p.kh), { linhas: 3, iguala: true, alt: Math.round((a.fim - a.top) * 0.34) });
+    if(!T) return null;
+    const col = _ccPilha([{ b: { bloco: 'mockup', asset: 'icone-app-much', w: ic, h: ic }, grupo: 'img' }, { b: T, vao: 64, grupo: 'msg' }, { b: _ccApoio(sp, W, 46), vao: 28, grupo: 'msg' },
+      { b: _ccSelo(sp, 110), vao: 56, grupo: 'oferta' }, { b: _ccCta(sp, a), vao: 64, grupo: 'acao' }, { b: _ccLegal(sp, W), vao: 32, grupo: 'acao' }, { b: _ccLogo(a), vao: 48, grupo: 'acao' }], X, a.top, a.fim, 'espalha', 'centro');
+    if(!col) return null;
+    col.forEach(b => { if(b.bloco === 'apoio' || b.bloco === 'legal') _ccCentra(b, a.M, W); });
+    const bs = col;
+    const gr = [_ccCanto(bs, a, sp, 'mais-amarelo', 'be', 420, 0), _ccCanto(bs, a, sp, 'mais-amarelo', 'td', 300, 12)].filter(Boolean);
+    return { ideia: 'O ícone do app, o benefício grande e o "+" nos cantos', blocos: _ccBlocos(bs), grafismos: gr };
+  } });
+
+// F12 · Feed · o benefício (ou o convite) grande no alto, na largura toda; embaixo, o celular do app
+// assentado à direita e, à esquerda, o apoio, o selo e o botão.
+crComposicao({ id: 'beneficioCelular', nome: 'Benefício com o celular', grupo: 'C', formato: 'feed', objetivos: ['beneficio', 'prospeccao'], foto: false,
+  uso: 'Benefício ou convite que acontece no app (frete, cashback, baixe o app) no feed: o título grande e o celular do app.',
+  aceita: ['titulo', 'apoio', 'selo', 'cta', 'legal', 'tag'], textos: { titulo: 32, apoio: 60, legal: 110 }, casos: ['c05', 'c03', 'g03'],
+  busca: { kh: [0.95, 1.45], cel: [300, 380] },
+  comp(sp, a, p){
+    const W = a.W - 2 * a.M, cw = Math.round(p.cel), ch = Math.round(cw * 700 / 390);
+    const T = _ccTitulo(sp, a, W, Math.round(200 * p.kh), { linhas: 3, iguala: true, alt: Math.round((a.fim - a.top) * 0.4) });
+    if(!T) return null;
+    const topo = _ccPilha([{ b: _ccLogo(a), grupo: 'marca' }, { b: _ccTag(sp, 36), vao: 48, grupo: 'msg' }, { b: T, vao: 28, grupo: 'msg' }], a.M, a.top, a.fim, 'topo');
+    if(!topo) return null;
+    const yc = a.fim - ch, wl = W - cw - 48;
+    if(yc < _ccFim(topo) + 48) return null;
+    const lado = _ccPilha([{ b: _ccApoio(sp, wl, 42), grupo: 'msg' }, { b: _ccSelo(sp, 100), vao: 40, grupo: 'oferta' }, { b: _ccCta(sp, a), vao: 56, grupo: 'acao' }, { b: _ccLegal(sp, wl), vao: 32, grupo: 'acao' }], a.M, Math.max(yc, _ccFim(topo) + 64), a.fim, 'espalha');
+    if(!lado) return null;
+    const bs = topo.concat(lado, [{ bloco: 'mockup', x: a.W - a.M - cw, y: yc, w: cw, h: ch }]);
+    return { ideia: 'O benefício grande e o celular do app', blocos: _ccBlocos(bs) };
+  } });
+
+// B1 · Banner do app · tipográfico para o que não tem valor: o título à esquerda, o apoio embaixo dele
+// e, à direita, o selo ou o "+"/estrela do inventário. A peça inteira é o toque (sem botão).
+crComposicao({ id: 'bannerTexto', nome: 'Banner tipográfico', grupo: 'C', formato: 'banner', objetivos: ['beneficio', 'evento', 'aviso', 'prospeccao', 'parceiro', 'oferta'], foto: false,
+  uso: 'Banner da home do app para recado sem valor (frete, aviso, novidade, baixe o app): título e apoio, com o selo à direita.',
+  aceita: ['titulo', 'apoio', 'selo', 'tag'], textos: { titulo: 30, apoio: 48 }, casos: ['c03', 'f03', 'g03'],
+  serve: sp => !sp.precoPor && !sp.itens.length,
+  busca: { kh: [0.85, 1] },
+  comp(sp, a, p){
+    const [cx, cy, cw, chh] = a.card, x0 = cx + 30, S = sp.selo.length ? { bloco: 'selo', w: 130, h: 130, max: 65 } : null, dir = S ? 130 + 36 : 0;
+    const W = cw - 60 - dir, T = _ccTitulo(sp, a, W, Math.round(a.heroiMax * p.kh), { linhas: 2, alt: sp.apoio ? chh - 78 : chh - 40 });
+    if(!T) return null;
+    const A = sp.apoio ? { bloco: 'apoio', w: W, h: 34, max: 26 } : null;
+    // sem selo, o recado vai centralizado no card (título curto encostado à esquerda deixa o banner torto)
+    const col = S ? _ccPilha([{ b: T, grupo: 'msg' }, { b: A, vao: 10, grupo: 'msg' }], x0, cy + 18, cy + chh - 18, 'centro')
+      : _ccPilha([{ b: T, grupo: 'msg' }, { b: A, vao: 10, grupo: 'msg' }], cx + cw / 2, cy + 18, cy + chh - 18, 'centro', 'centro');
+    if(!col) return null;
+    if(!S) col.forEach(b => { if(b.bloco === 'apoio') _ccCentra(b, x0, W); });
+    const bs = col.slice();
+    if(S) bs.push(Object.assign(S, { x: cx + cw - 30 - S.w, y: Math.round(cy + (chh - S.h) / 2) }));
+    return { ideia: 'Título e apoio à esquerda, selo à direita', blocos: _ccBlocos(bs) };
   } });
 
