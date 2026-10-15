@@ -6,6 +6,30 @@
 
 ---
 
+## 2026-10-15 — Artes de preço no padrão da referência (✅ dados, sem migration)
+
+Só **dados** em `luma.templates` (layers + permissões), aplicados por SQL no projeto `uqrqzjafhigjuvtjqzid`. Nenhuma tabela, policy ou função mudou.
+
+- **11 templates** passaram a ter a MESMA diagramação (caixa De/Por com preço-assinatura, selo "PROCURE O BANNER", banner da campanha, foto com raio assimétrico, logo com aro, descrição, rodapé com validade): Almoço Barato Todo Dia (feed/story), Promo Turbinada (feed/story), Mais Vendidos do App (feed/story), Tudo até R$ 25 (feed/story), Bora de Sushi (feed/story, sem selo branco: o banner já traz o selo desenhado) e Rangos Que Baixaram O Preço (só feed).
+- **Fora de escopo, intocados:** Aniversário Delivery Much, Entrega Grátis, Aqui Tem Cupons e os templates de cupom/Much+/Copa/Combos Coca.
+- **Campo novo `descricao`** (texto livre, `maxLen` 72) em `permissoes` de todos; `validade` (32) acrescentada no Sushi e no Rangos, que não tinham.
+- Cada camada de preço some sozinha quando o campo está vazio (`rules` `empty → hide`): sem "DE" riscado órfão, sem "POR"/"R$" soltos.
+- **Rollback:** o gatilho `versionar_template` guardou a versão anterior de cada um. `select luma.restaurar_versao('<id>')` devolve o estado de antes (vira versão nova, o histórico não se perde):
+
+| Template | Versão anterior (id) |
+|---|---|
+| Almoço feed | `840a9cd0-2dda-4c30-8a26-c8325dca4e04` (v11) · antes da ref: `7393c320-bfd6-4c01-892b-e8a565711e96` (v10) |
+| Almoço story | `ea8d98dd-dbdb-42ab-a622-1a740d53b309` (v12) · antes da ref: `ea5f3ff9-a1d3-40da-b4f2-afa42d8ec10b` (v11) |
+| Promo Turbinada feed / story | `d670c3fd-18d9-4daa-8b3c-3797442753dc` / `2ee4d786-644f-44f0-abb1-bc6efc8916af` |
+| Mais Vendidos feed / story | `29f51769-831a-4b9c-a568-cd8369f5f715` / `b20e5cb9-e45e-486b-a4f7-5b2230987338` |
+| Tudo até R$ 25 feed / story | `4e4b81bf-81d4-414d-8d61-3fda5c1903dc` / `3f7808cb-0310-41e5-8eec-764188c0c227` |
+| Bora de Sushi feed / story | `f0eeaca8-972e-4cce-9793-a96900b573c0` / `195bfcba-5af6-4a9a-acdd-d7c6346e6d74` |
+| Rangos feed | `fcb8db86-a398-4d4c-b7e5-13225489e79b` |
+
+(Almoço teve duas gravações no mesmo dia: a 2ª só suavizou o padrão de arcos do fundo.)
+
+---
+
 ## 2026-10-14 — Luma Creative: limite diário e contador de uso (⚠ migration `20261014200000` PREPARADA, **NÃO APLICADA**)
 
 - **Por que não aplicada:** o conector do Supabase estava sem autorização na sessão que escreveu isto. Nada foi executado nem testado contra o banco — rodar primeiro numa branch/projeto de teste e passar pelas **3 roles**.
