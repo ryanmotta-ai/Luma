@@ -25,7 +25,7 @@ O Luma é a ferramenta interna de creative automation da Delivery Much: franquea
 - Tipografia: `crMede`, `crCabe`, `crQuebra`, `crTrechos`, `crPreco`, `crPrecoMede`, `crHeroiCaixa`; fontes `LC Realce` e `LC Roboto` (`crFontesProntas`).
 - `crAprende` / `_crPref`: aprendizado fraco por receita (teto +10, `localStorage`).
 - Testes: `node scripts/run-browser-tests.js` (454 casos; os do Creative estão em `tests/svg-import.html`). A suíte é portão de CI.
-- **Material do repositório.** Assets autorizados para compor: o inventário `CR_DECOR` (`assets/creative/inv/`, 54 itens: grafismos, stickers, cupons, selos, ícones, mockup de celular), os logos (`assets/creative/logos/`, `assets/logos/`) e os elementos. **Referência de estilo** (para estudar, não para colar): `assets/templates/refino/` (15 SVGs aprovados, por formato e objetivo), `assets/templates/*.svg` (6 templates), `assets/creative/regua/` (14 referências reais por formato), `assets/campanhas/`, `assets/banners/`, `assets/covers/`.
+- **Material do repositório.** Assets autorizados para compor: o inventário `CR_DECOR` (`assets/creative/inv/`, 54 itens: grafismos, stickers, cupons, selos, ícones, mockup de celular), os logos (`assets/creative/logos/`, `assets/logos/`) e os elementos.
 - Leia primeiro: `luma-brain/MAPA.md`, `06_OPERATING_SYSTEM.md`, `03_ENGINEERING.md`, `docs/LUMA.md` (seção Luma Creative).
 
 **VETOS DO RYAN. Não construa e não proponha de novo:** mapa de atenção; cor/foto "inteligente" (extração de paleta, recorte, sombra); grafismo gerado proceduralmente; recomposição automática de um formato em outro; exportar story animado em vídeo; mockup com perspectiva.
@@ -61,7 +61,7 @@ Cada receita vira uma **gramática com parâmetros**: escala do herói, da foto 
 **4. Cinquenta novas composições, desenhadas por você**
 Você, a IA que está executando este prompt (e não uma IA em tempo de execução), **autora 50 composições novas**, muito boas e detalhadas, para o dia a dia do franqueado. Elas viram receitas determinísticas do motor, construídas com os assets do repositório e medidas pela nota (frente 1), ajustadas pela busca (frente 2) e escritas com a tipografia (frente 3). O motor continua sem IA na hora de gerar.
 
-*Material.* Componha só com os assets autorizados do contexto. Você pode **promover ao inventário** um asset que já exista no repositório (ex.: `assets/logos/`, `assets/grafismos/`), registrando-o como o `CR_DECOR` registra (largura, altura, `max` nítido, marca, tipo, descrição). **Nunca desenhe nem gere asset novo.** Antes de desenhar, **abra, renderize e meça** as referências de estilo (`assets/templates/refino/`, `assets/creative/regua/`): ritmo, escala, uso de cor, onde entra o grafismo, quanto o título domina.
+*Material.* Componha só com os assets autorizados do contexto. Você pode **promover ao inventário** um asset que já exista no repositório (ex.: `assets/logos/`, `assets/grafismos/`), registrando-o como o `CR_DECOR` registra (largura, altura, `max` nítido, marca, tipo, descrição). **Nunca desenhe nem gere asset novo.**
 
 *Cobertura: usos reais do franqueado* (≥ 3 composições por grupo, no total 50):
 - **A. Prato e oferta do dia:** prato do dia, almoço executivo, combo família, 2 por 1, preço em destaque, "a partir de", lista de 3–4 ofertas.
@@ -85,7 +85,7 @@ Você, a IA que está executando este prompt (e não uma IA em tempo de execuç�
 *Novos objetivos.* Se um uso não cabe em oferta, cupom, evento, benefício ou aniversário (aviso, parceiro, prospecção…), acrescente-o a `CR_OBJETIVOS`, `CR_SERVE`, `crLerPedido` (palavras do pedido), `crBriefingLocal` (perguntas), `crNormaliza`, `crPromptBriefing` e à legenda, **sem quebrar o que existe e sem inventar dado** (preço, desconto, validade, nome de loja).
 
 *Barra de qualidade.*
-- Você tem que **ver** cada uma: renderize com o Chromium que já existe no ambiente (Playwright), em 4 tamanhos de texto × com e sem foto × much+, compare com as referências e **descarte e refaça** até ficar no nível das aprovadas. São **50 aprovadas**, não 50 tentadas.
+- Você tem que **ver** cada uma: renderize com o Chromium que já existe no ambiente (Playwright), em 4 tamanhos de texto × com e sem foto × much+, julgue com o olho de diretor de arte e **descarte e refaça** até ficar no nível das artes que o motor já gera de melhor. São **50 aprovadas**, não 50 tentadas.
 - Zero erro de `crAvaliar` em **todas** as variações do banco de casos; nota nova ≥ 80 em ≥ 90% delas.
 - **Sem clones:** a assinatura de design de cada composição fica a uma distância mínima das outras do mesmo formato.
 - Uma **galeria** `tests/_galeria-composicoes.html` (ferramenta, fora do portão) com todas as composições × variações para o Ryan revisar, e as 50 entram como golden na regressão.
