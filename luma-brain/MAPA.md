@@ -196,7 +196,7 @@ bancada que mede a distância entre o que o Estúdio mostra e o que o franqueado
 
 ## Verificação — o Luma TEM teste automatizado (enxuto)
 
-**462 casos em 10 suítes** (14/10/2026: entrou `svg-import`, já com os 12 casos do Luma Creative — formatos de canal, IA designer, much+ e espaço da foto; 15/10: +2 da nota de design — geometria sem DOM × DOM ≤ 3 px no banco de casos `tests/creative-banco.js`, nota pura e determinística; +2 da busca — determinismo, diversidade, fatias e orçamento; +2 da tipografia — quebra, acento, apoio sem órfã, kerning, preço-assinatura; +1 do golden das composições — `tests/creative-golden.js`; +1 da curadoria — votos → pesos e golden). Em 13/10 eram 425 em 9, depois de um corte de 1.053 em 29: o Ryan pediu para ficar só o necessário.
+**464 casos em 10 suítes** (14/10/2026: entrou `svg-import`, já com os 12 casos do Luma Creative — formatos de canal, IA designer, much+ e espaço da foto; 15/10: +2 da nota de design — geometria sem DOM × DOM ≤ 3 px no banco de casos `tests/creative-banco.js`, nota pura e determinística; +2 da busca — determinismo, diversidade, fatias e orçamento; +2 da tipografia — quebra, acento, apoio sem órfã, kerning, preço-assinatura; +1 do golden das composições — `tests/creative-golden.js`; +1 da curadoria — votos → pesos e golden; +2 da leitura com intenção — 18 pedidos em fala de franqueado e a trava de dado inventado). Em 13/10 eram 425 em 9, depois de um corte de 1.053 em 29: o Ryan pediu para ficar só o necessário.
 O critério do corte: **fica o que protege um motor que o produto usa todo dia e que já quebrou;
 sai volume gerado, cobertura repetida, estresse e bancada exploratória** (estão no histórico do
 git, commit "test: enxuga a suíte").
@@ -213,7 +213,7 @@ CHROMIUM_PATH=/caminho/chrome node scripts/run-browser-tests.js
 | `tests/corpus.html` | 6 pranchetas reais × 4 tamanhos de texto + golden de geometria + **original first** | 30 |
 | `tests/auto-layout.html` | a leitura da arte: baseline autorado, papel semântico, safe zone | 14 |
 | `tests/psd-import.html` | o importador de PSD (geometria de texto, alpha, raster, fidelidade) | 92 |
-| `tests/svg-import.html` | o importador de SVG e o **contrato com a skill luma-creative** (`data-luma`, `data-campo`, slot `foto_produto`), trechos com peso/itálico, preço-assinatura, vetor, recorte, gradiente, sanitização; e o **Luma Creative** (toda diagramação aprovada do motor entrando limpa, conferência geométrica reprovando colisão/margem/texto pequeno, foto no slot, briefing, formatos de canal: inapp, banner, email, capa, slide, IA designer, much+, espaço da foto; **nota de design**, **busca** e **tipografia** sobre o banco de casos `tests/creative-banco.js`; o **golden** das composições — `tests/creative-golden.js`; a **curadoria** — votos → pesos sugeridos e golden) | 37 |
+| `tests/svg-import.html` | o importador de SVG e o **contrato com a skill luma-creative** (`data-luma`, `data-campo`, slot `foto_produto`), trechos com peso/itálico, preço-assinatura, vetor, recorte, gradiente, sanitização; e o **Luma Creative** (toda diagramação aprovada do motor entrando limpa, conferência geométrica reprovando colisão/margem/texto pequeno, foto no slot, briefing, formatos de canal: inapp, banner, email, capa, slide, IA designer, much+, espaço da foto; **nota de design**, **busca** e **tipografia** sobre o banco de casos `tests/creative-banco.js`; o **golden** das composições — `tests/creative-golden.js`; a **curadoria** — votos → pesos sugeridos e golden; a **leitura com intenção** do pedido e a **trava de dado**) | 39 |
 | `tests/copy-engine.html` | a legenda: **nunca inventa preço/desconto/validade**, não repete, hashtags enxutas | 50 |
 | `tests/copy-fit.html` | o Encurtar: a versão curta **nunca tira preço, produto ou sabor** | 40 |
 | `tests/franqueado-fluxo.html` | o chat e a prévia como uma verdade só, o bloqueio "não cabe", o Encurtar na hora certa, a versão Story | 66 |
@@ -261,7 +261,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 92 arquivos JS (84.736 linhas, 3.279 funções) · 33 arquivos CSS (33.414 linhas) · `index.html` com 4.096 linhas e 82 `<script>`.
+**Tamanho real de hoje:** 92 arquivos JS (84.896 linhas, 3.284 funções) · 33 arquivos CSS (33.414 linhas) · `index.html` com 4.096 linhas e 82 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -721,9 +721,9 @@ As composições do dia a dia do franqueado (frente 4, 15/10/2026) — desenhada
 LUMA CREATIVE — modo COPY (15/10/2026) Quando o pedido é um TEXTO ("quero uma copy", "uma legenda", "um roteiro", "mensagem de whatsapp"…) e não uma arte, o chat vira o de um copywriter:
 · API: crPromptCopyBriefing, crPromptCopyTexto, crCopy, crLegendaMarca
 
-**`js/creative/creative.js`** · 4755 linhas
+**`js/creative/creative.js`** · 4915 linhas
 Luma Creative — modo em TESTES, só a gestão (trava em main.js e na Edge Function `ai`).
-· API: crTema, crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crLockup, crTextoLinhas, crTextoMulti, crX, crTexto, crMista, crHeroi … (+97; 187 funções no total)
+· API: crTema, crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crLockup, crTextoLinhas, crTextoMulti, crX, crTexto, crMista, crHeroi … (+98; 192 funções no total)
 · Estado global: _crFontesProm, _crCtx, _crMesa, _crPesosCuradoria, _crArrasto, _crSessTimer, _crLegendaVer
 
 **`js/creative/curadoria.js`** · 224 linhas

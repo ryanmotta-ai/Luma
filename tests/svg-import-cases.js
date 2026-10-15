@@ -309,6 +309,59 @@
     assert(/acima de R\$ 40/.test(cup.legal), 'pedido mínimo fora da letra miúda');
   });
 
+  caso('Luma Creative: o pedido é lido com intenção — a fala vira manchete, não título (motor local)', async()=>{
+    // [pedido como o franqueado escreve, objetivo, título, outras expectativas]
+    const tabela=[
+      ['vai ter um evento gastronomico na minha cidade e preciso de um post pra avisar','evento','EVENTO GASTRONÔMICO',{topo:'VEM AÍ',selo:'',cta:''}],
+      ['faz um post de pizza calabresa por 39,90','oferta','PIZZA CALABRESA',{precoPor:'39,90'}],
+      ['quero avisar que amanhã não vamos abrir por causa do feriado','aviso','AMANHÃ NÃO VAMOS ABRIR',{apoio:'Por causa do feriado',cta:''}],
+      ['preciso de uma arte pra chamar entregador','prospeccao','SEJA ENTREGADOR',{cta:'CADASTRAR'}],
+      ['a pizzaria do joão entrou no app, faz um post','parceiro','PIZZARIA DO JOÃO',{loja:'Pizzaria do João',topo:'NOVO PARCEIRO'}],
+      ['post pro dia das mães','evento','DIA DAS MÃES',{selo:'',cta:''}],
+      ['festival de hambúrguer de 10 a 20 de novembro','evento','FESTIVAL DE HAMBÚRGUER',{selo:'10 A 20 NOVEMBRO'}],
+      ['cria um story com cupom BEMVINDO de 15 reais pra primeira compra','cupom','',{cupomCodigo:'BEMVINDO',cupomValor:'15'}],
+      ['tá chovendo e as entregas podem atrasar, avisa a galera','aviso','TÁ CHOVENDO',{apoio:'As entregas podem atrasar'}],
+      ['faz uma arte de happy hour com chopp em dobro das 18h às 20h','oferta','HAPPY HOUR',{horario:'18H ÀS 20H',apoio:'Com chopp em dobro'}],
+      ['quero um post avisando nosso horário especial no feriado: das 11h às 15h','aviso','HORÁRIO ESPECIAL NO FERIADO',{horario:'11H ÀS 15H'}],
+      ['arte pra divulgar o show do zé na praça dia 20 de dezembro','evento','SHOW DO ZÉ',{selo:'20 DEZEMBRO',apoio:'Na praça'}],
+      ['promoção de açaí 2 por 1 só hoje','oferta','AÇAÍ 2 POR 1',{topo:'SÓ HOJE'}],
+      ['preciso de um post pra chamar restaurantes pra vender no app','prospeccao','SEJA PARCEIRO',{cta:'QUERO VENDER'}],
+      ['vamos ter feira de artesanato na praça no sábado, me ajuda com uma arte','evento','FEIRA DE ARTESANATO',{topo:'VEM AÍ'}],
+      // o que já se lia bem continua igual
+      ['Novo parceiro: Pizzaria Nonna chegou no app','parceiro','PIZZARIA NONNA',{}],
+      ['Peça no app: tudo que a cidade tem','prospeccao','PEÇA NO APP',{}],
+      ['Happy hour: chopp 2x1 das 17h às 20h','oferta','HAPPY HOUR',{}]
+    ];
+    const ruins=[];
+    tabela.forEach(([pd,obj,tit,mais])=>{
+      const sp=crNormaliza(crLerPedido(pd,'feed')), v=k=>Array.isArray(sp[k])?sp[k].join(' '):String(sp[k]==null?'':sp[k]);
+      const erros=[];
+      if(sp.objetivo!==obj) erros.push('objetivo '+sp.objetivo);
+      if(tit && sp.titulo!==tit) erros.push('título '+sp.titulo);
+      Object.keys(mais).forEach(k=>{ if(v(k)!==mais[k]) erros.push(k+' '+JSON.stringify(v(k))); });
+      // nenhuma palavra da fala no título
+      if(/\b(PRECISO|QUERO|POST|ARTE|FAZ|VAI TER|MINHA)\b/.test(sp.titulo)) erros.push('fala no título');
+      if(erros.length) ruins.push(pd+' → '+erros.join(', '));
+    });
+    assert(!ruins.length, ruins.length+' leitura(s) erradas:\n'+ruins.join('\n'));
+  });
+
+  caso('Luma Creative: trava de dado — o que a pessoa não disse não vai na arte (IA ou motor)', async()=>{
+    // a IA devolveu o exemplo do prompt como selo, um preço e um "só hoje" que ninguém disse
+    const ia={objetivo:'evento',titulo:'EVENTO GASTRONÔMICO',apoio:'Dia 10 na praça',selo:['10 A 20','OUTUBRO'],topo:'SÓ HOJE',precoPor:'39,90',cupomCodigo:'FESTA10',cta:'VER NO APP'};
+    const r=crSoDado(ia,'vai ter um evento gastronomico na minha cidade e preciso de um post pra avisar');
+    assert(!r.sp.selo.length && !r.sp.precoPor && !r.sp.cupomCodigo && !r.sp.topo && !r.sp.apoio, 'passou dado inventado: '+JSON.stringify(r.sp));
+    assert(r.sp.titulo==='EVENTO GASTRONÔMICO' && r.sp.cta==='VER NO APP', 'tirou o que não era dado: '+JSON.stringify(r.sp));
+    assert(['selo','precoPor','cupomCodigo','topo','apoio'].every(k=>r.tirou.indexOf(k)>=0), 'não contou o que tirou: '+r.tirou.join(','));
+    // o que a pessoa disse (no pedido ou no briefing) fica — e % calculado de DE/POR é conta, não invenção
+    const ok=crSoDado({objetivo:'oferta',titulo:'PIZZA',precoDe:'28,00',precoPor:'22,90',selo:['18%','OFF'],topo:'SÓ HOJE',horario:'18H ÀS 20H'},'pizza de 28 por 22,9 só hoje das 18h às 20h');
+    assert(!ok.tirou.length, 'tirou dado que a pessoa deu: '+ok.tirou.join(','));
+    const br=crSoDado({objetivo:'evento',titulo:'FEIRA',selo:['10 A 20','OUTUBRO']},'feira na praça Quando é o evento? 10 a 20 de outubro');
+    assert(br.sp.selo.join(' ')==='10 A 20 OUTUBRO', 'a data dada no briefing saiu');
+    // a fala como título é reconhecida (e a leitura local entra no lugar)
+    assert(_crPareceFala('VAI TER UM EVENTO GASTRONOMICO','vai ter um evento gastronomico na minha cidade') && !_crPareceFala('EVENTO GASTRONÔMICO','vai ter um evento gastronomico'), 'fala x manchete');
+  });
+
   caso('Luma Creative: a conferência da marca acusa cor fora da paleta (não é carimbo)', async()=>{
     await crFontesProntas();
     const r=crCompor({objetivo:'cupom'});

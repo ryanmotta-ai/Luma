@@ -1157,7 +1157,8 @@ function crNormaliza(bruto){
     parceiro:    { titulo: 'NOVIDADE NO APP', apoio: 'Conheça o cardápio no app', cta: 'PEDIR AGORA' },
     prospeccao:  { titulo: 'PEÇA NO APP', apoio: 'Tudo da sua cidade num app só', cta: 'SAIBA MAIS' }
   }[obj];
-  Object.keys(P).forEach(k => { if(!out[k] || (Array.isArray(out[k]) && !out[k].length)) out[k] = P[k]; });
+  // semCta: a leitura do pedido decidiu que a peça não pede ação no app (evento da cidade) — sem o botão padrão
+  Object.keys(P).forEach(k => { if(k === 'cta' && s.semCta) return; if(!out[k] || (Array.isArray(out[k]) && !out[k].length)) out[k] = P[k]; });
   if(out.precoDe && !out.precoPor){ out.precoPor = out.precoDe; out.precoDe = ''; }
   if(obj === 'oferta' && !out.legal && out.precoPor) out.legal = 'Imagem ilustrativa. Oferta válida enquanto durarem os estoques.';
   return out;
@@ -2694,40 +2695,134 @@ function _crFormatoDito(t){
   const f = CR_FORMATO_DITO.find(([, re]) => re.test(n));
   return f ? f[0] : '';
 }
+// Palavras que o franqueado digita sem acento → como vão na arte (palavra inteira; "esta", "pais" e "e" ficam
+// de fora: são ambíguas)
+const CR_ACENTO = { gastronomico: 'gastronômico', gastronomica: 'gastronômica', gastronomicos: 'gastronômicos', musica: 'música', musicas: 'músicas',
+  cafe: 'café', acai: 'açaí', pao: 'pão', paes: 'pães', feijao: 'feijão', promocao: 'promoção', promocoes: 'promoções', cardapio: 'cardápio',
+  inauguracao: 'inauguração', joao: 'joão', sao: 'são', maes: 'mães', mae: 'mãe', aniversario: 'aniversário', almoco: 'almoço', lancamento: 'lançamento',
+  hamburguer: 'hambúrguer', hamburgueres: 'hambúrgueres', refeicao: 'refeição', sabado: 'sábado', pascoa: 'páscoa', exposicao: 'exposição',
+  atracao: 'atração', atracoes: 'atrações', horario: 'horário', horarios: 'horários', voce: 'você', voces: 'vocês', ja: 'já', tambem: 'também',
+  ate: 'até', amanha: 'amanhã', ferias: 'férias', ultima: 'última', ultimo: 'último', ultimos: 'últimos', ultimas: 'últimas', unico: 'único',
+  unica: 'única', proximo: 'próximo', proxima: 'próxima', mes: 'mês', nao: 'não', sera: 'será', tera: 'terá', ze: 'zé', praca: 'praça',
+  comemoracao: 'comemoração', degustacao: 'degustação', edicao: 'edição', programacao: 'programação', culinaria: 'culinária', familia: 'família',
+  crianca: 'criança', criancas: 'crianças', reveillon: 'réveillon', arraia: 'arraiá', quentao: 'quentão', porcao: 'porção', porcoes: 'porções',
+  gratis: 'grátis', servico: 'serviço', atencao: 'atenção', regiao: 'região', delicia: 'delícia', delicias: 'delícias', tematico: 'temático',
+  tematica: 'temática', agua: 'água', japones: 'japonês', frances: 'francês', acougue: 'açougue', so: 'só', ta: 'tá', to: 'tô', vespera: 'véspera' };
+function _crAcentua(s){
+  return String(s || '').replace(/[A-Za-zÀ-ÿ]+/g, w => {
+    const r = CR_ACENTO[w.toLowerCase()];
+    if(!r) return w;
+    return w.length > 1 && w === w.toUpperCase() ? r.toUpperCase() : w[0] === w[0].toUpperCase() ? r[0].toUpperCase() + r.slice(1) : r;
+  });
+}
+// INTENÇÃO — o pedido é a FALA da pessoa ("vai ter um evento… e preciso de um post pra avisar"), não o texto da
+// arte. A moldura da conversa sai (pedir a peça, "pra avisar", "vai ter", "na minha cidade", "a gente") e fica o
+// ASSUNTO, com o que a moldura dizia: futuro ("vai ter" → "VEM AÍ") e cidade. Os números continuam sendo lidos do
+// texto inteiro — a moldura nunca tem dado.
+const _CR_PEDE = '(?:(?:eu|a gente|nos)\\s+)?(?:(?:to|tou|estou|ta|esta)\\s+)?(?:preciso|precisando|precisava|quero|queria|gostaria|faz|faca|fazer|cria|crie|criar|monta|monte|manda|mande|gera|gere|gerar|me\\s+(?:ajuda|ve|faz|manda|arruma)|ajuda|bora|vamos|pode|podia|consegue|da\\s+pra|tem\\s+como|elabora)';
+const _CR_PECA = '(?:post(?:zinho|agem)?|arte(?:zinha)?|story|stories|storie|banner|imagem|card|flyer|panfleto|criativo|anuncio|propaganda|divulgacao|publicacao|material)';
+const _CR_PRA = '(?:avisar|avisando|divulgar|divulgando|anunciar|anunciando|chamar|chamando|lembrar|lembrando|comunicar|falar|mostrar|postar|convidar|convidando|informar|informando|promover|celebrar|comemorar|homenagear)';
+const _CR_GENTE = '(?:\\s+(?:a galera|o pessoal|os clientes|o povo|todo mundo|geral|a cidade))?';
+const _CR_LIGA = '(?:\\s+(?:que|sobre|do|da|dos|das|de|o|a|os|as|pro|pra|para|com|em|no|na))*';
+const CR_MOLDURA = [
+  // "preciso de um post pra avisar", "faz uma arte de", ", me ajuda com uma arte"
+  new RegExp('(?:^|[,.;!?]\\s*|\\s+e\\s+)' + _CR_PEDE + '\\b[^,.;!?]{0,40}?\\b' + _CR_PECA + '\\b(?:\\s+(?:bonit[ao]|legal|caprichad[ao]|simples|rapid[ao]))?'
+    + '(?:\\s+(?:no|na|pro|pra|para o|para a)\\s+(?:meu\\s+|minha\\s+)?(?:feed|story|stories|insta(?:gram)?|whats(?:app)?|face(?:book)?|status|perfil))?'
+    + '(?:\\s+(?:pra|para|p\\/))?(?:\\s+' + _CR_PRA + ')?' + _CR_GENTE + _CR_LIGA + '(?=\\s|$)', 'g'),
+  // "arte pra divulgar o show", "post pro dia das mães" — a peça no começo, sem verbo
+  new RegExp('^(?:um|uma)?\\s*' + _CR_PECA + '\\b(?:\\s+(?:bonit[ao]|legal|caprichad[ao]))?(?:\\s+(?:pra|para|p\\/))?(?:\\s+' + _CR_PRA + ')?' + _CR_GENTE + _CR_LIGA + '(?=\\s|$|:)'),
+  // "quero avisar que", "preciso divulgar"
+  new RegExp('(?:^|[,.;!?]\\s*|\\s+e\\s+)(?:(?:eu|a gente)\\s+)?(?:preciso|quero|queria|gostaria|vamos|bora|me\\s+ajuda\\s+a|ajuda\\s+a)\\s+(?:de\\s+)?' + _CR_PRA + _CR_GENTE + _CR_LIGA + '(?=\\s|$)', 'g'),
+  // ", avisa a galera"
+  /[,.;!?]?\s*(?:avisa|avise|chama|chame|divulga|divulgue|conta|fala)\s+(?:(?:pra|para)\s+)?(?:a galera|o pessoal|os clientes|o povo|todo mundo|geral)\b.*$/
+];
+const CR_FUTURO = /^(?:(?:a gente|nos)\s+)?(?:vai ter|vai rolar|vai acontecer|teremos|vamos ter|tera|havera|esta chegando|ta chegando|chegando|vem ai|ja ja tem)\s+(?:(?:um|uma|o|a|os|as|nosso|nossa)\s+)?/;
+const CR_EXISTE = /^(?:tem|temos|ta tendo|esta tendo|rola|acontece)\s+(?:(?:um|uma|o|a|os|as)\s+)?/;
+const CR_LUGAR = /\s+(?:aqui\s+)?(?:na|em)\s+(?:minha|nossa|sua)\s+cidade\b|\s+aqui\s+na\s+cidade\b|\s+(?:aqui|na cidade)(?=\s*$)/g;
+const CR_ARTIGO = /^(?:o|a|os|as|um|uma|nosso|nossa|nossos|nossas|meu|minha|meus|minhas)\s+/;
+function _crIntencao(texto){
+  let t = String(texto || '').replace(/\s+/g, ' ').trim();
+  const sem = x => x.split('').map(c => c.normalize('NFD')[0] || c).join('').toLowerCase();   // 1:1 com o original: o corte vale nos dois
+  const tira = re => {
+    const n = sem(t); let r = '', i = 0, achou = false;
+    n.replace(re, (m, ...a) => { const k = a[a.length - 2]; if(m.length){ r += t.slice(i, k) + ' '; i = k + m.length; achou = true; } return m; });
+    if(achou) t = (r + t.slice(i)).replace(/\s+/g, ' ').replace(/^[\s,;:.!?–—-]+|[\s,;:–—-]+$/g, '').trim();
+    return achou;
+  };
+  const fala = CR_MOLDURA.map(tira).some(Boolean);
+  const futuro = tira(CR_FUTURO);
+  if(!futuro) tira(CR_EXISTE);
+  const cidade = tira(CR_LUGAR);
+  tira(CR_ARTIGO);
+  return { assunto: _crAcentua(t), fala, futuro, cidade };
+}
+// Nome digitado todo em minúscula vira nome próprio ("pizzaria do joão" → "Pizzaria do João")
+const _crNomeProprio = x => x === x.toLowerCase() ? x.replace(/[^\s]+/g, (w, i) => i && /^(de|do|da|dos|das|e)$/.test(w) ? w : w.charAt(0).toLocaleUpperCase('pt-BR') + w.slice(1)) : x;
+const _crInicial = x => x ? x.charAt(0).toLocaleUpperCase('pt-BR') + x.slice(1) : '';
+// Corta a fala em título + resto: o título é a 1ª oração; o resto ("por causa do feriado", "as entregas podem
+// atrasar") vira o apoio. " e " só corta quando abre outra oração ("e as entregas…"), nunca "sábado e domingo".
+function _crOracao(x){
+  const m = /\s+(?=(?:por causa|porque|pois|que)\s)|\s+e\s+(?=(?:o|a|os|as|a gente|nos|vamos|estamos|tem|vai|v[aã]o|pode|podem|ganhe|aproveite|pe[çc]a)\s)|\s*[.!?;—–]\s*/i.exec(x);
+  if(!m) return [x.trim(), ''];
+  return [x.slice(0, m.index).trim(), x.slice(m.index + m[0].length).replace(/^e\s+/i, '').trim()];
+}
+const CR_EVENTO_NOME = /\b(festival|feira|festa|semana|show|rod[ií]zio|evento|encontro|exposi[çc][ãa]o|mostra|circuito|rota|noite|quermesse|arrai[áa]|concurso|corrida|campeonato|torneio)(\s+(?!(?:d[aeo]s?|n[aeo]s?|em|dia|pra|para|com|que|e|hoje|amanh[ãa]|s[áa]bado|domingo|nesse|neste|dessa|desse|aqui|l[áa])\b)[a-zà-ú]{3,})?(\s+d[aeo]s?\s+(?!\d)(?!dia\b)[a-zà-ú][a-zà-ú-]*)?/i;
+const CR_DATA_COMEMORATIVA = /\bdia\s+d(?:as?|os?|e)\s+[a-zà-ú]+|\bnatal\b|\bp[áa]scoa\b|\bcarnaval\b|\br[ée]veillon\b|\bano novo\b|\bblack friday\b|\bhalloween\b|\bs[ãa]o jo[ãa]o\b/i;
+const CR_MESES = 'janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro';
+// Evento ligado ao app (comida, pedido) tem botão; evento da cidade (show, feira, data) não pede ação no app
+const CR_DO_APP = /\b(app|pedir|pede|peca|pedido|delivery|entrega|pizza|hamburguer|burger|lanche|acai|sushi|doce|sobremesa|rodizio|happy|chopp|cerveja|combo|prato|marmita|porcao|pastel|sorvete|bebida|drink|janta|almoco|padaria|pizzaria|restaurante)/;
+// Apoio de evento pelo assunto (copy, nunca dado)
+const CR_APOIO_EVENTO = [
+  [/gastronom|culinari|comida|sabor|food|degusta/, 'Os sabores da cidade num só lugar'], [/show|musica|banda|cantor|sertanej|pagode|samba|rock|forro/, 'Música boa pra curtir'],
+  [/feira|artesanat|exposic|mostra/, 'Programa bom pra toda a família'], [/junin|arrai|quermesse|sao joao/, 'Comida típica e muita festa'],
+  [/maes|pais|namorad|criancas|natal|pascoa|ano novo|reveillon/, 'Celebre com quem você ama'], [/corrida|maratona|campeonato|torneio|\bjogo\b|copa/, 'Bora torcer junto']
+];
 function crLerPedido(texto, fmt){
-  const t = String(texto || ''), n = t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const t = String(texto || ''), norm = x => x.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''), n = norm(t);
+  // a leitura da intenção: o assunto (sem a moldura da conversa) decide o objetivo e o título
+  const it = _crIntencao(t), a = it.assunto || t, na = norm(a);
   const sp = { formato: _crFormatoDito(t) || fmt || 'feed', marca: _crMarcaDita(t) ? 'much' : 'dm' };
-  sp.objetivo = /anivers/.test(n) && !/cidade/.test(n) ? 'aniversario'
-    : /seja (parceiro|entregador)|entregador|baix[ae]r? o app|baixe|pec[ao] no app|obrigad|agradec|cadastre sua loja/.test(n) ? 'prospeccao'
-    : /\baviso|feriado|horario (especial|de|do)|pausa|estamos entregando|entregando normal|fechad|comunicado/.test(n) ? 'aviso'
-    : /novo parceiro|lojista|inaugur|mais vendid|mais pedid|chegou no app|loja da semana|varias lojas|das lojas/.test(n) ? 'parceiro'
-    : /cupom|codigo/.test(n) ? 'cupom'
-    : /(entrega|frete)\s+gratis|gratis|cashback/.test(n) ? 'beneficio'
-    : /evento|festival|feira|show|semana d|rodizio|chuv|chove|domingo|madrugada|fim de semana|dia d[ao]s|natal|junin|arrai|\bjogo\b|copa|cidade/.test(n) ? 'evento' : 'oferta';
-  const reais = [...t.matchAll(/R\$\s*(\d+(?:[.,]\d{1,2})?)/gi)].map(m => m[1].replace('.', ','));
+  sp.objetivo = /anivers/.test(na) && !/cidade/.test(na) ? 'aniversario'
+    : /seja (parceiro|entregador)|entregador|baix[ae]r? o app|baixe|pec[ao] no app|obrigad|agradec|cadastre sua loja|vender (no|pelo|com o) app|(restaurantes?|lojas?|lojistas|estabelecimentos) pra vender/.test(na) ? 'prospeccao'
+    : /\baviso|feriado|horario (especial|de|do)|pausa|estamos entregando|entregando normal|fechad|comunicado|nao (vai|vamos|vou|vai mais) abrir|sem expediente|atras(o|ar|ad[ao]s?)\b|demor/.test(na) ? 'aviso'
+    : /novo parceiro|lojista|inaugur|mais vendid|mais pedid|chegou no app|loja da semana|varias lojas|das lojas|entrou (no|pro|para o) app|(agora|ja) (esta|ta) no app/.test(na) ? 'parceiro'
+    : /cupom|codigo/.test(na) ? 'cupom'
+    : /(entrega|frete)\s+gratis|gratis|cashback/.test(na) ? 'beneficio'
+    : /evento|festival|feira|festa|show|semana d|rodizio|chuv|chove|domingo|madrugada|fim de semana|dia d[ao]s|natal|pascoa|carnaval|reveillon|junin|arrai|quermesse|exposic|encontro|\bjogo\b|copa|cidade/.test(na) ? 'evento' : 'oferta';
+  // preço: "R$ 22,90", "15 reais" e "por 39,90" (número com centavos depois de por/de/só — numa lista de itens, não)
+  const reais = [...t.matchAll(/R\$\s*(\d+(?:[.,]\d{1,2})?)|(\d+(?:[.,]\d{1,2})?)\s*(?:reais|real|conto|pila)\b|\b(?:por|de|s[óo]|apenas|a partir de|valor|pre[çc]o)\s+(\d{1,4},\d{2})(?![\d%])/gi)].map(m => (m[1] || m[2] || m[3]).replace('.', ','))
+    .filter((v, i, l) => l.indexOf(v) === i);
   const fmtR = v => /,/.test(v) ? v.replace(/,(\d)$/, ',$10') : v + ',00';
   const minimo = /(?:m[ií]nimo|acima)\s+(?:de\s+)?R\$\s*(\d+)/i.exec(t);
   const semMin = reais.filter(v => !minimo || v.split(',')[0] !== minimo[1]);
   const pct = /(\d{1,2})\s*%/.exec(t);
-  const codigo = (t.match(/\b(?=[A-Z0-9]*[A-Z])[A-Z0-9]{5,14}\b/g) || []).find(c => !/^(OFERTA|CUPOM|STORY|FEED)$/.test(c));
+  const codigo = (t.match(/\b(?=[A-Z0-9]*[A-Z])[A-Z0-9]{5,14}\b/g) || []).find(c => !/^(OFERTA|CUPOM|STORY|FEED)$/.test(c))
+    || ((/\bc[óo]digo\s+([a-z0-9]{4,14})\b/i.exec(t) || [])[1] || '').toUpperCase();
   const anos = /(\d{1,2})\s*anos?\b/i.exec(t);
   if(minimo) sp.legal = 'Válido para pedidos acima de R$ ' + minimo[1] + '. Consulte as regras no app.';
   if(sp.objetivo === 'oferta'){
-    if(semMin.length >= 2){ const v = semMin.slice(0, 2).sort((a, b) => parseFloat(b.replace(',', '.')) - parseFloat(a.replace(',', '.'))); sp.precoDe = fmtR(v[0]); sp.precoPor = fmtR(v[1]); }
+    if(semMin.length >= 2){ const v = semMin.slice(0, 2).sort((x, y) => parseFloat(y.replace(',', '.')) - parseFloat(x.replace(',', '.'))); sp.precoDe = fmtR(v[0]); sp.precoPor = fmtR(v[1]); }
     else if(semMin.length) sp.precoPor = fmtR(semMin[0]);
     if(pct) sp.selo = [pct[1] + '%', 'OFF'];
     // o nome do produto, sem as palavras do formato ("banner do app", "cabeçalho de email"…) nem o "R" de "R$"
     const FMT = 'arte|post|feed|story|stories|banner|super ?banner|in-?app|pop-?up|cabe[çc]alho|rodap[ée]|e-?mail|capa|pasta|deskfy|slide|apresenta[çc][ãa]o|app';
     // "Story: pizza…" — o formato no começo sai junto com os dois-pontos
-    let limpo = t.replace(new RegExp('^((' + FMT + ')(?=[\\s:]|$)[:\\s]*((de|do|da|para|no|na)\\s+)?)+', 'i'), '');
+    let limpo = a.replace(new RegExp('^((' + FMT + ')(?=[\\s:]|$)[:\\s]*((de|do|da|para|no|na)\\s+)?)+', 'i'), '');
     // "prato do dia", "oferta do dia"… é a tag do alto (o que o pedido disse), não parte do nome
     const tagDia = /\b(prato|oferta|promo(?:ção|cao)?|almo[çc]o|sugest[ãa]o) do dia\b/i.exec(limpo);
     if(tagDia){ sp.topo = sp.topo || tagDia[0].toLocaleUpperCase('pt-BR'); limpo = limpo.replace(tagDia[0], ' ').replace(/^[\s:]+/, ''); }
     const prod = /(?:oferta|promo(?:ção|cao)?|arte|post)?\s*(?:de|do|da)?\s*([^:,.\d$]{3,40})/i.exec(limpo);
     // "de/do/da/por" só saem das pontas: "pizza de calabresa" fica inteira
-    if(prod) sp.titulo = prod[1].split(/\s+(?:para|pra|pro|no|na|neste|nesse|nessa|hoje|amanh[ãa]|esse|este|essa|desta|dessa|com)\b/i)[0]
+    if(prod) sp.titulo = prod[1].split(/\s+(?:para|pra|pro|no|na|neste|nesse|nessa|hoje|amanh[ãa]|esse|este|essa|desta|dessa|com|s[óo])\b/i)[0]
       .replace(new RegExp('(^|\\s)(oferta|promo(ção|cao)?|' + FMT + ')(?=\\s|$)', 'gi'), ' ').replace(/\s+R$/i, '')
       .replace(/^\s*((de|do|da|por)\s+)+/i, '').replace(/(\s+(de|do|da|por))+\s*$/i, '').replace(/\s{2,}/g, ' ').trim();
+    // "açaí 2 por 1" — a mecânica colada no nome é parte dele ("chopp 2x1" depois de "Happy hour:" não é)
+    const dobro = sp.titulo && new RegExp('(?:^|\\s)' + sp.titulo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s+(\\d\\s*(?:por|x)\\s*\\d)\\b', 'i').exec(limpo);
+    if(dobro && sp.titulo.length <= 16) sp.titulo += ' ' + dobro[1].toLocaleUpperCase('pt-BR');
+    // "… com chopp em dobro", "… com sobremesa": o que a pessoa disse do produto vira o apoio
+    const com = /\bcom\s+([^,.;:\d$]{3,30}?)(?=\s+(?:das?|de|por|até|a partir|hoje|s[óo])\b|[,.;:]|\s*$|\s+\d)/i.exec(limpo);
+    if(com && !sp.apoio && limpo.indexOf(':') < 0) sp.apoio = _crInicial('com ' + com[1].trim());
+    if(/\bso hoje\b/.test(na)) sp.topo = sp.topo || 'SÓ HOJE';
   }
   if(sp.objetivo === 'cupom' || sp.objetivo === 'aniversario'){
     if(pct) sp.cupomValor = pct[1] + '%'; else if(semMin.length) sp.cupomValor = semMin[0].split(',')[0];
@@ -2737,42 +2832,62 @@ function crLerPedido(texto, fmt){
   // Lista no pedido (linhas, "•", "-" ou ";") vira os itens da lâmina do meio do carrossel
   const itens = (t.indexOf(':') > 0 ? t.slice(t.indexOf(':') + 1) : t).split(/\n|;|•|\s-\s/).map(x => x.replace(/^[\s\-–*\d.)]+/, '').trim()).filter(x => x.length > 2 && x.length <= 60);
   if(itens.length >= 2) sp.itens = itens.slice(0, 4);
-  if(sp.objetivo === 'beneficio' && /frete/.test(n)) sp.palavra = 'frete';
+  if(sp.objetivo === 'beneficio' && /frete/.test(na)) sp.palavra = 'frete';
   // Horário que o pedido deu ("das 11h às 22h") — vira o bloco de horário, nunca é inventado
   const hr = /(\d{1,2})\s*h(\d{2})?\s*(?:às|as|até|ate|a|-)\s*(\d{1,2})\s*h(\d{2})?/i.exec(t);
   if(hr) sp.horario = hr[1] + 'H' + (hr[2] || '') + ' ÀS ' + hr[3] + 'H' + (hr[4] || '');
   // "Rótulo: o resto" — nos usos de texto (aviso, parceiro, prospecção, evento) o rótulo é o herói
-  const dois = t.indexOf(':') > 0 ? [t.slice(0, t.indexOf(':')).trim(), t.slice(t.indexOf(':') + 1).trim()] : null;
+  const dois = a.indexOf(':') > 0 ? [a.slice(0, a.indexOf(':')).trim(), a.slice(a.indexOf(':') + 1).trim()] : null;
   const FMTW = /^(story|stories|feed|post|arte|banner|inapp|pop-?up|capa|slide|carross?el|e-?mail|cabe[çc]alho)$/i;
-  const frase = x => x.split(/\s+(?:por causa|porque|pois|que)\b|[.!?;]/i)[0].trim();
-  if(sp.objetivo === 'aviso' || sp.objetivo === 'prospeccao' || (sp.objetivo === 'evento' && !/festival|feira|semana|show|rod[ií]zio/i.test(t))){
-    const generico = dois && /^(aviso|agradecimento|comunicado|recado|novidade)$/i.test(dois[0]);
-    const tit = dois && !FMTW.test(dois[0]) && !generico ? dois[0] : frase(dois ? dois[1] : t);
-    sp.titulo = tit.replace(/[,.]\s*$/, '');
-    const resto = dois && !generico && !FMTW.test(dois[0]) ? dois[1] : '';
-    if(resto && !/R\$/.test(resto)) sp.apoio = resto.charAt(0).toLocaleUpperCase('pt-BR') + resto.slice(1);
+  const generico = dois && /^(aviso|agradecimento|comunicado|recado|novidade)$/i.test(dois[0]);
+  const rotulo = dois && !FMTW.test(dois[0]) && !generico ? dois[0] : '';
+  const resto = dois && !generico && !FMTW.test(dois[0]) ? dois[1] : '';
+  const evNome = sp.objetivo === 'evento' ? CR_EVENTO_NOME.exec(a) || CR_DATA_COMEMORATIVA.exec(a) : null;
+  if(sp.objetivo === 'aviso' || sp.objetivo === 'prospeccao' || (sp.objetivo === 'evento' && !rotulo && !evNome) || (sp.objetivo === 'evento' && rotulo)){
+    const [cab, cauda] = _crOracao(dois && generico ? dois[1] : rotulo || a);
+    sp.titulo = cab.replace(/[,.]\s*$/, '');
+    const extra = resto || cauda;
+    if(extra && !/R\$/.test(extra)) sp.apoio = _crInicial(extra.replace(/[.,]\s*$/, ''));
+  }
+  if(sp.objetivo === 'prospeccao' && !/^(seja|baix|venha|vem|cadastr|trabalh|fa[cç]a|pe[cç]a|obrigad|valeu)/.test(norm(sp.titulo || ''))){
+    // "chamar entregador", "restaurantes pra vender no app": a chamada da prospecção é um convite
+    const conv = /entregador|motoboy/.test(na) ? ['SEJA ENTREGADOR', 'Faça parte do nosso time'] : /parceiro|loja|restaurante|vender|estabelecimento|lojista/.test(na) ? ['SEJA PARCEIRO', 'Venda mais pelo app da cidade'] : /baix|instal/.test(na) ? ['BAIXE O APP', ''] : null;
+    if(conv){ sp.titulo = conv[0]; if(conv[1] && !sp.apoio) sp.apoio = conv[1]; }
   }
   if(sp.objetivo === 'parceiro'){
     const rot = dois ? dois[0] : '';
     if(/parceiro|lojista|inaugur|destaque|semana/i.test(rot)) sp.topo = rot.replace(/:$/, '');
     if(dois && /mais vendid|mais pedid|ofertas/i.test(rot)){ sp.titulo = rot; }
     else {
-      const base = dois ? dois[1] : t.replace(/^.*?\b(inaugura[çc][ãa]o|novo parceiro)\s+(d[aoe]s?\s+)?/i, '');
-      const loja = base.split(/,|\s+(?:chegou|já|agora|no app|na cidade|dia)\b/i)[0].replace(/^(d[aoe]s?)\s+/i, '').trim();
-      if(loja && loja.length <= 28){ sp.loja = loja; sp.titulo = loja; }
+      const base = dois ? dois[1] : a.replace(/^.*?\b(inaugura[çc][ãa]o|novo parceiro)\s+(d[aoe]s?\s+)?/i, '');
+      const loja = base.split(/,|\s+(?:chegou|entrou|já|agora|no app|na cidade|dia|t[áa] no|est[áa] no)\b/i)[0].replace(/^(d[aoe]s?|[ao]s?)\s+/i, '').trim();
+      if(loja && loja.length <= 28){ sp.loja = _crNomeProprio(loja); sp.titulo = sp.loja; }
       if(/inaugur/i.test(t)) sp.topo = 'INAUGURAÇÃO';
+      else if(!sp.topo && /chegou|entrou|novo/.test(na)) sp.topo = 'NOVO PARCEIRO';
     }
     if(dois && /mais vendid|mais pedid|ofertas/i.test(rot)) sp.itens = dois[1].split(/,|;|\n|\s+e\s+/).map(x => x.trim()).filter(x => x.length > 2).slice(0, 4);
   }
   if(sp.objetivo === 'evento' || sp.objetivo === 'aviso' || sp.objetivo === 'parceiro'){
-    const ev = /(festival|feira|semana|show|rod[ií]zio)((?:\s+(?!na\b|no\b|em\b|de\b|da\b|do\b|dia\b)[\wÀ-ú]+){0,2})/i.exec(t);
-    if(ev && sp.objetivo === 'evento') sp.titulo = ev[1] + ev[2];
-    const data = /(\d{1,2})\s*(?:a|até)\s*(\d{1,2})\s*de\s*([a-zç]+)/i.exec(t), d1 = /\b(?:dia\s+)?(\d{1,2})\s+de\s+([a-zç]{3,})/i.exec(t);
+    const data = new RegExp('(\\d{1,2})\\s*(?:a|até)\\s*(\\d{1,2})\\s*de\\s*(' + CR_MESES + ')', 'i').exec(t), d1 = new RegExp('\\b(?:dia\\s+)?(\\d{1,2})\\s+de\\s+(' + CR_MESES + ')', 'i').exec(t);
     if(data) sp.selo = [data[1] + ' A ' + data[2], data[3]];
-    else if(d1 && !/anos/i.test(d1[2])) sp.selo = [d1[1], d1[2]];
+    else if(d1) sp.selo = [d1[1], d1[2]];
   }
-  if(sp.objetivo === 'prospeccao') sp.cta = /entregador/i.test(t) ? 'CADASTRAR' : /parceiro|loja/i.test(t) ? 'QUERO VENDER' : /baix/i.test(t) ? 'BAIXAR' : '';
-  sp.resumo = 'Entendi: ' + CR_OBJETIVOS[sp.objetivo].toLowerCase() + '.';
+  if(sp.objetivo === 'evento'){
+    if(evNome && !rotulo){
+      sp.titulo = evNome[0].trim();
+      // o que vem depois do nome é dado da pessoa (lugar, dia): vira o apoio, sem a data (que já está no selo)
+      const depois = a.slice(evNome.index + evNome[0].length).replace(new RegExp('\\s*(?:dia\\s+|de\\s+)?\\d{1,2}(?:\\s*(?:a|até|e)\\s*\\d{1,2})?\\s*(?:de\\s+)?(?:' + CR_MESES + ')\\b', 'gi'), ' ')
+        .replace(/^[\s,;:–—-]*(?:(?:de|do|da|dia)\s+)*/i, '').replace(/[\s,;:.–—-]+$/, '').replace(/\s{2,}/g, ' ');
+      if(depois.length >= 4 && depois.length <= 38 && !/\d/.test(depois)) sp.apoio = _crInicial(depois);
+    }
+    if(it.futuro && !sp.topo) sp.topo = 'VEM AÍ';
+    const app = CR_DO_APP.test(na);
+    if(!sp.apoio){ const ap = CR_APOIO_EVENTO.find(([re]) => re.test(na)); sp.apoio = ap ? ap[1] : app ? '' : 'Programa certo na cidade'; }
+    if(!app) sp.semCta = true;   // evento da cidade não pede ação no app: sem botão
+  }
+  if(sp.objetivo === 'prospeccao') sp.cta = /entregador|motoboy/i.test(na) ? 'CADASTRAR' : /parceiro|loja|restaurante|vender|lojista/i.test(na) ? 'QUERO VENDER' : /baix/i.test(na) ? 'BAIXAR' : '';
+  if(sp.titulo) sp.titulo = _crAcentua(sp.titulo);
+  sp.resumo = 'Entendi: ' + CR_OBJETIVOS[sp.objetivo].toLowerCase() + (sp.titulo ? ' — "' + sp.titulo.toLocaleLowerCase('pt-BR') + '"' : '') + (sp.selo && sp.selo.length ? ', ' + sp.selo.join(' ').toLocaleLowerCase('pt-BR') : '') + '.';
   return sp;
 }
 
@@ -2780,6 +2895,8 @@ function crLerPedido(texto, fmt){
    BRIEFING — antes de compor, pergunta só o que muda a arte (como o Claude Code faz)
 ══════════════════════════════════════════════════════════════ */
 const CR_COM_FOTO = { oferta: true, evento: true, beneficio: true, parceiro: true };
+// Como a trava de dado conta o que tirou
+const CR_CAMPO_DITO = { precoDe: 'preço', precoPor: 'preço', cupomValor: 'desconto', cupomCodigo: 'código', anos: 'anos', horario: 'horário', selo: 'data/selo', titulo: 'título', apoio: 'apoio', topo: 'tag', legal: 'letra miúda', cta: 'botão', palavra: 'palavra', chamada: 'chamada', itens: 'itens' };
 const _crReal = v => /,/.test(v) ? v.replace(/,(\d)$/, ',$10') : v + ',00';
 const _crAspas = s => String(s || '').replace(/"""/g, '"');
 
@@ -2843,7 +2960,7 @@ function crPerguntasFinais(br, fio){
     // Sem foto agora, o padrão é DEIXAR O ESPAÇO (placeholder cinza): a arte vira template e o
     // franqueado põe a foto dele. "Só tipografia" é escolha explícita.
     q.push({ tipo: 'foto', titulo: 'Foto', livre: false,
-      pergunta: br.objetivo === 'evento' ? 'Tem uma foto do local ou do evento?' : 'Tem a foto do produto?',
+      pergunta: br.objetivo === 'evento' ? 'Tem uma foto do local ou do evento?' : br.objetivo === 'parceiro' ? 'Tem uma foto da loja ou de um prato dela?' : 'Tem a foto do produto?',
       opcoes: [{ rotulo: 'Deixar o espaço da foto', desc: 'placeholder para o franqueado colocar a foto dele', valor: 'slot' },
         { rotulo: 'Sem foto', desc: 'a arte fica só com tipografia', valor: 'nada' }] });
   }
@@ -2874,6 +2991,35 @@ function crAplicaRespostas(sp, resp){
   });
   return o;
 }
+// TRAVA DE DADO — preço, desconto, código, anos, horário, data, dia da semana e "só hoje" só vão na arte se a
+// pessoa disse (no pedido ou no briefing). Vale para a copy da IA (que pode inventar ou copiar o exemplo do prompt)
+// e para a leitura local. % calculado de DE/POR que a pessoa deu é conta, não invenção. → { sp, tirou: [campos] }
+function crSoDado(sp, fonte){
+  const o = Object.assign({}, sp), tirou = [];
+  const norm = v => String(v == null ? '' : v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const f = norm(fonte), nums = new Set();
+  (f.match(/\d+(?:[.,]\d+)?/g) || []).forEach(x => { const v = x.replace('.', ','); nums.add(v); nums.add(v.split(',')[0]); if(/,\d$/.test(v)) nums.add(v + '0'); });
+  const temNum = v => { const x = String(v).replace('.', ','); if(nums.has(x)) return true; const [i, c] = x.split(','); return nums.has(i) && (!c || /^0+$/.test(c)); };
+  const numsDe = v => String(v == null ? '' : v).match(/\d+(?:[.,]\d+)?/g) || [];
+  const DITO = /\b(janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|segunda|terca|quarta|quinta|sexta|sabado|domingo|hoje|amanha|ultim[oa]s?|fim de semana)\b/g;
+  const ok = v => numsDe(v).every(temNum) && (norm(v).match(DITO) || []).every(m => f.indexOf(m) >= 0);
+  const limpa = (k, vazio) => { tirou.push(k); o[k] = vazio; };
+  ['precoDe', 'precoPor', 'cupomValor', 'anos'].forEach(k => { if(o[k] && !numsDe(o[k]).every(temNum)) limpa(k, ''); });
+  if(o.cupomCodigo && f.indexOf(norm(o.cupomCodigo)) < 0) limpa('cupomCodigo', '');
+  if(o.horario && !ok(o.horario)) limpa('horario', '');
+  const de = parseFloat(String(o.precoDe || '').replace(',', '.')), por = parseFloat(String(o.precoPor || '').replace(',', '.')), conta = de > por && por > 0 ? Math.round((de - por) / de * 100) : NaN;
+  if(Array.isArray(o.selo) && o.selo.length && !o.selo.every(x => ok(x) || (/%/.test(x) && Math.abs(parseInt(x, 10) - conta) <= 1) || /^off$/i.test(x))) limpa('selo', []);
+  ['titulo', 'apoio', 'topo', 'legal', 'cta', 'palavra'].forEach(k => { if(o[k] && !ok(o[k])) limpa(k, ''); });
+  if(Array.isArray(o.chamada) && o.chamada.some(x => !ok(x))) limpa('chamada', []);
+  if(Array.isArray(o.itens) && o.itens.some(x => !ok(x))){ o.itens = o.itens.filter(ok); tirou.push('itens'); }
+  return { sp: o, tirou };
+}
+// A IA às vezes devolve a própria fala como título ("VAI TER UM EVENTO GASTRONOMICO"): isso não é manchete
+function _crPareceFala(tit, pedido){
+  const norm = v => String(v || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+  const x = norm(tit);
+  return !!x && (/\b(preciso|quero|queria|post|arte|story|faz|fazer|vai ter|minha|nossa cidade|pra avisar|pra divulgar|me ajuda)\b/.test(x) || (x.split(' ').length >= 4 && norm(pedido).indexOf(x) >= 0));
+}
 function _crBriefingTexto(fio){
   return (fio.briefing || []).filter(r => !r.pulou && !r.foto && r.resposta).map(r => '- ' + r.pergunta + ' → ' + r.resposta).join('\n');
 }
@@ -2891,15 +3037,20 @@ function crPrompt(fio){
     'FORMATO: ' + (CR_FORMATOS[fio.fmt] || CR_FORMATOS.feed).nome + ' (' + (CR_FORMATOS[fio.fmt] || CR_FORMATOS.feed).desc + ')'
       + (CR_FORMATOS[fio.fmt] && CR_FORMATOS[fio.fmt].deitado ? ' — peça deitada e pequena: titulo de até 3 palavras, apoio curto ou vazio, sem legal.' : '') + '. ' + (fio.foto === 'slot' ? 'Vai ter foto (o espaço fica reservado para o franqueado).' : fio.foto ? 'Há foto do produto/local.' : 'Sem foto: a arte é só tipografia — a copy precisa segurar a peça sozinha.'),
     '', 'OBJETIVOS (escolha 1 em "objetivo"): oferta (produto com preço), cupom (valor + código), evento (data especial, festival, data comemorativa), beneficio (benefício curto: entrega grátis, frete, cashback), aniversario (anos da franquia), aviso (horário especial, feriado, pausa, estamos entregando), parceiro (loja nova, lojista da semana, mais vendidos, inauguração), prospeccao (seja parceiro, seja entregador, baixe o app, peça no app, agradecimento).',
+    '', 'LEIA A INTENÇÃO: o PEDIDO é a fala da pessoa, não o texto da arte. Separe a conversa ("preciso de um post", "faz uma arte", "pra avisar", "vai ter", "na minha cidade", "a gente") do que a peça precisa comunicar, e escreva a copy de quem entendeu o recado. NUNCA use a frase do pedido como título: escreva uma manchete. Acento certo mesmo se o pedido veio sem.',
+    'Exemplos de leitura (o raciocínio, não as palavras):',
+    '- "vai ter um evento gastronomico na minha cidade e preciso de um post pra avisar" → evento; topo "VEM AÍ"; titulo "EVENTO GASTRONÔMICO"; apoio sobre o que o evento oferece; selo [] (a data não foi dita); cta "" (o evento não acontece no app).',
+    '- "a pizzaria do joão entrou no app, faz um post" → parceiro; topo "NOVO PARCEIRO"; titulo e loja "Pizzaria do João"; cta "PEDIR AGORA".',
+    '- "quero avisar que amanhã não vamos abrir por causa do feriado" → aviso; titulo "AMANHÃ NÃO ABRIMOS"; apoio "Por causa do feriado"; cta "".',
     '', 'REGRAS DA COPY (skill luma-creative):',
     '- PT-BR, tom próximo e direto da Delivery Much. Sem emoji, sem hashtag, sem aspas.',
     '- NUNCA invente preço, desconto, código, data ou número de anos que o pedido e o briefing não deram: campo sem informação = "".',
-    '- titulo: o herói, até 4 palavras e 22 caracteres, sem ponto final (oferta = nome do produto; evento = nome do evento; beneficio = a palavra vazada, ex. "GRÁTIS"). Ordem que quebra bem em 2 linhas por sentido.',
+    '- titulo: a manchete, até 4 palavras e 22 caracteres, sem ponto final (oferta = nome do produto; evento = nome do evento ou da data; aviso = o recado; beneficio = a palavra vazada, ex. "GRÁTIS"). Ordem que quebra bem em 2 linhas por sentido.',
     '- palavra: só no beneficio, 1 palavra minúscula (ex. "entrega").',
     '- chamada (cupom/aniversário): 2 linhas curtas (até 22 caracteres), frase leve com 1 palavra forte entre *asteriscos*: "pega este *cupom*", "pra você *economizar!*".',
     '- apoio: 1 frase de até 38 caracteres, em caixa normal.',
-    '- selo: 1 ou 2 palavras curtas, ex. ["18%","OFF"], ["SÓ","HOJE"], ["10 A 20","OUTUBRO"]; [] se não houver. O % do selo bate com (DE − POR) ÷ DE.',
-    '- cta: imperativo curto em maiúsculas, até 12 caracteres (PEDIR, PEDIR AGORA, VER NO APP).',
+    '- selo: 1 ou 2 palavras curtas, SÓ com o que o pedido ou o briefing disseram (desconto, data, "só hoje"); [] se não disseram. Formato, não conteúdo: ["<N>%","OFF"], ["<DIA> A <DIA>","<MÊS>"]. O % do selo bate com (DE − POR) ÷ DE.',
+    '- cta: imperativo curto em maiúsculas, até 12 caracteres (PEDIR, PEDIR AGORA, VER NO APP); "" quando a peça não pede ação no app (evento da cidade, data comemorativa, aviso).',
     '- legal: 1 linha de letra miúda quando houver condição (pedido mínimo, validade); senão "".',
     '- precoDe/precoPor: número com vírgula ("28,00"). cupomValor: só o número ("15") ou com % ("20%"). anos: só o número.',
     '- topo: tag curta (até 24 caracteres): aniversário ("BORA COMEMORAR!"), parceiro ("NOVO PARCEIRO", "LOJISTA DA SEMANA"), oferta ("PRATO DO DIA", "A PARTIR DE"); "" se não fizer falta.',
@@ -3958,13 +4109,22 @@ async function crGerar(fio, conv, outras){
       try{ bruto = await crPedirComposicao(fio); fio.viaIA = !!bruto; }catch(err){ bruto = null; }
       if(!bruto) bruto = crLerPedido(fio.pedido, fio.fmt);
       bruto = crAplicaRespostas(bruto, fio.briefing);
+      if(fio.viaIA){
+        // a IA leu a fala como título, ou deixou o botão vazio num evento da cidade: vale a leitura local da intenção
+        const loc = crLerPedido(fio.pedido, fio.fmt);
+        if(_crPareceFala(bruto.titulo, fio.pedido) && loc.titulo) bruto.titulo = loc.titulo;
+        if(bruto.objetivo === 'evento' && !bruto.cta && loc.semCta) bruto.semCta = true;
+      }
+      // nada de dado que a pessoa não deu (data, preço, código, "só hoje"…), venha da IA ou de onde vier
+      const trava = crSoDado(bruto, [fio.pedido].concat((fio.briefing || []).filter(r => !r.pulou).map(r => (r.resposta || '') + ' ' + (r.valor || ''))).join(' '));
+      bruto = trava.sp; fio.tirou = trava.tirou;
       bruto.formato = fio.fmt;
       bruto.marca = fio.marca;
       bruto.foto = fio.foto || '';
       if(parou()) return;
       fio.conteudo = bruto;
       const sp0 = crNormaliza(bruto);
-      p.feito([sp0.palavra, sp0.titulo].filter(Boolean).join(' ') + (sp0.precoPor ? ' · R$ ' + sp0.precoPor : '') + (fio.viaIA ? ' · IA' : ' · motor local' + (prov && typeof gProvUltimoErro === 'string' && gProvUltimoErro ? ' — ' + gProvUltimoErro : '')));
+      p.feito([sp0.palavra, sp0.titulo].filter(Boolean).join(' ') + (sp0.precoPor ? ' · R$ ' + sp0.precoPor : '') + (fio.tirou && fio.tirou.length ? ' · tirei o que o pedido não disse (' + fio.tirou.map(k => CR_CAMPO_DITO[k] || k).join(', ') + ')' : '') + (fio.viaIA ? ' · IA' : ' · motor local' + (prov && typeof gProvUltimoErro === 'string' && gProvUltimoErro ? ' — ' + gProvUltimoErro : '')));
       // a legenda corre em paralelo e chega junto — só para post (inapp, banner, email, capa e slide não têm)
       fio.legProm = CR_FORMATOS[sp0.formato].social === false ? Promise.resolve([]) : crLegenda(Object.assign(sp0, { pedido: fio.pedido }));
     }
