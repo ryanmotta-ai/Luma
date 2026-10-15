@@ -3862,6 +3862,8 @@ function crEnviar(e){
   _crRola(true);
   // Pedido de TEXTO (copy, legenda, roteiro…) vai para o copywriter (js/creative/copy.js), não para o diagramador
   if(typeof crEhCopy === 'function' && crEhCopy(pedido)){ fio.copy = {}; return crCopy(fio, conv); }
+  // Do 2º pedido em diante o harness lê o contexto do chat e decide: modificar a arte de cima, nova, texto ou conversa (harness.js)
+  if(typeof crDespachar === 'function') return crDespachar(fio, conv);
   crGerar(fio, conv);
 }
 // Recomeça do zero: a conversa atual já fica guardada como sessão (dá para reabrir em "Sessões"), então não precisa confirmar
@@ -3912,7 +3914,8 @@ async function crGerar(fio, conv, outras){
   try{
     // Uso do dia: conta ANTES de gastar IA; o que não chegar à entrega é estornado no finally
     const prov = typeof gProvAtivo === 'function' ? gProvAtivo() : null;   // conta própria: o custo é dela, não conta no limite
-    const modelo = prov ? 'conta:' + prov.id + ':' + prov.modelo : crModelo(), uso = prov ? { ok: true } : await crUsoConsome(modelo);
+    const modelo = prov ? 'conta:' + prov.id + ':' + prov.modelo : crModelo(), uso = (prov || fio._pago) ? { ok: true } : await crUsoConsome(modelo);   // _pago: o roteador do chat já abriu a janela e gastou
+    fio._pago = false;
     if(!uso.ok){
       status.parar();
       aviso(crUsoMsg(modelo) || 'Não foi possível contar esta arte agora. Tente de novo.');
@@ -3920,7 +3923,9 @@ async function crGerar(fio, conv, outras){
     }
     consumiu = !prov; crState.modeloRun = prov ? null : modelo; crState.provRun = prov;
     if(parou()) return;
-    if(!outras){
+    const modifica = fio.modo === 'modificar';   // harness: altera a arte de cima — conteúdo já pronto, sem briefing nem copy
+    if(modifica){ fio.legenda = null; fio.legProm = CR_FORMATOS[fio.fmt].social === false ? Promise.resolve([]) : crLegenda(crNormaliza(fio.conteudo)); }
+    if(!outras && !modifica){
       // 1) Briefing: entende o pedido e pergunta só o que muda a arte
       p = _crPasso(lista, 'Entendendo o pedido');
       let br = null;
@@ -3963,7 +3968,7 @@ async function crGerar(fio, conv, outras){
 
     // 3) Diagramação: a busca (frente 2) percorre as famílias que servem e os parâmetros de cada
     // uma, em fatias (a tela não congela), e fica com o que tem a melhor nota de design
-    p = _crPasso(lista, outras ? 'Buscando outros caminhos' : 'Buscando a melhor composição');
+    p = _crPasso(lista, modifica ? 'Aplicando a mudança na arte' : outras ? 'Buscando outros caminhos' : 'Buscando a melhor composição');
     esq = _crEsqueleto(fio.fmt); msg.after(esq);
     msg.scrollIntoView({ block: 'start', behavior: _crReduz() ? 'auto' : 'smooth' });   // o esqueleto é alto: o que fica à vista é o progresso (msg), não o fim da página
     await crFontesProntas();
@@ -3975,7 +3980,11 @@ async function crGerar(fio, conv, outras){
     p.feito(busca.avaliacoes + ' composições avaliadas em ' + busca.ms + ' ms · ' + cands.filter(c => !c.avaliacao.erros.length).length + ' aprovadas nas regras da marca');
     // A IA compõe como designer (skill §4.2): 2 composições próprias; o motor completa a 3ª
     let ia = [];
-    if(!CR_FORMATOS[fio.fmt].fixo && _crIaPronta()){
+    // Modificar: se a opção de base era composição da IA, o MESMO desenho é redesenhado com o conteúdo novo (mesma composição, outro tema/texto)
+    if(modifica && fio.base && fio.base.desenho && typeof fio.base.desenho === 'object'){
+      try{ const r = crDesenhar(crNormaliza(fio.conteudo), fio.base.desenho, 0); r.avaliacao = crAvaliar(r); if(!r.avaliacao.erros.length){ r.nota = crNota(r, r.avaliacao); ia = [r]; } }catch(err){ ia = []; }
+    }
+    if(!modifica && !CR_FORMATOS[fio.fmt].fixo && _crIaPronta()){
       p = _crPasso(lista, 'Compondo como designer');
       const pedidas0 = crMetricas.pedidas;
       try{ ia = await crDesenhos(crNormaliza(fio.conteudo), 3, fio.ideias || [], fio.ref); }catch(err){ ia = []; }
@@ -3983,7 +3992,11 @@ async function crGerar(fio, conv, outras){
       fio.ideias = (fio.ideias || []).concat(ia.map(r => r.nomeReceita));
       p.feito(ia.length ? ia.map(r => r.nomeReceita).join(' · ') : _crPorqueSemIA(pedidas0, 'compor'), !ia.length);
     }
-    let tres = ia.slice(0, 3).concat(crEscolher3(cands, fio.mostradas.concat(fio.assinaturas || []))).slice(0, 3);
+    // Modificar: a 1ª opção mantém a composição (família) da que estava escolhida; as outras variam
+    const baseRec = modifica && fio.base ? fio.base.receita : null;
+    const igual = modifica && !ia.length && baseRec ? cands.find(c => c.receita === baseRec && !c.avaliacao.erros.length) : null;
+    const fixas = ia.concat(igual ? [igual] : []);
+    let tres = fixas.concat(crEscolher3(cands, fio.mostradas.concat(fio.assinaturas || [])).filter(c => !fixas.includes(c) && c.receita !== baseRec)).slice(0, 3);
     if(!tres.length) throw new Error('nenhuma diagramação passou nas regras da marca');
 
     // 4) Juiz: os prints lado a lado com a régua, 1 rodada de ajuste
@@ -4029,7 +4042,7 @@ async function crGerar(fio, conv, outras){
     corpo.appendChild(fala);
     const f = CR_FORMATOS[opcoes[0].spec.formato];
     if(parou()) return;
-    await _crDigita(fala, (outras && fio.entregas && fio.entregas.length) ? 'Mais ' + opcoes.length + (opcoes.length > 1 ? ' caminhos, de famílias diferentes' : ' caminho, de família diferente') + ' das anteriores.'
+    await _crDigita(fala, modifica ? 'Ajustei a arte de cima (' + (fio.resumoMud || 'mudança pedida') + '). A primeira opção mantém a composição que você tinha escolhido; as outras são variações.' : (outras && fio.entregas && fio.entregas.length) ? 'Mais ' + opcoes.length + (opcoes.length > 1 ? ' caminhos, de famílias diferentes' : ' caminho, de família diferente') + ' das anteriores.'
       : ((fio.viaIA && opcoes[0].spec.resumo) ? opcoes[0].spec.resumo + ' ' : '') + 'Separei ' + opcoes.length + (opcoes.length > 1 ? ' opções' : ' opção') + ' em ' + f.nome.toLowerCase() + ': escolha uma, ajuste no editor se quiser e baixe.');
     // (Esc aqui não descarta mais: a arte já existe e o saldo já foi gasto — entrega)
     const ent = _crEntrega(fio, opcoes);
@@ -4130,7 +4143,7 @@ function _crEntrega(fio, ops){
       + '<div class="cr-leg-corpo">' + _crLegendaHtml(fio.legenda) + '</div></div>' : '');
   const botoes = () => [...el.querySelectorAll('.cr-op')];
   const escolhe = i => {
-    sel = i;
+    sel = i; fio.escolha = i;   // o harness do chat (harness.js) lê qual opção está escolhida
     botoes().forEach((b, j) => { b.classList.toggle('on', j === i); b.setAttribute('aria-checked', j === i ? 'true' : 'false'); });
     if(el.isConnected) crFaixaPinta();
   };
