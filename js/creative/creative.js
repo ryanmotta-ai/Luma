@@ -2838,7 +2838,7 @@ function _crPerguntar(corpo, perguntas, run){
     const resp = []; let i = 0, sel = 0, encerrou = false, tDesenha = 0;
     const fecha = val => {
       if(encerrou) return; encerrou = true; run.cancelar = null; crState.aoFoto = null; crState.aoTexto = null; _crPlaceholder();
-      box.classList.add('cr-some'); setTimeout(() => box.remove(), 240); resolve(val);
+      box.classList.add('cr-some'); setTimeout(() => { box.remove(); _crFocaCampo(); }, 240); resolve(val);
     };
     run.cancelar = () => fecha(null);
     const itens = () => [...box.querySelectorAll('.cr-q-op')];
@@ -2877,10 +2877,12 @@ function _crPerguntar(corpo, perguntas, run){
       crState.aoFoto = q.tipo === 'foto' ? recebeFoto : null;
       crState.perguntaLivre = q.livre !== false;
       crState.aoTexto = v => {   // o campo grande também responde: texto livre vira a resposta; senão procura a opção pelo começo do rótulo
-        if(q.livre !== false) return responde({ resposta: v, valor: v });
+        if(q.livre !== false){ responde({ resposta: v, valor: v }); return true; }
         const k = q.opcoes.findIndex(o => String(o.rotulo).toLowerCase().startsWith(v.toLowerCase()));
-        if(k >= 0){ marca(k); escolhe(k); return; }
-        box.focus(); box.classList.remove('cr-q-nao'); void box.offsetWidth; box.classList.add('cr-q-nao');   // não entendi: balança e devolve o foco às opções
+        if(k >= 0){ marca(k); escolhe(k); return true; }
+        box.focus(); box.classList.remove('cr-q-nao'); void box.offsetWidth; box.classList.add('cr-q-nao');   // não entendi: balança, devolve o foco às opções e NÃO apaga o que a pessoa escreveu
+        gToast('Escolha uma das opções acima, ou clique em Pular');
+        return false;
       };
       let ops = '', n = 0;
       if(q.tipo === 'foto') ops += op('upload', '', '<span class="cr-q-l">' + CR_ICO.foto + 'Enviar a foto</span>', 'arraste aqui, cole ou escolha o arquivo', ++n);
@@ -2970,10 +2972,13 @@ document.addEventListener('drop', e => {
 function crAutoAltura(el){ el.style.height = 'auto'; el.style.height = Math.min(160, el.scrollHeight) + 'px'; _crPodeEnviar(); }
 // Enter só envia com texto — e só quando NÃO está rodando (parar é o botão, nunca a tecla de enviar)
 // Com pergunta aberta, o campo grande responde (texto livre = resposta); devolve true se respondeu
+// Esc/erro removem o que tinha o foco: devolve ao campo para a pessoa seguir digitando
+function _crFocaCampo(){ const t = _crEl('cr-pedido'); if(t && (document.activeElement === document.body || !document.activeElement.isConnected)) t.focus({ preventScroll: true }); }
 function _crResponde(){
   const i = _crEl('cr-pedido'), v = i && i.value.trim();
   if(!v || !crState.aoTexto) return false;
-  i.value = ''; crAutoAltura(i); crState.aoTexto(v); return true;
+  if(crState.aoTexto(v) === false) return true;   // não aceita: o texto continua no campo
+  i.value = ''; crAutoAltura(i); return true;
 }
 function _crPlaceholder(){
   const ta = _crEl('cr-pedido'); if(!ta) return;
@@ -3613,7 +3618,7 @@ async function crGerar(fio, conv, outras){
   const editarPedido = { rotulo: 'Editar pedido', fn: () => { const i = _crEl('cr-pedido'); if(i && !i.value.trim()){ i.value = fio.pedido; crAutoAltura(i); _crPodeEnviar(); } if(i) i.focus(); } };
   const parou = () => {
     if(!run.parado) return false;
-    status.parar(); aviso('Interrompido.', editarPedido);
+    status.parar(); aviso('Interrompido.', editarPedido); _crFocaCampo();
     return true;
   };
   try{
@@ -3735,7 +3740,7 @@ async function crGerar(fio, conv, outras){
     corpo.appendChild(fala);
     const f = CR_FORMATOS[opcoes[0].spec.formato];
     if(parou()) return;
-    await _crDigita(fala, outras ? 'Mais ' + opcoes.length + (opcoes.length > 1 ? ' caminhos, de famílias diferentes' : ' caminho, de família diferente') + ' das anteriores.'
+    await _crDigita(fala, (outras && fio.entregas && fio.entregas.length) ? 'Mais ' + opcoes.length + (opcoes.length > 1 ? ' caminhos, de famílias diferentes' : ' caminho, de família diferente') + ' das anteriores.'
       : ((fio.viaIA && opcoes[0].spec.resumo) ? opcoes[0].spec.resumo + ' ' : '') + 'Separei ' + opcoes.length + (opcoes.length > 1 ? ' opções' : ' opção') + ' em ' + f.nome.toLowerCase() + ': escolha uma, ajuste no editor se quiser e baixe.');
     // (Esc aqui não descarta mais: a arte já existe e o saldo já foi gasto — entrega)
     const ent = _crEntrega(fio, opcoes);
@@ -3760,6 +3765,7 @@ async function crGerar(fio, conv, outras){
     console.error('[creative]', err);
     status.parar();
     if(p && p.ativo && p.ativo()){ p.feito('falhou aqui', true); p.li.classList.add('cr-falhou'); }
+    _crFocaCampo();
     const marca = /regras da marca/i.test((err && err.message) || '');
     aviso(marca ? 'Esse pedido não encaixou nas regras da marca. Mude o formato ou o texto e tente de novo.' : 'Não consegui compor a arte agora.',
       marca ? editarPedido : { rotulo: 'Tentar de novo', fn: () => { if(!crState.rodando) crGerar(fio, conv, outras || !!fio.conteudo); } }, true);   // com a copy pronta não pergunta tudo de novo

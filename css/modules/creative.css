@@ -431,7 +431,7 @@ body.cr-ocupado .cr-enviar.cr-resp .cr-enviar-para{ opacity:0; transform:scale(.
 .cr-uso-barra.cheia i{ background:var(--dm-red) }
 .cr-uso-pop .cr-uso-reg{ padding-top:8px; border-top:1px solid var(--cr-line); color:var(--cr-text3); font-size:12px }
 .cr-uso-pop .cr-uso-aviso{ color:var(--dm-orange-text); font-size:12px }
-.cr-sess-n{ min-width:16px; height:16px; padding:0 4px; display:inline-grid; place-items:center; border-radius:var(--r-pill); background:var(--cr-surf3); color:var(--cr-text2); font:700 10px/1 'Roboto',sans-serif; font-style:normal }
+.cr-sess-n{ min-width:16px; height:16px; padding:0 4px; display:inline-grid; place-items:center; border-radius:var(--r-pill); background:var(--cr-surf3); color:var(--cr-text); font:700 10px/1 'Roboto',sans-serif; font-style:normal }
 .cr-sess-n[hidden]{ display:none }
 .cr-limite{ align-self:center; padding:7px 14px; border-radius:var(--r-pill); background:var(--cr-acento-bg); color:var(--dm-orange-text); font-size:12.5px; font-weight:600; animation:crSobe var(--dur-base) var(--ease-out) backwards }
 .cr-limite[hidden]{ display:none }
