@@ -16,6 +16,7 @@ Só **dados** em `luma.templates`, por SQL no projeto `uqrqzjafhigjuvtjqzid`; ca
   - O banner, o logo e o padrão de arcos são as imagens do rascunho antigo (Storage da pasta `2316d289…`): **não apague aquele rascunho sem antes mover essas imagens**.
 - **Story do Rangos** criado (`840b4821-1148-42e3-a336-1d068ae1cc5b`), publicado.
 - **Preço de 3 dígitos bloqueia** em todas as artes de preço (a caixa do número cabe até R$ 99,90; de R$ 100,00 em diante o Local Fit bloqueia a exportação). **Validade do Almoço** em branco.
+- **Pasta Aniversário** (`284a0aa6…`), só inserts, nada existente foi alterado: **"Deliversário 15 — Grade (Feed)"** (`3a73296f-3f6b-4580-a9a7-cbb5ad4958f0`, versão feed do Grade Story) e **"Deliversário 15 — Cupom (Story)"** (`a2b8c65f-15c6-4805-8208-fde529bcb674`, derivado do Cupom Feed `204dd6db…`; campos `desconto`, `codigo`, `condicao`). Ambos publicados.
 - Rollback das artes de preço: tabela da entrada de baixo. Os templates novos nascem na versão 1 (para desfazer, apague a linha).
 
 ## 2026-10-15 — Artes de preço no padrão da referência (✅ dados, sem migration)
