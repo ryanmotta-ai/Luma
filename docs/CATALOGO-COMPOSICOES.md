@@ -4,9 +4,9 @@
 > Miniatura: o 1º pedido do banco de cada composição (texto médio, Delivery Much), montado pela busca do próprio motor.
 > Galeria completa (todas as variações do banco, com a nota): `tests/_galeria-composicoes.html`.
 
-**40 composições** · feed 16 · story 15 · carrossel 5 · inapp 2 · banner 1 · capa 1
+**50 composições** · feed 18 · story 18 · carrossel 6 · inapp 3 · banner 2 · capa 1 · emailTopo 2
 
-Clones (menor distância de planta entre duas composições do mesmo formato, no mesmo pedido; limite 0,15): carrossel 0,16 (ofertasCarrossel × cardapioCarrossel) · feed 0,17 (blocoCentral × chuvaTipografica) · story 0,21 (domingoDoce × polaroideLoja)
+Clones (menor distância de planta entre duas composições do mesmo formato, no mesmo pedido; limite 0,15): carrossel 0,16 (ofertasCarrossel × cardapioCarrossel) · feed 0,17 (blocoCentral × chuvaTipografica) · story 0,21 (domingoDoce × polaroideLoja) · banner 0,29 (bannerTexto × appBanner) · emailTopo 0,71 (avisoEmail × obrigadoEmail)
 
 ## A · Prato e oferta do dia
 
@@ -72,3 +72,23 @@ Clones (menor distância de planta entre duas composições do mesmo formato, no
 | <img src="catalogo/anosCidade.jpg" width="110" alt=""> | **Anos no círculo**<br>`anosCidade` | Aniversário da cidade (ou da loja) no feed: os anos gigantes num círculo branco, o parabéns em cima. | feed | evento | `inv/sorriso-arco.png` `inv/explosao.png` `logos/dm-h-branca.png` |
 | <img src="catalogo/calendarioStory.jpg" width="110" alt=""> | **Folha do calendário**<br>`calendarioStory` | Data comemorativa, feriado ou inauguração no story: a data numa folha de calendário e o nome dela grande embaixo. | story | evento, aviso, parceiro | `inv/estrela-amarela.png` `logos/dm-h-branca.png` |
 | <img src="catalogo/cardapioCarrossel.jpg" width="110" alt=""> | **Carrossel do cardápio**<br>`cardapioCarrossel` | Festa junina, cardápio especial ou combos da data em carrossel: a capa, o cardápio em linhas e o convite. | carrossel | evento, oferta, parceiro | `inv/seta-rabisco.png` `inv/pattern-macarrao.png` `logos/dm-h-branca.png` |
+
+## F · Operação e aviso
+
+| Miniatura | Composição | Uso | Formato | Objetivos | Assets |
+|---|---|---|---|---|---|
+| <img src="catalogo/avisoPlaca.jpg" width="110" alt=""> | **Aviso na placa branca**<br>`avisoPlaca` | Aviso de operação no feed (horário especial, mudança, pausa): o recado inteiro numa placa branca, legível de longe. | feed | aviso, evento | `inv/sorriso-arco.png` `logos/dm-h-branca.png` |
+| <img src="catalogo/avisoGigante.jpg" width="110" alt=""> | **Recado em tipografia gigante**<br>`avisoGigante` | Recado curto no story ("Estamos entregando", "Peça no app", "Abertos no feriado"): o título gigante ocupando a tela. | story | aviso, prospeccao, evento | `inv/explosao.png` `inv/sorriso-arco.png` `inv/estrela-amarela.png` `logos/dm-h-branca.png` |
+| <img src="catalogo/avisoDividido.jpg" width="110" alt=""> | **Placa amarela no alto**<br>`avisoDividido` | Aviso com data ou horário no story (feriado, horário especial) ou convite com botão: o título na placa amarela do alto, o detalhe embaixo. | story | aviso, evento, prospeccao | `logos/dm-h-laranja.png` |
+| <img src="catalogo/avisoInapp.jpg" width="110" alt=""> | **Pop-up de aviso**<br>`avisoInapp` | Aviso ou convite no pop-up do app: o recado num cartão branco no meio da tela, com o botão largo embaixo. | inapp | aviso, prospeccao, evento | `inv/explosao.png` `inv/estrela-amarela.png` `logos/dm-h-branca.png` |
+| <img src="catalogo/avisoEmail.jpg" width="110" alt=""> | **Cabeçalho do recado**<br>`avisoEmail` | Cabeçalho de email de aviso, convite ou novidade: a marca de um lado e o recado na placa amarela do outro. | emailTopo | aviso, evento, prospeccao, parceiro | `logos/dm-h-branca.png` |
+
+## G · Prospecção e comunidade
+
+| Miniatura | Composição | Uso | Formato | Objetivos | Assets |
+|---|---|---|---|---|---|
+| <img src="catalogo/baixeApp.jpg" width="110" alt=""> | **Celular à esquerda**<br>`baixeApp` | Baixe o app, peça pelo app ou benefício do app no feed: o celular grande à esquerda e o convite à direita. | feed | prospeccao, beneficio, parceiro | `inv/explosao.png` `logos/dm-h-branca.png` `inv/celular-app.png` |
+| <img src="catalogo/conviteStory.jpg" width="110" alt=""> | **Convite com o celular**<br>`conviteStory` | Seja entregador, seja parceiro ou baixe o app no story: o celular no alto, o convite e os motivos numa placa branca. | story | prospeccao | `inv/celular-app.png` `logos/dm-h-branca.png` |
+| <img src="catalogo/conviteCarrossel.jpg" width="110" alt=""> | **Carrossel do convite**<br>`conviteCarrossel` | Seja parceiro, seja entregador ou baixe o app em carrossel: o convite, os motivos em cards e o botão com o app. | carrossel | prospeccao | `inv/estrela-amarela.png` `logos/dm-h-branca.png` `inv/celular-app.png` |
+| <img src="catalogo/appBanner.jpg" width="110" alt=""> | **Banner com o celular**<br>`appBanner` | Banner da home do app para convite (baixe, peça, indique, much+): o convite à esquerda e o celular à direita. | banner | prospeccao, beneficio, parceiro | `inv/celular-app.png` |
+| <img src="catalogo/obrigadoEmail.jpg" width="110" alt=""> | **Cabeçalho centralizado**<br>`obrigadoEmail` | Cabeçalho de email de agradecimento, data ou novidade: o título grande no centro, a marca em cima e grafismos nas laterais. | emailTopo | prospeccao, evento, aviso, parceiro | `inv/sorriso-arco.png` `inv/explosao.png` `logos/dm-h-branca.png` |

@@ -1463,7 +1463,9 @@ function crGeometria(svg){
     for(let k = formas.length - 1; k >= 0; k--){ const q = formas[k]; if(q.ordem < t.ordem && px >= q.b.x0 && px <= q.b.x1 && py >= q.b.y0 && py <= q.b.y1){ f = q.cor; break; } }
     t.fundo = f || fundoArte;
   });
-  return { W, H, blocos, textos };
+  // as zonas de cor (placas, cartões, faixas) que as composições desenham por trás dos blocos
+  const zonas = [...svg.matchAll(/<rect data-zona="1" x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)"/g)].map(m => ({ x: +m[1], y: +m[2], w: +m[3], h: +m[4] }));
+  return { W, H, blocos, textos, zonas };
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1688,8 +1690,10 @@ function crNotaDesign(geo, ctx){
     const vazio = 1 - oc / grade.length;
     const sProp = a.deitado ? 1 - _crLim(Math.abs(vazio - 0.45), 0.2, 0.45) : 1 - _crLim(vazio < 0.3 ? 0.3 - vazio : vazio > 0.66 ? vazio - 0.66 : 0, 0, 0.25);
     // maior faixa horizontal vazia (o conteúdo "boiando" ou um buraco no meio)
-    // (um grafismo grande no vão não deixa a faixa vazia — a ocupação acima continua só com conteúdo)
-    const ys = cheios.concat(bs.filter(b => b.nome === 'decor' && b.w >= 120)).map(b => [Math.max(z.y0, b.y), Math.min(z.y1, b.y + b.h)]).filter(v => v[1] > v[0]).sort((u, v) => u[0] - v[0]);
+    // (um grafismo grande ou uma placa contida — cartão, placa que não sangra — no vão não deixa a faixa
+    // vazia; a faixa que sangra de ponta a ponta é fundo. A ocupação acima continua só com conteúdo.)
+    const placas = (geo.zonas || []).filter(q => q.x > 0 && q.x + q.w < L * n && q.w * q.h > 40000).map(q => ({ y: q.y, h: q.h }));
+    const ys = cheios.concat(bs.filter(b => b.nome === 'decor' && b.w >= 120), placas).map(b => [Math.max(z.y0, b.y), Math.min(z.y1, b.y + b.h)]).filter(v => v[1] > v[0]).sort((u, v) => u[0] - v[0]);
     let cur = z.y0, faixa = 0;
     ys.forEach(([y0, y1]) => { faixa = Math.max(faixa, y0 - cur); cur = Math.max(cur, y1); });
     faixa = Math.max(faixa, z.y1 - cur);
@@ -2353,9 +2357,9 @@ function crDesenhar(sp, comp, i){
     }
   });
   // todo bloco com conteúdo tem de entrar (o logo e a foto também)
-  // (no inapp o botão é o largo do formato; no banner do app a peça inteira é o toque e a capa de pasta não tem botão)
+  // (no inapp o botão é o largo do formato; no banner do app a peça inteira é o toque; capa de pasta e cabeçalho de email não têm botão)
   // (o banner mora na home do próprio app: como nas receitas de banner, o logo não é obrigatório)
-  Object.keys(tem).forEach(k => { if(!vistos.has(k) && !(k === 'cta' && (a.fmt === 'inapp' || a.fmt === 'banner' || a.fmt === 'capa')) && !(k === 'logo' && a.fmt === 'banner')) faltas.push(k); });
+  Object.keys(tem).forEach(k => { if(!vistos.has(k) && !(k === 'cta' && ['inapp', 'banner', 'capa', 'emailTopo'].indexOf(a.fmt) >= 0) && !(k === 'logo' && a.fmt === 'banner')) faltas.push(k); });
   if(a.fmt === 'inapp') pecas.push(crBotaoLargo(sp, fundo));
   let svg = '<svg xmlns="http://www.w3.org/2000/svg" data-luma="1" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '">'
     + crDefs() + (a.card ? '<rect data-fundo="1" x="' + a.card[0] + '" y="' + a.card[1] + '" width="' + a.card[2] + '" height="' + a.card[3] + '" rx="' + a.card[4] + '" fill="' + fundo + '"/>'

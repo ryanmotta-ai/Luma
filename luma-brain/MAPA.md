@@ -260,7 +260,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 87 arquivos JS (83.107 linhas, 3.236 funções) · 33 arquivos CSS (33.327 linhas) · `index.html` com 4.082 linhas e 77 `<script>`.
+**Tamanho real de hoje:** 87 arquivos JS (83.345 linhas, 3.237 funções) · 33 arquivos CSS (33.327 linhas) · `index.html` com 4.082 linhas e 77 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -709,11 +709,11 @@ CALENDÁRIO — tudo que acontece EM CIMA da grade: · Context preview — o res
 
 ### js/creative
 
-**`js/creative/composicoes.js`** · 1101 linhas
+**`js/creative/composicoes.js`** · 1335 linhas
 As composições do dia a dia do franqueado (frente 4, 15/10/2026) — desenhadas uma a uma, cada uma especialista de UM formato (nada de "serve a todos" com adaptação).
 · API: crComposicao
 
-**`js/creative/creative.js`** · 4678 linhas
+**`js/creative/creative.js`** · 4682 linhas
 Luma Creative — modo em TESTES, só a gestão (trava em main.js e na Edge Function `ai`).
 · API: crTema, crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crLockup, crTextoLinhas, crTextoMulti, crX, crTexto, crMista, crHeroi … (+97; 182 funções no total)
 · Estado global: _crFontesProm, _crCtx, _crMesa, _crPesosCuradoria, _crArrasto, _crSessTimer, _crLegendaVer
