@@ -23,6 +23,19 @@
 // e o front passa a mandar só payload.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+// Chave da API: desde a migração de projeto (10/2026) o Luma usa as chaves novas (sb_publishable_ /
+// sb_secret_), que a plataforma injeta como JSON por nome em SUPABASE_PUBLISHABLE_KEYS e
+// SUPABASE_SECRET_KEYS. As legadas (anon/service_role, JWT assinado com o segredo antigo) foram
+// desligadas no projeto novo; ficam aqui só como reserva para um projeto que ainda não as desligou.
+function chaveApi(novas: string, legada: string): string {
+  try {
+    const d = JSON.parse(Deno.env.get(novas) ?? "");
+    const v = d?.default ?? Object.values(d ?? {})[0];
+    if (typeof v === "string" && v) return v;
+  } catch { /* sem as novas: cai na legada */ }
+  return Deno.env.get(legada)!;
+}
+
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
@@ -403,7 +416,7 @@ Deno.serve(async (req) => {
     if (!chave && !reservas.length) return json({ error: "IA não configurada (falta o secret GEMINI_API_KEY)" }, 503);
 
     // 1) Quem chama? (mesmo padrão do invite-user: valida o JWT com o client anon)
-    const caller = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    const caller = createClient(Deno.env.get("SUPABASE_URL")!, chaveApi("SUPABASE_PUBLISHABLE_KEYS", "SUPABASE_ANON_KEY"), {
       global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
     });
     const { data: { user } } = await caller.auth.getUser();

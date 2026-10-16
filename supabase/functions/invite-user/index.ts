@@ -15,6 +15,19 @@
 // não confia em metadata); o UPDATE abaixo, já autorizado, define o role real.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+// Chave da API: desde a migração de projeto (10/2026) o Luma usa as chaves novas (sb_publishable_ /
+// sb_secret_), que a plataforma injeta como JSON por nome em SUPABASE_PUBLISHABLE_KEYS e
+// SUPABASE_SECRET_KEYS. As legadas (anon/service_role, JWT assinado com o segredo antigo) foram
+// desligadas no projeto novo; ficam aqui só como reserva para um projeto que ainda não as desligou.
+function chaveApi(novas: string, legada: string): string {
+  try {
+    const d = JSON.parse(Deno.env.get(novas) ?? "");
+    const v = d?.default ?? Object.values(d ?? {})[0];
+    if (typeof v === "string" && v) return v;
+  } catch { /* sem as novas: cai na legada */ }
+  return Deno.env.get(legada)!;
+}
+
 // Senha inicial compartilhada. NÃO é segurança — é credencial temporária de
 // primeiro acesso: desde 23/09/2026 o Luma OBRIGA a troca no 1º login, perguntando ao
 // banco `luma.usa_senha_inicial()`. ⚠ Mudou a senha aqui? Mude naquela função também.
@@ -33,10 +46,10 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "método não suportado" }, 405);
   try {
     const url = Deno.env.get("SUPABASE_URL")!;
-    const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const admin = createClient(url, chaveApi("SUPABASE_SECRET_KEYS", "SUPABASE_SERVICE_ROLE_KEY"));
 
     // 1) Quem chama? (valida o JWT do caller com o client anon + header)
-    const caller = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    const caller = createClient(url, chaveApi("SUPABASE_PUBLISHABLE_KEYS", "SUPABASE_ANON_KEY"), {
       global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
     });
     const { data: { user } } = await caller.auth.getUser();
