@@ -55,19 +55,28 @@ que ainda segura os secrets (2.2.1).
 ### 2.3 Três coisas suas, sem ordem — ⬜ Você
 
 1. ✅ **Schema `luma` exposto** no novo (14/10, 16h15; conferido pela API como o seu usuário).
-2. ⬜ **Dois tokens de acesso pessoal**, um por conta, na página https://supabase.com/dashboard/account/tokens
-   (Generate new token), colados no `.env` em duas linhas novas:
-   ```
-   ANTIGO_ACCESS_TOKEN=sbp_...   ← gerado logado como pedro.moraes@deliverymuch.com.br (vê o antigo)
-   NOVO_ACCESS_TOKEN=sbp_...     ← gerado logado como a conta que criou o novo (vê o novo)
-   ```
-   Com os dois eu: leio os seis secrets do `ai` no antigo e gravo no novo por um cano direto (os valores
-   não passam por mim), copio a configuração de Auth (URLs, senha mínima, e-mails) e uso a CLI no novo sem
-   depender de `supabase login` (que caiu de novo em 15/10). Ficam só no `.env`; apague os dois na mesma
-   página quando a migração acabar.
-   - ⚠ Em 14/10 você colou nos secrets do novo as **assinaturas** (64 caracteres) que o Dashboard do antigo
-     mostra, não as chaves. A `ai` no novo responde 502 até os valores reais entrarem. O Dashboard nunca mostra
-     o valor; só a API com o token.
+2. ✅ **Dois tokens de acesso pessoal** no `.env` (16/10): `ANTIGO_ACCESS_TOKEN` (conta da DM, vê o antigo) e
+   `NOVO_ACCESS_TOKEN` (conta que criou o novo). Apague os dois em https://supabase.com/dashboard/account/tokens
+   quando a migração acabar.
+   - ✅ Com eles, copiado do antigo para o novo em 16/10: **Data API** (`public, graphql_public, luma, analytics`
+     e `max_rows` 100.000 — o antigo expõe `analytics` também) e **Auth** (dos 243 campos só o Site URL
+     diferia: agora `luma-deliverymuch.vercel.app`, igual ao antigo; sem lista de redirecionamento, senha
+     mínima 6, sem SMTP próprio, templates padrão nos dois). Storage igual (limite 50 MB).
+   - ⛔ **Os seis secrets do `ai` NÃO têm como ser copiados**: o Supabase guarda só a assinatura SHA-256 e a
+     API devolve só ela (foi isso que você colou em 14/10; já tirei do novo). Os valores reais estão com quem
+     os criou (Ryan, em 23/09) ou se geram de novo em cada provedor. Ver 2.3.3.
+3. ⬜ **Valores reais dos secrets do `ai`** — peça ao Ryan, ou gere chave nova:
+   - `GEMINI_API_KEY` — **obrigatório** (sem ele a IA responde 503). Google AI Studio, https://aistudio.google.com/apikey,
+     na conta Google que o Ryan usou (a chave aparece lá) ou uma nova na conta da DM.
+   - Opcionais (reserva do `ai`; sem elas o provedor é pulado): `NVIDIA_API_KEY` e `NVIDIA2_API_KEY`
+     (https://build.nvidia.com), `OLLAMA_API_KEY` (https://ollama.com), `OPENROUTER_API_KEY`
+     (https://openrouter.ai), `CLOUDFLARE_API_KEY` (Cloudflare → API Tokens, Workers AI).
+   - Cole no arquivo `migracao\secrets.env` (já está lá, vazio, com os seis nomes) e me avise "secrets no
+     arquivo". Eu gravo no novo pela CLI, testo a IA e apago o arquivo.
+   - ⚠ **Rotacionar o JWT secret do novo** antes da virada: em 16/10 a API devolveu esse segredo numa leitura
+     minha e ele ficou impresso no chat. Dashboard do novo → Project Settings → JWT Keys (ou API → JWT
+     Settings) → Rotate / Generate new secret. Nada quebra: as chaves `sb_publishable_`/`sb_secret_` e as
+     functions não dependem dele.
 
 Se preferir não criar o token, o caminho antigo continua valendo: `supabase login` no PowerShell (conta da
 org nova) para as functions, e os itens abaixo você faz no Dashboard do novo, comparando com o antigo:
@@ -79,12 +88,10 @@ Settings (limite global ≥ 15 MB); Edge Functions → Secrets (`GEMINI_API_KEY`
 `OPENROUTER_API_KEY`, cujos valores o Dashboard do antigo **não** mostra); Project Settings → API Keys
 (me mandar a Publishable key `sb_publishable_...`).
 
-### 2.4 Com o token (e o acesso ao antigo) na mão — ⬜ Eu
+### 2.4 Feito com os tokens — ✅ Eu (16/10)
 
-1. ⬜ Copio os seis secrets do `ai` do antigo para o novo (pipeline direto, valor nenhum impresso).
-2. ⬜ Copio a configuração de Auth do antigo (Site URL, Redirect URLs, senha mínima, confirmação de e-mail,
-   SMTP, templates) e confiro o limite global do Storage. Te mostro o que ficou igual e o que a API não copia.
-3. ⬜ Se você não tiver feito o 2.3.1, exponho o `luma` pela API.
+1. ✅ Data API, Auth e Storage do novo iguais ao antigo (detalhe em 2.3.2).
+2. ⬜ Gravar os secrets reais do `ai` no novo e testar a IA — assim que o 2.3.3 chegar.
 
 ### 2.3b Decisão que é só sua — ⬜ Você
 
