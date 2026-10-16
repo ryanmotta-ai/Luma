@@ -3,7 +3,7 @@
 // Cria o bucket se não existir (com a visibilidade registrada no manifest) e faz upsert dos arquivos.
 //
 // Uso (a partir da raiz do repo, com a pasta storage-backup/ extraída de um artifact):
-//   SUPABASE_URL=https://uqrqzjafhigjuvtjqzid.supabase.co \
+//   SUPABASE_URL=https://xqsazcazsjxajmtmirzd.supabase.co \
 //   SUPABASE_SERVICE_ROLE_KEY=<service_role> \
 //   IN_DIR=./storage-backup \
 //   node scripts/restore-storage.js

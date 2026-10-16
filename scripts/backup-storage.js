@@ -3,7 +3,7 @@
 // O pg_dump NÃO cobre os arquivos do Storage — só os metadados/URLs nas tabelas. Este script fecha esse buraco.
 //
 // Uso local (Git Bash ou PowerShell), a partir da raiz do repo:
-//   SUPABASE_URL=https://uqrqzjafhigjuvtjqzid.supabase.co \
+//   SUPABASE_URL=https://xqsazcazsjxajmtmirzd.supabase.co \
 //   SUPABASE_SERVICE_ROLE_KEY=<service_role> \
 //   node scripts/backup-storage.js
 // (No PowerShell: $env:SUPABASE_URL='...'; $env:SUPABASE_SERVICE_ROLE_KEY='...'; node scripts/backup-storage.js)

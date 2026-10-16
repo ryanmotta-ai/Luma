@@ -255,7 +255,7 @@ a função no ar, os itens falhariam até serem descartados.
    `supabase secrets set TELEGRAM_BOT_TOKEN=<token> TELEGRAM_CHAT_ID=<-100…> TELEGRAM_WEBHOOK_SECRET=<segredo>`
 6. **Função.** `supabase functions deploy suporte-telegram --no-verify-jwt`
 7. **Webhook.** Configurar com o mesmo segredo:
-   `curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" -d "url=https://uqrqzjafhigjuvtjqzid.supabase.co/functions/v1/suporte-telegram" -d "secret_token=<segredo>" -d 'allowed_updates=["message","edited_message"]'`
+   `curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" -d "url=https://xqsazcazsjxajmtmirzd.supabase.co/functions/v1/suporte-telegram" -d "secret_token=<segredo>" -d 'allowed_updates=["message","edited_message"]'`
    Conferir com `getWebhookInfo` (sem `last_error_message`).
 8. **Vault.** No SQL Editor: `select vault.create_secret('<segredo>', 'luma_suporte_telegram_segredo');`
    A partir daqui, mensagem nova no Luma vai para o Telegram. O histórico anterior não vai.

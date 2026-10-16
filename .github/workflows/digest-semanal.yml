@@ -5,7 +5,7 @@ name: Relatório semanal LUMA (novos materiais)
 # e-mail individual, nunca um e-mail por material. Semana sem novidade = sem envio.
 #
 # Secrets necessários (Settings > Secrets and variables > Actions):
-#   SUPABASE_URL               -> https://uqrqzjafhigjuvtjqzid.supabase.co
+#   SUPABASE_URL               -> https://xqsazcazsjxajmtmirzd.supabase.co
 #   SUPABASE_SERVICE_ROLE_KEY  -> Project Settings > API > service_role (secreta!). Só vive aqui.
 #   SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS -> conta que envia (SENHA DE APP, nunca a pessoal)
 #   EMAIL_FROM (opcional)      -> remetente exibido; default = SMTP_USER

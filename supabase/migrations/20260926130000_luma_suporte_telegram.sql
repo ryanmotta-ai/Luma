@@ -140,7 +140,7 @@ begin
   select decrypted_secret into s from vault.decrypted_secrets where name = 'luma_suporte_telegram_segredo';
   if s is null then return; end if;
   perform net.http_post(
-    url := 'https://uqrqzjafhigjuvtjqzid.supabase.co/functions/v1/suporte-telegram',
+    url := 'https://xqsazcazsjxajmtmirzd.supabase.co/functions/v1/suporte-telegram',
     body := '{"chute":true}'::jsonb,
     headers := jsonb_build_object('Content-Type', 'application/json', 'X-Telegram-Bot-Api-Secret-Token', s),
     timeout_milliseconds := 10000);

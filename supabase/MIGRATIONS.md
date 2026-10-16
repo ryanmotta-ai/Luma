@@ -1,7 +1,7 @@
 # Migrations do Luma — estado real (conferido em 23/09/2026)
 
 > O banco é definido pelos arquivos de `supabase/migrations/`, em ordem de nome. Este arquivo diz
-> **o que está aplicado no projeto `uqrqzjafhigjuvtjqzid`** e onde o histórico do banco não
+> **o que está aplicado no projeto `xqsazcazsjxajmtmirzd`** e onde o histórico do banco não
 > bate com o repo. Conferido objeto a objeto (tabela, coluna, função, policy), não pelo nome.
 
 ## Regra

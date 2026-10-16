@@ -2,7 +2,7 @@
 
 Migrations do **LUMA standalone** (editor de artes). Front Vanilla JS falando **direto** com o Supabase via `supabase-js` no browser. Não há Next.js/Server Actions — **a RLS é a única fronteira de segurança**.
 
-Projeto atual: **`uqrqzjafhigjuvtjqzid`** (banco próprio do LUMA, separado do DM CRM).
+Projeto atual: **`xqsazcazsjxajmtmirzd`** (org DM - Inovação e IA, Pro; banco próprio do LUMA, separado do DM CRM). Até 16/10/2026 era o `uqrqzjafhigjuvtjqzid` — migração em `docs/MIGRACAO-PROJETO.md`.
 
 ## Desenhado pra fundir no DM CRM depois
 
@@ -54,7 +54,7 @@ verdade, e `apply_all.sql` **não** as inclui: ele serve pra levantar um projeto
 1. Copia `supabase/apply_all.sql` → SQL Editor do projeto → **Run**.
 2. **Settings → API → Exposed schemas:** adiciona **`luma`** e **`analytics`** (deve ficar `public, graphql_public, luma, analytics`).
 
-**Via CLI (quando o `link` funcionar):** `supabase link --project-ref uqrqzjafhigjuvtjqzid` → `supabase db push`.
+**Via CLI (quando o `link` funcionar):** `supabase link --project-ref xqsazcazsjxajmtmirzd` → `supabase db push`.
 
 ## Implicações no front (camada de dados — não UI)
 

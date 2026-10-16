@@ -4,7 +4,7 @@ name: Backup LUMA (Supabase)
 # Os backups ficam como artifacts deste workflow (retenção 90 dias).
 # Secrets necessários (Settings > Secrets and variables > Actions):
 #   SUPABASE_DB_URL            -> Connection string do Session Pooler (IPv4). Dashboard: Project Settings > Database > Connection string > Session pooler.
-#   SUPABASE_URL               -> https://uqrqzjafhigjuvtjqzid.supabase.co
+#   SUPABASE_URL               -> https://xqsazcazsjxajmtmirzd.supabase.co
 #   SUPABASE_SERVICE_ROLE_KEY  -> Project Settings > API > service_role (secreta!). Só vive aqui, nunca no front nem no repo.
 # Detalhes e procedimento de restore: docs/LUMA-BACKUP.md
 

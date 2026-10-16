@@ -1,5 +1,9 @@
 # Migração do projeto Supabase — `uqrqzjafhigjuvtjqzid` → `xqsazcazsjxajmtmirzd`
 
+> ✅ **Feita em 16/10/2026.** Este documento fica como registro do método (e para repetir numa próxima
+> migração). O que cada um fez e o que ficou pendente (chave do Gemini, pausar o antigo em 30 dias) está
+> em `migracao.md`, na raiz. A entrada do dia está no `docs/LUMA-BACKEND-CHANGELOG.md`.
+
 > Roteiro de 14/10/2026. O Luma sai do projeto Free do Ryan para o projeto da org
 > **DM - Inovação e IA** (plano Pro). Regra do roteiro: **no projeto antigo só leitura**. A troca
 > de produção é o último passo e é um commit; até lá o Luma no ar continua no antigo.

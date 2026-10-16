@@ -27,7 +27,7 @@ O Luma é uma **SPA estática que fala direto com o Supabase**. Não há servido
  └───────────────┬───────────────────────────────────────────────┘
                  │  supabase-js (vendorizado) · anon key pública
                  ▼
-        SUPABASE  (projeto uqrqzjafhigjuvtjqzid)
+        SUPABASE  (projeto xqsazcazsjxajmtmirzd)
  ┌─────────────────────────────────────────────────────────────┐
  │  AUTH (GoTrue)   API (PostgREST)   STORAGE (buckets luma-*)   │
  │        └────────────────┬───────────────────┘                │
@@ -138,7 +138,7 @@ Mapa dos pontos de entrada: `luma-brain/MAPA.md` → "Os motores únicos".
 
 ## 5. Backend
 
-**O que é.** **Supabase** (projeto `uqrqzjafhigjuvtjqzid`, plano Free) = Postgres gerenciado + Auth (GoTrue) + Storage + API auto-gerada. É um backend **próprio do Luma**, separado do Portal/CRM da DM (que é outro projeto Supabase).
+**O que é.** **Supabase** (projeto `xqsazcazsjxajmtmirzd`, org DM - Inovação e IA, plano Pro; até 16/10/2026 era o `uqrqzjafhigjuvtjqzid`, Free) = Postgres gerenciado + Auth (GoTrue) + Storage + API auto-gerada. É um backend **próprio do Luma**, separado do Portal/CRM da DM (que é outro projeto Supabase).
 
 **O que NÃO é.** ⛔ **Não há servidor de aplicação próprio** — sem Node, sem Express, sem Next. A "lógica de servidor" é **RLS + funções SQL** dentro do Postgres.
 

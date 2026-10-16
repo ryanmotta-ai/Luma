@@ -5,7 +5,7 @@
 // metade do bucket. O Estúdio passou a levar a pasta junto; este script limpa o que ficou.
 //
 // Uso (raiz do repo):
-//   SUPABASE_URL=https://uqrqzjafhigjuvtjqzid.supabase.co \
+//   SUPABASE_URL=https://xqsazcazsjxajmtmirzd.supabase.co \
 //   SUPABASE_SERVICE_ROLE_KEY=<service_role> \
 //   node scripts/limpar-assets-orfaos.js            # só lista e grava orfaos-<data>.json
 //   node scripts/limpar-assets-orfaos.js --apagar   # remove (rode scripts/backup-storage.js antes)

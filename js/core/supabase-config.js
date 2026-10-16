@@ -10,6 +10,6 @@
  * publishable), protegida pela RLS. A service_role JAMAIS entra aqui.
  */
 window.LUMA_SUPABASE = {
-  url:     'https://uqrqzjafhigjuvtjqzid.supabase.co',
-  anonKey: 'sb_publishable_FijTD7XpddpIQVlc2oaz0Q_o7DglAeu',
+  url:     'https://xqsazcazsjxajmtmirzd.supabase.co',
+  anonKey: 'sb_publishable_t0xBHNMcNk4j6yi8JRkoCw_FaDDhK3l',
 };

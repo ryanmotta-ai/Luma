@@ -1,10 +1,45 @@
 # LUMA — Changelog do Backend (Fase 5.1)
 
 > Registro de TODAS as alterações da integração com o Supabase. Atualizado a cada mudança.
-> Projeto Supabase: **`uqrqzjafhigjuvtjqzid`** (banco próprio do LUMA, separado do DM CRM).
+> Projeto Supabase: **`xqsazcazsjxajmtmirzd`** (org DM - Inovação e IA, plano Pro; banco próprio do LUMA, separado do DM CRM). Até 16/10/2026 era o `uqrqzjafhigjuvtjqzid` (Free) — os registros abaixo dessa data referem-se a ele.
 > Arquitetura: front Vanilla JS falando direto com Supabase via `supabase-js` (anon key pública) → **RLS é a única fronteira de segurança**. Schema desenhado pra **fundir no DM CRM** depois.
 
 ---
+
+## 2026-10-16 — Migração de projeto: `uqrqzjafhigjuvtjqzid` (Free, org pessoal) → `xqsazcazsjxajmtmirzd` (Pro, org DM - Inovação e IA) ✅
+
+**O que mudou para quem usa:** só o login (o token é por projeto; a senha é a mesma). Nenhum material
+republicado: templates, versões, pastas, artes, usuários e perfis vieram inteiros; os arquivos do Storage
+foram copiados bucket a bucket; as URLs públicas dentro das camadas, capas, avatares e biblioteca foram
+reescritas para o host novo (`02_reescrever_urls.sql`, zero restante na conferência).
+
+**Como foi feito** (roteiro completo em `docs/MIGRACAO-PROJETO.md`; kit em `scripts/migracao/`): ensaio
+em 14/10, ensaio geral em 16/10 de manhã, virada em 16/10 à tarde. No antigo só leitura. No novo:
+`00_limpar_novo.sql` → `supabase db dump` (roles, schema, dados com `auth.*`, histórico de migrations) →
+`psql` em transação única → `01_auth_storage_realtime.sql` (gatilho do Auth, 10 policies do Storage, 2 do
+Realtime, publicação) → `02_reescrever_urls.sql` → `scripts/migrar-storage.js` (776 arquivos de 70 pastas
+de templates apagados ficaram para trás; cache de 1 ano nos imutáveis) → `03_verificar.sql` nos dois
+projetos, iguais.
+
+**Configuração do novo** (copiada do antigo pela Management API ou deixada de propósito): Data API expõe
+`public, graphql_public, luma, analytics` com `max_rows` 100000; Auth igual (Site URL
+`luma-deliverymuch.vercel.app`, senha mínima 6, sem SMTP próprio); Storage 50 MB. **Chaves legadas
+`anon`/`service_role` desligadas e o segredo HS256 revogado**: o novo assina tokens com ES256; o front usa
+`sb_publishable_`, scripts e backup usam `sb_secret_`, e as Edge Functions `ai` e `invite-user` leem
+`SUPABASE_PUBLISHABLE_KEYS`/`SUPABASE_SECRET_KEYS` (com reserva para as legadas). Edge Functions no ar no
+novo: `ai` e `invite-user` (`suporte-telegram` nunca esteve no ar). Secrets do `ai` **não migram** (o
+Supabase guarda só o hash): `GEMINI_API_KEY` e as reservas entram quando o Ryan gerar — até lá a IA
+responde "IA não configurada".
+
+**Fora do banco:** `js/core/supabase-config.js` (URL + publishable key do novo, `?v=306`), `.mcp.json`
+(`supabase` = novo; `supabase-antigo` = antigo, para consulta por 30 dias), secrets do GitHub Actions
+(`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`) apontados para o novo. O antigo fica vivo
+30 dias e depois é pausado, não apagado. Volta atrás = `git revert` deste commit.
+
+**Dívida vista no caminho:** `service_role` não tem `USAGE` no schema `luma` (nem no antigo, nem no novo):
+scripts com a chave secreta e `.schema('luma')` dão `permission denied` (`limpar-assets-orfaos.js`,
+provavelmente `digest-semanal.py`). Resolver depois com `grant usage on schema luma to service_role` +
+grants nas tabelas.
 
 ## 2026-10-15 — Combos Coca (4 artes novas) + ajustes das artes de preço (✅ dados, sem migration)
 

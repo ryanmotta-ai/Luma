@@ -22,7 +22,7 @@ Glossário de dois mundos: um mesmo nome pode significar coisas diferentes no ne
 
 **No mundo real.** A Delivery Much é uma **rede de franquias**. A unidade é a **cidade**: cada município é operado por **um único franqueado**, com **exclusividade territorial** garantida em contrato. O franqueado é "o dono do app na sua cidade" — ele capta restaurantes, atrai usuários e faz o marketing local. A **franqueadora** (DM central, em Florianópolis) fornece a tecnologia, a marca, as campanhas nacionais e o suporte. Foco em **cidades do interior** (até ~150 mil hab).
 
-**No Luma.** A franquia/cidade **não é uma entidade rica no Luma** hoje — o Luma é single-tenant na prática (todos os franqueados veem o mesmo catálogo de campanhas publicadas). O vínculo formal franqueado↔cidade vive no **Portal / CRM da DM** (outro sistema, Supabase `gplxnzgsculryjykbcuo`, tabela `franqueado_franquias`), **não** no Luma (Supabase `uqrqzjafhigjuvtjqzid`).
+**No Luma.** A franquia/cidade **não é uma entidade rica no Luma** hoje — o Luma é single-tenant na prática (todos os franqueados veem o mesmo catálogo de campanhas publicadas). O vínculo formal franqueado↔cidade vive no **Portal / CRM da DM** (outro sistema, Supabase `gplxnzgsculryjykbcuo`, tabela `franqueado_franquias`), **não** no Luma (Supabase `xqsazcazsjxajmtmirzd`).
 
 **Regras / invariantes:**
 - ⛔ **1 franqueado por cidade.** Nunca modele "vários franqueados disputando a mesma cidade".

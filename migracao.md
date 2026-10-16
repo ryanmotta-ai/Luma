@@ -1,7 +1,7 @@
 # Migração do Supabase — o que falta, passo a passo
 
-> Checklist do Pedro. Atualizado em **16/10/2026, 11h** — **pronto para a virada**: falta só marcar a
-> janela (seção 3). A chave do Gemini (2.3.3) pode entrar depois; até lá a IA responde "IA não configurada".
+> Checklist do Pedro. Atualizado em **16/10/2026, 13h45** — **VIRADA FEITA**. O Luma no ar já aponta para
+> o projeto novo. Pendentes: avisar a equipe (3.5), fumaça (3.6), chave do Gemini (2.3.3) e a seção 4.
 > **Ensaio geral da virada feito em 16/10, 10h51** (o roteiro inteiro da seção 3.2, inclusive o
 > `00_limpar_novo.sql`): o novo ficou igual ao antigo daquele minuto, com os templates que o Ryan fez em 15/10. Projeto antigo `uqrqzjafhigjuvtjqzid`
 > (Ryan, Free) → novo `xqsazcazsjxajmtmirzd` (org "DM - Inovação e IA", Pro).
@@ -131,26 +131,20 @@ Settings (limite global ≥ 15 MB); Edge Functions → Secrets (`GEMINI_API_KEY`
 Por que refazer: o antigo continua vivo e as pessoas seguem gerando artes. O restore é cópia bruta, então
 não dá para "atualizar por cima"; no dia, o banco do novo é zerado e refeito com a foto fresca.
 
-1. ⬜ **Você** — avisa a equipe (Ryan, designers, franqueados ativos): **"durante 30 min ninguém publica,
-   gera arte nem convida usuário; depois todo mundo faz login de novo"**. Me diz "pode ir".
-2. ⬜ **Eu** — zero o novo (`00_limpar_novo.sql`: só banco e usuários; Storage e policies ficam), repito
-   dump → restore → 01 → 02 → 03, repito a cópia do Storage (só sobe o que entrou de novo), **subo de
-   novo as duas functions** se tiverem mudado e comparo com o antigo. Uns 15 min. (Ensaiado inteiro em
-   16/10: 5 min de banco + Storage, zero erro. Antes de começar, **Docker Desktop aberto**.)
-3. ⬜ **Eu** — o commit da virada na `talpaipai`: `js/core/supabase-config.js` (URL + Publishable key do
-   novo), `.mcp.json`, `.codex/config.toml`, `.env.example`, docs (`supabase/README.md`,
-   `supabase/MIGRATIONS.md`, `luma-brain/02_ARCHITECTURE.md`, `docs/LUMA.md`, cabeçalhos dos scripts,
-   comentários dos workflows, `docs/SUPORTE-TELEGRAM.md`, `presentation/CLAIMS.md`), entrada no
-   `docs/LUMA-BACKEND-CHANGELOG.md`, `?v=` subido. Push. O GitHub Pages (e a Vercel, se estiver ligada ao
-   repositório) publica sozinho.
-4. ⬜ **Eu** — **secrets do GitHub** do repositório `ryanmotta-ai/Luma` com os valores do novo
-   (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, os mesmos do `.env`). O `gh` da sua
-   máquina está logado como `pedromoraes-DM` e consegue gravar secrets (testei com um secret de mentira,
-   criado e apagado). Depois disparo o workflow **Backup** à mão e confiro que ficou verde.
-   (O `SUPABASE_DB_URL` foi atualizado hoje às 14h06, então o backup do antigo segue funcionando até lá.)
+1. ✅ **Você** — avisou a equipe em 16/10, 13h30.
+2. ✅ **Eu** — 16/10, 13h38 a 13h43: zerado o novo, dump fresco, restore, histórico, 01, 02 (495 URLs
+   reescritas, zero restante), 14 fotos novas no Storage, 03 igual ao antigo (as únicas diferenças são as
+   776 imagens órfãs deixadas para trás e 2 fotos do seu teste de 14/10 que só existem no novo). Functions
+   não mudaram desde o último deploy, não precisaram subir de novo.
+3. ✅ **Eu** — commit da virada na `talpaipai` (ver o `git log`): `supabase-config.js` no novo, `?v=306`,
+   `.mcp.json` (`supabase` = novo, `supabase-antigo` = antigo), `.codex`, `.env.example`, docs, scripts,
+   workflows, entrada no `docs/LUMA-BACKEND-CHANGELOG.md`.
+4. ✅ **Eu** — secrets do GitHub (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`) apontados
+   para o novo e workflow **Backup** disparado à mão.
 5. ⬜ **Você** — avisa a equipe: **"pode voltar; faça login de novo"**. A senha é a mesma; só a sessão cai,
    porque o token é por projeto. Quem estiver com a página aberta precisa recarregar.
-6. ⬜ **Você + Eu** — fumaça em produção: login, catálogo, gerar uma arte, IA (uma legenda), Estúdio abre.
+6. ⬜ **Você + Eu** — fumaça em produção: login, catálogo, gerar uma arte, Estúdio abre. (IA só depois da
+   chave do Gemini.)
 7. ⬜ **Você** — no Claude Code, `/mcp` → o servidor `supabase` agora aponta para o novo; autentique de
    novo se pedir.
 

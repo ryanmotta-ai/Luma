@@ -59,7 +59,7 @@ A ponte entre designer e franqueado é o **sistema de campos** (`{{produto}}`, `
 | Carregamento | `index.html` carrega 69 `<script>` em ordem; tudo global (lista em `luma-brain/MAPA.md`) |
 | Estado | Variáveis `let` globais (`fState`, `dLayers`, `dFolders`, `dVars`, `gAuthState`…) modificadas diretamente + re-render manual |
 | Persistência | **Offline-first**: localStorage é cache (boot rápido, síncrono); **Supabase é a fonte compartilhada** (cross-device). IndexedDB (`js/core/img-store.js`) como cache local de imagens grandes |
-| Backend | Supabase (projeto **`uqrqzjafhigjuvtjqzid`**, plano Free) — Postgres + Auth + Storage. Front fala direto via anon key; **RLS é a única fronteira de segurança** |
+| Backend | Supabase (projeto **`xqsazcazsjxajmtmirzd`**, org DM - Inovação e IA, plano Pro — migrado do `uqrqzjafhigjuvtjqzid` em 16/10/2026) — Postgres + Auth + Storage. Front fala direto via anon key; **RLS é a única fronteira de segurança** |
 | Render | Canvas 2D (PNG/preview), DOM absoluto (editor), SVG (export) |
 | Roda | Abrindo `index.html` no navegador (Live Server do VS Code) |
 | Repo | `github.com/ryanmotta-ai/Luma` (privado), branch `main` |
@@ -778,7 +778,7 @@ O **mascote bate embaixadinha**: uma arte base de 13×22 e um quadro montado por
 
 ## 14. BACKEND SUPABASE
 
-> Projeto **`uqrqzjafhigjuvtjqzid`** (banco próprio do Luma, plano Free — separado do DM CRM/Portal `gplxnzgsculryjykbcuo`). Toda mudança registrada em `LUMA-BACKEND-CHANGELOG.md`. Schema desenhado para eventualmente fundir com o DM CRM.
+> Projeto **`xqsazcazsjxajmtmirzd`** (banco próprio do Luma, plano Pro na org DM - Inovação e IA desde 16/10/2026; antes era o `uqrqzjafhigjuvtjqzid`, Free — separado do DM CRM/Portal `gplxnzgsculryjykbcuo`). Toda mudança registrada em `LUMA-BACKEND-CHANGELOG.md`. Schema desenhado para eventualmente fundir com o DM CRM.
 
 ### 14.1. Arquitetura
 
