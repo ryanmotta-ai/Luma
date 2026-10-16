@@ -1,7 +1,9 @@
 # Migração do Supabase — o que falta, passo a passo
 
-> Checklist do Pedro. Atualizado em **16/10/2026, tarde** — **pronto para a virada**: falta só marcar a
-> janela (seção 3). A chave do Gemini (2.3.3) pode entrar depois; até lá a IA responde "IA não configurada". Projeto antigo `uqrqzjafhigjuvtjqzid`
+> Checklist do Pedro. Atualizado em **16/10/2026, 11h** — **pronto para a virada**: falta só marcar a
+> janela (seção 3). A chave do Gemini (2.3.3) pode entrar depois; até lá a IA responde "IA não configurada".
+> **Ensaio geral da virada feito em 16/10, 10h51** (o roteiro inteiro da seção 3.2, inclusive o
+> `00_limpar_novo.sql`): o novo ficou igual ao antigo daquele minuto, com os templates que o Ryan fez em 15/10. Projeto antigo `uqrqzjafhigjuvtjqzid`
 > (Ryan, Free) → novo `xqsazcazsjxajmtmirzd` (org "DM - Inovação e IA", Pro).
 > Regra: **no antigo ninguém mexe** (só leitura). O Luma no ar continua no antigo até a virada.
 > O roteiro técnico, com todos os comandos, é o `docs/MIGRACAO-PROJETO.md`; este arquivo é só a lista
@@ -133,7 +135,8 @@ não dá para "atualizar por cima"; no dia, o banco do novo é zerado e refeito 
    gera arte nem convida usuário; depois todo mundo faz login de novo"**. Me diz "pode ir".
 2. ⬜ **Eu** — zero o novo (`00_limpar_novo.sql`: só banco e usuários; Storage e policies ficam), repito
    dump → restore → 01 → 02 → 03, repito a cópia do Storage (só sobe o que entrou de novo), **subo de
-   novo as duas functions** (o `ai` mudou em 15/10 com o Creative) e comparo com o antigo. Uns 15 min.
+   novo as duas functions** se tiverem mudado e comparo com o antigo. Uns 15 min. (Ensaiado inteiro em
+   16/10: 5 min de banco + Storage, zero erro. Antes de começar, **Docker Desktop aberto**.)
 3. ⬜ **Eu** — o commit da virada na `talpaipai`: `js/core/supabase-config.js` (URL + Publishable key do
    novo), `.mcp.json`, `.codex/config.toml`, `.env.example`, docs (`supabase/README.md`,
    `supabase/MIGRATIONS.md`, `luma-brain/02_ARCHITECTURE.md`, `docs/LUMA.md`, cabeçalhos dos scripts,
