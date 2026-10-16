@@ -2902,6 +2902,37 @@ function fCopyFallback(text, cb) {
   document.body.removeChild(ta);
 }
 
+// Story do Instagram não tem legenda: não gera nem exibe o bloco .caption-assistant-panel.
+function _fPecaEhStory(mat, fmt){
+  if(mat && (mat.fmt || (mat.w > 0 && mat.h > 0)) && typeof _fKitEhStory === 'function') return _fKitEhStory(mat);
+  return !!(fmt && fmt.id === 'story');
+}
+function _fCaptionInnerHTML(canvasId, suggestions){
+  const temAlt = suggestions.length > 1;
+  return `<header class="caption-card-head">
+        <div class="caption-card-heads">
+          <h4 class="caption-card-title">Legenda pronta</h4>
+          <p class="caption-card-sub">Copie e publique junto com a arte.</p>
+        </div>
+        ${_fCaptionSrcTag(suggestions)}
+      </header>
+      <div class="caption-content-box" id="caption-content-${canvasId}">
+        ${_fLegendaHTML(suggestions[0].text)}
+      </div>
+      <footer class="caption-card-foot">
+        ${temAlt ? `<button type="button" class="caption-alt-btn" onclick="fCycleCaption('${canvasId}')" title="Trocar por outra sugestão de legenda">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Gerar outra sugestão
+        </button>` : '<span></span>'}
+        <button type="button" class="caption-copy-btn" onclick="fCopyCaption('${canvasId}')" title="Copiar legenda">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          Copiar legenda
+        </button>
+      </footer>`;
+}
 // Texto da legenda ativa de uma bolha de arte (para copiar junto no download / compartilhar).
 function _fActiveCaptionText(snapId){
   const caps=_fArtCaptions[snapId]; if(!caps||!caps.length) return '';
@@ -2966,42 +2997,25 @@ function fGerarArte(){
        série, gírias + legenda). O franqueado do interior ficava olhando "Gerando sua arte
        agora…" com a arte pronta em memória.
        Agora a bolha nasce com a legenda do MOTOR LOCAL (síncrona, sempre boa o bastante) e
-       a versão da IA entra por cima quando chega — `_fAplicarLegendaIA` faz a troca. */
-    const suggestions = fGenCaptionSuggestions(d, c, fState.fmt);
+       a versão da IA entra por cima quando chega — `_fAplicarLegendaIA` faz a troca.
+       Story do Instagram não tem legenda: não gera nem exibe o card, mas mantém a `<section
+       class="caption-assistant-panel" data-canvas-id="..." hidden>` no DOM porque o palco
+       (`_fPostedCardAtual` em live-preview.js) localiza a bolha ativa por esse seletor. */
+    const semLegenda = _fPecaEhStory(fState.material, fState.fmt);
+    const suggestions = semLegenda ? [] : fGenCaptionSuggestions(d, c, fState.fmt);
     suggestions._ia = false;
     _fArtCaptions[previewCanvasId] = suggestions;
-    fTrackLegenda('legenda_gerada', previewCanvasId, {n:suggestions.length});
-    const _legendaIA = fFetchAICaptionSuggestions(d, c, fState.fmt);
+    if (!semLegenda) fTrackLegenda('legenda_gerada', previewCanvasId, {n:suggestions.length});
+    const _legendaIA = semLegenda ? null : fFetchAICaptionSuggestions(d, c, fState.fmt);
 
     // ENTREGA FINAL, parte 2 de 3: a legenda. Card editorial (título + selo de origem +
     // descrição curta + bloco de texto) em vez da textarea com chips Promo/Engajar/WhatsApp:
     // o franqueado copia e publica, não escolhe taxonomia. As 3 variações continuam sendo
     // geradas — viraram o "Gerar outra sugestão" discreto no rodapé do card.
-    const temAlt = suggestions.length > 1;
-    const captionHtml = `<section class="caption-assistant-panel" data-canvas-id="${previewCanvasId}" data-active-tab="${suggestions[0].id}">
-      <header class="caption-card-head">
-        <div class="caption-card-heads">
-          <h4 class="caption-card-title">Legenda pronta</h4>
-          <p class="caption-card-sub">Copie e publique junto com a arte.</p>
-        </div>
-        ${_fCaptionSrcTag(suggestions)}
-      </header>
-      <div class="caption-content-box" id="caption-content-${previewCanvasId}">
-        ${_fLegendaHTML(suggestions[0].text)}
-      </div>
-      <footer class="caption-card-foot">
-        ${temAlt ? `<button type="button" class="caption-alt-btn" onclick="fCycleCaption('${previewCanvasId}')" title="Trocar por outra sugestão de legenda">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          Gerar outra sugestão
-        </button>` : '<span></span>'}
-        <button type="button" class="caption-copy-btn" onclick="fCopyCaption('${previewCanvasId}')" title="Copiar legenda">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-          </svg>
-          Copiar legenda
-        </button>
-      </footer>
+    const captionHtml = semLegenda
+      ? `<section class="caption-assistant-panel" data-canvas-id="${previewCanvasId}" hidden></section>`
+      : `<section class="caption-assistant-panel" data-canvas-id="${previewCanvasId}" data-active-tab="${suggestions[0].id}">
+      ${_fCaptionInnerHTML(previewCanvasId, suggestions)}
     </section>`;
 
     // Se há material publicado, renderiza preview real via canvas; senão, fallback HTML
@@ -3112,12 +3126,14 @@ function fGerarArte(){
     /* O card mais recente é a fonte do "pronta/ajustar" do cabeçalho (`fUpdateProg`): o
        `fUpdateProg` do início do `fGerarArte` rodou quando o card VELHO ainda era o último. */
     try{ fUpdateProg(); }catch(e){}
-    _fLegendaEsperar(previewCanvasId);
-    _legendaIA.then(sug => {
-        _fLegendaFimEspera(previewCanvasId, !(sug && sug._ia && sug.length));
-        _fAplicarLegendaIA(previewCanvasId, sug);
-      }).catch(() => _fLegendaFimEspera(previewCanvasId, true))
-      .then(() => fGiriasPainel(previewCanvasId)).catch(()=>{});
+    if (_legendaIA) {
+      _fLegendaEsperar(previewCanvasId);
+      _legendaIA.then(sug => {
+          _fLegendaFimEspera(previewCanvasId, !(sug && sug._ia && sug.length));
+          _fAplicarLegendaIA(previewCanvasId, sug);
+        }).catch(() => _fLegendaFimEspera(previewCanvasId, true))
+        .then(() => fGiriasPainel(previewCanvasId)).catch(()=>{});
+    }
     // Renderiza canvas thumbnail real
     if(hasMaterial){
       try {
@@ -3220,24 +3236,36 @@ async function fOutroFormato(id, snapId){
      o chat ficava no limbo. E ela falhava SEMPRE: `gAI.isEnabled` não existe no gateway
      (ai-client.js), então a checagem estourava. Agora a legenda do motor local entra na hora
      e a da IA, se vier, entra por cima (`_fAplicarLegendaIA`) — sem poder travar a geração. */
-  const suggestions = fGenCaptionSuggestions(snap.dados, snap.camp, f);
+  const semLegenda = _fPecaEhStory(snap.material && snap.material.fmt ? snap.material : null, f);
+  const suggestions = semLegenda ? [] : fGenCaptionSuggestions(snap.dados, snap.camp, f);
   suggestions._ia = false;
   _fArtCaptions[snapId] = suggestions;
-  fTrackLegenda('legenda_gerada', snapId, {n:suggestions.length, outro_formato:true});
-  Promise.resolve().then(()=>fFetchAICaptionSuggestions(snap.dados, snap.camp, f))
-    .then(sug=>{ _fLegendaFimEspera(snapId, !(sug && sug._ia && sug.length)); _fAplicarLegendaIA(snapId, sug); })
-    .catch(()=>_fLegendaFimEspera(snapId, true));
+  if (!semLegenda) {
+    fTrackLegenda('legenda_gerada', snapId, {n:suggestions.length, outro_formato:true});
+    Promise.resolve().then(()=>fFetchAICaptionSuggestions(snap.dados, snap.camp, f))
+      .then(sug=>{ _fLegendaFimEspera(snapId, !(sug && sug._ia && sug.length)); _fAplicarLegendaIA(snapId, sug); })
+      .catch(()=>_fLegendaFimEspera(snapId, true));
+  }
 
   // Atualiza a UI se o card correspondente estiver no DOM
   const panel = document.querySelector(`.caption-assistant-panel[data-canvas-id="${snapId}"]`);
   if (panel) {
-    // Mantém a variação que o franqueado já estava lendo, agora com o texto do novo formato
-    fSetCaption(snapId, panel.dataset.activeTab || suggestions[0].id);
-
-    // Origem pode mudar entre formatos (a IA pode falhar só numa das chamadas)
-    const srcOld = panel.querySelector('.caption-src');
-    if (srcOld) srcOld.outerHTML = _fCaptionSrcTag(suggestions);
-    _fLegendaEsperar(snapId);
+    if (semLegenda) {
+      panel.hidden = true;
+    } else {
+      panel.hidden = false;
+      if (!panel.querySelector('.caption-content-box')) {
+        panel.dataset.activeTab = suggestions[0].id;
+        panel.innerHTML = _fCaptionInnerHTML(snapId, suggestions);
+      } else {
+        // Mantém a variação que o franqueado já estava lendo, agora com o texto do novo formato
+        fSetCaption(snapId, panel.dataset.activeTab || suggestions[0].id);
+        // Origem pode mudar entre formatos (a IA pode falhar só numa das chamadas)
+        const srcOld = panel.querySelector('.caption-src');
+        if (srcOld) srcOld.outerHTML = _fCaptionSrcTag(suggestions);
+      }
+      _fLegendaEsperar(snapId);
+    }
 
     // Atualiza a fileira de formatos secundários (.fmt-mini) no card correspondente
     const card = panel.closest('.art-wrap');

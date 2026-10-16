@@ -423,7 +423,7 @@ function crPreco(x, y, por, larg, fill, big0){
 ══════════════════════════════════════════════════════════════ */
 const CR_FORMATOS = {
   feed:    { nome: 'Feed',  desc: '1080 × 1350, post no perfil', h: 1350, top: 80,  base: 1250, fim: 1270, seguroTopo: 60,  seguroBase: 1290 },
-  story:   { nome: 'Story', desc: '1080 × 1920, tela cheia',     h: 1920, top: 290, base: 1640, fim: 1660, seguroTopo: 250, seguroBase: 1670 },
+  story:   { nome: 'Story', desc: '1080 × 1920, tela cheia',     h: 1920, top: 290, base: 1640, fim: 1660, seguroTopo: 250, seguroBase: 1670, legenda: false },
   inapp:   { nome: 'Inapp', desc: '1080 × 1920, pop-up no app',  h: 1920, top: 140, base: 1560, fim: 1600, seguroTopo: 100, seguroBase: 1830, social: false },
   banner:  { nome: 'Banner do app', desc: '764 × 204, carrossel da home', w: 764, h: 204, m: 23, seguroTopo: 0, seguroBase: 204, piso: 20, heroi: 30, heroiMax: 62, preco: 40, png: 2, deitado: true, social: false, card: [23, 9, 730, 175, 30] },
   emailTopo:   { nome: 'Cabeçalho de email', desc: '1080 × 300, topo do email', h: 300, m: 40, seguroTopo: 20, seguroBase: 280, piso: 28, heroi: 56, heroiMax: 92, preco: 64, deitado: true, social: false },
@@ -434,6 +434,7 @@ const CR_FORMATOS = {
   carrossel: { nome: 'Carrossel', desc: '3 lâminas de 1080 × 1350, post', w: 3240, h: 1350, m: 100, seguroTopo: 60, seguroBase: 1290, laminas: 3, deitado: true, heroi: 80, heroiMax: 300, preco: 96 },
   slide:   { nome: 'Slide', desc: '1920 × 1080, apresentação', w: 1920, h: 1080, m: 120, seguroTopo: 60, seguroBase: 1020, piso: 28, heroi: 60, heroiMax: 140, preco: 96, deitado: true, social: false }
 };
+const _crTemLegenda = fmt => !!(CR_FORMATOS[fmt] && CR_FORMATOS[fmt].social !== false && CR_FORMATOS[fmt].legenda !== false);
 function crArea(fmt){
   const k = CR_FORMATOS[fmt] ? fmt : 'feed', f = CR_FORMATOS[k];
   return { fmt: k, W: f.w || CR_W, H: f.h, M: f.m || CR_M, top: f.top, base: f.base, fim: f.fim, seguroTopo: f.seguroTopo, seguroBase: f.seguroBase,
@@ -4078,7 +4079,7 @@ async function crGerar(fio, conv, outras){
     consumiu = !prov; crState.modeloRun = prov ? null : modelo; crState.provRun = prov;
     if(parou()) return;
     const modifica = fio.modo === 'modificar';   // harness: altera a arte de cima — conteúdo já pronto, sem briefing nem copy
-    if(modifica){ fio.legenda = null; fio.legProm = CR_FORMATOS[fio.fmt].social === false ? Promise.resolve([]) : crLegenda(Object.assign(crNormaliza(fio.conteudo), { pedido: fio.pedido })); }
+    if(modifica){ fio.legenda = null; fio.legProm = !_crTemLegenda(fio.fmt) ? Promise.resolve([]) : crLegenda(Object.assign(crNormaliza(fio.conteudo), { pedido: fio.pedido })); }
     if(!outras && !modifica){
       // 1) Briefing: entende o pedido e pergunta só o que muda a arte
       p = _crPasso(lista, 'Entendendo o pedido');
@@ -4125,8 +4126,8 @@ async function crGerar(fio, conv, outras){
       fio.conteudo = bruto;
       const sp0 = crNormaliza(bruto);
       p.feito([sp0.palavra, sp0.titulo].filter(Boolean).join(' ') + (sp0.precoPor ? ' · R$ ' + sp0.precoPor : '') + (fio.tirou && fio.tirou.length ? ' · tirei o que o pedido não disse (' + fio.tirou.map(k => CR_CAMPO_DITO[k] || k).join(', ') + ')' : '') + (fio.viaIA ? ' · IA' : ' · motor local' + (prov && typeof gProvUltimoErro === 'string' && gProvUltimoErro ? ' — ' + gProvUltimoErro : '')));
-      // a legenda corre em paralelo e chega junto — só para post (inapp, banner, email, capa e slide não têm)
-      fio.legProm = CR_FORMATOS[sp0.formato].social === false ? Promise.resolve([]) : crLegenda(Object.assign(sp0, { pedido: fio.pedido }));
+      // a legenda corre em paralelo e chega junto — só para post de feed/carrossel (story, inapp, banner, email, capa e slide não têm)
+      fio.legProm = !_crTemLegenda(sp0.formato) ? Promise.resolve([]) : crLegenda(Object.assign(sp0, { pedido: fio.pedido }));
     }
 
     // 3) Diagramação: a busca (frente 2) percorre as famílias que servem e os parâmetros de cada
@@ -4195,7 +4196,7 @@ async function crGerar(fio, conv, outras){
     if(parou()) return;
 
     // 5) Legenda (uma, bem escrita)
-    if(fio.legenda == null && CR_FORMATOS[fio.fmt].social === false) fio.legenda = '';
+    if(fio.legenda == null && !_crTemLegenda(fio.fmt)) fio.legenda = '';
     if(fio.legenda == null){
       p = _crPasso(lista, 'Escrevendo a legenda do post');
       const leg = await fio.legProm;
