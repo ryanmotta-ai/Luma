@@ -1,6 +1,7 @@
 # Migração do Supabase — o que falta, passo a passo
 
-> Checklist do Pedro. Atualizado em **16/10/2026, manhã** (status: falta só o que está em ⬜ nas seções 2.3, 2.5 e 3). Projeto antigo `uqrqzjafhigjuvtjqzid`
+> Checklist do Pedro. Atualizado em **16/10/2026, tarde** — **pronto para a virada**: falta só marcar a
+> janela (seção 3). A chave do Gemini (2.3.3) pode entrar depois; até lá a IA responde "IA não configurada". Projeto antigo `uqrqzjafhigjuvtjqzid`
 > (Ryan, Free) → novo `xqsazcazsjxajmtmirzd` (org "DM - Inovação e IA", Pro).
 > Regra: **no antigo ninguém mexe** (só leitura). O Luma no ar continua no antigo até a virada.
 > O roteiro técnico, com todos os comandos, é o `docs/MIGRACAO-PROJETO.md`; este arquivo é só a lista
@@ -65,7 +66,10 @@ que ainda segura os secrets (2.2.1).
    - ⛔ **Os seis secrets do `ai` NÃO têm como ser copiados**: o Supabase guarda só a assinatura SHA-256 e a
      API devolve só ela (foi isso que você colou em 14/10; já tirei do novo). Os valores reais estão com quem
      os criou (Ryan, em 23/09) ou se geram de novo em cada provedor. Ver 2.3.3.
-3. ⬜ **Valores reais dos secrets do `ai`** — peça ao Ryan, ou gere chave nova:
+3. ⬜ **Valores reais dos secrets do `ai`** — quem gera é o Ryan (não trava a virada: pode entrar depois;
+   até lá a IA do Luma responde "IA não configurada", o resto funciona). Ele pode te passar o valor para
+   colar no arquivo abaixo, ou, se tiver acesso ao projeto novo, gravar direto no Dashboard dele
+   (Edge Functions → Secrets):
    - `GEMINI_API_KEY` — **obrigatório** (sem ele a IA responde 503). Google AI Studio, https://aistudio.google.com/apikey,
      na conta Google que o Ryan usou (a chave aparece lá) ou uma nova na conta da DM.
    - Opcionais (reserva do `ai`; sem elas o provedor é pulado): `NVIDIA_API_KEY` e `NVIDIA2_API_KEY`
@@ -103,10 +107,8 @@ Settings (limite global ≥ 15 MB); Edge Functions → Secrets (`GEMINI_API_KEY`
 
 ### 2.4 Limpeza antes de tirar a foto final — ⬜ Você
 
-- ⬜ **Você** — no Estúdio do Luma **no ar** (projeto antigo), exclua as duas pastas de demo que subiram por
-  engano em 14/10: **"Hamburguer Fest"** e **"Ofertas Favoritas"** (2 materiais publicados cada). Tem que
-  ser pelo Estúdio, não pelo banco: se eu apagar no banco, o seu navegador sobe de novo. Fazendo isso
-  antes da virada, elas nem viajam para o novo.
+- ✅ **Ryan** — excluiu pelo Estúdio, em 16/10, as duas pastas de demo ("Hamburguer Fest" e "Ofertas
+  Favoritas"). Conferido no banco do antigo: não existem mais.
 
 ### 2.5 Teste local, sem commit — ⬜ Eu, depois ⬜ Você
 
@@ -116,8 +118,8 @@ Settings (limite global ≥ 15 MB); Edge Functions → Secrets (`GEMINI_API_KEY`
 2. ✅ **Você** — 14/10, 16h28: login com a senha de sempre, catálogo, **2 artes geradas com foto** (2 uploads
    em `luma-user-uploads`) e **1 feedback de campanha**, tudo gravado no projeto **novo** e nada no antigo.
    Conferido no banco dos dois.
-   ⬜ Falta passar por: **Estúdio** (publicar um material de teste e excluir) e **suporte** (abrir a
-   conversa). A IA (legenda, encurtar) só depois dos secrets.
+   ✅ 16/10: **Estúdio** (publicar um material de teste e excluir) e **suporte** também passaram. A IA
+   (legenda, encurtar) só depois da chave do Gemini.
 3. O que você publicar de teste no novo some sozinho na virada (o banco do novo é zerado e refeito).
 
 ---
