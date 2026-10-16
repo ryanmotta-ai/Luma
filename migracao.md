@@ -1,6 +1,6 @@
 # Migração do Supabase — o que falta, passo a passo
 
-> Checklist do Pedro. Atualizado em **14/10/2026, 15h**. Projeto antigo `uqrqzjafhigjuvtjqzid`
+> Checklist do Pedro. Atualizado em **16/10/2026, manhã** (status: falta só o que está em ⬜ nas seções 2.3, 2.5 e 3). Projeto antigo `uqrqzjafhigjuvtjqzid`
 > (Ryan, Free) → novo `xqsazcazsjxajmtmirzd` (org "DM - Inovação e IA", Pro).
 > Regra: **no antigo ninguém mexe** (só leitura). O Luma no ar continua no antigo até a virada.
 > O roteiro técnico, com todos os comandos, é o `docs/MIGRACAO-PROJETO.md`; este arquivo é só a lista
@@ -55,18 +55,19 @@ que ainda segura os secrets (2.2.1).
 ### 2.3 Três coisas suas, sem ordem — ⬜ Você
 
 1. ✅ **Schema `luma` exposto** no novo (14/10, 16h15; conferido pela API como o seu usuário).
-2. ⬜ **Token de acesso pessoal** da conta nova: https://supabase.com/dashboard/account/tokens → Generate new
-   token, nome `migracao-luma` → cole no `.env` numa linha nova `SUPABASE_ACCESS_TOKEN=sbp_...`. Com ele eu
-   copio a configuração de Auth (URLs, senha mínima, e-mails) e, se a conta vir o antigo, os secrets. Fica
-   só no `.env` (ignorado pelo git); apague o token quando a migração acabar.
-3. ⬜ **Dar à conta nova acesso ao projeto antigo**, para eu copiar os seis secrets do `ai` sem os valores
-   passarem por mim: no Dashboard **logado como `pedro.moraes@deliverymuch.com.br`** → org pessoal →
-   **Team → Invite** → e-mail da conta nova, papel **Owner** → aceite o convite no e-mail. Me diga qual é
-   esse e-mail.
-   - Sem isso, o plano B é você mesmo criar os secrets no Dashboard do novo (Edge Functions → Secrets) com
-     os valores que tiver: `GEMINI_API_KEY` (obrigatório), `NVIDIA_API_KEY`, `NVIDIA2_API_KEY`,
-     `OLLAMA_API_KEY`, `OPENROUTER_API_KEY`, `CLOUDFLARE_API_KEY` (os seis que existem no antigo; não há
-     `CLOUDFLARE_ACCOUNT_ID`, o `ai` descobre sozinho). O Dashboard do antigo mostra só os nomes.
+2. ⬜ **Dois tokens de acesso pessoal**, um por conta, na página https://supabase.com/dashboard/account/tokens
+   (Generate new token), colados no `.env` em duas linhas novas:
+   ```
+   ANTIGO_ACCESS_TOKEN=sbp_...   ← gerado logado como pedro.moraes@deliverymuch.com.br (vê o antigo)
+   NOVO_ACCESS_TOKEN=sbp_...     ← gerado logado como a conta que criou o novo (vê o novo)
+   ```
+   Com os dois eu: leio os seis secrets do `ai` no antigo e gravo no novo por um cano direto (os valores
+   não passam por mim), copio a configuração de Auth (URLs, senha mínima, e-mails) e uso a CLI no novo sem
+   depender de `supabase login` (que caiu de novo em 15/10). Ficam só no `.env`; apague os dois na mesma
+   página quando a migração acabar.
+   - ⚠ Em 14/10 você colou nos secrets do novo as **assinaturas** (64 caracteres) que o Dashboard do antigo
+     mostra, não as chaves. A `ai` no novo responde 502 até os valores reais entrarem. O Dashboard nunca mostra
+     o valor; só a API com o token.
 
 Se preferir não criar o token, o caminho antigo continua valendo: `supabase login` no PowerShell (conta da
 org nova) para as functions, e os itens abaixo você faz no Dashboard do novo, comparando com o antigo:
@@ -119,8 +120,8 @@ não dá para "atualizar por cima"; no dia, o banco do novo é zerado e refeito 
 1. ⬜ **Você** — avisa a equipe (Ryan, designers, franqueados ativos): **"durante 30 min ninguém publica,
    gera arte nem convida usuário; depois todo mundo faz login de novo"**. Me diz "pode ir".
 2. ⬜ **Eu** — zero o novo (`00_limpar_novo.sql`: só banco e usuários; Storage e policies ficam), repito
-   dump → restore → 01 → 02 → 03, repito a cópia do Storage (só sobe o que entrou de novo) e comparo
-   com o antigo. Uns 15 min.
+   dump → restore → 01 → 02 → 03, repito a cópia do Storage (só sobe o que entrou de novo), **subo de
+   novo as duas functions** (o `ai` mudou em 15/10 com o Creative) e comparo com o antigo. Uns 15 min.
 3. ⬜ **Eu** — o commit da virada na `talpaipai`: `js/core/supabase-config.js` (URL + Publishable key do
    novo), `.mcp.json`, `.codex/config.toml`, `.env.example`, docs (`supabase/README.md`,
    `supabase/MIGRATIONS.md`, `luma-brain/02_ARCHITECTURE.md`, `docs/LUMA.md`, cabeçalhos dos scripts,
