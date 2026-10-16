@@ -140,7 +140,7 @@ não dá para "atualizar por cima"; no dia, o banco do novo é zerado e refeito 
    `.mcp.json` (`supabase` = novo, `supabase-antigo` = antigo), `.codex`, `.env.example`, docs, scripts,
    workflows, entrada no `docs/LUMA-BACKEND-CHANGELOG.md`.
 4. ✅ **Eu** — secrets do GitHub (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`) apontados
-   para o novo e workflow **Backup** disparado à mão.
+   para o novo; workflow **Backup** rodado à mão em 16/10, 13h44, **verde** (banco + Storage do novo).
 5. ⬜ **Você** — avisa a equipe: **"pode voltar; faça login de novo"**. A senha é a mesma; só a sessão cai,
    porque o token é por projeto. Quem estiver com a página aberta precisa recarregar.
 6. ⬜ **Você + Eu** — fumaça em produção: login, catálogo, gerar uma arte, Estúdio abre. (IA só depois da
