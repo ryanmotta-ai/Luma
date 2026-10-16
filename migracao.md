@@ -73,17 +73,13 @@ que ainda segura os secrets (2.2.1).
      (https://openrouter.ai), `CLOUDFLARE_API_KEY` (Cloudflare → API Tokens, Workers AI).
    - Cole no arquivo `migracao\secrets.env` (já está lá, vazio, com os seis nomes) e me avise "secrets no
      arquivo". Eu gravo no novo pela CLI, testo a IA e apago o arquivo.
-4. ⬜ **Desligar as chaves legadas e revogar o segredo vazado** (dois cliques, reversíveis). Contexto: em
-   16/10 a API devolveu o JWT secret legado do novo numa leitura minha e ele ficou impresso no chat. O novo
-   já assina tokens com uma chave nova (ES256) desde a criação; esse segredo só sustenta as chaves
-   `anon`/`service_role` antigas, que **nada no Luma usa mais**: o front usa `sb_publishable_`, o `.env` e o
-   backup usam `sb_secret_`, e as duas functions passaram a usar as chaves novas em 16/10 (deploy feito,
-   testado). Logado como a conta nova:
-   1. https://supabase.com/dashboard/project/xqsazcazsjxajmtmirzd/settings/api-keys → na parte das chaves
-      **legadas** (`anon` e `service_role`), clique em **Disable legacy API keys** e confirme.
-   2. https://supabase.com/dashboard/project/xqsazcazsjxajmtmirzd/settings/jwt → na lista de chaves, a
-      **HS256 / Legacy JWT secret** aparece como "Previously used" → menu dela → **Revoke** → confirme.
-   Me avise que eu confiro em segundos (functions, catálogo e Storage continuam respondendo).
+4. ✅ **Chaves legadas desligadas e segredo vazado revogado** (16/10). Contexto: a API devolveu o JWT
+   secret legado do novo numa leitura minha e ele ficou impresso no chat. O novo já assinava tokens com
+   chave ES256 desde a criação; o segredo HS256 só sustentava as chaves `anon`/`service_role` antigas.
+   Feito: functions `ai` e `invite-user` passaram a usar as chaves novas (`SUPABASE_PUBLISHABLE_KEYS` /
+   `SUPABASE_SECRET_KEYS`, com reserva para as legadas no antigo; commit `8d3d562`), você desligou as
+   legadas e revogou a HS256. Conferido depois: functions, REST como usuário, chave pública e Storage
+   público respondendo. O segredo vazado não serve para mais nada.
 
 Se preferir não criar o token, o caminho antigo continua valendo: `supabase login` no PowerShell (conta da
 org nova) para as functions, e os itens abaixo você faz no Dashboard do novo, comparando com o antigo:
