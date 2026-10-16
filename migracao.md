@@ -73,10 +73,17 @@ que ainda segura os secrets (2.2.1).
      (https://openrouter.ai), `CLOUDFLARE_API_KEY` (Cloudflare → API Tokens, Workers AI).
    - Cole no arquivo `migracao\secrets.env` (já está lá, vazio, com os seis nomes) e me avise "secrets no
      arquivo". Eu gravo no novo pela CLI, testo a IA e apago o arquivo.
-   - ⚠ **Rotacionar o JWT secret do novo** antes da virada: em 16/10 a API devolveu esse segredo numa leitura
-     minha e ele ficou impresso no chat. Dashboard do novo → Project Settings → JWT Keys (ou API → JWT
-     Settings) → Rotate / Generate new secret. Nada quebra: as chaves `sb_publishable_`/`sb_secret_` e as
-     functions não dependem dele.
+4. ⬜ **Desligar as chaves legadas e revogar o segredo vazado** (dois cliques, reversíveis). Contexto: em
+   16/10 a API devolveu o JWT secret legado do novo numa leitura minha e ele ficou impresso no chat. O novo
+   já assina tokens com uma chave nova (ES256) desde a criação; esse segredo só sustenta as chaves
+   `anon`/`service_role` antigas, que **nada no Luma usa mais**: o front usa `sb_publishable_`, o `.env` e o
+   backup usam `sb_secret_`, e as duas functions passaram a usar as chaves novas em 16/10 (deploy feito,
+   testado). Logado como a conta nova:
+   1. https://supabase.com/dashboard/project/xqsazcazsjxajmtmirzd/settings/api-keys → na parte das chaves
+      **legadas** (`anon` e `service_role`), clique em **Disable legacy API keys** e confirme.
+   2. https://supabase.com/dashboard/project/xqsazcazsjxajmtmirzd/settings/jwt → na lista de chaves, a
+      **HS256 / Legacy JWT secret** aparece como "Previously used" → menu dela → **Revoke** → confirme.
+   Me avise que eu confiro em segundos (functions, catálogo e Storage continuam respondendo).
 
 Se preferir não criar o token, o caminho antigo continua valendo: `supabase login` no PowerShell (conta da
 org nova) para as functions, e os itens abaixo você faz no Dashboard do novo, comparando com o antigo:
