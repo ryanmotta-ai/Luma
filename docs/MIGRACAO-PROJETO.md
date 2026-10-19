@@ -147,7 +147,9 @@ supabase secrets set --project-ref xqsazcazsjxajmtmirzd --env-file migracao\secr
 Nomes que o `ai` lê (desde 19/10/2026): `GEMINI_API_KEY`, `GEMINI2_API_KEY`, `GEMINI3_API_KEY` (três
 cotas do AI Studio; em 429 a function troca de chave e repete o modelo), `NVIDIA_API_KEY`, `NVIDIA2_API_KEY`,
 `OLLAMA_API_KEY`, `CLOUDFLARE_API_KEY` (+ `CLOUDFLARE_ACCOUNT_ID` opcional), `OPENROUTER_API_KEY` e
-`OPENROUTER2_API_KEY` (um modelo por chave). Ausente = pulado.
+`OPENROUTER2_API_KEY` (um modelo por chave). Ausente = pulado. Desde a v14 (19/10) a function aceita
+também os nomes com que as chaves foram cadastradas no Dashboard do novo: `GEMINI_KEY1`/`2`/`3`,
+`NVIDIA_KEY`, `OPENROUTER_KEY1`, `OPEN_ROUTERKEY2` (helper `env(...nomes)`).
 
 O que o antigo tem no ar (conferido em 14/10): **só `ai` (v23, de 30/09) e `invite-user` (v13)**, as
 duas com `verify_jwt = true`. `suporte-telegram` nunca foi publicada nem a migration dela aplicada —

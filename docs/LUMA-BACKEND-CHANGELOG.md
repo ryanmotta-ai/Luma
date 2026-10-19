@@ -6,7 +6,7 @@
 
 ---
 
-## 2026-10-19 — Edge Function `ai`: três chaves Gemini e segunda do OpenRouter (⬜ deploy e secrets pendentes — Pedro)
+## 2026-10-19 — Edge Function `ai`: três chaves Gemini e segunda do OpenRouter (✅ v13 no ar às 15h; v14 com os nomes do Dashboard)
 
 **Contexto:** desde a virada (16/10) o `ai` do projeto novo responde `503 IA não configurada` porque
 nenhum secret de provedor foi gravado. O Ryan mandou seis chaves: 3 do Gemini (AI Studio), 1 da
@@ -20,10 +20,16 @@ NVIDIA, 2 do OpenRouter. A function lia **uma** de cada.
 - **`OPENROUTER2_API_KEY`** — 2º degrau OpenRouter em `RESERVAS`, modelo fixo
   `google/gemma-4-31b-it:free` (um modelo por chave, a lição da NVIDIA de 26/08).
 - Sem mudança de contrato com o front; sem migration.
-- **Pendente (bloqueio do ambiente do Claude para deploy e credencial):** Pedro roda
-  `supabase functions deploy ai --project-ref xqsazcazsjxajmtmirzd --use-api` e
-  `supabase secrets set --project-ref xqsazcazsjxajmtmirzd --env-file migracao\secrets.env`.
-  Conferência: POST em `/functions/v1/ai` com a chave pública sai de 503 para 401.
+- **Nomes dos secrets (v14):** o Pedro cadastrou as seis chaves no Dashboard do novo como
+  `GEMINI_KEY1`, `GEMINI_KEY2`, `GEMINI_KEY3`, `NVIDIA_KEY`, `OPENROUTER_KEY1` e `OPEN_ROUTERKEY2`
+  (grafia dele). Secret não se renomeia no Supabase (é apagar e recriar com o valor), então a function
+  ganhou o helper `env(...nomes)` e cada chave aceita o nome canônico OU o do Dashboard. Decisão do
+  Pedro ("se tu consegue arrumar, arrume"). Os nomes canônicos continuam sendo os da documentação.
+- **Operação:** o ambiente do Claude bloqueia deploy e escrita de secret (CLI, Management API e MCP), e
+  a elicitação do `create_edge_function_secret` do MCP não chega ao usuário nesta sessão. Deploy é do
+  Pedro: `supabase login` (conta inovação; o token antigo dava "Invalid access token") e
+  `supabase functions deploy ai --project-ref xqsazcazsjxajmtmirzd --use-api`. Conferência sem login:
+  POST em `/functions/v1/ai` com a chave pública sai de 503 ("IA não configurada") para 401.
 
 ## 2026-10-19 — Painel de Dados: jornada em tempo + churn de franqueados (✅ migration `20261019120000`)
 

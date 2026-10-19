@@ -91,7 +91,11 @@ que ainda segura os secrets (2.2.1).
      ```
      Conferência sem login: `POST https://xqsazcazsjxajmtmirzd.supabase.co/functions/v1/ai` com a chave
      pública passa de **503 "IA não configurada"** para **401 "não autenticado"**. Depois, apague o
-     `secrets.env`. Ladder Gemini continua a de 13/10 (`gemini-3.1-flash-lite` → `3.6` → `3.8` → `3.7`);
+     `secrets.env`.
+   - **19/10, 15h:** v13 no ar (deploy do Pedro, depois de `supabase logout`/`login` — o token salvo
+     dava "Invalid access token"). As seis chaves já estavam no Dashboard do novo, mas como
+     `GEMINI_KEY1`/`2`/`3`, `NVIDIA_KEY`, `OPENROUTER_KEY1`, `OPEN_ROUTERKEY2`; a function (v14) passou a
+     aceitar esses nomes também, em vez de recriar os secrets. O `secrets.env` não foi usado. Ladder Gemini continua a de 13/10 (`gemini-3.1-flash-lite` → `3.6` → `3.8` → `3.7`);
      a lista `gemini-2.5-*` que veio na imagem do Ryan não foi aplicada — decisão dele.
 4. ✅ **Chaves legadas desligadas e segredo vazado revogado** (16/10). Contexto: a API devolveu o JWT
    secret legado do novo numa leitura minha e ele ficou impresso no chat. O novo já assinava tokens com

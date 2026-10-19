@@ -36,6 +36,12 @@ function chaveApi(novas: string, legada: string): string {
   return Deno.env.get(legada)!;
 }
 
+// Secret por lista de nomes: o primeiro preenchido vence. O nome canônico vem primeiro; o segundo é
+// como a chave foi cadastrada no Dashboard do projeto novo em 19/10/2026 (GEMINI_KEY1…3, NVIDIA_KEY,
+// OPENROUTER_KEY1 e OPEN_ROUTERKEY2 — este com a grafia que está lá). Renomear secret no Supabase é
+// apagar e recriar com o valor em mãos; aceitar os dois nomes custou menos (decisão do Pedro).
+const env = (...nomes: string[]) => nomes.map((n) => Deno.env.get(n) ?? "").find(Boolean) ?? "";
+
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
@@ -161,12 +167,12 @@ function schemaCurto(s: Record<string, unknown> | null | undefined, fundo = 0): 
 //   chaves desde 19/10/2026 (Ryan), um modelo por chave como na NVIDIA; a 2ª fixa um `:free` da
 //   lista que ele passou — se o nome sumir, só esse degrau cai.
 const RESERVAS = [
-  { nome: "nvidia", secret: "NVIDIA_API_KEY", url: "https://integrate.api.nvidia.com/v1/chat/completions", modelo: "google/gemma-4-31b-it" },
-  { nome: "nvidia2", secret: "NVIDIA2_API_KEY", url: "https://integrate.api.nvidia.com/v1/chat/completions", modelo: "deepseek-ai/deepseek-v4.1-flash" },
-  { nome: "ollama", secret: "OLLAMA_API_KEY", url: "https://ollama.com/v1/chat/completions", modelo: "gpt-oss:120b" },
-  { nome: "cloudflare", secret: "CLOUDFLARE_API_KEY", url: "", modelo: "@cf/meta/llama-3.3-70b-instruct-fp8-fast" },
-  { nome: "openrouter", secret: "OPENROUTER_API_KEY", url: "https://openrouter.ai/api/v1/chat/completions", modelo: "openrouter/free" },
-  { nome: "openrouter2", secret: "OPENROUTER2_API_KEY", url: "https://openrouter.ai/api/v1/chat/completions", modelo: "google/gemma-4-31b-it:free" },
+  { nome: "nvidia", secret: ["NVIDIA_API_KEY", "NVIDIA_KEY"], url: "https://integrate.api.nvidia.com/v1/chat/completions", modelo: "google/gemma-4-31b-it" },
+  { nome: "nvidia2", secret: ["NVIDIA2_API_KEY"], url: "https://integrate.api.nvidia.com/v1/chat/completions", modelo: "deepseek-ai/deepseek-v4.1-flash" },
+  { nome: "ollama", secret: ["OLLAMA_API_KEY"], url: "https://ollama.com/v1/chat/completions", modelo: "gpt-oss:120b" },
+  { nome: "cloudflare", secret: ["CLOUDFLARE_API_KEY"], url: "", modelo: "@cf/meta/llama-3.3-70b-instruct-fp8-fast" },
+  { nome: "openrouter", secret: ["OPENROUTER_API_KEY", "OPENROUTER_KEY1"], url: "https://openrouter.ai/api/v1/chat/completions", modelo: "openrouter/free" },
+  { nome: "openrouter2", secret: ["OPENROUTER2_API_KEY", "OPEN_ROUTERKEY2"], url: "https://openrouter.ai/api/v1/chat/completions", modelo: "google/gemma-4-31b-it:free" },
 ];
 // Tempos (29/09/2026, a partir de 203 chamadas reais de 14 dias). O front desiste aos 45s.
 const PRAZO_MS = 38_000;           // a chamada inteira: sobra margem para rede e cold start até os 45s
@@ -417,10 +423,11 @@ Deno.serve(async (req) => {
     // Três chaves do AI Studio (Ryan, 19/10/2026), cada uma com a própria cota grátis. A chamada
     // começa pela 1ª; em 429 o `viaGemini` troca de chave e repete o MESMO modelo antes de descer a
     // escada. A chave que estourou fica para trás pelo resto da chamada. `chave` = "tem algum Gemini".
-    const chaves = ["GEMINI_API_KEY", "GEMINI2_API_KEY", "GEMINI3_API_KEY"].map((s) => Deno.env.get(s) ?? "").filter(Boolean);
+    const chaves = [["GEMINI_API_KEY", "GEMINI_KEY1"], ["GEMINI2_API_KEY", "GEMINI_KEY2"], ["GEMINI3_API_KEY", "GEMINI_KEY3"]]
+      .map((n) => env(...n)).filter(Boolean);
     let nChave = 0;
     const chave = chaves[0] ?? "";
-    const reservas = RESERVAS.map((r) => ({ ...r, chave: Deno.env.get(r.secret) ?? "" })).filter((r) => r.chave);
+    const reservas = RESERVAS.map((r) => ({ ...r, chave: env(...r.secret) })).filter((r) => r.chave);
     if (!chave && !reservas.length) return json({ error: "IA não configurada (falta o secret GEMINI_API_KEY)" }, 503);
 
     // 1) Quem chama? (mesmo padrão do invite-user: valida o JWT com o client anon)
