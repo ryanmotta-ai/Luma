@@ -2923,6 +2923,7 @@ function _fPecaEhStory(mat, fmt){
 function _fCaptionInnerHTML(canvasId, suggestions){
   const temAlt = suggestions.length > 1;
   return `<header class="caption-card-head"${_fCelular() ? ' role="button" tabindex="0" aria-expanded="false" title="Mostrar ou esconder a legenda"' : ''}>
+        <span class="caption-card-ico" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
         <div class="caption-card-heads">
           <h4 class="caption-card-title">Legenda pronta</h4>
           <p class="caption-card-sub">Copie e publique junto com a arte.</p>

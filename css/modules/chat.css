@@ -1790,6 +1790,8 @@ body:not(.theme-light) .f-bulk-tool-action{
 }
 
 .caption-card-heads { min-width: 0 }
+/* O balão de conversa só existe no botão recolhido do celular (ver o bloco `f-mobile-chat`). */
+.caption-card-ico { display: none }
 
 .caption-card-title {
   margin: 0;
@@ -3436,13 +3438,24 @@ body.f-arte-pronta .art-ok-tick-bloq{width:28px;height:28px}
   /* RECOLHIDA POR PADRÃO (pedido do Pedro, 19/10): o cabeçalho vira o botão "Legenda pronta", com
      o selo de origem e uma seta; texto e ações só existem com `.is-aberta` (toggle em chat.js,
      ao lado de `_fCelular`). Aberta, é exatamente o bloco de antes. */
-  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:var(--tap-min);padding:0 14px;border:1px solid var(--gray-mid);border-radius:13px;background:var(--white);cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent}
-  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-head:active{background:var(--gray-light)}
+  /* O botão veste a MESMA faixa do "Gerar versão Story" (`.art-bulk-btn`, pedido do Pedro, 19/10):
+     fundo laranja claro, quadradinho branco com o balão de conversa, título + descrição, seta.
+     O selo de origem ("Sugestão do Luma"/"Gerado por IA") sai daqui — reaparece dentro, no texto. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-head{display:flex;align-items:center;justify-content:flex-start;gap:10px;width:100%;padding:11px 12px;border:1px solid var(--dm-orange-tint);border-radius:13px;background:var(--dm-orange-bg);color:var(--dm-orange-d);cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-head:active{background:var(--dm-orange-tint)}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-head:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
-  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-title{font-size:14px}
-  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-sub{display:none}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-ico{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:28px;height:28px;border-radius:8px;background:var(--white);color:var(--dm-orange-d);box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-heads{flex:1;display:flex;flex-direction:column;gap:1px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-title{font-size:12.5px;font-weight:800;letter-spacing:-.01em;color:var(--dm-orange-d)}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-sub{display:block;margin:0;font-size:10.5px;font-weight:500;line-height:1.35;color:var(--text-3)}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-head .caption-src{display:none}
   /* A seta: borda rotacionada, sem ícone novo. Aponta para baixo fechada, para cima aberta. */
-  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-head::after{content:"";flex-shrink:0;width:8px;height:8px;margin:0 4px 4px 0;border-right:2px solid var(--text-3);border-bottom:2px solid var(--text-3);transform:rotate(45deg);transition:transform var(--dur-fast) var(--ease-out)}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-head::after{content:"";flex-shrink:0;width:8px;height:8px;margin:0 4px 4px 0;border-right:2px solid currentColor;border-bottom:2px solid currentColor;opacity:.55;transform:rotate(45deg);transition:transform var(--dur-fast) var(--ease-out)}
+  /* Tema escuro: as mesmas cores do `.art-bulk-btn` escuro. */
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-head{background:var(--d-surf2);border-color:var(--d-border);color:var(--dm-orange)}
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-ico{background:var(--d-surf3);color:var(--dm-orange)}
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-title{color:var(--dm-orange)}
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-sub{color:var(--d-text2)}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-assistant-panel.is-aberta .caption-card-head::after{transform:rotate(225deg);margin:4px 4px 0 0}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-content-box,
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-foot{display:none}
