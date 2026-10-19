@@ -3419,14 +3419,19 @@ body.f-arte-pronta .art-ok-tick-bloq{width:28px;height:28px}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-ok-copy strong{font-size:16px;font-weight:800;letter-spacing:-.015em;color:var(--text)}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-ok-sub{display:block;font-size:12px;font-weight:500;color:var(--text-3);margin-top:1px}
 
-  /* A legenda perde o cartão e vira UMA ação. A função não some: o "Copiar legenda"
-     continua ali, e o Instagram já copia a legenda sozinho antes de abrir o app. */
+  /* A LEGENDA APARECE NO CELULAR (19/10/2026, pedido do Pedro). O mockup de 09/2026 reduzia
+     o cartão a UMA ação ("Copiar legenda") e escondia título, texto e "Gerar outra": quem
+     gerava no celular copiava às cegas, sem ler nem trocar de sugestão — e o "Publicar no
+     Instagram", que copiava a legenda sozinho e justificava o corte, saiu em 11/09. Aqui o
+     celular mostra o mesmo bloco que o `f-arte-pronta` desenha (rótulo, caixa do texto,
+     Copiar, Gerar outra), empilhado na largura do dedo. Só o cartão perde a moldura. */
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-assistant-panel{background:transparent;border:0;box-shadow:none;padding:0;margin:0}
-  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-head,
-  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-content-box,
-  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-alt-btn{display:none}
-  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-foot{padding:0;margin:0;border:0;gap:0}
+  /* Sem teto de altura: no celular o painel inteiro rola, e a legenda cortada ao meio num
+     scroll interno lê como defeito (o `f-arte-pronta` do desktop faz o mesmo). */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-content-box{max-height:none}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-foot{padding:10px 0 0;margin:0;border:0;gap:8px}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-copy-btn{width:100%;min-height:var(--tap-min);justify-content:center;border-radius:13px;font-size:14px;margin:0}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-alt-btn{width:100%;min-height:var(--tap-min);justify-content:center;margin:0}
 
   /* Uma ação por linha. O "peso igual" de Baixar/Refazer é regra de DESKTOP (a dupla na
      mesma linha, pedido do Ryan em 09/09) e continua lá: aqui a largura é de um dedo, e
