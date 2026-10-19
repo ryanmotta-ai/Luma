@@ -3449,6 +3449,16 @@ body.f-arte-pronta .art-ok-tick-bloq{width:28px;height:28px}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-assistant-panel.is-aberta .caption-content-box{display:block;margin-top:10px}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-assistant-panel.is-aberta .caption-card-foot{display:flex}
 
+  /* VERSÃO STORY/FEED NO CELULAR (19/10/2026, pedido do Pedro). A faixa do kit vinha vestida de
+     rodapé de card (sem raio, só borda em cima) e, sem `order`, caía no 0 — ACIMA do Baixar PNG.
+     Vira um botão com as bordas dos outros, logo depois da legenda; a gaveta do kit (`.art-kit`)
+     segue colada nele. Editar arte e Refazer fecham a lista, os dois com ícone + texto, centrados
+     igual (o Refazer sem ícone ficava com o texto deslocado em relação ao de cima). */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-bulk-btn.art-kit-btn{order:4;margin-top:10px;border:1px solid var(--dm-orange-tint);border-radius:13px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-wrap .art-kit{order:4;margin-top:6px;border:1px solid var(--dm-orange-tint);border-radius:12px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-voltar{order:5}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-redo{order:6}
+
   /* Uma ação por linha. O "peso igual" de Baixar/Refazer é regra de DESKTOP (a dupla na
      mesma linha, pedido do Ryan em 09/09) e continua lá: aqui a largura é de um dedo, e
      empilhar é o que faz o polegar acertar. Refazer perde a caixa porque, no celular, um
@@ -3456,7 +3466,6 @@ body.f-arte-pronta .art-ok-tick-bloq{width:28px;height:28px}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn{width:100%;min-height:var(--tap-min);border-radius:13px;font-size:15px;font-weight:800}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-voltar{margin-top:0}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-redo{background:transparent;border-color:transparent;box-shadow:none;color:var(--text-3);font-size:13.5px;font-weight:700;min-height:var(--tap-min)}
-  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-redo svg{display:none}
   /* Com a arte pronta a caixa de resposta não tem função (ver `_fSheetSync`), e o
      painel abre mais alto porque a entrega é mais alta que uma pergunta. */
   /* ⚠ O `fGerarArte` NÃO marca o card de entrega como `.active-prompt` (ele faz um
