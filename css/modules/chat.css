@@ -3426,9 +3426,10 @@ body.f-arte-pronta .art-ok-tick-bloq{width:28px;height:28px}
      celular mostra o mesmo bloco que o `f-arte-pronta` desenha (rótulo, caixa do texto,
      Copiar, Gerar outra), empilhado na largura do dedo. Só o cartão perde a moldura. */
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-assistant-panel{background:transparent;border:0;box-shadow:none;padding:0;margin:0}
-  /* Sem teto de altura: no celular o painel inteiro rola, e a legenda cortada ao meio num
-     scroll interno lê como defeito (o `f-arte-pronta` do desktop faz o mesmo). */
-  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-content-box{max-height:none}
+  /* Caixa baixa e rolável (pedido do Pedro, 19/10): a legenda é para conferir e copiar, não
+     para ler inteira na tela da entrega — com 320px ela empurrava as ações para fora da dobra.
+     ~6 linhas; o resto rola dentro da caixa, e o "Copiar legenda" leva o texto completo. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-content-box{max-height:140px;overflow-y:auto;-webkit-overflow-scrolling:touch}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-foot{padding:10px 0 0;margin:0;border:0;gap:8px}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-copy-btn{width:100%;min-height:var(--tap-min);justify-content:center;border-radius:13px;font-size:14px;margin:0}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-alt-btn{width:100%;min-height:var(--tap-min);justify-content:center;margin:0}
