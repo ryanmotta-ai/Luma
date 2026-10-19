@@ -6,6 +6,25 @@
 
 ---
 
+## 2026-10-19 — Edge Function `ai`: três chaves Gemini e segunda do OpenRouter (⬜ deploy e secrets pendentes — Pedro)
+
+**Contexto:** desde a virada (16/10) o `ai` do projeto novo responde `503 IA não configurada` porque
+nenhum secret de provedor foi gravado. O Ryan mandou seis chaves: 3 do Gemini (AI Studio), 1 da
+NVIDIA, 2 do OpenRouter. A function lia **uma** de cada.
+
+- **`GEMINI_API_KEY`, `GEMINI2_API_KEY`, `GEMINI3_API_KEY`** — a chamada começa pela 1ª; em **429**
+  (cota da chave) o `viaGemini` troca de chave e **repete o mesmo modelo** antes de descer a escada.
+  A chave que estourou fica para trás pelo resto da chamada (`nChave` vive no escopo do pedido, não
+  do `viaGemini`, que roda até duas vezes). `chave` segue sendo "tem algum Gemini": 503, `viaReservas`
+  e o hedge não mudaram.
+- **`OPENROUTER2_API_KEY`** — 2º degrau OpenRouter em `RESERVAS`, modelo fixo
+  `google/gemma-4-31b-it:free` (um modelo por chave, a lição da NVIDIA de 26/08).
+- Sem mudança de contrato com o front; sem migration.
+- **Pendente (bloqueio do ambiente do Claude para deploy e credencial):** Pedro roda
+  `supabase functions deploy ai --project-ref xqsazcazsjxajmtmirzd --use-api` e
+  `supabase secrets set --project-ref xqsazcazsjxajmtmirzd --env-file migracao\secrets.env`.
+  Conferência: POST em `/functions/v1/ai` com a chave pública sai de 503 para 401.
+
 ## 2026-10-19 — Painel de Dados: jornada em tempo + churn de franqueados (✅ migration `20261019120000`)
 
 **Pedido do Pedro:** medir quanto tempo o usuário leva desde que entra no Luma até gerar uma arte, e

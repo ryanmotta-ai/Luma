@@ -79,6 +79,20 @@ que ainda segura os secrets (2.2.1).
      (https://openrouter.ai), `CLOUDFLARE_API_KEY` (Cloudflare → API Tokens, Workers AI).
    - Cole no arquivo `migracao\secrets.env` (já está lá, vazio, com os seis nomes) e me avise "secrets no
      arquivo". Eu gravo no novo pela CLI, testo a IA e apago o arquivo.
+   - **19/10:** o Ryan mandou **seis chaves**, nesta ordem: 3 do Gemini (AI Studio), 1 da NVIDIA e 2 do
+     OpenRouter. Para usar todas, a function ganhou `GEMINI2_API_KEY`/`GEMINI3_API_KEY` (em 429 troca de
+     chave e repete o modelo) e `OPENROUTER2_API_KEY` (2º degrau OpenRouter, modelo
+     `google/gemma-4-31b-it:free`). O `secrets.env` já está com os seis nomes nessa ordem. O ambiente do
+     Claude **não** pode fazer deploy nem gravar secret (bloqueio de produção/credencial), então os dois
+     comandos são seus, no PowerShell, na raiz do repo, logado na conta da DM:
+     ```powershell
+     supabase functions deploy ai --project-ref xqsazcazsjxajmtmirzd --use-api
+     supabase secrets set --project-ref xqsazcazsjxajmtmirzd --env-file migracao\secrets.env
+     ```
+     Conferência sem login: `POST https://xqsazcazsjxajmtmirzd.supabase.co/functions/v1/ai` com a chave
+     pública passa de **503 "IA não configurada"** para **401 "não autenticado"**. Depois, apague o
+     `secrets.env`. Ladder Gemini continua a de 13/10 (`gemini-3.1-flash-lite` → `3.6` → `3.8` → `3.7`);
+     a lista `gemini-2.5-*` que veio na imagem do Ryan não foi aplicada — decisão dele.
 4. ✅ **Chaves legadas desligadas e segredo vazado revogado** (16/10). Contexto: a API devolveu o JWT
    secret legado do novo numa leitura minha e ele ficou impresso no chat. O novo já assinava tokens com
    chave ES256 desde a criação; o segredo HS256 só sustentava as chaves `anon`/`service_role` antigas.

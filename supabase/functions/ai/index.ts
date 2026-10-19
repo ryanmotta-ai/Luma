@@ -157,13 +157,16 @@ function schemaCurto(s: Record<string, unknown> | null | undefined, fundo = 0): 
 // · Cloudflare Workers AI (free 10 mil neurons/dia). A URL leva o account id: vem do secret
 //   CLOUDFLARE_ACCOUNT_ID ou é descoberto pela própria chave (GET /accounts).
 // · OpenRouter (free ~50 req/dia sem crédito — a mais apertada, fica por último). `openrouter/free`
-//   sorteia um modelo gratuito disponível: os `:free` somem e mudam de nome com frequência.
+//   sorteia um modelo gratuito disponível: os `:free` somem e mudam de nome com frequência. Duas
+//   chaves desde 19/10/2026 (Ryan), um modelo por chave como na NVIDIA; a 2ª fixa um `:free` da
+//   lista que ele passou — se o nome sumir, só esse degrau cai.
 const RESERVAS = [
   { nome: "nvidia", secret: "NVIDIA_API_KEY", url: "https://integrate.api.nvidia.com/v1/chat/completions", modelo: "google/gemma-4-31b-it" },
   { nome: "nvidia2", secret: "NVIDIA2_API_KEY", url: "https://integrate.api.nvidia.com/v1/chat/completions", modelo: "deepseek-ai/deepseek-v4.1-flash" },
   { nome: "ollama", secret: "OLLAMA_API_KEY", url: "https://ollama.com/v1/chat/completions", modelo: "gpt-oss:120b" },
   { nome: "cloudflare", secret: "CLOUDFLARE_API_KEY", url: "", modelo: "@cf/meta/llama-3.3-70b-instruct-fp8-fast" },
   { nome: "openrouter", secret: "OPENROUTER_API_KEY", url: "https://openrouter.ai/api/v1/chat/completions", modelo: "openrouter/free" },
+  { nome: "openrouter2", secret: "OPENROUTER2_API_KEY", url: "https://openrouter.ai/api/v1/chat/completions", modelo: "google/gemma-4-31b-it:free" },
 ];
 // Tempos (29/09/2026, a partir de 203 chamadas reais de 14 dias). O front desiste aos 45s.
 const PRAZO_MS = 38_000;           // a chamada inteira: sobra margem para rede e cold start até os 45s
@@ -411,7 +414,12 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "método não suportado" }, 405);
   try {
-    const chave = Deno.env.get("GEMINI_API_KEY") ?? "";
+    // Três chaves do AI Studio (Ryan, 19/10/2026), cada uma com a própria cota grátis. A chamada
+    // começa pela 1ª; em 429 o `viaGemini` troca de chave e repete o MESMO modelo antes de descer a
+    // escada. A chave que estourou fica para trás pelo resto da chamada. `chave` = "tem algum Gemini".
+    const chaves = ["GEMINI_API_KEY", "GEMINI2_API_KEY", "GEMINI3_API_KEY"].map((s) => Deno.env.get(s) ?? "").filter(Boolean);
+    let nChave = 0;
+    const chave = chaves[0] ?? "";
     const reservas = RESERVAS.map((r) => ({ ...r, chave: Deno.env.get(r.secret) ?? "" })).filter((r) => r.chave);
     if (!chave && !reservas.length) return json({ error: "IA não configurada (falta o secret GEMINI_API_KEY)" }, 503);
 
@@ -539,13 +547,15 @@ Deno.serve(async (req) => {
           // A chave vai no cabeçalho, não na query: URL acaba em log de proxy e de erro.
           const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "x-goog-api-key": chave },
+            headers: { "Content-Type": "application/json", "x-goog-api-key": chaves[nChave] },
             body: JSON.stringify({ contents: [{ parts }], generationConfig: cfg }),
             signal: AbortSignal.any([sinal, AbortSignal.timeout(teto)]),
           });
           status = res.status;
           if (!res.ok) {
-            console.warn(`[ai] Gemini ${m} respondeu ${res.status}: ` + (await res.text().catch(() => "")).slice(0, 300));
+            console.warn(`[ai] Gemini ${m} (chave ${nChave + 1}) respondeu ${res.status}: ` + (await res.text().catch(() => "")).slice(0, 300));
+            // Cota da chave (429): próxima chave, MESMO modelo. Só desce a escada quando todas estouraram.
+            if (res.status === 429 && nChave + 1 < chaves.length) { nChave++; i--; continue; }
             if (DESCE.has(res.status)) continue;
             // 400 com o nível de pensamento: pode ser o parâmetro — repete o MESMO modelo sem ele,
             // uma vez. Sem isto, um nível recusado derrubava a validação de foto (anexo não tem reserva).

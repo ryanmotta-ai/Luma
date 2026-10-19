@@ -141,8 +141,13 @@ objetos de `luma-template-assets` (novo = antigo − órfãos pulados).
 supabase login
 supabase functions deploy ai --project-ref xqsazcazsjxajmtmirzd
 supabase functions deploy invite-user --project-ref xqsazcazsjxajmtmirzd
-supabase secrets set --project-ref xqsazcazsjxajmtmirzd GEMINI_API_KEY=... NVIDIA_API_KEY=... NVIDIA2_API_KEY=... OLLAMA_API_KEY=... CLOUDFLARE_API_KEY=... CLOUDFLARE_ACCOUNT_ID=... OPENROUTER_API_KEY=...
+supabase secrets set --project-ref xqsazcazsjxajmtmirzd --env-file migracao\secrets.env   # NOME=valor por linha, sem aspas
 ```
+
+Nomes que o `ai` lê (desde 19/10/2026): `GEMINI_API_KEY`, `GEMINI2_API_KEY`, `GEMINI3_API_KEY` (três
+cotas do AI Studio; em 429 a function troca de chave e repete o modelo), `NVIDIA_API_KEY`, `NVIDIA2_API_KEY`,
+`OLLAMA_API_KEY`, `CLOUDFLARE_API_KEY` (+ `CLOUDFLARE_ACCOUNT_ID` opcional), `OPENROUTER_API_KEY` e
+`OPENROUTER2_API_KEY` (um modelo por chave). Ausente = pulado.
 
 O que o antigo tem no ar (conferido em 14/10): **só `ai` (v23, de 30/09) e `invite-user` (v13)**, as
 duas com `verify_jwt = true`. `suporte-telegram` nunca foi publicada nem a migration dela aplicada —
