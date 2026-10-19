@@ -596,11 +596,20 @@ body.cr-ocupado .cr-enviar.cr-resp .cr-enviar-para{ opacity:0; transform:scale(.
 .cr-ed-ico:hover:not(:disabled){ background:var(--cr-surf2); color:var(--cr-text) }
 .cr-ed-ico:disabled{ opacity:.35; cursor:default }
 .cr-ed-corpo{ flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 320px }
-.cr-ed-mesa{ min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:28px;
-  background-image:radial-gradient(circle,var(--cr-line2) 1px,transparent 1px); background-size:20px 20px }
-.cr-ed-palco{ width:min(100%, calc((100dvh - 52px - 60px - 120px) * var(--cr-ar, .8))); user-select:none; -webkit-user-select:none; animation:crSurge var(--dur-slow) var(--ease-out) backwards }
+.cr-ed-mesa{ position:relative; min-width:0; overflow:hidden; display:flex; align-items:center; justify-content:center;
+  background-color:var(--off-white, #fafafa);
+  background-image:radial-gradient(rgba(10,10,10,.075) .75px, transparent .9px);
+  background-size:18px 18px; cursor:grab }
+body:not(.theme-light) .cr-ed-mesa{ background-color:var(--cr-bg, #111111); background-image:radial-gradient(rgba(255,255,255,.06) 1px, transparent 1.5px) }
+.cr-ed-mesa.cr-panning, .cr-ed-mesa.cr-espaco{ cursor:grab }
+.cr-ed-mesa.cr-panning.cr-arrastando, .cr-ed-mesa.cr-arrastando{ cursor:grabbing }
+.cr-ed-viewport{ position:relative; display:flex; align-items:center; justify-content:center; pointer-events:none }
+.cr-ed-palco{ position:relative; pointer-events:auto; width:min(100%, calc((100dvh - 52px - 60px - 140px) * var(--cr-ar, .8)));
+  user-select:none; -webkit-user-select:none; transform-origin:50% 50%;
+  box-shadow:0 2px 8px rgba(0,0,0,.06), 0 20px 50px rgba(0,0,0,.15); border-radius:4px;
+  animation:crSurge var(--dur-slow) var(--ease-out) backwards; transition:box-shadow var(--dur-fast) }
+.cr-ed-palco:hover{ box-shadow:0 4px 12px rgba(0,0,0,.08), 0 24px 60px rgba(0,0,0,.2) }
 /* Barra flutuante do bloco selecionado */
-.cr-ed-mesa{ position:relative }
 .cr-ed-flut{ position:absolute; z-index:5; left:0; top:0; display:flex; align-items:center; gap:1px; padding:4px; border-radius:12px; background:var(--cr-surf); border:1px solid var(--cr-line2); box-shadow:var(--cr-sh2);
   transform-origin:50% 100%; animation:crFlut var(--dur-base) var(--ease-spring) backwards; transition:translate var(--dur-fast) var(--ease-out),opacity var(--dur-fast) var(--ease-out) }
 .cr-ed-flut[hidden]{ display:none }
@@ -608,7 +617,34 @@ body.cr-ocupado .cr-enviar.cr-resp .cr-enviar-para{ opacity:0; transform:scale(.
 .cr-ed-flut i{ width:1px; height:18px; margin:0 3px; background:var(--cr-line2) }
 .cr-mexendo .cr-ed-flut{ opacity:0; pointer-events:none }
 @keyframes crFlut{ from{ opacity:0; scale:.9 } to{ opacity:1; scale:1 } }
-.cr-ed-dica{ margin:0; font-size:12px; color:var(--cr-text3); text-align:center }
+.cr-ed-dica{ position:absolute; top:14px; left:50%; transform:translateX(-50%); pointer-events:none; z-index:10; margin:0; font-size:11.5px; color:var(--cr-text3); text-align:center;
+  background:var(--cr-surf); padding:4px 14px; border-radius:999px; border:1px solid var(--cr-line); box-shadow:var(--cr-sh); opacity:.92; white-space:nowrap }
+/* Barra flutuante de ferramentas na parte inferior (idêntica à referência) */
+.cr-ed-ferramentas{ position:absolute; bottom:20px; left:50%; transform:translateX(-50%); z-index:20;
+  display:flex; align-items:center; gap:5px; padding:5px 8px; background:#FFFFFF; border:1px solid rgba(0,0,0,.1);
+  border-radius:9999px; box-shadow:0 3px 6px rgba(0,0,0,.04), 0 12px 32px rgba(0,0,0,.14);
+  animation:crFlut var(--dur-base) var(--ease-spring) backwards }
+body:not(.theme-light) .cr-ed-ferramentas{ background:var(--d-surf, #222); border-color:var(--d-border2, rgba(255,255,255,.14)); box-shadow:0 12px 36px rgba(0,0,0,.5) }
+.cr-ed-ferr-btn{ width:38px; height:38px; display:grid; place-items:center; border:1.5px solid transparent; border-radius:9999px;
+  background:transparent; color:var(--text, #111); cursor:pointer; padding:0;
+  transition:background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast), transform var(--release-dur) var(--release-ease) }
+body:not(.theme-light) .cr-ed-ferr-btn{ color:var(--d-text, #f0f0f0) }
+.cr-ed-ferr-btn:hover:not(.on){ background:rgba(0,0,0,.05) }
+body:not(.theme-light) .cr-ed-ferr-btn:hover:not(.on){ background:rgba(255,255,255,.08) }
+/* Estado ativo idêntico à referência (fundo azul suave, borda azul, ícone azul) */
+.cr-ed-ferr-btn.on{ background:#E8F0FE; border-color:#1A73E8; color:#1A73E8; border-radius:10px }
+body:not(.theme-light) .cr-ed-ferr-btn.on{ background:rgba(66,133,244,.22); border-color:#4285F4; color:#8AB4F8 }
+.cr-ed-ferr-btn:active{ transform:scale(.94) }
+/* Controles de zoom (estilo prévia ao vivo / estúdio) */
+.cr-ed-zoom-bar{ position:absolute; bottom:20px; left:20px; z-index:15; display:flex; align-items:center; gap:2px; padding:3px;
+  background:var(--cr-surf, #fff); border:1px solid var(--cr-line2, rgba(0,0,0,.08)); border-radius:10px; box-shadow:var(--cr-sh, 0 4px 16px rgba(0,0,0,.08)) }
+body:not(.theme-light) .cr-ed-zoom-bar{ background:var(--d-surf, #222); border-color:var(--d-border, rgba(255,255,255,.08)) }
+.cr-ed-zoom-bar button{ border:0; background:transparent; color:var(--cr-text2, #666); height:28px; padding:0 6px; border-radius:6px; cursor:pointer;
+  font:500 11.5px/28px 'Roboto',sans-serif; display:grid; place-items:center; transition:background var(--dur-fast), color var(--dur-fast) }
+body:not(.theme-light) .cr-ed-zoom-bar button{ color:var(--d-text2, #a0a0a0) }
+.cr-ed-zoom-bar button:hover{ background:var(--cr-surf2, rgba(0,0,0,.06)); color:var(--cr-text, #111) }
+body:not(.theme-light) .cr-ed-zoom-bar button:hover{ background:var(--d-surf2, #2a2a2a); color:var(--d-text, #fff) }
+.cr-ed-zoom-val{ min-width:44px; text-align:center; font-variant-numeric:tabular-nums }
 .cr-ed-painel{ min-height:0; overflow-y:auto; border-left:1px solid var(--cr-line); background:var(--cr-surf); padding:6px 0 24px }
 .cr-ed.aberto .cr-ed-painel{ animation:crPainel var(--dur-slow) var(--ease-out) backwards }
 @keyframes crPainel{ from{ opacity:0; transform:translateX(24px) } to{ opacity:1; transform:none } }

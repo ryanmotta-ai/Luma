@@ -4471,6 +4471,8 @@ const CR_ED_CSS = ':host{display:block;position:relative;overflow:hidden;border-
   + '.sel::after{content:attr(data-nome);position:absolute;left:-1.5px;bottom:calc(100% + 4px);padding:2px 7px;border-radius:4px;background:var(--dm-orange);color:#fff;font:600 11px/1.5 Roboto,sans-serif;white-space:nowrap}'
   + '.sel.dentro::after{bottom:auto;top:4px;left:4px}'
   + '.guia{position:absolute;pointer-events:none}.guia.v{top:0;bottom:0;border-left:1px solid var(--dm-orange)}.guia.h{left:0;right:0;border-top:1px solid var(--dm-orange)}'
+  + '.guia-fixa{position:absolute;pointer-events:none}'
+  + '.cr-ed-inline-ta{position:absolute;z-index:200;border:1.5px dashed var(--dm-orange);outline:none;background:rgba(255,255,255,.14);box-sizing:border-box;resize:none;overflow:hidden;padding:0;margin:0;box-shadow:0 0 0 4px rgba(248,84,0,.25);border-radius:3px}'
   + '[hidden]{display:none!important}';
 const _crNS = 'http://www.w3.org/2000/svg';
 const CR_NOME_CAMPO = { produto: 'Título', titulo: 'Título', precoPor: 'Preço', precoDe: 'Preço antigo (DE)', desconto_valor: 'Valor do desconto', codigo_cupom: 'Código do cupom', anos: 'Anos' };
@@ -4486,8 +4488,30 @@ function crEditar(op, aoSalvar){
     + '<div class="cr-ed-tit"><b>Editar arte</b><span>' + gEsc(op.nomeReceita) + ' · ' + gEsc(CR_FORMATOS[op.spec.formato].nome) + '</span></div>'
     + '<div class="cr-ed-hist">' + bt('desfazer', CR_ICO.desfazer, 'Desfazer (Ctrl+Z)') + bt('refazer', CR_ICO.refazerSeta, 'Refazer (Ctrl+Shift+Z)') + '</div>'
     + '<div class="cr-ed-fim"><button type="button" class="cr-btn cr-btn-leve" data-ed="cancelar">Cancelar</button><button type="button" class="cr-btn cr-prim" data-ed="salvar">Salvar alterações</button></div>'
-    + '</header><div class="cr-ed-corpo"><div class="cr-ed-mesa"><div class="cr-ed-palco" tabindex="0" aria-label="Arte em edição" style="--cr-ar:' + (op.w / op.h) + '"></div>'
-    + '<p class="cr-ed-dica">Clique para selecionar · arraste para mover · duplo clique edita o texto · setas ajustam</p></div>'
+    + '</header><div class="cr-ed-corpo"><div class="cr-ed-mesa">'
+    + '<p class="cr-ed-dica">Clique para selecionar · arraste para mover · duplo clique edita o texto · setas ajustam</p>'
+    + '<div class="cr-ed-viewport"><div class="cr-ed-palco" tabindex="0" aria-label="Arte em edição" style="--cr-ar:' + (op.w / op.h) + '"></div></div>'
+    + '<div class="cr-ed-zoom-bar">'
+    + '<button type="button" data-zoom-act="out" title="Diminuir zoom (-)" aria-label="Diminuir zoom"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>'
+    + '<button type="button" class="cr-ed-zoom-val" data-zoom-act="reset" title="Redefinir zoom (100%)">100%</button>'
+    + '<button type="button" data-zoom-act="in" title="Aumentar zoom (+)" aria-label="Aumentar zoom"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>'
+    + '<button type="button" data-zoom-act="fit" title="Enquadrar arte" aria-label="Enquadrar arte"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>'
+    + '</div>'
+    + '<div class="cr-ed-ferramentas" role="toolbar" aria-label="Ferramentas">'
+    + '<button type="button" class="cr-ed-ferr-btn on" data-ferr="select" title="Seleção (V)" aria-label="Seleção" aria-pressed="true">'
+    + '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4 3l13 9.5-6.5 1.5 4 7-2.5 1.5-4-7-4 4.5V3z"/></svg></button>'
+    + '<button type="button" class="cr-ed-ferr-btn" data-ferr="guias" title="Grade e Guias (#)" aria-label="Grade e Guias" aria-pressed="false">'
+    + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/></svg></button>'
+    + '<button type="button" class="cr-ed-ferr-btn" data-ferr="forma" title="Forma (R)" aria-label="Forma">'
+    + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="4"/></svg></button>'
+    + '<button type="button" class="cr-ed-ferr-btn" data-ferr="texto" title="Texto (T)" aria-label="Texto">'
+    + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="5" x2="19" y2="5"/><line x1="12" y1="5" x2="12" y2="19"/><line x1="9" y1="19" x2="15" y2="19"/></svg></button>'
+    + '<button type="button" class="cr-ed-ferr-btn" data-ferr="foto" title="Inserir / Trocar Imagem" aria-label="Imagem">'
+    + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></button>'
+    + '<button type="button" class="cr-ed-ferr-btn" data-ferr="cor" title="Cores e Fundo" aria-label="Cores">'
+    + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg></button>'
+    + '</div>'
+    + '</div>'
     + '<aside class="cr-ed-painel" aria-label="Propriedades"><section class="cr-ed-sec"><h4>Camadas</h4><ul class="cr-ed-camadas"></ul></section><div class="cr-ed-props"></div></aside></div>';
   view.appendChild(ed);
   requestAnimationFrame(() => ed.classList.add('aberto'));
@@ -4498,6 +4522,10 @@ function crEditar(op, aoSalvar){
   raiz.appendChild(svg);
   const mk = cls => { const d = document.createElement('div'); d.className = cls; d.hidden = true; raiz.appendChild(d); return d; };
   const caixa = mk('sel'), paira = mk('paira'), guiaV = mk('guia v'), guiaH = mk('guia h');
+  const containerGuias = document.createElement('div');
+  containerGuias.className = 'cr-ed-guias-wrap';
+  containerGuias.hidden = true;
+  raiz.appendChild(containerGuias);
   /* Barra flutuante sobre o bloco selecionado (como no Figma): as ações que mais se repetem sem
      ir ao painel. Os botões são os mesmos do painel (data-ed → acao()), então nada se duplica. */
   const mesa = ed.querySelector('.cr-ed-mesa'), flut = document.createElement('div');
@@ -4509,6 +4537,7 @@ function crEditar(op, aoSalvar){
   mesa.appendChild(flut);
   const W = op.w, H = op.h, M = crArea(op.spec.formato).M, hist = [], fut = [];
   let atual = null, enquadrar = false, mexeu = false, descarta = false;
+  let panX = 0, panY = 0, zoom = 1, espacoPressionado = false, guiasAtivas = false, ferrAtiva = 'select', emEdicaoInline = null;
   const r1 = n => Math.round(n * 10) / 10;
   const escala = () => W / svg.getBoundingClientRect().width;
   const blocos = () => [...svg.querySelectorAll(':scope > [data-bloco]')];
@@ -4532,14 +4561,39 @@ function crEditar(op, aoSalvar){
   function poe(el, g){
     if(!g || !g.isConnected || g.getAttribute('display') === 'none'){ el.hidden = true; return; }
     const hr = host.getBoundingClientRect(), r = g.getBoundingClientRect();
-    Object.assign(el.style, { left: (r.left - hr.left) + 'px', top: (r.top - hr.top) + 'px', width: r.width + 'px', height: r.height + 'px' });
+    const z = zoom || 1;
+    Object.assign(el.style, { left: ((r.left - hr.left) / z) + 'px', top: ((r.top - hr.top) / z) + 'px', width: (r.width / z) + 'px', height: (r.height / z) + 'px' });
     el.hidden = false;
-    return r.top - hr.top;
+    return (r.top - hr.top) / z;
   }
+  function atualizaGuias(){
+    if(!guiasAtivas){ containerGuias.hidden = true; return; }
+    const k = escala();
+    containerGuias.hidden = false;
+    const a = crArea(op.spec.formato);
+    const safeTopo = a.seguroTopo || a.top || a.M;
+    const safeBase = a.seguroBase || a.base || (H - a.M);
+    containerGuias.innerHTML = '<div class="guia-fixa" style="left:' + (M / k) + 'px;top:0;bottom:0;border-left:1px dashed rgba(248,84,0,.45)"></div>'
+      + '<div class="guia-fixa" style="left:' + ((W - M) / k) + 'px;top:0;bottom:0;border-left:1px dashed rgba(248,84,0,.45)"></div>'
+      + '<div class="guia-fixa" style="top:' + (safeTopo / k) + 'px;left:0;right:0;border-top:1px dashed rgba(248,84,0,.45)"></div>'
+      + '<div class="guia-fixa" style="top:' + (safeBase / k) + 'px;left:0;right:0;border-top:1px dashed rgba(248,84,0,.45)"></div>'
+      + '<div class="guia-fixa" style="left:' + ((W / 2) / k) + 'px;top:0;bottom:0;border-left:1px dotted rgba(248,84,0,.3)"></div>'
+      + '<div class="guia-fixa" style="top:' + ((H / 2) / k) + 'px;left:0;right:0;border-top:1px dotted rgba(248,84,0,.3)"></div>';
+  }
+  function atualizaPalco(){
+    host.style.transform = 'translate(' + Math.round(panX) + 'px, ' + Math.round(panY) + 'px) scale(' + zoom + ')';
+    mesa.style.backgroundPosition = Math.round(panX) + 'px ' + Math.round(panY) + 'px';
+    const zv = ed.querySelector('.cr-ed-zoom-val');
+    if(zv) zv.textContent = Math.round(zoom * 100) + '%';
+    marca();
+  }
+  function resetZoom(){ zoom = 1; panX = 0; panY = 0; atualizaPalco(); }
+  function fitZoom(){ panX = 0; panY = 0; zoom = 1; atualizaPalco(); }
   function marca(){
     const topo = poe(caixa, atual);
     if(atual){ caixa.dataset.nome = nomeBloco(atual); caixa.classList.toggle('dentro', topo < 24); }
     flutua();
+    atualizaGuias();
   }
   // Acima do bloco (centrada, presa à mesa); sem espaço em cima, desce para baixo dele
   function flutua(){
@@ -4758,15 +4812,236 @@ function crEditar(op, aoSalvar){
     };
     host.addEventListener('pointermove', move); host.addEventListener('pointerup', solta); host.addEventListener('pointercancel', solta);
   });
-  // Duplo clique no texto: seleciona o bloco e põe o cursor no campo dele, no painel
+  /* ── Edição inline de texto (estilo Estúdio) ── */
+  function iniciaEdicaoTexto(t, g){
+    if(!t || !t.isConnected) return;
+    if(emEdicaoInline) emEdicaoInline.fecha(true);
+    const tipo = tipoTexto(t);
+    const val = valorTexto(t, tipo);
+    const hr = host.getBoundingClientRect(), tr = t.getBoundingClientRect();
+    const z = zoom || 1;
+    const x = (tr.left - hr.left) / z;
+    const y = (tr.top - hr.top) / z;
+    const comp = window.getComputedStyle(t);
+    const fs = parseFloat(comp.fontSize) / z;
+    const ta = document.createElement('textarea');
+    ta.className = 'cr-ed-inline-ta';
+    ta.value = val;
+    ta.spellcheck = false;
+    ta.rows = (val.split('\n').length || 1);
+    const anc = t.getAttribute('text-anchor');
+    const alig = anc === 'middle' ? 'center' : anc === 'end' ? 'right' : 'left';
+    const col = t.getAttribute('fill') || comp.color || '#ffffff';
+    Object.assign(ta.style, {
+      left: Math.round(x - 4) + 'px',
+      top: Math.round(y - 4) + 'px',
+      width: Math.max(Math.round(tr.width / z + 16), 140) + 'px',
+      minHeight: Math.max(Math.round(tr.height / z + 8), 34) + 'px',
+      fontSize: Math.round(fs) + 'px',
+      fontFamily: comp.fontFamily,
+      fontWeight: comp.fontWeight,
+      fontStyle: comp.fontStyle,
+      color: col,
+      textAlign: alig,
+      lineHeight: comp.lineHeight || '1.15',
+      letterSpacing: comp.letterSpacing || 'normal',
+      textTransform: t.classList.contains('hero') ? 'uppercase' : 'none'
+    });
+    t.style.opacity = '0';
+    raiz.appendChild(ta);
+    ta.focus(); ta.select();
+    const autoDim = () => {
+      ta.style.height = 'auto';
+      ta.style.height = Math.max(ta.scrollHeight, Math.round(tr.height / z + 8)) + 'px';
+    };
+    autoDim();
+    ta.addEventListener('input', autoDim);
+    let finalizado = false;
+    function fecha(salva){
+      if(finalizado) return;
+      finalizado = true;
+      emEdicaoInline = null;
+      const nv = ta.value;
+      ta.remove();
+      t.style.opacity = '';
+      if(salva && nv !== val){
+        guarda();
+        aplicaTexto(t, tipo, nv);
+        tudo();
+      }
+    }
+    emEdicaoInline = { fecha };
+    ta.addEventListener('blur', () => fecha(true));
+    ta.addEventListener('keydown', ev => {
+      ev.stopPropagation();
+      if(ev.key === 'Enter' && !ev.shiftKey && tipo !== 'linhas'){
+        ev.preventDefault();
+        fecha(true);
+      } else if(ev.key === 'Escape'){
+        ev.preventDefault();
+        fecha(false);
+      }
+    });
+  }
+
+  // Duplo clique no texto: abre a caixa de edição inline diretamente sobre o texto na arte
   raiz.addEventListener('dblclick', e => {
     const t = e.target.closest ? e.target.closest('text') : null, g = t && t.closest('[data-bloco]');
-    if(!g) return;
+    if(!g || !t) return;
+    e.preventDefault(); e.stopPropagation();
     if(g !== atual) seleciona(g);
-    const ts = [...g.querySelectorAll('text')].filter(x => tipoTexto(x)), i = ts.indexOf(t);
-    const ta = props.querySelector('.cr-ed-campo[data-ti="' + Math.max(0, i) + '"] textarea');
-    if(ta){ ta.focus(); ta.select(); ta.closest('.cr-ed-campo').classList.add('pisca'); setTimeout(() => ta.closest('.cr-ed-campo').classList.remove('pisca'), 700); }
+    iniciaEdicaoTexto(t, g);
   });
+
+  function adicionarTexto(){
+    guarda();
+    const g = document.createElementNS(_crNS, 'g');
+    g.setAttribute('data-bloco', 'titulo');
+    const t = document.createElementNS(_crNS, 'text');
+    t.setAttribute('x', Math.round(W / 2));
+    t.setAttribute('y', Math.round(H * 0.5));
+    t.setAttribute('text-anchor', 'middle');
+    t.setAttribute('class', 'hero');
+    t.setAttribute('font-size', '72');
+    t.setAttribute('fill', '#FFFFFF');
+    t.textContent = 'NOVO TEXTO';
+    g.appendChild(t);
+    svg.appendChild(g);
+    tudo();
+    seleciona(g);
+    iniciaEdicaoTexto(t, g);
+    gToast('Texto adicionado · Digite para editar');
+  }
+  function adicionarForma(){
+    guarda();
+    const g = document.createElementNS(_crNS, 'g');
+    g.setAttribute('data-bloco', 'decor');
+    const rc = document.createElementNS(_crNS, 'rect');
+    rc.setAttribute('x', Math.round(W * 0.15));
+    rc.setAttribute('y', Math.round(H * 0.4));
+    rc.setAttribute('width', Math.round(W * 0.7));
+    rc.setAttribute('height', Math.round(H * 0.2));
+    rc.setAttribute('rx', '24');
+    rc.setAttribute('fill', '#FFFFFF');
+    rc.setAttribute('fill-opacity', '0.15');
+    g.appendChild(rc);
+    svg.appendChild(g);
+    tudo();
+    seleciona(g);
+    gToast('Forma adicionada');
+  }
+  function alternarCorFundo(){
+    const cores = op.spec.marca === 'much' ? ['#E52676', '#FFB900', '#FFFFFF'] : ['#F85400', '#FF9000', '#434343', '#FFFFFF'];
+    const fundo = svg.querySelector('[data-fundo]');
+    const atualCor = (fundo && fundo.getAttribute('fill') || '').toUpperCase();
+    const idx = cores.indexOf(atualCor);
+    const prox = cores[(idx + 1) % cores.length];
+    guarda();
+    if(fundo) fundo.setAttribute('fill', prox);
+    const pt = svg.querySelector('#pattern-ancorado');
+    if(pt) pt.setAttribute('color', prox === '#FF9000' ? '#F85400' : '#FF9000');
+    painel();
+    gToast('Fundo: ' + prox);
+  }
+
+  /* ── Mesa: navegação infinita (pan e zoom) ── */
+  mesa.addEventListener('pointerdown', e => {
+    if(e.target.closest('.cr-ed-ferramentas, .cr-ed-zoom-bar, .cr-ed-flut, .cr-ed-dica')) return;
+    const clicouPalco = e.target === host || host.contains(e.target);
+    if(clicouPalco && !espacoPressionado && e.button !== 1) return;
+    if(e.button !== 0 && e.button !== 1) return;
+    e.preventDefault();
+    mesa.classList.add('cr-panning', 'cr-arrastando');
+    const x0 = e.clientX, y0 = e.clientY, px0 = panX, py0 = panY;
+    const moveMesa = ev => {
+      panX = px0 + (ev.clientX - x0);
+      panY = py0 + (ev.clientY - y0);
+      atualizaPalco();
+    };
+    const soltaMesa = () => {
+      window.removeEventListener('pointermove', moveMesa);
+      window.removeEventListener('pointerup', soltaMesa);
+      window.removeEventListener('pointercancel', soltaMesa);
+      mesa.classList.remove('cr-panning', 'cr-arrastando');
+    };
+    window.addEventListener('pointermove', moveMesa);
+    window.addEventListener('pointerup', soltaMesa);
+    window.addEventListener('pointercancel', soltaMesa);
+  });
+  mesa.addEventListener('wheel', e => {
+    e.preventDefault();
+    const mr = mesa.getBoundingClientRect();
+    const mx = e.clientX - mr.left, my = e.clientY - mr.top;
+    const fator = e.ctrlKey ? Math.exp(-e.deltaY * 0.01) : (e.deltaY < 0 ? 1.12 : 0.88);
+    const novoZoom = Math.min(3.0, Math.max(0.25, Math.round(zoom * fator * 100) / 100));
+    if(novoZoom !== zoom){
+      panX = mx - (mx - panX) * (novoZoom / zoom);
+      panY = my - (my - panY) * (novoZoom / zoom);
+      zoom = novoZoom;
+      atualizaPalco();
+    }
+  }, { passive: false });
+  mesa.addEventListener('dblclick', e => {
+    if(e.target === mesa || e.target.classList.contains('cr-ed-viewport')){
+      resetZoom();
+    }
+  });
+  const onKeySpaceDown = e => {
+    if(e.code === 'Space' && !e.repeat && !e.target.matches('textarea, input')){
+      espacoPressionado = true;
+      mesa.classList.add('cr-espaco');
+    }
+  };
+  const onKeySpaceUp = e => {
+    if(e.code === 'Space'){
+      espacoPressionado = false;
+      mesa.classList.remove('cr-espaco');
+    }
+  };
+  window.addEventListener('keydown', onKeySpaceDown);
+  window.addEventListener('keyup', onKeySpaceUp);
+
+  /* ── Barra flutuante de ferramentas e zoom ── */
+  ed.addEventListener('click', e => {
+    const zb = e.target.closest('[data-zoom-act]');
+    if(zb){
+      const act = zb.dataset.zoomAct;
+      if(act === 'in'){ zoom = Math.min(3.0, Math.round(zoom * 1.15 * 100) / 100); atualizaPalco(); }
+      else if(act === 'out'){ zoom = Math.max(0.25, Math.round(zoom * 0.85 * 100) / 100); atualizaPalco(); }
+      else if(act === 'reset'){ resetZoom(); }
+      else if(act === 'fit'){ fitZoom(); }
+      return;
+    }
+    const fb = e.target.closest('[data-ferr]');
+    if(fb){
+      const f = fb.dataset.ferr;
+      if(f === 'select'){
+        ferrAtiva = 'select';
+        ed.querySelectorAll('.cr-ed-ferr-btn').forEach(b => {
+          const on = b.dataset.ferr === 'select';
+          b.classList.toggle('on', on);
+          b.setAttribute('aria-pressed', String(on));
+        });
+        host.focus({ preventScroll: true });
+      }else if(f === 'guias'){
+        guiasAtivas = !guiasAtivas;
+        fb.classList.toggle('on', guiasAtivas);
+        fb.setAttribute('aria-pressed', String(guiasAtivas));
+        atualizaGuias();
+      }else if(f === 'forma'){
+        adicionarForma();
+      }else if(f === 'texto'){
+        if(atual && atual.querySelector('text')) iniciaEdicaoTexto(atual.querySelector('text'), atual);
+        else adicionarTexto();
+      }else if(f === 'foto'){
+        acao('trocarFoto');
+      }else if(f === 'cor'){
+        alternarCorFundo();
+      }
+      return;
+    }
+  });
+
   // Desfazer/refazer na tela inteira do editor: fora de um campo de texto, o Ctrl+Z nativo do
   // navegador desfaria a ÚLTIMA caixa editada da página (a do pedido) — então ele é barrado aqui
   ed.addEventListener('keydown', e => {
@@ -4855,6 +5130,8 @@ function crEditar(op, aoSalvar){
   window.addEventListener('resize', reposiciona, { passive: true });
   function fechar(nova){
     window.removeEventListener('resize', reposiciona);
+    window.removeEventListener('keydown', onKeySpaceDown);
+    window.removeEventListener('keyup', onKeySpaceUp);
     ed.classList.remove('aberto');
     setTimeout(() => ed.remove(), _crReduz() ? 0 : 220);
     if(origem && origem.isConnected && origem.focus) origem.focus({ preventScroll: true });
