@@ -1,7 +1,7 @@
 # Migração do Supabase — o que falta, passo a passo
 
 > Checklist do Pedro. Atualizado em **16/10/2026, 13h45** — **VIRADA FEITA**. O Luma no ar já aponta para
-> o projeto novo. Pendentes: avisar a equipe (3.5), fumaça (3.6), chave do Gemini (2.3.3) e a seção 4.
+> o projeto novo. Pendentes: avisar a equipe (3.5), fumaça (3.6) e a seção 4. As chaves de IA (2.3.3) entraram em 19/10.
 > **Ensaio geral da virada feito em 16/10, 10h51** (o roteiro inteiro da seção 3.2, inclusive o
 > `00_limpar_novo.sql`): o novo ficou igual ao antigo daquele minuto, com os templates que o Ryan fez em 15/10. Projeto antigo `uqrqzjafhigjuvtjqzid`
 > (Ryan, Free) → novo `xqsazcazsjxajmtmirzd` (org "DM - Inovação e IA", Pro).
@@ -68,7 +68,7 @@ que ainda segura os secrets (2.2.1).
    - ⛔ **Os seis secrets do `ai` NÃO têm como ser copiados**: o Supabase guarda só a assinatura SHA-256 e a
      API devolve só ela (foi isso que você colou em 14/10; já tirei do novo). Os valores reais estão com quem
      os criou (Ryan, em 23/09) ou se geram de novo em cada provedor. Ver 2.3.3.
-3. ⬜ **Valores reais dos secrets do `ai`** — quem gera é o Ryan (não trava a virada: pode entrar depois;
+3. ✅ (19/10) **Valores reais dos secrets do `ai`** — quem gera é o Ryan (não trava a virada: pode entrar depois;
    até lá a IA do Luma responde "IA não configurada", o resto funciona). Ele pode te passar o valor para
    colar no arquivo abaixo, ou, se tiver acesso ao projeto novo, gravar direto no Dashboard dele
    (Edge Functions → Secrets):
@@ -118,7 +118,9 @@ Settings (limite global ≥ 15 MB); Edge Functions → Secrets (`GEMINI_API_KEY`
 ### 2.4 Feito com os tokens — ✅ Eu (16/10)
 
 1. ✅ Data API, Auth e Storage do novo iguais ao antigo (detalhe em 2.3.2).
-2. ⬜ Gravar os secrets reais do `ai` no novo e testar a IA — assim que o 2.3.3 chegar.
+2. ✅ (19/10) Secrets no novo (Pedro, pelo Dashboard, nomes `GEMINI_KEY1`… — ver 2.3.3) e function v14
+   lendo-os: a sonda com a chave pública passou de 503 para 401. Falta só o teste de ponta a ponta no
+   Luma (gerar arte → legenda), que é com login.
 
 ### 2.3b Decisão que é só sua — ⬜ Você
 
