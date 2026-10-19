@@ -3,7 +3,8 @@
  *
  * Área "Dados" do painel da conta — o que a rede faz no Luma (product intelligence).
  * Só lê: as três RPCs do schema luma (dados_painel, dados_pessoa, dados_eventos) na
- * migration 20260923140000_luma_dados_painel.sql. Quem autoriza é a RLS + a checagem da
+ * migration 20260923140000_luma_dados_painel.sql (dados_painel reescrita em
+ * 20261019120000_luma_dados_jornada_churn.sql: funil.tempos e kpis.churn). Quem autoriza é a RLS + a checagem da
  * própria RPC; gIsAdmin() aqui é só o gate da interface (gestão e equipe DM).
  * Carrega SOB DEMANDA: nada é buscado até a aba abrir (gDadosAbrir, chamado por
  * gProfileSwitchTab('painel') em user-profile.js).
@@ -756,12 +757,30 @@ function _gDadosPessoasHtml() {
   todas.filter(p => p.ativo !== false).forEach(p => { st[_gDadosStatus(p.ultimo_acesso)[0]]++; });
   const saude = _gDadosSecao('Saúde da base', 'Pelo último acesso de cada conta ativa' + (_gDados.cidade ? ' desta cidade.' : '.'),
     _gDadosSegs([['is-ok', 'Entrou na última semana', st.ok], ['is-morno', 'Sumiu há 8 a 30 dias', st.morno], ['is-frio', 'Mais de 30 dias ou nunca', st.frio]], 'Saúde da base'));
-  return `${saude}<div class="gd-filtros">
+  // Churn (RPC v2, 19/10/2026): a "Saúde da base" olha o último acesso de cada um; o churn compara o
+  // período com o anterior, só entre franqueados. Fica aqui, não no Diagnóstico ("rede esfriando"
+  // ficou fora dele por decisão do Ryan em 25/09). Rede inteira: a RPC não separa por cidade.
+  const ch = ((_gDados.data || {}).kpis || {}).churn;
+  const churn = ch ? _gDadosSecao('Churn de franqueados', 'Quem estava ativo no período anterior e não fez nada neste' + (_gDados.cidade ? ' (rede inteira)' : '') + '. Ativo = qualquer ação no Luma.', _gDadosChurnHtml(ch)) : '';
+  return `${saude}${churn}<div class="gd-filtros">
       <input type="search" class="gd-input" placeholder="Buscar por nome" aria-label="Buscar pessoa por nome" value="${gEsc(_gDados.busca)}" oninput="gDadosPessoasBusca(this.value)">
       <select class="gd-select" aria-label="Filtrar por papel" onchange="gDadosPessoasPapel(this.value)">
         <option value="">Todos os papéis</option>${papeis.map(p => `<option${p === _gDados.papel ? ' selected' : ''}>${gEsc(p)}</option>`).join('')}
       </select>
     </div><div id="gd-pessoas-tabela">${_gDadosPessoasTabela()}</div>`;
+}
+function _gDadosChurnHtml(ch) {
+  if (!ch.ativos_anterior) {
+    return `<p class="gd-vazio">Sem base de comparação: nenhum franqueado ativo no período anterior${ch.novos ? ' — ' + _gDadosPl(ch.novos, 'franqueado começou', 'franqueados começaram') + ' neste período' : ''}.</p>`;
+  }
+  const kpis = `<div class="gd-kpis gd-kpis-4">${_gDadosKpi('Churn', _gDadosPct(ch.taxa), `${_gDadosN(ch.perdidos)} de ${_gDadosN(ch.ativos_anterior)} sumiram`)}`
+    + `${_gDadosKpi('Perdidos', _gDadosN(ch.perdidos), 'ativos antes, sem ação agora')}${_gDadosKpi('Voltaram', _gDadosN(ch.voltaram), 'parados no período anterior')}`
+    + `${_gDadosKpi('Novos', _gDadosN(ch.novos), 'primeira ação no Luma')}</div>`;
+  const perdidos = ch.lista_perdidos || [];
+  const lista = perdidos.length
+    ? `<ul class="gd-lista">${perdidos.map(p => `<li><span><strong>${gEsc(p.nome || 'Sem nome')}</strong>${p.cidade ? `<small class="gd-sub">${gEsc(p.cidade)}</small>` : ''}</span><small>${gEsc('Último acesso: ' + _gDadosRel(p.ultimo_acesso).toLowerCase())}</small></li>`).join('')}</ul>`
+    : '';
+  return kpis + lista;
 }
 function _gDadosPessoasFiltradas() {
   const q = _gDadosNorm(_gDados.busca);
@@ -878,12 +897,21 @@ function _gDadosFunilHtml(d) {
   ], pm, 'Nenhum material aberto no período.');
   // Quem converte pior entre os que têm volume: é a fila de revisão do material.
   const piores = pm.filter(r => r.abriu >= 10).slice().sort((a, b) => a.baixou / a.abriu - b.baixou / b.abriu).slice(0, 5);
+  // Jornada em TEMPO (RPC v2, 19/10/2026): o funil diz quantos chegam; aqui, quanto demoram. "Desde a
+  // entrada" da etapa "Arte gerada" é o mesmo relógio do KPI "Até a 1ª arte" da Visão geral.
+  const jornada = _gDadosTabela([
+    { t: 'Etapa', k: r => `<strong>${gEsc(r.rotulo || r.etapa)}</strong>` },
+    { t: 'Sessões', num: 1, k: r => _gDadosN(r.n) },
+    { t: 'Desde a etapa anterior', num: 1, k: r => gEsc(_gDadosDurFina(r.desde_anterior_s)) },
+    { t: 'Desde a entrada no Luma', num: 1, k: r => gEsc(_gDadosDurFina(r.desde_entrada_s)) }
+  ], (f.tempos || []).filter(r => r.n), 'Nenhuma sessão chegou a uma etapa no período.');
+  const jornadaSec = _gDadosSecao('Jornada em tempo', 'Mediana por sessão: quanto demora da entrada no Luma até cada etapa, e de uma etapa para a próxima (só sessões que passaram pelas duas).', jornada);
   return `<div class="gd-duas">${_gDadosSecao('Funil geral', 'Sessões que chegaram a cada etapa.', _gDadosFunilGeral(f.geral || []))}
       ${_gDadosSecao('Quem menos converte', 'Materiais com 10+ aberturas, do pior para o melhor. A barra é a própria linha: 100% = quem abriu.', _gDadosRank(piores, {
         rot: r => `<strong>${gEsc(r.template_name || 'Sem nome')}</strong>`, sub: r => r.camp_name || '', n: r => r.abriu,
         val: r => `${_gDadosPct(r.baixou / r.abriu)} <small>baixou</small>`, etapas: r => [r.abriu, r.gerou, r.baixou].map(v => v / r.abriu * 100),
         vazio: 'Nenhum material com volume suficiente no período.' }))}</div>` +
-    _gDadosSecao('Por material', 'Os 30 mais abertos. % sobre quem abriu.', tab + _G_DADOS_TRILHO_LEG);
+    jornadaSec + _gDadosSecao('Por material', 'Os 30 mais abertos. % sobre quem abriu.', tab + _G_DADOS_TRILHO_LEG);
 }
 
 /* ── Conteúdo ───────────────────────────────────────────────────────────────────────── */

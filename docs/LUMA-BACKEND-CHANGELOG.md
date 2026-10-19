@@ -6,6 +6,28 @@
 
 ---
 
+## 2026-10-19 — Painel de Dados: jornada em tempo + churn de franqueados (✅ migration `20261019120000`)
+
+**Pedido do Pedro:** medir quanto tempo o usuário leva desde que entra no Luma até gerar uma arte, e
+o churn. O primeiro já existia como KPI ("Até a 1ª arte", mediana por sessão, meta 1 min); o que
+faltava era a jornada inteira em tempo. O churn não existia (só o status por último acesso da aba
+Pessoas). **Nenhum evento novo no front**: as duas leituras saem do que `analytics.fct_eventos` já
+grava, dentro da RPC `luma.dados_painel` (reescrita; mesma autorização, mesmas chaves anteriores).
+
+- **`funil.tempos`** — por etapa (campanha aberta → material → preencheu → arte gerada → baixou):
+  sessões que chegaram, mediana desde a etapa anterior (só sessões que passaram pelas duas, na
+  ordem) e desde a entrada (1º evento da sessão). "Arte gerada · desde a entrada" = o KPI da 1ª arte.
+  Em 19/10 (30 dias): campanha 5 s, material 26 s, preencheu 6 min 30 s, arte 3 min 52 s, baixou
+  11 min 41 s desde a entrada.
+- **`kpis.churn`** — só franqueados ativos (equipe testando inflaria): `ativos_anterior`, `perdidos`
+  (ativo no período anterior, sem evento neste), `voltaram`, `novos`, `taxa` e `lista_perdidos`
+  (nome, cidade, último acesso). Em 19/10 ainda não há base: os franqueados começaram nos últimos
+  30 dias (0 ativos na janela anterior, 4 novos).
+- **Front (`dados.js`, `?v=307`):** aba Funil ganha a seção "Jornada em tempo" (tabela); aba Pessoas
+  ganha "Churn de franqueados" (4 KPIs + lista dos perdidos), logo abaixo de "Saúde da base". Fora
+  do Diagnóstico de propósito ("rede esfriando" ficou fora dele por decisão do Ryan em 25/09). Se a
+  RPC não devolver as chaves, as seções mostram o vazio e nada quebra (conferido em Chrome headless).
+
 ## 2026-10-16 — Migração de projeto: `uqrqzjafhigjuvtjqzid` (Free, org pessoal) → `xqsazcazsjxajmtmirzd` (Pro, org DM - Inovação e IA) ✅
 
 **O que mudou para quem usa:** só o login (o token é por projeto; a senha é a mesma). Nenhum material
