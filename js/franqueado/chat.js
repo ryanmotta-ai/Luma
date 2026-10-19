@@ -445,6 +445,19 @@ function fUpdateProg(){
    refatorei os 6 (fora do escopo desta rodada); código novo usa esta. */
 function _fCelular(){ return !!(window.matchMedia && matchMedia('(max-width:680px)').matches); }
 
+/* LEGENDA RECOLHIDA NO CELULAR (19/10/2026, pedido do Pedro). O bloco inteiro (texto + Copiar +
+   Gerar outra) ocupava a tela da entrega; agora o cabeçalho "Legenda pronta" é o botão e o resto
+   só aparece ao tocar (`.is-aberta`). Só o celular esconde (CSS em `body.f-mobile-chat`), por
+   isso o toggle só responde lá — no desktop o cabeçalho segue sendo título. Delegado no
+   documento porque o card nasce depois, no `fGerarArte` e no `fOutroFormato`. */
+document.addEventListener('click', (e)=>{
+  const cab = e.target && e.target.closest ? e.target.closest('.caption-assistant-panel .caption-card-head') : null;
+  if(!cab || !_fCelular()) return;
+  const painel = cab.closest('.caption-assistant-panel');
+  const aberta = painel.classList.toggle('is-aberta');
+  cab.setAttribute('aria-expanded', aberta ? 'true' : 'false');
+});
+
 /* ══════════════════════════════════════════════════════════════════════════════════════════
    DESKTOP GUIADO — O ESTADO ACUMULA; AS MENSAGENS NÃO
    ══════════════════════════════════════════════════════════════════════════════════════════
@@ -2909,7 +2922,7 @@ function _fPecaEhStory(mat, fmt){
 }
 function _fCaptionInnerHTML(canvasId, suggestions){
   const temAlt = suggestions.length > 1;
-  return `<header class="caption-card-head">
+  return `<header class="caption-card-head"${_fCelular() ? ' role="button" tabindex="0" aria-expanded="false" title="Mostrar ou esconder a legenda"' : ''}>
         <div class="caption-card-heads">
           <h4 class="caption-card-title">Legenda pronta</h4>
           <p class="caption-card-sub">Copie e publique junto com a arte.</p>

@@ -3433,6 +3433,21 @@ body.f-arte-pronta .art-ok-tick-bloq{width:28px;height:28px}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-foot{padding:10px 0 0;margin:0;border:0;gap:8px}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-copy-btn{width:100%;min-height:var(--tap-min);justify-content:center;border-radius:13px;font-size:14px;margin:0}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-alt-btn{width:100%;min-height:var(--tap-min);justify-content:center;margin:0}
+  /* RECOLHIDA POR PADRÃO (pedido do Pedro, 19/10): o cabeçalho vira o botão "Legenda pronta", com
+     o selo de origem e uma seta; texto e ações só existem com `.is-aberta` (toggle em chat.js,
+     ao lado de `_fCelular`). Aberta, é exatamente o bloco de antes. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:var(--tap-min);padding:0 14px;border:1px solid var(--gray-mid);border-radius:13px;background:var(--white);cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-head:active{background:var(--gray-light)}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-head:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-title{font-size:14px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-sub{display:none}
+  /* A seta: borda rotacionada, sem ícone novo. Aponta para baixo fechada, para cima aberta. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-head::after{content:"";flex-shrink:0;width:8px;height:8px;margin:0 4px 4px 0;border-right:2px solid var(--text-3);border-bottom:2px solid var(--text-3);transform:rotate(45deg);transition:transform var(--dur-fast) var(--ease-out)}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-assistant-panel.is-aberta .caption-card-head::after{transform:rotate(225deg);margin:4px 4px 0 0}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-content-box,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-card-foot{display:none}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-assistant-panel.is-aberta .caption-content-box{display:block;margin-top:10px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-assistant-panel.is-aberta .caption-card-foot{display:flex}
 
   /* Uma ação por linha. O "peso igual" de Baixar/Refazer é regra de DESKTOP (a dupla na
      mesma linha, pedido do Ryan em 09/09) e continua lá: aqui a largura é de um dedo, e
