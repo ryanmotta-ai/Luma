@@ -3472,6 +3472,16 @@ function _fLpImageEditor(l,v,ev){
   };
 }
 function _fLpUploadImage(file,v){
+  /* ── A FOTO ESCOLHIDA NA ARTE ENTRA PELA PORTA DO CHAT ──
+     Se o chat está ESPERANDO esta mesma foto (passo de imagem aberto, zona "Escolher foto" na
+     tela), o arquivo segue por `fProcessImageFile`, o motor único: a bolha do passo vira a prévia
+     com "Usar esta imagem" e a conversa pode seguir. Antes a foto só ia para `fState.dados`: a
+     arte mudava, mas o passo ficava em "Escolher foto" com o campo de texto desligado — no
+     celular, com a arte na gaveta, parecia travado (bug de 20/10/2026). Fora do passo (campo já
+     respondido, ou outro passo aberto) o caminho continua o de sempre, abaixo. */
+  const zona=[...document.querySelectorAll("#f-messages .f-upload-zone[data-var]")]
+    .find(z=>z.dataset.var===v && !z.classList.contains("f-upload-loading"));
+  if(zona && typeof fProcessImageFile==="function"){ _fLpCloseEditor(); fProcessImageFile(file, v, zona.dataset.upload); return; }
   const reader=new FileReader();
   reader.onload=e=>{
     const done=async (url)=>{

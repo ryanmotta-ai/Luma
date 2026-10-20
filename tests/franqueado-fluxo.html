@@ -761,6 +761,38 @@ await test('Colar/arrastar: a foto cai no passo que pede foto, e só nele', asyn
   }
 });
 
+/* ══ A FOTO ESCOLHIDA NA ARTE — o chat tem que ficar sabendo ════════════════════════════
+   No celular a arte é uma gaveta. Tocar na foto da arte e escolher um arquivo gravava em
+   `fState.dados` e a arte mudava, mas o passo "Envie a foto" ficava em "Escolher foto" com o
+   campo desligado — travado (20/10/2026). O arquivo da arte entra pelo motor do chat, como o
+   colar e o arrastar: a bolha vira a prévia com "Usar esta imagem" e a conversa anda. */
+await test("Foto pela arte com o passo esperando: a bolha vira prévia e a conversa segue", async()=>{
+  reset();
+  document.body.classList.add("mode-franqueado");
+  try{
+    irAoPasso("foto_produto");
+    await espera(60);
+    assert(document.querySelector("#f-messages .f-upload-zone[data-var=foto_produto]"),"o passo de foto não montou zona de upload");
+    const box=document.getElementById("f-msg-box");
+    assert(box.disabled,"o passo de foto deveria desligar o campo de texto");
+    _fLpUploadImage(_pngMinimo(),"foto_produto");          // é isto que o popover da arte faz ao escolher o arquivo
+    await espera(600);
+    assert(String(fState.dados.foto_produto||"").startsWith("data:image"),"a foto escolhida na arte não chegou ao campo");
+    assert(!document.querySelector("#f-messages .f-upload-zone[data-var=foto_produto]"),"o passo continuou em Escolher foto — o chat não ficou sabendo da foto");
+    assert(document.querySelector("#f-messages [id$=-preview] .f-upload-ok"),"a bolha não ganhou o Usar esta imagem — sem ele a conversa não anda");
+    assert(!box.disabled,"o campo de texto continuou desligado");
+    // Fora do passo de foto o caminho é o de sempre: só o estado muda, o chat não ganha bolha nova.
+    reset();
+    irAoPasso("produto");
+    await espera(60);
+    const bolhas=document.querySelectorAll("#f-messages .msg").length;
+    _fLpUploadImage(_pngMinimo(),"foto_produto");
+    await espera(600);
+    assert(String(fState.dados.foto_produto||"").startsWith("data:image"),"fora do passo a foto não chegou ao campo");
+    assert(document.querySelectorAll("#f-messages .msg").length===bolhas,"fora do passo o chat não deveria ganhar bolha");
+  } finally { document.body.classList.remove("mode-franqueado"); }
+});
+
 /* ══ A UI DO BLOQUEIO — "não cabe" tem que ter saída ════════════════════════════════════
    O Local Fit BLOQUEIA quando o texto não cabe nem no menor corpo legível. O que se cobra
    aqui não é o bloqueio (isso é `tests/local-fit.html`): é o que a pessoa vê e para onde ela
