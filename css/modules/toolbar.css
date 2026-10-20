@@ -888,11 +888,15 @@ body:not(.theme-light) .g-toast-acao:hover {
   }
   .g-toast-item.has-acao .g-toast-txt { text-align: left; font-size: 12.5px; }
   .g-toast-acao { width: auto; min-height: 38px; padding: 0 13px; }
-  body.f-mobile-chat:not(.f-material-browser) #g-toast-container { bottom: calc(96px + var(--safe-bottom)); }
-  /* No passo da foto a linha de digitar some e o "Usar esta imagem" toma o lugar dela: os 96px
-     caíam em cima do botão (foto de exemplo no celular, 20/10/2026). Com a confirmação na tela
-     o toast desce para o rodapé da folha, onde só há o "Anterior" — e some em segundos. */
-  body.f-mobile-chat:not(.f-material-browser):has(#f-sheet .msg.active-prompt .f-upload-confirm) #g-toast-container { bottom: calc(14px + var(--safe-bottom)); }
+  /* ── NO CHAT DO CELULAR O TOAST VAI PARA O ALTO, logo abaixo do cabeçalho ──
+     A folha do chat ocupa o pé da tela, e qualquer altura ali cobria algo: a 20px a linha de
+     digitar, a 96px o "Usar esta imagem", a 14px o "Foto enviada" da bolha (20/10/2026). No
+     alto só há a arte, e por 2,8s. Com o teclado aberto o cabeçalho encolhe a zero e o toast
+     fica sobre a arte do mesmo jeito — e continua visível, coisa que o pé da tela não garante. */
+  body.f-mobile-chat:not(.f-material-browser) #g-toast-container { top: calc(60px + var(--safe-top)); bottom: auto; }
+  /* Cartão arredondado, não pílula: no celular a frase quebra em duas linhas e a pílula de 999px
+     virava uma cápsula de texto miúdo, com cara de log (pedido do Pedro, 20/10/2026). */
+  body.f-mobile-chat:not(.f-material-browser) .g-toast-item { border-radius: 14px; padding: 11px 16px; font-size: 13px; font-weight: 600; line-height: 1.45; text-align: left; }
 }
 
 /* ── DIÁLOGO DA CASA (gConfirm/gPrompt — js/core/toast.js) ──
