@@ -28,6 +28,7 @@
 | `20260926120000_luma_suporte_atendimento` | ❌ **NÃO aplicada** (26/09) | Atendimento do suporte: estado, responsável, histórico, trava contra dois atendentes, `suporte_equipe()`. O front roda como a v1 até ela entrar. Depois de aplicar: `rls.sql` (casos "atendimento:"). |
 | `20260926130000_luma_suporte_telegram` | ❌ **NÃO aplicada** (26/09) | A ponte com o Telegram (liga `pg_net`/`pg_cron`, fila, vínculo, RPCs da Edge Function `suporte-telegram`). Depende da de cima. Roteiro completo em `docs/SUPORTE-TELEGRAM.md` → "Como ligar". |
 | `20260923124809` → `20260923183000` | ✅ registradas | Painel de Dados, IA, `destaque`, pastas de sistema, MIME dos buckets, versões de template. `luma_dados_painel` teve dois ajustes aplicados (`_fix_alias`, `_tempo_ativo`) já incorporados no arquivo. |
+| `20261020150000_luma_service_role_leitura` | ✅ aplicada (20/10, projeto novo) | `usage` em `luma`/`analytics` + `select` nas tabelas para a `service_role` (só leitura). Sem isso o relatório semanal e a limpeza de órfãos davam `permission denied for schema luma` — defeito herdado do projeto antigo. |
 
 **Todas as funções que existem no banco estão em algum arquivo daqui** (conferido: `rls_auto_enable`,
 `evt_forca_identidade`, `ff_auditar`, `handle_new_user`, `get_user_role`, `registrar_evento`…).
