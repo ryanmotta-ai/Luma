@@ -889,6 +889,10 @@ body:not(.theme-light) .g-toast-acao:hover {
   .g-toast-item.has-acao .g-toast-txt { text-align: left; font-size: 12.5px; }
   .g-toast-acao { width: auto; min-height: 38px; padding: 0 13px; }
   body.f-mobile-chat:not(.f-material-browser) #g-toast-container { bottom: calc(96px + var(--safe-bottom)); }
+  /* No passo da foto a linha de digitar some e o "Usar esta imagem" toma o lugar dela: os 96px
+     caíam em cima do botão (foto de exemplo no celular, 20/10/2026). Com a confirmação na tela
+     o toast desce para o rodapé da folha, onde só há o "Anterior" — e some em segundos. */
+  body.f-mobile-chat:not(.f-material-browser):has(#f-sheet .msg.active-prompt .f-upload-confirm) #g-toast-container { bottom: calc(14px + var(--safe-bottom)); }
 }
 
 /* ── DIÁLOGO DA CASA (gConfirm/gPrompt — js/core/toast.js) ──

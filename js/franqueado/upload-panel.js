@@ -258,7 +258,7 @@ function fPickDemoImg(id){
     .then(blob=>{
       const nome=d.src.split('/').pop()||'exemplo.jpg';
       fProcessImageFile(new File([blob], nome, {type:blob.type||'image/jpeg'}), varId, uploadId);
-      if(typeof gToast==='function') gToast('Foto de exemplo aplicada — troque pela real antes de publicar');
+      if(typeof gToast==='function') gToast('Foto de exemplo aplicada. Troque pela real antes de publicar.');
     })
     .catch(()=>{ if(typeof gToast==='function') gToast('Não consegui carregar a foto de exemplo. Envie uma foto sua.','error'); });
 }
