@@ -209,6 +209,56 @@ pronto quando o cenário roda de ponta a ponta.
 e o Ateliê fazem, a comunidade amplifica, e o Datamatch e o Auditor dizem se funcionou. Isso volta
 para o planejamento do mês seguinte.
 
+## 5d. Ideias registradas (21/10/2026)
+
+Ideias aprovadas pelo Ryan para o roadmap. As três primeiras são as prioritárias.
+
+### Prioritárias
+
+**I1 · Cupom único por arte: medir o que cada peça vendeu.**
+Hoje dá para saber o resultado de uma campanha, mas não de uma *arte*. Cada peça gerada no Luma ou
+no Ateliê leva um código de cupom próprio, criado no CleverTap, e assim se sabe qual arte vendeu.
+Isso fecha o ciclo:
+- o Ateliê aprende quais direções de arte **vendem** mais, e não só quais ficam bonitas;
+- o franqueado vê "sua arte de sexta trouxe 23 pedidos";
+- a curadoria ganha um dado objetivo, além do gosto do Ryan.
+
+É a ideia de maior impacto: transforma o 360 de "produzir arte" em "produzir resultado".
+Depende da integração com o CleverTap (Q11) e de ligar o resgate do cupom à arte (Datamatch).
+
+**I2 · "Sua semana pronta": o Ateliê trabalha antes de o franqueado pedir.**
+Toda segunda, o Ateliê gera 3 a 5 peças para cada franqueado, com os dados dele (lojas parceiras,
+campanha ativa, trend aprovada). Ele recebe o aviso "sua semana está pronta, revise e baixe". O
+esforço cai de "pedir" para "aprovar". Para quem não tem tempo nem ideia, é a diferença entre usar
+e não usar. Roda agendado (n8n) e conta na cota de IA (decidir como, Q2 do `08_ATELIE.md`).
+
+**I3 · Arte co-branded para o lojista parceiro.**
+O restaurante parceiro quer postar que está no app, mas não tem arte. O franqueado gera uma peça
+co-branded (marca do lojista com a DM) e manda para ele postar no próprio Instagram. Multiplica o
+alcance sem mídia paga, e o lojista vira divulgador. **O franqueado aprova antes**, para a marca DM
+não sair sem controle. Pede regra de co-branding (proporção e posição das duas marcas) no
+playbook.
+
+### Para guardar no roadmap
+
+- **I4 · Foto do lojista tratada pela IA:** a foto ruim do produto costuma ser o ponto fraco da
+  arte. Recortar, melhorar a luz e o fundo antes de entrar na composição eleva todas as peças. O
+  slot `foto_produto` já existe.
+- **I5 · Ateliê pelo WhatsApp:** o franqueado pede a arte direto pelo WhatsApp, sem abrir o app.
+  Enorme potencial de adoção; depende da mesma questão de API da comunidade (Q10).
+- **I6 · Kit de lançamento de franquia nova:** no primeiro acesso, o Ateliê gera o pacote
+  "chegamos na cidade" (posts, stories, impressos, mensagem para os lojistas). O primeiro mês é o
+  mais difícil para o franqueado.
+- **I7 · Relatório mensal automático:** PDF ou e-mail "seu mês no marketing", com o que postou, a
+  nota do Auditor, os resultados e as sugestões para o mês seguinte. O franqueado sente o valor, e
+  a rede tem o que mostrar.
+- **I8 · Voz regional:** a copy se adapta à região (expressões do Sul são diferentes das do
+  Nordeste), sem fugir do branding. Uma camada do playbook de voz.
+- **I9 · Memória do franqueado:** o Ateliê lembra das lojas parceiras dele, do estilo que ele
+  prefere e do que já postou, sem ele repetir a cada sessão. Hoje a sessão fica só no aparelho;
+  isso pede guardar no Supabase o que é dele (com RLS), sem a referência externa (D3 do
+  `08_ATELIE.md`).
+
 ---
 
 ## 6. Ordem sugerida (para não se perder)
@@ -259,4 +309,5 @@ O RH (`08_ATELIE.md` E11) corre por fora, porque é outro público e não depend
 | Q11 | CleverTap: qual a verba mensal do canal, e quem aprova cupom hoje? A API permite criar cupom como rascunho? |
 | Q12 | Quais dinâmicas da "panelinha" funcionam hoje (exemplos reais), para virar o playbook do agente? |
 | Q9 | ~~Por que o Calendário saiu em 04/10?~~ **Foco na v1 (Ryan, 21/10).** Não foi problema do módulo; a fonte do dado continua sendo o risco R2. |
+| Q14 | Métrica norte do 360 (proposta: "% de franquias que postam ≥ 3 vezes por semana com material da marca"). Cada ideia entra na fila pelo quanto move essa métrica. Aceita? |
 | Q13 | Até onde vai o histórico de calendários da DM, e em que formato está (planilha, Drive, e-mail)? |
