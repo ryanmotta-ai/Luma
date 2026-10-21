@@ -186,6 +186,29 @@ Verba do canal ────────┘     texto + dinâmica + cupom propost
 - **Tom:** comunidade é relação. O agente precisa de um playbook de voz próprio do canal (skill),
   além do branding geral.
 
+## 5c. Um dia no 360 (cenários = critério de pronto)
+
+Como o ecossistema funciona no dia a dia, quando estiver pronto. Cidades e números são
+ilustrativos. Cada cenário é também o **teste de aceitação** do que ele cita: o épico só está
+pronto quando o cenário roda de ponta a ponta.
+
+| # | Quando | Cenário | Produtos e épicos |
+|---|---|---|---|
+| 1 | Segunda, manhã | O franqueado de Erechim recebe o e-mail "saiu a campanha Frete Grátis de Outubro, adesão até quarta". No Calendário, abre a campanha, vê os 6 materiais vindos da Yungas e o aviso "na campanha parecida de julho, sua franquia vendeu 12% acima da média". Clica em "Fazer minha arte", gera no template e baixa em um minuto. Registra a adesão ali mesmo. | Calendário v1 e v2 · Franqueado · Datamatch |
+| 2 | Terça | "Preciso de uma arte para anunciar que a pizzaria Bella Massa entrou no app", com a foto anexada. O concierge ativa a skill de arte, o diretor de arte usa só assets institucionais e saem 3 opções diferentes das da semana anterior. "Troca o fundo para laranja": a IA aplica o patch sem mexer no resto e guarda uma versão. | Ateliê E1, E2, E4, E5 |
+| 3 | Quarta | O franqueado manda o print de um post de uma hamburgueria famosa: "nessa pegada para o burger do Zé". O Ateliê traduz a linguagem para o universo DM. O print fica só na sessão dele. | Ateliê E3.3, E4.4 |
+| 4 | Quinta | "Tem material de rede social para essa semana?" → lista e baixa. "Quais wind banners a gente tem?" → 4 mockups, escolhe um e baixa o arquivo de impressão já fechado. | Ateliê E7, E8 |
+| 5 | Sexta | "Preciso de uma apresentação para convencer a padaria Pão Quente a entrar no app" → deck de 5 slides no template de 2026. "Agora me faz um roteiro de 30 segundos" → o modo copy entrega. | Ateliê E9, E10 |
+| 6 | Todo dia | O agente da comunidade cruza o Calendário, a verba do canal (R$ 1.200 restantes) e o caça-trend. Monta a dinâmica "o primeiro que comentar o pedido de sexta ganha o cupom", com cupom de R$ 10 para 50 usos e arte do Ateliê. O administrador aprova em um clique, o cupom nasce no CleverTap e o post sai. À noite: 41 de 50 resgatados. | Comunidade §5b · Ateliê · Caça-trend |
+| 7 | Fim do mês | O coordenador de marketing pede no chat de planejamento: "monta novembro: Black Friday, prévia de Natal e a campanha de pizzaria". A IA responde com dados do passado ("a Black Friday concentrou 70% das vendas na sexta e no sábado; a campanha de pizzaria colide na semana 4, a semana 2 vendeu 15% acima da média em 2025"). O rascunho abre no editor, o coordenador de operações ajusta duas datas e os dois publicam. A rede recebe o e-mail. | Calendário v2 §4.2 · Datamatch |
+| 8 | Lançamento sazonal | O designer da campanha de Natal sobe os assets (vigência de 1 a 31/12), as regras e o playbook, que vira uma skill do Ateliê. Em 1º/12, todo pedido genérico já sai com a cara de Natal; em 1º/1, os assets somem sozinhos. | Ateliê E2.3, E6 |
+| 9 | Toda semana | O Auditor dá a nota do Instagram de cada franquia. A de Erechim subiu de 54 para 78 em dois meses. O franqueado vê a nota no Calendário junto dos resultados; a rede vê quem está abaixo de 50 e oferece ajuda. | Auditor · Calendário |
+| 10 | 7h, por fora | O n8n lê no Datamatch o aniversariante do dia. O Ateliê preenche o template e o RH recebe o e-mail com a arte pronta. | RH (`08_ATELIE.md` E11) |
+
+**O fio que liga tudo:** o franqueado nunca começa do zero. O Calendário diz o quê, o Franqueado
+e o Ateliê fazem, a comunidade amplifica, e o Datamatch e o Auditor dizem se funcionou. Isso volta
+para o planejamento do mês seguinte.
+
 ---
 
 ## 6. Ordem sugerida (para não se perder)
