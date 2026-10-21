@@ -174,13 +174,17 @@ não dá para "atualizar por cima"; no dia, o banco do novo é zerado e refeito 
 
 ## 4. Depois da virada
 
-- ⬜ **Você** — apagar o token `migracao-luma` em https://supabase.com/dashboard/account/tokens e tirar a
-  linha `SUPABASE_ACCESS_TOKEN` do `.env`.
-- ⬜ **Você** — deixar o antigo vivo por **30 dias**; depois **pausar** (Dashboard do antigo → Project Settings →
-  General → Pause project). **Não apagar.**
+- ✅ **Eu** (21/10) — `.env` limpo: `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`/`SUPABASE_DB_URL` apontam para o novo;
+  `NOVO_*`, `ANTIGO_*` e os `*_ACCESS_TOKEN` saíram. `.mcp.json` sem o `supabase-antigo`.
+- ⬜ **Você** — revogar os tokens de acesso usados na migração em https://supabase.com/dashboard/account/tokens
+  (nas duas contas). Eles saíram do `.env`, mas continuam válidos até serem revogados lá.
+- ✅ **Você** (21/10) — antigo **pausado** (adiantado: os 30 dias eram só folga, sem motivo técnico). Antes disso,
+  o que entrou nele depois da virada (10 artes e 25 fotos de abas abertas antes da troca) foi copiado para o
+  novo em 20/10, e o backup final (banco + 1.724 arquivos, 416 MB) está no Drive da empresa.
+  **Apagar** só em ~21/11, se ninguém sentiu falta de nada.
 - ⬜ **Eu** — patch do thumb do catálogo (miniatura gerada no publicar; `templates.thumb_url` já existe).
   Estava desenhado, não aplicado; entra depois da migração, em commit separado.
-- ⬜ **Eu** — a `service_role` não tem acesso ao schema `luma` (nem no antigo, nem no novo, porque o novo é
+- ✅ **Eu** (20/10, migration `20261020150000_luma_service_role_leitura`) — a `service_role` não tinha acesso ao schema `luma` (nem no antigo, nem no novo, porque o novo é
   cópia). Isso derruba o `limpar-assets-orfaos.js` e provavelmente o `digest-semanal.py` do GitHub
   Actions. É um `grant usage on schema luma to service_role` + grants nas tabelas; fora da migração, vejo
   com você depois.

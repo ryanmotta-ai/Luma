@@ -214,4 +214,4 @@ duplicaria linha. Por isso a virada **refaz a parte do banco do zero**, com a eq
 ## 11. Se der ruim
 
 `git revert` do commit da virada e push: o Luma volta para o antigo, que não foi tocado. Deixar o
-antigo vivo por 30 dias; depois pausar (não apagar).
+antigo vivo por 30 dias; depois pausar (não apagar). _(Feito: antigo pausado em 21/10/2026, depois de copiar o que entrou nele pós-virada e guardar o backup final no Drive.)_
