@@ -6,10 +6,10 @@ mesmo caminho do upstream e confira o diff antes — elas mudam o comportamento 
 | Skill | Origem | Commit | Licença |
 |---|---|---|---|
 | `caveman/` | [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) · `skills/caveman/SKILL.md` | `e2c09c9a7e66` | MIT |
-| `ponytail/` | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) · `skills/ponytail/SKILL.md` | `b6c04480c03e` | MIT |
+| `ponytail/` | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) · `skills/ponytail/SKILL.md` | `09c434a` | MIT |
 | `impeccable/` | [pbakaus/impeccable](https://github.com/pbakaus/impeccable) · `.claude/skills/impeccable/` **inteiro** | `63b04e2530f5` | Apache 2.0 |
 
-Baixadas em 2026-07-27. Níveis em uso no Luma: **caveman = lite**, **ponytail = full**
+Baixadas em 2026-07-27 (`ponytail` atualizada em 2026-10-21). Níveis em uso no Luma: **caveman = lite**, **ponytail = full**
 (ver `CLAUDE.md` → "Modos sempre ativos").
 
 Os repositórios trazem sub-skills que **não** foram instaladas de propósito: `caveman-compress`
