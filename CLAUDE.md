@@ -51,6 +51,7 @@ Elas valem em toda resposta, sem precisar ser pedidas. Desligar: **"stop ponytai
 - `design-role.md` — **papel de design** (Principal Product Designer).
 - `06_OPERATING_SYSTEM.md` — **como se comportar** (o loop, guardrails, quando perguntar).
 - `07_ROADMAP.md` — **roadmap oficial da v1** (fases, bugs com file:line, decisões abertas; atualize os checks ao concluir itens).
+- `08_ATELIE.md` — **Luma Ateliê** (ex-Creative): visão, arquitetura alvo, roadmap em épicos/etapas para o Jira, decisões e perguntas abertas.
 - Técnico detalhado: `docs/LUMA.md`. Backend: `docs/LUMA-BACKEND-CHANGELOG.md`.
 - **Academia** (formação do franqueado, prefixo `ac*`): `docs/LUMA-ACADEMIA.md`.
 
