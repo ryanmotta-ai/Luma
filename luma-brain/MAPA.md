@@ -261,7 +261,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 92 arquivos JS (84.896 linhas, 3.284 funções) · 33 arquivos CSS (33.414 linhas) · `index.html` com 4.096 linhas e 82 `<script>`.
+**Tamanho real de hoje:** 92 arquivos JS (85.254 linhas, 3.287 funções) · 33 arquivos CSS (33.501 linhas) · `index.html` com 4.096 linhas e 82 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -330,9 +330,9 @@ LUMA CLI Console de comandos do Luma, só pra quem é da casa (equipe_dm/gestao)
 COPY FIT — encurtar a copy do franqueado SEM mudar o que se vende (22/09/2026) Quando o Local Fit bloqueia, o franqueado precisa de uma SAÍDA, não de um aviso.
 · API: gCopyFitGuarda, gCopyFitConfere, gCopyFitCandidatos, gCopyFitSugestoes
 
-**`js/core/dados.js`** · 1466 linhas
+**`js/core/dados.js`** · 1494 linhas
 Área "Dados" do painel da conta — o que a rede faz no Luma (product intelligence).
-· API: gDadosAbrir, gDadosCarregar, gDadosSetPeriodo, gDadosSetCidade, gDadosSetAba, gDadosTabsKeydown, gDadosSetMetrica, gDadosGrafMove, gDadosGrafSai, gDadosGrafFoco, gDadosGrafKey, gDadosPessoasBusca, gDadosPessoasPapel, gDadosPessoasOrdenar … (+9; 110 funções no total)
+· API: gDadosAbrir, gDadosCarregar, gDadosSetPeriodo, gDadosSetCidade, gDadosSetAba, gDadosTabsKeydown, gDadosSetMetrica, gDadosGrafMove, gDadosGrafSai, gDadosGrafFoco, gDadosGrafKey, gDadosPessoasBusca, gDadosPessoasPapel, gDadosPessoasOrdenar … (+9; 111 funções no total)
 · Estado global: _gDados
 · Depende de: core/toast.js (gEsc, gToast), core/auth.js (gIsAdmin), core/supabase.js (gSupabase).
 
@@ -432,9 +432,9 @@ F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES defi
 · Estado global: _F_MAXLEN_MED, _fAlvoNaPasta, _fFitOpts, _fFitRun, _fFitSai, _fFitIaReprovadas, _fFitCf, quando, _fFitPerto, _fFitFora
 · Depende de: 00-config.js
 
-**`js/franqueado/chat.js`** · 3939 linhas
+**`js/franqueado/chat.js`** · 3981 linhas
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
-· API: fChatNovaConversa, fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fTrackResposta, fTrackFoto … (+69; 181 funções no total)
+· API: fChatNovaConversa, fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fTrackResposta, fTrackFoto … (+69; 183 funções no total)
 · Estado global: fNextTimeout, _fChatGen, _fGuidedNav, _fGuidedTimer, _fGuidedBound, _fProntaCtxAberto, _fRevisando, _fArtSnapshots, _fArtCaptions, _fGiriasFr (+4)
 · Depende de: 00-config.js, 01-state.js, franqueado/chat-input.js
 
@@ -449,7 +449,7 @@ Historico de artes do franqueado: fGetHist, fSaveHist, fAddHist, fMarkHistBaixad
 · Estado global: _fHistPage, _fArtesPushBusy, _fArtesPushQueued
 · Depende de: 00-config.js (HIST_KEY), 01-state.js (fState)
 
-**`js/franqueado/live-preview.js`** · 4862 linhas
+**`js/franqueado/live-preview.js`** · 4872 linhas
 Preview lateral em tempo real (fUpdateLivePreview) e modal de preview multi-formato (fOpenPreview, fClosePreview, fStartFromPreview).
 · API: fOpenPreview, fStartFromPreview, fClosePreview, fPostedRepintaLegenda, fPostedSetCtx, fPostedCloseQR, fPostedOpenQR, fPostedCopyQRLink, fPostedContextForFormat, fLpTrocarContexto, fOpenPosted, fClosePosted, fLpCamposBloqueados, fLpListaRotulos … (+35; 237 funções no total)
 · Estado global: _postedArt, renderizada, _postedCtx, _pstStageBound, _pstTiltRaf, _pstQRUrl, _pstQRBusy, _lpConclusaoAtiva, _lpCardPintado, _lpConclusaoSaindo (+50)
@@ -721,7 +721,7 @@ As composições do dia a dia do franqueado (frente 4, 15/10/2026) — desenhada
 LUMA CREATIVE — modo COPY (15/10/2026) Quando o pedido é um TEXTO ("quero uma copy", "uma legenda", "um roteiro", "mensagem de whatsapp"…) e não uma arte, o chat vira o de um copywriter:
 · API: crPromptCopyBriefing, crPromptCopyTexto, crCopy, crLegendaMarca
 
-**`js/creative/creative.js`** · 4915 linhas
+**`js/creative/creative.js`** · 5193 linhas
 Luma Creative — modo em TESTES, só a gestão (trava em main.js e na Edge Function `ai`).
 · API: crTema, crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crLockup, crTextoLinhas, crTextoMulti, crX, crTexto, crMista, crHeroi … (+98; 192 funções no total)
 · Estado global: _crFontesProm, _crCtx, _crMesa, _crPesosCuradoria, _crArrasto, _crSessTimer, _crLegendaVer
@@ -760,10 +760,10 @@ MAKING-OF da arte (frente 6, 15/10/2026; microações em 15/10, pedido do Ryan) 
 | `css/modules/all-tools.css` | 113 |
 | `css/modules/calendario.css` | 1544 |
 | `css/modules/catalog.css` | 299 |
-| `css/modules/chat.css` | 3979 |
+| `css/modules/chat.css` | 4022 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
-| `css/modules/creative.css` | 763 |
+| `css/modules/creative.css` | 799 |
 | `css/modules/designer.css` | 5424 |
 | `css/modules/feedback.css` | 199 |
 | `css/modules/franqueado.css` | 1712 |
@@ -773,7 +773,7 @@ MAKING-OF da arte (frente 6, 15/10/2026; microações em 15/10, pedido do Ryan) 
 | `css/modules/live-preview.css` | 1743 |
 | `css/modules/panel-dock.css` | 116 |
 | `css/modules/publish-modal.css` | 628 |
-| `css/modules/toolbar.css` | 1082 |
+| `css/modules/toolbar.css` | 1090 |
 | `css/modules/topbar.css` | 217 |
 | `css/modules/upload-panel.css` | 139 |
 
