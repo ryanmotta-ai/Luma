@@ -55,7 +55,10 @@ só. Hoje ela já existe: `luma.pastas` (`fGetCampaigns`).
 
 ---
 
-## 3. Recomendação: separados na marca, juntos na base
+## 3. Separados na marca, juntos na base — decidido 21/10/2026
+
+**Decisão do Ryan:** o Calendário tem **nome próprio e a mesma base** do Luma. O nome ainda está
+em aberto (Q1).
 
 O Ryan prefere o Calendário **fora** do Luma, com nome próprio, para ser realmente "o
 calendário" que a rede vê. Concordo, com uma condição:
@@ -90,16 +93,24 @@ critérios chegam por API ou n8n, e o Calendário e o Ateliê só leem.
 - **Ofertas de varejo da franqueadora**, ilustradas no próprio dia.
 - **Notificação por e-mail** quando sai campanha ou material novo.
 
-### 4.2 Para os coordenadores (montam)
+### 4.2 Para os coordenadores (montam) — decidido 21/10/2026
+
 Hoje o coordenador de marketing e o de operações montam o calendário de varejo todo mês, fora do
-Luma. A ideia é eles montarem **dentro** do Calendário. Duas formas, a decidir (Q4):
+Luma. Eles passam a montar **dentro** do Calendário, pelas **duas portas**, sobre os mesmos dados:
 
-- **A · Editor com sugestão:** tela de mês onde eles arrastam campanhas e ofertas, e a IA sugere
-  datas, conflitos e oportunidades (feriado, data do varejo, campanha que se sobrepõe).
-- **B · Chat de planejamento:** eles descrevem o mês ("outubro: Dia das Crianças, Black Friday
-  prévia, frete grátis na segunda semana") e a IA monta o rascunho; eles revisam e publicam.
-
-Em qualquer das duas, **publicar é um ato humano**. A IA rascunha e eles aprovam.
+- **Editor:** tela de mês onde eles criam, arrastam e ajustam campanhas e ofertas.
+- **Chat de planejamento com IA:** eles descrevem o mês e a IA monta o rascunho. O chat tem
+  fluxos que puxam dados, para planejar com embasamento:
+  - **Passado:** calendários antigos da Delivery Much ("no ano passado, nesta data, rodou X").
+  - **Resultado:** o que vendeu bem em cada data e campanha (Datamatch, §4.4). Por exemplo:
+    "frete grátis na segunda semana de outubro vendeu 18% acima da média".
+  - **Futuro:** feriados, datas do varejo, campanhas já marcadas e conflitos entre elas.
+- O rascunho do chat abre no editor, para ajuste fino. **Publicar é um ato humano**: a IA
+  rascunha e os coordenadores aprovam.
+- **Pré-requisito:** o histórico precisa existir num lugar só. Os calendários antigos (planilhas
+  e arquivos de cada mês) entram numa tabela, com a data e a campanha, e o resultado do Datamatch
+  é ligado a eles pelo id da campanha. Hoje só agosto e setembro de 2026 estão portados
+  (`js/calendario/conteudo.js`). Levantar até onde vai o histórico é a Q13.
 
 ### 4.3 De onde vem o material (Yungas)
 - **Plano A:** API da Yungas, se existir (o Ryan está estudando; há relatos de que tem).
@@ -213,10 +224,10 @@ O RH (`08_ATELIE.md` E11) corre por fora, porque é outro público e não depend
 
 | # | Pergunta |
 |---|---|
-| Q1 | Calendário com nome e endereço próprios, mas no mesmo repositório e no mesmo Supabase: aceito? Que nome? |
+| Q1 | ~~Nome próprio e mesma base?~~ **Sim (Ryan, 21/10).** Falta: qual é o nome? |
 | Q2 | Yungas tem API? (O Ryan está estudando.) Se não tiver, o plano B é o Google Drive? |
 | Q3 | Datamatch: como se extrai o resultado por campanha (API, exportação, banco)? Quem é o contato? |
-| Q4 | Coordenadores montam o calendário pelo editor com sugestão (A) ou pelo chat de planejamento (B)? |
+| Q4 | ~~Editor ou chat?~~ **Os dois (Ryan, 21/10)**, com o chat puxando passado, resultados e futuro (§4.2). |
 | Q5 | Adesão à campanha: o que muda para quem adere e para quem não adere? |
 | Q6 | "Ao vivo" no Calendário é com que frequência? Diário basta? |
 | Q7 | Auditor de marca: quem é o dono da outra frente, e ele já expõe a nota por API? |
@@ -224,4 +235,5 @@ O RH (`08_ATELIE.md` E11) corre por fora, porque é outro público e não depend
 | Q10 | WhatsApp: o canal da DM é *Channel* ou *grupo/comunidade*? Qual API oficial cobre a publicação? |
 | Q11 | CleverTap: qual a verba mensal do canal, e quem aprova cupom hoje? A API permite criar cupom como rascunho? |
 | Q12 | Quais dinâmicas da "panelinha" funcionam hoje (exemplos reais), para virar o playbook do agente? |
-| Q9 | Por que o Calendário saiu em 04/10? Foi a fonte do dado, o foco na v1 ou outro motivo? |
+| Q9 | ~~Por que o Calendário saiu em 04/10?~~ **Foco na v1 (Ryan, 21/10).** Não foi problema do módulo; a fonte do dado continua sendo o risco R2. |
+| Q13 | Até onde vai o histórico de calendários da DM, e em que formato está (planilha, Drive, e-mail)? |
