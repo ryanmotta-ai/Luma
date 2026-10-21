@@ -259,6 +259,48 @@ playbook.
   isso pede guardar no Supabase o que é dele (com RLS), sem a referência externa (D3 do
   `08_ATELIE.md`).
 
+## 5e. Automações registradas (21/10/2026)
+
+Formato: **gatilho → ação → quem aprova**. Quase todas rodam no **n8n**, lendo do Supabase e
+chamando o Ateliê. **Nenhuma publica nada sem humano**, exceto avisos e lembretes.
+
+### Para o franqueado
+
+| ID | Gatilho | Ação | Aprova |
+|---|---|---|---|
+| A1 | Franqueado sem gerar arte há 10 dias. | E-mail ou WhatsApp com "sua semana pronta" (I2) e uma peça da campanha ativa já feita. | Ninguém (é aviso). |
+| A2 | Loja parceira nova cadastrada no app. | O Ateliê gera a arte "chegou no app" e a versão co-branded (I3). | O franqueado, que manda para o lojista. |
+| A3 | Preço ou cardápio da loja mudou no app. | As artes ativas com aquele produto ficam marcadas "desatualizadas", com o botão "refazer com o preço novo". | O franqueado refaz. |
+| A4 | Data local chegando (aniversário da cidade, feira, jogo do time da região), 2 semanas antes. | Sugestão de arte no Calendário dele. Pede tabela de datas por cidade, que os franqueados podem alimentar. | O franqueado. |
+| A5 | Previsão de chuva ou frio no fim de semana. | Sugestão "dia de chuva é dia de delivery" com arte pronta. | O franqueado. |
+
+### Para a rede (franqueadora)
+
+| ID | Gatilho | Ação | Aprova |
+|---|---|---|---|
+| A6 | Nota do Auditor cai, ou franquia 2 semanas sem postar. | Alerta para o consultor de campo, com o contexto ("parou de postar desde o dia 3, nota caiu de 72 para 51"). | Ninguém (é alerta interno). |
+| A7 | Fim do mês. | Ranking: quem mais postou, mais vendeu por arte (I1) ou mais subiu de nota → post de destaque na comunidade de franqueados. | O marketing. |
+| A8 | Prazo de adesão acaba em 2 dias e a franquia não aderiu. | Lembrete automático. Depois do prazo, relatório de adesão para a coordenação. | Ninguém (é lembrete). |
+| A9 | Campanha publicada no Calendário. | O n8n monta o e-mail de lançamento para a rede (o que é, prazo, materiais, link para o Ateliê) e o post para a comunidade de franqueados. | O coordenador. |
+
+### Para o time interno
+
+| ID | Gatilho | Ação | Aprova |
+|---|---|---|---|
+| A10 | Toda noite. | A bancada roda sobre os pedidos do dia (sem dados pessoais) e registra a nota média e as reprovadas → relatório semanal para o Ryan com os 5 piores casos. É o painel de curadoria. | — |
+| A11 | Asset de campanha vence em 7 dias. | Aviso para o designer da campanha: renovar ou deixar expirar. | O designer. |
+| A12 | O concierge não acha skill para o pedido, ou o franqueado desiste no meio. | O pedido entra na fila de "demanda não atendida". É o termômetro do que construir a seguir. | — |
+| A13 | Gasto diário de IA passa do teto. | Alerta e, se preciso, o Ateliê troca para um modo econômico. Com o Flash high em tudo, esse controle é obrigatório. | O Ryan. |
+
+### As 3 primeiras
+
+- **A12 · Demanda não atendida:** custa quase nada e diz, com dado real, o que o roadmap deve
+  priorizar.
+- **A3 · Preço desatualizado:** previne o erro mais caro do marketing de delivery, o cliente pedir
+  e o preço ser outro.
+- **A5 · Clima:** gatilho simples, gera arte e venda no momento certo, e é fácil de medir com o
+  cupom por arte (I1).
+
 ---
 
 ## 6. Ordem sugerida (para não se perder)
@@ -310,4 +352,5 @@ O RH (`08_ATELIE.md` E11) corre por fora, porque é outro público e não depend
 | Q12 | Quais dinâmicas da "panelinha" funcionam hoje (exemplos reais), para virar o playbook do agente? |
 | Q9 | ~~Por que o Calendário saiu em 04/10?~~ **Foco na v1 (Ryan, 21/10).** Não foi problema do módulo; a fonte do dado continua sendo o risco R2. |
 | Q14 | Métrica norte do 360 (proposta: "% de franquias que postam ≥ 3 vezes por semana com material da marca"). Cada ideia entra na fila pelo quanto move essa métrica. Aceita? |
+| Q15 | Fontes de dado das automações: o cadastro de loja nova e a mudança de preço (A2, A3) saem de qual sistema, e o n8n consegue ler? Qual API de clima (A5)? |
 | Q13 | Até onde vai o histórico de calendários da DM, e em que formato está (planilha, Drive, e-mail)? |
