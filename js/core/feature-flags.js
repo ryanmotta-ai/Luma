@@ -61,7 +61,7 @@ const G_FEATURE_REGISTRY = [
   { key:'module.designer', label:'Estúdio', desc:'O editor onde a equipe monta e publica os templates.',
     module:'designer', parent:null, categoria:'modulos', behaviors:['hide','maintenance'],
     preserva:['load'], tags:['designer','editor','canvas'] },
-  { key:'module.creative', label:'Luma Creative', desc:'Modo em testes: o chat que compõe arte nova com IA. Só a gestão abre.',
+  { key:'module.creative', label:'Luma Ateliê', desc:'Modo em testes: o chat que compõe arte nova com IA. Só a gestão abre.',
     module:'creative', parent:null, categoria:'modulos', behaviors:['hide','maintenance'],
     preserva:['load'], tags:['creative','ia','compor','testes'] },
   /* ── FRANQUEADO ──────────────────────────────────────────── */
@@ -203,7 +203,7 @@ const G_FEATURE_REGISTRY = [
 const G_FEATURE_MODULOS = [
   { id:'designer',   label:'Estúdio' },
   { id:'franqueado', label:'Franqueado' },
-  { id:'creative',   label:'Luma Creative' },
+  { id:'creative',   label:'Luma Ateliê' },
   { id:'video',      label:'Vídeo' },
   { id:'global',     label:'Global' }
 ];
