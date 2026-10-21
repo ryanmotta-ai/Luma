@@ -125,6 +125,56 @@ Em qualquer das duas, **publicar é um ato humano**. A IA rascunha e eles aprova
 - Ficha aprovada vira uma **skill de trend no Ateliê**, com vigência curta. Se o franqueado pede
   algo nessa linha, a resposta já sai pré-pronta. O Calendário pode mostrar "trend da semana".
 
+## 5b. Comunidade (WhatsApp) automatizada
+
+Hoje o canal de comunidade da Delivery Much no WhatsApp depende de um administrador em tempo
+integral. A meta é automatizar **por etapas**, autônomo mas **sempre com aprovação humana**.
+
+**O que o canal faz e precisa continuar fazendo**
+- Dinâmicas com cupom (a "panelinha"): o canal é comunidade, **não disparo em massa de ofertas**.
+- Avisar campanhas que estão rolando (vem do Calendário).
+- Criar e soltar cupom no **CleverTap**, dentro da verba de mídia dedicada ao canal.
+- Arte de cada post feita pelo **Ateliê** (formato próprio para WhatsApp).
+
+**O fluxo alvo**
+```
+Calendário (campanha) ─┐
+Caça-trend ────────────┼─► AGENTE DA COMUNIDADE (n8n + IA) ─► rascunho do post:
+Verba do canal ────────┘     texto + dinâmica + cupom proposto + arte (Ateliê)
+                                          │
+                               APROVAÇÃO HUMANA (1 clique: aprova / ajusta / recusa)
+                                          │
+                     cria o cupom no CleverTap ─► publica no WhatsApp ─► mede o resgate
+```
+
+**Etapas de autonomia** (cada uma só começa quando a anterior estiver estável):
+
+| Etapa | O agente faz | O humano faz |
+|---|---|---|
+| 1 · Copiloto | Propõe o post da semana: texto, dinâmica, cupom sugerido e arte. | Cria o cupom, posta e responde. |
+| 2 · Cupom assistido | Prepara o cupom no CleverTap como rascunho, dentro da verba. | Aprova o cupom e posta. |
+| 3 · Publicação aprovada | Agenda e publica depois do "aprovo". | Aprova em um clique. |
+| 4 · Autonomia parcial | Publica sozinho os tipos de baixo risco (aviso de campanha já aprovada). | Aprova só o que envolve cupom e dinâmica nova. |
+
+**Regras que o código garante (não a IA)**
+- **Teto de verba:** o agente nunca propõe cupom acima do saldo da verba do canal no período. O
+  teto é número no código ou no banco, não instrução no prompt.
+- **Mistura de conteúdo:** proporção máxima de posts de oferta por semana, para o canal não virar
+  disparo em massa.
+- **Frequência máxima** de posts por dia.
+- **Nada sai sem aprovação** nas etapas 1 a 3.
+- **Credenciais** do CleverTap e do WhatsApp ficam no servidor (n8n ou Edge Function), nunca no
+  navegador.
+
+**Riscos específicos**
+- **API do WhatsApp:** *canal* (Channels) e *grupo/comunidade* são coisas diferentes para a Meta.
+  Até onde sei, não há API oficial para publicar em Channels, e a de grupos é recente e limitada.
+  Precisa ser verificado antes de qualquer etapa além da 2 (Q10). Automação não oficial arrisca
+  o banimento do número.
+- **Cupom vazado ou abusado:** limite de uso por cliente e validade curta no CleverTap.
+- **Tom:** comunidade é relação. O agente precisa de um playbook de voz próprio do canal (skill),
+  além do branding geral.
+
 ---
 
 ## 6. Ordem sugerida (para não se perder)
@@ -139,6 +189,8 @@ A regra é **uma frente por vez**, e cada uma tem que entregar valor sozinha:
    notificações por e-mail.
 4. **Dados:** resultados do Datamatch e nota do Auditor no Calendário.
 5. **Caça-trend.**
+6. **Comunidade WhatsApp**, etapa por etapa (§5b). A etapa 1 (copiloto) pode começar assim que o
+   Ateliê tiver o formato de WhatsApp, porque não depende de API nenhuma.
 
 O RH (`08_ATELIE.md` E11) corre por fora, porque é outro público e não depende dessa fila.
 
@@ -169,4 +221,7 @@ O RH (`08_ATELIE.md` E11) corre por fora, porque é outro público e não depend
 | Q6 | "Ao vivo" no Calendário é com que frequência? Diário basta? |
 | Q7 | Auditor de marca: quem é o dono da outra frente, e ele já expõe a nota por API? |
 | Q8 | Caça-trend: quem aprova a ficha de trend, e em quanto tempo? |
+| Q10 | WhatsApp: o canal da DM é *Channel* ou *grupo/comunidade*? Qual API oficial cobre a publicação? |
+| Q11 | CleverTap: qual a verba mensal do canal, e quem aprova cupom hoje? A API permite criar cupom como rascunho? |
+| Q12 | Quais dinâmicas da "panelinha" funcionam hoje (exemplos reais), para virar o playbook do agente? |
 | Q9 | Por que o Calendário saiu em 04/10? Foi a fonte do dado, o foco na v1 ou outro motivo? |
