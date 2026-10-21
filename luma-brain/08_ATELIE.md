@@ -292,7 +292,11 @@ Cada etapa é um ticket. "Pronto" = o critério escrito, verificado na bancada o
 **E11 · RH**
 - [ ] E11.1 Converter as artes do RH em SVG para templates do Ateliê, só preenchendo campos.
 - [ ] E11.2 Pacote de artes do RH (aniversário, boas-vindas, tempo de casa…).
-- [ ] E11.3 Automação: aniversariante do dia → arte pronta → e-mail do RH (n8n).
+- [ ] E11.3 Fluxo n8n de **captação**: puxar os aniversariantes do Datamatch (dash de Pessoas)
+  todo dia. Dado pessoal: não vira tabela aberta no Luma; se precisar guardar, tabela própria com
+  RLS só do RH.
+- [ ] E11.4 Fluxo n8n de **entrega**: aniversariante do dia → o Luma gera a arte do template →
+  e-mail do RH com a arte pronta.
 
 **E12 · Impressos — fase B**
 - [ ] E12.1 Decidir o serviço de PDF de impressão (Edge Function ou n8n) — §7, Q4.
@@ -329,4 +333,5 @@ Cada etapa é um ticket. "Pronto" = o critério escrito, verificado na bancada o
 | Q5 | Yungas: temos os arquivos fechados e os direitos de uso de todos os impressos? Quem é o contato? | E8 |
 | Q6 | Material da semana: quem define o que é "da semana"? O catálogo atual tem data ou campanha? | E7 |
 | Q7 | Asset de campanha vencida some de vez ou fica arquivado para consulta? | E2.3 |
+| Q9 | Datamatch: tem API ou exportação que o n8n consiga ler? Quais campos (nome, data, área, e-mail, foto)? Quem autoriza o uso? | E11.3 |
 | Q8 | O franqueado vê de qual referência a IA se inspirou ("nessa pegada da referência X")? | E4 |
