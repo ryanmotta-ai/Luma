@@ -1507,7 +1507,7 @@ body.f-palco-assentado #lp-contextos{
    vai ficar": escala menor, limitada também pela LARGURA (100cqw) para qualquer aparelho, e sem o
    brilho. Modo editar é coisa de desktop — o botão some. */
 @media (max-width:680px){
-  #lp-contextos .lp-ctx-phone{--lp-ctx-escala:min(.82, (100cqh - 120px) / 640, (100cqw - 88px) / 300)}
+  #lp-contextos .lp-ctx-phone{--lp-ctx-escala:min(.66, (100cqh - 160px) / 640, (100cqw - 120px) / 300)}
   #lp-contextos .pst-ambiente{display:none}
   #f-live-preview #lp-design-start{display:none!important}
 }
