@@ -10,7 +10,7 @@
 
 Projeto `xqsazcazsjxajmtmirzd`. Só **inserts** em `luma.templates`, na pasta **"Combo Com Desconto"** (`657d4ccf…`, camp `cd`). Os 3 rascunhos "Novo material" que já estavam lá (vazios, só um retângulo) ficaram como estavam.
 
-- **"Combão com desconto — Oferta com preço"** — feed `560ae0da-4316-43bd-a880-14cade88d5cc` · story `5cd4e5d7-325e-44d6-ad29-b9f898af0d3e`. Mesma composição do Ofertas Favoritas (mesmos campos), fundo `#ff9000` com faixas em tons mais claros (`assets/campanhas/combao-com-desconto/bg-feed.png` e `bg-story.png`) e o banner "Combão com desconto" (`assets/banners/combao-com-desconto.png`, vindo do Drive: "Combão com desconto" da Vanessa, 764×204).
+- **"Combão com desconto — Oferta com preço"** — feed `560ae0da-4316-43bd-a880-14cade88d5cc` · story `5cd4e5d7-325e-44d6-ad29-b9f898af0d3e`. Mesma composição do Ofertas Favoritas (mesmos campos), fundo `#ff9000` com faixas em tons mais claros (`assets/campanhas/combao-com-desconto/bg-feed.png` e `bg-story.png`) e o banner "COMBOS com desconto" da Coca (`assets/banners/combao-com-desconto.png`, 764×204, o mesmo arquivo do `cd.png`, escolha do Ryan; a primeira versão usou o "Combão com desconto" do Drive da Vanessa).
 - Nos dois stories (Ofertas Favoritas e Combão) as caixas de produto, detalhe e descrição passaram de 480 para 465 de largura, para o texto não encostar na caixa de preço, que no story é mais larga.
 - Rollback: apagar as linhas novas (nascem na versão 1); o story do Ofertas Favoritas tem a versão anterior na `template_versions`.
 
