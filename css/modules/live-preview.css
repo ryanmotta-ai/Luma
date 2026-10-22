@@ -1502,6 +1502,15 @@ body.f-palco-assentado #lp-contextos{
   transform:scale(var(--lp-ctx-escala));
 }
 #f-live-preview .lp-stage{container-type:size}
+/* CELULAR (22/10/2026): o aparelho enchia o palco (colado nas bordas, enorme em telas altas) e o
+   brilho borrado da arte vazava laranja para fora dele. Aqui o celular é só uma pista de "como
+   vai ficar": escala menor, limitada também pela LARGURA (100cqw) para qualquer aparelho, e sem o
+   brilho. Modo editar é coisa de desktop — o botão some. */
+@media (max-width:680px){
+  #lp-contextos .lp-ctx-phone{--lp-ctx-escala:min(.82, (100cqh - 120px) / 640, (100cqw - 88px) / 300)}
+  #lp-contextos .pst-ambiente{display:none}
+  #f-live-preview #lp-design-start{display:none!important}
+}
 /* ⚠ Trocar de ambiente NÃO repete a coreografia — é troca de visualização (item 15). Um fade
    curto no conteúdo, e só. */
 #lp-contextos.lp-ctx-trocando .pst-screen{animation:lpCtxTroca 260ms var(--ease-out) both}
