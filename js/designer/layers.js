@@ -4168,6 +4168,8 @@ async function _dPushFoldersRun(){
    descobria semanas depois (ou nunca). Clique = tentar de novo na hora. */
 let _dLastPendCount=0;
 function gSyncBadgeUpdate(){
+  // Só quem publica template (equipe_dm/gestão) tem o que sincronizar: o franqueado não vê nem o aviso nem o toast.
+  if(typeof gIsAdmin==='function'&&!gIsAdmin()){ _dLastPendCount=0; return; }
   // Conta templates E pastas pendentes (upsert de pasta que falhou também é trabalho não-salvo)
   const n=(typeof dFolders!=='undefined'&&dFolders||[]).reduce((a,f)=>a+(f&&f._syncPending?1:0)+((f.templates||[]).filter(t=>t&&t._syncPending).length),0);
   let el=document.getElementById('g-sync-pending');
