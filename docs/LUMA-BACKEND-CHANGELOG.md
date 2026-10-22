@@ -15,6 +15,10 @@ Feedback do Cícero (WhatsApp): o risco grosso por cima do preço "de" faz o 29 
 - Cada template ganhou uma versão em `template_versions` (rollback pela `luma.restaurar_versao`).
 - Fora desta rodada: Aniversário, Coca "Só oferta boa", Entrega promocional e Much+ (layouts próprios).
 
+## 2026-10-22 — Combão com desconto: fundo "toldo" (✅ dados, sem migration)
+
+O Ryan pediu um fundo de forma diferente (o banner da Coca se perdia no `#ff9000` liso com faixas). Escolhido o **toldo**: listras verticais de laranja forte e claro no topo, com borda em arcos, e rodapé liso `#F85400` com logo e validade em branco. Feed `560ae0da…` e story `5cd4e5d7…` passam a usar `assets/campanhas/combao-com-desconto/bg-toldo-feed.png` e `bg-toldo-story.png` (nomes novos, para o cache do site não servir o fundo antigo), e a validade passa de `#F85400` para branco. Os PNGs antigos (`bg-feed.png`/`bg-story.png`) ficam no repositório. Rollback: `luma.restaurar_versao` (cada template ganhou uma versão).
+
 ## 2026-10-22 — Combão com desconto (feed + story) (✅ dados, sem migration)
 
 Projeto `xqsazcazsjxajmtmirzd`. Só **inserts** em `luma.templates`, na pasta **"Combo Com Desconto"** (`657d4ccf…`, camp `cd`). Os 3 rascunhos "Novo material" que já estavam lá (vazios, só um retângulo) ficaram como estavam.
