@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-10-22 — Ofertas Favoritas (feed + story) (✅ dados, sem migration)
+
+Projeto `xqsazcazsjxajmtmirzd`. Só **inserts** em `luma.templates`, na pasta **"OFERTAS | Tudo no Precinho"** (`b54c4e0b…`, camp `otp`, estava vazia); nada existente foi alterado. Composição de preço no padrão da referência do Ryan, com o banner "Ofertas Favoritas" (`assets/banners/ofertas-favoritas.png`).
+
+- **"Ofertas Favoritas — Oferta com preço"** — feed `f9e29473-567e-4af3-8c90-5b2e2dbfb9ed` · story `0d63de66-3fb7-42cc-a98c-763887fd0359`. Campos: `produto`, `detalhes`, `descricao`, `precoDe`, `precoPor`, `validade`, `foto_produto`, `logo_loja`.
+- **Fundo**: PNGs próprios no repositório (`assets/campanhas/ofertas-favoritas/bg-feed.png` e `bg-story.png`), redesenhados da print do Ryan (laranja + faixas amarela/laranja). Os templates apontam para o caminho relativo — **o push desses PNGs vem antes de publicar**.
+- O story segue a print dele (moldura, selo, logo, caixa de preço mais larga, rodapé mais baixo), não a convenção de story das outras artes de preço.
+- Rollback: apagar as duas linhas (nascem na versão 1).
+
+
 ## 2026-10-19 — Edge Function `ai`: três chaves Gemini e segunda do OpenRouter (✅ v13 no ar às 15h; v14 com os nomes do Dashboard)
 
 **Contexto:** desde a virada (16/10) o `ai` do projeto novo responde `503 IA não configurada` porque
