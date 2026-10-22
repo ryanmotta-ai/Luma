@@ -23,6 +23,7 @@ Projeto `xqsazcazsjxajmtmirzd`. Só **inserts** em `luma.templates`, na pasta **
 - Assets novos no repositório: `assets/campanhas/acai-aqui/bg-feed.png`, `bg-story.png` (anéis tirados da print, só nas zonas visíveis) e `celular.png` (mockup do `assets/creative/inv/` com moldura, endireitado 8°). Banner: `assets/banners/aai.png` (já existia). O story não veio na print: derivado do feed (topo +135, moldura mais alta, celular/banner/logo da loja descidos pela moldura, faixa do rodapé mais alta).
 - Banner já com o traçado branco de 4 px e a sombra sutil.
 - Rollback: apagar as duas linhas (nascem na versão 1).
+- **Mesmo dia, 2ª rodada (pedido do Ryan): sem o celular e diagramação reorganizada.** O mockup saiu (e o `celular.png` foi apagado do repositório). Banner, selo "PROCURE O BANNER" e logo da loja formam uma linha própria entre o topo e a moldura da foto, lado a lado e sem encostar em nada; a moldura ficou abaixo dessa linha, com respiro até a faixa do rodapé (cantos de baixo com raio 40). Topo mais compacto (logo, título/detalhe/descrição e bilhete mais acima). No story a linha do banner sobe mais perto da descrição e a moldura fica mais alta. Mesmos campos e mesmas regras (sem Detalhes a descrição sobe). A versão anterior de cada template está em `template_versions`.
 
 ## 2026-10-22 — Traçado branco nos banners (✅ dados, sem migration)
 
