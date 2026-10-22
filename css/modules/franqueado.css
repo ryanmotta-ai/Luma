@@ -1289,8 +1289,9 @@ body.f-cols-enter #fran-right{animation:gFadeIn var(--dur-base) var(--ease-out) 
 @media (max-width:560px){
   .f-history-head{gap:14px}
   .f-history-head-actions{display:contents}
-  .f-history-head-actions .f-history-home{order:-1;align-self:flex-start;margin:-10px 0 -6px -10px;padding:6px 10px;border-color:transparent;background:transparent}
-  body:not(.theme-light) .f-history-head-actions .f-history-home{border-color:transparent;background:transparent}
+  /* Início com forma própria (22/10/2026): sem borda e sem fundo ele parecia texto solto e não
+     lia como botão. Pílula com contorno herdado do estilo base, alvo de toque de 40px. */
+  .f-history-head-actions .f-history-home{order:-1;align-self:flex-start;min-height:40px;padding:8px 14px 8px 12px;border-radius:var(--r-pill);box-shadow:0 1px 2px rgba(0,0,0,.05)}
   .f-history-new{order:1;width:100%}
 
   .f-history-toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
