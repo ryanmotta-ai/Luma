@@ -583,7 +583,7 @@ function _fGuidedMostrarCampo(idx,opts){
   const histLbl=document.getElementById('f-sheet-hist-lbl'); if(histLbl)histLbl.textContent='Respostas';
   const uploadId='fg-upload-'+Date.now();
   const controle=_fGuidedControleHTML(p,cfg,valor,uploadId);
-  const opcional=!cfg.required&&!valor?`<button type="button" class="fg-skip" onclick="_fGuidedEscolher('Pular')">Deixar fora da arte</button>`:'';
+  const opcional=!cfg.required&&!valor?`<button type="button" class="fg-skip" onclick="_fGuidedEscolher('Pular')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.9 17.9A10.1 10.1 0 0 1 12 20C5 20 1 12 1 12a18.5 18.5 0 0 1 5.1-5.9"/><path d="M9.9 4.2A9.1 9.1 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.2 3.2"/><path d="M1 1l22 22"/></svg>Deixar fora da arte</button>`:'';
   const instrucao=idx===0&&fState.material&&fState.material.publishMeta&&fState.material.publishMeta.instrucoes
     ? `<p class="fg-note">${gEsc(fState.material.publishMeta.instrucoes)}</p>`:'';
   msgs.innerHTML=`<section class="fg-step" aria-labelledby="fg-title">
