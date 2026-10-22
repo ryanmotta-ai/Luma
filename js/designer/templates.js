@@ -1135,6 +1135,7 @@ function dStudioRecoverLocal(){
 }
 
 function dStudioHomeOpen(options){
+  if(!(options&&options.initial)){ try{ localStorage.removeItem('__luma_tmpl'); }catch(e){} }
   if(!(options&&options.initial)&&dActiveTmplId&&typeof dSave==='function'&&dSave({silent:true})===false) return;
   dStudioHomeEnsure();
   // A classe entra ANTES do render — e não depois, como estava. O observer das prévias
@@ -1264,6 +1265,14 @@ function dRenderFolders(){
   dFolders.forEach(f=>{ const node=document.getElementById('fi-'+f.id); if(node) node.__folder=f; });
 }
 let dActiveTmplFolderId=null;
+/* F5 volta para o material aberto (e não para a home do Estúdio): grava qual é, e a home apaga.
+   Só ids — o conteúdo vem do catálogo/rascunho de sempre, ao reabrir (main.js, _restoreDestino). */
+function dRememberActiveTmpl(){
+  try{
+    if(dActiveTmplId&&dActiveTmplFolderId) localStorage.setItem('__luma_tmpl',JSON.stringify({f:dActiveTmplFolderId,t:dActiveTmplId}));
+    else localStorage.removeItem('__luma_tmpl');
+  }catch(e){}
+}
 function dLoadTemplateById(folderId, tmplId){
   const f = dFolders.find(x=>x.id===folderId);
   if(!f) return;
@@ -1758,6 +1767,7 @@ async function dLoadTemplate(tmpl,folder,options){
   dActiveTmplId=tmpl.id;
   if(folder)dActiveTmplFolderId=folder.id; // destaca a pasta da arte ativa na grade
   else dActiveTmplFolderId=null;
+  dRememberActiveTmpl();
   const draft=(typeof _dTemplateDraft==='function')?_dTemplateDraft(tmpl):null;
   const editing=draft?Object.assign({},tmpl,draft):tmpl;
   dFmt=editing.fmt;

@@ -443,6 +443,17 @@ async function gOnLoginSuccess() {
     }
   };
 
+  // F5 no Estúdio reabre o material que estava aberto (ids gravados por dRememberActiveTmpl).
+  // Só depois do catálogo descer: sem a pasta o id não resolve e a home do Estúdio fica, como antes.
+  const _bootTmpl=(()=>{ try{ return JSON.parse(localStorage.getItem('__luma_tmpl')||'null'); }catch(e){ return null; } })();
+  const _restoreTmpl = () => {
+    if(!_bootTmpl || _bootDeepLink || !document.body.classList.contains('mode-designer')) return;
+    if(typeof dActiveTmplId!=='undefined' && dActiveTmplId) return;   // já abriu outro: não atropela
+    const f=(typeof dFolders!=='undefined'?dFolders:[]).find(x=>x.id===_bootTmpl.f);
+    if(!f||!(f.templates||[]).some(t=>t.id===_bootTmpl.t)) return;
+    try{ if(typeof dStudioHomeClose==='function') dStudioHomeClose(); dLoadTemplateById(_bootTmpl.f,_bootTmpl.t); }catch(e){}
+  };
+
   const _restoreDestino = async () => {
     if (typeof spStep === 'function') spStep('Montando sua tela…');
     _fhRefresh();
@@ -451,6 +462,7 @@ async function gOnLoginSuccess() {
       if(ok) return;
     }
     _restoreCamp();
+    _restoreTmpl();
   };
 
   // Deleções que falharam em sessões anteriores re-tentam ANTES dos pulls (anti-ressurreição)

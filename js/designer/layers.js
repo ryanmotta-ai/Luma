@@ -4167,7 +4167,7 @@ async function _dPushFoldersRun(){
    O trabalho existe SÓ neste navegador até sincronizar — sem este aviso, o designer
    descobria semanas depois (ou nunca). Clique = tentar de novo na hora. */
 let _dLastPendCount=0;
-function gSyncBadgeUpdate(){
+function gSyncBadgeUpdate(opts){
   // Só quem publica template (equipe_dm/gestão) tem o que sincronizar: o franqueado não vê nem o aviso nem o toast.
   if(typeof gIsAdmin==='function'&&!gIsAdmin()){ _dLastPendCount=0; return; }
   // Conta templates E pastas pendentes (upsert de pasta que falhou também é trabalho não-salvo)
@@ -4188,7 +4188,8 @@ function gSyncBadgeUpdate(){
   el.style.display=n?'':'none';
   if(n) el.textContent='⟳ '+n+' não sincronizado'+(n>1?'s':'');
   // Avisa em voz alta quando ALGO NOVO deixou de subir (não repete a cada save)
-  if(n>_dLastPendCount) gToast(''+n+(n===1?' material não subiu':' materiais não subiram')+' para o servidor — os franqueados ainda não veem. Veja o aviso laranja na barra.','error');
+  // `silent` (boot): pendência que já estava gravada no aparelho só acende o selo — o toast é para o que falhou AGORA.
+  if(n>_dLastPendCount && !(opts&&opts.silent)) gToast(''+n+(n===1?' material não subiu':' materiais não subiram')+' para o servidor — os franqueados ainda não veem. Veja o aviso laranja na barra.','error');
   _dLastPendCount=n;
 }
 
@@ -4332,7 +4333,7 @@ async function dSyncFoldersFromBackend(){
       try{ const{ativas,outras}=fGetCampaigns(); fRenderCatalogs(ativas,outras); }catch(e){}
     }
     if(typeof gHydrateFolders==='function') gHydrateFolders(dFolders); // re-hidrata idb:// (cache local)
-    if(typeof gSyncBadgeUpdate==='function') gSyncBadgeUpdate(); // pendências persistidas reaparecem no boot
+    if(typeof gSyncBadgeUpdate==='function') gSyncBadgeUpdate({silent:true}); // pendências persistidas reaparecem no boot (só o selo)
   }catch(e){}
 }
 
