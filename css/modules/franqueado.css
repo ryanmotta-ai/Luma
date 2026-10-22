@@ -1109,21 +1109,23 @@ body:not(.theme-light) #f-home-btn{border-color:var(--dm-orange);background:var(
   .fh-kicker{display:none}
   .fh-greet{font-size:14px;font-weight:500;color:var(--text-3);letter-spacing:0;line-height:1.3}
   #f-home.fh-anim .fh-greet{animation-name:gFadeInUp}
-  .fh-sub{margin-top:2px;color:var(--text);font-size:clamp(26px,7.6vw,30px);font-weight:900;letter-spacing:-.03em;line-height:1.1}
+  .fh-head-copy{padding-top:6px}
+  .fh-sub{margin-top:8px;color:var(--text);font-size:clamp(26px,7.6vw,30px);font-weight:900;letter-spacing:-.03em;line-height:1.1}
 
   .fh-search-row{min-height:58px;border:2px solid var(--dm-orange)}
   .fh-search-row.is-stuck{border-color:var(--dm-orange)}
   .fh-search-field label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
   .fh-search-tools{display:none}
 
-  .fh-chips{display:flex;gap:8px;margin-top:-10px;overflow-x:auto;scrollbar-width:none}
+  /* `safe center`: centraliza quando cabe e, se as pílulas passarem da tela, cai para o início em vez de cortar a primeira. */
+  .fh-chips{display:flex;justify-content:safe center;gap:8px;margin-top:-10px;overflow-x:auto;scrollbar-width:none}
   .fh-chips::-webkit-scrollbar{display:none}
   .fh-chip{flex:none;min-height:40px;padding:0 15px;border:1px solid var(--gray-light);border-radius:var(--r-pill);background:var(--white);color:var(--text-2);font-family:'Roboto',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:background var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard)}
   .fh-chip.is-on{border-color:var(--dm-orange);background:var(--dm-orange-bg);color:var(--text);font-weight:700}
   .fh-chip:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
 
-  .fh-head-actions{width:auto;display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .fh-head-actions .fh-help,.fh-head-actions .fh-mine{min-height:64px;justify-content:flex-start;gap:10px;padding:12px;border:1px solid var(--gray-light);border-radius:14px;background:var(--white);box-shadow:none;text-align:left}
+  .fh-head-actions{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .fh-head-actions .fh-help,.fh-head-actions .fh-mine{min-height:64px;width:100%;box-sizing:border-box;align-items:center;justify-content:flex-start;gap:10px;padding:12px;border:1px solid var(--gray-light);border-radius:14px;background:var(--white);box-shadow:none;text-align:left}
   .fh-head-actions button svg{width:36px;height:36px;flex:none;padding:9px;border-radius:10px;background:var(--dm-orange-bg);color:var(--dm-orange-d)}
   .fh-head-actions .fh-act-txt{min-width:0}
   .fh-head-actions .fh-act-txt>span{font-size:14px;font-weight:700;color:var(--text)}
