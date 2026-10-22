@@ -583,7 +583,7 @@ function _fGuidedMostrarCampo(idx,opts){
   const histLbl=document.getElementById('f-sheet-hist-lbl'); if(histLbl)histLbl.textContent='Respostas';
   const uploadId='fg-upload-'+Date.now();
   const controle=_fGuidedControleHTML(p,cfg,valor,uploadId);
-  const opcional=!cfg.required&&!valor?`<button type="button" class="fg-skip" onclick="_fGuidedEscolher('Pular')">Pular por enquanto</button>`:'';
+  const opcional=!cfg.required&&!valor?`<button type="button" class="fg-skip" onclick="_fGuidedEscolher('Pular')">Deixar fora da arte</button>`:'';
   const instrucao=idx===0&&fState.material&&fState.material.publishMeta&&fState.material.publishMeta.instrucoes
     ? `<p class="fg-note">${gEsc(fState.material.publishMeta.instrucoes)}</p>`:'';
   msgs.innerHTML=`<section class="fg-step" aria-labelledby="fg-title">
@@ -1309,7 +1309,8 @@ function fNextStep(){
     const _curto = _atual.length > 24 ? _atual.slice(0,22)+'…' : _atual;
     sugestoes = [{html:`${_F_ICO_CHECK}Manter “${gEsc(_curto)}”`, acao:'fManterValor()'}].concat(sugestoes);
   } else if (!cfg.required && !sugestoes.includes('Pular')) {
-    sugestoes.push('Pular');
+    // Rótulo que diz o efeito (some da arte); o valor gravado segue sendo o sentinela 'Pular'.
+    sugestoes.push({html:'Deixar fora da arte', acao:"fQR('Pular')"});
   }
 
   /* ⚠ O `<span>` em volta da frase NÃO é decoração. No celular o balão é `flex-direction:

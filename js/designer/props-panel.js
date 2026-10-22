@@ -1120,9 +1120,9 @@ let dPropDataProblemsOnly = false;
 let dPropDataShowInventory = false;
 
 const DP_DATA_STARTER_FIELDS = [
-  { name: 'produto', label: 'Produto', type: 'text', required: true, category: 'produto' },
+  { name: 'produto', label: 'Produto', type: 'text', required: false, category: 'produto' },
   { name: 'foto_produto', label: 'Foto do produto', type: 'image', required: false, category: 'midia' },
-  { name: 'precoPor', label: 'Pre\u00e7o da oferta', type: 'currency', required: true, category: 'preco' },
+  { name: 'precoPor', label: 'Pre\u00e7o da oferta', type: 'currency', required: false, category: 'preco' },
   { name: 'precoDe', label: 'Pre\u00e7o original', type: 'currency', required: false, category: 'preco' },
   { name: 'validade', label: 'Validade', type: 'text', required: false, category: 'campanha' }
 ];
