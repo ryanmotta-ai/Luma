@@ -2857,7 +2857,7 @@ function fLpInjectPlaceholders(layers, dadosPreview, defaults){
        a moldura ficava invisível. Agora o motor desenha o convite cinza ("Use aqui sua foto…"). */
     if ((l.type === 'image' || l.type === 'frame') && l.imgVar) {
       const val = orig[l.imgVar];
-      if (val == null || val === '') pendentes.add(l.id);
+      if ((val == null || val === '') && !orig['__skipped__'+l.imgVar]) pendentes.add(l.id);
     }
     
     // Processamento de variáveis de texto
@@ -2869,6 +2869,11 @@ function fLpInjectPlaceholders(layers, dadosPreview, defaults){
       const val = orig[name];
       const vazio = (val == null || val === '');
       if(!vazio) continue;
+      /* CAMPO DEIXADO FORA DA ARTE (`__skipped__`): vazio de propósito, não "falta responder". Sem este
+         desvio a prévia pintava o placeholder ("DETALHES", a descrição de exemplo) no lugar do
+         campo — ou seja, a pessoa escolhia tirar e o texto continuava lá. Sem placeholder o token
+         resolve vazio e o motor (gAllVarsEmpty) não desenha a camada, igual ao PNG. */
+      if(orig['__skipped__'+name]) continue;
       pendentes.add(l.id);
       const def = defaults ? defaults[name] : undefined;
       
