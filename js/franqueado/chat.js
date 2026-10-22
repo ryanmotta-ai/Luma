@@ -472,6 +472,13 @@ let _fGuidedBound=false;
 function _fGuidedAtivo(){ return !!(_fGuidedNav.active && !_fCelular()); }
 function _fGuidedPerguntas(){ return (fState.camp&&fState.camp.perguntas)||[]; }
 function _fGuidedIndice(id){ return _fGuidedPerguntas().findIndex(p=>p&&p.id===id); }
+/* Só descrição e detalhes SAEM da arte: o texto some e a cadeia vertical do Local Fit fecha o
+   vazio. Produto, preço, validade etc. são opcionais mas fazem parte do desenho — para eles o
+   botão diz "Pular por enquanto", não promete que a arte se rearranja. Uma regra, um lugar. */
+function _fCampoSaiDaArte(id){
+  const rot=(typeof gFieldLabel==='function'?gFieldLabel(id):'')||'';
+  return /^(detalhes?|descri|txt_subtitulo|subtitulo)/i.test(String(id))||/descri[cç][aã]o|detalhes?/i.test(rot);
+}
 function _fGuidedCampoResolvido(p){
   if(!p) return false;
   const cfg=fGetFieldType(p.id);
@@ -583,7 +590,9 @@ function _fGuidedMostrarCampo(idx,opts){
   const histLbl=document.getElementById('f-sheet-hist-lbl'); if(histLbl)histLbl.textContent='Respostas';
   const uploadId='fg-upload-'+Date.now();
   const controle=_fGuidedControleHTML(p,cfg,valor,uploadId);
-  const opcional=!cfg.required&&!valor?`<button type="button" class="fg-skip" onclick="_fGuidedEscolher('Pular')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.9 17.9A10.1 10.1 0 0 1 12 20C5 20 1 12 1 12a18.5 18.5 0 0 1 5.1-5.9"/><path d="M9.9 4.2A9.1 9.1 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.2 3.2"/><path d="M1 1l22 22"/></svg>Deixar fora da arte</button>`:'';
+  const opcional=!cfg.required&&!valor?(_fCampoSaiDaArte(p.id)
+    ?`<button type="button" class="fg-skip fg-skip-sai" onclick="_fGuidedEscolher('Pular')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.9 17.9A10.1 10.1 0 0 1 12 20C5 20 1 12 1 12a18.5 18.5 0 0 1 5.1-5.9"/><path d="M9.9 4.2A9.1 9.1 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.2 3.2"/><path d="M1 1l22 22"/></svg>Deixar fora da arte</button>`
+    :`<button type="button" class="fg-skip" onclick="_fGuidedEscolher('Pular')">Pular por enquanto</button>`):'';
   const instrucao=idx===0&&fState.material&&fState.material.publishMeta&&fState.material.publishMeta.instrucoes
     ? `<p class="fg-note">${gEsc(fState.material.publishMeta.instrucoes)}</p>`:'';
   msgs.innerHTML=`<section class="fg-step" aria-labelledby="fg-title">
@@ -1310,7 +1319,7 @@ function fNextStep(){
     sugestoes = [{html:`${_F_ICO_CHECK}Manter “${gEsc(_curto)}”`, acao:'fManterValor()'}].concat(sugestoes);
   } else if (!cfg.required && !sugestoes.includes('Pular')) {
     // Rótulo que diz o efeito (some da arte); o valor gravado segue sendo o sentinela 'Pular'.
-    sugestoes.push({html:'Deixar fora da arte', acao:"fQR('Pular')"});
+    sugestoes.push(_fCampoSaiDaArte(p.id) ? {html:'Deixar fora da arte', acao:"fQR('Pular')"} : 'Pular');
   }
 
   /* ⚠ O `<span>` em volta da frase NÃO é decoração. No celular o balão é `flex-direction:
