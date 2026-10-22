@@ -15,6 +15,15 @@ Feedback do Cícero (WhatsApp): o risco grosso por cima do preço "de" faz o 29 
 - Cada template ganhou uma versão em `template_versions` (rollback pela `luma.restaurar_versao`).
 - Fora desta rodada: Aniversário, Coca "Só oferta boa", Entrega promocional e Much+ (layouts próprios).
 
+## 2026-10-22 — Açaí aqui (feed + story) (✅ dados, sem migration)
+
+Projeto `xqsazcazsjxajmtmirzd`. Só **inserts** em `luma.templates`, na pasta **"Açaí Aqui"** (`b29c45c9…`, camp `aai`, estava vazia). Composição da print do Ryan: fundo roxo `#831CA5` com anéis brancos, logo DM no topo, título/detalhe/descrição, **preço em bilhete** (R$ inteiro + centavos, "POR APENAS", preço "de" vertical e tachado na lateral), moldura da foto com cantos de cima redondos, **celular** com o banner "Açaí aqui" inclinado e selo "PROCURE O BANNER", logo da loja em círculo com aro laranja e faixa laranja no rodapé.
+
+- **"Açaí aqui — Oferta com preço"** — feed `5eb7bd6c-d81d-43b7-96a0-cefdce883ae7` · story `a57f2140-e5d0-4047-910e-b5f1dbe3251d`. Campos: `produto`, `detalhes` (opcional: sem ele a descrição sobe), `descricao`, `precoDe`, `precoPor`, `validade` (é o texto da faixa do rodapé, "informações gerais"), `foto_produto`, `logo_loja`.
+- Assets novos no repositório: `assets/campanhas/acai-aqui/bg-feed.png`, `bg-story.png` (anéis tirados da print, só nas zonas visíveis) e `celular.png` (mockup do `assets/creative/inv/` com moldura, endireitado 8°). Banner: `assets/banners/aai.png` (já existia). O story não veio na print: derivado do feed (topo +135, moldura mais alta, celular/banner/logo da loja descidos pela moldura, faixa do rodapé mais alta).
+- Banner já com o traçado branco de 4 px e a sombra sutil.
+- Rollback: apagar as duas linhas (nascem na versão 1).
+
 ## 2026-10-22 — Traçado branco nos banners (✅ dados, sem migration)
 
 Pedido do Ryan: um traçado branco pequeno em volta dos banners, para saltarem do fundo. Nos **20 templates publicados** que têm banner (camada `l-ref-banner` ou `l-cc-banner`: Almoço, Bora de sushi — Oferta com preço, Combão, Coca nas duas artes, Mais vendidos, Ofertas Favoritas, Promo turbinada, Rangos e Tudo até R$ 25, feed e story) a camada ganhou `strokeW:4`, `strokeColor:#ffffff`, `strokeAlign:outside`. O traçado do motor de imagem (`png-generator.js`, `_fContornoSilhueta`) segue o alpha real do PNG, então acompanha o canto arredondado de cada banner, sem camada extra nem arquivo novo. Entrega promocional e Much+ ficaram de fora (pasta Entrega Grátis a pedido anterior; Much+ só tem rascunhos). Para tirar: `strokeW` para 0. **Sombra sutil** (mesma tarde, a pedido do Ryan, traçado mantido em 4 px): `shadow:true`, `rgba(0,0,0,0.22)`, blur 10, distância 4, ângulo 90 (reta para baixo), nas mesmas camadas; para tirar, `shadow:false`. Cada template ganhou uma versão em `template_versions`.
