@@ -15,6 +15,10 @@ Feedback do Cícero (WhatsApp): o risco grosso por cima do preço "de" faz o 29 
 - Cada template ganhou uma versão em `template_versions` (rollback pela `luma.restaurar_versao`).
 - Fora desta rodada: Aniversário, Coca "Só oferta boa", Entrega promocional e Much+ (layouts próprios).
 
+## 2026-10-22 — Traçado branco nos banners (✅ dados, sem migration)
+
+Pedido do Ryan: um traçado branco pequeno em volta dos banners, para saltarem do fundo. Nos **20 templates publicados** que têm banner (camada `l-ref-banner` ou `l-cc-banner`: Almoço, Bora de sushi — Oferta com preço, Combão, Coca nas duas artes, Mais vendidos, Ofertas Favoritas, Promo turbinada, Rangos e Tudo até R$ 25, feed e story) a camada ganhou `strokeW:4`, `strokeColor:#ffffff`, `strokeAlign:outside`. O traçado do motor de imagem (`png-generator.js`, `_fContornoSilhueta`) segue o alpha real do PNG, então acompanha o canto arredondado de cada banner, sem camada extra nem arquivo novo. Entrega promocional e Much+ ficaram de fora (pasta Entrega Grátis a pedido anterior; Much+ só tem rascunhos). Para tirar: `strokeW` para 0. Cada template ganhou uma versão em `template_versions`.
+
 ## 2026-10-22 — Combão com desconto: fundo "toldo" (✅ dados, sem migration)
 
 O Ryan pediu um fundo de forma diferente (o banner da Coca se perdia no `#ff9000` liso com faixas). Escolhido o **toldo**: listras verticais de laranja forte e claro no topo, com borda em arcos, e rodapé liso `#F85400` com logo e validade em branco. Feed `560ae0da…` e story `5cd4e5d7…` passam a usar `assets/campanhas/combao-com-desconto/bg-toldo-feed.png` e `bg-toldo-story.png` (nomes novos, para o cache do site não servir o fundo antigo), e a validade passa de `#F85400` para branco. Os PNGs antigos (`bg-feed.png`/`bg-story.png`) ficam no repositório. Rollback: `luma.restaurar_versao` (cada template ganhou uma versão).
