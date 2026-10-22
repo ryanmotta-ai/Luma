@@ -3528,6 +3528,23 @@ function _fLpTouchDist(e){ const a=e.touches[0], b=e.touches[1]; return Math.hyp
    sobra moldura, então `w − drawW` é POSITIVO — arrastar para baixo jogava o logo para cima e
    ele grudava no topo, que é o "nasce bugado em cima" do teste. Dividir pela folga REAL
    (`span`) acerta sentido e velocidade em qualquer encaixe e zoom. */
+/* LIMITES DO ZOOM (22/10/2026). O piso era 100% = `cover`: foto com a proporção da moldura não
+   tinha folga em eixo nenhum, e o único movimento possível era "centralizar" (feedback do
+   Cícero, Much Cáceres). Agora dá para ir ATÉ a foto inteira dentro da moldura (e um pouco
+   além, 75%): sobra moldura, e a foto passa a andar por ela. O motor já prende a foto DENTRO da
+   moldura quando ela é menor (posição 0–1), então nada vaza. Teto sobe de 350% para 500%.
+   Sem a medida da imagem ainda, mantém o piso antigo — resolve em instantes. */
+const _FP_ZOOM_MAX=5;
+function _fLpFrameInteira(){
+  const fr=_lpFraming;
+  if(!fr||!fr.img||typeof fFrameBaseSize!=='function') return 1;
+  const l=fr.layer, w=l.w||1, h=l.h||1, b=fFrameBaseSize(l,fr.img.w,fr.img.h,w,h);
+  return Math.min(1,w/b.baseW,h/b.baseH);   // escala em que a foto inteira cabe na moldura
+}
+function _fLpFrameZoomMin(){
+  const i=_fLpFrameInteira();
+  return i>=1?1:Math.max(0.2,Math.round(i*0.75*100)/100);
+}
 function _fLpFrameSpan(){
   const fr=_lpFraming;
   if(!fr||!fr.img||typeof fFrameBaseSize!=='function') return null;
@@ -3588,12 +3605,12 @@ function _fLpFrameKey(e){
     ArrowUp:[0,-.02*(l.h||1)],ArrowDown:[0,.02*(l.h||1)]}[e.key];
   if(passo){ Object.assign(f,_fLpFrameShift(f.offX||0,f.offY||0,passo[0],passo[1])); changed=true; }
   else if(e.key==='+'||e.key==='='){
-    const sc=Math.min(3.5,Math.round(((f.scale||1)+0.1)*100)/100);
+    const sc=Math.min(_FP_ZOOM_MAX,Math.round(((f.scale||1)+0.1)*100)/100);
     f.scale=sc; changed=true;
     _fLpUpdateFramingHUD();
   }
   else if(e.key==='-'||e.key==='_'){
-    const sc=Math.max(1,Math.round(((f.scale||1)-0.1)*100)/100);
+    const sc=Math.max(_fLpFrameZoomMin(),Math.round(((f.scale||1)-0.1)*100)/100);
     f.scale=sc; changed=true;
     _fLpUpdateFramingHUD();
   }
@@ -3605,7 +3622,7 @@ function _fLpUpdateFramingHUD(){
   const f=(fState.dados&&fState.dados['__fit__'+v])||{scale:1};
   const sc=f.scale||1;
   const slider=document.getElementById('lp-frame-slider');
-  if(slider) slider.value=sc;
+  if(slider){ slider.min=_fLpFrameZoomMin(); slider.max=_FP_ZOOM_MAX; slider.value=sc; }
   const pct=document.getElementById('lp-frame-pct');
   if(pct) pct.textContent=Math.round(sc*100)+'%';
   /* "Desfazer ajuste" só existe quando HÁ ajuste. Botão que não faz nada ensina a ignorar
@@ -3681,7 +3698,7 @@ function fLpStartFraming(l,v){
         <button class="lp-frame-hud-btn" id="lp-frame-zoom-out" type="button" title="Diminuir zoom (-)" aria-label="Diminuir zoom">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
-        <input type="range" class="lp-frame-hud-slider" id="lp-frame-slider" min="1" max="3.5" step="0.05" value="${curScale}" title="Zoom da imagem">
+        <input type="range" class="lp-frame-hud-slider" id="lp-frame-slider" min="1" max="5" step="0.05" value="${curScale}" title="Zoom da imagem">
         <span class="lp-frame-hud-pct" id="lp-frame-pct">${curPct}%</span>
         <button class="lp-frame-hud-btn" id="lp-frame-zoom-in" type="button" title="Aumentar zoom (+)" aria-label="Aumentar zoom">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -3692,6 +3709,8 @@ function fLpStartFraming(l,v){
         <button class="lp-frame-hud-text-btn" id="lp-frame-center" type="button" title="Centralizar foto">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:3px"><circle cx="12" cy="12" r="7"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>Centralizar
         </button>
+        <button class="lp-frame-hud-text-btn" id="lp-frame-fill" type="button" title="Encher a moldura (corta o que sobrar)">Preencher</button>
+        <button class="lp-frame-hud-text-btn" id="lp-frame-whole" type="button" title="Mostrar a foto inteira, sem cortar">Foto inteira</button>
         <button class="lp-frame-hud-text-btn" id="lp-frame-reset" type="button" title="Voltar ao enquadramento original do material">Desfazer ajuste</button>
       </div>
       <div class="lp-frame-hud-divider"></div>
@@ -3706,7 +3725,7 @@ function fLpStartFraming(l,v){
   const pctLabel=ov.querySelector('#lp-frame-pct');
 
   const updateScale=(newSc)=>{
-    const sc=Math.max(1,Math.min(3.5,Math.round(newSc*100)/100));
+    const sc=Math.max(_fLpFrameZoomMin(),Math.min(_FP_ZOOM_MAX,Math.round(newSc*100)/100));
     const f=fState.dados['__fit__'+v]||{};
     fState.dados['__fit__'+v]={scale:sc,offX:f.offX||0,offY:f.offY||0};
     if(slider) slider.value=sc;
@@ -3727,6 +3746,13 @@ function fLpStartFraming(l,v){
     _fLpRender();
     _fLpUpdateFramingHUD();
   };
+  const _atalhoEscala=(sc)=>{
+    fState.dados['__fit__'+v]={scale:sc,offX:0,offY:0};
+    _fLpRender();
+    _fLpUpdateFramingHUD();
+  };
+  ov.querySelector('#lp-frame-fill').onclick=()=>_atalhoEscala(1);
+  ov.querySelector('#lp-frame-whole').onclick=()=>_atalhoEscala(Math.max(_fLpFrameZoomMin(),_fLpFrameInteira()));
   ov.querySelector('#lp-frame-reset').onclick=()=>{
     fLpResetFraming();
     _fLpUpdateFramingHUD();
