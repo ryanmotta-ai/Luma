@@ -6,6 +6,15 @@
 
 ---
 
+## 2026-10-22 — Feedback do franqueado: risco mais fino e arte sem "Detalhes" (✅ dados, sem migration)
+
+Feedback do Cícero (WhatsApp): o risco grosso por cima do preço "de" faz o 29 parecer 23, e o bloco Detalhes deveria poder sair quando não é usado. Alterado em **18 templates** de preço (feed e story de Almoço, Bora de sushi — Oferta com preço, Combão com desconto, Coca — Oferta com preço, Mais vendidos, Ofertas Favoritas, Promo turbinada, Rangos e Tudo até R$ 25), no projeto `xqsazcazsjxajmtmirzd`.
+
+- **Risco do preço "de"**: altura 11 → 5 px (centro mantido, cantos 2). Nos demais templates com preço "de" o risco já é o tachado nativo do texto (5% do corpo da fonte) e não mudou.
+- **Sem Detalhes**: `detalhes` já era opcional (o chat oferece "Pular"), mas deixava um buraco entre o título e a descrição. Agora a descrição tem uma cópia 74 px acima (`…-sem-detalhe`); `rules` esconde a de baixo quando `detalhes` está vazio e a de cima quando está preenchido. Nada muda quando o franqueado preenche Detalhes.
+- Cada template ganhou uma versão em `template_versions` (rollback pela `luma.restaurar_versao`).
+- Fora desta rodada: Aniversário, Coca "Só oferta boa", Entrega promocional e Much+ (layouts próprios).
+
 ## 2026-10-22 — Combão com desconto (feed + story) (✅ dados, sem migration)
 
 Projeto `xqsazcazsjxajmtmirzd`. Só **inserts** em `luma.templates`, na pasta **"Combo Com Desconto"** (`657d4ccf…`, camp `cd`). Os 3 rascunhos "Novo material" que já estavam lá (vazios, só um retângulo) ficaram como estavam.
