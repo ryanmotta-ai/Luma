@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-10-23 — Pasta "Implementação" refeita com a identidade da marca (✅ dados, sem migration)
+
+Segunda versão da leva (a primeira saiu fora da identidade). Atualizado **in-place** (`update … set layers`) nos templates da pasta `b0806f3d-4d0f-4594-9cc6-af069c8c004c`: logo **nova** (`assets/marca/logos/`), sorriso da marca, faixas amarelas, ondas concêntricas de fundo, padrão de arcos, forma de apoio branca e mockup real do celular (`assets/marca/…`). Sem moto, selo nem logo de loja (assets virão dos PSDs).
+- **Atualizados (10 de 11):** Chegamos (feed), Cupom (feed+story), Institucional da cidade (feed+story), Entrega grátis (feed+story), Cabeçalho de e-mail, Crachá, Cupom A4. **Pendente:** Chegamos (story) — a gravação foi negada pelo Ryan; segue na v1.
+- Como reverter: `luma.template_versions` guarda a versão anterior de cada template publicado (`select luma.restaurar_versao('<version_id>')`).
+
+---
+
 ## 2026-10-23 — Pasta "Implementação": leva de abertura de cidade (✅ dados, sem migration)
 
 Pedido do Ryan: recriar no Luma a leva primária para o pessoal de implementação (sem o selo "Bora Pedir" e **sem** as ilustrações de moto, celular e selo — decisão dele no meio do trabalho). Tudo **publicado**.
