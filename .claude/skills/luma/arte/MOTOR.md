@@ -3,7 +3,7 @@
 > Fonte: `js/franqueado/png-generator.js` (`fRenderTemplateLayers` — o render único), `js/00-config.js` (`gFitTextLayer`, regras), `js/core/local-fit.js` (encaixe). O **harness** (`ferramentas/render.js`) chama exatamente `fRenderTemplateLayers` + Local Fit, então o que você vê é o que o franqueado exporta. **Confirme sempre no código** quando algo parecer diferente — esta página é um atalho, não a lei.
 
 ## Layer (jsonb em `luma.templates.layers`)
-Campos comuns: `id` (único no template), `name`, `type` (`shape|text|image|frame`), `x,y,w,h` (px do formato), `anchor {h,v}` (`left|right|center|stretch` × `top|bottom|stretch`), `opacity`, `visible`, `rotation` (graus; gira em torno do **centro da própria layer**), `layoutSemantic` (`produto|titulo|apoio|legal|decoracao|fundo`), `rules`.
+Campos comuns: `id` (único no template), `name`, `type` (`shape|text|image|frame`), `x,y,w,h` (px do formato), `anchor {h,v}` (`left|right|center|stretch` × `top|bottom|stretch`), `opacity`, `visible`, `rotation` (graus, em torno do **centro da própria layer** — ⚠ na **exportação do franqueado só TEXTO e linha giram**; em shape/imagem a rotação é ignorada, veja "Rotação"), `layoutSemantic` (`produto|titulo|apoio|legal|decoracao|fundo`), `rules`.
 
 | Tipo | Campos próprios |
 |---|---|
@@ -38,8 +38,12 @@ Campos comuns: `id` (único no template), `name`, `type` (`shape|text|image|fram
 ## Formas vetoriais
 Path normalizado 0–1. Círculo: 4 knots lineares (`CIRC` na `lib.js`). Serrilhado: `star(n, Ro, Ri)`. Brilho de 4 pontas: `sparkle`. Vírgula do preço: `COMMA` (a glifo `,` do Realce é pequena demais, por isso é forma).
 
-## Rotação em grupo
-O motor gira cada layer em torno do **próprio centro**. Para girar um **grupo** (selo + texto dentro): calcule o centro de cada layer, rode em torno do centro do grupo, reposicione e some o ângulo — `lib.rotarGrupo(layers,cx,cy,graus)`.
+## Rotação (⚠ teste feito em 23/10/2026)
+`fRenderOneLayer` (png-generator.js) só aplica `rotation` a **texto** e a `shapeKind:'line'`. Em **shape** e **imagem** a propriedade existe no jsonb e o Estúdio pode mostrá-la, mas a arte exportada/prévia do franqueado sai **sem girar**. Portanto:
+- **Forma girada** → gire a **geometria**: vetor com os nós já rotacionados (ver `ticketRot` em `ferramentas/lib.js`: gira os pontos em torno do centro e recalcula a caixa).
+- **Imagem girada** → gire o **PNG** (PIL `rotate(expand=True)`), nome de arquivo novo, e ajuste `w/h` à caixa nova.
+- **Grupo (selo + texto)** → forma/imagem na geometria; só o texto usa `rotation`. `lib.rotarGrupo` reposiciona centros, mas **não** faz a forma girar na exportação.
+Confirme no harness (`render.js`) antes de prometer qualquer giro.
 
 ## Z-order e ids
 Ordem do array = ordem de pintura (primeiro = fundo). Camada de fundo: `layoutRole:'background'`, `layoutSemantic:'fundo'`, `anchor stretch`. Ids estáveis (`l-…`): story é derivado do feed **por id** (mesma lista, só mudam `y`/`h`), então **não** renomeie nem reordene entre os dois.

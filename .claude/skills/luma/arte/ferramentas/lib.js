@@ -44,6 +44,19 @@ function rotarGrupo(layers,cx,cy,graus){ const t=graus*Math.PI/180,c=Math.cos(t)
   for(const l of layers){ const mx=l.x+l.w/2-cx,my=l.y+l.h/2-cy,nx=cx+mx*c-my*s,ny=cy+mx*s+my*c; l.x=+(nx-l.w/2).toFixed(1); l.y=+(ny-l.h/2).toFixed(1); l.rotation=+((l.rotation||0)+graus).toFixed(2);} return layers; }
 /* descrição que sobe quando "detalhes" está vazio: devolve [com, sem] — o motor não reflui, então são duas cópias com rules */
 function descricaoComSem(id,x,y,w,h,font,size,cor,subir){ const a=text(id,'Descrição',x,y,w,h,'{{descricao}}',font,size,cor,{lineHeight:1.3,rules:[{var:'detalhes',then:'hide',when:'empty'}]}); const b=JSON.parse(JSON.stringify(a)); b.id=id+'-sem-detalhe'; b.y=y-subir; b.rules=[{var:'detalhes',then:'hide',when:'filled'}]; return [a,b]; }
+
+/* bilhete (cupom): retângulo arredondado r + 2 entalhes semicirculares (topo e base) em x=nx, raio nr — poucos nós Bézier (14).
+   ticketRot gira o bilhete NA GEOMETRIA (o motor do franqueado só gira texto: ver MOTOR.md, "Rotação"). */
+function ticketKnots(w,h,r,nr,nx){ const K=0.5523,rk=r*K,nk=nr*K,P=(a,i,o)=>({a,i:i||a,o:o||a});
+  return [P([r,0],[r-rk,0],[r,0]),P([nx-nr,0],[nx-nr,0],[nx-nr,nk]),P([nx,nr],[nx-nk,nr],[nx+nk,nr]),P([nx+nr,0],[nx+nr,nk],[nx+nr,0]),P([w-r,0],[w-r,0],[w-r+rk,0]),P([w,r],[w,r-rk],[w,r]),P([w,h-r],[w,h-r],[w,h-r+rk]),P([w-r,h],[w-r+rk,h],[w-r,h]),P([nx+nr,h],[nx+nr,h],[nx+nr,h-nk]),P([nx,h-nr],[nx+nk,h-nr],[nx-nk,h-nr]),P([nx-nr,h],[nx-nr,h-nk],[nx-nr,h]),P([r,h],[r,h],[r-rk,h]),P([0,h-r],[0,h-r+rk],[0,h-r]),P([0,r],[0,r],[0,r-rk])]; }
+function _pathK(ks,w,h){ const n=v=>+v.toFixed(4); return {paths:[{closed:true,knots:ks.map(q=>({anchor:[n(q.a[0]/w),n(q.a[1]/h)],in:[n(q.i[0]/w),n(q.i[1]/h)],out:[n(q.o[0]/w),n(q.o[1]/h)],linked:false}))}],fillRule:'nonzero'}; }
+function ticket(id,name,x,y,w,h,fill,o={}){ const {r=36,nr=26,nx=170,extra={}}=o;
+  return Object.assign(rect(id,name,x,y,w,h,fill,0,Object.assign({shapeKind:'path',vectorPath:_pathK(ticketKnots(w,h,r,nr,nx),w,h)},extra)),{radii:undefined}); }
+function ticketRot(id,name,x,y,w,h,fill,deg,o={}){ const {r=36,nr=26,nx=170,extra={}}=o,t=deg*Math.PI/180,c=Math.cos(t),s=Math.sin(t);
+  const rot=([px,py])=>{const dx=px-w/2,dy=py-h/2;return [dx*c-dy*s,dx*s+dy*c];};
+  const ks=ticketKnots(w,h,r,nr,nx).map(q=>({a:rot(q.a),i:rot(q.i),o:rot(q.o)})), all=[].concat(...ks.map(q=>[q.a,q.i,q.o])), xs=all.map(p=>p[0]), ys=all.map(p=>p[1]);
+  const x0=Math.min(...xs),y0=Math.min(...ys),W2=Math.max(...xs)-x0,H2=Math.max(...ys)-y0, sh=p=>[p[0]-x0,p[1]-y0];
+  return Object.assign(rect(id,name,Math.round(x+w/2+x0),Math.round(y+h/2+y0),Math.round(W2),Math.round(H2),fill,0,Object.assign({shapeKind:'path',vectorPath:_pathK(ks.map(q=>({a:sh(q.a),i:sh(q.i),o:sh(q.o)})),W2,H2)},extra)),{radii:undefined}); }
 const DADOS={produto:'AÇAÍ NA TIGELA',detalhes:'500 ML',descricao:'Açaí cremoso com granola, banana e leite condensado.',precoDe:'R$ 29,00',precoPor:'R$ 22,90',validade:'informações gerais...',foto_produto:'{{FOTO}}',logo_loja:'{{LOGO}}'};
 /* variantes de estresse que TODA arte passa antes de sair (ver REFINO-15.md, rodada 11) */
 const ESTRESSE={
@@ -58,4 +71,4 @@ const ESTRESSE={
 function job(layers,{W=1080,H=1350,fmt,dados={}}={}){ return {W,H,fmt:fmt||(H>1400?'story':'feed'),layers,dados:Object.assign({},DADOS,dados)}; }
 /* WCAG: razão de contraste entre duas cores #rrggbb. AA texto grande ≥3:1, texto corrido ≥4.5:1; no Luma o alvo é ≥4.5 em tudo que é lido. */
 function contraste(a,b){ const L=h=>{h=h.replace('#','');const f=v=>{v/=255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4);};const [r,g,bb]=[0,2,4].map(i=>f(parseInt(h.substr(i,2),16)));return .2126*r+.7152*g+.0722*bb;}; const x=L(a),y=L(b); return (Math.max(x,y)+.05)/(Math.min(x,y)+.05); }
-module.exports={PAL,base,rect,text,img,foto,logoLoja,banner,selo,preco,star,sparkle,seloSerrilhado,rotarGrupo,descricaoComSem,job,contraste,CIRC,COMMA,ELEV,DADOS,ESTRESSE,R};
+module.exports={ticket,ticketRot,PAL,base,rect,text,img,foto,logoLoja,banner,selo,preco,star,sparkle,seloSerrilhado,rotarGrupo,descricaoComSem,job,contraste,CIRC,COMMA,ELEV,DADOS,ESTRESSE,R};

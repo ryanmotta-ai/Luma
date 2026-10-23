@@ -7,7 +7,7 @@ Tudo em Node (já usado pelo `scripts/run-browser-tests.js`) + o Chromium que a 
 | `harness.html` | Página que carrega o motor real do franqueado (`00-config.js`, Local Fit, `png-generator.js`, fontes) e renderiza um job. |
 | `serve.js` | Servidor estático mínimo; raiz temporária com symlinks para `js/`, `css/`, `assets/` do repo. |
 | `render.js` | **O comando principal.** `node render.js job.json [...] --out pasta` → PNG + `layers.json` + `fit.json` + 1 linha de resumo por job (`INVÁLIDA` = o franqueado seria bloqueado). `{{FOTO}}`/`{{LOGO}}` no `dados` viram imagens de `assets/demo`. `CHROME=…` aponta outro navegador. |
-| `lib.js` | Blocos de layer: `rect text img foto logoLoja banner selo preco seloSerrilhado sparkle star rotarGrupo descricaoComSem`, `job()`, `contraste()`, `ESTRESSE` (as 7 variantes), `PAL`, `ELEV`. |
+| `lib.js` | Blocos de layer: `rect text img foto logoLoja banner selo preco seloSerrilhado sparkle star rotarGrupo descricaoComSem ticket ticketRot`, `job()`, `contraste()`, `ESTRESSE` (as 7 variantes), `PAL`, `ELEV`. |
 | `medir.js` | `bordas` (bordas esq./dir. da tinta numa faixa), `cor`, `paleta`, `caixa` (acha uma cor), para renders e referências em PNG. |
 | `png.js` | Decodificador PNG mínimo (zlib). JPEG: converta antes. |
 | `exemplo.js` | Arte de preço completa (a do Açaí aqui) + as 7 variantes de estresse. **Ponto de partida.** |

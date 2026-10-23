@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-10-23 — Pasta "Implementação": leva de abertura de cidade (✅ dados, sem migration)
+
+Pedido do Ryan: recriar no Luma a leva primária para o pessoal de implementação (sem o selo "Bora Pedir" e **sem** as ilustrações de moto, celular e selo — decisão dele no meio do trabalho). Tudo **publicado**.
+
+- **Pasta nova** `Implementação` (`b0806f3d-4d0f-4594-9cc6-af069c8c004c`, `camp_id` nulo, `destaque=true`, cor `#F85400`, `perguntas` do chat para cidade, desconto, cupom, regras, valor mínimo, nome e telefone).
+- **11 templates** (nomes iguais em feed e story ⇒ `fKitPar` vincula): `Chegamos com descontão` (feed+story), `Cupom de boas-vindas` (feed+story), `Institucional da cidade` (feed+story), `Entrega grátis institucional` (feed+story, sem foto de loja; faixa e valor somem sem `precoPor`), `Cabeçalho de e-mail` (1200×420), `Crachá do franqueado` (638×1012), `Cupom A4 impresso` (1754×1240 — a exportação 2× dá A4 a 300 dpi). Os três últimos usam `fmt='wide'` com `w/h` próprios (`fMaterialSize` lê `material.w/h` primeiro).
+- **`luma.variaveis`**: novos `cidade`, `nome_franqueado`, `telefone` (obrigatórios), `regras` e `qr_app` (opcionais; `qr_app` é imagem — o QR do app entra como foto, o Luma não gera QR).
+- **Assets**: `assets/campanhas/implementacao/` — logos DM em versão nítida (`dm-v-branca-xl`, `dm-v-principal-xl`, `dm-h-branca-xl`, `dm-h-branca-vertical`, feitos por ampliação do alpha dos PNGs de 240/360 px; não há SVG do logo no repo).
+- **Descoberta de motor**: na exportação do franqueado só **texto** (e linha) gira; `rotation` em shape/imagem é ignorada. O bilhete "de trás" gira na própria geometria (Bézier). `MOTOR.md` corrigido.
+- **Como reverter**: `delete from luma.templates where pasta_id='b0806f3d-4d0f-4594-9cc6-af069c8c004c'` e `delete from luma.pastas where id='b0806f3d-4d0f-4594-9cc6-af069c8c004c'`; as variáveis podem ficar. Para despublicar só: `update luma.templates set publicado=false where pasta_id=…`.
+- Verificado no harness de render real (feed, story, 7 variantes de estresse sem "INVÁLIDA"); **não** verificado no app logado.
+
+---
+
 ## 2026-10-22 — Feedback do franqueado: risco mais fino e arte sem "Detalhes" (✅ dados, sem migration)
 
 Feedback do Cícero (WhatsApp): o risco grosso por cima do preço "de" faz o 29 parecer 23, e o bloco Detalhes deveria poder sair quando não é usado. Alterado em **18 templates** de preço (feed e story de Almoço, Bora de sushi — Oferta com preço, Combão com desconto, Coca — Oferta com preço, Mais vendidos, Ofertas Favoritas, Promo turbinada, Rangos e Tudo até R$ 25), no projeto `xqsazcazsjxajmtmirzd`.
