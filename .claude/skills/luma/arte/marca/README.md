@@ -3,6 +3,14 @@
 > **Por quê:** as artes da leva "Implementação" saíram longe da identidade. Estes são os assets e exemplos **da casa**; arte nova parte DAQUI, não de formas inventadas.
 > Pedido do Ryan: guardar aqui (skill `arte`) **e** no Ateliê (`assets/creative/inv/` + `CR_DECOR` em `js/creative/creative.js`) — **o registro no Ateliê só depois que ele terminar de mandar tudo e confirmar o uso**. Mais assets e PSDs ainda vêm.
 
+## ⛔ Regras do Ryan (23/10/2026, noite) — valem acima de tudo abaixo
+1. **NÃO CRIAR ASSETS.** Usar só os arquivos que o Ryan mandou, de forma criativa (posição, escala, corte pela borda, combinação). Nada de sorriso/faixa/bilhete desenhado em vetor, ilustração, PNG recolorido, girado ou espelhado para substituir os dele.
+   Os derivados que eu tinha gerado (`sorriso-amarelo.png`, `sorriso-laranja-2x.png`, `fundo-ondas-*.png`, `mockup-celular-app-inclinado-e.png`, `dm-nova-branca-vertical.png`) **não devem ser usados** em arte nova.
+2. **Fundo sólido `#F85400` ou `#FF9000`.** **Sem pattern de fundo** (nem ondas concêntricas, nem padrão de arcos).
+3. **Mais composição com o sorriso** (`sorriso-dm-arco.png`): grande, cortado pela borda, atrás do herói.
+4. **Logo menor** (feed ~200–240 px de largura).
+5. Arte nova/refeita: **30 rodadas de refino** quando o Ryan pedir (ele pediu para a leva Implementação).
+
 ## Referências (como a marca se parece)
 | Arquivo | O que mostra |
 |---|---|
