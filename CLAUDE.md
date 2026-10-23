@@ -53,6 +53,7 @@ Elas valem em toda resposta, sem precisar ser pedidas. Desligar: **"stop ponytai
 - `07_ROADMAP.md` — **roadmap oficial da v1** (fases, bugs com file:line, decisões abertas; atualize os checks ao concluir itens).
 - `08_ATELIE.md` — **Luma Ateliê** (ex-Creative): visão, arquitetura alvo, roadmap em épicos/etapas para o Jira, decisões e perguntas abertas.
 - `09_ECOSSISTEMA_360.md` — **visão do 360 de marketing local**: Franqueado, Ateliê, Calendário e Auditor de marca, como conversam, ordem e perguntas abertas.
+- **Pedido de ARTE** (criar/refazer/adaptar template, feed/story, preço, banner, referência visual, "refina"): `.claude/skills/luma/arte/ARTE.md` — fluxo completo, 15 rodadas de refino, adaptação de referência, harness de render real (`arte/ferramentas/`).
 - Técnico detalhado: `docs/LUMA.md`. Backend: `docs/LUMA-BACKEND-CHANGELOG.md`.
 - **Academia** (formação do franqueado, prefixo `ac*`): `docs/LUMA-ACADEMIA.md`.
 

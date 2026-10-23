@@ -1,0 +1,53 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="css/03-fonts.css">
+<style>body{margin:0;background:#888}img{display:block}</style></head><body>
+<pre id="log"></pre>
+<script src="js/00-config.js"></script>
+<script src="js/core/img-store.js"></script>
+<script src="js/core/layout.js"></script>
+<script src="js/core/auto-layout.js"></script>
+<script src="js/core/local-fit.js"></script>
+<script src="js/core/toast.js"></script>
+<script src="js/designer/fonts.js"></script>
+<script>
+/* shim só do harness: a mesma função do designer/canvas.js (que não carrego aqui) */
+function dTextFontParts(fv){
+  const raw=String(fv||'');
+  if(raw.startsWith('custom:')){
+    const fam=raw.slice(7);
+    const cf=(typeof dCustomFonts!=='undefined'&&dCustomFonts)?dCustomFonts.find(f=>f.family===fam):null;
+    const bf=(typeof dBuiltinFonts!=='undefined'&&dBuiltinFonts)?dBuiltinFonts.find(f=>f.family===fam):null;
+    const w=(cf&&cf.weight)||(bf&&bf.weight)||400;
+    return {family:`'${fam}', 'Roboto', sans-serif`, weight:w, custom:true, familyName:fam};
+  }
+  const s=raw.toLowerCase();
+  const explicit=raw.match(/,\s*(\d{3})$/);
+  if(explicit) return {family:"'Roboto', sans-serif", weight:parseInt(explicit[1],10)};
+  const weight=(s.includes('black')||s.includes('realce'))?900:(s.includes('bold')?700:400);
+  return {family:"'Roboto', sans-serif", weight};
+}
+</script>
+<script src="js/franqueado/png-generator.js"></script>
+<script>
+(async function(){
+  const q=new URLSearchParams(location.search);
+  const job=await (await fetch('job_'+q.get('k')+'.json')).json(); /* o servidor do render.js põe o job aqui */
+  const W=job.W,H=job.H;
+  const dados=job.dados;
+  const camp={id:'t',color:'#FF9000'};
+  window.fState={material:{w:W,h:H,layers:job.layers,bg:'transparent'},dados,camp,fmt:{id:job.fmt}};
+  // fontes: força o carregamento das que o texto usa
+  try{ await Promise.all(["900 80px Realce","700 20px Roboto","900 20px Roboto","400 20px Roboto"].map(f=>document.fonts.load(f))); await document.fonts.ready;}catch(e){}
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;const ctx=cv.getContext('2d');
+  let err=null;
+  try{
+    if(job.stamp){ job.layers.forEach(l=>{ if(l.type==='text'&&job.stamp[l.name]) gStampLayoutBaseline(l,job.stamp[l.name]); }); }
+    await fRenderTemplateLayers(ctx,job.layers,W,H,dados,camp,fState.material,{scope:'franqueado',purpose:(q.get('p')||'export')});
+  }catch(e){err=String(e&&e.stack||e);}
+  const out=document.createElement('div');out.id='out';out.setAttribute('data-err',err||'');
+  out.setAttribute('data-png',cv.toDataURL('image/png'));
+  out.setAttribute('data-layers',JSON.stringify(job.layers));
+  try{ const r=window.gLastFranchiseeLayoutResult; out.setAttribute('data-result',JSON.stringify(r,(k,v)=>(k==='layers'||k==='canvas')?undefined:v).slice(0,60000)); }catch(e){}
+  document.body.appendChild(out);
+})();
+</script></body></html>

@@ -1,6 +1,6 @@
 ---
 name: luma
-description: "Use em QUALQUER tarefa no projeto Luma (creative automation da Delivery Much) — antes de ler, planejar ou mexer em código, CSS, docs ou backend. Fluxo obrigatório: lê o luma-brain, planeja e só então implementa. Gatilhos: editor/Estúdio (designer, canvas, camadas, templates, campos {{}}, publicar), Franqueado (catálogo, chat, gerar arte, PNG/PDF, prévia), Dados/Analytics, CRM Visual, Supabase/RLS, tokens/design system, ou qualquer pedido de mudança/dúvida sobre este repositório."
+description: "Use em QUALQUER tarefa no projeto Luma (creative automation da Delivery Much) — antes de ler, planejar ou mexer em código, CSS, docs ou backend. Fluxo obrigatório: lê o luma-brain, planeja e só então implementa. Gatilhos: editor/Estúdio (designer, canvas, camadas, templates, campos {{}}, publicar), Franqueado (catálogo, chat, gerar arte, PNG/PDF, prévia), Dados/Analytics, CRM Visual, Supabase/RLS, tokens/design system, ou qualquer pedido de mudança/dúvida sobre este repositório. Pedido de ARTE (criar/refazer/adaptar template de arte, feed/story, preço, banner, selo, referência visual, refinar, propostas de layout) → siga também `arte/ARTE.md` (15 rodadas de refino, adaptação de referência, harness de render real)."
 metadata:
   author: luma
   version: "1.0.0"
@@ -87,3 +87,21 @@ O que mais consome limite aqui: **subagentes em paralelo**, **contexto alto (>15
 - **Patch cirúrgico também é economia:** menos arquivos tocados = menos leitura, menos verificação, menos contexto.
 
 > O detalhe completo de cada regra está em `luma-brain/`. Esta skill é o ponto de entrada; a profundidade mora lá. Toda lição nova de comportamento entra em `06_OPERATING_SYSTEM.md`.
+
+---
+
+## ARTE — quando o pedido é um template visual
+
+Pedido de **arte** ("faz o template do X", "refaz essa arte", "olha essa referência e adapta", "melhora o preço", "cria o story", "refina") tem fluxo próprio, completo, no subdiretório **`arte/`** desta skill. Abra `arte/ARTE.md` primeiro (ele aponta o resto):
+
+| Arquivo | Conteúdo |
+|---|---|
+| `arte/ARTE.md` | Fluxo em 8 passos (entender → inventariar → referência → propostas → refino → story → publicar → entregar), princípios do Ryan, erros que já custaram caro |
+| `arte/REFINO-15.md` | **15 rodadas de refino** com render real, rubrica de 12 critérios (média ≥ 9,5) e modelo de resumo |
+| `arte/REFERENCIA.md` | Quando ele manda uma **referência**: recriar × adaptar, ficha de leitura, mapeamento para os essenciais do Luma |
+| `arte/DESIGN.md` | Grade 72/8, escala tipográfica, paleta e contrastes, raio, sombra, peso da promoção, proibições |
+| `arte/MOTOR.md` | Como o render e o Local Fit funcionam (layers, regras, reflow manual, rotação em grupo, armadilhas) |
+| `arte/BANCO.md` | Projeto Supabase certo, receitas SQL (inserir, derivar o story, publicar, reverter), assets, changelog, git |
+| `arte/ferramentas/` | `render.js` (motor real no Chromium), `lib.js` (blocos de layer), `medir.js`, `exemplo.js` — Node puro, zero dependência |
+
+Resumo do contrato: **proposta ≠ aplicar** (mostre 3 imagens e recomende; só grave quando ele mandar), **feed e story juntos** com o mesmo nome, **render real + olhar a imagem em toda rodada**, **estresse (título longo, campo vazio, preço de 1/3 dígitos)**, **assets no git antes de publicar**, **changelog e reversão** no fim. O fluxo geral desta skill (lê o brain → planeja → implementa) continua valendo por cima.
