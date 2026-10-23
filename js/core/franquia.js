@@ -3,17 +3,18 @@
    ------------------------------------------------------------
    luma.franquias + luma.usuario_franquias existem desde 23/09, mas quase ninguém estava
    vinculado: a cidade do franqueado era adivinhada pelo campo da arte. Aqui:
-     · gFranquiaIniciar()  — no login: lê o vínculo; franqueado sem franquia vê UMA pergunta
-                             ("Qual é a sua franquia?"), com a opção de sugerir pela localização.
+     · gFranquiaIniciar()  — no login: lê o vínculo; franqueado sem franquia responde a pergunta
+                             ("Qual é a sua franquia?") ANTES de usar o Luma. Sem "Depois".
      · gMinhaFranquia()    — {id, nome, cidade, uf} ou null. Síncrona (cache da sessão).
    A escolha grava pelo RPC luma.escolher_minha_franquia (uma vez; trocar é com a gestão).
+   Se o banco recusar a escolha, a pergunta volta. Nada disso fica no aparelho (23/10/2026):
+   a cidade do franqueado é a franquia no banco, e é ela que a gestão e o Dados enxergam.
    A localização só SUGERE: a pessoa sempre confirma o nome antes de gravar.
    Sem as funções no banco (migration 20260930200000 não aplicada), nada aparece.
    Depende de: core/supabase.js (gSupabase/window.sb), core/auth.js (gCurrentUser/gCurrentRole),
    core/toast.js (gToast, gEsc), .g-dialog* em css/modules/toolbar.css.
    ============================================================ */
 let _gFranquia = null;              // {id, nome, cidade, uf} do usuário logado
-const G_FRANQUIA_ADIAR_KEY = 'luma_franquia_adiada_v1';
 const G_FRANQUIA_RAIO_KM = 60;      // além disso a localização não sugere nada
 
 function gMinhaFranquia(){ return _gFranquia; }
@@ -61,19 +62,17 @@ function _gFranquiaPerguntar(lista){
       <datalist id="g-fr-lista">${lista.map(f => `<option value="${gEsc(_gFrRotulo(f))}"></option>`).join('')}</datalist>
       <p class="g-fr-dica" aria-live="polite" style="margin:8px 0 12px;font-size:13px;color:var(--text-3)"></p>
       <div class="g-dialog-acts">
-        <button class="g-dialog-cancel" type="button" data-a="depois">Depois</button>
         <button class="g-dialog-cancel" type="button" data-a="gps">Usar minha localização</button>
         <button class="g-dialog-ok" type="button" data-a="ok">Confirmar</button>
       </div></div>`;
     document.body.appendChild(ov);
     const input = ov.querySelector('input'), dica = ov.querySelector('.g-fr-dica');
     const achar = () => lista.find(f => _gFrRotulo(f).toLowerCase() === input.value.trim().toLowerCase());
-    const fim = v => { ov.remove(); resolve(v); };
-    ov.querySelector('[data-a="depois"]').onclick = () => fim(null);
+    // Sem botão de fechar nem Esc: a pergunta só sai com uma franquia escolhida.
     ov.querySelector('[data-a="ok"]').onclick = () => {
       const f = achar();
       if(!f){ dica.textContent = 'Escolha uma franquia da lista.'; input.focus(); return; }
-      fim(f);
+      ov.remove(); resolve(f);
     };
     ov.querySelector('[data-a="gps"]').onclick = () => {
       if(!navigator.geolocation){ dica.textContent = 'Seu navegador não informa a localização. Digite a cidade.'; return; }
@@ -93,7 +92,6 @@ async function gFranquiaIniciar(){
   const role = (typeof gCurrentRole === 'function') ? gCurrentRole() : null;
   if(await gFranquiaCarregar()) return;
   if(role !== 'franqueado') return;
-  try{ if(Date.now() - Number(localStorage.getItem(G_FRANQUIA_ADIAR_KEY) || 0) < 864e5) return; }catch(e){}
   const sb = _gFrSb();
   let lista = [];
   try{
@@ -102,10 +100,15 @@ async function gFranquiaIniciar(){
     lista = data || [];
   }catch(e){ return; }
   if(!lista.length) return;
-  const f = await _gFranquiaPerguntar(lista);
-  if(!f){ try{ localStorage.setItem(G_FRANQUIA_ADIAR_KEY, String(Date.now())); }catch(e){} return; }
-  const { error } = await sb.schema('luma').rpc('escolher_minha_franquia', { p_franquia: f.id });
-  if(error){ gToast('Não consegui salvar a franquia. Confira sua internet e tente de novo.', 'error'); try{ console.warn('[franquia]', error.message); }catch(e){} return; }
+  // Obrigatória: sem franquia não há cidade nem gírias. Se o banco recusar a escolha, a pergunta volta.
+  let f = null;
+  while(!f){
+    const escolhida = await _gFranquiaPerguntar(lista);
+    const { error } = await sb.schema('luma').rpc('escolher_minha_franquia', { p_franquia: escolhida.id });
+    if(!error){ f = escolhida; break; }
+    gToast('Não consegui salvar a franquia. Confira sua internet e tente de novo.', 'error');
+    try{ console.warn('[franquia]', error.message); }catch(e){}
+  }
   _gFranquia = { id: f.id, nome: f.nome, cidade: f.cidade || '', uf: f.uf || '' };
   if(typeof gTrackEvent === 'function') gTrackEvent('franquia_escolhida', { franquia: f.nome });
   gToast('Pronto: você está na franquia ' + f.nome + '.');

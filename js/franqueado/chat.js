@@ -2355,11 +2355,8 @@ function _fCaptionSrcTag(suggestions){
    longa, aceita `[]` como resposta legítima, e a legenda nunca depende da lista para sair.
    A revisão final é de quem publica — a legenda já é oferecida como sugestão editável.
 
-   Cache no localStorage por CIDADE. Sumiu (aba limpa, outro aparelho, franqueado mudou a
-   cidade) → pesquisa de novo na próxima legenda. Prazo de 180 dias porque lista errada não
-   pode ficar para sempre; gíria não muda em um mês. */
-const F_GIRIAS_KEY = 'dm_girias_v1';
-const F_GIRIAS_DIAS = 180;
+   Desde 23/10/2026 não há mais cache de gírias por cidade no aparelho: a lista é da franquia,
+   no banco (luma.franquia_girias), e sem franquia não há gíria. */
 const F_GIRIAS_MAX = 6;
 /* Lista VAZIA guardada valia os mesmos 180 dias: cidade pequena que o modelo não reconheceu
    numa tarde ficava meio ano sem gíria nenhuma — era o "a gíria não funciona" (14/10/2026).
@@ -2367,54 +2364,23 @@ const F_GIRIAS_MAX = 6;
 const F_GIRIAS_VAZIO_DIAS = 7;
 /* O exemplo de uso que a pesquisa devolve ("Bah, a fome bateu? Pede no app."), por termo.
    É a rede de segurança da legenda: se a IA não usou a expressão, a frase entra pronta.
-   Com franquia, a fonte é a coluna `exemplo` de `luma.franquia_girias` (vale em qualquer
-   aparelho); este cache serve à cidade sem franquia e às linhas gravadas antes da coluna. */
+   A fonte é a coluna `exemplo` de `luma.franquia_girias` (vale em qualquer aparelho); este
+   cache serve só às linhas gravadas antes da coluna. */
 const F_GIRIAS_EX_KEY = 'dm_girias_ex_v1';
 
-/* A cidade do franqueado NÃO é entidade do Luma (01_BUSINESS §1) — ela aparece de raspão em
-   dois lugares que já existem. Aqui é só a leitura, na ordem do mais específico: o campo da
-   arte que está sendo feita, o "Sua cidade" do Sheets, e o que já foi visto antes. Sem
-   nenhum dos três não há cidade — e sem cidade o recurso simplesmente não roda. */
-const F_CIDADE_KEY = 'dm_cidade_v1';
+/* A cidade do franqueado vem SÓ da franquia vinculada no banco (core/franquia.js). Sem vínculo
+   não há cidade e nada é guardado no aparelho (23/10/2026). */
 function fCidadeAtual(){
-  let c = '';
-  // A franquia vinculada (core/franquia.js) é a cidade certa; o resto é palpite.
-  try{ const fr = (typeof gMinhaFranquia === 'function') ? gMinhaFranquia() : null; if(fr && fr.cidade) return fr.cidade; }catch(e){}
-  try{ c = (fState && fState.dados && fState.dados.cidade) || ''; }catch(e){}
-  try{ c = c || localStorage.getItem(fUserCacheKey('luma_bulk_city')) || localStorage.getItem(fUserCacheKey(F_CIDADE_KEY)) || ''; }catch(e){}
-  c = String(c || '').trim();
-  // Lembra pra próxima sessão quando a cidade veio da arte — a cobertura cresce com o uso,
-  // sem inventar uma tela de cadastro pra um dado que mora no Portal.
-  if(c){ try{ localStorage.setItem(fUserCacheKey(F_CIDADE_KEY), c); }catch(e){} }
-  return c;
+  try{ const fr = (typeof gMinhaFranquia === 'function') ? gMinhaFranquia() : null; return String((fr && fr.cidade) || '').trim(); }
+  catch(e){ return ''; }
 }
 const _fGiriaChave = (c) => String(c||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 
-function fGiriasCache(cidade){
-  try{
-    const g = JSON.parse(localStorage.getItem(fUserCacheKey(F_GIRIAS_KEY)) || 'null');
-    if(!g || !Array.isArray(g.termos)) return null;
-    if(_fGiriaChave(g.cidade) !== _fGiriaChave(cidade)) return null;         // outra cidade
-    const dias = g.termos.length ? F_GIRIAS_DIAS : F_GIRIAS_VAZIO_DIAS;
-    if(Date.now() - (g.ts||0) > dias*864e5) return null;                     // venceu
-    return g.termos;
-  }catch(e){ return null; }
-}
-
-/* Pesquisa (uma vez por cidade) e guarda. Devolve [] quando não há nada confiável — e `[]`
-   também é resposta guardada: sem isso, cidade que o modelo não conhece viraria uma chamada
-   nova a cada legenda, para sempre. */
-async function fGiriasDaCidade(cidade){
-  // Com franquia vinculada, a fonte é a tabela da franquia e só o APROVADO pelo franqueado vale.
+/* Gírias da franquia vinculada: só o APROVADO pelo franqueado vale. Sem franquia, não há lista. */
+async function fGiriasDaCidade(){
   const fr = (typeof gMinhaFranquia === 'function') ? gMinhaFranquia() : null;
-  if(fr) return _fGiriasDaFranquia(fr);
-  if(!cidade) return [];
-  const cache = fGiriasCache(cidade);
-  if(cache) return cache;
-  const termos = await _fGiriasPesquisar(cidade, '');
-  if(!termos) return [];   // a IA falhou: não guarda nada, tenta de novo na próxima legenda
-  try{ localStorage.setItem(fUserCacheKey(F_GIRIAS_KEY), JSON.stringify({cidade, ts:Date.now(), termos})); }catch(e){}
-  return termos;
+  if(!fr) return [];
+  return _fGiriasDaFranquia(fr);
 }
 
 /* A pesquisa na IA (task `girias`), sem cache: quem guarda é quem chama. Devolve `null` quando a
@@ -2714,7 +2680,7 @@ async function fFetchAICaptionSuggestions(dados, camp, formato) {
 
   // UM termo sorteado para esta legenda, o mesmo nos dois caminhos e na conferência.
   let giria = null;
-  try{ giria = _fGiriaUma(await fGiriasDaCidade(cidade))[0] || null; }catch(e){}
+  try{ giria = _fGiriaUma(await fGiriasDaCidade())[0] || null; }catch(e){}
   const blocoGirias = _fGiriaRegra(giria);
 
   // Gateway Novo e Blindado: gAI (§14, §32, §60). O typeof fica como rede: sem ele, um gateway
