@@ -2887,7 +2887,13 @@ body:not(.theme-light) .qr-back:hover{border-color:var(--dm-orange);color:var(--
   /* Pular é AÇÃO, não nota de rodapé: com cara de link (sem borda nem fundo) só se descobria
      que era botão passando o mouse. Veste o secundário — borda e fundo visíveis — mas menor
      que o "Escolher imagem"/Continuar, que seguem sendo o caminho principal. */
-  body.f-guided-desktop .fg-skip{align-self:flex-start;margin-top:12px;min-height:36px;padding:7px 14px;font-size:12.5px}
+  /* 23/10/2026 (Ryan): "Pular por enquanto" tem que pesar MAIS que as respostas. Antes era um
+     chip menor e igual aos outros (a decisão de 22/10 de deixá-lo discreto caiu): agora veste a
+     mesma linguagem do "Deixar fora da arte" — tint da marca, 44px, peso 800 e ícone — e se
+     separa das respostas por uma linha. Ainda é secundário em relação ao Continuar/Escolher. */
+  body.f-guided-desktop .fg-skip{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;margin-top:20px;min-height:44px;padding:10px 18px;font-size:13px;font-weight:800;border:1.5px solid var(--dm-orange-tint,#FFE0BD);background:var(--dm-orange-bg);color:var(--dm-orange-d,#C2410C);position:relative}
+  body.f-guided-desktop .fg-skip:hover{border-color:var(--dm-orange);color:var(--dm-orange-d,#C2410C)}
+  body.f-guided-desktop .fg-skip svg{flex:none}
   /* "Deixar fora da arte" (22/10/2026) só existe para descrição/detalhes (ver `_fCampoSaiDaArte`).
      Colado nas sugestões ele lia como mais um chip de resposta: ganha faixa própria — filete
      separando "responder" de "tirar" — cor da marca e ícone. O "Pular por enquanto" dos demais
@@ -2938,7 +2944,7 @@ body:not(.theme-light) .qr-back:hover{border-color:var(--dm-orange);color:var(--
   body:not(.theme-light).f-guided-desktop:not(.f-guided-no-input) #f-input-row,
   body:not(.theme-light).f-guided-desktop .fg-option,body:not(.theme-light).f-guided-desktop .fg-suggestions button,
   body:not(.theme-light).f-guided-desktop .fg-secondary,body:not(.theme-light).f-guided-desktop .fg-skip,body:not(.theme-light).f-guided-desktop .fg-date{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text)}
-  body:not(.theme-light).f-guided-desktop .fg-skip-sai{background:color-mix(in srgb,var(--dm-orange) 12%,transparent);border-color:color-mix(in srgb,var(--dm-orange) 40%,transparent);color:var(--dm-orange)}
+  body:not(.theme-light).f-guided-desktop .fg-skip,body:not(.theme-light).f-guided-desktop .fg-skip-sai{background:color-mix(in srgb,var(--dm-orange) 12%,transparent);border-color:color-mix(in srgb,var(--dm-orange) 40%,transparent);color:var(--dm-orange)}
   body:not(.theme-light).f-guided-desktop .fsf-btn:hover,body:not(.theme-light).f-guided-desktop .fg-link:hover{background:var(--d-surf2);color:var(--d-text)}
   body:not(.theme-light).f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-row{border-bottom-color:var(--d-border)}
   body:not(.theme-light).f-guided-desktop.f-guided-respostas:not(.f-revisao) .fr-val{color:var(--d-text)}

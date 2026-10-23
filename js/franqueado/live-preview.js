@@ -1916,7 +1916,9 @@ try{ localStorage.removeItem('luma_demo_v1'); }catch(e){}
 // O campo da pergunta ativa do chat, na geometria que está sendo desenhada (Focus Sync).
 function _fLpCamadaAtiva(layers){
   const v=fState.camp?.perguntas?.[fState.stepIdx]?.id;
-  return v?(layers||[]).find(l=>_fLpLayerVars(l).indexOf(v)>=0)||null:null;
+  /* Só camada VISÍVEL: o reflow das artes é feito com cópias (`l-ds` some com o campo vazio, `l-ds2`
+     sobe no lugar). Sem este filtro o anel pegava a 1ª da lista — a oculta, na posição antiga. */
+  return v?(layers||[]).find(l=>l.visible!==false&&_fLpLayerVars(l).indexOf(v)>=0)||null:null;
 }
 // O corpo que o render DESENHA: o Local Fit não mexe no `fontSize`, ele põe o teto `_tetoFonte`.
 function _fLpCorpo(l){ const f=+l.fontSize||0, t=+l._tetoFonte||0; return t>0&&t<f?t:f; }
