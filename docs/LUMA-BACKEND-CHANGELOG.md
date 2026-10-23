@@ -25,6 +25,15 @@ Projeto `xqsazcazsjxajmtmirzd`. Só **inserts** em `luma.templates`, na pasta **
 - Rollback: apagar as duas linhas (nascem na versão 1).
 - **Mesmo dia, 2ª rodada (pedido do Ryan): sem o celular e diagramação reorganizada.** O mockup saiu (e o `celular.png` foi apagado do repositório). Banner, selo "PROCURE O BANNER" e logo da loja formam uma linha própria entre o topo e a moldura da foto, lado a lado e sem encostar em nada; a moldura ficou abaixo dessa linha, com respiro até a faixa do rodapé (cantos de baixo com raio 40). Topo mais compacto (logo, título/detalhe/descrição e bilhete mais acima). No story a linha do banner sobe mais perto da descrição e a moldura fica mais alta. Mesmos campos e mesmas regras (sem Detalhes a descrição sobe). A versão anterior de cada template está em `template_versions`.
 
+## 2026-10-23 — Açaí aqui: selo de preço dinâmico (✅ dados, sem migration)
+
+Pedido do Ryan: focar no preço, algo dinâmico e criativo que dê peso à promoção. A etiqueta amarela retangular (e seus 10 layers de preço) saiu do feed `5eb7bd6c…` e do story `a57f2140…`; entrou um **selo serrilhado laranja `#F85400`** (28 pontas, girado −8°) sobre um selo amarelo maior (girado +6°, 18 pontas), sobre o canto superior direito da foto, com sombra. Dentro: "DE R$ x" tachado em branco, o preço grande (R$ + inteiro 134 px + vírgula + centavos em tamanho próprio) e "POR APENAS"; três brilhos de 4 pontas em volta. Todo o conteúdo foi girado em grupo (cada camada é reposicionada e recebe a mesma rotação), então no Estúdio cada peça continua editável.
+
+- **Regras:** sem `precoPor` o selo, o preço e os brilhos somem; sem `precoDe` o preço sobe e centraliza no selo (grupo duplicado, como na etiqueta anterior); o "DE" também some sem preço promocional.
+- **Selo sobre a foto:** é a única sobreposição de propósito. Feed: centro em (830, 560); story: 104 px mais embaixo, na borda superior da foto.
+- Mesmos campos. Versão anterior de cada template em `template_versions`.
+- Passou nos testes de estresse (preço de 1 e 2 dígitos, título de 2 linhas, sem detalhes, sem "de", sem preço).
+
 ## 2026-10-23 — Açaí aqui redesenhado (fundo claro, 10 rodadas de refino) (✅ dados, sem migration)
 
 A pedido do Ryan ("gostei da com fundo branco"; liberdade para usar só o essencial), o feed `5eb7bd6c…` e o story `a57f2140…` do Açaí aqui foram refeitos do zero, no mesmo registro de cada um. Fundo lilás claro `#fbf2ff`, títulos em roxo `#4a0f63`, etiqueta de preço amarela `#ffb900`, rodapé roxo `#831CA5` com filete amarelo, logo DM branco no rodapé. Sem celular, anéis, bilhete nem faixa laranja.
