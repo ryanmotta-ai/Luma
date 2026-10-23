@@ -21,12 +21,12 @@
 | `grafismos/forma-apoio-branca.png` | retângulo branco, cantos **superior-esquerdo e inferior-direito** bem arredondados (545×143) | ✅ "forma de apoio": cartão atrás do nome do produto / título (ver refs de preço e entrega) |
 | `grafismos/explosao-laranja-gradiente-granulado.png` | estrela/explosão com gradiente laranja→amarelo e **granulado** | ❓ |
 | `grafismos/explosao-vermelha-gradiente-granulado.png` | mesma família, laranja→vermelho | ❓ |
-| `grafismos/ondas-concentricas-oval.png` | listras concêntricas laranja `#FF9000`/`#F85400`, formato oval (866×1080) | ❓ (o Ryan não reconheceu o nome — **ver nota**) |
-| `grafismos/ondas-concentricas-chapeu.png` | listras concêntricas em formato do **chapéu DM** (679×898) | ❓ idem |
+| `grafismos/ondas-concentricas-oval.png` | listras concêntricas laranja `#FF9000`/`#F85400`, formato oval (866×1080) | ✅ **FUNDO**: esticar para preencher o fundo da arte; baixar a opacidade se o contraste com o conteúdo ficar forte |
+| `grafismos/ondas-concentricas-chapeu.png` | listras concêntricas em formato do **chapéu DM** (679×898) | ✅ **FUNDO**, mesma regra da oval (esticar + baixar opacidade se brigar com o texto) |
 | `grafismos/sorriso-dm-arco.png` | **o sorriso da Delivery Much** (o arco do logo), grosso, `#FF9000` — usado em várias artes como apoio por trás de pessoas/objetos/títulos; nos exemplos aparece **amarelo `#FFB900`**, grande, cortado pela borda | ✅ apoio atrás de composição (recolorir conforme a arte) |
 | `grafismos/padrao-arcos-repetivel.png` | vários arcos `#F85400` — **o padrão é este módulo repetido** (várias cópias lado a lado, em qualquer tamanho/ângulo) | ✅ pattern de fundo/canto |
 
-**Nomes (23/10, esclarecido pelo Ryan):** o arco grosso é **"o sorriso da Delivery Much"** (vem do logo); o padrão de arcos é o sorriso **repetido como pattern**. Ainda **sem uso confirmado**: as duas listras concêntricas (oval e chapéu) e as duas explosões granuladas — perguntar antes de usar. O pattern tem parentesco com `assets/grafismos/pattern-dm-oficial.svg`.
+**Nomes (23/10, esclarecido pelo Ryan):** o arco grosso é **"o sorriso da Delivery Much"** (vem do logo); o padrão de arcos é o sorriso **repetido como pattern**. As duas listras concêntricas (oval e chapéu) são **fundo**: esticar para preencher e baixar a opacidade se ficar contraste demais (Ryan, 23/10). Ainda **sem uso confirmado**: as duas explosões granuladas — perguntar antes de usar. O pattern tem parentesco com `assets/grafismos/pattern-dm-oficial.svg`.
 
 ## Regras que valem desde já
 1. Fundo laranja `#F85400` + arcos/ondas em `#FF9000` (referências de preço e entrega); **grafismo da casa antes de forma inventada**.
