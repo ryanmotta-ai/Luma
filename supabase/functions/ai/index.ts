@@ -423,8 +423,12 @@ Deno.serve(async (req) => {
     // Três chaves do AI Studio (Ryan, 19/10/2026), cada uma com a própria cota grátis. A chamada
     // começa pela 1ª; em 429 o `viaGemini` troca de chave e repete o MESMO modelo antes de descer a
     // escada. A chave que estourou fica para trás pelo resto da chamada. `chave` = "tem algum Gemini".
-    const chaves = [["GEMINI_API_KEY", "GEMINI_KEY1"], ["GEMINI2_API_KEY", "GEMINI_KEY2"], ["GEMINI3_API_KEY", "GEMINI_KEY3"]]
-      .map((n) => env(...n)).filter(Boolean);
+    // CHAVE PAGA PRIMEIRO (23/10/2026, Pedro): as três grátis caem no pico ("high demand", 503) e
+    // as reservas grátis travaram junto. Com `GEMINI_PAGA` cadastrada, ela é a 1ª chave e a escada
+    // Gemini roda inteira ANTES das reservas (passo 5). As grátis ficam atrás: só entram em 429 da paga.
+    const paga = env("GEMINI_PAGA", "GEMINI_PAID_KEY");
+    const chaves = [paga, ...[["GEMINI_API_KEY", "GEMINI_KEY1"], ["GEMINI2_API_KEY", "GEMINI_KEY2"], ["GEMINI3_API_KEY", "GEMINI_KEY3"]]
+      .map((n) => env(...n))].filter(Boolean);
     let nChave = 0;
     const chave = chaves[0] ?? "";
     const reservas = RESERVAS.map((r) => ({ ...r, chave: env(...r.secret) })).filter((r) => r.chave);
@@ -601,7 +605,7 @@ Deno.serve(async (req) => {
       for (const rv of reservas) {
         // Guarda GEMINI_N_MS para o degrau caro, que vem depois (passo 5): sem isto, reservas
         // penduradas comiam os 38s e a chamada morria em 504 com o 3.6 Flash nem tentado.
-        const teto = Math.min(RESERVA_TIMEOUT_MS, resta() - (chave ? GEMINI_N_MS : 0));
+        const teto = Math.min(RESERVA_TIMEOUT_MS, resta() - (chave && !paga ? GEMINI_N_MS : 0));   // com a paga o Gemini já foi: nada a guardar
         if (teto < 1000 || sinal.aborted) return null;
         try {
           const url = rv.url || await urlCloudflare(rv.chave);
@@ -647,6 +651,11 @@ Deno.serve(async (req) => {
     let r: Resposta | null;
     if (parts.length > 1 || !reservas.length) {
       r = await viaGemini(escada, prazo);
+    } else if (paga) {
+      // Com chave paga, o Gemini é o caminho principal: a escada inteira primeiro, as reservas
+      // grátis só no que sobrar do prazo. Sem corrida em paralelo — a reserva lenta não atrapalha.
+      r = await viaGemini(escada, prazo);
+      if (!r) r = await viaReservas(prazo);
     } else {
       r = await new Promise<Resposta | null>((resolve) => {
         let pendentes = 2;
