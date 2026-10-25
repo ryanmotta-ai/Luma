@@ -156,6 +156,30 @@ await test('Prévia → chat: campo já preenchido não oferece PULAR (pular apa
   assert(!chips.some(t=>t==='Pular'),'“Pular” apareceu sobre um valor já escrito — clicar apagaria a resposta');
 });
 
+/* "Deixar fora da arte" no CELULAR (25/10/2026): só existia com o campo vazio no passo normal.
+   Com a descrição já preenchida, ou corrigindo pelo lápis, o celular não tinha como tirá-la. */
+await test('Celular: descrição preenchida e correção oferecem “Deixar fora da arte”', async()=>{
+  reset();
+  const mmReal=window.matchMedia, varsReal=dVars;
+  window.matchMedia=(q)=>({matches:/max-width:\s*680px/.test(q),media:q,onchange:null,
+    addListener(){},removeListener(){},addEventListener(){},removeEventListener(){}});
+  dVars=[{name:'descricao',type:'text',required:false}];   // como no catálogo `luma.variaveis`
+  try{
+    fState.camp.perguntas=fBuildPerguntas(['produto','descricao','precoPor'],{camp:{name:'Campanha de bancada'}});
+    assert(!fGetFieldType('descricao').required,'bancada: a descrição deveria ser opcional');
+    const chip=()=>Array.from(document.querySelectorAll('.qr')).find(c=>/Deixar fora da arte/.test(c.textContent));
+    _fLpCommit('descricao','Pão, carne e queijo');
+    irAoPasso('descricao');
+    assert(chip(),'campo preenchido no celular não ofereceu “Deixar fora da arte”');
+    chip().click();
+    await espera(PASSO);
+    assert(fState.dados.descricao==='' && fState.dados.__skipped__descricao,'o chip não tirou a descrição da arte');
+    document.getElementById('f-messages').innerHTML='';
+    fEditCampo(fState.camp.perguntas.findIndex(p=>p.id==='descricao'));
+    assert(chip(),'corrigir pelo lápis no celular não ofereceu “Deixar fora da arte”');
+  }finally{ window.matchMedia=mmReal; dVars=varsReal; try{clearTimeout(fNextTimeout);}catch(e){} }
+});
+
 /* ── 2. CHAT → PRÉVIA → CHAT ─────────────────────────────────────────────────────────────── */
 await test('Chat → prévia → chat: a prévia vence, porque é a edição mais recente', async()=>{
   reset();

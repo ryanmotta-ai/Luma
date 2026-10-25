@@ -1173,6 +1173,15 @@ function fStartChat(){
    chat do franqueado; o outro é do painel de conta. Achado abrindo o app no navegador — o
    `node --check` de cada arquivo passa, porque a colisão só existe quando os dois carregam juntos. */
 const _F_ICO_CHECK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:4px"><polyline points="20 6 9 17 4 12"/></svg>';
+/* "DEIXAR FORA DA ARTE" NO CELULAR. Mesmo efeito do botão do fluxo guiado (desktop) e o mesmo
+   caminho de gravação: `fQR('Pular')` → `fSaveAdv` grava vazio + `__skipped__`. Antes o chip só
+   existia com o campo VAZIO no passo normal; corrigindo pelo lápis, ou com o campo já preenchido
+   (rascunho, prévia, Encurtar), o celular não tinha como tirar a descrição da arte. */
+const _F_ICO_FORA = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:4px"><path d="M17.9 17.9A10.1 10.1 0 0 1 12 20C5 20 1 12 1 12a18.5 18.5 0 0 1 5.1-5.9"/><path d="M9.9 4.2A9.1 9.1 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.2 3.2"/><path d="M1 1l22 22"/></svg>';
+function _fChipForaDaArte(p, cfg){
+  return (p && !p.isImage && cfg && !cfg.required && _fCampoSaiDaArte(p.id))
+    ? {html:_F_ICO_FORA+'Deixar fora da arte', acao:"fQR('Pular')"} : null;
+}
 function fManterValor(){
   const p = fState.camp && fState.camp.perguntas && fState.camp.perguntas[fState.stepIdx];
   if(!p) return;
@@ -1312,14 +1321,16 @@ function fNextStep(){
   /* ⛔ "PULAR" NUNCA APARECE EM CIMA DE UM VALOR QUE JÁ EXISTE. Pular grava string vazia
      (`fSaveAdv`), então num campo que a pessoa preencheu PELA PRÉVIA o chip apagava a resposta
      — e ela lê "pular esta pergunta", não "apagar o que escrevi". Campo já preenchido ganha
-     o chip MANTER no lugar; campo vazio e opcional continua com o Pular de sempre. */
+     o chip MANTER no lugar; campo vazio e opcional continua com o Pular de sempre.
+     "Deixar fora da arte" pode vir junto do Manter: ele DIZ que tira o texto da arte. */
   if (jaTem) {
     const _atual = String(fState.dados[p.id]);
     const _curto = _atual.length > 24 ? _atual.slice(0,22)+'…' : _atual;
     sugestoes = [{html:`${_F_ICO_CHECK}Manter “${gEsc(_curto)}”`, acao:'fManterValor()'}].concat(sugestoes);
+    const _fora = _fChipForaDaArte(p, cfg); if (_fora) sugestoes.push(_fora);
   } else if (!cfg.required && !sugestoes.includes('Pular')) {
     // Rótulo que diz o efeito (some da arte); o valor gravado segue sendo o sentinela 'Pular'.
-    sugestoes.push(_fCampoSaiDaArte(p.id) ? {html:'Deixar fora da arte', acao:"fQR('Pular')"} : 'Pular');
+    sugestoes.push(_fChipForaDaArte(p, cfg) || 'Pular');
   }
 
   /* ⚠ O `<span>` em volta da frase NÃO é decoração. No celular o balão é `flex-direction:
@@ -2147,7 +2158,8 @@ function fEditCampo(idx){
     const snd=document.getElementById('f-snd'); if(snd) snd.disabled=true;
     const mic=document.getElementById('f-chat-mic'); if(mic) mic.disabled=true;
   } else {
-    fAddBot(`Qual é o novo valor para <strong>${gEsc(label)}</strong>?`,p.sugestoes);
+    const _fora=_fChipForaDaArte(p, fGetFieldType(p.id));
+    fAddBot(`Qual é o novo valor para <strong>${gEsc(label)}</strong>?`, _fora ? (p.sugestoes||[]).concat([_fora]) : p.sugestoes);
     const box=document.getElementById('f-msg-box');
     if(box){box.disabled=false; box._fSelChave=null;}
     const snd=document.getElementById('f-snd'); if(snd) snd.disabled=false;
