@@ -4048,3 +4048,46 @@ body.f-guided-desktop #f-undo-btn{display:none}
 }
 body:not(.theme-light) .perg-instrucao{background:color-mix(in srgb,var(--dm-orange) 12%,var(--d-surf));color:var(--d-text2)}
 body:not(.theme-light) .perg-data{background:var(--d-surf2);border-color:var(--d-border2);color:var(--d-text);color-scheme:dark}
+
+/* ══ CELULAR — MOVIMENTO, RODADA 1 (25/10/2026) ════════════════════════════════════════════
+   "Está muito seca" (Ryan). Medido: no celular a pergunta ativa, a confirmação e o card de
+   entrega estão com `animation:none` (regras acima, por causa da sombra/bolha do desktop) —
+   cada passo TROCAVA de uma vez, sem nada dizendo "isto é novo". Aqui volta só o movimento que
+   orienta: o que é novo entra em cascata (rótulo → pergunta → apoio → respostas), a conquista
+   ganha um pulso, e o resto fica parado.
+   Regras da casa (luma-brain/motion.md): só tokens; `backwards` (nunca `both`/`forwards`, que
+   congelam o transform e matam o press global); cascata de ~40ms com teto; a guarda de
+   `prefers-reduced-motion` em 02-animations.css zera duração E atraso — nada fica escondido.
+   Só a mensagem NOVA anima: cada passo é um `.msg` novo, e o anterior sai com `display:none`. */
+@media (max-width:680px){
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot.active-prompt .bbl > .field-hint,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot.active-prompt .bbl > .perg-frase,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot.active-prompt .bbl > .perg-instrucao,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot.active-prompt .bbl > .perg-data,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot.active-prompt .f-upload-zone{animation:gFadeInUp var(--dur-base) var(--ease-out) backwards}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot.active-prompt .bbl > .perg-frase{animation-delay:40ms}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot.active-prompt .bbl > .perg-instrucao,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot.active-prompt .bbl > .perg-data,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot.active-prompt .f-upload-zone{animation-delay:80ms}
+  /* Os chips chegam DEPOIS da pergunta: responder vem depois de ler. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot.active-prompt .qr-wrap .qr{animation:gPopIn var(--dur-fast) var(--ease-spring-soft) 100ms backwards}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot.active-prompt .qr-wrap .qr:nth-child(2){animation-delay:140ms}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot.active-prompt .qr-wrap .qr:nth-child(3){animation-delay:180ms}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot.active-prompt .qr-wrap .qr:nth-child(n+4){animation-delay:220ms}
+
+  /* A ENTREGA. O check é a conquista (pulso com mola, uma vez); depois o título; depois as
+     ações, na mesma ordem em que a pessoa vai lê-las (a `order` do celular, acima). */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg:not(.art-superada) .art-ok-tick{animation:gScaleInPunch var(--dur-slow) var(--ease-spring) backwards}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg:not(.art-superada) .art-ok-copy{animation:gFadeInUp var(--dur-base) var(--ease-out) 60ms backwards}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg:not(.art-superada) .art-wrap .art-btn,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg:not(.art-superada) .art-wrap .caption-assistant-panel,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg:not(.art-superada) .art-wrap .art-bulk-btn{animation:gFadeInUp var(--dur-base) var(--ease-out) 120ms backwards}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg:not(.art-superada) .art-wrap .art-btn.art-ver-como{animation-delay:160ms}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg:not(.art-superada) .art-wrap .caption-assistant-panel{animation-delay:200ms}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg:not(.art-superada) .art-wrap .art-bulk-btn{animation-delay:240ms}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg:not(.art-superada) .art-wrap .art-btn.art-voltar,
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg:not(.art-superada) .art-wrap .art-btn.art-redo{animation-delay:280ms}
+
+  /* O Desfazer surge — botão que "pisca" para existir parece erro. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-undo-btn:not([hidden]){animation:gFadeIn var(--dur-fast) var(--ease-out)}
+}
