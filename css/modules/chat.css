@@ -4120,3 +4120,19 @@ body:not(.theme-light) .perg-data{background:var(--d-surf2);border-color:var(--d
   body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-ed{background:transparent;border-color:transparent;color:var(--d-text2)}
   body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-ed:active{background:var(--d-surf2);color:var(--d-text)}
 }
+
+/* ══ CELULAR — TRANSIÇÕES, RODADA 3 (25/10/2026) ═══════════════════════════════════════════
+   A lista "Respostas" aparecia de uma vez por cima da pergunta: agora sobe 8px e as linhas
+   entram em cascata (teto na 6ª, o resto chega junto). E o contador do rodapé pulsa quando
+   sobe (`_fRespostasBadge`, chat.js). Mesmas regras da rodada 1: tokens, `backwards`, e a
+   guarda de prefers-reduced-motion zera tudo. */
+@media (max-width:680px){
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-respostas:not([hidden]){animation:gFadeInUp var(--dur-base) var(--ease-out) backwards}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-respostas:not([hidden]) .fr-row{animation:gFadeInUp var(--dur-base) var(--ease-out) 60ms backwards}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-respostas:not([hidden]) .fr-row:nth-of-type(2){animation-delay:90ms}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-respostas:not([hidden]) .fr-row:nth-of-type(3){animation-delay:120ms}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-respostas:not([hidden]) .fr-row:nth-of-type(4){animation-delay:150ms}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-respostas:not([hidden]) .fr-row:nth-of-type(5){animation-delay:180ms}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-respostas:not([hidden]) .fr-row:nth-of-type(n+6){animation-delay:210ms}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-sheet-hist-n.fsf-n-pulso{animation:gScaleInPunch var(--dur-base) var(--ease-spring)}
+}

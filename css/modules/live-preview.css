@@ -1397,6 +1397,7 @@ body:not(.theme-light) .pst-qr-x:hover{background:var(--d-surf2);color:var(--d-t
    chassi nenhum, e isso já é o que o palco mostra durante a criação inteira — uma aba para
    repetir a tela ao lado. Ficam os ambientes que respondem "onde isso vai ser publicado". */
 
+@keyframes fFolhaSobe{from{transform:translateY(100%)}to{transform:translateY(0)}}
 /* ── O CABEÇALHO DO "COMO VAI FICAR" NUM TELEFONE ──
    São três abas (Stories/WhatsApp/Arte, ou Feed/WhatsApp/Arte), o título, o "Ver no celular"
    e o fechar. Em 375px isso não cabe: medido, "WhatsApp" saía cortado e "Arte" nem aparecia —
@@ -1415,6 +1416,12 @@ body:not(.theme-light) .pst-qr-x:hover{background:var(--d-surf2);color:var(--d-t
   /* 300px de aparelho + 20px de cada lado não cabiam nos 333px do palco a 375: sobrava uma
      rolagem lateral de 4px. 12px de respiro fecham a conta com os botões laterais dentro. */
   #f-posted-modal .posted-stage{padding-inline:12px}
+  /* FOLHA QUE SOBE DA BASE (rodada 3 de refino, 25/10/2026). No celular o "Ver como fica" era
+     uma janela no meio da tela, com 20px de moldura escura em volta — no polegar, o que vem
+     de baixo é o padrão do sistema, e a folha usa a largura toda para o aparelho. Só a
+     ENTRADA anima (`backwards`: o press global e o fechar seguem iguais). */
+  #f-posted-modal{padding:0;align-items:flex-end}
+  #f-posted-modal .posted-box{width:100%;max-height:94dvh;border-radius:20px 20px 0 0;border-bottom:0;padding-bottom:var(--safe-bottom,0px);animation:fFolhaSobe var(--dur-slow) var(--ease-out) backwards}
   :is(#f-posted-modal,#lp-contextos) .pst-seg-btn{flex:1 1 0;padding-inline:10px;font-size:12px;white-space:nowrap}
 }
 

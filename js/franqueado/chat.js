@@ -1053,11 +1053,20 @@ function _fRespostasFeitas(){
 }
 /* O número no botão "Respostas" — é o que faz ele ler como área com conteúdo, e não como
    link de rodapé. Zero some: selo "0" é ruído, não informação. */
+/* O número PULSA quando sobe (rodada 3 de refino do celular): responder é progresso, e o
+   contador é o único lugar do painel que diz "mais uma". Só ao SUBIR — voltar um passo ou
+   recomeçar não é conquista. A classe sai no fim para o próximo pulso poder tocar. */
+let _fRespostasNAnt = null;
 function _fRespostasBadge(){
   const n=document.getElementById('f-sheet-hist-n'); if(!n) return;
   const k=_fRespostasFeitas();
   n.hidden=!k;
   n.innerHTML=k?`${k}<span class="f-sr-only"> respondidas</span>`:'';
+  if(k && _fRespostasNAnt!==null && k>_fRespostasNAnt){
+    n.classList.remove('fsf-n-pulso'); void n.offsetWidth; n.classList.add('fsf-n-pulso');
+    n.onanimationend=()=>n.classList.remove('fsf-n-pulso');
+  }
+  _fRespostasNAnt=k;
 }
 
 function fRenderRespostas(){
