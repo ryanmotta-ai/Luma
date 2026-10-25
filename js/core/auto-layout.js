@@ -107,6 +107,8 @@ function gStampLayoutBaseline(l, texto, ctxAux){
    da volta anterior já produziu baseline que "encolhia sozinho" a cada iteração. */
 function gLayoutLimpaCarimbos(l){
   const c = Object.assign({}, l);
+  // Preço de um dígito que ganhou corpo (local-fit.js, `_gLfPrecoDigito`): volta ao autorado.
+  if(c._precoBase){ Object.assign(c, c._precoBase); delete c._precoBase; }
   delete c._layoutW; delete c._layoutDx; delete c._layoutMaxLines; delete c._tetoFonte;
   delete c._entrelinha; delete c._fit; delete c._vTopAuto; delete c._foraDaArte;
   delete c._layoutInvalido; delete c._layoutBase; delete c._layoutH;

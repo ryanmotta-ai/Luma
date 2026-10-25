@@ -1376,6 +1376,48 @@
     assert(lf.result.invalid || (lf.layers[0]._layoutH || l.h) <= 60, 'runtime ultrapassou maxH');
   });
 
+  /* ── Preço de um dígito ganha peso (25/10/2026) ──────────────────────────────────────
+     O inteiro de 1 dígito cresce com a base fixa; R$, vírgula e centavos não se mexem. */
+  const precoPartido = (deY) => [
+    { id:'de', type:'text', content:'DE {{precoDe}}', x:600, y:deY, w:300, h:40, font:'Arial',
+      fontSize:32, textAlign:'center', visible:true, opacity:100 },
+    { id:'rs', type:'text', content:'R$', x:620, y:470, w:60, h:40, font:'Arial', fontSize:36,
+      visible:true, opacity:100 },
+    { id:'int', type:'text', content:'{{precoPor:inteiro}}', x:600, y:420, w:175, h:125,
+      font:'Arial', fontSize:105, textAlign:'right', visible:true, opacity:100 },
+    { id:'ct', type:'text', content:'{{precoPor:centavos}}', x:790, y:428, w:90, h:80, font:'Arial',
+      fontSize:58, visible:true, opacity:100 }
+  ];
+  const basePreco = l => l.y + l.h / 2 + l.fontSize * 0.3;   // base do caminho multi-estilo do render
+  test('preco-digito-1 · um dígito cresce com a base fixa e nada mais se move', () => {
+    const layers = precoPartido(120);
+    const lf = gLocalFitArte(clone(layers), { canvas:CANVAS, dados:{ precoPor:'R$ 9,99', precoDe:'R$ 30,00' }, defaults:{} });
+    const i0 = layers.find(l => l.id === 'int'), i1 = lf.layers.find(l => l.id === 'int');
+    assert(i1.fontSize > i0.fontSize, 'o dígito não cresceu');
+    assert(i1.fontSize <= Math.round(i0.fontSize * 1.5), 'passou do teto ×1,5');
+    assert(Math.abs(basePreco(i1) - basePreco(i0)) <= 1, 'a base do número mudou');
+    ['de','rs','ct'].forEach(id => {
+      const a = layers.find(l => l.id === id), b = lf.layers.find(l => l.id === id);
+      assert(a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h && a.fontSize === b.fontSize, id + ' mudou');
+    });
+    assert(!lf.result.invalid, 'o número maior bloqueou a exportação');
+  });
+  test('preco-digito-2 · dois dígitos ficam exatamente como desenhados', () => {
+    const layers = precoPartido(120);
+    const lf = gLocalFitArte(clone(layers), { canvas:CANVAS, dados:{ precoPor:'R$ 29,99', precoDe:'R$ 30,00' }, defaults:{} });
+    const i1 = lf.layers.find(l => l.id === 'int');
+    assert(i1.fontSize === 105 && i1.y === 420 && i1.h === 125, 'dois dígitos mudaram');
+    assert(!lf.result.changes.some(c => c.precoDigito), 'registrou crescimento sem crescer');
+  });
+  test('preco-digito-3 · o objeto acima limita e rodar de novo não acumula', () => {
+    const livre = gLocalFitArte(clone(precoPartido(120)), { canvas:CANVAS, dados:{ precoPor:'R$ 9,99', precoDe:'R$ 30,00' }, defaults:{} });
+    const perto = gLocalFitArte(clone(precoPartido(380)), { canvas:CANVAS, dados:{ precoPor:'R$ 9,99', precoDe:'R$ 30,00' }, defaults:{} });
+    const fl = livre.layers.find(l => l.id === 'int').fontSize, fp = perto.layers.find(l => l.id === 'int').fontSize;
+    assert(fp < fl, 'o "DE" logo acima não segurou o crescimento: ' + fp + ' × ' + fl);
+    const de2 = gLocalFitArte(livre.layers, { canvas:CANVAS, dados:{ precoPor:'R$ 9,99', precoDe:'R$ 30,00' }, defaults:{} });
+    assert(de2.layers.find(l => l.id === 'int').fontSize === fl, 'segunda passada acumulou');
+  });
+
   /* ── Execução ─────────────────────────────────────────────────────────────────────── */
   let passed = 0;
   for(const item of cases){
