@@ -1047,7 +1047,8 @@ function fToggleRespostas(){
 /* Quantas perguntas já têm resposta. É a MESMA régua do `.feita` de cada linha (valor não
    vazio), para o número do botão e o "2 de 4" do cabeçalho nunca discordarem da lista. */
 function _fRespostasFeitas(){
-  const pergs=(fState.camp&&fState.camp.perguntas)||[];
+  // A mesma lista canônica do `fRenderRespostas`: o que a loja salva respondeu também conta.
+  const pergs=(fState.camp&&(fState.camp._perguntasTodas||fState.camp.perguntas))||[];
   return pergs.reduce((n,p)=>{ const v=fState.dados?fState.dados[p.id]:null; return n+(v!=null&&v!==''?1:0); },0);
 }
 /* O número no botão "Respostas" — é o que faz ele ler como área com conteúdo, e não como
@@ -1061,8 +1062,13 @@ function _fRespostasBadge(){
 
 function fRenderRespostas(){
   const box=document.getElementById('f-respostas'); if(!box) return;
-  const pergs=(fState.camp&&fState.camp.perguntas)||[];
-  const linhas=pergs.map((p,i)=>{
+  /* LISTA COMPLETA. No celular o `fPickLoja` tira do FLUXO o que a loja salva respondeu (logo,
+     nome, WhatsApp) — e a lista lia o mesmo array, então esses campos sumiam dela e não havia
+     como trocar o logo por ali. O fluxo continua enxuto; a lista mostra a canônica. */
+  const pergs=(fState.camp&&(fState.camp._perguntasTodas||fState.camp.perguntas))||[];
+  const noFluxo=(fState.camp&&fState.camp.perguntas)||[];
+  const linhas=pergs.map((p)=>{
+    const i=noFluxo.findIndex(q=>q.id===p.id);
     const v=fState.dados?fState.dados[p.id]:null;
     const tem=v!=null&&v!=='';
     const rot=(typeof gFieldLabel==='function')?gFieldLabel(p.id,p):(p.label||p.id);
@@ -1079,7 +1085,7 @@ function fRenderRespostas(){
       <span class="fr-mk" aria-hidden="true">${tem?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':''}</span>
       <span class="fr-lbl">${gEsc(rot)}${atual?'<span class="fr-agora">Agora</span>':''}</span>
       <span class="fr-val${tem?'':' vazia'}">${val}</span>
-      <button type="button" class="fr-ed" onclick="fRespostaEditar(${i})" aria-label="Alterar ${gEsc(rot)}">
+      <button type="button" class="fr-ed" onclick="${i>=0?`fRespostaEditar(${i})`:`fRespostaEditarId('${gEsc(p.id)}')`}" aria-label="Alterar ${gEsc(rot)}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
       </button>
     </div>`;
@@ -1103,6 +1109,17 @@ function fRenderRespostas(){
       ? `${topo}${linhas}`
     : `${topo}${linhas}`
       + `<button type="button" class="fr-reset" onclick="fResetFlow()">Recomeçar esta arte</button>`;
+}
+
+/* Campo que a loja salva tirou do fluxo: volta para a lista canônica (o mesmo que o
+   `fRestartArt` faz) com o cursor no MESMO passo de antes, e edita pelo caminho de sempre. */
+function fRespostaEditarId(id){
+  const c=fState.camp; if(!c||!c._perguntasTodas) return;
+  const atual=c.perguntas[fState.stepIdx];
+  c.perguntas=c._perguntasTodas.slice();
+  if(atual) fState.stepIdx=c.perguntas.findIndex(p=>p.id===atual.id);
+  const i=c.perguntas.findIndex(p=>p.id===id);
+  if(i>=0) fRespostaEditar(i);
 }
 
 /* O lápis fecha a lista antes de editar: o passo alvo abre no painel, e deixar a lista por
@@ -1339,7 +1356,18 @@ function fNextStep(){
      ganha sua própria linha. "Antes de começar a arte de <strong>X</strong>, quer adiantar?"
      saía em três linhas, com a vírgula órfã no começo da terceira. Com a frase dentro de um
      elemento, o flex vê UM item e a linha volta a fluir normalmente. */
-  fAddBot(`${stepLabel}<span class="perg-frase">${fPerguntaTexto(p)}</span>${fieldHint}`, sugestoes, canGoBack);
+  /* INSTRUÇÕES DO MATERIAL NA 1ª PERGUNTA. A abertura ("Vamos preencher…") também as traz, mas
+     no celular aquela bolha sai de cena 900ms depois, quando a 1ª pergunta chega — a orientação
+     de quem publicou sumia antes de ser lida. O desktop guiado já repete na 1ª pergunta (`fg-note`). */
+  const _instr = fState.stepIdx===0 && fState.material && fState.material.publishMeta && fState.material.publishMeta.instrucoes;
+  const instrHtml = _instr ? `<span class="perg-instrucao">${gEsc(_instr)}</span>` : '';
+  /* DATA COM O CALENDÁRIO DO APARELHO. No celular a data era texto livre com o teclado comum;
+     o desktop guiado já usa o `<input type=date>`. Escolher envia pelo mesmo funil do chip
+     (`fQR`: máscara + validação), no formato dd/mm/aaaa que o campo grava. */
+  const dataHtml = cfg.type==='date'
+    ? `<input type="date" class="perg-data" value="${gEsc(_fGuidedDataParaInput(jaTem?fState.dados[p.id]:''))}" onchange="if(this.value)fQR(_fGuidedDataDoInput(this.value))" aria-label="Escolher a data">`
+    : '';
+  fAddBot(`${stepLabel}<span class="perg-frase">${fPerguntaTexto(p)}</span>${fieldHint}${instrHtml}${dataHtml}`, sugestoes, canGoBack);
   // Atualiza placeholder do input com dica do tipo
   fUpdateInputPlaceholder(p.id);
   // Rehidrata o input com o que já existe (prévia, rascunho ou perfil da loja): o valor
@@ -3098,6 +3126,11 @@ function fGerarArte(){
                regua de order do celular; trocar o nome seria churn puro, sem nada em troca.
                O icone tambem mudou: a seta de voltar dizia navegacao. Agora e o lapis, o
                mesmo simbolo que abre cada campo na lista do outro lado do clique. -->
+          <!-- Ver como fica, so no celular (CSS): no desktop o proprio palco vira o contexto ao
+               concluir; no celular a previa e uma gaveta fechada e o contexto nunca aparecia.
+               Abre o mesmo modal (fOpenPosted). So existe quando ha ambiente honesto para a
+               geometria da arte (fPostedContextForFormat) - a mesma regra do botao da previa. -->
+          ${(typeof fPostedContextForFormat==='function' && fPostedContextForFormat(null))?`<button type="button" class="art-btn art-ver-como" onclick="fOpenPosted()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><line x1="11" y1="18" x2="13" y2="18"/></svg>Ver como fica</button>`:''}
           <button type="button" class="art-btn art-voltar" onclick="fVoltarParaEdicao()" title="Rever as respostas desta arte sem perder nada do que você já preencheu">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Editar arte
           </button>

@@ -180,6 +180,70 @@ await test('Celular: descrição preenchida e correção oferecem “Deixar fora
   }finally{ window.matchMedia=mmReal; dVars=varsReal; try{clearTimeout(fNextTimeout);}catch(e){} }
 });
 
+/* O QUE O DESKTOP TINHA E O CELULAR NÃO (25/10/2026): data pelo calendário, instruções na 1ª
+   pergunta, a lista de respostas inteira depois da loja salva e o Desfazer à vista. */
+const comoCelular=async(fn)=>{
+  const mmReal=window.matchMedia;
+  window.matchMedia=(q)=>({matches:/max-width:\s*680px/.test(q),media:q,onchange:null,
+    addListener(){},removeListener(){},addEventListener(){},removeEventListener(){}});
+  try{ await fn(); }finally{ window.matchMedia=mmReal; try{clearTimeout(fNextTimeout);}catch(e){} }
+};
+await test('Celular: data abre o calendário do aparelho e grava dd/mm/aaaa', async()=>{
+  reset();
+  const varsReal=dVars; dVars=[{name:'validade',type:'date',required:false}];   // como no catálogo
+  try{ await comoCelular(async()=>{
+    fState.camp.perguntas=fBuildPerguntas(['produto','validade'],{camp:{name:'Campanha de bancada'}});
+    if(fGetFieldType('validade').type!=='date') throw new Error('bancada: validade deveria ser do tipo data');
+    irAoPasso('validade');
+    const inp=document.querySelector('.perg-data');
+    assert(inp && inp.type==='date','o passo de data no celular não trouxe o calendário');
+    inp.value='2026-11-30'; inp.dispatchEvent(new Event('change'));
+    assert(/30\/11/.test(String(fState.dados.validade||'')),'escolher a data não gravou: '+fState.dados.validade);
+  }); }finally{ dVars=varsReal; }
+});
+await test('Celular: as instruções do material aparecem na 1ª pergunta (e só nela)', async()=>{
+  reset();
+  await comoCelular(async()=>{
+    fState.material.publishMeta={publicado:true,instrucoes:'Use a foto do prato principal.'};
+    irAoPasso('produto');
+    const i=document.querySelector('#f-messages .perg-instrucao');
+    assert(i && /prato principal/.test(i.textContent),'a 1ª pergunta não repetiu as instruções');
+    document.getElementById('f-messages').innerHTML='';
+    irAoPasso('precoDe');
+    assert(!document.querySelector('#f-messages .perg-instrucao'),'as instruções repetiram fora da 1ª pergunta');
+  });
+});
+await test('Celular: depois da loja salva a lista mostra todos os campos e o lápis volta o campo ao fluxo', async()=>{
+  reset();
+  await comoCelular(async()=>{
+    const box=document.createElement('div'); box.id='f-respostas'; document.body.appendChild(box);
+    try{
+      fState.dados.produto='X-Bacon';
+      fState.camp._perguntasTodas=fState.camp.perguntas.slice();
+      fState.camp.perguntas=fState.camp.perguntas.filter(p=>p.id!=='produto');   // o que o fPickLoja faz
+      fState.stepIdx=0;
+      fRenderRespostas();
+      assert(/X-Bacon/.test(box.textContent),'o campo respondido pela loja sumiu da lista');
+      const ed=Array.from(box.querySelectorAll('.fr-ed')).find(b=>/fRespostaEditarId\('produto'\)/.test(b.getAttribute('onclick')));
+      assert(ed,'o campo fora do fluxo não tem lápis');
+      const atual=fState.camp.perguntas[fState.stepIdx].id;
+      fRespostaEditarId('produto');
+      assert(fState.camp.perguntas.some(p=>p.id==='produto'),'o campo não voltou para a lista do fluxo');
+      assert(fState.camp.perguntas[fState.editIdx].id==='produto','a edição não abriu o campo pedido');
+    }finally{ box.remove(); }
+  });
+});
+await test('Desfazer: o botão aparece quando há o que desfazer e some depois', async()=>{
+  reset();
+  const btn=document.getElementById('f-undo-btn');
+  let voltou=false;
+  _fUndoRegistra('Trocar a foto',()=>{voltou=true;});
+  assert(!btn.hidden,'havia o que desfazer e o botão ficou escondido');
+  btn.click();
+  assert(voltou,'o botão não desfez');
+  assert(btn.hidden,'depois de desfazer o botão continuou à vista');
+});
+
 /* ── 2. CHAT → PRÉVIA → CHAT ─────────────────────────────────────────────────────────────── */
 await test('Chat → prévia → chat: a prévia vence, porque é a edição mais recente', async()=>{
   reset();

@@ -70,7 +70,7 @@
 <link rel="stylesheet" href="css/modules/feedback.css?v=332">
 <link rel="stylesheet" href="css/components/tutorial.css?v=332">
 <link rel="stylesheet" href="css/modules/franqueado.css?v=332">
-<link rel="stylesheet" href="css/modules/chat.css?v=332">
+<link rel="stylesheet" href="css/modules/chat.css?v=333">
 <link rel="stylesheet" href="css/modules/live-preview.css?v=332">
 <link rel="stylesheet" href="css/modules/color-picker.css?v=332">
 <link rel="stylesheet" href="css/modules/all-tools.css?v=332">
@@ -1029,6 +1029,12 @@ body:not(.theme-light) input:-webkit-autofill:active {
           <div id="f-sheet-foot">
             <button type="button" class="fsf-btn" id="f-sheet-back" onclick="fGoBack()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>Anterior
+            </button>
+            <!-- Desfazer volta AQUI (Ryan, 25/10/2026): no celular não há Ctrl+Z, e o aviso com a
+                 ação some sozinho. Só existe quando há o que desfazer — `_fUndoSyncBotao`
+                 (chat.js) mostra/esconde pelo id. No desktop guiado o CSS o esconde (lá é Ctrl+Z). -->
+            <button type="button" class="fsf-btn" id="f-undo-btn" onclick="fDesfazer()" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>Desfazer
             </button>
             <!-- Dois ícones e o CSS escolhe pelo `aria-expanded` (lista ↔ ✕): o rótulo já troca
                  para "Fechar" no JS, e o ícone não pode continuar dizendo "lista" ao lado dele.
@@ -3311,7 +3317,7 @@ body:not(.theme-light) input:-webkit-autofill:active {
 <script src="js/franqueado/catalog.js?v=332"></script>
 <script src="js/franqueado/search.js?v=332"></script>
 <script src="js/franqueado/materials.js?v=332"></script>
-<script src="js/franqueado/chat.js?v=333"></script>
+<script src="js/franqueado/chat.js?v=334"></script>
 <script src="js/core/copy-fit.js?v=332"></script>
 <script src="js/franqueado/live-preview.js?v=332"></script>
 <script src="js/franqueado/panel-dock.js?v=332"></script>
