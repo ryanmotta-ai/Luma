@@ -1524,9 +1524,12 @@ function gLocalFitArte(layers, opts){
   /* FASE 5 — PREÇO DE UM DÍGITO ENCOSTA NO R$ (ver `_gLfPrecoDigito`). Por último: lê a
      geometria final, depois de pilhas e placas. */
   medidos.forEach(m => {
+    // Selo girado (o do Açaí, −8°): o número anda na direção da PRÓPRIA linha, não na horizontal.
+    const a = (m.l.rotation || 0) * Math.PI / 180;
     (_gLfPrecoDigito(m, out, ctx) || []).forEach(({ o, dx }) => {
-      o._precoBase = { x:o.x };
-      o.x = (o.x || 0) + dx;
+      o._precoBase = { x:o.x, y:o.y };
+      o.x = (o.x || 0) + Math.round(dx * Math.cos(a));
+      o.y = (o.y || 0) + Math.round(dx * Math.sin(a));
       changes.push({ id:o.id, precoDigito:m.l.id, geometry:true, typography:false, moved:true, resized:false });
     });
   });
