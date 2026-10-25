@@ -6,6 +6,28 @@
 
 ---
 
+## 2026-10-25 — Preço no padrão "POR / R$ · inteiro · vírgula · centavos" em todos os templates (✅ dados, sem migration)
+
+Pedido do Ryan: um padrão só de preço, o da "Caixa de preço" (DE riscado; "POR" em cima do `R$`; inteiro grande; centavos no alto; vírgula embaixo). Esse bloco já existia em 9 pares (Promo Turbinada, Almoço barato, Bora de sushi, Combão, Combos Coca — Oferta com preço, Mais vendidos, Ofertas Favoritas, Rangos, Tudo até R$ 25) e no selo girado do Açaí — **esses não mudaram**. Com 1 dígito o número agora encosta no `R$` pelo motor (`_gLfPrecoDigito`, `js/core/local-fit.js`, commits `1d01860` e `107973c`).
+
+Convertidos (`update … set layers`, só o bloco de preço; o resto do template intacto): a camada de preço vira 5 camadas `<id>-por`, `-rs`, `-in` (`{{precoPor:inteiro}}`), `-vg` (vírgula, forma copiada do molde `l-ref-v-rgula-do-pre-o-9` da Promo Turbinada feed) e `-ct` (`{{precoPor:centavos}}`), na geometria do molde, escaladas e centradas onde o preço estava, com a fonte e as cores do próprio template. O "DE" ficou como estava.
+
+| Template | id | `{{precoPor}}` substituído | Reverter (`select luma.restaurar_versao('…')`) |
+|---|---|---|---|
+| Deliversário 15 — Grade (Feed) | `3a73296f-3f6b-4580-a9a7-cbb5ad4958f0` | `l-dv15-81` | `1fa282fb-208d-40e8-bb7f-e1677d20aaa6` |
+| Deliversário 15 — Grade (Story) | `a7ecf4ac-5edb-4fa8-9bb9-735d5f09fd50` | `l-dv15-81` | `b3f614d3-cfb3-432a-898a-a2d0eed764dd` |
+| Deliversário 15 — Sol (Feed) — girado 3° | `4d62902b-41ff-45e7-80c4-d5daa35b1d56` | `l-dv15-20` | `28b3196e-c56d-40d5-a009-9989c81efe6b` |
+| Deliversário 15 — Sol (Story) — girado 3° | `e5c9d0db-753c-44b1-bd42-58519314079d` | `l-dv15-42` | `89ba4687-81aa-470b-a8d3-404ab02b5e1e` |
+| Entrega promocional — Oferta com preço (feed) | `96b633c1-eaa2-4aa7-af52-7097473100da` | `l-psd-5-1788` | `3d93531f-7d32-4d8b-8fbf-d42f0074ea94` |
+| Entrega promocional — Oferta com preço (story) | `4dea1557-303d-4360-9e56-67cbf74f2043` | `l-psd-11-1956` | `e51735b0-737e-4f62-9f80-35e2cfe2a3b7` |
+| Combos Coca — Só oferta boa (feed) | `a41dd3b1-8380-4fdf-9e57-ec998c6e7dbc` | `l-ref-pre-o-7` (+ apagados `l-ref-por-5`, `l-ref-r--6`) | `3e7d7b3a-3c57-46b0-8171-18cc9f36317d` |
+| Combos Coca — Só oferta boa (story) | `9c52070f-76ac-4325-bfdd-9a3e484745d5` | `l-ref-pre-o-25` (+ apagados `l-ref-por-23`, `l-ref-r--24`) | `1a3236b4-6e5e-43db-bb6e-4dc3ad124420` |
+
+- Roboto Black (Entrega, Coca) é mais larga que a Realce do molde: a geometria horizontal foi alargada ×1,3 e, no Coca, o "POR" desce para 0,78 do corpo.
+- Render real (motor do franqueado) lido de volta do banco: 2 e 1 dígito sem bloqueio. 3 dígitos (≥ R$ 100) bloqueia a exportação — o mesmo comportamento intencional do bloco padrão.
+- Gravado em duas passadas: na primeira a forma da vírgula saiu `null` (alias ambíguo no subselect); corrigido na segunda (`vectorPath` copiado do molde). Por isso há duas versões novas por template — o id de reversão acima é o de **antes** das duas.
+- Fora do escopo: "Implementação — Entrega grátis institucional" (o `{{precoPor}}` ali é o **valor mínimo** do pedido, não preço de oferta) e templates não publicados.
+
 ## 2026-10-23 — Pasta "Implementação" refeita com a identidade da marca (✅ dados, sem migration)
 
 Segunda versão da leva (a primeira saiu fora da identidade). Atualizado **in-place** (`update … set layers`) nos templates da pasta `b0806f3d-4d0f-4594-9cc6-af069c8c004c`: logo **nova** (`assets/marca/logos/`), sorriso da marca, faixas amarelas, ondas concêntricas de fundo, padrão de arcos, forma de apoio branca e mockup real do celular (`assets/marca/…`). Sem moto, selo nem logo de loja (assets virão dos PSDs).
