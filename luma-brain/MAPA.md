@@ -261,7 +261,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 92 arquivos JS (85.374 linhas, 3.292 funções) · 33 arquivos CSS (33.527 linhas) · `index.html` com 4.085 linhas e 82 `<script>`.
+**Tamanho real de hoje:** 92 arquivos JS (85.344 linhas, 3.292 funções) · 33 arquivos CSS (33.527 linhas) · `index.html` com 4.085 linhas e 82 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -368,7 +368,7 @@ Armazenamento de imagens grandes (fundos de PSD, fotos) em IndexedDB, fora do lo
 · API: gInferAnchor, gEnsureAnchors, gReflowLayers, gFmtKey
 · Depende de: nada (puro). Carregar antes de franqueado/ e designer/.
 
-**`js/core/local-fit.js`** · 1721 linhas
+**`js/core/local-fit.js`** · 1691 linhas
 LOCAL FIT — medida única de texto e adaptação local, em clones.
 · API: gAuthoredTextBox, gLayoutLayerPriority, gComputeReservedRegion, gComputeDynamicFitRegion, gDebugDynamicFitRegion, gFitTextToAuthoredBox, gLocalFitArte, gLocalFitCorta, gLocalFitRotulo, gLocalFitMensagem, gLocalFitCulpado, gLocalFitMedidor, gLocalFitDiagnostico, gLocalFitMaiorPrefixo
 · Estado global: _gLfCanvas

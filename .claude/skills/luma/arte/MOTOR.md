@@ -14,7 +14,7 @@ Campos comuns: `id` (único no template), `name`, `type` (`shape|text|image|fram
 
 - **Variáveis** (`isVar`): `produto, detalhes, descricao, precoDe, precoPor, validade, foto_produto, logo_loja, cupom, codigo, desconto…`. Catálogo em `luma.variaveis` (`required`, `type`, `label`). **Opcional** (`required:false`) ⇒ o chat oferece "Pular". Campo novo que não está no catálogo cai como **obrigatório** — para criar campo opcional, insira em `luma.variaveis` (só com pedido).
 - **Preço partido:** `{{precoPor:inteiro}}` e `{{precoPor:centavos}}` (o motor separa em "22" e "90"). A vírgula e o `R$` são layers à parte. Preço ≥ R$ 100 estoura a caixa do inteiro ⇒ **Local Fit bloqueia a exportação** (intencional).
-  Preço de 1 dígito: o inteiro cresce sozinho (base fixa, até ×1,5, sem invadir o que está acima; R$/vírgula/centavos não se mexem) — `_gLfPrecoDigito` no `local-fit.js`. Deixe ar acima do preço se quiser que o 1 dígito ganhe peso.
+  Preço de 1 dígito: o número encosta no `R$` (começa onde "00" começaria) e vírgula + centavos andam junto — padrão do "R$ 22,90". Corpo não muda; `R$`/"POR"/"DE" ficam parados. `_gLfPrecoDigito` no `local-fit.js`. Exige a camada `{{precoPor:centavos}}` no grupo.
 - **Imagem por URL:** caminho relativo `assets/...` funciona no app (GitHub Pages) **e** no harness (symlink). Ao renderizar a foto do franqueado no harness use URL `http(s)`/`data:`; relativo não desenha.
 
 ## Regras (`rules`)

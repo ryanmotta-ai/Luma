@@ -1224,78 +1224,51 @@ function _gLfYDepois(l, anterior){
   return y > base + G_LF_TOL ? y : base;
 }
 
-/* ── PREÇO DE UM DÍGITO GANHA PESO (decisão do Ryan, 25/10/2026) ─────────────────────────
-   No preço partido (`R$` · `{{preco:inteiro}}` · vírgula · centavos, cada um numa camada) a
-   caixa do inteiro é desenhada para DOIS dígitos. Com "R$ 9,99" o 9 encosta num lado e o vão de
-   um dígito inteiro sobra entre ele e o `R$`: "o número longe das letras".
-   Agora o inteiro de UM dígito cresce com a BASE FIXA (sobe), até o menor de:
-     · ×1,5 do corpo autorado;
-     · a largura que "00" ocuparia no corpo autorado — o espaço que o designer reservou para o
-       número, então ele nunca alcança o `R$` nem a vírgula;
-     · o vazio acima até o próximo objeto que cruza essa faixa, menos ¼ do corpo (mín. 8px).
-   ⛔ A DIAGRAMAÇÃO NÃO MUDA: só a camada do inteiro ganha corpo (e a caixa, para o encaixe não
-   acusar estouro). `R$`, vírgula, centavos e todo o resto ficam onde o designer pôs.
-   ⛔ Só camada cujo conteúdo é exatamente o token `:inteiro` e que coube como desenhada
-   (`original`). O autorado vai em `_precoBase` e o limpador devolve: rodar de novo não acumula. */
-const G_LF_PRECO_CRESCE_MAX = 1.5;
-
-// Métrica a 100px (escala linear com o corpo): largura do dígito, de "00" e altura da tinta.
-function _gLfMetricaDigito(l, digito, ctx){
+/* ── PREÇO DE UM DÍGITO ENCOSTA NO R$ (decisão do Ryan, 25/10/2026) ──────────────────────
+   No preço partido (`R$` · `{{preco:inteiro}}` · vírgula · `{{preco:centavos}}`, cada um numa
+   camada) a caixa do inteiro é desenhada para DOIS dígitos. Com "R$ 9,99" o 9 ficava num canto da
+   caixa e o vão de um dígito inteiro sobrava entre ele e o `R$` — "o número longe das letras".
+   O padrão é o do "R$ 22,90": `R$` colado no número, vírgula e centavos colados nele. Com UM
+   dígito, o número passa a começar onde "00" começaria, e vírgula + centavos andam junto a mesma
+   distância. Corpo nenhum muda; `R$`, "POR", "DE" e o resto ficam onde o designer pôs.
+   ⛔ Dois dígitos: a arte sai exatamente como desenhada (o desenho É a régua).
+   ⛔ Só o grupo partido: camada cujo conteúdo é só o token `:inteiro`, encaixada como desenhada
+   (`original`), com a camada `:centavos` do MESMO campo. Andam junto as camadas entre a borda
+   direita do número e o fim dos centavos (a vírgula), na mesma faixa vertical.
+   O autorado vai em `_precoBase` e o limpador devolve: rodar de novo não acumula. */
+function _gLfLarguras(l, digito, ctx){
   const fp = (typeof dTextFontParts === 'function') ? dTextFontParts(l.font)
            : { family:"'Roboto', sans-serif", weight: /black|realce/i.test(l.font || '') ? 900 : 700 };
-  const antes = { font:ctx.font, ls:ctx.letterSpacing, bl:ctx.textBaseline };
-  ctx.font = (l.italic ? 'italic ' : '') + String(l.fontWeightOverride || fp.weight) + ' 100px ' + fp.family;
-  ctx.letterSpacing = '0px'; ctx.textBaseline = 'alphabetic';
-  const m = ctx.measureText(digito);
-  const r = { w1:m.width, w2:ctx.measureText('00').width,
-              asc:m.actualBoundingBoxAscent || 72 };
-  ctx.font = antes.font; ctx.textBaseline = antes.bl;
+  const antes = { font:ctx.font, ls:ctx.letterSpacing };
+  ctx.font = (l.italic ? 'italic ' : '') + String(l.fontWeightOverride || fp.weight) + ' ' + (l.fontSize || 24) + 'px ' + fp.family;
+  ctx.letterSpacing = '0px';
+  const r = { um:ctx.measureText(digito).width, dois:ctx.measureText('00').width };
+  ctx.font = antes.font;
   if(antes.ls != null) ctx.letterSpacing = antes.ls;
   return r;
 }
 
-function _gLfPrecoDigito(m, layers, ctx, reservas){
+function _gLfPrecoDigito(m, layers, ctx){
   const l = m.l;
-  if(m.vazio || !m.r || m.r.status !== 'fits' || m.r.degrau !== 'original') return null;
-  if(l.vertical || !/^\s*\{\{\s*\w+\s*:\s*inteiro\s*\}\}\s*$/.test(l.content || '')) return null;
+  if(m.vazio || !m.r || m.r.status !== 'fits' || m.r.degrau !== 'original' || l.vertical) return null;
+  const tok = /^\s*\{\{\s*(\w+)\s*:\s*inteiro\s*\}\}\s*$/.exec(l.content || '');
   const dig = String(m.conteudo || '').trim();
-  if(!/^\d$/.test(dig)) return null;
-  const s0 = l.fontSize || 24, x = l.x || 0, y = l.y || 0, w = l.w || 0, h = l.h || 0;
-  if(w <= 0 || h <= 0) return null;
-  const mt = _gLfMetricaDigito(l, dig, ctx);
-  if(!(mt.w1 > 0)) return null;
-  const k = s0 / 100, larg00 = Math.min(w, mt.w2 * k);
-  let g = Math.min(G_LF_PRECO_CRESCE_MAX, larg00 / (mt.w1 * k));
-
-  /* Base do caminho multi-estilo do render (png-generator, runs): centralizado,
-     y + h/2 + 0,3·corpo; no topo, y + corpo·(0,8 + (entrelinha−1)/2). */
-  const lh = (typeof gLineHeightDe === 'function') ? gLineHeightDe(l) : (l.lineHeight || 1.2);
-  const topo = l.vAlign === 'top';
-  const fBase = topo ? 0.8 + (lh - 1) / 2 : 0.3;
-  const base = topo ? y + s0 * fBase : y + h / 2 + s0 * fBase;
-  const tintaTopo = base - mt.asc * k;
-
-  // Faixa horizontal que o número pode ocupar (a de "00"), conforme o alinhamento.
-  const fx = l.textAlign === 'right' ? x + w - larg00
-           : l.textAlign === 'center' ? x + (w - larg00) / 2 : x;
-  const placa = layers.find(o => o && o._placa && o._placa.alvo === l.id);
-  let teto = 0;
-  layers.forEach(o => {
-    if(!o || o === l || o === placa || o.type === 'group') return;
-    if(typeof _gLayoutVisivel === 'function' && !_gLayoutVisivel(o)) return;
-    const r = (reservas && reservas.get(o.id)) || o;
-    const ox = r.x || 0, oy = r.y || 0, ow = r.w || 0, oh = r.h || 0;
-    if(ow <= 0 || oh <= 0 || ox >= fx + larg00 || ox + ow <= fx) return;
-    if(oy + oh > tintaTopo + 1) return;            // ao lado, atrás ou contendo: não é teto
-    teto = Math.max(teto, oy + oh);
-  });
-  const respiro = Math.max(8, Math.round(s0 * 0.25));
-  g = Math.min(g, (base - teto - respiro) / (mt.asc * k));
-  if(!(g >= 1.05)) return null;
-
-  const s = Math.round(s0 * g), h2 = Math.round(h * s / s0);
-  const y2 = topo ? Math.round(base - s * fBase) : Math.round(base - s * fBase - h2 / 2);
-  return { fontSize:s, y:y2, h:h2 };
+  if(!tok || !/^\d$/.test(dig)) return null;
+  const vis = o => o && o !== l && o.type !== 'group' && (typeof _gLayoutVisivel !== 'function' || _gLayoutVisivel(o));
+  const ctRe = new RegExp('^\\s*\\{\\{\\s*' + tok[1] + '\\s*:\\s*centavos\\s*\\}\\}\\s*$');
+  const ct = layers.find(o => vis(o) && o.type === 'text' && ctRe.test(o.content || ''));
+  if(!ct) return null;
+  const x = l.x || 0, w = l.w || 0, y = l.y || 0, h = l.h || 0;
+  const lw = _gLfLarguras(l, dig, ctx), d = Math.round(lw.dois - lw.um);
+  if(d <= 0) return null;
+  // Onde a tinta de "00" terminaria — dali até o fim dos centavos é a cauda que anda junto.
+  const fim00 = l.textAlign === 'right' ? x + w : l.textAlign === 'center' ? x + (w + lw.dois) / 2 : x + lw.dois;
+  const ini = fim00 - Math.round((l.fontSize || 24) * 0.3), fimCt = (ct.x || 0) + (ct.w || 0);
+  const cauda = layers.filter(o => o === ct || (vis(o) && (o.w || 0) > 0 && (o.h || 0) > 0
+    && (o.x || 0) >= ini && (o.x || 0) + (o.w || 0) <= fimCt + 1
+    && (o.y || 0) < y + h && (o.y || 0) + (o.h || 0) > y));
+  const dxNum = l.textAlign === 'right' ? -d : l.textAlign === 'center' ? -Math.round(d / 2) : 0;
+  return [{ o:l, dx:dxNum }].concat(cauda.map(o => ({ o, dx:-d }))).filter(p => p.dx);
 }
 
 function gLocalFitArte(layers, opts){
@@ -1548,17 +1521,14 @@ function gLocalFitArte(layers, opts){
     });
   });
 
-  /* FASE 5 — PREÇO DE UM DÍGITO GANHA PESO (ver `_gLfPrecoDigito`). Por último: o teto acima é
-     a geometria FINAL dos vizinhos, já encaixados e descidos. */
+  /* FASE 5 — PREÇO DE UM DÍGITO ENCOSTA NO R$ (ver `_gLfPrecoDigito`). Por último: lê a
+     geometria final, depois de pilhas e placas. */
   medidos.forEach(m => {
-    const p = _gLfPrecoDigito(m, out, ctx, reservedRegions);
-    if(!p) return;
-    const l = m.l;
-    l._precoBase = { fontSize:l.fontSize, y:l.y, h:l.h };
-    Object.assign(l, p);
-    const c = campos.find(c => c.id === l.id);
-    if(c) c.fontSize = p.fontSize;
-    changes.push({ id:l.id, precoDigito:true, geometry:true, typography:true, moved:true, resized:true });
+    (_gLfPrecoDigito(m, out, ctx) || []).forEach(({ o, dx }) => {
+      o._precoBase = { x:o.x };
+      o.x = (o.x || 0) + dx;
+      changes.push({ id:o.id, precoDigito:m.l.id, geometry:true, typography:false, moved:true, resized:false });
+    });
   });
 
   out.forEach(l => { if(l) delete l._placa; });
