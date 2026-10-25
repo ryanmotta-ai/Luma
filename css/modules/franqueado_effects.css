@@ -235,14 +235,19 @@
     border-top: 1px solid var(--gray-light);
     border-radius: 16px 16px 0 0;
     z-index: 1200;
-    box-shadow: 0 -18px 60px rgba(0, 0, 0, 0.22);
+    /* A sombra só existe ABERTA. Fechada, a gaveta fica estacionada logo abaixo da tela
+       (`translateY(100%)`), e os 60px de sombra para cima vazavam por cima do rodapé do
+       painel e da lista de respostas: um degradê cinza permanente no pé da tela (medido na
+       rodada 2 de refino, 25/10/2026 — #fff virava #d9d9d9 no centro). */
+    box-shadow: none;
     transform: translateY(100%);
-    transition: transform var(--dur-slow) var(--ease-out) !important;
+    transition: transform var(--dur-slow) var(--ease-out), box-shadow var(--dur-slow) var(--ease-out) !important;
     overflow: hidden;
   }
   
   #f-live-preview.open {
     transform: translateY(0) !important;
+    box-shadow: 0 -18px 60px rgba(0, 0, 0, 0.22);
   }
 
   /* ⚠ Em grid, o item NÃO encolhe abaixo do `min-content` do próprio conteúdo: o

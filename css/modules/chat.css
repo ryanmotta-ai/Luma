@@ -4097,3 +4097,26 @@ body:not(.theme-light) .perg-data{background:var(--d-surf2);border-color:var(--d
   /* O Desfazer surge — botão que "pisca" para existir parece erro. */
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-undo-btn:not([hidden]){animation:gFadeIn var(--dur-fast) var(--ease-out)}
 }
+
+/* ══ CELULAR — ACABAMENTO, RODADA 2 (25/10/2026) ═══════════════════════════════════════════
+   Quatro ajustes medidos nas capturas a 390×844 (modo visitante, catálogo real):
+   1. A pergunta é o herói do painel e estava em 16px/700, o mesmo peso do texto do campo.
+      Sobe para 18px/800 — hierarquia pelo PESO, como o resto do Luma (Roboto Black nos títulos).
+   2. O foco do campo somava borda laranja + anel de 3px + o outline global do :focus-visible:
+      três contornos. Fica a borda e UM halo suave; o outline sai só aqui (a borda já é o foco).
+   3. O lápis de cada resposta era uma caixa com borda — seis caixas iguais pesavam mais que
+      as respostas. Vira ícone sem caixa, com o mesmo alvo de toque (44px) e fundo no press.
+   4. Na entrega, o "Gerar versão" ficava a ~3× a distância das outras ações (margem própria
+      somada ao gap). Volta ao ritmo da coluna. */
+@media (max-width:680px){
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .msg.bot.active-prompt .bbl{font-size:18px;font-weight:800;line-height:1.28;letter-spacing:-.01em}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-msg-box:focus{outline:0;border-color:var(--dm-orange);box-shadow:0 0 0 4px color-mix(in srgb,var(--dm-orange) 14%,transparent)}
+  /* `!important` igual ao do desktop guiado (acima): o outline global de foco vence sem ele. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) #f-input-wrap #f-msg-box:focus-visible{outline:0!important}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-ed{border-color:transparent;background:transparent;color:var(--text-3);transition:background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard),transform var(--release-dur) var(--release-ease)}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-ed:active{background:var(--gray-light);color:var(--text)}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-ed:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-bulk-btn.art-kit-btn{margin-top:0}
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-ed{background:transparent;border-color:transparent;color:var(--d-text2)}
+  body:not(.theme-light).f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .fr-ed:active{background:var(--d-surf2);color:var(--d-text)}
+}
