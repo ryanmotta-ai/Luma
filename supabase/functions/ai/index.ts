@@ -426,7 +426,7 @@ Deno.serve(async (req) => {
     // CHAVE PAGA PRIMEIRO (23/10/2026, Pedro): as três grátis caem no pico ("high demand", 503) e
     // as reservas grátis travaram junto. Com `GEMINI_PAGA` cadastrada, ela é a 1ª chave e a escada
     // Gemini roda inteira ANTES das reservas (passo 5). As grátis ficam atrás: só entram em 429 da paga.
-    const paga = env("GEMINI_PAGA", "GEMINI_PAID_KEY");
+    const paga = env("GEMINI_PAGA", "GEMINI_PAID_KEY", "gemini_paga");   // minúsculo: como foi cadastrado no Dashboard em 23/10
     const chaves = [paga, ...[["GEMINI_API_KEY", "GEMINI_KEY1"], ["GEMINI2_API_KEY", "GEMINI_KEY2"], ["GEMINI3_API_KEY", "GEMINI_KEY3"]]
       .map((n) => env(...n))].filter(Boolean);
     let nChave = 0;
