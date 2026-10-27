@@ -261,7 +261,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 92 arquivos JS (85.401 linhas, 3.294 funções) · 33 arquivos CSS (33.642 linhas) · `index.html` com 4.091 linhas e 82 `<script>`.
+**Tamanho real de hoje:** 93 arquivos JS (85.708 linhas, 3.309 funções) · 33 arquivos CSS (33.689 linhas) · `index.html` com 4.092 linhas e 83 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -432,7 +432,7 @@ F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES defi
 · Estado global: _F_MAXLEN_MED, _fAlvoNaPasta, _fFitOpts, _fFitRun, _fFitSai, _fFitIaReprovadas, _fFitCf, quando, _fFitPerto, _fFitFora
 · Depende de: 00-config.js
 
-**`js/franqueado/chat.js`** · 4011 linhas
+**`js/franqueado/chat.js`** · 4015 linhas
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
 · API: fChatNovaConversa, fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fTrackResposta, fTrackFoto … (+69; 185 funções no total)
 · Estado global: fNextTimeout, _fChatGen, _fGuidedNav, _fGuidedTimer, _fGuidedBound, _fProntaCtxAberto, _fRevisando, _fRespostasNAnt, _fArtSnapshots, _fArtCaptions (+5)
@@ -442,6 +442,12 @@ Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, 
 Feedback contextual e pedidos de conteúdo. Depende de gEsc/gUuid/gCurrentUser. Guarda apenas IDs e metadados da ação; nunca retém o snapshot vivo do editor. O banco confirma o envio e emite os eventos, sem um segundo coletor…
 · API: fFeedbackFlush, fFeedbackMount, fFeedbackPodeConvidar, fFeedbackAfterDownload, fFeedbackRequest
 · Estado global: _fFeedbackConviteNaSessao
+
+**`js/franqueado/fotos.js`** · 287 linhas
+BIBLIOTECA DE FOTOS DA FRANQUIA (27/10/2026) As fotos reais da cidade — prato, fachada, logo — param de morar só no aparelho de quem enviou.
+· API: fFotosSb, fFotosMinhaFranquia, fFotosDisponivel, fFotosListar, fFotosSalvar, fFotosUsar, fFotosApagar, fFotosRenderSecao
+· Estado global: _fFotosCache, _fFotosAvisoFalha, _fFotosPronta
+· Depende de: core/supabase.js (window.sb), core/franquia.js (gMinhaFranquia),
 
 **`js/franqueado/history.js`** · 381 linhas
 Historico de artes do franqueado: fGetHist, fSaveHist, fAddHist, fMarkHistBaixada, fUpdateHistBadge, fRenderHist, fDownloadHist. Persiste em localStorage (HIST_KEY).
@@ -483,7 +489,7 @@ Busca local do catálogo. Adaptador, ranking e eventos separados da apresentaç�
 · API: fSearchTokens, fSearchDocument, fSearchRank, fSearchCampaigns, fSearchHybrid, fSearchFormatsHTML, fSearchFooterHTML, fSearchRecord, fSearchRecordOpen
 · Estado global: _fSearchHybridAbort
 
-**`js/franqueado/upload-panel.js`** · 302 linhas
+**`js/franqueado/upload-panel.js`** · 318 linhas
 Painel de upload do chat do franqueado: ao enviar uma foto, abre um painel com · Imagens recentes — as últimas usadas, pra reaproveitar sem re-upload. · Minhas lojas — perfis de loja salvos (logo), quando o campo é o logo. ·…
 · API: fDemoImgsPara, fGetRecentImgs, fRecordRecentImg, fRemoveRecentImg, fOpenUploadPanel, fCloseUploadPanel, fUploadPanelNewFile, fPickDemoImg, fDemoImgMissing, fPickRecentImg, fUploadPanelPickLoja, fUploadPanelDeleteLoja
 · Estado global: _fUpPanelVar, _fUpPanelUploadId
@@ -775,7 +781,7 @@ MAKING-OF da arte (frente 6, 15/10/2026; microações em 15/10, pedido do Ryan) 
 | `css/modules/publish-modal.css` | 628 |
 | `css/modules/toolbar.css` | 1090 |
 | `css/modules/topbar.css` | 217 |
-| `css/modules/upload-panel.css` | 139 |
+| `css/modules/upload-panel.css` | 186 |
 
 ## Ordem de carga do `index.html`
 
@@ -809,61 +815,62 @@ A ordem **é** a arquitetura: sem ESM, um arquivo depende de o anterior já ter 
 25. js/franqueado/live-preview.js
 26. js/franqueado/panel-dock.js
 27. js/franqueado/upload-panel.js
-28. js/franqueado/chat-input.js
-29. js/designer/blending.js
-30. js/franqueado/png-generator.js
-31. js/designer/templates.js
-32. js/creative/creative.js
-33. js/creative/composicoes.js
-34. js/creative/curadoria.js
-35. js/creative/branding.js
-36. js/creative/copy.js
-37. js/creative/harness.js
-38. js/creative/making-of.js
-39. js/designer/canvas.js
-40. js/designer/selection.js
-41. js/designer/brush.js
-42. js/designer/eraser-tools.js
-43. js/designer/layers.js
-44. js/designer/props-panel.js
-45. js/designer/measurement.js
-46. js/designer/publish.js
-47. js/designer/preview.js
-48. js/designer/library.js
-49. js/designer/undo-redo.js
-50. js/widgets/novidades.js
-51. js/widgets/help-widget.js
-52. js/designer/tools.js
-53. js/designer/fonts.js
-54. js/designer/psd-parse.js
-55. js/designer/psd-import.js
-56. js/designer/mask.js
-57. js/designer/tutorial-panel.js
-58. assets/vendor/colorthief.js
-59. assets/vendor/pica.js
-60. assets/vendor/jszip.min.js
-61. assets/vendor/supabase.js
-62. js/core/supabase-config.js
-63. js/core/supabase.js
-64. js/core/ai/ai-cache.js
-65. js/core/ai/ai-telemetry.js
-66. js/core/ai/ai-schemas.js
-67. js/core/ai/ai-registry.js
-68. js/core/ai/ai-client.js
-69. js/core/ai.js
-70. js/core/ai/ai-provedores.js
-71. js/core/auth.js
-72. js/core/franquia.js
-73. js/franqueado/feedback.js
-74. js/core/feature-flags.js
-75. js/core/user-profile.js
-76. js/core/product-control.js
-77. js/core/dados.js
-78. js/core/console.js
-79. js/designer/color-picker.js
-80. js/designer/tooltip.js
-81. js/designer/linter.js
-82. js/main.js
+28. js/franqueado/fotos.js
+29. js/franqueado/chat-input.js
+30. js/designer/blending.js
+31. js/franqueado/png-generator.js
+32. js/designer/templates.js
+33. js/creative/creative.js
+34. js/creative/composicoes.js
+35. js/creative/curadoria.js
+36. js/creative/branding.js
+37. js/creative/copy.js
+38. js/creative/harness.js
+39. js/creative/making-of.js
+40. js/designer/canvas.js
+41. js/designer/selection.js
+42. js/designer/brush.js
+43. js/designer/eraser-tools.js
+44. js/designer/layers.js
+45. js/designer/props-panel.js
+46. js/designer/measurement.js
+47. js/designer/publish.js
+48. js/designer/preview.js
+49. js/designer/library.js
+50. js/designer/undo-redo.js
+51. js/widgets/novidades.js
+52. js/widgets/help-widget.js
+53. js/designer/tools.js
+54. js/designer/fonts.js
+55. js/designer/psd-parse.js
+56. js/designer/psd-import.js
+57. js/designer/mask.js
+58. js/designer/tutorial-panel.js
+59. assets/vendor/colorthief.js
+60. assets/vendor/pica.js
+61. assets/vendor/jszip.min.js
+62. assets/vendor/supabase.js
+63. js/core/supabase-config.js
+64. js/core/supabase.js
+65. js/core/ai/ai-cache.js
+66. js/core/ai/ai-telemetry.js
+67. js/core/ai/ai-schemas.js
+68. js/core/ai/ai-registry.js
+69. js/core/ai/ai-client.js
+70. js/core/ai.js
+71. js/core/ai/ai-provedores.js
+72. js/core/auth.js
+73. js/core/franquia.js
+74. js/franqueado/feedback.js
+75. js/core/feature-flags.js
+76. js/core/user-profile.js
+77. js/core/product-control.js
+78. js/core/dados.js
+79. js/core/console.js
+80. js/designer/color-picker.js
+81. js/designer/tooltip.js
+82. js/designer/linter.js
+83. js/main.js
 ```
 
 <!-- AUTO-FIM -->

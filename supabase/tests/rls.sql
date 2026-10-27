@@ -28,6 +28,17 @@ grant select on _u to anon, authenticated, service_role;
 insert into luma.artes (id, user_id, camp_name, dados, status)
 select '00000000-0000-4000-8000-0000000000b1', fb, 'RLS-TESTE', '{}'::jsonb, 'rascunho' from _u;
 
+-- Biblioteca de fotos (27/10/2026): uma franquia de OUTRA pessoa, com uma foto catalogada,
+-- criada como dono do banco. É a prova de que o franqueado A não lê nem grava nela.
+create temp table _foto_alheia on commit drop as
+  select gen_random_uuid() as franquia, gen_random_uuid() as foto;
+grant select on _foto_alheia to anon, authenticated, service_role;
+insert into luma.franquias (id, nome) select franquia, 'RLS-FOTO-ALHEIA' from _foto_alheia;
+insert into luma.usuario_franquias (user_id, franquia_id) select fb, franquia from _u, _foto_alheia;
+insert into luma.fotos_franquia (id, franquia_id, user_id, storage_path)
+select f.foto, f.franquia, u.fb, f.franquia::text || '/' || u.fb::text || '/rls.jpg'
+from _foto_alheia f, _u u;
+
 -- ── ANON (sem login) ────────────────────────────────────────────────────────────────────
 set local role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
@@ -125,6 +136,17 @@ do $$ declare n int; u record; begin
   begin insert into storage.objects (bucket_id, name, owner) values ('luma-user-uploads', u.fa::text || '/rls-teste.png', u.fa);
     insert into _t(passo,esperado,obtido) values ('franqueado A envia na própria pasta','ok','ok');
   exception when others then insert into _t(passo,esperado,obtido) values ('franqueado A envia na própria pasta','ok','recusa: '||sqlstate); end;
+
+  -- Fotos da franquia (bucket privado, migration 20261027120000)
+  select count(*) into n from luma.fotos_franquia where franquia_id = (select franquia from _foto_alheia);
+  insert into _t(passo,esperado,obtido) values ('franqueado vê foto de outra franquia','0',n::text);
+  begin insert into luma.fotos_franquia (franquia_id, user_id, storage_path)
+        select franquia, u.fa, franquia::text || '/' || u.fa::text || '/rls.jpg' from _foto_alheia;
+    insert into _t(passo,esperado,obtido) values ('franqueado cataloga foto em franquia alheia','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('franqueado cataloga foto em franquia alheia','recusa','recusa'); end;
+  begin insert into storage.objects (bucket_id, name, owner) values ('luma-fotos-franquia', (select franquia from _foto_alheia)::text || '/' || u.fa::text || '/x.jpg', u.fa);
+    insert into _t(passo,esperado,obtido) values ('franqueado grava na pasta da franquia alheia','recusa','CONSEGUIU');
+  exception when others then insert into _t(passo,esperado,obtido) values ('franqueado grava na pasta da franquia alheia','recusa','recusa'); end;
 end $$;
 reset role;
 

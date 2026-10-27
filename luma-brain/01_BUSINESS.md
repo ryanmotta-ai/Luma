@@ -161,12 +161,14 @@ Tipos: `text`, `number`, `currency`, `date`, `image`, `select`, `color`, `boolea
 - **Biblioteca de imagens/ícones** → bucket `luma-template-assets`.
 - **Capas de campanha** → bucket `luma-covers`.
 - **Fotos enviadas pelo franqueado** (produto) → bucket `luma-user-uploads` (público — viram arte pública).
+- **Biblioteca de fotos da franquia** (prato, fachada, logo — os ativos reais da unidade) → bucket `luma-fotos-franquia` (privado, desde 27/10/2026), indexado em `luma.fotos_franquia`. Caminho `<franquia_id>/<user_id>/<uuid>.<ext>`; quem lê é membro da franquia, quem escreve é só o dono, e a URL usada é assinada.
 - **Logos da marca** → tokens CSS (`--logo-h-*`), fisicamente em `assets/logos/`.
 
 **Regras / invariantes:**
 - ⛔ **Cores e espaçamentos sempre via tokens de `00-tokens.css` — nunca hex hardcoded** (nem em CSS, nem em JS). É regra de marca, não só de estilo.
 - ⛔ **Ícone de UI = SVG inline** (stroke, `currentColor`), nunca emoji. Emoji renderiza diferente por sistema e quebra a marca.
 - Imagens base64 grandes não moram no `localStorage` — sobem para o Storage e viram URL (senão estouram a quota de ~5MB).
+- ⛔ **A biblioteca de uma franquia não é visível a outra.** O isolamento é da RLS por vínculo (`luma.usuario_franquias`), não da tela. Não confunda com `luma-user-uploads`, que segue público por outro motivo (avatar, QR, arte final).
 - Nome de asset/fonte vindo do usuário ou do backend entra em `innerHTML` **sempre escapado** (`gEsc`/`_dEsc`) — XSS armazenado é risco real.
 
 ---

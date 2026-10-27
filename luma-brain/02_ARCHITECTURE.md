@@ -186,7 +186,7 @@ Postgres, três schemas, **RLS habilitado em tudo**:
 
 ## 8. Storage
 
-Arquivos (imagens, fontes) não moram no banco nem no localStorage — vão para **buckets** no Supabase Storage. Cinco buckets `luma-*`:
+Arquivos (imagens, fontes) não moram no banco nem no localStorage — vão para **buckets** no Supabase Storage. Sete buckets `luma-*`:
 
 | Bucket | Guarda | Visibilidade |
 |--------|--------|--------------|
@@ -194,6 +194,7 @@ Arquivos (imagens, fontes) não moram no banco nem no localStorage — vão para
 | `luma-template-assets` | Imagens de camadas dos templates | — |
 | `luma-fontes` | Fontes enviadas pelo designer | — |
 | `luma-user-uploads` | Fotos que o franqueado envia (produto) | **Público** (viram arte pública) |
+| `luma-fotos-franquia` | Biblioteca de fotos da franquia (prato, fachada) | **Privado** — RLS por vínculo na unidade; URL assinada |
 | `luma-renders` | Renders | Privado |
 | `luma-aulas` | Vídeos MP4 e materiais das aulas da Academia | **Privado** (URL assinada; vídeo de formação não vira link público) |
 

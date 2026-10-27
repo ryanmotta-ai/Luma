@@ -1068,3 +1068,39 @@ Mesmo padrão offline-first (localStorage cache + push background só designer +
 - Campanha liberada: Copa Do Mundo 2026 (`828d73ae-94d0-4e37-a2ce-c03508ff46c1`). Para trocar: `update luma.pastas set visitante = (id = '<novo>')`.
 - Front: usuário sintético (`gEntrarVisitante`, auth.js), sem telemetria, sem histórico no banco, sem IA, suporte, flags e franquia. O visitante roda tudo no navegador.
 - **14/10/2026 — revisão de UI do visitante (só front, sem migration):** selo VISITANTE e faixa "Você está explorando" na home; conta vira um cartão + "Entrar com minha conta"; Ajuda sem "Faça uma pergunta"/Mensagens (IA e equipe exigem sessão; `gAiReady` e `_gSupEu` agora dizem não); sem convite de feedback; painel de foto/logo só com exemplos (sem recentes/lojas); materiais Story primeiro (a RPC não ordena); catálogo que falha mostra "Tentar de novo" e se refaz no evento `online` (falha não fica mais em cache); aba nova = visita nova (`_gVisitanteNovaVisita` limpa o rastro `:user:visitante` do tablet de estande).
+
+## 2026-10-27 — Fotos da franquia (biblioteca no chat, isolada por unidade)
+
+**Migration `20261027120000_luma_fotos_franquia.sql` — A APLICAR no SQL Editor.** Sem ela a
+seção "Fotos da minha franquia" não aparece (o front esconde o que não consegue usar).
+
+**O que cria.**
+- Bucket **privado** `luma-fotos-franquia` (8 MB, JPEG/PNG/WebP). Caminho
+  `<franquia_id>/<user_id>/<uuid>.<ext>`.
+- Tabela `luma.fotos_franquia` (`franquia_id`, `user_id`, `storage_path` único, `nome`,
+  `bytes`, `largura`, `altura`, `criado_em`).
+- `luma.franquia_da_pasta(text)`: lê a franquia da pasta 1 do caminho **sem estourar** em
+  caminho inválido (devolve `null` → policy nega). Depende de `luma.sou_da_franquia(uuid)`
+  (20260930200000) — o motor único de vínculo usuário↔unidade, não há um segundo.
+
+**Fronteira de segurança.**
+- Ler: membro da franquia da pasta 1; `is_designer()` também lê (suporte), nunca escreve.
+- Escrever/apagar: `is_ativo()` + pasta 2 = `auth.uid()` + vínculo com a franquia da pasta 1.
+  Storage tem `WITH CHECK` no UPDATE e no INSERT; a tabela não tem policy de UPDATE.
+- A tabela ainda exige `storage_path LIKE franquia_id || '/%'` — catalogar arquivo de outra
+  unidade pelo PostgREST não passa nem com o insert montado à mão.
+- `luma-user-uploads` **continua público** (avatar, QR, arte final). Nada foi migrado nem
+  apertado lá; a biblioteca nasceu em bucket próprio para não regredir esses três usos.
+
+**Front (sem caminho novo de upload).** `js/franqueado/fotos.js` (`fFotos*`) é a camada de
+dados: lista (URL **assinada**, 1 h, só em memória), salva e apaga. O upload continua sendo
+`fProcessImageFile` → `fResizeImageIfNeeded` (redimensiona/comprime, prévia); depois de
+aplicar no campo, o chat chama `fFotosSalvar` (fire-and-forget) — foto de exemplo (`origem =
+'demo'`) fica de fora. Usar uma foto da biblioteca baixa o arquivo e entrega ao
+`_fApplyImageToField`; o `fState` segue com dataURL, então render, rascunho e histórico não
+mudaram. UI no painel que já abre no passo de foto (`upload-panel.js`).
+
+**Testes.** Suíte `supabase/tests/rls.sql` ganhou 3 casos negativos (não vê / não cataloga /
+não grava na franquia alheia). Verificação no navegador com `window.sb` simulado: lista com
+miniaturas e nome, estado vazio, usar (dataURL + prévia), salvar (caminho e payload), apagar
+(storage + linha) e esconder sem franquia. Upload real autenticado **não** foi exercitado.

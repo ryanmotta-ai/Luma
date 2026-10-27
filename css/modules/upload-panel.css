@@ -84,6 +84,9 @@
   .f-up-demo-shot,.f-up-demo-shot img{transition:none}
   .f-up-demo-item:hover .f-up-demo-shot{transform:none}
   .f-up-demo-item:hover .f-up-demo-shot img{transform:none}
+  .f-up-lib-shot,.f-up-lib-shot img{transition:none}
+  .f-up-lib-item:hover .f-up-lib-shot{transform:none}
+  .f-up-lib-item:hover .f-up-lib-shot img{transform:none}
 }
 .f-up-thumb{
   position:relative;aspect-ratio:1;padding:0;overflow:hidden;cursor:pointer;
@@ -121,6 +124,45 @@
 .f-up-loja-logo svg{width:20px;height:20px}
 .f-up-loja-name{font-size:11.5px;font-weight:600;color:var(--text-2);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
+/* ── BIBLIOTECA DA FRANQUIA (27/10/2026) ──
+   Fotos REAIS da unidade, guardadas no bucket privado. Mesmo vocabulário visual dos
+   "exemplos" (cartão com foto quadrada + nome), mas sem o selo "demo": aqui o conteúdo é
+   do franqueado. O selo "privado" não enfeita — ele responde a pergunta que a pessoa faria
+   ao ver foto de outra loja: "quem enxerga isto?". */
+.f-up-lib .f-up-sec-head{gap:6px}
+.f-up-lib-tag{margin-left:auto;padding:2px 7px;border-radius:var(--r-pill);background:var(--gray-light);
+  color:var(--text-3);font-size:9.5px;font-weight:800;letter-spacing:.08em;font-style:normal}
+.f-up-lib-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.f-up-lib-item{position:relative;display:flex;flex-direction:column;gap:6px;padding:0;border:0;background:none;
+  cursor:pointer;font-family:'Roboto',sans-serif;text-align:left}
+.f-up-lib-shot{position:relative;display:block;overflow:hidden;aspect-ratio:1;border:1px solid var(--gray-mid);
+  border-radius:var(--r);background:var(--gray-light);
+  transition:border-color var(--dur-micro) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-spring)}
+.f-up-lib-shot img{width:100%;height:100%;object-fit:cover;display:block;transition:transform var(--dur-base) var(--ease-out)}
+.f-up-lib-name{font-size:11.5px;font-weight:700;color:var(--text-2);max-width:100%;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;padding-left:1px}
+.f-up-lib-item:hover .f-up-lib-shot{transform:translateY(-2px);border-color:var(--dm-orange);
+  box-shadow:0 8px 20px rgba(248,84,0,.16)}
+.f-up-lib-item:hover .f-up-lib-shot img{transform:scale(1.04)}
+.f-up-lib-item:active .f-up-lib-shot{transform:translateY(0) scale(.99)}
+.f-up-lib-item:focus-visible{outline:none}
+.f-up-lib-item:focus-visible .f-up-lib-shot{outline:2px solid var(--dm-orange);outline-offset:2px}
+.f-up-lib-item:hover .f-up-thumb-del{opacity:1}
+/* Sem hover (celular/tablet) o botão de excluir nunca apareceria — e é justamente no
+   celular que o franqueado envia a foto. Na biblioteca ele fica sempre visível. */
+@media (hover: none){
+  .f-up-lib-item .f-up-thumb-del{opacity:1}
+}
+.f-up-lib-add{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;margin-top:9px;padding:9px 12px;
+  cursor:pointer;border:1px dashed var(--gray-mid);border-radius:10px;background:transparent;color:var(--text-2);
+  font-family:'Roboto',sans-serif;font-size:12px;font-weight:700;
+  transition:border-color var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard)}
+.f-up-lib-add svg{width:15px;height:15px}
+.f-up-lib-add:hover{border-color:var(--dm-orange);color:var(--dm-orange-d)}
+.f-up-lib-add:focus-visible{outline:2px solid var(--dm-orange);outline-offset:2px}
+.f-up-lib-note{margin:9px 0 0;font-size:11.5px;line-height:1.45;color:var(--text-3)}
+.f-up-lib-body .f-up-empty{padding:2px 2px 0}
+
 /* Tema escuro do chat */
 body:not(.theme-light) .f-up-box{background:var(--d-surf);border-color:var(--d-border)}
 body:not(.theme-light) .f-up-head{border-color:var(--d-border)}
@@ -130,6 +172,11 @@ body:not(.theme-light) .f-up-newfile strong{color:var(--d-text)}
 body:not(.theme-light) .f-up-thumb,body:not(.theme-light) .f-up-loja{background:var(--d-surf2);border-color:var(--d-border)}
 body:not(.theme-light) .f-up-loja-logo{background:var(--d-surf3);border-color:var(--d-border)}
 body:not(.theme-light) .f-up-loja-name{color:var(--d-text2)}
+body:not(.theme-light) .f-up-lib-shot{background:var(--d-surf2);border-color:var(--d-border)}
+body:not(.theme-light) .f-up-lib-name{color:var(--d-text2)}
+body:not(.theme-light) .f-up-lib-tag{background:var(--d-surf3);color:var(--d-text2)}
+body:not(.theme-light) .f-up-lib-add{color:var(--d-text2);border-color:var(--d-border)}
+body:not(.theme-light) .f-up-lib-add:hover{border-color:var(--dm-orange);color:var(--dm-orange)}
 
 @media (max-width:680px){
   #f-upload-panel{align-items:flex-end;padding:0}

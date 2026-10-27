@@ -180,6 +180,18 @@ function _fRenderUploadPanel(){
   const _icoStore='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M3 9h18"/></svg>';
   const _icoTrash='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"/></svg>';
 
+  /* Biblioteca da franquia (27/10/2026): as fotos REAIS da unidade, no bucket privado.
+     Só aparece quando há backend + franquia vinculada (`fFotosDisponivel`); o conteúdo é
+     preenchido depois por `fFotosRenderSecao` — a rede não pode segurar o painel inteiro. */
+  const _icoLib='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m21 15-4.5-4.5L7 20"/></svg>';
+  const _temLib=(typeof fFotosDisponivel==='function' && fFotosDisponivel());
+  const libBlock = _temLib ? `
+    <div class="f-up-sec f-up-lib" id="f-up-lib-sec">
+      <div class="f-up-sec-head">${_icoLib}<span>Fotos da minha franquia</span><em class="f-up-lib-tag">privado</em></div>
+      <div class="f-up-lib-body" id="f-up-lib-body"><p class="f-up-empty">Carregando as fotos da franquia…</p></div>
+      <p class="f-up-lib-note">Só quem é da sua franquia vê estas fotos. Elas entram nas próximas artes com um toque.</p>
+    </div>` : '';
+
   const recentGrid = recents.length
     ? `<div class="f-up-grid">${recents.map((r,i)=>`
         <button type="button" class="f-up-thumb" onclick="fPickRecentImg(${i})" title="Usar esta imagem">
@@ -227,6 +239,7 @@ function _fRenderUploadPanel(){
           <span class="f-up-newfile-ico">${_icoUp}</span>
           <span><strong>Enviar novo arquivo</strong><small>PNG ou JPG, até 20MB</small></span>
         </button>
+        ${libBlock}
         ${demoBlock}
         ${lojasBlock}
         ${_vis ? '' : `        <div class="f-up-sec">
@@ -235,6 +248,8 @@ function _fRenderUploadPanel(){
         </div>`}
       </div>
     </div>`;
+  // Depois do innerHTML: a lista vem da rede e não pode atrasar o painel.
+  if(_temLib && typeof fFotosRenderSecao==='function') fFotosRenderSecao();
 }
 
 /* ── AÇÕES ── reusam _fApplyImageToField (mesmo finishing do upload normal) ── */
@@ -257,7 +272,8 @@ function fPickDemoImg(id){
     .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.blob(); })
     .then(blob=>{
       const nome=d.src.split('/').pop()||'exemplo.jpg';
-      fProcessImageFile(new File([blob], nome, {type:blob.type||'image/jpeg'}), varId, uploadId);
+      // 'demo' no último argumento: exemplo não vira ativo da franquia na biblioteca.
+      fProcessImageFile(new File([blob], nome, {type:blob.type||'image/jpeg'}), varId, uploadId, 'demo');
       if(typeof gToast==='function') gToast('Foto de exemplo aplicada. Troque pela real antes de publicar.');
     })
     .catch(()=>{ if(typeof gToast==='function') gToast('Não consegui carregar a foto de exemplo. Envie uma foto sua.','error'); });

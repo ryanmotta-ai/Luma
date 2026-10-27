@@ -793,7 +793,7 @@ Front Vanilla fala **direto** com o Supabase via `supabase-js` v2 vendorizado (`
 
 ### 14.3. Storage (5 buckets `luma-*`)
 
-`luma-covers` (capas de pasta) · `luma-template-assets` (imagens de layers) · `luma-fontes` · `luma-user-uploads` (fotos do franqueado — **público**, viram arte pública) · `luma-renders` (privado). Fluxo: base64/idb:// no estado → upload → URL pública gravada no JSON/banco. Resolve o antigo "imagens somem no reload".
+`luma-covers` (capas de pasta) · `luma-template-assets` (imagens de layers) · `luma-fontes` · `luma-user-uploads` (fotos do franqueado — **público**, viram arte pública) · `luma-fotos-franquia` (biblioteca da unidade — **privado**, `20261027120000`) · `luma-renders` (privado). Fluxo: base64/idb:// no estado → upload → URL pública gravada no JSON/banco. Resolve o antigo "imagens somem no reload".
 
 ### 14.4. Sync offline-first (padrão de todas as entidades)
 
