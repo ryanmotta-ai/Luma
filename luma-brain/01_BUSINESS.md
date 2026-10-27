@@ -169,6 +169,7 @@ Tipos: `text`, `number`, `currency`, `date`, `image`, `select`, `color`, `boolea
 - ⛔ **Ícone de UI = SVG inline** (stroke, `currentColor`), nunca emoji. Emoji renderiza diferente por sistema e quebra a marca.
 - Imagens base64 grandes não moram no `localStorage` — sobem para o Storage e viram URL (senão estouram a quota de ~5MB).
 - ⛔ **A biblioteca de uma franquia não é visível a outra.** O isolamento é da RLS por vínculo (`luma.usuario_franquias`), não da tela. Não confunda com `luma-user-uploads`, que segue público por outro motivo (avatar, QR, arte final).
+- **As fotos de exemplo do painel de foto somem depois de 4 artes geradas** (27/10/2026). O contador é o histórico do próprio usuário (`fGetHist`, sincronizado do Supabase) — não existe contador paralelo. Exemplo é onboarding: quem já produziu não precisa dele competindo com as fotos reais.
 - Nome de asset/fonte vindo do usuário ou do backend entra em `innerHTML` **sempre escapado** (`gEsc`/`_dEsc`) — XSS armazenado é risco real.
 
 ---

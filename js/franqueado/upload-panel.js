@@ -54,7 +54,20 @@ const F_DEMO_IMGS = [
   { id:'logo-cf',  label:'Café do Bairro',   src:'assets/demo/logo-cafe-do-bairro.png', para:'logo' },
   { id:'logo-dv',  label:'Doce Vida',        src:'assets/demo/logo-doce-vida.png',   para:'logo' }
 ];
+/* Quem já produziu 4 artes não é mais visitante de primeira vez: a faixa de exemplos
+   cumpriu o papel e passa a competir com as fotos reais no passo de foto. O contador é o
+   HISTÓRICO que o Luma já mantém (`fGetHist`, por usuário, offline-first e sincronizado do
+   Supabase no boot) — não criar um segundo contador de gerações. Cada geração distinta vira
+   uma entrada; downloads/edições promovem a entrada existente (`fAddHist`). */
+const F_DEMO_LIMITE = 4;
+function fDemoImgsEsgotado(){
+  try{
+    if(typeof fGetHist !== 'function') return false;   // sem histórico: não esconde nada
+    return fGetHist().length >= F_DEMO_LIMITE;
+  }catch(e){ return false; }
+}
 function fDemoImgsPara(isLogo){
+  if(fDemoImgsEsgotado()) return [];
   return F_DEMO_IMGS.filter(d => d && d.src && d.para === (isLogo ? 'logo' : 'produto'));
 }
 
@@ -152,7 +165,11 @@ function fOpenUploadPanel(varId, uploadId){
   const lojas=(_ehLogo && typeof fGetLojas==='function') ? fGetLojas() : [];
   // Nada guardado ainda → não faz sentido um painel vazio; vai direto pro arquivo.
   // As fotos de exemplo contam como conteúdo: com elas o painel tem o que oferecer.
-  if(!recents.length && !lojas.length && !fDemoImgsPara(_ehLogo).length){ fUploadPanelNewFile(); return; }
+  // A biblioteca da franquia também conta — sem isto, quem já passou de 4 artes e abriu
+  // num aparelho novo (sem "recentes", sem demos) pularia o painel e nunca acharia a
+  // biblioteca, mesmo com fotos dentro.
+  const _temBiblioteca=(typeof fFotosDisponivel==='function' && fFotosDisponivel());
+  if(!recents.length && !lojas.length && !fDemoImgsPara(_ehLogo).length && !_temBiblioteca){ fUploadPanelNewFile(); return; }
   let host=document.getElementById('f-upload-panel');
   if(!host){
     host=document.createElement('div'); host.id='f-upload-panel';

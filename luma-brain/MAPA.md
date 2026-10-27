@@ -261,7 +261,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 93 arquivos JS (85.708 linhas, 3.309 funções) · 33 arquivos CSS (33.689 linhas) · `index.html` com 4.092 linhas e 83 `<script>`.
+**Tamanho real de hoje:** 93 arquivos JS (85.725 linhas, 3.310 funções) · 33 arquivos CSS (33.689 linhas) · `index.html` com 4.092 linhas e 83 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -489,9 +489,9 @@ Busca local do catálogo. Adaptador, ranking e eventos separados da apresentaç�
 · API: fSearchTokens, fSearchDocument, fSearchRank, fSearchCampaigns, fSearchHybrid, fSearchFormatsHTML, fSearchFooterHTML, fSearchRecord, fSearchRecordOpen
 · Estado global: _fSearchHybridAbort
 
-**`js/franqueado/upload-panel.js`** · 318 linhas
+**`js/franqueado/upload-panel.js`** · 335 linhas
 Painel de upload do chat do franqueado: ao enviar uma foto, abre um painel com · Imagens recentes — as últimas usadas, pra reaproveitar sem re-upload. · Minhas lojas — perfis de loja salvos (logo), quando o campo é o logo. ·…
-· API: fDemoImgsPara, fGetRecentImgs, fRecordRecentImg, fRemoveRecentImg, fOpenUploadPanel, fCloseUploadPanel, fUploadPanelNewFile, fPickDemoImg, fDemoImgMissing, fPickRecentImg, fUploadPanelPickLoja, fUploadPanelDeleteLoja
+· API: fDemoImgsEsgotado, fDemoImgsPara, fGetRecentImgs, fRecordRecentImg, fRemoveRecentImg, fOpenUploadPanel, fCloseUploadPanel, fUploadPanelNewFile, fPickDemoImg, fDemoImgMissing, fPickRecentImg, fUploadPanelPickLoja, fUploadPanelDeleteLoja
 · Estado global: _fUpPanelVar, _fUpPanelUploadId
 · Depende de: franqueado/chat.js (_fApplyImageToField, fState, fProcessImageFile),
 
