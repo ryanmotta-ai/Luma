@@ -2562,12 +2562,48 @@ function _fGiriaGarante(out, g){
   return out;
 }
 
+/* Sem franquia não há cidade — e sem cidade não há gírias: `fGiriasDaCidade` devolve [] e
+   este painel nunca nasce. Em vez de sumir calado, o franqueado vê um cartão curto no MESMO
+   lugar, que abre o seletor obrigatório do login (`gFranquiaIniciar`). Assim a pergunta
+   aparece no momento em que a falta dela faz diferença (a legenda), não só no login —
+   e o caminho de erro deixa de ser silencioso. */
+function fCardFranquia(canvasId){
+  try{
+    if(typeof gCurrentRole !== 'function' || gCurrentRole() !== 'franqueado') return;
+    if(typeof gMinhaFranquia !== 'function' || gMinhaFranquia()) return;
+    if(typeof gVisitante === 'function' && gVisitante()) return;
+    const painel = document.querySelector(`.caption-assistant-panel[data-canvas-id="${canvasId}"]`);
+    if(!painel || painel.querySelector('.cap-girias, .cap-franquia')) return;
+    const box = document.createElement('div');
+    box.className = 'cap-franquia';
+    box.innerHTML = `<p class="cap-franquia-tit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg><span>O Luma ainda não sabe a sua cidade</span></p>
+      <p class="cap-franquia-sub">Diga qual é a sua franquia e a legenda passa a usar o jeito de falar daí.</p>
+      <button type="button" class="cap-franquia-btn" onclick="fCardFranquiaAbrir('${gEscJs(canvasId)}')">Dizer minha franquia</button>`;
+    painel.appendChild(box);
+  }catch(e){}
+}
+async function fCardFranquiaAbrir(canvasId){
+  const card = document.querySelector('.cap-franquia');
+  const btn = card ? card.querySelector('.cap-franquia-btn') : null;
+  if(btn){ btn.disabled = true; btn.textContent = 'Abrindo…'; }
+  try{ if(typeof gFranquiaIniciar === 'function') await gFranquiaIniciar(); }catch(e){}
+  const fr = (typeof gMinhaFranquia === 'function') ? gMinhaFranquia() : null;
+  if(!fr){
+    /* `gFranquiaIniciar` engole erro de rede/RPC de propósito (o boot não pode travar).
+       Aqui o silêncio seria pior: a pessoa clicou para resolver e nada aconteceu. */
+    if(btn){ btn.disabled = false; btn.textContent = 'Dizer minha franquia'; }
+    if(typeof gToast === 'function') gToast('Não consegui salvar sua franquia agora. Tente de novo.', 'error');
+    return;
+  }
+  if(card) card.remove();
+  if(typeof fGiriasPainel === 'function') await fGiriasPainel(canvasId);
+}
 /* O painel "Jeito de falar de <cidade>" embaixo da legenda: marcar = aprovar, × = não usar,
    e um campo para o franqueado pôr uma expressão dele. Não bloqueia nada: sem marcar, a
    legenda sai neutra. */
 async function fGiriasPainel(canvasId){
   const fr = (typeof gMinhaFranquia === 'function') ? gMinhaFranquia() : null;
-  if(!fr) return;
+  if(!fr){ fCardFranquia(canvasId); return; }
   const painel = document.querySelector(`.caption-assistant-panel[data-canvas-id="${canvasId}"]`);
   if(!painel || painel.querySelector('.cap-girias')) return;
   const linhas = await _fGiriasFrLer(fr);

@@ -23,6 +23,10 @@ let _gDados = {
   // graf = o dado de cada gráfico de área desenhado, que o hover/teclado consulta por id.
   metrica: 'artes', graf: {},
   sort: { col: 'ultimo_acesso', dir: -1 }, busca: '', papel: '',
+  // Vínculo real da pessoa com a cidade (luma.usuario_franquias). É o que decide gírias,
+  // biblioteca de fotos e a cidade do Dados — o texto de profiles.cidade/franquia é só
+  // espelho editável. null = ainda não carregou (ou falhou), e aí a coluna não julga.
+  vinculos: null, vinculo: '',
   pessoa: null, pessoaData: null, pessoaErro: null,
   ev: { evento: '', user: '', offset: 0, limit: 50, data: null, erro: null, carregando: false, req: 0 },
   ia: { data: null, erro: null, carregando: false, req: 0, modelos: null, calcModelo: '', calcN: null },
@@ -170,6 +174,30 @@ function gDadosAbrir() {
   gDadosCarregar();
 }
 
+/* Vínculo real (não o texto do perfil): quem é da cidade. A equipe já pode ler
+   `usuario_franquias` pela RLS (`is_designer()`); o PostgREST devolve uma linha por
+   vínculo, e aqui fica o primeiro — o Luma trata uma cidade por pessoa. */
+async function _gDadosVinculosCarregar() {
+  const sb = typeof gSupabase === 'function' ? gSupabase() : null;
+  if (!sb) { _gDados.vinculos = null; _gDados.vinculo = ''; return; }
+  try {
+    const { data, error } = await sb.schema('luma').from('usuario_franquias')
+      .select('user_id,franquias(id,nome,cidade,uf)');
+    if (error) { _gDados.vinculos = null; _gDados.vinculo = ''; return; }
+    const mapa = {};
+    (data || []).forEach(r => {
+      const f = r && r.franquias;
+      if (!f || mapa[r.user_id]) return;
+      mapa[r.user_id] = { id: f.id, nome: f.nome, cidade: f.cidade || '', uf: f.uf || '' };
+    });
+    _gDados.vinculos = mapa;
+  } catch (e) { _gDados.vinculos = null; _gDados.vinculo = ''; }
+}
+function _gDadosVinculo(p) {
+  const m = _gDados.vinculos;
+  return (m && p && m[p.user_id]) || null;
+}
+
 async function gDadosCarregar() {
   const req = ++_gDados.req;
   _gDados.carregando = true; _gDados.erro = null;
@@ -187,7 +215,8 @@ async function gDadosCarregar() {
   if (req !== _gDados.req) return;           // o período mudou no meio: resposta velha
   _gDados.carregando = false;
   if (res.error || !res.data) { _gDados.erro = _gDadosMsgErro(res.error || 'A consulta voltou vazia.'); _gDados.data = null; }
-  else _gDados.data = res.data;
+  else { _gDados.data = res.data; await _gDadosVinculosCarregar(); }
+  if (req !== _gDados.req) return;           // o período mudou durante o vínculo: resposta velha
   if (_gDados.pessoa) gDadosAbrirPessoa(_gDados.pessoa);
   // Via SetAba: re-renderiza E recarrega a aba sob demanda aberta (IA, Eventos, Local Fit),
   // cujo dado foi zerado acima — senão ela ficaria no esqueleto depois de trocar o período.
@@ -228,7 +257,10 @@ function gDadosTabsKeydown(e) {
 // agregados da rede (funil, conteúdo, buscas) não sabem de cidade e seguem inteiros.
 function _gDadosPessoas() {
   const all = (_gDados.data && Array.isArray(_gDados.data.pessoas)) ? _gDados.data.pessoas : [];
-  return _gDados.cidade ? all.filter(p => (p.cidade || '') === _gDados.cidade) : all;
+  if (!_gDados.cidade) return all;
+  // A cidade do filtro é a do VÍNCULO quando existe (é ela que vale para gírias e fotos);
+  // o texto do perfil só serve de fallback para quem ainda não respondeu.
+  return all.filter(p => (((_gDadosVinculo(p) || {}).cidade || p.cidade || '') === _gDados.cidade));
 }
 function _gDadosVazio(d) {
   const k = (d && d.kpis) || {};
@@ -241,7 +273,7 @@ function _gDadosRender() {
   if (!pane) return;
   const d = _gDados.data;
   const cidades = d && Array.isArray(d.pessoas)
-    ? Array.from(new Set(d.pessoas.map(p => p.cidade).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    ? Array.from(new Set(d.pessoas.map(p => (_gDadosVinculo(p) || {}).cidade || p.cidade).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'))
     : [];
   if (_gDados.cidade && cidades.indexOf(_gDados.cidade) < 0) _gDados.cidade = '';
   const chips = G_DADOS_PERIODOS.map(([n, rot]) =>
@@ -767,6 +799,11 @@ function _gDadosPessoasHtml() {
       <select class="gd-select" aria-label="Filtrar por papel" onchange="gDadosPessoasPapel(this.value)">
         <option value="">Todos os papéis</option>${papeis.map(p => `<option${p === _gDados.papel ? ' selected' : ''}>${gEsc(p)}</option>`).join('')}
       </select>
+      ${_gDados.vinculos ? `<select class="gd-select" aria-label="Filtrar por vínculo de franquia" onchange="gDadosPessoasVinculo(this.value)">
+        <option value="">Todos os vínculos</option>
+        <option value="com"${_gDados.vinculo === 'com' ? ' selected' : ''}>Com franquia</option>
+        <option value="sem"${_gDados.vinculo === 'sem' ? ' selected' : ''}>Sem franquia</option>
+      </select>` : ''}
     </div><div id="gd-pessoas-tabela">${_gDadosPessoasTabela()}</div>`;
 }
 function _gDadosChurnHtml(ch) {
@@ -787,8 +824,18 @@ function _gDadosPessoasFiltradas() {
   const { col, dir } = _gDados.sort;
   return _gDadosPessoas()
     .filter(p => (!q || _gDadosNorm(p.nome + ' ' + (p.email || '')).includes(q)) && (!_gDados.papel || _gDadosPapel(p.role) === _gDados.papel))
+    .filter(p => {
+      if (_gDados.vinculo === 'com') return !!_gDadosVinculo(p);
+      // "Sem franquia" é sobre franqueado: equipe e gestão não pertencem a cidade.
+      if (_gDados.vinculo === 'sem') return p.role === 'franqueado' && !_gDadosVinculo(p);
+      return true;
+    })
     .slice().sort((a, b) => {
       let x = a[col], y = b[col];
+      if (col === 'cidade') {   // a coluna mostra o vínculo quando existe; ordenar pelo texto mentiria
+        x = (_gDadosVinculo(a) || {}).nome || a.cidade || '';
+        y = (_gDadosVinculo(b) || {}).nome || b.cidade || '';
+      }
       if (col === 'ultimo_acesso') { x = x ? new Date(x).getTime() : 0; y = y ? new Date(y).getTime() : 0; }
       if (typeof x === 'number' || typeof y === 'number') return ((x || 0) - (y || 0)) * dir;
       return String(x || '').localeCompare(String(y || ''), 'pt-BR') * dir;
@@ -812,10 +859,16 @@ function _gDadosPessoasTabela() {
   const cel = (p, k) => `<span class="gd-cel-bar" style="--p:${Math.round((p[k] || 0) / mx[k] * 100)}%">${_gDadosN(p[k])}</span>`;
   const tr = rows.map(p => {
     const [st, stTxt] = _gDadosStatus(p.ultimo_acesso);
-    const local = [p.cidade, p.franquia].filter(Boolean).join(' · ') || '—';
+    const vinc = _gDadosVinculo(p);
+    const perfil = [p.cidade, p.franquia].filter(Boolean).join(' · ');
+    const local = vinc ? (vinc.nome + (vinc.cidade && vinc.nome.indexOf(vinc.cidade) < 0 ? ' — ' + vinc.cidade : '')) : perfil;
+    /* Sem vínculo, o franqueado não tem cidade: gírias, biblioteca de fotos e o recorte do
+       Dados não funcionam. O selo existe para a equipe cobrar a resposta — e só aparece
+       quando o mapa de vínculos carregou (sem ele, não dá para afirmar nada). */
+    const semVinculo = !!_gDados.vinculos && p.role === 'franqueado' && !vinc;
     return `<tr${p.ativo === false ? ' class="is-inativo"' : ''}>
       <td><button type="button" class="gd-pessoa" data-id="${gEsc(p.user_id)}" onclick="gDadosAbrirPessoa(this.dataset.id)"><span class="gd-dot is-${st}" title="${gEsc(stTxt)}"></span><span><strong>${gEsc(p.nome || p.email || '—')}</strong>${p.ativo === false ? '<small>Inativa</small>' : ''}</span></button></td>
-      <td data-l="${L[1]}">${gEsc(_gDadosPapel(p.role))}</td><td data-l="${L[2]}">${gEsc(local)}</td>
+      <td data-l="${L[1]}">${gEsc(_gDadosPapel(p.role))}</td><td data-l="${L[2]}">${gEsc(local || '—')}${semVinculo ? '<span class="gd-tag is-alerta" title="Sem vínculo com luma.franquias: a pessoa não tem cidade no Luma">sem vínculo</span>' : ''}</td>
       <td data-l="${L[3]}" title="${gEsc(_gDadosDataHora(p.ultimo_acesso))}"><span class="gd-sr">${gEsc(stTxt)}. </span>${gEsc(_gDadosRel(p.ultimo_acesso))}</td>
       <td data-l="${L[4]}" class="is-num">${_gDadosN(p.sessoes)}</td><td data-l="${L[5]}" class="is-num">${gEsc(p.tempo_s ? _gDadosDur(p.tempo_s) : '—')}</td>
       <td data-l="${L[6]}" class="is-num">${cel(p, 'artes')}</td><td data-l="${L[7]}" class="is-num">${cel(p, 'downloads')}</td>
@@ -827,6 +880,7 @@ function _gDadosPessoasTabela() {
 function _gDadosPessoasRefresh() { const el = document.getElementById('gd-pessoas-tabela'); if (el) el.innerHTML = _gDadosPessoasTabela(); }
 function gDadosPessoasBusca(v) { _gDados.busca = String(v || ''); _gDadosPessoasRefresh(); }
 function gDadosPessoasPapel(v) { _gDados.papel = String(v || ''); _gDadosPessoasRefresh(); }
+function gDadosPessoasVinculo(v) { _gDados.vinculo = String(v || ''); _gDadosPessoasRefresh(); }
 function gDadosPessoasOrdenar(col) {
   const s = _gDados.sort;
   if (s.col === col) s.dir = -s.dir;
@@ -1447,8 +1501,8 @@ async function gDadosExportarCsv() {
   if (aba === 'visao') return _gDadosCsvBaixar('por-dia', ['dia', 'pessoas', 'sessoes', 'artes', 'downloads'], (d.por_dia || []).map(x => [x.dia, x.pessoas, x.sessoes, x.artes, x.downloads]));
   if (aba === 'pessoas') {
     if (_gDados.pessoa && _gDados.pessoaData) return _gDadosCsvBaixar('pessoa', ['ocorreu_em', 'evento', 'descricao', 'payload'], (_gDados.pessoaData.eventos || []).map(e => [e.ocorreu_em, e.evento, _gDadosRotulo(e.evento, e.payload), e.payload]));
-    return _gDadosCsvBaixar('pessoas', ['nome', 'email', 'papel', 'cidade', 'franquia', 'ativo', 'ultimo_acesso', 'sessoes', 'tempo_s', 'artes', 'downloads', 'aparelho'],
-      _gDadosPessoasFiltradas().map(p => [p.nome, p.email, _gDadosPapel(p.role), p.cidade, p.franquia, p.ativo ? 'sim' : 'não', p.ultimo_acesso, p.sessoes, p.tempo_s, p.artes, p.downloads, p.disp]));
+    return _gDadosCsvBaixar('pessoas', ['nome', 'email', 'papel', 'cidade', 'franquia', 'franquia_vinculada', 'ativo', 'ultimo_acesso', 'sessoes', 'tempo_s', 'artes', 'downloads', 'aparelho'],
+      _gDadosPessoasFiltradas().map(p => [p.nome, p.email, _gDadosPapel(p.role), p.cidade, p.franquia, (_gDadosVinculo(p) || {}).nome || '', p.ativo ? 'sim' : 'não', p.ultimo_acesso, p.sessoes, p.tempo_s, p.artes, p.downloads, p.disp]));
   }
   if (aba === 'funil') return _gDadosCsvBaixar('funil', ['template_id', 'material', 'campanha', 'abriu', 'respondeu', 'gerou', 'baixou'], ((d.funil || {}).por_material || []).map(r => [r.template_id, r.template_name, r.camp_name, r.abriu, r.respondeu, r.gerou, r.baixou]));
   if (aba === 'conteudo') return _gDadosCsvBaixar('conteudo', ['template_id', 'template', 'pasta', 'publicado', 'abertos', 'gerados', 'baixados'], ((d.conteudo || {}).templates || []).map(t => [t.template_id, t.nome, t.pasta, t.publicado ? 'sim' : 'não', t.abertos, t.gerados, t.baixados]));

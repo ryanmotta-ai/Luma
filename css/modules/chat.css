@@ -4034,6 +4034,20 @@ body:not(.theme-light) .cap-giria button { color: var(--d-text2) }
 body:not(.theme-light) .cap-giria:has(.cap-giria-t[aria-pressed="true"]) { border-color: var(--dm-orange); background: var(--dm-orange-tint) }
 body:not(.theme-light) .cap-giria-t[aria-pressed="true"] { color: var(--dm-orange) }
 
+/* Sem franquia (chat.js · fCardFranquia): o convite para dizer a cidade no lugar do painel
+   de gírias — que não existe sem vínculo. Cartão, não modal: a legenda continua utilizável. */
+.cap-franquia { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--gray-mid); border-radius: var(--r); background: var(--off-white) }
+.cap-franquia-tit { display: flex; align-items: center; gap: 7px; margin: 0; font-size: 13px; font-weight: 700; color: var(--text) }
+.cap-franquia-tit svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--dm-orange-d) }
+.cap-franquia-sub { margin: 3px 0 10px; font-size: 12px; line-height: 1.45; color: var(--text-3) }
+.cap-franquia-btn { min-height: 34px; padding: 6px 14px; border: 1px solid var(--dm-orange); border-radius: var(--r-sm); background: var(--dm-orange); color: var(--white); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: background var(--dur-fast) var(--ease-standard), border-color var(--dur-fast) var(--ease-standard) }
+.cap-franquia-btn:hover { background: var(--dm-orange-d); border-color: var(--dm-orange-d) }
+.cap-franquia-btn:disabled { opacity: .65; cursor: default }
+.cap-franquia-btn:focus-visible { outline: 2px solid var(--dm-orange); outline-offset: 2px }
+body:not(.theme-light) .cap-franquia { background: var(--d-surf2); border-color: var(--d-border2) }
+body:not(.theme-light) .cap-franquia-tit { color: var(--d-text) }
+body:not(.theme-light) .cap-franquia-sub { color: var(--d-text2) }
+
 /* ══ CELULAR — O QUE O DESKTOP TINHA E O CELULAR NÃO (25/10/2026) ══════════════════════════
    Instruções do material na 1ª pergunta, data pelo calendário do aparelho, "Ver como fica" no
    card de entrega e o Desfazer no rodapé do painel. Os quatro só aparecem no celular: no

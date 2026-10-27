@@ -261,7 +261,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 93 arquivos JS (85.725 linhas, 3.310 funções) · 33 arquivos CSS (33.689 linhas) · `index.html` com 4.092 linhas e 83 `<script>`.
+**Tamanho real de hoje:** 93 arquivos JS (85.815 linhas, 3.315 funções) · 33 arquivos CSS (33.703 linhas) · `index.html` com 4.092 linhas e 83 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -330,9 +330,9 @@ LUMA CLI Console de comandos do Luma, só pra quem é da casa (equipe_dm/gestao)
 COPY FIT — encurtar a copy do franqueado SEM mudar o que se vende (22/09/2026) Quando o Local Fit bloqueia, o franqueado precisa de uma SAÍDA, não de um aviso.
 · API: gCopyFitGuarda, gCopyFitConfere, gCopyFitCandidatos, gCopyFitSugestoes
 
-**`js/core/dados.js`** · 1494 linhas
+**`js/core/dados.js`** · 1548 linhas
 Área "Dados" do painel da conta — o que a rede faz no Luma (product intelligence).
-· API: gDadosAbrir, gDadosCarregar, gDadosSetPeriodo, gDadosSetCidade, gDadosSetAba, gDadosTabsKeydown, gDadosSetMetrica, gDadosGrafMove, gDadosGrafSai, gDadosGrafFoco, gDadosGrafKey, gDadosPessoasBusca, gDadosPessoasPapel, gDadosPessoasOrdenar … (+9; 111 funções no total)
+· API: gDadosAbrir, gDadosCarregar, gDadosSetPeriodo, gDadosSetCidade, gDadosSetAba, gDadosTabsKeydown, gDadosSetMetrica, gDadosGrafMove, gDadosGrafSai, gDadosGrafFoco, gDadosGrafKey, gDadosPessoasBusca, gDadosPessoasPapel, gDadosPessoasVinculo … (+10; 114 funções no total)
 · Estado global: _gDados
 · Depende de: core/toast.js (gEsc, gToast), core/auth.js (gIsAdmin), core/supabase.js (gSupabase).
 
@@ -432,9 +432,9 @@ F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES defi
 · Estado global: _F_MAXLEN_MED, _fAlvoNaPasta, _fFitOpts, _fFitRun, _fFitSai, _fFitIaReprovadas, _fFitCf, quando, _fFitPerto, _fFitFora
 · Depende de: 00-config.js
 
-**`js/franqueado/chat.js`** · 4015 linhas
+**`js/franqueado/chat.js`** · 4051 linhas
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
-· API: fChatNovaConversa, fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fTrackResposta, fTrackFoto … (+69; 185 funções no total)
+· API: fChatNovaConversa, fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fTrackResposta, fTrackFoto … (+71; 187 funções no total)
 · Estado global: fNextTimeout, _fChatGen, _fGuidedNav, _fGuidedTimer, _fGuidedBound, _fProntaCtxAberto, _fRevisando, _fRespostasNAnt, _fArtSnapshots, _fArtCaptions (+5)
 · Depende de: 00-config.js, 01-state.js, franqueado/chat-input.js
 
@@ -766,7 +766,7 @@ MAKING-OF da arte (frente 6, 15/10/2026; microações em 15/10, pedido do Ryan) 
 | `css/modules/all-tools.css` | 113 |
 | `css/modules/calendario.css` | 1544 |
 | `css/modules/catalog.css` | 299 |
-| `css/modules/chat.css` | 4139 |
+| `css/modules/chat.css` | 4153 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
 | `css/modules/creative.css` | 799 |
