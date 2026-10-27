@@ -237,7 +237,9 @@ O restaurante parceiro quer postar que está no app, mas não tem arte. O franqu
 co-branded (marca do lojista com a DM) e manda para ele postar no próprio Instagram. Multiplica o
 alcance sem mídia paga, e o lojista vira divulgador. **O franqueado aprova antes**, para a marca DM
 não sair sem controle. Pede regra de co-branding (proporção e posição das duas marcas) no
-playbook.
+playbook. **Em avaliação (27/10/2026):** transformar o lojista em **usuário** do Luma (conta
+própria, catálogo, fotos) — hipótese, riscos e critérios em
+`docs/DISCOVERY-LOJISTAS-2026-10-27.md`. Não é decisão.
 
 ### Para guardar no roadmap
 
