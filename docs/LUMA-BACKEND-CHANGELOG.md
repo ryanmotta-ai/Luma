@@ -6,6 +6,26 @@
 
 ---
 
+## 2026-10-28 — Combos Coca aguentam preço de 3 dígitos · Entrega promocional ganha descrição na faixa laranja (✅ dados + `00-config.js`, sem migration)
+
+Pedido do Pedro, a partir de feedback de franqueado: (1) campo de descrição editável na faixa laranja embaixo do mockup da "Entrega promocional", feed e story; (2) a arte da Coca precisa aceitar preço de 3 dígitos — o Local Fit bloqueava ("Cabem até 2 caracteres aqui").
+
+| Template | id | Reverter (`select luma.restaurar_versao('…')`) |
+|---|---|---|
+| Combos Coca — Oferta com preço (feed) | `9251d0d9-d198-4fdb-8bee-a4e2780f03c2` | `2e068cba-353c-4e26-9d30-ded07c3c9400` |
+| Combos Coca — Oferta com preço (story) | `07786916-08d8-4321-aef9-123fd2b3868f` | `f66659c4-8ab8-4d7f-aa0d-84a1624e5529` |
+| Combos Coca — Só oferta boa (feed) | `a41dd3b1-8380-4fdf-9e57-ec998c6e7dbc` | `66e9fe43-1191-4201-97dd-dde758a3bad0` |
+| Combos Coca — Só oferta boa (story) | `9c52070f-76ac-4325-bfdd-9a3e484745d5` | `cc0d7a55-bafc-4bde-83ab-b1af31042d2b` |
+| Entrega promocional — Oferta com preço (feed) | `96b633c1-eaa2-4aa7-af52-7097473100da` | `1abc5548-a4a6-4c17-96fc-b165ad055052` |
+| Entrega promocional — Oferta com preço (story) | `4dea1557-303d-4360-9e56-67cbf74f2043` | `59a7cd99-1293-46a5-98de-55edc146d530` |
+
+- **Regra pelo inteiro do preço (`js/00-config.js`, `gApplyRules`).** `var:'precoPor:inteiro'` (ou `:centavos`) passa a olhar só a parte do preço, via `gSplitPrice`. `maxLen 2` = "3 dígitos ou mais". O texto cheio não servia: "Por: R$ 29,90" e "Por R$ 129,00" têm o mesmo tamanho. Código antigo + dados novos = comportamento de antes (a regra não dispara), então a ordem de deploy não importa.
+- **Coca, os 4 templates:** as 5 camadas do preço partido (POR, R$, inteiro, vírgula, centavos) ganharam `hide` quando o inteiro passa de 2; 5 cópias `…-3d` (ocultas, `show` na mesma condição) trazem o arranjo de 3 dígitos — escala 0,86 na placa branca ("Oferta com preço") e 0,9 com o POR alinhado ao "DE:" ("Só oferta boa"). 1 e 2 dígitos saem **byte a byte iguais** ao de antes (comparado no render).
+- **Entrega promocional:** camada `l-eg-descricao` (`{{detalhes}}`, Roboto 700 branco, centralizada na faixa; 26 px no feed, 32 px no story) e `permissoes.detalhes` (`maxLen 80`). Usei `detalhes` e não `descricao` porque `descricao` não está em `luma.variaveis` e cairia como **obrigatório** para todo franqueado; `detalhes` é opcional e o chat já pergunta "Quer acrescentar uma descrição do produto?". Vazio = a arte de antes. A faixa laranja ganhou `lockPosition`: sem isso o Local Fit a tratava como **placa** do texto e a encolhia junto quando a descrição longa encolhia.
+- **Testado no motor real (`render.js`)**: preço 9,90 · 29,90 · 129,90 · 388,88 · 400,00 · 111,11 · vazio nos 4 Coca; descrição curta, longa (80 caracteres) e vazia nos 2 Entrega. Não abri o app logado.
+
+---
+
 ## 2026-10-28 — Bora de sushi · "Desconto com cupom" refeito: bilhete ilustrado como herói (✅ dados, sem migration)
 
 Pedido do Ryan: refazer a arte mantendo o selo e o fundo; o **cupom é o herói**; precisa aguentar desconto de 1 dígito (<10%) e desconto em **reais**; nada de selo estrelado "manjado"; bilhete mais ilustrado; selo da campanha menor; logo com respiro.

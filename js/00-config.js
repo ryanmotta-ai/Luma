@@ -559,7 +559,12 @@ function gApplyRules(layer, dados, opts){
   let out = layer; // clona só quando uma regra dispara
   layer.rules.forEach(rule=>{
     if(!rule || !rule.var || !rule.then) return;
-    const val = gResolveVar(rule.var, dados, defaults);
+    /* `precoPor:inteiro` olha só a parte inteira do preço (28/10/2026): é o que separa 3 dígitos
+       de 1–2 para a arte trocar de arranjo. O texto cheio não serve — "Por: R$ 29,90" e
+       "R$ 129,90" variam de tamanho pelo rótulo, não pelo valor. */
+    const fmt = /^(\w+):(inteiro|centavos)$/.exec(rule.var);
+    const val = fmt ? gSplitPrice(gResolveVar(fmt[1], dados, defaults))[fmt[2]]
+                    : gResolveVar(rule.var, dados, defaults);
     const str = String(val==null?'':val);
     let cond = false;
     if(rule.when === 'empty')      cond = (str.trim() === '');

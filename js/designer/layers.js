@@ -1766,7 +1766,9 @@ function dSetBinding(prop,varName){
 function dRenderRules(l){
   const wrap=document.getElementById('d-rules-list'); if(!wrap)return;
   const rules=l.rules||[];
-  const varOpts=(cur)=>'<option value="">var…</option>'+dVars.map(v=>`<option value="${v.name}" ${v.name===cur?'selected':''}>${v.name}</option>`).join('');
+  // `precoPor:inteiro` não está no catálogo: sem a opção extra a regra aparecia como "var…".
+  const extra=(cur)=>cur&&!dVars.some(v=>v.name===cur)?`<option value="${gEsc(cur)}" selected>${gEsc(cur)}</option>`:'';
+  const varOpts=(cur)=>'<option value="">var…</option>'+extra(cur)+dVars.map(v=>`<option value="${v.name}" ${v.name===cur?'selected':''}>${v.name}</option>`).join('');
   const whenOpts=(cur)=>['empty','filled','maxLen'].map(w=>{const lbl={empty:'vazio',filled:'preenchido',maxLen:'passar de'}[w];return `<option value="${w}" ${w===cur?'selected':''}>${lbl}</option>`;}).join('');
   const thenOpts=(cur)=>['hide','show','shrinkFont','shiftX','shiftY'].map(t=>{const lbl={hide:'ocultar',show:'mostrar',shrinkFont:'reduzir fonte',shiftX:'mover X',shiftY:'mover Y'}[t];return `<option value="${t}" ${t===cur?'selected':''}>${lbl}</option>`;}).join('');
   

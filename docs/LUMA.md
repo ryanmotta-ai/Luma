@@ -242,7 +242,7 @@ Fonte de verdade única em `js/00-config.js`, compartilhada entre designer (simu
 - **Catálogo `dVars`** (array global, persistido em `yngs_vars_v1` + tabela `luma.variaveis`). Entrada: `{name, label, type, defaultValue?, example?, required, options?, palette?, maxLen?, category}`. Categorias (`DFIELD_CATS`): produto, preco, campanha, midia, outros. Tipos (`DFIELD_TYPES`, com rótulo humano + ícone SVG): `text`, `number`, `currency`, `date`, `image`, `select`, `color`, `boolean`.
 - **Interpolador `gInterpolate(content, dados, opts)`**: troca `{{nome}}` por `dados[nome]` → `opts.defaults[nome]`; `opts.onEmpty:'remove'|'keep'`. Helpers: `gVarDefaults()`, `gAllVarsEmpty()` (todos os tokens vazios → layer não renderiza, evita "R$" órfão), `gTruthy`, `gResolveVar`, `gFieldSampleValue` (valor de exemplo por tipo), `gFieldSlugify` (rótulo → slug único).
 - **Bindings** `l.bindings = {prop: varName}` via `gApplyBindings` — resolve props (fill, visible…) a partir dos campos. Só se aplica com dados (PNG/simulação), não no editor cru.
-- **Regras** `l.rules = [{when:'empty'|'filled'|'maxLen', var, value?, then:'hide'|'show'|'shrinkFont'}]` via `gApplyRules`.
+- **Regras** `l.rules = [{when:'empty'|'filled'|'maxLen', var, value?, then:'hide'|'show'|'shrinkFont'|'shiftX'|'shiftY'}]` via `gApplyRules`. `var` aceita `preco:inteiro`/`preco:centavos` (olha só aquela parte do preço; `maxLen 2` = 3 dígitos ou mais).
 - **Auto-criação**: `dSyncVarsFromContent` varre `{{tokens}}` novos e adiciona ao catálogo (edição inline + imports PSD/SVG).
 - **Sync backend**: `dPersistVars` (cache local) + `dPushVarsToBackend` (upsert por `name`, **não-destrutivo** — remoção só explícita via `dDeleteVarFromBackend`); `dSyncVarsFromBackend` no boot com merge.
 
