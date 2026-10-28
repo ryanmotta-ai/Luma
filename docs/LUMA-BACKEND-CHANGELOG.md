@@ -16,6 +16,7 @@ Pedido do Ryan: pegar as artes do canvas "Festival do Xis — versões finais" q
   - Festival do Xis — Lojas participantes · feed `925fbdb3-aa97-4d3e-a1f1-cd2a57b118d3` · story `50208b4d-87e5-47ce-829c-355dd569150d` (15 layers: até 4 lojas, cada uma com logo `logo_loja_N` + nome `loja_N`; slot vazio some, sem reflow).
 - **Campos novos** em `luma.variaveis` (todos opcionais): `loja_1..4` (texto, 24) e `logo_loja_1..4` (imagem).
 - **Assets**: `assets/campanhas/festival-do-xis/{main,lojas}-{feed,story}-v1.jpg` (fundo+título+foto+selos, render 2×), `assets/banners/fdx.png` (1528×408, 2×), `assets/covers/fdx.jpg` (1500×900).
+- **Visitante (link para slide)**: `luma.pastas.visitante=true` na pasta `fdx` → `https://ryanmotta-ai.github.io/Luma/?visitante=1&camp=fdx` abre a campanha sem login (RPC `luma_visitante_catalogo`). Para tirar: `update luma.pastas set visitante=false where camp_id='fdx'`.
 - **Como reverter**: templates novos nascem na versão 1 → `delete from luma.templates where pasta_id='044d1456-1c38-44fa-acb8-728222c48e95'`, depois `delete from luma.pastas where id='044d1456-1c38-44fa-acb8-728222c48e95'` e `delete from luma.variaveis where name ~ '^(logo_)?loja_[1-4]$'`; `git rm` dos assets e da semente `fdx`.
 
 ---
