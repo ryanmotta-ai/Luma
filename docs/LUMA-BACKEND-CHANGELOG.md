@@ -23,7 +23,9 @@ Pedido do Ryan: refazer a arte mantendo o selo e o fundo; o **cupom é o herói*
 
 ---
 
-## 2026-10-28 — Cadastro de franqueado pelo Google Forms (⏳ deploy com o Pedro, sem migration)
+## 2026-10-28 — Cadastro de franqueado pelo Google Forms (✅ no ar, `invite-user` v16, sem migration)
+
+> Conferido em 28/10, 16:23: conta criada pelo Form nasceu `franqueado`, com nome e telefone, e-mail confirmado; a pessoa entrou com `dmbrasil` e escolheu a franquia.
 
 Pedido do Pedro: um Form (nome, telefone, e-mail) mandado no WhatsApp, e o acesso criado sozinho a partir dele. Decisão dele: **criar na hora, sem aprovação da gestão** — risco aceito de que quem tiver o link ganha conta de franqueado.
 
