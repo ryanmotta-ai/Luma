@@ -7,23 +7,59 @@
    Risco aceito (decisão do Pedro): quem tiver o link do Form ganha acesso — mande o link só
    para franqueados.
 
-   INSTALAR (uma vez, dentro do Form):
-   1. Três perguntas de "Resposta curta", todas obrigatórias. O título precisa COMEÇAR com
-      "Nome", "Telefone" (ou "WhatsApp"/"Celular") e "E-mail".
-      No E-mail: ⋮ da pergunta › Validação de resposta › Texto › E-mail.
-      Em Configurações › Respostas › Coletar endereços de e-mail: "Não coletar" (senão o
-      Form exige login Google, e o e-mail vem da pergunta acima).
-   2. ⋮ (no topo do Form) › Editor de scripts. Apague o que vier, cole este arquivo, salve.
-   3. Engrenagem (Configurações do projeto) › Propriedades do script › Adicionar:
-      CADASTRO_FORMS_SEGREDO = o mesmo valor gravado no Supabase.
-   4. Relógio (Acionadores) › Adicionar acionador: função cadastroAoEnviar · origem
-      "Do formulário" · evento "Ao enviar o formulário". Autorize com a sua conta.
-   5. No Form: Configurações › Apresentação › Mensagem de confirmação (texto pronto em
-      docs/LUMA-BACKEND-CHANGELOG.md, 28/10/2026).
-   Falhou criar uma conta? Chega um e-mail para quem criou o acionador, com o motivo.
+   INSTALAR (uma vez; o script monta o Form sozinho — o conector do Google não cria Forms):
+   1. script.google.com › Novo projeto. Apague o que vier, cole este arquivo, salve.
+   2. Escolha a função criarFormDoLuma › Executar › autorize com a sua conta.
+   3. No "Registro de execução" saem: o link curto para o WhatsApp, o link de edição e o
+      comando `supabase secrets set …` com o segredo que o script acabou de gerar.
+   Rodar de novo não cria outro Form: só repete os links e refaz o acionador.
+   Falhou criar uma conta? Chega um e-mail para quem rodou o passo 2, com o motivo.
    E-mail que já tinha conta não é falha: a pessoa já tem acesso.
    ============================================================ */
 const LUMA_CADASTRO_URL = 'https://xqsazcazsjxajmtmirzd.supabase.co/functions/v1/invite-user';
+const LUMA_APP_URL = 'https://luma-deliverymuch.vercel.app';
+
+function criarFormDoLuma() {
+  const props = PropertiesService.getScriptProperties();
+  let form = null;
+  try { if (props.getProperty('FORM_ID')) form = FormApp.openById(props.getProperty('FORM_ID')); } catch (x) {}
+  if (!form) {
+    form = FormApp.create('Acesso ao Luma — Delivery Much');
+    form.setDescription('Preencha para receber o seu acesso ao Luma, a ferramenta de artes da Delivery Much. Leva 1 minuto.');
+    form.addTextItem().setTitle('Nome completo').setRequired(true);
+    form.addTextItem().setTitle('Telefone (WhatsApp)').setHelpText('Com DDD, ex.: (55) 99999-9999').setRequired(true)
+      .setValidation(FormApp.createTextValidation().requireTextMatchesPattern('^[0-9()+\\-\\s]{10,20}$')
+        .setHelpText('Digite o telefone com DDD.').build());
+    form.addTextItem().setTitle('E-mail').setHelpText('É com este e-mail que você vai entrar no Luma.').setRequired(true)
+      .setValidation(FormApp.createTextValidation().requireTextIsEmail().setHelpText('Digite um e-mail válido.').build());
+    form.setConfirmationMessage('Pronto! Seu acesso ao Luma foi criado. Entre em ' + LUMA_APP_URL +
+      ' com este e-mail e a senha dmbrasil. No primeiro acesso, o Luma pede para você criar a sua própria senha.' +
+      ' Se você já tinha acesso, use a senha de sempre.');
+    form.setCollectEmail(false);          // o e-mail vem da pergunta; coletar exigiria login Google
+    form.setAllowResponseEdits(false);
+    form.setShowLinkToRespondAgain(false);
+    props.setProperty('FORM_ID', form.getId());
+  }
+  // Franqueado é de fora do domínio da DM: sem isto o Workspace pode exigir login da empresa.
+  try { form.setRequireLogin(false); } catch (x) {}
+  // Forms novos nascem sem publicar (mudança do Google em 2025); versões antigas não têm o método.
+  if (typeof form.setPublished === 'function') form.setPublished(true);
+  form.setAcceptingResponses(true);
+
+  if (!props.getProperty('CADASTRO_FORMS_SEGREDO')) {
+    props.setProperty('CADASTRO_FORMS_SEGREDO',
+      Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, ''));
+  }
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'cadastroAoEnviar') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('cadastroAoEnviar').forForm(form).onFormSubmit().create();
+
+  console.log('Link para o WhatsApp: ' + form.shortenFormUrl(form.getPublishedUrl()));
+  console.log('Editar o Form: ' + form.getEditUrl());
+  console.log('Rode no terminal: supabase secrets set CADASTRO_FORMS_SEGREDO=' +
+    props.getProperty('CADASTRO_FORMS_SEGREDO') + ' --project-ref xqsazcazsjxajmtmirzd');
+}
 
 function cadastroAoEnviar(e) {
   const r = {};

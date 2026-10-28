@@ -12,28 +12,21 @@ Pedido do Pedro: um Form (nome, telefone, e-mail) mandado no WhatsApp, e o acess
 
 - **`invite-user` ganhou uma segunda porta.** Com o header `x-cadastro-segredo` igual ao secret `CADASTRO_FORMS_SEGREDO` (≥ 32 caracteres; ausente ou curto = porta fechada), cria a conta sem JWT e **sempre como `franqueado`** — o corpo não escolhe role. A porta da gestão não mudou. Nome cortado em 120 e telefone em 30 caracteres nas duas portas.
 - **`verify_jwt = false`** para a `invite-user` (`supabase/config.toml`): o Apps Script não tem JWT. A porta da gestão segue validando o JWT dentro da função (`getUser`), como antes.
-- **Apps Script do Form:** `scripts/cadastro-forms.gs` (passo a passo de instalação no cabeçalho). Falha ao criar → e-mail para quem instalou o acionador; e-mail que já tinha conta não é falha.
+- **Apps Script do Form:** `scripts/cadastro-forms.gs`. O conector do Google não cria Forms, então o script monta tudo ao rodar `criarFormDoLuma` uma vez em script.google.com: as 3 perguntas com validação, a mensagem de confirmação, o acionador e o segredo; no registro saem o link curto do Form e o `supabase secrets set`. Rodar de novo não duplica o Form. Falha ao criar conta → e-mail para quem rodou o script; e-mail que já tinha conta não é falha.
 - Mesma função de antes: senha inicial `dmbrasil` num lugar só (amarrada a `luma.usa_senha_inicial()`); a franquia a pessoa escolhe no 1º login (`gFranquiaIniciar`).
 
 **Deploy (Pedro):**
 
 ```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"   # gera o segredo — copie
-supabase secrets set CADASTRO_FORMS_SEGREDO=<segredo> --project-ref xqsazcazsjxajmtmirzd
+supabase secrets set CADASTRO_FORMS_SEGREDO=<o do registro do criarFormDoLuma> --project-ref xqsazcazsjxajmtmirzd
 supabase functions deploy invite-user --project-ref xqsazcazsjxajmtmirzd --use-api --no-verify-jwt
 ```
-
-O mesmo segredo vai nas Propriedades do script do Form (`CADASTRO_FORMS_SEGREDO`).
 
 **Conferir:** `curl -X POST .../functions/v1/invite-user` sem nada deve responder **401 "não autenticado"** (vem da função, então o `verify_jwt` saiu e a porta da gestão está de pé); antes do deploy o 401 vem do gateway, com outra mensagem. Depois, um envio de teste pelo Form com e-mail descartável → a conta aparece em `profiles` como `franqueado`, com nome e telefone → apagar no Dashboard. Convidar membro pela gestão continua funcionando.
 
 **Desligar:** `supabase secrets unset CADASTRO_FORMS_SEGREDO --project-ref xqsazcazsjxajmtmirzd` — a porta do Form fecha na hora; a da gestão não muda.
 
-**Mensagem de confirmação do Form** (Configurações › Apresentação):
-
-> Pronto! Seu acesso ao Luma foi criado. Entre em https://luma-deliverymuch.vercel.app com este e-mail e a senha **dmbrasil**. No primeiro acesso, o Luma pede para você criar a sua própria senha. Se você já tinha acesso, use a senha de sempre.
-
-**Texto para o WhatsApp:**
+**Texto para o WhatsApp** (a mensagem de confirmação do Form já vem do script):
 
 > Oi! Para liberar seu acesso ao Luma, a ferramenta de artes da Delivery Much, preencha este formulário (leva 1 minuto): <link do Form>. Assim que você enviar, o acesso já fica pronto.
 
