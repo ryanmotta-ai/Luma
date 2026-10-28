@@ -51,3 +51,11 @@ Ordem do array = ordem de pintura (primeiro = fundo). Camada de fundo: `layoutRo
 
 ## O que o motor NÃO faz (planeje em volta)
 Reflow automático · alinhamento vertical embaixo/meio com crescimento controlado · texto em arco · sombra com spread fino · blend avançado fora do Estúdio. Para o que falta: duplicar layers com regras, forma vetorial, PNG decorativo no repositório.
+
+## Achados do bilhete de cupom (28/10/2026)
+- **Regras `shiftX`/`shiftY`** existem (`then:'shiftY', value:'188'`): em vez de duplicar o grupo inteiro para o caso "campo vazio", desloque as camadas que mudam de lugar. Em peça inclinada some o desvio com `shiftX = −d·sen(θ)`, `shiftY = d·cos(θ)`.
+- **Tracejado e pontilhado nativos**: `strokeW` + `strokeColor` + `strokeDash:[traço,vão]` + `strokeCap` num path (fechado ou aberto). Pontilhado = `strokeDash:[0.1,36]` com `strokeCap:'round'` e `strokeW` = diâmetro. Um layer no lugar de dezenas (o JSON do tracejado por retângulos passava de 14 KB).
+- **Piso de hierarquia por família**: texto cujo `name`/`id`/`content` casa preço|valor|desconto|cupom|R$ entra numa família só; uma camada não encolhe abaixo do degrau menor **da família**. Código (140) maior que desconto (122) travava o código em 122 e o Local Fit bloqueava com 10 caracteres. **Mesmo `fontSize` nas duas** ⇒ sem piso entre elas e o campo longo só encolhe até 50 %.
+- **Reduzir um PNG de fundo** (ex.: o selo): ponha um retângulo da cor chapada embaixo e escale a imagem — a emenda some se a cor for idêntica (medir com `medir.js cor`).
+- **Preço partido num layer só**: `R${{x:inteiro}},{{x:centavos}}` vira runs (R$ e centavos pequenos e suspensos). Centralizado, aguenta 1 a 3 dígitos sem nada fixo ao lado.
+- **Percentual × reais** do campo `desconto`: o chat normaliza para "20% off" ou "R$ 5,00 off". Distinga por tamanho (`maxLen 9`), nunca 7 ("100% off" tem 8).

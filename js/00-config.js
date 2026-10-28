@@ -63,6 +63,9 @@ function gPastaSistema(f){
   return null;
 }
 const CAMPS_ATIVAS=[
+  /* Festival do Xis (13–15/11/2026): semente só para o `banner` do Calendário — nome, capa e materiais vêm da pasta `fdx` no banco. */
+  {id:'fdx',name:'Festival do Xis',color:'#F85400',count:2,badge:'NOVO',expiraDias:18,popular:false,cover:'assets/covers/fdx.jpg',banner:'assets/banners/fdx.png',
+   previewProd:'FESTIVAL DO XIS',previewDe:'',previewPor:'13 A 15/11',perguntas:[]},
   {id:'muchplus',name:'Much+ Benefícios',color:'#FFB900',count:4,badge:'',expiraDias:90,popular:true,theme:'muchplus',cover:'assets/covers/muchplus.png',
    previewProd:'CLUBE MUCH+',previewDe:'',previewPor:'MAIS BENEFÍCIOS',
    perguntas:[

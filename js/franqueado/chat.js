@@ -3158,6 +3158,11 @@ function fGerarArte(){
             <button type="button" class="art-btn pri art-download" onclick="fBaixar(this,'${previewCanvasId}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="4" x2="12" y2="16"/><polyline points="18 11 12 17 6 11"/><path d="M5 20h14"/></svg>Baixar PNG</button>
             <button type="button" class="art-btn art-redo" onclick="fRefazer()" title="Reiniciar as respostas desta arte"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refazer</button>
           </div>
+          <!-- Story animado (franqueado/motion.js): so em arte 9:16, com WebCodecs e com a chave
+               franqueado.export.video ligada. Secundario de proposito: o PNG continua a entrega
+               principal, o video e a mesma arte com movimento. Sem crase aqui (template literal). -->
+          ${(typeof fMotionDisponivel==='function' && fMotionDisponivel() && fMotionEhStory(fState.material, fState.fmt)
+             && (typeof gFeatureCan!=='function' || gFeatureCan('franqueado.export.video','execute')))?`<button type="button" class="art-btn art-video" onclick="fBaixarVideo(this,'${previewCanvasId}')" title="A mesma arte com movimento, em MP4 de 8 segundos"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="15" height="14" rx="2.5"/><path d="M17 10l5-3v10l-5-3z"/></svg>Baixar vídeo</button>`:''}
           <!-- ATENÇÃO: comentário DENTRO de template literal — nada de crase aqui.
                ⛔ NÃO EXISTE "Publicar no Instagram" AQUI, e é deliberado (Ryan, 11/09).
                O botão chegou a existir por algumas horas nesta mesma data e saiu: publicação
