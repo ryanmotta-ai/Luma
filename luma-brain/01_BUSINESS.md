@@ -52,7 +52,7 @@ Helpers no código: `gIsAdmin()` = `equipe_dm` **ou** `gestao`; `gIsSuperAdmin()
 - ⛔ **O role vem sempre de `profiles.role` (servidor), nunca do metadata do JWT.** Não confie em claim do token para decidir permissão.
 - ⛔ **Franqueado não vê o Estúdio.** O gate por role esconde a aba no front e a RLS protege o conteúdo no banco. Analytics não possui dashboard no app; a gestão consulta por SQL/BI.
 - ⛔ **Escrita de conteúdo (template/campo/asset) é só `equipe_dm`/`gestao`** (`is_designer()` no backend). Franqueado só **lê** o que foi publicado e **escreve o próprio histórico de artes**.
-- Criação/exclusão de usuário é feita **direto no Dashboard do Supabase** (decisão vigente) — não há tela de admin de usuários no Luma que crie contas.
+- Conta nasce por **duas portas**, as duas pela Edge Function `invite-user` (senha inicial `dmbrasil`, troca obrigatória no 1º acesso): a gestão em **Convidar membro** (franqueado ou equipe_dm), ou o **Google Forms de cadastro** (desde 28/10/2026, decisão do Pedro), que cria na hora e **sempre como franqueado**. ⚠️ Risco aceito: quem tiver o link do Form ganha acesso — o link vai só para franqueados. Exclusão segue no Dashboard do Supabase.
 - ⚠️ `equipe_dm` tem `departamento`, mas o Luma **não** segmenta acesso por departamento hoje (isso é regra do Portal, não do Luma).
 
 ---

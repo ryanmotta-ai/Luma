@@ -13,6 +13,12 @@
 //      (promoção a gestão é manual, decisão registrada no schema).
 // O trigger handle_new_user cria o profile como 'franqueado' (padrão seguro,
 // não confia em metadata); o UPDATE abaixo, já autorizado, define o role real.
+//
+// SEGUNDA PORTA — cadastro pelo Google Forms (28/10/2026, decisão do Pedro): o Apps Script do
+// Form (scripts/cadastro-forms.gs) manda o header x-cadastro-segredo e a conta nasce na hora,
+// SEM passar pela gestão e SEMPRE como franqueado. Risco aceito: quem tiver o link do Form
+// ganha acesso. Por isso esta função roda com verify_jwt = false (supabase/config.toml): o
+// Apps Script não tem JWT, e a porta da gestão continua validando o JWT aqui dentro (getUser).
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 // Chave da API: desde a migração de projeto (10/2026) o Luma usa as chaves novas (sb_publishable_ /
@@ -33,6 +39,16 @@ function chaveApi(novas: string, legada: string): string {
 // banco `luma.usa_senha_inicial()`. ⚠ Mudou a senha aqui? Mude naquela função também.
 const SENHA_PADRAO = "dmbrasil";
 
+// Segredo ausente ou curto = porta do Form FECHADA (nunca compara com vazio). Comparação em
+// tempo constante para o segredo não vazar pela demora da resposta.
+function segredoDoFormConfere(recebido: string | null): boolean {
+  const certo = Deno.env.get("CADASTRO_FORMS_SEGREDO") ?? "";
+  if (certo.length < 32 || !recebido || recebido.length !== certo.length) return false;
+  let dif = 0;
+  for (let i = 0; i < certo.length; i++) dif |= certo.charCodeAt(i) ^ recebido.charCodeAt(i);
+  return dif === 0;
+}
+
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
@@ -48,19 +64,24 @@ Deno.serve(async (req) => {
     const url = Deno.env.get("SUPABASE_URL")!;
     const admin = createClient(url, chaveApi("SUPABASE_SECRET_KEYS", "SUPABASE_SERVICE_ROLE_KEY"));
 
-    // 1) Quem chama? (valida o JWT do caller com o client anon + header)
-    const caller = createClient(url, chaveApi("SUPABASE_PUBLISHABLE_KEYS", "SUPABASE_ANON_KEY"), {
-      global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
-    });
-    const { data: { user } } = await caller.auth.getUser();
-    if (!user) return json({ error: "não autenticado" }, 401);
+    const viaForm = segredoDoFormConfere(req.headers.get("x-cadastro-segredo"));
+    if (!viaForm) {
+      // 1) Quem chama? (valida o JWT do caller com o client anon + header)
+      const caller = createClient(url, chaveApi("SUPABASE_PUBLISHABLE_KEYS", "SUPABASE_ANON_KEY"), {
+        global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
+      });
+      const { data: { user } } = await caller.auth.getUser();
+      if (!user) return json({ error: "não autenticado" }, 401);
 
-    // 2) Só gestão convida
-    const { data: me } = await admin.from("profiles").select("role").eq("id", user.id).single();
-    if (me?.role !== "gestao") return json({ error: "sem permissão — só a gestão convida membros" }, 403);
+      // 2) Só gestão convida
+      const { data: me } = await admin.from("profiles").select("role").eq("id", user.id).single();
+      if (me?.role !== "gestao") return json({ error: "sem permissão — só a gestão convida membros" }, 403);
+    }
 
-    // 3) Entrada
-    const { email, nome, role, telefone } = await req.json().catch(() => ({}));
+    // 3) Entrada — pelo Form o role é fixo: o corpo não escolhe permissão
+    const body = await req.json().catch(() => ({}));
+    const { email, nome, telefone } = body;
+    const role = viaForm ? "franqueado" : body.role;
     if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
       return json({ error: "e-mail inválido" }, 400);
     if (!["franqueado", "equipe_dm"].includes(role))
@@ -72,7 +93,7 @@ Deno.serve(async (req) => {
       email: email.trim(),
       password: SENHA_PADRAO,
       email_confirm: true,
-      user_metadata: { nome: (nome ?? "").toString().trim() },
+      user_metadata: { nome: (nome ?? "").toString().trim().slice(0, 120) },
     });
     if (invErr) {
       const msg = /already.*registered|already.*exists|duplicate/i.test(invErr.message)
@@ -82,9 +103,10 @@ Deno.serve(async (req) => {
 
     // 5) Ajusta o profile criado pelo trigger (role real + telefone opcional)
     const patch: Record<string, unknown> = { role };
-    const nomeStr = (nome ?? "").toString().trim();
+    // Cortes: pelo Form o texto chega de qualquer pessoa, sem o limite da tela da gestão
+    const nomeStr = (nome ?? "").toString().trim().slice(0, 120);
     if (nomeStr) patch.nome = nomeStr;
-    const telStr = (telefone ?? "").toString().trim();
+    const telStr = (telefone ?? "").toString().trim().slice(0, 30);
     if (telStr) patch.telefone = telStr;
     const { error: upErr } = await admin.from("profiles").update(patch).eq("id", created.user.id);
     if (upErr) return json({ error: "conta criada, mas falhou ao gravar o perfil: " + upErr.message }, 500);
