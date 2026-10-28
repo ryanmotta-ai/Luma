@@ -873,14 +873,14 @@ async function fRenderTemplateLayers(ctx, layers, W, H, dados, camp, materialOve
       if(actualParent!==parentId)continue;
       if(l.type==='group')await _fRenderGroup(target,l);
       else if(l.type==='adjustment')await _fRenderAdjustment(target,l);
-      else if(_jaResolvido&&((l._fxEscala>0&&l._fxEscala!==1)||l._fxDx||l._fxDy)){
+      else if(_jaResolvido&&((l._fxEscala>0&&l._fxEscala!==1)||l._fxDx||l._fxDy||l._fxGiro)){
         /* Escala VISUAL do quadro de transição: o texto é desenhado com a tipografia final e
            a camada inteira cresce ou encolhe em volta de (_fxOx,_fxOy). Interpolar o corpo
            faria o `gFitTextLayer` re-quebrar a cada tamanho intermediário — palavra pulando
            de linha no meio da animação. Assim a quebra é a final desde o primeiro quadro. */
-        // `_fxDx/_fxDy`: o deslocamento do quadro do Story animado (franqueado/motion.js).
+        // `_fxDx/_fxDy/_fxGiro`: deslocamento e giro (graus) do quadro do Story animado (franqueado/motion.js).
         const s=l._fxEscala>0?l._fxEscala:1, ox=+l._fxOx||0, oy=+l._fxOy||0;
-        target.save(); target.translate((+l._fxDx||0)+ox,(+l._fxDy||0)+oy); target.scale(s,s); target.translate(-ox,-oy);
+        target.save(); target.translate((+l._fxDx||0)+ox,(+l._fxDy||0)+oy); if(l._fxGiro) target.rotate(l._fxGiro*Math.PI/180); target.scale(s,s); target.translate(-ox,-oy);
         try{ await _fRenderLeaf(target,l); } finally { target.restore(); }
       }
       else await _fRenderLeaf(target,l);

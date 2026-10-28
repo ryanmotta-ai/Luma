@@ -38,7 +38,7 @@
 | Colar (Ctrl/⌘+V) e arrastar arquivo para dentro do chat | `js/franqueado/chat.js` (`fReceberFotoNoChat`, `_fInitChatSoltarColar`) — duas portas para o `fProcessImageFile`, que continua o motor único de imagem |
 | Prévia ao vivo, gaveta da prévia no celular, zoom da prévia | `js/franqueado/live-preview.js` |
 | Como o PNG/JPG/PDF é desenhado e baixado | `js/franqueado/png-generator.js` |
-| **Story animado (MP4)** — coreografia lida da arte, encoder, muxer, botão "Baixar vídeo" | `js/franqueado/motion.js` (`fBaixarVideo` → `fGenMP4`). ⛔ Não é segundo render: cada quadro é `fRenderTemplateLayers` com `resolvido:true` + `_fxDx/_fxDy/_fxEscala` |
+| **Story animado (MP4)** — a coreografia de cada arte (marca, título, painel, revela, forma+carona, adesivo, faixa), encoder, muxer, botão "Baixar vídeo" | `js/franqueado/motion.js` (`_fMotionPlano` decide o tipo de cada peça; `fBaixarVideo` → `fGenMP4`). ⛔ Não é segundo render: cada quadro é `fRenderTemplateLayers` com `resolvido:true` + `_fxDx/_fxDy/_fxEscala/_fxGiro` |
 | Sheets / geração em massa (folha, fila de ofertas, rascunho) | `js/franqueado/png-generator.js` (`_fBulk*`, a partir da linha ~1300) |
 | Legendas sugeridas do post (combinatório, **não é IA**) | `js/franqueado/png-generator.js:4435` (`fBuildCopy`, bancos em `_COPY_BLOCKS:4016`) |
 | Postar no Instagram / enviar no WhatsApp | `js/franqueado/png-generator.js` (`fPostarInstagram`, `fEnviarWhatsApp`) |

@@ -5,14 +5,15 @@
  * ---------------------------------------------------------------------------
  * Pedido do Ryan: todo Story com motion, animação PRÉ-DEFINIDA, download em MP4 de alta
  * qualidade. Decisões dele na mesma conversa: a animação é AUTOMÁTICA e sai dos componentes
- * de CADA arte (ordem de leitura e posição de cada peça — ver `_fMotionPlano`), sutil, sem
- * preço pulando; o franqueado não escolhe estilo; 8 s em 1080×1920 a 60 fps, com a entrada
- * terminando em ~2 s para sobrar tempo de ler a oferta.
+ * de CADA arte — ela se monta peça por peça, cada peça do jeito do que ela é (referência
+ * "Festival do Xis"; ver `_fMotionPlano`), sutil, sem preço pulando; o franqueado não escolhe
+ * estilo; 8 s em 1080×1920 a 60 fps, com a montagem terminando em ~2,5 s para sobrar tempo de
+ * ler a oferta.
  *
  * ⛔ NÃO É UM SEGUNDO RENDER. Cada quadro passa pelo motor único (`fRenderTemplateLayers`)
  * com `resolvido:true` — o mesmo gancho que a prévia usa para o deslize (`_fLpCinema`): o
  * encaixe, as regras e o Local Fit rodam UMA vez (`soLayout`), e cada quadro só desenha clones
- * com `_fxEscala/_fxDx/_fxDy` e a opacidade da vez. Por isso o vídeo é, quadro a quadro, a
+ * com `_fxEscala/_fxDx/_fxDy/_fxGiro` e a opacidade da vez. Por isso o vídeo é, quadro a quadro, a
  * mesma arte do PNG — o último quadro é o PNG.
  *
  * ⛔ ZERO DEPENDÊNCIA. O H.264 sai do `VideoEncoder` do próprio navegador (WebCodecs) e o
@@ -32,7 +33,6 @@
 
 const F_MOTION_FPS = 60;
 const F_MOTION_SEG = 8;
-const F_MOTION_ENTRADA = 2;      // s — tudo assentado aqui; o resto é a oferta parada para ler
 const F_MOTION_BITRATE = 20e6;   // ~20 Mbps: o Instagram re-encoda, então o que mandamos é o teto dele
 // High 4.2 cobre 1080×1920 a 60 fps (8.160 macroblocos/quadro); os outros são rede para
 // encoder que não fala High (hardware antigo, alguns Android).
@@ -53,8 +53,9 @@ function fMotionEhStory(material, fmt){
 
 /* ── CURVAS ──────────────────────────────────────────────────────────────────── */
 const _fMoSuave = x => 1 - Math.pow(1 - x, 4);   // sai rápido e pousa devagar, sem passar do ponto
-const _fMoInOut = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 const _fMoProg = (t, ini, dur) => Math.max(0, Math.min(1, (t - ini) / dur));
+// Só para adesivo: passa ~4 % do ponto e volta, o "pop" da referência. Preço e texto nunca usam.
+const _fMoAssenta = x => { const c1 = .9, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
 
 /* ── O PLANO: que camada faz o quê ──────────────────────────────────────────────
    Unidade = o que se move junto. Grupo pass-through se abre (cada filho é unidade); grupo de
@@ -94,16 +95,19 @@ function _fMotionPlano(layers, W, H){
   });
   monta(null);
 
-  // Clipping acompanha a base.
+  /* Clipping. Base que é CENÁRIO (o fundo nunca para) leva o recortado junto. Base que assenta
+     (card, placa) deixa o recortado virar unidade própria, que REVELA por dentro dela depois —
+     a foto que sobe dentro do card na referência do Ryan (28/10). */
   const unidadeDaFolha = new Map();
   unidades.forEach(u => u.folhas.forEach(f => unidadeDaFolha.set(f.id, u)));
   unidades.forEach(u => {
     if(u.raiz.type === 'group' || !u.raiz.clipBaseId) return;
     const dona = unidadeDaFolha.get(u.raiz.clipBaseId);
-    if(dona && dona !== u){ dona.folhas.push(u.raiz); (dona.extras = dona.extras || []).push(u.raiz); u.folhas = []; }
+    if(dona && dona !== u) u.dona = dona;
   });
 
-  const plano = unidades.filter(u => u.folhas.length).map(u => {
+  const deUnidade = new Map();
+  let plano = unidades.filter(u => u.folhas.length).map(u => {
     const fs = u.folhas.filter(f => f.type !== 'adjustment');
     const x0 = Math.min(...fs.map(f => +f.x || 0)), y0 = Math.min(...fs.map(f => +f.y || 0));
     const x1 = Math.max(...fs.map(f => (+f.x || 0) + (+f.w || 0))), y1 = Math.max(...fs.map(f => (+f.y || 0) + (+f.h || 0)));
@@ -113,56 +117,150 @@ function _fMotionPlano(layers, W, H){
     // Unidade do tamanho da arte é cenário, seja qual for o papel do que está dentro: um PSD
     // inteiro num grupo de composição faria a arte toda deslizar.
     if((x1 - x0) * (y1 - y0) >= W * H * 0.85) papel = 'fundo';
-    return { raiz: u.raiz, folhas: fs, extras: u.extras || [], papel, x0, y0, x1, y1, ox: (x0 + x1) / 2, oy: (y0 + y1) / 2, topo: y0, ini: 0 };
+    const pl = { u, raiz: u.raiz, folhas: fs, extras: [], papel, x0, y0, x1, y1, ox: (x0 + x1) / 2, oy: (y0 + y1) / 2, topo: y0, ini: 0 };
+    deUnidade.set(u, pl);
+    return pl;
   });
+  plano.forEach(pl => {
+    const base = pl.u.dona && deUnidade.get(pl.u.dona);
+    if(!base) return;
+    if(base.papel === 'fundo'){ base.folhas.push(pl.raiz); base.extras.push(pl.raiz); pl.morta = true; }
+    else { pl.base = base; pl.tipo = 'revela'; }
+  });
+  plano = plano.filter(pl => !pl.morta);
 
-  /* ── A COREOGRAFIA SAI DA PRÓPRIA ARTE (Ryan, 28/10: "uma animação pra cada template, usando
-     seus componentes"; "nada de preço pulando, algo sutil"; "tempo pro pessoal ver a oferta").
-     · ORDEM: a de leitura DESTA composição (de cima para baixo, da esquerda para a direita).
-     · DIREÇÃO: cada peça chega de onde ela mora — texto encostado à esquerda vem da esquerda,
-       à direita vem da direita, no eixo central sobe um pouco; foto que sangra por uma borda
-       entra por essa borda, foto solta só assenta. Dois templates de layout diferente saem com
-       movimentos diferentes sem o designer configurar nada.
-     · INTENSIDADE: deslocamento de 1,5–4 % da arte, sem escala elástica, sem pulso. Tudo
-       assentado até F_MOTION_ENTRADA; o resto do vídeo é a oferta parada (só o fundo respira). */
-  const ordem = plano.filter(u => u.papel !== 'fundo').sort((a, b) => (a.topo - b.topo) || (a.ox - b.ox));
-  const passo = ordem.length > 1 ? Math.min(.14, (F_MOTION_ENTRADA - .9) / (ordem.length - 1)) : 0;
-  ordem.forEach((u, i) => { u.ini = .1 + i * passo; u.de = _fMoDirecao(u, W, H); });
-  /* Placa, pílula e selo vazios na tela parecem erro: decoração que CONTÉM outra unidade (o
-     centro dela cai dentro) entra junto com o conteúdo, um instante antes. */
-  plano.forEach(d => {
-    if(d.papel !== 'decoracao') return;
-    const dentro = plano.filter(u => u !== d && u.papel !== 'fundo' && u.papel !== 'decoracao'
-      && u.ox >= d.x0 && u.ox <= d.x1 && u.oy >= d.y0 && u.oy <= d.y1);
-    if(dentro.length) d.ini = Math.max(0, Math.min(...dentro.map(u => u.ini)) - .08);
+  /* ── A COREOGRAFIA SAI DOS COMPONENTES DE CADA ARTE ──────────────────────────────────────
+     Pedido do Ryan (28/10): "cada arte ter seu próprio motion", na linha da referência do
+     Festival do Xis — a arte se MONTA peça por peça, e cada peça entra do jeito do que ela é:
+       marca (logo pequeno)  → aparece primeiro
+       título                → cresce de 82 % e endireita 3°
+       painel (card grande)  → sobe; o conteúdo dele entra depois
+       foto recortada no card→ sobe POR DENTRO do card (revela)
+       forma (placa, pílula) → chega e traz o texto de dentro de carona
+       adesivo (selo, ícone) → pop com giro, no fim
+       faixa colada na borda → entra pela borda, com o texto de carona
+       texto, preço, CTA     → chegam de leve do lado onde moram, SEM pulo (Ryan: "nada de preço
+                               ficar pulando")
+       legal                 → por último
+     A ordem é a de leitura DESTA composição. Duas artes diferentes saem com movimentos
+     diferentes sem o designer configurar nada. Tudo assentado em ~2,5 s; o resto do vídeo é a
+     oferta parada para ler (só o fundo respira). */
+  const A = W * H;
+  const contem = (d, u) => u !== d && u.ox >= d.x0 && u.ox <= d.x1 && u.oy >= d.y0 && u.oy <= d.y1
+    && (u.x1 - u.x0) * (u.y1 - u.y0) < (d.x1 - d.x0) * (d.y1 - d.y0);
+  const vivos = plano.filter(u => u.papel !== 'fundo');
+  vivos.forEach(u => {
+    if(u.tipo) return;
+    const w = u.x1 - u.x0, h = u.y1 - u.y0, area = w * h;
+    const temTexto = u.folhas.some(f => f.type === 'text');
+    const ehFoto = u.folhas.some(f => f.type === 'image' || f.type === 'frame');
+    const ehConteiner = vivos.some(o => o !== u && o.papel !== 'fundo' && contem(u, o));
+    if(u.papel === 'legal') u.tipo = 'legal';
+    else if(u.papel === 'protegida' && area < A * .04 && !ehConteiner) u.tipo = 'marca';
+    else if(u.papel === 'titulo') u.tipo = 'titulo';
+    else if(!temTexto && w >= W * .6 && h < H * .3 && (u.y1 >= H - 2 || u.y0 <= 2)) u.tipo = 'faixa';
+    else if(!temTexto && area < A * .05 && !ehConteiner && u.papel !== 'produto') u.tipo = 'adesivo';
+    else if(!temTexto && !ehFoto && ehConteiner) u.tipo = area >= A * .08 ? 'painel' : 'forma';
+    else if(ehFoto) u.tipo = 'foto';
+    else if(!temTexto) u.tipo = 'forma';
+    else u.tipo = 'texto';
   });
+  /* Título em PEDAÇOS ("FESTIVAL" / "DO" / "XIS"): texto FIXO (lettering, sem campo) grande e
+     colado no bloco do título é título também — cresce como ele. Texto com campo (nome do
+     produto, preço) é conteúdo do franqueado e continua chegando como texto. */
+  const temCampo = u => u.folhas.some(f => (typeof _gLayoutTemCampo === 'function') ? _gLayoutTemCampo(f) : !!f.isVar);
+  const fonteDe = u => Math.max(0, ...u.folhas.filter(f => f.type === 'text').map(f => +f.fontSize || 0));
+  const titulos = vivos.filter(u => u.tipo === 'titulo');
+  if(titulos.length){
+    const corpo = Math.max(...titulos.map(fonteDe));
+    const tb = { y0: Math.min(...titulos.map(u => u.y0)), y1: Math.max(...titulos.map(u => u.y1)) };
+    const folga = (tb.y1 - tb.y0) * .5;
+    vivos.forEach(u => {
+      if(u.tipo === 'texto' && !temCampo(u) && fonteDe(u) >= corpo * .4 && u.y0 <= tb.y1 + folga && u.y1 >= tb.y0 - folga) u.tipo = 'titulo';
+    });
+  }
+  // Carona: o que está dentro de uma forma ou faixa viaja com ela (o preço chega NA placa).
+  vivos.forEach(u => {
+    if(u.tipo === 'revela' || u.tipo === 'forma' || u.tipo === 'faixa' || u.tipo === 'painel') return;
+    const dona = vivos.filter(d => (d.tipo === 'forma' || d.tipo === 'faixa') && contem(d, u))
+      .sort((a, b) => (a.x1 - a.x0) * (a.y1 - a.y0) - (b.x1 - b.x0) * (b.y1 - b.y0))[0];
+    if(dona) u.carona = dona;
+  });
+  vivos.forEach(u => { u.de = _fMoDe(u, W, H); u.dur = _F_MO_DUR[u.tipo] || .5; });
+
+  // Ordem de leitura: na MESMA linha (sobreposição vertical de metade da menor altura), da
+  // esquerda para a direita; senão, de cima para baixo. "DO" antes de "XIS" mesmo com o XIS
+  // começando 15 px mais alto.
+  const leitura = (a, b) => {
+    const sobre = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0), menor = Math.min(a.y1 - a.y0, b.y1 - b.y0);
+    return (sobre > menor * .5) ? (a.ox - b.ox) : (a.topo - b.topo);
+  };
+  const fim = lista => Math.max(0, ...lista.map(u => u.ini + u.dur));
+  vivos.filter(u => u.tipo === 'marca').sort(leitura).forEach((u, i) => { u.ini = .15 + i * .05; });
+  const principal = vivos.filter(u => !u.carona && ['titulo', 'texto', 'foto', 'painel', 'forma'].includes(u.tipo)).sort(leitura);
+  const passo = principal.length > 1 ? Math.min(.18, 1 / (principal.length - 1)) : 0;
+  principal.forEach((u, i) => { u.ini = .35 + i * passo; });
+  // Conteúdo de painel espera o painel quase assentar (o card chega, depois o que mora nele).
+  principal.forEach(u => {
+    const painel = principal.find(d => d.tipo === 'painel' && contem(d, u));
+    if(painel) u.ini = Math.max(u.ini, painel.ini + painel.dur * .5);
+  });
+  vivos.filter(u => u.tipo === 'revela').sort(leitura).forEach((u, i) => {
+    const b = u.base; u.ini = Math.max(.35, (b.ini || 0) + (b.dur || 0)) + i * .1;
+  });
+  const fimMontagem = fim(vivos.filter(u => ['marca', 'titulo', 'texto', 'foto', 'painel', 'forma', 'revela'].includes(u.tipo) && !u.carona));
+  const adesivos = vivos.filter(u => u.tipo === 'adesivo').sort(leitura);
+  adesivos.forEach((u, i) => { u.ini = Math.max(.35, fimMontagem - .25) + i * .12; });
+  const faixas = vivos.filter(u => u.tipo === 'faixa').sort(leitura);
+  const iniFaixa = Math.max(.35, adesivos.length ? fim(adesivos) - .3 : fimMontagem - .2);
+  faixas.forEach((u, i) => { u.ini = iniFaixa + i * .12; });
+  vivos.filter(u => u.carona).forEach(u => { u.ini = u.carona.ini + .06; });
+  const fimTudo = fim(vivos.filter(u => u.tipo !== 'legal'));
+  vivos.filter(u => u.tipo === 'legal' && !u.carona).forEach(u => { u.ini = Math.max(.35, fimTudo - .3); });
   return plano;
 }
 
-// De onde a unidade chega, lido da posição dela na arte. {dx, dy} em px; s = escala inicial.
-function _fMoDirecao(u, W, H){
-  if(u.papel === 'decoracao' || u.papel === 'protegida' || u.papel === 'legal') return { dx: 0, dy: 0, s: 1 };  // só aparece
-  const ehFoto = u.folhas.some(f => f.type === 'image' || f.type === 'frame');
-  if(ehFoto){
-    if(u.x0 <= 1 && u.x1 < W - 1) return { dx: -W * .04, dy: 0, s: 1 };
-    if(u.x1 >= W - 1 && u.x0 > 1) return { dx: W * .04, dy: 0, s: 1 };
-    if(u.y1 >= H - 1) return { dx: 0, dy: H * .03, s: 1 };
-    return { dx: 0, dy: 0, s: 1.04 };   // foto solta: assenta de leve, sem deslizar
+const _F_MO_DUR = { marca: .5, titulo: .55, texto: .5, foto: .6, painel: .6, forma: .45, faixa: .55, adesivo: .5, revela: .65, legal: .5 };
+
+// Onde a unidade começa: deslocamento (px), escala e giro (graus) iniciais — lidos da peça.
+function _fMoDe(u, W, H){
+  const zero = { dx: 0, dy: 0, s: 1, g: 0 };
+  switch(u.tipo){
+    case 'marca': case 'legal': return zero;
+    case 'titulo': return { dx: 0, dy: 0, s: .82, g: -3 };
+    case 'painel': return { dx: 0, dy: H * .06, s: 1, g: 0 };
+    case 'forma': return { dx: 0, dy: H * .02, s: .92, g: 0 };
+    case 'faixa': return u.y1 >= H - 2 ? { dx: 0, dy: H - u.y0 + 12, s: 1, g: 0 } : { dx: 0, dy: -(u.y1 + 12), s: 1, g: 0 };
+    case 'adesivo': return { dx: 0, dy: 0, s: .4, g: u.ox < W / 2 ? -12 : 12 };
+    case 'revela': return { dx: 0, dy: (u.y1 - u.y0) * .45, s: 1, g: 0 };
+    case 'foto':
+      if(u.x0 <= 1 && u.x1 < W - 1) return { dx: -W * .04, dy: 0, s: 1, g: 0 };
+      if(u.x1 >= W - 1 && u.x0 > 1) return { dx: W * .04, dy: 0, s: 1, g: 0 };
+      if(u.y1 >= H - 1) return { dx: 0, dy: H * .03, s: 1, g: 0 };
+      return { dx: 0, dy: H * .02, s: 1.03, g: 0 };   // foto solta: sobe e assenta de leve
+    default: {    // texto, preço, CTA: do lado onde mora, sem escala nem pulo
+      const cx = u.ox / W;
+      if(cx < .35) return { dx: -W * .025, dy: 0, s: 1, g: 0 };
+      if(cx > .65) return { dx: W * .025, dy: 0, s: 1, g: 0 };
+      return { dx: 0, dy: H * .015, s: 1, g: 0 };
+    }
   }
-  const cx = u.ox / W;
-  if(cx < .35) return { dx: -W * .025, dy: 0, s: 1 };
-  if(cx > .65) return { dx: W * .025, dy: 0, s: 1 };
-  return { dx: 0, dy: H * .015, s: 1 };
 }
 
-// O estado de UMA unidade no instante t (segundos): alfa, deslocamento e escala.
+// O estado de UMA unidade no instante t (segundos). `geo` = deslocamento de GEOMETRIA (revela).
 function _fMotionEstado(u, t, W, H){
-  const T = F_MOTION_SEG;
-  // Fundo: aproxima 3 % ao longo do vídeo inteiro — é o que mantém o quadro vivo na espera.
-  // (Encolher abaixo de 1 mostraria a borda.)
-  if(u.papel === 'fundo') return { a: 1, dx: 0, dy: 0, s: 1 + .03 * _fMoInOut(t / T), ox: W / 2, oy: H / 2 };
-  const e = _fMoSuave(_fMoProg(t, u.ini, .8)), de = u.de || { dx: 0, dy: 0, s: 1 };
-  return { a: e, dx: (1 - e) * de.dx, dy: (1 - e) * de.dy, s: de.s + (1 - de.s) * e };
+  /* Fundo PARADO, como na referência: a espera é para ler a oferta. E é o que deixa
+     `fGenMP4` reaproveitar o quadro final em vez de redesenhar ~5 s de arte idêntica. */
+  if(u.papel === 'fundo') return { a: 1, dx: 0, dy: 0, s: 1, g: 0 };
+  const mov = u.carona || u;           // carona usa o movimento do contêiner, com o próprio início
+  const p = _fMoProg(t, u.ini, mov.dur);
+  const e = mov.tipo === 'adesivo' ? _fMoAssenta(p) : _fMoSuave(p);
+  const de = mov.de;
+  // Faixa vem de fora da arte: aparece inteira (esmaecer na borda pareceria fantasma).
+  const a = mov.tipo === 'faixa' ? (p > 0 ? 1 : 0) : _fMoSuave(Math.min(1, p / (mov.tipo === 'revela' ? .3 : .7)));
+  if(u.tipo === 'revela') return { a, dx: 0, dy: 0, s: 1, g: 0, geo: (1 - e) * de.dy };
+  return { a, dx: (1 - e) * de.dx, dy: (1 - e) * de.dy, s: de.s + (1 - de.s) * e, g: (1 - e) * de.g,
+    ox: u.carona ? mov.ox : u.ox, oy: u.carona ? mov.oy : u.oy };
 }
 
 // Clones do quadro t. Nada do material é tocado: cada quadro nasce do resolvido.
@@ -183,8 +281,16 @@ function _fMotionQuadro(resolvidas, plano, t, W, H){
   plano.forEach(u => {
     const e = _fMotionEstado(u, t, W, H);
     const ox = e.ox != null ? e.ox : u.ox, oy = e.oy != null ? e.oy : u.oy;
-    if(e.s !== 1 || e.dx || e.dy){
-      u.folhas.forEach(f => { const o = fx.get(f.id) || {}; Object.assign(o, { _fxEscala: e.s, _fxOx: ox, _fxOy: oy, _fxDx: e.dx, _fxDy: e.dy }); fx.set(f.id, o); });
+    if(e.s !== 1 || e.dx || e.dy || e.g){
+      u.folhas.forEach(f => { const o = fx.get(f.id) || {}; Object.assign(o, { _fxEscala: e.s, _fxOx: ox, _fxOy: oy, _fxDx: e.dx, _fxDy: e.dy, _fxGiro: e.g }); fx.set(f.id, o); });
+    }
+    /* REVELA: move a GEOMETRIA, não o quadro — o recorte tem que ficar parado na base enquanto a
+       foto sobe por dentro. Sem o snapshot, o motor recorta pela base VIVA em vez do alfa
+       congelado do PSD (que andaria junto com a foto). No quadro final (geo 0) nada é tocado:
+       volta o recorte original, idêntico ao PNG. */
+    if(e.geo){
+      const l = u.raiz, o = fx.get(l.id) || {};
+      Object.assign(o, { y: (+l.y || 0) + e.geo, clipBaseSnapshot: null }); fx.set(l.id, o);
     }
     if(e.a < 1){
       // Unidade atômica (folha ou grupo de composição) esmaece inteira; a folha agregada por
@@ -279,6 +385,8 @@ async function fGenMP4(d, c, fmt, material, onProgresso){
   const resolvidas = await fRenderTemplateLayers(ctx, material.layers, W, H, d, c, material,
     { scope: 'franqueado', purpose: 'export', soLayout: true });
   const plano = _fMotionPlano(resolvidas, W, H);
+  // Depois daqui nada se mexe: o canvas fica com o quadro final e só se re-encoda.
+  const tAssenta = Math.max(0, ...plano.filter(u => u.papel !== 'fundo').map(u => u.ini + (u.carona || u).dur));
 
   const amostras = []; let avcC = null, cor = null, erro = null;
   const enc = new VideoEncoder({
@@ -298,11 +406,14 @@ async function fGenMP4(d, c, fmt, material, onProgresso){
   try{
     for(let i = 0; i < N; i++){
       if(erro) throw erro;
-      // Fundo transparente não existe em H.264: sem este preto, o "vazio" viraria lixo do quadro anterior.
-      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
-      ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, W, H);
-      await fRenderTemplateLayers(ctx, _fMotionQuadro(resolvidas, plano, i / F_MOTION_FPS, W, H), W, H, d, c, material,
-        { scope: 'franqueado', purpose: 'export', resolvido: true });
+      const t = i / F_MOTION_FPS, parado = t > tAssenta + 1 / F_MOTION_FPS && i > 0;
+      if(!parado){
+        // Fundo transparente não existe em H.264: sem este preto, o "vazio" viraria lixo do quadro anterior.
+        ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, W, H);
+        await fRenderTemplateLayers(ctx, _fMotionQuadro(resolvidas, plano, t, W, H), W, H, d, c, material,
+          { scope: 'franqueado', purpose: 'export', resolvido: true });
+      }
       const quadro = new VideoFrame(cv, { timestamp: Math.round(i * US), duration: Math.round(US) });
       enc.encode(quadro, { keyFrame: i % F_MOTION_FPS === 0 });   // chave a cada 1 s: o player pula sem travar
       quadro.close();
