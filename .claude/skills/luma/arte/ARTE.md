@@ -77,6 +77,7 @@ Estrutura da resposta (curta, PT-BR): **o que ficou** (3–6 bullets com as deci
 - Não pergunte o que o código ou o banco respondem.
 
 ## Erros que já custaram caro (não repita)
+- **Fonte fora de Realce + Roboto** — nem quando o pedido é "fora do comum" e a fonte já está registrada no Luma (Obviously, Nek Salma…). O Ryan cortou na hora (Black Bumerangue, 28/10/2026). O peso vem da composição, não da família.
 - Gravar no banco antigo (pausado) ou esquecer de conferir o `.mcp.json`.
 - Apontar template para asset que **ainda não foi pushado** (o app mostra imagem quebrada até o Pages publicar).
 - Reaproveitar o **mesmo nome de arquivo** de um fundo e o navegador servir o antigo (cache).
