@@ -3162,7 +3162,7 @@ function fGerarArte(){
                franqueado.export.video ligada. Secundario de proposito: o PNG continua a entrega
                principal, o video e a mesma arte com movimento. Sem crase aqui (template literal). -->
           ${(typeof fMotionDisponivel==='function' && fMotionDisponivel() && fMotionEhStory(fState.material, fState.fmt)
-             && (typeof gFeatureCan!=='function' || gFeatureCan('franqueado.export.video','execute')))?`<button type="button" class="art-btn art-video" onclick="fBaixarVideo(this,'${previewCanvasId}')" title="A mesma arte com movimento, em MP4 de 8 segundos"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="15" height="14" rx="2.5"/><path d="M17 10l5-3v10l-5-3z"/></svg>Baixar vídeo</button>`:''}
+             && (typeof gFeatureCan!=='function' || gFeatureCan('franqueado.export.video','execute')))?`<button type="button" class="art-btn art-video" onclick="fBaixarVideo(this,'${previewCanvasId}')" title="A mesma arte com movimento, em MP4 de 8 segundos"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="15" height="14" rx="2.5"/><path d="M17 10l5-3v10l-5-3z"/></svg>Baixar vídeo<span class="art-tag-teste">Teste</span></button>`:''}
           <!-- ATENÇÃO: comentário DENTRO de template literal — nada de crase aqui.
                ⛔ NÃO EXISTE "Publicar no Instagram" AQUI, e é deliberado (Ryan, 11/09).
                O botão chegou a existir por algumas horas nesta mesma data e saiu: publicação

@@ -387,6 +387,10 @@ body:not(.theme-light) .art-preview-mat{background:var(--d-bg)}
 /* Refazer usa a caixa base do `.art-btn` (branco, borda cinza). O hover puxa para o laranja
    porque ele é ação de correção, não de perigo — nada de vermelho numa arte que está pronta. */
 .art-redo:hover { border-color: var(--dm-orange-tint); background: var(--dm-orange-bg); color: var(--dm-orange-d) }
+.art-btn.art-video{gap:8px}
+/* "Teste": o recurso está em validação com a rede — a tag avisa sem esconder o botão. */
+.art-tag-teste{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;line-height:1;padding:4px 7px;border-radius:var(--r-pill);background:var(--dm-orange-bg);color:var(--dm-orange-d)}
+body:not(.theme-light) .art-tag-teste{background:var(--d-surf2);color:var(--dm-orange)}
 
 /* Faixa do lote: bloco à parte, ação de outra natureza (produção em escala). */
 .art-bulk-btn {
@@ -3423,6 +3427,7 @@ body.f-arte-pronta .art-ok-tick-bloq{width:28px;height:28px}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-download{order:1}
   /* Baixar vídeo (Story animado): mesmo degrau do Baixar PNG, logo abaixo dele pela ordem do DOM. */
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-video{order:1}
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-video{font-weight:700}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-voltar{order:5}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-assistant-panel{order:3}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-voltar{order:4}
@@ -3738,6 +3743,9 @@ body.f-arte-pronta .art-actions,body.f-arte-pronta .art-actions-dupla{display:co
 body.f-arte-pronta .art-btn{width:100%;min-height:48px;border-radius:12px;font-size:15px;font-weight:800}
 body.f-arte-pronta .art-btn.art-download{order:1}
 body.f-arte-pronta .art-btn.art-video{order:1}
+/* O container da arte pronta tem gap:0 (cada botão cuida do próprio respiro): sem margem o
+   vídeo encostava no Baixar PNG. Secundário de verdade: borda leve, peso menor que o primário. */
+body.f-arte-pronta .art-wrap .art-btn.art-video{margin-top:10px;font-weight:700;border-color:var(--gray-mid);color:var(--text-2)}
 /* "Voltar para edição" e "Refazer" são terciários e dividem a fileira do fim, sem caixa,
    longe do Baixar PNG e depois da extensão de produção em lote. */
 body.f-arte-pronta .art-btn.art-voltar{order:5}
