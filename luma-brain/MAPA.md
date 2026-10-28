@@ -261,13 +261,13 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 93 arquivos JS (85.815 linhas, 3.315 funções) · 33 arquivos CSS (33.703 linhas) · `index.html` com 4.092 linhas e 83 `<script>`.
+**Tamanho real de hoje:** 93 arquivos JS (85.832 linhas, 3.315 funções) · 33 arquivos CSS (33.703 linhas) · `index.html` com 4.092 linhas e 83 `<script>`.
 
 ## JS — o que cada arquivo é
 
 ### js (raiz)
 
-**`js/00-config.js`** · 2729 linhas
+**`js/00-config.js`** · 2732 linhas
 Constantes globais imutaveis: HIST_KEY, CAMPS_ATIVAS, CAMPS_OUTRAS, FMTS. Deve ser carregado PRIMEIRO (todos os modulos dependem destas constantes).
 · API: gPastaSistema, gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss … (+52; 91 funções no total)
 · Estado global: _G_MEDIDA_CACHE, gLayoutVivoOff, _gCanvasWrap
@@ -461,7 +461,7 @@ Preview lateral em tempo real (fUpdateLivePreview) e modal de preview multi-form
 · Estado global: _postedArt, renderizada, _postedCtx, _pstStageBound, _pstTiltRaf, _pstQRUrl, _pstQRBusy, _lpConclusaoAtiva, _lpCardPintado, _lpConclusaoSaindo (+50)
 · Depende de: 00-config.js, 01-state.js
 
-**`js/franqueado/materials.js`** · 1234 linhas
+**`js/franqueado/materials.js`** · 1237 linhas
 Catalogo de materiais do franqueado: fOpenMaterialCatalog, fRenderMaterialCatalog, fRenderMaterialCard, fCloseMaterialCatalog, fSelectMaterial.
 · API: fDemoModeOn, fSetDemoMode, fGetMaterialsForCamp, fIsMaterialValid, fIsMaterialReal, fRealMaterialsForCamp, fDiasRestantes, fCampValidade, fCampDiasRestantes, fKitPecas, fKitPar, fKitPlano, fKitNaoCabe, fKitAbrir … (+20; 54 funções no total)
 · Estado global: _fCampThemeAtivo
@@ -473,7 +473,7 @@ Drag & drop das 3 colunas do workspace do franqueado (só desktop largo).
 · Estado global: _panelOrder, _panelDrag
 · Depende de: index.html (grips + #fran-main), css/modules/panel-dock.css,
 
-**`js/franqueado/png-generator.js`** · 6112 linhas
+**`js/franqueado/png-generator.js`** · 6123 linhas
 Geracao de PNG a partir dos templates: fGenPNG, fRenderTemplateLayers, fBaixar, fOutroFormato. Sistema de nomenclatura padronizado para downloads.
 · API: fLoadLogoBranca, fMaterialSize, fExportScale, fRenderCanvasHelper, fAssinaturaDados, fAssinarPngBytes, fAssinarPngBlob, fAssinarPngDataURL, fLerAssinaturaPng, fGenPNG, fGenPDF, fPostarInstagram, fEnviarWhatsApp, fDrawDMLogo … (+85; 195 funções no total)
 · Depende de: 00-config.js, 01-state.js, designer/canvas.js (dRenderCanvas)
