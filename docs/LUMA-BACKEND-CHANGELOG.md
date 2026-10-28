@@ -6,6 +6,40 @@
 
 ---
 
+## 2026-10-28 — Bora de sushi · "Desconto com cupom" refeito: bilhete ilustrado como herói (✅ dados, sem migration)
+
+Pedido do Ryan: refazer a arte mantendo o selo e o fundo; o **cupom é o herói**; precisa aguentar desconto de 1 dígito (<10%) e desconto em **reais**; nada de selo estrelado "manjado"; bilhete mais ilustrado; selo da campanha menor; logo com respiro.
+
+| Template | id | Reverter (`select luma.restaurar_versao('…')`) |
+|---|---|---|
+| Bora de sushi — Desconto com cupom (story) | `b0a0068b-b3cd-4bb4-a4b3-166bfb822411` | `faa8f37e-6270-4872-b65f-e29c7fac1ab9` |
+| Bora de sushi — Desconto com cupom (feed) — era "Bora de sushi — Cupom", só com `cupom` | `628d5ff3-df59-4fc6-bfcb-a426ec97b13f` | `296b5169-aef1-49f8-87ef-f2d91532e461` |
+
+- **Mesmo nome nos dois** → o app vincula feed e story (antes eram "Cupom" × "Desconto com cupom", sem par). `permissoes`: `cupom` (14) e `desconto` (16); `formats` agora `["story"]` / `["feed"]`.
+- **Arte (17 camadas cada, tudo editável)**: fundo `#ff9000` + selo da campanha reduzido a 74% (a emenda some: o PNG é `#ff9000` chapado) + zona escura com picos (original) · bilhete vetorial inclinado −4°, serrilha nas laterais, picote pontilhado, bilhete amarelo atrás · caixa creme com tracejado nativo para o **código** (herói, Roboto Black, quase-preto) · aba laranja com o **desconto**.
+- **1 dígito e reais**: o número é uma camada centralizada (nada fixo ao lado dele). `{{desconto:inteiro}}%` aparece quando o valor tem ≤ 9 caracteres ("5% off", "100% off"); `R${{desconto:inteiro}},{{desconto:centavos}}` quando tem mais ("R$ 5,00 off" = 11) — regra `maxLen 9` (o `7` antigo tratava "100% off" como reais). Sem desconto: a aba, o picote e o número somem e o bloco do código desce pelas regras `shiftX/shiftY` (sem camadas duplicadas).
+- **Testado no motor real (`render.js`)**: 5%, 20%, 100%, R$ 5, R$ 15, R$ 150, sem desconto, código de 14 caracteres (encolhe, não bloqueia). Feed e story. Não abri o app logado.
+- Imagens: continuam as do Storage (`luma-template-assets/b0a0068b…`); nada novo no repositório.
+
+---
+
+## 2026-10-28 — Bora de sushi · "Desconto com cupom" refeito: bilhete ilustrado como herói (✅ dados, sem migration)
+
+Pedido do Ryan: refazer a arte mantendo o selo e o fundo; o **cupom é o herói**; precisa aguentar desconto de 1 dígito (<10%) e desconto em **reais**; nada de selo estrelado "manjado"; bilhete mais ilustrado; selo da campanha menor; logo com respiro; bilhete um pouco menor (−14%) em relação ao resto.
+
+| Template | id | Reverter (`select luma.restaurar_versao('…')`) |
+|---|---|---|
+| Bora de sushi — Desconto com cupom (story) | `b0a0068b-b3cd-4bb4-a4b3-166bfb822411` | `faa8f37e-6270-4872-b65f-e29c7fac1ab9` |
+| Bora de sushi — Desconto com cupom (feed) — era "Bora de sushi — Cupom", só com `cupom` | `628d5ff3-df59-4fc6-bfcb-a426ec97b13f` | `296b5169-aef1-49f8-87ef-f2d91532e461` |
+
+- **Mesmo nome nos dois** → o app vincula feed e story (antes eram "Cupom" × "Desconto com cupom", sem par). `permissoes`: `cupom` (14) e `desconto` (16); `formats` agora `["story"]` / `["feed"]`.
+- **Arte (17 camadas cada, tudo editável)**: fundo `#ff9000` + selo da campanha reduzido a 74% (a emenda some: o PNG é `#ff9000` chapado) + zona escura com picos (original) · bilhete vetorial inclinado −4°, serrilha nas laterais, picote pontilhado, bilhete amarelo atrás · caixa creme com tracejado nativo para o **código** (herói, Roboto Black, quase-preto) · aba laranja com o **desconto**.
+- **1 dígito e reais**: o número é uma camada centralizada (nada fixo ao lado dele). `{{desconto:inteiro}}%` aparece quando o valor tem ≤ 9 caracteres ("5% off", "100% off"); `R${{desconto:inteiro}},{{desconto:centavos}}` quando tem mais ("R$ 5,00 off" = 11) — regra `maxLen 9` (o `7` antigo tratava "100% off" como reais). Sem desconto: a aba, o picote e o número somem e o bloco do código desce pelas regras `shiftX/shiftY` (sem camadas duplicadas).
+- **Testado no motor real (`render.js`)**: 5%, 20%, 100%, R$ 5, R$ 15, R$ 150, sem desconto, código de 14 caracteres (encolhe, não bloqueia). Feed e story. Não abri o app logado.
+- Imagens: continuam as do Storage (`luma-template-assets/b0a0068b…`); nada novo no repositório.
+
+---
+
 ## 2026-10-28 — Campanha "Festival do Xis" (13–15/11): pasta, capa, banner e 4 templates (✅ dados, sem migration)
 
 Pedido do Ryan: pegar as artes do canvas "Festival do Xis — versões finais" que fazem sentido para o Luma e deixar a campanha pronta (pasta + capa + templates). Fora de propósito: a versão amarela (`V1-Amarelo-V2`, só outra cor do mesmo anúncio) e nenhum template existente foi tocado.
