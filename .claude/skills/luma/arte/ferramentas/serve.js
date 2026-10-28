@@ -5,7 +5,8 @@ const REPO=path.resolve(__dirname,'../../../../..');
 const TYPES={'.html':'text/html;charset=utf-8','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.svg':'image/svg+xml','.otf':'font/otf','.ttf':'font/ttf','.woff':'font/woff','.woff2':'font/woff2','.webp':'image/webp'};
 function prepare(){
   const dir=path.join(os.tmpdir(),'luma-arte-srv'); fs.mkdirSync(dir,{recursive:true});
-  for(const n of ['js','css','assets']){ const l=path.join(dir,n); try{fs.lstatSync(l);}catch(e){fs.symlinkSync(path.join(REPO,n),l);} }
+  /* 'junction': no Windows o symlink de pasta exige admin (EPERM); junction não. No Linux/mac o tipo é ignorado. */
+  for(const n of ['js','css','assets']){ const l=path.join(dir,n); try{fs.lstatSync(l);}catch(e){fs.symlinkSync(path.join(REPO,n),l,'junction');} }
   fs.copyFileSync(path.join(__dirname,'harness.html'),path.join(dir,'harness.html'));
   return dir;
 }
