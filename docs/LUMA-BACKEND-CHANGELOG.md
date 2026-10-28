@@ -6,6 +6,39 @@
 
 ---
 
+## 2026-10-28 — Cadastro de franqueado pelo Google Forms (⏳ deploy com o Pedro, sem migration)
+
+Pedido do Pedro: um Form (nome, telefone, e-mail) mandado no WhatsApp, e o acesso criado sozinho a partir dele. Decisão dele: **criar na hora, sem aprovação da gestão** — risco aceito de que quem tiver o link ganha conta de franqueado.
+
+- **`invite-user` ganhou uma segunda porta.** Com o header `x-cadastro-segredo` igual ao secret `CADASTRO_FORMS_SEGREDO` (≥ 32 caracteres; ausente ou curto = porta fechada), cria a conta sem JWT e **sempre como `franqueado`** — o corpo não escolhe role. A porta da gestão não mudou. Nome cortado em 120 e telefone em 30 caracteres nas duas portas.
+- **`verify_jwt = false`** para a `invite-user` (`supabase/config.toml`): o Apps Script não tem JWT. A porta da gestão segue validando o JWT dentro da função (`getUser`), como antes.
+- **Apps Script do Form:** `scripts/cadastro-forms.gs` (passo a passo de instalação no cabeçalho). Falha ao criar → e-mail para quem instalou o acionador; e-mail que já tinha conta não é falha.
+- Mesma função de antes: senha inicial `dmbrasil` num lugar só (amarrada a `luma.usa_senha_inicial()`); a franquia a pessoa escolhe no 1º login (`gFranquiaIniciar`).
+
+**Deploy (Pedro):**
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"   # gera o segredo — copie
+supabase secrets set CADASTRO_FORMS_SEGREDO=<segredo> --project-ref xqsazcazsjxajmtmirzd
+supabase functions deploy invite-user --project-ref xqsazcazsjxajmtmirzd --use-api --no-verify-jwt
+```
+
+O mesmo segredo vai nas Propriedades do script do Form (`CADASTRO_FORMS_SEGREDO`).
+
+**Conferir:** `curl -X POST .../functions/v1/invite-user` sem nada deve responder **401 "não autenticado"** (vem da função, então o `verify_jwt` saiu e a porta da gestão está de pé); antes do deploy o 401 vem do gateway, com outra mensagem. Depois, um envio de teste pelo Form com e-mail descartável → a conta aparece em `profiles` como `franqueado`, com nome e telefone → apagar no Dashboard. Convidar membro pela gestão continua funcionando.
+
+**Desligar:** `supabase secrets unset CADASTRO_FORMS_SEGREDO --project-ref xqsazcazsjxajmtmirzd` — a porta do Form fecha na hora; a da gestão não muda.
+
+**Mensagem de confirmação do Form** (Configurações › Apresentação):
+
+> Pronto! Seu acesso ao Luma foi criado. Entre em https://luma-deliverymuch.vercel.app com este e-mail e a senha **dmbrasil**. No primeiro acesso, o Luma pede para você criar a sua própria senha. Se você já tinha acesso, use a senha de sempre.
+
+**Texto para o WhatsApp:**
+
+> Oi! Para liberar seu acesso ao Luma, a ferramenta de artes da Delivery Much, preencha este formulário (leva 1 minuto): <link do Form>. Assim que você enviar, o acesso já fica pronto.
+
+---
+
 ## 2026-10-28 — Campanha "Festival do Xis" (13–15/11): pasta, capa, banner e 4 templates (✅ dados, sem migration)
 
 Pedido do Ryan: pegar as artes do canvas "Festival do Xis — versões finais" que fazem sentido para o Luma e deixar a campanha pronta (pasta + capa + templates). Fora de propósito: a versão amarela (`V1-Amarelo-V2`, só outra cor do mesmo anúncio) e nenhum template existente foi tocado.

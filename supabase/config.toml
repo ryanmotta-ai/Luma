@@ -390,6 +390,11 @@ deno_version = 2
 [functions.suporte-telegram]
 verify_jwt = false
 
+# Cadastro pelo Google Forms (scripts/cadastro-forms.gs): o Apps Script não tem JWT e se
+# identifica pelo cabeçalho x-cadastro-segredo. A porta da gestão segue validando o JWT dentro.
+[functions.invite-user]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
