@@ -26,3 +26,5 @@ Escreva o seu `minha-arte.js` copiando o `exemplo.js`: monte `layers` com a lib,
 - `--mode preview` renderiza como a prévia ao vivo (às vezes difere do export em adaptação de texto); decida pela **export**.
 - A medida do `fit.json` vem do motor real; se `invalid:true`, **a arte não exporta**.
 - Para montar imagem lado a lado das propostas, use Python/PIL fora da skill (`Image.paste`) ou qualquer visualizador; a skill não impõe.
+- **Windows:** a busca do Chromium é de Linux — defina `CHROME="C:/Program Files/Google/Chrome/Application/chrome.exe"`. O `serve.js` usa *junction* (symlink de pasta exige admin). Render solo leva ~1 s por job; vários agentes renderizando juntos disputam CPU e cada job fica 10× mais lento.
+- **Trabalho longo com agentes:** notebook em Modern Standby dorme quando a tela apaga e derruba as chamadas dos agentes (eles reiniciam do zero). Segure a tela acesa (`SetThreadExecutionState` com `ES_DISPLAY_REQUIRED`) ou mantenha na tomada com a tela ligada.

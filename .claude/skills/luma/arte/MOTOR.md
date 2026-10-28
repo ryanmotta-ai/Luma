@@ -60,3 +60,10 @@ Reflow automático · alinhamento vertical embaixo/meio com crescimento controla
 - **Preço partido num layer só**: `R${{x:inteiro}},{{x:centavos}}` vira runs (R$ e centavos pequenos e suspensos). Centralizado, aguenta 1 a 3 dígitos sem nada fixo ao lado.
 - **Faixa/rodapé com texto por cima vira "placa"**: retângulo atrás de UM texto com campo, envolvendo-o, é adotado como placa e **encolhe junto** quando o texto encolhe. Faixa decorativa fixa (ex.: rodapé laranja da Entrega promocional) leva `lockPosition:true` — fica de fora da placa.
 - **Percentual × reais** do campo `desconto`: o chat normaliza para "20% off" ou "R$ 5,00 off". Distinga por tamanho (`maxLen 9`), nunca 7 ("100% off" tem 8).
+
+## Achados da leva "Aqui tem cupons" (28/10/2026, 10 artes, portão de 254 renders)
+- **Texto FIXO também entra na família**: "pega este cupom", "Cole o cupom antes de pagar", "VALE CUPOM" casam `cupom` e viram piso do código se forem MENORES que ele → código de 16 caracteres bloqueia. Ou o texto fixo fica maior que o código, ou a palavra sai ("Cole o **código**").
+- **O número só encolhe até 50 % do corpo desenhado.** Dimensione o corpo pelo pior caso no piso. Medido no motor (Roboto Black, runs): `R$150,00` ≈ **6,6×** o corpo, `R$15,00` ≈ 5,4×, `100%` ≈ 5,1×; código "W"×16 em Roboto Bold itálico ≈ 15×. Ex.: caixa de 824 px ⇒ reais com corpo ≤ 250.
+- **`{{x:inteiro}}%` não some sozinho com o campo vazio** (o "%" fixo impede o "tudo vazio"): o encaixe mede o nome do campo e bloqueia com "não tem espaço seguro para …". Ponha `{var:x, when:'empty', then:'hide'}` explícito em toda camada que mistura token e texto fixo.
+- **Regra por parte inteira**: `var:'desconto:inteiro'` (ou `precoPor:inteiro`) com `maxLen` separa 1, 2 e 3 dígitos (`gApplyRules`, desde 28/10).
+- **Texto rico em texto fixo**: `runs:[{text, font, fontSize, color, italic}]` faz Light + Bold numa camada só, centralizada, sem medir nada — só quando o `content` não tem `{{}}`.

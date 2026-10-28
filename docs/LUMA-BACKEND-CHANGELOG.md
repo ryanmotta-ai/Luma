@@ -6,6 +6,35 @@
 
 ---
 
+## 2026-10-28 — Aqui tem cupons: 10 artes novas de cupom, feed + story, em rascunho (✅ dados, sem migration)
+
+Pedido do Pedro: refazer as artes da pasta "Aqui Tem Cupons" em **10 artes de cupom diferentes**, mantendo o bilhete original, o estilo tipográfico, a logo e os laranjas `#F85400`/`#FF9000`, e subir no banco. As 3 originais (`12295543…`, `95b198ac…`, `33852494…`) **não foram tocadas**.
+
+Pasta `f94ee3f4-589d-4b0b-8d6d-b83c4e393e09` (campanha `ac`). 20 templates **em rascunho** (`publicado=false`), feed + story com o mesmo nome (o app vincula), `formats` padrão, `w/h` 1080×1350 e 1080×1920.
+
+| Arte ("Aqui tem cupons — …") | Campos | Feed | Story |
+|---|---|---|---|
+| Desconto em destaque | cupom, desconto, validade | `704f64ae-3468-4d6b-9903-a83a608182b4` | `60f49d2b-cd02-4ee0-901b-f6c224fd2f49` |
+| Cupom com foto em arco | cupom, foto_produto, logo_loja | `d09798e4-9801-43d9-8fc5-4758ab7e44e1` | `fe9a3bd1-83cd-416c-a247-4f615af75f33` |
+| Cupom tipográfico | cupom, desconto | `1ebbfd0e-44ef-4d67-aa61-40dda499c114` | `f186d547-e800-45ab-aef8-8693162864a1` |
+| Cupom na diagonal | cupom, validade | `706a9c41-5309-4d54-b265-706b532cb33d` | `4898b59d-e30a-44b4-a8dc-2d5830db9713` |
+| Cupom da loja | logo_loja, cupom, desconto, validade | `1a6d3364-3fe1-4658-919e-8fe17703188c` | `d262c8fd-11d0-46d3-ad60-459ebdfe8b07` |
+| Como usar o cupom | cupom, validade, regras | `bc0ac1eb-e1ab-4e0f-af04-dacf155549f7` | `3de103ac-f8fe-4eb5-b629-d98beca81387` |
+| Cupom no app | cupom, desconto | `671b3224-ab83-4794-a7b4-dc276384fd9e` | `9a417625-f811-4335-aec8-401326b59afc` |
+| Chuva de cupons | cupom, validade | `bebfab1e-4aff-47c1-84ef-9a3b50ee1d51` | `eb30a463-d1ee-4b94-b2f2-568fef32e31d` |
+| Cupom com foto no prato | foto_produto, cupom, desconto, logo_loja | `4d76af9d-fbb3-4bf2-b5ab-377e94f0d540` | `a81388c3-1ded-4fe1-8283-b73031a40f98` |
+| Vale-cupom | cupom, desconto, validade, regras | `5e0d0b58-103d-4e2f-a854-f128d2cb1f08` | `f0d0fc76-0952-448c-a480-f943afde10be` |
+
+- **Assets** (`95cd28d`): `assets/campanhas/aqui-tem-cupons/` — os bilhetes originais (reto e inclinado) com o "NOMEDOUCUPOM" apagado do miolo, para o código entrar como **texto vivo** no ângulo do bilhete (nas originais, um retângulo branco "girado" tapava o texto e saía reto na exportação, vazando do bilhete); a logo e os arcos das originais. Também usam `assets/marca/grafismos/` (sorriso, padrão de arcos) e `assets/marca/mockups/mockup-celular-app.png`.
+- **Permissões**: `cupom` 16 · `desconto` 16 · `validade` 32 · `regras` 72 · imagens. Todos os campos são opcionais e cada arte tem o seu "vazio" desenhado (sem desconto, sem foto, sem logo, sem código).
+- **Testado no motor real** (`render.js`), num portão independente com a matriz inteira nos dois formatos: código de 3, 11, 15 e 16 caracteres ("W"×16) e vazio; desconto 5%, 20%, 100%, R$ 5, R$ 15, R$ 150 e vazio; validade e regras longas e vazias; sem foto; sem logo; pior caso; só cupom — **254 renders, zero bloqueio**. O md5 das 20 layers gravadas é igual ao do aprovado. Não abri o app logado.
+- Achados do motor (piso da família com texto fixo, piso de 50 %, `{{x:inteiro}}%` vazio) em `.claude/skills/luma/arte/MOTOR.md`.
+
+**Publicar** (quando aprovar): `update luma.templates set publicado=true, publicado_em=now() where id in (<os 20 ids da tabela>);`
+**Reverter**: templates novos nascem na versão 1 → `delete from luma.templates where id in (<os 20 ids da tabela>);` e `git rm -r assets/campanhas/aqui-tem-cupons/`.
+
+---
+
 ## 2026-10-28 — Combos Coca aguentam preço de 3 dígitos · Entrega promocional ganha descrição na faixa laranja (✅ dados + `00-config.js`, sem migration)
 
 Pedido do Pedro, a partir de feedback de franqueado: (1) campo de descrição editável na faixa laranja embaixo do mockup da "Entrega promocional", feed e story; (2) a arte da Coca precisa aceitar preço de 3 dígitos — o Local Fit bloqueava ("Cabem até 2 caracteres aqui").
