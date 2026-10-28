@@ -1,0 +1,362 @@
+/**
+ * js/franqueado/motion.js
+ *
+ * STORY ANIMADO — o Story do franqueado sai também em MP4 (28/10/2026)
+ * ---------------------------------------------------------------------------
+ * Pedido do Ryan: todo Story com motion, animação PRÉ-DEFINIDA, download em MP4 de alta
+ * qualidade. Decisões dele na mesma conversa: a animação é AUTOMÁTICA e sai dos componentes
+ * de CADA arte (ordem de leitura e posição de cada peça — ver `_fMotionPlano`), sutil, sem
+ * preço pulando; o franqueado não escolhe estilo; 8 s em 1080×1920 a 60 fps, com a entrada
+ * terminando em ~2 s para sobrar tempo de ler a oferta.
+ *
+ * ⛔ NÃO É UM SEGUNDO RENDER. Cada quadro passa pelo motor único (`fRenderTemplateLayers`)
+ * com `resolvido:true` — o mesmo gancho que a prévia usa para o deslize (`_fLpCinema`): o
+ * encaixe, as regras e o Local Fit rodam UMA vez (`soLayout`), e cada quadro só desenha clones
+ * com `_fxEscala/_fxDx/_fxDy` e a opacidade da vez. Por isso o vídeo é, quadro a quadro, a
+ * mesma arte do PNG — o último quadro é o PNG.
+ *
+ * ⛔ ZERO DEPENDÊNCIA. O H.264 sai do `VideoEncoder` do próprio navegador (WebCodecs) e o
+ * arquivo é montado por um muxer MP4 mínimo aqui embaixo (`_fMp4Monta`: uma faixa de vídeo,
+ * um chunk, `moov` na frente para o Instagram/WhatsApp começarem a tocar sem baixar tudo).
+ * Sem WebCodecs (navegador antigo, página fora de HTTPS) o botão nem aparece.
+ *
+ * ⚠ Opacidade de grupo: grupo de COMPOSIÇÃO (opacidade/máscara/blend) esmaece pelo próprio
+ * grupo, que o motor aplica no composto; grupo pass-through esmaece filho a filho. Esmaecer os
+ * dois multiplicaria o alfa.
+ *
+ * Depende de: franqueado/png-generator.js (fRenderTemplateLayers, fMaterialSize,
+ *   fBuildFilename, _fArteEhCelular), core/auto-layout.js (gLayoutSemanticRole),
+ *   core/toast.js (gToast, gBtnLoading), core/feature-flags.js (gFeatureCan),
+ *   franqueado/chat.js (_fArtSnapshots), franqueado/history.js (fAddHist, fMarkHistBaixada).
+ */
+
+const F_MOTION_FPS = 60;
+const F_MOTION_SEG = 8;
+const F_MOTION_ENTRADA = 2;      // s — tudo assentado aqui; o resto é a oferta parada para ler
+const F_MOTION_BITRATE = 20e6;   // ~20 Mbps: o Instagram re-encoda, então o que mandamos é o teto dele
+// High 4.2 cobre 1080×1920 a 60 fps (8.160 macroblocos/quadro); os outros são rede para
+// encoder que não fala High (hardware antigo, alguns Android).
+const F_MOTION_CODECS = ['avc1.64002A', 'avc1.640033', 'avc1.4D002A', 'avc1.42E02A'];
+
+// O navegador sabe gerar vídeo? WebCodecs só existe em contexto seguro (HTTPS/localhost).
+function fMotionDisponivel(){
+  return typeof window !== 'undefined' && window.isSecureContext !== false
+    && typeof VideoEncoder === 'function' && typeof VideoFrame === 'function';
+}
+
+// "É Story?" pela GEOMETRIA (9:16), não pelo id do formato: o template publicado traz w/h reais.
+function fMotionEhStory(material, fmt){
+  if(typeof fMaterialSize !== 'function') return false;
+  const [w, h] = fMaterialSize(material, fmt);
+  return w > 0 && Math.abs(h / w - 16 / 9) < 0.02;
+}
+
+/* ── CURVAS ──────────────────────────────────────────────────────────────────── */
+const _fMoSuave = x => 1 - Math.pow(1 - x, 4);   // sai rápido e pousa devagar, sem passar do ponto
+const _fMoInOut = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const _fMoProg = (t, ini, dur) => Math.max(0, Math.min(1, (t - ini) / dur));
+
+/* ── O PLANO: que camada faz o quê ──────────────────────────────────────────────
+   Unidade = o que se move junto. Grupo pass-through se abre (cada filho é unidade); grupo de
+   composição é atômico (o motor o desenha como um composto). Camada com clipping vai junto
+   da base, senão o recorte e o conteúdo se separam no meio do movimento. */
+function _fMoGrupoComposto(g){
+  return g.isolation === true || !!g.mask || (g.opacity != null && g.opacity < 100)
+    || (g.blendMode && g.blendMode !== 'normal') || !!g.shadow || !!g.glow;
+}
+const _F_MO_PRIORIDADE = ['preco', 'cta', 'titulo', 'produto', 'apoio', 'protegida', 'legal', 'decoracao', 'fundo'];
+
+function _fMotionPlano(layers, W, H){
+  // A árvore com TODAS as camadas (a mesma regra de pai do motor); quem está oculto, ou dentro
+  // de grupo oculto, simplesmente não é visitado — senão viraria unidade solta e atrasaria a fila.
+  const todas = layers.filter(Boolean);
+  const vivas = todas.filter(l => l.visible !== false);
+  const porId = new Map(todas.map(l => [l.id, l]));
+  const filhos = new Map();
+  todas.forEach(l => {
+    if(l.visible === false) return;
+    const p = (l.parentId && porId.has(l.parentId) && porId.get(l.parentId).type === 'group') ? l.parentId : null;
+    if(!filhos.has(p)) filhos.set(p, []);
+    filhos.get(p).push(l);
+  });
+  const degraus = [...new Set(vivas.filter(l => l.type === 'text').map(l => Math.round(l.fontSize || 24)))].sort((a, b) => b - a);
+  const papelCtx = { canvas: { w: W, h: H }, degraus };
+  // `layoutSemantic` é carimbado na publicação; sem ele, a mesma régua, SEM escrever na camada
+  // (o clone resolvido pode compartilhar objeto com o template).
+  const papelDe = l => l.layoutSemantic || ((typeof gLayoutSemanticRole === 'function') ? gLayoutSemanticRole(l, papelCtx) : 'decoracao');
+
+  const unidades = [];
+  const folhas = (g, acc) => { (filhos.get(g.id) || []).forEach(f => f.type === 'group' ? folhas(f, acc) : acc.push(f)); return acc; };
+  const monta = paiId => (filhos.get(paiId) || []).forEach(l => {
+    if(l.type === 'adjustment') return;   // ajuste transforma o que está embaixo; não se move
+    if(l.type === 'group' && !_fMoGrupoComposto(l)) { monta(l.id); return; }
+    unidades.push({ raiz: l, folhas: l.type === 'group' ? folhas(l, []) : [l] });
+  });
+  monta(null);
+
+  // Clipping acompanha a base.
+  const unidadeDaFolha = new Map();
+  unidades.forEach(u => u.folhas.forEach(f => unidadeDaFolha.set(f.id, u)));
+  unidades.forEach(u => {
+    if(u.raiz.type === 'group' || !u.raiz.clipBaseId) return;
+    const dona = unidadeDaFolha.get(u.raiz.clipBaseId);
+    if(dona && dona !== u){ dona.folhas.push(u.raiz); (dona.extras = dona.extras || []).push(u.raiz); u.folhas = []; }
+  });
+
+  const plano = unidades.filter(u => u.folhas.length).map(u => {
+    const fs = u.folhas.filter(f => f.type !== 'adjustment');
+    const x0 = Math.min(...fs.map(f => +f.x || 0)), y0 = Math.min(...fs.map(f => +f.y || 0));
+    const x1 = Math.max(...fs.map(f => (+f.x || 0) + (+f.w || 0))), y1 = Math.max(...fs.map(f => (+f.y || 0) + (+f.h || 0)));
+    let papel = 'decoracao';
+    const papeis = fs.map(papelDe);
+    for(const p of _F_MO_PRIORIDADE){ if(papeis.includes(p)) { papel = p; break; } }
+    // Unidade do tamanho da arte é cenário, seja qual for o papel do que está dentro: um PSD
+    // inteiro num grupo de composição faria a arte toda deslizar.
+    if((x1 - x0) * (y1 - y0) >= W * H * 0.85) papel = 'fundo';
+    return { raiz: u.raiz, folhas: fs, extras: u.extras || [], papel, x0, y0, x1, y1, ox: (x0 + x1) / 2, oy: (y0 + y1) / 2, topo: y0, ini: 0 };
+  });
+
+  /* ── A COREOGRAFIA SAI DA PRÓPRIA ARTE (Ryan, 28/10: "uma animação pra cada template, usando
+     seus componentes"; "nada de preço pulando, algo sutil"; "tempo pro pessoal ver a oferta").
+     · ORDEM: a de leitura DESTA composição (de cima para baixo, da esquerda para a direita).
+     · DIREÇÃO: cada peça chega de onde ela mora — texto encostado à esquerda vem da esquerda,
+       à direita vem da direita, no eixo central sobe um pouco; foto que sangra por uma borda
+       entra por essa borda, foto solta só assenta. Dois templates de layout diferente saem com
+       movimentos diferentes sem o designer configurar nada.
+     · INTENSIDADE: deslocamento de 1,5–4 % da arte, sem escala elástica, sem pulso. Tudo
+       assentado até F_MOTION_ENTRADA; o resto do vídeo é a oferta parada (só o fundo respira). */
+  const ordem = plano.filter(u => u.papel !== 'fundo').sort((a, b) => (a.topo - b.topo) || (a.ox - b.ox));
+  const passo = ordem.length > 1 ? Math.min(.14, (F_MOTION_ENTRADA - .9) / (ordem.length - 1)) : 0;
+  ordem.forEach((u, i) => { u.ini = .1 + i * passo; u.de = _fMoDirecao(u, W, H); });
+  /* Placa, pílula e selo vazios na tela parecem erro: decoração que CONTÉM outra unidade (o
+     centro dela cai dentro) entra junto com o conteúdo, um instante antes. */
+  plano.forEach(d => {
+    if(d.papel !== 'decoracao') return;
+    const dentro = plano.filter(u => u !== d && u.papel !== 'fundo' && u.papel !== 'decoracao'
+      && u.ox >= d.x0 && u.ox <= d.x1 && u.oy >= d.y0 && u.oy <= d.y1);
+    if(dentro.length) d.ini = Math.max(0, Math.min(...dentro.map(u => u.ini)) - .08);
+  });
+  return plano;
+}
+
+// De onde a unidade chega, lido da posição dela na arte. {dx, dy} em px; s = escala inicial.
+function _fMoDirecao(u, W, H){
+  if(u.papel === 'decoracao' || u.papel === 'protegida' || u.papel === 'legal') return { dx: 0, dy: 0, s: 1 };  // só aparece
+  const ehFoto = u.folhas.some(f => f.type === 'image' || f.type === 'frame');
+  if(ehFoto){
+    if(u.x0 <= 1 && u.x1 < W - 1) return { dx: -W * .04, dy: 0, s: 1 };
+    if(u.x1 >= W - 1 && u.x0 > 1) return { dx: W * .04, dy: 0, s: 1 };
+    if(u.y1 >= H - 1) return { dx: 0, dy: H * .03, s: 1 };
+    return { dx: 0, dy: 0, s: 1.04 };   // foto solta: assenta de leve, sem deslizar
+  }
+  const cx = u.ox / W;
+  if(cx < .35) return { dx: -W * .025, dy: 0, s: 1 };
+  if(cx > .65) return { dx: W * .025, dy: 0, s: 1 };
+  return { dx: 0, dy: H * .015, s: 1 };
+}
+
+// O estado de UMA unidade no instante t (segundos): alfa, deslocamento e escala.
+function _fMotionEstado(u, t, W, H){
+  const T = F_MOTION_SEG;
+  // Fundo: aproxima 3 % ao longo do vídeo inteiro — é o que mantém o quadro vivo na espera.
+  // (Encolher abaixo de 1 mostraria a borda.)
+  if(u.papel === 'fundo') return { a: 1, dx: 0, dy: 0, s: 1 + .03 * _fMoInOut(t / T), ox: W / 2, oy: H / 2 };
+  const e = _fMoSuave(_fMoProg(t, u.ini, .8)), de = u.de || { dx: 0, dy: 0, s: 1 };
+  return { a: e, dx: (1 - e) * de.dx, dy: (1 - e) * de.dy, s: de.s + (1 - de.s) * e };
+}
+
+// Clones do quadro t. Nada do material é tocado: cada quadro nasce do resolvido.
+function _fMotionQuadro(resolvidas, plano, t, W, H){
+  const fx = new Map();      // id → props a sobrepor
+  const esmaece = (l, a) => {
+    const atual = fx.get(l.id) || {};
+    atual.opacity = (l.opacity != null ? l.opacity : 100) * a;
+    fx.set(l.id, atual);
+  };
+  const porPai = new Map();
+  resolvidas.forEach(l => { if(l && l.parentId){ if(!porPai.has(l.parentId)) porPai.set(l.parentId, []); porPai.get(l.parentId).push(l); } });
+  const esmaeceArvore = (l, a) => {
+    if(l.type !== 'group') return esmaece(l, a);
+    if(_fMoGrupoComposto(l)) return esmaece(l, a);
+    (porPai.get(l.id) || []).forEach(f => esmaeceArvore(f, a));
+  };
+  plano.forEach(u => {
+    const e = _fMotionEstado(u, t, W, H);
+    const ox = e.ox != null ? e.ox : u.ox, oy = e.oy != null ? e.oy : u.oy;
+    if(e.s !== 1 || e.dx || e.dy){
+      u.folhas.forEach(f => { const o = fx.get(f.id) || {}; Object.assign(o, { _fxEscala: e.s, _fxOx: ox, _fxOy: oy, _fxDx: e.dx, _fxDy: e.dy }); fx.set(f.id, o); });
+    }
+    if(e.a < 1){
+      // Unidade atômica (folha ou grupo de composição) esmaece inteira; a folha agregada por
+      // clipping está fora da árvore da raiz e esmaece por conta própria, junto da base.
+      esmaeceArvore(u.raiz, e.a);
+      u.extras.forEach(f => esmaece(f, e.a));
+    }
+  });
+  return resolvidas.map(l => (l && fx.has(l.id)) ? Object.assign({}, l, fx.get(l.id)) : l);
+}
+
+/* ── MUXER MP4 MÍNIMO ────────────────────────────────────────────────────────────
+   ISO/IEC 14496-12 + 14496-15 (avcC). Só o que um vídeo de uma faixa precisa. Amostras em
+   ordem de decodificação = de apresentação (o VideoEncoder não emite B-frame), então sem ctts.
+   Escala de tempo 60000 com delta 1000 (60 fps): inteiro, sem a deriva de 16.666,67 µs. */
+function _fMp4Monta(amostras, avcC, W, H, fps, cor){
+  const u32 = v => [(v >>> 24) & 255, (v >>> 16) & 255, (v >>> 8) & 255, v & 255];
+  const u16 = v => [(v >>> 8) & 255, v & 255];
+  const str = s => [...s].map(c => c.charCodeAt(0));
+  const junta = partes => {
+    let n = 0; partes.forEach(p => n += p.length);
+    const out = new Uint8Array(n); let o = 0;
+    partes.forEach(p => { out.set(p, o); o += p.length; });
+    return out;
+  };
+  const caixa = (tipo, ...partes) => {
+    const corpo = junta(partes.map(p => p instanceof Uint8Array ? p : new Uint8Array(p)));
+    return junta([new Uint8Array(u32(corpo.length + 8)), new Uint8Array(str(tipo)), corpo]);
+  };
+  const cheia = (tipo, versao, flags, ...partes) => caixa(tipo, [versao, (flags >> 16) & 255, (flags >> 8) & 255, flags & 255], ...partes);
+  const MATRIZ = [...u32(0x00010000), ...u32(0), ...u32(0), ...u32(0), ...u32(0x00010000), ...u32(0), ...u32(0), ...u32(0), ...u32(0x40000000)];
+  const N = amostras.length, ESCALA = fps * 1000, DUR_MS = Math.round(N * 1000 / fps);
+
+  const stbl = base => caixa('stbl',
+    cheia('stsd', 0, 0, u32(1),
+      caixa('avc1', new Array(6).fill(0), u16(1), new Array(16).fill(0), u16(W), u16(H),
+        u32(0x00480000), u32(0x00480000), u32(0), u16(1), new Array(32).fill(0), u16(0x0018), u16(0xFFFF),
+        caixa('avcC', avcC),
+        ...(cor ? [caixa('colr', str('nclx'), u16(cor.p), u16(cor.t), u16(cor.m), [cor.full ? 0x80 : 0])] : []))),
+    cheia('stts', 0, 0, u32(1), u32(N), u32(1000)),
+    cheia('stss', 0, 0, u32(amostras.filter(a => a.chave).length), ...amostras.map((a, i) => a.chave ? u32(i + 1) : []).filter(x => x.length)),
+    cheia('stsc', 0, 0, u32(1), u32(1), u32(N), u32(1)),
+    cheia('stsz', 0, 0, u32(0), u32(N), ...amostras.map(a => u32(a.dados.length))),
+    cheia('stco', 0, 0, u32(1), u32(base)));
+
+  const moov = base => caixa('moov',
+    cheia('mvhd', 0, 0, u32(0), u32(0), u32(1000), u32(DUR_MS), u32(0x00010000), u16(0x0100), new Array(10).fill(0), MATRIZ, new Array(24).fill(0), u32(2)),
+    caixa('trak',
+      cheia('tkhd', 0, 3, u32(0), u32(0), u32(1), u32(0), u32(DUR_MS), new Array(8).fill(0), u16(0), u16(0), u16(0), u16(0), MATRIZ, u32(W * 65536), u32(H * 65536)),
+      caixa('mdia',
+        cheia('mdhd', 0, 0, u32(0), u32(0), u32(ESCALA), u32(N * 1000), u16(0x55C4), u16(0)),
+        cheia('hdlr', 0, 0, u32(0), str('vide'), new Array(12).fill(0), str('Luma Video'), [0]),
+        caixa('minf',
+          cheia('vmhd', 0, 1, u16(0), u16(0), u16(0), u16(0)),
+          caixa('dinf', cheia('dref', 0, 0, u32(1), cheia('url ', 0, 1))),
+          stbl(base)))));
+
+  const ftyp = caixa('ftyp', str('isom'), u32(512), str('isom'), str('iso2'), str('avc1'), str('mp41'));
+  // O tamanho do moov não depende do valor do offset (stco de 32 bits): mede com 0, monta de novo.
+  const tamMoov = moov(0).length;
+  let tamDados = 0; amostras.forEach(a => tamDados += a.dados.length);
+  const cabMdat = new Uint8Array([...u32(tamDados + 8), ...str('mdat')]);
+  return new Blob([ftyp, moov(ftyp.length + tamMoov + 8), cabMdat, ...amostras.map(a => a.dados)], { type: 'video/mp4' });
+}
+
+// VideoColorSpace → códigos do `colr` (ISO/IEC 23091-2). Desconhecido → sem `colr`.
+function _fMp4Cor(cs){
+  if(!cs) return null;
+  const P = { bt709: 1, bt470bg: 5, smpte170m: 6, bt2020: 9 }, TR = { bt709: 1, smpte170m: 6, 'iec61966-2-1': 13, linear: 8 }, M = { rgb: 0, bt709: 1, bt470bg: 5, smpte170m: 6 };
+  if(!(cs.primaries in P) || !(cs.transfer in TR) || !(cs.matrix in M)) return null;
+  return { p: P[cs.primaries], t: TR[cs.transfer], m: M[cs.matrix], full: !!cs.fullRange };
+}
+
+/* ── O VÍDEO ─────────────────────────────────────────────────────────────────── */
+// Gera o MP4 da arte. `onProgresso(0..1)` acompanha os quadros. Devolve {blob, fname}.
+async function fGenMP4(d, c, fmt, material, onProgresso){
+  if(!fMotionDisponivel()) { const e = new Error('Este navegador não gera vídeo.'); e.code = 'LUMA_VIDEO_UNSUPPORTED'; throw e; }
+  if(!(material && material.layers && material.layers.length)) throw new Error('Arte sem camadas para animar.');
+  const [W, H] = fMaterialSize(material, fmt);
+
+  let config = null;
+  for(const codec of F_MOTION_CODECS){
+    const tentativa = { codec, width: W, height: H, bitrate: F_MOTION_BITRATE, framerate: F_MOTION_FPS, latencyMode: 'quality', avc: { format: 'avc' } };
+    try{ const r = await VideoEncoder.isConfigSupported(tentativa); if(r && r.supported) { config = r.config || tentativa; break; } }catch(e){}
+  }
+  if(!config) { const e = new Error('Este navegador não gera vídeo H.264.'); e.code = 'LUMA_VIDEO_UNSUPPORTED'; throw e; }
+
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d', { alpha: false });
+  // UMA resolução de layout para o vídeo inteiro — e o mesmo bloqueio "não cabe" do PNG.
+  // (O `soLayout` ainda pinta o fundo no ctx antes de sair; o 1º quadro o cobre.)
+  const resolvidas = await fRenderTemplateLayers(ctx, material.layers, W, H, d, c, material,
+    { scope: 'franqueado', purpose: 'export', soLayout: true });
+  const plano = _fMotionPlano(resolvidas, W, H);
+
+  const amostras = []; let avcC = null, cor = null, erro = null;
+  const enc = new VideoEncoder({
+    output: (chunk, meta) => {
+      const dados = new Uint8Array(chunk.byteLength); chunk.copyTo(dados);
+      amostras.push({ dados, chave: chunk.type === 'key' });
+      if(!avcC && meta && meta.decoderConfig && meta.decoderConfig.description){
+        const desc = meta.decoderConfig.description;   // ArrayBuffer ou view com offset
+        avcC = ArrayBuffer.isView(desc) ? new Uint8Array(desc.buffer, desc.byteOffset, desc.byteLength).slice() : new Uint8Array(desc).slice();
+        cor = _fMp4Cor(meta.decoderConfig.colorSpace);
+      }
+    },
+    error: e => { erro = e; }
+  });
+  enc.configure(config);
+  const N = F_MOTION_FPS * F_MOTION_SEG, US = 1e6 / F_MOTION_FPS;
+  try{
+    for(let i = 0; i < N; i++){
+      if(erro) throw erro;
+      // Fundo transparente não existe em H.264: sem este preto, o "vazio" viraria lixo do quadro anterior.
+      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, W, H);
+      await fRenderTemplateLayers(ctx, _fMotionQuadro(resolvidas, plano, i / F_MOTION_FPS, W, H), W, H, d, c, material,
+        { scope: 'franqueado', purpose: 'export', resolvido: true });
+      const quadro = new VideoFrame(cv, { timestamp: Math.round(i * US), duration: Math.round(US) });
+      enc.encode(quadro, { keyFrame: i % F_MOTION_FPS === 0 });   // chave a cada 1 s: o player pula sem travar
+      quadro.close();
+      while(enc.encodeQueueSize > 6) await new Promise(r => setTimeout(r, 4));
+      if(onProgresso) onProgresso((i + 1) / N);
+    }
+    await enc.flush();
+    if(erro) throw erro;
+  } finally { try{ enc.close(); }catch(e){} }
+  if(!avcC || amostras.length !== N) throw new Error('O codificador de vídeo não devolveu todos os quadros.');
+  const fname = fBuildFilename(c, fmt, d).replace(/\.png$/i, '') + '.mp4';
+  return { blob: _fMp4Monta(amostras, avcC, W, H, F_MOTION_FPS, cor), fname };
+}
+
+// O botão "Baixar vídeo" do card da arte. Mesmo funil do fBaixar: guard, snapshot da bolha,
+// folha nativa no celular, histórico e evento.
+async function fBaixarVideo(btn, snapId){
+  if(typeof gFeatureCan === 'function' && !gFeatureCan('franqueado.export.video', 'execute')){
+    if(typeof gFeatureBlockedFeedback === 'function') gFeatureBlockedFeedback('franqueado.export.video');
+    return;
+  }
+  const snap = (snapId && typeof _fArtSnapshots !== 'undefined' && _fArtSnapshots[snapId])
+    || { dados: fState.dados, camp: fState.camp, fmt: fState.fmt, histId: fState._lastHistId, material: fState.material };
+  const restore = gBtnLoading(btn, 'Gerando vídeo…');
+  const rotulo = btn && btn.querySelector('span:last-child');
+  try{
+    const { blob, fname } = await fGenMP4(snap.dados, snap.camp, snap.fmt, snap.material || fState.material,
+      p => { if(rotulo) rotulo.textContent = 'Gerando vídeo… ' + Math.round(p * 100) + '%'; });
+    const file = new File([blob], fname, { type: 'video/mp4' });
+    let via = 'download';
+    if(typeof _fArteEhCelular === 'function' && _fArteEhCelular()){
+      let podeShare = false;
+      try{ podeShare = !!(navigator.canShare && navigator.canShare({ files: [file] })); }catch(e){}
+      // Depois de ~20 s gerando, o iOS pode já não aceitar o share (o gesto expirou): cai no arquivo.
+      if(podeShare){
+        try{ await navigator.share({ files: [file] }); via = 'share'; }
+        catch(e){ if(e && e.name === 'AbortError') return; }
+      }
+    }
+    if(via === 'download'){
+      const a = document.createElement('a'); const url = URL.createObjectURL(blob);
+      a.download = fname; a.href = url; a.click();
+      setTimeout(() => { try{ URL.revokeObjectURL(url); }catch(e){} }, 60000);
+    }
+    if(snap.histId) fMarkHistBaixada(snap.histId);
+    else fAddHist(snap.dados, snap.camp, snap.fmt, 'baixada');
+    if(typeof gTrackEvent === 'function') gTrackEvent('arte_baixada', { camp_id: snap.camp.id, fmt_id: snap.fmt.id,
+      template_id: (typeof _fTplId === 'function') ? _fTplId(snap.material) : null, tipo: 'mp4', origem: 'chat', via });
+    gToast(via === 'share' ? 'Vídeo pronto!' : 'Vídeo baixado!');
+    if(typeof window.gPlayExportSuccessSound === 'function') window.gPlayExportSuccessSound();
+  }catch(e){
+    console.warn('Falha ao gerar vídeo:', e);
+    if(typeof gHandleLayoutUnsafeError === 'function' && gHandleLayoutUnsafeError(e)) return;
+    gToast(e && e.code === 'LUMA_VIDEO_UNSUPPORTED' ? 'Este navegador não gera vídeo. Use o Chrome, o Edge ou o Safari atualizados.'
+      : e && e.code === 'LUMA_IMAGE_UNAVAILABLE' ? e.message : 'Não consegui gerar o vídeo. Tente de novo.', 'error');
+  }finally{ restore(); }
+}

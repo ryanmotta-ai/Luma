@@ -38,6 +38,7 @@
 | Colar (Ctrl/⌘+V) e arrastar arquivo para dentro do chat | `js/franqueado/chat.js` (`fReceberFotoNoChat`, `_fInitChatSoltarColar`) — duas portas para o `fProcessImageFile`, que continua o motor único de imagem |
 | Prévia ao vivo, gaveta da prévia no celular, zoom da prévia | `js/franqueado/live-preview.js` |
 | Como o PNG/JPG/PDF é desenhado e baixado | `js/franqueado/png-generator.js` |
+| **Story animado (MP4)** — coreografia lida da arte, encoder, muxer, botão "Baixar vídeo" | `js/franqueado/motion.js` (`fBaixarVideo` → `fGenMP4`). ⛔ Não é segundo render: cada quadro é `fRenderTemplateLayers` com `resolvido:true` + `_fxDx/_fxDy/_fxEscala` |
 | Sheets / geração em massa (folha, fila de ofertas, rascunho) | `js/franqueado/png-generator.js` (`_fBulk*`, a partir da linha ~1300) |
 | Legendas sugeridas do post (combinatório, **não é IA**) | `js/franqueado/png-generator.js:4435` (`fBuildCopy`, bancos em `_COPY_BLOCKS:4016`) |
 | Postar no Instagram / enviar no WhatsApp | `js/franqueado/png-generator.js` (`fPostarInstagram`, `fEnviarWhatsApp`) |
@@ -261,7 +262,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 93 arquivos JS (85.832 linhas, 3.315 funções) · 33 arquivos CSS (33.703 linhas) · `index.html` com 4.092 linhas e 83 `<script>`.
+**Tamanho real de hoje:** 94 arquivos JS (86.223 linhas, 3.325 funções) · 33 arquivos CSS (33.706 linhas) · `index.html` com 4.093 linhas e 84 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -336,7 +337,7 @@ COPY FIT — encurtar a copy do franqueado SEM mudar o que se vende (22/09/2026)
 · Estado global: _gDados
 · Depende de: core/toast.js (gEsc, gToast), core/auth.js (gIsAdmin), core/supabase.js (gSupabase).
 
-**`js/core/feature-flags.js`** · 671 linhas
+**`js/core/feature-flags.js`** · 674 linhas
 CONTROLE DO PRODUTO — o motor único de disponibilidade funcional do Luma.
 · API: gFeatureLoadCache, gFeatureState, gFeatureEnabled, gFeatureCan, gFeatureReason, gFeatureBlockedFeedback, gFeatureToolBlocked, gFeatureApplyToDOM, gFeatureSyncFromBackend, gFeatureSave, gFeatureRefresh, gFeatureHistory, gFeatureInit, gFeatureResolveTree … (+1; 23 funções no total)
 · Estado global: _gFFValores, _gFFSyncedAt, _gFFOrigem, _gFFErroSync, _gFFIniciado, _gFFPorChave, _gFFFilhos, _gFFPorTool
@@ -432,7 +433,7 @@ F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES defi
 · Estado global: _F_MAXLEN_MED, _fAlvoNaPasta, _fFitOpts, _fFitRun, _fFitSai, _fFitIaReprovadas, _fFitCf, quando, _fFitPerto, _fFitFora
 · Depende de: 00-config.js
 
-**`js/franqueado/chat.js`** · 4051 linhas
+**`js/franqueado/chat.js`** · 4056 linhas
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
 · API: fChatNovaConversa, fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fTrackResposta, fTrackFoto … (+71; 187 funções no total)
 · Estado global: fNextTimeout, _fChatGen, _fGuidedNav, _fGuidedTimer, _fGuidedBound, _fProntaCtxAberto, _fRevisando, _fRespostasNAnt, _fArtSnapshots, _fArtCaptions (+5)
@@ -467,13 +468,18 @@ Catalogo de materiais do franqueado: fOpenMaterialCatalog, fRenderMaterialCatalo
 · Estado global: _fCampThemeAtivo
 · Depende de: 00-config.js, 01-state.js, franqueado/chat.js
 
+**`js/franqueado/motion.js`** · 382 linhas
+STORY ANIMADO — o Story do franqueado sai também em MP4 (28/10/2026) Pedido do Ryan:
+· API: fMotionDisponivel, fMotionEhStory, fGenMP4, fBaixarVideo
+· Depende de: franqueado/png-generator.js (fRenderTemplateLayers, fMaterialSize,
+
 **`js/franqueado/panel-dock.js`** · 170 linhas
 Drag & drop das 3 colunas do workspace do franqueado (só desktop largo).
 · API: fLoadPanelOrder, fSavePanelOrder, fSetPanelOrder, fInitPanelDock
 · Estado global: _panelOrder, _panelDrag
 · Depende de: index.html (grips + #fran-main), css/modules/panel-dock.css,
 
-**`js/franqueado/png-generator.js`** · 6123 linhas
+**`js/franqueado/png-generator.js`** · 6124 linhas
 Geracao de PNG a partir dos templates: fGenPNG, fRenderTemplateLayers, fBaixar, fOutroFormato. Sistema de nomenclatura padronizado para downloads.
 · API: fLoadLogoBranca, fMaterialSize, fExportScale, fRenderCanvasHelper, fAssinaturaDados, fAssinarPngBytes, fAssinarPngBlob, fAssinarPngDataURL, fLerAssinaturaPng, fGenPNG, fGenPDF, fPostarInstagram, fEnviarWhatsApp, fDrawDMLogo … (+85; 195 funções no total)
 · Depende de: 00-config.js, 01-state.js, designer/canvas.js (dRenderCanvas)
@@ -766,7 +772,7 @@ MAKING-OF da arte (frente 6, 15/10/2026; microações em 15/10, pedido do Ryan) 
 | `css/modules/all-tools.css` | 113 |
 | `css/modules/calendario.css` | 1544 |
 | `css/modules/catalog.css` | 299 |
-| `css/modules/chat.css` | 4153 |
+| `css/modules/chat.css` | 4156 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
 | `css/modules/creative.css` | 799 |
@@ -819,58 +825,59 @@ A ordem **é** a arquitetura: sem ESM, um arquivo depende de o anterior já ter 
 29. js/franqueado/chat-input.js
 30. js/designer/blending.js
 31. js/franqueado/png-generator.js
-32. js/designer/templates.js
-33. js/creative/creative.js
-34. js/creative/composicoes.js
-35. js/creative/curadoria.js
-36. js/creative/branding.js
-37. js/creative/copy.js
-38. js/creative/harness.js
-39. js/creative/making-of.js
-40. js/designer/canvas.js
-41. js/designer/selection.js
-42. js/designer/brush.js
-43. js/designer/eraser-tools.js
-44. js/designer/layers.js
-45. js/designer/props-panel.js
-46. js/designer/measurement.js
-47. js/designer/publish.js
-48. js/designer/preview.js
-49. js/designer/library.js
-50. js/designer/undo-redo.js
-51. js/widgets/novidades.js
-52. js/widgets/help-widget.js
-53. js/designer/tools.js
-54. js/designer/fonts.js
-55. js/designer/psd-parse.js
-56. js/designer/psd-import.js
-57. js/designer/mask.js
-58. js/designer/tutorial-panel.js
-59. assets/vendor/colorthief.js
-60. assets/vendor/pica.js
-61. assets/vendor/jszip.min.js
-62. assets/vendor/supabase.js
-63. js/core/supabase-config.js
-64. js/core/supabase.js
-65. js/core/ai/ai-cache.js
-66. js/core/ai/ai-telemetry.js
-67. js/core/ai/ai-schemas.js
-68. js/core/ai/ai-registry.js
-69. js/core/ai/ai-client.js
-70. js/core/ai.js
-71. js/core/ai/ai-provedores.js
-72. js/core/auth.js
-73. js/core/franquia.js
-74. js/franqueado/feedback.js
-75. js/core/feature-flags.js
-76. js/core/user-profile.js
-77. js/core/product-control.js
-78. js/core/dados.js
-79. js/core/console.js
-80. js/designer/color-picker.js
-81. js/designer/tooltip.js
-82. js/designer/linter.js
-83. js/main.js
+32. js/franqueado/motion.js
+33. js/designer/templates.js
+34. js/creative/creative.js
+35. js/creative/composicoes.js
+36. js/creative/curadoria.js
+37. js/creative/branding.js
+38. js/creative/copy.js
+39. js/creative/harness.js
+40. js/creative/making-of.js
+41. js/designer/canvas.js
+42. js/designer/selection.js
+43. js/designer/brush.js
+44. js/designer/eraser-tools.js
+45. js/designer/layers.js
+46. js/designer/props-panel.js
+47. js/designer/measurement.js
+48. js/designer/publish.js
+49. js/designer/preview.js
+50. js/designer/library.js
+51. js/designer/undo-redo.js
+52. js/widgets/novidades.js
+53. js/widgets/help-widget.js
+54. js/designer/tools.js
+55. js/designer/fonts.js
+56. js/designer/psd-parse.js
+57. js/designer/psd-import.js
+58. js/designer/mask.js
+59. js/designer/tutorial-panel.js
+60. assets/vendor/colorthief.js
+61. assets/vendor/pica.js
+62. assets/vendor/jszip.min.js
+63. assets/vendor/supabase.js
+64. js/core/supabase-config.js
+65. js/core/supabase.js
+66. js/core/ai/ai-cache.js
+67. js/core/ai/ai-telemetry.js
+68. js/core/ai/ai-schemas.js
+69. js/core/ai/ai-registry.js
+70. js/core/ai/ai-client.js
+71. js/core/ai.js
+72. js/core/ai/ai-provedores.js
+73. js/core/auth.js
+74. js/core/franquia.js
+75. js/franqueado/feedback.js
+76. js/core/feature-flags.js
+77. js/core/user-profile.js
+78. js/core/product-control.js
+79. js/core/dados.js
+80. js/core/console.js
+81. js/designer/color-picker.js
+82. js/designer/tooltip.js
+83. js/designer/linter.js
+84. js/main.js
 ```
 
 <!-- AUTO-FIM -->

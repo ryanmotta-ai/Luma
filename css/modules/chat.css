@@ -3421,6 +3421,8 @@ body.f-arte-pronta .art-ok-tick-bloq{width:28px;height:28px}
      antes de tudo — foi o que aconteceu quando o "Ajustar arte" nasceu: ele apareceu ACIMA do
      Baixar PNG, que é a ação principal. Quem entrar com botão novo aqui, numere. */
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-download{order:1}
+  /* Baixar vídeo (Story animado): mesmo degrau do Baixar PNG, logo abaixo dele pela ordem do DOM. */
+  body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-video{order:1}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-voltar{order:5}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .caption-assistant-panel{order:3}
   body.f-mobile-chat:not(.f-material-browser):not(.f-history-mode):not(.f-home-mode) .art-btn.art-voltar{order:4}
@@ -3735,6 +3737,7 @@ body.f-arte-pronta .caption-alt-btn{font-size:12px;color:var(--text-3)}
 body.f-arte-pronta .art-actions,body.f-arte-pronta .art-actions-dupla{display:contents}
 body.f-arte-pronta .art-btn{width:100%;min-height:48px;border-radius:12px;font-size:15px;font-weight:800}
 body.f-arte-pronta .art-btn.art-download{order:1}
+body.f-arte-pronta .art-btn.art-video{order:1}
 /* "Voltar para edição" e "Refazer" são terciários e dividem a fileira do fim, sem caixa,
    longe do Baixar PNG e depois da extensão de produção em lote. */
 body.f-arte-pronta .art-btn.art-voltar{order:5}
