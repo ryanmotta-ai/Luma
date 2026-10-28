@@ -381,7 +381,10 @@ async function fKitSalvar(btn, snapId){
       if(navigator.canShare({files:[file]})){ await navigator.share({files:[file]}); _fKitEntregue(st,'share'); return; }
     }catch(e){ if(e&&e.name==='AbortError') return; }   // fechou a folha: nada saiu
   }
-  const a=document.createElement('a'); a.href=x.url; a.download=nome; a.click();
+  // Blob, não o data URL da prévia: o Chrome não baixa link `data:` acima de 2 MB (ver fGenPNG).
+  const url=URL.createObjectURL(_fKitDataUrlBlob(x.url));
+  const a=document.createElement('a'); a.href=url; a.download=nome; a.click();
+  setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(e){} }, 60000);
   _fKitEntregue(st,'download');
 }
 function _fKitEntregue(st, via){

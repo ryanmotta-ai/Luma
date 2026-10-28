@@ -212,8 +212,19 @@ async function fGenPNG(d,c,fmt,opts){
   const canvas = await fRenderCanvasHelper(d,c,fmt,opts);
   const a=document.createElement('a');
   a.download=fBuildFilename(c,fmt,d);
-  a.href=fAssinarPngDataURL(canvas.toDataURL('image/png'), fAssinaturaDados(c,fmt));
-  a.click();
+  /* ⛔ BLOB, NÃO DATA URL (28/10/2026). O Chrome recusa link `data:` acima de 2 MB: o download
+     falha em silêncio ("Falha — erro de rede" na barra) e o Luma já tinha dito "Arte baixada".
+     A arte 2× com foto passa disso fácil — a franqueada nova tentou 9 vezes em 15 min. O Firefox
+     aceita até 32 MB, por isso parecia "às vezes funciona". Mesmo caminho do _fArteBaixarArquivo. */
+  const cru = await new Promise(res=>canvas.toBlob(res,'image/png'));
+  if(cru && typeof URL!=='undefined' && URL.createObjectURL){
+    const url=URL.createObjectURL(await fAssinarPngBlob(cru, fAssinaturaDados(c,fmt)));
+    a.href=url; a.click();
+    setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(e){} }, 60000);
+  } else {
+    a.href=fAssinarPngDataURL(canvas.toDataURL('image/png'), fAssinaturaDados(c,fmt));
+    a.click();
+  }
   if(typeof window.gPlayExportSuccessSound==='function') window.gPlayExportSuccessSound();
 }
 
