@@ -99,6 +99,22 @@ function _fHistBloqueiaVencida(h){
   gToast('Esse material saiu do ar'+(quando?' em '+quando:'')+' — não dá pra gerar essa arte de novo. Escolha outro material no catálogo.','error');
   return true;
 }
+/* ARTE DE VERSÃO ANTIGA — regra da gestão: se o template ganhou versão nova, a arte feita com a
+   versão anterior não sai mais de "Minhas artes" (não baixa, não edita, não duplica). Quem quer
+   a arte com o layout atual gera de novo pelo catálogo. Mesma leitura da validade: compara o
+   `templateVersionId` guardado no histórico com o `versaoAtualId` do material carregado.
+   ⚠ Falha ABERTA como a validade: sem material ou sem versão gravada, não bloqueia nada. */
+function _fHistVersaoAntiga(h){
+  const m=_fHistMaterial(h);
+  return !!(m && h.templateVersionId && m.versaoAtualId && m.versaoAtualId!==h.templateVersionId);
+}
+// Porteiro único das três ações: validade primeiro (motivo mais forte), depois versão antiga.
+function _fHistBloqueada(h){
+  if(_fHistBloqueiaVencida(h)) return true;
+  if(!_fHistVersaoAntiga(h)) return false;
+  gToast('Esta arte é de uma versão anterior do template — não dá pra usar mais. Gere uma nova pelo catálogo.','error');
+  return true;
+}
 /* Porteiro do "Limpar": a única confirmação da biblioteca. Usa o gConfirm da casa (danger),
    diz QUANTAS artes somem e ONDE (aqui e no servidor), separa o que NÃO se perde (os
    materiais das campanhas continuam no catálogo) e avisa que não desfaz — sem isso a
@@ -342,8 +358,11 @@ function fRenderHist(){
     // morto sem explicação é pior que botão ausente — o motivo vai no lugar da linha de meta.
     const vencida = _fHistVencida(h);
     const quando = vencida ? _fHistVencimento(h) : '';
-    const dis = vencida ? ' disabled aria-disabled="true"' : '';
-    return `<article class="hist-card${vencida?' is-vencida':''}" data-status="${h.status||'rascunho'}">
+    // Versão antiga do template: mesmo tratamento do vencido (as três ações ficam travadas).
+    const antiga = !vencida && _fHistVersaoAntiga(h);
+    const travada = vencida || antiga;
+    const dis = travada ? ' disabled aria-disabled="true"' : '';
+    return `<article class="hist-card${travada?' is-vencida':''}" data-status="${h.status||'rascunho'}">
       <div class="hist-thumb hist-thumb-real" style="background:${gEsc(h.campColor||'var(--dm-orange)')}">
         <img class="hist-preview-blur" alt="" aria-hidden="true">
         <img class="hist-preview-art" data-hist-preview="${h.id}" alt="Prévia de ${gEsc(artName)}" decoding="async">
@@ -355,15 +374,17 @@ function fRenderHist(){
         <span class="hist-thumb-fmt">${gEsc(h.fmtName||'Material')}</span>
       </div>
       <div class="hist-info">
-        <div class="hist-card-top">${statusBadge}${h._demo?'<span class="hist-badge-st demo">demonstração</span>':''}${vencida?'<span class="hist-badge-st vencida">fora da validade</span>':''}<time>${dateStr}</time></div>
+        <div class="hist-card-top">${statusBadge}${h._demo?'<span class="hist-badge-st demo">demonstração</span>':''}${vencida?'<span class="hist-badge-st vencida">fora da validade</span>':''}${antiga?'<span class="hist-badge-st vencida">versão antiga</span>':''}<time>${dateStr}</time></div>
         <div class="hist-name">${gEsc(artName)}</div>
         ${vencida
           ? `<div class="hist-meta hist-meta-vencida">Material saiu do ar${quando?' em '+gEsc(quando):''} — não dá pra gerar de novo</div>`
+          : antiga
+          ? `<div class="hist-meta hist-meta-vencida">O template ganhou uma versão nova — gere de novo pelo catálogo</div>`
           : `<div class="hist-meta"><span>${gEsc(h.campName)}</span><span class="hist-meta-sep">·</span><span>${gEsc(h.fmtName)}</span></div>`}
         <div class="hist-actions">
           <button class="hist-act-btn hist-act-main"${dis} onclick="fEditFromHist(${h.id},this)" title="Abrir e editar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>${isRascunho?'Continuar':'Editar'}</button>
           <button class="hist-act-btn"${dis} onclick="fDuplicateInOtherFmt(${h.id})" title="Duplicar esta arte no mesmo formato"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplicar</button>
-          <button class="hist-act-btn hist-act-download"${dis} onclick="fDownloadHist(${h.id},this)" title="${vencida?'Material fora da validade':'Baixar PNG'}" aria-label="Baixar ${gEsc(artName)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M5 21h14"/></svg></button>
+          <button class="hist-act-btn hist-act-download"${dis} onclick="fDownloadHist(${h.id},this)" title="${vencida?'Material fora da validade':antiga?'Versão antiga do template':'Baixar PNG'}" aria-label="Baixar ${gEsc(artName)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M5 21h14"/></svg></button>
         </div>
       </div>
     </article>`;
@@ -389,7 +410,7 @@ async function fDownloadHist(id, btn){
   const h=fGetHist().find(x=>x.id===id);if(!h)return;
   // Guarda no CLIQUE (e não só no botão desabilitado): o card pode ter sido pintado antes
   // do catálogo sincronizar, e a validade pode ter vencido com a aba aberta.
-  if(_fHistBloqueiaVencida(h)){ fRenderHist(); return; }
+  if(_fHistBloqueada(h)){ fRenderHist(); return; }
   const {ativas:_ca,outras:_co}=fGetCampaigns(); const all=[..._ca,..._co];
   const c=all.find(x=>x.id===h.campId)||{id:h.campId,name:h.campName,color:h.campColor,perguntas:[]};
   const f=FMTS.find(x=>x.id===h.fmtId)||FMTS[0];
@@ -437,7 +458,7 @@ async function fEditFromHist(id, btn){
   if(!h) return;
   // Editar também termina em PNG: liberar a edição de material vencido seria só um caminho
   // mais longo pro mesmo download proibido.
-  if(_fHistBloqueiaVencida(h)){ fRenderHist(); return; }
+  if(_fHistBloqueada(h)){ fRenderHist(); return; }
   const {ativas:_ca2,outras:_co2}=fGetCampaigns(); const all=[..._ca2,..._co2];
   const c = all.find(x=>x.id===h.campId);
   if(!c){ gToast('Não achei a campanha original dessa arte.'); return; }
@@ -550,7 +571,7 @@ async function fConfirmDuplicate(id, fmtId){
   }
   const h = fGetHist().find(x=>x.id===id);
   if(!h) return;
-  if(_fHistBloqueiaVencida(h)){ fRenderHist(); return; }
+  if(_fHistBloqueada(h)){ fRenderHist(); return; }
   const {ativas:_ca4,outras:_co4}=fGetCampaigns(); const all=[..._ca4,..._co4];
   const c = all.find(x=>x.id===h.campId) || {id:h.campId,name:h.campName,color:h.campColor,perguntas:[]};
   const f = FMTS.find(x=>x.id===fmtId) || FMTS[0];

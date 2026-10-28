@@ -97,6 +97,7 @@ permissoes: { nome_do_campo: { edit: true|false, maxLen: 32 } }
 - ⛔ **Campanha (Luma) = pasta que agrupa materiais.** Não é um "envio", não é um "disparo", não é uma "audiência". É organização de catálogo.
 - Uma campanha pode ter **validade** (via `publishMeta.validade` de seus materiais) — materiais expirados somem do catálogo do franqueado.
 - Só materiais com `publishMeta.publicado === true` aparecem para o franqueado. Rascunho fica invisível.
+- ⛔ **Arte de versão antiga sai de "Minhas artes".** Se o template ganhou versão nova, a arte feita com a versão anterior não baixa, não edita e não duplica mais (`_fHistBloqueada` em `js/franqueado/catalog.js`). O franqueado gera de novo pelo catálogo.
 
 ---
 
