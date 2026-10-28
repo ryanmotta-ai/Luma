@@ -262,7 +262,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 94 arquivos JS (86.223 linhas, 3.325 funções) · 33 arquivos CSS (33.706 linhas) · `index.html` com 4.093 linhas e 84 `<script>`.
+**Tamanho real de hoje:** 94 arquivos JS (86.336 linhas, 3.328 funções) · 33 arquivos CSS (33.714 linhas) · `index.html` com 4.093 linhas e 84 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -421,9 +421,9 @@ Controladores do Modal e Configurações de Perfil do Usuário. Suporta edição
 
 ### js/franqueado
 
-**`js/franqueado/catalog.js`** · 1823 linhas
+**`js/franqueado/catalog.js`** · 1844 linhas
 Catalogo de campanhas: fRenderCatalogs, fFilterCamps, fSelectCamp, fSwitchTab, fSetHistFilter, fRenderHist, fEditFromHist, fDuplicateInOtherFmt.
-· API: fSwitchTab, fSetHistFilter, fGoToCampaigns, fFindMaterialById, fAskClearHist, fHistVoltar, fRenderHist, fDownloadHist, fEditFromHist, fDuplicateInOtherFmt, fConfirmDuplicate, fEditCampFolder, fCampAdminMenu, fCampAnalyticsClose … (+38; 92 funções no total)
+· API: fSwitchTab, fSetHistFilter, fGoToCampaigns, fFindMaterialById, fAskClearHist, fHistVoltar, fRenderHist, fDownloadHist, fEditFromHist, fDuplicateInOtherFmt, fConfirmDuplicate, fEditCampFolder, fCampAdminMenu, fCampAnalyticsClose … (+38; 94 funções no total)
 · Estado global: fHistFilter, _fHistPreviewCache, _fHistPreviewRun, _fHistPreviewObserver, _fRedeRun, _fRedeObserver, _fhThumbFila, _fhFilter, _fhRevealIO, _fhRevealGen (+3)
 · Depende de: 00-config.js, 01-state.js
 
@@ -468,7 +468,7 @@ Catalogo de materiais do franqueado: fOpenMaterialCatalog, fRenderMaterialCatalo
 · Estado global: _fCampThemeAtivo
 · Depende de: 00-config.js, 01-state.js, franqueado/chat.js
 
-**`js/franqueado/motion.js`** · 382 linhas
+**`js/franqueado/motion.js`** · 474 linhas
 STORY ANIMADO — o Story do franqueado sai também em MP4 (28/10/2026) Pedido do Ryan:
 · API: fMotionDisponivel, fMotionEhStory, fGenMP4, fBaixarVideo
 · Depende de: franqueado/png-generator.js (fRenderTemplateLayers, fMaterialSize,
@@ -772,7 +772,7 @@ MAKING-OF da arte (frente 6, 15/10/2026; microações em 15/10, pedido do Ryan) 
 | `css/modules/all-tools.css` | 113 |
 | `css/modules/calendario.css` | 1544 |
 | `css/modules/catalog.css` | 299 |
-| `css/modules/chat.css` | 4156 |
+| `css/modules/chat.css` | 4164 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
 | `css/modules/creative.css` | 799 |
