@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-10-28 — Campanha "Festival do Xis" (13–15/11): pasta, capa, banner e 4 templates (✅ dados, sem migration)
+
+Pedido do Ryan: pegar as artes do canvas "Festival do Xis — versões finais" que fazem sentido para o Luma e deixar a campanha pronta (pasta + capa + templates). Fora de propósito: a versão amarela (`V1-Amarelo-V2`, só outra cor do mesmo anúncio) e nenhum template existente foi tocado.
+
+- **Pasta** `044d1456-1c38-44fa-acb8-728222c48e95` · "Festival do Xis" · `camp_id=fdx` · `#F85400` · destaque (Ativas agora) · `expira_dias=18` · `cover_url=assets/covers/fdx.jpg`. Semente em `CAMPS_ATIVAS` (`js/00-config.js`) só para o `banner` do Calendário (`?v=340`).
+- **Templates** (feed + story, **mesmo nome** → o app vincula; `validade=2026-11-16`; criados como rascunho e publicados depois de render real):
+  - Festival do Xis — Divulgação · feed `ad451e6f-4020-433e-9ed4-4dcea81ede82` · story `d23118d5-4454-441b-8e1e-337b73a4a496` (3 layers: fundo + data + CTA; sem campos do franqueado).
+  - Festival do Xis — Lojas participantes · feed `925fbdb3-aa97-4d3e-a1f1-cd2a57b118d3` · story `50208b4d-87e5-47ce-829c-355dd569150d` (15 layers: até 4 lojas, cada uma com logo `logo_loja_N` + nome `loja_N`; slot vazio some, sem reflow).
+- **Campos novos** em `luma.variaveis` (todos opcionais): `loja_1..4` (texto, 24) e `logo_loja_1..4` (imagem).
+- **Assets**: `assets/campanhas/festival-do-xis/{main,lojas}-{feed,story}-v1.jpg` (fundo+título+foto+selos, render 2×), `assets/banners/fdx.png` (1528×408, 2×), `assets/covers/fdx.jpg` (1500×900).
+- **Como reverter**: templates novos nascem na versão 1 → `delete from luma.templates where pasta_id='044d1456-1c38-44fa-acb8-728222c48e95'`, depois `delete from luma.pastas where id='044d1456-1c38-44fa-acb8-728222c48e95'` e `delete from luma.variaveis where name ~ '^(logo_)?loja_[1-4]$'`; `git rm` dos assets e da semente `fdx`.
+
+---
+
 ## 2026-10-25 — Preço no padrão "POR / R$ · inteiro · vírgula · centavos" em todos os templates (✅ dados, sem migration)
 
 Pedido do Ryan: um padrão só de preço, o da "Caixa de preço" (DE riscado; "POR" em cima do `R$`; inteiro grande; centavos no alto; vírgula embaixo). Esse bloco já existia em 9 pares (Promo Turbinada, Almoço barato, Bora de sushi, Combão, Combos Coca — Oferta com preço, Mais vendidos, Ofertas Favoritas, Rangos, Tudo até R$ 25) e no selo girado do Açaí — **esses não mudaram**. Com 1 dígito o número agora encosta no `R$` pelo motor (`_gLfPrecoDigito`, `js/core/local-fit.js`, commits `1d01860` e `107973c`).
