@@ -64,6 +64,9 @@ const G_FEATURE_REGISTRY = [
   { key:'module.creative', label:'Luma Ateliê', desc:'Modo em testes: o chat que compõe arte nova com IA. Só a gestão abre.',
     module:'creative', parent:null, categoria:'modulos', behaviors:['hide','maintenance'],
     preserva:['load'], tags:['creative','ia','compor','testes'] },
+  { key:'module.potencial', label:'Potencial da cidade', desc:'A calculadora comercial: escolhe a cidade, mostra os 3 cenários e gera o slide. Só a equipe DM abre.',
+    module:'potencial', parent:null, categoria:'modulos', behaviors:['hide','maintenance'],
+    preserva:['load'], tags:['potencial','calculadora','cidade','slide','comercial'] },
   /* ── FRANQUEADO ──────────────────────────────────────────── */
   { key:'franqueado.catalogo', label:'Catálogo de campanhas', desc:'A vitrine de campanhas e materiais publicados.',
     module:'franqueado', parent:'module.franqueado', categoria:'areas', behaviors:['hide','maintenance'],
@@ -207,6 +210,7 @@ const G_FEATURE_MODULOS = [
   { id:'designer',   label:'Estúdio' },
   { id:'franqueado', label:'Franqueado' },
   { id:'creative',   label:'Luma Ateliê' },
+  { id:'potencial',  label:'Potencial' },
   { id:'video',      label:'Vídeo' },
   { id:'global',     label:'Global' }
 ];

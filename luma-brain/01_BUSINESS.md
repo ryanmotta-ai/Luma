@@ -324,6 +324,17 @@ Se uma proposta contradiz qualquer item abaixo, ela está **errada** — reveja 
 
 O Creative (hoje só gestão, em testes) gasta IA a cada arte, então tem **cota diária**: **20 artes por dia por franqueado**; gestão e equipe_dm **sem limite** (o uso deles só é contado). "Arte" = uma geração completa, inclusive "Outras opções". O modelo **Rápido** gasta 1; **Capaz** (e os outros) gastam 2. O dia vira à meia-noite de Brasília. O franqueado escolhe entre Rápido e Capaz; a equipe vê a lista toda. Geração que não entrega (erro ou "parar") **é devolvida**. A regra mora no banco (`luma_creative_limite`) — mudar o 20 é uma função, não um deploy de front. Detalhe técnico e o que falta para ligar para o franqueado: `docs/LUMA-BACKEND-CHANGELOG.md` (14/10/2026).
 
+## Potencial da cidade — a calculadora comercial (29/10/2026)
+
+A "Calculadora de Franquias 2026" (planilha do Aladim) virou a aba **Potencial** do Luma, **só para a equipe DM**. Escolhe-se a cidade, vê-se os 3 cenários e o botão gera o slide "Estudo de potencial" no Google Slides.
+
+- **Investimento total** = taxa de franquia (a negociada da cidade, senão a da faixa de população) + marketing de lançamento `CEILING(base da faixa × (1 + IPCA) × multiplicador de concorrentes, 50)`.
+- **Concorrentes:** a planilha só tem multiplicador para 0, 1 e 2. Com 3 ou mais ela devolvia `FALSE` (somava como zero). O Luma **não inventa**: avisa e bloqueia o slide até alguém ajustar o campo.
+- **Cenários:** 2% / 20% / 35% da população viram usuários (`ROUND`); GMV = usuários × ticket do cenário (região × 0,975 / 1 / 1,025); receita do franqueado = GMV × comissão × % do franqueado.
+- ⚠ **Lucro líquido anual, payback e ROI não estão na planilha.** Foram reconstruídos dos números do slide do Aruanã: lucro = receita × 12 × (1 − Simples), payback = investimento ÷ (lucro ÷ 12), ROI = lucro ÷ investimento. Se o comercial usar outra regra, muda `potCalcular` (`js/potencial/potencial.js`). Pendente de confirmação do Aladim.
+- Cidade marcada "não vender" na base: avisa, não bloqueia.
+- Tarifas em `luma.potencial_*` (RLS), nunca no JS. Detalhe: `docs/LUMA-BACKEND-CHANGELOG.md` (29/10/2026).
+
 ## Ver também
 
 - `00_PRODUCT.md` — propósito, público, missão, o que o Luma NÃO faz.

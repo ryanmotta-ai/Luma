@@ -1,7 +1,7 @@
 /**
  * js/main.js
  *
- * Bootstrap: setMode (troca entre franqueado/designer/creative) e chamadas de inicializacao.
+ * Bootstrap: setMode (troca entre franqueado/designer/creative/potencial) e chamadas de inicializacao.
  * Deve ser carregado por ULTIMO (apos todos os modulos).
  */
 
@@ -33,7 +33,7 @@ function dUpdateTabPill() {
 /* ── CONTROLE DO PRODUTO: gate de módulo ─────────────────────────
    A chave de cada aba da topbar. O Controle do produto pode desligar um módulo
    inteiro sem deploy; aqui é onde isso vira navegação bloqueada. */
-const G_MODE_FEATURE = { franqueado:'module.franqueado', designer:'module.designer', creative:'module.creative' };
+const G_MODE_FEATURE = { franqueado:'module.franqueado', designer:'module.designer', creative:'module.creative', potencial:'module.potencial' };
 
 // Luma Creative (js/creative/creative.js) está em TESTES: só a gestão — nem a equipe_dm.
 // A Edge Function `ai` repete esta trava na task `arte.compor` (o front é só navegação).
@@ -45,11 +45,11 @@ function _gCreativeRole(){ return typeof gCurrentRole==='function' && G_CREATIVE
 // Um modo só abre se a role permite E a flag permite.
 function gModeAllowed(m){
   // Áreas removidas não voltam por cache antigo nem por uma flag legada do banco.
-  if(m!=='franqueado' && m!=='designer' && m!=='video' && m!=='creative') return false;
+  if(m!=='franqueado' && m!=='designer' && m!=='video' && m!=='creative' && m!=='potencial') return false;
   if(m==='creative' && !_gCreativeRole()) return false;
   // Estúdio e Vídeo são ferramentas da equipe. O Vídeo por um motivo extra: é
   // desktop-only e exporta em tempo real — o celular do franqueado não dá conta.
-  if((m==='designer' || m==='video') && (typeof gIsAdmin!=='function' || !gIsAdmin())) return false;
+  if((m==='designer' || m==='video' || m==='potencial') && (typeof gIsAdmin!=='function' || !gIsAdmin())) return false;
   if(typeof gFeatureCan!=='function') return true;   // sem o motor, nada muda
   return gFeatureCan(G_MODE_FEATURE[m]||'', 'access');
 }
@@ -105,10 +105,10 @@ function gGoHome(){
 }
 
 function setMode(m){
-  if(m!=='franqueado' && m!=='designer' && m!=='video' && m!=='creative') m='franqueado';
+  if(m!=='franqueado' && m!=='designer' && m!=='video' && m!=='creative' && m!=='potencial') m='franqueado';
   if(m==='creative' && !_gCreativeRole()) m='franqueado';
   // Gate por role: franqueado NÃO acessa o Estúdio (trava no clique e via DOM/console).
-  if((m==='designer' || m==='video') && (typeof gIsAdmin!=='function' || !gIsAdmin())) m='franqueado';
+  if((m==='designer' || m==='video' || m==='potencial') && (typeof gIsAdmin!=='function' || !gIsAdmin())) m='franqueado';
   // Gate por flag. Vem DEPOIS do gate de role e cobre todo caminho de entrada:
   // clique na aba, chamada pelo console e estado restaurado de sessão anterior.
   if(!gModeAllowed(m)){
@@ -123,7 +123,7 @@ function setMode(m){
   if(m!=='franqueado' && typeof fRemoveCampTheme==='function') fRemoveCampTheme();
   // Troca só a classe de modo, preservando as demais (theme-light, rulers-on, simulating...)
   const _trocouArea=!document.body.classList.contains('mode-'+m);   // clique na aba já ativa não é abertura
-  document.body.classList.remove('mode-franqueado','mode-designer','mode-creative','mode-academia','mode-calendario');
+  document.body.classList.remove('mode-franqueado','mode-designer','mode-creative','mode-potencial','mode-academia','mode-calendario');
   document.body.classList.add('mode-'+m);
   if(_trocouArea) gTrackPagina(m);
   document.getElementById('tab-fran').classList.toggle('active', m==='franqueado');
@@ -131,6 +131,9 @@ function setMode(m){
   const tabCreative=document.getElementById('tab-creative');
   if(tabCreative) tabCreative.classList.toggle('active', m==='creative');
   if(m==='creative' && _trocouArea && typeof crEntrar==='function') crEntrar(tabCreative);
+  const tabPot=document.getElementById('tab-potencial');
+  if(tabPot) tabPot.classList.toggle('active', m==='potencial');
+  if(m==='potencial' && _trocouArea && typeof potEntrar==='function') potEntrar();
 
   dUpdateTabPill();
 
@@ -187,6 +190,8 @@ function gApplyModeAccess(){
   // A aba do Creative nasce escondida no HTML: só aparece para quem pode abrir.
   const tabCreative = document.getElementById('tab-creative');
   if(tabCreative) tabCreative.style.display = gModeAllowed('creative') ? '' : 'none';
+  const tabPot = document.getElementById('tab-potencial');
+  if(tabPot) tabPot.style.display = gModeAllowed('potencial') ? '' : 'none';
   [['tab-fran','franqueado'],['tab-design','designer']].forEach(([id,modo])=>{
     const tab=document.getElementById(id);
     if(tab && !gModeAllowed(modo)) tab.style.display='none';
@@ -195,7 +200,8 @@ function gApplyModeAccess(){
   if(typeof gFeatureApplyToDOM==='function') gFeatureApplyToDOM();
 
   const atual = document.body.classList.contains('mode-designer') ? 'designer'
-    : document.body.classList.contains('mode-creative') ? 'creative' : 'franqueado';
+    : document.body.classList.contains('mode-creative') ? 'creative'
+    : document.body.classList.contains('mode-potencial') ? 'potencial' : 'franqueado';
   if(!gModeAllowed(atual)){
     const alvo=gFirstAllowedMode();
     if(alvo) setMode(alvo); else _gShowNoModuleView();

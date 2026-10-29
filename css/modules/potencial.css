@@ -1,0 +1,99 @@
+/**
+ * css/modules/potencial.css
+ *
+ * Potencial da cidade (js/potencial/potencial.js) — a calculadora comercial da equipe DM.
+ * Superfícies --cr-* (já viram claro/escuro com o tema), laranja só no acento e nos cenários,
+ * cor e motion por token. Nenhum :active{transform} aqui: o aperto de botão é a regra global.
+ */
+
+body.mode-potencial #view-potencial{ display:flex!important; opacity:1; transform:none; filter:none }
+#view-potencial{
+  position:relative; flex-direction:column; overflow:auto;
+  height:calc(100vh - 52px); height:calc(100dvh - 52px - var(--safe-top));
+  background:var(--cr-bg); color:var(--cr-text); font-family:'Roboto',sans-serif;
+}
+.pot-pag{ width:100%; max-width:1080px; margin:0 auto; padding:clamp(16px,3vw,40px); display:flex; flex-direction:column; gap:20px }
+
+/* ── Topo ── */
+.pot-topo{ display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap }
+.pot-topo h1{ margin:0; font-size:clamp(22px,2.6vw,30px); font-weight:900; letter-spacing:-.01em; text-wrap:balance }
+.pot-topo p{ margin:4px 0 0; font-size:14px; color:var(--cr-text2); max-width:52ch }
+.pot-cta{ display:inline-flex; align-items:center; gap:8px; min-height:var(--tap-min); padding:0 20px; border:0; border-radius:var(--r);
+  background:var(--dm-orange-d); color:var(--white); font:700 14px 'Roboto',sans-serif; cursor:pointer;
+  transition:background var(--transition-fast), opacity var(--transition-fast) }
+.pot-cta:hover:not(:disabled){ background:color-mix(in srgb,var(--dm-orange-d) 88%,#000) }
+.pot-cta:disabled{ opacity:.45; cursor:not-allowed }
+.pot-cta:focus-visible,.pot-busca input:focus-visible,.pot-in input:focus-visible,.pot-link:focus-visible,.pot-li button:focus-visible{ outline:2px solid var(--cr-foco); outline-offset:2px }
+
+/* ── Busca ── */
+.pot-busca{ position:relative; max-width:480px }
+.pot-busca label{ display:block; margin-bottom:6px; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--cr-text2) }
+.pot-busca input{ width:100%; min-height:var(--tap-min); padding:0 14px; border:1px solid var(--cr-line2); border-radius:var(--r);
+  background:var(--cr-surf); color:var(--cr-text); font:500 15px 'Roboto',sans-serif;
+  transition:border-color var(--transition-fast) }
+.pot-busca input:hover{ border-color:var(--cr-text3) }
+#pot-lista{ position:absolute; z-index:5; inset:calc(100% + 4px) 0 auto 0; margin:0; padding:4px; list-style:none; max-height:320px; overflow:auto;
+  background:var(--cr-surf); border:1px solid var(--cr-line2); border-radius:var(--r); box-shadow:var(--cr-sh2) }
+#pot-lista[hidden]{ display:none }
+.pot-li button{ width:100%; display:flex; justify-content:space-between; align-items:baseline; gap:12px; min-height:var(--tap-min); padding:0 12px;
+  border:0; border-radius:var(--r-sm); background:transparent; color:var(--cr-text); font:500 14px 'Roboto',sans-serif; text-align:left; cursor:pointer }
+.pot-li button:hover{ background:var(--cr-surf2) }
+.pot-li-nome em{ font-style:normal; color:var(--cr-text2); font-weight:700; margin-left:4px }
+.pot-li-pop{ font-size:12px; color:var(--cr-text2); white-space:nowrap }
+.pot-li-vazio{ padding:12px; font-size:13px; color:var(--cr-text2) }
+
+/* ── Estados vazios ── */
+.pot-vazio{ margin:24px 0; padding:32px 16px; text-align:center; font-size:14px; color:var(--cr-text2); border:1px dashed var(--cr-line2); border-radius:var(--r) }
+.pot-erro{ color:var(--dm-red-text,var(--dm-red)); border-color:currentColor }
+
+/* ── Cartão da cidade ── */
+#pot-corpo{ display:flex; flex-direction:column; gap:20px }
+.pot-cidade{ display:grid; grid-template-columns:minmax(180px,1fr) 3fr; gap:20px; align-items:center; padding:20px 24px;
+  background:var(--cr-surf); border:1px solid var(--cr-line); border-radius:var(--r); box-shadow:var(--cr-sh1) }
+.pot-cid-id h2{ margin:0; font-size:22px; font-weight:900; text-wrap:balance }
+.pot-cid-id p{ margin:4px 0 0; font-size:12px; color:var(--cr-text2) }
+.pot-fatos{ margin:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:16px }
+.pot-fatos dt{ font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--cr-text2) }
+.pot-fatos dd{ margin:4px 0 0; font-size:20px; font-weight:900; font-variant-numeric:tabular-nums }
+.pot-total dd{ color:var(--dm-orange-text) }
+
+/* ── Avisos ── */
+.pot-aviso{ margin:0 0 8px; padding:10px 14px; font-size:13px; line-height:1.45; color:var(--cr-text);
+  background:var(--cr-acento-bg); border:1px solid var(--cr-acento-ln); border-radius:var(--r) }
+
+/* ── Premissas ── */
+.pot-premissas{ padding:16px 24px 20px; background:var(--cr-surf); border:1px solid var(--cr-line); border-radius:var(--r) }
+.pot-premissas header{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:12px }
+.pot-premissas h3{ margin:0; font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--cr-text2) }
+.pot-link{ border:0; background:none; padding:4px 0; font:600 13px 'Roboto',sans-serif; color:var(--dm-orange-text); cursor:pointer; text-decoration:underline; text-underline-offset:3px }
+.pot-campos{ display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:16px }
+.pot-campo{ display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:500 }
+.pot-in{ position:relative; display:flex; align-items:center }
+.pot-in input{ width:100%; min-height:40px; padding:0 12px; border:1px solid var(--cr-line2); border-radius:var(--r-sm);
+  background:var(--cr-bg); color:var(--cr-text); font:700 15px 'Roboto',sans-serif; font-variant-numeric:tabular-nums }
+.pot-in i{ position:absolute; right:12px; font-style:normal; font-size:13px; color:var(--cr-text2); pointer-events:none }
+.pot-campo small{ font-size:11px; font-weight:400; color:var(--cr-text2) }
+
+/* ── Os 3 cenários (espelham o slide) ── */
+.pot-cenarios{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px }
+.pot-cen{ --c:var(--dm-orange-d); --c-on:var(--white); --c-txt:var(--dm-orange-text); overflow:hidden; background:var(--cr-surf); border:1px solid var(--cr-line); border-radius:var(--r); box-shadow:var(--cr-sh1) }
+.pot-cen.pot-ruim{ --c:var(--dm-red); --c-txt:var(--dm-red-text,var(--dm-red)) }
+.pot-cen.pot-top{ --c:var(--dm-orange); --c-on:var(--on-orange) }
+.pot-cen header{ padding:12px 16px; background:var(--c); color:var(--c-on) }
+.pot-cen h3{ margin:0; font-size:15px; font-weight:900; text-transform:uppercase; letter-spacing:.02em }
+.pot-cen-pct{ margin:0; padding:10px 16px 6px; font-size:13px; font-weight:700; color:var(--c-txt); text-align:center }
+.pot-lin{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:10px 16px; border-top:1px solid var(--cr-line); font-size:14px; color:var(--cr-text2) }
+.pot-lin strong{ font-size:16px; font-weight:900; color:var(--cr-text); font-variant-numeric:tabular-nums }
+.pot-lin.forte span{ color:var(--cr-text); font-weight:700 }
+.pot-lin.forte strong{ color:var(--c-txt) }
+
+.pot-pronto{ margin:0; font-size:14px; color:var(--green-text) }
+.pot-pronto a{ color:inherit; font-weight:700 }
+
+@media (max-width:900px){
+  .pot-cenarios{ grid-template-columns:1fr }
+  .pot-cidade{ grid-template-columns:1fr }
+}
+@media (prefers-reduced-motion:reduce){
+  .pot-cta,.pot-busca input{ transition:none }
+}

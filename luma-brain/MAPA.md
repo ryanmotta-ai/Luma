@@ -119,6 +119,16 @@ franqueado (o Quick Add em linguagem natural existiu e saiu em 03/09).
 | Movimento/animação da Academia | `js/academia/motion.js` |
 | Tutoriais interativos | `js/tutorial/engine.js` (motor) · `catalog.js` / `catalog-studio.js` (conteúdo) |
 
+### Potencial (`pot*`) — a calculadora comercial da equipe DM
+
+| Quero mexer em… | Vai em |
+|---|---|
+| A conta (investimento, 3 cenários, avisos) | `js/potencial/potencial.js` (`potCalcular` — o motor ÚNICO; tela e slide leem o mesmo objeto) |
+| Os textos que vão para o slide (`{{placeholders}}`) | `js/potencial/potencial.js` (`potCamposSlide`) + o deck-modelo no Google Slides |
+| Tarifa, IPCA, ticket, cenários, URL do gerador | tabelas `luma.potencial_*` (RLS) — nunca no JS |
+| Copiar o deck e trocar o texto | `scripts/apps-script/potencial-slides.gs` (Apps Script publicado como Web App) |
+| Estilo | `css/modules/potencial.css` |
+
 ### Visual
 
 | Quero mexer em… | Vai em |
@@ -262,7 +272,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 94 arquivos JS (86.522 linhas, 3.335 funções) · 33 arquivos CSS (33.899 linhas) · `index.html` com 4.097 linhas e 84 `<script>`.
+**Tamanho real de hoje:** 95 arquivos JS (86.851 linhas, 3.362 funções) · 34 arquivos CSS (33.999 linhas) · `index.html` com 4.115 linhas e 85 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -277,8 +287,8 @@ Constantes globais imutaveis: HIST_KEY, CAMPS_ATIVAS, CAMPS_OUTRAS, FMTS. Deve s
 Estado global do franqueado: fState. Deve ser carregado apos 00-config.js.
 · Estado global: fState
 
-**`js/main.js`** · 554 linhas
-Bootstrap: setMode (troca entre franqueado/designer/creative) e chamadas de inicializacao. Deve ser carregado por ULTIMO (apos todos os modulos).
+**`js/main.js`** · 560 linhas
+Bootstrap: setMode (troca entre franqueado/designer/creative/potencial) e chamadas de inicializacao. Deve ser carregado por ULTIMO (apos todos os modulos).
 · API: dUpdateTabPill, gModeAllowed, gFirstAllowedMode, gTrackPagina, gGoHome, setMode, gRestoreMode, gApplyModeAccess, gParseDeepLink, gSaveDeepLink, gClearDeepLink, gApplyDeepLink, gOnLoginSuccess
 · Estado global: _gPaginaAbertaEm
 
@@ -337,7 +347,7 @@ COPY FIT — encurtar a copy do franqueado SEM mudar o que se vende (22/09/2026)
 · Estado global: _gDados
 · Depende de: core/toast.js (gEsc, gToast), core/auth.js (gIsAdmin), core/supabase.js (gSupabase).
 
-**`js/core/feature-flags.js`** · 674 linhas
+**`js/core/feature-flags.js`** · 678 linhas
 CONTROLE DO PRODUTO — o motor único de disponibilidade funcional do Luma.
 · API: gFeatureLoadCache, gFeatureState, gFeatureEnabled, gFeatureCan, gFeatureReason, gFeatureBlockedFeedback, gFeatureToolBlocked, gFeatureApplyToDOM, gFeatureSyncFromBackend, gFeatureSave, gFeatureRefresh, gFeatureHistory, gFeatureInit, gFeatureResolveTree … (+1; 23 funções no total)
 · Estado global: _gFFValores, _gFFSyncedAt, _gFFOrigem, _gFFErroSync, _gFFIniciado, _gFFPorChave, _gFFFilhos, _gFFPorTool
@@ -408,9 +418,9 @@ Cria o client Supabase global `window.sb`, usado pela auth e pela camada de pers
 SUPORTE AO VIVO — franqueado ↔ equipe DM (gSup*), 23/09/2026 Dados, Realtime e presença.
 · API: gSupDisponivel, gSupOnChange, gSupPedeAcao, gSupAguardando, gSupContador, gSupContexto, gSupEstadoTela, gSupEstadoTemAssunto, gLuPedeHumano, gLuLerResposta, gLuOferecerEquipe, gSupContextoTexto, gSupIniciar, gSupCarregarCaixa … (+15; 57 funções no total)
 
-**`js/core/toast.js`** · 247 linhas
+**`js/core/toast.js`** · 252 linhas
 gToast(msg) — exibe notificacao flutuante de 2.8s.
-· API: gToast, gEsc, gEscJs, gSafeColor, gNormBusca, gBtnLoading, gConfirm, gPrompt, gWarnImagesNotPersisted
+· API: gToast, gEsc, gEscJs, gSafeColor, gNormBusca, gBtnLoading, gConfirm, gAviso, gAvisoFechar, gPrompt, gWarnImagesNotPersisted
 · Estado global: gImgPersistWarned
 · Depende de: nada (usa apenas o DOM).
 
@@ -468,9 +478,10 @@ Catalogo de materiais do franqueado: fOpenMaterialCatalog, fRenderMaterialCatalo
 · Estado global: _fCampThemeAtivo, _fCampThemeClaro
 · Depende de: 00-config.js, 01-state.js, franqueado/chat.js
 
-**`js/franqueado/motion.js`** · 474 linhas
+**`js/franqueado/motion.js`** · 484 linhas
 STORY ANIMADO — o Story do franqueado sai também em MP4 (28/10/2026) Pedido do Ryan:
 · API: fMotionDisponivel, fMotionEhStory, fGenMP4, fBaixarVideo
+· Estado global: _fVideoRenderizando
 · Depende de: franqueado/png-generator.js (fRenderTemplateLayers, fMaterialSize,
 
 **`js/franqueado/panel-dock.js`** · 170 linhas
@@ -751,6 +762,14 @@ LUMA CREATIVE — HARNESS DO CHAT (15/10/2026) Antes, toda mensagem virava um pe
 MAKING-OF da arte (frente 6, 15/10/2026; microações em 15/10, pedido do Ryan) — a arte se fazendo na frente da pessoa como num editor de verdade, em duas fases que continuam uma na outra:
 · API: crMakingOfPrancheta, crMakingOf
 
+### js/potencial
+
+**`js/potencial/potencial.js`** · 304 linhas
+POTENCIAL DA CIDADE (29/10/2026) — a "Calculadora de Franquias 2026" do Aladim dentro do Luma.
+· API: potFaixaPara, potTeto50, potCalcular, potNumero, potBRL, potBRL2, potPct, potMeses, potLerNumero, potCarregar, potBuscarCidades, potCamposSlide, potGerarSlide, potEntrar … (+8; 24 funções no total)
+· Estado global: _pot
+· Depende de: core/supabase.js (window.sb), core/toast.js (gToast/gEsc/gNormBusca),
+
 ## CSS — onde mora cada folha
 
 | Arquivo | Linhas |
@@ -784,6 +803,7 @@ MAKING-OF da arte (frente 6, 15/10/2026; microações em 15/10, pedido do Ryan) 
 | `css/modules/layers-panel.css` | 4530 |
 | `css/modules/live-preview.css` | 1759 |
 | `css/modules/panel-dock.css` | 116 |
+| `css/modules/potencial.css` | 100 |
 | `css/modules/publish-modal.css` | 628 |
 | `css/modules/toolbar.css` | 1090 |
 | `css/modules/topbar.css` | 217 |
@@ -834,50 +854,51 @@ A ordem **é** a arquitetura: sem ESM, um arquivo depende de o anterior já ter 
 38. js/creative/copy.js
 39. js/creative/harness.js
 40. js/creative/making-of.js
-41. js/designer/canvas.js
-42. js/designer/selection.js
-43. js/designer/brush.js
-44. js/designer/eraser-tools.js
-45. js/designer/layers.js
-46. js/designer/props-panel.js
-47. js/designer/measurement.js
-48. js/designer/publish.js
-49. js/designer/preview.js
-50. js/designer/library.js
-51. js/designer/undo-redo.js
-52. js/widgets/novidades.js
-53. js/widgets/help-widget.js
-54. js/designer/tools.js
-55. js/designer/fonts.js
-56. js/designer/psd-parse.js
-57. js/designer/psd-import.js
-58. js/designer/mask.js
-59. js/designer/tutorial-panel.js
-60. assets/vendor/colorthief.js
-61. assets/vendor/pica.js
-62. assets/vendor/jszip.min.js
-63. assets/vendor/supabase.js
-64. js/core/supabase-config.js
-65. js/core/supabase.js
-66. js/core/ai/ai-cache.js
-67. js/core/ai/ai-telemetry.js
-68. js/core/ai/ai-schemas.js
-69. js/core/ai/ai-registry.js
-70. js/core/ai/ai-client.js
-71. js/core/ai.js
-72. js/core/ai/ai-provedores.js
-73. js/core/auth.js
-74. js/core/franquia.js
-75. js/franqueado/feedback.js
-76. js/core/feature-flags.js
-77. js/core/user-profile.js
-78. js/core/product-control.js
-79. js/core/dados.js
-80. js/core/console.js
-81. js/designer/color-picker.js
-82. js/designer/tooltip.js
-83. js/designer/linter.js
-84. js/main.js
+41. js/potencial/potencial.js
+42. js/designer/canvas.js
+43. js/designer/selection.js
+44. js/designer/brush.js
+45. js/designer/eraser-tools.js
+46. js/designer/layers.js
+47. js/designer/props-panel.js
+48. js/designer/measurement.js
+49. js/designer/publish.js
+50. js/designer/preview.js
+51. js/designer/library.js
+52. js/designer/undo-redo.js
+53. js/widgets/novidades.js
+54. js/widgets/help-widget.js
+55. js/designer/tools.js
+56. js/designer/fonts.js
+57. js/designer/psd-parse.js
+58. js/designer/psd-import.js
+59. js/designer/mask.js
+60. js/designer/tutorial-panel.js
+61. assets/vendor/colorthief.js
+62. assets/vendor/pica.js
+63. assets/vendor/jszip.min.js
+64. assets/vendor/supabase.js
+65. js/core/supabase-config.js
+66. js/core/supabase.js
+67. js/core/ai/ai-cache.js
+68. js/core/ai/ai-telemetry.js
+69. js/core/ai/ai-schemas.js
+70. js/core/ai/ai-registry.js
+71. js/core/ai/ai-client.js
+72. js/core/ai.js
+73. js/core/ai/ai-provedores.js
+74. js/core/auth.js
+75. js/core/franquia.js
+76. js/franqueado/feedback.js
+77. js/core/feature-flags.js
+78. js/core/user-profile.js
+79. js/core/product-control.js
+80. js/core/dados.js
+81. js/core/console.js
+82. js/designer/color-picker.js
+83. js/designer/tooltip.js
+84. js/designer/linter.js
+85. js/main.js
 ```
 
 <!-- AUTO-FIM -->

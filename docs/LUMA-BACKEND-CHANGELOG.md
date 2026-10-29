@@ -1276,3 +1276,21 @@ mudaram. UI no painel que já abre no passo de foto (`upload-panel.js`).
 não grava na franquia alheia). Verificação no navegador com `window.sb` simulado: lista com
 miniaturas e nome, estado vazio, usar (dataURL + prévia), salvar (caminho e payload), apagar
 (storage + linha) e esconder sem franquia. Upload real autenticado **não** foi exercitado.
+
+## 2026-10-29 — Potencial da cidade (calculadora comercial dentro do Luma)
+
+**Migrations:** `20261029120000_luma_potencial.sql` (tabelas, RLS, parâmetros) e `20261029120100_luma_potencial_cidades.sql` (carga de 5.547 municípios). Idempotentes. Aplicar nesta ordem no SQL Editor.
+
+**O que cria.**
+- `luma.potencial_faixas` — 37 faixas de população (aba "Calcular taxas aqui!"): `taxa_franquia` e `mkt_base`.
+- `luma.potencial_parametros` — `chave → jsonb`: `ipca`, `mult_concorrencia`, `comissao`, `rebate_franqueado`, `simples`, `ticket_regional`, `fator_ticket`, `cenarios` e `slides_webapp_url` (a URL do Apps Script; `null` = gerador desligado). `on conflict do nothing`: rodar de novo não desfaz ajuste da gestão.
+- `luma.potencial_cidades` — aba "Base IBGE": população 2025, PIB per capita 2023, concorrentes, taxa negociada (`taxa_franquia_override`), `vender` (false = "não vender") e `busca` (minúsculo, sem acento).
+
+**Fronteira de segurança.** Ler: `is_designer()` (equipe_dm + gestao). Escrever: só `gestao`, pelo SQL Editor (não há tela de edição de preço). Franqueado não lê nada. Tarifa e margem ficam no banco de propósito: o JS do Luma é público no GitHub Pages.
+
+**Front.** Modo novo `potencial` (aba "Potencial", só `gIsAdmin`, flag `module.potencial`): `js/potencial/potencial.js` (`pot*`) + `css/modules/potencial.css`. Um motor, `potCalcular`; tela e slide leem o mesmo objeto.
+
+**Slide.** `scripts/apps-script/potencial-slides.gs` (Apps Script, Web App): o Luma manda POST `text/plain` com o JWT do Supabase; o script confere o token no GoTrue, exige role de equipe e conta ativa, copia o deck-modelo, troca os `{{placeholders}}` e devolve a URL. Nenhum segredo no Luma.
+
+**Verificação.** Motor conferido contra a planilha: Ariquemes (109.170 hab., 1 concorrente) dá taxa R$ 36.000 + marketing R$ 57.800 = R$ 93.800, idêntico ao `C8` da Calculadora. Tela exercitada no Chromium com `window.sb` simulado (busca, premissas sem perder o foco, 3 concorrentes bloqueia o slide, XSS no nome da cidade). **Não** exercitado: migrations no banco real, Apps Script publicado, 3 roles contra o RLS.
+
