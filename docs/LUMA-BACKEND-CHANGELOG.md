@@ -6,11 +6,11 @@
 
 ---
 
-## 2026-10-28 — Aqui tem cupons: 10 artes novas de cupom, feed + story, em rascunho (✅ dados, sem migration)
+## 2026-10-28 — Aqui tem cupons: 10 artes novas de cupom, feed + story, publicadas (✅ dados, sem migration)
 
 Pedido do Pedro: refazer as artes da pasta "Aqui Tem Cupons" em **10 artes de cupom diferentes**, mantendo o bilhete original, o estilo tipográfico, a logo e os laranjas `#F85400`/`#FF9000`, e subir no banco. As 3 originais (`12295543…`, `95b198ac…`, `33852494…`) **não foram tocadas**.
 
-Pasta `f94ee3f4-589d-4b0b-8d6d-b83c4e393e09` (campanha `ac`). 20 templates **em rascunho** (`publicado=false`), feed + story com o mesmo nome (o app vincula), `formats` padrão, `w/h` 1080×1350 e 1080×1920.
+Pasta `f94ee3f4-589d-4b0b-8d6d-b83c4e393e09` (campanha `ac`). 20 templates, feed + story com o mesmo nome (o app vincula), `formats` padrão, `w/h` 1080×1350 e 1080×1920. Gravados em rascunho, conferidos e **publicados** no mesmo dia a pedido do Pedro (cada um na versão 1, layers idênticas às conferidas).
 
 | Arte ("Aqui tem cupons — …") | Campos | Feed | Story |
 |---|---|---|---|
@@ -30,8 +30,7 @@ Pasta `f94ee3f4-589d-4b0b-8d6d-b83c4e393e09` (campanha `ac`). 20 templates **em 
 - **Testado no motor real** (`render.js`), num portão independente com a matriz inteira nos dois formatos: código de 3, 11, 15 e 16 caracteres ("W"×16) e vazio; desconto 5%, 20%, 100%, R$ 5, R$ 15, R$ 150 e vazio; validade e regras longas e vazias; sem foto; sem logo; pior caso; só cupom — **254 renders, zero bloqueio**. O md5 das 20 layers gravadas é igual ao do aprovado. Não abri o app logado.
 - Achados do motor (piso da família com texto fixo, piso de 50 %, `{{x:inteiro}}%` vazio) em `.claude/skills/luma/arte/MOTOR.md`.
 
-**Publicar** (quando aprovar): `update luma.templates set publicado=true, publicado_em=now() where id in (<os 20 ids da tabela>);`
-**Reverter**: templates novos nascem na versão 1 → `delete from luma.templates where id in (<os 20 ids da tabela>);` e `git rm -r assets/campanhas/aqui-tem-cupons/`.
+**Reverter**: tirar do ar sem perder nada → `update luma.templates set publicado=false where id in (<os 20 ids da tabela>);`. Apagar de vez (só com pedido) → `delete from luma.templates where id in (<os 20 ids da tabela>);` e `git rm -r assets/campanhas/aqui-tem-cupons/`.
 
 ---
 
