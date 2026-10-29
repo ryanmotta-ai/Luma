@@ -198,6 +198,45 @@ body.mode-potencial #view-potencial{ display:flex!important; opacity:1; transfor
 .pot-tab tbody th{ text-align:left; font-weight:700 }
 .pot-tab td.neg{ color:var(--dm-red-text,var(--dm-red)) }
 
+/* ── Seletor de projeção (planilha × rede) ── */
+.pot-modos{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 18px; padding:12px 16px; background:var(--cr-surf); border:1px solid var(--cr-line); border-radius:var(--r); box-shadow:var(--cr-sh1) }
+.pot-modos-t{ display:flex; flex-direction:column; gap:2px; min-width:0; flex:1 1 320px }
+.pot-modos-t b{ font-size:13px; font-weight:900 }
+.pot-modos-t span{ font-size:12px; line-height:1.45; color:var(--cr-text2) }
+.pot-modos-t span b{ font-size:12px; color:var(--cr-text) }
+.pot-seg-m{ flex-wrap:nowrap }
+.pot-seg-m .pot-seg-b{ flex:none; padding:0 14px; font-size:13px; font-weight:700 }
+.pot-tag{ margin-left:8px; padding:2px 9px; border-radius:var(--r-pill); background:var(--cr-acento-bg); color:var(--dm-orange-text); font:700 11px 'Roboto',sans-serif; font-style:normal; vertical-align:middle }
+.pot-cen-pctl{ font-size:11px; font-weight:600; color:var(--cr-text2) }
+.pot-cen-pctl.alto{ color:var(--dm-orange-text) }
+
+/* ── Referência da rede ── */
+.pot-rede-grade{ display:grid; grid-template-columns:minmax(0,1fr); gap:14px }
+.pot-rede-graf{ padding-bottom:12px }
+.pot-rede-lado .pot-aviso,.pot-nota{ margin:0; max-width:none; display:flex; gap:10px; align-items:flex-start; padding:14px 16px; font-size:13px; line-height:1.5; border-radius:var(--r) }
+.pot-nota{ background:var(--cr-surf); border:1px solid var(--cr-line); color:var(--cr-text) }
+.pot-nota svg,.pot-rede-lado .pot-aviso svg{ margin-top:2px }
+.pot-rede-lado p{ margin:0 0 8px } .pot-rede-lado p:last-child{ margin:0 }
+.pot-rede-lado code{ font:700 12px ui-monospace,Menlo,monospace }
+.pot-g-haste{ stroke:var(--cr-text3); stroke-width:1.5 }
+.pot-g-caixa{ fill:var(--cr-surf3); stroke:var(--cr-line2); stroke-width:1 }
+.pot-g-mediana{ stroke:var(--cr-text); stroke-width:3; stroke-linecap:round }
+.pot-g-cid{ fill:var(--cr-text2); fill-opacity:.55; stroke:var(--cr-surf); stroke-width:1 }
+.pot-g-bandeira{ stroke-width:2 }
+.pot-g-bandeira.pot-c-ruim{ stroke:var(--dm-red) } .pot-g-bandeira.pot-c-real{ stroke:var(--dm-orange-d) } .pot-g-bandeira.pot-c-top{ stroke:var(--dm-orange) }
+.pot-g-bandeira.pot-c-modelo{ stroke:var(--cr-text); stroke-dasharray:3 3 } .pot-g-bandeira.pot-c-propria{ stroke:var(--green) }
+.pot-g-ponto.pot-c-ruim{ fill:var(--dm-red) } .pot-g-ponto.pot-c-real{ fill:var(--dm-orange-d) } .pot-g-ponto.pot-c-top{ fill:var(--dm-orange) }
+.pot-g-losango.pot-c-modelo{ fill:var(--cr-text); stroke:var(--cr-surf); stroke-width:2 } .pot-g-losango.pot-c-propria{ fill:var(--green); stroke:var(--cr-surf); stroke-width:2 }
+.pot-g-leg{ margin:6px 4px 0; display:flex; flex-wrap:wrap; gap:4px 16px; font-size:11px; color:var(--cr-text2) }
+.pot-g-k{ display:inline-block; vertical-align:middle; margin-right:5px }
+.pot-g-k.caixa{ width:14px; height:10px; border-radius:2px; background:var(--cr-surf3); border:1px solid var(--cr-line2) }
+.pot-g-k.haste{ width:14px; height:0; border-top:1.5px solid var(--cr-text3) }
+.pot-g-k.ponto{ width:7px; height:7px; border-radius:50%; background:var(--cr-text2); opacity:.55 }
+.pot-g-k.med{ width:3px; height:12px; border-radius:2px; background:var(--cr-text) }
+.pot-tab-sim td,.pot-tab-sim th{ text-align:right } .pot-tab-sim tbody th,.pot-tab-sim thead th:first-child{ text-align:left }
+.pot-tab-sim em{ font-style:normal; font-size:11px; color:var(--cr-text2) }
+.pot-rodape{ margin:0; padding:10px 16px 14px; font-size:12px; line-height:1.5; color:var(--cr-text2) }
+
 /* ── Regras e fontes ── */
 .pot-regras ul{ margin:0; padding:0 16px 8px; list-style:none; display:flex; flex-direction:column }
 .pot-regras li{ padding:12px 0; border-top:1px solid var(--cr-line) }
@@ -289,6 +328,7 @@ body.mode-potencial #view-potencial{ display:flex!important; opacity:1; transfor
   .pot-hero{ grid-template-columns:1fr; align-items:start }
   .pot-cenarios{ grid-template-columns:1fr }
   .pot-tar-p{ grid-template-columns:1fr }
+  .pot-seg-m{ flex-wrap:wrap }
   .pot-cmp{ overflow-x:auto }
   .pot-cmp-l{ min-width:calc(150px + var(--n)*170px) }
 }

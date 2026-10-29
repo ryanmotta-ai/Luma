@@ -165,3 +165,55 @@ function potTabelaMeses(modelo){
     +modelo.meses.map(r=>'<tr><th scope="row">'+r.m+'</th>'+cel(r.gmv)+cel(r.comissao)+cel(r.repasse)+cel(-r.mktFranqueado,1)+cel(-r.taxa,1)+cel(r.saldo,1)+cel(r.acumulado,1)+'</tr>').join('')
     +'</tbody></table></div>';
 }
+
+/* 3 · Referência da rede: onde caem os cenários e o modelo entre as cidades reais parecidas.
+   Um eixo só, em R$ de GMV mensal DESTA cidade (GMV/hab de cada cidade real × a população daqui):
+   faixa P25–P75 com a mediana, hastes P10–P90 e um ponto por cidade; os cenários marcados em cima (a cor de cada
+   cartão) e o modelo da planilha embaixo (mês 12 e mês 24). Cada marca tem <title>: o valor sai no hover e a tabela
+   "As cidades parecidas" traz os mesmos números sem mouse. */
+function potGraficoRede(calc){
+  const ref=calc.referencia, c=calc.cidade, W=POT_G.w, H=254, ml=22, mr=22, cy=118, axisY=230, tickY=247;
+  const pop=c.populacao;
+  const dots=ref.habs.map((h,i)=>({v:h*pop, r:ref.similares[i]}));
+  const cen=calc.cenarios.filter(s=>s.gmv!=null);
+  const modelo=calc.modelo;
+  const marcasModelo=[];
+  if(modelo){ marcasModelo.push({v:modelo.meses[11].gmv, rot:'Modelo mês 12', pct:calc.modeloPercentil&&calc.modeloPercentil.m12}); marcasModelo.push({v:modelo.meses[23].gmv, rot:'Modelo mês 24', pct:calc.modeloPercentil&&calc.modeloPercentil.m24}); }
+  if(ref.propria) marcasModelo.push({v:ref.propria.gmv_set, rot:'Esta cidade hoje', propria:true});
+  const vmax=Math.max.apply(null,[ref.gmv.p90].concat(dots.map(d=>d.v),cen.map(x=>x.gmv),marcasModelo.map(x=>x.v)))*1.06;
+  const X=v=>ml+Math.max(0,Math.min(1,v/vmax))*(W-ml-mr);
+  const clamp=(x,m)=>Math.max(ml+m,Math.min(W-mr-m,x));
+  // Eixo
+  let eixo='<line class="pot-g-zero" x1="'+ml+'" x2="'+(W-mr)+'" y1="'+axisY+'" y2="'+axisY+'"/>';
+  _potTicks(0,vmax).forEach(t=>{ eixo+='<line class="pot-g-grade" x1="'+X(t)+'" x2="'+X(t)+'" y1="58" y2="'+axisY+'"/><text class="pot-g-tick" x="'+X(t)+'" y="'+tickY+'" text-anchor="middle">'+(t===0?'0':potBRLc(t).replace('R$ ',''))+'</text>'; });
+  // Faixa P25–P75, mediana e hastes P10–P90
+  const caixa='<line class="pot-g-haste" x1="'+X(ref.gmv.p10)+'" x2="'+X(ref.gmv.p90)+'" y1="'+cy+'" y2="'+cy+'"/>'
+    +'<line class="pot-g-haste" x1="'+X(ref.gmv.p10)+'" x2="'+X(ref.gmv.p10)+'" y1="'+(cy-8)+'" y2="'+(cy+8)+'"/><line class="pot-g-haste" x1="'+X(ref.gmv.p90)+'" x2="'+X(ref.gmv.p90)+'" y1="'+(cy-8)+'" y2="'+(cy+8)+'"/>'
+    +'<rect class="pot-g-caixa" x="'+X(ref.gmv.p25)+'" y="'+(cy-17)+'" width="'+Math.max(2,X(ref.gmv.p75)-X(ref.gmv.p25))+'" height="34" rx="4"><title>Metade das cidades parecidas vende entre '+potBRLc(ref.gmv.p25)+' e '+potBRLc(ref.gmv.p75)+'/mês (P25–P75)</title></rect>'
+    +'<line class="pot-g-mediana" x1="'+X(ref.gmv.p50)+'" x2="'+X(ref.gmv.p50)+'" y1="'+(cy-17)+'" y2="'+(cy+17)+'"><title>Mediana: '+potBRLc(ref.gmv.p50)+'/mês</title></line>';
+  let pontos=''; dots.forEach((d,i)=>{
+    pontos+='<circle class="pot-g-cid" cx="'+X(d.v).toFixed(1)+'" cy="'+(cy+((i%5)-2)*6)+'" r="3.5"><title>'+gEsc(d.r.nome)+' '+gEsc(d.r.uf)+': '+potBRLc(d.r.gmv_set)+'/mês ('+potBRL2(d.r.gmv_set/d.r.populacao)+' por habitante)</title></circle>';
+  });
+  // Cenários em cima: bandeiras com a cor do cartão; rótulos em duas linhas para não se pisarem.
+  const cor={ruim:'pot-c-ruim',real:'pot-c-real',top:'pot-c-top'};
+  const linhaLivre=(fim,lx)=>{ for(let i=0;i<fim.length;i++){ if(fim[i]<=lx-180){ fim[i]=lx; return i; } } fim[fim.length-1]=lx; return fim.length-1; };
+  let fim=[-1e9,-1e9,-1e9], flags='';
+  cen.slice().sort((a,b)=>a.gmv-b.gmv).forEach(sc=>{
+    const x=X(sc.gmv), lx=clamp(x,90), lado=linhaLivre(fim,lx);
+    const yl=14+lado*17, rot=(POT_ROTULO[sc.id]||sc.id).replace('Cenário ','').replace(' e esperado','');
+    flags+='<line class="pot-g-bandeira '+cor[sc.id]+'" x1="'+x+'" x2="'+x+'" y1="'+(yl+6)+'" y2="'+(cy-20)+'"/><circle class="pot-g-ponto '+cor[sc.id]+'" cx="'+x+'" cy="'+(cy-20)+'" r="5"/>'
+      +'<text class="pot-g-rot-forte" x="'+lx+'" y="'+yl+'" text-anchor="middle">'+rot+' · '+potBRLc(sc.gmv)+(sc.percentil!=null?' · P'+sc.percentil:'')+'</text>';
+  });
+  // Modelo (e a própria cidade, se opera) embaixo
+  fim=[-1e9,-1e9,-1e9]; let abaixo='';
+  marcasModelo.sort((a,b)=>a.v-b.v).forEach(mk=>{
+    const x=X(mk.v), lx=clamp(x,90), lado=linhaLivre(fim,lx);
+    const yl=182+lado*17;
+    abaixo+='<line class="pot-g-bandeira '+(mk.propria?'pot-c-propria':'pot-c-modelo')+'" x1="'+x+'" x2="'+x+'" y1="'+(cy+20)+'" y2="'+(yl-10)+'"/><rect class="pot-g-losango '+(mk.propria?'pot-c-propria':'pot-c-modelo')+'" x="'+(x-5)+'" y="'+(cy+15)+'" width="10" height="10" transform="rotate(45 '+x+' '+(cy+20)+')"/>'
+      +'<text class="pot-g-rot-forte" x="'+lx+'" y="'+yl+'" text-anchor="middle">'+mk.rot+' · '+potBRLc(mk.v)+(mk.pct!=null?' · P'+mk.pct:'')+'</text>';
+  });
+  const real=calc.cenarios.find(x=>x.id==='real');
+  return '<svg class="pot-g-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Entre as '+ref.n+' cidades reais parecidas, a mediana vende '+potBRLc(ref.gmv.p50)+' por mês'+(real&&real.percentil!=null?'; o cenário real fica no percentil '+real.percentil:'')+'" data-g="rede">'
+    +eixo+caixa+pontos+flags+abaixo+'</svg>'
+    +'<p class="pot-g-leg"><i class="pot-g-k caixa"></i>metade das cidades (P25–P75) <i class="pot-g-k haste"></i>P10–P90 <i class="pot-g-k ponto"></i>cada cidade real <i class="pot-g-k med"></i>mediana</p>';
+}

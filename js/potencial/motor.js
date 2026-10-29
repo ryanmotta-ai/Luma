@@ -28,6 +28,15 @@
  *     comissão = GMV · comissão % · NFe 5,65% · inadimplência · receita líquida(m) = comissão(m−1) − NFe(m−1) − inadimplência(m)
  *     repasse = receita líquida · % do franqueado · saldo = repasse − marketing do franqueado − taxa (parcelada)
  *
+ *   REFERÊNCIA DA REDE (v2.1, 30/10/2026) — `potRedeEstatisticas`, `potCalibraModelo`
+ *     A planilha não tem variância: o modelo é UMA curva. A Base Ops traz o GMV REAL das cidades que a DM já opera
+ *     (luma.potencial_rede). Para cada cidade, as K operadas (fase Ongoing) de população mais parecida dão a
+ *     distribuição de GMV por habitante (P10/P25/P50/P75/P90). Daí saem (1) em que percentil cai cada cenário e
+ *     cada ponto do modelo e (2) a projeção CALIBRADA: as mesmas contas da planilha com o delta de marketing
+ *     escalado até o GMV do mês 24 igualar população × GMV/hab do percentil escolhido.
+ *     Achado que motivou isto (jun–set/2026, 69 cidades Ongoing): o "cenário real" do slide (20% × ticket) está acima
+ *     de ~85% da rede; a mediana real é ~R$ 6,5/hab. Ver docs/POTENCIAL-CALIBRACAO.md.
+ *
  *   ⚠ Fiel à planilha, inclusive onde ela parece errada — com o ajuste escondido num parâmetro:
  *     · inadimplência: a planilha só aplica no mês 2 (a referência da fórmula "anda" para células vazias).
  *       `inadimplencia_todos_meses` = true aplica todo mês.
@@ -166,14 +175,82 @@ function potCalcular(c, P, ov){
   });
 
   // Modelo de 24 meses: só com TODOS os parâmetros vindos do banco.
-  let modelo=null; const faltam=POT_PARAM_MODELO.filter(k=>pr[k]==null);
+  let modelo=null, entradaModelo=null; const faltam=POT_PARAM_MODELO.filter(k=>pr[k]==null);
   if(!faltam.length && taxa!=null && mkt!=null && comissao!=null && rebate!=null){
-    modelo=potModelo24({ pop:c.populacao, taxaTotal:taxa, taxa, mkt, comissao, rebate, parcelas, mktApos5,
+    entradaModelo={ pop:c.populacao, taxaTotal:taxa, taxa, mkt, comissao, rebate, parcelas, mktApos5,
       deltaMkt:pr.delta_mkt, deltaOngoing:pr.delta_ongoing, nfe:pr.nfe, inadimplencia:pr.inadimplencia,
-      inadTodos:pr.inadimplencia_todos_meses===true, mktFranqueadoraPct:pr.mkt_franqueadora_pct });
+      inadTodos:pr.inadimplencia_todos_meses===true, mktFranqueadoraPct:pr.mkt_franqueadora_pct };
+    modelo=potModelo24(entradaModelo);
   }
-  return { cidade:c, faixa, regiao, conc, taxa, mkt, inv, ticketReal, ticketOpcoes, comissao, rebate, simples, parcelas, mktApos5,
-    cenarios, modelo, parametrosFaltando:faltam, avisos, ipca:pr.ipca };
+  const calc={ cidade:c, faixa, regiao, conc, taxa, mkt, inv, ticketReal, ticketOpcoes, comissao, rebate, simples, parcelas, mktApos5,
+    cenarios, modelo, entradaModelo, parametrosFaltando:faltam, avisos, ipca:pr.ipca, referencia:null, calibrados:null };
+
+  // Referência da rede: só com os dados reais carregados (P.rede) e cidades parecidas suficientes.
+  const ref=potRedeEstatisticas(c, P.rede);
+  if(ref){
+    calc.referencia=ref;
+    cenarios.forEach(sc=>{ if(sc.gmv!=null) sc.percentil=potPosicaoNaRede(ref, sc.gmv/c.populacao); });
+    if(modelo){
+      const hab=g=>g/c.populacao;
+      calc.modeloPercentil={ m12:potPosicaoNaRede(ref,hab(modelo.meses[11].gmv)), m24:potPosicaoNaRede(ref,hab(modelo.meses[23].gmv)) };
+    }
+    // % da população que, a 1 pedido/mês × ticket (a conta do slide), entregaria o GMV/hab de cada percentil.
+    if(ticketReal>0) calc.equivalente={ p25:ref.hab.p25/ticketReal, p50:ref.hab.p50/ticketReal, p75:ref.hab.p75/ticketReal };
+    if(entradaModelo) calc.calibrados={
+      p25:potCalibraModelo(entradaModelo, ref.hab.p25*c.populacao),
+      p50:potCalibraModelo(entradaModelo, ref.hab.p50*c.populacao),
+      p75:potCalibraModelo(entradaModelo, ref.hab.p75*c.populacao) };
+  }
+  return calc;
+}
+
+/* ═══ Referência da rede: cidades reais parecidas, percentis e projeção calibrada ═══ */
+
+const POT_REDE_K = 15;          // quantas cidades operadas, as mais parecidas em população, formam a referência
+const POT_REDE_MIN = 6;         // menos que isso não é amostra: a tela não mostra percentil
+
+// Percentil p (0–1) de uma lista, com interpolação linear.
+function potPercentil(lista, p){
+  const v=lista.slice().sort((a,b)=>a-b); if(!v.length) return null;
+  const i=(v.length-1)*p, lo=Math.floor(i), hi=Math.ceil(i);
+  return v[lo]+(v[hi]-v[lo])*(i-lo);
+}
+
+/**
+ * rede = linhas de luma.potencial_rede ({chave, nome, uf, populacao, fase, curva, gmv_set, …}).
+ * Só entram cidades Ongoing com GMV: Implementação ainda está subindo e Operação Própria é outra conta.
+ * A própria cidade fica de fora da amostra (e volta em `propria`, para comparar com o que ela entrega hoje).
+ */
+function potRedeEstatisticas(c, rede){
+  if(!rede || !rede.length || !(c.populacao>0)) return null;
+  const propria=rede.find(r=>r.chave===c.chave)||null;
+  const sim=rede.filter(r=>r.fase==='Operação Ongoing' && r.gmv_set>0 && r.populacao>0 && r.chave!==c.chave)
+    .map(r=>({r, d:Math.abs(Math.log(r.populacao/c.populacao))})).sort((a,b)=>a.d-b.d).slice(0,POT_REDE_K).map(x=>x.r);
+  if(sim.length<POT_REDE_MIN) return null;
+  const habs=sim.map(r=>r.gmv_set/r.populacao), P=p=>potPercentil(habs,p);
+  const hab={ p10:P(.1), p25:P(.25), p50:P(.5), p75:P(.75), p90:P(.9) };
+  const gmv={}; Object.keys(hab).forEach(k=>{ gmv[k]=hab[k]*c.populacao; });
+  return { similares:sim, habs, hab, gmv, n:sim.length, propria };
+}
+
+// Em que percentil da referência cai um GMV/hab: a fração das cidades parecidas que entrega MENOS que isso (0–100).
+function potPosicaoNaRede(ref, gmvHab){
+  if(!ref || gmvHab==null || isNaN(gmvHab)) return null;
+  return Math.round(100*ref.habs.filter(h=>h<=gmvHab).length/ref.habs.length);
+}
+
+/**
+ * Projeção calibrada: as MESMAS contas da planilha (`potModelo24`) com os dois deltas de marketing multiplicados
+ * por um fator `escala`, achado por bisseção até o GMV do mês 24 igualar `alvoGmv24`. A conta não é linear (o
+ * reinvestimento depende da comissão), por isso a busca numérica. `null` = não dá para igualar (alvo ≤ 0).
+ */
+function potCalibraModelo(x, alvoGmv24){
+  if(!(alvoGmv24>0)) return null;
+  const roda=s=>potModelo24(Object.assign({},x,{ deltaMkt:x.deltaMkt*s, deltaOngoing:x.deltaOngoing*s }));
+  let lo=0, hi=1; while(roda(hi).meses[23].gmv<alvoGmv24 && hi<64) hi*=2;
+  for(let i=0;i<48;i++){ const mid=(lo+hi)/2; if(roda(mid).meses[23].gmv<alvoGmv24) lo=mid; else hi=mid; }
+  const escala=(lo+hi)/2, modelo=roda(escala);
+  return { escala, modelo, deltaMkt:x.deltaMkt*escala, deltaOngoing:x.deltaOngoing*escala };
 }
 
 // Linha achatada para a tabela de comparação e o histórico: o que importa de cada cidade em uma passada.

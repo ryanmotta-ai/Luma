@@ -29,7 +29,7 @@ let _pot = {
   cidade:null, ov:{}, calc:null,
   resultados:[], truncou:false, seq:0, timer:0, sel:-1,
   gerando:false, ultimoSlide:'', abaBloqueada:false,
-  comparar:[], historico:null, rede:null, prev:{}, raf:0
+  comparar:[], historico:null, rede:null, atalhos:null, projecao:'planilha', prev:{}, raf:0
 };
 
 const POT_LIMITE_BUSCA = 60;
@@ -65,6 +65,11 @@ async function potCarregar(forcar){
     if(!f.data.length || !p.data.length) throw new Error('vazio');
     _pot.faixas=f.data;
     _pot.param={}; p.data.forEach(r=>{ _pot.param[r.chave]=r.valor; });
+    // A rede real (luma.potencial_rede) é um extra: sem a tabela (migration não aplicada) a tela segue sem a Referência.
+    try{
+      const rd=await sb.from('potencial_rede').select('*');
+      _pot.rede = (!rd.error && rd.data && rd.data.length) ? rd.data : null;
+    }catch(e){ _pot.rede=null; }
     return true;
   }catch(e){
     _pot.erro='Não consegui carregar as tarifas. Confira se as migrations do Potencial foram aplicadas no Supabase.';
@@ -96,10 +101,11 @@ async function potCidadePorChave(chave){
 
 // As cidades onde a DM já opera: atalhos da tela vazia (uma consulta, guardada).
 async function potCidadesDaRede(){
-  if(_pot.rede) return _pot.rede;
+  if(_pot.atalhos) return _pot.atalhos;
+  if(_pot.rede){ _pot.atalhos=_pot.rede.filter(r=>r.fase==='Operação Ongoing').sort((a,b)=>(b.gmv_set||0)-(a.gmv_set||0)).slice(0,14); return _pot.atalhos; }
   const sb=_potSb(); if(!sb) return [];
   const { data } = await sb.from('potencial_cidades').select('chave,nome,uf,populacao').not('operacao_fase','is',null).order('populacao',{ascending:false}).limit(14);
-  _pot.rede=data||[]; return _pot.rede;
+  _pot.atalhos=data||[]; return _pot.atalhos;
 }
 
 /* Recentes: só no aparelho (conforto, não dado). */
@@ -359,7 +365,11 @@ function potAnima(raiz){
 function potDesenha(){
   const palco=_potEl('pot-palco'); if(!palco || !_pot.cidade) return;
   const calc=potCalcular(_pot.cidade,_pot,_pot.ov); _pot.calc=calc;
-  const c=calc.cidade, m=calc.modelo, r=m&&m.resumo;
+  const c=calc.cidade;
+  // Projeção ativa: a da planilha ou uma calibrada pela rede (P25/P50/P75). Os KPIs e os gráficos seguem a escolha.
+  const cal=calc.calibrados && calc.calibrados[_pot.projecao] || null;
+  if(_pot.projecao!=='planilha' && !cal) _pot.projecao='planilha';
+  const m=cal?cal.modelo:calc.modelo, r=m&&m.resumo;
   const pesoTaxa=calc.inv>0 && calc.taxa!=null ? calc.taxa/calc.inv*100 : 0;
 
   const aviso=(a)=>'<p class="pot-aviso" role="status">'+POT_ICO.info+'<span>'+gEsc(a)+'</span></p>';
@@ -370,7 +380,8 @@ function potDesenha(){
     const linha=(rot,v,forte)=>'<div class="pot-lin'+(forte?' forte':'')+'"><span>'+rot+'</span><strong>'+v+'</strong></div>';
     return '<article class="pot-cen pot-'+gEsc(s.id)+'"><header><h3>'+gEsc(POT_ROTULO[s.id]||s.id)+'</h3><p>'+potPct(s.pct,0)+' da população</p></header>'
       +'<div class="pot-cen-gmv"><small>GMV mensal</small><b>'+_potN('gmv-'+s.id,s.gmv,'brl')+'</b>'
-      +'<span class="pot-cen-barra" aria-hidden="true"><i style="width:'+Math.max(3,((s.gmv||0)/maior)*100).toFixed(1)+'%"></i></span></div>'
+      +'<span class="pot-cen-barra" aria-hidden="true"><i style="width:'+Math.max(3,((s.gmv||0)/maior)*100).toFixed(1)+'%"></i></span>'
+      +(s.percentil!=null?'<span class="pot-cen-pctl'+(s.percentil>=75?' alto':'')+'" title="Fração das '+calc.referencia.n+' cidades parecidas, que a DM já opera, que vende menos por habitante do que este cenário supõe">Acima de '+s.percentil+'% das cidades parecidas</span>':'')+'</div>'
       +linha('Usuários ativos',_potN('usu-'+s.id,s.usuarios,'num'))+linha('Receita franqueado/mês',_potN('rec-'+s.id,s.receita,'brl'),true)
       +linha('Lucro líquido anual',_potN('luc-'+s.id,s.lucro,'brl'))+linha('Payback',potMeses(s.payback),true)+linha('ROI anual',potPct(s.roi,0))+'</article>';
   }).join('')+'</div>';
@@ -393,6 +404,7 @@ function potDesenha(){
     +      '<span class="pot-comp-mkt" style="flex:'+(100-pesoTaxa).toFixed(2)+'"><i>Marketing (5 meses)</i><b>'+potBRL(calc.mkt)+'</b></span></div></div>'
     +'</section>'
     +(calc.avisos.length?'<div class="pot-avisos">'+calc.avisos.map(aviso).join('')+'</div>':'')
+    +potModosProjecao(calc,cal)
     +(r?'<dl class="pot-kpis">'
       +kpi('Payback',r.paybackMes?'mês '+_potN('pay',r.paybackMes,'num'):'além de 24 meses','quando o caixa acumulado volta a zero',r.paybackMes?'bom':'ruim')
       +kpi('Fundo do caixa',_potN('pico',r.pico,'brlc'),'mês '+r.mesPico+' · o máximo que fica exposto','ruim')
@@ -401,7 +413,8 @@ function potDesenha(){
       +kpi('GMV no mês 24',_potN('g24',r.gmv24,'brlc'),potBRL2(r.gmvHab24)+' por habitante')
       +'</dl>':'')
     +'<section class="pot-sec"><header><h3>Cenários de mercado</h3><p>Quanto da população vira usuário ativo — os números do slide.</p></header>'+cenarios+'</section>'
-    +'<section class="pot-sec"><header><h3>Projeção de 24 meses</h3><p>Modelo da planilha: o marketing gera GMV, o GMV gera comissão e o caixa mostra quando o investimento volta.</p></header>'+projecao+'</section>'
+    +potReferenciaHTML(calc)
+    +'<section class="pot-sec"><header><h3>Projeção de 24 meses'+(cal?' <em class="pot-tag">calibrada pela rede</em>':'')+'</h3><p>O marketing gera GMV, o GMV gera comissão e o caixa mostra quando o investimento volta.'+(cal?' Mesmas contas da planilha, com o delta de marketing ×'+cal.escala.toFixed(2).replace('.',',')+' ('+cal.deltaMkt.toFixed(1).replace('.',',')+' / '+cal.deltaOngoing.toFixed(1).replace('.',',')+').':'')+'</p></header>'+projecao+'</section>'
     +'<section class="pot-sec">'+potRegrasHTML(calc)+'</section>';
   potAnima(palco);
   if(m) potLigaProjecao(m);
@@ -421,13 +434,56 @@ function potRenderVazio(){
   }).catch(()=>{});
 }
 
+/* ═══ Referência da rede e projeção calibrada (v2.1) ═══ */
+
+// Seletor Planilha | Rede P25/P50/P75. Só aparece com a rede carregada; a escolha vale para os KPIs e os gráficos.
+function potModosProjecao(calc, cal){
+  if(!calc.calibrados) return '';
+  const ref=calc.referencia, modo=_pot.projecao;
+  const op=(id,rot,dica)=>'<button type="button" class="pot-seg-b" aria-pressed="'+(modo===id)+'" title="'+gEsc(dica)+'" onclick="potProjecaoModo(\''+id+'\')">'+rot+'</button>';
+  const alvo=cal?potBRL(ref.gmv[modo]):'';
+  return '<div class="pot-modos"><div class="pot-modos-t"><b>Projeção</b><span>'+(cal
+      ? 'Calibrada: o GMV do mês 24 iguala o da cidade <b>'+(modo==='p25'?'cautelosa':modo==='p50'?'mediana':'boa')+'</b> da rede ('+alvo+'/mês aqui).'
+      : 'Como na planilha. Compare com o que as cidades reais entregam.')+'</span></div>'
+    +'<div class="pot-seg pot-seg-m" role="group" aria-label="Qual projeção mostrar">'
+    +op('planilha','Planilha','O modelo da planilha, sem ajuste')
+    +op('p25','Rede · P25','GMV do mês 24 = o da cidade parecida de desempenho cautelosa (25% vendem menos)')
+    +op('p50','Rede · P50','GMV do mês 24 = o da cidade parecida mediana')
+    +op('p75','Rede · P75','GMV do mês 24 = o da cidade parecida de bom desempenho (25% vendem mais)')
+    +'</div></div>';
+}
+function potProjecaoModo(id){ _pot.projecao=id; potDesenha(); }
+
+function potReferenciaHTML(calc){
+  const ref=calc.referencia; if(!ref) return '';
+  const c=calc.cidade, real=calc.cenarios.find(x=>x.id==='real'), eq=calc.equivalente;
+  const habReal=real&&real.gmv!=null?real.gmv/c.populacao:null;
+  const alto=real&&real.percentil!=null&&real.percentil>=75;
+  const linhas=[];
+  if(real&&real.percentil!=null) linhas.push('O cenário <b>real e esperado</b> ('+potBRL2(habReal)+' por habitante) fica acima de <b>'+real.percentil+'%</b> das '+ref.n+' cidades parecidas que a DM já opera. A mediana delas entrega <b>'+potBRL2(ref.hab.p50)+'</b> por habitante ('+potBRL(ref.gmv.p50)+'/mês aqui).');
+  if(eq&&real) linhas.push('Para o cenário real coincidir com a mediana da rede, seriam <b>'+potPct(eq.p50,1)+'</b> da população (hoje '+potPct(real.pct,0)+'). Ruim ≈ '+potPct(eq.p25,1)+' · Top ≈ '+potPct(eq.p75,1)+'. Dá para ajustar em Tarifas › <code>cenarios</code>.');
+  if(ref.propria){
+    const hab=ref.propria.gmv_set/c.populacao;
+    linhas.push('Hoje <b>'+gEsc(c.nome)+'</b> vende <b>'+potBRL(ref.propria.gmv_set)+'/mês</b> (set/26): acima de '+potPosicaoNaRede(ref,hab)+'% das parecidas.');
+  }
+  return '<section class="pot-sec pot-rede-sec"><header><h3>Referência da rede</h3><p>O que as '+ref.n+' cidades operadas de população mais parecida entregam hoje (GMV de setembro/2026), e onde caem os cenários e o modelo.</p></header>'
+    +'<div class="pot-rede-grade"><div class="pot-proj pot-rede-graf">'+potGraficoRede(calc)+'</div>'
+    +'<div class="pot-rede-lado"><div class="'+(alto?'pot-aviso':'pot-nota')+'" role="status">'+(alto?POT_ICO.alerta:POT_ICO.info)+'<div>'+linhas.map(x=>'<p>'+x+'</p>').join('')+'</div></div></div></div>'
+    +'<details class="pot-det"><summary>As cidades parecidas <span>'+ref.n+' na referência</span></summary><div class="pot-tab-rolo"><table class="pot-tab pot-tab-sim"><thead><tr><th scope="col">Cidade</th><th scope="col">Habitantes</th><th scope="col">GMV set/26</th><th scope="col">GMV/hab</th><th scope="col">Curva</th></tr></thead><tbody>'
+    +ref.similares.map(r=>'<tr><th scope="row">'+gEsc(r.nome)+' <em>'+gEsc(r.uf)+'</em></th><td>'+potNumero(r.populacao)+'</td><td>'+potBRLc(r.gmv_set)+'</td><td>'+potBRL2(r.gmv_set/r.populacao)+'</td><td>'+gEsc(r.curva||'—')+'</td></tr>').join('')
+    +'</tbody></table></div><p class="pot-rodape">Foto de 2026 (fev–set) das cidades em Operação Ongoing; sem data de lançamento por cidade, não separa cidade nova de madura. As de Implementação e de Operação Própria ficam de fora.</p></details>'
+    +'</section>';
+}
+
 /* Regras e fontes: de onde vem cada número e o que ainda precisa de confirmação do comercial. */
 function potRegrasHTML(calc){
   const R=[
     ['ok','Investimento total','Taxa de franquia (a negociada da cidade, senão a da faixa de população) + marketing de lançamento = base da faixa × (1 + IPCA) × multiplicador de concorrentes, arredondado para cima de 50 em 50. Aba Calculadora, células C5, C6 e C8.'],
     ['ok','Cenários, payback e ROI','Usuários = população × %. GMV = usuários × ticket. Receita = GMV × comissão × parte do franqueado. Lucro anual = receita × 12 × (1 − Simples). Payback = investimento ÷ (lucro ÷ 12). Aba Cenários da planilha.'],
     ['ok','Projeção de 24 meses','Reproduzida célula a célula da aba Calculadora (linhas 26 a 50): 24 meses × 11 linhas, diferença menor que R$ 0,0001.'],
-    ['ver','Ticket médio','R$ 70 é o da aba Calculadora (fonte Getnet/Ticket 2025 + IPCA). A aba Cenários e o slide antigo traziam R$ 45 digitados. Os dois ficam como atalho; confirmar qual vale.'],
+    ['ok','Ticket médio','R$ 70 é o da aba Calculadora e confere com a rede: nas 69 cidades Ongoing, o ticket ponderado por pedidos foi R$ 69,40 em junho/26 (mediana por cidade R$ 66,30). O R$ 45 da aba Cenários e do slide antigo não aparece em nenhuma faixa da rede. Fica como atalho.'],
+    ['ver','Cenários de 2% / 20% / 35%','São da planilha, mas os dados reais não chegam lá: nas cidades Ongoing os clientes ativos são 4,1% da população na mediana (máximo 14,9%, jun/26) e o GMV mediano é R$ 6,7 por habitante. O "real e esperado" (20% × R$ 70 = R$ 14/hab) fica perto do P85 da rede. A seção Referência da rede mostra a posição de cada cenário; decidir se o slide continua com os % da planilha ou com os da rede.'],
+    ['ass','Projeção calibrada pela rede','Mesmas contas da planilha, com o delta de marketing escalado até o GMV do mês 24 igualar o GMV por habitante de um percentil (P25/P50/P75) das 15 cidades Ongoing de população mais parecida. É uma foto de 2026, não uma curva de crescimento.'],
     ['ass','3 ou mais concorrentes','A planilha só tem multiplicador até 2 e devolvia erro acima disso. Aqui vale o de 2, com aviso. Confirmar com o comercial.'],
     ['ver','Inadimplência','A planilha aplica 2% só no mês 2 (a referência da fórmula "anda" para células vazias). Seguimos a planilha; a gestão pode aplicar todo mês em Tarifas.'],
     ['ok','Royalties (1,35%)','Aparecem na planilha mas não entram no caixa do franqueado. Seguimos igual.']
