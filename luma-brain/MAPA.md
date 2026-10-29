@@ -262,13 +262,13 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 94 arquivos JS (86.336 linhas, 3.328 funções) · 33 arquivos CSS (33.714 linhas) · `index.html` com 4.093 linhas e 84 `<script>`.
+**Tamanho real de hoje:** 94 arquivos JS (86.398 linhas, 3.330 funções) · 33 arquivos CSS (33.895 linhas) · `index.html` com 4.093 linhas e 84 `<script>`.
 
 ## JS — o que cada arquivo é
 
 ### js (raiz)
 
-**`js/00-config.js`** · 2732 linhas
+**`js/00-config.js`** · 2737 linhas
 Constantes globais imutaveis: HIST_KEY, CAMPS_ATIVAS, CAMPS_OUTRAS, FMTS. Deve ser carregado PRIMEIRO (todos os modulos dependem destas constantes).
 · API: gPastaSistema, gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss … (+52; 91 funções no total)
 · Estado global: _G_MEDIDA_CACHE, gLayoutVivoOff, _gCanvasWrap
@@ -414,7 +414,7 @@ gToast(msg) — exibe notificacao flutuante de 2.8s.
 · Estado global: gImgPersistWarned
 · Depende de: nada (usa apenas o DOM).
 
-**`js/core/user-profile.js`** · 1181 linhas
+**`js/core/user-profile.js`** · 1186 linhas
 Controladores do Modal e Configurações de Perfil do Usuário. Suporta edição de perfil, troca de avatar via Base64 persistente, validação de senha e monitoramento de tempo de sessão.
 · API: gProfileOpenFeedback, gOpenUserProfileModal, gProfileShowHub, gCloseUserProfileModal, gProfileOpenCli, gProfileSwitchTab, gProfileUpdateModalAvatars, gProfileTriggerUpload, gProfileHandleUpload, gProfileSalvarFoto, gProfileSyncFotoLocal, gProfileSaveData, gProfileApplyTheme, gProfileApplyStudioMode … (+22; 42 funções no total)
 · Estado global: _gFeedbackAdminLoading
@@ -462,10 +462,10 @@ Preview lateral em tempo real (fUpdateLivePreview) e modal de preview multi-form
 · Estado global: _postedArt, renderizada, _postedCtx, _pstStageBound, _pstTiltRaf, _pstQRUrl, _pstQRBusy, _lpConclusaoAtiva, _lpCardPintado, _lpConclusaoSaindo (+50)
 · Depende de: 00-config.js, 01-state.js
 
-**`js/franqueado/materials.js`** · 1237 linhas
+**`js/franqueado/materials.js`** · 1287 linhas
 Catalogo de materiais do franqueado: fOpenMaterialCatalog, fRenderMaterialCatalog, fRenderMaterialCard, fCloseMaterialCatalog, fSelectMaterial.
-· API: fDemoModeOn, fSetDemoMode, fGetMaterialsForCamp, fIsMaterialValid, fIsMaterialReal, fRealMaterialsForCamp, fDiasRestantes, fCampValidade, fCampDiasRestantes, fKitPecas, fKitPar, fKitPlano, fKitNaoCabe, fKitAbrir … (+20; 54 funções no total)
-· Estado global: _fCampThemeAtivo
+· API: fDemoModeOn, fSetDemoMode, fGetMaterialsForCamp, fIsMaterialValid, fIsMaterialReal, fRealMaterialsForCamp, fDiasRestantes, fCampValidade, fCampDiasRestantes, fKitPecas, fKitPar, fKitPlano, fKitNaoCabe, fKitAbrir … (+20; 56 funções no total)
+· Estado global: _fCampThemeAtivo, _fCampThemeClaro
 · Depende de: 00-config.js, 01-state.js, franqueado/chat.js
 
 **`js/franqueado/motion.js`** · 474 linhas
@@ -531,7 +531,7 @@ Fontes customizadas enviadas pelo usuário (.ttf/.otf/.woff/.woff2).
 · Estado global: dCustomFonts
 · Depende de: 00-config.js, core/toast.js, designer/canvas.js (dRenderCanvas).
 
-**`js/designer/layers.js`** · 4845 linhas
+**`js/designer/layers.js`** · 4847 linhas
 CRUD de layers, painel lateral, props, multi-select, rename: dSelLayer, dDeselect, dRenderLayersList, dShowProps, dAddText, dAddShape, dToggleMultiSel, dRenameLayer, dAddIcon, dAddLine.
 · API: dSelLayer, dHoverLayer, dSelLayerState, dDeselect, dStartCrop, dStopCrop, dOnCropDrag, dStopCropDrag, dStartDrag, dOnDrag, dStopDrag, dStartResize, dOnResize, dStopResize … (+206; 280 funções no total)
 · Estado global: dDragEls, dPendingIsolate, dDragMoved, dCropState, dDragCrop, dResizeEl, dResizePos, dResizeLyrX, dResizeLyrY, dResizeFs (+37)
@@ -755,7 +755,7 @@ MAKING-OF da arte (frente 6, 15/10/2026; microações em 15/10, pedido do Ryan) 
 
 | Arquivo | Linhas |
 |---|---|
-| `css/00-tokens.css` | 324 |
+| `css/00-tokens.css` | 362 |
 | `css/01-reset.css` | 37 |
 | `css/02-animations.css` | 177 |
 | `css/03-fonts.css` | 60 |
@@ -778,7 +778,7 @@ MAKING-OF da arte (frente 6, 15/10/2026; microações em 15/10, pedido do Ryan) 
 | `css/modules/creative.css` | 799 |
 | `css/modules/designer.css` | 5424 |
 | `css/modules/feedback.css` | 199 |
-| `css/modules/franqueado.css` | 1715 |
+| `css/modules/franqueado.css` | 1858 |
 | `css/modules/franqueado_effects.css` | 412 |
 | `css/modules/help-widget.css` | 3606 |
 | `css/modules/layers-panel.css` | 4530 |
