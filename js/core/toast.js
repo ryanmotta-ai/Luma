@@ -191,6 +191,7 @@ function _gDialog(opts){
     const isPrompt=!!opts.prompt;
     const ov=document.createElement('div');
     ov.className='g-dialog-ov';
+    if(opts.id) ov.dataset.id=opts.id;   // gAvisoFechar(id) acha o aviso por aqui
     // Estilo em css/modules/toolbar.css (.g-dialog*). Era tudo inline com hex cru aqui — o único
     // componente da casa que não acompanhava o design system.
     ov.innerHTML=`<div class="g-dialog${isPrompt?' has-input':''}" role="dialog" aria-modal="true">
@@ -198,7 +199,7 @@ function _gDialog(opts){
       ${opts.message?`<div class="g-dialog-msg">${gEsc(opts.message)}</div>`:''}
       ${isPrompt?`<input class="g-dialog-input" type="text" value="${gEsc(opts.default||'')}" placeholder="${gEsc(opts.placeholder||'')}">`:''}
       <div class="g-dialog-acts">
-        <button class="g-dialog-cancel" type="button">${gEsc(opts.cancelLabel||'Cancelar')}</button>
+        ${opts.semCancelar?'':`<button class="g-dialog-cancel" type="button">${gEsc(opts.cancelLabel||'Cancelar')}</button>`}
         ${opts.altLabel?`<button class="g-dialog-cancel g-dialog-alt" type="button">${gEsc(opts.altLabel)}</button>`:''}
         <button class="g-dialog-ok${opts.danger?' danger':''}" type="button">${gEsc(opts.okLabel||'Confirmar')}</button>
       </div>
@@ -209,7 +210,7 @@ function _gDialog(opts){
     const onOk=()=>done(isPrompt?(input?input.value:''):true);
     const onCancel=()=>done(isPrompt?null:false);
     ov.querySelector('.g-dialog-ok').onclick=onOk;
-    ov.querySelector('.g-dialog-cancel').onclick=onCancel;
+    const canc=ov.querySelector('.g-dialog-cancel'); if(canc) canc.onclick=onCancel;
     // Terceira saída OPCIONAL (`altLabel`): resolve 'alt'. Quem não passa não muda em nada.
     const alt=ov.querySelector('.g-dialog-alt'); if(alt) alt.onclick=()=>done('alt');
     ov.addEventListener('mousedown',e=>{ if(e.target===ov) onCancel(); });
@@ -234,6 +235,10 @@ function _gDialog(opts){
   });
 }
 function gConfirm(message, opts){ opts=opts||{}; return _gDialog({prompt:false, message, title:opts.title, okLabel:opts.okLabel, cancelLabel:opts.cancelLabel, altLabel:opts.altLabel, danger:opts.danger}); }
+/* Aviso que PRECISA ser lido, mas não decide nada: um botão só, fecha com Esc/clique fora.
+   Não trava quem chama — não dê await se o trabalho precisa seguir por baixo. */
+function gAviso(message, opts){ opts=opts||{}; return _gDialog({prompt:false, semCancelar:true, id:opts.id, message, title:opts.title, okLabel:opts.okLabel||'Entendi'}); }
+function gAvisoFechar(id){ const ok=document.querySelector('.g-dialog-ov[data-id="'+id+'"] .g-dialog-ok'); if(ok) ok.click(); }
 function gPrompt(message, defaultVal, opts){ opts=opts||{}; return _gDialog({prompt:true, message, default:defaultVal||'', placeholder:opts.placeholder, title:opts.title, okLabel:opts.okLabel||'OK', cancelLabel:opts.cancelLabel}); }
 
 // C6: aviso (uma vez por sessão) de que imagens enviadas não são persistidas.

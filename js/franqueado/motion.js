@@ -446,7 +446,9 @@ async function fBaixarVideo(btn, snapId){
   const restore = gBtnLoading(btn, 'Gerando vídeo…');
   const rotulo = btn && btn.querySelector('span:last-child');
   _fVideoRenderizando = true;
-  gToast('Gerando o vídeo — não saia desta janela até terminar.', undefined, undefined, { duracao: 8000 });
+  // Modal, não toast: toast some em 3 s e quem troca de aba perde o vídeo. Fecha sozinho ao terminar.
+  gAviso('O vídeo está sendo gerado. Não feche nem saia desta janela, e mantenha esta aba aberta na frente até terminar — senão o vídeo se perde.',
+    { id: 'video-render', title: 'Gerando seu vídeo' });
   try{
     const { blob, fname } = await fGenMP4(snap.dados, snap.camp, snap.fmt, snap.material || fState.material,
       p => { if(rotulo) rotulo.textContent = 'Gerando vídeo… ' + Math.round(p * 100) + '%'; });
@@ -477,5 +479,5 @@ async function fBaixarVideo(btn, snapId){
     if(typeof gHandleLayoutUnsafeError === 'function' && gHandleLayoutUnsafeError(e)) return;
     gToast(e && e.code === 'LUMA_VIDEO_UNSUPPORTED' ? 'Este navegador não gera vídeo. Use o Chrome, o Edge ou o Safari atualizados.'
       : e && e.code === 'LUMA_IMAGE_UNAVAILABLE' ? e.message : 'Não consegui gerar o vídeo. Tente de novo.', 'error');
-  }finally{ _fVideoRenderizando = false; restore(); }
+  }finally{ _fVideoRenderizando = false; gAvisoFechar('video-render'); restore(); }
 }
