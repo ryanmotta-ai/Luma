@@ -70,12 +70,21 @@ function potCalcular(c, P, ov){
   // Taxa: a negociada da cidade vence a da faixa (VLOOKUP na coluna "Taxa de franquia" da base).
   const taxa = c.taxa_franquia_override!=null ? Number(c.taxa_franquia_override) : (faixa ? Number(faixa.taxa_franquia) : null);
 
-  // Marketing de lançamento. A planilha só tem multiplicador para 0, 1 e 2 concorrentes;
-  // com 3+ a fórmula devolvia FALSE (que somava como zero) — aqui vira aviso, não número inventado.
-  const mult=(pr.mult_concorrencia||{})[String(conc)];
+  // Marketing de lançamento. A planilha só tem multiplicador para 0, 1 e 2 concorrentes; com 3+ a fórmula
+  // devolvia FALSE, que somava como zero (investimento subestimado, e sem aviso). 429 cidades da base
+  // têm 3+ — 45 delas a DM já opera (ex.: Tupã) — e travar o slide era o pior dos dois mundos. Decisão
+  // (29/10): vale o multiplicador do MAIOR nível que a planilha conhece, com aviso à vista.
+  const tabela=pr.mult_concorrencia||{};
+  const niveis=Object.keys(tabela).map(Number).filter(n=>!isNaN(n)).sort((a,b)=>a-b);
+  const teto=niveis.length ? niveis[niveis.length-1] : null;
+  let mult=tabela[String(conc)];
+  if(mult==null && teto!=null && conc>teto){
+    mult=tabela[String(teto)];
+    avisos.push('A planilha só tem regra de marketing até '+teto+' concorrentes. Com '+conc+', usei a de '+teto+' (×'+String(mult).replace('.',',')+'). Confirme com o comercial.');
+  }
   let mkt=null;
   if(faixa && mult!=null) mkt=potTeto50(Number(faixa.mkt_base)*(1+Number(pr.ipca))*Number(mult));
-  if(mkt==null) avisos.push('A regra de concorrência da planilha cobre até 2 concorrentes. Com '+conc+', o marketing de lançamento não é calculado — ajuste o campo "Concorrentes" para simular.');
+  if(c.operacao_fase) avisos.push('A Delivery Much já tem operação aqui ('+c.operacao_fase+').');
   if(c.vender===false) avisos.push('Na base, esta cidade está marcada como "não vender".');
   if(!faixa) avisos.push('Nenhuma faixa de população cobre esta cidade.');
   if(ticketReal==null) avisos.push('Sem ticket médio para a região desta cidade — informe o ticket.');
@@ -131,7 +140,7 @@ async function potCarregar(){
 
 async function potBuscarCidades(termo){
   const sb=_potSb(); if(!sb) return [];
-  const t=gNormBusca(termo).trim().replace(/[%_,()]/g,' ').replace(/\s+/g,' ');
+  const t=gNormBusca(termo).replace(/[%_,()\/\-–]/g,' ').replace(/\s+/g,' ').trim();
   if(t.length<2) return [];
   const { data, error } = await sb.from('potencial_cidades').select('*').ilike('busca','%'+t+'%').order('populacao',{ascending:false}).limit(12);
   if(error) throw error;

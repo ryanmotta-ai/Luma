@@ -329,7 +329,8 @@ O Creative (hoje só gestão, em testes) gasta IA a cada arte, então tem **cota
 A "Calculadora de Franquias 2026" (planilha do Aladim) virou a aba **Potencial** do Luma, **só para a equipe DM**. Escolhe-se a cidade, vê-se os 3 cenários e o botão gera o slide "Estudo de potencial" no Google Slides.
 
 - **Investimento total** = taxa de franquia (a negociada da cidade, senão a da faixa de população) + marketing de lançamento `CEILING(base da faixa × (1 + IPCA) × multiplicador de concorrentes, 50)`.
-- **Concorrentes:** a planilha só tem multiplicador para 0, 1 e 2. Com 3 ou mais ela devolvia `FALSE` (somava como zero). O Luma **não inventa**: avisa e bloqueia o slide até alguém ajustar o campo.
+- **Concorrentes:** a planilha só tem multiplicador para 0, 1 e 2. Com 3 ou mais ela devolvia `FALSE` (somava como zero, subestimando o investimento). 429 cidades da base têm 3+, 45 delas já operadas pela DM (ex.: Tupã, 4). Decisão de 29/10: vale o multiplicador do maior nível conhecido (×1,45), com aviso na tela. ⚠ Regra assumida — confirmar com o comercial.
+- **Cidades com operação DM** (aba Base Ops OUT.26, 100 cidades): `operacao_modelo`/`operacao_fase` em `luma.potencial_cidades`; a tela avisa "já tem operação aqui" e não bloqueia.
 - **Cenários:** 2% / 20% / 35% da população viram usuários (`ROUND`); GMV = usuários × ticket do cenário (região × 0,975 / 1 / 1,025); receita do franqueado = GMV × comissão × % do franqueado.
 - ⚠ **Lucro líquido anual, payback e ROI não estão na planilha.** Foram reconstruídos dos números do slide do Aruanã: lucro = receita × 12 × (1 − Simples), payback = investimento ÷ (lucro ÷ 12), ROI = lucro ÷ investimento. Se o comercial usar outra regra, muda `potCalcular` (`js/potencial/potencial.js`). Pendente de confirmação do Aladim.
 - Cidade marcada "não vender" na base: avisa, não bloqueia.

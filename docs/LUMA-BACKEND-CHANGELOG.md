@@ -1294,3 +1294,9 @@ miniaturas e nome, estado vazio, usar (dataURL + prévia), salvar (caminho e pay
 
 **Verificação.** Motor conferido contra a planilha: Ariquemes (109.170 hab., 1 concorrente) dá taxa R$ 36.000 + marketing R$ 57.800 = R$ 93.800, idêntico ao `C8` da Calculadora. Tela exercitada no Chromium com `window.sb` simulado (busca, premissas sem perder o foco, 3 concorrentes bloqueia o slide, XSS no nome da cidade). **Não** exercitado: migrations no banco real, Apps Script publicado, 3 roles contra o RLS.
 
+## 2026-10-29 (tarde) — Potencial: cidades com operação DM + 3+ concorrentes
+
+**Migration:** `20261029170000_luma_potencial_operacao.sql` (já aplicada no projeto `xqsazcazsjxajmtmirzd`). Cria `operacao_modelo` e `operacao_fase` em `luma.potencial_cidades`, marca as 100 cidades da aba "Base Ops OUT.26" (99 casaram com a base IBGE; "Santana do Livramento" casada à mão com "Sant'Ana do Livramento") e cria **Barracão/SC**, que a base IBGE não tinha (população 10.312 vinda das abas de GMV da Base Ops).
+
+**Front.** Cidade com 3+ concorrentes (429 na base, 45 operadas — ex.: Tupã, 4) deixou de bloquear o slide: usa o multiplicador do maior nível da planilha (×1,45) e avisa. A busca aceita "Tupã - SP", "Tupã/SP" e "tupa, sp". `?v=352`.
+
