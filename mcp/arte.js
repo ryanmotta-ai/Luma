@@ -35,11 +35,14 @@ function auditar(layers,W=1080,H=1350){
   const vistos=new Set(); for(const l of layers){ if(!l.id) P('erro','(sem id)','layer sem id'); else if(vistos.has(l.id)) P('erro',l.id,'id duplicado'); else vistos.add(l.id); }
   for(const l of vis){ const bleed=l.layoutSemantic==='fundo'||l.layoutSemantic==='decoracao'||l.layoutRole==='background';
     if(!bleed&&(l.x+l.w<0||l.y+l.h<0||l.x>W||l.y>H)) P('erro',l.id,'fora do canvas');
-    else if(!bleed&&l.type!=='shape'&&(l.x<66||l.x+l.w>W-66)) P('aviso',l.id,`passa da margem lateral de 72 px (x ${Math.round(l.x)}…${Math.round(l.x+l.w)})`);
+    else if(!bleed&&l.type!=='shape'&&(l.x<(l.type==='text'?56:66)||l.x+l.w>W-(l.type==='text'?56:66))) P('aviso',l.id,`passa da margem lateral de 72 px (x ${Math.round(l.x)}…${Math.round(l.x+l.w)})`);
     if(l.type==='text'&&l.fontSize<22) P('aviso',l.id,`corpo ${l.fontSize} px (piso prático da arte: 22–24)`); }
   /* contraste: cor do texto × fundo opaco mais próximo por baixo (só hex) */
   vis.forEach((l,i)=>{ if(l.type!=='text') return; const fg=hex6(l.color); if(!fg) return; const cx=l.x+l.w/2, cy=l.y+l.h/2;
-    for(let j=i-1;j>=0;j--){ const b=vis[j]; if(b.type!=='shape'&&b.type!=='frame') continue; const bg=hex6(b.fill); if(!bg||(b.opacity!=null&&b.opacity<70)) continue;
+    for(let j=i-1;j>=0;j--){ const b=vis[j];
+      /* imagem/moldura por baixo cobrindo o centro = fundo desconhecido (ex.: bilhete PNG branco): não julga */
+      if((b.type==='image'||b.type==='frame')&&cx>=b.x&&cx<=b.x+b.w&&cy>=b.y&&cy<=b.y+b.h) break;
+      if(b.type!=='shape'&&b.type!=='frame') continue; const bg=hex6(b.fill); if(!bg||(b.opacity!=null&&b.opacity<70)) continue;
       if(cx>=b.x&&cx<=b.x+b.w&&cy>=b.y&&cy<=b.y+b.h){ const c=L.contraste(fg,bg); if(c<3) P('erro',l.id,`contraste ${c.toFixed(1)}:1 de ${fg} sobre ${bg} (reprova)`); else if(c<4.5&&!(c>=3&&l.fontSize>=48)) P('aviso',l.id,`contraste ${c.toFixed(1)}:1 de ${fg} sobre ${bg} (alvo ≥ 4,5)`); break; } } });
   const cores=new Set(); for(const l of vis){ for(const c of [l.fill,l.color]){ const h=hex6(c); if(h) cores.add(h.toLowerCase()); } }
   if(cores.size>8) P('aviso','(arte)',`${cores.size} cores distintas — a regra é paleta da campanha + no máx. 1 acento`);
