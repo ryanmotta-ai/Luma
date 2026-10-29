@@ -37,6 +37,55 @@
 #f-catalog::-webkit-scrollbar-track{background:transparent}
 #f-catalog::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:10px}
 #f-catalog::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.3)}
+/* ══ PISTA CONTEXTUAL: CATÁLOGO DO FRANQUEADO ══ */
+.f-catalog-cue{
+  display:flex;align-items:flex-start;gap:12px;
+  padding:12px 14px;margin-bottom:16px;
+  background:var(--off-white);
+  border:1px solid var(--gray-light);
+  border-radius:var(--r);
+  box-shadow:0 2px 8px rgba(10,10,10,.03);
+  position:relative;
+  transition:opacity var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-standard);
+  animation:gFadeInUp var(--dur-base) var(--ease-out) both;
+}
+.f-catalog-cue-icon{
+  width:32px;height:32px;border-radius:var(--r-sm);
+  background:var(--dm-orange-bg);color:var(--dm-orange-d);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;margin-top:1px;
+}
+.f-catalog-cue-body{flex:1;min-width:0}
+.f-catalog-cue-title{
+  display:block;font-size:12.5px;font-weight:700;
+  color:var(--text);margin-bottom:2px;letter-spacing:-.01em;
+}
+.f-catalog-cue-text{
+  font-size:11.5px;line-height:1.45;color:var(--text-2);margin:0;
+}
+.f-catalog-cue-close{
+  width:24px;height:24px;border-radius:var(--r-sm);
+  display:flex;align-items:center;justify-content:center;
+  background:transparent;border:none;cursor:pointer;
+  color:var(--text-3);padding:0;flex-shrink:0;
+  transition:background var(--dur-micro) var(--ease-standard),color var(--dur-micro) var(--ease-standard);
+}
+.f-catalog-cue-close:hover{
+  background:var(--gray-light);color:var(--text);
+}
+.f-catalog-cue-close:focus-visible{
+  outline:2px solid var(--dm-orange);outline-offset:1px;
+}
+body:not(.theme-light) .f-catalog-cue{
+  background:var(--d-surf);border-color:var(--d-border2);
+}
+body:not(.theme-light) .f-catalog-cue-icon{
+  background:rgba(255,144,0,.14);color:var(--dm-orange);
+}
+body:not(.theme-light) .f-catalog-cue-title{color:var(--d-text)}
+body:not(.theme-light) .f-catalog-cue-text{color:var(--d-text2)}
+body:not(.theme-light) .f-catalog-cue-close{color:var(--d-text3)}
+body:not(.theme-light) .f-catalog-cue-close:hover{background:var(--d-surf2);color:var(--d-text)}
 .sec-title{font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--text-3);margin-bottom:9px;margin-top:4px}
 .camp-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:22px}
 .camp-card{border:1px solid var(--gray-light);border-radius:12px;overflow:hidden;cursor:pointer;transition:transform var(--dur-fast) var(--ease-spring-soft),border-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard);background:var(--white);position:relative}

@@ -736,6 +736,20 @@ body:not(.theme-light) .f-fit-btn{background:color-mix(in srgb,var(--dm-orange) 
 }
 .f-upload-aviso svg{flex:0 0 14px;margin-top:1px}
 
+/* Dica contextual de reenquadrar a foto */
+.f-upload-tip-row{
+  display:inline-flex;align-items:center;gap:6px;
+  margin-top:7px;padding:6px 9px;border-radius:var(--r-sm);
+  background:var(--off-white);border:1px solid var(--gray-light);
+  font:500 11px 'Roboto',sans-serif;color:var(--text-3);line-height:1.35;
+  width:100%;box-sizing:border-box;
+}
+.f-upload-tip-row svg{flex:0 0 13px;color:var(--dm-orange-d)}
+body:not(.theme-light) .f-upload-tip-row{
+  background:var(--d-surf);border-color:var(--d-border2);color:var(--d-text3);
+}
+body:not(.theme-light) .f-upload-tip-row svg{color:var(--dm-orange)}
+
 body:not(.theme-light) .field-hint{background:var(--d-surf2);color:var(--d-text2)}
 body:not(.theme-light) #f-chat-col.f-chat-solta{background:color-mix(in srgb,var(--dm-orange) 7%,transparent)}
 body:not(.theme-light) .f-upload-zone{background:var(--d-surf);border-color:var(--d-border2)}

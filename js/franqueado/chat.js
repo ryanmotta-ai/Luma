@@ -1424,12 +1424,18 @@ function _fUploadPreviewHTML(varId, url, opts){
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       <span>${gEsc(opts.aviso)}</span>
     </div>` : '';
+  const allHist = (typeof fGetHist === 'function') ? fGetHist() : [];
+  const fotoDica = (!ehLogo && allHist.length < 3) ? `<div class="f-upload-tip-row" role="note">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>
+      <span>Dica: toque em <b>Ajustar</b> ou arraste na prévia para reenquadrar</span>
+    </div>` : '';
   const barra = `<div class="f-upload-confirm">
       ${aviso}
       <div class="f-upload-confirm-row">
         ${opts.bloqueio ? '' : `<button class="f-upload-ok" onclick="fConfirmarImagem('${gEsc(varId)}')"${opts.conferindo?' disabled':''}>${opts.conferindo ? 'Conferindo a foto…' : (opts.aviso ? 'Usar mesmo assim' : (opts.jaEstava ? 'Manter esta imagem' : 'Usar esta imagem'))}</button>`}
         <button class="f-upload-replace" onclick="fReplaceImage('${gEsc(varId)}',this)">${opts.bloqueio ? 'Trocar foto' : (opts.aviso ? 'Trocar arquivo' : 'Trocar')}</button>
       </div>
+      ${fotoDica}
     </div>`;
   return `<div class="f-upload-preview f-upload-preview-pop">
       <img src="${gEsc(url)}" alt="Imagem enviada"/>
@@ -3470,6 +3476,7 @@ async function fBaixar(btn, snapId){
     const onde=noCelular==='arquivo'?' em Arquivos › Downloads':'';
     if(cap){ _fCopyText(cap); fTrackLegenda('legenda_copiada', snapId, {origem:'download'}); gToast('Arte salva'+onde+' • legenda copiada!'); }
     else gToast(noCelular==='share'?'Arte pronta!':'Arte baixada'+onde+'!');
+    try{ localStorage.setItem('luma_cue_catalog_dismissed','1'); }catch(e){}
     if (typeof gTriggerOnboardingStep === 'function') {
       gTriggerOnboardingStep('downloadedPng');
     }
@@ -3766,6 +3773,7 @@ async function fBaixarPDF(btn, snapId){
     if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt_id:snap.fmt.id,template_id:(typeof _fTplId==='function')?_fTplId(snap.material):null,tipo:'pdf',origem:'chat'});
     if(typeof fFeedbackAfterDownload==='function') fFeedbackAfterDownload(snap,btn,snapId,'pdf');
     gToast('PDF baixado!');
+    try{ localStorage.setItem('luma_cue_catalog_dismissed','1'); }catch(e){}
     if (typeof gTriggerOnboardingStep === 'function') {
       gTriggerOnboardingStep('downloadedPng');
     }

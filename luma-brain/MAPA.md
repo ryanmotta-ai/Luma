@@ -272,7 +272,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 95 arquivos JS (86.935 linhas, 3.364 funções) · 34 arquivos CSS (34.002 linhas) · `index.html` com 4.115 linhas e 85 `<script>`.
+**Tamanho real de hoje:** 95 arquivos JS (86.975 linhas, 3.366 funções) · 34 arquivos CSS (34.065 linhas) · `index.html` com 4.115 linhas e 85 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -431,9 +431,9 @@ Controladores do Modal e Configurações de Perfil do Usuário. Suporta edição
 
 ### js/franqueado
 
-**`js/franqueado/catalog.js`** · 1844 linhas
+**`js/franqueado/catalog.js`** · 1876 linhas
 Catalogo de campanhas: fRenderCatalogs, fFilterCamps, fSelectCamp, fSwitchTab, fSetHistFilter, fRenderHist, fEditFromHist, fDuplicateInOtherFmt.
-· API: fSwitchTab, fSetHistFilter, fGoToCampaigns, fFindMaterialById, fAskClearHist, fHistVoltar, fRenderHist, fDownloadHist, fEditFromHist, fDuplicateInOtherFmt, fConfirmDuplicate, fEditCampFolder, fCampAdminMenu, fCampAnalyticsClose … (+38; 94 funções no total)
+· API: fSwitchTab, fSetHistFilter, fGoToCampaigns, fFindMaterialById, fAskClearHist, fHistVoltar, fRenderHist, fDownloadHist, fEditFromHist, fDuplicateInOtherFmt, fConfirmDuplicate, fEditCampFolder, fCampAdminMenu, fCampAnalyticsClose … (+39; 96 funções no total)
 · Estado global: fHistFilter, _fHistPreviewCache, _fHistPreviewRun, _fHistPreviewObserver, _fRedeRun, _fRedeObserver, _fhThumbFila, _fhFilter, _fhRevealIO, _fhRevealGen (+3)
 · Depende de: 00-config.js, 01-state.js
 
@@ -443,7 +443,7 @@ F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES defi
 · Estado global: _F_MAXLEN_MED, _fAlvoNaPasta, _fFitOpts, _fFitRun, _fFitSai, _fFitIaReprovadas, _fFitCf, quando, _fFitPerto, _fFitFora
 · Depende de: 00-config.js
 
-**`js/franqueado/chat.js`** · 4061 linhas
+**`js/franqueado/chat.js`** · 4069 linhas
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
 · API: fChatNovaConversa, fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fTrackResposta, fTrackFoto … (+71; 187 funções no total)
 · Estado global: fNextTimeout, _fChatGen, _fGuidedNav, _fGuidedTimer, _fGuidedBound, _fProntaCtxAberto, _fRevisando, _fRespostasNAnt, _fArtSnapshots, _fArtCaptions (+5)
@@ -791,13 +791,13 @@ POTENCIAL DA CIDADE (29/10/2026) — a "Calculadora de Franquias 2026" do Aladim
 | `css/modules/all-tools.css` | 113 |
 | `css/modules/calendario.css` | 1544 |
 | `css/modules/catalog.css` | 299 |
-| `css/modules/chat.css` | 4164 |
+| `css/modules/chat.css` | 4178 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
 | `css/modules/creative.css` | 799 |
 | `css/modules/designer.css` | 5429 |
 | `css/modules/feedback.css` | 199 |
-| `css/modules/franqueado.css` | 1858 |
+| `css/modules/franqueado.css` | 1907 |
 | `css/modules/franqueado_effects.css` | 412 |
 | `css/modules/help-widget.css` | 3606 |
 | `css/modules/layers-panel.css` | 4530 |
