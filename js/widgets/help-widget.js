@@ -1824,7 +1824,12 @@
     widgetState.pensando = true;
     renderWidgetModalContent();
 
-    const r = await lumaWidgetGenerateAIResponse(msgText);
+    let r;
+    try { r = await lumaWidgetGenerateAIResponse(msgText); }
+    catch (e) {
+      console.warn('[Luma IA Suporte] falhou:', e);
+      r = { fonte: 'erro', delegar: true, text: 'Não consegui falar com a assistente agora. Tente de novo em instantes, procure na aba "Ajuda" ou fale com a equipe.' };
+    }
     widgetState.pensando = false;
 
     // Rótulo pela ORIGEM — nunca "ao vivo": não há humano do outro lado.
