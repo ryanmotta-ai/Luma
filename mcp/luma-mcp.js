@@ -14,7 +14,7 @@ const motor=require('./motor.js'), banco=require('./banco.js');
 /* ---------- ferramentas ---------- */
 const run=(args)=>new Promise(ok=>cp.execFile('node',args,{timeout:180000,maxBuffer:1<<26},(e,so,se)=>ok({code:e?(e.code||1):0,out:String(so||''),err:String(se||'')})));
 const UUID=/^[0-9a-f-]{36}$/i;
-const arte=require('./arte.js');
+const arte=require('./arte.js'), pot=require('./potencial.js');
 /* Fonte das layers, nesta ordem: `layers` explícito · `layers_arquivo` (ex.: o .layers.json do luma_psd_importar) · `template_id` (banco, RLS do usuário). */
 async function resolver(a){
   if(Array.isArray(a.layers)&&a.layers.length) return {layers:a.layers,W:a.W,H:a.H,fmt:a.fmt};
@@ -76,6 +76,39 @@ const TOOLS={
     description:'Audita uma arte contra as regras de marca do DESIGN.md (estático, sem render): ids, fora do canvas, margem de 72, corpo mínimo, contraste ≥ 4,5:1 por texto × fundo, paleta, família de raio, zona segura do story. ERRO bloqueia publicar.',
     inputSchema:{type:'object',properties:FONTE},
     async run(a){ const r=await resolver(a); const au=arte.auditar(r.layers,r.W||1080,r.H||1350); return {content:[{type:'text',text:`${au.filter(x=>x.nivel==='erro').length} erro(s) · ${au.filter(x=>x.nivel==='aviso').length} aviso(s)\n`+arte.resumoAuditoria(au)}]}; }},
+  luma_potencial_cidades:{
+    description:'POTENCIAL DA CIDADE (calculadora do Aladim) — busca cidades na base comercial (luma.potencial_cidades, só a equipe via RLS): chave, população, concorrentes, se a DM já opera, se está marcada "não vender". Somente leitura.',
+    inputSchema:{type:'object',required:['busca'],properties:{busca:{type:'string',description:'nome (ou trecho) da cidade'},limite:{type:'integer',description:'padrão 12, máx. 30'}}},
+    async run(a){ const l=await pot.buscar(a.busca,Math.min(Math.max(+a.limite||12,1),30)); return {content:[{type:'text',text:l.length?l.map(pot.linhaCidade).join('\n'):'Nenhuma cidade encontrada. '+banco.SEM_ACESSO}]}; }},
+  luma_potencial_calcular:{
+    description:'POTENCIAL DA CIDADE — roda o MESMO motor da tela e do slide (`potCalcular`, carregado de js/potencial/potencial.js): investimento (taxa + marketing de lançamento) e os 3 cenários (ruim/real/top): usuários, GMV, receita, lucro anual, payback e ROI, mais os AVISOS que a pessoa precisa ler antes de usar o número. `ajustes` repete os campos da tela. Somente leitura.',
+    inputSchema:{type:'object',required:['cidade'],properties:{cidade:{type:'string',description:'chave da cidade (luma_potencial_cidades) ou nome que resolva para uma só'},ajustes:{type:'object',description:'{concorrentes, ticket (R$), comissao, rebate, simples} — comissao/rebate/simples aceitam 0,15 ou 15',additionalProperties:{type:'number'}},json:{type:'boolean',description:'devolve também o objeto bruto'}}},
+    async run(a){ const r=await pot.resolverCidade(a.cidade); if(r.candidatas) return {content:[{type:'text',text:'Várias cidades — escolha a chave:\n'+r.candidatas.map(pot.linhaCidade).join('\n')}]};
+      const calc=pot.calcular(r.cidade,await pot.tarifa(),pot.ajustes(a.ajustes)); return {content:[{type:'text',text:pot.resumo(calc)+(a.json?'\n\n'+JSON.stringify(calc):'')}]}; }},
+  luma_potencial_comparar:{
+    description:'POTENCIAL DA CIDADE — compara várias cidades lado a lado num cenário e ordena (roi, payback, lucro ou investimento). A tela só mostra uma cidade por vez. Cidade com aviso de "não vender" ou DM já operando vem marcada. Somente leitura.',
+    inputSchema:{type:'object',required:['cidades'],properties:{cidades:{type:'array',items:{type:'string'},description:'chaves ou nomes (2 a 15)'},cenario:{type:'string',enum:['ruim','real','top'],description:'padrão real'},ordenar_por:{type:'string',enum:['roi','payback','lucro','investimento'],description:'padrão roi'},ajustes:{type:'object',additionalProperties:{type:'number'}}}},
+    async run(a){ const refs=a.cidades||[]; if(refs.length<2||refs.length>15) throw new Error('informe de 2 a 15 cidades'); const P=await pot.tarifa(), ov=pot.ajustes(a.ajustes), id=a.cenario||'real', lin=[], amb=[];
+      for(const ref of refs){ const r=await pot.resolverCidade(ref); if(r.candidatas){ amb.push(`"${ref}" é ambígua: ${r.candidatas.slice(0,5).map(c=>c.chave).join(', ')}`); continue; } const calc=pot.calcular(r.cidade,P,ov), s=pot.cen(calc,id); lin.push({calc,s}); }
+      const ord=a.ordenar_por||'roi', val={roi:x=>-(x.s.roi??-1e9),payback:x=>x.s.payback??1e9,lucro:x=>-(x.s.lucro??-1e9),investimento:x=>x.calc.inv??1e12}[ord]; lin.sort((x,y)=>val(x)-val(y));
+      const f=pot.M;
+      const txt=lin.map((x,i)=>`${i+1}. ${x.calc.cidade.nome}-${x.calc.cidade.uf} · inv ${f.potBRL(x.calc.inv)} · lucro/ano ${f.potBRL(x.s.lucro)} · payback ${f.potMeses(x.s.payback)} · ROI ${f.potPct(x.s.roi,0)}${x.calc.avisos.length?' · ⚠ '+x.calc.avisos.length+' aviso(s): '+x.calc.avisos.map(v=>v.slice(0,60)).join(' / '):''}`).join('\n');
+      return {content:[{type:'text',text:`Cenário ${id}, ordenado por ${ord}\n`+txt+(amb.length?'\n'+amb.join('\n'):'')}]}; }},
+  luma_potencial_sensibilidade:{
+    description:'POTENCIAL DA CIDADE — varia UM parâmetro (ticket, comissao, rebate, simples ou concorrentes) e mostra o efeito em investimento, lucro, payback e ROI num cenário. Responde "e se o ticket cair 10%?". Somente leitura.',
+    inputSchema:{type:'object',required:['cidade','parametro'],properties:{cidade:{type:'string'},parametro:{type:'string',enum:['ticket','comissao','rebate','simples','concorrentes']},valores:{type:'array',items:{type:'number'},description:'lista explícita; ou use de/ate/passos'},de:{type:'number'},ate:{type:'number'},passos:{type:'integer',description:'2 a 12, padrão 5'},cenario:{type:'string',enum:['ruim','real','top']},ajustes:{type:'object',additionalProperties:{type:'number'}}}},
+    async run(a){ const r=await pot.resolverCidade(a.cidade); if(r.candidatas) return {content:[{type:'text',text:'Várias cidades — escolha a chave:\n'+r.candidatas.map(pot.linhaCidade).join('\n')}]};
+      const P=await pot.tarifa(), base=pot.ajustes(a.ajustes); let vs=a.valores;
+      if(!Array.isArray(vs)||!vs.length){ const b=pot.calcular(r.cidade,P,base), atual={ticket:b.ticketReal,comissao:b.comissao,rebate:b.rebate,simples:b.simples,concorrentes:b.conc}[a.parametro];
+        const de=a.de!=null?+a.de:atual*0.8, ate=a.ate!=null?+a.ate:atual*1.2, n=Math.min(Math.max(+a.passos||5,2),12); if(de==null||isNaN(de)||isNaN(ate)) throw new Error('sem valor base para variar — informe de/ate ou valores'); vs=Array.from({length:n},(_,i)=>+(de+(ate-de)*i/(n-1)).toFixed(4)); }
+      if(vs.length>20) throw new Error('máx. 20 valores'); const id=a.cenario||'real', f=pot.M;
+      const lin=vs.map(v=>{ const ov=Object.assign({},base,pot.ajustes({[a.parametro]:v})), calc=pot.calcular(r.cidade,P,ov), s=pot.cen(calc,id); return `${a.parametro} = ${a.parametro==='ticket'?f.potBRL2(v):(['comissao','rebate','simples'].includes(a.parametro)?f.potPct(v>1?v/100:v,1):v)} → inv ${f.potBRL(calc.inv)} · lucro/ano ${f.potBRL(s.lucro)} · payback ${f.potMeses(s.payback)} · ROI ${f.potPct(s.roi,0)}`; });
+      return {content:[{type:'text',text:`${r.cidade.nome}-${r.cidade.uf} · cenário ${id} · variando ${a.parametro}\n`+lin.join('\n')}]}; }},
+  luma_potencial_slide_campos:{
+    description:'POTENCIAL DA CIDADE — devolve os {{placeholders}} que iriam para o deck de slides (`potCamposSlide`), SEM gerar nada. Use para revisar os números antes de pedir o slide na tela do Luma. Somente leitura.',
+    inputSchema:{type:'object',required:['cidade'],properties:{cidade:{type:'string'},ajustes:{type:'object',additionalProperties:{type:'number'}}}},
+    async run(a){ const r=await pot.resolverCidade(a.cidade); if(r.candidatas) return {content:[{type:'text',text:'Várias cidades — escolha a chave:\n'+r.candidatas.map(pot.linhaCidade).join('\n')}]};
+      const calc=pot.calcular(r.cidade,await pot.tarifa(),pot.ajustes(a.ajustes)); return {content:[{type:'text',text:(calc.inv==null?'ATENÇÃO: sem investimento total o slide não é gerado na tela.\n':'')+JSON.stringify(pot.M.potCamposSlide(calc),null,1)}]}; }},
   luma_variaveis:{
     description:'Lista o catálogo de campos {{var}} (luma.variaveis): nome, rótulo, tipo, se é obrigatório e a categoria. Consulte antes de desenhar: campo fora do catálogo vira obrigatório no chat do franqueado.',
     inputSchema:{type:'object',properties:{}},

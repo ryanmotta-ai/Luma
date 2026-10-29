@@ -58,6 +58,10 @@ Nunca service_role. O MCP só faz `GET`; nenhuma ferramenta grava.
 - `luma_render`, `luma_render_lote` e `luma_psd_lote` gravam em disco; `luma_render_lote`/`luma_psd_lote` emitem `notifications/progress` quando o cliente envia `progressToken`.
 - Prompts: `arte_de_preco`, `psd_para_template`, `refinar_arte`.
 
+### Módulo Potencial (Aladim)
+`mcp/potencial.js` carrega o `js/potencial/potencial.js` **real** numa sandbox `vm` (o motor é puro: sem DOM nem rede). Não há segunda conta: se a regra mudar na tela, muda aqui. Cidades, faixas e parâmetros vêm de `luma.potencial_*` pelo login do usuário (RLS: só a equipe); tarifa fica em cache por 10 min. **Somente leitura.** Fora de escopo de propósito: `gerar_slide` (efeito externo: cria arquivo no Drive via Apps Script) — só com confirmação explícita, numa próxima etapa.
+- Verificação: conta conferida à mão contra o motor (investimento R$ 27.600, lucro R$ 13.536, payback 24,47 meses) e as 5 ferramentas rodadas com dados **sintéticos** simulados (só no teste). ⚠ Não foram rodadas contra o banco real (falta login).
+
 ### Como usar
 ```bash
 claude mcp add luma -- node "/caminho/para/Luma/mcp/luma-mcp.js"
@@ -83,6 +87,11 @@ Requisitos: **Node ≥ 22** (WebSocket nativo) e Google Chrome/Chromium (ou `CHR
 | `luma_comparar` | `a`, `b` (PNGs), `tolerancia`, `salvar_diff_em` | % de pixels que batem + imagem de diferença (vermelho = diverge) |
 | `luma_render_lote` | fonte + `lote:[{nome,dados}]`, `saida` | 1 PNG por linha, tabela de encaixe, grade-contato; emite progresso |
 | `luma_psd_lote` | `pasta`, `saida?`, `recursivo?`, `limite?`, `filtro?` | tabela por PSD: pranchetas, camadas, fidelidade média, erros; emite progresso |
+| `luma_potencial_cidades` | `busca`, `limite?` | cidades da base comercial (chave, população, concorrentes, "DM já opera", "não vender") |
+| `luma_potencial_calcular` | `cidade`, `ajustes?` ({concorrentes, ticket, comissao, rebate, simples}) | investimento + 3 cenários + AVISOS — o **mesmo** `potCalcular` da tela |
+| `luma_potencial_comparar` | `cidades[]`, `cenario?`, `ordenar_por?` | ranking por ROI/payback/lucro/investimento |
+| `luma_potencial_sensibilidade` | `cidade`, `parametro`, `valores[]` ou `de/ate/passos` | efeito de variar um parâmetro no payback/ROI |
+| `luma_potencial_slide_campos` | `cidade`, `ajustes?` | os `{{placeholders}}` do slide, sem gerar nada |
 | `luma_psd_importar` | `psd` (caminho absoluto), `saida?`, `pranchetas?` | PNG da Luma e composto do Photoshop por prancheta, `layers.json`, **fidelidade %** (render × Photoshop), resumo (ocultas e erros marcados) |
 | `luma_bloco` | `bloco`, `args[]` (sem `bloco` lista os disponíveis) | JSON de layer(s) pronto para `layers` |
 | `luma_medir` | `cmd` (`bordas`/`cor`/`paleta`/`caixa`), `png`, `args[]` | texto com a medida |
