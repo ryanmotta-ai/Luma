@@ -27,6 +27,9 @@ let _gDados = {
   // biblioteca de fotos e a cidade do Dados — o texto de profiles.cidade/franquia é só
   // espelho editável. null = ainda não carregou (ou falhou), e aí a coluna não julga.
   vinculos: null, vinculo: '',
+  // A rede cadastrada (luma.franquias): a aba Adesão precisa dela inteira, porque a franquia
+  // que NÃO aderiu não aparece em nenhum evento nem em nenhum vínculo.
+  franquias: null,
   pessoa: null, pessoaData: null, pessoaErro: null,
   ev: { evento: '', user: '', offset: 0, limit: 50, data: null, erro: null, carregando: false, req: 0 },
   ia: { data: null, erro: null, carregando: false, req: 0, modelos: null, calcModelo: '', calcN: null },
@@ -34,7 +37,7 @@ let _gDados = {
 };
 
 const G_DADOS_ABAS = [
-  ['diag', 'Diagnóstico'], ['visao', 'Visão geral'], ['pessoas', 'Pessoas'], ['funil', 'Funil'], ['conteudo', 'Conteúdo'],
+  ['diag', 'Diagnóstico'], ['visao', 'Visão geral'], ['adesao', 'Adesão'], ['pessoas', 'Pessoas'], ['funil', 'Funil'], ['conteudo', 'Conteúdo'],
   ['buscas', 'Buscas'], ['qualidade', 'Qualidade'], ['localfit', 'Local Fit'], ['ia', 'IA'], ['eventos', 'Eventos']
 ];
 const G_DADOS_PERIODOS = [[1, 'Hoje'], [7, '7 dias'], [30, '30 dias'], [90, '90 dias']];
@@ -179,8 +182,11 @@ function gDadosAbrir() {
    vínculo, e aqui fica o primeiro — o Luma trata uma cidade por pessoa. */
 async function _gDadosVinculosCarregar() {
   const sb = typeof gSupabase === 'function' ? gSupabase() : null;
-  if (!sb) { _gDados.vinculos = null; _gDados.vinculo = ''; return; }
+  if (!sb) { _gDados.vinculos = null; _gDados.vinculo = ''; _gDados.franquias = null; return; }
   try {
+    // Segunda leitura só para a Adesão; se falhar, o resto do Dados segue sem ela.
+    const fr = await sb.schema('luma').from('franquias').select('id,nome,cidade,uf,status').order('nome');
+    _gDados.franquias = fr.error ? null : (fr.data || []);
     const { data, error } = await sb.schema('luma').from('usuario_franquias')
       .select('user_id,franquias(id,nome,cidade,uf)');
     if (error) { _gDados.vinculos = null; _gDados.vinculo = ''; return; }
@@ -272,8 +278,9 @@ function _gDadosRender() {
   const pane = document.getElementById('prof-pane-painel');
   if (!pane) return;
   const d = _gDados.data;
+  // Inclui as cidades das franquias sem ninguém vinculado: é justamente nelas que a Adesão precisa filtrar.
   const cidades = d && Array.isArray(d.pessoas)
-    ? Array.from(new Set(d.pessoas.map(p => (_gDadosVinculo(p) || {}).cidade || p.cidade).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    ? Array.from(new Set(d.pessoas.map(p => (_gDadosVinculo(p) || {}).cidade || p.cidade).concat((_gDados.franquias || []).map(f => f.cidade)).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'))
     : [];
   if (_gDados.cidade && cidades.indexOf(_gDados.cidade) < 0) _gDados.cidade = '';
   const chips = G_DADOS_PERIODOS.map(([n, rot]) =>
@@ -320,6 +327,7 @@ function _gDadosPainelHtml() {
   if (!d) return _gDadosSkeleton();
   _gDados.graf = {};
   switch (_gDados.aba) {
+    case 'adesao': return _gDadosAdesaoHtml();
     case 'pessoas': return _gDados.pessoa ? _gDadosPessoaHtml() : _gDadosPessoasHtml();
     case 'funil': return _gDadosFunilHtml(d);
     case 'conteudo': return _gDadosConteudoHtml(d);
@@ -776,6 +784,59 @@ function _gDadosDiagHtml(d) {
     const g = it.filter(x => x.sev === sev);
     return g.length ? _gDadosSecao(rot, sub, _gDadosDiagLista(g)) : '';
   }).join('');
+}
+
+/* ── Adesão ─────────────────────────────────────────────────────────────────────────── */
+/* Adesão da v1 por franquia. A régua é a arte GERADA no período (é o que a v1 entrega), não o
+   login: entrar e não gerar nada é "ativando", não adesão. Conta só franqueado ativo, com
+   vínculo real em luma.usuario_franquias — equipe e gestão não representam a franquia.
+   Ordem de status = ordem de ação da equipe: quem sumiu e quem nunca foi ligado vêm antes. */
+const G_DADOS_ADESAO = [
+  ['aderiu', 'is-ok', 'Aderiu', 'Gerou arte no período'],
+  ['ativando', 'is-morno', 'Entrou, sem arte', 'Acessou, mas não gerou arte'],
+  ['parada', 'is-frio', 'Parada', 'Franqueado vinculado, sem acesso no período'],
+  ['sem', 'is-neutro', 'Sem franqueado', 'Nenhum franqueado ativo vinculado']
+];
+function _gDadosAdesaoLinhas() {
+  const fr = _gDados.franquias, pes = (_gDados.data && _gDados.data.pessoas) || [];
+  if (!fr || !_gDados.vinculos) return null;
+  const por = {};
+  pes.forEach(p => {
+    if (p.role !== 'franqueado' || p.ativo === false) return;
+    const v = _gDadosVinculo(p);
+    if (v) (por[v.id] = por[v.id] || []).push(p);
+  });
+  const soma = (ps, k) => ps.reduce((a, p) => a + (p[k] || 0), 0);
+  return fr.filter(f => f.status !== 'inativa' && (!_gDados.cidade || (f.cidade || '') === _gDados.cidade)).map(f => {
+    const ps = por[f.id] || [], artes = soma(ps, 'artes');
+    const st = !ps.length ? 'sem' : artes > 0 ? 'aderiu' : ps.some(p => p.sessoes > 0) ? 'ativando' : 'parada';
+    const ult = ps.reduce((m, p) => (p.ultimo_acesso && (!m || p.ultimo_acesso > m)) ? p.ultimo_acesso : m, null);
+    return { f, st, franqueados: ps.length, artes, downloads: soma(ps, 'downloads'), ultimo: ult };
+  }).sort((a, b) => G_DADOS_ADESAO.findIndex(x => x[0] === b.st) - G_DADOS_ADESAO.findIndex(x => x[0] === a.st)
+    || b.artes - a.artes || a.f.nome.localeCompare(b.f.nome, 'pt-BR'));
+}
+function _gDadosAdesaoHtml() {
+  const rows = _gDadosAdesaoLinhas();
+  if (!rows) return _gDadosVazioHtml('Não foi possível ler as franquias cadastradas. Recarregue o Dados.');
+  if (!rows.length) return _gDadosVazioHtml('Nenhuma franquia ativa' + (_gDados.cidade ? ' nesta cidade.' : ' cadastrada.'));
+  const n = st => rows.filter(r => r.st === st).length;
+  const aderiu = n('aderiu');
+  const kpis = `<div class="gd-kpis gd-kpis-4">${_gDadosKpi('Adesão', _gDadosPct(aderiu / rows.length), `${_gDadosN(aderiu)} de ${_gDadosN(rows.length)} franquias geraram arte`)}`
+    + `${_gDadosKpi('Entrou, sem arte', _gDadosN(n('ativando')), 'acessaram e não geraram')}${_gDadosKpi('Paradas', _gDadosN(n('parada')), 'vinculadas, sem acesso')}`
+    + `${_gDadosKpi('Sem franqueado', _gDadosN(n('sem')), 'ninguém vinculado ainda')}</div>`;
+  const barra = _gDadosSecao('Onde cada franquia está', 'Pela arte gerada no período' + (_gDados.cidade ? ', só em ' + _gDados.cidade : ', rede inteira') + '. Franquia inativa não conta.',
+    _gDadosSegs(G_DADOS_ADESAO.map(([k, cls, rot]) => [cls, rot, n(k)]), 'Adesão por franquia'));
+  const tabela = _gDadosSecao('Franquia por franquia', 'Ordem de ação, não de ranking: sem franqueado e paradas primeiro, aderidas por último.',
+    _gDadosTabela([
+      { t: 'Franquia', k: r => `<strong>${gEsc(r.f.nome)}</strong>` },
+      { t: 'Cidade', k: r => gEsc(r.f.cidade ? r.f.cidade + (r.f.uf ? ' — ' + r.f.uf : '') : '—') },
+      { t: 'Situação', k: r => { const s = G_DADOS_ADESAO.find(x => x[0] === r.st); return `<span class="gd-dot ${s[1]}" aria-hidden="true"></span> <span title="${gEsc(s[3])}">${gEsc(s[2])}</span>`; } },
+      { t: 'Franqueados', num: true, k: r => _gDadosN(r.franqueados) },
+      { t: 'Artes', num: true, k: r => _gDadosN(r.artes) },
+      { t: 'Downloads', num: true, k: r => _gDadosN(r.downloads) },
+      { t: 'Último acesso', k: r => gEsc(r.ultimo ? _gDadosRel(r.ultimo) : '—') }
+    ], rows));
+  return kpis + barra + tabela;
 }
 
 /* ── Pessoas ────────────────────────────────────────────────────────────────────────── */
@@ -1499,6 +1560,12 @@ async function gDadosExportarCsv() {
   const aba = _gDados.aba;
   if (aba === 'diag') return _gDadosCsvBaixar('diagnostico', ['gravidade', 'problema', 'detalhe', 'aba'], _gDadosDiagItens(d).map(x => [(G_DADOS_SEV.find(s => s[0] === x.sev) || [])[1], x.t, x.s, x.aba]));
   if (aba === 'visao') return _gDadosCsvBaixar('por-dia', ['dia', 'pessoas', 'sessoes', 'artes', 'downloads'], (d.por_dia || []).map(x => [x.dia, x.pessoas, x.sessoes, x.artes, x.downloads]));
+  if (aba === 'adesao') {
+    const rs = _gDadosAdesaoLinhas();
+    if (!rs) return;
+    return _gDadosCsvBaixar('adesao', ['franquia', 'cidade', 'uf', 'situacao', 'franqueados', 'artes', 'downloads', 'ultimo_acesso'],
+      rs.map(r => [r.f.nome, r.f.cidade, r.f.uf, G_DADOS_ADESAO.find(x => x[0] === r.st)[2], r.franqueados, r.artes, r.downloads, r.ultimo]));
+  }
   if (aba === 'pessoas') {
     if (_gDados.pessoa && _gDados.pessoaData) return _gDadosCsvBaixar('pessoa', ['ocorreu_em', 'evento', 'descricao', 'payload'], (_gDados.pessoaData.eventos || []).map(e => [e.ocorreu_em, e.evento, _gDadosRotulo(e.evento, e.payload), e.payload]));
     return _gDadosCsvBaixar('pessoas', ['nome', 'email', 'papel', 'cidade', 'franquia', 'franquia_vinculada', 'ativo', 'ultimo_acesso', 'sessoes', 'tempo_s', 'artes', 'downloads', 'aparelho'],
