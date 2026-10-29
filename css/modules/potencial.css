@@ -87,7 +87,9 @@ body.mode-potencial #view-potencial{ display:flex!important; opacity:1; transfor
 .pot-lin.forte span{ color:var(--cr-text); font-weight:700 }
 .pot-lin.forte strong{ color:var(--c-txt) }
 
-.pot-pronto{ margin:0; font-size:14px; color:var(--green-text) }
+.pot-acao{ display:flex; flex-direction:column; align-items:flex-start; gap:6px }
+.pot-link-slide{ margin:0; min-height:0; font-size:13px }
+.pot-pronto{ color:var(--green-text) }
 .pot-pronto a{ color:inherit; font-weight:700 }
 
 @media (max-width:900px){

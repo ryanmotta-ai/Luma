@@ -26,7 +26,7 @@
  *   core/auth.js (gIsAdmin). Chamado de main.js (`potEntrar`).
  */
 
-let _pot = { faixas:null, param:null, carregando:false, erro:'', cidade:null, ov:{}, calc:null, resultados:[], seq:0, timer:0, gerando:false, ultimoSlide:'' };
+let _pot = { faixas:null, param:null, carregando:false, erro:'', cidade:null, ov:{}, calc:null, resultados:[], seq:0, timer:0, gerando:false, ultimoSlide:'', abaBloqueada:false };
 
 const POT_REGIAO_UF = {
   AC:'Norte', AP:'Norte', AM:'Norte', PA:'Norte', RO:'Norte', RR:'Norte', TO:'Norte',
@@ -188,9 +188,9 @@ async function potGerarSlide(){
     const j=await r.json();
     if(!j || !j.ok || !j.url) throw new Error((j && j.erro) || 'O gerador não respondeu.');
     if(!/^https:\/\/docs\.google\.com\//.test(j.url)) throw new Error('O gerador devolveu um endereço inesperado.');
-    _pot.ultimoSlide=j.url;
-    if(aba) aba.location.href=j.url;
-    gToast('Slide pronto. Abrindo no Google Slides.');
+    _pot.ultimoSlide=j.url; _pot.abaBloqueada=!aba;
+    if(aba){ aba.location.href=j.url; gToast('Slide pronto. Abrindo no Google Slides.'); }
+    else gToast('Slide pronto. Seu navegador bloqueou a aba nova: use o link "Abrir no Google Slides".');
     potRenderSlideLink();
   }catch(e){
     if(aba) aba.close();
@@ -239,7 +239,7 @@ function potRenderLista(termo){
 
 function potEscolher(i){
   const c=_pot.resultados[i]; if(!c) return;
-  _pot.cidade=c; _pot.ov={}; _pot.ultimoSlide='';
+  _pot.cidade=c; _pot.ov={}; _pot.ultimoSlide=''; _pot.abaBloqueada=false;
   const ul=_potEl('pot-lista'); if(ul){ ul.hidden=true; ul.innerHTML=''; }
   const q=_potEl('pot-q'); if(q){ q.value=c.nome+' - '+c.uf; q.setAttribute('aria-expanded','false'); }
   potRender();
@@ -282,8 +282,7 @@ function potRender(){
     +    campo('Simples Nacional','simples',pc(calc.simples),'%','Sobre a receita do franqueado.')
     +  '</div>'
     +'</section>'
-    +'<div id="pot-res"></div>'
-    +'<div id="pot-slide-link"></div>';
+    +'<div id="pot-res"></div>';
   potRecalcula();
 }
 
@@ -309,5 +308,5 @@ function potRecalcula(){
 
 function potRenderSlideLink(){
   const el=_potEl('pot-slide-link'); if(!el) return;
-  el.innerHTML = _pot.ultimoSlide ? '<p class="pot-pronto">Slide gerado. <a href="'+gEsc(_pot.ultimoSlide)+'" target="_blank" rel="noopener">Abrir no Google Slides</a></p>' : '';
+  el.innerHTML = _pot.ultimoSlide ? '<span class="pot-pronto">'+(_pot.abaBloqueada?'O navegador bloqueou a aba nova. ':'Slide gerado. ')+'<a href="'+gEsc(_pot.ultimoSlide)+'" target="_blank" rel="noopener">Abrir no Google Slides</a></span>' : '';
 }
