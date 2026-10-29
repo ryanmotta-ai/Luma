@@ -26,7 +26,7 @@
  *   core/auth.js (gIsAdmin). Chamado de main.js (`potEntrar`).
  */
 
-let _pot = { faixas:null, param:null, carregando:false, erro:'', cidade:null, ov:{}, calc:null, resultados:[], seq:0, timer:0, gerando:false, ultimoSlide:'', abaBloqueada:false };
+let _pot = { faixas:null, param:null, carregando:false, erro:'', cidade:null, ov:{}, calc:null, resultados:[], truncou:false, seq:0, timer:0, gerando:false, ultimoSlide:'', abaBloqueada:false };
 
 const POT_REGIAO_UF = {
   AC:'Norte', AP:'Norte', AM:'Norte', PA:'Norte', RO:'Norte', RR:'Norte', TO:'Norte',
@@ -35,6 +35,7 @@ const POT_REGIAO_UF = {
   ES:'Sudeste', MG:'Sudeste', RJ:'Sudeste', SP:'Sudeste',
   PR:'Sul', RS:'Sul', SC:'Sul'
 };
+const POT_LIMITE_BUSCA = 60;
 const POT_ROTULO = { ruim:'Cenário ruim', real:'Cenário real e esperado', top:'Cenário top' };
 
 /* ═══ MOTOR DE CÁLCULO (puro: sem DOM, sem rede) ═══ */
@@ -142,9 +143,17 @@ async function potBuscarCidades(termo){
   const sb=_potSb(); if(!sb) return [];
   const t=gNormBusca(termo).replace(/[%_,()\/\-–]/g,' ').replace(/\s+/g,' ').trim();
   if(t.length<2) return [];
-  const { data, error } = await sb.from('potencial_cidades').select('*').ilike('busca','%'+t+'%').order('populacao',{ascending:false}).limit(12);
-  if(error) throw error;
-  return data||[];
+  // Eram 12 resultados: "santa" ou "são" mostrava só as 12 maiores e as outras centenas de cidades
+  // pareciam não existir. Agora: primeiro quem COMEÇA pelo termo, depois quem apenas o contém (duas
+  // consultas, para uma cidade pequena que começa pelo termo não perder o lugar para uma grande que só
+  // o contém), até POT_LIMITE_BUSCA; dentro de cada grupo, a mais populosa primeiro. A lista avisa quando há mais.
+  const consulta=padrao=>sb.from('potencial_cidades').select('*').ilike('busca',padrao).order('populacao',{ascending:false}).limit(POT_LIMITE_BUSCA);
+  const [ini, cont] = await Promise.all([consulta(t+'%'), consulta('%'+t+'%')]);
+  if(ini.error) throw ini.error; if(cont.error) throw cont.error;
+  const vistos=new Set((ini.data||[]).map(c=>c.chave));
+  const todas=(ini.data||[]).concat((cont.data||[]).filter(c=>!vistos.has(c.chave)));
+  _pot.truncou = (ini.data||[]).length>=POT_LIMITE_BUSCA || (cont.data||[]).length>=POT_LIMITE_BUSCA || todas.length>POT_LIMITE_BUSCA;
+  return todas.slice(0,POT_LIMITE_BUSCA);
 }
 
 /* ═══ SLIDE ═══ */
@@ -233,7 +242,8 @@ function potRenderLista(termo){
   }
   ul.innerHTML=_pot.resultados.map((c,i)=>'<li role="option" tabindex="-1"><button type="button" onclick="potEscolher('+i+')">'
     +'<span class="pot-li-nome">'+gEsc(c.nome)+' <em>'+gEsc(c.uf)+'</em></span>'
-    +'<span class="pot-li-pop">'+potNumero(c.populacao)+' hab.</span></button></li>').join('');
+    +'<span class="pot-li-pop">'+potNumero(c.populacao)+' hab.</span></button></li>').join('')
+    +(_pot.truncou?'<li class="pot-li-vazio">Mostrando as '+POT_LIMITE_BUSCA+' maiores. Digite mais letras para achar outras.</li>':'');
   ul.hidden=false; if(q) q.setAttribute('aria-expanded','true');
 }
 
