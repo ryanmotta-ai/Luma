@@ -8,6 +8,7 @@ const fs=require('fs'), path=require('path'), cp=require('child_process');
 const {prepare,start}=require('./serve.js');
 function chrome(){
   if(process.env.CHROME) return process.env.CHROME;
+  const mac='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'; if(fs.existsSync(mac)) return mac; /* macOS: o Chrome não está no PATH */
   const g=require('child_process').spawnSync('sh',['-c','ls /opt/pw-browsers/chromium-*/chrome-linux/chrome 2>/dev/null | head -1; command -v chromium chromium-browser google-chrome 2>/dev/null | head -1']).stdout.toString().split('\n').filter(Boolean);
   if(!g.length) throw new Error('Chromium não encontrado (defina CHROME=/caminho)'); return g[0];
 }
