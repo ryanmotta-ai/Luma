@@ -53,6 +53,11 @@ Nunca service_role. O MCP só faz `GET`; nenhuma ferramenta grava.
 - `criado_por` = `sub` do JWT; `formats/permissoes/bg` vêm do irmão (`copiar_de`).
 - ⚠ **As escritas ainda não foram exercitadas com login real** (só dry-run, recusas e erro sem login). Faça o primeiro teste num template de rascunho.
 
+### Notas de qualidade
+- O `luma_psd_importar` segue o caminho **idêntico** ao do Estúdio (`_dPsdCollectBoards`): só camadas incluídas, z-order por `_dPsdShouldInvert` + `_dPsdFundoPrimeiro`, e `_dPsdLayersParaImport` (fundo fiel). Uma 1ª versão pulava essa etapa e saía só com a forma de fundo (fidelidade 34%); com o caminho certo o `Materiais Consultores.psd` dá 94–99%.
+- `luma_render`, `luma_render_lote` e `luma_psd_lote` gravam em disco; `luma_render_lote`/`luma_psd_lote` emitem `notifications/progress` quando o cliente envia `progressToken`.
+- Prompts: `arte_de_preco`, `psd_para_template`, `refinar_arte`.
+
 ### Como usar
 ```bash
 claude mcp add luma -- node "/caminho/para/Luma/mcp/luma-mcp.js"
@@ -75,7 +80,10 @@ Requisitos: **Node ≥ 22** (WebSocket nativo) e Google Chrome/Chromium (ou `CHR
 | `luma_template_atualizar` ⚠ escreve | `id`, `patches`/`layers`, `confirmar` | altera layers do banco; publicado ganha versão automática |
 | `luma_template_publicar` ⚠ escreve | `ids`, `confirmar` | `publicado=true`; recusa se a auditoria achar ERRO |
 | `luma_template_versoes` / `luma_template_reverter` | `id` / `version_id`, `confirmar` | histórico e `luma.restaurar_versao(p_version)` |
-| `luma_psd_importar` | `psd` (caminho absoluto), `saida?`, `pranchetas?` | PNG da Luma e composto do Photoshop por prancheta, `layers.json`, resumo (ocultas e erros marcados) |
+| `luma_comparar` | `a`, `b` (PNGs), `tolerancia`, `salvar_diff_em` | % de pixels que batem + imagem de diferença (vermelho = diverge) |
+| `luma_render_lote` | fonte + `lote:[{nome,dados}]`, `saida` | 1 PNG por linha, tabela de encaixe, grade-contato; emite progresso |
+| `luma_psd_lote` | `pasta`, `saida?`, `recursivo?`, `limite?`, `filtro?` | tabela por PSD: pranchetas, camadas, fidelidade média, erros; emite progresso |
+| `luma_psd_importar` | `psd` (caminho absoluto), `saida?`, `pranchetas?` | PNG da Luma e composto do Photoshop por prancheta, `layers.json`, **fidelidade %** (render × Photoshop), resumo (ocultas e erros marcados) |
 | `luma_bloco` | `bloco`, `args[]` (sem `bloco` lista os disponíveis) | JSON de layer(s) pronto para `layers` |
 | `luma_medir` | `cmd` (`bordas`/`cor`/`paleta`/`caixa`), `png`, `args[]` | texto com a medida |
 

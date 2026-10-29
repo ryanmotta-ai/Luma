@@ -120,6 +120,25 @@ async function grade(itens,colunas=4,larg=360){
   } finally { if(page) page.close(); try{ await e.browser.send('Target.closeTarget',{targetId}); }catch(x){} }
 }
 
+/* Compara dois PNGs (base64): % de pixels que BATEM (diferença máx. por canal ≤ tol) — mesma ideia do selo de fidelidade do importador
+   (cobertura, não média: média esconderia um logo inteiro errado). B é esticado ao tamanho de A; ambos sobre fosco branco.
+   Devolve {pct, ra, rb, diffPng}; diffPng = A esmaecido com os pixels divergentes em vermelho. */
+async function comparar(aB64,bB64,tol=24){
+  const e=await motor(), {targetId}=await e.browser.send('Target.createTarget',{url:'about:blank'}); let page;
+  try{
+    page=await cdp(`ws://127.0.0.1:${e.cdpPort}/devtools/page/${targetId}`);
+    const js=`(async(a,b,tol)=>{const ld=s=>new Promise((ok,no)=>{const x=new Image();x.onload=()=>ok(x);x.onerror=()=>no(new Error('PNG inválido'));x.src='data:image/png;base64,'+s;});
+      const [A,B]=await Promise.all([ld(a),ld(b)]); const w=A.width,h=A.height, mk=(im)=>{const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,w,h);g.drawImage(im,0,0,w,h);return {c,g,d:g.getImageData(0,0,w,h).data};};
+      const x=mk(A),y=mk(B),o=document.createElement('canvas');o.width=w;o.height=h;const og=o.getContext('2d'),od=og.createImageData(w,h);let ruim=0;
+      for(let i=0;i<x.d.length;i+=4){const d=Math.max(Math.abs(x.d[i]-y.d[i]),Math.abs(x.d[i+1]-y.d[i+1]),Math.abs(x.d[i+2]-y.d[i+2]));
+        if(d>tol){ruim++;od.data[i]=230;od.data[i+1]=20;od.data[i+2]=20;od.data[i+3]=255;}else{od.data[i]=255-(255-x.d[i])*0.35;od.data[i+1]=255-(255-x.d[i+1])*0.35;od.data[i+2]=255-(255-x.d[i+2])*0.35;od.data[i+3]=255;}}
+      og.putImageData(od,0,0);return JSON.stringify({pct:+(100*(1-ruim/(w*h))).toFixed(1),ra:[A.width,A.height],rb:[B.width,B.height],diffPng:o.toDataURL('image/png').split(',')[1]});})(${JSON.stringify(aB64)},${JSON.stringify(bB64)},${+tol})`;
+    const r=await page.send('Runtime.evaluate',{expression:js,awaitPromise:true,returnByValue:true});
+    if(r.exceptionDetails) throw new Error((r.exceptionDetails.exception&&r.exceptionDetails.exception.description||'falha na comparação').split('\n')[0]);
+    return JSON.parse(r.result.value);
+  } finally { if(page) page.close(); try{ await e.browser.send('Target.closeTarget',{targetId}); }catch(x){} }
+}
+
 function fechar(){
   if(!estado) return; const e=estado; estado=null;
   try{e.browser.close();}catch(x){} try{e.proc.kill('SIGKILL');}catch(x){} try{e.server.close();}catch(x){}
@@ -127,4 +146,4 @@ function fechar(){
 }
 process.on('exit',fechar);
 for(const s of ['SIGTERM','SIGINT','SIGHUP']) process.on(s,()=>process.exit(0)); /* SIGTERM não dispara 'exit' sozinho: sem isto o Chrome fica órfão */
-module.exports={render,renderMuitos,importarPsd,grade,fechar};
+module.exports={render,renderMuitos,importarPsd,grade,comparar,fechar};

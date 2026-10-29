@@ -49,7 +49,10 @@ window.__psdRodar=async function(url){
       const item={nome:b.name,oculta:b.oculta,w:b.w,h:b.h,temRef:!!ref};
       try{
         const items=dPsdParseItems({children:b.children,width:b.w,height:b.h},res,b.left,b.top);
-        const L=dPsdItemsToLayers(items,false,{w:b.w,h:b.h}); item.camadas=L.length;
+        /* caminho idêntico a _dPsdCollectBoards (psd-import.js): só camadas incluídas, z-order pela heurística do Estúdio, fundo fiel */
+        const chosen=items.filter(it=>it.include&&!it.isMaskBase), inv=_dPsdShouldInvert(items,b.w,b.h);
+        const ordered=_dPsdFundoPrimeiro(inv?chosen.slice().reverse():chosen);
+        const L=chosen.length?await _dPsdLayersParaImport(ordered,b.w,b.h):[]; item.camadas=L.length;
         const c=document.createElement('canvas'); c.width=b.w; c.height=b.h; const ctx=c.getContext('2d');
         window.fState={material:{w:b.w,h:b.h,layers:L,bg:'transparent'},dados:{},camp:{id:'t',color:'#FF9000'},fmt:{id:'feed'}};
         await fRenderTemplateLayers(ctx,L,b.w,b.h,{},{id:'t',color:'#FF9000'},window.fState.material,{scope:'franqueado',purpose:'export'});

@@ -41,12 +41,14 @@ const TOOLS={
     inputSchema:{type:'object',properties:{
       template_id:{type:'string',description:'UUID de um template do banco (use luma_templates_listar). Alternativa a `layers`.'},
       layers_arquivo:{type:'string',description:'caminho de um .layers.json (ex.: saída do luma_psd_importar). Alternativa a `layers`.'},
+      salvar_em:{type:'string',description:'caminho .png para gravar o render em disco (além de devolvê-lo)'},
       layers:{type:'array',description:'Layers no formato do banco (luma.templates.layers). Monte com luma_bloco ou leia de um template existente.',items:{type:'object'}},
       dados:{type:'object',description:'Valores dos campos {{var}}: produto, detalhes, descricao, precoDe, precoPor, validade, foto_produto, logo_loja… Use "{{FOTO}}"/"{{LOGO}}" para as imagens de demonstração.',additionalProperties:{type:'string'}},
       W:{type:'integer',description:'Largura em px (padrão 1080)'},H:{type:'integer',description:'Altura em px (1350 = feed, 1920 = story)'},fmt:{type:'string',enum:['feed','story']}}},
     async run(a){ const {res,log}=await renderJobs([['arte',await jobDe(a)]]); const r=res[0];
       if(!r.png) return {isError:true,content:[{type:'text',text:'Render sem saída. '+log}]};
-      return {content:[{type:'image',data:r.png,mimeType:'image/png'},{type:'text',text:resumoFit('arte',r.fit)+'\n'+JSON.stringify(r.fit.campos||[])}]}; }},
+      if(a.salvar_em){ const f=path.resolve(String(a.salvar_em)); if(!/\.png$/i.test(f)) throw new Error('salvar_em deve terminar em .png'); fs.mkdirSync(path.dirname(f),{recursive:true}); fs.writeFileSync(f,Buffer.from(r.png,'base64')); r.fit._salvo=f; }
+      return {content:[{type:'image',data:r.png,mimeType:'image/png'},{type:'text',text:resumoFit('arte',r.fit)+(r.fit._salvo?'\nSalvo em '+r.fit._salvo:'')+'\n'+JSON.stringify(r.fit.campos||[])}]}; }},
   luma_estresse:{
     description:'Roda a arte nas 7 variantes de estresse que toda arte do Luma passa antes de sair (título longo, sem detalhes, sem "de", preço de 1 e 3 dígitos, sem preço) e devolve UMA grade com as 7 imagens (borda vermelha no rótulo = variante com problema) + o resumo do encaixe de cada uma.',
     inputSchema:{type:'object',properties:Object.assign({dados:DADOS},FONTE)},
@@ -108,7 +110,8 @@ const TOOLS={
       let st; try{st=fs.statSync(psd);}catch(e){ throw new Error('arquivo não encontrado: '+psd); } if(!st.size) throw new Error('o arquivo está vazio (0 bytes) — o download/cópia foi interrompido; baixe de novo');
       const saida=a.saida?path.resolve(a.saida):path.join(path.dirname(psd),path.basename(psd,path.extname(psd))+'-luma-png');
       const o=await motor.importarPsd(psd,saida);
-      const linhas=o.boards.map((b,i)=>`${i+1}. ${b.nome} · ${b.w}×${b.h}${b.oculta?' · OCULTA':''} · ${b.camadas??'?'} camadas${b.erro?' · ERRO: '+b.erro.split('\n')[0]:''}${b.arquivos.ref?'':' · sem composto do Photoshop'}\n   ${b.arquivos.luma||'(sem PNG)'}`);
+      for(const b of o.boards){ if(b.arquivos.ref&&b.arquivos.luma){ try{ b.fid=(await motor.comparar(fs.readFileSync(b.arquivos.ref).toString('base64'),fs.readFileSync(b.arquivos.luma).toString('base64'))).pct; }catch(e){} } }
+      const linhas=o.boards.map((b,i)=>`${i+1}. ${b.nome} · ${b.w}×${b.h}${b.oculta?' · OCULTA':''} · ${b.camadas??'?'} camadas${b.erro?' · ERRO: '+b.erro.split('\n')[0]:''}${b.fid!=null?' · fidelidade '+b.fid+'%':(b.arquivos.ref?'':' · sem composto do Photoshop')}\n   ${b.arquivos.luma||'(sem PNG)'}`);
       const quais=(a.pranchetas&&a.pranchetas.length?a.pranchetas:[1,2,3]).filter(n=>o.boards[n-1]&&o.boards[n-1].arquivos.luma);
       return {content:[{type:'text',text:`${o.boards.length} prancheta(s) · ${Math.round(o.res)} ppi · pasta: ${saida}\n`+linhas.join('\n')}].concat(quais.map(n=>({type:'image',data:fs.readFileSync(o.boards[n-1].arquivos.luma).toString('base64'),mimeType:'image/png'})))}; }},
   luma_template_salvar:{
@@ -158,6 +161,39 @@ const TOOLS={
     async run(a){ if(!UUID.test(a.version_id||'')) throw new Error('version_id inválido'); if(!a.confirmar) return {content:[{type:'text',text:'DRY-RUN (nada gravado). Restauraria a versão '+a.version_id+'. Refaça com confirmar:true.'}]};
       await banco.rpc('restaurar_versao',{p_version:a.version_id}); /* assinatura real: luma.restaurar_versao(p_version uuid) — conferida no catálogo */
       return {content:[{type:'text',text:`Restaurada a versão ${a.version_id}.\nChangelog sugerido: "${new Date().toISOString().slice(0,10)} · reversão via MCP para a versão ${a.version_id}"`}]}; }},
+  luma_comparar:{
+    description:'Compara dois PNGs pixel a pixel e devolve a % de pixels que BATEM (tolerância por canal) + uma imagem de diferença (divergências em vermelho). Use para medir um render da Luma contra o composto do Photoshop, ou antes/depois de uma edição. B é esticado ao tamanho de A.',
+    inputSchema:{type:'object',required:['a','b'],properties:{a:{type:'string',description:'PNG de referência (caminho absoluto)'},b:{type:'string',description:'PNG a comparar (caminho absoluto)'},tolerancia:{type:'integer',description:'0–255, padrão 24'},salvar_diff_em:{type:'string',description:'.png para gravar a imagem de diferença'}}},
+    async run(a){ const rd=f=>{ const p=path.resolve(String(f||'')); if(!/\.png$/i.test(p)||!fs.existsSync(p)) throw new Error('PNG não encontrado: '+f); return fs.readFileSync(p).toString('base64'); };
+      const r=await motor.comparar(rd(a.a),rd(a.b),a.tolerancia==null?24:a.tolerancia); let salvo='';
+      if(a.salvar_diff_em){ const f=path.resolve(String(a.salvar_diff_em)); fs.mkdirSync(path.dirname(f),{recursive:true}); fs.writeFileSync(f,Buffer.from(r.diffPng,'base64')); salvo='\nDiff salvo em '+f; }
+      return {content:[{type:'text',text:`${r.pct}% dos pixels batem (A ${r.ra.join('×')} · B ${r.rb.join('×')}${r.ra[0]!==r.rb[0]||r.ra[1]!==r.rb[1]?' — B esticado ao tamanho de A':''})${salvo}`},{type:'image',data:r.diffPng,mimeType:'image/png'}]}; }},
+  luma_render_lote:{
+    description:'Renderiza a MESMA arte com várias linhas de dados (ex.: 10 produtos) e grava um PNG por linha em `saida`. Devolve a tabela de encaixe (INVÁLIDA = bloqueado) e uma grade-contato com todos. Até 40 linhas, 4 abas em paralelo.',
+    inputSchema:{type:'object',required:['lote','saida'],properties:Object.assign({lote:{type:'array',description:'[{nome:"acai-500", dados:{produto:"…",precoPor:"R$ 22,90"}}]',items:{type:'object'}},saida:{type:'string',description:'pasta de saída (absoluta)'}},FONTE)},
+    async run(a,ctx){ const lote=a.lote||[]; if(!lote.length||lote.length>40) throw new Error('`lote` deve ter de 1 a 40 linhas'); const r0=await resolver(a), saida=path.resolve(String(a.saida)); fs.mkdirSync(saida,{recursive:true});
+      const slug=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\w.-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)||'arte'; const vistos=new Set();
+      const nomes=lote.map((x,i)=>{ let n=slug(x.nome||('arte-'+(i+1))); while(vistos.has(n)) n+='-'+i; vistos.add(n); return n; });
+      let feitos=0; const res=[]; const jobs=lote.map(x=>L.job(r0.layers,{W:a.W||r0.W||1080,H:a.H||r0.H||1350,fmt:a.fmt||r0.fmt,dados:x.dados||{}}));
+      for(let i=0;i<jobs.length;i+=4){ const part=await motor.renderMuitos(jobs.slice(i,i+4)); res.push(...part); feitos+=part.length; ctx&&ctx.progress(feitos,jobs.length,'renderizados '+feitos+'/'+jobs.length); }
+      const linhas=res.map((r,i)=>{ if(r.png) fs.writeFileSync(path.join(saida,nomes[i]+'.png'),Buffer.from(r.png,'base64')); return (r.png?resumoFit(nomes[i],r.fit):nomes[i]+': SEM SAÍDA '+(r.err||''))+(r.png?'':''); });
+      const ok=res.map((r,i)=>({r,i})).filter(x=>x.r.png).slice(0,12); const g=ok.length?await motor.grade(ok.map(x=>({png:x.r.png,rotulo:nomes[x.i],cor:x.r.fit.invalid?'#c81414':'#1a6b2e'})),4,300):null;
+      return {content:[{type:'text',text:`${res.filter(r=>r.png).length}/${lote.length} PNG em ${saida}\n`+linhas.join('\n')}].concat(g?[{type:'image',data:g,mimeType:'image/png'}]:[])}; }},
+  luma_psd_lote:{
+    description:'Importa VÁRIOS .psd de uma pasta (luma_psd_importar em série) e grava os PNGs em <saida>/<nome-do-psd>/. Devolve uma tabela: pranchetas, camadas, fidelidade média por arquivo e erros. Pula arquivos de 0 bytes. Emite progresso por arquivo. Padrão: 10 arquivos (`limite` até 80).',
+    inputSchema:{type:'object',required:['pasta'],properties:{pasta:{type:'string',description:'pasta com .psd (absoluta)'},saida:{type:'string',description:'padrão: <pasta>/_luma-png'},recursivo:{type:'boolean'},limite:{type:'integer'},filtro:{type:'string',description:'trecho do nome do arquivo'}}},
+    async run(a,ctx){ const raiz=path.resolve(String(a.pasta||'')); if(!fs.existsSync(raiz)||!fs.statSync(raiz).isDirectory()) throw new Error('pasta não encontrada: '+raiz);
+      const achar=(d,prof)=>fs.readdirSync(d,{withFileTypes:true}).flatMap(e=>{ const p=path.join(d,e.name); return e.isDirectory()?((a.recursivo&&prof<4&&!e.name.startsWith('_'))?achar(p,prof+1):[]):(/\.psd$/i.test(e.name)&&!e.name.startsWith('.')?[p]:[]); });
+      let ps=achar(raiz,0).sort(); if(a.filtro) ps=ps.filter(p=>path.basename(p).toLowerCase().includes(String(a.filtro).toLowerCase())); const lim=Math.min(Math.max(+a.limite||10,1),80), total=Math.min(ps.length,lim);
+      if(!ps.length) return {content:[{type:'text',text:'Nenhum .psd encontrado'+(a.recursivo?'':' (use recursivo:true para subpastas)')+'.'}]};
+      const saida=a.saida?path.resolve(String(a.saida)):path.join(raiz,'_luma-png'); const linhas=[]; let n=0;
+      for(const p of ps.slice(0,lim)){ n++; ctx&&ctx.progress(n,total,path.basename(p)); const nome=path.basename(p,path.extname(p));
+        try{ if(!fs.statSync(p).size){ linhas.push(`${nome}: PULADO (0 bytes)`); continue; }
+          const o=await motor.importarPsd(p,path.join(saida,nome.replace(/[^\w.-]+/g,'-'))); const fids=[];
+          for(const b of o.boards){ if(b.arquivos.ref&&b.arquivos.luma){ try{ fids.push((await motor.comparar(fs.readFileSync(b.arquivos.ref).toString('base64'),fs.readFileSync(b.arquivos.luma).toString('base64'))).pct); }catch(e){} } }
+          const err=o.boards.filter(b=>b.erro).length; linhas.push(`${nome}: ${o.boards.length} prancheta(s) · ${o.boards.reduce((s,b)=>s+(b.camadas||0),0)} camadas · ${fids.length?'fidelidade média '+Math.round(fids.reduce((x,y)=>x+y,0)/fids.length*10)/10+'%':'sem composto'}${err?' · '+err+' com ERRO':''}`);
+        }catch(e){ linhas.push(`${nome}: ERRO ${String(e.message||e).split('\n')[0].slice(0,160)}`); } }
+      return {content:[{type:'text',text:`${total} de ${ps.length} arquivo(s) · saída: ${saida}\n`+linhas.join('\n')}]}; }},
   luma_bloco:{
     description:'Monta UM bloco de layer(s) com a biblioteca oficial (arte/ferramentas/lib.js). Sem `bloco`, lista os blocos disponíveis. Devolve o JSON pronto para entrar em `layers`.',
     inputSchema:{type:'object',properties:{bloco:{type:'string',description:'rect, text, img, foto, logoLoja, banner, selo, preco, seloSerrilhado, sparkle, star, rotarGrupo, descricaoComSem, ticket, ticketRot'},args:{type:'array',description:'Argumentos posicionais da função (ver assinatura em lib.js)',items:{}}}},
@@ -184,6 +220,10 @@ const RES=Object.entries(DOCS).map(([k,[p,d]])=>({uri:'luma://doc/'+k,name:k,des
 
 /* ---------- prompts ---------- */
 const PROMPTS={
+  psd_para_template:{description:'Do PSD ao template: importa, confere a fidelidade, audita e prepara o rascunho (sem gravar sem confirmação).',arguments:[{name:'psd',description:'caminho absoluto do .psd',required:true}],
+    text:a=>`Transforme o PSD "${a.psd}" em template do Luma.\n1. luma_psd_importar e OLHE os PNGs; compare a fidelidade (luma_comparar se precisar).\n2. luma_auditar no .layers.json de cada prancheta; corrija com luma_editar_layers.\n3. Troque textos por campos {{var}} só com nomes de luma_variaveis.\n4. luma_derivar_story se só houver o feed.\n5. luma_estresse nos dois formatos.\n6. Mostre o plano com luma_template_salvar SEM confirmar. Só grave se eu pedir. Imagem embutida não sobe pelo MCP: avise.`},
+  refinar_arte:{description:'Rodada de refino de uma arte existente (render → auditar → estresse → ajustar).',arguments:[{name:'template_id',description:'UUID do template',required:true}],
+    text:a=>`Refine o template ${a.template_id}.\n1. Leia luma://doc/design e luma://doc/motor.\n2. luma_render (olhe a imagem), luma_auditar e luma_estresse.\n3. Proponha até 3 ajustes e aplique com luma_editar_layers (patches por id), re-renderizando a cada passo.\n4. Mostre antes/depois com luma_comparar. Não grave no banco sem pedido explícito.`},
   arte_de_preco:{description:'Monta e valida uma arte de preço do Luma (feed + story) seguindo o fluxo do Ateliê.',arguments:[{name:'produto',description:'Ex.: Açaí na tigela 500 ml',required:true},{name:'preco',description:'Ex.: R$ 22,90',required:false}],
     text:a=>`Crie uma arte de preço do Luma para "${a.produto}"${a.preco?` por ${a.preco}`:''}.\n1. Leia luma://doc/arte, luma://doc/motor e luma://doc/design antes de desenhar.\n2. Monte as layers com luma_bloco (grade 72/8, Realce nos títulos).\n3. Renderize com luma_render e OLHE a imagem.\n4. Rode luma_estresse; corrija até as 7 variantes passarem.\n5. Entregue feed (1080×1350) e story (1080×1920) com os mesmos ids de layer. Proposta não é aplicar: mostre o resultado e só grave no banco se pedirem.`}
 };
@@ -199,7 +239,8 @@ async function handle(m){
     if(method==='ping') return ok(id,{});
     if(method==='tools/list') return ok(id,{tools:Object.entries(TOOLS).map(([name,t])=>({name,description:t.description,inputSchema:t.inputSchema}))});
     if(method==='tools/call'){ const t=TOOLS[params.name]; if(!t) return fail(id,-32602,'ferramenta desconhecida: '+params.name);
-      try{ return ok(id,await t.run(params.arguments||{})); }catch(e){ return ok(id,{isError:true,content:[{type:'text',text:String(e.message||e)}]}); } }
+      const tok=params._meta&&params._meta.progressToken, ctx={progress:(n,total,message)=>{ if(tok!==undefined) send({method:'notifications/progress',params:{progressToken:tok,progress:n,total,message}}); }};
+      try{ return ok(id,await t.run(params.arguments||{},ctx)); }catch(e){ return ok(id,{isError:true,content:[{type:'text',text:String(e.message||e)}]}); } }
     if(method==='resources/list') return ok(id,{resources:RES});
     if(method==='resources/read'){ const k=String(params.uri||'').replace('luma://doc/',''), d=DOCS[k]; if(!d) return fail(id,-32002,'recurso desconhecido');
       return ok(id,{contents:[{uri:params.uri,mimeType:'text/plain',text:fs.readFileSync(path.join(REPO,d[0]),'utf8')}]}); }
