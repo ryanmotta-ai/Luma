@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Black Bumerangue · De/Por feed</title>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="campanha.css">
+<style>
+  .depor { background: #f85400; }
+
+  .selo { position: absolute; top: 34px; left: 56px; width: 360px; transform: rotate(-2deg); }
+  .data { position: absolute; top: 40px; right: 72px; text-align: right; color: var(--preto); }
+  .data .rot { margin-bottom: 4px; font-size: 19px; letter-spacing: .2em; color: var(--preto); }
+  .data .dia { font-size: 104px; line-height: .82; }
+  .data .dia em { font-style: normal; color: #fff; }
+
+  .nome { position: absolute; top: 250px; left: 72px; font-size: 108px; line-height: .92; color: #fff; }
+  .sub { position: absolute; top: 356px; left: 74px; font-size: 30px; font-weight: 500; color: var(--preto); }
+
+  .foto {
+    position: absolute; top: 412px; left: 72px; width: 936px; height: 498px;
+    object-fit: cover; border-radius: 42px;
+    border: 7px solid var(--preto);
+    box-shadow: 0 0 0 9px #fff;
+  }
+
+  .selo-off {
+    position: absolute; top: 400px; right: 54px; width: 204px; height: 204px;
+    border-radius: 50%; background: #fff; border: 7px solid var(--preto);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transform: rotate(8deg); text-align: center; color: var(--preto);
+    box-shadow: 8px 10px 0 rgba(45,45,45,.2);
+  }
+  .selo-off .n { font-size: 88px; line-height: .8; color: var(--laranja); }
+  .selo-off .o { margin-top: 4px; font-size: 27px; letter-spacing: .16em; }
+
+  .preco {
+    position: absolute; left: 64px; top: 828px; width: 560px; height: 300px;
+    background: #fff; border: 7px solid var(--preto); border-radius: 30px;
+    transform: rotate(-3deg);
+    box-shadow: 12px 14px 0 rgba(45, 45, 45, .24);
+    padding: 32px 40px; color: var(--preto);
+  }
+  .preco .de { font-size: 36px; font-weight: 500; color: #7a7a7a; text-decoration: line-through; text-decoration-thickness: 3px; }
+  .preco .por { margin-top: 12px; font-size: 28px; font-weight: 900; letter-spacing: .18em; color: var(--laranja); }
+  .preco .valor { margin-top: -10px; font-size: 166px; line-height: .86; color: var(--laranja); white-space: nowrap; }
+  .preco .valor small { font-size: 76px; vertical-align: 34px; margin-right: 4px; }
+
+  .cta {
+    position: absolute; right: 72px; top: 964px; width: 282px; height: 98px;
+    border-radius: 999px; background: var(--preto); color: #fff;
+    display: grid; place-items: center; font-size: 28px; letter-spacing: .08em;
+  }
+
+  .legal { position: absolute; left: 72px; bottom: 54px; width: 660px; font-size: 21px; line-height: 1.35; color: var(--preto); }
+  .assinatura { position: absolute; right: 72px; bottom: 48px; width: 168px; }
+
+  .v1 { right: -54px; top: 206px; width: 166px; transform: rotate(-26deg); }
+  .v2 { right: -58px; top: 626px; width: 204px; transform: rotate(16deg); }
+</style>
+</head>
+<body>
+<div class="arte feed depor campanha">
+  <div class="arco a1"></div>
+  <div class="arco a3"></div>
+
+  <img class="selo" src="../assets/selo.svg" alt="Black Bumerangue">
+  <div class="data realce">
+    <div class="rot micro">Black Friday</div>
+    <div class="dia">27 <em>nov</em></div>
+  </div>
+
+  <h2 class="nome realce realce-sombra-clara">Pizza calabresa</h2>
+  <div class="sub">Grande · borda recheada · serve 3</div>
+
+  <img class="foto" src="../../../assets/demo/pizza.jpg" alt="Pizza calabresa">
+
+  <div class="selo-off realce">
+    <div class="n">30%</div>
+    <div class="o micro">off</div>
+  </div>
+
+  <div class="preco">
+    <div class="de">DE R$ 59,90</div>
+    <div class="por">por</div>
+    <div class="valor realce"><small>R$</small>41,90</div>
+  </div>
+
+  <div class="cta roboto-black">Pedir agora</div>
+
+  <div class="voo v1"><img class="fantasma" src="../assets/cupom.svg" alt=""><img class="nitido" src="../assets/cupom.svg" alt=""></div>
+  <div class="voo v2"><img class="fantasma" src="../assets/cupom.svg" alt=""><img class="nitido" src="../assets/cupom.svg" alt=""></div>
+
+  <div class="legal">Oferta válida em 27/11/2026, das 18h às 23h59, ou enquanto durarem os estoques. Imagem ilustrativa.</div>
+  <img class="assinatura" src="../../../assets/logos/dm-h-preta.png" alt="Delivery Much">
+</div>
+</body>
+</html>

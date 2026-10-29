@@ -1,0 +1,39 @@
+/* Black Bumerangue — linguagem da campanha (referência do time interno)
+   Fundo #F85400 com luz #FF9000, cupons/bumerangues em voo, Realce com sombra dura. */
+
+.campanha {
+  background:
+    radial-gradient(120% 85% at 50% 16%, #ff9000 0%, rgba(255, 144, 0, .72) 30%, rgba(255, 144, 0, 0) 62%),
+    radial-gradient(90% 70% at 50% 104%, rgba(255, 144, 0, .55) 0%, rgba(255, 144, 0, 0) 58%),
+    #f85400;
+}
+
+/* arcos de luz, como os fios da referência */
+.arco {
+  position: absolute;
+  border: 2px solid rgba(255, 255, 255, .13);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.arco.a1 { width: 1500px; height: 1500px; left: 420px; top: -420px; }
+.arco.a2 { width: 1900px; height: 1900px; left: 520px; top: -620px; border-color: rgba(255, 255, 255, .08); }
+.arco.a3 { width: 1200px; height: 1200px; left: -700px; bottom: -520px; border-color: rgba(255, 255, 255, .1); }
+
+/* objeto em voo: o fantasma desfocado atrás dá o movimento */
+.voo { position: absolute; width: 160px; aspect-ratio: 512.32 / 480.53; pointer-events: none; }
+.voo img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.voo .fantasma { opacity: .32; filter: blur(7px); transform: translate(-20px, 10px) rotate(-5deg) scale(1.02); }
+.voo .nitido { filter: drop-shadow(0 8px 8px rgba(96, 22, 0, .18)); }
+
+/* tipo da campanha: Realce com sombra dura (não difusa) */
+.realce-sombra { text-shadow: 5px 6px 0 rgba(45, 45, 45, .22); }
+.realce-sombra-clara { text-shadow: 5px 6px 0 rgba(45, 45, 45, .3); }
+
+/* etiqueta branca recortada */
+.etiqueta {
+  position: absolute;
+  background: var(--branco);
+  border: 7px solid var(--preto);
+  border-radius: 26px;
+  box-shadow: 12px 14px 0 rgba(45, 45, 45, .2);
+}
