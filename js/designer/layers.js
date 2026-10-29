@@ -381,6 +381,7 @@ function dOnRotate(e){
   l.rotation=a;
   el.style.transformOrigin='50% 50%';
   el.style.transform='rotate('+a+'deg)';
+  if(el._rotPivot) el._rotPivot.style.transform='rotate('+a+'deg)'; // a alça mora no frame, fora da camada
   const inp=document.getElementById('dp-rot'); if(inp) inp.value=a;
 }
 function dStopRotate(){

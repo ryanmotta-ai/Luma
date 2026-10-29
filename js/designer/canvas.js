@@ -1567,18 +1567,34 @@ function dRenderCanvas(){
       el.style.transform=((el.style.transform||'')+' rotate('+(+l.rotation||0)+'deg)').trim();
     }
     if(l.id===dSelId){
-      if(_giravel){
-        const r=document.createElement('div');r.className='layer-handle handle-rot';r.title='Girar (Shift = de 15 em 15°)';
-        if(l.locked){r.style.opacity='0.3';r.style.cursor='not-allowed';r.addEventListener('mousedown',e=>{e.stopPropagation();gToast('Camada bloqueada');});}
-        else r.addEventListener('mousedown',e=>{e.stopPropagation();dStartRotate(e,lReal);});
-        el.appendChild(r);
-      }
       ['br','bl','tr','tl'].forEach(pos=>{
         const h=document.createElement('div');h.className='layer-handle handle-'+pos;
         if(l.locked){h.style.opacity='0.3';h.style.cursor='not-allowed';h.addEventListener('mousedown',e=>{e.stopPropagation();gToast('Camada bloqueada');});}
         else h.addEventListener('mousedown',e=>{e.stopPropagation();dStartResize(e,lReal,pos);});
         el.appendChild(h);
       });
+      /* ALÇA DE GIRAR — mora no FRAME, não dentro da camada (29/10/2026).
+         Antes ela era filha do próprio `el`, 36px ACIMA da caixa. Em imagem e moldura o `el`
+         tem `overflow:hidden` (é o que recorta a foto), então a alça era cortada e não existia:
+         justamente as duas camadas que mais se gira numa arte só giravam pelo campo "°".
+         No frame, um pino no CENTRO da camada gira junto (mesmo eixo do motor) e nada é
+         cortado. Só a alça se move de lugar; o gesto e o `dStartRotate` continuam os mesmos. */
+      if(_giravel){
+        const pivot=document.createElement('div');
+        pivot.className='layer-rot-pivot';
+        // Camada colada no topo da prancheta: sem espaço acima, a alça entra para dentro.
+        const _acima=(l.y*dZoomLevel/100)>44;
+        const _top=Math.round(-l.h/2+(_acima?-36:6));
+        pivot.style.cssText='position:absolute;left:'+(l.x+l.w/2)+'px;top:'+(l.y+l.h/2)+'px;'
+          +'width:0;height:0;z-index:11;pointer-events:none;transform:rotate('+(+l.rotation||0)+'deg)';
+        const r=document.createElement('div');r.className='layer-handle handle-rot';r.title='Girar (Shift = de 15 em 15°)';
+        r.style.cssText='left:-12px;margin-left:0;top:'+_top+'px;pointer-events:auto;';
+        if(l.locked){r.style.opacity='0.3';r.style.cursor='not-allowed';r.addEventListener('mousedown',e=>{e.stopPropagation();gToast('Camada bloqueada');});}
+        else r.addEventListener('mousedown',e=>{e.stopPropagation();dStartRotate(e,lReal);});
+        pivot.appendChild(r);
+        frame.appendChild(pivot);
+        el._rotPivot=pivot;   // o arrasto (dOnRotate, em layers.js) atualiza o pino pelo nó
+      }
     }
     el.addEventListener('mousedown',e=>{
       if(e.button && e.button!==0) return; // botão direito/meio → deixa o contextmenu agir, sem iniciar drag
