@@ -272,7 +272,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 95 arquivos JS (86.860 linhas, 3.362 funções) · 34 arquivos CSS (33.999 linhas) · `index.html` com 4.115 linhas e 85 `<script>`.
+**Tamanho real de hoje:** 95 arquivos JS (86.888 linhas, 3.363 funções) · 34 arquivos CSS (33.999 linhas) · `index.html` com 4.115 linhas e 85 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -357,10 +357,10 @@ CONTROLE DO PRODUTO — o motor único de disponibilidade funcional do Luma.
 Consulta da equipe no painel da conta, carregada sob demanda. A RLS e a RPC autorizam os dados; gIsAdmin é apenas o gate da interface.
 · Depende de: core/auth.js, core/supabase.js, core/toast.js.
 
-**`js/core/franquia.js`** · 116 linhas
-LUMA — A franquia de quem está logado (30/09/2026) luma.franquias + luma.usuario_franquias existem desde 23/09, mas quase ninguém estava vinculado:
-· API: gMinhaFranquia, gFranquiaCarregar, gFranquiaMaisPerto, gFranquiaIniciar
-· Estado global: _gFranquia
+**`js/core/franquia.js`** · 139 linhas
+LUMA — A franquia de quem está logado (30/09/2026 · pulável desde 29/10/2026) luma.franquias + luma.usuario_franquias existem desde 23/09, mas quase ninguém estava vinculado:
+· API: gMinhaFranquia, gFranquiaPulou, gFranquiaCarregar, gFranquiaMaisPerto, gFranquiaIniciar
+· Estado global: _gFranquia, _gFrPulou
 · Depende de: core/supabase.js (gSupabase/window.sb), core/auth.js (gCurrentUser/gCurrentRole),
 
 **`js/core/help.js`** · 781 linhas
@@ -443,7 +443,7 @@ F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES defi
 · Estado global: _F_MAXLEN_MED, _fAlvoNaPasta, _fFitOpts, _fFitRun, _fFitSai, _fFitIaReprovadas, _fFitCf, quando, _fFitPerto, _fFitFora
 · Depende de: 00-config.js
 
-**`js/franqueado/chat.js`** · 4056 linhas
+**`js/franqueado/chat.js`** · 4061 linhas
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
 · API: fChatNovaConversa, fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fTrackResposta, fTrackFoto … (+71; 187 funções no total)
 · Estado global: fNextTimeout, _fChatGen, _fGuidedNav, _fGuidedTimer, _fGuidedBound, _fProntaCtxAberto, _fRevisando, _fRespostasNAnt, _fArtSnapshots, _fArtCaptions (+5)
