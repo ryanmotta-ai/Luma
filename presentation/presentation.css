@@ -432,31 +432,15 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-suporte .telas .b { left: 415px; top: 80px; }
 .s-suporte .escopo { position: absolute; left: var(--pad-x); bottom: 60px; width: 860px; font-size: 18px; line-height: 1.45; color: var(--ink-3); }
 
-/* 13 — Custo zero: R$ 0 de infraestrutura, a economia do Deskfy e a folga do plano gratuito */
-.s-custo .nums { position: absolute; left: var(--pad-x); top: 364px; width: 760px; }
+/* 13 — Custo zero: R$ 0 para o franqueado e, ao lado, a economia do Deskfy */
+.s-custo .nums { position: absolute; left: var(--pad-x); right: var(--pad-x); top: 364px; display: flex; align-items: flex-end; gap: 80px; }
 .s-custo .num b { font-weight: 900; letter-spacing: -.045em; line-height: .86; }
 .s-custo .num .por { margin-left: 18px; font-size: 26px; font-weight: 700; color: var(--ink-3); }
 .s-custo .num p { margin-top: 20px; max-width: 660px; font-size: 24px; line-height: 1.42; color: var(--ink-2); text-wrap: pretty; }
 .s-custo .num p strong { color: var(--ink); font-weight: 700; }
 .s-custo .zero b { font-size: 236px; color: var(--orange-d); }
-.s-custo .eco { margin-top: 48px; padding-top: 40px; border-top: 1px solid var(--line); }
+.s-custo .eco { padding-left: 80px; border-left: 1px solid var(--line); }
 .s-custo .eco b { font-size: 100px; color: var(--ink); }
-/* A grade: cada ponto é uma conexão simultânea (60 × 25 = 1.500, a capacidade estimada) e os 94 acesos
-   são a rede inteira. Os apagados são só fundo; os acesos são elementos, para acenderem em sequência */
-.s-custo .grade { position: absolute; left: 960px; top: 316px; width: 840px; margin: 0; padding: 40px 60px 36px; border-radius: 32px; background: var(--night); color: #fff; }
-.s-custo .grade .topo { display: flex; justify-content: space-between; align-items: flex-end; }
-.s-custo .grade .k { font-size: 16px; font-weight: 900; letter-spacing: .16em; line-height: 1.5; text-transform: uppercase; color: var(--studio-ink-2); }
-.s-custo .grade .x { font-size: 88px; font-weight: 900; letter-spacing: -.04em; line-height: .86; color: var(--orange); text-align: right; }
-.s-custo .grade .x small { display: block; margin-top: 8px; font-size: 18px; font-weight: 700; letter-spacing: 0; color: var(--studio-ink-2); }
-.s-custo .dots { position: relative; width: 720px; height: 300px; margin-top: 32px; background: radial-gradient(circle, rgba(255, 255, 255, .17) 2px, transparent 2.5px) 0 0 / 12px 12px; }
-.s-custo .dots i { position: absolute; left: calc(var(--c) * 12px + 2.5px); top: calc(var(--r) * 12px + 2.5px); width: 7px; height: 7px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 0 3px rgba(255, 144, 0, .2), 0 0 14px rgba(255, 144, 0, .8); }
-.s-custo.is-active .dots i { animation: s-custo-acende .7s var(--ease) both; animation-delay: calc(250ms + var(--k) * 12ms); }
-@keyframes s-custo-acende { from { opacity: 0; transform: scale(.1); } }
-.s-custo .grade figcaption { display: flex; gap: 34px; margin-top: 26px; font-size: 18px; color: var(--studio-ink-2); }
-.s-custo .lg { display: inline-flex; align-items: center; gap: 10px; }
-.s-custo .lg i { width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 255, 255, .3); }
-.s-custo .lg.on { color: #fff; }
-.s-custo .lg.on i { background: var(--orange); box-shadow: 0 0 10px rgba(255, 144, 0, .8); }
 .s-custo .nota { position: absolute; left: var(--pad-x); right: var(--pad-x); bottom: 56px; font-size: 18px; color: var(--ink-3); }
 
 /* 14 — Beta */
@@ -609,7 +593,7 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 /* Acessibilidade de movimento: sem deslizes, sem pulso, trocas instantâneas */
 @media (prefers-reduced-motion: reduce) {
   .slide, [data-step], .s-aha .q, .s-aha .done, .s-copy .win ol, .s-copy .txt, .s-escala .wall .a, .s-pub .light, .s-pub .flyer { transition: none !important; }
-  .s-aha .answer .caret, .s-custo .dots i, .s-intel .fits .row, .s-aha .fio *, .s-aha .vivo i { animation: none !important; }
+  .s-aha .answer .caret, .s-intel .fits .row, .s-aha .fio *, .s-aha .vivo i { animation: none !important; }
 }
 
 
@@ -631,70 +615,6 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-copy .txt p:nth-child(2) { border-color: #F85400; }
 .s-copy .txt p:nth-child(3) { border-color: #0A0A0A; }
 
-/* 13b · A rota da IA: o pedido sai do franqueado, passa pelo Luma e segue a rota (demo "ia" em presentation.js) */
-.s-ia { --ok: #34D399; --ruim: #FF6B5E; }
-.s-ia .head .h1 { font-size: 76px; }
-.s-ia .ia-map { position: absolute; inset: 0; pointer-events: none; }
-.s-ia .ia-lns { position: absolute; inset: 0; width: 1920px; height: 1080px; }
-.s-ia .ln { stroke: rgba(255, 255, 255, .1); stroke-width: 2; transition: stroke .35s, opacity .35s; }
-.s-ia .ln.on { stroke: var(--orange); stroke-dasharray: 10 12; animation: ia-flui .7s linear infinite; }
-.s-ia .ln.win { stroke: var(--ok); stroke-width: 3; stroke-dasharray: none; animation: none; }
-.s-ia .ln.off { opacity: .25; stroke-dasharray: none; animation: none; }
-@keyframes ia-flui { to { stroke-dashoffset: -22; } }
-
-.s-ia .nd { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 14px; z-index: 2;
-  padding: 16px 24px; border-radius: 18px; background: #15171C; border: 1.5px solid rgba(255, 255, 255, .13);
-  transition: border-color .35s, box-shadow .35s, opacity .35s, transform .35s var(--ease); }
-.s-ia .nd b { display: block; font-size: 26px; font-weight: 900; letter-spacing: -.01em; color: #fff; line-height: 1.1; }
-.s-ia .nd small { display: block; font-size: 17px; font-weight: 600; color: var(--studio-ink-2); margin-top: 3px; white-space: nowrap; }
-.s-ia .nd.on { border-color: var(--orange); box-shadow: 0 0 0 6px rgba(255, 144, 0, .12), 0 0 40px rgba(255, 144, 0, .25); }
-.s-ia .nd.win { border-color: var(--ok); box-shadow: 0 0 0 6px rgba(52, 211, 153, .14), 0 0 48px rgba(52, 211, 153, .3); transform: translate(-50%, -50%) scale(1.06); }
-.s-ia .nd.win .tg { color: var(--ok); }
-.s-ia .nd.fail { border-color: var(--ruim); opacity: .55; }
-.s-ia .nd.fail .tg { color: var(--ruim); }
-.s-ia .nd.off { opacity: .3; }
-
-.s-ia .luma { flex-direction: column; justify-content: center; gap: 0; width: 190px; height: 190px; border-radius: 50%; padding: 0; text-align: center;
-  background: radial-gradient(circle at 35% 30%, #FFB347, var(--orange) 55%, #F85400); border: 0; box-shadow: 0 20px 60px rgba(255, 144, 0, .35); }
-.s-ia .luma b { font-size: 38px; color: #0A0A0A; }
-.s-ia .luma small { color: rgba(10, 10, 10, .72); }
-.s-ia .luma.pulsa { animation: ia-pulsa .6s var(--ease); }
-@keyframes ia-pulsa { 50% { transform: translate(-50%, -50%) scale(1.1); } }
-
-.s-ia .fone { flex-direction: column; gap: 12px; padding: 0; background: none; border: 0; }
-.s-ia .fone .tela { position: relative; width: 150px; height: 250px; border-radius: 26px; background: #1B1E24; border: 2px solid rgba(255, 255, 255, .18); padding: 26px 18px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
-.s-ia .fone .tela i { display: block; height: 12px; border-radius: 6px; background: rgba(255, 255, 255, .12); }
-.s-ia .fone .tela i:nth-child(2) { width: 80%; } .s-ia .fone .tela i:nth-child(3) { width: 60%; }
-.s-ia .fone .ok { position: absolute; left: 12px; right: 12px; bottom: 16px; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 6px; border-radius: 16px;
-  background: rgba(52, 211, 153, .16); color: var(--ok); font-size: 17px; font-weight: 800; text-align: center; opacity: 0; transform: translateY(14px); transition: opacity .4s, transform .4s var(--ease); }
-.s-ia .fone .ok svg { width: 30px; height: 30px; }
-.s-ia .fone.pronto .ok { opacity: 1; transform: none; }
-.s-ia .fone small { font-size: 18px; }
-
-.s-ia .gg { min-width: 300px; }
-.s-ia .gg .anel { width: 44px; height: 44px; flex: none; transform: rotate(-90deg); }
-.s-ia .gg .anel circle { fill: none; stroke: rgba(255, 255, 255, .15); stroke-width: 4; stroke-dasharray: 119.4; stroke-dashoffset: 0; }
-.s-ia .gg.wait .anel circle { stroke: var(--orange); stroke-dashoffset: 119.4; animation: ia-anel var(--espera, 2.4s) linear forwards; }
-@keyframes ia-anel { to { stroke-dashoffset: 0; } }
-
-.s-ia .rs { width: 250px; padding: 10px 22px; flex-direction: column; align-items: flex-start; gap: 0; }
-.s-ia .rs b { font-size: 22px; }
-.s-ia .rs small { font-size: 15px; margin-top: 1px; }
-.s-ia .rs-tit { position: absolute; left: 1440px; top: 392px; width: 240px; text-align: center; font-size: 15px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--orange); }
-
-.s-ia .pk { position: absolute; left: 0; top: 0; z-index: 1; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%;
-  background: #fff; box-shadow: 0 0 0 6px rgba(255, 255, 255, .15), 0 0 26px rgba(255, 255, 255, .7); }
-.s-ia .pk.volta { background: var(--ok); box-shadow: 0 0 0 6px rgba(52, 211, 153, .2), 0 0 26px rgba(52, 211, 153, .8); }
-
-.s-ia .ia-st { position: absolute; left: var(--pad-x); bottom: 64px; max-width: 1100px; font-size: 30px; font-weight: 700; line-height: 1.3; color: #fff; transition: opacity .3s; }
-.s-ia .ia-st b { color: var(--orange); margin-right: 10px; }
-.s-ia .ia-nums { position: absolute; left: 1140px; top: 110px; display: flex; gap: 56px; }
-.s-ia .ia-nums b { display: block; font-size: 88px; font-weight: 900; letter-spacing: -.045em; line-height: .95; color: var(--orange); }
-.s-ia .ia-nums span { display: block; margin-top: 12px; font-size: 20px; line-height: 1.35; color: var(--studio-ink); }
-.s-ia .nd .md { display: block; font-style: normal; font-size: 16px; font-weight: 700; color: #fff; opacity: .78; margin-top: 2px; white-space: nowrap; }
-.s-ia .rs { width: 270px; padding: 9px 22px; }
-.s-ia .rs .md { font-size: 14px; }
-
 /* 03 — A escuta (entrevistas com franqueados → dores → decisões de produto) */
 .s-ia-leg .leg-head .sug.ia { background: var(--orange); border-color: var(--orange); color: #0A0A0A; font-weight: 900; }
 .s-ia-leg .txt mark { background: rgba(255, 144, 0, .28); color: inherit; font-weight: 800; padding: 0 6px; border-radius: 6px; }
@@ -712,16 +632,15 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-susp .chips span { font-size: 34px; font-weight: 800; letter-spacing: -.015em; color: #fff; padding: 16px 28px; border-radius: 999px; border: 1.5px solid rgba(255, 255, 255, .22); background: rgba(255, 255, 255, .05); }
 .s-susp .q { position: absolute; left: var(--pad-x); right: var(--pad-x); bottom: 150px; font-size: 230px; line-height: .95; font-weight: 900; letter-spacing: -.05em; color: var(--orange); }
 
-/* 15 — a resposta do suspense: R$ 0 gigante no escuro; capacidade e economia entram depois */
+/* 15 — a resposta do suspense: R$ 0 gigante no escuro; a economia entra depois */
 .s-custo .head .h1 { font-size: 72px; color: #fff; }
-.s-custo .nums { top: 330px; width: 820px; }
+.s-custo .nums { top: 330px; }
 .s-custo .zero b { font-size: 400px; line-height: .8; }
 .s-custo .num .por { font-size: 34px; color: rgba(255, 255, 255, .7); }
 .s-custo .num p { color: rgba(255, 255, 255, .78); font-size: 26px; }
 .s-custo .num p strong { color: #fff; }
-.s-custo .eco { border-top-color: rgba(255, 255, 255, .2); margin-top: 36px; padding-top: 30px; }
+.s-custo .eco { border-left-color: rgba(255, 255, 255, .2); margin-bottom: 56px; }
 .s-custo .eco b { color: #fff; font-size: 84px; }
-.s-custo .grade { background: #151515; box-shadow: 0 0 0 1px rgba(255, 255, 255, .1); top: 360px; }
 .s-custo .nota { color: rgba(255, 255, 255, .55); }
 .s-custo .zero b { font-size: 360px; }
 .s-custo .zero .por { display: block; margin: 14px 0 0 10px; }
@@ -767,7 +686,6 @@ body.clean .chrome-num, body.clean .chrome-progress { opacity: 0; }
 .s-mkt .kick span { margin-left: 22px; font-size: 18px; font-weight: 500; letter-spacing: 0; color: var(--studio-ink-2); }
 @media (prefers-reduced-motion: reduce) { .s-mkt .ondas .r { stroke-dashoffset: 0; animation: none !important; } }
 .s-custo .zero b { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.s-ia .head .h1 { font-size: 62px; line-height: 1.02; max-width: 960px; }
 .s-duas .spine small { font-size: 12px; font-weight: 900; letter-spacing: .16em; color: var(--orange); background: #0A0A0A; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
 .s-copy .como { position: absolute; left: var(--pad-x); top: 318px; font-size: 21px; color: var(--ink-2); }
 

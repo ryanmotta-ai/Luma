@@ -1,6 +1,6 @@
 # Luma — notas do apresentador
 
-> Fica fora da tela. Os 18 slides principais cabem em 15–18 minutos (1 min por slide; o 06 e o 07 pedem um pouco mais).
+> Fica fora da tela. Os 17 slides principais cabem em 15–17 minutos (1 min por slide; o 06 e o 07 pedem um pouco mais).
 > O apêndice (A–L) é para perguntas: tecle **G** para o índice e pule direto para a letra.
 > Toda afirmação com número tem fonte em [`CLAIMS.md`](CLAIMS.md). Se um número não está lá, não fale.
 
@@ -11,8 +11,9 @@
    feitos a partir das capas de campanha do próprio repositório, e as fotos dos produtos são do Unsplash.
    A franqueada "Carla" é uma persona de demonstração.
 2. O CI está **vermelho** hoje (27/09). Diga antes que perguntem: é o mecanismo funcionando (apêndice E).
-3. Os números de custo (slide 14) têm fonte no `CLAIMS.md`: R$ 0 e os 94 franqueados vêm da arquitetura e do Ryan;
-   a economia de R$ 11,9 mil/ano é o valor do Deskfy informado pelo Ryan; a folga de 15× é estimativa, não teste de carga.
+3. Os números de custo (slide 14) têm fonte no `CLAIMS.md`: o R$ 0 é o que o franqueado paga, não o custo da operação.
+   Desde 16/10 o banco está no Supabase Pro e a IA usa chave paga do Gemini, tudo por conta da Delivery Much.
+   A economia de R$ 11,9 mil/ano é o valor do Deskfy informado pelo Ryan.
 
 ---
 
@@ -215,43 +216,22 @@
 
 ## 14 · Custo zero — "Tudo isso, com IA integrada, custa: R$ 0."
 
-- **Objetivo:** mostrar que a rede inteira roda sem custo de infraestrutura e que o Luma ainda economiza.
+- **Objetivo:** mostrar que o franqueado não paga nada para usar o Luma e que a rede ainda economiza.
 - **Frase de abertura:** "Tudo isso, com IA integrada, custa: R$ 0."
-- **Discurso:** "[o número despenca na tela até zero; espere ele parar] Zero. R$ 0 por mês, de infraestrutura e de IA, para os 94 franqueados. [pausa] O Luma cresce com a rede, a conta não. O segredo da infraestrutura é onde a
-  arte é feita: no celular ou no computador do próprio franqueado. O servidor não desenha nenhum pixel, então
-  mais artes não aumentam a conta. O site é estático, no GitHub Pages, e o banco roda no plano gratuito do
-  Supabase. [avança, mostra a grade] Cada ponto é uma pessoa conectada ao mesmo tempo. Pela nossa estimativa, o plano
-  gratuito aguenta umas 1.500; a rede inteira são 94. São 15 vezes de folga. [avança] E tem o que sai do
-  orçamento: são 11,9 mil reais por ano que vamos economizar com o fim do Deskfy."
-- **Ponto principal:** a rede cresce sem conta nova, e ainda sobra uma economia concreta.
-- **Transição:** "Zero de infraestrutura. E a IA, que parece a parte cara? Vem de graça também."
-- **Perguntas difíceis:**
-  - *"E se abrir para todos os lojistas?"* Aí o banco vai para o Supabase Pro: 25 dólares por mês, uns
-    140 reais. O render continua nos aparelhos, então a conta não cresce com o número de artes.
-  - *"E se o Google mudar a cota gratuita?"* A IA tem 5 provedores grátis de reserva e, só em último caso, um modelo pago, então o risco é um custo pontual pequeno e não uma parada. O painel Dados do Luma ainda calcula o custo da IA como se fosse pago: se alguém abrir, explicar que é estimativa do custo de lista, não o que pagamos.
-  - *"E a IA?"* Entra no R$ 0: roda na cota gratuita de várias contas Google e em 5 provedores grátis de reserva. O próximo slide mostra a rota.
-  - *"Essa capacidade foi medida?"* É estimativa, da análise de capacidade de 22/09 (limite de requisições
-    do plano gratuito), não teste de carga. Usamos o piso: 1.500.
-  - *"Quando a economia do Deskfy entra?"* Quando a rede estiver no Luma e o contrato do Deskfy acabar.
-
-## 15 · IA custo zero — "Tá, mas com tudo isso, como a IA custa zero? A gente te explica na prática."
-
-- **Objetivo:** mostrar, com a animação, que a IA do Luma é barata e nunca deixa o franqueado sem resposta.
-- **Frase de abertura:** "Tá, mas com tudo isso, como a IA custa zero? A gente te explica na prática."
-- **Discurso:** "Olha um pedido de legenda saindo do celular do franqueado. O Luma manda primeiro para o modelo
-  rápido do Google, e ele resolve a maioria. [avança] Agora o Google demorou: passaram 8 segundos. Na hora,
-  cinco provedores gratuitos entram juntos. O primeiro que responde vence e os outros são cancelados. [avança] E se
-  ninguém responder? Só então entra o modelo mais forte. [avança] E nada disso custa: o Google roda na cota gratuita de
-  várias contas e as cinco reservas são gratuitas. Na semana de testes foram 846 respostas, sem pagar nada (número do Ryan, 30/09; levar o print do painel se pedirem a fonte)."
-- **Ponto principal:** custo quase zero e resposta garantida, por desenho.
+- **Discurso:** "[o número despenca na tela até zero; espere ele parar] Zero. R$ 0 por mês para o franqueado usar o
+  Luma, com IA e tudo. Vale para os 94. [pausa] A infraestrutura e a IA ficam por conta da Delivery Much. E a arte é
+  feita no celular ou no computador do próprio franqueado: o servidor não desenha nenhum pixel, então mais artes não
+  aumentam a conta. [avança] E tem o que sai do orçamento: são 11,9 mil reais por ano que vamos economizar com o fim do Deskfy."
+- **Ponto principal:** o franqueado não paga, e a rede ainda economiza.
 - **Transição:** "Com isso, a V1 está pronta."
 - **Perguntas difíceis:**
-  - *"É de graça mesmo?"* Sim: o Google na cota gratuita de várias contas, e as reservas no plano gratuito.
-  - *"E com os 94 franqueados usando?"* Se uma cota acabar, o pedido desce para a próxima conta ou reserva.
-    Cada tarefa tem teto de resposta, o que faz a cota render.
-  - *"E se o Google cair?"* As reservas respondem sozinhas; é para isso que elas existem.
+  - *"Então o Luma não custa nada?"* Para o franqueado, não. A operação tem custo e é da Delivery Much: o banco
+    no Supabase Pro e a IA do Google com chave paga. Não prometa custo zero de infraestrutura nem de IA.
+  - *"E se abrir para todos os lojistas?"* O render continua nos aparelhos, então a conta não cresce com o número de artes.
+  - *"E se a IA cair?"* O motor local assume a legenda e o Encurtar (slide 08); a arte nunca depende da IA.
+  - *"Quando a economia do Deskfy entra?"* Quando a rede estiver no Luma e o contrato do Deskfy acabar.
 
-## 16 · Beta — "A V1 está pronta. Agora começa a parte mais importante."
+## 15 · Beta — "A V1 está pronta. Agora começa a parte mais importante."
 
 - **Objetivo:** pedir o beta com a rede e dizer o que ele mede.
 - **Frase de abertura:** "A V1 está pronta. Agora começa a parte mais importante: colocar o Luma na mão da rede."
@@ -265,7 +245,7 @@
     para definir juntos.
   - *"O franqueado vai pagar?"* Não é o que este beta discute.
 
-## 17 · Testem agora — "Melhor do que falar é mostrar."
+## 16 · Testem agora — "Melhor do que falar é mostrar."
 
 - **Objetivo:** tirar a plateia da cadeira: cada um faz uma arte no próprio celular, ao vivo.
 - **Frase de abertura:** "Melhor do que falar é mostrar. Chegou a hora de vocês testarem o Luma."
@@ -277,7 +257,7 @@
 - **Na tela:** o vídeo no celular mostra o caminho inteiro (entrar como visitante, abrir o Aniversário Delivery Much, escolher o Deliversário 15 — Sol (Story), foto, logo, produto, preços, arte pronta) e recomeça toda vez que o slide entra.
 - **Atenção:** o QR abre `https://luma-deliverymuch.vercel.app/?visitante=1` (a URL nova, no Vercel) (modo visitante no ar desde 30/09/2026; desde 14/10 mostra só a campanha Aniversário Delivery Much, com os 4 materiais do Deliversário 15; nada é gravado). Teste com o seu celular antes de apresentar.
 
-## 18 · Valeu — "Valeu, galera!"
+## 17 · Valeu — "Valeu, galera!"
 
 - **Objetivo:** fechar com gente: quem fez o Luma, agradecendo e abrindo para perguntas.
 - **Frase de abertura:** "Valeu, galera!"
