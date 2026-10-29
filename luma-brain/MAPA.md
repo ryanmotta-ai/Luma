@@ -272,7 +272,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 95 arquivos JS (86.888 linhas, 3.363 funções) · 34 arquivos CSS (33.999 linhas) · `index.html` com 4.115 linhas e 85 `<script>`.
+**Tamanho real de hoje:** 95 arquivos JS (86.888 linhas, 3.363 funções) · 34 arquivos CSS (34.001 linhas) · `index.html` com 4.115 linhas e 85 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -803,7 +803,7 @@ POTENCIAL DA CIDADE (29/10/2026) — a "Calculadora de Franquias 2026" do Aladim
 | `css/modules/layers-panel.css` | 4530 |
 | `css/modules/live-preview.css` | 1759 |
 | `css/modules/panel-dock.css` | 116 |
-| `css/modules/potencial.css` | 100 |
+| `css/modules/potencial.css` | 102 |
 | `css/modules/publish-modal.css` | 628 |
 | `css/modules/toolbar.css` | 1090 |
 | `css/modules/topbar.css` | 217 |
