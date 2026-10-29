@@ -266,8 +266,8 @@ function potRender(){
     +  '<dl class="pot-fatos">'
     +    '<div><dt>População</dt><dd>'+potNumero(c.populacao)+'</dd></div>'
     +    '<div><dt>PIB per capita</dt><dd>'+potBRL(c.pib_per_capita)+'</dd></div>'
-    +    '<div><dt>Taxa de franquia</dt><dd>'+potBRL(calc.taxa)+'</dd></div>'
-    +    '<div><dt>Marketing de lançamento</dt><dd>'+potBRL(calc.mkt)+'</dd></div>'
+    +    '<div><dt>Taxa de franquia</dt><dd id="pot-taxa">'+potBRL(calc.taxa)+'</dd></div>'
+    +    '<div><dt>Marketing de lançamento</dt><dd id="pot-mkt">'+potBRL(calc.mkt)+'</dd></div>'
     +    '<div class="pot-total"><dt>Investimento total</dt><dd id="pot-inv">'+potBRL(calc.inv)+'</dd></div>'
     +  '</dl>'
     +'</section>'
@@ -291,7 +291,8 @@ function potRender(){
 function potRecalcula(){
   if(!_pot.cidade) return;
   const calc=potCalcular(_pot.cidade,_pot,_pot.ov); _pot.calc=calc;
-  const inv=_potEl('pot-inv'); if(inv) inv.textContent=potBRL(calc.inv);
+  // Os três números do cartão mudam juntos: concorrentes mexe no marketing, e o total é a soma.
+  [['pot-taxa',calc.taxa],['pot-mkt',calc.mkt],['pot-inv',calc.inv]].forEach(([id,v])=>{ const el=_potEl(id); if(el) el.textContent=potBRL(v); });
   const av=_potEl('pot-avisos');
   if(av) av.innerHTML=calc.avisos.map(a=>'<p class="pot-aviso" role="status">'+gEsc(a)+'</p>').join('');
   const res=_potEl('pot-res');
