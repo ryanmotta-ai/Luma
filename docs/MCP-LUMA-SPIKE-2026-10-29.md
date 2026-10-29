@@ -20,7 +20,7 @@
 | Medição de PNG (bordas, cor, paleta, caixa) | `ferramentas/medir.js` | ✅ **`luma_medir`** |
 | Regras de marca, motor, design, negócio | `ARTE.md`, `MOTOR.md`, `DESIGN.md`, `01_BUSINESS.md` | ✅ **recursos** `luma://doc/*` |
 | Fluxo "arte de preço" | `ARTE.md` + `REFINO-15.md` | ✅ **prompt** `arte_de_preco` |
-| Ler templates do catálogo (`luma.templates`) | Supabase, protegido por **RLS** | ⏳ fase 2 (ver §4) |
+| Ler templates do catálogo (`luma.templates`) | Supabase, protegido por **RLS** | ✅ **`luma_templates_listar`**, **`luma_template_ler`**, `template_id` em `luma_render`/`luma_estresse` (somente leitura) |
 | Gravar/publicar template | Supabase + changelog + reversão (`arte/BANCO.md`) | ⏳ fase 2, **sempre com confirmação humana** |
 | Importar PSD → layers | `psd-parse.js` (agPsd **no navegador**) | ⏳ fase 2: mesmo harness, página nova |
 | Interpolar `{{campo}}` / catálogo de variáveis | `gInterpolate` (`00-config.js`), `luma.variaveis` | já embutido no `luma_render`; tool própria só se pedirem |
@@ -38,6 +38,14 @@ agente (Claude Code / Desktop / Ateliê) ──stdio JSON-RPC──▶ mcp/luma-
 - `INVÁLIDA` no retorno = o Local Fit bloquearia o franqueado; é o mesmo critério do portão de arte.
 - `render.js` ganhou o caminho do Chrome do macOS (antes só achava `chromium` no PATH).
 
+### Acesso ao banco (leitura)
+A anon key é a pública de `js/core/supabase-config.js`; **quem autoriza é o RLS**, pelo login do usuário. Sem login o banco responde "permission denied for schema luma" (verificado). Credenciais só no ambiente do processo, nunca em arquivo:
+```bash
+claude mcp add luma -e LUMA_EMAIL=voce@deliverymuch.com.br -e LUMA_SENHA=… -- node "/caminho/Luma/mcp/luma-mcp.js"   # renova sozinho
+claude mcp add luma -e LUMA_JWT=<access token> -- node …                                                               # expira em ~1 h
+```
+Nunca service_role. O MCP só faz `GET`; nenhuma ferramenta grava.
+
 ### Como usar
 ```bash
 claude mcp add luma -- node "/caminho/para/Luma/mcp/luma-mcp.js"
@@ -48,8 +56,10 @@ Requisitos: **Node ≥ 22** (WebSocket nativo) e Google Chrome/Chromium (ou `CHR
 
 | Ferramenta | Entrada | Saída |
 |---|---|---|
-| `luma_render` | `layers` (obrigatório), `dados`, `W`, `H`, `fmt` | PNG + `status`/`INVÁLIDA` + encaixe por campo |
+| `luma_render` | `layers` **ou** `template_id`, `dados`, `W`, `H`, `fmt` | PNG + `status`/`INVÁLIDA` + encaixe por campo |
 | `luma_estresse` | igual ao `luma_render` | resumo das 7 variantes + PNG da primeira com problema |
+| `luma_templates_listar` | `busca`, `fmt`, `publicado`, `limite` | id, nome, formato, pasta, publicado |
+| `luma_template_ler` | `id` | metadados + layers (JSON) |
 | `luma_bloco` | `bloco`, `args[]` (sem `bloco` lista os disponíveis) | JSON de layer(s) pronto para `layers` |
 | `luma_medir` | `cmd` (`bordas`/`cor`/`paleta`/`caixa`), `png`, `args[]` | texto com a medida |
 
@@ -64,7 +74,7 @@ Requisitos: **Node ≥ 22** (WebSocket nativo) e Google Chrome/Chromium (ou `CHR
 5. **Fontes e assets.** `assets/` relativo funciona no harness; foto do franqueado exige URL `http(s)`/`data:`.
 
 ## 6. Próximos passos sugeridos
-- [ ] Fase 2a: `luma_templates_listar/ler` (Supabase, JWT do usuário).
+- [x] Fase 2a: `luma_templates_listar/ler` (Supabase, login do usuário) — **ainda não testado com login real**; testado só o caminho sem login.
 - [ ] Fase 2b: `luma_psd_importar` (harness com `psd-parse.js`).
 - [ ] Fase 2c: ferramenta de publicação com confirmação + changelog (`arte/BANCO.md`).
 - [ ] Decidir hospedagem para uso do Ateliê em produção (item 3/4).

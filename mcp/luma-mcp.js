@@ -9,11 +9,17 @@ const fs=require('fs'), os=require('os'), path=require('path'), cp=require('chil
 const REPO=path.resolve(__dirname,'..');
 const FERR=path.join(REPO,'.claude/skills/luma/arte/ferramentas');
 const L=require(path.join(FERR,'lib.js'));
-const motor=require('./motor.js');
+const motor=require('./motor.js'), banco=require('./banco.js');
 
 /* ---------- ferramentas ---------- */
 const run=(args)=>new Promise(ok=>cp.execFile('node',args,{timeout:180000,maxBuffer:1<<26},(e,so,se)=>ok({code:e?(e.code||1):0,out:String(so||''),err:String(se||'')})));
-const jobDe=a=>{ if(!Array.isArray(a.layers)||!a.layers.length) throw new Error('`layers` (array de layers do Luma) é obrigatório');
+const UUID=/^[0-9a-f-]{36}$/i;
+/* `template_id` busca layers/w/h/fmt no banco (RLS do usuário); `layers` explícito vence. */
+const jobDe=async a=>{
+  if(a.template_id&&!Array.isArray(a.layers)){ if(!UUID.test(a.template_id)) throw new Error('template_id inválido');
+    const [t]=await banco.ler('templates',`id=eq.${a.template_id}&select=layers,w,h,fmt`); if(!t) throw new Error('template não encontrado. '+banco.SEM_ACESSO);
+    a=Object.assign({},a,{layers:t.layers,W:a.W||t.w,H:a.H||t.h,fmt:a.fmt||t.fmt}); }
+  if(!Array.isArray(a.layers)||!a.layers.length) throw new Error('informe `layers` (array de layers do Luma) ou `template_id`');
   return L.job(a.layers,{W:a.W||1080,H:a.H||1350,fmt:a.fmt,dados:a.dados||{}}); };
 /* jobs = [[nome, job]] → [{nome,png,fit,err}]. Chrome persistente (motor.js): abas em paralelo, sem subir navegador a cada chamada. */
 async function renderJobs(jobs){
@@ -25,21 +31,40 @@ const resumoFit=(n,f)=>`${n}: ${f.status||'?'}${f.invalid?' · INVÁLIDA (o fran
 const TOOLS={
   luma_render:{
     description:'Renderiza uma arte (lista de layers do Luma + dados dos campos) no MESMO motor do franqueado (fRenderTemplateLayers + Local Fit) e devolve o PNG e o veredito do encaixe. `INVÁLIDA` = o franqueado não conseguiria exportar essa combinação de dados.',
-    inputSchema:{type:'object',required:['layers'],properties:{
+    inputSchema:{type:'object',properties:{
+      template_id:{type:'string',description:'UUID de um template do banco (use luma_templates_listar). Alternativa a `layers`.'},
       layers:{type:'array',description:'Layers no formato do banco (luma.templates.layers). Monte com luma_bloco ou leia de um template existente.',items:{type:'object'}},
       dados:{type:'object',description:'Valores dos campos {{var}}: produto, detalhes, descricao, precoDe, precoPor, validade, foto_produto, logo_loja… Use "{{FOTO}}"/"{{LOGO}}" para as imagens de demonstração.',additionalProperties:{type:'string'}},
       W:{type:'integer',description:'Largura em px (padrão 1080)'},H:{type:'integer',description:'Altura em px (1350 = feed, 1920 = story)'},fmt:{type:'string',enum:['feed','story']}}},
-    async run(a){ const {res,log}=await renderJobs([['arte',jobDe(a)]]); const r=res[0];
+    async run(a){ const {res,log}=await renderJobs([['arte',await jobDe(a)]]); const r=res[0];
       if(!r.png) return {isError:true,content:[{type:'text',text:'Render sem saída. '+log}]};
       return {content:[{type:'image',data:r.png,mimeType:'image/png'},{type:'text',text:resumoFit('arte',r.fit)+'\n'+JSON.stringify(r.fit.campos||[])}]}; }},
   luma_estresse:{
     description:'Roda a arte nas 7 variantes de estresse que toda arte do Luma passa antes de sair (título longo, sem detalhes, sem "de", preço de 1 e 3 dígitos, sem preço) e resume o encaixe de cada uma. Uma variante INVÁLIDA = a arte tem bug.',
-    inputSchema:{type:'object',required:['layers'],properties:{layers:{type:'array',items:{type:'object'}},dados:{type:'object',additionalProperties:{type:'string'}},W:{type:'integer'},H:{type:'integer'},fmt:{type:'string',enum:['feed','story']}}},
-    async run(a){ const jobs=Object.entries(L.ESTRESSE).map(([k,v])=>[k,jobDe(Object.assign({},a,{dados:Object.assign({},a.dados,v)}))]);
+    inputSchema:{type:'object',properties:{template_id:{type:'string',description:'UUID de um template do banco (alternativa a `layers`)'},layers:{type:'array',items:{type:'object'}},dados:{type:'object',additionalProperties:{type:'string'}},W:{type:'integer'},H:{type:'integer'},fmt:{type:'string',enum:['feed','story']}}},
+    async run(a){ if(a.template_id&&!Array.isArray(a.layers)){ const j=await jobDe(a); a=Object.assign({},a,{layers:j.layers,W:j.W,H:j.H,fmt:j.fmt}); }
+      const jobs=await Promise.all(Object.entries(L.ESTRESSE).map(async([k,v])=>[k,await jobDe(Object.assign({},a,{dados:Object.assign({},a.dados,v)}))]));
       const {res}=await renderJobs(jobs); const bad=res.filter(r=>!r.png||r.fit.invalid||(r.fit.campos||[]).some(c=>c.status!=='fits'&&c.status!=='vazio'));
       const txt=res.map(r=>r.png?resumoFit(r.nome,r.fit):r.nome+': SEM SAÍDA').join('\n')+`\n\n${bad.length?bad.length+' variante(s) com problema':'todas as 7 passaram'}.`;
       const first=bad.find(r=>r.png)||res.find(r=>r.png);
       return {content:[{type:'text',text:txt}].concat(first?[{type:'image',data:first.png,mimeType:'image/png'}]:[])}; }},
+  luma_templates_listar:{
+    description:'Lista templates do banco (somente leitura, respeita o RLS do usuário). Filtra por nome da pasta/campanha e/ou do template. Devolve id, nome, formato, pasta e se está publicado. Requer LUMA_JWT ou LUMA_EMAIL+LUMA_SENHA no ambiente do servidor.',
+    inputSchema:{type:'object',properties:{busca:{type:'string',description:'trecho do nome do template ou da pasta'},fmt:{type:'string',enum:['feed','story']},publicado:{type:'boolean'},limite:{type:'integer',description:'padrão 30, máx. 100'}}},
+    async run(a){ const lim=Math.min(Math.max(+a.limite||30,1),100), esc=v=>encodeURIComponent(String(v).replace(/[*,()]/g,' '));
+      const pastas=await banco.ler('pastas','select=id,nome&limit=1000'), nomePasta=new Map(pastas.map(p=>[p.id,p.nome]));
+      let q=`select=id,nome,fmt,pasta_id,publicado,w,h&order=created_at.desc&limit=${a.busca?500:lim}`;
+      if(a.fmt) q+='&fmt=eq.'+a.fmt; if(typeof a.publicado==='boolean') q+='&publicado=is.'+a.publicado;
+      let ts=await banco.ler('templates',q);
+      if(a.busca){ const b=String(a.busca).toLowerCase(); ts=ts.filter(t=>t.nome.toLowerCase().includes(b)||String(nomePasta.get(t.pasta_id)||'').toLowerCase().includes(b)).slice(0,lim); }
+      if(!ts.length) return {content:[{type:'text',text:banco.autenticado()?'Nenhum template encontrado com esse filtro.':banco.SEM_ACESSO}]};
+      return {content:[{type:'text',text:ts.map(t=>`${t.id} · ${t.nome} · ${t.fmt} ${t.w}×${t.h} · pasta: ${nomePasta.get(t.pasta_id)||'?'} · ${t.publicado?'publicado':'rascunho'}`).join('\n')}]}; }},
+  luma_template_ler:{
+    description:'Lê UM template do banco (somente leitura): layers (JSON), permissões por campo, tamanho e instruções. Use para entender ou adaptar uma arte existente. Para só ver a imagem, use luma_render com template_id.',
+    inputSchema:{type:'object',required:['id'],properties:{id:{type:'string',description:'UUID do template'}}},
+    async run(a){ if(!UUID.test(a.id||'')) throw new Error('id inválido'); const [t]=await banco.ler('templates',`id=eq.${a.id}&select=id,nome,fmt,w,h,bg,publicado,permissoes,instrucoes,layers`);
+      if(!t) return {isError:true,content:[{type:'text',text:'Template não encontrado. '+banco.SEM_ACESSO}]};
+      const {layers,...meta}=t; return {content:[{type:'text',text:JSON.stringify(meta)+'\n\nlayers ('+layers.length+'):\n'+JSON.stringify(layers)}]}; }},
   luma_bloco:{
     description:'Monta UM bloco de layer(s) com a biblioteca oficial (arte/ferramentas/lib.js). Sem `bloco`, lista os blocos disponíveis. Devolve o JSON pronto para entrar em `layers`.',
     inputSchema:{type:'object',properties:{bloco:{type:'string',description:'rect, text, img, foto, logoLoja, banner, selo, preco, seloSerrilhado, sparkle, star, rotarGrupo, descricaoComSem, ticket, ticketRot'},args:{type:'array',description:'Argumentos posicionais da função (ver assinatura em lib.js)',items:{}}}},
