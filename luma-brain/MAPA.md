@@ -272,7 +272,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 95 arquivos JS (86.888 linhas, 3.363 funções) · 34 arquivos CSS (34.001 linhas) · `index.html` com 4.115 linhas e 85 `<script>`.
+**Tamanho real de hoje:** 95 arquivos JS (86.935 linhas, 3.364 funções) · 34 arquivos CSS (34.002 linhas) · `index.html` com 4.115 linhas e 85 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -287,7 +287,7 @@ Constantes globais imutaveis: HIST_KEY, CAMPS_ATIVAS, CAMPS_OUTRAS, FMTS. Deve s
 Estado global do franqueado: fState. Deve ser carregado apos 00-config.js.
 · Estado global: fState
 
-**`js/main.js`** · 560 linhas
+**`js/main.js`** · 573 linhas
 Bootstrap: setMode (troca entre franqueado/designer/creative/potencial) e chamadas de inicializacao. Deve ser carregado por ULTIMO (apos todos os modulos).
 · API: dUpdateTabPill, gModeAllowed, gFirstAllowedMode, gTrackPagina, gGoHome, setMode, gRestoreMode, gApplyModeAccess, gParseDeepLink, gSaveDeepLink, gClearDeepLink, gApplyDeepLink, gOnLoginSuccess
 · Estado global: _gPaginaAbertaEm
@@ -321,9 +321,9 @@ Schemas e Validadores Determinísticos da Camada de IA. Regra §7 e §62: "GEMIN
 **`js/core/ai/ai-telemetry.js`** · 119 linhas
 Telemetria local da Camada de IA. Registra latência, sucesso/falha, fallbacks e taxa de aceite das sugestões sem expor dados sensíveis ou sobrecarregar a rede.
 
-**`js/core/auth.js`** · 628 linhas
+**`js/core/auth.js`** · 640 linhas
 AUTH via Supabase (Fase 5.1). Login/logout/recuperação usam supabase.auth (window.sb, criado em js/core/supabase.js). gLoadProfile() carrega a sessão + o role do profile e popula gAuthState, pra que gCurrentUser/gCurrentRole…
-· API: gRoleLevel, gLoadProfile, gLogin, gLogout, gCurrentUser, gVisitante, gVisitantePedido, gEntrarVisitante, gVisitanteCatalogo, gVisitanteResync, gCurrentRole, gUserFoto, gIsAdmin, gIsSuperAdmin … (+22; 40 funções no total)
+· API: gRoleLevel, gLoadProfile, gLogin, gLogout, gCurrentUser, gVisitante, gVisitantePedido, gEntrarVisitante, gVisitanteCatalogo, gVisitanteResync, gCurrentRole, gUserFoto, gAreaRestrita, gIsAdmin … (+23; 41 funções no total)
 · Estado global: gAuthState, _gVisCat
 
 **`js/core/auto-layout.js`** · 558 linhas
@@ -523,7 +523,7 @@ Sistema de pincel/borracha/carimbo: dPaintStart, dPaintMove, dPaintEnd, dStampAt
 · Estado global: dStampSource, dStampOffset, dGradStart, dBrush, dStampAligned, _dSharpenC1, _dSharpenC2, dNitidezLast, _dNitidezHinted, dFormaLast (+7)
 · Depende de: designer/canvas.js
 
-**`js/designer/canvas.js`** · 2585 linhas
+**`js/designer/canvas.js`** · 2601 linhas
 Render do canvas, zoom, pan, formato, réguas, barra contextual, smart guides, simulacao de dados e interacoes de mouse.
 · API: dSetFormat, dApplyFormat, dFitToScreen, dPositionArtboard, dZoom, dSetZoom, dSampleImg, dSetPhTest, dEscolherFotoDaMoldura, dRenderWorkspace, dABAddResizeHandles, dUpdateBrushCursor, dSetTool, dEnsureMarqueeEl … (+57; 83 funções no total)
 · Estado global: dPhTestAR, dMarquee, dDrawShapeState, dABDraw, dLastClickLayerId, dLastClickTime, dPainting, dPaintLast, dSnapEnabled, dSimValues (+11)
@@ -542,7 +542,7 @@ Fontes customizadas enviadas pelo usuário (.ttf/.otf/.woff/.woff2).
 · Estado global: dCustomFonts
 · Depende de: 00-config.js, core/toast.js, designer/canvas.js (dRenderCanvas).
 
-**`js/designer/layers.js`** · 4880 linhas
+**`js/designer/layers.js`** · 4881 linhas
 CRUD de layers, painel lateral, props, multi-select, rename: dSelLayer, dDeselect, dRenderLayersList, dShowProps, dAddText, dAddShape, dToggleMultiSel, dRenameLayer, dAddIcon, dAddLine.
 · API: dSelLayer, dHoverLayer, dSelLayerState, dDeselect, dStartCrop, dStopCrop, dOnCropDrag, dStopCropDrag, dStartDrag, dOnDrag, dStopDrag, dStartResize, dOnResize, dStopResize … (+209; 283 funções no total)
 · Estado global: dDragEls, dPendingIsolate, dDragMoved, dCropState, dDragCrop, dResizeEl, dResizePos, dResizeLyrX, dResizeLyrY, dResizeFs (+38)
@@ -695,7 +695,7 @@ tutMockCampaign, tutMockMaterial, tutMockHist — builders de HTML de mock usado
 
 ### js/widgets
 
-**`js/widgets/help-widget.js`** · 2462 linhas
+**`js/widgets/help-widget.js`** · 2467 linhas
 ── LUMA HELP WIDGET ── Ajuda contextual, artigos e mensagens com a mesma linguagem visual do Luma.
 
 **`js/widgets/novidades.js`** · 70 linhas
@@ -795,7 +795,7 @@ POTENCIAL DA CIDADE (29/10/2026) — a "Calculadora de Franquias 2026" do Aladim
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
 | `css/modules/creative.css` | 799 |
-| `css/modules/designer.css` | 5428 |
+| `css/modules/designer.css` | 5429 |
 | `css/modules/feedback.css` | 199 |
 | `css/modules/franqueado.css` | 1858 |
 | `css/modules/franqueado_effects.css` | 412 |
