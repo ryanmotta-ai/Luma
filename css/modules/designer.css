@@ -5421,3 +5421,7 @@ body.d-page-locked #d-canvas-container{
   min-width:15px;height:15px;padding-inline:4px;border-radius:var(--r-pill);
   background:var(--dm-orange);color:var(--on-orange);font-size:8.5px;font-weight:800;
   font-variant-numeric:tabular-nums;line-height:1}
+
+/* Alça de giro: sobe da borda superior, no centro; o arrasto vive em dStartRotate (layers.js). */
+.layer-handle.handle-rot{top:-36px;left:50%;margin-left:-12px;cursor:grab}
+.layer-handle.handle-rot:active{cursor:grabbing}

@@ -932,6 +932,8 @@ async function dExportSVG(opts){
       // Texto girado: em torno do centro da caixa, como o Canvas e o editor.
       if(frag && l.rotation) frag=`<g transform="rotate(${+l.rotation||0} ${l.x+l.w/2} ${l.y+l.h/2})">${frag}</g>`; }
     else if(l.type==='frame'||l.type==='image'){ const r=dSvgImage(l, dados, ++cid); defs+=r.defs; frag=r.body; }
+    // Giro de forma/imagem/moldura em torno do centro (texto e linha já giram no próprio ramo).
+    if(frag && l.rotation && l.type!=='text' && l.type!=='group' && !(l.type==='shape' && l.shapeKind==='line')) frag=`<g transform="rotate(${+l.rotation||0} ${l.x+l.w/2} ${l.y+l.h/2})">${frag}</g>`;
     // Efeitos (sombra projetada/interna, brilho ext/int, chanfro) via <filter>
     if(frag && (l.shadow||l.glow||l.innerShadow||l.innerGlow||l.bevel||_dSvgTracoImg(l))){ const fx=dSvgFx(l, ++cid); if(fx.attr){ defs+=fx.defs; frag=`<g${fx.attr}>${frag}</g>`; } }
     // máscara de camada → <mask type alpha> envolvendo o fragmento

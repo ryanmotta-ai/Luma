@@ -1559,7 +1559,20 @@ function dRenderCanvas(){
       }
     }
     dAppendFieldMapBadge(el,l);
+    // Giro de forma/imagem/moldura em torno do centro; texto gira no próprio ramo (acima) e a
+    // linha no ponto inicial. As alças vão dentro do `el`, então giram junto.
+    const _giravel=l.type!=='group'&&!(l.type==='shape'&&l.shapeKind==='line');
+    if(l.rotation&&_giravel&&l.type!=='text'){
+      el.style.transformOrigin='50% 50%';
+      el.style.transform=((el.style.transform||'')+' rotate('+(+l.rotation||0)+'deg)').trim();
+    }
     if(l.id===dSelId){
+      if(_giravel){
+        const r=document.createElement('div');r.className='layer-handle handle-rot';r.title='Girar (Shift = de 15 em 15°)';
+        if(l.locked){r.style.opacity='0.3';r.style.cursor='not-allowed';r.addEventListener('mousedown',e=>{e.stopPropagation();gToast('Camada bloqueada');});}
+        else r.addEventListener('mousedown',e=>{e.stopPropagation();dStartRotate(e,lReal);});
+        el.appendChild(r);
+      }
       ['br','bl','tr','tl'].forEach(pos=>{
         const h=document.createElement('div');h.className='layer-handle handle-'+pos;
         if(l.locked){h.style.opacity='0.3';h.style.cursor='not-allowed';h.addEventListener('mousedown',e=>{e.stopPropagation();gToast('Camada bloqueada');});}

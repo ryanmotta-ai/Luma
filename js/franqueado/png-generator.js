@@ -999,6 +999,15 @@ async function fRenderOneLayer(ctx, l, dados, scaleX, scaleY, molduraVazia){
   const w = Math.round((_layoutW||0) * scaleX);
   const h = Math.round(l.h * scaleY);
 
+  /* GIRO DA CAMADA (29/10/2026): forma, imagem e moldura giram em torno do centro da caixa —
+     o mesmo eixo do DOM do Estúdio e do SVG. Fora daqui, por motivo: texto gira no próprio
+     ramo (mede/encaixa na caixa SEM giro), linha gira no ponto inicial e grupo não tem
+     caixa própria. O ctx.save do topo desfaz o giro em todo caminho de saída. */
+  if(l.rotation && l.type!=='text' && l.type!=='group' && !(l.type==='shape' && l.shapeKind==='line')){
+    const _gcx=x+w/2, _gcy=y+h/2;
+    ctx.translate(_gcx,_gcy); ctx.rotate((+l.rotation||0)*Math.PI/180); ctx.translate(-_gcx,-_gcy);
+  }
+
   if(l.type === 'shape'){
     const _fill = l.fill || '#FF9000';
     const kind = l.shapeKind || 'rect';

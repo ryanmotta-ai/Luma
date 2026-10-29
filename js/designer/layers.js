@@ -359,6 +359,37 @@ function dStopResize(){
   document.removeEventListener('mouseup',dStopResize);
 }
 
+/* Alça de giro. O centro vem do getBoundingClientRect do próprio nó: o centro de uma caixa
+   girada em torno do centro não se move, então a conta independe do ângulo atual. O ângulo
+   0° é "alça para cima" (por isso +90°). Estado por ID, não por referência (undo troca o objeto). */
+let dRotId=null;
+function dStartRotate(e,l){
+  if(l.locked) return;
+  e.preventDefault();
+  dRotId=l.id;
+  dHistoryPush();
+  document.addEventListener('mousemove',dOnRotate);
+  document.addEventListener('mouseup',dStopRotate);
+}
+function dOnRotate(e){
+  const l=dLayers.find(x=>x.id===dRotId); if(!l) return;
+  const el=document.querySelector(`[data-id="${l.id}"]`); if(!el) return;
+  const r=el.getBoundingClientRect();
+  let a=Math.atan2(e.clientY-(r.top+r.height/2),e.clientX-(r.left+r.width/2))*180/Math.PI+90;
+  a=((a+180)%360+360)%360-180;                       // -180..180
+  a=e.shiftKey?Math.round(a/15)*15:Math.round(a*10)/10;
+  l.rotation=a;
+  el.style.transformOrigin='50% 50%';
+  el.style.transform='rotate('+a+'deg)';
+  const inp=document.getElementById('dp-rot'); if(inp) inp.value=a;
+}
+function dStopRotate(){
+  document.removeEventListener('mousemove',dOnRotate);
+  document.removeEventListener('mouseup',dStopRotate);
+  if(dRotId){ dMarkUnsaved(); if(typeof dRenderCanvas==='function') dRenderCanvas(); }
+  dRotId=null;
+}
+
 /* ── ADD LAYERS ── */
 // Tamanho da prancheta ATIVA (não o preset do formato): evita posicionar layers em
 // 1080x1920 quando a prancheta tem outro tamanho (ex.: PSD importado) e evita TypeError
@@ -1457,6 +1488,8 @@ function dShowProps(l){
   // Atualizar header de contexto
   document.getElementById('dp-x').value=l.x;document.getElementById('dp-y').value=l.y;
   document.getElementById('dp-w').value=l.w;document.getElementById('dp-h').value=l.h;
+  const _rotF=document.getElementById('dp-rot-field');
+  if(_rotF){_rotF.style.display=l.type==='group'?'none':'';document.getElementById('dp-rot').value=l.rotation||0;}
   const isText=l.type==='text',isImg=l.type==='image'||l.type==='frame',isShp=l.type==='shape',isAdj=l.type==='adjustment';
   if(typeof dRenderDadoControl==='function') dRenderDadoControl(l); // controle "Dado" (topo)
   if(isAdj){const _dd=document.getElementById('dp-dado');if(_dd)_dd.style.display='none';}
@@ -2334,7 +2367,7 @@ function _dFxStackSync(l,prop,val){
 }
 function dUpdateProp(prop,val){
   const l=dLayers.find(x=>x.id===dSelId);if(!l)return;
-  if(['x','y','w','h','fontSize','opacity','fillOpacity','radius','sides','points','strokeW','shadowBlur','shadowDist','shadowAngle','shadowSpread','shadowOpacity','innerShadowBlur','innerShadowDist','innerShadowAngle','innerShadowSpread','innerShadowOpacity','glowSize','textCurve'].includes(prop)){
+  if(['x','y','w','h','rotation','fontSize','opacity','fillOpacity','radius','sides','points','strokeW','shadowBlur','shadowDist','shadowAngle','shadowSpread','shadowOpacity','innerShadowBlur','innerShadowDist','innerShadowAngle','innerShadowSpread','innerShadowOpacity','glowSize','textCurve'].includes(prop)){
     // oninput dispara a cada tecla: campo momentaneamente vazio NÃO pode virar 0
     // (w=0/fontSize=0 fazia a camada sumir na hora e o 0 persistia no histórico)
     const _n=parseFloat(val);
@@ -2343,7 +2376,7 @@ function dUpdateProp(prop,val){
   }
   // Props editadas via oninput contínuo usam debounce — evita serializar dLayers a cada tecla.
   // Props de seleção discreta (font, textAlign, frameShape, etc.) usam push imediato.
-  const _continuousProps=['fontSize','opacity','fillOpacity','radius','color','fill','content','sides','points','strokeW','strokeColor','shadowColor','bgColor','imgScale','imgOffsetX','imgOffsetY','shadowBlur','shadowDist','shadowAngle','shadowSpread','shadowOpacity','innerShadowColor','innerShadowBlur','innerShadowDist','innerShadowAngle','innerShadowSpread','innerShadowOpacity','glowColor','glowSize','overlayColor','overlayOpacity','textCurve'];
+  const _continuousProps=['rotation','fontSize','opacity','fillOpacity','radius','color','fill','content','sides','points','strokeW','strokeColor','shadowColor','bgColor','imgScale','imgOffsetX','imgOffsetY','shadowBlur','shadowDist','shadowAngle','shadowSpread','shadowOpacity','innerShadowColor','innerShadowBlur','innerShadowDist','innerShadowAngle','innerShadowSpread','innerShadowOpacity','glowColor','glowSize','overlayColor','overlayOpacity','textCurve'];
   if(!['x','y','w','h'].includes(prop)){
     if(_continuousProps.includes(prop)) dHistoryPushDebounced();
     else dHistoryPush();

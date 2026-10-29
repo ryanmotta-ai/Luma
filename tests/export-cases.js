@@ -55,6 +55,25 @@
     assert(a(centro.fora,30-centro.x,16-centro.y)===0,'centro com 4px não passa de 2px por fora');
   });
 
+  /* Giro de forma/imagem (29/10/2026): antes só texto e linha giravam; o Estúdio passou a girar
+     qualquer camada. Barra horizontal 200×40 girada 90° em torno do centro tem que virar barra
+     vertical — o mesmo eixo que o DOM do Estúdio e o SVG usam. */
+  test('rotação gira forma e imagem em torno do centro da caixa',async()=>{
+    const c=document.createElement('canvas'); c.width=c.height=400;
+    const px=(x,y)=>c.getContext('2d').getImageData(x,y,1,1).data[3];
+    const barra={id:'b',type:'shape',shapeKind:'rect',x:100,y:180,w:200,h:40,fill:'#000',visible:true,opacity:100};
+    await fRenderOneLayer(c.getContext('2d'),barra,{},1,1);
+    assert(px(120,200)===255&&px(200,150)===0,'sem giro a barra deveria ser horizontal');
+    c.getContext('2d').clearRect(0,0,400,400);
+    await fRenderOneLayer(c.getContext('2d'),Object.assign({},barra,{rotation:90}),{},1,1);
+    assert(px(200,120)===255&&px(200,280)===255,'girada 90° a barra deveria ficar vertical (±80px do centro)');
+    assert(px(120,200)===0&&px(280,200)===0,'girada 90° nada sobra nas pontas horizontais');
+    const o=document.createElement('canvas'); o.width=o.height=20; const oc=o.getContext('2d'); oc.fillStyle='#000'; oc.fillRect(0,0,20,20);
+    c.getContext('2d').clearRect(0,0,400,400);
+    await fRenderOneLayer(c.getContext('2d'),{id:'i',type:'image',x:100,y:180,w:200,h:40,imgUrl:o.toDataURL(),objectFit:'fill',rotation:90,visible:true,opacity:100},{},1,1);
+    assert(px(200,120)===255&&px(120,200)===0,'imagem girada 90° deveria ficar vertical');
+  });
+
   /* Escala horizontal da letra (07/10/2026): o mesmo texto a 50% tem que DESENHAR com metade
      da largura, ancorado à esquerda — a medida (gTextScaleX) e o desenho são a mesma régua. */
   test('textScaleX desenha a letra condensada, ancorada no alinhamento',async()=>{
