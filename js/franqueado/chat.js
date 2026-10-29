@@ -2564,7 +2564,7 @@ function _fGiriaGarante(out, g){
 
 /* Sem franquia não há cidade — e sem cidade não há gírias: `fGiriasDaCidade` devolve [] e
    este painel nunca nasce. Em vez de sumir calado, o franqueado vê um cartão curto no MESMO
-   lugar, que abre o seletor obrigatório do login (`gFranquiaIniciar`). Assim a pergunta
+   lugar, que reabre o seletor do login (`gFranquiaIniciar`, que dá para pular). Assim a pergunta
    aparece no momento em que a falta dela faz diferença (a legenda), não só no login —
    e o caminho de erro deixa de ser silencioso. */
 function fCardFranquia(canvasId){
@@ -2586,8 +2586,13 @@ async function fCardFranquiaAbrir(canvasId){
   const card = document.querySelector('.cap-franquia');
   const btn = card ? card.querySelector('.cap-franquia-btn') : null;
   if(btn){ btn.disabled = true; btn.textContent = 'Abrindo…'; }
-  try{ if(typeof gFranquiaIniciar === 'function') await gFranquiaIniciar(); }catch(e){}
+  try{ if(typeof gFranquiaIniciar === 'function') await gFranquiaIniciar({ forcar:true }); }catch(e){}
   const fr = (typeof gMinhaFranquia === 'function') ? gMinhaFranquia() : null;
+  if(!fr && typeof gFranquiaPulou === 'function' && gFranquiaPulou()){
+    // Pulou de novo: não é erro, não há toast. O cartão continua lá para quando quiser.
+    if(btn){ btn.disabled = false; btn.textContent = 'Dizer minha franquia'; }
+    return;
+  }
   if(!fr){
     /* `gFranquiaIniciar` engole erro de rede/RPC de propósito (o boot não pode travar).
        Aqui o silêncio seria pior: a pessoa clicou para resolver e nada aconteceu. */
