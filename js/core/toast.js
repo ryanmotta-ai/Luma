@@ -59,7 +59,7 @@ function gToast(msg, type, helpTopic, opts){
 
   container.appendChild(item);
 
-  const duration = acao ? 7000 : 2800;
+  const duration = opts.duracao > 0 ? opts.duracao : (acao ? 7000 : 2800);   // duracao: aviso que precisa ficar mais tempo na tela
 
   // Configura a remoção com transição de fade-out
   setTimeout(() => {

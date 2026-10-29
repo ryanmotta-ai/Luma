@@ -430,6 +430,12 @@ async function fGenMP4(d, c, fmt, material, onProgresso){
 
 // O botão "Baixar vídeo" do card da arte. Mesmo funil do fBaixar: guard, snapshot da bolha,
 // folha nativa no celular, histórico e evento.
+/* Enquanto o MP4 renderiza, sair da aba/janela custa o vídeo: o navegador pausa o canvas em
+   segundo plano e fechar a aba joga o trabalho fora. Aviso ao começar + trava de saída. */
+let _fVideoRenderizando = false;
+function _fVideoAntesDeSair(e){ if(_fVideoRenderizando){ e.preventDefault(); e.returnValue = ''; return ''; } }
+window.addEventListener('beforeunload', _fVideoAntesDeSair);
+
 async function fBaixarVideo(btn, snapId){
   if(typeof gFeatureCan === 'function' && !gFeatureCan('franqueado.export.video', 'execute')){
     if(typeof gFeatureBlockedFeedback === 'function') gFeatureBlockedFeedback('franqueado.export.video');
@@ -439,6 +445,8 @@ async function fBaixarVideo(btn, snapId){
     || { dados: fState.dados, camp: fState.camp, fmt: fState.fmt, histId: fState._lastHistId, material: fState.material };
   const restore = gBtnLoading(btn, 'Gerando vídeo…');
   const rotulo = btn && btn.querySelector('span:last-child');
+  _fVideoRenderizando = true;
+  gToast('Gerando o vídeo — não saia desta janela até terminar.', undefined, undefined, { duracao: 8000 });
   try{
     const { blob, fname } = await fGenMP4(snap.dados, snap.camp, snap.fmt, snap.material || fState.material,
       p => { if(rotulo) rotulo.textContent = 'Gerando vídeo… ' + Math.round(p * 100) + '%'; });
@@ -469,5 +477,5 @@ async function fBaixarVideo(btn, snapId){
     if(typeof gHandleLayoutUnsafeError === 'function' && gHandleLayoutUnsafeError(e)) return;
     gToast(e && e.code === 'LUMA_VIDEO_UNSUPPORTED' ? 'Este navegador não gera vídeo. Use o Chrome, o Edge ou o Safari atualizados.'
       : e && e.code === 'LUMA_IMAGE_UNAVAILABLE' ? e.message : 'Não consegui gerar o vídeo. Tente de novo.', 'error');
-  }finally{ restore(); }
+  }finally{ _fVideoRenderizando = false; restore(); }
 }
