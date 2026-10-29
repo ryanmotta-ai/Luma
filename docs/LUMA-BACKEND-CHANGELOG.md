@@ -1300,3 +1300,9 @@ miniaturas e nome, estado vazio, usar (dataURL + prévia), salvar (caminho e pay
 
 **Front.** Cidade com 3+ concorrentes (429 na base, 45 operadas — ex.: Tupã, 4) deixou de bloquear o slide: usa o multiplicador do maior nível da planilha (×1,45) e avisa. A busca aceita "Tupã - SP", "Tupã/SP" e "tupa, sp". `?v=352`.
 
+
+## 2026-10-29 (noite) — Franquias: cidades da Base Ops no "Qual é a sua franquia?"
+
+**Migration:** `20261029180000_luma_franquias_base_ops.sql` (já aplicada em `xqsazcazsjxajmtmirzd`). O pop-up de primeiro acesso (`gFranquiaIniciar`) só lista `luma.franquias` com `status = 'ativa'` e `codigo` preenchido (RPC `franquias_para_escolha`); só 42 cidades estavam lá, então o franqueado de Tupã/SP (e de outras) recebia "Escolha uma franquia da lista". Entraram **43 franquias** da aba "Base Ops OUT.26" (Operação Ongoing + Implementação) que ainda não existiam — `codigo = <cidade>-<uf>`, `nome = cidade`. Total agora: 85.
+
+**Decisões.** "Operação Própria" (17 cidades) ficou de fora: não tem franqueado e cada cidade a mais é chance de escolha errada, que só a gestão desfaz. Já existia (mesmo `codigo` ou mesma cidade+UF)? Não duplica — conferido: zero duplicadas. `lat`/`lon` ficaram nulos: só servem ao "Usar minha localização"; digitar o nome funciona.
