@@ -1306,3 +1306,12 @@ miniaturas e nome, estado vazio, usar (dataURL + prévia), salvar (caminho e pay
 **Migration:** `20261029180000_luma_franquias_base_ops.sql` (já aplicada em `xqsazcazsjxajmtmirzd`). O pop-up de primeiro acesso (`gFranquiaIniciar`) só lista `luma.franquias` com `status = 'ativa'` e `codigo` preenchido (RPC `franquias_para_escolha`); só 42 cidades estavam lá, então o franqueado de Tupã/SP (e de outras) recebia "Escolha uma franquia da lista". Entraram **43 franquias** da aba "Base Ops OUT.26" (Operação Ongoing + Implementação) que ainda não existiam — `codigo = <cidade>-<uf>`, `nome = cidade`. Total agora: 85.
 
 **Decisões.** "Operação Própria" (17 cidades) ficou de fora: não tem franqueado e cada cidade a mais é chance de escolha errada, que só a gestão desfaz. Já existia (mesmo `codigo` ou mesma cidade+UF)? Não duplica — conferido: zero duplicadas. `lat`/`lon` ficaram nulos: só servem ao "Usar minha localização"; digitar o nome funciona.
+
+## 2026-10-29 (noite) — Acesso restrito a uma área (Aladim só vê o Potencial)
+
+**Migration:** `20261029190000_luma_acesso_restrito.sql`. Cria `luma.acesso_restrito (user_id, area)` — quem deve ver **só** uma área (hoje só `'potencial'`) — e marca a conta do Aladim (`aladim.santos@deliverymuch.com.br`). RLS: cada pessoa lê a própria linha; só a gestão escreve.
+
+**Front.** `gAreaRestrita()` (`js/core/auth.js`) lê a linha no login; com ela, `gIsAdmin()` passa a ser `false` (some Estúdio, Dados, Console e as demais superfícies da equipe, ~73 pontos, sem tocar em cada um) e `gModeAllowed`/`setMode` (`js/main.js`) só abrem a área liberada — logo, F5 e console incluídos, sem toast de "indisponível". Sem a linha, nada muda.
+
+**⚠ É navegação, não segurança.** A role dele segue `equipe_dm`: a RLS ainda deixa essa conta fazer o que `is_designer()` deixa (ex.: gravar template pela API). Falha ao ler a tabela = menu completo (fail-open). Endurecer = descontar quem está nesta tabela do `is_designer()` e republicar o Apps Script (que confere a role em `profiles`).
+

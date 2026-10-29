@@ -46,17 +46,23 @@ function _gCreativeRole(){ return typeof gCurrentRole==='function' && G_CREATIVE
 function gModeAllowed(m){
   // Áreas removidas não voltam por cache antigo nem por uma flag legada do banco.
   if(m!=='franqueado' && m!=='designer' && m!=='video' && m!=='creative' && m!=='potencial') return false;
+  // Acesso restrito (luma.acesso_restrito): só a própria área abre; o resto nem aparece na barra.
+  const _rest = (typeof gAreaRestrita==='function') ? gAreaRestrita() : null;
+  if(_rest && m!==_rest) return false;
   if(m==='creative' && !_gCreativeRole()) return false;
   // Estúdio e Vídeo são ferramentas da equipe. O Vídeo por um motivo extra: é
   // desktop-only e exporta em tempo real — o celular do franqueado não dá conta.
-  if((m==='designer' || m==='video' || m==='potencial') && (typeof gIsAdmin!=='function' || !gIsAdmin())) return false;
+  if((m==='designer' || m==='video') && (typeof gIsAdmin!=='function' || !gIsAdmin())) return false;
+  // O Potencial é da equipe — ou de quem foi liberado SÓ para ele.
+  if(m==='potencial' && !_rest && (typeof gIsAdmin!=='function' || !gIsAdmin())) return false;
   if(typeof gFeatureCan!=='function') return true;   // sem o motor, nada muda
   return gFeatureCan(G_MODE_FEATURE[m]||'', 'access');
 }
 
 // Primeiro modo que esta pessoa pode abrir agora. null = nenhum.
 function gFirstAllowedMode(){
-  return ['franqueado','designer','video'].find(gModeAllowed) || null;
+  // `potencial` por último: quem tem só ele (acesso restrito) cai nele; os demais seguem abrindo no Franqueado.
+  return ['franqueado','designer','video','potencial'].find(gModeAllowed) || null;
 }
 
 /* Todos os módulos desligados: em vez de deixar o app numa tela em branco (que
@@ -107,8 +113,11 @@ function gGoHome(){
 function setMode(m){
   if(m!=='franqueado' && m!=='designer' && m!=='video' && m!=='creative' && m!=='potencial') m='franqueado';
   if(m==='creative' && !_gCreativeRole()) m='franqueado';
+  // Acesso restrito: qualquer caminho (logo, F5, console) cai na única área liberada, sem toast de "indisponível".
+  const _restM = (typeof gAreaRestrita==='function') ? gAreaRestrita() : null;
+  if(_restM) m=_restM;
   // Gate por role: franqueado NÃO acessa o Estúdio (trava no clique e via DOM/console).
-  if((m==='designer' || m==='video' || m==='potencial') && (typeof gIsAdmin!=='function' || !gIsAdmin())) m='franqueado';
+  if((m==='designer' || m==='video') && (typeof gIsAdmin!=='function' || !gIsAdmin())) m='franqueado';
   // Gate por flag. Vem DEPOIS do gate de role e cobre todo caminho de entrada:
   // clique na aba, chamada pelo console e estado restaurado de sessão anterior.
   if(!gModeAllowed(m)){
@@ -133,7 +142,11 @@ function setMode(m){
   if(m==='creative' && _trocouArea && typeof crEntrar==='function') crEntrar(tabCreative);
   const tabPot=document.getElementById('tab-potencial');
   if(tabPot) tabPot.classList.toggle('active', m==='potencial');
-  if(m==='potencial' && _trocouArea && typeof potEntrar==='function') potEntrar();
+  if(m==='potencial'){
+    // A vitrine do franqueado (f-home-mode) fica por cima de qualquer outra view se não for dispensada.
+    if(typeof fExitHome==='function') fExitHome();
+    if(_trocouArea && typeof potEntrar==='function') potEntrar();
+  }
 
   dUpdateTabPill();
 
