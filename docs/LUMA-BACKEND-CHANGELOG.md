@@ -6,6 +6,35 @@
 
 ---
 
+## 2026-10-29 — Aqui tem cupons: 10 rodadas de refino nas 10 artes + "Cupom com regras" nova, a partir de referência (✅ dados, sem migration)
+
+Pedido do Pedro: (1) disparar as rodadas de refino das 10 artes de cupom publicadas ontem; (2) fazer um cupom novo com uma referência que ele mandou (bilhete "ficha": desconto em cima, código herói, regras embaixo; fundo de facetas laranja com linhas brancas).
+
+- **Refino**: cada arte passou por um revisor (Sonnet, esforço alto) com 10 rodadas — render real, nota na rubrica de 12 critérios, correção. Todas aprovadas (média 9,5–9,6). A rodada 1 provou que o build reproduzia o publicado antes de mexer. Mudanças de execução, sem trocar a ideia de nenhuma arte: grade e ritmo em múltiplos de 8, escala do herói, alinhamento óptico pela tinta, zona segura do story. Destaques: a validade da "Desconto em destaque" entrou no bilhete; o "CUPOM" gigante da "Cupom tipográfico" ficou com mordida de 15 %; a "Como usar o cupom" ganhou a camada `l-a06-codigo-longo` (código > 8 caracteres usa corpo menor); "sem desconto + código de 16" deixou de bloquear na "Foto no prato".
+- **Atualização no lugar** (`update … set layers`): cada um dos 20 templates ganhou a **versão 2**; a versão 1 (a de 28/10) ficou em `template_versions`.
+- **Nova — "Aqui tem cupons — Cupom com regras"** (campos `cupom` 16, `desconto` 16, `regras` 72), publicada: feed `6840a17b-4a65-4b77-ba62-66f53a2f3a15` · story `b131ec2f-380a-44df-a282-c9ee3f0ff9de`. Adaptação da referência: o bilhete original leva tudo no miolo, alinhado à esquerda (desconto a ½ do corpo do código — a proporção da referência e o que evita o piso da família —, filete, código, filete do PNG, regras); fundo #FF9000 com facetas #F85400 e linhas brancas em chevron; logo DM e "peça pelo app" nas facetas. O bilhete não foi recolorido para o amarelo da referência.
+- **Portão independente** (`verificar.js`, matriz inteira, feed e story, nas 11): **284 renders, zero bloqueio**. md5 das 22 layers gravadas = o aprovado. Não abri o app logado.
+- Limite conhecido (de todas as artes com desconto): "R$ 5 off" **sem centavos** (8 caracteres) cai na regra de percentual — o chat normaliza para "R$ 5,00 off", então só acontece se o campo for editado fora do chat.
+
+**Reverter o refino** (volta à versão de 28/10): `select luma.restaurar_versao('<versão 1>')` para cada template:
+
+| Arte | Feed (v1) | Story (v1) |
+|---|---|---|
+| Desconto em destaque | `e2e12ab4-8cce-4cc6-8ba3-8bf9a4e2b708` | `a66c51df-75c6-494f-92ae-6d952b40c9b9` |
+| Cupom com foto em arco | `8d6ef3cf-dd1f-44d4-88b6-033dbe589e01` | `4b184ce0-3779-4893-aff5-0fdec4e02b03` |
+| Cupom tipográfico | `453a60fb-4d8a-40d1-9133-053c8b1d7ffa` | `636d4131-262f-4be8-8733-ef2b7bfa2dd8` |
+| Cupom na diagonal | `bf587cf2-e899-47e7-b0c2-29e8c1f211be` | `02b87b00-1830-40de-a382-4ec707a29bc8` |
+| Cupom da loja | `887b8bcd-03d1-4f51-92dc-a418b291565d` | `6db3ae4a-06d9-4d5e-8637-46037bd05d18` |
+| Como usar o cupom | `f88f9e96-c0c6-4bc1-ab80-8f92192227bd` | `2c583feb-9f67-40d7-b551-798a34e827d6` |
+| Cupom no app | `04f32a9a-b3a4-45e7-8b35-3a76750e47de` | `a1d99c8a-5f5e-4268-a942-bb1a892a593a` |
+| Chuva de cupons | `490415dd-8a6c-4ceb-850a-d72d2105e410` | `4bd34c4a-fd0a-4df5-be69-40e99a67fd79` |
+| Cupom com foto no prato | `601356d3-4f17-4860-b1dd-4c5d7cb27e42` | `d6e38aa1-5c7e-4735-b69c-29235f92c15b` |
+| Vale-cupom | `a40417be-3148-4220-a80b-2ff5f97be268` | `863e21eb-8314-4727-bed8-16d28d5819f8` |
+
+**Tirar a nova do ar**: `update luma.templates set publicado=false where id in ('6840a17b-4a65-4b77-ba62-66f53a2f3a15','b131ec2f-380a-44df-a282-c9ee3f0ff9de');`
+
+---
+
 ## 2026-10-29 — Black Bumerangue: badge da pasta vira "BLACK FRIDAY" e liga o tema exclusivo da campanha (✅ dado, sem migration)
 
 Pedido do Ryan: tema exclusivo ao entrar na pasta da Black Bumerangue, no molde do Much+ (tokens de cor, header, véu de entrada). O tema de campanha liga pelo **badge da pasta** (`_fCampThemeOf`, `js/franqueado/materials.js`) — `luma.pastas` **não tem** coluna `theme` e não foi criada. O front passou a mapear badge com "BLACK" → tema `black`.
