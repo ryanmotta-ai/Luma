@@ -6,6 +6,30 @@
 
 ---
 
+## 2026-10-29 — Black Bumerangue (Black Friday 2026): pasta nova com 5 artes, feed + story, publicadas (✅ dados, sem migration)
+
+Pedido do Ryan: subir no Luma as artes da campanha "Black Bumerangue — Pedido que vai, cupom que volta", desenhadas e aprovadas no canvas do Claude Design e traduzidas para camadas do motor.
+
+Pasta **"Black Bumerangue"** `16d3f194-7c66-4a5a-9b02-ddc5cba15947`: `cor #F85400`, `camp_id` nulo (como "Aniversário Delivery Much"), badge NOVO, `expira_dias 32`, destaque, capa `assets/covers/bb.png`. 10 templates, feed + story com o mesmo nome (o app vincula), `validade 2026-11-30`, todos na versão 1.
+
+| Arte ("Black Bumerangue — …") | Campos | Feed | Story |
+|---|---|---|---|
+| Oferta ingresso (De/Por, bilhete) | produto, detalhes, descricao, precoDe, precoPor, validade, foto_produto, logo_loja | `0dc6e147-3bc3-4e11-93d8-128b5d759c36` | `dd1bc1e8-800a-4460-9203-9084a82d34eb` |
+| Oferta mordida (De/Por, foto cheia) | os mesmos | `69d6cd4c-4f8b-409e-a7e0-181769f6bf6b` | `c5729b3e-0199-4c37-92af-7fb6ecc98f1f` |
+| Capa do carrossel ("Ofertas da Black") | validade | `2a6338ed-be34-4044-bec1-a96950f24da7` | `c6f63594-062e-46a2-bf8b-72cbd340097e` |
+| Cupom | cupom, desconto, validade | `b6166321-8493-4227-a15a-d86ef39ab0ae` | `b207815f-2652-400e-8d3a-49bcf58d7f29` |
+| Lojas participantes (até 4) | loja_1..4, logo_loja_1..4 | `d771d088-61cc-4bf0-956d-96c36fd7fd32` | `0fba20fb-c177-4508-add9-c78b626c1e8b` |
+
+- **Fontes só Realce e Roboto.** Selo, bumerangue e cupom são PNG pré-girados (`65f79b9`, `assets/campanhas/black-bumerangue/`), porque o motor só gira texto; bilhete, ondas do cupom e mordida da foto são geometria vetorial.
+- **Vazios desenhados**: sem preço → "PEÇA NO APP"; sem "DE" → o preço sobe; sem detalhes → a descrição sobe; desconto em reais (> 9 caracteres) troca para `R$…`; sem desconto → "É PRA VOCÊ"; com 3 ou 2 lojas a grade recentra (`shiftX/shiftY`).
+- **`luma.variaveis`**: novo `descricao` (texto, opcional, 72, categoria produto). Sem ele o campo cairia como **obrigatório** para todo franqueado.
+- **Testado no motor real (`render.js`)**: título longo, sem DE, sem preço, sem detalhes, preço de 3 dígitos, 5 %/100 %/R$, desconto vazio, código longo, 3 e 2 lojas, feed e story. O md5 das 10 layers gravadas é igual ao do aprovado. Não abri o app logado.
+- Capa da pasta (`4ec98b3`): `assets/covers/bb.png`, 1500×900, no padrão das outras (selo no centro, logo DM embaixo).
+
+**Reverter**: tirar do ar sem perder nada → `update luma.pastas set ativa=false where id='16d3f194-7c66-4a5a-9b02-ddc5cba15947';` (ou `update luma.templates set publicado=false where pasta_id='16d3f194-7c66-4a5a-9b02-ddc5cba15947';`). Apagar de vez (só com pedido) → `delete from luma.templates where pasta_id='16d3f194-7c66-4a5a-9b02-ddc5cba15947'; delete from luma.pastas where id='16d3f194-7c66-4a5a-9b02-ddc5cba15947';`. O campo `descricao` pode ficar (é opcional).
+
+---
+
 ## 2026-10-28 — Aqui tem cupons: 10 artes novas de cupom, feed + story, publicadas (✅ dados, sem migration)
 
 Pedido do Pedro: refazer as artes da pasta "Aqui Tem Cupons" em **10 artes de cupom diferentes**, mantendo o bilhete original, o estilo tipográfico, a logo e os laranjas `#F85400`/`#FF9000`, e subir no banco. As 3 originais (`12295543…`, `95b198ac…`, `33852494…`) **não foram tocadas**.
