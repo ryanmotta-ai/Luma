@@ -22,7 +22,7 @@
 | Fluxo "arte de preço" | `ARTE.md` + `REFINO-15.md` | ✅ **prompt** `arte_de_preco` |
 | Ler templates do catálogo (`luma.templates`) | Supabase, protegido por **RLS** | ✅ **`luma_templates_listar`**, **`luma_template_ler`**, `template_id` em `luma_render`/`luma_estresse` (somente leitura) |
 | Gravar/publicar template | Supabase + changelog + reversão (`arte/BANCO.md`) | ⏳ fase 2, **sempre com confirmação humana** |
-| Importar PSD → layers | `psd-parse.js` (agPsd **no navegador**) | ⏳ fase 2: mesmo harness, página nova |
+| Importar PSD → layers + PNG por prancheta | `psd-parse.js` (agPsd **no navegador**) | ✅ **`luma_psd_importar`** (harness `ferramentas/psd.html`, mesmo caminho do Estúdio) |
 | Interpolar `{{campo}}` / catálogo de variáveis | `gInterpolate` (`00-config.js`), `luma.variaveis` | já embutido no `luma_render`; tool própria só se pedirem |
 | Story animado (MP4), PDF, Instagram/WhatsApp | `motion.js`, `png-generator.js` | ❌ fora do escopo (ação do franqueado, não do estúdio) |
 
@@ -60,6 +60,7 @@ Requisitos: **Node ≥ 22** (WebSocket nativo) e Google Chrome/Chromium (ou `CHR
 | `luma_estresse` | igual ao `luma_render` | resumo das 7 variantes + PNG da primeira com problema |
 | `luma_templates_listar` | `busca`, `fmt`, `publicado`, `limite` | id, nome, formato, pasta, publicado |
 | `luma_template_ler` | `id` | metadados + layers (JSON) |
+| `luma_psd_importar` | `psd` (caminho absoluto), `saida?`, `pranchetas?` | PNG da Luma e composto do Photoshop por prancheta, `layers.json`, resumo (ocultas e erros marcados) |
 | `luma_bloco` | `bloco`, `args[]` (sem `bloco` lista os disponíveis) | JSON de layer(s) pronto para `layers` |
 | `luma_medir` | `cmd` (`bordas`/`cor`/`paleta`/`caixa`), `png`, `args[]` | texto com a medida |
 
@@ -75,6 +76,6 @@ Requisitos: **Node ≥ 22** (WebSocket nativo) e Google Chrome/Chromium (ou `CHR
 
 ## 6. Próximos passos sugeridos
 - [x] Fase 2a: `luma_templates_listar/ler` (Supabase, login do usuário) — **ainda não testado com login real**; testado só o caminho sem login.
-- [ ] Fase 2b: `luma_psd_importar` (harness com `psd-parse.js`).
+- [x] Fase 2b: `luma_psd_importar` — testado com `01_Banners/Materiais Consultores.psd` (20 MB, 4 pranchetas, ~7 s). Não roda a bateria de fidelidade; só exporta.
 - [ ] Fase 2c: ferramenta de publicação com confirmação + changelog (`arte/BANCO.md`).
 - [ ] Decidir hospedagem para uso do Ateliê em produção (item 3/4).

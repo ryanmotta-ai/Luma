@@ -79,6 +79,32 @@ async function renderMuitos(jobs,lim=4){
   return out;
 }
 
+/* Importa um PSD no motor do Estúdio e devolve, por prancheta, PNGs (composto do Photoshop + render da Luma) e as layers.
+   Grava tudo em `saida`. O PSD é servido por symlink (nada trafega pelo CDP). */
+async function importarPsd(psdPath,saida){
+  const e=await motor(), nome='p'+process.pid+'_'+(++SEQ), link=path.join(e.dir,nome+'.psd');
+  fs.symlinkSync(path.resolve(psdPath),link);
+  const {targetId}=await e.browser.send('Target.createTarget',{url:'about:blank'});
+  let page; try{
+    page=await cdp(`ws://127.0.0.1:${e.cdpPort}/devtools/page/${targetId}`);
+    await page.send('Page.navigate',{url:`http://127.0.0.1:${e.port}/psd.html`});
+    const ev=async ex=>{ const r=await page.send('Runtime.evaluate',{expression:ex,awaitPromise:true,returnByValue:true}); if(r.exceptionDetails) throw new Error(r.exceptionDetails.exception&&r.exceptionDetails.exception.description||'erro na página'); return r.result.value; };
+    for(let t=0;t<200&&!(await ev('typeof window.__psdRodar')==='function'&&await ev('1'));t++){ if(await ev("typeof window.__psdRodar")==='function') break; await new Promise(r=>setTimeout(r,100)); }
+    const out=JSON.parse(await ev(`window.__psdRodar(${JSON.stringify('/'+nome+'.psd')})`));
+    if(!out.ok) throw new Error(out.erro);
+    fs.mkdirSync(saida,{recursive:true});
+    const slug=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\w.-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)||'prancheta';
+    for(let i=0;i<out.boards.length;i++){ const b=out.boards[i], base=String(i+1).padStart(2,'0')+'-'+slug(b.nome); b.arquivos={};
+      for(const k of ['luma','ref']){ const d=await ev(`window.__img(${i},'${k}')`); if(d){ const f=path.join(saida,base+(k==='luma'?'.png':'.photoshop.png')); fs.writeFileSync(f,Buffer.from(d.replace(/^data:image\/png;base64,/,''),'base64')); b.arquivos[k]=f; } }
+      const L=await ev(`JSON.stringify(window.__psdRes.layers[${i}])`); const lf=path.join(saida,base+'.layers.json'); fs.writeFileSync(lf,L); b.arquivos.layers=lf; }
+    return out;
+  } finally {
+    if(page) page.close();
+    try{ await e.browser.send('Target.closeTarget',{targetId}); }catch(x){}
+    try{ fs.unlinkSync(link); }catch(x){}
+  }
+}
+
 function fechar(){
   if(!estado) return; const e=estado; estado=null;
   try{e.browser.close();}catch(x){} try{e.proc.kill('SIGKILL');}catch(x){} try{e.server.close();}catch(x){}
@@ -86,4 +112,4 @@ function fechar(){
 }
 process.on('exit',fechar);
 for(const s of ['SIGTERM','SIGINT','SIGHUP']) process.on(s,()=>process.exit(0)); /* SIGTERM não dispara 'exit' sozinho: sem isto o Chrome fica órfão */
-module.exports={render,renderMuitos,fechar};
+module.exports={render,renderMuitos,importarPsd,fechar};

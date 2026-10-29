@@ -65,6 +65,16 @@ const TOOLS={
     async run(a){ if(!UUID.test(a.id||'')) throw new Error('id inválido'); const [t]=await banco.ler('templates',`id=eq.${a.id}&select=id,nome,fmt,w,h,bg,publicado,permissoes,instrucoes,layers`);
       if(!t) return {isError:true,content:[{type:'text',text:'Template não encontrado. '+banco.SEM_ACESSO}]};
       const {layers,...meta}=t; return {content:[{type:'text',text:JSON.stringify(meta)+'\n\nlayers ('+layers.length+'):\n'+JSON.stringify(layers)}]}; }},
+  luma_psd_importar:{
+    description:'Importa um .psd pelo MESMO importador do Estúdio (psd-parse.js) e exporta PNG de cada prancheta: o render da Luma (<nn>-<nome>.png, tamanho nativo) e, quando a prancheta está dentro da área do documento, o composto do Photoshop (<nn>-<nome>.photoshop.png) para comparar. Também grava as layers (<nn>-<nome>.layers.json) prontas para luma_render. Não grava nada no banco. Pranchetas ocultas vêm marcadas.',
+    inputSchema:{type:'object',required:['psd'],properties:{psd:{type:'string',description:'caminho absoluto do .psd'},saida:{type:'string',description:'pasta de saída (padrão: <pasta do psd>/<nome>-luma-png)'},pranchetas:{type:'array',items:{type:'integer'},description:'números (1…N) das pranchetas a devolver como imagem na resposta; padrão: as 3 primeiras. Todas são gravadas em disco.'}}},
+    async run(a){ const psd=path.resolve(String(a.psd||'')); if(!/\.psd$/i.test(psd)) throw new Error('`psd` deve ser um caminho absoluto de arquivo .psd');
+      let st; try{st=fs.statSync(psd);}catch(e){ throw new Error('arquivo não encontrado: '+psd); } if(!st.size) throw new Error('o arquivo está vazio (0 bytes) — o download/cópia foi interrompido; baixe de novo');
+      const saida=a.saida?path.resolve(a.saida):path.join(path.dirname(psd),path.basename(psd,path.extname(psd))+'-luma-png');
+      const o=await motor.importarPsd(psd,saida);
+      const linhas=o.boards.map((b,i)=>`${i+1}. ${b.nome} · ${b.w}×${b.h}${b.oculta?' · OCULTA':''} · ${b.camadas??'?'} camadas${b.erro?' · ERRO: '+b.erro.split('\n')[0]:''}${b.arquivos.ref?'':' · sem composto do Photoshop'}\n   ${b.arquivos.luma||'(sem PNG)'}`);
+      const quais=(a.pranchetas&&a.pranchetas.length?a.pranchetas:[1,2,3]).filter(n=>o.boards[n-1]&&o.boards[n-1].arquivos.luma);
+      return {content:[{type:'text',text:`${o.boards.length} prancheta(s) · ${Math.round(o.res)} ppi · pasta: ${saida}\n`+linhas.join('\n')}].concat(quais.map(n=>({type:'image',data:fs.readFileSync(o.boards[n-1].arquivos.luma).toString('base64'),mimeType:'image/png'})))}; }},
   luma_bloco:{
     description:'Monta UM bloco de layer(s) com a biblioteca oficial (arte/ferramentas/lib.js). Sem `bloco`, lista os blocos disponíveis. Devolve o JSON pronto para entrar em `layers`.',
     inputSchema:{type:'object',properties:{bloco:{type:'string',description:'rect, text, img, foto, logoLoja, banner, selo, preco, seloSerrilhado, sparkle, star, rotarGrupo, descricaoComSem, ticket, ticketRot'},args:{type:'array',description:'Argumentos posicionais da função (ver assinatura em lib.js)',items:{}}}},

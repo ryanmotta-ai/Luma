@@ -1,0 +1,64 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="css/03-fonts.css">
+<style>body{margin:0}</style></head><body>
+<script src="js/00-config.js"></script>
+<script src="js/core/img-store.js"></script>
+<script src="js/core/layout.js"></script>
+<script src="js/core/auto-layout.js"></script>
+<script src="js/core/local-fit.js"></script>
+<script src="js/core/toast.js"></script>
+<script src="js/designer/blending.js"></script>
+<script src="js/designer/fonts.js"></script>
+<script>
+/* shim do harness (a mesma função do designer/canvas.js, que não carrego aqui) — ver harness.html */
+function dTextFontParts(fv){
+  const raw=String(fv||'');
+  if(raw.startsWith('custom:')){ const fam=raw.slice(7);
+    const cf=(typeof dCustomFonts!=='undefined'&&dCustomFonts)?dCustomFonts.find(f=>f.family===fam):null;
+    const bf=(typeof dBuiltinFonts!=='undefined'&&dBuiltinFonts)?dBuiltinFonts.find(f=>f.family===fam):null;
+    return {family:`'${fam}', 'Roboto', sans-serif`, weight:(cf&&cf.weight)||(bf&&bf.weight)||400, custom:true, familyName:fam}; }
+  const s=raw.toLowerCase(), explicit=raw.match(/,\s*(\d{3})$/);
+  if(explicit) return {family:"'Roboto', sans-serif", weight:parseInt(explicit[1],10)};
+  return {family:"'Roboto', sans-serif", weight:(s.includes('black')||s.includes('realce'))?900:(s.includes('bold')?700:400)};
+}
+</script>
+<script src="js/franqueado/png-generator.js"></script>
+<script src="js/designer/psd-parse.js"></script>
+<script src="js/designer/psd-import.js"></script>
+<script>
+/* Lê um PSD pelo MESMO caminho do Estúdio (_dPsdReadPsd → dPsdParseItems → dPsdItemsToLayers) e, por prancheta,
+   guarda: o composto do Photoshop recortado (referência) e o render da Luma (fRenderTemplateLayers). Resultado em
+   window.__psd (índices); as imagens saem sob demanda por __img(i,'ref'|'luma') para não estourar uma resposta só. */
+window.__psdRes=null;
+window.__img=(i,k)=>{ const c=window.__psdRes.cv[i][k]; return c?c.toDataURL('image/png'):''; };
+window.__psdRodar=async function(url){
+  try{
+    await Promise.all(["900 80px Realce","700 20px Roboto","900 20px Roboto","400 20px Roboto"].map(f=>document.fonts.load(f))).catch(()=>{});
+    const agPsd=await dLoadAgPsd(), buf=await (await fetch(url)).arrayBuffer();
+    const r=await _dPsdReadPsd(buf,agPsd); if(r.error) throw r.error; if(r.cancelled) throw new Error('leitura cancelada');
+    const psd=r.psd, res=r.res||72, abs=(psd.children||[]).filter(c=>c&&c.artboard&&c.artboard.rect);
+    const boards=abs.length?abs.map((ab,i)=>{ const q=ab.artboard.rect, L=Math.round(q.left||0), T=Math.round(q.top||0);
+        return {name:(ab.name||('Prancheta '+(i+1))).toString(),oculta:!!ab.hidden,left:L,top:T,w:Math.max(1,Math.round(q.right-q.left)),h:Math.max(1,Math.round(q.bottom-q.top)),children:ab.children||[]}; })
+      :[{name:'Documento',oculta:false,left:0,top:0,w:psd.width,h:psd.height,children:psd.children||[]}];
+    const meta=[], cv=[], layers=[];
+    for(const b of boards){
+      let ref=null; const src=psd.canvas;
+      /* mesma regra do Estúdio (_dPsdRefCanvas): prancheta fora da área do doc recorta branco puro — sem referência */
+      const ix=src?Math.max(0,Math.min(src.width,b.left+b.w)-Math.max(0,b.left)):0, iy=src?Math.max(0,Math.min(src.height,b.top+b.h)-Math.max(0,b.top)):0;
+      if(src&&src.width&&ix*iy>=b.w*b.h*0.98&&!b.oculta){ ref=document.createElement('canvas'); ref.width=b.w; ref.height=b.h; ref.getContext('2d').drawImage(src,b.left,b.top,b.w,b.h,0,0,b.w,b.h); }
+      const item={nome:b.name,oculta:b.oculta,w:b.w,h:b.h,temRef:!!ref};
+      try{
+        const items=dPsdParseItems({children:b.children,width:b.w,height:b.h},res,b.left,b.top);
+        const L=dPsdItemsToLayers(items,false,{w:b.w,h:b.h}); item.camadas=L.length;
+        const c=document.createElement('canvas'); c.width=b.w; c.height=b.h; const ctx=c.getContext('2d');
+        window.fState={material:{w:b.w,h:b.h,layers:L,bg:'transparent'},dados:{},camp:{id:'t',color:'#FF9000'},fmt:{id:'feed'}};
+        await fRenderTemplateLayers(ctx,L,b.w,b.h,{},{id:'t',color:'#FF9000'},window.fState.material,{scope:'franqueado',purpose:'export'});
+        cv.push({ref,luma:c}); layers.push(L);
+      }catch(e){ item.erro=String(e&&e.stack||e).slice(0,400); cv.push({ref,luma:null}); layers.push([]); }
+      meta.push(item);
+    }
+    window.__psdRes={meta,cv,layers,res};
+    return JSON.stringify({ok:true,res,boards:meta});
+  }catch(e){ return JSON.stringify({ok:false,erro:String(e&&e.stack||e)}); }
+};
+</script></body></html>
