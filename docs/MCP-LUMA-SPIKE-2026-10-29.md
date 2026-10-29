@@ -28,13 +28,13 @@
 
 ## 3. Arquitetura do PoC
 ```
-agente (Claude Code / Desktop / Ateliê) ──stdio JSON-RPC──▶ mcp/luma-mcp.js
-                                                             │ execFile
-                                                             ▼
-                                   render.js ─▶ serve.js (symlinks js/ css/ assets/) ─▶ Chromium headless ─▶ harness.html
+agente (Claude Code / Desktop / Ateliê) ──stdio JSON-RPC──▶ mcp/luma-mcp.js ──▶ mcp/motor.js
+                                                                                     │ CDP (WebSocket nativo do Node)
+                                   serve.js (symlinks js/ css/ assets/) ◀──────────── ▼
+                                                      Chromium headless PERSISTENTE ─▶ 1 aba por render ─▶ harness.html
                                                                                               └─ fRenderTemplateLayers + Local Fit
 ```
-- Cada chamada usa arquivos temporários próprios (`os.tmpdir()/luma-mcp-*`), limpos na saída.
+- O Chrome sobe na 1ª chamada e fica de pé; cada render abre uma aba e a fecha. Até 4 abas em paralelo (o estresse roda as 7 variantes juntas). Ao fechar o cliente (ou SIGTERM) o Chrome é derrubado. Medido: 1º render ~4 s, seguintes ~0,5–0,9 s, estresse de 7 variantes ~3 s (antes ~1 min).
 - `INVÁLIDA` no retorno = o Local Fit bloquearia o franqueado; é o mesmo critério do portão de arte.
 - `render.js` ganhou o caminho do Chrome do macOS (antes só achava `chromium` no PATH).
 
@@ -42,7 +42,7 @@ agente (Claude Code / Desktop / Ateliê) ──stdio JSON-RPC──▶ mcp/luma-
 ```bash
 claude mcp add luma -- node "/caminho/para/Luma/mcp/luma-mcp.js"
 ```
-Requisitos: Node ≥ 18 e Google Chrome/Chromium (ou `CHROME=/caminho`). Cada render leva ~5–10 s (Chromium sobe a cada chamada).
+Requisitos: **Node ≥ 22** (WebSocket nativo) e Google Chrome/Chromium (ou `CHROME=/caminho`).
 
 ## 4. Documentação das ferramentas
 
@@ -59,7 +59,7 @@ Requisitos: Node ≥ 18 e Google Chrome/Chromium (ou `CHROME=/caminho`). Cada re
 ## 5. Riscos e decisões abertas (para o Ryan)
 1. **Segurança (fase 2).** RLS é a única fronteira. Um MCP que lê/grava templates precisa rodar com o **JWT do usuário** (nunca service role em arquivo). Decisão: login por token do designer em variável de ambiente?
 2. **Escrita no banco.** Recomendo manter "proposta ≠ aplicar": o MCP gera e renderiza; gravar em `luma.templates` só com ferramenta separada e confirmação explícita.
-3. **Latência/escala.** Chromium por chamada serve ao estúdio e a agentes; para uso em massa (Ateliê no servidor) o caminho é um Chromium persistente ou transporte HTTP (edge function não roda Canvas — exigiria um worker com Chromium).
+3. **Escala.** Chromium persistente já resolve estúdio e agentes (feito). Para uso em massa no servidor (Ateliê) o caminho é transporte HTTP num worker com Chromium (edge function não roda Canvas).
 4. **Transporte remoto.** stdio cobre máquinas dos designers e do Time de IA. MCP remoto (HTTP) fica para quando houver um serviço hospedado; não existe hoje (`02_ARCHITECTURE`: sem servidor de aplicação).
 5. **Fontes e assets.** `assets/` relativo funciona no harness; foto do franqueado exige URL `http(s)`/`data:`.
 

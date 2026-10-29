@@ -9,20 +9,16 @@ const fs=require('fs'), os=require('os'), path=require('path'), cp=require('chil
 const REPO=path.resolve(__dirname,'..');
 const FERR=path.join(REPO,'.claude/skills/luma/arte/ferramentas');
 const L=require(path.join(FERR,'lib.js'));
-const TMP=fs.mkdtempSync(path.join(os.tmpdir(),'luma-mcp-'));
-let SEQ=0;
+const motor=require('./motor.js');
 
 /* ---------- ferramentas ---------- */
 const run=(args)=>new Promise(ok=>cp.execFile('node',args,{timeout:180000,maxBuffer:1<<26},(e,so,se)=>ok({code:e?(e.code||1):0,out:String(so||''),err:String(se||'')})));
 const jobDe=a=>{ if(!Array.isArray(a.layers)||!a.layers.length) throw new Error('`layers` (array de layers do Luma) é obrigatório');
   return L.job(a.layers,{W:a.W||1080,H:a.H||1350,fmt:a.fmt,dados:a.dados||{}}); };
-async function renderJobs(jobs){ /* jobs = [[nome, job]] */
-  const id='r'+process.pid+'_'+(++SEQ), out=path.join(TMP,id); fs.mkdirSync(out,{recursive:true});
-  const files=jobs.map(([n,j])=>{ const f=path.join(out,id+'-'+n+'.json'); fs.writeFileSync(f,JSON.stringify(j)); return f; });
-  const r=await run([path.join(FERR,'render.js'),...files,'--out',out]);
-  const res=jobs.map(([n])=>{ const b=path.join(out,id+'-'+n); const png=fs.existsSync(b+'.png')?fs.readFileSync(b+'.png').toString('base64'):null;
-    let fit={}; try{fit=JSON.parse(fs.readFileSync(b+'.fit.json','utf8'));}catch(e){} return {nome:n,png,fit}; });
-  return {res,log:r.out.trim()||r.err.trim()};
+/* jobs = [[nome, job]] → [{nome,png,fit,err}]. Chrome persistente (motor.js): abas em paralelo, sem subir navegador a cada chamada. */
+async function renderJobs(jobs){
+  const r=await motor.renderMuitos(jobs.map(j=>j[1]));
+  return {res:jobs.map(([n],i)=>({nome:n,png:r[i].png||null,fit:r[i].fit||{},err:r[i].err})),log:r.map(x=>x.err).filter(Boolean).join(' | ')};
 }
 const resumoFit=(n,f)=>`${n}: ${f.status||'?'}${f.invalid?' · INVÁLIDA (o franqueado seria bloqueado)':''}`+((f.campos||[]).filter(c=>c.status!=='fits'&&c.status!=='vazio').map(c=>` · ${(c.nomes||[c.id]).join('+')}:${c.status}`).join(''));
 
@@ -96,4 +92,4 @@ async function handle(m){
 }
 let buf=''; process.stdin.setEncoding('utf8');
 process.stdin.on('data',c=>{ buf+=c; let i; while((i=buf.indexOf('\n'))>=0){ const ln=buf.slice(0,i).trim(); buf=buf.slice(i+1); if(!ln) continue; let m; try{m=JSON.parse(ln);}catch(e){ fail(null,-32700,'JSON inválido'); continue; } handle(m); } });
-process.on('exit',()=>{ try{fs.rmSync(TMP,{recursive:true,force:true});}catch(e){} });
+process.stdin.on('end',()=>process.exit(0)); /* cliente fechou: derruba o Chrome junto (motor.js limpa no exit) */
