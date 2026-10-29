@@ -104,6 +104,8 @@ async function gFranquiaIniciar(opts){
   const role = (typeof gCurrentRole === 'function') ? gCurrentRole() : null;
   if(await gFranquiaCarregar()) return;
   if(role !== 'franqueado') return;
+  // Acesso restrito (luma.acesso_restrito): a pessoa só vê uma área e não é franqueada de verdade — sem a pergunta.
+  if(typeof gAreaRestrita === 'function' && gAreaRestrita()) return;
   const u = (typeof gCurrentUser === 'function') ? gCurrentUser() : null;
   if(!(opts && opts.forcar)){
     try{ if(u && sessionStorage.getItem(G_FRANQUIA_PULOU_KEY) === u.id){ _gFrPulou = true; return; } }catch(e){}

@@ -123,10 +123,16 @@ franqueado (o Quick Add em linguagem natural existiu e saiu em 03/09).
 
 | Quero mexer em… | Vai em |
 |---|---|
-| A conta (investimento, 3 cenários, avisos) | `js/potencial/potencial.js` (`potCalcular` — o motor ÚNICO; tela e slide leem o mesmo objeto) |
-| Os textos que vão para o slide (`{{placeholders}}`) | `js/potencial/potencial.js` (`potCamposSlide`) + o deck-modelo no Google Slides |
-| Tarifa, IPCA, ticket, cenários, URL do gerador | tabelas `luma.potencial_*` (RLS) — nunca no JS |
+| A conta (investimento, cenários, projeção de 24 meses) | `js/potencial/motor.js` (`potCalcular`, `potModelo24` — o motor ÚNICO; tudo lê o mesmo objeto) |
+| Os textos que vão para o slide (`{{placeholders}}`) | `js/potencial/motor.js` (`potCamposSlide`) + o deck-modelo no Google Slides |
+| A tela, a busca, as premissas, gerar slide | `js/potencial/potencial.js` |
+| Os gráficos (GMV mensal, caixa acumulado) | `js/potencial/graficos.js` (SVG puro) |
+| Comparar cidades, slides em lote | `js/potencial/comparar.js` |
+| Histórico de propostas | `js/potencial/historico.js` + `luma.potencial_propostas` |
+| Editar tarifa, faixa, cadastrar cidade (só gestão) | `js/potencial/tarifas.js` |
+| Tarifa, IPCA, ticket, deltas, URL do gerador | tabelas `luma.potencial_*` (RLS) — nunca no JS |
 | Copiar o deck e trocar o texto | `scripts/apps-script/potencial-slides.gs` (Apps Script publicado como Web App) |
+| Quem só vê o Potencial | `luma.acesso_restrito` + `gAreaRestrita()` (`js/core/auth.js`) |
 | Estilo | `css/modules/potencial.css` |
 
 ### Visual
@@ -272,7 +278,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 95 arquivos JS (86.985 linhas, 3.366 funções) · 34 arquivos CSS (34.065 linhas) · `index.html` com 4.115 linhas e 85 `<script>`.
+**Tamanho real de hoje:** 100 arquivos JS (87.865 linhas, 3.428 funções) · 34 arquivos CSS (34.276 linhas) · `index.html` com 4.107 linhas e 90 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -357,7 +363,7 @@ CONTROLE DO PRODUTO — o motor único de disponibilidade funcional do Luma.
 Consulta da equipe no painel da conta, carregada sob demanda. A RLS e a RPC autorizam os dados; gIsAdmin é apenas o gate da interface.
 · Depende de: core/auth.js, core/supabase.js, core/toast.js.
 
-**`js/core/franquia.js`** · 139 linhas
+**`js/core/franquia.js`** · 141 linhas
 LUMA — A franquia de quem está logado (30/09/2026 · pulável desde 29/10/2026) luma.franquias + luma.usuario_franquias existem desde 23/09, mas quase ninguém estava vinculado:
 · API: gMinhaFranquia, gFranquiaPulou, gFranquiaCarregar, gFranquiaMaisPerto, gFranquiaIniciar
 · Estado global: _gFranquia, _gFrPulou
@@ -764,11 +770,37 @@ MAKING-OF da arte (frente 6, 15/10/2026; microações em 15/10, pedido do Ryan) 
 
 ### js/potencial
 
-**`js/potencial/potencial.js`** · 323 linhas
-POTENCIAL DA CIDADE (29/10/2026) — a "Calculadora de Franquias 2026" do Aladim dentro do Luma.
-· API: potFaixaPara, potTeto50, potCalcular, potNumero, potBRL, potBRL2, potPct, potMeses, potLerNumero, potCarregar, potBuscarCidades, potCamposSlide, potGerarSlide, potEntrar … (+8; 24 funções no total)
+**`js/potencial/comparar.js`** · 142 linhas
+POTENCIAL — comparar cidades e gerar slides em lote (v2, 30/10/2026).
+· API: potComparaAdd, potComparaPoe, potComparaTira, potComparaContador, potRenderComparar, potAbrirNoCalcular, potComparaLimpa, potComparaBusca, potComparaLista, potComparaPrimeira, potComparaEscolhe, potComparaLote
+· Estado global: _potCRes, _potCSeq, _potCTimer
+· Depende de: motor.js, potencial.js (estado `_pot`, potBuscarCidades, potChamaGerador, potRegistrarProposta).
+
+**`js/potencial/graficos.js`** · 168 linhas
+POTENCIAL — gráficos em SVG puro (v2, 30/10/2026). Sem biblioteca: o Luma não tem build. Duas séries do MESMO modelo de 24 meses, empilhadas e com o eixo X compartilhado — nunca num eixo duplo (GMV na casa das centenas de…
+· API: potGraficoGMV, potGraficoCaixa, potProjecaoHTML, potLigaProjecao, potTabelaMeses
+· Depende de: potencial/motor.js (potBRL, potBRLc, potNumero).
+
+**`js/potencial/historico.js`** · 64 linhas
+POTENCIAL — o histórico de propostas (v2, 30/10/2026). Cada slide gerado fica em `luma.potencial_propostas` (quem, qual cidade, com quais ajustes, quais números, o link). Cada pessoa vê as próprias; a gestão vê todas (RLS…
+· API: potRenderHistorico, potCarregaHistorico, potReabrir
+· Depende de: motor.js, potencial.js (`_pot`, `_potSb`, `potAba`, `potEscolherCidade`).
+
+**`js/potencial/motor.js`** · 223 linhas
+POTENCIAL DA CIDADE — o MOTOR (v2, 30/10/2026). Puro: sem DOM, sem rede, sem estado. ⛔ UM motor. Tela (potencial.js), gráficos (graficos.js), comparação, histórico e o slide leem o MESMO objeto devolvido por `potCalcular`. Se…
+· API: potFaixaPara, potTeto50, potModelo24, potCalcular, potResumo, potNumero, potBRL, potBRL2, potBRLc, potPct, potMeses, potLerNumero, potCamposSlide
+· Depende de: nada (puro). Carregar antes de potencial.js e graficos.js.
+
+**`js/potencial/potencial.js`** · 495 linhas
+POTENCIAL DA CIDADE — a tela (v2, 30/10/2026). A "Calculadora de Franquias 2026" do Aladim dentro do Luma. A equipe comercial escolhe a cidade, vê investimento, os 3 cenários e a projeção de 24 meses com os mesmos números da…
+· API: potCarregar, potBuscarCidades, potCidadePorChave, potCidadesDaRede, potRecentes, potLembra, potEntrar, potMontar, potAba, potBuscaDigita, potRenderLista, potBuscaTecla, potBuscaFecha, potEscolher … (+23; 43 funções no total)
 · Estado global: _pot
-· Depende de: core/supabase.js (window.sb), core/toast.js (gToast/gEsc/gNormBusca),
+· Depende de: motor.js, graficos.js, core/supabase.js (window.sb), core/toast.js (gToast/gEsc/gNormBusca/gBtnLoading),
+
+**`js/potencial/tarifas.js`** · 109 linhas
+POTENCIAL — Tarifas (só a gestão, v2, 30/10/2026). Edita na tela o que antes exigia SQL: os parâmetros (IPCA, multiplicadores, tickets, deltas…), as 37 faixas de população e o cadastro de uma cidade que não está na base (hoje…
+· API: potRenderTarifas, potLinhaParametro, potSalvaParametro, potSalvaFaixa, potCadastraCidade
+· Depende de: motor.js, potencial.js (`_pot`, `_potSb`, `potCarregar`, `potRecalcula`).
 
 ## CSS — onde mora cada folha
 
@@ -803,7 +835,7 @@ POTENCIAL DA CIDADE (29/10/2026) — a "Calculadora de Franquias 2026" do Aladim
 | `css/modules/layers-panel.css` | 4530 |
 | `css/modules/live-preview.css` | 1759 |
 | `css/modules/panel-dock.css` | 116 |
-| `css/modules/potencial.css` | 102 |
+| `css/modules/potencial.css` | 313 |
 | `css/modules/publish-modal.css` | 628 |
 | `css/modules/toolbar.css` | 1090 |
 | `css/modules/topbar.css` | 217 |
@@ -854,51 +886,56 @@ A ordem **é** a arquitetura: sem ESM, um arquivo depende de o anterior já ter 
 38. js/creative/copy.js
 39. js/creative/harness.js
 40. js/creative/making-of.js
-41. js/potencial/potencial.js
-42. js/designer/canvas.js
-43. js/designer/selection.js
-44. js/designer/brush.js
-45. js/designer/eraser-tools.js
-46. js/designer/layers.js
-47. js/designer/props-panel.js
-48. js/designer/measurement.js
-49. js/designer/publish.js
-50. js/designer/preview.js
-51. js/designer/library.js
-52. js/designer/undo-redo.js
-53. js/widgets/novidades.js
-54. js/widgets/help-widget.js
-55. js/designer/tools.js
-56. js/designer/fonts.js
-57. js/designer/psd-parse.js
-58. js/designer/psd-import.js
-59. js/designer/mask.js
-60. js/designer/tutorial-panel.js
-61. assets/vendor/colorthief.js
-62. assets/vendor/pica.js
-63. assets/vendor/jszip.min.js
-64. assets/vendor/supabase.js
-65. js/core/supabase-config.js
-66. js/core/supabase.js
-67. js/core/ai/ai-cache.js
-68. js/core/ai/ai-telemetry.js
-69. js/core/ai/ai-schemas.js
-70. js/core/ai/ai-registry.js
-71. js/core/ai/ai-client.js
-72. js/core/ai.js
-73. js/core/ai/ai-provedores.js
-74. js/core/auth.js
-75. js/core/franquia.js
-76. js/franqueado/feedback.js
-77. js/core/feature-flags.js
-78. js/core/user-profile.js
-79. js/core/product-control.js
-80. js/core/dados.js
-81. js/core/console.js
-82. js/designer/color-picker.js
-83. js/designer/tooltip.js
-84. js/designer/linter.js
-85. js/main.js
+41. js/potencial/motor.js
+42. js/potencial/graficos.js
+43. js/potencial/potencial.js
+44. js/potencial/comparar.js
+45. js/potencial/historico.js
+46. js/potencial/tarifas.js
+47. js/designer/canvas.js
+48. js/designer/selection.js
+49. js/designer/brush.js
+50. js/designer/eraser-tools.js
+51. js/designer/layers.js
+52. js/designer/props-panel.js
+53. js/designer/measurement.js
+54. js/designer/publish.js
+55. js/designer/preview.js
+56. js/designer/library.js
+57. js/designer/undo-redo.js
+58. js/widgets/novidades.js
+59. js/widgets/help-widget.js
+60. js/designer/tools.js
+61. js/designer/fonts.js
+62. js/designer/psd-parse.js
+63. js/designer/psd-import.js
+64. js/designer/mask.js
+65. js/designer/tutorial-panel.js
+66. assets/vendor/colorthief.js
+67. assets/vendor/pica.js
+68. assets/vendor/jszip.min.js
+69. assets/vendor/supabase.js
+70. js/core/supabase-config.js
+71. js/core/supabase.js
+72. js/core/ai/ai-cache.js
+73. js/core/ai/ai-telemetry.js
+74. js/core/ai/ai-schemas.js
+75. js/core/ai/ai-registry.js
+76. js/core/ai/ai-client.js
+77. js/core/ai.js
+78. js/core/ai/ai-provedores.js
+79. js/core/auth.js
+80. js/core/franquia.js
+81. js/franqueado/feedback.js
+82. js/core/feature-flags.js
+83. js/core/user-profile.js
+84. js/core/product-control.js
+85. js/core/dados.js
+86. js/core/console.js
+87. js/designer/color-picker.js
+88. js/designer/tooltip.js
+89. js/designer/linter.js
+90. js/main.js
 ```
 
 <!-- AUTO-FIM -->

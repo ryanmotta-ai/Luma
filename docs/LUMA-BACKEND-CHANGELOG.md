@@ -1315,3 +1315,16 @@ miniaturas e nome, estado vazio, usar (dataURL + prévia), salvar (caminho e pay
 
 **⚠ É navegação, não segurança.** A role dele segue `equipe_dm`: a RLS ainda deixa essa conta fazer o que `is_designer()` deixa (ex.: gravar template pela API). Falha ao ler a tabela = menu completo (fail-open). Endurecer = descontar quem está nesta tabela do `is_designer()` e republicar o Apps Script (que confere a role em `profiles`).
 
+## 2026-10-30 — Potencial v2: projeção de 24 meses, histórico, tarifas editáveis e trava de verdade
+
+**Migration:** `20261030100000_luma_potencial_v2.sql` (**ainda não aplicada**: o MCP do Supabase pediu confirmação ao usuário e ela não chegou; rodar no SQL Editor depois de `20261029190000_luma_acesso_restrito.sql`). Idempotente.
+
+- **Parâmetros novos** (`on conflict do nothing`): `ticket_medio` (70), `ticket_apresentacao` (45), `parcelas_taxa`, `mkt_apos_mes5`, `delta_mkt`, `delta_ongoing`, `nfe`, `inadimplencia`, `inadimplencia_todos_meses`, `mkt_franqueadora_pct`. Sem eles a tela não calcula a projeção e diz quais faltam — nenhuma alavanca de negócio fica no JS.
+- **`luma.pode_potencial()`** — motor único de "usa o Potencial": `is_designer()` OU linha em `luma.acesso_restrito` (`area='potencial'`) com conta ativa. As 3 policies de leitura (`potencial_faixas/parametros/cidades`) passam a usá-la.
+- **`luma.potencial_propostas`** — histórico (cidade, ajustes, resumo, `slide_url`). RLS: lê quem usa o Potencial e é o dono (ou `gestao`); grava só em nome próprio; só `gestao` apaga.
+- **Trava de verdade (passo manual, em ordem):** 1) aplicar as duas migrations; 2) republicar o Apps Script v2 (autoriza pela RLS, não pela role); 3) `update public.profiles set role='franqueado' where email='aladim.santos@deliverymuch.com.br'`. Antes do passo 2 não trocar a role: o script antigo confere `profiles.role`.
+
+**Front.** Módulo em 6 arquivos `js/potencial/`: `motor.js` (conta pura, `potCalcular` + `potModelo24`), `graficos.js` (SVG: GMV mensal e caixa acumulado, eixo X compartilhado, nunca eixo duplo), `potencial.js` (casca, busca com teclado, Calcular, gerar slide), `comparar.js` (até 4 cidades + slides em lote), `historico.js`, `tarifas.js` (só `gestao`). Tela em largura total (`css/modules/potencial.css`). `gAreaRestrita()` não pergunta a franquia.
+
+**Verificação.** Motor × planilha: 264 células (24 meses × 11 linhas, Ariquemes), maior diferença 0,000047. UI exercitada no Chromium com `window.sb` simulado: busca por teclado, ajustes (concorrentes 2→1 = R$ 93.800; 1→0 = R$ 82.250), gerar + registro da proposta, comparar, lote, histórico/reabrir, Tarifas (upsert), celular. **Não** exercitado: migrations no banco real, Apps Script v2 publicado, as 3 roles contra a RLS nova.
+

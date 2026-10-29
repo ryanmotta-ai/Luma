@@ -324,17 +324,23 @@ Se uma proposta contradiz qualquer item abaixo, ela está **errada** — reveja 
 
 O Creative (hoje só gestão, em testes) gasta IA a cada arte, então tem **cota diária**: **20 artes por dia por franqueado**; gestão e equipe_dm **sem limite** (o uso deles só é contado). "Arte" = uma geração completa, inclusive "Outras opções". O modelo **Rápido** gasta 1; **Capaz** (e os outros) gastam 2. O dia vira à meia-noite de Brasília. O franqueado escolhe entre Rápido e Capaz; a equipe vê a lista toda. Geração que não entrega (erro ou "parar") **é devolvida**. A regra mora no banco (`luma_creative_limite`) — mudar o 20 é uma função, não um deploy de front. Detalhe técnico e o que falta para ligar para o franqueado: `docs/LUMA-BACKEND-CHANGELOG.md` (14/10/2026).
 
-## Potencial da cidade — a calculadora comercial (29/10/2026)
+## Potencial da cidade — a calculadora comercial (v1 29/10/2026 · v2 30/10/2026)
 
-A "Calculadora de Franquias 2026" (planilha do Aladim) virou a aba **Potencial** do Luma, **só para a equipe DM**. Escolhe-se a cidade, vê-se os 3 cenários e o botão gera o slide "Estudo de potencial" no Google Slides.
+A "Calculadora de Franquias 2026" (planilha do Aladim) virou a aba **Potencial** do Luma, **só para a equipe DM** (e para quem a gestão liberar SÓ para ela, em `luma.acesso_restrito` — hoje o Aladim). Escolhe-se a cidade; a tela mostra o investimento, os 3 cenários e a projeção de 24 meses; o botão gera o slide "Estudo de potencial" no Google Slides e a proposta fica no histórico.
 
-- **Investimento total** = taxa de franquia (a negociada da cidade, senão a da faixa de população) + marketing de lançamento `CEILING(base da faixa × (1 + IPCA) × multiplicador de concorrentes, 50)`.
-- **Concorrentes:** a planilha só tem multiplicador para 0, 1 e 2. Com 3 ou mais ela devolvia `FALSE` (somava como zero, subestimando o investimento). 429 cidades da base têm 3+, 45 delas já operadas pela DM (ex.: Tupã, 4). Decisão de 29/10: vale o multiplicador do maior nível conhecido (×1,45), com aviso na tela. ⚠ Regra assumida — confirmar com o comercial.
-- **Cidades com operação DM** (aba Base Ops OUT.26, 100 cidades): `operacao_modelo`/`operacao_fase` em `luma.potencial_cidades`; a tela avisa "já tem operação aqui" e não bloqueia.
-- **Cenários:** 2% / 20% / 35% da população viram usuários (`ROUND`); GMV = usuários × ticket do cenário (região × 0,975 / 1 / 1,025); receita do franqueado = GMV × comissão × % do franqueado.
-- ⚠ **Lucro líquido anual, payback e ROI não estão na planilha.** Foram reconstruídos dos números do slide do Aruanã: lucro = receita × 12 × (1 − Simples), payback = investimento ÷ (lucro ÷ 12), ROI = lucro ÷ investimento. Se o comercial usar outra regra, muda `potCalcular` (`js/potencial/potencial.js`). Pendente de confirmação do Aladim.
-- Cidade marcada "não vender" na base: avisa, não bloqueia.
-- Tarifas em `luma.potencial_*` (RLS), nunca no JS. Detalhe: `docs/LUMA-BACKEND-CHANGELOG.md` (29/10/2026).
+**O que a planilha confirma (a conta é a dela, célula a célula):**
+- **Investimento total** = taxa de franquia (a negociada da cidade, senão a da faixa de população) + marketing de lançamento `CEILING(base da faixa × (1 + IPCA) × multiplicador de concorrentes, 50)`. Aba Calculadora C5/C6/C8.
+- **Cenários** (aba **Cenários**): usuários = população × 2% / 20% / 35% — **sem arredondar** na conta; GMV = usuários × ticket (× 0,975 / 1 / 1,025); receita = GMV × comissão × % do franqueado; **lucro anual = receita × 12 × (1 − Simples 6%)**; **payback = ROUND(investimento ÷ (lucro ÷ 12))**; **ROI = lucro ÷ investimento**. (Na v1 eu havia reconstruído isto do slide do Aruanã; a aba Cenários confirmou.)
+- **Projeção de 24 meses** (aba Calculadora, linhas 26–50), reproduzida em `potModelo24` com diferença < R$ 0,0001 em 264 células (24 meses × 11 linhas, Ariquemes): marketing do franqueado = lançamento ÷ 5 nos meses 1–5, depois 15% da comissão do mês anterior; marketing da franqueadora = 50% da taxa ÷ 3 nos meses 1–3; GMV do investimento = marketing total × delta (3 nos meses 1–5, 4 do 6 em diante); **GMV total acumula** (a planilha não tem perda de base); comissão 12%; NFe 5,65%; receita líquida = comissão do mês anterior − NFe − inadimplência; repasse = receita líquida × 50%; saldo = repasse − marketing do franqueado − taxa; payback = primeiro mês em que o caixa acumulado volta a zero depois do fundo do poço.
+- **Royalties (1,35%)** aparecem na planilha mas não entram no caixa do franqueado. Seguimos igual.
+
+**Regras assumidas ou a confirmar com o comercial (a tela lista em "Regras e fontes"):**
+- **Ticket médio.** Três números convivem na planilha: **R$ 70** (aba Calculadora C13, fonte Getnet/Ticket 2025 + IPCA, e o rodapé da aba Cenários), **R$ 45** (digitado nas células da aba Cenários e no slide antigo do Aruanã) e o **regional** da aba Automação (R$ 60–74, inacabada). O padrão da v2 é o R$ 70, com os outros dois como atalho. ⚠ Confirmar.
+- **3 ou mais concorrentes:** a planilha só tem multiplicador para 0, 1 e 2 e devolvia `FALSE` acima disso (somava como zero). 429 cidades têm 3+, 45 delas operadas pela DM (ex.: Tupã, 4). Decisão de 29/10: vale o multiplicador do maior nível conhecido (×1,45), com aviso. ⚠ Confirmar.
+- **Inadimplência:** a planilha aplica 2% só no mês 2 (a referência da fórmula "anda" para células vazias). Seguimos a planilha; `inadimplencia_todos_meses` = true aplica todo mês. ⚠ Parece erro da planilha; confirmar.
+- Cidade marcada "não vender" na base ou já operada pela DM (`operacao_fase`, aba Base Ops OUT.26, 100 cidades): a tela avisa e não bloqueia.
+
+**Onde mora cada coisa:** tarifas, tickets, deltas e URL do gerador em `luma.potencial_*` (RLS), **nunca no JS** (público); a gestão edita na aba **Tarifas** (e cadastra cidade que falta). Histórico em `luma.potencial_propostas` (cada um vê as suas; a gestão vê todas). Quem usa: `luma.pode_potencial()` (equipe DM ou `acesso_restrito`). ⚠ `acesso_restrito` sozinho é **navegação**; a trava real no banco vem com a migration `20261030100000` + a role do Aladim voltando a `franqueado`. Detalhe: `docs/LUMA-BACKEND-CHANGELOG.md` (29 e 30/10/2026).
 
 ## Ver também
 

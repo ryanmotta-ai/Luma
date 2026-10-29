@@ -3,7 +3,8 @@
  *
  * O Luma (js/potencial/potencial.js) manda um POST com o token do Supabase de quem clicou e os
  * textos já formatados ({cidade_uf:'Aruanã - GO', real_gmv:'R$ 76.464', …}). Este script:
- *   1. confere o token no Supabase e exige role equipe_dm/gestao + conta ativa;
+ *   1. confere o token no Supabase e deixa passar só quem a RLS deixa LER as tarifas do Potencial
+ *      (luma.pode_potencial(): equipe DM, ou quem foi liberado só para ele em luma.acesso_restrito);
  *   2. copia o deck-modelo (Google Slides) para a pasta de destino;
  *   3. troca cada {{chave}} pelo valor;
  *   4. dá acesso de editor a quem clicou e devolve {ok:true, url} — o Luma abre o link.
@@ -32,7 +33,7 @@ function doPost(e) {
     };
     if (!cfg.template || !cfg.supaUrl || !cfg.supaKey) return _json({ ok: false, erro: 'Gerador sem configuração: faltam propriedades do script.' });
 
-    var quem = _equipe(cfg, corpo.token);
+    var quem = _autorizado(cfg, corpo.token);
     if (!quem) return _json({ ok: false, erro: 'Sem permissão. Entre de novo no Luma com uma conta da equipe.' });
 
     var campos = corpo.campos || {};
@@ -59,19 +60,20 @@ function doPost(e) {
   }
 }
 
-// Valida o JWT no próprio Supabase (GoTrue) e lê o profile com o MESMO token — a RLS decide.
-function _equipe(cfg, token) {
+// Valida o JWT no próprio Supabase (GoTrue) e pergunta ao BANCO, com o MESMO token, se a pessoa lê as tarifas
+// do Potencial. A regra de quem pode vive numa policy só (luma.pode_potencial); este script não repete role
+// nenhuma — por isso dá para trocar a role do Aladim para `franqueado` sem republicar nada aqui.
+// Antes da migration 20261030100000 a policy ainda era is_designer(): equipe DM também passa. Mesma porta.
+function _autorizado(cfg, token) {
   if (!token) return null;
   var cab = { apikey: cfg.supaKey, Authorization: 'Bearer ' + token };
   var u = UrlFetchApp.fetch(cfg.supaUrl + '/auth/v1/user', { headers: cab, muteHttpExceptions: true });
   if (u.getResponseCode() !== 200) return null;
   var usuario = JSON.parse(u.getContentText());
-  var id = usuario.id;
-  var p = UrlFetchApp.fetch(cfg.supaUrl + '/rest/v1/profiles?id=eq.' + encodeURIComponent(id) + '&select=role,ativo', { headers: cab, muteHttpExceptions: true });
-  if (p.getResponseCode() !== 200) return null;
-  var linhas = JSON.parse(p.getContentText());
-  var perfil = linhas[0];
-  return perfil && perfil.ativo !== false && (perfil.role === 'equipe_dm' || perfil.role === 'gestao') ? { id: id, email: usuario.email } : null;
+  var tarifas = UrlFetchApp.fetch(cfg.supaUrl + '/rest/v1/potencial_parametros?select=chave&limit=1', {
+    headers: { apikey: cfg.supaKey, Authorization: 'Bearer ' + token, 'Accept-Profile': 'luma' }, muteHttpExceptions: true });
+  if (tarifas.getResponseCode() !== 200) return null;
+  return JSON.parse(tarifas.getContentText()).length ? { id: usuario.id, email: usuario.email } : null;
 }
 
 function _json(obj) {
