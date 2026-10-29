@@ -272,7 +272,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 95 arquivos JS (86.851 linhas, 3.362 funções) · 34 arquivos CSS (33.999 linhas) · `index.html` com 4.115 linhas e 85 `<script>`.
+**Tamanho real de hoje:** 95 arquivos JS (86.860 linhas, 3.362 funções) · 34 arquivos CSS (33.999 linhas) · `index.html` com 4.115 linhas e 85 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -764,7 +764,7 @@ MAKING-OF da arte (frente 6, 15/10/2026; microações em 15/10, pedido do Ryan) 
 
 ### js/potencial
 
-**`js/potencial/potencial.js`** · 304 linhas
+**`js/potencial/potencial.js`** · 313 linhas
 POTENCIAL DA CIDADE (29/10/2026) — a "Calculadora de Franquias 2026" do Aladim dentro do Luma.
 · API: potFaixaPara, potTeto50, potCalcular, potNumero, potBRL, potBRL2, potPct, potMeses, potLerNumero, potCarregar, potBuscarCidades, potCamposSlide, potGerarSlide, potEntrar … (+8; 24 funções no total)
 · Estado global: _pot
