@@ -105,6 +105,21 @@ async function importarPsd(psdPath,saida){
   }
 }
 
+/* Monta uma grade de PNGs (base64) com rótulos num PNG só — o estresse vira UMA imagem de revisão. */
+async function grade(itens,colunas=4,larg=360){
+  const e=await motor(), {targetId}=await e.browser.send('Target.createTarget',{url:'about:blank'}); let page;
+  try{
+    page=await cdp(`ws://127.0.0.1:${e.cdpPort}/devtools/page/${targetId}`);
+    const js=`(async(it,cols,w)=>{const im=await Promise.all(it.map(i=>new Promise((ok,no)=>{const x=new Image();x.onload=()=>ok(x);x.onerror=()=>no(new Error('imagem inválida'));x.src='data:image/png;base64,'+i.png;})));
+      const hs=im.map(x=>Math.round(x.height*w/x.width)), rows=Math.ceil(im.length/cols), rh=Math.max(...hs)+34, c=document.createElement('canvas'); c.width=cols*(w+12)+12; c.height=rows*rh+12;
+      const g=c.getContext('2d'); g.fillStyle='#e9e5ee'; g.fillRect(0,0,c.width,c.height); g.font='700 18px sans-serif';
+      im.forEach((x,k)=>{const px=12+(k%cols)*(w+12), py=12+Math.floor(k/cols)*rh; g.fillStyle=it[k].cor||'#222'; g.fillText(it[k].rotulo,px,py+18); g.drawImage(x,px,py+28,w,hs[k]);});
+      return c.toDataURL('image/png').split(',')[1];})(${JSON.stringify(itens)},${colunas},${larg})`;
+    const r=await page.send('Runtime.evaluate',{expression:js,awaitPromise:true,returnByValue:true});
+    if(r.exceptionDetails) throw new Error('falha ao montar a grade'); return r.result.value;
+  } finally { if(page) page.close(); try{ await e.browser.send('Target.closeTarget',{targetId}); }catch(x){} }
+}
+
 function fechar(){
   if(!estado) return; const e=estado; estado=null;
   try{e.browser.close();}catch(x){} try{e.proc.kill('SIGKILL');}catch(x){} try{e.server.close();}catch(x){}
@@ -112,4 +127,4 @@ function fechar(){
 }
 process.on('exit',fechar);
 for(const s of ['SIGTERM','SIGINT','SIGHUP']) process.on(s,()=>process.exit(0)); /* SIGTERM não dispara 'exit' sozinho: sem isto o Chrome fica órfão */
-module.exports={render,renderMuitos,importarPsd,fechar};
+module.exports={render,renderMuitos,importarPsd,grade,fechar};

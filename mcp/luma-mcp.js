@@ -14,13 +14,20 @@ const motor=require('./motor.js'), banco=require('./banco.js');
 /* ---------- ferramentas ---------- */
 const run=(args)=>new Promise(ok=>cp.execFile('node',args,{timeout:180000,maxBuffer:1<<26},(e,so,se)=>ok({code:e?(e.code||1):0,out:String(so||''),err:String(se||'')})));
 const UUID=/^[0-9a-f-]{36}$/i;
-/* `template_id` busca layers/w/h/fmt no banco (RLS do usuário); `layers` explícito vence. */
-const jobDe=async a=>{
-  if(a.template_id&&!Array.isArray(a.layers)){ if(!UUID.test(a.template_id)) throw new Error('template_id inválido');
+const arte=require('./arte.js');
+/* Fonte das layers, nesta ordem: `layers` explícito · `layers_arquivo` (ex.: o .layers.json do luma_psd_importar) · `template_id` (banco, RLS do usuário). */
+async function resolver(a){
+  if(Array.isArray(a.layers)&&a.layers.length) return {layers:a.layers,W:a.W,H:a.H,fmt:a.fmt};
+  if(a.layers_arquivo){ const f=path.resolve(String(a.layers_arquivo)); if(!/\.json$/i.test(f)||!fs.existsSync(f)) throw new Error('layers_arquivo deve ser um .json existente'); const l=JSON.parse(fs.readFileSync(f,'utf8')); if(!Array.isArray(l)||!l.length) throw new Error('layers_arquivo sem layers'); return {layers:l,W:a.W,H:a.H,fmt:a.fmt}; }
+  if(a.template_id){ if(!UUID.test(a.template_id)) throw new Error('template_id inválido');
     const [t]=await banco.ler('templates',`id=eq.${a.template_id}&select=layers,w,h,fmt`); if(!t) throw new Error('template não encontrado. '+banco.SEM_ACESSO);
-    a=Object.assign({},a,{layers:t.layers,W:a.W||t.w,H:a.H||t.h,fmt:a.fmt||t.fmt}); }
-  if(!Array.isArray(a.layers)||!a.layers.length) throw new Error('informe `layers` (array de layers do Luma) ou `template_id`');
-  return L.job(a.layers,{W:a.W||1080,H:a.H||1350,fmt:a.fmt,dados:a.dados||{}}); };
+    return {layers:t.layers,W:a.W||t.w,H:a.H||t.h,fmt:a.fmt||t.fmt}; }
+  throw new Error('informe `layers`, `layers_arquivo` ou `template_id`');
+}
+const jobDe=async a=>{ const r=await resolver(a); return L.job(r.layers,{W:r.W||1080,H:r.H||1350,fmt:r.fmt,dados:a.dados||{}}); };
+const FONTE={template_id:{type:'string',description:'UUID de um template do banco (luma_templates_listar)'},layers_arquivo:{type:'string',description:'caminho de um .layers.json (ex.: saída do luma_psd_importar)'},layers:{type:'array',items:{type:'object'},description:'layers no formato do banco'},W:{type:'integer'},H:{type:'integer'},fmt:{type:'string',enum:['feed','story']}};
+const DADOS={type:'object',description:'valores dos campos {{var}}; "{{FOTO}}"/"{{LOGO}}" = imagens de demonstração',additionalProperties:{type:'string'}};
+const img=(r)=>r.png?[{type:'image',data:r.png,mimeType:'image/png'}]:[];
 /* jobs = [[nome, job]] → [{nome,png,fit,err}]. Chrome persistente (motor.js): abas em paralelo, sem subir navegador a cada chamada. */
 async function renderJobs(jobs){
   const r=await motor.renderMuitos(jobs.map(j=>j[1]));
@@ -33,6 +40,7 @@ const TOOLS={
     description:'Renderiza uma arte (lista de layers do Luma + dados dos campos) no MESMO motor do franqueado (fRenderTemplateLayers + Local Fit) e devolve o PNG e o veredito do encaixe. `INVÁLIDA` = o franqueado não conseguiria exportar essa combinação de dados.',
     inputSchema:{type:'object',properties:{
       template_id:{type:'string',description:'UUID de um template do banco (use luma_templates_listar). Alternativa a `layers`.'},
+      layers_arquivo:{type:'string',description:'caminho de um .layers.json (ex.: saída do luma_psd_importar). Alternativa a `layers`.'},
       layers:{type:'array',description:'Layers no formato do banco (luma.templates.layers). Monte com luma_bloco ou leia de um template existente.',items:{type:'object'}},
       dados:{type:'object',description:'Valores dos campos {{var}}: produto, detalhes, descricao, precoDe, precoPor, validade, foto_produto, logo_loja… Use "{{FOTO}}"/"{{LOGO}}" para as imagens de demonstração.',additionalProperties:{type:'string'}},
       W:{type:'integer',description:'Largura em px (padrão 1080)'},H:{type:'integer',description:'Altura em px (1350 = feed, 1920 = story)'},fmt:{type:'string',enum:['feed','story']}}},
@@ -40,14 +48,42 @@ const TOOLS={
       if(!r.png) return {isError:true,content:[{type:'text',text:'Render sem saída. '+log}]};
       return {content:[{type:'image',data:r.png,mimeType:'image/png'},{type:'text',text:resumoFit('arte',r.fit)+'\n'+JSON.stringify(r.fit.campos||[])}]}; }},
   luma_estresse:{
-    description:'Roda a arte nas 7 variantes de estresse que toda arte do Luma passa antes de sair (título longo, sem detalhes, sem "de", preço de 1 e 3 dígitos, sem preço) e resume o encaixe de cada uma. Uma variante INVÁLIDA = a arte tem bug.',
-    inputSchema:{type:'object',properties:{template_id:{type:'string',description:'UUID de um template do banco (alternativa a `layers`)'},layers:{type:'array',items:{type:'object'}},dados:{type:'object',additionalProperties:{type:'string'}},W:{type:'integer'},H:{type:'integer'},fmt:{type:'string',enum:['feed','story']}}},
-    async run(a){ if(a.template_id&&!Array.isArray(a.layers)){ const j=await jobDe(a); a=Object.assign({},a,{layers:j.layers,W:j.W,H:j.H,fmt:j.fmt}); }
+    description:'Roda a arte nas 7 variantes de estresse que toda arte do Luma passa antes de sair (título longo, sem detalhes, sem "de", preço de 1 e 3 dígitos, sem preço) e devolve UMA grade com as 7 imagens (borda vermelha no rótulo = variante com problema) + o resumo do encaixe de cada uma.',
+    inputSchema:{type:'object',properties:Object.assign({dados:DADOS},FONTE)},
+    async run(a){ const r0=await resolver(a); a=Object.assign({},a,{layers:r0.layers,W:a.W||r0.W,H:a.H||r0.H,fmt:a.fmt||r0.fmt});
       const jobs=await Promise.all(Object.entries(L.ESTRESSE).map(async([k,v])=>[k,await jobDe(Object.assign({},a,{dados:Object.assign({},a.dados,v)}))]));
-      const {res}=await renderJobs(jobs); const bad=res.filter(r=>!r.png||r.fit.invalid||(r.fit.campos||[]).some(c=>c.status!=='fits'&&c.status!=='vazio'));
-      const txt=res.map(r=>r.png?resumoFit(r.nome,r.fit):r.nome+': SEM SAÍDA').join('\n')+`\n\n${bad.length?bad.length+' variante(s) com problema':'todas as 7 passaram'}.`;
-      const first=bad.find(r=>r.png)||res.find(r=>r.png);
-      return {content:[{type:'text',text:txt}].concat(first?[{type:'image',data:first.png,mimeType:'image/png'}]:[])}; }},
+      const {res}=await renderJobs(jobs); const ruim=r=>!r.png||r.fit.invalid||(r.fit.campos||[]).some(c=>c.status!=='fits'&&c.status!=='vazio'); const bad=res.filter(ruim);
+      const txt=res.map(r=>r.png?resumoFit(r.nome,r.fit):r.nome+': SEM SAÍDA').join('\n')+`\n\n${bad.length?bad.length+' variante(s) com problema: '+bad.map(r=>r.nome).join(', '):'todas as 7 passaram'}.`;
+      const ok=res.filter(r=>r.png); let g=null; if(ok.length) g=await motor.grade(ok.map(r=>({png:r.png,rotulo:(ruim(r)?'✗ ':'✓ ')+r.nome,cor:ruim(r)?'#c81414':'#1a6b2e'})),4,a.W>=1000?340:360);
+      return {content:[{type:'text',text:txt}].concat(g?[{type:'image',data:g,mimeType:'image/png'}]:[])}; }},
+  luma_editar_layers:{
+    description:'Edita uma arte por INSTRUÇÃO, sem reenviar o JSON inteiro: `patches` {id:{campo:valor}} (mover, cor, texto, esconder…), `remover` [ids], `adicionar` [layers novas]. Aplica por id (ordem preservada), renderiza e devolve a imagem + o veredito. Com `devolver_layers:true` devolve também o JSON novo para encadear.',
+    inputSchema:{type:'object',properties:Object.assign({patches:{type:'object',description:'{ "l-prod": {"y":340,"fontSize":72}, "l-bg": {"fill":"#fbf2ff"} }'},remover:{type:'array',items:{type:'string'}},adicionar:{type:'array',items:{type:'object'}},devolver_layers:{type:'boolean'},dados:DADOS},FONTE)},
+    async run(a){ const r0=await resolver(a); const e=arte.aplicarPatches(r0.layers,a.patches||{},a.remover||[],a.adicionar||[]);
+      const {res}=await renderJobs([['arte',L.job(e.layers,{W:a.W||r0.W||1080,H:a.H||r0.H||1350,fmt:a.fmt||r0.fmt,dados:a.dados||{}})]]); const r=res[0];
+      const txt=(r.png?resumoFit('arte',r.fit):'SEM SAÍDA '+r.err)+(e.avisos.length?'\nAvisos:\n'+e.avisos.join('\n'):'')+(a.devolver_layers?'\n\nlayers:\n'+JSON.stringify(e.layers):'');
+      return {isError:!r.png,content:[{type:'text',text:txt}].concat(img(r))}; }},
+  luma_derivar_story:{
+    description:'Deriva o STORY (1080×1920) do FEED (1080×1350) por id de layer — mesmo conjunto de ids, só mudam y/h (o Ateliê pede os dois com o mesmo nome). Padrão: o fundo cresce e o que vive no rodapé desce; `patches` explícitos vencem (ex.: a foto crescer). Renderiza feed e story juntos e avisa sobre a zona segura do story. `devolver_layers:true` traz o JSON do story.',
+    inputSchema:{type:'object',properties:Object.assign({patches:{type:'object',description:'patches só do story, por id: {"l-foto":{"h":900}}'},devolver_layers:{type:'boolean'},dados:DADOS},FONTE)},
+    async run(a){ const r0=await resolver(a), W=a.W||r0.W||1080, HF=a.H||r0.H||1350, HS=1920; const s=arte.derivarStory(r0.layers,a.patches||{},{HF,HS});
+      const {res}=await renderJobs([['feed',L.job(r0.layers,{W,H:HF,fmt:'feed',dados:a.dados||{}})],['story',L.job(s.layers,{W,H:HS,fmt:'story',dados:a.dados||{}})]]);
+      const txt=res.map(r=>r.png?resumoFit(r.nome,r.fit):r.nome+': SEM SAÍDA').join('\n')+(s.avisos.length?'\nAvisos:\n'+s.avisos.join('\n'):'')+'\nAjustes automáticos: '+(Object.keys(s.auto).join(', ')||'nenhum')+(a.devolver_layers?'\n\nlayers do story:\n'+JSON.stringify(s.layers):'');
+      return {content:[{type:'text',text:txt}].concat(...res.map(img))}; }},
+  luma_auditar:{
+    description:'Audita uma arte contra as regras de marca do DESIGN.md (estático, sem render): ids, fora do canvas, margem de 72, corpo mínimo, contraste ≥ 4,5:1 por texto × fundo, paleta, família de raio, zona segura do story. ERRO bloqueia publicar.',
+    inputSchema:{type:'object',properties:FONTE},
+    async run(a){ const r=await resolver(a); const au=arte.auditar(r.layers,r.W||1080,r.H||1350); return {content:[{type:'text',text:`${au.filter(x=>x.nivel==='erro').length} erro(s) · ${au.filter(x=>x.nivel==='aviso').length} aviso(s)\n`+arte.resumoAuditoria(au)}]}; }},
+  luma_variaveis:{
+    description:'Lista o catálogo de campos {{var}} (luma.variaveis): nome, rótulo, tipo, se é obrigatório e a categoria. Consulte antes de desenhar: campo fora do catálogo vira obrigatório no chat do franqueado.',
+    inputSchema:{type:'object',properties:{}},
+    async run(){ const v=await banco.ler('variaveis','select=name,label,type,required,category&order=ordem'); if(!v.length) return {content:[{type:'text',text:banco.SEM_ACESSO}]};
+      return {content:[{type:'text',text:v.map(x=>`${x.name} · ${x.label} · ${x.type} · ${x.required?'obrigatório':'opcional'}${x.category?' · '+x.category:''}`).join('\n')}]}; }},
+  luma_pastas:{
+    description:'Lista as pastas (campanhas) do banco: id, nome e camp_id. Necessário para criar template (pasta_id).',
+    inputSchema:{type:'object',properties:{busca:{type:'string'}}},
+    async run(a){ let p=await banco.ler('pastas','select=id,nome,camp_id&order=nome&limit=500'); if(a.busca) p=p.filter(x=>x.nome.toLowerCase().includes(String(a.busca).toLowerCase()));
+      return {content:[{type:'text',text:p.length?p.map(x=>`${x.id} · ${x.nome}${x.camp_id?' · camp '+x.camp_id:''}`).join('\n'):banco.SEM_ACESSO}]}; }},
   luma_templates_listar:{
     description:'Lista templates do banco (somente leitura, respeita o RLS do usuário). Filtra por nome da pasta/campanha e/ou do template. Devolve id, nome, formato, pasta e se está publicado. Requer LUMA_JWT ou LUMA_EMAIL+LUMA_SENHA no ambiente do servidor.',
     inputSchema:{type:'object',properties:{busca:{type:'string',description:'trecho do nome do template ou da pasta'},fmt:{type:'string',enum:['feed','story']},publicado:{type:'boolean'},limite:{type:'integer',description:'padrão 30, máx. 100'}}},
@@ -75,6 +111,53 @@ const TOOLS={
       const linhas=o.boards.map((b,i)=>`${i+1}. ${b.nome} · ${b.w}×${b.h}${b.oculta?' · OCULTA':''} · ${b.camadas??'?'} camadas${b.erro?' · ERRO: '+b.erro.split('\n')[0]:''}${b.arquivos.ref?'':' · sem composto do Photoshop'}\n   ${b.arquivos.luma||'(sem PNG)'}`);
       const quais=(a.pranchetas&&a.pranchetas.length?a.pranchetas:[1,2,3]).filter(n=>o.boards[n-1]&&o.boards[n-1].arquivos.luma);
       return {content:[{type:'text',text:`${o.boards.length} prancheta(s) · ${Math.round(o.res)} ppi · pasta: ${saida}\n`+linhas.join('\n')}].concat(quais.map(n=>({type:'image',data:fs.readFileSync(o.boards[n-1].arquivos.luma).toString('base64'),mimeType:'image/png'})))}; }},
+  luma_template_salvar:{
+    description:'ESCREVE no banco: cria um template RASCUNHO (publicado=false) em luma.templates. Copia formats/permissoes/bg de um template irmão (`copiar_de`). Sem `confirmar:true` só mostra o que faria (dry-run). Recusa imagens embutidas (data:/idb://): elas não sobem pelo MCP — suba pelo Estúdio. Valida com a auditoria (erro bloqueia).',
+    inputSchema:{type:'object',required:['pasta_id','nome','fmt'],properties:Object.assign({pasta_id:{type:'string'},nome:{type:'string'},copiar_de:{type:'string',description:'UUID de um template irmão (formats/permissoes/bg)'},confirmar:{type:'boolean',description:'true para gravar de verdade'},permitir_imagens_embutidas:{type:'boolean'}},FONTE)},
+    async run(a){ if(!UUID.test(a.pasta_id||'')) throw new Error('pasta_id inválido'); if(!['feed','story'].includes(a.fmt)) throw new Error('fmt deve ser feed ou story');
+      const r=await resolver(a), W=a.W||r.W||1080, H=a.H||r.H||(a.fmt==='story'?1920:1350), au=arte.auditar(r.layers,W,H), erros=au.filter(x=>x.nivel==='erro');
+      const emb=r.layers.filter(l=>typeof l.imgUrl==='string'&&/^(data:|idb:\/\/|__local__)/.test(l.imgUrl)).map(l=>l.id);
+      const kb=Math.round(JSON.stringify(r.layers).length/1024);
+      const plano=`criar rascunho "${a.nome}" (${a.fmt} ${W}×${H}) na pasta ${a.pasta_id} · ${r.layers.length} layers · ${kb} KB${a.copiar_de?' · modelo '+a.copiar_de:' · SEM irmão (formats/permissoes ficam vazios)'}`;
+      if(erros.length) return {isError:true,content:[{type:'text',text:'Recusado pela auditoria:\n'+arte.resumoAuditoria(erros)}]};
+      if(emb.length&&!a.permitir_imagens_embutidas) return {isError:true,content:[{type:'text',text:`Recusado: ${emb.length} layer(s) com imagem embutida/local (${emb.slice(0,6).join(', ')}). Elas não existem no Storage — abra no Estúdio para subir, ou use URLs de assets/.`}]};
+      if(!a.confirmar) return {content:[{type:'text',text:'DRY-RUN (nada gravado). Faria: '+plano+'\nRefaça com confirmar:true para gravar.'}]};
+      let m={}; if(a.copiar_de){ if(!UUID.test(a.copiar_de)) throw new Error('copiar_de inválido'); [m]=await banco.ler('templates',`id=eq.${a.copiar_de}&select=formats,permissoes,bg`); if(!m) throw new Error('template irmão não encontrado'); }
+      const [novo]=await banco.escrever('POST','templates','',{pasta_id:a.pasta_id,nome:a.nome,fmt:a.fmt,formats:m.formats,permissoes:m.permissoes,bg:m.bg||'transparent',layers:r.layers,publicado:false,criado_por:banco.usuarioId(),w:W,h:H});
+      return {content:[{type:'text',text:`Gravado: ${plano}\nid: ${novo.id}\nChangelog sugerido: "${new Date().toISOString().slice(0,10)} · template ${novo.id} (${a.nome}, ${a.fmt}) criado como rascunho via MCP"`}]}; }},
+  luma_template_atualizar:{
+    description:'ESCREVE no banco: altera as layers de um template (por `patches`/`remover`/`adicionar` sobre as layers ATUAIS do banco, ou `layers` inteiras). Template publicado ganha versão automática (trigger) — dá para reverter com luma_template_reverter. Sem `confirmar:true` é dry-run.',
+    inputSchema:{type:'object',required:['id'],properties:{id:{type:'string'},patches:{type:'object'},remover:{type:'array',items:{type:'string'}},adicionar:{type:'array',items:{type:'object'}},layers:{type:'array',items:{type:'object'}},confirmar:{type:'boolean'}}},
+    async run(a){ if(!UUID.test(a.id||'')) throw new Error('id inválido'); const [t]=await banco.ler('templates',`id=eq.${a.id}&select=id,nome,fmt,w,h,publicado,layers`); if(!t) throw new Error('template não encontrado. '+banco.SEM_ACESSO);
+      let novas, avisos=[]; if(Array.isArray(a.layers)&&a.layers.length) novas=a.layers; else { const e=arte.aplicarPatches(t.layers,a.patches||{},a.remover||[],a.adicionar||[]); novas=e.layers; avisos=e.avisos; }
+      const antes=new Map(t.layers.map(l=>[l.id,JSON.stringify(l)])), mud=novas.filter(l=>antes.get(l.id)!==JSON.stringify(l)).map(l=>l.id), sumiu=t.layers.filter(l=>!novas.some(n=>n.id===l.id)).map(l=>l.id);
+      const erros=arte.auditar(novas,t.w,t.h).filter(x=>x.nivel==='erro'); if(erros.length) return {isError:true,content:[{type:'text',text:'Recusado pela auditoria:\n'+arte.resumoAuditoria(erros)}]};
+      const plano=`template "${t.nome}" (${t.fmt}, ${t.publicado?'PUBLICADO — a mudança vai ao ar':'rascunho'}): ${mud.length} layer(s) alterada(s)/nova(s) [${mud.slice(0,12).join(', ')}], ${sumiu.length} removida(s) [${sumiu.slice(0,12).join(', ')}]`+(avisos.length?'\nAvisos: '+avisos.join('; '):'');
+      if(!a.confirmar) return {content:[{type:'text',text:'DRY-RUN (nada gravado). Faria: '+plano+'\nRefaça com confirmar:true.'}]};
+      await banco.escrever('PATCH','templates',`id=eq.${a.id}`,{layers:novas});
+      return {content:[{type:'text',text:`Gravado: ${plano}\nChangelog sugerido: "${new Date().toISOString().slice(0,10)} · template ${a.id} atualizado via MCP"\nPara desfazer: luma_template_versoes {id} → luma_template_reverter.`}]}; }},
+  luma_template_publicar:{
+    description:'ESCREVE no banco: publica templates (publicado=true). Recusa se a auditoria achar ERRO. Dica: rode luma_estresse e luma_auditar antes. Publique feed e story JUNTOS. Sem `confirmar:true` é dry-run.',
+    inputSchema:{type:'object',required:['ids'],properties:{ids:{type:'array',items:{type:'string'},description:'UUIDs dos templates (feed + story)'},confirmar:{type:'boolean'}}},
+    async run(a){ const ids=a.ids||[]; if(!ids.length||ids.some(i=>!UUID.test(i))) throw new Error('ids inválidos');
+      const ts=await banco.ler('templates',`id=in.(${ids.join(',')})&select=id,nome,fmt,w,h,publicado,layers`); if(ts.length!==ids.length) throw new Error(`só ${ts.length} de ${ids.length} templates visíveis para você. `+banco.SEM_ACESSO);
+      const bad=ts.map(t=>({t,e:arte.auditar(t.layers,t.w,t.h).filter(x=>x.nivel==='erro')})).filter(x=>x.e.length); if(bad.length) return {isError:true,content:[{type:'text',text:'Recusado pela auditoria:\n'+bad.map(x=>x.t.nome+' ('+x.t.fmt+')\n'+arte.resumoAuditoria(x.e)).join('\n')}]};
+      const fm=new Set(ts.map(t=>t.fmt)); const aviso=fm.size<2?'\nAtenção: só um formato — o Ateliê espera feed e story juntos.':'';
+      const plano=ts.map(t=>`${t.nome} (${t.fmt})${t.publicado?' já publicado':''}`).join('; ');
+      if(!a.confirmar) return {content:[{type:'text',text:'DRY-RUN (nada gravado). Publicaria: '+plano+aviso+'\nRefaça com confirmar:true.'}]};
+      await banco.escrever('PATCH','templates',`id=in.(${ids.join(',')})`,{publicado:true,publicado_em:new Date().toISOString()});
+      return {content:[{type:'text',text:`Publicado: ${plano}${aviso}\nChangelog sugerido: "${new Date().toISOString().slice(0,10)} · publicados via MCP: ${ids.join(', ')}"`}]}; }},
+  luma_template_versoes:{
+    description:'Lista as versões salvas de um template (luma.template_versions), da mais nova para a mais antiga. Use o id da versão em luma_template_reverter.',
+    inputSchema:{type:'object',required:['id'],properties:{id:{type:'string'}}},
+    async run(a){ if(!UUID.test(a.id||'')) throw new Error('id inválido'); const v=await banco.ler('template_versions',`template_id=eq.${a.id}&select=id,created_at&order=created_at.desc&limit=30`);
+      return {content:[{type:'text',text:v.length?v.map(x=>`${x.id} · ${x.created_at}`).join('\n'):'Nenhuma versão (só templates publicados são versionados) ou sem acesso.'}]}; }},
+  luma_template_reverter:{
+    description:'ESCREVE no banco: restaura um template para uma versão anterior (luma.restaurar_versao, cria nova versão). Sem `confirmar:true` é dry-run.',
+    inputSchema:{type:'object',required:['version_id'],properties:{version_id:{type:'string'},confirmar:{type:'boolean'}}},
+    async run(a){ if(!UUID.test(a.version_id||'')) throw new Error('version_id inválido'); if(!a.confirmar) return {content:[{type:'text',text:'DRY-RUN (nada gravado). Restauraria a versão '+a.version_id+'. Refaça com confirmar:true.'}]};
+      await banco.rpc('restaurar_versao',{p_version:a.version_id}); /* assinatura real: luma.restaurar_versao(p_version uuid) — conferida no catálogo */
+      return {content:[{type:'text',text:`Restaurada a versão ${a.version_id}.\nChangelog sugerido: "${new Date().toISOString().slice(0,10)} · reversão via MCP para a versão ${a.version_id}"`}]}; }},
   luma_bloco:{
     description:'Monta UM bloco de layer(s) com a biblioteca oficial (arte/ferramentas/lib.js). Sem `bloco`, lista os blocos disponíveis. Devolve o JSON pronto para entrar em `layers`.',
     inputSchema:{type:'object',properties:{bloco:{type:'string',description:'rect, text, img, foto, logoLoja, banner, selo, preco, seloSerrilhado, sparkle, star, rotarGrupo, descricaoComSem, ticket, ticketRot'},args:{type:'array',description:'Argumentos posicionais da função (ver assinatura em lib.js)',items:{}}}},

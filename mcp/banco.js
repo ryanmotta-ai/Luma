@@ -27,5 +27,23 @@ async function ler(tabela,query){
     return r.json();
   }
 }
+/* Escrita (POST/PATCH) em luma.<tabela>. Quem autoriza é a RLS do usuário; sem login não há escrita. */
+async function escrever(metodo,tabela,query,body){
+  if(!autenticado()) throw new Error('Escrita exige login: defina LUMA_JWT ou LUMA_EMAIL + LUMA_SENHA.');
+  if(!jwt) await login();
+  for(let t=0;t<2;t++){
+    const r=await fetch(`${URL_}/rest/v1/${tabela}${query?'?'+query:''}`,{method:metodo,headers:{apikey:KEY,Authorization:'Bearer '+jwt,'Content-Profile':'luma','Accept-Profile':'luma','Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify(body)});
+    if(r.status===401&&t===0&&await login()) continue;
+    if(!r.ok) throw new Error(`Supabase ${r.status}: ${(await r.text()).slice(0,300)}`);
+    return r.json();
+  }
+}
+async function rpc(nome,args){
+  if(!autenticado()) throw new Error('Exige login: defina LUMA_JWT ou LUMA_EMAIL + LUMA_SENHA.'); if(!jwt) await login();
+  const r=await fetch(`${URL_}/rest/v1/rpc/${nome}`,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+jwt,'Content-Profile':'luma','Content-Type':'application/json'},body:JSON.stringify(args)});
+  if(!r.ok) throw new Error(`Supabase ${r.status}: ${(await r.text()).slice(0,300)}`); return r.json();
+}
+/* id do usuário logado (claim `sub` do JWT) — vira `criado_por` dos templates que o MCP cria */
+function usuarioId(){ try{ return JSON.parse(Buffer.from(jwt.split('.')[1],'base64url').toString()).sub; }catch(e){ return null; } }
 const SEM_ACESSO='Nenhuma linha veio. Sem login o RLS esconde os templates: defina LUMA_JWT (token do designer) ou LUMA_EMAIL + LUMA_SENHA no ambiente do servidor MCP.';
-module.exports={ler,autenticado,SEM_ACESSO};
+module.exports={ler,escrever,rpc,usuarioId,autenticado,SEM_ACESSO};

@@ -46,6 +46,13 @@ claude mcp add luma -e LUMA_JWT=<access token> -- node …                      
 ```
 Nunca service_role. O MCP só faz `GET`; nenhuma ferramenta grava.
 
+### Escrita no banco (regras)
+- **Toda escrita é dry-run por padrão**: só grava com `confirmar:true`. A resposta traz um "changelog sugerido" para colar em `docs/LUMA-BACKEND-CHANGELOG.md` (o MCP não edita o repositório).
+- Autorização = **RLS do usuário logado** (designer/gestão). O MCP não usa service_role e não tem como contornar a política.
+- `salvar`/`atualizar`/`publicar` **recusam arte com ERRO de auditoria**; `salvar` recusa imagem embutida (`data:`/`idb://`) porque ela não sobe ao Storage por aqui — o Estúdio faz isso. Por isso PSD com raster vira template pelo Estúdio; o MCP serve para PSD vetorial/texto e para ajustar templates existentes.
+- `criado_por` = `sub` do JWT; `formats/permissoes/bg` vêm do irmão (`copiar_de`).
+- ⚠ **As escritas ainda não foram exercitadas com login real** (só dry-run, recusas e erro sem login). Faça o primeiro teste num template de rascunho.
+
 ### Como usar
 ```bash
 claude mcp add luma -- node "/caminho/para/Luma/mcp/luma-mcp.js"
@@ -60,6 +67,14 @@ Requisitos: **Node ≥ 22** (WebSocket nativo) e Google Chrome/Chromium (ou `CHR
 | `luma_estresse` | igual ao `luma_render` | resumo das 7 variantes + PNG da primeira com problema |
 | `luma_templates_listar` | `busca`, `fmt`, `publicado`, `limite` | id, nome, formato, pasta, publicado |
 | `luma_template_ler` | `id` | metadados + layers (JSON) |
+| `luma_editar_layers` | fonte + `patches`, `remover`, `adicionar`, `devolver_layers` | imagem + veredito; edição por id, ordem preservada |
+| `luma_derivar_story` | fonte (feed) + `patches` do story | feed e story renderizados + avisos de zona segura; fundo cresce e rodapé desce por padrão |
+| `luma_auditar` | fonte | erros/avisos da marca (id, margem 72, corpo ≥ 22, contraste ≥ 4,5, raio, zona segura) |
+| `luma_variaveis`, `luma_pastas` | — / `busca` | catálogo de campos; pastas (campanhas) com id |
+| `luma_template_salvar` ⚠ escreve | `pasta_id`, `nome`, `fmt`, fonte, `copiar_de`, `confirmar` | rascunho em `luma.templates` (dry-run sem `confirmar`) |
+| `luma_template_atualizar` ⚠ escreve | `id`, `patches`/`layers`, `confirmar` | altera layers do banco; publicado ganha versão automática |
+| `luma_template_publicar` ⚠ escreve | `ids`, `confirmar` | `publicado=true`; recusa se a auditoria achar ERRO |
+| `luma_template_versoes` / `luma_template_reverter` | `id` / `version_id`, `confirmar` | histórico e `luma.restaurar_versao(p_version)` |
 | `luma_psd_importar` | `psd` (caminho absoluto), `saida?`, `pranchetas?` | PNG da Luma e composto do Photoshop por prancheta, `layers.json`, resumo (ocultas e erros marcados) |
 | `luma_bloco` | `bloco`, `args[]` (sem `bloco` lista os disponíveis) | JSON de layer(s) pronto para `layers` |
 | `luma_medir` | `cmd` (`bordas`/`cor`/`paleta`/`caixa`), `png`, `args[]` | texto com a medida |
@@ -77,5 +92,8 @@ Requisitos: **Node ≥ 22** (WebSocket nativo) e Google Chrome/Chromium (ou `CHR
 ## 6. Próximos passos sugeridos
 - [x] Fase 2a: `luma_templates_listar/ler` (Supabase, login do usuário) — **ainda não testado com login real**; testado só o caminho sem login.
 - [x] Fase 2b: `luma_psd_importar` — testado com `01_Banners/Materiais Consultores.psd` (20 MB, 4 pranchetas, ~7 s). Não roda a bateria de fidelidade; só exporta.
-- [ ] Fase 2c: ferramenta de publicação com confirmação + changelog (`arte/BANCO.md`).
+- [x] Fase 2c: salvar/atualizar/publicar/versões/reverter com dry-run + auditoria (escrita **não testada com login**).
+- [x] Edição por patches, derivação de story, auditor de marca, grade de estresse, catálogo (`variaveis`, `pastas`).
+- [x] Registrado em `.mcp.json` (stdio). Credenciais por `-e` ou `.claude/settings.local.json`, nunca no repo.
+- [ ] Ainda aberto: progresso/cancelamento em renders longos; caso de teste automatizado do MCP (não coube nas suítes de navegador); subir imagens ao Storage pelo MCP.
 - [ ] Decidir hospedagem para uso do Ateliê em produção (item 3/4).
