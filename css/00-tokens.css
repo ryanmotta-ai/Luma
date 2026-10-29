@@ -321,3 +321,41 @@ body.camp-theme-muchplus {
 /* O tema claro re-define --var-color DEPOIS deste arquivo (designer.css, dourado AA).
    A dupla classe vence a ordem de carga: dentro do Much+ o campo fica magenta AA. */
 body.theme-light.camp-theme-muchplus { --var-color: var(--muchplus-magenta-d); }
+
+/* Black Bumerangue (Black Friday 2026 — "pedido que vai, cupom que volta"): o app VIRA preto
+   dentro da pasta. fApplyCampTheme tira o .theme-light enquanto a pessoa está lá (o tema
+   escuro inteiro já existe e foi medido) e aqui a escada --d-* troca o cinza-azulado do Luma
+   pelo preto NEUTRO do KV — sem o fio de azul, que brigaria com o laranja da campanha.
+   Contraste medido (WCAG 2.1): texto #F5F5F5 sobre bg/surf 16,9/15,6 · secundário #B8B8B8
+   sobre surf 8,6 · terciário #9A9A9A sobre surf 6,1 · laranja #F85400 como texto sobre
+   bg/surf/surf2 5,5/5,1/4,6 · tinta #0A0A0A sobre o laranja 5,9 (CTA). */
+:root {
+  --bb-laranja: #F85400;
+  --bb-laranja-l: #FF9000;
+  --bb-preto: #141414;
+  --bb-off: #F5F5F5;
+  /* A sombra dura do KV (drop-shadow sem blur, deslocada para baixo). Sobre o laranja e o
+     claro ela é preta; sobre o preto ela some — ali o "lado" do adesivo é laranja queimado. */
+  --bb-sombra: #000000;
+  --bb-lado: #8A2E00;
+}
+body.camp-theme-black {
+  --dm-orange: var(--bb-laranja);
+  --dm-orange-d: var(--bb-laranja);
+  --dm-orange-l: var(--bb-laranja-l);
+  --dm-orange-bg: color-mix(in srgb, var(--bb-laranja) 13%, transparent);
+  --dm-orange-tint: color-mix(in srgb, var(--bb-laranja) 30%, transparent);
+  --dm-orange-text: var(--bb-laranja-l); /* texto pequeno: #FF9000 dá 7,5:1 sobre a superfície */
+  --var-color: var(--bb-laranja-l);
+  --var-bg: rgba(255, 144, 0, .12);
+  --d-bg: var(--bb-preto);
+  --d-dark: #101010;
+  --d-surf: #1C1C1C;
+  --d-surf2: #242424;
+  --d-surf3: #2E2E2E;
+  --d-border: rgba(245, 245, 245, .12);
+  --d-border2: rgba(245, 245, 245, .20);
+  --d-text: var(--bb-off);
+  --d-text2: #B8B8B8;
+  --d-text3: #9A9A9A;
+}

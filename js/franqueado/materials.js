@@ -397,8 +397,8 @@ function _fKitPoda(){
   if(typeof _fArtSnapshots==='undefined') return;
   Object.keys(_fKit).forEach(id=>{ if(!_fArtSnapshots[id]) delete _fKit[id]; });
 }
-/* ── TEMA POR CAMPANHA (1º caso: Much+) ──
-   Campanha com `theme` — ou pasta com a tag/badge "MUCH+" — re-tokeniza o app
+/* ── TEMA POR CAMPANHA (Much+ e Black Bumerangue) ──
+   Campanha com `theme` — ou pasta com o badge "MUCH+" / "BLACK…" — re-tokeniza o app
    enquanto o franqueado está dentro dela: body.camp-theme-<slug> (tokens em
    00-tokens.css), véu de transição e motion do logo no header (franqueado.css).
    Entradas: fOpenMaterialCatalog e fEditFromHist. Saídas: fGoHome e
@@ -406,30 +406,67 @@ function _fKitPoda(){
    re-render do rail e roda com o franqueado DENTRO da campanha (favoritar
    uma campanha derrubava o tema no meio do fluxo). */
 let _fCampThemeAtivo='';
+// Badge da pasta → tema. O MKT cria a pasta no Estúdio com o badge e a vitrine já veste a
+// campanha, sem mexer em código nem criar coluna `theme` no banco (luma.pastas não tem).
+// Black Bumerangue (11/2026): badge "BLACK FRIDAY" → slug `black`.
+const _F_CAMP_TEMA_BADGE=[[/much\s*\+/i,'muchplus'],[/\bblack\b/i,'black']];
+// Temas que vestem o app de ESCURO mesmo para quem usa o claro: a Black é preta por
+// definição. Reusa o tema escuro inteiro (as regras body:not(.theme-light), já medidas)
+// tirando o .theme-light enquanto a pessoa está na pasta — um terceiro jogo de regras
+// para "escuro dentro do claro" seria centenas de seletores duplicados.
+const _F_CAMP_TEMA_ESCURO={black:true};
+let _fCampThemeClaro=false; // fomos nós que tiramos o .theme-light → devolver na saída
 function _fCampThemeOf(camp){
   if(!camp) return '';
-  // Pasta marcada MUCH+ liga o tema mesmo sem `theme` explícito — o MKT cria a
-  // pasta no Estúdio com o badge e a vitrine já veste o clube, sem mexer em código.
-  const t=camp.theme||(/much\s*\+/i.test(camp.badge||'')?'muchplus':'');
+  const b=String(camp.badge||'');
+  const porBadge=(_F_CAMP_TEMA_BADGE.find(x=>x[0].test(b))||[])[1]||'';
+  const t=camp.theme||porBadge;
   return String(t).toLowerCase().replace(/[^a-z0-9-]/g,''); // vira classe CSS — só slug seguro
+}
+// Devolve o claro que o tema escuro tirou. A fonte é a preferência SALVA, não um retrato do
+// body: se a pessoa escolheu "escuro" no painel da conta lá dentro, a escolha dela vale.
+function _fCampThemeDevolveClaro(){
+  if(!_fCampThemeClaro) return;
+  _fCampThemeClaro=false;
+  let salvo=''; try{ salvo=localStorage.getItem('__luma_theme')||''; }catch(e){}
+  if(salvo!=='dark') document.body.classList.add('theme-light');
 }
 function fApplyCampTheme(camp){
   const t=_fCampThemeOf(camp);
   if(t===_fCampThemeAtivo) return; // idempotente: re-entrar na mesma campanha não repete véu/vídeo
   if(!t){ fRemoveCampTheme(); return; }
-  if(_fCampThemeAtivo) document.body.classList.remove('camp-theme-'+_fCampThemeAtivo);
+  if(_fCampThemeAtivo){
+    document.body.classList.remove('camp-theme-'+_fCampThemeAtivo);
+    // Troca direta de um tema para outro (sem passar pela home): o header e o escuro do
+    // anterior não podem vazar para o próximo.
+    const w=document.querySelector('#f-chat-head .muchplus-motion-wrap, #f-chat-head .bb-brand'); if(w) w.remove();
+    _fCampThemeDevolveClaro();
+  }
   _fCampThemeAtivo=t;
   const reduz=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // Guard do flip: ele roda ~400ms depois — se o franqueado já saiu (fGoHome) ou
   // trocou de tema nessa janela, aplicar agora "vestiria" a home. Aborta.
-  const flip=()=>{ if(_fCampThemeAtivo!==t) return; document.body.classList.add('camp-theme-'+t); if(t==='muchplus') _fMuchPlusHeader(reduz); };
+  const flip=()=>{
+    if(_fCampThemeAtivo!==t) return;
+    if(_F_CAMP_TEMA_ESCURO[t] && document.body.classList.contains('theme-light')){
+      document.body.classList.remove('theme-light'); _fCampThemeClaro=true;
+    }
+    document.body.classList.add('camp-theme-'+t);
+    if(t==='muchplus') _fMuchPlusHeader(reduz);
+    if(t==='black') _fBlackHeader();
+  };
   if(reduz){ flip(); return; } // movimento reduzido: troca seca, sem véu
   // Véu "entrei em outro mundo": cobre a tela, o tema troca por baixo (~400ms,
   // quando o círculo já fechou — ninguém vê a costura) e evapora sozinho.
   const antigo=document.getElementById('f-camp-veil'); if(antigo) antigo.remove();
   const veil=document.createElement('div'); veil.id='f-camp-veil';
+  veil.dataset.tema=t; // o CSS escolhe as cores e a coreografia do véu por tema
   veil.innerHTML='<div class="veil-layer veil-1"></div><div class="veil-layer veil-2"></div>'
-    +(t==='muchplus'?'<img src="assets/logos/muchplus-trim.png" alt="" aria-hidden="true"/>':''); // -trim: PNG original é quadrado com ~70% de margem transparente
+    +(t==='muchplus'?'<img src="assets/logos/muchplus-trim.png" alt="" aria-hidden="true"/>':'') // -trim: PNG original é quadrado com ~70% de margem transparente
+    // Black: o selo no palco laranja e um bumerangue que cruza a tela e VOLTA — o "vai e
+    // volta" da mecânica (pedido que vai, cupom que volta). Markup estático, sem dado de usuário.
+    +(t==='black'?'<div class="bb-veil-stage" aria-hidden="true"><img class="bb-veil-selo" src="assets/campanhas/black-bumerangue/selo-g7-v1.png" alt=""/><div class="bb-veil-bordao">Pedido que vai, cupom que volta.</div></div>'
+      +'<img class="bb-veil-bum" src="assets/campanhas/black-bumerangue/bum-c-v1.png" alt="" aria-hidden="true"/>':'');
   document.body.appendChild(veil);
   void veil.offsetWidth; // commita o estado inicial do clip-path antes de animar
   veil.classList.add('on');
@@ -545,6 +582,17 @@ function _fMuchPlusHeader(semMotion){
   if(vid.offsetParent!==null) arma();
   else wrap._arma=arma;
 }
+/* Header da Black: o selo da campanha no lugar da marca Luma, como adesivo (inclinado,
+   sombra dura). Mesmo contrato do Much+: os irmãos originais ficam display:none via CSS e
+   voltam sozinhos quando a classe sai — nunca reescrever o innerHTML do header. */
+function _fBlackHeader(){
+  const brand=document.querySelector('#f-chat-head .f-assistant-brand');
+  if(!brand||brand.querySelector('.bb-brand')) return;
+  const wrap=document.createElement('div');
+  wrap.className='bb-brand';
+  wrap.innerHTML='<img src="assets/campanhas/black-bumerangue/selo-g7-v1.png" alt="Black Bumerangue"/>';
+  brand.appendChild(wrap);
+}
 // Ponte do seam de visibilidade: o fSelectMaterial chama isto ao devolver o
 // display do chat — se o motion do Much+ está pendurado esperando, toca agora.
 function _fMuchPlusHeaderPlay(){
@@ -554,8 +602,9 @@ function _fMuchPlusHeaderPlay(){
 function fRemoveCampTheme(){
   const tinha=_fCampThemeAtivo;
   if(tinha){ document.body.classList.remove('camp-theme-'+tinha); _fCampThemeAtivo=''; }
-  const wrap=document.querySelector('#f-chat-head .muchplus-motion-wrap');
+  const wrap=document.querySelector('#f-chat-head .muchplus-motion-wrap, #f-chat-head .bb-brand');
   if(wrap) wrap.remove(); // a marca original só estava display:none — reaparece sozinha (o _arma morre com o nó)
+  _fCampThemeDevolveClaro(); // tema escuro (Black) devolve o claro de quem usa o claro
   const veil=document.getElementById('f-camp-veil'); if(veil) veil.remove();
   // Beat de saída: wipe reverso curto (~320ms) — o magenta recolhe e devolve o Luma.
   // Só quando havia tema de verdade (o guard `tinha` também evita beat duplo no
@@ -563,6 +612,7 @@ function fRemoveCampTheme(){
   if(tinha && !(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)){
     const antigoOut=document.getElementById('f-camp-veil-out'); if(antigoOut) antigoOut.remove();
     const out=document.createElement('div'); out.id='f-camp-veil-out';
+    out.dataset.tema=tinha; // recolhe na cor do tema que SAIU (os tokens já voltaram a ser Luma)
     document.body.appendChild(out);
     void out.offsetWidth;
     out.classList.add('on');

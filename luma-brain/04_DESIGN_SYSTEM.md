@@ -93,6 +93,8 @@ A classe `body.theme-light` significa **claro em todos os módulos**; sua ausên
 
 **Regra prática:** estilize **pelos tokens semânticos** e os dois temas saem "de graça". Só escreva override de tema quando o token não cobrir (e cubra os **dois** lados).
 
+**Tema por campanha** (`body.camp-theme-<slug>`, liga/desliga em `fApplyCampTheme`/`fRemoveCampTheme`, `js/franqueado/materials.js`): a pasta veste o app enquanto o franqueado está dentro dela. Liga pelo **badge da pasta** (dado, editável no Estúdio): `MUCH+` → `muchplus`; `BLACK…` → `black`. Tokens em `00-tokens.css` (`--muchplus-*`, `--bb-*`), visual (header, véu, botões, vitrine) em `modules/franqueado.css`. ⚠ O `black` é **tema escuro forçado**: tira o `.theme-light` ao entrar e devolve na saída conforme a preferência salva (`__luma_theme`) — por isso o painel da conta lê `_fCampThemeClaro` antes de dizer "escuro". Tema novo de campanha: badge → slug em `_F_CAMP_TEMA_BADGE`, cor do véu de saída por `#f-camp-veil-out[data-tema]`.
+
 ---
 
 ## 4. Tipografia

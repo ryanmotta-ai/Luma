@@ -6,6 +6,17 @@
 
 ---
 
+## 2026-10-29 — Black Bumerangue: badge da pasta vira "BLACK FRIDAY" e liga o tema exclusivo da campanha (✅ dado, sem migration)
+
+Pedido do Ryan: tema exclusivo ao entrar na pasta da Black Bumerangue, no molde do Much+ (tokens de cor, header, véu de entrada). O tema de campanha liga pelo **badge da pasta** (`_fCampThemeOf`, `js/franqueado/materials.js`) — `luma.pastas` **não tem** coluna `theme` e não foi criada. O front passou a mapear badge com "BLACK" → tema `black`.
+
+- `update luma.pastas set badge='BLACK FRIDAY' where id='16d3f194-7c66-4a5a-9b02-ddc5cba15947';` (era `NOVO`). Só essa pasta. O selo "novo" de material publicado depois da última visita continua (é calculado, não vem do badge).
+- Sem badge "BLACK…" a pasta volta a ser uma campanha comum: nada quebra, só some o tema.
+
+**Reverter**: `update luma.pastas set badge='NOVO' where id='16d3f194-7c66-4a5a-9b02-ddc5cba15947';` (o MKT também troca pelo Estúdio, no modal da pasta).
+
+---
+
 ## 2026-10-29 — Black Bumerangue (Black Friday 2026): pasta nova com 5 artes, feed + story, publicadas (✅ dados, sem migration)
 
 Pedido do Ryan: subir no Luma as artes da campanha "Black Bumerangue — Pedido que vai, cupom que volta", desenhadas e aprovadas no canvas do Claude Design e traduzidas para camadas do motor.

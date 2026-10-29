@@ -44,7 +44,9 @@ function gOpenUserProfileModal() {
   // (O default fake '(55) 99123-4567' era resto de mock — sumiu.)
   let _phoneLocal=''; try{ _phoneLocal = localStorage.getItem('__luma_user_phone_' + email) || ''; }catch(e){}
   const phone = (user && user.telefone) || _phoneLocal || '';
-  const theme = document.body.classList.contains('theme-light') ? 'light' : 'dark';
+  // Dentro da Black o app fica escuro sem ser escolha da pessoa (fApplyCampTheme tira o
+  // .theme-light) — ler o body aqui gravaria "escuro" no próximo Salvar do perfil.
+  const theme = (document.body.classList.contains('theme-light') || (typeof _fCampThemeClaro !== 'undefined' && _fCampThemeClaro)) ? 'light' : 'dark';
 
   // Preencher formulário de dados pessoais
   const inputName = document.getElementById('prof-input-name');
@@ -425,7 +427,10 @@ function gProfileApplyTheme(theme) {
   clearTimeout(gProfileApplyTheme._t);
   gProfileApplyTheme._t = setTimeout(() => b.classList.remove('theme-anim'), 280);
   // Para a aba Designer e Franqueado (que compartilham a classe body.theme-light):
-  b.classList.toggle('theme-light', theme === 'light');
+  // Dentro da Black (tema de campanha escuro) o claro só volta na saída da pasta — quem
+  // devolve é o _fCampThemeDevolveClaro (materials.js), lendo a preferência gravada acima.
+  const _campEscuro = typeof _fCampThemeClaro !== 'undefined' && _fCampThemeClaro;
+  if (!(_campEscuro && theme === 'light')) b.classList.toggle('theme-light', theme === 'light');
   if (typeof dTheme !== 'undefined') dTheme = theme;
   fSyncThemeIcon(theme);
 
