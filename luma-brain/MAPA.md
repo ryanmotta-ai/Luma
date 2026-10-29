@@ -131,6 +131,7 @@ franqueado (o Quick Add em linguagem natural existiu e saiu em 03/09).
 | Histórico de propostas | `js/potencial/historico.js` + `luma.potencial_propostas` |
 | Editar tarifa, faixa, cadastrar cidade (só gestão) | `js/potencial/tarifas.js` |
 | Tarifa, IPCA, ticket, deltas, URL do gerador | tabelas `luma.potencial_*` (RLS) — nunca no JS |
+| Referência da rede, projeção calibrada (percentis, GMV real das cidades operadas) | `js/potencial/motor.js` (`potRedeEstatisticas`, `potCalibraModelo`) + `luma.potencial_rede` · achados em `docs/POTENCIAL-CALIBRACAO.md` |
 | Copiar o deck e trocar o texto | `scripts/apps-script/potencial-slides.gs` (Apps Script publicado como Web App) |
 | Quem só vê o Potencial | `luma.acesso_restrito` + `gAreaRestrita()` (`js/core/auth.js`) |
 | Estilo | `css/modules/potencial.css` |
@@ -278,7 +279,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 100 arquivos JS (87.865 linhas, 3.428 funções) · 34 arquivos CSS (34.276 linhas) · `index.html` com 4.107 linhas e 90 `<script>`.
+**Tamanho real de hoje:** 100 arquivos JS (88.050 linhas, 3.436 funções) · 34 arquivos CSS (34.316 linhas) · `index.html` com 4.107 linhas e 90 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -776,9 +777,9 @@ POTENCIAL — comparar cidades e gerar slides em lote (v2, 30/10/2026).
 · Estado global: _potCRes, _potCSeq, _potCTimer
 · Depende de: motor.js, potencial.js (estado `_pot`, potBuscarCidades, potChamaGerador, potRegistrarProposta).
 
-**`js/potencial/graficos.js`** · 168 linhas
+**`js/potencial/graficos.js`** · 220 linhas
 POTENCIAL — gráficos em SVG puro (v2, 30/10/2026). Sem biblioteca: o Luma não tem build. Duas séries do MESMO modelo de 24 meses, empilhadas e com o eixo X compartilhado — nunca num eixo duplo (GMV na casa das centenas de…
-· API: potGraficoGMV, potGraficoCaixa, potProjecaoHTML, potLigaProjecao, potTabelaMeses
+· API: potGraficoGMV, potGraficoCaixa, potProjecaoHTML, potLigaProjecao, potTabelaMeses, potGraficoRede
 · Depende de: potencial/motor.js (potBRL, potBRLc, potNumero).
 
 **`js/potencial/historico.js`** · 64 linhas
@@ -786,14 +787,14 @@ POTENCIAL — o histórico de propostas (v2, 30/10/2026). Cada slide gerado fica
 · API: potRenderHistorico, potCarregaHistorico, potReabrir
 · Depende de: motor.js, potencial.js (`_pot`, `_potSb`, `potAba`, `potEscolherCidade`).
 
-**`js/potencial/motor.js`** · 223 linhas
+**`js/potencial/motor.js`** · 300 linhas
 POTENCIAL DA CIDADE — o MOTOR (v2, 30/10/2026). Puro: sem DOM, sem rede, sem estado. ⛔ UM motor. Tela (potencial.js), gráficos (graficos.js), comparação, histórico e o slide leem o MESMO objeto devolvido por `potCalcular`. Se…
-· API: potFaixaPara, potTeto50, potModelo24, potCalcular, potResumo, potNumero, potBRL, potBRL2, potBRLc, potPct, potMeses, potLerNumero, potCamposSlide
+· API: potFaixaPara, potTeto50, potModelo24, potCalcular, potPercentil, potRedeEstatisticas, potPosicaoNaRede, potCalibraModelo, potResumo, potNumero, potBRL, potBRL2, potBRLc, potPct … (+3; 17 funções no total)
 · Depende de: nada (puro). Carregar antes de potencial.js e graficos.js.
 
-**`js/potencial/potencial.js`** · 495 linhas
+**`js/potencial/potencial.js`** · 551 linhas
 POTENCIAL DA CIDADE — a tela (v2, 30/10/2026). A "Calculadora de Franquias 2026" do Aladim dentro do Luma. A equipe comercial escolhe a cidade, vê investimento, os 3 cenários e a projeção de 24 meses com os mesmos números da…
-· API: potCarregar, potBuscarCidades, potCidadePorChave, potCidadesDaRede, potRecentes, potLembra, potEntrar, potMontar, potAba, potBuscaDigita, potRenderLista, potBuscaTecla, potBuscaFecha, potEscolher … (+23; 43 funções no total)
+· API: potCarregar, potBuscarCidades, potCidadePorChave, potCidadesDaRede, potRecentes, potLembra, potEntrar, potMontar, potAba, potBuscaDigita, potRenderLista, potBuscaTecla, potBuscaFecha, potEscolher … (+26; 46 funções no total)
 · Estado global: _pot
 · Depende de: motor.js, graficos.js, core/supabase.js (window.sb), core/toast.js (gToast/gEsc/gNormBusca/gBtnLoading),
 
@@ -835,7 +836,7 @@ POTENCIAL — Tarifas (só a gestão, v2, 30/10/2026). Edita na tela o que antes
 | `css/modules/layers-panel.css` | 4530 |
 | `css/modules/live-preview.css` | 1759 |
 | `css/modules/panel-dock.css` | 116 |
-| `css/modules/potencial.css` | 313 |
+| `css/modules/potencial.css` | 353 |
 | `css/modules/publish-modal.css` | 628 |
 | `css/modules/toolbar.css` | 1090 |
 | `css/modules/topbar.css` | 217 |

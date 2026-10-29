@@ -1328,3 +1328,11 @@ miniaturas e nome, estado vazio, usar (dataURL + prévia), salvar (caminho e pay
 
 **Verificação.** Motor × planilha: 264 células (24 meses × 11 linhas, Ariquemes), maior diferença 0,000047. UI exercitada no Chromium com `window.sb` simulado: busca por teclado, ajustes (concorrentes 2→1 = R$ 93.800; 1→0 = R$ 82.250), gerar + registro da proposta, comparar, lote, histórico/reabrir, Tarifas (upsert), celular. **Não** exercitado: migrations no banco real, Apps Script v2 publicado, as 3 roles contra a RLS nova.
 
+## 2026-10-30 (tarde) — Potencial: referência da rede e projeção calibrada
+
+**Migration:** `20261030120000_luma_potencial_rede.sql` (**não aplicada**; rodar depois de `20261030100000`). `luma.potencial_rede`: GMV real de 99 cidades da Base Ops (fev, mar, jun, ago, set/2026; para jun também pedidos, ticket, clientes ativos e frequência), com fase (Ongoing / Implementação / Operação Própria) e curva A/B/C. RLS: lê quem usa o Potencial (`luma.pode_potencial()`), escreve só a gestão. É dado comercial da rede: franqueado não lê.
+
+**Front.** `motor.js`: `potRedeEstatisticas` (as 15 cidades Ongoing de população mais parecida → P10–P90 de GMV/hab), `potPosicaoNaRede`, `potCalibraModelo` (bisseção nos deltas até o GMV do mês 24 igualar o percentil). Tela: seção **Referência da rede** (gráfico com cenários e modelo marcados, texto, cidades parecidas), percentil em cada cenário, seletor **Planilha | Rede P25/P50/P75** nos KPIs e na projeção. Sem a tabela a tela segue como antes. Achados em `docs/POTENCIAL-CALIBRACAO.md`: ticket real R$ 69,40 (confirma o R$ 70) e cenários de 2/20/35% acima da rede.
+
+**Verificação.** Calibração: o GMV do mês 24 iguala o alvo exatamente nas 4 cidades testadas (Ariquemes, Aruanã, Tupã, Chapada); Tupã (opera hoje R$ 458 mil/mês) vs P50 da referência R$ 476 mil. UI no Chromium: planilha × P50, cidade operada, sem a tabela, escape de nome, celular. **Não** exercitado: a migration no banco real.
+
