@@ -205,8 +205,37 @@ Cada etapa é um ticket. "Pronto" = o critério escrito, verificado na bancada o
 **E0 · Casa arrumada**
 - [ ] E0.1 Atualizar o nome "Luma Ateliê" nos docs (`luma-brain/`, `docs/`) e no prompt do
   roteador. Pronto: nenhuma menção visível a "Creative" fora de código.
-- [ ] E0.2 Linha de base de qualidade: rodar a bancada e registrar nota média, ≥ 80, tempo e
+- [x] E0.2 Linha de base de qualidade: rodar a bancada e registrar nota média, ≥ 80, tempo e
   repetição. Pronto: os números estão neste arquivo, para comparar cada etapa.
+
+  **Linha de base — 30/10/2026** (`tests/_bancada-creative.html`, banco inteiro, commit `3d73f52`).
+  1.152 casos. Busca: p50 56 ms, p95 129 ms, máx. 324 ms. Erro de marca pelo DOM: 0.
+  ⚠ Rodou no painel do navegador escondido (aba em segundo plano): o tempo é teto, não piso —
+  compare tempo só com rodada feita do mesmo jeito.
+
+  | recorte | casos | média das 3 | melhor das 3 | ≥ 80 | sem opção | assinatura repetida |
+  |---|---|---|---|---|---|---|
+  | **total** | 1152 | **87,6** | 91,5 | **86%** | 6 | **187** |
+  | feed | 392 | 90,2 | 93,7 | 95% | 2 | 27 |
+  | story | 424 | 89,8 | 93,8 | 93% | 0 | 58 |
+  | inapp | 96 | 87,4 | 91,5 | 89% | 0 | 28 |
+  | capa | 56 | 90,0 | 94,4 | 83% | 0 | 55 |
+  | carrossel | 40 | 79,2 | 81,6 | 51% | 0 | 5 |
+  | emailTopo | 48 | 77,6 | 83,7 | 52% | 0 | 4 |
+  | banner | 96 | 74,9 | 78,9 | 33% | 4 | 10 |
+  | grupo A | 184 | 86,4 | 90,0 | 86% | 0 | 10 |
+  | grupo B | 128 | 91,1 | 93,8 | 94% | 0 | 2 |
+  | grupo C | 336 | 86,9 | 91,4 | 86% | 2 | 146 |
+  | grupo D | 88 | 84,5 | 88,8 | 87% | 4 | 5 |
+  | grupo E | 208 | 88,8 | 92,4 | 87% | 0 | 20 |
+  | grupo F | 88 | 85,8 | 91,0 | 77% | 0 | 2 |
+  | grupo G | 120 | 89,5 | 92,7 | 87% | 0 | 2 |
+
+  O que a linha de base já diz: os formatos largos (**banner**, **emailTopo**, **carrossel**)
+  são o buraco de nota — um terço a metade das opções abaixo de 80. A **repetição** se concentra
+  em **capa** (55 de 56 casos com assinatura igual entre as 3 opções) e no **grupo C**: é o alvo
+  natural da E4.2. Os 6 casos sem opção são `c03/feed/extremo/foto` (+ `/much`) e
+  `d03/banner/{curto,medio,longo,extremo}` sem foto.
 
 **E1 · Concierge**
 - [ ] E1.1 Estado da sessão como `.md`, gerado do `crState`, com compactação acima de um teto.
