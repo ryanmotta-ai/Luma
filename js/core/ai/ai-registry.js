@@ -19,7 +19,7 @@
 
   const TASKS = {
     'caption.generate': {
-      version: '1.7.0',
+      version: '1.8.0',
       modelType: 'fast',
       featureFlag: 'caption',
       defaultTtl: 0, // legendas não devem ser repetidas em cache cego
@@ -55,7 +55,7 @@ Sem emojis, asteriscos ou markdown.
 PT-BR com acento e ç corretos nas 3 opções, inclusive whatsapp (família, preço, até, você, não, está, olá, peça). Os fatos podem vir sem acento: "Combo familia" vira "Combo família"; não troque palavras, nomes próprios nem preços.
 Promo e engajar: ${ehStory ? 'até 2' : '2 a 4'} linhas curtas, mais as hashtags no fim.
 SEO do Instagram: o nome do produto aparece na 1ª linha e ${typeof _fSeoLocal === 'function' ? _fSeoLocal(cidadeTag) : 'a cidade aparece uma vez no texto, se informada (nunca invente cidade). Hashtags (6 a 8, minúsculas, sem acento, curtas: até 18 letras cada, nunca o nome inteiro de um produto longo, nada genérico como #comodidade, sem números, horários nem preços na hashtag; em aviso ou comunicado, só as fixas e no máximo 1 de tema): produto, categoria'} e as fixas: ${hashtags.toLowerCase()}
-Campanha é contexto, não produto.${p.girias ? '\n' + p.girias : ''}
+Campanha é contexto, não produto.${p.girias ? '\n' + p.girias : ''}${typeof _fVozCampanha === 'function' && _fVozCampanha(p.campanha) ? '\n\n' + _fVozCampanha(p.campanha) : ''}
 
 ${typeof CR_BRANDING_VOZ === 'string' ? CR_BRANDING_VOZ + '\n\n' : ''}A legenda ACOMPANHA uma arte: fale do que a arte mostra (os campos abaixo são o que está escrito nela) em vez de repetir uma lista de itens; uma frase de abertura que prenda, o benefício para quem pede, a chamada para pedir pelo app. Releia antes de responder: nenhuma frase pode terminar solta ou sem sentido.
 

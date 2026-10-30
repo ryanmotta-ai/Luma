@@ -2727,6 +2727,22 @@ function _fCapDiagrama(s){
 }
 console.assert(_fCapDiagrama('Fome? Pizza por R$ 39,90. Peça no app. #DeliveryMuch #Delivery') === 'Fome?\n\nPizza por R$ 39,90.\n\nPeça no app.\n\n#DeliveryMuch #Delivery', '_fCapDiagrama');
 
+/* VOZ DE CAMPANHA no prompt da legenda (30/10/2026). Só a Black Friday 2026 tem voz própria,
+   tirada do conceito B2C e das peças de app/outdoor: "Black Bumerangue — pedido que vai, cupom
+   que volta". Os dois caminhos de IA (gateway `caption.generate` e `gAskAI('legenda')`) leem
+   daqui, então o tom é UM só. Fora da pasta da Black devolve '' e o prompt fica como sempre.
+   ⚠ A mecânica (o cupom que volta) é promessa da campanha e pode ser dita; o PERCENTUAL e as
+   datas do cupom mudaram entre as versões do briefing (15% × 30%, até 29 × 30/11) — por isso
+   só entram se estiverem nos fatos da arte. Emoji 🪃 das peças de app fica de fora: a regra
+   "sem emoji" da legenda vale para toda campanha. */
+function _fVozCampanha(campName){
+  if (!/black|bumerang/i.test(String(campName || ''))) return '';
+  return 'VOZ DESTA CAMPANHA — BLACK BUMERANGUE (Black Friday 2026 da Delivery Much). Assinatura: "pedido que vai, cupom que volta". A ideia: quem pede no app na semana da Black ganha um cupom que VOLTA pra ele usar nos dias seguintes; o pedido é um investimento, o valor volta como economia de verdade. Essa Black não termina na sexta.\n'
+    + 'Como falar: frases curtas e com ritmo de ida e volta (algo vai agora, algo volta depois), tom esperto e animado, de quem mostra uma vantagem real e não um grito de liquidação. Exemplos do tom: "O pedido vai agora, seu cupom volta depois." / "Pediu hoje? Amanhã seu cupom volta." / "Seu pedido vai e logo seu cupom volta." / "Essa Black não termina na sexta." / "Aproveita, pede no app!". Use a palavra "Black" (não "Black Friday" a toda hora) e, pelo menos uma vez entre as 3 opções, "Black Bumerangue" ou a assinatura. Chamadas no espírito de "pedir agora", "pede no app", "pedir agora no precinho".\n'
+    + 'Limites: o cupom que volta pode ser citado como mecânica, mas NUNCA invente o percentual, o valor nem as datas do cupom ou da campanha se não estiverem nos fatos. A oferta da arte (produto e preço) continua sendo o centro; a mecânica é o motivo extra pra pedir já. Nada de "imperdível", "corre que acaba" ou pressão vazia.';
+}
+console.assert(_fVozCampanha('Copa Do Mundo 2026') === '' && _fVozCampanha('Black Bumerangue').indexOf('cupom que volta') > 0, '_fVozCampanha');
+
 /* Trecho LOCAL do SEO no prompt da legenda. Com cidade: citar a cidade e as hashtags dela.
    Sem cidade: nunca inventar lugar — duas frases sorteadas do mesmo banco do motor local
    (`_COPY_BLOCKS.locaisSemCidade`), uma em "promo" e outra em "engajar". */
@@ -2856,7 +2872,9 @@ REGRAS OBRIGATÓRIAS:
    SEO do Instagram: o nome do produto aparece na 1ª linha e ${_fSeoLocal(cidadeTag)} e as fixas acima, em minúsculas.
 6. "whatsapp" é mensagem pra lista de transmissão: chama pra pedir no app. NUNCA use asterisco (*) nem qualquer marcação de negrito/markdown, em nenhuma opção.
 7. Português do Brasil com TODA a acentuação e o "ç" corretos (família, peça, promoção, você, já). Os fatos podem ter sido digitados sem acento: corrija a grafia na legenda, mas não troque palavras, nomes próprios nem preços.${blocoGirias ? `
-8. ${blocoGirias}` : ''}
+8. ${blocoGirias}` : ''}${_fVozCampanha(campName) ? `
+
+${_fVozCampanha(campName)}` : ''}
 
 Responda APENAS com JSON válido:
 {"promo":"legenda que vende (foco na oferta)","engajar":"legenda que puxa comentário/marcação de amigo","whatsapp":"mensagem curta pra lista do WhatsApp, sem asterisco"}`;
