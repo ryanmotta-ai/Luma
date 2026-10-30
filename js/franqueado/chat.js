@@ -1424,12 +1424,18 @@ function _fUploadPreviewHTML(varId, url, opts){
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       <span>${gEsc(opts.aviso)}</span>
     </div>` : '';
+  const allHist = (typeof fGetHist === 'function') ? fGetHist() : [];
+  const fotoDica = (!ehLogo && allHist.length < 3) ? `<div class="f-upload-tip-row" role="note">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>
+      <span>Dica: toque em <b>Ajustar</b> ou arraste na prévia para reenquadrar</span>
+    </div>` : '';
   const barra = `<div class="f-upload-confirm">
       ${aviso}
       <div class="f-upload-confirm-row">
         ${opts.bloqueio ? '' : `<button class="f-upload-ok" onclick="fConfirmarImagem('${gEsc(varId)}')"${opts.conferindo?' disabled':''}>${opts.conferindo ? 'Conferindo a foto…' : (opts.aviso ? 'Usar mesmo assim' : (opts.jaEstava ? 'Manter esta imagem' : 'Usar esta imagem'))}</button>`}
         <button class="f-upload-replace" onclick="fReplaceImage('${gEsc(varId)}',this)">${opts.bloqueio ? 'Trocar foto' : (opts.aviso ? 'Trocar arquivo' : 'Trocar')}</button>
       </div>
+      ${fotoDica}
     </div>`;
   return `<div class="f-upload-preview f-upload-preview-pop">
       <img src="${gEsc(url)}" alt="Imagem enviada"/>
@@ -2564,7 +2570,7 @@ function _fGiriaGarante(out, g){
 
 /* Sem franquia não há cidade — e sem cidade não há gírias: `fGiriasDaCidade` devolve [] e
    este painel nunca nasce. Em vez de sumir calado, o franqueado vê um cartão curto no MESMO
-   lugar, que abre o seletor obrigatório do login (`gFranquiaIniciar`). Assim a pergunta
+   lugar, que reabre o seletor do login (`gFranquiaIniciar`, que dá para pular). Assim a pergunta
    aparece no momento em que a falta dela faz diferença (a legenda), não só no login —
    e o caminho de erro deixa de ser silencioso. */
 function fCardFranquia(canvasId){
@@ -2586,8 +2592,13 @@ async function fCardFranquiaAbrir(canvasId){
   const card = document.querySelector('.cap-franquia');
   const btn = card ? card.querySelector('.cap-franquia-btn') : null;
   if(btn){ btn.disabled = true; btn.textContent = 'Abrindo…'; }
-  try{ if(typeof gFranquiaIniciar === 'function') await gFranquiaIniciar(); }catch(e){}
+  try{ if(typeof gFranquiaIniciar === 'function') await gFranquiaIniciar({ forcar:true }); }catch(e){}
   const fr = (typeof gMinhaFranquia === 'function') ? gMinhaFranquia() : null;
+  if(!fr && typeof gFranquiaPulou === 'function' && gFranquiaPulou()){
+    // Pulou de novo: não é erro, não há toast. O cartão continua lá para quando quiser.
+    if(btn){ btn.disabled = false; btn.textContent = 'Dizer minha franquia'; }
+    return;
+  }
   if(!fr){
     /* `gFranquiaIniciar` engole erro de rede/RPC de propósito (o boot não pode travar).
        Aqui o silêncio seria pior: a pessoa clicou para resolver e nada aconteceu. */
@@ -2715,6 +2726,22 @@ function _fCapDiagrama(s){
   return frases.concat(tags ? [tags] : []).join('\n\n');
 }
 console.assert(_fCapDiagrama('Fome? Pizza por R$ 39,90. Peça no app. #DeliveryMuch #Delivery') === 'Fome?\n\nPizza por R$ 39,90.\n\nPeça no app.\n\n#DeliveryMuch #Delivery', '_fCapDiagrama');
+
+/* VOZ DE CAMPANHA no prompt da legenda (30/10/2026). Só a Black Friday 2026 tem voz própria,
+   tirada do conceito B2C e das peças de app/outdoor: "Black Bumerangue — pedido que vai, cupom
+   que volta". Os dois caminhos de IA (gateway `caption.generate` e `gAskAI('legenda')`) leem
+   daqui, então o tom é UM só. Fora da pasta da Black devolve '' e o prompt fica como sempre.
+   ⚠ A mecânica (o cupom que volta) é promessa da campanha e pode ser dita; o PERCENTUAL e as
+   datas do cupom mudaram entre as versões do briefing (15% × 30%, até 29 × 30/11) — por isso
+   só entram se estiverem nos fatos da arte. Emoji 🪃 das peças de app fica de fora: a regra
+   "sem emoji" da legenda vale para toda campanha. */
+function _fVozCampanha(campName){
+  if (!/black|bumerang/i.test(String(campName || ''))) return '';
+  return 'VOZ DESTA CAMPANHA — BLACK BUMERANGUE (Black Friday 2026 da Delivery Much). Assinatura: "pedido que vai, cupom que volta". A ideia: quem pede no app na semana da Black ganha um cupom que VOLTA pra ele usar nos dias seguintes; o pedido é um investimento, o valor volta como economia de verdade. Essa Black não termina na sexta.\n'
+    + 'Como falar: frases curtas e com ritmo de ida e volta (algo vai agora, algo volta depois), tom esperto e animado, de quem mostra uma vantagem real e não um grito de liquidação. Exemplos do tom: "O pedido vai agora, seu cupom volta depois." / "Pediu hoje? Amanhã seu cupom volta." / "Seu pedido vai e logo seu cupom volta." / "Essa Black não termina na sexta." / "Aproveita, pede no app!". Use a palavra "Black" (não "Black Friday" a toda hora) e, pelo menos uma vez entre as 3 opções, "Black Bumerangue" ou a assinatura. Chamadas no espírito de "pedir agora", "pede no app", "pedir agora no precinho".\n'
+    + 'Limites: o cupom que volta pode ser citado como mecânica, mas NUNCA invente o percentual, o valor nem as datas do cupom ou da campanha se não estiverem nos fatos. A oferta da arte (produto e preço) continua sendo o centro; a mecânica é o motivo extra pra pedir já. Nada de "imperdível", "corre que acaba" ou pressão vazia.';
+}
+console.assert(_fVozCampanha('Copa Do Mundo 2026') === '' && _fVozCampanha('Black Bumerangue').indexOf('cupom que volta') > 0, '_fVozCampanha');
 
 /* Trecho LOCAL do SEO no prompt da legenda. Com cidade: citar a cidade e as hashtags dela.
    Sem cidade: nunca inventar lugar — duas frases sorteadas do mesmo banco do motor local
@@ -2845,7 +2872,9 @@ REGRAS OBRIGATÓRIAS:
    SEO do Instagram: o nome do produto aparece na 1ª linha e ${_fSeoLocal(cidadeTag)} e as fixas acima, em minúsculas.
 6. "whatsapp" é mensagem pra lista de transmissão: chama pra pedir no app. NUNCA use asterisco (*) nem qualquer marcação de negrito/markdown, em nenhuma opção.
 7. Português do Brasil com TODA a acentuação e o "ç" corretos (família, peça, promoção, você, já). Os fatos podem ter sido digitados sem acento: corrija a grafia na legenda, mas não troque palavras, nomes próprios nem preços.${blocoGirias ? `
-8. ${blocoGirias}` : ''}
+8. ${blocoGirias}` : ''}${_fVozCampanha(campName) ? `
+
+${_fVozCampanha(campName)}` : ''}
 
 Responda APENAS com JSON válido:
 {"promo":"legenda que vende (foco na oferta)","engajar":"legenda que puxa comentário/marcação de amigo","whatsapp":"mensagem curta pra lista do WhatsApp, sem asterisco"}`;
@@ -3465,6 +3494,7 @@ async function fBaixar(btn, snapId){
     const onde=noCelular==='arquivo'?' em Arquivos › Downloads':'';
     if(cap){ _fCopyText(cap); fTrackLegenda('legenda_copiada', snapId, {origem:'download'}); gToast('Arte salva'+onde+' • legenda copiada!'); }
     else gToast(noCelular==='share'?'Arte pronta!':'Arte baixada'+onde+'!');
+    try{ localStorage.setItem('luma_cue_catalog_dismissed','1'); }catch(e){}
     if (typeof gTriggerOnboardingStep === 'function') {
       gTriggerOnboardingStep('downloadedPng');
     }
@@ -3761,6 +3791,7 @@ async function fBaixarPDF(btn, snapId){
     if(typeof gTrackEvent==='function') gTrackEvent('arte_baixada',{camp_id:snap.camp.id,fmt_id:snap.fmt.id,template_id:(typeof _fTplId==='function')?_fTplId(snap.material):null,tipo:'pdf',origem:'chat'});
     if(typeof fFeedbackAfterDownload==='function') fFeedbackAfterDownload(snap,btn,snapId,'pdf');
     gToast('PDF baixado!');
+    try{ localStorage.setItem('luma_cue_catalog_dismissed','1'); }catch(e){}
     if (typeof gTriggerOnboardingStep === 'function') {
       gTriggerOnboardingStep('downloadedPng');
     }

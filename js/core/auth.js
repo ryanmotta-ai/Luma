@@ -87,9 +87,17 @@ async function gLoadProfile() {
       const { data: si } = await sb.schema('luma').rpc('usa_senha_inicial');
       senhaInicial = si === true;
     } catch (e) {}
+    /* Quem deve ver SÓ uma área (hoje: o Potencial, comercial). É navegação, não segurança — a RLS
+       segue pela role. Falha de leitura = menu completo (fail-open): é conforto, não fronteira. */
+    let areaRestrita = null;
+    try {
+      const { data: ar } = await sb.schema('luma').from('acesso_restrito').select('area').eq('user_id', user.id).maybeSingle();
+      areaRestrita = (ar && ar.area) || null;
+    } catch (e) {}
     gAuthState = { user: {
       id: user.id,
       email: user.email,
+      areaRestrita,
       role: (prof && prof.role) || 'franqueado',
       displayName: (prof && prof.nome) || (user.email || '').split('@')[0],
       departamento: (prof && prof.departamento) || null,
@@ -200,7 +208,11 @@ function gUserFoto(u){
   if(u.foto) return u.foto;
   try{ return (u.email && localStorage.getItem('__luma_user_photo_'+u.email)) || ''; }catch(e){ return ''; }
 }
-function gIsAdmin(){ return gRoleLevel(gCurrentRole()) >= ROLE_HIERARCHY.equipe_dm; } // equipe_dm + gestao = Designer
+// Área única que esta pessoa pode ver ('potencial') ou null. Vem de luma.acesso_restrito.
+function gAreaRestrita(){ const u = gAuthState && gAuthState.user; return (u && u.areaRestrita) || null; }
+// equipe_dm + gestao = Designer. Quem tem área restrita NÃO conta: some Estúdio, Dados, Console e o resto das
+// superfícies da equipe (73 pontos usam este gate) — sem precisar tocar em cada um.
+function gIsAdmin(){ return !gAreaRestrita() && gRoleLevel(gCurrentRole()) >= ROLE_HIERARCHY.equipe_dm; }
 function gIsSuperAdmin(){ return gCurrentRole()==='gestao'; }
 function gCanManageUsers(){ return gIsSuperAdmin(); }
 

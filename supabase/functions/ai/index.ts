@@ -654,7 +654,12 @@ Deno.serve(async (req) => {
     } else if (paga) {
       // Com chave paga, o Gemini é o caminho principal: a escada inteira primeiro, as reservas
       // grátis só no que sobrar do prazo. Sem corrida em paralelo — a reserva lenta não atrapalha.
-      r = await viaGemini(escada, prazo);
+      // ⛔ A escada inteira (15+10+10+10s) é MAIOR que o PRAZO_MS: num pico do Google ("high demand")
+      // ela comia os 38s e as reservas nunca rodavam — 504 mesmo com seis provedores de pé (visto em
+      // 29/10/2026, 3 × 503 e depois 504, nenhuma linha de reserva no log). O Gemini fecha a janela dele
+      // antes e deixa para as reservas ao menos um turno de RESERVA_TIMEOUT_MS.
+      const sinalGemini = AbortSignal.any([prazo, AbortSignal.timeout(PRAZO_MS - RESERVA_TIMEOUT_MS - 1_000)]);
+      r = await viaGemini(escada, sinalGemini);
       if (!r) r = await viaReservas(prazo);
     } else {
       r = await new Promise<Resposta | null>((resolve) => {

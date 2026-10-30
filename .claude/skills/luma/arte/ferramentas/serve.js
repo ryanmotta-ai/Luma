@@ -7,7 +7,7 @@ function prepare(){
   const dir=path.join(os.tmpdir(),'luma-arte-srv'); fs.mkdirSync(dir,{recursive:true});
   /* 'junction': no Windows o symlink de pasta exige admin (EPERM); junction não. No Linux/mac o tipo é ignorado. */
   for(const n of ['js','css','assets']){ const l=path.join(dir,n); try{fs.lstatSync(l);}catch(e){fs.symlinkSync(path.join(REPO,n),l,'junction');} }
-  fs.copyFileSync(path.join(__dirname,'harness.html'),path.join(dir,'harness.html'));
+  for(const h of ['harness.html','psd.html']) fs.copyFileSync(path.join(__dirname,h),path.join(dir,h));
   return dir;
 }
 function start(dir,port=0){

@@ -5422,6 +5422,7 @@ body.d-page-locked #d-canvas-container{
   background:var(--dm-orange);color:var(--on-orange);font-size:8.5px;font-weight:800;
   font-variant-numeric:tabular-nums;line-height:1}
 
-/* Alça de giro: sobe da borda superior, no centro; o arrasto vive em dStartRotate (layers.js). */
-.layer-handle.handle-rot{top:-36px;left:50%;margin-left:-12px;cursor:grab}
+/* Alça de giro: o POSICIONAMENTO é do canvas (dRenderCanvas põe um pino no centro da camada,
+   dentro do frame — imagem e moldura têm overflow:hidden e cortariam a alça). Aqui só o cursor. */
+.layer-handle.handle-rot{cursor:grab}
 .layer-handle.handle-rot:active{cursor:grabbing}

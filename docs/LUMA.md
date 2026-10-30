@@ -394,12 +394,21 @@ o futuro que existia antes dela deixou de valer.
 
 ### Tipos de camada (`dLayers[]`)
 
-Comum: `{id, name, type, x, y, w, h, visible, locked, opacity, mask, anchor, overrides, bindings, rules, groupId, blendMode}`.
+Comum: `{id, name, type, x, y, w, h, visible, locked, opacity, rotation, mask, anchor, overrides, bindings, rules, groupId, blendMode}`.
 - **text**: `content` (com `{{tokens}}`), `font` (`'Roboto Black'` ou `custom:Família`), `fontSize`, `color`, `textAlign`, efeitos (`strokeW/strokeColor`, `shadow/shadowColor`, `bg/bgColor`, `strikethrough`).
 - **shape**: `fill`, `radius`, `shapeKind` (rect/circle/ellipse/triangle/polygon/star), `sides`/`points`/`inner`.
 - **frame** (moldura): `imgUrl`, `imgVar` (default `foto_produto`), `objectFit`, `frameShape`, enquadramento (`imgScale`, `imgOffsetX/Y`).
 - **image**: `imgUrl`, `imgVar`, `objectFit`.
 ⚠ `opacity` só é aplicada no render de **shape** (text/frame/image ignoram) — limitação conhecida.
+
+**`rotation` (29/10/2026)** — ângulo em graus, gira em torno do **centro da caixa** e vale para
+toda camada nos três alvos: `fRenderOneLayer` (PNG/prévia), `dRenderCanvas` (Estúdio) e
+`dExportSVG`. A exceção é a **linha** (`shapeKind:'line'`): nela `rotation` é o ângulo da própria
+linha, com pivô no ponto inicial; e **grupo** não gira (não tem caixa própria). No Estúdio o
+ângulo vem do campo **°** (Posição e tamanho) ou da alça de girar (Shift trava em 15°), que vive
+num pino no `#d-canvas-frame` — dentro da camada ela seria cortada pelo `overflow:hidden` de
+imagem e moldura. Camada girada fica **fora do Local Fit**: a mesma regra que já valia para
+texto girado, porque encaixar texto dentro de uma caixa girada não tem medida única.
 
 ### Caixa de texto: ponto × parágrafo (`textBox`) — 2026-08-05
 

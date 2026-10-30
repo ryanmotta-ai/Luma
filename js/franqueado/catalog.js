@@ -1277,6 +1277,37 @@ function _fCampAgendadaFuturo(c){
   const hoje=new Date(); hoje.setHours(0,0,0,0);
   return d.getTime()>hoje.getTime();
 }
+/* ══ PISTA CONTEXTUAL: PRIMEIRO ACESSO DO FRANQUEADO ══ */
+function _fCatalogCueHTML(){
+  const all = (typeof fGetHist==='function') ? fGetHist() : [];
+  if(all && all.length > 0) return '';
+  let dismissed = false;
+  try{ dismissed = localStorage.getItem('luma_cue_catalog_dismissed')==='1'; }catch(e){}
+  if(dismissed) return '';
+  return `<aside class="f-catalog-cue" id="f-catalog-cue" role="note" aria-label="Como funciona no Luma">
+    <div class="f-catalog-cue-icon" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.6.6 1 1.2 1 2h6c0-.8.4-1.4 1-2A6 6 0 0 0 12 3Z"/>
+      </svg>
+    </div>
+    <div class="f-catalog-cue-body">
+      <strong class="f-catalog-cue-title">Criação rápida no Luma</strong>
+      <p class="f-catalog-cue-text">Escolha uma campanha abaixo, responda poucas perguntas no chat e baixe sua arte pronta em cerca de 1 minuto.</p>
+    </div>
+    <button type="button" class="f-catalog-cue-close" onclick="fDismissCatalogCue()" aria-label="Fechar dica" title="Fechar dica">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+  </aside>`;
+}
+function fDismissCatalogCue(){
+  try{ localStorage.setItem('luma_cue_catalog_dismissed','1'); }catch(e){}
+  const el = document.getElementById('f-catalog-cue');
+  if(el){
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(-4px)';
+    setTimeout(()=>{ if(el) el.remove(); }, 180);
+  }
+}
 function fRenderCatalogs(a,o,opts){
   a=(a||[]).filter(c=>!_fCampAgendadaFuturo(c));
   o=(o||[]).filter(c=>!_fCampAgendadaFuturo(c));
@@ -1298,7 +1329,8 @@ function fRenderCatalogs(a,o,opts){
   if(!a.length && !o.length){ cat.innerHTML=backRow+_fCampEmptyState(searching?opts.search:null); return; }
   // "Recomendada agora" só fora da busca (senão fica um título órfão)
   const rec=searching?null:(a.find(c=>c.popular)||null);
-  cat.innerHTML=backRow+`
+  const cue=searching?'':_fCatalogCueHTML();
+  cat.innerHTML=backRow+cue+`
     ${rec?`<h2 class="sec-title">A campanha do momento</h2>
     <div class="camp-grid" id="camp-rec"></div>`:''}
     ${a.length?`<h2 class="sec-title">${searching?'Resultados':'Ativas agora'}</h2><div class="camp-grid" id="camp-main"></div>`:''}

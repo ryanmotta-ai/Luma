@@ -1294,3 +1294,45 @@ miniaturas e nome, estado vazio, usar (dataURL + prévia), salvar (caminho e pay
 
 **Verificação.** Motor conferido contra a planilha: Ariquemes (109.170 hab., 1 concorrente) dá taxa R$ 36.000 + marketing R$ 57.800 = R$ 93.800, idêntico ao `C8` da Calculadora. Tela exercitada no Chromium com `window.sb` simulado (busca, premissas sem perder o foco, 3 concorrentes bloqueia o slide, XSS no nome da cidade). **Não** exercitado: migrations no banco real, Apps Script publicado, 3 roles contra o RLS.
 
+## 2026-10-29 (tarde) — Potencial: cidades com operação DM + 3+ concorrentes
+
+**Migration:** `20261029170000_luma_potencial_operacao.sql` (já aplicada no projeto `xqsazcazsjxajmtmirzd`). Cria `operacao_modelo` e `operacao_fase` em `luma.potencial_cidades`, marca as 100 cidades da aba "Base Ops OUT.26" (99 casaram com a base IBGE; "Santana do Livramento" casada à mão com "Sant'Ana do Livramento") e cria **Barracão/SC**, que a base IBGE não tinha (população 10.312 vinda das abas de GMV da Base Ops).
+
+**Front.** Cidade com 3+ concorrentes (429 na base, 45 operadas — ex.: Tupã, 4) deixou de bloquear o slide: usa o multiplicador do maior nível da planilha (×1,45) e avisa. A busca aceita "Tupã - SP", "Tupã/SP" e "tupa, sp". `?v=352`.
+
+
+## 2026-10-29 (noite) — Franquias: cidades da Base Ops no "Qual é a sua franquia?"
+
+**Migration:** `20261029180000_luma_franquias_base_ops.sql` (já aplicada em `xqsazcazsjxajmtmirzd`). O pop-up de primeiro acesso (`gFranquiaIniciar`) só lista `luma.franquias` com `status = 'ativa'` e `codigo` preenchido (RPC `franquias_para_escolha`); só 42 cidades estavam lá, então o franqueado de Tupã/SP (e de outras) recebia "Escolha uma franquia da lista". Entraram **43 franquias** da aba "Base Ops OUT.26" (Operação Ongoing + Implementação) que ainda não existiam — `codigo = <cidade>-<uf>`, `nome = cidade`. Total agora: 85.
+
+**Decisões.** "Operação Própria" (17 cidades) ficou de fora: não tem franqueado e cada cidade a mais é chance de escolha errada, que só a gestão desfaz. Já existia (mesmo `codigo` ou mesma cidade+UF)? Não duplica — conferido: zero duplicadas. `lat`/`lon` ficaram nulos: só servem ao "Usar minha localização"; digitar o nome funciona.
+
+## 2026-10-29 (noite) — Acesso restrito a uma área (Aladim só vê o Potencial)
+
+**Migration:** `20261029190000_luma_acesso_restrito.sql`. Cria `luma.acesso_restrito (user_id, area)` — quem deve ver **só** uma área (hoje só `'potencial'`) — e marca a conta do Aladim (`aladim.santos@deliverymuch.com.br`). RLS: cada pessoa lê a própria linha; só a gestão escreve.
+
+**Front.** `gAreaRestrita()` (`js/core/auth.js`) lê a linha no login; com ela, `gIsAdmin()` passa a ser `false` (some Estúdio, Dados, Console e as demais superfícies da equipe, ~73 pontos, sem tocar em cada um) e `gModeAllowed`/`setMode` (`js/main.js`) só abrem a área liberada — logo, F5 e console incluídos, sem toast de "indisponível". Sem a linha, nada muda.
+
+**⚠ É navegação, não segurança.** A role dele segue `equipe_dm`: a RLS ainda deixa essa conta fazer o que `is_designer()` deixa (ex.: gravar template pela API). Falha ao ler a tabela = menu completo (fail-open). Endurecer = descontar quem está nesta tabela do `is_designer()` e republicar o Apps Script (que confere a role em `profiles`).
+
+## 2026-10-30 — Potencial v2: projeção de 24 meses, histórico, tarifas editáveis e trava de verdade
+
+**Migration:** `20261030100000_luma_potencial_v2.sql` (**ainda não aplicada**: o MCP do Supabase pediu confirmação ao usuário e ela não chegou; rodar no SQL Editor depois de `20261029190000_luma_acesso_restrito.sql`). Idempotente.
+
+- **Parâmetros novos** (`on conflict do nothing`): `ticket_medio` (70), `ticket_apresentacao` (45), `parcelas_taxa`, `mkt_apos_mes5`, `delta_mkt`, `delta_ongoing`, `nfe`, `inadimplencia`, `inadimplencia_todos_meses`, `mkt_franqueadora_pct`. Sem eles a tela não calcula a projeção e diz quais faltam — nenhuma alavanca de negócio fica no JS.
+- **`luma.pode_potencial()`** — motor único de "usa o Potencial": `is_designer()` OU linha em `luma.acesso_restrito` (`area='potencial'`) com conta ativa. As 3 policies de leitura (`potencial_faixas/parametros/cidades`) passam a usá-la.
+- **`luma.potencial_propostas`** — histórico (cidade, ajustes, resumo, `slide_url`). RLS: lê quem usa o Potencial e é o dono (ou `gestao`); grava só em nome próprio; só `gestao` apaga.
+- **Trava de verdade (passo manual, em ordem):** 1) aplicar as duas migrations; 2) republicar o Apps Script v2 (autoriza pela RLS, não pela role); 3) `update public.profiles set role='franqueado' where email='aladim.santos@deliverymuch.com.br'`. Antes do passo 2 não trocar a role: o script antigo confere `profiles.role`.
+
+**Front.** Módulo em 6 arquivos `js/potencial/`: `motor.js` (conta pura, `potCalcular` + `potModelo24`), `graficos.js` (SVG: GMV mensal e caixa acumulado, eixo X compartilhado, nunca eixo duplo), `potencial.js` (casca, busca com teclado, Calcular, gerar slide), `comparar.js` (até 4 cidades + slides em lote), `historico.js`, `tarifas.js` (só `gestao`). Tela em largura total (`css/modules/potencial.css`). `gAreaRestrita()` não pergunta a franquia.
+
+**Verificação.** Motor × planilha: 264 células (24 meses × 11 linhas, Ariquemes), maior diferença 0,000047. UI exercitada no Chromium com `window.sb` simulado: busca por teclado, ajustes (concorrentes 2→1 = R$ 93.800; 1→0 = R$ 82.250), gerar + registro da proposta, comparar, lote, histórico/reabrir, Tarifas (upsert), celular. **Não** exercitado: migrations no banco real, Apps Script v2 publicado, as 3 roles contra a RLS nova.
+
+## 2026-10-30 (tarde) — Potencial: referência da rede e projeção calibrada
+
+**Migration:** `20261030120000_luma_potencial_rede.sql` (**não aplicada**; rodar depois de `20261030100000`). `luma.potencial_rede`: GMV real de 99 cidades da Base Ops (fev, mar, jun, ago, set/2026; para jun também pedidos, ticket, clientes ativos e frequência), com fase (Ongoing / Implementação / Operação Própria) e curva A/B/C. RLS: lê quem usa o Potencial (`luma.pode_potencial()`), escreve só a gestão. É dado comercial da rede: franqueado não lê.
+
+**Front.** `motor.js`: `potRedeEstatisticas` (as 15 cidades Ongoing de população mais parecida → P10–P90 de GMV/hab), `potPosicaoNaRede`, `potCalibraModelo` (bisseção nos deltas até o GMV do mês 24 igualar o percentil). Tela: seção **Referência da rede** (gráfico com cenários e modelo marcados, texto, cidades parecidas), percentil em cada cenário, seletor **Planilha | Rede P25/P50/P75** nos KPIs e na projeção. Sem a tabela a tela segue como antes. Achados em `docs/POTENCIAL-CALIBRACAO.md`: ticket real R$ 69,40 (confirma o R$ 70) e cenários de 2/20/35% acima da rede.
+
+**Verificação.** Calibração: o GMV do mês 24 iguala o alvo exatamente nas 4 cidades testadas (Ariquemes, Aruanã, Tupã, Chapada); Tupã (opera hoje R$ 458 mil/mês) vs P50 da referência R$ 476 mil. UI no Chromium: planilha × P50, cidade operada, sem a tabela, escape de nome, celular. **Não** exercitado: a migration no banco real.
+

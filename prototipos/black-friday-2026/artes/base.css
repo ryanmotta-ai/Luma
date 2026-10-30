@@ -1,0 +1,60 @@
+/* Black Bumerangue — base das artes (protótipo)
+   Tokens do kit: preto #2d2d2d, off-white #f5f5f5, laranja #f85400.
+   Display = Realce Black; apoio = Roboto. */
+
+@font-face {
+  font-family: 'Realce';
+  src: url('../../../assets/fonts/realce-black.woff2') format('woff2');
+  font-weight: 900;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Roboto';
+  src: url('../../../assets/fonts/Roboto-Regular.ttf') format('truetype');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'Roboto';
+  src: url('../../../assets/fonts/Roboto-Medium.ttf') format('truetype');
+  font-weight: 500;
+}
+@font-face {
+  font-family: 'Roboto';
+  src: url('../../../assets/fonts/Roboto-Black.ttf') format('truetype');
+  font-weight: 900;
+}
+
+:root {
+  --preto: #2d2d2d;
+  --tinta: #1f1f1f;
+  --branco: #ffffff;
+  --off: #f5f5f5;
+  --laranja: #f85400;
+  --cinza: #6b6b6b;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body { background: #111; }
+
+.arte {
+  position: relative;
+  overflow: hidden;
+  background: var(--laranja);
+  font-family: 'Roboto', sans-serif;
+  color: var(--preto);
+  -webkit-font-smoothing: antialiased;
+}
+
+.arte.feed  { width: 1080px; height: 1350px; }
+.arte.story { width: 1080px; height: 1920px; }
+
+.realce { font-family: 'Realce', sans-serif; font-weight: 900; text-transform: uppercase; }
+.roboto-black { font-weight: 900; text-transform: uppercase; }
+
+.logo { position: absolute; display: block; }
+.micro {
+  font-weight: 900;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}

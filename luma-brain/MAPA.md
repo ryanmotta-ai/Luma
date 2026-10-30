@@ -123,10 +123,17 @@ franqueado (o Quick Add em linguagem natural existiu e saiu em 03/09).
 
 | Quero mexer em… | Vai em |
 |---|---|
-| A conta (investimento, 3 cenários, avisos) | `js/potencial/potencial.js` (`potCalcular` — o motor ÚNICO; tela e slide leem o mesmo objeto) |
-| Os textos que vão para o slide (`{{placeholders}}`) | `js/potencial/potencial.js` (`potCamposSlide`) + o deck-modelo no Google Slides |
-| Tarifa, IPCA, ticket, cenários, URL do gerador | tabelas `luma.potencial_*` (RLS) — nunca no JS |
+| A conta (investimento, cenários, projeção de 24 meses) | `js/potencial/motor.js` (`potCalcular`, `potModelo24` — o motor ÚNICO; tudo lê o mesmo objeto) |
+| Os textos que vão para o slide (`{{placeholders}}`) | `js/potencial/motor.js` (`potCamposSlide`) + o deck-modelo no Google Slides |
+| A tela, a busca, as premissas, gerar slide | `js/potencial/potencial.js` |
+| Os gráficos (GMV mensal, caixa acumulado) | `js/potencial/graficos.js` (SVG puro) |
+| Comparar cidades, slides em lote | `js/potencial/comparar.js` |
+| Histórico de propostas | `js/potencial/historico.js` + `luma.potencial_propostas` |
+| Editar tarifa, faixa, cadastrar cidade (só gestão) | `js/potencial/tarifas.js` |
+| Tarifa, IPCA, ticket, deltas, URL do gerador | tabelas `luma.potencial_*` (RLS) — nunca no JS |
+| Referência da rede, projeção calibrada (percentis, GMV real das cidades operadas) | `js/potencial/motor.js` (`potRedeEstatisticas`, `potCalibraModelo`) + `luma.potencial_rede` · achados em `docs/POTENCIAL-CALIBRACAO.md` |
 | Copiar o deck e trocar o texto | `scripts/apps-script/potencial-slides.gs` (Apps Script publicado como Web App) |
+| Quem só vê o Potencial | `luma.acesso_restrito` + `gAreaRestrita()` (`js/core/auth.js`) |
 | Estilo | `css/modules/potencial.css` |
 
 ### Visual
@@ -272,7 +279,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 95 arquivos JS (86.851 linhas, 3.362 funções) · 34 arquivos CSS (33.999 linhas) · `index.html` com 4.115 linhas e 85 `<script>`.
+**Tamanho real de hoje:** 100 arquivos JS (88.050 linhas, 3.436 funções) · 34 arquivos CSS (34.316 linhas) · `index.html` com 4.107 linhas e 90 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -287,7 +294,7 @@ Constantes globais imutaveis: HIST_KEY, CAMPS_ATIVAS, CAMPS_OUTRAS, FMTS. Deve s
 Estado global do franqueado: fState. Deve ser carregado apos 00-config.js.
 · Estado global: fState
 
-**`js/main.js`** · 560 linhas
+**`js/main.js`** · 573 linhas
 Bootstrap: setMode (troca entre franqueado/designer/creative/potencial) e chamadas de inicializacao. Deve ser carregado por ULTIMO (apos todos os modulos).
 · API: dUpdateTabPill, gModeAllowed, gFirstAllowedMode, gTrackPagina, gGoHome, setMode, gRestoreMode, gApplyModeAccess, gParseDeepLink, gSaveDeepLink, gClearDeepLink, gApplyDeepLink, gOnLoginSuccess
 · Estado global: _gPaginaAbertaEm
@@ -321,9 +328,9 @@ Schemas e Validadores Determinísticos da Camada de IA. Regra §7 e §62: "GEMIN
 **`js/core/ai/ai-telemetry.js`** · 119 linhas
 Telemetria local da Camada de IA. Registra latência, sucesso/falha, fallbacks e taxa de aceite das sugestões sem expor dados sensíveis ou sobrecarregar a rede.
 
-**`js/core/auth.js`** · 628 linhas
+**`js/core/auth.js`** · 640 linhas
 AUTH via Supabase (Fase 5.1). Login/logout/recuperação usam supabase.auth (window.sb, criado em js/core/supabase.js). gLoadProfile() carrega a sessão + o role do profile e popula gAuthState, pra que gCurrentUser/gCurrentRole…
-· API: gRoleLevel, gLoadProfile, gLogin, gLogout, gCurrentUser, gVisitante, gVisitantePedido, gEntrarVisitante, gVisitanteCatalogo, gVisitanteResync, gCurrentRole, gUserFoto, gIsAdmin, gIsSuperAdmin … (+22; 40 funções no total)
+· API: gRoleLevel, gLoadProfile, gLogin, gLogout, gCurrentUser, gVisitante, gVisitantePedido, gEntrarVisitante, gVisitanteCatalogo, gVisitanteResync, gCurrentRole, gUserFoto, gAreaRestrita, gIsAdmin … (+23; 41 funções no total)
 · Estado global: gAuthState, _gVisCat
 
 **`js/core/auto-layout.js`** · 558 linhas
@@ -357,10 +364,10 @@ CONTROLE DO PRODUTO — o motor único de disponibilidade funcional do Luma.
 Consulta da equipe no painel da conta, carregada sob demanda. A RLS e a RPC autorizam os dados; gIsAdmin é apenas o gate da interface.
 · Depende de: core/auth.js, core/supabase.js, core/toast.js.
 
-**`js/core/franquia.js`** · 116 linhas
-LUMA — A franquia de quem está logado (30/09/2026) luma.franquias + luma.usuario_franquias existem desde 23/09, mas quase ninguém estava vinculado:
-· API: gMinhaFranquia, gFranquiaCarregar, gFranquiaMaisPerto, gFranquiaIniciar
-· Estado global: _gFranquia
+**`js/core/franquia.js`** · 141 linhas
+LUMA — A franquia de quem está logado (30/09/2026 · pulável desde 29/10/2026) luma.franquias + luma.usuario_franquias existem desde 23/09, mas quase ninguém estava vinculado:
+· API: gMinhaFranquia, gFranquiaPulou, gFranquiaCarregar, gFranquiaMaisPerto, gFranquiaIniciar
+· Estado global: _gFranquia, _gFrPulou
 · Depende de: core/supabase.js (gSupabase/window.sb), core/auth.js (gCurrentUser/gCurrentRole),
 
 **`js/core/help.js`** · 781 linhas
@@ -431,9 +438,9 @@ Controladores do Modal e Configurações de Perfil do Usuário. Suporta edição
 
 ### js/franqueado
 
-**`js/franqueado/catalog.js`** · 1844 linhas
+**`js/franqueado/catalog.js`** · 1876 linhas
 Catalogo de campanhas: fRenderCatalogs, fFilterCamps, fSelectCamp, fSwitchTab, fSetHistFilter, fRenderHist, fEditFromHist, fDuplicateInOtherFmt.
-· API: fSwitchTab, fSetHistFilter, fGoToCampaigns, fFindMaterialById, fAskClearHist, fHistVoltar, fRenderHist, fDownloadHist, fEditFromHist, fDuplicateInOtherFmt, fConfirmDuplicate, fEditCampFolder, fCampAdminMenu, fCampAnalyticsClose … (+38; 94 funções no total)
+· API: fSwitchTab, fSetHistFilter, fGoToCampaigns, fFindMaterialById, fAskClearHist, fHistVoltar, fRenderHist, fDownloadHist, fEditFromHist, fDuplicateInOtherFmt, fConfirmDuplicate, fEditCampFolder, fCampAdminMenu, fCampAnalyticsClose … (+39; 96 funções no total)
 · Estado global: fHistFilter, _fHistPreviewCache, _fHistPreviewRun, _fHistPreviewObserver, _fRedeRun, _fRedeObserver, _fhThumbFila, _fhFilter, _fhRevealIO, _fhRevealGen (+3)
 · Depende de: 00-config.js, 01-state.js
 
@@ -443,7 +450,7 @@ F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES defi
 · Estado global: _F_MAXLEN_MED, _fAlvoNaPasta, _fFitOpts, _fFitRun, _fFitSai, _fFitIaReprovadas, _fFitCf, quando, _fFitPerto, _fFitFora
 · Depende de: 00-config.js
 
-**`js/franqueado/chat.js`** · 4056 linhas
+**`js/franqueado/chat.js`** · 4069 linhas
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
 · API: fChatNovaConversa, fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fTrackResposta, fTrackFoto … (+71; 187 funções no total)
 · Estado global: fNextTimeout, _fChatGen, _fGuidedNav, _fGuidedTimer, _fGuidedBound, _fProntaCtxAberto, _fRevisando, _fRespostasNAnt, _fArtSnapshots, _fArtCaptions (+5)
@@ -523,7 +530,7 @@ Sistema de pincel/borracha/carimbo: dPaintStart, dPaintMove, dPaintEnd, dStampAt
 · Estado global: dStampSource, dStampOffset, dGradStart, dBrush, dStampAligned, _dSharpenC1, _dSharpenC2, dNitidezLast, _dNitidezHinted, dFormaLast (+7)
 · Depende de: designer/canvas.js
 
-**`js/designer/canvas.js`** · 2585 linhas
+**`js/designer/canvas.js`** · 2601 linhas
 Render do canvas, zoom, pan, formato, réguas, barra contextual, smart guides, simulacao de dados e interacoes de mouse.
 · API: dSetFormat, dApplyFormat, dFitToScreen, dPositionArtboard, dZoom, dSetZoom, dSampleImg, dSetPhTest, dEscolherFotoDaMoldura, dRenderWorkspace, dABAddResizeHandles, dUpdateBrushCursor, dSetTool, dEnsureMarqueeEl … (+57; 83 funções no total)
 · Estado global: dPhTestAR, dMarquee, dDrawShapeState, dABDraw, dLastClickLayerId, dLastClickTime, dPainting, dPaintLast, dSnapEnabled, dSimValues (+11)
@@ -542,7 +549,7 @@ Fontes customizadas enviadas pelo usuário (.ttf/.otf/.woff/.woff2).
 · Estado global: dCustomFonts
 · Depende de: 00-config.js, core/toast.js, designer/canvas.js (dRenderCanvas).
 
-**`js/designer/layers.js`** · 4880 linhas
+**`js/designer/layers.js`** · 4881 linhas
 CRUD de layers, painel lateral, props, multi-select, rename: dSelLayer, dDeselect, dRenderLayersList, dShowProps, dAddText, dAddShape, dToggleMultiSel, dRenameLayer, dAddIcon, dAddLine.
 · API: dSelLayer, dHoverLayer, dSelLayerState, dDeselect, dStartCrop, dStopCrop, dOnCropDrag, dStopCropDrag, dStartDrag, dOnDrag, dStopDrag, dStartResize, dOnResize, dStopResize … (+209; 283 funções no total)
 · Estado global: dDragEls, dPendingIsolate, dDragMoved, dCropState, dDragCrop, dResizeEl, dResizePos, dResizeLyrX, dResizeLyrY, dResizeFs (+38)
@@ -695,7 +702,7 @@ tutMockCampaign, tutMockMaterial, tutMockHist — builders de HTML de mock usado
 
 ### js/widgets
 
-**`js/widgets/help-widget.js`** · 2462 linhas
+**`js/widgets/help-widget.js`** · 2467 linhas
 ── LUMA HELP WIDGET ── Ajuda contextual, artigos e mensagens com a mesma linguagem visual do Luma.
 
 **`js/widgets/novidades.js`** · 70 linhas
@@ -764,11 +771,37 @@ MAKING-OF da arte (frente 6, 15/10/2026; microações em 15/10, pedido do Ryan) 
 
 ### js/potencial
 
-**`js/potencial/potencial.js`** · 304 linhas
-POTENCIAL DA CIDADE (29/10/2026) — a "Calculadora de Franquias 2026" do Aladim dentro do Luma.
-· API: potFaixaPara, potTeto50, potCalcular, potNumero, potBRL, potBRL2, potPct, potMeses, potLerNumero, potCarregar, potBuscarCidades, potCamposSlide, potGerarSlide, potEntrar … (+8; 24 funções no total)
+**`js/potencial/comparar.js`** · 142 linhas
+POTENCIAL — comparar cidades e gerar slides em lote (v2, 30/10/2026).
+· API: potComparaAdd, potComparaPoe, potComparaTira, potComparaContador, potRenderComparar, potAbrirNoCalcular, potComparaLimpa, potComparaBusca, potComparaLista, potComparaPrimeira, potComparaEscolhe, potComparaLote
+· Estado global: _potCRes, _potCSeq, _potCTimer
+· Depende de: motor.js, potencial.js (estado `_pot`, potBuscarCidades, potChamaGerador, potRegistrarProposta).
+
+**`js/potencial/graficos.js`** · 220 linhas
+POTENCIAL — gráficos em SVG puro (v2, 30/10/2026). Sem biblioteca: o Luma não tem build. Duas séries do MESMO modelo de 24 meses, empilhadas e com o eixo X compartilhado — nunca num eixo duplo (GMV na casa das centenas de…
+· API: potGraficoGMV, potGraficoCaixa, potProjecaoHTML, potLigaProjecao, potTabelaMeses, potGraficoRede
+· Depende de: potencial/motor.js (potBRL, potBRLc, potNumero).
+
+**`js/potencial/historico.js`** · 64 linhas
+POTENCIAL — o histórico de propostas (v2, 30/10/2026). Cada slide gerado fica em `luma.potencial_propostas` (quem, qual cidade, com quais ajustes, quais números, o link). Cada pessoa vê as próprias; a gestão vê todas (RLS…
+· API: potRenderHistorico, potCarregaHistorico, potReabrir
+· Depende de: motor.js, potencial.js (`_pot`, `_potSb`, `potAba`, `potEscolherCidade`).
+
+**`js/potencial/motor.js`** · 300 linhas
+POTENCIAL DA CIDADE — o MOTOR (v2, 30/10/2026). Puro: sem DOM, sem rede, sem estado. ⛔ UM motor. Tela (potencial.js), gráficos (graficos.js), comparação, histórico e o slide leem o MESMO objeto devolvido por `potCalcular`. Se…
+· API: potFaixaPara, potTeto50, potModelo24, potCalcular, potPercentil, potRedeEstatisticas, potPosicaoNaRede, potCalibraModelo, potResumo, potNumero, potBRL, potBRL2, potBRLc, potPct … (+3; 17 funções no total)
+· Depende de: nada (puro). Carregar antes de potencial.js e graficos.js.
+
+**`js/potencial/potencial.js`** · 551 linhas
+POTENCIAL DA CIDADE — a tela (v2, 30/10/2026). A "Calculadora de Franquias 2026" do Aladim dentro do Luma. A equipe comercial escolhe a cidade, vê investimento, os 3 cenários e a projeção de 24 meses com os mesmos números da…
+· API: potCarregar, potBuscarCidades, potCidadePorChave, potCidadesDaRede, potRecentes, potLembra, potEntrar, potMontar, potAba, potBuscaDigita, potRenderLista, potBuscaTecla, potBuscaFecha, potEscolher … (+26; 46 funções no total)
 · Estado global: _pot
-· Depende de: core/supabase.js (window.sb), core/toast.js (gToast/gEsc/gNormBusca),
+· Depende de: motor.js, graficos.js, core/supabase.js (window.sb), core/toast.js (gToast/gEsc/gNormBusca/gBtnLoading),
+
+**`js/potencial/tarifas.js`** · 109 linhas
+POTENCIAL — Tarifas (só a gestão, v2, 30/10/2026). Edita na tela o que antes exigia SQL: os parâmetros (IPCA, multiplicadores, tickets, deltas…), as 37 faixas de população e o cadastro de uma cidade que não está na base (hoje…
+· API: potRenderTarifas, potLinhaParametro, potSalvaParametro, potSalvaFaixa, potCadastraCidade
+· Depende de: motor.js, potencial.js (`_pot`, `_potSb`, `potCarregar`, `potRecalcula`).
 
 ## CSS — onde mora cada folha
 
@@ -791,19 +824,19 @@ POTENCIAL DA CIDADE (29/10/2026) — a "Calculadora de Franquias 2026" do Aladim
 | `css/modules/all-tools.css` | 113 |
 | `css/modules/calendario.css` | 1544 |
 | `css/modules/catalog.css` | 299 |
-| `css/modules/chat.css` | 4164 |
+| `css/modules/chat.css` | 4178 |
 | `css/modules/color-picker.css` | 153 |
 | `css/modules/console.css` | 244 |
 | `css/modules/creative.css` | 799 |
-| `css/modules/designer.css` | 5428 |
+| `css/modules/designer.css` | 5429 |
 | `css/modules/feedback.css` | 199 |
-| `css/modules/franqueado.css` | 1858 |
+| `css/modules/franqueado.css` | 1907 |
 | `css/modules/franqueado_effects.css` | 412 |
 | `css/modules/help-widget.css` | 3606 |
 | `css/modules/layers-panel.css` | 4530 |
 | `css/modules/live-preview.css` | 1759 |
 | `css/modules/panel-dock.css` | 116 |
-| `css/modules/potencial.css` | 100 |
+| `css/modules/potencial.css` | 353 |
 | `css/modules/publish-modal.css` | 628 |
 | `css/modules/toolbar.css` | 1090 |
 | `css/modules/topbar.css` | 217 |
@@ -854,51 +887,56 @@ A ordem **é** a arquitetura: sem ESM, um arquivo depende de o anterior já ter 
 38. js/creative/copy.js
 39. js/creative/harness.js
 40. js/creative/making-of.js
-41. js/potencial/potencial.js
-42. js/designer/canvas.js
-43. js/designer/selection.js
-44. js/designer/brush.js
-45. js/designer/eraser-tools.js
-46. js/designer/layers.js
-47. js/designer/props-panel.js
-48. js/designer/measurement.js
-49. js/designer/publish.js
-50. js/designer/preview.js
-51. js/designer/library.js
-52. js/designer/undo-redo.js
-53. js/widgets/novidades.js
-54. js/widgets/help-widget.js
-55. js/designer/tools.js
-56. js/designer/fonts.js
-57. js/designer/psd-parse.js
-58. js/designer/psd-import.js
-59. js/designer/mask.js
-60. js/designer/tutorial-panel.js
-61. assets/vendor/colorthief.js
-62. assets/vendor/pica.js
-63. assets/vendor/jszip.min.js
-64. assets/vendor/supabase.js
-65. js/core/supabase-config.js
-66. js/core/supabase.js
-67. js/core/ai/ai-cache.js
-68. js/core/ai/ai-telemetry.js
-69. js/core/ai/ai-schemas.js
-70. js/core/ai/ai-registry.js
-71. js/core/ai/ai-client.js
-72. js/core/ai.js
-73. js/core/ai/ai-provedores.js
-74. js/core/auth.js
-75. js/core/franquia.js
-76. js/franqueado/feedback.js
-77. js/core/feature-flags.js
-78. js/core/user-profile.js
-79. js/core/product-control.js
-80. js/core/dados.js
-81. js/core/console.js
-82. js/designer/color-picker.js
-83. js/designer/tooltip.js
-84. js/designer/linter.js
-85. js/main.js
+41. js/potencial/motor.js
+42. js/potencial/graficos.js
+43. js/potencial/potencial.js
+44. js/potencial/comparar.js
+45. js/potencial/historico.js
+46. js/potencial/tarifas.js
+47. js/designer/canvas.js
+48. js/designer/selection.js
+49. js/designer/brush.js
+50. js/designer/eraser-tools.js
+51. js/designer/layers.js
+52. js/designer/props-panel.js
+53. js/designer/measurement.js
+54. js/designer/publish.js
+55. js/designer/preview.js
+56. js/designer/library.js
+57. js/designer/undo-redo.js
+58. js/widgets/novidades.js
+59. js/widgets/help-widget.js
+60. js/designer/tools.js
+61. js/designer/fonts.js
+62. js/designer/psd-parse.js
+63. js/designer/psd-import.js
+64. js/designer/mask.js
+65. js/designer/tutorial-panel.js
+66. assets/vendor/colorthief.js
+67. assets/vendor/pica.js
+68. assets/vendor/jszip.min.js
+69. assets/vendor/supabase.js
+70. js/core/supabase-config.js
+71. js/core/supabase.js
+72. js/core/ai/ai-cache.js
+73. js/core/ai/ai-telemetry.js
+74. js/core/ai/ai-schemas.js
+75. js/core/ai/ai-registry.js
+76. js/core/ai/ai-client.js
+77. js/core/ai.js
+78. js/core/ai/ai-provedores.js
+79. js/core/auth.js
+80. js/core/franquia.js
+81. js/franqueado/feedback.js
+82. js/core/feature-flags.js
+83. js/core/user-profile.js
+84. js/core/product-control.js
+85. js/core/dados.js
+86. js/core/console.js
+87. js/designer/color-picker.js
+88. js/designer/tooltip.js
+89. js/designer/linter.js
+90. js/main.js
 ```
 
 <!-- AUTO-FIM -->
