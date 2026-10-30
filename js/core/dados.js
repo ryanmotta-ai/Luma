@@ -673,8 +673,6 @@ function _gDadosVisaoHtml(d) {
   const tipos = _gDadosRank(tl, { rot: x => `<strong>${gEsc(x[0])}</strong>`, n: x => x[1], val: x => `${_gDadosN(x[1])} <small>${_gDadosPct(x[1] / (tSoma || 1))}</small>`, vazio: 'Nenhum download no período.' });
 
   const ritmo = cid || dias.length < 14 ? '' : _gDadosSecao('Ritmo da semana', `${met[1]} em cada dia do período. Passe o mouse num quadrado para ver o dia.`, _gDadosRitmo(dias, met[0]));
-  // Hora rebate (RPC v3, 30/10/2026): rede inteira, só franqueados; a RPC não separa por cidade.
-  const hr = k.hora_rebate ? _gDadosSecao('Hora rebate', 'O tempo que o Luma devolveu ao franqueado' + (cid ? ' (rede inteira)' : '') + ', e quanto vale pela hora dele: rebate médio ÷ horas do mês.', _gDadosHoraRebateHtml(k.hora_rebate, d.periodo)) : '';
   return `<div class="gd-kpis gd-kpis-4 gd-kpis-graf">${kpis}</div>
     ${_gDadosSecao(met[1] + ' por dia', subGraf, graf, 'gd-card-graf')}
     <div class="gd-tres">
@@ -682,61 +680,11 @@ function _gDadosVisaoHtml(d) {
       ${_gDadosSecao('Até a 1ª arte', 'A promessa do Luma: arte pronta em um minuto.', tempo)}
       ${_gDadosSecao('Downloads por tipo', cid ? 'Rede inteira.' : '', tipos)}
     </div>
-    ${hr}
     <div class="gd-duas">
       ${_gDadosSecao('Funil geral', 'Sessões que chegaram a cada etapa.', _gDadosFunilGeral((d.funil || {}).geral || []))}
       ${_gDadosSecao('Precisa de atenção', 'Tirado dos dados deste período.', _gDadosAtencao(d))}
     </div>
     ${ritmo}`;
-}
-
-/* ── Hora rebate (30/10/2026) ──────────────────────────────────────────────────────────────
-   Definição do Marco Severo: hora rebate = rebate médio mensal das franquias ÷ horas de trabalho
-   no mês (240, arbitradas — o franqueado trabalha mais que as 200 h de um funcionário). Devolvido
-   ao franqueado = Σ por ação [quantidade × (tempo antes − tempo com o Luma)] × hora rebate.
-   O "com o Luma" é MEDIDO pela RPC (tempo ativo por arte; total_s do lote_gerado). O "antes" e o
-   rebate são PREMISSAS em luma.potencial_parametros (hora_rebate.*): a gestão edita aqui (RLS:
-   equipe lê, gestão escreve) e elas ficam escritas na tela, nunca escondidas no código. */
-function _gDadosHoraRebateHtml(h) {
-  const p = h.premissas || {}, gestao = typeof gCurrentRole === 'function' && gCurrentRole() === 'gestao';
-  const rs = v => v == null ? '—' : 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const hs = v => v == null ? '—' : Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' h';
-  const num = v => v == null ? '—' : Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
-  const semRebate = !(p.rebate_medio > 0);
-  const porFr = h.franqueados ? h.h_devolvidas / h.franqueados : null;
-  const kpis = `<div class="gd-kpis gd-kpis-4">`
-    + _gDadosKpi('Horas devolvidas', hs(h.h_devolvidas), `${_gDadosN(h.artes)} artes avulsas + ${_gDadosN(h.lotes)} lotes · ${_gDadosPl(h.franqueados || 0, 'franqueado', 'franqueados')}`)
-    + _gDadosKpi('Em hora rebate', semRebate ? '—' : rs(h.valor_rs), semRebate ? 'informe o rebate médio abaixo' : 'hora rebate de ' + rs(h.hora_rebate_rs))
-    + _gDadosKpi('Por franqueado', hs(porFr), semRebate || porFr == null ? 'no período' : rs(h.valor_rs / h.franqueados) + ' no período')
-    + _gDadosKpi('Do rebate de um mês', semRebate ? '—' : _gDadosPct(h.pct_rebate), 'o que o Luma devolve a cada franqueado ativo')
-    + `</div>`;
-  const conta = `<p class="gd-hr-conta">Arte avulsa: ${_gDadosN(h.artes)} × (${num(p.antes_arte_min)} min antes − ${num(h.min_por_arte)} min medidos no Luma). `
-    + `Lote: ${_gDadosN(h.lotes)} × ${num(p.antes_lote_h)} h antes − ${hs(h.h_lote)} medidas no Luma${h.lotes ? '' : ' (o evento do lote existe desde 30/10/2026)'}.</p>`;
-  const campo = (chave, rot, val, step) => `<label class="gd-hr-campo"><span>${gEsc(rot)}</span><input type="number" class="gd-input" data-chave="${chave}" value="${val == null ? '' : gEsc(String(val))}" step="${step}" min="0"${gestao ? '' : ' disabled'}></label>`;
-  const premissas = `<div class="gd-hr-premissas">
-      ${campo('hora_rebate.rebate_medio', 'Rebate médio mensal (R$)', p.rebate_medio > 0 ? p.rebate_medio : '', '1')}
-      ${campo('hora_rebate.horas_mes', 'Horas no mês', p.horas_mes, '1')}
-      ${campo('hora_rebate.antes_arte_min', 'Minutos por arte, antes', p.antes_arte_min, '0.5')}
-      ${campo('hora_rebate.antes_lote_h', 'Horas por lote, antes', p.antes_lote_h, '1')}
-      ${gestao ? '<button type="button" class="gd-btn" onclick="gDadosHoraRebateSalvar(this)">Salvar premissas</button>' : '<small class="gd-sub">Só a gestão altera as premissas.</small>'}
-    </div>`;
-  return kpis + conta + premissas;
-}
-async function gDadosHoraRebateSalvar(btn) {
-  const sb = typeof gSupabase === 'function' && gSupabase();
-  if (!sb) return;
-  const linhas = Array.from(document.querySelectorAll('.gd-hr-premissas input[data-chave]'))
-    .map(c => ({ chave: c.dataset.chave, valor: c.value.trim() === '' ? 0 : Number(c.value), atualizado_em: new Date().toISOString() }));
-  if (linhas.some(l => isNaN(l.valor) || l.valor < 0)) { gToast('Só números, sem negativo.'); return; }
-  btn.disabled = true;
-  try {
-    // Mesma tabela e mesmo upsert da aba Potencial (tarifas.js): a RLS só deixa a gestão escrever.
-    const { error } = await sb.schema('luma').from('potencial_parametros').upsert(linhas);
-    if (error) throw error;
-    gToast('Premissas salvas.');
-    gDadosCarregar();
-  } catch (e) { gToast('O banco recusou: ' + String((e && e.message) || e), 'error'); }
-  finally { btn.disabled = false; }
 }
 
 function _gDadosPiorQueda(et) {
