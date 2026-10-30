@@ -6,6 +6,17 @@
 
 ---
 
+## 2026-10-30 — Pasta Implementação: "Loja nova parceira" story + feed 1:1 (✅ dados, sem migration)
+
+Pedido do Ryan: recriar duas artes de referência ("Nome do Estabelecimento também é parceiro") só com o campo menor (logo da loja), sem a 2ª foto e sem o selo "BORA PEDIR".
+
+- **Templates (rascunho, `publicado=false`)** em `luma.pastas` "Implementação": `b0228ed2-03d0-4071-b4ea-473fe41f73da` (story 1080×1920) e `efed4cdf-543c-49c5-a671-3788bfd219db` (feed **1080×1080**, 1:1 — `w/h` do template mandam sobre o preset do `fmt`). Mesmo nome nos dois ⇒ o app os vincula.
+- **Campos:** `{{loja_1}}` (nome, reaproveitado do catálogo — sem `luma.variaveis` nova) e `logo_loja`. Sem asset novo: o logo é `assets/campanhas/implementacao/dm-h-branca-xl.png`; anel, chama e arco são formas vetoriais/elipses.
+- **Medido contra as referências** (≤ 3 px): círculo, linhas de texto, logo. Estresse (nome longo, 1 palavra, vazio, sem logo) sem `INVÁLIDA`.
+- **Reverter:** `delete from luma.templates where id in ('b0228ed2-03d0-4071-b4ea-473fe41f73da','efed4cdf-543c-49c5-a671-3788bfd219db');` (nascem na versão 1). **Publicar:** `update luma.templates set publicado=true, publicado_em=now() where id in (…)`.
+
+---
+
 ## 2026-10-30 — Edge Function `ai` v20: tetos próprios da `arte.compor` (a IA escreve o SVG) + o fix de 29/10 publicado (✅ deploy, sem migration)
 
 Pedido do Ryan, com a chave paga em uso. Desde a D13 (`luma-brain/08_ATELIE.md` §4.9) a IA do Ateliê escreve o SVG inteiro do banner, e os tetos da `arte.compor` eram os do designer antigo (JSON curto de caixas). Três limites travariam todo pedido:
