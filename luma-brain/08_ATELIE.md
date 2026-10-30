@@ -237,6 +237,23 @@ Cada etapa é um ticket. "Pronto" = o critério escrito, verificado na bancada o
   natural da E4.2. Os 6 casos sem opção são `c03/feed/extremo/foto` (+ `/much`) e
   `d03/banner/{curto,medio,longo,extremo}` sem foto.
 
+  **Rodada 2 — 30/10/2026: herói dos formatos deitados.** O teto fixo do herói (`heroiMax`) deixava
+  título curto do tamanho de um longo — card vazio, escala ~0,7. `_crHeroiDeitado` (creative.js) usa o
+  `crLockup` com a altura do card/faixa: 1 ou 2 linhas, crescendo até onde cabe. Vale em `bannerSplit`,
+  `bannerSelo`, `bannerFoto`, `emailFaixa` e `emailMarca` sem foto. Régua do banner: +5 peças reais
+  (almoço, brindes, açaí, descontaço, Xanxerê) em `assets/creative/regua/`, e o par mostrado à IA
+  passa a variar por pedido.
+
+  | recorte | média das 3 | ≥ 80 | assinatura repetida |
+  |---|---|---|---|
+  | **total** | 87,6 → **88,2** | 86% → **89%** | 187 → 179 |
+  | banner | 74,9 → **80,5** | 33% → **70%** | 10 → 2 |
+  | emailTopo | 77,6 → **78,9** | 52% → **70%** | 4 → 4 |
+  | feed, story, inapp, capa | iguais | iguais | iguais |
+
+  Falta: `bannerTexto` e `appBanner` (composicoes.js) seguem com o teto antigo; o **carrossel**
+  (79,2, 51%) não foi tocado — a fraca é a `carrosselTres` (média 75).
+
 **E1 · Concierge**
 - [ ] E1.1 Estado da sessão como `.md`, gerado do `crState`, com compactação acima de um teto.
   Pronto: uma sessão de 20 rodadas cabe no teto, sem perder pedido nem entrega.

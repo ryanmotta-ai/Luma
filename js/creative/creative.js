@@ -133,6 +133,15 @@ function crQuebra(txt, cls, max, larg, min, estouros){
   if(min && s < min){ s = min; if(estouros) estouros.push(txt); }
   return { linhas: melhor.l, size: s };
 }
+/* Herói dos formatos deitados — banner do app e topo de email (30/10/2026). O teto fixo (heroiMax)
+   deixava "Pizza" do mesmo tamanho de um título de três palavras: sobrava faixa vazia e a bancada
+   media herói miúdo (escala ~0,7, a parte de maior peso). O lockup escolhe 1 ou 2 linhas e cresce até
+   a altura `alt` deixar (título longo quebra em 2 linhas dentro dela). */
+function _crHeroiDeitado(txt, larg, alt, a, est){
+  const q = crLockup(txt, { larg, alt, max: _r(a.heroiMax * 1.7 * (a.p.kh || 1)), min: a.heroiMin, linhas: 2 });
+  if(q.zMin < a.heroiMin && est) est.push(txt);
+  return { linhas: q.linhas, size: q.size };
+}
 // "pega este *cupom*" → trechos leve/forte
 function crTrechos(linha){
   return String(linha || '').split(/(\*[^*]+\*)/).filter(Boolean)
@@ -781,7 +790,7 @@ const CR_LOCKUPS = {
     // com foto, o herói vai numa faixa de 118 px: uma linha só (não cabe = outra composição cobre)
     const um = sp.foto && crCabe(ch.titulo, 'hero', 76 * (a.p.kh || 1), larg, 0);
     if(sp.foto && um < a.heroiMin) return null;
-    const q = sp.foto ? { linhas: [ch.titulo], size: um } : crQuebra(ch.titulo, 'hero', a.heroiMax * (a.p.kh || 1), larg, a.heroiMin, est), z = q.size, n = q.linhas.length;
+    const q = sp.foto ? { linhas: [ch.titulo], size: um } : _crHeroiDeitado(ch.titulo, larg, _r((a.seguroBase - a.seguroTopo) * 0.62), a, est), z = q.size, n = q.linhas.length;
     const hh = _crAlt(q.linhas, z).h;
     let comp = !sp.foto && (ch.valor ? (ch.valor.preco ? 'POR R$ ' + ch.valor.preco : ch.valor.txt) : ch.comp);
     if(comp && crMede(comp, 'media', a.piso) > larg) comp = '';      // apoio longo não cabe na metade: fica só o herói
@@ -798,7 +807,7 @@ const CR_LOCKUPS = {
   // Cabeçalho de email em faixa única: logo à esquerda, herói e valor alinhados à direita
   emailFaixa(sp, a, est){
     const ch = crChave(sp), lw = 260, lh = lw / 4.97, xd = a.W - a.M - 20, larg = a.W - 2 * a.M - lw - 120, anc = ' text-anchor="end"';
-    const q = crQuebra(ch.titulo, 'hero', a.heroiMax * (a.p.kh || 1), larg, a.heroiMin, est), z = q.size, n = q.linhas.length;
+    const q = _crHeroiDeitado(ch.titulo, larg, _r((a.seguroBase - a.seguroTopo) * 0.62), a, est), z = q.size, n = q.linhas.length;
     const hh = _crAlt(q.linhas, z).h;
     const comp = ch.valor ? (ch.valor.preco ? 'POR R$ ' + ch.valor.preco : ch.valor.txt) : ch.comp;
     const zc = comp ? crCabe(comp, ch.valor ? 'hero' : 'media', ch.valor ? 48 : 34, larg, a.piso, est) : 0;
@@ -818,7 +827,7 @@ const CR_LOCKUPS = {
     const valor = ch.valor || (ch.selo.length ? { txt: ch.selo.join(' ') } : null);
     if(!valor) return null;
     const corte = sp.foto ? 330 : 420, fx = 316, fw = 200, z0 = cx0 + 28;
-    const q = crQuebra(ch.titulo, 'hero', a.heroiMax * (a.p.kh || 1), corte - z0 - 24, a.heroiMin, est), z = q.size, n = q.linhas.length;
+    const q = _crHeroiDeitado(ch.titulo, corte - z0 - 24, a.card[3] - 40, a, est), z = q.size, n = q.linhas.length;
     const hh = _crAlt(q.linhas, z).h, x1 = sp.foto ? fx + fw : corte, zl = cx0 + cw - x1 - 44, xm = x1 + 18 + zl / 2;
     const out = ['<clipPath id="crcard"><rect x="' + cx0 + '" y="' + cy0 + '" width="' + cw + '" height="' + chh + '" rx="' + a.card[4] + '"/></clipPath>'
       + '<rect x="' + corte + '" y="' + cy0 + '" width="' + (cx0 + cw - corte) + '" height="' + chh + '" fill="#FFB900" clip-path="url(#crcard)"/>',
@@ -839,7 +848,7 @@ const CR_LOCKUPS = {
     const ch = crChave(sp), [cx0, cy0, cw, chh] = a.card, cy = cy0 + chh / 2;
     if(!ch.selo.length) return null;
     const r = 70, sx = cx0 + cw - 28 - r, z0 = cx0 + 32;
-    const q = crQuebra(ch.titulo, 'hero', a.heroiMax * (a.p.kh || 1), sx - r - 32 - z0, a.heroiMin, est), z = q.size, n = q.linhas.length;
+    const q = _crHeroiDeitado(ch.titulo, sx - r - 32 - z0, a.card[3] - 40, a, est), z = q.size, n = q.linhas.length;
     const hh = _crAlt(q.linhas, z).h;
     return [crBloco('titulo', '<g id="produto">' + crHeroi(z0, q.linhas.map((l, i) => cy - hh / 2 + _crAlt(q.linhas, z).ys[i]), z, '#FFFFFF', q.linhas, ' data-campo="' + ch.campo + '"') + '</g>'),
       crBloco('selo', crSelo(sx, cy, r, ch.selo))];
@@ -849,7 +858,7 @@ const CR_LOCKUPS = {
   bannerFoto(sp, a, est){
     if(!sp.foto) return null;
     const ch = crChave(sp), [cx0, cy0, cw, chh] = a.card, cy = cy0 + chh / 2, fx = 400, z0 = cx0 + 32;
-    const q = crQuebra(ch.titulo, 'hero', a.heroiMax * (a.p.kh || 1), fx - 28 - z0, a.heroiMin, est), z = q.size, n = q.linhas.length;
+    const q = _crHeroiDeitado(ch.titulo, fx - 28 - z0, a.card[3] - 40, a, est), z = q.size, n = q.linhas.length;
     const hh = _crAlt(q.linhas, z).h;
     const out = [crBloco('titulo', '<g id="produto">' + crHeroi(z0, q.linhas.map((l, i) => cy - hh / 2 + _crAlt(q.linhas, z).ys[i]), z, '#FFFFFF', q.linhas, ' data-campo="' + ch.campo + '"') + '</g>'),
       crBloco('foto', crFoto(fx, cy0, cx0 + cw - fx, chh, a.card[4], '', sp.foto))];
@@ -2584,7 +2593,8 @@ const CR_REGUA = {            // as referências que o Ryan subir entram aqui (p
 };
 // Régua dos formatos de canal (§3.5): peças reais do Ryan, em assets/creative/regua/ (540 px)
 const CR_REGUA_FMT = {
-  inapp: ['inapp-festival-do-xis.jpg', 'inapp-much-mandou-bem.jpg'], banner: ['banner-promo-turbinada-30.jpg', 'banner-mais-vendidos.jpg'],
+  inapp: ['inapp-festival-do-xis.jpg', 'inapp-much-mandou-bem.jpg'], banner: ['banner-promo-turbinada-30.jpg', 'banner-mais-vendidos.jpg', 'banner-almoco-barato.jpg', 'banner-bora-ganhar-brindes.jpg',
+    'banner-acai-sorvete.jpg', 'banner-descontaco-1212.jpg', 'banner-xanxere-chegando.jpg'],
   emailTopo: ['cabecalho-burger-fest.jpg', 'cabecalho-dm-produto-700.jpg'], emailRodape: ['rodape-padrao-sorriso.jpg'],
   capa: ['capa-promo-turbinada.jpg', 'capa-cupons-exclusivos.jpg'], slide: ['slide-capa.jpg', 'slide-conteudo.jpg'], carrossel: ['carrossel-dia-do-solteiro.jpg']
 };
@@ -2629,7 +2639,10 @@ function crPromptJuiz(sp, nRef, n){
 // A régua da peça (2 artes aprovadas, JPEG 432 px): much+ > formato de canal > objetivo. Juiz e designer usam a mesma.
 async function crRegua(sp){
   const fmt = sp.marca === 'much' ? ['much-beneficios-story.jpg', 'much-mandou-bem-inapp.jpg'] : CR_REGUA_FMT[sp.formato];
-  const regua = (fmt || CR_REGUA[sp.objetivo] || []).slice(0, 2), pasta = fmt ? CR_BASE + 'regua/' : _crRaiz() + 'assets/templates/refino/prints/';
+  /* Mais de 2 peças no formato (o banner tem 7, 30/10/2026): o par muda com o pedido, para a IA ver
+     a régua inteira ao longo dos pedidos — antes só as 2 primeiras chegavam a ela. */
+  const lista = fmt || CR_REGUA[sp.objetivo] || [], k = lista.length > 2 ? _crHash(String(sp.titulo || '') + sp.objetivo) % lista.length : 0;
+  const regua = lista.length > 2 ? [lista[k], lista[(k + 1) % lista.length]] : lista.slice(0, 2), pasta = fmt ? CR_BASE + 'regua/' : _crRaiz() + 'assets/templates/refino/prints/';
   return (await Promise.all(regua.map(f => _crJpeg(pasta + f, 432).catch(() => null)))).filter(Boolean);
 }
 async function crJulgar(tres){

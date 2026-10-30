@@ -279,7 +279,7 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 > Gerado por `node scripts/mapa.js` a partir dos cabeçalhos dos próprios arquivos.
 > **Não edite este trecho à mão** — a próxima regeneração sobrescreve.
 
-**Tamanho real de hoje:** 100 arquivos JS (88.050 linhas, 3.436 funções) · 34 arquivos CSS (34.316 linhas) · `index.html` com 4.107 linhas e 90 `<script>`.
+**Tamanho real de hoje:** 100 arquivos JS (88.097 linhas, 3.438 funções) · 34 arquivos CSS (34.316 linhas) · `index.html` com 4.107 linhas e 90 `<script>`.
 
 ## JS — o que cada arquivo é
 
@@ -288,23 +288,19 @@ arquivo passa, porque a colisão só existe quando os dois carregam juntos. Acon
 **`js/00-config.js`** · 2737 linhas
 Constantes globais imutaveis: HIST_KEY, CAMPS_ATIVAS, CAMPS_OUTRAS, FMTS. Deve ser carregado PRIMEIRO (todos os modulos dependem destas constantes).
 · API: gPastaSistema, gVarRegex, gValidVarName, gXmlEsc, gRoundPolyD, gRoundPolyPath2D, gVectorPathFillRule, gVectorPathValid, gTraceVectorPath, gVectorPathD, gFxOffset, gFxRgba, gGradStopsCss, gGradientCss … (+52; 91 funções no total)
-· Estado global: _G_MEDIDA_CACHE, gLayoutVivoOff, _gCanvasWrap
 
 **`js/01-state.js`** · 11 linhas
 Estado global do franqueado: fState. Deve ser carregado apos 00-config.js.
-· Estado global: fState
 
 **`js/main.js`** · 573 linhas
 Bootstrap: setMode (troca entre franqueado/designer/creative/potencial) e chamadas de inicializacao. Deve ser carregado por ULTIMO (apos todos os modulos).
 · API: dUpdateTabPill, gModeAllowed, gFirstAllowedMode, gTrackPagina, gGoHome, setMode, gRestoreMode, gApplyModeAccess, gParseDeepLink, gSaveDeepLink, gClearDeepLink, gApplyDeepLink, gOnLoginSuccess
-· Estado global: _gPaginaAbertaEm
 
 ### js/core
 
 **`js/core/ai.js`** · 193 linhas
 MOTOR ÚNICO de IA do front. Todo recurso de IA do Luma (legenda, encurtar texto, ajuda, gírias, transcrição de áudio, console) fala com o modelo POR AQUI — ninguém mais monta fetch pro Gemini na mão. Um caminho = um lugar pra…
 · API: gAiReady, gAiModel, gAskAI, gAiEdgeFetch, gAiParseJson, gAiFileToPart
-· Estado global: _gAiEdgeOk
 · Depende de: core/supabase.js (gSupabase), core/img-store.js (gImgHash).
 
 **`js/core/ai/ai-cache.js`** · 102 linhas
@@ -316,7 +312,6 @@ GATEWAY ÚNICO DE IA DO LUMA (Luma Gemini Intelligence Layer) (§3, §5).
 **`js/core/ai/ai-provedores.js`** · 231 linhas
 CONTAS DE IA PRÓPRIAS — a pessoa liga a conta dela e as chamadas vão DIRETO do navegador ao provedor.
 · API: gProvEstado, gProvAtivo, gProvConfig, gProvConectado, gProvConecta, gProvDesconecta, gProvUsa, gProvModelos, gProvTesta, gProvChama, gProvOpenRouterEntrar, gProvRetornoOAuth
-· Estado global: gProvUltimoErro
 · Depende de: core/auth.js (gCurrentUser), core/toast.js (gToast).
 
 **`js/core/ai/ai-registry.js`** · 194 linhas
@@ -331,33 +326,28 @@ Telemetria local da Camada de IA. Registra latência, sucesso/falha, fallbacks e
 **`js/core/auth.js`** · 640 linhas
 AUTH via Supabase (Fase 5.1). Login/logout/recuperação usam supabase.auth (window.sb, criado em js/core/supabase.js). gLoadProfile() carrega a sessão + o role do profile e popula gAuthState, pra que gCurrentUser/gCurrentRole…
 · API: gRoleLevel, gLoadProfile, gLogin, gLogout, gCurrentUser, gVisitante, gVisitantePedido, gEntrarVisitante, gVisitanteCatalogo, gVisitanteResync, gCurrentRole, gUserFoto, gAreaRestrita, gIsAdmin … (+23; 41 funções no total)
-· Estado global: gAuthState, _gVisCat
 
 **`js/core/auto-layout.js`** · 558 linhas
 AUTO-LAYOUT — as primitivas de LEITURA da arte ⚠ O QUE ESTE ARQUIVO DEIXOU DE SER (09/2026).
 · API: gLayoutFontProbe, gStampLayoutBaseline, gLayoutLimpaCarimbos, gLayoutTextoAutorado, gEnsureLayoutBaseline, gLayoutFontDrift, gLayoutFontStatus, gLayoutRefInk, gLayoutSemanticRole, gCompileLayoutRoles, gLayoutRoleMaxLines, gLayoutCampoEhPreco, gLayoutEhPrecoDinamico, gLayoutSafeZones … (+8; 22 funções no total)
-· Estado global: _gLayoutTempos
 
 **`js/core/console.js`** · 878 linhas
 LUMA CLI Console de comandos do Luma, só pra quem é da casa (equipe_dm/gestao).
 · API: gCliOpen, gCliClose, gCliToggle
-· Estado global: _gCliMontado, _gCliAberto, _gCliHist, _gCliHistIdx, _gCliBusy, _gCliRoboTimer, _gCliRoboI, _gCliInfoCache, _gCliSpinAtual
 · Depende de: core/toast.js (gToast/gConfirm), core/auth.js (gIsAdmin/gCurrentRole),
 
 **`js/core/copy-fit.js`** · 633 linhas
 COPY FIT — encurtar a copy do franqueado SEM mudar o que se vende (22/09/2026) Quando o Local Fit bloqueia, o franqueado precisa de uma SAÍDA, não de um aviso.
 · API: gCopyFitGuarda, gCopyFitConfere, gCopyFitCandidatos, gCopyFitSugestoes
 
-**`js/core/dados.js`** · 1615 linhas
+**`js/core/dados.js`** · 1616 linhas
 Área "Dados" do painel da conta — o que a rede faz no Luma (product intelligence).
 · API: gDadosAbrir, gDadosCarregar, gDadosSetPeriodo, gDadosSetCidade, gDadosSetAba, gDadosTabsKeydown, gDadosSetMetrica, gDadosGrafMove, gDadosGrafSai, gDadosGrafFoco, gDadosGrafKey, gDadosPessoasBusca, gDadosPessoasPapel, gDadosPessoasVinculo … (+10; 116 funções no total)
-· Estado global: _gDados
 · Depende de: core/toast.js (gEsc, gToast), core/auth.js (gIsAdmin), core/supabase.js (gSupabase).
 
 **`js/core/feature-flags.js`** · 678 linhas
 CONTROLE DO PRODUTO — o motor único de disponibilidade funcional do Luma.
 · API: gFeatureLoadCache, gFeatureState, gFeatureEnabled, gFeatureCan, gFeatureReason, gFeatureBlockedFeedback, gFeatureToolBlocked, gFeatureApplyToDOM, gFeatureSyncFromBackend, gFeatureSave, gFeatureRefresh, gFeatureHistory, gFeatureInit, gFeatureResolveTree … (+1; 23 funções no total)
-· Estado global: _gFFValores, _gFFSyncedAt, _gFFOrigem, _gFFErroSync, _gFFIniciado, _gFFPorChave, _gFFFilhos, _gFFPorTool
 · Depende de: core/toast.js (gToast, gEsc), core/auth.js (gCurrentRole,
 
 **`js/core/feedback-admin.js`** · 334 linhas
@@ -367,19 +357,16 @@ Consulta da equipe no painel da conta, carregada sob demanda. A RLS e a RPC auto
 **`js/core/franquia.js`** · 141 linhas
 LUMA — A franquia de quem está logado (30/09/2026 · pulável desde 29/10/2026) luma.franquias + luma.usuario_franquias existem desde 23/09, mas quase ninguém estava vinculado:
 · API: gMinhaFranquia, gFranquiaPulou, gFranquiaCarregar, gFranquiaMaisPerto, gFranquiaIniciar
-· Estado global: _gFranquia, _gFrPulou
 · Depende de: core/supabase.js (gSupabase/window.sb), core/auth.js (gCurrentUser/gCurrentRole),
 
 **`js/core/help.js`** · 781 linhas
 gOpenHelp, gCloseHelp — modal de ajuda com trilha de aprendizado e catálogo livre.
 · API: gHelpContactSupport, gFraHelpEmail, gFhRenderCols, gFhSearch, gFhOpenCol, gFhOpenArt, gFhVote, gFhBack, gFhSetActive, gFhGo, gFraHelpOpen, gFraHelpClose, gHelpIcon, gHelpStem … (+26; 49 funções no total)
-· Estado global: _fhPrev, _fhLastCol, _fhPrevOverflow, _gHelpKnowIdx, gHelpLastTrigger, gHelpPreviousOverflow, gHelpTopicQuery
 · Depende de: tutorial/engine.js (tutOpen), core/auth.js (gCurrentUser)
 
 **`js/core/img-store.js`** · 178 linhas
 Armazenamento de imagens grandes (fundos de PSD, fotos) em IndexedDB, fora do localStorage.
 · API: gImgHash, gIdbPut, gImgStoredRef, gImgStoreFlush, gIdbGet, gIdbDel, gResolveImgUrl, gHydrateLayers, gHydrateFolders
-· Estado global: _gIdbPromise
 
 **`js/core/layout.js`** · 136 linhas
 5.2 — SMART RESIZE MULTI-FORMATO (motor de layout relativo). Converte layers entre formatos sem distorcer: tamanho escala por UM fator (s = minDim destino / minDim origem) e a POSIÇÃO re-ancora por eixo (left/center/right ×…
@@ -389,12 +376,10 @@ Armazenamento de imagens grandes (fundos de PSD, fotos) em IndexedDB, fora do lo
 **`js/core/local-fit.js`** · 1694 linhas
 LOCAL FIT — medida única de texto e adaptação local, em clones.
 · API: gAuthoredTextBox, gLayoutLayerPriority, gComputeReservedRegion, gComputeDynamicFitRegion, gDebugDynamicFitRegion, gFitTextToAuthoredBox, gLocalFitArte, gLocalFitCorta, gLocalFitRotulo, gLocalFitMensagem, gLocalFitCulpado, gLocalFitMedidor, gLocalFitDiagnostico, gLocalFitMaiorPrefixo
-· Estado global: _gLfCanvas
 
 **`js/core/product-control.js`** · 573 linhas
 CONTROLE DO PRODUTO — a tela da Gestão, dentro do painel da conta.
 · API: gProdRender, gProdRenderTree, gProdFilter, gProdSetFilter, gProdClearFilters, gProdToggleGroup, gProdFocusKey, gProdRefresh, gProdAskToggle, gProdCancelToggle, gProdConfirmToggle, gProdOpenHistory
-· Estado global: _gProdQuery, _gProdFiltro, _gProdFechados, _gProdConfirmKey, _gProdSalvando
 · Depende de: core/feature-flags.js, core/toast.js (gToast/gEsc), core/auth.js.
 
 **`js/core/pwa-install.js`** · 130 linhas
@@ -428,76 +413,65 @@ SUPORTE AO VIVO — franqueado ↔ equipe DM (gSup*), 23/09/2026 Dados, Realtime
 **`js/core/toast.js`** · 252 linhas
 gToast(msg) — exibe notificacao flutuante de 2.8s.
 · API: gToast, gEsc, gEscJs, gSafeColor, gNormBusca, gBtnLoading, gConfirm, gAviso, gAvisoFechar, gPrompt, gWarnImagesNotPersisted
-· Estado global: gImgPersistWarned
 · Depende de: nada (usa apenas o DOM).
 
 **`js/core/user-profile.js`** · 1186 linhas
 Controladores do Modal e Configurações de Perfil do Usuário. Suporta edição de perfil, troca de avatar via Base64 persistente, validação de senha e monitoramento de tempo de sessão.
 · API: gProfileOpenFeedback, gOpenUserProfileModal, gProfileShowHub, gCloseUserProfileModal, gProfileOpenCli, gProfileSwitchTab, gProfileUpdateModalAvatars, gProfileTriggerUpload, gProfileHandleUpload, gProfileSalvarFoto, gProfileSyncFotoLocal, gProfileSaveData, gProfileApplyTheme, gProfileApplyStudioMode … (+22; 42 funções no total)
-· Estado global: _gFeedbackAdminLoading
 
 ### js/franqueado
 
 **`js/franqueado/catalog.js`** · 1876 linhas
 Catalogo de campanhas: fRenderCatalogs, fFilterCamps, fSelectCamp, fSwitchTab, fSetHistFilter, fRenderHist, fEditFromHist, fDuplicateInOtherFmt.
 · API: fSwitchTab, fSetHistFilter, fGoToCampaigns, fFindMaterialById, fAskClearHist, fHistVoltar, fRenderHist, fDownloadHist, fEditFromHist, fDuplicateInOtherFmt, fConfirmDuplicate, fEditCampFolder, fCampAdminMenu, fCampAnalyticsClose … (+39; 96 funções no total)
-· Estado global: fHistFilter, _fHistPreviewCache, _fHistPreviewRun, _fHistPreviewObserver, _fRedeRun, _fRedeObserver, _fhThumbFila, _fhFilter, _fhRevealIO, _fhRevealGen (+3)
 · Depende de: 00-config.js, 01-state.js
 
 **`js/franqueado/chat-input.js`** · 1322 linhas
 F-02: tipos de campo, mascaras de input, validacao por campo. F_FIELD_TYPES define o comportamento de cada variavel do template.
 · API: fMaxLenDaCaixa, fMarcaLimiteSeguro, fLimpaLimiteSeguro, fLimiteSeguro, fAlvoDoCampo, fCampoPodeEncurtar, fGetFieldType, fCleanTextNumber, fApplyMask, fValidate, fShowFieldError, fEspelhoConfirma, fEspelhoSincroniza, fAttachInputGuard … (+7; 49 funções no total)
-· Estado global: _F_MAXLEN_MED, _fAlvoNaPasta, _fFitOpts, _fFitRun, _fFitSai, _fFitIaReprovadas, _fFitCf, quando, _fFitPerto, _fFitFora
 · Depende de: 00-config.js
 
-**`js/franqueado/chat.js`** · 4069 linhas
+**`js/franqueado/chat.js`** · 4087 linhas
 Fluxo conversacional completo: fStartChat, fNextStep, fAddBot, fAddUser, fSend, fQR, fTyping, fGoBack, upload de imagem, confirm card, fGerarArte.
-· API: fChatNovaConversa, fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fTrackResposta, fTrackFoto … (+71; 187 funções no total)
-· Estado global: fNextTimeout, _fChatGen, _fGuidedNav, _fGuidedTimer, _fGuidedBound, _fProntaCtxAberto, _fRevisando, _fRespostasNAnt, _fArtSnapshots, _fArtCaptions (+5)
+· API: fChatNovaConversa, fValidadeSuggestions, fGetSuggestionsForVar, fStartChatComMaterial, fMaterialPreStart, fSkipPreStart, fPickLoja, fUseLastArte, fSelectFmt, fRenderFmts, fUpdateCtx, fUpdateProg, fTrackResposta, fTrackFoto … (+71; 188 funções no total)
 · Depende de: 00-config.js, 01-state.js, franqueado/chat-input.js
 
 **`js/franqueado/feedback.js`** · 336 linhas
 Feedback contextual e pedidos de conteúdo. Depende de gEsc/gUuid/gCurrentUser. Guarda apenas IDs e metadados da ação; nunca retém o snapshot vivo do editor. O banco confirma o envio e emite os eventos, sem um segundo coletor…
 · API: fFeedbackFlush, fFeedbackMount, fFeedbackPodeConvidar, fFeedbackAfterDownload, fFeedbackRequest
-· Estado global: _fFeedbackConviteNaSessao
 
 **`js/franqueado/fotos.js`** · 287 linhas
 BIBLIOTECA DE FOTOS DA FRANQUIA (27/10/2026) As fotos reais da cidade — prato, fachada, logo — param de morar só no aparelho de quem enviou.
 · API: fFotosSb, fFotosMinhaFranquia, fFotosDisponivel, fFotosListar, fFotosSalvar, fFotosUsar, fFotosApagar, fFotosRenderSecao
-· Estado global: _fFotosCache, _fFotosAvisoFalha, _fFotosPronta
 · Depende de: core/supabase.js (window.sb), core/franquia.js (gMinhaFranquia),
 
 **`js/franqueado/history.js`** · 381 linhas
 Historico de artes do franqueado: fGetHist, fSaveHist, fAddHist, fMarkHistBaixada, fUpdateHistBadge, fRenderHist, fDownloadHist. Persiste em localStorage (HIST_KEY).
 · API: fUserCacheKey, fGetHist, fRecoverHist, fSaveHist, fPushArtesToBackend, fMarkBaixadaBackend, fSyncArtesFromBackend, fLoadMoreHist, fHistMoreButton, fClearHist, fAddHist, fMarkHistBaixada, fUpdateHistBadge, fFormatHistDate
-· Estado global: _fHistPage, _fArtesPushBusy, _fArtesPushQueued
+· Estado global: _fHistPage
 · Depende de: 00-config.js (HIST_KEY), 01-state.js (fState)
 
 **`js/franqueado/live-preview.js`** · 4905 linhas
 Preview lateral em tempo real (fUpdateLivePreview) e modal de preview multi-formato (fOpenPreview, fClosePreview, fStartFromPreview).
 · API: fOpenPreview, fStartFromPreview, fClosePreview, fPostedRepintaLegenda, fPostedSetCtx, fPostedCloseQR, fPostedOpenQR, fPostedCopyQRLink, fPostedContextForFormat, fLpTrocarContexto, fOpenPosted, fClosePosted, fLpCamposBloqueados, fLpListaRotulos … (+35; 239 funções no total)
-· Estado global: _postedArt, renderizada, _postedCtx, _pstStageBound, _pstTiltRaf, _pstQRUrl, _pstQRBusy, _lpConclusaoAtiva, _lpCardPintado, _lpConclusaoSaindo (+50)
 · Depende de: 00-config.js, 01-state.js
 
 **`js/franqueado/materials.js`** · 1287 linhas
 Catalogo de materiais do franqueado: fOpenMaterialCatalog, fRenderMaterialCatalog, fRenderMaterialCard, fCloseMaterialCatalog, fSelectMaterial.
 · API: fDemoModeOn, fSetDemoMode, fGetMaterialsForCamp, fIsMaterialValid, fIsMaterialReal, fRealMaterialsForCamp, fDiasRestantes, fCampValidade, fCampDiasRestantes, fKitPecas, fKitPar, fKitPlano, fKitNaoCabe, fKitAbrir … (+20; 56 funções no total)
-· Estado global: _fCampThemeAtivo, _fCampThemeClaro
 · Depende de: 00-config.js, 01-state.js, franqueado/chat.js
 
 **`js/franqueado/motion.js`** · 484 linhas
 STORY ANIMADO — o Story do franqueado sai também em MP4 (28/10/2026) Pedido do Ryan:
 · API: fMotionDisponivel, fMotionEhStory, fGenMP4, fBaixarVideo
-· Estado global: _fVideoRenderizando
 · Depende de: franqueado/png-generator.js (fRenderTemplateLayers, fMaterialSize,
 
 **`js/franqueado/panel-dock.js`** · 170 linhas
 Drag & drop das 3 colunas do workspace do franqueado (só desktop largo).
 · API: fLoadPanelOrder, fSavePanelOrder, fSetPanelOrder, fInitPanelDock
-· Estado global: _panelOrder, _panelDrag
 · Depende de: index.html (grips + #fran-main), css/modules/panel-dock.css,
 
-**`js/franqueado/png-generator.js`** · 6133 linhas
+**`js/franqueado/png-generator.js`** · 6148 linhas
 Geracao de PNG a partir dos templates: fGenPNG, fRenderTemplateLayers, fBaixar, fOutroFormato. Sistema de nomenclatura padronizado para downloads.
 · API: fLoadLogoBranca, fMaterialSize, fExportScale, fRenderCanvasHelper, fAssinaturaDados, fAssinarPngBytes, fAssinarPngBlob, fAssinarPngDataURL, fLerAssinaturaPng, fGenPNG, fGenPDF, fPostarInstagram, fEnviarWhatsApp, fDrawDMLogo … (+85; 195 funções no total)
 · Depende de: 00-config.js, 01-state.js, designer/canvas.js (dRenderCanvas)
@@ -505,7 +479,6 @@ Geracao de PNG a partir dos templates: fGenPNG, fRenderTemplateLayers, fBaixar, 
 **`js/franqueado/prefs.js`** · 78 linhas
 Preferências do franqueado persistidas localmente (cache offline-first):
 · API: fGetLojas, fSaveLojas, fAddLoja, fRemoveLoja, fGetFavs, fIsFav, fToggleFav, fGetSeen, fMarkCampSeen, fMaterialIsNew, fCampHasNew, fSetHistSearch
-· Estado global: fHistSearch
 · Depende de: 00-config.js. Consumido por catalog.js, materials.js, chat.js.
 
 **`js/franqueado/search.js`** · 235 linhas
@@ -516,7 +489,6 @@ Busca local do catálogo. Adaptador, ranking e eventos separados da apresentaç�
 **`js/franqueado/upload-panel.js`** · 335 linhas
 Painel de upload do chat do franqueado: ao enviar uma foto, abre um painel com · Imagens recentes — as últimas usadas, pra reaproveitar sem re-upload. · Minhas lojas — perfis de loja salvos (logo), quando o campo é o logo. ·…
 · API: fDemoImgsEsgotado, fDemoImgsPara, fGetRecentImgs, fRecordRecentImg, fRemoveRecentImg, fOpenUploadPanel, fCloseUploadPanel, fUploadPanelNewFile, fPickDemoImg, fDemoImgMissing, fPickRecentImg, fUploadPanelPickLoja, fUploadPanelDeleteLoja
-· Estado global: _fUpPanelVar, _fUpPanelUploadId
 · Depende de: franqueado/chat.js (_fApplyImageToField, fState, fProcessImageFile),
 
 ### js/designer
@@ -527,13 +499,11 @@ Painel de upload do chat do franqueado: ao enviar uma foto, abre um painel com �
 **`js/designer/brush.js`** · 1039 linhas
 Sistema de pincel/borracha/carimbo: dPaintStart, dPaintMove, dPaintEnd, dStampAt, dBrushUpdate, dBrushSetPreset, dShowBrushBar.
 · API: dPaintTargetSize, dEnsurePaintCanvas, dSyncPaintPointer, dGetPaintCtx, dPaintStart, dPaintMove, dPaintEnd, dBlurRegion, dSmudgeStep, dApplyGradient, dCanvasPos, dClearPaint, dStampAt, dAttachPaintListeners … (+41; 58 funções no total)
-· Estado global: dStampSource, dStampOffset, dGradStart, dBrush, dStampAligned, _dSharpenC1, _dSharpenC2, dNitidezLast, _dNitidezHinted, dFormaLast (+7)
 · Depende de: designer/canvas.js
 
 **`js/designer/canvas.js`** · 2601 linhas
 Render do canvas, zoom, pan, formato, réguas, barra contextual, smart guides, simulacao de dados e interacoes de mouse.
 · API: dSetFormat, dApplyFormat, dFitToScreen, dPositionArtboard, dZoom, dSetZoom, dSampleImg, dSetPhTest, dEscolherFotoDaMoldura, dRenderWorkspace, dABAddResizeHandles, dUpdateBrushCursor, dSetTool, dEnsureMarqueeEl … (+57; 83 funções no total)
-· Estado global: dPhTestAR, dMarquee, dDrawShapeState, dABDraw, dLastClickLayerId, dLastClickTime, dPainting, dPaintLast, dSnapEnabled, dSimValues (+11)
 · Depende de: designer/templates.js, designer/layers.js
 
 **`js/designer/color-picker.js`** · 288 linhas
@@ -546,25 +516,21 @@ Borrachas avançadas sobre ImageData do #d-paint-canvas. NÃO altera o pipeline 
 **`js/designer/fonts.js`** · 240 linhas
 Fontes customizadas enviadas pelo usuário (.ttf/.otf/.woff/.woff2).
 · API: dFontsPersist, dFontsRestore, dPushFontsToBackend, dDeleteFontFromBackend, dSyncFontsFromBackend, dFontRegister, dFontUniqueFamily, dFontUpload, dFontRemove, dFontsRenderList, dFontOptionsHTML, dPopFontSelects
-· Estado global: dCustomFonts
 · Depende de: 00-config.js, core/toast.js, designer/canvas.js (dRenderCanvas).
 
 **`js/designer/layers.js`** · 4881 linhas
 CRUD de layers, painel lateral, props, multi-select, rename: dSelLayer, dDeselect, dRenderLayersList, dShowProps, dAddText, dAddShape, dToggleMultiSel, dRenameLayer, dAddIcon, dAddLine.
 · API: dSelLayer, dHoverLayer, dSelLayerState, dDeselect, dStartCrop, dStopCrop, dOnCropDrag, dStopCropDrag, dStartDrag, dOnDrag, dStopDrag, dStartResize, dOnResize, dStopResize … (+209; 283 funções no total)
-· Estado global: dDragEls, dPendingIsolate, dDragMoved, dCropState, dDragCrop, dResizeEl, dResizePos, dResizeLyrX, dResizeLyrY, dResizeFs (+38)
 · Depende de: designer/canvas.js
 
 **`js/designer/library.js`** · 661 linhas
 Painel lateral e biblioteca de assets: dTogglePanel, dLibRenderCats, dLibRender, dLibUpload, dLibUse, dLibDelete, dToggleTheme.
 · API: dTogglePanel, dToggleResources, dResourcesTab, dToggleTheme, dLibRenderCats, dLibSetCat, dLibRender, dLibFilter, dLibUpload, dLibUse, dLibDelete, dPushLibToBackend, dDeleteLibFromBackend, dSyncLibFromBackend … (+17; 34 funções no total)
-· Estado global: dPanelOpen, dLibCats, dLibAssets, dLibActiveCat, _dResMoved, dTheme, dHistory, dHistoryIdx, dInlineEl, dInlineLayer (+1)
 · Depende de: designer/canvas.js
 
 **`js/designer/linter.js`** · 646 linhas
 Design System Linter & Auditor de Layout do Luma Designer. Varre as camadas em busca de erros estéticos, Safe Zones e otimizações de performance.
 · API: dRunLinter, dLinterFocusLayer, dDadoLinterAutoFix
-· Estado global: _dAiStressCases, _dAiStressLoading
 
 **`js/designer/mask.js`** · 195 linhas
 Máscaras de camada no editor: adicionar, pintar (esconder/revelar), inverter, remover. Modelo unificado: l.mask = dataURL de ALPHA mask (opaco=visível, transparente=escondido) — o mesmo usado no canvas (CSS mask), no PNG e no…
@@ -580,53 +546,44 @@ Ferramentas de medição e amostragem do designer Luma, inspiradas no Photoshop.
 **`js/designer/preview.js`** · 1143 linhas
 Preview engine do designer: pvRender, pvRenderLayers, pvRenderLayer, dPreviewOpen, dPreviewClose, dPreviewSetFmt, dPreviewDownload.
 · API: dPreviewSetScale, dPreviewSetType, dPreviewOpen, dPreviewClose, dPreviewSetFmt, dPreviewSetDevice, pvRender, pvRenderViaMotor, pvSimDados, pvRenderLayers, pvRenderLayer, pvRenderFramePlaceholder, pvRoundRect, pvApplyDevice … (+22; 42 funções no total)
-· Estado global: pvFmt, pvDevice, pvRendering, pvRenderQueued, pvExportScale, pvExportType, pvExportQuality, dExportSelectedFmt
 · Depende de: designer/canvas.js, designer/layers.js
 
 **`js/designer/props-panel.js`** · 2397 linhas
 Accordion, sub-nav scroll, alignment button group para o painel de props.
 · API: dPropToggleSection, dPropSaveSections, dPropRestoreSections, dPropScrollTo, dPropSetAlign, dPropSyncAlign, dPropShowSections, dPropWorkspaceMode, dPropReadWorkspaceMode, dPropSetWorkspaceMode, dToggleChrome, dPropBuildWorkspaceMode, dPropBuildEssentialChrome, dPropBuildPanelNav … (+61; 75 funções no total)
-· Estado global: dChromeOff, dPropDataProblemsOnly, dPropDataShowInventory
 
 **`js/designer/psd-import.js`** · 2439 linhas
 REVISÃO e IMPORTAÇÃO do .psd — a metade do importador que é tela.
 · API: dPsdOpenReview, dPsdDiagnostico, dPsdToggleAdvanced, dPsdStep, dPsdCta, dPsdCompare, dPsdRenderRows, dPsdSetMode, dPsdSetVar, dPsdSetInclude, dPsdSelectAll, dPsdSelectNone, dPsdUploadFont, dPsdUpdateCount … (+28; 111 funções no total)
-· Estado global: dPsdItems, _dPsdReviewAll, _dPsdStep, _dPsdPick, _dPsdFidRep, _dPsdAdjustCount, _dPsdLastHoverIdx, _dPsdPreviewTimer, _dPsdResult, _dPsdAtIdx (+13)
 · Depende de: designer/templates.js, core/layout.js, core/toast.js, 00-config.js.
 
 **`js/designer/psd-parse.js`** · 3110 linhas
 LEITURA e FIDELIDADE do .psd — a metade do importador que não toca a tela.
 · API: dLoadAgPsd, dPsdCancelLoad, dPsdDetectFmt, dPsdTrace, dPsdImportResult, dPsdCapReport, dPsdParseItems, dItemToLayer, dPsdItemsToLayers
-· Estado global: _agPsdPromise, _dPsdGlobalLight, _dPsdYieldChan, _dPsdCancelled, _dPsdActiveWorker, _dPsdTraceOn, _dPsdErrorCount
 
 **`js/designer/publish.js`** · 1596 linhas
 Modal de publicacao de templates (4 abas): dPublishOpen, dPublishClose, dPublishSwitchTab, dPublishRender, dPublishConfirm.
 · API: dPublishDraftKey, dPublishCollectDraft, dPublishPersistDraft, dPublishQueueDraft, dPublishLoadDraft, dPublishClearDraft, dPublishSaveDraft, dGetActiveTemplate, dPublishSetupWizard, dPublishShowError, dPublishClearError, dPublishValidateStep, dPublishGoStep, dPublishShowStep … (+33; 51 funções no total)
-· Estado global: dPubSelectedABs, dPubPermissoes, dPubObservers, dPrevToolForSpace, dPubWizardStep, dPubLinterStats, dPubLastTrigger, dPubDraftTimer, dPubPublished, dPubPublishing (+5)
 · Depende de: designer/templates.js
 
 **`js/designer/selection.js`** · 809 linhas
 Ferramentas avançadas de seleção inspiradas no Photoshop: 1. Object Selection (obj-select) — retângulo + IOU 2. Quick Selection (quick-select) — hit-test por clique/arrasto 3. Magic Wand (magic-wand) — seleção por cor dominante
 · API: dIsLayerVisible, dObjSelectStart, dObjSelectMove, dObjSelectEnd, dQuickSelectAt, dQuickSelectCoordsFromEvent, dMagicWandAt, dRenderSelectionOverlay, dObjSelectInRect, dMagicWandSelect
-· Estado global: dSelectionTolerance, dSelectionContiguous, dObjSelectState, dMagicWandTolerance, _dMarchingAntsCSSInjected
 · Depende de: designer/canvas.js, designer/layers.js
 
 **`js/designer/templates.js`** · 3852 linhas
 Estado e CRUD de templates/pastas: dFolders, dInit, dRenderFolders, dLoadTemplateById, dBuildLayers, dLoadTemplate, dOpenNewFolder, dConfirmTemplate.
 · API: dSyncLyrCnt, dBuildMockLayersForCamp, dDefaultFolders, dBuildShowcaseLayers, dPreloadFolders, dDefaultPublishMeta, dExtractTemplateVars, dBuildLayers, dBuildBlankLayers, dBuildBlankLayersWH, dGetActiveAB, dSyncLayersToAB, dSetActiveAB, dNewArtboard … (+139; 176 funções no total)
-· Estado global: dFmt, dZoomLevel, dLayers, dSelId, dTool, dDrag, dDragSX, dDragSY, dLyrSX, dLyrSY (+39)
 · Depende de: 00-config.js
 
 **`js/designer/tools.js`** · 363 linhas
 Ferramentas do designer: eyedropper, auto-fit de texto, bucket fill, dStartInlineEdit, dEndInlineEdit, dHexSync, dHexInput, dToggleLock.
 · API: dMeasureText, dTextGlyphMetrics, dTextInkTopGap, dTextDisplayString, dTextFitBox, dCheckTextOverflow, dAutoFitText, dEyedropFromLayer, dEyedropAt, dUpdateBgColor, dSwapColors, dResetColors, dBucketFillLayer, dToggleToolbarCols … (+1; 16 funções no total)
-· Estado global: dMeasureCanvas, dMeasureCtx, dEyedropLastColor, dColorFG, dColorBG
 · Depende de: designer/canvas.js, designer/layers.js
 
 **`js/designer/tooltip.js`** · 192 linhas
 Luma Designer - Rich Educational Tooltips Fornece tooltips explicativos e educacionais para as ferramentas da barra lateral.
 · API: initRichTooltips, showRichTooltip, hideRichTooltip
-· Estado global: dTooltipTimer, dHoveredBtn
 
 **`js/designer/tutorial-panel.js`** · 90 linhas
 Aba "Tutorial" do designer: guia em acordeão que explica cada ferramenta, atalho e recurso da plataforma + botão "Abrir modelo de exemplo".
@@ -636,7 +593,6 @@ Aba "Tutorial" do designer: guia em acordeão que explica cada ferramenta, atalh
 **`js/designer/undo-redo.js`** · 195 linhas
 Historico de acoes do designer: dHistoryPush, dUndo, dRedo, dUpdateUndoButtons, dFlashLayer, dDuplicateLayer.
 · API: dHistoryPush, dHistoryPushDebounced, dCapturePaint, dHistorySnapshot, dHistoryCommit, dHistoryReset, dApplyPaintSnapshot, dRestoreSelection, dApplyHistoryEntry, dHistoryFlush, dUndo, dRedo, dUpdateUndoButtons, dFlashLayer
-· Estado global: _dHistPending, _dHistDebounce, dPaintDirty, _dLastPaintURL, _dPaintGen
 · Depende de: designer/canvas.js
 
 ### js/academia
@@ -644,30 +600,25 @@ Historico de acoes do designer: dHistoryPush, dUndo, dRedo, dUpdateUndoButtons, 
 **`js/academia/academia.js`** · 907 linhas
 ACADEMIA DELIVERY MUCH — núcleo do módulo de formação do franqueado.
 · API: acIco, acAulas, acAula, acModulo, acProg, acConcluiu, acIniciou, acModuloLiberado, acAulaLiberada, acAulaAtualizada, acModuloEstado, acResumo, acFmtDur, acFmtTempo … (+29; 48 funções no total)
-· Estado global: acState, _acTocarTimer, _acIniciado
 · Depende de: core/supabase.js (gSupabase, gTrackEvent), core/toast.js (gToast,
 
 **`js/academia/aula.js`** · 1130 linhas
 ACADEMIA — AMBIENTE DE AULA. O núcleo do módulo: três regiões no desktop (estrutura do curso · aula), player MP4 com retomada e as ferramentas de aprendizado em abas. DECISÃO DE PLAYER: `<video controls>` NATIVO + o que o…
 · API: acRenderAula, acAulaBloqueada, acRenderSidebar, acSidebarModulo, acSidebarAula, acToggleModulo, acAbrirAula, acRenderAulaMain, acPlayerHTML, acMontarPlayer, acVideoTick, acPlayerEstado, acMostrarRetomada, acReiniciarVideo … (+40; 55 funções no total)
-· Estado global: _acAulaMontada, acAulaAba, _acVideoEl, _acAssistido, _acUltimoTick, _acSalvarTimer, _acNotaEditando
 · Depende de: academia.js (acState, acProg, acSalvarProgresso, acVideoUrl…),
 
 **`js/academia/certificado.js`** · 431 linhas
 ACADEMIA — CONCLUSÃO E CERTIFICADO. EMISSÃO: sempre pela RPC `luma.ac_emitir_certificado` (SECURITY DEFINER). O cliente NÃO insere em luma.certificados — a tabela não tem policy de INSERT, então quem valida a conclusão é o…
 · API: acRenderCertificado, acCertRequisitos, acCertRevisao, acEmitirCertificado, acCertZoom, acDesenharCertificado, acBaixarCertificado
-· Estado global: _acCertZoom
 
 **`js/academia/conclusao.js`** · 519 linhas
 ACADEMIA — EXPERIÊNCIA DE CONCLUSÃO DA FORMAÇÃO. O momento em que o franqueado deixa de estar "em implementação" e passa a fazer parte da rede como formado. Sequência em 4 telas dentro de um overlay: 1. CONFIRMAÇÃO progresso…
 · API: acConclusaoCfg, acConclusaoJaVista, acVideoCeoNovo, acVideoCeoDisponivel, acConclusaoTalvezAbrir, acConclusaoAbrir, acConclusaoFechar, acConclusaoPular, acConclusaoIr, acConcEtapaConfirmacao, acConcEtapaSplash, acConcEtapaVideo, acConcVideoFalhou, acConcVideoSeguir … (+6; 25 funções no total)
-· Estado global: _acConclusaoAberta, _acConclusaoCancelar, _acConclusaoEtapa, _acVideoCeoEl, _acVideoCeoTimer
 · Depende de: motion.js (acSequencia, acDur, acMotionReduzido, acSomConquista),
 
 **`js/academia/gestao.js`** · 1146 linhas
 ACADEMIA — GESTÃO DE CONTEÚDO (equipe_dm / gestao). Permite administrar a formação sem editar código: curso, módulos, aulas, upload de MP4, materiais, atividade, preview como franqueado e publicação. SEGURANÇA: o gate daqui é…
 · API: acRenderGestao, acGestaoTrocarAba, acGestaoAvisos, acGestaoRenderCorpo, acGestaoArvore, acGestaoArvoreDemo, acGestaoModItem, acGestaoEditar, acGestaoFecharEditor, acGestaoEditor, acGestaoFormCurso, acGestaoFormConclusao, acGestaoCcDestino, acGestaoVideoCeoHTML … (+38; 58 funções no total)
-· Estado global: acGestaoAba, acEdit, _acUp
 
 **`js/academia/motion.js`** · 251 linhas
 ACADEMIA — SISTEMA DE MOTION. As decisões de movimento do módulo moram AQUI, não espalhadas em cada render. Quem anima chama um destes helpers. REGRA: nenhum valor de duração ou curva nasce neste arquivo. Tudo vem dos tokens…
@@ -687,7 +638,6 @@ TUTORIALS = {...} — catalogo dos 4 tutoriais interativos. Cada tutorial define
 **`js/tutorial/engine.js`** · 321 linhas
 Engine do TutorialEngine: tutState, tutOpen, tutClose, tutNext, tutGoToScene, tutRenderScene, cursor virtual, spotlights, progress. Exporta: tutOpen, tutClose, tutNext, tutPrev, tutTogglePlay, tutGoToScene
 · API: tutSceneTimeout, tutClearSceneTimers, tutOpen, tutClose, tutAskClose, tutExitCancel, tutGoToScene, tutRenderScene, tutShowTooltip, tutMoveCursor, tutRenderProgress, tutUpdateProgress, tutUpdateButtons, tutNext … (+6; 20 funções no total)
-· Estado global: tutState
 · Depende de: 01-state.js, tutorial/catalog.js, tutorial/mocks.js
 
 **`js/tutorial/mocks-studio.js`** · 81 linhas
@@ -751,15 +701,13 @@ As composições do dia a dia do franqueado (frente 4, 15/10/2026) — desenhada
 LUMA CREATIVE — modo COPY (15/10/2026) Quando o pedido é um TEXTO ("quero uma copy", "uma legenda", "um roteiro", "mensagem de whatsapp"…) e não uma arte, o chat vira o de um copywriter:
 · API: crPromptCopyBriefing, crPromptCopyTexto, crCopy, crLegendaMarca
 
-**`js/creative/creative.js`** · 5193 linhas
+**`js/creative/creative.js`** · 5206 linhas
 Luma Creative — modo em TESTES, só a gestão (trava em main.js e na Edge Function `ai`).
-· API: crTema, crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crLockup, crTextoLinhas, crTextoMulti, crX, crTexto, crMista, crHeroi … (+98; 192 funções no total)
-· Estado global: _crFontesProm, _crCtx, _crMesa, _crPesosCuradoria, _crArrasto, _crSessTimer, _crLegendaVer
+· API: crTema, crFontesProntas, crMede, crCabe, crQuebra, crTrechos, crMedeMista, crLockup, crTextoLinhas, crTextoMulti, crX, crTexto, crMista, crHeroi … (+98; 193 funções no total)
 
 **`js/creative/curadoria.js`** · 224 linhas
 CURADORIA do Luma Creative (frente 5, 15/10/2026) — só a gestão.
 · API: crCuradoriaNota, crCuradoriaPesos, crCuradoriaExporta, crCuradoria, crCuradoriaFecha
-· Estado global: _crCur
 
 **`js/creative/harness.js`** · 193 linhas
 LUMA CREATIVE — HARNESS DO CHAT (15/10/2026) Antes, toda mensagem virava um pedido novo de arte:
@@ -774,7 +722,6 @@ MAKING-OF da arte (frente 6, 15/10/2026; microações em 15/10, pedido do Ryan) 
 **`js/potencial/comparar.js`** · 142 linhas
 POTENCIAL — comparar cidades e gerar slides em lote (v2, 30/10/2026).
 · API: potComparaAdd, potComparaPoe, potComparaTira, potComparaContador, potRenderComparar, potAbrirNoCalcular, potComparaLimpa, potComparaBusca, potComparaLista, potComparaPrimeira, potComparaEscolhe, potComparaLote
-· Estado global: _potCRes, _potCSeq, _potCTimer
 · Depende de: motor.js, potencial.js (estado `_pot`, potBuscarCidades, potChamaGerador, potRegistrarProposta).
 
 **`js/potencial/graficos.js`** · 220 linhas
@@ -795,7 +742,6 @@ POTENCIAL DA CIDADE — o MOTOR (v2, 30/10/2026). Puro: sem DOM, sem rede, sem e
 **`js/potencial/potencial.js`** · 551 linhas
 POTENCIAL DA CIDADE — a tela (v2, 30/10/2026). A "Calculadora de Franquias 2026" do Aladim dentro do Luma. A equipe comercial escolhe a cidade, vê investimento, os 3 cenários e a projeção de 24 meses com os mesmos números da…
 · API: potCarregar, potBuscarCidades, potCidadePorChave, potCidadesDaRede, potRecentes, potLembra, potEntrar, potMontar, potAba, potBuscaDigita, potRenderLista, potBuscaTecla, potBuscaFecha, potEscolher … (+26; 46 funções no total)
-· Estado global: _pot
 · Depende de: motor.js, graficos.js, core/supabase.js (window.sb), core/toast.js (gToast/gEsc/gNormBusca/gBtnLoading),
 
 **`js/potencial/tarifas.js`** · 109 linhas
