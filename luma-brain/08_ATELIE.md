@@ -240,8 +240,8 @@ Cada etapa é um ticket. "Pronto" = o critério escrito, verificado na bancada o
   **Rodada 2 — 30/10/2026: herói dos formatos deitados.** O teto fixo do herói (`heroiMax`) deixava
   título curto do tamanho de um longo — card vazio, escala ~0,7. `_crHeroiDeitado` (creative.js) usa o
   `crLockup` com a altura do card/faixa: 1 ou 2 linhas, crescendo até onde cabe. Vale em `bannerSplit`,
-  `bannerSelo`, `bannerFoto`, `emailFaixa` e `emailMarca` sem foto. Régua do banner: +5 peças reais
-  (almoço, brindes, açaí, descontaço, Xanxerê) em `assets/creative/regua/`, e o par mostrado à IA
+  `bannerSelo`, `bannerFoto`, `emailFaixa` e `emailMarca` sem foto. Régua do banner: +8 peças reais
+  (almoço, brindes, açaí, descontaço, Xanxerê, combos, rangos, bebidas) em `assets/creative/regua/`, e o par mostrado à IA
   passa a variar por pedido.
 
   | recorte | média das 3 | ≥ 80 | assinatura repetida |

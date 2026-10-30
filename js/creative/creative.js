@@ -2594,7 +2594,8 @@ const CR_REGUA = {            // as referências que o Ryan subir entram aqui (p
 // Régua dos formatos de canal (§3.5): peças reais do Ryan, em assets/creative/regua/ (540 px)
 const CR_REGUA_FMT = {
   inapp: ['inapp-festival-do-xis.jpg', 'inapp-much-mandou-bem.jpg'], banner: ['banner-promo-turbinada-30.jpg', 'banner-mais-vendidos.jpg', 'banner-almoco-barato.jpg', 'banner-bora-ganhar-brindes.jpg',
-    'banner-acai-sorvete.jpg', 'banner-descontaco-1212.jpg', 'banner-xanxere-chegando.jpg'],
+    'banner-acai-sorvete.jpg', 'banner-descontaco-1212.jpg', 'banner-xanxere-chegando.jpg', 'banner-combos-desconto.jpg',
+    'banner-ofertas-bebidas.jpg', 'banner-rangos-baixaram.jpg'],
   emailTopo: ['cabecalho-burger-fest.jpg', 'cabecalho-dm-produto-700.jpg'], emailRodape: ['rodape-padrao-sorriso.jpg'],
   capa: ['capa-promo-turbinada.jpg', 'capa-cupons-exclusivos.jpg'], slide: ['slide-capa.jpg', 'slide-conteudo.jpg'], carrossel: ['carrossel-dia-do-solteiro.jpg']
 };
