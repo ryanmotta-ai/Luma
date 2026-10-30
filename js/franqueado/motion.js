@@ -434,7 +434,7 @@ async function fGenMP4(d, c, fmt, material, onProgresso, opcoes){
       quadro.close();
       while(enc.encodeQueueSize > 6) await new Promise(r => setTimeout(r, 4));
       if(onProgresso) onProgresso((i + 1) / N, nMov, N);
-      if(opcoes.ceder && performance.now() - cedeuEm > 24){ await _fMoCede(); cedeuEm = performance.now(); }
+      if(opcoes.ceder && performance.now() - cedeuEm > 40){ await _fMoCede(); cedeuEm = performance.now(); }
     }
     await enc.flush();
     if(erro) throw erro;
