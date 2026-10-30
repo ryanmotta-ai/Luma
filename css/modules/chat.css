@@ -276,6 +276,9 @@ body:not(.theme-light) .confirm-progress-track{background:var(--d-surf2)}
 body:not(.theme-light) .art-preview-mat{background:var(--d-bg)}
 .art-preview-mat>.art-canvas{width:100%;border-radius:6px}
 .art-canvas-real{margin:0 auto;display:block;overflow:hidden;position:relative;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.14)}
+/* "Virou motion" (motion-estudio.js): o vídeo toca por cima do canvas, no mesmo tamanho. */
+.art-canvas-real.f-motion-tem-video>canvas{visibility:hidden}
+.art-canvas-real>.f-motion-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .art-canvas{height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-family:'Roboto',sans-serif;font-weight:900;color:var(--white);text-align:center;padding:12px;position:relative;overflow:hidden}
 .art-canvas::before{content:'';position:absolute;bottom:-20px;right:-20px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,.08)}
 .art-canvas::after{content:'';position:absolute;top:-15px;left:-15px;width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,.06)}

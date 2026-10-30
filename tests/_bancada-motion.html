@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Luma — bancada do Virar motion</title>
+  <!-- BANCADA, não portão (o "_" tira do CI): o fluxo inteiro do "Virar motion" — estúdio,
+       render real do MP4, volta para o card — com o motor real e um Story de teste, sem login.
+       Abrir em http://localhost:<porta>/tests/_bancada-motion.html e clicar no botão.
+       Stubs só para o que mora fora do motor (histórico, evento, feature flag). -->
+  <link rel="stylesheet" href="../css/00-tokens.css">
+  <link rel="stylesheet" href="../css/03-fonts.css">
+  <link rel="stylesheet" href="../css/modules/chat.css">
+  <style>
+    body{margin:0;min-height:100vh;background:var(--d-bg);color:var(--d-text);font-family:Roboto,sans-serif;display:flex;align-items:center;justify-content:center;gap:40px;padding:24px;box-sizing:border-box}
+    .card{width:240px;background:var(--d-surf);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
+    .card .art-btn{width:100%;justify-content:center;display:flex;align-items:center;gap:8px;padding:10px;border-radius:10px;border:1px solid var(--d-border2);background:transparent;color:var(--d-text);font:600 13px Roboto,sans-serif;cursor:pointer}
+    .card .art-btn.pri{background:var(--dm-orange);border-color:var(--dm-orange);color:var(--white)}
+    #log{font:12px ui-monospace,monospace;white-space:pre-wrap;color:var(--d-text2);max-width:380px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="art-canvas-real" style="width:216px;height:384px"><canvas id="art-preview-1" width="216" height="384" style="display:block;width:100%;height:100%"></canvas></div>
+    <button type="button" class="art-btn art-video" onclick="fVirarMotion(this,'art-preview-1')"><span>Virar motion</span></button>
+  </div>
+  <pre id="log">Montando a arte…</pre>
+  <div id="g-toast-container"></div>
+
+  <script src="../js/00-config.js"></script>
+  <script src="../js/core/layout.js"></script>
+  <script src="../js/core/auto-layout.js"></script>
+  <script src="../js/core/toast.js"></script>
+  <script src="../js/designer/blending.js"></script>
+  <script src="../js/franqueado/png-generator.js"></script>
+  <script src="../js/franqueado/motion.js"></script>
+  <script src="../js/franqueado/motion-estudio.js"></script>
+  <script>
+    // Leitores de token do live-preview.js (não carregado aqui: depende do app inteiro)
+    function _fLpMotionMs(t){ const r = getComputedStyle(document.documentElement).getPropertyValue(t).trim(); const n = parseFloat(r) || 0; return /ms$/i.test(r) ? n : /s$/i.test(r) ? n * 1000 : n; }
+    function _fLpMotionEase(t){ return getComputedStyle(document.documentElement).getPropertyValue(t).trim() || 'linear'; }
+    // ?movimento=1: ignora o "reduzir movimento" do navegador (o painel do Claude Code o emula),
+    // senão o estúdio nunca abre aqui. Só na bancada.
+    if(/movimento=1/.test(location.search)){ const mm = window.matchMedia.bind(window); window.matchMedia = q => /reduced-motion/.test(q) ? { matches: false } : mm(q); }
+    const log = m => { document.getElementById('log').textContent += '\n' + m; };
+    window.gTrackEvent = (n, p) => log('evento ' + n + ' ' + JSON.stringify(p));
+    window.fAddHist = () => log('histórico: baixada'); window.fMarkHistBaixada = () => {};
+    window.dVars = [];
+
+    const W = 1080, H = 1920;
+    const T = (id, content, x, y, w, h, fontSize, color, sem, extra) => Object.assign({ id, type: 'text', content, x, y, w, h, font: 'Roboto', fontWeight: 900,
+      fontSize, lineHeight: 1.05, textAlign: 'center', textBox: 'area', color, visible: true, opacity: 100, layoutSemantic: sem }, extra || {});
+    const S = (id, x, y, w, h, fill, sem, extra) => Object.assign({ id, type: 'shape', shapeKind: 'rect', x, y, w, h, fill, visible: true, opacity: 100, layoutSemantic: sem }, extra || {});
+    const layers = [
+      S('fundo', 0, 0, W, H, '#FF9000', 'fundo'),
+      S('luz', 140, 520, 800, 800, '#FFB900', 'decoracao', { shapeKind: 'circle', opacity: 55 }),
+      S('marca-pill', 380, 80, 320, 88, '#FFFFFF', 'protegida', { radius: 44 }),
+      T('marca-txt', 'DELIVERY MUCH', 380, 104, 320, 44, 36, '#C81818', 'protegida'),
+      T('t1', 'FESTIVAL', 0, 220, W, 190, 176, '#FFFFFF', 'titulo'),
+      T('t2', 'DO', 250, 440, 160, 110, 96, '#C81818', 'titulo', { textAlign: 'left' }),
+      T('t3', 'XIS', 420, 390, 440, 250, 256, '#FFFFFF', 'titulo', { textAlign: 'left' }),
+      S('prato', 190, 700, 700, 700, '#E8A64A', 'produto', { shapeKind: 'circle' }),
+      S('placa', 600, 1290, 400, 210, '#FFFFFF', 'decoracao', { radius: 44 }),
+      T('preco', 'R$ 29,90', 600, 1345, 400, 100, 84, '#C81818', 'preco'),
+      S('selo', 70, 1200, 240, 240, '#FFB900', 'decoracao', { shapeKind: 'circle' }),
+      T('selo-txt', 'NOVO', 70, 1290, 240, 60, 52, '#C81818', 'decoracao'),
+      T('legal', 'Válido até 30/11 ou enquanto durar o estoque. Imagem ilustrativa.', 0, 1625, W, 40, 28, '#FFFFFF', 'legal', { fontWeight: 400 }),
+      S('faixa', 0, 1700, W, 220, '#C81818', 'decoracao'),
+      T('cta', 'PEÇA NO APP', 0, 1765, W, 90, 72, '#FFFFFF', 'cta')
+    ];
+    const material = { w: W, h: H, fmt: 'story', layers };
+    const camp = { id: 'bancada', name: 'Festival do Xis', color: '#FF9000' };
+    const fmt = { id: 'story', name: 'Story' };
+    window.fState = { material, dados: {}, camp, fmt, _lastHistId: null };
+    window._fArtSnapshots = { 'art-preview-1': { dados: {}, camp, fmt, histId: null, material } };
+
+    (async () => {
+      const cv = document.getElementById('art-preview-1');
+      const big = document.createElement('canvas'); big.width = W; big.height = H;
+      await fRenderTemplateLayers(big.getContext('2d'), layers, W, H, {}, camp, material, { scope: 'franqueado', purpose: 'export' });
+      cv.getContext('2d').drawImage(big, 0, 0, cv.width, cv.height);
+      log('pronto. WebCodecs: ' + fMotionDisponivel() + ' · Story: ' + fMotionEhStory(material, fmt));
+    })();
+  </script>
+</body>
+</html>

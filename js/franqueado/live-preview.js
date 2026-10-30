@@ -488,6 +488,9 @@ function _fPostedMountArt(scope){
       mini.getContext('2d').drawImage(cv, 0, 0, mini.width, mini.height);
     }catch(e){ /* acabamento: se falhar, fica o fundo liso de antes */ }
   });
+  /* Card que já "virou motion": o vídeo toca no lugar da arte parada (motion-estudio.js). A
+     cada troca de ambiente o chassi é refeito, então o vídeo entra de novo aqui. */
+  if(typeof fMotionMontaNoSlot === 'function') fMotionMontaNoSlot(holder);
 }
 // Monta o celular inteiro. Só na ABERTURA — trocar de ambiente não passa por aqui, senão o
 // chassi subiria com mola a cada swipe (ver _fPostedSwapScreen).

@@ -1043,6 +1043,15 @@ body:not(.theme-light) .posted-stage{background:var(--d-dark)}
 /* 64%: o story está TOCANDO. Cheia diria "acabou", vazia diria "não começou" — e nenhuma
    das duas é o instante que este mockup retrata. */
 :is(#f-posted-modal,#lp-contextos) .pst-story-bars i.on::before{width:64%}
+/* Card que "virou motion" (motion-estudio.js): o vídeo toma o lugar do canvas, que fica no DOM
+   porque a proporção do slot e o fundo borrado do Story saem dele. Aí a barra deixa de ser o
+   instante congelado e ANDA com o vídeo — 8 s é a duração do MP4 (F_MOTION_SEG), não um tempo
+   de transição, por isso não é token. */
+:is(#f-posted-modal,#lp-contextos) .pst-artslot.f-motion-tem-video>canvas{display:none}
+:is(#f-posted-modal,#lp-contextos) .pst-bub-img .pst-artslot .f-motion-video{width:100%;height:100%;object-fit:cover}
+:is(#f-posted-modal,#lp-contextos) .pst-story.f-motion-tocando .pst-story-bars i.on::before{width:0;animation:fMotionBarra 8s linear var(--f-motion-atraso,0s) infinite}
+@keyframes fMotionBarra{to{width:100%}}
+@media (prefers-reduced-motion:reduce){:is(#f-posted-modal,#lp-contextos) .pst-story.f-motion-tocando .pst-story-bars i.on::before{animation:none;width:64%}}
 /* Sem anel: o anel colorido é da BANDEJA de stories ("tem story novo"), não do visualizador.
    Dentro do story aberto o avatar do autor é liso — quem dá contraste é o véu. */
 :is(#f-posted-modal,#lp-contextos) .pst-story-top{position:absolute;top:20px;left:12px;right:10px;display:flex;align-items:center;gap:10px;z-index:20;color:#fff}

@@ -25,6 +25,10 @@
  * grupo, que o motor aplica no composto; grupo pass-through esmaece filho a filho. Esmaecer os
  * dois multiplicaria o alfa.
  *
+ * O BOTÃO É "Virar motion" (30/10/2026): `fVirarMotion` abre o estúdio de motion
+ * (franqueado/motion-estudio.js), que monta a animação ao vivo enquanto este arquivo grava, e
+ * devolve o vídeo para o mockup; depois o mesmo botão vira "Baixar vídeo" (`fBaixarMotion`).
+ *
  * Depende de: franqueado/png-generator.js (fRenderTemplateLayers, fMaterialSize,
  *   fBuildFilename, _fArteEhCelular), core/auto-layout.js (gLayoutSemanticRole),
  *   core/toast.js (gToast, gBtnLoading), core/feature-flags.js (gFeatureCan),
@@ -364,9 +368,17 @@ function _fMp4Cor(cs){
   return { p: P[cs.primaries], t: TR[cs.transfer], m: M[cs.matrix], full: !!cs.fullRange };
 }
 
+// Devolve a vez ao navegador (pinta o estúdio) sem cair no freio de 1 s que o setTimeout leva
+// em aba de fundo: MessageChannel é tarefa comum, não timer.
+const _fMoCede = () => new Promise(r => { const mc = new MessageChannel(); mc.port1.onmessage = () => r(); mc.port2.postMessage(0); });
+
 /* ── O VÍDEO ─────────────────────────────────────────────────────────────────── */
-// Gera o MP4 da arte. `onProgresso(0..1)` acompanha os quadros. Devolve {blob, fname}.
-async function fGenMP4(d, c, fmt, material, onProgresso){
+// Gera o MP4 da arte. `onProgresso(0..1, nMov, nTot)` acompanha os quadros. Devolve {blob, fname}.
+// opcoes.aoPlanejar(plano, resolvidas, W, H, tAssenta): esperado ANTES do encoder — o estúdio
+//   separa as peças ali (motion-estudio.js). opcoes.ceder: solta o laço a cada ~24 ms para o
+//   estúdio animar; sem isto o encoder segura a thread e o teatro congela.
+async function fGenMP4(d, c, fmt, material, onProgresso, opcoes){
+  opcoes = opcoes || {};
   if(!fMotionDisponivel()) { const e = new Error('Este navegador não gera vídeo.'); e.code = 'LUMA_VIDEO_UNSUPPORTED'; throw e; }
   if(!(material && material.layers && material.layers.length)) throw new Error('Arte sem camadas para animar.');
   const [W, H] = fMaterialSize(material, fmt);
@@ -387,6 +399,9 @@ async function fGenMP4(d, c, fmt, material, onProgresso){
   const plano = _fMotionPlano(resolvidas, W, H);
   // Depois daqui nada se mexe: o canvas fica com o quadro final e só se re-encoda.
   const tAssenta = Math.max(0, ...plano.filter(u => u.papel !== 'fundo').map(u => u.ini + (u.carona || u).dur));
+  if(opcoes.aoPlanejar){ try{ await opcoes.aoPlanejar(plano, resolvidas, W, H, tAssenta); }catch(e){ console.warn('[motion] estúdio:', e); } }
+  const nMov = Math.min(F_MOTION_FPS * F_MOTION_SEG, Math.ceil((tAssenta + 1 / F_MOTION_FPS) * F_MOTION_FPS) + 1);
+  let cedeuEm = performance.now();
 
   const amostras = []; let avcC = null, cor = null, erro = null;
   const enc = new VideoEncoder({
@@ -418,7 +433,8 @@ async function fGenMP4(d, c, fmt, material, onProgresso){
       enc.encode(quadro, { keyFrame: i % F_MOTION_FPS === 0 });   // chave a cada 1 s: o player pula sem travar
       quadro.close();
       while(enc.encodeQueueSize > 6) await new Promise(r => setTimeout(r, 4));
-      if(onProgresso) onProgresso((i + 1) / N);
+      if(onProgresso) onProgresso((i + 1) / N, nMov, N);
+      if(opcoes.ceder && performance.now() - cedeuEm > 24){ await _fMoCede(); cedeuEm = performance.now(); }
     }
     await enc.flush();
     if(erro) throw erro;
@@ -428,56 +444,91 @@ async function fGenMP4(d, c, fmt, material, onProgresso){
   return { blob: _fMp4Monta(amostras, avcC, W, H, F_MOTION_FPS, cor), fname };
 }
 
-// O botão "Baixar vídeo" do card da arte. Mesmo funil do fBaixar: guard, snapshot da bolha,
-// folha nativa no celular, histórico e evento.
 /* Enquanto o MP4 renderiza, sair da aba/janela custa o vídeo: o navegador pausa o canvas em
-   segundo plano e fechar a aba joga o trabalho fora. Aviso ao começar + trava de saída. */
+   segundo plano e fechar a aba joga o trabalho fora. Trava de saída enquanto gera. */
 let _fVideoRenderizando = false;
 function _fVideoAntesDeSair(e){ if(_fVideoRenderizando){ e.preventDefault(); e.returnValue = ''; return ''; } }
 window.addEventListener('beforeunload', _fVideoAntesDeSair);
 
-async function fBaixarVideo(btn, snapId){
+const _F_MOTION_ICONE_BAIXAR = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="4" x2="12" y2="16"/><polyline points="18 11 12 17 6 11"/><path d="M5 20h14"/></svg>';
+
+/* O botão "Virar motion" do card (30/10/2026). Dois tempos:
+   1. a 1ª vez GERA: abre o estúdio de motion (motion-estudio.js) por cima do app, que monta a
+      animação ao vivo enquanto o encoder grava, e no fim devolve o vídeo para o mockup;
+   2. pronto o vídeo, o mesmo botão vira "Baixar vídeo" (`fBaixarMotion`). O download saiu do fim
+      da geração de propósito: depois de 20 s gerando, o iOS já não aceitava o share (o gesto do
+      toque tinha expirado); agora o share nasce de um toque novo.
+   Movimento reduzido: sem estúdio — o aviso antigo e o vídeo entra direto no mockup. */
+async function fVirarMotion(btn, snapId){
   if(typeof gFeatureCan === 'function' && !gFeatureCan('franqueado.export.video', 'execute')){
     if(typeof gFeatureBlockedFeedback === 'function') gFeatureBlockedFeedback('franqueado.export.video');
     return;
   }
+  if(snapId && typeof _fMotionVideos !== 'undefined' && _fMotionVideos[snapId]) return fBaixarMotion(btn, snapId);
+  if(_fVideoRenderizando) return;
   const snap = (snapId && typeof _fArtSnapshots !== 'undefined' && _fArtSnapshots[snapId])
     || { dados: fState.dados, camp: fState.camp, fmt: fState.fmt, histId: fState._lastHistId, material: fState.material };
-  const restore = gBtnLoading(btn, 'Gerando vídeo…');
+  const material = snap.material || fState.material;
+  const reduz = window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const restore = gBtnLoading(btn, 'Virando motion…');
   const rotulo = btn && btn.querySelector('span:last-child');
   _fVideoRenderizando = true;
-  // Modal, não toast: toast some em 3 s e quem troca de aba perde o vídeo. Fecha sozinho ao terminar.
-  gAviso('O vídeo está sendo gerado. Não feche nem saia desta janela, e mantenha esta aba aberta na frente até terminar — senão o vídeo se perde.',
+  let estudio = null;
+  if(!reduz && typeof fMotionEstudio === 'function'){
+    try{ estudio = fMotionEstudio(document.getElementById(snapId), { dados: snap.dados, camp: snap.camp, material }); }
+    catch(e){ console.warn('[motion] estúdio não abriu:', e); estudio = null; }
+  }
+  // Sem estúdio: modal, não toast — toast some em 3 s e quem troca de aba perde o vídeo.
+  if(!estudio) gAviso('O vídeo está sendo gerado. Não feche nem saia desta janela, e mantenha esta aba aberta na frente até terminar — senão o vídeo se perde.',
     { id: 'video-render', title: 'Gerando seu vídeo' });
+  let ok = false;
   try{
-    const { blob, fname } = await fGenMP4(snap.dados, snap.camp, snap.fmt, snap.material || fState.material,
-      p => { if(rotulo) rotulo.textContent = 'Gerando vídeo… ' + Math.round(p * 100) + '%'; });
-    const file = new File([blob], fname, { type: 'video/mp4' });
-    let via = 'download';
-    if(typeof _fArteEhCelular === 'function' && _fArteEhCelular()){
-      let podeShare = false;
-      try{ podeShare = !!(navigator.canShare && navigator.canShare({ files: [file] })); }catch(e){}
-      // Depois de ~20 s gerando, o iOS pode já não aceitar o share (o gesto expirou): cai no arquivo.
-      if(podeShare){
-        try{ await navigator.share({ files: [file] }); via = 'share'; }
-        catch(e){ if(e && e.name === 'AbortError') return; }
-      }
-    }
-    if(via === 'download'){
-      const a = document.createElement('a'); const url = URL.createObjectURL(blob);
-      a.download = fname; a.href = url; a.click();
-      setTimeout(() => { try{ URL.revokeObjectURL(url); }catch(e){} }, 60000);
-    }
-    if(snap.histId) fMarkHistBaixada(snap.histId);
-    else fAddHist(snap.dados, snap.camp, snap.fmt, 'baixada');
-    if(typeof gTrackEvent === 'function') gTrackEvent('arte_baixada', { camp_id: snap.camp.id, fmt_id: snap.fmt.id,
-      template_id: (typeof _fTplId === 'function') ? _fTplId(snap.material) : null, tipo: 'mp4', origem: 'chat', via });
-    gToast(via === 'share' ? 'Vídeo pronto!' : 'Vídeo baixado!');
+    const { blob, fname } = await fGenMP4(snap.dados, snap.camp, snap.fmt, material,
+      (p, nMov, nTot) => { if(rotulo) rotulo.textContent = 'Virando motion… ' + Math.round(p * 100) + '%'; if(estudio) estudio.progresso(p, nMov, nTot); },
+      estudio ? { aoPlanejar: (plano, resolvidas, W, H, tA) => estudio.prepara(plano, resolvidas, W, H, tA), ceder: true } : null);
+    const url = URL.createObjectURL(blob);
+    if(snapId) _fMotionVideos[snapId] = { blob, fname, url };
+    _fVideoRenderizando = false;
+    restore(); ok = true;
+    if(btn){ btn.innerHTML = _F_MOTION_ICONE_BAIXAR + 'Baixar vídeo'; btn.classList.add('pri', 'f-motion-pronto'); btn.title = 'Baixar o Story animado (MP4 de ' + F_MOTION_SEG + ' s)'; }
+    const destino = (typeof fMotionDestino === 'function') ? fMotionDestino(snapId) : null;
+    if(estudio) await estudio.entrega(url, destino);
+    else if(destino && typeof fMotionMontaNoSlot === 'function') fMotionMontaNoSlot(destino);
+    if(btn && !reduz && typeof _fMeTok === 'function')
+      btn.animate([{ scale: '1' }, { scale: '1.06', offset: .4 }, { scale: '1' }], { duration: _fMeTok('--dur-slow'), easing: _fMeEase('--ease-spring') });
     if(typeof window.gPlayExportSuccessSound === 'function') window.gPlayExportSuccessSound();
   }catch(e){
     console.warn('Falha ao gerar vídeo:', e);
+    if(estudio) estudio.falha();
     if(typeof gHandleLayoutUnsafeError === 'function' && gHandleLayoutUnsafeError(e)) return;
     gToast(e && e.code === 'LUMA_VIDEO_UNSUPPORTED' ? 'Este navegador não gera vídeo. Use o Chrome, o Edge ou o Safari atualizados.'
       : e && e.code === 'LUMA_IMAGE_UNAVAILABLE' ? e.message : 'Não consegui gerar o vídeo. Tente de novo.', 'error');
-  }finally{ _fVideoRenderizando = false; gAvisoFechar('video-render'); restore(); }
+  }finally{ _fVideoRenderizando = false; if(!estudio) gAvisoFechar('video-render'); if(!ok) restore(); }
+}
+
+// O download do vídeo já pronto. Mesmo funil do fBaixar: folha nativa no celular, histórico e evento.
+async function fBaixarMotion(btn, snapId){
+  const reg = typeof _fMotionVideos !== 'undefined' && _fMotionVideos[snapId];
+  if(!reg) return;
+  const snap = (snapId && typeof _fArtSnapshots !== 'undefined' && _fArtSnapshots[snapId])
+    || { dados: fState.dados, camp: fState.camp, fmt: fState.fmt, histId: fState._lastHistId, material: fState.material };
+  const file = new File([reg.blob], reg.fname, { type: 'video/mp4' });
+  let via = 'download';
+  if(typeof _fArteEhCelular === 'function' && _fArteEhCelular()){
+    let podeShare = false;
+    try{ podeShare = !!(navigator.canShare && navigator.canShare({ files: [file] })); }catch(e){}
+    if(podeShare){
+      try{ await navigator.share({ files: [file] }); via = 'share'; }
+      catch(e){ if(e && e.name === 'AbortError') return; }
+    }
+  }
+  if(via === 'download'){
+    const a = document.createElement('a');
+    a.download = reg.fname; a.href = reg.url; a.click();
+  }
+  if(snap.histId) fMarkHistBaixada(snap.histId);
+  else fAddHist(snap.dados, snap.camp, snap.fmt, 'baixada');
+  if(typeof gTrackEvent === 'function') gTrackEvent('arte_baixada', { camp_id: snap.camp.id, fmt_id: snap.fmt.id,
+    template_id: (typeof _fTplId === 'function') ? _fTplId(snap.material) : null, tipo: 'mp4', origem: 'chat', via });
+  gToast(via === 'share' ? 'Vídeo pronto!' : 'Vídeo baixado!');
 }
