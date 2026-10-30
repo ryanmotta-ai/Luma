@@ -6,6 +6,18 @@
 
 ---
 
+## 2026-10-30 — Edge Function `ai` v20: tetos próprios da `arte.compor` (a IA escreve o SVG) + o fix de 29/10 publicado (✅ deploy, sem migration)
+
+Pedido do Ryan, com a chave paga em uso. Desde a D13 (`luma-brain/08_ATELIE.md` §4.9) a IA do Ateliê escreve o SVG inteiro do banner, e os tetos da `arte.compor` eram os do designer antigo (JSON curto de caixas). Três limites travariam todo pedido:
+
+- **Prompt:** a skill do formato vai inteira no prompt — o do banner mede 12,5 mil caracteres e o da correção 15 mil, contra o `MAX_PROMPT` de 12 mil (400 "prompt grande demais" em toda chamada). Novo `MAX_PROMPT_ARTE = 40000`, só para `arte.compor`.
+- **Saída:** `arte.compor` 4096 → **16384** tokens. 2 SVGs + o pensamento LOW passavam de 4096 e a resposta vinha cortada (`MAX_TOKENS` → desce a escada).
+- **Tempo:** `TEMPO_ARTE` = 100 s no total, 70 s no 1º degrau, 25 s nos seguintes (antes 38/15/10 s; 2 artes levam 20–30 s para sair). No front, `G_AI_TIMEOUT_TASK['arte.compor'] = 110000` (`js/core/ai.js`, antes 45 s para toda tarefa). Dentro dos 150 s da Edge Function.
+- **Junto (decisão do Ryan):** o commit `f48fb2e` de 29/10 ("reservas de IA voltam a rodar no pico do Gemini"), que estava no repositório mas não no ar (o deploy anterior, v19, era de 26/10). Ele só mexe em chamada **sem anexo**; o Ateliê manda imagens e não passa por ele.
+- As outras 19 tarefas ficam com os tetos de antes. `verify_jwt` segue `true`.
+- Testado: deploy compilou (v20 ACTIVE); a chamada sem login para no portão de JWT (401). **Não testado** com usuário logado nas 3 roles — a `arte.compor` só aceita `gestao` (ou `equipe_dm`/franqueado com `CREATIVE_FRANQUEADO=1`), regra que não mudou.
+- Reverter: republicar o `index.ts` do commit anterior a este (os tetos voltam a 12 mil / 4096 / 38 s).
+
 ## 2026-10-29 — Aqui tem cupons: 10 rodadas de refino nas 10 artes + "Cupom com regras" nova, a partir de referência (✅ dados, sem migration)
 
 Pedido do Pedro: (1) disparar as rodadas de refino das 10 artes de cupom publicadas ontem; (2) fazer um cupom novo com uma referência que ele mandou (bilhete "ficha": desconto em cima, código herói, regras embaixo; fundo de facetas laranja com linhas brancas).

@@ -113,9 +113,10 @@ const POLITICA: Record<string, { max: number; pensar: Pensar; temp?: number }> =
   "mapear-psd": { max: 16384, pensar: "LOW" },
   "psd.map": { max: 16384, pensar: "LOW" },
   "aula": { max: 8192, pensar: null },
-  // Composição: JSON curto (~600 tokens), mas a escolha da diagramação pede algum raciocínio.
-  // temp 0.8: "Gerar outra versão" precisa sair diferente.
-  "arte.compor": { max: 4096, pensar: "LOW", temp: 0.8 },
+  // Composição. Desde 30/10/2026 (D13, luma-brain/08_ATELIE.md §4.9) a IA escreve o SVG INTEIRO do
+  // banner — 2 artes de 1.500–3.000 tokens cada, mais o pensamento LOW: os 4096 de quando ela só
+  // devolvia caixas (~600 tokens) cortavam a resposta. temp 0.8: "Gerar outra versão" sai diferente.
+  "arte.compor": { max: 16384, pensar: "LOW", temp: 0.8 },
   // Juiz: lê 3–5 imagens pequenas (432 px) e devolve ~400 tokens; temperatura baixa = nota estável.
   "arte.criticar": { max: 4096, pensar: "LOW", temp: 0.3 },
 };
@@ -178,6 +179,10 @@ const RESERVAS = [
 const PRAZO_MS = 38_000;           // a chamada inteira: sobra margem para rede e cold start até os 45s
 const GEMINI_1_MS = 15_000;        // 1º degrau: o 3.1 Flash-Lite responde 90% dos casos em até 14s
 const GEMINI_N_MS = 10_000;        // degraus seguintes
+// arte.compor escreve o SVG inteiro (D13, 30/10/2026): 2 artes levam 20–30s para sair. Com 15+10s por
+// degrau toda chamada estourava e descia a escada até morrer. Prazo próprio, dentro dos 150s da Edge
+// Function; o front espera 110s nesta tarefa (G_AI_TIMEOUT_TASK em js/core/ai.js).
+const TEMPO_ARTE = { prazo: 100_000, um: 70_000, n: 25_000 };
 const RESERVA_TIMEOUT_MS = 12_000; // cada reserva
 const HEDGE_MS = 8_000;            // Gemini calado por 8s → reservas entram em paralelo (só texto)
 
@@ -196,6 +201,9 @@ const MAX_SCHEMA = 20000;      // caracteres do responseSchema serializado
 
 // Tetos por chamada: prompt de peça de marketing é curto; anexo é foto/PDF de cardápio.
 const MAX_PROMPT = 12000;      // caracteres
+// arte.compor leva a SKILL do formato inteira (assets/creative/skills/, ~9 mil caracteres) e, na
+// correção, o SVG reprovado: o prompt do banner mede 12,5 mil e o da correção 15 mil (30/10/2026).
+const MAX_PROMPT_ARTE = 40000;
 const MAX_PARTS = 8;           // anexos por chamada
 const MAX_INLINE_BYTES = 6_000_000; // ~6MB de base64 somados (cardápio em PDF cabe)
 
@@ -505,7 +513,7 @@ Deno.serve(async (req) => {
       console.log(`[ai] ajuda · prompt ${AJUDA_PROMPT_V} · ${prompt.length} chars`);
     }
 
-    if (!prompt || prompt.length > (task === "aula" ? MAX_CONTEXTO + 4000 : task === "ajuda" ? MAX_AJUDA_BLOCO + 6000 : MAX_PROMPT)) {
+    if (!prompt || prompt.length > (task === "aula" ? MAX_CONTEXTO + 4000 : task === "ajuda" ? MAX_AJUDA_BLOCO + 6000 : task === "arte.compor" ? MAX_PROMPT_ARTE : MAX_PROMPT)) {
       return json({ error: "prompt vazio ou grande demais" }, 400);
     }
     if (partes.length > MAX_PARTS) return json({ error: "anexos demais" }, 400);
@@ -529,8 +537,9 @@ Deno.serve(async (req) => {
     // reserva respondeu 4 vezes em 203). O prazo também cai quando o navegador desiste (req.signal):
     // ninguém mais esperando = para de gastar cota.
     const t0 = Date.now();
-    const resta = () => PRAZO_MS - (Date.now() - t0);
-    const prazo = AbortSignal.any([AbortSignal.timeout(PRAZO_MS), ...(req.signal ? [req.signal] : [])]);
+    const T = task === "arte.compor" ? TEMPO_ARTE : { prazo: PRAZO_MS, um: GEMINI_1_MS, n: GEMINI_N_MS };
+    const resta = () => T.prazo - (Date.now() - t0);
+    const prazo = AbortSignal.any([AbortSignal.timeout(T.prazo), ...(req.signal ? [req.signal] : [])]);
     let status = 503;
     type Resposta = { text: string; modelo: string; tokens: { in: number; out: number } | null };
 
@@ -550,7 +559,7 @@ Deno.serve(async (req) => {
       const semNivel = new Set<string>();   // modelo que recusou o thinkingConfig (400): vai sem
       for (let i = 0; i < fila.length; i++) {
         const m = fila[i];
-        const teto = Math.min(i === 0 && m === modelo ? GEMINI_1_MS : GEMINI_N_MS, resta());
+        const teto = Math.min(i === 0 && m === modelo ? T.um : T.n, resta());
         if (teto < 1000 || sinal.aborted) return null;
         const nivel = semNivel.has(m) ? null : nivelPara(m, pol.pensar);
         const cfg = nivel ? { ...base, thinkingConfig: { thinkingLevel: nivel } } : base;
@@ -605,7 +614,7 @@ Deno.serve(async (req) => {
       for (const rv of reservas) {
         // Guarda GEMINI_N_MS para o degrau caro, que vem depois (passo 5): sem isto, reservas
         // penduradas comiam os 38s e a chamada morria em 504 com o 3.6 Flash nem tentado.
-        const teto = Math.min(RESERVA_TIMEOUT_MS, resta() - (chave && !paga ? GEMINI_N_MS : 0));   // com a paga o Gemini já foi: nada a guardar
+        const teto = Math.min(RESERVA_TIMEOUT_MS, resta() - (chave && !paga ? T.n : 0));   // com a paga o Gemini já foi: nada a guardar
         if (teto < 1000 || sinal.aborted) return null;
         try {
           const url = rv.url || await urlCloudflare(rv.chave);
@@ -658,7 +667,7 @@ Deno.serve(async (req) => {
       // ela comia os 38s e as reservas nunca rodavam — 504 mesmo com seis provedores de pé (visto em
       // 29/10/2026, 3 × 503 e depois 504, nenhuma linha de reserva no log). O Gemini fecha a janela dele
       // antes e deixa para as reservas ao menos um turno de RESERVA_TIMEOUT_MS.
-      const sinalGemini = AbortSignal.any([prazo, AbortSignal.timeout(PRAZO_MS - RESERVA_TIMEOUT_MS - 1_000)]);
+      const sinalGemini = AbortSignal.any([prazo, AbortSignal.timeout(T.prazo - RESERVA_TIMEOUT_MS - 1_000)]);
       r = await viaGemini(escada, sinalGemini);
       if (!r) r = await viaReservas(prazo);
     } else {

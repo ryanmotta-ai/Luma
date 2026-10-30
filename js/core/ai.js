@@ -18,6 +18,9 @@
  */
 
 const G_AI_TIMEOUT_MS = 45000;     // teto por chamada — cold start do Gemini 3.6 / cardápio em PDF
+// Tarefa com teto próprio: no Ateliê a IA escreve o SVG inteiro (D13, 30/10/2026) e leva 20–30s. A
+// function dá 100s a ela (TEMPO_ARTE em supabase/functions/ai/index.ts); o front espera um pouco mais.
+const G_AI_TIMEOUT_TASK = { 'arte.compor': 110000 };
 let _gAiEdgeOk = null;             // null = ainda não perguntou · true = respondeu · false = function fora (404/sem secret)
 const _gAiCache = new Map();       // hash(task|prompt) → texto (só chamadas SEM anexo)
 
@@ -145,7 +148,7 @@ function _gAiTrackChamada(body, t0, status, erro, modelo, tokens){
 
 async function _gAiViaEdge(task, prompt, parts, querJson, contexto, modelo){
   const ctrl=new AbortController();
-  const t=setTimeout(()=>ctrl.abort(), G_AI_TIMEOUT_MS);
+  const t=setTimeout(()=>ctrl.abort(), G_AI_TIMEOUT_TASK[task] || G_AI_TIMEOUT_MS);
   try{
     const body={task,prompt,parts,json:querJson};
     if(contexto) body.contexto=contexto;
