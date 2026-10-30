@@ -6,6 +6,15 @@
 
 ---
 
+## 2026-10-30 — Pasta "Lojas novas" + capa; artes saem de Implementação (✅ dados, sem migration)
+
+- **Pasta nova** `luma.pastas` `e4f14bae-b04f-4c01-bb47-348d6423d697` "Lojas novas" (`camp_id` null como Black Bumerangue; `cover_url` `assets/covers/ln.png`, 1500×900; `ativa=false` até publicar; 1 pergunta: `loja_1`).
+- **Capa** `assets/covers/ln.png` (asset novo — precisa estar na `talpaipai` para o app mostrar).
+- **Templates movidos** (continuam rascunho) para a pasta nova e renomeados "Lojas novas — Também é parceiro": story `b0228ed2-03d0-4071-b4ea-473fe41f73da`, feed `efed4cdf-543c-49c5-a671-3788bfd219db`. O **feed** foi refeito: conteúdo centralizado, anel simétrico, chama removida. Substitui o feed da entrada abaixo.
+- **Reverter:** `delete` dos 2 templates e da pasta (`delete from luma.pastas where id='e4f14bae-b04f-4c01-bb47-348d6423d697'` depois dos templates).
+
+---
+
 ## 2026-10-30 — Pasta Implementação: "Loja nova parceira" story + feed 1:1 (✅ dados, sem migration)
 
 Pedido do Ryan: recriar duas artes de referência ("Nome do Estabelecimento também é parceiro") só com o campo menor (logo da loja), sem a 2ª foto e sem o selo "BORA PEDIR".
