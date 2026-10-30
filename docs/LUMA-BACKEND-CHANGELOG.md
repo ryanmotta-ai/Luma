@@ -6,6 +6,27 @@
 
 ---
 
+## 2026-10-30 — Hora rebate no painel de Dados + evento `lote_gerado` (migration `20261030150000` — ⏳ aplicar)
+
+**Definição (Marco Severo):** hora rebate = rebate médio mensal ÷ 240 h; devolvido ao franqueado =
+Σ por ação [quantidade × (tempo antes − tempo com o Luma)] × hora rebate. Regra em
+`luma-brain/01_BUSINESS.md`.
+
+- **Evento `lote_gerado`** (front, `png-generator.js`, v=365): um por lote, antes do ZIP — `n`,
+  `linhas`, `formatos`, `render_s` (geração) e `total_s` (desde abrir o painel), `falhas`,
+  `cancelado`, `camp_id`, `template_id`. É o "em quanto tempo gerou tal quantidade" do Ryan.
+- **Premissas** em `luma.potencial_parametros` (RLS já existente: equipe lê, gestão escreve):
+  `hora_rebate.rebate_medio` (0 = informe), `hora_rebate.horas_mes` 240, `hora_rebate.antes_arte_min`
+  6,5, `hora_rebate.antes_lote_h` 40. `on conflict do nothing`.
+- **`luma.dados_painel` v3** devolve `kpis.hora_rebate`: premissas, franqueados, artes avulsas e
+  minutos medidos por arte (tempo ativo ÷ artes), lotes e horas medidas no lote, `h_devolvidas`,
+  `hora_rebate_rs`, `valor_rs` e `pct_rebate` (do rebate de um mês, por franqueado ativo).
+- **Front (`dados.js`, `?v=366`):** bloco "Hora rebate" na Visão geral com 4 KPIs, a conta por
+  extenso e as premissas editáveis (gestão salva por upsert na tabela; equipe só lê). Se a RPC
+  ainda não devolver a chave, o bloco não aparece.
+- **Aplicação:** o classificador de permissões desta sessão barrou o deploy (psql e MCP). O Pedro
+  roda `supabase/migrations/20261030150000_luma_hora_rebate.sql` e registra no histórico.
+
 ## 2026-10-29 — Aqui tem cupons: 10 rodadas de refino nas 10 artes + "Cupom com regras" nova, a partir de referência (✅ dados, sem migration)
 
 Pedido do Pedro: (1) disparar as rodadas de refino das 10 artes de cupom publicadas ontem; (2) fazer um cupom novo com uma referência que ele mandou (bilhete "ficha": desconto em cima, código herói, regras embaixo; fundo de facetas laranja com linhas brancas).

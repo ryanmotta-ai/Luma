@@ -343,6 +343,21 @@ A "Calculadora de Franquias 2026" (planilha do Aladim) virou a aba **Potencial**
 
 **Onde mora cada coisa:** tarifas, tickets, deltas, URL do gerador e o GMV real da rede (`luma.potencial_rede`, 99 cidades, fev–set/2026) em `luma.potencial_*` (RLS), **nunca no JS** (público); a gestão edita na aba **Tarifas** (e cadastra cidade que falta). Histórico em `luma.potencial_propostas` (cada um vê as suas; a gestão vê todas). Quem usa: `luma.pode_potencial()` (equipe DM ou `acesso_restrito`). ⚠ `acesso_restrito` sozinho é **navegação**; a trava real no banco vem com a migration `20261030100000` + a role do Aladim voltando a `franqueado`. Detalhe: `docs/LUMA-BACKEND-CHANGELOG.md` (29 e 30/10/2026).
 
+## Hora rebate — o tempo que o Luma devolve ao franqueado (Marco Severo, 30/10/2026)
+
+**Hora rebate** é o valor da hora do franqueado: **rebate médio mensal das franquias ÷ horas de
+trabalho no mês**. O Marco arbitrou **240 h** (funcionário são 200 h; o franqueado trabalha mais).
+O que o Luma devolve = **Σ por ação [quantidade × (tempo antes − tempo com o Luma)] × hora rebate**.
+
+- **Com o Luma é medido**, não chutado: tempo ativo das sessões que geraram arte ÷ artes (arte
+  avulsa) e o `total_s` do evento `lote_gerado` (lote/cardápio: abrir o painel → último render).
+- **"Antes" e rebate são premissas**, escritas na tela e editáveis pela gestão (`luma.potencial_parametros`,
+  chaves `hora_rebate.*`): arte avulsa 6 a 7 min no Deskfy (base do Cícero, via Ryan); lote/cardápio
+  "uma semana" (Marco) = 40 h; rebate médio mensal informado pela gestão (nasce 0 = "informe").
+- Só **franqueados** entram na conta (gestão e equipe testando inflariam).
+- Mora na aba Dados → Visão geral, bloco "Hora rebate", com a conta por extenso. Premissa nunca
+  fica escondida no código: é regra do produto, não detalhe de implementação.
+
 ## Ver também
 
 - `00_PRODUCT.md` — propósito, público, missão, o que o Luma NÃO faz.

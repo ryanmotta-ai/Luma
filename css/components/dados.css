@@ -442,3 +442,10 @@
   .gd-tip{transition:none}
   .gd *,.gd *::before,.gd *::after{animation:none!important;transition:none!important}
 }
+
+/* ── Hora rebate (Visão geral, 30/10/2026) ── a conta por extenso e as premissas editáveis pela gestão. */
+.gd-hr-conta{margin:12px 0 0;color:var(--prof-text-2);font-size:12.5px;line-height:1.5}
+.gd-hr-premissas{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-top:14px;padding-top:14px;border-top:1px solid var(--prof-border)}
+.gd-hr-campo{display:flex;flex-direction:column;gap:4px;color:var(--prof-text-3);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.gd-hr-campo .gd-input{min-width:0;width:170px;font-weight:600;letter-spacing:0;text-transform:none}
+.gd-hr-campo .gd-input:disabled{opacity:.7;cursor:default}
