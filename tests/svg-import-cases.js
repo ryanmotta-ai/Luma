@@ -236,6 +236,30 @@
     assert(/explosao/.test(pr) && /100–140/.test(pr) && /ideia velha/.test(pr) && /"composicoes"/.test(pr), 'prompt sem inventário, respiro ou ideias a evitar');
   });
 
+  caso('Luma Creative: contrato SVG da IA (D13) — arte da skill passa e entra no importador; o que executa, sai do inventário ou da paleta é barrado', async()=>{
+    await crFontesProntas();
+    const sp=crNormaliza({objetivo:'oferta', formato:'banner', titulo:'Mercado', apoio:'no app'});
+    const bom='<svg xmlns="http://www.w3.org/2000/svg"><rect x="23" y="9" width="730" height="175" rx="30" fill="#F85400"/>'
+      +'<g data-bloco="titulo"><text x="60" y="118" class="hero" font-size="96" fill="#F85400" stroke="#FFFFFF" stroke-width="21" stroke-linejoin="round" paint-order="stroke fill" data-campo="produto">MERCADO</text></g>'
+      +'<g data-bloco="apoio" transform="rotate(-4 90 160)"><rect x="90" y="134" width="150" height="44" fill="#FFFFFF"/><text x="104" y="169" class="hero" font-size="42" fill="#F85400" data-campo="apoio">NO APP</text></g></svg>';
+    const c=crSvgContrato(bom, sp);
+    assert(!c.erros.length, 'arte da skill reprovou no contrato: '+c.erros.join('; '));
+    const av=crAvaliar({svg:c.svg, spec:sp, receita:'ia-svg', fundo:'#F85400', w:764, h:204, estouros:[], campos:['produto','apoio']});
+    assert(!av.erros.length, 'arte da skill reprovou na marca: '+av.erros.join('; '));
+    const {layers}=await importar(await crEmbutir(c.svg));
+    ['produto','apoio'].forEach(k=>assert(campoNa(layers,k), 'campo {{'+k+'}} não chegou ao Estúdio'));
+    const mau=crSvgContrato('<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><script>alert(1)</script><foreignObject><div>x</div></foreignObject>'
+      +'<g data-bloco="titulo" onload="alert(2)"><text class="hero" style="fill:red" fill="#00FF00" data-campo="produto">OI</text></g>'
+      +'<image href="https://x.com/a.png"/><image xlink:href="javascript:alert(3)"/><image href="asset:../x.png"/>'
+      +'<g filter="url(http://x#f)" transform="matrix(1,0,0,1,0,0)"><text>solto</text></g></svg>', sp);
+    ['<script>','<foreignObject>','#00FF00','https://x.com','javascript:','asset:../x.png','url(http://x#f)','matrix','Texto fora de bloco'].forEach(k=>
+      assert(mau.erros.some(e=>e.indexOf(k)>=0), 'não barrou: '+k+' — '+mau.erros.join('; ')));
+    assert(!/<script|onload|foreignObject|https?:\/\/(?!www\.w3\.org)|javascript:|style=|\.\.\/|matrix/i.test(mau.svg), 'sobrou algo perigoso no SVG saneado');
+    const semCampo=crSvgContrato('<svg xmlns="http://www.w3.org/2000/svg"><g data-bloco="titulo"><text class="hero" fill="#FFFFFF">OI</text></g></svg>', sp).erros;
+    assert(semCampo.some(e=>/data-campo/.test(e)), 'título sem campo editável passou');
+    assert(crSvgContrato('<svg', sp).erros.length && crSvgContrato('x'.repeat(90000), sp).erros.length, 'SVG quebrado ou gigante passou');
+  });
+
   caso('Luma Creative: peça much+ sai na paleta das referências (rosa + amarelo, logo much+) e sem os grafismos da DM', async()=>{
     await crFontesProntas();
     assert(crLerPedido('cupom do much+ de R$ 10').marca==='much' && crLerPedido('cupom de R$ 10').marca==='dm', 'marca não lida do pedido');

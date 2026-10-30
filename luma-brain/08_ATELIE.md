@@ -336,7 +336,7 @@ Cada etapa é um ticket. "Pronto" = o critério escrito, verificado na bancada o
 ### Fase 1.5 — A IA escreve a arte (D13, §4.9) · começa pelo banner do app
 
 **E13 · Designer que escreve SVG**
-- [ ] E13.1 Contrato SVG + saneador (gramática fechada, paleta, `asset:` só). Pronto: casos de SVG
+- [x] E13.1 Contrato SVG + saneador (gramática fechada, paleta, `asset:` só). Pronto: casos de SVG
   malicioso e fora da paleta reprovados numa suíte que já existe.
 - [x] E13.2 Skills: `banner-app.md` com os efeitos da régua (adesivo, tarja, valor em bloco, foto
   saindo da pílula, textura, % soltos, selo). Pronto: cada efeito com SVG exato e medidas.

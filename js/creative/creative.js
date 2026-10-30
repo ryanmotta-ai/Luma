@@ -1600,6 +1600,80 @@ function crAvaliar(r){
 }
 // A da verificação final (as finalistas): o navegador mede de verdade
 function crAvaliarDom(r){ return _crRegras(r, _crMede(r.svg)); }
+/* ══════════════════════════════════════════════════════════════
+   CONTRATO SVG DO DESIGNER (D13 · E13.1, 30/10/2026). Quando a IA escreve a arte inteira, o SVG dela
+   passa por aqui antes de tudo. É uma lista do que é PERMITIDO, não do que é proibido: a arte vira
+   peça pública e template do franqueado, então o que não está na lista sai. (O _dSvgSanitizar do
+   Estúdio é o contrário — só tira o que executa —, e serve para arquivo que o designer escolheu.)
+   → { svg, erros, avisos }. Erro reprova e volta para a IA corrigir; aviso é removido em silêncio.
+   O SVG que sai tem a raiz e os defs do motor, pronto para crAvaliar, crEmbutir e o importador.
+══════════════════════════════════════════════════════════════ */
+const CR_SVG_TAGS = new Set(['defs', 'clipPath', 'g', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'path', 'image', 'text', 'tspan']);
+const CR_SVG_ATTRS = new Set(['x', 'y', 'width', 'height', 'rx', 'ry', 'cx', 'cy', 'r', 'x1', 'y1', 'x2', 'y2', 'points', 'd', 'dx', 'dy',
+  'transform', 'fill', 'stroke', 'stroke-width', 'stroke-linejoin', 'stroke-linecap', 'paint-order', 'opacity', 'fill-opacity', 'stroke-opacity',
+  'class', 'font-size', 'text-anchor', 'letter-spacing', 'clip-path', 'filter', 'id', 'data-bloco', 'data-campo', 'data-sobrepoe', 'href', 'preserveAspectRatio']);
+const CR_SVG_BLOCOS = new Set(['titulo', 'apoio', 'valor', 'preco', 'selo', 'foto', 'decor', 'logo', 'tag', 'chamada', 'cupom', 'botao', 'legal', 'itens', 'anos', 'mockup']);
+const _CR_PALETA = new Set(Object.values(CR_C));
+function _crCorOk(v){
+  const s = String(v).trim();
+  if(s === 'none' || /^url\(#[A-Za-z][\w-]*\)$/.test(s)) return true;
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(s);
+  if(!m) return false;
+  const h = m[1].length === 3 ? m[1].split('').map(c => c + c).join('') : m[1];
+  return _CR_PALETA.has('#' + h.toUpperCase());
+}
+function crSvgContrato(texto, sp){
+  const erros = [], avisos = [], bruto = String(texto || ''), a = crArea(sp.formato);
+  if(bruto.length > 80000) return { svg: '', erros: ['SVG grande demais (' + bruto.length + ' caracteres; o teto é 80 mil)'], avisos };
+  const doc = new DOMParser().parseFromString(bruto, 'image/svg+xml'), raiz = doc.documentElement;
+  if(!raiz || raiz.localName !== 'svg' || doc.getElementsByTagName('parsererror').length) return { svg: '', erros: ['SVG inválido: não abriu como XML'], avisos };
+  // só rotate/translate/scale com números (nada de matrix, que esconde escala e espelho)
+  const tr = /^(\s*(rotate|translate|scale)\(\s*-?(?:\d+\.?\d*|\.\d+)(?:\s*[ ,]\s*-?(?:\d+\.?\d*|\.\d+)){0,2}\s*\)\s*)+$/;
+  let nos = 0;
+  const limpa = el => {
+    [...el.childNodes].forEach(f => {
+      if(f.nodeType === 3) return;                                   // texto: só vale dentro de <text>/<tspan> (conferido abaixo)
+      if(f.nodeType !== 1){ f.remove(); return; }                    // comentário, CDATA, instrução
+      const tag = f.localName;
+      if(++nos > 600){ f.remove(); return; }
+      if(!CR_SVG_TAGS.has(tag)){
+        if(!/^(title|desc|metadata)$/.test(tag)) erros.push('Elemento fora do contrato: <' + tag + '>');
+        f.remove(); return;
+      }
+      [...f.attributes].forEach(at => {
+        const n = at.name, v = at.value, bad = msg => { erros.push(msg); f.removeAttribute(n); };
+        if(n === 'href' || n === 'xlink:href'){
+          if(tag !== 'image' || !/^asset:[a-z0-9][a-z0-9\/_.-]*$/i.test(v) || /\.\./.test(v)) return bad('Imagem fora do inventário: ' + v.slice(0, 60));
+          if(n === 'xlink:href'){ f.removeAttribute(n); f.setAttribute('href', v); }
+          return;
+        }
+        if(!CR_SVG_ATTRS.has(n)){ avisos.push('atributo removido: ' + n); f.removeAttribute(n); return; }
+        if((n === 'fill' || n === 'stroke') && !_crCorOk(v)) return bad('Cor fora da paleta: ' + v);
+        if(n === 'clip-path' && !/^url\(#[A-Za-z][\w-]*\)$/.test(v)) return bad('clip-path inválido: ' + v.slice(0, 40));
+        if(n === 'filter' && !/^url\(#(sh|shs)\)$/.test(v)) return bad('Filtro fora do contrato: ' + v.slice(0, 40));
+        if(n === 'transform' && !tr.test(v)) return bad('transform fora do contrato: ' + v.slice(0, 40));
+        if(n === 'class' && !CR_ESTILO[v]) return bad('Classe de texto desconhecida: ' + v);
+        if(n === 'data-bloco' && !CR_SVG_BLOCOS.has(v)) return bad('Bloco desconhecido: ' + v);
+        if((n === 'data-campo' || n === 'id') && !/^[A-Za-z][\w-]{0,40}$/.test(v)) return bad(n + ' inválido: ' + v.slice(0, 40));
+      });
+      limpa(f);
+    });
+  };
+  limpa(raiz);
+  // Estrutura que mantém a arte editável e legível pela trava
+  const textos = [...raiz.getElementsByTagName('text')];
+  textos.forEach(t => { if(!t.closest('[data-bloco]')) erros.push('Texto fora de bloco: "' + t.textContent.trim().slice(0, 30) + '"'); });
+  const tit = raiz.querySelector('[data-bloco="titulo"]');
+  if(!tit) erros.push('Faltou o bloco titulo');
+  else if(!tit.querySelector('[data-campo]') && !tit.hasAttribute('data-campo')) erros.push('O título precisa de data-campo (é o que o franqueado edita)');
+  if(sp.foto && !raiz.querySelector('#foto_produto')) erros.push('Pedido com foto e sem o campo #foto_produto');
+  const so = new XMLSerializer(), corpo = [...raiz.childNodes].filter(n => n.nodeType === 1)
+    .map(n => so.serializeToString(n).replace(/ xmlns(:xlink)?="[^"]*"/g, '')).join('\n');
+  const svg = _crMarca('<svg xmlns="http://www.w3.org/2000/svg" data-luma="1" viewBox="0 0 ' + a.W + ' ' + a.H + '" width="' + a.W + '" height="' + a.H + '">'
+    + crDefs() + corpo + '\n</svg>', sp);
+  return { svg, erros, avisos };
+}
+
 
 /* ══════════════════════════════════════════════════════════════
    NOTA DE DESIGN — função pura e determinística sobre a geometria (sem DOM, sem IA). Seis partes de
