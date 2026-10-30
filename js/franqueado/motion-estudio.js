@@ -24,7 +24,7 @@
  *
  * O vídeo pronto mora em `_fMotionVideos[snapId]` e o mockup o mostra no lugar do canvas
  * (`fMotionMontaNoSlot`, chamado pelo `_fPostedMountArt` a cada troca de ambiente).
- * Movimento reduzido: não há estúdio (motion.js cai no aviso antigo e o vídeo entra direto).
+ * Movimento reduzido: o estúdio abre igual (é o conteúdo pedido); só os enfeites viram fade.
  *
  * API: fMotionEstudio(origem, arte) → { prepara, progresso, entrega, falha }
  *      fMotionMontaNoSlot(holder, video?) · fMotionDestino(snapId)
@@ -139,6 +139,11 @@ const _F_ME_CSS = ':host{position:fixed;inset:0;z-index:9000;font-family:Roboto,
 
 const _fMeTok = t => (typeof _fLpMotionMs === 'function') ? _fLpMotionMs(t) : 260;
 const _fMeEase = t => (typeof _fLpMotionEase === 'function') ? _fLpMotionEase(t) : 'ease-out';
+/* "Reduzir movimento" NÃO pula o estúdio: ver o designer trabalhar é o que a pessoa pediu ao
+   clicar (o Windows com "Efeitos de animação" desligado manda esse sinal para todo site, e foi
+   assim que o estúdio sumiu para o Ryan em 30/10). O que o modo corta são os enfeites: voo em
+   arco, deslize dos painéis, mola e faíscas viram aparecer/esmaecer. */
+const _fMeReduz = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches);
 const _fMeSeno = u => (1 - Math.cos(Math.PI * u)) / 2;   // arranca e assenta sem tranco (o mesmo do making-of)
 const _fMeCorta = (s, n) => s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s;
 const _fMeVirg = v => v.toFixed(2).replace('.', ',') + ' s';
@@ -262,8 +267,9 @@ function fMotionEstudio(origem, arte){
   /* ── IDA: a arte do card voa até a tela, o estúdio entra em volta ───────────── */
   const durBase = _fMeTok('--dur-base'), durSlow = _fMeTok('--dur-slow'), durFast = _fMeTok('--dur-fast');
   $('.ve').animate([{ opacity: 0 }, { opacity: 1 }], { duration: durBase, easing: _fMeEase('--ease-out'), fill: 'forwards' });
+  const reduz = _fMeReduz();
   [['.topo', '0,-14px'], ['.bib', '-28px,0'], ['.insp', '28px,0'], ['.tl', '0,28px'], ['.pe', '0,16px']].forEach(([s, d], i) => {
-    $(s).animate([{ opacity: 0, transform: 'translate(' + d + ')' }, { opacity: 1, transform: 'none' }],
+    $(s).animate([{ opacity: 0, transform: 'translate(' + (reduz ? '0,0' : d) + ')' }, { opacity: 1, transform: 'none' }],
       { duration: durSlow, delay: durFast * .6 + i * 40, easing: _fMeEase('--ease-out'), fill: 'backwards' });
   });
   const copia = document.createElement('canvas');
@@ -272,7 +278,7 @@ function fMotionEstudio(origem, arte){
   const voo = document.createElement('div'); voo.className = 'voo'; voo.appendChild(copia); raiz.appendChild(voo);
   const r1 = tela.getBoundingClientRect(), r0 = (origem && origem.getBoundingClientRect().width > 4) ? origem.getBoundingClientRect() : null;
   Object.assign(voo.style, { width: r1.width + 'px', height: r1.height + 'px', transform: 'translate(' + r1.left + 'px,' + r1.top + 'px)' });
-  if(r0){
+  if(r0 && !reduz){
     const s0 = r0.width / r1.width;
     voo.animate([{ transform: 'translate(' + r0.left + 'px,' + r0.top + 'px) scale(' + s0 + ')' },
       { transform: 'translate(' + r1.left + 'px,' + (r1.top - 14) + 'px) scale(1.02)', offset: .8 },
@@ -543,7 +549,8 @@ async function _fMeAterrissa(voo, destino, url){
   const easeStd = _fMeEase('--ease-standard'), durCel = _fMeTok('--dur-celebration');
   const alvoRect = destino ? _fMeRetanguloArte(destino) : null;
   let v = voo && voo.video;
-  if(voo && alvoRect){
+  const reduz = _fMeReduz();
+  if(voo && alvoRect && !reduz){
     const r0 = voo.r0, caixa = document.createElement('div');
     caixa.className = 'voo';
     Object.assign(caixa.style, { width: r0.width + 'px', height: r0.height + 'px' });
@@ -559,9 +566,10 @@ async function _fMeAterrissa(voo, destino, url){
       { transform: 'translate(' + alvoRect.left + 'px,' + alvoRect.top + 'px) scale(' + s1 + ') rotate(0deg)' }
     ], { duration: durCel + _fMeTok('--dur-base'), fill: 'forwards' }).finished.catch(() => {});
     caixa.remove();
-  } else if(v){ v = null; }
+  } else if(v && !reduz){ v = null; }
   if(!destino) return;
   const montado = fMotionMontaNoSlot(destino, v || undefined);
+  if(reduz) return;   // modo reduzido: o vídeo só aparece no lugar, sem mola, faísca nem selo pulando
   // O pulo de mola no mockup + faíscas + selo
   // `scale` (a propriedade), não `transform`: o .pst-phone já usa transform no media query, e
   // animar transform o faria pular de tamanho. `scale` compõe com ele.
@@ -589,6 +597,7 @@ async function _fMeAterrissa(voo, destino, url){
 
 // Faíscas da marca: pontos e estrelinhas saindo do centro, com gravidade. Só transform e opacity.
 function _fMeFaiscas(raiz, r, n){
+  if(_fMeReduz()) return;
   const cores = ['var(--dm-orange)', 'var(--dm-yellow)', 'var(--dm-red)', 'var(--white)'];
   const cx = r.left + r.width / 2, cy = r.top + r.height / 2, dur = _fMeTok('--dur-celebration');
   for(let i = 0; i < n; i++){

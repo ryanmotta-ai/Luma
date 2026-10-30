@@ -458,7 +458,10 @@ const _F_MOTION_ICONE_BAIXAR = '<svg width="15" height="15" viewBox="0 0 24 24" 
    2. pronto o vídeo, o mesmo botão vira "Baixar vídeo" (`fBaixarMotion`). O download saiu do fim
       da geração de propósito: depois de 20 s gerando, o iOS já não aceitava o share (o gesto do
       toque tinha expirado); agora o share nasce de um toque novo.
-   Movimento reduzido: sem estúdio — o aviso antigo e o vídeo entra direto no mockup. */
+   Movimento reduzido: o estúdio ABRE mesmo assim (30/10, Ryan: "não tá aparecendo" — o Windows
+   com "Efeitos de animação" desligado manda `prefers-reduced-motion` e o estúdio era pulado).
+   Ver o designer trabalhar é o que a pessoa pediu ao clicar, como dar play num vídeo; o que o
+   modo reduzido corta são os enfeites (voo em arco, mola, faíscas), dentro do motion-estudio.js. */
 async function fVirarMotion(btn, snapId){
   if(typeof gFeatureCan === 'function' && !gFeatureCan('franqueado.export.video', 'execute')){
     if(typeof gFeatureBlockedFeedback === 'function') gFeatureBlockedFeedback('franqueado.export.video');
@@ -474,7 +477,7 @@ async function fVirarMotion(btn, snapId){
   const rotulo = btn && btn.querySelector('span:last-child');
   _fVideoRenderizando = true;
   let estudio = null;
-  if(!reduz && typeof fMotionEstudio === 'function'){
+  if(typeof fMotionEstudio === 'function'){
     try{ estudio = fMotionEstudio(document.getElementById(snapId), { dados: snap.dados, camp: snap.camp, material }); }
     catch(e){ console.warn('[motion] estúdio não abriu:', e); estudio = null; }
   }
