@@ -72,6 +72,10 @@ const _F_ME_CSS = ':host{position:fixed;inset:0;z-index:9000;font-family:Roboto,
   + '.sel i:nth-child(1){left:-4px;top:-4px}.sel i:nth-child(2){right:-4px;top:-4px}.sel i:nth-child(3){left:-4px;bottom:-4px}.sel i:nth-child(4){right:-4px;bottom:-4px}'
   + '.sel b{position:absolute;left:-1.5px;bottom:100%;margin-bottom:5px;padding:2px 7px;border-radius:4px;background:var(--d-sel);color:var(--white);font:600 10.5px/1.4 Roboto,sans-serif;white-space:nowrap}'
   + '.sel.cima b{bottom:auto;top:100%;margin:5px 0 0}'
+  // Reposicionar: o fundo tapa o lugar da peça (`buraco`) e a peça erguida (`fant`) anda por cima
+  + '.arte canvas.buraco,.arte canvas.fant{inset:auto;border-radius:0;opacity:0;pointer-events:none}'
+  + '.arte canvas.fant{filter:drop-shadow(0 10px 16px rgba(0,0,0,.4));z-index:1}'
+  + '.guia{position:absolute;background:var(--dm-red);opacity:0;pointer-events:none;z-index:2}.guia.v{top:0;bottom:0;width:1px}.guia.h{left:0;right:0;height:1px}'
   + '.brilho{position:absolute;border-radius:10px;box-shadow:0 0 0 2px var(--dm-orange),0 0 24px 6px rgba(255,144,0,.45);opacity:0;pointer-events:none}'
   + '.tit{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--d-text3);padding:11px 12px 6px}'
   + '.lista{padding:0 6px 8px;overflow:hidden}'
@@ -186,7 +190,7 @@ function _fMeHTML(){
   return '<div class="ve"></div>'
     + '<div class="status"><span class="ponto" aria-hidden="true"></span><span class="fase">Abrindo o estúdio</span><span class="sub"></span><span class="pct">0%</span>'
     + '<button type="button" class="fechar" aria-label="Fechar (o vídeo continua sendo gerado)" title="Fechar (o vídeo continua sendo gerado)">' + x + '</button></div>'
-    + '<div class="arte"><canvas class="cv"></canvas><div class="brilho"></div><div class="sel"><i></i><i></i><i></i><i></i><b></b></div></div>'
+    + '<div class="arte"><canvas class="cv"></canvas><canvas class="buraco"></canvas><canvas class="fant"></canvas><div class="guia v"></div><div class="guia h"></div><div class="brilho"></div><div class="sel"><i></i><i></i><i></i><i></i><b></b></div></div>'
     + '<div class="pn pecas"><div class="boia"><div class="tit">Peças da sua arte</div><div class="lista"></div></div></div>'
     + '<div class="pn insp"><div class="boia b2"><div class="tit">Movimento</div><div class="alvo-n">Nenhuma peça selecionada</div><div class="chips"></div>'
     + '<div class="curva"><div class="curva-cab"><span>Curva</span><span class="curva-nome">—</span></div><svg viewBox="0 0 100 52" preserveAspectRatio="none" aria-hidden="true"><path class="grade" d="M0 46H100M0 8H100"/><path class="cp" d=""/></svg></div></div></div>'
@@ -285,8 +289,9 @@ function fMotionEstudio(origem, arte){
     b.animate([{ opacity: 0, transform: 'scale(.96)' }, { opacity: 1, transform: 'scale(1)', offset: .3 }, { opacity: 0, transform: 'scale(1.04)' }],
       { duration: durSlow + durBase, easing: _fMeEase('--ease-out') });
   }
-  function curva(i){
-    const u = i.unidades[0], f = (u.carona || u).tipo === 'adesivo' ? _fMoAssenta : _fMoSuave, pts = [];
+  function curva(i, assenta){   // `assenta` (opcional) força a curva — o "testar a curva"
+    const u = i.unidades[0], usa = assenta != null ? assenta : (u.carona || u).tipo === 'adesivo';
+    const f = usa ? _fMoAssenta : _fMoSuave, pts = [];
     for(let n = 0; n <= 32; n++){ const x = n / 32; pts.push((x * 100).toFixed(1) + ' ' + (46 - f(x) * 38).toFixed(1)); }
     const p = $('.cp'); p.setAttribute('d', 'M' + pts.join('L'));
     const comp = p.getTotalLength(); p.style.strokeDasharray = comp;
@@ -300,15 +305,118 @@ function fMotionEstudio(origem, arte){
   function ms(seg){
     const escala = st.estSeg > 0 ? st.L / Math.max(3, st.estSeg * .85) : 1;
     const err = st.frac * st.L - st.sRot;
-    let vel = Math.max(.6, Math.min(3, escala * (1 + err * .3)));
+    /* Piso de 0,9×: em aparelho lento o designer NÃO vira câmera lenta — mantém mão de gente e
+       usa o tempo que sobra no repertório de ajustes (Ryan: mais detalhe, não mais devagar). */
+    let vel = Math.max(.9, Math.min(3, escala * (1 + err * .3)));
     if(st.feito) vel = 3;
     st.sRot += seg;
-    return seg * 1000 / vel;
+    st.ultimoMs = seg * 1000 / vel;   // o objeto que o cursor arrasta anda no MESMO tempo que ele
+    return st.ultimoMs;
+  }
+
+  /* ── O REPERTÓRIO DE AJUSTES ─────────────────────────────────────────────────
+     Terminada a 1ª passada antes do vídeo, o designer NÃO para (Ryan, 30/10: "se ele acabar
+     muito rápido, ir fazendo — botar cada elemento no design de novo, mexendo e ajustando a
+     timeline"). Cada ajuste mexe e DEVOLVE ao lugar: o que sai no MP4 é o plano, não o teatro.
+     Reposicionar precisa da peça sozinha e do fundo sem ela — dois renders do motor único, sob
+     demanda e guardados (o 1º custa ~1 quadro de vídeo; é tempo que sobra, por definição). */
+  const idsDe = us => new Set(us.flatMap(u => u.folhas.map(f => f.id).concat(u.extras.map(f => f.id), [u.raiz.id])));
+  async function renderSo(ids, transparente){
+    const c = document.createElement('canvas'); c.width = L.W; c.height = L.H;
+    const camadas = st.resolvidas.map(l => (!l || l.type === 'group' || ids.has(l.id)) ? l : Object.assign({}, l, { visible: false }));
+    await fRenderTemplateLayers(c.getContext('2d'), camadas, L.W, L.H, arte.dados, arte.camp,
+      transparente ? Object.assign({}, arte.material, { bg: 'transparent' }) : arte.material, { scope: 'franqueado', purpose: 'export', resolvido: true });
+    return c;
+  }
+  async function fundoSo(){
+    if(!st.fundo){
+      const ids = idsDe(st.plano.filter(u => u.papel === 'fundo'));
+      st.resolvidas.forEach(l => { if(l && l.type === 'adjustment') ids.add(l.id); });
+      st.fundo = await renderSo(ids, false);
+    }
+    return st.fundo;
+  }
+  async function pecaSo(i){ if(!i.sprite) i.sprite = await renderSo(idsDe(i.unidades), true); return i.sprite; }
+  // Recorta o retângulo da peça (com folga) de `src` para um canvas posicionado sobre a arte
+  function recorte(dst, src, i){
+    const k = L.aw / L.W, p = 6, x0 = Math.max(0, i.x0 - p), y0 = Math.max(0, i.y0 - p);
+    const w = Math.min(L.W, i.x1 + p) - x0, h = Math.min(L.H, i.y1 + p) - y0;
+    dst.width = Math.max(1, Math.round(w * k * 2)); dst.height = Math.max(1, Math.round(h * k * 2));
+    Object.assign(dst.style, { left: x0 * k + 'px', top: y0 * k + 'px', width: w * k + 'px', height: h * k + 'px' });
+    dst.getContext('2d').drawImage(src, x0, y0, w, h, 0, 0, dst.width, dst.height);
+  }
+  const noArte = i => { const k = L.aw / L.W; return [L.ax + (i.x0 + i.x1) / 2 * k, L.ay + (i.y0 + i.y1) / 2 * k]; };
+  const solta = () => cur.classList.remove('aperta'), aperta = () => cur.classList.add('aperta');
+  const mexe = (el, kf, dur, ease) => el.animate(kf, { duration: Math.max(60, dur), easing: ease || _fMeEase('--ease-standard'), fill: 'forwards' }).finished.catch(() => {});
+
+  async function reposiciona(i){
+    fase('Ajustando a posição', i.nome);
+    const [x, y] = noArte(i);
+    await vai(x, y, ms(.4));
+    const [sp, fu] = await Promise.all([pecaSo(i), fundoSo()]);
+    if(st.fechado) return;
+    const buraco = $('.buraco'), fant = $('.fant'), k = L.aw / L.W;
+    recorte(buraco, fu, i); recorte(fant, sp, i);
+    seleciona(null); aperta();
+    buraco.style.opacity = 1; fant.style.opacity = 1;
+    await mexe(fant, [{ scale: '1' }, { scale: '1.04' }], ms(.12));
+    const dx = (i.x0 + i.x1 < L.W ? 1 : -1) * Math.min(34, L.aw * .1), dy = -Math.min(22, L.ah * .05);
+    await Promise.all([vai(x + dx, y + dy, ms(.45)), mexe(fant, [{ translate: '0 0' }, { translate: dx + 'px ' + dy + 'px' }], st.ultimoMs)]);
+    // As guias acendem no caminho de volta, no eixo da peça: é o "encaixou" de qualquer editor
+    const gv = $('.guia.v'), gh = $('.guia.h');
+    gv.style.left = ((i.x0 + i.x1) / 2 * k) + 'px'; gh.style.top = ((i.y0 + i.y1) / 2 * k) + 'px';
+    await Promise.all([vai(x, y, ms(.45)), mexe(fant, [{ translate: dx + 'px ' + dy + 'px' }, { translate: '0 0' }], st.ultimoMs, _fMeEase('--ease-spring-soft')),
+      mexe(gv, [{ opacity: 0 }, { opacity: 1 }], st.ultimoMs * .6), mexe(gh, [{ opacity: 0 }, { opacity: 1 }], st.ultimoMs * .6)]);
+    await mexe(fant, [{ scale: '1.04' }, { scale: '1' }], ms(.12));
+    solta(); seleciona(i);
+    await Promise.all([mexe(gv, [{ opacity: 1 }, { opacity: 0 }], durBase), mexe(gh, [{ opacity: 1 }, { opacity: 0 }], durBase)]);
+    buraco.style.opacity = 0; fant.style.opacity = 0; fant.getAnimations().forEach(a => a.cancel());
+  }
+  async function ajustaTempo(i){
+    fase('Ajustando o tempo', i.nome);
+    i.nm.classList.add('foco');
+    await vai(...centroDe(i.bars[0]), ms(.4)); aperta();
+    const d = st.areaW * .06 * (i.ini > SEG * .15 ? -1 : 1), [x, y] = [st.cx, st.cy];
+    await Promise.all([vai(x + d, y, ms(.4)), ...i.bars.map(b => mexe(b, [{ translate: '0 0' }, { translate: d + 'px 0' }], st.ultimoMs))]);
+    playhead(i.ini + d / st.areaW * SEG);
+    await _fMeEspera(ms(.15));
+    await Promise.all([vai(x, y, ms(.35)), ...i.bars.map(b => mexe(b, [{ translate: d + 'px 0' }, { translate: '0 0' }], st.ultimoMs, _fMeEase('--ease-spring-soft')))]);
+    playhead(i.ini); solta(); i.nm.classList.remove('foco');
+    i.bars.forEach(b => b.getAnimations().forEach(a => a.cancel()));
+  }
+  async function ajustaDuracao(i){
+    fase('Ajustando a duração', i.nome);
+    const b = i.bars[0], r = caixa(b);
+    i.nm.classList.add('foco');
+    await vai(r.right - 1, r.top + r.height / 2, ms(.4)); aperta();
+    const d = Math.min(36, st.areaW * .05), esc = (r.width + d) / Math.max(1, r.width);
+    await Promise.all([vai(r.right - 1 + d, st.cy, ms(.38)), mexe(b, [{ scale: '1 1' }, { scale: esc + ' 1' }], st.ultimoMs)]);
+    await _fMeEspera(ms(.12));
+    await Promise.all([vai(r.right - 1, st.cy, ms(.32)), mexe(b, [{ scale: esc + ' 1' }, { scale: '1 1' }], st.ultimoMs, _fMeEase('--ease-spring-soft'))]);
+    solta(); i.nm.classList.remove('foco'); b.getAnimations().forEach(a => a.cancel());
+  }
+  async function testaCurva(i){
+    fase('Testando a curva', i.nome);
+    $('.alvo-n').innerHTML = 'Selecionada: <b></b>'; $('.alvo-n b').textContent = i.nome;
+    await vai(...centroDe($('.curva')), ms(.4)); aperta();
+    const base = (i.unidades[0].carona || i.unidades[0]).tipo === 'adesivo';
+    curva(i, !base); await _fMeEspera(ms(.12)); solta();
+    await _fMeEspera(ms(.5));
+    aperta(); curva(i, base); await _fMeEspera(ms(.12)); solta();
+  }
+  async function confere(){
+    fase('Conferindo a montagem', 'arrastando a agulha');
+    playhead(0);
+    const ph = $('.ph'), r = caixa(ph), ida = st.areaW * Math.min(1, st.tAssenta / SEG);
+    await vai(r.left, r.top + 6, ms(.4)); aperta();
+    await Promise.all([vai(r.left + ida, r.top + 6, ms(.9)), mexe(ph, [{ translate: '0 0' }, { translate: ida + 'px 0' }], st.ultimoMs)]);
+    await Promise.all([vai(r.left + ida * .35, r.top + 6, ms(.5)), mexe(ph, [{ translate: ida + 'px 0' }, { translate: ida * .35 + 'px 0' }], st.ultimoMs)]);
+    solta(); ph.getAnimations().forEach(a => a.cancel()); playhead(st.tAssenta * .35);
   }
 
   async function roteiro(){
-    const tot = st.itens.length, G = { vai: .4, clica: .12, ver: .3 };
-    st.L = tot * (2 * G.vai + 2 * G.clica + G.ver);
+    const tot = st.itens.length, G = { vai: .4, clica: .12, ver: .3, arrasta: .45 };
+    st.L = tot * (2 * G.vai + 2 * G.clica + G.ver + G.vai * .6 + G.arrasta);
     st.cx = L.ax + L.aw / 2; st.cy = L.ay + L.ah * .55;
     cur.style.transform = 'translate(' + st.cx + 'px,' + st.cy + 'px)';
     cur.style.opacity = 1;
@@ -331,20 +439,30 @@ function fMotionEstudio(origem, arte){
       cur.classList.add('aperta');
       Object.values(st.chips).forEach(c => c.classList.remove('on')); st.chips[i.efeito].classList.add('on'); curva(i);
       await _fMeEspera(ms(G.clica)); cur.classList.remove('aperta');
-      i.bars.forEach(b => b.classList.add('on')); i.nm.classList.add('on'); playhead(i.ini);
+      /* A barra nasce no 0 s e o cursor a ARRASTA até o tempo que o plano deu à peça */
+      const de = -(i.ini / SEG) * (st.areaW || 0);
+      i.bars.forEach(b => { b.style.translate = de + 'px 0'; b.classList.add('on'); }); i.nm.classList.add('on');
+      await _fMeEspera(40);
+      const rb = caixa(i.bars[0]);
+      await vai(rb.left + 6, rb.top + rb.height / 2, ms(G.vai * .6)); aperta();
+      playhead(i.ini);
+      await Promise.all([vai(rb.left + 6 - de, rb.top + rb.height / 2, ms(G.arrasta)),
+        ...i.bars.map(b => mexe(b, [{ translate: de + 'px 0' }, { translate: '0 0' }], st.ultimoMs))]);
+      i.bars.forEach(b => { b.style.translate = ''; b.getAnimations().forEach(a => a.cancel()); });
+      solta();
       brilha(i);
       i.it.classList.remove('alvo'); i.it.classList.add('feita');
       await _fMeEspera(ms(G.ver));
     }
     seleciona(null);
-    if(!st.feito && !st.fechado){
-      fase('Revisando o motion', 'esperando o vídeo terminar de gravar');
-      await vai(...centroDe($('.ph')), ms(G.vai));
-      const ida = st.areaW * Math.min(1, (st.tAssenta + .4) / SEG);
-      const loop = reduz ? null : $('.ph').animate([{ transform: 'translateX(0)' }, { transform: 'translateX(' + ida + 'px)' }],
-        { duration: (st.tAssenta + .4) * 1000, iterations: Infinity });
-      await st.prontoFeito;
-      if(loop) loop.cancel();
+    // Sobrou tempo: segue ajustando, peça por peça, até o vídeo terminar de gravar
+    const acoes = [reposiciona, ajustaTempo, confere, ajustaDuracao, testaCurva];
+    const ajustaveis = st.itens.filter(i => !i.detalhes && (i.x1 - i.x0) * (i.y1 - i.y0) < L.W * L.H * .4);
+    const pool = ajustaveis.length ? ajustaveis : st.itens;
+    for(let n = 0; !st.feito && !st.fechado; n++){
+      try{ await acoes[n % acoes.length](pool[(n * 2 + 1) % pool.length]); }catch(e){ console.warn('[motion] ajuste:', e); }
+      seleciona(null);
+      await _fMeEspera(ms(.15));
     }
     playhead(SEG);
   }
@@ -355,7 +473,7 @@ function fMotionEstudio(origem, arte){
        miniaturas recortadas dele, a lista, os chips e a timeline. Os painéis se formam saindo de
        trás da arte, e o roteiro começa sem ser esperado (o encoder segue). */
     async prepara(plano, resolvidas, W, H, tAssenta){
-      st.tAssenta = tAssenta; L.W = W; L.H = H;
+      st.tAssenta = tAssenta; L.W = W; L.H = H; st.plano = plano; st.resolvidas = resolvidas;
       st.itens = _fMeItens(plano);
       const grande = document.createElement('canvas'); grande.width = W; grande.height = H;
       await fRenderTemplateLayers(grande.getContext('2d'), resolvidas, W, H, arte.dados, arte.camp, arte.material,

@@ -42,6 +42,11 @@
     // ?movimento=1: ignora o "reduzir movimento" do navegador (o painel do Claude Code o emula),
     // senão o estúdio nunca abre aqui. Só na bancada.
     if(/movimento=1/.test(location.search)){ const mm = window.matchMedia.bind(window); window.matchMedia = q => /reduced-motion/.test(q) ? { matches: false } : mm(q); }
+    // ?lento=1: simula um aparelho lento (cada quadro do vídeo custa +60 ms), para ver o
+    // designer terminar a 1ª passada e seguir ajustando. Só na bancada.
+    const _lento = +((location.search.match(/lento=(\d+)/) || [])[1] || 0);   // ?lento=N → +N×60 ms por quadro
+    if(_lento){ const orig = window.fRenderTemplateLayers;
+      window.fRenderTemplateLayers = async function(...a){ const o = a[7] || {}; if(o.resolvido && o.purpose === 'export') await new Promise(r => setTimeout(r, 60 * _lento)); return orig.apply(this, a); }; }
     const log = m => { document.getElementById('log').textContent += '\n' + m; };
     window.gTrackEvent = (n, p) => log('evento ' + n + ' ' + JSON.stringify(p));
     window.fAddHist = () => log('histórico: baixada'); window.fMarkHistBaixada = () => {};
