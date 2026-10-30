@@ -2545,6 +2545,84 @@ async function crDesenhos(sp, n, evitar, refPessoa){
 }
 
 /* ══════════════════════════════════════════════════════════════
+   DESIGNER QUE ESCREVE SVG (D13 · E13.3, 30/10/2026). A IA escreve a arte inteira guiada pela skill
+   do formato (assets/creative/skills/) e pela régua; o Luma passa o SVG pelo contrato (crSvgContrato),
+   põe a foto do franqueado na caixa que a IA desenhou e confere a marca (crAvaliar). Reprovou: volta
+   uma vez com os erros. Só os formatos com skill (CR_SKILL_FMT) usam este caminho; os outros seguem
+   no crDesenhos. O piso continua sendo a busca do motor.
+══════════════════════════════════════════════════════════════ */
+const CR_SKILL_FMT = { banner: 'banner-app' };   // formato → skill (E13.7 estende quando o banner bater as receitas)
+const _crSkills = new Map();
+function crSkill(nome){
+  if(!_crSkills.has(nome)) _crSkills.set(nome, fetch(CR_BASE + 'skills/' + nome + '.md').then(r => (r.ok ? r.text() : '')).catch(() => ''));
+  return _crSkills.get(nome);
+}
+function crPromptSvg(sp, n, skill, evitar, consertar, img){
+  const a = crArea(sp.formato), ch = crChave(sp), tem = crConteudoBlocos(sp);
+  delete tem.logo;
+  const campo = { titulo: ch.campo, cupom: 'codigo_cupom', valor: 'desconto_valor' };
+  const i = img || {};
+  return [
+    'Você é designer gráfico sênior da Delivery Much (app de delivery do interior do Brasil). Escreva a arte INTEIRA em SVG, como um designer de verdade — composição, escala, efeitos, acabamento —, seguindo a SKILL abaixo à risca.',
+    i.regua ? 'IMAGENS: as ' + i.regua + ' primeiras são a RÉGUA — peças reais aprovadas da marca. Chegue nesse nível de acabamento; não copie a planta de nenhuma.' + (i.ref ? ' A última é a REFERÊNCIA que a pessoa mandou: siga a pegada dela, dentro da skill.' : '') : '',
+    '', '=== SKILL ===', skill, '=== FIM DA SKILL ===', '',
+    'PEÇA: ' + CR_OBJETIVOS[sp.objetivo] + '. Canvas ' + a.W + '×' + a.H + ' (viewBox="0 0 ' + a.W + ' ' + a.H + '").',
+    'CONTEÚDO (use todos, com estas palavras; pode mudar maiúsculas e quebrar linha, nunca inventar texto, preço ou data):',
+    ...Object.keys(tem).map(k => '- ' + k + ': ' + JSON.stringify(tem[k]) + (campo[k] ? ' → o <text> leva data-campo="' + campo[k] + '"' : '')),
+    sp.foto ? 'FOTO: desenhe só a caixa dela: <g data-bloco="foto" id="foto_produto"><rect x="…" y="…" width="…" height="…" rx="…"/></g>. O Luma põe a foto da pessoa ali.' : '',
+    'CONTRATO (fora disso a arte é reprovada): só svg, defs, clipPath, g, rect, circle, ellipse, line, polyline, polygon, path, image, text, tspan. Cores só ' + Object.values(CR_C).join(', ') + ' (ou none). class do texto: hero, media, body ou forte. transform só rotate/translate/scale com números. filter só url(#sh) ou url(#shs). image só href="asset:inv/<nome>.png". Nada de style, script, gradiente ou link externo. Todo texto dentro de um <g data-bloco="…"> (titulo, apoio, valor, preco, selo, foto, decor, cupom, tag).',
+    'INVENTÁRIO (asset:inv/<nome>.png): ' + Object.keys(CR_DECOR).filter(k => _crDoInv(k, sp) && /grafismo|acento|sticker/.test(CR_DECOR[k].tipo)).map(k => k + ' (' + CR_DECOR[k].w + '×' + CR_DECOR[k].h + ': ' + CR_DECOR[k].desc + ')').join('; '),
+    evitar && evitar.length ? 'Ideias já mostradas (não repita): ' + evitar.join(' | ') : '',
+    consertar ? '\nCORRIJA estas artes (mesma ideia; mude só o necessário) — os erros vieram da conferência da marca:\n' + consertar.map(c => 'IDEIA: ' + c.ideia + '\nERROS: ' + c.erros.join('; ') + '\nSVG: ' + c.svg).join('\n\n') : '',
+    '', 'Responda SÓ o JSON: {"artes":[{"ideia":"1 frase de até 80 caracteres","svg":"<svg xmlns=\\"http://www.w3.org/2000/svg\\" …>…</svg>"}]} com ' + n + ' arte(s)' + (n > 1 ? ' de IDEIAS diferentes (outra planta, outro efeito em destaque)' : '') + '.'
+  ].filter(l => l !== '').join('\n');
+}
+// SVG da IA → arte do Luma (contrato + foto na caixa + conferência da marca). Erro do contrato também reprova.
+function crArteDaIA(sp, svgIa, ideia, i){
+  const a = crArea(sp.formato), c = crSvgContrato(svgIa, sp);
+  let svg = c.svg;
+  if(svg && sp.foto){
+    const m = /<g\b[^>]*\bid="foto_produto"[^>]*>\s*<rect\b([^>]*?)\/>\s*<\/g>/.exec(svg);
+    if(m){
+      const at = {}; m[1].replace(/([\w-]+)="([^"]*)"/g, (s, k, v) => { at[k] = +v || 0; });
+      svg = svg.replace(m[0], '<g data-bloco="foto">' + crFoto(at.x, at.y, at.width, at.height, at.rx, '', sp.foto) + '</g>');
+    }
+  }
+  const campos = [...new Set((svg.match(/data-campo="([^"]+)"/g) || []).map(s => s.slice(12, -1)))];
+  if(/id="foto_produto"/.test(svg)) campos.push('foto_produto');
+  const r = { svg, spec: sp, receita: 'iaSvg' + (i || 0), nomeReceita: String(ideia || 'Composição da IA').slice(0, 80), fundo: '#F85400', p: {}, campos,
+    estouros: [], w: a.W, h: a.H, desenho: null, svgIa: String(svgIa || '') };
+  r.avaliacao = svg ? crAvaliar(r) : { erros: [], avisos: [] };
+  r.avaliacao.erros = c.erros.concat(r.avaliacao.erros);
+  return r;
+}
+async function crArtesSvg(sp, n, evitar, refPessoa){
+  const nome = CR_SKILL_FMT[sp.formato];
+  if(!nome || typeof gAskAI !== 'function' || !_crIaPronta()) return [];
+  const skill = await crSkill(nome);
+  if(!skill) return [];
+  const regua = await crRegua(sp).catch(() => []), m = /^data:(image\/[a-z]+);base64,(.+)$/.exec(refPessoa || '');
+  const parts = regua.map(d => ({ mimeType: 'image/jpeg', data: d })).concat(m ? [{ mimeType: m[1], data: m[2] }] : []);
+  const pede = async (qtd, consertar) => {
+    let txt = await _crAsk('arte.compor', crPromptSvg(sp, qtd, skill, evitar, consertar, { regua: regua.length, ref: m ? 1 : 0 }), { json: true, cache: false, parts });
+    if(txt == null && parts.length) txt = await _crAsk('arte.compor', crPromptSvg(sp, qtd, skill, evitar, consertar, {}), { json: true, cache: false, parts: [] });
+    const j = (typeof gAiParseJson === 'function') ? gAiParseJson(txt) : null;
+    return j && Array.isArray(j.artes) ? j.artes.slice(0, qtd).filter(x => x && typeof x.svg === 'string') : [];
+  };
+  const monta = (artes, base) => artes.map((x, k) => crArteDaIA(sp, x.svg, x.ideia, base + k));
+  let rs = monta(await pede(n), 0);
+  crMetricas.pedidas += rs.length;
+  const ruins = rs.filter(r => r.avaliacao.erros.length);
+  crMetricas.primeira += rs.length - ruins.length;
+  if(ruins.length){
+    const novos = monta(await pede(ruins.length, ruins.map(r => ({ ideia: r.nomeReceita, svg: r.svgIa, erros: r.avaliacao.erros.slice(0, 8) }))), n);
+    crMetricas.corrigidas += novos.filter(r => !r.avaliacao.erros.length).length;
+    rs = rs.filter(r => !r.avaliacao.erros.length).concat(novos);
+  }
+  return rs.filter(r => !r.avaliacao.erros.length).map(r => { r.nota = crNota(r, r.avaliacao); return r; });
+}
+
+/* ══════════════════════════════════════════════════════════════
    EDITORIAL — o motor compondo como designer (skill §4.2), sem IA: monta as caixas dos blocos
    com a faixa útil inteira, grupos com respiro (perto dentro, longe entre), eixo à esquerda,
    um ponto focal em escala dramática e grafismo sangrando nos cantos livres. Sai no mesmo
@@ -4241,7 +4319,9 @@ async function crGerar(fio, conv, outras){
     if(!modifica && !CR_FORMATOS[fio.fmt].fixo && _crIaPronta()){
       p = _crPasso(lista, 'Compondo como designer');
       const pedidas0 = crMetricas.pedidas;
-      try{ ia = await crDesenhos(crNormaliza(fio.conteudo), CR_OPCOES, fio.ideias || [], fio.ref); }catch(err){ ia = []; }
+      // D13: formato com skill → a IA escreve o SVG; os outros seguem posicionando caixas
+      const designer = CR_SKILL_FMT[fio.fmt] ? crArtesSvg : crDesenhos;
+      try{ ia = await designer(crNormaliza(fio.conteudo), CR_OPCOES, fio.ideias || [], fio.ref); }catch(err){ ia = []; }
       if(parou()) return;
       fio.ideias = (fio.ideias || []).concat(ia.map(r => r.nomeReceita));
       p.feito(ia.length ? ia.map(r => r.nomeReceita).join(' · ') : _crPorqueSemIA(pedidas0, 'compor'), !ia.length);

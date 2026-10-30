@@ -342,6 +342,8 @@ Cada etapa é um ticket. "Pronto" = o critério escrito, verificado na bancada o
   saindo da pílula, textura, % soltos, selo). Pronto: cada efeito com SVG exato e medidas.
 - [ ] E13.3 Caminho `arte.svg` no banner: prompt (skill + régua + contrato) → 2 SVGs → saneador →
   trava → correção 1 vez → piso. Pronto: 24 pedidos da bancada saem sem erro de marca.
+  ▸ 30/10: código pronto (`crArtesSvg`, `crPromptSvg`, `crArteDaIA`, `crSkill`; banner liga em `CR_SKILL_FMT`) e
+  testado na suíte com IA falsa. **Falta o "Pronto"**: rodar os 24 pedidos com a IA de verdade, logado no app.
 - [ ] E13.4 Ciclo visual: render → juiz com a régua → revisão (até 2). Pronto: a nota do juiz sobe
   entre a 1ª e a última rodada na média dos 24.
 - [ ] E13.5 Bancada de gosto: 24 pedidos fixos de banner, nota do juiz, comparação com as receitas.

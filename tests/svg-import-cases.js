@@ -260,6 +260,30 @@
     assert(crSvgContrato('<svg', sp).erros.length && crSvgContrato('x'.repeat(90000), sp).erros.length, 'SVG quebrado ou gigante passou');
   });
 
+  caso('Luma Creative: a IA escreve o SVG do banner (D13 · E13.3) — prompt com skill e conteúdo, reprovada volta 1 vez com os erros, foto na caixa', async()=>{
+    await crFontesProntas();
+    const A='<svg xmlns="http://www.w3.org/2000/svg"><rect x="23" y="9" width="730" height="175" rx="30" fill="#F85400"/>'
+      +'<g data-bloco="titulo"><text x="60" y="108" class="hero" font-size="92" fill="#F85400" stroke="#FFFFFF" stroke-width="20" stroke-linejoin="round" paint-order="stroke fill" data-campo="produto">COMBOS</text></g>'
+      +'<g data-bloco="apoio" transform="rotate(-4 84 160)"><rect x="84" y="138" width="262" height="42" fill="#FFFFFF"/><text x="98" y="172" class="hero" font-size="38" fill="#F85400">COM DESCONTO</text></g>'
+      +'<g data-bloco="foto" id="foto_produto"><rect x="470" y="0" width="270" height="204" rx="0"/></g>'
+      +'<g data-bloco="selo"><circle cx="470" cy="150" r="44" fill="#FFB900"/><text x="470" y="160" class="hero" font-size="28" fill="#F85400" text-anchor="middle">29,90</text></g></svg>';
+    const mau=A.replace('#FFB900','#22CC22');
+    const g={ask:window.gAskAI, ready:window.gAiReady, parse:window.gAiParseJson}, prompts=[];
+    window.gAiReady=()=>true;
+    if(typeof window.gAiParseJson!=='function') window.gAiParseJson=t=>{ try{ return JSON.parse(t); }catch(e){ return null; } };
+    window.gAskAI=async(t,prompt,o)=>{ prompts.push(prompt); return JSON.stringify(prompts.length===1?{artes:[{ideia:'boa',svg:A},{ideia:'ruim',svg:mau}]}:{artes:[{ideia:'corrigida',svg:A}]}); };
+    try{
+      const sp=crNormaliza({objetivo:'oferta', formato:'banner', titulo:'Combos', apoio:'com desconto', precoPor:'29,90', foto:'slot'});
+      const rs=await crArtesSvg(sp, 2, [], null);
+      assert(prompts.length===2, 'esperava 1 pedido + 1 correção, foram '+prompts.length);
+      assert(/=== SKILL ===/.test(prompts[0]) && /Adesivo/.test(prompts[0]) && /data-campo="produto"/.test(prompts[0]) && /29,90/.test(prompts[0]), 'prompt sem skill, campo ou preço');
+      assert(/ERROS: .*Cor fora da paleta: #22CC22/.test(prompts[1]), 'a correção não levou o erro do contrato');
+      assert(rs.length===2 && rs.every(r=>!r.avaliacao.erros.length && r.nota>0), 'as duas artes deviam sair aprovadas');
+      assert(rs.every(r=>/id="foto_produto"/.test(r.svg) && r.campos.indexOf('produto')>=0), 'foto ou campo editável sumiu');
+      assert(crPromptSvg(sp, 2, 'x', ['ideia velha']).indexOf('ideia velha')>0, 'prompt sem as ideias a evitar');
+    }finally{ window.gAskAI=g.ask; window.gAiReady=g.ready; window.gAiParseJson=g.parse; }
+  });
+
   caso('Luma Creative: peça much+ sai na paleta das referências (rosa + amarelo, logo much+) e sem os grafismos da DM', async()=>{
     await crFontesProntas();
     assert(crLerPedido('cupom do much+ de R$ 10').marca==='much' && crLerPedido('cupom de R$ 10').marca==='dm', 'marca não lida do pedido');
