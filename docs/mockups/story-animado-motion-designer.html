@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Story animado v2: o motion designer</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../css/00-tokens.css">
+<style>
+  /* MOCKUP — só para aprovar a direção. Tokens reais do Luma; curvas, durações e offsets
+     copiados de js/franqueado/motion.js (_fMoSuave, _fMoAssenta, _fMoDe, _F_MO_DUR) para a
+     arte se mexer aqui exatamente como no MP4. Nada disto vai para produção como está. */
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Roboto',sans-serif;background:var(--off-white);color:var(--text);padding:28px 16px 64px;-webkit-font-smoothing:antialiased}
+  .head{max-width:1120px;margin:0 auto 20px}
+  h1{font-size:22px;font-weight:900;letter-spacing:-.02em;margin-bottom:6px}
+  .sub{font-size:13px;color:var(--text-3);line-height:1.6;max-width:720px}
+  .sub b{color:var(--text-2)}
+  .barra{display:flex;gap:10px;align-items:center;margin-top:16px;flex-wrap:wrap}
+  .barra small{font-size:12px;color:var(--text-3);margin-left:6px}
+  .seg{display:inline-flex;border:1px solid var(--gray-mid);border-radius:var(--r-pill);overflow:hidden;background:var(--white)}
+  .seg button{border:0;background:none;font:600 13px 'Roboto';padding:8px 16px;color:var(--text-3);cursor:pointer}
+  .seg button[aria-pressed="true"]{background:var(--dm-orange);color:var(--white)}
+  .btn-sec{border:1px solid var(--gray-mid);background:var(--white);border-radius:var(--r-pill);font:600 13px 'Roboto';padding:8px 16px;cursor:pointer;color:var(--text-2)}
+  .palco{max-width:1120px;margin:0 auto;position:relative}
+  [hidden]{display:none!important}
+
+  /* ── HOJE ─────────────────────────────────────────────────────────── */
+  .hoje{position:relative;height:640px;border-radius:16px;background:var(--gray-light);overflow:hidden;display:flex;align-items:center;justify-content:center}
+  .hoje-card{width:260px;background:var(--white);border-radius:14px;padding:12px;box-shadow:0 6px 24px rgba(0,0,0,.08)}
+  .hoje-card .mini{aspect-ratio:9/16;border-radius:10px;background:var(--dm-orange);margin-bottom:10px}
+  .hoje-card .art-btn{width:100%;border:1px solid var(--gray-mid);border-radius:10px;padding:10px;font:600 13px 'Roboto';background:var(--white);color:var(--text-2)}
+  .hoje-veu{position:absolute;inset:0;background:rgba(10,10,10,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+  .hoje-modal{max-width:400px;background:var(--white);border-radius:16px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+  .hoje-modal h3{font-size:17px;font-weight:700;margin-bottom:8px}
+  .hoje-modal p{font-size:14px;line-height:1.55;color:var(--text-2)}
+  .hoje-nota{position:absolute;left:16px;bottom:14px;right:16px;font-size:12px;color:var(--white);opacity:.85}
+
+  /* ── PROPOSTA: o estúdio ──────────────────────────────────────────── */
+  .est{--ed:#141414;--ed-2:#1F1F1F;--ed-3:#2A2A2A;--ed-linha:rgba(255,255,255,.08);--ed-txt:rgba(255,255,255,.9);--ed-txt-3:rgba(255,255,255,.5);
+    position:relative;background:var(--ed);color:var(--ed-txt);border-radius:16px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.25);
+    display:grid;grid-template-columns:168px 1fr 220px;grid-template-rows:auto auto auto auto;user-select:none}
+  .est-topo{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--ed-linha)}
+  .est-ponto{width:8px;height:8px;border-radius:50%;background:var(--dm-orange);flex:none;animation:pulsa 1.6s var(--ease-standard) infinite}
+  @keyframes pulsa{0%{box-shadow:0 0 0 0 rgba(255,144,0,.6)}70%,100%{box-shadow:0 0 0 8px rgba(255,144,0,0)}}
+  .est-fase{font-weight:700;font-size:14px}
+  .est-sub{font-size:12px;color:var(--ed-txt-3);min-height:15px}
+  .est-dir{margin-left:auto;display:flex;align-items:center;gap:8px}
+  .est-exp{border:0;border-radius:8px;background:var(--ed-3);color:var(--ed-txt-3);font:600 12px 'Roboto';padding:6px 12px;transition:background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard)}
+  .est-exp.on{background:var(--dm-orange);color:var(--white)}
+  .est-tc{font:500 12px ui-monospace,Consolas,monospace;background:var(--ed-2);padding:6px 10px;border-radius:8px;font-variant-numeric:tabular-nums}
+
+  .pn-tit{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ed-txt-3);padding:12px 14px 8px}
+  .bib{border-right:1px solid var(--ed-linha);padding-bottom:10px}
+  .bib-it{display:flex;align-items:center;gap:8px;padding:5px 14px;font-size:12px;color:var(--ed-txt);transition:background var(--dur-fast) var(--ease-standard),opacity var(--dur-base) var(--ease-standard)}
+  .bib-it.alvo{background:var(--d-sel-fill)}
+  .bib-it.usada{opacity:.35}
+  .bib-th{width:26px;height:26px;border-radius:6px;background:var(--ed-3);display:flex;align-items:center;justify-content:center;flex:none;overflow:hidden;color:var(--ed-txt-3)}
+  .bib-th svg{width:14px;height:14px}
+  .bib-it .ok{margin-left:auto;color:var(--green);opacity:0;transition:opacity var(--dur-fast) var(--ease-standard)}
+  .bib-it.usada .ok{opacity:1}
+
+  .est-prev{display:flex;align-items:center;justify-content:center;padding:18px;background:radial-gradient(400px 300px at 50% 50%,#1C1C1C,transparent)}
+  .tela{position:relative;width:270px;height:480px;border-radius:12px;box-shadow:0 0 0 1px var(--ed-linha),0 12px 30px rgba(0,0,0,.5)}
+  .arte{position:absolute;left:0;top:0;width:270px;height:480px;transform-origin:0 0;background:var(--dm-orange);overflow:hidden;border-radius:12px}
+  .arte::before{content:"";position:absolute;inset:0;background:radial-gradient(260px 260px at 50% 46%,var(--dm-yellow),transparent 70%);opacity:.55}
+  .pc{position:absolute;opacity:0;will-change:transform,opacity}
+  .p-marca{left:95px;top:20px;width:80px;height:22px;border-radius:var(--r-pill);background:var(--white);color:var(--dm-red);font:900 10px/22px 'Roboto';text-align:center;letter-spacing:.02em}
+  .p-t1{left:0;width:270px;top:50px;height:46px;text-align:center;font:900 44px/46px 'Roboto';color:var(--white);letter-spacing:-.02em}
+  .p-t2{left:62px;top:110px;width:40px;height:28px;font:900 24px/28px 'Roboto';color:var(--dm-red)}
+  .p-t3{left:104px;top:96px;width:110px;height:62px;font:900 64px/62px 'Roboto';color:var(--white);letter-spacing:-.03em}
+  .p-foto{left:45px;top:160px;width:180px;height:180px}
+  .p-placa{left:150px;top:318px;width:104px;height:54px;border-radius:12px;background:var(--white);box-shadow:0 4px 0 var(--dm-red)}
+  .p-preco{left:150px;top:318px;width:104px;height:54px;text-align:center;font:900 22px/54px 'Roboto';color:var(--dm-red)}
+  .p-preco small{font-size:11px;font-weight:700;margin-right:2px}
+  .p-selo{left:18px;top:296px;width:62px;height:62px;border-radius:50%;background:var(--dm-yellow);color:var(--dm-red);font:900 13px/62px 'Roboto';text-align:center;box-shadow:0 3px 0 var(--dm-red)}
+  .p-legal{left:0;width:270px;top:404px;height:12px;text-align:center;font:400 8px/12px 'Roboto';color:rgba(255,255,255,.85)}
+  .p-faixa{left:0;top:426px;width:270px;height:54px;background:var(--dm-red)}
+  .p-cta{left:0;top:426px;width:270px;height:54px;text-align:center;font:900 16px/54px 'Roboto';color:var(--white);letter-spacing:.06em}
+  .tela-vazia{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:rgba(255,255,255,.75);transition:opacity var(--dur-base) var(--ease-standard);pointer-events:none}
+
+  /* seleção (mesma linguagem do making-of do Ateliê) */
+  .sel{position:absolute;border:1.5px solid var(--d-sel);border-radius:2px;opacity:0;pointer-events:none;transition:opacity var(--dur-micro) var(--ease-standard)}
+  .sel.on{opacity:1}
+  .sel i{position:absolute;width:6px;height:6px;background:var(--white);border:1.5px solid var(--d-sel)}
+  .sel i:nth-child(1){left:-4px;top:-4px}.sel i:nth-child(2){right:-4px;top:-4px}.sel i:nth-child(3){left:-4px;bottom:-4px}.sel i:nth-child(4){right:-4px;bottom:-4px}
+  .sel b{position:absolute;left:-1.5px;bottom:100%;margin-bottom:4px;padding:1px 6px;border-radius:3px;background:var(--d-sel);color:var(--white);font:600 10px/1.4 'Roboto';white-space:nowrap}
+  .sel.cima b{bottom:auto;top:100%;margin:4px 0 0}
+  .fant{position:absolute;left:0;top:0;z-index:4;pointer-events:none;opacity:0;filter:drop-shadow(0 8px 14px rgba(0,0,0,.45))}
+  .fant > *{position:absolute!important;left:0!important;top:0!important;opacity:1!important;transform-origin:0 0!important}
+
+  .insp{border-left:1px solid var(--ed-linha);padding-bottom:12px}
+  .insp-alvo{margin:0 14px 10px;padding:8px 10px;border-radius:8px;background:var(--ed-2);font-size:12px;min-height:34px;display:flex;align-items:center;gap:6px;color:var(--ed-txt-3)}
+  .insp-alvo b{color:var(--ed-txt);font-weight:600}
+  .chips{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 14px}
+  .chip{border-radius:8px;background:var(--ed-2);font-size:11px;line-height:1.25;padding:7px 8px;color:var(--ed-txt-3);box-shadow:inset 0 0 0 1px transparent;transition:background var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard)}
+  .chip.on{background:var(--d-sel-fill);color:var(--ed-txt);box-shadow:inset 0 0 0 1.5px var(--d-sel)}
+  .curva{margin:12px 14px 0;border-radius:8px;background:var(--ed-2);padding:8px 10px}
+  .curva-cab{display:flex;justify-content:space-between;font-size:11px;color:var(--ed-txt-3);margin-bottom:4px}
+  .curva svg{display:block;width:100%;height:64px}
+  .curva path{fill:none;stroke:var(--dm-orange);stroke-width:2;stroke-linecap:round}
+  .curva .grade{stroke:var(--ed-linha);stroke-width:1}
+  .tempos{display:flex;gap:6px;margin:8px 14px 0}
+  .tempos div{flex:1;border-radius:8px;background:var(--ed-2);padding:6px 8px;font-size:10px;color:var(--ed-txt-3)}
+  .tempos b{display:block;font:500 13px ui-monospace,Consolas,monospace;color:var(--ed-txt);margin-top:2px}
+
+  .est-tl{grid-column:1/-1;border-top:1px solid var(--ed-linha);padding:10px 0 8px}
+  .tl-cab{display:flex;align-items:center;gap:8px;padding:0 16px 8px;font-size:12px;color:var(--ed-txt-3)}
+  .tl-cab b{color:var(--ed-txt);font-weight:600}
+  .tl-render{margin-left:auto;display:flex;align-items:center;gap:6px}
+  .tl-render i{width:10px;height:3px;border-radius:2px;background:var(--green)}
+  .tl{position:relative;display:grid;grid-template-columns:168px 1fr}
+  .tl-nomes{border-right:1px solid var(--ed-linha)}
+  .tl-regua,.tl-nome{height:22px;display:flex;align-items:center}
+  .tl-nome{padding:0 12px 0 16px;font-size:11.5px;gap:8px;color:var(--ed-txt-3);white-space:nowrap;overflow:hidden;opacity:.4;transition:opacity var(--dur-base) var(--ease-standard),color var(--dur-fast) var(--ease-standard)}
+  .tl-nome.on{opacity:1}.tl-nome.foco{color:var(--ed-txt)}
+  .tl-nome i{width:7px;height:7px;border-radius:2px;background:currentColor;opacity:.6;flex:none}
+  .tl-area{position:relative;margin-right:16px}
+  .tl-regua{position:relative;border-bottom:1px solid var(--ed-linha);font:500 10px ui-monospace,Consolas,monospace;color:var(--ed-txt-3)}
+  .tl-regua span{position:absolute;top:4px;translate:-50% 0}
+  .tl-cache{position:absolute;left:0;top:19px;height:3px;width:0;background:var(--green);border-radius:2px}
+  .tl-parado{position:absolute;top:22px;bottom:0;right:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.035) 0 6px,transparent 6px 12px);display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;font-size:10.5px;color:var(--ed-txt-3)}
+  .tl-faixa{position:relative;height:22px}
+  .tl-bar{position:absolute;top:5px;height:12px;border-radius:4px;background:var(--d-sel);opacity:0;transform-origin:0 50%;transform:scaleX(0);transition:opacity var(--dur-fast) var(--ease-standard),transform var(--dur-base) var(--ease-out)}
+  .tl-bar.on{opacity:1;transform:none}
+  .tl-bar.carona{background:transparent;box-shadow:inset 0 0 0 1.5px var(--d-sel)}
+  .tl-bar::before,.tl-bar::after{content:"";position:absolute;top:50%;width:7px;height:7px;background:var(--white);rotate:45deg;translate:-50% -50%}
+  .tl-bar::before{left:0}.tl-bar::after{left:100%}
+  .tl-ph{position:absolute;top:0;bottom:0;left:0;width:0;pointer-events:none}
+  .tl-ph::before{content:"";position:absolute;top:0;bottom:0;left:0;width:1.5px;background:var(--dm-orange);translate:-50% 0}
+  .tl-ph::after{content:"";position:absolute;top:1px;left:0;width:11px;height:12px;background:var(--dm-orange);translate:-50% 0;clip-path:polygon(0 0,100% 0,100% 62%,50% 100%,0 62%)}
+
+  .est-pe{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:10px 16px;border-top:1px solid var(--ed-linha);font-size:12px;color:var(--ed-txt-3)}
+  .est-pe svg{flex:none}
+  .est-prog{flex:1;max-width:220px;height:4px;border-radius:2px;background:var(--ed-2);overflow:hidden}
+  .est-prog i{display:block;height:100%;width:0;background:var(--green)}
+  .est-acoes{margin-left:auto;display:flex;gap:8px}
+  .est-acoes button{border:0;border-radius:var(--r-pill);font:700 13px 'Roboto';padding:9px 18px;cursor:pointer;opacity:0;pointer-events:none;transition:opacity var(--dur-base) var(--ease-out)}
+  .est-acoes.on button{opacity:1;pointer-events:auto}
+  .b-pri{background:var(--dm-orange);color:var(--white)}
+  .b-sec{background:var(--ed-2);color:var(--ed-txt)}
+
+  .cur{position:absolute;left:0;top:0;z-index:6;pointer-events:none;will-change:transform;transition:opacity var(--dur-base) var(--ease-standard)}
+  .cur svg{display:block;transform-origin:2px 2px;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.5));transition:scale var(--dur-micro) var(--ease-standard)}
+  .cur.aperta svg{scale:.82}
+  .cur span{position:absolute;left:15px;top:17px;padding:2px 8px;border-radius:var(--r-pill);background:var(--d-sel);color:var(--white);font:600 10px/1.5 'Roboto';white-space:nowrap}
+
+  .legenda{max-width:1120px;margin:18px auto 0;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .legenda div{background:var(--white);border-radius:12px;padding:14px;font-size:12.5px;line-height:1.55;color:var(--text-2);box-shadow:0 1px 0 var(--gray-mid)}
+  .legenda b{display:block;color:var(--text);font-size:13px;margin-bottom:4px}
+
+  @media (max-width:860px){
+    .est{grid-template-columns:1fr 150px}
+    .bib{grid-column:1/-1;border-right:0;border-bottom:1px solid var(--ed-linha);overflow:hidden;padding:0 0 8px}
+    #bib{display:flex;flex-wrap:nowrap;overflow:hidden;position:relative;scroll-behavior:smooth}
+    .insp{min-width:0;overflow:hidden}
+    .est-topo{gap:8px;padding:10px 12px}.est-fase{font-size:12.5px}.est-exp{display:none}
+    .bib .pn-tit{display:none}
+    .bib-it{flex-direction:column;gap:3px;padding:8px 4px 0;font-size:9.5px;width:58px;flex:none;text-align:center;white-space:nowrap;overflow:hidden}
+    .bib-it span{max-width:54px;overflow:hidden;text-overflow:ellipsis}
+    .bib-it .ok{display:none}
+    .est-prev{padding:12px}
+    .tela{width:180px;height:320px}
+    .insp .pn-tit{padding:12px 10px 6px}
+    .insp-alvo{margin:0 10px 8px;font-size:11px}
+    .chips{grid-template-columns:1fr;padding:0 10px;gap:4px}
+    .chip{padding:5px 7px;font-size:10.5px}
+    .curva,.tempos{margin-left:10px;margin-right:10px}
+    .tempos{flex-direction:column}
+    .tl{grid-template-columns:92px 1fr}
+    .tl-nome{padding-left:10px;font-size:10.5px}
+    .tl-area{margin-right:10px}
+    .est-sub,.tl-cab span.info{display:none}
+    .est-pe{flex-wrap:wrap}
+    .est-acoes{width:100%}.est-acoes button{flex:1}
+    .legenda{grid-template-columns:1fr}
+    .hoje{height:560px}
+  }
+</style>
+</head>
+<body>
+<div class="head">
+  <h1>Story animado v2 — um motion designer anima a arte enquanto o vídeo carrega</h1>
+  <p class="sub">Hoje, quem baixa o vídeo encara um aviso de "não saia" e um percentual. Na proposta, a espera vira o
+    <b>estúdio de motion</b>, e o designer trabalha ao vivo. Ele <b>coloca cada peça</b> da arte na tela, <b>escolhe o movimento</b> e a curva,
+    marca a barra na timeline e <b>testa a animação</b>. O ritmo dele segue a <b>barra verde</b>, que é o render de verdade: anda mais rápido num PC
+    rápido e com calma num celular lento, e termina junto com o vídeo.</p>
+  <div class="barra">
+    <div class="seg" role="group" aria-label="Comparar">
+      <button type="button" id="b-hoje" aria-pressed="false">Hoje</button>
+      <button type="button" id="b-prop" aria-pressed="true">Proposta</button>
+    </div>
+    <div class="seg" role="group" aria-label="Simular aparelho">
+      <button type="button" id="b-pc" aria-pressed="true">PC rápido</button>
+      <button type="button" id="b-cel" aria-pressed="false">Celular lento</button>
+    </div>
+    <button type="button" class="btn-sec" id="b-rec">Recomeçar</button>
+    <small>Simulação: o render dura <span id="dur-sim">14</span> s neste aparelho</small>
+  </div>
+</div>
+
+<div class="palco">
+  <div class="hoje" id="v-hoje" hidden>
+    <div class="hoje-card"><div class="mini"></div><button class="art-btn" id="hoje-btn">Gerando vídeo… 0%</button></div>
+    <div class="hoje-veu"><div class="hoje-modal"><h3>Gerando seu vídeo</h3>
+      <p>O vídeo está sendo gerado. Não feche nem saia desta janela, e mantenha esta aba aberta na frente até terminar — senão o vídeo se perde.</p></div></div>
+    <div class="hoje-nota">A pessoa fica olhando para este texto e só vê o vídeo depois de baixado.</div>
+  </div>
+
+  <div class="est" id="v-prop">
+    <div class="est-topo">
+      <span class="est-ponto" aria-hidden="true"></span>
+      <div><div class="est-fase" id="fase">Abrindo o estúdio</div><div class="est-sub" id="fase-sub"></div></div>
+      <div class="est-dir"><span class="est-exp" id="exp">Exportar MP4</span><span class="est-tc" id="tc">00:00:00</span></div>
+    </div>
+
+    <div class="bib"><div class="pn-tit">Peças da sua arte</div><div id="bib"></div></div>
+
+    <div class="est-prev"><div class="tela" id="tela">
+      <div class="arte" id="arte">
+        <div class="pc p-marca" data-u="marca">DELIVERY MUCH</div>
+        <div class="pc p-t1" data-u="t1">FESTIVAL</div>
+        <div class="pc p-t2" data-u="t2">DO</div>
+        <div class="pc p-t3" data-u="t3">XIS</div>
+        <div class="pc p-foto" data-u="foto"><svg viewBox="0 0 180 180" width="180" height="180" aria-hidden="true">
+          <ellipse cx="90" cy="150" rx="70" ry="10" fill="rgba(0,0,0,.18)"/>
+          <path d="M24 92c0-36 30-58 66-58s66 22 66 58z" fill="#E8A64A"/>
+          <circle cx="62" cy="62" r="3" fill="#FFF3D6"/><circle cx="92" cy="52" r="3" fill="#FFF3D6"/><circle cx="118" cy="66" r="3" fill="#FFF3D6"/>
+          <path d="M18 98h144l-8 12H26z" fill="#4CAF50"/>
+          <rect x="20" y="106" width="140" height="18" rx="9" fill="#7A3B1E"/>
+          <path d="M22 122h136l-10 10H32z" fill="#FFC928"/>
+          <path d="M26 130h128c0 14-12 20-22 20H48c-10 0-22-6-22-20z" fill="#E8A64A"/></svg></div>
+        <div class="pc p-placa" data-u="placa"></div>
+        <div class="pc p-preco" data-u="preco"><small>R$</small>29,90</div>
+        <div class="pc p-selo" data-u="selo">NOVO</div>
+        <div class="pc p-legal" data-u="legal">Válido até 30/11 ou enquanto durar o estoque. Imagem ilustrativa.</div>
+        <div class="pc p-faixa" data-u="faixa"></div>
+        <div class="pc p-cta" data-u="cta">PEÇA NO APP</div>
+        <div class="tela-vazia" id="vazia">Story 1080 × 1920</div>
+      </div>
+      <div class="sel" id="sel"><i></i><i></i><i></i><i></i><b id="sel-nome"></b></div>
+    </div></div>
+
+    <div class="insp">
+      <div class="pn-tit">Movimento</div>
+      <div class="insp-alvo" id="alvo">Nenhuma peça selecionada</div>
+      <div class="chips" id="chips"></div>
+      <div class="curva"><div class="curva-cab"><span>Curva</span><span id="curva-nome">—</span></div>
+        <svg viewBox="0 0 100 64" preserveAspectRatio="none" aria-hidden="true"><path class="grade" d="M0 56H100M0 12H100"/><path id="curva" d=""/></svg></div>
+      <div class="tempos"><div>Início<b id="t-ini">—</b></div><div>Duração<b id="t-dur">—</b></div></div>
+    </div>
+
+    <div class="est-tl">
+      <div class="tl-cab"><b>Timeline</b><span class="info">· Story 1080×1920 · 60 fps · 8 s</span>
+        <span class="tl-render"><i></i><span id="tl-render">render 0%</span></span></div>
+      <div class="tl">
+        <div class="tl-nomes" id="nomes"><div class="tl-regua"></div></div>
+        <div class="tl-area" id="area">
+          <div class="tl-regua" id="regua"><div class="tl-cache" id="cache"></div></div>
+          <div class="tl-parado" id="parado"><span>a oferta parada para ler</span></div>
+          <div id="faixas"></div>
+          <div class="tl-ph" id="ph"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="est-pe">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      <span id="pe-txt">Mantenha esta aba na frente até terminar</span>
+      <div class="est-prog"><i id="prog"></i></div>
+      <div class="est-acoes" id="acoes"><button class="b-sec" id="b-ver">Ver de novo</button><button class="b-pri">Baixar vídeo</button></div>
+    </div>
+
+    <div class="fant" id="fant"></div>
+    <div class="cur" id="cur"><svg width="18" height="20" viewBox="0 0 18 20" aria-hidden="true"><path d="M2 2v14l4-3.6 2.7 6 2.5-1.1-2.7-6H15z" fill="#fff" stroke="#111" stroke-width="1.3" stroke-linejoin="round"/></svg><span id="cur-et">Motion · Luma</span></div>
+  </div>
+</div>
+
+<div class="legenda">
+  <div><b>1 · Coloca a peça</b>Pega a peça em "Peças da sua arte" e arrasta para o lugar dela na tela. São as camadas reais da arte, com os nomes que o plano dá a elas.</div>
+  <div><b>2 · Escolhe o movimento</b>No painel Movimento, clica no efeito que o <code>_fMotionPlano</code> decidiu para aquela peça, e a curva e os tempos aparecem. A barra entra na timeline no tempo real.</div>
+  <div><b>3 · Testa</b>Toca a animação só daquela peça, com o playhead correndo sobre a barra. A placa leva o preço junto; a faixa leva a chamada.</div>
+  <div><b>Ao vivo</b>O ritmo segue a barra verde, que é o render de verdade. Se o render andar mais rápido, o designer acelera. Se ele acabar antes, fica revisando o vídeo até a gravação terminar.</div>
+</div>
+
+<script>
+/* ── A ARTE: mesmas curvas e offsets de js/franqueado/motion.js ─────────── */
+const W = 270, H = 480, SEG = 8, FPS = 60;
+const suave = x => 1 - Math.pow(1 - x, 4);
+const prog = (t, ini, dur) => Math.max(0, Math.min(1, (t - ini) / dur));
+const assenta = x => { const c1 = .9, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+
+// O plano como o _fMotionPlano sairia para esta arte (ini/dur em segundos) + o nome do efeito
+const PLANO = [
+  { id: 'marca', nome: 'Marca',            tipo: 'marca',   ini: .15, dur: .5,  efeito: 'Aparecer',           de: { dx: 0, dy: 0, s: 1, g: 0 } },
+  { id: 't1',    nome: 'Título · FESTIVAL', tipo: 'titulo', ini: .35, dur: .55, efeito: 'Crescer e endireitar', de: { dx: 0, dy: 0, s: .82, g: -3 } },
+  { id: 't2',    nome: 'Título · DO',       tipo: 'titulo', ini: .53, dur: .55, efeito: 'Crescer e endireitar', de: { dx: 0, dy: 0, s: .82, g: -3 } },
+  { id: 't3',    nome: 'Título · XIS',      tipo: 'titulo', ini: .71, dur: .55, efeito: 'Crescer e endireitar', de: { dx: 0, dy: 0, s: .82, g: -3 } },
+  { id: 'foto',  nome: 'Foto do produto',   tipo: 'foto',   ini: .89, dur: .6,  efeito: 'Subir e assentar',   de: { dx: 0, dy: H * .02, s: 1.03, g: 0 } },
+  { id: 'placa', nome: 'Placa do preço',    tipo: 'forma',  ini: 1.07, dur: .45, efeito: 'Chegar',            de: { dx: 0, dy: H * .02, s: .92, g: 0 } },
+  { id: 'preco', nome: 'Preço',             tipo: 'forma',  ini: 1.13, dur: .45, efeito: 'Junto do contêiner', carona: 'placa' },
+  { id: 'selo',  nome: 'Selo',              tipo: 'adesivo', ini: 1.27, dur: .5, efeito: 'Pop com giro',      de: { dx: 0, dy: 0, s: .4, g: -12 } },
+  { id: 'faixa', nome: 'Faixa',             tipo: 'faixa',  ini: 1.47, dur: .55, efeito: 'Entrar pela borda', de: { dx: 0, dy: 480 - 426 + 12, s: 1, g: 0 } },
+  { id: 'cta',   nome: 'Chamada',           tipo: 'faixa',  ini: 1.53, dur: .55, efeito: 'Junto do contêiner', carona: 'faixa' },
+  { id: 'legal', nome: 'Texto legal',       tipo: 'legal',  ini: 1.78, dur: .5,  efeito: 'Aparecer',          de: { dx: 0, dy: 0, s: 1, g: 0 } }
+];
+const EFEITOS = ['Aparecer', 'Crescer e endireitar', 'Subir e assentar', 'Chegar', 'Do lado onde mora', 'Pop com giro', 'Entrar pela borda', 'Junto do contêiner'];
+const porId = Object.fromEntries(PLANO.map(u => [u.id, u]));
+const movDe = u => u.carona ? porId[u.carona] : u;
+const T_ASSENTA = Math.max(...PLANO.map(u => u.ini + movDe(u).dur));
+
+const el = id => document.getElementById(id);
+const pecas = {};
+document.querySelectorAll('[data-u]').forEach(n => { pecas[n.dataset.u] = n; });
+PLANO.forEach(u => {   // origem = centro de quem move (carona gira em volta do contêiner)
+  const n = pecas[u.id], mov = pecas[movDe(u).id];
+  n.style.transformOrigin = (mov.offsetLeft + mov.offsetWidth / 2 - n.offsetLeft) + 'px ' + (mov.offsetTop + mov.offsetHeight / 2 - n.offsetTop) + 'px';
+});
+
+// Desenha uma peça no instante t da timeline (t = Infinity → assentada)
+function aplica(u, t){
+  const n = pecas[u.id], mov = movDe(u);
+  const p = prog(t, u.ini, mov.dur);
+  const e = mov.tipo === 'adesivo' ? assenta(p) : suave(p);
+  const a = mov.tipo === 'faixa' ? (p > 0 ? 1 : 0) : suave(Math.min(1, p / .7));
+  const de = mov.de;
+  n.style.opacity = a;
+  n.style.transform = `translate(${(1 - e) * de.dx}px,${(1 - e) * de.dy}px) rotate(${(1 - e) * de.g}deg) scale(${de.s + (1 - de.s) * e})`;
+}
+const esconde = u => { pecas[u.id].style.opacity = 0; };
+const quadro = t => PLANO.forEach(u => aplica(u, t));
+
+/* ── PAINÉIS ────────────────────────────────────────────────────────── */
+const ICONE = {
+  marca: '<path d="M4 12h16M12 4v16" stroke="currentColor" stroke-width="2"/>',
+  titulo: '<path d="M5 7V5h14v2M12 5v14M9 19h6" fill="none" stroke="currentColor" stroke-width="2"/>',
+  foto: '<rect x="3" y="5" width="18" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="10" r="1.6" fill="currentColor"/>',
+  forma: '<rect x="4" y="6" width="16" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>',
+  adesivo: '<circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/>',
+  faixa: '<rect x="3" y="14" width="18" height="6" rx="1.5" fill="currentColor"/>',
+  legal: '<path d="M5 9h14M5 13h14M5 17h9" stroke="currentColor" stroke-width="2"/>'
+};
+const bibIt = {}, rotulos = {}, barras = {};
+PLANO.forEach(u => {
+  const ic = u.carona ? (u.id === 'preco' ? ICONE.titulo : ICONE.titulo) : ICONE[u.tipo] || ICONE.forma;
+  const b = document.createElement('div'); b.className = 'bib-it';
+  b.innerHTML = `<span class="bib-th"><svg viewBox="0 0 24 24">${ic}</svg></span><span></span><svg class="ok" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>`;
+  b.children[1].textContent = u.nome; el('bib').appendChild(b); bibIt[u.id] = b;
+  const r = document.createElement('div'); r.className = 'tl-nome'; r.innerHTML = '<i></i>'; r.append(u.nome); el('nomes').appendChild(r); rotulos[u.id] = r;
+  const f = document.createElement('div'); f.className = 'tl-faixa';
+  const bar = document.createElement('div'); bar.className = 'tl-bar' + (u.carona ? ' carona' : '');
+  bar.style.left = (u.ini / SEG * 100) + '%'; bar.style.width = (movDe(u).dur / SEG * 100) + '%';
+  f.appendChild(bar); el('faixas').appendChild(f); barras[u.id] = bar;
+});
+const chips = {};
+EFEITOS.forEach(n => { const c = document.createElement('div'); c.className = 'chip'; c.textContent = n; el('chips').appendChild(c); chips[n] = c; });
+for(let s = 0; s <= SEG; s++){ const m = document.createElement('span'); m.style.left = (s / SEG * 100) + '%'; m.textContent = s + 's'; el('regua').appendChild(m); }
+el('parado').style.left = (T_ASSENTA / SEG * 100) + '%';
+
+const tc = t => { const s = Math.floor(t), f = Math.floor((t - s) * FPS); return '00:' + String(s).padStart(2, '0') + ':' + String(f).padStart(2, '0'); };
+const playhead = t => { el('ph').style.left = (Math.min(t, SEG) / SEG * 100) + '%'; el('tc').textContent = tc(Math.min(t, SEG)); };
+const virgula = v => v.toFixed(2).replace('.', ',') + ' s';
+function curva(u){
+  const mov = movDe(u), f = mov.tipo === 'adesivo' ? assenta : suave, pts = [];
+  for(let i = 0; i <= 40; i++){ const x = i / 40; pts.push((x * 100).toFixed(1) + ' ' + (56 - f(x) * 44).toFixed(1)); }
+  const p = el('curva'); p.setAttribute('d', 'M' + pts.join('L'));
+  const L = p.getTotalLength(); p.style.transition = 'none'; p.style.strokeDasharray = L; p.style.strokeDashoffset = L;
+  p.getBoundingClientRect(); p.style.transition = 'stroke-dashoffset var(--dur-slow) var(--ease-out)'; p.style.strokeDashoffset = 0;
+  el('curva-nome').textContent = mov.tipo === 'adesivo' ? 'Assenta (passa e volta)' : 'Suave (pousa devagar)';
+  el('t-ini').textContent = virgula(u.ini); el('t-dur').textContent = virgula(mov.dur);
+}
+
+/* ── SELEÇÃO, FANTASMA, CURSOR ──────────────────────────────────────── */
+const est = el('v-prop'), cur = el('cur'), fant = el('fant'), sel = el('sel');
+const k = () => el('tela').clientWidth / W;
+function rel(n, fx, fy){ const a = n.getBoundingClientRect(), b = est.getBoundingClientRect(); return [a.left - b.left + a.width * fx, a.top - b.top + a.height * fy]; }
+function centroNaTela(u){ const n = pecas[u.id], t = el('tela').getBoundingClientRect(), b = est.getBoundingClientRect(), s = k();
+  return [t.left - b.left + (n.offsetLeft + n.offsetWidth / 2) * s, t.top - b.top + (n.offsetTop + n.offsetHeight / 2) * s]; }
+function seleciona(u){
+  if(!u){ sel.classList.remove('on'); return; }
+  const n = pecas[u.id], s = k();
+  Object.assign(sel.style, { left: (n.offsetLeft * s - 2) + 'px', top: (n.offsetTop * s - 2) + 'px', width: (n.offsetWidth * s + 4) + 'px', height: (n.offsetHeight * s + 4) + 'px' });
+  sel.classList.toggle('cima', n.offsetTop < 30);
+  el('sel-nome').textContent = u.nome; sel.classList.add('on');
+}
+function montaFantasma(u){
+  const n = pecas[u.id], g = n.cloneNode(true), s = k();
+  g.removeAttribute('data-u'); g.style.transform = `scale(${s})`;
+  fant.innerHTML = ''; fant.appendChild(g);
+  fant.style.width = n.offsetWidth * s + 'px'; fant.style.height = n.offsetHeight * s + 'px';
+}
+let cx = 60, cy = 60;
+const sine = u => (1 - Math.cos(Math.PI * u)) / 2;
+function poe(x, y){ cx = x; cy = y; cur.style.transform = `translate(${x}px,${y}px)`; }
+function vai(x0, y0, x1, y1, u){ const q = sine(u), mx = (x0 + x1) / 2 + (y1 - y0) * .12, my = (y0 + y1) / 2 - Math.abs(x1 - x0) * .1, v = 1 - q;
+  poe(v * v * x0 + 2 * v * q * mx + q * q * x1, v * v * y0 + 2 * v * q * my + q * q * y1); }
+const fase = (a, b) => { el('fase').textContent = a; el('fase-sub').textContent = b || ''; };
+
+/* ── O RENDER (simulado com o perfil real: quadros em movimento custam, parados não) ── */
+let RENDER_S = 14;
+const QUADROS = SEG * FPS, Q_MOV = Math.ceil(T_ASSENTA * FPS);
+function quadrosEm(seg){   // 75% do tempo vai nos quadros que se mexem
+  const f = seg / RENDER_S;
+  return f <= .75 ? Math.round(f / .75 * Q_MOV) : Math.min(QUADROS, Math.round(Q_MOV + (f - .75) / .25 * (QUADROS - Q_MOV)));
+}
+
+/* ── O DIRETOR: roteiro em segundos-de-roteiro; o relógio persegue o render ── */
+let passos, iP, elP, sRot, realS, rodando = false, gen = 0, L = 0, previas = [];
+const passo = (dur, fn, ini, ate) => passos.push({ dur, fn, ini, ate });
+
+function roteiro(){
+  passos = [];
+  passo(.5, q => vai(60, 40, ...rel(bibIt.marca, .5, .5), q), () => {
+    fase('Abrindo o estúdio', 'Lendo as peças da sua arte');
+    PLANO.forEach(u => { esconde(u); bibIt[u.id].className = 'bib-it'; rotulos[u.id].className = 'tl-nome'; barras[u.id].classList.remove('on'); });
+    Object.values(chips).forEach(c => c.classList.remove('on')); seleciona(null);
+    el('alvo').textContent = 'Nenhuma peça selecionada'; el('curva').setAttribute('d', ''); el('curva-nome').textContent = '—'; el('t-ini').textContent = el('t-dur').textContent = '—';
+    el('vazia').style.opacity = 1; el('acoes').classList.remove('on'); el('exp').classList.remove('on');
+    cur.style.opacity = 1; el('cur-et').textContent = 'Motion · Luma'; playhead(0); poe(60, 40);
+  });
+  PLANO.forEach((u, i) => {
+    const n = i + 1, tot = PLANO.length, cab = `Peça ${n} de ${tot} · ${u.nome}`;
+    const grupo = u.carona ? [porId[u.carona], ...PLANO.filter(o => o.carona === u.carona)] : [u, ...PLANO.filter(o => o.carona === u.id && false)];
+    let a, b;
+    // 1 · pega na biblioteca e arrasta até o lugar
+    passo(.38, q => vai(a[0], a[1], b[0], b[1], q), () => { fase(cab, 'Colocando na arte'); bibIt[u.id].classList.add('alvo');
+      const sb = el('bib'); sb.scrollLeft = bibIt[u.id].offsetLeft - sb.clientWidth / 2;   /* celular: a faixa de peças acompanha */ seleciona(null); a = [cx, cy]; b = rel(bibIt[u.id], .3, .5); });
+    passo(.12, () => {}, () => { cur.classList.add('aperta'); montaFantasma(u); fant.style.opacity = .9; fant.style.transform = `translate(${cx - fant.offsetWidth / 2}px,${cy - fant.offsetHeight / 2}px) scale(.6)`; });
+    passo(.6, q => { vai(a[0], a[1], b[0], b[1], q); const s = .6 + .4 * sine(q); fant.style.transform = `translate(${cx - fant.offsetWidth / 2}px,${cy - fant.offsetHeight / 2}px) scale(${s})`; },
+      () => { a = [cx, cy]; b = centroNaTela(u); el('vazia').style.opacity = 0; });
+    passo(.14, () => {}, () => { cur.classList.remove('aperta'); fant.style.opacity = 0; aplica(u, Infinity); seleciona(u);
+      bibIt[u.id].classList.remove('alvo'); bibIt[u.id].classList.add('usada'); rotulos[u.id].classList.add('on', 'foco'); el('alvo').innerHTML = 'Selecionada: <b></b>'; el('alvo').lastChild.textContent = u.nome; });
+    // 2 · escolhe o movimento no painel
+    passo(.4, q => vai(a[0], a[1], b[0], b[1], q), () => { fase(cab, 'Escolhendo o movimento'); a = [cx, cy]; b = rel(chips[u.efeito], .5, .55); });
+    passo(.16, () => {}, () => { cur.classList.add('aperta'); Object.values(chips).forEach(c => c.classList.remove('on')); chips[u.efeito].classList.add('on'); curva(u); });
+    // 3 · testa: só este grupo anima, com o playhead sobre a barra — e o cursor já vai para a
+    // próxima peça enquanto isso (designer de verdade não fica parado olhando)
+    const g = u.carona ? [porId[u.carona], ...PLANO.filter(o => o.carona === u.carona && PLANO.indexOf(o) <= i)] : [u];
+    passo(.1, () => {}, () => { cur.classList.remove('aperta'); barras[u.id].classList.add('on'); seleciona(null);
+      el('fase-sub').textContent = 'Testando a animação';
+      previas.push({ g, t0: g[0].ini, t1: Math.max(...g.map(o => o.ini + movDe(o).dur)) + .1, s0: sRot, fim: () => rotulos[u.id].classList.remove('foco') }); });
+  });
+  L = passos.reduce((s, p) => s + p.dur, 0);
+  // Revisa o vídeo inteiro em loop até o render acabar (só se o designer terminou antes)
+  passo(0, el => { const t = el % (T_ASSENTA + 1.2); quadro(t); playhead(t); }, () => { fase('Revisando o vídeo', 'Esperando o render terminar'); el('cur-et').textContent = 'revisando…'; seleciona(null); }, () => realP() >= 1);
+  // Exporta
+  let a, b;
+  passo(.45, q => vai(a[0], a[1], b[0], b[1], q), () => { quadro(SEG); fase('Exportando', 'Gravando o MP4'); el('cur-et').textContent = 'Motion · Luma'; a = [cx, cy]; b = rel(el('exp'), .5, .55); });
+  passo(.18, () => {}, () => { cur.classList.add('aperta'); el('exp').classList.add('on'); });
+  passo(.7, q => playhead(q * SEG), () => { cur.classList.remove('aperta'); el('pe-txt').textContent = 'Juntando os quadros num arquivo…'; });
+  passo(.01, () => {}, () => { fase('Seu vídeo está pronto', 'Confira antes de baixar'); cur.style.opacity = 0; el('exp').classList.remove('on');
+    el('pe-txt').textContent = 'Story · 8 s · MP4 · 1080×1920'; el('acoes').classList.add('on'); tocaLoop(); });
+}
+const realP = () => quadrosEm(realS) / QUADROS;
+
+let loopGen = 0;
+function tocaLoop(){ const meu = ++loopGen, ini = performance.now();
+  const f = () => { if(meu !== loopGen) return; const t = ((performance.now() - ini) / 1000) % SEG; quadro(t); playhead(t); requestAnimationFrame(f); }; f(); }
+
+let ultimo = 0;
+function tick(agora){
+  if(!rodando) return;
+  const dt = Math.min(.05, (agora - ultimo) / 1000); ultimo = agora;
+  realS = Math.min(RENDER_S, realS + dt);
+  const p = realP(), q = quadrosEm(realS);
+  el('cache').style.width = (p * 100) + '%'; el('prog').style.width = (p * 100) + '%';
+  el('tl-render').textContent = 'render ' + Math.round(p * 100) + '%';
+  if(iP < passos.length - 4 || (passos[iP] && passos[iP].ate)) el('pe-txt').textContent = p < 1 ? `Gravando quadro ${q} de ${QUADROS} · mantenha esta aba na frente` : 'Render pronto';
+  /* O roteiro persegue o TEMPO estimado do render, não a contagem de quadros: os quadros
+     parados (depois de a arte assentar) voam, e seguir a contagem deixaria o designer para trás
+     no fim. Na real, a estimativa sai do custo medido de um quadro em movimento e de um parado.
+     `escala` é o ritmo base; `err` corrige no caminho — atrasado acelera, adiantado desacelera. */
+  const fracT = realS / RENDER_S;
+  const escala = L / (RENDER_S * .85), err = fracT * L / .85 * .85 - sRot;
+  const vel = Math.max(.5, Math.min(2.6, (p >= 1 ? Math.max(escala, 1.6) : escala) * (1 + err * .25)));
+  // Prévias em andamento correm no relógio do roteiro (aceleram junto com ele)
+  previas = previas.filter(v => { const t = v.t0 + (sRot - v.s0); v.g.forEach(o => aplica(o, t)); if(passos[iP] && !passos[iP].ate) playhead(Math.min(t, v.t1)); if(t < v.t1) return true; v.fim(); return false; });
+  let pp = passos[iP];
+  if(!pp){ rodando = false; return; }
+  if(!pp._ok){ pp._ok = true; elP = 0; if(pp.ini) pp.ini(); }
+  if(pp.ate){
+    elP += dt; pp.fn(elP);
+    if(pp.ate()) iP++;
+  } else {
+    const adv = dt * vel; elP += adv; sRot += adv;
+    const kq = pp.dur > 0 ? Math.min(1, elP / pp.dur) : 1;
+    if(pp.fn) pp.fn(kq);
+    if(kq >= 1) iP++;
+  }
+  requestAnimationFrame(tick);
+}
+function comeca(){
+  gen++; loopGen++; roteiro(); passos.forEach(p => p._ok = false);
+  iP = 0; elP = 0; sRot = 0; realS = 0; previas = []; rodando = true; ultimo = performance.now(); requestAnimationFrame(tick);
+}
+
+/* ── HOJE ───────────────────────────────────────────────────────────── */
+let hojeT = null;
+function hoje(){ clearInterval(hojeT); let p = 0; const b = el('hoje-btn'); b.textContent = 'Gerando vídeo… 0%';
+  hojeT = setInterval(() => { p = Math.min(100, p + 1); b.textContent = p < 100 ? 'Gerando vídeo… ' + p + '%' : 'Vídeo baixado!'; if(p >= 100) clearInterval(hojeT); }, RENDER_S * 10); }
+
+function mostra(qual){
+  const ehHoje = qual === 'hoje';
+  el('v-hoje').hidden = !ehHoje; el('v-prop').hidden = ehHoje;
+  el('b-hoje').setAttribute('aria-pressed', ehHoje); el('b-prop').setAttribute('aria-pressed', !ehHoje);
+  if(ehHoje){ rodando = false; loopGen++; hoje(); } else { encaixa(); comeca(); }
+}
+function aparelho(seg, pc){ RENDER_S = seg; el('dur-sim').textContent = seg; el('b-pc').setAttribute('aria-pressed', pc); el('b-cel').setAttribute('aria-pressed', !pc); mostra(el('v-hoje').hidden ? 'prop' : 'hoje'); }
+el('b-hoje').onclick = () => mostra('hoje');
+el('b-prop').onclick = () => mostra('prop');
+el('b-rec').onclick = () => mostra(el('v-hoje').hidden ? 'prop' : 'hoje');
+el('b-pc').onclick = () => aparelho(14, true);
+el('b-cel').onclick = () => aparelho(40, false);
+el('b-ver').onclick = () => tocaLoop();
+function encaixa(){ el('arte').style.transform = `scale(${k()})`; }
+addEventListener('resize', encaixa); encaixa();
+comeca();
+</script>
+</body>
+</html>
