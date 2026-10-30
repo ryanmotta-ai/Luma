@@ -39,6 +39,7 @@ Três promessas que guiam toda decisão:
 | D10 | **RH** (pacote de artes, aniversário automático por e-mail) fica no roadmap, para depois. |
 | D11 | **Edição:** o editor manual não vira um mini-Canva. O investimento vai para a IA que modifica a arte sem estragar, pelo fluxo principal ou por um chat focado na arte. |
 | D12 | **n8n** pode ajudar nos fluxos. Ele entra onde o navegador sofre (§4.8), não como pré-requisito. |
+| D13 | **Inversão de papéis (30/10/2026): a IA escreve a arte**, como o Claude Design, guiada pelas nossas referências e por skills detalhadas de cada efeito. O motor deixa de ser quem cria e vira a trava (regras da marca, encaixe, editabilidade). Substitui a regra de ouro antiga do §4.1 e o R2. Ver §4.9. |
 
 ---
 
@@ -84,9 +85,11 @@ Franqueado ──► CONCIERGE (Gemini 3.8 Flash high)
    BIBLIOTECAS (Supabase, RLS): assets segmentados · referências por tipo · playbooks de campanha
 ```
 
-A regra de ouro: **a IA decide o quê e o código executa o como.** A IA nunca entrega SVG livre
-para o franqueado. Ela devolve uma direção de arte no nosso vocabulário, e o motor desenha com os
-assets e as regras. É isso que deixa a arte criativa sem sair da marca.
+A regra de ouro (**revista em 30/10/2026, D13**): **a IA cria, o código trava.** A IA escreve a
+arte inteira num contrato de SVG fechado, seguindo as skills de efeito e a régua; o motor saneia,
+confere as regras da marca, garante que os campos continuem editáveis e reprova o que sair da
+linha. Nada chega ao franqueado sem passar pela trava. (Até 30/10 a regra era "a IA aponta, o
+código desenha" — ela deu arte segura, mas com teto de template: ver §4.9.)
 
 ### 4.2 Concierge (a porta de entrada)
 
@@ -182,6 +185,53 @@ marca.
   ⚠️ **Limite técnico:** gerar PDF de impressão em CMYK confiável no navegador, em vanilla JS e
   sem dependência, não é viável. A fase B pede um serviço no servidor (Edge Function ou n8n com
   ferramenta de PDF). É uma decisão de arquitetura antes de começar (§7, Q4).
+
+### 4.9 A IA escreve a arte (D13, 30/10/2026)
+
+**Por quê.** Medido em 30/10: subir a nota geométrica do banner de 74,9 para 85,2 não aproximou a
+arte das peças reais — elas têm produto recortado saindo da pílula, título adesivo, tarja torta,
+textura de ondas e raios, e as receitas escritas à mão só ganham cada efeito quando alguém o
+programa. A qualidade do Claude Design vem de outro lugar: o modelo compõe livremente, **olha o
+próprio render**, compara com referência e corrige. É esse ciclo que o Ateliê passa a ter.
+
+**O ciclo de uma arte:**
+
+```
+pedido → spec (crLerPedido, já existe)
+  → CONTEXTO DO DESIGNER: skill do formato + skills dos efeitos + régua (imagens) + inventário
+    filtrado + contrato SVG
+  → a IA escreve 2 SVGs completos no contrato
+  → SANEADOR: só a gramática fechada; sem script, sem href externo, sem cor fora da paleta
+  → TRAVA DO MOTOR: crAvaliar (marca, colisão, margens, piso de corpo) + Local Fit nos campos
+       reprovou → volta à IA com os erros, 1 vez
+  → OLHAR: render em JPEG → juiz com a régua (crJulgar) → crítica concreta
+       abaixo do alvo → a IA revisa o SVG (até 2 rodadas)
+  → entrega a melhor. IA fora do ar ou 2 reprovações → a receita do motor (piso)
+```
+
+**O contrato SVG** (o que a IA pode escrever): `rect`, `circle`, `ellipse`, `line`, `polyline`,
+`path`, `image` (só `asset:`), `text`/`tspan`, `g` com `transform`, `clipPath` e os filtros de
+`crDefs` (`#sh`, `#shs`). Classes de texto do motor (`hero` = Realce, `media`, `body`, `forte`…).
+Cada grupo leva `data-bloco` (titulo, apoio, valor, preco, selo, foto, decor, logo…) — é o que a
+trava lê — e todo texto que o franqueado troca leva `data-campo`. Paleta fechada (`CR_C`).
+
+**Editabilidade.** A arte da IA continua sendo template: os campos são `data-campo`, e quando o
+franqueado troca o texto quem decide o encaixe é o Local Fit, não a IA. A IA desenha o caso do
+pedido e deixa folga para o texto crescer (a skill diz quanto).
+
+**As skills** (`assets/creative/skills/`, carregadas sob demanda — casa com a E1.2): uma por
+formato (o que a peça é, medidas, zonas, régua) e uma por efeito (quando usar, o SVG exato no
+contrato, medidas relativas ao corpo, o que é proibido, de qual peça da régua veio). Skill nova
+= efeito novo, sem mudar código. A primeira é `banner-app.md`.
+
+**Medição.** A bancada ganha a **nota do juiz contra a régua** (gosto), a taxa de aprovação de
+primeira, rodadas médias, tempo e custo por arte. A nota geométrica vira só o piso. Antes de
+virar padrão, um formato tem de **bater as receitas no juiz e nos votos do Ryan**.
+
+**Riscos.** (1) D6: o Flash tem menos gosto que um modelo de ponta — teste cego de 20 pedidos
+antes de investir pesado (E13.6). (2) Custo e tempo: 2 SVGs × até 3 rodadas, cada uma com
+imagens. (3) SVG quebrando a edição — por isso o contrato e a trava. (4) Segurança: o SVG vira
+arte pública; o saneador é obrigatório, não opcional.
 
 ### 4.8 Onde o n8n entra
 
@@ -283,6 +333,21 @@ Cada etapa é um ticket. "Pronto" = o critério escrito, verificado na bancada o
   direção, e nenhum elemento dela aparece na arte.
 - [ ] E3.4 Tela de curadoria de referências. Pronto: o Ryan sobe e etiqueta sem commit.
 
+### Fase 1.5 — A IA escreve a arte (D13, §4.9) · começa pelo banner do app
+
+**E13 · Designer que escreve SVG**
+- [ ] E13.1 Contrato SVG + saneador (gramática fechada, paleta, `asset:` só). Pronto: casos de SVG
+  malicioso e fora da paleta reprovados numa suíte que já existe.
+- [x] E13.2 Skills: `banner-app.md` com os efeitos da régua (adesivo, tarja, valor em bloco, foto
+  saindo da pílula, textura, % soltos, selo). Pronto: cada efeito com SVG exato e medidas.
+- [ ] E13.3 Caminho `arte.svg` no banner: prompt (skill + régua + contrato) → 2 SVGs → saneador →
+  trava → correção 1 vez → piso. Pronto: 24 pedidos da bancada saem sem erro de marca.
+- [ ] E13.4 Ciclo visual: render → juiz com a régua → revisão (até 2). Pronto: a nota do juiz sobe
+  entre a 1ª e a última rodada na média dos 24.
+- [ ] E13.5 Bancada de gosto: 24 pedidos fixos de banner, nota do juiz, comparação com as receitas.
+- [ ] E13.6 Teste de modelo: Flash × modelo mais forte no mesmo ciclo, votos cegos do Ryan.
+- [ ] E13.7 Estender para feed, story e inapp quando o banner bater as receitas no juiz e nos votos.
+
 ### Fase 2 — Criatividade e edição
 
 **E4 · Diretor de arte**
@@ -357,7 +422,7 @@ Cada etapa é um ticket. "Pronto" = o critério escrito, verificado na bancada o
 | # | Risco | O que fazer |
 |---|---|---|
 | R1 | **Flash high em toda mensagem** custa e demora: o concierge soma uma chamada a cada mensagem, além da geração. | Estado da sessão compacto (E1.1), cache das skills e medir o custo por arte na E0.2. A cota de 20 artes por dia não conta as mensagens do concierge; decidir se deve (Q2). |
-| R2 | **SVG livre de IA** sai fora da marca. | A regra de ouro (§4.1): a IA aponta, o código desenha. Não abrir exceção. |
+| R2 | **SVG da IA** sai fora da marca ou quebra a edição. | Contrato fechado + saneador + trava do motor (§4.9). Reprovou duas vezes: entrega a receita (piso). |
 | R3 | **Assets sem segmentação** geram arte feia. | Filtro por código antes da IA (E2.3). Asset sem etiqueta completa não entra. |
 | R4 | **Gosto não se mede sozinho.** | A curadoria do Ryan (votos) mais a bancada viram o portão de cada etapa de criatividade. |
 | R5 | **Referência externa:** ela não sobe para o banco (D3), mas **é enviada ao provedor de IA** para ser lida. | Deixar claro na interface. Instruir a IA a se inspirar, nunca copiar logo, texto ou foto de terceiro. |
