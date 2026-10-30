@@ -16,7 +16,10 @@
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       if (!AudioContext) return null;
       const ctx = new AudioContext();
-      if (ctx.state === 'suspended') ctx.resume();
+      // resume() devolve promessa; sem .catch, o ctx.close() dos sons (200–1000 ms depois) rejeitava
+      // "Closed before resume completed" quando o Firefox ainda barrava o áudio (sem gesto do usuário)
+      // e o erro virava erro_app no painel. Som que não tocou não é falha do Luma.
+      if (ctx.state === 'suspended') { const r = ctx.resume(); if (r && r.catch) r.catch(() => {}); }
       return ctx;
     } catch (e) {
       return null;

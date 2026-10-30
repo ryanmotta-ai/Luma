@@ -218,12 +218,12 @@ var gTrackEvent = (function(){
   window.addEventListener('pagehide',()=>{ if(document.visibilityState!=='hidden') encerra(); });
   /* erro_app: o erro que o franqueado vive como "travou" e nunca reporta. Teto de 5 por sessão e
      um por mensagem — um laço de erro não pode virar enxurrada. Só o que é DO Luma: script de
-     outra origem (extensão) e o ruído benigno do ResizeObserver ficam de fora. */
+     outra origem (extensão), o ruído benigno do ResizeObserver e o "JavaScript execution timed out after 10s" (mensagem de ferramenta de automação do navegador, não existe no código do Luma) ficam de fora. */
   const errVistos=(function(){ try{ return JSON.parse(sessionStorage.getItem('luma_err')||'[]'); }catch(e){ return []; } })();
   function erroApp(msg,url,linha,tipo){
     try{
       msg=String(msg||'').slice(0,160);
-      if(!msg||/ResizeObserver loop|^Script error\.?$/i.test(msg)) return;
+      if(!msg||/ResizeObserver loop|^Script error\.?$|^JavaScript execution timed out/i.test(msg)) return;
       if(url){ try{ if(new URL(url,location.href).origin!==location.origin) return; }catch(e){ return; } }
       if(!currentId()||errVistos.length>=5||errVistos.includes(msg)) return;
       errVistos.push(msg);

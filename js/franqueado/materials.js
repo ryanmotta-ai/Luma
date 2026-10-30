@@ -484,7 +484,7 @@ function _fPlayMuchPlusWooshSound(){
     const AudioContext=window.AudioContext||window.webkitAudioContext;
     if(!AudioContext) return;
     const ctx=new AudioContext();
-    if(ctx.state==='suspended') ctx.resume();
+    if(ctx.state==='suspended'){ const r=ctx.resume(); if(r&&r.catch) r.catch(()=>{}); } // ver core/sound.js: o close() em 1 s rejeitava a promessa
     const now=ctx.currentTime;
 
     // 1. Sopro de Seda (Warm Velvet Sweep)
