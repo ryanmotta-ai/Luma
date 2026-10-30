@@ -2261,8 +2261,9 @@ async function fBulkOpen(opcoes){
     window._fBulkBeforeUnloadBound=true;
   }
   fBulkUpdateReadiness();
-  
+
   document.getElementById('f-bulk-modal').classList.add('open');
+  _fBulkAbertoEm = Date.now();   // relógio do `lote_gerado` (ver `fBulkDownloadAll`)
   /* Depois do `open`: o painel precisa de caixa MEDIDA para se ajustar (o `fLpRefit` lê
      largura real), e dentro de um modal ainda fechado ela é zero. */
   _fBulkTomarPrevia();
@@ -4069,6 +4070,9 @@ function fBulkRemoveCard(index){
 // e para, empacotando no ZIP só o que já ficou pronto (ZIP parcial, não perde o trabalho feito).
 let _fBulkCancel = false;
 const _fBulkArquivoDaLinha = new Map();   // _rid → "01 - Pizza.png" da geração atual (a legenda vai ao lado)
+/* Quando o painel do lote abriu nesta visita (`fBulkOpen`). Serve ao evento `lote_gerado`: o tempo
+   TOTAL do franqueado com o Luma para tirar o lote (preencher + gerar), não só o da geração. */
+let _fBulkAbertoEm = 0;
 function fBulkCancelGen(){
   _fBulkCancel = true;
   const b = document.getElementById('f-bulk-cancel-btn');
@@ -4125,6 +4129,7 @@ async function fBulkDownloadAll(modo){
   if (typeof gConfirm === 'function' && !(await gConfirm(_resumo + '\n\nGerar agora?', {okLabel:`Gerar ${_totalArtes}`}))) return;
   _fBulkCancel = false; _fBulkArquivoDaLinha.clear();
   const _falhas = []; // renders que lançaram (avisados na tela no fim)
+  const _tGeracao0 = Date.now();   // só a geração (do "Gerar agora" ao fim dos renders)
 
   const wrap = document.getElementById('f-bulk-progress-wrap');
   const txt = document.getElementById('f-bulk-progress-text');
@@ -4202,7 +4207,17 @@ async function fBulkDownloadAll(modo){
     
     fState.fmt = oldFmt;
   }
-  
+
+  /* LOTE GERADO (30/10/2026, pedido do Ryan): "em quanto tempo ele gerou tal quantidade". É o dado
+     da hora rebate no painel de Dados — o tempo do franqueado com o Luma por tipo de ação, e aqui
+     a ação é o lote (cardápio, Sheets). Dois relógios: `render_s` é só a geração, do "Gerar agora"
+     ao último render; `total_s` é desde que o painel abriu nesta visita (preencher + gerar), que é
+     o que se compara com "antes ele levava uma semana". Um evento por lote, antes do ZIP — baixar
+     é outra coisa e já tem o `lote_baixado`. `n` = artes que saíram; `linhas` = ofertas válidas. */
+  try{ if(typeof gTrackEvent==='function') gTrackEvent('lote_gerado',{n:ok, linhas:valid.length, formatos:selectedFmts.map(x=>x.id),
+    render_s:Math.round((Date.now()-_tGeracao0)/1000), total_s:_fBulkAbertoEm?Math.round((Date.now()-_fBulkAbertoEm)/1000):null,
+    falhas:_falhas.length, cancelado:!!_fBulkCancel, camp_id:c&&c.id, template_id:(typeof _fTplId==='function')?_fTplId(fState.material):null}); }catch(e){}
+
   if(!soltas){
     // Gerador de Legendas v2 — Motor Combinatório com tom DM
     const copyFormat = (document.getElementById('f-bulk-copy-format') || {}).value || 'feed';

@@ -125,6 +125,7 @@ function _gDadosRotulo(ev, p) {
     case 'arte_gerada': return 'Gerou arte de ' + (aspas(p.camp_name || p.template_name) || 'um material') + (p.fmt_id ? ' (' + _gDadosFmt(p.fmt_id) + ')' : '');
     case 'arte_baixada': return 'Baixou ' + String(p.tipo || 'png').toUpperCase();
     case 'arte_compartilhada': return 'Compartilhou a arte' + (p.canal ? ' no ' + p.canal : '');
+    case 'lote_gerado': return 'Gerou um lote' + (p.n ? ' de ' + p.n + ' artes' : '') + (p.render_s ? ' em ' + _gDadosDur(p.render_s) : '') + (p.total_s ? ' (' + _gDadosDur(p.total_s) + ' desde abrir o lote)' : '');
     case 'lote_baixado': return 'Baixou um lote' + (p.n ? ' de ' + p.n + ' artes' : '');
     case 'kit_baixado': return 'Baixou o kit' + (p.n ? ' (' + p.n + ' artes)' : '');
     case 'erro_app': return 'Erro no app' + (p.msg ? ': ' + p.msg : '');
